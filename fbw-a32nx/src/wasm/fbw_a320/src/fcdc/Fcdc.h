@@ -40,100 +40,100 @@ class Fcdc {
   void computeSidestickPriorityLights(double deltaTime);
 
   // Computer axis engagement vars
-  bool elac1EngagedInRoll;
+  bool elac1EngagedInRoll = false;
 
-  bool elac2EngagedInRoll;
+  bool elac2EngagedInRoll = false;
 
-  bool sec1EngagedInRoll;
+  bool sec1EngagedInRoll = false;
 
-  bool sec2EngagedInRoll;
+  bool sec2EngagedInRoll = false;
 
-  bool sec3EngagedInRoll;
+  bool sec3EngagedInRoll = false;
 
-  bool elac1EngagedInPitch;
+  bool elac1EngagedInPitch = false;
 
-  bool elac2EngagedInPitch;
+  bool elac2EngagedInPitch = false;
 
-  bool sec1EngagedInPitch;
+  bool sec1EngagedInPitch = false;
 
-  bool sec2EngagedInPitch;
+  bool sec2EngagedInPitch = false;
 
   // Data concentration and computation vars
 
-  PitchLaw systemPitchLaw;
+  PitchLaw systemPitchLaw = PitchLaw::None;
 
-  LateralLaw systemLateralLaw;
+  LateralLaw systemLateralLaw = LateralLaw::None;
 
-  double leftAileronPos;
+  double leftAileronPos = 0;
 
-  bool leftAileronPosValid;
+  bool leftAileronPosValid = false;
 
-  double rightAileronPos;
+  double rightAileronPos = 0;
 
-  bool rightAileronPosValid;
+  bool rightAileronPosValid = false;
 
-  double leftElevatorPos;
+  double leftElevatorPos = 0;
 
-  bool leftElevatorPosValid;
+  bool leftElevatorPosValid = false;
 
-  double rightElevatorPos;
+  double rightElevatorPos = 0;
 
-  bool rightElevatorPosValid;
+  bool rightElevatorPosValid = false;
 
-  double thsPos;
+  double thsPos = 0;
 
-  bool thsPosValid;
+  bool thsPosValid = false;
 
-  double rollSidestickPosCapt;
+  double rollSidestickPosCapt = 0;
 
-  bool rollSidestickPosCaptValid;
+  bool rollSidestickPosCaptValid = false;
 
-  double rollSidestickPosFo;
+  double rollSidestickPosFo = 0;
 
-  bool rollSidestickPosFoValid;
+  bool rollSidestickPosFoValid = false;
 
-  double pitchSidestickPosCapt;
+  double pitchSidestickPosCapt = 0;
 
-  bool pitchSidestickPosCaptValid;
+  bool pitchSidestickPosCaptValid = false;
 
-  double pitchSidestickPosFo;
+  double pitchSidestickPosFo = 0;
 
-  bool pitchSidestickPosFoValid;
+  bool pitchSidestickPosFoValid = false;
 
-  double rudderPedalPos;
+  double rudderPedalPos = 0;
 
-  bool rudderPedalPosValid;
+  bool rudderPedalPosValid = false;
 
   // Sidestick priority vars
-  bool leftSidestickDisabled;
+  bool leftSidestickDisabled = false;
 
-  bool rightSidestickDisabled;
+  bool rightSidestickDisabled = false;
 
-  bool leftSidestickPriorityLocked;
+  bool leftSidestickPriorityLocked = false;
 
-  bool rightSidestickPriorityLocked;
+  bool rightSidestickPriorityLocked = false;
 
-  bool leftRedPriorityLightOn;
+  bool leftRedPriorityLightOn = false;
 
-  bool rightRedPriorityLightOn;
+  bool rightRedPriorityLightOn = false;
 
-  bool leftGreenPriorityLightOn;
+  bool leftGreenPriorityLightOn = false;
 
-  bool rightGreenPriorityLightOn;
+  bool rightGreenPriorityLightOn = false;
 
-  double priorityLightFlashingClock;
+  double priorityLightFlashingClock = 0;
 
   // Computer monitoring and self-test vars
 
-  bool monitoringHealthy;
+  bool monitoringHealthy = false;
 
-  double powerSupplyOutageTime;
+  double powerSupplyOutageTime = 0;
 
-  bool powerSupplyFault;
+  bool powerSupplyFault = false;
 
-  double selfTestTimer;
+  double selfTestTimer = 0;
 
-  bool selfTestComplete;
+  bool selfTestComplete = false;
 
   const bool isUnit1;
 

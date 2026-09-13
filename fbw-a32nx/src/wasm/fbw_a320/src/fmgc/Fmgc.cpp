@@ -12,7 +12,7 @@ Fmgc::Fmgc(const Fmgc& obj) : isUnit1(obj.isUnit1) {
 // If the power supply is valid and we are on the ground, perform the self-test-sequence.
 // Else, skip the self-test.
 void Fmgc::initSelfTests() {
-  if (powerSupplyFault)
+  if (powerSupplyMonitor.hasFault())
     return;
 
   clearMemory();
@@ -39,7 +39,7 @@ void Fmgc::update(double deltaTime, double simulationTime, bool faultActive, boo
 
 // Perform self monitoring
 void Fmgc::monitorSelf(bool faultActive) {
-  if (faultActive || powerSupplyFault || !selfTestComplete) {
+  if (faultActive || powerSupplyMonitor.hasFault() || !selfTestComplete) {
     monitoringHealthy = false;
   } else {
     monitoringHealthy = true;
@@ -51,16 +51,9 @@ void Fmgc::monitorSelf(bool faultActive) {
 // If the power has been restored after an outage that lasted longer than 10ms, reset the RAM and
 // perform the startup sequence.
 void Fmgc::monitorPowerSupply(double deltaTime, bool isPowered) {
-  if (!isPowered) {
-    powerSupplyOutageTime += deltaTime;
-  }
-  if (powerSupplyOutageTime > minimumPowerOutageTimeForFailure) {
-    powerSupplyFault = true;
-  }
-  if (isPowered && powerSupplyFault) {
-    powerSupplyFault = false;
+  if (powerSupplyMonitor.update(deltaTime, isPowered)) {
     initSelfTests();
-    powerSupplyOutageTime = 0;
+    powerSupplyMonitor.acknowledgeRecovery();
   }
 }
 

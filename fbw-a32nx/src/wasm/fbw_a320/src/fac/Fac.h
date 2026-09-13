@@ -38,25 +38,25 @@ class Fac {
   fac_outputs modelOutputs;
 
   // Computer Self-monitoring vars
-  bool facHealthy;
+  bool facHealthy = false;
 
-  bool selfTestFaultLightVisible;
+  bool selfTestFaultLightVisible = false;
 
   SRFlipFlop facHealthyFlipFlop = SRFlipFlop(false);
 
   PulseNode pushbuttonPulse = PulseNode(true);
 
   // Power Supply monitoring
-  double powerSupplyOutageTime;
+  double powerSupplyOutageTime = 0;
 
-  bool longPowerFailure;
+  bool longPowerFailure = false;
 
-  bool shortPowerFailure;
+  bool shortPowerFailure = false;
 
   // Selftest vars
-  double selfTestTimer;
+  double selfTestTimer = 0;
 
-  bool selfTestComplete;
+  bool selfTestComplete = false;
 
   // Constants
   const bool isUnit1;

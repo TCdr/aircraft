@@ -15,7 +15,7 @@ Sec::Sec(const Sec& obj) : isUnit1(obj.isUnit1), isUnit3(obj.isUnit3) {
 // perform a long selft-test.
 // Else, perform a short self-test.
 void Sec::initSelfTests() {
-  if (powerSupplyFault)
+  if (powerSupplyMonitor.hasFault())
     return;
 
   clearMemory();
@@ -39,6 +39,8 @@ void Sec::update(double deltaTime, double simulationTime, bool faultActive, bool
 
 // Perform self monitoring. If
 void Sec::monitorSelf(bool faultActive) {
+  const bool powerSupplyFault = powerSupplyMonitor.hasFault();
+
   cpuStopped = cpuStoppedFlipFlop.update(faultActive || powerSupplyFault, cpuStopped && selfTestComplete && !powerSupplyFault);
   if (cpuStopped) {
     modelInputs.in.sim_data.computer_running = false;
@@ -57,16 +59,9 @@ void Sec::monitorSelf(bool faultActive) {
 // If the power has been restored after an outage that lasted longer than 10ms, reset the RAM and
 // perform the startup sequence.
 void Sec::monitorPowerSupply(double deltaTime, bool isPowered) {
-  if (!isPowered) {
-    powerSupplyOutageTime += deltaTime;
-  }
-  if (powerSupplyOutageTime > minimumPowerOutageTimeForFailure) {
-    powerSupplyFault = true;
-  }
-  if (isPowered && powerSupplyFault) {
-    powerSupplyFault = false;
+  if (powerSupplyMonitor.update(deltaTime, isPowered)) {
     initSelfTests();
-    powerSupplyOutageTime = 0;
+    powerSupplyMonitor.acknowledgeRecovery();
   }
 }
 

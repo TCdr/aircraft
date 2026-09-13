@@ -94,6 +94,21 @@ impl VariablesToObject for GearPosition {
     }
 
     fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+        unpack_values!(
+            values,
+            [
+                nose_gear_position,
+                left_gear_position,
+                right_gear_position,
+                nose_door_position,
+                left_door_position,
+                right_door_position,
+                landing_light_2_position,
+                landing_light_3_position,
+                rat_stow_position,
+            ]
+        );
+
         // Ratio of MSFS gear drag corresponding to door drag
         const FAKE_GEAR_POSITION_FOR_DOOR_DRAG: f64 = 0.1;
         // Ratio of MSFS gear drag corresponding to landing light drag
@@ -101,22 +116,24 @@ impl VariablesToObject for GearPosition {
         // Ratio of MSFS gear drag corresponding to RAT deployed
         const FAKE_GEAR_POSITION_FOR_RAT_DRAG: f64 = 0.070;
 
-        let gear_deployed = values[0] > 5. || values[1] > 5. || values[2] > 5.;
+        let gear_deployed =
+            nose_gear_position > 5. || left_gear_position > 5. || right_gear_position > 5.;
 
         // Nose msfs gear value is gear position + door drag
-        let nose_value_after_drag =
-            (values[3] / 100.) * FAKE_GEAR_POSITION_FOR_DOOR_DRAG + values[0] / 100.;
+        let nose_value_after_drag = (nose_door_position / 100.) * FAKE_GEAR_POSITION_FOR_DOOR_DRAG
+            + nose_gear_position / 100.;
 
         // Left msfs gear value is gear position + left door drag + left landing light drag + RAT drag
-        let left_value_after_drag = (values[4] / 100.) * FAKE_GEAR_POSITION_FOR_DOOR_DRAG
-            + (values[6] / 100.) * FAKE_GEAR_POSITION_FOR_LANDING_LIGHT_DRAG
-            + values[8] * FAKE_GEAR_POSITION_FOR_RAT_DRAG
-            + values[1] / 100.;
+        let left_value_after_drag = (left_door_position / 100.) * FAKE_GEAR_POSITION_FOR_DOOR_DRAG
+            + (landing_light_2_position / 100.) * FAKE_GEAR_POSITION_FOR_LANDING_LIGHT_DRAG
+            + rat_stow_position * FAKE_GEAR_POSITION_FOR_RAT_DRAG
+            + left_gear_position / 100.;
 
         // Right msfs gear value is gear position + right door drag + right landing light drag
-        let right_value_after_drag = (values[5] / 100.) * FAKE_GEAR_POSITION_FOR_DOOR_DRAG
-            + (values[7] / 100.) * FAKE_GEAR_POSITION_FOR_LANDING_LIGHT_DRAG
-            + values[2] / 100.;
+        let right_value_after_drag = (right_door_position / 100.)
+            * FAKE_GEAR_POSITION_FOR_DOOR_DRAG
+            + (landing_light_3_position / 100.) * FAKE_GEAR_POSITION_FOR_LANDING_LIGHT_DRAG
+            + right_gear_position / 100.;
 
         self.nose_position = nose_value_after_drag.clamp(0., 1.);
         self.left_position = left_value_after_drag.clamp(0., 1.);

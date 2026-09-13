@@ -26,17 +26,6 @@ impl From<A320Pax> for usize {
         value as usize
     }
 }
-impl From<usize> for A320Pax {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => A320Pax::A,
-            1 => A320Pax::B,
-            2 => A320Pax::C,
-            3 => A320Pax::D,
-            i => panic!("Cannot convert from {} to A320Pax.", i),
-        }
-    }
-}
 
 #[cfg(test)]
 pub enum A320Cargo {

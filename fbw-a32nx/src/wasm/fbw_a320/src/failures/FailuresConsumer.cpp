@@ -51,7 +51,8 @@ void FailuresConsumer::acceptFailures(const std::set<int>& failures) {
 }
 
 bool FailuresConsumer::isActive(Failures failure) {
-  return (*activeFailures.find(failure)).second;
+  auto it = activeFailures.find(failure);
+  return it != activeFailures.end() && it->second;
 }
 
 bool FailuresConsumer::isAnyActive() {

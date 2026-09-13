@@ -17,11 +17,11 @@ void Elac::clearMemory() {}
 // perform a long selft-test.
 // Else, perform a short self-test.
 void Elac::initSelfTests(bool viaPushButton) {
-  if (powerSupplyFault)
+  if (powerSupplyMonitor.hasFault())
     return;
 
   if (modelInputs.in.discrete_inputs.green_low_pressure && modelInputs.in.discrete_inputs.blue_low_pressure &&
-      modelInputs.in.discrete_inputs.yellow_low_pressure && (powerSupplyOutageTime > 3 || viaPushButton)) {
+      modelInputs.in.discrete_inputs.yellow_low_pressure && (powerSupplyMonitor.getOutageTime() > 3 || viaPushButton)) {
     selfTestTimer = longSelfTestDuration;
   } else {
     selfTestTimer = shortSelfTestDuration;
@@ -44,7 +44,7 @@ void Elac::update(double deltaTime, double simulationTime, bool faultActive, boo
 
 // Perform self monitoring
 void Elac::monitorSelf(bool faultActive) {
-  if (faultActive || powerSupplyFault || !selfTestComplete || !modelInputs.in.discrete_inputs.elac_engaged_from_switch) {
+  if (faultActive || powerSupplyMonitor.hasFault() || !selfTestComplete || !modelInputs.in.discrete_inputs.elac_engaged_from_switch) {
     monitoringHealthy = false;
   } else {
     monitoringHealthy = true;
@@ -65,16 +65,9 @@ void Elac::monitorButtonStatus() {
 // If the power has been restored after an outage that lasted longer than 10ms, reset the RAM and
 // perform the startup sequence.
 void Elac::monitorPowerSupply(double deltaTime, bool isPowered) {
-  if (!isPowered) {
-    powerSupplyOutageTime += deltaTime;
-  }
-  if (powerSupplyOutageTime > minimumPowerOutageTimeForFailure) {
-    powerSupplyFault = true;
-  }
-  if (isPowered && powerSupplyFault) {
-    powerSupplyFault = false;
+  if (powerSupplyMonitor.update(deltaTime, isPowered)) {
     initSelfTests(false);
-    powerSupplyOutageTime = 0;
+    powerSupplyMonitor.acknowledgeRecovery();
   }
 }
 

@@ -50,6 +50,9 @@ add_executable(flybywire-a32nx-fbw
     src/fcu/Fcu.cpp
     src/fmgc/Fmgc.cpp
     src/interface/SimConnectInterface.cpp
+    src/interface/SimConnectInterface_ClientData.cpp
+    src/interface/SimConnectInterface_DataDefinitions.cpp
+    src/interface/SimConnectInterface_EventHandling.cpp
     src/model/ElacComputer_data.cpp
     src/model/ElacComputer.cpp
     src/model/FacComputer_data.cpp
@@ -77,6 +80,7 @@ add_executable(flybywire-a32nx-fbw
     src/sec/Sec.cpp
     src/utils/ConfirmNode.cpp
     src/utils/HysteresisNode.cpp
+    src/utils/PowerSupplyMonitor.cpp
     src/utils/PulseNode.cpp
     src/utils/SRFlipFLop.cpp
 )

@@ -1,3 +1,24 @@
+/// Destructures a `VariablesToObject::write()` (or similarly shaped) `values: Vec<f64>` into one
+/// named `f64` binding per element, in the same order as the `variables()` list being read.
+///
+/// This exists because every `VariablesToObject` impl in this crate reads its `write()` inputs by
+/// raw position (`values[0]`, `values[1]`, ...), with nothing tying that position back to the
+/// `Variable` it came from other than the programmer keeping two separately-declared lists in
+/// sync by hand. Destructuring through this macro instead gives every value a name at the point it
+/// is unpacked, so the correspondence to `variables()` is visible right there, and a mismatched
+/// count fails loudly (a panic) instead of silently reading the wrong input.
+macro_rules! unpack_values {
+    ($values:expr, [$($name:ident),+ $(,)?]) => {
+        let &[$($name),+] = $values.as_slice() else {
+            panic!(
+                "unpack_values!: expected {} values, got {}",
+                [$(stringify!($name)),+].len(),
+                $values.len()
+            );
+        };
+    };
+}
+
 mod ailerons;
 mod autobrakes;
 mod brakes;

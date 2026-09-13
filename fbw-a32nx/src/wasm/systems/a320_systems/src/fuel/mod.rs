@@ -33,18 +33,6 @@ impl From<A320FuelTankType> for usize {
         value as usize
     }
 }
-impl From<usize> for A320FuelTankType {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => A320FuelTankType::Center,
-            1 => A320FuelTankType::LeftInner,
-            2 => A320FuelTankType::LeftOuter,
-            3 => A320FuelTankType::RightInner,
-            4 => A320FuelTankType::RightOuter,
-            i => panic!("Cannot convert from {} to A320FuelTankType.", i),
-        }
-    }
-}
 
 pub struct A320Fuel {
     fuel_system: FuelSystem<5, 5>,

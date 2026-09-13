@@ -56,6 +56,20 @@ class Polynomial_A32NX {
       outN2 += c_N2[i] * (std::pow)(normalN2, i);
     }
 
+    // The fit above is a multiplier applied to n2 below (i.e. outN2 is close to 1 when the fit is
+    // accurate). It was evidently fit against sparse data in the low-N2 region: between normalN2 of
+    // about 0 and 20 it overshoots badly (as high as ~4x around normalN2 of 1-2), making the first
+    // few seconds of the start - where a real engine is slowest - look unrealistically fast. Blend
+    // the multiplier back down to 1 (i.e. outN2 == n2, no correction) as normalN2 approaches 0, and
+    // smoothly rejoin the fitted curve (matching both its value and slope) by normalN2 == 20, where
+    // the fit has already settled down to a much more reasonable ~1.2x.
+    constexpr double N2_MULTIPLIER_BLEND_END = 20.;
+    if (normalN2 < N2_MULTIPLIER_BLEND_END) {
+      const double t = (std::clamp)(normalN2 / N2_MULTIPLIER_BLEND_END, 0., 1.);
+      const double smoothT = t * t * (3. - 2. * t);  // smoothstep: 0 at t=0, 1 at t=1, flat slope at both ends
+      outN2 = 1. + smoothT * (outN2 - 1.);
+    }
+
     outN2 *= n2;
     outN2 = (std::max)(outN2, preN2 + 0.002);
     return (std::min)(outN2, idleN2 + 0.1);
@@ -112,28 +126,41 @@ class Polynomial_A32NX {
    */
   static double startFF(double fbwN2, double idleN2, double idleFF) {
     const double normalN2 = fbwN2 / idleN2;
-    double       normalFF = 0;
 
-    // If the normalized N2 percentage is less than or equal to 0.37, the FF is 0.
-    if (normalN2 <= 0.37) {
-      normalFF = 0;
-    } else {
-      // Coefficients for the polynomial used to calculate the FF.
-      constexpr double c_FF[9] = {
-          3.1110282e-12,   // coefficient for x^0
-          1.0804331e+02,   // coefficient for x^1
-          -1.3972629e+03,  // coefficient for x^2
-          7.4874131e+03,   // coefficient for x^3
-          -2.1511983e+04,  // coefficient for x^4
-          3.5957757e+04,   // coefficient for x^5
-          -3.5093994e+04,  // coefficient for x^6
-          1.8573033e+04,   // coefficient for x^7
-          -4.1220062e+03   // coefficient for x^8
-      };
-      // Calculate the FF using the polynomial equation.
+    // Coefficients for the polynomial used to calculate the FF. Only trustworthy above
+    // FF_POLYNOMIAL_START - see below.
+    constexpr double c_FF[9] = {
+        3.1110282e-12,   // coefficient for x^0
+        1.0804331e+02,   // coefficient for x^1
+        -1.3972629e+03,  // coefficient for x^2
+        7.4874131e+03,   // coefficient for x^3
+        -2.1511983e+04,  // coefficient for x^4
+        3.5957757e+04,   // coefficient for x^5
+        -3.5093994e+04,  // coefficient for x^6
+        1.8573033e+04,   // coefficient for x^7
+        -4.1220062e+03   // coefficient for x^8
+    };
+    const auto evaluateFfPolynomial = [&c_FF](double x) {
+      double result = 0.0;
       for (int i = 0; i < 9; ++i) {
-        normalFF += c_FF[i] * (std::pow)(normalN2, i);
+        result += c_FF[i] * (std::pow)(x, i);
       }
+      return result;
+    };
+
+    // Below this point the fit is unreliable: evaluated anyway it swings as high as ~2.8x idle FF
+    // around normalN2 of 0.06 before settling back down, almost certainly sparse/noisy calibration
+    // data for the very start of the light-off. Rather than clamp straight to 0 there (which made
+    // FF jump discontinuously from 0 to ~27% of idle the instant the polynomial took over), ramp
+    // smoothly from 0 at ignition up to the polynomial's own value at the threshold.
+    constexpr double FF_POLYNOMIAL_START = 0.37;
+    double normalFF;
+    if (normalN2 <= FF_POLYNOMIAL_START) {
+      const double t = (std::clamp)(normalN2 / FF_POLYNOMIAL_START, 0., 1.);
+      const double smoothT = t * t * (3. - 2. * t);  // smoothstep
+      normalFF = smoothT * evaluateFfPolynomial(FF_POLYNOMIAL_START);
+    } else {
+      normalFF = evaluateFfPolynomial(normalN2);
     }
 
     // Return the calculated FF, ensuring it is not less than 0.0 and then multiplied by idleFF.
@@ -373,8 +400,6 @@ class Polynomial_A32NX {
    * @param maxOilTemperature The maximum oil temperature in Celsius.
    * @param deltaTime The time interval in seconds.
    * @return The calculated oil temperature in Celsius.
-   *
-   * TODO: Currently not used in the code.
    */
   static double oilTemperature(double thermalEnergy, double previousOilTemp, double maxOilTemperature, double deltaTime) {
     // these constants are likely derived from empirical data or a mathematical model of the engine's behavior

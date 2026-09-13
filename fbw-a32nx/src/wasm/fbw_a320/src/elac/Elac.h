@@ -6,6 +6,7 @@
 #include "../model/ElacComputer.h"
 #include "../utils/ConfirmNode.h"
 #include "../utils/HysteresisNode.h"
+#include "../utils/PowerSupplyMonitor.h"
 #include "../utils/PulseNode.h"
 #include "../utils/SRFlipFlop.h"
 
@@ -43,19 +44,14 @@ class Elac {
   elac_outputs modelOutputs;
 
   // Computer Self-monitoring vars
-  bool monitoringHealthy;
+  bool monitoringHealthy = false;
 
-  bool prevEngageButtonWasPressed;
-
-  // Power Supply monitoring
-  double powerSupplyOutageTime;
-
-  bool powerSupplyFault;
+  bool prevEngageButtonWasPressed = false;
 
   // Selftest vars
-  double selfTestTimer;
+  double selfTestTimer = 0;
 
-  bool selfTestComplete;
+  bool selfTestComplete = false;
 
   // Constants
   const bool isUnit1;
@@ -63,4 +59,7 @@ class Elac {
   const double minimumPowerOutageTimeForFailure = 0.02;
   const double shortSelfTestDuration = 1;
   const double longSelfTestDuration = 8;
+
+  // Power Supply monitoring
+  PowerSupplyMonitor powerSupplyMonitor{minimumPowerOutageTimeForFailure};
 };

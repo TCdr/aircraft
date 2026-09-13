@@ -43,10 +43,12 @@ impl VariablesToObject for YawSimOutput {
     }
 
     fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
-        self.rudder = values[0];
+        unpack_values!(values, [rudder_feedback, tracking_mode]);
+
+        self.rudder = rudder_feedback;
 
         // Not writing control feedback when in tracking mode
-        ObjectWrite::on(!to_bool(values[1]))
+        ObjectWrite::on(!to_bool(tracking_mode))
     }
 
     set_data_on_sim_object!();
