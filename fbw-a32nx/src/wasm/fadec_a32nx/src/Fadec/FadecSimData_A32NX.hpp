@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 #ifndef FLYBYWIRE_AIRCRAFT_FADECSIMDATA_A32NX_HPP
@@ -108,6 +108,7 @@ class FadecSimData_A32NX {
     FLOAT64 engineFuelValveOpen[2];    // Number
     FLOAT64 engineIgniter[2];          // Number
     FLOAT64 engineStarter[2];          // Bool
+    FLOAT64 engineThrust[2];           // Pounds
     FLOAT64 fuelPump1[2];              // Number
     FLOAT64 fuelPump2[2];              // Number
     FLOAT64 fuelTankQuantityCenter;    // Gallons
@@ -141,6 +142,8 @@ class FadecSimData_A32NX {
       {"TURB ENG IGNITION SWITCH EX1", 2,  UNITS.Number   }, // engineIgniter[1]
       {"GENERAL ENG STARTER",          1,  UNITS.Bool     }, // engineStarter[0]
       {"GENERAL ENG STARTER",          2,  UNITS.Bool     }, // engineStarter[1]
+      {"TURB ENG JET THRUST",          1,  UNITS.Pounds   }, // engineThrust[0]
+      {"TURB ENG JET THRUST",          2,  UNITS.Pounds   }, // engineThrust[1]
       {"FUELSYSTEM PUMP ACTIVE",       2,  UNITS.Number   }, // fuelPump1[0]
       {"FUELSYSTEM PUMP ACTIVE",       3,  UNITS.Number   }, // fuelPump1[1]
       {"FUELSYSTEM PUMP ACTIVE",       5,  UNITS.Number   }, // fuelPump2[0]

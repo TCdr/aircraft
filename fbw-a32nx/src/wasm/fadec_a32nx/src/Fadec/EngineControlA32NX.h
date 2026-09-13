@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 #ifndef FLYBYWIRE_AIRCRAFT_ENGINECONTROL_A32NX_H
@@ -61,8 +61,12 @@ class EngineControl_A32NX {
   double prevThrustLimitType       = 0.0;
   double prevEngineMasterPos[2]    = {0, 0};
   bool   prevEngineStarterState[2] = {false, false};
+  double prevSimEngineN2[2]        = {0, 0};
   // the FADEC set the MSFS ignition switch to IGN for an in-flight relight and must give it back to the ENG MODE selector
   bool relightIgnitionSet[2] = {false, false};
+
+  // Engine oil state
+  double thermalEnergy[2] = {0.0, 0.0};
 
   // FLX->CLB thrust limit transition
   double transitionStartTime;
@@ -73,6 +77,8 @@ class EngineControl_A32NX {
   static constexpr int    MAX_OIL             = 200;
   static constexpr int    MIN_OIL             = 140;
   static constexpr double FUEL_RATE_THRESHOLD = 661;  // lbs/sec for determining fuel ui tampering
+  static constexpr int    MAX_OIL_TEMP        = 85;   // degree Celsius
+  static constexpr double FORCE_LB_TO_N       = 4.4482216153;
 
   // Seizure failure: the core stops in about 3 s (design choice, the FCOM gives no rate): N2 decays at 2 /s from the
   // failure and is 0 below 0.5 %.
@@ -380,6 +386,26 @@ class EngineControl_A32NX {
                           int    packs,
                           int    nai,
                           int    wai);
+
+  /**
+   * @brief FBW Oil Qty, Pressure and Temperature (in Quarts, PSI and degree Celsius).
+   *        Updates Oil with realistic values visualized in the SD.
+   *
+   * @param engine The engine number (1 or 2).
+   * @param engineState The current state of the engine.
+   * @param deltaTime The time difference since the last update in seconds.
+   * @param simOnGround Whether the aircraft is currently on the ground.
+   * @param ambientTemperature The current ambient temperature in degrees Celsius.
+   * @param deltaN2 Difference between last N2 and current N2.
+   * @param imbalance The current encoded imbalance number of the engine.
+   */
+  void updateOil(int         engine,
+                EngineState engineState,
+                double      deltaTime,
+                bool        simOnGround,
+                double      ambientTemperature,
+                double      deltaN2,
+                double      imbalance);
 };
 
 #endif  // FLYBYWIRE_AIRCRAFT_ENGINECONTROL_A32NX_H
