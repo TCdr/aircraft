@@ -98,7 +98,10 @@ void Fac::updateSelfTest(double deltaTime) {
 base_fac_bus Fac::getBusOutputs() {
   base_fac_bus output = {};
 
-  if (!facHealthy) {
+  // While a short power failure halts program execution (see monitorPowerSupply()), the computer's output
+  // drivers are also unpowered, so outputs must be reported as invalid for that brief window even though
+  // facHealthy itself (a latched fault status) is not cleared and recovers on its own once power returns.
+  if (!facHealthy || shortPowerFailure) {
     output.discrete_word_1.SSM = Arinc429SignStatus::FailureWarning;
     output.discrete_word_2.SSM = Arinc429SignStatus::FailureWarning;
     output.discrete_word_3.SSM = Arinc429SignStatus::FailureWarning;
@@ -139,9 +142,9 @@ base_fac_bus Fac::getBusOutputs() {
 base_fac_discrete_outputs Fac::getDiscreteOutputs() {
   base_fac_discrete_outputs output = {};
 
-  output.fac_healthy = (selfTestComplete && facHealthy) || (!selfTestComplete && !selfTestFaultLightVisible);
+  output.fac_healthy = !shortPowerFailure && ((selfTestComplete && facHealthy) || (!selfTestComplete && !selfTestFaultLightVisible));
 
-  if (!facHealthy) {
+  if (!facHealthy || shortPowerFailure) {
     output.yaw_damper_engaged = false;
     output.rudder_trim_engaged = false;
     output.rudder_travel_lim_engaged = false;
@@ -156,7 +159,7 @@ base_fac_discrete_outputs Fac::getDiscreteOutputs() {
 base_fac_analog_outputs Fac::getAnalogOutputs() {
   base_fac_analog_outputs output = {};
 
-  if (!facHealthy) {
+  if (!facHealthy || shortPowerFailure) {
     output.yaw_damper_order_deg = 0;
     output.rudder_trim_order_deg = 0;
     output.rudder_travel_limit_order_deg = 0;

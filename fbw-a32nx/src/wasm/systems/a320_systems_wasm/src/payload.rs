@@ -104,14 +104,28 @@ impl VariablesToObject for Payload {
     }
 
     fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
-        self.payload_station_1 = values[0];
-        self.payload_station_2 = values[1];
-        self.payload_station_3 = values[2];
-        self.payload_station_4 = values[3];
-        self.payload_station_5 = values[4];
-        self.payload_station_6 = values[5];
-        self.payload_station_7 = values[6];
-        self.payload_station_8 = values[7];
+        unpack_values!(
+            values,
+            [
+                payload_station_1,
+                payload_station_2,
+                payload_station_3,
+                payload_station_4,
+                payload_station_5,
+                payload_station_6,
+                payload_station_7,
+                payload_station_8,
+            ]
+        );
+
+        self.payload_station_1 = payload_station_1;
+        self.payload_station_2 = payload_station_2;
+        self.payload_station_3 = payload_station_3;
+        self.payload_station_4 = payload_station_4;
+        self.payload_station_5 = payload_station_5;
+        self.payload_station_6 = payload_station_6;
+        self.payload_station_7 = payload_station_7;
+        self.payload_station_8 = payload_station_8;
         ObjectWrite::default()
     }
 

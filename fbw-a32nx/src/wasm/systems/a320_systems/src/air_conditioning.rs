@@ -682,7 +682,9 @@ impl<const ZONES: usize> SimulationElement for A320AirConditioningSystemOverhead
             0 => OverheadFlowSelector::Lo,
             1 => OverheadFlowSelector::Norm,
             2 => OverheadFlowSelector::Hi,
-            _ => panic!("Overhead flow selector position not recognized."),
+            // The LVAR backing this knob is externally writable, so an out-of-range value must not crash
+            // the whole aircraft simulation. Fall back to the knob's normal/neutral position instead.
+            _ => OverheadFlowSelector::Norm,
         }
     }
 
@@ -1016,9 +1018,10 @@ impl ControllerSignal<OutflowValveSignal> for A320PressurizationOverheadPanel {
         } else {
             match self.man_vs_switch_position() {
                 0 => Some(OutflowValveSignal::new_open()),
-                1 => None,
                 2 => Some(OutflowValveSignal::new_closed()),
-                _ => panic!("Could not convert manual vertical speed switch position '{}' to pressure valve signal.", self.man_vs_switch_position()),
+                // Position 1 is the switch's neutral position. The backing LVAR is externally writable,
+                // so any other out-of-range value is also treated as neutral rather than panicking.
+                _ => None,
             }
         }
     }

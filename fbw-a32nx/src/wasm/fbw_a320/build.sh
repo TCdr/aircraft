@@ -101,6 +101,9 @@ clang++ \
   -I "${FBW_COMMON_DIR}/src/inih" \
   -I "${DIR}/src/interface" \
   "${DIR}/src/interface/SimConnectInterface.cpp" \
+  "${DIR}/src/interface/SimConnectInterface_DataDefinitions.cpp" \
+  "${DIR}/src/interface/SimConnectInterface_EventHandling.cpp" \
+  "${DIR}/src/interface/SimConnectInterface_ClientData.cpp" \
   -I "${DIR}/src/busStructures" \
   -I "${DIR}/src/elac" \
   "${DIR}/src/elac/Elac.cpp" \
@@ -121,6 +124,7 @@ clang++ \
   "${DIR}/src/utils/SRFlipFLop.cpp" \
   "${DIR}/src/utils/PulseNode.cpp" \
   "${DIR}/src/utils/HysteresisNode.cpp" \
+  "${DIR}/src/utils/PowerSupplyMonitor.cpp" \
   -I "${DIR}/src/model" \
   "${DIR}/src/model/ElacComputer_data.cpp" \
   "${DIR}/src/model/ElacComputer.cpp" \

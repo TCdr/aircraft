@@ -1,17 +1,17 @@
-#include <stdlib.h>
+#include <cmath>
 
 #pragma once
 
 class RateLimiter {
  public:
-  void setRate(double rate) { changeRate = abs(rate); }
+  void setRate(double rate) { changeRate = std::abs(rate); }
 
   void reset(double value) { currentValue = value; }
 
   void update(double target, double dt) {
     double maxChange = changeRate * dt;
 
-    if (abs(target - currentValue) >= maxChange) {
+    if (std::abs(target - currentValue) >= maxChange) {
       if (target - currentValue > 0) {
         currentValue += maxChange;
       } else {

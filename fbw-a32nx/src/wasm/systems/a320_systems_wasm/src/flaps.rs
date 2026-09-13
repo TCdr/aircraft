@@ -114,8 +114,10 @@ impl VariablesToObject for FlapsSurface {
     }
 
     fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
-        self.left_flap = values[0];
-        self.right_flap = values[1];
+        unpack_values!(values, [left_flaps_position, right_flaps_position]);
+
+        self.left_flap = left_flaps_position;
+        self.right_flap = right_flaps_position;
 
         ObjectWrite::default()
     }
@@ -143,8 +145,10 @@ impl VariablesToObject for SlatsSurface {
     }
 
     fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
-        self.left_slat = values[0];
-        self.right_slat = values[1];
+        unpack_values!(values, [left_slats_position, right_slats_position]);
+
+        self.left_slat = left_slats_position;
+        self.right_slat = right_slats_position;
 
         ObjectWrite::default()
     }
@@ -183,10 +187,15 @@ impl FlapsHandleIndex {
     /// There is no index available for flaps but no slats configurations (possible plane failure case)
     /// The percent thresholds can be tuned to change the timing of aerodynamic impact versus surface actual position
     fn msfs_flap_index_from_surfaces_positions_percent(values: Vec<f64>) -> f64 {
-        let left_flaps_position = values[0];
-        let right_flaps_position = values[1];
-        let left_slats_position = values[2];
-        let right_slats_position = values[3];
+        unpack_values!(
+            values,
+            [
+                left_flaps_position,
+                right_flaps_position,
+                left_slats_position,
+                right_slats_position,
+            ]
+        );
         let flap_mean_position = (left_flaps_position + right_flaps_position) / 2.;
         let slat_mean_position = (left_slats_position + right_slats_position) / 2.;
 

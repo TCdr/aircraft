@@ -27,21 +27,21 @@ class Fcu {
   fcu_outputs modelOutputs;
 
   // Computer Self-monitoring vars
-  bool fcuHealthy;
+  bool fcuHealthy = false;
 
-  bool monitoringHealthy[2];
+  bool monitoringHealthy[2] = {};
 
-  bool cpuStopped[2];
+  bool cpuStopped[2] = {};
 
   // Power Supply monitoring
-  double powerSupplyOutageTime[2];
+  double powerSupplyOutageTime[2] = {};
 
-  bool powerSupplyFault[2];
+  bool powerSupplyFault[2] = {};
 
   // Selftest vars
-  double selfTestTimer[2];
+  double selfTestTimer[2] = {};
 
-  bool selfTestComplete[2];
+  bool selfTestComplete[2] = {};
 
   // Constants
   const double minimumPowerOutageTimeForFailure = 0.02;

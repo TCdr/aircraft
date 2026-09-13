@@ -1,5 +1,6 @@
 #pragma once
 #include "../model/FmgcComputer.h"
+#include "../utils/PowerSupplyMonitor.h"
 
 class Fmgc {
  public:
@@ -33,29 +34,27 @@ class Fmgc {
   fmgc_outputs modelOutputs;
 
   // Computer Self-monitoring vars
-  bool monitoringHealthy;
+  bool monitoringHealthy = false;
 
-  bool selfTestApEngagedDiscreteOn;
+  bool selfTestApEngagedDiscreteOn = false;
 
-  bool selfTestAthrEngagedDiscreteOn;
+  bool selfTestAthrEngagedDiscreteOn = false;
 
-  bool selfTestDigitalOutValid;
+  bool selfTestDigitalOutValid = false;
 
-  bool cpuStopped;
-
-  // Power Supply monitoring
-  double powerSupplyOutageTime;
-
-  bool powerSupplyFault;
+  bool cpuStopped = false;
 
   // Selftest vars
-  double selfTestTimer;
+  double selfTestTimer = 0;
 
-  bool selfTestComplete;
+  bool selfTestComplete = false;
 
   // Constants
   const bool isUnit1;
 
   const double minimumPowerOutageTimeForFailure = 0.02;
   const double selfTestDuration = 30;
+
+  // Power Supply monitoring
+  PowerSupplyMonitor powerSupplyMonitor{minimumPowerOutageTimeForFailure};
 };

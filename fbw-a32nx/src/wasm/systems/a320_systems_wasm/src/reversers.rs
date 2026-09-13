@@ -62,20 +62,33 @@ impl VariablesToObject for ReverserThrust {
     }
 
     fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
-        let brakes_in_use = values[4] + values[5] > 0.05;
+        unpack_values!(
+            values,
+            [
+                velocity_z,
+                reverser_delta_speed,
+                rotation_accel_y,
+                reverser_angular_accel,
+                brake_left_force,
+                brake_right_force,
+            ]
+        );
 
-        self.velocity_z = if values[0] < 0.
-            && values[0] > LOW_SPEED_MODE_SPEED_THRESHOLD_FOOT_PER_SEC
+        let brakes_in_use = brake_left_force + brake_right_force > 0.05;
+
+        self.velocity_z = if velocity_z < 0.
+            && velocity_z > LOW_SPEED_MODE_SPEED_THRESHOLD_FOOT_PER_SEC
             && !brakes_in_use
         {
-            values[0] + LOW_SPEED_MODE_SPEED_FORCE_MULTIPLIER * values[1]
+            velocity_z + LOW_SPEED_MODE_SPEED_FORCE_MULTIPLIER * reverser_delta_speed
         } else {
-            values[0] + values[1]
+            velocity_z + reverser_delta_speed
         };
 
-        self.angular_acc_y = values[2] + ASYMETRY_EFFECT_MAGIC_MULTIPLIER * values[3];
+        self.angular_acc_y =
+            rotation_accel_y + ASYMETRY_EFFECT_MAGIC_MULTIPLIER * reverser_angular_accel;
 
-        ObjectWrite::on(values[1].abs() > 0. || values[3].abs() > 0.)
+        ObjectWrite::on(reverser_delta_speed.abs() > 0. || reverser_angular_accel.abs() > 0.)
     }
 
     set_data_on_sim_object!();

@@ -5,6 +5,7 @@
 #include "../Arinc429.h"
 #include "../model/SecComputer.h"
 #include "../utils/ConfirmNode.h"
+#include "../utils/PowerSupplyMonitor.h"
 #include "../utils/PulseNode.h"
 #include "../utils/SRFlipFlop.h"
 
@@ -40,25 +41,20 @@ class Sec {
   sec_outputs modelOutputs;
 
   // Computer Self-monitoring vars
-  bool monitoringHealthy;
+  bool monitoringHealthy = false;
 
-  bool selfTestFaultLightVisible;
+  bool selfTestFaultLightVisible = false;
 
-  bool cpuStopped;
+  bool cpuStopped = false;
 
   SRFlipFlop cpuStoppedFlipFlop = SRFlipFlop(true);
 
   PulseNode resetPulseNode = PulseNode(false);
 
-  // Power Supply monitoring
-  double powerSupplyOutageTime;
-
-  bool powerSupplyFault;
-
   // Selftest vars
-  double selfTestTimer;
+  double selfTestTimer = 0;
 
-  bool selfTestComplete;
+  bool selfTestComplete = false;
 
   // Constants
   const bool isUnit1;
@@ -66,4 +62,7 @@ class Sec {
 
   const double minimumPowerOutageTimeForFailure = 0.02;
   const double selfTestDuration = 30;
+
+  // Power Supply monitoring
+  PowerSupplyMonitor powerSupplyMonitor{minimumPowerOutageTimeForFailure};
 };
