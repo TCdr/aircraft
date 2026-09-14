@@ -69,7 +69,7 @@ impl VariablesToObject for RollSimOutput {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         unpack_values!(values, [aileron_feedback, tracking_mode]);
 
         self.ailerons = aileron_feedback;

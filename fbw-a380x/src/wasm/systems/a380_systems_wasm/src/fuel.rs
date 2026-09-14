@@ -90,7 +90,7 @@ impl VariablesToObject for Fuel {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         self.fuel_1 = values[0];
         self.fuel_2 = values[1];
         self.fuel_3 = values[2];

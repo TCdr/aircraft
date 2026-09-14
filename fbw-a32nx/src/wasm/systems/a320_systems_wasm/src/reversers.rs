@@ -61,7 +61,7 @@ impl VariablesToObject for ReverserThrust {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         unpack_values!(
             values,
             [

@@ -69,7 +69,7 @@ impl VariablesToObject for PitchSimOutput {
     // Using a corrective factor because flight model do not have the real deflection
     // Real deflection is -17/30
     // If flight model deflection is -17/25, corrective factor is 17/25 / 17/30 = 1.2
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         unpack_values!(values, [elevator_feedback, tracking_mode]);
 
         self.elevator = 1.2 * elevator_feedback;

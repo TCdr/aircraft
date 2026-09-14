@@ -39,7 +39,7 @@ impl VariablesToObject for Fire {
             .collect()
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         self.fire_detected_1 = values[0];
         self.fire_detected_2 = values[1];
         self.fire_detected_3 = values[2];

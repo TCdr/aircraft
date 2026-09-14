@@ -9,7 +9,7 @@
 /// count fails loudly (a panic) instead of silently reading the wrong input.
 macro_rules! unpack_values {
     ($values:expr, [$($name:ident),+ $(,)?]) => {
-        let &[$($name),+] = $values.as_slice() else {
+        let &[$($name),+] = $values else {
             panic!(
                 "unpack_values!: expected {} values, got {}",
                 [$(stringify!($name)),+].len(),

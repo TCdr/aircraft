@@ -92,7 +92,7 @@ impl VariablesToObject for PitchSimOutput {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         self.elevator = values[0];
 
         // Not writing control feedback when in tracking mode

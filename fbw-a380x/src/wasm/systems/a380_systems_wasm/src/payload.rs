@@ -168,7 +168,7 @@ impl VariablesToObject for Payload {
             .collect::<Vec<_>>()
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         self.payload_station_1 = values[0];
         self.payload_station_2 = values[1];
         self.payload_station_3 = values[2];

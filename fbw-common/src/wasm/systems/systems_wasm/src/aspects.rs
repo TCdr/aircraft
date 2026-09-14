@@ -425,6 +425,8 @@ struct MapMany {
     input_variable_identifiers: Vec<VariableIdentifier>,
     func: fn(&[f64]) -> f64,
     output_variable_identifier: VariableIdentifier,
+    // Reused every tick instead of collecting a new Vec, to avoid a per-frame heap allocation.
+    values: Vec<f64>,
 }
 
 impl MapMany {
@@ -435,10 +437,12 @@ impl MapMany {
     ) -> Self {
         precondition_multiple_identifiers("MapMany", &input_variable_identifiers);
 
+        let values = Vec::with_capacity(input_variable_identifiers.len());
         Self {
             input_variable_identifiers,
             func,
             output_variable_identifier,
+            values,
         }
     }
 }
@@ -449,9 +453,14 @@ impl ExecutableVariableAction for MapMany {
         _: &mut SimConnect,
         variables: &mut MsfsVariableRegistry,
     ) -> Result<(), Box<dyn Error>> {
-        let values: Vec<f64> = variables.read_many(&self.input_variable_identifiers);
+        self.values.clear();
+        self.values.extend(
+            self.input_variable_identifiers
+                .iter()
+                .map(|identifier| variables.read(identifier)),
+        );
 
-        let result = (self.func)(&values);
+        let result = (self.func)(&self.values);
         variables.write(&self.output_variable_identifier, result);
 
         Ok(())
@@ -463,6 +472,8 @@ struct Reduce {
     init: f64,
     func: fn(f64, f64) -> f64,
     output_variable_identifier: VariableIdentifier,
+    // Reused every tick instead of collecting a new Vec, to avoid a per-frame heap allocation.
+    values: Vec<f64>,
 }
 
 impl Reduce {
@@ -474,11 +485,13 @@ impl Reduce {
     ) -> Self {
         precondition_multiple_identifiers("Reduce", &input_variable_identifiers);
 
+        let values = Vec::with_capacity(input_variable_identifiers.len());
         Self {
             input_variable_identifiers,
             init,
             func,
             output_variable_identifier,
+            values,
         }
     }
 }
@@ -489,10 +502,14 @@ impl ExecutableVariableAction for Reduce {
         _: &mut SimConnect,
         variables: &mut MsfsVariableRegistry,
     ) -> Result<(), Box<dyn Error>> {
-        let result = variables
-            .read_many(&self.input_variable_identifiers)
-            .into_iter()
-            .fold(self.init, self.func);
+        self.values.clear();
+        self.values.extend(
+            self.input_variable_identifiers
+                .iter()
+                .map(|identifier| variables.read(identifier)),
+        );
+
+        let result = self.values.iter().copied().fold(self.init, self.func);
 
         variables.write(&self.output_variable_identifier, result);
 
@@ -527,20 +544,24 @@ impl ObjectWrite {
 /// Write function provides the output to know if the object will be written to sim or not
 pub trait VariablesToObject {
     fn variables(&self) -> Vec<Variable>;
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite;
+    fn write(&mut self, values: &[f64]) -> ObjectWrite;
     fn set_data_on_sim_object(&self, sim_connect: &mut SimConnect) -> Result<(), Box<dyn Error>>;
 }
 
 struct ToObject {
     target_object: Box<dyn VariablesToObject>,
     variables: Vec<VariableIdentifier>,
+    // Reused every tick instead of collecting a new Vec, to avoid a per-frame heap allocation.
+    values: Vec<f64>,
 }
 
 impl ToObject {
     fn new(target_object: Box<dyn VariablesToObject>, variables: Vec<VariableIdentifier>) -> Self {
+        let values = Vec::with_capacity(variables.len());
         Self {
             target_object,
             variables,
+            values,
         }
     }
 }
@@ -551,13 +572,14 @@ impl ExecutableVariableAction for ToObject {
         sim_connect: &mut SimConnect,
         variables: &mut MsfsVariableRegistry,
     ) -> Result<(), Box<dyn Error>> {
-        let values: Vec<f64> = self
-            .variables
-            .iter()
-            .map(|variable_identifier| variables.read(variable_identifier))
-            .collect();
+        self.values.clear();
+        self.values.extend(
+            self.variables
+                .iter()
+                .map(|variable_identifier| variables.read(variable_identifier)),
+        );
 
-        if self.target_object.write(values) == ObjectWrite::ToSim {
+        if self.target_object.write(&self.values) == ObjectWrite::ToSim {
             self.target_object.set_data_on_sim_object(sim_connect)?;
         }
 
@@ -945,6 +967,9 @@ type OnChangeFn = Box<dyn Fn(&[f64], &[f64])>;
 struct OnChange {
     observed_variables: Vec<VariableIdentifier>,
     previous_values: Vec<f64>,
+    // Scratch buffer for this tick's values. Swapped with previous_values after comparison
+    // instead of allocating a new Vec every tick.
+    current_values: Vec<f64>,
     func: OnChangeFn,
 }
 
@@ -954,9 +979,11 @@ impl OnChange {
         starting_values: Vec<f64>,
         func: OnChangeFn,
     ) -> Self {
+        let current_values = Vec::with_capacity(starting_values.len());
         Self {
             observed_variables,
             previous_values: starting_values,
+            current_values,
             func,
         }
     }
@@ -968,7 +995,12 @@ impl ExecutableVariableAction for OnChange {
         _: &mut SimConnect,
         variables: &mut MsfsVariableRegistry,
     ) -> Result<(), Box<dyn Error>> {
-        let current_values: Vec<f64> = variables.read_many(&self.observed_variables);
+        self.current_values.clear();
+        self.current_values.extend(
+            self.observed_variables
+                .iter()
+                .map(|identifier| variables.read(identifier)),
+        );
 
         // Allow floating point equality comparison, because we really care about the
         // value being exactly equal and assume that the code that changes this value
@@ -977,14 +1009,14 @@ impl ExecutableVariableAction for OnChange {
         let has_changed = self
             .previous_values
             .iter()
-            .zip(&current_values)
+            .zip(&self.current_values)
             .any(|(previous, current)| previous != current);
 
         if has_changed {
-            (self.func)(&self.previous_values, &current_values);
+            (self.func)(&self.previous_values, &self.current_values);
         }
 
-        self.previous_values = current_values;
+        std::mem::swap(&mut self.previous_values, &mut self.current_values);
 
         Ok(())
     }
