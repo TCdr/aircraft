@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -354,7 +354,12 @@ export class N1 extends DisplayComponent<N1Props> {
 
   private readonly gaugeStartAngle = Subject.create(220);
 
-  private readonly gaugeStartAngleRed = Subject.create(50);
+  // Angle at which the red danger arc begins. The gauge sweeps 220->70 (a 210 degree, clockwise-
+  // wrapping arc) over the value range [1.6, 11] (N1% / 10), so this angle must correspond to the
+  // certified N1 redline for the CFM56-5B (104%, per TCDS EASA E.003) rather than an arbitrary
+  // angle. 56.6 degrees places the red arc's start at 104% N1; the previous value (50 degrees)
+  // placed it at ~101% N1, about 3 points below the real redline.
+  private readonly gaugeStartAngleRed = Subject.create(56.6);
 
   private readonly gaugeEndAngle = Subject.create(70);
 
