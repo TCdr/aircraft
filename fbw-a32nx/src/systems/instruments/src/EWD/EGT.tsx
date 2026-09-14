@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -27,8 +27,6 @@ export class Egt extends DisplayComponent<EgtProps> {
   private activeVisibility = Subject.create('hidden');
 
   private thrustLimitType: number = 0;
-
-  private autoThrustWarningToga: boolean = false;
 
   private egt: number = 0;
 
@@ -63,13 +61,6 @@ export class Egt extends DisplayComponent<EgtProps> {
       });
 
     sub
-      .on('autoThrustWarningToga')
-      .whenChanged()
-      .handle((t) => {
-        this.autoThrustWarningToga = t;
-      });
-
-    sub
       .on(`engine${this.props.engine}EGT`)
       .whenChanged()
       .handle((egt) => {
@@ -88,24 +79,42 @@ export class Egt extends DisplayComponent<EgtProps> {
       });
   }
 
+  // Limits below are the certified "Maximum permitted gas temperature" figures from the CFM56-5B
+  // TCDS (EASA E.003, -5B/P /2P /3 variant family) rather than the engine's absolute structural
+  // redline, which is not published - see EGT_ABSOLUTE_MAX below.
+  static readonly EGT_TAKEOFF_MAX = 940;
+
+  static readonly EGT_CONTINUOUS_MAX = 905;
+
+  static readonly EGT_START_MAX = 725;
+
+  // The TCDS notes a certified transient overshoot above the take-off limit is allowed, without
+  // giving an exact figure (it defers to the Specific Operating Instructions). Absent that number,
+  // this preserves the same margin the previous (uncalibrated) thresholds used between their
+  // TOGA-amber and fixed-red values, applied on top of the corrected take-off limit.
+  static readonly EGT_ABSOLUTE_MAX = Egt.EGT_TAKEOFF_MAX + 35;
+
   get egtMax(): number {
     switch (this.thrustLimitType) {
+      // TOGA, and FLX (a de-rated take-off, certified under the same take-off rating)
       case 4:
-        return this.autoThrustWarningToga ? 1060 : 1025;
+      case 3:
+        return Egt.EGT_TAKEOFF_MAX;
 
+      // CLB, MCT, MREV (continuous-type ratings)
       case 1:
       case 2:
-      case 3:
       case 5:
-        return 1025;
+        return Egt.EGT_CONTINUOUS_MAX;
 
+      // Idle, cruise, and engine start - no rated thrust limit active
       default:
-        return 750;
+        return Egt.EGT_START_MAX;
     }
   }
 
   get egtColor(): string {
-    if (this.egt > 1060) {
+    if (this.egt > Egt.EGT_ABSOLUTE_MAX) {
       return 'Red';
     }
     if (this.egt > this.egtMax) {
