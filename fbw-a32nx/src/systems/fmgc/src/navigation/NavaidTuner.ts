@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { FlightPhaseManagerEvents } from '@fmgc/flightphase';
@@ -10,6 +10,7 @@ import { NavRadioUtils } from '@fmgc/navigation/NavRadioUtils';
 import {
   Arinc429SignStatusMatrix,
   Arinc429Word,
+  MathUtils,
   NotificationManager,
   IlsNavaid,
   NdbNavaid,
@@ -589,7 +590,11 @@ export class NavaidTuner {
       return true;
     }
 
-    if (mmr.course !== null && databaseCourse !== null && Math.abs(mmr.course - databaseCourse) > 3) {
+    if (
+      mmr.course !== null &&
+      databaseCourse !== null &&
+      Math.abs(MathUtils.diffAngle(databaseCourse, mmr.course)) > 3
+    ) {
       return true;
     }
 
