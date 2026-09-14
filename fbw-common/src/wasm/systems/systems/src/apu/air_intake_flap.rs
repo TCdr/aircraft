@@ -18,8 +18,8 @@ pub(super) struct AirIntakeFlap {
     is_moving: bool,
 }
 impl AirIntakeFlap {
-    const MINIMUM_TRAVEL_TIME_SECS: u8 = 6;
-    const MAXIMUM_TRAVEL_TIME_SECS: u8 = 12;
+    const MINIMUM_TRAVEL_TIME_SECS: u8 = 12;
+    const MAXIMUM_TRAVEL_TIME_SECS: u8 = 18;
 
     pub fn new(powered_by: ElectricalBusType) -> AirIntakeFlap {
         let random_above_minimum_mod =
