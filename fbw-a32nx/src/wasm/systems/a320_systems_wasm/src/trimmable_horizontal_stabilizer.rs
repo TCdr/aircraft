@@ -115,7 +115,7 @@ impl VariablesToObject for PitchTrimSimOutput {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         unpack_values!(values, [ths_feedback, tracking_mode]);
 
         self.elevator_trim = ths_feedback;

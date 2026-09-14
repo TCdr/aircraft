@@ -113,7 +113,7 @@ impl VariablesToObject for FlapsSurface {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         self.left_flap = values[0];
         self.right_flap = values[1];
 
@@ -142,7 +142,7 @@ impl VariablesToObject for SlatsSurface {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         self.left_slat = values[0];
         self.right_slat = values[1];
 
@@ -169,7 +169,7 @@ impl VariablesToObject for FlapsHandleIndex {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         self.index = Self::msfs_flap_index_from_surfaces_positions_percent(values);
         ObjectWrite::default()
     }
@@ -182,7 +182,7 @@ impl FlapsHandleIndex {
     /// This index is used by MSFS to select correct aerodynamic properties
     /// There is no index available for flaps but no slats configurations (possible plane failure case)
     /// The percent thresholds can be tuned to change the timing of aerodynamic impact versus surface actual position
-    fn msfs_flap_index_from_surfaces_positions_percent(values: Vec<f64>) -> f64 {
+    fn msfs_flap_index_from_surfaces_positions_percent(values: &[f64]) -> f64 {
         let left_flaps_position = values[0];
         let right_flaps_position = values[1];
         let left_slats_position = values[2];

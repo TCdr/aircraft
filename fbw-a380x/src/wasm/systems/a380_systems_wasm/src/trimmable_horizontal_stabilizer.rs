@@ -30,7 +30,7 @@ impl VariablesToObject for PitchTrimSimOutput {
         ]
     }
 
-    fn write(&mut self, values: Vec<f64>) -> ObjectWrite {
+    fn write(&mut self, values: &[f64]) -> ObjectWrite {
         self.elevator_trim = values[0];
 
         //Not writing control feedback when in tracking mode
