@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { Coordinates, distanceTo, placeBearingDistance } from 'msfs-geo';
@@ -46,7 +46,11 @@ export class RopsRunwayPrediction {
       for (const runway of runways) {
         const dist = distanceTo(touchdownPoint, runway.thresholdLocation);
         // Additional conditions: within 2nm of predicted touchdown point and aligned within 30 degrees
-        if (dist < nearbyRunwayDistance && dist < 2 && Math.abs(runway.bearing - trueHeading) < 30) {
+        if (
+          dist < nearbyRunwayDistance &&
+          dist < 2 &&
+          Math.abs(MathUtils.diffAngle(trueHeading, runway.bearing)) < 30
+        ) {
           nearbyAirportIdent = airport.ident;
           nearbyRunwayIdent = runway.ident;
           nearbyRunwayDistance = dist;
