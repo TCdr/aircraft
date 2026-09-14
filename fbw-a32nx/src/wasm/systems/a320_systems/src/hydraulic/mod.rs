@@ -2861,6 +2861,12 @@ struct A320BrakingForce {
 }
 impl A320BrakingForce {
     const REFERENCE_PRESSURE_FOR_MAX_FORCE: f64 = 2538.;
+    // 1.0 would be pure linear (force proportional to pedal/pressure input). Kept slightly below
+    // that (rather than the previous 0.5, a sqrt curve) so light-to-medium pedal pressure still
+    // gets a bit more bite than a strictly linear response - particularly relevant for low
+    // alternate-braking pressures (e.g. 1000 psi) - without the old curve's near-max force from
+    // just a quarter of full pedal travel.
+    const FORCE_CURVE_EXPONENT: f64 = 0.75;
 
     const FLAPS_BREAKPOINTS: [f64; 3] = [0., 50., 100.];
     const FLAPS_PENALTY_PERCENT: [f64; 3] = [5., 5., 0.];
@@ -2889,6 +2895,12 @@ impl A320BrakingForce {
         }
     }
 
+    fn pressure_to_force_ratio(pressure: Pressure) -> f64 {
+        (pressure.get::<psi>() / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE)
+            .max(0.)
+            .powf(Self::FORCE_CURVE_EXPONENT)
+    }
+
     pub fn update_forces(
         &mut self,
         context: &UpdateContext,
@@ -2897,23 +2909,16 @@ impl A320BrakingForce {
         engine1: &impl Engine,
         engine2: &impl Engine,
     ) {
-        // Base formula for output force is output_force[0:1] = 50 * sqrt(current_pressure) / Max_brake_pressure
-        // This formula gives a bit more punch for lower brake pressures (like 1000 psi alternate braking), as linear formula
-        // gives really too low brake force for 1000psi
+        // Base formula for output force is output_force[0:1] = (current_pressure / Max_brake_pressure) ^ FORCE_CURVE_EXPONENT
+        // See FORCE_CURVE_EXPONENT for why this isn't pure linear (exponent 1.0).
 
-        let left_force_norm = 50. * norm_brakes.left_brake_pressure().get::<psi>().sqrt()
-            / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE;
-        let left_force_altn = 50. * altn_brakes.left_brake_pressure().get::<psi>().sqrt()
-            / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE;
-        self.left_braking_force = left_force_norm + left_force_altn;
-        self.left_braking_force = self.left_braking_force.clamp(0., 1.);
+        let left_force_norm = Self::pressure_to_force_ratio(norm_brakes.left_brake_pressure());
+        let left_force_altn = Self::pressure_to_force_ratio(altn_brakes.left_brake_pressure());
+        self.left_braking_force = (left_force_norm + left_force_altn).clamp(0., 1.);
 
-        let right_force_norm = 50. * norm_brakes.right_brake_pressure().get::<psi>().sqrt()
-            / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE;
-        let right_force_altn = 50. * altn_brakes.right_brake_pressure().get::<psi>().sqrt()
-            / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE;
-        self.right_braking_force = right_force_norm + right_force_altn;
-        self.right_braking_force = self.right_braking_force.clamp(0., 1.);
+        let right_force_norm = Self::pressure_to_force_ratio(norm_brakes.right_brake_pressure());
+        let right_force_altn = Self::pressure_to_force_ratio(altn_brakes.right_brake_pressure());
+        self.right_braking_force = (right_force_norm + right_force_altn).clamp(0., 1.);
 
         self.correct_with_flaps_state(context);
 
