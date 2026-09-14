@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -215,35 +215,6 @@ export class FlightModel {
     // fpa is in degrees
     const fpaRad = fpaDeg * MathUtils.DEGREES_TO_RADIANS;
     return config.gravityConstKNS * (thrust / weight - Cd / Cl - Math.sin(fpaRad));
-  }
-
-  /**
-   * Gets distance required to accelerate/decelerate
-   * @param thrust
-   * @param drag
-   * @param weight in pounds
-   * @param initialSpeed
-   * @param targetSpeed
-   * @param fpa flight path angle, default value 0 for level segments
-   * @param accelFactor acceleration factor, default value 0 for level segments
-   * @returns distance to accel/decel
-   */
-  static getAccelerationDistance(
-    thrust: number,
-    drag: number,
-    weight: number,
-    initialSpeed: number,
-    targetSpeed: number,
-    fpa = 0,
-    accelFactor = 0,
-  ): number {
-    const sign = Math.sign(fpa);
-    const force = thrust - drag + sign * weight * Math.sin(fpa * (Math.PI / 180)) * accelFactor;
-
-    const accel = force / weight; // TODO: Check units
-    const timeToAccel = (targetSpeed - initialSpeed) / accel;
-    const distanceToAccel = initialSpeed * timeToAccel + 0.5 * accel * timeToAccel ** 2; // TODO: Check units
-    return distanceToAccel;
   }
 
   static getGreenDotSpeedCas(altitude: number, weight: Kilograms): Knots {
