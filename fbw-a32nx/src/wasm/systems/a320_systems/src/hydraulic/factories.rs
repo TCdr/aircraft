@@ -262,7 +262,9 @@ impl A320CargoDoorFactory {
 
     /// Builds a cargo door assembly consisting of the door physical rigid body and the hydraulic actuator connected
     /// to it
-    pub(super) fn a320_cargo_door_assembly(context: &mut InitContext) -> HydraulicLinearActuatorAssembly<1> {
+    pub(super) fn a320_cargo_door_assembly(
+        context: &mut InitContext,
+    ) -> HydraulicLinearActuatorAssembly<1> {
         let cargo_door_body = Self::a320_cargo_door_body(true);
         let cargo_door_actuator = Self::a320_cargo_door_actuator(context, &cargo_door_body);
         HydraulicLinearActuatorAssembly::new([cargo_door_actuator], cargo_door_body)
@@ -488,7 +490,9 @@ impl A320SpoilerFactory {
     }
 
     /// Builds a spoiler assembly consisting of the spoiler physical rigid body and one hydraulic actuator
-    pub(super) fn a320_spoiler_assembly(context: &mut InitContext) -> HydraulicLinearActuatorAssembly<1> {
+    pub(super) fn a320_spoiler_assembly(
+        context: &mut InitContext,
+    ) -> HydraulicLinearActuatorAssembly<1> {
         let spoiler_body = Self::a320_spoiler_body();
 
         let spoiler_actuator = Self::a320_spoiler_actuator(context, &spoiler_body);
@@ -496,7 +500,10 @@ impl A320SpoilerFactory {
         HydraulicLinearActuatorAssembly::new([spoiler_actuator], spoiler_body)
     }
 
-    pub(super) fn new_a320_spoiler_group(context: &mut InitContext, id: ActuatorSide) -> SpoilerGroup {
+    pub(super) fn new_a320_spoiler_group(
+        context: &mut InitContext,
+        id: ActuatorSide,
+    ) -> SpoilerGroup {
         let spoiler_1 = Self::new_a320_spoiler_element(context, id, 1);
         let spoiler_2 = Self::new_a320_spoiler_element(context, id, 2);
         let spoiler_3 = Self::new_a320_spoiler_element(context, id, 3);
@@ -595,7 +602,9 @@ impl A320ElevatorFactory {
     }
 
     /// Builds an aileron control surface body for A320 Neo
-    pub(super) fn a320_elevator_body(init_drooped_down: bool) -> LinearActuatedRigidBodyOnHingeAxis {
+    pub(super) fn a320_elevator_body(
+        init_drooped_down: bool,
+    ) -> LinearActuatedRigidBodyOnHingeAxis {
         let size = Vector3::new(6., 0.405, 1.125);
         let cg_offset = Vector3::new(0., 0., -0.5 * size[2]);
         let aero_center = Vector3::new(0., 0., -0.3 * size[2]);
@@ -1162,7 +1171,9 @@ impl A320GearFactory {
         )
     }
 
-    pub(super) fn a320_right_gear_body(init_downlocked: bool) -> LinearActuatedRigidBodyOnHingeAxis {
+    pub(super) fn a320_right_gear_body(
+        init_downlocked: bool,
+    ) -> LinearActuatedRigidBodyOnHingeAxis {
         let size = Vector3::new(0.3, 3.453, 0.3);
         let cg_offset = Vector3::new(0., -3. / 4. * size[1], 0.);
 

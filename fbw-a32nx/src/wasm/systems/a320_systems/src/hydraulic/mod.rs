@@ -1,5 +1,3 @@
-use nalgebra::Vector3;
-
 use std::{fmt::Debug, fmt::Display, time::Duration};
 
 use uom::si::{
@@ -14,8 +12,7 @@ use uom::si::{
     ratio::{percent, ratio},
     thermodynamic_temperature::degree_celsius,
     velocity::knot,
-    volume::{cubic_inch, gallon, liter},
-    volume_rate::gallon_per_second,
+    volume::{cubic_inch, gallon},
 };
 
 use systems::{
@@ -31,14 +28,11 @@ use systems::{
         bypass_pin::BypassPin,
         cargo_doors::{CargoDoor, HydraulicDoorController},
         electrical_generator::{GeneratorControlUnit, HydraulicGeneratorMotor},
-        flap_slat::{
-            FlapSlatAssembly, SecondarySurface, SecondarySurfaceSide, SecondarySurfaceType,
-        },
+        flap_slat::{FlapSlatAssembly, SecondarySurfaceSide, SecondarySurfaceType},
         landing_gear::{GearGravityExtension, GearSystemController, HydraulicGearSystem},
         linear_actuator::{
-            Actuator, BoundedLinearLength, ElectroHydrostaticPowered, HydraulicAssemblyController,
-            HydraulicLinearActuatorAssembly, HydraulicLocking, LinearActuatedRigidBodyOnHingeAxis,
-            LinearActuator, LinearActuatorCharacteristics, LinearActuatorMode,
+            Actuator, ElectroHydrostaticPowered, HydraulicAssemblyController,
+            HydraulicLinearActuatorAssembly, HydraulicLocking, LinearActuatorMode,
         },
         nose_steering::{
             SteeringActuator, SteeringAngleLimiter, SteeringController, SteeringRatioToAngle,
@@ -55,8 +49,8 @@ use systems::{
         },
         Accumulator, ElectricPump, EngineDrivenPump, HeatingElement, HydraulicCircuit,
         HydraulicCircuitController, HydraulicPressureSensors, PowerTransferUnit,
-        PowerTransferUnitCharacteristics, PowerTransferUnitController, PressureSwitch,
-        PressureSwitchType, PriorityValve, PumpController, RamAirTurbine, Reservoir,
+        PowerTransferUnitCharacteristics, PowerTransferUnitController, PumpController,
+        RamAirTurbine, Reservoir,
     },
     landing_gear::{GearSystemSensors, LandingGearControlInterfaceUnitSet},
     overhead::{
@@ -68,23 +62,30 @@ use systems::{
         AirbusElectricPumpId, AirbusEngineDrivenPumpId, ControllerSignal, DelayedFalseLogicGate,
         DelayedPulseTrueLogicGate, DelayedTrueLogicGate, ElectricalBusType, ElectricalBuses,
         EmergencyElectricalRatPushButton, EmergencyElectricalState, EmergencyGeneratorControlUnit,
-        EmergencyGeneratorPower, EngineFirePushButtons, GearWheel, HydraulicColor,
-        LandingGearHandle, LgciuInterface, LgciuWeightOnWheels, RamAirTurbineController,
-        ReservoirAirPressure, ReverserPosition, SectionPressure, TrimmableHorizontalStabilizer,
+        EmergencyGeneratorPower, EngineFirePushButtons, HydraulicColor, LandingGearHandle,
+        LgciuInterface, LgciuWeightOnWheels, RamAirTurbineController, ReservoirAirPressure,
+        ReverserPosition, SectionPressure, TrimmableHorizontalStabilizer,
     },
     simulation::{
         InitContext, Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
-        SimulatorWriter, StartState, UpdateContext, VariableIdentifier, Write,
+        SimulatorWriter, UpdateContext, VariableIdentifier, Write,
     },
 };
+// Only used by this module's tests (production code drives these through the systems'
+// higher-level state, not these enums directly).
+#[cfg(test)]
+use systems::{shared::GearWheel, simulation::StartState};
 
 mod factories;
 mod sfcc;
 use factories::{
     A320AileronFactory, A320CargoDoorFactory, A320ElevatorFactory, A320FlapsFactory,
-    A320GearSystemFactory, A320HydraulicCircuitFactory, A320RudderFactory, A320SlatsFactory,
-    A320SpoilerFactory,
+    A320GearSystemFactory, A320RudderFactory, A320SlatsFactory, A320SpoilerFactory,
 };
+// Re-exported (not just `use`d), unlike the other factories above, because
+// a320_hydraulic_simulation_graphs, a separate crate, reaches this one through
+// `a320_systems::hydraulic::A320HydraulicCircuitFactory`.
+pub use factories::A320HydraulicCircuitFactory;
 use sfcc::SlatFlapComplex;
 
 #[cfg(test)]
