@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 // Copyright (c) 2021-2022 Synaptic Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
@@ -242,7 +242,10 @@ export function getAlongTrackDistanceTo(start: Coordinates, end: Coordinates, pp
 
   const deltaXt = Math.asin(Math.sin(d13) * Math.sin(Theta13 - Theta12));
 
-  const deltaAt = Math.acos(Math.cos(d13) / Math.abs(Math.cos(deltaXt)));
+  // The ratio below is mathematically bounded to [-1, 1], but floating-point rounding can push it
+  // fractionally past 1 (e.g. right after sequencing a leg, when ppos is very close to start and
+  // both d13 and deltaXt are near 0), which would make Math.acos return NaN.
+  const deltaAt = Math.acos(MathUtils.clamp(Math.cos(d13) / Math.abs(Math.cos(deltaXt)), -1, 1));
 
   return deltaAt * Math.sign(Math.cos(Theta12 - Theta13)) * R;
 }
