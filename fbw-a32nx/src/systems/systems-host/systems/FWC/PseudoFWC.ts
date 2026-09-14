@@ -4652,12 +4652,25 @@ export class PseudoFWC {
     let activeMasterWarningFailureCount = 0;
     let activeMasterCautionFailureCount = 0;
 
+    // Materialized once and reused below instead of calling Object.entries() again for the second
+    // loop - this runs at 50Hz over 129+ entries, so avoiding the extra array allocation matters.
+    const failureEntries = Object.entries(this.ewdMessageFailures);
+
     // Update failure lists in case failures have been resolved
-    for (const [key, value] of Object.entries(this.ewdMessageFailures)) {
+    for (const [key, value] of failureEntries) {
+      // failureKeysLeft/Right and recallFailureKeys only ever contain currently-active failures
+      // (a small subset of the 129+ possible ones), so most inactive keys aren't in them at all -
+      // skip the filter() (and its allocation) when there's nothing to remove.
       if (!value.simVarIsActive.get()) {
-        failureKeysLeft = failureKeysLeft.filter((e) => e !== key);
-        failureKeysRight = failureKeysRight.filter((e) => e !== key);
-        recallFailureKeys = recallFailureKeys.filter((e) => e !== key);
+        if (failureKeysLeft.includes(key)) {
+          failureKeysLeft = failureKeysLeft.filter((e) => e !== key);
+        }
+        if (failureKeysRight.includes(key)) {
+          failureKeysRight = failureKeysRight.filter((e) => e !== key);
+        }
+        if (recallFailureKeys.includes(key)) {
+          recallFailureKeys = recallFailureKeys.filter((e) => e !== key);
+        }
       }
     }
 
@@ -4666,7 +4679,7 @@ export class PseudoFWC {
     this.nonCancellableWarningCount = 0;
 
     // Failures first
-    for (const [key, value] of Object.entries(this.ewdMessageFailures)) {
+    for (const [key, value] of failureEntries) {
       // new warning?
       const newWarning =
         (value.side === undefined && !this.specialCodes.includes(key)) ||
