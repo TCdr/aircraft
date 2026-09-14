@@ -170,7 +170,9 @@ impl A320Payload {
                 passenger_deck,
                 cargo_deck,
                 1000,
-                5000,
+                // ~20 minutes for a full 174-pax load across the 2 boarding doors, matching
+                // typical published A320 airline turn-time standards (was 5000, ~7.25 min).
+                13_800,
             ),
         }
     }
