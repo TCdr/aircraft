@@ -363,7 +363,14 @@ export class TcasComputer {
       this.inhibitions = Inhibit.ALL_DESC_RA;
     } else if (!this.radioAlt.isNoComputedData() && this.radioAlt.value < 1550) {
       this.inhibitions = Inhibit.ALL_INCR_DESC_RA;
-    } else if (this.pressureAlt.value > 39000) {
+    } else if (
+      this.pressureAlt &&
+      (this.pressureAlt.isNormalOperation() || this.pressureAlt.isFunctionalTest()) &&
+      this.pressureAlt.value > 39000
+    ) {
+      // Only inhibit climb RAs on a trustworthy altitude reading (matches the validity check
+      // updateStatusFaults() uses for the same word) - a failed/frozen/NCD ADR word must not be
+      // able to suppress a genuine climb RA.
       this.inhibitions = Inhibit.ALL_CLIMB_RA;
     } else {
       this.inhibitions = Inhibit.NONE;
