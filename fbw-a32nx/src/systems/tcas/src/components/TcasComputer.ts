@@ -176,6 +176,10 @@ export class TcasComputer {
 
   private airTraffic: TcasTraffic[]; // Air Traffic List
 
+  // Kept in sync with airTraffic for O(1) lookup by ID in fetchRawTraffic(), which otherwise does
+  // an O(n) scan per live contact per refresh (up to MEMORY_MAX=200 stored contacts).
+  private airTrafficById: Map<string, TcasTraffic>;
+
   private raTraffic: TcasTraffic[]; // Traffic with RA
 
   private sendAirTraffic: (NDTcasTraffic | NDTcasDebugTraffic)[]; // List of traffic intruder objects to send to ND
@@ -280,6 +284,7 @@ export class TcasComputer {
     this.tcasBusTcasModeWord = Arinc429Register.empty();
     this.tcasBusTcasFaultSummaryWord = Arinc429Register.empty();
     this.airTraffic = [];
+    this.airTrafficById = new Map();
     this.raTraffic = [];
     this.sensitivity = new LocalSimVar('L:A32NX_TCAS_SENSITIVITY', 'number');
     this.sensitivity.setVar(1);
@@ -483,10 +488,12 @@ export class TcasComputer {
             }
             return;
           }
-          let traffic: TcasTraffic | undefined = this.airTraffic.find((p) => p && p.ID === tf.uId.toFixed(0));
+          const trafficId = tf.uId.toFixed(0);
+          let traffic: TcasTraffic | undefined = this.airTrafficById.get(trafficId);
           if (!traffic) {
             traffic = new TcasTraffic(tf, this.ppos, this.planeAlt);
             this.airTraffic.push(traffic);
+            this.airTrafficById.set(trafficId, traffic);
           }
 
           traffic.alive = true;
@@ -544,6 +551,7 @@ export class TcasComputer {
             .filter((traffic) => traffic.alive === true)
             .sort((a, b) => a.raTau - b.raTau);
           this.airTraffic.length = TCAS.MEMORY_MAX;
+          this.airTrafficById = new Map(this.airTraffic.map((traffic) => [traffic.ID, traffic]));
         }
       })
       .catch(console.error);
