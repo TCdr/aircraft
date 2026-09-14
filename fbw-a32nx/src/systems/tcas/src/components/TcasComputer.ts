@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -516,7 +516,9 @@ export class TcasComputer {
             ((traffic.slantDistance - TCAS.DMOD[this.sensitivity.getVar()][TaRaIndex.RA] ** 2 / traffic.slantDistance) /
               traffic.closureRate) *
             3600;
-          let vTau = (traffic.relativeAlt / (this.verticalSpeed - traffic.vertSpeed)) * 60;
+          // relativeAlt === 0 with equal vertical speeds is 0/0 (NaN) - already co-altitude, so tau is 0.
+          let vTau =
+            traffic.relativeAlt === 0 ? 0 : (traffic.relativeAlt / (this.verticalSpeed - traffic.vertSpeed)) * 60;
 
           if (raTau < 0) {
             taTau = Infinity;
@@ -768,6 +770,13 @@ export class TcasComputer {
   private getPredictedSep(): number {
     let minSeparation = TCAS.REALLY_BIG_NUMBER;
     this.raTraffic.forEach((traffic) => {
+      // raTau can be Infinity for traffic that entered raTraffic via the slant-distance range test
+      // alone (not actually closing). Projecting position at t=Infinity is meaningless (and can
+      // produce NaN via Infinity - Infinity, or 0 * Infinity), so such traffic doesn't constrain
+      // the predicted separation.
+      if (!Number.isFinite(traffic.raTau)) {
+        return;
+      }
       const trafficAltAtCPA = traffic.alt + (traffic.vertSpeed / 60) * traffic.raTau;
       const myAltAtCPA = this.planeAlt + (this.verticalSpeed / 60) * traffic.raTau;
       const _sep = Math.abs(myAltAtCPA - trafficAltAtCPA);
@@ -791,6 +800,12 @@ export class TcasComputer {
     let minSeparation = TCAS.REALLY_BIG_NUMBER;
 
     this.raTraffic.forEach((traffic) => {
+      // See getPredictedSep() for why non-finite raTau (non-closing traffic that only met the
+      // slant-distance range test) must be excluded rather than projected to t=Infinity.
+      if (!Number.isFinite(traffic.raTau)) {
+        return;
+      }
+
       const trafficAltAtCPA = traffic.alt + (traffic.vertSpeed / 60) * traffic.raTau;
 
       let _sep = TCAS.REALLY_BIG_NUMBER;
