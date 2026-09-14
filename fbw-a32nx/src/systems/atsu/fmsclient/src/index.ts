@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-//  Copyright (c) 2023 FlyByWire Simulations
+//  Copyright (c) 2023-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { AocFmsMessages, FmsAocMessages } from '@datalink/aoc';
@@ -67,6 +67,51 @@ export class FmsClient implements Instrument {
   ) => boolean)[] = [];
 
   private positionReportDataCallbacks: ((response: PositionReportData, requestId: number) => boolean)[] = [];
+
+  // 6 minutes - comfortably longer than the longest legitimate delay in the datalink stack (e.g.
+  // SimBriefConnector's 4-minute simulated wind uplink, AcarsConnector's 5-minute connection
+  // retry ceiling), so this only fires for a genuinely dead link/dropped response, not a
+  // slow-but-working one.
+  private static readonly REQUEST_TIMEOUT_MS = 360_000;
+
+  /**
+   * Removes `callback` from `array` if still present. Safe to call even if the callback already
+   * fired and was removed by its response handler (see the `this.subscriber.on(...)` handlers in
+   * the constructor) - `indexOf` just returns -1 and nothing happens.
+   */
+  private static removeCallback<T>(array: T[], callback: T): void {
+    const index = array.indexOf(callback);
+    if (index !== -1) {
+      array.splice(index, 1);
+    }
+  }
+
+  /**
+   * Datalink responses arrive via callbacks pushed into the this.*Callbacks arrays above, and are
+   * not guaranteed to ever arrive (e.g. the VHF/SATCOM link drops mid-request). Without this,
+   * awaiting one of this class's public request methods could hang forever, and the callback
+   * would remain in its array permanently. `cleanup` must remove every callback the request
+   * pushed (safe to call even if they already fired - see removeCallback).
+   */
+  private withRequestTimeout<T>(promise: Promise<T>, cleanup: () => void): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('ATSU datalink request timed out waiting for a response'));
+      }, FmsClient.REQUEST_TIMEOUT_MS);
+
+      promise.then(
+        (value) => {
+          clearTimeout(timeout);
+          resolve(value);
+        },
+        (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        },
+      );
+    });
+  }
 
   private atisAutoUpdates: string[] = [];
 
@@ -270,14 +315,19 @@ export class FmsClient implements Instrument {
   public modificationMessage: CpdlcMessage = null;
 
   public async sendMessage(message: AtsuMessage): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (code: AtsuStatusCodes, id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('aocSendFreetextMessage', { message: message as FreetextMessage, requestId }, true, false);
-      this.requestAtsuStatusCodeCallbacks.push((code: AtsuStatusCodes, id: number) => {
+      callback = (code: AtsuStatusCodes, id: number) => {
         if (id === requestId) resolve(code);
         return id === requestId;
-      });
+      };
+      this.requestAtsuStatusCodeCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.requestAtsuStatusCodeCallbacks, callback),
+    );
   }
 
   public messageRead(uid: number, aocMessage: boolean): void {
@@ -306,31 +356,44 @@ export class FmsClient implements Instrument {
     type: AtisType,
     sentCallback: () => void,
   ): Promise<[AtsuStatusCodes, WeatherMessage]> {
-    return new Promise<[AtsuStatusCodes, WeatherMessage]>((resolve, _reject) => {
+    let sentToGroundCallback: (id: number) => boolean;
+    let weatherCallback: (response: [AtsuStatusCodes, WeatherMessage], id: number) => boolean;
+    const promise = new Promise<[AtsuStatusCodes, WeatherMessage]>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('aocRequestAtis', { icao: airport, type, requestId }, true, false);
 
-      this.requestSentToGroundCallbacks.push((id: number) => {
+      sentToGroundCallback = (id: number) => {
         if (id === requestId) sentCallback();
         return id === requestId;
-      });
-      this.weatherResponseCallbacks.push((response: [AtsuStatusCodes, WeatherMessage], id: number) => {
+      };
+      this.requestSentToGroundCallbacks.push(sentToGroundCallback);
+      weatherCallback = (response: [AtsuStatusCodes, WeatherMessage], id: number) => {
         if (id === requestId) resolve(response);
         return id === requestId;
-      });
+      };
+      this.weatherResponseCallbacks.push(weatherCallback);
+    });
+    return this.withRequestTimeout(promise, () => {
+      FmsClient.removeCallback(this.requestSentToGroundCallbacks, sentToGroundCallback);
+      FmsClient.removeCallback(this.weatherResponseCallbacks, weatherCallback);
     });
   }
 
   public async receiveAtcAtis(airport: string, type: AtisType): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (response: AtsuStatusCodes, id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('atcRequestAtis', { icao: airport, type, requestId }, true, false);
 
-      this.requestAtsuStatusCodeCallbacks.push((response: AtsuStatusCodes, id: number) => {
+      callback = (response: AtsuStatusCodes, id: number) => {
         if (id === requestId) resolve(response);
         return id === requestId;
-      });
+      };
+      this.requestAtsuStatusCodeCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.requestAtsuStatusCodeCallbacks, callback),
+    );
   }
 
   public async receiveWeather(
@@ -338,18 +401,26 @@ export class FmsClient implements Instrument {
     icaos: string[],
     sentCallback: () => void,
   ): Promise<[AtsuStatusCodes, WeatherMessage]> {
-    return new Promise<[AtsuStatusCodes, WeatherMessage]>((resolve, _reject) => {
+    let sentToGroundCallback: (id: number) => boolean;
+    let weatherCallback: (response: [AtsuStatusCodes, WeatherMessage], id: number) => boolean;
+    const promise = new Promise<[AtsuStatusCodes, WeatherMessage]>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('aocRequestWeather', { icaos, requestMetar, requestId }, true, false);
 
-      this.requestSentToGroundCallbacks.push((id: number) => {
+      sentToGroundCallback = (id: number) => {
         if (id === requestId) sentCallback();
         return id === requestId;
-      });
-      this.weatherResponseCallbacks.push((response: [AtsuStatusCodes, WeatherMessage], id: number) => {
+      };
+      this.requestSentToGroundCallbacks.push(sentToGroundCallback);
+      weatherCallback = (response: [AtsuStatusCodes, WeatherMessage], id: number) => {
         if (id === requestId) resolve(response);
         return id === requestId;
-      });
+      };
+      this.weatherResponseCallbacks.push(weatherCallback);
+    });
+    return this.withRequestTimeout(promise, () => {
+      FmsClient.removeCallback(this.requestSentToGroundCallbacks, sentToGroundCallback);
+      FmsClient.removeCallback(this.weatherResponseCallbacks, weatherCallback);
     });
   }
 
@@ -357,16 +428,19 @@ export class FmsClient implements Instrument {
     request: WindRequestMessage,
     sentCallback: () => void,
   ): Promise<[AtsuStatusCodes, WindUplinkMessage | null]> {
-    return new Promise<[AtsuStatusCodes, WindUplinkMessage | null]>((resolve, _reject) => {
+    let callback: (response: [AtsuStatusCodes, WindUplinkMessage | null], id: number) => boolean;
+    const promise = new Promise<[AtsuStatusCodes, WindUplinkMessage | null]>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('aocRequestWinds', { ...request, requestId }, true, false);
       sentCallback();
 
-      this.windsResponseCallbacks.push((response: [AtsuStatusCodes, WindUplinkMessage | null], id: number) => {
+      callback = (response: [AtsuStatusCodes, WindUplinkMessage | null], id: number) => {
         if (id === requestId) resolve(response);
         return id === requestId;
-      });
+      };
+      this.windsResponseCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () => FmsClient.removeCallback(this.windsResponseCallbacks, callback));
   }
 
   public registerMessages(messages: AtsuMessage[]): void {
@@ -390,25 +464,35 @@ export class FmsClient implements Instrument {
   }
 
   public async deactivateAtisAutoUpdate(icao: string): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('atcDeactivateAtisAutoUpdate', { icao, requestId }, true, false);
-      this.genericRequestResponseCallbacks.push((id: number) => {
+      callback = (id: number) => {
         if (id === requestId) resolve(AtsuStatusCodes.Ok);
         return id === requestId;
-      });
+      };
+      this.genericRequestResponseCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.genericRequestResponseCallbacks, callback),
+    );
   }
 
   public async activateAtisAutoUpdate(icao: string, type: AtisType): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('atcActivateAtisAutoUpdate', { icao, type, requestId }, true, false);
-      this.genericRequestResponseCallbacks.push((id: number) => {
+      callback = (id: number) => {
         if (id === requestId) resolve(AtsuStatusCodes.Ok);
         return id === requestId;
-      });
+      };
+      this.genericRequestResponseCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.genericRequestResponseCallbacks, callback),
+    );
   }
 
   public atisReports(icao: string): AtisMessage[] {
@@ -423,14 +507,19 @@ export class FmsClient implements Instrument {
   }
 
   public async togglePrintAtisReports(): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('atcTogglePrintAtisReportsPrint', requestId, true, false);
-      this.genericRequestResponseCallbacks.push((id: number) => {
+      callback = (id: number) => {
         if (id === requestId) resolve(AtsuStatusCodes.Ok);
         return id === requestId;
-      });
+      };
+      this.genericRequestResponseCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.genericRequestResponseCallbacks, callback),
+    );
   }
 
   public hasActiveAtc(): boolean {
@@ -462,36 +551,49 @@ export class FmsClient implements Instrument {
   }
 
   public async logon(callsign: string): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (code: AtsuStatusCodes, id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('atcLogon', { station: callsign, requestId }, true, false);
-      this.requestAtsuStatusCodeCallbacks.push((code: AtsuStatusCodes, id: number) => {
+      callback = (code: AtsuStatusCodes, id: number) => {
         if (id === requestId) resolve(code);
         return id === requestId;
-      });
+      };
+      this.requestAtsuStatusCodeCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.requestAtsuStatusCodeCallbacks, callback),
+    );
   }
 
   public async logoff(): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (code: AtsuStatusCodes, id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('atcLogoff', requestId, true, false);
-      this.requestAtsuStatusCodeCallbacks.push((code: AtsuStatusCodes, id: number) => {
+      callback = (code: AtsuStatusCodes, id: number) => {
         if (id === requestId) resolve(code);
         return id === requestId;
-      });
+      };
+      this.requestAtsuStatusCodeCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.requestAtsuStatusCodeCallbacks, callback),
+    );
   }
 
   public async isRemoteStationAvailable(callsign: string): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (code: AtsuStatusCodes, id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('routerRequestStationAvailable', { callsign, requestId }, true, false);
-      this.routerResponseCallbacks.push((code: AtsuStatusCodes, id: number) => {
+      callback = (code: AtsuStatusCodes, id: number) => {
         if (id === requestId) resolve(code);
         return id === requestId;
-      });
+      };
+      this.routerResponseCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () => FmsClient.removeCallback(this.routerResponseCallbacks, callback));
   }
 
   public updateMessage(message: CpdlcMessage): void {
@@ -523,14 +625,19 @@ export class FmsClient implements Instrument {
   }
 
   public async setMaxUplinkDelay(delay: number): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('atcSetMaxUplinkDelay', { delay, requestId }, true, false);
-      this.genericRequestResponseCallbacks.push((id: number) => {
+      callback = (id: number) => {
         if (id === requestId) resolve(AtsuStatusCodes.Ok);
         return id === requestId;
-      });
+      };
+      this.genericRequestResponseCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.genericRequestResponseCallbacks, callback),
+    );
   }
 
   public automaticPositionReportActive(): boolean {
@@ -538,14 +645,19 @@ export class FmsClient implements Instrument {
   }
 
   public async toggleAutomaticPositionReport(): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    let callback: (id: number) => boolean;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const requestId = this.requestId++;
       this.publisher.pub('atcToggleAutomaticPositionReport', requestId, true, false);
-      this.genericRequestResponseCallbacks.push((id: number) => {
+      callback = (id: number) => {
         if (id === requestId) resolve(AtsuStatusCodes.Ok);
         return id === requestId;
-      });
+      };
+      this.genericRequestResponseCallbacks.push(callback);
     });
+    return this.withRequestTimeout(promise, () =>
+      FmsClient.removeCallback(this.genericRequestResponseCallbacks, callback),
+    );
   }
 
   public async receivePositionReportData(): Promise<{
@@ -553,16 +665,21 @@ export class FmsClient implements Instrument {
     autopilot: AutopilotData;
     environment: EnvironmentData;
   }> {
-    return new Promise<{ flightState: FlightStateData; autopilot: AutopilotData; environment: EnvironmentData }>(
-      (resolve, _reject) => {
-        const requestId = this.requestId++;
-        this.publisher.pub('atcRequestPositionReport', requestId, true, false);
-        this.positionReportDataCallbacks.push((response: PositionReportData, id: number) => {
-          if (id === requestId) resolve(response);
-          return id === requestId;
-        });
-      },
-    );
+    let callback: (response: PositionReportData, id: number) => boolean;
+    const promise = new Promise<{
+      flightState: FlightStateData;
+      autopilot: AutopilotData;
+      environment: EnvironmentData;
+    }>((resolve) => {
+      const requestId = this.requestId++;
+      this.publisher.pub('atcRequestPositionReport', requestId, true, false);
+      callback = (response: PositionReportData, id: number) => {
+        if (id === requestId) resolve(response);
+        return id === requestId;
+      };
+      this.positionReportDataCallbacks.push(callback);
+    });
+    return this.withRequestTimeout(promise, () => FmsClient.removeCallback(this.positionReportDataCallbacks, callback));
   }
 
   public resetAtisAutoUpdate(): void {
@@ -570,21 +687,29 @@ export class FmsClient implements Instrument {
   }
 
   public async connectToNetworks(callsign: string): Promise<AtsuStatusCodes> {
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
+    // This is a two-step request (disconnect, then connect), so which callback needs removing on
+    // timeout depends on which step is in flight - reassigned once the disconnect step completes.
+    let currentCleanup: () => void;
+    const promise = new Promise<AtsuStatusCodes>((resolve) => {
       const disconnectRequestId = this.requestId++;
       this.publisher.pub('routerDisconnect', disconnectRequestId, true, false);
-      this.routerResponseCallbacks.push((_code: AtsuStatusCodes, id: number) => {
+      const disconnectCallback = (_code: AtsuStatusCodes, id: number) => {
         if (id === disconnectRequestId) {
           const connectRequestId = this.requestId++;
           this.publisher.pub('routerConnect', { callsign, requestId: connectRequestId }, true, false);
-          this.routerResponseCallbacks.push((code: AtsuStatusCodes, id: number) => {
+          const connectCallback = (code: AtsuStatusCodes, id: number) => {
             if (id === connectRequestId) resolve(code);
             return id === connectRequestId;
-          });
+          };
+          this.routerResponseCallbacks.push(connectCallback);
+          currentCleanup = () => FmsClient.removeCallback(this.routerResponseCallbacks, connectCallback);
         }
         return id === disconnectRequestId;
-      });
+      };
+      this.routerResponseCallbacks.push(disconnectCallback);
+      currentCleanup = () => FmsClient.removeCallback(this.routerResponseCallbacks, disconnectCallback);
     });
+    return this.withRequestTimeout(promise, () => currentCleanup());
   }
 
   public getDatalinkStatus(value: 'vhf' | 'satcom' | 'hf'): DatalinkStatusCode {
