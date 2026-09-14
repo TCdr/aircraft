@@ -1,4 +1,4 @@
-//  Copyright (c) 2023 FlyByWire Simulations
+//  Copyright (c) 2023-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { FmsAtcMessages } from '@datalink/atc';
@@ -9,6 +9,8 @@ import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPla
 
 export class FlightPlanSynchronization {
   private readonly publisher: Publisher<FmsAtcMessages>;
+
+  private readonly updateInterval: ReturnType<typeof setInterval>;
 
   private originIdent: string = '';
 
@@ -85,7 +87,7 @@ export class FlightPlanSynchronization {
     this.publisher = this.bus.getPublisher<FmsAtcMessages>();
 
     // FIXME use the non-guidance FMGC to get the flightplan data
-    setInterval(() => {
+    this.updateInterval = setInterval(() => {
       const activeFlightPlan = this.flightPlanService.active;
 
       if (activeFlightPlan && activeFlightPlan.legCount !== 0) {
@@ -134,5 +136,10 @@ export class FlightPlanSynchronization {
         }
       }
     }, 10000);
+  }
+
+  /** Stops the periodic flight plan synchronization. Must be called if this instance is ever discarded. */
+  public destroy(): void {
+    clearInterval(this.updateInterval);
   }
 }
