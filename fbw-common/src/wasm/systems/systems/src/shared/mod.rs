@@ -707,9 +707,12 @@ pub(crate) fn calculate_towards_target_temperature(
 
 // Interpolate values_map_y at point value_at_point in breakpoints break_points_x
 pub fn interpolation(xs: &[f64], ys: &[f64], intermediate_x: f64) -> f64 {
-    debug_assert!(xs.len() == ys.len());
-    debug_assert!(xs.len() >= 2);
-    debug_assert!(ys.len() >= 2);
+    // These are real asserts (not debug_assert!) because a mismatched or under-sized
+    // breakpoint table is a call-site bug that must fail loudly in release builds too,
+    // rather than silently indexing out of bounds or returning a wrong value.
+    assert_eq!(xs.len(), ys.len());
+    assert!(xs.len() >= 2);
+    assert!(ys.len() >= 2);
 
     if intermediate_x <= xs[0] {
         *ys.first().unwrap()
