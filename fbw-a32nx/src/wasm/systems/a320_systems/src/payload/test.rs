@@ -1057,11 +1057,13 @@ fn start_no_pax_half_cargo_target_full_cargo_real_board_double_gate() {
 
     test_bed.boarding_started();
 
-    let seven_minutes_in_seconds = 7 * MINUTES_TO_SECONDS;
+    // real_rate is 13,800ms/pax/door (was 5,000ms) - scaled up proportionally from the
+    // original 7-minute allowance.
+    let twenty_minutes_in_seconds = 20 * MINUTES_TO_SECONDS;
 
     test_bed
         .test_bed
-        .run_multiple_frames(Duration::from_secs(seven_minutes_in_seconds));
+        .run_multiple_frames(Duration::from_secs(twenty_minutes_in_seconds));
 
     test_bed.has_all_stations_half_pax();
     test_bed.has_full_cargo();
@@ -1235,11 +1237,13 @@ fn deboard_half_real_double_gate() {
 
     test_bed.boarding_started();
 
-    let ten_minutes_in_seconds = 10 * MINUTES_TO_SECONDS;
+    // real_rate is 13,800ms/pax/door (was 5,000ms) - scaled up proportionally from the
+    // original 10-minute allowance.
+    let twenty_eight_minutes_in_seconds = 28 * MINUTES_TO_SECONDS;
 
     test_bed
         .test_bed
-        .run_multiple_frames(Duration::from_secs(ten_minutes_in_seconds));
+        .run_multiple_frames(Duration::from_secs(twenty_eight_minutes_in_seconds));
 
     test_bed.has_no_pax();
     test_bed.has_no_cargo();
@@ -1359,6 +1363,15 @@ fn detailed_test_with_multiple_stops() {
         .and_run()
         .and_stabilize();
 
+    // A/B/C need to board up while D needs to deboard down, simultaneously. While any station is
+    // still boarding, the boarding sound (not deboarding) is the one that plays, and vice versa -
+    // so A/B/C must fully finish before D's deboarding-only sound is expected to be active. At the
+    // real_rate of 13,800ms/pax/door (was 5,000ms), and_stabilize()'s fixed 5 minutes is no longer
+    // enough on its own for that (only ~21 of the 39 A+B+C ticks fit); wait for the rest here.
+    test_bed
+        .test_bed
+        .run_multiple_frames(Duration::from_secs(250));
+
     test_bed.boarding_started();
     test_bed = test_bed.stop_boarding().and_run();
 
@@ -1369,13 +1382,16 @@ fn detailed_test_with_multiple_stops() {
     assert_eq!(test_bed.pax_num(A320Pax::A.into()), 15);
     assert_eq!(test_bed.pax_num(A320Pax::B.into()), 14);
     assert_eq!(test_bed.pax_num(A320Pax::C.into()), 32);
-    assert_eq!(test_bed.pax_num(A320Pax::D.into()), 30);
+    // D hasn't started deboarding yet - A/B/C just finished boarding.
+    assert_eq!(test_bed.pax_num(A320Pax::D.into()), 42);
 
-    let five_minutes_in_seconds = 5 * MINUTES_TO_SECONDS;
+    // real_rate is 13,800ms/pax/door (was 5,000ms) - scaled up proportionally from the
+    // original 5-minute allowance.
+    let fourteen_minutes_in_seconds = 14 * MINUTES_TO_SECONDS;
 
     test_bed
         .test_bed
-        .run_multiple_frames(Duration::from_secs(five_minutes_in_seconds));
+        .run_multiple_frames(Duration::from_secs(fourteen_minutes_in_seconds));
 
     assert_eq!(test_bed.pax_num(A320Pax::A.into()), 15);
     assert_eq!(test_bed.pax_num(A320Pax::B.into()), 14);
