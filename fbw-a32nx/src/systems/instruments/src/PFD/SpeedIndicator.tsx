@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2025 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -965,16 +965,18 @@ class V1Offtape extends DisplayComponent<{ bus: ArincEventBus }> {
   private v1Speed = 0;
 
   onAfterRender() {
-    const sub = this.props.bus.getSubscriber<PFDSimvars>();
+    const sub = this.props.bus.getArincSubscriber<PFDSimvars & Arinc429Values>();
 
-    sub.on('speed').handle((s) => {
-      const speed = new Arinc429Word(s);
-      if (this.v1Speed > 0 && this.v1Speed - speed.value > DisplayRange) {
-        this.v1TextRef.instance.style.visibility = 'visible';
-      } else {
-        this.v1TextRef.instance.style.visibility = 'hidden';
-      }
-    });
+    sub
+      .on('speedAr')
+      .withArinc429Precision(2)
+      .handle((speed) => {
+        if (this.v1Speed > 0 && this.v1Speed - speed.value > DisplayRange) {
+          this.v1TextRef.instance.style.visibility = 'visible';
+        } else {
+          this.v1TextRef.instance.style.visibility = 'hidden';
+        }
+      });
 
     sub
       .on('v1')
