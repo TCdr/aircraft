@@ -1,6 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { ConsumerSubject, EventBus, FSComponent, MappedSubject, VNode } from '@microsoft/msfs-sdk';
+import { ComponentProps, ConsumerSubject, EventBus, FSComponent, MappedSubject, VNode } from '@microsoft/msfs-sdk';
 
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { ComponentPositionProps } from '../../../common/ComponentPositionProps';
@@ -11,7 +11,7 @@ import { SvgGroup } from '../../../common/SvgGroup';
 import { A32NXFcdcBusEvents } from '@shared/publishers/A32NXFcdcBusPublisher';
 import { FcdcChoiceEvents } from '../../../providers/FcdcChoiceProvider';
 
-export class PitchTrim extends DestroyableComponent<ComponentPositionProps & { bus: EventBus }> {
+export class PitchTrim extends DestroyableComponent<ComponentPositionProps & { bus: EventBus } & ComponentProps> {
   private readonly sub = this.props.bus.getSubscriber<A32NXFcdcBusEvents & FcdcChoiceEvents>();
 
   private readonly thsPositionWord1 = Arinc429LocalVarConsumerSubject.create(

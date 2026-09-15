@@ -55,7 +55,7 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
   );
 
   private readonly isa = MappedSubject.create(
-    ([sat, zp]) => sat.valueOr(0) + Math.min(36089, zp.valueOr(0)) / 500 - 15,
+    ([sat, zp]) => sat.valueOr(0) - (15 - 0.0019812 * Math.min(36089, zp.valueOr(0))),
     this.sat,
     this.zp,
   );

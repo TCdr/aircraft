@@ -18,11 +18,31 @@ export interface FcdcChoiceEvents {
 export class FcdcChoiceProvider implements Instrument {
   private readonly sub = this.bus.getSubscriber<A32NXFcdcBusEvents>();
 
+  private readonly fcdc_1_discrete_word_040 = Arinc429LocalVarConsumerSubject.create(
+    this.sub.on('a32nx_fcdc_discrete_word_040_1'),
+  );
+
   private readonly fcdc_1_discrete_word_041 = Arinc429LocalVarConsumerSubject.create(
     this.sub.on('a32nx_fcdc_discrete_word_041_1'),
   );
 
-  private readonly fcdc_1_valid = this.fcdc_1_discrete_word_041.map((word) => !word.isFailureWarning());
+  private readonly fcdc_1_discrete_word_042 = Arinc429LocalVarConsumerSubject.create(
+    this.sub.on('a32nx_fcdc_discrete_word_042_1'),
+  );
+
+  private readonly fcdc_1_discrete_word_043 = Arinc429LocalVarConsumerSubject.create(
+    this.sub.on('a32nx_fcdc_discrete_word_043_1'),
+  );
+
+  // Each discrete word fails over from FCDC 1 to FCDC 2 independently, based on that word's own validity
+  // (matching the legacy SD page's per-word failover), not on the validity of a single word for all of them.
+  private readonly fcdc_1_word_040_valid = this.fcdc_1_discrete_word_040.map((word) => !word.isFailureWarning());
+
+  private readonly fcdc_1_word_041_valid = this.fcdc_1_discrete_word_041.map((word) => !word.isFailureWarning());
+
+  private readonly fcdc_1_word_042_valid = this.fcdc_1_discrete_word_042.map((word) => !word.isFailureWarning());
+
+  private readonly fcdc_1_word_043_valid = this.fcdc_1_discrete_word_043.map((word) => !word.isFailureWarning());
 
   private readonly fcdc_discrete_word_040 = ConsumerSubject.create(null, 0);
 
@@ -38,16 +58,25 @@ export class FcdcChoiceProvider implements Instrument {
   public init(): void {
     const publisher = this.bus.getPublisher<FcdcChoiceEvents>();
 
-    this.fcdc_1_valid.sub((fcdc1Chosen) => {
+    this.fcdc_1_word_040_valid.sub((fcdc1Chosen) => {
       this.fcdc_discrete_word_040.setConsumer(
         this.sub.on(fcdc1Chosen ? 'a32nx_fcdc_discrete_word_040_1' : 'a32nx_fcdc_discrete_word_040_2'),
       );
+    }, true);
+
+    this.fcdc_1_word_041_valid.sub((fcdc1Chosen) => {
       this.fcdc_discrete_word_041.setConsumer(
         this.sub.on(fcdc1Chosen ? 'a32nx_fcdc_discrete_word_041_1' : 'a32nx_fcdc_discrete_word_041_2'),
       );
+    }, true);
+
+    this.fcdc_1_word_042_valid.sub((fcdc1Chosen) => {
       this.fcdc_discrete_word_042.setConsumer(
         this.sub.on(fcdc1Chosen ? 'a32nx_fcdc_discrete_word_042_1' : 'a32nx_fcdc_discrete_word_042_2'),
       );
+    }, true);
+
+    this.fcdc_1_word_043_valid.sub((fcdc1Chosen) => {
       this.fcdc_discrete_word_043.setConsumer(
         this.sub.on(fcdc1Chosen ? 'a32nx_fcdc_discrete_word_043_1' : 'a32nx_fcdc_discrete_word_043_2'),
       );

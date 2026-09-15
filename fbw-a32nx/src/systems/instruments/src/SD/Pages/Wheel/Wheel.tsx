@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -211,7 +211,7 @@ const AlternateBraking = ({ x, y }: ComponentPositionProps) => {
       <text x={42} y={28} className="Large Green">
         ALTN BRK
       </text>
-      <AccumulatorOnly x={53} y={45} />
+      {!hydraulics.Y.available && <AccumulatorOnly x={53} y={45} />}
     </SvgGroup>
   ) : null;
 };

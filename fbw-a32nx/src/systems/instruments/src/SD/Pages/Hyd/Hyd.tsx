@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -53,7 +53,7 @@ export const HydPage = () => {
   useEffect(() => {
     setEngine1Running(Eng1N2 > 15 && greenFireValve);
     setEngine2Running(Eng2N2 > 15 && yellowFireValve);
-  }, [Eng1N2, Eng2N2]);
+  }, [Eng1N2, Eng2N2, greenFireValve, yellowFireValve]);
 
   // PTU variables
   const [ptuControlValveOpen] = useSimVar('L:A32NX_HYD_PTU_VALVE_OPENED', 'boolean', 500);
