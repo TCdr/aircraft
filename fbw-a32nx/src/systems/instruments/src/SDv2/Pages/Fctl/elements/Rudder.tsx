@@ -1,6 +1,15 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { ConsumerSubject, EventBus, FSComponent, MappedSubject, MathUtils, Subject, VNode } from '@microsoft/msfs-sdk';
+import {
+  ComponentProps,
+  ConsumerSubject,
+  EventBus,
+  FSComponent,
+  MappedSubject,
+  MathUtils,
+  Subject,
+  VNode,
+} from '@microsoft/msfs-sdk';
 
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { ComponentPositionProps } from '../../../common/ComponentPositionProps';
@@ -10,7 +19,7 @@ import { SvgGroup } from '../../../common/SvgGroup';
 import { Arinc429LocalVarConsumerSubject } from '@flybywiresim/fbw-sdk';
 import { A32NXFacBusEvents } from '@shared/publishers/A32NXFacBusPublisher';
 
-export class Rudder extends DestroyableComponent<ComponentPositionProps & { bus: EventBus }> {
+export class Rudder extends DestroyableComponent<ComponentPositionProps & { bus: EventBus } & ComponentProps> {
   private readonly rudderDeflection = ConsumerSubject.create(
     this.props.bus.getSubscriber<SDSimvars>().on('rudderDeflection').withPrecision(0.05),
     0,
@@ -46,6 +55,10 @@ export class Rudder extends DestroyableComponent<ComponentPositionProps & { bus:
     this.yellowHydraulicsPressurized,
   );
 
+  private readonly rudderTrimRef = FSComponent.createRef<RudderTrim>();
+
+  private readonly rudderTravelLimiterRef = FSComponent.createRef<RudderTravelLimiter>();
+
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
@@ -56,6 +69,10 @@ export class Rudder extends DestroyableComponent<ComponentPositionProps & { bus:
       this.blueHydraulicsPressurized,
       this.yellowHydraulicsPressurized,
       this.cursorClass,
+    );
+
+    this.childComponents.push(
+      ...[this.rudderTrimRef, this.rudderTravelLimiterRef].map((ref) => ref.getOrDefault()).filter((c) => c !== null),
     );
   }
 
@@ -91,7 +108,12 @@ export class Rudder extends DestroyableComponent<ComponentPositionProps & { bus:
           <path id="rudderTail" class={this.cursorClass} d="M-9 93 l9 57 l9,-57" />
         </g>
 
-        <text x={-26} y={76} visibility={!this.rudderPositionValid ? 'visible' : 'hidden'} class="F26 Amber Center">
+        <text
+          x={-26}
+          y={76}
+          visibility={this.rudderPositionValid.map((valid) => (!valid ? 'visible' : 'hidden'))}
+          class="F26 Amber Center"
+        >
           XX
         </text>
 
@@ -99,14 +121,14 @@ export class Rudder extends DestroyableComponent<ComponentPositionProps & { bus:
         <HydraulicSystemIndicator x={-13} y={14} system={'B'} hydraulicsAvailable={this.blueHydraulicsPressurized} />
         <HydraulicSystemIndicator x={12} y={14} system={'Y'} hydraulicsAvailable={this.yellowHydraulicsPressurized} />
 
-        <RudderTravelLimiter bus={this.props.bus} />
-        <RudderTrim bus={this.props.bus} />
+        <RudderTravelLimiter ref={this.rudderTravelLimiterRef} bus={this.props.bus} />
+        <RudderTrim ref={this.rudderTrimRef} bus={this.props.bus} />
       </SvgGroup>
     );
   }
 }
 
-class RudderTrim extends DestroyableComponent<{ bus: EventBus }> {
+class RudderTrim extends DestroyableComponent<{ bus: EventBus } & ComponentProps> {
   private readonly sub = this.props.bus.getSubscriber<A32NXFacBusEvents>();
 
   private readonly fac1DiscreteWord2 = Arinc429LocalVarConsumerSubject.create(
@@ -189,7 +211,7 @@ class RudderTrim extends DestroyableComponent<{ bus: EventBus }> {
   }
 }
 
-class RudderTravelLimiter extends DestroyableComponent<{ bus: EventBus }> {
+class RudderTravelLimiter extends DestroyableComponent<{ bus: EventBus } & ComponentProps> {
   private readonly sub = this.props.bus.getSubscriber<A32NXFacBusEvents>();
 
   private readonly fac1DiscreteWord2 = Arinc429LocalVarConsumerSubject.create(

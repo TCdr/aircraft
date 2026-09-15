@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -264,8 +264,8 @@ const NGauge = ({ x, y }: ComponentPositionProps) => {
                 x={-1}
                 y={50}
                 min={0}
-                max={12}
-                value={10}
+                max={120}
+                value={100}
                 radius={50}
                 startAngle={240}
                 endAngle={60}

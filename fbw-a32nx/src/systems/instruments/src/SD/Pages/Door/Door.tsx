@@ -122,10 +122,24 @@ export const DoorPage = () => {
           >
             SLIDE
           </text>
-          <text id="slide3" className="Slide" x="232" y="320" textAnchor="middle" alignmentBaseline="central">
+          <text
+            id="slide3"
+            className={slides ? 'Slide' : 'Hide'}
+            x="232"
+            y="320"
+            textAnchor="middle"
+            alignmentBaseline="central"
+          >
             SLIDE
           </text>
-          <text id="slide4" className="Slide" x="368" y="320" textAnchor="middle" alignmentBaseline="central">
+          <text
+            id="slide4"
+            className={slides ? 'Slide' : 'Hide'}
+            x="368"
+            y="320"
+            textAnchor="middle"
+            alignmentBaseline="central"
+          >
             SLIDE
           </text>
           <text

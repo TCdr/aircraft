@@ -1,6 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { EventBus, FSComponent, MappedSubject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import { ComponentProps, EventBus, FSComponent, MappedSubject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { ComponentPositionProps } from '../../../common/ComponentPositionProps';
@@ -8,7 +8,7 @@ import { Arinc429LocalVarConsumerSubject } from '@flybywiresim/fbw-sdk';
 import { SvgGroup } from '../../../common/SvgGroup';
 import { FcdcChoiceEvents } from '../../../providers/FcdcChoiceProvider';
 
-interface ElacSecProps extends ComponentPositionProps {
+interface ElacSecProps extends ComponentPositionProps, ComponentProps {
   num: number;
   bus: EventBus;
 }

@@ -1,6 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { ConsumerSubject, EventBus, FSComponent, MappedSubject, MathUtils, VNode } from '@microsoft/msfs-sdk';
+import {
+  ComponentProps,
+  ConsumerSubject,
+  EventBus,
+  FSComponent,
+  MappedSubject,
+  MathUtils,
+  VNode,
+} from '@microsoft/msfs-sdk';
 
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { ComponentPositionProps } from '../../../common/ComponentPositionProps';
@@ -14,7 +22,7 @@ import { A32NXFcdcBusEvents } from '@shared/publishers/A32NXFcdcBusPublisher';
 import { FcdcChoiceEvents } from '../../../providers/FcdcChoiceProvider';
 
 export class Elevator extends DestroyableComponent<
-  ComponentPositionProps & ComponentSidePositionProps & { bus: EventBus }
+  ComponentPositionProps & ComponentSidePositionProps & { bus: EventBus } & ComponentProps
 > {
   private readonly sub = this.props.bus.getSubscriber<A32NXFcdcBusEvents & FcdcChoiceEvents>();
 

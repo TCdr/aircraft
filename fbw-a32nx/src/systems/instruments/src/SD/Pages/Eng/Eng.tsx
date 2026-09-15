@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -104,10 +104,9 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
   const [pressureBelowLow, setPressureBelowLow] = useState(false);
   const [shouldPressurePulse, setShouldPressurePulse] = useState(false);
   const [n2Percent] = useSimVar(`ENG N2 RPM:${engineNumber}`, 'percent', 50);
-  const [engine1State] = useSimVar('L:A32NX_ENGINE_STATE:1', 'number');
-  const [engine2State] = useSimVar('L:A32NX_ENGINE_STATE:2', 'number');
+  const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engineNumber}`, 'number');
 
-  const engineRunning = engine1State > 0 || engine2State > 0;
+  const engineRunning = engineState > 0;
 
   const activeVisibility = fadecOn ? 'visible' : 'hidden';
   const inactiveVisibility = fadecOn ? 'hidden' : 'visible';
@@ -127,7 +126,7 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
     }
 
     if (pressureBelowLow && displayedEngineOilPressure > OIL_PSI_LOW_LIMIT + 2) {
-      setPressureBelowLow(true);
+      setPressureBelowLow(false);
     }
 
     if (pressureAboveHigh || pressureBelowLow) {
@@ -211,7 +210,7 @@ const QuantityGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
       setQuantityAtOrBelowLow(false);
     }
 
-    if (quantityAtOrBelowLow) setShouldQuantityPulse(true);
+    setShouldQuantityPulse(quantityAtOrBelowLow);
   }, [engineOilQuantity]);
 
   return (

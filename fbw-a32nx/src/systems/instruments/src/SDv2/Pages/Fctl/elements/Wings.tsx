@@ -1,6 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { ConsumerSubject, EventBus, FSComponent, VNode } from '@microsoft/msfs-sdk';
+import { ComponentProps, ConsumerSubject, EventBus, FSComponent, VNode } from '@microsoft/msfs-sdk';
 
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { ComponentPositionProps } from '../../../common/ComponentPositionProps';
@@ -9,7 +9,7 @@ import { SvgGroup } from '../../../common/SvgGroup';
 import { SDSimvars } from '../../../SDSimvarPublisher';
 import { Spoilers } from '../../../common/Spoilers';
 
-export class Wings extends DestroyableComponent<ComponentPositionProps & { bus: EventBus }> {
+export class Wings extends DestroyableComponent<ComponentPositionProps & { bus: EventBus } & ComponentProps> {
   private readonly greenHydraulicsPressurized = ConsumerSubject.create(
     this.props.bus.getSubscriber<SDSimvars>().on('greenHydraulicPressureSwitchPressurized'),
     false,

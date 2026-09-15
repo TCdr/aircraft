@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -33,6 +33,11 @@ export const CondPage = () => {
   const [aftTrimAirValve] = useSimVar('L:A32NX_COND_AFT_TRIM_AIR_VALVE_POSITION', 'number', 100);
   let [aftTrimTemp] = useSimVar('L:A32NX_COND_AFT_DUCT_TEMP', 'celsius', 100);
   let [aftCabinTemp] = useSimVar('L:A32NX_COND_AFT_TEMP', 'celsius', 1000);
+
+  const OVERHEAT_THRESHOLD_CELSIUS = 80;
+  const cockpitOverheat = cockpitTrimTemp > OVERHEAT_THRESHOLD_CELSIUS;
+  const fwdOverheat = fwdTrimTemp > OVERHEAT_THRESHOLD_CELSIUS;
+  const aftOverheat = aftTrimTemp > OVERHEAT_THRESHOLD_CELSIUS;
 
   const hotAirOpen = !acscDiscreteWord1.bitValueOr(20, false);
   const hotAirPositionDisagrees = acsc1DiscreteWord1.bitValueOr(27, false) && acsc2DiscreteWord1.bitValueOr(27, false);
@@ -100,6 +105,7 @@ export const CondPage = () => {
         trimAirValve={cockpitTrimAirValve}
         cabinTemp={cockpitCabinTemp}
         trimTemp={cockpitTrimTemp}
+        overheat={cockpitOverheat}
         x={153}
         y={105}
         offset={gaugeOffset}
@@ -112,6 +118,7 @@ export const CondPage = () => {
         trimAirValve={fwdTrimAirValve}
         cabinTemp={fwdCabinTemp}
         trimTemp={fwdTrimTemp}
+        overheat={fwdOverheat}
         x={324}
         y={105}
         offset={gaugeOffset}
@@ -124,6 +131,7 @@ export const CondPage = () => {
         trimAirValve={aftTrimAirValve}
         cabinTemp={aftCabinTemp}
         trimTemp={aftTrimTemp}
+        overheat={aftOverheat}
         x={494}
         y={105}
         offset={gaugeOffset}
@@ -172,15 +180,15 @@ type CondUnitProps = {
   trimAirValve: number;
   cabinTemp: number;
   trimTemp: number;
+  overheat: boolean;
   x: number;
   y: number;
   offset: number;
   hotAir: boolean;
 };
 
-const CondUnit = ({ title, trimAirValve, cabinTemp, trimTemp, x, y, offset, hotAir }: CondUnitProps) => {
+const CondUnit = ({ title, trimAirValve, cabinTemp, trimTemp, overheat, x, y, offset, hotAir }: CondUnitProps) => {
   const rotateTemp = offset + (trimAirValve * 86) / 100;
-  const overheat = trimTemp > 80;
 
   return (
     <SvgGroup x={x} y={y}>

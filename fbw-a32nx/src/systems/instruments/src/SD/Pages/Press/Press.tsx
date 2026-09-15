@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -693,10 +693,10 @@ const OverboardOutletComponent: FC<OverboardOutletComponentType> = ({ validSDAC,
       classNameText = 'Amber';
       displayOutletValvePosition = 1;
       break;
-    case realOutletValvePosition > 0.01 && flightPhase < 5 && flightPhase > 7: // case 3
+    case realOutletValvePosition > 0.01 && flightPhase >= 5 && flightPhase <= 7: // case 3
       displayOutletValvePosition = 1;
       break;
-    case realOutletValvePosition > 95 && flightPhase < 5 && flightPhase > 7: // case 4
+    case realOutletValvePosition > 95 && flightPhase >= 5 && flightPhase <= 7: // case 4
       classNameText = 'Amber';
       displayOutletValvePosition = 2;
       break;
