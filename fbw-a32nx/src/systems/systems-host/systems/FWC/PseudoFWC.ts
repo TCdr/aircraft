@@ -1665,6 +1665,10 @@ export class PseudoFWC {
 
   private readonly apuFireTest = Subject.create(false);
 
+  // Keeps the APU FIRE TEST pushbutton's warnings (CRC + ECAM) active for a few seconds after
+  // release, so the crew has time to check them without having to hold the button down throughout.
+  private readonly apuFireTestExtend = new NXLogicTriggeredMonostableNode(7, false, true);
+
   private readonly cargoFireAgentDisch = Subject.create(false);
 
   private readonly cargoFireTest = Subject.create(false);
@@ -4066,7 +4070,8 @@ export class PseudoFWC {
     this.fireButtonAPU.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_APU', 'bool'));
     this.eng1FireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG1', 'bool'));
     this.eng2FireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG2', 'bool'));
-    this.apuFireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_APU', 'bool'));
+    const apuFireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_APU', 'bool');
+    this.apuFireTest.set(apuFireTestRaw || this.apuFireTestExtend.write(apuFireTestRaw, deltaTime));
     this.eng1Agent1PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_AGENT1_Discharge', 'bool'));
     this.eng1Agent2PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_AGENT2_Discharge', 'bool'));
     this.eng2Agent1PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_AGENT1_Discharge', 'bool'));
