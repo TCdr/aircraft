@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -93,6 +93,17 @@ export class TcasSoundManager {
   }
 
   tryPlaySound(sound: RaSound, retry: boolean = false, repeatOnce: boolean = false): boolean | null {
+    if (this.playingSound !== null && sound.priority > this.playingSound.priority) {
+      // A higher-priority aural (e.g. an RA reversal/escalation, or an RA over a TA) must interrupt
+      // whatever lower-priority aural is currently playing rather than wait behind it.
+      Coherent.call('STOP_INSTRUMENT_SOUND', this.playingSound.name).catch(console.error);
+      this.playingSound = null;
+      this.playingSoundRemaining = NaN;
+      // Any lower-priority sounds still waiting behind it are now stale (e.g. a queued TA callout
+      // once an RA has been issued) and should not play once this one finishes.
+      this.soundQueue = this.soundQueue.filter((queued) => queued.priority >= sound.priority);
+    }
+
     if (this.playingSound === null) {
       this.playingSound = sound;
       this.playingSoundRemaining = sound.length;

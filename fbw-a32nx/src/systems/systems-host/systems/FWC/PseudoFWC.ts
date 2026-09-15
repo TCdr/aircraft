@@ -265,9 +265,9 @@ export class PseudoFWC {
     this.fireActive,
   );
 
-  private readonly cavalryChargeActive = Subject.create(true);
+  private readonly cavalryChargeActive = Subject.create(false);
 
-  private readonly cChordActive = Subject.create(true);
+  private readonly cChordActive = Subject.create(false);
 
   private readonly fwcOut124 = Arinc429RegisterSubject.createEmpty();
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -167,6 +167,19 @@ interface RaCallout {
 export interface RaSound {
   readonly name: string;
   readonly length: number;
+  /** Aural priority: a higher value pre-empts a currently-playing lower one instead of queuing behind it. */
+  readonly priority: RaSoundPriority;
+}
+
+/**
+ * Aural priority tiers per ACAS II aural annunciation rules: an RA aural always takes precedence over a
+ * TA aural, and an escalation/reversal RA callout always takes precedence over the initial RA callout it
+ * supersedes.
+ */
+export enum RaSoundPriority {
+  TA = 0,
+  RA = 1,
+  RA_ESCALATION = 2,
 }
 
 const THREAT: { [key in TcasThreat]: readonly [number, number] } = {
@@ -268,150 +281,188 @@ const ACCEL: SensitivityMatrix = {
 } as const;
 
 // many lengths are approximate until we can get them accuratly (when boris re-makes them and we have the sources)
+// The GPWS-named entries below (pull_up..alt_5) are unused legacy leftovers in this TCAS module - never
+// played via TcasSoundManager - so their priority value is inert; kept at the RA tier for neutrality.
 const SOUNDS: { [key: string]: RaSound } = {
   pull_up: {
     name: 'aural_pullup_new',
     length: 0.9,
+    priority: RaSoundPriority.RA,
   },
   sink_rate: {
     name: 'aural_sink_rate_new',
     length: 0.9,
+    priority: RaSoundPriority.RA,
   },
   dont_sink: {
     name: 'aural_dontsink_new',
     length: 0.9,
+    priority: RaSoundPriority.RA,
   },
   too_low_gear: {
     name: 'aural_too_low_gear',
     length: 0.8,
+    priority: RaSoundPriority.RA,
   },
   too_low_flaps: {
     name: 'aural_too_low_flaps',
     length: 0.8,
+    priority: RaSoundPriority.RA,
   },
   too_low_terrain: {
     name: 'aural_too_low_terrain',
     length: 0.9,
+    priority: RaSoundPriority.RA,
   },
   minimums: {
     name: 'aural_minimumnew',
     length: 0.67,
+    priority: RaSoundPriority.RA,
   },
   hundred_above: {
     name: 'aural_100above',
     length: 0.72,
+    priority: RaSoundPriority.RA,
   },
   retard: {
     name: 'new_retard',
     length: 0.9,
+    priority: RaSoundPriority.RA,
   },
   alt_2500: {
     name: 'new_2500',
     length: 1.1,
+    priority: RaSoundPriority.RA,
   },
   alt_1000: {
     name: 'new_1000',
     length: 0.9,
+    priority: RaSoundPriority.RA,
   },
   alt_500: {
     name: 'new_500',
     length: 0.6,
+    priority: RaSoundPriority.RA,
   },
   alt_400: {
     name: 'new_400',
     length: 0.6,
+    priority: RaSoundPriority.RA,
   },
   alt_300: {
     name: 'new_300',
     length: 0.6,
+    priority: RaSoundPriority.RA,
   },
   alt_200: {
     name: 'new_200',
     length: 0.6,
+    priority: RaSoundPriority.RA,
   },
   alt_100: {
     name: 'new_100',
     length: 0.6,
+    priority: RaSoundPriority.RA,
   },
   alt_50: {
     name: 'new_50',
     length: 0.4,
+    priority: RaSoundPriority.RA,
   },
   alt_40: {
     name: 'new_40',
     length: 0.4,
+    priority: RaSoundPriority.RA,
   },
   alt_30: {
     name: 'new_30',
     length: 0.4,
+    priority: RaSoundPriority.RA,
   },
   alt_20: {
     name: 'new_20',
     length: 0.4,
+    priority: RaSoundPriority.RA,
   },
   alt_10: {
     name: 'new_10',
     length: 0.3,
+    priority: RaSoundPriority.RA,
   },
   alt_5: {
     name: 'new_5',
     length: 0.3,
+    priority: RaSoundPriority.RA,
   },
   climb_climb: {
     name: 'climb_climb',
     length: 1.6,
+    priority: RaSoundPriority.RA,
   },
   climb_crossing_climb: {
     name: 'climb_crossing_climb',
     length: 1.7,
+    priority: RaSoundPriority.RA,
   },
   increase_climb: {
     name: 'increase_climb',
     length: 1.2,
+    priority: RaSoundPriority.RA_ESCALATION,
   },
   climb_climb_now: {
     name: 'climb_climb_now',
     length: 1.9,
+    priority: RaSoundPriority.RA_ESCALATION,
   },
   clear_of_conflict: {
     name: 'clear_of_conflict',
     length: 1.5,
+    priority: RaSoundPriority.RA,
   },
   descend_descend: {
     name: 'descend_descend',
     length: 2.1,
+    priority: RaSoundPriority.RA,
   },
   descend_crossing_descend: {
     name: 'descend_crossing_descend',
     length: 1.9,
+    priority: RaSoundPriority.RA,
   },
   increase_descent: {
     name: 'increase_descent',
     length: 1.3,
+    priority: RaSoundPriority.RA_ESCALATION,
   },
   descend_descend_now: {
     name: 'descend_descend_now',
     length: 2.2,
+    priority: RaSoundPriority.RA_ESCALATION,
   },
   monitor_vs: {
     name: 'monitor_vs',
     length: 1.7,
+    priority: RaSoundPriority.RA,
   },
   maint_vs_maint: {
     name: 'maint_vs_maint',
     length: 3.2,
+    priority: RaSoundPriority.RA,
   },
   maint_vs_crossing_maint: {
     name: 'maint_vs_crossing_maint',
     length: 3.2,
+    priority: RaSoundPriority.RA,
   },
   level_off_level_off: {
     name: 'level_off_level_off',
     length: 2.3,
+    priority: RaSoundPriority.RA,
   },
   traffic_traffic: {
     name: 'traffic_traffic',
     length: 1.5,
+    priority: RaSoundPriority.TA,
   },
 } as const;
 
