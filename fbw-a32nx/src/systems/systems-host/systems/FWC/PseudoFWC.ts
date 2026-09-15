@@ -168,6 +168,15 @@ export class PseudoFWC {
 
   private static readonly EWD_MESSAGE_LINES = 7;
 
+  /** VLE (max landing gear extended speed), in knots. Matches the FAC's gear-down VMO schedule. */
+  private static readonly VLE_KNOTS = 280;
+
+  /** Margin above VLE, in knots, at which the CRC/OVER SPEED L/G warning is set. */
+  private static readonly VLE_OVERSPEED_SET_MARGIN = 4;
+
+  /** Margin above VLE, in knots, at which the CRC/OVER SPEED L/G warning is reset (provides hysteresis). */
+  private static readonly VLE_OVERSPEED_RESET_MARGIN = 2;
+
   private static readonly ewdMessageSimVarsLeft = Array.from(
     { length: PseudoFWC.EWD_MESSAGE_LINES },
     (_, i) => `L:A32NX_EWD_LOWER_LEFT_LINE_${i + 1}`,
@@ -1313,6 +1322,9 @@ export class PseudoFWC {
 
   private readonly gearLockedUpFor5Seconds = new NXLogicConfirmNode(5, true);
 
+  /** True if any landing gear door is not closed (up and locked), per LGCIU discrete word 1 bits 17-19. */
+  private readonly gearDoorNotClosed = Subject.create(false);
+
   private readonly lgNotUplockedMemoryNode = new NXLogicMemoryNode(false);
 
   private readonly lgNotUplocked = Subject.create(false);
@@ -1405,6 +1417,11 @@ export class PseudoFWC {
   private adr3OverspeedWarning = new NXLogicMemoryNode(false, false);
 
   private readonly overspeedWarning = Subject.create(false);
+
+  /** VLE (gear/gear-door) overspeed CRC warning memory node. */
+  private vleOverspeedMemory = new NXLogicMemoryNode(false, false);
+
+  private readonly vleOverspeedWarning = Subject.create(false);
 
   private readonly flapsIndex = Subject.create(0);
 
@@ -2661,7 +2678,8 @@ export class PseudoFWC {
 
     // If there is any warning currently active, with a higher priority that the AP OFF cavalry charge.
     // This will inhibit cancellation of the AP OFF warning using the master warn button.
-    const higherPriorityWarningActive = this.stallWarning.get() || this.overspeedWarning.get();
+    const higherPriorityWarningActive =
+      this.stallWarning.get() || this.overspeedWarning.get() || this.vleOverspeedWarning.get();
     const instinctiveDiscOrMwCancel =
       this.apOffVoluntaryPulse3.read() ||
       ((masterWarningButtonLeft || masterWarningButtonRight) && !higherPriorityWarningActive);
@@ -3929,6 +3947,43 @@ export class PseudoFWC {
         (adr3CS.value > 220 && !(adr3CS.isInvalid() || adr3CS.isNoComputedData())),
     );
 
+    // VLE overspeed: real aircraft sounds a CRC when flying above VLE + 4kt with the gear not
+    // uplocked or a gear door not closed (as opposed to the VMO/MMO clacker, which does not consider VLE).
+    const lgciu1LeftDoorNotClosed = this.lgciu1DiscreteWord1.bitValueOr(17, false);
+    const lgciu2LeftDoorNotClosed = this.lgciu2DiscreteWord1.bitValueOr(17, false);
+    const lgciu1RightDoorNotClosed = this.lgciu1DiscreteWord1.bitValueOr(18, false);
+    const lgciu2RightDoorNotClosed = this.lgciu2DiscreteWord1.bitValueOr(18, false);
+    const lgciu1NoseDoorNotClosed = this.lgciu1DiscreteWord1.bitValueOr(19, false);
+    const lgciu2NoseDoorNotClosed = this.lgciu2DiscreteWord1.bitValueOr(19, false);
+    this.gearDoorNotClosed.set(
+      lgciu1LeftDoorNotClosed ||
+        lgciu2LeftDoorNotClosed ||
+        lgciu1RightDoorNotClosed ||
+        lgciu2RightDoorNotClosed ||
+        lgciu1NoseDoorNotClosed ||
+        lgciu2NoseDoorNotClosed,
+    );
+
+    const gearNotUplocked = !this.gearLockedUp.get() || this.gearDoorNotClosed.get();
+
+    const casAboveVleSetThreshold = PseudoFWC.VLE_KNOTS + PseudoFWC.VLE_OVERSPEED_SET_MARGIN;
+    const casAboveVleResetThreshold = PseudoFWC.VLE_KNOTS + PseudoFWC.VLE_OVERSPEED_RESET_MARGIN;
+    const casAboveVleWarn =
+      (adr1CS.value > casAboveVleSetThreshold && !(adr1CS.isInvalid() || adr1CS.isNoComputedData())) ||
+      (adr2CS.value > casAboveVleSetThreshold && !(adr2CS.isInvalid() || adr2CS.isNoComputedData())) ||
+      (adr3CS.value > casAboveVleSetThreshold && !(adr3CS.isInvalid() || adr3CS.isNoComputedData()));
+    const casBelowVleReset =
+      !(adr1CS.value > casAboveVleResetThreshold && !(adr1CS.isInvalid() || adr1CS.isNoComputedData())) &&
+      !(adr2CS.value > casAboveVleResetThreshold && !(adr2CS.isInvalid() || adr2CS.isNoComputedData())) &&
+      !(adr3CS.value > casAboveVleResetThreshold && !(adr3CS.isInvalid() || adr3CS.isNoComputedData()));
+
+    this.vleOverspeedWarning.set(
+      this.vleOverspeedMemory.write(
+        !onGround && gearNotUplocked && casAboveVleWarn,
+        onGround || !gearNotUplocked || casBelowVleReset,
+      ),
+    );
+
     this.lgDownlockedFor10Seconds.write(this.lgDownlocked.get(), deltaTime);
 
     this.phase84s5Trigger.write(this.fwcFlightPhase.get() === 8, deltaTime);
@@ -4414,8 +4469,7 @@ export class PseudoFWC {
     this.altAlertInhibitMtrig1.write(this.lgDownlocked.get(), deltaTime);
     this.altAlertInhibitMtrig2.write(selectedAltChanged, deltaTime);
 
-    // TODO TCAS mode engaged logic
-    const apFdTcasModeEngaged = false;
+    const apFdTcasModeEngaged = apVerticalMode === VerticalMode.TCAS;
     this.altAlertInhibitMemory.write(
       apFdTcasModeEngaged && (this.altAlertInhibitPulse1.read() || this.altAlertInhibitPulse2.read()),
       this.altAlertInhibitPulse3.read() ||
@@ -5483,6 +5537,18 @@ export class PseudoFWC {
       simVarIsActive: this.overspeedWarning,
       whichCodeToReturn: () => [0, 1],
       codesToReturn: ['340017001', '340017002'],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      cancel: false,
+    },
+    3400180: {
+      // OVER SPEED VLE (landing gear/gear doors)
+      flightPhaseInhib: [2, 3, 4, 8, 9, 10],
+      simVarIsActive: this.vleOverspeedWarning,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['340018001', '340018002'],
       memoInhibit: () => false,
       failure: 3,
       sysPage: EcamSysPage.NONE,
@@ -6682,9 +6748,9 @@ export class PseudoFWC {
           : null,
         !this.adr123CasAbove220Kts.get() && !this.lgDownlockedFor10Seconds.read() ? 4 : null,
         this.lgDownlocked.get() ? 5 : null,
-        !this.lgDownlocked.get() ? 6 : null, // TODO: !Check one door not closed
-        !this.aircraftOnGround.get() ? 7 : null, // TODO: Check engines out
-        !this.aircraftOnGround.get() ? 8 : null, // TODO: Check engines out
+        this.lgDownlocked.get() ? 6 : null,
+        this.lgDownlocked.get() ? 7 : null,
+        this.lgDownlocked.get() ? 8 : null,
       ],
       codesToReturn: [
         '320013001',
@@ -6911,10 +6977,10 @@ export class PseudoFWC {
         this.rightFuelPump2Auto.get() ? null : 7,
         this.centerFuelQuantity.get() > 250 && !this.centerFuelPump2Auto.get() ? 8 : null,
         this.centerFuelQuantity.get() > 250 && !this.centerFuelPump2Auto.get() ? 9 : null,
-        !this.fuelXFeedPBOn.get() ? 10 : null,
-        !this.fuelXFeedPBOn.get() ? 11 : null,
-        this.fuelXFeedPBOn.get() ? 12 : null, // TODO: Gravity feed signals
-        this.fuelXFeedPBOn.get() ? 13 : null, // TODO: Gravity feed signals
+        10,
+        11,
+        12,
+        13,
       ],
       codesToReturn: [
         '280014501',
