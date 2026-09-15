@@ -6,6 +6,7 @@ mod electrical;
 mod fuel;
 pub mod hydraulic;
 mod navigation;
+mod oxygen;
 mod payload;
 mod pneumatic;
 mod power_consumption;
@@ -14,6 +15,7 @@ mod surveillance;
 use self::{
     air_conditioning::A320AirConditioning,
     fuel::A320Fuel,
+    oxygen::A320Oxygen,
     payload::A320Payload,
     pneumatic::{A320Pneumatic, A320PneumaticOverheadPanel},
     surveillance::A320EgpwsElectricalHarness,
@@ -79,6 +81,7 @@ pub struct A320 {
     brake_fan_panel: BrakeFanPanel,
     landing_gear: LandingGear,
     pneumatic: A320Pneumatic,
+    oxygen: A320Oxygen,
     radio_altimeters: A320RadioAltimeters,
     egpwc: EnhancedGroundProximityWarningComputer,
     egpwc_2: EnhancedGroundProximityWarningComputer2,
@@ -125,6 +128,7 @@ impl A320 {
             brake_fan_panel: BrakeFanPanel::new(context),
             landing_gear: LandingGear::new(context, false),
             pneumatic: A320Pneumatic::new(context),
+            oxygen: A320Oxygen::new(context),
             radio_altimeters: A320RadioAltimeters::new(context),
             egpwc: EnhancedGroundProximityWarningComputer::new(
                 context,
@@ -270,6 +274,8 @@ impl Aircraft for A320 {
             [self.lgcius.lgciu1(), self.lgcius.lgciu2()],
         );
 
+        self.oxygen.update(context);
+
         self.egpwc.update(&self.adirs, self.lgcius.lgciu1());
         self.egpws_electrical_harness.update(self.lgcius.lgciu1());
         self.egpwc_2.update(
@@ -312,6 +318,7 @@ impl SimulationElement for A320 {
         self.hydraulic_overhead.accept(visitor);
         self.landing_gear.accept(visitor);
         self.pneumatic.accept(visitor);
+        self.oxygen.accept(visitor);
         self.egpwc.accept(visitor);
         self.egpws_electrical_harness.accept(visitor);
         self.egpwc_2.accept(visitor);
