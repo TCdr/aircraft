@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -7,12 +7,20 @@ import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 
 import './Door.scss';
 
+// Real-world crew oxygen bottle low-pressure thresholds are inconsistent across sources and vary
+// by bottle size (documented anywhere from ~300psi to ~1500psi); this is a reasonable approximate
+// midpoint, not an authoritative FCOM figure.
+const OXYGEN_LOW_PRESSURE_PSI = 1000;
+
 export const DoorPage = () => {
   const [cabin] = useSimVar('INTERACTIVE POINT OPEN:0', 'percent', 1000);
   const [catering] = useSimVar('INTERACTIVE POINT OPEN:3', 'percent', 1000);
   const [cargoLocked] = useSimVar('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'bool', 1000);
   const [oxygen] = useSimVar('L:PUSH_OVHD_OXYGEN_CREW', 'bool', 1000);
   const [slides] = useSimVar('L:A32NX_SLIDES_ARMED', 'bool', 1000);
+  const [crewOxygenPressure] = useSimVar('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 'psi', 1000);
+  const crewOxygenPressureRounded = Math.round(crewOxygenPressure / 50) * 50;
+  const crewOxygenLow = crewOxygenPressureRounded < OXYGEN_LOW_PRESSURE_PSI;
 
   return (
     <>
@@ -183,14 +191,18 @@ export const DoorPage = () => {
             CKPT OXY
           </text>
 
-          <text id="psi_val" className="Value" x="432" y="42" textAnchor="middle" alignmentBaseline="central">
-            1700
+          <text
+            id="psi_val"
+            className={crewOxygenLow ? 'ValueAmber' : 'Value'}
+            x="432"
+            y="42"
+            textAnchor="middle"
+            alignmentBaseline="central"
+          >
+            {crewOxygenPressureRounded}
           </text>
           <text id="psi_unit" className="Unit" x="486" y="43" textAnchor="middle" alignmentBaseline="central">
             PSI
-          </text>
-          <text id="psi_val_right" className="Value" x="538" y="42" textAnchor="middle" alignmentBaseline="central">
-            1700
           </text>
         </g>
       </svg>
