@@ -35,7 +35,7 @@
         <DefaultTemplateParameters>
             <ID>1</ID>
             <MIN_N1_PCT_FOR_SLOW>7</MIN_N1_PCT_FOR_SLOW>
-            <MIN_N1_PCT_FOR_BLUR>110</MIN_N1_PCT_FOR_BLUR>
+            <MIN_N1_PCT_FOR_BLUR>75</MIN_N1_PCT_FOR_BLUR>
             <FROSTED>False</FROSTED>
         </DefaultTemplateParameters>
         <UseTemplate Name="A32NX_ENGINE_Turbine_SubTemplate"/>
@@ -139,23 +139,9 @@
         <OverrideTemplateParameters>
             <ONE_MINUS_MIN_SPEED Process="Float">1 #MIN_SPEED_PERCENT# -</ONE_MINUS_MIN_SPEED>
             <FAILURE_CODE>
-                (O:AnimCode) 0 &gt; if{
-                (A:CIRCUIT POWER SETTING:#CIRCUIT_ID_WIPERS#, percent over 100) 1 #MIN_SPEED_PERCENT# - * #MIN_SPEED_PERCENT# + #MAX_SPEED# * (&gt;O:_AnimSpeed)
-                (O:_GoForward) if{ 1 (&gt;O:_AnimDirection) } els{ -1 (&gt;O:_AnimDirection) }
-                (O:_AnimDirection) (O:_AnimSpeed) * (A:ANIMATION DELTA TIME, seconds) * (O:AnimCode) + (&gt;O:NewAnimCode)
-                (O:NewAnimCode) 100 &gt; if{
-                100 (O:NewAnimCode) 100 % - (&gt;O:NewAnimCode)
-                1 (&gt;O:_ChangedDirection)
-                }
-                (O:NewAnimCode) 0 &lt; if{
-                0 (&gt;O:NewAnimCode)
-                }
-                (O:_ChangedDirection) if{
-                (O:_GoForward) ! (&gt;O:_GoForward)
-                0 (&gt;O:_ChangedDirection)
-                }
-                (O:NewAnimCode) (&gt;O:AnimCode)
-                }
+                <!-- Circuit unpowered: freeze the blades in place instead of continuing to sweep at
+                     the knob-commanded speed (the powered ANIM_CODE below derives speed straight from
+                     the knob position, which is independent of whether the circuit is actually live). -->
                 (O:AnimCode)
             </FAILURE_CODE>
         </OverrideTemplateParameters>
