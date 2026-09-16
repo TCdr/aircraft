@@ -1665,8 +1665,8 @@ export class PseudoFWC {
 
   private readonly apuFireTest = Subject.create(false);
 
-  // Keeps the APU FIRE TEST pushbutton's warnings (CRC + ECAM) active for a few seconds after
-  // release, so the crew has time to check them without having to hold the button down throughout.
+  // Keeps the APU/ENG FIRE TEST pushbuttons' warnings (CRC + ECAM + FIRE light) active for a few seconds
+  // after release, so the crew has time to check them without having to hold the button down throughout.
   private readonly apuFireTestExtend = new NXLogicTriggeredMonostableNode(7, false, true);
 
   private readonly cargoFireAgentDisch = Subject.create(false);
@@ -1679,11 +1679,15 @@ export class PseudoFWC {
 
   private readonly eng1FireTest = Subject.create(false);
 
+  private readonly eng1FireTestExtend = new NXLogicTriggeredMonostableNode(7, false, true);
+
   private readonly eng2Agent1PB = Subject.create(false);
 
   private readonly eng2Agent2PB = Subject.create(false);
 
   private readonly eng2FireTest = Subject.create(false);
+
+  private readonly eng2FireTestExtend = new NXLogicTriggeredMonostableNode(7, false, true);
 
   private readonly fireButton1 = Subject.create(false);
 
@@ -4068,10 +4072,23 @@ export class PseudoFWC {
     this.fireButton1.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG1', 'bool'));
     this.fireButton2.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG2', 'bool'));
     this.fireButtonAPU.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_APU', 'bool'));
-    this.eng1FireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG1', 'bool'));
-    this.eng2FireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG2', 'bool'));
+    // Must call write() unconditionally every tick (not on the right side of the || below) - it needs to
+    // see the raw value while held too, or it can never observe the falling edge on release.
+    const eng1FireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG1', 'bool');
+    const eng1FireTestExtended = this.eng1FireTestExtend.write(eng1FireTestRaw, deltaTime);
+    this.eng1FireTest.set(eng1FireTestRaw || eng1FireTestExtended);
+    const eng2FireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG2', 'bool');
+    const eng2FireTestExtended = this.eng2FireTestExtend.write(eng2FireTestRaw, deltaTime);
+    this.eng2FireTest.set(eng2FireTestRaw || eng2FireTestExtended);
     const apuFireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_APU', 'bool');
-    this.apuFireTest.set(apuFireTestRaw || this.apuFireTestExtend.write(apuFireTestRaw, deltaTime));
+    const apuFireTestExtended = this.apuFireTestExtend.write(apuFireTestRaw, deltaTime);
+    this.apuFireTest.set(apuFireTestRaw || apuFireTestExtended);
+    // The FIRE pushbutton's own light is driven directly from the model behavior XML rather than through
+    // this FWC instance, so it needs the extended state published back out to a LocalVar it can read -
+    // otherwise it goes dark the instant the TEST button is released while the CRC/ECAM stay up.
+    SimVar.SetSimVarValue('L:A32NX_FWC_FIRE_TEST_ENG1_ACTIVE', 'bool', this.eng1FireTest.get());
+    SimVar.SetSimVarValue('L:A32NX_FWC_FIRE_TEST_ENG2_ACTIVE', 'bool', this.eng2FireTest.get());
+    SimVar.SetSimVarValue('L:A32NX_FWC_FIRE_TEST_APU_ACTIVE', 'bool', this.apuFireTest.get());
     this.eng1Agent1PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_AGENT1_Discharge', 'bool'));
     this.eng1Agent2PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_AGENT2_Discharge', 'bool'));
     this.eng2Agent1PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_AGENT1_Discharge', 'bool'));
