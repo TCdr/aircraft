@@ -97,7 +97,7 @@ import { FuelPredComputations } from '@fmgc/flightplanning/fuel/FuelPredComputat
 import { MsfsFlightPlanSync } from '@fmgc/flightplanning/MsfsFlightPlanSync';
 import { PendingWindUplinkParser } from '@fmgc/flightplanning/plans/PendingWindUplinkParser';
 import { isLeg, FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
-import { ProfilePhase } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { ProfilePhase, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { bearingTo } from 'msfs-geo';
 import { WindUtils } from '@fmgc/guidance/vnav/wind/WindUtils';
@@ -5859,16 +5859,27 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     );
   }
 
+  private hasStepDescent(): boolean {
+    return (
+      this.guidanceController?.vnavDriver.mcduProfile?.findVerticalCheckpoint(VerticalCheckpointReason.StepDescent) !==
+      undefined
+    );
+  }
+
   private handleFcuVSKnob(onStepClimbDescent: () => void): void {
-    this.flightPhaseManager.handleFcuVSKnob(this.getDistanceToDestination() ?? -1, onStepClimbDescent);
+    this.flightPhaseManager.handleFcuVSKnob(
+      this.getDistanceToDestination() ?? -1,
+      this.hasStepDescent(),
+      onStepClimbDescent,
+    );
   }
 
   handleFcuAltKnobPushPull(): void {
-    this.flightPhaseManager.handleFcuAltKnobPushPull(this.getDistanceToDestination() ?? -1);
+    this.flightPhaseManager.handleFcuAltKnobPushPull(this.getDistanceToDestination() ?? -1, this.hasStepDescent());
   }
 
   handleFcuAltKnobTurn(): void {
-    this.flightPhaseManager.handleFcuAltKnobTurn(this.getDistanceToDestination() ?? -1);
+    this.flightPhaseManager.handleFcuAltKnobTurn(this.getDistanceToDestination() ?? -1, this.hasStepDescent());
   }
 
   private checkCruiseLevelChangeDueToFcu(deltaTime: number) {
