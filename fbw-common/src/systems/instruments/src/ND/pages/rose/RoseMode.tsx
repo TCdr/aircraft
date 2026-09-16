@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -11,6 +11,7 @@ import { NDControlEvents } from '../../NDControlEvents';
 
 export interface RoseModeProps<T extends number> extends ComponentProps {
   bus: ArincEventBus;
+  instrument: BaseInstrument;
   rangeValues: T[];
   headingWord: Subscribable<Arinc429WordData>;
   trueHeadingWord: Subscribable<Arinc429WordData>;
