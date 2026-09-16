@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 /* eslint-disable max-len */
@@ -82,7 +82,7 @@ export const LoadSheetWidget = () => {
     <div className="relative h-content-section-reduced w-full overflow-hidden rounded-lg border-2 border-theme-accent p-6">
       {isSimbriefDataLoaded() ? (
         <>
-          <div className="absolute right-16 top-6 overflow-hidden rounded-md bg-theme-secondary">
+          <div className="absolute right-16 top-6 z-20 overflow-hidden rounded-md bg-theme-secondary">
             <TooltipWrapper text={t('Dispatch.Ofp.TT.ReduceFontSize')}>
               <button
                 type="button"
@@ -107,6 +107,7 @@ export const LoadSheetWidget = () => {
             height={51}
             onScrollStop={(scroll) => dispatch(setOfpScroll(scroll))}
             initialScroll={ofpScroll}
+            scrollButtons
           >
             <div
               ref={ref}
