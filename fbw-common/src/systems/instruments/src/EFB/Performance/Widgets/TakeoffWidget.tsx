@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 /* eslint-disable max-len */
@@ -18,7 +18,7 @@ import {
 } from '@flybywiresim/fbw-sdk-react';
 import { toast } from 'react-toastify';
 import { Calculator, CloudArrowDown, Trash } from 'react-bootstrap-icons';
-import { getAirportMagVar, getRunways } from '../Data/Runways';
+import { getAirportMagVar, getRunways, Runway } from '../Data/Runways';
 import { t } from '../../Localization/translation';
 import { TooltipWrapper } from '../../UtilComponents/TooltipWrapper';
 import { PromptModal, useModals } from '../../UtilComponents/Modals/Modals';
@@ -267,10 +267,9 @@ export const TakeoffWidget = () => {
     }
   };
 
-  const clearAirportRunways = () => {
+  const clearTakeoffRunway = () => {
     dispatch(
       setTakeoffValues({
-        availableRunways: [],
         selectedRunwayIndex: -1,
         runwayBearing: undefined,
         runwayLength: undefined,
@@ -280,32 +279,25 @@ export const TakeoffWidget = () => {
     );
   };
 
-  const handleICAOChange = (icao: string) => {
-    dispatch(clearTakeoffValues());
-
-    dispatch(setTakeoffValues({ icao }));
-    if (isValidIcao(icao)) {
-      getRunways(icao)
-        .then((runways) => {
-          dispatch(setTakeoffValues({ availableRunways: runways }));
-          if (runways.length > 0) {
-            handleRunwayChange(0);
-          } else {
-            handleRunwayChange(-1);
-          }
-        })
-        .catch(() => {
-          clearAirportRunways();
-        });
-    } else {
-      clearAirportRunways();
-    }
+  const clearAirportRunways = () => {
+    clearTakeoffRunway();
+    dispatch(
+      setTakeoffValues({
+        availableRunways: [],
+      }),
+    );
   };
 
-  const handleRunwayChange = (runwayIndex: number | undefined): void => {
-    clearResult();
+  // split out from handlers to avoid races between icao and runways changes
+  const updateRunways = (runwayIndex: number | undefined, runways: Runway[] | undefined) => {
+    let newRunway: Runway | undefined;
+    if (runways !== undefined) {
+      dispatch(setTakeoffValues({ availableRunways: runways }));
+      newRunway = runwayIndex !== undefined && runwayIndex >= 0 ? runways[runwayIndex] : undefined;
+    } else {
+      newRunway = runwayIndex !== undefined && runwayIndex >= 0 ? availableRunways[runwayIndex] : undefined;
+    }
 
-    const newRunway = runwayIndex !== undefined && runwayIndex >= 0 ? availableRunways[runwayIndex] : undefined;
     if (newRunway !== undefined) {
       const runwaySlope = -Math.tan(newRunway.gradient * Avionics.Utils.DEG2RAD) * 100;
       dispatch(
@@ -318,16 +310,30 @@ export const TakeoffWidget = () => {
         }),
       );
     } else {
-      dispatch(
-        setTakeoffValues({
-          selectedRunwayIndex: -1,
-          runwayBearing: undefined,
-          runwayLength: undefined,
-          runwaySlope: undefined,
-          elevation: undefined,
-        }),
-      );
+      clearTakeoffRunway();
     }
+  };
+
+  const handleICAOChange = (icao: string) => {
+    dispatch(clearTakeoffValues());
+
+    dispatch(setTakeoffValues({ icao }));
+    if (isValidIcao(icao)) {
+      getRunways(icao)
+        .then((runways) => {
+          updateRunways(runways.length > 0 ? 0 : -1, runways);
+        })
+        .catch(() => {
+          clearAirportRunways();
+        });
+    } else {
+      clearAirportRunways();
+    }
+  };
+
+  const handleRunwayChange = (runwayIndex: number | undefined): void => {
+    clearResult();
+    updateRunways(runwayIndex, undefined);
   };
 
   const handleWeightChange = (value: string): void => {
