@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { FC, useContext, useEffect, useState } from 'react';
@@ -32,7 +32,7 @@ import {
   WIND_MAGNITUDE_AND_DIR_REGEX,
   WIND_MAGNITUDE_ONLY_REGEX,
 } from '../Data/Utils';
-import { getAirportMagVar, getRunways } from '../Data/Runways';
+import { getAirportMagVar, getRunways, Runway } from '../Data/Runways';
 
 interface OutputDisplayProps {
   label: string;
@@ -261,32 +261,16 @@ export const LandingWidget = () => {
     }
   };
 
-  const handleICAOChange = (icao: string) => {
-    dispatch(clearLandingValues());
-
-    dispatch(setLandingValues({ icao }));
-    if (isValidIcao(icao)) {
-      getRunways(icao)
-        .then((runways) => {
-          dispatch(setLandingValues({ availableRunways: runways }));
-          if (runways.length > 0) {
-            handleRunwayChange(0);
-          } else {
-            handleRunwayChange(-1);
-          }
-        })
-        .catch(() => {
-          clearAirportRunways();
-        });
+  // split out from handlers to avoid races between icao and runways changes
+  const updateRunways = (runwayIndex: number | undefined, runways: Runway[] | undefined) => {
+    let newRunway: Runway | undefined;
+    if (runways !== undefined) {
+      dispatch(setLandingValues({ availableRunways: runways }));
+      newRunway = runwayIndex !== undefined && runwayIndex >= 0 ? runways[runwayIndex] : undefined;
     } else {
-      clearAirportRunways();
+      newRunway = runwayIndex !== undefined && runwayIndex >= 0 ? availableRunways[runwayIndex] : undefined;
     }
-  };
 
-  const handleRunwayChange = (runwayIndex: number | undefined): void => {
-    clearResult();
-
-    const newRunway = runwayIndex !== undefined && runwayIndex >= 0 ? availableRunways[runwayIndex] : undefined;
     if (newRunway !== undefined) {
       const slope = -Math.tan(newRunway.gradient * Avionics.Utils.DEG2RAD) * 100;
       dispatch(
@@ -299,27 +283,49 @@ export const LandingWidget = () => {
         }),
       );
     } else {
-      dispatch(
-        setLandingValues({
-          selectedRunwayIndex: -1,
-          runwayHeading: undefined,
-          runwayLength: undefined,
-          slope: undefined,
-          elevation: undefined,
-        }),
-      );
+      clearLandingRunway();
     }
   };
 
+  const handleICAOChange = (icao: string) => {
+    dispatch(clearLandingValues());
+
+    dispatch(setLandingValues({ icao }));
+    if (isValidIcao(icao)) {
+      getRunways(icao)
+        .then((runways) => {
+          updateRunways(runways.length > 0 ? 0 : -1, runways);
+        })
+        .catch(() => {
+          clearAirportRunways();
+        });
+    } else {
+      clearAirportRunways();
+    }
+  };
+
+  const handleRunwayChange = (runwayIndex: number | undefined): void => {
+    clearResult();
+    updateRunways(runwayIndex, undefined);
+  };
+
+  const clearLandingRunway = () => {
+    dispatch(
+      setLandingValues({
+        selectedRunwayIndex: -1,
+        runwayHeading: undefined,
+        runwayLength: undefined,
+        slope: undefined,
+        elevation: undefined,
+      }),
+    );
+  };
+
   const clearAirportRunways = () => {
+    clearLandingRunway();
     dispatch(
       setLandingValues({
         availableRunways: [],
-        selectedRunwayIndex: -1,
-        runwayBearing: undefined,
-        runwayLength: undefined,
-        runwaySlope: undefined,
-        elevation: undefined,
       }),
     );
   };
