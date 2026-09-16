@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2025 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useContext, useEffect, useState } from 'react';
@@ -412,6 +412,25 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
     }
   }, [nwStrgDisc]);
 
+  // Check if the aircraft is on the ground, tug not attached and stationary if not close all doors
+  // This uses all available interactive point indices to close all doors - on the A80X there are 20 doors.
+  // Triggering an interaction point that is not defined is ignored therefore we can also use this for the A32NX.
+  const [simOnGround] = useSimVar('SIM ON GROUND', 'bool', 250);
+  const [aircraftIsStationary] = useSimVar('L:A32NX_IS_STATIONARY', 'bool', 250);
+  const [pushBackAttached] = useSimVar('Pushback Attached', 'enum', 250);
+  const closedDoorsState = !simOnGround || !aircraftIsStationary || pushBackAttached;
+  const numberOfInteractivePoints = 20;
+  useEffect(() => {
+    if (closedDoorsState) {
+      console.log('Closing all doors due to tug, aircraft movement or aircraft not on ground');
+      for (let i = 0; i <= numberOfInteractivePoints; i++) {
+        const doorOpen = SimVar.GetSimVarValue(`A:INTERACTIVE POINT OPEN:${i}`, 'percent over 100');
+        if (doorOpen >= 0.99) {
+          SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', i + 1);
+        }
+      }
+    }
+  }, [closedDoorsState]);
   // </Pushback>
   // =========================================================================
 
