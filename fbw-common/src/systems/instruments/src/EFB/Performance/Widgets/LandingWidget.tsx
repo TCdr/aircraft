@@ -6,7 +6,6 @@ import React, { FC, useContext, useEffect, useState } from 'react';
 import {
   Units,
   MetarParserType,
-  useSimVar,
   usePersistentProperty,
   parseMetar,
   LandingFlapsConfig,
@@ -67,7 +66,6 @@ export const LandingWidget = () => {
 
   const calculators = useContext(AircraftContext).performanceCalculators;
 
-  const [totalWeight] = useSimVar('TOTAL WEIGHT', 'Pounds', 1000);
   const [autoFillSource, setAutoFillSource] = useState<'METAR' | 'OFP'>('OFP');
 
   const { usingMetric } = Units;
@@ -101,7 +99,13 @@ export const LandingWidget = () => {
     displayedRunwayLength,
   } = useAppSelector((state) => state.performance.landing);
 
-  const { arrivingAirport, arrivingMetar, arrivingRunway } = useAppSelector((state) => state.simbrief.data);
+  const {
+    arrivingAirport,
+    arrivingMetar,
+    arrivingRunway,
+    weights: ofpWeights,
+    units: ofpUnits,
+  } = useAppSelector((state) => state.simbrief.data);
 
   useEffect(() => {
     // in case of head- or tailwind entry only, the runway heading is used to set the wind direction
@@ -208,7 +212,8 @@ export const LandingWidget = () => {
     try {
       const parsedMetar: MetarParserType = parseMetar(arrivingMetar);
 
-      const weightKgs = Math.round(Units.poundToKilogram(totalWeight));
+      const ofpLdw = parseInt(ofpWeights.estLandingWeight);
+      const weightKgs = ofpUnits === 'lbs' ? Math.round(Units.poundToKilogram(ofpLdw)) : ofpLdw;
 
       if (!isValidIcao(arrivingAirport)) {
         toast.error('OFP airport is invalid');
