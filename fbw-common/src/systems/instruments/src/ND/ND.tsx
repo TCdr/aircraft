@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2024 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -68,6 +68,8 @@ export const getDisplayIndex = () => {
 
 export interface NDProps<T extends number> {
   bus: ArincEventBus;
+
+  instrument: BaseInstrument;
 
   side: EfisSide;
 
@@ -401,6 +403,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
           <svg class="nd-svg" viewBox="0 0 768 768" style="transform: rotateX(0deg);">
             <RoseLSPage
               bus={this.props.bus}
+              instrument={this.props.instrument}
               ref={this.roseLSPage}
               headingWord={this.headingWord}
               trueHeadingWord={this.trueHeadingWord}
@@ -413,6 +416,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             />
             <RoseVorPage
               bus={this.props.bus}
+              instrument={this.props.instrument}
               ref={this.roseVorPage}
               headingWord={this.headingWord}
               trueHeadingWord={this.trueHeadingWord}
@@ -425,6 +429,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             />
             <RoseNavPage
               bus={this.props.bus}
+              instrument={this.props.instrument}
               ref={this.roseNavPage}
               headingWord={this.headingWord}
               trueHeadingWord={this.trueHeadingWord}

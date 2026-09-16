@@ -109,6 +109,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] Corrected off-by-.01 conversion value for kohlsman event - @rthom91 (Randy)
 1. [A32NX/FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
 1. [EFB] Fix race conditions in ICAO and runways update in performance calculator - @ta-dzik (ta_dzik)
+1. [ND] Smooth ILS and VOR deviations on ND - @BlueberryKing (BlueberryKing)
 
 ## 2024.1.0
 
