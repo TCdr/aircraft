@@ -1765,7 +1765,11 @@ export class PseudoFWC {
 
   // Keeps the APU/ENG FIRE TEST pushbuttons' warnings (CRC + ECAM + FIRE light) active for a few seconds
   // after release, so the crew has time to check them without having to hold the button down throughout.
+  // This is an unrealistic convenience (the real momentary hold-switch cuts off instantly on release),
+  // so it's gated behind the "Extend Fire Test Warnings After Button Release" EFB Realism setting.
   private readonly apuFireTestExtend = new NXLogicTriggeredMonostableNode(7, false, true);
+
+  private fireTestExtendEnabled = true;
 
   private readonly cargoFireAgentDisch = Subject.create(false);
 
@@ -2057,6 +2061,13 @@ export class PseudoFWC {
     this.auralSingleChimeInhibitTimer.schedule(
       () => (this.auralSingleChimePending = false),
       PseudoFWC.AURAL_SC_INHIBIT_TIME,
+    );
+
+    // EFB Realism setting: "Extend Fire Test Warnings After Button Release"
+    NXDataStore.getAndSubscribeLegacy(
+      'FIRE_TEST_EXTEND',
+      (_, v) => (this.fireTestExtendEnabled = v === 'ENABLED'),
+      'ENABLED',
     );
 
     // Radio altimeter callouts
@@ -4348,16 +4359,19 @@ export class PseudoFWC {
     this.fireButton2.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG2', 'bool'));
     this.fireButtonAPU.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_APU', 'bool'));
     // Must call write() unconditionally every tick (not on the right side of the || below) - it needs to
-    // see the raw value while held too, or it can never observe the falling edge on release.
+    // see the raw value while held too, or it can never observe the falling edge on release. The extended
+    // value itself is only applied when the "Extend Fire Test Warnings After Button Release" EFB Realism
+    // setting is on, but write() still runs regardless so the monostable's state stays correct if it's
+    // toggled mid-flight.
     const eng1FireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG1', 'bool');
     const eng1FireTestExtended = this.eng1FireTestExtend.write(eng1FireTestRaw, deltaTime);
-    this.eng1FireTest.set(eng1FireTestRaw || eng1FireTestExtended);
+    this.eng1FireTest.set(eng1FireTestRaw || (this.fireTestExtendEnabled && eng1FireTestExtended));
     const eng2FireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG2', 'bool');
     const eng2FireTestExtended = this.eng2FireTestExtend.write(eng2FireTestRaw, deltaTime);
-    this.eng2FireTest.set(eng2FireTestRaw || eng2FireTestExtended);
+    this.eng2FireTest.set(eng2FireTestRaw || (this.fireTestExtendEnabled && eng2FireTestExtended));
     const apuFireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_APU', 'bool');
     const apuFireTestExtended = this.apuFireTestExtend.write(apuFireTestRaw, deltaTime);
-    this.apuFireTest.set(apuFireTestRaw || apuFireTestExtended);
+    this.apuFireTest.set(apuFireTestRaw || (this.fireTestExtendEnabled && apuFireTestExtended));
     // The FIRE pushbutton's own light is driven directly from the model behavior XML rather than through
     // this FWC instance, so it needs the extended state published back out to a LocalVar it can read -
     // otherwise it goes dark the instant the TEST button is released while the CRC/ECAM stay up.
