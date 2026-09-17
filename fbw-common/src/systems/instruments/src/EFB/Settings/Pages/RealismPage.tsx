@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useContext } from 'react';
@@ -43,6 +43,7 @@ export const RealismPage = () => {
     0,
   );
   const [eclSoftKeys, setEclSoftKeys] = usePersistentNumberProperty('CONFIG_A380X_SHOW_ECL_SOFTKEYS', 0);
+  const [fireTestExtend, setFireTestExtend] = usePersistentBooleanProperty('FIRE_TEST_EXTEND', true);
 
   const adirsAlignTimeButtons: (ButtonType & SimVarButton)[] = [
     { name: t('Settings.Instant'), setting: 'INSTANT', simVarValue: 1 },
@@ -191,6 +192,12 @@ export const RealismPage = () => {
       {aircraftContext.settingsPages.realism.eclSoftKeys && (
         <SettingItem name={t('Settings.Realism.EclSoftKeys')} unrealistic>
           <Toggle value={!!eclSoftKeys} onToggle={(value) => setEclSoftKeys(value ? 1 : 0)} />
+        </SettingItem>
+      )}
+
+      {aircraftContext.settingsPages.realism.fireTestExtend && (
+        <SettingItem name={t('Settings.Realism.FireTestExtend')} unrealistic>
+          <Toggle value={fireTestExtend} onToggle={(value) => setFireTestExtend(value)} />
         </SettingItem>
       )}
     </SettingsPage>
