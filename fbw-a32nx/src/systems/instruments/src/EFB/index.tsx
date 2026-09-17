@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import React from 'react';
@@ -53,6 +53,7 @@ render(
           autoStepClimb: false,
           pilotAvatars: true,
           eclSoftKeys: false,
+          fireTestExtend: true,
         },
         sim: {
           cones: true,
