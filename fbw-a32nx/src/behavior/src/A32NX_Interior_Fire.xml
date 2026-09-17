@@ -28,8 +28,13 @@
 
     <Template Name="FBW_Airbus_FIRE_AGENT">
         <UseTemplate Name="FBW_Push_Toggle">
-            <SEQ1_CODE>(L:A32NX_FIRE_TEST_#TYPE##ID#, Bool) (L:A32NX_FIRE_BUTTON_#TYPE##ID#, Bool) or</SEQ1_CODE>
-            <SEQ2_CODE>(L:A32NX_FIRE_TEST_#TYPE##ID#, Bool) (L:A32NX_FIRE_#TYPE##ID#_AGENT#AGENT_ID#_Discharge) or</SEQ2_CODE>
+            <!-- Uses A32NX_FWC_FIRE_TEST_#TYPE##ID#_ACTIVE (the raw FIRE TEST hold-simvar, extended by the FWC
+                 for a few seconds after release per the "Extend Fire Test Warnings After Button Release" EFB
+                 Realism setting) rather than the raw A32NX_FIRE_TEST_#TYPE##ID# simvar directly, so these AGENT/
+                 SQUIB DISCH lights stay lit in sync with the FIRE pushbutton's own light and the CRC/ECAM,
+                 instead of cutting off instantly on release while everything else stays lit. -->
+            <SEQ1_CODE>(L:A32NX_FWC_FIRE_TEST_#TYPE##ID#_ACTIVE, Bool) (L:A32NX_FIRE_BUTTON_#TYPE##ID#, Bool) or</SEQ1_CODE>
+            <SEQ2_CODE>(L:A32NX_FWC_FIRE_TEST_#TYPE##ID#_ACTIVE, Bool) (L:A32NX_FIRE_#TYPE##ID#_AGENT#AGENT_ID#_Discharge) or</SEQ2_CODE>
             <LEFT_SINGLE_CODE>
                 (L:A32NX_FIRE_BUTTON_#TYPE##ID#, Bool) if{
                 1 (>L:A32NX_FIRE_#TYPE##ID#_AGENT#AGENT_ID#_Discharge)
