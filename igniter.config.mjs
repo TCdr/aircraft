@@ -107,7 +107,7 @@ export default new TaskOfTasks('all', [
                         'fbw-common/src/wasm/terronnd/src/nanovg',
                         'fbw-common/src/wasm/terronnd/src/types/arinc429.hpp',
                         'fbw-a32nx/out/flybywire-aircraft-a320-neo/SimObjects/AirPlanes/FlyByWire_A320_NEO/panel/ndwxr.wasm',
-                        'fbw-common/src/wasm/ndwxr/out/ndwxr.wasm',
+                        'fbw-common/src/wasm/ndwxr/out/ndwxr_A32NX.wasm',
                     ],
                 ),
                 new ExecTask('cpp-wasm-cmake', 'npm run build:cpp-wasm-cmake', [
@@ -213,6 +213,18 @@ export default new TaskOfTasks('all', [
                         'fbw-common/src/wasm/terronnd',
                         'fbw-common/src/wasm/terronnd/out/terronnd_A380X.wasm',
                         'fbw-a380x/out/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire/Part_Interior_Cockpit/panel/terronnd.wasm',
+                    ],
+                ),
+                new ExecTask(
+                    'systems-ndwxr',
+                    ['npm run build-a380x:ndwxr'],
+                    [
+                        'fbw-common/src/wasm/ndwxr',
+                        // ndwxr reuses terronnd's vendored NanoVG and its ARINC429 word decoder.
+                        'fbw-common/src/wasm/terronnd/src/nanovg',
+                        'fbw-common/src/wasm/terronnd/src/types/arinc429.hpp',
+                        'fbw-a380x/out/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire/Part_Interior_Cockpit/panel/ndwxr.wasm',
+                        'fbw-common/src/wasm/ndwxr/out/ndwxr_A380X.wasm',
                     ],
                 ),
                 new ExecTask('cpp-wasm-cmake', 'npm run build:cpp-wasm-cmake', [

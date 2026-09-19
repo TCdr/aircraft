@@ -106,7 +106,7 @@
 │           ├───extra-backend                                       <additional backend logic (Pushback, Presets) in C++>
 │           ├───fadec_common                                        <common Full Authority Digital Engine Control (FADEC) logic in C++>
 │           ├───fbw_common                                          <common fly-by-wire code in C++>
-│           ├───ndwxr                                               <native ND weather radar in C++ (A32NX)>
+│           ├───ndwxr                                               <native ND weather radar in C++>
 │           ├───systems                                             <common systems code in Rust>
 │           ├───terronnd                                            <terrain radar system in C++>
 │           └───utils                                               <shared utility functions for WASM components>
