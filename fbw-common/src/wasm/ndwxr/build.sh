@@ -1,7 +1,8 @@
 #!/bin/bash
 # Native WASM ND weather radar gauge (MSFS_MapView.h based). Run through
-# igniter as the `systems-ndwxr` task (`npm run build-a32nx:ndwxr`), which also
-# copies the result into the A32NX package output.
+# igniter as the `systems-ndwxr` task (`npm run build-a32nx:ndwxr` /
+# `npm run build-a380x:ndwxr`), which also copies the result into the aircraft
+# package output. Usage: ./build.sh [--a380x]  (default: A32NX)
 # Mirrors fbw-common/src/wasm/terronnd/build.sh's toolchain/flags exactly
 # (including all --export flags - dropping them caused a WASM load failure,
 # ERR_INVALID_RESERVED_VALUE, during prototyping), but only compiles this
@@ -10,13 +11,21 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 TERRONND_DIR="${DIR}/../terronnd"
 
-RAW_OUTPUT="${DIR}/obj/ndwxr_raw.wasm"
-OUTPUT="${DIR}/out/ndwxr.wasm"
+if [ "$1" == "--a380x" ]; then
+  AIRCRAFT_FLAG="A380X"
+else
+  AIRCRAFT_FLAG="A32NX"
+fi
+
+RAW_OUTPUT="${DIR}/obj/ndwxr_${AIRCRAFT_FLAG}_raw.wasm"
+OUTPUT="${DIR}/out/ndwxr_${AIRCRAFT_FLAG}.wasm"
 
 set -e
 
-mkdir -p "${DIR}/obj"
-pushd "${DIR}/obj"
+# separate object folder per aircraft, so the link step below only ever sees
+# the objects of the variant being built
+mkdir -p "${DIR}/obj/${AIRCRAFT_FLAG}"
+pushd "${DIR}/obj/${AIRCRAFT_FLAG}"
 
 clang++ \
   -c \
@@ -40,7 +49,7 @@ clang++ \
   -D_LIBCPP_HAS_NO_THREADS \
   -D_WINDLL \
   -D_MBCS \
-  -DA32NX \
+  -D${AIRCRAFT_FLAG} \
   -mthread-model single \
   -fno-exceptions \
   -fms-extensions \
@@ -81,7 +90,7 @@ wasm-ld \
   --strip-debug \
   -O2 \
   -lc++ -lc++abi \
-  ${DIR}/obj/*.o \
+  ${DIR}/obj/${AIRCRAFT_FLAG}/*.o \
   -o "$RAW_OUTPUT"
 
 # MSFS's WASM engine doesn't support the "sign-extension" instruction set
