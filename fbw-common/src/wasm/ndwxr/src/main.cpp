@@ -72,11 +72,17 @@
 //   (fsMapViewSetWeatherRadarStabilization defaults to true for both axes), so
 //   the beam stays level in a banked turn without this module doing anything.
 //
+// Built twice from this file, like terronnd: for the A32NX (default) and for
+// the A380X (-DA380X). They differ in the ND range table, in which power buses
+// switch the ND on, in how the crew selects the radar, and in which inertial
+// reference feeds each side (see the #ifdef A380X blocks).
+//
 // Stacked as an extra htmlgauge on each ND's existing panel.cfg block
-// (VCockpit02 = CPT, VCockpit15 = F/O). Like terronnd, the last gauge parameter
-// selects the side ("L" or "R"; no parameter means "L"). Both gauges run inside
-// one WASM module instance, so all per-ND state lives in an Instance keyed by
-// the gauge's FsContext.
+// (A32NX: VCockpit02 = CPT, VCockpit15 = F/O; A380X: VCockpit07 = CPT,
+// VCockpit08 = F/O). Like terronnd, the last gauge parameter selects the side
+// ("L" or "R"; no parameter means "L"). Both gauges run inside one WASM module
+// instance, so all per-ND state lives in an Instance keyed by the gauge's
+// FsContext.
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
@@ -108,25 +114,48 @@ struct NamedVar {
   double read() { return get_named_variable_value(id); }
 };
 
-// The WX radar knobs and the ATT HDG switching knob are single selectors shared
-// by both NDs.
-NamedVar g_wxrSys{"XMLVAR_A320_WeatherRadar_Sys"};
+// The WX radar mode knob and the ATT HDG switching knob are single selectors
+// shared by both NDs. (The mode knob is Asobo-style "XMLVAR_A320_..." on both
+// aircraft: the A380X cockpit model reuses the same pedestal knob template.)
 NamedVar g_wxrMode{"XMLVAR_A320_WeatherRadar_Mode"};
 NamedVar g_attHdgKnob{"A32NX_ATT_HDG_SWITCHING_KNOB"};
 // ADIRS inertial reference position words for IR 1..3 (index 0..2).
 NamedVar g_adirsLat[3] = {{"A32NX_ADIRS_IR_1_LATITUDE"}, {"A32NX_ADIRS_IR_2_LATITUDE"}, {"A32NX_ADIRS_IR_3_LATITUDE"}};
 NamedVar g_adirsLon[3] = {{"A32NX_ADIRS_IR_1_LONGITUDE"}, {"A32NX_ADIRS_IR_2_LONGITUDE"}, {"A32NX_ADIRS_IR_3_LONGITUDE"}};
 // Main landing gear compression as reported by LGCIU 1 and 2 (index 0..1); an
-// unpowered LGCIU reports "not compressed".
+// unpowered LGCIU reports "not compressed". Same names on both aircraft.
 NamedVar g_lgciuLeftCompressed[2] = {{"A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED"}, {"A32NX_LGCIU_2_LEFT_GEAR_COMPRESSED"}};
 NamedVar g_lgciuRightCompressed[2] = {{"A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED"}, {"A32NX_LGCIU_2_RIGHT_GEAR_COMPRESSED"}};
+
+#ifdef A380X
+// The A380X selects the radar on the ND with the WX overlay on the EFIS control
+// panel plus one of two WXR/TAWS systems on the SURV panel; each system reports
+// its own failure (EfisTawsBridge.ts).
+NamedVar g_wxrTawsSelected{"A32NX_WXR_TAWS_SYS_SELECTED"};
+NamedVar g_wxrFailed[2] = {{"A32NX_WXR_1_FAILED"}, {"A32NX_WXR_2_FAILED"}};
+
+// A380X_EFIS_x_ACTIVE_OVERLAY (FcuBusPublisher.ts): 0 = none, 1 = WXR, 2 = TERR.
+constexpr double kOverlayWxr = 1.0;
+#else
+// The A32NX radar is switched by the pedestal WX SYS selector (0 = SYS 1,
+// 1 = OFF, 2 = SYS 2).
+NamedVar g_wxrSys{"XMLVAR_A320_WeatherRadar_Sys"};
+constexpr double kWxrSysOff = 1.0;
+#endif
 
 // Mirrors EfisNdMode in fbw-common/.../NavigationDisplay.ts:33-39.
 constexpr double kNdModeRoseNav = 2.0;
 constexpr double kNdModeArc = 3.0;
 
+#ifdef A380X
+// a380EfisRangeSettings, NavigationDisplay.ts:19. Range index 0 (-1) is the
+// OANS airport map: the ND shows that instead of the moving map, so no radar.
+constexpr float kRangeTableNm[8] = {-1.0f, 10.0f, 20.0f, 40.0f, 80.0f, 160.0f, 320.0f, 640.0f};
+#else
 // a320EfisRangeSettings, NavigationDisplay.ts:9,15.
 constexpr float kRangeTableNm[6] = {10.0f, 20.0f, 40.0f, 80.0f, 160.0f, 320.0f};
+#endif
+constexpr int kRangeCount = static_cast<int>(sizeof(kRangeTableNm) / sizeof(kRangeTableNm[0]));
 constexpr float kNmToMetres = 1852.0f;
 
 // Screen-space placement constants, matching arc/index.tsx:224,226 and
@@ -229,11 +258,16 @@ struct Instance {
 
   ID ndModeVar = -1;
   ID ndRangeVar = -1;
-  // The ND's power bus - the same LVar terronnd reads (configuration.h's
-  // AcEssBus / Ac2Bus) to gate its own rendering. The live-MapView-texture
-  // render pass bypasses whatever backlight/emissive mechanism blanks nd.html's
-  // own content when unpowered, so this module has to check power itself.
-  ID powerBusVar = -1;
+  // The buses that switch this ND on (it is on while either is powered). The
+  // live-MapView-texture render pass bypasses whatever backlight/emissive
+  // mechanism blanks nd.html's own content when unpowered, so this module has
+  // to check power itself. A32NX: the same LVar terronnd reads (configuration.h's
+  // AcEssBus / Ac2Bus) in both slots. A380X: the DC buses of the ND's display
+  // unit, as in CdsDisplayUnit's DisplayUnitToDCBus.
+  ID powerBusVars[2] = {-1, -1};
+#ifdef A380X
+  ID overlayVar = -1;
+#endif
 
   FsTextureId mapView = 0;
   bool mapViewReady = false;
@@ -268,20 +302,59 @@ Instance* allocInstance() {
   return nullptr;
 }
 
-// Which inertial reference feeds this ND: IR 1 for the CPT and IR 2 for the F/O,
-// or IR 3 when the ATT HDG switching knob routes it to that side - the same
-// rule as AdirsValueProvider's getSupplier() in MsfsAvionicsCommon.
+// Which inertial reference feeds this ND.
 int inertialSource(bool isRight, int attHdgKnob) {
+#ifdef A380X
+  // NORM feeds each side from its own IR (1 for the CPT, 2 for the F/O); any
+  // other knob position switches both to IR 3 - the rule EfisTawsBridge uses for
+  // the A380X's ND availability.
+  constexpr int kNorm = 1;
+  if (attHdgKnob == kNorm) {
+    return isRight ? 2 : 1;
+  }
+  return 3;
+#else
+  // IR 1 for the CPT and IR 2 for the F/O, or IR 3 when the ATT HDG switching
+  // knob routes it to that side - the same rule as AdirsValueProvider's
+  // getSupplier() in MsfsAvionicsCommon.
   constexpr int kAdirs3ToCaptain = 0;
   constexpr int kAdirs3ToFo = 2;
   if (isRight) {
     return attHdgKnob == kAdirs3ToFo ? 3 : 2;
   }
   return attHdgKnob == kAdirs3ToCaptain ? 3 : 1;
+#endif
 }
 
 bool isArcOrRoseNav(double ndMode) {
   return ndMode == kNdModeArc || ndMode == kNdModeRoseNav;
+}
+
+bool isPowered(const Instance& instance) {
+  return get_named_variable_value(instance.powerBusVars[0]) != 0.0 || get_named_variable_value(instance.powerBusVars[1]) != 0.0;
+}
+
+// Whether the crew has asked for the radar on this ND and the radar system can
+// supply it (the mode knob, ND page, position source and ground inhibit are
+// checked separately).
+bool radarSelected(const Instance& instance) {
+#ifdef A380X
+  // The same rule the A380X applies to terrain on the ND (EfisTawsBridge's
+  // terrOnNd), for the WXR overlay: this side's EFIS control panel has the WX
+  // overlay selected and the WXR/TAWS system selected on the SURV panel is not
+  // failed. No system selected (0) counts as failed, as in the VD's WXR INOP flag.
+  if (get_named_variable_value(instance.overlayVar) != kOverlayWxr) {
+    return false;
+  }
+  const int system = static_cast<int>(g_wxrTawsSelected.read());
+  if (system != 1 && system != 2) {
+    return false;
+  }
+  return g_wxrFailed[system - 1].read() == 0.0;
+#else
+  (void)instance;
+  return g_wxrSys.read() != kWxrSysOff;
+#endif
 }
 
 // A real weather radar does not transmit on the ground. The aircraft counts as
@@ -505,7 +578,6 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       // register_named_variable returns the same id for a name that is already
       // registered, so the shared variables can simply be registered again by
       // the second instance.
-      g_wxrSys.id = register_named_variable(g_wxrSys.name);
       g_wxrMode.id = register_named_variable(g_wxrMode.name);
       g_attHdgKnob.id = register_named_variable(g_attHdgKnob.name);
       for (int i = 0; i < 3; ++i) {
@@ -516,10 +588,27 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         g_lgciuLeftCompressed[i].id = register_named_variable(g_lgciuLeftCompressed[i].name);
         g_lgciuRightCompressed[i].id = register_named_variable(g_lgciuRightCompressed[i].name);
       }
+#ifdef A380X
+      g_wxrTawsSelected.id = register_named_variable(g_wxrTawsSelected.name);
+      for (NamedVar& failed : g_wxrFailed) {
+        failed.id = register_named_variable(failed.name);
+      }
+      instance->overlayVar = register_named_variable(instance->isRight ? "A380X_EFIS_R_ACTIVE_OVERLAY" : "A380X_EFIS_L_ACTIVE_OVERLAY");
+      if (instance->isRight) {
+        instance->powerBusVars[0] = register_named_variable("A32NX_ELEC_DC_1_BUS_IS_POWERED");
+        instance->powerBusVars[1] = register_named_variable("A32NX_ELEC_DC_2_BUS_IS_POWERED");
+      } else {
+        instance->powerBusVars[0] = register_named_variable("A32NX_ELEC_108PH_BUS_IS_POWERED");
+        instance->powerBusVars[1] = register_named_variable("A32NX_ELEC_DC_1_BUS_IS_POWERED");
+      }
+#else
+      g_wxrSys.id = register_named_variable(g_wxrSys.name);
+      instance->powerBusVars[0] = register_named_variable(instance->isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED"
+                                                                            : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
+      instance->powerBusVars[1] = instance->powerBusVars[0];
+#endif
       instance->ndModeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_MODE" : "A32NX_EFIS_L_ND_MODE");
       instance->ndRangeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_RANGE" : "A32NX_EFIS_L_ND_RANGE");
-      instance->powerBusVar = register_named_variable(instance->isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED"
-                                                                        : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
 
       NVGparams params;
       params.userPtr = ctx;
@@ -565,11 +654,10 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       bool isRoseNav = false;
       bool showPrecip = false;
       bool showTurb = false;
-      float rangeNmForMode = kRangeTableNm[0];
+      float rangeNmForMode = 10.0f;
 
-      if (get_named_variable_value(instance->powerBusVar) != 0.0) {
+      if (isPowered(*instance)) {
         const double ndMode = get_named_variable_value(instance->ndModeVar);
-        const double wxrSys = g_wxrSys.read();
         const double wxrMode = g_wxrMode.read();
         const int ir = inertialSource(instance->isRight, static_cast<int>(g_attHdgKnob.read()));
         // The ARINC429 data field is 32 bits - matches every other usage of
@@ -578,21 +666,21 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         const auto latWord = types::Arinc429Word<float>::fromSimVar(g_adirsLat[ir - 1].read());
         const auto lonWord = types::Arinc429Word<float>::fromSimVar(g_adirsLon[ir - 1].read());
 
-        // Gating: the ND is powered (above), WX SYS is not OFF, the ND page is
-        // ARC or ROSE NAV, the ND's position source is valid (ADIRS word
-        // validity is the "is position usable" check) and the aircraft is
-        // airborne (the radar doesn't transmit on the ground). MODE: WX =
-        // precipitation, WX+T = both, TURB = turbulence only, MAP = ground
-        // mapping (not implemented, draws nothing).
-        const bool sysOn = wxrSys != 1.0;
+        const int rangeIndex = static_cast<int>(get_named_variable_value(instance->ndRangeVar));
+        const float rangeNm = kRangeTableNm[rangeIndex >= 0 && rangeIndex < kRangeCount ? rangeIndex : 0];
+
+        // Gating: the ND is powered (above), the crew has the radar selected
+        // and its system is up (radarSelected), the ND page is ARC or ROSE NAV
+        // with a real range (not the A380X's OANS view), the ND's position
+        // source is valid (ADIRS word validity is the "is position usable"
+        // check) and the aircraft is airborne (the radar doesn't transmit on the
+        // ground). MODE: WX = precipitation, WX+T = both, TURB = turbulence
+        // only, MAP = ground mapping (not implemented, draws nothing).
         const bool positionValid = latWord.isNo() && lonWord.isNo();
-        const bool active = sysOn && isArcOrRoseNav(ndMode) && positionValid && !isOnGround();
+        const bool active = radarSelected(*instance) && isArcOrRoseNav(ndMode) && rangeNm > 0.0f && positionValid && !isOnGround();
         showPrecip = active && instance->mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
         showTurb = active && instance->mapViewHotReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
         isRoseNav = ndMode == kNdModeRoseNav;
-
-        const int rangeIndex = static_cast<int>(get_named_variable_value(instance->ndRangeVar));
-        const float rangeNm = kRangeTableNm[rangeIndex >= 0 && rangeIndex < 6 ? rangeIndex : 0];
         rangeNmForMode = isRoseNav ? rangeNm / 2.0f : rangeNm;
       }
 
