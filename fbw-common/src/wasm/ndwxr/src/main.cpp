@@ -138,6 +138,29 @@ constexpr float kTurbulenceMaxRangeNm = 40.0f;
 // in-sim at 0.7: greens came out vivid, but amber read pale yellow.
 constexpr float kColorGain = 0.85f;
 
+// The MapView texture carries per-texel noise: neighboring texels flip between
+// color bands, which reads as grain (a real radar shows solid, consistent
+// areas). The band colors are applied by the engine before we get the texture,
+// so it can't be denoised at the source; instead every draw is repeated as a
+// kSmoothingGrid x kSmoothingGrid set of copies shifted by up to
+// +/-kSmoothingSpacingPx (each at 1/taps strength) and summed, i.e. a box blur.
+// A grid of 1 turns smoothing off; each extra tap costs another full-image fill
+// per ND.
+constexpr int kSmoothingGrid = 3;
+constexpr float kSmoothingSpacingPx = 2.5f;
+
+// Fraction of the precipitation color that survives underneath fully covered
+// turbulence (0 would be a clean wipe; the smoothed erase is a product of taps).
+constexpr float kEraseRemainder = 0.05f;
+
+// A partly covered turbulence marker (coverage c = the fraction of taps that see
+// the marker) is boosted by this factor before it saturates, so magenta reaches
+// full strength - and wipes the precipitation under it - from c = 1/gain
+// upward instead of only at c = 1. Near the threshold the marker flips texel by
+// texel, and a linear blend of that came out as pale pink instead of magenta.
+// Magenta therefore saturates at pure magenta.
+constexpr float kTurbulenceGain = 2.0f;
+
 // Weather color bands, defined by radar reflectivity like a real radar rather
 // than by raw MSFS rain-rate numbers. Airbus ND colors: black = minimal/no
 // precipitation, green = weak, amber = moderate, red = strong to very strong;
@@ -280,9 +303,29 @@ bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* colors, 
 
   fsMapViewSetWeatherRadarVisibility(ctx, id, true);
   fsMapViewSetWeatherRadarMode(ctx, id, FS_MAP_VIEW_WEATHER_RADAR_MODE_HORIZONTAL);
+  // The engine's radar sweeps a beam around (default 12 RPM, kept) and fills in
+  // each sector as it passes, so right after a range/mode change - and between
+  // the two independent MapViews - the image is briefly only partly built.
+  // fsMapViewSetWeatherRadarScanRate changes that, but only exists in newer SDKs
+  // than the build container's (it would need a hand-written extern "C"
+  // declaration, and a game without it would fail to load this module); in-sim
+  // 60 RPM was visibly far too fast.
   fsMapViewSetWeatherRadarConeAngleInRadians(ctx, id, 3.14159f);  // 180 deg, matches the JS radar's wxrMode.arcRadians
   fsMapViewSetWeatherRadarRainColors(ctx, id, colors, colorCount);
   return true;
+}
+
+// The engine treats paint colors (the tint set on the image paint) as sRGB-encoded
+// and decodes them to linear before multiplying them with the texture and
+// blending. A weight meant as a LINEAR fraction therefore has to be passed
+// encoded: in-sim, a plain 1/9 tint decoded to ~0.012 and the nine-tap blur came
+// out at ~40% brightness with the turbulence erase barely working.
+float encodeSrgb(float linear) {
+  return linear <= 0.0031308f ? 12.92f * linear : 1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f;
+}
+
+float decodeSrgb(float encoded) {
+  return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
 }
 
 FsColor scaledColor(float r, float g, float b) {
@@ -330,20 +373,41 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float 
     nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
   }
 
-  nvgBeginPath(vg);
-  if (rangeFraction >= 1.0f) {
-    nvgRect(vg, left, top, size, size);
-  } else {
-    nvgCircle(vg, cx, cy, pixelRadius * rangeFraction);
-  }
-  NVGpaint paint = nvgImagePattern(vg, left, top, size, size, 0.0f, mapView, 1.0f);
+  // Per-tap strength (see kSmoothingGrid), as a LINEAR fraction, passed to the
+  // engine encoded (see encodeSrgb). Additive taps sum to the full color; erase
+  // taps multiply, so each one removes 1 - remainder^(gain/taps) and a marker
+  // covering 1/gain of the taps already leaves only kEraseRemainder.
+  const float tapWeight = 1.0f / static_cast<float>(kSmoothingGrid * kSmoothingGrid);
+  const float additive = encodeSrgb(tapWeight);
+  FsColor tint{{additive, additive, additive, 1.0f}};
   if (pass == WeatherPass::AdditiveMagenta) {
     // Standard NanoVG multiplies the sampled texture by the paint's inner
-    // color, so a white marker texture comes out magenta.
-    paint.innerColor = paint.outerColor = FsColor{{kColorGain, 0.0f, kColorGain, 1.0f}};
+    // color, so a white marker texture comes out magenta. The taps sum to
+    // kTurbulenceGain at full coverage and the blend clamps at pure magenta.
+    const float magenta = encodeSrgb(kTurbulenceGain * tapWeight);
+    tint = FsColor{{magenta, 0.0f, magenta, 1.0f}};
+  } else if (pass == WeatherPass::Erase) {
+    const float erase = encodeSrgb(1.0f - std::pow(kEraseRemainder, kTurbulenceGain * tapWeight));
+    tint = FsColor{{erase, erase, erase, 1.0f}};
   }
-  nvgFillPaint(vg, paint);
-  nvgFill(vg);
+
+  for (int iy = 0; iy < kSmoothingGrid; ++iy) {
+    for (int ix = 0; ix < kSmoothingGrid; ++ix) {
+      const float dx = (static_cast<float>(ix) - 0.5f * static_cast<float>(kSmoothingGrid - 1)) * kSmoothingSpacingPx;
+      const float dy = (static_cast<float>(iy) - 0.5f * static_cast<float>(kSmoothingGrid - 1)) * kSmoothingSpacingPx;
+
+      nvgBeginPath(vg);
+      if (rangeFraction >= 1.0f) {
+        nvgRect(vg, left, top, size, size);
+      } else {
+        nvgCircle(vg, cx, cy, pixelRadius * rangeFraction);
+      }
+      NVGpaint paint = nvgImagePattern(vg, left + dx, top + dy, size, size, 0.0f, mapView, 1.0f);
+      paint.innerColor = paint.outerColor = tint;
+      nvgFillPaint(vg, paint);
+      nvgFill(vg);
+    }
+  }
 
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
   nvgRestore(vg);
