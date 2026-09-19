@@ -56,7 +56,11 @@
 //   Note MSFS caches compiled WASM per package: a rebuilt module that appears
 //   to have no effect may be a stale cache entry.
 //
-// Stacked as an extra htmlgauge on the CPT ND's existing panel.cfg block.
+// Stacked as an extra htmlgauge on each ND's existing panel.cfg block
+// (VCockpit02 = CPT, VCockpit15 = F/O). Like terronnd, the last gauge parameter
+// selects the side ("L" or "R"; no parameter means "L"). Both gauges run inside
+// one WASM module instance, so all per-ND state lives in an Instance keyed by
+// the gauge's FsContext.
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
@@ -88,18 +92,14 @@ struct NamedVar {
   double read() { return get_named_variable_value(id); }
 };
 
-NamedVar g_ndModeL{"A32NX_EFIS_L_ND_MODE"};
-NamedVar g_ndRangeL{"A32NX_EFIS_L_ND_RANGE"};
-NamedVar g_adirsLat{"A32NX_ADIRS_IR_1_LATITUDE"};
-NamedVar g_adirsLon{"A32NX_ADIRS_IR_1_LONGITUDE"};
+// The WX radar knobs and the ATT HDG switching knob are single selectors shared
+// by both NDs.
 NamedVar g_wxrSys{"XMLVAR_A320_WeatherRadar_Sys"};
 NamedVar g_wxrMode{"XMLVAR_A320_WeatherRadar_Mode"};
-// CPT ND's power bus - same LVar terronnd already reads (configuration.h's
-// AcEssBus) to gate its own rendering. The live-MapView-texture render pass
-// bypasses whatever backlight/emissive mechanism blanks nd.html's own content
-// when unpowered, so this module has to check power itself. (F/O side will
-// need A32NX_ELEC_AC_2_BUS_IS_POWERED when that instance is added.)
-NamedVar g_acEssBusPowered{"A32NX_ELEC_AC_ESS_BUS_IS_POWERED"};
+NamedVar g_attHdgKnob{"A32NX_ATT_HDG_SWITCHING_KNOB"};
+// ADIRS inertial reference position words for IR 1..3 (index 0..2).
+NamedVar g_adirsLat[3] = {{"A32NX_ADIRS_IR_1_LATITUDE"}, {"A32NX_ADIRS_IR_2_LATITUDE"}, {"A32NX_ADIRS_IR_3_LATITUDE"}};
+NamedVar g_adirsLon[3] = {{"A32NX_ADIRS_IR_1_LONGITUDE"}, {"A32NX_ADIRS_IR_2_LONGITUDE"}, {"A32NX_ADIRS_IR_3_LONGITUDE"}};
 
 // Mirrors EfisNdMode in fbw-common/.../NavigationDisplay.ts:33-39.
 constexpr double kNdModeRoseNav = 2.0;
@@ -164,16 +164,66 @@ constexpr int kReflectivityBandCount = static_cast<int>(sizeof(kReflectivityBand
 // keep the last color instead of dropping out.
 constexpr float kTopBandRate = 1000000.0f;
 
-NVGcontext* g_nvg = nullptr;
-FsContext g_ctx = 0;
-FsTextureId g_mapView = 0;
-bool g_mapViewReady = false;
-FsTextureId g_mapViewTurb = 0;
-bool g_mapViewTurbReady = false;
+// Everything one ND's radar needs. The power bus, ND mode and range variables
+// differ per side; the LVar ids are looked up once at install.
+struct Instance {
+  bool inUse = false;
+  FsContext ctx = 0;
+  bool isRight = false;
+  NVGcontext* nvg = nullptr;
 
-// True when the previous frame left anything on this gauge's surface that
-// needs clearing before the next draw (or before going quiet).
-bool g_layerDirty = false;
+  ID ndModeVar = -1;
+  ID ndRangeVar = -1;
+  // The ND's power bus - the same LVar terronnd reads (configuration.h's
+  // AcEssBus / Ac2Bus) to gate its own rendering. The live-MapView-texture
+  // render pass bypasses whatever backlight/emissive mechanism blanks nd.html's
+  // own content when unpowered, so this module has to check power itself.
+  ID powerBusVar = -1;
+
+  FsTextureId mapView = 0;
+  bool mapViewReady = false;
+  FsTextureId mapViewTurb = 0;
+  bool mapViewTurbReady = false;
+
+  // True when the previous frame left anything on this gauge's surface that
+  // needs clearing before the next draw (or before going quiet).
+  bool layerDirty = false;
+};
+
+constexpr int kMaxInstances = 2;
+Instance g_instances[kMaxInstances];
+
+Instance* findInstance(FsContext ctx) {
+  for (Instance& instance : g_instances) {
+    if (instance.inUse && instance.ctx == ctx) {
+      return &instance;
+    }
+  }
+  return nullptr;
+}
+
+// Instances are recycled (not just appended) so an aircraft reload, which kills
+// and reinstalls the gauges, doesn't run out of slots.
+Instance* allocInstance() {
+  for (Instance& instance : g_instances) {
+    if (!instance.inUse) {
+      return &instance;
+    }
+  }
+  return nullptr;
+}
+
+// Which inertial reference feeds this ND: IR 1 for the CPT and IR 2 for the F/O,
+// or IR 3 when the ATT HDG switching knob routes it to that side - the same
+// rule as AdirsValueProvider's getSupplier() in MsfsAvionicsCommon.
+int inertialSource(bool isRight, int attHdgKnob) {
+  constexpr int kAdirs3ToCaptain = 0;
+  constexpr int kAdirs3ToFo = 2;
+  if (isRight) {
+    return attHdgKnob == kAdirs3ToFo ? 3 : 2;
+  }
+  return attHdgKnob == kAdirs3ToCaptain ? 3 : 1;
+}
 
 bool isArcOrRoseNav(double ndMode) {
   return ndMode == kNdModeArc || ndMode == kNdModeRoseNav;
@@ -192,9 +242,8 @@ float rainRateForDbz(float dbz) {
 
 // Wipes this gauge's own surface back to fully transparent so nd.html shows
 // through again. Composite state is set back to source-over afterwards.
-// Both operations are used since which one the engine honours against the
-// persistent surface is unverified (see the header); either one alone is
-// enough to clear it.
+// Both operations are used as belt and braces: either one alone clears the
+// surface.
 void clearLayer(NVGcontext* vg, float width, float height) {
   nvgBeginPath(vg);
   nvgRect(vg, 0.0f, 0.0f, width, height);
@@ -307,20 +356,37 @@ extern "C" {
 MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pData) {
   switch (service_id) {
     case PANEL_SERVICE_PRE_INSTALL: {
-      g_ctx = ctx;
+      Instance* instance = allocInstance();
+      if (instance == nullptr) {
+        return false;
+      }
+      *instance = Instance{};
+      instance->inUse = true;
+      instance->ctx = ctx;
 
-      g_ndModeL.id = register_named_variable(g_ndModeL.name);
-      g_ndRangeL.id = register_named_variable(g_ndRangeL.name);
-      g_adirsLat.id = register_named_variable(g_adirsLat.name);
-      g_adirsLon.id = register_named_variable(g_adirsLon.name);
+      const sGaugeInstallData* installData = static_cast<const sGaugeInstallData*>(pData);
+      instance->isRight = installData != nullptr && installData->strParameters != nullptr &&
+                          (installData->strParameters[0] == 'R' || installData->strParameters[0] == 'r');
+
+      // register_named_variable returns the same id for a name that is already
+      // registered, so the shared variables can simply be registered again by
+      // the second instance.
       g_wxrSys.id = register_named_variable(g_wxrSys.name);
       g_wxrMode.id = register_named_variable(g_wxrMode.name);
-      g_acEssBusPowered.id = register_named_variable(g_acEssBusPowered.name);
+      g_attHdgKnob.id = register_named_variable(g_attHdgKnob.name);
+      for (int i = 0; i < 3; ++i) {
+        g_adirsLat[i].id = register_named_variable(g_adirsLat[i].name);
+        g_adirsLon[i].id = register_named_variable(g_adirsLon[i].name);
+      }
+      instance->ndModeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_MODE" : "A32NX_EFIS_L_ND_MODE");
+      instance->ndRangeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_RANGE" : "A32NX_EFIS_L_ND_RANGE");
+      instance->powerBusVar = register_named_variable(instance->isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED"
+                                                                        : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
 
       NVGparams params;
       params.userPtr = ctx;
       params.edgeAntiAlias = false;
-      g_nvg = nvgCreateInternal(&params);
+      instance->nvg = nvgCreateInternal(&params);
 
       // Precipitation view. Per the SDK, each entry's color covers the band
       // from the PREVIOUS entry's rate up to its own rate (entry 0 covers 0 up
@@ -337,8 +403,8 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
             i + 1 < kReflectivityBandCount ? rainRateForDbz(kReflectivityBands[i + 1].lowerDbz) : kTopBandRate;
         colors[i + 1] = {scaledColor(band.r, band.g, band.b), upperRate};
       }
-      g_mapView = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
-      g_mapViewReady = configureRadarView(ctx, g_mapView, colors, kReflectivityBandCount + 1);
+      instance->mapView = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
+      instance->mapViewReady = configureRadarView(ctx, instance->mapView, colors, kReflectivityBandCount + 1);
 
       // Turbulence view: a WHITE marker above the proxy threshold, nothing
       // below - drawn twice (erase precipitation there, then tinted magenta,
@@ -349,12 +415,13 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
           {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, rainRateForDbz(kTurbulenceDbz)},
           {FsColor{{1.0f, 1.0f, 1.0f, 1.0f}}, kTopBandRate},
       };
-      g_mapViewTurb = fsMapViewCreate(ctx, kTurbulenceTextureSize, kTurbulenceTextureSize, 0);
-      g_mapViewTurbReady = configureRadarView(ctx, g_mapViewTurb, turbColors, 2);
+      instance->mapViewTurb = fsMapViewCreate(ctx, kTurbulenceTextureSize, kTurbulenceTextureSize, 0);
+      instance->mapViewTurbReady = configureRadarView(ctx, instance->mapViewTurb, turbColors, 2);
       return true;
     }
     case PANEL_SERVICE_PRE_DRAW: {
-      if (g_nvg == nullptr) {
+      Instance* instance = findInstance(ctx);
+      if (instance == nullptr || instance->nvg == nullptr) {
         return true;
       }
 
@@ -363,35 +430,36 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       bool showTurb = false;
       float rangeNmForMode = kRangeTableNm[0];
 
-      if (g_acEssBusPowered.read() != 0.0) {
-        const double ndMode = g_ndModeL.read();
+      if (get_named_variable_value(instance->powerBusVar) != 0.0) {
+        const double ndMode = get_named_variable_value(instance->ndModeVar);
         const double wxrSys = g_wxrSys.read();
         const double wxrMode = g_wxrMode.read();
+        const int ir = inertialSource(instance->isRight, static_cast<int>(g_attHdgKnob.read()));
         // The ARINC429 data field is 32 bits - matches every other usage of
         // this template in the codebase (cpp-msfs-framework/lib/arinc429.hpp),
         // <double> would read 8 bytes out of a 4-byte local (UB).
-        const auto latWord = types::Arinc429Word<float>::fromSimVar(g_adirsLat.read());
-        const auto lonWord = types::Arinc429Word<float>::fromSimVar(g_adirsLon.read());
+        const auto latWord = types::Arinc429Word<float>::fromSimVar(g_adirsLat[ir - 1].read());
+        const auto lonWord = types::Arinc429Word<float>::fromSimVar(g_adirsLon[ir - 1].read());
 
-        // Matches WeatherRadarLayer.tsx:143-155's gating (mapVisible/
-        // mapRecomputing are JS-side debounce-only concerns with no simvar
-        // backing - ADIRS word validity is the equivalent "is position usable"
-        // check here). MODE: WX = precipitation, WX+T = both, TURB =
-        // turbulence only, MAP = ground mapping (not implemented, draws nothing).
+        // Gating: the ND is powered (above), WX SYS is not OFF, the ND page is
+        // ARC or ROSE NAV, and the ND's position source is valid (ADIRS word
+        // validity is the "is position usable" check). MODE: WX =
+        // precipitation, WX+T = both, TURB = turbulence only, MAP = ground
+        // mapping (not implemented, draws nothing).
         const bool sysOn = wxrSys != 1.0;
         const bool positionValid = latWord.isNo() && lonWord.isNo();
         const bool active = sysOn && isArcOrRoseNav(ndMode) && positionValid;
-        showPrecip = active && g_mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
-        showTurb = active && g_mapViewTurbReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
+        showPrecip = active && instance->mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
+        showTurb = active && instance->mapViewTurbReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
         isRoseNav = ndMode == kNdModeRoseNav;
 
-        const int rangeIndex = static_cast<int>(g_ndRangeL.read());
+        const int rangeIndex = static_cast<int>(get_named_variable_value(instance->ndRangeVar));
         const float rangeNm = kRangeTableNm[rangeIndex >= 0 && rangeIndex < 6 ? rangeIndex : 0];
         rangeNmForMode = isRoseNav ? rangeNm / 2.0f : rangeNm;
       }
 
       const bool drawsAnything = showPrecip || showTurb;
-      if (!drawsAnything && !g_layerDirty) {
+      if (!drawsAnything && !instance->layerDirty) {
         // Nothing on the surface from last frame and nothing to draw now -
         // skip opening a frame entirely.
         return true;
@@ -401,42 +469,45 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       const float winWidth = static_cast<float>(drawData->winWidth);
       const float winHeight = static_cast<float>(drawData->winHeight);
       const float ratio = static_cast<float>(drawData->fbWidth) / static_cast<float>(drawData->fbHeight);
-      nvgBeginFrame(g_nvg, winWidth, winHeight, ratio);
+      NVGcontext* vg = instance->nvg;
+      nvgBeginFrame(vg, winWidth, winHeight, ratio);
 
-      if (g_layerDirty) {
-        clearLayer(g_nvg, winWidth, winHeight);
+      if (instance->layerDirty) {
+        clearLayer(vg, winWidth, winHeight);
       }
       if (showPrecip) {
-        fsMapViewSet2DViewRadiusInMeters(g_ctx, g_mapView, rangeNmForMode * kNmToMetres);
-        drawWeatherRect(g_nvg, g_mapView, isRoseNav, 1.0f, WeatherPass::Additive);
+        fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapView, rangeNmForMode * kNmToMetres);
+        drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Additive);
       }
       if (showTurb) {
-        fsMapViewSet2DViewRadiusInMeters(g_ctx, g_mapViewTurb, rangeNmForMode * kNmToMetres);
+        fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapViewTurb, rangeNmForMode * kNmToMetres);
         const float turbFraction = kTurbulenceMaxRangeNm / rangeNmForMode;
         const float turbRangeFraction = turbFraction < 1.0f ? turbFraction : 1.0f;
         if (showPrecip) {
-          drawWeatherRect(g_nvg, g_mapViewTurb, isRoseNav, turbRangeFraction, WeatherPass::Erase);
+          drawWeatherRect(vg, instance->mapViewTurb, isRoseNav, turbRangeFraction, WeatherPass::Erase);
         }
-        drawWeatherRect(g_nvg, g_mapViewTurb, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
+        drawWeatherRect(vg, instance->mapViewTurb, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
       }
-      g_layerDirty = drawsAnything;
+      instance->layerDirty = drawsAnything;
 
-      nvgEndFrame(g_nvg);
+      nvgEndFrame(vg);
       return true;
     }
     case PANEL_SERVICE_PRE_KILL: {
-      if (g_mapView != 0) {
-        fsMapViewDelete(g_ctx, g_mapView);
-        g_mapView = 0;
+      Instance* instance = findInstance(ctx);
+      if (instance == nullptr) {
+        return true;
       }
-      if (g_mapViewTurb != 0) {
-        fsMapViewDelete(g_ctx, g_mapViewTurb);
-        g_mapViewTurb = 0;
+      if (instance->mapView != 0) {
+        fsMapViewDelete(ctx, instance->mapView);
       }
-      if (g_nvg != nullptr) {
-        nvgDeleteInternal(g_nvg);
-        g_nvg = nullptr;
+      if (instance->mapViewTurb != 0) {
+        fsMapViewDelete(ctx, instance->mapViewTurb);
       }
+      if (instance->nvg != nullptr) {
+        nvgDeleteInternal(instance->nvg);
+      }
+      *instance = Instance{};
       return true;
     }
     default:
