@@ -56,6 +56,14 @@
 //   Note MSFS caches compiled WASM per package: a rebuilt module that appears
 //   to have no effect may be a stale cache entry.
 //
+// - Like a real weather radar, nothing is drawn while the aircraft is on the
+//   ground (the WXR does not transmit there): both main gear legs compressed on
+//   either LGCIU blanks the radar, and it comes back after lift-off.
+//
+// - The radar antenna is stabilized in pitch and bank by the engine itself
+//   (fsMapViewSetWeatherRadarStabilization defaults to true for both axes), so
+//   the beam stays level in a banked turn without this module doing anything.
+//
 // Stacked as an extra htmlgauge on each ND's existing panel.cfg block
 // (VCockpit02 = CPT, VCockpit15 = F/O). Like terronnd, the last gauge parameter
 // selects the side ("L" or "R"; no parameter means "L"). Both gauges run inside
@@ -100,6 +108,10 @@ NamedVar g_attHdgKnob{"A32NX_ATT_HDG_SWITCHING_KNOB"};
 // ADIRS inertial reference position words for IR 1..3 (index 0..2).
 NamedVar g_adirsLat[3] = {{"A32NX_ADIRS_IR_1_LATITUDE"}, {"A32NX_ADIRS_IR_2_LATITUDE"}, {"A32NX_ADIRS_IR_3_LATITUDE"}};
 NamedVar g_adirsLon[3] = {{"A32NX_ADIRS_IR_1_LONGITUDE"}, {"A32NX_ADIRS_IR_2_LONGITUDE"}, {"A32NX_ADIRS_IR_3_LONGITUDE"}};
+// Main landing gear compression as reported by LGCIU 1 and 2 (index 0..1); an
+// unpowered LGCIU reports "not compressed".
+NamedVar g_lgciuLeftCompressed[2] = {{"A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED"}, {"A32NX_LGCIU_2_LEFT_GEAR_COMPRESSED"}};
+NamedVar g_lgciuRightCompressed[2] = {{"A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED"}, {"A32NX_LGCIU_2_RIGHT_GEAR_COMPRESSED"}};
 
 // Mirrors EfisNdMode in fbw-common/.../NavigationDisplay.ts:33-39.
 constexpr double kNdModeRoseNav = 2.0;
@@ -252,6 +264,17 @@ bool isArcOrRoseNav(double ndMode) {
   return ndMode == kNdModeArc || ndMode == kNdModeRoseNav;
 }
 
+// A real weather radar does not transmit on the ground. The aircraft counts as
+// on the ground when both main gear legs are compressed on either LGCIU.
+bool isOnGround() {
+  for (int lgciu = 0; lgciu < 2; ++lgciu) {
+    if (g_lgciuLeftCompressed[lgciu].read() != 0.0 && g_lgciuRightCompressed[lgciu].read() != 0.0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Reflectivity -> rain rate via the Marshall-Palmer relation Z = 200 * R^1.6,
 // R = (10^(dBZ/10) / 200)^(5/8) mm/h (en.wikipedia.org/wiki/DBZ_(meteorology)).
 // The SDK documents fsMapViewSetWeatherRadarRainColors' rates as mm/h (its own
@@ -310,6 +333,9 @@ bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* colors, 
   // than the build container's (it would need a hand-written extern "C"
   // declaration, and a game without it would fail to load this module); in-sim
   // 60 RPM was visibly far too fast.
+  // fsMapViewSetWeatherRadarStabilization is not called either: per the SDK docs
+  // the beam is already stabilized in pitch and bank by default (it stays level
+  // in turns), so there is nothing to set.
   fsMapViewSetWeatherRadarConeAngleInRadians(ctx, id, 3.14159f);  // 180 deg, matches the JS radar's wxrMode.arcRadians
   fsMapViewSetWeatherRadarRainColors(ctx, id, colors, colorCount);
   return true;
@@ -442,6 +468,10 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         g_adirsLat[i].id = register_named_variable(g_adirsLat[i].name);
         g_adirsLon[i].id = register_named_variable(g_adirsLon[i].name);
       }
+      for (int i = 0; i < 2; ++i) {
+        g_lgciuLeftCompressed[i].id = register_named_variable(g_lgciuLeftCompressed[i].name);
+        g_lgciuRightCompressed[i].id = register_named_variable(g_lgciuRightCompressed[i].name);
+      }
       instance->ndModeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_MODE" : "A32NX_EFIS_L_ND_MODE");
       instance->ndRangeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_RANGE" : "A32NX_EFIS_L_ND_RANGE");
       instance->powerBusVar = register_named_variable(instance->isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED"
@@ -506,13 +536,14 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         const auto lonWord = types::Arinc429Word<float>::fromSimVar(g_adirsLon[ir - 1].read());
 
         // Gating: the ND is powered (above), WX SYS is not OFF, the ND page is
-        // ARC or ROSE NAV, and the ND's position source is valid (ADIRS word
-        // validity is the "is position usable" check). MODE: WX =
+        // ARC or ROSE NAV, the ND's position source is valid (ADIRS word
+        // validity is the "is position usable" check) and the aircraft is
+        // airborne (the radar doesn't transmit on the ground). MODE: WX =
         // precipitation, WX+T = both, TURB = turbulence only, MAP = ground
         // mapping (not implemented, draws nothing).
         const bool sysOn = wxrSys != 1.0;
         const bool positionValid = latWord.isNo() && lonWord.isNo();
-        const bool active = sysOn && isArcOrRoseNav(ndMode) && positionValid;
+        const bool active = sysOn && isArcOrRoseNav(ndMode) && positionValid && !isOnGround();
         showPrecip = active && instance->mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
         showTurb = active && instance->mapViewTurbReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
         isRoseNav = ndMode == kNdModeRoseNav;
