@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { A380Failure } from '@failures';
@@ -578,6 +578,9 @@ export class EfisTawsBridge implements Instrument {
     this.gpws2Failed.set(
       this.failuresConsumer.isActive(A380Failure.Gpws2) || this.aesu2ResetPulled.get() || !this.ac4Powered.get(),
     );
+    // There is no WXR failure of its own yet: like GPWS, each WXR is out while its AESU is reset or unpowered.
+    this.wxr1Failed.set(this.aesu1ResetPulled.get() || !this.acEssPowered.get());
+    this.wxr2Failed.set(this.aesu2ResetPulled.get() || !this.ac4Powered.get());
 
     this.terrFailed.set(
       tawsWxrSelected === 1 ? this.terr1Failed.get() : tawsWxrSelected === 2 ? this.terr2Failed.get() : true,
