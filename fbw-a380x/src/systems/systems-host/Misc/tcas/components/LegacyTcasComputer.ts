@@ -696,7 +696,15 @@ export class LegacyTcasComputer implements Instrument {
         accelTest = TaRaIntrusion.PROXIMITY;
       }
 
-      const desiredIntrusionLevel: TaRaIntrusion = Math.min(rangeTest, altTest, accelTest);
+      let desiredIntrusionLevel: TaRaIntrusion = Math.min(rangeTest, altTest, accelTest);
+      // With all RAs inhibited (TA ONLY mode, below 1000 ft radio altitude) an intruder that meets the RA criteria is
+      // shown (red square -> amber circle) and counted as a traffic advisory, as the RA cannot be issued.
+      if (
+        desiredIntrusionLevel === TaRaIntrusion.RA &&
+        (this.inhibitions === Inhibit.ALL_RA || this.inhibitions === Inhibit.ALL_RA_AURAL_TA)
+      ) {
+        desiredIntrusionLevel = TaRaIntrusion.TA;
+      }
       switch (traffic.intrusionLevel) {
         case TaRaIntrusion.RA:
           if (
