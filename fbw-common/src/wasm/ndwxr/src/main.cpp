@@ -157,30 +157,75 @@ constexpr float kVdHeight = 200.0f;
 // beam crashed the module), so the VD is built from the ND's own horizontal
 // radar views, which see one slice of weather at about the aircraft's altitude.
 // The ND texel columns close to the heading line are rotated onto the VD's range
-// axis and extruded vertically into a closed, nested shape centred on the
-// aircraft's altitude, like a real VD cell: a red core inside a yellow ring inside
-// a green rim, each reaching up and down by a made-up half height (kVd*HalfHeightFt)
-// with a narrower shoulder (kVdShoulderFraction) at the top and the bottom.
+// axis and extruded vertically, shaped like the cells of a real VD:
+//  - green and yellow are columns from the bottom of the VD up to a rounded,
+//    tapering top (kVdGreenTopSpan / kVdYellowTopSpan above the aircraft altitude);
+//  - the red core is a block centred on the aircraft's altitude (+-kVdRedHalfSpan),
+//    where the ND measures it, with a rounded magenta lens (turbulence) inside it.
+// All the heights are made up, and given as fractions of the altitude span of the
+// VD plot (in-sim, fixed heights of thousands of feet were far above the plot at low
+// altitude, where the VD only spans about 5000 ft, so no top was ever visible).
+//
+// The rounded top is built from levels (kVdColumnDome / kVdLensDome): level 0 is the
+// whole shape, only up to a fraction of the height; each further level covers the next
+// band of height but only where the shape is also there depthPx to both sides along
+// the range axis (an erosion: three taps, all must agree), so the shape is narrower
+// the higher it goes. The levels follow the outline of a quarter ellipse (steep near
+// the shape's edge, flat on top), so a column has straight sides up to about half its
+// height and rounded shoulders, and a lens is pointed like a real red core. Each level
+// only draws its own band of height (plus a small overlap, kVdBandOverlapPx).
 //
 // Like the real VD (which shows the weather along the aircraft's direction only)
-// the VD shows the STRONGEST weather in a narrow wedge around the heading line
-// (half angle atan(kVdWedgeTan)): kVdLateralTapsPerSide columns on each side of
-// the line are drawn on top of each other (a union), each one only from the range
-// where it enters the wedge.
+// the base level shows the STRONGEST weather in a narrow wedge around the heading
+// line (half angle atan(kVdWedgeTan)): kVdLateralTapsPerSide columns on each side
+// of the line are drawn on top of each other (a union), each one only from the
+// range where it enters the wedge. The raw ND texture has single-texel specks and
+// radial sweep streaks that the ND's own blur removes; here each column has to be at
+// least 2 * kVdSpeckPx wide to count (two taps, both must agree), otherwise they came
+// out as thin full-height lines.
 //
 // Each output color channel is driven by its own mask channel (precipitation view:
 // R = yellow and above, G = green and above; hot view: G = red and above, R/B =
 // turbulence), so every channel can be clipped to its own altitude window without
-// mixing channels: green reaches furthest, yellow less, and the red wipe (which
-// removes the green channel) least.
-constexpr float kVdRedHalfHeightFt = 4000.0f;
-constexpr float kVdYellowHalfHeightFt = 6500.0f;
-constexpr float kVdGreenHalfHeightFt = 9000.0f;
-// The outer part of each half height (beyond this fraction of it) needs two
-// neighbouring columns to agree, so the shape is narrower there: stepped shoulders.
-constexpr float kVdShoulderFraction = 0.7f;
+// mixing channels; the red wipe removes the green channel inside the red core.
+constexpr float kVdGreenTopSpan = 0.42f;
+constexpr float kVdYellowTopSpan = 0.26f;
+constexpr float kVdRedHalfSpan = 0.16f;
+// The VD is squared harder than the ND (kSharpenPasses): the eroded levels only
+// reach full strength where both taps agree, and the half values in between
+// showed as dim patches and hairlines.
+constexpr int kVdSharpenPasses = 4;
+constexpr float kVdSpeckPx = 3.0f;
+// How much of the green channel survives the red core's wipe on the VD. Much lower than
+// kEraseRemainder: a band drawn once or twice (where two levels overlap) must wipe the
+// same, otherwise the overlaps showed as lighter stripes through the magenta core.
+constexpr float kVdEraseRemainder = 0.002f;
+struct VdDomeLevel {
+  float depthPx;         // how far inside the shape (along the range axis, VD pixels) this level needs to be
+  float heightFraction;  // how much of the full height it reaches
+};
+// h = h0 + (1 - h0) * sqrt(1 - (1 - t)^2), depth = t * 24 (columns, h0 = 0.5, t = 0, 1/7 .. 1)
+// or t * 24 (magenta lens, h0 = 0.35, t = 0, 1/3 .. 1; its first level is eroded by kVdSpeckPx).
+constexpr VdDomeLevel kVdColumnDome[] = {{0.0f, 0.5f},   {3.4f, 0.758f},  {6.9f, 0.85f},   {10.3f, 0.91f},
+                                         {13.7f, 0.952f}, {17.1f, 0.979f}, {20.6f, 0.995f}, {24.0f, 1.0f}};
+constexpr VdDomeLevel kVdLensDome[] = {{kVdSpeckPx, 0.35f}, {8.0f, 0.834f}, {16.0f, 0.963f}, {24.0f, 1.0f}};
+constexpr int kVdColumnDomeCount = 8;
+constexpr int kVdLensDomeCount = 4;
+// The magenta lens is this fraction of the red block's half height, so it sits inside it.
+constexpr float kVdMagentaFraction = 0.85f;
+// Why the red core is a plain block and only the magenta is a rounded lens: the red is made
+// by wiping the green channel out of the yellow with a multiply blend, and a multiply can
+// only be "any one tap sees the weather" (a dilation - the erosion taps made the outer levels
+// WIDER than the inner ones, an hourglass), never "all taps agree". Additive passes (the
+// magenta, the columns) can be eroded properly.
+// Each level's band reaches this far into the band below it. The edge of a band
+// falls on a fractional pixel, where the two neighbouring bands only cover part
+// of it each; the VD's sharpening passes (kVdSharpenPasses) square such a
+// half-covered pixel to black, which drew a dark seam between every two levels.
+// Where both levels cover the pixel the overlap just adds up to full.
+constexpr float kVdBandOverlapPx = 3.0f;
 constexpr float kVdWedgeTan = 0.176f;  // tan(10 deg)
-constexpr int kVdLateralTapsPerSide = 4;
+constexpr int kVdLateralTapsPerSide = 3;
 // The heading-line columns are stretched across the whole VD height by scaling the
 // ND texture this many screen pixels per texel across the path (much more than the
 // VD is tall, so neighbouring columns don't leak in).
@@ -538,9 +583,9 @@ enum class WeatherPass {
 // The two plain (untextured) fills of the mask pipeline over a rect; the caller sets
 // the scissor. Sharpen squares what's on the surface (dst * dst, kSharpenPasses
 // times); Colorize multiplies it by the band colors (dst * color).
-void sharpenRect(NVGcontext* vg, float x, float y, float w, float h) {
+void sharpenRect(NVGcontext* vg, float x, float y, float w, float h, int passes = kSharpenPasses) {
   nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_DST_COLOR, NVG_ZERO, NVG_ONE);
-  for (int i = 0; i < kSharpenPasses; ++i) {
+  for (int i = 0; i < passes; ++i) {
     nvgBeginPath(vg);
     nvgRect(vg, x, y, w, h);
     nvgFillColor(vg, nvgRGBAf(1.0f, 1.0f, 1.0f, 1.0f));
@@ -664,28 +709,61 @@ enum class VdPass {
   Magenta,  // hot view, R and B masks (turbulence)
 };
 
-// One channel window: the columns of the wedge (see kVdWedgeTan) drawn on top of
-// each other, each clipped to the window [top, bottom] and to the range where it
-// lies inside the wedge, up to rightLimit. gain 1 = one column is enough, 0.5 =
-// two neighbouring columns must agree.
-void drawVdChannel(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass pass, float top, float bottom, float rightLimit,
-                   float gain) {
+// Blend mode and per-tap tint of one VD pass. gain 1 = one tap is enough, 1/2 = both
+// of two taps must agree, 1/3 = all of three (a tap adds / removes that share).
+void setVdPassState(NVGcontext* vg, VdPass pass, float gain, FsColor* tint) {
+  const float g = encodeSrgb(gain);
+  if (pass == VdPass::Wipe) {
+    nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ONE_MINUS_SRC_COLOR, NVG_ZERO, NVG_ONE);
+    *tint = FsColor{{0.0f, encodeSrgb(1.0f - std::pow(kVdEraseRemainder, gain)), 0.0f, 1.0f}};
+  } else {
+    nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+    *tint = pass == VdPass::Yellow  ? FsColor{{g, 0.0f, 0.0f, 1.0f}}
+            : pass == VdPass::Green ? FsColor{{0.0f, g, 0.0f, 1.0f}}
+                                    : FsColor{{g, 0.0f, g, 1.0f}};
+  }
+}
+
+// Taps of one column, shifted along the range axis by -depthPx, (0) and +depthPx: all three
+// needed (gain 1/3 each) for the column eroded by depthPx to both sides. With only the two outer
+// taps, the gap between two separate cells 2 * depthPx apart came out as a phantom slab (a
+// "capital" on top of a thin column), so the eroded levels use all three. taps = 2 (only the
+// outer two, gain 1/2: the base level, whose shifts are too small for that to matter) or
+// taps = 1 (only the middle one, gain 1: no erosion, used by the red wipe). The result is
+// clipped to the band [top, bottom] and x in [left, rightLimit]; left must be at least
+// kVdLeft + depthPx, so the taps never read the region behind the aircraft.
+void drawVdErodedRect(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass pass, float lateralTexels, float depthPx,
+                      int taps, float left, float rightLimit, float top, float bottom) {
+  if (bottom <= top || rightLimit <= left) {
+    return;
+  }
+  FsColor tint;
+  setVdPassState(vg, pass, 1.0f / static_cast<float>(taps), &tint);
+  nvgScissor(vg, left, top, rightLimit - left, bottom - top);
+  for (int i = -1; i <= 1; ++i) {
+    if (taps == 2 && i == 0) {
+      continue;
+    }
+    if (taps == 1 && i != 0) {
+      continue;
+    }
+    nvgBeginPath(vg);
+    nvgRect(vg, left, top, rightLimit - left, bottom - top);
+    NVGpaint paint = nvgImagePattern(vg, c.originX + static_cast<float>(i) * depthPx, c.originY + lateralTexels * kVdColumnTexelPx,
+                                     c.extentAcross, c.extentAlong, kHalfPi, view, 1.0f);
+    paint.innerColor = paint.outerColor = tint;
+    nvgFillPaint(vg, paint);
+    nvgFill(vg);
+  }
+}
+
+// Level 0 of a shape: the columns of the wedge (see kVdWedgeTan) drawn on top of each other
+// (a union), each clipped to the band and to the range where it lies inside the wedge.
+void drawVdUnion(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass pass, float top, float bottom, float rightLimit) {
   if (bottom <= top) {
     return;
   }
   nvgSave(vg);
-  FsColor tint;
-  const float g = encodeSrgb(gain);
-  if (pass == VdPass::Wipe) {
-    nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ONE_MINUS_SRC_COLOR, NVG_ZERO, NVG_ONE);
-    tint = FsColor{{0.0f, encodeSrgb(1.0f - std::pow(kEraseRemainder, gain)), 0.0f, 1.0f}};
-  } else {
-    nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
-    tint = pass == VdPass::Yellow  ? FsColor{{g, 0.0f, 0.0f, 1.0f}}
-           : pass == VdPass::Green ? FsColor{{0.0f, g, 0.0f, 1.0f}}
-                                   : FsColor{{g, 0.0f, g, 1.0f}};
-  }
-
   const float halfTexture = 0.5f * static_cast<float>(kTextureSize);
   for (int k = -kVdLateralTapsPerSide; k <= kVdLateralTapsPerSide; ++k) {
     const float lateralNm = static_cast<float>(k) * c.vdRangeNm * kVdWedgeTan / static_cast<float>(kVdLateralTapsPerSide);
@@ -694,25 +772,27 @@ void drawVdChannel(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass 
       continue;  // outside the radar texture
     }
     const int absK = k < 0 ? -k : k;
-    const float left = kVdLeft + static_cast<float>(absK) / static_cast<float>(kVdLateralTapsPerSide) * kVdWidth;
-    if (rightLimit <= left) {
-      continue;
-    }
-    nvgScissor(vg, left, top, rightLimit - left, bottom - top);
-    nvgBeginPath(vg);
-    nvgRect(vg, left, top, rightLimit - left, bottom - top);
-    NVGpaint paint =
-        nvgImagePattern(vg, c.originX, c.originY + texels * kVdColumnTexelPx, c.extentAcross, c.extentAlong, kHalfPi, view, 1.0f);
-    paint.innerColor = paint.outerColor = tint;
-    nvgFillPaint(vg, paint);
-    nvgFill(vg);
+    const float entry = kVdLeft + static_cast<float>(absK) / static_cast<float>(kVdLateralTapsPerSide) * kVdWidth;
+    drawVdErodedRect(vg, view, c, pass, texels, kVdSpeckPx, 2, entry + kVdSpeckPx, rightLimit, top, bottom);
   }
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
   nvgRestore(vg);
 }
 
-// Draws the stylised VD weather (see kVdRedHalfHeightFt). ndRadiusNm is the radius
-// the ND's radar views were set to; vdRangeNm the VD's range.
+// A further level of a shape: the heading-line column only, eroded by depthPx.
+void drawVdEroded(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass pass, float depthPx, float top, float bottom,
+                  float rightLimit) {
+  if (bottom <= top) {
+    return;
+  }
+  nvgSave(vg);
+  drawVdErodedRect(vg, view, c, pass, 0.0f, depthPx, 3, kVdLeft + depthPx, rightLimit, top, bottom);
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+  nvgRestore(vg);
+}
+
+// Draws the stylised VD weather (see kVdGreenTopSpan). ndRadiusNm is the radius the
+// ND's radar views were set to; vdRangeNm the VD's range.
 void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, bool hotReady, bool showTurb,
                    float ndRadiusNm, float vdRangeNm, double planeAltFeet, double lowerFeet, double upperFeet) {
   VdColumns c;
@@ -725,41 +805,84 @@ void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, 
 
   const float bottom = kVdTop + kVdHeight;
   const float right = kVdLeft + kVdWidth;
-  const float feetPerVdPx = static_cast<float>((upperFeet - lowerFeet) / kVdHeight);
+  const float spanFt = static_cast<float>(upperFeet - lowerFeet);
+  const float feetPerVdPx = spanFt / kVdHeight;
   // Screen y of an altitude given relative to the aircraft's, clamped to the plot.
   auto altToY = [&](float aboveAircraftFt) {
     const float y = kVdTop + static_cast<float>(upperFeet - planeAltFeet - static_cast<double>(aboveAircraftFt)) / feetPerVdPx;
     return std::fmin(std::fmax(y, kVdTop), bottom);
   };
 
-  // One color's closed shape: the inner part, and a shoulder above and below it
-  // that is narrower (two columns must agree).
-  auto drawColour = [&](FsTextureId view, VdPass pass, float halfHeightFt, float rightLimit) {
-    const float inner = halfHeightFt * kVdShoulderFraction;
-    drawVdChannel(vg, view, c, pass, altToY(inner), altToY(-inner), rightLimit, 1.0f);
-    drawVdChannel(vg, view, c, pass, altToY(halfHeightFt), altToY(inner), rightLimit, 0.5f);
-    drawVdChannel(vg, view, c, pass, altToY(-inner), altToY(-halfHeightFt), rightLimit, 0.5f);
+  // A column's shape, level by level (see kVdColumnDome): from the bottom of the plot up to
+  // the level's height. Every level draws only the band of height between the previous
+  // level's height and its own (plus the overlap).
+  auto drawColumn = [&](FsTextureId view, VdPass pass, float heightFt, float rightLimit) {
+    float previousFt = 0.0f;
+    for (int i = 0; i < kVdColumnDomeCount; ++i) {
+      const float h = heightFt * kVdColumnDome[i].heightFraction;
+      if (i == 0) {
+        drawVdUnion(vg, view, c, pass, altToY(h), bottom, rightLimit);
+      } else {
+        // The band above the previous level's height (skipped when it lies outside the plot).
+        const float top = altToY(h);
+        const float lower = altToY(previousFt);
+        if (lower > top) {
+          drawVdEroded(vg, view, c, pass, kVdColumnDome[i].depthPx, top, std::fmin(lower + kVdBandOverlapPx, bottom), rightLimit);
+        }
+      }
+      previousFt = h;
+    }
   };
 
-  drawColour(precipView, VdPass::Yellow, kVdYellowHalfHeightFt, right);
-  drawColour(precipView, VdPass::Green, kVdGreenHalfHeightFt, right);
+  drawColumn(precipView, VdPass::Yellow, kVdYellowTopSpan * spanFt, right);
+  drawColumn(precipView, VdPass::Green, kVdGreenTopSpan * spanFt, right);
 
   nvgSave(vg);
   nvgScissor(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
-  sharpenRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+  sharpenRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight, kVdSharpenPasses);
   colorizeRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
   nvgRestore(vg);
 
   if (hotReady) {
-    drawColour(hotView, VdPass::Wipe, kVdRedHalfHeightFt, right);
+    // The red core: the heading-line column's hot mask wipes the green out of the yellow over
+    // the block +-kVdRedHalfSpan around the aircraft's altitude (not eroded, see kVdMagentaFraction).
+    const float redHalfFt = kVdRedHalfSpan * spanFt;
+    if (altToY(-redHalfFt) > altToY(redHalfFt)) {
+      nvgSave(vg);
+      drawVdErodedRect(vg, hotView, c, VdPass::Wipe, 0.0f, 0.0f, 1, kVdLeft, right, altToY(redHalfFt), altToY(-redHalfFt));
+      nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+      nvgRestore(vg);
+    }
+
     if (showTurb) {
+      // The magenta: a rounded lens inside the red block, within the turbulence range.
       const float turbFraction = kTurbulenceMaxRangeNm / vdRangeNm;
-      drawColour(hotView, VdPass::Magenta, kVdRedHalfHeightFt,
-                 kVdLeft + (turbFraction < 1.0f ? turbFraction : 1.0f) * kVdWidth);
+      const float magentaRight = kVdLeft + (turbFraction < 1.0f ? turbFraction : 1.0f) * kVdWidth;
+      const float halfFt = kVdMagentaFraction * redHalfFt;
+      float previousFt = 0.0f;
+      for (int i = 0; i < kVdLensDomeCount; ++i) {
+        const float h = halfFt * kVdLensDome[i].heightFraction;
+        if (i == 0) {
+          drawVdEroded(vg, hotView, c, VdPass::Magenta, kVdLensDome[i].depthPx, altToY(h), altToY(-h), magentaRight);
+        } else {
+          const float upperTop = altToY(h);
+          const float upperBottom = altToY(previousFt);
+          if (upperBottom > upperTop) {
+            drawVdEroded(vg, hotView, c, VdPass::Magenta, kVdLensDome[i].depthPx, upperTop,
+                         std::fmin(upperBottom + kVdBandOverlapPx, kVdTop + kVdHeight), magentaRight);
+          }
+          const float lowerTop = altToY(-previousFt);
+          const float lowerBottom = altToY(-h);
+          if (lowerBottom > lowerTop) {
+            drawVdEroded(vg, hotView, c, VdPass::Magenta, kVdLensDome[i].depthPx, std::fmax(lowerTop - kVdBandOverlapPx, kVdTop),
+                         lowerBottom, magentaRight);
+          }
+        }
+        previousFt = h;
+      }
     }
   }
 }
-
 #endif
 
 }  // namespace
