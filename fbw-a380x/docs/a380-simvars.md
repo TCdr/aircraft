@@ -22,6 +22,7 @@
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
   - [Landing Gear ATA 32](#landing-gear-ata-32)
   - [Lights ATA 33](#lights-ata-33)
+  - [Surveillance ATA 34](#surveillance-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
@@ -1701,6 +1702,34 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A380X_PED_LIGHTING_AMBIENT_LT_LEVEL`
     - Number
     - Brightness of the ambient lights (0-100)
+
+## Surveillance ATA 34
+
+- `L:A380X_WXR_OFF`
+    - Bool
+    - Set from the WXR button of the MFD SURV CONTROLS page. True when the weather radar is switched OFF (false = AUTO)
+
+- `L:A380X_WXR_PRED_WS_OFF`
+    - Bool
+    - Set from the PRED W/S button of the MFD SURV CONTROLS page. True when the predictive windshear is switched OFF (false = AUTO)
+    - Not used by any system yet
+
+- `L:A380X_WXR_TURB_OFF`
+    - Bool
+    - Set from the TURB button of the MFD SURV CONTROLS page. True when the turbulence detection is switched OFF (false = AUTO)
+
+- `L:A380X_WXR_GAIN_MAN`
+    - Bool
+    - Set from the GAIN button of the MFD SURV CONTROLS page. True when the gain is MANUAL (false = AUTO)
+    - Not used by any system yet
+
+- `L:A380X_WXR_MODE_MAP`
+    - Bool
+    - Set from the MODE button of the MFD SURV CONTROLS page. True when the radar mode is MAP (false = WX)
+
+- `L:A380X_WXR_VD_OFF`
+    - Bool
+    - Set from the WX ON VD button of the MFD SURV CONTROLS page. True when the weather on the VD is switched OFF (false = AUTO)
 
 ## Bleed Air ATA 36
 

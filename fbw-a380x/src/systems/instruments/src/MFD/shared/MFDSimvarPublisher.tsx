@@ -38,6 +38,15 @@ export type MfdSimvars = {
   terr2Failed: boolean;
   gpws1Failed: boolean;
   gpws2Failed: boolean;
+  wxr1Failed: boolean;
+  wxr2Failed: boolean;
+  wxrOff: boolean;
+  wxrTurbOff: boolean;
+  wxrModeMap: boolean;
+  wxrPredWsOff: boolean;
+  wxrGainMan: boolean;
+  wxrVdOff: boolean;
+  xpdrSystem: number;
 };
 
 export type InternalKccuKeyEvent = {
@@ -82,6 +91,15 @@ export enum MfdVars {
   terr2Failed = 'L:A32NX_TERR_2_FAILED',
   gpws1Failed = 'L:A32NX_GPWS_1_FAILED',
   gpws2Failed = 'L:A32NX_GPWS_2_FAILED',
+  wxr1Failed = 'L:A32NX_WXR_1_FAILED',
+  wxr2Failed = 'L:A32NX_WXR_2_FAILED',
+  wxrOff = 'L:A380X_WXR_OFF',
+  wxrTurbOff = 'L:A380X_WXR_TURB_OFF',
+  wxrModeMap = 'L:A380X_WXR_MODE_MAP',
+  wxrPredWsOff = 'L:A380X_WXR_PRED_WS_OFF',
+  wxrGainMan = 'L:A380X_WXR_GAIN_MAN',
+  wxrVdOff = 'L:A380X_WXR_VD_OFF',
+  xpdrSystem = 'L:A32NX_TRANSPONDER_SYSTEM',
 }
 
 /** A publisher to poll and publish nav/com simvars. */
@@ -122,6 +140,15 @@ export class MfdSimvarPublisher extends SimVarPublisher<MfdSimvars> {
     ['terr2Failed', { name: MfdVars.terr2Failed, type: SimVarValueType.Bool }],
     ['gpws1Failed', { name: MfdVars.gpws1Failed, type: SimVarValueType.Bool }],
     ['gpws2Failed', { name: MfdVars.gpws2Failed, type: SimVarValueType.Bool }],
+    ['wxr1Failed', { name: MfdVars.wxr1Failed, type: SimVarValueType.Bool }],
+    ['wxr2Failed', { name: MfdVars.wxr2Failed, type: SimVarValueType.Bool }],
+    ['wxrOff', { name: MfdVars.wxrOff, type: SimVarValueType.Bool }],
+    ['wxrTurbOff', { name: MfdVars.wxrTurbOff, type: SimVarValueType.Bool }],
+    ['wxrModeMap', { name: MfdVars.wxrModeMap, type: SimVarValueType.Bool }],
+    ['wxrPredWsOff', { name: MfdVars.wxrPredWsOff, type: SimVarValueType.Bool }],
+    ['wxrGainMan', { name: MfdVars.wxrGainMan, type: SimVarValueType.Bool }],
+    ['wxrVdOff', { name: MfdVars.wxrVdOff, type: SimVarValueType.Bool }],
+    ['xpdrSystem', { name: MfdVars.xpdrSystem, type: SimVarValueType.Number }],
   ]);
 
   public constructor(bus: EventBus) {
