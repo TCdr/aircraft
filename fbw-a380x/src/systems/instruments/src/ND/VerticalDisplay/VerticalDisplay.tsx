@@ -334,7 +334,6 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
     this.mapRecomputingReason,
   );
   private readonly trajNotAvailFlagCondition = Subject.create(false);
-  private readonly noTerrAndWxDataAvailFlagCondition = MappedSubject.create(([terrOff]) => terrOff, this.terrSysOff);
 
   private readonly terr1Failed = ConsumerSubject.create(this.sub.on('a32nx_aesu_terr_failed_1'), false);
   private readonly terr2Failed = ConsumerSubject.create(this.sub.on('a32nx_aesu_terr_failed_2'), false);
@@ -357,6 +356,39 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
     ([activeFailed, activeOverlay]) => activeOverlay === 1 && activeFailed,
     this.activeWxrFailed,
     this.activeOverlay,
+  );
+
+  private readonly wxrOff = ConsumerSubject.create(this.sub.on('a380x_wxr_off'), false);
+  private readonly wxrVdOff = ConsumerSubject.create(this.sub.on('a380x_wxr_vd_off'), false);
+
+  /** Weather stays available on the VD as long as the selected WXR is up and the WXR and WX ON VD buttons are on. */
+  private readonly weatherOnVdAvailable = MappedSubject.create(
+    ([activeFailed, wxrOff, wxrVdOff]) => !activeFailed && !wxrOff && !wxrVdOff,
+    this.activeWxrFailed,
+    this.wxrOff,
+    this.wxrVdOff,
+  );
+
+  private readonly wxDataMissing = this.weatherOnVdAvailable.map((available) => !available);
+
+  /**
+   * TERR SYS OFF only takes the terrain away, WX ON VD OFF (or a failed WXR) only the weather: each has its own
+   * message, and both together get the combined one.
+   */
+  private readonly noTerrAndWxDataAvailFlagCondition = MappedSubject.create(
+    ([terrOff, wxMissing]) => terrOff && wxMissing,
+    this.terrSysOff,
+    this.wxDataMissing,
+  );
+  private readonly noTerrDataAvailFlagCondition = MappedSubject.create(
+    ([terrOff, wxMissing]) => terrOff && !wxMissing,
+    this.terrSysOff,
+    this.wxDataMissing,
+  );
+  private readonly noWxDataAvailFlagCondition = MappedSubject.create(
+    ([terrOff, wxMissing]) => !terrOff && wxMissing,
+    this.terrSysOff,
+    this.wxDataMissing,
   );
 
   private readonly rangeChangeFlagVisibility = MappedSubject.create(
@@ -399,6 +431,20 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
     this.modeChangeFlagCondition,
     this.trajNotAvailFlagCondition,
     this.noTerrAndWxDataAvailFlagCondition,
+    this.terrInop,
+    this.wxrInop,
+  );
+
+  private readonly noTerrDataAvailFlagVisibility = MappedSubject.create(
+    ([noTerr, terrInop, wxrInop]) => (noTerr && !terrInop && !wxrInop ? 'inherit' : 'hidden'),
+    this.noTerrDataAvailFlagCondition,
+    this.terrInop,
+    this.wxrInop,
+  );
+
+  private readonly noWxDataAvailFlagVisibility = MappedSubject.create(
+    ([noWx, terrInop, wxrInop]) => (noWx && !terrInop && !wxrInop ? 'inherit' : 'hidden'),
+    this.noWxDataAvailFlagCondition,
     this.terrInop,
     this.wxrInop,
   );
@@ -476,6 +522,14 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
       this.wxr1Failed,
       this.wxr2Failed,
       this.activeWxrFailed,
+      this.wxrOff,
+      this.wxrVdOff,
+      this.weatherOnVdAvailable,
+      this.wxDataMissing,
+      this.noTerrDataAvailFlagCondition,
+      this.noWxDataAvailFlagCondition,
+      this.noTerrDataAvailFlagVisibility,
+      this.noWxDataAvailFlagVisibility,
       this.terrInop,
       this.wxrInop,
       this.rangeChangeFlagVisibility,
@@ -748,6 +802,22 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
             style={{ visibility: this.noTerrAndWxDataAvailFlagVisibility }}
           >
             NO TERR AND WX DATA AVAILABLE
+          </text>
+          <text
+            x={422}
+            y={890}
+            class="White FontSmall MiddleAlign shadow"
+            style={{ visibility: this.noTerrDataAvailFlagVisibility }}
+          >
+            NO TERR DATA AVAILABLE
+          </text>
+          <text
+            x={422}
+            y={890}
+            class="White FontSmall MiddleAlign shadow"
+            style={{ visibility: this.noWxDataAvailFlagVisibility }}
+          >
+            NO WX DATA AVAILABLE
           </text>
           <text
             x={285}

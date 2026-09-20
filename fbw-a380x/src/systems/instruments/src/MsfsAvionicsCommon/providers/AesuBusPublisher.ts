@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2024 FlyByWire Simulations
+﻿// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -19,6 +19,10 @@ interface AesuBusBaseEvents {
   a32nx_aesu_terr_failed: boolean;
   /** WXR function is failed, indexed as per systems 1&2. */
   a32nx_aesu_wxr_failed: boolean;
+  /** Whether the WXR button of the MFD SURV CONTROLS page is set to OFF. */
+  a380x_wxr_off: boolean;
+  /** Whether the WX ON VD button of the MFD SURV CONTROLS page is set to OFF. */
+  a380x_wxr_vd_off: boolean;
   /** Lower bound of vertical display altitude range. Indexed: 1 = CAPT, 2 = FO side. */
   a32nx_aesu_vd_range_lower: number;
   /** Lower bound of vertical display altitude range. Indexed: 1 = CAPT, 2 = FO side. */
@@ -57,6 +61,8 @@ export class AesuBusPublisher extends SimVarPublisher<AesuBusPublisherEvents> {
       ['a32nx_aesu_terr_sys_off', { name: 'L:A32NX_GPWS_TERR_OFF', type: SimVarValueType.Bool }],
       ['a32nx_aesu_terr_failed', { name: 'L:A32NX_TERR_#index#_FAILED', type: SimVarValueType.Bool, indexed: true }],
       ['a32nx_aesu_wxr_failed', { name: 'L:A32NX_WXR_#index#_FAILED', type: SimVarValueType.Bool, indexed: true }],
+      ['a380x_wxr_off', { name: 'L:A380X_WXR_OFF', type: SimVarValueType.Bool }],
+      ['a380x_wxr_vd_off', { name: 'L:A380X_WXR_VD_OFF', type: SimVarValueType.Bool }],
       [
         'a32nx_aesu_vd_range_lower',
         { name: 'L:A32NX_VD_#index#_RANGE_LOWER', type: SimVarValueType.Number, indexed: true },
