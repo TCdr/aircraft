@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { ChecklistLineStyle, NormalProcedure } from './';
@@ -48,6 +48,12 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
         sensed: false,
       },
       {
+        name: 'SURV',
+        labelNotCompleted: 'ON',
+        colonIfCompleted: false,
+        sensed: true,
+      },
+      {
         name: 'BEACON',
         labelNotCompleted: 'ON',
         colonIfCompleted: false,
@@ -91,6 +97,11 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
       {
         name: 'RADAR',
         labelNotCompleted: 'ON',
+        sensed: false,
+      },
+      {
+        name: 'WX & TERR',
+        labelNotCompleted: 'AS RQRD',
         sensed: false,
       },
       {
@@ -144,6 +155,11 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
         sensed: false,
       },
       {
+        name: 'CABIN CREW',
+        labelNotCompleted: 'ADVISED',
+        sensed: false,
+      },
+      {
         name: 'PACK 1 & 2',
         labelNotCompleted: 'ON',
         sensed: false,
@@ -194,6 +210,11 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
       {
         name: 'BARO REF',
         labelNotCompleted: '____ (BOTH)',
+        sensed: false,
+      },
+      {
+        name: 'WX & TERR',
+        labelNotCompleted: 'AS RQRD',
         sensed: false,
       },
       {
@@ -267,6 +288,12 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
         sensed: false,
       },
       {
+        name: 'WX & TERR',
+        labelNotCompleted: 'OFF',
+        colonIfCompleted: false,
+        sensed: true,
+      },
+      {
         name: 'FUEL PUMPs',
         labelNotCompleted: 'OFF',
         colonIfCompleted: false,
@@ -277,6 +304,11 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
   1000014: {
     title: 'SECURING THE AIRCRAFT',
     items: [
+      {
+        name: 'TCAS',
+        labelNotCompleted: 'OFF',
+        sensed: false,
+      },
       {
         name: 'OXYGEN',
         labelNotCompleted: 'OFF',
