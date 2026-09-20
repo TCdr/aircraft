@@ -1759,6 +1759,19 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Written by the ABV / BLW buttons of the pedestal SURV panel, read and reset to 0 by the TCAS computer
     - 0 = no request, otherwise the wanted `L:A380X_TCAS_ALT_SELECT` plus one
 
+- A32NX_WXR_ND_{side}_MODE
+    - Enum
+    - The weather radar mode text shown on the ND, published by the ndwxr gauge only while the radar is selected on an ARC or ROSE NAV page,
+      0 otherwise. Shared with the A32NX. The A380X has no TURB-only mode.
+    - {side} = L or R
+    -   | State  | Number |
+        |--------|--------|
+        | None   | 0      |
+        | WX     | 1      |
+        | WX+T   | 2      |
+        | TURB   | 3      |
+        | MAP    | 4      |
+
 ## Bleed Air ATA 36
 
 - A32NX_PNEU_ENG_{number}_INTERMEDIATE_TRANSDUCER_PRESSURE
