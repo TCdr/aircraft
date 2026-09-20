@@ -34,7 +34,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly tcas1Failed = ConsumerSubject.create(this.sub.on('tcasFail'), true);
 
-  private readonly wxr1Failed = Subject.create<boolean>(false);
+  private readonly wxr1Failed = ConsumerSubject.create(this.sub.on('wxr1Failed'), false);
 
   private readonly turb1Failed = Subject.create<boolean>(false);
 
@@ -46,7 +46,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly gpws1Failed = ConsumerSubject.create(this.sub.on('gpws1Failed'), false);
 
-  private readonly wxr2Failed = Subject.create<boolean>(false);
+  private readonly wxr2Failed = ConsumerSubject.create(this.sub.on('wxr2Failed'), false);
 
   private readonly turb2Failed = Subject.create<boolean>(false);
 
@@ -64,7 +64,9 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
   private readonly wxrTaws1Active = this.activeSystemGroupWxrTaws.map((s) => s === 1);
   private readonly wxrTaws2Active = this.activeSystemGroupWxrTaws.map((s) => s === 2);
 
-  private readonly activeSystemGroupXpdrTcas = Subject.create<number>(1);
+  /** The transponder/TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1, 1 = SYS 2), also switched on the pedestal. */
+  private readonly xpdrSystem = ConsumerSubject.create(this.sub.on('xpdrSystem'), 0);
+  private readonly activeSystemGroupXpdrTcas = this.xpdrSystem.map((s) => s + 1);
   private readonly xpdrTcas1Active = this.activeSystemGroupXpdrTcas.map((s) => s === 1);
   private readonly xpdrTcas2Active = this.activeSystemGroupXpdrTcas.map((s) => s === 2);
 
@@ -73,6 +75,8 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
     this.subs.push(
       this.tcas1Failed,
+      this.wxr1Failed,
+      this.wxr2Failed,
       this.terr1Failed,
       this.gpws1Failed,
       this.terr2Failed,
@@ -80,6 +84,10 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
       this.activeSystemGroupWxrTaws,
       this.wxrTaws1Active,
       this.wxrTaws2Active,
+      this.xpdrSystem,
+      this.activeSystemGroupXpdrTcas,
+      this.xpdrTcas1Active,
+      this.xpdrTcas2Active,
     );
   }
 
@@ -207,7 +215,11 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
           <div style="width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: top; padding: 50px;">
             {/* lower left sys box */}
             <div class="sys-box">
-              <SurvStatusButton label={'SYS 1'} active={this.xpdrTcas1Active} />
+              <SurvStatusButton
+                label={'SYS 1'}
+                active={this.xpdrTcas1Active}
+                onClick={() => SimVar.SetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', SimVarValueType.Number, 0)}
+              />
               <div class={{ 'sys-group': true, active: this.xpdrTcas1Active }} style="margin-bottom: 5px;">
                 <SurvStatusItem label={'XPDR'} sys={'1'} active={this.xpdrTcas1Active} failed={this.xpdr1Failed} />
               </div>
@@ -229,7 +241,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
               <SurvStatusButton
                 label={'SYS 2'}
                 active={this.xpdrTcas2Active}
-                onClick={() => console.log('button clicked')}
+                onClick={() => SimVar.SetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', SimVarValueType.Number, 1)}
               />
               <div class={{ 'sys-group': true, active: this.xpdrTcas2Active }} style="margin-bottom: 5px;">
                 <SurvStatusItem label={'XPDR'} sys={'2'} active={this.xpdrTcas2Active} failed={this.xpdr2Failed} />

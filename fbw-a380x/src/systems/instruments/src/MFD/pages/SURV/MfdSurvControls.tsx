@@ -83,23 +83,33 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     it === 0 ? RadioButtonColor.Green : RadioButtonColor.Cyan,
   );
 
-  private readonly wxrFailed = Subject.create<boolean>(true);
+  private readonly activeSystemGroupWxrTaws = ConsumerSubject.create(this.sub.on('wxrTawsSysSelected'), 0);
+  private readonly wxr1Failed = ConsumerSubject.create(this.sub.on('wxr1Failed'), false);
+  private readonly wxr2Failed = ConsumerSubject.create(this.sub.on('wxr2Failed'), false);
+
+  private readonly wxrFailed = MappedSubject.create(
+    ([selected, f1, f2]) => (selected === 1 ? f1 : selected === 2 ? f2 : true),
+    this.activeSystemGroupWxrTaws,
+    this.wxr1Failed,
+    this.wxr2Failed,
+  );
 
   private readonly wxrElevnTiltSelectedIndex = Subject.create<number | null>(0);
 
-  private readonly wxrAuto = Subject.create<boolean>(false);
+  // WXR, TURB and MODE drive the ND weather radar, WX ON VD the VD's "NO TERR AND WX DATA" message. PRED W/S and
+  // GAIN only keep their state so far. All start at the page's default settings.
+  private readonly wxrAuto = Subject.create<boolean>(true);
 
-  private readonly wxrPredWsAuto = Subject.create<boolean>(false);
+  private readonly wxrPredWsAuto = Subject.create<boolean>(true);
 
-  private readonly wxrTurbAuto = Subject.create<boolean>(false);
+  private readonly wxrTurbAuto = Subject.create<boolean>(true);
 
   private readonly wxrGainAuto = Subject.create<boolean>(true);
 
   private readonly wxrModeWx = Subject.create<boolean>(true);
 
-  private readonly wxrOnVd = Subject.create<boolean>(false);
+  private readonly wxrOnVd = Subject.create<boolean>(true);
 
-  private readonly activeSystemGroupWxrTaws = ConsumerSubject.create(this.sub.on('wxrTawsSysSelected'), 0);
   private readonly terr1Failed = ConsumerSubject.create(this.sub.on('terr1Failed'), false);
   private readonly gpws1Failed = ConsumerSubject.create(this.sub.on('gpws1Failed'), false);
   private readonly terr2Failed = ConsumerSubject.create(this.sub.on('terr2Failed'), false);
@@ -183,6 +193,48 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     );
 
     this.subs.push(
+      sub
+        .on('wxrOff')
+        .whenChanged()
+        .handle((it) => this.wxrAuto.set(!it)),
+    );
+
+    this.subs.push(
+      sub
+        .on('wxrTurbOff')
+        .whenChanged()
+        .handle((it) => this.wxrTurbAuto.set(!it)),
+    );
+
+    this.subs.push(
+      sub
+        .on('wxrModeMap')
+        .whenChanged()
+        .handle((it) => this.wxrModeWx.set(!it)),
+    );
+
+    this.subs.push(
+      sub
+        .on('wxrPredWsOff')
+        .whenChanged()
+        .handle((it) => this.wxrPredWsAuto.set(!it)),
+    );
+
+    this.subs.push(
+      sub
+        .on('wxrGainMan')
+        .whenChanged()
+        .handle((it) => this.wxrGainAuto.set(!it)),
+    );
+
+    this.subs.push(
+      sub
+        .on('wxrVdOff')
+        .whenChanged()
+        .handle((it) => this.wxrOnVd.set(!it)),
+    );
+
+    this.subs.push(
       this.xpdrSetAltReportingRequest,
       this.xpdrState,
       this.xpdrAltRptgDisabled,
@@ -192,6 +244,9 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
       this.tcasFailed,
       this.tcasRadioGroupDisabled,
       this.activeSystemGroupWxrTaws,
+      this.wxr1Failed,
+      this.wxr2Failed,
+      this.wxrFailed,
       this.terr1Failed,
       this.terr2Failed,
       this.gpws1Failed,
@@ -242,14 +297,12 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     }
 
     if (!this.wxrFailed.get()) {
-      // FIXME replace with appropriate events
-      this.wxrElevnTiltSelectedIndex.set(0);
-      this.wxrAuto.set(true);
-      this.wxrPredWsAuto.set(true);
-      this.wxrTurbAuto.set(true);
-      this.wxrGainAuto.set(true);
-      this.wxrModeWx.set(true);
-      this.wxrOnVd.set(true);
+      SimVar.SetSimVarValue('L:A380X_WXR_OFF', SimVarValueType.Bool, false);
+      SimVar.SetSimVarValue('L:A380X_WXR_TURB_OFF', SimVarValueType.Bool, false);
+      SimVar.SetSimVarValue('L:A380X_WXR_MODE_MAP', SimVarValueType.Bool, false);
+      SimVar.SetSimVarValue('L:A380X_WXR_PRED_WS_OFF', SimVarValueType.Bool, false);
+      SimVar.SetSimVarValue('L:A380X_WXR_GAIN_MAN', SimVarValueType.Bool, false);
+      SimVar.SetSimVarValue('L:A380X_WXR_VD_OFF', SimVarValueType.Bool, false);
     }
 
     if (!this.tawsTerrFailed.get()) {
@@ -385,7 +438,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
                     disabled={this.wxrFailed}
                     labelFalse={'OFF'}
                     labelTrue={'AUTO'}
-                    onChanged={() => {}}
+                    onChanged={(v) => SimVar.SetSimVarValue('L:A380X_WXR_OFF', SimVarValueType.Bool, !v)}
                   />
                 </div>
                 <div class="mfd-surv-controls-wxr-grid-cell">
@@ -395,7 +448,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
                     disabled={this.wxrFailed}
                     labelFalse={'OFF'}
                     labelTrue={'AUTO'}
-                    onChanged={() => {}}
+                    onChanged={(v) => SimVar.SetSimVarValue('L:A380X_WXR_PRED_WS_OFF', SimVarValueType.Bool, !v)}
                   />
                 </div>
                 <div class="mfd-surv-controls-wxr-grid-cell">
@@ -405,7 +458,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
                     disabled={this.wxrFailed}
                     labelFalse={'OFF'}
                     labelTrue={'AUTO'}
-                    onChanged={() => {}}
+                    onChanged={(v) => SimVar.SetSimVarValue('L:A380X_WXR_TURB_OFF', SimVarValueType.Bool, !v)}
                   />
                 </div>
                 <div class="mfd-surv-controls-wxr-grid-cell">
@@ -415,7 +468,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
                     disabled={this.wxrFailed}
                     labelFalse={'MAN'}
                     labelTrue={'AUTO'}
-                    onChanged={() => {}}
+                    onChanged={(v) => SimVar.SetSimVarValue('L:A380X_WXR_GAIN_MAN', SimVarValueType.Bool, !v)}
                   />
                 </div>
                 <div class="mfd-surv-controls-wxr-grid-cell">
@@ -425,7 +478,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
                     disabled={this.wxrFailed}
                     labelFalse={'MAP'}
                     labelTrue={'WX'}
-                    onChanged={() => {}}
+                    onChanged={(v) => SimVar.SetSimVarValue('L:A380X_WXR_MODE_MAP', SimVarValueType.Bool, !v)}
                   />
                 </div>
                 <div class="mfd-surv-controls-wxr-grid-cell">
@@ -435,7 +488,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
                     disabled={this.wxrFailed}
                     labelFalse={'OFF'}
                     labelTrue={'AUTO'}
-                    onChanged={() => {}}
+                    onChanged={(v) => SimVar.SetSimVarValue('L:A380X_WXR_VD_OFF', SimVarValueType.Bool, !v)}
                   />
                 </div>
               </div>
