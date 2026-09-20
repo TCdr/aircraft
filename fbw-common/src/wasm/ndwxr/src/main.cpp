@@ -1,12 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Native WASM ND weather radar gauge, built on MSFS_MapView.h's native weather
-// radar API (which testing showed gives materially more consistent
-// precipitation data across sessions than the JS/Bing map path it replaces).
+// Native WASM ND weather radar and terrain gauge, built on MSFS_MapView.h's
+// native weather radar API (which testing showed gives materially more
+// consistent precipitation data across sessions than the JS/Bing map path it
+// replaces) and its altitude view mode (the terrain, see the section on the
+// terrain below).
 //
-// Draws ONLY the weather image, positioned/sized to match the ND's per-mode
-// pixelRadius/centerYBias constants (arc/index.tsx, RoseNavPage.tsx).
+// Draws ONLY the weather / terrain image, positioned/sized to match the ND's
+// per-mode pixelRadius/centerYBias constants (arc/index.tsx, RoseNavPage.tsx).
 // Everything else on the ND (compass ring, range rings, numbers, aircraft
 // symbol, traffic, flight plan) stays nd.html's job.
 //
@@ -72,6 +74,21 @@
 //   (fsMapViewSetWeatherRadarStabilization defaults to true for both axes), so
 //   the beam stays level in a banked turn without this module doing anything.
 //
+// The terrain (TERR ON ND) needs no SimBridge: an altitude-mode MapView colors the
+// terrain by the aircraft's altitude minus the terrain height (in bands, water is
+// not colored but always gets the list's first entry, so a second view tells water
+// from land), and the Honeywell EGPWS look (dense / medium / light dots in red,
+// yellow and green) is built from those bands with blend-only passes, see drawTerrain.
+// The A380X's VD shows the terrain profile along the heading line in the same
+// way, see drawVdTerrain (its weather is drawn in drawVdWeather).
+//
+// A module can have at most 8 MapViews: a ninth crashes the module's gauge draw
+// when it is drawn (hiding views does not help), so the A32NX has 4 per ND
+// (precipitation, hot, terrain, water) and the A380X 2 per ND, which are the
+// weather pair or the terrain pair (the terrain takes the weather's place) and are
+// reconfigured when the crew switches, and 2 per VD terrain gauge. The module also
+// reserves its memory up front (build.sh): growing it while drawing crashes too.
+//
 // Built twice from this file, like terronnd: for the A32NX (default) and for
 // the A380X (-DA380X). They differ in the ND range table, in which power buses
 // switch the ND on, in how the crew selects the radar, and in which inertial
@@ -80,9 +97,11 @@
 // Stacked as an extra htmlgauge on each ND's existing panel.cfg block
 // (A32NX: VCockpit02 = CPT, VCockpit15 = F/O; A380X: VCockpit07 = CPT,
 // VCockpit08 = F/O). Like terronnd, the last gauge parameter selects the side
-// ("L" or "R"; no parameter means "L"). Both gauges run inside one WASM module
-// instance, so all per-ND state lives in an Instance keyed by the gauge's
-// FsContext.
+// ("L" or "R"; no parameter means "L"; on the A380X a trailing "V" makes it the
+// VD terrain gauge of that side, a further gauge on the same ND because the
+// weather VD's whole-rect passes would destroy terrain drawn in the same
+// surface). All gauges run inside one WASM module instance, so all per-gauge
+// state lives in an Instance keyed by the gauge's FsContext.
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
@@ -119,6 +138,10 @@ NamedVar g_attHdgKnob{"A32NX_ATT_HDG_SWITCHING_KNOB"};
 // ADIRS inertial reference position words for IR 1..3 (index 0..2).
 NamedVar g_adirsLat[3] = {{"A32NX_ADIRS_IR_1_LATITUDE"}, {"A32NX_ADIRS_IR_2_LATITUDE"}, {"A32NX_ADIRS_IR_3_LATITUDE"}};
 NamedVar g_adirsLon[3] = {{"A32NX_ADIRS_IR_1_LONGITUDE"}, {"A32NX_ADIRS_IR_2_LONGITUDE"}, {"A32NX_ADIRS_IR_3_LONGITUDE"}};
+// ADIRS true heading words for IR 1..3 (the rotation of the ND's map, see drawTerrain).
+NamedVar g_adirsTrueHeading[3] = {{"A32NX_ADIRS_IR_1_TRUE_HEADING"}, {"A32NX_ADIRS_IR_2_TRUE_HEADING"}, {"A32NX_ADIRS_IR_3_TRUE_HEADING"}};
+// The EGPWC's gear-down flag (EGPWC_GEAR_IS_DOWN), which the terrain levels depend on.
+NamedVar g_egpwcGearDown{"A32NX_EGPWC_GEAR_IS_DOWN"};
 // Main landing gear compression as reported by LGCIU 1 and 2 (index 0..1); an
 // unpowered LGCIU reports "not compressed". Same names on both aircraft.
 NamedVar g_lgciuLeftCompressed[2] = {{"A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED"}, {"A32NX_LGCIU_2_LEFT_GEAR_COMPRESSED"}};
@@ -130,9 +153,14 @@ NamedVar g_lgciuRightCompressed[2] = {{"A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED"}, {
 // its own failure (EfisTawsBridge.ts).
 NamedVar g_wxrTawsSelected{"A32NX_WXR_TAWS_SYS_SELECTED"};
 NamedVar g_wxrFailed[2] = {{"A32NX_WXR_1_FAILED"}, {"A32NX_WXR_2_FAILED"}};
+// The TERR side of the same two systems (EfisTawsBridge.ts).
+NamedVar g_terrFailed[2] = {{"A32NX_TERR_1_FAILED"}, {"A32NX_TERR_2_FAILED"}};
+// The TERR SYS button of the SURV page: 1 = OFF (takes the terrain off the VD).
+NamedVar g_terrSysOff{"A32NX_GPWS_TERR_OFF"};
 
 // A380X_EFIS_x_ACTIVE_OVERLAY (FcuBusPublisher.ts): 0 = none, 1 = WXR, 2 = TERR.
 constexpr double kOverlayWxr = 1.0;
+constexpr double kOverlayTerr = 2.0;
 
 // The WXR / TURB / MODE buttons of the MFD SURV CONTROLS page (MfdSurvControls.tsx).
 // Each is 0 by default, which is the page's default setting: WXR AUTO, TURB AUTO,
@@ -361,6 +389,11 @@ struct Instance {
 
   ID ndModeVar = -1;
   ID ndRangeVar = -1;
+#ifndef A380X
+  // EGPWC_ND_x_TERRAIN_ACTIVE: this side's TERR ON ND pb is on, the ND is powered
+  // and the position data is valid (enhanced_gpwc/navigation_display.rs).
+  ID terrainActiveVar = -1;
+#endif
   // The buses that switch this ND on (it is on while either is powered). The
   // live-MapView-texture render pass bypasses whatever backlight/emissive
   // mechanism blanks nd.html's own content when unpowered, so this module has
@@ -376,6 +409,30 @@ struct Instance {
   bool mapViewReady = false;
   FsTextureId mapViewHot = 0;
   bool mapViewHotReady = false;
+  // The terrain on the ND: an altitude-mode map view, coloured relative to the aircraft.
+  FsTextureId mapViewTerrain = 0;
+  bool mapViewTerrainReady = false;
+  // Tells water from land for the terrain (see configureWaterMaskView).
+  FsTextureId mapViewWater = 0;
+  bool mapViewWaterReady = false;
+  // The dither image of the terrain (created on first use) and the gear state the
+  // color list was last set for (-1 = not yet).
+  int terrainPatternImage = 0;
+  int terrainGearState = -1;
+#ifdef A380X
+  // The A380X's third gauge per ND (the "V" parameter) draws the terrain profile on the VD, see
+  // drawVdTerrainGauge.
+  bool isVdTerrain = false;
+  FsTextureId mapViewVdTerrain = 0;
+  bool mapViewVdTerrainReady = false;
+  int vdRampImage = 0;
+  // The ND's two views (mapView, mapViewHot) are the weather pair (role 0) or the terrain and water pair
+  // (role 1); a change of role reconfigures them and leaves them alone for a while (see the ND draw).
+  int ndRole = 0;
+  int roleWarmupLeft = 0;
+  // Frames the VD terrain has been showing (its views' settings only follow the aircraft while it does).
+  int vdShowFrames = 0;
+#endif
 #ifdef A380X
   // The VD's altitude limits (see kVdLeft).
   ID vdRangeLowerVar = -1;
@@ -515,6 +572,11 @@ void clearLayer(NVGcontext* vg, float width, float height) {
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
 }
 
+// A module can have at most 8 map views: a ninth (and any later) one is created without complaint, but crashes
+// the module's gauge draw as soon as it is drawn (measured in-sim 2026-09-20; hiding views does not help, only
+// the number that exist counts). The A320 has 4 per ND (precipitation, hot, terrain, water); the A380X has 2 per
+// ND, which are either the weather pair or the terrain pair (never both at once), and 2 per VD terrain gauge.
+
 // Shared MapView setup for the precipitation view and the hot view.
 bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* colors, unsigned colorCount) {
   if (id == 0) {
@@ -526,6 +588,10 @@ bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* colors, 
   // with no real content, and our own draw call painted that as a solid white
   // square instead of weather. Keep it true whenever the view is drawn.
   fsMapViewSetVisibility(ctx, id, true);
+#ifdef A380X
+  // The A380X's ND views switch between this and the terrain (an altitude view).
+  fsMapViewSetViewMode(ctx, id, FS_MAP_VIEW_MODE_AERIAL);
+#endif
   // Alpha in the background color / first band does NOT make the texture
   // transparent (it comes out opaque black regardless) - transparency is
   // handled by the additive blend in drawWeatherRect instead.
@@ -683,13 +749,314 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float 
   nvgRestore(vg);
 }
 
+// ---------------------------------------------------------------------------
+// Terrain on the ND (TERR ON ND).
+//
+// The stock feature (terronnd.wasm) is only a client of the external SimBridge
+// program; this draws the terrain natively from an altitude-mode MapView instead.
+//
+// Findings this is built around (all measured in-sim, 2026-09-20):
+//
+// - The MapView colors each texel by the aircraft's altitude MINUS the terrain
+//   height (fsMapViewSetAltitudeReference PLANE) through the altitude color list:
+//   the list is split into equal bands over [min, max], entry 0 = terrain far
+//   ABOVE the aircraft, the last entry = terrain far below; values outside the
+//   range take the first / last entry. The bands are hard steps.
+// - Water is never colored by the list (it stays black).
+// - Unlike the weather radar, the texture is NORTH-UP: it has to be rotated by
+//   minus the ND's true heading (the ADIRS word nd.html rotates its own map by).
+// - As with the radar, the texture is opaque and can only be added onto the ND.
+//
+// The look follows the Honeywell EGPWS terrain display: colors and dot densities
+// by the terrain elevation relative to the aircraft,
+//     >= +2000 ft            dense red
+//     +1000 .. +2000 ft      dense yellow
+//     -500 (gear down -250) .. +1000 ft   medium yellow
+//     -1000 (-500) .. -500 (-250) ft      dense green
+//     -2000 .. -1000 (-500) ft            light green
+//     below -2000 ft         nothing
+// (the "image only within 2000 ft of the terrain" rule of the standard mode falls
+// out of the last line; the peaks mode and its MIN/MAX figures need elevations
+// the module cannot read back from a MapView, so they are not implemented).
+//
+// The dot patterns come from an ordered dither: each band's color entry is a
+// per-channel density (R = red, G = green, both = yellow); the texture is added at
+// half strength to the complement of a 4x4 Bayer threshold map (also half
+// strength), so the sum reaches 1 exactly where density >= threshold. Doubling and
+// repeated squaring then turn that into 0/1 dots, and one multiply gives the
+// display colors.
+// ---------------------------------------------------------------------------
+
+// Whether the crew has TERR ON ND selected on this side and the terrain system can
+// supply it (the ND page, position source and range are checked separately).
 #ifdef A380X
+// A TAWS system (selected on the SURV panel) that has not failed: EfisTawsBridge's terrFailed, where
+// no system selected counts as failed.
+bool terrainSystemUp() {
+  const int system = static_cast<int>(g_wxrTawsSelected.read());
+  if (system != 1 && system != 2) {
+    return false;
+  }
+  return g_terrFailed[system - 1].read() == 0.0;
+}
+#endif
+
+bool terrainSelected(const Instance& instance) {
+#ifdef A380X
+  // EfisTawsBridge's terrOnNd: the TERR overlay on this side's EFIS control panel and the TAWS system up.
+  return get_named_variable_value(instance.overlayVar) == kOverlayTerr && terrainSystemUp();
+#else
+  return get_named_variable_value(instance.terrainActiveVar) != 0.0;
+#endif
+}
+
+// The color list: kTerrainBandCount equal bands of kTerrainBandFeet over
+// [kTerrainMinFeet, kTerrainMaxFeet] of (aircraft altitude - terrain height).
+constexpr float kTerrainBandFeet = 250.0f;
+constexpr int kTerrainBandCount = 18;
+constexpr float kTerrainMinFeet = -2250.0f;
+constexpr float kTerrainMaxFeet = kTerrainMinFeet + kTerrainBandFeet * static_cast<float>(kTerrainBandCount);
+
+// The two dot styles of the terrain. ORDERED is a regular 4x4 Bayer pattern (14/16, 7/16 and
+// 3/16 of the cells lit); the first in-sim version, and liked. RANDOM is white noise like the
+// real display, whose dense-red area was measured on a photo of a real A320 ND at about 70%
+// lit, in irregular clumps of about one ND pixel cells (medium and light are guesses).
+enum class TerrainDotStyle { Ordered, Random };
+constexpr TerrainDotStyle kTerrainDotStyle = TerrainDotStyle::Random;
+constexpr bool kOrderedDots = kTerrainDotStyle == TerrainDotStyle::Ordered;
+
+// Dot density of the three levels (the fraction of lit cells).
+constexpr float kTerrainDense = kOrderedDots ? 14.0f / 16.0f : 0.70f;
+constexpr float kTerrainMedium = kOrderedDots ? 7.0f / 16.0f : 0.40f;
+constexpr float kTerrainLight = kOrderedDots ? 3.0f / 16.0f : 0.18f;
+
+// Size of the dither image in cells, of one cell in ND pixels, and how often the 0/1
+// result is squared (2^kTerrainSharpenPasses has to crush the not-lit side to black).
+constexpr int kTerrainPatternCells = kOrderedDots ? 4 : 128;
+constexpr float kTerrainDotCellPx = 2.0f;
+constexpr int kTerrainSharpenPasses = 8;
+
+// Terrain elevation relative to the aircraft (feet) where the levels start; the
+// gear position moves the lower ones (Honeywell: 500 ft gear up, 250 ft gear down).
+constexpr float kTerrainRedFromFeet = 2000.0f;
+constexpr float kTerrainDenseYellowFromFeet = 1000.0f;
+constexpr float kTerrainLightGreenFromFeet = -2000.0f;
+
+void terrainBandColor(int band, bool gearDown, float* r, float* g) {
+  const float mediumYellowFrom = gearDown ? -250.0f : -500.0f;
+  const float denseGreenFrom = gearDown ? -500.0f : -1000.0f;
+  // Relative elevation of the middle of the band (v = altitude - terrain, so the
+  // band [lo, lo + width) of v is the terrain range (-lo - width, -lo]).
+  const float lo = kTerrainMinFeet + kTerrainBandFeet * static_cast<float>(band);
+  const float relMid = -(lo + 0.5f * kTerrainBandFeet);
+  *r = 0.0f;
+  *g = 0.0f;
+  if (relMid >= kTerrainRedFromFeet) {
+    *r = kTerrainDense;
+  } else if (relMid >= kTerrainDenseYellowFromFeet) {
+    *r = kTerrainDense;
+    *g = kTerrainDense;
+  } else if (relMid >= mediumYellowFrom) {
+    *r = kTerrainMedium;
+    *g = kTerrainMedium;
+  } else if (relMid >= denseGreenFrom) {
+    *g = kTerrainDense;
+  } else if (relMid >= kTerrainLightGreenFromFeet) {
+    *g = kTerrainLight;
+  }
+}
+
+void setTerrainColors(FsContext ctx, FsTextureId id, bool gearDown) {
+  FsColor colors[kTerrainBandCount];
+  for (int band = 0; band < kTerrainBandCount; ++band) {
+    float r = 0.0f;
+    float g = 0.0f;
+    terrainBandColor(band, gearDown, &r, &g);
+    colors[band] = FsColor{{r, g, 0.0f, 1.0f}};
+  }
+  fsMapViewSetAltitudeColorList(ctx, id, colors, kTerrainBandCount);
+}
+
+bool configureTerrainView(FsContext ctx, FsTextureId id) {
+  if (id == 0) {
+    return false;
+  }
+  // As for the radar views: the view stays visible for its whole life.
+  fsMapViewSetVisibility(ctx, id, true);
+  fsMapViewSetBackgroundColor(ctx, id, FsColor{{0.0f, 0.0f, 0.0f, 1.0f}});
+  fsMapViewSet2DViewFollowMode(ctx, id, true);
+  fsMapViewSetMapIsolinesVisibility(ctx, id, false);
+  fsMapViewSetWeatherRadarVisibility(ctx, id, false);
+  fsMapViewSetViewMode(ctx, id, FS_MAP_VIEW_MODE_ALTITUDE);
+  fsMapViewSetAltitudeReference(ctx, id, FS_MAP_VIEW_ALTITUDE_REFERENCE_PLANE);
+  fsMapViewSetAltitudeRangeInFeet(ctx, id, kTerrainMinFeet, kTerrainMaxFeet);
+  setTerrainColors(ctx, id, false);
+  return true;
+}
+
+// The complement (1 - threshold) of a 4x4 Bayer threshold map, as an image that
+// repeats over the whole ND.
+int createTerrainPattern(NVGcontext* vg) {
+  constexpr int kCells = kTerrainPatternCells;
+  static unsigned char data[kCells * kCells * 4];
+  if constexpr (kOrderedDots) {
+    static const int kBayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+    for (int i = 0; i < 16; ++i) {
+      const float complement = (15.5f - static_cast<float>(kBayer[i])) / 16.0f;
+      const unsigned char value = static_cast<unsigned char>(complement * 255.0f + 0.5f);
+      data[i * 4 + 0] = value;
+      data[i * 4 + 1] = value;
+      data[i * 4 + 2] = value;
+      data[i * 4 + 3] = 255;
+    }
+  } else {
+    // White noise: each cell's threshold n / 256 (n = 0 .. 255), stored complemented.
+    unsigned int state = 0x9E3779B9u;
+    for (int i = 0; i < kCells * kCells; ++i) {
+      state ^= state << 13;
+      state ^= state >> 17;
+      state ^= state << 5;
+      const unsigned char value = static_cast<unsigned char>(255u - ((state >> 8) & 0xFFu));
+      data[i * 4 + 0] = value;
+      data[i * 4 + 1] = value;
+      data[i * 4 + 2] = value;
+      data[i * 4 + 3] = 255;
+    }
+  }
+  return nvgCreateImageRGBA(vg, kCells, kCells, NVG_IMAGE_REPEATX | NVG_IMAGE_REPEATY | NVG_IMAGE_NEAREST, data);
+}
+
+// The area the terrain covers: the compass disk in the ROSE modes, the forward half
+// of it in ARC.
+void terrainPath(NVGcontext* vg, float cx, float cy, float radius, bool isRose) {
+  constexpr float kPi = 3.14159265f;
+  nvgBeginPath(vg);
+  if (isRose) {
+    nvgCircle(vg, cx, cy, radius);
+  } else {
+    nvgMoveTo(vg, cx, cy);
+    nvgArc(vg, cx, cy, radius, kPi, 2.0f * kPi, NVG_CW);
+    nvgClosePath(vg);
+  }
+}
+
+// Water is never coloured by the altitude list: the engine gives it the FIRST entry, the same
+// one that terrain far above the aircraft ends up on (dense red in the terrain view: a red
+// sea). A second view with a two-entry list and a range far below any real value tells the
+// two apart: everything on land is beyond the range and lands on the last entry (black),
+// water is on the first (white). The terrain drawn over water is wiped and replaced by
+// what sea level really is relative to the aircraft.
+constexpr float kWaterMaskMinFeet = -60000.0f;
+constexpr float kWaterMaskMaxFeet = -50000.0f;
+
+bool configureWaterMaskView(FsContext ctx, FsTextureId id) {
+  if (id == 0) {
+    return false;
+  }
+  fsMapViewSetVisibility(ctx, id, true);
+  fsMapViewSetBackgroundColor(ctx, id, FsColor{{0.0f, 0.0f, 0.0f, 1.0f}});
+  fsMapViewSet2DViewFollowMode(ctx, id, true);
+  fsMapViewSetMapIsolinesVisibility(ctx, id, false);
+  fsMapViewSetWeatherRadarVisibility(ctx, id, false);
+  fsMapViewSetViewMode(ctx, id, FS_MAP_VIEW_MODE_ALTITUDE);
+  fsMapViewSetAltitudeReference(ctx, id, FS_MAP_VIEW_ALTITUDE_REFERENCE_PLANE);
+  fsMapViewSetAltitudeRangeInFeet(ctx, id, kWaterMaskMinFeet, kWaterMaskMaxFeet);
+  FsColor colors[2] = {FsColor{{1.0f, 1.0f, 1.0f, 1.0f}}, FsColor{{0.0f, 0.0f, 0.0f, 1.0f}}};
+  fsMapViewSetAltitudeColorList(ctx, id, colors, 2);
+  return true;
+}
+
 double planeAltitudeFeet() {
   static const ENUM planeAltitude = get_aircraft_var_enum("PLANE ALTITUDE");
   static const ENUM feet = get_units_enum("feet");
   return aircraft_varget(planeAltitude, feet, 0);
 }
 
+// The dot densities of the terrain at the aircraft's own height above sea level: what the
+// sea (elevation 0) is, and what any band of the color list looks like.
+void terrainSeaColor(double altitudeFeet, bool gearDown, float* r, float* g) {
+  int band = static_cast<int>(std::floor((static_cast<float>(altitudeFeet) - kTerrainMinFeet) / kTerrainBandFeet));
+  band = band < 0 ? 0 : (band >= kTerrainBandCount ? kTerrainBandCount - 1 : band);
+  terrainBandColor(band, gearDown, r, g);
+}
+
+void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int patternImage, bool isRose, float headingDegrees,
+                 float seaR, float seaG) {
+  constexpr float kDegToRad = 0.01745329f;
+  const float centerYBias = isRose ? kRoseNavCenterYBias : kArcCenterYBias;
+  const float radius = isRose ? kRoseNavPixelRadius : kArcPixelRadius;
+  const float cx = kScreenCenterX;
+  const float cy = kScreenCenterX + centerYBias;
+
+  // The texture is north-up: rotate it about the aircraft by minus the heading.
+  // nvgImagePattern rotates about the image's own top-left corner, so that corner
+  // is moved to where it lands after the rotation about the aircraft.
+  const float angle = -headingDegrees * kDegToRad;
+  const float sinA = std::sin(angle);
+  const float cosA = std::cos(angle);
+  const float originX = cx + (-radius * cosA + radius * sinA);
+  const float originY = cy + (-radius * sinA - radius * cosA);
+
+  const float half = encodeSrgb(0.5f);
+  const FsColor halfTint{{half, half, half, 1.0f}};
+
+  // 1. the density texture at half strength ...
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+  terrainPath(vg, cx, cy, radius, isRose);
+  NVGpaint terrain = nvgImagePattern(vg, originX, originY, radius * 2.0f, radius * 2.0f, angle, view, 1.0f);
+  terrain.innerColor = terrain.outerColor = halfTint;
+  nvgFillPaint(vg, terrain);
+  nvgFill(vg);
+
+  // ... with the water wiped out of it and the sea put back at its real level.
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ONE_MINUS_SRC_COLOR, NVG_ZERO, NVG_ONE);
+  terrainPath(vg, cx, cy, radius, isRose);
+  NVGpaint water = nvgImagePattern(vg, originX, originY, radius * 2.0f, radius * 2.0f, angle, waterView, 1.0f);
+  water.innerColor = water.outerColor = FsColor{{1.0f, 1.0f, 1.0f, 1.0f}};
+  nvgFillPaint(vg, water);
+  nvgFill(vg);
+  if (seaR > 0.0f || seaG > 0.0f) {
+    nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+    terrainPath(vg, cx, cy, radius, isRose);
+    NVGpaint sea = nvgImagePattern(vg, originX, originY, radius * 2.0f, radius * 2.0f, angle, waterView, 1.0f);
+    sea.innerColor = sea.outerColor = FsColor{{encodeSrgb(0.5f * seaR), encodeSrgb(0.5f * seaG), 0.0f, 1.0f}};
+    nvgFillPaint(vg, sea);
+    nvgFill(vg);
+  }
+
+  // 2. the dither complement at half strength: the sum passes 1 exactly where density >= threshold.
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+  terrainPath(vg, cx, cy, radius, isRose);
+  const float tile = static_cast<float>(kTerrainPatternCells) * kTerrainDotCellPx;
+  NVGpaint dither = nvgImagePattern(vg, 0.0f, 0.0f, tile, tile, 0.0f, patternImage, 1.0f);
+  dither.innerColor = dither.outerColor = halfTint;
+  nvgFillPaint(vg, dither);
+  nvgFill(vg);
+
+  // 3. doubling (dst * (1 + 1)): everything at or above 1 saturates ...
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_DST_COLOR, NVG_ONE, NVG_ZERO, NVG_ONE);
+  terrainPath(vg, cx, cy, radius, isRose);
+  nvgFillColor(vg, nvgRGBAf(1.0f, 1.0f, 1.0f, 1.0f));
+  nvgFill(vg);
+
+  // 4. ... and squaring drives everything below 1 to 0.
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_DST_COLOR, NVG_ZERO, NVG_ONE);
+  for (int i = 0; i < kTerrainSharpenPasses; ++i) {
+    terrainPath(vg, cx, cy, radius, isRose);
+    nvgFillColor(vg, nvgRGBAf(1.0f, 1.0f, 1.0f, 1.0f));
+    nvgFill(vg);
+  }
+
+  // 5. the display colors: red and green channels at the radar's levels.
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_SRC_COLOR, NVG_ZERO, NVG_ONE);
+  terrainPath(vg, cx, cy, radius, isRose);
+  nvgFillColor(vg, nvgRGBAf(encodeSrgb(kRedLevel), encodeSrgb(kGreenLevel), 0.0f, 1.0f));
+  nvgFill(vg);
+
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+}
+
+#ifdef A380X
 constexpr float kHalfPi = 1.5707963f;
 
 // Where the ND's radar texture lands on the VD (see kVdColumnTexelPx): rotated by
@@ -885,7 +1252,269 @@ void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, 
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Terrain profile on the VD (A380X). Its own gauge instance (the "V" panel.cfg
+// parameter), because it needs whole-rect passes (a compare against a ramp, then
+// squaring) that would destroy the weather drawn in the same rect by the ND's
+// instance; each gauge has its own surface, and both are added onto the display.
+//
+// The terrain along the heading line is read from an altitude-mode MapView whose
+// color list codes ELEVATION as brightness: entry k of kVdTerrainSteps is
+// I = 1 - (k + 0.5) / kVdTerrainSteps, and the view's range is set every frame to
+// [altitude - VD upper limit, altitude - VD lower limit] (the engine colors by
+// altitude MINUS terrain height), so a texel's brightness is the fraction of the VD
+// plot height that the terrain reaches. The texture column along the heading line is
+// stretched over the whole plot height (see kVdColumnTexelPx) and compared with a
+// vertical ramp: the same "add half the value and half the complement of the
+// threshold, double, square" compare as the terrain dots, which lights a pixel where
+// brightness >= ramp, i.e. a bar from the bottom up to the terrain. Water (see
+// configureWaterMaskView) is wiped out of it and drawn as flat cyan up to sea level.
+// The profile follows the heading line, not the flight plan path (which the real
+// VD follows through turns).
+// ---------------------------------------------------------------------------
+constexpr int kVdTerrainSteps = 64;
+constexpr int kVdRampRows = 256;
+// The ramp never quite reaches 0, so a texel of no terrain (brightness 0) stays unlit
+// in the bottom row too.
+constexpr float kVdRampFloor = 1.0f / 64.0f;
+constexpr int kVdTerrainSharpenPasses = 8;
+
+// The color list of the VD terrain view: steps entries of brightness 1 - (k + 0.5) / steps.
+void setVdTerrainList(FsContext ctx, FsTextureId id, int steps) {
+  FsColor colors[kVdTerrainSteps];
+  for (int k = 0; k < steps; ++k) {
+    const float brightness = 1.0f - (static_cast<float>(k) + 0.5f) / static_cast<float>(steps);
+    colors[k] = FsColor{{brightness, brightness, brightness, 1.0f}};
+  }
+  fsMapViewSetAltitudeColorList(ctx, id, colors, static_cast<unsigned>(steps));
+}
+
+bool configureVdTerrainView(FsContext ctx, FsTextureId id) {
+  if (id == 0) {
+    return false;
+  }
+  fsMapViewSetVisibility(ctx, id, true);
+  fsMapViewSetBackgroundColor(ctx, id, FsColor{{0.0f, 0.0f, 0.0f, 1.0f}});
+  fsMapViewSet2DViewFollowMode(ctx, id, true);
+  fsMapViewSetMapIsolinesVisibility(ctx, id, false);
+  fsMapViewSetWeatherRadarVisibility(ctx, id, false);
+  fsMapViewSetViewMode(ctx, id, FS_MAP_VIEW_MODE_ALTITUDE);
+  fsMapViewSetAltitudeReference(ctx, id, FS_MAP_VIEW_ALTITUDE_REFERENCE_PLANE);
+  fsMapViewSetAltitudeRangeInFeet(ctx, id, -20000.0, 20000.0);  // replaced every frame
+  setVdTerrainList(ctx, id, kVdTerrainSteps);
+  return true;
+}
+
+// The complement (1 - threshold) of the ramp, top to bottom: 0 at the top of the plot,
+// about 1 at the bottom.
+int createVdRamp(NVGcontext* vg) {
+  constexpr int kRampWidth = 4;
+  static unsigned char data[kRampWidth * kVdRampRows * 4];
+  for (int row = 0; row < kVdRampRows; ++row) {
+    const float complement = (1.0f - kVdRampFloor) * static_cast<float>(row) / static_cast<float>(kVdRampRows - 1);
+    const unsigned char value = static_cast<unsigned char>(complement * 255.0f + 0.5f);
+    for (int x = 0; x < kRampWidth; ++x) {
+      unsigned char* pixel = &data[(row * kRampWidth + x) * 4];
+      pixel[0] = value;
+      pixel[1] = value;
+      pixel[2] = value;
+      pixel[3] = 255;
+    }
+  }
+  return nvgCreateImageRGBA(vg, kRampWidth, kVdRampRows, 0, data);
+}
+
+void drawVdTerrain(NVGcontext* vg, FsTextureId terrainView, FsTextureId waterView, int rampImage, float vdRangeNm, float headingDegrees,
+                   double lowerFeet, double upperFeet) {
+  constexpr float kDegToRad = 0.01745329f;
+  const float vdBottom = kVdTop + kVdHeight;
+  const float centerY = kVdTop + 0.5f * kVdHeight;
+
+  // The views' north-up texture (768 texels across 2 * vdRangeNm), rotated by minus the
+  // heading about the aircraft (nvgImagePattern rotates about the image's top-left corner,
+  // so that corner is moved to where it lands): pattern units are texels, the origin is
+  // the aircraft, and "ahead" is -y.
+  const float angle = -headingDegrees * kDegToRad;
+  const float sinA = std::sin(angle);
+  const float cosA = std::cos(angle);
+  const float halfTexels = 0.5f * static_cast<float>(kTextureSize);
+  const float originX = -halfTexels * cosA + halfTexels * sinA;
+  const float originY = -halfTexels * sinA - halfTexels * cosA;
+  const float texelsPerNm = halfTexels / vdRangeNm;
+  const float pxPerTexel = (kVdWidth / vdRangeNm) / texelsPerNm;  // along the range axis
+
+  // One view's heading-line column, stretched over the plot height: screen x = kVdLeft -
+  // pxPerTexel * y (ahead is to the right), screen y = centerY + kVdColumnTexelPx * x, so the
+  // column x = 0 covers the plot and its neighbours are thousands of pixels away. Clipped to
+  // [top, top + height] of the plot by a screen-space scissor.
+  auto stripe = [&](FsTextureId view, const FsColor& tint, float top, float height) {
+    nvgSave(vg);
+    nvgScissor(vg, kVdLeft, top, kVdWidth, height);
+    nvgTransform(vg, 0.0f, kVdColumnTexelPx, -pxPerTexel, 0.0f, kVdLeft, centerY);
+    nvgBeginPath(vg);
+    nvgRect(vg, -0.05f, -kVdWidth / pxPerTexel - 2.0f, 0.1f, kVdWidth / pxPerTexel + 4.0f);
+    NVGpaint paint = nvgImagePattern(vg, originX, originY, static_cast<float>(kTextureSize), static_cast<float>(kTextureSize), angle, view, 1.0f);
+    paint.innerColor = paint.outerColor = tint;
+    nvgFillPaint(vg, paint);
+    nvgFill(vg);
+    nvgRestore(vg);
+  };
+
+  const float half = encodeSrgb(0.5f);
+  const FsColor halfTint{{half, half, half, 1.0f}};
+
+  // 1. the elevation-coded column at half strength, 2. with the water wiped out of it.
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+  stripe(terrainView, halfTint, kVdTop, kVdHeight);
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ONE_MINUS_SRC_COLOR, NVG_ZERO, NVG_ONE);
+  stripe(waterView, FsColor{{1.0f, 1.0f, 1.0f, 1.0f}}, kVdTop, kVdHeight);
+
+  nvgSave(vg);
+  nvgScissor(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+
+  // 3. the ramp's complement at half strength: the sum passes 1 where brightness >= ramp.
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+  nvgBeginPath(vg);
+  nvgRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+  NVGpaint ramp = nvgImagePattern(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight, 0.0f, rampImage, 1.0f);
+  ramp.innerColor = ramp.outerColor = halfTint;
+  nvgFillPaint(vg, ramp);
+  nvgFill(vg);
+
+  // 4. doubling, 5. squaring (as for the terrain dots).
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_DST_COLOR, NVG_ONE, NVG_ZERO, NVG_ONE);
+  nvgBeginPath(vg);
+  nvgRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+  nvgFillColor(vg, nvgRGBAf(1.0f, 1.0f, 1.0f, 1.0f));
+  nvgFill(vg);
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_DST_COLOR, NVG_ZERO, NVG_ONE);
+  for (int i = 0; i < kVdTerrainSharpenPasses; ++i) {
+    nvgBeginPath(vg);
+    nvgRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+    nvgFillColor(vg, nvgRGBAf(1.0f, 1.0f, 1.0f, 1.0f));
+    nvgFill(vg);
+  }
+
+  // 6. the brown of the real VD's terrain, a little lighter at the top.
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_SRC_COLOR, NVG_ZERO, NVG_ONE);
+  nvgBeginPath(vg);
+  nvgRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+  nvgFillPaint(vg, nvgLinearGradient(vg, 0.0f, kVdTop, 0.0f, vdBottom, nvgRGBAf(0.62f, 0.29f, 0.10f, 1.0f), nvgRGBAf(0.42f, 0.19f, 0.06f, 1.0f)));
+  nvgFill(vg);
+  nvgRestore(vg);
+
+  // 7. the water: flat cyan from sea level down to the bottom of the plot.
+  if (lowerFeet < 0.0) {
+    const float feetPerPx = static_cast<float>(upperFeet - lowerFeet) / kVdHeight;
+    const float seaY = std::fmin(std::fmax(kVdTop + static_cast<float>(upperFeet) / feetPerPx, kVdTop), vdBottom);
+    if (seaY < vdBottom) {
+      nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+      stripe(waterView, FsColor{{0.0f, 0.9f, 0.9f, 1.0f}}, seaY, vdBottom - seaY);
+    }
+  }
+
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+}
+
+// Frames a view is left alone after its settings were changed (the ND's role change, the VD starting to show)
+// before it is drawn: it shows what it had before, or an empty texture, until the engine has rendered it again.
+constexpr int kRoleWarmupFrames = 60;
+constexpr int kVdWarmupFrames = 15;
+
+// One frame of a VD terrain gauge instance.
+void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData* drawData) {
+  bool show = false;
+  float vdRangeNm = 10.0f;
+  float headingDegrees = 0.0f;
+  double lowerFeet = 0.0;
+  double upperFeet = 0.0;
+
+  if (isPowered(instance)) {
+    const double ndMode = get_named_variable_value(instance.ndModeVar);
+    const int ir = inertialSource(instance.isRight, static_cast<int>(g_attHdgKnob.read()));
+    const auto latWord = types::Arinc429Word<float>::fromSimVar(g_adirsLat[ir - 1].read());
+    const auto lonWord = types::Arinc429Word<float>::fromSimVar(g_adirsLon[ir - 1].read());
+    const auto headingWord = types::Arinc429Word<float>::fromSimVar(g_adirsTrueHeading[ir - 1].read());
+    const int rangeIndex = static_cast<int>(get_named_variable_value(instance.ndRangeVar));
+    const float rangeNm = kRangeTableNm[rangeIndex >= 0 && rangeIndex < kRangeCount ? rangeIndex : 0];
+    const bool isRoseNav = ndMode == kNdModeRoseNav;
+    vdRangeNm = isRoseNav ? std::fmin(std::fmax(rangeNm / 2.0f, 5.0f), 160.0f) : std::fmin(std::fmax(rangeNm, 10.0f), 160.0f);
+    headingDegrees = headingWord.value();
+    lowerFeet = get_named_variable_value(instance.vdRangeLowerVar);
+    upperFeet = get_named_variable_value(instance.vdRangeUpperVar);
+
+    // The VD is there on the ARC and ROSE NAV pages; its terrain needs a TAWS system that has not
+    // failed and the TERR SYS button of the SURV page not to be OFF (EfisTawsBridge, VerticalDisplay.tsx).
+    show = instance.mapViewVdTerrainReady && instance.mapViewWaterReady && isArcOrRoseNav(ndMode) && rangeNm > 0.0f && latWord.isNo() &&
+           lonWord.isNo() && headingWord.isNo() && upperFeet > lowerFeet && terrainSystemUp() && g_terrSysOff.read() == 0.0;
+  }
+
+  // The views run all the time; their settings only follow the aircraft while the VD shows, so its first frames are not drawn.
+  instance.vdShowFrames = show ? instance.vdShowFrames + 1 : 0;
+  const bool draw = show && instance.vdShowFrames > kVdWarmupFrames;
+
+  if (show) {
+    // The engine colors by altitude minus terrain height: the plot's top is a v of altitude - upper.
+    const double altitudeFeet = planeAltitudeFeet();
+    fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet, altitudeFeet - lowerFeet);
+    fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdTerrain, vdRangeNm * kNmToMetres);
+    fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewWater, vdRangeNm * kNmToMetres);
+  }
+
+  if (!draw && !instance.layerDirty) {
+    return;
+  }
+
+  const float winWidth = static_cast<float>(drawData->winWidth);
+  const float winHeight = static_cast<float>(drawData->winHeight);
+  const float ratio = static_cast<float>(drawData->fbWidth) / static_cast<float>(drawData->fbHeight);
+  NVGcontext* vg = instance.nvg;
+  nvgBeginFrame(vg, winWidth, winHeight, ratio);
+  if (instance.layerDirty) {
+    clearLayer(vg, winWidth, winHeight);
+  }
+  if (draw) {
+    if (instance.vdRampImage == 0) {
+      instance.vdRampImage = createVdRamp(vg);
+    }
+    if (instance.vdRampImage != 0) {
+      drawVdTerrain(vg, instance.mapViewVdTerrain, instance.mapViewWater, instance.vdRampImage, vdRangeNm, headingDegrees, lowerFeet, upperFeet);
+    }
+  }
+  instance.layerDirty = draw;
+  nvgEndFrame(vg);
+}
 #endif
+
+// Per the SDK, each entry's color covers the band from the PREVIOUS entry's rate up to its own
+// rate (entry 0 covers 0 up to its rate), so the rate on each entry is the band's UPPER edge.
+// In-sim proof: a table whose first entry was green up to 0.01 painted the whole clear-sky
+// baseline green. Entry 0 is therefore the transparent "nothing detected" band below the first
+// threshold. The SDK documents the rates as mm/h and allows up to 128 entries. Both tables are
+// 0/1 channel masks (see kPrecipGain).
+//
+// Precipitation view: R = rate >= yellow threshold, G = rate >= green.
+bool configurePrecipView(FsContext ctx, FsTextureId id) {
+  FsRainRateColor precipColors[3] = {
+      {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kGreenFromMmH},
+      {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kYellowFromMmH},
+      {FsColor{{1.0f, 1.0f, 0.0f, 1.0f}}, kTopBandRate},
+  };
+  return configureRadarView(ctx, id, precipColors, 3);
+}
+
+// Hot view: G = rate >= red threshold, R and B = rate >= turbulence threshold. Drawn as the red
+// wipe and the magenta (see WeatherPass). Kept visible for its whole life (toggling visibility
+// flashes an empty white texture) and simply not drawn when the knob doesn't call for it.
+bool configureHotView(FsContext ctx, FsTextureId id) {
+  FsRainRateColor hotColors[3] = {
+      {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kRedFromMmH},
+      {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kTurbulenceRateMmH},
+      {FsColor{{1.0f, 1.0f, 1.0f, 1.0f}}, kTopBandRate},
+  };
+  return configureRadarView(ctx, id, hotColors, 3);
+}
 
 }  // namespace
 
@@ -905,14 +1534,21 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       const sGaugeInstallData* installData = static_cast<const sGaugeInstallData*>(pData);
       instance->isRight = installData != nullptr && installData->strParameters != nullptr &&
                           (installData->strParameters[0] == 'R' || installData->strParameters[0] == 'r');
+#ifdef A380X
+      // "LV" / "RV": this instance only draws the terrain profile on the VD.
+      instance->isVdTerrain = installData != nullptr && installData->strParameters != nullptr && installData->strParameters[0] != '\0' &&
+                              (installData->strParameters[1] == 'V' || installData->strParameters[1] == 'v');
+#endif
 
       // register_named_variable returns the same id for a name that is already
       // registered, so the shared variables can simply be registered again by
       // the second instance.
       g_attHdgKnob.id = register_named_variable(g_attHdgKnob.name);
+      g_egpwcGearDown.id = register_named_variable(g_egpwcGearDown.name);
       for (int i = 0; i < 3; ++i) {
         g_adirsLat[i].id = register_named_variable(g_adirsLat[i].name);
         g_adirsLon[i].id = register_named_variable(g_adirsLon[i].name);
+        g_adirsTrueHeading[i].id = register_named_variable(g_adirsTrueHeading[i].name);
       }
       for (int i = 0; i < 2; ++i) {
         g_lgciuLeftCompressed[i].id = register_named_variable(g_lgciuLeftCompressed[i].name);
@@ -923,6 +1559,10 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       for (NamedVar& failed : g_wxrFailed) {
         failed.id = register_named_variable(failed.name);
       }
+      for (NamedVar& failed : g_terrFailed) {
+        failed.id = register_named_variable(failed.name);
+      }
+      g_terrSysOff.id = register_named_variable(g_terrSysOff.name);
       g_wxrOff.id = register_named_variable(g_wxrOff.name);
       g_wxrTurbOff.id = register_named_variable(g_wxrTurbOff.name);
       g_wxrModeMap.id = register_named_variable(g_wxrModeMap.name);
@@ -940,6 +1580,8 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
 #else
       g_wxrSys.id = register_named_variable(g_wxrSys.name);
       g_wxrMode.id = register_named_variable(g_wxrMode.name);
+      instance->terrainActiveVar =
+          register_named_variable(instance->isRight ? "A32NX_EGPWC_ND_R_TERRAIN_ACTIVE" : "A32NX_EGPWC_ND_L_TERRAIN_ACTIVE");
       instance->powerBusVars[0] = register_named_variable(instance->isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED"
                                                                             : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
       instance->powerBusVars[1] = instance->powerBusVars[0];
@@ -951,35 +1593,27 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       params.userPtr = ctx;
       params.edgeAntiAlias = false;
       instance->nvg = nvgCreateInternal(&params);
+#ifdef A380X
+      if (instance->isVdTerrain) {
+        instance->mapViewVdTerrain = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
+        instance->mapViewVdTerrainReady = configureVdTerrainView(ctx, instance->mapViewVdTerrain);
+        instance->mapViewWater = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
+        instance->mapViewWaterReady = configureWaterMaskView(ctx, instance->mapViewWater);
+        return true;
+      }
+#endif
 
-      // Per the SDK, each entry's color covers the band from the PREVIOUS
-      // entry's rate up to its own rate (entry 0 covers 0 up to its rate), so the
-      // rate on each entry is the band's UPPER edge. In-sim proof: a table whose
-      // first entry was green up to 0.01 painted the whole clear-sky baseline
-      // green. Entry 0 is therefore the transparent "nothing detected" band below
-      // the first threshold. The SDK documents the rates as mm/h and allows up to
-      // 128 entries. Both tables are 0/1 channel masks (see kPrecipGain).
-      //
-      // Precipitation view: R = rate >= yellow threshold, G = rate >= green.
-      FsRainRateColor precipColors[3] = {
-          {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kGreenFromMmH},
-          {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kYellowFromMmH},
-          {FsColor{{1.0f, 1.0f, 0.0f, 1.0f}}, kTopBandRate},
-      };
       instance->mapView = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
-      instance->mapViewReady = configureRadarView(ctx, instance->mapView, precipColors, 3);
-
-      // Hot view: G = rate >= red threshold, R and B = rate >= turbulence
-      // threshold. Drawn as the red wipe and the magenta (see WeatherPass). Kept
-      // visible for its whole life (toggling visibility flashes an empty white
-      // texture) and simply not drawn when the knob doesn't call for it.
-      FsRainRateColor hotColors[3] = {
-          {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kRedFromMmH},
-          {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kTurbulenceRateMmH},
-          {FsColor{{1.0f, 1.0f, 1.0f, 1.0f}}, kTopBandRate},
-      };
+      instance->mapViewReady = configurePrecipView(ctx, instance->mapView);
       instance->mapViewHot = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
-      instance->mapViewHotReady = configureRadarView(ctx, instance->mapViewHot, hotColors, 3);
+      instance->mapViewHotReady = configureHotView(ctx, instance->mapViewHot);
+#ifndef A380X
+      // (the A380X ND's two views double as the terrain and water views, see the ND draw)
+      instance->mapViewTerrain = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
+      instance->mapViewTerrainReady = configureTerrainView(ctx, instance->mapViewTerrain);
+      instance->mapViewWater = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
+      instance->mapViewWaterReady = configureWaterMaskView(ctx, instance->mapViewWater);
+#endif
       return true;
     }
     case PANEL_SERVICE_PRE_DRAW: {
@@ -987,10 +1621,20 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (instance == nullptr || instance->nvg == nullptr) {
         return true;
       }
+#ifdef A380X
+      if (instance->isVdTerrain) {
+        drawVdTerrainGauge(ctx, *instance, static_cast<const sGaugeDrawData*>(pData));
+        return true;
+      }
+#endif
 
       bool isRoseNav = false;
       bool showPrecip = false;
       bool showTurb = false;
+      bool showTerrain = false;
+      bool terrainIsRose = false;
+      float terrainRangeNm = 10.0f;
+      float terrainHeadingDegrees = 0.0f;
       float rangeNmForMode = 10.0f;
 #ifdef A380X
       bool vdWanted = false;
@@ -998,6 +1642,17 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       float vdRangeNm = 10.0f;
       double vdLowerFeet = 0.0;
       double vdUpperFeet = 0.0;
+#endif
+
+#ifdef A380X
+      // The ND's two views are the weather pair or the terrain pair (see the header of the module about the 8 views).
+      const FsTextureId terrainViewId = instance->mapView;
+      const FsTextureId waterViewId = instance->mapViewHot;
+      const bool terrainViewsReady = instance->mapViewReady && instance->mapViewHotReady;
+#else
+      const FsTextureId terrainViewId = instance->mapViewTerrain;
+      const FsTextureId waterViewId = instance->mapViewWater;
+      const bool terrainViewsReady = instance->mapViewTerrainReady && instance->mapViewWaterReady;
 #endif
 
       if (isPowered(*instance)) {
@@ -1021,7 +1676,18 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         // ground). MODE: WX = precipitation, WX+T = both, TURB = turbulence
         // only, MAP = ground mapping (not implemented, draws nothing).
         const bool positionValid = latWord.isNo() && lonWord.isNo();
-        const bool active = radarSelected(*instance) && isArcOrRoseNav(ndMode) && rangeNm > 0.0f && positionValid && !isOnGround();
+        // Terrain on the ND is shown on every map page (ROSE ILS / VOR / NAV and ARC,
+        // not PLAN), also on the ground, and takes the place of the weather.
+        constexpr double kNdModePlan = 4.0;
+        // The map is rotated by the ND's own heading source, so it needs a valid one.
+        const auto headingWord = types::Arinc429Word<float>::fromSimVar(g_adirsTrueHeading[ir - 1].read());
+        terrainHeadingDegrees = headingWord.value();
+        showTerrain = terrainViewsReady && terrainSelected(*instance) && ndMode < kNdModePlan && rangeNm > 0.0f &&
+                      positionValid && headingWord.isNo();
+        terrainIsRose = ndMode != kNdModeArc;
+        terrainRangeNm = terrainIsRose ? rangeNm / 2.0f : rangeNm;
+        const bool active =
+            radarSelected(*instance) && isArcOrRoseNav(ndMode) && rangeNm > 0.0f && positionValid && !isOnGround() && !showTerrain;
         showPrecip = active && instance->mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
         showTurb = active && instance->mapViewHotReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
         isRoseNav = ndMode == kNdModeRoseNav;
@@ -1038,7 +1704,38 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
 #endif
       }
 
-      const bool drawsAnything = showPrecip || showTurb;
+      // Which views are ready to be drawn. On the A380X the ND's two views change roles when the crew switches
+      // between the weather and the terrain: they are reconfigured (the terrain takes the weather's place, the
+      // two are never wanted together) and left alone for a while.
+      bool precipReady = true;
+      bool hotReady = true;
+      bool terrainReady = true;
+#ifdef A380X
+      {
+        const bool weatherWanted = showPrecip || showTurb;
+        if (showTerrain && instance->ndRole != 1) {
+          configureTerrainView(ctx, instance->mapView);
+          configureWaterMaskView(ctx, instance->mapViewHot);
+          instance->terrainGearState = -1;
+          instance->ndRole = 1;
+          instance->roleWarmupLeft = kRoleWarmupFrames;
+        } else if (weatherWanted && instance->ndRole != 0) {
+          configurePrecipView(ctx, instance->mapView);
+          configureHotView(ctx, instance->mapViewHot);
+          instance->ndRole = 0;
+          instance->roleWarmupLeft = kRoleWarmupFrames;
+        }
+        if (instance->roleWarmupLeft > 0) {
+          --instance->roleWarmupLeft;
+        }
+        const bool settled = instance->roleWarmupLeft == 0;
+        precipReady = settled && instance->ndRole == 0;
+        hotReady = precipReady;
+        terrainReady = settled && instance->ndRole == 1;
+      }
+#endif
+
+      const bool drawsAnything = showPrecip || showTurb || showTerrain;
       if (!drawsAnything && !instance->layerDirty) {
         // Nothing on the surface from last frame and nothing to draw now -
         // skip opening a frame entirely.
@@ -1055,31 +1752,54 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (instance->layerDirty) {
         clearLayer(vg, winWidth, winHeight);
       }
+      if (showTerrain) {
+        if (instance->terrainPatternImage == 0) {
+          instance->terrainPatternImage = createTerrainPattern(vg);
+        }
+        const int gearState = g_egpwcGearDown.read() != 0.0 ? 1 : 0;
+        if (gearState != instance->terrainGearState) {
+          setTerrainColors(ctx, terrainViewId, gearState == 1);
+          instance->terrainGearState = gearState;
+        }
+        fsMapViewSet2DViewRadiusInMeters(ctx, terrainViewId, terrainRangeNm * kNmToMetres);
+        fsMapViewSet2DViewRadiusInMeters(ctx, waterViewId, terrainRangeNm * kNmToMetres);
+        if (terrainReady && instance->terrainPatternImage != 0) {
+          float seaR = 0.0f;
+          float seaG = 0.0f;
+          terrainSeaColor(planeAltitudeFeet(), gearState == 1, &seaR, &seaG);
+          drawTerrain(vg, terrainViewId, waterViewId, instance->terrainPatternImage, terrainIsRose,
+                      terrainHeadingDegrees, seaR, seaG);
+        }
+      }
       if (showPrecip) {
         fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapView, rangeNmForMode * kNmToMetres);
-        drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Additive);
-        drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Sharpen);
-        drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Colorize);
+        if (precipReady) {
+          drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Additive);
+          drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Sharpen);
+          drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Colorize);
+        }
       }
       // The hot view carries the red wipe (any precipitation) and the magenta
       // (turbulence modes, near the aircraft only); the wipe also clears the green
       // channel under the magenta, in the whole rect.
       if ((showPrecip || showTurb) && instance->mapViewHotReady) {
         fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapViewHot, rangeNmForMode * kNmToMetres);
-        if (showPrecip) {
-          drawWeatherRect(vg, instance->mapViewHot, isRoseNav, 1.0f, WeatherPass::Erase);
-        }
-        if (showTurb) {
-          const float turbFraction = kTurbulenceMaxRangeNm / rangeNmForMode;
-          const float turbRangeFraction = turbFraction < 1.0f ? turbFraction : 1.0f;
-          drawWeatherRect(vg, instance->mapViewHot, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
+        if (hotReady) {
+          if (showPrecip) {
+            drawWeatherRect(vg, instance->mapViewHot, isRoseNav, 1.0f, WeatherPass::Erase);
+          }
+          if (showTurb) {
+            const float turbFraction = kTurbulenceMaxRangeNm / rangeNmForMode;
+            const float turbRangeFraction = turbFraction < 1.0f ? turbFraction : 1.0f;
+            drawWeatherRect(vg, instance->mapViewHot, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
+          }
         }
       }
 #ifdef A380X
       // Last, so nothing of the ND's passes above can touch it: they only affect
       // the ND's rect, where the VD area (behind the aircraft) has no weather.
-      if (showVd) {
-        drawVdWeather(vg, instance->mapView, instance->mapViewHot, instance->mapViewHotReady, showTurb, rangeNmForMode, vdRangeNm,
+      if (showVd && precipReady) {
+        drawVdWeather(vg, instance->mapView, instance->mapViewHot, instance->mapViewHotReady && hotReady, showTurb, rangeNmForMode, vdRangeNm,
                       planeAltitudeFeet(), vdLowerFeet, vdUpperFeet);
       }
 #endif
@@ -1099,7 +1819,26 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (instance->mapViewHot != 0) {
         fsMapViewDelete(ctx, instance->mapViewHot);
       }
+      if (instance->mapViewTerrain != 0) {
+        fsMapViewDelete(ctx, instance->mapViewTerrain);
+      }
+      if (instance->mapViewWater != 0) {
+        fsMapViewDelete(ctx, instance->mapViewWater);
+      }
+#ifdef A380X
+      if (instance->mapViewVdTerrain != 0) {
+        fsMapViewDelete(ctx, instance->mapViewVdTerrain);
+      }
+#endif
       if (instance->nvg != nullptr) {
+        if (instance->terrainPatternImage != 0) {
+          nvgDeleteImage(instance->nvg, instance->terrainPatternImage);
+        }
+#ifdef A380X
+        if (instance->vdRampImage != 0) {
+          nvgDeleteImage(instance->nvg, instance->vdRampImage);
+        }
+#endif
         nvgDeleteInternal(instance->nvg);
       }
       *instance = Instance{};
