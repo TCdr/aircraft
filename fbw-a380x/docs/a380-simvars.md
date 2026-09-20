@@ -1731,6 +1731,34 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Bool
     - Set from the WX ON VD button of the MFD SURV CONTROLS page. True when the weather on the VD is switched OFF (false = AUTO)
 
+- `L:A380X_TCAS_ALERT_LEVEL`
+    - Enum
+    - The TCAS alert level selected on the MFD SURV CONTROLS page, mirrored by the TCAS computer for the pedestal SURV panel lights
+    -   | State   | Number |
+        |---------|--------|
+        | STBY    | 0      |
+        | TA ONLY | 1      |
+        | TA/RA   | 2      |
+
+- `L:A380X_TCAS_ALT_SELECT`
+    - Enum
+    - The TCAS altitude range selected on the MFD SURV CONTROLS page, mirrored by the TCAS computer for the pedestal SURV panel lights
+    -   | State | Number |
+        |-------|--------|
+        | NORM  | 0      |
+        | ABV   | 1      |
+        | BLW   | 2      |
+
+- `L:A380X_TCAS_ALERT_LEVEL_REQUEST`
+    - Number
+    - Written by the TCAS buttons of the pedestal SURV panel, read and reset to 0 by the TCAS computer
+    - 0 = no request, otherwise the wanted `L:A380X_TCAS_ALERT_LEVEL` plus one
+
+- `L:A380X_TCAS_ALT_SELECT_REQUEST`
+    - Number
+    - Written by the ABV / BLW buttons of the pedestal SURV panel, read and reset to 0 by the TCAS computer
+    - 0 = no request, otherwise the wanted `L:A380X_TCAS_ALT_SELECT` plus one
+
 ## Bleed Air ATA 36
 
 - A32NX_PNEU_ENG_{number}_INTERMEDIATE_TRANSDUCER_PRESSURE
