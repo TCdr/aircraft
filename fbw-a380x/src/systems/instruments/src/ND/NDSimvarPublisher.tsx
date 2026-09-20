@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, SimVarDefinition, SimVarValueType } from '@microsoft/msfs-sdk';
@@ -20,6 +20,8 @@ export type NDSimvars = AdirsSimVars &
     selectedHeading: Degrees;
     showSelectedHeading: boolean;
     absoluteTime: Seconds;
+    wxrNdModeLeft: number;
+    wxrNdModeRight: number;
     kccuOnL: boolean;
     kccuOnR: boolean;
   };
@@ -33,6 +35,8 @@ export enum NDVars {
   selectedHeading = 'L:A32NX_FCU_HEADING_SELECTED',
   showSelectedHeading = 'L:A320_FCU_SHOW_SELECTED_HEADING',
   absoluteTime = 'E:ABSOLUTE TIME',
+  wxrNdModeLeft = 'L:A32NX_WXR_ND_L_MODE',
+  wxrNdModeRight = 'L:A32NX_WXR_ND_R_MODE',
   kccuOnL = 'L:A32NX_KCCU_L_KBD_ON_OFF',
   kccuOnR = 'L:A32NX_KCCU_R_KBD_ON_OFF',
 }
@@ -50,6 +54,8 @@ export class NDSimvarPublisher extends UpdatableSimVarPublisher<NDSimvars> {
     ['selectedHeading', { name: NDVars.selectedHeading, type: SimVarValueType.Degree }],
     ['showSelectedHeading', { name: NDVars.showSelectedHeading, type: SimVarValueType.Bool }],
     ['absoluteTime', { name: NDVars.absoluteTime, type: SimVarValueType.Seconds }],
+    ['wxrNdModeLeft', { name: NDVars.wxrNdModeLeft, type: SimVarValueType.Number }],
+    ['wxrNdModeRight', { name: NDVars.wxrNdModeRight, type: SimVarValueType.Number }],
     ['kccuOnL', { name: NDVars.kccuOnL, type: SimVarValueType.Bool }],
     ['kccuOnR', { name: NDVars.kccuOnR, type: SimVarValueType.Bool }],
   ]);

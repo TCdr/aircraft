@@ -37,6 +37,7 @@
   - [ATC (ATA 34)](#atc-ata-34)
   - [Radio Altimeter (ATA 34)](#radio-altimeter-ata-34)
   - [GPWS / TAWS (ATA 34)](#gpws--taws-ata-34)
+  - [Weather Radar (ATA 34)](#weather-radar-ata-34)
   - [ROW / ROP / OANS (ATA 34)](#row--rop--oans-ata-34)
   - [Electronic Flight Bag (ATA 46)](#electronic-flight-bag-ata-46)
   - [Non-Systems Related](#non-systems-related)
@@ -4513,6 +4514,23 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GPWS_FLAPS3
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
+
+## Weather Radar (ATA 34)
+
+- A32NX_WXR_ND_{side}_MODE
+    - Enum
+    - The weather radar mode shown on the ND, published by the ndwxr gauge only while the radar is selected on an ARC or ROSE NAV page
+      (0 while the radar is off, or the terrain takes its place)
+      Value | Meaning
+      --- | ---
+      0 | None
+      1 | WX
+      2 | WX+T
+      3 | TURB
+      4 | MAP
+    - {side}
+        - L
+        - R
 
 ## ROW / ROP / OANS (ATA 34)
 

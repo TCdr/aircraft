@@ -21,6 +21,7 @@
   - [ECAM Control Panel ATA 31](#ecam-control-panel-ata-31)
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
   - [Landing Gear ATA 32](#landing-gear-ata-32)
+  - [Surveillance ATA 34](#surveillance-ata-34)
   - [Lights ATA 33](#lights-ata-33)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
@@ -1701,6 +1702,21 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A380X_PED_LIGHTING_AMBIENT_LT_LEVEL`
     - Number
     - Brightness of the ambient lights (0-100)
+
+## Surveillance ATA 34
+
+- A32NX_WXR_ND_{side}_MODE
+    - Enum
+    - The weather radar mode text shown on the ND, published by the ndwxr gauge only while the radar is selected on an ARC or ROSE NAV page,
+      0 otherwise. Shared with the A32NX. The A380X has no TURB-only mode.
+    - {side} = L or R
+    -   | State  | Number |
+        |--------|--------|
+        | None   | 0      |
+        | WX     | 1      |
+        | WX+T   | 2      |
+        | TURB   | 3      |
+        | MAP    | 4      |
 
 ## Bleed Air ATA 36
 
