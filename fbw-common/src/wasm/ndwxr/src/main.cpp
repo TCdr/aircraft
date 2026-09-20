@@ -34,8 +34,16 @@
 //   kColorGain so they stay saturated.
 //
 // - MSFS's radar API has no turbulence data (rain rate only). Turbulence
-//   (WX+T / TURB) is a proxy: rain rate above kTurbulenceDbz, drawn magenta
-//   from a second, marker-only MapView, limited to kTurbulenceMaxRangeNm.
+//   (WX+T / TURB) is a proxy: rain rate above kTurbulenceRateMmH, drawn magenta
+//   from a second MapView (the "hot" view), limited to kTurbulenceMaxRangeNm.
+//
+// - The engine's rain rate is noisy texel by texel, so where a cell sits near a
+//   band threshold the colors flip at pixel scale (grain), and a plain blur of
+//   those flips only gives a muddy, soft mix. Instead every threshold is its own
+//   binary mask in a color channel of one of the two MapViews (see kPrecipGain):
+//   each mask is blurred, saturated and squared, i.e. a majority filter, which
+//   gives solid areas with fairly crisp edges; the channels are then turned into
+//   the band colors by the blend passes in drawWeatherRect.
 //
 // - Whatever this gauge draws PERSISTS from frame to frame; its surface is not
 //   cleared for it (terronnd's DisplayBase::render() paints a full opaque
@@ -106,10 +114,7 @@ struct NamedVar {
   double read() { return get_named_variable_value(id); }
 };
 
-// The WX radar mode knob and the ATT HDG switching knob are single selectors
-// shared by both NDs. (The mode knob is Asobo-style "XMLVAR_A320_..." on both
-// aircraft: the A380X cockpit model reuses the same pedestal knob template.)
-NamedVar g_wxrMode{"XMLVAR_A320_WeatherRadar_Mode"};
+// The ATT HDG switching knob is a single selector shared by both NDs.
 NamedVar g_attHdgKnob{"A32NX_ATT_HDG_SWITCHING_KNOB"};
 // ADIRS inertial reference position words for IR 1..3 (index 0..2).
 NamedVar g_adirsLat[3] = {{"A32NX_ADIRS_IR_1_LATITUDE"}, {"A32NX_ADIRS_IR_2_LATITUDE"}, {"A32NX_ADIRS_IR_3_LATITUDE"}};
@@ -128,10 +133,70 @@ NamedVar g_wxrFailed[2] = {{"A32NX_WXR_1_FAILED"}, {"A32NX_WXR_2_FAILED"}};
 
 // A380X_EFIS_x_ACTIVE_OVERLAY (FcuBusPublisher.ts): 0 = none, 1 = WXR, 2 = TERR.
 constexpr double kOverlayWxr = 1.0;
+
+// The WXR / TURB / MODE buttons of the MFD SURV CONTROLS page (MfdSurvControls.tsx).
+// Each is 0 by default, which is the page's default setting: WXR AUTO, TURB AUTO,
+// MODE WX.
+NamedVar g_wxrOff{"A380X_WXR_OFF"};
+NamedVar g_wxrTurbOff{"A380X_WXR_TURB_OFF"};
+NamedVar g_wxrModeMap{"A380X_WXR_MODE_MAP"};
+NamedVar g_wxrVdOff{"A380X_WXR_VD_OFF"};
+
+// The vertical display (VD) below the A380X ND (VerticalDisplay.tsx): its plot
+// spans x = 150 (range 0) .. 690 (VD range) and y = 800 (upper altitude) ..
+// 1000 (lower altitude) of the 768x1024 ND screen. The VD range is the ND
+// range in ARC (10..160 NM) and half of it in ROSE NAV (5..160 NM); the VD
+// publishes its altitude limits as L:A32NX_VD_{1,2}_RANGE_LOWER/_UPPER (feet).
+constexpr float kVdLeft = 150.0f;
+constexpr float kVdTop = 800.0f;
+constexpr float kVdWidth = 540.0f;
+constexpr float kVdHeight = 200.0f;
+
+// The VD weather is STYLISED, not measured: MSFS's radar API has no vertical
+// data (its "vertical" MapView mode is a single thin beam, and tilting that
+// beam crashed the module), so the VD is built from the ND's own horizontal
+// radar views, which see one slice of weather at about the aircraft's altitude.
+// The ND texel columns close to the heading line are rotated onto the VD's range
+// axis and extruded vertically into a closed, nested shape centred on the
+// aircraft's altitude, like a real VD cell: a red core inside a yellow ring inside
+// a green rim, each reaching up and down by a made-up half height (kVd*HalfHeightFt)
+// with a narrower shoulder (kVdShoulderFraction) at the top and the bottom.
+//
+// Like the real VD (which shows the weather along the aircraft's direction only)
+// the VD shows the STRONGEST weather in a narrow wedge around the heading line
+// (half angle atan(kVdWedgeTan)): kVdLateralTapsPerSide columns on each side of
+// the line are drawn on top of each other (a union), each one only from the range
+// where it enters the wedge.
+//
+// Each output color channel is driven by its own mask channel (precipitation view:
+// R = yellow and above, G = green and above; hot view: G = red and above, R/B =
+// turbulence), so every channel can be clipped to its own altitude window without
+// mixing channels: green reaches furthest, yellow less, and the red wipe (which
+// removes the green channel) least.
+constexpr float kVdRedHalfHeightFt = 4000.0f;
+constexpr float kVdYellowHalfHeightFt = 6500.0f;
+constexpr float kVdGreenHalfHeightFt = 9000.0f;
+// The outer part of each half height (beyond this fraction of it) needs two
+// neighbouring columns to agree, so the shape is narrower there: stepped shoulders.
+constexpr float kVdShoulderFraction = 0.7f;
+constexpr float kVdWedgeTan = 0.176f;  // tan(10 deg)
+constexpr int kVdLateralTapsPerSide = 4;
+// The heading-line columns are stretched across the whole VD height by scaling the
+// ND texture this many screen pixels per texel across the path (much more than the
+// VD is tall, so neighbouring columns don't leak in).
+constexpr float kVdColumnTexelPx = 3000.0f;
+// Measured in-sim (2026-09-19): MSFS has no usable height information for the
+// horizontal radar. fsMapViewSetAltitudeRangeInFeet changes nothing on it (slabs
+// 3000-5000 and 9000-11000 ft above the aircraft came out identical to each other),
+// and the TOP VIEW radar mode is a composite over all altitudes that saturates
+// red almost everywhere and ignores the 180 degree cone - it says weather exists
+// aloft, not how high. Hence the made-up heights above.
 #else
 // The A32NX radar is switched by the pedestal WX SYS selector (0 = SYS 1,
-// 1 = OFF, 2 = SYS 2).
+// 1 = OFF, 2 = SYS 2) and its mode by the WX MODE knob, both Asobo-style
+// "XMLVAR_A320_..." variables.
 NamedVar g_wxrSys{"XMLVAR_A320_WeatherRadar_Sys"};
+NamedVar g_wxrMode{"XMLVAR_A320_WeatherRadar_Mode"};
 constexpr double kWxrSysOff = 1.0;
 #endif
 
@@ -160,18 +225,21 @@ constexpr float kRoseNavCenterYBias = 0.0f;
 constexpr float kRoseNavPixelRadius = 250.0f;
 
 constexpr unsigned kTextureSize = 768;  // matches the largest on-screen size (ARC) closely enough to avoid visible blur
-constexpr unsigned kTurbulenceTextureSize = 512;  // magenta-only, no fine detail needed
 
-// XMLVAR_A320_WeatherRadar_Mode knob positions.
+// XMLVAR_A320_WeatherRadar_Mode knob positions (the A380X derives the same values
+// from its SURV page buttons, see radarMode). MAP is position 3.
 constexpr double kWxrModeWx = 0.0;
 constexpr double kWxrModeWxTurb = 1.0;
 constexpr double kWxrModeTurb = 2.0;
 
 // Turbulence proxy: real WXR finds turbulence from Doppler spectral width,
-// which MSFS doesn't expose - rain rate above this reflectivity (a strong
-// convective core) stands in for it. Real Airbus WXR only reports turbulence
-// out to ~40 NM, drawn magenta inside precipitation.
-constexpr float kTurbulenceDbz = 40.0f;
+// which MSFS doesn't expose - a rain rate above this (mm/h; a strong convective
+// core) stands in for it. It has to sit above the red band's start (see
+// kRedFromMmH), otherwise the magenta would cover every red cell. Measured
+// in-sim: 30 never triggered (no magenta at all under a thunderstorm), 20 does
+// while leaving the red visible around the core. Real Airbus WXR only reports
+// turbulence out to ~40 NM, drawn magenta inside precipitation.
+constexpr float kTurbulenceRateMmH = 20.0f;
 constexpr float kTurbulenceMaxRangeNm = 40.0f;
 
 // Brightness scale applied to every band color (see the header) - lower it if
@@ -202,27 +270,37 @@ constexpr float kEraseRemainder = 0.05f;
 // Magenta therefore saturates at pure magenta.
 constexpr float kTurbulenceGain = 2.0f;
 
-// Weather color bands, defined by radar reflectivity like a real radar rather
-// than by raw MSFS rain-rate numbers. Airbus ND colors: black = minimal/no
-// precipitation, green = weak, amber = moderate, red = strong to very strong;
-// magenta is reserved for turbulence (see kTurbulenceDbz), never precipitation.
-// The dBZ edges come from the weatherai.world ground-radar table, collapsed
-// onto those colors: green covers its green + dark green rows (20-35 dBZ),
-// amber its yellow + orange rows (35-50), red everything from dark orange up
-// (50+). Its light-green row (5-20 dBZ, drizzle) is below the Airbus green
-// threshold and stays black. lowerDbz is where each band starts and it runs
-// up to the next row; below the first row nothing is drawn (MSFS's clear-sky
-// baseline measured <= 0.001 mm/h, far below 20 dBZ = 0.65 mm/h).
-struct ReflectivityBand {
-  float lowerDbz;
-  float r, g, b;
-};
-constexpr ReflectivityBand kReflectivityBands[] = {
-    {20.0f, 0.0f, 0.85f, 0.0f},   // green: weak precipitation
-    {35.0f, 1.0f, 0.55f, 0.0f},   // amber: moderate precipitation
-    {50.0f, 1.0f, 0.0f, 0.0f},    // red: strong to very strong precipitation
-};
-constexpr int kReflectivityBandCount = static_cast<int>(sizeof(kReflectivityBands) / sizeof(kReflectivityBands[0]));
+// Weather color bands, by rain rate like the color levels of an airborne weather
+// radar (ARINC 708 style): black below 0.7 mm/h, green 0.7-4 mm/h, amber 4-12
+// mm/h, red above 12 mm/h. Magenta is reserved for turbulence (see
+// kTurbulenceRateMmH), never precipitation. An earlier palette used the
+// weatherai.world GROUND radar reflectivity table (red from 50 dBZ, about
+// 49 mm/h); MSFS's rain rates never got that high, so red never showed up, not
+// even without turbulence. Below the green threshold nothing is drawn (MSFS's
+// clear-sky baseline measured <= 0.001 mm/h).
+constexpr float kGreenFromMmH = 0.7f;
+constexpr float kYellowFromMmH = 4.0f;
+constexpr float kRedFromMmH = 12.0f;
+
+// The band colors on the ND (linear, before the paint encoding). Yellow is the
+// green channel of the green band plus the red channel of the red band, so green
+// and yellow share their green level.
+constexpr float kRedLevel = 1.0f * kColorGain;
+constexpr float kGreenLevel = 0.85f * kColorGain;
+
+// How the band colors are built (the "precipitation" and the "hot" MapView both
+// use color tables that are pure 0/1 masks, so the engine's color handling can't
+// distort them):
+//   precipitation view: R = rate >= kYellowFromMmH, G = rate >= kGreenFromMmH
+//   hot view:           G = rate >= kRedFromMmH, R and B = rate >= kTurbulenceRateMmH
+// Each mask is drawn as a kSmoothingGrid x kSmoothingGrid blur whose taps add up
+// to kPrecipGain at full coverage, so it saturates once 1/kPrecipGain of the taps
+// see the mask; squaring the result kSharpenPasses times then turns the ramp
+// below that into a fairly sharp edge (a coverage of 1/3 comes out at ~0.2, 5/9 at
+// 1). The hot view's G mask then wipes the green channel of the precipitation
+// (yellow -> red), and its R/B masks add magenta.
+constexpr float kPrecipGain = 2.0f;
+constexpr int kSharpenPasses = 2;
 
 // Upper edge of the last band - effectively unbounded so the strongest cells
 // keep the last color instead of dropping out.
@@ -251,8 +329,13 @@ struct Instance {
 
   FsTextureId mapView = 0;
   bool mapViewReady = false;
-  FsTextureId mapViewTurb = 0;
-  bool mapViewTurbReady = false;
+  FsTextureId mapViewHot = 0;
+  bool mapViewHotReady = false;
+#ifdef A380X
+  // The VD's altitude limits (see kVdLeft).
+  ID vdRangeLowerVar = -1;
+  ID vdRangeUpperVar = -1;
+#endif
 
   // True when the previous frame left anything on this gauge's surface that
   // needs clearing before the next draw (or before going quiet).
@@ -315,14 +398,15 @@ bool isPowered(const Instance& instance) {
 }
 
 // Whether the crew has asked for the radar on this ND and the radar system can
-// supply it (the mode knob, ND page, position source and ground inhibit are
+// supply it (the radar mode, ND page, position source and ground inhibit are
 // checked separately).
 bool radarSelected(const Instance& instance) {
 #ifdef A380X
   // The same rule the A380X applies to terrain on the ND (EfisTawsBridge's
   // terrOnNd), for the WXR overlay: this side's EFIS control panel has the WX
   // overlay selected and the WXR/TAWS system selected on the SURV panel is not
-  // failed. No system selected (0) counts as failed, as in the VD's WXR INOP flag.
+  // failed (no system selected, 0, counts as failed, as in the VD's WXR INOP
+  // flag), plus the WXR button of the SURV CONTROLS page is not OFF.
   if (get_named_variable_value(instance.overlayVar) != kOverlayWxr) {
     return false;
   }
@@ -330,10 +414,26 @@ bool radarSelected(const Instance& instance) {
   if (system != 1 && system != 2) {
     return false;
   }
-  return g_wxrFailed[system - 1].read() == 0.0;
+  return g_wxrFailed[system - 1].read() == 0.0 && g_wxrOff.read() == 0.0;
 #else
   (void)instance;
   return g_wxrSys.read() != kWxrSysOff;
+#endif
+}
+
+// The radar mode as a WX MODE knob position: WX = precipitation, WX+T = both,
+// TURB = turbulence only, MAP = ground mapping (not implemented, draws nothing).
+double radarMode() {
+#ifdef A380X
+  // The SURV CONTROLS page has a WX/MAP button and a TURB AUTO/OFF button: TURB
+  // AUTO adds turbulence to the precipitation. There is no turbulence-only mode.
+  constexpr double kWxrModeMap = 3.0;
+  if (g_wxrModeMap.read() != 0.0) {
+    return kWxrModeMap;
+  }
+  return g_wxrTurbOff.read() != 0.0 ? kWxrModeWx : kWxrModeWxTurb;
+#else
+  return g_wxrMode.read();
 #endif
 }
 
@@ -346,17 +446,6 @@ bool isOnGround() {
     }
   }
   return false;
-}
-
-// Reflectivity -> rain rate via the Marshall-Palmer relation Z = 200 * R^1.6,
-// R = (10^(dBZ/10) / 200)^(5/8) mm/h (en.wikipedia.org/wiki/DBZ_(meteorology)).
-// The SDK documents fsMapViewSetWeatherRadarRainColors' rates as mm/h (its own
-// example runs 0.2 up to 100 mm/h), so no scale factor is applied. An earlier
-// 1/300 "calibration" was a guess made when the palette was still hand-tuned
-// and is dropped; if colors look systematically too strong or too weak in-sim,
-// the band colors on screen read directly as a ladder of the real values.
-float rainRateForDbz(float dbz) {
-  return std::pow(std::pow(10.0f, dbz / 10.0f) / 200.0f, 0.625f);
 }
 
 // Wipes this gauge's own surface back to fully transparent so nd.html shows
@@ -379,7 +468,7 @@ void clearLayer(NVGcontext* vg, float width, float height) {
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
 }
 
-// Shared MapView setup for both the precipitation view and the turbulence view.
+// Shared MapView setup for the precipitation view and the hot view.
 bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* colors, unsigned colorCount) {
   if (id == 0) {
     return false;
@@ -427,22 +516,47 @@ float decodeSrgb(float encoded) {
   return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
 }
 
-FsColor scaledColor(float r, float g, float b) {
-  return FsColor{{r * kColorGain, g * kColorGain, b * kColorGain, 1.0f}};
-}
-
 enum class WeatherPass {
-  // RGB added onto what's there, destination alpha untouched - see the header:
-  // the texture is opaque, so a normal draw would black out the ND.
+  // Precipitation view: its two mask channels added onto what's there (see
+  // kPrecipGain), destination alpha untouched - see the header: the texture is
+  // opaque, so a normal draw would black out the ND.
   Additive,
-  // Same, but the texture (a white marker) is tinted magenta.
+  // Squares what's on this surface (kSharpenPasses times), the saturating step
+  // of the majority filter. One plain fill, not textured.
+  Sharpen,
+  // Turns the two mask channels into the green / yellow band colors. One plain
+  // fill, not textured.
+  Colorize,
+  // Hot view, R and B masks (rate above the turbulence threshold), tinted magenta.
   AdditiveMagenta,
-  // Multiplies what's already on this surface by (1 - texture color): where the
-  // white turbulence marker is, whatever precipitation was drawn is wiped to
-  // black (which adds nothing), so magenta REPLACES it instead of adding onto
-  // it (additive magenta over amber came out pale pink).
+  // Hot view, G mask (rate above the red threshold): multiplies the green channel
+  // of what's already on this surface by (1 - mask), so yellow becomes red and
+  // magenta is not diluted by green.
   Erase,
 };
+
+// The two plain (untextured) fills of the mask pipeline over a rect; the caller sets
+// the scissor. Sharpen squares what's on the surface (dst * dst, kSharpenPasses
+// times); Colorize multiplies it by the band colors (dst * color).
+void sharpenRect(NVGcontext* vg, float x, float y, float w, float h) {
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_DST_COLOR, NVG_ZERO, NVG_ONE);
+  for (int i = 0; i < kSharpenPasses; ++i) {
+    nvgBeginPath(vg);
+    nvgRect(vg, x, y, w, h);
+    nvgFillColor(vg, nvgRGBAf(1.0f, 1.0f, 1.0f, 1.0f));
+    nvgFill(vg);
+  }
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+}
+
+void colorizeRect(NVGcontext* vg, float x, float y, float w, float h) {
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_SRC_COLOR, NVG_ZERO, NVG_ONE);
+  nvgBeginPath(vg);
+  nvgRect(vg, x, y, w, h);
+  nvgFillColor(vg, nvgRGBAf(encodeSrgb(kRedLevel), encodeSrgb(kGreenLevel), 0.0f, 1.0f));
+  nvgFill(vg);
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+}
 
 // Draws the weather image for one mode. rangeFraction < 1 restricts the image
 // to a circle of that fraction of the full radius (used to limit turbulence to
@@ -456,15 +570,25 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float 
   const float top = cy - pixelRadius;
   const float size = pixelRadius * 2.0f;
 
-  // CONFIRMED (in-sim, 2026-09-18): MSFS's native cone-angle clip does NOT
-  // hold at ROSE_NAV's tighter zoom - it renders as an unclipped, near-
-  // omnidirectional sweep instead of the forward dome ARC shows correctly.
-  // Rather than trust the native clip here, restrict the draw to the top
-  // (forward) half of the bounding square via a plain rectangular
-  // nvgScissor - simple/safe, scoped by nvgSave/nvgRestore, unlike ARC which
-  // keeps relying on the native clip since it's already correct there.
+  // CONFIRMED (in-sim): MSFS's native cone-angle clip cannot be trusted. It did
+  // not hold at ROSE_NAV's tighter zoom (2026-09-18: an unclipped, near-
+  // omnidirectional sweep), and later it stopped holding in ARC too (2026-09-19:
+  // weather behind the aircraft, showing through the TA ONLY box and the VD, with
+  // nothing changed on our side). So the draw is restricted to the top (forward)
+  // half of the bounding square - the aircraft is at its centre - via a plain
+  // rectangular nvgScissor, in both modes; simple/safe, scoped by nvgSave/nvgRestore.
   nvgSave(vg);
-  nvgScissor(vg, left, top, size, isRoseNav ? pixelRadius : size);
+  nvgScissor(vg, left, top, size, pixelRadius);
+
+  if (pass == WeatherPass::Sharpen || pass == WeatherPass::Colorize) {
+    if (pass == WeatherPass::Sharpen) {
+      sharpenRect(vg, left, top, size, size);
+    } else {
+      colorizeRect(vg, left, top, size, size);
+    }
+    nvgRestore(vg);
+    return;
+  }
 
   if (pass == WeatherPass::Erase) {
     nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ONE_MINUS_SRC_COLOR, NVG_ZERO, NVG_ONE);
@@ -473,21 +597,21 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float 
   }
 
   // Per-tap strength (see kSmoothingGrid), as a LINEAR fraction, passed to the
-  // engine encoded (see encodeSrgb). Additive taps sum to the full color; erase
-  // taps multiply, so each one removes 1 - remainder^(gain/taps) and a marker
-  // covering 1/gain of the taps already leaves only kEraseRemainder.
+  // engine encoded (see encodeSrgb). Additive taps sum to kPrecipGain at full
+  // coverage; erase taps multiply, so each one removes 1 - remainder^(gain/taps)
+  // and a marker covering 1/gain of the taps already leaves only kEraseRemainder.
   const float tapWeight = 1.0f / static_cast<float>(kSmoothingGrid * kSmoothingGrid);
-  const float additive = encodeSrgb(tapWeight);
+  const float additive = encodeSrgb(kPrecipGain * tapWeight);
   FsColor tint{{additive, additive, additive, 1.0f}};
   if (pass == WeatherPass::AdditiveMagenta) {
     // Standard NanoVG multiplies the sampled texture by the paint's inner
-    // color, so a white marker texture comes out magenta. The taps sum to
+    // color, so the marker's R and B channels come out magenta. The taps sum to
     // kTurbulenceGain at full coverage and the blend clamps at pure magenta.
     const float magenta = encodeSrgb(kTurbulenceGain * tapWeight);
     tint = FsColor{{magenta, 0.0f, magenta, 1.0f}};
   } else if (pass == WeatherPass::Erase) {
     const float erase = encodeSrgb(1.0f - std::pow(kEraseRemainder, kTurbulenceGain * tapWeight));
-    tint = FsColor{{erase, erase, erase, 1.0f}};
+    tint = FsColor{{0.0f, erase, 0.0f, 1.0f}};
   }
 
   for (int iy = 0; iy < kSmoothingGrid; ++iy) {
@@ -512,6 +636,132 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float 
   nvgRestore(vg);
 }
 
+#ifdef A380X
+double planeAltitudeFeet() {
+  static const ENUM planeAltitude = get_aircraft_var_enum("PLANE ALTITUDE");
+  static const ENUM feet = get_units_enum("feet");
+  return aircraft_varget(planeAltitude, feet, 0);
+}
+
+constexpr float kHalfPi = 1.5707963f;
+
+// Where the ND's radar texture lands on the VD (see kVdColumnTexelPx): rotated by
+// 90 degrees, so "ahead" (the texture's top) points right along the range axis,
+// with the aircraft (the texture's centre) at the VD's left edge.
+struct VdColumns {
+  float originX;
+  float originY;
+  float extentAcross;  // pattern extent across the path (local x), screen px
+  float extentAlong;   // pattern extent along the range axis (local y), screen px
+  float texelsPerNm;   // ND texels per NM (across the path)
+  float vdRangeNm;
+};
+
+enum class VdPass {
+  Yellow,   // precipitation view, R mask (yellow and above)
+  Green,    // precipitation view, G mask (green and above)
+  Wipe,     // hot view, G mask (red and above): removes the green channel
+  Magenta,  // hot view, R and B masks (turbulence)
+};
+
+// One channel window: the columns of the wedge (see kVdWedgeTan) drawn on top of
+// each other, each clipped to the window [top, bottom] and to the range where it
+// lies inside the wedge, up to rightLimit. gain 1 = one column is enough, 0.5 =
+// two neighbouring columns must agree.
+void drawVdChannel(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass pass, float top, float bottom, float rightLimit,
+                   float gain) {
+  if (bottom <= top) {
+    return;
+  }
+  nvgSave(vg);
+  FsColor tint;
+  const float g = encodeSrgb(gain);
+  if (pass == VdPass::Wipe) {
+    nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ONE_MINUS_SRC_COLOR, NVG_ZERO, NVG_ONE);
+    tint = FsColor{{0.0f, encodeSrgb(1.0f - std::pow(kEraseRemainder, gain)), 0.0f, 1.0f}};
+  } else {
+    nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+    tint = pass == VdPass::Yellow  ? FsColor{{g, 0.0f, 0.0f, 1.0f}}
+           : pass == VdPass::Green ? FsColor{{0.0f, g, 0.0f, 1.0f}}
+                                   : FsColor{{g, 0.0f, g, 1.0f}};
+  }
+
+  const float halfTexture = 0.5f * static_cast<float>(kTextureSize);
+  for (int k = -kVdLateralTapsPerSide; k <= kVdLateralTapsPerSide; ++k) {
+    const float lateralNm = static_cast<float>(k) * c.vdRangeNm * kVdWedgeTan / static_cast<float>(kVdLateralTapsPerSide);
+    const float texels = lateralNm * c.texelsPerNm;
+    if (std::fabs(texels) > 0.98f * halfTexture) {
+      continue;  // outside the radar texture
+    }
+    const int absK = k < 0 ? -k : k;
+    const float left = kVdLeft + static_cast<float>(absK) / static_cast<float>(kVdLateralTapsPerSide) * kVdWidth;
+    if (rightLimit <= left) {
+      continue;
+    }
+    nvgScissor(vg, left, top, rightLimit - left, bottom - top);
+    nvgBeginPath(vg);
+    nvgRect(vg, left, top, rightLimit - left, bottom - top);
+    NVGpaint paint =
+        nvgImagePattern(vg, c.originX, c.originY + texels * kVdColumnTexelPx, c.extentAcross, c.extentAlong, kHalfPi, view, 1.0f);
+    paint.innerColor = paint.outerColor = tint;
+    nvgFillPaint(vg, paint);
+    nvgFill(vg);
+  }
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+  nvgRestore(vg);
+}
+
+// Draws the stylised VD weather (see kVdRedHalfHeightFt). ndRadiusNm is the radius
+// the ND's radar views were set to; vdRangeNm the VD's range.
+void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, bool hotReady, bool showTurb,
+                   float ndRadiusNm, float vdRangeNm, double planeAltFeet, double lowerFeet, double upperFeet) {
+  VdColumns c;
+  c.extentAlong = 2.0f * ndRadiusNm / vdRangeNm * kVdWidth;
+  c.extentAcross = static_cast<float>(kTextureSize) * kVdColumnTexelPx;
+  c.originX = kVdLeft + 0.5f * c.extentAlong;
+  c.originY = kVdTop + 0.5f * kVdHeight - 0.5f * c.extentAcross;
+  c.texelsPerNm = 0.5f * static_cast<float>(kTextureSize) / ndRadiusNm;
+  c.vdRangeNm = vdRangeNm;
+
+  const float bottom = kVdTop + kVdHeight;
+  const float right = kVdLeft + kVdWidth;
+  const float feetPerVdPx = static_cast<float>((upperFeet - lowerFeet) / kVdHeight);
+  // Screen y of an altitude given relative to the aircraft's, clamped to the plot.
+  auto altToY = [&](float aboveAircraftFt) {
+    const float y = kVdTop + static_cast<float>(upperFeet - planeAltFeet - static_cast<double>(aboveAircraftFt)) / feetPerVdPx;
+    return std::fmin(std::fmax(y, kVdTop), bottom);
+  };
+
+  // One color's closed shape: the inner part, and a shoulder above and below it
+  // that is narrower (two columns must agree).
+  auto drawColour = [&](FsTextureId view, VdPass pass, float halfHeightFt, float rightLimit) {
+    const float inner = halfHeightFt * kVdShoulderFraction;
+    drawVdChannel(vg, view, c, pass, altToY(inner), altToY(-inner), rightLimit, 1.0f);
+    drawVdChannel(vg, view, c, pass, altToY(halfHeightFt), altToY(inner), rightLimit, 0.5f);
+    drawVdChannel(vg, view, c, pass, altToY(-inner), altToY(-halfHeightFt), rightLimit, 0.5f);
+  };
+
+  drawColour(precipView, VdPass::Yellow, kVdYellowHalfHeightFt, right);
+  drawColour(precipView, VdPass::Green, kVdGreenHalfHeightFt, right);
+
+  nvgSave(vg);
+  nvgScissor(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+  sharpenRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+  colorizeRect(vg, kVdLeft, kVdTop, kVdWidth, kVdHeight);
+  nvgRestore(vg);
+
+  if (hotReady) {
+    drawColour(hotView, VdPass::Wipe, kVdRedHalfHeightFt, right);
+    if (showTurb) {
+      const float turbFraction = kTurbulenceMaxRangeNm / vdRangeNm;
+      drawColour(hotView, VdPass::Magenta, kVdRedHalfHeightFt,
+                 kVdLeft + (turbFraction < 1.0f ? turbFraction : 1.0f) * kVdWidth);
+    }
+  }
+}
+
+#endif
+
 }  // namespace
 
 extern "C" {
@@ -534,7 +784,6 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       // register_named_variable returns the same id for a name that is already
       // registered, so the shared variables can simply be registered again by
       // the second instance.
-      g_wxrMode.id = register_named_variable(g_wxrMode.name);
       g_attHdgKnob.id = register_named_variable(g_attHdgKnob.name);
       for (int i = 0; i < 3; ++i) {
         g_adirsLat[i].id = register_named_variable(g_adirsLat[i].name);
@@ -549,6 +798,12 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       for (NamedVar& failed : g_wxrFailed) {
         failed.id = register_named_variable(failed.name);
       }
+      g_wxrOff.id = register_named_variable(g_wxrOff.name);
+      g_wxrTurbOff.id = register_named_variable(g_wxrTurbOff.name);
+      g_wxrModeMap.id = register_named_variable(g_wxrModeMap.name);
+      g_wxrVdOff.id = register_named_variable(g_wxrVdOff.name);
+      instance->vdRangeLowerVar = register_named_variable(instance->isRight ? "A32NX_VD_2_RANGE_LOWER" : "A32NX_VD_1_RANGE_LOWER");
+      instance->vdRangeUpperVar = register_named_variable(instance->isRight ? "A32NX_VD_2_RANGE_UPPER" : "A32NX_VD_1_RANGE_UPPER");
       instance->overlayVar = register_named_variable(instance->isRight ? "A380X_EFIS_R_ACTIVE_OVERLAY" : "A380X_EFIS_L_ACTIVE_OVERLAY");
       if (instance->isRight) {
         instance->powerBusVars[0] = register_named_variable("A32NX_ELEC_DC_1_BUS_IS_POWERED");
@@ -559,6 +814,7 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       }
 #else
       g_wxrSys.id = register_named_variable(g_wxrSys.name);
+      g_wxrMode.id = register_named_variable(g_wxrMode.name);
       instance->powerBusVars[0] = register_named_variable(instance->isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED"
                                                                             : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
       instance->powerBusVars[1] = instance->powerBusVars[0];
@@ -571,35 +827,34 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       params.edgeAntiAlias = false;
       instance->nvg = nvgCreateInternal(&params);
 
-      // Precipitation view. Per the SDK, each entry's color covers the band
-      // from the PREVIOUS entry's rate up to its own rate (entry 0 covers 0 up
-      // to its rate), so the rate on each entry is the band's UPPER edge.
-      // In-sim proof: a table whose first entry was green up to 0.01 painted
-      // the whole clear-sky baseline green. Entry 0 is the transparent
-      // "nothing detected" band below the first reflectivity row; entry i+1 is
-      // row i, ending where row i+1 starts. The SDK allows up to 128 entries.
-      FsRainRateColor colors[kReflectivityBandCount + 1];
-      colors[0] = {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, rainRateForDbz(kReflectivityBands[0].lowerDbz)};
-      for (int i = 0; i < kReflectivityBandCount; ++i) {
-        const ReflectivityBand& band = kReflectivityBands[i];
-        const float upperRate =
-            i + 1 < kReflectivityBandCount ? rainRateForDbz(kReflectivityBands[i + 1].lowerDbz) : kTopBandRate;
-        colors[i + 1] = {scaledColor(band.r, band.g, band.b), upperRate};
-      }
+      // Per the SDK, each entry's color covers the band from the PREVIOUS
+      // entry's rate up to its own rate (entry 0 covers 0 up to its rate), so the
+      // rate on each entry is the band's UPPER edge. In-sim proof: a table whose
+      // first entry was green up to 0.01 painted the whole clear-sky baseline
+      // green. Entry 0 is therefore the transparent "nothing detected" band below
+      // the first threshold. The SDK documents the rates as mm/h and allows up to
+      // 128 entries. Both tables are 0/1 channel masks (see kPrecipGain).
+      //
+      // Precipitation view: R = rate >= yellow threshold, G = rate >= green.
+      FsRainRateColor precipColors[3] = {
+          {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kGreenFromMmH},
+          {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kYellowFromMmH},
+          {FsColor{{1.0f, 1.0f, 0.0f, 1.0f}}, kTopBandRate},
+      };
       instance->mapView = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
-      instance->mapViewReady = configureRadarView(ctx, instance->mapView, colors, kReflectivityBandCount + 1);
+      instance->mapViewReady = configureRadarView(ctx, instance->mapView, precipColors, 3);
 
-      // Turbulence view: a WHITE marker above the proxy threshold, nothing
-      // below - drawn twice (erase precipitation there, then tinted magenta,
-      // see WeatherPass). Kept visible for its whole life (toggling visibility
-      // flashes an empty white texture) and simply not drawn when the knob
-      // doesn't call for it.
-      FsRainRateColor turbColors[2] = {
-          {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, rainRateForDbz(kTurbulenceDbz)},
+      // Hot view: G = rate >= red threshold, R and B = rate >= turbulence
+      // threshold. Drawn as the red wipe and the magenta (see WeatherPass). Kept
+      // visible for its whole life (toggling visibility flashes an empty white
+      // texture) and simply not drawn when the knob doesn't call for it.
+      FsRainRateColor hotColors[3] = {
+          {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kRedFromMmH},
+          {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kTurbulenceRateMmH},
           {FsColor{{1.0f, 1.0f, 1.0f, 1.0f}}, kTopBandRate},
       };
-      instance->mapViewTurb = fsMapViewCreate(ctx, kTurbulenceTextureSize, kTurbulenceTextureSize, 0);
-      instance->mapViewTurbReady = configureRadarView(ctx, instance->mapViewTurb, turbColors, 2);
+      instance->mapViewHot = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
+      instance->mapViewHotReady = configureRadarView(ctx, instance->mapViewHot, hotColors, 3);
       return true;
     }
     case PANEL_SERVICE_PRE_DRAW: {
@@ -612,10 +867,17 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       bool showPrecip = false;
       bool showTurb = false;
       float rangeNmForMode = 10.0f;
+#ifdef A380X
+      bool vdWanted = false;
+      bool showVd = false;
+      float vdRangeNm = 10.0f;
+      double vdLowerFeet = 0.0;
+      double vdUpperFeet = 0.0;
+#endif
 
       if (isPowered(*instance)) {
         const double ndMode = get_named_variable_value(instance->ndModeVar);
-        const double wxrMode = g_wxrMode.read();
+        const double wxrMode = radarMode();
         const int ir = inertialSource(instance->isRight, static_cast<int>(g_attHdgKnob.read()));
         // The ARINC429 data field is 32 bits - matches every other usage of
         // this template in the codebase (cpp-msfs-framework/lib/arinc429.hpp),
@@ -636,9 +898,19 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         const bool positionValid = latWord.isNo() && lonWord.isNo();
         const bool active = radarSelected(*instance) && isArcOrRoseNav(ndMode) && rangeNm > 0.0f && positionValid && !isOnGround();
         showPrecip = active && instance->mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
-        showTurb = active && instance->mapViewTurbReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
+        showTurb = active && instance->mapViewHotReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
         isRoseNav = ndMode == kNdModeRoseNav;
         rangeNmForMode = isRoseNav ? rangeNm / 2.0f : rangeNm;
+#ifdef A380X
+        // The VD shows the weather too when the WX ON VD button is not OFF. Its
+        // range is the ND range in ARC (10..160 NM) and half of it in ROSE NAV
+        // (5..160 NM), as VerticalDisplay.tsx's vdRange.
+        vdWanted = showPrecip && g_wxrVdOff.read() == 0.0;
+        vdRangeNm = isRoseNav ? std::fmin(std::fmax(rangeNm / 2.0f, 5.0f), 160.0f) : std::fmin(std::fmax(rangeNm, 10.0f), 160.0f);
+        vdLowerFeet = get_named_variable_value(instance->vdRangeLowerVar);
+        vdUpperFeet = get_named_variable_value(instance->vdRangeUpperVar);
+        showVd = vdWanted && vdUpperFeet > vdLowerFeet;
+#endif
       }
 
       const bool drawsAnything = showPrecip || showTurb;
@@ -661,16 +933,31 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (showPrecip) {
         fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapView, rangeNmForMode * kNmToMetres);
         drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Additive);
+        drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Sharpen);
+        drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Colorize);
       }
-      if (showTurb) {
-        fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapViewTurb, rangeNmForMode * kNmToMetres);
-        const float turbFraction = kTurbulenceMaxRangeNm / rangeNmForMode;
-        const float turbRangeFraction = turbFraction < 1.0f ? turbFraction : 1.0f;
+      // The hot view carries the red wipe (any precipitation) and the magenta
+      // (turbulence modes, near the aircraft only); the wipe also clears the green
+      // channel under the magenta, in the whole rect.
+      if ((showPrecip || showTurb) && instance->mapViewHotReady) {
+        fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapViewHot, rangeNmForMode * kNmToMetres);
         if (showPrecip) {
-          drawWeatherRect(vg, instance->mapViewTurb, isRoseNav, turbRangeFraction, WeatherPass::Erase);
+          drawWeatherRect(vg, instance->mapViewHot, isRoseNav, 1.0f, WeatherPass::Erase);
         }
-        drawWeatherRect(vg, instance->mapViewTurb, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
+        if (showTurb) {
+          const float turbFraction = kTurbulenceMaxRangeNm / rangeNmForMode;
+          const float turbRangeFraction = turbFraction < 1.0f ? turbFraction : 1.0f;
+          drawWeatherRect(vg, instance->mapViewHot, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
+        }
       }
+#ifdef A380X
+      // Last, so nothing of the ND's passes above can touch it: they only affect
+      // the ND's rect, where the VD area (behind the aircraft) has no weather.
+      if (showVd) {
+        drawVdWeather(vg, instance->mapView, instance->mapViewHot, instance->mapViewHotReady, showTurb, rangeNmForMode, vdRangeNm,
+                      planeAltitudeFeet(), vdLowerFeet, vdUpperFeet);
+      }
+#endif
       instance->layerDirty = drawsAnything;
 
       nvgEndFrame(vg);
@@ -684,8 +971,8 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (instance->mapView != 0) {
         fsMapViewDelete(ctx, instance->mapView);
       }
-      if (instance->mapViewTurb != 0) {
-        fsMapViewDelete(ctx, instance->mapViewTurb);
+      if (instance->mapViewHot != 0) {
+        fsMapViewDelete(ctx, instance->mapViewHot);
       }
       if (instance->nvg != nullptr) {
         nvgDeleteInternal(instance->nvg);
