@@ -70,8 +70,15 @@ popd
 
 mkdir -p "${DIR}/out"
 
+# Every gauge instance owns a NanoVG context, and each of those allocates a 512x512 font atlas
+# it never uses, so the four instances of the A380X (ND and VD terrain, per side) need about
+# 1.5 MB. The module used to start with 0.9 MB and grow its memory the first time a feature
+# drew (the ND terrain, the VD terrain): MSFS crashed the gauge draw right then (access
+# violation, the module memory doubled in the crash report; MSFS reads the NanoVG path data
+# on its render thread). Reserve the memory up front instead (64 KB pages).
 wasm-ld \
   --no-entry \
+  --initial-memory=16777216 \
   --allow-undefined \
   -L "${MSFS_SDK}/WASM/wasi-sysroot/lib/wasm32-wasi" \
   -lc "${MSFS_SDK}/WASM/wasi-sysroot/lib/wasm32-wasi/libclang_rt.builtins-wasm32.a" \
