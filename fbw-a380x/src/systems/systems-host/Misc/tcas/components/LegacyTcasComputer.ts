@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -272,6 +272,10 @@ export class LegacyTcasComputer implements Instrument {
         lastUpdateTime = now;
         this.update(dt);
       });
+
+    // The pedestal TCAS buttons (ABV / BLW / TA ONLY) follow the MFD SURV TCAS settings through these LVars.
+    this.tcasAlertLevel.sub((v) => SimVar.SetSimVarValue('L:A380X_TCAS_ALERT_LEVEL', 'number', v), true);
+    this.tcasAltSelect.sub((v) => SimVar.SetSimVarValue('L:A380X_TCAS_ALT_SELECT', 'number', v), true);
 
     SimVar.SetSimVarValue('L:A32NX_TCAS_STATE', 'Enum', 0);
     this.debug = false;
@@ -1343,10 +1347,36 @@ export class LegacyTcasComputer implements Instrument {
   onUpdate() {}
 
   /**
+   * Applies the settings requested with the pedestal TCAS buttons. A button press leaves the wanted setting plus one
+   * in L:A380X_TCAS_ALERT_LEVEL_REQUEST / L:A380X_TCAS_ALT_SELECT_REQUEST (0 = no request), which is then published
+   * like the MFD SURV page does.
+   */
+  private applyPedestalRequests(): void {
+    const publisher = this.bus.getPublisher<MfdSurvEvents>();
+
+    const alertLevelRequest = SimVar.GetSimVarValue('L:A380X_TCAS_ALERT_LEVEL_REQUEST', 'number');
+    if (alertLevelRequest > 0) {
+      SimVar.SetSimVarValue('L:A380X_TCAS_ALERT_LEVEL_REQUEST', 'number', 0);
+      if (this.tcasFault.getVar() !== true) {
+        publisher.pub('mfd_tcas_alert_level', alertLevelRequest - 1, true);
+      }
+    }
+
+    const altSelectRequest = SimVar.GetSimVarValue('L:A380X_TCAS_ALT_SELECT_REQUEST', 'number');
+    if (altSelectRequest > 0) {
+      SimVar.SetSimVarValue('L:A380X_TCAS_ALT_SELECT_REQUEST', 'number', 0);
+      if (this.tcasFault.getVar() !== true) {
+        publisher.pub('mfd_tcas_alt_select', altSelectRequest - 1, true);
+      }
+    }
+  }
+
+  /**
    * Main update loop
    * @param _deltaTime delta time of this frame
    */
   update(_deltaTime: number): void {
+    this.applyPedestalRequests();
     this.updateVars();
     this.updateInhibitions();
     this.updateStatusFaults();
