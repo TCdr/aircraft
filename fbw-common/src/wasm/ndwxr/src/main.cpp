@@ -419,6 +419,10 @@ struct Instance {
   // color list was last set for (-1 = not yet).
   int terrainPatternImage = 0;
   int terrainGearState = -1;
+  // The weather radar's mode text for the JS ND (0 none, 1 WX, 2 WX+T, 3 TURB, 4 MAP): the LVar the
+  // ND reads (A32NX_WXR_ND_{L,R}_MODE) and the value last written to it.
+  ID wxrLabelVar = -1;
+  int wxrLabelShown = -1;
 #ifdef A380X
   // The A380X's third gauge per ND (the "V" parameter) draws the terrain profile on the VD, see
   // drawVdTerrainGauge.
@@ -1584,6 +1588,7 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
                                                                             : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
       instance->powerBusVars[1] = instance->powerBusVars[0];
 #endif
+      instance->wxrLabelVar = register_named_variable(instance->isRight ? "A32NX_WXR_ND_R_MODE" : "A32NX_WXR_ND_L_MODE");
       instance->ndModeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_MODE" : "A32NX_EFIS_L_ND_MODE");
       instance->ndRangeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_RANGE" : "A32NX_EFIS_L_ND_RANGE");
 
@@ -1630,6 +1635,7 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       bool showPrecip = false;
       bool showTurb = false;
       bool showTerrain = false;
+      int labelMode = 0;
       bool terrainIsRose = false;
       float terrainRangeNm = 10.0f;
       float terrainHeadingDegrees = 0.0f;
@@ -1690,6 +1696,11 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         showTurb = active && instance->mapViewHotReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
         isRoseNav = ndMode == kNdModeRoseNav;
         rangeNmForMode = isRoseNav ? rangeNm / 2.0f : rangeNm;
+        // The mode text on the ND: shown whenever the radar is selected on a page that has it (not while the
+        // terrain takes its place), on the ground too.
+        if (radarSelected(*instance) && isArcOrRoseNav(ndMode) && rangeNm > 0.0f && !showTerrain) {
+          labelMode = 1 + static_cast<int>(wxrMode);
+        }
 #ifdef A380X
         // The VD shows the weather too when the WX ON VD button is not OFF. Its
         // range is the ND range in ARC (10..160 NM) and half of it in ROSE NAV
@@ -1700,6 +1711,11 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         vdUpperFeet = get_named_variable_value(instance->vdRangeUpperVar);
         showVd = vdWanted && vdUpperFeet > vdLowerFeet;
 #endif
+      }
+
+      if (labelMode != instance->wxrLabelShown) {
+        set_named_variable_value(instance->wxrLabelVar, static_cast<double>(labelMode));
+        instance->wxrLabelShown = labelMode;
       }
 
       // Which views are ready to be drawn. On the A380X the ND's two views change roles when the crew switches

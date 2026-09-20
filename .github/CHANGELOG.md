@@ -119,6 +119,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Add the SURV, WX & TERR and TCAS lines to the normal checklists and sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures - @TCdr
 1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
+1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ARC and ROSE NAV pages - @TCdr
 
 ## 2024.1.0
 

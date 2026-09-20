@@ -45,6 +45,7 @@ import { TcasWxrMessages } from './TcasWxrMessages';
 import { Chrono } from './Chrono';
 import { WindIndicator } from './shared/WindIndicator';
 import { TerrainMapThresholds } from './TerrainMapThresholds';
+import { WxrModeLabel } from './WxrModeLabel';
 import { TrackLine } from './shared/TrackLine';
 import { TrackBug } from './shared/TrackBug';
 import { GenericFcuEvents } from './types/GenericFcuEvents';
@@ -501,6 +502,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             </Flag>
 
             <TerrainMapThresholds bus={this.props.bus} paddingText={this.props.terrainThresholdPaddingText} />
+            <WxrModeLabel bus={this.props.bus} side={this.props.side} mode={this.currentPageMode} />
 
             <RadioNavInfo bus={this.props.bus} index={1} mode={this.currentPageMode} />
             <RadioNavInfo bus={this.props.bus} index={2} mode={this.currentPageMode} />
