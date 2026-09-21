@@ -760,9 +760,10 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float 
 // - The MapView colors each texel by the aircraft's altitude MINUS the terrain
 //   height (fsMapViewSetAltitudeReference PLANE) through the altitude color list:
 //   the list is split into equal bands over [min, max], entry 0 = terrain far
-//   ABOVE the aircraft, the last entry = terrain far below; values outside the
-//   range take the first / last entry. The bands are hard steps.
-// - Water is never colored by the list (it stays black).
+//   ABOVE the aircraft, the last entry = terrain far below; values beyond the
+//   BOTTOM of the range (terrain far below) take the last entry, but values beyond
+//   the TOP do not take the first one (see kTerrainMinFeet). The bands are hard steps.
+// - Water is never colored by the list: it always gets the FIRST entry (see configureWaterMaskView).
 // - Unlike the weather radar, the texture is NORTH-UP: it has to be rotated by
 //   minus the ND's true heading (the ADIRS word nd.html rotates its own map by).
 // - As with the radar, the texture is opaque and can only be added onto the ND.
@@ -811,10 +812,16 @@ bool terrainSelected(const Instance& instance) {
 }
 
 // The color list: kTerrainBandCount equal bands of kTerrainBandFeet over
-// [kTerrainMinFeet, kTerrainMaxFeet] of (aircraft altitude - terrain height).
+// [kTerrainMinFeet, kTerrainMaxFeet] of (aircraft altitude - terrain height). The range is deliberately
+// far wider on the "terrain above the aircraft" side than the 2000 ft the display cares about: terrain
+// beyond the range's top is NOT drawn with the first entry (measured in-sim 2026-09-20 with a probe at
+// Aspen and in the Alps: mountains 3000+ ft above the aircraft came out in a rainbow of other entries,
+// no red at all), whereas terrain beyond the bottom does take the last entry. So the top has to reach
+// past any terrain (Everest is 29,000 ft above sea level): the bands above +2000 ft all carry the red
+// entry. 128 entries of 250 ft cover -29,500 .. +2,500 ft, band edges on multiples of 250 ft.
 constexpr float kTerrainBandFeet = 250.0f;
-constexpr int kTerrainBandCount = 18;
-constexpr float kTerrainMinFeet = -2250.0f;
+constexpr int kTerrainBandCount = 128;
+constexpr float kTerrainMinFeet = -29500.0f;
 constexpr float kTerrainMaxFeet = kTerrainMinFeet + kTerrainBandFeet * static_cast<float>(kTerrainBandCount);
 
 // The two dot styles of the terrain. ORDERED is a regular 4x4 Bayer pattern (14/16, 7/16 and
@@ -829,6 +836,10 @@ constexpr bool kOrderedDots = kTerrainDotStyle == TerrainDotStyle::Ordered;
 constexpr float kTerrainDense = kOrderedDots ? 14.0f / 16.0f : 0.70f;
 constexpr float kTerrainMedium = kOrderedDots ? 7.0f / 16.0f : 0.40f;
 constexpr float kTerrainLight = kOrderedDots ? 3.0f / 16.0f : 0.18f;
+// The water is blue dots at every altitude (the look of the other addons' TERR ON ND): the dot density, and the
+// blue channel's level (the green channel of the water dots is at the radar's green level, which makes cyan).
+constexpr float kTerrainWater = kOrderedDots ? 9.0f / 16.0f : 0.60f;
+constexpr float kTerrainWaterBlue = 1.0f;
 
 // Size of the dither image in cells, of one cell in ND pixels, and how often the 0/1
 // result is squared (2^kTerrainSharpenPasses has to crush the not-lit side to black).
@@ -972,16 +983,7 @@ double planeAltitudeFeet() {
   return aircraft_varget(planeAltitude, feet, 0);
 }
 
-// The dot densities of the terrain at the aircraft's own height above sea level: what the
-// sea (elevation 0) is, and what any band of the color list looks like.
-void terrainSeaColor(double altitudeFeet, bool gearDown, float* r, float* g) {
-  int band = static_cast<int>(std::floor((static_cast<float>(altitudeFeet) - kTerrainMinFeet) / kTerrainBandFeet));
-  band = band < 0 ? 0 : (band >= kTerrainBandCount ? kTerrainBandCount - 1 : band);
-  terrainBandColor(band, gearDown, r, g);
-}
-
-void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int patternImage, bool isRose, float headingDegrees,
-                 float seaR, float seaG) {
+void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int patternImage, bool isRose, float headingDegrees) {
   constexpr float kDegToRad = 0.01745329f;
   const float centerYBias = isRose ? kRoseNavCenterYBias : kArcCenterYBias;
   const float radius = isRose ? kRoseNavPixelRadius : kArcPixelRadius;
@@ -1008,21 +1010,21 @@ void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int pa
   nvgFillPaint(vg, terrain);
   nvgFill(vg);
 
-  // ... with the water wiped out of it and the sea put back at its real level.
+  // ... with the water wiped out of it and blue water dots put in its place: the green and blue channels
+  // carry the water's density, which the display colors below turn into cyan-blue.
   nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ONE_MINUS_SRC_COLOR, NVG_ZERO, NVG_ONE);
   terrainPath(vg, cx, cy, radius, isRose);
   NVGpaint water = nvgImagePattern(vg, originX, originY, radius * 2.0f, radius * 2.0f, angle, waterView, 1.0f);
   water.innerColor = water.outerColor = FsColor{{1.0f, 1.0f, 1.0f, 1.0f}};
   nvgFillPaint(vg, water);
   nvgFill(vg);
-  if (seaR > 0.0f || seaG > 0.0f) {
-    nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
-    terrainPath(vg, cx, cy, radius, isRose);
-    NVGpaint sea = nvgImagePattern(vg, originX, originY, radius * 2.0f, radius * 2.0f, angle, waterView, 1.0f);
-    sea.innerColor = sea.outerColor = FsColor{{encodeSrgb(0.5f * seaR), encodeSrgb(0.5f * seaG), 0.0f, 1.0f}};
-    nvgFillPaint(vg, sea);
-    nvgFill(vg);
-  }
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
+  terrainPath(vg, cx, cy, radius, isRose);
+  NVGpaint sea = nvgImagePattern(vg, originX, originY, radius * 2.0f, radius * 2.0f, angle, waterView, 1.0f);
+  const float waterDensity = encodeSrgb(0.5f * kTerrainWater);
+  sea.innerColor = sea.outerColor = FsColor{{0.0f, waterDensity, waterDensity, 1.0f}};
+  nvgFillPaint(vg, sea);
+  nvgFill(vg);
 
   // 2. the dither complement at half strength: the sum passes 1 exactly where density >= threshold.
   nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
@@ -1047,10 +1049,10 @@ void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int pa
     nvgFill(vg);
   }
 
-  // 5. the display colors: red and green channels at the radar's levels.
+  // 5. the display colors: red and green channels at the radar's levels, the water's green + blue as cyan-blue.
   nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_SRC_COLOR, NVG_ZERO, NVG_ONE);
   terrainPath(vg, cx, cy, radius, isRose);
-  nvgFillColor(vg, nvgRGBAf(encodeSrgb(kRedLevel), encodeSrgb(kGreenLevel), 0.0f, 1.0f));
+  nvgFillColor(vg, nvgRGBAf(encodeSrgb(kRedLevel), encodeSrgb(kGreenLevel), encodeSrgb(kTerrainWaterBlue), 1.0f));
   nvgFill(vg);
 
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
@@ -1764,11 +1766,7 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         fsMapViewSet2DViewRadiusInMeters(ctx, terrainViewId, terrainRangeNm * kNmToMetres);
         fsMapViewSet2DViewRadiusInMeters(ctx, waterViewId, terrainRangeNm * kNmToMetres);
         if (terrainReady && instance->terrainPatternImage != 0) {
-          float seaR = 0.0f;
-          float seaG = 0.0f;
-          terrainSeaColor(planeAltitudeFeet(), gearState == 1, &seaR, &seaG);
-          drawTerrain(vg, terrainViewId, waterViewId, instance->terrainPatternImage, terrainIsRose,
-                      terrainHeadingDegrees, seaR, seaG);
+          drawTerrain(vg, terrainViewId, waterViewId, instance->terrainPatternImage, terrainIsRose, terrainHeadingDegrees);
         }
       }
       if (showPrecip) {
