@@ -34,8 +34,16 @@
 //   kColorGain so they stay saturated.
 //
 // - MSFS's radar API has no turbulence data (rain rate only). Turbulence
-//   (WX+T / TURB) is a proxy: rain rate above kTurbulenceDbz, drawn magenta
-//   from a second, marker-only MapView, limited to kTurbulenceMaxRangeNm.
+//   (WX+T / TURB) is a proxy: rain rate above kTurbulenceRateMmH, drawn magenta
+//   from a second MapView (the "hot" view), limited to kTurbulenceMaxRangeNm.
+//
+// - The engine's rain rate is noisy texel by texel, so where a cell sits near a
+//   band threshold the colors flip at pixel scale (grain), and a plain blur of
+//   those flips only gives a muddy, soft mix. Instead every threshold is its own
+//   binary mask in a color channel of one of the two MapViews (see kPrecipGain):
+//   each mask is blurred, saturated and squared, i.e. a majority filter, which
+//   gives solid areas with fairly crisp edges; the channels are then turned into
+//   the band colors by the blend passes in drawWeatherRect.
 //
 // - Whatever this gauge draws PERSISTS from frame to frame; its surface is not
 //   cleared for it (terronnd's DisplayBase::render() paints a full opaque
@@ -131,7 +139,6 @@ constexpr float kRoseNavCenterYBias = 0.0f;
 constexpr float kRoseNavPixelRadius = 250.0f;
 
 constexpr unsigned kTextureSize = 768;  // matches the largest on-screen size (ARC) closely enough to avoid visible blur
-constexpr unsigned kTurbulenceTextureSize = 512;  // magenta-only, no fine detail needed
 
 // XMLVAR_A320_WeatherRadar_Mode knob positions.
 constexpr double kWxrModeWx = 0.0;
@@ -139,10 +146,13 @@ constexpr double kWxrModeWxTurb = 1.0;
 constexpr double kWxrModeTurb = 2.0;
 
 // Turbulence proxy: real WXR finds turbulence from Doppler spectral width,
-// which MSFS doesn't expose - rain rate above this reflectivity (a strong
-// convective core) stands in for it. Real Airbus WXR only reports turbulence
-// out to ~40 NM, drawn magenta inside precipitation.
-constexpr float kTurbulenceDbz = 40.0f;
+// which MSFS doesn't expose - a rain rate above this (mm/h; a strong convective
+// core) stands in for it. It has to sit above the red band's start (see
+// kRedFromMmH), otherwise the magenta would cover every red cell. Measured
+// in-sim: 30 never triggered (no magenta at all under a thunderstorm), 20 does
+// while leaving the red visible around the core. Real Airbus WXR only reports
+// turbulence out to ~40 NM, drawn magenta inside precipitation.
+constexpr float kTurbulenceRateMmH = 20.0f;
 constexpr float kTurbulenceMaxRangeNm = 40.0f;
 
 // Brightness scale applied to every band color (see the header) - lower it if
@@ -173,27 +183,37 @@ constexpr float kEraseRemainder = 0.05f;
 // Magenta therefore saturates at pure magenta.
 constexpr float kTurbulenceGain = 2.0f;
 
-// Weather color bands, defined by radar reflectivity like a real radar rather
-// than by raw MSFS rain-rate numbers. Airbus ND colors: black = minimal/no
-// precipitation, green = weak, amber = moderate, red = strong to very strong;
-// magenta is reserved for turbulence (see kTurbulenceDbz), never precipitation.
-// The dBZ edges come from the weatherai.world ground-radar table, collapsed
-// onto those colors: green covers its green + dark green rows (20-35 dBZ),
-// amber its yellow + orange rows (35-50), red everything from dark orange up
-// (50+). Its light-green row (5-20 dBZ, drizzle) is below the Airbus green
-// threshold and stays black. lowerDbz is where each band starts and it runs
-// up to the next row; below the first row nothing is drawn (MSFS's clear-sky
-// baseline measured <= 0.001 mm/h, far below 20 dBZ = 0.65 mm/h).
-struct ReflectivityBand {
-  float lowerDbz;
-  float r, g, b;
-};
-constexpr ReflectivityBand kReflectivityBands[] = {
-    {20.0f, 0.0f, 0.85f, 0.0f},   // green: weak precipitation
-    {35.0f, 1.0f, 0.55f, 0.0f},   // amber: moderate precipitation
-    {50.0f, 1.0f, 0.0f, 0.0f},    // red: strong to very strong precipitation
-};
-constexpr int kReflectivityBandCount = static_cast<int>(sizeof(kReflectivityBands) / sizeof(kReflectivityBands[0]));
+// Weather color bands, by rain rate like the color levels of an airborne weather
+// radar (ARINC 708 style): black below 0.7 mm/h, green 0.7-4 mm/h, amber 4-12
+// mm/h, red above 12 mm/h. Magenta is reserved for turbulence (see
+// kTurbulenceRateMmH), never precipitation. An earlier palette used the
+// weatherai.world GROUND radar reflectivity table (red from 50 dBZ, about
+// 49 mm/h); MSFS's rain rates never got that high, so red never showed up, not
+// even without turbulence. Below the green threshold nothing is drawn (MSFS's
+// clear-sky baseline measured <= 0.001 mm/h).
+constexpr float kGreenFromMmH = 0.7f;
+constexpr float kYellowFromMmH = 4.0f;
+constexpr float kRedFromMmH = 12.0f;
+
+// The band colors on the ND (linear, before the paint encoding). Yellow is the
+// green channel of the green band plus the red channel of the red band, so green
+// and yellow share their green level.
+constexpr float kRedLevel = 1.0f * kColorGain;
+constexpr float kGreenLevel = 0.85f * kColorGain;
+
+// How the band colors are built (the "precipitation" and the "hot" MapView both
+// use color tables that are pure 0/1 masks, so the engine's color handling can't
+// distort them):
+//   precipitation view: R = rate >= kYellowFromMmH, G = rate >= kGreenFromMmH
+//   hot view:           G = rate >= kRedFromMmH, R and B = rate >= kTurbulenceRateMmH
+// Each mask is drawn as a kSmoothingGrid x kSmoothingGrid blur whose taps add up
+// to kPrecipGain at full coverage, so it saturates once 1/kPrecipGain of the taps
+// see the mask; squaring the result kSharpenPasses times then turns the ramp
+// below that into a fairly sharp edge (a coverage of 1/3 comes out at ~0.2, 5/9 at
+// 1). The hot view's G mask then wipes the green channel of the precipitation
+// (yellow -> red), and its R/B masks add magenta.
+constexpr float kPrecipGain = 2.0f;
+constexpr int kSharpenPasses = 2;
 
 // Upper edge of the last band - effectively unbounded so the strongest cells
 // keep the last color instead of dropping out.
@@ -217,8 +237,8 @@ struct Instance {
 
   FsTextureId mapView = 0;
   bool mapViewReady = false;
-  FsTextureId mapViewTurb = 0;
-  bool mapViewTurbReady = false;
+  FsTextureId mapViewHot = 0;
+  bool mapViewHotReady = false;
 
   // True when the previous frame left anything on this gauge's surface that
   // needs clearing before the next draw (or before going quiet).
@@ -275,17 +295,6 @@ bool isOnGround() {
   return false;
 }
 
-// Reflectivity -> rain rate via the Marshall-Palmer relation Z = 200 * R^1.6,
-// R = (10^(dBZ/10) / 200)^(5/8) mm/h (en.wikipedia.org/wiki/DBZ_(meteorology)).
-// The SDK documents fsMapViewSetWeatherRadarRainColors' rates as mm/h (its own
-// example runs 0.2 up to 100 mm/h), so no scale factor is applied. An earlier
-// 1/300 "calibration" was a guess made when the palette was still hand-tuned
-// and is dropped; if colors look systematically too strong or too weak in-sim,
-// the band colors on screen read directly as a ladder of the real values.
-float rainRateForDbz(float dbz) {
-  return std::pow(std::pow(10.0f, dbz / 10.0f) / 200.0f, 0.625f);
-}
-
 // Wipes this gauge's own surface back to fully transparent so nd.html shows
 // through again. Composite state is set back to source-over afterwards.
 // Both operations are used as belt and braces: either one alone clears the
@@ -306,7 +315,7 @@ void clearLayer(NVGcontext* vg, float width, float height) {
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
 }
 
-// Shared MapView setup for both the precipitation view and the turbulence view.
+// Shared MapView setup for the precipitation view and the hot view.
 bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* colors, unsigned colorCount) {
   if (id == 0) {
     return false;
@@ -354,22 +363,47 @@ float decodeSrgb(float encoded) {
   return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
 }
 
-FsColor scaledColor(float r, float g, float b) {
-  return FsColor{{r * kColorGain, g * kColorGain, b * kColorGain, 1.0f}};
-}
-
 enum class WeatherPass {
-  // RGB added onto what's there, destination alpha untouched - see the header:
-  // the texture is opaque, so a normal draw would black out the ND.
+  // Precipitation view: its two mask channels added onto what's there (see
+  // kPrecipGain), destination alpha untouched - see the header: the texture is
+  // opaque, so a normal draw would black out the ND.
   Additive,
-  // Same, but the texture (a white marker) is tinted magenta.
+  // Squares what's on this surface (kSharpenPasses times), the saturating step
+  // of the majority filter. One plain fill, not textured.
+  Sharpen,
+  // Turns the two mask channels into the green / yellow band colors. One plain
+  // fill, not textured.
+  Colorize,
+  // Hot view, R and B masks (rate above the turbulence threshold), tinted magenta.
   AdditiveMagenta,
-  // Multiplies what's already on this surface by (1 - texture color): where the
-  // white turbulence marker is, whatever precipitation was drawn is wiped to
-  // black (which adds nothing), so magenta REPLACES it instead of adding onto
-  // it (additive magenta over amber came out pale pink).
+  // Hot view, G mask (rate above the red threshold): multiplies the green channel
+  // of what's already on this surface by (1 - mask), so yellow becomes red and
+  // magenta is not diluted by green.
   Erase,
 };
+
+// The two plain (untextured) fills of the mask pipeline over a rect; the caller sets
+// the scissor. Sharpen squares what's on the surface (dst * dst, kSharpenPasses
+// times); Colorize multiplies it by the band colors (dst * color).
+void sharpenRect(NVGcontext* vg, float x, float y, float w, float h) {
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_DST_COLOR, NVG_ZERO, NVG_ONE);
+  for (int i = 0; i < kSharpenPasses; ++i) {
+    nvgBeginPath(vg);
+    nvgRect(vg, x, y, w, h);
+    nvgFillColor(vg, nvgRGBAf(1.0f, 1.0f, 1.0f, 1.0f));
+    nvgFill(vg);
+  }
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+}
+
+void colorizeRect(NVGcontext* vg, float x, float y, float w, float h) {
+  nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_SRC_COLOR, NVG_ZERO, NVG_ONE);
+  nvgBeginPath(vg);
+  nvgRect(vg, x, y, w, h);
+  nvgFillColor(vg, nvgRGBAf(encodeSrgb(kRedLevel), encodeSrgb(kGreenLevel), 0.0f, 1.0f));
+  nvgFill(vg);
+  nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+}
 
 // Draws the weather image for one mode. rangeFraction < 1 restricts the image
 // to a circle of that fraction of the full radius (used to limit turbulence to
@@ -383,15 +417,25 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float 
   const float top = cy - pixelRadius;
   const float size = pixelRadius * 2.0f;
 
-  // CONFIRMED (in-sim, 2026-09-18): MSFS's native cone-angle clip does NOT
-  // hold at ROSE_NAV's tighter zoom - it renders as an unclipped, near-
-  // omnidirectional sweep instead of the forward dome ARC shows correctly.
-  // Rather than trust the native clip here, restrict the draw to the top
-  // (forward) half of the bounding square via a plain rectangular
-  // nvgScissor - simple/safe, scoped by nvgSave/nvgRestore, unlike ARC which
-  // keeps relying on the native clip since it's already correct there.
+  // CONFIRMED (in-sim): MSFS's native cone-angle clip cannot be trusted. It did
+  // not hold at ROSE_NAV's tighter zoom (2026-09-18: an unclipped, near-
+  // omnidirectional sweep), and later it stopped holding in ARC too (2026-09-19:
+  // weather behind the aircraft, showing through the TA ONLY box, with
+  // nothing changed on our side). So the draw is restricted to the top (forward)
+  // half of the bounding square - the aircraft is at its centre - via a plain
+  // rectangular nvgScissor, in both modes; simple/safe, scoped by nvgSave/nvgRestore.
   nvgSave(vg);
-  nvgScissor(vg, left, top, size, isRoseNav ? pixelRadius : size);
+  nvgScissor(vg, left, top, size, pixelRadius);
+
+  if (pass == WeatherPass::Sharpen || pass == WeatherPass::Colorize) {
+    if (pass == WeatherPass::Sharpen) {
+      sharpenRect(vg, left, top, size, size);
+    } else {
+      colorizeRect(vg, left, top, size, size);
+    }
+    nvgRestore(vg);
+    return;
+  }
 
   if (pass == WeatherPass::Erase) {
     nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_ONE_MINUS_SRC_COLOR, NVG_ZERO, NVG_ONE);
@@ -400,21 +444,21 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float 
   }
 
   // Per-tap strength (see kSmoothingGrid), as a LINEAR fraction, passed to the
-  // engine encoded (see encodeSrgb). Additive taps sum to the full color; erase
-  // taps multiply, so each one removes 1 - remainder^(gain/taps) and a marker
-  // covering 1/gain of the taps already leaves only kEraseRemainder.
+  // engine encoded (see encodeSrgb). Additive taps sum to kPrecipGain at full
+  // coverage; erase taps multiply, so each one removes 1 - remainder^(gain/taps)
+  // and a marker covering 1/gain of the taps already leaves only kEraseRemainder.
   const float tapWeight = 1.0f / static_cast<float>(kSmoothingGrid * kSmoothingGrid);
-  const float additive = encodeSrgb(tapWeight);
+  const float additive = encodeSrgb(kPrecipGain * tapWeight);
   FsColor tint{{additive, additive, additive, 1.0f}};
   if (pass == WeatherPass::AdditiveMagenta) {
     // Standard NanoVG multiplies the sampled texture by the paint's inner
-    // color, so a white marker texture comes out magenta. The taps sum to
+    // color, so the marker's R and B channels come out magenta. The taps sum to
     // kTurbulenceGain at full coverage and the blend clamps at pure magenta.
     const float magenta = encodeSrgb(kTurbulenceGain * tapWeight);
     tint = FsColor{{magenta, 0.0f, magenta, 1.0f}};
   } else if (pass == WeatherPass::Erase) {
     const float erase = encodeSrgb(1.0f - std::pow(kEraseRemainder, kTurbulenceGain * tapWeight));
-    tint = FsColor{{erase, erase, erase, 1.0f}};
+    tint = FsColor{{0.0f, erase, 0.0f, 1.0f}};
   }
 
   for (int iy = 0; iy < kSmoothingGrid; ++iy) {
@@ -482,35 +526,34 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       params.edgeAntiAlias = false;
       instance->nvg = nvgCreateInternal(&params);
 
-      // Precipitation view. Per the SDK, each entry's color covers the band
-      // from the PREVIOUS entry's rate up to its own rate (entry 0 covers 0 up
-      // to its rate), so the rate on each entry is the band's UPPER edge.
-      // In-sim proof: a table whose first entry was green up to 0.01 painted
-      // the whole clear-sky baseline green. Entry 0 is the transparent
-      // "nothing detected" band below the first reflectivity row; entry i+1 is
-      // row i, ending where row i+1 starts. The SDK allows up to 128 entries.
-      FsRainRateColor colors[kReflectivityBandCount + 1];
-      colors[0] = {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, rainRateForDbz(kReflectivityBands[0].lowerDbz)};
-      for (int i = 0; i < kReflectivityBandCount; ++i) {
-        const ReflectivityBand& band = kReflectivityBands[i];
-        const float upperRate =
-            i + 1 < kReflectivityBandCount ? rainRateForDbz(kReflectivityBands[i + 1].lowerDbz) : kTopBandRate;
-        colors[i + 1] = {scaledColor(band.r, band.g, band.b), upperRate};
-      }
+      // Per the SDK, each entry's color covers the band from the PREVIOUS
+      // entry's rate up to its own rate (entry 0 covers 0 up to its rate), so the
+      // rate on each entry is the band's UPPER edge. In-sim proof: a table whose
+      // first entry was green up to 0.01 painted the whole clear-sky baseline
+      // green. Entry 0 is therefore the transparent "nothing detected" band below
+      // the first threshold. The SDK documents the rates as mm/h and allows up to
+      // 128 entries. Both tables are 0/1 channel masks (see kPrecipGain).
+      //
+      // Precipitation view: R = rate >= yellow threshold, G = rate >= green.
+      FsRainRateColor precipColors[3] = {
+          {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kGreenFromMmH},
+          {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kYellowFromMmH},
+          {FsColor{{1.0f, 1.0f, 0.0f, 1.0f}}, kTopBandRate},
+      };
       instance->mapView = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
-      instance->mapViewReady = configureRadarView(ctx, instance->mapView, colors, kReflectivityBandCount + 1);
+      instance->mapViewReady = configureRadarView(ctx, instance->mapView, precipColors, 3);
 
-      // Turbulence view: a WHITE marker above the proxy threshold, nothing
-      // below - drawn twice (erase precipitation there, then tinted magenta,
-      // see WeatherPass). Kept visible for its whole life (toggling visibility
-      // flashes an empty white texture) and simply not drawn when the knob
-      // doesn't call for it.
-      FsRainRateColor turbColors[2] = {
-          {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, rainRateForDbz(kTurbulenceDbz)},
+      // Hot view: G = rate >= red threshold, R and B = rate >= turbulence
+      // threshold. Drawn as the red wipe and the magenta (see WeatherPass). Kept
+      // visible for its whole life (toggling visibility flashes an empty white
+      // texture) and simply not drawn when the knob doesn't call for it.
+      FsRainRateColor hotColors[3] = {
+          {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kRedFromMmH},
+          {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kTurbulenceRateMmH},
           {FsColor{{1.0f, 1.0f, 1.0f, 1.0f}}, kTopBandRate},
       };
-      instance->mapViewTurb = fsMapViewCreate(ctx, kTurbulenceTextureSize, kTurbulenceTextureSize, 0);
-      instance->mapViewTurbReady = configureRadarView(ctx, instance->mapViewTurb, turbColors, 2);
+      instance->mapViewHot = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
+      instance->mapViewHotReady = configureRadarView(ctx, instance->mapViewHot, hotColors, 3);
       return true;
     }
     case PANEL_SERVICE_PRE_DRAW: {
@@ -545,7 +588,7 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         const bool positionValid = latWord.isNo() && lonWord.isNo();
         const bool active = sysOn && isArcOrRoseNav(ndMode) && positionValid && !isOnGround();
         showPrecip = active && instance->mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
-        showTurb = active && instance->mapViewTurbReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
+        showTurb = active && instance->mapViewHotReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
         isRoseNav = ndMode == kNdModeRoseNav;
 
         const int rangeIndex = static_cast<int>(get_named_variable_value(instance->ndRangeVar));
@@ -573,15 +616,22 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (showPrecip) {
         fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapView, rangeNmForMode * kNmToMetres);
         drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Additive);
+        drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Sharpen);
+        drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Colorize);
       }
-      if (showTurb) {
-        fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapViewTurb, rangeNmForMode * kNmToMetres);
-        const float turbFraction = kTurbulenceMaxRangeNm / rangeNmForMode;
-        const float turbRangeFraction = turbFraction < 1.0f ? turbFraction : 1.0f;
+      // The hot view carries the red wipe (any precipitation) and the magenta
+      // (turbulence modes, near the aircraft only); the wipe also clears the green
+      // channel under the magenta, in the whole rect.
+      if ((showPrecip || showTurb) && instance->mapViewHotReady) {
+        fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapViewHot, rangeNmForMode * kNmToMetres);
         if (showPrecip) {
-          drawWeatherRect(vg, instance->mapViewTurb, isRoseNav, turbRangeFraction, WeatherPass::Erase);
+          drawWeatherRect(vg, instance->mapViewHot, isRoseNav, 1.0f, WeatherPass::Erase);
         }
-        drawWeatherRect(vg, instance->mapViewTurb, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
+        if (showTurb) {
+          const float turbFraction = kTurbulenceMaxRangeNm / rangeNmForMode;
+          const float turbRangeFraction = turbFraction < 1.0f ? turbFraction : 1.0f;
+          drawWeatherRect(vg, instance->mapViewHot, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
+        }
       }
       instance->layerDirty = drawsAnything;
 
@@ -596,8 +646,8 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (instance->mapView != 0) {
         fsMapViewDelete(ctx, instance->mapView);
       }
-      if (instance->mapViewTurb != 0) {
-        fsMapViewDelete(ctx, instance->mapViewTurb);
+      if (instance->mapViewHot != 0) {
+        fsMapViewDelete(ctx, instance->mapViewHot);
       }
       if (instance->nvg != nullptr) {
         nvgDeleteInternal(instance->nvg);
