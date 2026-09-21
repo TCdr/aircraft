@@ -157,6 +157,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private lastFlightPlanVersion = 0;
   private readonly _messageQueue = new A32NX_MessageQueue(this.mcdu);
 
+  /** Every MCDU screen that shares this FMS: the CPT one first, then the F/O one once it has been created. */
+  public readonly screens: A320_Neo_CDU_MainDisplay[] = [this.mcdu];
+
   /** The active flight plan performance data subscriptions. Re-created when the active flightplan changes */
   private activeFlightPlanPerformanceDataSubscriptions: Subscription[] = [];
 
@@ -755,7 +758,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     if (resetTakeoffData) {
       // FMGC Message Queue
-      this._messageQueue.resetQueue();
+      this.forEachScreen((screen) => screen.resetMessageQueue());
 
       this.computedVgd = undefined;
       this.computedVfs = undefined;
@@ -779,7 +782,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     this.toSpeedsChecks();
 
-    this.setRequest('FMGC');
+    this.forEachScreen((screen) => screen.setRequest('FMGC'));
 
     this.clearEtt();
 
@@ -794,7 +797,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     const flightPlanChanged = this.flightPlanService.activeOrTemporary.version !== this.lastFlightPlanVersion;
     if (flightPlanChanged) {
       this.lastFlightPlanVersion = this.flightPlanService.activeOrTemporary.version;
-      this.setRequest('FMGC');
+      this.forEachScreen((screen) => screen.setRequest('FMGC'));
     }
 
     for (let i = 0; i < this.modules.length; i++) {
@@ -905,7 +908,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
    * @param nextPhase New FmgcFlightPhase
    */
   private onFlightPhaseChanged(prevPhase: FmgcFlightPhase, nextPhase: FmgcFlightPhase) {
-    this.setRequest('FMGC');
+    this.forEachScreen((screen) => screen.setRequest('FMGC'));
 
     SimVar.SetSimVarValue('L:A32NX_CABIN_READY', 'Bool', 0);
 
@@ -935,11 +938,13 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
           this.updateThrustReductionAcceleration();
         }
 
-        if (this.page.Current === this.page.PerformancePageTakeoff) {
-          CDUPerformancePage.ShowTAKEOFFPage(this.mcdu, FlightPlanIndex.Active);
-        } else if (this.page.Current === this.page.ProgressPage) {
-          CDUProgressPage.ShowPage(this.mcdu);
-        }
+        this.forEachScreen((screen) => {
+          if (screen.page.Current === screen.page.PerformancePageTakeoff) {
+            CDUPerformancePage.ShowTAKEOFFPage(screen, FlightPlanIndex.Active);
+          } else if (screen.page.Current === screen.page.ProgressPage) {
+            CDUProgressPage.ShowPage(screen);
+          }
+        });
 
         /** Arm preselected speed/mach for next flight phase */
         this.updatePreSelSpeedMach(plan.performanceData.preselectedClimbSpeed.get() ?? undefined);
@@ -950,11 +955,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       case FmgcFlightPhase.Climb: {
         this._destDataChecked = false;
 
-        if (this.page.Current === this.page.ProgressPage) {
-          CDUProgressPage.ShowPage(this.mcdu);
-        } else {
-          this.tryUpdatePerfPage(prevPhase, nextPhase);
-        }
+        this.refreshProgressOrPerfPage(prevPhase, nextPhase);
 
         /** Activate pre selected speed/mach */
         if (prevPhase === FmgcFlightPhase.Takeoff) {
@@ -974,11 +975,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       }
 
       case FmgcFlightPhase.Cruise: {
-        if (this.page.Current === this.page.ProgressPage) {
-          CDUProgressPage.ShowPage(this.mcdu);
-        } else {
-          this.tryUpdatePerfPage(prevPhase, nextPhase);
-        }
+        this.refreshProgressOrPerfPage(prevPhase, nextPhase);
 
         /** Activate pre selected speed/mach */
         if (prevPhase === FmgcFlightPhase.Climb) {
@@ -995,11 +992,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       }
 
       case FmgcFlightPhase.Descent: {
-        if (this.page.Current === this.page.ProgressPage) {
-          CDUProgressPage.ShowPage(this.mcdu);
-        } else {
-          this.tryUpdatePerfPage(prevPhase, nextPhase);
-        }
+        this.refreshProgressOrPerfPage(prevPhase, nextPhase);
 
         this.checkDestData();
 
@@ -1011,11 +1004,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       }
 
       case FmgcFlightPhase.Approach: {
-        if (this.page.Current === this.page.ProgressPage) {
-          CDUProgressPage.ShowPage(this.mcdu);
-        } else {
-          this.tryUpdatePerfPage(prevPhase, nextPhase);
-        }
+        this.refreshProgressOrPerfPage(prevPhase, nextPhase);
         this.checkDestData();
         this.flightPlanService.deleteAllClimbWindEntries();
 
@@ -1051,26 +1040,22 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
         this.flightPlanService.deleteAllClimbWindEntries();
 
-        if (this.page.Current === this.page.ProgressPage) {
-          CDUProgressPage.ShowPage(this.mcdu);
-        } else {
-          this.tryUpdatePerfPage(prevPhase, nextPhase);
-        }
+        this.refreshProgressOrPerfPage(prevPhase, nextPhase);
 
         break;
       }
 
       case FmgcFlightPhase.Done:
-        CDUIdentPage.ShowPage(this.mcdu);
+        this.forEachScreen((screen) => CDUIdentPage.ShowPage(screen));
 
         this.flightPlanService
           .reset()
           .then(() => {
             this.initVariables();
             this.dataManager.deleteAllStoredWaypoints();
-            this.setScratchpadText('');
+            this.forEachScreen((screen) => screen.setScratchpadText(''));
             SimVar.SetSimVarValue('L:A32NX_COLD_AND_DARK_SPAWN', 'Bool', true).then(() => {
-              CDUIdentPage.ShowPage(this.mcdu);
+              this.forEachScreen((screen) => CDUIdentPage.ShowPage(screen));
             });
           })
           .catch(console.error);
@@ -4189,37 +4174,40 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   /**
-   * Switches to the next/new perf page (if new flight phase is in order) or reloads the current page
+   * Switches a screen to the next/new perf page (if new flight phase is in order) or reloads the current page
    */
-  private tryUpdatePerfPage(_old: FmgcFlightPhase, _new: FmgcFlightPhase) {
+  private tryUpdatePerfPageOnScreen(screen: A320_Neo_CDU_MainDisplay, _old: FmgcFlightPhase, _new: FmgcFlightPhase) {
     // Ensure we have a performance page selected...
-    if (this.page.Current < this.page.PerformancePageTakeoff || this.page.Current > this.page.PerformancePageGoAround) {
+    if (
+      screen.page.Current < screen.page.PerformancePageTakeoff ||
+      screen.page.Current > screen.page.PerformancePageGoAround
+    ) {
       return;
     }
 
     const curPerfPagePhase = (() => {
-      switch (this.page.Current) {
-        case this.page.PerformancePageTakeoff:
+      switch (screen.page.Current) {
+        case screen.page.PerformancePageTakeoff:
           return FmgcFlightPhase.Takeoff;
-        case this.page.PerformancePageClb:
+        case screen.page.PerformancePageClb:
           return FmgcFlightPhase.Climb;
-        case this.page.PerformancePageCrz:
+        case screen.page.PerformancePageCrz:
           return FmgcFlightPhase.Cruise;
-        case this.page.PerformancePageDes:
+        case screen.page.PerformancePageDes:
           return FmgcFlightPhase.Descent;
-        case this.page.PerformancePageAppr:
+        case screen.page.PerformancePageAppr:
           return FmgcFlightPhase.Approach;
-        case this.page.PerformancePageGoAround:
+        case screen.page.PerformancePageGoAround:
           return FmgcFlightPhase.GoAround;
       }
     })();
 
     if (_new > _old) {
       if (_new >= curPerfPagePhase) {
-        CDUPerformancePage.ShowPage(this.mcdu, FlightPlanIndex.Active, _new);
+        CDUPerformancePage.ShowPage(screen, FlightPlanIndex.Active, _new);
       }
     } else if (_old === curPerfPagePhase) {
-      CDUPerformancePage.ShowPage(this.mcdu, FlightPlanIndex.Active, _old);
+      CDUPerformancePage.ShowPage(screen, FlightPlanIndex.Active, _old);
     }
   }
 
@@ -4374,7 +4362,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       _isResolvedOverride === undefined && _onClearOverride === undefined
         ? _message
         : _message.getModifiedMessage('', _isResolvedOverride, _onClearOverride);
-    this._messageQueue.addMessage(message);
+    // the FMGC messages are shown on every MCDU
+    this.forEachScreen((screen) => screen.addMessageToQueueLocal(message));
   }
 
   /**
@@ -4382,7 +4371,42 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
    * @param value {String}
    */
   public removeMessageFromQueue(value: string) {
+    this.forEachScreen((screen) => screen.removeMessageFromQueueLocal(value));
+  }
+
+  /** Adds a message to the queue of this MCDU screen only. */
+  public addMessageToQueueLocal(message: TypeIIMessage) {
+    this._messageQueue.addMessage(message);
+  }
+
+  /** Removes a message from the queue of this MCDU screen only, e.g. when the pilot clears it with CLR. */
+  public removeMessageFromQueueLocal(value: string) {
     this._messageQueue.removeMessage(value);
+  }
+
+  public resetMessageQueue() {
+    this._messageQueue.resetQueue();
+  }
+
+  /** Runs the callback for every MCDU screen that shares this FMS: the CPT one, and the F/O one when it exists. */
+  protected forEachScreen(callback: (screen: A320_Neo_CDU_MainDisplay) => void) {
+    for (const screen of this.screens) {
+      callback(screen);
+    }
+  }
+
+  /**
+   * After a flight phase change: redraws the PROG page on the screens that are showing it, and moves the screens that are
+   * showing a PERF page to the page of the new phase.
+   */
+  private refreshProgressOrPerfPage(prevPhase: FmgcFlightPhase, nextPhase: FmgcFlightPhase) {
+    this.forEachScreen((screen) => {
+      if (screen.page.Current === screen.page.ProgressPage) {
+        CDUProgressPage.ShowPage(screen);
+      } else {
+        this.tryUpdatePerfPageOnScreen(screen, prevPhase, nextPhase);
+      }
+    });
   }
 
   public updateMessageQueue() {

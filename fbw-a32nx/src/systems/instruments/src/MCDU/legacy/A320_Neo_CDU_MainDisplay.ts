@@ -10,6 +10,7 @@ import { NXNotifManager } from '@shared/NxNotif';
 import { McduMessage, NXFictionalMessages, NXSystemMessages, TypeIIMessage } from '../messages/NXSystemMessages';
 import { McduServerClient } from '@simbridge/index';
 import { ScratchpadDataLink, ScratchpadDisplay } from './A320_Neo_CDU_Scratchpad';
+import { A32NX_MessageQueue } from './A32NX_MessageQueue';
 import { CDUMenuPage } from '../legacy_pages/A320_Neo_CDU_MenuPage';
 import { CDUFuelPredPage } from '../legacy_pages/A320_Neo_CDU_FuelPredPage';
 import { FmgcFlightPhase } from '@shared/flightphase';
@@ -252,6 +253,9 @@ export class A320_Neo_CDU_MainDisplay
 
   private printing = false;
 
+  /** The element this screen is drawn into, undefined on the CPT screen which uses the document. */
+  private _container?: HTMLElement;
+
   /** The following events remain due to shared use by the keypad and keyboard type entry */
   public onLetterInput = (l: string) => this.scratchpad.addChar(l);
   public onSp = () => this.scratchpad.addChar(' ');
@@ -292,6 +296,185 @@ export class A320_Neo_CDU_MainDisplay
     Coherent.on('A32NX_FMGC_RECALL_MESSAGE_FROM_MCDU_WITH_ID', (text) => {
       this.removeMessageFromQueue(text);
     });
+  }
+
+  /**
+   * The fields that belong to one MCDU screen (the display, the page being shown, the scratchpad, the message queue, the key
+   * handlers), as opposed to the FMS which is shared by both MCDUs. The F/O screen (see createSecondaryScreen) keeps its own
+   * copy of these, everything else is forwarded to the one real instance.
+   * Anything that holds state of what is shown on a screen has to be listed here, or the two screens will share it.
+   */
+  private static readonly PER_SCREEN_KEYS: ReadonlySet<PropertyKey> = new Set<PropertyKey>([
+    // display
+    '_container',
+    '_title',
+    '_titleLeft',
+    '_pageCurrent',
+    '_pageCount',
+    '_labels',
+    '_lines',
+    '_arrows',
+    '_titleElement',
+    '_pageCurrentElement',
+    '_pageCountElement',
+    '_labelElements',
+    '_lineElements',
+    'arrowHorizontal',
+    'arrowVertical',
+    // page being shown
+    'page',
+    'onLeftInput',
+    'onRightInput',
+    'leftInputDelay',
+    'rightInputDelay',
+    'returnPageCallback',
+    'SelfPtr',
+    'pageRedrawCallback',
+    'pageUpdate',
+    'updateRequest',
+    'onPrevPage',
+    'onNextPage',
+    'onUp',
+    'onDown',
+    'onUnload',
+    'onAirport',
+    // scratchpad, messages and keys
+    '_keypad',
+    'scratchpadDisplay',
+    '_scratchpad',
+    'scratchpads',
+    '_activeSystem',
+    'requests',
+    '_messageQueue',
+    'mcdu',
+    'onLetterInput',
+    'onSp',
+    'onDiv',
+    'onDot',
+    'onClr',
+    'onClrHeld',
+    'onPlusMinus',
+    'onOvfy',
+    'onLeftFunction',
+    'onRightFunction',
+    // keyboard entry (only the CPT screen has it)
+    'inFocus',
+    'lastInput',
+    'clrStop',
+    'allSelected',
+    'check_focus',
+    'check_clr',
+  ]);
+
+  /**
+   * Creates the display of the F/O MCDU. Both MCDUs are the same FMS with a screen each, so this returns a proxy over this
+   * instance: what is listed in PER_SCREEN_KEYS is the F/O screen's own, everything else is this FMS. Functions run with the
+   * proxy as `this`, so an entry made on the F/O MCDU puts its messages and pages on the F/O screen.
+   * @param container the element the F/O screen is drawn into.
+   */
+  public createSecondaryScreen(container: HTMLElement): A320_Neo_CDU_MainDisplay {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const fms = this;
+    const keys = A320_Neo_CDU_MainDisplay.PER_SCREEN_KEYS;
+    const state: Record<PropertyKey, any> = {};
+
+    const screen: A320_Neo_CDU_MainDisplay = new Proxy(fms, {
+      get: (target, key, receiver) => (keys.has(key) ? state[key as any] : Reflect.get(target, key, receiver)),
+      set: (target, key, value, receiver) => {
+        if (keys.has(key)) {
+          state[key as any] = value;
+          return true;
+        }
+        return Reflect.set(target, key, value, receiver);
+      },
+      has: (target, key) => keys.has(key) || Reflect.has(target, key),
+    });
+
+    state._container = container;
+    state.mcdu = screen;
+    state._messageQueue = new A32NX_MessageQueue(screen);
+    state.page = { ...fms.page, Current: fms.page.Clear };
+    state._keypad = new Keypad(screen);
+    state._title = undefined;
+    state._titleLeft = '';
+    state._pageCurrent = undefined;
+    state._pageCount = undefined;
+    state._labels = [];
+    state._lines = [];
+    state._arrows = [false, false, false, false];
+    state.scratchpadDisplay = null;
+    state._scratchpad = null;
+    state.scratchpads = undefined;
+    state._activeSystem = 'FMGC';
+    state.requests = { AIDS: false, ATSU: false, CFDS: false, FMGC: false };
+    state.onLeftInput = [];
+    state.onRightInput = [];
+    state.leftInputDelay = [];
+    state.rightInputDelay = [];
+    state.returnPageCallback = null;
+    state.SelfPtr = false;
+    state.pageRedrawCallback = undefined;
+    state.pageUpdate = undefined;
+    state.updateRequest = false;
+    state.inFocus = false;
+    state.lastInput = new Date(0);
+    state.clrStop = false;
+    state.allSelected = false;
+    state.onPrevPage = () => {};
+    state.onNextPage = () => {};
+    state.onUp = () => {};
+    state.onDown = () => {};
+    state.onUnload = () => {};
+    state.onAirport = () => CDUFlightPlanPage.ShowPage(screen);
+    state.onLetterInput = (l: string) => screen.scratchpad.addChar(l);
+    state.onSp = () => screen.scratchpad.addChar(' ');
+    state.onDiv = () => screen.scratchpad.addChar('/');
+    state.onDot = () => screen.scratchpad.addChar('.');
+    state.onClr = () => screen.scratchpad.clear();
+    state.onClrHeld = () => screen.scratchpad.clearHeld();
+    state.onPlusMinus = (defaultKey = '-') => screen.scratchpad.plusMinus(defaultKey);
+    state.onOvfy = () => screen.scratchpad.addChar('\u0394');
+    state.onLeftFunction = (f) => screen.onLsk(screen.onLeftInput[f], screen.leftInputDelay[f]);
+    state.onRightFunction = (f) => screen.onLsk(screen.onRightInput[f], screen.rightInputDelay[f]);
+
+    fms.screens.push(screen);
+    screen.initSecondaryScreen();
+    return screen;
+  }
+
+  /** Builds the display of a secondary screen and shows the MCDU MENU on it, the counterpart of Init() for the CPT screen. */
+  private initSecondaryScreen() {
+    this.generateHTMLLayout(this._container);
+
+    this.scratchpadDisplay = new ScratchpadDisplay(this, this.getChildById('in-out'));
+    this.scratchpads = {
+      MCDU: new ScratchpadDataLink(this, this.scratchpadDisplay, 'MCDU', false),
+      FMGC: new ScratchpadDataLink(this, this.scratchpadDisplay, 'FMGC'),
+      ATSU: new ScratchpadDataLink(this, this.scratchpadDisplay, 'ATSU'),
+      AIDS: new ScratchpadDataLink(this, this.scratchpadDisplay, 'AIDS'),
+      CFDS: new ScratchpadDataLink(this, this.scratchpadDisplay, 'CFDS'),
+    };
+    this.activateMcduScratchpad();
+
+    this._titleElement = this.getChildById('title');
+    this._pageCurrentElement = this.getChildById('page-current');
+    this._pageCountElement = this.getChildById('page-count');
+    this._labelElements = [];
+    this._lineElements = [];
+    for (let i = 0; i < 6; i++) {
+      this._labelElements[i] = [
+        this.getChildById('label-' + i + '-left'),
+        this.getChildById('label-' + i + '-right'),
+        this.getChildById('label-' + i + '-center'),
+      ];
+      this._lineElements[i] = [
+        this.getChildById('line-' + i + '-left'),
+        this.getChildById('line-' + i + '-right'),
+        this.getChildById('line-' + i + '-center'),
+      ];
+    }
+
+    CDUMenuPage.ShowPage(this);
   }
 
   public get templateID() {
@@ -366,7 +549,9 @@ export class A320_Neo_CDU_MainDisplay
   }
 
   private getChildById(elementId: string): HTMLElement | null {
-    return document.getElementById(elementId);
+    return this._container
+      ? this._container.querySelector<HTMLElement>('#' + elementId)
+      : document.getElementById(elementId);
   }
 
   protected Init() {
@@ -417,7 +602,7 @@ export class A320_Neo_CDU_MainDisplay
     SimVar.SetSimVarValue('L:A32NX_GPS_PRIMARY_LOST_MSG', 'Bool', 0).then();
 
     NXDataStore.subscribeLegacy('*', () => {
-      this.requestUpdate();
+      this.forEachScreen((screen) => screen.requestUpdate());
     });
 
     this.mcduServerClient = new McduServerClient();
@@ -426,16 +611,18 @@ export class A320_Neo_CDU_MainDisplay
     this.updateAnnunciators(true);
 
     this.sub.on('fms_engine_out_page_request').handle((target) => {
-      if (this.activeSystem === 'FMGC') {
-        switch (target) {
-          case EngineOutTargetPage.FlightPlan:
-            CDUFlightPlanPage.ShowPage(this);
-            break;
-          case EngineOutTargetPage.Perf:
-            CDUPerformancePage.ShowPage(this);
-            break;
+      this.forEachScreen((screen) => {
+        if (screen.activeSystem === 'FMGC') {
+          switch (target) {
+            case EngineOutTargetPage.FlightPlan:
+              CDUFlightPlanPage.ShowPage(screen);
+              break;
+            case EngineOutTargetPage.Perf:
+              CDUPerformancePage.ShowPage(screen);
+              break;
+          }
         }
-      }
+      });
     });
   }
 
@@ -447,11 +634,15 @@ export class A320_Neo_CDU_MainDisplay
     super.onUpdate(_deltaTime);
 
     // every 100ms
-    if (this.minPageUpdateThrottler.canUpdate(_deltaTime) !== -1 && this.updateRequest) {
-      this.updateRequest = false;
-      if (this.pageRedrawCallback) {
-        this.pageRedrawCallback();
-      }
+    if (this.minPageUpdateThrottler.canUpdate(_deltaTime) !== -1) {
+      this.forEachScreen((screen) => {
+        if (screen.updateRequest) {
+          screen.updateRequest = false;
+          if (screen.pageRedrawCallback) {
+            screen.pageRedrawCallback();
+          }
+        }
+      });
     }
 
     // Create a connection to the SimBridge MCDU Server if it is not already connected
@@ -494,9 +685,11 @@ export class A320_Neo_CDU_MainDisplay
     }
 
     // TODO these other mechanisms are replaced in the MCDU split PR
-    if (this.pageUpdate) {
-      this.pageUpdate();
-    }
+    this.forEachScreen((screen) => {
+      if (screen.pageUpdate) {
+        screen.pageUpdate();
+      }
+    });
     this.checkAocTimes();
     this.updateMCDU();
   }
@@ -525,9 +718,11 @@ export class A320_Neo_CDU_MainDisplay
       if (!this.initB) {
         this.initB = true;
         setTimeout(() => {
-          if (this.page.Current === this.page.InitPageB && this.isAnEngineOn()) {
-            CDUFuelPredPage.ShowPage(this);
-          }
+          this.forEachScreen((screen) => {
+            if (screen.page.Current === screen.page.InitPageB && this.isAnEngineOn()) {
+              CDUFuelPredPage.ShowPage(screen);
+            }
+          });
         }, 15000);
       }
     } else {
@@ -547,7 +742,8 @@ export class A320_Neo_CDU_MainDisplay
 
     // lights and MCDU are both AC2
     const rightAnnuncPower = SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', 'bool');
-    this.updateAnnunciatorsForSide('right', lightTest, rightAnnuncPower, forceWrite);
+    // the right annunciators follow the requests on the F/O screen, when there is one
+    this.updateAnnunciatorsForSide('right', lightTest, rightAnnuncPower, forceWrite, this.screens[1] ?? this);
   }
 
   private updateBrightness() {
@@ -575,7 +771,7 @@ export class A320_Neo_CDU_MainDisplay
     // the ATSU currently doesn't have the MCDU request signal, so we just check for messages and set it's flag
     const msgs = SimVar.GetSimVarValue('L:A32NX_COMPANY_MSG_COUNT', 'number');
     if (msgs > this._lastAtsuMessageCount) {
-      this.setRequest('ATSU');
+      this.forEachScreen((screen) => screen.setRequest('ATSU'));
     }
     this._lastAtsuMessageCount = msgs;
   }
@@ -586,7 +782,13 @@ export class A320_Neo_CDU_MainDisplay
    * @param lightTest Whether ANN LT TEST is active.
    * @param powerOn Whether annunciator LED power is available.
    */
-  private updateAnnunciatorsForSide(side: 'left' | 'right', lightTest: boolean, powerOn: boolean, forceWrite = false) {
+  private updateAnnunciatorsForSide(
+    side: 'left' | 'right',
+    lightTest: boolean,
+    powerOn: boolean,
+    forceWrite = false,
+    screen: A320_Neo_CDU_MainDisplay = this,
+  ) {
     let updateNeeded = false;
 
     const simVarSide = side.toUpperCase().charAt(0);
@@ -596,13 +798,13 @@ export class A320_Neo_CDU_MainDisplay
       let newState = !!(lightTest && powerOn);
 
       if (annunc === 'fmgc') {
-        newState = newState || this.isSubsystemRequesting('FMGC');
+        newState = newState || screen.isSubsystemRequesting('FMGC');
       } else if (annunc === 'mcdu_menu') {
         newState =
           newState ||
-          this.isSubsystemRequesting('AIDS') ||
-          this.isSubsystemRequesting('ATSU') ||
-          this.isSubsystemRequesting('CFDS');
+          screen.isSubsystemRequesting('AIDS') ||
+          screen.isSubsystemRequesting('ATSU') ||
+          screen.isSubsystemRequesting('CFDS');
       }
 
       if (newState !== state || forceWrite) {
@@ -1376,29 +1578,33 @@ export class A320_Neo_CDU_MainDisplay
   /* MCDU EVENTS */
 
   protected onEvent(_event) {
-    // MCDU should not accept input while unpowered
-    if (!SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', 'Number')) {
-      return;
-    }
-
     const isLeftMcduEvent = _event.indexOf('1_BTN_') !== -1;
     const isRightMcduEvent = _event.indexOf('2_BTN_') !== -1;
 
+    // The keys of the F/O MCDU go to the F/O screen, when there is one
+    const screen = isRightMcduEvent && this.screens[1] ? this.screens[1] : this;
+
+    // MCDU should not accept input while unpowered (the CPT MCDU is on the AC ESS SHED bus, the F/O MCDU on AC 2)
+    const powerVar = screen === this ? 'L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED' : 'L:A32NX_ELEC_AC_2_BUS_IS_POWERED';
+    if (!SimVar.GetSimVarValue(powerVar, 'Number')) {
+      return;
+    }
+
     if (isLeftMcduEvent || isRightMcduEvent || _event.indexOf('BTN_') !== -1) {
       const input = _event.replace('1_BTN_', '').replace('2_BTN_', '').replace('BTN_', '');
-      if (this._keypad.onKeyPress(input, isRightMcduEvent ? 'R' : 'L')) {
+      if (screen._keypad.onKeyPress(input, isRightMcduEvent ? 'R' : 'L')) {
         return;
       }
 
       if (input.length === 2 && input[0] === 'L') {
         const v = parseInt(input[1]) - 1;
         if (isFinite(v)) {
-          this.onLeftFunction(v);
+          screen.onLeftFunction(v);
         }
       } else if (input.length === 2 && input[0] === 'R') {
         const v = parseInt(input[1]) - 1;
         if (isFinite(v)) {
-          this.onRightFunction(v);
+          screen.onRightFunction(v);
         }
       } else {
         console.log("'" + input + "'");
