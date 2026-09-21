@@ -71,6 +71,9 @@ export class McduFsInstrument implements FsInstrument {
       <>
         <div id="BackglowCDU"></div>
         <div id="Mainframe"></div>
+        <div id="FoMainframe">
+          <span>F/O MCDU</span>
+        </div>
       </>,
       document.getElementById('MCDU_CONTENT'),
     );
@@ -131,5 +134,11 @@ export class McduFsInstrument implements FsInstrument {
     this.backplane.init();
 
     this.legacyFms.connectedCallback();
+
+    // The F/O MCDU is a second screen on the same FMS, drawn into the right half of the gauge
+    const foFrame = document.getElementById('FoMainframe');
+    if (foFrame) {
+      this.legacyFms.createSecondaryScreen(foFrame);
+    }
   }
 }
