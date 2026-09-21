@@ -53,7 +53,7 @@ export class ScratchpadDataLink {
 
   constructor(
     private mcdu: {
-      removeMessageFromQueue: (m: string) => void;
+      removeMessageFromQueueLocal: (m: string) => void;
       setRequest: (subsystem: 'AIDS' | 'ATSU' | 'CFDS' | 'FMGC') => void;
       updateMessageQueue: () => void;
     },
@@ -104,7 +104,8 @@ export class ScratchpadDataLink {
     } else if (this._status === SpDisplayStatus.userContent) {
       this.setText(this._text.slice(0, -1));
     } else {
-      this.mcdu.removeMessageFromQueue(this._message.text);
+      // clearing a message with CLR only clears it on this MCDU
+      this.mcdu.removeMessageFromQueueLocal(this._message.text);
       this.setText(this._text);
     }
   }

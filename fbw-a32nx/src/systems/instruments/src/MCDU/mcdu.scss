@@ -69,8 +69,21 @@
   background-color: rgba(4, 4, 4, 1);
 }
 
+/* CPT MCDU: the left half of the texture (the CPT screen samples u 0..0.5) */
 #Mainframe {
-  width: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50%;
+  height: 100%;
+}
+
+/* F/O MCDU: the right half of the texture (the F/O screen samples u 0.5..1) */
+#FoMainframe {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 50%;
   height: 100%;
 }
 
@@ -86,7 +99,8 @@ span:empty:before {
 
 a32nx-mcdu {
   font-family: "HoneywellMCDU" !important;
-  font-size: 5.3vw !important;
+  /* the gauge is two screens wide (2048x1024), so this is 5.3vw of one screen */
+  font-size: 2.65vw !important;
   color: var(--displayWhite);
 }
 
