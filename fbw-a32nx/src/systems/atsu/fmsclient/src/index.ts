@@ -124,8 +124,8 @@ export class FmsClient implements Instrument {
     this.subscriber.on('atcResetData').handle(this.onAtcReset.bind(this));
 
     // register the streaming handlers
-    this.subscriber.on('atcSystemStatus').handle((status) => this.fms.addNewAtsuMessage(status));
-    this.subscriber.on('aocSystemStatus').handle((status) => this.fms.addNewAtsuMessage(status));
+    this.subscriber.on('atcSystemStatus').handle((status) => this.fms.addAtsuStatusMessage(status));
+    this.subscriber.on('aocSystemStatus').handle((status) => this.fms.addAtsuStatusMessage(status));
     this.subscriber.on('atcMessageModify').handle((message) => (this.modificationMessage = message));
     this.subscriber.on('atcPrintMessage').handle((message) => this.printMessage(message));
     this.subscriber.on('aocPrintMessage').handle((message) => this.printMessage(message));
