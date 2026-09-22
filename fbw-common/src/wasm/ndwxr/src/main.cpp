@@ -163,6 +163,17 @@ NamedVar g_terrSysOff{"A32NX_GPWS_TERR_OFF"};
 constexpr double kOverlayWxr = 1.0;
 constexpr double kOverlayTerr = 2.0;
 
+// The AIR DATA switching knob and the ADR baro-corrected altitude words for ADR 1..3
+// (index 0..2), baro correction 1 (CPT side) and 2 (F/O side): the altitude the VD's
+// scale is drawn against, see drawVdWeather.
+NamedVar g_airDataKnob{"A32NX_AIR_DATA_SWITCHING_KNOB"};
+NamedVar g_adrBaroAlt1[3] = {{"A32NX_ADIRS_ADR_1_BARO_CORRECTED_ALTITUDE_1"},
+                             {"A32NX_ADIRS_ADR_2_BARO_CORRECTED_ALTITUDE_1"},
+                             {"A32NX_ADIRS_ADR_3_BARO_CORRECTED_ALTITUDE_1"}};
+NamedVar g_adrBaroAlt2[3] = {{"A32NX_ADIRS_ADR_1_BARO_CORRECTED_ALTITUDE_2"},
+                             {"A32NX_ADIRS_ADR_2_BARO_CORRECTED_ALTITUDE_2"},
+                             {"A32NX_ADIRS_ADR_3_BARO_CORRECTED_ALTITUDE_2"}};
+
 // The WXR / TURB / MODE buttons of the MFD SURV CONTROLS page (MfdSurvControls.tsx).
 // Each is 0 by default, which is the page's default setting: WXR AUTO, TURB AUTO,
 // MODE WX.
@@ -512,6 +523,20 @@ bool isMapPage(double ndMode) {
 // The pages the A380X's VD is shown under (VerticalDisplay.tsx hides it on ROSE ILS / VOR and PLAN).
 bool isArcOrRoseNav(double ndMode) {
   return ndMode == kNdModeArc || ndMode == kNdModeRoseNav;
+}
+#endif
+
+#ifdef A380X
+// Which air data reference feeds this ND: ADR 1 for the CPT and ADR 2 for the F/O, or
+// ADR 3 when the AIR DATA switching knob routes it to that side - getSupplier() in the
+// A380X's Common/utils.tsx, as AdirsValueProvider applies it to the ND.
+int airDataSource(bool isRight, int airDataKnob) {
+  constexpr int kAdr3ToCaptain = 0;
+  constexpr int kAdr3ToFo = 2;
+  if (isRight) {
+    return airDataKnob == kAdr3ToFo ? 3 : 2;
+  }
+  return airDataKnob == kAdr3ToCaptain ? 3 : 1;
 }
 #endif
 
@@ -997,7 +1022,7 @@ bool configureWaterMaskView(FsContext ctx, FsTextureId id) {
 }
 
 #ifdef A380X
-// The sim's own (true) altitude, for the VD (see drawVdWeather and drawVdTerrainGauge).
+// The sim's own (true) altitude, for the VD terrain view's range (see drawVdTerrainGauge).
 double planeAltitudeFeet() {
   static const ENUM planeAltitude = get_aircraft_var_enum("PLANE ALTITUDE");
   static const ENUM feet = get_units_enum("feet");
@@ -1185,9 +1210,10 @@ void drawVdEroded(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass p
 }
 
 // Draws the stylised VD weather (see kVdGreenTopSpan). ndRadiusNm is the radius the
-// ND's radar views were set to; vdRangeNm the VD's range.
+// ND's radar views were set to; vdRangeNm the VD's range; baroAltFeet the aircraft's
+// altitude on the VD's scale (the ADR's baro-corrected altitude, like the VD's own symbol).
 void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, bool hotReady, bool showTurb,
-                   float ndRadiusNm, float vdRangeNm, double planeAltFeet, double lowerFeet, double upperFeet) {
+                   float ndRadiusNm, float vdRangeNm, double baroAltFeet, double lowerFeet, double upperFeet) {
   VdColumns c;
   c.extentAlong = 2.0f * ndRadiusNm / vdRangeNm * kVdWidth;
   c.extentAcross = static_cast<float>(kTextureSize) * kVdColumnTexelPx;
@@ -1202,7 +1228,7 @@ void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, 
   const float feetPerVdPx = spanFt / kVdHeight;
   // Screen y of an altitude given relative to the aircraft's, clamped to the plot.
   auto altToY = [&](float aboveAircraftFt) {
-    const float y = kVdTop + static_cast<float>(upperFeet - planeAltFeet - static_cast<double>(aboveAircraftFt)) / feetPerVdPx;
+    const float y = kVdTop + static_cast<float>(upperFeet - baroAltFeet - static_cast<double>(aboveAircraftFt)) / feetPerVdPx;
     return std::fmin(std::fmax(y, kVdTop), bottom);
   };
 
@@ -1590,6 +1616,11 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         failed.id = register_named_variable(failed.name);
       }
       g_terrSysOff.id = register_named_variable(g_terrSysOff.name);
+      g_airDataKnob.id = register_named_variable(g_airDataKnob.name);
+      for (int i = 0; i < 3; ++i) {
+        g_adrBaroAlt1[i].id = register_named_variable(g_adrBaroAlt1[i].name);
+        g_adrBaroAlt2[i].id = register_named_variable(g_adrBaroAlt2[i].name);
+      }
       g_wxrOff.id = register_named_variable(g_wxrOff.name);
       g_wxrTurbOff.id = register_named_variable(g_wxrTurbOff.name);
       g_wxrModeMap.id = register_named_variable(g_wxrModeMap.name);
@@ -1669,6 +1700,7 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       float vdRangeNm = 10.0f;
       double vdLowerFeet = 0.0;
       double vdUpperFeet = 0.0;
+      double vdBaroAltFeet = 0.0;
 #endif
 
 #ifdef A380X
@@ -1725,8 +1757,16 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
 #ifdef A380X
         // The VD shows the weather too when the WX ON VD button is not OFF, on the pages
         // the VD exists on. Its range is the ND range in ARC (10..160 NM) and half of it
-        // in ROSE NAV (5..160 NM), as VerticalDisplay.tsx's vdRange.
-        vdWanted = showPrecip && isArcOrRoseNav(ndMode) && g_wxrVdOff.read() == 0.0;
+        // in ROSE NAV (5..160 NM), as VerticalDisplay.tsx's vdRange. The VD's altitude
+        // scale is the ADR's baro-corrected altitude (VerticalDisplay.tsx), so the weather
+        // cells are placed by the same word, not the sim's true altitude, which differs
+        // from it by the baro error (up to ~1000 ft with STD set); the ND takes its ADR
+        // from the AIR DATA switching knob as AdirsValueProvider does, and reads the
+        // baro correction of its own side (1 = CPT, 2 = F/O).
+        const int adr = airDataSource(instance->isRight, static_cast<int>(g_airDataKnob.read()));
+        const auto baroAltWord = types::Arinc429Word<float>::fromSimVar(instance->isRight ? g_adrBaroAlt2[adr - 1].read() : g_adrBaroAlt1[adr - 1].read());
+        vdBaroAltFeet = static_cast<double>(baroAltWord.value());
+        vdWanted = showPrecip && isArcOrRoseNav(ndMode) && g_wxrVdOff.read() == 0.0 && baroAltWord.isNo();
         vdRangeNm = isRose ? std::fmin(std::fmax(rangeNm / 2.0f, 5.0f), 160.0f) : std::fmin(std::fmax(rangeNm, 10.0f), 160.0f);
         vdLowerFeet = get_named_variable_value(instance->vdRangeLowerVar);
         vdUpperFeet = get_named_variable_value(instance->vdRangeUpperVar);
@@ -1831,7 +1871,7 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       // the ND's rect, where the VD area (behind the aircraft) has no weather.
       if (showVd && precipReady) {
         drawVdWeather(vg, instance->mapView, instance->mapViewHot, instance->mapViewHotReady && hotReady, showTurb, rangeNmForMode, vdRangeNm,
-                      planeAltitudeFeet(), vdLowerFeet, vdUpperFeet);
+                      vdBaroAltFeet, vdLowerFeet, vdUpperFeet);
       }
 #endif
       instance->layerDirty = drawsAnything;
