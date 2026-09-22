@@ -21,9 +21,15 @@ export interface WxrModeLabelProps {
   mode: Subscribable<EfisNdMode>;
 }
 
-const LABELS = ['', 'WX', 'WX+T', 'TURB', 'MAP'];
+/** The radar's ND indications by the mode value the gauge publishes (see A32NX_WXR_ND_{L,R}_MODE). */
+const LABELS = ['', 'WX', 'WX+T', 'TURB', 'MAP', 'WXR OFF'];
+/** Mode 5: the radar is switched off, shown in white (A320 FCOM DSC-34-SURV-30-30, "WXR OFF (only in white)"). */
+const WXR_OFF_MODE = 5;
 
-/** The weather radar mode (WX, WX+T, TURB, MAP) on the right of the map pages (ROSE and ARC), while the radar is on. */
+/**
+ * The weather radar mode (WX, WX+T, TURB, MAP) on the right of the map pages (ROSE and ARC), in green (the
+ * colour of the automatic mode) while the radar is on, and "WXR OFF" in white while it is switched off.
+ */
 export class WxrModeLabel extends DisplayComponent<WxrModeLabelProps> {
   private readonly sub = this.props.bus.getSubscriber<GenericWxrEvents>();
 
@@ -38,9 +44,13 @@ export class WxrModeLabel extends DisplayComponent<WxrModeLabelProps> {
     this.props.mode,
   );
 
+  private readonly colorClass = this.radarMode.map((radarMode) =>
+    radarMode === WXR_OFF_MODE ? 'White FontSmall' : 'Green FontSmall',
+  );
+
   render(): VNode | null {
     return (
-      <text x={744} y={590} class="Green FontSmall" text-anchor="end">
+      <text x={744} y={590} class={this.colorClass} text-anchor="end">
         {this.text}
       </text>
     );
