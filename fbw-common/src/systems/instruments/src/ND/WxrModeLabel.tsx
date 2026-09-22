@@ -23,7 +23,7 @@ export interface WxrModeLabelProps {
 
 const LABELS = ['', 'WX', 'WX+T', 'TURB', 'MAP'];
 
-/** The weather radar mode (WX, WX+T, TURB, MAP) on the right of the ARC and ROSE NAV pages, while the radar is on. */
+/** The weather radar mode (WX, WX+T, TURB, MAP) on the right of the map pages (ROSE and ARC), while the radar is on. */
 export class WxrModeLabel extends DisplayComponent<WxrModeLabelProps> {
   private readonly sub = this.props.bus.getSubscriber<GenericWxrEvents>();
 
@@ -33,8 +33,7 @@ export class WxrModeLabel extends DisplayComponent<WxrModeLabelProps> {
   );
 
   private readonly text = MappedSubject.create(
-    ([radarMode, ndMode]) =>
-      ndMode === EfisNdMode.ARC || ndMode === EfisNdMode.ROSE_NAV ? LABELS[radarMode] ?? '' : '',
+    ([radarMode, ndMode]) => (ndMode !== EfisNdMode.PLAN ? LABELS[radarMode] ?? '' : ''),
     this.radarMode,
     this.props.mode,
   );
