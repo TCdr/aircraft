@@ -50,7 +50,7 @@ import { FGVars } from '../../instruments/src/MsfsAvionicsCommon/providers/FGDat
 import { AesuBusEvents } from '../../instruments/src/MsfsAvionicsCommon/providers/AesuBusPublisher';
 // FIXME should not import from instruments
 import { MfdSurvEvents } from '../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
-import { bearingTo, placeBearingDistance } from 'msfs-geo';
+import { bearingTo, Coordinates, distanceTo, placeBearingDistance } from 'msfs-geo';
 
 /**
  * Collects EFIS information for a given EFIS side. Has to be used together with private bus since switchable publishers are used, don't want that to spill to the parent components
@@ -449,6 +449,15 @@ export class EfisTawsBridge implements Instrument {
 
   private verticalPathShouldBeUpdated = true;
 
+  /** The native VD terrain gauge (ndwxr) follows at most this many vertices of the flight plan (L:A380X_VD_CUT_*). */
+  private static readonly VD_CUT_MAX_VERTICES = 32;
+
+  /** The flight plan is published this far ahead of the aircraft (the VD range is at most 160 nm). */
+  private static readonly VD_CUT_LENGTH_NM = 200;
+
+  /** The values last written to the L:A380X_VD_CUT_* variables, so that only changes are written. */
+  private readonly vdCutLastValues = new Map<string, number>();
+
   private readonly terr1Failed = Subject.create(false);
   private readonly terr2Failed = Subject.create(false);
   private readonly gpws1Failed = Subject.create(false);
@@ -480,6 +489,14 @@ export class EfisTawsBridge implements Instrument {
           this.aircraftStatusShouldBeUpdated = true;
           this.verticalPathShouldBeUpdated = true;
         }),
+      // The cut of the native VD terrain: on every change of the flight plan or of the lateral mode, and
+      // twice a second so that the published window of the plan keeps up with the aircraft
+      this.fmsLateralPath.sub(() => this.publishVdCut()),
+      this.shouldShowTrackLine.sub(() => this.publishVdCut()),
+      this.sub
+        .on('realTime')
+        .atFrequency(0.5)
+        .handle(() => this.publishVdCut()),
       this.terr1Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_TERR_1_FAILED', SimVarValueType.Bool, v), true),
       this.terr2Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_TERR_2_FAILED', SimVarValueType.Bool, v), true),
       this.gpws1Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_GPWS_1_FAILED', SimVarValueType.Bool, v), true),
@@ -545,6 +562,105 @@ export class EfisTawsBridge implements Instrument {
     this.failuresConsumer.register(A380Failure.Terr2);
     this.failuresConsumer.register(A380Failure.Gpws1);
     this.failuresConsumer.register(A380Failure.Gpws2);
+  }
+
+  private setVdCutVar(name: string, value: number): void {
+    if (this.vdCutLastValues.get(name) !== value) {
+      this.vdCutLastValues.set(name, value);
+      SimVar.SetSimVarValue(name, SimVarValueType.Number, value);
+    }
+  }
+
+  /**
+   * Publishes the vertical cut of the VD to the native terrain gauge (ndwxr, L:A380X_VD_CUT_*): along the active
+   * flight plan in the managed lateral modes, along the aircraft's track otherwise (mode 0, no vertices), as the real
+   * VD does (FCOM DSC-31-20-40-10, "the vertical cut runs along the active flight plan ... or the current track"). The
+   * flight plan goes out as vertices (latitude / longitude): the start of every path vector, the midpoint of every
+   * turn, the end of the last vector and a straight extension of 160 nm beyond it (as for SimBridge), from the vertex
+   * before the one closest to the aircraft and over VD_CUT_LENGTH_NM, at most VD_CUT_MAX_VERTICES of them. The gauge
+   * projects the aircraft onto the vertices and follows them from there for the VD range.
+   */
+  private publishVdCut(): void {
+    const latitude = this.latitude.get();
+    const longitude = this.longitude.get();
+    const path = this.fmsLateralPath.get();
+    let vertices: Coordinates[] = [];
+
+    if (
+      !this.shouldShowTrackLine.get() &&
+      path &&
+      path.length > 0 &&
+      latitude.isNormalOperation() &&
+      longitude.isNormalOperation()
+    ) {
+      const all: Coordinates[] = [];
+      for (const vector of path) {
+        if (vector.type === PathVectorType.DebugPoint) {
+          continue;
+        }
+        all.push(vector.startPoint);
+        if (vector.type === PathVectorType.Arc) {
+          // The midpoint of the turn (on the bisector of its chord, at its radius; turns are less than 180°), so
+          // that the cut follows the turn instead of its chord
+          const radius = distanceTo(vector.centrePoint, vector.startPoint);
+          const chordMidpoint = placeBearingDistance(
+            vector.startPoint,
+            bearingTo(vector.startPoint, vector.endPoint),
+            distanceTo(vector.startPoint, vector.endPoint) / 2,
+          );
+          all.push(placeBearingDistance(vector.centrePoint, bearingTo(vector.centrePoint, chordMidpoint), radius));
+        }
+      }
+      const last = path[path.length - 1];
+      if (last.type !== PathVectorType.DebugPoint) {
+        all.push(last.endPoint);
+        // Straight on for 160 nm after the last leg, to continue the terrain after the FMS route
+        all.push(placeBearingDistance(last.endPoint, bearingTo(last.startPoint, last.endPoint), 160));
+      }
+
+      // The window of the plan that matters: from the vertex before the closest one, over VD_CUT_LENGTH_NM
+      const ppos: Coordinates = { lat: latitude.value, long: longitude.value };
+      let closest = 0;
+      let closestDistance = Infinity;
+      all.forEach((vertex, index) => {
+        const distance = distanceTo(ppos, vertex);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closest = index;
+        }
+      });
+      let along = 0;
+      for (
+        let i = Math.max(0, closest - 1);
+        i < all.length && vertices.length < EfisTawsBridge.VD_CUT_MAX_VERTICES;
+        i++
+      ) {
+        vertices.push(all[i]);
+        if (i >= closest && i + 1 < all.length) {
+          along += distanceTo(all[i], all[i + 1]);
+          if (along > EfisTawsBridge.VD_CUT_LENGTH_NM) {
+            vertices.push(all[i + 1]);
+            break;
+          }
+        }
+      }
+      if (vertices.length < 2) {
+        vertices = [];
+      }
+    }
+
+    const alongPlan = vertices.length >= 2;
+    this.setVdCutVar('L:A380X_VD_CUT_MODE', alongPlan ? 1 : 0);
+    this.setVdCutVar('L:A380X_VD_CUT_COUNT', vertices.length);
+    for (let i = 0; i < vertices.length; i++) {
+      this.setVdCutVar(`L:A380X_VD_CUT_${i}_LAT`, vertices[i].lat);
+      this.setVdCutVar(`L:A380X_VD_CUT_${i}_LON`, vertices[i].long);
+    }
+    const trackChangeDistance = this.trackChangeDistance.get();
+    this.setVdCutVar(
+      'L:A380X_VD_CUT_TRACK_CHANGE_NM',
+      alongPlan && trackChangeDistance !== null ? trackChangeDistance : -1,
+    );
   }
 
   public async onUpdate() {
