@@ -7,8 +7,9 @@
 // replaces) and its altitude view mode (the terrain, see the section on the
 // terrain below).
 //
-// Draws ONLY the weather / terrain image, positioned/sized to match the ND's
-// per-mode pixelRadius/centerYBias constants (arc/index.tsx, RoseNavPage.tsx).
+// Draws ONLY the weather / terrain image, on the ND's map pages (the three ROSE pages
+// and ARC, not PLAN), positioned/sized to match the ND's per-mode pixelRadius/centerYBias
+// constants (arc/index.tsx, RoseModeUnderlay.tsx).
 // Everything else on the ND (compass ring, range rings, numbers, aircraft
 // symbol, traffic, flight plan) stays nd.html's job.
 //
@@ -273,9 +274,13 @@ NamedVar g_wxrMode{"XMLVAR_A320_WeatherRadar_Mode"};
 constexpr double kWxrSysOff = 1.0;
 #endif
 
-// Mirrors EfisNdMode in fbw-common/.../NavigationDisplay.ts:33-39.
+// Mirrors EfisNdMode in fbw-common/.../NavigationDisplay.ts:33-39 (ROSE ILS = 0,
+// ROSE VOR = 1, ROSE NAV = 2, ARC = 3, PLAN = 4).
+#ifdef A380X
 constexpr double kNdModeRoseNav = 2.0;
+#endif
 constexpr double kNdModeArc = 3.0;
+constexpr double kNdModePlan = 4.0;
 
 #ifdef A380X
 // a380EfisRangeSettings, NavigationDisplay.ts:19. Range index 0 (-1) is the
@@ -497,9 +502,18 @@ int inertialSource(bool isRight, int attHdgKnob) {
 #endif
 }
 
+// The pages with a moving map: the three ROSE pages and ARC (not PLAN). The weather
+// radar and the terrain are shown on all of them, as on the real aircraft.
+bool isMapPage(double ndMode) {
+  return ndMode >= 0.0 && ndMode < kNdModePlan;
+}
+
+#ifdef A380X
+// The pages the A380X's VD is shown under (VerticalDisplay.tsx hides it on ROSE ILS / VOR and PLAN).
 bool isArcOrRoseNav(double ndMode) {
   return ndMode == kNdModeArc || ndMode == kNdModeRoseNav;
 }
+#endif
 
 bool isPowered(const Instance& instance) {
   return get_named_variable_value(instance.powerBusVars[0]) != 0.0 || get_named_variable_value(instance.powerBusVars[1]) != 0.0;
@@ -678,9 +692,10 @@ void colorizeRect(NVGcontext* vg, float x, float y, float w, float h) {
 // Draws the weather image for one mode. rangeFraction < 1 restricts the image
 // to a circle of that fraction of the full radius (used to limit turbulence to
 // kTurbulenceMaxRangeNm).
-void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRoseNav, float rangeFraction, WeatherPass pass) {
-  const float centerYBias = isRoseNav ? kRoseNavCenterYBias : kArcCenterYBias;
-  const float pixelRadius = isRoseNav ? kRoseNavPixelRadius : kArcPixelRadius;
+void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRose, float rangeFraction, WeatherPass pass) {
+  // The three ROSE pages share one compass rose (RoseModeUnderlay.tsx, R = 250).
+  const float centerYBias = isRose ? kRoseNavCenterYBias : kArcCenterYBias;
+  const float pixelRadius = isRose ? kRoseNavPixelRadius : kArcPixelRadius;
   const float cx = kScreenCenterX;
   const float cy = kScreenCenterX + centerYBias;
   const float left = cx - pixelRadius;
@@ -981,11 +996,14 @@ bool configureWaterMaskView(FsContext ctx, FsTextureId id) {
   return true;
 }
 
+#ifdef A380X
+// The sim's own (true) altitude, for the VD (see drawVdWeather and drawVdTerrainGauge).
 double planeAltitudeFeet() {
   static const ENUM planeAltitude = get_aircraft_var_enum("PLANE ALTITUDE");
   static const ENUM feet = get_units_enum("feet");
   return aircraft_varget(planeAltitude, feet, 0);
 }
+#endif
 
 void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int patternImage, bool isRose, float headingDegrees) {
   constexpr float kDegToRad = 0.01745329f;
@@ -1461,7 +1479,10 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
   const bool draw = show && instance.vdShowFrames > kVdWarmupFrames;
 
   if (show) {
-    // The engine colors by altitude minus terrain height: the plot's top is a v of altitude - upper.
+    // The engine colors by ITS OWN (true) altitude minus the terrain height, so the range is given
+    // relative to the sim's true altitude, on purpose not the ADR's baro altitude: the two cancel and
+    // the profile lands at the terrain's real elevation on the VD's scale (the plot's top is a value of
+    // altitude - upper, its bottom altitude - lower).
     const double altitudeFeet = planeAltitudeFeet();
     fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet, altitudeFeet - lowerFeet);
     fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdTerrain, vdRangeNm * kNmToMetres);
@@ -1635,13 +1656,11 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       }
 #endif
 
-      bool isRoseNav = false;
+      bool isRose = false;
       bool showPrecip = false;
       bool showTurb = false;
       bool showTerrain = false;
       int labelMode = 0;
-      bool terrainIsRose = false;
-      float terrainRangeNm = 10.0f;
       float terrainHeadingDegrees = 0.0f;
       float rangeNmForMode = 10.0f;
 #ifdef A380X
@@ -1677,40 +1696,38 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         const float rangeNm = kRangeTableNm[rangeIndex >= 0 && rangeIndex < kRangeCount ? rangeIndex : 0];
 
         // Gating: the ND is powered (above), the crew has the radar selected
-        // and its system is up (radarSelected), the ND page is ARC or ROSE NAV
-        // with a real range (not the A380X's OANS view), the ND's position
-        // source is valid (ADIRS word validity is the "is position usable"
-        // check) and the aircraft is airborne (the radar doesn't transmit on the
-        // ground). MODE: WX = precipitation, WX+T = both, TURB = turbulence
-        // only, MAP = ground mapping (not implemented, draws nothing).
+        // and its system is up (radarSelected), the ND page has a map (the three
+        // ROSE pages and ARC, not PLAN, as on the real aircraft) with a real range
+        // (not the A380X's OANS view), the ND's position source is valid (ADIRS
+        // word validity is the "is position usable" check) and the aircraft is
+        // airborne (the radar doesn't transmit on the ground). MODE: WX =
+        // precipitation, WX+T = both, TURB = turbulence only, MAP = ground
+        // mapping (not implemented, draws nothing).
         const bool positionValid = latWord.isNo() && lonWord.isNo();
-        // Terrain on the ND is shown on every map page (ROSE ILS / VOR / NAV and ARC,
-        // not PLAN), also on the ground, and takes the place of the weather.
-        constexpr double kNdModePlan = 4.0;
+        // Terrain on the ND is shown on the same pages, also on the ground, and takes
+        // the place of the weather.
         // The map is rotated by the ND's own heading source, so it needs a valid one.
         const auto headingWord = types::Arinc429Word<float>::fromSimVar(g_adirsTrueHeading[ir - 1].read());
         terrainHeadingDegrees = headingWord.value();
-        showTerrain = terrainViewsReady && terrainSelected(*instance) && ndMode < kNdModePlan && rangeNm > 0.0f &&
-                      positionValid && headingWord.isNo();
-        terrainIsRose = ndMode != kNdModeArc;
-        terrainRangeNm = terrainIsRose ? rangeNm / 2.0f : rangeNm;
-        const bool active =
-            radarSelected(*instance) && isArcOrRoseNav(ndMode) && rangeNm > 0.0f && positionValid && !isOnGround() && !showTerrain;
+        const bool mapPage = isMapPage(ndMode) && rangeNm > 0.0f;
+        showTerrain = terrainViewsReady && terrainSelected(*instance) && mapPage && positionValid && headingWord.isNo();
+        const bool active = radarSelected(*instance) && mapPage && positionValid && !isOnGround() && !showTerrain;
         showPrecip = active && instance->mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
         showTurb = active && instance->mapViewHotReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
-        isRoseNav = ndMode == kNdModeRoseNav;
-        rangeNmForMode = isRoseNav ? rangeNm / 2.0f : rangeNm;
+        // The ROSE pages show half the range of ARC around the aircraft.
+        isRose = ndMode != kNdModeArc;
+        rangeNmForMode = isRose ? rangeNm / 2.0f : rangeNm;
         // The mode text on the ND: shown whenever the radar is selected on a page that has it (not while the
         // terrain takes its place), on the ground too.
-        if (radarSelected(*instance) && isArcOrRoseNav(ndMode) && rangeNm > 0.0f && !showTerrain) {
+        if (radarSelected(*instance) && mapPage && !showTerrain) {
           labelMode = 1 + static_cast<int>(wxrMode);
         }
 #ifdef A380X
-        // The VD shows the weather too when the WX ON VD button is not OFF. Its
-        // range is the ND range in ARC (10..160 NM) and half of it in ROSE NAV
-        // (5..160 NM), as VerticalDisplay.tsx's vdRange.
-        vdWanted = showPrecip && g_wxrVdOff.read() == 0.0;
-        vdRangeNm = isRoseNav ? std::fmin(std::fmax(rangeNm / 2.0f, 5.0f), 160.0f) : std::fmin(std::fmax(rangeNm, 10.0f), 160.0f);
+        // The VD shows the weather too when the WX ON VD button is not OFF, on the pages
+        // the VD exists on. Its range is the ND range in ARC (10..160 NM) and half of it
+        // in ROSE NAV (5..160 NM), as VerticalDisplay.tsx's vdRange.
+        vdWanted = showPrecip && isArcOrRoseNav(ndMode) && g_wxrVdOff.read() == 0.0;
+        vdRangeNm = isRose ? std::fmin(std::fmax(rangeNm / 2.0f, 5.0f), 160.0f) : std::fmin(std::fmax(rangeNm, 10.0f), 160.0f);
         vdLowerFeet = get_named_variable_value(instance->vdRangeLowerVar);
         vdUpperFeet = get_named_variable_value(instance->vdRangeUpperVar);
         showVd = vdWanted && vdUpperFeet > vdLowerFeet;
@@ -1779,18 +1796,18 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
           setTerrainColors(ctx, terrainViewId, gearState == 1);
           instance->terrainGearState = gearState;
         }
-        fsMapViewSet2DViewRadiusInMeters(ctx, terrainViewId, terrainRangeNm * kNmToMetres);
-        fsMapViewSet2DViewRadiusInMeters(ctx, waterViewId, terrainRangeNm * kNmToMetres);
+        fsMapViewSet2DViewRadiusInMeters(ctx, terrainViewId, rangeNmForMode * kNmToMetres);
+        fsMapViewSet2DViewRadiusInMeters(ctx, waterViewId, rangeNmForMode * kNmToMetres);
         if (terrainReady && instance->terrainPatternImage != 0) {
-          drawTerrain(vg, terrainViewId, waterViewId, instance->terrainPatternImage, terrainIsRose, terrainHeadingDegrees);
+          drawTerrain(vg, terrainViewId, waterViewId, instance->terrainPatternImage, isRose, terrainHeadingDegrees);
         }
       }
       if (showPrecip) {
         fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapView, rangeNmForMode * kNmToMetres);
         if (precipReady) {
-          drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Additive);
-          drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Sharpen);
-          drawWeatherRect(vg, instance->mapView, isRoseNav, 1.0f, WeatherPass::Colorize);
+          drawWeatherRect(vg, instance->mapView, isRose, 1.0f, WeatherPass::Additive);
+          drawWeatherRect(vg, instance->mapView, isRose, 1.0f, WeatherPass::Sharpen);
+          drawWeatherRect(vg, instance->mapView, isRose, 1.0f, WeatherPass::Colorize);
         }
       }
       // The hot view carries the red wipe (any precipitation) and the magenta
@@ -1800,12 +1817,12 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         fsMapViewSet2DViewRadiusInMeters(ctx, instance->mapViewHot, rangeNmForMode * kNmToMetres);
         if (hotReady) {
           if (showPrecip) {
-            drawWeatherRect(vg, instance->mapViewHot, isRoseNav, 1.0f, WeatherPass::Erase);
+            drawWeatherRect(vg, instance->mapViewHot, isRose, 1.0f, WeatherPass::Erase);
           }
           if (showTurb) {
             const float turbFraction = kTurbulenceMaxRangeNm / rangeNmForMode;
             const float turbRangeFraction = turbFraction < 1.0f ? turbFraction : 1.0f;
-            drawWeatherRect(vg, instance->mapViewHot, isRoseNav, turbRangeFraction, WeatherPass::AdditiveMagenta);
+            drawWeatherRect(vg, instance->mapViewHot, isRose, turbRangeFraction, WeatherPass::AdditiveMagenta);
           }
         }
       }
