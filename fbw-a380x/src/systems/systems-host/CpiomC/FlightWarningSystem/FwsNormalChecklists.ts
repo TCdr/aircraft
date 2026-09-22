@@ -539,21 +539,13 @@ export class FwsNormalChecklists {
       whichItemsChecked: () => [null, null, !!this.fws.seatBelt.get(), null],
     },
     1000002: {
-      whichItemsChecked: () => [
-        null,
-        null,
-        // SURV: a WXR & TAWS system is selected and the TCAS is on TA ONLY or TA/RA
-        this.fws.tawsWxrSelected.get() !== 0 &&
-          SimVar.GetSimVarValue('L:A380X_TCAS_ALERT_LEVEL', SimVarValueType.Number) >= 1,
-        SimVar.GetSimVarValue('A:LIGHT BEACON', SimVarValueType.Bool),
-      ],
+      whichItemsChecked: () => [null, null, SimVar.GetSimVarValue('A:LIGHT BEACON', SimVarValueType.Bool)],
     },
     1000003: {
       whichItemsChecked: () => [null, null, this.fws.rudderTrimPosition.get() < 0.35],
     },
     1000004: {
       whichItemsChecked: () => [
-        null,
         null,
         null,
         null,
@@ -581,13 +573,7 @@ export class FwsNormalChecklists {
       whichItemsChecked: () => [null],
     },
     1000010: {
-      whichItemsChecked: () => [
-        null,
-        null,
-        SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'bool'),
-        null,
-        null,
-      ],
+      whichItemsChecked: () => [null, SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'bool'), null, null],
     },
     1000011: {
       whichItemsChecked: () => [null],
@@ -612,15 +598,11 @@ export class FwsNormalChecklists {
           !this.fws.engine3Master.get() &&
           !this.fws.engine4Master.get(),
         null,
-        // WX & TERR OFF: no weather or terrain overlay on either ND
-        SimVar.GetSimVarValue('L:A380X_EFIS_L_ACTIVE_OVERLAY', SimVarValueType.Number) === 0 &&
-          SimVar.GetSimVarValue('L:A380X_EFIS_R_ACTIVE_OVERLAY', SimVarValueType.Number) === 0,
         this.fws.allFuelPumpsOff.get(),
       ],
     },
     1000014: {
       whichItemsChecked: () => [
-        null,
         SimVar.GetSimVarValue('L:PUSH_OVHD_OXYGEN_CREW', 'bool'),
         SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_EMEREXIT_Position', 'number') === 2,
         null,
