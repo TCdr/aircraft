@@ -1718,6 +1718,24 @@ The PRIMs perform the flight guidance and flight envelope functions.
         | TURB   | 3      |
         | MAP    | 4      |
 
+- A380X_VD_CUT_MODE
+    - Enum
+    - The vertical cut of the VD's terrain profile drawn by the ndwxr gauge, published by EfisTawsBridge (FCOM DSC-31-20-40-10):
+      0 = along the aircraft's track (selected lateral modes, or no usable flight plan), 1 = along the active flight plan (the vertices below)
+
+- A380X_VD_CUT_COUNT
+    - Number
+    - Number of vertices of the flight plan cut (2 to 32), 0 when the cut is along the track
+
+- A380X_VD_CUT_{index}_LAT / A380X_VD_CUT_{index}_LON
+    - Degrees
+    - Vertex {index} (0 to 31) of the flight plan cut: the start of every path vector, the midpoint of every turn, the end of the last vector
+      and a straight extension of 160 NM beyond it, from the vertex before the one closest to the aircraft over the next 200 NM
+
+- A380X_VD_CUT_TRACK_CHANGE_NM
+    - Number (NM)
+    - Distance along the cut at which the next track change is more than 3 degrees (the grey area of the VD), -1 when none
+
 ## Bleed Air ATA 36
 
 - A32NX_PNEU_ENG_{number}_INTERMEDIATE_TRANSDUCER_PRESSURE
