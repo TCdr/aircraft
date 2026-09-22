@@ -88,23 +88,6 @@
           "result": "CHECKED"
         },
         {
-          // SURV: WXR & TAWS system selected on the SURV pages / pedestal, TCAS TA ONLY or TA/RA
-          "item": "SURV",
-          "result": "ON",
-          "condition": [
-            {
-              varName: "L:A32NX_WXR_TAWS_SYS_SELECTED",
-              result: 0,
-              comp: "NE"
-            },
-            {
-              varName: "L:A380X_TCAS_ALERT_LEVEL",
-              result: 1,
-              comp: "GE"
-            },
-          ]
-        },
-        {
           "item": "BEACON",
           "result": "ON",
           "condition": [
@@ -164,10 +147,6 @@
         {
           "item": "RADAR",
           "result": "ON"
-        },
-        {
-          "item": "WX & TERR",
-          "result": "AS RQRD"
         },
         {
           "type": "SUBLISTHEADER",
@@ -279,10 +258,6 @@
           "result": "SET"
         },
         {
-          "item": "WX & TERR",
-          "result": "AS RQRD"
-        },
-        {
           "item": "SEAT BELTS",
           "result": "ON",
           "condition": [
@@ -384,20 +359,6 @@
           "result": "OFF",
         },
         {
-          "item": "WX & TERR",
-          "result": "OFF",
-          condition: [
-            {
-              varName: "L:A380X_EFIS_L_ACTIVE_OVERLAY",
-              result: 0
-            },
-            {
-              varName: "L:A380X_EFIS_R_ACTIVE_OVERLAY",
-              result: 0
-            },
-          ]
-        },
-        {
           "item": "FUEL PUMPs",
           "result": "OFF",
           condition: [
@@ -490,10 +451,6 @@
       "name": "SECURING AIRCRAFT",
       "flightphase": 12,
       "items": [
-        {
-          "item": "TCAS",
-          "result": "OFF"
-        },
         {
           "item": "OXYGEN",
           "result": "OFF",

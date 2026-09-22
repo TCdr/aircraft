@@ -48,12 +48,6 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
         sensed: false,
       },
       {
-        name: 'SURV',
-        labelNotCompleted: 'ON',
-        colonIfCompleted: false,
-        sensed: true,
-      },
-      {
         name: 'BEACON',
         labelNotCompleted: 'ON',
         colonIfCompleted: false,
@@ -97,11 +91,6 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
       {
         name: 'RADAR',
         labelNotCompleted: 'ON',
-        sensed: false,
-      },
-      {
-        name: 'WX & TERR',
-        labelNotCompleted: 'AS RQRD',
         sensed: false,
       },
       {
@@ -213,11 +202,6 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
         sensed: false,
       },
       {
-        name: 'WX & TERR',
-        labelNotCompleted: 'AS RQRD',
-        sensed: false,
-      },
-      {
         name: 'SEAT BELTS',
         labelNotCompleted: 'ON',
         colonIfCompleted: false,
@@ -288,12 +272,6 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
         sensed: false,
       },
       {
-        name: 'WX & TERR',
-        labelNotCompleted: 'OFF',
-        colonIfCompleted: false,
-        sensed: true,
-      },
-      {
         name: 'FUEL PUMPs',
         labelNotCompleted: 'OFF',
         colonIfCompleted: false,
@@ -304,11 +282,6 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
   1000014: {
     title: 'SECURING THE AIRCRAFT',
     items: [
-      {
-        name: 'TCAS',
-        labelNotCompleted: 'OFF',
-        sensed: false,
-      },
       {
         name: 'OXYGEN',
         labelNotCompleted: 'OFF',
