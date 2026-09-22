@@ -561,7 +561,13 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   }
 
   /**
-   *
+   * The vertical range of the VD (FCOM DSC-31-20-40-10, VERTICAL SCALE): its height follows the VD range ("the diagonal
+   * of the VD is equal to a 4° slope"), its origin is set by the FMS "in order to display the aircraft mock-up and most
+   * of the aircraft trajectory", and it cannot exceed 70 000 ft. The highest of the aircraft and the trajectory is put
+   * three quarters up the scale, so the terrain and the safety altitudes below keep most of the plot (a real A380 in
+   * cruise at FL400 with 160 nm selected shows its scale from below 0 ft to about FL560, the mock-up at three quarters
+   * of the height); the aircraft is then kept at least 15 % of the height above the bottom (a climb whose trajectory
+   * tops the scale). Without a trajectory the aircraft is placed in the middle.
    * @param vdRange in nm
    * @param egoAltitude in ft
    * @param pathFirstAltitude in ft
@@ -584,29 +590,20 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
         Math.min(egoAltitude - 0.5 * verticalExtent, VERTICAL_DISPLAY_MAX_ALTITUDE - verticalExtent),
       );
       return [lowerLimit, lowerLimit + verticalExtent];
-    } else {
-      // Try to fit in egoAltitude, pathFirstAltitude and pathLastAltitude (with descending priority)
-      // If that doesn't work, remove altitude with lowest priority, and try again
-      let lowerLimit = VERTICAL_DISPLAY_MIN_ALTITUDE;
-      let upperLimit = VERTICAL_DISPLAY_MAX_ALTITUDE;
-      const pathHighest = Math.max(pathFirstAltitude, pathLastAltitude);
-      const pathLowest = Math.min(pathFirstAltitude, pathLastAltitude);
-
-      // Try to cover vertical extent of all displayed waypoints
-      lowerLimit = Math.max(VERTICAL_DISPLAY_MIN_ALTITUDE, (pathLowest + pathHighest - verticalExtent) / 2);
-      upperLimit = lowerLimit + verticalExtent;
-
-      // If ego altitude not contained, shift until it is contained by a margin
-      if (egoAltitude < lowerLimit) {
-        lowerLimit = Math.max(VERTICAL_DISPLAY_MIN_ALTITUDE, egoAltitude - 0.15 * verticalExtent);
-        upperLimit = lowerLimit + verticalExtent;
-      } else if (egoAltitude > upperLimit) {
-        upperLimit = Math.min(VERTICAL_DISPLAY_MAX_ALTITUDE, egoAltitude + 0.15 * verticalExtent);
-        lowerLimit = upperLimit - verticalExtent;
-      }
-
-      return [lowerLimit, upperLimit];
     }
+
+    // The highest of the aircraft and the trajectory at three quarters of the height, the scale capped at 70 000 ft
+    const highest = Math.max(egoAltitude, pathFirstAltitude, pathLastAltitude);
+    let upperLimit = Math.min(VERTICAL_DISPLAY_MAX_ALTITUDE, highest + 0.25 * verticalExtent);
+    let lowerLimit = upperLimit - verticalExtent;
+
+    // The aircraft stays in the scale with a margin, ahead of the trajectory if both cannot fit
+    if (egoAltitude < lowerLimit + 0.15 * verticalExtent) {
+      lowerLimit = egoAltitude - 0.15 * verticalExtent;
+      upperLimit = lowerLimit + verticalExtent;
+    }
+
+    return [lowerLimit, upperLimit];
   }
 
   public static altToY(alt: number, verticalRange: [number, number]) {
