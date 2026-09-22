@@ -448,7 +448,9 @@ struct Instance {
   bool layerDirty = false;
 };
 
-constexpr int kMaxInstances = 4;
+// The A380X installs 4 gauges (L, R, LV, RV); twice that, so a gauge reinstalled by the
+// sim without a PRE_KILL of the old one (an aircraft switch) still finds a free slot.
+constexpr int kMaxInstances = 8;
 Instance g_instances[kMaxInstances];
 
 Instance* findInstance(FsContext ctx) {
