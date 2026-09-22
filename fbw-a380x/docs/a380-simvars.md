@@ -1707,7 +1707,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 - A32NX_WXR_ND_{side}_MODE
     - Enum
-    - The weather radar mode text shown on the ND, published by the ndwxr gauge only while the radar is selected on an ARC or ROSE NAV page,
+    - The weather radar mode text shown on the ND, published by the ndwxr gauge only while the radar is selected on a map page (ROSE ILS / VOR / NAV or ARC),
       0 otherwise. Shared with the A32NX. The A380X has no TURB-only mode.
     - {side} = L or R
     -   | State  | Number |

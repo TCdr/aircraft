@@ -4519,7 +4519,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 
 - A32NX_WXR_ND_{side}_MODE
     - Enum
-    - The weather radar mode shown on the ND, published by the ndwxr gauge only while the radar is selected on an ARC or ROSE NAV page
+    - The weather radar mode shown on the ND, published by the ndwxr gauge only while the radar is selected on a map page (ROSE ILS / VOR / NAV or ARC)
       (0 while the radar is off, or the terrain takes its place)
       Value | Meaning
       --- | ---
