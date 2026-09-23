@@ -89,9 +89,9 @@
 // when it is drawn (hiding views does not help), so the A32NX has 4 per ND
 // (precipitation, hot, terrain, water) and the A380X 2 per ND (a pair that is
 // the weather pair or the terrain pair - the terrain takes the weather's place -
-// and is reconfigured when the crew switches) and 1 per VD terrain gauge. The
-// module also reserves its memory up front (build.sh): growing it while drawing
-// crashes too.
+// and is reconfigured when the crew switches) and 2 per VD terrain gauge (terrain
+// and water mask). The module also reserves its memory up front (build.sh): growing
+// it while drawing crashes too.
 //
 // The A380X's radar shows the same picture as the A32NX's: the weather the engine's
 // horizontal radar mode sees, a slice at about the aircraft's altitude. The FCOM's
@@ -511,6 +511,9 @@ struct Instance {
   bool isVdTerrain = false;
   FsTextureId mapViewVdTerrain = 0;
   bool mapViewVdTerrainReady = false;
+  // Tells water from land along the cut (configureWaterMaskView), drawn in the ND's water colour.
+  FsTextureId mapViewVdWater = 0;
+  bool mapViewVdWaterReady = false;
   int vdRampImage = 0;
   // The ND's two views (mapView, mapViewHot) are the weather pair (role 0) or the terrain and water pair
   // (role 1); a change of role reconfigures them and leaves them alone for a while (see the ND draw).
@@ -674,8 +677,8 @@ void clearLayer(NVGcontext* vg, float width, float height) {
 // A module can have at most 8 map views: a ninth (and any later) one is created without complaint, but crashes
 // the module's gauge draw as soon as it is drawn (measured in-sim 2026-09-20; hiding views does not help, only
 // the number that exist counts). The A320 has 4 per ND (precipitation, hot, terrain, water); the A380X has 2 per
-// ND (a pair that is either the weather pair or the terrain pair, never both at once) and 1 per VD terrain gauge
-// (its water is coded in the terrain view's colour list, see setVdTerrainList).
+// ND (a pair that is either the weather pair or the terrain pair, never both at once) and 2 per VD terrain gauge
+// (terrain and water mask, see drawVdTerrain).
 
 // Shared MapView setup for the precipitation view and the hot view.
 bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* colors, unsigned colorCount, FsMapViewWeatherRadarMode mode) {
@@ -1553,10 +1556,11 @@ void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, 
 // same "add half the value and half the complement of the threshold, double, square"
 // compare as the terrain dots, which lights a pixel where brightness >= ramp, i.e. a
 // bar from the bottom up to the terrain. Water always takes the list's first entry
-// (see configureWaterMaskView), which no land reaches: it is blue in the B channel
-// alone, so the compare (R and G) leaves no bar over water, and the water is drawn
-// from that channel as flat blue up to sea level (the real VD's water is blue, FCOM
-// DSC-31-20-40-10).
+// (see configureWaterMaskView), which no land reaches: it has no R and G, so the
+// compare leaves no bar over water. The water itself is drawn from a second view, a
+// water mask as the A32NX ND has (white over water), as a flat area up to sea level in
+// the same colour as the ND's water: the real VD's water is blue (FCOM DSC-31-20-40-10),
+// and the ND's teal is what the crew sees next to it.
 //
 // The cut follows the real VD's (FCOM DSC-31-20-40-10): the active flight plan in the
 // managed lateral modes, published as vertices by EfisTawsBridge.ts (see g_vdCutMode) and
@@ -1659,11 +1663,10 @@ constexpr int kVdRampRows = 256;
 // in the bottom row too.
 constexpr float kVdRampFloor = 1.0f / 64.0f;
 constexpr int kVdTerrainSharpenPasses = 8;
-constexpr float kVdWaterBlue = 0.9f;
 
-// The color list of the VD terrain view: entry 0 is the water (blue, B channel only: the
-// engine gives water the first entry whatever its height, and the range is set so that no
-// land reaches that entry), entries 1 .. kVdTerrainSteps - 1 are terrain above the top of
+// The color list of the VD terrain view: entry 0 is the water (B channel only, which takes
+// no part in the compare: the engine gives water the first entry whatever its height, and
+// the range is set so that no land reaches that entry), entries 1 .. kVdTerrainSteps - 1 are terrain above the top of
 // the plot (full brightness), the rest the plot from its top down, brightness
 // 2 - (k + 0.5) / kVdTerrainSteps in R and G.
 void setVdTerrainList(FsContext ctx, FsTextureId id) {
@@ -1716,8 +1719,8 @@ int createVdRamp(NVGcontext* vg) {
   return nvgCreateImageRGBA(vg, kRampWidth, kVdRampRows, 0, data);
 }
 
-void drawVdTerrain(NVGcontext* vg, FsTextureId terrainView, int rampImage, float vdRangeNm, const VdCutSegment* cut, int cutCount,
-                   float cutHalfWidthNm, float greyFromNm, double lowerFeet, double upperFeet) {
+void drawVdTerrain(NVGcontext* vg, FsTextureId terrainView, FsTextureId waterView, int rampImage, float vdRangeNm, const VdCutSegment* cut,
+                   int cutCount, float cutHalfWidthNm, float greyFromNm, double lowerFeet, double upperFeet) {
   const float vdBottom = kVdTop + kVdHeight;
   const float vdRight = kVdLeft + kVdWidth;
   const float centerY = kVdTop + 0.5f * kVdHeight;
@@ -1819,14 +1822,17 @@ void drawVdTerrain(NVGcontext* vg, FsTextureId terrainView, int rampImage, float
   nvgFill(vg);
   nvgRestore(vg);
 
-  // 6. the water (the view's B channel, along the centre of the cut): flat blue from sea level
-  // down to the bottom of the plot.
-  if (lowerFeet < 0.0) {
+  // 6. the water (the water mask view, along the centre of the cut): a flat area from sea level
+  // down to the bottom of the plot, in the ND's water colour (drawTerrain: the water's density
+  // through the display's green level and kTerrainWaterBlue).
+  if (waterView != 0 && lowerFeet < 0.0) {
     const float feetPerPx = static_cast<float>(upperFeet - lowerFeet) / kVdHeight;
     const float seaY = std::fmin(std::fmax(kVdTop + static_cast<float>(upperFeet) / feetPerPx, kVdTop), vdBottom);
     if (seaY < vdBottom) {
+      const float waterDensity = 0.5f * kTerrainWater;
+      const FsColor waterTint{{0.0f, encodeSrgb(waterDensity * kGreenLevel), encodeSrgb(waterDensity * kTerrainWaterBlue), 1.0f}};
       nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
-      stripe(terrainView, FsColor{{0.0f, 0.0f, kVdWaterBlue, 1.0f}}, seaY, vdBottom - seaY, 0.0f);
+      stripe(waterView, waterTint, seaY, vdBottom - seaY, 0.0f);
     }
   }
 
@@ -1905,6 +1911,9 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
     altitudeFeet = baroAltWord.isNo() ? static_cast<double>(baroAltWord.value()) : planeAltitudeFeet();
     fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet - (upperFeet - lowerFeet), altitudeFeet - lowerFeet);
     fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdTerrain, vdRangeNm * kNmToMetres);
+    if (instance.mapViewVdWaterReady) {
+      fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdWater, vdRangeNm * kNmToMetres);
+    }
   }
 
   if (!draw && !instance.layerDirty) {
@@ -1935,8 +1944,8 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
         cutCount = 1;
       }
       const float cutHalfWidthNm = altitudeFeet >= static_cast<double>(kVdCutEnrouteFeet) ? kVdCutEnrouteHalfWidthNm : kVdCutTerminalHalfWidthNm;
-      drawVdTerrain(vg, instance.mapViewVdTerrain, instance.vdRampImage, vdRangeNm, cut, cutCount, cutHalfWidthNm, greyFromNm, lowerFeet,
-                    upperFeet);
+      drawVdTerrain(vg, instance.mapViewVdTerrain, instance.mapViewVdWaterReady ? instance.mapViewVdWater : 0, instance.vdRampImage, vdRangeNm,
+                    cut, cutCount, cutHalfWidthNm, greyFromNm, lowerFeet, upperFeet);
     }
   }
   instance.layerDirty = draw;
@@ -2334,6 +2343,8 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (instance->isVdTerrain) {
         instance->mapViewVdTerrain = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
         instance->mapViewVdTerrainReady = configureVdTerrainView(ctx, instance->mapViewVdTerrain);
+        instance->mapViewVdWater = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
+        instance->mapViewVdWaterReady = configureWaterMaskView(ctx, instance->mapViewVdWater);
         return true;
       }
 #endif
@@ -2694,6 +2705,9 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
 #ifdef A380X
       if (instance->mapViewVdTerrain != 0) {
         fsMapViewDelete(ctx, instance->mapViewVdTerrain);
+      }
+      if (instance->mapViewVdWater != 0) {
+        fsMapViewDelete(ctx, instance->mapViewVdWater);
       }
 #endif
       if (instance->nvg != nullptr) {
