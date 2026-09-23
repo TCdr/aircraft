@@ -68,6 +68,23 @@ export interface TawsAircraftStatusDataDto {
   groundTruthLongitude: number;
 }
 
+/** The highest and lowest terrain elevation of the ND range, as SimBridge computed them for its last terrain picture of one ND. */
+export interface NavigationDisplayThresholdsDto {
+  /** Lowest elevation shown, feet (the cut-off altitude in the standard mode). */
+  minElevation: number;
+
+  minElevationIsWarning: boolean;
+
+  minElevationIsCaution: boolean;
+
+  /** Highest elevation of the range, feet. */
+  maxElevation: number;
+
+  maxElevationIsWarning: boolean;
+
+  maxElevationIsCaution: boolean;
+}
+
 export interface WaypointDto {
   latitude: number;
 

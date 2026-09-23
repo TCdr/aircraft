@@ -16,6 +16,8 @@ export interface EgpwcSimVars {
   'egpwc.minElevationMode': TerrainLevelMode;
   'egpwc.maxElevation': number;
   'egpwc.maxElevationMode': TerrainLevelMode;
+  /** The TERR ON ND pushbutton of this side */
+  'egpwc.terrainActive': boolean;
 }
 
 export class EgpwcBusPublisher extends SimVarPublisher<EgpwcSimVars> {
@@ -38,6 +40,7 @@ export class EgpwcBusPublisher extends SimVarPublisher<EgpwcSimVars> {
           'egpwc.maxElevationMode',
           { name: `L:A32NX_EGPWC_ND_${side}_TERRAIN_MAX_ELEVATION_MODE`, type: SimVarValueType.Number },
         ],
+        ['egpwc.terrainActive', { name: `L:A32NX_EGPWC_ND_${side}_TERRAIN_ACTIVE`, type: SimVarValueType.Bool }],
       ]),
       bus,
     );

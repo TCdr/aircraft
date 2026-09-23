@@ -5,6 +5,7 @@
 
 import {
   Clock,
+  ConsumerSubject,
   FsBaseInstrument,
   FSComponent,
   FsInstrument,
@@ -20,7 +21,7 @@ import {
   ArincEventBus,
   EfisSide,
 } from '@flybywiresim/fbw-sdk';
-import { NDComponent } from '@flybywiresim/navigation-display';
+import { NDComponent, TerrainThresholdsProvider } from '@flybywiresim/navigation-display';
 
 import { NDSimvarPublisher, NDSimvars } from './NDSimvarPublisher';
 import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
@@ -31,7 +32,7 @@ import { TcasBusPublisher } from '../MsfsAvionicsCommon/providers/TcasBusPublish
 import { FGDataPublisher } from '../MsfsAvionicsCommon/providers/FGDataPublisher';
 import { NDControlEvents } from './NDControlEvents';
 import { DisplayUnit, getDisplayIndex } from '../MsfsAvionicsCommon/displayUnit';
-import { EgpwcBusPublisher } from '../MsfsAvionicsCommon/providers/EgpwcBusPublisher';
+import { EgpwcBusPublisher, EgpwcSimVars } from '../MsfsAvionicsCommon/providers/EgpwcBusPublisher';
 import { DmcPublisher } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { FMBusPublisher } from '../MsfsAvionicsCommon/providers/FMBusPublisher';
 import { FcuBusPublisher } from '../MsfsAvionicsCommon/providers/FcuBusPublisher';
@@ -66,6 +67,9 @@ class NDInstrument implements FsInstrument {
 
   private readonly egpwcBusPublisher: EgpwcBusPublisher;
 
+  /** The TERR peaks box figures, from SimBridge while the TERR ON ND pushbutton of this side is on */
+  private readonly terrainThresholdsProvider: TerrainThresholdsProvider;
+
   private readonly hEventPublisher;
 
   private readonly adirsValueProvider: AdirsValueProvider<NDSimvars>;
@@ -95,6 +99,10 @@ class NDInstrument implements FsInstrument {
     this.tcasBusPublisher = new TcasBusPublisher(this.bus);
     this.dmcPublisher = new DmcPublisher(this.bus);
     this.egpwcBusPublisher = new EgpwcBusPublisher(this.bus, side);
+    this.terrainThresholdsProvider = new TerrainThresholdsProvider(
+      side,
+      ConsumerSubject.create(this.bus.getSubscriber<EgpwcSimVars>().on('egpwc.terrainActive'), false).map((v) => !!v),
+    );
     this.hEventPublisher = new HEventPublisher(this.bus);
 
     this.adirsValueProvider = new AdirsValueProvider(this.bus, this.simVarPublisher, side);
@@ -113,6 +121,7 @@ class NDInstrument implements FsInstrument {
     this.backplane.addPublisher('egpwc', this.egpwcBusPublisher);
 
     this.backplane.addInstrument('clock', this.clock);
+    this.backplane.addInstrument('terrainThresholds', this.terrainThresholdsProvider);
 
     this.doInit();
   }
