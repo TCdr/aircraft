@@ -313,9 +313,10 @@ struct VdDomeLevel {
   float heightFraction;  // how much of the full height it reaches
 };
 // h = h0 + (1 - h0) * sqrt(1 - (1 - t)^2), depth = t * 24 (h0 = 0.5, t = 0, 1/7 .. 1).
-constexpr VdDomeLevel kVdColumnDome[] = {{0.0f, 0.5f},   {3.4f, 0.758f},  {6.9f, 0.85f},   {10.3f, 0.91f},
-                                         {13.7f, 0.952f}, {17.1f, 0.979f}, {20.6f, 0.995f}, {24.0f, 1.0f}};
-constexpr int kVdColumnDomeCount = 8;
+// A single level: the real VD draws the cells as plain vertical bars with flat tops (A380 ND photo, MALPA); the
+// rounded dome of before was h = h0 + (1 - h0) * sqrt(1 - (1 - t)^2), depth = t * 24 over 8 levels.
+constexpr VdDomeLevel kVdColumnDome[] = {{0.0f, 1.0f}};
+constexpr int kVdColumnDomeCount = 1;
 // Why the red core is a plain block and not a rounded shape: the red is made by wiping the
 // green channel out of the yellow with a multiply blend, and a multiply can only be "any one
 // tap sees the weather" (a dilation - the erosion taps made the outer levels WIDER than the
@@ -466,11 +467,11 @@ constexpr float kTopBandRate = 1000000.0f;
 // radar cannot tell the two apart (FCOM) and everything is shown solid. The level is applied
 // before the on-path masks are sharpened (squared kSharpenPasses times), which the off-path
 // picture goes through as well: 0.85 ^ 4 = 0.52 of the on-path brightness.
-constexpr float kOffPathLevel = 0.85f;
-constexpr int kHatchTilePx = 8;
+constexpr float kOffPathLevel = 0.65f;
+constexpr int kHatchTilePx = 12;
 #ifdef A380X
 constexpr float kOffPathMaxRangeNm = 160.0f;
-constexpr int kHatchLinePx = 2;
+constexpr int kHatchLinePx = 5;
 #endif
 
 // Everything one ND's radar needs. The power bus, ND mode and range variables
@@ -511,7 +512,7 @@ struct Instance {
   bool mapViewWaterReady = false;
   // The dither image of the terrain (created on first use), the gear state the terrain
   // color list was last set for (-1 = not yet), and which list the terrain view holds
-  // (0 = the terrain's, 1 = the MAP mode's, -1 = not set by the ND draw yet).
+  // (0 = the terrain's, 1 = the MAP mode's, 2 = the peaks mode's, -1 = not set by the ND draw yet).
   int terrainPatternImage = 0;
   int terrainGearState = -1;
   int terrainListMode = -1;
@@ -519,6 +520,10 @@ struct Instance {
   // ND reads (A32NX_WXR_ND_{L,R}_MODE) and the value last written to it.
   ID wxrLabelVar = -1;
   int wxrLabelShown = -1;
+  // The TERR peaks box figures of this side (A32NX_EGPWC_ND_x_TERRAIN_MIN/MAX_ELEVATION, feet, -1 = none),
+  // written by the ND's TerrainThresholdsProvider from the SimBridge: the peaks mode's span.
+  ID peaksMinVar = -1;
+  ID peaksMaxVar = -1;
 #ifdef A380X
   // The A380X's third gauge per ND (the "V" parameter) draws the terrain profile on the VD, see
   // drawVdTerrainGauge.
@@ -798,14 +803,63 @@ void colorizeRect(NVGcontext* vg, float x, float y, float w, float h) {
   nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
 }
 
+// The area of the ARC page: the compass disk about the aircraft (R = kArcPixelRadius) cut to the
+// shape the ND's own map uses (CanvasMap.tsx ARC_CLIP), as on the real display: the picture goes on
+// below the aircraft symbol down to the message boxes (between x = 174 and 591), and both bottom
+// corners stay free for the VOR/MORA fields on the left (from y = 625, the aircraft's level) and
+// the TERR peaks box / radar mode text on the right (from y = 562), with a diagonal in between.
+// While the radar's buffer fills (sweepFraction < 1, see drawWeatherRect) it is the sector swept
+// so far instead. A circle too small to reach the right corner (the turbulence and off-path
+// limits) is left round; the rectangular scissor of the caller cuts it at the message boxes.
+constexpr float kArcCornerTop = 562.0f;
+constexpr float kArcCornerLeft = 648.0f;
+constexpr float kArcNotchRightX = 591.0f;
+constexpr float kArcNotchRightY = 625.0f;
+constexpr float kArcNotchLeftX = 174.0f;
+constexpr float kArcNotchLeftY = 683.0f;
+constexpr float kArcLeftCornerX = 122.0f;
+constexpr float kArcLeftCornerY = 625.0f;
+constexpr float kArcClipBottom = 768.0f;
+
+void arcAreaPath(NVGcontext* vg, float cx, float cy, float radius, float sweepFraction) {
+  constexpr float kPi = 3.14159265f;
+  nvgBeginPath(vg);
+  if (sweepFraction < 1.0f) {
+    nvgMoveTo(vg, cx, cy);
+    nvgArc(vg, cx, cy, radius, kPi, kPi + kPi * std::fmax(sweepFraction, 0.0f), NVG_CW);
+    nvgClosePath(vg);
+    return;
+  }
+  const float dy = cy - kArcCornerTop;
+  const bool cutCorner = radius > dy && cx + std::sqrt(radius * radius - dy * dy) > kArcCornerLeft;
+  if (!cutCorner) {
+    nvgCircle(vg, cx, cy, radius);
+    return;
+  }
+  // Where the arc crosses the right corner's top edge, as an angle of the CW sweep from the left.
+  const float cutAngle = 2.0f * kPi - std::asin(dy / radius);
+  nvgMoveTo(vg, cx - radius, cy);
+  nvgArc(vg, cx, cy, radius, kPi, cutAngle, NVG_CW);
+  nvgLineTo(vg, kArcCornerLeft, kArcCornerTop);
+  nvgLineTo(vg, kArcNotchRightX, kArcNotchRightY);
+  nvgLineTo(vg, kArcNotchRightX, kArcClipBottom);
+  nvgLineTo(vg, kArcNotchLeftX, kArcClipBottom);
+  nvgLineTo(vg, kArcNotchLeftX, kArcNotchLeftY);
+  nvgLineTo(vg, kArcLeftCornerX, kArcLeftCornerY);
+  nvgClosePath(vg);
+}
+
 // Draws the weather image for one mode. rangeFraction < 1 restricts the image to a
 // circle of that fraction of the full radius (used to limit turbulence to
 // kTurbulenceMaxRangeNm and the off-path hatching to kOffPathMaxRangeNm);
 // sweepFraction < 1 restricts it to the sector swept so far while the radar's buffer
 // fills (from the left edge clockwise, see kWxrBufferFillSeconds). channels selects
 // which of the view's mask channels the pass uses; patternImage is the Hatch pass's tile.
+// forwardOnly keeps the pass to the forward half (the TOP VIEW paints all around the aircraft, it has no
+// cone; the horizontal views paint nothing behind it themselves).
 void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRose, float rangeFraction, WeatherPass pass,
-                     Channels channels = kAllChannels, float sweepFraction = 1.0f, int patternImage = 0) {
+                     Channels channels = kAllChannels, float sweepFraction = 1.0f, int patternImage = 0,
+                     bool forwardOnly = false) {
   // The three ROSE pages share one compass rose (RoseModeUnderlay.tsx, R = 250).
   const float centerYBias = isRose ? kRoseNavCenterYBias : kArcCenterYBias;
   const float pixelRadius = isRose ? kRoseNavPixelRadius : kArcPixelRadius;
@@ -823,7 +877,7 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRose, float ran
   // half of the bounding square - the aircraft is at its centre - via a plain
   // rectangular nvgScissor, in both modes; simple/safe, scoped by nvgSave/nvgRestore.
   nvgSave(vg);
-  nvgScissor(vg, left, top, size, pixelRadius);
+  nvgScissor(vg, left, top, size, isRose || forwardOnly ? pixelRadius : kArcClipBottom - top);
 
   if (pass == WeatherPass::Sharpen || pass == WeatherPass::Colorize) {
     if (pass == WeatherPass::Sharpen) {
@@ -841,8 +895,13 @@ void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRose, float ran
   // (A380X) paints the corners of the texture too, which showed as weather outside the
   // compass arc at ranges up to 80 NM (in-sim, 2026-09-22).
   auto area = [&]() {
-    nvgBeginPath(vg);
     const float radius = pixelRadius * std::fmin(rangeFraction, 1.0f);
+    if (!isRose) {
+      // ARC: the ND's map area (see arcAreaPath), the scissor above cuts the rest.
+      arcAreaPath(vg, cx, cy, radius, sweepFraction);
+      return;
+    }
+    nvgBeginPath(vg);
     if (sweepFraction >= 1.0f) {
       nvgCircle(vg, cx, cy, radius);
     } else {
@@ -1014,8 +1073,8 @@ constexpr float kTerrainMedium = kOrderedDots ? 7.0f / 16.0f : 0.40f;
 constexpr float kTerrainLight = kOrderedDots ? 3.0f / 16.0f : 0.18f;
 // The water is blue dots at every altitude (the look of the other addons' TERR ON ND): the dot density, and the
 // blue channel's level (the green channel of the water dots is at the radar's green level, which makes cyan).
-constexpr float kTerrainWater = kOrderedDots ? 9.0f / 16.0f : 0.60f;
-constexpr float kTerrainWaterBlue = 1.0f;
+constexpr float kTerrainWater = 1.0f;
+constexpr float kTerrainWaterBlue = 0.6f;
 
 // Size of the dither image in cells, of one cell in ND pixels, and how often the 0/1
 // result is squared (2^kTerrainSharpenPasses has to crush the not-lit side to black).
@@ -1146,17 +1205,14 @@ int createTerrainPattern(NVGcontext* vg) {
   return nvgCreateImageRGBA(vg, kCells, kCells, NVG_IMAGE_REPEATX | NVG_IMAGE_REPEATY | NVG_IMAGE_NEAREST, data);
 }
 
-// The area the terrain covers: the compass disk in the ROSE modes, the forward half
-// of it in ARC.
+// The area the terrain covers: the compass disk in the ROSE modes, the ND's map area in ARC
+// (see arcAreaPath).
 void terrainPath(NVGcontext* vg, float cx, float cy, float radius, bool isRose) {
-  constexpr float kPi = 3.14159265f;
-  nvgBeginPath(vg);
   if (isRose) {
+    nvgBeginPath(vg);
     nvgCircle(vg, cx, cy, radius);
   } else {
-    nvgMoveTo(vg, cx, cy);
-    nvgArc(vg, cx, cy, radius, kPi, 2.0f * kPi, NVG_CW);
-    nvgClosePath(vg);
+    arcAreaPath(vg, cx, cy, radius, 1.0f);
   }
 }
 
@@ -1186,14 +1242,51 @@ bool configureWaterMaskView(FsContext ctx, FsTextureId id) {
   return true;
 }
 
-#ifdef A380X
-// The sim's own (true) altitude, for the VD terrain view's range (see drawVdTerrainGauge).
+// The sim's own (true) altitude: the altitude the altitude-mode views colour by (the VD terrain view's
+// range, see drawVdTerrainGauge, and the peaks mode's, see setPeaksColors).
 double planeAltitudeFeet() {
   static const ENUM planeAltitude = get_aircraft_var_enum("PLANE ALTITUDE");
   static const ENUM feet = get_units_enum("feet");
   return aircraft_varget(planeAltitude, feet, 0);
 }
-#endif
+
+// ---------------------------------------------------------------------------
+// PEAKS mode (EGPWS): when no terrain of the range comes within 2000 ft below the aircraft, the
+// standard display would be empty; the real display then shows the terrain in green by its
+// elevation relative to the range's highest and lowest terrain (the figures of the TERR peaks
+// box): solid green for the top 5 % of that span, dense dots down to 65 %, light dots down to
+// 35 %, nothing below. The figures come from the SimBridge (the TERR peaks box LVars written by
+// TerrainThresholdsProvider); without them there is no peaks mode. The view's range is set to
+// [alt - max - margin, alt - min] every frame, so the list itself is fixed: the bands are
+// fractions of the range. The margin above the highest terrain covers the difference between the
+// SimBridge's elevations and the sim's own mesh (terrain beyond the range's top would come out
+// in other entries, see kTerrainMinFeet).
+// ---------------------------------------------------------------------------
+constexpr float kPeaksBelowFeet = 2000.0f;    // peaks mode while the highest terrain is further below than this
+constexpr float kPeaksMarginFraction = 0.25f;  // of the span, above the highest terrain
+constexpr float kPeaksSolidFrom = 0.95f;       // fractions of the span (from the lowest terrain)
+constexpr float kPeaksDenseFrom = 0.65f;
+constexpr float kPeaksLightFrom = 0.35f;
+constexpr float kPeaksMinSpanFeet = 500.0f;
+
+void setPeaksColors(FsContext ctx, FsTextureId id) {
+  FsColor colors[kTerrainBandCount];
+  const float total = 1.0f + kPeaksMarginFraction;
+  for (int band = 0; band < kTerrainBandCount; ++band) {
+    // The band's elevation as a fraction of the span, from the top (band 0 = above the highest terrain).
+    const float fraction = total - (static_cast<float>(band) + 0.5f) / static_cast<float>(kTerrainBandCount) * total;
+    float g = 0.0f;
+    if (fraction >= kPeaksSolidFrom) {
+      g = 1.0f;
+    } else if (fraction >= kPeaksDenseFrom) {
+      g = kTerrainDense;
+    } else if (fraction >= kPeaksLightFrom) {
+      g = kTerrainLight;
+    }
+    colors[band] = FsColor{{0.0f, g, 0.0f, 1.0f}};
+  }
+  fsMapViewSetAltitudeColorList(ctx, id, colors, kTerrainBandCount);
+}
 
 void drawTerrain(NVGcontext* vg, FsTextureId view, FsTextureId waterView, int patternImage, bool isRose, float headingDegrees) {
   constexpr float kDegToRad = 0.01745329f;
@@ -1286,7 +1379,7 @@ void drawMapMode(NVGcontext* vg, FsTextureId view, bool isRose, float headingDeg
   const float originY = cy + (-radius * sinA - radius * cosA);
 
   nvgSave(vg);
-  nvgScissor(vg, cx - radius, cy - radius, 2.0f * radius, radius);
+  nvgScissor(vg, cx - radius, cy - radius, 2.0f * radius, isRose ? radius : kArcClipBottom - (cy - radius));
   nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ONE, NVG_ONE, NVG_ZERO, NVG_ONE);
   terrainPath(vg, cx, cy, radius, isRose);
   NVGpaint paint = nvgImagePattern(vg, originX, originY, radius * 2.0f, radius * 2.0f, angle, view, 1.0f);
@@ -1678,7 +1771,11 @@ int createVdRamp(NVGcontext* vg) {
   static unsigned char data[kRampWidth * kVdRampRows * 4];
   for (int row = 0; row < kVdRampRows; ++row) {
     const float complement = (1.0f - kVdRampFloor) * static_cast<float>(row) / static_cast<float>(kVdRampRows - 1);
-    const unsigned char value = static_cast<unsigned char>(complement * 255.0f + 0.5f);
+    // The image is sampled as sRGB (decoded to linear), while the view's list brightness arrives linear:
+    // measured in-sim (KASE, 2026-09-23) with a raw ramp the profile sat at 27 % of the plot where the
+    // terrain was at 50 %, exactly the sRGB curve. So the complement is stored encoded, and the compare
+    // (list brightness >= 1 - complement) is linear again.
+    const unsigned char value = static_cast<unsigned char>(encodeSrgb(complement) * 255.0f + 0.5f);
     for (int x = 0; x < kRampWidth; ++x) {
       unsigned char* pixel = &data[(row * kRampWidth + x) * 4];
       pixel[0] = value;
@@ -1966,14 +2063,17 @@ bool configureHotView(FsContext ctx, FsTextureId id) {
 // column. R = rate >= yellow threshold, G = green or yellow but NOT red, so that red comes out
 // as R alone after the colorize (the wipe that makes red on the horizontal views would need
 // the red mask in the G channel of another view, and blending has no cross-channel operation).
+// Only moderate or heavier precipitation somewhere in the column counts as off-path weather (the
+// radar shows off-path weather when it is significant): light rain anywhere in the column, which
+// overcast weather has everywhere, made the whole picture a hatched blob (in-sim, 2026-09-23). The
+// channels stay those the erase passes expect: R = at least yellow, G = yellow only (so R alone = red).
 bool configureTopView(FsContext ctx, FsTextureId id) {
-  FsRainRateColor topColors[4] = {
-      {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kGreenFromMmH},
-      {FsColor{{0.0f, 1.0f, 0.0f, 1.0f}}, kYellowFromMmH},
+  FsRainRateColor topColors[3] = {
+      {FsColor{{0.0f, 0.0f, 0.0f, 0.0f}}, kYellowFromMmH},
       {FsColor{{1.0f, 1.0f, 0.0f, 1.0f}}, kRedFromMmH},
       {FsColor{{1.0f, 0.0f, 0.0f, 1.0f}}, kTopBandRate},
   };
-  return configureRadarView(ctx, id, topColors, 4, FS_MAP_VIEW_WEATHER_RADAR_MODE_TOPVIEW);
+  return configureRadarView(ctx, id, topColors, 3, FS_MAP_VIEW_WEATHER_RADAR_MODE_TOPVIEW);
 }
 #endif
 
@@ -2067,6 +2167,10 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       instance->wxrLabelVar = register_named_variable(instance->isRight ? "A32NX_WXR_ND_R_MODE" : "A32NX_WXR_ND_L_MODE");
       instance->ndModeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_MODE" : "A32NX_EFIS_L_ND_MODE");
       instance->ndRangeVar = register_named_variable(instance->isRight ? "A32NX_EFIS_R_ND_RANGE" : "A32NX_EFIS_L_ND_RANGE");
+      instance->peaksMinVar = register_named_variable(instance->isRight ? "A32NX_EGPWC_ND_R_TERRAIN_MIN_ELEVATION"
+                                                                        : "A32NX_EGPWC_ND_L_TERRAIN_MIN_ELEVATION");
+      instance->peaksMaxVar = register_named_variable(instance->isRight ? "A32NX_EGPWC_ND_R_TERRAIN_MAX_ELEVATION"
+                                                                        : "A32NX_EGPWC_ND_L_TERRAIN_MAX_ELEVATION");
 
       NVGparams params;
       params.userPtr = ctx;
@@ -2312,15 +2416,31 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         if (instance->terrainPatternImage == 0) {
           instance->terrainPatternImage = createTerrainPattern(vg);
         }
-        const int gearState = g_egpwcGearDown.read() != 0.0 ? 1 : 0;
-        if (gearState != instance->terrainGearState || instance->terrainListMode != 0) {
-          setTerrainColors(ctx, terrainViewId, gearState == 1);
-          instance->terrainGearState = gearState;
-          instance->terrainListMode = 0;
+        // Peaks mode (see setPeaksColors) while the range's highest terrain, as the SimBridge knows it, is
+        // more than kPeaksBelowFeet below the aircraft; the standard bands otherwise.
+        const double peaksMin = get_named_variable_value(instance->peaksMinVar);
+        const double peaksMax = get_named_variable_value(instance->peaksMaxVar);
+        const double altitude = planeAltitudeFeet();
+        const bool peaksMode = peaksMin >= 0.0 && peaksMax >= 0.0 && peaksMax <= altitude - static_cast<double>(kPeaksBelowFeet);
+        if (peaksMode) {
+          if (instance->terrainListMode != 2) {
+            setPeaksColors(ctx, terrainViewId);
+            instance->terrainListMode = 2;
+          }
+          const double span = std::fmax(peaksMax - peaksMin, static_cast<double>(kPeaksMinSpanFeet));
+          fsMapViewSetAltitudeRangeInFeet(ctx, terrainViewId, altitude - peaksMax - static_cast<double>(kPeaksMarginFraction) * span,
+                                          altitude - peaksMin);
+        } else {
+          const int gearState = g_egpwcGearDown.read() != 0.0 ? 1 : 0;
+          if (gearState != instance->terrainGearState || instance->terrainListMode != 0) {
+            setTerrainColors(ctx, terrainViewId, gearState == 1);
+            instance->terrainGearState = gearState;
+            instance->terrainListMode = 0;
+          }
+          // The bands shifted by the look-ahead (the view colours by the aircraft's own altitude, see kTerrainLookAheadSeconds).
+          fsMapViewSetAltitudeRangeInFeet(ctx, terrainViewId, static_cast<double>(kTerrainMinFeet + terrainLookAheadFeet),
+                                          static_cast<double>(kTerrainMaxFeet + terrainLookAheadFeet));
         }
-        // The bands shifted by the look-ahead (the view colours by the aircraft's own altitude, see kTerrainLookAheadSeconds).
-        fsMapViewSetAltitudeRangeInFeet(ctx, terrainViewId, static_cast<double>(kTerrainMinFeet + terrainLookAheadFeet),
-                                        static_cast<double>(kTerrainMaxFeet + terrainLookAheadFeet));
         fsMapViewSet2DViewRadiusInMeters(ctx, terrainViewId, rangeNmForMode * kNmToMetres);
         fsMapViewSet2DViewRadiusInMeters(ctx, waterViewId, rangeNmForMode * kNmToMetres);
         if (terrainReady && instance->terrainPatternImage != 0) {
@@ -2354,10 +2474,11 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
             instance->hatchPatternImage = createHatchPattern(vg);
           }
           const float offPathFraction = std::fmin(kOffPathMaxRangeNm / rangeNmForMode, 1.0f);
-          drawWeatherRect(vg, instance->mapViewTop, isRose, 1.0f, WeatherPass::Additive, Channels{1.0f, 1.0f, 0.0f}, sweepFraction);
-          drawWeatherRect(vg, instance->mapViewTop, isRose, 1.0f, WeatherPass::Sharpen);
+          drawWeatherRect(vg, instance->mapViewTop, isRose, 1.0f, WeatherPass::Additive, Channels{1.0f, 1.0f, 0.0f}, sweepFraction, 0,
+                          true);
+          drawWeatherRect(vg, instance->mapViewTop, isRose, 1.0f, WeatherPass::Sharpen, kAllChannels, 1.0f, 0, true);
           drawWeatherRect(vg, instance->mapViewTop, isRose, offPathFraction, WeatherPass::Hatch, kAllChannels, sweepFraction,
-                          instance->hatchPatternImage);
+                          instance->hatchPatternImage, true);
           drawWeatherRect(vg, instance->mapViewHot, isRose, 1.0f, WeatherPass::Erase, Channels{1.0f, 0.0f, 0.0f}, sweepFraction);
           drawWeatherRect(vg, instance->mapView, isRose, 1.0f, WeatherPass::Erase, Channels{0.0f, 1.0f, 0.0f}, sweepFraction);
         }
