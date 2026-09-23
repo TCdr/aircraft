@@ -127,9 +127,16 @@
 #include <MSFS/Legacy/gauges.h>
 #include <MSFS/MSFS_MapView.h>
 #include <MSFS/Render/nanovg.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundef"
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#include <SimConnect.h>
+#include "../../terronnd/src/types/simbridge.h"  // the status block the SimBridge reads
+#pragma clang diagnostic pop
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <utility>  // arinc429.hpp uses std::move without including this itself
 
 #include "../../terronnd/src/types/arinc429.hpp"
@@ -1967,6 +1974,248 @@ bool configureHotView(FsContext ctx, FsTextureId id) {
   return configureRadarView(ctx, id, hotColors, 3, FS_MAP_VIEW_WEATHER_RADAR_MODE_HORIZONTAL);
 }
 
+// ---------------------------------------------------------------------------
+// The SimBridge terrain service client: the TERR peaks box figures.
+//
+// The figures of the TERR box (the highest and the lowest elevation of the ND range) come from
+// SimBridge, which computes them for each ND from its own elevation data; a gauge cannot read
+// elevations back from the simulator. SimBridge talks SimConnect, the way it did with the stock
+// terronnd gauge this module replaces (in-sim, 2026-09-22: its HTTP endpoints stay empty while
+// it is connected to the sim, and it only renders once a gauge takes part), so this module
+// takes terronnd's place on that side, from the first ND gauge installed:
+//  - it writes the aircraft status block FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS every 100 ms
+//    (types::AircraftStatusData, the content of terronnd's collection.cpp: SimBridge takes the
+//    aircraft's position from it to cache its elevation tiles, and the EFIS settings of each
+//    ND when the systems host's HTTP status is not there; terrain on per side as this module
+//    selects it, not terronnd's A380X quirk of reporting it on whenever the VD wanted it);
+//  - it subscribes to the two threshold blocks FBW_SIMBRIDGE_TERRONND_THRESHOLDS_LEFT/RIGHT
+//    (types::ThresholdData: the figures, their modes, and the range and page they were computed
+//    for) and to the two frame blocks (SimBridge's own terrain picture in PNG chunks, which
+//    are received and dropped: the picture is drawn natively here);
+//  - it writes the figures into L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION(_MODE), the
+//    LVars the ND's TerrainMapThresholds shows, while terrain is selected on that side and
+//    SimBridge's figures are for the ND's current range and page; -1 (box hidden) otherwise
+//    or when they are older than kSimBridgeFiguresMaxAgeSeconds.
+// A lost connection is retried every few seconds.
+// ---------------------------------------------------------------------------
+NamedVar g_egpwcPresentLat{"A32NX_EGPWC_PRESENT_LAT"};
+NamedVar g_egpwcPresentLon{"A32NX_EGPWC_PRESENT_LONG"};
+NamedVar g_egpwcPresentAltitude{"A32NX_EGPWC_PRESENT_ALTITUDE"};
+NamedVar g_egpwcPresentHeading{"A32NX_EGPWC_PRESENT_HEADING"};
+NamedVar g_egpwcPresentVerticalSpeed{"A32NX_EGPWC_PRESENT_VERTICAL_SPEED"};
+NamedVar g_egpwcDestLat{"A32NX_EGPWC_DEST_LAT"};
+NamedVar g_egpwcDestLon{"A32NX_EGPWC_DEST_LONG"};
+NamedVar g_egpwcRenderingMode{"A32NX_EGPWC_TERRONND_RENDERING_MODE"};
+NamedVar g_egpwcNdRange[2] = {{"A32NX_EGPWC_ND_L_RANGE"}, {"A32NX_EGPWC_ND_R_RANGE"}};
+NamedVar g_efisNdMode[2] = {{"A32NX_EFIS_L_ND_MODE"}, {"A32NX_EFIS_R_ND_MODE"}};
+NamedVar g_egpwcTerrainActive[2] = {{"A32NX_EGPWC_ND_L_TERRAIN_ACTIVE"}, {"A32NX_EGPWC_ND_R_TERRAIN_ACTIVE"}};
+
+#ifdef A380X
+// The TERR overlay of each side's EFIS control panel (the terrain selection per side, see terrainSelected).
+NamedVar g_efisOverlay[2] = {{"A380X_EFIS_L_ACTIVE_OVERLAY"}, {"A380X_EFIS_R_ACTIVE_OVERLAY"}};
+#endif
+// The peaks box LVars of each side: MIN, MIN_MODE, MAX, MAX_MODE.
+NamedVar g_peaksVars[2][4] = {{{"A32NX_EGPWC_ND_L_TERRAIN_MIN_ELEVATION"},
+                               {"A32NX_EGPWC_ND_L_TERRAIN_MIN_ELEVATION_MODE"},
+                               {"A32NX_EGPWC_ND_L_TERRAIN_MAX_ELEVATION"},
+                               {"A32NX_EGPWC_ND_L_TERRAIN_MAX_ELEVATION_MODE"}},
+                              {{"A32NX_EGPWC_ND_R_TERRAIN_MIN_ELEVATION"},
+                               {"A32NX_EGPWC_ND_R_TERRAIN_MIN_ELEVATION_MODE"},
+                               {"A32NX_EGPWC_ND_R_TERRAIN_MAX_ELEVATION"},
+                               {"A32NX_EGPWC_ND_R_TERRAIN_MAX_ELEVATION_MODE"}}};
+
+constexpr double kSimBridgeStatusPeriodSeconds = 0.1;
+constexpr double kSimBridgeConnectRetrySeconds = 5.0;
+constexpr double kSimBridgeFiguresMaxAgeSeconds = 5.0;
+constexpr SIMCONNECT_CLIENT_DATA_ID kSimBridgeStatusAreaId = 0;
+constexpr SIMCONNECT_CLIENT_DATA_DEFINITION_ID kSimBridgeStatusDefinitionId = 0;
+// The threshold and frame blocks: ids 1 + side (thresholds) and 3 + side (frames); a request's id is its area's id.
+constexpr SIMCONNECT_CLIENT_DATA_ID kSimBridgeThresholdsAreaId = 1;
+constexpr SIMCONNECT_CLIENT_DATA_ID kSimBridgeFramesAreaId = 3;
+constexpr const char* kSimBridgeStatusAreaName = "FBW_SIMBRIDGE_EGPWC_AIRCRAFT_STATUS";
+constexpr const char* kSimBridgeThresholdsAreaNames[2] = {"FBW_SIMBRIDGE_TERRONND_THRESHOLDS_LEFT",
+                                                          "FBW_SIMBRIDGE_TERRONND_THRESHOLDS_RIGHT"};
+constexpr const char* kSimBridgeFramesAreaNames[2] = {"FBW_SIMBRIDGE_TERRONND_FRAME_DATA_LEFT", "FBW_SIMBRIDGE_TERRONND_FRAME_DATA_RIGHT"};
+
+struct SimBridgeSideFigures {
+  types::ThresholdData data{};
+  double receivedTime = -1.0e9;
+  bool shown = false;  // whether this module last wrote figures (not -1) into the LVars
+};
+
+struct SimBridgeStatus {
+  FsContext owner = 0;  // the gauge that talks to SimBridge (the first ND gauge installed)
+  HANDLE connection = 0;
+  bool areaReady = false;
+  double lastSendTime = -1.0e9;
+  double lastConnectTime = -1.0e9;
+  SimBridgeSideFigures figures[2];
+};
+SimBridgeStatus g_simBridge;
+
+// Whether the crew has the terrain selected on a side (terrainSelected() for an instance, by side here).
+bool terrainSelectedOnSide(int side) {
+#ifdef A380X
+  return g_efisOverlay[side].read() == kOverlayTerr && terrainSystemUp();
+#else
+  return g_egpwcTerrainActive[side].read() != 0.0;
+#endif
+}
+
+void writePeaksFigures(int side, double now) {
+  SimBridgeSideFigures& figures = g_simBridge.figures[side];
+  const double ndMode = g_efisNdMode[side].read();
+  const int rangeNm = static_cast<int>(std::fmax(g_egpwcNdRange[side].read(), 0.0));
+  const bool current = now - figures.receivedTime <= kSimBridgeFiguresMaxAgeSeconds && figures.data.displayRange == rangeNm &&
+                       figures.data.displayMode == static_cast<std::uint8_t>(ndMode);
+  if (terrainSelectedOnSide(side) && isMapPage(ndMode) && current) {
+    set_named_variable_value(g_peaksVars[side][0].id, static_cast<double>(figures.data.lowerThreshold));
+    set_named_variable_value(g_peaksVars[side][1].id, static_cast<double>(figures.data.lowerThresholdMode));
+    set_named_variable_value(g_peaksVars[side][2].id, static_cast<double>(figures.data.upperThreshold));
+    set_named_variable_value(g_peaksVars[side][3].id, static_cast<double>(figures.data.upperThresholdMode));
+    figures.shown = true;
+  } else if (figures.shown || figures.receivedTime < 0.0) {
+    // Hide the box (the LVars read 0 until something writes them, which the box would show as a "0").
+    set_named_variable_value(g_peaksVars[side][0].id, -1.0);
+    set_named_variable_value(g_peaksVars[side][1].id, 0.0);
+    set_named_variable_value(g_peaksVars[side][2].id, -1.0);
+    set_named_variable_value(g_peaksVars[side][3].id, 0.0);
+    figures.shown = false;
+    figures.receivedTime = 0.0;
+  }
+}
+
+void simBridgeDisconnect() {
+  if (g_simBridge.connection != 0) {
+    SimConnect_Close(g_simBridge.connection);
+  }
+  g_simBridge.connection = 0;
+  g_simBridge.areaReady = false;
+}
+
+void simBridgeConnect() {
+  if (!SUCCEEDED(SimConnect_Open(&g_simBridge.connection, "FBW_NDWXR_SIMBRIDGE_STATUS", nullptr, 0, 0, 0))) {
+    g_simBridge.connection = 0;
+    return;
+  }
+  const DWORD size = static_cast<DWORD>(sizeof(types::AircraftStatusData));
+  bool ok = SUCCEEDED(SimConnect_MapClientDataNameToID(g_simBridge.connection, kSimBridgeStatusAreaName, kSimBridgeStatusAreaId));
+  ok = ok && SUCCEEDED(SimConnect_AddToClientDataDefinition(g_simBridge.connection, kSimBridgeStatusDefinitionId,
+                                                             SIMCONNECT_CLIENTDATAOFFSET_AUTO, size));
+  ok = ok && SUCCEEDED(SimConnect_CreateClientData(g_simBridge.connection, kSimBridgeStatusAreaId, size,
+                                                    SIMCONNECT_CREATE_CLIENT_DATA_FLAG_READ_ONLY));
+  // SimBridge's blocks (it creates them itself): the figures, and the frames it renders for terronnd.
+  for (int side = 0; side < 2 && ok; ++side) {
+    const SIMCONNECT_CLIENT_DATA_ID thresholdsId = kSimBridgeThresholdsAreaId + static_cast<SIMCONNECT_CLIENT_DATA_ID>(side);
+    const SIMCONNECT_CLIENT_DATA_ID framesId = kSimBridgeFramesAreaId + static_cast<SIMCONNECT_CLIENT_DATA_ID>(side);
+    ok = ok && SUCCEEDED(SimConnect_MapClientDataNameToID(g_simBridge.connection, kSimBridgeThresholdsAreaNames[side], thresholdsId));
+    ok = ok && SUCCEEDED(SimConnect_AddToClientDataDefinition(g_simBridge.connection, thresholdsId, SIMCONNECT_CLIENTDATAOFFSET_AUTO,
+                                                               static_cast<DWORD>(sizeof(types::ThresholdData))));
+    ok = ok && SUCCEEDED(SimConnect_RequestClientData(g_simBridge.connection, thresholdsId, thresholdsId, thresholdsId,
+                                                       SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT, 0,
+                                                       0, 0));
+    ok = ok && SUCCEEDED(SimConnect_MapClientDataNameToID(g_simBridge.connection, kSimBridgeFramesAreaNames[side], framesId));
+    ok = ok && SUCCEEDED(SimConnect_AddToClientDataDefinition(g_simBridge.connection, framesId, SIMCONNECT_CLIENTDATAOFFSET_AUTO,
+                                                               static_cast<DWORD>(SIMCONNECT_CLIENTDATA_MAX_SIZE)));
+    ok = ok && SUCCEEDED(SimConnect_RequestClientData(g_simBridge.connection, framesId, framesId, framesId,
+                                                       SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT, 0,
+                                                       0, 0));
+  }
+  if (!ok) {
+    simBridgeDisconnect();
+    return;
+  }
+  g_simBridge.areaReady = true;
+}
+
+double planeCoordinateDegrees(const char* name) {
+  const ENUM variable = get_aircraft_var_enum(name);
+  static const ENUM degrees = get_units_enum("degrees");
+  return aircraft_varget(variable, degrees, 0);
+}
+
+// The EFIS part for one side: terrain requested on a map page (ROSE ILS / VOR / NAV or ARC), as terronnd sent it.
+void fillSimBridgeEfis(int side, std::uint16_t* range, std::uint8_t* arc, std::uint8_t* terrainOn, std::uint8_t* mode) {
+  const double ndMode = g_efisNdMode[side].read();
+  const bool arcMode = ndMode == kNdModeArc;
+  const bool mapPage = isMapPage(ndMode);
+  *range = static_cast<std::uint16_t>(std::fmax(g_egpwcNdRange[side].read(), 0.0));
+  *arc = arcMode ? 1 : 0;
+  *terrainOn = terrainSelectedOnSide(side) && mapPage ? 1 : 0;
+  *mode = static_cast<std::uint8_t>(ndMode);
+}
+
+void simBridgeUpdate(double now) {
+  if (g_simBridge.connection != 0) {
+    // Drain what the server sends (the open acknowledgement, a quit when the sim shuts SimConnect down).
+    SIMCONNECT_RECV* message = nullptr;
+    DWORD messageSize = 0;
+    while (SUCCEEDED(SimConnect_GetNextDispatch(g_simBridge.connection, &message, &messageSize))) {
+      if (message == nullptr) {
+        break;
+      }
+      if (message->dwID == SIMCONNECT_RECV_ID_QUIT) {
+        simBridgeDisconnect();
+        break;
+      }
+      if (message->dwID == SIMCONNECT_RECV_ID_CLIENT_DATA) {
+        const SIMCONNECT_RECV_CLIENT_DATA* clientData = static_cast<const SIMCONNECT_RECV_CLIENT_DATA*>(message);
+        const DWORD request = clientData->dwRequestID;
+        if (request == kSimBridgeThresholdsAreaId || request == kSimBridgeThresholdsAreaId + 1) {
+          const int side = static_cast<int>(request - kSimBridgeThresholdsAreaId);
+          std::memcpy(&g_simBridge.figures[side].data, &clientData->dwData, sizeof(types::ThresholdData));
+          g_simBridge.figures[side].receivedTime = now;
+        }
+        // The frame chunks (the other requests) are dropped.
+      }
+    }
+  }
+  for (int side = 0; side < 2; ++side) {
+    writePeaksFigures(side, now);
+  }
+  if (g_simBridge.connection == 0) {
+    if (now - g_simBridge.lastConnectTime >= kSimBridgeConnectRetrySeconds) {
+      g_simBridge.lastConnectTime = now;
+      simBridgeConnect();
+    }
+    return;
+  }
+  if (!g_simBridge.areaReady || now - g_simBridge.lastSendTime < kSimBridgeStatusPeriodSeconds) {
+    return;
+  }
+  g_simBridge.lastSendTime = now;
+
+  const auto lat = types::Arinc429Word<float>::fromSimVar(g_egpwcPresentLat.read());
+  const auto lon = types::Arinc429Word<float>::fromSimVar(g_egpwcPresentLon.read());
+  const auto alt = types::Arinc429Word<float>::fromSimVar(g_egpwcPresentAltitude.read());
+  const auto hdg = types::Arinc429Word<float>::fromSimVar(g_egpwcPresentHeading.read());
+  const auto vs = types::Arinc429Word<float>::fromSimVar(g_egpwcPresentVerticalSpeed.read());
+  const auto destLat = types::Arinc429Word<float>::fromSimVar(g_egpwcDestLat.read());
+  const auto destLon = types::Arinc429Word<float>::fromSimVar(g_egpwcDestLon.read());
+
+  types::AircraftStatusData data{};
+  data.adiruValid = lat.isNo() && lon.isNo() && alt.isNo() && hdg.isNo() && vs.isNo() ? 1 : 0;
+  data.latitude = lat.value();
+  data.longitude = lon.value();
+  data.altitude = static_cast<std::int32_t>(alt.value());
+  data.heading = static_cast<std::int16_t>(hdg.value());
+  data.verticalSpeed = static_cast<std::int16_t>(vs.value());
+  data.gearIsDown = g_egpwcGearDown.read() != 0.0 ? 1 : 0;
+  data.destinationValid = destLat.isNo() && destLon.isNo() ? 1 : 0;
+  data.destinationLatitude = destLat.value();
+  data.destinationLongitude = destLon.value();
+  fillSimBridgeEfis(0, &data.ndRangeCapt, &data.ndArcModeCapt, &data.ndTerrainOnNdActiveCapt, &data.efisModeCapt);
+  fillSimBridgeEfis(1, &data.ndRangeFO, &data.ndArcModeFO, &data.ndTerrainOnNdActiveFO, &data.efisModeFO);
+  data.ndTerrainOnNdRenderingMode = static_cast<std::uint8_t>(g_egpwcRenderingMode.read());
+  data.groundTruthLatitude = static_cast<float>(planeCoordinateDegrees("PLANE LATITUDE"));
+  data.groundTruthLongitude = static_cast<float>(planeCoordinateDegrees("PLANE LONGITUDE"));
+
+  if (!SUCCEEDED(SimConnect_SetClientData(g_simBridge.connection, kSimBridgeStatusAreaId, kSimBridgeStatusDefinitionId,
+                                          SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT, 0, static_cast<DWORD>(sizeof(data)), &data))) {
+    simBridgeDisconnect();
+  }
+}
+
 }  // namespace
 
 extern "C" {
@@ -1996,6 +2245,21 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       // the second instance.
       g_attHdgKnob.id = register_named_variable(g_attHdgKnob.name);
       g_egpwcGearDown.id = register_named_variable(g_egpwcGearDown.name);
+      for (NamedVar* v : {&g_egpwcPresentLat, &g_egpwcPresentLon, &g_egpwcPresentAltitude, &g_egpwcPresentHeading,
+                          &g_egpwcPresentVerticalSpeed, &g_egpwcDestLat, &g_egpwcDestLon, &g_egpwcRenderingMode}) {
+        v->id = register_named_variable(v->name);
+      }
+      for (int i = 0; i < 2; ++i) {
+        g_egpwcNdRange[i].id = register_named_variable(g_egpwcNdRange[i].name);
+        g_efisNdMode[i].id = register_named_variable(g_efisNdMode[i].name);
+        g_egpwcTerrainActive[i].id = register_named_variable(g_egpwcTerrainActive[i].name);
+#ifdef A380X
+        g_efisOverlay[i].id = register_named_variable(g_efisOverlay[i].name);
+#endif
+        for (NamedVar& peaks : g_peaksVars[i]) {
+          peaks.id = register_named_variable(peaks.name);
+        }
+      }
       for (int i = 0; i < 3; ++i) {
         g_adirsLat[i].id = register_named_variable(g_adirsLat[i].name);
         g_adirsLon[i].id = register_named_variable(g_adirsLon[i].name);
@@ -2098,6 +2362,13 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
         return true;
       }
 #endif
+      // The first ND gauge writes the SimBridge status block (see simBridgeUpdate).
+      if (g_simBridge.owner == 0) {
+        g_simBridge.owner = ctx;
+      }
+      if (g_simBridge.owner == ctx) {
+        simBridgeUpdate(static_cast<const sGaugeDrawData*>(pData)->t);
+      }
 
       bool isRose = false;
       bool showPrecip = false;
@@ -2403,6 +2674,10 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       Instance* instance = findInstance(ctx);
       if (instance == nullptr) {
         return true;
+      }
+      if (g_simBridge.owner == ctx) {
+        simBridgeDisconnect();
+        g_simBridge.owner = 0;
       }
       if (instance->mapView != 0) {
         fsMapViewDelete(ctx, instance->mapView);
