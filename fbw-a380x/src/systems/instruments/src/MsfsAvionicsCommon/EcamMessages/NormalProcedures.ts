@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { ChecklistLineStyle, NormalProcedure } from './';
@@ -141,6 +141,11 @@ export const EcamNormalProcedures: { [n: number]: NormalProcedure } = {
       {
         name: 'T.O RWY',
         labelNotCompleted: '____ (BOTH)',
+        sensed: false,
+      },
+      {
+        name: 'CABIN CREW',
+        labelNotCompleted: 'ADVISED',
         sensed: false,
       },
       {

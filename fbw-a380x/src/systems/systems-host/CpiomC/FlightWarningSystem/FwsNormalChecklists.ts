@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -558,7 +558,7 @@ export class FwsNormalChecklists {
       ],
     },
     1000005: {
-      whichItemsChecked: () => [null, null],
+      whichItemsChecked: () => [null, null, null],
     },
     1000006: {
       whichItemsChecked: () => [null, null, null, null],
