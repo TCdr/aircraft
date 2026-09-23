@@ -31,7 +31,7 @@ import {
   OansControlEvents,
   RaBusPublisher,
 } from '@flybywiresim/fbw-sdk';
-import { NDComponent, TerrainThresholdsProvider } from '@flybywiresim/navigation-display';
+import { NDComponent } from '@flybywiresim/navigation-display';
 import { a380EfisZoomRangeSettings, A380EfisZoomRangeValue, Oanc } from '@flybywiresim/oanc';
 
 import { ContextMenu, ContextMenuElement } from '../MsfsAvionicsCommon/UiWidgets/ContextMenu';
@@ -98,9 +98,6 @@ class NDInstrument implements FsInstrument {
   private readonly dmcPublisher: DmcPublisher;
 
   private readonly egpwcBusPublisher: EgpwcBusPublisher;
-
-  /** The TERR peaks box figures, from SimBridge while the TERR overlay is selected on this side's EFIS control panel */
-  private readonly terrainThresholdsProvider: TerrainThresholdsProvider;
 
   private readonly raBusPublisher: RaBusPublisher;
 
@@ -182,13 +179,6 @@ class NDInstrument implements FsInstrument {
     this.tcasBusPublisher = new TcasBusPublisher(this.bus);
     this.dmcPublisher = new DmcPublisher(this.bus);
     this.egpwcBusPublisher = new EgpwcBusPublisher(this.bus, side);
-    // A380X_EFIS_{side}_ACTIVE_OVERLAY: 0 none, 1 WXR, 2 TERR
-    this.terrainThresholdsProvider = new TerrainThresholdsProvider(
-      side,
-      ConsumerSubject.create(this.bus.getSubscriber<FcuSimVars>().on('a380x_efis_cp_active_overlay'), 0).map(
-        (overlay) => overlay === 2,
-      ),
-    );
     this.raBusPublisher = new RaBusPublisher(this.bus);
     this.lgciuBusPublisher = new LgciuBusPublisher(this.bus);
     this.hEventPublisher = new HEventPublisher(this.bus);
@@ -223,7 +213,6 @@ class NDInstrument implements FsInstrument {
 
     this.backplane.addInstrument('Simplane', this.simplaneValueProvider);
     this.backplane.addInstrument('clock', this.clock);
-    this.backplane.addInstrument('terrainThresholds', this.terrainThresholdsProvider);
 
     this.doInit();
   }
