@@ -63,6 +63,7 @@ clang++ \
   -Werror=return-type \
   -O2 \
   -I "${MSFS_SDK}/WASM/include" \
+  -I "${MSFS_SDK}/SimConnect SDK/include" \
   "${DIR}/src/main.cpp" \
   "${TERRONND_DIR}/src/nanovg/nanovg.cpp"
 
