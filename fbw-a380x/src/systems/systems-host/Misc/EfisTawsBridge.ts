@@ -111,6 +111,10 @@ export class EfisTawsBridge implements Instrument {
 
   private readonly simBridgeClient = ClientState.getInstance();
 
+  private static readonly AIRCRAFT_STATUS_REPOST_MS = 30_000;
+
+  private lastAircraftStatusPostTime = 0;
+
   private coordinateEqualityWithPrecisionFunc = (a: Arinc429WordData, b: Arinc429WordData) => {
     return a.ssm === b.ssm && a.value.toPrecision(4) === b.value.toPrecision(4);
   };
@@ -702,9 +706,17 @@ export class EfisTawsBridge implements Instrument {
       tawsWxrSelected === 1 ? this.terr1Failed.get() : tawsWxrSelected === 2 ? this.terr2Failed.get() : true,
     );
 
+    // SimBridge drops this HTTP source after two minutes without a message (and would fall back to the SimConnect
+    // status of the terronnd gauge, which the aircraft no longer carries), so a stationary aircraft re-sends it.
+    if (Date.now() - this.lastAircraftStatusPostTime > EfisTawsBridge.AIRCRAFT_STATUS_REPOST_MS) {
+      this.aircraftStatusShouldBeUpdated = true;
+    }
     if (this.aircraftStatusShouldBeUpdated && this.simBridgeClient.isConnected()) {
       const success = await TawsData.postAircraftStatusData(this.aircraftStatusData.get());
       this.aircraftStatusShouldBeUpdated = !success;
+      if (success) {
+        this.lastAircraftStatusPostTime = Date.now();
+      }
     }
 
     if (this.verticalPathShouldBeUpdated && this.simBridgeClient.isConnected()) {
