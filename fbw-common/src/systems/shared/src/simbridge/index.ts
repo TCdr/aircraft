@@ -5,13 +5,7 @@ import { Viewer } from './components/Viewer';
 import { Health } from './components/Health';
 import { McduServerClient } from './components/McduServerClient';
 import { TawsData } from './components/TawsData';
-import {
-  ElevationSamplePathDto,
-  NavigationDisplayThresholdsDto,
-  TawsAircraftStatusDataDto,
-  TawsEfisDataDto,
-  WaypointDto,
-} from './Taws/taws';
+import { ElevationSamplePathDto, TawsAircraftStatusDataDto, TawsEfisDataDto, WaypointDto } from './Taws/taws';
 
 export {
   ClientState,
@@ -24,6 +18,5 @@ export {
   TawsAircraftStatusDataDto,
   TawsEfisDataDto,
   ElevationSamplePathDto,
-  NavigationDisplayThresholdsDto,
   WaypointDto,
 };
