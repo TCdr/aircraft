@@ -256,13 +256,25 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   frame.isRose = ndMode != kNdModeArc;
   frame.rangeNmForMode = frame.isRose ? rangeNm / 2.0f : rangeNm;
   // The mode text on the ND: shown whenever the radar is selected on a page that has it (not while the
-  // terrain takes its place), on the ground too. A32NX: "WXR OFF" (mode 5) while the radar is switched
-  // off, one of the ND's radar indications (A320 FCOM DSC-34-SURV-30-30).
+  // terrain takes its place), on the ground too. A32NX: the display mode selector's position (WX, WX+T,
+  // TURB, MAP) and "WXR OFF" while the radar is switched off, the ND's radar indications of the
+  // Honeywell-equipped A320 (A320 FCOM DSC-34-SURV-30-30).
+#ifdef A380X
+  // The A380's ND messages of the WXR (A380 FCOM DSC-34-20-30-20, WXR MESSAGES): "WX" for the WX
+  // display function whatever the TURB button (turbulence has no message of its own while the
+  // weather is displayed), "MAP" for the ground mapping function, "WXR OFF" while the WXR button
+  // of the SURV CONTROLS page is OFF. (The manual GAIN / ELEVN / TILT values and the stand-alone
+  // TURB alert message are not modelled: the SURV knobs are not wired and the radar cannot be
+  // read back.)
+  if (mapPage && !frame.showTerrain && g_wxrOff.read() != 0.0) {
+    frame.labelMode = kWxrLabelOff;
+  } else if (radarSelected(instance) && mapPage && !frame.showTerrain) {
+    frame.labelMode = wxrMode == kWxrModeMap ? kWxrLabelMap : kWxrLabelWx;
+  }
+#else
   if (radarSelected(instance) && mapPage && !frame.showTerrain) {
     frame.labelMode = 1 + static_cast<int>(wxrMode);
-  }
-#ifndef A380X
-  else if (mapPage && !frame.showTerrain && g_wxrSys.read() == kWxrSysOff) {
+  } else if (mapPage && !frame.showTerrain && g_wxrSys.read() == kWxrSysOff) {
     frame.labelMode = kWxrLabelOff;
   }
 #endif
