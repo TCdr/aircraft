@@ -6,7 +6,7 @@
 # Mirrors fbw-common/src/wasm/terronnd/build.sh's toolchain/flags exactly
 # (including all --export flags - dropping them caused a WASM load failure,
 # ERR_INVALID_RESERVED_VALUE, during prototyping), but only compiles this
-# module's own main.cpp + the vendored nanovg.cpp already shared with terronnd.
+# module's own src/*.cpp + the vendored nanovg.cpp already shared with terronnd.
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 TERRONND_DIR="${DIR}/../terronnd"
@@ -23,8 +23,10 @@ OUTPUT="${DIR}/out/ndwxr_${AIRCRAFT_FLAG}.wasm"
 set -e
 
 # separate object folder per aircraft, so the link step below only ever sees
-# the objects of the variant being built
+# the objects of the variant being built; emptied first so a renamed or removed
+# source file leaves no stale object behind
 mkdir -p "${DIR}/obj/${AIRCRAFT_FLAG}"
+rm -f "${DIR}/obj/${AIRCRAFT_FLAG}"/*.o "${DIR}/obj/${AIRCRAFT_FLAG}"/*.su
 pushd "${DIR}/obj/${AIRCRAFT_FLAG}"
 
 clang++ \
@@ -64,7 +66,7 @@ clang++ \
   -O2 \
   -I "${MSFS_SDK}/WASM/include" \
   -I "${MSFS_SDK}/SimConnect SDK/include" \
-  "${DIR}/src/main.cpp" \
+  "${DIR}"/src/*.cpp \
   "${TERRONND_DIR}/src/nanovg/nanovg.cpp"
 
 popd
