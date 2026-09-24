@@ -356,14 +356,22 @@ export class TcasComputer {
   private updateInhibitions(): void {
     // TODO: Add more TA only conditions here (i.e Windshear warning active, stall)
     // TODO FIXME: Less magic numbers, Use constants defined in TcasConstants
-    // The low-altitude inhibitions have a hysteresis: RAs are inhibited below 900 ft AGL in descent and
-    // 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in descent
-    // and 600 ft in climb (A380 FCTM, Supplementary Information, TCAS).
+    // The low-altitude inhibitions have a hysteresis (TcasConstants): RAs are inhibited below 900 ft AGL in
+    // descent and 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in
+    // descent and 600 ft in climb (A380 FCTM, Supplementary Information, TCAS).
     if (!this.radioAlt.isFailureWarning() && !this.radioAlt.isNoComputedData()) {
-      if (this.raInhibitedLow ? this.radioAlt.value > 1100 : this.radioAlt.value < 900) {
+      if (
+        this.raInhibitedLow
+          ? this.radioAlt.value > TCAS.INHIBIT_ALL_RA_AGL_CLIMB
+          : this.radioAlt.value < TCAS.INHIBIT_ALL_RA_AGL_DESCENT
+      ) {
         this.raInhibitedLow = !this.raInhibitedLow;
       }
-      if (this.taAuralInhibitedLow ? this.radioAlt.value > 600 : this.radioAlt.value < 400) {
+      if (
+        this.taAuralInhibitedLow
+          ? this.radioAlt.value > TCAS.INHIBIT_TA_AURAL_AGL_CLIMB
+          : this.radioAlt.value < TCAS.INHIBIT_TA_AURAL_AGL_DESCENT
+      ) {
         this.taAuralInhibitedLow = !this.taAuralInhibitedLow;
       }
     } else {
