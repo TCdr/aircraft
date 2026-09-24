@@ -42,7 +42,7 @@ static bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* c
   // fsMapViewSetWeatherRadarStabilization is not called either: per the SDK docs
   // the beam is already stabilized in pitch and bank by default (it stays level
   // in turns), so there is nothing to set.
-  fsMapViewSetWeatherRadarConeAngleInRadians(ctx, id, 3.14159f);  // 180 deg, matches the JS radar's wxrMode.arcRadians
+  fsMapViewSetWeatherRadarConeAngleInRadians(ctx, id, kRadarConeDegrees * kDegToRadF);
   fsMapViewSetWeatherRadarRainColors(ctx, id, colors, colorCount);
   return true;
 }
