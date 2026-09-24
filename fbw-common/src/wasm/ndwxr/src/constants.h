@@ -270,6 +270,17 @@ constexpr float kArcNotchLeftY = 683.0f;
 constexpr float kArcLeftCornerX = 122.0f;
 constexpr float kArcLeftCornerY = 625.0f;
 constexpr float kArcClipBottom = 674.0f;
+// The engine's radar cone, centred on the heading: the real antenna's azimuth sweep. A32NX: the
+// Honeywell RDR-4B sweeps 180 degrees (Avionics International, "Product Focus: Weather Radar",
+// 2002). A380X: the Honeywell RDR-4000 scans 160 degrees, +-80 (Honeywell's IntuVue white
+// paper; its display covers +-90 from the radar's memory, which the engine does not have, so
+// nothing is painted behind the aircraft). The area path and the scissor clip whatever the cone
+// paints beyond the display's shape.
+#ifdef A380X
+constexpr float kRadarConeDegrees = 160.0f;
+#else
+constexpr float kRadarConeDegrees = 180.0f;
+#endif
 constexpr float kDegToRadF = 0.01745329f;
 
 // The color list: kTerrainBandCount equal bands of kTerrainBandFeet over
