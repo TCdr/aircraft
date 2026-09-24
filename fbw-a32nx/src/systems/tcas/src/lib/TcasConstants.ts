@@ -13,6 +13,10 @@ const INHIBIT_CLB_RA: number = 39000; // for all climb RA's
 const INHIBIT_INC_DES_RA_AGL: number = 1450; // for increase descent RA's
 const INHIBIT_ALL_DES_RA_AGL: number = 1200; // 1200 takeoff, 1000 approach
 const INHIBIT_ALL_RA: number = 1000; // 1100 in climb, 900 in descent
+const INHIBIT_ALL_RA_AGL_DESCENT: number = 900; // all RAs inhibited below this radio altitude in descent ...
+const INHIBIT_ALL_RA_AGL_CLIMB: number = 1100; // ... and re-enabled above this one in climb (FCOM: 1000 ft +-100 ft)
+const INHIBIT_TA_AURAL_AGL_DESCENT: number = 400; // the TA aural is inhibited below this radio altitude in descent ...
+const INHIBIT_TA_AURAL_AGL_CLIMB: number = 600; // ... and re-enabled above this one in climb (A380 FCTM, TCAS)
 const REALLY_BIG_NUMBER: number = 1000000;
 const INITIAL_DELAY: number = 5; // in seconds
 const FOLLOWUP_DELAY: number = 2.5; // in deconds
@@ -818,6 +822,10 @@ export const TCAS_CONST: { [key: string]: any } = {
   INHIBIT_INC_DES_RA_AGL, // for increase descent RA's
   INHIBIT_ALL_DES_RA_AGL, // 1200 takeoff, 1000 approach
   INHIBIT_ALL_RA, // 1100 in climb, 900 in descent
+  INHIBIT_ALL_RA_AGL_DESCENT,
+  INHIBIT_ALL_RA_AGL_CLIMB,
+  INHIBIT_TA_AURAL_AGL_DESCENT,
+  INHIBIT_TA_AURAL_AGL_CLIMB,
   REALLY_BIG_NUMBER,
   INITIAL_DELAY, // in seconds
   FOLLOWUP_DELAY, // in deconds
