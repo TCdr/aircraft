@@ -94,6 +94,8 @@ export class TawsStatusBridge implements Instrument {
 
   private readonly simBridgeClient = ClientState.getInstance();
 
+  // The ARINC words below are mapped onto themselves only to attach an equality: a change is what
+  // triggers a post, so the noise of the last digits must not count as one.
   private readonly coordinateEquality = (a: Arinc429WordData, b: Arinc429WordData) =>
     a.ssm === b.ssm && a.value.toPrecision(4) === b.value.toPrecision(4);
 
@@ -185,7 +187,7 @@ export class TawsStatusBridge implements Instrument {
       renderingMode,
       groundTruthLatitude,
       groundTruthLongitude,
-    ]) => {
+    ]): TawsAircraftStatusDataDto => {
       return {
         adiruDataValid:
           latitude.isNormalOperation() &&
@@ -210,7 +212,7 @@ export class TawsStatusBridge implements Instrument {
         manualAzimDegrees: 0,
         groundTruthLatitude,
         groundTruthLongitude,
-      } as TawsAircraftStatusDataDto;
+      };
     },
     this.latitude,
     this.longitude,
