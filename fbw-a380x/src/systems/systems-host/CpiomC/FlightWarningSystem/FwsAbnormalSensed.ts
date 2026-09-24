@@ -94,6 +94,11 @@ export class FwsAbnormalSensed {
 
   private readonly subscriptions: Subscription[] = [];
 
+  /** Whether the XPDR & TCAS system selected on the SURV panel (L:A32NX_TRANSPONDER_SYSTEM, 0 = SYS 1) is the given one. */
+  private xpdrTcasSystemIs(system: 1 | 2): boolean {
+    return SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === system - 1;
+  }
+
   public readonly abnormalShown = Subject.create(false);
 
   public readonly showAbnormalSensedRequested = Subject.create(false);
@@ -3787,7 +3792,7 @@ export class FwsAbnormalSensed {
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_1_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_2_PB_IS_ON', 'Bool'),
         this.fws.tawsWxrSelected.get() === 1,
-        SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === 0,
+        this.xpdrTcasSystemIs(1),
         true,
         true,
         SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB', 'number') === 0,
@@ -3819,7 +3824,7 @@ export class FwsAbnormalSensed {
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_1_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_3_PB_IS_ON', 'Bool'),
         this.fws.tawsWxrSelected.get() === 2,
-        SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === 1,
+        this.xpdrTcasSystemIs(2),
         true,
         true,
         SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB', 'number') === 0,
@@ -3851,7 +3856,7 @@ export class FwsAbnormalSensed {
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_2_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_ADR_3_PB_IS_ON', 'Bool'),
         this.fws.tawsWxrSelected.get() === 1,
-        SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === 0,
+        this.xpdrTcasSystemIs(1),
         true,
         true,
         SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB', 'number') === 0,
@@ -3995,7 +4000,7 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [
         this.fws.attKnob.get() === 0,
         this.fws.tawsWxrSelected.get() === 1,
-        SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === 0,
+        this.xpdrTcasSystemIs(1),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_2_PB_IS_ON', 'Bool'),
       ],
@@ -4020,7 +4025,7 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [
         this.fws.attKnob.get() === 1,
         this.fws.tawsWxrSelected.get() === 2,
-        SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === 1,
+        this.xpdrTcasSystemIs(2),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_3_PB_IS_ON', 'Bool'),
         true,
@@ -4048,7 +4053,7 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [
         this.fws.attKnob.get() === 1,
         this.fws.tawsWxrSelected.get() === 1,
-        SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === 0,
+        this.xpdrTcasSystemIs(1),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_2_PB_IS_ON', 'Bool'),
         !SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_3_PB_IS_ON', 'Bool'),
       ],
@@ -4241,7 +4246,7 @@ export class FwsAbnormalSensed {
       simVarIsActive: this.fws.tcas1Fault,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true],
-      whichItemsChecked: () => [SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === 1],
+      whichItemsChecked: () => [this.xpdrTcasSystemIs(2)],
       failure: 2,
       sysPage: SdPages.None,
     },
@@ -4251,7 +4256,7 @@ export class FwsAbnormalSensed {
       simVarIsActive: this.fws.tcas2Fault,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true],
-      whichItemsChecked: () => [SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === 0],
+      whichItemsChecked: () => [this.xpdrTcasSystemIs(1)],
       failure: 2,
       sysPage: SdPages.None,
     },
