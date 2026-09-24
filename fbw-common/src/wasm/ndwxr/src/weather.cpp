@@ -69,8 +69,15 @@ void arcAreaPath(NVGcontext* vg, float cx, float cy, float radius, float sweepFr
   nvgLineTo(vg, kArcCornerLeft, kArcCornerTop);
   nvgLineTo(vg, kArcNotchRightX, kArcNotchRightY);
   nvgLineTo(vg, kArcNotchRightX, kArcClipBottom);
-  nvgLineTo(vg, kArcNotchLeftX, kArcClipBottom);
-  nvgLineTo(vg, kArcNotchLeftX, kArcNotchLeftY);
+  if (kArcNotchLeftY > kArcClipBottom) {
+    // The left notch's corner lies below the area's bottom: the diagonal up to the left corner
+    // is entered where it crosses the bottom.
+    const float t = (kArcNotchLeftY - kArcClipBottom) / (kArcNotchLeftY - kArcLeftCornerY);
+    nvgLineTo(vg, kArcNotchLeftX + t * (kArcLeftCornerX - kArcNotchLeftX), kArcClipBottom);
+  } else {
+    nvgLineTo(vg, kArcNotchLeftX, kArcClipBottom);
+    nvgLineTo(vg, kArcNotchLeftX, kArcNotchLeftY);
+  }
   nvgLineTo(vg, kArcLeftCornerX, kArcLeftCornerY);
   nvgClosePath(vg);
 }

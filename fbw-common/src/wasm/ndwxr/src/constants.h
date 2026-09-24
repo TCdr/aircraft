@@ -258,6 +258,9 @@ constexpr float kTopBandRate = 1000000.0f;
 // While the radar's buffer fills (sweepFraction < 1, see drawWeatherRect) it is the sector swept
 // so far instead. A circle too small to reach the right corner (the turbulence limit)
 // is left round; the rectangular scissor of the caller cuts it at the message boxes.
+// The bottom is the top of the TCAS / WXR message box (y = 680 on the map pages,
+// TcasWxrMessages.tsx) less a small margin, not the ARC_CLIP polygon's 768: the real
+// display's picture stops just above that box.
 constexpr float kArcCornerTop = 562.0f;
 constexpr float kArcCornerLeft = 648.0f;
 constexpr float kArcNotchRightX = 591.0f;
@@ -266,7 +269,7 @@ constexpr float kArcNotchLeftX = 174.0f;
 constexpr float kArcNotchLeftY = 683.0f;
 constexpr float kArcLeftCornerX = 122.0f;
 constexpr float kArcLeftCornerY = 625.0f;
-constexpr float kArcClipBottom = 768.0f;
+constexpr float kArcClipBottom = 674.0f;
 constexpr float kDegToRadF = 0.01745329f;
 
 // The color list: kTerrainBandCount equal bands of kTerrainBandFeet over
