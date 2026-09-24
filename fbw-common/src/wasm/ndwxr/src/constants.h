@@ -178,6 +178,8 @@ constexpr double kWxrModeMap = 3.0;
 // The mode text the JS ND shows (A32NX_WXR_ND_{L,R}_MODE, WxrModeLabel.tsx): 0 = none, 1 + the knob
 // position above (WX, WX+T, TURB, MAP), and 5 = "WXR OFF" while the A32NX radar is switched off.
 constexpr int kWxrLabelOff = 5;
+constexpr int kWxrLabelWx = 1;
+constexpr int kWxrLabelMap = 4;
 
 // Turbulence proxy: real WXR finds turbulence from Doppler spectral width,
 // which MSFS doesn't expose - a rain rate above this (mm/h; a strong convective
