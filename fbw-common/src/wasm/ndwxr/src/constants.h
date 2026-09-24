@@ -146,6 +146,9 @@ constexpr double kNdModePlan = 4.0;
 // a380EfisRangeSettings, NavigationDisplay.ts:19. Range index 0 (-1) is the
 // OANS airport map: the ND shows that instead of the moving map, so no radar.
 constexpr float kRangeTableNm[8] = {-1.0f, 10.0f, 20.0f, 40.0f, 80.0f, 160.0f, 320.0f, 640.0f};
+// The weather is not displayed above this ND range: "The ND can only display the weather, if the
+// selected range is below, or equal to, 320 nm" (A380 FCOM DSC-31-20-50). The terrain has no such limit.
+constexpr float kWxrMaxRangeNm = 320.0f;
 #endif
 #ifndef A380X
 // a320EfisRangeSettings, NavigationDisplay.ts:9,15.
