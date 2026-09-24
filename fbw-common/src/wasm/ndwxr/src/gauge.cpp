@@ -236,7 +236,14 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   frame.terrainHeadingDegrees = headingWord.value();
   const bool mapPage = isMapPage(ndMode) && rangeNm > 0.0f;
   frame.showTerrain = terrainViewsReady && terrainSelected(instance) && mapPage && positionValid && headingWord.isNo();
-  const bool active = radarSelected(instance) && mapPage && positionValid && !frame.showTerrain;
+#ifdef A380X
+  // "The ND can only display the weather if the selected range is below, or equal to, 320 nm"
+  // (A380 FCOM DSC-31-20-50, ND range selector).
+  const bool weatherRange = rangeNm <= kWxrMaxRangeNm;
+#else
+  const bool weatherRange = true;
+#endif
+  const bool active = radarSelected(instance) && mapPage && positionValid && !frame.showTerrain && weatherRange;
   frame.showPrecip = active && instance.mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
   frame.showTurb = active && instance.mapViewHotReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
   frame.showMap = active && terrainViewsReady && wxrMode == kWxrModeMap && headingWord.isNo();
