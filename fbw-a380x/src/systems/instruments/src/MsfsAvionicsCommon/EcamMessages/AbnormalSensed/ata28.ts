@@ -509,7 +509,18 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800053: {
     title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON COMPLETED',
     sensed: true,
-    items: [],
+    items: [
+      {
+        name: 'JETTISON ACTIVE',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'JETTISON ARM',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+    ],
   },
   281800054: {
     title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON FAULT',
@@ -859,9 +870,24 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     ],
   },
   280900001: {
-    title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON (WIP)',
+    // A380 FCOM PRO-ABN-ECAM-10-28-80 FUEL JETTISON
+    title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON',
     sensed: false,
-    items: [], // TODO
+    items: [
+      { name: 'FMS FUEL & LOAD PAGE', sensed: false, labelNotCompleted: 'SELECT' },
+      { name: 'JETTISON GW', sensed: false, labelNotCompleted: 'ENTER' },
+      { name: 'TRIM TK NOT EMPTY & NO TRIM & APU LINE FAULT', sensed: false, condition: true },
+      { name: 'TRIM TK FEED', sensed: false, labelNotCompleted: 'AUTO', level: 1 },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'JETTISON & CG', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'WHEN JETTISON COMPLETED (AUTO RCL)', sensed: false, condition: true },
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'RQRD TO MANUALLY STOP JETTISON', sensed: false, condition: true },
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   280900002: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FUEL LEAK (WIP)',

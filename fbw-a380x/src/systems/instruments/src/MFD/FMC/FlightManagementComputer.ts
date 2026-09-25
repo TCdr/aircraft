@@ -425,6 +425,10 @@ export class FlightManagementComputer implements FmcInterface {
     private readonly fmcInop: Subscribable<boolean>,
     mfdReference: (FmsDisplayInterface & MfdDisplayInterface) | null,
   ) {
+    // JTSN GW for the FQMS (FuelJettison), 0 without JTSN GW: entered on the FUEL&LOAD page of the master FMC
+    this.fmgc.data.jettisonGrossWeight.sub((gw) =>
+      SimVar.SetSimVarValue('L:A380X_FMS_JETTISON_GW', SimVarValueType.Number, gw ?? 0),
+    );
     this.#mfdReference = mfdReference;
 
     const db = new NavigationDatabase(this.bus, NavigationDatabaseBackend.Msfs);
