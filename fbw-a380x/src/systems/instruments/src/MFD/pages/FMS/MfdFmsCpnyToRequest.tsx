@@ -2,11 +2,21 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ArraySubject, FSComponent, MappedSubject, Subject, UnitType, VNode } from '@microsoft/msfs-sdk';
+import {
+  ArraySubject,
+  FSComponent,
+  MappedSubject,
+  MappedSubscribable,
+  Subject,
+  Subscription,
+  UnitType,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 
 import { AbstractMfdPageProps } from '../../MFD';
+import { FmcInterface } from '../../FMC/FmcInterface';
 import { FmsPage } from '../common/FmsPage';
 import { Footer } from '../common/Footer';
 import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../common/FcomLayout';
@@ -27,6 +37,28 @@ import {
 /** URI pages of the company takeoff data pages */
 export const cpnyToRequestPage = 'cpny-to-request';
 export const receivedCpnyToDataPage = 'received-cpny-to-data';
+
+/**
+ * The CPNY T.O REQUEST button of the INIT and PERF pages: once company takeoff data is received it becomes RECEIVED
+ * CPNY T.O and displays the RECEIVED COMPANY T.O DATA page (A380 FCOM DSC-22-FMS, company takeoff data).
+ */
+export class CompanyTakeoffDataButton {
+  private readonly received = Subject.create(false);
+
+  public readonly label: MappedSubscribable<string>;
+
+  public readonly subscription: Subscription;
+
+  constructor(fmc: FmcInterface, requestLabel: string) {
+    this.label = this.received.map((r) => (r ? 'RECEIVED\nCPNY T.O' : requestLabel));
+    this.subscription = fmc.companyTakeoffData.uplinks.sub((list) => this.received.set(list.length > 0), true);
+  }
+
+  /** The page the button displays */
+  public get target(): string {
+    return `fms/active/${this.received.get() ? receivedCpnyToDataPage : cpnyToRequestPage}`;
+  }
+}
 
 /** FCOM P 37: runway conditions of the list */
 export const runwayConditions = ['DRY', 'WET', '1/4 WATER', '1/2 WATER', '1/4 SLUSH', '1/2 SLUSH', 'COMP SNOW'];
@@ -58,8 +90,8 @@ class RunwayRequest {
  * COMPANY T.O DATA REQUEST page (A380 FCOM DSC-22-FMS-20-30 P 32-41): takeoff data request for two runways, with the
  * takeoff parameters sent to the company ground station. Only for the active flight plan.
  *
- * No company ground station computes takeoff data in the simulation: the page shows and keeps the request parameters,
- * but SEND T.O REQUEST is inactive.
+ * The company ground station is the flypad takeoff calculator: SEND T.O REQUEST sends it the request, and the button
+ * shows REQUEST PENDING... until the takeoff data is received, or NO COMPANY REPLY after 4 min.
  */
 export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
   private readonly runways = [new RunwayRequest(), new RunwayRequest()];
@@ -90,7 +122,11 @@ export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
 
   private readonly flapsLabels = ArraySubject.create(['1', '2', '3']);
 
-  private readonly noCompanyTakeoffData = Subject.create(true);
+  private readonly requestPending = Subject.create(false);
+
+  private readonly sendRequestLabel = this.requestPending.map((pending) =>
+    pending ? 'REQUEST\nPENDING...' : 'SEND T.O\nREQUEST *',
+  );
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -100,7 +136,33 @@ export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
       this.runwayPageText,
       this.weightUnit,
       this.takeoffWeightText,
+      this.sendRequestLabel,
+      this.props.fmcService.master.companyTakeoffData.requestPending.sub((p) => this.requestPending.set(p), true),
     );
+  }
+
+  /** SEND T.O REQUEST: the FMS takeoff data with the conditions of the requested runways */
+  private sendRequest(): void {
+    const fmc = this.props.fmcService.master;
+    const thrusts = ['TOGA', 'FLEX', 'DERATED'] as const;
+    const request = {
+      ...fmc.companyTakeoffDataRequestContent(),
+      runways: this.runways
+        .filter((rwy) => rwy.runway.get() !== null)
+        .map((rwy) => ({
+          runway: rwy.runway.get()!,
+          windDirection: rwy.windDirection.get(),
+          windSpeed: rwy.windSpeed.get(),
+          qnh: rwy.qnh.get(),
+          runwayCondition: rwy.condition.get(),
+          thrust: thrusts[rwy.thrust.get() ?? 0] ?? null,
+          flaps: rwy.flaps.get() !== null ? rwy.flaps.get()! + 1 : null,
+          shift: rwy.shift.get(),
+          toLimit: rwy.limit.get(),
+        })),
+    };
+    // Refused only while a request is pending, when the button is inactive
+    fmc.companyTakeoffData.sendRequest(request);
   }
 
   protected onNewData(): void {
@@ -336,9 +398,9 @@ export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
               656,
               290,
               <Button
-                label="SEND T.O<br />REQUEST *"
-                disabled={this.noCompanyTakeoffData}
-                onClick={() => {}}
+                label={this.sendRequestLabel}
+                disabled={this.requestPending}
+                onClick={() => this.sendRequest()}
                 buttonStyle="min-width: 183px; min-height: 59px;"
               />,
             )}

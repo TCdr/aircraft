@@ -51,7 +51,7 @@ import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { NXSystemMessages } from '../../shared/NXSystemMessages';
 import { qnhToMillibar } from '../../shared/QnhUtils';
-import { cpnyToRequestPage } from './MfdFmsCpnyToRequest';
+import { CompanyTakeoffDataButton } from './MfdFmsCpnyToRequest';
 import {
   getEtaFromUtcOrPresent as getEtaUtcOrFromPresent,
   getApproachName,
@@ -848,8 +848,12 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
     this.cruisePreselectedSpeed.set(pd?.preselectedCruiseSpeed ? pd.preselectedCruiseSpeed.get() : null);
   }
 
+  /** CPNY T.O REQUEST, RECEIVED CPNY T.O once company takeoff data is received */
+  private readonly cpnyToButton = new CompanyTakeoffDataButton(this.props.fmcService.master, 'CPNY T.O\nREQUEST');
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+    this.subs.push(this.cpnyToButton.subscription, this.cpnyToButton.label);
 
     const sub = this.props.bus.getSubscriber<ClockEvents & MfdSimvars>();
 
@@ -2052,10 +2056,11 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                         578,
                         560,
                         <Button
-                          label="CPNY T.O<br />REQUEST"
-                          // FCOM DSC-22-FMS-20-30 P 34: displays the COMPANY T.O DATA REQUEST page
+                          label={this.cpnyToButton.label}
+                          // FCOM DSC-22-FMS-20-30 P 34: displays the COMPANY T.O DATA REQUEST page, or the RECEIVED
+                          // COMPANY T.O DATA page once takeoff data is received
                           disabled={this.secActive}
-                          onClick={() => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyToRequestPage}`)}
+                          onClick={() => this.props.mfd.uiService.navigateTo(this.cpnyToButton.target)}
                           buttonStyle="min-width: 174px; min-height: 60px;"
                         />,
                       )}

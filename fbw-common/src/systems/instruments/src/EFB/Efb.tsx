@@ -60,6 +60,7 @@ import { FlyPadPage } from './Settings/Pages/FlyPadPage';
 import { NavigraphAuthProvider } from '../react/navigraph';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { Printouts } from './Dispatch/Printouts';
+import { CompanyTakeoffRequests } from './Performance/Widgets/A380Takeoff';
 import { TroubleshootingContextProvider } from './TroubleshootingContext';
 import { checkFileHashes } from './Utils/fileHashes';
 import { setFileHashMismatches } from './Store/features/fileHashes';
@@ -536,6 +537,9 @@ export const EfbInstrument: React.FC<EfbInstrumentProps> = ({ failures, aircraft
 
   // The pages printed by the A380X FMS, kept for the DISPATCH / PRINTOUTS page even while it is not open
   useEffect(() => Printouts.connect(eventBus), [eventBus]);
+
+  // The takeoff data requests of the A380X FMS, kept for the takeoff calculator even while it is not open
+  useEffect(() => CompanyTakeoffRequests.connect(eventBus), [eventBus]);
 
   const [err, setErr] = useState(false);
 

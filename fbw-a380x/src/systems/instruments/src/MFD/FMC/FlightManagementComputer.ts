@@ -37,6 +37,7 @@ import {
   VerticalPathCheckpoint,
   Waypoint,
   NearbyFacility,
+  CompanyTakeoffDataUplink,
 } from '@flybywiresim/fbw-sdk';
 import {
   isTypeIIMessage,
@@ -73,6 +74,8 @@ import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { HistoryWind } from '@fmgc/wind/HistoryWind';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
+import { CompanyTakeoffData, CompanyTakeoffDataMessage, CompanyTakeoffDataRequestContent } from './CompanyTakeoffData';
+import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
@@ -417,6 +420,9 @@ export class FlightManagementComputer implements FmcInterface {
 
   private simBriefOfp: ISimbriefData | null = null;
 
+  /** Company takeoff data (A380 FCOM DSC-22-FMS): the request and the received data, from the flypad calculator */
+  public readonly companyTakeoffData: CompanyTakeoffData;
+
   constructor(
     private instance: FmcIndex,
     private _operatingMode: FmcOperatingModes,
@@ -478,6 +484,29 @@ export class FlightManagementComputer implements FmcInterface {
     if (this.operatingMode === FmcOperatingModes.Master) {
       this.#msfsFlightPlanSync = new MsfsFlightPlanSync(this.bus, this.flightPlanInterface);
     }
+
+    this.companyTakeoffData = new CompanyTakeoffData(
+      this.bus,
+      this.instance === FmcIndex.FmcA,
+      () => this.companyTakeoffDataRequestContent(),
+      (message) => {
+        switch (message) {
+          case CompanyTakeoffDataMessage.Received:
+            this.addMessageToQueue(
+              NXSystemMessages.cpnyToDataReceivedPendingInsertion,
+              () => this.companyTakeoffData.uplinks.get().length === 0,
+              undefined,
+            );
+            break;
+          case CompanyTakeoffDataMessage.NotValid:
+            this.addMessageToQueue(NXSystemMessages.receivedCpnyToDataNotValid, undefined, undefined);
+            break;
+          case CompanyTakeoffDataMessage.NoReply:
+            this.addMessageToQueue(NXSystemMessages.noCompanyReply, undefined, undefined);
+            break;
+        }
+      },
+    );
 
     this.#navigation.init();
     this.efisSymbolsLeft.init();
@@ -1273,6 +1302,130 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** @inheritdoc */
   public readonly timeConstraint = Subject.create<TimeConstraint | null>(null);
+
+  /**
+   * The takeoff data of the FMS, as in a company takeoff data request: from the active flight plan and the load data
+   * (A380 FCOM DSC-22-FMS, COMPANY T.O DATA REQUEST page)
+   */
+  public companyTakeoffDataRequestContent(): CompanyTakeoffDataRequestContent {
+    const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
+    const pd = plan?.performanceData;
+    const power = pd?.takeoffPowerSetting?.get();
+    return {
+      departure: plan?.originAirport?.ident ?? null,
+      tow: this.getTakeoffWeight(FlightPlanIndex.Active),
+      // The T.O CG entered in THS FOR, if any (the ZFW CG is not the T.O CG)
+      cg: pd?.takeoffThsFor?.get() ?? null,
+      oat: this.getStaticAirTemperature(),
+      runways: plan?.originRunway
+        ? [
+            {
+              runway: plan.originRunway.ident.substring(4),
+              windDirection: null,
+              windSpeed: null,
+              qnh: Math.round(SimVar.GetSimVarValue('KOHLSMAN SETTING MB:1', 'millibars')),
+              runwayCondition: 0,
+              thrust:
+                power === TakeoffPowerSetting.FLEX
+                  ? 'FLEX'
+                  : power === TakeoffPowerSetting.DERATED
+                    ? 'DERATED'
+                    : power === TakeoffPowerSetting.TOGA
+                      ? 'TOGA'
+                      : null,
+              flaps: pd?.takeoffFlaps.get() ?? null,
+              shift: pd?.takeoffShift.get() ?? null,
+              toLimit: null,
+            },
+          ]
+        : [],
+    };
+  }
+
+  /**
+   * Whether received company takeoff data can be inserted (A380 FCOM DSC-22-FMS-20-30 P 316-319, RECEIVED COMPANY T.O
+   * DATA page): the departure airport and runway of the active flight plan, a TOW not more than 2 t below or 7 t above
+   * the FMS one, and the takeoff speeds, TOW, T.O CG, wind, runway condition, baro setting and temperature in the data.
+   * @returns whether it can be inserted, whether the runway is not the active one (amber), and whether the TOW disagrees
+   *   with the FMS one (amber, with UPLINK/ACTIVE TOW DISAGREE on the active runway)
+   */
+  public checkCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): {
+    insertable: boolean;
+    runwayDisagree: boolean;
+    towDisagree: boolean;
+  } {
+    const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
+    const runwayMatches =
+      plan !== null &&
+      plan.originAirport?.ident === uplink.departure &&
+      plan.originRunway !== undefined &&
+      plan.originRunway.ident.substring(4) === uplink.runway;
+    const fmsTow = this.getTakeoffWeight(FlightPlanIndex.Active);
+    const towAgrees =
+      fmsTow !== null && fmsTow !== undefined && uplink.tow >= fmsTow - 2_000 && uplink.tow <= fmsTow + 7_000;
+    const complete = uplink.v1 !== null && uplink.vr !== null && uplink.cg !== null;
+    return {
+      insertable: runwayMatches && towAgrees && complete && this.flightPhase.get() < FmgcFlightPhase.Takeoff,
+      runwayDisagree: !runwayMatches,
+      towDisagree: !towAgrees,
+    };
+  }
+
+  /**
+   * INSERT: the received company takeoff data updates the T.O panel of the PERF page with the takeoff speeds, flaps
+   * setting, takeoff thrust, takeoff shift, thrust reduction and acceleration altitudes and noise parameters (A380 FCOM
+   * DSC-22-FMS-20-30 P 319). The T.O CG is not inserted: the flight crew enters it in THS FOR.
+   */
+  public insertCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): boolean {
+    if (!this.checkCompanyTakeoffData(uplink).insertable) {
+      this.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+      return false;
+    }
+    const plan = FlightPlanIndex.Active;
+    this.flightPlanInterface.setPerformanceData('v1', uplink.v1, plan);
+    SimVar.SetSimVarValue('L:AIRLINER_V1_SPEED', 'Knots', uplink.v1);
+    this.flightPlanInterface.setPerformanceData('vr', uplink.vr, plan);
+    SimVar.SetSimVarValue('L:AIRLINER_VR_SPEED', 'Knots', uplink.vr);
+    this.flightPlanInterface.setPerformanceData('v2', uplink.v2, plan);
+    SimVar.SetSimVarValue('L:AIRLINER_V2_SPEED', 'Knots', uplink.v2);
+    this.flightPlanInterface.setPerformanceData('takeoffFlaps', uplink.flaps as 1 | 2 | 3, plan);
+    this.acInterface.setTakeoffFlaps(uplink.flaps);
+    if (uplink.thrust === 'FLEX' && uplink.flexTemperature !== null) {
+      this.flightPlanInterface.setPerformanceData('flexTakeoffTemperature', uplink.flexTemperature, plan);
+      this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.FLEX, plan);
+      // 0 means no FLEX, 0.1 a FLEX temperature of 0
+      SimVar.SetSimVarValue(
+        'L:A32NX_AIRLINER_TO_FLEX_TEMP',
+        'Number',
+        uplink.flexTemperature === 0 ? 0.1 : uplink.flexTemperature,
+      );
+    } else {
+      this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.TOGA, plan);
+      SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
+    }
+    this.flightPlanInterface.setPerformanceData('takeoffShift', uplink.shift, plan);
+    if (uplink.thrustReductionAltitude !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotThrustReductionAltitude', uplink.thrustReductionAltitude, plan);
+    }
+    if (uplink.accelerationAltitude !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotAccelerationAltitude', uplink.accelerationAltitude, plan);
+    }
+    if (uplink.engineOutAccelerationAltitude !== null) {
+      this.flightPlanInterface.setPerformanceData(
+        'pilotEngineOutAccelerationAltitude',
+        uplink.engineOutAccelerationAltitude,
+        plan,
+      );
+    }
+    if (uplink.noise !== null) {
+      this.flightPlanInterface.setPerformanceData('noiseEnabled', true, plan);
+      this.flightPlanInterface.setPerformanceData('noiseEndAltitude', uplink.noise.endAltitude, plan);
+      this.flightPlanInterface.setPerformanceData('noiseSpeed', uplink.noise.speed, plan);
+      this.flightPlanInterface.setPerformanceData('noiseN1', uplink.noise.n1, plan);
+    }
+    this.companyTakeoffData.clear(uplink);
+    return true;
+  }
 
   /** State of the company wind request of each flight plan (FCOM DSC-22-FMS-10-40-90 COMPANY WIND REQUEST) */
   private readonly companyWindRequestStates = new Map<FlightPlanIndex, Subject<CompanyWindRequestState>>();
