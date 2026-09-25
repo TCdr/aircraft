@@ -49,6 +49,13 @@
   margin: 5px 13px 0 9px;
   height: 304px;
   box-sizing: border-box;
+  position: relative;
+}
+
+// FCOM DSC-22-FMS-20-30 P 131: the CRS field right of the CRS IN / CRS OUT option (top set by the page)
+.mfd-fms-direct-to-course-field {
+  position: absolute;
+  left: 200px;
 }
 
 .mfd-fms-direct-to-options {

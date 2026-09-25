@@ -7,7 +7,9 @@ import { Airport, ApproachType, Fix, LegType, MagVar, MathUtils, NXDataStore } f
 import { AlternateFlightPlan } from '@fmgc/flightplanning/plans/AlternateFlightPlan';
 import { AeroMath, BitFlags, EventBus, MutableSubscribable, Subject, Vec2Math } from '@microsoft/msfs-sdk';
 import { FixInfoData, FixInfoEntry } from '@fmgc/flightplanning/plans/FixInfo';
-import { Coordinates, Degrees } from 'msfs-geo';
+import { Coordinates, Degrees, distanceTo } from 'msfs-geo';
+import { WaypointFactory } from '@fmgc/flightplanning/waypoints/WaypointFactory';
+import { abeamPointOnLeg, abeamWaypointIdent, DirectToInterceptCourse, directToInterceptPoint } from './DirectTo';
 import { FlightPlanLeg, FlightPlanLegFlags, isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { FlightArea } from '@fmgc/navigation/FlightArea';
@@ -167,7 +169,19 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     this.setPerformanceData('alternateWind', null);
   }
 
-  directToLeg(ppos: Coordinates, trueTrack: Degrees, targetLegIndex: number, _withAbeam = false) {
+  /**
+   * DIR TO a leg of the flight plan (A380 FCOM DSC-22-FMS, DIR TO revision): DIRECT, DIRECT WITH ABEAM (the flight plan
+   * waypoints up to the target are replaced by their abeam points on the direct leg), CRS IN (the current track up to
+   * the intercept of an inbound course to the target) or CRS OUT (the current track up to the intercept of an outbound
+   * course from the target, a MANUAL leg).
+   */
+  directToLeg(
+    ppos: Coordinates,
+    trueTrack: Degrees,
+    targetLegIndex: number,
+    withAbeam = false,
+    interceptCourse?: DirectToInterceptCourse,
+  ) {
     if (targetLegIndex >= this.firstMissedApproachLegIndex) {
       throw new Error('[FPM] Cannot direct to a leg in the missed approach segment');
     }
@@ -187,12 +201,12 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       turningPoint.flags |= FlightPlanLegFlags.PendingDirectToTurningPoint;
     }
 
-    const fixMagVar = MagVar.getForFix(targetLegFix);
-    const turnEnd = FlightPlanLeg.directToTurnEnd(this.enrouteSegment, targetLegFix, fixMagVar)
-      .withDefinitionFrom(targetLeg)
-      .withPilotEnteredDataFrom(targetLeg);
-    // If we don't do this, the turn end will have the termination waypoint's ident which may not be the leg ident (for runway legs for example)
-    turnEnd.ident = targetLeg.ident;
+    // The flight plan waypoints from the TO waypoint up to the target, for their abeam points
+    const skippedLegs = withAbeam && !interceptCourse ? this.allLegs.slice(this.activeLegIndex, targetLegIndex) : [];
+
+    const directLegs = interceptCourse
+      ? this.interceptLegs(ppos, trueTrack, targetLeg, targetLegFix, interceptCourse)
+      : this.directLegs(ppos, targetLeg, targetLegFix, skippedLegs.filter(isLeg));
 
     this.redistributeLegsAt(0);
     this.redistributeLegsAt(targetLegIndex);
@@ -202,25 +216,39 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       throw new Error('[FPM] Target leg of a direct to not found in enroute segment after leg redistribution!');
     }
 
-    this.enrouteSegment.allLegs.splice(0, indexInEnrouteSegment + 1, turningPoint, turnEnd);
+    this.enrouteSegment.allLegs.splice(0, indexInEnrouteSegment + 1, turningPoint, ...directLegs);
     this.incrementVersion();
 
-    const turnEndLegIndexInPlan = this.allLegs.findIndex((it) => it === turnEnd);
+    const lastDirectLeg = directLegs[directLegs.length - 1];
+    const lastDirectLegIndexInPlan = this.allLegs.findIndex((it) => it === lastDirectLeg);
 
-    if (!this.requiresTurnDirectionAt(turnEndLegIndexInPlan + 1)) {
-      this.removeForcedTurnAt(turnEndLegIndexInPlan + 1);
+    if (interceptCourse && !interceptCourse.inbound) {
+      // CRS OUT: the MANUAL leg ends the flight plan leg sequence
+      this.insertDiscontinuityAfterDirectTo(lastDirectLegIndexInPlan);
+    } else if (!this.requiresTurnDirectionAt(lastDirectLegIndexInPlan + 1)) {
+      this.removeForcedTurnAt(lastDirectLegIndexInPlan + 1);
     }
-    this.setActiveLegIndex(turnEndLegIndexInPlan);
+    this.setActiveLegIndex(this.allLegs.findIndex((it) => it === directLegs[0]));
   }
 
-  directToWaypoint(ppos: Coordinates, trueTrack: Degrees, waypoint: Fix, withAbeam = false) {
-    // TODO withAbeam
+  /**
+   * DIR TO a waypoint: a leg of the flight plan, or another waypoint, with a discontinuity after it. With DIRECT WITH
+   * ABEAM, the flight plan waypoints from the TO waypoint on that are abeam the direct leg are replaced by their abeam
+   * points.
+   */
+  directToWaypoint(
+    ppos: Coordinates,
+    trueTrack: Degrees,
+    waypoint: Fix,
+    withAbeam = false,
+    interceptCourse?: DirectToInterceptCourse,
+  ) {
     // TODO handle direct-to into the alternate (make alternate active...?
     const existingLegIndex = this.allLegs.findIndex(
       (it) => it.isDiscontinuity === false && it.terminatesWithWaypoint(waypoint),
     );
     if (existingLegIndex !== -1 && existingLegIndex < this.firstMissedApproachLegIndex) {
-      this.directToLeg(ppos, trueTrack, existingLegIndex, withAbeam);
+      this.directToLeg(ppos, trueTrack, existingLegIndex, withAbeam, interceptCourse);
       return;
     }
 
@@ -228,8 +256,6 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     const course = magVar === null ? trueTrack : MagVar.trueToMagnetic(trueTrack, magVar);
 
     const turningPoint = FlightPlanLeg.turningPoint(this.enrouteSegment, ppos, course, magVar);
-    const turnEnd = FlightPlanLeg.directToTurnEnd(this.enrouteSegment, waypoint, MagVar.getForFix(waypoint));
-
     turningPoint.flags |= FlightPlanLegFlags.DirectToTurningPoint;
     if (this.index === FlightPlanIndex.Temporary) {
       turningPoint.flags |= FlightPlanLegFlags.PendingDirectToTurningPoint;
@@ -243,22 +269,153 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       indexInEnrouteSegment = this.enrouteSegment.allLegs.findIndex((it) => it === this.activeLeg);
     }
 
-    // Remove legs before active on from enroute
-    this.enrouteSegment.allLegs.splice(0, indexInEnrouteSegment, turningPoint, turnEnd);
-    this.incrementVersion();
-
-    const turnEndLegIndexInPlan = this.allLegs.findIndex((it) => it === turnEnd);
-    if (this.maybeElementAt(turnEndLegIndexInPlan + 1)?.isDiscontinuity === false) {
-      this.enrouteSegment.allLegs.splice(2, 0, { isDiscontinuity: true });
-      this.syncSegmentLegsChange(this.enrouteSegment);
-      this.incrementVersion();
-
-      // Since we added a discontinuity after the DIR TO leg, we want to make sure that the leg after it
-      // is a leg that can be after a disco (not something like a CI) and convert it to IF
-      this.cleanUpAfterDiscontinuity(turnEndLegIndexInPlan + 1);
+    // DIRECT WITH ABEAM: the waypoints from the TO waypoint on, as long as they are abeam the direct leg
+    const abeamLegs: FlightPlanLeg[] = [];
+    if (withAbeam && !interceptCourse) {
+      for (const element of this.enrouteSegment.allLegs.slice(indexInEnrouteSegment)) {
+        const fix = isLeg(element) && element.isXF() ? element.terminationWaypoint() : undefined;
+        if (!fix || !abeamPointOnLeg(ppos, waypoint.location, fix.location)) {
+          break;
+        }
+        abeamLegs.push(element as FlightPlanLeg);
+      }
     }
 
-    this.setActiveLegIndex(turnEndLegIndexInPlan);
+    const directLegs = interceptCourse
+      ? this.interceptLegs(ppos, trueTrack, undefined, waypoint, interceptCourse)
+      : this.directLegs(ppos, undefined, waypoint, abeamLegs);
+
+    // Remove legs before active on from enroute (and the ones replaced by abeam points)
+    this.enrouteSegment.allLegs.splice(0, indexInEnrouteSegment + abeamLegs.length, turningPoint, ...directLegs);
+    this.incrementVersion();
+
+    const lastDirectLegIndexInPlan = this.allLegs.findIndex((it) => it === directLegs[directLegs.length - 1]);
+    this.insertDiscontinuityAfterDirectTo(lastDirectLegIndexInPlan);
+
+    this.setActiveLegIndex(this.allLegs.findIndex((it) => it === directLegs[0]));
+  }
+
+  /** Inserts a discontinuity after the last leg of a DIR TO, unless there is already one or no leg after it */
+  private insertDiscontinuityAfterDirectTo(lastDirectLegIndexInPlan: number) {
+    if (this.maybeElementAt(lastDirectLegIndexInPlan + 1)?.isDiscontinuity !== false) {
+      return;
+    }
+    const [segment, indexInSegment] = this.segmentPositionForIndex(lastDirectLegIndexInPlan);
+    segment.allLegs.splice(indexInSegment + 1, 0, { isDiscontinuity: true });
+    this.syncSegmentLegsChange(segment);
+    this.incrementVersion();
+
+    // Since we added a discontinuity after the DIR TO leg, we want to make sure that the leg after it
+    // is a leg that can be after a disco (not something like a CI) and convert it to IF
+    this.cleanUpAfterDiscontinuity(lastDirectLegIndexInPlan + 1);
+  }
+
+  /**
+   * The legs of a DIRECT or DIRECT WITH ABEAM up to the target: the direct leg to the target, or the direct leg to the
+   * first abeam point, the abeam points, and the target. Abeam points have no constraint, and the winds of their
+   * reference waypoint when it is less than 100 NM away (A380 FCOM DSC-22-FMS, DIRECT WITH ABEAM).
+   */
+  private directLegs(
+    ppos: Coordinates,
+    targetLeg: FlightPlanLeg | undefined,
+    targetFix: Fix,
+    replacedLegs: FlightPlanLeg[],
+  ): FlightPlanLeg[] {
+    const abeamLegs: FlightPlanLeg[] = [];
+    for (const leg of replacedLegs) {
+      const fix = leg.isXF() ? leg.terminationWaypoint() : undefined;
+      const abeam = fix ? abeamPointOnLeg(ppos, targetFix.location, fix.location) : null;
+      if (!fix || !abeam || leg.flags & FlightPlanLegFlags.DirectToTurningPoint) {
+        continue;
+      }
+      const ident = abeamWaypointIdent(fix.ident);
+      const abeamLeg = FlightPlanLeg.fromEnrouteFix(
+        this.enrouteSegment,
+        WaypointFactory.fromLocation(ident, abeam.location),
+        '',
+        abeamLegs.length === 0 ? LegType.DF : LegType.TF,
+      );
+      if (distanceTo(abeam.location, fix.location) < 100) {
+        abeamLeg.cruiseWindEntries = leg.cruiseWindEntries.map((entry) => ({ ...entry }));
+      }
+      if (this.index === FlightPlanIndex.Temporary) {
+        abeamLeg.flags |= FlightPlanLegFlags.PendingDirectToAbeamPoint;
+      }
+      abeamLegs.push(abeamLeg);
+    }
+
+    const target =
+      abeamLegs.length > 0
+        ? FlightPlanLeg.fromEnrouteFix(this.enrouteSegment, targetFix, '', LegType.TF)
+        : FlightPlanLeg.directToTurnEnd(this.enrouteSegment, targetFix, MagVar.getForFix(targetFix));
+    if (targetLeg) {
+      target.withDefinitionFrom(targetLeg).withPilotEnteredDataFrom(targetLeg);
+      // If we don't do this, the leg will have the termination waypoint's ident which may not be the leg ident (for runway legs for example)
+      target.ident = targetLeg.ident;
+    }
+
+    return [...abeamLegs, target];
+  }
+
+  /**
+   * The legs of a CRS IN or CRS OUT DIR TO (A380 FCOM DSC-22-FMS, DIR TO revision): the current track up to the intercept
+   * point (INTCPT), then the inbound course to the target, or the outbound course (a MANUAL leg). Without intercept
+   * point, the course leg to the target (CRS IN) or from it (CRS OUT).
+   */
+  private interceptLegs(
+    ppos: Coordinates,
+    trueTrack: Degrees,
+    targetLeg: FlightPlanLeg | undefined,
+    targetFix: Fix,
+    interceptCourse: DirectToInterceptCourse,
+  ): FlightPlanLeg[] {
+    const targetMagVar = MagVar.getForFix(targetFix);
+    const courseMagVar = interceptCourse.isTrue ? null : targetMagVar;
+    const trueCourse =
+      courseMagVar === null ? interceptCourse.course : MagVar.magneticToTrue(interceptCourse.course, courseMagVar);
+
+    const interceptLocation = directToInterceptPoint(
+      ppos,
+      trueTrack,
+      targetFix.location,
+      trueCourse,
+      interceptCourse.inbound,
+    );
+    const legs: FlightPlanLeg[] = [];
+    let courseFix = targetFix;
+    if (interceptLocation) {
+      const interceptFix = WaypointFactory.fromLocation('INTCPT', interceptLocation);
+      legs.push(
+        FlightPlanLeg.directToTurnEnd(
+          this.enrouteSegment,
+          interceptFix,
+          MagVar.get(interceptLocation.lat, interceptLocation.long),
+        ),
+      );
+      if (interceptCourse.inbound) {
+        const target = FlightPlanLeg.fromEnrouteFix(this.enrouteSegment, targetFix, '', LegType.TF);
+        if (targetLeg) {
+          target.withDefinitionFrom(targetLeg).withPilotEnteredDataFrom(targetLeg);
+          target.ident = targetLeg.ident;
+        }
+        return [...legs, target];
+      }
+      // CRS OUT: the MANUAL leg starts at the intercept point
+      courseFix = interceptFix;
+    }
+
+    const courseLeg = FlightPlanLeg.directToCourse(
+      this.enrouteSegment,
+      courseFix,
+      interceptCourse.course,
+      courseMagVar,
+      interceptCourse.inbound,
+    );
+    if (targetLeg && interceptCourse.inbound) {
+      courseLeg.withDefinitionFrom(targetLeg).withPilotEnteredDataFrom(targetLeg);
+      courseLeg.ident = targetLeg.ident;
+    }
+    return [...legs, courseLeg];
   }
 
   /**

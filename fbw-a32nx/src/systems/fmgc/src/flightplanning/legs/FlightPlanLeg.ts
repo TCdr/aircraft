@@ -62,6 +62,8 @@ export enum FlightPlanLegFlags {
   PendingDirectToTurningPoint = 1 << 1,
   Origin = 1 << 2,
   CopiedWithPredictions = 1 << 3,
+  /** An abeam point of a DIRECT WITH ABEAM in the temporary flight plan: the F-PLN page shows ABEAM PTS instead */
+  PendingDirectToAbeamPoint = 1 << 4,
 }
 
 export interface LegCalculations {
@@ -443,6 +445,32 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
       '',
       undefined,
     );
+  }
+
+  /**
+   * Creates the course leg of a CRS IN DIR TO without intercept point (the inbound course to the target waypoint, a CF
+   * leg) or of a CRS OUT DIR TO (the outbound course from the intercept point or the target waypoint, a MANUAL FM leg).
+   * @param course The course, in degrees, relative to magnetic north if magVar is a number, or true north if magVar is null.
+   * @param magVar The magnetic variation, in degrees, for the course if it is relative to magnetic north, or null for true north.
+   */
+  static directToCourse(
+    segment: EnrouteSegment,
+    waypoint: Fix,
+    course: number,
+    magVar: number | null,
+    inbound: boolean,
+  ): FlightPlanLeg {
+    return new FlightPlanLeg(
+      segment,
+      { procedureIdent: '', type: inbound ? LegType.CF : LegType.FM, overfly: false, waypoint, course, magVar },
+      inbound ? waypoint.ident : 'MANUAL',
+      FlightPlanLeg.courseAnnotation(course, magVar),
+      undefined,
+    );
+  }
+
+  private static courseAnnotation(course: number, magVar: number | null): string {
+    return `C${Math.round(course).toString().padStart(3, '0')}${magVar !== null ? '°' : 'T'}`;
   }
 
   static manualHold(segment: FlightPlanSegment, waypoint: Fix, hold: HoldData, magVar: number | null): FlightPlanLeg {
