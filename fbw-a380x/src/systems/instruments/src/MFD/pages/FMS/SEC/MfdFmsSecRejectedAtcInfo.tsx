@@ -86,7 +86,7 @@ export class MfdFmsSecRejectedAtcInfo extends FmsPage<AbstractMfdPageProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo(`${secIndexPageUri}/3`)}
-                buttonStyle="width: 96px;"
+                buttonStyle="min-width: 124px;"
               />,
             )}
             {fcomAt(
@@ -96,7 +96,7 @@ export class MfdFmsSecRejectedAtcInfo extends FmsPage<AbstractMfdPageProps> {
                 label="PRINT *"
                 disabled={this.noPrinter}
                 onClick={() => {}}
-                buttonStyle="width: 99px; height: 40px;"
+                buttonStyle="min-width: 127px; min-height: 58px;"
               />,
             )}
           </div>

@@ -688,7 +688,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
               </span>
             }
             onClick={() => this.deleteOneDialogVisible.set(true)}
-            buttonStyle="width: 179px; height: 40px;"
+            buttonStyle="min-width: 207px; min-height: 58px;"
           />,
         )}
         {fcomAt(
@@ -702,7 +702,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
               </span>
             }
             onClick={() => this.deleteAllDialogVisible.set(true)}
-            buttonStyle="width: 181px; height: 40px;"
+            buttonStyle="min-width: 209px; min-height: 58px;"
           />,
         )}
         {fcomAt(
@@ -711,7 +711,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
           <Button
             label="NEW WPT"
             onClick={() => this.openNewWaypointFunction(null)}
-            buttonStyle="width: 142px; height: 40px;"
+            buttonStyle="min-width: 170px; min-height: 58px;"
           />,
         )}
       </>
@@ -729,7 +729,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
           <Button
             label="NEW WPT"
             onClick={() => this.openNewWaypointFunction(null)}
-            buttonStyle="width: 142px; height: 40px;"
+            buttonStyle="min-width: 170px; min-height: 58px;"
           />,
         )}
       </>
@@ -826,7 +826,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
         {fcomAt(
           736,
           14,
-          <Button label="CANCEL" onClick={() => this.cancelNewWaypoint()} buttonStyle="width: 101px;" />,
+          <Button label="CANCEL" onClick={() => this.cancelNewWaypoint()} buttonStyle="min-width: 129px;" />,
         )}
         {fcomAt(
           728,
@@ -840,7 +840,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
             }
             disabled={this.storeDisabled}
             onClick={() => this.storeNewWaypoint()}
-            buttonStyle="width: 142px; height: 40px;"
+            buttonStyle="min-width: 170px; min-height: 58px;"
           />,
         )}
       </>
@@ -894,7 +894,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 101px;"
+                buttonStyle="min-width: 129px;"
               />,
             )}
           </div>

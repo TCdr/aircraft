@@ -285,7 +285,7 @@ export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
           onClick={() => {}}
           menuItems={menu}
           idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_databaseAltn${index}`}
-          buttonStyle="width: 108px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+          buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
         />
         {this.renderData(line)}
       </div>
@@ -303,7 +303,7 @@ export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
             onClick={() => {}}
             menuItems={this.otherAlternateMenu(line)}
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_otherAltn${index}`}
-            buttonStyle="width: 108px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+            buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
           />
           {this.renderData(line)}
         </div>
@@ -363,7 +363,7 @@ export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
               <Button
                 label="NO ALTN"
                 onClick={() => this.selectAsAlternate(undefined)}
-                buttonStyle="width: 108px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+                buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
               />
               <span class="mfd-alternate-cell no-altn-extra">
                 <span class="mfd-value bigger">{this.noAlternateExtra}</span>
@@ -383,7 +383,7 @@ export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 102px;"
+                buttonStyle="min-width: 130px;"
               />,
             )}
           </div>

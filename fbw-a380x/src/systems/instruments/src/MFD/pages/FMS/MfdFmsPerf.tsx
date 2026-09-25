@@ -1560,7 +1560,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                             fm.v2ToBeConfirmed.set(null);
                           }
                         }}
-                        buttonStyle="color: yellow; width: 130px; height: 40px;"
+                        buttonStyle="color: yellow; min-width: 158px; min-height: 58px;"
                       />,
                     )}
                   </div>
@@ -1913,7 +1913,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                             );
                             this.showNoiseFields(false);
                           }}
-                          buttonStyle="width: 100px; height: 40px;"
+                          buttonStyle="min-width: 128px; min-height: 58px;"
                         />,
                       )}
                     </div>
@@ -1970,7 +1970,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                             );
                             this.showNoiseFields(true);
                           }}
-                          buttonStyle="width: 71px; height: 22px;"
+                          buttonStyle="min-width: 99px; min-height: 40px;"
                         />,
                       )}
                     </div>
@@ -2056,7 +2056,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                           // FCOM DSC-22-FMS-20-30 P 34: displays the COMPANY T.O DATA REQUEST page
                           disabled={this.secActive}
                           onClick={() => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyToRequestPage}`)}
-                          buttonStyle="width: 146px; height: 42px;"
+                          buttonStyle="min-width: 174px; min-height: 60px;"
                         />,
                       )}
                     </div>
@@ -2519,7 +2519,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                           `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-vert-rev/cms`,
                         )
                       }
-                      buttonStyle="width: 39px; height: 23px;"
+                      buttonStyle="min-width: 67px; min-height: 41px;"
                     />,
                   )}
                   {fcomAt(
@@ -2533,7 +2533,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                         )
                       }
                       disabled={this.crzPageInactive}
-                      buttonStyle="width: 134px; height: 23px;"
+                      buttonStyle="min-width: 162px; min-height: 41px;"
                     />,
                   )}
                 </div>
@@ -3201,7 +3201,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                     // FCOM DSC-22-FMS-20-30 PERF page: RETURN displays the INIT page
                     this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/init`)
                   }
-                  buttonStyle="width: 101px;"
+                  buttonStyle="min-width: 129px;"
                 />
                 <ConfirmationDialog
                   visible={this.approachPhaseConfirmationDialogVisible}
@@ -3251,7 +3251,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                     </div>
                   }
                   onClick={() => this.approachPhaseConfirmationDialogVisible.set(true)}
-                  buttonStyle="color: #e68000; padding-right: 2px; width: 132px; height: 42px;"
+                  buttonStyle="color: #e68000; padding-right: 2px; min-width: 160px; min-height: 60px;"
                 />
               </div>
               <div
@@ -3266,7 +3266,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                   onClick={() =>
                     this.props.mfd.uiService.navigateTo(`fms/position/monitor/${showReturnButtonUriExtra}`)
                   }
-                  buttonStyle="width: 153px;"
+                  buttonStyle="min-width: 181px;"
                 />
               </div>
               <div class="mfd-fms-perf-footer-item" style={{ left: '462px', visibility: this.clearEoButtonVisibility }}>
@@ -3282,7 +3282,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                     </div>
                   }
                   onClick={() => this.clearEoConfirmationDialogVisible.set(true)}
-                  buttonStyle="color: #e68000; padding-right: 2px; width: 110px; height: 42px;"
+                  buttonStyle="color: #e68000; padding-right: 2px; min-width: 138px; min-height: 60px;"
                 />
               </div>
             </div>

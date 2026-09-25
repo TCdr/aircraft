@@ -435,7 +435,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
           <Button
             label={'IMPORT'}
             onClick={() => {}}
-            buttonStyle="width: 168px; height: 24px;"
+            buttonStyle="min-width: 196px; min-height: 42px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_import`}
             menuItems={Subject.create([
               {
@@ -482,7 +482,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
                 ? {}
                 : this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/${cpnyFplnRequestPage}`)
             }
-            buttonStyle="width: 157px; height: 42px;"
+            buttonStyle="min-width: 185px; min-height: 60px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_fplnreq_sec${this.props.flightPlanIndex}`}
             menuItems={this.cpnyFplnButtonMenuItems}
             showArrow={false}
@@ -494,7 +494,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
           <Button
             label={'F-PLN'}
             onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/f-pln`)}
-            buttonStyle="width: 122px; height: 25px;"
+            buttonStyle="min-width: 150px; min-height: 43px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_f-pln`}
           />,
         )}
@@ -505,7 +505,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
             label={'PERF'}
             disabled={this.secDoesNotExist}
             onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/perf`)}
-            buttonStyle="width: 122px; height: 25px;"
+            buttonStyle="min-width: 150px; min-height: 43px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_perf`}
           />,
         )}
@@ -516,7 +516,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
             label={'WIND'}
             disabled={this.secDoesNotExist}
             onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/wind/${showReturnButtonUriExtra}`)}
-            buttonStyle="width: 122px; height: 25px;"
+            buttonStyle="min-width: 150px; min-height: 43px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_wind`}
           />,
         )}
@@ -527,7 +527,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
             label={'FUEL&LOAD'}
             disabled={this.secDoesNotExist}
             onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/fuel-load`)}
-            buttonStyle="width: 122px; height: 25px;"
+            buttonStyle="min-width: 150px; min-height: 43px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_fuel-load`}
           />,
         )}
@@ -542,7 +542,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
               }
               this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/init`);
             }}
-            buttonStyle="width: 122px; height: 25px;"
+            buttonStyle="min-width: 150px; min-height: 43px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_init`}
           />,
         )}
@@ -558,7 +558,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
             }
             disabled={this.secDoesNotExist}
             onClick={() => this.props.flightPlanInterface.secondaryDelete(this.secIndex)}
-            buttonStyle="padding-right: 2px; width: 114px; height: 42px;"
+            buttonStyle="padding-right: 2px; min-width: 142px; min-height: 60px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_delete`}
           />,
         )}
@@ -598,7 +598,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
                 </div>
               }
               onClick={() => this.props.fmcService.master.swapActiveAndSecondaryPlan(this.secIndex)}
-              buttonStyle="color: #e68000; padding-right: 2px; width: 122px; height: 42px;"
+              buttonStyle="color: #e68000; padding-right: 2px; min-width: 150px; min-height: 60px;"
               idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_swap-active`}
             />,
           )}
@@ -610,7 +610,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
             <Button
               label="REJECTED<br />ATC INFO"
               onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/${rejectedAtcInfoPage}`)}
-              buttonStyle="width: 114px; height: 42px;"
+              buttonStyle="min-width: 142px; min-height: 60px;"
             />,
           )}
         </div>
@@ -630,7 +630,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
             }
             disabled={this.secDoesNotExist}
             onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/${transferToMailboxPage}`)}
-            buttonStyle="width: 122px; height: 42px;"
+            buttonStyle="min-width: 150px; min-height: 60px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_xfr-to-mailbox`}
           />,
         )}
@@ -655,7 +655,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
                   : FlightPlanReport.PreFlight,
               );
             }}
-            buttonStyle="padding-right: 2px; width: 135px; height: 42px;"
+            buttonStyle="padding-right: 2px; min-width: 163px; min-height: 60px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_print`}
           />,
         )}

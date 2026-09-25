@@ -54,7 +54,7 @@ export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
     return fcomAt(
       y,
       x,
-      <Button label="PRINT*" disabled={disabled} onClick={onClick} buttonStyle="width: 87px; height: 24px;" />,
+      <Button label="PRINT*" disabled={disabled} onClick={onClick} buttonStyle="min-width: 115px; min-height: 42px;" />,
     );
   }
 

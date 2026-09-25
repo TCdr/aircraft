@@ -311,9 +311,7 @@ export class Button extends DisplayComponent<ButtonProps> {
         >
           {this.props.menuItems !== undefined && this.props.showArrow !== false ? (
             <div class="mfd-fms-fpln-button-dropdown">
-              <span class="mfd-fms-fpln-button-dropdown-label" style="white-space: pre-line;">
-                {this.labelContent}
-              </span>
+              <span class="mfd-fms-fpln-button-dropdown-label mfd-button-label">{this.labelContent}</span>
               <span class="mfd-fms-fpln-button-dropdown-arrow">
                 <TriangleUp
                   class={{ hidden: this.menuOpensUpwards.map(SubscribableMapFunctions.not()) }}
@@ -323,7 +321,7 @@ export class Button extends DisplayComponent<ButtonProps> {
               </span>
             </div>
           ) : (
-            <span style="white-space: pre-line;">{this.labelContent}</span>
+            <span class="mfd-button-label">{this.labelContent}</span>
           )}
         </span>
         <div

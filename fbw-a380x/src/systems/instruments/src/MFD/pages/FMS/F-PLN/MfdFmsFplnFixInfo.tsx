@@ -245,7 +245,7 @@ export class MfdFmsFplnFixInfo extends FmsPage {
                   />,
                 )}
                 {fcomLine(480, -2, 718)}
-                {fcomAt(518, 21, <Button disabled label="ABEAM" buttonStyle="width: 92px;" onClick={() => {}} />)}
+                {fcomAt(518, 21, <Button disabled label="ABEAM" buttonStyle="min-width: 120px;" onClick={() => {}} />)}
               </div>
             </TopTabNavigatorPage>
           ))}

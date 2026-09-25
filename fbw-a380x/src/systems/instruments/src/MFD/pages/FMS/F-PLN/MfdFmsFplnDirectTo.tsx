@@ -248,7 +248,7 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
           <div ref={this.returnButtonDiv} class="mfd-fms-direct-to-erase-return-btn">
             <Button
               label="RETURN"
-              buttonStyle="width: 101px;"
+              buttonStyle="min-width: 129px;"
               onClick={() =>
                 this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`)
               }

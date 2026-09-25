@@ -457,7 +457,7 @@ export class MfdFmsFplnEquiTimePoint extends FmsPage<MfdFmsFplnEquiTimePointProp
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('fms/active/f-pln')}
-                buttonStyle="width: 110px;"
+                buttonStyle="min-width: 138px;"
               />,
             )}
           </div>

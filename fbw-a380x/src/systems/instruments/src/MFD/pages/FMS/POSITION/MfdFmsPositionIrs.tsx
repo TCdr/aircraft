@@ -309,7 +309,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
                 disabled={this.alignOnOtherRefDisabled}
                 label="ALIGN ON<br />OTHER REF"
                 onClick={() => {}}
-                buttonStyle="width: 124px; height: 41px;"
+                buttonStyle="min-width: 152px; min-height: 59px;"
               />,
             )}
             {fcomLine(140, 2, 756)}
@@ -357,7 +357,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
                 label="IRS1"
                 onClick={() => this.showIrsDataFor.set(this.irs1DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_1)}
                 selected={this.irs1DataVisible}
-                buttonStyle="width: 124px;"
+                buttonStyle="min-width: 152px;"
               />,
             )}
             {fcomAt(
@@ -367,7 +367,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
                 label="IRS2"
                 onClick={() => this.showIrsDataFor.set(this.irs2DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_2)}
                 selected={this.irs2DataVisible}
-                buttonStyle="width: 124px;"
+                buttonStyle="min-width: 152px;"
               />,
             )}
             {fcomAt(
@@ -377,7 +377,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
                 label="IRS3"
                 onClick={() => this.showIrsDataFor.set(this.irs3DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_3)}
                 selected={this.irs3DataVisible}
-                buttonStyle="width: 124px;"
+                buttonStyle="min-width: 152px;"
               />,
             )}
 
@@ -390,7 +390,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
                   label={this.irsDataFreezeButtonLabel}
                   selected={this.irsDataFrozen}
                   onClick={() => this.irsDataFrozen.set(!this.irsDataFrozen.get())}
-                  buttonStyle="width: 132px; height: 42px;"
+                  buttonStyle="min-width: 160px; min-height: 60px;"
                 />,
               )}
               {fcomAt(457.5, 186, <span class="mfd-label">{this.irsDataFrozenTime}</span>)}
@@ -434,7 +434,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 100px;"
+                buttonStyle="min-width: 128px;"
               />,
             )}
           </div>

@@ -162,23 +162,23 @@ export class MfdFmsReceivedCpnyToData extends FmsPage<AbstractMfdPageProps> {
             {fcomAt(696, 327, <span class="mfd-label">THR</span>)}
             {fcomAt(696, 380, <span class="mfd-value bigger">---</span>)}
             {fcomAt(
-              649,
+              643,
               571,
               <Button
                 label="INSERT *"
                 disabled={this.noData}
                 onClick={() => {}}
-                buttonStyle="width: 101px; height: 42px;"
+                buttonStyle="min-width: 129px; min-height: 60px;"
               />,
             )}
             {fcomAt(
-              716,
+              708,
               571,
               <Button
                 label="CLEAR *"
                 disabled={this.noData}
                 onClick={() => {}}
-                buttonStyle="width: 101px; height: 42px;"
+                buttonStyle="min-width: 129px; min-height: 60px;"
               />,
             )}
             {fcomAt(
@@ -187,7 +187,7 @@ export class MfdFmsReceivedCpnyToData extends FmsPage<AbstractMfdPageProps> {
               <Button
                 label="T.O PERF"
                 onClick={() => this.props.mfd.uiService.navigateTo('fms/active/perf/to')}
-                buttonStyle="width: 124px;"
+                buttonStyle="min-width: 152px;"
               />,
             )}
             {fcomAt(
@@ -196,7 +196,7 @@ export class MfdFmsReceivedCpnyToData extends FmsPage<AbstractMfdPageProps> {
               <Button
                 label="CPNY T.O<br />REQUEST"
                 onClick={() => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyToRequestPage}`)}
-                buttonStyle="width: 147px; height: 40px;"
+                buttonStyle="min-width: 175px; min-height: 58px;"
               />,
             )}
           </div>

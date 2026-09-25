@@ -75,7 +75,7 @@ export class MfdFmsFreeTextSend extends FmsPage<MfdFmsFreeTextSendProps> {
                 label={this.props.sendLabel}
                 disabled={this.notModelled}
                 onClick={() => {}}
-                buttonStyle="width: 159px; height: 42px;"
+                buttonStyle="min-width: 187px; min-height: 60px;"
               />,
             )}
             {fcomAt(
@@ -84,7 +84,7 @@ export class MfdFmsFreeTextSend extends FmsPage<MfdFmsFreeTextSendProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo(this.props.returnUri())}
-                buttonStyle="width: 102px;"
+                buttonStyle="min-width: 130px;"
               />,
             )}
           </div>

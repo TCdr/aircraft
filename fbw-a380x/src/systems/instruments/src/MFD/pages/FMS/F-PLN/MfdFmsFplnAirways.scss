@@ -5,7 +5,8 @@
 // are right below it (y = 873..935) and RETURN / TMPY F-PLN at the bottom of the page
 .mfd-fms-fpln-awy-awy-container {
   box-sizing: border-box;
-  height: 678px;
+  // the FCOM figure's 678 px less the room the 44 px RETURN button row needs above the footer
+  height: 654px;
   margin: 12px 60px 7px 51px;
   border: 2px solid #505050;
   padding: 0 12px 0 5px;

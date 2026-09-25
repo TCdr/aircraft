@@ -447,7 +447,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsPage<MfdFmsFplnLlXingTimeMkrProp
                 label="INSERT<br />AS WPT*"
                 disabled={this.insertDisabled}
                 onClick={() => this.insertCrossings()}
-                buttonStyle="width: 108px; height: 42px;"
+                buttonStyle="min-width: 136px; min-height: 60px;"
               />,
             )}
             {fcomLine(338, 2, 757)}
@@ -469,7 +469,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsPage<MfdFmsFplnLlXingTimeMkrProp
                 onClick={() =>
                   this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`)
                 }
-                buttonStyle="width: 102px;"
+                buttonStyle="min-width: 130px;"
               />,
             )}
           </div>

@@ -201,7 +201,7 @@ export class MfdFmsFplnRouteSelection extends FmsPage<MfdFmsFplnRouteSelectionPr
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 101px;"
+                buttonStyle="min-width: 129px;"
               />,
             )}
             {fcomAt(
@@ -211,7 +211,7 @@ export class MfdFmsFplnRouteSelection extends FmsPage<MfdFmsFplnRouteSelectionPr
                 label="INSERT*"
                 disabled={this.insertDisabled}
                 onClick={() => this.insertSelectedRoute()}
-                buttonStyle="width: 122px; height: 41px;"
+                buttonStyle="min-width: 150px; min-height: 59px;"
               />,
             )}
           </div>
