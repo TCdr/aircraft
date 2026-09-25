@@ -8,7 +8,7 @@
   UnitType,
   VNode,
 } from '@microsoft/msfs-sdk';
-import { NXDataStore } from '@flybywiresim/fbw-sdk';
+import { LsCategory, NXDataStore, Runway } from '@flybywiresim/fbw-sdk';
 import { AbstractMfdPageProps } from '../../../MFD';
 import { Footer } from '../../common/Footer';
 import { Button, ButtonMenuItem } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -17,6 +17,7 @@ import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performanc
 import { AlternateFlightPlan } from '@fmgc/flightplanning/plans/AlternateFlightPlan';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
 
+import { fcomAt, fcomRight } from '../../common/FcomLayout';
 import './MfdFmsFpln.scss';
 
 interface MfdFmsFplnDepProps extends AbstractMfdPageProps {}
@@ -33,6 +34,9 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
   private readonly rwyEoSid = Subject.create<string>('');
 
   private readonly rwyFreq = Subject.create<string>('');
+
+  /** FCOM DSC-22-FMS-20-30 DEPARTURE page: type and ident of the landing system of the selected runway */
+  private readonly rwyLs = Subject.create<string>('');
 
   private readonly rwySid = Subject.create<string>('');
 
@@ -70,6 +74,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
         this.rwyCrs.set(flightPlan.originRunway.bearing.toFixed(0).padStart(3, '0') ?? '---');
         this.rwyEoSid.set('NONE');
         this.rwyFreq.set(flightPlan.originRunway.lsFrequencyChannel?.toFixed(2) ?? '---.--');
+        this.rwyLs.set(MfdFmsFplnDep.landingSystemLabel(flightPlan.originRunway));
 
         if (flightPlan.availableDepartures?.length > 0) {
           const sids: ButtonMenuItem[] = [
@@ -116,6 +121,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
         this.rwyCrs.set('---');
         this.rwyEoSid.set('------');
         this.rwyFreq.set('---.--');
+        this.rwyLs.set('');
         this.sidDisabled.set(true);
       }
 
@@ -167,6 +173,16 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
     } else {
       this.fromIcao.set('----');
     }
+  }
+
+  private static landingSystemLabel(runway: Runway): string {
+    if (!runway.lsIdent) {
+      return '';
+    }
+    // GLS channels are five-digit numbers, ILS / LOC frequencies are in MHz
+    const channel = runway.lsFrequencyChannel ?? 0;
+    const type = channel >= 20000 ? 'GLS' : runway.lsCategory === LsCategory.LocOnly ? 'LOC' : 'ILS';
+    return `${type} ${runway.lsIdent}`;
   }
 
   private generateRunwayOptions(
@@ -246,168 +262,147 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        <div class="mfd-fms-fpln-labeled-box-container">
-          <span class="mfd-label mfd-spacing-right mfd-fms-fpln-labeled-box-label">SELECTED DEPARTURE</span>
-          <div class="mfd-fms-fpln-label-bottom-space fr aic">
-            <div class="fr aic" style="flex: 3;">
-              <span class="mfd-label mfd-spacing-right">FROM</span>
-              <span
-                class={{
-                  'mfd-value': true,
-                  tmpy: this.tmpyActive,
-                  sec: this.secActive,
-                }}
-              >
+        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 118), page container coordinates */}
+        <div class="mfd-page-container">
+          <div class="mfd-fcom-canvas">
+            <div class="mfd-fms-fpln-proc-frame" />
+            {fcomAt(14, 35, <span class="mfd-label mfd-fms-fpln-proc-frame-title">SELECTED DEPARTURE</span>)}
+            {fcomAt(65, 10, <span class="mfd-label">FROM</span>)}
+            {fcomAt(
+              65,
+              88,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
                 {this.fromIcao}
-              </span>
-            </div>
-            <div class="fc" style="flex: 1;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">RWY</span>
-              <span
-                class={{
-                  'mfd-value': true,
-                  tmpy: this.tmpyActive,
-                  sec: this.secActive,
-                }}
-              >
+              </span>,
+            )}
+            {fcomAt(
+              65,
+              190,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyLs}
+              </span>,
+            )}
+            {fcomAt(45, 380, <span class="mfd-label">RWY</span>)}
+            {fcomAt(
+              85,
+              380,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
                 {this.rwyIdent}
-              </span>
-            </div>
-            <div class="fc" style="flex: 1.3;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">LENGTH</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
-                  }}
-                >
-                  {this.rwyLength.asUnit(this.lengthUnit).map((v) => this.lengthNumberFormatter(v))}
-                </span>
-                <span class="mfd-label-unit mfd-unit-trailing">
-                  {this.lengthUnit.map((v) => this.distanceUnitFormatter(v))}
-                </span>
-              </div>
-            </div>
-            <div class="fc" style="flex: 0.7;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">CRS</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
-                  }}
-                >
-                  {this.rwyCrs}
-                </span>
-                <span class="mfd-label-unit mfd-unit-trailing">°</span>
-              </div>
-            </div>
-          </div>
-          <div class="fr aic">
-            <div class="fc" style="flex: 0.25;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">EOSID</span>
-              <span
-                class={{
-                  'mfd-value': true,
-                  tmpy: this.tmpyActive,
-                  sec: this.secActive,
-                }}
-              >
+              </span>,
+            )}
+            {fcomAt(45, 505, <span class="mfd-label">LENGTH</span>)}
+            {fcomRight(85, 620, [
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyLength.asUnit(this.lengthUnit).map((v) => this.lengthNumberFormatter(v))}
+              </span>,
+              <span class="mfd-label-unit mfd-unit-trailing">
+                {this.lengthUnit.map((v) => this.distanceUnitFormatter(v))}
+              </span>,
+            ])}
+            {fcomAt(45, 655, <span class="mfd-label">CRS</span>)}
+            {fcomAt(85, 650, [
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyCrs}
+              </span>,
+              <span class="mfd-label-unit mfd-unit-trailing">°</span>,
+            ])}
+            {fcomAt(127, 10, <span class="mfd-label">EOSID</span>)}
+            {fcomAt(
+              164,
+              10,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
                 {this.rwyEoSid}
-              </span>
-            </div>
-            <div class="fc" style="flex: 0.3;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">FREQ/CHAN</span>
-              <span
-                class={{
-                  'mfd-value': true,
-                  tmpy: this.tmpyActive,
-                  sec: this.secActive,
-                }}
-              >
+              </span>,
+            )}
+            {fcomAt(127, 185, <span class="mfd-label">FREQ/CHAN</span>)}
+            {fcomAt(
+              164,
+              190,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
                 {this.rwyFreq}
-              </span>
-            </div>
-            <div class="fc" style="flex: 0.25;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">SID</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
+              </span>,
+            )}
+            {fcomAt(127, 438, <span class="mfd-label">SID</span>)}
+            {fcomAt(
+              164,
+              438,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwySid}
+              </span>,
+            )}
+            {fcomAt(127, 609, <span class="mfd-label">TRANS</span>)}
+            {fcomAt(
+              164,
+              609,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyTrans}
+              </span>,
+            )}
+            {fcomAt(
+              229,
+              48,
+              <Button
+                label="RWY"
+                onClick={() => {}}
+                buttonStyle="width: 253px; height: 25px;"
+                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-rwy-btn`}
+                menuItems={this.rwyOptions}
+              />,
+            )}
+            {fcomAt(
+              229,
+              438,
+              <Button
+                label="SID"
+                onClick={() => {}}
+                disabled={this.sidDisabled}
+                buttonStyle="width: 109px; height: 25px;"
+                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-sid-btn`}
+                menuItems={this.sidOptions}
+              />,
+            )}
+            {fcomAt(
+              229,
+              609,
+              <Button
+                label="TRANS"
+                onClick={() => {}}
+                disabled={this.transDisabled}
+                buttonStyle="width: 108px; height: 25px;"
+                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-trans-btn`}
+                menuItems={this.transOptions}
+              />,
+            )}
+            <div ref={this.returnButtonDiv}>
+              {fcomAt(
+                793,
+                5,
+                <Button
+                  label="RETURN"
+                  onClick={() => {
+                    this.props.fmcService.master.resetRevisedWaypoint();
+                    this.props.mfd.uiService.navigateTo('back');
                   }}
-                >
-                  {this.rwySid}
-                </span>
-              </div>
+                  buttonStyle="width: 101px;"
+                />,
+              )}
             </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">TRANS</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
+            <div ref={this.tmpyInsertButtonDiv}>
+              {fcomAt(
+                788,
+                599,
+                <Button
+                  label="TMPY F-PLN"
+                  onClick={() => {
+                    this.props.fmcService.master.resetRevisedWaypoint();
+                    this.props.mfd.uiService.navigateTo(
+                      `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,
+                    );
                   }}
-                >
-                  {this.rwyTrans}
-                </span>
-              </div>
+                  buttonStyle="color: yellow; width: 134px;"
+                />,
+              )}
             </div>
-          </div>
-        </div>
-        <div class="fr" style="margin-left: 50px;">
-          <Button
-            label="RWY"
-            onClick={() => {}}
-            buttonStyle="width: 250px;"
-            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-rwy-btn`}
-            menuItems={this.rwyOptions}
-          />
-          <div style="width: 100px;" />
-          <Button
-            label="SID"
-            onClick={() => {}}
-            disabled={this.sidDisabled}
-            buttonStyle="width: 140px;"
-            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-sid-btn`}
-            menuItems={this.sidOptions}
-          />
-          <div style="width: 50px;" />
-          <Button
-            label="TRANS"
-            onClick={() => {}}
-            disabled={this.transDisabled}
-            buttonStyle="width: 130px;"
-            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-trans-btn`}
-            menuItems={this.transOptions}
-          />
-        </div>
-        <div style="flex-grow: 1;" />
-        <div class="fr" style="justify-content: space-between;">
-          <div ref={this.returnButtonDiv} style="display: flex; justify-content: flex-end; padding: 2px;">
-            <Button
-              label="RETURN"
-              onClick={() => {
-                this.props.fmcService.master.resetRevisedWaypoint();
-                this.props.mfd.uiService.navigateTo('back');
-              }}
-            />
-          </div>
-          <div ref={this.tmpyInsertButtonDiv} style="display: flex; justify-content: flex-end; padding: 2px;">
-            <Button
-              label="TMPY F-PLN"
-              onClick={() => {
-                this.props.fmcService.master.resetRevisedWaypoint();
-                this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`);
-              }}
-              buttonStyle="color: yellow"
-            />
           </div>
         </div>
         {/* end page content */}

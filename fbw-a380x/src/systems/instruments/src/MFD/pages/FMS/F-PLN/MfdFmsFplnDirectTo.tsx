@@ -168,7 +168,7 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
                     selectedIndex={this.selectedWaypointIndex}
                     values={this.availableWaypoints}
                     freeTextAllowed
-                    containerStyle="width: 175px;"
+                    containerStyle="width: 180px;"
                     alignLabels="flex-start"
                     onModified={(i, text) => {
                       if (i !== null) {
@@ -248,6 +248,7 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
           <div ref={this.returnButtonDiv} class="mfd-fms-direct-to-erase-return-btn">
             <Button
               label="RETURN"
+              buttonStyle="width: 101px;"
               onClick={() =>
                 this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`)
               }

@@ -29,6 +29,11 @@ export interface FmcServiceInterface {
   readonly standby: FmcInterface | null;
 
   /**
+   * Whether the given FMC is inoperative (not powered, reset or failed)
+   */
+  isInop(forFmcIndex: FmcIndex): Subscribable<boolean>;
+
+  /**
    * Check whether given FMC is instantiated
    */
   has(forFmcIndex: FmcIndex): boolean;

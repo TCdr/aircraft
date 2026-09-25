@@ -116,4 +116,16 @@ export class FmcService implements FmcServiceInterface {
   }
 
   public readonly masterFmcChanged = Subject.create(false);
+
+  /** @inheritdoc */
+  public isInop(forFmcIndex: FmcIndex): Subscribable<boolean> {
+    switch (forFmcIndex) {
+      case FmcIndex.FmcA:
+        return this.fmcAInop;
+      case FmcIndex.FmcB:
+        return this.fmcBInop;
+      default:
+        return this.fmcCInop;
+    }
+  }
 }

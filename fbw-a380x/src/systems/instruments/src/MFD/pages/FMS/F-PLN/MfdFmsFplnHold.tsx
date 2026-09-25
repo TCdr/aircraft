@@ -10,6 +10,7 @@
 
 import './MfdFmsFpln.scss';
 import './MfdFmsFplnHold.scss';
+import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../../common/FcomLayout';
 import { AbstractMfdPageProps } from '../../../MFD';
 import { Footer } from '../../common/Footer';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -187,134 +188,169 @@ export class MfdFmsFplnHold extends FmsPage<MfdFmsFplnHoldProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        <div class="fr">
-          <div class="mfd-fms-fpln-labeled-box-container" style="flex-grow: 1;">
-            <span class="mfd-label mfd-spacing-right mfd-fms-fpln-labeled-box-label">
-              {this.holdType}{' '}
-              <span class={{ 'mfd-label': true, green: this.isActiveOrTmpy, bigger: true }}>{this.waypointIdent}</span>
-            </span>
-            <span class="mfd-label" style="margin-top: 50px; margin-bottom: 20px;">
-              INBOUND CRS
-            </span>
-            <div style="margin-left: 75px;">
+        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 186), page container coordinates */}
+        <div class="mfd-page-container">
+          <div class="mfd-fcom-canvas mfd-fpln-hold-canvas">
+            <div class="mfd-fpln-hold-frame" />
+            {fcomAt(
+              42,
+              32,
+              <span class="mfd-label mfd-fms-fpln-proc-frame-title">
+                {this.holdType}{' '}
+                <span class={{ 'mfd-label': true, green: this.isActiveOrTmpy, bigger: true }}>
+                  {this.waypointIdent}
+                </span>
+              </span>,
+            )}
+            {fcomAt(118, 25, <span class="mfd-label">INBOUND CRS</span>)}
+            {fcomAt(
+              172,
+              108,
               <InputField<number>
                 value={this.inboundCourse}
                 dataEntryFormat={new InboundCourseFormat()}
                 tmpyActive={this.tmpyActive}
+                containerStyle="width: 94px;"
+                alignText="center"
                 errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                 hEventConsumer={this.props.mfd.hEventConsumer}
                 interactionMode={this.props.mfd.interactionMode}
-              />
-            </div>
-            <span class="mfd-label" style="margin-top: 50px; margin-bottom: 20px;">
-              TURN
-            </span>
-            <div style="margin-left: 75px;">
+              />,
+            )}
+            {fcomAt(250, 25, <span class="mfd-label">TURN</span>)}
+            {fcomAt(
+              306,
+              110,
               <RadioButtonGroup
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_holdTurnRadio`}
                 selectedIndex={this.turnSelectedIndex}
                 values={['LEFT', 'RIGHT']}
                 color={this.radioButtonColor}
-              />
-            </div>
-            <span class="mfd-label" style="margin-top: 50px; margin-bottom: 20px;">
-              LEG DEFINING PARAMETER
-            </span>
-            <div style="display: flex; flex-direction: row; margin-left: 75px;">
+                additionalVerticalSpacing={9}
+              />,
+            )}
+            {fcomAt(414, 25, <span class="mfd-label">LEG DEFINING PARAMETER</span>)}
+            {fcomAt(
+              484,
+              110,
               <RadioButtonGroup
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_holdDefiningParameterRadio`}
                 selectedIndex={this.legDefiningParameterSelectedIndex}
                 values={['TIME', 'DIST']}
                 color={this.radioButtonColor}
-              />
-              <div class="mfd-fpln-hold-timedist-box">
-                <div ref={this.legTimeRef}>
-                  <InputField<number>
-                    dataEntryFormat={new HoldTimeFormat()}
-                    value={this.legTime}
-                    tmpyActive={this.tmpyActive}
-                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                    hEventConsumer={this.props.mfd.hEventConsumer}
-                    interactionMode={this.props.mfd.interactionMode}
-                  />
-                </div>
-                <div ref={this.legDistanceRef}>
-                  <InputField<number>
-                    dataEntryFormat={new HoldDistFormat()}
-                    value={this.legDistance}
-                    tmpyActive={this.tmpyActive}
-                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                    hEventConsumer={this.props.mfd.hEventConsumer}
-                    interactionMode={this.props.mfd.interactionMode}
-                  />
-                </div>
-              </div>
+                additionalVerticalSpacing={9}
+              />,
+            )}
+            {fcomAt(
+              467,
+              230,
+              <div ref={this.legTimeRef}>
+                <InputField<number>
+                  dataEntryFormat={new HoldTimeFormat()}
+                  value={this.legTime}
+                  tmpyActive={this.tmpyActive}
+                  containerStyle="width: 119px;"
+                  alignText="center"
+                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                  hEventConsumer={this.props.mfd.hEventConsumer}
+                  interactionMode={this.props.mfd.interactionMode}
+                />
+              </div>,
+            )}
+            {fcomAt(
+              511,
+              230,
+              <div ref={this.legDistanceRef}>
+                <InputField<number>
+                  dataEntryFormat={new HoldDistFormat()}
+                  value={this.legDistance}
+                  tmpyActive={this.tmpyActive}
+                  containerStyle="width: 119px;"
+                  alignText="center"
+                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                  hEventConsumer={this.props.mfd.hEventConsumer}
+                  interactionMode={this.props.mfd.interactionMode}
+                />
+              </div>,
+            )}
+            {fcomLine(559, 18, 590)}
+            {fcomAt(617, 25, <span class="mfd-label">LAST EXIT (FOR EXTRA FUEL = 0 AT ALTN)</span>)}
+            {fcomCentre(667, 135, <span class="mfd-label">AT</span>)}
+            {fcomCentre(667, 247, <span class="mfd-label">UTC</span>)}
+            {fcomCentre(667, 430, <span class="mfd-label">EFOB</span>)}
+            {fcomCentre(
+              713,
+              246,
+              <span class={{ 'mfd-value': true, bigger: true, magenta: this.isActiveOrTmpy }}>{this.lastExitUtc}</span>,
+            )}
+            {fcomRight(713, 512, [
+              <span class={{ 'mfd-value': true, bigger: true, magenta: this.isActiveOrTmpy }}>
+                {this.lastExitEfobText}
+              </span>,
+              <span class="mfd-label-unit mfd-unit-trailing">{this.weightUnitText}</span>,
+            ])}
+            {fcomAt(
+              140,
+              608,
+              <Button
+                label="DATABASE"
+                onClick={() => console.warn('DATABASE HOLD NOT IMPLEMENTED')}
+                buttonStyle="width: 122px; height: 41px;"
+                disabled={true}
+              />,
+            )}
+            {fcomAt(
+              209,
+              608,
+              <Button
+                label="COMPUTED"
+                onClick={() => {
+                  const revWptIdx = this.props.fmcService.master.revisedLegIndex.get();
+                  const revPlanIdx = this.props.fmcService.master.revisedLegPlanIndex.get();
+                  if (revWptIdx && revPlanIdx && this.props.fmcService.master.revisedWaypoint()) {
+                    this.props.flightPlanInterface.revertHoldToComputed(
+                      revWptIdx,
+                      revPlanIdx,
+                      this.props.fmcService.master.revisedLegIsAltn.get() ?? false,
+                    );
+                  }
+                }}
+                buttonStyle="width: 122px; height: 41px;"
+              />,
+            )}
+            <div ref={this.returnButtonDiv}>
+              {fcomAt(
+                788,
+                5,
+                <Button
+                  label="RETURN"
+                  buttonStyle="width: 101px;"
+                  onClick={() => {
+                    // FCOM DSC-22-FMS-20-30 HOLD page: RETURN displays the F-PLN page
+                    this.props.fmcService.master.resetRevisedWaypoint();
+                    this.props.mfd.uiService.navigateTo(
+                      `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,
+                    );
+                  }}
+                />,
+              )}
             </div>
-            <span class="mfd-label mfd-fpln-hold-last-exit-label">LAST EXIT (FOR EXTRA FUEL 0 AT ALTN)</span>
-            <div class="mfd-fpln-hold-grid">
-              <div class="mfd-label">AT</div>
-              <div class="mfd-label" style="align-self: center;">
-                UTC
-              </div>
-              <div class="mfd-label">EFOB</div>
-              <div />
-              <div class={{ 'mfd-value': true, magenta: this.isActiveOrTmpy }}>{this.lastExitUtc}</div>
-              <div class="mfd-label-value-container">
-                <span class={{ 'mfd-value': true, magenta: this.isActiveOrTmpy }}>{this.lastExitEfobText}</span>
-                <span class="mfd-label-unit mfd-unit-trailing">{this.weightUnitText}</span>
-              </div>
+            <div ref={this.tmpyInsertButtonDiv}>
+              {fcomAt(
+                788,
+                599,
+                <Button
+                  label="TMPY F-PLN"
+                  onClick={() => {
+                    this.props.fmcService.master.resetRevisedWaypoint();
+                    this.props.mfd.uiService.navigateTo(
+                      `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,
+                    );
+                  }}
+                  buttonStyle="color: yellow; width: 134px;"
+                />,
+              )}
             </div>
-          </div>
-          <div class="fc" style="margin-top: 40px;">
-            <Button
-              label="DATABASE"
-              onClick={() => console.warn('DATABASE HOLD NOT IMPLEMENTED')}
-              buttonStyle="padding: 20px; margin: 5px;"
-              disabled={true}
-            />
-            <Button
-              label="COMPUTED"
-              onClick={() => {
-                const revWptIdx = this.props.fmcService.master.revisedLegIndex.get();
-                const revPlanIdx = this.props.fmcService.master.revisedLegPlanIndex.get();
-                if (revWptIdx && revPlanIdx && this.props.fmcService.master.revisedWaypoint()) {
-                  this.props.flightPlanInterface.revertHoldToComputed(
-                    revWptIdx,
-                    revPlanIdx,
-                    this.props.fmcService.master.revisedLegIsAltn.get() ?? false,
-                  );
-                }
-              }}
-              buttonStyle="padding: 20px; margin: 5px;"
-            />
-          </div>
-        </div>
-        <div style="flex-grow: 1;" />
-        <div class="fr" style="justify-content: space-between;">
-          <div
-            ref={this.returnButtonDiv}
-            class="mfd-fpln-hold-button-with-creative-class-name-which-is-as-long-as-style-attribute"
-          >
-            <Button
-              label="RETURN"
-              onClick={() => {
-                this.props.fmcService.master.resetRevisedWaypoint();
-                this.props.mfd.uiService.navigateTo('back');
-              }}
-            />
-          </div>
-          <div
-            ref={this.tmpyInsertButtonDiv}
-            class="mfd-fpln-hold-button-with-creative-class-name-which-is-as-long-as-style-attribute"
-          >
-            <Button
-              label="TMPY F-PLN"
-              onClick={() => {
-                this.props.fmcService.master.resetRevisedWaypoint();
-                this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`);
-              }}
-              buttonStyle="color: yellow"
-            />
           </div>
         </div>
         {/* end page content */}

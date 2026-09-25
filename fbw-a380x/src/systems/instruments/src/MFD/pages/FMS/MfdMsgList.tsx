@@ -48,7 +48,8 @@ export class MfdMsgList extends DisplayComponent<MfdMsgListProps> {
 
     // Render them
     arr?.forEach((it, idx) => {
-      if (idx < 4) {
+      // FCOM DSC-22-FMS-20-30 MESSAGES LIST page: the list has a maximum of 5 messages
+      if (idx < 5) {
         FSComponent.render(
           <div class="mfd-label msg-list-element">{it.messageText}</div>,
           this.msgListContainer.instance,
@@ -94,9 +95,9 @@ export class MfdMsgList extends DisplayComponent<MfdMsgListProps> {
   render(): VNode {
     return (
       <div ref={this.topRef} class="mfd-fms-fpln-dialog-outer">
-        <div class="mfd-fms-fpln-dialog-inner">
+        <div class="mfd-fms-fpln-dialog-inner sys-fms">
           <ActivePageTitleBar
-            activePage={Subject.create('MESSAGE LIST')}
+            activePage={Subject.create('MESSAGES LIST')}
             offset={Subject.create('')}
             eoIsActive={this.eoActive}
             isFmsSubsystemPage={true}
@@ -105,8 +106,9 @@ export class MfdMsgList extends DisplayComponent<MfdMsgListProps> {
           <div class="mfd-page-container">
             <div ref={this.msgListContainer} class="mfd-msg-list-element-container" />
             <div style="flex-grow: 1;" />
-            <div style="display: flex; justify-content: flex-start;">
-              <Button label="CLOSE" onClick={() => this.props.visible.set(false)} />
+            {/* FCOM DSC-22-FMS-20-30 P 207: CLOSE button at display x = 3, bottom at y = 956 */}
+            <div style="display: flex; justify-content: flex-start; margin: 0 0 -4px 3px;">
+              <Button label="CLOSE" onClick={() => this.props.visible.set(false)} buttonStyle="width: 100px;" />
             </div>
           </div>
           {/* end page content */}

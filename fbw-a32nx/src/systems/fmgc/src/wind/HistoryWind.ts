@@ -7,7 +7,7 @@ import { FmgcFlightPhase } from '../../../shared/src/flightphase';
 import { WindUtils } from '../guidance/vnav/wind/WindUtils';
 
 export class HistoryWind {
-  private static readonly LOCALSTORAGE_KEY: string = 'FBW.HistoryWinds';
+  private static readonly DEFAULT_LOCALSTORAGE_KEY: string = 'FBW.HistoryWinds';
 
   private readonly sub = this.bus.getSubscriber<NavigationEvents & FlightPhaseManagerEvents>();
 
@@ -30,7 +30,14 @@ export class HistoryWind {
 
   private readonly historyWinds: (WindEntry | null)[] = Array(this.defaultRecordedWind.length + 1).fill(null);
 
-  constructor(private readonly bus: EventBus) {
+  /**
+   * @param bus the event bus
+   * @param localStorageKey key the history winds are persisted under; aircraft with their own FMS use their own key
+   */
+  constructor(
+    private readonly bus: EventBus,
+    private readonly localStorageKey: string = HistoryWind.DEFAULT_LOCALSTORAGE_KEY,
+  ) {
     this.altitude.sub(this.handleAltitudeChange.bind(this));
     this.sub.on('fmgc_flight_phase').handle(this.handleFlightPhaseChange.bind(this));
 
@@ -118,11 +125,11 @@ export class HistoryWind {
   }
 
   private syncToLocalStorage() {
-    localStorage.setItem(HistoryWind.LOCALSTORAGE_KEY, JSON.stringify(this.historyWinds));
+    localStorage.setItem(this.localStorageKey, JSON.stringify(this.historyWinds));
   }
 
   private syncFromLocalStorage() {
-    const historyWindsString = localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY);
+    const historyWindsString = localStorage.getItem(this.localStorageKey);
     if (historyWindsString === null) {
       return;
     }

@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 export interface ISimbriefData {
@@ -21,6 +21,8 @@ export interface ISimbriefData {
   fuel: IFuel;
   units: string;
   alternate: IAlternate;
+  /** ICAO codes of all the alternates of the OFP (the first one is `alternate`) */
+  alternates?: string[];
   times: ITimes;
   weather: IWeather;
   files: Files;
