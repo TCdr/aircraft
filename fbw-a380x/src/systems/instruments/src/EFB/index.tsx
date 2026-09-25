@@ -51,6 +51,7 @@ render(
           pilotAvatars: false,
           eclSoftKeys: true,
           fireTestExtend: false,
+          keepPilotStoredElements: true,
         },
         sim: {
           cones: false,
