@@ -1787,10 +1787,11 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
     }
 
     return (
+      // Each cell holds three digits of the value font (18 px each) and a margin: narrower, they run over the slash
       <div style="display: flex; flex-direction: row; justify-self: flex-end">
-        <div style="width: 45px; text-align: center;">{directionStr}</div>
+        <div style="width: 56px; text-align: center;">{directionStr}</div>
         <span>/</span>
-        <div style="width: 45px; text-align: center;">{speedStr}</div>
+        <div style="width: 56px; text-align: center;">{speedStr}</div>
       </div>
     );
   }
