@@ -1039,7 +1039,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                   </div>
                 }
                 onClick={() => {}}
-                buttonStyle="margin-right: 5px; width: 257px; height: 41px; box-sizing: border-box; padding: 0 12px;"
+                buttonStyle="margin-right: 5px; min-width: 285px; min-height: 59px; box-sizing: border-box; padding: 0 12px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_windbtn`}
                 menuItems={this.efobAndWindButtonMenuItems}
               />
@@ -1099,7 +1099,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-arrival`,
                     );
                   }}
-                  buttonStyle="font-size: 30px; width: 150px; margin-right: 5px;"
+                  buttonStyle="font-size: 30px; min-width: 150px; margin-right: 5px;"
                 />
               }
               componentIfTrue={
@@ -1167,7 +1167,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 label="DEST"
                 disabled={this.destNotLoaded}
                 onClick={() => this.scrollToDest()}
-                buttonStyle="height: 60px; margin-right: 5px; padding: auto 15px auto 15px;"
+                buttonStyle="min-height: 60px; margin-right: 5px; padding: auto 15px auto 15px;"
               />
             </div>
           </div>
@@ -1183,7 +1183,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                       `fms/sec/index/${this.loadedFlightPlanIndex.get() - FlightPlanIndex.FirstSecondary + 1}`,
                     )
                   }
-                  buttonStyle="width: 125px;"
+                  buttonStyle="min-width: 125px;"
                 />
               }
               componentIfFalse={
@@ -1198,7 +1198,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                           `fms/${this.props.mfd.uiService.activeUri.get().category}/init`,
                         )
                       }
-                      buttonStyle="width: 125px;"
+                      buttonStyle="min-width: 125px;"
                     />
                   }
                   componentIfFalse={<></>}
@@ -2001,7 +2001,7 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
         onClick={() => {
           this.props.callbacks.onImmediateExitHold!();
         }}
-        buttonStyle="color: #e68000; padding-right: 2px; width:200px;"
+        buttonStyle="color: #e68000; padding-right: 2px; min-width:200px;"
       />
     );
   }
