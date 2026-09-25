@@ -157,6 +157,24 @@ export interface TakeoffPerformanceSpeeds {
   v1DeltaWind: number;
 }
 
+/** The results that a calculator can give as estimates rather than from the aircraft manufacturer data. */
+export enum TakeoffPerformanceEstimate {
+  /** The FLEX temperature. */
+  Flex = 'Flex',
+  /** V1. */
+  V1 = 'V1',
+  /** VR. */
+  VR = 'VR',
+  /** V2, when raised to a minimum that is not manufacturer data. */
+  V2 = 'V2',
+  /** The weights and speeds include a wind correction. */
+  Wind = 'Wind',
+  /** The weights and speeds include a runway slope correction. */
+  Slope = 'Slope',
+  /** The OAT is above the temperatures of the manufacturer data. */
+  Temperature = 'Temperature',
+}
+
 export interface TakeoffPerformanceResult {
   /** User inputs. */
   inputs: TakeoffPerformanceInputs;
@@ -184,6 +202,33 @@ export interface TakeoffPerformanceResult {
   tFlexMaxLimitingFactor?: LimitingFactor;
 
   intermediateSpeeds?: TakeoffPerformanceSpeeds;
+
+  /** The results that are estimates, for the calculators that tell them apart from the manufacturer data. */
+  estimates?: TakeoffPerformanceEstimate[];
+}
+
+/**
+ * The runway distances of a takeoff at one thrust setting, in metres from the start of the takeoff run (the line-up
+ * allowance excluded), for the calculators that can give them.
+ */
+export interface TakeoffRunwayDistances {
+  /** The FLEX temperature of the distances in °C, or undefined for TOGA. */
+  flex: number | undefined;
+  /** The runway length available for the takeoff run: the TORA without the line-up allowance. */
+  available: number;
+  /**
+   * The runway length the takeoff needs: the takeoff length of the manufacturer charts, with all the regulatory
+   * limitations and margins. Undefined when it is longer than the data.
+   */
+  required: number | undefined;
+  /** The required length is an estimate, not manufacturer data. */
+  requiredEstimated: boolean;
+  /** The required length is shorter than the data, which gives no shorter length: only a maximum. */
+  requiredBelowData: boolean;
+  /** Estimated distances (all engines) where V1 and VR are reached, and where the aircraft reaches 35 ft. */
+  v1?: number;
+  vr?: number;
+  screenHeight?: number;
 }
 
 // Note: these are keys in the localisations for the EFB (except none).
@@ -201,6 +246,12 @@ export enum TakeoffPerfomanceError {
   MaximumRunwaySlope = 'MaximumRunwaySlope',
   TooHeavy = 'TooHeavy',
   TooLight = 'TooLight',
+  /** The runway condition is not covered by the performance data. */
+  RunwayConditionNotSupported = 'RunwayConditionNotSupported',
+  /** The runway is shorter than the performance data. */
+  RunwayLengthOutsideData = 'RunwayLengthOutsideData',
+  /** Only the manufacturer data is used, and it does not cover the entered conditions. */
+  OutsideManufacturerData = 'OutsideManufacturerData',
 }
 
 export interface TakeoffPerformanceCalculator {
@@ -302,4 +353,20 @@ export interface TakeoffPerformanceCalculator {
 
   /** Maximum tailwind in knots. */
   readonly maxTailwind: number;
+
+  /**
+   * For the calculators that can tell their estimates apart from the manufacturer data: when true, only the
+   * manufacturer data is used, and the results that it cannot give are left out. Undefined for the other calculators.
+   */
+  realDataOnly?: boolean;
+
+  /**
+   * For the calculators that can give them: the runway distances of a calculated takeoff, at TOGA or at a FLEX
+   * temperature (for a FLEX lower than the maximum one of the result, a FLEX simulation). Undefined when the result
+   * has an error, or the FLEX temperature is outside the possible range.
+   */
+  calculateTakeoffDistances?(
+    result: TakeoffPerformanceResult,
+    flex: number | undefined,
+  ): TakeoffRunwayDistances | undefined;
 }

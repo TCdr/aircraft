@@ -10,7 +10,8 @@ import { FmcAircraftInterface } from './FmcAircraftInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmgcDataService } from './fmgc';
 import { TypeIMessage, TypeIIMessage } from '../shared/NXSystemMessages';
-import { EfisSide, Fix, FMMessage, NearbyFacility, Waypoint } from '@flybywiresim/fbw-sdk';
+import { CompanyTakeoffDataUplink, EfisSide, Fix, FMMessage, NearbyFacility, Waypoint } from '@flybywiresim/fbw-sdk';
+import { CompanyTakeoffData, CompanyTakeoffDataRequestContent } from './CompanyTakeoffData';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
@@ -133,6 +134,22 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /** Starts the fuel planning computation */
   startFuelPlanning(): void;
+
+  /** Company takeoff data: the request and the received data (A380 FCOM DSC-22-FMS) */
+  readonly companyTakeoffData: CompanyTakeoffData;
+
+  /** The takeoff data of the FMS, as in a company takeoff data request */
+  companyTakeoffDataRequestContent(): CompanyTakeoffDataRequestContent;
+
+  /** Whether received company takeoff data can be inserted, and whether its TOW disagrees with the active one */
+  checkCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): {
+    insertable: boolean;
+    runwayDisagree: boolean;
+    towDisagree: boolean;
+  };
+
+  /** INSERT: the received company takeoff data updates the T.O panel of the PERF page */
+  insertCompanyTakeoffData(uplink: CompanyTakeoffDataUplink): boolean;
 
   /** Enters the computed minimum BLOCK fuel in the BLOCK entry field */
   confirmFuelPlanning(): void;

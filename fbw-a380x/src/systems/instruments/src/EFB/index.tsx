@@ -7,6 +7,7 @@ import { AircraftContext, EfbWrapper, syncSettingsFromPersistentStorage } from '
 import { A380FailureDefinitions } from '../../../failures';
 import { AutomaticCallOutsPage } from './Pages/AutomaticCallOutsPage';
 import { a380xSyncedSettings } from './settingsSync';
+import { A380842TakeoffPerformanceCalculator } from '@shared/performance/a380x_takeoff';
 
 import './Efb.scss';
 import { EventBus } from '@microsoft/msfs-sdk';
@@ -21,7 +22,7 @@ render(
   <AircraftContext.Provider
     value={{
       performanceCalculators: {
-        takeoff: null,
+        takeoff: new A380842TakeoffPerformanceCalculator(),
         landing: null,
       },
       pushbackPage: {
