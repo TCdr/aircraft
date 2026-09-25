@@ -24,6 +24,7 @@ import {
   performancePage,
   secIndexPageUri,
   initPage,
+  windPage,
   dirToUri,
   airwaysPage,
   departurePage,
@@ -63,6 +64,7 @@ export abstract class FmsPage<T extends AbstractMfdPageProps = AbstractMfdPagePr
       (uri.page === performancePage ||
         uri.page === fuelAndLoadPage ||
         uri.page === initPage ||
+        uri.page === windPage ||
         uri.page === flightPlanUriPage ||
         uri.page === airwaysPage ||
         uri.page === departurePage ||

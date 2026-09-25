@@ -1,8 +1,9 @@
-// Copyright (c) 2024-2025 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { ClockEvents, FSComponent, SimVarValueType, Subject, VNode } from '@microsoft/msfs-sdk';
+import { ClockEvents, FSComponent, SimVarValueType, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
+import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../../common/FcomLayout';
 import { Arinc429Register, coordinateToString, Fix, MagVar, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { Footer } from '../../common/Footer';
@@ -11,7 +12,7 @@ import './MfdFmsPositionMonitor.scss';
 import { distanceTo } from 'msfs-geo';
 import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
-import { getEtaFromUtcOrPresent, noPositionAvailableText, showReturnButtonUriExtra } from '../../../shared/utils';
+import { noPositionAvailableText } from '../../../shared/utils';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { MfdFmsPositionNavaids } from './MfdFmsPositionNavaids';
@@ -117,26 +118,19 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
 
   private readonly navPrimaryLost = Subject.create(false);
 
-  private readonly navPrimaryText = this.navPrimaryLost.map((v) => (v ? 'NAV PRIMARY LOST' : 'NAV PRIMARY'));
-
-  private readonly navPrimaryClass = this.navPrimaryLost.map(
-    (v) => `mfd-value ${v ? 'amber' : ''} bigger mfd-spacing-right`,
-  );
-
   private readonly accuracyClass = this.fmsAccuracyHigh.map(
     (v) => `mfd-value ${v ? '' : 'amber'} bigger mfd-spacing-right`,
   );
 
-  private readonly accuracyVisibility = this.navPrimaryLost.map((v) => (v ? 'visible' : 'hidden'));
-
-  private readonly positionFrozenLabel = this.positionFrozen.map((v) => (v ? 'UNFREEZE' : 'FREEZE'));
+  /** FCOM P 292: FREEZE POSITION / UNFREEZE POSITION, and the time the data was frozen */
+  private readonly positionFrozenLabel = this.positionFrozen.map((v) =>
+    v ? 'UNFREEZE<br />POSITION *' : 'FREEZE<br />POSITION *',
+  );
 
   private readonly positionFrozenText = this.positionFrozen.map((v) => (v ? 'POSITION FROZEN' : ''));
 
-  private readonly positionFrozenAt = this.positionFrozen.map((v) => (v ? 'POS DATA FROZEN' : ''));
-
   private readonly positionFrozenTime = this.positionFrozen.map((v) =>
-    v ? '\xa0AT\xa0' + getEtaFromUtcOrPresent(0, false) : '',
+    v ? 'AT ' + this.props.fmcService.master.timeKeeper.formatEta(0) : '',
   );
 
   private readonly gnssCoordinates: Coordinates = { lat: 0, long: 0 };
@@ -145,7 +139,16 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
 
   private readonly gnss2PositionText = this.gnss1PositionText; // TODO implement when GNSS2 is added
 
-  private readonly onSidePositionLabel = Subject.create(this.props.mfd.uiService.captOrFo === 'CAPT' ? 'POS1' : 'POS2');
+  private readonly onSidePositionLabel = Subject.create(this.props.mfd.uiService.captOrFo === 'CAPT' ? 'FMS1' : 'FMS2');
+
+  private readonly offSidePositionLabel = Subject.create(
+    this.props.mfd.uiService.captOrFo === 'CAPT' ? 'FMS2' : 'FMS1',
+  );
+
+  /** No GPIRS (hybrid) position is modelled by the ADIRS yet */
+  private readonly gpirsPositionText = Subject.create(noPositionAvailableText);
+
+  private readonly gpsPrimaryVisibility = this.navPrimaryLost.map((v) => (v ? 'hidden' : 'visible'));
 
   private readonly monitorWaypoint =
     this.props.fmcService.master.fmgc.data.positionMonitorFix ?? Subject.create<Fix | null>(null);
@@ -172,28 +175,6 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
 
   private readonly waypointEntered = this.monitorWaypoint.map((v) => v !== null);
 
-  private readonly positionSensorsVisible = Subject.create(false);
-
-  private readonly positionSensorsVisibility = this.positionSensorsVisible.map(
-    (v) => 'visibility:' + (v ? 'visible' : 'hidden'),
-  );
-
-  private readonly positionSensorsButtonLabel = this.positionSensorsVisible.map((v) => (v ? 'HIDE' : 'DISPLAY'));
-
-  private sensorsDisplayedByPilot = false;
-
-  private readonly irDeviationIdentifierVisible = this.positionSensorsVisible.map(
-    (v) => 'visibility:' + (v ? 'hidden' : 'visible'),
-  );
-
-  private positionUpdateRequiredDueToFreeze = false;
-
-  private readonly gpsDeselected = Subject.create(false); // TODO change when GPS deselected state is available from FM
-
-  private readonly gpsDeselectedVisibility = this.gpsDeselected.map((v) => (v ? 'visible' : 'hidden'));
-
-  private readonly returnButtonVisible = this.props.mfd.uiService.activeUri.get().extra === showReturnButtonUriExtra;
-
   private readonly irsMixCoordinates: Coordinates = { lat: 0, long: 0 };
 
   private readonly mixIrsPositionText = Subject.create(noPositionAvailableText);
@@ -217,20 +198,13 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
       this.bearingUnit,
       this.distanceToWaypointUnit,
       this.positionFrozenText,
-      this.positionFrozenAt,
+      this.gpsPrimaryVisibility,
       this.positionFrozenTime,
-      this.navPrimaryClass,
       this.accuracyClass,
-      this.navPrimaryText,
-      this.accuracyVisibility,
       this.fmsEPeUnitVisibility,
-      this.irDeviationIdentifierVisible,
       this.ir1PositionDeviationUnitVisibility,
       this.ir2PositionDeviationUnitVisibility,
       this.ir3PositionDeviationUnitVisibility,
-      this.positionSensorsButtonLabel,
-      this.positionSensorsVisibility,
-      this.gpsDeselectedVisibility,
     );
   }
 
@@ -249,10 +223,12 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     this.rnpEnteredByPilot.set(navigation.isPilotRnp());
     const fmCoordinates = this.props.fmcService.master.navigation.getPpos();
     const fmPositionAvailable = fmCoordinates != null;
-    const updatePositionSensors =
-      this.positionUpdateRequiredDueToFreeze || (this.positionSensorsVisible.get() && !this.positionFrozen.get());
+    // FCOM P 292: FREEZE POSITION freezes the display of all position data on the page
+    const updatePositionSensors = !this.positionFrozen.get();
 
-    this.position1.set(fmPositionAvailable ? coordinateToString(fmCoordinates, false) : noPositionAvailableText);
+    if (updatePositionSensors) {
+      this.position1.set(fmPositionAvailable ? coordinateToString(fmCoordinates, false) : noPositionAvailableText);
+    }
 
     this.fillIrData(
       1,
@@ -332,7 +308,15 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
       this.bearingToWaypoint.set(null);
     }
 
-    this.positionUpdateRequiredDueToFreeze = false;
+    if (updatePositionSensors) {
+      // FCOM P 286: navigation mode "N IRS/GPS" or "N IRS", N = 3 or 1 IRS used for the IRS position
+      const validIrs = [this.ir1LatitudeRegister, this.ir2LatitudeRegister, this.ir3LatitudeRegister].filter(
+        (r) => !r.isInvalid(),
+      ).length;
+      const mode = validIrs === 0 ? '' : `(${validIrs >= 2 ? 3 : 1} IRS${navigation.getGpsPrimary() ? '/GPS' : ''})`;
+      this.position1Mode.set(mode);
+      this.position2Mode.set(mode);
+    }
   }
 
   private fillIrData(
@@ -371,6 +355,9 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
       irPosition.set(coordinateToString(coordinates, false));
     }
 
+    if (!updatePosition) {
+      return;
+    }
     if (fmPosition) {
       irFmPositionDeviation.set(distanceTo(coordinates, fmPosition).toFixed(1));
     } else {
@@ -378,312 +365,164 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     }
   }
 
-  private toggleSensorsVisibility() {
-    this.positionSensorsVisible.set(!this.positionSensorsVisible.get());
-    this.sensorsDisplayedByPilot = this.positionSensorsVisible.get();
-    if (!this.sensorsDisplayedByPilot) {
-      this.positionFrozen.set(false);
-    }
-  }
-
   private togglePositionFrozen(): void {
     this.positionFrozen.set(!this.positionFrozen.get());
-    // Automatically toggle position sensors visibility when freezing position
-    if (this.positionFrozen.get()) {
-      const sensorsVisible = this.positionSensorsVisible.get();
-      if (!sensorsVisible) {
-        this.positionSensorsVisible.set(true);
-        this.positionUpdateRequiredDueToFreeze = true;
-      }
-    } else {
-      // Only hide position sensors if the pilot didn't explicitly request them to be shown before the position was frozen
-      if (!this.sensorsDisplayedByPilot) {
-        this.positionSensorsVisible.set(false);
-      }
-    }
+  }
+
+  /** A position line of the table: label right-aligned on x = 112, latitude/longitude from x = 128 */
+  private static positionLine(y: number, label: string | Subscribable<string>, position: Subscribable<string>): VNode {
+    return (
+      <>
+        {fcomRight(y, 92, <span class="mfd-label">{label}</span>)}
+        {fcomAt(y, 111, <span class="mfd-value bigger">{position}</span>)}
+      </>
+    );
+  }
+
+  /** An IRS deviation from the onside FMS position, right-aligned on x = 652 with its NM unit */
+  private static deviation(y: number, value: Subscribable<string>, unitVisibility: Subscribable<string>): VNode {
+    return fcomRight(y, 652, [
+      <span class="mfd-value bigger">{value}</span>,
+      <span class="mfd-label-unit bigger mfd-unit-trailing" style={{ visibility: unitVisibility }}>
+        NM
+      </span>,
+    ]);
   }
 
   render(): VNode {
+    const line = MfdFmsPositionMonitor.positionLine;
     return (
       <>
         {super.render()}
         {/* begin page content */}
         <div class="mfd-page-container">
-          <div class="mfd-pos-top-row">
-            <div class="mfd-label-value-container" style="margin-top:13px">
-              <span class={this.navPrimaryClass}>{this.navPrimaryText}</span>
+          {/* Positions from the FCOM figures (DSC-22-FMS-20-30 P 273, P 286), page container coordinates */}
+          <div class="mfd-fcom-canvas">
+            {fcomRight(22, 208, <span class="mfd-label">ACCURACY</span>)}
+            {fcomAt(22, 227, <span class={this.accuracyClass}>{this.fmsAccuracy}</span>)}
+            <div style={{ visibility: this.gpsPrimaryVisibility }}>
+              {fcomAt(69, 94, <span class="mfd-value bigger">GPS PRIMARY</span>)}
             </div>
-            <div class="rnp-container">
-              <div class="mfd-label-value-container">
-                <span class="mfd-label bigger mfd-spacing-right">RNP</span>
-                <InputField<number>
-                  dataEntryFormat={new RnpFormat()}
-                  value={this.fmsRnp}
-                  onModified={(v) => this.props.fmcService.master.navigation.setPilotRnp(v)}
-                  enteredByPilot={this.rnpEnteredByPilot}
-                  canBeCleared={Subject.create(true)}
-                  containerStyle="width: 155px;"
-                  alignText="center"
-                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                  bigUnit={true}
-                />
-              </div>
-            </div>
-          </div>
-          <div class="mfd-pos-top-row">
-            <div class="mfd-label-value-container" style={{ visibility: this.accuracyVisibility }}>
-              <span class="mfd-label bigger mfd-spacing-right">ACCURACY</span>
-              <span class={this.accuracyClass}>{this.fmsAccuracy}</span>
-            </div>
-            <div class="mfd-label-value-container" style="margin-right:95px">
-              <span class="mfd-label bigger mfd-spacing" style="margin-right: 37px;">
-                EPU
-              </span>
-              <span class="mfd-value bigger">{this.fmsEpeDisplay}</span>
+            {fcomRight(22, 514, <span class="mfd-label">EPU</span>)}
+            {fcomRight(22, 669, [
+              <span class="mfd-value bigger">{this.fmsEpeDisplay}</span>,
               <span class="mfd-label-unit bigger mfd-unit-trailing" style={{ visibility: this.fmsEPeUnitVisibility }}>
                 NM
-              </span>
-            </div>
-          </div>
+              </span>,
+            ])}
+            {fcomRight(70, 514, <span class="mfd-label">RNP</span>)}
+            {fcomAt(
+              70,
+              529,
+              <InputField<number>
+                dataEntryFormat={new RnpFormat()}
+                value={this.fmsRnp}
+                onModified={(v) => this.props.fmcService.master.navigation.setPilotRnp(v)}
+                enteredByPilot={this.rnpEnteredByPilot}
+                canBeCleared={Subject.create(true)}
+                containerStyle="width: 140px;"
+                alignText="center"
+                errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                hEventConsumer={this.props.mfd.hEventConsumer}
+                interactionMode={this.props.mfd.interactionMode}
+                bigUnit={true}
+              />,
+            )}
 
-          <div class="mfd-pos-monitor-fm-pos-line" style="margin-bottom: 14.5px;">
-            <div class="mfd-label-value-container">
-              <span class="mfd-label bigger mfd-spacing-right">&nbsp;POS1</span>
-              <span class="mfd-value bigger mfd-spacing-right">{this.position1}</span>
-            </div>
-            <div class="mfd-label-value-container">
-              <span class="mfd-value bigger">{this.position1Mode}</span>
-            </div>
-          </div>
-
-          <div class="mfd-pos-monitor-fm-pos-line" style="margin-bottom: 3px;">
-            <div class="mfd-label-value-container">
-              <span class="mfd-label bigger mfd-spacing-right">&nbsp;POS2</span>
-              <span class="mfd-value bigger mfd-spacing-right">{this.position2}</span>
-            </div>
-            <div class="mfd-label-value-container">
-              <span class="mfd-value bigger">{this.position2Mode}</span>
-            </div>
-          </div>
-
-          <div class="mfd-pos-monitor-line big"> </div>
-
-          <div class="fr">
-            <div style={this.positionSensorsVisibility}>
-              <div class="mfd-label-value-container pos-monitor-table-lateral-spacing pos-monitor-table-vertical-spacing">
-                <span class="mfd-label bigger mfd-spacing-right">GNSS1</span>
-                <span class="mfd-value bigger" style="position: relative; top:5px;">
-                  {this.gnss1PositionText}
-                </span>
-              </div>
-              <div class="mfd-label-value-container pos-monitor-table-lateral-spacing" style="padding-bottom:5px;">
-                <span class="mfd-label bigger mfd-spacing-right">GNSS2</span>
-                <span class="mfd-value bigger">{this.gnss2PositionText}</span>
-              </div>
-
-              <div class="mfd-pos-monitor-line short"></div>
-
-              <div class="mfd-label-value-container pos-monitor-table-lateral-spacing pos-monitor-table-vertical-spacing">
-                <span class="mfd-label bigger mfd-spacing-right">&nbsp;IRS1</span>
-                <span class="mfd-value bigger">{this.ir1Position}</span>
-              </div>
-
-              <div class="mfd-label-value-container pos-monitor-table-lateral-spacing pos-monitor-table-vertical-spacing">
-                <span class="mfd-label bigger mfd-spacing-right">&nbsp;IRS2</span>
-                <span class="mfd-value bigger">{this.ir2Position}</span>
-              </div>
-
-              <div class="mfd-label-value-container pos-monitor-table-lateral-spacing" style="padding-bottom:10px;">
-                <span class="mfd-label bigger mfd-spacing-right">&nbsp;IRS3</span>
-                <span class="mfd-value bigger">{this.ir3Position}</span>
-              </div>
-
-              <div class="mfd-pos-monitor-line short"> </div>
-
-              <div class="mfd-label-value-container pos-monitor-table-lateral-spacing" style="padding-bottom:10px;">
-                <span class="mfd-label bigger mfd-spacing-right">RADIO</span>
-                <span class="mfd-value bigger">{this.radioPosition}</span>
-              </div>
-
-              <div class="mfd-label-value-container" style="padding-left:3px">
-                <span class="mfd-label bigger mfd-spacing-right">MIXIRS</span>
-                <span class="mfd-value bigger">{this.mixIrsPositionText}</span>
-              </div>
-            </div>
-            <div>
-              <div class="mfd-pos-monitor-deviation-container">
-                <span class="mfd-value bigger amber" style={{ visibility: this.gpsDeselectedVisibility }}>
-                  GPS DESELECTED
-                </span>
-                <div class="fc" style="align-items: flex-end; margin-bottom: 10px; margin-top:17px; margin-right:7px">
-                  <span class="mfd-label bigger">DEVIATION FROM {this.onSidePositionLabel}</span>
-                </div>
-
-                <div class="mfd-pos-monitor-irs-deviation-line">
-                  <span
-                    class="mfd-label bigger mfd-pos-monitor-irs-deviation-title"
-                    style={this.irDeviationIdentifierVisible}
-                  >
-                    IRS1
-                  </span>
-                  <span class="mfd-value bigger">{this.ir1PositionDeviation}</span>
-                  <span
-                    class="mfd-label-unit bigger mfd-unit-trailing"
-                    style={{ visibility: this.ir1PositionDeviationUnitVisibility }}
-                  >
-                    NM
-                  </span>
-                </div>
-
-                <div class="mfd-pos-monitor-irs-deviation-line">
-                  <span
-                    class="mfd-label bigger mfd-pos-monitor-irs-deviation-title"
-                    style={this.irDeviationIdentifierVisible}
-                  >
-                    IRS2
-                  </span>
-                  <span class="mfd-value bigger">{this.ir2PositionDeviation}</span>
-                  <span
-                    class="mfd-label-unit bigger mfd-unit-trailing"
-                    style={{ visibility: this.ir2PositionDeviationUnitVisibility }}
-                  >
-                    NM
-                  </span>
-                </div>
-
-                <div class="mfd-pos-monitor-irs-deviation-line">
-                  <span
-                    class="mfd-label bigger mfd-pos-monitor-irs-deviation-title"
-                    style={this.irDeviationIdentifierVisible}
-                  >
-                    IRS3
-                  </span>
-                  <span class="mfd-value bigger">{this.ir3PositionDeviation}</span>
-                  <span
-                    class="mfd-label-unit bigger mfd-unit-trailing"
-                    style={{ visibility: this.ir3PositionDeviationUnitVisibility }}
-                  >
-                    NM
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="fc">
-            <div class="mfd-pos-monitor-frozen-pos-time-container">
-              <span class="mfd-label bigger">{this.positionFrozenAt}</span>
-              <span class="mfd-label bigger">{this.positionFrozenTime}</span>
-            </div>
-
-            <div class="fr space-between" style="margin-bottom: 19px;">
+            <div class="mfd-pos-monitor-box" />
+            {line(174, this.onSidePositionLabel, this.position1)}
+            {fcomAt(174, 504, <span class="mfd-value bigger">{this.position1Mode}</span>)}
+            {line(224, 'RADIO', this.radioPosition)}
+            {line(265, 'MIXIRS', this.mixIrsPositionText)}
+            {line(305, 'GPIRS', this.gpirsPositionText)}
+            {fcomCentre(216, 620, <span class="mfd-label">{this.positionFrozenText}</span>)}
+            {fcomCentre(243, 620, <span class="mfd-label">{this.positionFrozenTime}</span>)}
+            {fcomAt(
+              295.5,
+              537,
               <Button
-                label={
-                  <div style="display: flex; flex-direction: row; justify-content: space-between;">
-                    <span style="text-align: center; vertical-align: center; margin-right: 25px;">
-                      {this.positionSensorsButtonLabel}
-                      <br />
-                      POS SENSORS
-                    </span>
-                  </div>
-                }
-                onClick={() => this.toggleSensorsVisibility()}
-                selected={this.positionSensorsVisible}
-                buttonStyle="width: 219px; margin-left: 95px; height:58px;"
-              />
-
-              <Button
-                label={
-                  <div style="display: flex; flex-direction: row; justify-content: space-between;">
-                    <span style="text-align: center; vertical-align: center; margin-right: 10px;">
-                      {this.positionFrozenLabel}
-                      <br />
-                      POS DATA
-                    </span>
-                    <span style="display: flex; align-items: center; justify-content: center;">*</span>
-                  </div>
-                }
+                label={this.positionFrozenLabel}
                 onClick={() => this.togglePositionFrozen()}
-                selected={this.positionFrozen}
-                buttonStyle="width: 212px; margin-right:60px; height:58px"
-              />
-            </div>
-          </div>
+                buttonStyle="width: 139px; height: 41px;"
+              />,
+            )}
+            {fcomLine(330, 22, 725)}
+            {line(360, this.offSidePositionLabel, this.position2)}
+            {fcomAt(360, 504, <span class="mfd-value bigger">{this.position2Mode}</span>)}
+            {fcomLine(386, 22, 725)}
+            {fcomRight(415, 736, <span class="mfd-label">DEVIATION FROM {this.onSidePositionLabel}</span>)}
+            {line(455, 'IRS1', this.ir1Position)}
+            {MfdFmsPositionMonitor.deviation(455, this.ir1PositionDeviation, this.ir1PositionDeviationUnitVisibility)}
+            {line(496, 'IRS2', this.ir2Position)}
+            {MfdFmsPositionMonitor.deviation(496, this.ir2PositionDeviation, this.ir2PositionDeviationUnitVisibility)}
+            {line(536, 'IRS3', this.ir3Position)}
+            {MfdFmsPositionMonitor.deviation(536, this.ir3PositionDeviation, this.ir3PositionDeviationUnitVisibility)}
+            {fcomLine(561, 22, 725)}
+            {line(592, 'GPS1', this.gnss1PositionText)}
+            {line(632, 'GPS2', this.gnss2PositionText)}
 
-          <div class="mfd-pos-monitor-line big"></div>
-
-          <div class="fr space-between">
-            <Button
-              label="POSITION <br /> UPDATE"
-              disabled={true}
-              onClick={() => {}}
-              buttonStyle="width: 138px; height:59px; margin-top:18px;"
-            />
-            <div>
-              <div
-                class="mfd-label-value-container"
-                style="margin-right:16px; padding-top:8px; justify-content:flex-end; padding-bottom:3px;"
-              >
-                <span class="mfd-label mfd-spacing-right-small" style="font-size:22px;">
-                  BRG / DIST TO
-                </span>
-                <InputField<Fix, string, false>
-                  dataEntryFormat={new FixFormat()}
-                  readonlyValue={this.monitorWaypoint}
-                  onModified={async (v) => {
-                    if (v) {
-                      if (this.props.fmcService.master) {
-                        const wpt = await WaypointEntryUtils.getOrCreateWaypoint(this.props.fmcService.master, v, true);
-                        if (!wpt) {
-                          throw new FmsError(FmsErrorType.NotInDatabase);
-                        }
-                        this.monitorWaypoint.set(wpt);
-                      } else {
-                        this.monitorWaypoint.set(null);
+            {fcomAt(
+              721.5,
+              11,
+              <Button
+                label="POSITION<br />UPDATE"
+                disabled={Subject.create(true)} // FCOM: only when the FMS navigation mode is not IRS/GPS (not modelled)
+                onClick={() => {}}
+                buttonStyle="width: 99px; height: 39px;"
+              />,
+            )}
+            {fcomRight(704, 576, <span class="mfd-label">BRG / DIST TO</span>)}
+            {fcomAt(
+              704,
+              592,
+              <InputField<Fix, string, false>
+                dataEntryFormat={new FixFormat()}
+                readonlyValue={this.monitorWaypoint}
+                onModified={async (v) => {
+                  if (v) {
+                    if (this.props.fmcService.master) {
+                      const wpt = await WaypointEntryUtils.getOrCreateWaypoint(this.props.fmcService.master, v, true);
+                      if (!wpt) {
+                        throw new FmsError(FmsErrorType.NotInDatabase);
                       }
+                      this.monitorWaypoint.set(wpt);
                     } else {
                       this.monitorWaypoint.set(null);
                     }
-                  }}
-                  enteredByPilot={this.waypointEntered}
-                  canBeCleared={Subject.create(true)}
-                  alignText="center"
-                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                  containerStyle='"width:130px;'
-                />
-              </div>
-              <div class="fr" style="width:417px; margin-top: 5px;">
-                <div>
-                  <span class="mfd-value">{this.bearingToWaypointDisplay}</span>
-                  <span class="mfd-label-unit mfd-unit-trailing">&nbsp;{this.bearingUnit}</span>
-                </div>
-                <span class="mfd-value" style="margin-left:20px;">
-                  /
-                </span>
-                <div>
-                  <span class="mfd-value" style="margin-left:14px">
-                    {this.distanceToWaypointDisplay}
-                  </span>
-                  <span class="mfd-label-unit mfd-unit-trailing">&nbsp;{this.distanceToWaypointUnit}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+                  } else {
+                    this.monitorWaypoint.set(null);
+                  }
+                }}
+                enteredByPilot={this.waypointEntered}
+                canBeCleared={Subject.create(true)}
+                alignText="center"
+                errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                hEventConsumer={this.props.mfd.hEventConsumer}
+                interactionMode={this.props.mfd.interactionMode}
+                containerStyle="width: 140px;"
+              />,
+            )}
+            {fcomRight(743, 429, [
+              <span class="mfd-value">{this.bearingToWaypointDisplay}</span>,
+              <span class="mfd-label-unit mfd-unit-trailing">{this.bearingUnit}</span>,
+            ])}
+            {fcomCentre(743, 451, <span class="mfd-value">/</span>)}
+            {fcomRight(743, 584, <span class="mfd-value">{this.distanceToWaypointDisplay}</span>)}
+            {fcomAt(743, 589, <span class="mfd-label-unit">{this.distanceToWaypointUnit}</span>)}
 
-          <div class="mfd-pos-monitor-line big" style="margin-top:34px;"></div>
-          <div style="flex-grow: 1;" />
-          {/* fill space vertically */}
-          <div class="fr space-between">
-            <Button
-              label="RETURN"
-              onClick={() => this.props.mfd.uiService.navigateTo('back')}
-              buttonStyle="margin-right: 5px; width:150px;"
-              visible={this.returnButtonVisible}
-            />
-            <div class="fr">
+            {/* FCOM P 286: RETURN always displayed */}
+            {fcomAt(
+              796,
+              3,
+              <Button
+                label="RETURN"
+                onClick={() => this.props.mfd.uiService.navigateTo('back')}
+                buttonStyle="width: 97px;"
+              />,
+            )}
+            {fcomAt(
+              796,
+              344,
               <Button
                 label="NAVAIDS"
                 onClick={() =>
@@ -691,28 +530,35 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
                     `fms/position/navaids/${MfdFmsPositionNavaids.selectedForFmsNavExtra}`,
                   )
                 }
-                buttonStyle="margin-right: 5px; width:149px; height:43px;"
-              />
+                buttonStyle="width: 122px;"
+              />,
+            )}
+            {fcomAt(
+              796,
+              500,
               <Button
-                label="GNSS"
-                disabled={true}
-                onClick={() => this.props.mfd.uiService.navigateTo('fms/position/gnss')}
-                buttonStyle="margin-right: 5px; width:133px; height:43px;"
-              />
+                label="GPS"
+                onClick={() => this.props.mfd.uiService.navigateTo('fms/position/gps')}
+                buttonStyle="width: 101px;"
+              />,
+            )}
+            {fcomAt(
+              796,
+              634,
               <Button
                 label="IRS"
                 onClick={() => this.props.mfd.uiService.navigateTo('fms/position/irs')}
-                buttonStyle="margin-right: 5px; width:136px; height:43px;"
-              />
-            </div>
+                buttonStyle="width: 102px;"
+              />,
+            )}
           </div>
-          <Footer
-            bus={this.props.bus}
-            mfd={this.props.mfd}
-            fmcService={this.props.fmcService}
-            flightPlanInterface={this.props.fmcService.master.flightPlanInterface}
-          />
         </div>
+        <Footer
+          bus={this.props.bus}
+          mfd={this.props.mfd}
+          fmcService={this.props.fmcService}
+          flightPlanInterface={this.props.fmcService.master.flightPlanInterface}
+        />
       </>
     );
   }

@@ -1,4 +1,4 @@
-//  Copyright (c) 2024-2025 FlyByWire Simulations
+//  Copyright (c) 2024-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import './pages/common/style.scss';
@@ -352,6 +352,9 @@ export class MfdComponent
         this.props.atcService,
       );
     }
+
+    // FMS pages use the display frame of the FCOM figures (A380 FCOM DSC-22-FMS-20-30), see common/style.scss
+    this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());
     FSComponent.render(this.activePage, this.activePageRef?.getOrDefault());

@@ -1,0 +1,125 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 7: DATA FROM line at y = 162, column titles at y = 198, SELECTED box y = 232..302, DATABASE
+// box y = 336..726 (lines of 52 px from y = 380), OTHER ALTN box y = 759..905 (entries at y = 795 and 865)
+.mfd-alternate-title {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 36px;
+  margin: 1px 0 0 10px;
+}
+
+.mfd-alternate-header,
+.mfd-alternate-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.mfd-alternate-header {
+  padding-left: 159px;
+  height: 36px;
+
+  .co-rte {
+    width: 150px;
+    text-align: center;
+  }
+
+  .trk {
+    width: 172px;
+    text-align: center;
+  }
+
+  .dist {
+    width: 100px;
+    text-align: center;
+  }
+
+  .extra {
+    width: 188px;
+    text-align: center;
+  }
+}
+
+.mfd-alternate-box {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-sizing: border-box;
+  border: 2px solid #505050;
+  margin: 16px 4px 0 0;
+  height: 70px;
+  padding: 16px 0 0 10px;
+
+  &.database {
+    margin-top: 34px;
+    height: 390px;
+    padding-top: 18px;
+  }
+
+  &.other {
+    margin-top: 33px;
+    height: 146px;
+    padding-top: 1px;
+  }
+}
+
+.mfd-alternate-box-title {
+  position: absolute;
+  top: -14px;
+  left: 18px;
+  padding: 0 6px;
+  background-color: $display-background;
+}
+
+.mfd-alternate-line {
+  height: 52px;
+}
+
+.mfd-alternate-ident {
+  width: 147px;
+}
+
+.mfd-alternate-cell {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+
+  &.co-rte {
+    width: 147px;
+    justify-content: center;
+  }
+
+  &.trk {
+    width: 141px;
+  }
+
+  &.dist {
+    width: 152px;
+  }
+
+  &.extra {
+    width: 154px;
+  }
+
+  &.no-altn-extra {
+    margin-left: 475px;
+    width: 154px;
+  }
+}
+
+.mfd-alternate-other-slot {
+  position: relative;
+  height: 70px;
+
+  .mfd-alternate-line,
+  .mfd-alternate-entry {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 70px;
+    display: flex;
+    align-items: center;
+  }
+}

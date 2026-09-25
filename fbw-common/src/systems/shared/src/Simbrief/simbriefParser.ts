@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { AircraftGithubVersionChecker, NXDataStore, UniversalConfigProvider } from '@flybywiresim/fbw-sdk';
@@ -138,6 +138,9 @@ export const simbriefDataParser = (simbriefJson: any): ISimbriefData => {
       taxi: fuel.taxi,
     },
     units: params.units,
+    alternates: (Array.isArray(simbriefJson.alternate) ? simbriefJson.alternate : [simbriefJson.alternate])
+      .map((a: any) => a?.icao_code)
+      .filter((icao: unknown): icao is string => typeof icao === 'string' && icao.length > 0),
     alternate: {
       icao: alternate.icao_code,
       iata: alternate.iata_code,

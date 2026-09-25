@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -86,6 +86,16 @@ export const NXSystemMessages = {
   checkToData: new TypeIIMessage('CHECK T.O. DATA', true),
   checkZfw: new TypeIIMessage('CHECK ZFW', true),
   comFplnReceivedPendingInsertion: new TypeIIMessage('COMPANY F-PLN RECEIVED\nWAITING FOR INSERTION', false),
+  // FCOM DSC-22-FMS-20-110 company wind messages
+  checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
+  cpnyWindReceivedPendingInsertion: new TypeIIMessage(
+    'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN XXXX',
+    false,
+    'XXXX',
+  ),
+  cpnyWindUplinkPending: new TypeIIMessage('COMPANY WIND UPLINK PENDING'),
+  noCompanyReply: new TypeIIMessage('NO COMPANY REPLY'),
+  receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND DATA NOT VALID'),
   comDatalinkNotAvail: new TypeIMessage('COM DATALINK NOT AVAIL'),
   cstrDelUpToWpt: new TypeIIMessage('CONSTRAINTS BEFORE WWWWW : DELETED', false, 'WWWWW'),
   databaseCodingError: new TypeIIMessage('DATABASE CODING ERROR'),
@@ -119,6 +129,10 @@ export const NXSystemMessages = {
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
+  listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
+  pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
+  rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
+  someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
 };
 
 export const NXFictionalMessages = {

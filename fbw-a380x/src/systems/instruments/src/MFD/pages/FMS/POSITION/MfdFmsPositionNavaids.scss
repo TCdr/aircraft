@@ -31,3 +31,35 @@
 .mfd-pos-nav-nav-table > div.bb {
   border-bottom: 1px solid $display-light-grey;
 }
+
+// FCOM DSC-22-FMS-20-30 P 64 / P 296
+.mfd-position-navaids-column {
+  position: absolute;
+  top: 14px;
+  height: 168px;
+  width: 0;
+  border-left: 1px solid $display-light-grey;
+}
+
+.mfd-position-navaids-bfo {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 135px;
+  height: 40px;
+  border: 2px solid $display-light-grey;
+  padding-left: 6px;
+  box-sizing: border-box;
+}
+
+.mfd-position-navaids-bfo-box {
+  width: 22px;
+  height: 22px;
+  border: 1px solid $display-light-grey;
+  margin-right: 20px;
+  box-sizing: border-box;
+
+  &.checked {
+    background-color: $display-cyan;
+  }
+}

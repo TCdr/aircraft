@@ -13,6 +13,7 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { TriangleDown, TriangleUp } from './shapes';
+import { raiseFcomItem } from './raiseFcomItem';
 
 export type ButtonMenuItem = {
   label: string | Subscribable<string>;
@@ -217,6 +218,7 @@ export class Button extends DisplayComponent<ButtonProps> {
     this.subs.push(
       this.dropdownIsOpened.sub((val) => {
         this.dropdownMenuRef.instance.style.display = val ? 'block' : 'none';
+        raiseFcomItem(this.topRef.instance, val);
 
         if (val) {
           this.buttonRef.instance.classList.add('opened');
