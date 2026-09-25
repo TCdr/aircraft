@@ -35,7 +35,6 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 - Full separation into three synchronized FMCs and two FMSs (currently one FMC serving one FMS)
 - Accurate CI, OPT and REC MAX FL computation
 - NADP (see THR NOISE above)
-- Fuel planning on FMS/FUEL&LOAD page
 - ATC / datalink / CPDLC
 - FCU BKUP
 - STEP ALTs: Optimum step calculation
