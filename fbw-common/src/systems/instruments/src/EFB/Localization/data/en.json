@@ -665,6 +665,7 @@
       "DmcSelfTestTime": "DMC Self Test Time",
       "EclSoftKeys": "Show Soft Keys for EWD Electronic Checklists",
       "FireTestExtend": "Extend Fire Test Warnings After Button Release",
+      "KeepPilotStoredElements": "Keep MFD Pilot Stored Waypoints, Navaids, Routes and Runways Between Sessions",
       "FirstOfficerAvatar": "Show First Officer Avatar",
       "HomeCockpitMode": "Home Cockpit Mode",
       "McduFocusTimeout": "MCDU Focus Timeout (seconds)",
