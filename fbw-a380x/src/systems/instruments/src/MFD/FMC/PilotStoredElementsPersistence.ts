@@ -12,6 +12,8 @@ import { NXDataStore } from '@flybywiresim/fbw-sdk';
  * shut down, which is what happens without the setting: the elements are kept in the browser storage, which lives as long
  * as the sim session. With the setting, a copy is kept in the sim persistent storage, and put back in the browser storage
  * at the start of the next session, before the FMS reads it.
+ *
+ * One instance per instrument (the browser storage is shared by its FMCs): {@link start} creates it or returns it.
  */
 export class PilotStoredElementsPersistence {
   /** The flypad setting (stored as A380X_KEEP_PILOT_STORED_ELEMENTS, ENABLED or DISABLED) */
@@ -33,51 +35,65 @@ export class PilotStoredElementsPersistence {
 
   private static readonly SAVE_INTERVAL_MS = 5_000;
 
-  private static started = false;
-
-  private static enabled = false;
-
-  private static lastSaved: string | null = null;
+  private static instance: PilotStoredElementsPersistence | null = null;
 
   /**
    * At the start of a sim session, puts the kept elements back in the browser storage when the setting is enabled, then
-   * keeps the copy up to date. Once per instrument; must run before the pilot stored elements are read.
+   * keeps the copy up to date. Must run before the pilot stored elements are read.
+   * @returns the instance of this instrument
    */
-  public static start(): void {
-    if (PilotStoredElementsPersistence.started) {
-      return;
-    }
-    PilotStoredElementsPersistence.started = true;
+  public static start(): PilotStoredElementsPersistence {
+    PilotStoredElementsPersistence.instance ??= new PilotStoredElementsPersistence();
+    return PilotStoredElementsPersistence.instance;
+  }
 
-    PilotStoredElementsPersistence.enabled =
-      NXDataStore.getLegacy(PilotStoredElementsPersistence.SETTING_KEY, 'DISABLED') === 'ENABLED';
+  private enabled = NXDataStore.getLegacy(PilotStoredElementsPersistence.SETTING_KEY, 'DISABLED') === 'ENABLED';
 
+  private lastSaved: string | null = null;
+
+  private readonly cancelSettingSubscription: () => void;
+
+  private readonly saveInterval: ReturnType<typeof setInterval>;
+
+  private constructor() {
     if (localStorage.getItem(PilotStoredElementsPersistence.SESSION_KEY) === null) {
       localStorage.setItem(PilotStoredElementsPersistence.SESSION_KEY, '1');
-      if (PilotStoredElementsPersistence.enabled) {
-        PilotStoredElementsPersistence.restore();
+      if (this.enabled) {
+        this.restore();
       }
     }
 
-    NXDataStore.subscribeLegacy(PilotStoredElementsPersistence.SETTING_KEY, (_, value) => {
-      PilotStoredElementsPersistence.enabled = value === 'ENABLED';
-      if (PilotStoredElementsPersistence.enabled) {
-        PilotStoredElementsPersistence.save();
-      } else {
-        // Back to the FCOM behaviour: nothing is kept for the next session
-        SetStoredData(PilotStoredElementsPersistence.PERSISTENT_KEY, '');
-        PilotStoredElementsPersistence.lastSaved = null;
-      }
-    });
+    this.cancelSettingSubscription = NXDataStore.subscribeLegacy(
+      PilotStoredElementsPersistence.SETTING_KEY,
+      (_, value) => {
+        this.enabled = value === 'ENABLED';
+        if (this.enabled) {
+          this.save();
+        } else {
+          // Back to the FCOM behaviour: nothing is kept for the next session
+          SetStoredData(PilotStoredElementsPersistence.PERSISTENT_KEY, '');
+          this.lastSaved = null;
+        }
+      },
+    );
 
-    setInterval(() => {
-      if (PilotStoredElementsPersistence.enabled) {
-        PilotStoredElementsPersistence.save();
+    this.saveInterval = setInterval(() => {
+      if (this.enabled) {
+        this.save();
       }
     }, PilotStoredElementsPersistence.SAVE_INTERVAL_MS);
   }
 
-  private static snapshot(): string {
+  /** Stops keeping the copy up to date; the next {@link start} creates a new instance. */
+  public stop(): void {
+    clearInterval(this.saveInterval);
+    this.cancelSettingSubscription();
+    if (PilotStoredElementsPersistence.instance === this) {
+      PilotStoredElementsPersistence.instance = null;
+    }
+  }
+
+  private snapshot(): string {
     const elements: Record<string, string> = {};
     for (const key of PilotStoredElementsPersistence.STORAGE_KEYS) {
       const value = localStorage.getItem(key);
@@ -88,15 +104,15 @@ export class PilotStoredElementsPersistence {
     return JSON.stringify(elements);
   }
 
-  private static save(): void {
-    const snapshot = PilotStoredElementsPersistence.snapshot();
-    if (snapshot !== PilotStoredElementsPersistence.lastSaved) {
+  private save(): void {
+    const snapshot = this.snapshot();
+    if (snapshot !== this.lastSaved) {
       SetStoredData(PilotStoredElementsPersistence.PERSISTENT_KEY, snapshot);
-      PilotStoredElementsPersistence.lastSaved = snapshot;
+      this.lastSaved = snapshot;
     }
   }
 
-  private static restore(): void {
+  private restore(): void {
     try {
       const kept = GetStoredData(PilotStoredElementsPersistence.PERSISTENT_KEY);
       if (!kept) {
@@ -109,7 +125,7 @@ export class PilotStoredElementsPersistence {
           localStorage.setItem(key, value);
         }
       }
-      PilotStoredElementsPersistence.lastSaved = kept;
+      this.lastSaved = kept;
     } catch (e) {
       console.warn('[FMS] Could not restore the kept pilot stored elements:', e);
     }
