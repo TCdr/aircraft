@@ -1459,6 +1459,19 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - Arinc429<Kilogram>
   - The total quantity of fuel in the tanks
 
+- A380X_FMS_JETTISON_GW
+  - Number in kilogram
+  - The jettison gross weight (JTSN GW) entered on the FMS FUEL&LOAD page, 0 when none; the FQMS stops the jettison there
+  - Written by the FMS
+
+- A380X_FUEL_JETTISON_IN_PROGRESS
+  - Bool
+  - The FQMS is jettisoning fuel (JETTISON ARM and ACTIVE pb-sw ON, and not completed)
+
+- A380X_FUEL_JETTISON_COMPLETED
+  - Bool
+  - The FQMS stopped the jettison (JTSN GW reached, or the transfer tanks empty), until both JETTISON pb-sw are OFF
+
 - A32NX_FQMS_GROSS_WEIGHT
   - Arinc429<Kilogram>
   - The total weight of the aircraft
