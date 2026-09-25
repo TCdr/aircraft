@@ -88,6 +88,13 @@ export class InputField<
 > extends DisplayComponent<ConditionalInputFieldProps<T, U, S>> {
   private static readonly MAX_CHARACTERS_FREE_TEXT = 24;
 
+  /**
+   * The field in edition with the KCCU keyboard, per KCCU key consumer (one per MFD side). With the keyboard active, the
+   * field edition does not end when the display loses the focus (e.g. a click on a KCCU key), so the previous field is
+   * validated here when another field is selected.
+   */
+  private static readonly kccuFieldInEdition = new WeakMap<object, InputField<unknown, unknown, boolean>>();
+
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
 
@@ -306,13 +313,38 @@ export class InputField<
     this.onInput();
   };
 
+  /** ENT: validates the entry, without depending on a blur event of the display */
   private handleEnter() {
-    if (this.props.handleFocusBlurExternally) {
-      this.onBlur(true);
-    } else {
+    this.onBlur(true);
+    if (!this.props.handleFocusBlurExternally) {
       this.textInputRef.instance.blur();
     }
   }
+
+  /** ESC: cancels the current field edition, the field returns to the last valid value (A380 FCOM DSC-31-30-20 P 8) */
+  private handleEscape() {
+    this.modifiedFieldValue.set(null);
+    if (this.isOverFlow) {
+      this.overflow(false);
+    }
+    this.onBlur(false);
+    if (!this.props.handleFocusBlurExternally) {
+      this.textInputRef.instance.blur();
+    }
+  }
+
+  /**
+   * The display lost the focus. With the KCCU keyboard active, this also happens when a KCCU key is clicked: the edition
+   * continues, and ends with ENT, ESC or the selection of another field.
+   */
+  private onDomBlur() {
+    if (this.props.interactionMode.get() === InteractionMode.Kccu) {
+      return;
+    }
+    this.onBlur(true);
+  }
+
+  private onDomBlurHandler = this.onDomBlur.bind(this);
 
   public onFocus() {
     if (
@@ -324,6 +356,11 @@ export class InputField<
       if (this.props.interactionMode.get() === InteractionMode.Touchscreen) {
         Coherent.trigger('FOCUS_INPUT_FIELD', this.guid, '', '', this.readValue.get(), false);
       }
+      const fieldInEdition = InputField.kccuFieldInEdition.get(this.props.hEventConsumer);
+      if (fieldInEdition && fieldInEdition !== this) {
+        fieldInEdition.onBlur(true);
+      }
+      InputField.kccuFieldInEdition.set(this.props.hEventConsumer, this);
       this.isFocused.set(true);
 
       // After 20s, unfocus field, if some other weird focus error happens
@@ -351,6 +388,9 @@ export class InputField<
         Coherent.trigger('UNFOCUS_INPUT_FIELD', this.guid);
       }
       this.isFocused.set(false);
+      if (InputField.kccuFieldInEdition.get(this.props.hEventConsumer) === this) {
+        InputField.kccuFieldInEdition.delete(this.props.hEventConsumer);
+      }
       this.textInputRef.instance.classList.remove('valueSelected');
       this.caretRef.instance.style.display = 'none';
       this.updateDisplayElement();
@@ -454,6 +494,8 @@ export class InputField<
 
   private onFocusTextInput() {
     this.textInputRef.instance.focus();
+    // The element may already have the display focus (no focus event): select the field anyway
+    this.onFocus();
   }
 
   private onFocusTextInputHandler = this.onFocusTextInput.bind(this);
@@ -596,7 +638,7 @@ export class InputField<
 
     if (!this.props.handleFocusBlurExternally) {
       this.textInputRef.instance.addEventListener('focus', this.onFocusHandler);
-      this.textInputRef.instance.addEventListener('blur', this.onBlur.bind(this, true));
+      this.textInputRef.instance.addEventListener('blur', this.onDomBlurHandler);
       this.spanningDivRef.instance.addEventListener('click', this.onFocusTextInputHandler);
       this.leadingUnitRef.instance.addEventListener('click', this.onFocusTextInputHandler);
       this.trailingUnitRef.instance.addEventListener('click', this.onFocusTextInputHandler);
@@ -646,9 +688,7 @@ export class InputField<
       }
 
       if (key[1] === 'ESC' || key[1] === 'ESC2') {
-        const [formatted] = this.props.dataEntryFormat.format(this.readValue.get());
-        this.modifiedFieldValue.set(formatted);
-        this.handleEnter();
+        this.handleEscape();
       }
 
       if (key[1] === 'UP' || key[1] === 'RIGHT' || key[1] === 'DOWN' || key[1] === 'LEFT') {
@@ -682,10 +722,14 @@ export class InputField<
 
     if (!this.props.handleFocusBlurExternally) {
       this.textInputRef.getOrDefault()?.removeEventListener('focus', this.onFocusHandler);
-      this.textInputRef.getOrDefault()?.removeEventListener('blur', this.onBlur.bind(this, true));
+      this.textInputRef.getOrDefault()?.removeEventListener('blur', this.onDomBlurHandler);
       this.spanningDivRef.getOrDefault()?.removeEventListener('click', this.onFocusTextInputHandler);
       this.leadingUnitRef.getOrDefault()?.removeEventListener('click', this.onFocusTextInputHandler);
       this.trailingUnitRef.getOrDefault()?.removeEventListener('click', this.onFocusTextInputHandler);
+    }
+
+    if (InputField.kccuFieldInEdition.get(this.props.hEventConsumer) === this) {
+      InputField.kccuFieldInEdition.delete(this.props.hEventConsumer);
     }
 
     this.props.dataEntryFormat?.destroy();
