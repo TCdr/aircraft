@@ -46,6 +46,8 @@ interface RealismOptions {
   pilotAvatars: boolean;
   eclSoftKeys: boolean;
   fireTestExtend: boolean;
+  /** Keeping the MFD pilot stored elements from one sim session to the next (A380X) */
+  keepPilotStoredElements: boolean;
 }
 
 interface SimOptions {
@@ -104,6 +106,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
       pilotAvatars: false,
       eclSoftKeys: false,
       fireTestExtend: false,
+      keepPilotStoredElements: false,
     },
     sim: {
       cones: false,

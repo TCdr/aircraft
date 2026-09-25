@@ -5,6 +5,7 @@
 import { Subject, Subscribable } from '@microsoft/msfs-sdk';
 import { Coordinates } from 'msfs-geo';
 import type { Fix as CoRouteFix } from '@simbridge/Coroute/Fix';
+import { PilotStoredElementsPersistence } from './PilotStoredElementsPersistence';
 
 /**
  * Classes of a pilot stored NAVAID (A380 FCOM DSC-22-FMS-20-30, DATA / NAVAID page, NEW NAVAID function: VOR, DME,
@@ -132,7 +133,9 @@ export const maxPilotStoredRunways = 10;
 
 /**
  * The pilot stored elements database of the FMS, except the waypoints (kept by the DataManager): NAVAIDs, runways and
- * company routes, persisted in the browser storage like the pilot stored waypoints.
+ * company routes, persisted in the browser storage like the pilot stored waypoints, for the sim session (FCOM: deleted
+ * when all the FMCs are shut down), or from one session to the next with the flypad setting (see
+ * {@link PilotStoredElementsPersistence}).
  *
  * Stored NAVAIDs are not tunable and not usable as flight plan fixes yet, stored runways are not usable in the flight
  * plan yet; stored routes are inserted through the company route uplink adapter.
@@ -144,17 +147,19 @@ export class PilotStoredElements {
 
   private static readonly runwaysStorageKey = 'A380X.PilotStoredRunways';
 
-  private readonly _navaids = Subject.create<readonly PilotStoredNavaid[]>(
-    PilotStoredElements.load<PilotStoredNavaid>(PilotStoredElements.navaidsStorageKey),
-  );
+  private readonly _navaids: Subject<readonly PilotStoredNavaid[]>;
 
-  private readonly _routes = Subject.create<readonly StoredRoute[]>(
-    PilotStoredElements.load<StoredRoute>(PilotStoredElements.routesStorageKey),
-  );
+  private readonly _routes: Subject<readonly StoredRoute[]>;
 
-  private readonly _runways = Subject.create<readonly PilotStoredRunway[]>(
-    PilotStoredElements.load<PilotStoredRunway>(PilotStoredElements.runwaysStorageKey),
-  );
+  private readonly _runways: Subject<readonly PilotStoredRunway[]>;
+
+  constructor() {
+    // The elements kept from the previous sim session (flypad setting) are put back before they are read
+    PilotStoredElementsPersistence.start();
+    this._navaids = Subject.create(PilotStoredElements.load<PilotStoredNavaid>(PilotStoredElements.navaidsStorageKey));
+    this._routes = Subject.create(PilotStoredElements.load<StoredRoute>(PilotStoredElements.routesStorageKey));
+    this._runways = Subject.create(PilotStoredElements.load<PilotStoredRunway>(PilotStoredElements.runwaysStorageKey));
+  }
 
   get runways(): Subscribable<readonly PilotStoredRunway[]> {
     return this._runways;
