@@ -73,6 +73,7 @@ import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { HistoryWind } from '@fmgc/wind/HistoryWind';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
+import { FmsPrinter } from './FmsPrinter';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
@@ -226,6 +227,13 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   #sequencedWaypointRecorder: SequencedWaypointRecorder | null = null;
+
+  /** The FMS print functions (FMC-A, created with the first update, once the FMC is initialized) */
+  #printer: FmsPrinter | null = null;
+
+  get printer(): FmsPrinter | null {
+    return this.#printer;
+  }
 
   get lastSequencedWaypoint() {
     return this.#sequencedWaypointRecorder?.lastSequencedWaypoint ?? null;
@@ -1794,6 +1802,10 @@ export class FlightManagementComputer implements FmcInterface {
       this.navigation.update(throttledDt);
       this.#timeKeeper.update(throttledDt);
       this.#sequencedWaypointRecorder?.update();
+      if (this.instance === FmcIndex.FmcA) {
+        this.#printer ??= new FmsPrinter(this);
+        this.#printer.update();
+      }
       this.loadActiveFlightPlanFuelAndApproachData();
       if (this.flightPlanInterface.hasActive) {
         const flightPhase = this.flightPhase.get();

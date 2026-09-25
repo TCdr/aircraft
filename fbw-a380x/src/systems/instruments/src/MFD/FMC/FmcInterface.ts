@@ -1,3 +1,4 @@
+import { FmsPrinter } from './FmsPrinter';
 import { FmsErrorType } from '@fmgc/FmsError';
 import { FmsDataInterface } from '@fmgc/flightplanning/interface/FmsDataInterface';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
@@ -327,6 +328,9 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /** Pilot stored NAVAIDs and company routes (DATA / NAVAID and DATA / ROUTE pages). */
   get pilotStoredElements(): PilotStoredElements;
+
+  /** The FMS print functions (DATA / PRINTER page, A380 FCOM DSC-22-FMS-10-70); null until the FMS is initialized */
+  get printer(): FmsPrinter | null;
 
   /**
    * Inserts a company route (navigation database or pilot stored) into a flight plan, with its procedures
