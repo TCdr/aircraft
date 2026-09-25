@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.
 import {
+  BitFlags,
   ArraySubject,
   ClockEvents,
   ComponentProps,
@@ -35,7 +36,7 @@ import { FplnRevisionsMenuType, getRevisionsMenu } from './FplnRevisionsMenu';
 import { DestinationWindow } from './DestinationWindow';
 import { InsertNextWptFromWindow, NextWptInfo } from './InsertNextWptFrom';
 import { FmsPage } from '../../common/FmsPage';
-import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
+import { FlightPlanLeg, FlightPlanLegFlags } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { PseudoWaypoint } from '@fmgc/guidance/PseudoWaypoint';
 import { Coordinates, bearingTo } from 'msfs-geo';
@@ -213,6 +214,10 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
   };
 
   private readonly discontinuityLabel = 'DISCONTINUITY';
+
+  private isPendingAbeamPoint(leg: FlightPlanLeg): boolean {
+    return BitFlags.isAny(leg.flags, FlightPlanLegFlags.PendingDirectToAbeamPoint);
+  }
 
   private emptyFlightPlanRendered = false;
 
@@ -458,7 +463,13 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
           this.lineData.push(data);
         }
 
-        if (leg instanceof FlightPlanLeg) {
+        if (leg instanceof FlightPlanLeg && this.isPendingAbeamPoint(leg)) {
+          // FCOM DSC-22-FMS-20-30 P 162: a pending DIRECT WITH ABEAM shows ABEAM PTS instead of its abeam points
+          const previous = jointFlightPlan[i - 1];
+          if (!(previous instanceof FlightPlanLeg && this.isPendingAbeamPoint(previous))) {
+            this.lineData.push({ type: FplnLineType.Special, originalLegIndex: null, label: '(ABEAM PTS)' });
+          }
+        } else if (leg instanceof FlightPlanLeg) {
           const transAlt = this.loadedFlightPlan.performanceData.transitionAltitude.get();
           const transLevel = this.loadedFlightPlan.performanceData.transitionLevel.get();
           const transLevelAsAlt = transLevel !== null && transLevel !== undefined ? transLevel * 100 : null;
