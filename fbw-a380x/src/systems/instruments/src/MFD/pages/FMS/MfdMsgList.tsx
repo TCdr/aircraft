@@ -108,7 +108,7 @@ export class MfdMsgList extends DisplayComponent<MfdMsgListProps> {
             <div style="flex-grow: 1;" />
             {/* FCOM DSC-22-FMS-20-30 P 207: CLOSE button at display x = 3, bottom at y = 956 */}
             <div style="display: flex; justify-content: flex-start; margin: 0 0 -4px 3px;">
-              <Button label="CLOSE" onClick={() => this.props.visible.set(false)} buttonStyle="width: 100px;" />
+              <Button label="CLOSE" onClick={() => this.props.visible.set(false)} buttonStyle="min-width: 128px;" />
             </div>
           </div>
           {/* end page content */}

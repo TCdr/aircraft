@@ -334,7 +334,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
           <Button
             label={label}
             onClick={() => this.selectedDatabaseRunway.set(index)}
-            buttonStyle="width: 201px; white-space: nowrap;"
+            buttonStyle="min-width: 229px; white-space: nowrap;"
           />,
         ),
         list,
@@ -612,7 +612,11 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
         {fcomAt(
           646,
           35,
-          <Button label="RWY LIST" onClick={() => this.selectedDatabaseRunway.set(null)} buttonStyle="width: 142px;" />,
+          <Button
+            label="RWY LIST"
+            onClick={() => this.selectedDatabaseRunway.set(null)}
+            buttonStyle="min-width: 170px;"
+          />,
         )}
       </>
     );
@@ -744,7 +748,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
               </span>
             }
             onClick={() => this.deleteOneDialogVisible.set(true)}
-            buttonStyle="width: 179px; height: 40px;"
+            buttonStyle="min-width: 207px; min-height: 58px;"
           />,
         )}
         {fcomAt(
@@ -758,7 +762,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
               </span>
             }
             onClick={() => this.deleteAllDialogVisible.set(true)}
-            buttonStyle="width: 181px; height: 40px;"
+            buttonStyle="min-width: 209px; min-height: 58px;"
           />,
         )}
         {fcomAt(
@@ -767,7 +771,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
           <Button
             label="NEW RWY"
             onClick={() => this.openNewRunwayFunction(null)}
-            buttonStyle="width: 142px; height: 40px;"
+            buttonStyle="min-width: 170px; min-height: 58px;"
           />,
         )}
       </>
@@ -785,7 +789,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
           <Button
             label="NEW RWY"
             onClick={() => this.openNewRunwayFunction(null)}
-            buttonStyle="width: 142px; height: 42px;"
+            buttonStyle="min-width: 170px; min-height: 60px;"
           />,
         )}
       </>
@@ -817,7 +821,11 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
         {fcomAt(
           728,
           13,
-          <Button label="CANCEL" onClick={() => this.cancelNewRunway()} buttonStyle="width: 101px; height: 41px;" />,
+          <Button
+            label="CANCEL"
+            onClick={() => this.cancelNewRunway()}
+            buttonStyle="min-width: 129px; min-height: 59px;"
+          />,
         )}
         {fcomAt(
           728,
@@ -831,7 +839,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
             }
             disabled={this.storeDisabled}
             onClick={() => this.storeNewRunway()}
-            buttonStyle="width: 142px; height: 41px;"
+            buttonStyle="min-width: 170px; min-height: 59px;"
           />,
         )}
       </>
@@ -886,7 +894,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
                 <Button
                   label="RETURN"
                   onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                  buttonStyle="width: 101px;"
+                  buttonStyle="min-width: 129px;"
                 />,
               )}
             </div>

@@ -89,6 +89,11 @@
   padding: 9px 12px 5px 12px;
 }
 
+// The label of a button: its lines are the newlines of the label (see Button.toNewlines)
+.mfd-button-label {
+  white-space: pre-line;
+}
+
 .mfd-button.opened {
   background-color: $display-dark-grey;
   border: 2px inset $display-light-grey;

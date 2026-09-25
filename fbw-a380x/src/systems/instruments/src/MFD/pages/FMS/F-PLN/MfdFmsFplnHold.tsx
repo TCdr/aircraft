@@ -295,7 +295,7 @@ export class MfdFmsFplnHold extends FmsPage<MfdFmsFplnHoldProps> {
               <Button
                 label="DATABASE"
                 onClick={() => console.warn('DATABASE HOLD NOT IMPLEMENTED')}
-                buttonStyle="width: 122px; height: 41px;"
+                buttonStyle="min-width: 150px; min-height: 59px;"
                 disabled={true}
               />,
             )}
@@ -315,7 +315,7 @@ export class MfdFmsFplnHold extends FmsPage<MfdFmsFplnHoldProps> {
                     );
                   }
                 }}
-                buttonStyle="width: 122px; height: 41px;"
+                buttonStyle="min-width: 150px; min-height: 59px;"
               />,
             )}
             <div ref={this.returnButtonDiv}>
@@ -324,7 +324,7 @@ export class MfdFmsFplnHold extends FmsPage<MfdFmsFplnHoldProps> {
                 5,
                 <Button
                   label="RETURN"
-                  buttonStyle="width: 101px;"
+                  buttonStyle="min-width: 129px;"
                   onClick={() => {
                     // FCOM DSC-22-FMS-20-30 HOLD page: RETURN displays the F-PLN page
                     this.props.fmcService.master.resetRevisedWaypoint();
@@ -347,7 +347,7 @@ export class MfdFmsFplnHold extends FmsPage<MfdFmsFplnHoldProps> {
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,
                     );
                   }}
-                  buttonStyle="color: yellow; width: 134px;"
+                  buttonStyle="color: yellow; min-width: 162px;"
                 />,
               )}
             </div>

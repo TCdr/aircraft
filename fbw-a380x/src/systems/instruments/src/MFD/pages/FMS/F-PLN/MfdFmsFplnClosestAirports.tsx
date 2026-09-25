@@ -269,7 +269,7 @@ export class MfdFmsFplnClosestAirports extends FmsPage<MfdFmsFplnClosestAirports
           onClick={() => {}}
           menuItems={menu}
           idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_closestArpt_${id}`}
-          buttonStyle="width: 86px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+          buttonStyle="min-width: 94px; padding: 9px 2px 5px 2px; white-space: nowrap;"
         />
         <span class="mfd-closest-airports-cell dist">
           <span class="mfd-value bigger">{line.distance}</span>
@@ -357,7 +357,7 @@ export class MfdFmsFplnClosestAirports extends FmsPage<MfdFmsFplnClosestAirports
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 102px;"
+                buttonStyle="min-width: 130px;"
               />,
             )}
           </div>

@@ -502,7 +502,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                 <Button
                   label="ACFT STATUS"
                   onClick={() => this.props.mfd.uiService.navigateTo('fms/data/status/acft-status/withReturn')}
-                  buttonStyle="width: 171px;"
+                  buttonStyle="min-width: 199px;"
                 />,
               )}
               {fcomAt(
@@ -518,7 +518,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                           `fms/${this.props.mfd.uiService.activeUri.get().category}/${cpnyFplnRequestPage}`,
                         )
                   }
-                  buttonStyle="width: 146px; height: 42px;"
+                  buttonStyle="min-width: 174px; min-height: 60px;"
                   idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_fplnreq`}
                   menuItems={this.cpnyFplnButtonMenuItems}
                   showArrow={false}
@@ -621,7 +621,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/${routeSelectionPage}/${showReturnButtonUriExtra}`,
                     )
                   }
-                  buttonStyle="width: 171px;"
+                  buttonStyle="min-width: 199px;"
                 />,
               )}
               {fcomRight(215, 137, <span class="mfd-label">ALTN RTE</span>)}
@@ -651,7 +651,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/${routeSelectionPage}/${alternateRouteSelectionUriExtra}/${showReturnButtonUriExtra}`,
                     )
                   }
-                  buttonStyle="width: 171px;"
+                  buttonStyle="min-width: 199px;"
                 />,
               )}
               {fcomLine(258, 29, 737)}
@@ -766,7 +766,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                   idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_initCpnyWind`}
                   menuItems={this.cpnyWindButton.menuItems}
                   showArrow={false}
-                  buttonStyle="width: 146px; height: 42px;"
+                  buttonStyle="min-width: 174px; min-height: 60px;"
                 />,
               )}
               {fcomRight(431, 137, <span class="mfd-label">TRIP WIND</span>)}
@@ -803,7 +803,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/${windPage}/${showReturnButtonUriExtra}`,
                     )
                   }
-                  buttonStyle="width: 72px;"
+                  buttonStyle="min-width: 100px;"
                 />,
               )}
               {fcomLine(513, 29, 737)}
@@ -814,7 +814,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                   <Button
                     label="IRS"
                     onClick={() => this.props.mfd.uiService.navigateTo('fms/position/irs')}
-                    buttonStyle="width: 127px;"
+                    buttonStyle="min-width: 155px;"
                   />,
                 )}
                 {fcomAt(
@@ -828,7 +828,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                         `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-departure`,
                       )
                     }
-                    buttonStyle="width: 127px;"
+                    buttonStyle="min-width: 155px;"
                   />,
                 )}
                 {fcomAt(
@@ -843,7 +843,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                           : `fms/data/route/${showReturnButtonUriExtra}`,
                       )
                     }
-                    buttonStyle="width: 170px;"
+                    buttonStyle="min-width: 198px;"
                   />,
                 )}
                 {fcomAt(
@@ -854,7 +854,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                     onClick={() =>
                       this.props.mfd.uiService.navigateTo(`fms/position/navaids/${showReturnButtonUriExtra}`)
                     }
-                    buttonStyle="width: 127px;"
+                    buttonStyle="min-width: 155px;"
                   />,
                 )}
                 {fcomAt(
@@ -867,7 +867,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                         `fms/${this.props.mfd.uiService.activeUri.get().category}/fuel-load`,
                       )
                     }
-                    buttonStyle="width: 127px;"
+                    buttonStyle="min-width: 155px;"
                   />,
                 )}
                 {fcomAt(
@@ -880,7 +880,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                         `fms/${this.props.mfd.uiService.activeUri.get().category}/perf/to`,
                       )
                     }
-                    buttonStyle="width: 127px;"
+                    buttonStyle="min-width: 155px;"
                   />,
                 )}
                 {fcomAt(
@@ -891,7 +891,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                     disabled={this.secActive}
                     label="CPNY T.O.<br />REQUEST"
                     onClick={() => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyToRequestPage}`)}
-                    buttonStyle="width: 146px; height: 42px;"
+                    buttonStyle="min-width: 174px; min-height: 60px;"
                   />,
                 )}
               </div>
@@ -906,7 +906,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                         secIndexPageUri + '/' + (this.loadedFlightPlanIndex.get() - 2),
                       )
                     }
-                    buttonStyle="width: 101px;"
+                    buttonStyle="min-width: 129px;"
                   />,
                 )}
               </div>

@@ -522,7 +522,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                     disabled={this.fuelPlanningIsDisabled}
                     label="FUEL<br />PLANNING *"
                     onClick={() => console.log('FUEL PLANNING')}
-                    buttonStyle="width: 140px; height: 38px;"
+                    buttonStyle="min-width: 168px; min-height: 56px;"
                   />,
                 )}
               </div>
@@ -887,7 +887,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                     // FCOM DSC-22-FMS-20-30 FUEL&LOAD page: RETURN displays the ACTIVE / INIT page
                     this.props.mfd.uiService.navigateTo(this.mandatoryAndActiveFpln.get() ? 'fms/active/init' : 'back')
                   }
-                  buttonStyle="width: 120px;"
+                  buttonStyle="min-width: 148px;"
                 />,
               )}
             </div>
