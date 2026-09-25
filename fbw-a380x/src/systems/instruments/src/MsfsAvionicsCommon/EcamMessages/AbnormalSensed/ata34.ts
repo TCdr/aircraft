@@ -970,9 +970,15 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340900001: {
-    title: '\x1b<4m\x1b4mNAV\x1bm IR ALIGNMENT IN ATT MODE (WIP)',
+    // A380 FCOM PRO-ABN-ECAM-10-34 NAV IR ALIGNMENT IN ATT MODE
+    title: '\x1b<4m\x1b4mNAV\x1bm IR ALIGNMENT IN ATT MODE',
     sensed: false,
-    items: [], // TODO
+    items: [
+      { name: 'IR MODE SEL (AFFECTED)', sensed: false, labelNotCompleted: 'ATT' },
+      { name: 'SPEED, HDG & FL : KEEP CONST FOR 30 S', sensed: false },
+      { name: 'FMS POSITION / IRS PAGE', sensed: false, labelNotCompleted: 'SELECT', labelCompleted: 'SELECTED' },
+      { name: 'HDG', sensed: false, labelNotCompleted: 'ENTER', labelCompleted: 'ENTERED' },
+    ],
   },
   340900002: {
     title: '\x1b<4m\x1b4mNAV\x1bm FLUCTUATING VERTICAL SPEED (WIP)',
