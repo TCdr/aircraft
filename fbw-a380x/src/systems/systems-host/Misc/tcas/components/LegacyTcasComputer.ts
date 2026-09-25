@@ -245,6 +245,9 @@ export class LegacyTcasComputer implements Instrument {
 
   private readonly tcasAltSelect = ConsumerSubject.create(this.sub.on('mfd_tcas_alt_select'), 0); // TCAS - NORM/ABV/BLW
 
+  /** The ALT RPTG button of the MFD SURV CONTROLS page. */
+  private readonly xpdrAltReporting = ConsumerSubject.create(this.sub.on('mfd_xpdr_set_alt_reporting'), true);
+
   private trafficLeftEfisFilter: boolean;
 
   private trafficRightEfisFilter: boolean;
@@ -354,8 +357,10 @@ export class LegacyTcasComputer implements Instrument {
     this.trafficLeftEfisFilter = SimVar.GetSimVarValue('L:A380X_EFIS_L_TRAF_BUTTON_IS_ON', 'boolean');
     this.trafficRightEfisFilter = SimVar.GetSimVarValue('L:A380X_EFIS_R_TRAF_BUTTON_IS_ON', 'boolean');
 
+    // With ALT RPTG OFF the TCAS is in standby too (A380 FCOM DSC-34-20-50-20 P 7: TCAS STBY message on the ND, TCAS
+    // STBY memo).
     this.tcasMode.setVar(
-      this.xpdrStatus === XpdrMode.STBY || !this.tcasPower || this.tcasFault.getVar()
+      this.xpdrStatus === XpdrMode.STBY || !this.xpdrAltReporting.get() || !this.tcasPower || this.tcasFault.getVar()
         ? TcasMode.STBY
         : this.tcasAlertLevel.get(),
     ); // 34-43-00:A32
