@@ -112,6 +112,11 @@
       "Range": "Range",
       "Title": "Overview"
     },
+    "Printouts": {
+      "DeleteAll": "Delete All",
+      "NoPrintout": "No printout. The FMS prints appear here (MFD DATA / PRINTER page).",
+      "Title": "Printouts"
+    },
     "Title": "Dispatch"
   },
   "Failures": {
