@@ -1,13 +1,12 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { CompanyTakeoffDataUplink, MagVar, RunwayUtils } from '@flybywiresim/fbw-sdk';
+import { CompanyTakeoffDataRequestContent, CompanyTakeoffDataUplink, MagVar, RunwayUtils } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { NXSystemMessages } from '../messages/NXSystemMessages';
-import { UplinkTakeoffDataRequestContent } from '../legacy/UplinkTakeoffData';
 import { CDUPerformancePage } from './A320_Neo_CDU_PerformancePage';
 
 /** A320 FCOM DSC-22_20-50-10-28: the CONTAM list of the UPLINK TO DATA REQ page */
@@ -119,7 +118,7 @@ export class CDUUplinkTakeoffDataPages {
   }
 
   /** The request content, also the answer to the takeoff data import requests of the flypad */
-  public static requestContent(mcdu: LegacyFmsPageInterface): UplinkTakeoffDataRequestContent {
+  public static requestContent(mcdu: LegacyFmsPageInterface): CompanyTakeoffDataRequestContent {
     const plan = mcdu.getFlightPlan(FlightPlanIndex.Active);
     const form = CDUUplinkTakeoffDataPages.getForm(mcdu);
     const tow = mcdu.computeTakeoffWeight(FlightPlanIndex.Active).takeoffWeight;
