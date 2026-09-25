@@ -202,11 +202,17 @@
     }
   }
 
-  // FCOM figures: 40 px high entry fields, their content (value, dashes, boxes and units) centred in the field
+  // One height for every entry field (44 px with the frame), the content (value, dashes, boxes and units) centred in it.
+  // The text has no background of its own: the cockpit renderer paints the text box taller than the line, which would
+  // cover the top and bottom of the frame.
   .mfd-input-field-container {
-    height: 28px;
+    height: 32px;
     justify-content: center;
     align-items: center;
+  }
+
+  .mfd-input-field-text-input:not(.valueSelected) {
+    background-color: transparent;
   }
 
   // An empty unit takes no room, so that the value is centred
@@ -231,10 +237,12 @@
     min-width: 0;
     overflow: hidden;
 
+    // 40 px inside the 2 px frame of the list: 44 px like the entry fields
     .mfd-input-field-container {
       box-sizing: border-box;
       width: 100%;
       min-width: 0;
+      height: 40px;
     }
   }
 

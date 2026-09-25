@@ -68,6 +68,22 @@ export class Button extends DisplayComponent<ButtonProps> {
 
   private readonly visible = SubscribableUtils.toSubscribable(this.props.visible ?? Subject.create(true), true);
 
+  /**
+   * Text labels with line breaks as newlines. A "<br />" in a text child is only parsed as HTML when it is first rendered:
+   * the SDK then updates the last text node alone, so a label that changes (e.g. REQUEST PENDING...) would show the raw
+   * "<br />" and keep its first line.
+   */
+  private readonly labelContent: string | VNode | Subscribable<string> =
+    typeof this.props.label === 'string'
+      ? Button.toNewlines(this.props.label)
+      : SubscribableUtils.isSubscribable(this.props.label)
+        ? this.props.label.map(Button.toNewlines)
+        : this.props.label;
+
+  private static toNewlines(label: string): string {
+    return label.replace(/<br\s*\/?>/gi, '\n');
+  }
+
   private onClick() {
     if (!this.disabled.get()) {
       this.props.onClick();
@@ -264,6 +280,9 @@ export class Button extends DisplayComponent<ButtonProps> {
   public destroy(): void {
     // Destroy all subscriptions to remove all references to this instance.
     this.subs.forEach((x) => x.destroy());
+    if (SubscribableUtils.isSubscribable(this.labelContent) && this.labelContent !== this.props.label) {
+      (this.labelContent as unknown as Subscription).destroy();
+    }
 
     this.buttonRef.instance.removeEventListener('click', this.onClickHandler);
     document.getElementById('MFD_CONTENT')?.removeEventListener('click', this.onCloseDropdownHandler);
@@ -292,7 +311,9 @@ export class Button extends DisplayComponent<ButtonProps> {
         >
           {this.props.menuItems !== undefined && this.props.showArrow !== false ? (
             <div class="mfd-fms-fpln-button-dropdown">
-              <span class="mfd-fms-fpln-button-dropdown-label">{this.props.label}</span>
+              <span class="mfd-fms-fpln-button-dropdown-label" style="white-space: pre-line;">
+                {this.labelContent}
+              </span>
               <span class="mfd-fms-fpln-button-dropdown-arrow">
                 <TriangleUp
                   class={{ hidden: this.menuOpensUpwards.map(SubscribableMapFunctions.not()) }}
@@ -302,7 +323,7 @@ export class Button extends DisplayComponent<ButtonProps> {
               </span>
             </div>
           ) : (
-            <span>{this.props.label}</span>
+            <span style="white-space: pre-line;">{this.labelContent}</span>
           )}
         </span>
         <div
