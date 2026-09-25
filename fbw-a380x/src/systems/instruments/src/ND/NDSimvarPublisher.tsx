@@ -22,6 +22,13 @@ export type NDSimvars = AdirsSimVars &
     absoluteTime: Seconds;
     wxrNdModeLeft: number;
     wxrNdModeRight: number;
+    wxrGainMan: boolean;
+    wxrGain: number;
+    wxrElevnTiltMode: number;
+    wxrElevn: number;
+    wxrTilt: number;
+    wxrBaroStdLeft: boolean;
+    wxrBaroStdRight: boolean;
     kccuOnL: boolean;
     kccuOnR: boolean;
   };
@@ -37,6 +44,13 @@ export enum NDVars {
   absoluteTime = 'E:ABSOLUTE TIME',
   wxrNdModeLeft = 'L:A32NX_WXR_ND_L_MODE',
   wxrNdModeRight = 'L:A32NX_WXR_ND_R_MODE',
+  wxrGainMan = 'L:A380X_WXR_GAIN_MAN',
+  wxrGain = 'L:A380X_WXR_GAIN',
+  wxrElevnTiltMode = 'L:A380X_WXR_ELEVN_TILT_MODE',
+  wxrElevn = 'L:A380X_WXR_ELEVN',
+  wxrTilt = 'L:A380X_WXR_TILT',
+  wxrBaroStdLeft = 'L:A32NX_FCU_EFIS_L_DISPLAY_BARO_IS_STD',
+  wxrBaroStdRight = 'L:A32NX_FCU_EFIS_R_DISPLAY_BARO_IS_STD',
   kccuOnL = 'L:A32NX_KCCU_L_KBD_ON_OFF',
   kccuOnR = 'L:A32NX_KCCU_R_KBD_ON_OFF',
 }
@@ -56,6 +70,13 @@ export class NDSimvarPublisher extends UpdatableSimVarPublisher<NDSimvars> {
     ['absoluteTime', { name: NDVars.absoluteTime, type: SimVarValueType.Seconds }],
     ['wxrNdModeLeft', { name: NDVars.wxrNdModeLeft, type: SimVarValueType.Number }],
     ['wxrNdModeRight', { name: NDVars.wxrNdModeRight, type: SimVarValueType.Number }],
+    ['wxrGainMan', { name: NDVars.wxrGainMan, type: SimVarValueType.Bool }],
+    ['wxrGain', { name: NDVars.wxrGain, type: SimVarValueType.Number }],
+    ['wxrElevnTiltMode', { name: NDVars.wxrElevnTiltMode, type: SimVarValueType.Enum }],
+    ['wxrElevn', { name: NDVars.wxrElevn, type: SimVarValueType.Number }],
+    ['wxrTilt', { name: NDVars.wxrTilt, type: SimVarValueType.Number }],
+    ['wxrBaroStdLeft', { name: NDVars.wxrBaroStdLeft, type: SimVarValueType.Bool }],
+    ['wxrBaroStdRight', { name: NDVars.wxrBaroStdRight, type: SimVarValueType.Bool }],
     ['kccuOnL', { name: NDVars.kccuOnL, type: SimVarValueType.Bool }],
     ['kccuOnR', { name: NDVars.kccuOnR, type: SimVarValueType.Bool }],
   ]);
