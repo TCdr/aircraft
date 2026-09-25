@@ -758,7 +758,27 @@ export class WindAltitudeFormat extends SubscriptionCollector implements DataEnt
 
   private groundAltitude: number | null = null;
 
+  /**
+   * Altitudes entered (or uplinked) as flight levels: without a transition altitude (none in the navigation database)
+   * they keep the unit of their entry, FL for NNN (FCOM DSC-22-FMS-20-100 "WIND ALTITUDE": NNN = FL, NNNNN = FT).
+   */
+  private readonly flightLevelAltitudes = new Set<number>();
+
   public readonly reFormatTrigger = Subject.create(false);
+
+  /** The altitudes of the shown winds that were entered or uplinked as flight levels */
+  public setFlightLevelAltitudes(altitudes: Iterable<number>): void {
+    this.flightLevelAltitudes.clear();
+    for (const altitude of altitudes) {
+      this.flightLevelAltitudes.add(altitude);
+    }
+    this.reFormatTrigger.notify();
+  }
+
+  /** Whether the altitude was last entered as a flight level */
+  public isFlightLevelEntry(altitude: number): boolean {
+    return this.flightLevelAltitudes.has(altitude);
+  }
 
   /**
    * @param transitionAltitudeFeet transition altitude (climb) or transition level in feet (descent)
@@ -786,7 +806,9 @@ export class WindAltitudeFormat extends SubscriptionCollector implements DataEnt
     if (value <= (this.groundAltitude ?? 0) + WindAltitudeFormat.GroundWindBandFeet) {
       return ['GND', null, null];
     }
-    if (this.transitionAltitudeFeet !== null && value > this.transitionAltitudeFeet) {
+    const isFlightLevel =
+      this.transitionAltitudeFeet !== null ? value > this.transitionAltitudeFeet : this.flightLevelAltitudes.has(value);
+    if (isFlightLevel) {
       return [(value / 100).toFixed(0).padStart(3, '0'), 'FL', null];
     }
     return [value.toFixed(0), null, 'FT'];
@@ -808,6 +830,11 @@ export class WindAltitudeFormat extends SubscriptionCollector implements DataEnt
     const altitude = match[2] !== undefined ? Number(match[2]) : Number(match[1]) * 100;
     if (altitude < 1 || altitude > maxCertifiedAlt) {
       throw new A380FmsError(FmsErrorType.EntryOutOfRange);
+    }
+    if (match[2] === undefined) {
+      this.flightLevelAltitudes.add(altitude);
+    } else {
+      this.flightLevelAltitudes.delete(altitude);
     }
     return altitude;
   }

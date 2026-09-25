@@ -163,6 +163,21 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
+    // The new waypoint is worked out once an entered value is stored (a validation handler would still see the old value)
+    for (const field of [
+      this.newLatitude,
+      this.newLongitude,
+      this.newPbdPlace,
+      this.newPbdBearing,
+      this.newPbdDistance,
+      this.newPbxPlace1,
+      this.newPbxBearing1,
+      this.newPbxPlace2,
+      this.newPbxBearing2,
+    ] as Subject<unknown>[]) {
+      this.subs.push(field.sub(() => void this.onNewWaypointFieldModified()));
+    }
+
     this.subs.push(
       this.databaseInfoVisibility,
       this.storedPbdVisible,
@@ -505,7 +520,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
       <InputField<string>
         dataEntryFormat={new WaypointFormat()}
         value={value}
-        dataHandlerDuringValidation={() => this.onNewWaypointFieldModified()}
         containerStyle={`width: ${width}px;`}
         alignText="flex-start"
         errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
@@ -522,7 +536,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
       <InputField<number>
         dataEntryFormat={new BearingFormat()}
         value={value}
-        dataHandlerDuringValidation={() => this.onNewWaypointFieldModified()}
         containerStyle="width: 99px;"
         alignText="flex-start"
         errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
@@ -753,7 +766,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
           <InputField<number>
             dataEntryFormat={new NewWaypointLatitudeFormat()}
             value={this.newLatitude}
-            dataHandlerDuringValidation={() => this.onNewWaypointFieldModified()}
             containerStyle="width: 141px;"
             alignText="flex-start"
             errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
@@ -768,7 +780,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
           <InputField<number>
             dataEntryFormat={new NewWaypointLongitudeFormat()}
             value={this.newLongitude}
-            dataHandlerDuringValidation={() => this.onNewWaypointFieldModified()}
             containerStyle="width: 160px;"
             alignText="flex-start"
             errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
@@ -791,7 +802,6 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
           <InputField<number>
             dataEntryFormat={new DistanceFormat()}
             value={this.newPbdDistance}
-            dataHandlerDuringValidation={() => this.onNewWaypointFieldModified()}
             containerStyle="width: 145px;"
             alignText="flex-start"
             errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
