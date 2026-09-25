@@ -96,6 +96,12 @@ export class FmgcData {
    */
   public readonly fuelPlanningTrialBlockFuel = Subject.create<number | null>(null);
 
+  /**
+   * JTSN GW (kg): the gross weight the FQMS stops the fuel jettison at (A380 FCOM DSC-22-FMS-20-30 FUEL&LOAD page,
+   * DSC-28-40 Fuel Jettison), sent to the FQMS as L:A380X_FMS_JETTISON_GW.
+   */
+  public readonly jettisonGrossWeight = Subject.create<number | null>(null);
+
   public readonly cpnyFplnUplinkInProgress = Subject.create(false);
 
   public readonly atcCallsign = Subject.create<string | null>(null);
