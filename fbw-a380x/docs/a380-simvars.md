@@ -1721,17 +1721,17 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A380X_WXR_GAIN_MAN`
     - Bool
     - Set from the GAIN button of the MFD SURV CONTROLS page. True when the gain is MANUAL (false = AUTO)
-    - Not used by any system yet
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
 
 - `L:A380X_WXR_GAIN`
     - Number (percent)
     - Set from the GAIN entry field of the MFD SURV CONTROLS page (shown with GAIN MAN), 0 to 100, -9999 when nothing is entered
-    - Not used by any system yet
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
 
 - `L:A380X_WXR_ELEVN_TILT_MODE`
     - Enum
     - Set from the ELEVN/TILT option list of the MFD SURV CONTROLS page
-    - Not used by any system yet
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
     -   | State | Number |
         |-------|--------|
         | AUTO  | 0      |
@@ -1741,12 +1741,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A380X_WXR_ELEVN`
     - Number (feet)
     - Set from the ELEVN entry field of the MFD SURV CONTROLS page, 0 to 60000 (FL 0 to FL 600 with the STD reference), -9999 when nothing is entered
-    - Not used by any system yet
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
 
 - `L:A380X_WXR_TILT`
     - Number (degrees)
     - Set from the TILT entry field of the MFD SURV CONTROLS page, -15.0 to +15.0, -9999 when nothing is entered
-    - Not used by any system yet
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
 
 - `L:A380X_WXR_MODE_MAP`
     - Bool
