@@ -154,7 +154,8 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
 
   private readonly costIndex = Subject.create<number | null>(null);
 
-  private readonly jettisonGrossWeight = Subject.create(null);
+  /** FCOM DSC-22-FMS-20-100 JTSN GW: from ZFW + 11 000 lb to the maximum GW (kg) */
+  private readonly minJettisonGrossWeight = this.zeroFuelWeight.map((zfw) => (zfw ?? 0) + 11_000 * 0.45359237);
   private readonly takeoffWeight = NumberUnitSubject.create(UnitType.KILOGRAM.createNumber(NaN));
   private readonly takeoffWeightText = this.createWeightSubscribable(this.takeoffWeight);
   private readonly landingWeight = NumberUnitSubject.create(UnitType.KILOGRAM.createNumber(NaN));
@@ -364,6 +365,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
       this.costIndexDisabled,
       this.costIndexModeDisabled,
       this.jettisonGrossWeightVisibility,
+      this.minJettisonGrossWeight,
       this.destEfobAmber,
     );
   }
@@ -852,10 +854,11 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                 {fcomAt(
                   357,
                   581,
-                  <InputField<number, number, false>
-                    dataEntryFormat={new WeightFormat(Subject.create(0), Subject.create(maxJtsnGw), this.weightUnit)}
-                    disabled={Subject.create(true)}
-                    readonlyValue={this.jettisonGrossWeight}
+                  <InputField<number>
+                    dataEntryFormat={
+                      new WeightFormat(this.minJettisonGrossWeight, Subject.create(maxJtsnGw), this.weightUnit)
+                    }
+                    value={this.props.fmcService.master.fmgc.data.jettisonGrossWeight}
                     alignText="flex-end"
                     containerStyle="width: 173px;"
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
