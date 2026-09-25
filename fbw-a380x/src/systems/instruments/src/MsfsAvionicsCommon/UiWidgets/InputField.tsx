@@ -93,7 +93,10 @@ export class InputField<
    * field edition does not end when the display loses the focus (e.g. a click on a KCCU key), so the previous field is
    * validated here when another field is selected.
    */
-  private static readonly kccuFieldInEdition = new WeakMap<object, InputField<unknown, unknown, boolean>>();
+  private static readonly kccuFieldInEdition = new WeakMap<
+    object,
+    { onBlur(validateAndUpdate: boolean): Promise<void> }
+  >();
 
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
