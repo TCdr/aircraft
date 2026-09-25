@@ -84,6 +84,8 @@ export interface CompanyTakeoffDataUplink {
   flexTemperature: number | null;
   /** Flap configuration 1 (1+F), 2 or 3 */
   flaps: number;
+  /** THS for takeoff in degrees, positive nose up (A320 FLAPS/THS), or null */
+  ths: number | null;
   /** Takeoff shift in metres (null for a takeoff from the runway threshold) */
   shift: number | null;
   /** T.O LIMIT: the remaining takeoff runway length, in metres */
