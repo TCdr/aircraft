@@ -26,6 +26,8 @@ import {
   LimitingFactor,
   LimitWeight,
   TakeoffPerformanceSpeeds,
+  TakeoffRunwayDistances,
+  estimateTakeoffRunDistances,
 } from '@flybywiresim/fbw-sdk';
 
 /**
@@ -39,6 +41,11 @@ export class A320251NTakeoffPerformanceCalculator implements TakeoffPerformanceC
   private static resultCache: Partial<TakeoffPerformanceResult> = {};
 
   private static optResultCache: Partial<TakeoffPerformanceResult>[] = [{}, {}, {}];
+
+  /** The runway lengths of the runway limit tables, in metres */
+  private static readonly SHORTEST_RUNWAY = 1000;
+
+  private static readonly LONGEST_RUNWAY = 5000;
 
   /** Max flex temp as a delta from ISA in °C. */
   private static readonly tMaxFlexDisa = 59;
@@ -3701,6 +3708,84 @@ export class A320251NTakeoffPerformanceCalculator implements TakeoffPerformanceC
 
   private calculateStabTrim(cg: number): number {
     return MathUtils.round(MathUtils.lerp(cg, 17, 40, 3.8, -2.5, true, true), 0.1);
+  }
+
+  /**
+   * The runway distances of a calculated takeoff at TOGA or at a FLEX temperature. The required length is the shortest
+   * runway on which the calculator still gives the takeoff (TOGA), or a FLEX temperature at least the one of the
+   * distances. V1, VR and 35 ft are estimates (estimateTakeoffRunDistances).
+   */
+  public calculateTakeoffDistances(
+    result: TakeoffPerformanceResult,
+    flex: number | undefined,
+  ): TakeoffRunwayDistances | undefined {
+    if (result.error !== TakeoffPerfomanceError.None || result.v2 === undefined) {
+      return undefined;
+    }
+    const { inputs, params } = result;
+    if (
+      flex !== undefined &&
+      (result.flex === undefined || flex > result.flex || flex < Math.ceil(Math.max(params.tRef, inputs.oat)))
+    ) {
+      return undefined;
+    }
+    const lineUp = inputs.tora - params.adjustedTora;
+    const shortest = A320251NTakeoffPerformanceCalculator.SHORTEST_RUNWAY;
+    const longest = A320251NTakeoffPerformanceCalculator.LONGEST_RUNWAY;
+    const possible = (available: number) => {
+      const r = this.calculateTakeoffPerformance(
+        inputs.tow,
+        inputs.forwardCg,
+        inputs.conf,
+        available + lineUp,
+        inputs.slope,
+        inputs.lineupAngle,
+        inputs.wind,
+        inputs.elevation,
+        inputs.qnh,
+        inputs.oat,
+        inputs.antiIce,
+        inputs.packs,
+        false,
+        inputs.runwayCondition,
+        inputs.cg,
+      );
+      return (
+        r.error === TakeoffPerfomanceError.None && (flex === undefined || (r.flex !== undefined && r.flex >= flex))
+      );
+    };
+
+    const distances: TakeoffRunwayDistances = {
+      flex,
+      available: params.adjustedTora,
+      required: undefined,
+      requiredEstimated: false,
+      requiredBelowData: false,
+      shortestDataLength: shortest,
+    };
+    if (!possible(longest)) {
+      return distances;
+    }
+    if (possible(shortest)) {
+      distances.requiredBelowData = true;
+      return distances;
+    }
+    let low = shortest;
+    let high = longest;
+    for (let i = 0; i < 30 && high - low > 1; i++) {
+      const mid = (low + high) / 2;
+      if (possible(mid)) {
+        high = mid;
+      } else {
+        low = mid;
+      }
+    }
+    distances.required = high;
+    Object.assign(
+      distances,
+      estimateTakeoffRunDistances(high, result.v1, result.vR, result.v2, params.pressureAlt, inputs.oat, inputs.wind),
+    );
+    return distances;
   }
 
   /** @inheritdoc */
