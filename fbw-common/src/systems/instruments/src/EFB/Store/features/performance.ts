@@ -74,6 +74,18 @@ interface TPerformanceTakeoff {
   forceToga?: boolean;
   cg?: number;
 
+  /** A380: thrust reduction, acceleration and engine-out acceleration altitudes in feet, when entered */
+  thrustReductionAltitude?: number;
+  accelerationAltitude?: number;
+  engineOutAccelerationAltitude?: number;
+  /** A380: the noise procedure parameters (altitude in feet, speed in knots, N1 in %) */
+  noiseEnabled?: boolean;
+  noiseEndAltitude?: number;
+  noiseSpeed?: number;
+  noiseN1?: number;
+  /** A380: the thrust of the takeoff run: a FLEX temperature, null for TOGA, undefined for the maximum FLEX */
+  selectedFlex?: number | null;
+
   result?: TakeoffPerformanceResult;
 }
 
