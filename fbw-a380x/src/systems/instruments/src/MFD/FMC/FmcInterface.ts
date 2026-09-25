@@ -125,6 +125,18 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    */
   get hasActiveFlightPlan(): Subject<boolean>;
 
+  /** FUEL PLANNING: the computed minimum BLOCK fuel in tonnes, until confirmed (A380 FCOM DSC-22-FMS-20-30 P 179) */
+  readonly fuelPlanningBlockFuel: Subscribable<number | null>;
+
+  /** FUEL PLANNING: the computation is running */
+  readonly fuelPlanningInProgress: Subscribable<boolean>;
+
+  /** Starts the fuel planning computation */
+  startFuelPlanning(): void;
+
+  /** Enters the computed minimum BLOCK fuel in the BLOCK entry field */
+  confirmFuelPlanning(): void;
+
   /**
    * Returns currently revised waypoint as Fix
    */
