@@ -1,0 +1,44 @@
+@import "../../../MsfsAvionicsCommon/definitions";
+
+.mfd-fcom-canvas {
+  position: relative;
+  flex: 1;
+}
+
+.mfd-fcom-item {
+  position: absolute;
+  color: $display-white;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  white-space: pre;
+  transform: translateY(-50%);
+}
+
+.mfd-fcom-centre {
+  transform: translate(-50%, -50%);
+}
+
+.mfd-fcom-right {
+  transform: translate(-100%, -50%);
+}
+
+.mfd-fcom-line {
+  position: absolute;
+  height: 0;
+  border-top: 1px solid $display-light-grey;
+}
+
+// Absolute layer over a page container whose flow content (e.g. a tab navigator) only fills its top part
+.mfd-fcom-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+
+  .mfd-fcom-item {
+    pointer-events: auto;
+  }
+}

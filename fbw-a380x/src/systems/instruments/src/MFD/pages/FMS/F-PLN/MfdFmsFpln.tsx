@@ -24,6 +24,7 @@ import {
 } from '@microsoft/msfs-sdk';
 
 import './MfdFmsFpln.scss';
+import { cpnyFplnReportPage } from '../MfdFmsFreeTextSend';
 import { AbstractMfdPageProps } from '../../../MFD';
 import { Footer } from '../../common/Footer';
 
@@ -1038,7 +1039,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                   </div>
                 }
                 onClick={() => {}}
-                buttonStyle="margin-right: 5px; width: 260px; height: 43px;"
+                buttonStyle="margin-right: 5px; width: 257px; height: 41px; box-sizing: border-box; padding: 0 12px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_windbtn`}
                 menuItems={this.efobAndWindButtonMenuItems}
               />
@@ -1212,7 +1213,6 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
               menuItems={Subject.create([
                 {
                   label: 'ALTERNATE',
-                  disabled: true,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-alternate`,
@@ -1220,7 +1220,8 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'CLOSEST AIRPORTS',
-                  disabled: true,
+                  // FCOM DSC-22-FMS-20-30 CLOSEST AIRPORTS page: accessed via the ACTIVE / F-PLN page only
+                  disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-closest-airports`,
@@ -1228,7 +1229,8 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'EQUI-TIME POINT',
-                  disabled: true,
+                  // FCOM DSC-22-FMS-20-30 P 135: only available for the active flight plan
+                  disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-equi-time-point`,
@@ -1239,17 +1241,18 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                   disabled: this.secActive,
                   action: () => this.props.mfd.uiService.navigateTo(fixInfoUri),
                 },
+                // FCOM DSC-22-FMS-20-30 p.211: LL CROSSING and TIME MARKER both open the LL XING - TIME MKR page
                 {
                   label: 'LL CROSSING',
-                  disabled: true,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-ll-xing-time-mkr`,
                     ),
                 },
                 {
-                  label: 'TIME',
-                  disabled: true,
+                  label: 'TIME MARKER',
+                  // FCOM P 210: the time markers are for the active flight plan only
+                  disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-ll-xing-time-mkr`,
@@ -1257,8 +1260,9 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'CPNY F-PLN REPORT',
-                  disabled: true,
-                  action: () => {},
+                  // FCOM DSC-22-FMS-20-30 P 25: only available for the active flight plan
+                  disabled: this.secActive,
+                  action: () => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyFplnReportPage}`),
                 },
               ] as ButtonMenuItem[])}
             />

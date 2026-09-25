@@ -1,0 +1,56 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// Positions in panel coordinates (inside the tab panel padding), taken from the FCOM figures
+// (DSC-22-FMS-20-30 P 65-73)
+.mfd-data-navaid-canvas {
+  position: relative;
+  flex: 1;
+}
+
+.mfd-data-navaid-item {
+  position: absolute;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.mfd-data-navaid-label {
+  left: 0;
+  justify-content: flex-end;
+}
+
+.mfd-data-navaid-centred {
+  justify-content: center;
+}
+
+.mfd-data-navaid-scroll {
+  position: absolute;
+  top: 97px;
+  left: 488px;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.mfd-data-navaid-buttons {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 13px;
+}
+
+.mfd-data-navaid-dialogs {
+  position: absolute;
+  top: 260px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+}

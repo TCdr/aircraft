@@ -198,10 +198,32 @@
   width: 125px;
 }
 
+// FCOM DSC-22-FMS-20-30 P 34 / P 231 / P 289: buttons below the tab panels, centred on y = 938 of the display
 .mfd-fms-perf-appr-footer {
-  margin: 0px 2px 3px 2px;
+  position: absolute;
+  top: 795px;
+  left: 0;
+  right: 0;
+}
+
+.mfd-fms-perf-footer-item {
+  position: absolute;
+  top: 0;
+  transform: translateY(-50%);
+}
+
+// Vertical separators of the T.O panel (P 34)
+.mfd-fms-perf-vline {
+  position: absolute;
+  width: 0;
+  border-left: 2px solid $display-dark-grey;
+}
+
+.mfd-fms-perf-dialog {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
   display: flex;
-  flex-direction: row;
-  justify-content: flex-start;
-  align-items: flex-end;
+  justify-content: center;
 }

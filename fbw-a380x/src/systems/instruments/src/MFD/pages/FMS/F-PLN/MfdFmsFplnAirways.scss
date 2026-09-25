@@ -1,11 +1,14 @@
-﻿@import "../../../../MsfsAvionicsCommon/definitions";
+@import "../../../../MsfsAvionicsCommon/definitions";
 
 
+// FCOM DSC-22-FMS-20-30 P 2: the airway box spans x = 51..708 and y = 188..866 of the display, the scroll buttons
+// are right below it (y = 873..935) and RETURN / TMPY F-PLN at the bottom of the page
 .mfd-fms-fpln-awy-awy-container {
-  height: 630px;
-  margin: 10px 30px 5px 30px;
-  border: 2px outset $display-light-grey;
-  padding: 15px;
+  box-sizing: border-box;
+  height: 678px;
+  margin: 12px 60px 7px 51px;
+  border: 2px solid #505050;
+  padding: 0 12px 0 5px;
 }
 
 .mfd-fms-fpln-awy-btn-container {
@@ -14,8 +17,9 @@
   justify-content: center
 }
 
+// 10 airway lines per page (FCOM DSC-22-FMS-20-30 AIRWAYS page)
 .mfd-fms-awy-line-container {
   justify-content: space-between;
-  margin-top: 15px;
-  margin-bottom: 15px;
+  height: 61px;
+  align-items: center;
 }
