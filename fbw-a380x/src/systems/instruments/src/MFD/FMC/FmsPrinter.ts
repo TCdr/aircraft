@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { MappedSubject, Subject, Subscribable, Subscription, UnitType, Vec2Math } from '@microsoft/msfs-sdk';
+import { EventBus, MappedSubject, Subject, Subscribable, Subscription, UnitType, Vec2Math } from '@microsoft/msfs-sdk';
 import { MathUtils, NXDataStore } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
@@ -22,8 +22,15 @@ export interface FmsPrintPage {
   lines: string[];
 }
 
-/** The Coherent event the printed pages are sent with (received by the flypad PRINTOUTS page) */
-export const FMS_PRINT_EVENT = 'A380X_FMS_PRINT';
+/**
+ * The event bus topic of the printed pages, synced to the other instruments: the flypad keeps them on its DISPATCH /
+ * PRINTOUTS page (fbw-common EFB/Dispatch/Printouts.ts).
+ */
+export const FMS_PRINT_EVENT = 'a380x_fms_print';
+
+export interface FmsPrintEvents {
+  [FMS_PRINT_EVENT]: FmsPrintPage;
+}
 
 /** Flight plan reports of the DATA / PRINTER page (A380 FCOM DSC-22-FMS-20-30 P 76-77) */
 export enum FlightPlanReport {
@@ -114,8 +121,6 @@ export class FmsPrinter {
     this.enginesHaveRun,
   );
 
-  private readonly listener = RegisterViewListener('JS_LISTENER_SIMVARS', undefined, true);
-
   private readonly subs: Subscription[] = [];
 
   /** Fuel and time summary of the post-flight report */
@@ -131,7 +136,10 @@ export class FmsPrinter {
 
   private softwareVersion: string | null = null;
 
-  constructor(private readonly fmc: FlightManagementComputer) {
+  constructor(
+    private readonly fmc: FlightManagementComputer,
+    private readonly bus: EventBus,
+  ) {
     fetch('/VFS/a380x_build_info.json')
       .then((response) => response.json())
       .then((info) => (this.softwareVersion = typeof info?.version === 'string' ? info.version : null))
@@ -196,7 +204,6 @@ export class FmsPrinter {
 
   public destroy(): void {
     this.subs.forEach((s) => s.destroy());
-    this.listener.unregister();
   }
 
   // ---- ACTIVE DATA ----------------------------------------------------------------------------------------------------
@@ -568,7 +575,7 @@ export class FmsPrinter {
   private send(title: string, lines: string[]): void {
     this.refreshDatabase();
     const page: FmsPrintPage = { title, utcSeconds: this.utc(), lines };
-    this.listener.triggerToAllSubscribers(FMS_PRINT_EVENT, JSON.stringify(page));
+    this.bus.getPublisher<FmsPrintEvents>().pub(FMS_PRINT_EVENT, page, true, false);
   }
 
   private header(title: string): string[] {

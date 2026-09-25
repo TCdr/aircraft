@@ -1803,7 +1803,7 @@ export class FlightManagementComputer implements FmcInterface {
       this.#timeKeeper.update(throttledDt);
       this.#sequencedWaypointRecorder?.update();
       if (this.instance === FmcIndex.FmcA) {
-        this.#printer ??= new FmsPrinter(this);
+        this.#printer ??= new FmsPrinter(this, this.bus);
         this.#printer.update();
       }
       this.loadActiveFlightPlanFuelAndApproachData();
