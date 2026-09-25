@@ -20,6 +20,7 @@
   - [Indicating-Recording ATA 31](#indicating-recording-ata-31)
   - [ECAM Control Panel ATA 31](#ecam-control-panel-ata-31)
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
+  - [KCCU ATA 31](#kccu-ata-31)
   - [Landing Gear ATA 32](#landing-gear-ata-32)
   - [Lights ATA 33](#lights-ata-33)
   - [Surveillance ATA 34](#surveillance-ata-34)
@@ -1670,6 +1671,21 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Number (hPa or inHg)
     - Pre-selected QNH when in STD mode, or 0 when not displayed.
     - Not for FBW systems use!
+    - {side} = L or R
+
+## KCCU ATA 31
+
+- A32NX_KCCU_{side}_KBD_ON_OFF
+    - Bool
+    - The keyboard ON/OFF switch of the KCCU: the keyboard keys (and the MFD entry by KCCU) work only when ON
+      (A380 FCOM DSC-31-30-20)
+    - Set ON at the non cold-and-dark flight starts and by the Powered aircraft preset
+    - {side} = L or R
+
+- A32NX_KCCU_{side}_CCD_ON_OFF
+    - Bool
+    - The cursor control device ON/OFF switch of the KCCU: its ESC, KBD and navigation keys work only when ON
+    - Set ON at the non cold-and-dark flight starts and by the Powered aircraft preset
     - {side} = L or R
 
 ## Landing Gear ATA 32

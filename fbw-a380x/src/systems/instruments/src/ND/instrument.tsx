@@ -60,6 +60,7 @@ import './style.scss';
 import './oans-style.scss';
 import { VerticalDisplay } from './VerticalDisplay/VerticalDisplay';
 import { InternalKccuKeyEvent } from '../MFD/shared/MFDSimvarPublisher';
+import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
 
 declare type MousePosition = {
   x: number;
@@ -68,6 +69,11 @@ declare type MousePosition = {
 
 class NDInstrument implements FsInstrument {
   private readonly efisSide: EfisSide;
+
+  /** KBD and CCD ON/OFF switches of this side's KCCU */
+  private kccuKeyboardOn = false;
+
+  private kccuCursorControlDeviceOn = false;
 
   private readonly bus: ArincEventBus;
 
@@ -384,9 +390,22 @@ class NDInstrument implements FsInstrument {
       }
     });
 
+    const ndSub = this.bus.getSubscriber<NDSimvars>();
+    ndSub
+      .on(this.efisSide === 'L' ? 'kccuOnL' : 'kccuOnR')
+      .whenChanged()
+      .handle((on) => (this.kccuKeyboardOn = on));
+    ndSub
+      .on(this.efisSide === 'L' ? 'kccuCcdOnL' : 'kccuCcdOnR')
+      .whenChanged()
+      .handle((on) => (this.kccuCursorControlDeviceOn = on));
+
     sub.on('hEvent').handle((eventName) => {
       if (eventName.startsWith(this.efisSide === 'L' ? 'A32NX_KCCU_L' : 'A32NX_KCCU_R')) {
         const key = eventName.substring(13);
+        if (!isKccuKeyActive(key, this.kccuKeyboardOn, this.kccuCursorControlDeviceOn)) {
+          return;
+        }
 
         this.bus.getPublisher<InternalKccuKeyEvent>().pub('kccuKeyEvent', [this.efisSide, key]);
       }

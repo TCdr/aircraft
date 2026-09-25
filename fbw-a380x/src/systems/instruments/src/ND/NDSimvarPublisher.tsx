@@ -31,6 +31,8 @@ export type NDSimvars = AdirsSimVars &
     wxrBaroStdRight: boolean;
     kccuOnL: boolean;
     kccuOnR: boolean;
+    kccuCcdOnL: boolean;
+    kccuCcdOnR: boolean;
   };
 
 export enum NDVars {
@@ -53,6 +55,8 @@ export enum NDVars {
   wxrBaroStdRight = 'L:A32NX_FCU_EFIS_R_DISPLAY_BARO_IS_STD',
   kccuOnL = 'L:A32NX_KCCU_L_KBD_ON_OFF',
   kccuOnR = 'L:A32NX_KCCU_R_KBD_ON_OFF',
+  kccuCcdOnL = 'L:A32NX_KCCU_L_CCD_ON_OFF',
+  kccuCcdOnR = 'L:A32NX_KCCU_R_CCD_ON_OFF',
 }
 
 /** A publisher to poll and publish nav/com simvars. */
@@ -79,6 +83,8 @@ export class NDSimvarPublisher extends UpdatableSimVarPublisher<NDSimvars> {
     ['wxrBaroStdRight', { name: NDVars.wxrBaroStdRight, type: SimVarValueType.Bool }],
     ['kccuOnL', { name: NDVars.kccuOnL, type: SimVarValueType.Bool }],
     ['kccuOnR', { name: NDVars.kccuOnR, type: SimVarValueType.Bool }],
+    ['kccuCcdOnL', { name: NDVars.kccuCcdOnL, type: SimVarValueType.Bool }],
+    ['kccuCcdOnR', { name: NDVars.kccuCcdOnR, type: SimVarValueType.Bool }],
   ]);
 
   public constructor(bus: EventBus) {
