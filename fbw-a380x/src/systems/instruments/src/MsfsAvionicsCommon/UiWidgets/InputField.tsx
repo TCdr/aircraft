@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-//  Copyright (c) 2024-2025 FlyByWire Simulations
+//  Copyright (c) 2024-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -173,6 +173,18 @@ export class InputField<
           ? InputField.MAX_CHARACTERS_FREE_TEXT
           : this.props.dataEntryFormat.maxDigits + this.props.dataEntryFormat.maxOverflowDigits!
         : this.props.dataEntryFormat.maxDigits;
+
+      // A typed keyword or prefixed entry (GND, NONE, FL350, HD020...) carries its own meaning: the units of the field
+      // (e.g. FT) are only shown next to numeric entries
+      const typed = this.modifiedFieldValue.get() ?? '';
+      if (/^[A-Z]/.test(typed)) {
+        this.leadingUnit.set('');
+        this.trailingUnit.set('');
+      } else {
+        const [, leadingUnit, trailingUnit] = this.props.dataEntryFormat.format(null);
+        this.leadingUnit.set(leadingUnit ?? '');
+        this.trailingUnit.set(trailingUnit ?? '');
+      }
 
       if ((this.modifiedFieldValue.get()?.length ?? 0) < numDigits || !this.isFocused.get()) {
         this.textInputRef.instance.innerText = this.modifiedFieldValue.get() ?? '';
@@ -687,7 +699,13 @@ export class InputField<
         <div ref={this.containerRef} class="mfd-input-field-container" style={`${this.props.containerStyle ?? ''}`}>
           <span
             ref={this.leadingUnitRef}
-            class={`mfd-label-unit ${this.props.bigUnit ? 'bigger' : ''} mfd-unit-leading mfd-input-field-unit`}
+            class={{
+              'mfd-label-unit': true,
+              bigger: !!this.props.bigUnit,
+              'mfd-unit-leading': true,
+              'mfd-input-field-unit': true,
+              'mfd-input-field-unit-empty': this.leadingUnit.map((u) => u.trim() === ''),
+            }}
           >
             {this.leadingUnit}
           </span>
@@ -703,7 +721,13 @@ export class InputField<
           </div>
           <span
             ref={this.trailingUnitRef}
-            class={`mfd-label-unit ${this.props.bigUnit ? 'bigger' : ''} mfd-unit-trailing mfd-input-field-unit`}
+            class={{
+              'mfd-label-unit': true,
+              bigger: !!this.props.bigUnit,
+              'mfd-unit-trailing': true,
+              'mfd-input-field-unit': true,
+              'mfd-input-field-unit-empty': this.trailingUnit.map((u) => u.trim() === ''),
+            }}
           >
             {this.trailingUnit}
           </span>

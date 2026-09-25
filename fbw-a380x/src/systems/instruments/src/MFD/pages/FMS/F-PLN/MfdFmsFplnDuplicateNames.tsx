@@ -222,16 +222,17 @@ export class MfdFmsFplnDuplicateNames extends DisplayComponent<MfdFmsFplnDuplica
             <div ref={this.linesDivRef} class="mfd-fms-fpln-duplicate-table" />
             <div style="flex-grow: 1;" />
           </div>
+          {/* FCOM DSC-22-FMS-20-30 DUPLICATE NAMES page: the scroll buttons move page by page */}
           <div style="display: flex; flex-direction: row; justify-content: center">
             <IconButton
               icon="double-down"
-              onClick={() => this.displayFromWaypointIndex.set(this.displayFromWaypointIndex.get() + 1)}
+              onClick={() => this.displayFromWaypointIndex.set(this.displayFromWaypointIndex.get() + 10)}
               disabled={this.disabledScrollDown}
               containerStyle="width: 60px; height: 60px; margin-right: 20px;"
             />
             <IconButton
               icon="double-up"
-              onClick={() => this.displayFromWaypointIndex.set(this.displayFromWaypointIndex.get() - 1)}
+              onClick={() => this.displayFromWaypointIndex.set(Math.max(0, this.displayFromWaypointIndex.get() - 10))}
               disabled={this.disabledScrollUp}
               containerStyle="width: 60px; height: 60px;"
             />
@@ -242,6 +243,7 @@ export class MfdFmsFplnDuplicateNames extends DisplayComponent<MfdFmsFplnDuplica
               <Button
                 ref={this.returnButtonRef}
                 label="RETURN"
+                buttonStyle="width: 101px;"
                 onClick={() => {
                   this.pendingResolve?.(undefined);
                   this.pendingResolve = undefined;

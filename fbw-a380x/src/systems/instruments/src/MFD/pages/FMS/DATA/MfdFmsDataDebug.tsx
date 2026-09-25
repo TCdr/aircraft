@@ -10,6 +10,7 @@ import { FmsPage } from '../../common/FmsPage';
 import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { TopTabNavigator, TopTabNavigatorPage } from '../../../../MsfsAvionicsCommon/UiWidgets/TopTabNavigator';
 import { Arinc429Register } from '@flybywiresim/fbw-sdk';
+import { fcomTabBar } from '../../common/FcomLayout';
 
 interface MfdFmsDataDebugProps extends AbstractMfdPageProps {}
 export class MfdFmsDataDebug extends FmsPage<MfdFmsDataDebugProps> {
@@ -120,7 +121,7 @@ export class MfdFmsDataDebug extends FmsPage<MfdFmsDataDebugProps> {
             selectedPageIndex={this.selectedPageIndex}
             pageChangeCallback={(val) => this.selectedPageIndex.set(val)}
             selectedTabTextColor="white"
-            tabBarSlantedEdgeAngle={25}
+            {...fcomTabBar}
           >
             <TopTabNavigatorPage>
               {/* FMGC */}

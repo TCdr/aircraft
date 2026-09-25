@@ -1,13 +1,14 @@
 ﻿@import "../../../../MsfsAvionicsCommon/definitions";
 
 
+// FCOM DSC-22-FMS-20-30 P 125: DIRECT TO field at y = 172, UTC at y = 268 and DIST at y = 322
 .mfd-fms-direct-to-wpt-row {
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
-  margin-top: 10px;
-  margin-bottom: 40px;
+  margin-top: 8px;
+  margin-bottom: 52px;
 }
 
 .mfd-fms-direct-to-dropdown-div {
@@ -26,27 +27,38 @@
 .mfd-fms-direct-to-utc-label {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   padding-right: 10px;
-  margin-bottom: 10px;
+  height: 54px;
 }
 
 .mfd-fms-direct-to-utc-value {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 10px;
+  align-items: center;
+  height: 54px;
 }
 
+// FCOM DSC-22-FMS-20-30 P 125: OPTIONS box from x = 393 to 755, y = 148 to 452 of the display, the four options in
+// small font 49 px apart
 .mfd-fms-direct-to-options-box {
   display: flex;
   flex-direction: column;
-  border: 2px solid grey;
-  padding: 5px 10px 35px 10px;
-  margin-top: 10px;
+  border: 2px solid $display-light-grey;
+  padding: 8px 10px 30px 15px;
+  margin: 5px 13px 0 9px;
+  height: 304px;
+  box-sizing: border-box;
 }
 
 .mfd-fms-direct-to-options {
   margin-left: 15px;
-  margin-top: 45px;
+  margin-top: 38px;
+
+  .mfd-radio-button {
+    font-size: 22.5px;
+    margin-top: 14px;
+  }
 }
 
 .mfd-fms-direct-to-erase-return-btn {

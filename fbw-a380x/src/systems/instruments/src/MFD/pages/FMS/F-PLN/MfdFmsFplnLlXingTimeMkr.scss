@@ -1,0 +1,29 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 209 (page container coordinates)
+.mfd-llxing-origin-box {
+  position: absolute;
+  top: 72px;
+  left: 310px;
+  width: 304px;
+  height: 112px;
+  border: 2px solid $display-light-grey;
+  box-sizing: border-box;
+}
+
+.mfd-llxing-checkbox {
+  width: 26px;
+  height: 26px;
+  border: 1px solid $display-light-grey;
+  box-sizing: border-box;
+  cursor: pointer;
+
+  &.checked {
+    background-color: $display-cyan;
+  }
+}
+
+// FCOM P 209: LAT / LONG options in small font
+.mfd-llxing-radio .mfd-radio-button {
+  font-size: 22.5px;
+}
