@@ -1882,6 +1882,24 @@ export class FwsCore {
   );
   public readonly tawsWxrSelected = Subject.create(0);
 
+  private readonly egpwcPresentLatitude = Arinc429Register.empty();
+  private readonly egpwcPresentLongitude = Arinc429Register.empty();
+
+  /** The TAWS is operative, but the TERR function is not available (A380 FCOM DSC-34-20-60-140, TERR STBY). */
+  public readonly terrStby = Subject.create(false);
+
+  /** The WXR button of the SURV CONTROLS page is OFF. */
+  public readonly wxrOff = Subject.create(false);
+
+  /** The flight crew has set the PRED W/S button to OFF (not the WXR button, which also sets it to OFF). */
+  public readonly wxrPredWsOff = Subject.create(false);
+
+  /** The flight crew has set the TURB button to OFF (not the WXR button, which also sets it to OFF). */
+  public readonly wxrTurbOff = Subject.create(false);
+
+  /** On ground, the flight crew has turned the WXR on: see the WXR ON memo. */
+  public readonly wxrOnGround = Subject.create(false);
+
   /** 35 OXYGEN */
   public readonly paxOxyMasksDeployed = Subject.create(false);
 
@@ -5146,6 +5164,43 @@ export class FwsCore {
     this.taws1FaultCond.set(this.taws1Failed.get() && taws1Powered);
     this.taws2FaultCond.set(this.taws2Failed.get() && taws2Powered);
     this.tawsWxrSelected.set(this.tawsWxrSelectedSimvar.get());
+
+    // TERR STBY: the TAWS of the selected system is operative, but the TERR function cannot rely on the aircraft
+    // position (A380 FCOM DSC-34-20-20-10: system data such as the aircraft position; the TAWS takes it from ADIRU 1).
+    const tawsSystem = this.tawsWxrSelected.get();
+    const tawsOperative =
+      (tawsSystem === 1 && taws1Powered && !this.gpws1Failed.get() && !this.terrSys1Failed.get()) ||
+      (tawsSystem === 2 && taws2Powered && !this.gpws2Failed.get() && !this.terrSys2Failed.get());
+    this.egpwcPresentLatitude.setFromSimVar('L:A32NX_EGPWC_PRESENT_LAT');
+    this.egpwcPresentLongitude.setFromSimVar('L:A32NX_EGPWC_PRESENT_LONG');
+    this.terrStby.set(
+      tawsOperative &&
+        !this.tawsTerrOff.get() &&
+        !(this.egpwcPresentLatitude.isNormalOperation() && this.egpwcPresentLongitude.isNormalOperation()),
+    );
+
+    // WXR (A380 FCOM DSC-34-20-30-20). The WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
+    // shows then.
+    this.wxrOff.set(SimVar.GetSimVarValue('L:A380X_WXR_OFF', SimVarValueType.Bool));
+    this.wxrPredWsOff.set(!this.wxrOff.get() && SimVar.GetSimVarValue('L:A380X_WXR_PRED_WS_OFF', SimVarValueType.Bool));
+    this.wxrTurbOff.set(!this.wxrOff.get() && SimVar.GetSimVarValue('L:A380X_WXR_TURB_OFF', SimVarValueType.Bool));
+    // On ground, the WX pb of an EFIS CP turns the WXR on if one engine is operative (P 1): the WXR ON memo.
+    const wxSelectedOnEfis =
+      SimVar.GetSimVarValue('L:A380X_EFIS_L_ACTIVE_OVERLAY', SimVarValueType.Number) === 1 ||
+      SimVar.GetSimVarValue('L:A380X_EFIS_R_ACTIVE_OVERLAY', SimVarValueType.Number) === 1;
+    const wxrSystemFailed =
+      tawsSystem === 1
+        ? SimVar.GetSimVarValue('L:A32NX_WXR_1_FAILED', SimVarValueType.Bool)
+        : tawsSystem === 2
+          ? SimVar.GetSimVarValue('L:A32NX_WXR_2_FAILED', SimVarValueType.Bool)
+          : true;
+    this.wxrOnGround.set(
+      this.aircraftOnGround.get() &&
+        this.oneEngineRunning.get() &&
+        wxSelectedOnEfis &&
+        !this.wxrOff.get() &&
+        !wxrSystemFailed,
+    );
 
     // OANS
     this.oansFailed.set(this.oansFailedSimvar.get());
