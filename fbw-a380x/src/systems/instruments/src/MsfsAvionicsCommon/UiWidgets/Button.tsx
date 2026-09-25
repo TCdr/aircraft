@@ -105,6 +105,21 @@ export class Button extends DisplayComponent<ButtonProps> {
 
   private onDropdownMenuElementClickHandler = this.onDropdownMenuElementClick.bind(this);
 
+  /**
+   * Opens the menu upwards if it would leave the screen at the bottom. Measured each time the menu opens: the page is
+   * then laid out, which it may not be yet when the menu items are set.
+   */
+  private placeDropdownMenu(): void {
+    const menu = this.dropdownMenuRef.instance;
+    menu.style.top = '';
+    const menuRect = menu.getBoundingClientRect();
+    const opensUpwards = menuRect.bottom > 1024;
+    this.menuOpensUpwards.set(opensUpwards);
+    if (opensUpwards) {
+      menu.style.top = `${Math.round(-menuRect.height)}px`;
+    }
+  }
+
   private scrollMenuTo(elementIndex: number) {
     // Assume 36px height for each menu item div
     this.dropdownMenuRef.instance.scrollTo({ behavior: 'instant', left: 0, top: elementIndex * 36 });
@@ -204,24 +219,6 @@ export class Button extends DisplayComponent<ButtonProps> {
               .getElementById(`${this.props.idPrefix}_${i}`)
               ?.addEventListener('click', this.onDropdownMenuElementClickHandler.bind(this, val));
           }
-
-          // Check if menu would overflow vertically (i.e. leave screen at the bottom). If so, open menu upwards
-          // Open menu for a split second to measure size
-          this.dropdownMenuRef.instance.style.display = 'block';
-          this.buttonRef.instance.classList.add('opened');
-
-          // Check if menu leaves screen at the bottom, reposition if needed
-          const boundingRect = this.dropdownMenuRef.instance.getBoundingClientRect();
-          const overflowsVertically = boundingRect.top + boundingRect.height > 1024;
-          this.menuOpensUpwards.set(overflowsVertically);
-
-          if (overflowsVertically) {
-            this.dropdownMenuRef.instance.style.top = `${Math.round(-boundingRect.height)}px`;
-          }
-
-          // Close again
-          this.dropdownMenuRef.instance.style.display = 'none';
-          this.buttonRef.instance.classList.remove('opened');
         }, true),
       );
     }
@@ -238,6 +235,7 @@ export class Button extends DisplayComponent<ButtonProps> {
 
         if (val) {
           this.buttonRef.instance.classList.add('opened');
+          this.placeDropdownMenu();
         } else {
           this.buttonRef.instance.classList.remove('opened');
         }

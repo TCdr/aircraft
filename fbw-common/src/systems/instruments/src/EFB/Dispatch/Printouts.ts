@@ -1,7 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** A page printed by the FMS (A380X MFD DATA / PRINTER page), as sent with the A380X_FMS_PRINT Coherent event. */
+import { EventBus } from '@microsoft/msfs-sdk';
+
+/** The pages printed by the A380X FMS (MFD DATA / PRINTER page, FmsPrinter.ts), synced over the event bus. */
+interface FmsPrintEvents {
+  a380x_fms_print: { title: string; utcSeconds: number; lines: string[] };
+}
+
+/** A page printed by the FMS (A380X MFD DATA / PRINTER page). */
 export interface Printout {
   id: number;
   title: string;
@@ -41,17 +48,17 @@ export const Printouts = {
     printouts = [{ ...page, id: nextId++ }, ...printouts].slice(0, MAX_PRINTOUTS);
     notify();
   },
-};
 
-if (typeof Coherent !== 'undefined') {
-  Coherent.on('A380X_FMS_PRINT', (json: string) => {
-    try {
-      const page = JSON.parse(json);
-      if (typeof page?.title === 'string' && Array.isArray(page.lines)) {
-        Printouts.add({ title: page.title, utcSeconds: Number(page.utcSeconds) || 0, lines: page.lines.map(String) });
-      }
-    } catch (e) {
-      console.warn('[flypad] invalid printout', e);
-    }
-  });
-}
+  /** Keeps the pages the FMS prints from now on; returns the function that stops it. */
+  connect(bus: EventBus): () => void {
+    const sub = bus
+      .getSubscriber<FmsPrintEvents>()
+      .on('a380x_fms_print')
+      .handle((page) => {
+        if (typeof page?.title === 'string' && Array.isArray(page.lines)) {
+          Printouts.add({ title: page.title, utcSeconds: Number(page.utcSeconds) || 0, lines: page.lines.map(String) });
+        }
+      });
+    return () => sub.destroy();
+  },
+};

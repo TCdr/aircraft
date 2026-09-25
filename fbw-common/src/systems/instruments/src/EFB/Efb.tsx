@@ -59,6 +59,7 @@ import { setAircraftChecklists, addTrackingChecklists } from './Store/features/c
 import { FlyPadPage } from './Settings/Pages/FlyPadPage';
 import { NavigraphAuthProvider } from '../react/navigraph';
 import { EventBus } from '@microsoft/msfs-sdk';
+import { Printouts } from './Dispatch/Printouts';
 import { TroubleshootingContextProvider } from './TroubleshootingContext';
 import { checkFileHashes } from './Utils/fileHashes';
 import { setFileHashMismatches } from './Store/features/fileHashes';
@@ -551,6 +552,9 @@ export const EfbInstrument: React.FC<EfbInstrumentProps> = ({ failures, aircraft
   const [, setSessionId] = usePersistentProperty('A32NX_SENTRY_SESSION_ID');
 
   useEffect(() => () => setSessionId(''), []);
+
+  // The pages printed by the A380X FMS, kept for the DISPATCH / PRINTOUTS page even while it is not open
+  useEffect(() => Printouts.connect(eventBus), [eventBus]);
 
   const [err, setErr] = useState(false);
 
