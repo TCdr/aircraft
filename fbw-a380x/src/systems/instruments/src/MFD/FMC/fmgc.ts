@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
@@ -75,6 +75,18 @@ export class FmgcData {
   }
 
   public readonly cpnyFplnAvailable = Subject.create(false);
+
+  private readonly companyRouteIdents = new Map<FlightPlanIndex, Subject<string | null>>();
+
+  /** The ident of the company route inserted into a flight plan, null when none (INIT page CPNY RTE field). */
+  public companyRouteIdent(planIndex: FlightPlanIndex): Subject<string | null> {
+    let ident = this.companyRouteIdents.get(planIndex);
+    if (!ident) {
+      ident = Subject.create<string | null>(null);
+      this.companyRouteIdents.set(planIndex, ident);
+    }
+    return ident;
+  }
 
   public readonly cpnyFplnRequestedForPlan = Subject.create<FlightPlanIndex | null>(null);
 

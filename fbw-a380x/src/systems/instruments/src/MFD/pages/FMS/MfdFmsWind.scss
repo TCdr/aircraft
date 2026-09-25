@@ -1,0 +1,30 @@
+@import "../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 385 / P 392 (positions in MfdFmsWind.tsx)
+.mfd-fms-wind-not-allowed {
+  color: $display-amber;
+  font-size: 22px;
+  font-family: "FBW-Display-EIS-A380-SlashedZero", monospace;
+}
+
+.mfd-fms-wind-table {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid #505050;
+}
+
+.mfd-fms-wind-table-line {
+  position: absolute;
+  height: 0;
+  border-top: 2px solid #505050;
+}
+
+// Frame of the wind direction and velocity fields of a row
+.mfd-fms-wind-group {
+  position: absolute;
+  left: 369px;
+  width: 222px;
+  height: 53px;
+  box-sizing: border-box;
+  border: 2px solid #505050;
+}

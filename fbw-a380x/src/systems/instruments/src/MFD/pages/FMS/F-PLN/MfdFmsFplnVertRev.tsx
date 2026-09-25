@@ -37,6 +37,8 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
 import { ReadonlyFlightPlanLeg } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
+import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../../common/FcomLayout';
+import { TimeConstraint, TimeConstraintType } from '../../../FMC/TimeConstraint';
 
 interface MfdFmsFplnVertRevProps extends AbstractMfdPageProps {}
 
@@ -70,6 +72,15 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
 
   private availableWaypointsToLegIndex: number[] = [];
   private readonly selectedLegIndex = Subject.create<number | null>(null);
+
+  private readonly altitudeErrorText = Subject.create('');
+
+  private readonly altitudeErrorAmber = Subject.create(false);
+
+  private readonly altitudeErrorUnitVisibility = this.altitudeErrorText.map((t) => (t ? 'inherit' : 'hidden'));
+
+  /** Display state of the altitude error, with the FCOM hysteresis */
+  private altitudeErrorState: 'hidden' | 'green' | 'amber' = 'hidden';
   private selectedLegIsAlternate: boolean | null = null;
   private readonly dropdownMenuSelectedWaypointIndex = this.selectedLegIndex.map((si) => {
     if (si === null) {
@@ -96,7 +107,48 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
   private readonly spdConstraintTypeRadioSelected = Subject.create<number | null>(null);
   private readonly altConstraintTypeRadioSelected = Subject.create<number | null>(null);
 
-  // RTA page
+  // RTA page (FCOM DSC-22-FMS-20-30 P 360-364)
+
+  /** RTA message area: EXISTING RTA AT / RTA NOT ALLOWED AT (amber) followed by the waypoint ident (big font) */
+  private readonly rtaMessage = Subject.create('');
+
+  private readonly rtaMessageIdent = Subject.create('');
+
+  private readonly rtaMessageSuffix = Subject.create('');
+
+  /** FCOM P 344: RTA NOT ALLOWED IN EO, the panel is empty with this message */
+  private readonly rtaPanelMessage = Subject.create('');
+
+  private readonly rtaPanelVisible = this.rtaPanelMessage.map((m) => m === '');
+
+  private readonly rtaDistance = Subject.create('----');
+
+  private readonly rtaUtc = Subject.create('--:--:--');
+
+  private readonly rtaEta = Subject.create('--:--:--');
+
+  /** Selected RTA option (AT, AT OR BEFORE, AT OR AFTER), null when no RTA is defined on the selected waypoint */
+  private readonly rtaType = Subject.create<number | null>(null);
+
+  private readonly rtaTime = Subject.create<number | null>(null);
+
+  /** The RTA entry field is displayed on the line of the selected option (FCOM P 362) */
+  private readonly rtaFieldStyle = this.rtaType.map((t) =>
+    t === null ? 'display: none;' : `display: block; position: absolute; left: 0; top: ${t * 50}px;`,
+  );
+
+  private readonly rtaDeleteVisible = Subject.create(false);
+
+  private readonly rtaTimeError = Subject.create('');
+
+  private readonly rtaTimeErrorType = Subject.create('');
+
+  private readonly rtaTimeErrorAmber = Subject.create(false);
+
+  /** Display state of the time error, with the FCOM P 364 hysteresis */
+  private rtaTimeErrorState: 'hidden' | 'green' | 'amber' = 'hidden';
+
+  private readonly inPreflight = Subject.create(true);
 
   // SPD page
   private readonly speedMessageArea = Subject.create<string>('');
@@ -468,6 +520,72 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
         }
       }
     }
+  }
+
+  /**
+   * FCOM DSC-22-FMS-20-30 VERT REV page, ALT panel, ALTITUDE ERROR: predicted altitude - altitude constraint, only in
+   * the direction that misses the constraint. Displayed green from 100 ft (hidden again below 80 ft), amber from
+   * 250 ft (green again below 200 ft).
+   */
+  private updateAltitudeError(): void {
+    const legIndex = this.selectedLegIndex.get();
+    const plan = this.loadedFlightPlan;
+    const leg = legIndex !== null && plan ? plan.maybeElementAt(legIndex) : undefined;
+    const constraint = isLeg(leg) ? leg.altitudeConstraint : undefined;
+    const prediction =
+      legIndex !== null && this.loadedFlightPlanIndex.get() < FlightPlanIndex.Uplink && !this.selectedLegIsAlternate
+        ? this.props.fmcService.master?.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
+        : undefined;
+
+    let error: number | null = null;
+    if (constraint && constraint.altitude1 !== undefined && prediction?.altitude !== undefined) {
+      const predicted = prediction.altitude;
+      switch (constraint.altitudeDescriptor) {
+        case AltitudeDescriptor.AtOrAboveAlt1:
+        case AltitudeDescriptor.AtOrAboveAlt1GsIntcptAlt2:
+        case AltitudeDescriptor.AtOrAboveAlt1AngleAlt2:
+          error = Math.min(0, predicted - constraint.altitude1);
+          break;
+        case AltitudeDescriptor.AtOrBelowAlt1:
+        case AltitudeDescriptor.AtOrBelowAlt1AngleAlt2:
+          error = Math.max(0, predicted - constraint.altitude1);
+          break;
+        case AltitudeDescriptor.BetweenAlt1Alt2:
+          if (constraint.altitude2 !== undefined) {
+            error =
+              predicted > constraint.altitude1
+                ? predicted - constraint.altitude1
+                : predicted < constraint.altitude2
+                  ? predicted - constraint.altitude2
+                  : 0;
+          }
+          break;
+        case AltitudeDescriptor.AtAlt1:
+        case AltitudeDescriptor.AtAlt1GsIntcptAlt2:
+        case AltitudeDescriptor.AtAlt1AngleAlt2:
+          error = predicted - constraint.altitude1;
+          break;
+        default:
+          break;
+      }
+    }
+
+    const magnitude = error !== null ? Math.abs(error) : 0;
+    const state = this.altitudeErrorState;
+    if (magnitude >= 250 || (state === 'amber' && magnitude >= 200)) {
+      this.altitudeErrorState = 'amber';
+    } else if (magnitude >= 100 || (state !== 'hidden' && magnitude >= 80)) {
+      this.altitudeErrorState = 'green';
+    } else {
+      this.altitudeErrorState = 'hidden';
+    }
+
+    this.altitudeErrorAmber.set(this.altitudeErrorState === 'amber');
+    this.altitudeErrorText.set(
+      error !== null && this.altitudeErrorState !== 'hidden'
+        ? `${error > 0 ? '+' : '-'}${Math.round(Math.abs(error)).toFixed(0)}`
+        : '',
+    );
   }
 
   private isAltitudeConstraintFlightLevel(
@@ -946,6 +1064,14 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
+    this.subs.push(
+      this.rtaPanelVisible,
+      this.rtaFieldStyle,
+      this.props.fmcService.master.timeKeeper.utcSeconds.sub(() => this.updateRta()),
+      this.props.fmcService.master.timeConstraint.sub(() => this.updateRta()),
+      this.selectedLegIndex.sub(() => this.updateRta()),
+    );
+
     // If extra parameter for activeUri is given, navigate to flight phase sub-page
     switch (this.props.mfd.uiService.activeUri.get().extra) {
       case 'rta':
@@ -983,7 +1109,19 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
       }, true),
     );
 
-    this.subs.push(this.crzFlFormatted);
+    this.subs.push(this.crzFlFormatted, this.altitudeErrorUnitVisibility);
+
+    this.subs.push(
+      this.props.bus
+        .getSubscriber<ClockEvents>()
+        .on('realTime')
+        .atFrequency(1)
+        .handle(() => {
+          if (this.selectedPageIndex.get() === SelectedPage.ALT) {
+            this.updateAltitudeError();
+          }
+        }),
+    );
 
     for (const i of [0, 1, 2, 3, 4]) {
       this.subs.push(
@@ -1041,6 +1179,338 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
     this.stepsAltsClockSub?.destroy();
   }
 
+  // ---- RTA panel (FCOM DSC-22-FMS-20-30 P 360-364) -------------------------------------------------------------------
+
+  private static formatTimeOfDay(seconds: number): string {
+    const s = ((Math.round(seconds) % 86400) + 86400) % 86400;
+    const hh = Math.floor(s / 3600);
+    const mm = Math.floor(s / 60) % 60;
+    const ss = s % 60;
+    return `${hh.toFixed(0).padStart(2, '0')}:${mm.toFixed(0).padStart(2, '0')}:${ss.toFixed(0).padStart(2, '0')}`;
+  }
+
+  /** The ETA at a leg of the active flight plan, seconds of the day (a flight time in preflight without ETT) */
+  private rtaEtaSeconds(legIndex: number): number | null {
+    const pred =
+      this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
+        ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
+        : undefined;
+    if (!pred || !Number.isFinite(pred.secondsFromPresent)) {
+      return null;
+    }
+    if (this.inPreflight.get()) {
+      const ett = this.props.fmcService.master.fmgc.data.estimatedTakeoffTime.get();
+      return (ett ?? 0) + pred.secondsFromPresent;
+    }
+    return this.props.fmcService.master.timeKeeper.utcSeconds.get() + pred.secondsFromPresent;
+  }
+
+  private updateRta(): void {
+    const fmc = this.props.fmcService.master;
+    const plan = this.loadedFlightPlan;
+    const phase = this.activeFlightPhase.get();
+    this.inPreflight.set(phase === FmgcFlightPhase.Preflight);
+    this.rtaUtc.set(MfdFmsFplnVertRev.formatTimeOfDay(fmc.timeKeeper.utcSeconds.get()));
+
+    // FCOM P 344: RTA NOT ALLOWED IN EO / IN GA
+    if (fmc.fmgc.data.engineOut.get()) {
+      this.rtaPanelMessage.set('RTA NOT ALLOWED IN EO');
+      return;
+    }
+    if (phase === FmgcFlightPhase.GoAround) {
+      this.rtaPanelMessage.set('RTA NOT ALLOWED IN GA');
+      return;
+    }
+    this.rtaPanelMessage.set('');
+
+    const legIndex = this.selectedLegIndex.get();
+    const leg = legIndex !== null && plan ? plan.maybeElementAt(legIndex) : undefined;
+    const rta = fmc.timeConstraint.get();
+    const rtaLegIndex =
+      rta && plan
+        ? plan.allLegs.findIndex((l) => isLeg(l) && l.definition.waypoint?.databaseId === rta.databaseId)
+        : -1;
+    const rtaOnSelected = rta !== null && legIndex !== null && rtaLegIndex === legIndex;
+
+    // RTA message area (P 361)
+    if (
+      leg &&
+      isLeg(leg) &&
+      (this.selectedLegIsAlternate || this.loadedFlightPlanIndex.get() !== FlightPlanIndex.Active)
+    ) {
+      this.rtaMessage.set('RTA NOT ALLOWED AT');
+      this.rtaMessageIdent.set(leg.ident);
+      this.rtaMessageSuffix.set('');
+    } else if (rta && !rtaOnSelected) {
+      this.rtaMessage.set('EXISTING RTA AT');
+      this.rtaMessageIdent.set(rta.ident);
+      this.rtaMessageSuffix.set('');
+    } else {
+      this.rtaMessage.set('');
+      this.rtaMessageIdent.set('');
+      this.rtaMessageSuffix.set('');
+    }
+
+    // Waypoint distance and ETA (P 362)
+    const pred =
+      legIndex !== null && this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
+        ? fmc.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
+        : undefined;
+    this.rtaDistance.set(
+      pred && Number.isFinite(pred.distanceFromAircraft) ? Math.max(0, pred.distanceFromAircraft).toFixed(0) : '----',
+    );
+    const eta = legIndex !== null ? this.rtaEtaSeconds(legIndex) : null;
+    this.rtaEta.set(eta !== null ? MfdFmsFplnVertRev.formatTimeOfDay(eta) : '--:--:--');
+
+    if (rtaOnSelected && rta) {
+      this.rtaType.set(rta.type);
+      this.rtaTime.set(rta.utcSeconds);
+      this.rtaDeleteVisible.set(true);
+    } else {
+      this.rtaDeleteVisible.set(false);
+      if (this.rtaType.get() === null) {
+        this.rtaTime.set(null);
+      }
+    }
+
+    // Time error (P 363-364)
+    this.updateRtaTimeError(rtaOnSelected ? rta : null, eta, pred?.distanceFromAircraft ?? 0);
+  }
+
+  private updateRtaTimeError(rta: TimeConstraint | null, eta: number | null, distance: number): void {
+    if (!rta || eta === null) {
+      this.rtaTimeErrorState = 'hidden';
+      this.rtaTimeError.set('');
+      this.rtaTimeErrorType.set('');
+      return;
+    }
+    // Time error = ETA - RTA, over the day boundary
+    let error = eta - rta.utcSeconds;
+    error = ((((error + 43200) % 86400) + 86400) % 86400) - 43200;
+    const late = error > 0;
+    const applicable =
+      rta.type === TimeConstraintType.At ||
+      (rta.type === TimeConstraintType.AtOrBefore && late) ||
+      (rta.type === TimeConstraintType.AtOrAfter && !late);
+    const magnitude = Math.abs(error);
+
+    // P 364: not displayed below 7 s (shown from 10 s), green up to dT1, amber above dT1 until back below dT2;
+    // dT1 = 30 s and dT2 = 15 s up to 2 000 NM, then increased by 60 s per 1 000 NM
+    const extra = Math.max(0, distance - 2000) * 0.06;
+    const dT1 = 30 + extra;
+    const dT2 = 15 + extra;
+    if (!applicable) {
+      this.rtaTimeErrorState = 'hidden';
+    } else if (this.rtaTimeErrorState === 'hidden') {
+      if (magnitude > dT1) {
+        this.rtaTimeErrorState = 'amber';
+      } else if (magnitude >= 10) {
+        this.rtaTimeErrorState = 'green';
+      }
+    } else if (this.rtaTimeErrorState === 'green') {
+      if (magnitude > dT1) {
+        this.rtaTimeErrorState = 'amber';
+      } else if (magnitude < 7) {
+        this.rtaTimeErrorState = 'hidden';
+      }
+    } else if (magnitude < dT2) {
+      this.rtaTimeErrorState = magnitude < 7 ? 'hidden' : 'green';
+    }
+
+    if (this.rtaTimeErrorState === 'hidden') {
+      this.rtaTimeError.set('');
+      this.rtaTimeErrorType.set('');
+    } else {
+      const mm = Math.floor(magnitude / 60);
+      const ss = Math.round(magnitude % 60);
+      this.rtaTimeError.set(`${mm.toFixed(0).padStart(2, '0')}:${ss.toFixed(0).padStart(2, '0')}`);
+      this.rtaTimeErrorType.set(late ? 'LATE' : 'EARLY');
+      this.rtaTimeErrorAmber.set(this.rtaTimeErrorState === 'amber');
+    }
+  }
+
+  /** Creates (or changes) the RTA on the selected waypoint; the default RTA is the ETA (FCOM P 363) */
+  private setRta(type: TimeConstraintType | null, utcSeconds: number | null): void {
+    const legIndex = this.selectedLegIndex.get();
+    const leg = legIndex !== null && this.loadedFlightPlan ? this.loadedFlightPlan.maybeElementAt(legIndex) : undefined;
+    if (!leg || !isLeg(leg) || type === null || !leg.definition.waypoint) {
+      return;
+    }
+    this.rtaType.set(type);
+    const time = utcSeconds ?? this.rtaEtaSeconds(legIndex!);
+    this.rtaTime.set(time);
+    if (time !== null) {
+      this.props.fmcService.master.timeConstraint.set({
+        ident: leg.ident,
+        databaseId: leg.definition.waypoint.databaseId,
+        type,
+        utcSeconds: time,
+      });
+    }
+    this.updateRta();
+  }
+
+  private deleteRta(): void {
+    this.props.fmcService.master.timeConstraint.set(null);
+    this.rtaType.set(null);
+    this.rtaTime.set(null);
+    this.updateRta();
+  }
+
+  private renderRtaPanel(): VNode {
+    return (
+      <div class="mfd-fcom-canvas">
+        <div style={{ display: this.rtaPanelVisible.map((v) => (v ? 'none' : 'block')) }}>
+          {fcomCentre(40, 365, <span class="mfd-label amber">{this.rtaPanelMessage}</span>)}
+        </div>
+        <div style={{ display: this.rtaPanelVisible.map((v) => (v ? 'block' : 'none')) }}>
+          {fcomCentre(40, 365, [
+            <span class="mfd-label amber">{this.rtaMessage}</span>,
+            <span class="mfd-value bigger amber" style="margin-left: 16px;">
+              {this.rtaMessageIdent}
+            </span>,
+            <span class="mfd-label amber" style="margin-left: 16px;">
+              {this.rtaMessageSuffix}
+            </span>,
+          ])}
+          {fcomRight(96, 217, <span class="mfd-label">RTA AT</span>)}
+          {fcomAt(
+            96,
+            236,
+            <DropdownMenu
+              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_rtaWptDropdown`}
+              selectedIndex={this.dropdownMenuSelectedWaypointIndex}
+              values={this.availableWaypoints}
+              freeTextAllowed={false}
+              containerStyle="width: 171px;"
+              alignLabels="flex-start"
+              onModified={(i) => {
+                this.rtaType.set(null);
+                this.onWptDropdownModified(i).then(() => this.updateRta());
+              }}
+              numberOfDigitsForInputField={7}
+              tmpyActive={this.tmpyActive}
+              hEventConsumer={this.props.mfd.hEventConsumer}
+              interactionMode={this.props.mfd.interactionMode}
+            />,
+          )}
+          {fcomAt(96, 434, <span class="mfd-label">DIST</span>)}
+          {fcomRight(96, 625, [
+            <span class="mfd-value bigger">{this.rtaDistance}</span>,
+            <span class="mfd-label-unit mfd-unit-trailing">NM</span>,
+          ])}
+
+          {/* P 362: UTC in flight, ETT entry field in preflight */}
+          <div style={{ display: this.inPreflight.map((v) => (v ? 'none' : 'block')) }}>
+            {fcomAt(202, 9, <span class="mfd-label">UTC</span>)}
+            {fcomAt(202, 101, <span class="mfd-value bigger">{this.rtaUtc}</span>)}
+          </div>
+          <div style={{ display: this.inPreflight.map((v) => (v ? 'block' : 'none')) }}>
+            {fcomAt(202, 9, <span class="mfd-label">ETT</span>)}
+            {fcomAt(
+              202,
+              101,
+              <InputField<number>
+                dataEntryFormat={new TimeHHMMSSFormat()}
+                value={this.props.fmcService.master.fmgc.data.estimatedTakeoffTime}
+                alignText="center"
+                containerStyle="width: 160px;"
+                tmpyActive={this.tmpyActive}
+                errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                hEventConsumer={this.props.mfd.hEventConsumer}
+                interactionMode={this.props.mfd.interactionMode}
+              />,
+            )}
+          </div>
+
+          <div class="mfd-vert-rev-rta-vline" />
+          {fcomAt(262, 9, <span class="mfd-label">ETA</span>)}
+          {fcomRight(262, 544, <span class="mfd-value bigger">{this.rtaEta}</span>)}
+          {fcomLine(286, 9, 729)}
+
+          {fcomAt(316, 9, <span class="mfd-label">RTA</span>)}
+          {fcomAt(
+            358,
+            123,
+            <RadioButtonGroup
+              values={['AT', 'AT OR BEFORE', 'AT OR AFTER']}
+              selectedIndex={this.rtaType}
+              onModified={(i) => this.setRta(i, null)}
+              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_rtaTypeRadio`}
+              additionalVerticalSpacing={20}
+              color={this.tmpyColor}
+            />,
+          )}
+          <div class="mfd-fcom-item" style="left: 384px; top: 316px;">
+            <div style={this.rtaFieldStyle}>
+              <InputField<number>
+                dataEntryFormat={new TimeHHMMSSFormat()}
+                value={this.rtaTime}
+                onModified={(v) => this.setRta(this.rtaType.get(), v)}
+                alignText="center"
+                containerStyle="width: 160px; transform: translateY(-50%);"
+                tmpyActive={this.tmpyActive}
+                errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                hEventConsumer={this.props.mfd.hEventConsumer}
+                interactionMode={this.props.mfd.interactionMode}
+              />
+            </div>
+          </div>
+          <div style={{ display: this.rtaDeleteVisible.map((v) => (v ? 'block' : 'none')) }}>
+            {fcomAt(
+              326,
+              602,
+              <Button
+                label={
+                  <span class="fr aic">
+                    <span style="white-space: pre; text-align: center;">{'DELETE\nRTA'}</span>
+                    <span style="margin-left: 16px;">*</span>
+                  </span>
+                }
+                onClick={() => this.deleteRta()}
+                buttonStyle="width: 104px; height: 52px;"
+              />,
+            )}
+          </div>
+          {fcomLine(499, 9, 729)}
+
+          {/* P 363: managed RTA speed; the FMS has no RTA speed control yet, so it is not computed */}
+          {fcomAt(534, 246, <span class="mfd-label">RTA SPD</span>)}
+          {fcomRight(534, 545, <span class="mfd-value bigger">.--</span>)}
+          {fcomRight(534, 670, [
+            <span class="mfd-value bigger">---</span>,
+            <span class="mfd-label-unit mfd-unit-trailing">KT</span>,
+          ])}
+          {fcomLine(620, 9, 729)}
+
+          {/* FCOM DSC-22-FMS-20-30 P 363-364: the TIME ERROR line is displayed with the time error only */}
+          {fcomAt(
+            650,
+            9,
+            <span
+              class="mfd-label"
+              style={{ visibility: this.rtaTimeError.map((t) => (t === '' ? 'hidden' : 'visible')) }}
+            >
+              TIME ERROR
+            </span>,
+          )}
+          {fcomRight(
+            650,
+            542,
+            <span class={{ 'mfd-value': true, bigger: true, amber: this.rtaTimeErrorAmber }}>{this.rtaTimeError}</span>,
+          )}
+          {fcomAt(
+            650,
+            574,
+            <span class={{ 'mfd-value': true, bigger: true, amber: this.rtaTimeErrorAmber }}>
+              {this.rtaTimeErrorType}
+            </span>,
+          )}
+        </div>
+      </div>
+    );
+  }
+
   render(): VNode {
     return (
       this.props.fmcService.master && (
@@ -1048,7 +1518,7 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
           {super.render()}
           {/* begin page content */}
           <div class="mfd-page-container">
-            <div style="height: 15px;" />
+            {/* FCOM DSC-22-FMS-20-30 P 344-360: the tabs start right below the title bar (y = 150) */}
             <TopTabNavigator
               pageTitles={Subject.create(['RTA', 'SPD', 'CMS', 'ALT', 'STEP ALTs'])}
               selectedPageIndex={this.selectedPageIndex}
@@ -1056,27 +1526,11 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
                 this.selectedPageIndex.set(val);
               }}
               selectedTabTextColor="white"
+              {...fcomTabBar}
             >
-              <TopTabNavigatorPage>
+              <TopTabNavigatorPage containerStyle="padding: 0;">
                 {/* RTA */}
-                <div style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                  <span class="mfd-label">NOT IMPLEMENTED</span>
-                  <div style="display: flex; flex-direction: row; margin-top: 20px; justify-content: center; align-items: center;">
-                    <div class="mfd-label mfd-spacing-right">ETT</div>
-                    <div>
-                      <InputField<number>
-                        dataEntryFormat={new TimeHHMMSSFormat()}
-                        value={this.props.fmcService.master.fmgc.data.estimatedTakeoffTime}
-                        alignText="center"
-                        containerStyle="width: 175px;"
-                        tmpyActive={this.tmpyActive}
-                        errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                        hEventConsumer={this.props.mfd.hEventConsumer}
-                        interactionMode={this.props.mfd.interactionMode}
-                      />
-                    </div>
-                  </div>
-                </div>
+                {this.renderRtaPanel()}
               </TopTabNavigatorPage>
               <TopTabNavigatorPage>
                 {/* SPD */}
@@ -1307,6 +1761,20 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
                       </div>
                     </div>
                   </div>
+                  <div class="mfd-vert-rev-alt-error">
+                    <span class="mfd-label bigger mfd-vert-rev-alt-error-label">ALT ERROR</span>
+                    <div class="mfd-label-value-container">
+                      <span class={{ 'mfd-value': true, bigger: true, amber: this.altitudeErrorAmber }}>
+                        {this.altitudeErrorText}
+                      </span>
+                      <span
+                        class="mfd-label-unit mfd-unit-trailing"
+                        style={{ visibility: this.altitudeErrorUnitVisibility }}
+                      >
+                        FT
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </TopTabNavigatorPage>
               <TopTabNavigatorPage>
@@ -1484,6 +1952,7 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
               <div ref={this.returnButtonDiv} style="display: flex; justify-content: flex-end; padding: 2px;">
                 <Button
                   label="RETURN"
+                  buttonStyle="width: 101px;"
                   onClick={() => {
                     this.props.fmcService.master.resetRevisedWaypoint();
                     this.props.mfd.uiService.navigateTo('back');

@@ -26,7 +26,9 @@ import { hhmmFormatter } from '../../../shared/utils';
 import { FixFormat, RadialFormat, RadiusFormat } from '../../common/DataEntryFormats';
 import { FlightPlanFooter } from '../../common/FlightPlanFooter';
 import { FmsPage } from '../../common/FmsPage';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { Footer } from '../../common/Footer';
+import { fcomAt, fcomCentre, fcomLine, fcomTabBar } from '../../common/FcomLayout';
 
 export class MfdFmsFplnFixInfo extends FmsPage {
   private readonly flightPlanManager = new ObservableFlightPlanManager(
@@ -42,6 +44,11 @@ export class MfdFmsFplnFixInfo extends FmsPage {
 
   private readonly selectedTab = Subject.create(0);
 
+  /** FCOM DSC-22-FMS-20-30 FIX INFO page, TIME / UTC label: flight time in preflight (no ETT modelled) */
+  private readonly timeLabel = this.activeFlightPhase.map((phase) =>
+    phase === FmgcFlightPhase.Preflight ? 'TIME' : 'UTC',
+  );
+
   protected onNewData(): void {
     // noop
   }
@@ -53,7 +60,7 @@ export class MfdFmsFplnFixInfo extends FmsPage {
   public onAfterRender(node: VNode) {
     super.onAfterRender(node);
 
-    this.subs.push(this.flightPlanManager, this.flightPlan);
+    this.subs.push(this.flightPlanManager, this.flightPlan, this.timeLabel);
   }
 
   public render(): VNode {
@@ -62,186 +69,183 @@ export class MfdFmsFplnFixInfo extends FmsPage {
         {super.render()}
         {/* begin page content */}
         <div class="mfd-fms-fpln-fix-info-header"></div>
-        <TopTabNavigator pageTitles={['FIX 1', 'FIX 2', 'FIX 3', 'FIX 4']} selectedPageIndex={this.selectedTab}>
+        <TopTabNavigator
+          pageTitles={['FIX1', 'FIX2', 'FIX3', 'FIX4']}
+          selectedPageIndex={this.selectedTab}
+          {...fcomTabBar}
+        >
           {...([1, 2, 3, 4] as const).map((value) => (
             <TopTabNavigatorPage containerStyle="max-height: 45rem;">
-              <div class="fr aic mfd-fms-fpln-fix-info-ref-ident">
-                <span class="mfd-fms-fpln-fix-info-ref-ident-label">REF IDENT</span>
+              {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 139), tab page coordinates (display x - 21, y - 198) */}
+              <div class="mfd-fcom-canvas mfd-fms-fpln-fix-info-canvas">
+                {fcomAt(34, 22, <span class="mfd-label">REF IDENT</span>)}
+                {fcomAt(
+                  34,
+                  172,
+                  <InputField<Fix, string, false>
+                    containerStyle="width: 141px;"
+                    alignText="center"
+                    readonlyValue={this.flightPlan.fixInfos[value].map((it) => it?.fix ?? null)}
+                    onModified={async (text) => {
+                      if (text === null) {
+                        void this.props.fmcService.master!.flightPlanInterface.setFixInfoEntry(
+                          value,
+                          null,
+                          this.loadedFlightPlanIndex.get(),
+                        );
+                        return;
+                      }
 
-                <InputField<Fix, string, false>
-                  readonlyValue={this.flightPlan.fixInfos[value].map((it) => it?.fix ?? null)}
-                  onModified={async (text) => {
-                    if (text === null) {
+                      const fix = await WaypointEntryUtils.getOrCreateWaypoint(
+                        this.props.fmcService.master!,
+                        text,
+                        true,
+                      );
+
+                      if (!fix) {
+                        throw new FmsError(FmsErrorType.NotInDatabase);
+                      }
+
                       void this.props.fmcService.master!.flightPlanInterface.setFixInfoEntry(
                         value,
-                        null,
+                        new FixInfoEntry(fix, [], []),
                         this.loadedFlightPlanIndex.get(),
                       );
-                      return;
-                    }
+                    }}
+                    errorHandler={(msg) => this.props.mfd.showFmsErrorMessage(msg.type)}
+                    dataEntryFormat={new FixFormat()}
+                    tmpyActive={this.flightPlanManager.temporaryPlanExists}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                <div class="mfd-fms-fpln-fix-info-vline" />
+                {fcomCentre(111, 358, <span class="mfd-label">F-PLN INTERCEPT</span>)}
+                {fcomCentre(152, 207, <span class="mfd-label">{this.timeLabel}</span>)}
+                {fcomCentre(152, 351, <span class="mfd-label">DIST</span>)}
+                {fcomCentre(152, 506, <span class="mfd-label">ALT</span>)}
+                {fcomLine(176, -2, 718)}
+                {fcomAt(201, 20, <span class="mfd-label">RADIAL</span>)}
+                {fcomAt(
+                  248,
+                  22,
+                  <InputField<number, number, false>
+                    containerStyle="width: 99px;"
+                    alignText="center"
+                    disabled={this.flightPlan.fixInfos[value].map((it) => it?.fix === undefined)}
+                    readonlyValue={this.flightPlan.fixInfos[value].map(
+                      (it) => it?.radials?.[0]?.magneticBearing ?? null,
+                    )}
+                    onModified={(radial) => {
+                      this.props.flightPlanInterface.editFixInfoEntry(
+                        value,
+                        (fixInfo) => {
+                          if (!fixInfo.radials) {
+                            fixInfo.radials = [];
+                          }
 
-                    const fix = await WaypointEntryUtils.getOrCreateWaypoint(this.props.fmcService.master!, text, true);
+                          if (radial !== null) {
+                            fixInfo.radials[0] = {
+                              magneticBearing: radial,
+                              trueBearing: MagVar.magneticToTrue(radial, MagVar.getForFix(fixInfo.fix) ?? 0),
+                            };
+                          } else {
+                            delete fixInfo.radials[0];
+                          }
 
-                    if (!fix) {
-                      throw new FmsError(FmsErrorType.NotInDatabase);
-                    }
+                          return fixInfo;
+                        },
+                        this.loadedFlightPlanIndex.get(),
+                      );
+                    }}
+                    errorHandler={(msg) => this.props.mfd.showFmsErrorMessage(msg.type)}
+                    dataEntryFormat={new RadialFormat()}
+                    tmpyActive={this.flightPlanManager.temporaryPlanExists}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomAt(
+                  321,
+                  22,
+                  <InputField<number, number, false>
+                    containerStyle="width: 99px;"
+                    alignText="center"
+                    disabled={this.flightPlan.fixInfos[value].map(
+                      (it) => it?.fix === undefined || (it.radials?.length ?? 0) < 1,
+                    )}
+                    readonlyValue={this.flightPlan.fixInfos[value].map(
+                      (it) => it?.radials?.[1]?.magneticBearing ?? null,
+                    )}
+                    onModified={(radial) => {
+                      this.props.flightPlanInterface.editFixInfoEntry(
+                        value,
+                        (fixInfo) => {
+                          if (!fixInfo.radials) {
+                            fixInfo.radials = [];
+                          }
 
-                    void this.props.fmcService.master!.flightPlanInterface.setFixInfoEntry(
-                      value,
-                      new FixInfoEntry(fix, [], []),
-                      this.loadedFlightPlanIndex.get(),
-                    );
-                  }}
-                  errorHandler={(msg) => this.props.mfd.showFmsErrorMessage(msg.type)}
-                  dataEntryFormat={new FixFormat()}
-                  tmpyActive={this.flightPlanManager.temporaryPlanExists}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />
-              </div>
+                          if (radial !== null) {
+                            fixInfo.radials[1] = {
+                              magneticBearing: radial,
+                              trueBearing: MagVar.magneticToTrue(radial, MagVar.getForFix(fixInfo.fix) ?? 0),
+                            };
+                          } else {
+                            delete fixInfo.radials[1];
+                          }
 
-              <div class="mfd-fms-fpln-fix-info-table">
-                <div class="fr mfd-fms-fpln-fix-info-table-row-1">
-                  <span class="mfd-fms-fpln-fix-info-table-col-left"></span>
-                  <span class="fc jcc aic mfd-fms-fpln-fix-info-table-col-right mfd-fms-fpln-fix-info-fpl-intercept-header">
-                    <span>F-PLN INTERCEPT</span>
-                    <span>UTC</span>
-                    <span>DIST</span>
-                    <span>ALT</span>
-                  </span>
-                </div>
+                          return fixInfo;
+                        },
+                        this.loadedFlightPlanIndex.get(),
+                      );
+                    }}
+                    errorHandler={(msg) => this.props.mfd.showFmsErrorMessage(msg.type)}
+                    dataEntryFormat={new RadialFormat()}
+                    tmpyActive={this.flightPlanManager.temporaryPlanExists}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomAt(248, 165, <FixInfoPredictionRow tmpyActive={this.flightPlanManager.temporaryPlanExists} />)}
+                {fcomAt(321, 165, <FixInfoPredictionRow tmpyActive={this.flightPlanManager.temporaryPlanExists} />)}
+                {fcomLine(363, -2, 718)}
+                {fcomAt(392, 20, <span class="mfd-label">RADIUS</span>)}
+                {fcomAt(
+                  439,
+                  22,
+                  <InputField<number, number, false>
+                    containerStyle="width: 119px;"
+                    alignText="center"
+                    disabled={this.flightPlan.fixInfos[value].map((it) => it?.fix === undefined)}
+                    readonlyValue={this.flightPlan.fixInfos[value].map((it) => it?.radii?.[0]?.radius ?? null)}
+                    onModified={(radius) => {
+                      this.props.flightPlanInterface.editFixInfoEntry(
+                        value,
+                        (fixInfo) => {
+                          if (!fixInfo.radii) {
+                            fixInfo.radii = [];
+                          }
 
-                <div class="fr mfd-fms-fpln-fix-info-table-row-2">
-                  <span class="fc mfd-fms-fpln-fix-info-table-col-left">
-                    <span class="mfd-fms-fpln-fix-info-radial-header">RADIAL</span>
+                          if (radius !== null) {
+                            fixInfo.radii[0] = { radius };
+                          } else {
+                            delete fixInfo.radii[0];
+                          }
 
-                    <InputField<number, number, false>
-                      class="mfd-fms-fpln-fix-info-radial-1"
-                      alignText="flex-start"
-                      disabled={this.flightPlan.fixInfos[value].map((it) => it?.fix === undefined)}
-                      readonlyValue={this.flightPlan.fixInfos[value].map(
-                        (it) => it?.radials?.[0]?.magneticBearing ?? null,
-                      )}
-                      onModified={(radial) => {
-                        this.props.flightPlanInterface.editFixInfoEntry(
-                          value,
-                          (fixInfo) => {
-                            if (!fixInfo.radials) {
-                              fixInfo.radials = [];
-                            }
-
-                            if (radial !== null) {
-                              fixInfo.radials[0] = {
-                                magneticBearing: radial,
-                                trueBearing: MagVar.magneticToTrue(radial, MagVar.getForFix(fixInfo.fix) ?? 0),
-                              };
-                            } else {
-                              delete fixInfo.radials[0];
-                            }
-
-                            return fixInfo;
-                          },
-                          this.loadedFlightPlanIndex.get(),
-                        );
-                      }}
-                      errorHandler={(msg) => this.props.mfd.showFmsErrorMessage(msg.type)}
-                      dataEntryFormat={new RadialFormat()}
-                      tmpyActive={this.flightPlanManager.temporaryPlanExists}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-
-                    <InputField<number, number, false>
-                      class="mfd-fms-fpln-fix-info-radial-2"
-                      alignText="flex-start"
-                      disabled={this.flightPlan.fixInfos[value].map(
-                        (it) => it?.fix === undefined || (it.radials?.length ?? 0) < 1,
-                      )}
-                      readonlyValue={this.flightPlan.fixInfos[value].map(
-                        (it) => it?.radials?.[1]?.magneticBearing ?? null,
-                      )}
-                      onModified={(radial) => {
-                        this.props.flightPlanInterface.editFixInfoEntry(
-                          value,
-                          (fixInfo) => {
-                            if (!fixInfo.radials) {
-                              fixInfo.radials = [];
-                            }
-
-                            if (radial !== null) {
-                              fixInfo.radials[1] = {
-                                magneticBearing: radial,
-                                trueBearing: MagVar.magneticToTrue(radial, MagVar.getForFix(fixInfo.fix) ?? 0),
-                              };
-                            } else {
-                              delete fixInfo.radials[1];
-                            }
-
-                            return fixInfo;
-                          },
-                          this.loadedFlightPlanIndex.get(),
-                        );
-                      }}
-                      errorHandler={(msg) => this.props.mfd.showFmsErrorMessage(msg.type)}
-                      dataEntryFormat={new RadialFormat()}
-                      tmpyActive={this.flightPlanManager.temporaryPlanExists}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-                  </span>
-                  <span class="fc mfd-fms-fpln-fix-info-table-col-right">
-                    <FixInfoPredictionRow tmpyActive={this.flightPlanManager.temporaryPlanExists} />
-                    <FixInfoPredictionRow tmpyActive={this.flightPlanManager.temporaryPlanExists} />
-                  </span>
-                </div>
-                <div class="fr mfd-fms-fpln-fix-info-table-row-3">
-                  <span class="fc mfd-fms-fpln-fix-info-table-col-left">
-                    <span class="mfd-fms-fpln-fix-info-radius-header">RADIUS</span>
-
-                    <InputField<number, number, false>
-                      class="mfd-fms-fpln-fix-info-radius-1"
-                      alignText="flex-start"
-                      disabled={this.flightPlan.fixInfos[value].map((it) => it?.fix === undefined)}
-                      readonlyValue={this.flightPlan.fixInfos[value].map((it) => it?.radii?.[0]?.radius ?? null)}
-                      onModified={(radius) => {
-                        this.props.flightPlanInterface.editFixInfoEntry(
-                          value,
-                          (fixInfo) => {
-                            if (!fixInfo.radii) {
-                              fixInfo.radii = [];
-                            }
-
-                            if (radius !== null) {
-                              fixInfo.radii[0] = { radius };
-                            } else {
-                              delete fixInfo.radii[0];
-                            }
-
-                            return fixInfo;
-                          },
-                          this.loadedFlightPlanIndex.get(),
-                        );
-                      }}
-                      errorHandler={(msg) => this.props.mfd.showFmsErrorMessage(msg.type)}
-                      dataEntryFormat={new RadiusFormat()}
-                      tmpyActive={this.flightPlanManager.temporaryPlanExists}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-                  </span>
-                  <span class="mfd-fms-fpln-fix-info-table-col-right"></span>
-                </div>
-                <div class="fr mfd-fms-fpln-fix-info-table-row-4">
-                  <span class="mfd-fms-fpln-fix-info-table-col-left">
-                    <Button
-                      disabled
-                      label="ABEAM"
-                      buttonStyle="width: 123px; margin-top: .6rem; margin-left: 1.35rem;"
-                      onClick={() => {}}
-                    />
-                  </span>
-                  <span class="mfd-fms-fpln-fix-info-table-col-right"></span>
-                </div>
+                          return fixInfo;
+                        },
+                        this.loadedFlightPlanIndex.get(),
+                      );
+                    }}
+                    errorHandler={(msg) => this.props.mfd.showFmsErrorMessage(msg.type)}
+                    dataEntryFormat={new RadiusFormat()}
+                    tmpyActive={this.flightPlanManager.temporaryPlanExists}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomLine(480, -2, 718)}
+                {fcomAt(518, 21, <Button disabled label="ABEAM" buttonStyle="width: 92px;" onClick={() => {}} />)}
               </div>
             </TopTabNavigatorPage>
           ))}

@@ -6,6 +6,7 @@ import { Footer } from '../../common/Footer';
 
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { FmsPage } from '../../common/FmsPage';
+import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../../common/FcomLayout';
 import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { HeadingFormat } from '../../common/DataEntryFormats';
@@ -67,7 +68,20 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
 
   private readonly irs3DataVisible = Subject.create<boolean>(false);
 
-  private readonly irsDataFreezeButtonDisabled = Subject.create(true);
+  /**
+   * FCOM DSC-22-FMS-20-30 POSITION / IRS page, FREEZE ALL IRS: freezes the IRS 1(2)(3) data, with the UTC (or flight)
+   * time of the freeze; the button then reads UNFREEZE ALL IRS.
+   */
+  private readonly irsDataFrozen = Subject.create(false);
+
+  // FCOM DSC-22-FMS-20-30 P 284: FREEZE ALL IRS / UNFREEZE ALL IRS
+  private readonly irsDataFreezeButtonLabel = this.irsDataFrozen.map((v) =>
+    v ? 'UNFREEZE<br />ALL IRS *' : 'FREEZE<br />ALL IRS *',
+  );
+
+  private readonly irsDataFrozenTime = this.irsDataFrozen.map((v) =>
+    v ? `IRS DATA FROZEN AT ${this.props.fmcService.master.timeKeeper.formatEta(0)}` : '',
+  );
 
   private readonly irsDataPosition = Subject.create<string>('');
 
@@ -173,7 +187,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
         }),
     );
 
-    this.subs.push(this.irsAreAligned);
+    this.subs.push(this.irsAreAligned, this.irsDataFreezeButtonLabel, this.irsDataFrozenTime);
 
     this.setHdgDivRef.instance.style.visibility = 'hidden';
   }
@@ -181,7 +195,7 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
   private updateIrsData() {
     const ir = this.showIrsDataFor.get();
 
-    if (ir !== IrsDataFor.NONE) {
+    if (ir !== IrsDataFor.NONE && !this.irsDataFrozen.get()) {
       const lat = Arinc429Word.fromSimVarValue(`L:A32NX_ADIRS_IR_${ir}_LATITUDE`);
       const long = Arinc429Word.fromSimVarValue(`L:A32NX_ADIRS_IR_${ir}_LONGITUDE`);
 
@@ -205,7 +219,9 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
       this.irsDataGpirsPosition.set(
         coordinateToString(this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 }, false),
       );
-      this.irsDataAccuracy.set(this.props.fmcService.master.navigation.getEpe().toFixed(0) ?? '');
+      // FCOM P 275: GPIRS accuracy in feet (the FMS EPU is in nautical miles)
+      const epe = this.props.fmcService.master.navigation.getEpe();
+      this.irsDataAccuracy.set(Number.isFinite(epe) ? (epe * 6076.12).toFixed(0) : '----');
     }
   }
 
@@ -282,186 +298,145 @@ export class MfdFmsPositionIrs extends FmsPage<MfdFmsPositionIrsProps> {
         {super.render()}
         {/* begin page content */}
         <div class="mfd-page-container">
-          <div class="fr" style="margin: 15px;">
-            <div style="flex: 1; display: flex; justify-content: center; align-items: center;">
-              <span class="mfd-label" style="color: #e68000">
-                {this.alignmentLabel}
-              </span>
+          {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 275), page container coordinates */}
+          <div class="mfd-fcom-canvas">
+            {fcomAt(22, 19, <span class="mfd-label amber">{this.alignmentLabel}</span>)}
+            {fcomAt(22, 394, <span class="mfd-value bigger">{this.alignmentPosition}</span>)}
+            {fcomAt(
+              89.5,
+              2,
+              <Button
+                disabled={this.alignOnOtherRefDisabled}
+                label="ALIGN ON<br />OTHER REF"
+                onClick={() => {}}
+                buttonStyle="width: 124px; height: 41px;"
+              />,
+            )}
+            {fcomLine(140, 2, 756)}
+
+            <div class="mfd-position-irs-table-column" style="left: 91px;" />
+            <div class="mfd-position-irs-table-column" style="left: 237px;" />
+            <div class="mfd-position-irs-table-column" style="left: 500px;" />
+            {fcomLine(226, 0, 729)}
+            {fcomLine(267, 0, 729)}
+            {fcomAt(203, 12, <span class="mfd-label">IRS 1</span>)}
+            {fcomCentre(203, 163, <span class="mfd-value bigger">{this.irs1Status}</span>)}
+            {fcomAt(203, 257, <span class="mfd-value">{this.irs1SecondColumn}</span>)}
+            {fcomAt(203, 522, <span class="mfd-value">{this.irs1ThirdColumn}</span>)}
+            {fcomAt(245, 12, <span class="mfd-label">IRS 2</span>)}
+            {fcomCentre(245, 163, <span class="mfd-value bigger">{this.irs2Status}</span>)}
+            {fcomAt(245, 257, <span class="mfd-value">{this.irs2SecondColumn}</span>)}
+            {fcomAt(245, 522, <span class="mfd-value">{this.irs2ThirdColumn}</span>)}
+            {fcomAt(286, 12, <span class="mfd-label">IRS 3</span>)}
+            {fcomCentre(286, 163, <span class="mfd-value bigger">{this.irs3Status}</span>)}
+            {fcomAt(286, 257, <span class="mfd-value">{this.irs3SecondColumn}</span>)}
+            {fcomAt(286, 522, <span class="mfd-value">{this.irs3ThirdColumn}</span>)}
+
+            <div ref={this.setHdgDivRef}>
+              {fcomRight(340, 572, <span class="mfd-label">SET HDG</span>)}
+              {fcomAt(
+                340,
+                584,
+                <InputField<number>
+                  dataEntryFormat={new HeadingFormat()}
+                  value={this.setHdgValue}
+                  mandatory={Subject.create(true)}
+                  alignText="flex-end"
+                  containerStyle="width: 138px;"
+                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                  hEventConsumer={this.props.mfd.hEventConsumer}
+                  interactionMode={this.props.mfd.interactionMode}
+                />,
+              )}
             </div>
-            <div style="flex: 1 display: flex; justify-content: center; align-items: center;">
-              <span class="mfd-value bigger">{this.alignmentPosition}</span>
+
+            {fcomAt(
+              397,
+              147,
+              <Button
+                label="IRS1"
+                onClick={() => this.showIrsDataFor.set(this.irs1DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_1)}
+                selected={this.irs1DataVisible}
+                buttonStyle="width: 124px;"
+              />,
+            )}
+            {fcomAt(
+              397,
+              303,
+              <Button
+                label="IRS2"
+                onClick={() => this.showIrsDataFor.set(this.irs2DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_2)}
+                selected={this.irs2DataVisible}
+                buttonStyle="width: 124px;"
+              />,
+            )}
+            {fcomAt(
+              397,
+              459,
+              <Button
+                label="IRS3"
+                onClick={() => this.showIrsDataFor.set(this.irs3DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_3)}
+                selected={this.irs3DataVisible}
+                buttonStyle="width: 124px;"
+              />,
+            )}
+
+            <div ref={this.irsDataRef}>
+              <div class="mfd-position-irs-data-box" />
+              {fcomAt(
+                457.5,
+                9,
+                <Button
+                  label={this.irsDataFreezeButtonLabel}
+                  selected={this.irsDataFrozen}
+                  onClick={() => this.irsDataFrozen.set(!this.irsDataFrozen.get())}
+                  buttonStyle="width: 132px; height: 42px;"
+                />,
+              )}
+              {fcomAt(457.5, 186, <span class="mfd-label">{this.irsDataFrozenTime}</span>)}
+              {fcomRight(493, 364, <span class="mfd-label">POSITION</span>)}
+              {fcomAt(493, 384, <span class="mfd-value bigger">{this.irsDataPosition}</span>)}
+
+              {fcomRight(540, 144, <span class="mfd-label">T.TRK</span>)}
+              {fcomRight(540, 342, <span class="mfd-value bigger">{this.irsDataTrueTrack}</span>)}
+              {fcomAt(540, 345, <span class="mfd-label-unit">°T</span>)}
+              {fcomRight(540, 566, <span class="mfd-label">T.HDG</span>)}
+              {fcomRight(540, 691, <span class="mfd-value bigger">{this.irsDataTrueHeading}</span>)}
+              {fcomAt(540, 695, <span class="mfd-label-unit">°T</span>)}
+
+              {fcomRight(584, 144, <span class="mfd-label">GND SPD</span>)}
+              {fcomRight(584, 342, <span class="mfd-value bigger">{this.irsDataGroundSpeed}</span>)}
+              {fcomAt(584, 345, <span class="mfd-label-unit">KT</span>)}
+              {fcomRight(584, 566, <span class="mfd-label">MAG HDG</span>)}
+              {fcomRight(584, 691, <span class="mfd-value bigger">{this.irsDataMagneticHeading}</span>)}
+              {fcomAt(584, 695, <span class="mfd-label-unit">°</span>)}
+
+              {fcomRight(630, 144, <span class="mfd-label">T.WIND</span>)}
+              {fcomRight(630, 223, <span class="mfd-value bigger">{this.irsDataTrueWindDirection}</span>)}
+              {fcomAt(630, 227, <span class="mfd-label-unit">°</span>)}
+              {fcomRight(630, 342, <span class="mfd-value bigger">{this.irsDataTrueWindSpeed}</span>)}
+              {fcomAt(630, 345, <span class="mfd-label-unit">KT</span>)}
+              {fcomRight(630, 566, <span class="mfd-label">MAG VAR</span>)}
+              {fcomRight(630, 691, <span class="mfd-value bigger">{this.irsDataMagneticVariation}</span>)}
+              {fcomAt(630, 695, <span class="mfd-label-unit">{this.irsDataMagneticVariationUnit}</span>)}
+              {fcomLine(654, 4, 739)}
+
+              {fcomRight(695, 364, <span class="mfd-label">GPIRS POSITION</span>)}
+              {fcomAt(695, 384, <span class="mfd-value bigger">{this.irsDataGpirsPosition}</span>)}
+              {fcomRight(740, 364, <span class="mfd-label">ACCURACY</span>)}
+              {fcomRight(740, 478, <span class="mfd-value bigger">{this.irsDataAccuracy}</span>)}
+              {fcomAt(740, 482, <span class="mfd-label-unit">FT</span>)}
             </div>
-          </div>
-          <div class="fr" style="padding-bottom: 20px; border-bottom: 2px solid lightgrey;">
-            <Button disabled={this.alignOnOtherRefDisabled} label="ALIGN ON<br />OTHER REF" onClick={() => {}} />
-          </div>
-          <div class="fr" style="margin-top: 40px;">
-            <div class="mfd-position-irs-table-col1">
-              <span class="mfd-label">IRS 1</span>
-            </div>
-            <div class="mfd-position-irs-table-col2">
-              <span class="mfd-value bigger">{this.irs1Status}</span>
-            </div>
-            <div class="mfd-position-irs-table-col3">
-              <span class="mfd-value">{this.irs1SecondColumn}</span>
-            </div>
-            <div class="mfd-position-irs-table-col4">
-              <span class="mfd-value">{this.irs1ThirdColumn}</span>
-            </div>
-          </div>
-          <div class="fr">
-            <div class="mfd-position-irs-table-col1">
-              <span class="mfd-label">IRS 2</span>
-            </div>
-            <div class="mfd-position-irs-table-col2">
-              <span class="mfd-value bigger">{this.irs2Status}</span>
-            </div>
-            <div class="mfd-position-irs-table-col3">
-              <span class="mfd-value">{this.irs2SecondColumn}</span>
-            </div>
-            <div class="mfd-position-irs-table-col4">
-              <span class="mfd-value">{this.irs2ThirdColumn}</span>
-            </div>
-          </div>
-          <div class="fr">
-            <div class="mfd-position-irs-table-col1 mfd-position-irs-table-last-row">
-              <span class="mfd-label">IRS 3</span>
-            </div>
-            <div class="mfd-position-irs-table-col2 mfd-position-irs-table-last-row">
-              <span class="mfd-value bigger">{this.irs3Status}</span>
-            </div>
-            <div class="mfd-position-irs-table-col3 mfd-position-irs-table-last-row">
-              <span class="mfd-value">{this.irs3SecondColumn}</span>
-            </div>
-            <div class="mfd-position-irs-table-col4 mfd-position-irs-table-last-row">
-              <span class="mfd-value">{this.irs3ThirdColumn}</span>
-            </div>
-          </div>
-          <div
-            ref={this.setHdgDivRef}
-            class="fr"
-            style="justify-content: flex-end; align-items: center; margin-top: 10px; margin-bottom: 20px;"
-          >
-            <span class="mfd-label">SET HDG</span>
-            <InputField<number>
-              dataEntryFormat={new HeadingFormat()}
-              value={this.setHdgValue}
-              mandatory={Subject.create(true)}
-              alignText="flex-end"
-              containerStyle="width: 150px; margin-left: 10px;"
-              errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-              hEventConsumer={this.props.mfd.hEventConsumer}
-              interactionMode={this.props.mfd.interactionMode}
-            />
-          </div>
-          <div class="mfd-position-irs-irs-button-row">
-            <Button
-              label="IRS1"
-              onClick={() => this.showIrsDataFor.set(this.irs1DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_1)}
-              selected={this.irs1DataVisible}
-              buttonStyle="width: 150px; margin-right: 3px;"
-            />
-            <Button
-              label="IRS2"
-              onClick={() => this.showIrsDataFor.set(this.irs2DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_2)}
-              selected={this.irs2DataVisible}
-              buttonStyle="width: 150px; margin-right: 3px;"
-            />
-            <Button
-              label="IRS3"
-              onClick={() => this.showIrsDataFor.set(this.irs3DataVisible.get() ? IrsDataFor.NONE : IrsDataFor.IRS_3)}
-              selected={this.irs3DataVisible}
-              buttonStyle="width: 150px;"
-            />
-          </div>
-          <div ref={this.irsDataRef} class="fc" style="border: 2px outset lightgrey; padding: 2px 15px 15px 15px;">
-            <div class="fr" style="justify-content: space-between; margin-bottom: 15px;">
-              <div style="align-self: flex-start;">
-                <Button disabled={this.irsDataFreezeButtonDisabled} label="FREEZE<br />ALL IRS" onClick={() => {}} />
-              </div>
-              <div style="align-self: flex-end;">
-                <span class="mfd-label" style="margin-right: 20px;">
-                  POSITION
-                </span>
-                <span class="mfd-value bigger">{this.irsDataPosition}</span>
-              </div>
-            </div>
-            <div class="fr">
-              <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; padding: 7px;">
-                <span class="mfd-label">T.TRK</span>
-              </div>
-              <div class="mfd-label-value-container" style="flex: 1.5; justify-content: flex-end; align-items: center;">
-                <span class="mfd-value bigger">{this.irsDataTrueTrack}</span>
-                <span class="mfd-label-unit mfd-unit-trailing">°T</span>
-              </div>
-              <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; padding: 7px;">
-                <span class="mfd-label">T.HDG</span>
-              </div>
-              <div class="mfd-label-value-container" style="flex: 1; justify-content: flex-end;">
-                <span class="mfd-value bigger">{this.irsDataTrueHeading}</span>
-                <span class="mfd-label-unit mfd-unit-trailing">°T</span>
-              </div>
-            </div>
-            <div class="fr">
-              <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; padding: 7px;">
-                <span class="mfd-label">GND SPD</span>
-              </div>
-              <div class="mfd-label-value-container" style="flex: 1.5; justify-content: flex-end;">
-                <span class="mfd-value bigger">{this.irsDataGroundSpeed}</span>
-                <span class="mfd-label-unit mfd-unit-trailing">KT</span>
-              </div>
-              <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; padding: 7px;">
-                <span class="mfd-label">MAG HDG</span>
-              </div>
-              <div class="mfd-label-value-container" style="flex: 1; justify-content: flex-end;">
-                <span class="mfd-value bigger">{this.irsDataMagneticHeading}</span>
-                <span class="mfd-label-unit mfd-unit-trailing">°{'\xa0'}</span>
-              </div>
-            </div>
-            <div class="fr" style="border-bottom: 2px solid lightgrey; margin-bottom: 15px;">
-              <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; padding: 7px;">
-                <span class="mfd-label">T.WIND</span>
-              </div>
-              <div class="mfd-label-value-container" style="flex: 1.5; justify-content: flex-end;">
-                <span class="mfd-value bigger">{this.irsDataTrueWindDirection}</span>
-                <span class="mfd-label-unit mfd-unit-trailing">°</span>
-                <span class="mfd-value bigger">{this.irsDataTrueWindSpeed}</span>
-                <span class="mfd-label-unit mfd-unit-trailing">KT</span>
-              </div>
-              <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; padding: 7px;">
-                <span class="mfd-label">MAG VAR</span>
-              </div>
-              <div class="mfd-label-value-container" style="flex: 1; justify-content: flex-end;">
-                <span class="mfd-value bigger">{this.irsDataMagneticVariation}</span>
-                <span class="mfd-label-unit mfd-unit-trailing">{this.irsDataMagneticVariationUnit}</span>
-              </div>
-            </div>
-            <div class="fc" style="display: flex; align-items: flex-end; padding-right: 15px;">
-              <div class="mfd-label-value-container">
-                <span class="mfd-label mfd-spacing-right">GPIRS POSITION</span>
-                <span class="mfd-value bigger" style="width: 325px;">
-                  {this.irsDataGpirsPosition}
-                </span>
-              </div>
-              <div class="mfd-label-value-container">
-                <span class="mfd-label mfd-spacing-right">ACCURACY</span>
-                <span class="mfd-value bigger" style="width: 300px; text-align: right;">
-                  {this.irsDataAccuracy}
-                </span>
-                <span class="mfd-label-unit" style="width: 25px;">
-                  FT
-                </span>
-              </div>
-            </div>
-          </div>
-          <div style="flex-grow: 1;" />
-          {/* fill space vertically */}
-          <div style="width: 150px;">
-            <Button
-              label="RETURN"
-              onClick={() => this.props.mfd.uiService.navigateTo('back')}
-              buttonStyle="margin-right: 5px;"
-            />
+
+            {fcomAt(
+              797,
+              2,
+              <Button
+                label="RETURN"
+                onClick={() => this.props.mfd.uiService.navigateTo('back')}
+                buttonStyle="width: 100px;"
+              />,
+            )}
           </div>
         </div>
         <Footer

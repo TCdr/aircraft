@@ -1,0 +1,11 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 107-116 (positions in MfdFmsDataWaypoint.tsx)
+.mfd-data-waypoint-dialogs {
+  position: absolute;
+  top: 260px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+}

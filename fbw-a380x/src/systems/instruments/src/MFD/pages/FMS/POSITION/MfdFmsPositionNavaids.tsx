@@ -1,6 +1,7 @@
 import { AbstractMfdPageProps } from '../../../MFD';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import {
+  FrequencyADFFormat,
   FrequencyILSFormat,
   FrequencyVORDMEFormat,
   InboundCourseFormat,
@@ -8,6 +9,8 @@ import {
   NavaidIdentFormat,
 } from '../../common/DataEntryFormats';
 import { FmsPage } from '../../common/FmsPage';
+import { fcomAt, fcomCentre, fcomLine, fcomRight, fcomTabBar } from '../../common/FcomLayout';
+import { RadioButtonGroup } from '../../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
 import { Footer } from '../../common/Footer';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { TopTabNavigator, TopTabNavigatorPage } from '../../../../MsfsAvionicsCommon/UiWidgets/TopTabNavigator';
@@ -21,7 +24,6 @@ import { ClockEvents, FSComponent, SimVarValueType, Subject, VNode } from '@micr
 import './MfdFmsPositionNavaids.scss';
 import { SelectedNavaidType } from '@fmgc/navigation/Navigation';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
-import { showReturnButtonUriExtra } from '../../../shared/utils';
 
 interface MfdFmsPositionNavaidsProps extends AbstractMfdPageProps {}
 
@@ -45,10 +47,6 @@ const NAVAID_TYPE_STRINGS: Record<SelectedNavaidType, string> = {
 
 export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
   public static readonly selectedForFmsNavExtra = 'nav';
-
-  private readonly returnButtonVisible =
-    this.props.mfd.uiService.activeUri.get().extra === showReturnButtonUriExtra ||
-    this.props.mfd.uiService.activeUri.get().extra === MfdFmsPositionNavaids.selectedForFmsNavExtra;
 
   private readonly navaidsSelectedPageIndex = Subject.create<number>(
     this.props.mfd.uiService.activeUri.get().extra === MfdFmsPositionNavaids.selectedForFmsNavExtra ? 1 : 0,
@@ -77,6 +75,16 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
   private readonly vor2Course = Subject.create<number | null>(null);
 
   private readonly vor2Class = Subject.create<string | null>(null);
+
+  private readonly adf1Ident = Subject.create<string | null>(null);
+
+  private readonly adf1IdentEnteredByPilot = Subject.create<boolean>(false);
+
+  private readonly adf1Freq = Subject.create<number | null>(null);
+
+  private readonly adf1FreqEnteredByPilot = Subject.create<boolean>(false);
+
+  private readonly adf1Bfo = Subject.create(false);
 
   private readonly lsIdent = Subject.create<string | null>(null);
 
@@ -151,6 +159,13 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
     this.vor2Class.set(vor2.ident ? class2 : '');
     this.vor2IdentEnteredByPilot.set(MfdFmsPositionNavaids.isNavRadioIdentManual(vor2));
     this.vor2FreqEnteredByPilot.set(MfdFmsPositionNavaids.isNavRadioFreqManual(vor2));
+
+    const adf1 = this.props.fmcService.master.navaidTuner.getAdfRadioTuningStatus(1);
+    this.adf1Ident.set(adf1.ident ?? null);
+    this.adf1Freq.set(adf1.frequency ?? null);
+    this.adf1Bfo.set(adf1.bfo);
+    this.adf1IdentEnteredByPilot.set(MfdFmsPositionNavaids.isNavRadioIdentManual(adf1));
+    this.adf1FreqEnteredByPilot.set(MfdFmsPositionNavaids.isNavRadioFreqManual(adf1));
 
     const mmr = this.props.fmcService.master.navaidTuner.getMmrRadioTuningStatus(1);
     this.lsIdent.set(mmr.ident ?? null);
@@ -275,6 +290,45 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
     this.onNewData();
   }
 
+  private async handleAdfIdent(ident: string | null) {
+    if (ident === null || ident === '') {
+      const adf = this.props.fmcService.master.navaidTuner.getAdfRadioTuningStatus(1);
+      if (MfdFmsPositionNavaids.isNavRadioIdentManual(adf)) {
+        this.props.fmcService.master.navaidTuner.setManualAdf(1, null);
+      } else {
+        this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+      }
+    } else {
+      const ndbs = await NavigationDatabaseService.activeDatabase.searchNdb(ident);
+      const ndb = await this.props.mfd.deduplicateFacilities(ndbs);
+      if (ndb) {
+        this.props.fmcService.master.navaidTuner.setManualAdf(1, ndb);
+      }
+    }
+    this.onNewData();
+  }
+
+  private async handleAdfFreq(freq: number | null) {
+    if (freq === null) {
+      const adf = this.props.fmcService.master.navaidTuner.getAdfRadioTuningStatus(1);
+      if (MfdFmsPositionNavaids.isNavRadioFreqManual(adf)) {
+        this.props.fmcService.master.navaidTuner.setManualAdf(1, null);
+      } else {
+        this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+      }
+    } else {
+      this.props.fmcService.master.navaidTuner.setManualAdf(1, freq);
+    }
+    this.onNewData();
+  }
+
+  /** FCOM P 296: the BFO option of the tuned ADF */
+  private toggleBfo(): void {
+    const adf = this.props.fmcService.master.navaidTuner.getAdfRadioTuningStatus(1);
+    adf.bfo = !adf.bfo;
+    this.adf1Bfo.set(adf.bfo);
+  }
+
   private async handleIlsIdent(ident: string | null) {
     if (this.props.fmcService.master.navaidTuner.isMmrTuningLocked()) {
       this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
@@ -357,369 +411,435 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        <div class="mfd-page-container">
+        {/* Positions from the FCOM figures (DSC-22-FMS-20-30 P 64 and P 296): the TUNED FOR DISPLAY and SELECTED FOR
+            FMS NAV panels end at y = 650, the LS data and RETURN are below them */}
+        <div class="mfd-page-container" style="position: relative;">
           <TopTabNavigator
             pageTitles={Subject.create(['TUNED FOR DISPLAY', 'SELECTED FOR FMS NAV'])}
             selectedPageIndex={this.navaidsSelectedPageIndex}
             pageChangeCallback={(val) => this.navaidsSelectedPageIndex.set(val)}
             selectedTabTextColor="white"
-            tabBarSlantedEdgeAngle={25}
+            {...fcomTabBar}
           >
-            <TopTabNavigatorPage>
-              {/* TUNED FOR DISPLAY */}
-              <div style="display: flex; flex-direction: row; align-self: center; padding-bottom: 20px;">
-                <div style=" flex-direction: column; width: 40%; justify-content: space-between;">
-                  <div class="mfd-label mfd-position-navaids-row">VOR1</div>
-                  <div class="mfd-position-navaids-row">
-                    <InputField<string>
-                      dataEntryFormat={new NavaidIdentFormat()}
-                      dataHandlerDuringValidation={async (v) => this.handleVorIdent(1, v)}
-                      mandatory={Subject.create(false)}
-                      enteredByPilot={this.vor1IdentEnteredByPilot}
-                      value={this.vor1Ident}
-                      containerStyle="width: 125px;"
-                      alignText="center"
-                      errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-                  </div>
-                  <div class="mfd-position-navaids-row">
-                    <InputField<number>
-                      dataEntryFormat={new FrequencyVORDMEFormat()}
-                      dataHandlerDuringValidation={async (v) => this.handleVorFreq(1, v)}
-                      mandatory={Subject.create(false)}
-                      enteredByPilot={this.vor1FreqEnteredByPilot}
-                      value={this.vor1Freq}
-                      containerStyle="width: 125px;"
-                      alignText="center"
-                      errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-                  </div>
-                  <div class="mfd-position-navaids-row">
-                    <InputField<number>
-                      dataEntryFormat={new InboundCourseFormat()}
-                      dataHandlerDuringValidation={async (v) => {
-                        this.props.fmcService.master.navaidTuner.setVorCourse(1, v || null);
-                      }}
-                      mandatory={Subject.create(false)}
-                      value={this.vor1Course}
-                      containerStyle="width: 125px;"
-                      alignText="center"
-                      errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-                  </div>
-                  <div class="mfd-position-navaids-row">
-                    <span class="mfd-value">{this.vor1Class}</span>
-                  </div>
-                </div>
-                <div style="display: flex; flex-direction: column; width: 20%; margin-left: 40px; margin-right: 40px;">
-                  <div class="mfd-label mfd-position-navaids-row" />
-                  <div class="mfd-label mfd-position-navaids-row">IDENT</div>
-                  <div class="mfd-label mfd-position-navaids-row">FREQ</div>
-                  <div class="mfd-label mfd-position-navaids-row">CRS</div>
-                  <div class="mfd-label mfd-position-navaids-row">CLASS</div>
-                </div>
-                <div style="display: flex; flex-direction: column; width: 40%;">
-                  <div class="mfd-label mfd-position-navaids-row">VOR2</div>
-                  <div class="mfd-position-navaids-row">
-                    <InputField<string>
-                      dataEntryFormat={new NavaidIdentFormat()}
-                      dataHandlerDuringValidation={async (v) => this.handleVorIdent(2, v)}
-                      mandatory={Subject.create(false)}
-                      enteredByPilot={this.vor2IdentEnteredByPilot}
-                      value={this.vor2Ident}
-                      containerStyle="width: 125px;"
-                      alignText="center"
-                      errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-                  </div>
-                  <div class="mfd-position-navaids-row">
-                    <InputField<number>
-                      dataEntryFormat={new FrequencyVORDMEFormat()}
-                      dataHandlerDuringValidation={async (v) => this.handleVorFreq(2, v)}
-                      mandatory={Subject.create(false)}
-                      enteredByPilot={this.vor2FreqEnteredByPilot}
-                      value={this.vor2Freq}
-                      containerStyle="width: 125px;"
-                      alignText="center"
-                      errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-                  </div>
-                  <div class="mfd-position-navaids-row">
-                    <InputField<number>
-                      dataEntryFormat={new InboundCourseFormat()}
-                      dataHandlerDuringValidation={async (v) => {
-                        this.props.fmcService.master.navaidTuner.setVorCourse(2, v || null);
-                      }}
-                      mandatory={Subject.create(false)}
-                      value={this.vor2Course}
-                      containerStyle="width: 125px;"
-                      alignText="center"
-                      errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                      hEventConsumer={this.props.mfd.hEventConsumer}
-                      interactionMode={this.props.mfd.interactionMode}
-                    />
-                  </div>
-                  <div class="mfd-position-navaids-row">
-                    <span class="mfd-value">{this.vor2Class}</span>
-                  </div>
-                </div>
+            <TopTabNavigatorPage containerStyle="flex: 0 0 auto; height: 438px;">
+              {/* TUNED FOR DISPLAY (panel coordinates) */}
+              <div class="mfd-fcom-canvas">
+                {fcomCentre(20, 195, <span class="mfd-label">VOR 1</span>)}
+                {fcomCentre(20, 516, <span class="mfd-label">VOR 2</span>)}
+                {fcomAt(
+                  65.5,
+                  129,
+                  <InputField<string>
+                    dataEntryFormat={new NavaidIdentFormat()}
+                    dataHandlerDuringValidation={async (v) => this.handleVorIdent(1, v)}
+                    mandatory={Subject.create(false)}
+                    enteredByPilot={this.vor1IdentEnteredByPilot}
+                    value={this.vor1Ident}
+                    containerStyle="width: 128px;"
+                    alignText="center"
+                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomAt(
+                  113,
+                  129,
+                  <InputField<number>
+                    dataEntryFormat={new FrequencyVORDMEFormat()}
+                    dataHandlerDuringValidation={async (v) => this.handleVorFreq(1, v)}
+                    mandatory={Subject.create(false)}
+                    enteredByPilot={this.vor1FreqEnteredByPilot}
+                    value={this.vor1Freq}
+                    containerStyle="width: 128px;"
+                    alignText="center"
+                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomAt(
+                  161,
+                  129,
+                  <InputField<number>
+                    dataEntryFormat={new InboundCourseFormat()}
+                    dataHandlerDuringValidation={async (v) => {
+                      this.props.fmcService.master.navaidTuner.setVorCourse(1, v || null);
+                    }}
+                    mandatory={Subject.create(false)}
+                    value={this.vor1Course}
+                    containerStyle="width: 128px;"
+                    alignText="center"
+                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomCentre(208, 195, <span class="mfd-value bigger">{this.vor1Class}</span>)}
+                {fcomAt(
+                  65.5,
+                  449,
+                  <InputField<string>
+                    dataEntryFormat={new NavaidIdentFormat()}
+                    dataHandlerDuringValidation={async (v) => this.handleVorIdent(2, v)}
+                    mandatory={Subject.create(false)}
+                    enteredByPilot={this.vor2IdentEnteredByPilot}
+                    value={this.vor2Ident}
+                    containerStyle="width: 128px;"
+                    alignText="center"
+                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomAt(
+                  113,
+                  449,
+                  <InputField<number>
+                    dataEntryFormat={new FrequencyVORDMEFormat()}
+                    dataHandlerDuringValidation={async (v) => this.handleVorFreq(2, v)}
+                    mandatory={Subject.create(false)}
+                    enteredByPilot={this.vor2FreqEnteredByPilot}
+                    value={this.vor2Freq}
+                    containerStyle="width: 128px;"
+                    alignText="center"
+                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomAt(
+                  161,
+                  449,
+                  <InputField<number>
+                    dataEntryFormat={new InboundCourseFormat()}
+                    dataHandlerDuringValidation={async (v) => {
+                      this.props.fmcService.master.navaidTuner.setVorCourse(2, v || null);
+                    }}
+                    mandatory={Subject.create(false)}
+                    value={this.vor2Course}
+                    containerStyle="width: 128px;"
+                    alignText="center"
+                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomCentre(208, 516, <span class="mfd-value bigger">{this.vor2Class}</span>)}
+                {fcomCentre(65.5, 347, <span class="mfd-label">IDENT</span>)}
+                {fcomCentre(113, 347, <span class="mfd-label">FREQ</span>)}
+                {fcomCentre(161, 347, <span class="mfd-label">CRS</span>)}
+                {fcomCentre(208, 347, <span class="mfd-label">CLASS</span>)}
+                {fcomCentre(314, 347, <span class="mfd-label">IDENT</span>)}
+                {fcomCentre(362, 347, <span class="mfd-label">FREQ</span>)}
+                {fcomLine(245, 8, 696)}
+                {fcomCentre(268, 195, <span class="mfd-label">ADF 1</span>)}
+                {fcomAt(
+                  314,
+                  129,
+                  <InputField<string>
+                    dataEntryFormat={new NavaidIdentFormat()}
+                    dataHandlerDuringValidation={async (v) => this.handleAdfIdent(v)}
+                    mandatory={Subject.create(false)}
+                    enteredByPilot={this.adf1IdentEnteredByPilot}
+                    value={this.adf1Ident}
+                    containerStyle="width: 128px;"
+                    alignText="center"
+                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomAt(
+                  362,
+                  129,
+                  <InputField<number>
+                    dataEntryFormat={new FrequencyADFFormat()}
+                    dataHandlerDuringValidation={async (v) => this.handleAdfFreq(v)}
+                    mandatory={Subject.create(false)}
+                    enteredByPilot={this.adf1FreqEnteredByPilot}
+                    value={this.adf1Freq}
+                    containerStyle="width: 128px;"
+                    alignText="center"
+                    errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                    hEventConsumer={this.props.mfd.hEventConsumer}
+                    interactionMode={this.props.mfd.interactionMode}
+                  />,
+                )}
+                {fcomAt(
+                  410,
+                  129,
+                  <div class="mfd-position-navaids-bfo" onClick={() => this.toggleBfo()}>
+                    <div class={{ 'mfd-position-navaids-bfo-box': true, checked: this.adf1Bfo }} />
+                    <span class="mfd-label">BFO</span>
+                  </div>,
+                )}
               </div>
-              <div style="height: 5px; width: 100%; border-bottom: 2px solid darkgrey;" />
             </TopTabNavigatorPage>
-            <TopTabNavigatorPage>
-              {/* SELECTED FOR FMS NAV */}
-              <div class="mfd-pos-nav-nav-table">
-                <div class="mfd-label br bb">IDENT</div>
-                <div class="mfd-label br bb">FREQ/CHAN</div>
-                <div class="mfd-label bb">CLASS</div>
-                <div class="mfd-label br">
-                  <div class={{ invisible: this.navaidDetailsButtonInvisible[0] }}>
+            <TopTabNavigatorPage containerStyle="flex: 0 0 auto; height: 438px;">
+              {/* SELECTED FOR FMS NAV (panel coordinates) */}
+              <div class="mfd-fcom-canvas">
+                {fcomCentre(29, 92, <span class="mfd-label">IDENT</span>)}
+                {fcomCentre(29, 303, <span class="mfd-label">FREQ/CHAN</span>)}
+                {fcomCentre(29, 565, <span class="mfd-label">CLASS</span>)}
+                {fcomLine(46, 28, 691)}
+                <div class="mfd-position-navaids-column" style="left: 165px;" />
+                <div class="mfd-position-navaids-column" style="left: 441px;" />
+                <div class={{ invisible: this.navaidDetailsButtonInvisible[0] }}>
+                  {fcomAt(
+                    74,
+                    39,
                     <Button
                       label={this.selectedNavaids[0].ident}
                       onClick={() => {}}
                       showArrow
                       menuItems={Subject.create([{ label: 'DATA NAVAID', action: () => {} }])}
-                      idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid`}
+                      idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid0`}
                       disabled={true}
-                      buttonStyle="min-width: 107px;"
-                    />
-                  </div>
+                      buttonStyle="width: 80px; height: 17px;"
+                    />,
+                  )}
                 </div>
-                <div class="mfd-value br">{this.selectedNavaids[0].frequencyOrChannel}</div>
-                <div class="mfd-value">{this.selectedNavaids[0].class}</div>
-                <div class="mfd-label br">
-                  <div class={{ invisible: this.navaidDetailsButtonInvisible[1] }}>
+                {fcomCentre(
+                  74,
+                  303,
+                  <span class="mfd-value bigger">{this.selectedNavaids[0].frequencyOrChannel}</span>,
+                )}
+                {fcomCentre(74, 565, <span class="mfd-value bigger">{this.selectedNavaids[0].class}</span>)}
+                <div class={{ invisible: this.navaidDetailsButtonInvisible[1] }}>
+                  {fcomAt(
+                    120,
+                    39,
                     <Button
                       label={this.selectedNavaids[1].ident}
                       onClick={() => {}}
                       showArrow
                       menuItems={Subject.create([{ label: 'DATA NAVAID', action: () => {} }])}
-                      idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid`}
+                      idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid1`}
                       disabled={true}
-                      buttonStyle="min-width: 107px;"
-                    />
-                  </div>
+                      buttonStyle="width: 80px; height: 17px;"
+                    />,
+                  )}
                 </div>
-                <div class="mfd-value br">{this.selectedNavaids[1].frequencyOrChannel}</div>
-                <div class="mfd-value">{this.selectedNavaids[1].class}</div>
-                <div class="mfd-label br">
-                  <div class={{ invisible: this.navaidDetailsButtonInvisible[2] }}>
+                {fcomCentre(
+                  120,
+                  303,
+                  <span class="mfd-value bigger">{this.selectedNavaids[1].frequencyOrChannel}</span>,
+                )}
+                {fcomCentre(120, 565, <span class="mfd-value bigger">{this.selectedNavaids[1].class}</span>)}
+                <div class={{ invisible: this.navaidDetailsButtonInvisible[2] }}>
+                  {fcomAt(
+                    166,
+                    39,
                     <Button
                       label={this.selectedNavaids[2].ident}
                       onClick={() => {}}
                       showArrow
                       menuItems={Subject.create([{ label: 'DATA NAVAID', action: () => {} }])}
-                      idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid`}
+                      idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid2`}
                       disabled={true}
-                      buttonStyle="min-width: 107px;"
-                    />
-                  </div>
+                      buttonStyle="width: 80px; height: 17px;"
+                    />,
+                  )}
                 </div>
-                <div class="mfd-value br">{this.selectedNavaids[2].frequencyOrChannel}</div>
-                <div class="mfd-value">{this.selectedNavaids[2].class}</div>
-              </div>
-              <div style="display: grid; grid-template-columns: 190px 320px; margin-left: 80px;">
-                <div class="mfd-label" style="justify-content: right; margin-bottom: 20px;">
-                  RADIO NAV MODE
-                </div>
-                <div class="mfd-value" style="justify-content: left; margin-left: 20px; margin-bottom: 20px;">
-                  {this.radioNavMode}
-                </div>
-                <div class="mfd-label" style="justify-content: right; margin-bottom: 20px;">
-                  RADIO POSITION
-                </div>
-                <div class="mfd-value" style="justify-content: left; margin-left: 20px; margin-bottom: 20px;">
-                  {this.radioNavPosition}
-                </div>
-              </div>
-              <div style="border-bottom: 1px solid lightgrey; width: 100%; height: 3px; margin-bottom: 15px;" />
-              <div class="mfd-label" style="padding-left: 15px; margin-bottom: 10px;">
-                LIST OF DESELECTED NAVAIDS
-              </div>
-              <div style="width: 45%; display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <div>
+                {fcomCentre(
+                  166,
+                  303,
+                  <span class="mfd-value bigger">{this.selectedNavaids[2].frequencyOrChannel}</span>,
+                )}
+                {fcomCentre(166, 565, <span class="mfd-value bigger">{this.selectedNavaids[2].class}</span>)}
+                {fcomRight(217, 255, <span class="mfd-label">RADIO NAV MODE</span>)}
+                {fcomAt(217, 288, <span class="mfd-value bigger">{this.radioNavMode}</span>)}
+                {fcomRight(262, 255, <span class="mfd-label">RADIO POSITION</span>)}
+                {fcomAt(262, 288, <span class="mfd-value bigger">{this.radioNavPosition}</span>)}
+                {fcomLine(290, -7, 723)}
+                {fcomAt(326, 28, <span class="mfd-label">LIST OF DESELECTED NAVAIDS</span>)}
+                {fcomAt(
+                  363.5,
+                  21,
                   <InputField<string>
                     dataEntryFormat={new NavaidIdentFormat('-')}
                     dataHandlerDuringValidation={this.deselectionHandler.bind(this)}
                     value={this.deselectedNavaids[0]}
+                    containerStyle="width: 89px;"
                     alignText="center"
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                     hEventConsumer={this.props.mfd.hEventConsumer}
                     interactionMode={this.props.mfd.interactionMode}
-                  />
-                </div>
-                <div>
+                  />,
+                )}
+                {fcomAt(
+                  363.5,
+                  162,
                   <InputField<string>
                     dataEntryFormat={new NavaidIdentFormat('-')}
                     dataHandlerDuringValidation={this.deselectionHandler.bind(this)}
                     value={this.deselectedNavaids[1]}
+                    containerStyle="width: 89px;"
                     alignText="center"
                     disabled={this.deselectedNavaidIsEmpty[0]}
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                     hEventConsumer={this.props.mfd.hEventConsumer}
                     interactionMode={this.props.mfd.interactionMode}
-                  />
-                </div>
-                <div>
+                  />,
+                )}
+                {fcomAt(
+                  363.5,
+                  303,
                   <InputField<string>
                     dataEntryFormat={new NavaidIdentFormat('-')}
                     dataHandlerDuringValidation={this.deselectionHandler.bind(this)}
                     value={this.deselectedNavaids[2]}
+                    containerStyle="width: 89px;"
                     alignText="center"
                     disabled={this.deselectedNavaidIsEmpty[1]}
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                     hEventConsumer={this.props.mfd.hEventConsumer}
                     interactionMode={this.props.mfd.interactionMode}
-                  />
-                </div>
-              </div>
-              <div style="width: 45%; display: flex; justify-content: space-between;">
-                <div>
+                  />,
+                )}
+                {fcomAt(
+                  413,
+                  21,
                   <InputField<string>
                     dataEntryFormat={new NavaidIdentFormat('-')}
                     dataHandlerDuringValidation={this.deselectionHandler.bind(this)}
                     value={this.deselectedNavaids[3]}
+                    containerStyle="width: 89px;"
                     alignText="center"
                     disabled={this.deselectedNavaidIsEmpty[2]}
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                     hEventConsumer={this.props.mfd.hEventConsumer}
                     interactionMode={this.props.mfd.interactionMode}
-                  />
-                </div>
-                <div>
+                  />,
+                )}
+                {fcomAt(
+                  413,
+                  162,
                   <InputField<string>
                     dataEntryFormat={new NavaidIdentFormat('-')}
                     dataHandlerDuringValidation={this.deselectionHandler.bind(this)}
                     value={this.deselectedNavaids[4]}
+                    containerStyle="width: 89px;"
                     alignText="center"
                     disabled={this.deselectedNavaidIsEmpty[3]}
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                     hEventConsumer={this.props.mfd.hEventConsumer}
                     interactionMode={this.props.mfd.interactionMode}
-                  />
-                </div>
-                <div>
+                  />,
+                )}
+                {fcomAt(
+                  413,
+                  303,
                   <InputField<string>
                     dataEntryFormat={new NavaidIdentFormat('-')}
                     dataHandlerDuringValidation={this.deselectionHandler.bind(this)}
                     value={this.deselectedNavaids[5]}
+                    containerStyle="width: 89px;"
                     alignText="center"
                     disabled={this.deselectedNavaidIsEmpty[4]}
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                     hEventConsumer={this.props.mfd.hEventConsumer}
                     interactionMode={this.props.mfd.interactionMode}
-                  />
-                </div>
+                  />,
+                )}
+                <div class="mfd-position-navaids-column" style="left: 441px; top: 307px; height: 127px;" />
+                {fcomAt(326, 476, <span class="mfd-label">GPS</span>)}
+                {fcomAt(
+                  389,
+                  463,
+                  <RadioButtonGroup
+                    values={['SELECTED', 'DESELECTED']}
+                    valuesDisabled={Subject.create([true, true])} // GPS deselection is not modelled
+                    selectedIndex={Subject.create(0)}
+                    idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_positionNavaidsGps`}
+                  />,
+                )}
               </div>
             </TopTabNavigatorPage>
           </TopTabNavigator>
-          <div style="display: flex; flex-direction: row; align-self: center;">
-            <div style="display: flex; flex-direction: column; margin-right: 20px;">
-              <div class="mfd-label mfd-position-navaids-row" />
-              <div class="mfd-label mfd-position-navaids-row ar">IDENT</div>
-              <div class="mfd-label mfd-position-navaids-row ar">FREQ/CHAN</div>
-              <div class="mfd-label mfd-position-navaids-row ar">CRS</div>
-              <div class="mfd-label mfd-position-navaids-row ar">SLOPE</div>
-              <div class="mfd-label mfd-position-navaids-row ar">CLASS</div>
-            </div>
-            <div style="display: flex; flex-direction: column;">
-              <div class="mfd-label mfd-position-navaids-row">LS</div>
-              <div class="mfd-position-navaids-row">
-                <InputField<string>
-                  dataEntryFormat={new NavaidIdentFormat()}
-                  dataHandlerDuringValidation={async (v) => (v ? this.handleIlsIdent(v) : false)}
-                  mandatory={Subject.create(false)}
-                  enteredByPilot={this.lsIdentEnteredByPilot}
-                  value={this.lsIdent}
-                  containerStyle="width: 125px;"
-                  alignText="center"
-                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />
-              </div>
-              <div class="mfd-position-navaids-row">
-                <InputField<number>
-                  dataEntryFormat={new FrequencyILSFormat()}
-                  dataHandlerDuringValidation={async (v) => (v ? this.handleIlsFreq(v) : false)}
-                  mandatory={Subject.create(false)}
-                  enteredByPilot={this.lsFrequencyEnteredByPilot}
-                  value={this.lsFreq}
-                  containerStyle="width: 125px;"
-                  alignText="center"
-                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />
-              </div>
-              <div class="mfd-position-navaids-row">
-                <InputField<number>
-                  dataEntryFormat={new LsCourseFormat()}
-                  dataHandlerDuringValidation={async (v) => {
-                    this.props.fmcService.master.navaidTuner.setIlsCourse(
-                      v !== null ? Math.abs(v) : null,
-                      v && v < 0 ? true : false,
-                    );
-                  }}
-                  mandatory={Subject.create(false)}
-                  enteredByPilot={this.lsCourseEnteredByPilot}
-                  value={this.lsCourse}
-                  containerStyle="width: 125px;"
-                  alignText="center"
-                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                  hEventConsumer={this.props.mfd.hEventConsumer}
-                  interactionMode={this.props.mfd.interactionMode}
-                />
-              </div>
-              <div class="mfd-position-navaids-row">
-                <div class="mfd-label-value-container">
-                  <span class="mfd-value">{this.lsSlope}</span>
-                  <span class="mfd-label-unit mfd-unit-trailing">°</span>
-                </div>
-              </div>
-              <div class="mfd-position-navaids-row">
-                <span class="mfd-value">{this.lsClass}</span>
-              </div>
-            </div>
-            <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; margin-left: 15px;">
-              <Button
-                label={
-                  <div style="display: flex; flex-direction: row; justify-content: space-between;">
-                    <span style="text-align: center; vertical-align: center; margin-right: 10px;">
-                      DESELECT
-                      <br />
-                      GLIDE
-                    </span>
-                    <span style="display: flex; align-items: center; justify-content: center;">*</span>
-                  </div>
-                }
-                disabled={true}
-                onClick={() => {
-                  this.deselectGlide();
+          <div class="mfd-fcom-overlay">
+            {fcomCentre(523, 377, <span class="mfd-label">LS</span>)}
+            {fcomRight(565, 295, <span class="mfd-label">IDENT</span>)}
+            {fcomAt(
+              565,
+              314,
+              <InputField<string>
+                dataEntryFormat={new NavaidIdentFormat()}
+                dataHandlerDuringValidation={async (v) => (v ? this.handleIlsIdent(v) : false)}
+                mandatory={Subject.create(false)}
+                enteredByPilot={this.lsIdentEnteredByPilot}
+                value={this.lsIdent}
+                containerStyle="width: 128px;"
+                alignText="center"
+                errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                hEventConsumer={this.props.mfd.hEventConsumer}
+                interactionMode={this.props.mfd.interactionMode}
+              />,
+            )}
+            {fcomRight(611, 295, <span class="mfd-label">FREQ/CHAN</span>)}
+            {fcomAt(
+              611,
+              314,
+              <InputField<number>
+                dataEntryFormat={new FrequencyILSFormat()}
+                dataHandlerDuringValidation={async (v) => (v ? this.handleIlsFreq(v) : false)}
+                mandatory={Subject.create(false)}
+                enteredByPilot={this.lsFrequencyEnteredByPilot}
+                value={this.lsFreq}
+                containerStyle="width: 128px;"
+                alignText="center"
+                errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                hEventConsumer={this.props.mfd.hEventConsumer}
+                interactionMode={this.props.mfd.interactionMode}
+              />,
+            )}
+            {fcomRight(657, 295, <span class="mfd-label">CRS</span>)}
+            {fcomAt(
+              657,
+              314,
+              <InputField<number>
+                dataEntryFormat={new LsCourseFormat()}
+                dataHandlerDuringValidation={async (v) => {
+                  this.props.fmcService.master.navaidTuner.setIlsCourse(
+                    v !== null ? Math.abs(v) : null,
+                    v && v < 0 ? true : false,
+                  );
                 }}
-                buttonStyle="width: 225px;"
-              />
-            </div>
-          </div>
-          <div style="flex-grow: 1;" />
-          {/* fill space vertically */}
-          <div style="width: 150px;">
-            <Button
-              label="RETURN"
-              onClick={() => this.props.mfd.uiService.navigateTo('back')}
-              buttonStyle="margin-right: 5px;"
-              visible={this.returnButtonVisible}
-            />
+                mandatory={Subject.create(false)}
+                enteredByPilot={this.lsCourseEnteredByPilot}
+                value={this.lsCourse}
+                containerStyle="width: 128px;"
+                alignText="center"
+                errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                hEventConsumer={this.props.mfd.hEventConsumer}
+                interactionMode={this.props.mfd.interactionMode}
+              />,
+            )}
+            {fcomRight(702, 295, <span class="mfd-label">SLOPE</span>)}
+            {fcomRight(702, 440, <span class="mfd-value bigger">{this.lsSlope}</span>)}
+            {fcomAt(702, 444, <span class="mfd-label-unit">°</span>)}
+            {fcomRight(748, 295, <span class="mfd-label">CLASS</span>)}
+            {fcomAt(748, 314, <span class="mfd-value bigger">{this.lsClass}</span>)}
+            {fcomAt(
+              658.5,
+              469,
+              <Button
+                label="DESELECT<br />GLIDE *"
+                disabled={true} // not modelled
+                onClick={() => this.deselectGlide()}
+                buttonStyle="width: 192px; height: 39px;"
+              />,
+            )}
+            {fcomAt(
+              791.5,
+              3,
+              <Button
+                label="RETURN"
+                onClick={() => this.props.mfd.uiService.navigateTo('back')}
+                buttonStyle="width: 101px;"
+              />,
+            )}
           </div>
         </div>
         <Footer

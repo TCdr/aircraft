@@ -40,6 +40,8 @@
 .mfd-title-bar-text {
   color: #222222;
   font-size: 30px;
+  // FCOM figures: long titles (e.g. ACTIVE/F-PLN/EQUI-TIME POINT) stay on one line
+  white-space: nowrap;
 }
 
 .mfd-title-bar-section {
@@ -164,4 +166,115 @@
   align-items: center;
   color: $display-amber;
   font-size: 24px;
+}
+
+// Display frame of the FMS pages, measured on the full display figures of the A380 FCOM (DSC-22-FMS-20-30, e.g.
+// P 110 and P 392): title bar from y = 104 to 136, page area from y = 143 to the footer line at y = 961, MSG LIST
+// button of 85 x 54 px and 40 px high entry fields (tab bar: fcomTabBar in FcomLayout.tsx).
+.sys-fms {
+  .mfd-title-bar-container {
+    height: 32px;
+    margin: 4px 0 7px 0;
+  }
+
+  .mfd-title-bar-title {
+    display: flex;
+    align-items: center;
+    padding: 0 10px 0 7px;
+  }
+
+  .mfd-title-bar-text {
+    line-height: 32px;
+  }
+
+  .mfd-footer {
+    height: 63px;
+    box-sizing: border-box;
+    border-top: 2px solid $display-light-grey;
+    padding: 5px 0 2px 3px;
+
+    .mfd-button {
+      box-sizing: border-box;
+      width: 85px !important;
+      height: 54px;
+      padding: 2px 0 0 0;
+      line-height: 23px;
+    }
+  }
+
+  // FCOM figures: 40 px high entry fields, their content (value, dashes, boxes and units) centred in the field
+  .mfd-input-field-container {
+    height: 28px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  // An empty unit takes no room, so that the value is centred
+  .mfd-input-field-unit-empty {
+    display: none;
+  }
+
+  .mfd-input-field-text-input-container {
+    flex: 0 0 auto;
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  // Selection lists: the value centred in the white frame, the arrow inside the frame on its right side, and the list
+  // as wide as its longest option
+  .mfd-dropdown-outer {
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .mfd-dropdown-inner {
+    min-width: 0;
+    overflow: hidden;
+
+    .mfd-input-field-container {
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .mfd-dropdown-arrow {
+    flex: 0 0 25px;
+    padding-right: 3px;
+  }
+
+  .mfd-dropdown-menu {
+    width: max-content;
+  }
+
+  .mfd-dropdown-menu-element {
+    font-size: 22.5px;
+  }
+
+  // FCOM figures: labels are 13.9 px per character (22.5 px font)
+  .mfd-label {
+    font-size: 22.5px;
+  }
+
+  // FCOM figures: the option labels of the radio buttons are in small font
+  .mfd-radio-button {
+    font-size: 22.5px;
+
+    input[type="radio"] {
+      width: 22px;
+      height: 22px;
+      margin-right: 8px;
+    }
+  }
+
+  // Tab panels from x = 9 to 757, tabs from y = 150
+  .mfd-top-tab-navigator-container {
+    margin: 7px 11px 2px 9px;
+  }
+
+  // FCOM figures: the tab panel frame is the same light grey on all sides (no outset shading)
+  .mfd-top-tab-navigator-tab-content {
+    border-style: solid;
+    border-top-style: none;
+  }
 }
