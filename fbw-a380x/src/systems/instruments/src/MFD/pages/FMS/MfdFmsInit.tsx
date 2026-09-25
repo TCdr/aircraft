@@ -21,7 +21,7 @@ import { maxCertifiedAlt } from '@shared/PerformanceConstants';
 import { FmsPage } from '../common/FmsPage';
 import { fcomAt, fcomLine, fcomRight } from '../common/FcomLayout';
 import { CpnyWindButton, cpnyWindRequestPage } from '../../shared/CpnyWindButtonUtils';
-import { cpnyToRequestPage } from './MfdFmsCpnyToRequest';
+import { CompanyTakeoffDataButton } from './MfdFmsCpnyToRequest';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { A380AltitudeUtils } from '@shared/OperatingAltitudes';
 import { AtsuStatusCodes } from '@datalink/common';
@@ -204,8 +204,12 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
   /** FIXME workaround as newCity pair deletes the flightplan and we don't want to show ---- on the FROM/TO pair */
   private creationInProgress = false;
 
+  /** CPNY T.O REQUEST, RECEIVED CPNY T.O once company takeoff data is received */
+  private readonly cpnyToButton = new CompanyTakeoffDataButton(this.props.fmcService.master, 'CPNY T.O.\nREQUEST');
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+    this.subs.push(this.cpnyToButton.subscription, this.cpnyToButton.label);
 
     this.subs.push(
       this.props.bus
@@ -889,8 +893,8 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                   <Button
                     // FCOM DSC-22-FMS-20-30 P 33: displays the COMPANY T.O DATA REQUEST page (active flight plan only)
                     disabled={this.secActive}
-                    label="CPNY T.O.<br />REQUEST"
-                    onClick={() => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyToRequestPage}`)}
+                    label={this.cpnyToButton.label}
+                    onClick={() => this.props.mfd.uiService.navigateTo(this.cpnyToButton.target)}
                     buttonStyle="min-width: 174px; min-height: 60px;"
                   />,
                 )}

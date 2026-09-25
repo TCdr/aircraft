@@ -95,6 +95,9 @@ export const NXSystemMessages = {
   ),
   cpnyWindUplinkPending: new TypeIIMessage('COMPANY WIND UPLINK PENDING'),
   noCompanyReply: new TypeIIMessage('NO COMPANY REPLY'),
+  // FCOM DSC-22-FMS-20-110 company takeoff data messages
+  cpnyToDataReceivedPendingInsertion: new TypeIIMessage('COMPANY T.O DATA RECEIVED\nWAITING FOR INSERTION'),
+  receivedCpnyToDataNotValid: new TypeIIMessage('RECEIVED COMPANY T.O DATA NOT VALID'),
   receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND DATA NOT VALID'),
   comDatalinkNotAvail: new TypeIMessage('COM DATALINK NOT AVAIL'),
   cstrDelUpToWpt: new TypeIIMessage('CONSTRAINTS BEFORE WWWWW : DELETED', false, 'WWWWW'),
