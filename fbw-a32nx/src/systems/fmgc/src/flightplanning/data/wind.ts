@@ -26,6 +26,8 @@ export type PropagatedWindEntry = WindEntry & {
 
 export enum FlightPlanWindEntryFlags {
   InsertedFromHistory = 1 << 0,
+  /** Entered as a flight level (NNN or FLNNN) or uplinked at a flight level */
+  EnteredAsFlightLevel = 1 << 1,
 }
 
 export const formatWindVector = (vector: WindVector) =>
