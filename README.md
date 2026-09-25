@@ -56,6 +56,25 @@ PRs 10 to 17 were added on 2026-09-26; 13 to 17 are built on `master` 280800cf7,
 before opening. The PDF documents of every PR (specification, architecture diagram, FCOM rules, and the PR body below from "Summary of
 Changes") are in `docs/`; `docs/FBW-features-handbook.pdf` has them all. Release: `master` tagged `v2024.2.0`, `develop` at 2024.3.0-SNAPSHOT.
 
+**`pr-docs/` on every feature branch (2026-09-26):** each of the 17 branches ends with one commit
+`docs: PR draft and feature document (NN ...)` that adds `pr-docs/NN-<draft>.md` and `pr-docs/NN-<document>.pdf` (the files of this
+folder). The names are numbered so stacked branches never conflict; a stacked branch holds only its own two files. Drop that commit (or
+`git rm -r pr-docs`) before opening the upstream PR, so the PR diff has no documentation files. Branch tips with that commit:
+
+| # | Branch | Tip | # | Branch | Tip |
+|---|--------|-----|---|--------|-----|
+| 1 | `feature/a32nx-nd-weather-radar` | `e4f003fc9` | 10 | `feature/a380/mcdu-improvements` | `d219f2bf0` |
+| 2 | `feature/a380x-nd-weather-radar` | `4b3ca7d34` | 11 | `feature/a380/efb/take-off-calculator` | `7860c45f5` |
+| 3 | `feature/nd-wxr-mode-label` | `c9b2acbb5` | 12 | `feature/a32nx/efb/take-off-calculator` | `de64480ca` |
+| 4 | `feature/nd-terrain` | `6cad08e0e` | 13 | `feature/a380/mfd/pilot-stored-elements-persistence` | `095bf1a96` |
+| 5 | `feature/a380x-surv-panel` | `78513c94c` | 14 | `feature/a380/mfd/direct-to-options` | `b4092e405` |
+| 6 | `feature/a380x-checklists-surv` | `9cf2fedf9` | 15 | `feature/a380/fuel-jettison` | `5bfedb567` |
+| 7 | `fix/tcas-ta-only-intruder-level` | `fdec75a5f` | 16 | `fix/a380/mfd/kccu-keyboard-entry` | `72b0963c9` |
+| 8 | `feature/a32nx-mcdu-independent` | `7b50734d5` | 17 | `feature/a380/fws/abn-proc-procedures` | `eba2c99ce` |
+| 9 | `feature/nd-manuals-pass` | `b895de2d9` | | | |
+
+This folder is also on the branch `docs/pr-drafts` of the fork (no shared history with the code).
+
 A stacked branch contains the commits of the ones below it, so its PR shows them too until those are merged: open PR 1 first, then PR 2 once
 PR 1 is merged (rebase on the new `master`), and so on up to PR 9. PRs 5, 7 and 8 can be opened at any time.
 
