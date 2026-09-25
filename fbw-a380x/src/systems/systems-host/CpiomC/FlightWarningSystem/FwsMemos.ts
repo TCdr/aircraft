@@ -63,6 +63,14 @@ export class FwsMemos {
       codesToReturn: ['280000003'],
       memoInhibit: () => false,
     },
+    280000006: {
+      // JETTISON IN PROGRESS (A380 FCOM DSC-28-20 MEMO)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.fuelJettisonInProgress,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000006'],
+      memoInhibit: () => false,
+    },
     280000009: {
       // REFUEL IN PROGRESS
       flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
