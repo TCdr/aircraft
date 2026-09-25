@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -14,8 +14,10 @@ export interface VdAltitudeConstraint {
   isAltitudeConstraintMet?: boolean;
 }
 export interface MfdSurvEvents {
-  /** (MFD SURV -> RMP) Is AUTO (true) or STBY (false). */
+  /** (MFD SURV -> RMP) Is AUTO or ON (true), or STBY (false). */
   mfd_xpdr_set_auto: boolean;
+  /** (MFD SURV -> XPDR) XPDR mode ON (true) instead of AUTO (A380 FCOM DSC-34-20-40 XPDR MODE OPTION LIST). */
+  mfd_xpdr_set_on: boolean;
   /** (MFD SURV -> RMP) Altitude reporting ON/OFF */
   mfd_xpdr_set_alt_reporting: boolean;
   /** (MFD SURV -> TCAS) TCAS Alert Level 0 - STBY | 1 - TA ONLY | 2 - TARA */

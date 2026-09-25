@@ -2648,3 +2648,126 @@ export class OffsetDistanceFormat implements DataEntryFormat<number> {
     return value;
   }
 }
+
+/**
+ * Weather radar elevation of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10 "ELEVN"): with the STD baro
+ * reference FL NNN or NNN (FL 0 to FL 600), with the QNH reference NNNNN FT or NNNNN (0 to 60 000 ft, "FT" must be written
+ * between 0 and 1 000 ft). The value is in feet.
+ */
+export class WxrElevationFormat extends SubscriptionCollector implements DataEntryFormat<number> {
+  public placeholder = '-----';
+
+  public maxDigits = 7;
+
+  private isStd = false;
+
+  public readonly reFormatTrigger = Subject.create(false);
+
+  constructor(isStd: Subscribable<boolean>) {
+    super();
+    this.subscriptions.push(
+      isStd.sub((v) => {
+        this.isStd = v;
+        this.placeholder = v ? '---' : '-----';
+        this.reFormatTrigger.notify();
+      }, true),
+    );
+  }
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return this.isStd ? [this.placeholder, 'FL', null] : [this.placeholder, null, 'FT'];
+    }
+    return this.isStd ? [(value / 100).toFixed(0).padStart(3, '0'), 'FL', null] : [value.toFixed(0), null, 'FT'];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (this.isStd) {
+      const match = input.match(/^(?:FL)?(\d{1,3})$/);
+      if (!match) {
+        throw new A380FmsError(FmsErrorType.FormatError, 'FORMAT: FL XXX');
+      }
+      const fl = Number(match[1]);
+      if (fl > 600) {
+        throw new A380FmsError(FmsErrorType.EntryOutOfRange, 'RANGE: FL 0 TO FL 600');
+      }
+      return fl * 100;
+    }
+    const match = input.match(/^(\d{1,5})(FT)?$/);
+    if (!match || (match[2] === undefined && Number(match[1]) < 1000)) {
+      throw new A380FmsError(FmsErrorType.FormatError, 'FORMAT: XXXXX FT');
+    }
+    const feet = Number(match[1]);
+    if (feet > 60000) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange, 'RANGE: 0 FT TO 60000 FT');
+    }
+    return feet;
+  }
+}
+
+/** Weather radar gain of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10 "GAIN": NNN, 0 to 100 %). */
+export class WxrGainFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---';
+
+  public readonly maxDigits = 3;
+
+  public readonly unit = '%';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [value.toFixed(0), null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^\d{1,3}$/)) {
+      throw new A380FmsError(FmsErrorType.FormatError, 'FORMAT: XXX %');
+    }
+    const value = Number(input);
+    if (value > 100) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange, 'RANGE: 0 % TO 100 %');
+    }
+    return value;
+  }
+}
+
+/**
+ * Weather radar tilt of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10-11 "TILT": ±NN.N or ±NN.N°, "-" may be
+ * entered as M, "+" displayed when there is no sign, -15.0 to +15.0°).
+ */
+export class WxrTiltFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---.-';
+
+  public readonly maxDigits = 6;
+
+  public readonly unit = '°';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [`${value < 0 ? '-' : '+'}${Math.abs(value).toFixed(1)}`, null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    const match = input.match(/^([+\-M]?)(\d{1,2}(?:\.\d)?)°?$/);
+    if (!match) {
+      throw new A380FmsError(FmsErrorType.FormatError, 'FORMAT: +/-XX.X °');
+    }
+    const value = (match[1] === '-' || match[1] === 'M' ? -1 : 1) * Number(match[2]);
+    if (value < -15 || value > 15) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange, 'RANGE: -15.0 ° TO +15.0 °');
+    }
+    return value;
+  }
+}

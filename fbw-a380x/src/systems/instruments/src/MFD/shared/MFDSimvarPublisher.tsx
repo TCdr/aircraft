@@ -46,6 +46,12 @@ export type MfdSimvars = {
   wxrPredWsOff: boolean;
   wxrGainMan: boolean;
   wxrVdOff: boolean;
+  wxrElevnTiltMode: number;
+  wxrElevn: number;
+  wxrTilt: number;
+  wxrGain: number;
+  baroStdL: boolean;
+  baroStdR: boolean;
   xpdrSystem: number;
 };
 
@@ -99,6 +105,12 @@ export enum MfdVars {
   wxrPredWsOff = 'L:A380X_WXR_PRED_WS_OFF',
   wxrGainMan = 'L:A380X_WXR_GAIN_MAN',
   wxrVdOff = 'L:A380X_WXR_VD_OFF',
+  wxrElevnTiltMode = 'L:A380X_WXR_ELEVN_TILT_MODE',
+  wxrElevn = 'L:A380X_WXR_ELEVN',
+  wxrTilt = 'L:A380X_WXR_TILT',
+  wxrGain = 'L:A380X_WXR_GAIN',
+  baroStdL = 'L:A32NX_FCU_EFIS_L_DISPLAY_BARO_IS_STD',
+  baroStdR = 'L:A32NX_FCU_EFIS_R_DISPLAY_BARO_IS_STD',
   xpdrSystem = 'L:A32NX_TRANSPONDER_SYSTEM',
 }
 
@@ -148,6 +160,12 @@ export class MfdSimvarPublisher extends SimVarPublisher<MfdSimvars> {
     ['wxrPredWsOff', { name: MfdVars.wxrPredWsOff, type: SimVarValueType.Bool }],
     ['wxrGainMan', { name: MfdVars.wxrGainMan, type: SimVarValueType.Bool }],
     ['wxrVdOff', { name: MfdVars.wxrVdOff, type: SimVarValueType.Bool }],
+    ['wxrElevnTiltMode', { name: MfdVars.wxrElevnTiltMode, type: SimVarValueType.Enum }],
+    ['wxrElevn', { name: MfdVars.wxrElevn, type: SimVarValueType.Number }],
+    ['wxrTilt', { name: MfdVars.wxrTilt, type: SimVarValueType.Number }],
+    ['wxrGain', { name: MfdVars.wxrGain, type: SimVarValueType.Number }],
+    ['baroStdL', { name: MfdVars.baroStdL, type: SimVarValueType.Bool }],
+    ['baroStdR', { name: MfdVars.baroStdR, type: SimVarValueType.Bool }],
     ['xpdrSystem', { name: MfdVars.xpdrSystem, type: SimVarValueType.Number }],
   ]);
 
