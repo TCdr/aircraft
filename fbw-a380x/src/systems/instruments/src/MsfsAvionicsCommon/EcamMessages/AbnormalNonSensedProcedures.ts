@@ -14,6 +14,7 @@ export const AbnormalNonSensedProceduresOverview: AbnormalNonSensedList[] = [
   { id: 340900003, category: null },
   { id: 700900001, category: 'ENG' },
   { id: 700900002, category: 'ENG' },
+  { id: 700900003, category: 'ENG' },
   { id: 270900001, category: 'F/CTL' },
   { id: 270900004, category: 'F/CTL' },
   { id: 270900005, category: 'F/CTL' },
