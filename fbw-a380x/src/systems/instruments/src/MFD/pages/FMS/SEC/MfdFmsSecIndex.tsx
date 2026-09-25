@@ -22,6 +22,8 @@ import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanCh
 import { Button, ButtonMenuItem } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { FmcInterface } from '../../../FMC/FmcInterface';
 import { FmcServiceInterface } from '../../../FMC/FmcServiceInterface';
+import { FmgcFlightPhase } from '@shared/flightphase';
+import { FlightPlanReport } from '../../../FMC/FmsPrinter';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { ReadonlyFlightPlanLeg } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
@@ -642,8 +644,17 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
                 <span style="display: flex; align-items: center; justify-content: center;">*</span>
               </div>
             }
-            disabled={true}
-            onClick={() => {}}
+            // FCOM DSC-22-FMS-10-70 P 6: the secondary flight plan report (in-flight in flight, pre-flight otherwise)
+            disabled={this.secDoesNotExist}
+            onClick={() => {
+              const phase = this.props.fmcService.master.fmgc.getFlightPhase();
+              this.props.fmcService.master.printer?.printFlightPlanReport(
+                this.props.flightPlanIndex,
+                phase >= FmgcFlightPhase.Takeoff && phase < FmgcFlightPhase.Done
+                  ? FlightPlanReport.InFlight
+                  : FlightPlanReport.PreFlight,
+              );
+            }}
             buttonStyle="padding-right: 2px; width: 135px; height: 42px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_print`}
           />,
