@@ -4,6 +4,7 @@ import {
   FSComponent,
   SimVarValueType,
   Subject,
+  Subscribable,
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
@@ -17,6 +18,7 @@ import { Footer } from '../common/Footer';
 import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { SurvStatusButton } from '../../../MsfsAvionicsCommon/UiWidgets/SurvStatusButton';
 import { SurvStatusItem } from '../../../MsfsAvionicsCommon/UiWidgets/SurvStatusItem';
+import { fcomAt, fcomCentre } from '../common/FcomLayout';
 
 interface MfdSurvStatusSwitchingProps extends AbstractMfdPageProps {}
 
@@ -26,6 +28,7 @@ export enum StatusItemState {
   Failed = 2,
 }
 
+/** SURV / STATUS & SWITCHING page (A380 FCOM DSC-34-20-60-50 P 6-8), laid out on the FCOM figure */
 export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitchingProps> {
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
@@ -100,156 +103,134 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
     super.destroy();
   }
 
+  /** A SYS box of the page: SYS button on top of the frame, then groups of status items (FCOM DSC-34-20-60-50 P 6) */
+  private sysBox(
+    x: number,
+    top: number,
+    height: number,
+    button: VNode,
+    groups: { top: number; height: number; active: Subscribable<boolean>; items: VNode[] }[],
+  ): VNode {
+    return (
+      <>
+        <div class="sys-box" style={`left: ${x}px; top: ${top}px; width: 276px; height: ${height}px;`} />
+        <div class="mfd-surv-status-button-slot" style={`left: ${x + 89}px; top: ${top - 35}px;`}>
+          {button}
+        </div>
+        {groups.map((g) => (
+          <>
+            <div
+              class={{ 'sys-group': true, active: g.active }}
+              style={`left: ${x + 10}px; top: ${g.top}px; width: 258px; height: ${g.height}px;`}
+            />
+            {g.items}
+          </>
+        ))}
+      </>
+    );
+  }
+
+  private item(
+    y: number,
+    x: number,
+    label: string,
+    sys: '1' | '2',
+    active: Subscribable<boolean>,
+    failed: Subscribable<boolean>,
+    offLabel?: string,
+  ) {
+    return fcomAt(
+      y,
+      x + 15,
+      <SurvStatusItem label={label} sys={sys} active={active} failed={failed} offLabel={offLabel} />,
+    );
+  }
+
   render(): VNode {
+    const wxrTaws = (sys: '1' | '2', x: number, active: Subscribable<boolean>) => {
+      const one = sys === '1';
+      return this.sysBox(
+        x,
+        67,
+        270,
+        <SurvStatusButton
+          label={`SYS ${sys}`}
+          active={active}
+          onClick={() =>
+            SimVar.SetSimVarValue(
+              'L:A32NX_WXR_TAWS_SYS_SELECTED',
+              SimVarValueType.Number,
+              active.get() ? 0 : one ? 1 : 2,
+            )
+          }
+        />,
+        [
+          {
+            top: 116,
+            height: 119,
+            active,
+            items: [
+              this.item(137, x, 'WX DISPLAY', sys, active, one ? this.wxr1Failed : this.wxr2Failed),
+              this.item(177, x, 'TURB', sys, active, one ? this.turb1Failed : this.turb2Failed),
+              this.item(217, x, 'PRED W/S', sys, active, one ? this.predWs1Failed : this.predWs2Failed),
+            ],
+          },
+          {
+            top: 247,
+            height: 78,
+            active,
+            items: [
+              this.item(266, x, 'TERR SYS', sys, active, one ? this.terr1Failed : this.terr2Failed),
+              this.item(306, x, 'GPWS', sys, active, one ? this.gpws1Failed : this.gpws2Failed),
+            ],
+          },
+        ],
+      );
+    };
+    const xpdrTcas = (sys: '1' | '2', x: number, active: Subscribable<boolean>) => {
+      const one = sys === '1';
+      return this.sysBox(
+        x,
+        517,
+        144,
+        <SurvStatusButton
+          label={`SYS ${sys}`}
+          active={active}
+          onClick={() => SimVar.SetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', SimVarValueType.Number, one ? 0 : 1)}
+        />,
+        [
+          {
+            top: 564,
+            height: 41,
+            active,
+            items: [this.item(585, x, 'XPDR', sys, active, one ? this.xpdr1Failed : this.xpdr2Failed, 'STBY')],
+          },
+          {
+            top: 614,
+            height: 41,
+            active,
+            items: [this.item(635, x, 'TCAS', sys, active, one ? this.tcas1Failed : this.tcas2Failed, 'STBY')],
+          },
+        ],
+      );
+    };
+
     return (
       <>
         <ActivePageTitleBar activePage={Subject.create('STATUS & SWITCHING')} offset={Subject.create('')} />
         {/* begin page content */}
+        {/* Positions from the FCOM figure (DSC-34-20-60-50 P 6), page container coordinates (display y - 143) */}
         <div class="mfd-page-container">
-          <div style="width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: top; padding: 50px;">
-            {/* upper left sys box */}
-            <div class="sys-box">
-              <SurvStatusButton
-                label={'SYS 1'}
-                active={this.wxrTaws1Active}
-                onClick={() =>
-                  SimVar.SetSimVarValue(
-                    'L:A32NX_WXR_TAWS_SYS_SELECTED',
-                    SimVarValueType.Number,
-                    this.wxrTaws1Active.get() ? 0 : 1,
-                  )
-                }
-              />
-              <div
-                class={{
-                  'sys-group': true,
-                  active: this.wxrTaws1Active,
-                }}
-                style="margin-bottom: 10px;"
-              >
-                <SurvStatusItem
-                  label={'WXR DISPLAY'}
-                  sys={'1'}
-                  active={this.wxrTaws1Active}
-                  failed={this.wxr1Failed}
-                  style={'margin-bottom: 10px;'}
-                />
-                <SurvStatusItem
-                  label={'TURB'}
-                  sys={'1'}
-                  active={this.wxrTaws1Active}
-                  failed={this.turb1Failed}
-                  style={'margin-bottom: 10px;'}
-                />
-                <SurvStatusItem label={'PRED W/S'} sys={'1'} active={this.wxrTaws1Active} failed={this.predWs1Failed} />
-              </div>
-              <div class={{ 'sys-group': true, active: this.wxrTaws1Active }}>
-                <SurvStatusItem
-                  label={'TERR SYS'}
-                  sys={'1'}
-                  active={this.wxrTaws1Active}
-                  failed={this.terr1Failed}
-                  style={'margin-bottom: 10px;'}
-                />
-                <SurvStatusItem label={'GPWS'} sys={'1'} active={this.wxrTaws1Active} failed={this.gpws1Failed} />
-              </div>
-            </div>
-            {/* upper middle text */}
-            <div style="text-align: center;">
-              <div class="mfd-label bigger" style="margin-top: 55px;">
-                WXR
-              </div>
-              <div class="mfd-label bigger" style="margin-top: 90px;">
-                TAWS
-              </div>
-            </div>
-            {/* upper right sys box */}
-            <div class="sys-box">
-              <SurvStatusButton
-                label={'SYS 2'}
-                active={this.wxrTaws2Active}
-                onClick={() =>
-                  SimVar.SetSimVarValue(
-                    'L:A32NX_WXR_TAWS_SYS_SELECTED',
-                    SimVarValueType.Number,
-                    this.wxrTaws2Active.get() ? 0 : 2,
-                  )
-                }
-              />
-              <div
-                class={{
-                  'sys-group': true,
-                  active: this.wxrTaws2Active,
-                }}
-                style="margin-bottom: 10px;"
-              >
-                <SurvStatusItem
-                  label={'WXR DISPLAY'}
-                  sys={'2'}
-                  active={this.wxrTaws2Active}
-                  failed={this.wxr2Failed}
-                  style={'margin-bottom: 10px;'}
-                />
-                <SurvStatusItem
-                  label={'TURB'}
-                  sys={'2'}
-                  active={this.wxrTaws2Active}
-                  failed={this.turb2Failed}
-                  style={'margin-bottom: 10px;'}
-                />
-                <SurvStatusItem label={'PRED W/S'} sys={'2'} active={this.wxrTaws2Active} failed={this.predWs2Failed} />
-              </div>
-              <div class={{ 'sys-group': true, active: this.wxrTaws2Active }}>
-                <SurvStatusItem
-                  label={'TERR SYS'}
-                  sys={'2'}
-                  active={this.wxrTaws2Active}
-                  failed={this.terr2Failed}
-                  style={'margin-bottom: 10px;'}
-                />
-                <SurvStatusItem label={'GPWS'} sys={'2'} active={this.wxrTaws2Active} failed={this.gpws2Failed} />
-              </div>
-            </div>
-          </div>
-          {/* lower line */}
-          <div style="width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: top; padding: 50px;">
-            {/* lower left sys box */}
-            <div class="sys-box">
-              <SurvStatusButton
-                label={'SYS 1'}
-                active={this.xpdrTcas1Active}
-                onClick={() => SimVar.SetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', SimVarValueType.Number, 0)}
-              />
-              <div class={{ 'sys-group': true, active: this.xpdrTcas1Active }} style="margin-bottom: 5px;">
-                <SurvStatusItem label={'XPDR'} sys={'1'} active={this.xpdrTcas1Active} failed={this.xpdr1Failed} />
-              </div>
-              <div class={{ 'sys-group': true, active: this.xpdrTcas1Active }}>
-                <SurvStatusItem label={'TCAS'} sys={'1'} active={this.xpdrTcas1Active} failed={this.tcas1Failed} />
-              </div>
-            </div>
-            {/* lower middle text */}
-            <div style="text-align: center;">
-              <div class="mfd-label bigger" style="margin-top: 55px;">
-                XPDR
-              </div>
-              <div class="mfd-label bigger" style="margin-top: 20px;">
-                TCAS
-              </div>
-            </div>
-            {/* lower right sys box */}
-            <div class="sys-box">
-              <SurvStatusButton
-                label={'SYS 2'}
-                active={this.xpdrTcas2Active}
-                onClick={() => SimVar.SetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', SimVarValueType.Number, 1)}
-              />
-              <div class={{ 'sys-group': true, active: this.xpdrTcas2Active }} style="margin-bottom: 5px;">
-                <SurvStatusItem label={'XPDR'} sys={'2'} active={this.xpdrTcas2Active} failed={this.xpdr2Failed} />
-              </div>
-              <div class={{ 'sys-group': true, active: this.xpdrTcas2Active }}>
-                <SurvStatusItem label={'TCAS'} sys={'2'} active={this.xpdrTcas2Active} failed={this.tcas2Failed} />
-              </div>
-            </div>
+          <div class="mfd-fcom-canvas mfd-surv-status">
+            {wxrTaws('1', 57, this.wxrTaws1Active)}
+            {fcomCentre(137, 383, <span class="mfd-label bigger">WXR</span>)}
+            {fcomCentre(266, 383, <span class="mfd-label bigger">TAWS</span>)}
+            {wxrTaws('2', 440, this.wxrTaws2Active)}
+
+            {xpdrTcas('1', 57, this.xpdrTcas1Active)}
+            {fcomCentre(585, 383, <span class="mfd-label bigger">XPDR</span>)}
+            {fcomCentre(635, 383, <span class="mfd-label bigger">TCAS</span>)}
+            {xpdrTcas('2', 440, this.xpdrTcas2Active)}
           </div>
         </div>
         {/* end page content */}

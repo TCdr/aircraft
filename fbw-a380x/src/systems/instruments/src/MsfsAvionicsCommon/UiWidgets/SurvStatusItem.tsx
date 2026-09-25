@@ -1,4 +1,4 @@
-//  Copyright (c) 2024-2025 FlyByWire Simulations
+//  Copyright (c) 2024-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { ComponentProps, DisplayComponent, FSComponent, Subscribable, Subscription, VNode } from '@microsoft/msfs-sdk';
@@ -8,6 +8,8 @@ export interface SurvStatusItemProps extends ComponentProps {
   active: Subscribable<boolean>;
   failed: Subscribable<boolean>;
   sys: string;
+  /** Text after the label when the system is not in use (A380 FCOM DSC-34-20-60-50: OFF, or STBY for XPDR and TCAS) */
+  offLabel?: string;
   style?: string;
   onChanged?(val: boolean): void;
 }
@@ -16,7 +18,9 @@ export class SurvStatusItem extends DisplayComponent<SurvStatusItemProps> {
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
 
-  private readonly label = this.props.active.map((active) => `${this.props.label} ${active ? this.props.sys : 'OFF'}`);
+  private readonly label = this.props.active.map(
+    (active) => `${this.props.label} ${active ? this.props.sys : this.props.offLabel ?? 'OFF'}`,
+  );
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
