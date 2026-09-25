@@ -456,12 +456,9 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
     const fp = hasFp ? this.props.flightPlanInterface.get(fpIndex!) : null;
     this.altnIcao.set(fp?.alternateDestinationAirport?.ident ?? 'NONE');
     this.altnEta.set('--:--');
-    if (fp) {
-      this.altnEfob.set(this.props.fmcService.master.fmgc.getAltEFOB(fpIndex!) ?? NaN, UnitType.KILOGRAM);
-    } else {
-      this.altnEfob.set(NaN);
-    }
-    this.altnEfob.set(hasFp ? this.props.fmcService.master.fmgc.getAltEFOB(fpIndex!) ?? NaN : NaN, UnitType.KILOGRAM);
+    // getAltEFOB is in tonnes
+    const altnEfob = fp ? this.props.fmcService.master.fmgc.getAltEFOB(fpIndex!) : null;
+    this.altnEfob.set(altnEfob !== null ? altnEfob * 1000 : NaN, UnitType.KILOGRAM);
   }
 
   render(): VNode {
