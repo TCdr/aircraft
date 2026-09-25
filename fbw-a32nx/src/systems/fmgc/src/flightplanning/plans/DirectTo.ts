@@ -62,6 +62,15 @@ export function abeamWaypointIdent(referenceIdent: string): string {
 /** CRS IN: no intercept point when the angle between the direct leg and the inbound course is more than 160° (FCOM) */
 const MAX_CRS_IN_INTERCEPT_ANGLE = 160;
 
+/** CRS OUT: courses within this angle of the track (or of its reciprocal) are parallel to it, degrees */
+const PARALLEL_COURSE_TOLERANCE = 1;
+
+/** Intercept points closer than this to the aircraft or to the target are not usable, NM */
+const MIN_INTERCEPT_DISTANCE = 0.1;
+
+/** The farther of the two great-circle intersections (the antipodal one) is ignored beyond this distance, NM */
+const MAX_INTERCEPT_DISTANCE = 5000;
+
 /**
  * The intercept point (INTCPT) of a CRS IN or CRS OUT DIR TO: where the current track from the aircraft meets the
  * course line through the target waypoint (A380 FCOM DSC-22-FMS, DIR TO revision).
@@ -77,14 +86,22 @@ export function directToInterceptPoint(
   inbound: boolean,
 ): Coordinates | null {
   const interceptAngle = Math.abs(diffAngle(trueTrack, trueCourse));
-  if (inbound ? interceptAngle > MAX_CRS_IN_INTERCEPT_ANGLE : interceptAngle < 1 || interceptAngle > 179) {
+  if (
+    inbound
+      ? interceptAngle > MAX_CRS_IN_INTERCEPT_ANGLE
+      : interceptAngle < PARALLEL_COURSE_TOLERANCE || interceptAngle > 180 - PARALLEL_COURSE_TOLERANCE
+  ) {
     return null;
   }
 
   const ahead = placeBearingIntersection(ppos, trueTrack, target, trueCourse)
     .filter((point) => {
       const distance = distanceTo(ppos, point);
-      return distance > 0.1 && distance < 5000 && Math.abs(diffAngle(trueTrack, bearingTo(ppos, point))) < 90;
+      return (
+        distance > MIN_INTERCEPT_DISTANCE &&
+        distance < MAX_INTERCEPT_DISTANCE &&
+        Math.abs(diffAngle(trueTrack, bearingTo(ppos, point))) < 90
+      );
     })
     .sort((a, b) => distanceTo(ppos, a) - distanceTo(ppos, b));
   const intercept = ahead[0];
@@ -94,7 +111,8 @@ export function directToInterceptPoint(
   // CRS IN: the inbound course leads from the intercept to the target
   if (
     inbound &&
-    (distanceTo(intercept, target) < 0.1 || Math.abs(diffAngle(trueCourse, bearingTo(intercept, target))) > 90)
+    (distanceTo(intercept, target) < MIN_INTERCEPT_DISTANCE ||
+      Math.abs(diffAngle(trueCourse, bearingTo(intercept, target))) > 90)
   ) {
     return null;
   }
