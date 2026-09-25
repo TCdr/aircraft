@@ -5,6 +5,7 @@
 import { ApproachUtils, NXUnits, RunwayUtils, ApproachType } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { CDUStepAltsPage } from './A320_Neo_CDU_StepAltsPage';
+import { CDUUplinkTakeoffDataPages } from './A320_Neo_CDU_UplinkTakeoffDataPages';
 import { NXFictionalMessages, NXSystemMessages } from '../messages/NXSystemMessages';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
@@ -267,11 +268,38 @@ export class CDUPerformancePage {
         cleanCell = `{green}${cleanSpeed.toFixed(0)}{end}`;
       }
     }
-    // takeoff shift
+    // takeoff shift (A320 FCOM DSC-22_20-50-10-28 P 99 [2R]: positive, not greater than the runway length), in metres
     let toShiftCell = '{inop}----{end}\xa0';
     if (hasOrigin && hasRunway) {
-      toShiftCell = '{inop}{small}[M]{end}[\xa0\xa0]*{end}';
-      // TODO store and show TO SHIFT
+      const shift = targetPlan.performanceData.takeoffShift.get();
+      toShiftCell = `{${phaseDependantFieldsColor}}{small}[M]{end}${shift !== null ? shift.toFixed(0).padStart(4, '\xa0') : '[\xa0\xa0]*'}{end}`;
+      mcdu.onRightInput[1] = (value, scratchpadCallback) => {
+        const runwayLength = targetPlan.originRunway?.length ?? 0;
+        if (value === Keypad.clrValue) {
+          mcdu.flightPlanService.setPerformanceData('takeoffShift', null, forPlan);
+        } else if (!/^\d{1,4}$/.test(value)) {
+          mcdu.setScratchpadMessage(NXSystemMessages.formatError);
+          scratchpadCallback();
+          return;
+        } else if (parseInt(value) < 1 || parseInt(value) > runwayLength) {
+          mcdu.setScratchpadMessage(NXSystemMessages.entryOutOfRange);
+          scratchpadCallback();
+          return;
+        } else {
+          mcdu.flightPlanService.setPerformanceData('takeoffShift', parseInt(value), forPlan);
+        }
+        CDUPerformancePage.ShowTAKEOFFPage(mcdu, forPlan);
+      };
+    }
+
+    // UPLINK TO DATA (A320 FCOM DSC-22_20-50-10-28 P 99 [6L]): only in the preflight and done phases
+    const uplinkAvailable =
+      isActivePlan &&
+      (mcdu.flightPhaseManager.phase === FmgcFlightPhase.Preflight ||
+        mcdu.flightPhaseManager.phase === FmgcFlightPhase.Done);
+    if (uplinkAvailable) {
+      mcdu.leftInputDelay[5] = () => mcdu.getDelaySwitchPage();
+      mcdu.onLeftInput[5] = () => CDUUplinkTakeoffDataPages.ShowRequestPage(mcdu, 0);
     }
 
     // flaps / trim horizontal stabilizer
@@ -378,8 +406,8 @@ export class CDUPerformancePage {
       [`{cyan}${transAltCell}{end}`, flexTakeOffTempCell],
       ['THR\xa0RED/ACC', 'ENG\xa0OUT\xa0ACC'],
       [`{${altitudeColour}}${thrRedAcc}{end}`, `{${altitudeColour}}${engOutAcc}{end}`],
-      ['\xa0UPLINK[color]inop', next],
-      ['<TO DATA[color]inop', nextPhase],
+      [uplinkAvailable ? '\xa0UPLINK' : '', next],
+      [uplinkAvailable ? '<TO DATA' : '', nextPhase],
     ]);
   }
   static ShowCLBPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, confirmAppr = false) {
