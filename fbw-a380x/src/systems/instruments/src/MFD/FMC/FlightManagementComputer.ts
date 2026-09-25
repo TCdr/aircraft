@@ -358,6 +358,17 @@ export class FlightManagementComputer implements FmcInterface {
 
   public hasActiveFlightPlan = Subject.create<boolean>(false);
 
+  /**
+   * FUEL PLANNING (A380 FCOM DSC-22-FMS-20-30 P 179): the minimum BLOCK fuel in tonnes, BLOCK = TAXI + TRIP + RTE RSV +
+   * MIN FUEL AT DEST, until the flight crew confirms it or enters a BLOCK.
+   */
+  public readonly fuelPlanningBlockFuel = Subject.create<number | null>(null);
+
+  /** The fuel planning computation is running. */
+  public readonly fuelPlanningInProgress = Subject.create(false);
+
+  private fuelPlanningIterations = 0;
+
   private readonly legacyFmsIsHealthy = Subject.create(false);
 
   private wasReset = false;
@@ -769,6 +780,86 @@ export class FlightManagementComputer implements FmcInterface {
    * Otherwise it is calculated based upon the route reserve fuel percentage and the trip fuel, if any.
    * @returns the route reserve fuel in kg, or null if it cannot be calculated due to missing data.
    */
+  /**
+   * Starts the fuel planning computation. The TRIP fuel comes from the predictions of the flight plan, which need a
+   * fuel on board: they run with a trial BLOCK fuel, replaced by the resulting minimum BLOCK until both agree.
+   */
+  public startFuelPlanning(): void {
+    const plan = this.flightPlanInterface.active;
+    if (!plan.originAirport || !plan.destinationAirport) {
+      return;
+    }
+    const pd = plan.performanceData;
+    const distance = Avionics.Utils.computeGreatCircleDistance(
+      plan.originAirport.location,
+      plan.destinationAirport.location,
+    );
+    // First trial: about 20 kg per NM for the trip
+    const trial = (pd.taxiFuel.get() ?? 0) + (pd.minimumDestinationFuelOnBoard.get() ?? 0) + (distance * 21) / 1000;
+    this.fuelPlanningIterations = 0;
+    this.fuelPlanningBlockFuel.set(null);
+    this.fmgc.data.fuelPlanningTrialBlockFuel.set(trial);
+    this.fuelPlanningInProgress.set(true);
+  }
+
+  /** The flight crew confirms the computed minimum BLOCK fuel: it appears in the BLOCK entry field. */
+  public confirmFuelPlanning(): void {
+    const block = this.fuelPlanningBlockFuel.get();
+    this.stopFuelPlanning();
+    if (block !== null) {
+      this.flightPlanInterface.setPerformanceData('blockFuel', block, FlightPlanIndex.Active);
+    }
+  }
+
+  private stopFuelPlanning(): void {
+    this.fuelPlanningInProgress.set(false);
+    this.fuelPlanningBlockFuel.set(null);
+    this.fmgc.data.fuelPlanningTrialBlockFuel.set(null);
+  }
+
+  private updateFuelPlanning(): void {
+    if (!this.fuelPlanningInProgress.get() && this.fuelPlanningBlockFuel.get() === null) {
+      return;
+    }
+    const pd = this.flightPlanInterface.active.performanceData;
+    // Only before engine start and without a BLOCK entry; the computed BLOCK disappears when the crew enters one
+    if (this.enginesWereStarted.get() || pd.blockFuel.get() !== null || !this.hasActiveFlightPlan.get()) {
+      this.stopFuelPlanning();
+      return;
+    }
+    if (!this.fuelPlanningInProgress.get()) {
+      return;
+    }
+
+    const trial = this.fmgc.data.fuelPlanningTrialBlockFuel.get();
+    const startFuel = this.guidanceController.vnavDriver.mcduProfile?.checkpoints[0]?.remainingFuelOnBoard;
+    const destPred = this.guidanceController.vnavDriver.getDestinationPrediction();
+    // Only the predictions computed with the current trial fuel (they are computed every few seconds)
+    if (
+      trial === null ||
+      !destPred ||
+      startFuel === undefined ||
+      Math.abs(Units.poundToKilogram(startFuel) - trial * 1000) > 50
+    ) {
+      return;
+    }
+
+    const trip = trial * 1000 - Units.poundToKilogram(destPred.estimatedFuelOnBoard);
+    const block =
+      ((pd.taxiFuel.get() ?? 0) * 1000 +
+        trip +
+        (this.getRouteReserveFuel(FlightPlanIndex.Active, trip) ?? 0) +
+        (pd.minimumDestinationFuelOnBoard.get() ?? 0) * 1000) /
+      1000;
+    this.fmgc.data.fuelPlanningTrialBlockFuel.set(block);
+    this.fuelPlanningIterations++;
+    if (Math.abs(block - trial) < 0.1 || this.fuelPlanningIterations >= 8) {
+      // The minimum BLOCK, rounded up to the 0.1 t of the entry field
+      this.fuelPlanningBlockFuel.set(Math.ceil(block * 10) / 10);
+      this.fuelPlanningInProgress.set(false);
+    }
+  }
+
   public getRouteReserveFuel(forPlan = FlightPlanIndex.Active, tripFuel?: number | null): number | null {
     const pd = this.flightPlanInterface.get(forPlan).performanceData;
     const pilotEntry = pd.pilotRouteReserveFuel.get();
@@ -1807,6 +1898,7 @@ export class FlightManagementComputer implements FmcInterface {
         this.#printer ??= new FmsPrinter(this, this.bus);
         this.#printer.update();
       }
+      this.updateFuelPlanning();
       this.loadActiveFlightPlanFuelAndApproachData();
       if (this.flightPlanInterface.hasActive) {
         const flightPhase = this.flightPhase.get();

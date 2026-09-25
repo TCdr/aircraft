@@ -120,6 +120,17 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
 
   private readonly fuelPlanningIsDisabled = Subject.create<boolean>(true);
 
+  /** The minimum BLOCK fuel computed by the fuel planning, displayed in yellow until confirmed (FCOM P 179) */
+  private readonly fuelPlanningBlockWeight = NumberUnitSubject.create(UnitType.KILOGRAM.createNumber(NaN));
+
+  private readonly fuelPlanningBlockWeightText = this.createWeightSubscribable(this.fuelPlanningBlockWeight);
+
+  private readonly fuelPlanningComputed = Subject.create(false);
+
+  private readonly fuelPlanningNotComputed = this.fuelPlanningComputed.map((v) => !v);
+
+  private readonly fuelPlanningBlockVisibility = this.fuelPlanningComputed.map((v) => (v ? 'inherit' : 'hidden'));
+
   private readonly destinationAlternateTimeHeader = this.activeFlightPhase.map((v) =>
     v === FmgcFlightPhase.Preflight ? 'TIME' : 'UTC',
   );
@@ -221,6 +232,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
           this.loadFlightPlanPerformanceData();
 
           const loadedfpIndex = this.loadedFlightPlanIndex.get();
+          this.updateFuelPlanning(loadedfpIndex);
           // FIXME: Move to main update loop once calculated by the predictions
           this.props.fmcService.master.acInterface.calculateFinalAndAlternateFuel(loadedfpIndex);
           this.props.fmcService.master.calculateTakeoffWeight(loadedfpIndex);
@@ -333,6 +345,33 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
     this.flightPlanChangeNotifier.destroy();
 
     super.destroy();
+  }
+
+  /**
+   * FUEL PLANNING button (A380 FCOM DSC-22-FMS-20-30 P 179): the computation is possible before engine start, with a
+   * flight plan and a cruise flight level, the ZFW and ZFWCG entered and no BLOCK entered by the flight crew. Once
+   * computed, the button confirms the BLOCK.
+   */
+  private updateFuelPlanning(loadedFlightPlanIndex: number): void {
+    const fmc = this.props.fmcService.master;
+    const pd = this.loadedFlightPlan?.performanceData;
+    if (!fmc || !pd) {
+      return;
+    }
+    const computedBlock = fmc.fuelPlanningBlockFuel.get();
+    this.fuelPlanningComputed.set(computedBlock !== null);
+    this.fuelPlanningBlockWeight.set(computedBlock !== null ? computedBlock * 1000 : NaN, UnitType.KILOGRAM);
+    this.fuelPlanningIsDisabled.set(
+      loadedFlightPlanIndex !== FlightPlanIndex.Active ||
+        fmc.fuelPlanningInProgress.get() ||
+        (computedBlock === null &&
+          (fmc.enginesWereStarted.get() ||
+            !fmc.hasActiveFlightPlan.get() ||
+            pd.cruiseFlightLevel.get() === null ||
+            pd.zeroFuelWeight.get() === null ||
+            pd.zeroFuelWeightCenterOfGravity.get() === null ||
+            pd.blockFuel.get() !== null)),
+    );
   }
 
   private loadFlightPlanPerformanceData(): void {
@@ -515,14 +554,34 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                     interactionMode={this.props.mfd.interactionMode}
                   />,
                 )}
+                <div style={{ visibility: this.fuelPlanningBlockVisibility }}>
+                  {fcomRight(148, 455, [
+                    <span class="mfd-value" style="color: #ffff00;">
+                      {this.fuelPlanningBlockWeightText}
+                    </span>,
+                    <span class="mfd-label-unit mfd-unit-trailing">{this.weightUnitText}</span>,
+                  ])}
+                </div>
                 {fcomAt(
                   148,
                   511,
                   <Button
                     disabled={this.fuelPlanningIsDisabled}
+                    visible={this.fuelPlanningNotComputed}
                     label="FUEL<br />PLANNING *"
-                    onClick={() => console.log('FUEL PLANNING')}
+                    onClick={() => this.props.fmcService.master?.startFuelPlanning()}
                     buttonStyle="min-width: 168px; min-height: 56px;"
+                  />,
+                )}
+                {fcomAt(
+                  148,
+                  511,
+                  <Button
+                    disabled={this.fuelPlanningIsDisabled}
+                    visible={this.fuelPlanningComputed}
+                    label="CONFIRM<br />BLOCK *"
+                    onClick={() => this.props.fmcService.master?.confirmFuelPlanning()}
+                    buttonStyle="color: #ffff00; min-width: 168px; min-height: 56px;"
                   />,
                 )}
               </div>
