@@ -11,6 +11,11 @@ import { RadioButtonColor, RadioButtonGroup } from '../../../../MsfsAvionicsComm
 import { ADIRS } from '../../../shared/Adirs';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
+import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
+import { Fix, MagVar } from '@flybywiresim/fbw-sdk';
+import { bearingTo } from 'msfs-geo';
+import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
+import { DirectToCourseFormat } from '../../common/DataEntryFormats';
 
 interface MfdFmsFplnDirectToProps extends AbstractMfdPageProps {}
 
@@ -37,6 +42,21 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
   private readonly distToWpt = Subject.create<string>('---');
 
   readonly directToOption = Subject.create<DirectToOption | null>(DirectToOption.DIRECT);
+
+  /** CRS IN / CRS OUT course, magnetic unless {@link courseIsTrue} (FCOM DSC-22-FMS-20-30 P 131, CRS entry field) */
+  private readonly course = Subject.create<number | null>(null);
+
+  private readonly courseIsTrue = Subject.create(false);
+
+  /** The DIR TO target: a leg of the active flight plan, or another waypoint */
+  private target: { legIndex: number } | { fix: Fix } | null = null;
+
+  private readonly courseFieldVisibility = this.directToOption.map((o) =>
+    o === DirectToOption.CRS_IN || o === DirectToOption.CRS_OUT ? 'inherit' : 'hidden',
+  );
+
+  /** The CRS field is next to the selected CRS IN or CRS OUT option (FCOM figure) */
+  private readonly courseFieldTop = this.directToOption.map((o) => (o === DirectToOption.CRS_OUT ? '209px' : '166px'));
 
   private readonly eraseButtonDiv = FSComponent.createRef<HTMLDivElement>();
 
@@ -76,6 +96,10 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
         const selectedLegIndex = this.availableWaypoints.getArray().findIndex((it) => it === revWpt.ident);
         if (selectedLegIndex !== -1) {
           this.selectedWaypointIndex.set(selectedLegIndex);
+          // DIR TO created from the waypoint revisions menu: the target of the options
+          if (this.target === null) {
+            this.target = { legIndex: this.availableWaypointsToLegIndex[selectedLegIndex] };
+          }
         }
       }
 
@@ -94,38 +118,114 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
   }
 
   private async onDropdownModified(idx: number, text: string): Promise<void> {
-    if (this.props.flightPlanInterface.hasTemporary) {
-      await this.props.flightPlanInterface.temporaryDelete();
-      this.props.fmcService.master.resetRevisedWaypoint();
-    }
-
     if (idx >= 0) {
       const legIndex = this.availableWaypointsToLegIndex[idx];
-      this.props.fmcService.master.setRevisedWaypoint(legIndex, FlightPlanIndex.Active, false);
       if (legIndex !== undefined) {
         this.selectedWaypointIndex.set(idx);
         this.manualWptIdent = null;
-        const trueTrack = ADIRS.getTrueTrack();
-        await this.props.flightPlanInterface.directToLeg(
-          this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 },
-          trueTrack?.isNormalOperation() ? trueTrack.value : 0,
-          legIndex,
-          this.directToOption.get() === DirectToOption.DIRECT_WITH_ABEAM,
-          FlightPlanIndex.Active,
-        );
+        this.target = { legIndex };
       }
     } else if (this.props.fmcService.master && text !== null) {
       const wpt = await WaypointEntryUtils.getOrCreateWaypoint(this.props.fmcService.master, text, true, undefined);
       if (wpt) {
         this.manualWptIdent = wpt.ident;
-        await this.props.flightPlanInterface.directToWaypoint(
-          this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 },
-          SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree'),
-          wpt,
-          this.directToOption.get() === DirectToOption.DIRECT_WITH_ABEAM,
-          FlightPlanIndex.Active,
-        );
+        this.target = { fix: wpt };
       }
+    }
+    this.setDefaultCourse();
+    await this.buildDirectTo();
+  }
+
+  private async onOptionModified(option: DirectToOption): Promise<void> {
+    this.directToOption.set(option);
+    this.setDefaultCourse();
+    await this.buildDirectTo();
+  }
+
+  /**
+   * FCOM DSC-22-FMS-20-30 P 131: for a flight plan target waypoint, the default CRS IN is the course from the preceding
+   * flight plan waypoint to the target, and the default CRS OUT the course from the target to the following waypoint.
+   */
+  private setDefaultCourse(): void {
+    this.courseIsTrue.set(false);
+    const option = this.directToOption.get();
+    const plan = this.props.flightPlanInterface.active;
+    if ((option !== DirectToOption.CRS_IN && option !== DirectToOption.CRS_OUT) || !this.target || !plan) {
+      this.course.set(null);
+      return;
+    }
+    const legs = plan.allLegs;
+    const targetIndex =
+      'legIndex' in this.target
+        ? this.target.legIndex
+        : legs.findIndex(
+            (it) => it instanceof FlightPlanLeg && it.terminationWaypoint()?.ident === this.manualWptIdent,
+          );
+    const targetFix =
+      legs[targetIndex] instanceof FlightPlanLeg ? (legs[targetIndex] as FlightPlanLeg).terminationWaypoint() : null;
+    const fixAt = (index: number) => {
+      const leg = legs[index];
+      return leg instanceof FlightPlanLeg ? leg.terminationWaypoint() : null;
+    };
+    const otherFix = option === DirectToOption.CRS_IN ? fixAt(targetIndex - 1) : fixAt(targetIndex + 1);
+    if (targetIndex < 0 || !targetFix || !otherFix) {
+      this.course.set(null);
+      return;
+    }
+    const trueCourse =
+      option === DirectToOption.CRS_IN
+        ? (bearingTo(targetFix.location, otherFix.location) + 180) % 360
+        : bearingTo(targetFix.location, otherFix.location);
+    const magVar = MagVar.getForFix(targetFix);
+    const course = magVar !== null ? MagVar.trueToMagnetic(trueCourse, magVar) : trueCourse;
+    this.courseIsTrue.set(magVar === null);
+    this.course.set(Math.round(course) % 360);
+  }
+
+  /** Builds the temporary flight plan of the DIR TO with the selected option (a new one when the options change) */
+  private async buildDirectTo(): Promise<void> {
+    if (this.props.flightPlanInterface.hasTemporary) {
+      await this.props.flightPlanInterface.temporaryDelete();
+      this.props.fmcService.master.resetRevisedWaypoint();
+    }
+    const target = this.target;
+    const option = this.directToOption.get();
+    if (!target) {
+      return;
+    }
+
+    let interceptCourse: DirectToInterceptCourse | undefined;
+    if (option === DirectToOption.CRS_IN || option === DirectToOption.CRS_OUT) {
+      const course = this.course.get();
+      if (course === null) {
+        // No DIR TO until the flight crew enters the course
+        return;
+      }
+      interceptCourse = { course, isTrue: this.courseIsTrue.get(), inbound: option === DirectToOption.CRS_IN };
+    }
+    const withAbeam = option === DirectToOption.DIRECT_WITH_ABEAM;
+    const ppos = this.props.fmcService.master.navigation.getPpos() ?? { lat: 0, long: 0 };
+
+    if ('legIndex' in target) {
+      this.props.fmcService.master.setRevisedWaypoint(target.legIndex, FlightPlanIndex.Active, false);
+      const trueTrack = ADIRS.getTrueTrack();
+      await this.props.flightPlanInterface.directToLeg(
+        ppos,
+        trueTrack?.isNormalOperation() ? trueTrack.value : 0,
+        target.legIndex,
+        withAbeam,
+        FlightPlanIndex.Active,
+        interceptCourse,
+      );
+    } else {
+      await this.props.flightPlanInterface.directToWaypoint(
+        ppos,
+        SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree'),
+        target.fix,
+        withAbeam,
+        FlightPlanIndex.Active,
+        interceptCourse,
+      );
     }
   }
 
@@ -148,7 +248,7 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
       }, true),
     );
 
-    this.subs.push(this.directOptionRadioColor);
+    this.subs.push(this.directOptionRadioColor, this.courseFieldVisibility, this.courseFieldTop);
   }
 
   render(): VNode {
@@ -225,9 +325,33 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
                 <RadioButtonGroup
                   idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_directToOptionsRadio`}
                   values={['DIRECT', 'DIRECT WITH ABEAM', 'CRS IN', 'CRS OUT']}
-                  valuesDisabled={Subject.create([false, true, true, true])}
+                  valuesDisabled={Subject.create([false, false, false, false])}
                   selectedIndex={this.directToOption}
+                  onModified={(option) => this.onOptionModified(option)}
                   color={this.directOptionRadioColor}
+                />
+              </div>
+              {/* FCOM DSC-22-FMS-20-30 P 131: CRS entry field of the selected CRS IN or CRS OUT option */}
+              <div
+                class="mfd-fms-direct-to-course-field"
+                style={{ visibility: this.courseFieldVisibility, top: this.courseFieldTop }}
+              >
+                <InputField<number>
+                  dataEntryFormat={
+                    new DirectToCourseFormat(this.courseIsTrue, (isTrue) => this.courseIsTrue.set(isTrue))
+                  }
+                  value={this.course}
+                  onModified={async (course) => {
+                    this.course.set(course);
+                    await this.buildDirectTo();
+                  }}
+                  mandatory={Subject.create(true)}
+                  tmpyActive={this.tmpyActive}
+                  alignText="flex-end"
+                  containerStyle="width: 95px;"
+                  errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
+                  hEventConsumer={this.props.mfd.hEventConsumer}
+                  interactionMode={this.props.mfd.interactionMode}
                 />
               </div>
             </div>

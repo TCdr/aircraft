@@ -2798,3 +2798,45 @@ export class WxrTiltFormat implements DataEntryFormat<number> {
     return value;
   }
 }
+
+/**
+ * CRS IN / CRS OUT of the DIRECT TO page (A380 FCOM DSC-22-FMS-20-100 "COURSE IN/OUT": NNNB or BNNN, 0 to 360°, B = M
+ * or nothing for a magnetic course, T for a true course). The reference goes to `onTrue`; the field shows °T for a true
+ * course.
+ */
+export class DirectToCourseFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---';
+
+  public readonly maxDigits = 4;
+
+  public readonly unit = '°';
+
+  constructor(
+    private readonly isTrue: Subscribable<boolean>,
+    private readonly onTrue: (isTrue: boolean) => void = () => {},
+  ) {}
+
+  public format(value: number | null): FieldFormatTuple {
+    const unit = this.isTrue.get() ? '°T' : this.unit;
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, unit];
+    }
+    return [value.toFixed(0).padStart(3, '0'), null, unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    const match = input.match(/^([MT]?)(\d{1,3})([MT]?)$/);
+    if (!match || (match[1] !== '' && match[3] !== '')) {
+      throw getFormattedFormatError('NNNB', this.unit);
+    }
+    const value = Number(match[2]);
+    if (value > 360) {
+      throw getFormattedEntryOutOfRangeError('0', '360', this.unit);
+    }
+    this.onTrue(match[1] === 'T' || match[3] === 'T');
+    return value;
+  }
+}
