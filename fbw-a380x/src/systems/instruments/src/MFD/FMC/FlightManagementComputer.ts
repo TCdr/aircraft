@@ -368,6 +368,18 @@ export class FlightManagementComputer implements FmcInterface {
 
   private fuelPlanningIterations = 0;
 
+  /** The last predictions read by the fuel planning, to use each computation once */
+  private fuelPlanningLastProfile: object | null = null;
+
+  /** The destination EFOB of the last predictions with the current trial fuel, in kg */
+  private fuelPlanningLastDestFuelKg: number | null = null;
+
+  /**
+   * The destination fuel the VNAV starts from when it has no estimate (CruiseToDescentCoordinator), in pounds: a
+   * prediction still at this value is not a prediction yet.
+   */
+  private static readonly VNAV_DEFAULT_DESTINATION_FUEL_LB = 4000;
+
   private readonly legacyFmsIsHealthy = Subject.create(false);
 
   private wasReset = false;
@@ -792,7 +804,7 @@ export class FlightManagementComputer implements FmcInterface {
     const trial = (pd.taxiFuel.get() ?? 0) + (pd.minimumDestinationFuelOnBoard.get() ?? 0) + (distance * 21) / 1000;
     this.fuelPlanningIterations = 0;
     this.fuelPlanningBlockFuel.set(null);
-    this.fmgc.data.fuelPlanningTrialBlockFuel.set(trial);
+    this.setFuelPlanningTrial(trial);
     this.fuelPlanningInProgress.set(true);
   }
 
@@ -803,6 +815,12 @@ export class FlightManagementComputer implements FmcInterface {
     if (block !== null) {
       this.flightPlanInterface.setPerformanceData('blockFuel', block, FlightPlanIndex.Active);
     }
+  }
+
+  /** The next predictions are computed with this BLOCK fuel, in tonnes */
+  private setFuelPlanningTrial(trial: number): void {
+    this.fuelPlanningLastDestFuelKg = null;
+    this.fmgc.data.fuelPlanningTrialBlockFuel.set(trial);
   }
 
   private stopFuelPlanning(): void {
@@ -826,31 +844,52 @@ export class FlightManagementComputer implements FmcInterface {
     }
 
     const trial = this.fmgc.data.fuelPlanningTrialBlockFuel.get();
-    const startFuel = this.guidanceController.vnavDriver.mcduProfile?.checkpoints[0]?.remainingFuelOnBoard;
+    const profile = this.guidanceController.vnavDriver.mcduProfile;
+    const startFuel = profile?.checkpoints[0]?.remainingFuelOnBoard;
     const destPred = this.guidanceController.vnavDriver.getDestinationPrediction();
-    // Only the predictions computed with the current trial fuel (they are computed every few seconds)
+    // Each computation of the predictions once, and only those computed with the current trial fuel
     if (
       trial === null ||
+      !profile ||
+      profile === this.fuelPlanningLastProfile ||
       !destPred ||
       startFuel === undefined ||
       Math.abs(Units.poundToKilogram(startFuel) - trial * 1000) > 50
     ) {
       return;
     }
+    this.fuelPlanningLastProfile = profile;
 
-    const trip = trial * 1000 - Units.poundToKilogram(destPred.estimatedFuelOnBoard);
+    // The destination EFOB of the first computations with a new fuel on board can still be the VNAV starting estimate:
+    // use it once two computations in a row agree (else the TRIP is the trial fuel itself, and the BLOCK runs away)
+    const destFuelKg = Units.poundToKilogram(destPred.estimatedFuelOnBoard);
+    const previousDestFuelKg = this.fuelPlanningLastDestFuelKg;
+    this.fuelPlanningLastDestFuelKg = destFuelKg;
+    if (
+      Math.abs(destPred.estimatedFuelOnBoard - FlightManagementComputer.VNAV_DEFAULT_DESTINATION_FUEL_LB) < 1 ||
+      previousDestFuelKg === null ||
+      Math.abs(destFuelKg - previousDestFuelKg) > 50
+    ) {
+      return;
+    }
+
+    const trip = trial * 1000 - destFuelKg;
     const block =
       ((pd.taxiFuel.get() ?? 0) * 1000 +
         trip +
         (this.getRouteReserveFuel(FlightPlanIndex.Active, trip) ?? 0) +
         (pd.minimumDestinationFuelOnBoard.get() ?? 0) * 1000) /
       1000;
-    this.fmgc.data.fuelPlanningTrialBlockFuel.set(block);
     this.fuelPlanningIterations++;
-    if (Math.abs(block - trial) < 0.1 || this.fuelPlanningIterations >= 8) {
+    if (Math.abs(block - trial) < 0.1) {
       // The minimum BLOCK, rounded up to the 0.1 t of the entry field
       this.fuelPlanningBlockFuel.set(Math.ceil(block * 10) / 10);
       this.fuelPlanningInProgress.set(false);
+    } else if (this.fuelPlanningIterations >= 8) {
+      console.warn('[FMS] FUEL PLANNING: the minimum BLOCK does not converge, no result');
+      this.stopFuelPlanning();
+    } else {
+      this.setFuelPlanningTrial(block);
     }
   }
 
