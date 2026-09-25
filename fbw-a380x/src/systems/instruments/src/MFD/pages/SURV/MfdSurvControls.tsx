@@ -118,8 +118,9 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     this.wxr2Failed,
   );
 
-  // WXR, TURB and MODE drive the ND weather radar, WX ON VD the VD's "NO TERR AND WX DATA" message. PRED W/S, GAIN and
-  // ELEVN/TILT only keep their state so far. All start at the page's default settings.
+  // WXR, TURB and MODE drive the ND weather radar, WX ON VD the VD's "NO TERR AND WX DATA" message, GAIN and ELEVN/TILT the
+  // ND's WXR messages (the radar picture itself does not follow them). PRED W/S only keeps its state so far. All start at
+  // the page's default settings.
   private readonly wxrAuto = Subject.create<boolean>(true);
 
   private readonly wxrPredWsAuto = Subject.create<boolean>(true);
@@ -369,6 +370,32 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
     }
   }
 
+  /**
+   * FCOM DSC-34-20-30-20 P 4 (ELEVN knob): selecting the manual ELEVN (TILT) mode without a value uses the default ELEVN
+   * value, the current aircraft altitude, or the default TILT value, +3.00° on ground and 0° in flight.
+   */
+  private setElevnTiltMode(mode: WxrElevnTiltMode) {
+    SimVar.SetSimVarValue('L:A380X_WXR_ELEVN_TILT_MODE', SimVarValueType.Enum, mode);
+    if (mode === WxrElevnTiltMode.Elevn && this.wxrElevation.get() === null) {
+      const altitude = SimVar.GetSimVarValue(this.baroIsStd.get() ? 'PRESSURE ALTITUDE' : 'INDICATED ALTITUDE', 'feet');
+      SimVar.SetSimVarValue('L:A380X_WXR_ELEVN', SimVarValueType.Number, Math.max(0, Math.round(altitude / 100) * 100));
+    } else if (mode === WxrElevnTiltMode.Tilt && this.wxrTilt.get() === null) {
+      SimVar.SetSimVarValue(
+        'L:A380X_WXR_TILT',
+        SimVarValueType.Number,
+        this.props.fmcService.master.fmgc.isOnGround() ? 3 : 0,
+      );
+    }
+  }
+
+  /** FCOM DSC-34-20-30-20 P 4 (GAIN knob): the default GAIN value is 50 % */
+  private setGainAuto(auto: boolean) {
+    SimVar.SetSimVarValue('L:A380X_WXR_GAIN_MAN', SimVarValueType.Bool, !auto);
+    if (!auto && this.wxrGain.get() === null) {
+      SimVar.SetSimVarValue('L:A380X_WXR_GAIN', SimVarValueType.Number, 50);
+    }
+  }
+
   private setDefaultSettings() {
     if (!this.xpdrFailed.get()) {
       this.setXpdrMode(0);
@@ -552,9 +579,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               <RadioButtonGroup
                 values={['AUTO', 'ELEVN', 'TILT']}
                 selectedIndex={this.wxrElevnTiltMode}
-                onModified={(val) =>
-                  SimVar.SetSimVarValue('L:A380X_WXR_ELEVN_TILT_MODE', SimVarValueType.Enum, val as WxrElevnTiltMode)
-                }
+                onModified={(val) => this.setElevnTiltMode(val as WxrElevnTiltMode)}
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_survControlswxrElevnTilt`}
                 additionalVerticalSpacing={7}
                 color={Subject.create(RadioButtonColor.Green)}
@@ -602,9 +627,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
             {/* FCOM: GAIN and MODE are not displayed while the WXR is off */}
             <div style={{ visibility: this.wxrAuto.map((v) => (v ? 'inherit' : 'hidden')) }}>
               {fcomCentre(470, 289, <span class="mfd-label">GAIN</span>)}
-              {this.survButton(528, 229, this.wxrGainAuto, this.wxrFailed, 'AUTO', 'MAN', (v) =>
-                SimVar.SetSimVarValue('L:A380X_WXR_GAIN_MAN', SimVarValueType.Bool, !v),
-              )}
+              {this.survButton(528, 229, this.wxrGainAuto, this.wxrFailed, 'AUTO', 'MAN', (v) => this.setGainAuto(v))}
               {fcomCentre(470, 475, <span class="mfd-label">MODE</span>)}
               {this.survButton(528, 415, this.wxrModeWx, this.wxrFailed, 'WX', 'MAP', (v) =>
                 SimVar.SetSimVarValue('L:A380X_WXR_MODE_MAP', SimVarValueType.Bool, !v),
