@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, Instrument, KeyEventManager, SimVarValueType } from '@microsoft/msfs-sdk';
-import { UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { UniversalConfigProvider, Units, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 
 /**
  * Fuel jettison, as controlled by the FQMS (A380 FCOM DSC-28-40 Fuel Jettison, DSC-28-20 JETTISON panel):
@@ -37,21 +37,10 @@ export class FuelJettison implements Instrument {
   private static readonly TRIM_RESUME_MARGIN = 0.5;
 
   /**
-   * The forward CG limits of the FBW A380X takeoff and landing envelopes (airframe.json5 performanceEnvelope mtow and
-   * mlw), [weight kg, CG % MAC]
+   * The takeoff and landing CG envelopes of the airframe (airframe.json5 performanceEnvelope mtow and mlw), polygons of
+   * [CG % MAC, weight kg]; null until the airframe configuration is loaded.
    */
-  private static readonly TAKEOFF_FORWARD_LIMIT: readonly [number, number][] = [
-    [270_000, 29],
-    [375_000, 29],
-    [510_000, 35.75],
-  ];
-
-  private static readonly LANDING_FORWARD_LIMIT: readonly [number, number][] = [
-    [270_000, 29],
-    [375_000, 29],
-    [385_000, 29.75],
-    [395_000, 31.5],
-  ];
+  private takeoffLandingEnvelopes: readonly (readonly number[][])[] | null = null;
 
   private readonly throttler = new UpdateThrottler(250);
 
@@ -73,6 +62,14 @@ export class FuelJettison implements Instrument {
 
   init(): void {
     this.setOutputs(false);
+    UniversalConfigProvider.fetchAirframeInfo(process.env.AIRCRAFT_PROJECT_PREFIX, process.env.AIRCRAFT_VARIANT).then(
+      (airframe) => {
+        const envelope = airframe?.designLimits?.performanceEnvelope;
+        if (envelope?.mtow && envelope?.mlw) {
+          this.takeoffLandingEnvelopes = [envelope.mtow, envelope.mlw];
+        }
+      },
+    );
   }
 
   onUpdate(): void {
@@ -91,7 +88,7 @@ export class FuelJettison implements Instrument {
 
     let jettisoning = armOn && activeOn && powered && !this.completed;
     if (jettisoning) {
-      const grossWeightKg = SimVar.GetSimVarValue('TOTAL WEIGHT', SimVarValueType.Pounds) * 0.45359237;
+      const grossWeightKg = Units.poundToKilogram(SimVar.GetSimVarValue('TOTAL WEIGHT', SimVarValueType.Pounds));
       const targetKg = SimVar.GetSimVarValue('L:A380X_FMS_JETTISON_GW', SimVarValueType.Number);
       const quantities = new Map(
         [...FuelJettison.TRANSFER_TANKS, FuelJettison.TRIM_TANK].map((tank) => [
@@ -136,10 +133,14 @@ export class FuelJettison implements Instrument {
   }
 
   private updateTrimTankHold(grossWeightKg: number): void {
+    if (this.takeoffLandingEnvelopes === null) {
+      // The CG limits are not known yet: the trim tank fuel stays, the CG cannot move forward
+      this.trimTankHeld = true;
+      return;
+    }
     const cg = SimVar.GetSimVarValue('L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC', SimVarValueType.Number);
     const forwardLimit = Math.max(
-      FuelJettison.limitAt(FuelJettison.TAKEOFF_FORWARD_LIMIT, grossWeightKg),
-      FuelJettison.limitAt(FuelJettison.LANDING_FORWARD_LIMIT, grossWeightKg),
+      ...this.takeoffLandingEnvelopes.map((envelope) => FuelJettison.forwardCgLimit(envelope, grossWeightKg)),
     );
     if (cg <= forwardLimit) {
       this.trimTankHeld = true;
@@ -148,19 +149,27 @@ export class FuelJettison implements Instrument {
     }
   }
 
-  /** A CG limit at a weight, linear between the points of the envelope edge and constant beyond them */
-  private static limitAt(edge: readonly [number, number][], weight: number): number {
-    if (weight <= edge[0][0]) {
-      return edge[0][1];
-    }
-    for (let i = 1; i < edge.length; i++) {
-      const [w0, cg0] = edge[i - 1];
-      const [w1, cg1] = edge[i];
-      if (weight <= w1) {
-        return cg0 + ((cg1 - cg0) * (weight - w0)) / (w1 - w0);
+  /**
+   * The forward (lowest) CG of an envelope polygon at a weight: the most forward crossing of the envelope edges at that
+   * weight; outside the weight range of the envelope, the most forward CG at its nearest weight.
+   * @param envelope polygon of [CG % MAC, weight kg]
+   */
+  private static forwardCgLimit(envelope: readonly number[][], weight: number): number {
+    const weights = envelope.map(([, w]) => w);
+    const w = Math.min(Math.max(weight, Math.min(...weights)), Math.max(...weights));
+    let forward = Infinity;
+    for (let i = 0; i < envelope.length; i++) {
+      const [cg0, w0] = envelope[i];
+      const [cg1, w1] = envelope[(i + 1) % envelope.length];
+      if (w0 === w1) {
+        if (w === w0) {
+          forward = Math.min(forward, cg0, cg1);
+        }
+      } else if (w >= Math.min(w0, w1) && w <= Math.max(w0, w1)) {
+        forward = Math.min(forward, cg0 + ((cg1 - cg0) * (w - w0)) / (w1 - w0));
       }
     }
-    return edge[edge.length - 1][1];
+    return forward;
   }
 
   private setOutputs(jettisoning: boolean): void {
