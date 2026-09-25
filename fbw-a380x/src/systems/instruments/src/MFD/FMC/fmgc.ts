@@ -90,6 +90,12 @@ export class FmgcData {
 
   public readonly cpnyFplnRequestedForPlan = Subject.create<FlightPlanIndex | null>(null);
 
+  /**
+   * FUEL PLANNING: the trial BLOCK fuel (tonnes) that the predictions of the active flight plan use as fuel on board
+   * while no BLOCK is entered (FlightManagementComputer.updateFuelPlanning).
+   */
+  public readonly fuelPlanningTrialBlockFuel = Subject.create<number | null>(null);
+
   public readonly cpnyFplnUplinkInProgress = Subject.create(false);
 
   public readonly atcCallsign = Subject.create<string | null>(null);
@@ -266,7 +272,9 @@ export class FmgcDataService implements Fmgc {
       const fqmsFob = this.fqmsFob.get().valueOr(null);
       fob = fqmsFob !== null ? fqmsFob / 1000 : null;
     } else {
-      fob = this.flightPlanService.get(forPlan).performanceData.blockFuel.get();
+      fob =
+        this.flightPlanService.get(forPlan).performanceData.blockFuel.get() ??
+        (forPlan === FlightPlanIndex.Active ? this.data.fuelPlanningTrialBlockFuel.get() : null);
     }
     return fob;
   }
