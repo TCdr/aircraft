@@ -541,6 +541,55 @@ export class FwsMemos {
       codesToReturn: ['341000003'],
       memoInhibit: () => false,
     },
+    '341000004': {
+      // TERR SYS OFF
+      flightPhaseInhib: [1, 12],
+      simVarIsActive: this.fws.tawsTerrOff,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['341000004'],
+      memoInhibit: () => false,
+    },
+    '341000005': {
+      // TERR STBY
+      flightPhaseInhib: [1, 12],
+      simVarIsActive: this.fws.terrStby,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['341000005'],
+      memoInhibit: () => false,
+    },
+    '342000001': {
+      // PRED W/S OFF: in green in flight phases 2 and 8, in amber in the takeoff and landing phases (A380 FCOM
+      // DSC-34-20-60-140 P 1-2, the colours as the A320 PRED W/S OFF memo)
+      flightPhaseInhib: [1, 12],
+      simVarIsActive: this.fws.wxrPredWsOff,
+      whichCodeToReturn: () => [this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 8 ? 1 : 0],
+      codesToReturn: ['342000001', '342000002'],
+      memoInhibit: () => false,
+    },
+    '342000003': {
+      // WXR TURB OFF
+      flightPhaseInhib: [1, 12],
+      simVarIsActive: this.fws.wxrTurbOff,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['342000003'],
+      memoInhibit: () => false,
+    },
+    '342000004': {
+      // WXR ON
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: this.fws.wxrOnGround,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['342000004'],
+      memoInhibit: () => false,
+    },
+    '342000005': {
+      // WXR OFF
+      flightPhaseInhib: [1, 11, 12],
+      simVarIsActive: this.fws.wxrOff,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['342000005'],
+      memoInhibit: () => false,
+    },
 
     '343000001': {
       // TCAS STBY
