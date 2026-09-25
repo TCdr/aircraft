@@ -2989,7 +2989,8 @@
                             <SEQ1_CODE>(L:A380X_OVHD_FUEL_JETTISON_IS_OPEN, Bool)</SEQ1_CODE>
                             <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
                             <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
-                            <SEQ2_CODE>(L:A380X_OVHD_FUEL_JETTISON_ACTIVE_PB_IS_ON, Bool)</SEQ2_CODE>
+                            <!-- FCOM DSC-28-20: the ON light goes off when the FQMS stops the jettison -->
+                            <SEQ2_CODE>(L:A380X_OVHD_FUEL_JETTISON_ACTIVE_PB_IS_ON, Bool) (L:A380X_FUEL_JETTISON_COMPLETED, Bool) ! and</SEQ2_CODE>
                             <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                             <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
                         </UseTemplate>

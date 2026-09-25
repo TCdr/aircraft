@@ -1891,6 +1891,16 @@ export class FwsCore {
   /** The WXR button of the SURV CONTROLS page is OFF. */
   public readonly wxrOff = Subject.create(false);
 
+  /** Fuel jettison in progress (FQMS, A380 FCOM DSC-28-40) */
+  public readonly fuelJettisonInProgress = Subject.create(false);
+
+  /** The FQMS stopped the jettison (JTSN GW reached or transfer tanks empty), until both JETTISON pb-sw are OFF */
+  public readonly fuelJettisonCompleted = Subject.create(false);
+
+  public readonly fuelJettisonArmPbOn = Subject.create(false);
+
+  public readonly fuelJettisonActivePbOn = Subject.create(false);
+
   /** The flight crew has set the PRED W/S button to OFF (not the WXR button, which also sets it to OFF). */
   public readonly wxrPredWsOff = Subject.create(false);
 
@@ -5177,6 +5187,16 @@ export class FwsCore {
       tawsOperative &&
         !this.tawsTerrOff.get() &&
         !(this.egpwcPresentLatitude.isNormalOperation() && this.egpwcPresentLongitude.isNormalOperation()),
+    );
+
+    // Fuel jettison (FuelJettison)
+    this.fuelJettisonInProgress.set(SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_IN_PROGRESS', SimVarValueType.Bool));
+    this.fuelJettisonCompleted.set(SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_COMPLETED', SimVarValueType.Bool));
+    this.fuelJettisonArmPbOn.set(
+      SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ARM_PB_IS_ON', SimVarValueType.Bool),
+    );
+    this.fuelJettisonActivePbOn.set(
+      SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ACTIVE_PB_IS_ON', SimVarValueType.Bool),
     );
 
     // WXR (A380 FCOM DSC-34-20-30-20). The WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo

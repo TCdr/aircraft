@@ -62,6 +62,9 @@ export class LegacyFuel implements Instrument {
 
   private refuelInProgress = false;
 
+  /** Fuel jettison in progress: all fuel transfers stop (A380 FCOM DSC-28-40, FuelJettison) */
+  private jettisonInProgress = false;
+
   private hasInit = false;
 
   /* holds state for active trimtank transfers to feed tanks 1-4 */
@@ -199,6 +202,24 @@ export class LegacyFuel implements Instrument {
     }
 
     const onGround = SimVar.GetSimVarValue('SIM ON GROUND', 'bool');
+    const jettisoning = SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_IN_PROGRESS', 'bool');
+    if (!this.jettisonInProgress && jettisoning) {
+      // Jettison start: all fuel transfers stop
+      this.jettisonInProgress = true;
+      for (let index = 1; index <= LegacyFuel.NUMBER_OF_TRIGGERS; index++) {
+        if (this.triggerStates.get(index).get()) {
+          this.keyEventManager.triggerKey('FUELSYSTEM_TRIGGER_OFF', true, index);
+        }
+      }
+      return;
+    } else if (this.jettisonInProgress) {
+      if (!jettisoning) {
+        this.jettisonInProgress = false;
+        this.checkEmptyTriggers();
+      }
+      return;
+    }
+
     if (!this.refuelInProgress && this.refuelStarted.get()) {
       this.refuelInProgress = true;
       console.log('refuel start detected');
