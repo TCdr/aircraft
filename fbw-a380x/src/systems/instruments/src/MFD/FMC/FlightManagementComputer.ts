@@ -37,6 +37,8 @@ import {
   VerticalPathCheckpoint,
   Waypoint,
   NearbyFacility,
+  CompanyTakeoffDataLinkMessage,
+  CompanyTakeoffDataRequestContent,
   CompanyTakeoffDataUplink,
 } from '@flybywiresim/fbw-sdk';
 import {
@@ -74,7 +76,7 @@ import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { HistoryWind } from '@fmgc/wind/HistoryWind';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
-import { CompanyTakeoffData, CompanyTakeoffDataMessage, CompanyTakeoffDataRequestContent } from './CompanyTakeoffData';
+import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
@@ -508,17 +510,17 @@ export class FlightManagementComputer implements FmcInterface {
       () => this.companyTakeoffDataRequestContent(),
       (message) => {
         switch (message) {
-          case CompanyTakeoffDataMessage.Received:
+          case CompanyTakeoffDataLinkMessage.Received:
             this.addMessageToQueue(
               NXSystemMessages.cpnyToDataReceivedPendingInsertion,
               () => this.companyTakeoffData.uplinks.get().length === 0,
               undefined,
             );
             break;
-          case CompanyTakeoffDataMessage.NotValid:
+          case CompanyTakeoffDataLinkMessage.Invalid:
             this.addMessageToQueue(NXSystemMessages.receivedCpnyToDataNotValid, undefined, undefined);
             break;
-          case CompanyTakeoffDataMessage.NoReply:
+          case CompanyTakeoffDataLinkMessage.NoReply:
             this.addMessageToQueue(NXSystemMessages.noCompanyReply, undefined, undefined);
             break;
         }
@@ -1467,7 +1469,7 @@ export class FlightManagementComputer implements FmcInterface {
       this.flightPlanInterface.setPerformanceData('noiseSpeed', uplink.noise.speed, plan);
       this.flightPlanInterface.setPerformanceData('noiseN1', uplink.noise.n1, plan);
     }
-    this.companyTakeoffData.clear(uplink);
+    this.companyTakeoffData.remove(uplink);
     return true;
   }
 

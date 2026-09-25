@@ -2,7 +2,7 @@
 // Copyright (c) 2021-2023, 2025-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { NXDataStore, UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { CompanyTakeoffDataLinkMessage, NXDataStore, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { FMCMainDisplay } from './A32NX_FMCMainDisplay';
 import { recallMessageById } from '@fmgc/components';
 import { Keypad } from './A320_Neo_CDU_Keypad';
@@ -23,7 +23,7 @@ import { EngineOutTargetPage } from '@fmgc/events/EngineOutEvents';
 import { CDUFlightPlanPage } from '../legacy_pages/A320_Neo_CDU_FlightPlanPage';
 import { CDUPerformancePage } from '../legacy_pages/A320_Neo_CDU_PerformancePage';
 import { CDUUplinkTakeoffDataPages } from '../legacy_pages/A320_Neo_CDU_UplinkTakeoffDataPages';
-import { UplinkTakeoffData, UplinkTakeoffDataMessage } from './UplinkTakeoffData';
+import { UplinkTakeoffData } from './UplinkTakeoffData';
 
 export class A320_Neo_CDU_MainDisplay
   extends FMCMainDisplay
@@ -50,13 +50,13 @@ export class A320_Neo_CDU_MainDisplay
     () => CDUUplinkTakeoffDataPages.requestContent(this),
     (message) => {
       switch (message) {
-        case UplinkTakeoffDataMessage.Received:
+        case CompanyTakeoffDataLinkMessage.Received:
           this.addMessageToQueue(NXSystemMessages.takeoffDataUplink);
           break;
-        case UplinkTakeoffDataMessage.Invalid:
+        case CompanyTakeoffDataLinkMessage.Invalid:
           this.setScratchpadMessage(NXSystemMessages.invalidTakeoffUplink);
           break;
-        case UplinkTakeoffDataMessage.NoAnswer:
+        case CompanyTakeoffDataLinkMessage.NoReply:
           this.setScratchpadMessage(NXSystemMessages.noAnswerToRequest);
           break;
       }

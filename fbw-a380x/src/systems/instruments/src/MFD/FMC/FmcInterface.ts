@@ -10,8 +10,16 @@ import { FmcAircraftInterface } from './FmcAircraftInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmgcDataService } from './fmgc';
 import { TypeIMessage, TypeIIMessage } from '../shared/NXSystemMessages';
-import { CompanyTakeoffDataUplink, EfisSide, Fix, FMMessage, NearbyFacility, Waypoint } from '@flybywiresim/fbw-sdk';
-import { CompanyTakeoffData, CompanyTakeoffDataRequestContent } from './CompanyTakeoffData';
+import {
+  CompanyTakeoffDataRequestContent,
+  CompanyTakeoffDataUplink,
+  EfisSide,
+  Fix,
+  FMMessage,
+  NearbyFacility,
+  Waypoint,
+} from '@flybywiresim/fbw-sdk';
+import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
