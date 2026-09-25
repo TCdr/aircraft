@@ -195,18 +195,33 @@
 
     .mfd-button {
       box-sizing: border-box;
-      width: 85px !important;
-      height: 54px;
-      padding: 2px 0 0 0;
+      min-width: 85px;
+      min-height: 54px;
+      padding: 2px 6px 0 6px;
+    }
+
+    .mfd-button-label {
       line-height: 23px;
     }
   }
 
-  // One height for every entry field (44 px with the frame), the content (value, dashes, boxes and units) centred in it.
-  // The text has no background of its own: the cockpit renderer paints the text box taller than the line, which would
-  // cover the top and bottom of the frame.
+  // Buttons grow around their label, never the other way round: the label keeps the lines of the FCOM figure (no
+  // automatic wrapping) and the sizes given to a button are minimums. A one-line button is 44 px high, as the entry
+  // fields.
+  .mfd-button-label {
+    white-space: pre;
+    line-height: 26px;
+  }
+
+  // One height for every entry field: 44 px with the frame (the cockpit renderer sizes every box with its frame and
+  // padding), the FCOM figures' 40 px widened by 2 px up and down, the content (value, dashes, boxes and units) centred
+  // in it. The text has no background of its own: the cockpit renderer paints the text box taller than the line,
+  // which would cover the top and bottom of the frame.
   .mfd-input-field-container {
-    height: 32px;
+    box-sizing: border-box;
+    height: 44px;
+    margin-top: -2px;
+    margin-bottom: -2px;
     justify-content: center;
     align-items: center;
   }
@@ -243,6 +258,8 @@
       width: 100%;
       min-width: 0;
       height: 40px;
+      margin-top: 0;
+      margin-bottom: 0;
     }
   }
 

@@ -339,7 +339,7 @@ export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
                 label="SEND T.O<br />REQUEST *"
                 disabled={this.noCompanyTakeoffData}
                 onClick={() => {}}
-                buttonStyle="width: 155px; height: 41px;"
+                buttonStyle="min-width: 183px; min-height: 59px;"
               />,
             )}
             {fcomAt(
@@ -348,7 +348,7 @@ export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 99px;"
+                buttonStyle="min-width: 127px;"
               />,
             )}
             {fcomAt(
@@ -357,7 +357,7 @@ export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
               <Button
                 label="RECEIVED T.O DATA"
                 onClick={() => this.props.mfd.uiService.navigateTo(`fms/active/${receivedCpnyToDataPage}`)}
-                buttonStyle="width: 245px;"
+                buttonStyle="min-width: 273px;"
               />,
             )}
           </div>

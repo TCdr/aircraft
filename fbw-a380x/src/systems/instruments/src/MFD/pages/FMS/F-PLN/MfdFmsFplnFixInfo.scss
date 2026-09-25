@@ -34,8 +34,8 @@
   }
 
   .mfd-button {
-    width: 107px;
-    height: 41px;
+    min-width: 107px;
+    min-height: 41px;
     margin-left: 40px;
   }
 }

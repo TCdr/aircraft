@@ -191,7 +191,7 @@ export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('fms/position/monitor')}
-                buttonStyle="width: 100px;"
+                buttonStyle="min-width: 128px;"
               />,
             )}
           </div>

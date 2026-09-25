@@ -243,7 +243,7 @@ export class MfdFmsFplnDuplicateNames extends DisplayComponent<MfdFmsFplnDuplica
               <Button
                 ref={this.returnButtonRef}
                 label="RETURN"
-                buttonStyle="width: 101px;"
+                buttonStyle="min-width: 129px;"
                 onClick={() => {
                   this.pendingResolve?.(undefined);
                   this.pendingResolve = undefined;

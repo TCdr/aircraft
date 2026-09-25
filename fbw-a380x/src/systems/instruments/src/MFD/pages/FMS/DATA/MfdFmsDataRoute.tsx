@@ -529,7 +529,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
               </span>
             }
             onClick={() => this.deleteOneDialogVisible.set(true)}
-            buttonStyle="width: 167px; height: 40px;"
+            buttonStyle="min-width: 195px; min-height: 58px;"
           />,
         )}
         {fcomAt(
@@ -543,7 +543,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
               </span>
             }
             onClick={() => this.deleteAllDialogVisible.set(true)}
-            buttonStyle="width: 172px; height: 40px;"
+            buttonStyle="min-width: 200px; min-height: 58px;"
           />,
         )}
         {fcomAt(
@@ -554,7 +554,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataRouteNewRte`}
             menuItems={this.newRouteMenuItems}
             onClick={() => {}}
-            buttonStyle="width: 171px; height: 40px;"
+            buttonStyle="min-width: 199px; min-height: 58px;"
           />,
         )}
       </>
@@ -574,7 +574,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataRouteNewRteEmpty`}
             menuItems={this.newRouteMenuItems}
             onClick={() => {}}
-            buttonStyle="width: 171px; height: 40px;"
+            buttonStyle="min-width: 199px; min-height: 58px;"
           />,
         )}
       </>
@@ -606,7 +606,11 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
         {fcomAt(
           724,
           13,
-          <Button label="CANCEL" onClick={() => this.cancelNewRoute()} buttonStyle="width: 101px; height: 41px;" />,
+          <Button
+            label="CANCEL"
+            onClick={() => this.cancelNewRoute()}
+            buttonStyle="min-width: 129px; min-height: 59px;"
+          />,
         )}
         {fcomAt(
           724,
@@ -615,7 +619,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
             label="STORE RTE *"
             disabled={this.storeDisabled}
             onClick={() => this.storeNewRoute()}
-            buttonStyle="width: 142px; height: 41px;"
+            buttonStyle="min-width: 170px; min-height: 59px;"
           />,
         )}
       </>
@@ -670,7 +674,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
                 label="RETURN"
                 visible={this.showReturnButton}
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 100px;"
+                buttonStyle="min-width: 128px;"
               />,
             )}
           </div>

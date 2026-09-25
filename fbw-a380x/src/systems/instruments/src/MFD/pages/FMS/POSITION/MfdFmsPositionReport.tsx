@@ -432,7 +432,7 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
                 disabled={true}
                 label="SEND REPORT<br />TO CPNY*"
                 onClick={() => {}}
-                buttonStyle="width: 179px; height: 42px;"
+                buttonStyle="min-width: 207px; min-height: 60px;"
               />
             </div>
           </div>

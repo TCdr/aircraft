@@ -916,7 +916,11 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
         {MfdFmsDataNavaid.at(
           664,
           -3,
-          <Button label="CANCEL" onClick={() => this.cancelNewNavaid()} buttonStyle="width: 102px; height: 40px;" />,
+          <Button
+            label="CANCEL"
+            onClick={() => this.cancelNewNavaid()}
+            buttonStyle="min-width: 130px; min-height: 58px;"
+          />,
         )}
         {MfdFmsDataNavaid.at(
           664,
@@ -930,7 +934,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
             }
             disabled={this.storeDisabled}
             onClick={() => this.storeNewNavaid()}
-            buttonStyle="width: 142px; height: 40px;"
+            buttonStyle="min-width: 170px; min-height: 58px;"
           />,
         )}
       </div>
@@ -995,7 +999,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                   <Button
                     label="NEW NAVAID"
                     onClick={() => this.openNewNavaidFunction(null)}
-                    buttonStyle="width: 142px; height: 40px;"
+                    buttonStyle="min-width: 170px; min-height: 58px;"
                   />,
                 )}
               </div>
@@ -1057,7 +1061,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                       </span>
                     }
                     onClick={() => this.deleteOneDialogVisible.set(true)}
-                    buttonStyle="width: 204px; height: 40px;"
+                    buttonStyle="min-width: 232px; min-height: 58px;"
                   />,
                 )}
                 {MfdFmsDataNavaid.at(
@@ -1071,7 +1075,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                       </span>
                     }
                     onClick={() => this.deleteAllDialogVisible.set(true)}
-                    buttonStyle="width: 212px; height: 40px;"
+                    buttonStyle="min-width: 240px; min-height: 58px;"
                   />,
                 )}
                 {MfdFmsDataNavaid.at(
@@ -1080,7 +1084,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                   <Button
                     label="NEW NAVAID"
                     onClick={() => this.openNewNavaidFunction(null)}
-                    buttonStyle="width: 142px; height: 40px;"
+                    buttonStyle="min-width: 170px; min-height: 58px;"
                   />,
                 )}
               </div>
@@ -1101,7 +1105,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                 label="RETURN"
                 visible={this.showReturnButton}
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 101px;"
+                buttonStyle="min-width: 129px;"
               />,
             )}
           </div>
