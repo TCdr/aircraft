@@ -5,6 +5,7 @@ import {
   ComponentProps,
   DisplayComponent,
   FSComponent,
+  MappedSubscribable,
   Subject,
   Subscribable,
   SubscribableMapFunctions,
@@ -68,17 +69,18 @@ export class Button extends DisplayComponent<ButtonProps> {
 
   private readonly visible = SubscribableUtils.toSubscribable(this.props.visible ?? Subject.create(true), true);
 
+  /** The label mapped by this button, which it destroys */
+  private readonly ownedLabel: MappedSubscribable<string> | null = SubscribableUtils.isSubscribable(this.props.label)
+    ? this.props.label.map(Button.toNewlines)
+    : null;
+
   /**
    * Text labels with line breaks as newlines. A "<br />" in a text child is only parsed as HTML when it is first rendered:
    * the SDK then updates the last text node alone, so a label that changes (e.g. REQUEST PENDING...) would show the raw
    * "<br />" and keep its first line.
    */
   private readonly labelContent: string | VNode | Subscribable<string> =
-    typeof this.props.label === 'string'
-      ? Button.toNewlines(this.props.label)
-      : SubscribableUtils.isSubscribable(this.props.label)
-        ? this.props.label.map(Button.toNewlines)
-        : this.props.label;
+    typeof this.props.label === 'string' ? Button.toNewlines(this.props.label) : this.ownedLabel ?? this.props.label;
 
   private static toNewlines(label: string): string {
     return label.replace(/<br\s*\/?>/gi, '\n');
@@ -278,9 +280,7 @@ export class Button extends DisplayComponent<ButtonProps> {
   public destroy(): void {
     // Destroy all subscriptions to remove all references to this instance.
     this.subs.forEach((x) => x.destroy());
-    if (SubscribableUtils.isSubscribable(this.labelContent) && this.labelContent !== this.props.label) {
-      (this.labelContent as unknown as Subscription).destroy();
-    }
+    this.ownedLabel?.destroy();
 
     this.buttonRef.instance.removeEventListener('click', this.onClickHandler);
     document.getElementById('MFD_CONTENT')?.removeEventListener('click', this.onCloseDropdownHandler);
