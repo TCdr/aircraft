@@ -152,8 +152,12 @@ function windVectorFromDirectionAndSpeed(directionDegrees: number, speedKnots: n
   return Vec2Math.setFromPolar(speedKnots, directionDegrees * MathUtils.DEGREES_TO_RADIANS, Vec2Math.create());
 }
 
-function pilotWindEntry(altitude: number, vector: WindVector): FlightPlanWindEntry {
-  return { altitude, vector, flags: 0 };
+function pilotWindEntry(altitude: number, vector: WindVector, flightLevel = false): FlightPlanWindEntry {
+  return { altitude, vector, flags: flightLevel ? FlightPlanWindEntryFlags.EnteredAsFlightLevel : 0 };
+}
+
+function isFlightLevelEntry(entry: FlightPlanWindEntry): boolean {
+  return (entry.flags & FlightPlanWindEntryFlags.EnteredAsFlightLevel) !== 0;
 }
 
 /**
@@ -356,6 +360,7 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
     this.loadClimbOrDescentRows(
       this.climbRows,
       [...pd.climbWindEntries.get()].sort((a, b) => a.altitude - b.altitude),
+      this.climbAltitudeFormat,
     );
 
     // CRZ
@@ -372,6 +377,7 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
     this.loadClimbOrDescentRows(
       this.descentRows,
       [...pd.descentWindEntries.get()].sort((a, b) => b.altitude - a.altitude),
+      this.descentAltitudeFormat,
     );
 
     const hasAlternate = this.loadedAlternateFlightPlan?.destinationAirport !== undefined;
@@ -390,7 +396,12 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
     this.loadHistoryWinds();
   }
 
-  private loadClimbOrDescentRows(rows: WindRow[], entries: FlightPlanWindEntry[]): void {
+  private loadClimbOrDescentRows(
+    rows: WindRow[],
+    entries: FlightPlanWindEntry[],
+    altitudeFormat: WindAltitudeFormat,
+  ): void {
+    altitudeFormat.setFlightLevelAltitudes(entries.filter(isFlightLevelEntry).map((e) => e.altitude));
     rows.forEach((row, i) => {
       const entry = entries[i];
       if (entry !== undefined) {
@@ -402,6 +413,10 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
   }
 
   // ---- CLB / DES handlers -------------------------------------------------------------------------------------------
+
+  private altitudeFormat(panel: WindPanel.Climb | WindPanel.Descent): WindAltitudeFormat {
+    return panel === WindPanel.Climb ? this.climbAltitudeFormat : this.descentAltitudeFormat;
+  }
 
   private async setClimbOrDescentWind(
     panel: WindPanel.Climb | WindPanel.Descent,
@@ -426,14 +441,26 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
       // Clearing the altitude deletes the wind, a new altitude moves it
       await this.setClimbOrDescentWind(panel, entry.altitude, null);
       if (newAltitude !== null) {
-        await this.setClimbOrDescentWind(panel, newAltitude, pilotWindEntry(newAltitude, entry.vector));
+        await this.setClimbOrDescentWind(
+          panel,
+          newAltitude,
+          pilotWindEntry(newAltitude, entry.vector, this.altitudeFormat(panel).isFlightLevelEntry(newAltitude)),
+        );
       }
       return;
     }
 
     const pending = pendingWindEntry(newAltitude, row.direction.get(), row.speed.get());
     if (pending !== null) {
-      await this.setClimbOrDescentWind(panel, pending.altitude, pilotWindEntry(pending.altitude, pending.vector));
+      await this.setClimbOrDescentWind(
+        panel,
+        pending.altitude,
+        pilotWindEntry(
+          pending.altitude,
+          pending.vector,
+          this.altitudeFormat(panel).isFlightLevelEntry(pending.altitude),
+        ),
+      );
     }
   }
 
@@ -448,7 +475,11 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
       // Clearing the direction or the velocity deletes the wind
       const newEntry =
         newDirection !== null && newSpeed !== null
-          ? pilotWindEntry(entry.altitude, windVectorFromDirectionAndSpeed(newDirection, newSpeed))
+          ? pilotWindEntry(
+              entry.altitude,
+              windVectorFromDirectionAndSpeed(newDirection, newSpeed),
+              this.altitudeFormat(panel).isFlightLevelEntry(entry.altitude),
+            )
           : null;
       await this.setClimbOrDescentWind(panel, entry.altitude, newEntry);
       return;
@@ -456,7 +487,15 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
 
     const pending = pendingWindEntry(row.altitude.get(), newDirection, newSpeed);
     if (pending !== null) {
-      await this.setClimbOrDescentWind(panel, pending.altitude, pilotWindEntry(pending.altitude, pending.vector));
+      await this.setClimbOrDescentWind(
+        panel,
+        pending.altitude,
+        pilotWindEntry(
+          pending.altitude,
+          pending.vector,
+          this.altitudeFormat(panel).isFlightLevelEntry(pending.altitude),
+        ),
+      );
     }
   }
 
@@ -681,7 +720,8 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
       const entry: FlightPlanWindEntry = {
         altitude: wind.altitude,
         vector: Vec2Math.copy(wind.vector, Vec2Math.create()),
-        flags: FlightPlanWindEntryFlags.InsertedFromHistory,
+        // History winds are measured at flight levels (FCOM: CRZ FL, FL 250, FL 150 and FL 050)
+        flags: FlightPlanWindEntryFlags.InsertedFromHistory | FlightPlanWindEntryFlags.EnteredAsFlightLevel,
       };
       await this.props.flightPlanInterface.setClimbWindEntry(wind.altitude, entry, FlightPlanIndex.Active);
     }
