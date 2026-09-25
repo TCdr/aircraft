@@ -480,7 +480,13 @@ export class FmgcDataService implements Fmgc {
     if (forPlan === FlightPlanIndex.Active) {
       const efob = this.guidanceController?.vnavDriver?.getDestinationPrediction()?.estimatedFuelOnBoard; // in Pounds
       if (useFob && efob !== undefined) {
-        return Units.poundToKilogram(efob) / 1000.0;
+        // Before takeoff the predictions start from the FOB (BLOCK), which still holds the TAXI fuel: the fuel after
+        // landing is BLOCK - TAXI - TRIP (A380 FCOM DSC-22-FMS-20-30 FUEL&LOAD page: EXTRA and LW deduct the TAXI)
+        const taxiFuel =
+          this.getFlightPhase() < FmgcFlightPhase.Takeoff
+            ? this.flightPlanService.get(forPlan).performanceData.taxiFuel.get() ?? 0
+            : 0;
+        return Units.poundToKilogram(efob) / 1000.0 - taxiFuel;
       }
     }
     return null;
