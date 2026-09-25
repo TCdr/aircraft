@@ -15,6 +15,7 @@ import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanContext } from '@fmgc/flightplanning/plans/BaseFlightPlan';
 import { WindEntry, PropagatedWindEntry, WindVector } from './data/wind';
+import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 
 /**
  * Interface for querying, modifying and creating flight plans.
@@ -268,21 +269,31 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
    */
   finaliseAirwayEntry(planIndex: number, alternate?: boolean): Promise<void>;
 
+  /**
+   * DIR TO a leg of the flight plan.
+   * @param interceptCourse the course of a CRS IN or CRS OUT DIR TO, instead of a direct leg
+   */
   directToLeg(
     ppos: Coordinates,
     trueTrack: Degrees,
     targetLegIndex: number,
     withAbeam: boolean,
     planIndex: number,
+    interceptCourse?: DirectToInterceptCourse,
   ): Promise<void>;
 
   // TODO do not pass in fix object (rpc)
+  /**
+   * DIR TO a waypoint.
+   * @param interceptCourse the course of a CRS IN or CRS OUT DIR TO, instead of a direct leg
+   */
   directToWaypoint(
     ppos: Coordinates,
     trueTrack: Degrees,
     waypoint: Fix,
     withAbeam: boolean,
     planIndex: number,
+    interceptCourse?: DirectToInterceptCourse,
   ): Promise<void>;
 
   /**
