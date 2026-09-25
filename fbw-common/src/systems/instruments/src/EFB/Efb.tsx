@@ -60,7 +60,7 @@ import { FlyPadPage } from './Settings/Pages/FlyPadPage';
 import { NavigraphAuthProvider } from '../react/navigraph';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { Printouts } from './Dispatch/Printouts';
-import { CompanyTakeoffRequests } from './Performance/Widgets/A380Takeoff';
+import { CompanyTakeoffRequests } from './Performance/Widgets/TakeoffFmsLink';
 import { TroubleshootingContextProvider } from './TroubleshootingContext';
 import { checkFileHashes } from './Utils/fileHashes';
 import { setFileHashMismatches } from './Store/features/fileHashes';

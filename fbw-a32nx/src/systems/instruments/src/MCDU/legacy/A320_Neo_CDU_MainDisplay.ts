@@ -22,6 +22,8 @@ import { LegacyAtsuPageInterface } from './LegacyAtsuPageInterface';
 import { EngineOutTargetPage } from '@fmgc/events/EngineOutEvents';
 import { CDUFlightPlanPage } from '../legacy_pages/A320_Neo_CDU_FlightPlanPage';
 import { CDUPerformancePage } from '../legacy_pages/A320_Neo_CDU_PerformancePage';
+import { CDUUplinkTakeoffDataPages } from '../legacy_pages/A320_Neo_CDU_UplinkTakeoffDataPages';
+import { UplinkTakeoffData, UplinkTakeoffDataMessage } from './UplinkTakeoffData';
 
 export class A320_Neo_CDU_MainDisplay
   extends FMCMainDisplay
@@ -41,6 +43,25 @@ export class A320_Neo_CDU_MainDisplay
   public readonly fmgcMesssagesListener = RegisterViewListener('JS_LISTENER_SIMVARS', null, true);
 
   private readonly _keypad = new Keypad(this);
+
+  /** The takeoff data uplink (A320 FCOM DSC-22_45 TAKEOFF DATA FUNCTION): the ground station is the flypad calculator */
+  public readonly uplinkTakeoffData = new UplinkTakeoffData(
+    this.bus,
+    () => CDUUplinkTakeoffDataPages.requestContent(this),
+    (message) => {
+      switch (message) {
+        case UplinkTakeoffDataMessage.Received:
+          this.addMessageToQueue(NXSystemMessages.takeoffDataUplink);
+          break;
+        case UplinkTakeoffDataMessage.Invalid:
+          this.setScratchpadMessage(NXSystemMessages.invalidTakeoffUplink);
+          break;
+        case UplinkTakeoffDataMessage.NoAnswer:
+          this.setScratchpadMessage(NXSystemMessages.noAnswerToRequest);
+          break;
+      }
+    },
+  );
 
   private _title = undefined;
   private _titleLeft = '';
@@ -198,6 +219,8 @@ export class A320_Neo_CDU_MainDisplay
     ATCMessageModifyUM131: 84,
     ATCContactRequest: 85,
     RTAPage: 86,
+    UplinkToDataReq: 87,
+    UplinkToData: 88,
   };
 
   private mcduServerClient?: McduServerClient;
