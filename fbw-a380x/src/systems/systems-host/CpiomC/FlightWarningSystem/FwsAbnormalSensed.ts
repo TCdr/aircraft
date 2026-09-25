@@ -872,6 +872,16 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Bleed,
       inopSysAllPhases: () => ['260300005'],
     },
+    281800053: {
+      // FUEL JETTISON COMPLETED (A380 FCOM PRO-ABN-ECAM-10-28): the JTSN GW is reached, or the transfer tanks are empty
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.fuelJettisonCompleted,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [!this.fws.fuelJettisonActivePbOn.get(), !this.fws.fuelJettisonArmPbOn.get()],
+      failure: 1,
+      sysPage: SdPages.Fuel,
+    },
     212800001: {
       // AFT VENT CTL 1 FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],

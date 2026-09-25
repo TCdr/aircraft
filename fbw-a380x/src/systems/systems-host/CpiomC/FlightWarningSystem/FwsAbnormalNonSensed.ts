@@ -276,6 +276,31 @@ export class FwsAbnormalNonSensed {
       limitationsAllPhases: () => [],
       limitationsApprLdg: (checked) => (checked[2] ? ['270400004', '220400001', '800400004'] : []),
     },
+    280900001: {
+      // FUEL JETTISON (A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.activeAbnormalNonSensedKeys.map((set) => set.has(280900001)),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true, true, true, true, true, true, true, true, true, true, true],
+      whichItemsChecked: () => [
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelJettisonArmPbOn.get(),
+        this.fws.fuelJettisonActivePbOn.get(),
+        false,
+        false,
+        !this.fws.fuelJettisonActivePbOn.get(),
+        !this.fws.fuelJettisonArmPbOn.get(),
+        false,
+        !this.fws.fuelJettisonActivePbOn.get(),
+        !this.fws.fuelJettisonArmPbOn.get(),
+      ],
+      failure: 1,
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      sysPage: SdPages.Fuel,
+    },
     320900006: {
       // WHEEL TIRE DAMAGE SUSPECTED
       flightPhaseInhib: [],
