@@ -408,8 +408,8 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     return inside;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getCrosswindLimit(runwayCondition: RunwayCondition, oat: number): number {
+  /** FCOM LIM: one crosswind limit for every runway condition and temperature */
+  getCrosswindLimit(_runwayCondition: RunwayCondition, _oat: number): number {
     return A380842TakeoffPerformanceCalculator.MAX_CROSSWIND;
   }
 
