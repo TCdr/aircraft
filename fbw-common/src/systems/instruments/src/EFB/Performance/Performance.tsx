@@ -3,22 +3,30 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useContext } from 'react';
+import { AirframeType } from '@flybywiresim/fbw-sdk';
 
 import { t } from '../Localization/translation';
 import { Navbar } from '../UtilComponents/Navbar';
 import { TODCalculator } from '../TODCalculator/TODCalculator';
 import { LandingWidget } from './Widgets/LandingWidget';
 import { TakeoffWidget } from './Widgets/TakeoffWidget';
+import { A380TakeoffWidget } from './Widgets/A380TakeoffWidget';
 import { TabRoutes, PageLink, PageRedirect } from '../Utils/routing';
 import { AircraftContext } from '../AircraftContext';
+import { useAppSelector } from '../Store/store';
 import { TemperatureCorrectionWidget } from './Widgets/TemperatureCorrectionWidget';
 
 export const Performance = () => {
   const calculators = useContext(AircraftContext).performanceCalculators;
+  const isA380 = useAppSelector((state) => state.config.airframeInfo.variant) === AirframeType.A380_842;
 
   const tabs: PageLink[] = [
     calculators.takeoff
-      ? { name: 'Takeoff', alias: t('Performance.Takeoff.Title'), component: <TakeoffWidget /> }
+      ? {
+          name: 'Takeoff',
+          alias: t('Performance.Takeoff.Title'),
+          component: isA380 ? <A380TakeoffWidget /> : <TakeoffWidget />,
+        }
       : null,
     { name: 'Top of Descent', alias: t('Performance.TopOfDescent.Title'), component: <TODCalculator /> },
     calculators.landing
