@@ -31,6 +31,7 @@ import { FuelPredictions } from '@fmgc/flightplanning/fuel/FuelPredictions';
 import { WindEntry } from '@fmgc/flightplanning/data/wind';
 import { Accessible } from '@microsoft/msfs-sdk';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
+import { UplinkTakeoffData } from './UplinkTakeoffData';
 
 export type LskCallback = (
   /** The scratchpad content when the LSK was pressed. */
@@ -98,6 +99,8 @@ interface LegacyFmsPageDrawingInterface {
 }
 
 interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterface {
+  /** The takeoff data uplink (UPLINK TO DATA pages) */
+  readonly uplinkTakeoffData: UplinkTakeoffData;
   getFlightPlan(index: FlightPlanIndex): ReturnType<FlightPlanInterface['get']>;
   getAlternateFlightPlan(index: FlightPlanIndex): ReturnType<FlightPlanInterface['get']>['alternateFlightPlan'];
   eraseTemporaryFlightPlan(callback?: typeof EmptyCallback.Void): void;

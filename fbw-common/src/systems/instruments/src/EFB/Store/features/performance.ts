@@ -85,6 +85,8 @@ interface TPerformanceTakeoff {
   noiseN1?: number;
   /** A380: the thrust of the takeoff run: a FLEX temperature, null for TOGA, undefined for the maximum FLEX */
   selectedFlex?: number | null;
+  /** A32NX: the TOGA result of the calculation, with its own speeds */
+  togaResult?: TakeoffPerformanceResult;
 
   result?: TakeoffPerformanceResult;
 }

@@ -40,7 +40,7 @@ function reciprocal(ident: string): string {
   return `${number.toString().padStart(2, '0')}${side}`;
 }
 
-export interface A380TakeoffRunwayProps {
+export interface TakeoffRunwayProps {
   /** Runway ident without the airport, e.g. 05 */
   ident: string | undefined;
   /** Length of the runway in metres (the TORA when the runway is entered manually) */
@@ -59,7 +59,7 @@ export interface A380TakeoffRunwayProps {
  * The runway seen from above, takeoff to the right: the takeoff shift and the line-up allowance, then the takeoff run
  * with the points where V1, VR and 35 ft are reached, the runway length required and the margin to the runway end.
  */
-export const A380TakeoffRunway = ({
+export const TakeoffRunway = ({
   ident,
   runwayLength,
   shift,
@@ -67,7 +67,7 @@ export const A380TakeoffRunway = ({
   distances,
   distanceUnit,
   shortestDataLength,
-}: A380TakeoffRunwayProps) => {
+}: TakeoffRunwayProps) => {
   const required = distances?.required;
   const start = shift + lineUp;
   const drawnRequired = required ?? (distances?.requiredBelowData ? shortestDataLength : undefined);
@@ -79,10 +79,12 @@ export const A380TakeoffRunway = ({
   const toUnit = (metres: number) => (distanceUnit === 'ft' ? metres * 3.28084 : metres);
   const format = (metres: number) => `${Math.round(toUnit(metres)).toLocaleString('en-US')} ${distanceUnit}`;
   const clampLabel = (lx: number) => Math.min(Math.max(lx, 70), WIDTH - 70);
+  /** A marker label ends just before its line: V1 <= VR <= 35 ft, so no line of a marker crosses a label */
+  const clampEndLabel = (lx: number) => Math.min(Math.max(lx - 6, 150), WIDTH - 4);
 
   const markers: { at: number; label: string; colour: string; row: number }[] = [];
   if (distances?.v1 !== undefined) {
-    markers.push({ at: distances.v1, label: 'V1', colour: COLOURS.v1, row: 0 });
+    markers.push({ at: distances.v1, label: 'V1', colour: COLOURS.v1, row: 2 });
   }
   if (distances?.vr !== undefined) {
     markers.push({ at: distances.vr, label: 'VR', colour: COLOURS.vr, row: 1 });
@@ -90,7 +92,7 @@ export const A380TakeoffRunway = ({
   if (distances?.screenHeight !== undefined) {
     markers.push({
       at: distances.screenHeight,
-      label: t('Performance.Takeoff.A380.ScreenHeight'),
+      label: t('Performance.Takeoff.Calc.ScreenHeight'),
       colour: COLOURS.screenHeight,
       row: 0,
     });
@@ -169,7 +171,7 @@ export const A380TakeoffRunway = ({
             fontSize={16}
             textAnchor="middle"
           >
-            {`${t('Performance.Takeoff.A380.Shift')} ${format(shift)}`}
+            {`${t('Performance.Takeoff.Calc.Shift')} ${format(shift)}`}
           </text>
         </>
       )}
@@ -206,10 +208,10 @@ export const A380TakeoffRunway = ({
             fontWeight="bold"
             textAnchor="end"
           >
-            {`${t('Performance.Takeoff.A380.Required')} ${
+            {`${t('Performance.Takeoff.Calc.Required')} ${
               required !== undefined
                 ? `${format(required)}${distances.requiredEstimated ? '*' : ''}`
-                : t('Performance.Takeoff.A380.BelowData').replace('{length}', format(shortestDataLength))
+                : t('Performance.Takeoff.Calc.BelowData').replace('{length}', format(shortestDataLength))
             }`}
           </text>
           {margin !== undefined && margin > 0 && runwayEnd - requiredEnd > 4 && (
@@ -236,14 +238,14 @@ export const A380TakeoffRunway = ({
         </>
       )}
 
-      {/* V1, VR, 35 ft */}
+      {/* V1, VR, 35 ft: one row each, the farthest point on top, each label to the left of its line */}
       {markers.map((m) => {
         const mx = x(start + m.at);
-        const labelY = 26 + m.row * 30;
+        const labelY = 20 + m.row * 23;
         return (
           <g key={m.label}>
-            <line x1={mx} x2={mx} y1={labelY + 7} y2={RUNWAY_TOP + RUNWAY_HEIGHT} stroke={m.colour} strokeWidth={3} />
-            <text x={clampLabel(mx)} y={labelY} fill={m.colour} fontSize={19} fontWeight="bold" textAnchor="middle">
+            <line x1={mx} x2={mx} y1={labelY - 14} y2={RUNWAY_TOP + RUNWAY_HEIGHT} stroke={m.colour} strokeWidth={3} />
+            <text x={clampEndLabel(mx)} y={labelY} fill={m.colour} fontSize={19} fontWeight="bold" textAnchor="end">
               {`${m.label} ${format(m.at)}`}
             </text>
           </g>
