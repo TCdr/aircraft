@@ -20,6 +20,7 @@ import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performanc
 import { AlternateFlightPlan } from '@fmgc/flightplanning/plans/AlternateFlightPlan';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
 
+import { fcomAt, fcomRight } from '../../common/FcomLayout';
 import './MfdFmsFpln.scss';
 
 const ApproachTypeOrder = Object.freeze({
@@ -118,18 +119,23 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
       }
 
       if (flightPlan.availableApproaches?.length > 0) {
-        const appr: ButtonMenuItem[] = [
-          {
-            label: 'NONE',
+        // FCOM DSC-22-FMS-20-30 ARRIVAL page, APPR LIST: the approaches are sorted by runway, and the last option of
+        // each runway group is the runway itself (e.g. 02C), which creates a default 5 NM leg on the runway axis.
+        const appr: ButtonMenuItem[] = [];
+        const pushRunwayOnly = (runwayIdent: string) =>
+          appr.push({
+            label: runwayIdent.substring(4),
             action: async () => {
+              await this.props.flightPlanInterface.setDestinationRunway(
+                runwayIdent,
+                this.loadedFlightPlanIndex.get(),
+                isAltn,
+              );
               await this.props.flightPlanInterface.setApproach(undefined, this.loadedFlightPlanIndex.get(), isAltn);
               await this.props.flightPlanInterface.setApproachVia(undefined, this.loadedFlightPlanIndex.get(), isAltn);
             },
-          },
-        ];
+          });
 
-        // Sort approaches by runway
-        // FIXME add runway-by-itself
         const sortedApproaches = flightPlan.availableApproaches
           .filter(
             (a) =>
@@ -147,6 +153,14 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
           );
         let isFirstMatch = true;
         sortedApproaches.forEach((el, idx) => {
+          const previousRunway = idx > 0 ? sortedApproaches[idx - 1].runwayIdent : undefined;
+          if (previousRunway !== undefined && previousRunway !== el.runwayIdent) {
+            pushRunwayOnly(previousRunway);
+          }
+          if (isFirstMatch && el.runwayIdent === flightPlan?.destinationRunway?.ident) {
+            this.apprButtonScrollTo.set(appr.length);
+            isFirstMatch = false;
+          }
           appr.push({
             label: getApproachName(el),
             action: async () => {
@@ -159,12 +173,11 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
               await this.props.flightPlanInterface.setApproachVia(undefined, this.loadedFlightPlanIndex.get(), isAltn);
             },
           });
-
-          if (isFirstMatch && el.runwayIdent === flightPlan?.destinationRunway?.ident) {
-            this.apprButtonScrollTo.set(idx + 1); // Account for NONE, add 1
-            isFirstMatch = false;
-          }
         });
+        const lastRunway = sortedApproaches[sortedApproaches.length - 1]?.runwayIdent;
+        if (lastRunway !== undefined) {
+          pushRunwayOnly(lastRunway);
+        }
         this.apprOptions.set(appr);
         this.apprDisabled.set(false);
       } else {
@@ -419,211 +432,181 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
       <>
         {super.render()}
         {/* begin page content */}
-        <div class="mfd-fms-fpln-labeled-box-container">
-          <span class="mfd-label mfd-spacing-right mfd-fms-fpln-labeled-box-label">SELECTED ARRIVAL</span>
-          <div class="mfd-fms-fpln-label-bottom-space fr aic">
-            <div class="fr aic" style="flex: 0.2;">
-              <span class="mfd-label mfd-spacing-right">TO</span>
-              <span
-                class={{
-                  'mfd-value': true,
-                  tmpy: this.tmpyActive,
-                  sec: this.secActive,
-                }}
-              >
+        {/* Positions from the FCOM figure (DSC-22-FMS-20-30 P 13), page container coordinates */}
+        <div class="mfd-page-container">
+          <div class="mfd-fcom-canvas">
+            <div class="mfd-fms-fpln-proc-frame" />
+            {fcomAt(14, 35, <span class="mfd-label mfd-fms-fpln-proc-frame-title">SELECTED ARRIVAL</span>)}
+            {fcomAt(65, 18, <span class="mfd-label">TO</span>)}
+            {fcomAt(
+              65,
+              63,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
                 {this.toIcao}
-              </span>
-            </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">LS</span>
-              <span
-                class={{
-                  'mfd-value': true,
-                  tmpy: this.tmpyActive,
-                  sec: this.secActive,
-                }}
-              >
+              </span>,
+            )}
+            {fcomAt(45, 192, <span class="mfd-label">LS</span>)}
+            {fcomAt(
+              85,
+              192,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
                 {this.approachLsIdent}
-              </span>
-            </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">RWY</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
-                  }}
-                >
-                  {this.rwyIdent}
-                </span>
-              </div>
-            </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">LENGTH</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
-                  }}
-                >
-                  {this.rwyLength.asUnit(this.lengthUnit).map((v) => this.lengthNumberFormatter(v))}
-                </span>
-                <span class="mfd-label-unit mfd-unit-trailing">
-                  {this.lengthUnit.map((v) => this.distanceUnitFormatter(v))}
-                </span>
-              </div>
-            </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">CRS</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
-                  }}
-                >
-                  {this.rwyCrs}
-                </span>
-                <span class="mfd-label-unit mfd-unit-trailing">°</span>
-              </div>
-            </div>
-          </div>
-          <div class="fr aic">
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">APPR</span>
-              <span
-                class={{
-                  'mfd-value': true,
-                  tmpy: this.tmpyActive,
-                  sec: this.secActive,
-                }}
-              >
+              </span>,
+            )}
+            {fcomAt(45, 362, <span class="mfd-label">RWY</span>)}
+            {fcomAt(
+              85,
+              362,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyIdent}
+              </span>,
+            )}
+            {fcomAt(45, 480, <span class="mfd-label">LENGTH</span>)}
+            {fcomRight(85, 620, [
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyLength.asUnit(this.lengthUnit).map((v) => this.lengthNumberFormatter(v))}
+              </span>,
+              <span class="mfd-label-unit mfd-unit-trailing">
+                {this.lengthUnit.map((v) => this.distanceUnitFormatter(v))}
+              </span>,
+            ])}
+            {fcomAt(45, 628, <span class="mfd-label">CRS</span>)}
+            {fcomAt(85, 624, [
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.rwyCrs}
+              </span>,
+              <span class="mfd-label-unit mfd-unit-trailing">°</span>,
+            ])}
+            {fcomAt(127, 18, <span class="mfd-label">APPR</span>)}
+            {fcomAt(
+              164,
+              18,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
                 {this.approachName}
-              </span>
-            </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">FREQ/CHAN</span>
-              <span
-                class={{
-                  'mfd-value': true,
-                  tmpy: this.tmpyActive,
-                  sec: this.secActive,
-                }}
-              >
+              </span>,
+            )}
+            {fcomAt(127, 192, <span class="mfd-label">FREQ/CHAN</span>)}
+            {fcomAt(
+              164,
+              192,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
                 {this.approachLsFrequencyChannel}
-              </span>
-            </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">VIA</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
+              </span>,
+            )}
+            {fcomAt(127, 362, <span class="mfd-label">VIA</span>)}
+            {fcomAt(
+              164,
+              362,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.via}
+              </span>,
+            )}
+            {fcomAt(127, 496, <span class="mfd-label">STAR</span>)}
+            {fcomAt(
+              164,
+              496,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.star}
+              </span>,
+            )}
+            {fcomAt(127, 630, <span class="mfd-label">TRANS</span>)}
+            {fcomAt(
+              164,
+              630,
+              <span class={{ 'mfd-value': true, bigger: true, tmpy: this.tmpyActive, sec: this.secActive }}>
+                {this.trans}
+              </span>,
+            )}
+            {fcomAt(
+              229,
+              10,
+              <Button
+                label="RWY"
+                onClick={() => {}}
+                buttonStyle="width: 145px; height: 25px;"
+                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-rwy-btn`}
+                menuItems={this.rwyOptions}
+              />,
+            )}
+            {fcomAt(
+              229,
+              193,
+              <Button
+                label="APPR"
+                onClick={() => {}}
+                disabled={this.apprDisabled}
+                buttonStyle="width: 130px; height: 25px;"
+                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-appr-btn`}
+                menuItems={this.apprOptions}
+                scrollToMenuItem={this.apprButtonScrollTo}
+              />,
+            )}
+            {fcomAt(
+              229,
+              360,
+              <Button
+                label="VIA"
+                onClick={() => {}}
+                disabled={this.viaDisabled}
+                buttonStyle="width: 97px; height: 25px;"
+                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-via-btn`}
+                menuItems={this.viaOptions}
+              />,
+            )}
+            {fcomAt(
+              229,
+              495,
+              <Button
+                label="STAR"
+                onClick={() => {}}
+                disabled={this.starDisabled}
+                buttonStyle="width: 97px; height: 25px;"
+                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-star-btn`}
+                menuItems={this.starOptions}
+              />,
+            )}
+            {fcomAt(
+              229,
+              630,
+              <Button
+                label="TRANS"
+                onClick={() => {}}
+                disabled={this.transDisabled}
+                buttonStyle="width: 97px; height: 25px;"
+                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-trans-btn`}
+                menuItems={this.transOptions}
+              />,
+            )}
+            <div ref={this.returnButtonDiv}>
+              {fcomAt(
+                793,
+                5,
+                <Button
+                  label="RETURN"
+                  onClick={() => {
+                    this.props.fmcService.master.resetRevisedWaypoint();
+                    this.props.mfd.uiService.navigateTo('back');
                   }}
-                >
-                  {this.via}
-                </span>
-              </div>
+                  buttonStyle="width: 101px;"
+                />,
+              )}
             </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">STAR</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
+            <div ref={this.tmpyInsertButtonDiv}>
+              {fcomAt(
+                788,
+                599,
+                <Button
+                  label="TMPY F-PLN"
+                  onClick={() => {
+                    this.props.fmcService.master.resetRevisedWaypoint();
+                    this.props.mfd.uiService.navigateTo(
+                      `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,
+                    );
                   }}
-                >
-                  {this.star}
-                </span>
-              </div>
+                  buttonStyle="color: yellow; width: 134px;"
+                />,
+              )}
             </div>
-            <div class="fc" style="flex: 0.2;">
-              <span class="mfd-label mfd-fms-fpln-label-bottom-space">TRANS</span>
-              <div>
-                <span
-                  class={{
-                    'mfd-value': true,
-                    tmpy: this.tmpyActive,
-                    sec: this.secActive,
-                  }}
-                >
-                  {this.trans}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="fr" style="justify-content: space-between;">
-          <Button
-            label="RWY"
-            onClick={() => {}}
-            buttonStyle="width: 190px;"
-            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-rwy-btn`}
-            menuItems={this.rwyOptions}
-          />
-          <Button
-            label="APPR"
-            onClick={() => {}}
-            disabled={this.apprDisabled}
-            buttonStyle="width: 160px;"
-            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-appr-btn`}
-            menuItems={this.apprOptions}
-            scrollToMenuItem={this.apprButtonScrollTo}
-          />
-          <Button
-            label="VIA"
-            onClick={() => {}}
-            disabled={this.viaDisabled}
-            buttonStyle="width: 125px;"
-            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-via-btn`}
-            menuItems={this.viaOptions}
-          />
-          <Button
-            label="STAR"
-            onClick={() => {}}
-            disabled={this.starDisabled}
-            buttonStyle="width: 125px;"
-            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-star-btn`}
-            menuItems={this.starOptions}
-          />
-          <Button
-            label="TRANS"
-            onClick={() => {}}
-            disabled={this.transDisabled}
-            buttonStyle="width: 125px;"
-            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-trans-btn`}
-            menuItems={this.transOptions}
-          />
-        </div>
-        <div style="flex-grow: 1;" />
-        <div class="fr" style="justify-content: space-between;">
-          <div ref={this.returnButtonDiv} style="display: flex; justify-content: flex-end; padding: 2px;">
-            <Button
-              label="RETURN"
-              onClick={() => {
-                this.props.fmcService.master.resetRevisedWaypoint();
-                this.props.mfd.uiService.navigateTo('back');
-              }}
-            />
-          </div>
-          <div ref={this.tmpyInsertButtonDiv} style="display: flex; justify-content: flex-end; padding: 2px;">
-            <Button
-              label="TMPY F-PLN"
-              onClick={() => {
-                this.props.fmcService.master.resetRevisedWaypoint();
-                this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`);
-              }}
-              buttonStyle="color: yellow"
-            />
           </div>
         </div>
         {/* end page content */}

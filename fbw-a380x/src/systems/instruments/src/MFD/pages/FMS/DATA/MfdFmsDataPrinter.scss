@@ -1,0 +1,23 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 75 (page container coordinates)
+.mfd-printer-separator {
+  position: absolute;
+  top: 18px;
+  left: 369px;
+  height: 267px;
+  width: 0;
+  border-left: 1px solid $display-light-grey;
+}
+
+.mfd-printer-checkbox {
+  width: 26px;
+  height: 26px;
+  border: 1px solid $display-light-grey;
+  box-sizing: border-box;
+  cursor: pointer;
+
+  &.checked {
+    background-color: $display-cyan;
+  }
+}

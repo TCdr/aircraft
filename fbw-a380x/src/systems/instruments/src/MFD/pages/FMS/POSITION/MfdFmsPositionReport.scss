@@ -1,0 +1,82 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// Positions in page container coordinates, taken from the FCOM figure (DSC-22-FMS-20-30 P 309)
+.mfd-position-report-canvas {
+  position: relative;
+  flex: 1;
+}
+
+.mfd-position-report-item {
+  position: absolute;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 36px;
+  white-space: nowrap;
+}
+
+.mfd-position-report-right {
+  justify-content: flex-end;
+}
+
+.mfd-position-report-wpt-label {
+  left: 0;
+  width: 193px;
+  justify-content: flex-end;
+}
+
+.mfd-position-report-time-column,
+.mfd-position-report-time-header {
+  left: 480px;
+  width: 115px;
+  justify-content: flex-end;
+}
+
+.mfd-position-report-time-header {
+  justify-content: center;
+  left: 500px;
+  width: 95px;
+}
+
+.mfd-position-report-alt-column,
+.mfd-position-report-alt-header {
+  left: 590px;
+  width: 115px;
+  justify-content: flex-end;
+}
+
+.mfd-position-report-separator {
+  position: absolute;
+  left: 5px;
+  right: 13px;
+  height: 0;
+  border-top: 1px solid $display-light-grey;
+}
+
+.mfd-position-report-vertical-line {
+  position: absolute;
+  left: 212px;
+  top: 207px;
+  height: 100px;
+  width: 0;
+  border-left: 1px solid $display-light-grey;
+}
+
+.mfd-position-report-free-text-label {
+  top: 730px;
+  left: 30px;
+  width: 501px;
+  justify-content: center;
+}
+
+.mfd-position-report-free-text {
+  position: absolute;
+  top: 768px;
+  left: 30px;
+}
+
+.mfd-position-report-send {
+  position: absolute;
+  top: 750px;
+  left: 549px;
+}

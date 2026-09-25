@@ -1,0 +1,21 @@
+@import "../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 312 (page container coordinates)
+.mfd-received-to-separator {
+  position: absolute;
+  top: 240px;
+  left: 428px;
+  height: 145px;
+  width: 0;
+  border-left: 1px solid $display-light-grey;
+}
+
+.mfd-received-to-noise-box {
+  position: absolute;
+  top: 615px;
+  left: 0;
+  width: 499px;
+  height: 109px;
+  border: 1px solid $display-light-grey;
+  box-sizing: border-box;
+}

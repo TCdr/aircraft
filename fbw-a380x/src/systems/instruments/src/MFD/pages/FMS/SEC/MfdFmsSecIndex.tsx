@@ -16,6 +16,8 @@ import {
 } from '@microsoft/msfs-sdk';
 
 import './MfdFmsSecIndex.scss';
+import { rejectedAtcInfoPage } from './MfdFmsSecRejectedAtcInfo';
+import { transferToMailboxPage } from '../MfdFmsFreeTextSend';
 import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanChangeNotifier';
 import { Button, ButtonMenuItem } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { FmcInterface } from '../../../FMC/FmcInterface';
@@ -28,6 +30,8 @@ import { FlightPlanFlags } from '@fmgc/flightplanning/plans/FlightPlanFlags';
 import { CpnyFplnButtonUtils } from '../../../shared/CpnyFplnButtonUtils';
 import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
 import { DateTimeFormatters } from '@flybywiresim/fbw-sdk';
+import { cpnyFplnRequestPage, showReturnButtonUriExtra } from '../../../shared/utils';
+import { fcomAt, fcomCentre, fcomTabBar } from '../../common/FcomLayout';
 
 interface MfdFmsSecIndexProps extends AbstractMfdPageProps {}
 
@@ -203,7 +207,7 @@ export class MfdFmsSecIndex extends FmsPage<MfdFmsSecIndexProps> {
             selectedPageIndex={this.secSelectedPageIndex}
             pageChangeCallback={(val) => this.secSelectedPageIndex.set(val)}
             selectedTabTextColor="white"
-            tabBarSlantedEdgeAngle={25}
+            {...fcomTabBar}
           >
             <TopTabNavigatorPage>
               {/* SEC 1 */}
@@ -312,6 +316,11 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
     this.props.dataStore.wasModified,
   );
 
+  /** FCOM P 322: REJECTED ATC INFO on the SEC 3 panel, for an ATC flight plan */
+  private readonly rejectedAtcInfoVisibility = this.props.dataStore.flags.map((flags) =>
+    this.secIndex === 3 && BitFlags.isAll(flags, FlightPlanFlags.AtcFlightPlan) ? 'inherit' : 'hidden',
+  );
+
   private readonly cpnyFplnButtonLabel = CpnyFplnButtonUtils.cpnyFplnButtonLabel(this.props.fmcService.master);
 
   private readonly cpnyFplnButtonDisabled = CpnyFplnButtonUtils.cpnyFplnButtonDisabled(
@@ -382,6 +391,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
       this.swapActiveVisibility,
       this.cityPairLabel,
       this.createdLabel,
+      this.rejectedAtcInfoVisibility,
       this.cpnyFplnButtonLabel,
       this.cpnyFplnButtonMenuItems,
       ...this.routeElementVisibility,
@@ -389,220 +399,256 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
   }
 
   render(): VNode | null {
+    // Positions from the FCOM figures (DSC-22-FMS-20-30 P 322 and P 329), in tab panel coordinates (display x - 21,
+    // display y - 198)
     return (
-      <>
-        <div class="mfd-sec-index-title-container">
-          <span class="mfd-sec-index-title-line1">{this.cityPairLabel}</span>
-          <span class="mfd-sec-index-title-line2">{this.createdLabel}</span>
+      <div class="mfd-fcom-canvas">
+        {fcomCentre(24, 262, <span class="mfd-sec-index-title-line1">{this.cityPairLabel}</span>)}
+        {fcomAt(67, 17, <span class="mfd-sec-index-title-line2">{this.createdLabel}</span>)}
+        <div class="mfd-sec-index-route-box">
+          {Array(NUM_ROUTE_LINES_DISPLAYED * 2)
+            .fill(1)
+            .map((_, index) => {
+              return (
+                <>
+                  <div
+                    class="mfd-sec-index-table-lower-button-grid-cell leg-ident"
+                    style={{ visibility: this.routeElementVisibility[index] }}
+                  >
+                    {this.routeElementSubjects[index][0]}
+                  </div>
+                  <div
+                    class="mfd-sec-index-table-lower-button-grid-cell fix-ident"
+                    style={{ visibility: this.routeElementVisibility[index] }}
+                  >
+                    {this.routeElementSubjects[index][1]}
+                  </div>
+                </>
+              );
+            })}
         </div>
-        <div class="mfd-sec-index-table upper">
-          <div class="mfd-sec-index-table-left route">
-            {Array(NUM_ROUTE_LINES_DISPLAYED * 2)
-              .fill(1)
-              .map((_, index) => {
-                return (
-                  <>
-                    <div
-                      class="mfd-sec-index-table-lower-button-grid-cell leg-ident"
-                      style={{ visibility: this.routeElementVisibility[index] }}
-                    >
-                      {this.routeElementSubjects[index][0]}
-                    </div>
-                    <div
-                      class="mfd-sec-index-table-lower-button-grid-cell fix-ident"
-                      style={{ visibility: this.routeElementVisibility[index] }}
-                    >
-                      {this.routeElementSubjects[index][1]}
-                    </div>
-                  </>
-                );
-              })}
-          </div>
-          <div class="mfd-sec-index-table-right">
-            <Button
-              label={'IMPORT'}
-              onClick={() => {}}
-              buttonStyle="width: 175px;"
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_import`}
-              menuItems={Subject.create([
-                {
-                  label: 'ACTIVE*',
-                  action: () => {
-                    this.props.flightPlanInterface.secondaryCopyFromActive(
-                      this.secIndex,
-                      !this.props.fmcService.master.enginesWereStarted.get(),
-                    );
-                  },
+        {fcomAt(
+          114,
+          539,
+          <Button
+            label={'IMPORT'}
+            onClick={() => {}}
+            buttonStyle="width: 168px; height: 24px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_import`}
+            menuItems={Subject.create([
+              {
+                label: 'ACTIVE*',
+                action: () => {
+                  this.props.flightPlanInterface.secondaryCopyFromActive(
+                    this.secIndex,
+                    !this.props.fmcService.master.enginesWereStarted.get(),
+                  );
                 },
-                {
-                  label: this.secIndex === 1 ? 'SEC 2*' : 'SEC 1*',
-                  action: () => {
-                    this.props.flightPlanInterface.secondaryCopyFromSecondary(
-                      this.secIndex === 1 ? 2 : 1,
-                      this.secIndex,
-                      !this.props.fmcService.master.enginesWereStarted.get(),
-                    );
-                  },
+              },
+              {
+                label: this.secIndex === 1 ? 'SEC 2*' : 'SEC 1*',
+                action: () => {
+                  this.props.flightPlanInterface.secondaryCopyFromSecondary(
+                    this.secIndex === 1 ? 2 : 1,
+                    this.secIndex,
+                    !this.props.fmcService.master.enginesWereStarted.get(),
+                  );
                 },
-                {
-                  label: this.secIndex === 3 ? 'SEC 2*' : 'SEC 3*',
-                  action: () => {
-                    this.props.flightPlanInterface.secondaryCopyFromSecondary(
-                      this.secIndex === 3 ? 2 : 3,
-                      this.secIndex,
-                      !this.props.fmcService.master.enginesWereStarted.get(),
-                    );
-                  },
+              },
+              {
+                label: this.secIndex === 3 ? 'SEC 2*' : 'SEC 3*',
+                action: () => {
+                  this.props.flightPlanInterface.secondaryCopyFromSecondary(
+                    this.secIndex === 3 ? 2 : 3,
+                    this.secIndex,
+                    !this.props.fmcService.master.enginesWereStarted.get(),
+                  );
                 },
-              ])}
-              showArrow={true}
-            />
-            <Button
-              label={this.cpnyFplnButtonLabel}
-              disabled={this.cpnyFplnButtonDisabled}
-              onClick={() =>
-                this.props.fmcService.master.fmgc.data.cpnyFplnAvailable.get()
-                  ? {}
-                  : this.props.fmcService.master.cpnyFplnRequest(this.props.flightPlanIndex)
+              },
+            ])}
+            showArrow={true}
+          />,
+        )}
+        {fcomAt(
+          176,
+          539,
+          <Button
+            label={this.cpnyFplnButtonLabel}
+            disabled={this.cpnyFplnButtonDisabled}
+            onClick={() =>
+              this.props.fmcService.master.fmgc.data.cpnyFplnAvailable.get()
+                ? {}
+                : this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/${cpnyFplnRequestPage}`)
+            }
+            buttonStyle="width: 157px; height: 42px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_fplnreq_sec${this.props.flightPlanIndex}`}
+            menuItems={this.cpnyFplnButtonMenuItems}
+            showArrow={false}
+          />,
+        )}
+        {fcomAt(
+          386.5,
+          559,
+          <Button
+            label={'F-PLN'}
+            onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/f-pln`)}
+            buttonStyle="width: 122px; height: 25px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_f-pln`}
+          />,
+        )}
+        {fcomAt(
+          437,
+          559,
+          <Button
+            label={'PERF'}
+            disabled={this.secDoesNotExist}
+            onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/perf`)}
+            buttonStyle="width: 122px; height: 25px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_perf`}
+          />,
+        )}
+        {fcomAt(
+          486.5,
+          559,
+          <Button
+            label={'WIND'}
+            disabled={this.secDoesNotExist}
+            onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/wind/${showReturnButtonUriExtra}`)}
+            buttonStyle="width: 122px; height: 25px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_wind`}
+          />,
+        )}
+        {fcomAt(
+          536.5,
+          559,
+          <Button
+            label={'FUEL&LOAD'}
+            disabled={this.secDoesNotExist}
+            onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/fuel-load`)}
+            buttonStyle="width: 122px; height: 25px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_fuel-load`}
+          />,
+        )}
+        {fcomAt(
+          586.5,
+          559,
+          <Button
+            label={'INIT'}
+            onClick={() => {
+              if (!this.props.flightPlanInterface.hasSecondary(this.secIndex)) {
+                this.props.flightPlanInterface.secondaryInit(this.secIndex);
               }
-              buttonStyle="width: 175px; margin-top: 5px;"
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_fplnreq_sec${this.props.flightPlanIndex}`}
-              menuItems={this.cpnyFplnButtonMenuItems}
-              showArrow={false}
+              this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/init`);
+            }}
+            buttonStyle="width: 122px; height: 25px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_init`}
+          />,
+        )}
+        {fcomAt(
+          639,
+          -2,
+          <Button
+            label={
+              <div style="display: flex; flex-direction: row; justify-content: space-between;">
+                <span style="text-align: center; vertical-align: center; margin-right: 10px;">DELETE</span>
+                <span style="display: flex; align-items: center; justify-content: center;">*</span>
+              </div>
+            }
+            disabled={this.secDoesNotExist}
+            onClick={() => this.props.flightPlanInterface.secondaryDelete(this.secIndex)}
+            buttonStyle="padding-right: 2px; width: 114px; height: 42px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_delete`}
+          />,
+        )}
+        {fcomAt(
+          639,
+          195,
+          <div class="fr">
+            <IconButton
+              icon="double-down"
+              disabled={this.routeStartDownDisabled}
+              onClick={() => this.routeStartFromLine.set(this.routeStartFromLine.get() + NUM_ROUTE_LINES_DISPLAYED)}
+              containerStyle="width: 61px; height: 57px; margin-right: 5px;"
             />
-            <div style="flex-grow: 1;" />
+            <IconButton
+              icon="double-up"
+              disabled={this.routeStartUpDisabled}
+              onClick={() =>
+                this.routeStartFromLine.set(Math.max(0, this.routeStartFromLine.get() - NUM_ROUTE_LINES_DISPLAYED))
+              }
+              containerStyle="width: 61px; height: 57px;"
+            />
+          </div>,
+        )}
+        <div style={{ visibility: this.swapActiveVisibility }}>
+          {fcomAt(
+            639,
+            384,
             <Button
-              label={'F-PLN'}
-              onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/f-pln`)}
-              buttonStyle="width: 160px; margin-top: 5px;"
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_f-pln`}
-            />
-            <Button
-              label={'PERF'}
-              disabled={this.secDoesNotExist}
-              onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/perf`)}
-              buttonStyle="width: 160px; margin-top: 5px;"
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_perf`}
-            />
-            <Button
-              label={'WIND'}
-              disabled={true}
-              onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/wind`)}
-              buttonStyle="width: 160px; margin-top: 5px;"
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_wind`}
-            />
-            <Button
-              label={'FUEL&LOAD'}
-              disabled={this.secDoesNotExist}
-              onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/fuel-load`)}
-              buttonStyle="width: 160px; margin-top: 5px;"
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_fuel-load`}
-            />
-            <Button
-              label={'INIT'}
-              onClick={() => {
-                if (!this.props.flightPlanInterface.hasSecondary(this.secIndex)) {
-                  this.props.flightPlanInterface.secondaryInit(this.secIndex);
-                }
-                this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/init`);
-              }}
-              buttonStyle="width: 160px; margin-top: 5px;"
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_init`}
-            />
-            <Button
-              label={'WHAT IF'}
-              disabled={true}
-              onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/what-if`)}
-              buttonStyle="width: 160px; margin-top: 5px;"
-              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_what-if`}
-            />
-          </div>
+              label={
+                <div style="display: flex; flex-direction: row; justify-content: space-between;">
+                  <span style="text-align: center; vertical-align: center; margin-right: 10px;">
+                    SWAP
+                    <br />
+                    ACTIVE
+                  </span>
+                  <span style="display: flex; align-items: center; justify-content: center;">*</span>
+                </div>
+              }
+              onClick={() => this.props.fmcService.master.swapActiveAndSecondaryPlan(this.secIndex)}
+              buttonStyle="color: #e68000; padding-right: 2px; width: 122px; height: 42px;"
+              idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_swap-active`}
+            />,
+          )}
         </div>
-        <div class="mfd-sec-index-table lower">
-          <div class="mfd-sec-index-table-left">
-            <div class="mfd-sec-index-table-lower-button-grid">
-              <Button
-                label={
-                  <div style="display: flex; flex-direction: row; justify-content: space-between;">
-                    <span style="text-align: center; vertical-align: center; margin-right: 10px;">DELETE</span>
-                    <span style="display: flex; align-items: center; justify-content: center;">*</span>
-                  </div>
-                }
-                disabled={this.secDoesNotExist}
-                onClick={() => this.props.flightPlanInterface.secondaryDelete(this.secIndex)}
-                buttonStyle="padding-right: 2px;width: 160px; height: 60px;"
-                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_delete`}
-              />
-              <div style="display: flex; flex-direction: row; justify-content: center; align-items: center;">
-                <IconButton
-                  icon="double-down"
-                  disabled={this.routeStartDownDisabled}
-                  onClick={() => this.routeStartFromLine.set(this.routeStartFromLine.get() + 1)}
-                  containerStyle="width: 60px; height: 60px; margin-right: 5px;"
-                />
-                <IconButton
-                  icon="double-up"
-                  disabled={this.routeStartUpDisabled}
-                  onClick={() => this.routeStartFromLine.set(Math.max(0, this.routeStartFromLine.get() - 1))}
-                  containerStyle="width: 60px; height: 60px;"
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  'justify-content': 'flex-end',
-                  'align-items': 'center',
-                  visibility: this.swapActiveVisibility,
-                }}
-              >
-                <Button
-                  label={
-                    <div style="display: flex; flex-direction: row; justify-content: space-between;">
-                      <span style="text-align: center; vertical-align: center; margin-right: 10px;">
-                        SWAP
-                        <br />
-                        ACTIVE
-                      </span>
-                      <span style="display: flex; align-items: center; justify-content: center;">*</span>
-                    </div>
-                  }
-                  onClick={() => this.props.fmcService.master.swapActiveAndSecondaryPlan(this.secIndex)}
-                  buttonStyle="color: #e68000; padding-right: 2px; width: 160px; height: 60px;"
-                  idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_swap-active`}
-                />
-              </div>
-              <div />
-              <div />
-              <div style="display: flex; justify-content: flex-end; align-items: center;">
-                <Button
-                  label={'XFR TO MAILBOX'}
-                  disabled={true}
-                  onClick={() => {}}
-                  buttonStyle="width: 160px; height: 60px; margin-top: 30px;"
-                  idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_xfr-to-mailbox`}
-                />
-              </div>
-            </div>
-          </div>
-          <div class="mfd-sec-index-table-right">
-            <div style="flex-grow: 1" />
-            <div style="justify-content: flex-end; align-self: center; margin-bottom: 15px; margin-top: 75px;">
-              <Button
-                label={
-                  <div style="display: flex; flex-direction: row; justify-content: space-between;">
-                    <span style="text-align: center; vertical-align: center; margin-right: 10px;">PRINT</span>
-                    <span style="display: flex; align-items: center; justify-content: center;">*</span>
-                  </div>
-                }
-                disabled={true}
-                onClick={() => {}}
-                buttonStyle="padding-right: 2px; width: 160px; height: 60px; margin-top: 30px;"
-                idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_print`}
-              />
-            </div>
-          </div>
+        <div style={{ visibility: this.rejectedAtcInfoVisibility }}>
+          {fcomAt(
+            721,
+            -2,
+            <Button
+              label="REJECTED<br />ATC INFO"
+              onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/${rejectedAtcInfoPage}`)}
+              buttonStyle="width: 114px; height: 42px;"
+            />,
+          )}
         </div>
-      </>
+        {fcomAt(
+          721,
+          384,
+          <Button
+            label={
+              <div style="display: flex; flex-direction: row; justify-content: space-between;">
+                <span style="text-align: center; vertical-align: center; margin-right: 10px;">
+                  XFER TO
+                  <br />
+                  MAILBOX
+                </span>
+                <span style="display: flex; align-items: center; justify-content: center;">*</span>
+              </div>
+            }
+            disabled={this.secDoesNotExist}
+            onClick={() => this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/${transferToMailboxPage}`)}
+            buttonStyle="width: 122px; height: 42px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_xfr-to-mailbox`}
+          />,
+        )}
+        {fcomAt(
+          721,
+          559,
+          <Button
+            label={
+              <div style="display: flex; flex-direction: row; justify-content: space-between;">
+                <span style="text-align: center; vertical-align: center; margin-right: 10px;">PRINT</span>
+                <span style="display: flex; align-items: center; justify-content: center;">*</span>
+              </div>
+            }
+            disabled={true}
+            onClick={() => {}}
+            buttonStyle="padding-right: 2px; width: 135px; height: 42px;"
+            idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_print`}
+          />,
+        )}
+      </div>
     );
   }
 }

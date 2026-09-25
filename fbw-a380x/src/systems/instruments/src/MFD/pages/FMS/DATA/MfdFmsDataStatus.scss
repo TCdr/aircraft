@@ -29,7 +29,22 @@
   justify-content: center;
   align-items: center;
   margin-top: 20px;
-  margin-bottom: 200px;
+  margin-bottom: 20px;
+}
+
+.mfd-data-status-engine-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin: 0 20px 20px 20px;
+}
+
+.mfd-data-status-factors {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid $display-light-grey;
+  padding: 8px 15px;
 }
 
 .mfd-data-status-performance-row {
@@ -65,4 +80,34 @@
   justify-content: space-between;
   align-items: flex-start;
   padding-top: 15px;
+}
+
+// FCOM DSC-22-FMS-20-30 P 91 (ACFT STATUS panel coordinates: display x - 21, display y - 198)
+.mfd-data-status-factors-box {
+  position: absolute;
+  top: 90px;
+  left: 529px;
+  width: 193px;
+  height: 105px;
+  border: 1px solid $display-light-grey;
+  box-sizing: border-box;
+}
+
+.mfd-data-status-active-box {
+  position: absolute;
+  top: 339px;
+  left: -7px;
+  width: 241px;
+  height: 113px;
+  border: 1px solid $display-light-grey;
+  box-sizing: border-box;
+}
+
+.mfd-data-status-dialog {
+  position: absolute;
+  top: 290px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
 }

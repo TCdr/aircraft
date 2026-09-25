@@ -1,30 +1,16 @@
 ﻿@import "../../../../MsfsAvionicsCommon/definitions";
 
-.mfd-fpln-hold-timedist-box {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  margin-left: 30px;
+// FCOM DSC-22-FMS-20-30 P 186: the hold frame spans x = 8..598 and y = 185..886 of the display, small radio labels
+.mfd-fpln-hold-frame {
+  position: absolute;
+  left: 8px;
+  top: 42px;
+  width: 590px;
+  height: 701px;
+  box-sizing: border-box;
+  border: 2px solid $display-light-grey;
 }
 
-.mfd-fpln-hold-last-exit-label {
-  width: 100%;
-  margin-top: 50px;
-  padding-top: 50px;
-  margin-bottom: 30px;
-  border-top: 1px solid $display-light-grey;
-}
-
-.mfd-fpln-hold-grid {
-  display: grid;
-  grid-template-columns: 20% 30% 30%;
-  justify-content: center;
-  align-items: center;
-}
-
-.mfd-fpln-hold-button-with-creative-class-name-which-is-as-long-as-style-attribute {
-  display: flex;
-  justify-content: flex-end;
-  padding: 2px;
+.mfd-fpln-hold-canvas .mfd-radio-button {
+  font-size: 22px;
 }
