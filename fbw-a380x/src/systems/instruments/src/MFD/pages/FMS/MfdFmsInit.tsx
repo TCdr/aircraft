@@ -119,18 +119,14 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
   );
 
   /** The ROUTE SELECTION page lists the company routes of the FROM / TO city pair */
-  private readonly rteSelDisabled = MappedSubject.create(
-    ([cpnyRteDisabled, toIcao, fromIcao]) => cpnyRteDisabled || !toIcao || !fromIcao,
-    this.cpnyRteDisabled,
-    this.toIcao,
-    this.fromIcao,
-  );
+  /**
+   * FCOM DSC-22-FMS-20-30 P 199-200: the (ALTN) RTE SEL buttons always display the ROUTE SELECTION page; only the route
+   * entries are limited (company route: PREFLIGHT phase, alternate route: a primary destination, both: no temporary
+   * flight plan). Without a city pair the page shows no route.
+   */
+  private readonly rteSelDisabled = this.cpnyRteDisabled.map((v) => v);
 
-  private readonly altnRteSelDisabled = MappedSubject.create(
-    ([altnIcao, altnDisabled]) => altnDisabled || !altnIcao || altnIcao === 'NONE',
-    this.altnIcao,
-    this.altnDisabled,
-  );
+  private readonly altnRteSelDisabled = this.tmpyActive.map((v) => v);
 
   private readonly altnRte = Subject.create<string | null>(null); // FIXME not found
 
