@@ -7,10 +7,7 @@ import { FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 import { AbstractMfdPageProps } from '../../MFD';
 import { FmsPage } from '../common/FmsPage';
 import { Footer } from '../common/Footer';
-import { fcomAt, fcomCentre } from '../common/FcomLayout';
-import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
-import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
-import { FreeTextFormat } from '../common/DataEntryFormats';
+import { freeTextSendControls } from '../common/FreeTextSendControls';
 
 /** URI pages of the free text send pages */
 export const cpnyFplnReportPage = 'f-pln-cpny-f-pln-report';
@@ -54,39 +51,15 @@ export class MfdFmsFreeTextSend extends FmsPage<MfdFmsFreeTextSendProps> {
         <div class="mfd-page-container">
           {/* Positions from the FCOM figures (DSC-22-FMS-20-30 P 25 and P 337), page container coordinates */}
           <div class="mfd-fcom-canvas">
-            {fcomCentre(180, 382, <span class="mfd-label">FREE TEXT</span>)}
-            {fcomAt(
-              231,
-              132,
-              <InputField<string>
-                dataEntryFormat={new FreeTextFormat(24)}
-                value={this.freeText}
-                containerStyle="width: 493px;"
-                alignText="center"
-                errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
-                hEventConsumer={this.props.mfd.hEventConsumer}
-                interactionMode={this.props.mfd.interactionMode}
-              />,
-            )}
-            {fcomAt(
-              312,
-              289,
-              <Button
-                label={this.props.sendLabel}
-                disabled={this.notModelled}
-                onClick={() => {}}
-                buttonStyle="min-width: 187px; min-height: 60px;"
-              />,
-            )}
-            {fcomAt(
-              796,
-              2,
-              <Button
-                label="RETURN"
-                onClick={() => this.props.mfd.uiService.navigateTo(this.props.returnUri())}
-                buttonStyle="min-width: 130px;"
-              />,
-            )}
+            {freeTextSendControls({
+              freeText: this.freeText,
+              sendLabel: this.props.sendLabel,
+              sendDisabled: this.notModelled,
+              onSend: () => {},
+              onReturn: () => this.props.mfd.uiService.navigateTo(this.props.returnUri()),
+              mfd: this.props.mfd,
+              fmcService: this.props.fmcService,
+            })}
           </div>
         </div>
         <Footer
