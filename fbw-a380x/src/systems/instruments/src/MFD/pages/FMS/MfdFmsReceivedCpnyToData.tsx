@@ -383,7 +383,7 @@ export class MfdFmsReceivedCpnyToData extends FmsPage<AbstractMfdPageProps> {
                 onClick={() => {
                   const uplink = this.current.get();
                   if (uplink) {
-                    this.props.fmcService.master.companyTakeoffData.clear(uplink);
+                    this.props.fmcService.master.companyTakeoffData.remove(uplink);
                   }
                 }}
                 buttonStyle="min-width: 129px; min-height: 60px;"
