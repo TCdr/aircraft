@@ -1,168 +1,55 @@
-﻿@import "../../../MsfsAvionicsCommon/definitions.scss";
+@import "../../../MsfsAvionicsCommon/definitions.scss";
 
-
-.mfd-surv-controls-first-section {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-  border-bottom: 2px solid $display-light-grey;
+// SURV / CONTROLS page, positions from the FCOM figure (A380 FCOM DSC-34-20-60-50 P 4), page container coordinates
+.mfd-surv-controls {
+  .mfd-radio-button {
+    font-size: 26px;
+  }
 }
 
-.mfd-surv-controls-second-section {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding-bottom: 15px;
+// Frame of an area (XPDR, TCAS, WXR, TAWS) or of a group of buttons
+.mfd-surv-area {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid $display-light-grey;
 }
 
-.mfd-surv-controls-third-section {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-top: 15px;
-  border-top: 2px solid $display-light-grey;
+// Title in the top line of a frame (WXR button, SURV group)
+.mfd-surv-frame-title {
+  padding: 0 6px;
+  background-color: $display-background;
 }
 
-.mfd-surv-controls-xpdr-section {
-  width: 40%;
-  display: flex;
-  flex-direction: row;
-  border-right: 2px solid $display-light-grey;
-  margin-left: 5px;
+.mfd-surv-vline {
+  position: absolute;
+  border-left: 2px solid $display-light-grey;
 }
 
-.mfd-surv-xpdr-label {
-  position: relative;
-  left: 100px; top: 3px;
+.mfd-surv-two-lines {
+  white-space: pre;
+  text-align: center;
+  line-height: 28px;
 }
 
-.mfd-surv-controls-xpdr-left {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  align-items: center;
-  margin-bottom: 10px;
+// Lines from a button to the buttons it sets with it (WXR -> PRED W/S and TURB, GPWS -> G/S MODE and FLAP MODE)
+.mfd-surv-links {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+
+  polyline {
+    fill: none;
+    stroke: $display-light-grey;
+    stroke-width: 2;
+  }
 }
 
-.mfd-surv-controls-xpdr-right {
+.mfd-surv-dialogs {
+  position: absolute;
+  top: 300px;
+  left: 0;
+  right: 0;
   display: flex;
-  flex-direction: column;
-  flex: 1;
-  align-items: center;
   justify-content: center;
-  padding-right: 20px;
-}
-
-.mfd-surv-controls-tcas-section {
-  width: 60%;
-  display: flex;
-  flex-direction: row;
-  border-right: 2px solid $display-light-grey;
-  margin-left: 5px;
-  padding-top: 75px;
-}
-
-.mfd-surv-tcas-label {
-  position: relative;
-  left: 150px; top: -70px;
-}
-
-.mfd-surv-controls-tcas-left {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-right: 40px;
-  margin-right: 5px;
-  border-right: 2px solid $display-light-grey;
-}
-
-.mfd-surv-controls-tcas-right {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.mfd-surv-controls-wxr-left {
-  width: 30%;
-  display: flex;
-  margin-left: 5px;
-  flex-direction: column;
-  flex: 1;
-  align-items: center;
-}
-
-.mfd-surv-wxr-label {
-  position: relative;
-  left: 100px; top: 0px;
-}
-
-.mfd-surv-controls-wxr-right {
-  width: 70%;
-  display: flex;
-  flex-direction: row;
-  margin-left: 5px;
-  padding-top: 30px;
-  align-items: center;
-  justify-content: center;
-}
-
-.mfd-surv-controls-wxr-grid {
-  display: grid;
-  grid-template-columns: auto auto auto;
-}
-
-.mfd-surv-controls-wxr-grid-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 20px;
-}
-
-.mfd-surv-taws-label {
-  position: relative;
-  left: 100px; top: 5px;
-}
-
-.mfd-surv-controls-taws-section {
-  display: flex;
-  height: 205px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-end;
-  border-right: 2px solid $display-light-grey;
-}
-
-.mfd-surv-controls-taws-element {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  margin: 10px;
-  height: 125px;
-}
-
-.mfd-surv-controls-def-settings-container {
-  display: flex;
-  height: 200px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.mfd-surv-controls-def-settings {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  margin: 10px;
-  height: 125px;
 }
