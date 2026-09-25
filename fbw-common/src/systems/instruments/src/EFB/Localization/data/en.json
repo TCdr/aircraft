@@ -420,7 +420,7 @@
       "Weight": "Takeoff Weight",
       "Wind": "Wind",
       "WindMagnitudeUnit": "kts or °/kts",
-      "A380": {
+      "Calc": {
         "Data": "Data",
         "DataWithEstimates": "Airbus + estimates",
         "DataRealOnly": "Airbus data only",
@@ -429,6 +429,9 @@
         "RealDataOnlyNoFlex": "Airbus data only: no FLEX temperature, TOGA",
         "SendToFms": "Send to FMS",
         "SentToFms": "Takeoff data sent to the FMS: RECEIVED CPNY T.O on the PERF page",
+        "SentToFmsA320": "Takeoff data sent to the FMS: MCDU PERF TAKE OFF, UPLINK TO DATA, RECEIVED TO DATA",
+        "LegendA320": "Weights, speeds, FLEX and THS: FlyByWire A320neo performance model (from Airbus data).",
+        "RunwayLegendA320": "Required: FlyByWire A320neo performance model (all limitations). V1, VR, 35 ft: estimates, all engines.",
         "SendNeedsSpeeds": "The FMS needs V1, VR and V2: not available with Airbus data only",
         "FmsNoData": "No takeoff data from the FMS (departure airport needed)",
         "FmsNoRunway": "No departure runway in the FMS: select the runway",

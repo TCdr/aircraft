@@ -10,6 +10,7 @@ import {
   TakeoffPerformanceEstimate,
   TakeoffPerformanceResult,
   TakeoffRunwayDistances,
+  estimateTakeoffRunDistances,
 } from '@flybywiresim/fbw-sdk';
 import { A380SpeedsUtils, ApproachConf, SpeedsLookupTables } from '@shared/OperatingSpeeds';
 import {
@@ -107,12 +108,6 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
 
   /** CG used for the speeds when none is entered: the forward limit, which gives the highest speeds */
   private static readonly DEFAULT_CG = 29;
-
-  /** The takeoff distance is at least 115 % of the all-engine takeoff distance to 35 ft (CS 25.113) */
-  private static readonly ALL_ENGINE_DISTANCE_FACTOR = 1.15;
-
-  /** The all-engine speed target once airborne, V2 + 10 kt (A380 FCOM DSC-22-FG, SRS TO mode) */
-  private static readonly ALL_ENGINE_V2_INCREMENT = 10;
 
   calculateTakeoffPerformance(
     tow: number,
@@ -346,6 +341,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
       required: undefined,
       requiredEstimated: false,
       requiredBelowData: false,
+      shortestDataLength: A380_TOW_LIMIT_RUNWAY_LENGTHS[0],
     };
 
     // The weight limit grows with the runway length: bisection between a very short runway and the longest of the data
@@ -378,18 +374,18 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     distances.requiredEstimated = estimated;
 
     if (!this.realDataOnly) {
-      const screenHeight = required / A380842TakeoffPerformanceCalculator.ALL_ENGINE_DISTANCE_FACTOR;
-      const groundSpeed = (cas: number) =>
-        Math.max(
-          1,
-          A380842TakeoffPerformanceCalculator.trueAirspeed(cas, params.pressureAlt, inputs.oat) - inputs.wind,
-        );
-      const atScreenHeight = groundSpeed(result.v2 + A380842TakeoffPerformanceCalculator.ALL_ENGINE_V2_INCREMENT);
-      const at = (cas: number | undefined) =>
-        cas !== undefined ? screenHeight * (groundSpeed(cas) / atScreenHeight) ** 2 : undefined;
-      distances.screenHeight = screenHeight;
-      distances.v1 = at(result.v1);
-      distances.vr = at(result.vR);
+      Object.assign(
+        distances,
+        estimateTakeoffRunDistances(
+          required,
+          result.v1,
+          result.vR,
+          result.v2,
+          params.pressureAlt,
+          inputs.oat,
+          inputs.wind,
+        ),
+      );
     }
     return distances;
   }
