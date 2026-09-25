@@ -634,7 +634,7 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                 147,
                 <InputField<string>
                   dataEntryFormat={new LongAlphanumericFormat()}
-                  disabled={Subject.create(true)} // TODO
+                  disabled={Subject.create(true)} // ALTN RTE: alternate company routes are not supported by the FMS yet
                   canBeCleared={Subject.create(false)}
                   value={this.altnRte}
                   containerStyle="width: 209px;"
