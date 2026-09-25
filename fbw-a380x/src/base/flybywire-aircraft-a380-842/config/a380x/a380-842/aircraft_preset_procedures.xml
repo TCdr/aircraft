@@ -83,6 +83,24 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) ! if{ 1 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) }</Action>
         </Step>
 
+        <!-- FCOM PRO-NOR-SOP PRELIMINARY COCKPIT PREPARATION: KCCU CCD sw and KBD sw 1 and 2 ... ON (BOTH) -->
+        <Step Name="KCCU CAPT KBD On" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_KCCU_L_KBD_ON_OFF)</Condition>
+            <Action>1 (&gt;L:A32NX_KCCU_L_KBD_ON_OFF)</Action>
+        </Step>
+        <Step Name="KCCU CAPT CCD On" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_KCCU_L_CCD_ON_OFF)</Condition>
+            <Action>1 (&gt;L:A32NX_KCCU_L_CCD_ON_OFF)</Action>
+        </Step>
+        <Step Name="KCCU F/O KBD On" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_KCCU_R_KBD_ON_OFF)</Condition>
+            <Action>1 (&gt;L:A32NX_KCCU_R_KBD_ON_OFF)</Action>
+        </Step>
+        <Step Name="KCCU F/O CCD On" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_KCCU_R_CCD_ON_OFF)</Condition>
+            <Action>1 (&gt;L:A32NX_KCCU_R_CCD_ON_OFF)</Action>
+        </Step>
+
         <!-- ENG fire test (the A380X only has on test button and this is currently mapped to the ENG 1 test) -->
         <Step Name="ENG Fire Test On" Type="PROC" Delay="2000">
             <Condition>(L:A32NX_AIRCRAFT_PRESET_FIRE_TEST_ENG1_DONE)</Condition>
@@ -443,6 +461,22 @@ The StepType also defines if the step is executed in normal mode, expedited mode
         <Step Name="APU Master Off" Type="STEP" Delay="2000">
             <Condition>(L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON) 0 ==</Condition>
             <Action>0 (&gt;L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON)</Action>
+        </Step>
+        <Step Name="KCCU F/O CCD Off" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_KCCU_R_CCD_ON_OFF) 0 ==</Condition>
+            <Action>0 (&gt;L:A32NX_KCCU_R_CCD_ON_OFF)</Action>
+        </Step>
+        <Step Name="KCCU F/O KBD Off" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_KCCU_R_KBD_ON_OFF) 0 ==</Condition>
+            <Action>0 (&gt;L:A32NX_KCCU_R_KBD_ON_OFF)</Action>
+        </Step>
+        <Step Name="KCCU CAPT CCD Off" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_KCCU_L_CCD_ON_OFF) 0 ==</Condition>
+            <Action>0 (&gt;L:A32NX_KCCU_L_CCD_ON_OFF)</Action>
+        </Step>
+        <Step Name="KCCU CAPT KBD Off" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_KCCU_L_KBD_ON_OFF) 0 ==</Condition>
+            <Action>0 (&gt;L:A32NX_KCCU_L_KBD_ON_OFF)</Action>
         </Step>
         <Step Name="EXT PWR 4 Off" Type="STEP" Delay="3000">
             <Condition>(L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) !</Condition>
