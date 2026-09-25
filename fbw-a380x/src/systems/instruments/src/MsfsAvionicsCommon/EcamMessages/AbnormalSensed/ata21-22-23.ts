@@ -375,14 +375,22 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   211800032: {
+    // A380 FCOM PRO-ABN-ECAM-10-21 COND HOT AIR 1(2) FAULT
     title: '\x1b<4m\x1b4mCOND\x1bm HOT AIR 1 FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'ON' },
+    ],
   },
   211800033: {
+    // A380 FCOM PRO-ABN-ECAM-10-21 COND HOT AIR 1(2) FAULT
     title: '\x1b<4m\x1b4mCOND\x1bm HOT AIR 2 FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'HOT AIR 2', sensed: true, labelNotCompleted: 'ON' },
+    ],
   },
   211800034: {
     title: '\x1b<4m\x1b4mCOND\x1bm MIXER PRESS REGUL FAULT  ',
@@ -420,9 +428,10 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   211800041: {
+    // A380 FCOM PRO-ABN-ECAM-10-21 COND TEMP CTL FAULT
     title: '\x1b<4m\x1b4mCOND\x1bm TEMP CTL FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' }],
   },
   211800042: {
     title: '\x1b<4m\x1b4mCOND\x1bm TEMP CTL REDUNDANCY LOST',
