@@ -13,6 +13,13 @@
   align-items: center;
   white-space: pre;
   transform: translateY(-50%);
+  // Clicks go through the item box to its content: a hidden element (e.g. CONFIRM BLOCK, which replaces FUEL PLANNING
+  // at the same position) does not take them, the visible one underneath does
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
 }
 
 .mfd-fcom-centre {
@@ -36,9 +43,5 @@
   left: 0;
   right: 0;
   bottom: 0;
-  pointer-events: none;
-
-  .mfd-fcom-item {
-    pointer-events: auto;
-  }
+  pointer-events: none; // the items take the clicks on their content
 }
