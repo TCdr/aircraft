@@ -28,6 +28,7 @@ import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { PropagatedWindEntry, WindEntry, WindVector } from '../data/wind';
+import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 
 export type FunctionsOnlyAndUnwrapPromises<T> = {
   [k in keyof T as T[k] extends (...args: any) => Promise<any> ? k : never]: T[k] extends (
@@ -377,8 +378,17 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     targetLegIndex: number,
     withAbeam: boolean,
     planIndex: number,
+    interceptCourse?: DirectToInterceptCourse,
   ): Promise<void> {
-    return this.callFunctionViaRpc('directToLeg', ppos, trueTrack, targetLegIndex, withAbeam, planIndex);
+    return this.callFunctionViaRpc(
+      'directToLeg',
+      ppos,
+      trueTrack,
+      targetLegIndex,
+      withAbeam,
+      planIndex,
+      interceptCourse,
+    );
   }
 
   directToWaypoint(
@@ -387,8 +397,17 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     waypoint: Fix,
     withAbeam: boolean,
     planIndex: number,
+    interceptCourse?: DirectToInterceptCourse,
   ): Promise<void> {
-    return this.callFunctionViaRpc('directToWaypoint', ppos, trueTrack, waypoint, withAbeam, planIndex);
+    return this.callFunctionViaRpc(
+      'directToWaypoint',
+      ppos,
+      trueTrack,
+      waypoint,
+      withAbeam,
+      planIndex,
+      interceptCourse,
+    );
   }
 
   addOrEditManualHold(
