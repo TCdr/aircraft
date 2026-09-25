@@ -494,7 +494,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               <Button
                 label={'IDENT'}
                 onClick={() => SimVar.SetSimVarValue('K:XPNDR_IDENT_ON', SimVarValueType.Bool, true)}
-                buttonStyle="width: 90px; height: 22px;"
+                buttonStyle="min-width: 118px; min-height: 40px;"
               />,
             )}
             {fcomAt(170, 8, <span class="mfd-label">ALT RPTG</span>)}
@@ -694,7 +694,7 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
               <Button
                 label={'DEFAULT\nSETTINGS'}
                 onClick={() => this.defaultSettingsConfirmationVisible.set(true)}
-                buttonStyle="width: 122px; height: 42px; white-space: pre;"
+                buttonStyle="min-width: 150px; min-height: 60px; white-space: pre;"
               />,
             )}
 

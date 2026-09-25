@@ -938,7 +938,7 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
             }
             disabled={this.insertHistoryWindDisabled}
             onClick={() => this.insertHistoryWinds()}
-            buttonStyle="width: 194px; height: 42px;"
+            buttonStyle="min-width: 222px; min-height: 60px;"
           />,
         )}
       </>
@@ -1161,7 +1161,7 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
                   <Button
                     label="RETURN"
                     onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                    buttonStyle="width: 101px;"
+                    buttonStyle="min-width: 129px;"
                   />,
                 )}
               {fcomAt(
@@ -1180,7 +1180,7 @@ export class MfdFmsWind extends FmsPage<MfdFmsWindProps> {
                   idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_windCpnyWind`}
                   menuItems={this.cpnyWindButton.menuItems}
                   showArrow={false}
-                  buttonStyle="width: 156px; height: 42px;"
+                  buttonStyle="min-width: 184px; min-height: 60px;"
                 />,
               )}
             </div>

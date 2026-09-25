@@ -84,7 +84,7 @@ export class MfdFmsCpnyWindRequest extends FmsPage<MfdFmsCpnyWindRequestProps> {
                 label={this.sendLabel}
                 disabled={this.sendDisabled}
                 onClick={() => this.props.fmcService.master.requestCompanyWinds(this.loadedFlightPlanIndex.get())}
-                buttonStyle="width: 159px; height: 42px;"
+                buttonStyle="min-width: 187px; min-height: 60px;"
               />,
             )}
             {fcomAt(
@@ -93,7 +93,7 @@ export class MfdFmsCpnyWindRequest extends FmsPage<MfdFmsCpnyWindRequestProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 102px;"
+                buttonStyle="min-width: 130px;"
               />,
             )}
           </div>

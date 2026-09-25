@@ -260,7 +260,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                 {fcomAt(
                   227,
                   564,
-                  <Button label="MODIFY" onClick={() => {}} disabled={true} buttonStyle="width: 97px;" />,
+                  <Button label="MODIFY" onClick={() => {}} disabled={true} buttonStyle="min-width: 125px;" />,
                 )}
                 {fcomLine(267, -10, 734)}
 
@@ -290,7 +290,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                   <Button
                     label="SWAP *"
                     onClick={() => this.isSwapConfirmVisible.set(true)}
-                    buttonStyle="width: 113px; height: 42px;"
+                    buttonStyle="min-width: 141px; min-height: 60px;"
                   />,
                 )}
                 {fcomCentre(363, 621, <span class="mfd-label">SECOND</span>)}
@@ -328,7 +328,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                     }
                     onClick={() => this.isDeleteAllConfirmVisible.set(true)}
                     disabled={this.deleteStoredElementsDisabled}
-                    buttonStyle="width: 159px; height: 41px;"
+                    buttonStyle="min-width: 187px; min-height: 59px;"
                   />,
                 )}
               </div>
@@ -401,7 +401,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                       }
                       disabled={Subject.create(true)}
                       onClick={() => {}}
-                      buttonStyle="width: 150px; height: 42px;"
+                      buttonStyle="min-width: 178px; min-height: 60px;"
                     />,
                   )}
                 </div>
@@ -417,7 +417,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                     }
                     disabled={Subject.create(true)}
                     onClick={() => {}}
-                    buttonStyle="width: 159px; height: 41px;"
+                    buttonStyle="min-width: 187px; min-height: 59px;"
                   />,
                 )}
               </div>
@@ -432,7 +432,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                 label="RETURN"
                 visible={this.showReturnButton}
                 onClick={() => this.props.mfd.uiService.navigateTo('fms/active/init')}
-                buttonStyle="width: 97px;"
+                buttonStyle="min-width: 125px;"
               />,
             )}
           </div>

@@ -523,7 +523,7 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
               <Button
                 label="RWY"
                 onClick={() => {}}
-                buttonStyle="width: 145px; height: 25px;"
+                buttonStyle="min-width: 173px; min-height: 43px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-rwy-btn`}
                 menuItems={this.rwyOptions}
               />,
@@ -535,7 +535,7 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
                 label="APPR"
                 onClick={() => {}}
                 disabled={this.apprDisabled}
-                buttonStyle="width: 130px; height: 25px;"
+                buttonStyle="min-width: 158px; min-height: 43px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-appr-btn`}
                 menuItems={this.apprOptions}
                 scrollToMenuItem={this.apprButtonScrollTo}
@@ -548,7 +548,7 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
                 label="VIA"
                 onClick={() => {}}
                 disabled={this.viaDisabled}
-                buttonStyle="width: 97px; height: 25px;"
+                buttonStyle="min-width: 125px; min-height: 43px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-via-btn`}
                 menuItems={this.viaOptions}
               />,
@@ -560,7 +560,7 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
                 label="STAR"
                 onClick={() => {}}
                 disabled={this.starDisabled}
-                buttonStyle="width: 97px; height: 25px;"
+                buttonStyle="min-width: 125px; min-height: 43px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-star-btn`}
                 menuItems={this.starOptions}
               />,
@@ -572,7 +572,7 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
                 label="TRANS"
                 onClick={() => {}}
                 disabled={this.transDisabled}
-                buttonStyle="width: 97px; height: 25px;"
+                buttonStyle="min-width: 125px; min-height: 43px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-arr-trans-btn`}
                 menuItems={this.transOptions}
               />,
@@ -587,7 +587,7 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
                     this.props.fmcService.master.resetRevisedWaypoint();
                     this.props.mfd.uiService.navigateTo('back');
                   }}
-                  buttonStyle="width: 101px;"
+                  buttonStyle="min-width: 129px;"
                 />,
               )}
             </div>
@@ -603,7 +603,7 @@ export class MfdFmsFplnArr extends FmsPage<MfdFmsFplnArrProps> {
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,
                     );
                   }}
-                  buttonStyle="color: yellow; width: 134px;"
+                  buttonStyle="color: yellow; min-width: 162px;"
                 />,
               )}
             </div>

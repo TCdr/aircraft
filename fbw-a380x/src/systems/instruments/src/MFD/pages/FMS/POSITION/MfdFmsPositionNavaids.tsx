@@ -596,7 +596,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
                       menuItems={Subject.create([{ label: 'DATA NAVAID', action: () => {} }])}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid0`}
                       disabled={true}
-                      buttonStyle="width: 80px; height: 17px;"
+                      buttonStyle="min-width: 108px; min-height: 35px;"
                     />,
                   )}
                 </div>
@@ -617,7 +617,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
                       menuItems={Subject.create([{ label: 'DATA NAVAID', action: () => {} }])}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid1`}
                       disabled={true}
-                      buttonStyle="width: 80px; height: 17px;"
+                      buttonStyle="min-width: 108px; min-height: 35px;"
                     />,
                   )}
                 </div>
@@ -638,7 +638,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
                       menuItems={Subject.create([{ label: 'DATA NAVAID', action: () => {} }])}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaid2`}
                       disabled={true}
-                      buttonStyle="width: 80px; height: 17px;"
+                      buttonStyle="min-width: 108px; min-height: 35px;"
                     />,
                   )}
                 </div>
@@ -828,7 +828,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
                 label="DESELECT<br />GLIDE *"
                 disabled={true} // not modelled
                 onClick={() => this.deselectGlide()}
-                buttonStyle="width: 192px; height: 39px;"
+                buttonStyle="min-width: 220px; min-height: 57px;"
               />,
             )}
             {fcomAt(
@@ -837,7 +837,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 101px;"
+                buttonStyle="min-width: 129px;"
               />,
             )}
           </div>

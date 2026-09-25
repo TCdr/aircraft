@@ -166,7 +166,7 @@ export class MfdFmsFplnOffset extends FmsPage<MfdFmsFplnOffsetProps> {
                 label="CANCEL<br />OFFSET*"
                 disabled={this.inactive}
                 onClick={() => {}}
-                buttonStyle="width: 105px; height: 42px;"
+                buttonStyle="min-width: 133px; min-height: 60px;"
               />,
             )}
             {/* FCOM: RETURN (lower left) when no temporary flight plan exists, it displays the F-PLN page */}
@@ -178,7 +178,7 @@ export class MfdFmsFplnOffset extends FmsPage<MfdFmsFplnOffsetProps> {
                 onClick={() =>
                   this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`)
                 }
-                buttonStyle="width: 102px;"
+                buttonStyle="min-width: 130px;"
               />,
             )}
           </div>

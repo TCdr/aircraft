@@ -1468,7 +1468,7 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
                   </span>
                 }
                 onClick={() => this.deleteRta()}
-                buttonStyle="width: 104px; height: 52px;"
+                buttonStyle="min-width: 132px; min-height: 70px;"
               />,
             )}
           </div>
@@ -1952,7 +1952,7 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
               <div ref={this.returnButtonDiv} style="display: flex; justify-content: flex-end; padding: 2px;">
                 <Button
                   label="RETURN"
-                  buttonStyle="width: 101px;"
+                  buttonStyle="min-width: 129px;"
                   onClick={() => {
                     this.props.fmcService.master.resetRevisedWaypoint();
                     this.props.mfd.uiService.navigateTo('back');

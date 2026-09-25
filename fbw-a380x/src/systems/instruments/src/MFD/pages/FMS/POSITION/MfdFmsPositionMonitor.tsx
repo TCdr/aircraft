@@ -443,7 +443,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
               <Button
                 label={this.positionFrozenLabel}
                 onClick={() => this.togglePositionFrozen()}
-                buttonStyle="width: 139px; height: 41px;"
+                buttonStyle="min-width: 167px; min-height: 59px;"
               />,
             )}
             {fcomLine(330, 22, 725)}
@@ -468,7 +468,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
                 label="POSITION<br />UPDATE"
                 disabled={Subject.create(true)} // FCOM: only when the FMS navigation mode is not IRS/GPS (not modelled)
                 onClick={() => {}}
-                buttonStyle="width: 99px; height: 39px;"
+                buttonStyle="min-width: 127px; min-height: 57px;"
               />,
             )}
             {fcomRight(704, 576, <span class="mfd-label">BRG / DIST TO</span>)}
@@ -517,7 +517,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
               <Button
                 label="RETURN"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
-                buttonStyle="width: 97px;"
+                buttonStyle="min-width: 125px;"
               />,
             )}
             {fcomAt(
@@ -530,7 +530,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
                     `fms/position/navaids/${MfdFmsPositionNavaids.selectedForFmsNavExtra}`,
                   )
                 }
-                buttonStyle="width: 122px;"
+                buttonStyle="min-width: 150px;"
               />,
             )}
             {fcomAt(
@@ -539,7 +539,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
               <Button
                 label="GPS"
                 onClick={() => this.props.mfd.uiService.navigateTo('fms/position/gps')}
-                buttonStyle="width: 101px;"
+                buttonStyle="min-width: 129px;"
               />,
             )}
             {fcomAt(
@@ -548,7 +548,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
               <Button
                 label="IRS"
                 onClick={() => this.props.mfd.uiService.navigateTo('fms/position/irs')}
-                buttonStyle="width: 102px;"
+                buttonStyle="min-width: 130px;"
               />,
             )}
           </div>

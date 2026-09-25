@@ -202,7 +202,7 @@ export class MfdFmsFplnAirways extends FmsPage<MfdFmsFplnAirwaysProps> {
           <div ref={this.returnButtonDiv} class="mfd-fms-direct-to-erase-return-btn">
             <Button
               label="RETURN"
-              buttonStyle="width: 101px;"
+              buttonStyle="min-width: 129px;"
               onClick={async () => {
                 if (this.loadedFlightPlanIndex.get() >= FlightPlanIndex.FirstSecondary) {
                   await this.props.flightPlanInterface.finaliseAirwayEntry(

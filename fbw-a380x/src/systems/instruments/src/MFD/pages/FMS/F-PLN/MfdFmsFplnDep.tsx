@@ -344,7 +344,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
               <Button
                 label="RWY"
                 onClick={() => {}}
-                buttonStyle="width: 253px; height: 25px;"
+                buttonStyle="min-width: 281px; min-height: 43px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-rwy-btn`}
                 menuItems={this.rwyOptions}
               />,
@@ -356,7 +356,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                 label="SID"
                 onClick={() => {}}
                 disabled={this.sidDisabled}
-                buttonStyle="width: 109px; height: 25px;"
+                buttonStyle="min-width: 137px; min-height: 43px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-sid-btn`}
                 menuItems={this.sidOptions}
               />,
@@ -368,7 +368,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                 label="TRANS"
                 onClick={() => {}}
                 disabled={this.transDisabled}
-                buttonStyle="width: 108px; height: 25px;"
+                buttonStyle="min-width: 136px; min-height: 43px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_f-pln-dep-trans-btn`}
                 menuItems={this.transOptions}
               />,
@@ -383,7 +383,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                     this.props.fmcService.master.resetRevisedWaypoint();
                     this.props.mfd.uiService.navigateTo('back');
                   }}
-                  buttonStyle="width: 101px;"
+                  buttonStyle="min-width: 129px;"
                 />,
               )}
             </div>
@@ -399,7 +399,7 @@ export class MfdFmsFplnDep extends FmsPage<MfdFmsFplnDepProps> {
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`,
                     );
                   }}
-                  buttonStyle="color: yellow; width: 134px;"
+                  buttonStyle="color: yellow; min-width: 162px;"
                 />,
               )}
             </div>

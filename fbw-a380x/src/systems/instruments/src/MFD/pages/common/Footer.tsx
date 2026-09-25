@@ -57,7 +57,7 @@ export class Footer extends DisplayComponent<AbstractMfdPageProps> {
       <div class="mfd-footer">
         <Button
           ref={this.buttonRef}
-          buttonStyle="width: 100px;"
+          buttonStyle="min-width: 100px;"
           label={<span style="white-space: pre">{this.buttonText}</span>}
           onClick={() => {
             if (this.messageToBeCleared.get()) {

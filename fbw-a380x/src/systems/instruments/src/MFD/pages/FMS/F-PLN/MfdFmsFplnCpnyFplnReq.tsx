@@ -133,7 +133,7 @@ export class MfdFmsFplnCpnyFplnReq extends FmsPage<MfdFmsFplnCpnyFplnReqProps> {
                 }
                 disabled={this.sendButtonDisabled}
                 onClick={() => this.props.fmcService.master.cpnyFplnRequest(this.loadedFlightPlanIndex.get())}
-                buttonStyle="width: 159px; height: 40px;"
+                buttonStyle="min-width: 187px; min-height: 58px;"
               />,
             )}
             {fcomAt(
@@ -141,7 +141,7 @@ export class MfdFmsFplnCpnyFplnReq extends FmsPage<MfdFmsFplnCpnyFplnReqProps> {
               5,
               <Button
                 label="RETURN"
-                buttonStyle="width: 101px;"
+                buttonStyle="min-width: 129px;"
                 onClick={() => this.props.mfd.uiService.navigateTo('back')}
               />,
             )}
