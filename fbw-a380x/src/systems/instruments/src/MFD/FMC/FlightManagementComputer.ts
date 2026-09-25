@@ -775,11 +775,6 @@ export class FlightManagementComputer implements FmcInterface {
   }
 
   /**
-   * Returns the estimated route reserve fuel. If a pilot entry for route reserve fuel exists, it will be used.
-   * Otherwise it is calculated based upon the route reserve fuel percentage and the trip fuel, if any.
-   * @returns the route reserve fuel in kg, or null if it cannot be calculated due to missing data.
-   */
-  /**
    * Starts the fuel planning computation. The TRIP fuel comes from the predictions of the flight plan, which need a
    * fuel on board: they run with a trial BLOCK fuel, replaced by the resulting minimum BLOCK until both agree.
    */
@@ -859,6 +854,11 @@ export class FlightManagementComputer implements FmcInterface {
     }
   }
 
+  /**
+   * Returns the estimated route reserve fuel. If a pilot entry for route reserve fuel exists, it will be used.
+   * Otherwise it is calculated based upon the route reserve fuel percentage and the trip fuel, if any.
+   * @returns the route reserve fuel in kg, or null if it cannot be calculated due to missing data.
+   */
   public getRouteReserveFuel(forPlan = FlightPlanIndex.Active, tripFuel?: number | null): number | null {
     const pd = this.flightPlanInterface.get(forPlan).performanceData;
     const pilotEntry = pd.pilotRouteReserveFuel.get();

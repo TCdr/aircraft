@@ -139,7 +139,7 @@ export const simbriefDataParser = (simbriefJson: any): ISimbriefData => {
     },
     units: params.units,
     alternates: (Array.isArray(simbriefJson.alternate) ? simbriefJson.alternate : [simbriefJson.alternate])
-      .map((a: any) => a?.icao_code)
+      .map((a: { icao_code?: unknown } | null | undefined) => a?.icao_code)
       .filter((icao: unknown): icao is string => typeof icao === 'string' && icao.length > 0),
     alternate: {
       icao: alternate.icao_code,

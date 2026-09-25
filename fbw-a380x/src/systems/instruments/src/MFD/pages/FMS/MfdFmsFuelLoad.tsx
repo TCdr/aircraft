@@ -53,6 +53,11 @@ import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanChangeNotifier';
 
+/** The flight plan performance data holds the fuel weights in tonnes (FIXME it should be in kg) */
+function kilogramsToPerfPlanTonnes(kilograms: number | null): number | null {
+  return kilograms !== null ? kilograms / 1000 : null;
+}
+
 interface MfdFmsFuelLoadProps extends AbstractMfdPageProps {}
 
 export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
@@ -493,7 +498,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                   dataHandlerDuringValidation={async (v) => {
                     this.props.flightPlanInterface.setPerformanceData(
                       'zeroFuelWeight',
-                      v !== null ? v / 1000 : null, // FIXME the perf plan should be in kg
+                      kilogramsToPerfPlanTonnes(v),
                       this.loadedFlightPlanIndex.get(),
                     );
                   }}
@@ -541,7 +546,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                     dataHandlerDuringValidation={async (v) =>
                       this.props.flightPlanInterface.setPerformanceData(
                         'blockFuel',
-                        v !== null ? v / 1000 : null,
+                        kilogramsToPerfPlanTonnes(v),
                         this.loadedFlightPlanIndex.get(),
                       )
                     }
@@ -596,7 +601,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                   dataHandlerDuringValidation={async (v) =>
                     this.props.flightPlanInterface.setPerformanceData(
                       'pilotTaxiFuel',
-                      v !== null ? v / 1000 : null, // FIXME the perf plan should be in kg
+                      kilogramsToPerfPlanTonnes(v),
                       this.loadedFlightPlanIndex.get(),
                     )
                   }
@@ -632,7 +637,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                   dataHandlerDuringValidation={async (v) => {
                     this.props.flightPlanInterface.setPerformanceData(
                       'pilotRouteReserveFuel',
-                      v !== null ? v / 1000 : null, // FIXME the perf plan should be in kg
+                      kilogramsToPerfPlanTonnes(v),
                       this.loadedFlightPlanIndex.get(),
                     );
 
@@ -687,7 +692,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                   dataHandlerDuringValidation={async (v) =>
                     this.props.flightPlanInterface.setPerformanceData(
                       'pilotAlternateFuel',
-                      v !== null ? v / 1000 : null, // FIXME the perf plan should be in kg
+                      kilogramsToPerfPlanTonnes(v),
                       this.loadedFlightPlanIndex.get(),
                     )
                   }
@@ -711,7 +716,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                   dataHandlerDuringValidation={async (v) => {
                     this.props.flightPlanInterface.setPerformanceData(
                       'pilotFinalHoldingFuel',
-                      v !== null ? v / 1000 : null, // FIXME the perf plan should be in kg
+                      kilogramsToPerfPlanTonnes(v),
                       this.loadedFlightPlanIndex.get(),
                     );
                     this.props.flightPlanInterface.setPerformanceData(
@@ -911,7 +916,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                     }
                     this.props.flightPlanInterface?.setPerformanceData(
                       'pilotMinimumDestinationFuelOnBoard',
-                      v / 1000, // FIXME the perf plan should be in kg
+                      kilogramsToPerfPlanTonnes(v),
                       this.loadedFlightPlanIndex.get(),
                     );
                     return true;
