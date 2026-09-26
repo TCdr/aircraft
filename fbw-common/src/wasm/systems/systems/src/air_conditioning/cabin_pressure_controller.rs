@@ -340,9 +340,8 @@ impl<C: PressurizationConstants> CabinPressureController<C> {
                         C::MAX_CLIMB_RATE
                     } else if self.cabin_altitude()
                         >= Length::new::<foot>(C::MAX_CLIMB_CABIN_ALTITUDE)
+                        || target_vs_fpm <= C::MAX_DESCENT_RATE
                     {
-                        C::MAX_DESCENT_RATE
-                    } else if target_vs_fpm <= C::MAX_DESCENT_RATE {
                         C::MAX_DESCENT_RATE
                     } else {
                         target_vs_fpm
