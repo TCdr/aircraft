@@ -37,6 +37,8 @@ interface PinProgramOptions {
   paxSign: boolean;
   rmpVhfSpacing: boolean;
   satcom: boolean;
+  /** The EGPWS Runway Awareness and Advisory System option (A32NX) */
+  raas: boolean;
 }
 
 interface RealismOptions {
@@ -100,6 +102,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
       paxSign: false,
       rmpVhfSpacing: false,
       satcom: false,
+      raas: false,
     },
     realism: {
       mcduKeyboard: false,
