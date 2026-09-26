@@ -83,25 +83,25 @@ static void simBridgeConnect() {
   const DWORD size = static_cast<DWORD>(sizeof(types::AircraftStatusData));
   bool ok = SUCCEEDED(SimConnect_MapClientDataNameToID(g_simBridge.connection, kSimBridgeStatusAreaName, kSimBridgeStatusAreaId));
   ok = ok && SUCCEEDED(SimConnect_AddToClientDataDefinition(g_simBridge.connection, kSimBridgeStatusDefinitionId,
-                                                             SIMCONNECT_CLIENTDATAOFFSET_AUTO, size));
+                                                            SIMCONNECT_CLIENTDATAOFFSET_AUTO, size));
   ok = ok && SUCCEEDED(SimConnect_CreateClientData(g_simBridge.connection, kSimBridgeStatusAreaId, size,
-                                                    SIMCONNECT_CREATE_CLIENT_DATA_FLAG_READ_ONLY));
+                                                   SIMCONNECT_CREATE_CLIENT_DATA_FLAG_READ_ONLY));
   // SimBridge's blocks (it creates them itself): the figures, and the frames it renders for terronnd.
   for (int side = 0; side < 2 && ok; ++side) {
     const SIMCONNECT_CLIENT_DATA_ID thresholdsId = kSimBridgeThresholdsAreaId + static_cast<SIMCONNECT_CLIENT_DATA_ID>(side);
     const SIMCONNECT_CLIENT_DATA_ID framesId = kSimBridgeFramesAreaId + static_cast<SIMCONNECT_CLIENT_DATA_ID>(side);
     ok = ok && SUCCEEDED(SimConnect_MapClientDataNameToID(g_simBridge.connection, kSimBridgeThresholdsAreaNames[side], thresholdsId));
     ok = ok && SUCCEEDED(SimConnect_AddToClientDataDefinition(g_simBridge.connection, thresholdsId, SIMCONNECT_CLIENTDATAOFFSET_AUTO,
-                                                               static_cast<DWORD>(sizeof(types::ThresholdData))));
+                                                              static_cast<DWORD>(sizeof(types::ThresholdData))));
     ok = ok && SUCCEEDED(SimConnect_RequestClientData(g_simBridge.connection, thresholdsId, thresholdsId, thresholdsId,
-                                                       SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT, 0,
-                                                       0, 0));
+                                                      SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT, 0,
+                                                      0, 0));
     ok = ok && SUCCEEDED(SimConnect_MapClientDataNameToID(g_simBridge.connection, kSimBridgeFramesAreaNames[side], framesId));
     ok = ok && SUCCEEDED(SimConnect_AddToClientDataDefinition(g_simBridge.connection, framesId, SIMCONNECT_CLIENTDATAOFFSET_AUTO,
-                                                               static_cast<DWORD>(SIMCONNECT_CLIENTDATA_MAX_SIZE)));
-    ok = ok && SUCCEEDED(SimConnect_RequestClientData(g_simBridge.connection, framesId, framesId, framesId,
-                                                       SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT, 0,
-                                                       0, 0));
+                                                              static_cast<DWORD>(SIMCONNECT_CLIENTDATA_MAX_SIZE)));
+    ok = ok &&
+         SUCCEEDED(SimConnect_RequestClientData(g_simBridge.connection, framesId, framesId, framesId, SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET,
+                                                SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT, 0, 0, 0));
   }
   if (!ok) {
     simBridgeDisconnect();

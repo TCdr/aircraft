@@ -372,11 +372,11 @@ constexpr float kWaterMaskMaxFeet = -50000.0f;
 // SimBridge's elevations and the sim's own mesh (terrain beyond the range's top would come out
 // in other entries, see kTerrainMinFeet).
 // ---------------------------------------------------------------------------
-constexpr float kPeaksBelowFeet = 2000.0f;    // peaks mode while the highest terrain is further below than this
+constexpr float kPeaksBelowFeet = 2000.0f;  // peaks mode while the highest terrain is further below than this
 
 constexpr float kPeaksMarginFraction = 0.25f;  // of the span, above the highest terrain
 
-constexpr float kPeaksSolidFrom = 0.95f;       // fractions of the span (from the lowest terrain)
+constexpr float kPeaksSolidFrom = 0.95f;  // fractions of the span (from the lowest terrain)
 
 constexpr float kPeaksDenseFrom = 0.65f;
 constexpr float kPeaksLightFrom = 0.35f;
