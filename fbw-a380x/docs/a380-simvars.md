@@ -1679,13 +1679,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Bool
     - The keyboard ON/OFF switch of the KCCU: the keyboard keys (and the MFD entry by KCCU) work only when ON
       (A380 FCOM DSC-31-30-20)
-    - Set ON at the non cold-and-dark flight starts and by the Powered aircraft preset
+    - ON by default: set ON in every flight start (cold and dark included) and by the Powered aircraft preset
     - {side} = L or R
 
 - A32NX_KCCU_{side}_CCD_ON_OFF
     - Bool
     - The cursor control device ON/OFF switch of the KCCU: its ESC, KBD and navigation keys work only when ON
-    - Set ON at the non cold-and-dark flight starts and by the Powered aircraft preset
+    - ON by default: set ON in every flight start (cold and dark included) and by the Powered aircraft preset
     - {side} = L or R
 
 ## Landing Gear ATA 32
