@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import { FSComponent, NodeReference, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FmgcFlightPhase } from '@shared/flightphase';
 
@@ -41,6 +41,9 @@ export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
   /** FCOM P 77: a secondary flight plan report needs the secondary flight plan */
   private readonly secondaryAvailable = [1, 2, 3].map(() => Subject.create(false));
 
+  /** The checkboxes are plain divs (FSComponent sets an onClick prop as a string attribute): clicks are wired after render */
+  private readonly checkboxes: { ref: NodeReference<HTMLDivElement>; onClick: () => void }[] = [];
+
   protected onNewData(): void {
     this.secondaryAvailable.forEach((available, i) => {
       const index = FlightPlanIndex.FirstSecondary + i;
@@ -66,16 +69,30 @@ export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
       : FlightPlanReport.PreFlight;
   }
 
-  private static checkbox(y: number, x: number, option: Subject<boolean>): VNode {
-    return fcomCentre(
-      y,
-      x,
-      <div class={{ 'mfd-printer-checkbox': true, checked: option }} onClick={() => option.set(!option.get())} />,
-    );
+  private checkbox(y: number, x: number, option: Subject<boolean>): VNode {
+    const ref = FSComponent.createRef<HTMLDivElement>();
+    this.checkboxes.push({ ref, onClick: () => option.set(!option.get()) });
+    return fcomCentre(y, x, <div ref={ref} class={{ 'mfd-printer-checkbox': true, checked: option }} />);
+  }
+
+  public onAfterRender(node: VNode): void {
+    super.onAfterRender(node);
+
+    for (const { ref, onClick } of this.checkboxes) {
+      ref.instance.addEventListener('click', onClick);
+    }
+  }
+
+  public destroy(): void {
+    for (const { ref, onClick } of this.checkboxes) {
+      ref.getOrDefault()?.removeEventListener('click', onClick);
+    }
+
+    super.destroy();
   }
 
   render(): VNode {
-    const checkbox = MfdFmsDataPrinter.checkbox;
+    const checkbox = this.checkbox.bind(this);
     const autoPrintOptions = this.autoPrintOptions;
     const printer = this.printer;
     return (
