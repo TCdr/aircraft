@@ -8,7 +8,6 @@ import { bearingTo, Coordinates, distanceTo } from 'msfs-geo';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
-import { Predictions } from '@fmgc/guidance/vnav/Predictions';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
 
 import { AbstractMfdPageProps } from '../../../MFD';
@@ -21,6 +20,7 @@ import { routeSelectionPage, showReturnButtonUriExtra } from '../../../shared/ut
 import { alternateRouteSelectionUriExtra } from './MfdFmsFplnRouteSelection';
 
 import { fcomAt } from '../../common/FcomLayout';
+import { AlternateFuelPredictor } from '../../../FMC/AlternateFuelPredictor';
 import './MfdFmsFplnAlternate.scss';
 
 interface MfdFmsFplnAlternateProps extends AbstractMfdPageProps {}
@@ -34,7 +34,8 @@ const NUM_DATABASE_ALTERNATES = 6;
 class AlternateLine {
   readonly ident = Subject.create<string | null>(null);
 
-  location: Coordinates | null = null;
+  /** The airport location, with its elevation in feet */
+  location: (Coordinates & { alt?: number }) | null = null;
 
   readonly companyRoute = Subject.create('');
 
@@ -57,8 +58,9 @@ class AlternateLine {
  * The database alternates are the company alternates of the destination: the navigation data has no alternate
  * records, so they come from the company flight plan (the alternates of the SimBrief OFP for this destination).
  * Not modelled: alternate company routes.
- * Simplified: the fuel to an alternate is a level flight at FL220 (below 200 NM) or FL310 over the direct distance,
- * from the destination EFOB; the selection inserts the alternate directly instead of creating a temporary flight plan.
+ * The fuel to an alternate is the FCOM default ALTN computation (CI 0, FL220 below 200 NM, else FL310) over the direct
+ * distance, from the destination EFOB. Simplified: the selection inserts the alternate directly instead of creating a
+ * temporary flight plan.
  */
 export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
   private readonly destinationIdent = Subject.create('----');
@@ -178,7 +180,8 @@ export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
     line.directTrack.set(track.toFixed(0).padStart(3, '0'));
     line.distance.set(Math.min(distance, 9999).toFixed(0));
 
-    const fuelToAlternate = destinationEfob !== null ? this.fuelToAlternate(distance, destinationEfob) : null;
+    const fuelToAlternate =
+      destinationEfob !== null ? this.fuelToAlternate(distance, line.location.alt ?? 0, destinationEfob) : null;
     line.extra.set(
       destinationEfob !== null && fuelToAlternate !== null && finalFuel !== null
         ? this.formatFuel(destinationEfob - fuelToAlternate - finalFuel)
@@ -186,27 +189,21 @@ export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
     );
   }
 
-  /** Fuel in tonnes to fly to the alternate at the FCOM alternate cruise altitude (FL220 below 200 NM, else FL310) */
-  private fuelToAlternate(distance: number, destinationEfob: number): number | null {
-    const fmc = this.props.fmcService.master;
+  /** Fuel in tonnes to the alternate: the FCOM default ALTN computation (CI 0, FL220 below 200 NM, else FL310) */
+  private fuelToAlternate(distance: number, alternateElevation: number, destinationEfob: number): number | null {
     const zfw = this.loadedFlightPlan?.performanceData.zeroFuelWeight.get() ?? null;
     if (zfw === null) {
       return null;
     }
-    const cruiseLevel = distance < 200 ? 220 : 310;
-    const step = Predictions.levelFlightStep(
-      A380AircraftConfig,
-      cruiseLevel * 100,
+    const prediction = AlternateFuelPredictor.predict(A380AircraftConfig, {
       distance,
-      fmc.fmgc.getManagedCruiseSpeed(),
-      fmc.fmgc.getManagedCruiseSpeedMach(),
-      UnitType.POUND.convertFrom(zfw, UnitType.TONNE),
-      UnitType.POUND.convertFrom(destinationEfob, UnitType.TONNE),
-      0,
-      0,
-      fmc.fmgc.getTropoPause(),
-    );
-    return UnitType.TONNE.convertFrom(step.fuelBurned, UnitType.POUND);
+      destinationElevation: this.loadedFlightPlan?.destinationAirport?.location.alt ?? 0,
+      alternateElevation,
+      zeroFuelWeight: UnitType.POUND.convertFrom(zfw, UnitType.TONNE),
+      fuelOnBoard: UnitType.POUND.convertFrom(destinationEfob, UnitType.TONNE),
+      tropopause: this.props.fmcService.master.fmgc.getTropoPause(),
+    });
+    return prediction !== null ? UnitType.TONNE.convertFrom(prediction.fuel, UnitType.POUND) : null;
   }
 
   private formatFuel(tonnes: number): string {

@@ -25,7 +25,14 @@ import {
   RaBusEvents,
   RegisteredSimVar,
   EfisSide,
+  Units,
 } from '@flybywiresim/fbw-sdk';
+import { bearingTo, distanceTo } from 'msfs-geo';
+import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
+import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
+import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
+import { WindUtils } from '@fmgc/guidance/vnav/wind/WindUtils';
+import { AlternateFuelPrediction, AlternateFuelPredictor } from './AlternateFuelPredictor';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { Vmcl, maxZfw } from '@shared/PerformanceConstants';
@@ -1764,17 +1771,32 @@ export class FmcAircraftInterface {
     this.latDiscontinuityAhead.set(this.fmc.guidanceController?.vnavDriver.shouldShowLatDiscontinuityAhead());
   }
 
+  /** The last default ALTN computation of each flight plan, redone when its inputs change */
+  private readonly alternatePredictions = new Map<
+    number,
+    { key: string; prediction: AlternateFuelPrediction | null }
+  >();
+
+  /** The default ALTN time of a flight plan (FCOM FUEL&LOAD page: ALTN fuel and time), in ms, or null */
+  public getAlternateTime(fpIndex: number): number | null {
+    const prediction = this.alternatePredictions.get(fpIndex)?.prediction;
+    return prediction ? prediction.time * 1000 : null;
+  }
+
   calculateFinalAndAlternateFuel(fpIndex = FlightPlanIndex.Active) {
     const fpExists = this.flightPlanService.has(fpIndex);
     if (fpExists) {
       const fp = this.flightPlanService.get(fpIndex);
       const pd = fp.performanceData;
       const hasAlternate = fp.alternateDestinationAirport !== undefined;
-      //FIX ME. All these should be derived from VNAV predictions
-      // Calculate alternate fuel
-      pd.calculatedAlternateFuel.set(hasAlternate ? 6.5 : 0);
+      // Calculate alternate fuel: the FCOM default computation (CI 0, FL220 below 200 NM, else FL310), needs the ZFW
+      const prediction = hasAlternate ? this.predictAlternate(fp, fpIndex) : null;
+      pd.calculatedAlternateFuel.set(
+        hasAlternate ? (prediction !== null ? Math.ceil(Units.poundToKilogram(prediction.fuel) / 100) / 10 : null) : 0,
+      );
       if (!hasAlternate) {
         pd.pilotAlternateFuel.set(null);
+        this.alternatePredictions.delete(fpIndex);
       }
       // Calculate final fuel.
       if (pd.isFinalHoldingFuelPilotEntered.get()) {
@@ -1787,6 +1809,80 @@ export class FmcAircraftInterface {
         pd.calculatedFinalHoldingFuel.set(finalTime !== null ? finalTime * 0.2 : null);
       }
     }
+  }
+
+  /**
+   * The default ALTN fuel and time (A380 FCOM DSC-22-FMS-20-30, FUEL&LOAD page), from the primary destination to the
+   * landing at the alternate, over the alternate flight plan distance (the direct distance without an alternate route),
+   * with the ALTN wind of the WIND page and the weight at the destination (ZFW + MIN FUEL AT DEST).
+   */
+  private predictAlternate(fp: FlightPlan<FlightPlanPerformanceData>, fpIndex: number): AlternateFuelPrediction | null {
+    const pd = fp.performanceData;
+    const destination = fp.destinationAirport;
+    const alternate = fp.alternateDestinationAirport;
+    const zfw = pd.zeroFuelWeight.get();
+    if (!destination || !alternate || zfw === null) {
+      this.alternatePredictions.delete(fpIndex);
+      return null;
+    }
+
+    const directDistance = distanceTo(destination.location, alternate.location);
+    const routeDistance = this.alternateRouteDistance(fp);
+    // A route distance out of proportion with the direct distance is not the alternate route (geometry not computed)
+    const distance =
+      routeDistance !== null && routeDistance <= 3 * directDistance + 20 ? routeDistance : directDistance;
+    const wind = pd.alternateWind.get();
+    const headwind = wind
+      ? -WindUtils.computeTailwindComponent(wind, bearingTo(destination.location, alternate.location))
+      : 0;
+    // The fuel at the destination: MIN FUEL AT DEST, or FINAL + the ALTN of the last computation (none the first time)
+    const last = this.alternatePredictions.get(fpIndex)?.prediction;
+    const fuelAtDestination =
+      pd.pilotMinimumDestinationFuelOnBoard.get() ??
+      (pd.finalHoldingFuel.get() ?? 0) + (last ? Units.poundToKilogram(last.fuel) / 1000 : 0);
+
+    const key = [
+      distance.toFixed(0),
+      destination.location.alt?.toFixed(0),
+      alternate.location.alt?.toFixed(0),
+      zfw.toFixed(1),
+      fuelAtDestination.toFixed(1),
+      headwind.toFixed(0),
+      this.fmgc.getTropoPause(),
+    ].join('|');
+    const cached = this.alternatePredictions.get(fpIndex);
+    if (cached?.key === key) {
+      return cached.prediction;
+    }
+
+    const prediction = AlternateFuelPredictor.predict(A380AircraftConfig, {
+      distance,
+      destinationElevation: destination.location.alt ?? 0,
+      alternateElevation: alternate.location.alt ?? 0,
+      zeroFuelWeight: Units.kilogramToPound(zfw * 1000),
+      fuelOnBoard: Units.kilogramToPound(fuelAtDestination * 1000),
+      headwind,
+      tropopause: this.fmgc.getTropoPause(),
+    });
+    this.alternatePredictions.set(fpIndex, { key, prediction });
+    return prediction;
+  }
+
+  /**
+   * The distance of the alternate flight plan (computed legs), from the primary destination to the landing at the
+   * alternate (without its missed approach)
+   */
+  private alternateRouteDistance(fp: FlightPlan<FlightPlanPerformanceData>): number | null {
+    const alternatePlan = fp.alternateFlightPlan;
+    for (let i = alternatePlan.firstMissedApproachLegIndex - 1; i >= 0; i--) {
+      const element = alternatePlan.maybeElementAt(i);
+      const distance =
+        element?.isDiscontinuity === false ? element.calculated?.cumulativeDistanceWithTransitions : undefined;
+      if (distance !== undefined && Number.isFinite(distance) && distance > 0) {
+        return distance;
+      }
+    }
+    return null;
   }
 
   isInchesSelectedOnFcu(side: EfisSide): boolean {
