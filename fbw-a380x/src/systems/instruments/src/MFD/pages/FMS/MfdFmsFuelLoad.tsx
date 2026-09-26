@@ -134,6 +134,14 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
 
   private readonly fuelPlanningNotComputed = this.fuelPlanningComputed.map((v) => !v);
 
+  /**
+   * COMPUTING... while the fuel planning runs. Not in the FCOM (the real FMS computes the BLOCK at once): the computation
+   * waits for several VNAV prediction cycles here, and the flight crew sees that it is running.
+   */
+  private readonly fuelPlanningLabel = this.props.fmcService.master.fuelPlanningInProgress.map((inProgress) =>
+    inProgress ? 'COMPUTING...' : 'FUEL<br />PLANNING *',
+  );
+
   private readonly fuelPlanningBlockVisibility = this.fuelPlanningComputed.map((v) => (v ? 'inherit' : 'hidden'));
 
   private readonly destinationAlternateTimeHeader = this.activeFlightPhase.map((v) =>
@@ -338,6 +346,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
       this.altnEfobText,
       this.extraFuelWeightText,
       this.extraFuelTimeText,
+      this.fuelPlanningLabel,
       this.taxiAndRouteRsvDisabled,
       this.costIndexDisabled,
       this.costIndexModeDisabled,
@@ -570,7 +579,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                   <Button
                     disabled={this.fuelPlanningIsDisabled}
                     visible={this.fuelPlanningNotComputed}
-                    label="FUEL<br />PLANNING *"
+                    label={this.fuelPlanningLabel}
                     onClick={() => this.props.fmcService.master?.startFuelPlanning()}
                     buttonStyle="min-width: 168px; min-height: 56px;"
                   />,
