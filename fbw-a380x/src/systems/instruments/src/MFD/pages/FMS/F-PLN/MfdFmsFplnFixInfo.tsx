@@ -96,11 +96,9 @@ export class MfdFmsFplnFixInfo extends FmsPage {
                         return;
                       }
 
-                      const fix = await WaypointEntryUtils.getOrCreateWaypoint(
-                        this.props.fmcService.master!,
-                        text,
-                        true,
-                      );
+                      // FCOM FIX INFO page: the reference fix is a navigation database or pilot-stored element,
+                      // never created here (an unknown ident is NOT IN DATABASE, not a NEW WAYPOINT)
+                      const fix = await WaypointEntryUtils.parsePlace(this.props.fmcService.master!, text);
 
                       if (!fix) {
                         throw new FmsError(FmsErrorType.NotInDatabase);
