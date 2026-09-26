@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus } from '@microsoft/msfs-sdk';
-import { CompanyTakeoffDataEvents, CompanyTakeoffDataRequest, CompanyTakeoffDataUplink } from '@flybywiresim/fbw-sdk';
+import {
+  CompanyDatalinkDelay,
+  CompanyTakeoffDataEvents,
+  CompanyTakeoffDataRequest,
+  CompanyTakeoffDataUplink,
+} from '@flybywiresim/fbw-sdk';
 
 /**
  * The takeoff data requests sent by the A380X FMS with SEND T.O REQUEST (COMPANY T.O DATA REQUEST page): the flypad
@@ -10,6 +15,9 @@ import { CompanyTakeoffDataEvents, CompanyTakeoffDataRequest, CompanyTakeoffData
  */
 export const CompanyTakeoffRequests = {
   last: null as CompanyTakeoffDataRequest | null,
+
+  /** The answer to the last request reaches the FMS not before this time (Date.now()), or null once answered */
+  answerNotBefore: null as number | null,
 
   listeners: new Set<(request: CompanyTakeoffDataRequest) => void>(),
 
@@ -26,6 +34,7 @@ export const CompanyTakeoffRequests = {
       .handle((request) => {
         if (request.answersRequestId === null) {
           CompanyTakeoffRequests.last = request;
+          CompanyTakeoffRequests.answerNotBefore = Date.now() + CompanyDatalinkDelay.replyDelayMs();
           CompanyTakeoffRequests.listeners.forEach((l) => l(request));
         }
       });
@@ -55,7 +64,20 @@ export function requestFmsTakeoffData(bus: EventBus): Promise<CompanyTakeoffData
   });
 }
 
-/** Uplinks takeoff data to the FMS, as company takeoff data (inserted from the RECEIVED COMPANY T.O DATA page). */
-export function sendTakeoffDataToFms(bus: EventBus, uplink: CompanyTakeoffDataUplink): void {
-  bus.getPublisher<CompanyTakeoffDataEvents>().pub('cpny_to_uplink', uplink, true, false);
+/**
+ * Uplinks takeoff data to the FMS, as company takeoff data (inserted from the RECEIVED COMPANY T.O DATA page).
+ * @param datalinkDelay the data reaches the FMS after the company datalink reply time of the flypad setting: not before
+ * the reply time of the last request, or after the transit time without a request (or when that time has passed)
+ */
+export async function sendTakeoffDataToFms(
+  bus: EventBus,
+  uplinks: CompanyTakeoffDataUplink[],
+  datalinkDelay: boolean,
+): Promise<void> {
+  if (datalinkDelay) {
+    const notBefore = CompanyTakeoffRequests.answerNotBefore;
+    CompanyTakeoffRequests.answerNotBefore = null;
+    await CompanyDatalinkDelay.waitForDelivery(notBefore);
+  }
+  uplinks.forEach((uplink) => bus.getPublisher<CompanyTakeoffDataEvents>().pub('cpny_to_uplink', uplink, true, false));
 }
