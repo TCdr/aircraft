@@ -53,6 +53,7 @@ render(
           autoStepClimb: false,
           pilotAvatars: true,
           eclSoftKeys: false,
+          companyDatalinkReplyTime: false,
         },
         sim: {
           cones: true,

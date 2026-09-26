@@ -45,6 +45,8 @@ interface RealismOptions {
   autoStepClimb: boolean;
   pilotAvatars: boolean;
   eclSoftKeys: boolean;
+  /** The reply time of the company datalink requests of the FMS (A380X: F-PLN, wind and takeoff data) */
+  companyDatalinkReplyTime: boolean;
 }
 
 interface SimOptions {
@@ -102,6 +104,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
       autoStepClimb: false,
       pilotAvatars: false,
       eclSoftKeys: false,
+      companyDatalinkReplyTime: false,
     },
     sim: {
       cones: false,

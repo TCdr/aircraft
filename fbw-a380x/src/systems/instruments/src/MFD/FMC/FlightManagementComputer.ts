@@ -40,6 +40,7 @@ import {
   CompanyTakeoffDataLinkMessage,
   CompanyTakeoffDataRequestContent,
   CompanyTakeoffDataUplink,
+  CompanyDatalinkDelay,
 } from '@flybywiresim/fbw-sdk';
 import {
   isTypeIIMessage,
@@ -433,6 +434,9 @@ export class FlightManagementComputer implements FmcInterface {
   private destDataCheckedInCruise = false;
 
   private simBriefOfp: ISimbriefData | null = null;
+
+  /** FCOM DSC-22-FMS company F-PLN request: NO COMPANY REPLY when no response is received within 4 min */
+  private static readonly CPNY_FPLN_REPLY_TIMEOUT_MS = 4 * 60_000;
 
   /** Company takeoff data (A380 FCOM DSC-22-FMS): the request and the received data, from the flypad calculator */
   public readonly companyTakeoffData: CompanyTakeoffData;
@@ -1117,10 +1121,23 @@ export class FlightManagementComputer implements FmcInterface {
       throw new Error('No Navigraph username provided');
     }
 
-    this.simBriefOfp = await SimBriefUplinkAdapter.downloadOfpForUserID(navigraphUsername, overrideSimBriefUserID);
+    // FCOM: only one request at a time; the button shows REQUEST PENDING... until the flight plan is received
+    if (this.fmgc.data.cpnyFplnUplinkInProgress.get()) {
+      return;
+    }
+    this.fmgc.data.cpnyFplnRequestedForPlan.set(intoPlan);
+    this.fmgc.data.cpnyFplnUplinkInProgress.set(true);
+
+    const ofp = await this.receiveCompanyFlightPlan(navigraphUsername, overrideSimBriefUserID);
+    if (ofp === null) {
+      this.fmgc.data.cpnyFplnRequestedForPlan.set(null);
+      this.fmgc.data.cpnyFplnUplinkInProgress.set(false);
+      this.addMessageToQueue(NXSystemMessages.noCompanyReply, undefined, undefined);
+      return;
+    }
+    this.simBriefOfp = ofp;
 
     try {
-      this.fmgc.data.cpnyFplnRequestedForPlan.set(intoPlan);
       await SimBriefUplinkAdapter.uplinkFlightPlanFromSimbrief(
         this,
         this.#flightPlanService,
@@ -1137,6 +1154,33 @@ export class FlightManagementComputer implements FmcInterface {
       this.addMessageToQueue(NXSystemMessages.receivedCpnyFplnNotValid, undefined, undefined);
       this.onUplinkDone(false);
     }
+  }
+
+  /**
+   * The answer of the company ground station (SimBrief) to a flight plan request: the OFP, delivered after the datalink
+   * reply time of the flypad setting, or null without an answer within the FCOM 4 min (download failed or too slow).
+   */
+  private receiveCompanyFlightPlan(
+    navigraphUsername: string,
+    overrideSimBriefUserID: string,
+  ): Promise<ISimbriefData | null> {
+    const notBefore = Date.now() + CompanyDatalinkDelay.replyDelayMs();
+    const download = SimBriefUplinkAdapter.downloadOfpForUserID(navigraphUsername, overrideSimBriefUserID).catch(
+      (e) => {
+        // The ground station does not answer: NO COMPANY REPLY at the timeout
+        console.error('[FMS] Company F-PLN request: no SimBrief OFP', e);
+        return new Promise<never>(() => {});
+      },
+    );
+
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(null), FlightManagementComputer.CPNY_FPLN_REPLY_TIMEOUT_MS);
+      download.then(async (ofp) => {
+        await CompanyDatalinkDelay.waitForDelivery(notBefore);
+        clearTimeout(timeout);
+        resolve(ofp);
+      });
+    });
   }
 
   async insertCpnyFpln(intoPlan: FlightPlanIndex) {
@@ -1511,6 +1555,7 @@ export class FlightManagementComputer implements FmcInterface {
 
     const request = this.formatWindRequest(planIndex);
     const requestId = Math.floor(Math.random() * 1_000_000_000);
+    const notBefore = Date.now() + CompanyDatalinkDelay.replyDelayMs();
     // FCOM: NO COMPANY REPLY when no response is received within 4 min after the request
     const response = await new Promise<[AtsuStatusCodes, WindUplinkMessage | null] | null>((resolve) => {
       const timeout = setTimeout(() => {
@@ -1529,6 +1574,10 @@ export class FlightManagementComputer implements FmcInterface {
         });
       this.bus.getPublisher<FmsAocMessages>().pub('aocRequestWinds', { ...request, requestId }, true, false);
     });
+    if (response !== null) {
+      // The answer reaches the FMS after the datalink reply time (flypad setting)
+      await CompanyDatalinkDelay.waitForDelivery(notBefore);
+    }
 
     // The flight plan may have been revised (copied) since the request: the answer goes to the current one
     if (!this.#flightPlanService.has(planIndex)) {
