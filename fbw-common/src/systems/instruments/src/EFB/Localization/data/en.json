@@ -662,6 +662,7 @@
       "IsisMetricAltitude": "ISIS Metric Altitude",
       "LatLonExtendedFormat": "FMGC Lat/Lon Waypoint Format",
       "PaxSigns": "PAX Signs",
+      "Raas": "RAAS (EGPWS Runway Awareness Callouts)",
       "RmpVhfSpacing": "RMP VHF Spacing",
       "Satcom": "Satcom",
       "Select": "Select",
