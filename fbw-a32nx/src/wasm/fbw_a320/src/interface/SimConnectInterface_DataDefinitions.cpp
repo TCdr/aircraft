@@ -1,7 +1,7 @@
-#include "SimConnectInterface.h"
 #include <cmath>
 #include <map>
 #include <vector>
+#include "SimConnectInterface.h"
 
 // SimConnect data-definition and client-event registration (one-time setup at connect()).
 
