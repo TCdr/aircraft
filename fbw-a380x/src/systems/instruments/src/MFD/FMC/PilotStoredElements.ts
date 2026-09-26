@@ -156,9 +156,15 @@ export class PilotStoredElements {
   constructor() {
     // The elements kept from the previous sim session (flypad setting) are put back before they are read
     PilotStoredElementsPersistence.start();
-    this._navaids = Subject.create(PilotStoredElements.load<PilotStoredNavaid>(PilotStoredElements.navaidsStorageKey));
-    this._routes = Subject.create(PilotStoredElements.load<StoredRoute>(PilotStoredElements.routesStorageKey));
-    this._runways = Subject.create(PilotStoredElements.load<PilotStoredRunway>(PilotStoredElements.runwaysStorageKey));
+    this._navaids = Subject.create<readonly PilotStoredNavaid[]>(
+      PilotStoredElements.load<PilotStoredNavaid>(PilotStoredElements.navaidsStorageKey),
+    );
+    this._routes = Subject.create<readonly StoredRoute[]>(
+      PilotStoredElements.load<StoredRoute>(PilotStoredElements.routesStorageKey),
+    );
+    this._runways = Subject.create<readonly PilotStoredRunway[]>(
+      PilotStoredElements.load<PilotStoredRunway>(PilotStoredElements.runwaysStorageKey),
+    );
   }
 
   get runways(): Subscribable<readonly PilotStoredRunway[]> {
