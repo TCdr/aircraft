@@ -169,6 +169,11 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
   private readonly extraFuelTime = Subject.create<number | null>(null);
   private readonly extraFuelTimeText = this.extraFuelTime.map((it) => hhmmFormatter(it ?? NaN));
 
+  /** The ALTN time of the default ALTN fuel computation (FCOM FUEL&LOAD page: ALTN fuel and time), in ms */
+  private readonly alternateFuelTime = Subject.create<number | null>(null);
+
+  private readonly alternateFuelTimeText = this.alternateFuelTime.map((it) => hhmmFormatter(it ?? NaN));
+
   private readonly blockLineRef = FSComponent.createRef<HTMLDivElement>();
 
   private readonly taxiAndRouteRsvDisabled = MappedSubject.create(
@@ -236,6 +241,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
           this.updateFuelPlanning(loadedfpIndex);
           // FIXME: Move to main update loop once calculated by the predictions
           this.props.fmcService.master.acInterface.calculateFinalAndAlternateFuel(loadedfpIndex);
+          this.alternateFuelTime.set(this.props.fmcService.master.acInterface.getAlternateTime(loadedfpIndex));
           this.props.fmcService.master.calculateTakeoffWeight(loadedfpIndex);
           const fp = this.props.flightPlanInterface.get(loadedfpIndex);
           this.alternateExists.set(fp.alternateDestinationAirport !== undefined);
@@ -334,6 +340,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
       this.altnEfobText,
       this.extraFuelWeightText,
       this.extraFuelTimeText,
+      this.alternateFuelTimeText,
       this.taxiAndRouteRsvDisabled,
       this.costIndexDisabled,
       this.costIndexModeDisabled,
@@ -452,7 +459,16 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
 
     const fp = hasFp ? this.props.flightPlanInterface.get(fpIndex!) : null;
     this.altnIcao.set(fp?.alternateDestinationAirport?.ident ?? 'NONE');
-    this.altnEta.set('--:--');
+    // The arrival at the alternate: the arrival at the destination plus the ALTN time
+    const alternateTime = fpIndex !== null ? this.props.fmcService.master.acInterface.getAlternateTime(fpIndex) : null;
+    this.altnEta.set(
+      destPred && alternateTime !== null
+        ? getEtaFromUtcOrPresent(
+            destPred.secondsFromPresent + alternateTime / 1000,
+            this.activeFlightPhase.get() == FmgcFlightPhase.Preflight,
+          )
+        : '--:--',
+    );
     if (fp) {
       this.altnEfob.set(this.props.fmcService.master.fmgc.getAltEFOB(fpIndex!) ?? NaN, UnitType.KILOGRAM);
     } else {
@@ -703,7 +719,11 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                   interactionMode={this.props.mfd.interactionMode}
                 />,
               )}
-              {fcomAt(416, 311, <span class={{ 'mfd-value': true, sec: this.secActive }}>--:--</span>)}
+              {fcomAt(
+                416,
+                311,
+                <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.alternateFuelTimeText}</span>,
+              )}
               {fcomRight(477, 114, <span class="mfd-label">FINAL</span>)}
               {fcomAt(
                 477,
