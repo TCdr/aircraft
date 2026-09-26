@@ -121,6 +121,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
 1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ROSE and ARC pages - @TCdr
 1. [A32NX/MCDU] Make the captain and first officer MCDUs independent, each with its own page, scratchpad and messages on the shared FMS data - @TCdr
+1. [A32NX/EGPWS] Add the RAAS runway awareness callouts (approaching, on runway, on taxiway, distance remaining...) as an aircraft option in the flyPad - @TCdr
 
 ## 2024.1.0
 

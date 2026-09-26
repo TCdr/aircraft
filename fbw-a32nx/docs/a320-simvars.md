@@ -4515,6 +4515,15 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
 
+- A32NX_RAAS_AUDIO_{word}
+    - Boolean
+    - True while the RAAS (EGPWS Runway Awareness and Advisory System option) says this word of a callout; the
+      callouts are played word by word by the systems host
+    - {word}
+        - APPROACHING, RUNWAYS, ON_RUNWAY, ON_TAXIWAY, CAUTION, SHORT_RUNWAY, TAXIWAY
+        - ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, LEFT, RIGHT, CENTER
+        - THOUSAND, HUNDRED, THIRTY, REMAINING, AVAILABLE
+
 ## Weather Radar (ATA 34)
 
 - A32NX_WXR_ND_{side}_MODE
