@@ -15,7 +15,12 @@ import {
   usePersistentProperty,
   AirframeType,
 } from '@flybywiresim/fbw-sdk-react';
-import { TakeoffPerformanceEstimate, TakeoffPerformanceResult, TakeoffRunwayDistances } from '@flybywiresim/fbw-sdk';
+import {
+  CompanyTakeoffDataUplink,
+  TakeoffPerformanceEstimate,
+  TakeoffPerformanceResult,
+  TakeoffRunwayDistances,
+} from '@flybywiresim/fbw-sdk';
 import { useEventBus } from '@flybywiresim/flypad';
 import { toast } from 'react-toastify';
 import Slider from 'rc-slider';
@@ -155,6 +160,7 @@ const Value: FC<{ text: string; unit?: string; estimate?: boolean; big?: boolean
 export const TakeoffWidget = () => {
   const dispatch = useAppDispatch();
   const calculator = useContext(AircraftContext).performanceCalculators.takeoff;
+  const datalinkDelay = useContext(AircraftContext).settingsPages.realism.companyDatalinkReplyTime;
   const isA380 = useAppSelector((state) => state.config.airframeInfo.variant) === AirframeType.A380_842;
   const profile = PROFILES[isA380 ? 'A380' : 'A320'];
   const eventBus = useEventBus();
@@ -632,36 +638,42 @@ export const TakeoffWidget = () => {
         : null;
     // The takeoff data of both thrust ratings (A380 FCOM DSC-22-FMS-20-30, A320 FCOM DSC-22_45 "computed for max and
     // flex takeoff"): TOGA, and FLEX at the temperature of the takeoff run (the maximum one when TOGA is selected)
-    const uplink = (speeds: TakeoffPerformanceResult, flexTemperature: number | undefined) =>
-      sendTakeoffDataToFms(eventBus, {
-        departure: icao.toUpperCase(),
-        runway: selectedRunway.ident,
-        tow: result.inputs.tow,
-        cg: cg ?? null,
-        qnh: Math.round(result.inputs.qnh),
-        windDirection: Math.round(direction),
-        windSpeed: Math.abs(windMagnitude ?? 0),
-        runwayCondition: FMS_RUNWAY_CONDITION[result.inputs.runwayCondition] ?? 0,
-        oat: result.inputs.oat,
-        v1: speeds.v1 ?? null,
-        vr: speeds.vR ?? null,
-        v2: speeds.v2,
-        thrust: flexTemperature !== undefined ? 'FLEX' : 'TOGA',
-        flexTemperature: flexTemperature ?? null,
-        flaps: result.inputs.conf,
-        ths: result.stabTrim ?? null,
-        shift: takeoffShift !== undefined ? Math.round(takeoffShift) : null,
-        toLimit: Math.round(result.inputs.tora),
-        thrustReductionAltitude: thrRed ?? null,
-        accelerationAltitude: accel ?? null,
-        engineOutAccelerationAltitude: eoAccel ?? null,
-        noise,
-        mtowPerf: result.mtow ?? result.inputs.tow,
-      });
-    uplink(togaResult ?? result, undefined);
-    if (flexPossible) {
-      uplink(result, runFlex ?? flexMax);
-    }
+    const uplink = (
+      speeds: TakeoffPerformanceResult,
+      flexTemperature: number | undefined,
+    ): CompanyTakeoffDataUplink => ({
+      departure: icao.toUpperCase(),
+      runway: selectedRunway.ident,
+      tow: result.inputs.tow,
+      cg: cg ?? null,
+      qnh: Math.round(result.inputs.qnh),
+      windDirection: Math.round(direction),
+      windSpeed: Math.abs(windMagnitude ?? 0),
+      runwayCondition: FMS_RUNWAY_CONDITION[result.inputs.runwayCondition] ?? 0,
+      oat: result.inputs.oat,
+      v1: speeds.v1 ?? null,
+      vr: speeds.vR ?? null,
+      v2: speeds.v2,
+      thrust: flexTemperature !== undefined ? 'FLEX' : 'TOGA',
+      flexTemperature: flexTemperature ?? null,
+      flaps: result.inputs.conf,
+      ths: result.stabTrim ?? null,
+      shift: takeoffShift !== undefined ? Math.round(takeoffShift) : null,
+      toLimit: Math.round(result.inputs.tora),
+      thrustReductionAltitude: thrRed ?? null,
+      accelerationAltitude: accel ?? null,
+      engineOutAccelerationAltitude: eoAccel ?? null,
+      noise,
+      mtowPerf: result.mtow ?? result.inputs.tow,
+    });
+    // Both thrust ratings reach the FMS together
+    sendTakeoffDataToFms(
+      eventBus,
+      flexPossible
+        ? [uplink(togaResult ?? result, undefined), uplink(result, runFlex ?? flexMax)]
+        : [uplink(togaResult ?? result, undefined)],
+      datalinkDelay,
+    );
     toast.success(t(profile.sentToFms));
 
     // The FMS only inserts data for its departure runway and a TOW close to its own: tell why before the crew tries
