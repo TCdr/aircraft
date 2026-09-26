@@ -107,6 +107,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     newPlan.activeLegIndex = this.activeLegIndex;
 
     newPlan.flightNumber.set(this.flightNumber.get());
+    newPlan.pendingWindUplink.copyFrom(this.pendingWindUplink);
 
     if (BitFlags.isAll(options, CopyOptions.IncludeFixInfos)) {
       newPlan.fixInfos = this.fixInfos.map((it) => it?.clone());

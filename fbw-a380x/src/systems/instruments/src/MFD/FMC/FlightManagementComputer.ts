@@ -1514,8 +1514,7 @@ export class FlightManagementComputer implements FmcInterface {
       this.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
       return;
     }
-    const plan = this.#flightPlanService.get(planIndex);
-    plan.pendingWindUplink.onUplinkRequested();
+    this.#flightPlanService.get(planIndex).pendingWindUplink.onUplinkRequested();
     this.setCompanyWindRequestState(planIndex, CompanyWindRequestState.Pending);
 
     const request = this.formatWindRequest(planIndex);
@@ -1543,6 +1542,13 @@ export class FlightManagementComputer implements FmcInterface {
       // The answer reaches the FMS after the datalink reply time (flypad setting)
       await CompanyDatalinkDelay.waitForDelivery(notBefore);
     }
+
+    // The flight plan may have been revised (copied) since the request: the answer goes to the current one
+    if (!this.#flightPlanService.has(planIndex)) {
+      this.setCompanyWindRequestState(planIndex, CompanyWindRequestState.None);
+      return;
+    }
+    const plan = this.#flightPlanService.get(planIndex);
 
     if (response === null || response[0] !== AtsuStatusCodes.Ok || response[1] === null) {
       plan.pendingWindUplink.onUplinkAborted();
