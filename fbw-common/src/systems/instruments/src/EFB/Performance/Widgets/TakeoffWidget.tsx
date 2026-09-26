@@ -710,8 +710,9 @@ export const TakeoffWidget = () => {
       noiseN1 !== undefined
         ? { endAltitude: noiseEndAltitude, speed: noiseSpeed, n1: noiseN1 }
         : null;
-    // The takeoff data of both thrust ratings (A380 FCOM DSC-22-FMS-20-30, A320 FCOM DSC-22_45 "computed for max and
-    // flex takeoff"): TOGA, and FLEX at the temperature of the takeoff run (the maximum one when TOGA is selected)
+    // The takeoff data of the thrust selected for the takeoff run only: TOGA, or FLEX at its temperature. The FMS can
+    // hold two thrust settings per runway (A380 FCOM DSC-22-FMS-20-30 RECEIVED COMPANY T.O DATA page; A320 FCOM
+    // DSC-22_20-50-10-28, MAX TO and FLEX TO DATA pages), but the company sends what the crew asked for.
     const uplink = (
       speeds: TakeoffPerformanceResult,
       flexTemperature: number | undefined,
@@ -740,14 +741,7 @@ export const TakeoffWidget = () => {
       noise,
       mtowPerf: result.mtow ?? result.inputs.tow,
     });
-    // Both thrust ratings reach the FMS together
-    sendTakeoffDataToFms(
-      eventBus,
-      flexPossible
-        ? [uplink(togaResult ?? result, undefined), uplink(result, runFlex ?? flexMax)]
-        : [uplink(togaResult ?? result, undefined)],
-      datalinkDelay,
-    );
+    sendTakeoffDataToFms(eventBus, [uplink(runResult ?? result, runFlex)], datalinkDelay);
     toast.success(t(profile.sentToFms));
 
     // The FMS only inserts data for its departure runway and a TOW close to its own: tell why before the crew tries
