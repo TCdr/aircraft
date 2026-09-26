@@ -107,6 +107,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/RMP] Fix RMP brightness initialisation - @CameronCarlyon (YouBaconMeCrazy)
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
 1. [A32NX/EGPWS] Add the RAAS runway awareness callouts (approaching, on runway, on taxiway, distance remaining...) as an aircraft option in the flyPad - @TCdr
+1. [A380X/OANS] Show the RWY AHEAD advisory without a Navigraph airport map, from the sim's own runways - @TCdr
 
 ## 2024.1.0
 
