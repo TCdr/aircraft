@@ -170,7 +170,6 @@ export const TakeoffWidget = () => {
   const { usingMetric } = Units;
 
   const [autoFillSource, setAutoFillSource] = useState<'METAR' | 'OFP' | 'FMS'>('FMS');
-  const [realDataOnly, setRealDataOnly] = useState<boolean>(calculator?.realDataOnly ?? false);
 
   const [temperatureUnit, setTemperatureUnit] = usePersistentProperty(
     'EFB_PREFERRED_TEMPERATURE_UNIT',
@@ -331,11 +330,7 @@ export const TakeoffWidget = () => {
         }),
       );
       if (!forceToga && perf.flex === undefined) {
-        toast.info(
-          realDataOnly
-            ? t('Performance.Takeoff.Calc.RealDataOnlyNoFlex')
-            : t('Performance.Takeoff.Messages.FlexNotPossible'),
-        );
+        toast.info(t('Performance.Takeoff.Messages.FlexNotPossible'));
       }
     } else {
       dispatch(setTakeoffValues({ result: undefined, togaResult: undefined, selectedFlex: undefined }));
@@ -649,14 +644,6 @@ export const TakeoffWidget = () => {
     }
   };
 
-  const handleRealDataOnlyChange = (value: boolean) => {
-    clearResult();
-    if (calculator) {
-      calculator.realDataOnly = value;
-    }
-    setRealDataOnly(value);
-  };
-
   const displayed = (value: number | undefined, imperial: boolean, toImperial: (v: number) => number) =>
     value !== undefined && imperial ? toImperial(value) : value;
 
@@ -824,19 +811,6 @@ export const TakeoffWidget = () => {
             />
           </div>
         </div>
-        {calculator?.realDataOnly !== undefined && (
-          <Row label={t('Performance.Takeoff.Calc.Data')}>
-            <SelectInput
-              className="w-60"
-              value={realDataOnly}
-              onChange={(value: boolean) => handleRealDataOnlyChange(!!value)}
-              options={[
-                { value: false, displayValue: t('Performance.Takeoff.Calc.DataWithEstimates') },
-                { value: true, displayValue: t('Performance.Takeoff.Calc.DataRealOnly') },
-              ]}
-            />
-          </Row>
-        )}
       </div>
 
       {/* Inputs */}
@@ -1158,7 +1132,7 @@ export const TakeoffWidget = () => {
             accel={accel}
             eoAccel={eoAccel}
             speeds={runResult}
-            legend={realDataOnly ? t('Performance.Takeoff.Calc.RealDataOnlyLegend') : t(profile.resultsLegend)}
+            legend={t(profile.resultsLegend)}
           />
           <div className="flex flex-row space-x-3">
             <button
@@ -1324,9 +1298,7 @@ export const TakeoffWidget = () => {
               </div>
             )}
           </div>
-          <div className="text-sm text-theme-unselected">
-            {realDataOnly ? t('Performance.Takeoff.Calc.RunwayLegendRealOnly') : t(profile.runwayLegend)}
-          </div>
+          <div className="text-sm text-theme-unselected">{t(profile.runwayLegend)}</div>
         </div>
       </div>
     </div>
