@@ -31,6 +31,18 @@ export class PendingWindUplink {
 
   private state: PendingWindUplinkState = PendingWindUplinkState.Idle;
 
+  /**
+   * Takes the received winds and their state of another flight plan: a copy of the flight plan (revision, temporary
+   * flight plan inserted) keeps the winds pending until the flight crew inserts or clears them.
+   */
+  copyFrom(other: PendingWindUplink): void {
+    this.climbWinds = other.climbWinds;
+    this.cruiseWinds = other.cruiseWinds;
+    this.descentWinds = other.descentWinds;
+    this.alternateWind = other.alternateWind;
+    this.state = other.state;
+  }
+
   onUplinkRequested() {
     this.state = PendingWindUplinkState.Requested;
   }
