@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { usePersistentNumberProperty, usePersistentProperty, usePersistentSetting } from '@flybywiresim/fbw-sdk-react';
@@ -37,6 +37,7 @@ export const AircraftOptionsPinProgramsPage = () => {
   const [vhfSpacing, setVhfSpacing] = usePersistentProperty('RMP_VHF_SPACING_25KHZ', '0');
   const [latLonExtended, setLatLonExtended] = usePersistentProperty('LATLON_EXT_FMT', '0');
   const [satcomEnabled, setsatcomEnabled] = usePersistentNumberProperty('MODEL_SATCOM_ENABLED', 0);
+  const [raas, setRaas] = usePersistentProperty('CONFIG_A32NX_RAAS', 'FEET');
 
   const handleSetThrustReductionAlt = (value: string) => {
     setThrustReductionHeightSetting(value);
@@ -86,6 +87,12 @@ export const AircraftOptionsPinProgramsPage = () => {
   const latLonExtendedButtons: ButtonType[] = [
     { name: 'LLnn', setting: '0' },
     { name: 'AxxByyy', setting: '1' },
+  ];
+
+  const raasButtons: ButtonType[] = [
+    { name: 'Off', setting: 'OFF' },
+    { name: 'Feet', setting: 'FEET' },
+    { name: 'Meters', setting: 'METERS' },
   ];
 
   return (
@@ -194,6 +201,22 @@ export const AircraftOptionsPinProgramsPage = () => {
           {aircraftContext.settingsPages.pinProgram.satcom && (
             <SettingItem name={t('Settings.AircraftOptionsPinPrograms.Satcom')}>
               <Toggle value={!!satcomEnabled} onToggle={(value) => setsatcomEnabled(value ? 1 : 0)} />
+            </SettingItem>
+          )}
+
+          {aircraftContext.settingsPages.pinProgram.raas && (
+            <SettingItem name={t('Settings.AircraftOptionsPinPrograms.Raas')}>
+              <SelectGroup>
+                {raasButtons.map((button) => (
+                  <SelectItem
+                    key={button.name}
+                    onSelect={() => setRaas(button.setting)}
+                    selected={raas === button.setting}
+                  >
+                    {button.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SettingItem>
           )}
 

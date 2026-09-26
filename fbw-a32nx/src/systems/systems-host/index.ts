@@ -28,6 +28,7 @@ import { FwsManager } from './systems/FWC/FwsManager';
 import { DmcSdPageLogic } from './systems/DmcSdPageLogic/DmcSdPageLogic';
 import { A32NXFacBusPublisher } from '../shared/src/publishers/A32NXFacBusPublisher';
 import { TawsStatusBridge } from './systems/TawsStatusBridge';
+import { RaasSystem } from './systems/Raas/RaasSystem';
 
 class SystemsHost extends BaseInstrument {
   private readonly bus = new EventBus();
@@ -68,6 +69,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('Ecp', new Ecp(this.bus));
     this.backplane.addInstrument('FakeDmc', new FakeDmc(this.bus));
     this.backplane.addInstrument('TawsStatusBridge', new TawsStatusBridge());
+    this.backplane.addInstrument('Raas', new RaasSystem(this.bus));
 
     this.backplane.addPublisher('HEvent', this.hEventPublisher);
     this.backplane.addPublisher('FuelSystem', this.fuelSystemPublisher);
