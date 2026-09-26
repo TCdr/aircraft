@@ -281,8 +281,6 @@ export enum TakeoffPerfomanceError {
   RunwayConditionNotSupported = 'RunwayConditionNotSupported',
   /** The runway is shorter than the performance data. */
   RunwayLengthOutsideData = 'RunwayLengthOutsideData',
-  /** Only the manufacturer data is used, and it does not cover the entered conditions. */
-  OutsideManufacturerData = 'OutsideManufacturerData',
 }
 
 export interface TakeoffPerformanceCalculator {
@@ -384,12 +382,6 @@ export interface TakeoffPerformanceCalculator {
 
   /** Maximum tailwind in knots. */
   readonly maxTailwind: number;
-
-  /**
-   * For the calculators that can tell their estimates apart from the manufacturer data: when true, only the
-   * manufacturer data is used, and the results that it cannot give are left out. Undefined for the other calculators.
-   */
-  realDataOnly?: boolean;
 
   /**
    * For the calculators that can give them: the runway distances of a calculated takeoff, at TOGA or at a FLEX
