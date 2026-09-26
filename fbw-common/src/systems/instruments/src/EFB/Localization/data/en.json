@@ -385,8 +385,7 @@
         "TooLight": "Below Minimum Takeoff Weight",
         "HeadwindLimited": "Headwind has been reduced to {max_headwind} knots",
         "RunwayConditionNotSupported": "Only dry runways are covered by the A380 performance data",
-        "RunwayLengthOutsideData": "Runway shorter than the A380 performance data (1700 m)",
-        "OutsideManufacturerData": "Outside the Airbus data (real data only): no tailwind, no slope, no OAT above ISA+15"
+        "RunwayLengthOutsideData": "Runway shorter than the A380 performance data (1700 m)"
       },
       "Packs": "Packs",
       "Qnh": "QNH",
@@ -421,12 +420,7 @@
       "Wind": "Wind",
       "WindMagnitudeUnit": "kts or °/kts",
       "Calc": {
-        "Data": "Data",
-        "DataWithEstimates": "Airbus + estimates",
-        "DataRealOnly": "Airbus data only",
         "EstimateLegend": "* Estimate, not Airbus data. Weights: Airbus A380 airport planning charts (TOGA, dry). V2: minimum 1.13 VS1G.",
-        "RealDataOnlyLegend": "Airbus data only: takeoff weight limit (TOGA, dry, no wind, no slope) and minimum V2. No FLEX, V1 or VR.",
-        "RealDataOnlyNoFlex": "Airbus data only: no FLEX temperature, TOGA",
         "SendToFms": "Send to FMS",
         "SentToFms": "Takeoff data sent to the FMS: RECEIVED CPNY T.O on the PERF page",
         "SentToFmsA320": "Takeoff data sent to the FMS: MCDU PERF TAKE OFF, UPLINK TO DATA, RECEIVED TO DATA",
@@ -477,7 +471,6 @@
         "Shift": "shift",
         "ScreenHeight": "35 ft",
         "RunwayLegend": "Required: Airbus take-off weight charts (all limitations and margins). V1, VR, 35 ft: estimates, all engines.",
-        "RunwayLegendRealOnly": "Required: Airbus take-off weight charts (all limitations and margins).",
         "NoResult": "Calculate to see the takeoff run",
         "FlexNote": "A lower FLEX increases the margin (FCOM PER-TOF-THR-FLX)",
         "FmsCheckRunway": "The FMS departure is {fms}: INSERT will not be possible for {runway}",
