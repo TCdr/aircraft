@@ -380,6 +380,12 @@
     - Bool
     - Indicates if the APU fire button is RELEASED
 
+- A32NX_FWC_FIRE_TEST_{ENG1 | ENG2 | APU}_ACTIVE
+    - Bool
+    - True while the FWC sees the ENG 1, ENG 2 or APU FIRE TEST: while the TEST pb is pressed, plus 7 s after
+      release when the flyPad realism option "Extend Fire Test Warnings After Button Release" is on
+    - Written by the FWC; drives the FIRE pb and AGENT/SQUIB DISCH lights, so they stay lit as long as the ECAM and the CRC
+
 - A32NX_RMP_L_TOGGLE_SWITCH
     - Boolean
     - Whether the left radio management panel toggle switch is on or off.
@@ -509,6 +515,11 @@
 - A32NX_OXYGEN_TMR_RESET_FAULT
     - Bool
     - True if fault with oxygen timer.
+
+- A32NX_OXYGEN_CREW_BOTTLE_PRESSURE
+    - PSI
+    - Pressure of the crew oxygen bottle, shown on the DOOR/OXY SD page: 1850 PSI when full at 21 °C, following the
+      bottle temperature (the cockpit duct temperature stands in for the avionics compartment), with a very slow leak
 
 - A32NX_APU_AUTOEXITING_RESET
     - Bool
@@ -4514,6 +4525,23 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GPWS_FLAPS3
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION
+    - Feet
+    - The lower and upper figures of the TERR ON ND peaks box of each ND, written by the ndwxr gauge from the SimBridge
+      terrain thresholds; -1 hides the box (terrain not selected, not a map page, or no current SimBridge figures)
+    - {side}
+        - L
+        - R
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION_MODE / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION_MODE
+    - Enum (TerrainLevelMode)
+    - The colour level of the matching peaks box figure
+    - | Value | Description                  |
+      |:-----:|:----------------------------:|
+      | 0     | Peaks mode (green)           |
+      | 1     | Warning level (yellow on ND) |
+      | 2     | Caution level (red on ND)    |
 
 - A32NX_RAAS_AUDIO_{word}
     - Boolean
