@@ -123,6 +123,40 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] Make the captain and first officer MCDUs independent, each with its own page, scratchpad and messages on the shared FMS data - @TCdr
 1. [A32NX/EGPWS] Add the RAAS runway awareness callouts (approaching, on runway, on taxiway, distance remaining...) as an aircraft option in the flyPad - @TCdr
 1. [A380X/OANS] Show the RWY AHEAD advisory without a Navigraph airport map, from the sim's own runways - @TCdr
+1. [A380X/MFD] Lay out the FMS pages as in the A380 FCOM and complete the WIND, POSITION, DATA, ROUTE SELECTION, ALTERNATE, CLOSEST AIRPORTS, EQUI-TIME POINT, LL XING/TIME MKR, OFFSET, FIX INFO and HOLD pages, with the FCOM data entry formats - @TCdr
+1. [A380X/MFD] Lay out the SURV CONTROLS and STATUS & SWITCHING pages as in the A380 FCOM - @TCdr
+1. [A380X/MFD] Add the FMS print functions (DATA/PRINTER page, SEC INDEX PRINT), with the printouts in the flyPad - @TCdr
+1. [A380X/FWS] Add the TERR SYS OFF, WXR OFF, PRED W/S OFF and WXR TURB OFF memos, and TCAS STBY when the altitude reporting is OFF - @TCdr
+1. [A380X/MFD] Make the FUEL PLANNING button compute and confirm the minimum BLOCK fuel - @TCdr
+1. [A380X/MFD] Compute the ALTN fuel and time for the trip to the alternate instead of a fixed 6.5 t - @TCdr
+1. [A380X/MFD] Deduct the TAXI fuel from the DEST EFOB before takeoff and fix the ALTN EFOB units - @TCdr
+1. [A380X/FMS] Answer the company F-PLN, wind and T.O data requests after a datalink reply time (REQUEST PENDING, NO COMPANY REPLY), set in the flyPad realism settings - @TCdr
+1. [FMS] Keep the received company winds until INSERT when the flight plan is revised in the meantime - @TCdr
+1. [A380X/MFD] Add the ABEAM points, CRS IN and CRS OUT options of the DIRECT TO - @TCdr
+1. [A380X/MFD] Keep the pilot stored elements across sim sessions, as a flyPad realism option - @TCdr
+1. [A380X/MFD] FIX INFO no longer creates a waypoint for an unknown reference fix, it shows NOT IN DATABASE - @TCdr
+1. [A380X/FUEL] Add the fuel jettison, stopping at the JTSN GW, with its ECAM memo and procedures - @TCdr
+1. [A380X/KCCU] Make the keyboard entry work as in the FCOM (a field keeps the keyboard until ENT or ESC) and set the KCCU KBD and CCD switches ON by default - @TCdr
+1. [A380X/FWS] Add the ECAM procedures of the A380 FCOM to the ABN PROC menu and the sensed alerts - @TCdr
+1. [A380X/EFB] Add the A380 takeoff calculator, which sends the company T.O data to the FMS - @TCdr
+1. [A32NX/EFB] Add the A320 takeoff calculator, with the takeoff data uplinked to the MCDU - @TCdr
+1. [EFB] Use the SimBrief estimated landing weight when the landing calculator syncs with the OFP - @TCdr
+1. [A32NX/ENG] Spool up the engine start at a realistic rate (N2 and fuel flow) - @TCdr
+1. [A32NX/EWD] Set the EGT and N1 limits from the CFM56-5B certified values - @TCdr
+1. [APU] Open the APU air intake flap in about 15 s, as in the manual - @TCdr
+1. [Pushback] Push back at a realistic tug speed (about 10 km/h on the A32NX) - @TCdr
+1. [A32NX/Payload] Board the passengers at a realistic rate (about 20 min for a full load) - @TCdr
+1. [A32NX/Brakes] Make the brake force more proportional to the pedal travel - @TCdr
+1. [A32NX/FMS] Fix wrong along-track distances right after a leg is sequenced - @TCdr
+1. [A32NX/FMS] Fix false RWY/LS MISMATCH messages for ILS courses near 360 - @TCdr
+1. [OANS] Detect the landing runway for runways aligned near north - @TCdr
+1. [A32NX/ATSU] Make the datalink requests time out instead of hanging when the link drops - @TCdr
+1. [A32NX/FWS] Add the VLE overspeed warning and fix the TCAS RA altitude alert inhibition and the GEAR NOT UPLOCKED and L+R WING TK LO LVL procedures - @TCdr
+1. [A32NX/SD] Show the crew oxygen bottle pressure on the DOOR/OXY page, computed from the bottle temperature - @TCdr
+1. [A32NX/SD] Fix the WHEEL ACCU ONLY indication, the ENGINE oil warnings, the COND overheat, the DOOR slides and the APU N gauge - @TCdr
+1. [A32NX/FWS] Keep the FIRE pb and AGENT/SQUIB DISCH lights in sync with the ECAM during the FIRE TEST, with an optional 7 s extension after release (flyPad realism setting) - @TCdr
+1. [A32NX/TCAS] Let an RA aural interrupt a TA and an RA escalation interrupt the initial RA - @TCdr
+1. [A32NX] Fix the wiper failure, engine fan blur and RMP backlight model behaviours - @TCdr
 
 ## 2024.1.0
 
