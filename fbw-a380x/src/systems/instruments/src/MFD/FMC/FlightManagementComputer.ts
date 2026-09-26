@@ -1166,7 +1166,7 @@ export class FlightManagementComputer implements FmcInterface {
    * reply time of the flypad setting, or null without an answer within the FCOM 4 min (download failed or too slow).
    */
   private receiveCompanyFlightPlan(
-    navigraphUsername: string,
+    navigraphUsername: string | undefined,
     overrideSimBriefUserID: string,
   ): Promise<ISimbriefData | null> {
     const notBefore = Date.now() + CompanyDatalinkDelay.replyDelayMs();
