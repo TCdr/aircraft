@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -35,6 +35,7 @@ import {
   GenericAdirsEvents,
   MapParameters,
   MathUtils,
+  NearbyRunwayProvider,
   OansControlEvents,
   OansFmsDataStore,
   OansMapProjection,
@@ -211,6 +212,9 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
   ];
 
   public readonly amdbClient = new NavigraphAmdbClient();
+
+  /** The runways of the sim's airport database, for RWY AHEAD while no airport map is loaded */
+  private readonly runwaysWithoutMap = new NearbyRunwayProvider(this.props.bus);
 
   private readonly labelManager = new OancLabelManager<T>(this);
 
@@ -1149,14 +1153,31 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
       this.unloadAirportMap(true);
     }
 
-    if (!this.data || this.dataLoading || this.resetPulled.get()) {
-      return;
-    }
-
     this.aircraftOnGround.set(
       // FIXME use an enum...
       ![6, 7, 8, 9].includes(SimVar.GetSimVarValue('L:A32NX_FWC_FLIGHT_PHASE', SimVarValueType.Number)),
     );
+
+    if (
+      !this.data &&
+      !this.dataLoading &&
+      !this.resetPulled.get() &&
+      !this.pposNotAvailable.get() &&
+      this.aircraftOnGround.get()
+    ) {
+      // No airport map (no AMDB data, e.g. no Navigraph subscription): RWY AHEAD from the sim's runways
+      const ppos = this.ppos.get();
+      this.runwaysWithoutMap.update(ppos.lat, ppos.long, now);
+      this.btvUtils.updateRwyAheadAdvisoryWithoutMap(
+        ppos,
+        this.trueHeadingWord.get().value,
+        this.runwaysWithoutMap.runways,
+      );
+    }
+
+    if (!this.data || this.dataLoading || this.resetPulled.get()) {
+      return;
+    }
 
     const arpCoordinates = this.arpCoordinates.get();
     if (!this.pposNotAvailable.get() && arpCoordinates) {
