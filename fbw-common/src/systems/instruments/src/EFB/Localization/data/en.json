@@ -725,6 +725,7 @@
       "AutofillChecklists": "Autofill Checklists",
       "AutoStepClimb": "Automatic Step Climb",
       "BoardingTime": "Boarding Time",
+      "CompanyDatalinkReplyTime": "Company Datalink Reply Time (F-PLN, Winds, T.O Data)",
       "DmcSelfTestTime": "DMC Self Test Time",
       "EclSoftKeys": "Show Soft Keys for EWD Electronic Checklists",
       "FireTestExtend": "Extend Fire Test Warnings After Button Release",
