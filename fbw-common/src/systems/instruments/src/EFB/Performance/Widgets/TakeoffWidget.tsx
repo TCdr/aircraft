@@ -17,6 +17,7 @@ import {
 } from '@flybywiresim/fbw-sdk-react';
 import {
   CompanyTakeoffDataUplink,
+  getSimbriefData,
   TakeoffPerformanceEstimate,
   TakeoffPerformanceResult,
   TakeoffRunwayDistances,
@@ -36,6 +37,7 @@ import { Toggle } from '../../UtilComponents/Form/Toggle';
 import { useAppDispatch, useAppSelector } from '../../Store/store';
 import { clearTakeoffValues, initialState, setTakeoffValues } from '../../Store/features/performance';
 import { AircraftContext } from '../../AircraftContext';
+import { useNavigraphAuthInfo } from '../../Apis/Navigraph/Components/Authentication';
 import {
   isValidIcao,
   isWindMagnitudeAndDirection,
@@ -228,6 +230,8 @@ export const TakeoffWidget = () => {
     weights: ofpWeights,
     units: ofpUnits,
   } = useAppSelector((state) => state.simbrief.data);
+  const navigraphAuthInfo = useNavigraphAuthInfo();
+  const [overrideSimBriefUserID] = usePersistentProperty('CONFIG_OVERRIDE_SIMBRIEF_USERID');
 
   const selectedRunway =
     selectedRunwayIndex !== undefined && selectedRunwayIndex >= 0 ? availableRunways[selectedRunwayIndex] : undefined;
@@ -415,36 +419,106 @@ export const TakeoffWidget = () => {
     }
   };
 
+  /**
+   * The departure data of the OFP: the one loaded in the flypad (Dashboard), otherwise the current SimBrief OFP, read for
+   * the takeoff data only (the flypad OFP, and its fuel and payload import, do not change).
+   */
+  const loadOfpDeparture = async (): Promise<{
+    icao: string;
+    runway: string;
+    metar: unknown;
+    tow: number;
+    units: string;
+  } | null> => {
+    if (ofpDepartingAirport) {
+      return {
+        icao: ofpDepartingAirport,
+        runway: ofpDepartingRunway,
+        metar: ofpDepartingMetar,
+        tow: parseInt(ofpWeights.estTakeOffWeight),
+        units: ofpUnits,
+      };
+    }
+    try {
+      const ofp = await getSimbriefData(
+        (navigraphAuthInfo.loggedIn && navigraphAuthInfo.username) || '',
+        overrideSimBriefUserID ?? '',
+      );
+      return {
+        icao: ofp.origin.icao,
+        runway: ofp.origin.runway,
+        metar: ofp.origin.metar,
+        tow: parseInt(ofp.weights.estTakeOffWeight),
+        units: ofp.units,
+      };
+    } catch (e) {
+      console.warn('[flypad] Takeoff OFP import:', e);
+      return null;
+    }
+  };
+
+  /**
+   * Fills the takeoff inputs from the OFP: departure airport and runway, TOW, and wind, OAT and QNH of the departure
+   * METAR. What is missing (runway not found, no METAR) is left to the flight crew, with a message.
+   */
   const syncValuesWithOfp = async () => {
-    if (!isValidIcao(ofpDepartingAirport)) {
-      toast.error('OFP airport is invalid');
+    const ofp = await loadOfpDeparture();
+    if (ofp === null) {
+      toast.error(t('Performance.Takeoff.Calc.OfpNoData'));
       return;
     }
-    const parsedMetar: MetarParserType = parseMetar(ofpDepartingMetar);
-    const ofpTow = parseInt(ofpWeights.estTakeOffWeight);
+    if (!isValidIcao(ofp.icao)) {
+      toast.error(t('Performance.Takeoff.Calc.OfpInvalidAirport'));
+      return;
+    }
+
+    let runways: Awaited<ReturnType<typeof getRunways>>;
+    let magvar: number | null;
     try {
-      const runways = await getRunways(ofpDepartingAirport);
-      const magvar = await getAirportMagVar(ofpDepartingAirport);
-      const runwayIndex = runways.findIndex((r) => r.ident === ofpDepartingRunway);
-      if (runwayIndex < 0) {
-        throw new Error('Failed to import OFP');
-      }
-      const direction = Math.round(MathUtils.normalise360(parsedMetar.wind.degrees - magvar));
-      dispatch(
-        setTakeoffValues({
-          icao: ofpDepartingAirport,
-          ...setRunway(runways, runwayIndex),
-          weight: ofpUnits === 'lbs' ? Math.round(Units.poundToKilogram(ofpTow)) : ofpTow,
-          cg: aircraftCg() ?? cg,
-          windDirection: direction,
-          windMagnitude: parsedMetar.wind.speed_kts,
-          windEntry: `${direction.toFixed(0).padStart(3, '0')}/${parsedMetar.wind.speed_kts}`,
-          oat: parsedMetar.temperature.celsius,
-          qnh: parsedMetar.barometer.mb,
-        }),
+      runways = await getRunways(ofp.icao);
+      magvar = await getAirportMagVar(ofp.icao);
+    } catch {
+      toast.error(subReplacements(t('Performance.Takeoff.Calc.OfpNoAirport'), { icao: ofp.icao }));
+      return;
+    }
+
+    // SimBrief gives an empty object instead of a METAR when it has none
+    let parsedMetar: MetarParserType | undefined;
+    try {
+      parsedMetar = typeof ofp.metar === 'string' ? parseMetar(ofp.metar) : undefined;
+    } catch {
+      parsedMetar = undefined;
+    }
+    const direction =
+      parsedMetar !== undefined ? Math.round(MathUtils.normalise360(parsedMetar.wind.degrees - (magvar ?? 0))) : null;
+
+    const runwayIndex = runways.findIndex((r) => r.ident === ofp.runway);
+    dispatch(
+      setTakeoffValues({
+        icao: ofp.icao,
+        ...setRunway(runways, runwayIndex),
+        ...(Number.isFinite(ofp.tow)
+          ? { weight: ofp.units === 'lbs' ? Math.round(Units.poundToKilogram(ofp.tow)) : ofp.tow }
+          : {}),
+        cg: aircraftCg() ?? cg,
+        ...(parsedMetar !== undefined && direction !== null
+          ? {
+              windDirection: direction,
+              windMagnitude: parsedMetar.wind.speed_kts,
+              windEntry: `${direction.toFixed(0).padStart(3, '0')}/${parsedMetar.wind.speed_kts}`,
+              oat: parsedMetar.temperature.celsius,
+              qnh: parsedMetar.barometer.mb,
+            }
+          : {}),
+      }),
+    );
+    if (runwayIndex < 0) {
+      toast.warning(
+        subReplacements(t('Performance.Takeoff.Calc.OfpNoRunway'), { runway: ofp.runway || '---', icao: ofp.icao }),
       );
-    } catch (e) {
-      toast.error(e.message ?? String(e));
+    }
+    if (parsedMetar === undefined) {
+      toast.warning(t('Performance.Takeoff.Calc.OfpNoMetar'));
     }
   };
 
@@ -512,7 +586,7 @@ export const TakeoffWidget = () => {
     if (autoFillSource === 'METAR') {
       return isValidIcao(icao);
     }
-    return autoFillSource === 'FMS' || isValidIcao(ofpDepartingAirport);
+    return true;
   };
 
   const handleAutoFill = () => {
