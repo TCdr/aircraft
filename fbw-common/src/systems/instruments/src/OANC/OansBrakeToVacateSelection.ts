@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { ConsumerSubject, EventBus, MappedSubject, NodeReference, Subject, Subscribable } from '@microsoft/msfs-sdk';
@@ -6,6 +6,7 @@ import {
   AmdbFeature,
   AmdbProperties,
   Arinc429LocalVarConsumerSubject,
+  AwarenessRunway,
   BTV_MIN_TOUCHDOWN_ZONE_DISTANCE,
   FmsOansData,
   GenericAdirsEvents,
@@ -22,6 +23,7 @@ import { BtvData } from '../../../shared/src/publishers/OansBtv/BtvPublisher';
 import { OancLabelManager } from './OancLabelManager';
 import { fractionalPointAlongLine, pointAngle, pointToLineDistance } from './OancMapUtils';
 import { Coordinates, placeBearingDistance } from 'msfs-geo';
+import { OansRunwayAheadWithoutMap } from './OansRunwayAheadWithoutMap';
 
 const CLAMP_DRY_STOPBAR_DISTANCE = 100; // If stop bar is <> meters behind end of runway, clamp to this distance behind end of runway
 const CLAMP_WET_STOPBAR_DISTANCE = 200; // If stop bar is <> meters behind end of runway, clamp to this distance behind end of runway
@@ -668,13 +670,56 @@ export class OansBrakeToVacateSelection<T extends number> {
       }
     }
 
+    this.issueRwyAheadAdvisory(willEnterRunwaysNotInside[0]);
+  }
+
+  /**
+   * Updates and issues the RWY AHEAD advisories when no airport map (AMDB) is loaded, e.g. without a Navigraph
+   * subscription: the same prediction volume, against the runways of the sim's airport database.
+   * @param globalPos Aircraft position in WGS-84
+   * @param aircraftBearing Aircraft true heading in degrees
+   * @param runways The runways around the aircraft
+   */
+  updateRwyAheadAdvisoryWithoutMap(
+    globalPos: Coordinates,
+    aircraftBearing: number,
+    runways: readonly AwarenessRunway[],
+  ): void {
+    this.skip++;
+    if (this.skip % 10 !== 0) {
+      return;
+    }
+
+    if (
+      this.onGround.get() === false ||
+      this.groundSpeed.get().ssm !== Arinc429SignStatusMatrix.NormalOperation ||
+      this.groundSpeed.get().value > 40 ||
+      this.groundSpeed.get().value < 1
+    ) {
+      this.transmitRwyAheadAdvisory(false, '', true);
+      return;
+    }
+
+    const distNose = 73 / 2;
+    const dist7Sec = this.groundSpeed.get().value * (1_852 / 3_600) * 7 + distNose;
+    const runwaysAhead = OansRunwayAheadWithoutMap.runwaysAhead(
+      runways,
+      globalPos.lat,
+      globalPos.long,
+      aircraftBearing,
+      distNose,
+      dist7Sec,
+      30,
+    );
+    this.issueRwyAheadAdvisory(runwaysAhead[0]);
+  }
+
+  /** Issues RWY AHEAD for a runway the aircraft will enter, for 30 s at most */
+  private issueRwyAheadAdvisory(qfuAhead: string | undefined): void {
     // Set rwyAhead to false (i.e. suppress), if:
     // More than 30s since rwyAheadTriggeredTime, or
     // Aircraft inside runway area
-    if (
-      (this.rwyAheadTriggered && Date.now() - this.rwyAheadTriggeredTime > 30_000) ||
-      willEnterRunwaysNotInside.length === 0
-    ) {
+    if ((this.rwyAheadTriggered && Date.now() - this.rwyAheadTriggeredTime > 30_000) || qfuAhead === undefined) {
       this.rwyAheadTriggered = false;
       this.rwyAheadTriggeredTime = 0;
       this.rwyAheadQfu = '';
@@ -684,7 +729,7 @@ export class OansBrakeToVacateSelection<T extends number> {
       }
 
       this.rwyAheadTriggered = true;
-      this.rwyAheadQfu = willEnterRunwaysNotInside[0];
+      this.rwyAheadQfu = qfuAhead;
     }
 
     // Transmit on bus
