@@ -47,7 +47,7 @@ const TAKEOFF_CG_ENVELOPE: readonly [number, number][] = [
  * runway, no wind, no slope, maximum takeoff thrust, at ISA and at ISA + 15 °C (the flat rating temperature TREF).
  * V2 is the minimum of the A380 FCOM, 1.13 VS1G (PER-TOF-TOR-SRS), with VS1G from the FBW A380X speed tables.
  *
- * Unless {@link realDataOnly} is set, the calculator also gives estimates for what this data does not cover:
+ * The calculator also gives estimates for what this data does not cover:
  * - the wind (50 % of the headwind, 150 % of the tailwind, A380 FCOM PER-TOF-TOC-OCD) and the runway slope, as a
  *   change of the distance needed to reach the lift-off speed
  * - the temperatures above TREF and the FLEX temperature: from TREF the thrust decreases linearly down to 60 % at
@@ -76,9 +76,6 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
 
   /** A380 FCOM PER-TOF-TOC-OCD */
   public readonly maxTailwind = 10;
-
-  /** When true, only the Airbus data is used: no FLEX, V1 or VR, and no wind, slope or temperature above TREF */
-  public realDataOnly = false;
 
   /** The flat rating temperature TREF, and TMAXFLEX, as ISA deviations (A380 FCOM PER-TOF-THR-FLX) */
   private static readonly TREF_ISA_DEVIATION = 15;
@@ -171,16 +168,14 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     const params = result.params;
     const speedCg = cg ?? A380842TakeoffPerformanceCalculator.DEFAULT_CG;
     const isaDeviation = oat - isaTemp;
-    if (!this.realDataOnly) {
-      if (wind !== 0) {
-        result.estimates.push(TakeoffPerformanceEstimate.Wind);
-      }
-      if (slope !== 0) {
-        result.estimates.push(TakeoffPerformanceEstimate.Slope);
-      }
-      if (isaDeviation > A380842TakeoffPerformanceCalculator.TREF_ISA_DEVIATION) {
-        result.estimates.push(TakeoffPerformanceEstimate.Temperature);
-      }
+    if (wind !== 0) {
+      result.estimates.push(TakeoffPerformanceEstimate.Wind);
+    }
+    if (slope !== 0) {
+      result.estimates.push(TakeoffPerformanceEstimate.Slope);
+    }
+    if (isaDeviation > A380842TakeoffPerformanceCalculator.TREF_ISA_DEVIATION) {
+      result.estimates.push(TakeoffPerformanceEstimate.Temperature);
     }
 
     // The weight limit depends on the lift-off speed through the wind and slope corrections, so on the weight itself
@@ -203,29 +198,20 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     const vmca = A380SpeedsUtils.getVmca(pressureAlt);
     const vmcg = A380SpeedsUtils.getVmcg(pressureAlt);
     const v2StallMin = Math.ceil(1.13 * A380842TakeoffPerformanceCalculator.vs1g(conf, speedCg, tow));
-    if (this.realDataOnly) {
-      // The VMCA of the FBW speed tables is no A380 data: V2 only from VS1G, refused below the VMCA minimum
-      if (v2StallMin < 1.1 * vmca) {
-        result.error = TakeoffPerfomanceError.VmcgVmcaLimits;
-        return result;
-      }
-      result.v2 = v2StallMin;
-    } else {
-      const v2 = Math.max(v2StallMin, Math.ceil(1.1 * vmca));
-      result.v2 = v2;
-      if (v2 > v2StallMin) {
-        result.estimates.push(TakeoffPerformanceEstimate.V2);
-      }
-      result.vR = Math.max(Math.round(v2 * A380842TakeoffPerformanceCalculator.VR_TO_V2), Math.ceil(1.05 * vmca));
-      result.v1 = Math.min(
-        result.vR,
-        Math.max(Math.round(result.vR * A380842TakeoffPerformanceCalculator.V1_TO_VR), Math.ceil(vmcg)),
-      );
-      result.estimates.push(TakeoffPerformanceEstimate.VR, TakeoffPerformanceEstimate.V1);
+    const v2 = Math.max(v2StallMin, Math.ceil(1.1 * vmca));
+    result.v2 = v2;
+    if (v2 > v2StallMin) {
+      result.estimates.push(TakeoffPerformanceEstimate.V2);
     }
+    result.vR = Math.max(Math.round(v2 * A380842TakeoffPerformanceCalculator.VR_TO_V2), Math.ceil(1.05 * vmca));
+    result.v1 = Math.min(
+      result.vR,
+      Math.max(Math.round(result.vR * A380842TakeoffPerformanceCalculator.V1_TO_VR), Math.ceil(vmcg)),
+    );
+    result.estimates.push(TakeoffPerformanceEstimate.VR, TakeoffPerformanceEstimate.V1);
 
     // FLEX: the highest temperature from TREF (and above the OAT) up to TMAXFLEX at which the TOW is still possible
-    if (!forceToga && !this.realDataOnly) {
+    if (!forceToga) {
       const lowest = Math.ceil(Math.max(params.tRef, oat));
       for (let t = Math.floor(params.tFlexMax); t >= lowest; t--) {
         const limit = this.weightLimit(params.adjustedTora, wind, slope, pressureAlt, t, conf, speedCg, tow);
@@ -313,10 +299,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     const { inputs, params } = result;
     if (
       flex !== undefined &&
-      (this.realDataOnly ||
-        result.flex === undefined ||
-        flex > result.flex ||
-        flex < Math.ceil(Math.max(params.tRef, inputs.oat)))
+      (result.flex === undefined || flex > result.flex || flex < Math.ceil(Math.max(params.tRef, inputs.oat)))
     ) {
       return undefined;
     }
@@ -363,30 +346,25 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     const belowData = this.equivalentLength(required, inputs, params.pressureAlt, temperature, cg) < lengths[0];
     const estimated =
       belowData ||
-      (!this.realDataOnly && (inputs.wind !== 0 || inputs.slope !== 0)) ||
+      inputs.wind !== 0 ||
+      inputs.slope !== 0 ||
       temperature - params.isaTemp > A380842TakeoffPerformanceCalculator.TREF_ISA_DEVIATION;
     distances.requiredBelowData = belowData;
-    if (this.realDataOnly && estimated) {
-      // The data gives no length shorter than its shortest runway: only that maximum
-      return distances;
-    }
     distances.required = required;
     distances.requiredEstimated = estimated;
 
-    if (!this.realDataOnly) {
-      Object.assign(
-        distances,
-        estimateTakeoffRunDistances(
-          required,
-          result.v1,
-          result.vR,
-          result.v2,
-          params.pressureAlt,
-          inputs.oat,
-          inputs.wind,
-        ),
-      );
-    }
+    Object.assign(
+      distances,
+      estimateTakeoffRunDistances(
+        required,
+        result.v1,
+        result.vR,
+        result.v2,
+        params.pressureAlt,
+        inputs.oat,
+        inputs.wind,
+      ),
+    );
     return distances;
   }
 
@@ -442,15 +420,6 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     if (inputs.oat > params.tMax) {
       return TakeoffPerfomanceError.MaximumTemperature;
     }
-    // The Airbus data has no tailwind, no slope and no temperature above TREF (a headwind is simply not credited)
-    if (
-      this.realDataOnly &&
-      (inputs.wind < 0 ||
-        inputs.slope !== 0 ||
-        inputs.oat - params.isaTemp > A380842TakeoffPerformanceCalculator.TREF_ISA_DEVIATION)
-    ) {
-      return TakeoffPerfomanceError.OutsideManufacturerData;
-    }
     return TakeoffPerfomanceError.None;
   }
 
@@ -479,7 +448,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     extrapolate = false,
   ): number | undefined {
     let length = runwayLength;
-    if (!this.realDataOnly && (wind !== 0 || slope !== 0)) {
+    if (wind !== 0 || slope !== 0) {
       const v2 = 1.13 * A380842TakeoffPerformanceCalculator.vs1g(conf, cg, weight);
       const liftOffTas = A380842TakeoffPerformanceCalculator.trueAirspeed(v2, pressureAlt, temperature) * MPS_PER_KNOT;
       length = A380842TakeoffPerformanceCalculator.equivalentRunwayLength(length, wind, slope, liftOffTas);
@@ -524,7 +493,7 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     temperature: number,
     cg: number,
   ): number {
-    if (this.realDataOnly || (inputs.wind === 0 && inputs.slope === 0)) {
+    if (inputs.wind === 0 && inputs.slope === 0) {
       return runwayLength;
     }
     const v2 = 1.13 * A380842TakeoffPerformanceCalculator.vs1g(inputs.conf, cg, inputs.tow);
