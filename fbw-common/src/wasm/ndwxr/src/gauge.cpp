@@ -61,17 +61,17 @@ static void registerInstanceVars(Instance& instance) {
 #else
   instance.terrainActiveVar =
       register_named_variable(instance.isRight ? "A32NX_EGPWC_ND_R_TERRAIN_ACTIVE" : "A32NX_EGPWC_ND_L_TERRAIN_ACTIVE");
-  instance.powerBusVars[0] = register_named_variable(instance.isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED"
-                                                                       : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
+  instance.powerBusVars[0] =
+      register_named_variable(instance.isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED" : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
   instance.powerBusVars[1] = instance.powerBusVars[0];
 #endif
   instance.wxrLabelVar = register_named_variable(instance.isRight ? "A32NX_WXR_ND_R_MODE" : "A32NX_WXR_ND_L_MODE");
   instance.ndModeVar = register_named_variable(instance.isRight ? "A32NX_EFIS_R_ND_MODE" : "A32NX_EFIS_L_ND_MODE");
   instance.ndRangeVar = register_named_variable(instance.isRight ? "A32NX_EFIS_R_ND_RANGE" : "A32NX_EFIS_L_ND_RANGE");
-  instance.peaksMinVar = register_named_variable(instance.isRight ? "A32NX_EGPWC_ND_R_TERRAIN_MIN_ELEVATION"
-                                                                   : "A32NX_EGPWC_ND_L_TERRAIN_MIN_ELEVATION");
-  instance.peaksMaxVar = register_named_variable(instance.isRight ? "A32NX_EGPWC_ND_R_TERRAIN_MAX_ELEVATION"
-                                                                   : "A32NX_EGPWC_ND_L_TERRAIN_MAX_ELEVATION");
+  instance.peaksMinVar =
+      register_named_variable(instance.isRight ? "A32NX_EGPWC_ND_R_TERRAIN_MIN_ELEVATION" : "A32NX_EGPWC_ND_L_TERRAIN_MIN_ELEVATION");
+  instance.peaksMaxVar =
+      register_named_variable(instance.isRight ? "A32NX_EGPWC_ND_R_TERRAIN_MAX_ELEVATION" : "A32NX_EGPWC_ND_L_TERRAIN_MAX_ELEVATION");
 }
 
 // The MapViews of one gauge instance (see the note on the module's budget of eight in ndwxr.h).
@@ -128,9 +128,10 @@ static bool installInstance(FsContext ctx, const sGaugeInstallData* installData)
 // Releases everything a gauge instance owns and frees its slot.
 static void destroyInstance(FsContext ctx, Instance& instance) {
   simBridgeOnGaugeKill(ctx);
-  const FsTextureId views[] = {instance.mapView, instance.mapViewHot, instance.mapViewTerrain, instance.mapViewWater,
+  const FsTextureId views[] = {
+      instance.mapView,          instance.mapViewHot,     instance.mapViewTerrain, instance.mapViewWater,
 #ifdef A380X
-                               instance.mapViewVdTerrain, instance.mapViewVdWater,
+      instance.mapViewVdTerrain, instance.mapViewVdWater,
 #endif
   };
   for (FsTextureId view : views) {
@@ -197,7 +198,9 @@ struct NdFrame {
   float vdHeadingDeg = 0.0f;
 #endif
 
-  bool drawsAnything() const { return showPrecip || showTurb || showTerrain || showMap; }
+  bool drawsAnything() const {
+    return showPrecip || showTurb || showTerrain || showMap;
+  }
 };
 
 // Reads the ND's state and decides what the frame shows: the gating of the weather, the
@@ -387,7 +390,11 @@ static ViewReadiness updateViewRoles(FsContext ctx, Instance& instance, const Nd
 }
 
 // The terrain (TERR ON ND) or the radar's MAP mode, both from the terrain view.
-static void drawTerrainLayer(FsContext ctx, NVGcontext* vg, Instance& instance, const NdFrame& frame, const TerrainViews& views,
+static void drawTerrainLayer(FsContext ctx,
+                             NVGcontext* vg,
+                             Instance& instance,
+                             const NdFrame& frame,
+                             const TerrainViews& views,
                              bool terrainReady) {
   const float radiusMetres = frame.rangeNmForMode * kNmToMetres;
   if (frame.showTerrain) {
