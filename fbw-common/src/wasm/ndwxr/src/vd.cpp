@@ -54,8 +54,17 @@ static void setVdPassState(NVGcontext* vg, VdPass pass, float gain, FsColor* tin
 // texture is heading-up, so a piece's direction in it is its track minus the heading, and
 // its start is taken forward and right of the aircraft. The image is extended beyond the
 // piece's ends by the taps' shift, so a shifted tap still covers the piece.
-static void drawVdErodedRect(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass pass, float lateralTexels, float depthPx,
-                      int taps, float left, float rightLimit, float top, float bottom) {
+static void drawVdErodedRect(NVGcontext* vg,
+                             FsTextureId view,
+                             const VdColumns& c,
+                             VdPass pass,
+                             float lateralTexels,
+                             float depthPx,
+                             int taps,
+                             float left,
+                             float rightLimit,
+                             float top,
+                             float bottom) {
   if (bottom <= top || rightLimit <= left) {
     return;
   }
@@ -134,8 +143,8 @@ static void drawVdUnion(NVGcontext* vg, FsTextureId view, const VdColumns& c, Vd
 }
 
 // A further level of a shape: the heading-line column only, eroded by depthPx.
-static void drawVdEroded(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass pass, float depthPx, float top, float bottom,
-                  float rightLimit) {
+static void
+drawVdEroded(NVGcontext* vg, FsTextureId view, const VdColumns& c, VdPass pass, float depthPx, float top, float bottom, float rightLimit) {
   if (bottom <= top) {
     return;
   }
@@ -149,8 +158,18 @@ static void drawVdEroded(NVGcontext* vg, FsTextureId view, const VdColumns& c, V
 // the radius the ND's radar views were set to; vdRangeNm the VD's range; headingDeg the radar
 // texture's up (the ND's true heading); baroAltFeet the aircraft's altitude on the VD's scale
 // (the ADR's baro-corrected altitude, like the VD's own symbol).
-void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, bool hotReady, float ndRadiusNm, float vdRangeNm,
-                   const VdCutSegment* cut, int cutCount, float headingDeg, double baroAltFeet, double lowerFeet, double upperFeet) {
+void drawVdWeather(NVGcontext* vg,
+                   FsTextureId precipView,
+                   FsTextureId hotView,
+                   bool hotReady,
+                   float ndRadiusNm,
+                   float vdRangeNm,
+                   const VdCutSegment* cut,
+                   int cutCount,
+                   float headingDeg,
+                   double baroAltFeet,
+                   double lowerFeet,
+                   double upperFeet) {
   VdColumns c;
   c.cut = cut;
   c.cutCount = cutCount;
@@ -345,8 +364,17 @@ static int createVdRamp(NVGcontext* vg) {
   return nvgCreateImageRGBA(vg, kRampWidth, kVdRampRows, 0, data);
 }
 
-static void drawVdTerrain(NVGcontext* vg, FsTextureId terrainView, FsTextureId waterView, int rampImage, float vdRangeNm, const VdCutSegment* cut,
-                   int cutCount, float cutHalfWidthNm, float greyFromNm, double lowerFeet, double upperFeet) {
+static void drawVdTerrain(NVGcontext* vg,
+                          FsTextureId terrainView,
+                          FsTextureId waterView,
+                          int rampImage,
+                          float vdRangeNm,
+                          const VdCutSegment* cut,
+                          int cutCount,
+                          float cutHalfWidthNm,
+                          float greyFromNm,
+                          double lowerFeet,
+                          double upperFeet) {
   const float vdBottom = kVdTop + kVdHeight;
   const float vdRight = kVdLeft + kVdWidth;
   const float centerY = kVdTop + 0.5f * kVdHeight;
@@ -444,7 +472,8 @@ static void drawVdTerrain(NVGcontext* vg, FsTextureId terrainView, FsTextureId w
   // the water's).
   nvgGlobalCompositeBlendFuncSeparate(vg, NVG_ZERO, NVG_SRC_COLOR, NVG_ZERO, NVG_ONE);
   plotRect();
-  nvgFillPaint(vg, nvgLinearGradient(vg, 0.0f, kVdTop, 0.0f, vdBottom, nvgRGBAf(0.62f, 0.29f, 0.0f, 1.0f), nvgRGBAf(0.42f, 0.19f, 0.0f, 1.0f)));
+  nvgFillPaint(vg,
+               nvgLinearGradient(vg, 0.0f, kVdTop, 0.0f, vdBottom, nvgRGBAf(0.62f, 0.29f, 0.0f, 1.0f), nvgRGBAf(0.42f, 0.19f, 0.0f, 1.0f)));
   nvgFill(vg);
   nvgRestore(vg);
 
@@ -530,7 +559,8 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
     const auto baroAltWord =
         types::Arinc429Word<float>::fromSimVar(instance.isRight ? g_adrBaroAlt2[adr - 1].read() : g_adrBaroAlt1[adr - 1].read());
     altitudeFeet = baroAltWord.isNo() ? static_cast<double>(baroAltWord.value()) : planeAltitudeFeet();
-    fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet - (upperFeet - lowerFeet), altitudeFeet - lowerFeet);
+    fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet - (upperFeet - lowerFeet),
+                                    altitudeFeet - lowerFeet);
     fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdTerrain, vdRangeNm * kNmToMetres);
     if (instance.mapViewVdWaterReady) {
       fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdWater, vdRangeNm * kNmToMetres);
@@ -564,9 +594,10 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
         cut[0] = VdCutSegment{0.0f, 0.0f, trackDegrees, vdRangeNm, 0.0f};
         cutCount = 1;
       }
-      const float cutHalfWidthNm = altitudeFeet >= static_cast<double>(kVdCutEnrouteFeet) ? kVdCutEnrouteHalfWidthNm : kVdCutTerminalHalfWidthNm;
-      drawVdTerrain(vg, instance.mapViewVdTerrain, instance.mapViewVdWaterReady ? instance.mapViewVdWater : 0, instance.vdRampImage, vdRangeNm,
-                    cut, cutCount, cutHalfWidthNm, greyFromNm, lowerFeet, upperFeet);
+      const float cutHalfWidthNm =
+          altitudeFeet >= static_cast<double>(kVdCutEnrouteFeet) ? kVdCutEnrouteHalfWidthNm : kVdCutTerminalHalfWidthNm;
+      drawVdTerrain(vg, instance.mapViewVdTerrain, instance.mapViewVdWaterReady ? instance.mapViewVdWater : 0, instance.vdRampImage,
+                    vdRangeNm, cut, cutCount, cutHalfWidthNm, greyFromNm, lowerFeet, upperFeet);
     }
   }
   instance.layerDirty = draw;
