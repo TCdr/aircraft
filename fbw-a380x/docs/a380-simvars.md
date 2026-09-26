@@ -1844,6 +1844,10 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Number (NM)
     - Distance along the cut at which the next track change is more than 3 degrees (the grey area of the VD), -1 when none
 
+- `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
+    - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
+      the GPWS / TAWS section of fbw-a32nx/docs/a320-simvars.md
+
 ## Bleed Air ATA 36
 
 - A32NX_PNEU_ENG_{number}_INTERMEDIATE_TRANSDUCER_PRESSURE
