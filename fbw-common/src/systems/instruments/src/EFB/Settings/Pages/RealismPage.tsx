@@ -17,6 +17,7 @@ import { ButtonType, SettingGroup, SettingItem, SettingsPage } from '../Settings
 import { SelectGroup, SelectItem } from '../../UtilComponents/Form/Select';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { AircraftContext } from '@flybywiresim/flypad';
+import { CompanyDatalinkDelay } from '@flybywiresim/fbw-sdk';
 
 type SimVarButton = {
   simVarValue: number;
@@ -48,6 +49,10 @@ export const RealismPage = () => {
     'KEEP_PILOT_STORED_ELEMENTS',
     false,
   );
+  const [companyDatalinkReplyTime, setCompanyDatalinkReplyTime] = usePersistentProperty(
+    CompanyDatalinkDelay.SETTING_KEY,
+    'REAL',
+  );
 
   const adirsAlignTimeButtons: (ButtonType & SimVarButton)[] = [
     { name: t('Settings.Instant'), setting: 'INSTANT', simVarValue: 1 },
@@ -59,6 +64,12 @@ export const RealismPage = () => {
     { name: t('Settings.Instant'), setting: '0' },
     { name: t('Settings.Fast'), setting: '5' },
     { name: t('Settings.Real'), setting: '12' },
+  ];
+
+  const companyDatalinkReplyTimeButtons: ButtonType[] = [
+    { name: t('Settings.Instant'), setting: 'INSTANT' },
+    { name: t('Settings.Fast'), setting: 'FAST' },
+    { name: t('Settings.Real'), setting: 'REAL' },
   ];
 
   const boardingRateButtons: ButtonType[] = [
@@ -113,6 +124,22 @@ export const RealismPage = () => {
           ))}
         </SelectGroup>
       </SettingItem>
+
+      {aircraftContext.settingsPages.realism.companyDatalinkReplyTime && (
+        <SettingItem name={t('Settings.Realism.CompanyDatalinkReplyTime')}>
+          <SelectGroup>
+            {companyDatalinkReplyTimeButtons.map((button) => (
+              <SelectItem
+                key={button.name}
+                onSelect={() => setCompanyDatalinkReplyTime(button.setting)}
+                selected={companyDatalinkReplyTime === button.setting}
+              >
+                {button.name}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SettingItem>
+      )}
 
       <SettingItem name={t('Settings.Realism.AutofillChecklists')} unrealistic>
         <Toggle value={!!autoFillChecklists} onToggle={(value) => setAutoFillChecklists(value ? 1 : 0)} />

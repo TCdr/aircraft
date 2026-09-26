@@ -6,6 +6,7 @@ export * from './Arinc429RegisterSubject';
 export * from './ArincConsumer';
 export * from './ArincEventBus';
 export * from './ArincEventBusSubscriber';
+export * from './CompanyDatalinkDelay';
 export * from './checklists';
 export * from './Constants';
 export * from './extras';
