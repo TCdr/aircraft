@@ -55,6 +55,7 @@ render(
           eclSoftKeys: false,
           fireTestExtend: true,
           keepPilotStoredElements: false,
+          companyDatalinkReplyTime: false,
         },
         sim: {
           cones: true,

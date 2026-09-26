@@ -48,6 +48,8 @@ interface RealismOptions {
   fireTestExtend: boolean;
   /** Keeping the MFD pilot stored elements from one sim session to the next (A380X) */
   keepPilotStoredElements: boolean;
+  /** The reply time of the company datalink requests of the FMS (A380X: F-PLN, wind and takeoff data) */
+  companyDatalinkReplyTime: boolean;
 }
 
 interface SimOptions {
@@ -107,6 +109,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
       eclSoftKeys: false,
       fireTestExtend: false,
       keepPilotStoredElements: false,
+      companyDatalinkReplyTime: false,
     },
     sim: {
       cones: false,
