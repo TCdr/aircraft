@@ -1,6 +1,7 @@
 //  Copyright (c) 2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
+import { LerpVectorLookupTable, Vec2Math } from '@microsoft/msfs-sdk';
 import {
   LineupAngle,
   RunwayCondition,
@@ -31,14 +32,14 @@ const CONF_IN_SPEED_TABLES: Record<number, ApproachConf> = {
   3: ApproachConf.CONF_3,
 };
 
-/** The FBW A380X takeoff CG envelope, (CG % MAC, weight kg) (airframe.json5, mtow) */
-const TAKEOFF_CG_ENVELOPE: readonly [number, number][] = [
-  [29, 270_000],
-  [29, 375_000],
-  [35.75, 510_000],
-  [43, 510_000],
-  [43, 270_000],
-];
+/** The FBW A380X takeoff CG envelope (airframe.json5, mtow). key = TOW [kg] => [forward limit, aft limit] % MAC */
+const TAKEOFF_CG_LIMITS = new LerpVectorLookupTable([
+  [Vec2Math.create(29, 43), 270_000],
+  [Vec2Math.create(29, 43), 375_000],
+  [Vec2Math.create(35.75, 43), 510_000],
+]);
+
+const vec2Cache = Vec2Math.create();
 
 /**
  * Takeoff performance calculator for the A380-842 (TRENT 900 engines).
@@ -368,18 +369,10 @@ export class A380842TakeoffPerformanceCalculator implements TakeoffPerformanceCa
     return distances;
   }
 
+  /** The limits themselves are within limits (the envelope at the structural MTOW included) */
   isCgWithinLimits(cg: number, tow: number): boolean {
-    // point in polygon (ray casting)
-    let inside = false;
-    const env = TAKEOFF_CG_ENVELOPE;
-    for (let i = 0, j = env.length - 1; i < env.length; j = i++) {
-      const [xi, yi] = env[i];
-      const [xj, yj] = env[j];
-      if (yi > tow !== yj > tow && cg < ((xj - xi) * (tow - yi)) / (yj - yi) + xi) {
-        inside = !inside;
-      }
-    }
-    return inside;
+    const limits = TAKEOFF_CG_LIMITS.get(vec2Cache, tow);
+    return cg >= limits[0] && cg <= limits[1];
   }
 
   /** FCOM LIM: one crosswind limit for every runway condition and temperature */
