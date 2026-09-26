@@ -97,8 +97,15 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsPage<MfdFmsFplnLlXingTimeMkrProp
     ),
   );
 
+  /** The AURAL checkboxes are plain divs (FSComponent sets an onClick prop as a string attribute): clicks are wired after render */
+  private readonly auralCheckboxRefs = timeMarkers.map(() => FSComponent.createRef<HTMLDivElement>());
+
+  private readonly auralClickHandlers = timeMarkers.map((marker) => () => marker.aural.set(!marker.aural.get()));
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+
+    this.auralCheckboxRefs.forEach((ref, i) => ref.instance.addEventListener('click', this.auralClickHandlers[i]));
 
     this.subs.push(
       this.latitudeVisible,
@@ -114,6 +121,14 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsPage<MfdFmsFplnLlXingTimeMkrProp
         .atFrequency(1)
         .handle(() => this.updateRemainingTimes()),
     );
+  }
+
+  public destroy(): void {
+    this.auralCheckboxRefs.forEach((ref, i) =>
+      ref.getOrDefault()?.removeEventListener('click', this.auralClickHandlers[i]),
+    );
+
+    super.destroy();
   }
 
   protected onNewData(): void {
@@ -325,10 +340,7 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsPage<MfdFmsFplnLlXingTimeMkrProp
         {fcomCentre(
           y,
           634,
-          <div
-            class={{ 'mfd-llxing-checkbox': true, checked: marker.aural }}
-            onClick={() => marker.aural.set(!marker.aural.get())}
-          />,
+          <div ref={this.auralCheckboxRefs[index]} class={{ 'mfd-llxing-checkbox': true, checked: marker.aural }} />,
         )}
       </div>
     );
