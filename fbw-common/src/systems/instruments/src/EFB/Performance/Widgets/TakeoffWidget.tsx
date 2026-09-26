@@ -129,9 +129,10 @@ const Section: FC<{ title: string }> = ({ title, children }) => (
   </div>
 );
 
-const Row: FC<{ label: string }> = ({ label, children }) => (
+/** A labelled input; the label is amber while the input is `missing` (the calculation needs it) */
+const Row: FC<{ label: string; missing?: boolean }> = ({ label, missing, children }) => (
   <div className="flex h-10 flex-row items-center justify-between">
-    <span className="mr-2 whitespace-nowrap text-theme-text">{label}</span>
+    <span className={`mr-2 whitespace-nowrap ${missing ? 'text-utility-amber' : 'text-theme-text'}`}>{label}</span>
     {children}
   </div>
 );
@@ -336,6 +337,18 @@ export const TakeoffWidget = () => {
       dispatch(setTakeoffValues({ result: undefined, togaResult: undefined, selectedFlex: undefined }));
       toast.error(subReplacements(t(`Performance.Takeoff.Messages.${perf.error}`), replacements));
     }
+  };
+
+  /** The inputs the calculation needs that are still empty: their labels are amber, and CALCULATE stays off */
+  const missingInputs = {
+    heading: runwayBearing === undefined,
+    tora: runwayLength === undefined,
+    elevation: elevation === undefined,
+    slope: runwaySlope === undefined,
+    wind: windMagnitude === undefined,
+    oat: oat === undefined,
+    qnh: qnh === undefined,
+    tow: weight === undefined,
   };
 
   const areInputsValid = (): boolean =>
@@ -829,7 +842,7 @@ export const TakeoffWidget = () => {
               disabled={availableRunways.length === 0}
             />
           </Row>
-          <Row label={t('Performance.Takeoff.Calc.Heading')}>
+          <Row label={t('Performance.Takeoff.Calc.Heading')} missing={missingInputs.heading}>
             <SimpleInput
               className="w-40"
               fontSizeClassName="text-base"
@@ -843,7 +856,7 @@ export const TakeoffWidget = () => {
               number
             />
           </Row>
-          <Row label={t('Performance.Takeoff.Tora')}>
+          <Row label={t('Performance.Takeoff.Tora')} missing={missingInputs.tora}>
             <div className="flex w-40 flex-row">
               <SimpleInput
                 className="w-full min-w-0 rounded-r-none"
@@ -862,7 +875,7 @@ export const TakeoffWidget = () => {
               {unitSelect(distanceUnit, ['m', 'ft'], (v) => setDistanceUnit(v), 'w-[4.5rem]')}
             </div>
           </Row>
-          <Row label={t('Performance.Takeoff.Calc.Elevation')}>
+          <Row label={t('Performance.Takeoff.Calc.Elevation')} missing={missingInputs.elevation}>
             <SimpleInput
               className="w-40"
               fontSizeClassName="text-base"
@@ -875,7 +888,7 @@ export const TakeoffWidget = () => {
               number
             />
           </Row>
-          <Row label={t('Performance.Takeoff.Calc.Slope')}>
+          <Row label={t('Performance.Takeoff.Calc.Slope')} missing={missingInputs.slope}>
             <SimpleInput
               className="w-40"
               fontSizeClassName="text-base"
@@ -916,7 +929,7 @@ export const TakeoffWidget = () => {
               }))}
             />
           </Row>
-          <Row label={t('Performance.Takeoff.Wind')}>
+          <Row label={t('Performance.Takeoff.Wind')} missing={missingInputs.wind}>
             <SimpleInput
               className="w-40"
               fontSizeClassName="text-base"
@@ -927,7 +940,7 @@ export const TakeoffWidget = () => {
               wind
             />
           </Row>
-          <Row label={t('Performance.Takeoff.Calc.Oat')}>
+          <Row label={t('Performance.Takeoff.Calc.Oat')} missing={missingInputs.oat}>
             <div className="flex w-40 flex-row">
               <SimpleInput
                 className="w-full min-w-0 rounded-r-none"
@@ -944,7 +957,7 @@ export const TakeoffWidget = () => {
               {unitSelect(temperatureUnit, ['C', 'F'], (v) => setTemperatureUnit(v), 'w-[4.5rem]')}
             </div>
           </Row>
-          <Row label={t('Performance.Takeoff.Qnh')}>
+          <Row label={t('Performance.Takeoff.Qnh')} missing={missingInputs.qnh}>
             <div className="flex w-40 flex-row">
               <SimpleInput
                 className="w-full min-w-0 rounded-r-none"
@@ -991,7 +1004,7 @@ export const TakeoffWidget = () => {
         </Section>
 
         <Section title={t('Performance.Takeoff.Calc.SectionAircraft')}>
-          <Row label={t('Performance.Takeoff.Calc.Tow')}>
+          <Row label={t('Performance.Takeoff.Calc.Tow')} missing={missingInputs.tow}>
             <div className="flex w-40 flex-row">
               <SimpleInput
                 className="w-full min-w-0 rounded-r-none"
