@@ -102,6 +102,7 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
             satcom: false,
             latLonExtend: false,
             rmpVhfSpacing: false,
+            raas: false,
           },
           realism: {
             mcduKeyboard: false,
@@ -109,6 +110,9 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
             pilotAvatars: false,
             eclSoftKeys: true,
             autoStepClimb: true,
+            fireTestExtend: false,
+            keepPilotStoredElements: true,
+            companyDatalinkReplyTime: true,
           },
           sim: {
             cones: false,
