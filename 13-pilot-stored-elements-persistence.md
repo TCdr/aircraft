@@ -2,8 +2,8 @@
 
 - **Title:** `feat(a380x/mfd): keep the pilot stored elements across sim sessions (flypad setting)`
 - **Base:** `master` - **Branch:** `pr/13-pilot-stored-elements-persistence` (stacked on `pr/10-a380x-mfd-fcom-pages`, PR 10)
-- **Tip:** `ec644e7ca` - own commits: `cbec92184` (feature), `04da29341` (single instance), `c94293b18` (strict types), `c43929628`
-  (test setup: jsdom localStorage), `9dd16bc11` (tests), `ec644e7ca` (OIT settings option)
+- **Tip:** `77170df99` - own commits: `c91bfd34e` (feature), `4b4a481e8` (single instance), `757c7dfce` (strict types), `c245f149f`
+  (test setup: jsdom localStorage), `ed59b37cf` (tests), `77170df99` (OIT settings option)
 - **Labels to request:** `A380X`, `MFD`, `EFB`, `QA A380 Only`
 - **Issue to open first:** *"A380X pilot stored waypoints and routes are lost when the sim is closed"*
 - **CHANGELOG line:** `1. [A380X/MFD] Add an optional setting to keep the pilot stored elements between sim sessions - @TCdr`

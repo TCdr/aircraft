@@ -390,19 +390,19 @@ and the A32NX instruments (2026-09-27).
 | 07 | `pr/07-tcas-ta-only-intruder-level` | `2518ca61e` | 4 |
 | 08 | `pr/08-a32nx-mcdu-independent` | `62f3f2917` | 2 |
 | 09 | `pr/09-nd-manuals-pass` | `a2747d891` | 31 |
-| 10 | `pr/10-a380x-mfd-fcom-pages` | `c84ab0cbd` | 23 |
-| 11 | `pr/11-a380-takeoff-calculator` | `e701eb8af` | 26 |
-| 12 | `pr/12-a320-takeoff-calculator` | `6558460dd` | 36 |
-| 13 | `pr/13-pilot-stored-elements-persistence` | `ec644e7ca` | 29 |
-| 14 | `pr/14-direct-to-options` | `a07ecd14c` | 25 |
-| 15 | `pr/15-fuel-jettison` | `a17c97cd1` | 27 |
-| 16 | `pr/16-kccu-keyboard-entry` | `c9401830d` | 27 |
-| 17 | `pr/17-ecam-procedures` | `4645bb03c` | 25 |
+| 10 | `pr/10-a380x-mfd-fcom-pages` | `124524c64` | 24 |
+| 11 | `pr/11-a380-takeoff-calculator` | `85d4f554e` | 27 |
+| 12 | `pr/12-a320-takeoff-calculator` | `19cd4545f` | 37 |
+| 13 | `pr/13-pilot-stored-elements-persistence` | `77170df99` | 30 |
+| 14 | `pr/14-direct-to-options` | `42bdc63a0` | 26 |
+| 15 | `pr/15-fuel-jettison` | `8da5eb7a8` | 28 |
+| 16 | `pr/16-kccu-keyboard-entry` | `765c6a13b` | 28 |
+| 17 | `pr/17-ecam-procedures` | `77da985bd` | 26 |
 | 18 | `pr/18-a32nx-raas` | `22d963d5c` | 2 |
 | 19 | `pr/19-a380x-oans-rwy-ahead-without-map` | `aac868b24` | 3 |
-| 20 | `pr/20-a380x-altn-fuel-computation` | `3c3ef82b7` | 24 |
-| 21 | `pr/21-a380x-company-datalink-delay` | `199d44f3b` | 39 |
-| 22 | `pr/22-a380x-mfd-atccom` | `625a792d5` | 29 |
+| 20 | `pr/20-a380x-altn-fuel-computation` | `e18e12a72` | 25 |
+| 21 | `pr/21-a380x-company-datalink-delay` | `46ffd2a27` | 40 |
+| 22 | `pr/22-a380x-mfd-atccom` | `43706e46f` | 30 |
 
 Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
 INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
@@ -425,8 +425,8 @@ tested in the sim, CPDLC with Hoppie not yet (see its draft). The feature branch
 
 | Commit on `develop` | Change | Where it belongs |
 |---|---|---|
-| `cff8ebd1b` (merge `2b9d549dd`) | `fix(a380x/mfd): keep a SEC page when another flight plan is created`: the COMPANY F-PLN REQUEST page of an empty SEC was redirected to ACTIVE when the requested flight plan arrived (RETURN clicked twice, page bound to the active plan). User-tested in the sim. | PR 10 (the SEC company F-PLN request page); adding it means rebasing the branches stacked on PR 10 (11, 12, 13, 14, 15, 16, 17, 20, 21, 22) |
 | `f9ebf7c9c`, `796d0ce9e` | the pedestal printer on paper, and its 64-column paper fix | no PR yet (needs its own PR) |
 | `e2f33945a`, `89debedc7` (part) | ATC COM ATIS print (PRINT, PRINT ALL on one printout, AUTO PRINT) | PR 22, once the printer has a PR |
 
 The ND mouse fix (`b28467f61`) is in `develop` and in PR 2 (`248cb26bd`).
+The SEC page fix (`cff8ebd1b`, merge `2b9d549dd`) is in `develop` and in PR 10 (`124524c64`); the branches stacked on PR 10 (11-17, 20, 21, 22) were rebased on it (2026-09-27).

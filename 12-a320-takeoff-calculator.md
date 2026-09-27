@@ -2,9 +2,9 @@
 
 - **Title:** `feat(a32nx/efb): A320 takeoff calculator with the MCDU uplink takeoff data`
 - **Base:** `master` - **Branch:** `pr/12-a320-takeoff-calculator` (stacked on `pr/11-a380-takeoff-calculator`, PR 11: the screen is shared)
-- **Tip:** `6558460dd` - own commits: `36eecadcf` (feature), `cb282d30b` (shared FMS link), `fb5035f32` (OFP import), `a8c0db6e7`
-  (selected thrust only), `ed998f69a` (Data selector removed), `2ab2d94a6` (missing inputs in amber), `d7f729c01` (A380 CG envelope
-  edges), `f5f898ffb` (A380 calculator tests), `37aca0601` (EFB build inputs), `6558460dd` (MCDU strict types)
+- **Tip:** `19cd4545f` - own commits: `6eb763ba7` (feature), `3839c7db1` (shared FMS link), `4302f13ad` (OFP import), `4aa134ac2`
+  (selected thrust only), `7c04fb63e` (Data selector removed), `6540a0502` (missing inputs in amber), `c19c185e9` (A380 CG envelope
+  edges), `7b8e23339` (A380 calculator tests), `9a07bc07d` (EFB build inputs), `19cd4545f` (MCDU strict types)
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `MCDU`, `Extensive Testing Needed`
 - **Issue to open first:** *"A32NX takeoff calculator: runway distances and the MCDU uplink takeoff data"*
 - **CHANGELOG line:** `1. [A32NX/EFB] Show the takeoff run on the runway, TOGA and FLEX, and send the takeoff data to the MCDU UPLINK TO DATA pages - @TCdr`
