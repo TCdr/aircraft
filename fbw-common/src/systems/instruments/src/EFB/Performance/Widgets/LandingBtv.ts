@@ -46,5 +46,8 @@ export async function loadLandingRunwayExits(icao: string, runway: string): Prom
     }
   }
   const exits = cache.get(key);
+  if (exits === undefined) {
+    return { state: 'unavailable' };
+  }
   return exits === null ? { state: 'no-runway' } : { state: 'loaded', exits };
 }
