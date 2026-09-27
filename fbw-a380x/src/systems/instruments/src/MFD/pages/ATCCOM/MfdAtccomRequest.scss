@@ -12,6 +12,18 @@
     width: 569px;
   }
 
+  // A line of a frame: its labels and fields follow each other, 19 px apart (FCOM figure)
+  .mfd-atccom-request-line {
+    display: flex;
+    align-items: center;
+    column-gap: 19px;
+    white-space: nowrap;
+  }
+
+  .mfd-atccom-request-field {
+    flex-shrink: 0;
+  }
+
   // The frame labels: 13.5 px per character (FCOM figure)
   .mfd-atccom-request-label {
     font-size: 24.5px;

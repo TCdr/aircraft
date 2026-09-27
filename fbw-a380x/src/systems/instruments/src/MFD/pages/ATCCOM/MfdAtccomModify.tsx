@@ -19,8 +19,6 @@ const AREA_TOP = -7;
 const FRAME_HEIGHT = 152.4;
 const LINE_Y = [29, 77, 124];
 const TEXT_LEFT = 21;
-const CHAR_WIDTH = 13.5;
-const GAP = 19;
 
 /**
  * REPORT/MODIFY page (A380 FCOM DSC-46-10-20-30 P 22-23), laid out on the FCOM figure: the downlink message of the
@@ -103,40 +101,37 @@ export class MfdAtccomModify extends DisplayComponent<AtccomMfdPageProps> {
           <div class="mfd-fcom-canvas mfd-atccom-request">
             {this.lines.map((line, index) => {
               const top = AREA_TOP + index * FRAME_HEIGHT;
-              let x = TEXT_LEFT;
+              // The labels and fields follow each other, whatever the width of the font (as on the REQUEST page)
+              const lineItems = line.map((item) => {
+                if (typeof item === 'string') {
+                  return <span class="mfd-atccom-request-label">{item}</span>;
+                }
+                const value = Subject.create<string | null>(item.value || null);
+                const width = item.kind === 'freetext' ? 300 : 223;
+                return (
+                  <div class="mfd-atccom-request-field">
+                    <InputField<string>
+                      dataEntryFormat={requestFieldFormat(item.kind)}
+                      value={value}
+                      mandatory={Subject.create(true)}
+                      inactive={this.freetextMode}
+                      dataHandlerDuringValidation={async (newValue) => {
+                        this.values.set(`${item.element}/${item.content}`, newValue ?? '');
+                        this.updateCompleteness();
+                      }}
+                      errorHandler={(e) => this.props.atcService.showAtcErrorMessage(e.type, e.details)}
+                      containerStyle={`width: ${width}px;`}
+                      alignText="center"
+                      class={item.kind === 'freetext' ? 'mfd-atccom-request-freetext' : undefined}
+                      hEventConsumer={this.props.mfd.hEventConsumer}
+                      interactionMode={this.props.mfd.interactionMode}
+                    />
+                  </div>
+                );
+              });
               return (
                 <>
-                  {line.map((item) => {
-                    if (typeof item === 'string') {
-                      const node = fcomAt(top + LINE_Y[0], x, <span class="mfd-atccom-request-label">{item}</span>);
-                      x += item.length * CHAR_WIDTH + GAP;
-                      return node;
-                    }
-                    const value = Subject.create<string | null>(item.value || null);
-                    const width = item.kind === 'freetext' ? 300 : 223;
-                    const node = fcomAt(
-                      top + LINE_Y[0],
-                      x,
-                      <InputField<string>
-                        dataEntryFormat={requestFieldFormat(item.kind)}
-                        value={value}
-                        mandatory={Subject.create(true)}
-                        inactive={this.freetextMode}
-                        dataHandlerDuringValidation={async (newValue) => {
-                          this.values.set(`${item.element}/${item.content}`, newValue ?? '');
-                          this.updateCompleteness();
-                        }}
-                        errorHandler={(e) => this.props.atcService.showAtcErrorMessage(e.type, e.details)}
-                        containerStyle={`width: ${width}px;`}
-                        alignText="center"
-                        class={item.kind === 'freetext' ? 'mfd-atccom-request-freetext' : undefined}
-                        hEventConsumer={this.props.mfd.hEventConsumer}
-                        interactionMode={this.props.mfd.interactionMode}
-                      />,
-                    );
-                    x += width + GAP;
-                    return node;
-                  })}
+                  {fcomAt(top + LINE_Y[0], TEXT_LEFT, <div class="mfd-atccom-request-line">{lineItems}</div>)}
                   {fcomLine(top + FRAME_HEIGHT, 0, 569)}
                 </>
               );

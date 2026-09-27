@@ -721,7 +721,8 @@ export class InputField<
       Coherent.trigger('UNFOCUS_INPUT_FIELD', this.guid);
     }
 
-    this.props.dataEntryFormat?.destroy();
+    // destroy() is optional in a DataEntryFormat
+    this.props.dataEntryFormat?.destroy?.();
 
     super.destroy();
   }
