@@ -111,6 +111,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
 1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
 1. [EFB] Add the A380 landing calculator and rework the A320 one: dispatch and in-flight landing distances from the FCOM, FMS data import, BTV exit advice on the A380 - @TCdr
+1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr
 
 ## 2024.1.0
 
