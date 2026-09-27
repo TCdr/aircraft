@@ -1,8 +1,8 @@
-#include "SimConnectInterface.h"
 #include <cmath>
 #include <cstdio>
 #include <map>
 #include <vector>
+#include "SimConnectInterface.h"
 
 // Dispatch of incoming SimConnect client events (the processEvent() switch).
 
@@ -1354,4 +1354,3 @@ void SimConnectInterface::processEvent(const DWORD eventId, const DWORD data0, c
       break;
   }
 }
-

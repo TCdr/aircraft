@@ -62,14 +62,18 @@ export class FuelJettison implements Instrument {
 
   init(): void {
     this.setOutputs(false);
-    UniversalConfigProvider.fetchAirframeInfo(process.env.AIRCRAFT_PROJECT_PREFIX, process.env.AIRCRAFT_VARIANT).then(
-      (airframe) => {
-        const envelope = airframe?.designLimits?.performanceEnvelope;
-        if (envelope?.mtow && envelope?.mlw) {
-          this.takeoffLandingEnvelopes = [envelope.mtow, envelope.mlw];
-        }
-      },
-    );
+    const aircraft = process.env.AIRCRAFT_PROJECT_PREFIX;
+    const variant = process.env.AIRCRAFT_VARIANT;
+    if (aircraft === undefined || variant === undefined) {
+      // No airframe configuration: the CG limits stay unknown and the trim tank fuel stays (updateTrimTankHold)
+      return;
+    }
+    UniversalConfigProvider.fetchAirframeInfo(aircraft, variant).then((airframe) => {
+      const envelope = airframe?.designLimits?.performanceEnvelope;
+      if (envelope?.mtow && envelope?.mlw) {
+        this.takeoffLandingEnvelopes = [envelope.mtow, envelope.mlw];
+      }
+    });
   }
 
   onUpdate(): void {
@@ -116,17 +120,16 @@ export class FuelJettison implements Instrument {
     if (!(poundsPerGallon > 0)) {
       return;
     }
-    const tanks = [...quantities.keys()].filter(
-      (tank) =>
-        quantities.get(tank) >= FuelJettison.EMPTY_GALLONS && !(tank === FuelJettison.TRIM_TANK && this.trimTankHeld),
+    const tanks = [...quantities].filter(
+      ([tank, quantity]) =>
+        quantity >= FuelJettison.EMPTY_GALLONS && !(tank === FuelJettison.TRIM_TANK && this.trimTankHeld),
     );
-    const total = tanks.reduce((sum, tank) => sum + quantities.get(tank), 0);
+    const total = tanks.reduce((sum, [, quantity]) => sum + quantity, 0);
     if (total <= 0) {
       return;
     }
     const gallons = (FuelJettison.RATE_LB_PER_S * seconds) / poundsPerGallon;
-    for (const tank of tanks) {
-      const quantity = quantities.get(tank);
+    for (const [tank, quantity] of tanks) {
       const newQuantity = Math.max(0, quantity - (gallons * quantity) / total);
       SimVar.SetSimVarValue(`FUELSYSTEM TANK QUANTITY:${tank}`, SimVarValueType.GAL, newQuantity);
     }
