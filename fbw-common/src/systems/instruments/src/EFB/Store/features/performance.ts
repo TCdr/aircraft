@@ -14,6 +14,7 @@ import {
   LandingPerformanceResult,
   LandingRunwayCondition,
 } from '../../../../../shared/src/performance/landing';
+import { DescentAntiIce, DescentPerformanceResult, DescentType } from '../../../../../shared/src/performance/descent';
 import {
   LineupAngle,
   RunwayCondition,
@@ -107,8 +108,35 @@ interface TPerformanceTakeoff {
   result?: TakeoffPerformanceResult;
 }
 
+interface TPerformanceDescent {
+  type: DescentType;
+  /** Pressure altitudes in feet */
+  initialAltitude?: number;
+  targetAltitude?: number;
+  /** Speed schedule: undefined for the standard one of the aircraft (ECON: the FMS managed one) */
+  mach?: number;
+  cas?: number;
+  limitCas?: number;
+  limitAltitude?: number;
+  /** GIVEN V/S in feet per minute */
+  verticalSpeed?: number;
+  speedBrakes: boolean;
+  /** kg */
+  weight?: number;
+  isaDeviation?: number;
+  /** Wind component in knots, negative for a tailwind, and the entry */
+  headwind?: number;
+  windEntry?: string;
+  antiIce: DescentAntiIce;
+  fuelFactor?: number;
+  /** DESCENT CHECK: the distance to the target in NM */
+  distanceToTarget?: number;
+  result?: DescentPerformanceResult;
+}
+
 interface TPerformanceState {
   landing: TPerformanceLanding;
+  descent: TPerformanceDescent;
   takeoff: TPerformanceTakeoff;
 }
 
@@ -128,6 +156,11 @@ export const initialState: TPerformanceState = {
     brakingMode: LandingBrakingMode.Manual,
     reverseThrust: false,
     overweightProcedure: false,
+  },
+  descent: {
+    type: DescentType.Standard,
+    speedBrakes: false,
+    antiIce: DescentAntiIce.Off,
   },
   takeoff: {
     availableRunways: [],
@@ -154,6 +187,14 @@ const performanceSlice = createSlice({
     clearLandingValues: (state) => {
       state.landing = initialState.landing;
     },
+    setDescentValues: (state, action: PayloadAction<Partial<TPerformanceDescent>>) => {
+      Object.keys(action.payload).forEach((key) => {
+        state.descent[key] = action.payload[key];
+      });
+    },
+    clearDescentValues: (state) => {
+      state.descent = initialState.descent;
+    },
     setTakeoffValues: (state, action: PayloadAction<Partial<TPerformanceTakeoff>>) => {
       Object.keys(action.payload).forEach((key) => {
         state.takeoff[key] = action.payload[key];
@@ -165,6 +206,13 @@ const performanceSlice = createSlice({
   },
 });
 
-export const { setLandingValues, clearLandingValues, setTakeoffValues, clearTakeoffValues } = performanceSlice.actions;
+export const {
+  setLandingValues,
+  clearLandingValues,
+  setDescentValues,
+  clearDescentValues,
+  setTakeoffValues,
+  clearTakeoffValues,
+} = performanceSlice.actions;
 
 export default performanceSlice.reducer;

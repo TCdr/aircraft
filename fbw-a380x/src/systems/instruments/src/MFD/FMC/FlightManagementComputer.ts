@@ -41,7 +41,9 @@ import {
   CompanyTakeoffDataRequestContent,
   CompanyTakeoffDataUplink,
   CompanyDatalinkDelay,
+  answerFmsDescentDataRequests,
   answerFmsLandingDataRequests,
+  FmsDescentDataContent,
   FmsLandingDataContent,
   fmsQnhToHectopascal,
   LandingConf,
@@ -537,7 +539,10 @@ export class FlightManagementComputer implements FmcInterface {
 
     // The landing data for the flypad landing calculator, from one FMC
     if (this.instance === FmcIndex.FmcA) {
-      this.subs.push(answerFmsLandingDataRequests(this.bus, () => this.fmsLandingDataContent()));
+      this.subs.push(
+        answerFmsLandingDataRequests(this.bus, () => this.fmsLandingDataContent()),
+        answerFmsDescentDataRequests(this.bus, () => this.fmsDescentDataContent()),
+      );
     }
 
     this.#navigation.init();
@@ -1457,6 +1462,28 @@ export class FlightManagementComputer implements FmcInterface {
       windDirection: pd?.approachWindDirection.get() ?? null,
       windSpeed: pd?.approachWindMagnitude.get() ?? null,
       conf: pd ? (pd.approachFlapsThreeSelected.get() ? LandingConf.Conf3 : LandingConf.Full) : null,
+    };
+  }
+
+  /**
+   * The descent data of the FMS for the flypad descent calculator: cruise level, destination, distance to it, gross
+   * weight, and the managed descent speeds and speed limit of the active flight plan
+   */
+  public fmsDescentDataContent(): FmsDescentDataContent {
+    const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
+    const pd = plan?.performanceData;
+    const cruiseLevel = pd?.cruiseFlightLevel.get() ?? null;
+    return {
+      cruiseAltitude: cruiseLevel !== null ? cruiseLevel * 100 : null,
+      destination: plan?.destinationAirport?.ident ?? null,
+      destinationElevation: plan?.destinationAirport?.location.alt ?? null,
+      distanceToDestination: plan ? this.fmgc.getDistanceToDestination() : null,
+      grossWeight: this.fmgc.getGrossWeightKg(),
+      costIndex: pd?.costIndex.get() ?? null,
+      managedMach: plan ? this.fmgc.getManagedDescentSpeedMach() : null,
+      managedCas: plan ? this.fmgc.getManagedDescentSpeed() : null,
+      speedLimitCas: pd?.descentSpeedLimitSpeed.get() ?? null,
+      speedLimitAltitude: pd?.descentSpeedLimitAltitude.get() ?? null,
     };
   }
 
