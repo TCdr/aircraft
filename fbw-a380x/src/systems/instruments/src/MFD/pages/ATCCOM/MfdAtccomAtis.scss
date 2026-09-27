@@ -1,0 +1,35 @@
+// Copyright (c) 2025-2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../MsfsAvionicsCommon/definitions";
+
+// ATIS/LIST and ATIS/RECEIVED pages, laid out on the FCOM figure (FcomLayout)
+.mfd-atccom-atis {
+  // The ATIS text: 44 characters over 757 px (FCOM figure), 17.2 px per character
+  .mfd-atccom-atis-line {
+    font-size: 31px;
+    white-space: pre;
+  }
+
+  .mfd-atccom-atis-small {
+    font-size: 22px;
+  }
+
+  .cyan {
+    color: $display-cyan;
+  }
+
+  // The NEW ATIS, AUTO UPDATE and AUTO PRINT symbols, 40 px high
+  .d-atis-icon {
+    position: relative;
+    height: 40px;
+    width: 40px;
+
+    svg {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      margin: auto;
+    }
+  }
+}
