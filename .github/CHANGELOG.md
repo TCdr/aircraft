@@ -160,6 +160,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr
 1. [EFB] Add the A380 landing calculator and rework the A320 one: dispatch and in-flight landing distances from the FCOM, FMS data import, BTV exit advice on the A380 - @TCdr
 1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr
+1. [A380X/OANS] Display the default airport of the FCOM automatically: the current airport on ground, the origin, destination or alternate airport in flight within 20 NM and 5000 ft of it - @TCdr
 
 ## 2024.1.0
 
