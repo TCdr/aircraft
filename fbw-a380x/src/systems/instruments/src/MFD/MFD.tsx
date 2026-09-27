@@ -282,12 +282,18 @@ export class MfdComponent
                 this.uiService.navigateTo('surv/controls');
                 break;
               case 'ATCCOM':
-                this.uiService.navigateTo('atccom/connect');
+                this.uiService.navigateTo('atccom/request');
                 break;
               case 'ND': // Move cursor to ND
                 break;
               case 'CLRINFO':
-                this.props.fmcService.master.clearLatestFmsErrorMessage();
+                // Clears the message of the displayed system: the ATC COM message area on an ATC COM page (FCOM
+                // DSC-46-10-20-60 KCCU CLR INFO key)
+                if (this.uiService.activeUri.get().sys === 'atccom') {
+                  this.props.atcService.clearLatestAtcErrorMessage();
+                } else {
+                  this.props.fmcService.master.clearLatestFmsErrorMessage();
+                }
                 break;
               default:
                 break;
@@ -305,6 +311,19 @@ export class MfdComponent
     this.topRef.instance.addEventListener('mousemove', this.onMouseMoveHandler);
 
     this.subs.push(this.fmsDataKnob, this.fmcAIsHealthy, this.fmcBIsHealthy, this.activeFmsSource);
+
+    // MODIFY in the mailbox displays the REPORT/MODIFY page (FCOM PRO How to manage a confirm message): on the MFD that
+    // displays an ATC COM page, else on the captain MFD
+    this.subs.push(
+      this.props.atcService.modifyRequests.sub(() => {
+        const otherSide = this.props.captOrFo === 'CAPT' ? 'R' : 'L';
+        const otherPage: string = SimVar.GetSimVarValue(`L:A380X_MFD_${otherSide}_ACTIVE_PAGE`, 'string') ?? '';
+        const ownAtccom = this.uiService.activeUri.get().sys === 'atccom';
+        if (ownAtccom || (!otherPage.startsWith('atccom') && this.props.captOrFo === 'CAPT')) {
+          this.uiService.navigateTo('atccom/report-modify/modify');
+        }
+      }),
+    );
   }
 
   private onMouseMove(ev: MouseEvent) {
@@ -368,7 +387,8 @@ export class MfdComponent
     }
 
     // FMS pages use the display frame of the FCOM figures (A380 FCOM DSC-22-FMS-20-30), see common/style.scss
-    this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms');
+    // The ATC COM pages have the same display frame as the FMS pages (FCOM DSC-46-10-20-20 P 1)
+    this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms' || uri.sys === 'atccom');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());
     FSComponent.render(this.activePage, this.activePageRef?.getOrDefault());

@@ -19,13 +19,16 @@ import { MfdFmsPositionNavaids } from './pages/FMS/POSITION/MfdFmsPositionNavaid
 import { MfdFmsPositionGps } from './pages/FMS/POSITION/MfdFmsPositionGps';
 import { MfdFmsPositionReport } from './pages/FMS/POSITION/MfdFmsPositionReport';
 import { MfdFmsPositionTime } from './pages/FMS/POSITION/MfdFmsPositionTime';
-import { MfdAtccomConnect } from './pages/ATCCOM/MfdAtccomConnect';
-import { MfdAtccomMsgRecord } from './pages/ATCCOM/MfdAtccomMsgRecord';
-import { MfdAtccomMsgRecordAll } from './pages/ATCCOM/MfdAtccomMsgRecordAll';
-import { MfdAtccomMsgRecordMonitored } from './pages/ATCCOM/MfdAtccomMsgRecordMonitored';
-import { MfdAtccomMsgRecordExpand } from './pages/ATCCOM/MfdAtccomMsgRecordExpand';
-import { MfdAtccomDAtis } from './pages/ATCCOM/MfdAtccomDAtis';
-import { MfdAtccomDAtisReceived } from './pages/ATCCOM/MfdAtccomDAtisReceived';
+import { MfdAtccomConnectNotification } from './pages/ATCCOM/MfdAtccomConnectNotification';
+import { MfdAtccomConnectionStatus } from './pages/ATCCOM/MfdAtccomConnectionStatus';
+import { MfdAtccomMaxUplinkDelay } from './pages/ATCCOM/MfdAtccomMaxUplinkDelay';
+import { MfdAtccomMsgRecordList } from './pages/ATCCOM/MfdAtccomMsgRecordList';
+import { MfdAtccomEmergency, MfdAtccomOtherReports, MfdAtccomRequest } from './pages/ATCCOM/MfdAtccomRequest';
+import { MfdAtccomPosition } from './pages/ATCCOM/MfdAtccomPosition';
+import { MfdAtccomModify } from './pages/ATCCOM/MfdAtccomModify';
+import { MfdAtccomMsgRecordZoom } from './pages/ATCCOM/MfdAtccomMsgRecordZoom';
+import { MfdAtccomAtisList } from './pages/ATCCOM/MfdAtccomAtisList';
+import { MfdAtccomAtisReceived } from './pages/ATCCOM/MfdAtccomAtisReceived';
 
 // Header imports
 import { AtccomHeader } from './pages/common/AtccomHeader';
@@ -543,59 +546,40 @@ export function pageForUrl(
         />
       );
     case 'atccom/connect':
+    case 'atccom/connect/notification':
       return (
-        <MfdAtccomConnect
-          pageTitle=""
-          bus={bus}
-          mfd={mfd}
-          fmcService={fmcService}
-          flightPlanInterface={fmcService.master.flightPlanInterface}
-        />
+        <MfdAtccomConnectNotification pageTitle="CONNECT/NOTIFICATION" bus={bus} mfd={mfd} atcService={atcService} />
       );
+    case 'atccom/connect/connection-status':
+      return (
+        <MfdAtccomConnectionStatus pageTitle="CONNECT/CONNECTION STATUS" bus={bus} mfd={mfd} atcService={atcService} />
+      );
+    case 'atccom/connect/max-uplink-delay':
+      return (
+        <MfdAtccomMaxUplinkDelay pageTitle="CONNECT/MAX UPLINK DELAY" bus={bus} mfd={mfd} atcService={atcService} />
+      );
+    case 'atccom/request':
+      return <MfdAtccomRequest pageTitle="REQUEST" bus={bus} mfd={mfd} atcService={atcService} />;
+    case 'atccom/report-modify':
+    case 'atccom/report-modify/position':
+      return (
+        <MfdAtccomPosition pageTitle="REPORT/AUTO & MANUAL POSITION" bus={bus} mfd={mfd} atcService={atcService} />
+      );
+    case 'atccom/report-modify/modify':
+      return <MfdAtccomModify pageTitle="REPORT/MODIFY" bus={bus} mfd={mfd} atcService={atcService} />;
+    case 'atccom/report-modify/other-reports':
+      return <MfdAtccomOtherReports pageTitle="REPORT/OTHER REPORTS" bus={bus} mfd={mfd} atcService={atcService} />;
+    case 'atccom/emer':
+      return <MfdAtccomEmergency pageTitle="EMERGENCY" bus={bus} mfd={mfd} atcService={atcService} />;
     case 'atccom/msg-record':
-      return (
-        <MfdAtccomMsgRecord
-          pageTitle="MSG RECORD"
-          bus={bus}
-          mfd={mfd}
-          fmcService={fmcService}
-          flightPlanInterface={fmcService.master.flightPlanInterface}
-        />
-      );
-    case 'atccom/msg-record/all-msg':
-      return (
-        <MfdAtccomMsgRecordAll
-          pageTitle="MSG RECORD/ALL MSG"
-          bus={bus}
-          mfd={mfd}
-          fmcService={fmcService}
-          flightPlanInterface={fmcService.master.flightPlanInterface}
-        />
-      );
-    case 'atccom/msg-record/monitored-msg':
-      return (
-        <MfdAtccomMsgRecordMonitored
-          pageTitle="MSG RECORD/MONITORED MSG"
-          bus={bus}
-          mfd={mfd}
-          fmcService={fmcService}
-          flightPlanInterface={fmcService.master.flightPlanInterface}
-        />
-      );
-    case 'atccom/msg-record/all-msg-expand':
-      return (
-        <MfdAtccomMsgRecordExpand
-          pageTitle="MSG RECORD/ALL MSG/EXPAND"
-          bus={bus}
-          mfd={mfd}
-          fmcService={fmcService}
-          flightPlanInterface={fmcService.master.flightPlanInterface}
-        />
-      );
-    case 'atccom/d-atis/list':
-      return <MfdAtccomDAtis pageTitle="D-ATIS/LIST" bus={bus} mfd={mfd} atcService={atcService} />;
-    case 'atccom/d-atis/received':
-      return <MfdAtccomDAtisReceived pageTitle="D-ATIS/RECEIVED" bus={bus} mfd={mfd} atcService={atcService} />;
+    case 'atccom/msg-record/list':
+      return <MfdAtccomMsgRecordList pageTitle="MSG RECORD/LIST" bus={bus} mfd={mfd} atcService={atcService} />;
+    case 'atccom/msg-record/zoom':
+      return <MfdAtccomMsgRecordZoom pageTitle="MSG RECORD/ZOOM" bus={bus} mfd={mfd} atcService={atcService} />;
+    case 'atccom/atis/list':
+      return <MfdAtccomAtisList pageTitle="ATIS/LIST" bus={bus} mfd={mfd} atcService={atcService} />;
+    case 'atccom/atis/received':
+      return <MfdAtccomAtisReceived pageTitle="ATIS/RECEIVED" bus={bus} mfd={mfd} atcService={atcService} />;
 
     default:
       return (
