@@ -2,7 +2,16 @@
 // Copyright (c) 2021-2023, 2025-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { CompanyTakeoffDataLinkMessage, NXDataStore, UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import {
+  answerFmsLandingDataRequests,
+  CompanyTakeoffDataLinkMessage,
+  FmsLandingDataContent,
+  fmsQnhToHectopascal,
+  LandingConf,
+  NXDataStore,
+  UpdateThrottler,
+} from '@flybywiresim/fbw-sdk';
+import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FMCMainDisplay } from './A32NX_FMCMainDisplay';
 import { recallMessageById } from '@fmgc/components';
 import { Keypad } from './A320_Neo_CDU_Keypad';
@@ -62,6 +71,9 @@ export class A320_Neo_CDU_MainDisplay
       }
     },
   );
+
+  /** The landing data for the flypad landing calculator */
+  private readonly landingDataAnswer = answerFmsLandingDataRequests(this.bus, () => this.fmsLandingDataContent());
 
   private _title = undefined;
   private _titleLeft = '';
@@ -300,6 +312,26 @@ export class A320_Neo_CDU_MainDisplay
   constructor(bus: EventBus) {
     super(bus);
     this.setupFmgcTriggers();
+  }
+
+  /**
+   * The landing data of the FMS for the flypad landing calculator: the destination of the active flight plan, the
+   * predicted landing weight, and the destination conditions and landing configuration of the PERF APPR page
+   */
+  private fmsLandingDataContent(): FmsLandingDataContent {
+    const plan = this.getFlightPlan(FlightPlanIndex.Active);
+    const pd = plan?.performanceData;
+    const landingWeight = plan ? this.getFuelPredComputation(FlightPlanIndex.Active).landingWeight : null;
+    return {
+      destination: plan?.destinationAirport?.ident ?? null,
+      runway: plan?.destinationRunway ? plan.destinationRunway.ident.substring(4) : null,
+      landingWeight: landingWeight !== null ? Math.round(landingWeight * 1000) : null,
+      qnh: fmsQnhToHectopascal(pd?.approachQnh.get() ?? null),
+      oat: pd?.approachTemperature.get() ?? null,
+      windDirection: pd?.approachWindDirection.get() ?? null,
+      windSpeed: pd?.approachWindMagnitude.get() ?? null,
+      conf: pd ? (pd.approachFlapsThreeSelected.get() ? LandingConf.Conf3 : LandingConf.Full) : null,
+    };
   }
 
   // TODO this really belongs in the FMCMainDisplay, not the CDU

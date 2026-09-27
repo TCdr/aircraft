@@ -8,6 +8,7 @@ import { A380FailureDefinitions } from '../../../failures';
 import { AutomaticCallOutsPage } from './Pages/AutomaticCallOutsPage';
 import { a380xSyncedSettings } from './settingsSync';
 import { A380842TakeoffPerformanceCalculator } from '@shared/performance/a380x_takeoff';
+import { A380842LandingPerformanceCalculator } from '@shared/performance/a380x_landing';
 
 import './Efb.scss';
 import { EventBus } from '@microsoft/msfs-sdk';
@@ -23,7 +24,7 @@ render(
     value={{
       performanceCalculators: {
         takeoff: new A380842TakeoffPerformanceCalculator(),
-        landing: null,
+        landing: new A380842LandingPerformanceCalculator(),
       },
       pushbackPage: {
         turnIndicatorTuningDefault: 1.35,
