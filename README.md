@@ -54,8 +54,8 @@ origin/master (2baa2b35e)
 
 PRs 10 to 17 were added on 2026-09-26 (13 to 17 first on the fork `master` 280800cf7); their `pr/*` branches below are all built on
 the upstream `master` 2baa2b35e. The PDF documents of every PR (specification, architecture diagram, FCOM rules, and the PR body below from "Summary of
-Changes") are in `docs/` (01 to 24; 18 to 24 added on 2026-09-27); `docs/00-overview.pdf` lists the 24 pr/* branches and their
-stacks, and `docs/FBW-features-handbook.pdf` has the overview and all 24 documents (rebuilt 2026-09-27). Release: `master` = the FBW upstream `master` 2baa2b35e (reset 2026-09-27),
+Changes") are in `docs/` (01 to 25; 18 to 25 added on 2026-09-27); `docs/00-overview.pdf` lists the 25 pr/* branches and their
+stacks, and `docs/FBW-features-handbook.pdf` has the overview and all 25 documents (rebuilt 2026-09-27). Release: `master` = the FBW upstream `master` 2baa2b35e (reset 2026-09-27),
 tagged `v2024.2.0`; our features are on `develop` (2024.3.0-SNAPSHOT) and the `pr/*` branches.
 
 **`pr-docs/` on every feature branch (2026-09-26):** each of the 17 branches ends with one commit
@@ -375,7 +375,7 @@ Open the upstream PRs from these branches, not from the feature branches: no `pr
 and in this folder), no fork-only commits, no merges, `LOD01.bin` only in PR 8 (the MCDU UV split the feature needs; its PR must link a
 companion `aircraft-large-files` PR for LOD00). Pushed to the fork. Feature branches and develop are unchanged.
 
-Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17, 20, 22 (each stacked on PR 10); PR 12 -> 21; PR 12 -> 23 -> 24; PR 18 -> 19 (PR 19 uses the runway module of PR 18).
+Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17, 20, 22 (each stacked on PR 10); PR 12 -> 21; PR 12 -> 23 -> 24; PR 18 -> 19 (PR 19 uses the runway module of PR 18); PR 25 (independent).
 Every branch from 10 to 17 passed ESLint on its changed files, its test files and the FBW_TYPECHECK build of the A380X TypeScript tasks
 and the A32NX instruments (2026-09-27).
 
@@ -405,6 +405,7 @@ and the A32NX instruments (2026-09-27).
 | 22 | `pr/22-a380x-mfd-atccom` | `43706e46f` | 30 |
 | 23 | `pr/23-efb-landing-calculator` | `e7e27cf62` | 39 |
 | 24 | `pr/24-efb-descent-calculator` | `469b9a0c8` | 40 |
+| 25 | `pr/25-a380x-oans-default-airport` | `3a5afec9f` | 1 |
 
 Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
 INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
@@ -431,6 +432,12 @@ takeoff calculators; only its own CHANGELOG line kept in the conflict, the `Comp
 PR 24 = `469b9a0c8` on PR 23 (it extends the FMS answers, the performance store and the texts of PR 23). Drafts
 `23-efb-landing-calculator.md`, `24-efb-descent-calculator.md`. Both built, deployed and checked in the flyPad harness; the
 in-sim test is still to do.
+
+PR 25 (2026-09-27): the OANS default airport of the A380 FCOM (DSC-34-10-70-20: current airport on ground, origin /
+destination / alternate within the 20 NM, 5000 ft cylinder in flight, the PLAN mode rule, manual selection until the ND leaves
+PLAN), committed as `c0948ecb5` on `feature/a380x/oans-default-airport` after the user's in-sim test, merged into `develop`
+(a4e693727). PR branch `3a5afec9f` on the upstream master (independent: no other PR touches `OansControlPanel.tsx`; only its
+own CHANGELOG line kept in the conflict). Draft `25-a380x-oans-default-airport.md`.
 
 ## `develop` changes not in a `pr/*` branch yet (2026-09-27)
 
