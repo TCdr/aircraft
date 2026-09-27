@@ -373,7 +373,7 @@ Open the upstream PRs from these branches, not from the feature branches: no `pr
 and in this folder), no fork-only commits, no merges, `LOD01.bin` only in PR 8 (the MCDU UV split the feature needs; its PR must link a
 companion `aircraft-large-files` PR for LOD00). Pushed to the fork. Feature branches and develop are unchanged.
 
-Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17, 20 (each stacked on PR 10); PR 12 -> 21; PR 18 -> 19 (PR 19 uses the runway module of PR 18).
+Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17, 20, 22 (each stacked on PR 10); PR 12 -> 21; PR 18 -> 19 (PR 19 uses the runway module of PR 18).
 Every branch from 10 to 17 passed ESLint on its changed files, its test files and the FBW_TYPECHECK build of the A380X TypeScript tasks
 and the A32NX instruments (2026-09-27).
 
@@ -400,6 +400,7 @@ and the A32NX instruments (2026-09-27).
 | 19 | `pr/19-a380x-oans-rwy-ahead-without-map` | `aac868b24` | 3 |
 | 20 | `pr/20-a380x-altn-fuel-computation` | `3c3ef82b7` | 24 |
 | 21 | `pr/21-a380x-company-datalink-delay` | `199d44f3b` | 39 |
+| 22 | `pr/22-a380x-mfd-atccom` | `703024a90` | 26 |
 
 Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
 INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
@@ -414,4 +415,5 @@ MCDU INSERT UPLINK rule; PR 13: OIT option, 17 tests, the jsdom localStorage tes
 PRs 18 to 21 (2026-09-27): the features that had no PR (RAAS, OANS RWY AHEAD without a map, computed ALTN fuel, company datalink
 reply time), built from their commits on develop with only their own changes kept in the conflicts; drafts `18-...md` to `21-...md`.
 PR 18 must not be opened before the licence of the Piper voice model used for its 25 WAV clips is confirmed (see its draft). PR 19 is stacked on PR 18 (its OANS rule uses PR 18's shared runway module), so it waits for PR 18 too.
-ATC COM has no PR branch yet: its work is uncommitted in the q-atccom worktree.
+PR 22 (2026-09-27): the ATC COM pages and the SD mailbox, committed from the q-atccom worktree as 4acffaeee on
+feature/a380/mfd/atccom and replayed on PR 10; not tested in the sim yet (see its draft).
