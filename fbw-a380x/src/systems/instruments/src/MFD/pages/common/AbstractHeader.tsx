@@ -26,7 +26,7 @@ export abstract class AbstractHeader extends DisplayComponent<AbstractMfdHeaderP
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   protected subs = [] as Subscription[];
 
-  protected availableSystems = ArraySubject.create([this.props.activeFmsSource.get(), 'ATCCOM', 'SURV', 'FCU BKUP']);
+  protected availableSystems = ArraySubject.create([this.props.activeFmsSource.get(), 'ATC COM', 'SURV', 'FCU BKUP']);
 
   protected sysSelectorSelectedIndex = Subject.create<number | null>(0);
 
@@ -37,8 +37,8 @@ export abstract class AbstractHeader extends DisplayComponent<AbstractMfdHeaderP
       case 0: // FMS
         this.props.uiService.navigateTo('fms/active/init');
         break;
-      case 1: // ATCCOM
-        this.props.uiService.navigateTo('atccom/connect');
+      case 1: // ATC COM: the REQUEST page, as the KCCU ATC COM key (FCOM DSC-31-30-20)
+        this.props.uiService.navigateTo('atccom/request');
         break;
       case 2: // SURV
         this.props.uiService.navigateTo('surv/controls');

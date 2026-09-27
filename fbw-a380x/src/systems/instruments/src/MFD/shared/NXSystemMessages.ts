@@ -168,32 +168,28 @@ export function isTypeIIMessage(message: McduMessage): message is TypeIIMessage 
   return message instanceof TypeIIMessage;
 }
 
+/**
+ * The ATC COM messages (A380 FCOM DSC-46-10-20-40): two lines of 33 characters, the line break as "
+"
+ */
 export const ATCCOMMessages = {
-  cancelAutoUpdateFirst: new ATCCOMMessage('CANCEL AUTO UPDATE FIRST'),
-  comDatalinkNotAvail: new ATCCOMMessage('COM DATALINK NOT AVAIL'),
-  datisGroundMsg: new ATCCOMMessage('D-ATIS GROUND MSG'),
-  datisNoReply: new ATCCOMMessage('D-ATIS NO REPLY'),
-  datisReceived: new ATCCOMMessage('D-ATIS RECEIVED'),
-  datisSendFailed: new ATCCOMMessage('D-ATIS SEND FAILED'),
-  datisUpdated: new ATCCOMMessage('D-ATIS UPDATED - READ AGAIN'),
-  datisUsedOffside: new ATCCOMMessage('D-ATIS USED OFFSIDE'),
+  atcComNotAvail: new ATCCOMMessage('ATC COM NOT AVAIL'),
+  atisUsedOffside: new ATCCOMMessage('ATIS USED OFFSIDE'),
+  comDatalinkNotAvail: new ATCCOMMessage('COM DATALINK NOT AVAIL\nCHECK RMP COM STATUS PAGE'),
+  deselectAutoUpdate: new ATCCOMMessage('DESELECT AUTO UPDATE'),
+  enterOrCheckFltNumber: new ATCCOMMessage('ENTER OR CHECK FLT NUMBER\nIN FMS INIT PAGE'),
   entryOutOfRange: new ATCCOMMessage('ENTRY OUT OF RANGE'),
+  fmsAcftPositionNotAvail: new ATCCOMMessage('FMS ACFT POSITION NOT AVAIL\nNOTIFICATION NOT AVAIL'),
   formatError: new ATCCOMMessage('FORMAT ERROR'),
-  identicalDatisRequest: new ATCCOMMessage('IDENTICAL D-ATIS REQUEST'),
+  identicalAtisRequest: new ATCCOMMessage('IDENTICAL ATIS REQUEST'),
   lastMsgElement: new ATCCOMMessage('LAST MSG ELEMENT'),
-  mailboxFull: new ATCCOMMessage('MAILBOX FULL - SEND OR CANCEL SOME MSG'),
-  msgAbortedActiveAtcDisconnected: new ATCCOMMessage('MSG ABORTED - ACTIVE ATC DISCONNECTED'),
-  msgAbortedNotSupportedByCurrentATC: new ATCCOMMessage('MSG ABORTED - NOT SUPPORTED BY CURRENT ATC'),
-  msgRecordLost: new ATCCOMMessage('MSG RECORD LOST'),
+  mailboxFull: new ATCCOMMessage('MAILBOX FULL\nSEND, CANCEL OR CLOSE SOME MSG'),
+  msgRecordPartlyLost: new ATCCOMMessage('MSG RECORD PARTLY LOST'),
   msgRecordUsedOffside: new ATCCOMMessage('MSG RECORD USED OFFSIDE'),
-  newDatisGroundMsg: new ATCCOMMessage('NEW D-ATIS GROUND MSG - READ AGAIN'),
-  noSysData: new ATCCOMMessage('NO SYS DATA'),
-  notifNotAvailAcftPosNotAvail: new ATCCOMMessage('NOTIFICATION NOT AVAIL - ACFT POSITION NOT AVAIL'),
-  notifNotAvailChckFltNbr: new ATCCOMMessage('NOTIFICATION NOT AVAIL - CHECK FLT NBR IN FMS INIT PAGE'),
-  notifNotAvailChckFromTo: new ATCCOMMessage('NOTIFICATION NOT AVAIL - CHECK FROM/TO IN FMS INIT PAGE'),
-  notifNotAvailWithThisAtcCtr: new ATCCOMMessage('NOTIFICATION NOT AVAIL - WITH THIS ATC CENTER'),
-  pleaseWaitUpdateInProgress: new ATCCOMMessage('PLEASE WAIT: UPDATE IN PROGRESS'),
+  newAtisReceived: new ATCCOMMessage('NEW ATIS RECEIVED'),
+  noFmsData: new ATCCOMMessage('NO FMS DATA'),
+  pleaseCheckNotification: new ATCCOMMessage('PLEASE CHECK NOTIFICATION THEN\nWAIT FOR ATC CONNECTION'),
+  pleaseWaitInProgress: new ATCCOMMessage('PLEASE WAIT : IN PROGRESS'),
   printerNotAvail: new ATCCOMMessage('PRINTER NOT AVAIL'),
-  printing: new ATCCOMMessage('PRINTING'),
-  sendingMaydayWillSwitchAdscToEmergency: new ATCCOMMessage('SENDING MAYDAY WILL SWITCH ADS-C TO EMERGENCY'),
+  sendingMaydayWillSwitchAdsToEmergency: new ATCCOMMessage('SENDING MAYDAY WILL SWITCH ADS\nTO EMERGENCY'),
 };
