@@ -21,6 +21,13 @@ import {
   pageCount,
 } from './MailboxLogic';
 
+/**
+ * A test CPDLC message with one element
+ * @param direction uplink or downlink
+ * @param typeId the element type (e.g. UM20)
+ * @param value the value of its first parameter, or null for the template default
+ * @returns the message
+ */
 function message(direction: AtsuMessageDirection, typeId: string, value: string | null): CpdlcMessage {
   const result = new CpdlcMessage();
   result.UniqueMessageID = 1;
@@ -35,6 +42,12 @@ function message(direction: AtsuMessageDirection, typeId: string, value: string 
   return result;
 }
 
+/**
+ * A mailbox block of one message
+ * @param msg the message
+ * @param response the response selected by the flight crew, -1 for none
+ * @returns the block
+ */
 function block(msg: CpdlcMessage, response = -1): MailboxBlock {
   return {
     uid: 1,
@@ -126,7 +139,11 @@ describe('ATC mailbox', () => {
     const b = { ...block(clearance), replyTo: { time: '1422Z', clearance: true } };
     expect(actions(b).slice(0, 3)).toEqual(['ACK', null, 'REFUSE']);
     expect(mailboxStatus({ ...b, response: 3 })).toEqual({ text: 'ACK', style: 'selected' });
-    expect(mailboxLines(b)[0].map((s) => s.text).join('')).toBe('(REPLY TO 1422Z REQ:)');
+    expect(
+      mailboxLines(b)[0]
+        .map((s) => s.text)
+        .join(''),
+    ).toBe('(REPLY TO 1422Z REQ:)');
   });
 
   it('offers MODIFY and REFRESH for a confirm message', () => {

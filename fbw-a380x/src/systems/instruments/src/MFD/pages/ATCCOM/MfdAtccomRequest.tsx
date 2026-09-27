@@ -224,8 +224,11 @@ class RequestFrameSlot extends DisplayComponent<RequestFrameSlotProps> {
       ),
     );
     items.push(fcomLine(geometry.frameHeight, 0, geometry.frameWidth));
-    this.content = <>{items}</>;
-    FSComponent.render(this.content, this.containerRef.instance);
+    const content = <>{items}</>;
+    this.content = content;
+    if (content) {
+      FSComponent.render(content, this.containerRef.instance);
+    }
   }
 
   public destroy(): void {
