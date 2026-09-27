@@ -110,6 +110,7 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
             eclSoftKeys: true,
             autoStepClimb: true,
             keepPilotStoredElements: true,
+            companyDatalinkReplyTime: true,
           },
           sim: {
             cones: false,
