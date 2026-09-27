@@ -79,8 +79,8 @@ class A380XPrinter extends BaseInstrument {
     fitFont(page) {
         const usable = 1024 - 2 * 30;
         const columns = Math.max(1, ...page.map((l) => l.length));
-        // The printer font is monospaced, a character is about 0.6 em wide; a line is 1.15 em high
-        let size = Math.min(37, usable / (columns * 0.6), usable / (Math.max(1, page.length) * 1.15));
+        // The printer font (FBW-Display-EIS-A380) is monospaced, a character is 0.627 em wide; a line is 1.15 em high
+        let size = Math.min(37, usable / (columns * 0.63), usable / (Math.max(1, page.length) * 1.15));
         this.lines.style.fontSize = `${Math.floor(size)}px`;
         while (size > 8 && (this.lines.scrollWidth > 1024 || this.lines.scrollHeight > 1024)) {
             size -= 1;
