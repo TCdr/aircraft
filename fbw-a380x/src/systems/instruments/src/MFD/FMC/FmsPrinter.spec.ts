@@ -286,6 +286,16 @@ describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
       expect(lastPage().title).toBe('FM SECONDARY 2 PREFLIGHT REPORT');
     });
 
+    it('prints the page of another function with the same header (ATC COM ATIS)', () => {
+      printer.printText('ATC COM ATIS LFBO DEP', ['  LFBO DEP ATIS R   1145Z']);
+      expect(titles()).toEqual(['ATC COM ATIS LFBO DEP']);
+      const lines = lastPage().lines;
+      expect(lines[1]).toMatch(/^ ATC COM ATIS LFBO DEP +DATE: 26 SEP 26$/);
+      expect(lines).toContain('  LFBO DEP ATIS R   1145Z');
+      expect(lines[lines.length - 1]).toBe('='.repeat(64));
+      expect(pedestalPrint).toHaveBeenCalledWith(lines);
+    });
+
     it('prints nothing for a flight plan that does not exist', () => {
       printer.printFlightPlanReport(FlightPlanIndex.FirstSecondary, FlightPlanReport.PreFlight);
       printer.printInitData(FlightPlanIndex.Uplink);
