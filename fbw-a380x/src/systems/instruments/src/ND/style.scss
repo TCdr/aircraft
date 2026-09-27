@@ -29,6 +29,13 @@
   font-style: normal;
 }
 
+// The native weather radar and terrain gauges (ndwxr, panel.cfg VCockpit07/08) are stacked over the ND in the same
+// VCockpit page and only draw: the mouse goes through them to the ND (OANS map drag, runway and exit selection)
+wasm-instrument,
+wasm-instrument * {
+  pointer-events: none !important;
+}
+
 .vd-svg {
   background: transparent;
   position: absolute;
