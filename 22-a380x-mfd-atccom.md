@@ -3,12 +3,16 @@
 - **Title:** `feat(a380x/mfd): ATC COM pages and the SD mailbox per the A380 FCOM`
 - **Base:** `master` - **Branch:** `pr/22-a380x-mfd-atccom` (stacked on `pr/10-a380x-mfd-fcom-pages`, PR 10: the MFD FCOM layout and
   common components)
-- **Tip:** `703024a90` - own commits: `b3a72399e` (feature; original `4acffaeee` on `feature/a380/mfd/atccom`), `cf66b105f` (lint and
-  strict types), `703024a90` (CHANGELOG line)
+- **Tip:** `625a792d5` - own commits: `b3a72399e` (feature; original `4acffaeee` on `feature/a380/mfd/atccom`), `cf66b105f` (lint and
+  strict types), `703024a90` (CHANGELOG line), then the fixes of the in-sim test: `899b8c6eb` (frame delete, label layout, ATIS auto
+  update), `c0326bbd0` (texts sized for the FBW display font), `625a792d5` (ATIS time from the ATIS message)
 - **Labels to request:** `A380X`, `MFD`, `Extensive Testing Needed`, `QA A380 Only`
 - **Issue to open first:** *"A380X MFD ATC COM pages are placeholders and the SD mailbox cannot answer the ATC"*
 - **CHANGELOG line (in the branch):** `1. [A380X/MFD] Add the ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD mailbox per the A380 FCOM - @TCdr`
-- **Before opening - TO DO:** test it in the sim; the pages are built and deployed but not tested in flight yet.
+- **Before opening - TO DO:** finish the in-sim test. Tested in the sim on 2026-09-27: ATIS (FAA source: request, LIST, RECEIVED),
+  REQUEST / OTHER REPORTS / EMERGENCY frames (add, delete). Not tested yet: logon and CPDLC with Hoppie (NOTIFICATION, REQUEST
+  -> XFR TO MAILBOX -> SEND, uplink answers on the SD mailbox), MSG RECORD with real dialogues.
+- **Not in this PR:** the ATIS PRINT functions (on `feature/a380/mfd/atccom`); they need the pedestal printer, which has no PR yet.
 
 ---- paste from here ----
 
@@ -35,7 +39,7 @@ Every ATC COM page of the A380 FCOM (DSC-46-10-20-30) is laid out on its FCOM fi
 - FCOM entry formats and messages for every field.
 - `fbw-common` MailboxBus (one line): `downlinkTransmit` on an uplink sends its existing open or failed response.
 - The old placeholder ATC COM pages (connect, D-ATIS, message record) are removed.
-- 30 unit tests (request frames, entry formats, ATIS text, message record, reports, mailbox logic).
+- 33 unit tests (request frames, entry formats, ATIS text and time, message record, reports, mailbox logic).
 
 ## Cockpit API Changes
 
@@ -63,6 +67,6 @@ Discord username (if different from GitHub): **TO ADD**
 3. REQUEST: add CLB TO and DIRECT frames, XFR TO MAILBOX; send from the SD mailbox; the reply buttons follow the uplink.
 4. MSG RECORD: the dialogue appears; ZOOM; ERASE ALL keeps the open ones.
 5. EMER: MAYDAY frame, XFR: ADS EMERGENCY.
-6. `npx vitest run` on the six ATC COM / mailbox spec files (30 tests).
+6. `npx vitest run` on the six ATC COM / mailbox spec files (33 tests).
 
 <!-- DO NOT DELETE THIS -->
