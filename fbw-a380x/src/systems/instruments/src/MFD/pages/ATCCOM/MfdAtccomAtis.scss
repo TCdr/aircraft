@@ -5,9 +5,9 @@
 
 // ATIS/LIST and ATIS/RECEIVED pages, laid out on the FCOM figure (FcomLayout)
 .mfd-atccom-atis {
-  // The ATIS text: 44 characters over 757 px (FCOM figure), 17.2 px per character
+  // The ATIS text: 44 characters over 757 px (FCOM figure), 17.2 px per character (the FBW display font: 0.627 em per character)
   .mfd-atccom-atis-line {
-    font-size: 31px;
+    font-size: 27.4px;
     white-space: pre;
   }
 

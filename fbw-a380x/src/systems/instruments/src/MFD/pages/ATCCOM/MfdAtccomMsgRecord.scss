@@ -17,16 +17,16 @@
     }
   }
 
-  // Time and origin / destination: 14.3 px per character (FCOM figure)
+  // Time and origin / destination: 14.3 px per character (FCOM figure) (the FBW display font: 0.627 em per character)
   .mfd-msg-record-header {
-    font-size: 26px;
+    font-size: 22.8px;
     color: $display-green;
     white-space: pre;
   }
 
   // The message text: 17.2 px per character (FCOM figure), as on the ATIS pages
   .mfd-msg-record-line {
-    font-size: 31px;
+    font-size: 27.4px;
     color: $display-green;
     white-space: pre;
 
@@ -37,7 +37,7 @@
 
   // The flight crew response: inverse video (FCOM DSC-46-10-20-30 P 28-29), OPEN in amber
   .mfd-msg-record-status {
-    font-size: 31px;
+    font-size: 27.4px;
     line-height: 25px;
     padding: 0 5px;
     color: $display-background;
