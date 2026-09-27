@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { atisListLines, atisTime, wrapAtisText } from './AtisText';
+import { atisListLines, atisPrintLines, atisTime, wrapAtisText } from './AtisText';
 
 describe('ATIS message area', () => {
   it('wraps the words in lines of the given lengths', () => {
@@ -23,6 +23,22 @@ describe('ATIS message area', () => {
     expect(lines.slice(0, 4).every((line) => line.length <= 44)).toBe(true);
     expect(lines[4].endsWith(' ......')).toBe(true);
     expect(lines[4].length).toBeLessThanOrEqual(39);
+  });
+});
+
+describe('printed ATIS (PRINT, AUTO PRINT, PRINT ALL)', () => {
+  it('prints the airport, type, version and time, then the whole text in 64 columns', () => {
+    const text = Array.from({ length: 60 }, (_, i) => `word${i.toString().padStart(2, '0')}`).join(' ');
+    const lines = atisPrintLines('LFBO', 'DEP', 'R', '1145Z', text);
+    expect(lines[0]).toBe('  LFBO DEP ATIS R   1145Z');
+    expect(lines[1]).toBe('');
+    expect(lines.every((line) => line.length <= 64)).toBe(true);
+    // Nothing is cut: every word is printed, in upper case
+    expect(lines.slice(2).join(' ').trim().split(/\s+/)).toEqual(text.toUpperCase().split(' '));
+  });
+
+  it('prints dashes without a version or a time', () => {
+    expect(atisPrintLines('CYUL', 'ARR', '', '', 'INFO A')[0]).toBe('  CYUL ARR ATIS -   ----');
   });
 });
 

@@ -47,6 +47,25 @@ export function atisListLines(text: string): { lines: string[]; truncated: boole
   return { lines, truncated: true };
 }
 
+/** The characters of a printed line (the FMS printouts) */
+const PRINT_LINE_LENGTH = 64;
+
+/**
+ * The printed ATIS message (PRINT, AUTO PRINT, PRINT ALL of the ATIS/LIST page, FCOM DSC-46-10-20-30 P 32-34): the
+ * airport, the ATIS type, the version and the time, then the whole text. The FCOM gives no printout example: the lines
+ * follow the FMS printouts.
+ */
+export function atisPrintLines(icao: string, type: string, version: string, time: string, text: string): string[] {
+  const lines = [`  ${icao} ${type} ATIS ${version || '-'}   ${time || '----'}`, ''];
+  let rest = text.toUpperCase();
+  while (rest !== '') {
+    const wrapped = wrapAtisText(rest, [PRINT_LINE_LENGTH - 2]);
+    lines.push(`  ${wrapped.lines[0]}`);
+    rest = wrapped.rest;
+  }
+  return lines;
+}
+
 /**
  * The ATIS time indication (FCOM DSC-46-10-20-30 P 31): the time of the ATIS message conveyed by the uplink, as written
  * in the ATIS text (e.g. "JFK ATIS INFO O 1151Z"), or ---- when it is not available. It is not the time of reception.

@@ -209,6 +209,15 @@ export class FmsPrinter {
     this.subs.forEach((s) => s.destroy());
   }
 
+  /**
+   * Prints a page of another function (e.g. an ATC COM ATIS message) on the same printer, with the date and time header
+   * @param title the page title
+   * @param body the lines of the page, 64 characters at most
+   */
+  public printText(title: string, body: readonly string[]): void {
+    this.send(title, [...this.header(title), '', ...body, '', RULE]);
+  }
+
   // ---- ACTIVE DATA ----------------------------------------------------------------------------------------------------
 
   /** FCOM DSC-22-FMS-10-70 P 2: flight plan initialization data (route, then performance data) */
