@@ -402,7 +402,7 @@ and the A32NX instruments (2026-09-27).
 | 19 | `pr/19-a380x-oans-rwy-ahead-without-map` | `aac868b24` | 3 |
 | 20 | `pr/20-a380x-altn-fuel-computation` | `3c3ef82b7` | 24 |
 | 21 | `pr/21-a380x-company-datalink-delay` | `199d44f3b` | 39 |
-| 22 | `pr/22-a380x-mfd-atccom` | `703024a90` | 26 |
+| 22 | `pr/22-a380x-mfd-atccom` | `625a792d5` | 29 |
 
 Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
 INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
