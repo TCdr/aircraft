@@ -207,7 +207,7 @@ export const LandingRunway = ({ ident, lda, airDistance, stops, required, distan
       )}
 
       {/* The margin of the braking mode of the results to the end of the landing distance available */}
-      {required === undefined && selectedEnd !== undefined && selectedEnd < runwayEnd - 4 && (
+      {required === undefined && selected !== undefined && selectedEnd !== undefined && selectedEnd < runwayEnd - 4 && (
         <>
           <line
             x1={selectedEnd}
