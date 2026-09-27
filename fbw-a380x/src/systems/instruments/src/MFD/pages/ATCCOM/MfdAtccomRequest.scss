@@ -1,0 +1,89 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../MsfsAvionicsCommon/definitions";
+
+// REQUEST page, laid out on the FCOM figure (FcomLayout)
+.mfd-atccom-request {
+  // A frame: a fifth of the area between the title bar and the buttons
+  .mfd-atccom-request-frame {
+    position: absolute;
+    left: 0;
+    width: 569px;
+  }
+
+  // The frame labels: 13.5 px per character (FCOM figure)
+  .mfd-atccom-request-label {
+    font-size: 24.5px;
+    color: $display-white;
+    white-space: pre;
+  }
+
+  // The freetext fields: 32 characters on a line
+  .mfd-atccom-request-freetext .mfd-input-field-text-input {
+    font-size: 26px;
+  }
+
+  // The REQUEST menu buttons: the arrow on the left, the label on the right
+  .mfd-atccom-request-menu-button {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 12px 0 9px;
+    font-size: 22px;
+    line-height: 22px;
+    text-align: right;
+    color: $display-white;
+    background-color: $display-mfd-darker-grey;
+    border: 2px outset $display-light-grey;
+
+    &:hover {
+      border-color: $display-cyan;
+    }
+
+    &.disabled {
+      color: $display-dark-grey;
+    }
+  }
+
+  .mfd-atccom-request-menu-arrow {
+    position: absolute;
+    left: 9px;
+  }
+
+  .mfd-atccom-request-menu-label {
+    white-space: nowrap;
+  }
+
+  // A sub-menu opens on the left of its button
+  .mfd-atccom-request-submenu {
+    position: absolute;
+    z-index: 60;
+    background-color: $display-mfd-darker-grey;
+    border: 2px outset $display-light-grey;
+  }
+
+  .mfd-atccom-request-menu-overlay {
+    position: absolute;
+    left: 0;
+    top: -150px;
+    width: 768px;
+    height: 1024px;
+    z-index: 59;
+  }
+
+  // A tick box (REPORT/AUTO & MANUAL POSITION: DEVIATING, CLIMBING TO, DESCENDING TO)
+  .mfd-atccom-checkbox {
+    width: 27px;
+    height: 27px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid $display-white;
+
+    &:hover {
+      border-color: $display-cyan;
+    }
+  }
+}

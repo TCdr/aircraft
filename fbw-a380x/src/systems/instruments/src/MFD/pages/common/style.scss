@@ -31,6 +31,14 @@
   display: flex;
 }
 
+// The EMERGENCY page of the ATC COM system: an orange title bar (A380 FCOM DSC-46-10-20-30 P 35)
+.mfd-title-bar-container.emergency {
+  .mfd-title-bar-title,
+  .mfd-title-bar-section {
+    background-color: #ff9601;
+  }
+}
+
 .mfd-title-bar-title {
   flex: 10;
   background-color: $display-dark-grey;
@@ -168,8 +176,8 @@
   font-size: 24px;
 }
 
-// Display frame of the FMS pages, measured on the full display figures of the A380 FCOM (DSC-22-FMS-20-30, e.g.
-// P 110 and P 392): title bar from y = 104 to 136, page area from y = 143 to the footer line at y = 961, MSG LIST
+// Display frame of the FMS and ATC COM pages, measured on the full display figures of the A380 FCOM (DSC-22-FMS-20-30,
+// e.g. P 110 and P 392; ATC COM: DSC-46-10-20-20 P 1): title bar from y = 104 to 136, page area from y = 143 to the footer line at y = 961, MSG LIST
 // button of 85 x 54 px and 40 px high entry fields (tab bar: fcomTabBar in FcomLayout.tsx).
 .sys-fms {
   .mfd-title-bar-container {
