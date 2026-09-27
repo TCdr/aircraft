@@ -3,7 +3,7 @@
 - **Title:** `feat(a380x): company datalink reply time for the F-PLN, wind and T.O data requests`
 - **Base:** `master` - **Branch:** `pr/21-a380x-company-datalink-delay` (stacked on `pr/12-a320-takeoff-calculator`, PR 12: the company
   T.O data link; PR 10 below it: the CPNY F-PLN and WIND requests)
-- **Tip:** `e17ebd25b` - own commits: `3cc600fd6` (feature), `e17ebd25b` (FMC strict types)
+- **Tip:** `199d44f3b` - own commits: `3cc600fd6` (feature), `e17ebd25b` (FMC strict types), `199d44f3b` (OIT settings option)
 - **Labels to request:** `A380X`, `MFD`, `FMS`, `EFB`, `QA A380 Only`
 - **Issue to open first:** *"A380X: company requests (F-PLN, wind, T.O data) are answered instantly"*
 - **CHANGELOG line (to add in the PR):** `1. [A380X/FMS] Answer the company F-PLN, wind and T.O data requests after a datalink reply time (REQUEST PENDING, NO COMPANY REPLY), set in the flyPad realism settings - @TCdr`
@@ -26,6 +26,7 @@ answer, and NO COMPANY REPLY appears when there is no answer within 4 min. The F
 - **T.O data:** the flyPad answer reaches the FMS not before the reply time of SEND T.O REQUEST (only the transit time without a
   request). As in PR 12, only the thrust selected for the takeoff run is sent. The A32NX MCDU uplink stays instant.
 - The FMC `navigraphUsername` argument is typed `string | undefined` (FBW_TYPECHECK tsc-strict).
+- The OIT flyPad (OITlegacy) gets the new realism option too, with the A380X EFB value; without it the FBW_TYPECHECK build fails.
 
 ## Cockpit API Changes
 
