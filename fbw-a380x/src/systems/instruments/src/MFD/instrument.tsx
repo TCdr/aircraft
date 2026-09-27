@@ -92,6 +92,8 @@ class MfdInstrument implements FsInstrument {
       this.fmcBFailed,
       this.fmcCFailed,
     );
+    // The ATIS messages are printed on the FMS printer (the cockpit printer on the pedestal)
+    this.atcService.connectPrinter(() => this.fmcService.master?.printer ?? null);
 
     this.doInit();
   }

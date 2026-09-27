@@ -18,6 +18,8 @@ interface ActivePageTitleBarProps extends ComponentProps {
   penaltyIsActive?: Subscribable<boolean>;
   /** Whether this is an FMS subsystem page. If it is, title section for EO AND TMPY are visible */
   isFmsSubsystemPage?: boolean;
+  /** The EMERGENCY page of the ATC COM system: an orange title bar (A380 FCOM DSC-46-10-20-30 P 35) */
+  emergency?: boolean;
 }
 
 /*
@@ -57,7 +59,7 @@ export class ActivePageTitleBar extends DisplayComponent<ActivePageTitleBarProps
 
   render(): VNode {
     return (
-      <div class="mfd-title-bar-container">
+      <div class={{ 'mfd-title-bar-container': true, emergency: this.props.emergency === true }}>
         <div class="mfd-title-bar-title fr space-between">
           <span class="mfd-label mfd-title-bar-text">
             {this.props.activePage}

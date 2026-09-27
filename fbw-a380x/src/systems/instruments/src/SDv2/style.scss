@@ -107,52 +107,182 @@ span.Amber {
   color: $display-amber;
 }
 
+// The ATC mailbox on the lower part of the SD, laid out on the FCOM figures (DSC-46-10-20-60); coordinates are
+// relative to the mailbox (768 x 256), y at the centre of the texts
 .atc-mailbox-top-layout {
-  display: grid;
-  grid-template-columns: 13% auto 18%;
-  height: 256px;
-  width: 768px;
   position: absolute;
   top: 768px;
-}
+  left: 0;
+  height: 256px;
+  width: 768px;
+  font-family: "FBW-Display-EIS-A380-SlashedZero", monospace;
 
-.atc-mailbox-left-layout {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  border-right: 2px solid $display-white;
-}
+  .atc-mailbox-vline {
+    position: absolute;
+    width: 2px;
+    background-color: $display-white;
+  }
 
-.atc-mailbox-center-layout {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
+  .atc-mailbox-hline {
+    position: absolute;
+    height: 2px;
+    background-color: $display-white;
+  }
 
-.atc-mailbox-right-layout {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border-left: 2px solid $display-white;
-}
+  // Connection indications: green, 16.7 px per character (the FBW display font: 0.627 em per character)
+  .atc-mailbox-connection {
+    position: absolute;
+    transform: translateY(-50%);
+    font-size: 26.6px;
+    color: $display-green;
+    white-space: pre;
+  }
 
-.atc-mailbox-center-bottom {
-  display: flex;
-  flex: 1;
-  flex-direction: row;
-}
+  // Time and origin / destination: green, 15 px per character
+  .atc-mailbox-header {
+    position: absolute;
+    transform: translateY(-50%);
+    font-size: 23.9px;
+    color: $display-green;
+    white-space: pre;
+  }
 
-.atc-mailbox-center-top {
-  display: flex;
-  flex: 8;
-  border-bottom: 2px solid white;
-}
+  .atc-mailbox-status {
+    position: absolute;
+    transform: translateY(-50%);
+    font-size: 26.3px;
+    line-height: 28px;
+    padding: 0 4px;
+    white-space: pre;
 
-.atc-mailbox-cb-1 {
-  flex: 1;
-  border-right: 2px solid white;
-}
+    &.open {
+      color: $display-cyan;
+    }
 
-.atc-mailbox-cb-2 {
-  flex: 1;
+    &.selected {
+      color: $display-background;
+      background-color: $display-cyan;
+    }
+
+    &.answered {
+      color: $display-green;
+    }
+  }
+
+  // The message lines: 18.5 px per character
+  .atc-mailbox-line {
+    position: absolute;
+    left: 106px;
+    transform: translateY(-50%);
+    font-size: 29.5px;
+    line-height: 34px;
+    white-space: pre;
+
+    // Uplink: white, the main parameters in blue, monitored parameters in magenta
+    &.uplink {
+      .text {
+        color: $display-white;
+      }
+
+      .parameter {
+        color: $display-cyan;
+      }
+
+      .monitored {
+        color: $display-magenta;
+      }
+    }
+
+    // Answered uplink: green
+    &.answered span {
+      color: $display-green;
+    }
+
+    // Downlink: black on a blue background before sending, on a green background after sending
+    &.downlink span {
+      color: $display-background;
+      background-color: $display-cyan;
+    }
+
+    &.downlinkSent span {
+      color: $display-background;
+      background-color: $display-green;
+    }
+
+    // The response of a confirm message, prepared by the FMS
+    .response {
+      color: $display-background !important;
+      background-color: $display-cyan !important;
+    }
+  }
+
+  .atc-mailbox-small {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: $display-white;
+    white-space: pre;
+  }
+
+  .atc-mailbox-page-button {
+    position: absolute;
+    width: 75px;
+    height: 41px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: $display-mfd-darker-grey;
+    border: 2px outset $display-light-grey;
+
+    &:hover {
+      border-color: $display-cyan;
+    }
+  }
+
+  .atc-mailbox-msg-button {
+    position: absolute;
+    left: 2px;
+    width: 92px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: $display-mfd-darker-grey;
+    border: 2px outset $display-light-grey;
+
+    &:hover {
+      border-color: $display-cyan;
+    }
+  }
+
+  .atc-mailbox-recall {
+    position: absolute;
+    left: 2px;
+    top: 205.3px;
+  }
+
+  .atc-mailbox-comm-button {
+    position: absolute;
+    left: 620px;
+  }
+
+  // The justifications of the DUE TO button: a menu on the left of the communication buttons
+  .atc-mailbox-due-to-menu {
+    position: absolute;
+    right: 150px;
+    top: 54px;
+    z-index: 60;
+    background-color: $display-mfd-darker-grey;
+    border: 2px outset $display-light-grey;
+  }
+
+  // Information Messages Area: the information of the displayed message, and of the system
+  .atc-mailbox-information {
+    position: absolute;
+    top: 239.5px;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: $display-white;
+    white-space: pre;
+  }
 }

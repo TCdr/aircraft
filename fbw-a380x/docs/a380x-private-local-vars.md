@@ -10,6 +10,7 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
 
 - [A380X Private Local Vars](#a380x-private-local-vars)
   - [23 - Communications](#23---communications)
+  - [46 - Information Systems](#46---information-systems)
   - [Sim Specific](#sim-specific)
 
 ## 23 - Communications
@@ -214,6 +215,26 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
 - `L:FBW_VHF{vhf_index}_FREQUENCY`
     - ARINC429 - BCD VHF COM Frequency
     - The tuned frequency from the VHF radios.
+
+## 46 - Information Systems
+
+### Placeholder Types
+
+- `{side}` L or R
+
+### Local Vars
+
+- `L:A380X_ATCCOM_ADS_STATUS`
+    - Number
+    - The ADS status set on the MFD CONNECT/CONNECTION STATUS page, displayed by the ATC mailbox on the SD
+        - 0: ARMED
+        - 1: CONNECTED
+        - 2: OFF
+
+- `L:A380X_MFD_{side}_ATCCOM_MSG_RECORD_ZOOM`
+    - Boolean
+    - Indicates that the MFD displays a recorded message on the MSG RECORD/ZOOM page (the other MFD then cannot erase
+      the recorded messages: MSG RECORD USED OFFSIDE).
 
 ## Sim Specific
 
