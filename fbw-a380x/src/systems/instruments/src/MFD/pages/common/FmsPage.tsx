@@ -216,8 +216,10 @@ export abstract class FmsPage<T extends AbstractMfdPageProps = AbstractMfdPagePr
           this.loadedFlightPlan = null;
           this.loadedAlternateFlightPlan = null;
           this.loadedFlightPlanIndex.set(FlightPlanIndex.FirstSecondary);
-        } else if (dueToEvent) {
+        } else if (dueToEvent && this.loadedFlightPlan !== null) {
           // If sec has been deleted, navigate to equivelant active page and load the active or tmpy.
+          // A page opened for a secondary flight plan that does not exist yet (e.g. COMPANY F-PLN REQUEST into an empty
+          // SEC) stays: another flight plan being created is not the deletion of this one
           this.loadedFlightPlanIndex.set(hasTmpy ? FlightPlanIndex.Temporary : FlightPlanIndex.Active);
           this.props.mfd.uiService.navigateTo(activeUri.uri.replace('sec1', 'active'));
           return;
@@ -235,7 +237,7 @@ export abstract class FmsPage<T extends AbstractMfdPageProps = AbstractMfdPagePr
         } else if (activeUri.page === initPage) {
           this.loadedFlightPlan = null;
           this.loadedAlternateFlightPlan = null;
-        } else if (dueToEvent) {
+        } else if (dueToEvent && this.loadedFlightPlan !== null) {
           this.loadedFlightPlanIndex.set(hasTmpy ? FlightPlanIndex.Temporary : FlightPlanIndex.Active);
           this.props.mfd.uiService.navigateTo(activeUri.uri.replace('sec2', 'active'));
           return;
@@ -253,7 +255,7 @@ export abstract class FmsPage<T extends AbstractMfdPageProps = AbstractMfdPagePr
         } else if (activeUri.page === initPage) {
           this.loadedFlightPlan = null;
           this.loadedAlternateFlightPlan = null;
-        } else if (dueToEvent) {
+        } else if (dueToEvent && this.loadedFlightPlan !== null) {
           this.loadedFlightPlanIndex.set(hasTmpy ? FlightPlanIndex.Temporary : FlightPlanIndex.Active);
           this.props.mfd.uiService.navigateTo(activeUri.uri.replace('sec3', 'active'));
           return;
