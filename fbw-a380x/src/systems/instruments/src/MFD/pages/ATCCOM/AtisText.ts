@@ -65,3 +65,19 @@ export function atisPrintLines(icao: string, type: string, version: string, time
   }
   return lines;
 }
+
+/**
+ * The ATIS time indication (FCOM DSC-46-10-20-30 P 31): the time of the ATIS message conveyed by the uplink, as written
+ * in the ATIS text (e.g. "JFK ATIS INFO O 1151Z"), or ---- when it is not available. It is not the time of reception.
+ */
+export function atisTime(text: string): string {
+  const pattern = /\b(\d{2})(\d{2})Z\b/g;
+  const upper = text.toUpperCase();
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(upper)) !== null) {
+    if (Number(match[1]) < 24 && Number(match[2]) < 60) {
+      return `${match[1]}${match[2]}Z`;
+    }
+  }
+  return '----';
+}

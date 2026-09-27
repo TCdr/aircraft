@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { atisListLines, atisPrintLines, wrapAtisText } from './AtisText';
+import { atisListLines, atisPrintLines, atisTime, wrapAtisText } from './AtisText';
 
 describe('ATIS message area', () => {
   it('wraps the words in lines of the given lengths', () => {
@@ -39,5 +39,21 @@ describe('printed ATIS (PRINT, AUTO PRINT, PRINT ALL)', () => {
 
   it('prints dashes without a version or a time', () => {
     expect(atisPrintLines('CYUL', 'ARR', '', '', 'INFO A')[0]).toBe('  CYUL ARR ATIS -   ----');
+  });
+});
+
+describe('ATIS time indication (FCOM DSC-46-10-20-30 P 31)', () => {
+  it('is the time written in the ATIS, not the time of reception', () => {
+    expect(atisTime('JFK ATIS INFO O 1151Z. 05027G40KT 7SM -RA OVC014')).toBe('1151Z');
+    expect(atisTime('lfbo dep atis r 1145z exp arr rwy 32r')).toBe('1145Z');
+  });
+
+  it('skips a group that is not a time', () => {
+    expect(atisTime('ATIS B 2575Z WIND 1230Z')).toBe('1230Z');
+  });
+
+  it('is ---- when the ATIS has no time', () => {
+    expect(atisTime('D-ATIS NOT AVAILABLE')).toBe('----');
+    expect(atisTime('RWY 04L12Z')).toBe('----');
   });
 });
