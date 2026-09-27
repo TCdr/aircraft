@@ -2,7 +2,7 @@
 
 - **Title:** `feat(nd): add the native TERR ON ND and the A380X VD terrain profile`
 - **Base:** `master` - **Branch:** `feature/nd-terrain` (built on `feature/a380x-nd-weather-radar`: same `ndwxr/src/main.cpp` and its A380X code, so PR 1 and 2 come first)
-- **Commits:** `e0e1d718d` (terrain + VD profile), `ac5ad3aef` (range up to 29,500 ft above, blue water), `89f956037` (terronnd retired, A32NX status poster), `acffe345b` (the TAWS status object typed by its mapper)
+- **Commits:** `88dd9ad92` (terrain + VD profile), `1c05189a4` (range up to 29,500 ft above, blue water), `aa56b7f9b` (terronnd retired, A32NX status poster), `3d60701c4` (the TAWS status object typed by its mapper)
 - **Labels to request:** `A32NX`, `A380X`, `ND`, `VD`, `GPWS`, `QA MSFS 2024 Only`, `Extensive Testing Needed`
 - **Issue to open first:** *"TERR ON ND does not work without SimBridge on MSFS 2024"* - "The terrain display of the ND needs the SimBridge
   terrain service, which does not work with MSFS 2024. Add a terrain display that uses only the simulator's own data."
@@ -48,7 +48,7 @@ complaint and crashes the draw; hiding views does not help). The A32NX uses 4 pe
 or the terrain pair (never wanted together) and are reconfigured when the crew switches, and 2 per VD terrain gauge. Growing the module's memory
 while it draws also crashes it, so `build.sh` reserves 16 MB up front.
 
-**Peaks box (PR 9's commit `43a6899f1`, 2026-09-23):** the TERR box with the highest and lowest elevation of the range needs real elevations, which a
+**Peaks box (PR 9's commit `670dd76b1`, 2026-09-23):** the TERR box with the highest and lowest elevation of the range needs real elevations, which a
 gauge cannot read back from MSFS, so its figures come from SimBridge, over SimConnect: SimBridge's terrain service only renders while a SimConnect
 client takes part (its HTTP `renderingThresholds` endpoint stays empty while it is connected to the sim; an HTTP poller was tried first and reverted),
 and the stock `terronnd` gauge was that client. `ndwxr` now takes its place from the first ND gauge installed: it creates and writes the aircraft status

@@ -3,17 +3,17 @@
 - **Title:** `feat(nd): follow the A380 and A320 manuals for the weather radar, the terrain and the VD`
 - **Base:** `master` - **Branch:** `feature/nd-manuals-pass` (on top of `feature/nd-wxr-mode-label`, the chain tip: it edits `ndwxr/main.cpp`
   after the radar, terrain and label code, `EfisTawsBridge.ts` after PR 2 and PR 4, and `VerticalDisplay.tsx`; PRs 1, 2, 4 and 3 come first)
-- **Commits (after the rebase of 2026-09-23 evening):** `e0d8756a5` (radar on the ROSE ILS / VOR pages too), `e32c0041f` (VD weather on the ADR
-  baro-corrected altitude), `ee739e25a` (VD scale rule), `96c1ffcf2` (VD cut LVars), `150ad4a81` (the FCOM/FCTM pass: radar on the ground, MAP mode,
-  on-path / off-path, 30 s buffer fill, VD weather along the cut, terrain look-ahead, VD terrain by true height), `9aebfc062` (WXR OFF label),
-  `0910bfdc6` (peaks mode, the real A380 display shape and look, VD terrain height fix), `76b4d1afe` (the on-path / off-path display REMOVED again:
-  the engine runs one radar per aircraft and the top-view MapView it needed corrupted the beam views, see the commit message), `43a6899f1` (the TERR
+- **Commits (after the rebase of 2026-09-23 evening):** `ca2e73f72` (radar on the ROSE ILS / VOR pages too), `6a4117afa` (VD weather on the ADR
+  baro-corrected altitude), `da28f2d6b` (VD scale rule), `c53e7bf23` (VD cut LVars), `1e77be838` (the FCOM/FCTM pass: radar on the ground, MAP mode,
+  on-path / off-path, 30 s buffer fill, VD weather along the cut, terrain look-ahead, VD terrain by true height), `d2efd82bd` (WXR OFF label),
+  `4e95b1a05` (peaks mode, the real A380 display shape and look, VD terrain height fix), `79e53e0eb` (the on-path / off-path display REMOVED again:
+  the engine runs one radar per aircraft and the top-view MapView it needed corrupted the beam views, see the commit message), `670dd76b1` (the TERR
   peaks box figures from SimBridge over SimConnect, `ndwxr` as SimBridge's SimConnect client in terronnd's place; described in the PR 4 draft),
-  `61a348d92` (the VD water in the ND's water colour: a second MapView per VD gauge, the water mask, drawn with the ND's water tint),
-  `d7747b040` (refactor: the radar module split into translation units by concern, see the README's quality pass), `75dc1f8de` (the ARC
-  picture stops just above the message box), `333f17e91` (the real antenna sweep per aircraft), `a5fcb23f3` (no weather above 320 NM, FCOM), `ddca9fe22` (the A380's own WXR messages WX / MAP / WXR OFF on the ND, FCOM).
-  The hashes of the older commits changed with the 2026-09-24 rebase: `e0d8756a5` `e32c0041f` `ee739e25a` `96c1ffcf2` `150ad4a81`
-  `9aebfc062` `0910bfdc6` `76b4d1afe` `43a6899f1`.
+  `1c9307b86` (the VD water in the ND's water colour: a second MapView per VD gauge, the water mask, drawn with the ND's water tint),
+  `a176b0b1b` (refactor: the radar module split into translation units by concern, see the README's quality pass), `ff6b0f49a` (the ARC
+  picture stops just above the message box), `8154e62b4` (the real antenna sweep per aircraft), `c89290842` (no weather above 320 NM, FCOM), `a2747d891` (the A380's own WXR messages WX / MAP / WXR OFF on the ND, FCOM).
+  The hashes of the older commits changed with the 2026-09-24 rebase: `ca2e73f72` `6a4117afa` `da28f2d6b` `c53e7bf23` `1e77be838`
+  `d2efd82bd` `4e95b1a05` `79e53e0eb` `670dd76b1`.
 - **Scope note:** these commits change `ndwxr/main.cpp` across the radar, terrain and VD code at once, which is why they are one PR on top of the
   chain and not spread over PRs 1, 2 and 4 (tried, they do not apply below the chain tip). The body below and the "Work of 2026-09-22" section of the
   README list what each part is and which manual page it follows. The PR 1 and PR 3 bodies say "ARC and ROSE NAV pages"; this PR makes it all map pages.
