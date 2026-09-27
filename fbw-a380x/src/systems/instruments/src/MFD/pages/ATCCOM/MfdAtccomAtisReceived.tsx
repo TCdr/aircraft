@@ -11,7 +11,7 @@ import { ActivePageTitleBar } from '../common/ActivePageTitleBar';
 import { fcomAt } from '../common/FcomLayout';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { AtccomFooter } from './MfdAtccomFooter';
-import { wrapAtisText } from './AtisText';
+import { atisTime, wrapAtisText } from './AtisText';
 import { ATCCOMMessages } from '../../shared/NXSystemMessages';
 
 /** Lines of 44 characters, as on the ATIS/LIST page */
@@ -43,7 +43,7 @@ export class MfdAtccomAtisReceived extends DisplayComponent<AtccomMfdPageProps> 
   private readonly header = MappedSubject.create(
     ([area, report]) =>
       `${area.icao ?? '----'}  ${area.type === AtisType.Departure ? 'DEP' : 'ARR'}  ${report?.Information || '-'} ${
-        report ? report.Timestamp.mailboxTimestamp() : '----'
+        report ? atisTime(report.Reports.map((r) => r.report).join(' ')) : '----'
       }`,
     this.area,
     this.report,
