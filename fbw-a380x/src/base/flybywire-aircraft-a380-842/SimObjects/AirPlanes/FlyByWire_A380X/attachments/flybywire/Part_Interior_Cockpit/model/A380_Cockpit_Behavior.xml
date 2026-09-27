@@ -1037,47 +1037,219 @@
                     <NODE_ID>Print</NODE_ID>
                 </UseTemplate>
 
-                <UseTemplate Name="FBW_Airbus_PRINTER_PAPER">
-                    <NODE_ID>PAPER</NODE_ID>
-                    <PAGE>1</PAGE>
-                </UseTemplate>
+                <!-- The torn-off sheets: on the pedestal beside the printer, or on the CPT pull-out table while it is out (the
+                A32NX printer templates, with the table position) -->
+                <Component ID="PAPER_1" Node="PAPER_1">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 1 &gt;= (L:A380_CPT_TABLE) 0 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_2" Node="PAPER_2">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 2 &gt;= (L:A380_CPT_TABLE) 0 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_3" Node="PAPER_3">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 3 &gt;= (L:A380_CPT_TABLE) 0 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_4" Node="PAPER_4">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 4 &gt;= (L:A380_CPT_TABLE) 0 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_NEXT" Node="PAPER_NEXT">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Leave_Code">
+                        <LEFT_SINGLE_CODE>(L:A32NX_PRINT_PAGE_OFFSET) 1 + (&gt;L:A32NX_PRINT_PAGE_OFFSET)</LEFT_SINGLE_CODE>
+                        <LEFT_LEAVE_CODE />
+                        <TOOLTIPID>Next page</TOOLTIPID>
+                        <CURSOR>RightArrow</CURSOR>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) (L:A32NX_PRINT_PAGE_OFFSET) + 1 - (L:A32NX_PAGES_PRINTED) 1 - &lt; (L:A380_CPT_TABLE) 0 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_PREV" Node="PAPER_PREV">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Leave_Code">
+                        <LEFT_SINGLE_CODE>(L:A32NX_PRINT_PAGE_OFFSET) -1 + (&gt;L:A32NX_PRINT_PAGE_OFFSET)</LEFT_SINGLE_CODE>
+                        <LEFT_LEAVE_CODE />
+                        <TOOLTIPID>Previous page</TOOLTIPID>
+                        <CURSOR>LeftArrow</CURSOR>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) (L:A32NX_PRINT_PAGE_OFFSET) + 1 - 0 &gt; (L:A380_CPT_TABLE) 0 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_DISCARD" Node="PAPER_DISCARD">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Leave_Code">
+                        <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_DISCARD_PAGE)</LEFT_SINGLE_CODE>
+                        <LEFT_LEAVE_CODE />
+                        <TOOLTIPID>Discard paper</TOOLTIPID>
+                        <CURSOR>Grab</CURSOR>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 0 &gt; (L:A380_CPT_TABLE) 0 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_T1" Node="PAPER_T1">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 1 &gt;= (L:A380_CPT_TABLE) 1 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_T2" Node="PAPER_T2">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 2 &gt;= (L:A380_CPT_TABLE) 1 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_T3" Node="PAPER_T3">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 3 &gt;= (L:A380_CPT_TABLE) 1 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_T4" Node="PAPER_T4">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 4 &gt;= (L:A380_CPT_TABLE) 1 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_T_NEXT" Node="PAPER_T_NEXT">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Leave_Code">
+                        <LEFT_SINGLE_CODE>(L:A32NX_PRINT_PAGE_OFFSET) 1 + (&gt;L:A32NX_PRINT_PAGE_OFFSET)</LEFT_SINGLE_CODE>
+                        <LEFT_LEAVE_CODE />
+                        <TOOLTIPID>Next page</TOOLTIPID>
+                        <CURSOR>RightArrow</CURSOR>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) (L:A32NX_PRINT_PAGE_OFFSET) + 1 - (L:A32NX_PAGES_PRINTED) 1 - &lt; (L:A380_CPT_TABLE) 1 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_T_PREV" Node="PAPER_T_PREV">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Leave_Code">
+                        <LEFT_SINGLE_CODE>(L:A32NX_PRINT_PAGE_OFFSET) -1 + (&gt;L:A32NX_PRINT_PAGE_OFFSET)</LEFT_SINGLE_CODE>
+                        <LEFT_LEAVE_CODE />
+                        <TOOLTIPID>Previous page</TOOLTIPID>
+                        <CURSOR>LeftArrow</CURSOR>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) (L:A32NX_PRINT_PAGE_OFFSET) + 1 - 0 &gt; (L:A380_CPT_TABLE) 1 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PAPER_T_DISCARD" Node="PAPER_T_DISCARD">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Leave_Code">
+                        <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_DISCARD_PAGE)</LEFT_SINGLE_CODE>
+                        <LEFT_LEAVE_CODE />
+                        <TOOLTIPID>Discard paper</TOOLTIPID>
+                        <CURSOR>Grab</CURSOR>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A32NX_PAGES_PRINTED) 0 &gt; (L:A380_CPT_TABLE) 1 == and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
 
-                <UseTemplate Name="FBW_Airbus_PRINTER_PAPER">
-                    <NODE_ID>PAPER</NODE_ID>
-                    <PAGE>2</PAGE>
-                </UseTemplate>
-
-                <UseTemplate Name="FBW_Airbus_PRINTER_PAPER">
-                    <NODE_ID>PAPER</NODE_ID>
-                    <PAGE>3</PAGE>
-                </UseTemplate>
-
-                <UseTemplate Name="FBW_Airbus_PRINTER_PAPER">
-                    <NODE_ID>PAPER</NODE_ID>
-                    <PAGE>4</PAGE>
-                </UseTemplate>
-
-                <UseTemplate Name="FBW_Airbus_PAPER_PAGE_BUTTON">
-                    <NODE_ID>PAPER_NEXT</NODE_ID>
-                    <DIRECTION>1</DIRECTION>
-                    <TOOLTIPID>Next page</TOOLTIPID>
-                    <CURSOR>RightArrow</CURSOR>
-                </UseTemplate>
-
-                <UseTemplate Name="FBW_Airbus_PAPER_PAGE_BUTTON">
-                    <NODE_ID>PAPER_PREV</NODE_ID>
-                    <DIRECTION>-1</DIRECTION>
-                    <TOOLTIPID>Previous page</TOOLTIPID>
-                    <CURSOR>LeftArrow</CURSOR>
-                </UseTemplate>
-
-                <UseTemplate Name="FBW_Airbus_PAPER_DISCARD_BUTTON">
-                    <NODE_ID>PAPER_DISCARD</NODE_ID>
-                </UseTemplate>
+                <!-- The sheets on the table slide aft with the meal table (PRINT_TABLE, same frames and lag as A380_CPT_MEALTABLE) -->
+                <Component ID="PAPER_TABLE" Node="PAPER_TABLE">
+                    <UseTemplate Name="ASOBO_GT_Anim_Code">
+                        <ANIM_NAME>PRINT_TABLE</ANIM_NAME>
+                        <ANIM_LAG>80</ANIM_LAG>
+                        <ANIM_CODE>(L:A380_CPT_MEALTABLE) 100 *</ANIM_CODE>
+                    </UseTemplate>
+                </Component>
 
                 <UseTemplate Name="FBW_Airbus_PAPER_TORN">
                     <NODE_ID>PRINT_TORN</NODE_ID>
                 </UseTemplate>
+
+                <!-- The printed text on the paper: the printer display image (VCockpit PRINT, PRINT_STATIC) shows through the
+                emissive channel, as on the screens -->
+                <Component ID="Print_TEXT" Node="Print_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>Print_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <Component ID="PAPER_1_TEXT" Node="PAPER_1_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>PAPER_1_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <Component ID="PAPER_2_TEXT" Node="PAPER_2_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>PAPER_2_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <Component ID="PAPER_3_TEXT" Node="PAPER_3_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>PAPER_3_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <Component ID="PAPER_4_TEXT" Node="PAPER_4_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>PAPER_4_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <Component ID="PAPER_T1_TEXT" Node="PAPER_T1_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>PAPER_T1_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <Component ID="PAPER_T2_TEXT" Node="PAPER_T2_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>PAPER_T2_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <Component ID="PAPER_T3_TEXT" Node="PAPER_T3_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>PAPER_T3_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
+
+                <Component ID="PAPER_T4_TEXT" Node="PAPER_T4_TEXT">
+                    <DefaultTemplateParameters>
+                        <NODE_ID>PAPER_T4_TEXT</NODE_ID>
+                    </DefaultTemplateParameters>
+
+                    <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
+                        <EMISSIVE_CODE>0.5</EMISSIVE_CODE>
+                    </UseTemplate>
+                </Component>
 
                 <!-- DCDU -->
                 <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
