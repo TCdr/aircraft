@@ -1,106 +1,68 @@
-﻿@import "../../../MsfsAvionicsCommon/definitions";
+// Copyright (c) 2025-2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
 
-#msg-record-list {
-  width:710px;
-  display: flex;
-  flex-direction: column;
-  padding-top: 18px;
-}
+@import "../../../MsfsAvionicsCommon/definitions";
 
-.msg-record-msg-element {
-  border-bottom: 1px solid #fff;
-  position: relative;
-  width: 100%;
-  font-size: 26px;
-  padding: 16px;
-  line-height: 30px;
-  min-height: 124px;
-
-  .msg-time {
-    font-size: 22px;
-  }
-
-  .msg-origin-dest {
+// MSG RECORD/LIST and MSG RECORD/ZOOM pages, laid out on the FCOM figure (FcomLayout)
+.mfd-atccom-msg-record {
+  // A message area of the list, clicked to display the whole message
+  .mfd-msg-record-row {
     position: absolute;
-    left: 146px;
-    font-size: 22px;
-  }
+    left: 0;
+    width: 688px;
 
-  .msg-status {
-    position: absolute;
-    top: 19px;
-    right: 6px;
-    width: 155px;
-    text-align: center;
-    font-size: 26px;
-    color: #000;
-    background: $display-green;
-    line-height: 25px;
-  }
-
-  .msg-body {
-    width: 470px;
-
-    .msg-highlight-magenta {
-      color: $display-magenta;
-    }
-
-    .msg-highlight-cyan {
-      color: $display-cyan;
+    &:hover {
+      outline: 2px solid $display-cyan;
+      outline-offset: -2px;
     }
   }
 
-  .msg-body-expand {
-    font-size: 27px;
-    line-height: 40px;
+  // Time and origin / destination: 14.3 px per character (FCOM figure) (the FBW display font: 0.627 em per character)
+  .mfd-msg-record-header {
+    font-size: 22.8px;
+    color: $display-green;
+    white-space: pre;
   }
-}
 
-#msg-record-scrollbar {
-  display: flex;
-  background-color: #3c3c3c;
-  color: #ffffff;
-  border: 2px outset #c4c6cf;
-  margin: 15px 0;
-  width: 20px;
-}
+  // The message text: 17.2 px per character (FCOM figure), as on the ATIS pages
+  .mfd-msg-record-line {
+    font-size: 27.4px;
+    color: $display-green;
+    white-space: pre;
 
-#msg-record-nav {
-  width: 60px;
-  position: relative;
-  right: 0px;
-  top: 23px;
-  margin-left: 3px;
-}
+    &.white {
+      color: $display-white;
+    }
+  }
 
-.mfd-atccom-msg-record-footer {
-  position: relative;
-  flex-flow: row;
-  padding: 3px 0;
-  min-height: 64px;
-}
-
-.monitored-msg {
-  .msg-status {
-    position: absolute;
-    top: 19px;
-    right: 190px;
-    width: 155px;
-    text-align: center;
-    font-size: 26px;
-    color: #000;
-    background: $display-cyan;
+  // The flight crew response: inverse video (FCOM DSC-46-10-20-30 P 28-29), OPEN in amber
+  .mfd-msg-record-status {
+    font-size: 27.4px;
     line-height: 25px;
+    padding: 0 5px;
+    color: $display-background;
+    background-color: $display-cyan;
+
+    &.amber {
+      color: $display-amber;
+      background-color: transparent;
+    }
   }
 
-  .msg-body {
-    color: $display-white;
+  .mfd-msg-record-scrollbar {
+    position: absolute;
+    left: 689px;
+    width: 20px;
+    background-color: #616161;
+    border-left: 2px solid #8c8c8c;
+    border-right: 2px solid #474747;
   }
-}
 
-.msg-expand-button {
-  position: absolute;
-  right: 115px;
-  bottom: 15px;
-  color: #fff;
+  .mfd-msg-record-scrollbar-thumb {
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    margin-top: 3px;
+    background-color: #9d9d9d;
+  }
 }

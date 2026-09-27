@@ -6,6 +6,7 @@ import { EventBus, EventSubscriber, Publisher } from '@microsoft/msfs-sdk';
 import {
   AtsuStatusCodes,
   AtsuMailboxMessages,
+  AtsuMessageComStatus,
   MailboxStatusMessage,
   AtsuMessage,
   AtsuMessageDirection,
@@ -200,7 +201,13 @@ export class MailboxBus {
         const message = this.atc.messages().find((element) => element.UniqueMessageID === uid);
         if (message !== undefined) {
           const cpdlcMessage = message as CpdlcMessage;
-          if (cpdlcMessage.Response && cpdlcMessage.SemanticResponseRequired) {
+          // A response prepared by the FMS (confirm message) or by the flight crew (e.g. UNABLE DUE TO WEATHER)
+          if (
+            cpdlcMessage.Response &&
+            (cpdlcMessage.SemanticResponseRequired ||
+              cpdlcMessage.Response.ComStatus === AtsuMessageComStatus.Open ||
+              cpdlcMessage.Response.ComStatus === AtsuMessageComStatus.Failed)
+          ) {
             this.atc.sendExistingResponse(uid);
           }
         }
