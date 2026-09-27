@@ -434,7 +434,8 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
    */
   private updateMessage(message: CpdlcMessage, response: CpdlcMessage | null): void {
     const updated = Conversion.messageDataToMessage(message) as CpdlcMessage;
-    updated.Response = response;
+    // CpdlcMessage.Response is null without a response (its class is not strict and types it without null)
+    updated.Response = response as CpdlcMessage;
     this.publisher.pub('atcUpdateMessage', updated, true, false);
   }
 

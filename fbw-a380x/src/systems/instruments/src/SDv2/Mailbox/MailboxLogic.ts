@@ -75,6 +75,8 @@ export type MailboxAction =
 /**
  * The response of an action (a DM id): ACK accepts a departure / oceanic clearance (a ROGER), REFUSE declines it (an
  * UNABLE), FCOM DSC-46-10-20-60 P 5-6
+ * @param action the button of the flight crew
+ * @returns the DM id of the response, -1 for a button that is not a response
  */
 export function responseOf(action: MailboxAction): number {
   if (action === 'ACK') {
@@ -86,7 +88,12 @@ export function responseOf(action: MailboxAction): number {
   return RESPONSES.indexOf(action);
 }
 
-/** The label of a response: ACK / REFUSE for a departure / oceanic clearance */
+/**
+ * The label of a response: ACK / REFUSE for a departure / oceanic clearance
+ * @param block the message block
+ * @param response the DM id of the response
+ * @returns the label shown in the message status
+ */
 export function responseLabel(block: MailboxBlock, response: number): string {
   if (block.replyTo?.clearance) {
     if (response === 3) {
@@ -118,10 +125,20 @@ export const MAILBOX_PAGE_LINES = 5;
 /** The characters of a line, on the left of the page buttons */
 export const MAILBOX_LINE_LENGTH = 23;
 
+/**
+ * The type of the first element of a message
+ * @param message the message, if any
+ * @returns the type id (e.g. DM0), empty without a message
+ */
 function typeId(message: CpdlcMessage | null | undefined): string {
   return message?.Content[0]?.TypeId ?? '';
 }
 
+/**
+ * Whether a message is a standard response of the flight crew
+ * @param message the message, if any
+ * @returns true for DM0 to DM5 (WILCO, UNABLE, STANDBY, ROGER, AFFIRM, NEGATIVE)
+ */
 function isCrewResponse(message: CpdlcMessage | null | undefined): boolean {
   return /^DM[0-5]$/.test(typeId(message));
 }
@@ -129,6 +146,8 @@ function isCrewResponse(message: CpdlcMessage | null | undefined): boolean {
 /**
  * A response of the flight crew in the message but not sent (e.g. UNABLE DUE TO WEATHER, or a response modified on the
  * MFD): SEND transmits it as it is
+ * @param message the uplink message
+ * @returns true when the message holds such a response, open or failed
  */
 export function isPreparedResponse(message: CpdlcMessage): boolean {
   const response = message.Response;
@@ -144,6 +163,7 @@ export function isPreparedResponse(message: CpdlcMessage): boolean {
  * @param message the uplink message
  * @param response the standard response (a DM id)
  * @param dueTo the justification (a DUE_TO_REASONS key), or null
+ * @returns the downlink response message
  */
 export function buildResponse(message: CpdlcMessage, response: number, dueTo: string | null): CpdlcMessage {
   const result = new CpdlcMessage();
@@ -162,7 +182,11 @@ export function buildResponse(message: CpdlcMessage, response: number, dueTo: st
   return result;
 }
 
-/** Whether an uplink message expects a response of the flight crew */
+/**
+ * Whether an uplink message expects a response of the flight crew
+ * @param message the message
+ * @returns true for an uplink message with an expected response
+ */
 export function answerRequired(message: CpdlcMessage): boolean {
   const expected = message.Content[0]?.ExpectedResponse;
   return (
@@ -173,10 +197,20 @@ export function answerRequired(message: CpdlcMessage): boolean {
   );
 }
 
+/**
+ * The number of pages of the message area for a message block
+ * @param block the message block
+ * @returns the page count, at least 1
+ */
 export function pageCount(block: MailboxBlock): number {
   return Math.max(1, Math.ceil(mailboxLines(block).length / MAILBOX_PAGE_LINES));
 }
 
+/**
+ * Whether the flight crew displayed every page of a message block
+ * @param block the message block
+ * @returns true when the last page has been displayed
+ */
 function allPagesSeen(block: MailboxBlock): boolean {
   return block.lastPageSeen >= pageCount(block) - 1;
 }
@@ -186,6 +220,8 @@ const button = (action: MailboxAction, enabled = true): MailboxButton => ({ acti
 /**
  * The communication buttons of a message (FCOM DSC-46-10-20-60 P 4-6): the possible replies of an uplink message, SEND
  * and CANCEL once a reply is prepared or for a downlink message to send, CLOSE when processed, and PRINT.
+ * @param block the message block
+ * @returns the five button positions, null where there is no button
  */
 export function mailboxButtons(block: MailboxBlock): MailboxButtons {
   const message = block.messages[0];
@@ -279,6 +315,8 @@ export type MailboxStatusStyle = 'open' | 'selected' | 'answered';
 /**
  * The message status (FCOM figure): OPEN while an uplink message waits for its response, the prepared response in black
  * on a blue background, the sent response. Empty for a downlink message and an uplink message without response.
+ * @param block the message block
+ * @returns the status text and its style, or null
  */
 export function mailboxStatus(block: MailboxBlock): { text: string; style: MailboxStatusStyle } | null {
   const message = block.messages[0];
@@ -305,6 +343,11 @@ export function mailboxStatus(block: MailboxBlock): { text: string; style: Mailb
  */
 export type MailboxMessageStyle = 'uplink' | 'answered' | 'downlink' | 'downlinkSent';
 
+/**
+ * The colors of a message block (see {@link MailboxMessageStyle})
+ * @param block the message block
+ * @returns the style of its first message
+ */
 export function mailboxMessageStyle(block: MailboxBlock): MailboxMessageStyle {
   const message = block.messages[0];
   if (message.Direction === AtsuMessageDirection.Downlink) {
@@ -322,6 +365,13 @@ export interface MailboxSegment {
 
 export type MailboxLine = MailboxSegment[];
 
+/**
+ * The segments of a message element: the text of its CPDLC template, with its values as parameters
+ * @param direction the direction of the message (uplink or downlink template)
+ * @param element the message element
+ * @param monitored whether the message is monitored (its parameters in magenta)
+ * @returns the segments of the element
+ */
 function elementSegments(direction: AtsuMessageDirection, element: CpdlcMessageElement, monitored: boolean) {
   const catalog = direction === AtsuMessageDirection.Uplink ? CpdlcMessagesUplink : CpdlcMessagesDownlink;
   const template = catalog[element.TypeId]?.[0][0] ?? '';
@@ -341,7 +391,12 @@ function elementSegments(direction: AtsuMessageDirection, element: CpdlcMessageE
   return segments;
 }
 
-/** The segments of a message, on one line */
+/**
+ * The segments of a message, on one line
+ * @param message the message
+ * @param kind a kind for every segment (e.g. a response), or the kinds of the elements
+ * @returns the segments of the message
+ */
 function messageSegments(message: CpdlcMessage, kind?: MailboxSegment['kind']): MailboxSegment[] {
   let segments: MailboxSegment[];
   if (message.Type === AtsuMessageType.DCL || message.Type === AtsuMessageType.OCL) {
@@ -359,7 +414,11 @@ function messageSegments(message: CpdlcMessage, kind?: MailboxSegment['kind']): 
   return kind ? segments.map((segment) => ({ ...segment, kind })) : segments;
 }
 
-/** The segments as words, a word keeping the kind of its segment */
+/**
+ * The segments as words, a word keeping the kind of its segment
+ * @param segments the segments
+ * @returns one segment per word, in capitals
+ */
 function words(segments: MailboxSegment[]): MailboxSegment[] {
   const result: MailboxSegment[] = [];
   for (const segment of segments) {
@@ -372,7 +431,12 @@ function words(segments: MailboxSegment[]): MailboxSegment[] {
   return result;
 }
 
-/** The lines of a message: words kept whole, a word longer than a line cut */
+/**
+ * The lines of a message: words kept whole, a word longer than a line cut
+ * @param block the message block
+ * @param length the characters of a line
+ * @returns the lines of the message area
+ */
 export function mailboxLines(block: MailboxBlock, length = MAILBOX_LINE_LENGTH): MailboxLine[] {
   const lines: MailboxLine[] = [];
   const addWords = (segments: MailboxSegment[]) => {
@@ -466,6 +530,11 @@ const INFORMATION: Partial<Record<MailboxStatusMessage, string>> = {
   [MailboxStatusMessage.WaitFmData]: 'WAIT FMS DATA',
 };
 
+/**
+ * The text of the Information Messages Area for a mailbox status
+ * @param status the mailbox status message
+ * @returns the text, empty for a status without text
+ */
 export function informationText(status: MailboxStatusMessage): string {
   return INFORMATION[status] ?? '';
 }
