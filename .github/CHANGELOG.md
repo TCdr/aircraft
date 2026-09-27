@@ -157,6 +157,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWS] Keep the FIRE pb and AGENT/SQUIB DISCH lights in sync with the ECAM during the FIRE TEST, with an optional 7 s extension after release (flyPad realism setting) - @TCdr
 1. [A32NX/TCAS] Let an RA aural interrupt a TA and an RA escalation interrupt the initial RA - @TCdr
 1. [A32NX] Fix the wiper failure, engine fan blur and RMP backlight model behaviours - @TCdr
+1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr
 
 ## 2024.1.0
 
