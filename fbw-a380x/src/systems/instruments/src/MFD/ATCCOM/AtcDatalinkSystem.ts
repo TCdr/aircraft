@@ -37,6 +37,12 @@ import {
   NXFictionalMessages,
   NXSystemMessages,
 } from '../shared/NXSystemMessages';
+import { atisPrintLines } from '../pages/ATCCOM/AtisText';
+
+/** The cockpit printer, as the ATC COM functions use it (the FMS printer, FmsPrinter) */
+export interface AtcComPrinter {
+  printText(title: string, body: readonly string[]): void;
+}
 
 /**
  * The indications of the message status / FSM button of an ATIS request area (FCOM DSC-46-10-20-30 P 32): '' when
@@ -210,7 +216,10 @@ export class AtcDatalinkSystem implements Instrument {
       true,
     );
 
-    this.sub.on('atcAtisReports').handle(() => this.atisReportsVersion.set(this.atisReportsVersion.get() + 1));
+    this.sub.on('atcAtisReports').handle(() => {
+      this.atisReportsVersion.set(this.atisReportsVersion.get() + 1);
+      this.autoPrintNewAtis();
+    });
     const updateMsgRecord = () => this.msgRecord.set(msgRecordEntries(this.messageStorage.atcMessagesBuffer));
     this.sub.on('atcResynchronizeCpdlcMessage').handle(updateMsgRecord);
     this.sub.on('atcResynchronizeDclMessage').handle(updateMsgRecord);
@@ -580,10 +589,94 @@ export class AtcDatalinkSystem implements Instrument {
   }
 
   /**
-   * PRINT, AUTO PRINT, PRINT ALL: there is no cockpit printer (PRINTER NOT AVAIL, FCOM DSC-46-10-20-40 R)
+   * The PRINT buttons of the MSG RECORD pages: their messages are not printed (PRINTER NOT AVAIL, FCOM
+   * DSC-46-10-20-40 R)
    */
   public print(): void {
     this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
+  }
+
+  /** The cockpit printer on the pedestal (the FMS printer of the master FMC), null when not available */
+  private printer: () => AtcComPrinter | null = () => null;
+
+  /** The ATIS version last printed by the AUTO PRINT function of each request area */
+  private readonly autoPrintedVersions: (string | null)[] = [null, null, null];
+
+  /**
+   * Connects the ATIS print functions to the cockpit printer
+   * @param printer the printer, null when not available
+   */
+  public connectPrinter(printer: () => AtcComPrinter | null): void {
+    this.printer = printer;
+  }
+
+  /** Prints the last ATIS message received for a request area; false when there is no printer */
+  private printAtisReport(index: number): boolean {
+    const printer = this.printer();
+    if (!printer) {
+      this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
+      return false;
+    }
+    const area = this.atisAreas[index].get();
+    const report = this.atisReport(index);
+    if (area.icao !== null && report) {
+      const type = area.type === AtisType.Departure ? 'DEP' : 'ARR';
+      printer.printText(
+        `ATC COM ATIS ${area.icao} ${type}`,
+        atisPrintLines(
+          area.icao,
+          type,
+          report.Information,
+          report.Timestamp.mailboxTimestamp(),
+          report.Reports.map((r) => r.report).join(' '),
+        ),
+      );
+    }
+    return true;
+  }
+
+  /**
+   * PRINT option of an ATIS request area: prints the last received ATIS message (FCOM DSC-46-10-20-30 P 33)
+   * @param index the request area
+   */
+  public printAtis(index: number): void {
+    this.printAtisReport(index);
+  }
+
+  /** PRINT ALL button: prints all the ATIS messages displayed (FCOM DSC-46-10-20-30 P 34) */
+  public printAllAtis(): void {
+    for (let index = 0; index < this.atisAreas.length; index++) {
+      if (!this.printAtisReport(index)) {
+        return;
+      }
+    }
+  }
+
+  /**
+   * AUTO PRINT / CANCEL AUTO PRINT option: selects or deselects the auto print function, which prints the ATIS message
+   * when a new ATIS version is received (FCOM DSC-46-10-20-30 P 31, 33); PRINTER NOT AVAIL without a printer
+   * @param index the request area
+   */
+  public toggleAtisAutoPrint(index: number): void {
+    const area = this.atisAreas[index].get();
+    if (!area.autoPrint && !this.printer()) {
+      this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
+      return;
+    }
+    // Only a new version is printed automatically
+    this.autoPrintedVersions[index] = this.atisReport(index)?.Information ?? null;
+    this.atisAreas[index].set({ ...area, autoPrint: !area.autoPrint });
+  }
+
+  /** AUTO PRINT: the request areas print their new ATIS versions */
+  private autoPrintNewAtis(): void {
+    this.atisAreas.forEach((area, index) => {
+      const version = this.atisReport(index)?.Information ?? null;
+      if (area.get().autoPrint && version !== null && version !== this.autoPrintedVersions[index]) {
+        this.autoPrintedVersions[index] = version;
+        this.printAtisReport(index);
+      }
+    });
   }
 
   /** The ADS status that the mailbox on the SD displays: 0 ARMED, 1 CONNECTED, 2 OFF */
