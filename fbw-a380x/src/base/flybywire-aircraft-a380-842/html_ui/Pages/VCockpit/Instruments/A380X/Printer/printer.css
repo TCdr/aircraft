@@ -1,0 +1,24 @@
+/* Copyright (c) 2026 FlyByWire Simulations */
+/* SPDX-License-Identifier: GPL-3.0 */
+
+@font-face {
+  font-family: "printer";
+  src: url("/Fonts/fbw-a380x/FBW-Display-EIS-A380.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* The page draws the paper itself */
+#Mainframe {
+  width: 1024px;
+  height: 1024px;
+  background-color: rgb(238, 237, 232);
+}
+
+#lines {
+  padding: 30px;
+  color: black;
+  font-family: printer;
+  white-space: pre;
+  line-height: 1.15;
+}
