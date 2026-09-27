@@ -7,6 +7,8 @@ import { render } from '@instruments/common/index';
 import { AircraftContext, EfbWrapper, syncSettingsFromPersistentStorage } from '@flybywiresim/flypad';
 import { A320FailureDefinitions } from '@failures';
 import { A320251NLandingCalculator } from '@shared/performance/a32nx_landing';
+import { A320AircraftConfig } from '@fmgc/flightplanning/A320AircraftConfig';
+import { FmsDescentPerformanceCalculator } from '@fmgc/performance/FmsDescentPerformanceCalculator';
 import { A320251NTakeoffPerformanceCalculator } from '@shared/performance/a32nx_takeoff';
 import { AutomaticCallOutsPage } from './Pages/AutomaticCallOutsPage';
 import { a32nxSyncedSettings } from './settingsSync';
@@ -26,6 +28,15 @@ render(
       performanceCalculators: {
         takeoff: new A320251NTakeoffPerformanceCalculator(),
         landing: new A320251NLandingCalculator(),
+        // A320 FCOM PER-DES-STD: standard descent M.78 / 300 kt / 250 kt below FL 100; LIM: MMO, VMO, max altitude
+        descent: new FmsDescentPerformanceCalculator(A320AircraftConfig, {
+          standardSchedule: { mach: 0.78, cas: 300, limitCas: 250, limitAltitude: 10_000 },
+          mmo: 0.82,
+          vmo: 350,
+          maxAltitude: 39_800,
+          oew: 42_500,
+          mtow: 79_000,
+        }),
       },
       pushbackPage: {
         turnIndicatorTuningDefault: 1.35,

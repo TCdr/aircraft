@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import {
+  answerFmsDescentDataRequests,
   answerFmsLandingDataRequests,
   CompanyTakeoffDataLinkMessage,
+  FmsDescentDataContent,
   FmsLandingDataContent,
   fmsQnhToHectopascal,
   LandingConf,
@@ -74,6 +76,9 @@ export class A320_Neo_CDU_MainDisplay
 
   /** The landing data for the flypad landing calculator */
   private readonly landingDataAnswer = answerFmsLandingDataRequests(this.bus, () => this.fmsLandingDataContent());
+
+  /** The descent data for the flypad descent calculator */
+  private readonly descentDataAnswer = answerFmsDescentDataRequests(this.bus, () => this.fmsDescentDataContent());
 
   private _title = undefined;
   private _titleLeft = '';
@@ -331,6 +336,30 @@ export class A320_Neo_CDU_MainDisplay
       windDirection: pd?.approachWindDirection.get() ?? null,
       windSpeed: pd?.approachWindMagnitude.get() ?? null,
       conf: pd ? (pd.approachFlapsThreeSelected.get() ? LandingConf.Conf3 : LandingConf.Full) : null,
+    };
+  }
+
+  /**
+   * The descent data of the FMS for the flypad descent calculator: cruise level, destination, distance to it, gross
+   * weight, and the managed descent speeds and speed limit of the active flight plan
+   */
+  private fmsDescentDataContent(): FmsDescentDataContent {
+    const plan = this.getFlightPlan(FlightPlanIndex.Active);
+    const pd = plan?.performanceData;
+    const cruiseLevel = pd?.cruiseFlightLevel.get() ?? null;
+    const grossWeight = this.getGrossWeight();
+    const distance = plan ? this.getDistanceToDestination() : null;
+    return {
+      cruiseAltitude: cruiseLevel !== null ? cruiseLevel * 100 : null,
+      destination: plan?.destinationAirport?.ident ?? null,
+      destinationElevation: plan?.destinationAirport?.location.alt ?? null,
+      distanceToDestination: distance !== null && Number.isFinite(distance) ? distance : null,
+      grossWeight: grossWeight !== null ? Math.round(grossWeight * 1000) : null,
+      costIndex: pd?.costIndex.get() ?? null,
+      managedMach: this.managedSpeedDescendMach,
+      managedCas: this.managedSpeedDescend,
+      speedLimitCas: pd?.descentSpeedLimitSpeed.get() ?? null,
+      speedLimitAltitude: pd?.descentSpeedLimitAltitude.get() ?? null,
     };
   }
 

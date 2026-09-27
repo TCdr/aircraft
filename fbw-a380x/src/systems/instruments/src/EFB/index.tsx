@@ -9,6 +9,8 @@ import { AutomaticCallOutsPage } from './Pages/AutomaticCallOutsPage';
 import { a380xSyncedSettings } from './settingsSync';
 import { A380842TakeoffPerformanceCalculator } from '@shared/performance/a380x_takeoff';
 import { A380842LandingPerformanceCalculator } from '@shared/performance/a380x_landing';
+import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
+import { FmsDescentPerformanceCalculator } from '@fmgc/performance/FmsDescentPerformanceCalculator';
 
 import './Efb.scss';
 import { EventBus } from '@microsoft/msfs-sdk';
@@ -25,6 +27,15 @@ render(
       performanceCalculators: {
         takeoff: new A380842TakeoffPerformanceCalculator(),
         landing: new A380842LandingPerformanceCalculator(),
+        // A380 FCOM PER-IFT-DES-STD: standard descent M 0.85 / 300 kt / 250 kt below FL 100; LIM: MMO, VMO, max altitude
+        descent: new FmsDescentPerformanceCalculator(A380AircraftConfig, {
+          standardSchedule: { mach: 0.85, cas: 300, limitCas: 250, limitAltitude: 10_000 },
+          mmo: 0.89,
+          vmo: 340,
+          maxAltitude: 43_100,
+          oew: 300_006,
+          mtow: 510_000,
+        }),
       },
       pushbackPage: {
         turnIndicatorTuningDefault: 1.35,
