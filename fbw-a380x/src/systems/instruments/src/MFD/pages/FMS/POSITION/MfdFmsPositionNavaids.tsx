@@ -86,6 +86,9 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
 
   private readonly adf1Bfo = Subject.create(false);
 
+  /** A plain div (FSComponent sets an onClick prop as a string attribute): the click is wired after render */
+  private readonly bfoRef = FSComponent.createRef<HTMLDivElement>();
+
   private readonly lsIdent = Subject.create<string | null>(null);
 
   private readonly lsFreq = Subject.create<number | null>(null);
@@ -329,6 +332,8 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
     this.adf1Bfo.set(adf.bfo);
   }
 
+  private readonly toggleBfoHandler = this.toggleBfo.bind(this);
+
   private async handleIlsIdent(ident: string | null) {
     if (this.props.fmcService.master.navaidTuner.isMmrTuningLocked()) {
       this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
@@ -392,9 +397,13 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
           this.onNewData();
         }),
     );
+
+    this.bfoRef.instance.addEventListener('click', this.toggleBfoHandler);
   }
 
   public destroy(): void {
+    this.bfoRef.getOrDefault()?.removeEventListener('click', this.toggleBfoHandler);
+
     for (const s of this.navaidDetailsButtonInvisible) {
       this.subs.push(s);
     }
@@ -569,7 +578,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
                 {fcomAt(
                   410,
                   129,
-                  <div class="mfd-position-navaids-bfo" onClick={() => this.toggleBfo()}>
+                  <div ref={this.bfoRef} class="mfd-position-navaids-bfo">
                     <div class={{ 'mfd-position-navaids-bfo-box': true, checked: this.adf1Bfo }} />
                     <span class="mfd-label">BFO</span>
                   </div>,

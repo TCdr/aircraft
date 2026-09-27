@@ -1,8 +1,8 @@
-#include "SimConnectInterface.h"
 #include <cmath>
 #include <cstdio>
 #include <map>
 #include <vector>
+#include "SimConnectInterface.h"
 
 // Client-data-area IPC plumbing for the optional externalized-computer-process mode.
 
@@ -829,4 +829,3 @@ bool SimConnectInterface::sendClientData(SIMCONNECT_DATA_DEFINITION_ID id, DWORD
   // success
   return true;
 }
-

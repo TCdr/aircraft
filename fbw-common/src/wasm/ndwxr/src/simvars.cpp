@@ -265,8 +265,8 @@ double planeCoordinateDegrees(const char* name) {
 void registerSimVars() {
   g_attHdgKnob.id = register_named_variable(g_attHdgKnob.name);
   g_egpwcGearDown.id = register_named_variable(g_egpwcGearDown.name);
-  for (NamedVar* v : {&g_egpwcPresentLat, &g_egpwcPresentLon, &g_egpwcPresentAltitude, &g_egpwcPresentHeading,
-                      &g_egpwcPresentVerticalSpeed, &g_egpwcDestLat, &g_egpwcDestLon, &g_egpwcRenderingMode}) {
+  for (NamedVar* v : {&g_egpwcPresentLat, &g_egpwcPresentLon, &g_egpwcPresentAltitude, &g_egpwcPresentHeading, &g_egpwcPresentVerticalSpeed,
+                      &g_egpwcDestLat, &g_egpwcDestLon, &g_egpwcRenderingMode}) {
     v->id = register_named_variable(v->name);
   }
   for (int i = 0; i < 2; ++i) {

@@ -18,6 +18,9 @@ const FEET_PER_METRE = 3.28084;
 const TOW_MARGIN_ABOVE = 3_000;
 const TOW_MARGIN_BELOW = 1_000;
 
+/** An uplink with all the data INSERT UPLINK puts in the PERF TAKE OFF page */
+type CompleteUplink = CompanyTakeoffDataUplink & { v1: number; vr: number };
+
 /** The request of one runway of the UPLINK TO DATA REQ page */
 interface RunwayRequest {
   runway: string | null;
@@ -128,7 +131,7 @@ export class CDUUplinkTakeoffDataPages {
       cg: plan.performanceData.zeroFuelWeight.get() !== null ? Math.round(mcdu.getCG() * 10) / 10 : null,
       oat: Math.round(SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius')),
       runways: form.runways
-        .filter((r) => r.runway !== null)
+        .filter((r): r is RunwayRequest & { runway: string } => r.runway !== null)
         .map((r) => ({
           runway: r.runway,
           windDirection: form.windDirection,
@@ -351,16 +354,20 @@ export class CDUUplinkTakeoffDataPages {
       uplink.tow <= fmsTow * 1000 + TOW_MARGIN_ABOVE &&
       uplink.tow >= fmsTow * 1000 - TOW_MARGIN_BELOW;
     const insertable =
+      uplink !== undefined &&
+      CDUUplinkTakeoffDataPages.isComplete(uplink) &&
       runwayMatches &&
       towAgrees &&
       (mcdu.flightPhaseManager.phase === FmgcFlightPhase.Preflight ||
-        mcdu.flightPhaseManager.phase === FmgcFlightPhase.Done);
+        mcdu.flightPhaseManager.phase === FmgcFlightPhase.Done)
+        ? uplink
+        : null;
 
     const value = (text: string | null, dashes: string) => (text !== null && uplink ? green(text) : dashes);
     const towText = uplink
       ? `${(uplink.tow / 1000).toFixed(1)}/${uplink.cg !== null ? uplink.cg.toFixed(1) : '--.-'}`
       : null;
-    const towCell = uplink && runwayMatches && !towAgrees ? amber(towText) : value(towText, '---.-/--.-');
+    const towCell = towText !== null && runwayMatches && !towAgrees ? amber(towText) : value(towText, '---.-/--.-');
     const tempText = uplink
       ? `${formatTemperature(flex ? uplink.flexTemperature ?? 0 : uplink.oat)}/${uplink.qnh.toFixed(0)}`
       : null;
@@ -378,7 +385,7 @@ export class CDUUplinkTakeoffDataPages {
     mcdu.onLeftInput[5] = () => CDUUplinkTakeoffDataPages.ShowRequestPage(mcdu, 0);
     if (insertable) {
       mcdu.onRightInput[5] = async () => {
-        if (await CDUUplinkTakeoffDataPages.insert(mcdu, uplink)) {
+        if (await CDUUplinkTakeoffDataPages.insert(mcdu, insertable)) {
           CDUPerformancePage.ShowPage(mcdu, FlightPlanIndex.Active);
         } else {
           refresh();
@@ -440,11 +447,16 @@ export class CDUUplinkTakeoffDataPages {
     ]);
   }
 
+  /** FCOM DSC-22_20-70 P 6: no INSERT UPLINK prompt for an incomplete uplink (no V1 or VR from the calculator) */
+  private static isComplete(uplink: CompanyTakeoffDataUplink): uplink is CompleteUplink {
+    return uplink.v1 !== null && uplink.vr !== null;
+  }
+
   /**
    * INSERT UPLINK (FCOM P 93): V1, VR, V2, THR RED/ACC, ENG OUT ACC, FLAPS/THS, SHIFT and FLEX into the PERF TAKE OFF
    * page, with the entry checks of the page.
    */
-  private static async insert(mcdu: LegacyFmsPageInterface, uplink: CompanyTakeoffDataUplink): Promise<boolean> {
+  private static async insert(mcdu: LegacyFmsPageInterface, uplink: CompleteUplink): Promise<boolean> {
     const plan = FlightPlanIndex.Active;
     const ok =
       mcdu.trySetV1Speed(uplink.v1.toFixed(0), plan) &&
