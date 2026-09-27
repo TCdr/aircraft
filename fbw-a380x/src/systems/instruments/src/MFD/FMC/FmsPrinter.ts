@@ -13,8 +13,9 @@ import { AirlineModifiableInformation } from '@shared/AirlineModifiableInformati
 
 import type { FlightManagementComputer } from './FlightManagementComputer';
 import { CompanyWindRequestState } from './FlightManagementComputer';
+import { PedestalPrinter } from './PedestalPrinter';
 
-/** One printed page, sent to the flypad (the A380X cockpit printer has no paper to print on). */
+/** One printed page: printed on the pedestal printer, and kept on the flypad. */
 export interface FmsPrintPage {
   title: string;
   /** Sim UTC time of the print, in seconds of the day */
@@ -122,6 +123,8 @@ export class FmsPrinter {
   );
 
   private readonly subs: Subscription[] = [];
+
+  private readonly pedestalPrinter = new PedestalPrinter();
 
   /** Fuel and time summary of the post-flight report */
   private startUp: { utc: number; fuelTonnes: number | null; weightTonnes: number | null } | null = null;
@@ -575,6 +578,7 @@ export class FmsPrinter {
   private send(title: string, lines: string[]): void {
     this.refreshDatabase();
     const page: FmsPrintPage = { title, utcSeconds: this.utc(), lines };
+    this.pedestalPrinter.print(lines);
     this.bus.getPublisher<FmsPrintEvents>().pub(FMS_PRINT_EVENT, page, true, false);
   }
 

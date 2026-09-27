@@ -111,6 +111,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Add the ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD mailbox per the A380 FCOM - @TCdr
 1. [ATSU] Show SEND FAILED on a message sent without an active ATC center, instead of nothing - @TCdr
 1. [A380X/FMS] Fix datalink not connected with the flight number entered on the INIT page (ATC logon and messages failing), FMS DATALINK NOT AVAIL message - @TCdr
+1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr
 
 ## 2024.1.0
 
