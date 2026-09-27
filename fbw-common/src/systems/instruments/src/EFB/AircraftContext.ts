@@ -3,12 +3,14 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { createContext } from 'react';
+import { DescentPerformanceCalculator } from '../../../shared/src/performance/descent';
 import { LandingPerformanceCalculator } from '../../../shared/src/performance/landing';
 import { TakeoffPerformanceCalculator } from '../../../shared/src/performance/takeoff';
 
 interface PerformanceCalculators {
   takeoff: TakeoffPerformanceCalculator | null;
   landing: LandingPerformanceCalculator | null;
+  descent: DescentPerformanceCalculator | null;
 }
 
 interface PushbackPage {
@@ -83,6 +85,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
   performanceCalculators: {
     takeoff: null,
     landing: null,
+    descent: null,
   },
   pushbackPage: {
     turnIndicatorTuningDefault: 0,
