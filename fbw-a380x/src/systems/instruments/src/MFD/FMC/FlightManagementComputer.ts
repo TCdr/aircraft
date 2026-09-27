@@ -40,6 +40,10 @@ import {
   CompanyTakeoffDataLinkMessage,
   CompanyTakeoffDataRequestContent,
   CompanyTakeoffDataUplink,
+  answerFmsLandingDataRequests,
+  FmsLandingDataContent,
+  fmsQnhToHectopascal,
+  LandingConf,
 } from '@flybywiresim/fbw-sdk';
 import {
   isTypeIIMessage,
@@ -521,6 +525,11 @@ export class FlightManagementComputer implements FmcInterface {
         }
       },
     );
+
+    // The landing data for the flypad landing calculator, from one FMC
+    if (this.instance === FmcIndex.FmcA) {
+      this.subs.push(answerFmsLandingDataRequests(this.bus, () => this.fmsLandingDataContent()));
+    }
 
     this.#navigation.init();
     this.efisSymbolsLeft.init();
@@ -1380,6 +1389,25 @@ export class FlightManagementComputer implements FmcInterface {
             },
           ]
         : [],
+    };
+  }
+
+  /**
+   * The landing data of the FMS for the flypad landing calculator: the destination of the active flight plan, the
+   * predicted landing weight, and the destination conditions and landing configuration of the PERF APPR page
+   */
+  public fmsLandingDataContent(): FmsLandingDataContent {
+    const plan = this.flightPlanInterface.hasActive ? this.flightPlanInterface.active : null;
+    const pd = plan?.performanceData;
+    return {
+      destination: plan?.destinationAirport?.ident ?? null,
+      runway: plan?.destinationRunway ? plan.destinationRunway.ident.substring(4) : null,
+      landingWeight: plan ? this.getLandingWeight(FlightPlanIndex.Active) : null,
+      qnh: fmsQnhToHectopascal(pd?.approachQnh.get() ?? null),
+      oat: pd?.approachTemperature.get() ?? null,
+      windDirection: pd?.approachWindDirection.get() ?? null,
+      windSpeed: pd?.approachWindMagnitude.get() ?? null,
+      conf: pd ? (pd.approachFlapsThreeSelected.get() ? LandingConf.Conf3 : LandingConf.Full) : null,
     };
   }
 
