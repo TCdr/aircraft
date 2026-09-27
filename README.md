@@ -418,4 +418,15 @@ PRs 18 to 21 (2026-09-27): the features that had no PR (RAAS, OANS RWY AHEAD wit
 reply time), built from their commits on develop with only their own changes kept in the conflicts; drafts `18-...md` to `21-...md`.
 PR 18 must not be opened before the licence of the Piper voice model used for its 25 WAV clips is confirmed (see its draft). PR 19 is stacked on PR 18 (its OANS rule uses PR 18's shared runway module), so it waits for PR 18 too.
 PR 22 (2026-09-27): the ATC COM pages and the SD mailbox, committed from the q-atccom worktree as 4acffaeee on
-feature/a380/mfd/atccom and replayed on PR 10; not tested in the sim yet (see its draft).
+feature/a380/mfd/atccom and replayed on PR 10, then the fixes of the in-sim test; ATIS and the REQUEST / REPORT / EMERGENCY frames
+tested in the sim, CPDLC with Hoppie not yet (see its draft). The feature branch is merged into `develop` and deleted.
+
+## `develop` changes not in a `pr/*` branch yet (2026-09-27)
+
+| Commit on `develop` | Change | Where it belongs |
+|---|---|---|
+| `cff8ebd1b` (merge `2b9d549dd`) | `fix(a380x/mfd): keep a SEC page when another flight plan is created`: the COMPANY F-PLN REQUEST page of an empty SEC was redirected to ACTIVE when the requested flight plan arrived (RETURN clicked twice, page bound to the active plan). User-tested in the sim. | PR 10 (the SEC company F-PLN request page); adding it means rebasing the branches stacked on PR 10 (11, 12, 13, 14, 15, 16, 17, 20, 21, 22) |
+| `f9ebf7c9c`, `796d0ce9e` | the pedestal printer on paper, and its 64-column paper fix | no PR yet (needs its own PR) |
+| `e2f33945a`, `89debedc7` (part) | ATC COM ATIS print (PRINT, PRINT ALL on one printout, AUTO PRINT) | PR 22, once the printer has a PR |
+
+The ND mouse fix (`b28467f61`) is in `develop` and in PR 2 (`248cb26bd`).
