@@ -24,7 +24,7 @@ import { Button, ButtonMenuItem } from '../../../MsfsAvionicsCommon/UiWidgets/Bu
 import { NewAtisIcon } from './Elements/NewAtisIcon';
 import { AutoUpdateIcon } from './Elements/AutoUpdateIcon';
 import { AutoPrintIcon } from './Elements/AutoPrintIcon';
-import { atisListLines } from './AtisText';
+import { atisListLines, atisTime } from './AtisText';
 
 interface AtisRequestAreaProps extends ComponentProps {
   bus: EventBus;
@@ -77,7 +77,9 @@ export class AtisRequestArea extends DisplayComponent<AtisRequestAreaProps> {
 
   private readonly version = this.report.map((report) => (report ? report.Information || '-' : ''));
 
-  private readonly time = this.report.map((report) => (report ? report.Timestamp.mailboxTimestamp() : ''));
+  private readonly time = this.report.map((report) =>
+    report ? atisTime(report.Reports.map((r) => r.report).join(' ')) : '',
+  );
 
   private readonly newAtis = MappedSubject.create(
     ([report, area]) => report !== null && report.Information !== area.readVersion,

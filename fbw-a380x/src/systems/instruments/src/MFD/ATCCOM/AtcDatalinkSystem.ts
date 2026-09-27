@@ -37,7 +37,7 @@ import {
   NXFictionalMessages,
   NXSystemMessages,
 } from '../shared/NXSystemMessages';
-import { atisPrintLines } from '../pages/ATCCOM/AtisText';
+import { atisPrintLines, atisTime } from '../pages/ATCCOM/AtisText';
 
 /** The cockpit printer, as the ATC COM functions use it (the FMS printer, FmsPrinter) */
 export interface AtcComPrinter {
@@ -610,29 +610,45 @@ export class AtcDatalinkSystem implements Instrument {
     this.printer = printer;
   }
 
-  /** Prints the last ATIS message received for a request area; false when there is no printer */
-  private printAtisReport(index: number): boolean {
+  /** The printed lines of the last ATIS message received for a request area, null without one */
+  private atisPrintBody(index: number): { title: string; lines: string[] } | null {
+    const area = this.atisAreas[index].get();
+    const report = this.atisReport(index);
+    if (area.icao === null || !report) {
+      return null;
+    }
+    const type = area.type === AtisType.Departure ? 'DEP' : 'ARR';
+    const text = report.Reports.map((r) => r.report).join(' ');
+    return {
+      title: `ATC COM ATIS ${area.icao} ${type}`,
+      lines: atisPrintLines(area.icao, type, report.Information, atisTime(text), text),
+    };
+  }
+
+  /**
+   * Prints the last ATIS messages of request areas on one printout (the messages follow each other on the paper)
+   * @param indexes the request areas
+   */
+  private printAtisReports(indexes: readonly number[]): void {
     const printer = this.printer();
     if (!printer) {
       this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
-      return false;
+      return;
     }
-    const area = this.atisAreas[index].get();
-    const report = this.atisReport(index);
-    if (area.icao !== null && report) {
-      const type = area.type === AtisType.Departure ? 'DEP' : 'ARR';
-      printer.printText(
-        `ATC COM ATIS ${area.icao} ${type}`,
-        atisPrintLines(
-          area.icao,
-          type,
-          report.Information,
-          report.Timestamp.mailboxTimestamp(),
-          report.Reports.map((r) => r.report).join(' '),
-        ),
-      );
+    const bodies = indexes
+      .map((index) => this.atisPrintBody(index))
+      .filter((body): body is { title: string; lines: string[] } => body !== null);
+    if (bodies.length === 0) {
+      return;
     }
-    return true;
+    const lines: string[] = [];
+    bodies.forEach((body, i) => {
+      if (i > 0) {
+        lines.push('', '');
+      }
+      lines.push(...body.lines);
+    });
+    printer.printText(bodies.length === 1 ? bodies[0].title : 'ATC COM ATIS', lines);
   }
 
   /**
@@ -640,16 +656,12 @@ export class AtcDatalinkSystem implements Instrument {
    * @param index the request area
    */
   public printAtis(index: number): void {
-    this.printAtisReport(index);
+    this.printAtisReports([index]);
   }
 
-  /** PRINT ALL button: prints all the ATIS messages displayed (FCOM DSC-46-10-20-30 P 34) */
+  /** PRINT ALL button: prints all the ATIS messages displayed, on one printout (FCOM DSC-46-10-20-30 P 34) */
   public printAllAtis(): void {
-    for (let index = 0; index < this.atisAreas.length; index++) {
-      if (!this.printAtisReport(index)) {
-        return;
-      }
-    }
+    this.printAtisReports(this.atisAreas.map((_, index) => index));
   }
 
   /**
@@ -674,7 +686,7 @@ export class AtcDatalinkSystem implements Instrument {
       const version = this.atisReport(index)?.Information ?? null;
       if (area.get().autoPrint && version !== null && version !== this.autoPrintedVersions[index]) {
         this.autoPrintedVersions[index] = version;
-        this.printAtisReport(index);
+        this.printAtisReports([index]);
       }
     });
   }
