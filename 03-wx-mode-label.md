@@ -3,7 +3,7 @@
 - **Title:** `feat(nd): show the weather radar mode on the ND`
 - **Base:** `master` - **Branch:** `feature/nd-wxr-mode-label` (built on `feature/nd-terrain`, which is built on the A380X radar branch: the label code sits
   next to the terrain code in `ndwxr/src/main.cpp` and could not be applied without it, so PR 1, 2 and 4 come first)
-- **Commit:** `a5ecd08cf`
+- **Commit:** `3069ac4cd`
 - **Labels to request:** `A32NX`, `A380X`, `ND`
 - **Issue to open first:** *"ND does not show the selected weather radar mode"* - "With the weather radar on, nothing on the ND says which mode
   (WX, WX+T, TURB, MAP) is selected."

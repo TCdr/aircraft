@@ -382,14 +382,14 @@ and the A32NX instruments (2026-09-27).
 | # | Branch | Tip | Commits over upstream master |
 |---|--------|-----|------|
 | 01 | `pr/01-a32nx-nd-weather-radar` | `5b8a3604d` | 5 |
-| 02 | `pr/02-a380x-nd-weather-radar` | `416a0f316` | 10 |
-| 03 | `pr/03-nd-wxr-mode-label` | `a5ecd08cf` | 15 |
-| 04 | `pr/04-nd-terrain` | `acffe345b` | 14 |
+| 02 | `pr/02-a380x-nd-weather-radar` | `248cb26bd` | 11 |
+| 03 | `pr/03-nd-wxr-mode-label` | `3069ac4cd` | 16 |
+| 04 | `pr/04-nd-terrain` | `3d60701c4` | 15 |
 | 05 | `pr/05-a380x-surv-panel` | `a1c0afd4b` | 3 |
 | 06 | `pr/06-a380x-checklists-surv` | `14e842d8f` | 6 |
 | 07 | `pr/07-tcas-ta-only-intruder-level` | `2518ca61e` | 4 |
 | 08 | `pr/08-a32nx-mcdu-independent` | `62f3f2917` | 2 |
-| 09 | `pr/09-nd-manuals-pass` | `ddca9fe22` | 30 |
+| 09 | `pr/09-nd-manuals-pass` | `a2747d891` | 31 |
 | 10 | `pr/10-a380x-mfd-fcom-pages` | `c84ab0cbd` | 23 |
 | 11 | `pr/11-a380-takeoff-calculator` | `e701eb8af` | 26 |
 | 12 | `pr/12-a320-takeoff-calculator` | `6558460dd` | 36 |

@@ -47,6 +47,9 @@ Adds the weather radar to the A380X NDs with the native `ndwxr` gauge of the A32
   yellow columns with rounded tops, a red core; no magenta: the real VD does not display turbulence, FCOM DSC-31-20-40-10). The heights are
   fractions of the VD altitude span above the aircraft, placed on the ADR baro-corrected altitude like the VD's own symbol. Single-texel specks
   and radar sweep streaks are filtered.
+- **Mouse on the ND:** the `ndwxr` gauges are stacked over the ND in the same VCockpit page and only draw; the ND stylesheet makes them
+  transparent to the mouse (`pointer-events: none`), otherwise they catch every click on the OANS moving airport map (map drag, BTV runway
+  and exit selection). Commit `248cb26bd`.
 
 ## Cockpit API Changes
 
