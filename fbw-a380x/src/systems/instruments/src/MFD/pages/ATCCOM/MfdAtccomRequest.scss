@@ -24,16 +24,16 @@
     flex-shrink: 0;
   }
 
-  // The frame labels: 13.5 px per character (FCOM figure)
+  // The frame labels: 13.5 px per character (FCOM figure) (the FBW display font: 0.627 em per character)
   .mfd-atccom-request-label {
-    font-size: 24.5px;
+    font-size: 21.5px;
     color: $display-white;
     white-space: pre;
   }
 
-  // The freetext fields: 32 characters on a line
+  // The freetext fields: 32 characters on a line, 14.3 px per character
   .mfd-atccom-request-freetext .mfd-input-field-text-input {
-    font-size: 26px;
+    font-size: 22.8px;
   }
 
   // The REQUEST menu buttons: the arrow on the left, the label on the right

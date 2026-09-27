@@ -268,14 +268,14 @@ export const REQUEST_FRAMES: Record<RequestFrameId, RequestFrameDefinition> = {
   OCEANIC: {
     lines: () => [
       ['OCEANIC CENTER', field('center', 'center', 107)],
-      ['ENTRY POINT', field('entryPoint', 'fix', 150), 'ETA', field('eta', 'time', 110)],
+      ['ENTRY POINT', field('entryPoint', 'fix', 140), 'ETA', field('eta', 'time', 104)],
       ['MACH', field('mach', 'mach', 110), 'LEVEL', field('level', 'altitude', ALT)],
     ],
     // An oceanic clearance is an OCL message, not a CPDLC message element
     element: () => null,
   },
   CLEARANCE_OTHER: {
-    lines: () => [[], ['REQUEST', field('clearance', 'freetext', 260), 'CLEARANCE']],
+    lines: () => [[], ['REQUEST', field('clearance', 'freetext', 235), 'CLEARANCE']],
     element: ({ clearance }) => (clearance ? downlink('DM25', clearance) : null),
   },
   WCWE_HIGHER_ALT: {
