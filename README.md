@@ -366,3 +366,43 @@ logic.
 - `master` since the 2026-09-25 state above, on top of the FMS / SURV pages: `1d81e3514` feat(a380x/nd) WXR GAIN / ELEVN / TILT messages,
   `06df418a2` fix(a380x/mfd) button labels, field height, STORE WPT, RTE SEL, WIND FL, `50db576cc` feat(a380x/mfd) FMS print functions and
   the flypad printouts. None of them is on a PR branch yet.
+
+## Clean upstream PR branches `pr/*` (2026-09-27, develop fixes folded in)
+
+Open the upstream PRs from these branches, not from the feature branches: no `pr-docs/` commits (PDFs and .md drafts stay on develop
+and in this folder), no fork-only commits, no merges, `LOD01.bin` only in PR 8 (the MCDU UV split the feature needs; its PR must link a
+companion `aircraft-large-files` PR for LOD00). Pushed to the fork. Feature branches and develop are unchanged.
+
+Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17 (each stacked on PR 10).
+Every branch from 10 to 17 passed ESLint on its changed files, its test files and the FBW_TYPECHECK build of the A380X TypeScript tasks
+and the A32NX instruments (2026-09-27).
+
+| # | Branch | Tip | Commits over upstream master |
+|---|--------|-----|------|
+| 01 | `pr/01-a32nx-nd-weather-radar` | `5b8a3604d` | 5 |
+| 02 | `pr/02-a380x-nd-weather-radar` | `416a0f316` | 10 |
+| 03 | `pr/03-nd-wxr-mode-label` | `a5ecd08cf` | 15 |
+| 04 | `pr/04-nd-terrain` | `acffe345b` | 14 |
+| 05 | `pr/05-a380x-surv-panel` | `a1c0afd4b` | 3 |
+| 06 | `pr/06-a380x-checklists-surv` | `14e842d8f` | 6 |
+| 07 | `pr/07-tcas-ta-only-intruder-level` | `2518ca61e` | 4 |
+| 08 | `pr/08-a32nx-mcdu-independent` | `62f3f2917` | 2 |
+| 09 | `pr/09-nd-manuals-pass` | `ddca9fe22` | 30 |
+| 10 | `pr/10-a380x-mfd-fcom-pages` | `c84ab0cbd` | 23 |
+| 11 | `pr/11-a380-takeoff-calculator` | `e701eb8af` | 26 |
+| 12 | `pr/12-a320-takeoff-calculator` | `6558460dd` | 36 |
+| 13 | `pr/13-pilot-stored-elements-persistence` | `ec644e7ca` | 29 |
+| 14 | `pr/14-direct-to-options` | `a07ecd14c` | 25 |
+| 15 | `pr/15-fuel-jettison` | `a17c97cd1` | 27 |
+| 16 | `pr/16-kccu-keyboard-entry` | `c9401830d` | 27 |
+| 17 | `pr/17-ecam-procedures` | `4645bb03c` | 25 |
+
+Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
+INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
+removed), missing inputs in amber, 510 t CG edge fix, EFB build inputs, the 42 calculator tests, MCDU strict types (the thrust fix was
+already in PR 12). PR 13: jsdom localStorage test fix, the 17 tests, OIT keepPilotStoredElements default. PR 15: jettison strict types,
+the 12 tests. Not folded: the FMS printer tests (they need the pedestal printer, which has no PR), and every change of a feature
+without a PR (company datalink delay, ALTN fuel, pedestal printer, RAAS, OANS, fire test, audit-era fixes).
+PR descriptions: PR 11 still has the "Data" select (Airbus data only), as its draft says. The PR 12 and PR 13 drafts were updated
+on 2026-09-27 for the folded changes (PR 12: selected thrust only, Data select removed, amber missing inputs, 510 t CG fix, 42 tests,
+MCDU INSERT UPLINK rule; PR 13: OIT option, 17 tests, the jsdom localStorage test setup fix).
