@@ -129,11 +129,11 @@ span.Amber {
     background-color: $display-white;
   }
 
-  // Connection indications: green, 16.7 px per character
+  // Connection indications: green, 16.7 px per character (the FBW display font: 0.627 em per character)
   .atc-mailbox-connection {
     position: absolute;
     transform: translateY(-50%);
-    font-size: 30px;
+    font-size: 26.6px;
     color: $display-green;
     white-space: pre;
   }
@@ -142,7 +142,7 @@ span.Amber {
   .atc-mailbox-header {
     position: absolute;
     transform: translateY(-50%);
-    font-size: 27px;
+    font-size: 23.9px;
     color: $display-green;
     white-space: pre;
   }
@@ -150,7 +150,7 @@ span.Amber {
   .atc-mailbox-status {
     position: absolute;
     transform: translateY(-50%);
-    font-size: 30px;
+    font-size: 26.3px;
     line-height: 28px;
     padding: 0 4px;
     white-space: pre;
@@ -174,7 +174,7 @@ span.Amber {
     position: absolute;
     left: 106px;
     transform: translateY(-50%);
-    font-size: 33px;
+    font-size: 29.5px;
     line-height: 34px;
     white-space: pre;
 
