@@ -555,43 +555,64 @@
     },
     "Title": "Performance",
     "TopOfDescent": {
-      "Data": {
-        "Angle": "Angle",
-        "CurrentAltitude": "Current Altitude",
-        "Distance": "Distance",
-        "GroundSpeed": "Ground Speed",
-        "TargetAltitude": "Target Altitude",
-        "Title": "Data",
-        "UnitAngleDegrees": "degrees",
-        "UnitFeet": "feet",
-        "UnitFtMin": "ft/min",
-        "UnitNM": "NM",
-        "VerticalSpeed": "Vertical Speed"
-      },
-      "GroundSpeed": {
-        "Add": "Add",
-        "FetchingSpeedFromSimulator": "Fetching speed from simulator",
-        "GroundSpeed": "Ground Speed",
-        "ManualInput": "Manual Input",
-        "MinAltitude": "Min. Altitude",
-        "RemoveLast": "Remove Last",
-        "Sync": "SYNC",
-        "Title": "Ground Speed",
-        "UnitKnots": "knots",
-        "UnitKt": "kt"
-      },
-      "Result": {
-        "BeforeTarget": "before target",
-        "DesiredDescentAngle": "Desired Descent Angle",
-        "DesiredVerticalSpeed": "Desired Vertical Speed",
-        "StartYourDescentAbout": "Start your descent about",
-        "Title": "Result"
-      },
-      "TT": {
-        "DesynchronizeInputWithAircraftsCurrentAltitude": "Desynchronize Input with Aircraft's Current Altitude",
-        "SynchronizeInputWithAircraftsCurrentAltitude": "Synchronize Input with Aircraft's Current Altitude"
-      },
-      "Title": "Top of Descent"
+      "Title": "Top of Descent",
+      "Calc": {
+        "FillFromFms": "Fill data from FMS",
+        "DescentType": "Descent type",
+        "Types": {
+          "ECON": "ECON",
+          "STANDARD": "Standard",
+          "GIVEN_VS": "Given V/S",
+          "EMERGENCY": "Emergency"
+        },
+        "SectionDescent": "Descent",
+        "SectionSchedule": "Speed schedule",
+        "SectionConditions": "Conditions",
+        "InitialAltitude": "Initial alt",
+        "TargetAltitude": "Target alt",
+        "VerticalSpeed": "V/S",
+        "SpeedBrakes": "Speed brakes",
+        "Mach": "Mach",
+        "Speed": "Speed",
+        "SpeedLimit": "Speed limit",
+        "SpeedLimitAltitude": "Limit altitude",
+        "Weight": "Gross weight",
+        "Temperature": "ISA dev",
+        "Wind": "Wind",
+        "AntiIce": "Anti-ice",
+        "FuelFactor": "Fuel factor",
+        "Calculate": "Calculate",
+        "Clear": "Clear",
+        "Results": "Results",
+        "Time": "TIME",
+        "Distance": "DIST",
+        "Fuel": "FUEL",
+        "RuleOfThumb": "3 x alt",
+        "Crossover": "Crossover",
+        "Decel": "Decel to speed limit from",
+        "VsAtIdle": "The V/S is steeper than idle below {altitude}: idle descent there",
+        "Profile": "Descent profile",
+        "ViewProfile": "Profile",
+        "ViewTable": "Table",
+        "NmToTarget": "NM to target",
+        "NoResult": "Enter the descent data, then calculate",
+        "Legend": "Idle descent (or given V/S) with the flight and engine models of the FMS predictions. ECON: the managed descent speeds of the FMS. Amber*: anti-ice corrections of the A320 FCOM descent table.",
+        "Check": "Descent check",
+        "DistanceToTarget": "Distance to target",
+        "CheckHelp": "Enter the distance to the target (Fill data from FMS: to the destination)",
+        "OnProfile": "On the descent profile: start the descent now",
+        "StartIn": "Start the descent in {distance} NM",
+        "Late": "{distance} NM late for the profile: V/S {rate} ft/min (FPA {fpa}°) to the target",
+        "FmsNoData": "No FMS data: enter a flight plan in the FMS",
+        "FmsNoDestination": "No destination in the FMS: enter the target altitude and distance",
+        "Errors": {
+          "InvalidData": "The inputs are not valid",
+          "TargetAboveInitial": "The target altitude must be below the initial altitude",
+          "MaximumAltitude": "The initial altitude is above the maximum altitude ({max_alt} ft)",
+          "WeightOutOfRange": "The gross weight must be between {oew} and {mtow} {weight_unit}",
+          "VerticalSpeed": "Enter the V/S of the descent"
+        }
+      }
     }
   },
   "Presets": {
