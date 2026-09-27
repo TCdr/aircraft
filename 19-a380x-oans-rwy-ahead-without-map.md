@@ -1,8 +1,10 @@
 # PR 19 - A380X OANS RWY AHEAD without an airport map
 
 - **Title:** `feat(a380x/oans): show RWY AHEAD without an airport map`
-- **Base:** `master` - **Branch:** `pr/19-a380x-oans-rwy-ahead-without-map` (on upstream `master`, independent)
-- **Tip:** `28f04ab4b` (one commit)
+- **Base:** `master` - **Branch:** `pr/19-a380x-oans-rwy-ahead-without-map` (stacked on `pr/18-a32nx-raas`, PR 18: it uses the shared
+  runway module that PR 18 adds, `NearbyRunwayProvider` and `AwarenessRunway` in `fbw-common/src/systems/shared/src/runway-awareness`)
+- **Tip:** `aac868b24` (one commit over PR 18)
+- **Opening order:** after PR 18, so it also waits for PR 18's voice model licence check.
 - **Labels to request:** `A380X`, `ND`, `QA A380 Only`
 - **Issue to open first:** *"A380X: OANS RWY AHEAD stays silent without a Navigraph airport map"*
 - **CHANGELOG line (in the branch):** `1. [A380X/OANS] Show the RWY AHEAD advisory without a Navigraph airport map, from the sim's own runways - @TCdr`
@@ -17,7 +19,8 @@ The OANS RWY AHEAD advisory needs the Navigraph airport map (AMDB) and stays sil
 
 While no airport map is loaded, OANS now runs the same rule as with the map (the volume from the nose to 7 s ahead, 60 m wide, from 1 to
 40 kt on the ground, 30 s at most) against the runway rectangles of the sim's own airport database, through the shared
-`NearbyRunwayProvider`, and issues the advisory on the PFD and ND the same way. With an airport map loaded, nothing changes.
+`NearbyRunwayProvider` (added by #[PR 18 number], the RAAS PR), and issues the advisory on the PFD and ND the same way. With an
+airport map loaded, nothing changes.
 
 4 unit tests (`fbw-common/src/systems/instruments/src/OANC/OansRunwayAheadWithoutMap.spec.ts`).
 
