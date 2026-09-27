@@ -8,9 +8,8 @@
 - **Labels to request:** `A380X`, `MFD`, `FWS`, `QA A380 Only`, `Extensive Testing Needed`
 - **Issue to open first:** *"A380X MFD FMS pages differ from the FCOM and several FCOM pages are missing"*
 - **CHANGELOG line:** `1. [A380X/MFD] Lay out the FMS and SURV pages per the A380 FCOM, add the missing FCOM pages, the print functions and FUEL PLANNING - @TCdr`
-- **Before opening - TO ADD:** the `develop` fix `cff8ebd1b` (a SEC page is no longer redirected to ACTIVE when another flight plan is
-  created: the COMPANY F-PLN REQUEST page of an empty SEC needed two RETURN clicks after the request); not in `pr/10` yet, adding it
-  means rebasing the branches stacked on PR 10.
+- **Also in `pr/10`:** `124524c64` (a SEC page is no longer redirected to ACTIVE when another flight plan is created: the COMPANY
+  F-PLN REQUEST page of an empty SEC needed two RETURN clicks after the request); the branches stacked on PR 10 are rebased on it.
 
 ---- paste from here ----
 

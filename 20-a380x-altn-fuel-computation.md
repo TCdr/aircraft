@@ -2,7 +2,7 @@
 
 - **Title:** `feat(a380x/mfd): computed ALTN fuel and time (FCOM default computation)`
 - **Base:** `master` - **Branch:** `pr/20-a380x-altn-fuel-computation` (stacked on `pr/10-a380x-mfd-fcom-pages`, PR 10: FUEL&LOAD page)
-- **Tip:** `3c3ef82b7` (one commit)
+- **Tip:** `e18e12a72` (one commit)
 - **Labels to request:** `A380X`, `MFD`, `FMS`, `QA A380 Only`
 - **Issue to open first:** *"A380X FUEL&LOAD: the ALTN fuel is a fixed 6.5 t"*
 - **CHANGELOG line (to add in the PR):** `1. [A380X/MFD] Compute the ALTN fuel and time for the trip to the alternate instead of a fixed 6.5 t - @TCdr`

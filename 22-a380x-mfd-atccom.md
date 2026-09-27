@@ -3,9 +3,9 @@
 - **Title:** `feat(a380x/mfd): ATC COM pages and the SD mailbox per the A380 FCOM`
 - **Base:** `master` - **Branch:** `pr/22-a380x-mfd-atccom` (stacked on `pr/10-a380x-mfd-fcom-pages`, PR 10: the MFD FCOM layout and
   common components)
-- **Tip:** `625a792d5` - own commits: `b3a72399e` (feature; original `4acffaeee` on `feature/a380/mfd/atccom`), `cf66b105f` (lint and
-  strict types), `703024a90` (CHANGELOG line), then the fixes of the in-sim test: `899b8c6eb` (frame delete, label layout, ATIS auto
-  update), `c0326bbd0` (texts sized for the FBW display font), `625a792d5` (ATIS time from the ATIS message)
+- **Tip:** `43706e46f` - own commits: `f94da768a` (feature; original `4acffaeee` on `feature/a380/mfd/atccom`), `22fcdb556` (lint and
+  strict types), `21756217d` (CHANGELOG line), then the fixes of the in-sim test: `64ea64155` (frame delete, label layout, ATIS auto
+  update), `47ca68c77` (texts sized for the FBW display font), `43706e46f` (ATIS time from the ATIS message)
 - **Labels to request:** `A380X`, `MFD`, `Extensive Testing Needed`, `QA A380 Only`
 - **Issue to open first:** *"A380X MFD ATC COM pages are placeholders and the SD mailbox cannot answer the ATC"*
 - **CHANGELOG line (in the branch):** `1. [A380X/MFD] Add the ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD mailbox per the A380 FCOM - @TCdr`
