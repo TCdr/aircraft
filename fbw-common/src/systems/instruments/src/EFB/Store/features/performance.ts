@@ -3,9 +3,17 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { DistanceLabel } from '../../Performance/Widgets/RunwayVisualizationWidget';
 import { Runway } from '../../Performance/Data/Runways';
-import { LandingFlapsConfig, LandingRunwayConditions } from '../../../../../shared/src/performance/landing';
+import {
+  LandingAntiIce,
+  LandingApproachType,
+  LandingBrakingMode,
+  LandingComputationType,
+  LandingConf,
+  LandingGoAroundConf,
+  LandingPerformanceResult,
+  LandingRunwayCondition,
+} from '../../../../../shared/src/performance/landing';
 import {
   LineupAngle,
   RunwayCondition,
@@ -18,30 +26,38 @@ interface TPerformanceLanding {
   availableRunways: Runway[];
   selectedRunwayIndex: number;
   runwayHeading?: number;
+  /** Landing distance available in metres */
   runwayLength?: number;
   elevation?: number;
   slope?: number;
+  /** A380: the go-around altitude in feet, when entered */
+  goAroundAltitude?: number;
 
-  runwayCondition: LandingRunwayConditions;
+  computationType: LandingComputationType;
+  runwayCondition: LandingRunwayCondition;
   windDirection?: number;
   windMagnitude?: number;
   windEntry?: string;
   temperature?: number;
   pressure?: number;
+  antiIce: LandingAntiIce;
+  airConditioning: boolean;
 
   weight?: number;
-  overweightProcedure: boolean;
-  approachSpeed?: number;
-  flaps: LandingFlapsConfig;
-  reverseThrust: boolean;
-
-  maxAutobrakeLandingDist: number;
-  mediumAutobrakeLandingDist: number;
-  lowAutobrakeLandingDist: number;
-  runwayVisualizationLabels: DistanceLabel[];
-  runwayNumber: number;
-  displayedRunwayLength: number;
+  conf: LandingConf;
+  goAroundConf?: LandingGoAroundConf;
+  approachType: LandingApproachType;
+  /** The go-around gradient in %, the minimum when undefined */
+  goAroundGradient?: number;
+  /** VLS+ in knots, the wind increment when undefined */
+  speedIncrement?: number;
   autoland: boolean;
+  glideSlope: number;
+  brakingMode: LandingBrakingMode;
+  reverseThrust: boolean;
+  overweightProcedure: boolean;
+
+  result?: LandingPerformanceResult;
 }
 
 export enum TakeoffCoGPositions {
@@ -101,28 +117,17 @@ export const initialState: TPerformanceState = {
     icao: '',
     availableRunways: [],
     selectedRunwayIndex: -1,
-    windDirection: undefined,
-    windMagnitude: undefined,
-    windEntry: undefined,
-    weight: undefined,
-    runwayHeading: undefined,
-    approachSpeed: undefined,
-    flaps: LandingFlapsConfig.Full,
-    runwayCondition: LandingRunwayConditions.Dry,
-    reverseThrust: false,
-    elevation: undefined,
-    slope: undefined,
-    temperature: undefined,
-    pressure: undefined,
-    overweightProcedure: false,
-    runwayLength: undefined,
+    computationType: LandingComputationType.InFlight,
+    runwayCondition: LandingRunwayCondition.Dry,
+    antiIce: LandingAntiIce.Off,
+    airConditioning: true,
+    conf: LandingConf.Full,
+    approachType: LandingApproachType.Normal,
     autoland: false,
-    runwayNumber: 0,
-    displayedRunwayLength: 0,
-    maxAutobrakeLandingDist: 0,
-    mediumAutobrakeLandingDist: 0,
-    lowAutobrakeLandingDist: 0,
-    runwayVisualizationLabels: [],
+    glideSlope: 3,
+    brakingMode: LandingBrakingMode.Manual,
+    reverseThrust: false,
+    overweightProcedure: false,
   },
   takeoff: {
     availableRunways: [],
