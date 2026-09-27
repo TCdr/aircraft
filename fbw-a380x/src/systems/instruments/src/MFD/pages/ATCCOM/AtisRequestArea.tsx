@@ -107,8 +107,11 @@ export class AtisRequestArea extends DisplayComponent<AtisRequestAreaProps> {
       label: area.autoUpdate ? 'CANCEL AUTO UPDATE' : 'AUTO UPDATE',
       action: () => this.props.atcService.toggleAtisAutoUpdate(this.props.index),
     },
-    { label: 'PRINT', action: () => this.props.atcService.print() },
-    { label: area.autoPrint ? 'CANCEL AUTO PRINT' : 'AUTO PRINT', action: () => this.props.atcService.print() },
+    { label: 'PRINT', action: () => this.props.atcService.printAtis(this.props.index) },
+    {
+      label: area.autoPrint ? 'CANCEL AUTO PRINT' : 'AUTO PRINT',
+      action: () => this.props.atcService.toggleAtisAutoPrint(this.props.index),
+    },
   ]);
 
   public onAfterRender(node: VNode): void {

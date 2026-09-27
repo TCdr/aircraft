@@ -41,7 +41,7 @@ export class MfdAtccomAtisList extends DisplayComponent<AtccomMfdPageProps> {
               385,
               <Button
                 label={'PRINT\nALL'}
-                onClick={() => this.props.atcService.print()}
+                onClick={() => this.props.atcService.printAllAtis()}
                 buttonStyle="width: 187px; height: 57px;"
               />,
             )}
