@@ -322,10 +322,10 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
 
     // MLW(PERF): the highest weight of the landing distance and go-around gradient requirements, of the best
     // configuration of AUTO CONF
-    let best: { weight: number; limitation: LandingLimitation } | undefined;
-    for (const c of inputs.conf === LandingConf.Auto ? cases : [chosen]) {
+    let best = this.mlwPerf(inputs, chosen);
+    for (const c of inputs.conf === LandingConf.Auto ? cases : []) {
       const limit = this.mlwPerf(inputs, c);
-      if (best === undefined || limit.weight > best.weight) {
+      if (limit.weight > best.weight) {
         best = limit;
       }
     }
