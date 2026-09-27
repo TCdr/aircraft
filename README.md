@@ -54,7 +54,8 @@ origin/master (2baa2b35e)
 
 PRs 10 to 17 were added on 2026-09-26; 13 to 17 are built on `master` 280800cf7, not on upstream, so rebase them on the upstream `master`
 before opening. The PDF documents of every PR (specification, architecture diagram, FCOM rules, and the PR body below from "Summary of
-Changes") are in `docs/` (01 to 22; 18 to 22 added on 2026-09-27); `docs/FBW-features-handbook.pdf` has 01 to 17. Release: `master` tagged `v2024.2.0`, `develop` at 2024.3.0-SNAPSHOT.
+Changes") are in `docs/` (01 to 22; 18 to 22 added on 2026-09-27); `docs/00-overview.pdf` lists the 22 pr/* branches and their
+stacks, and `docs/FBW-features-handbook.pdf` has the overview and all 22 documents (rebuilt 2026-09-27). Release: `master` tagged `v2024.2.0`, `develop` at 2024.3.0-SNAPSHOT.
 
 **`pr-docs/` on every feature branch (2026-09-26):** each of the 17 branches ends with one commit
 `docs: PR draft and feature document (NN ...)` that adds `pr-docs/NN-<draft>.md` and `pr-docs/NN-<document>.pdf` (the files of this
