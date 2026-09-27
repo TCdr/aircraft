@@ -1,14 +1,47 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// Data and calculations obtained from Quick Reference Handbook (In Flight Procedures, Landing Performance Assessment/Landing Distance)
+// In-flight landing distances: Quick Reference Handbook (In Flight Procedures, Landing Performance Assessment/Landing
+// Distance). Dispatch required landing distances: A320 FCOM PER-LDG-DIS-RLD (CONF FULL and CONF 3, 12 APR 18) and
+// PER-LDG-DIS-RLA.
 
 import {
-  AutobrakeMode,
+  LandingBrakingMode,
+  LandingComputationType,
+  LandingConf,
+  LandingLimitation,
   LandingPerformanceCalculator,
-  LandingFlapsConfig,
-  LandingRunwayConditions,
+  LandingPerformanceError,
+  LandingPerformanceEstimate,
+  LandingPerformanceInputs,
+  LandingPerformanceResult,
+  LandingRunwayCondition,
+  landingIsaTemperature,
+  landingPressureAltitude,
+  landingWindIncrement,
 } from '@flybywiresim/fbw-sdk';
+
+/** The autobrake modes of the QRH data (MAX = maximum manual braking) */
+enum AutobrakeMode {
+  Low,
+  Medium,
+  Max,
+}
+
+enum LandingFlapsConfig {
+  Conf3,
+  Full,
+}
+
+/** The runway condition codes of the QRH data (6 DRY ... 1 POOR) */
+enum LandingRunwayConditions {
+  Dry,
+  Good,
+  GoodMedium,
+  Medium,
+  MediumPoor,
+  Poor,
+}
 
 /**
  * Landing data for a specific aircraft configuration with a specific runway condition
@@ -538,7 +571,7 @@ const runwayConditionLandingData: RunwayConditionLandingData = {
 };
 
 /**
- * Safety margin multiplier, obtained from QRH In-Flight Performance section
+ * Margin of the in-flight landing distances (A320 FCOM PER-LDG-GEN, factored in-flight landing distance)
  */
 const SAFETY_MARGIN = 1.15;
 
@@ -573,202 +606,380 @@ const getInterpolatedVlsTableValue = (mass: number, vlsSpeedTable: number[]): nu
   return lower + oneTonSpeedIncrement * (mass % 5);
 };
 
-function getTailWind(windDirection: number, windMagnitude: number, runwayHeading: number): number {
-  const windDirectionRelativeToRwy = windDirection - runwayHeading;
-  const windDirectionRelativeToRwyRadians = toRadians(windDirectionRelativeToRwy);
+/** The runway states of the dispatch tables, in the order of their columns */
+const DISPATCH_CONDITIONS = [
+  LandingRunwayCondition.Dry,
+  LandingRunwayCondition.WetGrooved,
+  LandingRunwayCondition.Wet,
+  LandingRunwayCondition.CompactedSnow,
+  LandingRunwayCondition.DryWetSnow,
+  LandingRunwayCondition.Slush,
+  LandingRunwayCondition.StandingWater,
+];
 
-  const tailWind = Math.cos(Math.PI - windDirectionRelativeToRwyRadians) * windMagnitude;
-  return tailWind;
+/** The runway condition codes of the in-flight landing distances (QRH), with their data */
+const IN_FLIGHT_CONDITIONS: Partial<Record<LandingRunwayCondition, LandingRunwayConditions>> = {
+  [LandingRunwayCondition.Dry]: LandingRunwayConditions.Dry,
+  [LandingRunwayCondition.Good]: LandingRunwayConditions.Good,
+  [LandingRunwayCondition.GoodToMedium]: LandingRunwayConditions.GoodMedium,
+  [LandingRunwayCondition.Medium]: LandingRunwayConditions.Medium,
+  [LandingRunwayCondition.MediumToPoor]: LandingRunwayConditions.MediumPoor,
+  [LandingRunwayCondition.Poor]: LandingRunwayConditions.Poor,
+};
+
+/** The braking modes of the in-flight landing distances */
+const IN_FLIGHT_BRAKING: Partial<Record<LandingBrakingMode, AutobrakeMode>> = {
+  [LandingBrakingMode.Manual]: AutobrakeMode.Max,
+  [LandingBrakingMode.Medium]: AutobrakeMode.Medium,
+  [LandingBrakingMode.Low]: AutobrakeMode.Low,
+};
+
+/**
+ * A320 FCOM PER-LDG-DIS-RLD: required landing distance in metres at sea level, ISA, no wind, no slope, no reverse
+ * thrust, manual landing, VAPP = VLS, for the weights {@link DISPATCH_WEIGHTS} (rows) and the runway states
+ * {@link DISPATCH_CONDITIONS} (columns), and the corrections: per 1000 ft above sea level, per 5 kt of speed, per 5 kt of
+ * tailwind, per thrust reverser operative (contaminated runways).
+ */
+const DISPATCH_WEIGHTS = [46, 50, 54, 58, 62, 66];
+interface DispatchTable {
+  distances: number[][];
+  altitude: number[];
+  speed: number[];
+  tailwind: number[];
+  reverser: number[];
+}
+const DISPATCH_TABLES: Record<LandingConf.Conf3 | LandingConf.Full, DispatchTable> = {
+  [LandingConf.Full]: {
+    distances: [
+      [1170, 1220, 1340, 1370, 1530, 1360, 1410],
+      [1220, 1270, 1400, 1450, 1620, 1450, 1500],
+      [1270, 1320, 1460, 1540, 1720, 1540, 1590],
+      [1330, 1380, 1530, 1620, 1810, 1630, 1700],
+      [1390, 1430, 1600, 1700, 1900, 1730, 1820],
+      [1500, 1560, 1730, 1780, 1990, 1820, 1950],
+    ],
+    altitude: [60, 60, 70, 80, 90, 130, 130],
+    speed: [100, 100, 110, 90, 100, 120, 180],
+    tailwind: [150, 140, 170, 160, 190, 240, 330],
+    reverser: [0, 0, 0, -70, -90, -70, -80],
+  },
+  [LandingConf.Conf3]: {
+    distances: [
+      [1250, 1290, 1430, 1500, 1690, 1500, 1550],
+      [1300, 1350, 1500, 1590, 1790, 1600, 1650],
+      [1360, 1400, 1570, 1680, 1890, 1690, 1770],
+      [1430, 1460, 1640, 1770, 1990, 1800, 1910],
+      [1520, 1550, 1750, 1860, 2090, 1900, 2060],
+      [1670, 1710, 1920, 1950, 2200, 2030, 2220],
+    ],
+    altitude: [70, 60, 70, 90, 110, 160, 160],
+    speed: [100, 110, 120, 100, 100, 150, 190],
+    tailwind: [150, 140, 180, 170, 200, 270, 380],
+    reverser: [0, 0, 0, -90, -120, -100, -100],
+  },
+};
+
+/** Linear interpolation, extrapolated beyond the ends */
+function interpolate(xs: readonly number[], ys: readonly number[], x: number): number {
+  let i = 0;
+  while (i < xs.length - 2 && x > xs[i + 1]) {
+    i++;
+  }
+  return ys[i] + ((ys[i + 1] - ys[i]) * (x - xs[i])) / (xs[i + 1] - xs[i]);
 }
 
-function toRadians(degrees: number): number {
-  return degrees * (Math.PI / 180);
-}
-
+/**
+ * Landing performance calculator of the A320-251N: the in-flight landing distances of the QRH for each braking mode,
+ * and the required landing distances of the FCOM for the dispatch. There is no go-around gradient in this data.
+ */
 export class A320251NLandingCalculator implements LandingPerformanceCalculator {
-  /**
-   * Calculates the landing distances for each autobrake mode for the given conditions
-   * @param weight Aircraft weight in KGs
-   * @param flaps Flap Configuration
-   * @param runwayCondition
-   * @param approachSpeed Actual approach speed in kts
-   * @param windDirection Heading wind is coming from, relative to north
-   * @param windMagnitude Magnitude of wind in Knots
-   * @param runwayHeading Heading of runway relative to north
-   * @param reverseThrust Indicates if reverse thrust is active
-   * @param altitude Runway altitude in feet ASL
-   * @param temperature OAT of runway
-   * @param slope Runway slope in %. Negative is downward slope
-   * @param overweightProcedure Overweight procedure is being used if true
-   * @param autoland Indicates if the usage of autoland is active
-   */
-  public calculateLandingDistances(
-    weight: number,
-    flaps: LandingFlapsConfig,
-    runwayCondition: LandingRunwayConditions,
-    approachSpeed: number,
-    windDirection: number,
-    windMagnitude: number,
-    runwayHeading: number,
-    reverseThrust: boolean,
-    altitude: number,
-    temperature: number,
-    slope: number,
-    overweightProcedure: boolean,
-    pressure: number,
-    autoland: boolean,
-  ): { maxAutobrakeDist: number; mediumAutobrakeDist: number; lowAutobrakeDist: number } {
-    return {
-      maxAutobrakeDist:
-        SAFETY_MARGIN *
-        this.calculateRequiredLandingDistance(
-          weight,
-          flaps,
-          runwayCondition,
-          AutobrakeMode.Max,
-          approachSpeed,
-          windDirection,
-          windMagnitude,
-          runwayHeading,
-          reverseThrust,
-          altitude,
-          temperature,
-          slope,
-          overweightProcedure,
-          pressure,
-          autoland,
-        ),
-      mediumAutobrakeDist:
-        SAFETY_MARGIN *
-        this.calculateRequiredLandingDistance(
-          weight,
-          flaps,
-          runwayCondition,
-          AutobrakeMode.Medium,
-          approachSpeed,
-          windDirection,
-          windMagnitude,
-          runwayHeading,
-          reverseThrust,
-          altitude,
-          temperature,
-          slope,
-          overweightProcedure,
-          pressure,
-          autoland,
-        ),
-      lowAutobrakeDist:
-        SAFETY_MARGIN *
-        this.calculateRequiredLandingDistance(
-          weight,
-          flaps,
-          runwayCondition,
-          AutobrakeMode.Low,
-          approachSpeed,
-          windDirection,
-          windMagnitude,
-          runwayHeading,
-          reverseThrust,
-          altitude,
-          temperature,
-          slope,
-          overweightProcedure,
-          pressure,
-          autoland,
-        ),
-    };
+  /** FBW A32NX airframe.json5 */
+  public readonly mlw = 67_400;
+
+  public readonly mtow = 79_000;
+
+  public readonly oew = 42_500;
+
+  /** As the FBW A32NX takeoff calculator */
+  public readonly maxTailwind = 15;
+
+  public readonly maxPressureAlt = 9_200;
+
+  public readonly minGoAroundGradient = undefined;
+
+  public readonly features = {
+    autoConf: false,
+    goAround: false,
+    antiIce: false,
+    airConditioning: false,
+    approachType: false,
+    overweightProcedure: true,
+    btv: false,
+  };
+
+  private static readonly MAX_SLOPE = 2;
+
+  public runwayConditions(type: LandingComputationType): LandingRunwayCondition[] {
+    return type === LandingComputationType.Dispatch
+      ? DISPATCH_CONDITIONS
+      : (Object.keys(IN_FLIGHT_CONDITIONS) as LandingRunwayCondition[]);
+  }
+
+  public brakingModes(): LandingBrakingMode[] {
+    return [LandingBrakingMode.Manual, LandingBrakingMode.Medium, LandingBrakingMode.Low];
   }
 
   /**
-   * Calculates the required landing distance for the given conditions
-   * @param weight Aircraft weight in KGs
-   * @param flaps Flap Configuration
-   * @param runwayCondition
-   * @param autobrakeMode
-   * @param approachSpeed Actual approach speed in kts
-   * @param windDirection Heading wind is coming from, relative to north
-   * @param windMagnitude Magnitude of wind in Knots
-   * @param runwayHeading Heading of runway relative to north
-   * @param reverseThrust Indicates if reverse thrust is active
-   * @param altitude Runway altitude in feet ASL
-   * @param temperature OAT of runway
-   * @param slope Runway slope in %. Negative is downward slope
-   * @param overweightProcedure Overweight procedure is being used if true
-   * @param autoland Indicates if the usage of autoland is active
+   * Credit where the data has a correction per thrust reverser: the QRH in-flight landing distances for the runway
+   * condition, configuration and braking mode (none on a dry runway in CONF FULL), the FCOM dispatch tables on the
+   * contaminated runways
    */
-  private calculateRequiredLandingDistance(
+  public reverseThrustAvailable(
+    type: LandingComputationType,
+    condition: LandingRunwayCondition,
+    conf: LandingConf,
+    brakingMode: LandingBrakingMode,
+  ): boolean {
+    if (type === LandingComputationType.InFlight) {
+      const code = IN_FLIGHT_CONDITIONS[condition];
+      const mode = IN_FLIGHT_BRAKING[brakingMode];
+      if (code === undefined || mode === undefined) {
+        return false;
+      }
+      const flaps = conf === LandingConf.Conf3 ? LandingFlapsConfig.Conf3 : LandingFlapsConfig.Full;
+      return runwayConditionLandingData[code][mode][flaps].reverserCorrection < 0;
+    }
+    const table = DISPATCH_TABLES[conf === LandingConf.Conf3 ? LandingConf.Conf3 : LandingConf.Full];
+    return table.reverser[DISPATCH_CONDITIONS.indexOf(condition)] < 0;
+  }
+
+  /** A320 FCOM PER-LDG-DIS-MAT, runway condition assessment matrix for landing (gust included) */
+  public crosswindLimit(condition: LandingRunwayCondition, oat: number): number {
+    switch (condition) {
+      case LandingRunwayCondition.Dry:
+      case LandingRunwayCondition.Good:
+      case LandingRunwayCondition.Wet:
+      case LandingRunwayCondition.WetGrooved:
+        return 38;
+      case LandingRunwayCondition.GoodToMedium:
+        return 29;
+      case LandingRunwayCondition.CompactedSnow:
+        return oat <= -15 ? 29 : 25;
+      case LandingRunwayCondition.Medium:
+      case LandingRunwayCondition.DryWetSnow:
+        return 25;
+      case LandingRunwayCondition.MediumToPoor:
+      case LandingRunwayCondition.Slush:
+      case LandingRunwayCondition.StandingWater:
+        return 20;
+      default:
+        return 15;
+    }
+  }
+
+  public windIncrement(headwind: number): number {
+    return landingWindIncrement(headwind);
+  }
+
+  public calculateLandingPerformance(inputs: LandingPerformanceInputs): LandingPerformanceResult {
+    const pressureAlt = landingPressureAltitude(inputs.elevation, inputs.qnh);
+    const isaTemp = landingIsaTemperature(pressureAlt);
+    const inFlight = inputs.type === LandingComputationType.InFlight;
+    const conf = inputs.conf === LandingConf.Conf3 ? LandingConf.Conf3 : LandingConf.Full;
+    const windIncrement = this.windIncrement(inputs.headwind);
+    const speedIncrement = inputs.speedIncrement ?? windIncrement;
+    const vls = this.vls(conf, inputs.weight);
+
+    const result: LandingPerformanceResult = {
+      inputs,
+      error: this.checkInputs(inputs, pressureAlt),
+      conf,
+      pressureAlt,
+      isaTemp,
+      vls,
+      windIncrement,
+      speedIncrement,
+      vapp: vls + speedIncrement,
+      brakingDistances: [],
+      overweight: inFlight && inputs.weight > this.mlw,
+      reverseCredit:
+        inputs.reverseThrust &&
+        this.reverseThrustAvailable(inputs.type, inputs.runwayCondition, conf, inputs.brakingMode),
+      estimates: [],
+    };
+    if (result.error !== LandingPerformanceError.None) {
+      return result;
+    }
+
+    const distance = (weight: number) =>
+      inFlight
+        ? SAFETY_MARGIN * this.inFlightDistance(inputs, weight, conf, inputs.brakingMode, pressureAlt, isaTemp)
+        : this.dispatchDistance(inputs, weight, conf, pressureAlt);
+
+    if (inFlight) {
+      result.actualLandingDistance = this.inFlightDistance(
+        inputs,
+        inputs.weight,
+        conf,
+        inputs.brakingMode,
+        pressureAlt,
+        isaTemp,
+      );
+      result.factoredLandingDistance = SAFETY_MARGIN * result.actualLandingDistance;
+      result.landingDistance = result.factoredLandingDistance;
+      result.brakingDistances = this.brakingModes().map((mode) => ({
+        mode,
+        distance: this.inFlightDistance(inputs, inputs.weight, conf, mode, pressureAlt, isaTemp),
+      }));
+    } else {
+      result.landingDistance = distance(inputs.weight);
+    }
+    result.stopMargin = inputs.lda - result.landingDistance;
+    // The QRH airborne phase: 7 s from the threshold to the touchdown
+    result.airDistance = 7 * (result.vapp - Math.min(0, inputs.headwind)) * 0.514444;
+
+    // MLW(PERF): the highest weight of the landing distance available
+    let low = 30_000;
+    let high = 100_000;
+    if (distance(high) <= inputs.lda) {
+      low = high;
+    } else if (distance(low) > inputs.lda) {
+      high = low;
+    }
+    while (high - low > 10) {
+      const mid = (low + high) / 2;
+      if (distance(mid) <= inputs.lda) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+    result.mlwPerf = low;
+    result.limitation = inputs.weight <= low ? LandingLimitation.Weight : LandingLimitation.Lda;
+
+    const weightInData = inFlight
+      ? inputs.weight >= 40_000 && inputs.weight <= 80_000
+      : inputs.weight >= DISPATCH_WEIGHTS[0] * 1000 &&
+        inputs.weight <= DISPATCH_WEIGHTS[DISPATCH_WEIGHTS.length - 1] * 1000;
+    if (!weightInData) {
+      result.estimates.push(LandingPerformanceEstimate.LandingDistance);
+    }
+    if (low > DISPATCH_WEIGHTS[DISPATCH_WEIGHTS.length - 1] * 1000 && !inFlight) {
+      result.estimates.push(LandingPerformanceEstimate.MlwPerf);
+    }
+    return result;
+  }
+
+  private checkInputs(inputs: LandingPerformanceInputs, pressureAlt: number): LandingPerformanceError {
+    if (
+      ![inputs.weight, inputs.lda, inputs.elevation, inputs.oat, inputs.qnh, inputs.headwind].every(Number.isFinite)
+    ) {
+      return LandingPerformanceError.InvalidData;
+    }
+    if (!this.runwayConditions(inputs.type).includes(inputs.runwayCondition)) {
+      return LandingPerformanceError.RunwayCondition;
+    }
+    if (inputs.weight < this.oew) {
+      return LandingPerformanceError.OperatingEmptyWeight;
+    }
+    if (inputs.type === LandingComputationType.Dispatch && inputs.weight > this.mlw) {
+      return LandingPerformanceError.MaximumLandingWeight;
+    }
+    if (inputs.weight > this.mtow) {
+      return LandingPerformanceError.MaximumTakeoffWeight;
+    }
+    if (pressureAlt > this.maxPressureAlt) {
+      return LandingPerformanceError.MaximumPressureAlt;
+    }
+    if (inputs.headwind < -this.maxTailwind) {
+      return LandingPerformanceError.MaximumTailwind;
+    }
+    if (Math.abs(inputs.slope) > A320251NLandingCalculator.MAX_SLOPE) {
+      return LandingPerformanceError.MaximumRunwaySlope;
+    }
+    return LandingPerformanceError.None;
+  }
+
+  private vls(conf: LandingConf.Conf3 | LandingConf.Full, weight: number): number {
+    return getInterpolatedVlsTableValue(weight / 1000, conf === LandingConf.Full ? CONF_FULL_VLS : CONF3_VLS);
+  }
+
+  /**
+   * The required landing distance of the FCOM tables (PER-LDG-DIS-RLD), with the correction of each input; on a
+   * contaminated runway at least the one of the wet runway (EU-OPS); autoland (PER-LDG-DIS-RLA): + 240 m in CONF 3 with
+   * no wind or a headwind, + 170 m in CONF FULL with a headwind, up to 70 t.
+   */
+  private dispatchDistance(
+    inputs: LandingPerformanceInputs,
     weight: number,
-    flaps: LandingFlapsConfig,
-    runwayCondition: LandingRunwayConditions,
-    autobrakeMode: AutobrakeMode,
-    approachSpeed: number,
-    windDirection: number,
-    windMagnitude: number,
-    runwayHeading: number,
-    reverseThrust: boolean,
-    altitude: number,
-    temperature: number,
-    slope: number,
-    overweightProcedure: boolean,
-    pressure: number,
-    autoland: boolean,
+    conf: LandingConf.Conf3 | LandingConf.Full,
+    pressureAlt: number,
   ): number {
-    const pressureAltitude = altitude + this.getPressureAltitude(pressure);
-    const isaTemperature = this.getISATemperature(pressureAltitude);
-
-    let targetApproachSpeed: number;
-    const tonnage = weight / 1000;
-
-    if (flaps === LandingFlapsConfig.Full) {
-      targetApproachSpeed = getInterpolatedVlsTableValue(tonnage, CONF_FULL_VLS);
-    } else {
-      targetApproachSpeed = getInterpolatedVlsTableValue(tonnage, CONF3_VLS);
+    const table = DISPATCH_TABLES[conf];
+    const speedIncrement = inputs.speedIncrement ?? this.windIncrement(inputs.headwind);
+    const rld = (column: number, reverse: boolean) => {
+      const base = interpolate(
+        DISPATCH_WEIGHTS,
+        table.distances.map((row) => row[column]),
+        weight / 1000,
+      );
+      return (
+        base +
+        (Math.max(0, pressureAlt) / 1000) * table.altitude[column] +
+        (Math.max(0, speedIncrement) / 5) * table.speed[column] +
+        (Math.max(0, -inputs.headwind) / 5) * table.tailwind[column] +
+        (reverse ? 2 * table.reverser[column] : 0)
+      );
+    };
+    const column = DISPATCH_CONDITIONS.indexOf(inputs.runwayCondition);
+    let distance = rld(column, inputs.reverseThrust);
+    if (column > DISPATCH_CONDITIONS.indexOf(LandingRunwayCondition.Wet)) {
+      distance = Math.max(distance, rld(DISPATCH_CONDITIONS.indexOf(LandingRunwayCondition.Wet), false));
     }
-
-    const landingData = runwayConditionLandingData[runwayCondition][autobrakeMode][flaps];
-
-    let tailWind = getTailWind(windDirection, windMagnitude, runwayHeading);
-    if (tailWind < 0) {
-      tailWind = 0;
+    if (inputs.autoland && weight <= 70_000) {
+      if (conf === LandingConf.Conf3 && inputs.headwind >= 0) {
+        distance += 240;
+      } else if (conf === LandingConf.Full && inputs.headwind > 0) {
+        distance += 170;
+      }
     }
+    return distance;
+  }
 
+  /** The in-flight landing distance of the QRH for a braking mode, without margin */
+  private inFlightDistance(
+    inputs: LandingPerformanceInputs,
+    weight: number,
+    conf: LandingConf.Conf3 | LandingConf.Full,
+    brakingMode: LandingBrakingMode,
+    pressureAlt: number,
+    isaTemperature: number,
+  ): number {
+    const flaps = conf === LandingConf.Full ? LandingFlapsConfig.Full : LandingFlapsConfig.Conf3;
+    const landingData =
+      runwayConditionLandingData[IN_FLIGHT_CONDITIONS[inputs.runwayCondition] ?? LandingRunwayConditions.Dry][
+        IN_FLIGHT_BRAKING[brakingMode] ?? AutobrakeMode.Max
+      ][flaps];
+
+    const tailWind = Math.max(0, -inputs.headwind);
     const weightDifference = weight / 1000 - 68;
-    let weightCorrection: number;
-    if (weightDifference < 0) {
-      weightCorrection = landingData.weightCorrectionBelow * Math.abs(weightDifference);
-    } else {
-      weightCorrection = landingData.weightCorrectionAbove * weightDifference;
-    }
-
-    let speedDifference = approachSpeed - targetApproachSpeed;
-    if (speedDifference < 0) {
-      speedDifference = 0;
-    }
-
-    const speedCorrection = (speedDifference / 5) * landingData.speedCorrection;
+    const weightCorrection =
+      weightDifference < 0
+        ? landingData.weightCorrectionBelow * Math.abs(weightDifference)
+        : landingData.weightCorrectionAbove * weightDifference;
+    const speedIncrement = Math.max(0, inputs.speedIncrement ?? this.windIncrement(inputs.headwind));
+    const speedCorrection = (speedIncrement / 5) * landingData.speedCorrection;
     const windCorrection = (tailWind / 5) * landingData.windCorrection;
-    let reverserCorrection;
-    if (reverseThrust) {
-      reverserCorrection = landingData.reverserCorrection * 2;
-    } else {
-      reverserCorrection = 0;
-    }
-
-    const altitudeCorrection = pressureAltitude > 0 ? (pressureAltitude / 1000) * landingData.altitudeCorrection : 0;
-    const slopeCorrection = slope < 0 ? Math.abs(slope) * landingData.slopeCorrection : 0;
+    const reverserCorrection =
+      inputs.reverseThrust && landingData.reverserCorrection < 0 ? landingData.reverserCorrection * 2 : 0;
+    const altitudeCorrection = pressureAlt > 0 ? (pressureAlt / 1000) * landingData.altitudeCorrection : 0;
+    const slopeCorrection = inputs.slope < 0 ? Math.abs(inputs.slope) * landingData.slopeCorrection : 0;
     const temperatureCorrection =
-      temperature > isaTemperature ? ((temperature - isaTemperature) / 10) * landingData.tempCorrection : 0;
-    const overweightProcCorrection = overweightProcedure ? landingData.overweightProcedureCorrection : 0;
+      inputs.oat > isaTemperature ? ((inputs.oat - isaTemperature) / 10) * landingData.tempCorrection : 0;
+    const overweightProcCorrection = inputs.overweightProcedure ? landingData.overweightProcedureCorrection : 0;
+    const autolandCorrection = inputs.autoland ? (conf === LandingConf.Full ? 280 : 250) : 0;
 
-    let autolandCorrection;
-
-    if (autoland) {
-      autolandCorrection = flaps === LandingFlapsConfig.Full ? 280 : 250;
-    } else {
-      autolandCorrection = 0;
-    }
-
-    const requiredLandingDistance =
+    return (
       landingData.refDistance +
       weightCorrection +
       speedCorrection +
@@ -778,27 +989,7 @@ export class A320251NLandingCalculator implements LandingPerformanceCalculator {
       slopeCorrection +
       temperatureCorrection +
       overweightProcCorrection +
-      autolandCorrection;
-
-    return Math.round(requiredLandingDistance);
-  }
-
-  /**
-   * Converts a given pressure to equivalent pressure altitude
-   * @param pressure Pressure in mb
-   * @returns Pressure altitude in feet
-   */
-  private getPressureAltitude(pressure: number): number {
-    // Equation from Boeing Jet Transport Performance Methods document
-    return 145442.15 * (1 - (pressure / 1013.25) ** 0.190263);
-  }
-
-  /**
-   * Calculates ISA temperature for a given pressure altitude
-   * @param PressureAltitude is pressure altitude in feet
-   * @returns ISA temperature in degrees C
-   */
-  private getISATemperature(pressureAltitude: number): number {
-    return 15 - 0.0019812 * pressureAltitude;
+      autolandCorrection
+    );
   }
 }
