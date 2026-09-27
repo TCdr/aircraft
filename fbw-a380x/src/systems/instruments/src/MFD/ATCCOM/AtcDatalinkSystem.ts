@@ -569,6 +569,14 @@ export class AtcDatalinkSystem implements Instrument {
       this.publisher.pub('atcActivateAtisAutoUpdate', { icao: area.icao!, type: area.type, requestId }, true, false),
     );
     await this.requestAtis(index);
+
+    // No ATIS from the center (USE VOICE) or a request to send again: there is no auto update contract
+    const status = this.atisAreas[index].get().status;
+    if (status === 'USE VOICE' || status === 'SEND AGAIN') {
+      await this.genericRequest((requestId) =>
+        this.publisher.pub('atcDeactivateAtisAutoUpdate', { icao: area.icao!, requestId }, true, false),
+      );
+    }
   }
 
   /**

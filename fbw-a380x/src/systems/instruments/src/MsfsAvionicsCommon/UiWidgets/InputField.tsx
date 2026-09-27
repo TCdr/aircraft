@@ -688,7 +688,8 @@ export class InputField<
       this.trailingUnitRef.getOrDefault()?.removeEventListener('click', this.onFocusTextInputHandler);
     }
 
-    this.props.dataEntryFormat?.destroy();
+    // destroy() is optional in a DataEntryFormat
+    this.props.dataEntryFormat?.destroy?.();
 
     super.destroy();
   }

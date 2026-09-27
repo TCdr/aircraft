@@ -69,10 +69,6 @@ const EMERGENCY_GEOMETRY: FrameGeometry = {
   trashLeft: 483.3,
 };
 
-/** The labels: 13.5 px per character; the space between a label and a field */
-const CHAR_WIDTH = 13.5;
-const GAP = 19;
-
 /** The REQUEST menu buttons, from the FCOM figure */
 const REQUEST_MENU_LAYOUT: AtccomMenuButtonLayout[] = [
   { button: REQUEST_MENU[0], top: 4.2, height: 42.6 },
@@ -170,18 +166,17 @@ class RequestFrameSlot extends DisplayComponent<RequestFrameSlotProps> {
     const geometry = this.props.geometry;
     const items: VNode[] = [];
     REQUEST_FRAMES[frame.id].lines(frame).forEach((line, lineIndex) => {
-      let x = geometry.textLeft;
+      // The labels and fields of a line follow each other: a field starts after the rendered label, whatever the width
+      // of the font (the sim renders it wider than the FCOM figures)
+      const lineItems: VNode[] = [];
       for (const item of line) {
         if (typeof item === 'string') {
-          items.push(fcomAt(geometry.lineY[lineIndex], x, <span class="mfd-atccom-request-label">{item}</span>));
-          x += item.length * CHAR_WIDTH + GAP;
+          lineItems.push(<span class="mfd-atccom-request-label">{item}</span>);
         } else {
           const value = Subject.create<string | null>(frame.values[item.key] ?? null);
           this.values.set(item.key, value);
-          items.push(
-            fcomAt(
-              geometry.lineY[lineIndex],
-              x,
+          lineItems.push(
+            <div class="mfd-atccom-request-field">
               <InputField<string>
                 dataEntryFormat={requestFieldFormat(item.kind)}
                 value={value}
@@ -196,12 +191,14 @@ class RequestFrameSlot extends DisplayComponent<RequestFrameSlotProps> {
                 class={item.kind === 'freetext' ? 'mfd-atccom-request-freetext' : undefined}
                 hEventConsumer={this.props.mfd.hEventConsumer}
                 interactionMode={this.props.mfd.interactionMode}
-              />,
-            ),
+              />
+            </div>,
           );
-          x += item.width + GAP;
         }
       }
+      items.push(
+        fcomAt(geometry.lineY[lineIndex], geometry.textLeft, <div class="mfd-atccom-request-line">{lineItems}</div>),
+      );
     });
     items.push(
       fcomAt(
