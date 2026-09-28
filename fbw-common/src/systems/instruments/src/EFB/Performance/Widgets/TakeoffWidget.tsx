@@ -60,6 +60,9 @@ interface CalculatorProfile {
   fmsNeedsCg: boolean;
   /** Text keys */
   sentToFms: string;
+  /** The warnings after Send to FMS: TOW outside the FMS insertion margins, no TOW in the FMS */
+  fmsCheckTow: string;
+  fmsCheckNoTow: string;
   resultsLegend: string;
   runwayLegend: string;
 }
@@ -72,6 +75,8 @@ const PROFILES: Record<'A380' | 'A320', CalculatorProfile> = {
     noise: true,
     fmsNeedsCg: true,
     sentToFms: 'Performance.Takeoff.Calc.SentToFms',
+    fmsCheckTow: 'Performance.Takeoff.Calc.FmsCheckTow',
+    fmsCheckNoTow: 'Performance.Takeoff.Calc.FmsCheckNoTow',
     resultsLegend: 'Performance.Takeoff.Calc.EstimateLegend',
     runwayLegend: 'Performance.Takeoff.Calc.RunwayLegend',
   },
@@ -82,6 +87,8 @@ const PROFILES: Record<'A380' | 'A320', CalculatorProfile> = {
     noise: false,
     fmsNeedsCg: false,
     sentToFms: 'Performance.Takeoff.Calc.SentToFmsA320',
+    fmsCheckTow: 'Performance.Takeoff.Calc.FmsCheckTowA320',
+    fmsCheckNoTow: 'Performance.Takeoff.Calc.FmsCheckNoTowA320',
     resultsLegend: 'Performance.Takeoff.Calc.LegendA320',
     runwayLegend: 'Performance.Takeoff.Calc.RunwayLegendA320',
   },
@@ -758,12 +765,12 @@ export const TakeoffWidget = () => {
         }),
       );
     } else if (fms.tow === null) {
-      toast.warning(t('Performance.Takeoff.Calc.FmsCheckNoTow'));
+      toast.warning(t(profile.fmsCheckNoTow));
     } else if (
       result.inputs.tow < fms.tow - profile.fmsTowMarginBelow ||
       result.inputs.tow > fms.tow + profile.fmsTowMarginAbove
     ) {
-      toast.warning(subReplacements(t('Performance.Takeoff.Calc.FmsCheckTow'), { fms: (fms.tow / 1000).toFixed(1) }));
+      toast.warning(subReplacements(t(profile.fmsCheckTow), { fms: (fms.tow / 1000).toFixed(1) }));
     }
   };
 

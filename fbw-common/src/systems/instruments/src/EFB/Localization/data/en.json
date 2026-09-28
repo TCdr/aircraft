@@ -588,7 +588,9 @@
         "FlexNote": "A lower FLEX increases the margin (FCOM PER-TOF-THR-FLX)",
         "FmsCheckRunway": "The FMS departure is {fms}: INSERT will not be possible for {runway}",
         "FmsCheckTow": "FMS TOW {fms} t: INSERT needs a TOW within -2 t / +7 t of it",
+        "FmsCheckTowA320": "FMS TOW {fms} t: INSERT UPLINK needs a TOW within -1 t / +3 t of it",
         "FmsCheckNoTow": "No TOW in the FMS (FUEL&LOAD): INSERT will not be possible",
+        "FmsCheckNoTowA320": "No TOW in the FMS (INIT B: ZFW and BLOCK): INSERT UPLINK will not be possible",
         "SendNeedsCg": "The FMS needs the T.O CG"
       }
     },
