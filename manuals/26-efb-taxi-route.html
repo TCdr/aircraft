@@ -1,0 +1,102 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>flyPad taxi route - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>flyPad taxi route</h1>
+<div class="subtitle">Ground &gt; Taxi: see the taxi route of your ATC clearance on the airport map, from the gate to the runway holding point and from the runway exit to the gate</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X (the same flyPad page on both)</span>
+<b>Where to find it</b><span>flyPad &gt; <b>Ground</b> (truck icon) &gt; <b>Taxi</b> tab</span>
+<b>PR branch</b><span><code>pr/26-efb-taxi-route</code></span>
+<b>Status</b><span>Tested in the sim at RJTT (Tokyo Haneda) on 2026-09-28. The OANS flags (section 9) are built and deployed but not committed or tested in the sim yet.</span>
+<b>Pictures</b><span>flyPad pages in the local browser harness, running the build installed in the sim, on a small test airport (XTST) made for the pictures. In the sim, the page uses the Navigraph airport map of the real airport.</span>
+</div>
+<div class="toc"><div>1. What it is for</div><div>2. Before you start</div><div>3. Departure: from the gate to the runway</div><div>4. The ATC clearance</div><div>5. Runway crossings</div><div>6. Arrival: from the runway exit to the gate</div><div>7. From the aircraft position</div><div>8. The map</div><div>9. On the A380: the route on the OANS</div><div>10. What to expect</div><div>11. Limitations and why</div><div>12. Troubleshooting</div></div>
+<h2>1. What it is for</h2>
+<p>Before taxiing, the crew gets a taxi clearance from ATC such as <i>"taxi to holding point runway 09 via M, K, A"</i>. On an unknown airport, following it on the chart is where mistakes happen: a wrong turn, a runway crossed without clearance. This page draws the route of the clearance on the airport map, lists the runways it crosses and stops it at the runway holding point.</p>
+<p>The real A380 has no taxi routing: its OANS (the airport map on the ND) only lets the crew place green flags and white crosses (FCOM DSC-34-10-70-20), and MSFS has no datalink taxi clearance (D-TAXI). So the route is built on the flyPad, and the cockpit displays stay as the FCOM describes them. On the A380, the accepted route is marked on the OANS with those green flags (section 9).</p>
+<ul><li><b>Departure</b> (default): from a gate, a ramp or cargo stand, or the aircraft position, to a runway entry.</li><li><b>Arrival</b>: from the runway exit you plan to take (or the aircraft position) to your gate.</li><li>The page <b>suggests</b> the shortest route; you type the taxiways of the ATC clearance and <b>accept</b> it.</li></ul>
+<h2>2. Before you start</h2>
+<ul><li><b>Navigraph account</b> linked in the flyPad settings (third party options). The airport map comes from the Navigraph airport database, the same data as the A380 OANS. Without it the page says <i>"No airport database"</i>.</li><li><b>Airport:</b> type the ICAO code, or press <b>ORIG</b> / <b>DEST</b> to take the airports of the SimBrief flight plan loaded in the flyPad. The line below shows how many gates, ramp and cargo stands the map has.</li><li>An airport that is not in the Navigraph airport database shows <i>"Not in the Navigraph airport database"</i>.</li></ul>
+<figure><img src="img/26/t00_empty.png" style="width:88%"><figcaption><b>Figure 1.</b> The Taxi page after entering the airport: the airport map on the right, the route inputs on the left. Amber labels show what is still missing.</figcaption></figure>
+<table><tr><th>Part of the page</th><th>What it does</th></tr><tr><td>AIRPORT</td><td>Departure or Arrival, the ICAO code, ORIG / DEST buttons, the number of stands on the map.</td></tr><tr><td>FROM</td><td>Where the taxi starts: a gate / ramp / cargo stand (departure), a runway exit (arrival), or the aircraft.</td></tr><tr><td>TO</td><td>Where it ends: the runway and its entry (departure), or the gate (arrival).</td></tr><tr><td>ATC CLEARANCE</td><td>The taxiways of the clearance, in order. SUGGEST fills it with the shortest route, ACCEPT confirms it, the red bin clears the page.</td></tr><tr><td>Route box</td><td>The route as a clearance reads, its length, the taxiways and the runway crossings in red.</td></tr><tr><td>Map</td><td>The airport with the route, the runway entries (cyan), the holding point (amber bar), the aircraft (yellow). Drag to move, buttons to zoom and to fit the route.</td></tr></table>
+<h2>3. Departure: from the gate to the runway</h2>
+<ol><li>Keep <b>Departure</b> selected and enter the airport.</li><li>In FROM, keep <b>Gate/ramp/cargo</b> and type your gate. While you type, the gates that match appear as buttons under the field: tap one. You can also <b>tap the gate on the map</b> (zoom in to see the names).</li><li>In TO, choose the <b>runway</b>. The <b>entry</b> is set to the full length entry; choose another one for an intersection departure.</li><li>The shortest route appears on the map as a <b>dashed magenta line</b> ending at the <b>HOLD</b> bar of the runway holding point.</li></ol>
+<div class="row"><figure><img src="img/26/t02_gate_chips.png"><figcaption><b>Figure 2.</b> Typing "4" lists the gates 40 to 47: tap one.</figcaption></figure><figure><img src="img/26/t03_gate_unknown.png"><figcaption><b>Figure 3.</b> A name that is not on the map: the amber line says so.</figcaption></figure></div>
+<p>Gate names are found even when they are written differently on the map: <b>"16" finds "016"</b>, spaces and dashes do not matter. If nothing matches, the airport map uses another name (for example a letter prefix): tap the gate on the map instead.</p>
+<figure><img src="img/26/t01_departure_suggested.png" style="width:88%"><figcaption><b>Figure 4.</b> Gate 42 to runway 09, full length: the suggested route (dashed) along M, K and A to entry S1, stopped at the holding point (HOLD 09). The route box reads it as a clearance: Gate 42 → M → K → A → S1 → Holding point RWY 09, 2.6 km.</figcaption></figure>
+<h3>Runway entries</h3>
+<p>The <b>Entry</b> list shows every taxiway that enters the runway, in order from the threshold. The first one is the <b>full length</b> entry; the others show the <b>runway length remaining</b> from them, to check an intersection departure against your takeoff performance. On the map, the entries of the selected runway are the cyan dots with their names.</p>
+<figure><img src="img/26/t04_entry_list.png" style="width:40%"><figcaption><b>Figure 5.</b> The entries of runway 09: S1 full length, then C (2500 m left), B1 (1700 m), D (1500 m) and so on.</figcaption></figure>
+<figure><img src="img/26/t09_intersection.png" style="width:88%"><figcaption><b>Figure 6.</b> Intersection departure from D: the route stops at the holding point of D, with 1500 m of runway ahead.</figcaption></figure>
+<h2>4. The ATC clearance</h2>
+<p>Type the taxiways of your clearance in the order ATC gives them, separated by spaces (commas and dashes work too). The route then follows them strictly, in that order:</p>
+<ul><li>Short unnamed connecting lines between two cleared taxiways are allowed.</li><li>The runway entry can be left out: <i>"via M, K, A"</i> to a holding point still ends on the entry you chose.</li><li>While the typed route is not accepted, the box reads <i>"Route along the clearance (not accepted)"</i> and the line stays dashed.</li></ul>
+<p><b>SUGGEST</b> copies the taxiways of the suggested route into the clearance field: a quick start when ATC clears you along the obvious way. <b>ACCEPT</b> confirms the route: the line turns <b>solid</b>. Any change (gate, runway, entry, clearance) takes the acceptance away.</p>
+<div class="row"><figure><img src="img/26/t05_suggest_preview.png"><figcaption><b>Figure 7.</b> After SUGGEST: the clearance field holds M K A S1, the route is a preview.</figcaption></figure><figure><img src="img/26/t06_accepted.png"><figcaption><b>Figure 8.</b> After ACCEPT: solid line, "Accepted route". On the A380 the route is also flagged on the OANS.</figcaption></figure></div>
+<figure><img src="img/26/t07_clearance_other.png" style="width:88%"><figcaption><b>Figure 9.</b> A different clearance, "M L A": the route goes the long way round via L (4.0 km instead of 2.6 km), as ATC asked.</figcaption></figure>
+<figure><img src="img/26/t08_clearance_impossible.png" style="width:40%"><figcaption><b>Figure 10.</b> A clearance with a taxiway that does not exist here, or taxiways that do not connect in that order: "No route along these taxiways, in this order". Check the spelling and the order.</figcaption></figure>
+<h2>5. Runway crossings</h2>
+<p>Every runway the route crosses is circled in <b>red</b> on the map with its name, and listed in red under the route (<i>"Crossing runway 01/19"</i>). A runway crossing always needs its own ATC clearance: stop at the holding point before it and ask if you do not have it.</p>
+<figure><img src="img/26/t10_crossing.png" style="width:88%"><figcaption><b>Figure 11.</b> From cargo stand R2 to runway 09: taxiway A crosses runway 01/19 (red circle, red line in the route box).</figcaption></figure>
+<h2>6. Arrival: from the runway exit to the gate</h2>
+<ol><li>Select <b>Arrival</b> and enter the airport (DEST fills it from the flight plan).</li><li>In FROM, keep <b>Runway exit</b>, choose the landing runway and the exit you plan to take. The exits are those of the landing calculator, with their distance from the threshold.</li><li>In TO, type or tap the gate.</li><li>Check the route, type the clearance if ATC gives another one, and ACCEPT.</li></ol>
+<div class="row"><figure><img src="img/26/t11a_exit_list.png"><figcaption><b>Figure 12.</b> The exits of runway 09 with their distance from the threshold.</figcaption></figure><figure><img src="img/26/t11_arrival.png"><figcaption><b>Figure 13.</b> Exit B1 to gate 44: Exit B1 → A → K → M → Gate 44. The green dot is the start.</figcaption></figure></div>
+<div class="tip"><b class="t">Tip</b>Prepare the arrival route during the descent briefing with the exit from the landing calculator: after landing, the page is ready. If you vacate by another exit, choose it (or use the aircraft position) and the route updates.</div>
+<h2>7. From the aircraft position</h2>
+<p>Choose <b>Aircraft</b> in FROM to start the route where the aircraft is, for example after a pushback, or when ATC changes the route while you taxi. The page takes the position when you select it; press <b>Update</b> to take it again. The route starts on the taxi line nearest to the aircraft and <b>prefers its heading</b>: it does not start by turning back if there is a way ahead.</p>
+<figure><img src="img/26/t12_aircraft_start.png" style="width:88%"><figcaption><b>Figure 14.</b> The aircraft (yellow) on M facing west, for runway 27: the route goes ahead via K and A (2.9 km) rather than turning back on M.</figcaption></figure>
+<p><i>"The aircraft is not at this airport"</i> means the aircraft is more than 8 km from the airport of the page.</p>
+<h2>8. The map</h2>
+<ul><li><b>Drag</b> the map to move it; <b>+ / -</b> zoom; the <b>frame</b> button fits the route (or the whole airport).</li><li>The map is north up. Aprons are lighter grey, taxiways dark grey, runways black with a white edge. The thin yellow lines are the taxi guidance lines the route follows.</li><li>Taxiway names are shown in yellow; the taxiways of the route in magenta. Gate names appear when you zoom in.</li><li><b>Tap a gate</b> on the map to choose it (when the page asks for a gate).</li></ul>
+<figure><img src="img/26/t13_zoom.png" style="width:70%"><figcaption><b>Figure 15.</b> Zoomed on the apron: the gate names, the route to gate 46 along M.</figcaption></figure>
+<h2>9. On the A380: the route on the OANS</h2>
+<p>When you <b>accept</b> the route on the A380 flyPad, green flags appear on the OANS (the airport map on the ND) at the start of each taxiway of the route and at the gate or holding point. They are the crew flags of the FCOM (<i>"to locate or mark a given point on the airport"</i>), so you can remove them like any flag: click one and DELETE, or ERASE ALL SYMBOLS in the ND menu. Flags you placed yourself are never touched.</p>
+<ul><li>The flags appear when the OANS displays that airport (they come back if the OANS reloads it).</li><li>A new accepted route replaces the flags of the previous one; a route that is no longer accepted removes them.</li><li>The A320 has no OANS: nothing else changes on it.</li></ul>
+<figure><img src="img/26/t14_oans_flags.png" style="width:60%"><figcaption><b>Figure 16.</b> The A380 ND (OANS, ARC, zoom range) at gate 42 facing south, after ACCEPT of the route of figure 6: green flags where M, K and A start (S1 and the holding point are further west, off the picture). Harness picture: the test airport has no buildings.</figcaption></figure>
+<div class="note"><b class="t">Note</b>This part is built and deployed but not committed yet, and not tested in the sim.</div>
+<h2>10. What to expect</h2>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Airport entered, nothing else</td><td>The airport map, amber labels on the inputs still missing, the help text in the route box.</td></tr><tr><td>Start and end chosen</td><td>The suggested route, dashed, with its clearance text, length and crossings.</td></tr><tr><td>SUGGEST</td><td>The clearance field holds the taxiways of the suggested route; the route is a preview (dashed).</td></tr><tr><td>Clearance typed</td><td>The route follows the typed taxiways in order (dashed until accepted), or the red message "No route along these taxiways, in this order".</td></tr><tr><td>ACCEPT</td><td>Solid line, "Accepted route" in green (A380: green flags on the OANS).</td></tr><tr><td>Any input changed after ACCEPT</td><td>Back to a preview: accept again.</td></tr><tr><td>Departure to a runway with holding position lines</td><td>The route stops at the HOLD bar before the runway.</td></tr><tr><td>Runway without holding position lines on the map</td><td>The route ends on the runway entry itself and the box says "Runway 09" instead of "Holding point RWY 09".</td></tr><tr><td>The route crosses a runway</td><td>Red circle with the runway name on the map, red "Crossing runway" line.</td></tr><tr><td>Aircraft start, aircraft far from the airport</td><td>"The aircraft is not at this airport"; no route.</td></tr><tr><td>Leaving the page and coming back</td><td>Everything is kept, except an Aircraft start: press Aircraft or Update again.</td></tr></table>
+<h2>11. Limitations and why</h2>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Needs a Navigraph account.</td><td>The airport map (taxi lines, stands, holding points) exists only in the Navigraph airport database; MSFS does not give it to the aircraft.</td><td>Link your account in the flyPad settings.</td></tr><tr><td>Closed taxiways, one-way taxiways and NOTAMs are unknown.</td><td>The airport database has the lines painted on the ground, not their status of the day.</td><td>Type the taxiways of the ATC clearance: the route follows them.</td></tr><tr><td>The suggestion is the shortest route, not the usual one.</td><td>Airports have preferred flows (ATC habits, one-way loops) that are not in the data.</td><td>Always check against the clearance and the airport chart.</td></tr><tr><td>Some real airports have gaps in their taxi lines.</td><td>A lead-in line may stop a few metres short of the taxi line. Gaps up to 15 m between parts that are otherwise not connected are joined; larger ones are not.</td><td>If "No taxi line of the airport map connects the start to the end" appears, choose another start (the nearest taxiway, or the aircraft) or end.</td></tr><tr><td>Gate names follow the airport database.</td><td>The database may use names that differ from the gate signs.</td><td>Tap the gate on the map.</td></tr><tr><td>No route on the A380 OANS, only flags.</td><td>The A380 FCOM has no taxi route display; the flags are the FCOM way to mark points on the airport map.</td><td>-</td></tr><tr><td>The aircraft position is taken once.</td><td>The route is a plan to check, not a moving map that follows you.</td><td>Press Update after a change.</td></tr></table>
+<h2>12. Troubleshooting</h2>
+<table><tr><th>What you see</th><th>Why</th><th>What to do</th></tr><tr><td>SUGGEST and ACCEPT are greyed</td><td>There is no route yet: the gate is not found (amber label, no terminal next to the name), or the runway / entry / exit is missing.</td><td>Pick the gate from the suggestion buttons or tap it on the map; check the amber labels.</td></tr><tr><td>"No such name on the airport map"</td><td>No stand of the map has this name.</td><td>Tap the gate on the map.</td></tr><tr><td>"No taxi line of the airport map connects the start to the end"</td><td>The start and the end are on parts of the map that are not connected.</td><td>Start from the nearest taxiway (Aircraft), or choose another gate or entry.</td></tr><tr><td>"No route along these taxiways, in this order"</td><td>A taxiway of the clearance is misspelt, missing, or they do not connect in that order.</td><td>Check the clearance; press SUGGEST to see the names the map uses.</td></tr><tr><td>"Not in the Navigraph airport database"</td><td>Navigraph has no airport map for this airport.</td><td>-</td></tr></table>
+</body></html>

@@ -12,6 +12,9 @@ The branches exist in the local repo (`E:\MSFS2024 mods\repos\fbw`), one branch 
 version the installer delivered on 2026-09-21) from the commits of the local `master` (tip `38bc26241`, 75 commits ahead). On 2026-09-25 `master` and the 9 branches were pushed to the fork `TCdr/aircraft`; no PR is open.
 The tree and the table below are the CURRENT state (2026-09-23 evening); the dated sections at the end are the log of how it got there.
 
+**User manuals (2026-09-28):** `manuals/00-index.html` lists one user manual per PR (HTML with its `img/NN/` screenshots, and PDF);
+`manuals/FBW-user-manuals.pdf` holds them all with bookmarks; `manuals/FINDINGS.md` lists the bugs found while making them.
+
 Each file is one PR: title, branch, labels, the issue to open first, the CHANGELOG line, and the body to paste into
 the template. Anything marked **TO ADD** is something only you can supply (a real-life reference, screenshots, your Discord name).
 I did not invent references.

@@ -1,0 +1,94 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X MFD FMS pages to the FCOM - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X MFD FMS pages to the FCOM</h1>
+<div class="subtitle">Every FMS page of the MFD laid out on its A380 FCOM figure, the FCOM entry formats, and the pages and functions FBW did not have</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>MFD (both sides), FMS pages: <b>ACTIVE</b>, <b>POSITION</b>, <b>SEC INDEX</b>, <b>DATA</b> menus; SURV pages (see also the PR 5 manual)</span>
+<b>PR branch</b><span><code>pr/10-a380x-mfd-fcom-pages</code> (base of PRs 11-17, 20, 22)</span>
+<b>Status</b><span>Built in September 2026 and used in the sim since; individual pages were fixed after the in-sim checks (button widths, SEC page return, printer checkboxes).</span>
+<b>Pictures</b><span>Captain MFD in the local browser harness, running the build installed in the sim. The harness has no navigation database and no flight plan, so most values are dashes or amber boxes: the pictures show the layout and the functions of each page.</span>
+</div>
+<div class="toc"><div>1. What changed, in short</div><div>2. ACTIVE menu</div><div>3. POSITION menu</div><div>4. SEC INDEX</div><div>5. DATA menu</div><div>6. What to expect</div><div>7. Limitations and why</div></div>
+<h2>1. What changed, in short</h2>
+<ul><li><b>Layout:</b> each page is placed on its figure of the A380 FCOM (DSC-22-FMS-20-30, the 2011 KAL FCOM): field positions, 40 px entry fields, 22.5 px labels, 38 px tab bar, the title bar. Where FBW followed a newer FMS standard than this FCOM, the FCOM figure was followed.</li><li><b>Entry formats:</b> every field accepts the FCOM entry formats (DSC-22-FMS-20-100) and answers with the FCOM messages (FORMAT ERROR, ENTRY OUT OF RANGE, NOT IN DATABASE...).</li><li><b>New pages:</b> ALTERNATE, CLOSEST AIRPORTS, OFFSET, EQUI-TIME POINT, LL XING / TIME MKR, WIND, the POSITION pages, DATA / WAYPOINT, NAVAID, ROUTE, PRINTER, company requests (wind, flight plan, report, takeoff data), TRANSFER TO MAILBOX, REJECTED ATC INFO.</li><li><b>New functions:</b> FUEL PLANNING with CONFIRM BLOCK, LRC and MAX TURB speeds, VERT REV RTA, FMS P/N, pilot-stored elements, automatic airway connection, printing.</li></ul>
+<p>The menus at the top of the FMS pages give access to everything: <b>ACTIVE</b> (the active flight plan and its pages), <b>POSITION</b>, <b>SEC INDEX</b> (the secondary flight plans) and <b>DATA</b>.</p>
+<h2>2. ACTIVE menu</h2>
+<h3>INIT</h3>
+<figure><img src="img/10/p01_init.png" style="width:60%"><figcaption><b>Figure 1.</b> INIT: every button is live. CPNY F-PLN REQUEST (flight plan from the airline, i.e. SimBrief), RTE SEL / ALTN RTE SEL (route selection from the stored and company routes), CPNY WIND REQUEST, CPNY T.O. REQUEST, WIND, and the shortcuts IRS, DEPARTURE, NAVAIDS, FUEL&amp;LOAD, T.O. PERF and RTE SUMMARY.</figcaption></figure>
+<ul><li>Amber boxes are mandatory entries; blue dashes are optional ones.</li><li><b>CPNY RTE</b>: type a stored or company route of the city pair: it is inserted; otherwise NOT IN DATABASE.</li><li><b>RTE SUMMARY</b> stores the active route as a pilot-stored route (DATA / ROUTE).</li></ul>
+<h3>FUEL&amp;amp;LOAD and FUEL PLANNING</h3>
+<figure><img src="img/10/p02_fuel_load.png" style="width:60%"><figcaption><b>Figure 2.</b> FUEL&amp;LOAD. FUEL PLANNING (next to BLOCK) is available when the flight plan and the weights allow the predictions.</figcaption></figure>
+<p><b>FUEL PLANNING</b> computes the minimum block fuel from the FMS predictions (trip, reserves, alternate, final, taxi) and offers <b>CONFIRM BLOCK</b>, which inserts it (FCOM P 179). The EXTRA line shows what is left above the minimum.</p>
+<h3>PERF</h3>
+<div class="row"><figure><img src="img/10/p03_perf_to.png"><figcaption><b>Figure 3.</b> PERF T.O with the company takeoff data button (see the PR 11 manual).</figcaption></figure><figure><img src="img/10/p04_perf_crz.png"><figcaption><b>Figure 4.</b> PERF CRZ: MANAGED, PRESEL, and the <b>LRC</b> and <b>MAX TURB</b> speeds.</figcaption></figure></div>
+<ul><li><b>LRC</b> (long range cruise): the Mach giving 99 % of the maximum specific range (FCOM PER-IFT).</li><li><b>MAX TURB</b>: the recommended speed for flying in turbulence.</li></ul>
+<h3>F-PLN and its revisions</h3>
+<figure><img src="img/10/p05_fpln.png" style="width:60%"><figcaption><b>Figure 5.</b> F-PLN without a flight plan: P.POS, DISCONTINUITY, END OF F-PLN, NO ALTN F-PLN.</figcaption></figure>
+<p>Click a waypoint name to open the lateral revision menu, a speed/altitude to open the vertical revision. The new pages below open from these menus or from F-PLN INFO.</p>
+<div class="row"><figure><img src="img/10/p06_alternate.png"><figcaption><b>Figure 6.</b> ALTERNATE: the selected alternate, the database alternates with their company route, track, distance and EXTRA fuel, and two OTHER ALTN fields.</figcaption></figure><figure><img src="img/10/p07_closest.png"><figcaption><b>Figure 7.</b> CLOSEST AIRPORTS: the 4 closest airports from P.POS with distance, bearing, UTC, EFOB and effective wind, and up to three OTHER ARPTs.</figcaption></figure></div>
+<div class="row"><figure><img src="img/10/p08_offset.png"><figcaption><b>Figure 8.</b> OFFSET: start and end waypoints, distance LEFT / RIGHT, intercept angle (30° by default), CANCEL OFFSET.</figcaption></figure><figure><img src="img/10/p09_etp.png"><figcaption><b>Figure 9.</b> EQUI-TIME POINT: two reference airports, their cruise wind, and the ETP with its bearing, distance and time.</figcaption></figure></div>
+<div class="row"><figure><img src="img/10/p10_llxing.png"><figcaption><b>Figure 10.</b> LL XING / TIME MKR: a waypoint at every LAT or LONG crossing (start, increment, number, INSERT AS WPT); a time marker with remaining time and an aural alert.</figcaption></figure><figure><img src="img/10/p11_vert_rev.png"><figcaption><b>Figure 11.</b> VERT REV, RTA tab: time at a waypoint (AT, AT OR BEFORE, AT OR AFTER), ETA and the speed to meet it; the time error thresholds of the FCOM apply.</figcaption></figure></div>
+<figure><img src="img/10/p12_airways.png" style="width:60%"><figcaption><b>Figure 12.</b> AIRWAYS: up to 31 segments; typing the next airway after a waypoint connects the two airways automatically at their intersection.</figcaption></figure>
+<h3>WIND and the company requests</h3>
+<div class="row"><figure><img src="img/10/p13_wind.png"><figcaption><b>Figure 13.</b> WIND: HISTORY (winds recorded in the last flight), CLB, CRZ (per waypoint, 4 levels and the SAT), DES; CPNY WIND REQUEST at the bottom.</figcaption></figure><figure><img src="img/10/p14_cpny_wind_req.png"><figcaption><b>Figure 14.</b> COMPANY WIND DATA REQUEST: free text and SEND WIND REQUEST.</figcaption></figure></div>
+<div class="row"><figure><img src="img/10/p15_cpny_fpln_req.png"><figcaption><b>Figure 15.</b> COMPANY F-PLN REQUEST: flight number, company route, free text.</figcaption></figure><figure><img src="img/10/p16_cpny_fpln_report.png"><figcaption><b>Figure 16.</b> COMPANY F-PLN REPORT: free text, SEND REPORT TO CPNY.</figcaption></figure></div>
+<div class="note"><b class="t">Note</b>The company functions use SimBrief (flight plan) and the flyPad (takeoff data). A request without a company able to answer ends after a timeout with the FCOM message.</div>
+<h2>3. POSITION menu</h2>
+<div class="row"><figure><img src="img/10/p22_pos_monitor.png"><figcaption><b>Figure 17.</b> MONITOR: FMS1/2, RADIO, MIXIRS, GPIRS, IRS and GPS positions, accuracy, EPU and RNP, FREEZE POSITION, BRG / DIST TO.</figcaption></figure><figure><img src="img/10/p23_pos_irs.png"><figcaption><b>Figure 18.</b> IRS: alignment, the three IRS with their data, FREEZE ALL IRS.</figcaption></figure></div>
+<div class="row"><figure><img src="img/10/p24_pos_navaids.png"><figcaption><b>Figure 19.</b> NAVAIDS: tuned for display (VOR, ADF, LS) and selected for FMS NAV, DESELECT GLIDE.</figcaption></figure><figure><img src="img/10/p25_pos_gps.png"><figcaption><b>Figure 20.</b> GPS: both receivers: position, mode, satellites, accuracy, track, UTC, altitude, ground speed.</figcaption></figure></div>
+<div class="row"><figure><img src="img/10/p26_pos_time.png"><figcaption><b>Figure 21.</b> TIME: UTC, date, flight and block time, OUT / OFF / ON / IN, and PERM DATA SETUP (what the permanent data shows).</figcaption></figure><figure><img src="img/10/p27_pos_report.png"><figcaption><b>Figure 22.</b> REPORT: last, to and next waypoints with time and altitude, the last sequenced waypoint data, the next cruise profile change, destination.</figcaption></figure></div>
+<div class="note"><b class="t">Note</b>The TIME page is not in the 2011 FCOM; it follows a later FMS standard at the user's request.</div>
+<h2>4. SEC INDEX</h2>
+<div class="row"><figure><img src="img/10/p31_sec_index.png"><figcaption><b>Figure 23.</b> SEC INDEX: SEC 1 / 2 / 3, IMPORT, CPNY F-PLN REQUEST into a SEC, the pages of the SEC, DELETE, XFER TO MAILBOX and PRINT.</figcaption></figure><figure><img src="img/10/p21_xfer_mailbox.png"><figcaption><b>Figure 24.</b> TRANSFER TO MAILBOX: sends the SEC flight plan to the ATC mailbox with a free text.</figcaption></figure></div>
+<p><b>REJECTED ATC INFO</b> (FCOM P 321-323) lists the elements of an ATC flight plan inserted in SEC 3 that the FMS rejected, 4 per page. MSFS cannot send an ATC flight plan, so the list stays empty.</p>
+<h2>5. DATA menu</h2>
+<div class="row"><figure><img src="img/10/p18_status.png"><figcaption><b>Figure 25.</b> STATUS: aircraft and engine, IDLE / PERF factors (FMS P/N tab), navigation database SWAP, and the count of the pilot-stored elements with DELETE ALL.</figcaption></figure><figure><img src="img/10/p17_printer.png"><figcaption><b>Figure 26.</b> PRINTER: print the F-PLN INIT, T.O and wind data, the active and SEC flight plan reports, and the AUTO PRINT options.</figcaption></figure></div>
+<div class="row"><figure><img src="img/10/p28_data_wpt.png"><figcaption><b>Figure 27.</b> WAYPOINT: database waypoints by ident; pilot-stored waypoints (lat/long, place/bearing/distance, place-bearing/place-bearing), NEW WPT.</figcaption></figure><figure><img src="img/10/p29_data_navaid.png"><figcaption><b>Figure 28.</b> NAVAID: database navaids (class, position, frequency, ILS course and slope...); pilot-stored navaids, NEW NAVAID.</figcaption></figure></div>
+<div class="row"><figure><img src="img/10/p30_data_route.png"><figcaption><b>Figure 29.</b> ROUTE: database (company) routes of a city pair, pilot-stored routes with their summary, NEW RTE, DELETE.</figcaption></figure><figure><img src="img/10/p19_airport.png"><figcaption><b>Figure 30.</b> AIRPORT: database airports, and the PILOT STORED RWYs tab.</figcaption></figure></div>
+<p>The printouts appear in the flyPad printouts list.</p>
+<h2>6. What to expect</h2>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>An entry in a wrong format</td><td>FORMAT ERROR in the message area; the field keeps its value.</td></tr><tr><td>A value out of the FCOM range</td><td>ENTRY OUT OF RANGE.</td></tr><tr><td>A waypoint or navaid not found</td><td>NOT IN DATABASE (or the NEW WPT / NEW NAVAID page when the FCOM says so).</td></tr><tr><td>A company request with no company answer</td><td>The FCOM timeout message after a few minutes.</td></tr><tr><td>A page not available in the flight phase</td><td>Its button is greyed.</td></tr></table>
+<h2>7. Limitations and why</h2>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The layout follows the 2011 A380 FCOM.</td><td>It is the reference available; later FMS standards differ in places.</td><td>Report a difference with its FCOM page.</td></tr><tr><td>Some values are FBW model stand-ins.</td><td>For example GPS satellites and accuracy, like on the A32NX MCDU GPS page; MSFS does not simulate them.</td><td>-</td></tr><tr><td>Company functions answer only through SimBrief and the flyPad.</td><td>There is no airline datalink in MSFS.</td><td>-</td></tr><tr><td>Pilot-stored navaids cannot be tuned.</td><td>The radio tuning uses the MSFS navaids only.</td><td>-</td></tr></table>
+</body></html>

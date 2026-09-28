@@ -1,0 +1,60 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>TCAS in TA ONLY: intruders shown as TAs - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>TCAS in TA ONLY: intruders shown as TAs</h1>
+<div class="subtitle">While resolution advisories are inhibited, an intruder that would be an RA is shown and announced as a traffic advisory; the TA ONLY message is centred on the A32NX ND as in the FCOM</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X</span>
+<b>Where to find it</b><span>ND traffic display; TCAS mode on the A32NX TCAS panel / A380X SURV CONTROLS</span>
+<b>PR branch</b><span><code>pr/07-tcas-ta-only-intruder-level</code> (independent)</span>
+<b>Status</b><span>Tested in the sim (September 2026).</span>
+<b>Pictures</b><span>Captain NDs in the local browser harness, running the builds installed in the sim; the symbol legend is a drawing (the harness has no traffic).</span>
+</div>
+<h2>1. What it is for</h2>
+<p>With every RA inhibited (TA ONLY selected, or below 1000 ft radio altitude), the TCAS kept classifying an intruder that met the RA criteria as an RA. The ND drew it as a red RA square, and since it was not a TA, there was no "TRAFFIC, TRAFFIC" and no TA state. A real TCAS in TA ONLY shows it as an amber TA with the TA aural. The classification is now capped at TA while all RAs are inhibited.</p>
+<figure><img src="img/07/t00_symbols.png" style="width:90%"><figcaption><b>Figure 1.</b> The ND traffic symbols: other, proximate, TA, RA, with the relative altitude in hundreds of feet and the vertical trend arrow.</figcaption></figure>
+<h2>2. What you see</h2>
+<div class="row"><figure><img src="img/07/t01_a320_ta_only_ta.png"><figcaption><b>Figure 2.</b> A32NX: TA ONLY, centred at the bottom of the ND (A320 FCOM DSC-34-SURV-60-20 figure).</figcaption></figure><figure><img src="img/07/t03_a380_ta_only_ta.png"><figcaption><b>Figure 3.</b> A380X: TA ONLY in the message box.</figcaption></figure></div>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>TA ONLY selected, intruder meeting the RA criteria</td><td>Amber TA circle and "TRAFFIC, TRAFFIC" (before: red RA square, no aural).</td></tr><tr><td>Below 1000 ft radio altitude (all RAs inhibited)</td><td>Same: TAs only, TA ONLY on the ND.</td></tr><tr><td>Partial inhibits (no CLIMB / DESCEND / INCREASE DESCENT RA)</td><td>Unchanged: RAs are still issued.</td></tr><tr><td>An RA already running when the inhibit starts</td><td>It runs to its own end.</td></tr></table>
+<h2>3. Limitations and why</h2>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Same change on both aircraft.</td><td>The A32NX TcasComputer and the A380X LegacyTcasComputer share the classification code.</td><td>-</td></tr></table>
+</body></html>

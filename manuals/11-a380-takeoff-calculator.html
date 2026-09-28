@@ -1,0 +1,88 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380 takeoff calculator and company T.O data - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380 takeoff calculator and company T.O data</h1>
+<div class="subtitle">Takeoff weight limit, FLEX temperature, V-speeds and takeoff run on the flyPad, sent to the MFD PERF T.O page through the company takeoff data function of the FCOM</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X (the flyPad screen is shared with the A32NX, see the PR 12 manual)</span>
+<b>Where to find it</b><span>flyPad &gt; <b>Performance</b> &gt; <b>Takeoff</b>; MFD &gt; <b>ACTIVE</b> &gt; <b>PERF</b> &gt; T.O tab &gt; <b>CPNY T.O REQUEST</b> / <b>RECEIVED CPNY T.O</b></span>
+<b>PR branch</b><span><code>pr/11-a380-takeoff-calculator</code> (stacked on PR 10); completed by PR 12</span>
+<b>Status</b><span>Used in the sim during development (September 2026); the final version with the PR 12 changes is still to re-test in the sim.</span>
+<b>Pictures</b><span>flyPad and MFD pages in the local browser harness, running the build installed in the sim. The harness has no navigation database: the runway is entered by hand and the company uplink is simulated on the MFD.</span>
+</div>
+<div class="toc"><div>1. What it is for</div><div>2. The flyPad screen</div><div>3. A FLEX takeoff</div><div>4. TOGA or another FLEX temperature</div><div>5. Options</div><div>6. Errors</div><div>7. On the MFD: company T.O data</div><div>8. What to expect</div><div>9. Limitations and why</div></div>
+<h2>1. What it is for</h2>
+<p>Before each takeoff the crew needs the takeoff weight limit of the runway, the FLEX temperature (reduced thrust), the speeds V1, VR, V2 and the flaps. On the real A380 they come from the OIS takeoff application or from the airline (company takeoff data, sent to the FMS by datalink). The flyPad calculator does the computation; SEND TO FMS plays the airline: the MFD receives the data as company T.O data, and the crew checks and inserts it, as in FCOM DSC-22-FMS-20-30.</p>
+<h2>2. The flyPad screen</h2>
+<figure><img src="img/11/t01_empty.png" style="width:88%"><figcaption><b>Figure 1.</b> The takeoff screen. Amber labels: inputs still missing (Calculate stays dim).</figcaption></figure>
+<table><tr><th>Part</th><th>Contents</th></tr><tr><td>Airport, Fill data from</td><td>ICAO code; imports from the <b>FMS</b> (departure, runway, TOW, CG, THR RED / ACCEL), the <b>OFP</b> (SimBrief) or the <b>METAR</b> (wind, OAT, QNH).</td></tr><tr><td>RUNWAY</td><td>Runway from the list (or Manual), heading, TORA, elevation, slope, and the <b>entry angle</b> (90° or 180° turn onto the runway, or 0° when rolling straight on: it sets the line-up distance lost).</td></tr><tr><td>CONDITIONS</td><td>Runway condition, wind, OAT, QNH, anti-ice, packs.</td></tr><tr><td>AIRCRAFT</td><td>TOW (kg, t or lb), T.O CG in % MAC, flaps (CONF 1+F, 2, 3 or OPT = the best one), thrust (TOGA or FLEX).</td></tr><tr><td>DEPARTURE</td><td>THR RED, ACCEL, EO ACCEL altitudes (they default to the elevation + 1500 ft), and the noise abatement procedure (NOISE END altitude, speed, N1).</td></tr><tr><td>RESULTS</td><td>The results in the layout of the OIS takeoff application (FCOM PER-TOF-TOR-SRS).</td></tr><tr><td>TAKEOFF RUN</td><td>The runway with the V1, VR and 35 ft points, the required distance and the margin, for TOGA or any FLEX temperature of the allowed range.</td></tr></table>
+<h2>3. A FLEX takeoff</h2>
+<ol><li>Fill the airport and runway (or <b>Fill data from</b> FMS / OFP), the conditions (METAR), the TOW and the T.O CG.</li><li>Keep <b>Thrust FLEX</b> and press <b>Calculate</b>.</li><li>Read the FLEX temperature and the speeds in RESULTS; check the takeoff run and its margin.</li><li><b>Send to FMS</b>, then insert the data on the MFD (section 6).</li></ol>
+<figure><img src="img/11/t03_flex.png" style="width:88%"><figcaption><b>Figure 2.</b> 450 t, 3500 m, 20 °C, CONF 1+F: FLEX 55 °C (the maximum, amber: estimate), V1 131 / VR 144 / V2 149 kt, MTOW(perf) 602 t. The takeoff run needs 3413 m of the 3447 m available after line-up: 35 m margin.</figcaption></figure>
+<h3>Reading the results</h3>
+<table><tr><th>Line</th><th>Meaning</th></tr><tr><td>TOW / MTOW(perf)</td><td>Your takeoff weight, and the maximum the runway and conditions allow at TOGA.</td></tr><tr><td>V1, VR, V2</td><td>The takeoff speeds. V2 is at least 1.13 VS1G and 1.10 VMCA, VR at least 1.05 VMCA, V1 at least VMCG (FCOM PER-TOF-TOR-SRS).</td></tr><tr><td>MARGIN</td><td>Runway left beyond the required distance.</td></tr><tr><td>FLEX / TOGA</td><td>The FLEX temperature, or TOGA.</td></tr><tr><td>FLAPS, T.O CG, T.O SHIFT</td><td>The configuration, the CG entered, the takeoff shift (distance lost at line-up or an intersection).</td></tr><tr><td>THR RED, ACCEL, EO ACCEL</td><td>The altitudes of the DEPARTURE section.</td></tr></table>
+<div class="note"><b class="t">Note</b><b>Green</b> values come from Airbus data (the takeoff weight charts of the A380 Aircraft Characteristics); <b>amber with a star</b> are estimates of the FBW model (see Limitations).</div>
+<h2>4. TOGA or another FLEX temperature</h2>
+<p>The TAKEOFF RUN panel lets you look at the run for TOGA, or for any FLEX temperature between the OAT and the maximum (FCOM PER-TOF-THR-FLX). Use <b>-</b> / <b>+</b> or the slider; the speeds and the run follow.</p>
+<div class="row"><figure><img src="img/11/t04_toga.png"><figcaption><b>Figure 3.</b> TOGA: the run needs 1681 m, margin 1767 m.</figcaption></figure><figure><img src="img/11/t05_flex_plus.png"><figcaption><b>Figure 4.</b> FLEX range 30 °C to 55 °C max: the selected temperature is the one sent to the FMS.</figcaption></figure></div>
+<p><b>Send to FMS</b> sends the thrust selected for the takeoff run only (TOGA, or FLEX at its temperature), with its own speeds.</p>
+<h2>5. Options</h2>
+<div class="row"><figure><img src="img/11/t09_flaps.png"><figcaption><b>Figure 5.</b> Flaps: CONF 1+F, 2, 3, or OPT (the calculator picks the best).</figcaption></figure><figure><img src="img/11/t08_noise.png"><figcaption><b>Figure 6.</b> Noise procedure: NOISE END altitude, speed and N1 become available; they are sent with the data.</figcaption></figure></div>
+<h2>6. Errors</h2>
+<p>When the takeoff is not possible, a message says why and there is no result:</p>
+<div class="row"><figure><img src="img/11/t02_cg_error.png"><figcaption><b>Figure 7.</b> CG outside the takeoff envelope (here 30 % at 450 t: the forward limit moves aft with the weight).</figcaption></figure><figure><img src="img/11/t06b_too_heavy_msg.png"><figcaption><b>Figure 8.</b> 510 t on 2100 m at 40 °C: the maximum takeoff weight is 438.8 t.</figcaption></figure></div>
+<figure><img src="img/11/t07_wet_msg.png" style="width:48%"><figcaption><b>Figure 9.</b> A wet or contaminated runway: the A380 data covers dry runways only.</figcaption></figure>
+<table><tr><th>Message</th><th>Meaning</th></tr><tr><td>Beyond Takeoff Weight Limit - Max ...</td><td>TOW above the runway limit: reduce the weight or use another runway.</td></tr><tr><td>CG Outside Takeoff Envelope</td><td>The CG is outside the A380 takeoff CG envelope for this weight.</td></tr><tr><td>Above Structural MTOW</td><td>TOW above 510 t.</td></tr><tr><td>Only dry runways are covered...</td><td>The A380 data has no wet or contaminated takeoff.</td></tr><tr><td>Runway shorter than the A380 performance data (1700 m)</td><td>The charts start at 1700 m.</td></tr><tr><td>Above Maximum Tailwind / OAT / Pressure Altitude</td><td>Outside the A380 limits (FCOM LIM-12).</td></tr><tr><td>Flex Not Possible</td><td>No FLEX temperature is possible at this weight: take off at TOGA.</td></tr></table>
+<h2>7. On the MFD: company T.O data</h2>
+<p>The MFD PERF T.O page gets two buttons: <b>CPNY T.O REQUEST</b> (ask the airline) and, once data has arrived, <b>RECEIVED CPNY T.O</b>.</p>
+<div class="row"><figure><img src="img/11/m01_perf_request.png"><figcaption><b>Figure 10.</b> PERF T.O before any data: the CPNY T.O REQUEST button (bottom right).</figcaption></figure><figure><img src="img/11/m01b_request_pending.png"><figcaption><b>Figure 11.</b> COMPANY T.O DATA REQUEST: up to 2 runways, TOGA / FLEX / DERATED, free text; SEND T.O REQUEST.</figcaption></figure></div>
+<ul><li>After SEND T.O REQUEST the page shows <i>REQUEST PENDING...</i>; without an answer after 4 minutes, <i>NO COMPANY REPLY</i>. The flyPad <b>Send to FMS</b> is that answer.</li><li>When data arrives: the message <i>COMPANY T.O DATA RECEIVED WAITING FOR INSERTION</i> and the button <b>RECEIVED CPNY T.O</b> on PERF.</li></ul>
+<div class="row"><figure><img src="img/11/m02_perf_received.png"><figcaption><b>Figure 12.</b> Data received: the message and the RECEIVED CPNY T.O button.</figcaption></figure><figure><img src="img/11/m03_received_page.png"><figcaption><b>Figure 13.</b> RECEIVED COMPANY T.O DATA: runway 05 in amber (not the flight plan runway), TOW in amber with UPLINK/ACTIVE TOW DISAGREE: INSERT is not available.</figcaption></figure></div>
+<h3>The RECEIVED COMPANY T.O DATA page</h3>
+<ul><li>Up to 4 runways (arrows, RWY 1/4) × 2 thrust ratings (the TOGA / FLEX list at the top).</li><li><b>Runway in amber</b>: not the departure runway of the active flight plan.</li><li><b>TOW in amber</b> with <i>UPLINK/ACTIVE TOW DISAGREE</i>: the uplink TOW is more than 2 t below or 7 t above the FMS TOW (FUEL&amp;LOAD).</li><li>TEMP shows dashes for a FLEX takeoff; T.O LIMIT is the TORA; the noise fields are filled when the procedure was sent.</li><li><b>INSERT</b> (only when runway and TOW agree) fills PERF T.O: speeds, flaps, thrust, shift, THR RED, ACCEL, EO ACCEL and noise. It does not fill THS FOR: the crew enters the CG there. <b>CLEAR</b> deletes the data.</li></ul>
+<figure><img src="img/11/m05_received_toga_noise.png" style="width:60%"><figcaption><b>Figure 14.</b> An uplink with the noise procedure: NOISE END 3000 ft, SPD 180 kt, THR 85 %.</figcaption></figure>
+<div class="tip"><b class="t">Tip</b>The flyPad warns you right after Send to FMS if INSERT will not work: another departure runway in the FMS, no TOW in the FMS, or a TOW outside -2 t / +7 t of the FMS one.</div>
+<h2>8. What to expect</h2>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Inputs missing</td><td>Amber labels; Calculate stays dim.</td></tr><tr><td>Calculate with valid inputs</td><td>RESULTS and the takeoff run; FLEX at its maximum by default.</td></tr><tr><td>TOW too high, CG out of envelope, wet runway...</td><td>A message with the reason; no result.</td></tr><tr><td>Send to FMS with a runway from the list</td><td>"Takeoff data sent to the FMS: RECEIVED CPNY T.O on the PERF page"; the MFD shows the data a moment later.</td></tr><tr><td>Send to FMS with a manual runway</td><td>Nothing is sent: the FMS needs the runway ident.</td></tr><tr><td>RECEIVED page, other runway than the flight plan</td><td>Runway in amber; INSERT not available.</td></tr><tr><td>INSERT</td><td>PERF T.O filled; THS FOR still to enter.</td></tr></table>
+<h2>9. Limitations and why</h2>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Dry runways only.</td><td>The only public A380 takeoff data is the takeoff weight charts of the Airbus A380 Aircraft Characteristics (dry, ISA and ISA+15, runway 1700-5100 m, altitude 0-8000 ft).</td><td>On a wet runway, use the dry result with extra margin, as a training estimate only.</td></tr><tr><td>Speeds, FLEX, wind, slope and temperature effects are estimates (amber *).</td><td>The charts give weights only. The rest is a model fitted on them and checked on the FCOM examples (FLEX 38 at 560 t / 614 t).</td><td>-</td></tr><tr><td>The run distances (V1, VR, 35 ft points) are all-engine estimates.</td><td>No A380 distance data is public.</td><td>-</td></tr><tr><td>Send to FMS needs a runway from the list.</td><td>The FMS checks the uplink against its departure runway.</td><td>Choose the runway in the list.</td></tr><tr><td>Not certified data.</td><td>For simulation and training.</td><td>-</td></tr></table>
+</body></html>
