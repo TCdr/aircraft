@@ -48,7 +48,7 @@ import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { AirlineModifiableInformation } from '@shared/AirlineModifiableInformation';
 import { getEtaFromUtcOrPresent, hhmmFormatter } from '../../shared/utils';
-import { CostIndexMode } from '../../FMC/fmgc';
+import { CostIndexMode, FINAL_HOLDING_FUEL_FLOW_T_PER_MIN } from '../../FMC/fmgc';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanChangeNotifier';
@@ -179,6 +179,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
   private readonly extraFuelWeight = NumberUnitSubject.create(UnitType.KILOGRAM.createNumber(NaN));
   private readonly extraFuelWeightText = this.createWeightSubscribable(this.extraFuelWeight);
 
+  /** The EXTRA time (FCOM FUEL&LOAD page: EXTRA fuel and time), in ms */
   private readonly extraFuelTime = Subject.create<number | null>(null);
   private readonly extraFuelTimeText = this.extraFuelTime.map((it) => hhmmFormatter(it ?? NaN));
 
@@ -316,7 +317,12 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
             this.tripFuelTime.set(getEtaFromUtcOrPresent(destPred?.secondsFromPresent, true));
           }
 
-          this.extraFuelWeight.set(this.props.fmcService.master.getExtraFuel(loadedfpIndex) ?? NaN);
+          const extraFuel = this.props.fmcService.master.getExtraFuel(loadedfpIndex);
+          this.extraFuelWeight.set(extraFuel ?? NaN);
+          // The time the EXTRA fuel lasts at the holding fuel flow of the FINAL fuel default
+          this.extraFuelTime.set(
+            extraFuel !== null ? (Math.max(extraFuel, 0) / 1000 / FINAL_HOLDING_FUEL_FLOW_T_PER_MIN) * 60_000 : null,
+          );
           this.updateDestAndAltnPredictions();
         }),
     );
