@@ -54,8 +54,8 @@ origin/master (2baa2b35e)
 
 PRs 10 to 17 were added on 2026-09-26 (13 to 17 first on the fork `master` 280800cf7); their `pr/*` branches below are all built on
 the upstream `master` 2baa2b35e. The PDF documents of every PR (specification, architecture diagram, FCOM rules, and the PR body below from "Summary of
-Changes") are in `docs/` (01 to 25; 18 to 25 added on 2026-09-27); `docs/00-overview.pdf` lists the 25 pr/* branches and their
-stacks, and `docs/FBW-features-handbook.pdf` has the overview and all 25 documents (rebuilt 2026-09-27). Release: `master` = the FBW upstream `master` 2baa2b35e (reset 2026-09-27),
+Changes") are in `docs/` (01 to 26; 18 to 25 added on 2026-09-27, 26 on 2026-09-28); `docs/00-overview.pdf` lists the 26 pr/*
+branches and their stacks, and `docs/FBW-features-handbook.pdf` has the overview and all 26 documents (rebuilt 2026-09-28). Release: `master` = the FBW upstream `master` 2baa2b35e (reset 2026-09-27),
 tagged `v2024.2.0`; our features are on `develop` (2024.3.0-SNAPSHOT) and the `pr/*` branches.
 
 **`pr-docs/` on every feature branch (2026-09-26):** each of the 17 branches ends with one commit
@@ -375,7 +375,7 @@ Open the upstream PRs from these branches, not from the feature branches: no `pr
 and in this folder), no fork-only commits, no merges, `LOD01.bin` only in PR 8 (the MCDU UV split the feature needs; its PR must link a
 companion `aircraft-large-files` PR for LOD00). Pushed to the fork. Feature branches and develop are unchanged.
 
-Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17, 20, 22 (each stacked on PR 10); PR 12 -> 21; PR 12 -> 23 -> 24; PR 18 -> 19 (PR 19 uses the runway module of PR 18); PR 25 (independent).
+Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17, 20, 22 (each stacked on PR 10); PR 12 -> 21; PR 12 -> 23 -> 24; PR 23 -> 26; PR 18 -> 19 (PR 19 uses the runway module of PR 18); PR 25 (independent).
 Every branch from 10 to 17 passed ESLint on its changed files, its test files and the FBW_TYPECHECK build of the A380X TypeScript tasks
 and the A32NX instruments (2026-09-27).
 
@@ -406,6 +406,7 @@ and the A32NX instruments (2026-09-27).
 | 23 | `pr/23-efb-landing-calculator` | `e7e27cf62` | 39 |
 | 24 | `pr/24-efb-descent-calculator` | `469b9a0c8` | 40 |
 | 25 | `pr/25-a380x-oans-default-airport` | `3a5afec9f` | 1 |
+| 26 | `pr/26-efb-taxi-route` | `b97742c40` | 40 |
 
 Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
 INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
@@ -438,6 +439,14 @@ destination / alternate within the 20 NM, 5000 ft cylinder in flight, the PLAN m
 PLAN), committed as `c0948ecb5` on `feature/a380x/oans-default-airport` after the user's in-sim test, merged into `develop`
 (a4e693727). PR branch `3a5afec9f` on the upstream master (independent: no other PR touches `OansControlPanel.tsx`; only its
 own CHANGELOG line kept in the conflict). Draft `25-a380x-oans-default-airport.md`.
+
+PR 26 (2026-09-28): the flyPad taxi route page (Ground > Taxi, both aircraft: departure from a gate or the aircraft to the
+holding point of a runway entry, arrival from a runway exit or the aircraft to a gate, suggested route and ATC clearance on
+the Navigraph airport map, runway crossings, taxiway names, tap a stand on the map), committed as `0b21c7f17` on
+`feature/efb/taxi-route` after the user's in-sim test at RJTT, merged into `develop` (9cd78dd05) and the feature branch
+deleted. PR branch `b97742c40` on PR 23 (the arrival start uses PR 23's shared runway exit module `btvExits.ts`; only its own
+CHANGELOG line kept in the conflict). ESLint, Prettier, tsc + tsc-strict (EFBs, OIT, MFD, MCDU), 9 + 2 tests and the
+FBW_TYPECHECK EFB builds pass. Draft `26-efb-taxi-route.md`.
 
 ## `develop` changes not in a `pr/*` branch yet (2026-09-27)
 
