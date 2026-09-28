@@ -221,6 +221,8 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   let startPoint: TaxiPoint | null = null;
   /** The line the aircraft is on */
   let startLine: number | null = null;
+  /** The edge the aircraft is on: the aircraft splits it, so the route never takes it whole (a U-turn through the aircraft) */
+  let startEdge = -1;
   if (start.kind === 'exit') {
     const exitEdge = nearestEdge(
       network,
@@ -240,6 +242,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
       return NO_ROUTE(TaxiRouteError.NoStart);
     }
     const e = edges[onEdge.edge];
+    startEdge = onEdge.edge;
     startLines.add(e.line);
     startLine = e.line;
     startPoint = start.point;
@@ -334,6 +337,9 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
       const node = Math.floor(s / layers);
       const k = (s % layers) - 1;
       for (const ei of adjacency[node]) {
+        if (ei === startEdge) {
+          continue;
+        }
         const next = step(ei, k, lastResort);
         if (next === null) {
           continue;
