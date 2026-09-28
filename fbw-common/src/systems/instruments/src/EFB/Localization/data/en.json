@@ -211,6 +211,57 @@
       "AirStarterUnit": "Air Starter Unit",
       "Stairs": "Passenger Stairs"
     },
+    "Taxi": {
+      "Accept": "Accept",
+      "Accepted": "Accepted route",
+      "AircraftPosition": "From the aircraft position",
+      "Airport": "Airport",
+      "Clearance": "ATC clearance (taxiways in order)",
+      "ClearancePlaceholder": "e.g. A K M",
+      "CrossRunway": "Crossing runway",
+      "Destination": "DEST",
+      "Directions": {
+        "ARRIVAL": "Arrival",
+        "DEPARTURE": "Departure"
+      },
+      "EnterAirport": "Enter an airport of the Navigraph airport database",
+      "Entry": "Entry",
+      "Errors": {
+        "NoConnection": "No taxi line of the airport map connects the start to the end: choose another start or end",
+        "NoRoute": "No route along these taxiways, in this order",
+        "NoStand": "The gate, ramp or cargo stand is not on the taxi lines of the airport map",
+        "NoStart": "The start is not on the taxi lines of the airport map",
+        "NoEntry": "The runway entry is not on the taxi lines of the airport map"
+      },
+      "Exit": "Exit",
+      "From": "From",
+      "FullLength": "full length",
+      "Help": "Choose the exit (or the aircraft) and the gate, ramp or cargo stand (type it or tap it on the map): the shortest route is suggested. Type the taxiways of the ATC clearance, or press SUGGEST, then ACCEPT.",
+      "HelpDeparture": "Choose the gate, ramp or cargo stand (type it or tap it on the map) or the aircraft, the runway and its entry: the shortest route to the holding point is suggested. Type the taxiways of the ATC clearance, or press SUGGEST, then ACCEPT.",
+      "Hold": "HOLD",
+      "HoldingPoint": "Holding point RWY",
+      "Loading": "Loading the airport map...",
+      "NotAtAirport": "The aircraft is not at this airport",
+      "NotFound": "Not in the Navigraph airport database",
+      "Origin": "ORIG",
+      "Preview": "Route along the clearance (not accepted)",
+      "Runway": "Runway",
+      "Stand": "Gate/ramp/cargo",
+      "StandNotFound": "No such name on the airport map: tap the gate on the map (zoom in for the names)",
+      "StandShort": "Gate",
+      "Stands": "gates, ramp and cargo stands",
+      "StartModes": {
+        "AIRCRAFT": "Aircraft",
+        "EXIT": "Runway exit",
+        "STAND": "Gate/ramp/cargo"
+      },
+      "Suggest": "Suggest",
+      "Suggested": "Suggested route (shortest)",
+      "Title": "Taxi",
+      "To": "To",
+      "Unavailable": "No airport database: connect a Navigraph account (flyPad settings)",
+      "Update": "Update"
+    },
     "Title": "Ground"
   },
   "Modals": {
