@@ -67,6 +67,12 @@ export enum ClimbDerated {
 export const LOWEST_FUEL_ESTIMATE_KGS = Units.poundToKilogram(A380AircraftConfig.vnavConfig.LOWEST_FUEL_ESTIMATE);
 
 /**
+ * Holding fuel flow of the FINAL fuel default, in tonnes per minute (30 min = 6 t). The FCOM leaves the FINAL default to
+ * the company fuel policy (DSC-22-FMS-20-30, FUEL&LOAD page); the EXTRA time is the EXTRA fuel at the same flow.
+ */
+export const FINAL_HOLDING_FUEL_FLOW_T_PER_MIN = 0.2;
+
+/**
  * Temporary place for data which is found nowhere else. Not associated to flight plans right now, which should be the case for some of these values
  */
 export class FmgcData {
