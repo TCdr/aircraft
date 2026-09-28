@@ -49,12 +49,14 @@ export interface TaxiRouteLeg {
   name: string | null;
   /** metres */
   length: number;
+  /** Where the leg starts */
+  start: TaxiPoint;
   /** The point halfway along the leg, to label it */
   mid: TaxiPoint;
 }
 
 /** A leg with its points, while the route is put together */
-type LegPoints = Omit<TaxiRouteLeg, 'mid'> & { points: TaxiPoint[] };
+type LegPoints = Omit<TaxiRouteLeg, 'start' | 'mid'> & { points: TaxiPoint[] };
 
 /** The point halfway along a polyline */
 function halfway(points: readonly TaxiPoint[], length: number): TaxiPoint {
@@ -404,6 +406,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
       kind: l.kind,
       name: l.name,
       length: l.length,
+      start: l.points[0],
       mid: halfway(l.points, l.length),
     }));
     const taxiways: string[] = [];
@@ -421,6 +424,36 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   };
 
   return search(false) ?? search(true) ?? NO_ROUTE(TaxiRouteError.NoRoute);
+}
+
+/** Flags closer than this to the previous one are left out, in metres */
+const FLAG_SPACING = 20;
+
+/**
+ * The points to mark the route with flags on the airport map: where each taxiway (or runway entry line) of the route
+ * starts, after the one the route starts on, and the end of the route (the stand or the holding point).
+ */
+export function taxiRouteFlagPoints(route: TaxiRoute): TaxiPoint[] {
+  const points: TaxiPoint[] = [];
+  const add = (p: TaxiPoint) => {
+    if (points.length === 0 || taxiDistance(points[points.length - 1], p) >= FLAG_SPACING) {
+      points.push(p);
+    }
+  };
+  let previous: string | null = null;
+  route.legs.forEach((leg, i) => {
+    if (leg.name === null || leg.kind === TaxiLineKind.Stand) {
+      return;
+    }
+    if (i > 0 && leg.name !== previous) {
+      add(leg.start);
+    }
+    previous = leg.name;
+  });
+  if (route.points.length > 0) {
+    add(route.points[route.points.length - 1]);
+  }
+  return points;
 }
 
 /** The taxiways of a clearance as the crew types it, e.g. "A, B K-L" */
