@@ -409,7 +409,7 @@ and the A32NX instruments (2026-09-27).
 | 23 | `pr/23-efb-landing-calculator` | `0adf3f890` | 43 |
 | 24 | `pr/24-efb-descent-calculator` | `83fc831c7` | 45 |
 | 25 | `pr/25-a380x-oans-default-airport` | `3a5afec9f` | 1 |
-| 26 | `pr/26-efb-taxi-route` | `9a061e1f5` | 44 |
+| 26 | `pr/26-efb-taxi-route` | `4c9d39c36` | 46 |
 
 Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
 INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
