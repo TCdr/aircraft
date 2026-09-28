@@ -183,6 +183,9 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
 
   private readonly dataAirportIcao = Subject.create('');
 
+  /** The last taxi route flags sent by the flyPad */
+  private taxiRouteFlags: OansControlEvents['oans_taxi_route_flags'] | null = null;
+
   private readonly dataAirportIata = Subject.create('');
 
   private readonly positionString = Subject.create('');
@@ -479,6 +482,10 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     this.sub.on('oans_erase_all_flags').handle(() => this.markerManager.eraseAllFlags());
     this.sub.on('oans_erase_cross_id').handle((id) => this.markerManager.removeCross(id));
     this.sub.on('oans_erase_flag_id').handle((id) => this.markerManager.removeFlag(id));
+    this.sub.on('oans_taxi_route_flags').handle((flags) => {
+      this.taxiRouteFlags = flags;
+      this.showTaxiRouteFlags();
+    });
     this.sub.on('oans_query_symbols_at_cursor').handle((data) => {
       const foundSymbols = this.markerManager.findSymbolAtCursor(this.unprojectPoint(data.cursorPosition));
       this.props.bus.getPublisher<OansControlEvents>().pub('oans_answer_symbols_at_cursor', {
@@ -729,6 +736,8 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
       this.dataAirportIcao.set(icao);
       this.dataAirportIata.set(wgs84ReferencePoint?.properties?.iata ?? '');
     }
+    // Loading an airport erases the flags: the flags of the taxi route come back when it is this airport's
+    this.showTaxiRouteFlags();
 
     // Figure out the boundaries of the map data
     const dataBbox = bbox(airportMap);
@@ -1514,6 +1523,21 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
       this.props.contextMenuVisible?.set(!this.props.contextMenuVisible.get());
     }
     this.isPanning = false;
+  }
+
+  /** Shows the flags of the flyPad taxi route when the displayed airport is the route's */
+  private showTaxiRouteFlags(): void {
+    const flags = this.taxiRouteFlags;
+    if (!this.data || !flags || flags.icao !== this.dataAirportIcao.get()) {
+      return;
+    }
+    const arp = this.arpCoordinates.get();
+    if (!arp) {
+      return;
+    }
+    this.markerManager.setTaxiRouteFlags(
+      flags.points.map((p) => OansMapProjection.globalToAirportCoordinates(arp, p, [0, 0])),
+    );
   }
 
   public projectPoint(coordinates: Position): [number, number] {

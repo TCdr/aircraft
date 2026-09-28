@@ -1,4 +1,4 @@
-// Copyright (c) 2025 FlyByWire Simulations
+// Copyright (c) 2025-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { ArraySubject, EventBus } from '@microsoft/msfs-sdk';
@@ -28,6 +28,9 @@ export class OancMarkerManager<T extends number> {
   private nextCrossId = 0;
   private nextFlagId = 0;
 
+  /** The ids of the flags that mark the taxi route of the flyPad */
+  private taxiRouteFlagIds: number[] = [];
+
   addCross(coords: Position, feature?: AmdbFeature) {
     const crossSymbolLabel: Label = {
       text: (this.nextCrossId++).toString(),
@@ -41,9 +44,11 @@ export class OancMarkerManager<T extends number> {
     this.crosses.insert(crossSymbolLabel);
   }
 
-  addFlag(coords: Position, feature?: AmdbFeature) {
+  /** Adds a flag, and returns its id */
+  addFlag(coords: Position, feature?: AmdbFeature): number {
+    const id = this.nextFlagId++;
     const flagSymbolLabel: Label = {
-      text: (this.nextFlagId++).toString(),
+      text: id.toString(),
       style: LabelStyle.FlagSymbol,
       position: coords,
       rotation: 0,
@@ -52,6 +57,15 @@ export class OancMarkerManager<T extends number> {
     this.labelManager.visibleLabels.insert(flagSymbolLabel);
     this.labelManager.labels.push(flagSymbolLabel);
     this.flags.insert(flagSymbolLabel);
+    return id;
+  }
+
+  /** Replaces the flags of the previous taxi route with flags at these points (airport coordinates) */
+  setTaxiRouteFlags(points: Position[]) {
+    for (const id of this.taxiRouteFlagIds) {
+      this.removeFlag(id);
+    }
+    this.taxiRouteFlagIds = points.map((p) => this.addFlag(p));
   }
 
   removeCross(id: number) {
@@ -106,6 +120,7 @@ export class OancMarkerManager<T extends number> {
     }
     this.labelManager.labels = this.labelManager.labels.filter((it) => !(it.style === LabelStyle.FlagSymbol));
     this.flags.clear();
+    this.taxiRouteFlagIds = [];
   }
 
   updateSymbolsForFeatureIds() {
