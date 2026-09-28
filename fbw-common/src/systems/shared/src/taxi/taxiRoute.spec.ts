@@ -83,6 +83,13 @@ describe('Taxi route', () => {
     });
     expect(west.taxiways).toEqual(['M']);
     expect(west.length).toBeCloseTo(200 + 105, 0);
+    // Facing away from the stand: no U-turn at the next junction through the aircraft position
+    const away = taxiRoute(NETWORK, {
+      start: { kind: 'position', point: [1900, 800], heading: 270 },
+      to: STAND_42,
+    });
+    expect(away.taxiways).toEqual(['M']);
+    expect(away.length).toBeCloseTo(100 + 105, 0);
     expect(
       taxiRoute(NETWORK, { start: { kind: 'position', point: [5000, 5000], heading: null }, to: STAND_42 }).error,
     ).toBe(TaxiRouteError.NoStart);
