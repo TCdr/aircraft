@@ -677,12 +677,13 @@ const DescentCheck = ({ result, distanceToTarget, onDistanceChange, altitude, gr
       const height = altitude - result.inputs.targetAltitude;
       const fpa = (Math.atan2(height, Math.max(distanceToTarget, 0.1) * 6076.12) * 180) / Math.PI;
       const rate = groundSpeed * 101.27 * Math.tan((fpa * Math.PI) / 180);
+      // The V/S and FPA to set on the FCU: negative in descent, as on the RESULTS line
       message = (
         <span className="text-utility-amber">
           {t('Performance.TopOfDescent.Calc.Late')
             .replace('{distance}', Math.round(-margin).toFixed(0))
-            .replace('{rate}', (Math.round(rate / 100) * 100).toFixed(0))
-            .replace('{fpa}', fpa.toFixed(1))}
+            .replace('{rate}', `-${(Math.round(rate / 100) * 100).toFixed(0)}`)
+            .replace('{fpa}', `-${fpa.toFixed(1)}`)}
         </span>
       );
     }
@@ -726,12 +727,15 @@ interface ProfileTableProps {
   formatAltitude: (altitude: number) => string;
 }
 
-/** The profile every 5000 ft (A380 FCOM PER-IFT-DES-DSR, table results) */
+/**
+ * The profile every 5000 ft (A380 FCOM PER-IFT-DES-DSR, table results). As in the FCOM table, RATE is the rate of
+ * descent and GRDT the descent gradient, both positive in descent (ROD = TAS x sin GRDT).
+ */
 const ProfileTable = ({ result, formatFuel, formatTime, formatAltitude }: ProfileTableProps) => (
   <table className="w-full text-right text-base">
     <thead className="text-sm text-theme-unselected">
       <tr>
-        {['ALT', 'TIME', 'DIST', 'FUEL', 'CAS', 'MACH', 'TAS', 'V/S', 'FPA', ''].map((h) => (
+        {['ALT', 'TIME', 'DIST', 'FUEL', 'CAS', 'MACH', 'TAS', 'RATE', 'GRDT', ''].map((h) => (
           <th key={h} className="px-1 font-normal">
             {h}
           </th>
@@ -749,7 +753,7 @@ const ProfileTable = ({ result, formatFuel, formatTime, formatAltitude }: Profil
           <td className="px-1">{p.mach.toFixed(3)}</td>
           <td className="px-1">{Math.round(p.tas)}</td>
           <td className="px-1">{p.rate > 0 ? Math.round(p.rate / 10) * 10 : ''}</td>
-          <td className="px-1">{p.rate > 0 ? p.gradient.toFixed(1) : ''}</td>
+          <td className="px-1">{p.rate > 0 ? (-p.gradient).toFixed(1) : ''}</td>
           <td className="px-1 text-left text-sm">{p.event ?? ''}</td>
         </tr>
       ))}
