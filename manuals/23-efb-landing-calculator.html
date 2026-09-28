@@ -1,0 +1,90 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>flyPad landing calculator - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>flyPad landing calculator</h1>
+<div class="subtitle">Landing distances, maximum landing weight, approach and go-around speeds for the A380 (new) and the A320 (reworked), on one screen laid out like the A380 OIS LDG PERF application</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X and A32NX</span>
+<b>Where to find it</b><span>flyPad &gt; <b>Performance</b> (calculator icon) &gt; <b>Landing</b> tab</span>
+<b>PR branch</b><span><code>pr/23-efb-landing-calculator</code> (stacked on PR 12)</span>
+<b>Status</b><span>Built, deployed and checked in the local flyPad harness; the in-sim test is still to do.</span>
+<b>Pictures</b><span>flyPad pages in the local browser harness, running the build installed in the sim. The harness has no navigation database, so the runway is entered by hand (in the sim, the runway list fills the RUNWAY section).</span>
+</div>
+<div class="toc"><div>1. What it is for</div><div>2. The screen</div><div>3. A normal in-flight calculation (A380)</div><div>4. Braking modes</div><div>5. Runway condition and reverse thrust</div><div>6. BTV exits (A380)</div><div>7. Dispatch</div><div>8. When the runway is too short or the aircraft too heavy</div><div>9. The A320 version</div><div>10. What to expect</div><div>11. Limitations and why</div></div>
+<h2>1. What it is for</h2>
+<p>Before the descent, the crew checks that the aircraft can land on the planned runway: the landing distance for the runway condition and braking, the margin left, the approach speed VAPP and the go-around performance. On the real A380 this is the LDG PERF application of the OIS (FCOM PER-LND); on the A320 it is the QRH (in flight) and the FCOM tables (dispatch). This page does both, with the data of each aircraft.</p>
+<ul><li><b>IN-FLIGHT</b> (default): the actual landing distance for the braking mode you will use, as in the QRH / OIS, with the stop margin.</li><li><b>DISPATCH</b>: the regulatory (factored) required landing distance, to check a runway before departure.</li></ul>
+<h2>2. The screen</h2>
+<figure><img src="img/23/l01_empty.png" style="width:88%"><figcaption><b>Figure 1.</b> The A380 landing screen before any input. Amber labels are the inputs still missing for a calculation.</figcaption></figure>
+<table><tr><th>Part</th><th>Contents</th></tr><tr><td>Airport, Fill data from</td><td>The ICAO code; <b>Fill data from</b> imports the data from the <b>FMS</b> (A380 FMC / A320 MCDU), the <b>OFP</b> (SimBrief) or the <b>METAR</b>.</td></tr><tr><td>Computation</td><td>DISPATCH or IN-FLIGHT.</td></tr><tr><td>RUNWAY</td><td>Runway from the list (or Manual), heading, landing distance available (LDA), elevation, slope, and on the A380 the go-around altitude.</td></tr><tr><td>CONDITIONS</td><td>Runway condition, wind (direction/speed), OAT, QNH; on the A380 the anti-ice and air conditioning (they change the go-around gradient).</td></tr><tr><td>AIRCRAFT</td><td>Landing weight (MLW button = the maximum landing weight), landing configuration, and on the A380 the approach type, the required go-around gradient and the VLS increment.</td></tr><tr><td>LANDING</td><td>Manual landing or autoland, braking mode, reverse thrust, and on the A320 the overweight procedure.</td></tr><tr><td>RESULTS</td><td>The results in the OIS layout (below).</td></tr><tr><td>LANDING ROLL</td><td>A picture of the runway with the touchdown, the stop point of each braking mode, the stop margin, and on the A380 the BTV lines and the runway exits.</td></tr></table>
+<figure><img src="img/23/l02_fill_from.png" style="width:45%"><figcaption><b>Figure 2.</b> Fill data from: FMS (destination, runway, predicted landing weight and the PERF APPR QNH, temperature, wind and landing configuration), OFP or METAR.</figcaption></figure>
+<h2>3. A normal in-flight calculation (A380)</h2>
+<ol><li>In flight, with the destination and the arrival runway in the flight plan and PERF APPR filled: choose <b>FMS</b> and press <b>Fill data from</b>. Otherwise type the airport, choose the runway and fill the conditions.</li><li>Check the landing weight (the FMS prediction) and the configuration.</li><li>Choose the braking mode you plan to use (manual, autobrake LO / 2 / 3 / HI).</li><li>Press <b>Calculate</b>.</li></ol>
+<figure><img src="img/23/l03_inflight_dry_manual.png" style="width:88%"><figcaption><b>Figure 3.</b> Dry runway, 3000 m, 380 t, CONF FULL, manual braking: landing distance 1130 m, stop margin 1870 m, VAPP 141 kt (VLS 136 + 5). The landing roll shows where each braking mode would stop.</figcaption></figure>
+<h3>Reading the results</h3>
+<table><tr><th>Line</th><th>Meaning</th></tr><tr><td>LW</td><td>The landing weight used.</td></tr><tr><td>MLW(perf)</td><td>The <b>highest landing weight the runway and the go-around allow</b>: the lower of the weight whose landing distance just fits the LDA and the weight that still gives the required go-around gradient. It is a performance limit, not the structural maximum landing weight (395 t on the A380): it can be above it. Above the structural MLW the page shows OVERWEIGHT LANDING.</td></tr><tr><td>LIMITATION CODE</td><td><b>WGT</b>: your weight is below MLW(perf), nothing limits you. <b>LDA</b> (red): the landing distance limits the weight. <b>ACG</b>: the go-around gradient limits it.</td></tr><tr><td>FLAPS</td><td>The landing configuration used (with AUTO CONF: the one the page chose).</td></tr><tr><td>LDG DIST / REG LDG DIST</td><td>In flight: the actual landing distance for the braking mode. Dispatch: the required (regulatory) distance.</td></tr><tr><td>STOP MARGIN</td><td>LDA minus the landing distance. Negative (red): the aircraft does not stop on the runway.</td></tr><tr><td>GA SPEED, GA GRADIENT</td><td>The go-around speed and the climb gradient of the go-around configuration.</td></tr><tr><td>VAPP</td><td>VLS of the landing configuration + the VLS increment (the wind increment, or what you enter).</td></tr><tr><td>Bottom line</td><td>The actual landing distance (ALD), the wind taken into account, the go-around configuration, and whether reverse thrust was credited.</td></tr></table>
+<p>Colours follow the flyPad takeoff calculator: <b>green</b> values come from Airbus data; values in <b>amber with a star (*)</b> are estimates of a model fitted on that data (see Limitations).</p>
+<h2>4. Braking modes</h2>
+<div class="row"><figure><img src="img/23/l04_brk_list.png"><figcaption><b>Figure 4.</b> A380 braking modes: Manual, autobrake LO, 2, 3, HI. BTV is not a mode here: the page gives its DRY / WET lines and exit advice.</figcaption></figure><figure><img src="img/23/l10_conf_list.png"><figcaption><b>Figure 5.</b> Landing configuration: CONF FULL, CONF 3 or AUTO CONF (the page chooses, as the OIS does).</figcaption></figure></div>
+<figure><img src="img/23/l05_autobrake3.png" style="width:88%"><figcaption><b>Figure 6.</b> Same landing with autobrake 3: 1507 m. The stop point of the chosen mode is highlighted; the others stay visible for comparison.</figcaption></figure>
+<p><b>AUTO CONF</b> (A380, FCOM PER-LND): CONF FULL when its go-around in CONF 3 gives the required gradient, otherwise CONF 3 with a go-around in CONF 2; for an overweight landing, CONF 3 with a go-around in CONF 1+F.</p>
+<h2>5. Runway condition and reverse thrust</h2>
+<p>The runway condition follows the runway condition codes (RWYCC): dry, wet, water and slush 1/4" or 1/2", compacted snow, ice. The crosswind limit of the condition is shown at the top of the landing roll.</p>
+<ul><li><b>Reverse thrust</b> is credited only on a <b>contaminated</b> runway (FCOM: no credit on dry and wet runways); the result line says <i>REVERSE THRUST CREDIT</i> or <i>NO REVERSE THRUST CREDIT</i>.</li><li>On the A380, <b>BTV is prohibited on a contaminated runway</b> (FCOM LIM-32-30): the BTV line says so and advises autobrake 3.</li><li>With 1/2" of water or slush, a message reminds you that Airbus does not recommend these distances: a deeper contaminant gives a shorter distance in the data.</li></ul>
+<div class="row"><figure><img src="img/23/l06_wet.png"><figcaption><b>Figure 7.</b> Wet runway, autobrake 3.</figcaption></figure><figure><img src="img/23/l07_contaminated.png"><figcaption><b>Figure 8.</b> Water 1/4" with reverse thrust: credited, BTV prohibited, crosswind limit 15 kt.</figcaption></figure></div>
+<h2>6. BTV exits (A380)</h2>
+<p>On the A380, the page shows the <b>BTV DRY</b> and <b>WET</b> lines: where the aircraft stops with the BTV decelerations (FCOM DSC-32-10-30-20), from 400 m after the threshold plus 5 s of roll. When the runway comes from the list and a Navigraph account is linked, the runway exits of the airport map are drawn and rated:</p>
+<table><tr><th>Exit</th><th>Meaning</th></tr><tr><td>Recommended</td><td>The first exit beyond the WET line (the FCOM SOP choice, even on a dry runway).</td></tr><tr><td>Beyond WET</td><td>Achievable wet or dry.</td></tr><tr><td>Dry only</td><td>Between the DRY and WET lines: only on a dry runway.</td></tr><tr><td>Not achievable</td><td>Before the DRY line.</td></tr></table>
+<p>Without the runway list or the Navigraph data, the line says <i>"Select the runway in the list for its exits"</i>. This is information for your briefing: the BTV selection itself is made on the OANS, as on the real aircraft.</p>
+<h2>7. Dispatch</h2>
+<p>DISPATCH gives the <b>required landing distance</b> used to check a runway before departure: the actual distance divided by 0.6 on a dry runway, ×1.15 on a wet one, and on a contaminated runway the higher of the wet value and ALD ×1.15 (A380 FCOM PER-LND). Braking is manual (the braking mode is greyed out). The orange bar is the required distance.</p>
+<figure><img src="img/23/l08_dispatch.png" style="width:88%"><figcaption><b>Figure 9.</b> Dispatch on the same runway: required landing distance 1883 m (REG LDG DIST).</figcaption></figure>
+<h2>8. When the runway is too short or the aircraft too heavy</h2>
+<figure><img src="img/23/l09_limit.png" style="width:88%"><figcaption><b>Figure 10.</b> 1600 m wet runway at 420 t: OVERWEIGHT LANDING (above the 395 t MLW), limitation code LDA in red, negative stop margin (-172 m): the aircraft does not stop on this runway with autobrake 3.</figcaption></figure>
+<h2>9. The A320 version</h2>
+<p>The A320 uses the same screen with its own data: the <b>QRH in-flight landing distances</b> (shown ×1.15, the QRH margin) and the <b>FCOM dispatch tables</b> (PER-LDG-DIS-RLD) with the autoland correction and the wet minimum. Braking modes are Manual, LO and MED; the <b>Overweight Procedure</b> switch applies the QRH overweight landing corrections. There is no go-around section.</p>
+<div class="row"><figure><img src="img/23/a320_l01_inflight.png"><figcaption><b>Figure 11.</b> A320 in flight: 62 t, 2400 m dry, autobrake MED: 1382 m (1590 m with the 15 % margin).</figcaption></figure><figure><img src="img/23/a320_l02_dispatch_wet.png"><figcaption><b>Figure 12.</b> A320 dispatch on a wet runway: required 1741 m from the FCOM tables (green: Airbus data).</figcaption></figure></div>
+<h2>10. What to expect</h2>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Inputs missing</td><td>Amber labels; the Calculate button stays dim until they are filled.</td></tr><tr><td>Fill data from FMS without a flight plan</td><td>Only what the FMS has is filled; complete the rest by hand.</td></tr><tr><td>Dry or wet runway, reverse thrust on</td><td>NO REVERSE THRUST CREDIT: the FCOM gives none there.</td></tr><tr><td>Contaminated runway</td><td>Longer distances, lower crosswind limit; A380: BTV prohibited.</td></tr><tr><td>Landing weight above the MLW</td><td>OVERWEIGHT LANDING in the RESULTS; A380 AUTO CONF lands in CONF 3.</td></tr><tr><td>LW above MLW(perf)</td><td>Limitation code LDA or ACG in red; the stop margin may be negative.</td></tr><tr><td>Change of an input after Calculate</td><td>Press Calculate again.</td></tr></table>
+<h2>11. Limitations and why</h2>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Most A380 values are estimates (amber *).</td><td>The only public A380 landing data is the landing field length chart of the Airbus A380 Aircraft Characteristics (dry, manual, CONF FULL). The other cases use a model fitted on it (0.8 % error on the chart) and the FCOM rules.</td><td>Use the results for training and planning, not as certified data.</td></tr><tr><td>Autobrake and BTV distances are estimates.</td><td>They come from the autobrake decelerations of the FCOM, not from Airbus tables.</td><td>-</td></tr><tr><td>BTV exits need the runway from the list and a Navigraph account.</td><td>The exits come from the Navigraph airport map (the OANS data).</td><td>Choose the runway in the list; link Navigraph.</td></tr><tr><td>No BTV on the A320.</td><td>The A320 has no BTV.</td><td>-</td></tr><tr><td>The go-around gradient is calibrated on one FCOM example.</td><td>No A380 go-around tables are public.</td><td>-</td></tr></table>
+</body></html>

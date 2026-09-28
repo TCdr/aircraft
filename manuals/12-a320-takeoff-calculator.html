@@ -1,0 +1,76 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A320 takeoff calculator and MCDU uplink takeoff data - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A320 takeoff calculator and MCDU uplink takeoff data</h1>
+<div class="subtitle">The flyPad takeoff screen of the A380, with the FBW A320neo performance model, sending its results to the MCDU as uplink takeoff data (FCOM DSC-22_20-50-10-28)</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX (the A380 part of the screen is in the PR 11 manual)</span>
+<b>Where to find it</b><span>flyPad &gt; <b>Performance</b> &gt; <b>Takeoff</b>; MCDU &gt; <b>PERF</b> TAKE OFF &gt; <b>&lt;TO DATA</b> (6L)</span>
+<b>PR branch</b><span><code>pr/12-a320-takeoff-calculator</code> (stacked on PR 11)</span>
+<b>Status</b><span>The flyPad calculation was used in the sim; the MCDU uplink pages are checked in the harness; the full flow is still to re-test in the sim.</span>
+<b>Pictures</b><span>flyPad and MCDU in the local browser harness, running the build installed in the sim. The harness has no navigation database and no flight plan: the runway is typed and the uplink is sent to the MCDU by the harness (the same message the flyPad sends).</span>
+</div>
+<div class="toc"><div>1. What it is for</div><div>2. The flyPad screen (A320)</div><div>3. Sending to the MCDU</div><div>4. What to expect</div><div>5. Limitations and why</div></div>
+<h2>1. What it is for</h2>
+<p>The A320 takeoff speeds, FLEX temperature and THS come from the airline or the crew's own tool. Here the flyPad computes them with the FlyByWire A320neo performance model (built from Airbus data) and sends them to the FMGC as an <b>uplink takeoff data</b> message, which the crew inserts from the MCDU PERF TAKE OFF page as on the real aircraft.</p>
+<h2>2. The flyPad screen (A320)</h2>
+<p>The screen is the one of the A380 (see the PR 11 manual) with these A320 differences:</p>
+<ul><li>No noise procedure fields; T.O CG is optional: below 27 % MAC the forward CG performance applies (A320 FCOM PER-LOD) and the THS is shown in RESULTS.</li><li>All values come from the FBW A320 model: they are shown in green (no estimates).</li><li>Wet and contaminated runways are computed (the A380 page accepts dry only).</li></ul>
+<figure><img src="img/12/f01_empty.png" style="width:88%"><figcaption><b>Figure 1.</b> The A320 takeoff screen before any input.</figcaption></figure>
+<figure><img src="img/12/f02_flex.png" style="width:88%"><figcaption><b>Figure 2.</b> LFBO 14R-like runway (3500 m, 499 ft), 68 t, 22 °C: FLEX 64 °C (maximum), required 2961 m of 3480 m, margin 519 m.</figcaption></figure>
+<div class="row"><figure><img src="img/12/f03_toga.png"><figcaption><b>Figure 3.</b> The TOGA run at the same weight: 1643 m.</figcaption></figure><figure><img src="img/12/f04_fwd_cg.png"><figcaption><b>Figure 4.</b> T.O CG 24 % (forward CG) at TOGA: the THS (UP1.9) appears in RESULTS.</figcaption></figure></div>
+<div class="note"><b class="t">Note</b>At light weights the FBW A320 model gives <b>V1 = VR = V2</b> (the pictures show 148/148/148 at FLEX and 140/140/140 at TOGA for 68 t). This comes from the FlyByWire model itself (the same with its version before this PR), not from this feature.</div>
+<h2>3. Sending to the MCDU</h2>
+<ol><li>On the flyPad, choose the <b>runway from the list</b> (the uplink carries the runway ident), calculate, choose TOGA or the FLEX temperature for the takeoff run, and press <b>Send to FMS</b>.</li><li>The flyPad says <i>"Takeoff data sent to the FMS: MCDU PERF TAKE OFF, UPLINK TO DATA, RECEIVED TO DATA"</i>, and warns right away if the FMGC departure runway or TOW will prevent the insertion.</li><li>On the MCDU the scratchpad shows <b>TAKEOFF DATA UPLINK</b>.</li><li>PERF TAKE OFF &gt; <b>&lt;TO DATA</b> (6L) &gt; <b>RECEIVED &lt;TO DATA</b> (6L): the UPLINK MAX TO DATA page (or FLX TO DATA with 4R). Check it, then <b>INSERT UPLINK</b>.</li></ol>
+<div class="row"><figure><img src="img/12/k01_perf_to.png"><figcaption><b>Figure 5.</b> PERF TAKE OFF: the new UPLINK &lt;TO DATA prompt (6L), in PREFLIGHT and DONE.</figcaption></figure><figure><img src="img/12/k02_uplink_req.png"><figcaption><b>Figure 6.</b> UPLINK TO DATA REQ: the request page (two runways, 1/2). RECEIVED &lt;TO DATA (6L), TO DATA REQUEST (6R).</figcaption></figure></div>
+<div class="row"><figure><img src="img/12/k05_uplink_max.png"><figcaption><b>Figure 7.</b> UPLINK MAX TO DATA after TAKEOFF DATA UPLINK: TOW, runway 14R, temperature and QNH, V1 / VR / V2, TO LIMIT, flaps / THS, THR RED / ACC, ENG OUT ACC. FLEX TO&gt; (4R) shows the FLEX data.</figcaption></figure><figure><img src="img/12/k06_uplink_flx.png"><figcaption><b>Figure 8.</b> UPLINK FLX TO DATA: FLX +54 °C with its own speeds.</figcaption></figure></div>
+<p>There is <b>no INSERT UPLINK prompt</b> in these pictures because the harness FMGC has no flight plan. The prompt appears only when the uplink is complete (V1 and VR present) and the checks below pass.</p>
+<h3>The insertion rules (A320 FCOM)</h3>
+<ul><li>The uplink runway must be the departure runway of the flight plan.</li><li>The uplink TOW must be <b>not more than 1 t below or 3 t above</b> the FMGC TOW; otherwise there is no insertion.</li><li>INSERT UPLINK fills V1, VR, V2, FLAPS/THS, FLEX TO TEMP (cleared for a MAX takeoff), THR RED/ACC, ENG OUT ACC and the TO SHIFT.</li><li>An incomplete uplink (for example without V1 or VR) gives no INSERT UPLINK prompt (DSC-22_20-70 P 6).</li></ul>
+<figure><img src="img/12/k07_invalid.png" style="width:45%"><figcaption><b>Figure 9.</b> An uplink the FMGC cannot read: INVALID TAKEOFF UPLINK in the scratchpad.</figcaption></figure>
+<table><tr><th>MCDU message</th><th>Meaning</th></tr><tr><td>TAKEOFF DATA UPLINK</td><td>Uplink takeoff data received.</td></tr><tr><td>INVALID TAKEOFF UPLINK</td><td>The uplink is not valid (missing data).</td></tr><tr><td>REQUEST IS PENDING</td><td>A request was sent and has no answer yet.</td></tr><tr><td>NO ANSWER TO REQUEST</td><td>No answer 4 minutes after the request.</td></tr></table>
+<p>PERF TAKE OFF also gets the <b>TO SHIFT</b> field (1 m up to the runway length, CLR to delete): the distance lost when taking off from an intersection.</p>
+<h2>4. What to expect</h2>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Send to FMS with a runway from the list</td><td>Success message; TAKEOFF DATA UPLINK on the MCDU.</td></tr><tr><td>Send to FMS with a manual runway</td><td>Nothing is sent: choose the runway in the list.</td></tr><tr><td>FMGC departure runway differs</td><td>flyPad warning; no INSERT UPLINK on the MCDU.</td></tr><tr><td>FMGC TOW differs by more than -1 t / +3 t</td><td>flyPad warning; no INSERT UPLINK. (Known issue: the warning text quotes the A380 margins, -2 t / +7 t.)</td></tr><tr><td>No TOW in the FMGC</td><td>flyPad warning "No TOW in the FMS": fill INIT B first. (Known issue: the text names the A380 FUEL&amp;LOAD page.)</td></tr><tr><td>INSERT UPLINK</td><td>PERF TAKE OFF filled with the uplink.</td></tr></table>
+<h2>5. Limitations and why</h2>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Only the thrust selected for the takeoff run is sent.</td><td>The airline sends what the crew asked for; the MCDU holds MAX and FLEX pages, the flyPad fills the one you use.</td><td>Select TOGA or FLEX before sending.</td></tr><tr><td>V1 = VR = V2 at light weights.</td><td>The FlyByWire A320 model (upstream).</td><td>Check against your own tools.</td></tr><tr><td>No real airline datalink.</td><td>The flyPad plays the airline.</td><td>-</td></tr></table>
+</body></html>

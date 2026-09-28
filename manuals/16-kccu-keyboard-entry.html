@@ -1,0 +1,68 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X KCCU keyboard entries - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X KCCU keyboard entries</h1>
+<div class="subtitle">Values typed on the KCCU keyboard are entered with ENT, and ESC cancels the edition, as the FCOM describes the KCCU</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X (MFD, OIT, ND OANS panel: every entry field of the displays)</span>
+<b>Where to find it</b><span>KCCU (keyboard and cursor control unit) on the pedestal, <b>KBD</b> switch ON; any MFD entry field</span>
+<b>PR branch</b><span><code>pr/16-kccu-keyboard-entry</code> (stacked on PR 10)</span>
+<b>Status</b><span>Built and used in the sim (September 2026).</span>
+<b>Pictures</b><span>Captain MFD in the local browser harness, running the build installed in the sim; the KCCU keys are sent to the MFD as the sim sends them.</span>
+</div>
+<div class="toc"><div>1. What it is for</div><div>2. Entering a value</div><div>3. Wrong entries</div><div>4. Cancelling with ESC</div><div>5. What to expect</div><div>6. Limitations and why</div></div>
+<h2>1. What it is for</h2>
+<p>On the A380 the crew types on the KCCU keyboard. Before this change a value typed on the 3D KCCU keys was often lost: the field was validated only when the display lost the focus, and clicking a 3D key ends the focus before the key reaches the field. Now the field follows the FCOM (DSC-31-30-20, KCCU):</p>
+<ul><li><b>ENT</b> validates the entry directly.</li><li><b>ESC</b> <i>"cancels the current field edition. The field returns to the last valid value"</i>.</li><li>With the <b>KBD</b> switch ON, the edition continues whatever happens to the display focus: only ENT, ESC or the selection of another field end it (the previous field is then validated). One field is in edition per side.</li><li>A click on a field selects it even when it already had the focus.</li><li>KBD switch OFF: the PC keyboard works as before.</li></ul>
+<h2>2. Entering a value</h2>
+<ol><li>Set the <b>KBD</b> switch of your KCCU ON.</li><li>Click the field with the cursor (trackball or mouse).</li><li>Type the value on the KCCU keys (or the PC keyboard).</li><li>Press <b>ENT</b>. The value is checked with the FCOM entry format of the field.</li></ol>
+<div class="row"><figure><img src="img/16/k01_editing.png"><figcaption><b>Figure 1.</b> TROPO selected, 39000 typed on the KCCU keys.</figcaption></figure><figure><img src="img/16/k02_entered.png"><figcaption><b>Figure 2.</b> After ENT: TROPO 39000 FT entered (big cyan: a pilot entry).</figcaption></figure></div>
+<h2>3. Wrong entries</h2>
+<p>ENT on a wrong value leaves the field unchanged and shows the FCOM message in the message area; the message gives the expected format. CLR INFO (KCCU key) clears it.</p>
+<div class="row"><figure><img src="img/16/k03_format_error.png"><figcaption><b>Figure 3.</b> "ABC" in TROPO: FORMAT ERROR, FORMAT: FOR ALT XXXXX FOR FL XXX.</figcaption></figure><figure><img src="img/16/k03b_out_of_range.png"><figcaption><b>Figure 4.</b> 99999 in TROPO: ENTRY OUT OF RANGE.</figcaption></figure></div>
+<h2>4. Cancelling with ESC</h2>
+<div class="row"><figure><img src="img/16/k04_before_esc_zoom.png"><figcaption><b>Figure 5.</b> 41000 typed in TROPO, not validated...</figcaption></figure><figure><img src="img/16/k05_after_esc_zoom.png"><figcaption><b>Figure 6.</b> ... ESC: the field returns to its last valid value, 39000.</figcaption></figure></div>
+<h2>5. What to expect</h2>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Value typed, ENT</td><td>The value is entered (or an FCOM error message).</td></tr><tr><td>Value typed, ESC</td><td>The field returns to its last valid value.</td></tr><tr><td>Value typed, another field clicked</td><td>The first value is validated, the new field is in edition.</td></tr><tr><td>Value typed, click on a 3D KCCU key or elsewhere in the cockpit</td><td>KBD ON: the field stays in edition, the value is not lost.</td></tr><tr><td>KBD switch OFF</td><td>The PC keyboard types in the field; the field is validated when it loses the focus, as before.</td></tr></table>
+<h2>6. Limitations and why</h2>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>One field in edition per side.</td><td>As on the aircraft: each KCCU drives its own side.</td><td>-</td></tr></table>
+</body></html>
