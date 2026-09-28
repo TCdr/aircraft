@@ -37,7 +37,7 @@ import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { Vmcl, maxZfw } from '@shared/PerformanceConstants';
 import { FmgcFlightPhase } from '@shared/flightphase';
-import { FmgcDataService } from './fmgc';
+import { FINAL_HOLDING_FUEL_FLOW_T_PER_MIN, FmgcDataService } from './fmgc';
 import { ADIRS } from '../shared/Adirs';
 import { NXSystemMessages } from '../shared/NXSystemMessages';
 import { A380OperatingSpeeds, A380SpeedsUtils } from '@shared/OperatingSpeeds';
@@ -1801,12 +1801,12 @@ export class FmcAircraftInterface {
       // Calculate final fuel.
       if (pd.isFinalHoldingFuelPilotEntered.get()) {
         const finalFuel = pd.pilotFinalHoldingFuel.get();
-        pd.calculatedFinalHoldingTime.set(finalFuel !== null ? finalFuel / 0.2 : null);
+        pd.calculatedFinalHoldingTime.set(finalFuel !== null ? finalFuel / FINAL_HOLDING_FUEL_FLOW_T_PER_MIN : null);
         pd.calculatedFinalHoldingFuel.set(null);
       } else {
         pd.calculatedFinalHoldingTime.set(null);
         const finalTime = pd.finalHoldingTime.get();
-        pd.calculatedFinalHoldingFuel.set(finalTime !== null ? finalTime * 0.2 : null);
+        pd.calculatedFinalHoldingFuel.set(finalTime !== null ? finalTime * FINAL_HOLDING_FUEL_FLOW_T_PER_MIN : null);
       }
     }
   }
