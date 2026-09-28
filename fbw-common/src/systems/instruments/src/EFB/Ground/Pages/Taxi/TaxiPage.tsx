@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { FC, useEffect, useMemo, useState } from 'react';
-import { useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { AirframeType, useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { useEventBus } from '@flybywiresim/flypad';
 import {
   BtvExit,
+  OansControlEvents,
   OansMapProjection,
   parseTaxiClearance,
   TaxiLineKind,
@@ -14,6 +16,7 @@ import {
   TaxiRouteError,
   TaxiRouteStart,
   TaxiRouteTarget,
+  taxiRouteFlagPoints,
   taxiRouteRunwayCrossings,
   taxiRouteToHoldingPoint,
   TaxiRunwayEntry,
@@ -98,6 +101,9 @@ export const TaxiPage = () => {
   const { departingAirport, arrivingAirport } = useAppSelector((state) => state.simbrief.data);
   const set = (values: Parameters<typeof setTaxiRouteValues>[0]) => dispatch(setTaxiRouteValues(values));
   const departure = direction === TaxiRouteDirection.Departure;
+  const eventBus = useEventBus();
+  /** The A380 shows the accepted route on its OANS */
+  const hasOans = useAppSelector((state) => state.config.airframeInfo.variant) === AirframeType.A380_842;
 
   const [latitude] = useSimVar('PLANE LATITUDE', 'degrees', 500);
   const [longitude] = useSimVar('PLANE LONGITUDE', 'degrees', 500);
@@ -198,6 +204,26 @@ export const TaxiPage = () => {
           label: `${t('Ground.Taxi.Hold')} ${runway}`,
         }
       : null;
+
+  // The accepted route is marked on the OANS with green flags (FCOM: flags mark a given point on the airport); a route
+  // that is not accepted any more takes its flags away
+  const flagRoute = accepted && cleared !== null ? shownRoute : null;
+  useEffect(() => {
+    if (!hasOans) {
+      return;
+    }
+    const points =
+      flagRoute && airport
+        ? taxiRouteFlagPoints(flagRoute).map((p) => OansMapProjection.airportToGlobalCoordinates(airport.arp, p))
+        : [];
+    eventBus
+      .getPublisher<OansControlEvents>()
+      .pub(
+        'oans_taxi_route_flags',
+        { icao: airport?.icao ?? icao, points: points.map((c) => ({ lat: c.lat, long: c.long })) },
+        true,
+      );
+  }, [hasOans, flagRoute, airport, icao, eventBus]);
 
   const takeAircraftPosition = () => {
     setAircraftStart(aircraft ? { point: aircraft.point, heading: aircraft.heading } : null);
@@ -469,6 +495,7 @@ export const TaxiPage = () => {
             <>
               <span className={accepted ? 'font-bold text-utility-green' : 'text-theme-highlight'}>
                 {accepted ? t('Ground.Taxi.Accepted') : cleared ? t('Ground.Taxi.Preview') : t('Ground.Taxi.Suggested')}
+                {hasOans && flagRoute && ` · ${t('Ground.Taxi.FlagsOnOans')}`}
               </span>
               <span className="leading-snug">{routeText(shownRoute, routeEnd)}</span>
               <span className="text-theme-unselected">

@@ -110,6 +110,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
 1. [EFB] Add the A380 landing calculator and rework the A320 one: dispatch and in-flight landing distances from the FCOM, FMS data import, BTV exit advice on the A380 - @TCdr
 1. [EFB] Add a taxi route page (Ground > Taxi) on the Navigraph airport map: after landing from a runway exit to a stand, for departure from a stand to the holding point of a runway entry, suggested along named taxiways and edited to match the ATC clearance, with the runway crossings - @TCdr
+1. [A380X/OANS] Mark the taxi route accepted on the flyPad with green flags on the OANS: at the start of each taxiway and at the gate or holding point - @TCdr
 
 ## 2024.1.0
 
