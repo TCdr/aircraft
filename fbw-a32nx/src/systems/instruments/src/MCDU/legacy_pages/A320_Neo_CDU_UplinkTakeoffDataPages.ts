@@ -14,6 +14,9 @@ export const UPLINK_CONTAMINATIONS = ['DRY', 'WET', '1/4 WATER', '1/2 WATER', '1
 
 const FEET_PER_METRE = 3.28084;
 
+/** The column of V1 / VR / V2 and of the speeds on the UPLINK MAX / FLX TO DATA pages (FCOM figure, 0-based) */
+const SPEED_COLUMN = 10;
+
 /** A320 FCOM P 93: the uplinked data cannot be inserted with a TOW 3 t above or 1 t below the FMS one */
 const TOW_MARGIN_ABOVE = 3_000;
 const TOW_MARGIN_BELOW = 1_000;
@@ -372,6 +375,9 @@ export class CDUUplinkTakeoffDataPages {
       ? `${formatTemperature(flex ? uplink.flexTemperature ?? 0 : uplink.oat)}/${uplink.qnh.toFixed(0)}`
       : null;
     const speed = (v: number | null | undefined) => value(v !== null && v !== undefined ? v.toFixed(0) : null, '---');
+    /** A left cell with a speed in column 11 after it, as V1 / VR / V2 in the FCOM figure (DSC-22_20-50-10-28 P 92) */
+    const withSpeed = (text: string | null, dashes: string, v: number | null | undefined) =>
+      `${value(text, dashes)}${'\xa0'.repeat(Math.max(1, SPEED_COLUMN - (text !== null && uplink ? text : dashes).length))}${speed(v)}`;
 
     if (runways.length > 1) {
       mcdu.onPrevPage = () =>
@@ -407,30 +413,28 @@ export class CDUUplinkTakeoffDataPages {
         towCell,
         uplink ? green(`${uplink.shift !== null ? uplink.shift.toFixed(0) : '[  ]'}/${uplink.runway}`) : '-----/----',
       ],
-      [flex ? '\xa0FLX/QNH' : '\xa0TEMP/QNH', 'TO\xa0LIMIT\xa0', 'V1\xa0\xa0\xa0\xa0'],
+      [flex ? 'FLX/QNH\xa0\xa0\xa0V1' : 'TEMP/QNH\xa0\xa0V1', 'TO\xa0LIMIT\xa0'],
       [
-        value(tempText, '---°/----'),
+        withSpeed(tempText, '---°/----', uplink?.v1),
         uplink && uplink.toLimit !== null
           ? green(`{small}FT{end}${(uplink.toLimit * FEET_PER_METRE).toFixed(0)}`)
           : '------',
-        speed(uplink?.v1),
       ],
-      ['\xa0MAG\xa0WIND', 'FLAPS/THS\xa0', 'VR\xa0\xa0\xa0\xa0'],
+      ['MAG\xa0WIND\xa0\xa0VR', 'FLAPS/THS\xa0'],
       [
-        value(
+        withSpeed(
           uplink
             ? `${uplink.windDirection.toFixed(0).padStart(3, '0')}°/${uplink.windSpeed.toFixed(0).padStart(3, '0')}`
             : null,
           '---°/---',
+          uplink?.vr,
         ),
         value(uplink ? `${uplink.flaps}/${uplink.ths !== null ? formatThs(uplink.ths) : '-----'}` : null, '--/-----'),
-        speed(uplink?.vr),
       ],
-      ['\xa0CONTAM', '', 'V2\xa0\xa0\xa0\xa0'],
+      ['CONTAM\xa0\xa0\xa0\xa0V2'],
       [
-        value(uplink ? UPLINK_CONTAMINATIONS[uplink.runwayCondition] ?? '---' : null, '---------'),
+        withSpeed(uplink ? UPLINK_CONTAMINATIONS[uplink.runwayCondition] ?? '---' : null, '---------', uplink?.v2),
         flex ? 'MAX TO>' : 'FLEX TO>',
-        speed(uplink?.v2),
       ],
       ['THR\xa0RED/ACC', 'ENG\xa0OUT\xa0ACC'],
       [
