@@ -24,6 +24,7 @@ import payloadReducer from './features/payload';
 import configReducer from './features/config';
 import fileHashReducer from './features/fileHashes';
 import temperatureCorrectionCalculatorReducer from './features/temperatureCorrectionCalculator';
+import taxiRouteReducer from './features/taxiRoute';
 
 export type RootState = ReturnType<typeof combinedReducer>;
 export type AppDispatch = typeof store.dispatch;
@@ -48,6 +49,7 @@ const combinedReducer = combineReducers({
   config: configReducer,
   fileHashes: fileHashReducer,
   temperatureCorrectionCalculator: temperatureCorrectionCalculatorReducer,
+  taxiRoute: taxiRouteReducer,
 });
 
 const rootReducer: Reducer = (state: RootState, action: AnyAction) => {

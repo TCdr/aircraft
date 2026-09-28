@@ -8,6 +8,7 @@ import { ServicesPage } from './Pages/Services/ServicesPage';
 import { PushbackPage } from './Pages/Pushback/PushbackPage';
 import { PayloadPage } from './Pages/Payload/PayloadPage';
 import { Fuel } from './Pages/Fuel/Fuel';
+import { TaxiPage } from './Pages/Taxi/TaxiPage';
 
 export const Ground = () => {
   const tabs: PageLink[] = [
@@ -15,6 +16,7 @@ export const Ground = () => {
     { name: 'Fuel', alias: t('Ground.Fuel.Title'), component: <Fuel /> },
     { name: 'Payload', alias: t('Ground.Payload.Title'), component: <PayloadPage /> },
     { name: 'Pushback', alias: t('Ground.Pushback.Title'), component: <PushbackPage /> },
+    { name: 'Taxi', alias: t('Ground.Taxi.Title'), component: <TaxiPage /> },
   ];
 
   return (
