@@ -30,7 +30,7 @@ export class MfdFmsFplnCpnyFplnReq extends FmsPage<MfdFmsFplnCpnyFplnReqProps> {
   private readonly freeText = Subject.create<string | null>(null);
 
   private readonly sendButtonLabel = this.props.fmcService.master.fmgc.data.cpnyFplnUplinkInProgress.map((pending) =>
-    pending ? 'REQUEST\nPENDING...' : 'SEND F-PLN\nREQUEST *',
+    pending ? 'REQUEST\nPENDING...' : 'SEND F-PLN\nREQUEST',
   );
 
   /** FCOM: after engine start, a flight plan request can only be sent from a secondary flight plan */
