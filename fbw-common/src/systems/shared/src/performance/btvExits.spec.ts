@@ -65,11 +65,11 @@ const FEATURES: BtvAmdbFeature[] = [
 describe('BTV runway exits', () => {
   it('finds the exits of a runway as the OANS does', () => {
     expect(runwayExitsFromAmdb(FEATURES, '09')).toEqual([
-      { name: 'A1', distance: 1000 },
-      { name: 'E1', distance: 2200 },
+      { name: 'A1', distance: 1000, start: [1000, 20] },
+      { name: 'E1', distance: 2200, start: [2200, 5] },
     ]);
     // Landing on 27: B1 and C1 do not turn back any more, the second A1 line does
-    expect(runwayExitsFromAmdb(FEATURES, '27')).toEqual([
+    expect(runwayExitsFromAmdb(FEATURES, '27')?.map(({ name, distance }) => ({ name, distance }))).toEqual([
       { name: 'E1', distance: 800 },
       { name: 'B1', distance: 1500 },
       { name: 'A1', distance: 2000 },
