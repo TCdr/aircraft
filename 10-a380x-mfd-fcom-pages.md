@@ -10,6 +10,7 @@
 - **CHANGELOG line:** `1. [A380X/MFD] Lay out the FMS and SURV pages per the A380 FCOM, add the missing FCOM pages, the print functions and FUEL PLANNING - @TCdr`
 - **Also in `pr/10`:** `124524c64` (a SEC page is no longer redirected to ACTIVE when another flight plan is created: the COMPANY
   F-PLN REQUEST page of an empty SEC needed two RETURN clicks after the request); the branches stacked on PR 10 are rebased on it.
+- **Also in `pr/10` (2026-09-28):** `1185ed5d5` (SEND F-PLN REQUEST shows one asterisk, on the right, as in the FCOM figure DSC-22-FMS-20-30 P 28); the branches stacked on PR 10 are rebased on it.
 
 ---- paste from here ----
 
