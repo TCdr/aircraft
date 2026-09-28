@@ -23,6 +23,8 @@ export interface BtvLines {
 export interface BtvExit {
   name: string;
   distance: number;
+  /** Where the exit leaves the runway centreline, in the airport map projection (metres, x east, y north) */
+  start?: [number, number];
 }
 
 export enum BtvExitStatus {
@@ -127,7 +129,7 @@ export function runwayExitsFromAmdb(features: readonly BtvAmdbFeature[], runway:
   const along = (p: Point) => (p[0] - thr[0]) * ux + (p[1] - thr[1]) * uy;
   const across = (p: Point) => Math.abs((p[0] - thr[0]) * uy - (p[1] - thr[1]) * ux);
 
-  const exits = new Map<string, number>();
+  const exits = new Map<string, { distance: number; start: Point }>();
   for (const f of features) {
     if (f.properties.feattype !== FeatureType.RunwayExitLine || f.properties.idlin === undefined) {
       continue;
@@ -150,11 +152,11 @@ export function runwayExitsFromAmdb(features: readonly BtvAmdbFeature[], runway:
       continue;
     }
     const known = exits.get(f.properties.idlin);
-    if (known === undefined || s < known) {
-      exits.set(f.properties.idlin, s);
+    if (known === undefined || s < known.distance) {
+      exits.set(f.properties.idlin, { distance: s, start });
     }
   }
   const result: BtvExit[] = [];
-  exits.forEach((d, name) => result.push({ name, distance: d }));
+  exits.forEach((exit, name) => result.push({ name, distance: exit.distance, start: exit.start }));
   return result.sort((a, b) => a.distance - b.distance);
 }
