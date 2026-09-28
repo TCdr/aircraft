@@ -38,6 +38,8 @@ const TAXIWAY_LABEL_SPACING = 250;
 
 /** Pixels per metre: the stand names appear from this scale */
 const STAND_LABEL_SCALE = 0.6;
+/** The margin around the route or the airport when the map fits them, in pixels */
+const FIT_PADDING = 70;
 /** A tap picks the nearest stand within this distance, in pixels */
 const STAND_PICK_DISTANCE = 20;
 /** A press that moves less than this is a tap, not a drag, in pixels */
@@ -81,7 +83,11 @@ function fit(points: TaxiPoint[], width: number, height: number): View | null {
     maxX = Math.max(maxX, x);
     maxY = Math.max(maxY, y);
   }
-  const scale = Math.min(width / Math.max(maxX - minX + 200, 200), height / Math.max(maxY - minY + 200, 200));
+  // A margin in pixels keeps the labels at the ends of the route (stand, HOLD) inside the map
+  const scale = Math.min(
+    (width - 2 * FIT_PADDING) / Math.max(maxX - minX, 100),
+    (height - 2 * FIT_PADDING) / Math.max(maxY - minY, 100),
+  );
   return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, scale: Math.min(scale, 4) };
 }
 
