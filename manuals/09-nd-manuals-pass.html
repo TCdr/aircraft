@@ -26,6 +26,7 @@ figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
 figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
 figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
 figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
 .row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
 .row figure { margin: 0; flex: 1 1 0; }
 .note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
@@ -54,10 +55,10 @@ table.lim td:nth-child(2) { width: 42%; }
 <ul><li>In the managed lateral modes the VD shows the terrain and weather <b>along the flight plan</b> (a 200 NM window from just behind the aircraft, with the turns); in the selected modes <b>along the track</b> (FCOM: VIEW ALONG ACFT TRK). More than 5 NM off the plan: the track.</li><li>The terrain is the highest across a width of 2 × RNP (1 NM terminal, 2 NM en route above 18 000 ft).</li><li>The grey area starts at the next track change of more than 3° (the VD no longer matches the ND beyond it).</li></ul>
 <h2>2. The VD scale and the terrain height</h2>
 <ul><li>With a trajectory, the highest of the aircraft and the path sits at three quarters of the window: <b>in cruise the ground stays on the plot</b>, as on the real aircraft at FL400.</li><li>The gap under the aircraft symbol is the true height, whatever the altimeter setting (FCOM / FCTM).</li><li>Water in the ND teal; no magenta on the VD; no VD weather when TERR is not available.</li></ul>
-<figure><img src="img/09/s03_vd_terrain.png" style="width:70%"><figcaption><b>Figure 1.</b> A380X VD with the terrain profile and water (in-sim).</figcaption></figure>
+<figure><img src="img/09/s03_vd_terrain.png" style="width:70%"><figcaption><b>Figure 1.</b> A380X VD with the terrain profile and water (in-sim).<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure>
 <h2>3. The weather picture (both aircraft)</h2>
 <ul><li>The radar scans on the ground too (A320 FCOM), but draws nothing there.</li><li>MAP mode is a ground map from the terrain.</li><li>The picture <b>builds up over 30 s</b> after the radar starts, sweeping left to right (A380 FCOM).</li><li>The ARC picture keeps the ND bottom corners free, as on the real display.</li></ul>
-<div class="row"><figure><img src="img/09/s01_buildup.png"><figcaption><b>Figure 2.</b> Just after WX is selected: the picture is building up.</figcaption></figure><figure><img src="img/09/s02_buildup_later.png"><figcaption><b>Figure 3.</b> A few seconds later.</figcaption></figure></div>
+<div class="row"><figure><img src="img/09/s01_buildup.png"><figcaption><b>Figure 2.</b> Just after WX is selected: the picture is building up.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure><figure><img src="img/09/s02_buildup_later.png"><figcaption><b>Figure 3.</b> A few seconds later.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure></div>
 <h2>4. Limitations and why</h2>
 <table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No A380 AUTO off-path display.</td><td>MSFS runs one radar per aircraft; a third view changed what the beam views delivered, so it was removed.</td><td>-</td></tr></table>
 </body></html>

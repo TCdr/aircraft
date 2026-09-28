@@ -26,6 +26,7 @@ figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
 figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
 figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
 figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
 .row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
 .row figure { margin: 0; flex: 1 1 0; }
 .note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
@@ -53,7 +54,7 @@ table.lim td:nth-child(2) { width: 42%; }
 <h2>1. What it is for</h2>
 <p>While taxiing, the A380 OANS warns the crew before the aircraft enters a runway: <b>RWY AHEAD</b> with the runway name, on the PFD and the ND. In FBW this advisory came from the Navigraph airport map (AMDB): without a Navigraph subscription, or at an airport without a map, it never came. Now, while no airport map is loaded, the OANS uses the runways of the sim's own airport database with the same rule.</p>
 <h2>2. The rule</h2>
-<figure><img src="img/19/r00_volume.png" style="width:90%"><figcaption><b>Figure 1.</b> The prediction volume: from the nose to 7 seconds ahead at the current ground speed, 60 m wide. When it reaches a runway, RWY AHEAD appears for that runway.</figcaption></figure>
+<figure><img src="img/19/r00_volume.png" style="width:90%"><figcaption><b>Figure 1.</b> The prediction volume: from the nose to 7 seconds ahead at the current ground speed, 60 m wide. When it reaches a runway, RWY AHEAD appears for that runway.<span class="refonly">Diagram drawn for this manual: not representative of the in-game UI, reference for the explanation only.</span></figcaption></figure>
 <ul><li>On the ground, from 1 to 40 kt.</li><li>The advisory stays at most 30 s, and goes when the aircraft is on the runway.</li><li>With an airport map loaded, nothing changes: the map is used as before.</li></ul>
 <h2>3. What it looks like</h2>
 <figure><img src="img/19/r01_nd_rwy_ahead.png" style="width:50%"><figcaption><b>Figure 2.</b> The ND advisory: the runway name in a yellow box at the top (here 09-27, when the aircraft taxis south towards runway 09/27). The PFD shows RWY AHEAD too.</figcaption></figure>

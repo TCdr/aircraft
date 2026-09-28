@@ -26,6 +26,7 @@ figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
 figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
 figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
 figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
 .row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
 .row figure { margin: 0; flex: 1 1 0; }
 .note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
@@ -51,7 +52,7 @@ table.lim td:nth-child(2) { width: 42%; }
 </div>
 <h2>1. What it is for</h2>
 <p>With every RA inhibited (TA ONLY selected, or below 1000 ft radio altitude), the TCAS kept classifying an intruder that met the RA criteria as an RA. The ND drew it as a red RA square, and since it was not a TA, there was no "TRAFFIC, TRAFFIC" and no TA state. A real TCAS in TA ONLY shows it as an amber TA with the TA aural. The classification is now capped at TA while all RAs are inhibited.</p>
-<figure><img src="img/07/t00_symbols.png" style="width:90%"><figcaption><b>Figure 1.</b> The ND traffic symbols: other, proximate, TA, RA, with the relative altitude in hundreds of feet and the vertical trend arrow.</figcaption></figure>
+<figure><img src="img/07/t00_symbols.png" style="width:90%"><figcaption><b>Figure 1.</b> The ND traffic symbols: other, proximate, TA, RA, with the relative altitude in hundreds of feet and the vertical trend arrow.<span class="refonly">Diagram drawn for this manual: not representative of the in-game UI, reference for the explanation only.</span></figcaption></figure>
 <h2>2. What you see</h2>
 <div class="row"><figure><img src="img/07/t01_a320_ta_only_ta.png"><figcaption><b>Figure 2.</b> A32NX: TA ONLY, centred at the bottom of the ND (A320 FCOM DSC-34-SURV-60-20 figure).</figcaption></figure><figure><img src="img/07/t03_a380_ta_only_ta.png"><figcaption><b>Figure 3.</b> A380X: TA ONLY in the message box.</figcaption></figure></div>
 <table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>TA ONLY selected, intruder meeting the RA criteria</td><td>Amber TA circle and "TRAFFIC, TRAFFIC" (before: red RA square, no aural).</td></tr><tr><td>Below 1000 ft radio altitude (all RAs inhibited)</td><td>Same: TAs only, TA ONLY on the ND.</td></tr><tr><td>Partial inhibits (no CLIMB / DESCEND / INCREASE DESCENT RA)</td><td>Unchanged: RAs are still issued.</td></tr><tr><td>An RA already running when the inhibit starts</td><td>It runs to its own end.</td></tr></table>

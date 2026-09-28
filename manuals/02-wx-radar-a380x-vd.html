@@ -26,6 +26,7 @@ figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
 figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
 figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
 figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
 .row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
 .row figure { margin: 0; flex: 1 1 0; }
 .note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
@@ -52,10 +53,10 @@ table.lim td:nth-child(2) { width: 42%; }
 <div class="toc"><div>1. What it is for</div><div>2. Using it</div><div>3. Weather on the VD</div><div>4. Limitations and why</div></div>
 <h2>1. What it is for</h2>
 <p>The A380X ND always showed WXR INOP (both WXR systems were hard-coded as failed) and had no radar picture. It now has the native radar of the A32NX, with the A380 rules, and the VD shows the weather on its vertical cut.</p>
-<figure><img src="img/02/s01_a380_radar_vd.png" style="width:55%"><figcaption><b>Figure 1.</b> A380X ND with weather cells ahead, and the same cells on the VD below.</figcaption></figure>
+<figure><img src="img/02/s01_a380_radar_vd.png" style="width:55%"><figcaption><b>Figure 1.</b> A380X ND with weather cells ahead, and the same cells on the VD below.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure>
 <h2>2. Using it</h2>
 <ul><li>EFIS control panel: select the <b>WX</b> overlay.</li><li>MFD SURV CONTROLS (see the PR 5 manual): WXR AUTO, TURB on or off, MODE WX or MAP, WX ON VD.</li><li>The radar is shown when the WXR &amp; TAWS system selected on the SURV panel is not failed. A system is failed only while its AESU is reset or its power is lost (AC ESS for system 1, AC 4 for system 2).</li><li>The ND range table is -1 (ZOOM, the airport map) and 10 to 640 NM; the radar is hidden at ZOOM.</li></ul>
-<div class="row"><figure><img src="img/02/s02_a380_radar_yellow.png"><figcaption><b>Figure 2.</b> Moderate rain (yellow) over a wide area, with its VD cut.</figcaption></figure><figure><img src="img/02/s03_a380_turb.png"><figcaption><b>Figure 3.</b> TURB on: heavy rain drawn magenta (turbulence proxy).</figcaption></figure></div>
+<div class="row"><figure><img src="img/02/s02_a380_radar_yellow.png"><figcaption><b>Figure 2.</b> Moderate rain (yellow) over a wide area, with its VD cut.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure><figure><img src="img/02/s03_a380_turb.png"><figcaption><b>Figure 3.</b> TURB on: heavy rain drawn magenta (turbulence proxy).<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure></div>
 <h2>3. Weather on the VD</h2>
 <ul><li>WX ON VD (SURV CONTROLS) shows the weather on the VD, along the same cut as the terrain (see the PR 9 manual).</li><li>Cells are drawn green and yellow with a red core; no magenta: the real VD does not display turbulence (FCOM DSC-31-20-40-10).</li><li>Heights are placed on the ADR baro-corrected altitude, like the VD's aircraft symbol.</li></ul>
 <h2>4. Limitations and why</h2>
