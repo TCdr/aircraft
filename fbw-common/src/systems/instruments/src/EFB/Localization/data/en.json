@@ -235,6 +235,7 @@
       },
       "Exit": "Exit",
       "From": "From",
+      "FlagsOnOans": "green flags on the OANS",
       "FullLength": "full length",
       "Help": "Choose the exit (or the aircraft) and the gate, ramp or cargo stand (type it or tap it on the map): the shortest route is suggested. Type the taxiways of the ATC clearance, or press SUGGEST, then ACCEPT.",
       "HelpDeparture": "Choose the gate, ramp or cargo stand (type it or tap it on the map) or the aircraft, the runway and its entry: the shortest route to the holding point is suggested. Type the taxiways of the ATC clearance, or press SUGGEST, then ACCEPT.",

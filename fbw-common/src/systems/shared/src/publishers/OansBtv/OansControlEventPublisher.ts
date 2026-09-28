@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { EfisSide, FeatureType } from '@flybywiresim/fbw-sdk';
@@ -32,4 +32,10 @@ export interface OansControlEvents {
   /** OANC -> ND: Show SET PLAN MODE in control panel, if in ARC/NAV mode and arpt too far away */
   oans_show_set_plan_mode: boolean;
   oans_remove_btv_data: boolean;
+  /**
+   * flyPad -> OANC: the green flags that mark the accepted taxi route (FCOM DSC-34-10-70-20: flags locate or mark a given
+   * point on the airport), at the start of each taxiway and at the gate or holding point. Replaces the flags of the
+   * previous route; no points removes them. The crew's own flags are kept.
+   */
+  oans_taxi_route_flags: { icao: string; points: { lat: number; long: number }[] };
 }
