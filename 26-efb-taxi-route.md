@@ -3,7 +3,7 @@
 - **Title:** `feat(efb): taxi route page on the Navigraph airport map`
 - **Base:** `master` - **Branch:** `pr/26-efb-taxi-route` (stacked on `pr/23-efb-landing-calculator`, PR 23: the shared runway exit
   module `btvExits.ts` the arrival start uses; PRs 12, 11 and 10 below it)
-- **Tip:** `b97742c40` - own commit: `b97742c40` (original `0b21c7f17` on `feature/efb/taxi-route`, merged into `develop` 9cd78dd05)
+- **Tip:** `9a061e1f5` - own commit: `b97742c40` (original `0b21c7f17` on `feature/efb/taxi-route`, merged into `develop` 9cd78dd05)
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"flyPad: no taxi route; the OANS shows the airport map but the crew has no way to see the route of the
   ATC taxi clearance and its runway crossings"*

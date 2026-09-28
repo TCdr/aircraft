@@ -3,8 +3,9 @@
 - **Title:** `feat(efb): A380 landing calculator and reworked A320 landing calculator`
 - **Base:** `master` - **Branch:** `pr/23-efb-landing-calculator` (stacked on `pr/12-a320-takeoff-calculator`, PR 12: the shared
   performance module and the FMS links of the takeoff calculators; PRs 10 and 11 below it)
-- **Tip:** `e7e27cf62` - own commits: `fc850a71e` (feature; original `c4e4f0a38` on `feature/efb/landing-calculator`, merged into
+- **Tip:** `0adf3f890` - own commits: `fc850a71e` (feature; original `c4e4f0a38` on `feature/efb/landing-calculator`, merged into
   `develop` 224cf6741), `e7e27cf62` (strict null checks)
+- **Also in `pr/23` (2026-09-28):** the last distance label of the landing roll scale ends at the chart edge instead of being cut.
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"flyPad landing calculator: no A380 calculator, and the A320 one has no dispatch data, no FMS import and
   no approach / go-around parameters"*

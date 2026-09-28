@@ -3,8 +3,9 @@
 - **Title:** `feat(efb): descent calculator in place of the top of descent calculator`
 - **Base:** `master` - **Branch:** `pr/24-efb-descent-calculator` (stacked on `pr/23-efb-landing-calculator`, PR 23: the FMS data
   answers of the FMC and the MCDU, the performance store and texts it extends)
-- **Tip:** `469b9a0c8` - own commit: `469b9a0c8` (feature; original `915586cb7` on `feature/efb/descent-calculator`, merged into
+- **Tip:** `83fc831c7` - own commit: `469b9a0c8` (feature; original `915586cb7` on `feature/efb/descent-calculator`, merged into
   `develop` 99f00b531)
+- **Also in `pr/24` (2026-09-28):** the table columns are RATE and GRDT, positive in descent, as in the A380 FCOM table results (PER-IFT-DES-DSR); the RESULTS line and the late message give V/S and FPA negative, as set on the FCU.
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"flyPad top of descent calculator: only a 3-degree rule, no aircraft performance, speeds or FMS data"*
 - **CHANGELOG line (in the branch):** `1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr`
