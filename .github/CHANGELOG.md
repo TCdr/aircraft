@@ -162,6 +162,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr
 1. [A380X/OANS] Display the default airport of the FCOM automatically: the current airport on ground, the origin, destination or alternate airport in flight within 20 NM and 5000 ft of it - @TCdr
 1. [EFB] Add a taxi route page (Ground > Taxi) on the Navigraph airport map: after landing from a runway exit to a stand, for departure from a stand to the holding point of a runway entry, suggested along named taxiways and edited to match the ATC clearance, with the runway crossings - @TCdr
+1. [A380X/OANS] Mark the taxi route accepted on the flyPad with green flags on the OANS: at the start of each taxiway and at the gate or holding point - @TCdr
 
 ## 2024.1.0
 

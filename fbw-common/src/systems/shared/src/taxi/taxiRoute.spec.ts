@@ -13,7 +13,13 @@ import {
 } from './taxiAmdb';
 import { taxiRouteToHoldingPoint, taxiRunwayEntries } from './taxiDeparture';
 import { buildTaxiNetwork, TaxiLine, TaxiLineKind, TaxiPoint } from './taxiNetwork';
-import { parseTaxiClearance, taxiRoute, TaxiRouteError, taxiRouteRunwayCrossings } from './taxiRoute';
+import {
+  parseTaxiClearance,
+  taxiRoute,
+  TaxiRouteError,
+  taxiRouteFlagPoints,
+  taxiRouteRunwayCrossings,
+} from './taxiRoute';
 
 const line = (kind: TaxiLineKind, name: string | null, ...points: TaxiPoint[]): TaxiLine => ({ kind, name, points });
 
@@ -140,6 +146,14 @@ describe('Taxi route', () => {
     expect(held.route.points[held.route.points.length - 1]).toBe(held.holdingPoint);
     expect(held.route.length).toBeCloseTo(route.length - 90, 0);
     expect(taxiRouteToHoldingPoint(route, []).holdingPoint).toBeNull();
+    // Flags on the OANS: where M, K, A and S1 start, and the holding point
+    expect(taxiRouteFlagPoints(held.route).map(([x, y]) => [Math.round(x), Math.round(y)])).toEqual([
+      [2000, 800],
+      [1500, 800],
+      [1500, 200],
+      [60, 200],
+      [60, 90],
+    ]);
     // An intersection departure where the taxiway crosses the runway, the clearance without the entry
     const toD = { kind: 'runway' as const, runway: '09', entry: 'D', point: entries[3].point };
     expect(taxiRoute(NETWORK, { start: fromStand, to: toD, via: ['M', 'K'] }).taxiways).toEqual(['M', 'K', 'D']);
