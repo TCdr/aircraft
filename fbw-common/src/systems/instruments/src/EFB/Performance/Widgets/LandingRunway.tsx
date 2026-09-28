@@ -17,6 +17,8 @@ const EXIT_NAME_Y = RUNWAY_BOTTOM + 27;
 const BAR_Y = RUNWAY_BOTTOM + 38;
 const BAR_HEIGHT = 12;
 const SCALE_Y = HEIGHT - 22;
+/** Width of one character of the 14 px scale labels, in viewBox units (upper bound, for the edge check) */
+const SCALE_CHAR_WIDTH = 9;
 
 const COLOURS = {
   asphalt: '#3b4048',
@@ -287,14 +289,25 @@ export const LandingRunway = ({ ident, lda, airDistance, stops, required, distan
 
       {/* Scale from the threshold */}
       <line x1={RUNWAY_X} x2={x(farthest)} y1={SCALE_Y} y2={SCALE_Y} stroke={COLOURS.scale} strokeWidth={1} />
-      {ticks.map((d) => (
-        <g key={`tick${d}`}>
-          <line x1={x(d)} x2={x(d)} y1={SCALE_Y - 5} y2={SCALE_Y + 5} stroke={COLOURS.scale} strokeWidth={1.5} />
-          <text x={x(d)} y={SCALE_Y + 19} fill={COLOURS.scale} fontSize={14} textAnchor="middle">
-            {Math.round(toUnit(d)).toLocaleString('en-US')}
-          </text>
-        </g>
-      ))}
+      {ticks.map((d) => {
+        const label = Math.round(toUnit(d)).toLocaleString('en-US');
+        // A label centred on a tick near the right edge would be cut: it ends at the edge instead
+        const overflows = x(d) + (label.length * SCALE_CHAR_WIDTH) / 2 > WIDTH;
+        return (
+          <g key={`tick${d}`}>
+            <line x1={x(d)} x2={x(d)} y1={SCALE_Y - 5} y2={SCALE_Y + 5} stroke={COLOURS.scale} strokeWidth={1.5} />
+            <text
+              x={overflows ? WIDTH - 2 : x(d)}
+              y={SCALE_Y + 19}
+              fill={COLOURS.scale}
+              fontSize={14}
+              textAnchor={overflows ? 'end' : 'middle'}
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 };
