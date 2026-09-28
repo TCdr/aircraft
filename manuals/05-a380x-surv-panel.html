@@ -26,6 +26,7 @@ figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
 figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
 figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
 figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
 .row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
 .row figure { margin: 0; flex: 1 1 0; }
 .note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
@@ -59,7 +60,7 @@ table.lim td:nth-child(2) { width: 42%; }
 <h2>3. STATUS &amp;amp; SWITCHING</h2>
 <figure><img src="img/05/s02_status.png" style="width:60%"><figcaption><b>Figure 2.</b> STATUS &amp; SWITCHING: SYS 1 / SYS 2 of the WXR and TAWS (top) and of the XPDR and TCAS (bottom); the selected system is lit, each item shows its real state.</figcaption></figure>
 <ul><li>WXR DISPLAY, TURB, PRED W/S, TERR SYS, GPWS items show the real failure of each system.</li><li>XPDR / TCAS SYS 1 / SYS 2 select the transponder system (the one the TCAS uses) and light from it.</li></ul>
-<figure><img src="img/05/s03_insim.png" style="width:50%"><figcaption><b>Figure 3.</b> The SURV CONTROLS page in the sim (in-sim screenshot).</figcaption></figure>
+<figure><img src="img/05/s03_insim.png" style="width:50%"><figcaption><b>Figure 3.</b> The SURV CONTROLS page in the sim (in-sim screenshot).<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure>
 <h2>4. The pedestal SURV panel</h2>
 <p>The panel buttons never worked: their light template runs the button code only when the panel is powered, and the pedestal never told it so. They are powered from DC 1 now and linked to the MFD pages:</p>
 <table><tr><th>Panel button</th><th>Does</th><th>Same as</th></tr><tr><td>WXR TAWS SYS 1 / SYS 2</td><td>Selects the WXR / TAWS system</td><td>STATUS &amp; SWITCHING, top</td></tr><tr><td>XPDR TCAS SYS 1 / SYS 2</td><td>Selects the transponder system</td><td>STATUS &amp; SWITCHING, bottom</td></tr><tr><td>G/S MODE</td><td>Glide slope mode of the GPWS on / off</td><td>SURV CONTROLS, TAWS</td></tr><tr><td>TCAS ABV / BLW / TA ONLY</td><td>TCAS display and mode</td><td>SURV CONTROLS, TCAS</td></tr></table>

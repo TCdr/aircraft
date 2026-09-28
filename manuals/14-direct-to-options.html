@@ -26,6 +26,7 @@ figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
 figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
 figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
 figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
 .row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
 .row figure { margin: 0; flex: 1 1 0; }
 .note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
@@ -53,7 +54,7 @@ table.lim td:nth-child(2) { width: 42%; }
 <h2>1. What it is for</h2>
 <p>The DIRECT TO page of the A380 (FCOM DSC-22-FMS-20-30, DIRECT TO) has four options. FBW showed them but only the first one worked. All four work now:</p>
 <table><tr><th>Option</th><th>What the FMS builds</th></tr><tr><td>DIRECT</td><td>A direct leg from the aircraft to the target waypoint (as before).</td></tr><tr><td>DIRECT WITH ABEAM</td><td>The direct leg, plus an <b>abeam point</b> for each waypoint it bypasses: the point of the direct leg abeam that waypoint, named <b>AB</b> + the first 5 letters of the waypoint (BERGI gives ABBERGI).</td></tr><tr><td>CRS IN</td><td>An <b>inbound course</b> to the target: the aircraft continues on its current track to the intercept point <b>INTCPT</b> on that course, then flies the course to the target.</td></tr><tr><td>CRS OUT</td><td>An <b>outbound course</b> from the target: the aircraft continues on its current track to the intercept point INTCPT on the outbound course, then follows it (without overflying the target).</td></tr></table>
-<figure><img src="img/14/d03_options_diagram.png" style="width:100%"><figcaption><b>Figure 1.</b> The three new options. Yellow: the aircraft and its path to the first point; green: the course flown after it; blue: the points the FMS creates.</figcaption></figure>
+<figure><img src="img/14/d03_options_diagram.png" style="width:100%"><figcaption><b>Figure 1.</b> The three new options. Yellow: the aircraft and its path to the first point; green: the course flown after it; blue: the points the FMS creates.<span class="refonly">Diagram drawn for this manual: not representative of the in-game UI, reference for the explanation only.</span></figcaption></figure>
 <h2>2. Using the page</h2>
 <ol><li>Choose the target in <b>DIRECT TO</b> (a flight plan waypoint from the list, or type any fix).</li><li>Choose the option. For CRS IN / CRS OUT a course field appears next to the option.</li><li>For a flight plan waypoint the course is already filled: CRS IN = the course from the previous waypoint to the target, CRS OUT = the course from the target to the next waypoint (FCOM P 131). Type another one if ATC asks (<b>NNN</b> magnetic, <b>NNNT</b> true).</li><li>Check the temporary flight plan (TMPY, yellow) and press <b>INSERT DIR TO</b>.</li></ol>
 <div class="row"><figure><img src="img/14/d01_dirto_page.png"><figcaption><b>Figure 2.</b> The DIRECT TO page: target, UTC and distance, and the four OPTIONS.</figcaption></figure><figure><img src="img/14/d02_crs_in.png"><figcaption><b>Figure 3.</b> CRS IN selected: the course field (amber boxes until a course is known).</figcaption></figure></div>

@@ -26,6 +26,7 @@ figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
 figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
 figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
 figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
 .row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
 .row figure { margin: 0; flex: 1 1 0; }
 .note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
@@ -52,12 +53,12 @@ table.lim td:nth-child(2) { width: 42%; }
 <div class="toc"><div>1. What it is for</div><div>2. Reading the colours</div><div>3. A380X vertical display</div><div>4. The peaks box</div><div>5. Limitations and why</div></div>
 <h2>1. What it is for</h2>
 <p>TERR ON ND needed SimBridge. The native gauge now draws it from MSFS's own terrain, with the EGPWS colours, on every map page but PLAN, also on the ground.</p>
-<div class="row"><figure><img src="img/04/s01_a380_terrain_10nm.png"><figcaption><b>Figure 1.</b> A380X at Aspen, 10 NM: terrain far above the aircraft in red, close in yellow, below in green; the VD terrain profile in brown.</figcaption></figure><figure><img src="img/04/s02_a380_terrain_160nm.png"><figcaption><b>Figure 2.</b> The same place at 160 NM.</figcaption></figure></div>
+<div class="row"><figure><img src="img/04/s01_a380_terrain_10nm.png"><figcaption><b>Figure 1.</b> A380X at Aspen, 10 NM: terrain far above the aircraft in red, close in yellow, below in green; the VD terrain profile in brown.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure><figure><img src="img/04/s02_a380_terrain_160nm.png"><figcaption><b>Figure 2.</b> The same place at 160 NM.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure></div>
 <h2>2. Reading the colours</h2>
 <table><tr><th>Terrain relative to the aircraft</th><th>Colour</th></tr><tr><td>More than 2000 ft above</td><td>Dense red</td></tr><tr><td>1000 to 2000 ft above</td><td>Dense yellow</td></tr><tr><td>500 ft below (250 ft gear down) to 1000 ft above</td><td>Medium yellow</td></tr><tr><td>Down to 1000 ft below (500 ft gear down)</td><td>Dense green</td></tr><tr><td>1000 to 2000 ft below</td><td>Light green</td></tr><tr><td>More than 2000 ft below</td><td>Nothing</td></tr><tr><td>Water</td><td>Cyan-blue dots</td></tr></table>
 <p>The dots are a random stipple, as on the real display. The map turns with the ND's heading; ARC shows the forward half, the ROSE modes the whole disk.</p>
 <h2>3. A380X vertical display</h2>
-<figure><img src="img/04/s03_a380_vd_terrain.png" style="width:70%"><figcaption><b>Figure 3.</b> The A380X VD terrain profile (brown), water in cyan from sea level down.</figcaption></figure>
+<figure><img src="img/04/s03_a380_vd_terrain.png" style="width:70%"><figcaption><b>Figure 3.</b> The A380X VD terrain profile (brown), water in cyan from sea level down.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure>
 <ul><li>Needs the TERR SYS of the SURV page not OFF (otherwise NO TERR DATA AVAILABLE, see the PR 5 manual).</li><li>The cut follows the flight plan or the track (PR 9 manual).</li></ul>
 <h2>4. The peaks box</h2>
 <p>The TERR box with the highest and lowest elevations of the range needs real elevations, which a gauge cannot read from MSFS: its figures come from <b>SimBridge</b> when it runs. Without SimBridge the box stays empty and the terrain is drawn as usual.</p>

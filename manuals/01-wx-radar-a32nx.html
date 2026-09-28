@@ -26,6 +26,7 @@ figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
 figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
 figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
 figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
 .row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
 .row figure { margin: 0; flex: 1 1 0; }
 .note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
@@ -52,7 +53,7 @@ table.lim td:nth-child(2) { width: 42%; }
 <div class="toc"><div>1. What it is for</div><div>2. Using it</div><div>3. Reading the picture</div><div>4. What to expect</div><div>5. Limitations and why</div></div>
 <h2>1. What it is for</h2>
 <p>The A32NX ND had no working weather radar. A native gauge (<code>ndwxr</code>) now draws the MSFS weather radar on the CPT and F/O NDs, aligned with the range rings, in the colours of an airborne radar.</p>
-<div class="row"><figure><img src="img/01/s01_a320_radar.png"><figcaption><b>Figure 1.</b> A32NX ND in ARC with weather ahead: green, yellow and red cells.</figcaption></figure><figure><img src="img/01/s02_a320_radar.png"><figcaption><b>Figure 2.</b> Another cell field, ROSE-like forward view.</figcaption></figure></div>
+<div class="row"><figure><img src="img/01/s01_a320_radar.png"><figcaption><b>Figure 1.</b> A32NX ND in ARC with weather ahead: green, yellow and red cells.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure><figure><img src="img/01/s02_a320_radar.png"><figcaption><b>Figure 2.</b> Another cell field, ROSE-like forward view.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure></div>
 <h2>2. Using it</h2>
 <table><tr><th>Control</th><th>Position</th><th>ND</th></tr><tr><td>WX SYS knob</td><td>SYS 1 / SYS 2</td><td>Radar on (system 1 or 2)</td></tr><tr><td></td><td>OFF</td><td>No radar</td></tr><tr><td>MODE knob</td><td>WX</td><td>Precipitation</td></tr><tr><td></td><td>WX+T</td><td>Precipitation and turbulence (magenta)</td></tr><tr><td></td><td>TURB</td><td>Turbulence only</td></tr><tr><td></td><td>MAP</td><td>Nothing (no ground map)</td></tr><tr><td>EFIS</td><td>ARC or ROSE NAV</td><td>Radar shown (forward half); nothing on ROSE ILS, ROSE VOR, PLAN</td></tr></table>
 <p>The selected mode is written in green on the ND (see the PR 3 manual).</p>
