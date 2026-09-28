@@ -3,7 +3,9 @@
 - **Title:** `feat(efb): taxi route page on the Navigraph airport map`
 - **Base:** `master` - **Branch:** `pr/26-efb-taxi-route` (stacked on `pr/23-efb-landing-calculator`, PR 23: the shared runway exit
   module `btvExits.ts` the arrival start uses; PRs 12, 11 and 10 below it)
-- **Tip:** `9a061e1f5` - own commit: `b97742c40` (original `0b21c7f17` on `feature/efb/taxi-route`, merged into `develop` 9cd78dd05)
+- **CHANGELOG line 2 (in the branch):** `1. [A380X/OANS] Mark the taxi route accepted on the flyPad with green flags on the OANS: at the start of each taxiway and at the gate or holding point - @TCdr`
+- **OANS flags:** built and checked in the harness, NOT tested in the sim yet.
+- **Tip:** `4c9d39c36` - own commits: `b97742c40` (original `0b21c7f17` on `feature/efb/taxi-route`, merged into `develop` 9cd78dd05), `363866219` (no U-turn through the aircraft, map fit margin; `develop` 85c00b693), `4c9d39c36` (A380X OANS flags for the accepted route; `develop` 2dd1338d2)
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"flyPad: no taxi route; the OANS shows the airport map but the crew has no way to see the route of the
   ATC taxi clearance and its runway crossings"*
@@ -39,11 +41,17 @@ so the route lives on the flyPad and the cockpit displays stay as the FCOM descr
   entries, holding point cut), `taxiAmdb.ts` (AMDB features, stand name matching). `btvExits.ts` gives each exit its start point on
   the runway.
 - flyPad: `Ground/Pages/Taxi` (TaxiAirport, TaxiMap, TaxiPage), store slice `taxiRoute` (kept across the flyPad pages), Taxi tab.
-- 9 unit tests (`taxi/taxiRoute.spec.ts`) + the exit start points in `btvExits.spec.ts`.
+- **A380X OANS:** when the crew accepts a route, the flyPad sends green flags to the OANS (the crew flags of FCOM
+  DSC-34-10-70-20, "to locate or mark a given point on the airport") at the start of each taxiway and at the gate or holding
+  point (`OansControlEvents.oans_taxi_route_flags`). The OANC shows them when it displays that airport, replaces the previous
+  route's flags, removes them when the route is no longer accepted and never touches the crew's own flags.
+- From the aircraft position, the route never takes the line the aircraft is on whole (no U-turn through the aircraft); the
+  fitted map keeps a 70 px margin for the labels at the ends of the route.
+- 9 unit tests (`taxi/taxiRoute.spec.ts`, incl. the flag points and the no-U-turn start) + the exit start points in `btvExits.spec.ts`.
 
 ## Cockpit API Changes
 
-None.
+New OANS control event `oans_taxi_route_flags` ({ icao, points: lat/long }), flyPad -> OANC, synced.
 
 ## Screenshots (if necessary)
 
