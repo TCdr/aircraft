@@ -2,7 +2,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, useContext, useState } from 'react';
+import React, { FC, useContext, useEffect, useState } from 'react';
+import Slider from 'rc-slider';
 import { Units, usePersistentProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import {
   DescentAntiIce,
@@ -53,14 +54,15 @@ const Row: FC<{ label: string; missing?: boolean; note?: string }> = ({ label, m
 );
 
 /** A value of the results panel: green, or amber with an asterisk for an estimate, with its unit in cyan */
-const Value: FC<{ text: string; unit?: string; estimate?: boolean; warning?: boolean }> = ({
+const Value: FC<{ text: string; unit?: string; estimate?: boolean; caution?: boolean; warning?: boolean }> = ({
   text,
   unit,
   estimate,
+  caution,
   warning,
 }) => (
   <span className="text-2xl">
-    <span className={warning ? 'text-utility-red' : estimate ? 'text-utility-amber' : 'text-utility-green'}>
+    <span className={warning ? 'text-utility-red' : estimate || caution ? 'text-utility-amber' : 'text-utility-green'}>
       {text}
       {estimate ? '*' : ''}
     </span>
@@ -81,6 +83,8 @@ export const DescentWidget = () => {
   const { usingMetric } = Units;
   const [weightUnit, setWeightUnit] = usePersistentProperty('EFB_PREFERRED_WEIGHT_UNIT', usingMetric ? 'kg' : 'lb');
   const [view, setView] = useState<'PROFILE' | 'TABLE'>('PROFILE');
+  /** The start of the descent earlier (> 0) or later (< 0) than the calculated T/D, in NM */
+  const [startOffset, setStartOffset] = useState(0);
 
   const [pressureAltitude] = useSimVar('PRESSURE ALTITUDE', 'feet', 1_000);
   const [sat] = useSimVar('AMBIENT TEMPERATURE', 'celsius', 1_000);
@@ -239,6 +243,9 @@ export const DescentWidget = () => {
   };
 
   // ---------------------------------------------------------------------------------------------- results
+
+  // A new calculation starts at its T/D
+  useEffect(() => setStartOffset(0), [result]);
 
   const weightUnitText = weightUnit === 'lb' ? 'klb' : 't';
   const formatWeight = (kg: number | undefined) =>
@@ -491,6 +498,8 @@ export const DescentWidget = () => {
             altitude={pressureAltitude}
             groundSpeed={groundSpeed}
           />
+          {/* The buttons at the bottom, as on the takeoff and landing pages */}
+          <div className="flex-1" />
           <div className="flex flex-row space-x-3">
             <button
               onClick={handleCalculate}
@@ -535,6 +544,7 @@ export const DescentWidget = () => {
                 points={result.points}
                 totalDistance={result.distance}
                 targetAltitude={result.inputs.targetAltitude}
+                startDistance={startOffset !== 0 ? result.distance + startOffset : undefined}
                 aircraft={
                   distanceToTarget !== undefined
                     ? {
@@ -554,6 +564,9 @@ export const DescentWidget = () => {
               />
             )}
           </div>
+          {result !== undefined && (
+            <StartDistance result={result} offset={startOffset} onOffsetChange={setStartOffset} />
+          )}
           <div className="text-sm text-theme-unselected">{t('Performance.TopOfDescent.Calc.Legend')}</div>
         </div>
       </div>
@@ -577,6 +590,87 @@ function distanceNeeded(result: DescentPerformanceResult, altitude: number): num
   }
   return 0;
 }
+
+/** The start of the descent can be moved this far from the calculated T/D, in NM (half the distance at most, later) */
+const START_OFFSET_MAX = 60;
+
+interface StartDistanceProps {
+  result: DescentPerformanceResult;
+  offset: number;
+  onOffsetChange: (offset: number) => void;
+}
+
+/**
+ * The descent started earlier or later than the calculated T/D (e.g. vectors, or a shortcut): the V/S and path angle it
+ * needs from the initial to the target altitude at the mean ground speed of the calculated descent, against the
+ * calculated ones, and whether it is steeper than the idle descent (speed brakes) or shallower (thrust).
+ */
+const StartDistance = ({ result, offset, onOffsetChange }: StartDistanceProps) => {
+  const distance = result.distance + offset;
+  const ratio = result.distance / Math.max(distance, 0.1);
+  // Same mean ground speed: the V/S scales with the distance, the tangent of the path angle too
+  const rate = result.averageRate * ratio;
+  const gradient = (Math.atan(Math.tan((result.averageGradient * Math.PI) / 180) * ratio) * 180) / Math.PI;
+  const idle = result.inputs.type !== DescentType.GivenVs;
+  const steeper = offset < 0 && idle;
+  const tooSteep = steeper && result.inputs.speedBrakes;
+  let note: React.ReactNode = null;
+  if (steeper) {
+    note = tooSteep ? (
+      <span className="text-utility-red">{t('Performance.TopOfDescent.Calc.SteeperThanSpeedBrakes')}</span>
+    ) : (
+      <span className="text-utility-amber">{t('Performance.TopOfDescent.Calc.SteeperThanIdle')}</span>
+    );
+  } else if (offset > 0 && idle) {
+    note = <span className="text-theme-text">{t('Performance.TopOfDescent.Calc.ShallowerThanIdle')}</span>;
+  }
+  const change =
+    offset === 0
+      ? t('Performance.TopOfDescent.Calc.StartAsCalculated')
+      : t(`Performance.TopOfDescent.Calc.${offset > 0 ? 'StartEarlier' : 'StartLater'}`).replace(
+          '{distance}',
+          Math.abs(offset).toFixed(0),
+        );
+  return (
+    <div className="mb-1 flex flex-col border-t border-theme-accent pt-1.5">
+      <div className="flex flex-row items-center space-x-4">
+        <span className="shrink-0">{t('Performance.TopOfDescent.Calc.StartDistance')}</span>
+        {/* Reversed, as the chart: the farther from the target, the more to the left */}
+        <Slider
+          reverse
+          className="flex-1"
+          min={-Math.min(START_OFFSET_MAX, Math.floor(result.distance / 2))}
+          max={START_OFFSET_MAX}
+          step={1}
+          value={offset}
+          onChange={(v) => onOffsetChange(v as number)}
+          trackStyle={{ backgroundColor: 'var(--color-highlight)' }}
+          railStyle={{ backgroundColor: 'var(--color-accent)' }}
+          handleStyle={{ backgroundColor: 'var(--color-highlight)' }}
+        />
+        <span className="w-28 shrink-0 text-right">
+          <Value text={Math.round(distance).toFixed(0)} unit="NM" />
+        </span>
+      </div>
+      <div className="flex flex-row justify-between text-lg">
+        <span className="text-theme-unselected">{change}</span>
+        <span>
+          V/S{' '}
+          <Value
+            text={`-${Math.round(rate / 10) * 10}`}
+            unit="ft/min"
+            caution={steeper && !tooSteep}
+            warning={tooSteep}
+          />
+          <span className="ml-4">
+            FPA <Value text={gradient.toFixed(1)} unit="°" caution={steeper && !tooSteep} warning={tooSteep} />
+          </span>
+        </span>
+      </div>
+      {note && <div className="text-base leading-tight">{note}</div>}
+    </div>
+  );
+};
 
 interface ResultsPanelProps {
   result: DescentPerformanceResult | undefined;

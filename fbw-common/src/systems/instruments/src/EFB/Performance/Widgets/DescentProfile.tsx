@@ -28,17 +28,25 @@ export interface DescentProfileProps {
   targetAltitude: number;
   /** DESCENT CHECK: the aircraft, at a distance to the target in NM and an altitude in feet */
   aircraft?: { distanceToTarget: number; altitude: number; late: boolean };
+  /** The start of the descent moved earlier or later than the T/D, in NM to the target */
+  startDistance?: number;
 }
 
 /**
  * The descent profile: altitude against the distance to the target, from the top of descent (T/D) to the target,
  * with the crossover altitude, the deceleration to the speed limit and the aircraft of the descent check.
  */
-export const DescentProfile = ({ points, totalDistance, targetAltitude, aircraft }: DescentProfileProps) => {
+export const DescentProfile = ({
+  points,
+  totalDistance,
+  targetAltitude,
+  aircraft,
+  startDistance,
+}: DescentProfileProps) => {
   const top = Math.max(points[0]?.altitude ?? 0, aircraft?.altitude ?? 0);
   const topRounded = Math.ceil((top + 1) / 5000) * 5000;
   const bottom = Math.floor(targetAltitude / 5000) * 5000;
-  const span = Math.max(totalDistance, aircraft?.distanceToTarget ?? 0, 1);
+  const span = Math.max(totalDistance, aircraft?.distanceToTarget ?? 0, startDistance ?? 0, 1);
   // Distance to the target: T/D at the left of the path, the target at the right
   const x = (toGo: number) => WIDTH - RIGHT - (toGo / span) * (WIDTH - LEFT - RIGHT);
   const y = (altitude: number) => TOP + ((topRounded - altitude) / (topRounded - bottom)) * (HEIGHT - TOP - BOTTOM);
@@ -111,6 +119,22 @@ export const DescentProfile = ({ points, totalDistance, targetAltitude, aircraft
           </text>
           <circle cx={x(0)} cy={y(targetAltitude)} r={5} fill={COLOURS.path} />
         </>
+      )}
+
+      {/* The descent started earlier or later: straight to the target */}
+      {startDistance !== undefined && points.length > 0 && (
+        <g>
+          <line
+            x1={x(startDistance)}
+            y1={y(points[0].altitude)}
+            x2={x(0)}
+            y2={y(targetAltitude)}
+            stroke={COLOURS.event}
+            strokeWidth={2.5}
+            strokeDasharray="10 7"
+          />
+          <circle cx={x(startDistance)} cy={y(points[0].altitude)} r={5} fill={COLOURS.event} />
+        </g>
       )}
 
       {/* Crossover, deceleration and speed limit */}
