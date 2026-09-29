@@ -164,6 +164,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Add a taxi route page (Ground > Taxi) on the Navigraph airport map: after landing from a runway exit to a stand, for departure from a stand to the holding point of a runway entry, suggested along named taxiways and edited to match the ATC clearance, with the runway crossings - @TCdr
 1. [A380X/OANS] Mark the taxi route accepted on the flyPad with green flags on the OANS: at the start of each taxiway and at the gate or holding point - @TCdr
 1. [ATSU] Show SEND FAILED on a message sent without an active ATC center, instead of nothing - @TCdr
+1. [A380X/FWS] EMER CANC pushbutton: cancels the aural and MASTER WARN of a warning, a caution for the rest of the flight (CANCELLED CAUTION on the STATUS page, recalled with RCL held 3 s) - @TCdr
 
 ## 2024.1.0
 
