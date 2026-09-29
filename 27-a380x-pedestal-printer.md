@@ -3,9 +3,9 @@
 - **Title:** `feat(a380x/mfd): print the FMS pages and the ATIS on the pedestal printer`
 - **Base:** `master` - **Branch:** `pr/27-a380x-pedestal-printer` (stacked on `pr/22-a380x-mfd-atccom`, PR 22: the ATC COM ATIS pages it prints from;
   PR 10 below it: the FMS print functions)
-- **Tip:** `f8293d36b` - own commits: `9d45e444b` (FMS pages on the pedestal printer), `21c132b33` (tests),
-  `2f65b31f8` (64-column lines on the paper), `9c0e68dea` (ATIS print), `f8293d36b` (ATIS time on the printout,
-  PRINT ALL on one printout)
+- **Tip:** `021e6d367` (rebased on the new PR 22 on 2026-09-29) - own commits: `ec993ec37` (FMS pages on the pedestal printer),
+  `6259cbf36` (tests), `6eecf6610` (64-column lines on the paper), `5ac9ca960` (ATIS print), `021e6d367` (ATIS time on the
+  printout, PRINT ALL on one printout)
 - **Labels to request:** `A380X`, `MFD`, `QA A380 Only`, `Extensive Testing Needed`
 - **Issue to open first:** *"A380X: the MFD PRINT functions do not print on the pedestal printer"*
 - **CHANGELOG line (in the branch):** `1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr`

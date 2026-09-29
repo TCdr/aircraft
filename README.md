@@ -13,7 +13,7 @@ version the installer delivered on 2026-09-21) from the commits of the local `ma
 The tree and the table below are the CURRENT state (2026-09-23 evening); the dated sections at the end are the log of how it got there.
 
 **User manuals (2026-09-28):** `manuals/00-index.html` lists one user manual per PR (HTML with its `img/NN/` screenshots, and PDF);
-`manuals/FBW-user-manuals.pdf` holds them all with bookmarks; `manuals/FINDINGS.md` lists the bugs found while making them.
+`manuals/FBW-user-manuals.pdf` holds them all with bookmarks. `manuals/FINDINGS.md` lists the bugs found while making them.
 
 Each file is one PR: title, branch, labels, the issue to open first, the CHANGELOG line, and the body to paste into
 the template. Anything marked **TO ADD** is something only you can supply (a real-life reference, screenshots, your Discord name).
@@ -57,8 +57,9 @@ origin/master (2baa2b35e)
 
 PRs 10 to 17 were added on 2026-09-26 (13 to 17 first on the fork `master` 280800cf7); their `pr/*` branches below are all built on
 the upstream `master` 2baa2b35e. The PDF documents of every PR (specification, architecture diagram, FCOM rules, and the PR body below from "Summary of
-Changes") are in `docs/` (01 to 26; 18 to 25 added on 2026-09-27, 26 on 2026-09-28); `docs/00-overview.pdf` lists the 26 pr/*
-branches and their stacks, and `docs/FBW-features-handbook.pdf` has the overview and all 26 documents (rebuilt 2026-09-28). Release: `master` = the FBW upstream `master` 2baa2b35e (reset 2026-09-27),
+Changes") are in `docs/` (01 to 31 but 27; 18 to 25 added on 2026-09-27, 26 on 2026-09-28, 28 to 31 on 2026-09-29, 22, 24 and 26 updated);
+`docs/00-overview.pdf` lists the pr/* branches and their stacks, and `docs/FBW-features-handbook.pdf` has the overview and all the
+documents (rebuilt 2026-09-29). Release: `master` = the FBW upstream `master` 2baa2b35e (reset 2026-09-27),
 tagged `v2024.2.0`; our features are on `develop` (2024.3.0-SNAPSHOT) and the `pr/*` branches.
 
 **`pr-docs/` on every feature branch (2026-09-26):** each of the 17 branches ends with one commit
@@ -378,7 +379,7 @@ Open the upstream PRs from these branches, not from the feature branches: no `pr
 and in this folder), no fork-only commits, no merges, `LOD01.bin` only in PR 8 (the MCDU UV split the feature needs; its PR must link a
 companion `aircraft-large-files` PR for LOD00). Pushed to the fork. Feature branches and develop are unchanged.
 
-Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17, 20, 22 (each stacked on PR 10); PR 12 -> 21; PR 12 -> 23 -> 24; PR 23 -> 26; PR 18 -> 19 (PR 19 uses the runway module of PR 18); PR 25 (independent).
+Stack: PR 1 -> 2 -> 4 -> 3 -> 9; PR 5 -> 6; PR 7; PR 8; PR 10 -> 11 -> 12; PR 10 -> 13, 14, 15, 16, 17, 20, 22 (each stacked on PR 10); PR 12 -> 21; PR 12 -> 23 -> 24; PR 23 -> 26; PR 18 -> 19 (PR 19 uses the runway module of PR 18); PR 22 -> 27; PR 25, 28, 29, 30, 31 (independent).
 Every branch from 10 to 17 passed ESLint on its changed files, its test files and the FBW_TYPECHECK build of the A380X TypeScript tasks
 and the A32NX instruments (2026-09-27).
 
@@ -405,11 +406,16 @@ and the A32NX instruments (2026-09-27).
 | 19 | `pr/19-a380x-oans-rwy-ahead-without-map` | `aac868b24` | 3 |
 | 20 | `pr/20-a380x-altn-fuel-computation` | `f2531ee5c` | 28 |
 | 21 | `pr/21-a380x-company-datalink-delay` | `60386552e` | 44 |
-| 22 | `pr/22-a380x-mfd-atccom` | `ed3e215ed` | 31 |
+| 22 | `pr/22-a380x-mfd-atccom` | `591aa0b5d` | 33 |
 | 23 | `pr/23-efb-landing-calculator` | `221c59ee2` | 44 |
-| 24 | `pr/24-efb-descent-calculator` | `7a1585a51` | 46 |
+| 24 | `pr/24-efb-descent-calculator` | `d39193281` | 47 |
 | 25 | `pr/25-a380x-oans-default-airport` | `3a5afec9f` | 1 |
-| 26 | `pr/26-efb-taxi-route` | `751a4b003` | 48 |
+| 26 | `pr/26-efb-taxi-route` | `6c2f022f6` | 49 |
+| 27 | `pr/27-a380x-pedestal-printer` | `021e6d367` | 38 |
+| 28 | `pr/28-a380x-fws-emer-canc` | `4377b066a` | 1 |
+| 29 | `pr/29-datalink-acars-activation` | `ba83c9b4b` | 1 |
+| 30 | `pr/30-fire-test-extension` | `088ef54e0` | 6 |
+| 31 | `pr/31-a380x-isis-snd` | `9dff226cb` | 1 |
 
 Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
 INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
@@ -450,6 +456,22 @@ the Navigraph airport map, runway crossings, taxiway names, tap a stand on the m
 deleted. PR branch `b97742c40` on PR 23 (the arrival start uses PR 23's shared runway exit module `btvExits.ts`; only its own
 CHANGELOG line kept in the conflict). ESLint, Prettier, tsc + tsc-strict (EFBs, OIT, MFD, MCDU), 9 + 2 tests and the
 FBW_TYPECHECK EFB builds pass. Draft `26-efb-taxi-route.md`.
+
+PRs 28 to 31 and the updates of 2026-09-29 (from the user's flights with BeyondATC, at CYUL, and new requests): committed
+on their own branches from develop, merged into `develop` (70c70a09e .. 7b67b1c02, then 05a88e4f5 and 9de7f9631 for the CHANGELOG:
+the SND line moved to the current list, the file's LF line endings restored after a whole-file CRLF rewrite in five commits;
+develop 9de7f9631 pushed), then:
+
+- PR 22 `591aa0b5d`: + SEND FAILED without an active ATC center (`40b6f21d3`), + the FMS datalink connection with the active flight
+  number, the INIT FLT NBR field refresh and FMS DATALINK NOT AVAIL (`591aa0b5d`). PR 27 rebased on it (`021e6d367`, code changed
+  exactly as PR 22).
+- PR 24 `d39193281`: T/D distance slider, buttons at the bottom. PR 26 `6c2f022f6`: multi-word taxiway names, entry without runway
+  crossing, locate button.
+- PR 28 `4377b066a` EMER CANC (A380X FWS), PR 29 `ba83c9b4b` ACARS activation (both aircraft), PR 30 `088ef54e0` FIRE TEST
+  extension (the four A32NX commits of develop that had no PR, a fire-test-only simvar doc commit, the A380X commit; its conflict in
+  the A380 flyPad / OIT aircraft contexts resolved by keeping only `fireTestExtend: true`), PR 31 `9dff226cb` A380X SND (second
+  ISIS): all four on the upstream master, only their own CHANGELOG line kept in the conflicts.
+- CHANGELOG lines only for what stable users notice: none for the taxi and descent calculator fixes (features not released yet).
 
 ## `develop` changes not in a `pr/*` branch yet (2026-09-27)
 

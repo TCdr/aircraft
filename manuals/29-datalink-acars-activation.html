@@ -1,0 +1,60 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>ACARS provider connection - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>ACARS provider connection</h1>
+<div class="subtitle">Hoppie, BeyondATC or SayIntentions as the ACARS network of the aircraft: found whenever you start it, followed when you close it, and your settings kept</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X (the shared datalink of both aircraft)</span>
+<b>Where to find it</b><span>flyPad &gt; <b>Settings</b> &gt; <b>ATSU / AOC</b>: ACARS Provider</span>
+<b>PR branch</b><span><code>pr/29-datalink-acars-activation</code></span>
+<b>Status</b><span>Tested with BeyondATC in the sim on 2026-09-29 (started late, closed and started again).</span>
+<b>Pictures</b><span>flyPad page in the local browser harness, running the build installed in the sim.</span>
+</div>
+<h2>1. What it is for</h2>
+<p>The ATC and company datalink of the aircraft (CPDLC logon, requests, messages, ATIS and METAR) goes through an ACARS provider you choose on the flyPad: Hoppie, BeyondATC or SayIntentions. The aircraft must find it, then connect your flight number to it.</p>
+<figure><img src="img/29/a01_atsu_aoc.png" style="width:88%"><figcaption><b>Figure 1.</b> ACARS Provider: BeyondATC, "Waiting for Connection" until BeyondATC answers (then "Connected", green).</figcaption></figure>
+<h2>2. What happens now</h2>
+<ul><li><b>Start the provider when you like.</b> The aircraft looks for it every 5 s for 5 minutes, then once a minute, without end. Your provider, ATIS and METAR settings are never changed.</li><li><b>Flight number.</b> Entered before the provider answers, it is connected as soon as it answers.</li><li><b>Provider closed.</b> Within about a minute the status goes back to "Waiting for Connection"; start it again and the aircraft connects your flight number again by itself. With BeyondATC, log on to the ATC center again (it forgets the logon when it closes).</li><li><b>TELEX on.</b> If FBW's TELEX service refuses your flight number, the ACARS provider is connected anyway (on the A380X, the FMS shows FMS DATALINK NOT AVAIL for the TELEX failure).</li></ul>
+<h2>3. What to expect</h2>
+<ul><li>No extra traffic with Hoppie: once your flight number is connected, the regular polls (every 45 to 75 s) check the provider.</li><li>Before this change, a provider started more than 5 minutes after the aircraft set the flyPad to NONE: select your provider again once if it shows NONE.</li></ul>
+</body></html>

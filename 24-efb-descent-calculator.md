@@ -3,9 +3,11 @@
 - **Title:** `feat(efb): descent calculator in place of the top of descent calculator`
 - **Base:** `master` - **Branch:** `pr/24-efb-descent-calculator` (stacked on `pr/23-efb-landing-calculator`, PR 23: the FMS data
   answers of the FMC and the MCDU, the performance store and texts it extends)
-- **Tip:** `83fc831c7` - own commit: `469b9a0c8` (feature; original `915586cb7` on `feature/efb/descent-calculator`, merged into
+- **Tip:** `d39193281` - own commit: `469b9a0c8` (feature; original `915586cb7` on `feature/efb/descent-calculator`, merged into
   `develop` 99f00b531)
 - **Also in `pr/24` (2026-09-28):** the table columns are RATE and GRDT, positive in descent, as in the A380 FCOM table results (PER-IFT-DES-DSR); the RESULTS line and the late message give V/S and FPA negative, as set on the FCU.
+- **Also in `pr/24` (2026-09-29):** `d39193281` the Calculate and Clear buttons at the bottom as on the takeoff and landing pages, and
+  a T/D distance slider (original `161100772`, develop 75534d098).
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"flyPad top of descent calculator: only a 3-degree rule, no aircraft performance, speeds or FMS data"*
 - **CHANGELOG line (in the branch):** `1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr`
@@ -43,6 +45,12 @@ The Top of Descent tab of the flyPad performance page becomes a descent calculat
 
 Check against the A320 FCOM descent table (M.78 / 300 / 250, 65 t, FL390 to 1500 ft): FCOM 106 NM / 17.4 min / 165 kg, calculator
 114 NM / 18.8 min / 146 kg. The FCOM table is for the CFM56 A320; the FBW A320neo model descends about 8 % longer.
+
+- **T/D distance slider** under the profile: moves the start of the descent up to 60 NM earlier or later than the calculated T/D
+  (reversed like the chart: farther on the left), with the V/S and FPA it needs at the mean ground speed of the calculated descent,
+  against the calculated ones; later = steeper than the idle descent (speed brakes or a higher speed, red when the calculation
+  already has the speed brakes), earlier = shallower (thrust, more fuel); the moved T/D is drawn dashed to the target. The
+  Calculate and Clear buttons are at the bottom of the column, as on the takeoff and landing pages.
 
 ## Cockpit API Changes
 

@@ -6,7 +6,11 @@
 - **CHANGELOG line 2 (in the branch):** `1. [A380X/OANS] Mark the taxi route accepted on the flyPad with green flags on the OANS: at the start of each taxiway and at the gate or holding point - @TCdr`
 - **OANS flags:** built and checked in the harness, NOT tested in the sim yet.
 - **Also in `pr/26` (2026-09-28):** `751a4b003` a clearance route can leave a stand along another stand's line (a stand with an alternative position, RJTT gate 5 behind 5R: every clearance from gate 5 failed while SUGGEST worked); rebased on PR 12 for the TOW fix.
-- **Tip:** `751a4b003` - own commits: `b97742c40` (original `0b21c7f17` on `feature/efb/taxi-route`, merged into `develop` 9cd78dd05), `363866219` (no U-turn through the aircraft, map fit margin; `develop` 85c00b693), `4c9d39c36` (A380X OANS flags for the accepted route; `develop` 2dd1338d2)
+- **Tip:** `6c2f022f6` - own commits: `b97742c40` (original `0b21c7f17` on `feature/efb/taxi-route`, merged into `develop` 9cd78dd05), `363866219` (no U-turn through the aircraft, map fit margin; `develop` 85c00b693), `4c9d39c36` (A380X OANS flags for the accepted route; `develop` 2dd1338d2)
+- **Also in `pr/26` (2026-09-29, from the in-sim test at CYUL):** `6c2f022f6` clearances read with the airport's taxiway names (SOUTH RAMP, NORTH
+  RAMP were split word by word, so SUGGEST gave no route), the proposed runway entry is the first one reached without crossing a
+  runway (24L full length is across 06R/24L from the terminal), an aircraft start on the first cleared taxiway, a locate button
+  (original `0c459874c`, develop 2977cd7e6).
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"flyPad: no taxi route; the OANS shows the airport map but the crew has no way to see the route of the
   ATC taxi clearance and its runway crossings"*
@@ -49,6 +53,13 @@ so the route lives on the flyPad and the cockpit displays stay as the FCOM descr
 - From the aircraft position, the route never takes the line the aircraft is on whole (no U-turn through the aircraft); the
   fitted map keeps a 70 px margin for the labels at the ends of the route.
 - 9 unit tests (`taxi/taxiRoute.spec.ts`, incl. the flag points and the no-U-turn start) + the exit start points in `btvExits.spec.ts`.
+
+- **Taxiway names of several words** (SOUTH RAMP): the clearance is read with the names of the airport, the longest first.
+- **Proposed runway entry:** the first entry from the threshold whose suggested route crosses no runway; the full length entry when
+  every route crosses one (the crew chooses).
+- **Locate button** (pin, under the zoom buttons): centres the map on the aircraft, zoomed in with the stand names; greyed when the
+  aircraft is not at the airport.
+- 11 unit tests (+ multi-word clearance, entry without crossing).
 
 ## Cockpit API Changes
 

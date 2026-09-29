@@ -1,0 +1,61 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>FIRE TEST extended after the button release - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>FIRE TEST extended after the button release</h1>
+<div class="subtitle">A flyPad option on both aircraft: the FIRE TEST goes on for 7 seconds after you release the button, so you can check every warning and light without holding it</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X</span>
+<b>Where to find it</b><span>flyPad &gt; <b>Settings</b> &gt; <b>Realism</b>: "Extend Fire Test Warnings After Button Release"</span>
+<b>PR branch</b><span><code>pr/30-fire-test-extension</code></span>
+<b>Status</b><span>A32NX tested in the sim (2026-09-17); A380X built and deployed, not tested in the sim yet.</span>
+<b>Pictures</b><span>flyPad page (A380X) in the local browser harness, running the build installed in the sim.</span>
+</div>
+<h2>1. What it is for</h2>
+<p>On the aircraft, the FIRE TEST lasts as long as the button is held. In the simulator, holding the button with the mouse while looking at the ECAM, the master warning and every FIRE and AGENT light is awkward. This option keeps the test running for 7 seconds after you release the button. It is marked <b>unrealistic</b> and is on by default.</p>
+<figure><img src="img/30/f01_realism.png" style="width:88%"><figcaption><b>Figure 1.</b> Settings &gt; Realism on the A380X: "Extend Fire Test Warnings After Button Release".</figcaption></figure>
+<h2>2. What it does</h2>
+<table><tr><th>Aircraft</th><th>Test</th><th>Kept 7 s after the release</th></tr><tr><td>A32NX</td><td>APU, ENG 1 and ENG 2 FIRE TEST pushbuttons</td><td>master warning and CRC, ECAM, FIRE pushbutton lights, AGENT / SQUIB DISCH lights, together</td></tr><tr><td>A380X</td><td>FIRE TEST pushbutton (overhead)</td><td>the fire detection test itself: FIRE lights, squib lights and the FWS warnings, together</td></tr></table>
+<p>Option off: the test stops the instant you release the button, as on the aircraft.</p>
+<h2>3. What to expect</h2>
+<ul><li>The test starts half a second after you press (A380X), as before.</li><li>Pressing again during the 7 seconds starts a new 7 seconds after the next release.</li><li>The A380X systems host and fire protection system changed: a full MSFS restart after an update.</li></ul>
+</body></html>
