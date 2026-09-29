@@ -50,7 +50,7 @@ render(
           autoStepClimb: true,
           pilotAvatars: false,
           eclSoftKeys: true,
-          fireTestExtend: false,
+          fireTestExtend: true,
         },
         sim: {
           cones: false,
