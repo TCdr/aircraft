@@ -4,7 +4,8 @@
 - **Base:** `master` - **Branch:** `fix/tcas-ta-only-intruder-level` (built on `origin/master`)
 - **Commits:** `56d5d656c` (the fix), `4a5fb1c4e` (the low-altitude inhibitions with the real hysteresis, 900 / 1 100 ft and 400 / 600 ft), `c42cef6cc` (those altitudes named in `TcasConstants.ts`), `2518ca61e` (the TCAS message centred at the bottom of the A32NX ND, A320 FCOM DSC-34-SURV-60-20 figure)
 - **Labels to request:** `A32NX`, `A380X`, `Bug` (it is a fix)
-- **Status:** the commit message says *"Not verified in-sim yet"*. Test it first (see the testing instructions) or say so in the PR.
+- **Status (2026-09-29):** tested in the sim by the user: OK (the commit message still says *"Not verified in-sim yet"*: reword it
+  or say it in the PR).
 - **Issue to open first** (bug report template for the A32NX and one for the A380X): *"TCAS in TA ONLY shows an RA-level intruder as a red square
   and gives no traffic alert"*
 - **CHANGELOG line:** `1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr` - already added to `.github/CHANGELOG.md` in the commit of this PR (qualifies only if the bug is in the previous stable release, check it before opening)
