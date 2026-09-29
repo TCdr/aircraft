@@ -475,6 +475,9 @@ develop 9de7f9631 pushed), then:
 - PR 27: feature document and user manual added (the paper pictures drawn by the printer page of the build with the printouts
   of the unit tests).
 - Status from the user (2026-09-29): PR 4 and PR 7 tested in the sim, OK; **PR 8 NOT TO MERGE** (keep the branch, open no PR).
+- Later the same day: PRs 23, 24, 28, 30 (A380X part) and 31 tested in the sim by the user, OK. All ten PR branches checked and
+  pushed to the fork (22, 24, 26, 27 force-with-lease). Still open before opening: the Piper voice licence (PR 18), the A380
+  cockpit model paper in aircraft-large-files (PR 27), screenshots.
 
 ## `develop` changes not in a `pr/*` branch yet (2026-09-27)
 

@@ -11,7 +11,8 @@
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"flyPad top of descent calculator: only a 3-degree rule, no aircraft performance, speeds or FMS data"*
 - **CHANGELOG line (in the branch):** `1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr`
-- **Before opening - TO DO:** the in-sim test (built, deployed and checked in the local flyPad harness only). Screenshots.
+- **Status (2026-09-29):** tested in the sim by the user: OK.
+- **Before opening - TO DO:** screenshots.
 
 ---- paste from here ----
 

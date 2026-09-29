@@ -10,7 +10,7 @@
   checking the ECAM, the CRC and every FIRE and AGENT light"*
 - **CHANGELOG line (in the branch):** `1. [A380X/FIRE] Option to extend the FIRE TEST warnings and lights for a few seconds after the button is released - @TCdr`
   (the A32NX commits predate the CHANGELOG lines of this work: add an `[A32NX/FWC]` line when opening)
-- **Before opening - TO DO:** the A380X in-sim test (the A32NX part is user-tested since 2026-09-17).
+- **Status (2026-09-29):** tested in the sim by the user on both aircraft: OK (the A32NX part since 2026-09-17).
 
 ---- paste from here ----
 
