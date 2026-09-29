@@ -1009,19 +1009,29 @@ export const TakeoffWidget = () => {
         <Section title={t('Performance.Takeoff.Calc.SectionAircraft')}>
           <Row label={t('Performance.Takeoff.Calc.Tow')} missing={missingInputs.tow}>
             <div className="flex w-40 flex-row">
+              {/* In tonnes or thousands of pounds, as the TOW of the FMS and of the results: 68.0, 512.0 */}
               <SimpleInput
                 className="w-full min-w-0 rounded-r-none"
                 fontSizeClassName="text-base"
-                value={displayed(weight, weightUnit === 'lb', Units.kilogramToPound)}
-                placeholder={weightUnit}
-                decimalPrecision={0}
+                value={
+                  weight !== undefined
+                    ? Math.round((weightUnit === 'lb' ? Units.kilogramToPound(weight) : weight) / 100) / 10
+                    : undefined
+                }
+                placeholder={weightUnitText}
+                decimalPrecision={1}
                 onChange={(v) => {
-                  const n = parseNumber(v, true);
-                  set({ weight: n !== undefined && weightUnit === 'lb' ? Units.poundToKilogram(n) : n });
+                  const n = parseNumber(v);
+                  set({
+                    weight:
+                      n !== undefined
+                        ? Math.round(weightUnit === 'lb' ? Units.poundToKilogram(n * 1000) : n * 1000)
+                        : n,
+                  });
                 }}
                 number
               />
-              {unitSelect(weightUnit, ['kg', 'lb'], (v) => setWeightUnit(v), 'w-[4.5rem]')}
+              {unitSelect(weightUnitText, ['t', 'klb'], (v) => setWeightUnit(v === 'klb' ? 'lb' : 'kg'), 'w-[4.5rem]')}
             </div>
           </Row>
           <Row label={t('Performance.Takeoff.Calc.TakeoffCg')}>
