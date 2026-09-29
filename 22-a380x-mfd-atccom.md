@@ -3,9 +3,16 @@
 - **Title:** `feat(a380x/mfd): ATC COM pages and the SD mailbox per the A380 FCOM`
 - **Base:** `master` - **Branch:** `pr/22-a380x-mfd-atccom` (stacked on `pr/10-a380x-mfd-fcom-pages`, PR 10: the MFD FCOM layout and
   common components)
-- **Tip:** `43706e46f` - own commits: `f94da768a` (feature; original `4acffaeee` on `feature/a380/mfd/atccom`), `22fcdb556` (lint and
+- **Tip:** `591aa0b5d` - own commits: `f94da768a` (feature; original `4acffaeee` on `feature/a380/mfd/atccom`), `22fcdb556` (lint and
   strict types), `21756217d` (CHANGELOG line), then the fixes of the in-sim test: `64ea64155` (frame delete, label layout, ATIS auto
   update), `47ca68c77` (texts sized for the FBW display font), `43706e46f` (ATIS time from the ATIS message)
+- **Also in `pr/22` (2026-09-29, from the in-sim test with BeyondATC):** `40b6f21d3` SEND FAILED when no ATC center is active
+  (original `67cb0b157`, develop 70c70a09e); `591aa0b5d` the FMS connects the datalink networks with the active flight number, the
+  INIT FLT NBR field refreshes, FMS DATALINK NOT AVAIL (original `8e0d26341`, develop 375f39e91). The logon to BeyondATC (RJJJ) and a
+  MAYDAY sent were confirmed in the sim on 2026-09-28/29 (BeyondATC answers MAYDAY with NO MESSAGE HANDLING AVAILABLE: not supported
+  on its side).
+- **CHANGELOG lines 2 and 3 (in the branch):** `1. [ATSU] Show SEND FAILED on a message sent without an active ATC center, instead of nothing - @TCdr`,
+  `1. [A380X/FMS] Fix datalink not connected with the flight number entered on the INIT page (ATC logon and messages failing), FMS DATALINK NOT AVAIL message - @TCdr`
 - **Labels to request:** `A380X`, `MFD`, `Extensive Testing Needed`, `QA A380 Only`
 - **Issue to open first:** *"A380X MFD ATC COM pages are placeholders and the SD mailbox cannot answer the ATC"*
 - **CHANGELOG line (in the branch):** `1. [A380X/MFD] Add the ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD mailbox per the A380 FCOM - @TCdr`
@@ -40,6 +47,15 @@ Every ATC COM page of the A380 FCOM (DSC-46-10-20-30) is laid out on its FCOM fi
 - `fbw-common` MailboxBus (one line): `downlinkTransmit` on an uplink sends its existing open or failed response.
 - The old placeholder ATC COM pages (connect, D-ATIS, message record) are removed.
 - 33 unit tests (request frames, entry formats, ATIS text and time, message record, reports, mailbox logic).
+
+- **Datalink connection (FMS):** the INIT page FLT NBR field wrote the flight plan only: the field did not refresh and a typed
+  flight number never connected the datalink networks (TELEX and the ACARS provider), so every logon and downlink failed. The field
+  now updates its value, and the FMS (`FmsDatalinkConnection`) connects the networks whenever the flight number of the active
+  flight plan changes, whatever its source (INIT entry, company flight plan, SEC activation, flight reload), resending when the
+  router does not answer. A refused connection, or no answer after two tries, shows the FMS message FMS DATALINK NOT AVAIL
+  (DSC-22-FMS-20-110); entering the flight number again retries. 5 unit tests.
+- **SEND FAILED:** a message sent from the mailbox without an active ATC center was dropped silently; the mailbox now shows SEND
+  FAILED (DSC-46-10-20-60), in the shared ATC code (the A32NX DCDU too).
 
 ## Cockpit API Changes
 

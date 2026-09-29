@@ -1,0 +1,64 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X EMER CANC pushbutton - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X EMER CANC pushbutton</h1>
+<div class="subtitle">Silence a warning, cancel a caution for the rest of the flight, and get the cancelled cautions back: the EMER CANC pushbutton of the ECP as the A380 FCOM describes it</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>ECP (ECAM control panel, pedestal): the guarded <b>EMER CANC</b> pushbutton, right of the RCL pushbutton</span>
+<b>PR branch</b><span><code>pr/28-a380x-fws-emer-canc</code></span>
+<b>Status</b><span>Built and deployed; not tested in the sim yet.</span>
+<b>Pictures</b><span>None: the flight warning system does not run in the local browser harness, and the FCOM describes the pushbutton in text only (DSC-31-40-20 P 5, DSC-31-40-10).</span>
+</div>
+<div class="toc"><div>1. What it is for</div><div>2. What it does</div><div>3. Getting the cancelled cautions back</div><div>4. What to expect</div></div>
+<h2>1. What it is for</h2>
+<p>EMER CANC stops an alert that is wrong or no longer useful: a spurious warning whose aural alert would sound for the rest of the approach, or a caution the crew has dealt with and does not want to see again. Until now the pushbutton did nothing on the FBW A380.</p>
+<h2>2. What it does</h2>
+<p>It acts on the alert at the top of the EWD (A380 FCOM DSC-31-40-20):</p>
+<table><tr><th>Top alert</th><th>EMER CANC</th></tr><tr><td>A <b>warning</b> (red)</td><td>Its aural alert and the MASTER WARN light stop. The procedure stays on the EWD. If the warning goes away and comes back, the aural alert and MASTER WARN come back.</td></tr><tr><td>A <b>caution</b> (amber)</td><td>The caution, its procedure and the MASTER CAUT light go away <b>for the rest of the flight</b>, even if the failure comes back. It is listed in white under <b>CANCELLED CAUTION</b> on the STATUS page (MORE).</td></tr><tr><td>In every case</td><td>All the aural alerts stop (the one sounding and those waiting), and the procedures you called from ABN PROC are removed.</td></tr><tr><td>Nothing to cancel</td><td>The memo <b>EMERGENCY CANCEL ON</b> shows for 3 seconds.</td></tr></table>
+<h2>3. Getting the cancelled cautions back</h2>
+<ol><li>Press and <b>hold RCL</b> for more than 3 seconds.</li><li>The cancelled cautions that are still active come back on the EWD with their procedures.</li></ol>
+<p>The cancelled cautions are also forgotten when the warning system loses power, or 50 minutes after the engines are shut down, as the other ECAM memories.</p>
+<h2>4. What to expect</h2>
+<ul><li>A cancelled caution never sounds again in the flight, even if the failure comes back: check the STATUS page.</li><li>A silenced warning comes back only if it goes away and triggers again.</li><li>EMERGENCY CANCEL ON lasts 3 seconds: the FCOM gives no time; 3 s as the RCL "NORMAL" message.</li></ul>
+</body></html>
