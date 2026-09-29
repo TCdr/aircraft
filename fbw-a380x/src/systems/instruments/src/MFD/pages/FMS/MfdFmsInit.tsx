@@ -24,8 +24,6 @@ import { CpnyWindButton, cpnyWindRequestPage } from '../../shared/CpnyWindButton
 import { cpnyToRequestPage } from './MfdFmsCpnyToRequest';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { A380AltitudeUtils } from '@shared/OperatingAltitudes';
-import { AtsuStatusCodes } from '@datalink/common';
-import { FmsRouterMessages } from '@datalink/router';
 import {
   cpnyFplnRequestPage,
   routeSelectionPage,
@@ -207,30 +205,13 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    this.subs.push(
-      this.props.bus
-        .getSubscriber<FmsRouterMessages>()
-        .on('routerManagementResponse')
-        .handle((data) => {
-          this.routerResponseCallbacks.every((callback, index) => {
-            if (callback(data.status, data.requestId)) {
-              this.routerResponseCallbacks.splice(index, 1);
-              return false;
-            }
-            return true;
-          });
-        }),
-    );
-
     if (this.props.fmcService.master) {
       this.subs.push(
         this.flightNumber.sub((c) => {
+          // The FMS connects the datalink networks with the flight number of the active flight plan
           if (this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active) {
             if (c) {
-              this.connectToNetworks(c);
               this.props.fmcService.master.updateFlightNumber(c, this.loadedFlightPlanIndex.get(), () => {});
-            } else {
-              this.disconnectFromNetworks();
             }
             this.props.fmcService.master.acInterface.updateFmsData();
           }
@@ -425,41 +406,6 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
     return true;
   }
 
-  private requestId = 0;
-
-  private routerResponseCallbacks: ((code: AtsuStatusCodes, requestId: number) => boolean)[] = [];
-
-  private async connectToNetworks(callsign: string): Promise<AtsuStatusCodes> {
-    const publisher = this.props.bus.getPublisher<FmsRouterMessages>();
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
-      const disconnectRequestId = this.requestId++;
-      publisher.pub('routerDisconnect', disconnectRequestId, true, false);
-      this.routerResponseCallbacks.push((_code: AtsuStatusCodes, id: number) => {
-        if (id === disconnectRequestId) {
-          const connectRequestId = this.requestId++;
-          publisher.pub('routerConnect', { callsign, requestId: connectRequestId }, true, false);
-          this.routerResponseCallbacks.push((code: AtsuStatusCodes, id: number) => {
-            if (id === connectRequestId) resolve(code);
-            return id === connectRequestId;
-          });
-        }
-        return id === disconnectRequestId;
-      });
-    });
-  }
-
-  private async disconnectFromNetworks(): Promise<AtsuStatusCodes> {
-    const publisher = this.props.bus.getPublisher<FmsRouterMessages>();
-    return new Promise<AtsuStatusCodes>((resolve, _reject) => {
-      const disconnectRequestId = this.requestId++;
-      publisher.pub('routerDisconnect', disconnectRequestId, true, false);
-      this.routerResponseCallbacks.push((code: AtsuStatusCodes, id: number) => {
-        if (id === disconnectRequestId) resolve(code);
-        return id === disconnectRequestId;
-      });
-    });
-  }
-
   public destroy(): void {
     this.cpnyWindButton.destroy();
     this.flightPlanChangeNotifier.destroy();
@@ -485,6 +431,9 @@ export class MfdFmsInit extends FmsPage<MfdFmsInitProps> {
                   disabled={this.noFlightPlan}
                   dataHandlerDuringValidation={async (v) => {
                     this.props.flightPlanInterface.get(this.loadedFlightPlanIndex.get()).getFlightNumber().set(v);
+                    // The flight plan's flight number does not change the plan version, so the page is not reloaded:
+                    // update the displayed value here, which also connects the datalink networks for the active plan
+                    this.flightNumber.set(v);
                   }}
                   mandatory={this.mandatoryAndActiveFpln}
                   readonlyValue={this.flightNumber}
