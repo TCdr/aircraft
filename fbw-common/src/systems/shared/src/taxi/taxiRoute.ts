@@ -280,7 +280,9 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     }
     switch (line.kind) {
       case TaxiLineKind.Stand:
-        if (via && k !== last) {
+        // With a clearance, stand lines only before its first taxiway (leaving the stand, possibly along the line of
+        // another stand: a stand with an alternative position) or after its last one (to the stand)
+        if (via && k !== last && k !== -1) {
           return null;
         }
         if (standLines.has(e.line)) {
