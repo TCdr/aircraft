@@ -5,8 +5,8 @@ Companion of PR 27 (the aircraft repository). Opens FIRST, in `flybywiresim/airc
 - **Title:** `feat(a380x): pedestal printer paper in the cockpit model`
 - **Repository:** `flybywiresim/aircraft-large-files` - **Base:** `master` (`5f07408`, #23)
 - **Branch:** `feat/a380x-pedestal-printer-paper` - **Commit:** `36b4bd9` (local worktree `E:\MSFS2024 mods\q-lf`)
-- **To push:** the fork `TCdr/aircraft-large-files` does not exist yet: fork `flybywiresim/aircraft-large-files` on GitHub first,
-  then `git push <fork> feat/a380x-pedestal-printer-paper`.
+- **Pushed** (2026-09-29) to the fork `TCdr/aircraft-large-files` (remote `fork` in the worktree). Open the PR from
+  https://github.com/TCdr/aircraft-large-files/pull/new/feat/a380x-pedestal-printer-paper (base `flybywiresim/aircraft-large-files` master).
 - **Files:** `A380_COCKPIT_LOD00.gltf` and `A380_COCKPIT_LOD00.bin.part02` (the new data is appended to the buffer: `part01` and
   every existing mesh are unchanged; +11 296 bytes of binary, +44 976 bytes of glTF JSON).
 - **Made by:** `large-files/patch_a380_printer_model.py` in this folder, run on the unmodified `5f07408` model and the A32NX
