@@ -9,9 +9,10 @@
 - **Labels to request:** `A380X`, `MFD`, `QA A380 Only`, `Extensive Testing Needed`
 - **Issue to open first:** *"A380X: the MFD PRINT functions do not print on the pedestal printer"*
 - **CHANGELOG line (in the branch):** `1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr`
-- **Companion PR needed first:** the A380 cockpit model (`aircraft-large-files`, A380_COCKPIT_LOD00) has no paper nodes and no
-  PRINT / PRINT_STATIC materials: the paper was added to the installed model by a script (copied from the A32NX model, placed at the
-  printer slot and on the blank panel left of the lid). Without it the printer works but nothing is visible.
+- **Companion PR needed first:** draft `27b-large-files-a380x-printer-paper.md`: `aircraft-large-files` branch
+  `feat/a380x-pedestal-printer-paper` (`36b4bd9`, 2026-09-29) adds the paper nodes and the PRINT / PRINT_STATIC materials to
+  A380_COCKPIT_LOD00 (byte-identical to the model tested in the sim). Open it first; once merged, add a commit here that bumps the
+  `large-files` submodule pointer to its merge commit. Without it the printer works but nothing is visible.
 - **Tested in the sim** on 2026-09-27 (feed animation, tear-off, sheets on the pedestal and the CPT table, FMS pages and ATIS).
 
 ---- paste from here ----
