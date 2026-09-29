@@ -379,6 +379,12 @@
     - Bool
     - Indicates if the APU fire button is RELEASED
 
+- A32NX_FWC_FIRE_TEST_{ENG1 | ENG2 | APU}_ACTIVE
+    - Bool
+    - True while the FWC sees the ENG 1, ENG 2 or APU FIRE TEST: while the TEST pb is pressed, plus 7 s after
+      release when the flyPad realism option "Extend Fire Test Warnings After Button Release" is on
+    - Written by the FWC; drives the FIRE pb and AGENT/SQUIB DISCH lights, so they stay lit as long as the ECAM and the CRC
+
 - A32NX_RMP_L_TOGGLE_SWITCH
     - Boolean
     - Whether the left radio management panel toggle switch is on or off.
