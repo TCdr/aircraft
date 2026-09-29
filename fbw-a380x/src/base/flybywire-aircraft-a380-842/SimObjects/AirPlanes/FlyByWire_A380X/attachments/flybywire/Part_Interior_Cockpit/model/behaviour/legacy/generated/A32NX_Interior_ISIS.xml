@@ -105,6 +105,34 @@
     </Template>
 
     <!--
+    Template for the SET/SEL knob of the second ISIS (SND): turned, it scrolls the menu items or values; pressed, it
+    selects (FCOM DSC-34-10-20-50)
+    Main Parameters:
+        - NODE_ID               <no default>    Knob node ID                            (anim name will be same)
+    -->
+    <Template Name="FBW_ISIS_SND_Knob_Template">
+        <Component ID="#NODE_ID#" Node="#NODE_ID#">
+            <UseTemplate Name="ASOBO_GT_Knob_Infinite_Push">
+                <ANIM_NAME_KNOB>#NODE_ID#</ANIM_NAME_KNOB>
+                <ANIM_NAME_PUSH>#NODE_ID#_push</ANIM_NAME_PUSH>
+                <PART_ID>#NODE_ID#</PART_ID>
+                <ANIMREF_ID>-1</ANIMREF_ID>
+                <ANTICLOCKWISE_CONDITION>1</ANTICLOCKWISE_CONDITION>
+                <ANTICLOCKWISE_CODE>0 (&gt;H:A32NX_ISIS_2_KNOB_ANTI_CLOCKWISE)</ANTICLOCKWISE_CODE>
+                <CLOCKWISE_CONDITION>1</CLOCKWISE_CONDITION>
+                <CLOCKWISE_CODE>0 (&gt;H:A32NX_ISIS_2_KNOB_CLOCKWISE)</CLOCKWISE_CODE>
+                <LEFT_SINGLE_CODE>0 (&gt;H:A32NX_ISIS_2_KNOB_PRESSED)</LEFT_SINGLE_CODE>
+                <WWISE_EVENT>rmpknob</WWISE_EVENT>
+                <COUNT>36</COUNT>
+                <WWISE_EVENT_1>mcdubuttons</WWISE_EVENT_1>
+                <NORMALIZED_TIME_1>0.1</NORMALIZED_TIME_1>
+                <WWISE_EVENT_2>mcdubuttons</WWISE_EVENT_2>
+                <NORMALIZED_TIME_2>0.5</NORMALIZED_TIME_2>
+            </UseTemplate>
+        </Component>
+    </Template>
+
+    <!--
     Template for the toggle buttons around the ISIS (LS and BUGS)
     Main Parameters:
         - NODE_ID               <no default>    Switch node ID                          (anim name will be same)
