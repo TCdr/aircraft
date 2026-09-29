@@ -30,6 +30,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Update aircraft to MSFS2024 native modular aircraft - @heclak (Heclak)
 1. [A380X/MODEL] Performance optimization of 3D model with reduced draw calls - @heclak (Heclak)
 1. [A380X/MODEL] VRAM usage reduction with texture optimization and use of mipmaps for lower spec systems - @heclak (Heclak)
+1. [A380X/ISIS] Second ISIS as Standby Navigation Display (SND): heading rose, track, ground speed and position - @TCdr
 1. [A380X/MODEL] Add new cabinless variant for better performance on low spec systems - @heclak (Heclak)
 1. [A380X/MODEL] Add parallax windows on cabinless variant based on cabin layout - @heclak (Heclak)
 1. [A380X/MODEL] Update windshield texture to be cleaner - @heclak (Heclak)
