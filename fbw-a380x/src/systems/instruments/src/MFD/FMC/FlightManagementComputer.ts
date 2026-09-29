@@ -1130,8 +1130,51 @@ export class FlightManagementComputer implements FmcInterface {
       this.simBriefOfp?.weights.passengerCount !== undefined ? Number(this.simBriefOfp?.weights?.passengerCount) : null,
     );
 
+    // FCOM DSC-22-FMS-20-30 COMPANY F-PLN REQUEST: before engine start, performance data come with the flight plan
+    if (!this.enginesWereStarted.get() && this.simBriefOfp) {
+      this.insertCompanyFuelData(intoPlan, this.simBriefOfp);
+    }
+
     this.fmgc.data.cpnyFplnAvailable.set(false);
     this.fmgc.data.cpnyFplnRequestedForPlan.set(null);
+  }
+
+  /**
+   * The fuel figures of the company flight plan (the SimBrief OFP) into the FUEL&LOAD page, as if entered by the crew:
+   * TAXI, RTE RSV (the OFP contingency), ALTN and FINAL (the OFP final reserve). Not the BLOCK: the FUEL PLANNING
+   * function computes it from these and the FMS TRIP.
+   */
+  private insertCompanyFuelData(planIndex: FlightPlanIndex, ofp: ISimbriefData): void {
+    const tonnes = (value: number | string | undefined): number | null => {
+      const n = Number(value);
+      if (value === undefined || value === '' || !Number.isFinite(n) || n < 0) {
+        return null;
+      }
+      return (ofp.units === 'lbs' ? Units.poundToKilogram(n) : n) / 1000;
+    };
+    /** To the 0.1 t of the entry fields */
+    const nearest = (t: number | null) => (t !== null ? Math.round(t * 10) / 10 : null);
+
+    const taxi = nearest(tonnes(ofp.fuel.taxi));
+    if (taxi !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotTaxiFuel', taxi, planIndex);
+    }
+    const routeReserve = nearest(tonnes(ofp.fuel.contingency));
+    if (routeReserve !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotRouteReserveFuel', routeReserve, planIndex);
+      this.flightPlanInterface.setPerformanceData('pilotRouteReserveFuelPercentage', null, planIndex);
+    }
+    const alternate = this.flightPlanInterface.get(planIndex).alternateDestinationAirport
+      ? nearest(tonnes(ofp.alternate?.burn))
+      : null;
+    if (alternate !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotAlternateFuel', alternate, planIndex);
+    }
+    const final = nearest(tonnes(ofp.fuel.reserve));
+    if (final !== null) {
+      this.flightPlanInterface.setPerformanceData('pilotFinalHoldingFuel', final, planIndex);
+      this.flightPlanInterface.setPerformanceData('pilotFinalHoldingTime', null, planIndex);
+    }
   }
 
   /**
