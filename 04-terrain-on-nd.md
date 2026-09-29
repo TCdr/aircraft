@@ -1,6 +1,7 @@
 # PR 4 - native TERR ON ND and the A380X VD terrain profile
 
 - **Title:** `feat(nd): add the native TERR ON ND and the A380X VD terrain profile`
+- **Status (2026-09-29):** tested in the sim by the user: OK.
 - **Base:** `master` - **Branch:** `feature/nd-terrain` (built on `feature/a380x-nd-weather-radar`: same `ndwxr/src/main.cpp` and its A380X code, so PR 1 and 2 come first)
 - **Commits:** `88dd9ad92` (terrain + VD profile), `1c05189a4` (range up to 29,500 ft above, blue water), `aa56b7f9b` (terronnd retired, A32NX status poster), `3d60701c4` (the TAWS status object typed by its mapper)
 - **Labels to request:** `A32NX`, `A380X`, `ND`, `VD`, `GPWS`, `QA MSFS 2024 Only`, `Extensive Testing Needed`

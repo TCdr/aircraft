@@ -472,6 +472,9 @@ develop 9de7f9631 pushed), then:
   the A380 flyPad / OIT aircraft contexts resolved by keeping only `fireTestExtend: true`), PR 31 `9dff226cb` A380X SND (second
   ISIS): all four on the upstream master, only their own CHANGELOG line kept in the conflicts.
 - CHANGELOG lines only for what stable users notice: none for the taxi and descent calculator fixes (features not released yet).
+- PR 27: feature document and user manual added (the paper pictures drawn by the printer page of the build with the printouts
+  of the unit tests).
+- Status from the user (2026-09-29): PR 4 and PR 7 tested in the sim, OK; **PR 8 NOT TO MERGE** (keep the branch, open no PR).
 
 ## `develop` changes not in a `pr/*` branch yet (2026-09-27)
 
