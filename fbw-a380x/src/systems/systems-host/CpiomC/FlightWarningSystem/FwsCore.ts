@@ -5311,7 +5311,8 @@ export class FwsCore {
     this.cargoFireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', 'bool'));
     this.cargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_FWD_DISCHARGED', 'bool'));
 
-    this.fireTestPb.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FIRE_TEST_PB_IS_PRESSED', 'bool'));
+    // The FIRE TEST pb, extended after its release when the flyPad setting is on
+    this.fireTestPb.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ACTIVE', 'bool'));
 
     /* 42 AVIONICS NETWORK */
     this.cpiomC1Available.set(SimVar.GetSimVarValue('L:A32NX_CPIOM_C1_AVAIL', 'bool'));
