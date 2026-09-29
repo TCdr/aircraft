@@ -104,6 +104,8 @@ export const NXSystemMessages = {
   databaseCodingError: new TypeIIMessage('DATABASE CODING ERROR'),
   destEfobBelowMin: new TypeIIMessage('DEST EFOB BELOW MIN', true),
   enterDestData: new TypeIIMessage('ENTER DEST DATA', true),
+  // FCOM DSC-22-FMS-20-110: the data communication between the FMS and the Avionics Communication Router is not available
+  fmsDatalinkNotAvail: new TypeIIMessage('FMS DATALINK NOT AVAIL'),
   entryOutOfRange: new TypeIMessage('ENTRY OUT OF RANGE'),
   formatError: new TypeIMessage('FORMAT ERROR'),
   fplnElementRetained: new TypeIMessage('F-PLN ELEMENT RETAINED'),
