@@ -111,7 +111,7 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
             pilotAvatars: false,
             eclSoftKeys: true,
             autoStepClimb: true,
-            fireTestExtend: false,
+            fireTestExtend: true,
             keepPilotStoredElements: true,
             companyDatalinkReplyTime: true,
           },
