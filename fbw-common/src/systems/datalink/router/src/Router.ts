@@ -226,19 +226,19 @@ export class Router {
     this.lastUpdateTime = currentTimestamp;
   }
 
+  /**
+   * Connects the flight number to the FBW TELEX and to the ACARS provider (Hoppie, BeyondATC, SayIntentions).
+   * The ACARS provider is connected even when the TELEX connection fails, the TELEX failure is still returned.
+   */
   private static async connect(flightNo: string): Promise<AtsuStatusCodes> {
-    return NXApiConnector.connect(flightNo).then((code) => {
-      if (code === AtsuStatusCodes.TelexDisabled) code = AtsuStatusCodes.Ok;
+    let telexCode = await NXApiConnector.connect(flightNo);
+    if (telexCode === AtsuStatusCodes.TelexDisabled) telexCode = AtsuStatusCodes.Ok;
 
-      if (code === AtsuStatusCodes.Ok) {
-        return AcarsConnector.connect(flightNo).then((code) => {
-          if (code === AtsuStatusCodes.NoAcarsConnection) code = AtsuStatusCodes.Ok;
-          return code;
-        });
-      }
+    let acarsCode = await AcarsConnector.connect(flightNo);
+    // Not active yet: the ACARS provider connects the flight number as soon as it answers
+    if (acarsCode === AtsuStatusCodes.NoAcarsConnection) acarsCode = AtsuStatusCodes.Ok;
 
-      return code;
-    });
+    return telexCode !== AtsuStatusCodes.Ok ? telexCode : acarsCode;
   }
 
   private static async disconnect(): Promise<AtsuStatusCodes> {
