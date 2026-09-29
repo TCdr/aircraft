@@ -1,0 +1,170 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../Common/definitions";
+
+@font-face {
+  font-family: "Ecam";
+  //noinspection CssUnknownTarget
+  src: url("/Fonts/fbw-a380x/ISISFontTemporary.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+#SND_CONTENT {
+  width: 512px;
+  height: 512px;
+  background: $display-background;
+}
+
+.snd-root {
+  position: absolute;
+  width: 512px;
+  height: 512px;
+}
+
+.snd {
+  position: absolute;
+  width: 512px;
+  height: 512px;
+  background: $display-background;
+  font-family: "Ecam", monospace !important;
+}
+
+.snd-small {
+  font-size: 24px;
+}
+
+.snd-large {
+  font-size: 32px;
+}
+
+.snd-rose {
+  font-size: 34px;
+}
+
+.snd-position {
+  font-size: 26px;
+}
+
+.snd-white {
+  fill: $display-white;
+}
+
+.snd-green {
+  fill: $display-green;
+}
+
+.snd-cyan {
+  fill: $display-cyan;
+}
+
+.snd-box {
+  fill: none;
+  stroke: $display-white;
+  stroke-width: 2px;
+}
+
+.snd-tick {
+  fill: none;
+  stroke: $display-white;
+  stroke-width: 4px;
+}
+
+.snd-track {
+  fill: $display-green;
+  stroke: none;
+}
+
+.snd-index {
+  fill: $display-yellow;
+  stroke: none;
+}
+
+.snd-marker {
+  fill: $display-white;
+  stroke: none;
+}
+
+.snd-aircraft {
+  fill: none;
+  stroke: $display-yellow;
+  stroke-width: 4px;
+}
+
+.snd-flag {
+  fill: $display-amber;
+  stroke: none;
+}
+
+.snd-flag-text {
+  fill: $display-background;
+}
+
+.snd-separator {
+  fill: none;
+  stroke: $display-white;
+  stroke-width: 3px;
+}
+
+.snd-dimming {
+  fill: $display-background;
+  stroke: none;
+}
+
+.snd-list {
+  font-size: 22px;
+}
+
+.snd-label {
+  font-size: 18px;
+}
+
+.snd-unit {
+  font-size: 16px;
+}
+
+.snd-course {
+  fill: none;
+  stroke: $display-white;
+  stroke-width: 4px;
+}
+
+.snd-course-head {
+  fill: $display-white;
+  stroke: none;
+}
+
+.snd-scale {
+  fill: none;
+  stroke: $display-white;
+  stroke-width: 3px;
+}
+
+.snd-bracket {
+  fill: none;
+  stroke: $display-green;
+  stroke-width: 2px;
+}
+
+// The field being entered with the SET/SEL knob: cyan, as the menu item
+.snd-edit-active {
+  fill: $display-cyan;
+  text-decoration: underline;
+}
+
+.snd-magenta {
+  fill: $display-magenta;
+}
+
+.snd-fix-symbol {
+  fill: none;
+  stroke: $display-magenta;
+  stroke-width: 2px;
+}
+
+.snd-fix-pointer {
+  fill: none;
+  stroke: $display-magenta;
+  stroke-width: 4px;
+}
