@@ -7,7 +7,8 @@
 - **Issue to open first:** *"A380X: the lower ISIS screen is black (its gauge is commented out in panel.cfg: FIXME re-enable second
   ISIS when A380X ISIS implementation is in place)"*
 - **CHANGELOG line (in the branch):** `1. [A380X/ISIS] Second ISIS as Standby Navigation Display (SND): heading rose, track, ground speed and position - @TCdr`
-- **Before opening - TO DO:** in-sim test (checked in the local browser harness only); screenshots from the sim.
+- **Status (2026-09-29):** tested in the sim by the user: OK.
+- **Before opening - TO DO:** screenshots from the sim.
 
 ---- paste from here ----
 

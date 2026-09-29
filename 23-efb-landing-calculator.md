@@ -10,8 +10,8 @@
 - **Issue to open first:** *"flyPad landing calculator: no A380 calculator, and the A320 one has no dispatch data, no FMS import and
   no approach / go-around parameters"*
 - **CHANGELOG line (in the branch):** `1. [EFB] Add the A380 landing calculator and rework the A320 one: dispatch and in-flight landing distances from the FCOM, FMS data import, BTV exit advice on the A380 - @TCdr`
-- **Before opening - TO DO:** the in-sim test (built, deployed and checked in the local flyPad harness only; the BTV exits were seen in
-  the sim once). Screenshots.
+- **Status (2026-09-29):** tested in the sim by the user: OK.
+- **Before opening - TO DO:** screenshots.
 
 ---- paste from here ----
 

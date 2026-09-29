@@ -6,8 +6,8 @@
 - **Labels to request:** `A380X`, `ECAM`
 - **Issue to open first:** *"A380X: the EMER CANC pushbutton on the ECP does nothing (the L:var it sets is read by nothing)"*
 - **CHANGELOG line (in the branch):** `1. [A380X/FWS] EMER CANC pushbutton: cancels the aural and MASTER WARN of a warning, a caution for the rest of the flight (CANCELLED CAUTION on the STATUS page, recalled with RCL held 3 s) - @TCdr`
-- **Before opening - TO DO:** in-sim test (the FWS cannot run in the browser harness); screenshots of the STATUS page CANCELLED
-  CAUTION section and of the EMERGENCY CANCEL ON memo.
+- **Status (2026-09-29):** tested in the sim by the user: OK.
+- **Before opening - TO DO:** screenshots of the STATUS page CANCELLED CAUTION section and of the EMERGENCY CANCEL ON memo.
 
 ---- paste from here ----
 
