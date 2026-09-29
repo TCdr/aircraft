@@ -9,6 +9,7 @@ import {
   OansControlEvents,
   OansMapProjection,
   parseTaxiClearance,
+  taxiDefaultEntry,
   TaxiLineKind,
   TaxiPoint,
   taxiRoute,
@@ -145,7 +146,6 @@ export const TaxiPage = () => {
   const exits: BtvExit[] = (!departure && runway ? airport?.exits.get(runway) : undefined) ?? [];
   const entries: TaxiRunwayEntry[] = (departure && runway ? airport?.entries.get(runway) : undefined) ?? [];
   const exitInfo = exits.find((e) => e.name === exit);
-  const entryInfo = entries.find((e) => e.name === entry) ?? entries[0];
   const standInfo = airport && stand ? taxiFindStand(airport.stands, stand) : null;
 
   const start: TaxiRouteStart | null = useMemo(() => {
@@ -160,6 +160,16 @@ export const TaxiPage = () => {
     }
   }, [startMode, exitInfo, standInfo, aircraftStart]);
 
+  // The entry chosen by the crew, or the first one (full length first) reached without crossing a runway
+  const defaultEntry = useMemo(
+    () =>
+      airport && start && runway
+        ? taxiDefaultEntry(airport.network, airport.runways, airport.holdingLines, start, runway, entries)
+        : entries[0],
+    [airport, start, runway, entries],
+  );
+  const entryInfo = entries.find((e) => e.name === entry) ?? defaultEntry;
+
   const to: TaxiRouteTarget | null = useMemo(() => {
     if (departure) {
       return runway && entryInfo ? { kind: 'runway', runway, entry: entryInfo.name, point: entryInfo.point } : null;
@@ -172,7 +182,12 @@ export const TaxiPage = () => {
     () => (airport && start && to ? taxiRoute(airport.network, { start, to }) : null),
     [airport, start, to],
   );
-  const via = parseTaxiClearance(clearance);
+  // The taxiway names of the airport, to read the names of several words in the clearance (e.g. SOUTH RAMP)
+  const airportNames = useMemo(
+    () => new Set(airport?.network.lines.map((l) => l.name).filter((n): n is string => n !== null)),
+    [airport],
+  );
+  const via = parseTaxiClearance(clearance, airportNames);
   const viaKey = via.join(' ');
   const cleared = useMemo(
     () => (airport && start && to && via.length > 0 ? taxiRoute(airport.network, { start, to, via }) : null),
