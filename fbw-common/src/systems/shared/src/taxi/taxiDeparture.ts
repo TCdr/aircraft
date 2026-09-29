@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { taxiDistance, TaxiLineKind, TaxiNetwork, TaxiPoint } from './taxiNetwork';
-import { TaxiRoute } from './taxiRoute';
+import {
+  TaxiRoute,
+  taxiRoute,
+  TaxiRouteError,
+  taxiRouteRunwayCrossings,
+  TaxiRouteStart,
+  TaxiRunway,
+} from './taxiRoute';
 
 /** A runway direction: its threshold and the far end of its centreline, in the airport map projection */
 export interface TaxiRunwayAxis {
@@ -171,4 +178,39 @@ export function taxiRouteToHoldingPoint(
     fromEnd += taxiDistance(a, b);
   }
   return { route, holdingPoint: null };
+}
+
+/**
+ * The runway entry proposed for a departure: the first one from the threshold (the full length one first) that the
+ * suggested route reaches without crossing a runway. The full length entry when every route crosses one: the crew
+ * chooses the entry.
+ * @param runwayIdent the departure runway, e.g. 24L
+ * @param entries the entries of the runway, from its threshold
+ */
+export function taxiDefaultEntry(
+  network: TaxiNetwork,
+  runways: readonly TaxiRunway[],
+  holdingLines: readonly TaxiPoint[][],
+  start: TaxiRouteStart,
+  runwayIdent: string,
+  entries: readonly TaxiRunwayEntry[],
+): TaxiRunwayEntry | undefined {
+  for (const entry of entries) {
+    const route = taxiRoute(network, {
+      start,
+      to: { kind: 'runway', runway: runwayIdent, entry: entry.name, point: entry.point },
+    });
+    if (route.error !== TaxiRouteError.None) {
+      continue;
+    }
+    // Entering the departure runway at the entry, at the end of the route, is no crossing
+    const crossings = taxiRouteRunwayCrossings(
+      taxiRouteToHoldingPoint(route, holdingLines).route.points,
+      runways,
+    ).filter((c) => taxiDistance(c.point, entry.point) > RUNWAY_AREA);
+    if (crossings.length === 0) {
+      return entry;
+    }
+  }
+  return entries[0];
 }
