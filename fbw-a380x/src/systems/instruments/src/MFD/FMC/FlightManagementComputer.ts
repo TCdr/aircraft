@@ -74,6 +74,7 @@ import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { HistoryWind } from '@fmgc/wind/HistoryWind';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { FmsPrinter } from './FmsPrinter';
+import { FmsDatalinkConnection } from './FmsDatalinkConnection';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
@@ -238,6 +239,21 @@ export class FlightManagementComputer implements FmcInterface {
   get printer(): FmsPrinter | null {
     return this.#printer;
   }
+
+  /** Connects the datalink networks with the flight number of the active flight plan (FMC-A) */
+  readonly #datalinkConnection =
+    this.instance === FmcIndex.FmcA
+      ? new FmsDatalinkConnection(this.bus, () =>
+          this.addMessageToQueue(
+            NXSystemMessages.fmsDatalinkNotAvail,
+            () => this.#datalinkConnection?.isAvailable ?? true,
+            undefined,
+          ),
+        )
+      : null;
+
+  /** The last flight number of the active flight plan sent to the aircraft systems */
+  #activeFlightNumber: string | null = null;
 
   get lastSequencedWaypoint() {
     return this.#sequencedWaypointRecorder?.lastSequencedWaypoint ?? null;
@@ -1319,6 +1335,8 @@ export class FlightManagementComputer implements FmcInterface {
 
     if (forPlan === FlightPlanIndex.Active) {
       await this.onActiveFlightNumberChanged(flightNumber);
+      // A flight number entered again connects the datalink networks again, e.g. after a failed connection
+      this.#datalinkConnection?.reconnect();
     }
 
     return callback(true);
@@ -1355,6 +1373,23 @@ export class FlightManagementComputer implements FmcInterface {
 
     // Send to the sim for third party stuff.
     SimVar.SetSimVarValue('ATC FLIGHT NUMBER', 'string', flightNumber, 'FMC');
+  }
+
+  /**
+   * Follows the flight number of the active flight plan, whatever its source (INIT page entry, company flight plan
+   * uplink, SEC activation, flight number already there when the aircraft is loaded): sends it to the aircraft systems
+   * and connects the datalink networks with it.
+   */
+  private updateActiveFlightNumber(): void {
+    const flightNumber =
+      (this.#flightPlanService.hasActive && this.#flightPlanService.active.flightNumber.get()) || null;
+    if (flightNumber !== this.#activeFlightNumber) {
+      this.#activeFlightNumber = flightNumber;
+      if (flightNumber !== null) {
+        void this.onActiveFlightNumberChanged(flightNumber);
+      }
+    }
+    this.#datalinkConnection?.update(flightNumber);
   }
 
   private computeZfwDiffToSecondary(secIndex: number): number | null {
@@ -2009,6 +2044,7 @@ export class FlightManagementComputer implements FmcInterface {
       if (this.instance === FmcIndex.FmcA) {
         this.#printer ??= new FmsPrinter(this, this.bus);
         this.#printer.update();
+        this.updateActiveFlightNumber();
       }
       this.updateFuelPlanning();
       this.loadActiveFlightPlanFuelAndApproachData();
