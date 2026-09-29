@@ -25,7 +25,8 @@ const line = (kind: TaxiLineKind, name: string | null, ...points: TaxiPoint[]): 
 
 /**
  * Runway 09/27 along y = 0 (x 0 to 3000); taxiway A parallel at y = 200; exits B1 and B2 from the runway to A;
- * K (x 1500) and L (x 2500) from A to M (y 800); C crosses the runway at x 500 and ends on A; stands 42 and 43 on M.
+ * K (x 1500) and L (x 2500) from A to M (y 800); C crosses the runway at x 500 and ends on A; stands 42 and 43 on M;
+ * stand 44 behind stand 44R, its lead-in line is the one of 44R (a stand with an alternative position).
  */
 const LINES: TaxiLine[] = [
   line(TaxiLineKind.Taxiway, 'A', [0, 200], [3000, 200]),
@@ -42,6 +43,8 @@ const LINES: TaxiLine[] = [
   line(TaxiLineKind.Runway, '09.27', [0, 0], [3000, 0]),
   line(TaxiLineKind.Stand, '42', [2000, 800], [2000, 900]),
   line(TaxiLineKind.Stand, '43', [1700, 800], [1700, 900]),
+  line(TaxiLineKind.Stand, '44R', [2300, 800], [2300, 850]),
+  line(TaxiLineKind.Stand, '44', [2300, 850], [2300, 900]),
 ];
 const NETWORK = buildTaxiNetwork(LINES);
 const STAND_42 = { kind: 'stand' as const, name: '42', point: [2000, 905] as TaxiPoint };
@@ -134,6 +137,12 @@ describe('Taxi route', () => {
       'A',
       'S1',
     ]);
+    // From a stand whose lead-in is another stand's line (44 behind 44R): the clearance route leaves along that line
+    const from44 = { kind: 'position' as const, point: [2300, 905] as TaxiPoint, heading: null };
+    const cleared44 = taxiRoute(NETWORK, { start: from44, to: toS1, via: ['M', 'K', 'A'] });
+    expect(cleared44.error).toBe(TaxiRouteError.None);
+    expect(cleared44.legs.map((l) => l.name)).toEqual(['44', '44R', 'M', 'K', 'A', 'S1']);
+    expect(cleared44.taxiways).toEqual(['M', 'K', 'A', 'S1']);
     const held = taxiRouteToHoldingPoint(route, [
       [
         [40, 90],
