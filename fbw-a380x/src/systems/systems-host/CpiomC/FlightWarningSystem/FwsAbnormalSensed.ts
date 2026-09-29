@@ -266,7 +266,9 @@ export class FwsAbnormalSensed {
       this.fws.allCurrentFailures.splice(this.fws.allCurrentFailures.indexOf(activeProcedureId), 1);
     }
 
-    this.fws.recallFailures = this.fws.allCurrentFailures.filter((item) => !this.fws.presentedFailures.includes(item));
+    this.fws.recallFailures = this.fws.allCurrentFailures.filter(
+      (item) => !this.fws.presentedFailures.includes(item) && !this.fws.emerCancel.isCancelledCaution(item),
+    );
   }
 
   private scrollToSelectedLine() {

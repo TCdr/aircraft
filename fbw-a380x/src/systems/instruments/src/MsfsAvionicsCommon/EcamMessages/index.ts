@@ -105,6 +105,7 @@ export const EcamMemos: { [n: string]: string } = {
   '300000002': '\x1b<3mWING A-ICE',
   '300000003': '\x1b<3mICE NOT DETECTED',
   '310000001': '\x1b<4mMEMO NOT AVAIL',
+  '310000002': '\x1b<3mEMERGENCY CANCEL ON',
   '314000001': '\x1b<6mT.O INHIBIT',
   '314000002': '\x1b<6mLDG INHIBIT',
   '317000001': '\x1b<3mCLOCK INT',
