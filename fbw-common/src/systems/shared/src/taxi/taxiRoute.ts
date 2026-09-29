@@ -218,7 +218,8 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
   const isEntry = (name: string | null, k: number) => entry !== null && name === entry && (!via || k === last);
 
   // The start: the end of the exit line on the runway, or the aircraft on its nearest line
-  const initial: { node: number; cost: number }[] = [];
+  /** The start nodes, with the index of the cleared taxiway the route is on there (-1 before the first one) */
+  const initial: { node: number; cost: number; k: number }[] = [];
   const startLines = new Set<number>();
   let startPoint: TaxiPoint | null = null;
   /** The line the aircraft is on */
@@ -236,7 +237,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     }
     const e = edges[exitEdge.edge];
     const node = taxiDistance(nodes[e.from], start.point) <= taxiDistance(nodes[e.to], start.point) ? e.from : e.to;
-    initial.push({ node, cost: 0 });
+    initial.push({ node, cost: 0, k: -1 });
     startPoint = nodes[node];
   } else {
     const onEdge = nearestEdge(network, start.point, (e) => lines[e.line].kind !== TaxiLineKind.Runway);
@@ -251,6 +252,8 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     const a = nodes[e.from];
     const b = nodes[e.to];
     const heading = start.heading;
+    // The aircraft on the first cleared taxiway is already along the clearance
+    const k = via && lines[e.line].name === via[0] ? 0 : -1;
     for (const [node, toward] of [
       [e.from, a],
       [e.to, b],
@@ -264,7 +267,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
           cost += TURN_BACK_PENALTY;
         }
       }
-      initial.push({ node, cost });
+      initial.push({ node, cost, k });
     }
   }
 
@@ -323,7 +326,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     const previous = new Map<number, [number, number]>(); // state -> [previous state, edge]
     const heap = new Heap();
     for (const i of initial) {
-      const s = i.node * layers;
+      const s = i.node * layers + (i.k + 1);
       if (i.cost < (cost.get(s) ?? Infinity)) {
         cost.set(s, i.cost);
         heap.push([i.cost, s]);
@@ -459,11 +462,35 @@ export function taxiRouteFlagPoints(route: TaxiRoute): TaxiPoint[] {
 }
 
 /** The taxiways of a clearance as the crew types it, e.g. "A, B K-L" */
-export function parseTaxiClearance(text: string): string[] {
-  return text
+/**
+ * The taxiways of a clearance, in order. A name of several words (e.g. SOUTH RAMP) is one taxiway when it is the name of
+ * a taxiway of the airport (the longest name first); the other words are one taxiway each.
+ * @param airportNames the names of the airport taxiways
+ */
+export function parseTaxiClearance(text: string, airportNames: Iterable<string> = []): string[] {
+  const words = text
     .split(/[\s,;/-]+/)
     .map((it) => taxiName(it))
     .filter((it): it is string => it !== null);
+  const names = new Set<string>();
+  let longest = 1;
+  for (const name of airportNames) {
+    const nameWords = name.split(/\s+/);
+    if (nameWords.length > 1) {
+      names.add(nameWords.join(' '));
+      longest = Math.max(longest, nameWords.length);
+    }
+  }
+  const taxiways: string[] = [];
+  for (let i = 0; i < words.length; ) {
+    let n = Math.min(longest, words.length - i);
+    while (n > 1 && !names.has(words.slice(i, i + n).join(' '))) {
+      n--;
+    }
+    taxiways.push(words.slice(i, i + n).join(' '));
+    i += n;
+  }
+  return taxiways;
 }
 
 /** A runway of the airport map, as polygons */
