@@ -104,6 +104,9 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 - MMR implementation including GPIRS position
 - GLS
+- ISIS SND (second ISIS): SFD/SND reconfiguration (the MODE pb only switches the SND off and on), power-up self-test,
+  FIX display on the SFD; the position source is shown as GPIR (see MMR / GPIRS above); the coordinate entry with the
+  SET/SEL knob, the list size (10 waypoints) and the waypoint sequencing are simplified (not described in the FCOM)
 
 ### ATA 34 Surveillance / TCAS / TAWS / WXR / XPDR
 
