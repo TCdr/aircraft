@@ -11,7 +11,7 @@ import {
   taxiStandsFromAmdb,
   TaxiStand,
 } from './taxiAmdb';
-import { taxiRouteToHoldingPoint, taxiRunwayEntries } from './taxiDeparture';
+import { taxiDefaultEntry, taxiRouteToHoldingPoint, taxiRunwayEntries } from './taxiDeparture';
 import { buildTaxiNetwork, TaxiLine, TaxiLineKind, TaxiPoint } from './taxiNetwork';
 import {
   parseTaxiClearance,
@@ -281,5 +281,66 @@ describe('Taxi route', () => {
     expect(route.error).toEqual(TaxiRouteError.None);
     expect(route.taxiways).toEqual(['A']);
     expect(route.length).toBeCloseTo(40 + 8 + 52 + 2, 3);
+  });
+
+  it('reads the taxiway names of several words of the airport in a clearance', () => {
+    const names = ['A', 'EAST', 'SOUTH RAMP', 'NORTH RAMP'];
+    expect(parseTaxiClearance('EAST SOUTH RAMP NORTH RAMP A4 A A3 L R', names)).toEqual([
+      'EAST',
+      'SOUTH RAMP',
+      'NORTH RAMP',
+      'A4',
+      'A',
+      'A3',
+      'L',
+      'R',
+    ]);
+    // Without the airport names, one word is one taxiway
+    expect(parseTaxiClearance('south ramp, A')).toEqual(['SOUTH', 'RAMP', 'A']);
+
+    const network = buildTaxiNetwork([
+      line(TaxiLineKind.Taxiway, 'SOUTH RAMP', [0, 0], [500, 0]),
+      line(TaxiLineKind.Taxiway, 'A', [500, 0], [500, 500]),
+      line(TaxiLineKind.Stand, '1', [500, 500], [500, 550]),
+    ]);
+    const route = taxiRoute(network, {
+      start: { kind: 'position', point: [10, 0], heading: 90 },
+      to: { kind: 'stand', name: '1', point: [500, 555] },
+      via: parseTaxiClearance('SOUTH RAMP A', ['SOUTH RAMP', 'A']),
+    });
+    expect(route.error).toBe(TaxiRouteError.None);
+    expect(route.taxiways).toEqual(['SOUTH RAMP', 'A']);
+  });
+
+  it('proposes the first runway entry reached without crossing a runway', () => {
+    // Runway 09/27 (x 0 to 3000): A on the north side ends on the runway at x 2600; the full length entry of 27, R,
+    // is on the south side, reached from A only across the runway along the exit lines A3 and L (as at CYUL 24L)
+    const network = buildTaxiNetwork([
+      line(TaxiLineKind.Taxiway, 'A', [0, 200], [2600, 200], [2600, 0]),
+      line(TaxiLineKind.Exit, 'A3', [2500, 200], [2500, -200]),
+      line(TaxiLineKind.Exit, 'L', [2500, -200], [3050, -200]),
+      line(TaxiLineKind.Taxiway, 'R', [3050, -200], [3050, 0]),
+      line(TaxiLineKind.Runway, '09.27', [0, 0], [3000, 0]),
+    ]);
+    const runways = [
+      {
+        name: '09/27',
+        polygons: [
+          [
+            [0, -30],
+            [3000, -30],
+            [3000, 30],
+            [0, 30],
+          ] as TaxiPoint[],
+        ],
+      },
+    ];
+    const entries = taxiRunwayEntries(network, { ident: '27', threshold: [3000, 0], end: [0, 0] });
+    expect(entries[0].name).toBe('R');
+    const start = { kind: 'position' as const, point: [1000, 200] as TaxiPoint, heading: 90 };
+    expect(taxiDefaultEntry(network, runways, [], start, '27', entries)?.name).toBe('A');
+    // Every entry across the runway: the full length one
+    const south = { kind: 'position' as const, point: [2800, -200] as TaxiPoint, heading: 90 };
+    expect(taxiDefaultEntry(network, runways, [], south, '27', entries)?.name).toBe('R');
   });
 });

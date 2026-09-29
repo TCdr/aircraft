@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { taxiDistance, TaxiLineKind, TaxiPoint, TaxiRoute, TaxiStand } from '@flybywiresim/fbw-sdk';
-import { ArrowsFullscreen, ZoomIn, ZoomOut } from 'react-bootstrap-icons';
+import { ArrowsFullscreen, GeoAltFill, ZoomIn, ZoomOut } from 'react-bootstrap-icons';
 import { TaxiAirport } from './TaxiAirport';
 
 const COLOURS = {
@@ -38,6 +38,8 @@ const TAXIWAY_LABEL_SPACING = 250;
 
 /** Pixels per metre: the stand names appear from this scale */
 const STAND_LABEL_SCALE = 0.6;
+/** Pixels per metre: the locate button zooms in to at least this scale, with the stand names */
+const LOCATE_SCALE = 1;
 /** The margin around the route or the airport when the map fits them, in pixels */
 const FIT_PADDING = 70;
 /** A tap picks the nearest stand within this distance, in pixels */
@@ -380,6 +382,12 @@ export const TaxiMap = ({
     setView({ ...d.view, cx: d.view.cx - dx / d.view.scale, cy: d.view.cy + dy / d.view.scale });
   };
 
+  const locateAircraft = () => {
+    if (aircraft && view) {
+      setView({ cx: aircraft.point[0], cy: aircraft.point[1], scale: Math.max(view.scale, LOCATE_SCALE) });
+    }
+  };
+
   const zoom = (factor: number) =>
     view && setView({ ...view, scale: Math.max(0.02, Math.min(8, view.scale * factor)) });
 
@@ -408,15 +416,22 @@ export const TaxiMap = ({
       />
       <div className="absolute right-2 top-2 flex flex-col space-y-2">
         {[
-          { icon: <ZoomIn size={22} />, onClick: () => zoom(1.5) },
-          { icon: <ZoomOut size={22} />, onClick: () => zoom(1 / 1.5) },
-          { icon: <ArrowsFullscreen size={20} />, onClick: fitAll },
+          { icon: <ZoomIn size={22} />, onClick: () => zoom(1.5), disabled: false },
+          { icon: <ZoomOut size={22} />, onClick: () => zoom(1 / 1.5), disabled: false },
+          { icon: <ArrowsFullscreen size={20} />, onClick: fitAll, disabled: false },
+          // Centres the map on the aircraft (when it is at this airport), zoomed in
+          { icon: <GeoAltFill size={20} />, onClick: locateAircraft, disabled: aircraft === null },
         ].map((b, i) => (
           <button
             // eslint-disable-next-line react/no-array-index-key
             key={i}
             type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-md border-2 border-theme-accent bg-theme-body text-theme-text hover:border-theme-highlight hover:text-theme-highlight"
+            disabled={b.disabled}
+            className={`flex h-10 w-10 items-center justify-center rounded-md border-2 border-theme-accent bg-theme-body ${
+              b.disabled
+                ? 'text-theme-unselected opacity-50'
+                : 'text-theme-text hover:border-theme-highlight hover:text-theme-highlight'
+            }`}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={b.onClick}
           >
