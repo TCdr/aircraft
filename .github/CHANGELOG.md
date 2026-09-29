@@ -111,6 +111,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
 1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
 1. [A380X/MFD] Add the ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD mailbox per the A380 FCOM - @TCdr
+1. [ATSU] Show SEND FAILED on a message sent without an active ATC center, instead of nothing - @TCdr
 
 ## 2024.1.0
 
