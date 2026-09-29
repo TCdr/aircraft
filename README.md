@@ -480,8 +480,8 @@ develop 9de7f9631 pushed), then:
   aircraft-large-files (PR 27), screenshots.
 - Then: the Piper voice licence of PR 18 confirmed by the user (2026-09-29).
 - Then: the PR 27 companion `aircraft-large-files` change is committed: branch `feat/a380x-pedestal-printer-paper` `36b4bd9`
-  (draft `27b-...`, generator `large-files/patch_a380_printer_model.py`); push it once the fork `TCdr/aircraft-large-files`
-  exists, open it before PR 27, then bump the submodule pointer in PR 27. Only the screenshots are left otherwise.
+  (draft `27b-...`, generator `large-files/patch_a380_printer_model.py`); pushed to the fork `TCdr/aircraft-large-files`
+  (2026-09-29); open it before PR 27, then bump the submodule pointer in PR 27. Only the screenshots are left otherwise.
 
 ## `develop` changes not in a `pr/*` branch yet (2026-09-27)
 
