@@ -1,11 +1,11 @@
-# PR 20 - A380X computed ALTN fuel and time, EXTRA time
+# PR 20 - A380X computed ALTN fuel and time, EXTRA time, OFP fuel figures
 
 - **Title:** `feat(a380x/mfd): computed ALTN fuel and time (FCOM default computation) and EXTRA time`
 - **Base:** `master` - **Branch:** `pr/20-a380x-altn-fuel-computation` (stacked on `pr/10-a380x-mfd-fcom-pages`, PR 10: FUEL&LOAD page)
-- **Tip:** `6b346a6f3` - own commits: `4c00faa02` (ALTN fuel and time), `6b346a6f3` (EXTRA time; `develop` 16e3980a4)
+- **Tip:** `f2531ee5c` - own commits: `4c00faa02` (ALTN fuel and time), `6b346a6f3` (EXTRA time; `develop` 16e3980a4), `f2531ee5c` (OFP fuel figures; `develop` 86c0c6e56)
 - **Labels to request:** `A380X`, `MFD`, `FMS`, `QA A380 Only`
 - **Issue to open first:** *"A380X FUEL&LOAD: the ALTN fuel is a fixed 6.5 t"*
-- **CHANGELOG line (to add in the PR):** `1. [A380X/MFD] Compute the ALTN fuel and time for the trip to the alternate instead of a fixed 6.5 t, and show the EXTRA time - @TCdr`
+- **CHANGELOG line (to add in the PR):** `1. [A380X/MFD] Compute the ALTN fuel and time for the trip to the alternate instead of a fixed 6.5 t, show the EXTRA time, and take the fuel figures of the company flight plan - @TCdr`
 
 ---- paste from here ----
 
@@ -28,6 +28,9 @@ plan distance is less than 200 NM, FL310 otherwise.
 - **EXTRA time** (FCOM: EXTRA fuel and time), which was never computed (--:--): the time the EXTRA fuel lasts at the holding
   fuel flow of the FINAL fuel default, 0.2 t/min (30 min = 6 t), now one named constant used by both. The FCOM leaves the FINAL
   default to the company fuel policy (AMI) and gives no fuel-to-time rule for EXTRA.
+- **Company flight plan fuel:** before engine start, performance data come with the company flight plan (FCOM COMPANY F-PLN
+  REQUEST): on insertion, the TAXI, RTE RSV (OFP contingency), ALTN and FINAL (OFP final reserve) of the SimBrief OFP go into
+  FUEL&LOAD as crew entries. The BLOCK is left to the FUEL PLANNING function.
 - 5 unit tests (`AlternateFuelPredictor.spec.ts`).
 
 ## Cockpit API Changes

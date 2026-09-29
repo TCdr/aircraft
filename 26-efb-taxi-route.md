@@ -5,7 +5,8 @@
   module `btvExits.ts` the arrival start uses; PRs 12, 11 and 10 below it)
 - **CHANGELOG line 2 (in the branch):** `1. [A380X/OANS] Mark the taxi route accepted on the flyPad with green flags on the OANS: at the start of each taxiway and at the gate or holding point - @TCdr`
 - **OANS flags:** built and checked in the harness, NOT tested in the sim yet.
-- **Tip:** `4c9d39c36` - own commits: `b97742c40` (original `0b21c7f17` on `feature/efb/taxi-route`, merged into `develop` 9cd78dd05), `363866219` (no U-turn through the aircraft, map fit margin; `develop` 85c00b693), `4c9d39c36` (A380X OANS flags for the accepted route; `develop` 2dd1338d2)
+- **Also in `pr/26` (2026-09-28):** `751a4b003` a clearance route can leave a stand along another stand's line (a stand with an alternative position, RJTT gate 5 behind 5R: every clearance from gate 5 failed while SUGGEST worked); rebased on PR 12 for the TOW fix.
+- **Tip:** `751a4b003` - own commits: `b97742c40` (original `0b21c7f17` on `feature/efb/taxi-route`, merged into `develop` 9cd78dd05), `363866219` (no U-turn through the aircraft, map fit margin; `develop` 85c00b693), `4c9d39c36` (A380X OANS flags for the accepted route; `develop` 2dd1338d2)
 - **Labels to request:** `A32NX`, `A380X`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"flyPad: no taxi route; the OANS shows the airport map but the crew has no way to see the route of the
   ATC taxi clearance and its runway crossings"*

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X computed alternate fuel and EXTRA time - user manual</title><style>
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X computed alternate fuel, EXTRA time and OFP fuel figures - user manual</title><style>
 @page { size: A4; margin: 14mm 13mm 15mm 13mm; }
 * { box-sizing: border-box; }
 body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
@@ -41,7 +41,7 @@ table.lim td:nth-child(2) { width: 42%; }
 .toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
 .toc div { break-inside: avoid; }
 </style></head><body>
-<h1>A380X computed alternate fuel and EXTRA time</h1>
+<h1>A380X computed alternate fuel, EXTRA time and OFP fuel figures</h1>
 <div class="subtitle">The ALTN fuel and time of FUEL&amp;LOAD computed as the FCOM defines them, instead of a fixed 6.5 t; the EXTRA time next to the EXTRA fuel</div>
 <div class="meta">
 <b>Aircraft</b><span>A380X</span>
@@ -50,7 +50,7 @@ table.lim td:nth-child(2) { width: 42%; }
 <b>Status</b><span>Built with 5 unit tests; ALTN checked in the sim during the fuel formula audit (September 2026); EXTRA time checked in the harness only.</span>
 <b>Pictures</b><span>Captain MFD in the local browser harness (no flight plan, so the values are dashes). The table in section 3 comes from the predictor of this feature run on its own.</span>
 </div>
-<div class="toc"><div>1. What it is for</div><div>2. Where you see it</div><div>3. How much to expect</div><div>4. The computation</div><div>5. EXTRA time</div><div>6. What to expect</div><div>7. Limitations and why</div></div>
+<div class="toc"><div>1. What it is for</div><div>2. Where you see it</div><div>3. How much to expect</div><div>4. The computation</div><div>5. EXTRA time</div><div>6. Fuel figures of the company flight plan</div><div>7. What to expect</div><div>8. Limitations and why</div></div>
 <h2>1. What it is for</h2>
 <p>The block fuel includes the fuel to divert to the alternate. FBW used a fixed 6.5 t, whatever the alternate. The A380 FCOM (DSC-22-FMS-20-30, FUEL&amp;LOAD page) defines the ALTN fuel as the fuel (and time) for the trip from the primary destination to the landing at the alternate, computed with <b>CI 0</b>, at <b>FL220</b> when the alternate route is shorter than 200 NM and <b>FL310</b> otherwise. This is what the FMS computes now.</p>
 <h2>2. Where you see it</h2>
@@ -66,8 +66,11 @@ table.lim td:nth-child(2) { width: 42%; }
 <p>The EXTRA time next to the EXTRA fuel (FCOM: the fuel, and time, that remains after landing at the destination, minus the MIN FUEL AT DEST) was never computed and always showed --:--. It is now the time the EXTRA fuel lasts at the holding fuel flow of the FINAL fuel default, <b>0.2 t/min</b> (30 min = 6 t): 7.4 t of EXTRA shows 00:37, 12.0 t shows 01:00.</p>
 <figure><img src="img/20/f03_extra_time.png" style="width:55%"><figcaption><b>Figure 3.</b> FUEL&amp;LOAD with 7.4 t of EXTRA fuel: EXTRA time 00:37. The harness has no flight plan, so the EXTRA fuel is set by hand for this picture; the other values stay as dashes.</figcaption></figure>
 <ul><li>The FCOM leaves the FINAL default to the airline fuel policy (AMI file) and gives no rule to turn the EXTRA fuel into a time: the same holding flow keeps FINAL and EXTRA consistent on the page.</li><li>No EXTRA fuel (no flight plan predictions, or a SEC flight plan): --:--, as the fuel.</li></ul>
-<h2>6. What to expect</h2>
-<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>No ZFW entered</td><td>ALTN fuel shown as dashes (no default).</td></tr><tr><td>Alternate route entered</td><td>ALTN fuel and time from its distance; the arrival time at the alternate in UTC.</td></tr><tr><td>No alternate route, alternate airport set</td><td>Computed on the direct distance.</td></tr><tr><td>ALTN wind entered</td><td>More fuel with a headwind, less with a tailwind.</td></tr><tr><td>EXTRA fuel shown</td><td>EXTRA time = EXTRA fuel at 0.2 t/min (6 t = 30 min).</td></tr></table>
-<h2>7. Limitations and why</h2>
+<h2>6. Fuel figures of the company flight plan</h2>
+<p>Before engine start, performance data come with the company flight plan (FCOM COMPANY F-PLN REQUEST). When the flight plan received from SimBrief is inserted (INIT CPNY F-PLN REQUEST, then INSERT), FUEL&amp;LOAD takes from the OFP, as if typed by the crew: <b>TAXI</b>, <b>RTE RSV</b> (the OFP contingency, the % is cleared), <b>ALTN</b> (only with an alternate) and <b>FINAL</b> (the OFP final reserve).</p>
+<ul><li>The <b>BLOCK is not taken</b>: press FUEL PLANNING, which computes it from these figures and the FMS TRIP.</li><li>After engine start the flight plan comes in without its fuel figures.</li><li>The FINAL time is computed from the FINAL fuel at 0.2 t/min (4.8 t shows 00:24).</li><li>Any value can be overwritten as usual.</li></ul>
+<h2>7. What to expect</h2>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>No ZFW entered</td><td>ALTN fuel shown as dashes (no default).</td></tr><tr><td>Alternate route entered</td><td>ALTN fuel and time from its distance; the arrival time at the alternate in UTC.</td></tr><tr><td>No alternate route, alternate airport set</td><td>Computed on the direct distance.</td></tr><tr><td>ALTN wind entered</td><td>More fuel with a headwind, less with a tailwind.</td></tr><tr><td>EXTRA fuel shown</td><td>EXTRA time = EXTRA fuel at 0.2 t/min (6 t = 30 min).</td></tr><tr><td>Company flight plan inserted before engine start</td><td>TAXI, RTE RSV, ALTN and FINAL from the OFP; BLOCK empty until FUEL PLANNING or an entry.</td></tr></table>
+<h2>8. Limitations and why</h2>
 <table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>One mean wind for the alternate trip.</td><td>The FCOM computation uses the ALTN wind of the WIND page.</td><td>-</td></tr><tr><td>No holding or approach fuel in ALTN.</td><td>The FCOM definition ends at the landing at the alternate; FINAL covers the reserve.</td><td>-</td></tr><tr><td>EXTRA time at a fixed holding flow.</td><td>The FCOM gives no fuel-to-time rule for EXTRA; the flow is the FINAL default one, not a computed holding at the actual weight.</td><td>-</td></tr></table>
 </body></html>

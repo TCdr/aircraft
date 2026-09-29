@@ -395,7 +395,7 @@ and the A32NX instruments (2026-09-27).
 | 09 | `pr/09-nd-manuals-pass` | `a2747d891` | 31 |
 | 10 | `pr/10-a380x-mfd-fcom-pages` | `1185ed5d5` | 25 |
 | 11 | `pr/11-a380-takeoff-calculator` | `76664428d` | 28 |
-| 12 | `pr/12-a320-takeoff-calculator` | `419b9511f` | 40 |
+| 12 | `pr/12-a320-takeoff-calculator` | `0de1b82c5` | 41 |
 | 13 | `pr/13-pilot-stored-elements-persistence` | `5753f6b2f` | 31 |
 | 14 | `pr/14-direct-to-options` | `10e93bc1f` | 27 |
 | 15 | `pr/15-fuel-jettison` | `f5411ece7` | 29 |
@@ -403,13 +403,13 @@ and the A32NX instruments (2026-09-27).
 | 17 | `pr/17-ecam-procedures` | `b4c73f549` | 27 |
 | 18 | `pr/18-a32nx-raas` | `22d963d5c` | 2 |
 | 19 | `pr/19-a380x-oans-rwy-ahead-without-map` | `aac868b24` | 3 |
-| 20 | `pr/20-a380x-altn-fuel-computation` | `6b346a6f3` | 27 |
-| 21 | `pr/21-a380x-company-datalink-delay` | `4a3feac23` | 43 |
+| 20 | `pr/20-a380x-altn-fuel-computation` | `f2531ee5c` | 28 |
+| 21 | `pr/21-a380x-company-datalink-delay` | `60386552e` | 44 |
 | 22 | `pr/22-a380x-mfd-atccom` | `ed3e215ed` | 31 |
-| 23 | `pr/23-efb-landing-calculator` | `0adf3f890` | 43 |
-| 24 | `pr/24-efb-descent-calculator` | `83fc831c7` | 45 |
+| 23 | `pr/23-efb-landing-calculator` | `221c59ee2` | 44 |
+| 24 | `pr/24-efb-descent-calculator` | `7a1585a51` | 46 |
 | 25 | `pr/25-a380x-oans-default-airport` | `3a5afec9f` | 1 |
-| 26 | `pr/26-efb-taxi-route` | `4c9d39c36` | 46 |
+| 26 | `pr/26-efb-taxi-route` | `751a4b003` | 48 |
 
 Develop fixes folded in (2026-09-27): PR 10: printer/BFO and LL XING AURAL clicks, FIX INFO reference, received company winds kept until
 INSERT. PR 12 (tip of the takeoff calculator stack, the fixes need its shared FMS link): estimates always on (real-data-only mode
@@ -455,9 +455,10 @@ FBW_TYPECHECK EFB builds pass. Draft `26-efb-taxi-route.md`.
 
 | Commit on `develop` | Change | Where it belongs |
 |---|---|---|
-| `f9ebf7c9c`, `796d0ce9e` | the pedestal printer on paper, and its 64-column paper fix | no PR yet (needs its own PR) |
-| `e2f33945a`, `89debedc7` (part) | ATC COM ATIS print (PRINT, PRINT ALL on one printout, AUTO PRINT) | PR 22, once the printer has a PR |
+| `f9ebf7c9c`, `796d0ce9e` | the pedestal printer on paper, and its 64-column paper fix | PR 27 `f8293d36b` (2026-09-28) |
+| `e2f33945a`, `89debedc7` (part) | ATC COM ATIS print (PRINT, PRINT ALL on one printout, AUTO PRINT) | PR 27 (the ATIS time part is in PR 22) |
 
 The ND mouse fix (`b28467f61`) is in `develop` and in PR 2 (`248cb26bd`).
 The SEC page fix (`cff8ebd1b`, merge `2b9d549dd`) is in `develop` and in PR 10 (`124524c64`); the branches stacked on PR 10 (11-17, 20, 21, 22) were rebased on it (2026-09-27).
 The findings fixes of the user manuals (2026-09-28, merges `f8b07fead`..`5d8bb60c3` on `develop`) are in the PRs: PR 10 `1185ed5d5` (one asterisk on SEND F-PLN REQUEST), PR 12 `419b9511f` (MCDU UPLINK TO DATA V1/VR/V2 in column 11, A320 Send to FMS warnings), PR 23 `0adf3f890` (last scale label of the landing roll), PR 24 `83fc831c7` (descent RATE/GRDT and V/S/FPA signs); the branches stacked on PR 10 (11-17, 20-24, 26) were rebased on them.
+More fixes of 2026-09-28 (develop `86c0c6e56`) in the PRs: PR 12 `0de1b82c5` (takeoff calculator TOW in t / klb), PR 26 `751a4b003` (taxi route with a clearance from a stand behind another stand, e.g. RJTT gate 5 behind 5R), PR 20 `f2531ee5c` (fuel figures of the company flight plan on FUEL&LOAD, no BLOCK); PRs 21, 23, 24, 26 rebased on PR 12.
