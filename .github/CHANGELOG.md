@@ -167,6 +167,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] EMER CANC pushbutton: cancels the aural and MASTER WARN of a warning, a caution for the rest of the flight (CANCELLED CAUTION on the STATUS page, recalled with RCL held 3 s) - @TCdr
 1. [A380X/FMS] Fix datalink not connected with the flight number entered on the INIT page (ATC logon and messages failing), FMS DATALINK NOT AVAIL message - @TCdr
 1. [ATSU] ACARS provider (Hoppie, BeyondATC, SayIntentions) found again when started late or restarted, and connected even when the TELEX connection fails; the provider setting is no longer reset after 5 minutes - @TCdr
+1. [A380X/FIRE] Option to extend the FIRE TEST warnings and lights for a few seconds after the button is released - @TCdr
 
 ## 2024.1.0
 
