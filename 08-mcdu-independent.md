@@ -7,8 +7,9 @@
   PR that fixes the missing arrows (`4f25f245c`), which is not in `origin/master`, so the commit was ported to the old structure. If that upstream PR is merged
   before you open this one, rebase and resolve `A320_Neo_CDU_MainDisplay.ts` (the `sendUpdateToMcduServer` version of `master` is the right shape).
 - **Labels to request:** `A32NX`, `MCDU`, `Remote MCDU` (for the SimBridge part), `Extensive Testing Needed`
-- **Prerequisite:** a PR in `flybywiresim/aircraft-large-files` with the U change of the two screens in `A320_NEO_INTERIOR_LOD00.bin` (it is chunked:
-  `.bin.part01`), merged first; then this PR bumps the `large-files` submodule pointer (the guide/AGENTS only allows that when the task concerns those assets,
+- **Prerequisite:** the `flybywiresim/aircraft-large-files` PR with the U change of the two screens in `A320_NEO_INTERIOR_LOD00.bin` (chunked:
+  `.bin.part01`): draft `08b-large-files-a32nx-mcdu-screens.md`, branch `feat/a32nx-mcdu-screen-uv-split` `5563e31` pushed to the fork
+  `TCdr/aircraft-large-files` (2026-09-29), merged first; then this PR bumps the `large-files` submodule pointer (the guide/AGENTS only allows that when the task concerns those assets,
   which it does).
 - **Issue to open first:** *"CPT and F/O MCDUs show the same thing"* - "The two MCDU screens mirror each other (same page, same scratchpad) because there is
   one MCDU gauge on one texture. They should be independent, sharing the FMS data."
