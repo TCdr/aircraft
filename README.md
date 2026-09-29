@@ -474,14 +474,15 @@ develop 9de7f9631 pushed), then:
 - CHANGELOG lines only for what stable users notice: none for the taxi and descent calculator fixes (features not released yet).
 - PR 27: feature document and user manual added (the paper pictures drawn by the printer page of the build with the printouts
   of the unit tests).
-- Status from the user (2026-09-29): PR 4 and PR 7 tested in the sim, OK; **PR 8 NOT TO MERGE** (keep the branch, open no PR).
+- Status from the user (2026-09-29): PR 4 and PR 7 tested in the sim, OK; PR 8 was set to NOT TO MERGE, then that status was
+  removed the same day: PR 8 opens like the others (with its aircraft-large-files companion for the LOD00 MCDU screens).
 - Later the same day: PRs 23, 24, 28, 30 (A380X part) and 31 tested in the sim by the user, OK. All ten PR branches checked and
   pushed to the fork (22, 24, 26, 27 force-with-lease). Still open before opening: the A380 cockpit model paper in
   aircraft-large-files (PR 27), screenshots.
 - Then: the Piper voice licence of PR 18 confirmed by the user (2026-09-29).
 - Then: the PR 27 companion `aircraft-large-files` change is committed: branch `feat/a380x-pedestal-printer-paper` `36b4bd9`
   (draft `27b-...`, generator `large-files/patch_a380_printer_model.py`); pushed to the fork `TCdr/aircraft-large-files`
-  (2026-09-29); open it before PR 27, then bump the submodule pointer in PR 27. Only the screenshots are left otherwise.
+  (2026-09-29); open it before PR 27, then bump the submodule pointer in PR 27. Otherwise left: PR 8's aircraft-large-files companion (LOD00 MCDU UVs), the screenshots.
 
 ## `develop` changes not in a `pr/*` branch yet (2026-09-27)
 

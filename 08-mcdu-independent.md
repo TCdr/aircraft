@@ -1,7 +1,4 @@
-# PR 8 - independent CPT and F/O MCDUs (NOT TO MERGE)
-
-- **Status (2026-09-29): NOT TO MERGE** (the user's decision): keep `pr/08-a32nx-mcdu-independent` on the fork, do not open
-  the upstream PR (nor its aircraft-large-files companion).
+# PR 8 - independent CPT and F/O MCDUs
 
 - **Title:** `feat(a32nx/mcdu): make the CPT and F/O MCDUs independent`
 - **Base:** `master` - **Branch:** `feature/a32nx-mcdu-independent` (built on `origin/master`, one branch for the whole feature)
