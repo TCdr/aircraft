@@ -6,8 +6,8 @@
 - **Labels to request:** `A32NX`, `GPWS`, `EFB`, `Extensive Testing Needed`
 - **Issue to open first:** *"A32NX: add the RAAS runway awareness callouts (Honeywell EGPWS option)"*
 - **CHANGELOG line (in the branch):** `1. [A32NX/EGPWS] Add the RAAS runway awareness callouts (approaching, on runway, on taxiway, distance remaining...) as an aircraft option in the flyPad - @TCdr`
-- **Before opening - TO CONFIRM:** the licence of the Piper voice model `en_US-ljspeech-medium` (its model card). The dataset it was
-  trained on, LJ Speech, is in the public domain; the 25 WAV clips must be redistributable under the repository's licence.
+- **Licence (confirmed by the user, 2026-09-29):** the Piper voice model `en_US-ljspeech-medium` is OK for the 25 WAV clips (trained
+  on the public-domain LJ Speech dataset); they can be redistributed under the repository's licence.
 
 ---- paste from here ----
 

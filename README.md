@@ -429,7 +429,7 @@ MCDU INSERT UPLINK rule; PR 13: OIT option, 17 tests, the jsdom localStorage tes
 
 PRs 18 to 21 (2026-09-27): the features that had no PR (RAAS, OANS RWY AHEAD without a map, computed ALTN fuel, company datalink
 reply time), built from their commits on develop with only their own changes kept in the conflicts; drafts `18-...md` to `21-...md`.
-PR 18 must not be opened before the licence of the Piper voice model used for its 25 WAV clips is confirmed (see its draft). PR 19 is stacked on PR 18 (its OANS rule uses PR 18's shared runway module), so it waits for PR 18 too.
+The licence of the Piper voice model used for PR 18's 25 WAV clips is confirmed (the user, 2026-09-29). PR 19 is stacked on PR 18 (its OANS rule uses PR 18's shared runway module), so it opens after PR 18.
 PR 22 (2026-09-27): the ATC COM pages and the SD mailbox, committed from the q-atccom worktree as 4acffaeee on
 feature/a380/mfd/atccom and replayed on PR 10, then the fixes of the in-sim test; ATIS and the REQUEST / REPORT / EMERGENCY frames
 tested in the sim, CPDLC with Hoppie not yet (see its draft). The feature branch is merged into `develop` and deleted.
@@ -476,8 +476,9 @@ develop 9de7f9631 pushed), then:
   of the unit tests).
 - Status from the user (2026-09-29): PR 4 and PR 7 tested in the sim, OK; **PR 8 NOT TO MERGE** (keep the branch, open no PR).
 - Later the same day: PRs 23, 24, 28, 30 (A380X part) and 31 tested in the sim by the user, OK. All ten PR branches checked and
-  pushed to the fork (22, 24, 26, 27 force-with-lease). Still open before opening: the Piper voice licence (PR 18), the A380
-  cockpit model paper in aircraft-large-files (PR 27), screenshots.
+  pushed to the fork (22, 24, 26, 27 force-with-lease). Still open before opening: the A380 cockpit model paper in
+  aircraft-large-files (PR 27), screenshots.
+- Then: the Piper voice licence of PR 18 confirmed by the user (2026-09-29).
 
 ## `develop` changes not in a `pr/*` branch yet (2026-09-27)
 

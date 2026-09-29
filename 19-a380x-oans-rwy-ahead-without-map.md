@@ -4,7 +4,7 @@
 - **Base:** `master` - **Branch:** `pr/19-a380x-oans-rwy-ahead-without-map` (stacked on `pr/18-a32nx-raas`, PR 18: it uses the shared
   runway module that PR 18 adds, `NearbyRunwayProvider` and `AwarenessRunway` in `fbw-common/src/systems/shared/src/runway-awareness`)
 - **Tip:** `aac868b24` (one commit over PR 18)
-- **Opening order:** after PR 18, so it also waits for PR 18's voice model licence check.
+- **Opening order:** after PR 18 (its voice model licence is confirmed, 2026-09-29).
 - **Labels to request:** `A380X`, `ND`, `QA A380 Only`
 - **Issue to open first:** *"A380X: OANS RWY AHEAD stays silent without a Navigraph airport map"*
 - **CHANGELOG line (in the branch):** `1. [A380X/OANS] Show the RWY AHEAD advisory without a Navigraph airport map, from the sim's own runways - @TCdr`
