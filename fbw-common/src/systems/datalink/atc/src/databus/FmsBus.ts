@@ -1,10 +1,11 @@
-//  Copyright (c) 2023 FlyByWire Simulations
+//  Copyright (c) 2023-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import {
   AtsuStatusCodes,
   FansMode,
   AtisMessage,
+  MailboxStatusMessage,
   AtisType,
   CpdlcMessage,
   DclMessage,
@@ -32,6 +33,8 @@ export interface AtcFmsMessages {
   // requests from ATSU to FMS
   atcSystemStatus: AtsuStatusCodes;
   atcMessageModify: CpdlcMessage;
+  // expect an 'atcRouteClearanceLoaded' response
+  atcLoadRouteClearance: { uid: number; message: CpdlcMessage };
 
   // FIXME when sending the object via the event bus, the prototype is lost, so AtsuMessage methods are not available anymores
 
@@ -75,6 +78,8 @@ export interface FmsAtcMessages {
   atcToggleAutomaticPositionReport: number;
   // expect 'atcPositionReport' response
   atcRequestPositionReport: number;
+  // the result of an 'atcLoadRouteClearance' request: LOAD OK, LOAD PARTIAL, LOAD FAILED or LOAD NOT AVAIL
+  atcRouteClearanceLoaded: { uid: number; status: MailboxStatusMessage };
   // fire & forget messages
   atcRegisterCpdlcMessages: CpdlcMessage[];
   atcRegisterDclMessages: DclMessage[];

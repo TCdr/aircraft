@@ -14,6 +14,7 @@ import {
   CpdlcMessagesDownlink,
   CpdlcMessagesUplink,
   MailboxStatusMessage,
+  UplinkMessageInterpretation,
 } from '@datalink/common';
 
 /**
@@ -70,6 +71,7 @@ export type MailboxAction =
   | 'REFRESH'
   | 'DUE TO'
   | 'FREETEXT'
+  | 'LOAD-SEC3'
   | 'PRINT';
 
 /**
@@ -219,11 +221,31 @@ const button = (action: MailboxAction, enabled = true): MailboxButton => ({ acti
 
 /**
  * The communication buttons of a message (FCOM DSC-46-10-20-60 P 4-6): the possible replies of an uplink message, SEND
- * and CANCEL once a reply is prepared or for a downlink message to send, CLOSE when processed, and PRINT.
+ * and CANCEL once a reply is prepared or for a downlink message to send, CLOSE when processed, and PRINT. A route
+ * clearance or a crossing constraint (loadable messages) also has LOAD-SEC3 in the fourth position, before and after the reply (FCOM DSC-46-10-40 P 24-25), unless
+ * FREETEXT is there.
  * @param block the message block
  * @returns the five button positions, null where there is no button
  */
 export function mailboxButtons(block: MailboxBlock): MailboxButtons {
+  const buttons = communicationButtons(block);
+  const message = block.messages[0];
+  if (
+    message.Direction === AtsuMessageDirection.Uplink &&
+    buttons[3] === null &&
+    UplinkMessageInterpretation.IsLoadable(message)
+  ) {
+    buttons[3] = button('LOAD-SEC3');
+  }
+  return buttons;
+}
+
+/**
+ * The buttons of a message, without LOAD-SEC3 (see {@link mailboxButtons})
+ * @param block the message block
+ * @returns the five button positions, null where there is no button
+ */
+function communicationButtons(block: MailboxBlock): MailboxButtons {
   const message = block.messages[0];
   const buttons: MailboxButtons = [null, null, null, null, button('PRINT')];
 
