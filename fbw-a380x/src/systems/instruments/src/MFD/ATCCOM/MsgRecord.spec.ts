@@ -11,7 +11,14 @@ import {
   CpdlcMessagesUplink,
 } from '@datalink/common';
 
-import { isDialogueOpen, msgRecordEntries, msgRecordListLine, wrapMsgRecordText } from './MsgRecord';
+import {
+  isDialogueOpen,
+  MsgRecordEntry,
+  msgRecordEntries,
+  msgRecordListLine,
+  msgRecordPrintLines,
+  wrapMsgRecordText,
+} from './MsgRecord';
 
 function timestamp(hours: number, minutes: number): AtsuTimestamp {
   const time = new AtsuTimestamp();
@@ -106,5 +113,31 @@ describe('MSG RECORD', () => {
       'AT BERGI CLB TO & MAINTAIN FL340>>>',
     );
     expect(wrapMsgRecordText('ABCDEFGHIJ KL', 4)).toEqual(['ABCD', 'EFGH', 'IJ', 'KL']);
+  });
+
+  it('prints the messages with their time, origin and status, then their text', () => {
+    const entry = (time: string, status: MsgRecordEntry['status'], text: string): MsgRecordEntry => ({
+      uid: 1,
+      position: 0,
+      time,
+      direction: 'FROM',
+      station: 'LFBB',
+      status,
+      text,
+      sortKey: 0,
+      dialogueOrder: 0,
+    });
+    const lines = msgRecordPrintLines(
+      [entry('1827Z', 'WILCO', 'CLEARED TO AMB VIA DIBAG UT210 TUDRA UT158 AMB'), entry('1825Z', '', 'CLIMB TO FL350')],
+      40,
+    );
+    expect(lines).toEqual([
+      '1827Z FROM LFBB CTL                WILCO',
+      'CLEARED TO AMB VIA DIBAG UT210 TUDRA',
+      'UT158 AMB',
+      '',
+      '1825Z FROM LFBB CTL',
+      'CLIMB TO FL350',
+    ]);
   });
 });
