@@ -3,7 +3,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus, KeyEventManager } from '@microsoft/msfs-sdk';
-import { UniversalConfigProvider } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, UniversalConfigProvider } from '@flybywiresim/fbw-sdk';
+import { A380Failure } from '@failures';
 import { FuelJettison } from './FuelJettison';
 
 /** FCOM DSC-28-40: 330 693 lb/h */
@@ -78,9 +79,17 @@ const fillTanks = (gallons = 5000) => {
 
 let triggerKey: ReturnType<typeof vi.fn>;
 
+/** The active failures of a test */
+const failures = new Set<number>();
+
+const failuresConsumer = {
+  register: () => {},
+  isActive: (failure: number) => failures.has(failure),
+} as unknown as FailuresConsumer;
+
 /** A jettison system, initialized, with or without the CG envelopes of the airframe configuration */
 const createJettison = async (withEnvelopes = true) => {
-  const jettison = new FuelJettison(new EventBus(), { deltaTime: 1000 } as unknown as BaseInstrument);
+  const jettison = new FuelJettison(new EventBus(), { deltaTime: 1000 } as unknown as BaseInstrument, failuresConsumer);
   vi.stubEnv('AIRCRAFT_VARIANT', 'a380-842');
   vi.spyOn(UniversalConfigProvider, 'fetchAirframeInfo').mockResolvedValue({
     designLimits: { performanceEnvelope: withEnvelopes ? ENVELOPES : undefined },
@@ -96,6 +105,7 @@ const updateOneSecond = (jettison: FuelJettison) => jettison.onUpdate();
 
 beforeEach(() => {
   simVars.clear();
+  failures.clear();
   vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => get(name));
   vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
     set(name, value);
@@ -250,6 +260,58 @@ describe('FuelJettison (A380 FCOM DSC-28-40)', () => {
       expect(triggerKey.mock.calls.slice(2)).toEqual([
         ['FUELSYSTEM_VALVE_SET', true, 57, 0],
         ['FUELSYSTEM_VALVE_SET', true, 58, 0],
+      ]);
+    });
+  });
+
+  describe('jettison valve failures (FCOM PRO-ABN-ECAM-10-28)', () => {
+    const removedPounds = () =>
+      [...TRANSFER_TANKS, TRIM_TANK].reduce((sum, tank) => sum + 5000 - quantity(tank), 0) * POUNDS_PER_GALLON;
+
+    it('jettisons through the other valve at half the rate with one valve stuck closed (FUEL JETTISON FAULT)', async () => {
+      const jettison = await createJettison();
+      failures.add(A380Failure.FuelJettisonValveLeftStuckClosed);
+      set('L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC', 40);
+      updateOneSecond(jettison);
+      expect(removedPounds()).toBeCloseTo(RATE_LB_PER_S / 2, 6);
+      expect(get('L:A380X_FUEL_JETTISON_L_VALVE_FAULT')).toBe(true);
+      expect(get('L:A380X_FUEL_JETTISON_R_VALVE_FAULT')).toBe(false);
+      expect(get('L:A380X_FUEL_JETTISON_NOT_AVAIL')).toBe(false);
+      expect(triggerKey.mock.calls).toEqual([
+        ['FUELSYSTEM_VALVE_SET', true, 57, 0],
+        ['FUELSYSTEM_VALVE_SET', true, 58, 1],
+      ]);
+    });
+
+    it('does not find a valve stuck closed before the jettison is selected', async () => {
+      const jettison = await createJettison();
+      failures.add(A380Failure.FuelJettisonValveRightStuckClosed);
+      setConditions({ arm: false, active: false });
+      updateOneSecond(jettison);
+      expect(get('L:A380X_FUEL_JETTISON_R_VALVE_FAULT')).toBe(false);
+    });
+
+    it('is not available with both valves stuck closed', async () => {
+      const jettison = await createJettison();
+      failures.add(A380Failure.FuelJettisonValveLeftStuckClosed);
+      failures.add(A380Failure.FuelJettisonValveRightStuckClosed);
+      updateOneSecond(jettison);
+      expect(removedPounds()).toBe(0);
+      expect(get('L:A380X_FUEL_JETTISON_NOT_AVAIL')).toBe(true);
+      expect(get('L:A380X_FUEL_JETTISON_IN_PROGRESS')).toBe(false);
+    });
+
+    it('shows a valve stuck open (FUEL JETTISON VLV NOT CLOSED, OPEN light) without jettisoning', async () => {
+      const jettison = await createJettison();
+      failures.add(A380Failure.FuelJettisonValveRightStuckOpen);
+      setConditions({ arm: false, active: false });
+      updateOneSecond(jettison);
+      expect(removedPounds()).toBe(0);
+      expect(get('L:A380X_FUEL_JETTISON_VALVE_NOT_CLOSED')).toBe(true);
+      expect(get('L:A380X_OVHD_FUEL_JETTISON_IS_OPEN')).toBe(true);
+      expect(triggerKey.mock.calls).toEqual([
+        ['FUELSYSTEM_VALVE_SET', true, 57, 0],
+        ['FUELSYSTEM_VALVE_SET', true, 58, 1],
       ]);
     });
   });
