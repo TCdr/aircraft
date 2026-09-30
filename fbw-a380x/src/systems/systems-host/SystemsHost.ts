@@ -192,7 +192,7 @@ class SystemsHost extends BaseInstrument {
   //FIXME add some deltatime functionality to backplane instruments so we dont have to pass SystemHost
   private readonly legacyFuel = new LegacyFuel(this.bus, this);
 
-  private readonly fuelJettison = new FuelJettison(this.bus, this);
+  private readonly fuelJettison = new FuelJettison(this.bus, this, this.failuresConsumer);
 
   /**
    * "mainmenu" = 0

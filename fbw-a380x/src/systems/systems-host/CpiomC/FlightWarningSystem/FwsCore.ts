@@ -1927,6 +1927,25 @@ export class FwsCore {
 
   public readonly fuelJettisonActivePbOn = Subject.create(false);
 
+  /** The jettison is selected but not available, both jettison valves failed closed (FQMS) */
+  public readonly fuelJettisonNotAvail = Subject.create(false);
+
+  /** The left or the right jettison valve is failed in the closed position (FQMS) */
+  public readonly fuelJettisonLValveFault = Subject.create(false);
+
+  public readonly fuelJettisonRValveFault = Subject.create(false);
+
+  /** A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON FAULT: jettison not available, or one jettison valve failed closed */
+  public readonly fuelJettisonFault = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.fuelJettisonNotAvail,
+    this.fuelJettisonLValveFault,
+    this.fuelJettisonRValveFault,
+  );
+
+  /** A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON VLV NOT CLOSED: a jettison valve abnormally open */
+  public readonly fuelJettisonValveNotClosed = Subject.create(false);
+
   /** The flight crew has set the PRED W/S button to OFF (not the WXR button, which also sets it to OFF). */
   public readonly wxrPredWsOff = Subject.create(false);
 
@@ -5233,6 +5252,16 @@ export class FwsCore {
     );
     this.fuelJettisonActivePbOn.set(
       SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ACTIVE_PB_IS_ON', SimVarValueType.Bool),
+    );
+    this.fuelJettisonNotAvail.set(SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_NOT_AVAIL', SimVarValueType.Bool));
+    this.fuelJettisonLValveFault.set(
+      SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_L_VALVE_FAULT', SimVarValueType.Bool),
+    );
+    this.fuelJettisonRValveFault.set(
+      SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_R_VALVE_FAULT', SimVarValueType.Bool),
+    );
+    this.fuelJettisonValveNotClosed.set(
+      SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_VALVE_NOT_CLOSED', SimVarValueType.Bool),
     );
 
     // WXR (A380 FCOM DSC-34-20-30-20). The WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
