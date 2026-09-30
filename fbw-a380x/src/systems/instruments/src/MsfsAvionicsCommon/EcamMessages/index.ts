@@ -497,6 +497,7 @@ export const EcamInopSys: { [n: string]: string } = {
   270300013: '\x1b<4mFCDC 1',
   270300014: '\x1b<4mFCDC 2',
   270300015: '\x1b<4mFCDC 1+2',
+  280300001: '\x1b<4mJETTISON',
   290100001: '\x1b<4mPART SPLRs',
   290100003: '\x1b<4mFLAP SYS 1',
   290100004: '\x1b<4mFLAP SYS 2',

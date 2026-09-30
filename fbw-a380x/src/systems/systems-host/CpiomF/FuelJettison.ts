@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, Instrument, KeyEventManager, SimVarValueType } from '@microsoft/msfs-sdk';
-import { UniversalConfigProvider, Units, UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, UniversalConfigProvider, Units, UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { A380Failure } from '@failures';
 
 /**
  * Fuel jettison, as controlled by the FQMS (A380 FCOM DSC-28-40 Fuel Jettison, DSC-28-20 JETTISON panel):
@@ -16,8 +17,12 @@ import { UniversalConfigProvider, Units, UpdateThrottler } from '@flybywiresim/f
  *   lights go off and the FUEL JETTISON COMPLETED procedure appears, until the flight crew sets both pb-sw OFF. The flight
  *   crew stops the jettison by setting either pb-sw OFF.
  *
+ * - Jettison valve failures (A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON FAULT and VLV NOT CLOSED): a valve stuck
+ *   closed does not open, the fuel goes through the other one at half the rate, and with both closed the jettison is not
+ *   available; a valve stuck open stays open (OPEN light of the JETTISON ACTIVE pb-sw).
+ *
  * The MSFS fuel system has no overboard outlet, so the jettisoned fuel is removed from the tanks directly. The jettison
- * valves of the fuel system are opened for the SD FUEL page.
+ * valves of the fuel system are opened as the jettison valves are, for the SD FUEL page.
  */
 export class FuelJettison implements Instrument {
   /** FCOM DSC-28-40: 330 693 lb/h */
@@ -28,7 +33,20 @@ export class FuelJettison implements Instrument {
 
   private static readonly TRIM_TANK = 11;
 
+  /** The left and right jettison valves of the MSFS fuel system */
   private static readonly JETTISON_VALVES = [57, 58];
+
+  private static readonly STUCK_CLOSED = [
+    A380Failure.FuelJettisonValveLeftStuckClosed,
+    A380Failure.FuelJettisonValveRightStuckClosed,
+  ];
+
+  private static readonly STUCK_OPEN = [
+    A380Failure.FuelJettisonValveLeftStuckOpen,
+    A380Failure.FuelJettisonValveRightStuckOpen,
+  ];
+
+  private static readonly SIDES = ['L', 'R'];
 
   /** Below this quantity in gallons, a tank is considered empty */
   private static readonly EMPTY_GALLONS = 0.5;
@@ -51,17 +69,25 @@ export class FuelJettison implements Instrument {
 
   private trimTankHeld = false;
 
-  private valvesOpen: boolean | null = null;
+  /** The position of the left and right jettison valves given to the MSFS fuel system, null before the first update */
+  private valvesOpen: (boolean | null)[] = [null, null];
+
+  /** A valve stuck closed, found when the jettison was selected (FQMS monitoring), until it is repaired */
+  private readonly valveFaults = [false, false];
 
   constructor(
     bus: EventBus,
     private readonly sysHost: BaseInstrument,
+    private readonly failuresConsumer: FailuresConsumer,
   ) {
     KeyEventManager.getManager(bus).then((manager) => (this.keyEventManager = manager));
   }
 
   init(): void {
-    this.setOutputs(false);
+    [...FuelJettison.STUCK_CLOSED, ...FuelJettison.STUCK_OPEN].forEach((failure) =>
+      this.failuresConsumer.register(failure),
+    );
+    this.setOutputs(false, [false, false], false);
     const aircraft = process.env.AIRCRAFT_PROJECT_PREFIX;
     const variant = process.env.AIRCRAFT_VARIANT;
     if (aircraft === undefined || variant === undefined) {
@@ -90,7 +116,21 @@ export class FuelJettison implements Instrument {
       this.completed = false;
     }
 
-    let jettisoning = armOn && activeOn && powered && !this.completed;
+    const selected = armOn && activeOn && powered && !this.completed;
+    const stuckClosed = FuelJettison.STUCK_CLOSED.map((failure) => this.failuresConsumer.isActive(failure));
+    const stuckOpen = FuelJettison.STUCK_OPEN.map((failure) => this.failuresConsumer.isActive(failure));
+    for (const i of [0, 1]) {
+      if (!stuckClosed[i]) {
+        this.valveFaults[i] = false;
+      } else if (selected) {
+        this.valveFaults[i] = true;
+      }
+    }
+    // Both valves stuck closed: the jettison is not available
+    const openValves = stuckClosed.filter((closed) => !closed).length;
+    const notAvailable = selected && openValves === 0;
+
+    let jettisoning = selected && openValves > 0;
     if (jettisoning) {
       const grossWeightKg = Units.poundToKilogram(SimVar.GetSimVarValue('TOTAL WEIGHT', SimVarValueType.Pounds));
       const targetKg = SimVar.GetSimVarValue('L:A380X_FMS_JETTISON_GW', SimVarValueType.Number);
@@ -107,11 +147,12 @@ export class FuelJettison implements Instrument {
         jettisoning = false;
       } else {
         this.updateTrimTankHold(grossWeightKg);
-        this.jettison(quantities, dt / 1000);
+        this.jettison(quantities, ((dt / 1000) * openValves) / FuelJettison.JETTISON_VALVES.length);
       }
     }
 
-    this.setOutputs(jettisoning);
+    const valvesOpen = [0, 1].map((i) => stuckOpen[i] || (jettisoning && !stuckClosed[i]));
+    this.setOutputs(jettisoning, valvesOpen, notAvailable);
   }
 
   /** Removes the jettisoned fuel from the transfer tanks, in proportion to their content so they empty together */
@@ -175,17 +216,33 @@ export class FuelJettison implements Instrument {
     return forward;
   }
 
-  private setOutputs(jettisoning: boolean): void {
+  private setOutputs(jettisoning: boolean, valvesOpen: boolean[], notAvailable: boolean): void {
     SimVar.SetSimVarValue('L:A380X_FUEL_JETTISON_IN_PROGRESS', SimVarValueType.Bool, jettisoning);
     SimVar.SetSimVarValue('L:A380X_FUEL_JETTISON_COMPLETED', SimVarValueType.Bool, this.completed);
-    // OPEN light of the JETTISON ACTIVE pb-sw
-    SimVar.SetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_IS_OPEN', SimVarValueType.Bool, jettisoning);
+    SimVar.SetSimVarValue('L:A380X_FUEL_JETTISON_NOT_AVAIL', SimVarValueType.Bool, notAvailable);
+    // A valve open while the jettison is not in progress
+    SimVar.SetSimVarValue(
+      'L:A380X_FUEL_JETTISON_VALVE_NOT_CLOSED',
+      SimVarValueType.Bool,
+      !jettisoning && valvesOpen.some((open) => open),
+    );
+    FuelJettison.SIDES.forEach((side, i) =>
+      SimVar.SetSimVarValue(`L:A380X_FUEL_JETTISON_${side}_VALVE_FAULT`, SimVarValueType.Bool, this.valveFaults[i]),
+    );
+    // OPEN light of the JETTISON ACTIVE pb-sw: a jettison valve is open
+    SimVar.SetSimVarValue(
+      'L:A380X_OVHD_FUEL_JETTISON_IS_OPEN',
+      SimVarValueType.Bool,
+      valvesOpen.some((open) => open),
+    );
 
-    if (this.valvesOpen !== jettisoning && this.keyEventManager) {
-      for (const valve of FuelJettison.JETTISON_VALVES) {
-        this.keyEventManager.triggerKey('FUELSYSTEM_VALVE_SET', true, valve, jettisoning ? 1 : 0);
-      }
-      this.valvesOpen = jettisoning;
+    if (this.keyEventManager) {
+      FuelJettison.JETTISON_VALVES.forEach((valve, i) => {
+        if (this.valvesOpen[i] !== valvesOpen[i]) {
+          this.keyEventManager?.triggerKey('FUELSYSTEM_VALVE_SET', true, valve, valvesOpen[i] ? 1 : 0);
+          this.valvesOpen[i] = valvesOpen[i];
+        }
+      });
     }
   }
 }

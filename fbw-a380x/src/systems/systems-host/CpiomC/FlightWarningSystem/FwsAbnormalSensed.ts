@@ -882,6 +882,43 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.Fuel,
     },
+    281800054: {
+      // FUEL JETTISON FAULT (A380 FCOM PRO-ABN-ECAM-10-28 P 61-62): the valve faults on ground (at the end of a flight
+      // with jettison), then the jettison selected but not available
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.fuelJettisonFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const onGround = this.fws.aircraftOnGround.get();
+        const notAvail = this.fws.fuelJettisonNotAvail.get();
+        return [
+          onGround && this.fws.fuelJettisonLValveFault.get(),
+          onGround && this.fws.fuelJettisonRValveFault.get(),
+          notAvail,
+          notAvail,
+          notAvail,
+        ];
+      },
+      whichItemsChecked: () => [
+        false,
+        false,
+        false,
+        !this.fws.fuelJettisonActivePbOn.get(),
+        !this.fws.fuelJettisonArmPbOn.get(),
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800055: {
+      // FUEL JETTISON VLV NOT CLOSED (A380 FCOM PRO-ABN-ECAM-10-28 P 63): a jettison valve abnormally open
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.fuelJettisonValveNotClosed,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [!this.fws.fuelJettisonActivePbOn.get(), !this.fws.fuelJettisonArmPbOn.get()],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
     212800001: {
       // AFT VENT CTL 1 FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
