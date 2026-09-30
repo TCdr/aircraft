@@ -97,6 +97,16 @@
   stroke: none;
 }
 
+// The INIT box of the power-up tests, as on the SFD (ISISlegacy FillYellow, FontMedium)
+.snd-init {
+  fill: $display-yellow;
+  stroke: none;
+}
+
+.snd-init-text {
+  font-size: 30px;
+}
+
 .snd-flag-text {
   fill: $display-background;
 }
