@@ -98,6 +98,52 @@ export class UplinkMessageInterpretation {
     UM232: { positiveOrNegative: false, modifiable: true, messages: ['DM109'] },
   };
 
+  /**
+   * The route clearances, loadable in the FMS: UM79 CLEARED TO [position] VIA [route clearance], UM80 CLEARED [route
+   * clearance], UM83 AT [position] CLEARED [route clearance]
+   */
+  public static RouteClearanceMessages: readonly string[] = ['UM79', 'UM80', 'UM83'];
+
+  public static IsRouteClearance(message: CpdlcMessage): boolean {
+    return (message.Content ?? []).some((element) =>
+      UplinkMessageInterpretation.RouteClearanceMessages.includes(element.TypeId),
+    );
+  }
+
+  /**
+   * The crossing constraints loadable in the FMS: a level (UM46 to UM50), a time (UM51 to UM53), a speed (UM55, UM56),
+   * a time and a level (UM58 to UM60), a level and a speed (UM61) at a position
+   */
+  public static LoadableConstraintMessages: readonly string[] = [
+    'UM46',
+    'UM47',
+    'UM48',
+    'UM49',
+    'UM50',
+    'UM51',
+    'UM52',
+    'UM53',
+    'UM55',
+    'UM56',
+    'UM58',
+    'UM59',
+    'UM60',
+    'UM61',
+  ];
+
+  /**
+   * Whether a message can be loaded in the FMS: a route clearance or a crossing constraint
+   * @param message the uplink message
+   * @returns true when one of its elements is loadable
+   */
+  public static IsLoadable(message: CpdlcMessage): boolean {
+    return (message.Content ?? []).some(
+      (element) =>
+        UplinkMessageInterpretation.RouteClearanceMessages.includes(element.TypeId) ||
+        UplinkMessageInterpretation.LoadableConstraintMessages.includes(element.TypeId),
+    );
+  }
+
   public static MessageRemainsOnMailbox(message: CpdlcMessage): boolean {
     return (
       UplinkMessageInterpretation.NonAutomaticClosingMessage.findIndex((elem) => message.Content[0].TypeId === elem) !==

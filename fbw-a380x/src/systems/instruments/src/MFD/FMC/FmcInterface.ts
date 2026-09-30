@@ -1,4 +1,5 @@
 import { FmsPrinter } from './FmsPrinter';
+import { RejectedAtcElement } from './AtcRouteClearance';
 import { FmsErrorType } from '@fmgc/FmsError';
 import { FmsDataInterface } from '@fmgc/flightplanning/interface/FmsDataInterface';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
@@ -307,6 +308,18 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
   /** The time constraint (RTA) of the active flight plan (FCOM: only one time constraint in the flight plan) */
   readonly timeConstraint: Subject<TimeConstraint | null>;
 
+  /**
+   * The time constraint of a secondary flight plan (e.g. loaded with an ATC flight plan in SEC 3), null without one; it
+   * becomes the active one when the secondary flight plan is activated
+   */
+  secondaryTimeConstraint(planIndex: number): TimeConstraint | null;
+
+  /** Sets, or deletes with null, the time constraint of a secondary flight plan */
+  setSecondaryTimeConstraint(planIndex: number, rta: TimeConstraint | null): void;
+
+  /** Changes when the time constraint of a secondary flight plan changes */
+  readonly secondaryTimeConstraintsVersion: Subscribable<number>;
+
   /** State of the company wind request of a flight plan */
   companyWindRequestState(planIndex: FlightPlanIndex): Subscribable<CompanyWindRequestState>;
 
@@ -343,6 +356,12 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /** The FMS print functions (DATA / PRINTER page, A380 FCOM DSC-22-FMS-10-70); null until the FMS is initialized */
   get printer(): FmsPrinter | null;
+
+  /**
+   * The elements of the last ATC flight plan loaded in SEC 3 that the FMS rejected (REJECTED ATC INFO page, A380 FCOM
+   * DSC-22-FMS-20-30 P 321)
+   */
+  get atcRejectedElements(): Subscribable<readonly RejectedAtcElement[]>;
 
   /**
    * Inserts a company route (navigation database or pilot stored) into a flight plan, with its procedures

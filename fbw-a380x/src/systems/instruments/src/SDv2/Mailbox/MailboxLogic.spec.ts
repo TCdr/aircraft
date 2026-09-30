@@ -152,4 +152,27 @@ describe('ATC mailbox', () => {
     confirm.Response = message(AtsuMessageDirection.Downlink, 'DM32', 'FL350');
     expect(actions(block(confirm))).toEqual(['SEND', 'MODIFY', 'REFRESH', null, 'PRINT']);
   });
+
+  it('offers LOAD-SEC3 for a route clearance, before and after the reply (FCOM DSC-46-10-40 P 24-25)', () => {
+    const clearance = message(AtsuMessageDirection.Uplink, 'UM79', 'AMB');
+    clearance.Content[0].Content[1].Value = 'DIBAG UT210 TUDRA UT158 AMB';
+    expect(actions(block(clearance))).toEqual(['WILCO', 'STANDBY', 'UNABLE', 'LOAD-SEC3', 'PRINT']);
+
+    clearance.Response = message(AtsuMessageDirection.Downlink, 'DM2', null);
+    clearance.Response.ComStatus = AtsuMessageComStatus.Sent;
+    expect(actions(block(clearance))).toEqual(['WILCO', null, 'UNABLE', 'LOAD-SEC3', 'PRINT']);
+
+    // UNABLE selected: FREETEXT takes the fourth position
+    expect(actions(block(clearance, 1))).toEqual(['SEND', 'DUE TO', 'CANCEL', 'FREETEXT', 'PRINT']);
+
+    clearance.Response = message(AtsuMessageDirection.Downlink, 'DM0', null);
+    clearance.Response.ComStatus = AtsuMessageComStatus.Sent;
+    expect(actions(block(clearance))).toEqual(['CLOSE', null, null, 'LOAD-SEC3', 'PRINT']);
+
+    // A crossing constraint is loadable too; a level clearance is not
+    const constraint = message(AtsuMessageDirection.Uplink, 'UM46', 'KIMMO');
+    constraint.Content[0].Content[1].Value = 'FL240';
+    expect(actions(block(constraint))[3]).toBe('LOAD-SEC3');
+    expect(actions(block(message(AtsuMessageDirection.Uplink, 'UM20', 'FL340')))[3]).toBeNull();
+  });
 });

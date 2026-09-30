@@ -417,6 +417,10 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         this.publisher.pub('closeMessage', uid, true, false);
         this.removeBlock(uid);
         break;
+      case 'LOAD-SEC3':
+        // The FMS loads the route clearance in SEC 3: LOADING, then the result in the information messages area
+        this.publisher.pub('loadMessage', uid, true, false);
+        break;
       case 'PRINT':
         // No cockpit printer
         this.printNotAvail.set(true);
