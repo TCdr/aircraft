@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import './oans-style.scss';
@@ -417,7 +417,13 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
         }),
     );
 
-    this.subs.push(this.sub.on('oans_display_airport').handle((arpt) => this.handleSelectAirport(arpt)));
+    this.subs.push(
+      this.sub.on('oans_display_airport').handle(({ side, airport }) => {
+        if (side === this.props.side && airport !== '') {
+          this.handleSelectAirport(airport);
+        }
+      }),
+    );
 
     let previousNdMode = this.ndMode.get();
     this.subs.push(
@@ -627,7 +633,9 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
     }
 
     this.manualAirportSelection = true;
-    this.props.bus.getPublisher<OansControlEvents>().pub('oans_display_airport', selectedArpt.idarpt, true);
+    this.props.bus
+      .getPublisher<OansControlEvents>()
+      .pub('oans_display_airport', { side: this.props.side, airport: selectedArpt.idarpt }, true);
     this.store.loadedAirport.set(selectedArpt);
     this.store.isAirportSelectionPending.set(false); // TODO should be done when airport is fully loaded
   };
@@ -666,7 +674,9 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
 
   private unloadCurrentAirport() {
     if (this.store.loadedAirport.get()) {
-      this.props.bus.getPublisher<OansControlEvents>().pub('oans_display_airport', '', true);
+      this.props.bus
+        .getPublisher<OansControlEvents>()
+        .pub('oans_display_airport', { side: this.props.side, airport: '' }, true);
       this.store.loadedAirport.set(null);
       this.store.isAirportSelectionPending.set(false);
     }
@@ -697,11 +707,8 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
       return;
     }
 
-    // One airport is displayed on both NDs: the PLAN mode default only when the other ND does not show ARC or ROSE-NAV
-    const otherSide = this.props.side === 'L' ? 'R' : 'L';
-    const otherNdMode = SimVar.GetSimVarValue(`L:A32NX_EFIS_${otherSide}_ND_MODE`, SimVarValueType.Enum);
-    const planMode =
-      this.ndMode.get() === EfisNdMode.PLAN && otherNdMode !== EfisNdMode.ARC && otherNdMode !== EfisNdMode.ROSE_NAV;
+    // Each side has its own OANS and airport (FCOM DSC-34-10-70-10): the PLAN mode default follows this ND only
+    const planMode = this.ndMode.get() === EfisNdMode.PLAN;
 
     const altitude = this.altitudeWord.get();
     const loaded = this.store.loadedAirport.get();
@@ -718,7 +725,9 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
     });
     const airport = icao !== null ? this.store.airports.getArray().find((it) => it.idarpt === icao) : undefined;
     if (airport && airport.idarpt !== loaded?.idarpt) {
-      this.props.bus.getPublisher<OansControlEvents>().pub('oans_display_airport', airport.idarpt, true);
+      this.props.bus
+        .getPublisher<OansControlEvents>()
+        .pub('oans_display_airport', { side: this.props.side, airport: airport.idarpt }, true);
       this.store.loadedAirport.set(airport);
       this.store.isAirportSelectionPending.set(false); // TODO should be done when airport is fully loaded
     }
