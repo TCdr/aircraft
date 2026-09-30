@@ -1,4 +1,4 @@
-//  Copyright (c) 2023 FlyByWire Simulations
+//  Copyright (c) 2023-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { DclMessage, OclMessage, CpdlcMessage } from '../messages';
@@ -55,6 +55,8 @@ export interface AtsuMailboxMessages {
   downlinkTransmit: number;
   modifyMessage: number;
   printMessage: number;
+  /** LOAD-SEC3 of a route clearance: the FMS loads it in the third secondary flight plan */
+  loadMessage: number;
   cpdlcMessages: CpdlcMessage[];
   dclMessages: DclMessage[];
   oclMessages: OclMessage[];

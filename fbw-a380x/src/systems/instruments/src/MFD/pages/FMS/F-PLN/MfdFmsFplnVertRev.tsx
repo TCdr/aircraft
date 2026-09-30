@@ -1069,6 +1069,7 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
       this.rtaFieldStyle,
       this.props.fmcService.master.timeKeeper.utcSeconds.sub(() => this.updateRta()),
       this.props.fmcService.master.timeConstraint.sub(() => this.updateRta()),
+      this.props.fmcService.master.secondaryTimeConstraintsVersion.sub(() => this.updateRta()),
       this.selectedLegIndex.sub(() => this.updateRta()),
     );
 
@@ -1225,7 +1226,7 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
 
     const legIndex = this.selectedLegIndex.get();
     const leg = legIndex !== null && plan ? plan.maybeElementAt(legIndex) : undefined;
-    const rta = fmc.timeConstraint.get();
+    const rta = this.loadedTimeConstraint();
     const rtaLegIndex =
       rta && plan
         ? plan.allLegs.findIndex((l) => isLeg(l) && l.definition.waypoint?.databaseId === rta.databaseId)
@@ -1233,11 +1234,7 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
     const rtaOnSelected = rta !== null && legIndex !== null && rtaLegIndex === legIndex;
 
     // RTA message area (P 361)
-    if (
-      leg &&
-      isLeg(leg) &&
-      (this.selectedLegIsAlternate || this.loadedFlightPlanIndex.get() !== FlightPlanIndex.Active)
-    ) {
+    if (leg && isLeg(leg) && (this.selectedLegIsAlternate || !this.canHoldRta())) {
       this.rtaMessage.set('RTA NOT ALLOWED AT');
       this.rtaMessageIdent.set(leg.ident);
       this.rtaMessageSuffix.set('');
@@ -1340,7 +1337,7 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
     const time = utcSeconds ?? this.rtaEtaSeconds(legIndex!);
     this.rtaTime.set(time);
     if (time !== null) {
-      this.props.fmcService.master.timeConstraint.set({
+      this.setLoadedTimeConstraint({
         ident: leg.ident,
         databaseId: leg.definition.waypoint.databaseId,
         type,
@@ -1351,10 +1348,37 @@ export class MfdFmsFplnVertRev extends FmsPage<MfdFmsFplnVertRevProps> {
   }
 
   private deleteRta(): void {
-    this.props.fmcService.master.timeConstraint.set(null);
+    this.setLoadedTimeConstraint(null);
     this.rtaType.set(null);
     this.rtaTime.set(null);
     this.updateRta();
+  }
+
+  /** Whether the loaded flight plan can hold an RTA: the active one, or a secondary one (e.g. an ATC F-PLN in SEC 3) */
+  private canHoldRta(): boolean {
+    const index = this.loadedFlightPlanIndex.get();
+    return index === FlightPlanIndex.Active || index >= FlightPlanIndex.FirstSecondary;
+  }
+
+  /** The RTA of the loaded flight plan */
+  private loadedTimeConstraint(): TimeConstraint | null {
+    const index = this.loadedFlightPlanIndex.get();
+    if (this.selectedLegIsAlternate || !this.canHoldRta()) {
+      return null;
+    }
+    const fmc = this.props.fmcService.master;
+    return index === FlightPlanIndex.Active ? fmc.timeConstraint.get() : fmc.secondaryTimeConstraint(index);
+  }
+
+  /** Sets, or deletes with null, the RTA of the loaded flight plan */
+  private setLoadedTimeConstraint(rta: TimeConstraint | null): void {
+    const index = this.loadedFlightPlanIndex.get();
+    const fmc = this.props.fmcService.master;
+    if (index === FlightPlanIndex.Active) {
+      fmc.timeConstraint.set(rta);
+    } else if (index >= FlightPlanIndex.FirstSecondary) {
+      fmc.setSecondaryTimeConstraint(index, rta);
+    }
   }
 
   private renderRtaPanel(): VNode {
