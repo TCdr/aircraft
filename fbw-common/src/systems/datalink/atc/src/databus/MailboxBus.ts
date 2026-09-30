@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-//  Copyright (c) 2022 FlyByWire Simulations
+//  Copyright (c) 2022-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, EventSubscriber, Publisher } from '@microsoft/msfs-sdk';
@@ -58,6 +58,17 @@ export class MailboxBus {
   private atcRingInterval: number = null;
 
   private poweredUp: boolean = false;
+
+  /** The FMS answers a LOAD-SEC3 request within this time, or the mailbox shows LOAD NOT AVAIL */
+  private static LoadTimeoutMs = 30000;
+
+  /** The message the FMS is loading in the third secondary flight plan (LOAD-SEC3), if any */
+  private loadingMessageId: number | null = null;
+
+  /** The message of the last loading result (LOAD OK, LOAD PARTIAL, LOAD FAILED or LOAD NOT AVAIL), if any */
+  private loadedMessageId: number | null = null;
+
+  private loadTimeout: number | null = null;
 
   private uploadMessagesToMailbox(messages: CpdlcMessage[]): void {
     if (messages.length !== 0) {
@@ -135,6 +146,9 @@ export class MailboxBus {
     this.atc = atc;
 
     this.atc.digitalInputs.addDataCallback('onAtcMessageButtonPressed', () => this.cleanupNotifications());
+    this.atc.digitalInputs.addDataCallback('routeClearanceLoaded', (uid, status) =>
+      this.onRouteClearanceLoaded(uid, status),
+    );
     this.publisher = this.bus.getPublisher<AtsuMailboxMessages>();
     this.subscriber = this.bus.getSubscriber<AtsuMailboxMessages>();
 
@@ -239,6 +253,33 @@ export class MailboxBus {
           }
         }, 4500);
       }
+    });
+
+    this.subscriber.on('loadMessage').handle((uid: number) => {
+      if (!this.poweredUp || uid === this.loadingMessageId) return;
+
+      // A380 FCOM DSC-46-10-20-60: LOAD NOT AVAIL when the loading is not possible, including when a loading is in progress
+      if (this.loadingMessageId !== null) {
+        this.updateMessageStatus(uid, MailboxStatusMessage.FlightplanLoadingUnavailable);
+        return;
+      }
+
+      const message = this.atc.messages().find((element) => element.UniqueMessageID === uid);
+      if (message === undefined || message.Type !== AtsuMessageType.CPDLC) return;
+
+      // The result of the previous loading disappears when another loading is requested
+      if (this.loadedMessageId !== null && this.loadedMessageId !== uid && this.isLoadResult(this.loadedMessageId)) {
+        this.updateMessageStatus(this.loadedMessageId, MailboxStatusMessage.NoMessage);
+      }
+      this.loadedMessageId = null;
+
+      this.loadingMessageId = uid;
+      this.updateMessageStatus(uid, MailboxStatusMessage.FlightplanLoadingSecondary);
+      this.loadTimeout = window.setTimeout(
+        () => this.onRouteClearanceLoaded(uid, MailboxStatusMessage.FlightplanLoadingUnavailable),
+        MailboxBus.LoadTimeoutMs,
+      );
+      this.atc.digitalOutputs.sendLoadRouteClearance(message as CpdlcMessage);
     });
 
     this.subscriber.on('closeMessage').handle((uid: number) => {
@@ -497,6 +538,33 @@ export class MailboxBus {
         this.publisher.pub('deleteMessage', uid, true, false);
       }
     }
+  }
+
+  /**
+   * The answer of the FMS to a LOAD-SEC3 request (or its time out)
+   * @param uid the loaded message
+   * @param status LOAD OK, LOAD PARTIAL, LOAD FAILED or LOAD NOT AVAIL
+   */
+  private onRouteClearanceLoaded(uid: number, status: MailboxStatusMessage): void {
+    if (uid !== this.loadingMessageId) return;
+
+    if (this.loadTimeout !== null) {
+      clearTimeout(this.loadTimeout);
+      this.loadTimeout = null;
+    }
+    this.loadingMessageId = null;
+    this.loadedMessageId = uid;
+    this.updateMessageStatus(uid, status);
+  }
+
+  private isLoadResult(uid: number): boolean {
+    const status = this.currentMessageStatus(uid);
+    return (
+      status === MailboxStatusMessage.FlightplanLoadSecondary ||
+      status === MailboxStatusMessage.FlightplanLoadPartial ||
+      status === MailboxStatusMessage.FlightplanLoadFailed ||
+      status === MailboxStatusMessage.FlightplanLoadingUnavailable
+    );
   }
 
   public updateMessageStatus(uid: number, status: MailboxStatusMessage): void {

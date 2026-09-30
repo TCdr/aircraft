@@ -74,6 +74,8 @@ import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { HistoryWind } from '@fmgc/wind/HistoryWind';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { FmsPrinter } from './FmsPrinter';
+import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
+import { RejectedAtcElement } from './AtcRouteClearance';
 import { FmsDatalinkConnection } from './FmsDatalinkConnection';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
@@ -254,6 +256,15 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** The last flight number of the active flight plan sent to the aircraft systems */
   #activeFlightNumber: string | null = null;
+
+  /** Loads the route clearances of the ATC mailbox in SEC 3 (FMC-A) */
+  #atcRouteClearance: AtcRouteClearanceLoader<A380FlightPlanPerformanceData> | null = null;
+
+  private static readonly noRejectedAtcElements = Subject.create<readonly RejectedAtcElement[]>([]);
+
+  get atcRejectedElements(): Subscribable<readonly RejectedAtcElement[]> {
+    return this.#atcRouteClearance?.rejectedElements ?? FlightManagementComputer.noRejectedAtcElements;
+  }
 
   get lastSequencedWaypoint() {
     return this.#sequencedWaypointRecorder?.lastSequencedWaypoint ?? null;
@@ -470,6 +481,16 @@ export class FlightManagementComputer implements FmcInterface {
         () => ({ direction: this.#navigation.getWindDirection(), speed: this.#navigation.getWindSpeed() }),
         () => this.fmgc.getFOB(),
       );
+      this.#atcRouteClearance = new AtcRouteClearanceLoader(this.bus, this, {
+        presentPosition: () => {
+          const ppos = this.#navigation.getPpos();
+          // No position before the first navigation update
+          return ppos && (ppos.lat !== 0 || ppos.long !== 0) ? ppos : null;
+        },
+        // FCOM DSC-22-FMS-20-30 P 344: RTA NOT ALLOWED IN EO / IN GA
+        rtaAllowed: () => !this.fmgc.data.engineOut.get() && this.flightPhase.get() !== FmgcFlightPhase.GoAround,
+        beforeCruise: () => this.flightPhase.get() < FmgcFlightPhase.Cruise,
+      });
     }
 
     // FIXME implement sync between FMCs and also let FMC-B and FMC-C compute
@@ -1269,11 +1290,18 @@ export class FlightManagementComputer implements FmcInterface {
     const zfwCgDiff = this.computeZfwCgDiffToSecondary(index);
     const oldDestination = this.#flightPlanService.active?.destinationAirport;
 
+    // The time constraints go with their flight plans
+    const secondaryPlanIndex = FlightPlanIndex.FirstSecondary + index - 1;
+    const secondaryRta = this.secondaryTimeConstraint(secondaryPlanIndex);
+    const activeRta = this.timeConstraint.get();
+
     if (this.#flightPlanService.hasActive) {
       await this.#flightPlanService.activeAndSecondarySwap(index, !this.enginesWereStarted.get());
+      this.setSecondaryTimeConstraint(secondaryPlanIndex, activeRta);
     } else {
       await this.#flightPlanService.secondaryActivate(index, !this.enginesWereStarted.get());
     }
+    this.timeConstraint.set(secondaryRta);
 
     await this.onSecondaryActivated(zfwDiff, zfwCgDiff, oldDestination);
   }
@@ -1414,6 +1442,34 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** @inheritdoc */
   public readonly timeConstraint = Subject.create<TimeConstraint | null>(null);
+
+  /** The time constraints of the secondary flight plans (one per flight plan), by flight plan object */
+  readonly #secondaryTimeConstraints = new WeakMap<object, TimeConstraint>();
+
+  /** @inheritdoc */
+  public readonly secondaryTimeConstraintsVersion = Subject.create(0);
+
+  /** @inheritdoc */
+  public secondaryTimeConstraint(planIndex: number): TimeConstraint | null {
+    if (planIndex < FlightPlanIndex.FirstSecondary || !this.#flightPlanService.has(planIndex)) {
+      return null;
+    }
+    return this.#secondaryTimeConstraints.get(this.#flightPlanService.get(planIndex)) ?? null;
+  }
+
+  /** @inheritdoc */
+  public setSecondaryTimeConstraint(planIndex: number, rta: TimeConstraint | null): void {
+    if (planIndex < FlightPlanIndex.FirstSecondary || !this.#flightPlanService.has(planIndex)) {
+      return;
+    }
+    const plan = this.#flightPlanService.get(planIndex);
+    if (rta) {
+      this.#secondaryTimeConstraints.set(plan, rta);
+    } else {
+      this.#secondaryTimeConstraints.delete(plan);
+    }
+    this.secondaryTimeConstraintsVersion.set(this.secondaryTimeConstraintsVersion.get() + 1);
+  }
 
   /** State of the company wind request of each flight plan (FCOM DSC-22-FMS-10-40-90 COMPANY WIND REQUEST) */
   private readonly companyWindRequestStates = new Map<FlightPlanIndex, Subject<CompanyWindRequestState>>();

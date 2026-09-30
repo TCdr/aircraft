@@ -11,6 +11,7 @@ import {
   CpdlcMessage,
   FmgcDataBusTypes,
   FreetextMessage,
+  MailboxStatusMessage,
   PositionReportData,
   RmpDataBusTypes,
   SimVarSources,
@@ -41,6 +42,7 @@ export type AtcDigitalInputCallbacks = {
   cleanupMessages: () => void;
   resetAtisAutoUpdate: () => void;
   onAtcMessageButtonPressed: () => void;
+  routeClearanceLoaded: (uid: number, status: MailboxStatusMessage) => void;
 };
 
 export class DigitalInputs {
@@ -78,6 +80,7 @@ export class DigitalInputs {
     cleanupMessages: null,
     resetAtisAutoUpdate: null,
     onAtcMessageButtonPressed: null,
+    routeClearanceLoaded: null,
   };
 
   private atcMessageButtonActive: boolean;
@@ -397,6 +400,11 @@ export class DigitalInputs {
           true,
           false,
         );
+      }
+    });
+    this.subscriber.on('atcRouteClearanceLoaded').handle((data) => {
+      if (this.callbacks.routeClearanceLoaded !== null) {
+        this.callbacks.routeClearanceLoaded(data.uid, data.status);
       }
     });
     this.subscriber

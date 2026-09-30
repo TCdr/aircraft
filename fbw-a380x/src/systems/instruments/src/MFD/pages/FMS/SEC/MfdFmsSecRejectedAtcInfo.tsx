@@ -2,15 +2,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { FSComponent, MappedSubject, Subject, VNode } from '@microsoft/msfs-sdk';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
 import { Footer } from '../../common/Footer';
-import { fcomAt, fcomCentre, fcomLine } from '../../common/FcomLayout';
+import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../../common/FcomLayout';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { IconButton } from '../../../../MsfsAvionicsCommon/UiWidgets/IconButton';
 import { secIndexPageUri } from '../../../shared/utils';
+import { RejectedAtcElement } from '../../../FMC/AtcRouteClearance';
 
 import './MfdFmsSecRejectedAtcInfo.scss';
 
@@ -20,14 +21,19 @@ export const rejectedAtcInfoPage = 'rejected-atc-info';
 /** FCOM figure: 4 rejected elements per page */
 const elementsPerPage = 4;
 
+/** FCOM figure: the first row starts below the header line, 145 px per row */
+const firstRowTop = 67;
+const rowHeight = 145;
+
 /**
  * REJECTED ATC INFO page (A380 FCOM DSC-22-FMS-20-30 P 321-323): the elements of the ATC flight plan inserted in SEC 3
- * that the FMS rejected, with their ranking, description and error type, 4 per page.
- *
- * No ATC flight plan can be received in the simulation, so the list is empty; PRINT is inactive (no printer).
+ * that the FMS rejected (LOAD-SEC3 of the ATC mailbox), with their ranking, description and error type, 4 per page.
+ * PRINT is inactive.
  */
 export class MfdFmsSecRejectedAtcInfo extends FmsPage<AbstractMfdPageProps> {
-  private readonly rejectedCount = Subject.create(0);
+  private readonly rejected = Subject.create<readonly RejectedAtcElement[]>([]);
+
+  private readonly rejectedCount = this.rejected.map((list) => list.length);
 
   private readonly headerText = this.rejectedCount.map((n) => `REJECTED DATA (${n})`);
 
@@ -40,12 +46,61 @@ export class MfdFmsSecRejectedAtcInfo extends FmsPage<AbstractMfdPageProps> {
     this.subs.push(
       // The FCOM page title has no flight plan prefix
       this.props.mfd.uiService.activeUri.sub(() => this.activePageTitle.set('REJECTED ATC INFO'), true),
+      this.props.fmcService.master.atcRejectedElements.sub((list) => {
+        this.rejected.set(list);
+        this.firstElement.set(0);
+      }, true),
+      this.rejectedCount,
       this.headerText,
     );
   }
 
   protected onNewData(): void {
-    // No ATC flight plan uplink: no rejected element
+    // The rejected elements come from the ATC flight plan upload, not from the flight plan data
+  }
+
+  /**
+   * A row of the list (FCOM figure): the ranking, the description and the value of the element, the waypoint it follows
+   * (AT xxxxx), and the error type
+   * @param row the row on the page, 0 to 3
+   * @returns the row
+   */
+  private renderRow(row: number): VNode {
+    const element = MappedSubject.create(
+      ([list, first]) => list[first + row] ?? null,
+      this.rejected,
+      this.firstElement,
+    );
+    const ranking = MappedSubject.create(
+      ([list, first]) => (list[first + row] ? `${first + row + 1}/${list.length}` : ''),
+      this.rejected,
+      this.firstElement,
+    );
+    const visibility = element.map((e) => (e ? 'inherit' : 'hidden'));
+    const atVisibility = element.map((e) => (e?.at ? 'inherit' : 'hidden'));
+    const description = element.map((e) => e?.description ?? '');
+    const value = element.map((e) => e?.value ?? '');
+    const at = element.map((e) => e?.at ?? '');
+    const error = element.map((e) => e?.error ?? '');
+    this.subs.push(element, ranking, visibility, atVisibility, description, value, at, error);
+
+    const top = firstRowTop + row * rowHeight;
+    return (
+      <div style={{ visibility }}>
+        {fcomAt(top + 19, 7, <span class="mfd-label">{ranking}</span>)}
+        {fcomAt(top + 61, 14, <span class="mfd-label green">{description}</span>)}
+        {fcomRight(top + 61, 349, <span class="mfd-value bigger">{value}</span>)}
+        {fcomAt(
+          top + 105,
+          14,
+          <span style={{ visibility: atVisibility }}>
+            <span class="mfd-label green">AT </span>
+            <span class="mfd-value bigger">{at}</span>
+          </span>,
+        )}
+        {fcomAt(top + 61, 380, <span class="mfd-label green">{error}</span>)}
+      </div>
+    );
   }
 
   render(): VNode {
@@ -60,6 +115,7 @@ export class MfdFmsSecRejectedAtcInfo extends FmsPage<AbstractMfdPageProps> {
             <div class="mfd-rejected-atc-column" />
             {fcomLine(67, 0, 768)}
             {Array.from({ length: elementsPerPage }, (_, i) => fcomLine(212 + i * 145, 0, 768))}
+            {Array.from({ length: elementsPerPage }, (_, i) => this.renderRow(i))}
             {fcomAt(
               682,
               317,
