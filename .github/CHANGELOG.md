@@ -169,6 +169,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [ATSU] ACARS provider (Hoppie, BeyondATC, SayIntentions) found again when started late or restarted, and connected even when the TELEX connection fails; the provider setting is no longer reset after 5 minutes - @TCdr
 1. [A380X/FIRE] Option to extend the FIRE TEST warnings and lights for a few seconds after the button is released - @TCdr
 1. [A380X/ISIS] Second ISIS as Standby Navigation Display (SND): heading rose, track, ground speed and position - @TCdr
+1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
 
 ## 2024.1.0
 
