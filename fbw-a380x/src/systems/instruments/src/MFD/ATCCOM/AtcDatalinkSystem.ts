@@ -18,7 +18,7 @@ import {
 } from '@datalink/common';
 import { FmsRouterMessages, RouterFmsMessages } from '@datalink/router';
 import { MessageStorage } from './MessageStorage';
-import { isDialogueOpen, MsgRecordEntry, msgRecordEntries } from './MsgRecord';
+import { isDialogueOpen, MsgRecordEntry, msgRecordEntries, msgRecordPrintLines, wrapMsgRecordText } from './MsgRecord';
 import { RequestFrame, RequestFrameId, requestElements } from './RequestFrames';
 import { FrameComposer } from './FrameComposer';
 import {
@@ -284,6 +284,16 @@ export class AtcDatalinkSystem implements Instrument {
       }
     });
 
+    // PRINT of the mailbox: the message displayed in the mailbox (FCOM DSC-46-10-20-60), as the ATC function prints it
+    this.sub.on('atcPrintMessage').handle((text) => {
+      // No flatMap in the Coherent GT runtime
+      const lines: string[] = [];
+      text
+        .split('\n')
+        .filter((line) => line.trim() !== '')
+        .forEach((line) => lines.push(...wrapMsgRecordText(line, 64)));
+      this.printLines('ATC COM MAILBOX', lines);
+    });
     this.sub.on('atcMessageModify').handle((message) => {
       this.modifyMessage.set(Conversion.messageDataToMessage(message) as CpdlcMessage);
       this.modifyRequests.set(this.modifyRequests.get() + 1);
@@ -588,12 +598,33 @@ export class AtcDatalinkSystem implements Instrument {
     }
   }
 
+  /** PRINT ALL of the MSG RECORD/LIST page: prints all the saved messages (FCOM DSC-46-10-20-30 P 29) */
+  public printAllMsgRecord(): void {
+    this.printLines('ATC COM MSG RECORD', msgRecordPrintLines(this.msgRecord.get()));
+  }
+
   /**
-   * The PRINT buttons of the MSG RECORD pages: their messages are not printed (PRINTER NOT AVAIL, FCOM
-   * DSC-46-10-20-40 R)
+   * PRINT of the MSG RECORD/ZOOM page: prints the message (FCOM DSC-46-10-40 P 30)
+   * @param entry the message
    */
-  public print(): void {
-    this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
+  public printMsgRecordEntry(entry: MsgRecordEntry): void {
+    this.printLines('ATC COM MSG RECORD', msgRecordPrintLines([entry]));
+  }
+
+  /**
+   * Prints lines on the cockpit printer, PRINTER NOT AVAIL without it
+   * @param title the title of the printout
+   * @param lines the lines
+   */
+  private printLines(title: string, lines: readonly string[]): void {
+    const printer = this.printer();
+    if (!printer) {
+      this.addMessageToQueue(ATCCOMMessages.printerNotAvail);
+      return;
+    }
+    if (lines.length > 0) {
+      printer.printText(title, lines);
+    }
   }
 
   /** The cockpit printer on the pedestal (the FMS printer of the master FMC), null when not available */

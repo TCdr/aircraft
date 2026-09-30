@@ -422,9 +422,8 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         this.publisher.pub('loadMessage', uid, true, false);
         break;
       case 'PRINT':
-        // No cockpit printer
-        this.printNotAvail.set(true);
-        window.setTimeout(() => this.printNotAvail.set(false), SYSTEM_STATUS_DURATION);
+        // The message on the cockpit printer (PRINTING in the information messages area)
+        this.publisher.pub('printMessage', uid, true, false);
         break;
       default:
         break;
@@ -450,9 +449,6 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
       this.updateBlock(block.uid, (b) => (b.dueTo = reason));
     }
   }
-
-  /** PRINT NOT AVAIL: printing requested from the mailbox while the printer is not available */
-  private readonly printNotAvail = Subject.create(false);
 
   private renderLine(index: number): VNode {
     // The segments are colored spans: the line is filled by hand when it changes
@@ -534,11 +530,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
     const pages = this.visibleBlock.map((block) => (block ? pageCount(block) : 1));
     const multiplePages = pages.map((count) => (count > 1 ? 'inherit' : 'hidden'));
     const pageNumber = this.visibleBlock.map((block) => (block ? `${block.page + 1}/${pageCount(block)}` : ''));
-    const information = MappedSubject.create(
-      ([block, print]) => (print ? 'PRINT NOT AVAIL' : block ? informationText(block.status) : ''),
-      this.visibleBlock,
-      this.printNotAvail,
-    );
+    const information = this.visibleBlock.map((block) => (block ? informationText(block.status) : ''));
     const systemInformation = this.systemStatus.map((s) => informationText(s));
     this.subs.push(
       noMessage,
