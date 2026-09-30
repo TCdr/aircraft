@@ -1,6 +1,12 @@
-﻿// Copyright (c) 2024 FlyByWire Simulations
+﻿// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { AbnormalProcedure, ChecklistLineStyle, FMS_PRED_UNRELIABLE_CHECKLIST_ITEM } from '..';
+import {
+  AbnormalProcedure,
+  ChecklistLineStyle,
+  DeferredProcedure,
+  DeferredProcedureType,
+  FMS_PRED_UNRELIABLE_CHECKLIST_ITEM,
+} from '..';
 
 // Convention for IDs:
 // First two digits: ATA chapter
@@ -307,3 +313,16 @@ export const EcamAbnormalSensedAta80Rest: { [n: number]: AbnormalProcedure } = {
   },
 };
 // FIXME: add deferred proc for BOMB ON BOARD
+
+export const EcamDeferredProcAta80Rest: { [n: number]: DeferredProcedure } = {
+  990700001: {
+    // A380 FCOM PRO-ABN-ECAM-10-80 MISC CKPT WINDOW CRACKED, DEFERRED PROC
+    fromAbnormalProcs: ['990900002'],
+    title: 'CKPT WINDOW CRACKED',
+    type: DeferredProcedureType.AT_TOP_OF_DESCENT,
+    items: [
+      { name: 'INTERNAL LAYER CRACKED OR NO DIAGNOSIS', sensed: false, condition: true },
+      { name: 'CABIN ALT MODE', labelNotCompleted: 'AUTO', sensed: true, level: 1 },
+    ],
+  },
+};
