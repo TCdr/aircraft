@@ -175,6 +175,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
 1. [A380X/FUEL] Jettison valve stuck open and stuck closed failures with their ECAM alerts and STATUS - @TCdr
 1. [A380X/FWS] STATUS limitations, INOP SYS and INFO of the L/G, cockpit window and fuel leak/balancing ABN PROC procedures - @TCdr
+1. [A380X/OANS] The Captain and F/O OANS each display their own airport - @TCdr
 
 ## 2024.1.0
 
