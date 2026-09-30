@@ -141,7 +141,11 @@ export class FlightManagementComputer implements FmcInterface {
     this.#mfdReference = value;
 
     if (value) {
-      this.dataManager = new DataManager(this.bus, value, { latLonFormat: LatLonFormatType.ExtendedFormat });
+      this.dataManager = new DataManager(this.bus, value, {
+        latLonFormat: LatLonFormatType.ExtendedFormat,
+        // A380 FCOM DSC-22-FMS-10-40-10 and DSC-22-FMS-20-30 P 117: 50 pilot-stored waypoints
+        storedWaypointLimit: { max: 50, inUse: (waypoint) => this.isWaypointInFlightPlans(waypoint) },
+      });
     }
   }
 
@@ -774,6 +778,26 @@ export class FlightManagementComputer implements FmcInterface {
    * Checks whether a waypoint is currently in use
    * @param waypoint the waypoint to look for
    */
+  /**
+   * Whether a waypoint is part of the active, temporary or secondary flight plans (a pilot-stored waypoint that cannot
+   * be deleted to make room in the pilot-stored elements database)
+   * @param waypoint the waypoint
+   * @returns true when a flight plan uses it
+   */
+  private isWaypointInFlightPlans(waypoint: Waypoint): boolean {
+    const fps = this.flightPlanInterface;
+    const plans = [
+      fps.hasActive ? fps.active : undefined,
+      fps.hasTemporary ? fps.temporary : undefined,
+      ...[1, 2, 3].map((sec) => (fps.hasSecondary(sec) ? fps.secondary(sec) : undefined)),
+    ];
+    return plans.some(
+      (plan) =>
+        plan !== undefined &&
+        plan.allLegs.some((leg) => leg.isDiscontinuity === false && leg.terminatesWithWaypoint(waypoint)),
+    );
+  }
+
   async isWaypointInUse(waypoint: Waypoint): Promise<boolean> {
     // Check in all flight plans
     if (this.flightPlanInterface.hasActive) {
@@ -1968,7 +1992,8 @@ export class FlightManagementComputer implements FmcInterface {
         this.addMessageToQueue(NXFictionalMessages.notYetImplemented, undefined, undefined);
         break;
       case FmsErrorType.ListOf99InUse:
-        this.addMessageToQueue(NXSystemMessages.listOf99InUse, undefined, undefined);
+        // The A380 pilot-stored waypoints database holds 50 waypoints, all used by the flight plans
+        this.addMessageToQueue(NXSystemMessages.wptsMaxAllInUse, undefined, undefined);
         break;
       default:
         break;

@@ -172,6 +172,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [GSX] External power becomes available when the GSX external power synchronization is enabled with the GSX GPU or jetway already connected - @TCdr
 1. [A380X/ATC] LOAD-SEC3 button of the ATC mailbox: a route clearance or a crossing constraint (altitude, speed, time) received by CPDLC is loaded in SEC 3, with the rejected elements on the REJECTED ATC INFO page - @TCdr
 1. [A380X/ATCCOM] Print from the SD ATC mailbox and from the MFD ATC COM MSG RECORD pages - @TCdr
+1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
 
 ## 2024.1.0
 

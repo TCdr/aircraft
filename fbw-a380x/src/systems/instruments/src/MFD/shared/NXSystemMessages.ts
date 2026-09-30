@@ -139,6 +139,8 @@ export const NXSystemMessages = {
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
+  // FCOM DSC-22-FMS-20-110: a new pilot-stored waypoint rejected, the 50 of the database are used
+  wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
   pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
   rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
   someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
