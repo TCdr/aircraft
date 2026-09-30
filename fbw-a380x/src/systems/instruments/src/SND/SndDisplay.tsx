@@ -63,6 +63,8 @@ export interface SndDisplayProps {
   fix: Subject<SndFixView | null>;
   /** 0 (dark) to 1 */
   brightness: Subject<number>;
+  /** The seconds left of the power-up tests of the ISIS unit, null out of the tests */
+  selfTest: Subject<number | null>;
 }
 
 /**
@@ -474,6 +476,17 @@ export class SndDisplay extends DisplayComponent<SndDisplayProps> {
             </>
           ))}
         </text>
+
+        {/* Power-up tests of the ISIS unit: INIT and the seconds left, as on the SFD */}
+        <g visibility={this.props.selfTest.map((s) => (s !== null ? 'inherit' : 'hidden'))}>
+          <rect x={150} y={332} width={180} height={40} class="snd-init" />
+          <text x={160} y={365} class="snd-flag-text snd-init-text">
+            INIT
+          </text>
+          <text x={325} y={365} text-anchor="end" class="snd-flag-text snd-init-text">
+            {this.props.selfTest.map((s) => (s !== null ? `${s}s` : ''))}
+          </text>
+        </g>
 
         {/* Brightness (+ and - pb) */}
         <rect x={0} y={0} width={512} height={512} class="snd-dimming" fill-opacity={this.dimming} />
