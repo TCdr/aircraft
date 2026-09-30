@@ -176,6 +176,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL] Jettison valve stuck open and stuck closed failures with their ECAM alerts and STATUS - @TCdr
 1. [A380X/FWS] STATUS limitations, INOP SYS and INFO of the L/G, cockpit window and fuel leak/balancing ABN PROC procedures - @TCdr
 1. [A380X/OANS] The Captain and F/O OANS each display their own airport - @TCdr
+1. [A380X/ISIS] The SND shows INIT during its power-up self-test, like the SFD - @TCdr
+1. [A380X/ISIS] SFD/SND reconfiguration with the MODE pb: each ISIS displays the SFD or the SND - @TCdr
 
 ## 2024.1.0
 
