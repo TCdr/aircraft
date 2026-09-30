@@ -109,6 +109,13 @@ abstract class GsxSync implements Instrument {
     this.stateJetway.sub(this.evaluateGsxPowerSource.bind(this));
     this.stateGpu.sub(this.evaluateGsxPowerSource.bind(this));
     this.stateDeparture.sub(this.evaluateGsxPowerSource.bind(this));
+
+    // The GSX GPU or jetway may already be connected when the sync is enabled in the flyPad: no GSX state changes then
+    NXDataStore.subscribeLegacy(SyncServices.POWER, (_, value) => {
+      if (value === '1') {
+        this.evaluateGsxPowerSource();
+      }
+    });
   }
 
   public onUpdate(): void {
