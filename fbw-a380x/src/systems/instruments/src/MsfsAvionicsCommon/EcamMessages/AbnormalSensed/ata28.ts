@@ -525,12 +525,21 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800054: {
     title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'JETTISON L VLV FAULT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'JETTISON R VLV FAULT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'JETTISON NOT AVAIL', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800055: {
     title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON VLV NOT CLOSED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800056: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L INR TK FWD+AFT PMPs FAULT',

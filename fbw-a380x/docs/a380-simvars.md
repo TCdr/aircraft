@@ -1483,6 +1483,19 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - Bool
   - The FQMS stopped the jettison (JTSN GW reached, or the transfer tanks empty), until both JETTISON pb-sw are OFF
 
+- A380X_FUEL_JETTISON_NOT_AVAIL
+  - Bool
+  - The jettison is selected (JETTISON ARM and ACTIVE pb-sw ON) but not available: both jettison valves failed closed
+
+- A380X_FUEL_JETTISON_{side}_VALVE_FAULT
+  - Bool
+  - {side} = L, R
+  - The jettison valve is failed in the closed position, found when the jettison was selected, until it is repaired
+
+- A380X_FUEL_JETTISON_VALVE_NOT_CLOSED
+  - Bool
+  - A jettison valve is open while the jettison is not in progress (valve failed open)
+
 - A32NX_FQMS_GROSS_WEIGHT
   - Arinc429<Kilogram>
   - The total weight of the aircraft
