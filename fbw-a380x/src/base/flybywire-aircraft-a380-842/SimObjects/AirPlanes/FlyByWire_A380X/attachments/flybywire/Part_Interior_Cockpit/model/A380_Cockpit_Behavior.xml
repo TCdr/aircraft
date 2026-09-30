@@ -1234,75 +1234,111 @@
                         <SEQ1_EMISSIVE_CODE>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</SEQ1_EMISSIVE_CODE>
                     </DefaultTemplateParameters>
 
+                    <!-- SFD/SND reconfiguration (FCOM DSC-34-10-20-20-10 P 2): the MODE pb of either ISIS goes to the next
+                         configuration (L:A380X_ISIS_CONFIGURATION); the other controls act on the display of their ISIS:
+                         SFD (legacy ISIS events, the MENU pb opens the bugs as the SFD MENU) or SND (ISIS_2 events) -->
                     <UseTemplate Name="FBW_ISIS_Knob_Template">
                         <ANIM_NAME>KNOB_ISIS_1_SET_SEL</ANIM_NAME>
                         <NODE_ID>KNOB_ISIS_1_SET_SEL</NODE_ID>
                         <ALTIMETER_INDEX>3</ALTIMETER_INDEX>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 !=</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SND_CONDITION>
                     </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Template">
+                    <UseTemplate Name="FBW_ISIS_Mode_Push_Template">
                         <NODE_ID>PUSH_ISIS_1_MODE</NODE_ID>
-                        <TOOLTIPID>Toggle ISI Bugs</TOOLTIPID>
-                        <BTN_ID>BUGS</BTN_ID>
-                        <ONLY_SEQ1 />
                     </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Template">
+                    <UseTemplate Name="FBW_ISIS_Unit_Push_Template">
                         <NODE_ID>PUSH_ISIS_1_LS_DIR</NODE_ID>
-                        <TOOLTIPID>Toggle LS scales</TOOLTIPID>
-                        <BTN_ID>LS</BTN_ID>
-                        <ONLY_SEQ1 />
+                        <TOOLTIPID>LS scales (SFD) / DIR TO (SND)</TOOLTIPID>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 !=</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SND_CONDITION>
+                        <SFD_CODE>(&gt;H:A32NX_ISIS_LS_PRESSED) (L:A32NX_ISIS_LS_ACTIVE) ! (&gt;L:A32NX_ISIS_LS_ACTIVE)</SFD_CODE>
+                        <SND_CODE>0 (&gt;H:A32NX_ISIS_2_LS_DIR_PRESSED)</SND_CODE>
+                        <SFD_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_LS_RELEASED)</SFD_LEAVE_CODE>
+                        <SND_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_2_LS_DIR_RELEASED)</SND_LEAVE_CODE>
                     </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Held_Template">
+                    <UseTemplate Name="FBW_ISIS_Unit_Push_Template">
                         <NODE_ID>PUSH_ISIS_1_PLUS</NODE_ID>
-                        <TOOLTIPID>Increase ISI brightness</TOOLTIPID>
-                        <BTN_ID>PLUS</BTN_ID>
-                        <ONLY_SEQ1 />
+                        <TOOLTIPID>Increase ISIS brightness</TOOLTIPID>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 !=</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SND_CONDITION>
+                        <SFD_CODE>0 (&gt;H:A32NX_ISIS_PLUS_PRESSED)</SFD_CODE>
+                        <SND_CODE>0 (&gt;H:A32NX_ISIS_2_PLUS_PRESSED)</SND_CODE>
+                        <SFD_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_PLUS_RELEASED)</SFD_LEAVE_CODE>
+                        <SND_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_2_PLUS_RELEASED)</SND_LEAVE_CODE>
                     </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Held_Template">
+                    <UseTemplate Name="FBW_ISIS_Unit_Push_Template">
                         <NODE_ID>PUSH_ISIS_1_MINUS</NODE_ID>
-                        <TOOLTIPID>Decrease ISI brightness</TOOLTIPID>
-                        <BTN_ID>MINUS</BTN_ID>
-                        <ONLY_SEQ1 />
+                        <TOOLTIPID>Decrease ISIS brightness</TOOLTIPID>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 !=</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SND_CONDITION>
+                        <SFD_CODE>0 (&gt;H:A32NX_ISIS_MINUS_PRESSED)</SFD_CODE>
+                        <SND_CODE>0 (&gt;H:A32NX_ISIS_2_MINUS_PRESSED)</SND_CODE>
+                        <SFD_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_MINUS_RELEASED)</SFD_LEAVE_CODE>
+                        <SND_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_2_MINUS_RELEASED)</SND_LEAVE_CODE>
                     </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Held_Template">
+                    <UseTemplate Name="FBW_ISIS_Unit_Push_Template">
                         <NODE_ID>PUSH_ISIS_1_MENU</NODE_ID>
-                        <TOOLTIPID>Reset ISI Attitude</TOOLTIPID>
-                        <BTN_ID>RST</BTN_ID>
-                        <ONLY_SEQ1 />
+                        <TOOLTIPID>ISIS menu (SFD bugs / SND menu)</TOOLTIPID>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 !=</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SND_CONDITION>
+                        <SFD_CODE>(&gt;H:A32NX_ISIS_BUGS_PRESSED) (L:A32NX_ISIS_BUGS_ACTIVE) ! (&gt;L:A32NX_ISIS_BUGS_ACTIVE)</SFD_CODE>
+                        <SND_CODE>0 (&gt;H:A32NX_ISIS_2_MENU_PRESSED)</SND_CODE>
+                        <SFD_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_BUGS_RELEASED)</SFD_LEAVE_CODE>
+                        <SND_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_2_MENU_RELEASED)</SND_LEAVE_CODE>
                     </UseTemplate>
 
-                    <!-- Second ISIS, Standby Navigation Display (SND) -->
-                    <UseTemplate Name="A32NX_ISIS_Push_Held_Template">
+                    <!-- Second ISIS: SND, SFD after the reconfiguration, or off -->
+                    <UseTemplate Name="FBW_ISIS_Mode_Push_Template">
                         <NODE_ID>PUSH_ISIS_2_MODE</NODE_ID>
-                        <TOOLTIPID>SND on / off</TOOLTIPID>
-                        <BTN_ID>2_MODE</BTN_ID>
-                        <ONLY_SEQ1 />
                     </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Held_Template">
-                        <NODE_ID>PUSH_ISIS_2_PLUS</NODE_ID>
-                        <TOOLTIPID>Increase SND brightness</TOOLTIPID>
-                        <BTN_ID>2_PLUS</BTN_ID>
-                        <ONLY_SEQ1 />
-                    </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Held_Template">
-                        <NODE_ID>PUSH_ISIS_2_MINUS</NODE_ID>
-                        <TOOLTIPID>Decrease SND brightness</TOOLTIPID>
-                        <BTN_ID>2_MINUS</BTN_ID>
-                        <ONLY_SEQ1 />
-                    </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Held_Template">
-                        <NODE_ID>PUSH_ISIS_2_MENU</NODE_ID>
-                        <TOOLTIPID>SND menu</TOOLTIPID>
-                        <BTN_ID>2_MENU</BTN_ID>
-                        <ONLY_SEQ1 />
-                    </UseTemplate>
-                    <UseTemplate Name="A32NX_ISIS_Push_Held_Template">
+                    <UseTemplate Name="FBW_ISIS_Unit_Push_Template">
                         <NODE_ID>PUSH_ISIS_2_LS_DIR</NODE_ID>
-                        <TOOLTIPID>SND DIR TO</TOOLTIPID>
-                        <BTN_ID>2_LS_DIR</BTN_ID>
-                        <ONLY_SEQ1 />
+                        <TOOLTIPID>LS scales (SFD) / DIR TO (SND)</TOOLTIPID>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 0 ==</SND_CONDITION>
+                        <SFD_CODE>(&gt;H:A32NX_ISIS_LS_PRESSED) (L:A32NX_ISIS_LS_ACTIVE) ! (&gt;L:A32NX_ISIS_LS_ACTIVE)</SFD_CODE>
+                        <SND_CODE>0 (&gt;H:A32NX_ISIS_2_LS_DIR_PRESSED)</SND_CODE>
+                        <SFD_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_LS_RELEASED)</SFD_LEAVE_CODE>
+                        <SND_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_2_LS_DIR_RELEASED)</SND_LEAVE_CODE>
                     </UseTemplate>
-                    <UseTemplate Name="FBW_ISIS_SND_Knob_Template">
+                    <UseTemplate Name="FBW_ISIS_Unit_Push_Template">
+                        <NODE_ID>PUSH_ISIS_2_PLUS</NODE_ID>
+                        <TOOLTIPID>Increase ISIS brightness</TOOLTIPID>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 0 ==</SND_CONDITION>
+                        <SFD_CODE>0 (&gt;H:A32NX_ISIS_PLUS_PRESSED)</SFD_CODE>
+                        <SND_CODE>0 (&gt;H:A32NX_ISIS_2_PLUS_PRESSED)</SND_CODE>
+                        <SFD_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_PLUS_RELEASED)</SFD_LEAVE_CODE>
+                        <SND_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_2_PLUS_RELEASED)</SND_LEAVE_CODE>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_ISIS_Unit_Push_Template">
+                        <NODE_ID>PUSH_ISIS_2_MINUS</NODE_ID>
+                        <TOOLTIPID>Decrease ISIS brightness</TOOLTIPID>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 0 ==</SND_CONDITION>
+                        <SFD_CODE>0 (&gt;H:A32NX_ISIS_MINUS_PRESSED)</SFD_CODE>
+                        <SND_CODE>0 (&gt;H:A32NX_ISIS_2_MINUS_PRESSED)</SND_CODE>
+                        <SFD_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_MINUS_RELEASED)</SFD_LEAVE_CODE>
+                        <SND_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_2_MINUS_RELEASED)</SND_LEAVE_CODE>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_ISIS_Unit_Push_Template">
+                        <NODE_ID>PUSH_ISIS_2_MENU</NODE_ID>
+                        <TOOLTIPID>ISIS menu (SFD bugs / SND menu)</TOOLTIPID>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 0 ==</SND_CONDITION>
+                        <SFD_CODE>(&gt;H:A32NX_ISIS_BUGS_PRESSED) (L:A32NX_ISIS_BUGS_ACTIVE) ! (&gt;L:A32NX_ISIS_BUGS_ACTIVE)</SFD_CODE>
+                        <SND_CODE>0 (&gt;H:A32NX_ISIS_2_MENU_PRESSED)</SND_CODE>
+                        <SFD_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_BUGS_RELEASED)</SFD_LEAVE_CODE>
+                        <SND_LEAVE_CODE>1 (&gt;H:A32NX_ISIS_2_MENU_RELEASED)</SND_LEAVE_CODE>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_ISIS_Knob_Template">
+                        <ANIM_NAME>KNOB_ISIS_2_SET_SEL</ANIM_NAME>
                         <NODE_ID>KNOB_ISIS_2_SET_SEL</NODE_ID>
+                        <ANIM_NAME_PUSH>KNOB_ISIS_2_SET_SEL_push</ANIM_NAME_PUSH>
+                        <ALTIMETER_INDEX>3</ALTIMETER_INDEX>
+                        <SFD_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 1 ==</SFD_CONDITION>
+                        <SND_CONDITION>(L:A380X_ISIS_CONFIGURATION, number) 0 ==</SND_CONDITION>
                     </UseTemplate>
                 </Component>
             </Component>
