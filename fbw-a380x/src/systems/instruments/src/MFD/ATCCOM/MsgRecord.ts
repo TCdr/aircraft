@@ -182,6 +182,26 @@ export function isDialogueOpen(dialogue: CpdlcMessage): boolean {
 }
 
 /** The lines of a text in lines of the given length, words kept whole (a word longer than a line is cut) */
+/**
+ * The printed lines of recorded messages (MSG RECORD PRINT ALL and ZOOM PRINT): for each message, its time, origin and
+ * status as on the MSG RECORD/LIST page, then its text, and an empty line between the messages
+ * @param entries the messages, in the order of the list
+ * @param length the characters of a printed line
+ * @returns the lines
+ */
+export function msgRecordPrintLines(entries: readonly MsgRecordEntry[], length = 64): string[] {
+  const lines: string[] = [];
+  entries.forEach((entry, i) => {
+    if (i > 0) {
+      lines.push('');
+    }
+    const header = `${entry.time} ${entry.direction} ${entry.station} CTL`;
+    lines.push(entry.status !== '' ? `${header.padEnd(length - entry.status.length - 1)} ${entry.status}` : header);
+    lines.push(...wrapMsgRecordText(entry.text, length));
+  });
+  return lines;
+}
+
 export function wrapMsgRecordText(text: string, length: number): string[] {
   const lines: string[] = [];
   let line = '';

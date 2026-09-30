@@ -103,7 +103,12 @@ export class MfdAtccomMsgRecordZoom extends DisplayComponent<AtccomMfdPageProps>
               578,
               <Button
                 label="PRINT"
-                onClick={() => this.props.atcService.print()}
+                onClick={() => {
+                  const entry = this.entry.get();
+                  if (entry) {
+                    this.props.atcService.printMsgRecordEntry(entry);
+                  }
+                }}
                 buttonStyle="width: 189px; height: 57px;"
               />,
             )}
