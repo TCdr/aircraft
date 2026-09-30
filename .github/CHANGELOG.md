@@ -109,6 +109,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EGPWS] Add the RAAS runway awareness callouts (approaching, on runway, on taxiway, distance remaining...) as an aircraft option in the flyPad - @TCdr
 1. [A380X/OANS] Show the RWY AHEAD advisory without a Navigraph airport map, from the sim's own runways - @TCdr
 1. [A380X/OANS] Display the default airport of the FCOM automatically: the current airport on ground, the origin, destination or alternate airport in flight within 20 NM and 5000 ft of it - @TCdr
+1. [A380X/OANS] The Captain and F/O OANS each display their own airport - @TCdr
 
 ## 2024.1.0
 
