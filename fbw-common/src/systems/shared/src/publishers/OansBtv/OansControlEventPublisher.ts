@@ -7,7 +7,11 @@ import { Position } from 'geojson';
 export interface OansControlEvents {
   nd_show_oans: { side: EfisSide; show: boolean };
   oans_performance_mode_hide: { side: EfisSide; hide: boolean };
-  oans_display_airport: string;
+  /**
+   * The airport displayed by the OANS of one side (A380 FCOM DSC-34-10-70-10: a Captain's and a First Officer's OANS,
+   * each on its onside ND); '' unloads it
+   */
+  oans_display_airport: { side: EfisSide; airport: string };
   oans_not_avail: boolean;
   oans_center_map_on: Position;
   oans_center_on_acft: boolean;
