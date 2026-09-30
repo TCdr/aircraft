@@ -24,6 +24,7 @@
   - [Landing Gear ATA 32](#landing-gear-ata-32)
   - [Lights ATA 33](#lights-ata-33)
   - [Surveillance ATA 34](#surveillance-ata-34)
+  - [Standby Instruments ATA 34](#standby-instruments-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
@@ -1857,6 +1858,18 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
     - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
       the GPWS / TAWS section of fbw-a32nx/docs/a320-simvars.md
+
+## Standby Instruments ATA 34
+
+- `L:A380X_ISIS_CONFIGURATION`
+    - Enum
+    - Set by the MODE pb of either ISIS, which goes to the next configuration (SFD/SND reconfiguration, A380 FCOM
+      DSC-34-10-20-20-10). The other ISIS controls act on the display of their ISIS.
+      | State | ISIS 1 | ISIS 2 |
+      |-------|--------|--------|
+      | 0     | SFD    | SND    |
+      | 1     | SND    | SFD    |
+      | 2     | SFD    | Off    |
 
 ## Bleed Air ATA 36
 

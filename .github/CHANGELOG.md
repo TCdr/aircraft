@@ -170,6 +170,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FIRE] Option to extend the FIRE TEST warnings and lights for a few seconds after the button is released - @TCdr
 1. [A380X/ISIS] Second ISIS as Standby Navigation Display (SND): heading rose, track, ground speed and position - @TCdr
 1. [A380X/ISIS] The SND shows INIT during its power-up self-test, like the SFD - @TCdr
+1. [A380X/ISIS] SFD/SND reconfiguration with the MODE pb: each ISIS displays the SFD or the SND - @TCdr
 
 ## 2024.1.0
 

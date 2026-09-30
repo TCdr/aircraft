@@ -1,10 +1,12 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useInteractionSimVar, useSimVar, useInteractionEvent } from '@flybywiresim/fbw-sdk-react';
 import { render } from '../Common';
+import { getRootElement } from '../Common/defaults';
+import { isisDisplay, isisUnitOf, ISIS_CONFIGURATION_VAR } from '@shared/IsisConfiguration';
 import { ISISDisplayUnit } from './ISISDisplayUnit';
 import { ArtificialHorizonDisplay } from './ArtificialHorizonDisplay';
 import { BugSetupDisplay } from './BugSetupDisplay';
@@ -13,8 +15,14 @@ import { AutoBrightness } from './AutoBrightness';
 
 import './style.scss';
 
+/** The ISIS of this gauge: the SFD is drawn on both, on the one that displays it (SFD/SND reconfiguration) */
+const isisUnit = isisUnitOf(getRootElement().getAttribute('url'), 1);
+
 export const ISISDisplay: React.FC = () => {
   const [ias] = useSimVar('AIRSPEED INDICATED', 'knots', 200);
+  const [configuration] = useSimVar(ISIS_CONFIGURATION_VAR, 'number', 200);
+  // Hidden but running: the display unit keeps its state (no new power-up tests when the SFD changes ISIS)
+  const visibility = isisDisplay(isisUnit, configuration) === 'SFD' ? 'visible' : 'hidden';
   const [bugsActive, setBugsActive] = useInteractionSimVar('L:A32NX_ISIS_BUGS_ACTIVE', 'Boolean', [
     'H:A32NX_ISIS_BUGS_PRESSED',
     'H:A32NX_ISIS_BUGS_RELEASED',
@@ -102,17 +110,19 @@ export const ISISDisplay: React.FC = () => {
   });
 
   return (
-    <AutoBrightness bugsActive={bugsActive}>
-      <ISISDisplayUnit indicatedAirspeed={ias.toFixed(2)}>
-        <svg id="ISIS" className="ISIS" version="1.1" viewBox="0 0 512 512">
-          {bugsActive ? (
-            <BugSetupDisplay bugs={bugs} selectedIndex={selectedIndex} />
-          ) : (
-            <ArtificialHorizonDisplay indicatedAirspeed={ias.toFixed(2)} bugs={bugs} />
-          )}
-        </svg>
-      </ISISDisplayUnit>
-    </AutoBrightness>
+    <div style={{ visibility, width: '100%', height: '100%' }}>
+      <AutoBrightness bugsActive={bugsActive}>
+        <ISISDisplayUnit indicatedAirspeed={ias.toFixed(2)}>
+          <svg id="ISIS" className="ISIS" version="1.1" viewBox="0 0 512 512">
+            {bugsActive ? (
+              <BugSetupDisplay bugs={bugs} selectedIndex={selectedIndex} />
+            ) : (
+              <ArtificialHorizonDisplay indicatedAirspeed={ias.toFixed(2)} bugs={bugs} />
+            )}
+          </svg>
+        </ISISDisplayUnit>
+      </AutoBrightness>
+    </div>
   );
 };
 
