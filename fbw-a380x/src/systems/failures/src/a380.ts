@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 import { FailureDefinition } from '@flybywiresim/fbw-sdk';
 
@@ -128,6 +128,11 @@ export const A380Failure = Object.freeze({
   Sec3: 27005,
   Fcdc1: 27006,
   Fcdc2: 27007,
+
+  FuelJettisonValveLeftStuckClosed: 28000,
+  FuelJettisonValveRightStuckClosed: 28001,
+  FuelJettisonValveLeftStuckOpen: 28002,
+  FuelJettisonValveRightStuckOpen: 28003,
 
   GreenReservoirLeak: 29000,
   YellowReservoirLeak: 29001,
@@ -316,6 +321,11 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [27, A380Failure.Sec3, 'SEC 3'],
   [27, A380Failure.Fcdc1, 'FCDC 1'],
   [27, A380Failure.Fcdc2, 'FCDC 2'],
+
+  [28, A380Failure.FuelJettisonValveLeftStuckClosed, 'Jettison valve L stuck closed'],
+  [28, A380Failure.FuelJettisonValveRightStuckClosed, 'Jettison valve R stuck closed'],
+  [28, A380Failure.FuelJettisonValveLeftStuckOpen, 'Jettison valve L stuck open'],
+  [28, A380Failure.FuelJettisonValveRightStuckOpen, 'Jettison valve R stuck open'],
 
   [29, A380Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A380Failure.YellowReservoirLeak, 'Yellow reservoir leak'],
