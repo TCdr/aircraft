@@ -228,7 +228,7 @@ export class MfdAtccomMsgRecordList extends DisplayComponent<AtccomMfdPageProps>
               <Button
                 label="PRINT ALL"
                 disabled={this.noStoredMsg}
-                onClick={() => this.props.atcService.print()}
+                onClick={() => this.props.atcService.printAllMsgRecord()}
                 buttonStyle="width: 189px; height: 57px;"
               />,
             )}
