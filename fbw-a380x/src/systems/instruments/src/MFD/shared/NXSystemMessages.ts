@@ -118,6 +118,10 @@ export const NXSystemMessages = {
   notAllowedInNav: new TypeIMessage('NOT ALLOWED IN NAV'),
   notInDatabase: new TypeIMessage('NOT IN DATABASE'),
   receivedCpnyFplnNotValid: new TypeIIMessage('RECEIVED COMPANY F-PLN NOT VALID', false),
+  // FCOM DSC-22-FMS-20-110: the received ATC F-PLN (LOAD-SEC3 of the mailbox) loaded, partially loaded, or rejected
+  atcFplnInsertedSec3: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3', false),
+  atcFplnInsertedSec3Rejected: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3\nREJECTED INFO SEE SEC / INDEX', false),
+  receivedAtcMsgNotValid: new TypeIIMessage('RECEIVED ATC MSG NOT VALID', false),
   rwyLsDisagree: new TypeIIMessage('RUNWAY / LS DISAGREE', true),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPD'),
   tdReached: new TypeIIMessage('T/D REACHED'),

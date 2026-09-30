@@ -318,9 +318,14 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
     this.props.dataStore.wasModified,
   );
 
-  /** FCOM P 322: REJECTED ATC INFO on the SEC 3 panel, for an ATC flight plan */
-  private readonly rejectedAtcInfoVisibility = this.props.dataStore.flags.map((flags) =>
-    this.secIndex === 3 && BitFlags.isAll(flags, FlightPlanFlags.AtcFlightPlan) ? 'inherit' : 'hidden',
+  /** FCOM P 322 and P 336: REJECTED ATC INFO on the SEC 3 panel, for an ATC flight plan with rejected ATC data */
+  private readonly rejectedAtcInfoVisibility = MappedSubject.create(
+    ([flags, rejected]) =>
+      this.secIndex === 3 && BitFlags.isAll(flags, FlightPlanFlags.AtcFlightPlan) && rejected.length > 0
+        ? 'inherit'
+        : 'hidden',
+    this.props.dataStore.flags,
+    this.props.fmcService.master.atcRejectedElements,
   );
 
   private readonly cpnyFplnButtonLabel = CpnyFplnButtonUtils.cpnyFplnButtonLabel(this.props.fmcService.master);
