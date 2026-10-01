@@ -286,7 +286,7 @@ export const M3Segmented: FC<{ options: M3SegmentOption[]; className?: string }>
 
 interface M3ButtonProps {
   onClick: () => void;
-  tone?: 'primary' | 'warn' | 'outline';
+  tone?: 'primary' | 'tonal' | 'warn' | 'outline' | 'danger';
   disabled?: boolean;
   className?: string;
 }
@@ -297,6 +297,8 @@ export const M3Button: FC<M3ButtonProps> = ({ onClick, tone = 'primary', disable
     primary: 'bg-m3-primary text-m3-on-primary hover:brightness-110',
     warn: 'bg-m3-warn-container text-m3-on-warn hover:brightness-110',
     outline: 'border border-m3-outline bg-transparent text-m3-text hover:bg-m3-tile',
+    tonal: 'bg-m3-primary-container text-m3-on-primary-container hover:brightness-110',
+    danger: 'border border-m3-on-error bg-transparent text-m3-on-error hover:bg-m3-error-container',
   }[tone];
   return (
     <button

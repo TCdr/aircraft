@@ -100,6 +100,7 @@
     },
     "Overview": {
       "ActualGW": "Actual GW",
+      "Capacity": "Capacity",
       "Engines": "Engines",
       "MMO": "MMO",
       "MRW": "MRW",
@@ -109,8 +110,10 @@
       "MaximumFuelCapacity": "Maximum Fuel Capacity",
       "MaximumPassengers": "Maximum Passengers",
       "Model": "Model",
+      "Performance": "Performance",
       "Range": "Range",
-      "Title": "Overview"
+      "Title": "Overview",
+      "Weights": "Weights"
     },
     "Printouts": {
       "DeleteAll": "Delete All",
