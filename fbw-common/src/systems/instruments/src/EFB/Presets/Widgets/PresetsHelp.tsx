@@ -6,7 +6,7 @@ import React from 'react';
 import { ScrollableContainer } from '../../UtilComponents/ScrollableContainer';
 
 export const PresetsHelp = () => (
-  <div className="my-4 h-content-section-reduced rounded-lg border-2 border-theme-accent p-4">
+  <div className="h-content-section-reduced overflow-hidden rounded-2xl bg-m3-card p-6">
     <ScrollableContainer height={52}>
       <div className="w-full space-y-2 ">
         <h1 className="font-bold">Lighting</h1>

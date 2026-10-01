@@ -5,7 +5,9 @@
 /* eslint-disable max-len */
 import React, { useEffect, useState } from 'react';
 import { useSimVar } from '@flybywiresim/fbw-sdk-react';
-import { PromptModal, ScrollableContainer, t, Toggle, useModals } from '@flybywiresim/flypad';
+import { PromptModal, t, Toggle, useModals } from '@flybywiresim/flypad';
+import { AirplaneEngines, AirplaneFill, LightningCharge, Snow, Truck, X } from 'react-bootstrap-icons';
+import { M3Button, M3Card } from '../../UtilComponents/Material/Material';
 
 import { useViewListenerEvent } from '../../Utils/listener';
 
@@ -46,12 +48,12 @@ export const AircraftPresets = () => {
 
   // These need to align with the IDs in the Presets C++ WASM.
   // WASM: src/presets/src/Aircraft/AircraftProcedures.h
-  const AircraftPresetsList: { index: number; name: string }[] = [
-    { index: 1, name: `${t('Presets.AircraftStates.ColdDark')}` }, // 'Cold & Dark' },
-    { index: 2, name: `${t('Presets.AircraftStates.Powered')}` },
-    { index: 3, name: `${t('Presets.AircraftStates.ReadyPushback')}` },
-    { index: 4, name: `${t('Presets.AircraftStates.ReadyTaxi')}` },
-    { index: 5, name: `${t('Presets.AircraftStates.ReadyTakeoff')}` },
+  const AircraftPresetsList: { index: number; name: string; icon: React.ReactElement }[] = [
+    { index: 1, name: `${t('Presets.AircraftStates.ColdDark')}`, icon: <Snow size={44} /> }, // 'Cold & Dark' },
+    { index: 2, name: `${t('Presets.AircraftStates.Powered')}`, icon: <LightningCharge size={44} /> },
+    { index: 3, name: `${t('Presets.AircraftStates.ReadyPushback')}`, icon: <Truck size={44} /> },
+    { index: 4, name: `${t('Presets.AircraftStates.ReadyTaxi')}`, icon: <AirplaneEngines size={44} /> },
+    { index: 5, name: `${t('Presets.AircraftStates.ReadyTakeoff')}`, icon: <AirplaneFill size={44} /> },
   ];
 
   // Sets the LVAR to tell the wasm to load the preset into the aircraft
@@ -80,54 +82,80 @@ export const AircraftPresets = () => {
   }, [loadPresetVar]);
 
   return (
-    <div className="mt-4 h-content-section-reduced space-y-4 rounded-lg border-2 border-theme-accent p-4">
-      <div className="flex h-20 flex-row items-center justify-center space-x-2 rounded-md border-2 border-theme-accent p-2">
+    <div className="flex h-content-section-reduced flex-col overflow-hidden">
+      <M3Card className="mb-4 shrink-0 px-5 py-4">
         {loadPresetVar ? (
           <>
-            <div className="h-full w-full content-center justify-center overflow-hidden rounded-md bg-theme-accent">
-              <span className="h-1/2 pl-3 pt-1 text-xl">
-                {t('Presets.AircraftStates.CurrentProcedureStep')} : {currentStepDescription}
+            <div className="flex flex-row items-center">
+              <div className="flex min-w-0 grow flex-col">
+                <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">
+                  {`${t('Presets.AircraftStates.Loading')} · ${AircraftPresetsList[loadPresetVar - 1]?.name ?? ''}`}
+                </span>
+                <span className="mt-1 truncate text-base font-bold text-white">
+                  {`${t('Presets.AircraftStates.CurrentProcedureStep')}: ${currentStepDescription}`}
+                </span>
+              </div>
+              <span className="ml-4 text-2xl font-bold text-m3-on-primary-container">
+                {`${(loadPresetProgress * 100).toFixed(0)} %`}
               </span>
+              <M3Button tone="outline" className="ml-4 !h-12" onClick={() => handleCancel()}>
+                <X size={22} />
+                <span className="text-base font-bold text-current">{t('Presets.AircraftStates.Cancel')}</span>
+              </M3Button>
+            </div>
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-m3-tile">
               <div
-                className="h-1/2 bg-theme-highlight"
+                className="h-2 rounded-full bg-m3-primary"
                 style={{ width: `${loadPresetProgress * 100}%`, transition: 'width 0.1s ease' }}
               />
             </div>
-
-            <div
-              className="flex h-full items-center rounded-md border-2 border-theme-highlight bg-theme-highlight px-4 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-              onClick={() => handleCancel()}
-            >
-              {t('Presets.AircraftStates.Cancel')}
-            </div>
           </>
         ) : (
-          <>
+          <span className={`text-base font-semibold ${simOnGround ? 'text-m3-text' : 'text-m3-on-warn'}`}>
             {simOnGround
               ? t('Presets.AircraftStates.SelectAPresetToLoad')
               : t('Presets.AircraftStates.TheAircraftMustBeOnTheGroundToLoadAPreset')}
-          </>
+          </span>
         )}
+      </M3Card>
+
+      <div className="flex min-h-0 flex-1 flex-row">
+        {AircraftPresetsList.map(({ index, name, icon }) => {
+          const loading = loadPresetVar === index;
+          const disabled = !simOnGround || (loadPresetVar && loadPresetVar !== index);
+          return (
+            <button
+              type="button"
+              key={index}
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-3xl px-3 transition duration-100 ${
+                index > 1 ? 'ml-3' : ''
+              } ${loading ? 'bg-m3-primary-container text-m3-on-primary-container' : 'bg-m3-card text-m3-text hover:bg-m3-tile'} ${
+                disabled ? 'pointer-events-none opacity-40' : ''
+              }`}
+              onClick={() => handleLoadPreset(index)}
+            >
+              <span
+                className={`flex h-24 w-24 items-center justify-center rounded-full ${loading ? 'bg-m3-tonal' : 'bg-m3-tile'}`}
+              >
+                {icon}
+              </span>
+              <span className="mt-5 text-center text-xl font-bold leading-tight text-current">{name}</span>
+              {loading && (
+                <span className="mt-1 text-sm font-bold text-current">{`${t('Presets.AircraftStates.Loading')}…`}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      <ScrollableContainer innerClassName="space-y-4" height={42}>
-        {AircraftPresetsList.map(({ index, name }) => (
-          <div
-            key={index}
-            className={`flex h-24 items-center justify-center rounded-md border-2 border-theme-accent bg-theme-accent text-theme-text transition duration-100 hover:bg-theme-highlight hover:text-theme-body ${(!simOnGround || (loadPresetVar && loadPresetVar !== index)) && 'pointer-events-none opacity-50'}`}
-            onClick={() => handleLoadPreset(index)}
-          >
-            {name}
-          </div>
-        ))}
-      </ScrollableContainer>
-
-      <div className="mt-14 rounded-md border-2 border-theme-accent px-4 py-1">
-        <div className="flex h-10 flex-row items-center">
-          <div className="pr-3">{t('Presets.AircraftStates.ExpediteLoading')}</div>
+      <M3Card className="mt-4 shrink-0">
+        <div className="flex h-14 flex-row items-center px-5">
+          <span className="grow text-base font-semibold text-m3-text">
+            {t('Presets.AircraftStates.ExpediteLoading').replace(/:$/, '')}
+          </span>
           <Toggle value={!!loadPresetsExpedite} onToggle={(value) => setLoadPresetsExpedite(value ? 1 : 0)} />
         </div>
-      </div>
+      </M3Card>
     </div>
   );
 };

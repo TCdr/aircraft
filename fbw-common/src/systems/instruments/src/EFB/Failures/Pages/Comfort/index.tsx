@@ -16,35 +16,43 @@ interface ATAChapterCardProps {
   ataNumber: AtaChapterNumber;
   title: string;
   description: string;
+  className?: string;
 }
 
-const ATAChapterCard = ({ ataNumber, description, title }: ATAChapterCardProps) => {
+const ATAChapterCard = ({ ataNumber, description, title, className }: ATAChapterCardProps) => {
   const { activeFailures, allFailures } = useFailuresOrchestrator();
 
   const hasActiveFailure = allFailures
     .filter((it) => it.ata === ataNumber)
     .some((it) => activeFailures.has(it.identifier));
 
+  const chapterFailures = allFailures.filter((it) => it.ata === ataNumber);
+  const activeCount = chapterFailures.filter((it) => activeFailures.has(it.identifier)).length;
+
   return (
     <Link
       to={`/failures/comfort/${pathify(ataNumber.toString())}`}
-      className="flex flex-row space-x-4 rounded-md border-2 border-transparent p-2 transition duration-100 hover:border-theme-highlight"
+      className={`flex flex-row rounded-2xl bg-m3-card p-3 transition duration-100 hover:bg-m3-tile ${className ?? ''}`}
     >
-      <div className="flex w-1/5 items-center justify-center rounded-md bg-theme-accent font-title text-5xl font-bold">
-        {`ATA ${ataNumber}`}
-
-        <div className="relative -right-7 bottom-16 inline-block h-0 w-0 fill-current text-utility-red">
-          {hasActiveFailure && (
-            <svg style={{ width: '30px', height: '30px' }} viewBox="0 0 20 20">
-              <circle cx={10} cy={10} r={5} />
-            </svg>
-          )}
-        </div>
+      <div className="relative mr-4 flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-xl bg-m3-tile">
+        <span className="text-xs font-bold tracking-widest text-m3-muted">ATA</span>
+        <span className="text-3xl font-bold leading-none text-white">{ataNumber}</span>
+        {hasActiveFailure && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-m3-on-error" />}
       </div>
 
-      <div className="w-3/4 space-y-2">
-        <h1 className="font-bold">{title}</h1>
-        <p>{description}</p>
+      <div className="flex min-w-0 grow flex-col">
+        <div className="flex flex-row items-center">
+          <span className="grow truncate text-base font-bold text-white">{title}</span>
+          {activeCount > 0 && (
+            <span className="ml-2 whitespace-nowrap rounded-full bg-m3-error-container px-2 py-1 text-xs font-bold leading-none text-m3-on-error">
+              {`${activeCount} ${t('Failures.Active')}`}
+            </span>
+          )}
+          <span className="ml-2 whitespace-nowrap rounded-full bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
+            {`${chapterFailures.length} ${t('Failures.Failures')}`}
+          </span>
+        </div>
+        <p className="mt-1 line-clamp-2 text-xs leading-snug text-m3-muted">{description}</p>
       </div>
     </Link>
   );
@@ -59,10 +67,11 @@ interface ComfortUIProps {
 export const ComfortUI = ({ filteredChapters, allChapters, failures }: ComfortUIProps) => (
   <>
     <Route exact path="/failures/comfort">
-      <ScrollableContainer height={48}>
-        {filteredChapters.map((chapter) => (
+      <ScrollableContainer innerClassName="grid grid-cols-2" height={44}>
+        {filteredChapters.map((chapter, index) => (
           <ATAChapterCard
             key={chapter}
+            className={`${index % 2 !== 0 ? 'ml-3' : ''} ${index >= 2 ? 'mt-3' : ''}`}
             ataNumber={chapter}
             title={AtaChaptersTitle[chapter]}
             description={AtaChaptersDescription[chapter]}
@@ -70,11 +79,8 @@ export const ComfortUI = ({ filteredChapters, allChapters, failures }: ComfortUI
         ))}
       </ScrollableContainer>
       {filteredChapters.length === 0 && (
-        <div
-          className="mt-4 flex items-center justify-center rounded-md border-2 border-theme-accent"
-          style={{ height: '48rem' }}
-        >
-          <p>{t('Failures.NoItemsFound')}</p>
+        <div className="flex h-96 items-center justify-center rounded-2xl bg-m3-card-low">
+          <p className="text-lg text-m3-muted">{t('Failures.NoItemsFound')}</p>
         </div>
       )}
     </Route>

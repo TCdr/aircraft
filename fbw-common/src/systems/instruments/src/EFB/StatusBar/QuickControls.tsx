@@ -2,20 +2,20 @@
 // Copyright (c) 2023-2024 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, forwardRef, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { FC, ReactNode, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import {
-  BrightnessHigh,
   BrightnessHighFill,
-  ChevronCompactDown,
-  ChevronCompactUp,
   ClockHistory,
   Compass,
+  Dash,
   Gear,
   Keyboard,
   LightbulbFill,
   MoonFill,
   PersonCheck,
+  Plus,
   Power,
+  Toggles,
   Wifi,
   WifiOff,
 } from 'react-bootstrap-icons';
@@ -36,135 +36,112 @@ import { TooltipWrapper } from '../UtilComponents/TooltipWrapper';
 import { PowerStates, usePower } from '../Efb';
 import { PiAirplaneLandingFill } from 'react-icons/pi';
 import { AircraftContext } from '@flybywiresim/flypad';
+import { M3Switch } from '../UtilComponents/Material/Material';
 
 interface QuickSettingsButtonProps {
   onClick: () => void;
-  className?: string;
+  'aria-label': string;
+  /** The red look of the power button */
+  danger?: boolean;
 }
 
-const QuickSettingsButton: FC<QuickSettingsButtonProps> = forwardRef<HTMLButtonElement, QuickSettingsButtonProps>(
-  ({ onClick, className, children, ...rest }, ref) => (
-    <button
-      ref={ref}
-      type="button"
-      onClick={onClick}
-      className={`flex h-12 w-12 items-center justify-center rounded-full
-                    bg-theme-body text-theme-text transition duration-100 hover:border-4 hover:border-theme-highlight
-                    ${className ?? ''}`}
-      {...rest}
-    >
-      {children}
-    </button>
-  ),
-);
-
-interface QuickSettingsToggleProps {
-  onClick: () => void;
-  icon: React.ReactElement;
-  className?: string;
-  width?: number;
-}
-
-const QuickSettingsToggle: FC<QuickSettingsToggleProps> = forwardRef<HTMLButtonElement, QuickSettingsToggleProps>(
-  ({ onClick, icon, className, children, width, ...rest }, ref) => (
-    <button
-      ref={ref}
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-center justify-center rounded-md
-                   bg-theme-body text-theme-text transition duration-100 hover:border-4 hover:border-theme-highlight
-                   ${className ?? ''}`}
-      style={{ width: `${width ?? 130}px`, height: '100px' }}
-      {...rest}
-    >
-      {icon}
-      <div className="mt-1 flex flex-col items-center text-sm text-inherit">{children}</div>
-    </button>
-  ),
-);
-
-interface LargeQuickSettingsToggleProps {
-  onClick: () => void;
-  icon: React.ReactElement;
-  className?: string;
-  width?: number;
-  infoBox?: React.ReactElement;
-}
-
-const LargeQuickSettingsToggle: FC<LargeQuickSettingsToggleProps> = forwardRef<
-  HTMLButtonElement,
-  LargeQuickSettingsToggleProps
->(({ onClick, icon, className, children, width, infoBox, ...rest }, ref) => (
+/** A square icon button of the header of the card */
+const QuickSettingsButton: FC<QuickSettingsButtonProps> = ({ onClick, danger, children, ...rest }) => (
   <button
-    ref={ref}
+    type="button"
+    aria-label={rest['aria-label']}
+    onClick={onClick}
+    className={`flex h-11 w-11 items-center justify-center rounded-xl border bg-m3-ground transition duration-100 ${
+      danger
+        ? 'border-m3-on-error text-m3-on-error hover:bg-m3-error-container'
+        : 'border-m3-outline text-m3-text hover:bg-m3-tile'
+    }`}
+  >
+    {children}
+  </button>
+);
+
+/** How a tile shows its state: on (tonal), in progress (amber), failed (red) or off */
+type QuickTileTone = 'on' | 'busy' | 'error' | 'off';
+
+const QUICK_TILE_TONES: Record<QuickTileTone, string> = {
+  on: 'bg-m3-primary-container text-m3-on-primary-container',
+  busy: 'bg-m3-warn-container text-m3-on-warn',
+  error: 'bg-m3-error-container text-m3-on-error',
+  off: 'bg-m3-tile text-m3-text hover:brightness-110',
+};
+
+interface QuickSettingsTileProps {
+  onClick: () => void;
+  icon: ReactNode;
+  name: string;
+  /** The state line under the name (Connected, Armed...) */
+  state?: string;
+  tone?: QuickTileTone;
+}
+
+/** A tile of the grid: an icon, the name and its state */
+const QuickSettingsTile: FC<QuickSettingsTileProps> = ({ onClick, icon, name, state, tone = 'off' }) => (
+  <button
     type="button"
     onClick={onClick}
-    className={`relative flex flex-col items-center justify-center
-                   rounded-md border-2 border-transparent bg-theme-body text-theme-text transition duration-100 hover:border-current
-                   ${className ?? ''}`}
-    style={{ width: `${width ?? 275}px`, height: '100px' }}
-    {...rest}
+    className={`flex h-24 w-full flex-col items-start rounded-2xl p-3 text-left transition duration-100 ${QUICK_TILE_TONES[tone]}`}
   >
-    <div className="flex flex-row items-center justify-center">
-      <div className="mr-5 flex flex-col items-center justify-center">
-        {icon}
-        <div className="mt-1 text-sm text-inherit">{children}</div>
-      </div>
-      <div className="flex flex-col items-center justify-center">{infoBox}</div>
-    </div>
+    <span className="flex shrink-0">{icon}</span>
+    <span className="mt-2 text-sm font-bold leading-tight text-current">{name}</span>
+    {state && <span className="mt-1 text-xs font-semibold text-current opacity-80">{state}</span>}
   </button>
-));
+);
 
-interface LargeQuickSettingsIncrementerProps {
-  onDownClick?: () => void;
-  onUpClick?: () => void;
-  icon: React.ReactElement;
-  className?: string;
-  width?: number;
-  infoBox?: React.ReactElement;
+interface QuickSliderProps {
+  icon: ReactNode;
+  name: string;
+  value: number;
+  min: number;
+  onChange: (value: number) => void;
+  auto: boolean;
+  onAuto: () => void;
+  autoTooltip: string;
 }
 
-const LargeQuickSettingsIncrementer: FC<LargeQuickSettingsIncrementerProps> = forwardRef<
-  HTMLButtonElement,
-  LargeQuickSettingsIncrementerProps
->(({ icon, className, children, width, infoBox, onDownClick, onUpClick, ...rest }, ref) => (
-  <div
-    className={`flex flex-col items-center justify-center
-                   rounded-md bg-theme-body text-theme-text transition duration-100
-                   ${className ?? ''}`}
-    style={{ width: `${width ?? 275}px`, height: '100px' }}
-    {...rest}
-  >
-    <div className="flex flex-row items-center justify-center">
-      <button
-        ref={ref}
-        type="button"
-        onClick={onDownClick}
-        className={`mr-5 flex flex-col items-center
-                        justify-center rounded-md border-2 border-transparent bg-theme-accent px-4 py-2 text-theme-text transition duration-100 hover:border-current
-                        ${className ?? ''}`}
-      >
-        <ChevronCompactDown size={24} />
-      </button>
-      <div className="mr-5 flex flex-col items-center justify-center">
-        {icon}
-        <div className="mt-1 text-sm text-inherit">{children}</div>
-      </div>
-      <div className="flex flex-col items-center justify-center">{infoBox}</div>
+/** A brightness: its name and Auto switch, then the slider and the value (the slider is dimmed while on Auto) */
+const QuickSlider: FC<QuickSliderProps> = ({ icon, name, value, min, onChange, auto, onAuto, autoTooltip }) => {
+  // The slider gives up the focus once released, so that the keyboard (the END key of the external view) does not
+  // move it
+  const sliderRef = useRef<any>(null);
 
-      <button
-        ref={ref}
-        type="button"
-        onClick={onUpClick}
-        className={`ml-5 flex flex-col items-center justify-center
-                        rounded-md border-2 border-transparent bg-theme-accent px-4 py-2 text-theme-text transition duration-100 hover:border-current
-                        ${className ?? ''}`}
-      >
-        <ChevronCompactUp size={24} />
-      </button>
+  return (
+    <div className="mb-4 flex flex-col">
+      <div className="flex flex-row items-center">
+        <span className="mr-3 flex text-m3-muted">{icon}</span>
+        <span className="grow text-sm font-bold text-m3-text">{name}</span>
+        <span className="mr-3 text-sm font-semibold text-m3-muted">{t('QuickControls.Auto')}</span>
+        <TooltipWrapper text={autoTooltip}>
+          <div>
+            <M3Switch value={auto} onToggle={onAuto} aria-label={`${name} ${t('QuickControls.Auto')}`} />
+          </div>
+        </TooltipWrapper>
+      </div>
+      <div className={`mt-2 flex flex-row items-center ${auto ? 'opacity-40' : ''}`}>
+        <div className="grow">
+          <Slider
+            disabled={auto}
+            ref={sliderRef}
+            value={value}
+            min={min}
+            max={100}
+            onChange={onChange}
+            onAfterChange={() => sliderRef.current && sliderRef.current.blur()}
+            railStyle={{ backgroundColor: 'var(--m3-tile)' }}
+            trackStyle={{ backgroundColor: 'var(--m3-primary)' }}
+            handleStyle={{ backgroundColor: '#ffffff', borderColor: '#ffffff' }}
+          />
+        </div>
+        <span className="ml-3 w-12 text-right text-sm font-bold text-m3-text">{`${value.toFixed(0)} %`}</span>
+      </div>
     </div>
-  </div>
-));
+  );
+};
 
 export const QuickControlsPane = ({
   setShowQuickControlsPane,
@@ -204,14 +181,6 @@ export const QuickControlsPane = ({
   const [simBridgeClientState, setSimBridgeClientState] = useState<SimBridgeClientState>(
     ClientState.getInstance().getSimBridgeClientState(),
   );
-
-  // To prevent keyboard input (esp. END key for external view) to change
-  // the slider position. This is accomplished by a
-  // onAfterChange={() => sliderRef.current.blur()}
-  // in the Slider component props.
-  const brightnessSliderRef = useRef<any>(null);
-
-  const cabinBrightnessSliderRef = useRef<any>(null);
 
   const handleAutoBrightness = () => {
     setUsingAutobrightness(usingAutobrightness ? 0 : 1);
@@ -278,16 +247,16 @@ export const QuickControlsPane = ({
     setPauseAtTod(!pauseAtTod);
   };
 
-  const simBridgeButtonStyle = useMemo<string>((): string => {
+  const simBridgeTileTone = useMemo<QuickTileTone>((): QuickTileTone => {
     switch (simBridgeClientState) {
       case SimBridgeClientState.CONNECTED:
-        return 'bg-utility-green text-theme-body';
+        return 'on';
       case SimBridgeClientState.CONNECTING:
-        return 'bg-utility-amber text-theme-body';
+        return 'busy';
       case SimBridgeClientState.OFFLINE:
-        return 'bg-utility-red text-theme-body';
+        return 'error';
       default:
-        return '';
+        return 'off';
     }
   }, [simBridgeClientState]);
 
@@ -304,12 +273,14 @@ export const QuickControlsPane = ({
     }
   }, [simBridgeClientState]);
 
-  const pauseAtTodStyle = useMemo<string>((): string => {
+  const pauseAtTodTone = useMemo<QuickTileTone>((): QuickTileTone => {
     if (pauseAtTod && todArmed) {
-      return 'bg-utility-green';
-    } else if (pauseAtTod) {
-      return 'bg-utility-amber';
+      return 'on';
     }
+    if (pauseAtTod) {
+      return 'busy';
+    }
+    return 'off';
   }, [pauseAtTod, todArmed]);
 
   const pauseAtTodString = useMemo<string>((): string => {
@@ -322,11 +293,6 @@ export const QuickControlsPane = ({
     }
   }, [pauseAtTod, todArmed]);
 
-  const oskButtonStyle = useMemo<string>(
-    (): string => (autoOSK ? 'bg-utility-green text-theme-body' : 'text-theme-text'),
-    [autoOSK],
-  );
-
   useInterval(() => {
     setSimBridgeClientState(ClientState.getInstance().getSimBridgeClientState());
   }, 200);
@@ -334,173 +300,157 @@ export const QuickControlsPane = ({
   return (
     <>
       <div
-        className="absolute left-0 top-0 z-30 h-screen w-screen bg-theme-body opacity-70"
+        className="absolute left-0 top-0 z-30 h-screen w-screen bg-black opacity-40"
         onMouseDown={() => setShowQuickControlsPane(false)}
       />
 
       <div
-        className="absolute z-40 rounded-md border border-theme-secondary bg-theme-accent p-6 transition duration-100"
-        style={{ top: '40px', right: '50px', width: '620px' }}
+        className="absolute z-40 flex flex-col rounded-3xl bg-m3-card p-5 shadow-2xl"
+        style={{ top: '48px', right: '16px', width: '460px' }}
       >
-        <div className="mb-5 flex flex-row items-center justify-end">
-          <span className="mr-auto">
-            <TooltipWrapper text={t('QuickControls.TT.Settings')}>
-              <QuickSettingsButton onClick={handleSettings}>
-                <Gear size={24} />
-              </QuickSettingsButton>
-            </TooltipWrapper>
+        <div className="mb-5 flex flex-row items-center">
+          <span className="grow text-xs font-bold uppercase tracking-widest text-m3-muted">
+            {t('QuickControls.Title')}
           </span>
-
-          <TooltipWrapper text={t('QuickControls.TT.Sleep')}>
-            <QuickSettingsButton onClick={handleSleep}>
-              <MoonFill size={20} />
-            </QuickSettingsButton>
+          <TooltipWrapper text={t('QuickControls.TT.Settings')}>
+            <div>
+              <QuickSettingsButton onClick={handleSettings} aria-label={t('QuickControls.TT.Settings')}>
+                <Gear size={20} />
+              </QuickSettingsButton>
+            </div>
           </TooltipWrapper>
-
+          <TooltipWrapper text={t('QuickControls.TT.Sleep')}>
+            <div className="ml-2">
+              <QuickSettingsButton onClick={handleSleep} aria-label={t('QuickControls.TT.Sleep')}>
+                <MoonFill size={18} />
+              </QuickSettingsButton>
+            </div>
+          </TooltipWrapper>
           <TooltipWrapper text={t('QuickControls.TT.PowerButton')}>
-            <QuickSettingsButton onClick={handlePower} className="ml-4">
-              <Power size={24} />
-            </QuickSettingsButton>
+            <div className="ml-4">
+              <QuickSettingsButton onClick={handlePower} danger aria-label={t('QuickControls.TT.PowerButton')}>
+                <Power size={20} />
+              </QuickSettingsButton>
+            </div>
           </TooltipWrapper>
         </div>
-        <div className="mb-5 flex flex-row items-center justify-between">
-          <div className={`flex flex-row items-center ${usingAutobrightness && 'opacity-30'}`}>
-            <TooltipWrapper text={t('QuickControls.TT.Brightness')}>
-              <div className="mr-4 flex w-[80px] flex-row items-center text-theme-text">
-                <BrightnessHighFill size={24} />
-                <span className="pointer-events-none ml-2 text-inherit">
-                  {`${usingAutobrightness ? brightness.toFixed(0) : brightnessSetting}%`}
-                </span>
-              </div>
-              <div>
-                <Slider
-                  disabled={usingAutobrightness === 1}
-                  ref={brightnessSliderRef}
-                  value={usingAutobrightness ? brightness : brightnessSetting}
-                  min={1}
-                  max={100}
-                  onChange={setBrightnessSetting}
-                  onAfterChange={() => brightnessSliderRef.current && brightnessSliderRef.current.blur()}
-                  className="rounded-md"
-                  style={{ width: '380px', height: '50px', padding: '0' }}
-                  trackStyle={{ backgroundColor: 'var(--color-highlight)', height: '50px' }}
-                  railStyle={{ backgroundColor: 'var(--color-body)', height: '50px' }}
-                  handleStyle={{ top: '13px', height: '0px', width: '0px' }}
+
+        <TooltipWrapper text={t('QuickControls.TT.Brightness')}>
+          <div>
+            <QuickSlider
+              icon={<BrightnessHighFill size={18} />}
+              name={t('QuickControls.Brightness')}
+              value={usingAutobrightness ? brightness : brightnessSetting}
+              min={1}
+              onChange={setBrightnessSetting}
+              auto={usingAutobrightness === 1}
+              onAuto={handleAutoBrightness}
+              autoTooltip={t('QuickControls.TT.AutoBrightness')}
+            />
+          </div>
+        </TooltipWrapper>
+        {aircraftContext.settingsPages.sim.cabinLighting && (
+          <TooltipWrapper text={t('QuickControls.TT.CabinLighting')}>
+            <div>
+              <QuickSlider
+                icon={<LightbulbFill size={18} />}
+                name={t('QuickControls.CabinLighting')}
+                value={usingCabinAutobrightness ? cabinAutoBrightness : cabinManualBrightness}
+                min={0}
+                onChange={setCabinManualBrightness}
+                auto={usingCabinAutobrightness === 1}
+                onAuto={handleCabinAutoBrightness}
+                autoTooltip={t('QuickControls.TT.CabinAutoBrightness')}
+              />
+            </div>
+          </TooltipWrapper>
+        )}
+
+        <div className="mt-1 flex flex-row">
+          <TooltipWrapper text={t('QuickControls.TT.AlignAdirs')}>
+            <div className="flex-1">
+              <QuickSettingsTile
+                onClick={handleAlignADIRS}
+                icon={<Compass size={22} />}
+                name={t('QuickControls.AlignAdirs')}
+              />
+            </div>
+          </TooltipWrapper>
+          <TooltipWrapper text={t('QuickControls.TT.FinishBoarding')}>
+            <div className="ml-3 flex-1">
+              <QuickSettingsTile
+                onClick={handleInstantBoarding}
+                icon={<PersonCheck size={22} />}
+                name={t('QuickControls.FinishBoarding')}
+              />
+            </div>
+          </TooltipWrapper>
+          <TooltipWrapper text={t('QuickControls.TT.SimBridge')}>
+            <div className="ml-3 flex-1">
+              <QuickSettingsTile
+                onClick={handleResetSimBridgeConnection}
+                icon={
+                  simBridgeClientState === SimBridgeClientState.CONNECTED ? <Wifi size={22} /> : <WifiOff size={22} />
+                }
+                name={t('QuickControls.SimBridge')}
+                state={simBridgeButtonStateString}
+                tone={simBridgeTileTone}
+              />
+            </div>
+          </TooltipWrapper>
+        </div>
+
+        <div className="mt-3 flex flex-row">
+          <TooltipWrapper text={t('QuickControls.TT.OnScreenKeyboard')}>
+            <div className="flex-1">
+              <QuickSettingsTile
+                onClick={handleToggleOsk}
+                icon={<Keyboard size={22} />}
+                name={t('QuickControls.OnScreenKeyboard')}
+                state={autoOSK ? t('QuickControls.On') : t('QuickControls.Off')}
+                tone={autoOSK ? 'on' : 'off'}
+              />
+            </div>
+          </TooltipWrapper>
+          {aircraftContext.settingsPages.realism.pauseOnTod && (
+            <TooltipWrapper text={t('QuickControls.TT.PauseAtTod')}>
+              <div className="ml-3 flex-1">
+                <QuickSettingsTile
+                  onClick={handleTogglePauseAtTod}
+                  icon={<PiAirplaneLandingFill size={22} />}
+                  name={t('QuickControls.PauseAtTod')}
+                  state={pauseAtTodString}
+                  tone={pauseAtTodTone}
                 />
               </div>
             </TooltipWrapper>
-          </div>
-          <TooltipWrapper text={t('QuickControls.TT.AutoBrightness')}>
-            <button
-              type="button"
-              onClick={handleAutoBrightness}
-              className={`ml-4 flex items-center justify-center rounded-md
-                                                    bg-theme-body text-theme-text transition duration-100
-                                                    hover:border-4 hover:border-theme-highlight ${usingAutobrightness === 1 ? 'bg-utility-green text-theme-body' : ''}`}
-              style={{ width: '80px', height: '50px' }}
-            >
-              <BrightnessHigh size={24} />
-            </button>
-          </TooltipWrapper>
-        </div>
-        {/* Cabin Lighting */}
-        {aircraftContext.settingsPages.sim.cabinLighting && (
-          <div className="mb-5 flex flex-row items-center justify-between">
-            <div className={`flex flex-row items-center ${usingCabinAutobrightness && 'opacity-30'}`}>
-              <TooltipWrapper text={t('QuickControls.TT.CabinLighting')}>
-                <div className="mr-4 flex w-[80px] flex-row items-center text-theme-text">
-                  <LightbulbFill size={24} />
-                  <span className="pointer-events-none ml-2 text-inherit">
-                    {`${usingCabinAutobrightness ? cabinAutoBrightness.toFixed(0) : cabinManualBrightness}%`}
-                  </span>
-                </div>
-                <div>
-                  <Slider
-                    disabled={usingCabinAutobrightness === 1}
-                    ref={cabinBrightnessSliderRef}
-                    value={usingCabinAutobrightness ? cabinAutoBrightness : cabinManualBrightness}
-                    min={0}
-                    max={100}
-                    onChange={setCabinManualBrightness}
-                    onAfterChange={() => cabinBrightnessSliderRef.current && cabinBrightnessSliderRef.current.blur()}
-                    className="rounded-md"
-                    style={{ width: '380px', height: '50px', padding: '0' }}
-                    trackStyle={{ backgroundColor: 'var(--color-highlight)', height: '50px' }}
-                    railStyle={{ backgroundColor: 'var(--color-body)', height: '50px' }}
-                    handleStyle={{ top: '13px', height: '0px', width: '0px' }}
-                  />
-                </div>
-              </TooltipWrapper>
-            </div>
-            <TooltipWrapper text={t('QuickControls.TT.CabinAutoBrightness')}>
-              <button
-                type="button"
-                onClick={handleCabinAutoBrightness}
-                className={`ml-4 flex items-center justify-center rounded-md
-                                                    bg-theme-body text-theme-text transition duration-100
-                                                    hover:border-4 hover:border-theme-highlight ${usingCabinAutobrightness === 1 ? 'bg-utility-green text-theme-body' : ''}`}
-                style={{ width: '80px', height: '50px' }}
-              >
-                <LightbulbFill size={24} />
-              </button>
-            </TooltipWrapper>
-          </div>
-        )}
-        {/* Quick Settings Button */}
-        {/* First Row */}
-        <div className="mb-5 flex flex-row items-center justify-between">
-          <TooltipWrapper text={t('QuickControls.TT.AlignAdirs')}>
-            <QuickSettingsToggle onClick={handleAlignADIRS} icon={<Compass size={42} />}>
-              {t('QuickControls.AlignAdirs')}
-            </QuickSettingsToggle>
-          </TooltipWrapper>
-          <TooltipWrapper text={t('QuickControls.TT.FinishBoarding')}>
-            <QuickSettingsToggle onClick={handleInstantBoarding} icon={<PersonCheck size={42} />}>
-              {t('QuickControls.FinishBoarding')}
-            </QuickSettingsToggle>
-          </TooltipWrapper>
-          <TooltipWrapper text={t('QuickControls.TT.SimBridge')}>
-            <QuickSettingsToggle
-              onClick={handleResetSimBridgeConnection}
-              icon={
-                simBridgeClientState === SimBridgeClientState.CONNECTED ? <Wifi size={42} /> : <WifiOff size={42} />
-              }
-              className={simBridgeButtonStyle}
-            >
-              {t('QuickControls.SimBridge')} <br />
-              {simBridgeButtonStateString}
-            </QuickSettingsToggle>
-          </TooltipWrapper>
-
-          <TooltipWrapper text={t('QuickControls.TT.OnScreenKeyboard')}>
-            <QuickSettingsToggle onClick={handleToggleOsk} icon={<Keyboard size={42} />} className={oskButtonStyle}>
-              {t('QuickControls.OnScreenKeyboard')}
-            </QuickSettingsToggle>
-          </TooltipWrapper>
-        </div>
-        {/* Second Row */}
-        <div className="flex flex-row items-center justify-between">
-          {aircraftContext.settingsPages.realism.pauseOnTod && (
-            <TooltipWrapper text={t('QuickControls.TT.PauseAtTod')}>
-              <LargeQuickSettingsToggle
-                onClick={handleTogglePauseAtTod}
-                icon={<PiAirplaneLandingFill size={42} />}
-                className={pauseAtTodStyle}
-              >
-                {t('QuickControls.PauseAtTod')} <br />
-                {pauseAtTodString}
-              </LargeQuickSettingsToggle>
-            </TooltipWrapper>
           )}
           <TooltipWrapper text={t('QuickControls.TT.Simrate')}>
-            <LargeQuickSettingsIncrementer
-              onDownClick={decreaseSimrate}
-              onUpClick={increaseSimrate}
-              icon={<ClockHistory size={42} />}
-              infoBox={<span>{`${simRate}x`}</span>}
-            >
-              {t('QuickControls.Simrate')}
-            </LargeQuickSettingsIncrementer>
+            <div className="ml-3 flex h-24 flex-1 flex-col rounded-2xl bg-m3-tile p-3 text-m3-text">
+              <span className="flex shrink-0">
+                <ClockHistory size={22} />
+              </span>
+              <span className="mt-2 text-sm font-bold leading-tight text-m3-text">{t('QuickControls.Simrate')}</span>
+              <div className="mt-1 flex flex-row items-center">
+                <button
+                  type="button"
+                  aria-label="-"
+                  onClick={decreaseSimrate}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-m3-outline bg-transparent text-m3-text hover:bg-m3-card"
+                >
+                  <Dash size={16} />
+                </button>
+                <span className="mx-1 grow text-center text-sm font-bold text-m3-text">{`${simRate}×`}</span>
+                <button
+                  type="button"
+                  aria-label="+"
+                  onClick={increaseSimrate}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-m3-outline bg-transparent text-m3-text hover:bg-m3-card"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
           </TooltipWrapper>
         </div>
       </div>
@@ -515,12 +465,17 @@ export const QuickControls = () => {
     <>
       <TooltipWrapper text={t('StatusBar.TT.QuickControls')}>
         <div
+          className={`flex h-8 w-11 items-center justify-center rounded-full transition duration-100 ${
+            showQuickControlsPane
+              ? 'bg-m3-primary-container text-m3-on-primary-container'
+              : 'text-m3-text hover:bg-m3-tile'
+          }`}
           onClick={(ev) => {
             ev.stopPropagation();
             setShowQuickControlsPane((old) => !old);
           }}
         >
-          <Gear size={26} />
+          <Toggles size={20} />
         </div>
       </TooltipWrapper>
       {showQuickControlsPane && <QuickControlsPane setShowQuickControlsPane={setShowQuickControlsPane} />}
