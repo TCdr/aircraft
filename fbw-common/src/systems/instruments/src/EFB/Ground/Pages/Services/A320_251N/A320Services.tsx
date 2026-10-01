@@ -38,20 +38,22 @@ import {
   useEventBus,
 } from '@flybywiresim/flypad';
 import { GsxServiceId, GsxServiceLook, gsxServiceLook, useGsxRemote } from '../GsxRemote';
-import { GsxServicesPanel, triggerGsxService } from '../GsxServicesPanel';
+import { GsxServicesPanel, gsxServiceStatus, triggerGsxService } from '../GsxServicesPanel';
 
 interface ServiceButtonWrapperProps {
   className?: string;
   xl?: number;
   xr?: number;
-  y: number;
+  y?: number;
+  /** In the flow of its parent instead of at an absolute position */
+  inline?: boolean;
 }
 
 // This groups buttons and sets a border and divider line
-const ServiceButtonWrapper: FC<ServiceButtonWrapperProps> = ({ children, className, xl, xr, y }) => (
+const ServiceButtonWrapper: FC<ServiceButtonWrapperProps> = ({ children, className, xl, xr, y, inline }) => (
   <div
     className={`flex flex-col divide-y-2 divide-theme-accent overflow-hidden rounded-xl border-2 border-theme-accent ${className}`}
-    style={{ position: 'absolute', left: xl, right: xr, top: y }}
+    style={inline ? undefined : { position: 'absolute', left: xl, right: xr, top: y }}
   >
     {children}
   </div>
@@ -105,6 +107,10 @@ interface GroundServiceButtonProps {
   state: ServiceButtonState;
   onClick: () => void;
   className?: string;
+  /** What GSX does with the service, under the name */
+  caption?: string;
+  /** The progress of the GSX service, 0 to 1 (a bar under the name) */
+  progress?: number | null;
 }
 
 // Button styles based on ServiceButtonState enum
@@ -118,18 +124,34 @@ const buttonsStyles: Record<ServiceButtonState, string> = {
   [ServiceButtonState.RELEASED]: 'text-white bg-amber-600 border-amber-600 pointer-events-none',
 };
 
-const GroundServiceButton: React.FC<GroundServiceButtonProps> = ({ children, name, state, onClick, className }) => {
+const GroundServiceButton: React.FC<GroundServiceButtonProps> = ({
+  children,
+  name,
+  state,
+  onClick,
+  className,
+  caption,
+  progress,
+}) => {
   if (state === ServiceButtonState.HIDDEN) {
     return <></>;
   }
 
   return (
     <div
-      className={`flex cursor-pointer flex-row items-center space-x-6 p-6 ${buttonsStyles[state]} ${className}`}
+      className={`flex cursor-pointer flex-col p-6 ${buttonsStyles[state]} ${className}`}
       onClick={state === ServiceButtonState.DISABLED ? undefined : onClick}
     >
-      {children}
-      <h1 className="shrink-0 text-2xl font-medium text-current">{name}</h1>
+      <div className="flex flex-row items-center space-x-6">
+        {children}
+        <h1 className="shrink-0 text-2xl font-medium text-current">{name}</h1>
+      </div>
+      {caption && <span className="mt-1 text-base text-current opacity-80">{caption}</span>}
+      {progress !== undefined && progress !== null && (
+        <div className="mt-2 h-1.5 w-full rounded bg-black/30">
+          <div className="h-1.5 rounded bg-current" style={{ width: `${Math.round(progress * 100)}%` }} />
+        </div>
+      )}
     </div>
   );
 };
@@ -143,9 +165,26 @@ export const A320Services: React.FC = () => {
   // GSX link: the service buttons request the GSX services (GSX Remote API) instead of the sim ground vehicles; GSX
   // loads the baggage with the boarding, on the GSX panel
   const [gsxLinkSetting, setGsxLinkSetting] = usePersistentNumberProperty('GSX_SERVICES_LINK', 0);
+  const [, setGsxFuelSync] = usePersistentNumberProperty('GSX_FUEL_SYNC', 0);
+  const [, setGsxPayloadSync] = usePersistentNumberProperty('GSX_PAYLOAD_SYNC', 0);
   const gsxLinked = gsxLinkSetting === 1;
-  const gsx = useGsxRemote(gsxLinked);
+  const gsx = useGsxRemote();
   const gsxReady = gsxLinked && gsx.connected && gsx.gsxRunning;
+  // Linking also turns on the flyPad's GSX fuel and payload syncs (Settings > 3rd party), so the fuel and the
+  // passengers follow the GSX services
+  const setGsxLink = (linked: boolean) => {
+    setGsxLinkSetting(linked ? 1 : 0);
+    if (linked) {
+      setGsxFuelSync(1);
+      setGsxPayloadSync(1);
+    }
+  };
+  const gsxStatus = (button: ServiceButton): { text: string; progress: number | null } => {
+    const gsxService = gsxReady ? GSX_SERVICE_OF_BUTTON[button] : undefined;
+    return gsxService !== undefined
+      ? gsxServiceStatus(gsx.services.find((s) => s.id === gsxService))
+      : { text: '', progress: null };
+  };
   const shownState = (button: ServiceButton, state: ServiceButtonState): ServiceButtonState => {
     if (!gsxReady) {
       return state;
@@ -624,12 +663,6 @@ export const A320Services: React.FC = () => {
 
   return (
     <div className="relative h-content-section-reduced">
-      <GsxServicesPanel
-        className="absolute bottom-0 left-1/2 z-10 w-80 -translate-x-1/2"
-        linked={gsxLinked}
-        onLinkChange={(v) => setGsxLinkSetting(v ? 1 : 0)}
-        gsx={gsx}
-      />
       <GroundServiceOutline
         cabinLeftStatus={cabinLeftDoorOpen >= 1.0}
         cabinRightStatus={cabinRightDoorOpen >= 1.0}
@@ -652,6 +685,8 @@ export const A320Services: React.FC = () => {
         <GroundServiceButton
           name={t('Ground.Services.JetBridge')}
           state={shownState(ServiceButton.JetBridge, jetWayButtonState)}
+          caption={gsxStatus(ServiceButton.JetBridge).text || undefined}
+          progress={gsxStatus(ServiceButton.JetBridge).progress}
           onClick={() => handleButtonClick(ServiceButton.JetBridge)}
         >
           <PersonPlusFill size={36} />
@@ -661,6 +696,8 @@ export const A320Services: React.FC = () => {
         <GroundServiceButton
           name={t('Ground.Services.Stairs')}
           state={shownState(ServiceButton.Stairs, stairsButtonState)}
+          caption={gsxStatus(ServiceButton.Stairs).text || undefined}
+          progress={gsxStatus(ServiceButton.Stairs).progress}
           onClick={() => handleButtonClick(ServiceButton.Stairs)}
         >
           <PersonPlusFill size={36} />
@@ -713,43 +750,49 @@ export const A320Services: React.FC = () => {
         )}
       </ServiceButtonWrapper>
 
-      <ServiceButtonWrapper xl={900} y={24} className="">
-        {/* CABIN DOOR */}
-        <GroundServiceButton
-          name={t('Ground.Services.DoorFwd')}
-          state={boarding2DoorButtonState}
-          onClick={() => handleButtonClick(ServiceButton.CabinRightDoor)}
-        >
-          <DoorClosedFill size={36} />
-        </GroundServiceButton>
+      {/* The right-hand group, with the GSX panel under it */}
+      <div className="absolute flex w-80 flex-col space-y-3" style={{ left: 900, top: 24 }}>
+        <ServiceButtonWrapper inline className="">
+          {/* CABIN DOOR */}
+          <GroundServiceButton
+            name={t('Ground.Services.DoorFwd')}
+            state={boarding2DoorButtonState}
+            onClick={() => handleButtonClick(ServiceButton.CabinRightDoor)}
+          >
+            <DoorClosedFill size={36} />
+          </GroundServiceButton>
 
-        {/* GPU */}
-        <GroundServiceButton
-          name={t('Ground.Services.ExternalPower')}
-          state={shownState(ServiceButton.Gpu, gpuButtonState)}
-          onClick={() => handleButtonClick(ServiceButton.Gpu)}
-        >
-          <PlugFill size={36} />
-        </GroundServiceButton>
+          {/* GPU */}
+          <GroundServiceButton
+            name={t('Ground.Services.ExternalPower')}
+            state={shownState(ServiceButton.Gpu, gpuButtonState)}
+            caption={gsxStatus(ServiceButton.Gpu).text || undefined}
+            progress={gsxStatus(ServiceButton.Gpu).progress}
+            onClick={() => handleButtonClick(ServiceButton.Gpu)}
+          >
+            <PlugFill size={36} />
+          </GroundServiceButton>
 
-        {/* CARGO DOOR */}
-        <GroundServiceButton
-          name={t('Ground.Services.DoorCargo')}
-          state={cargo1DoorButtonState}
-          onClick={() => handleButtonClick(ServiceButton.CargoDoor)}
-        >
-          <DoorClosedFill size={36} />
-        </GroundServiceButton>
+          {/* CARGO DOOR */}
+          <GroundServiceButton
+            name={t('Ground.Services.DoorCargo')}
+            state={cargo1DoorButtonState}
+            onClick={() => handleButtonClick(ServiceButton.CargoDoor)}
+          >
+            <DoorClosedFill size={36} />
+          </GroundServiceButton>
 
-        {/* BAGGAGE TRUCK */}
-        <GroundServiceButton
-          name={t('Ground.Services.BaggageTruck')}
-          state={shownState(ServiceButton.BaggageTruck, baggageButtonState)}
-          onClick={() => handleButtonClick(ServiceButton.BaggageTruck)}
-        >
-          <HandbagFill size={36} />
-        </GroundServiceButton>
-      </ServiceButtonWrapper>
+          {/* BAGGAGE TRUCK */}
+          <GroundServiceButton
+            name={t('Ground.Services.BaggageTruck')}
+            state={shownState(ServiceButton.BaggageTruck, baggageButtonState)}
+            onClick={() => handleButtonClick(ServiceButton.BaggageTruck)}
+          >
+            <HandbagFill size={36} />
+          </GroundServiceButton>
+        </ServiceButtonWrapper>
+        <GsxServicesPanel linked={gsxLinked} onLinkChange={setGsxLink} gsx={gsx} />
+      </div>
 
       <ServiceButtonWrapper xl={900} y={600} className="">
         {/* AFT DOOR */}
@@ -765,6 +808,8 @@ export const A320Services: React.FC = () => {
         <GroundServiceButton
           name={t('Ground.Services.CateringTruck')}
           state={shownState(ServiceButton.CateringTruck, cateringButtonState)}
+          caption={gsxStatus(ServiceButton.CateringTruck).text || undefined}
+          progress={gsxStatus(ServiceButton.CateringTruck).progress}
           onClick={() => handleButtonClick(ServiceButton.CateringTruck)}
         >
           <ArchiveFill size={36} />
@@ -774,6 +819,8 @@ export const A320Services: React.FC = () => {
         <GroundServiceButton
           name={t('Ground.Services.FuelTruck')}
           state={shownState(ServiceButton.FuelTruck, fuelTruckButtonState)}
+          caption={gsxStatus(ServiceButton.FuelTruck).text || undefined}
+          progress={gsxStatus(ServiceButton.FuelTruck).progress}
           onClick={() => handleButtonClick(ServiceButton.FuelTruck)}
         >
           <Truck size={36} />
