@@ -5,7 +5,7 @@
 /* eslint-disable max-len */
 import React, { useCallback, useEffect, useState } from 'react';
 import { round } from 'lodash';
-import { CloudArrowDown, PlayFill, StopCircleFill } from 'react-bootstrap-icons';
+import { CloudArrowDown, FuelPumpFill } from 'react-bootstrap-icons';
 import {
   useSimVar,
   usePersistentNumberProperty,
@@ -13,112 +13,17 @@ import {
   Units,
   GsxServiceStates,
 } from '@flybywiresim/fbw-sdk-react';
-import Slider from 'rc-slider';
+import { A380FuelOutline, t, useAppSelector, setFuelImported, useAppDispatch } from '@flybywiresim/flypad';
+import { M3Chip, M3Tone } from '../../../../UtilComponents/Material/Material';
 import {
-  Card,
-  A380FuelOutline,
-  t,
-  TooltipWrapper,
-  SimpleInput,
-  SelectGroup,
-  SelectItem,
-  ProgressBar,
-  useAppSelector,
-  setFuelImported,
-  useAppDispatch,
-} from '@flybywiresim/flypad';
-
-// Page is very WIP, needs to be cleaned up and refactored
-
-interface ValueSimbriefInputProps {
-  min: number;
-  max: number;
-  value: number;
-  onBlur: (v: string) => void;
-  unit: string;
-  showSimbriefButton: boolean;
-  onClickSync: () => void;
-  isInputEnabled: boolean;
-}
-
-const ValueSimbriefInput: React.FC<ValueSimbriefInputProps> = ({
-  min,
-  max,
-  value,
-  onBlur,
-  unit,
-  showSimbriefButton,
-  onClickSync,
-  isInputEnabled,
-}) => (
-  <div className="relative w-52">
-    <div className="flex flex-row">
-      <div className="relative">
-        <SimpleInput
-          className={`${isInputEnabled && 'rounded-r-none'} my-2 w-full font-mono ${!isInputEnabled ? 'cursor-not-allowed text-theme-body placeholder:text-theme-body' : ''}`}
-          fontSizeClassName="text-2xl"
-          number
-          min={min}
-          max={max}
-          value={value.toFixed(0)}
-          onBlur={onBlur}
-          disabled={!isInputEnabled}
-        />
-        <div className="absolute right-3 top-0 flex h-full items-center font-mono text-2xl text-gray-400">{unit}</div>
-      </div>
-      {showSimbriefButton && (
-        <TooltipWrapper text={t('Ground.Payload.TT.FillPayloadFromSimbrief')}>
-          <div
-            className={`my-2 flex h-auto items-center justify-center rounded-md rounded-l-none
-                                        border-2 border-theme-highlight bg-theme-highlight
-                                        px-2 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight`}
-            onClick={onClickSync}
-          >
-            <CloudArrowDown size={26} />
-          </div>
-        </TooltipWrapper>
-      )}
-    </div>
-  </div>
-);
-
-interface NumberUnitDisplayProps {
-  /**
-   * The value to show
-   */
-  value: number;
-
-  /**
-   * The amount of leading zeroes to pad with
-   */
-  padTo: number;
-
-  /**
-   * The unit to show at the end
-   */
-  unit: string;
-}
-
-const ValueUnitDisplay: React.FC<NumberUnitDisplayProps> = ({ value, padTo, unit }) => {
-  const fixedValue = value.toFixed(0);
-  const leadingZeroCount = Math.max(0, padTo - fixedValue.length);
-
-  return (
-    <span className="flex items-center">
-      <span className="flex justify-end pr-2 text-2xl">
-        <span className="text-2xl text-gray-600">{'0'.repeat(leadingZeroCount)}</span>
-        {fixedValue}
-      </span>{' '}
-      <span className="text-2xl text-gray-500">{unit}</span>
-    </span>
-  );
-};
-
-enum RefuelRateSetting {
-  REAL = '0',
-  FAST = '1',
-  INSTANT = '2',
-}
+  FuelHeadline,
+  FuelLayout,
+  FuelRail,
+  FuelTank,
+  FuelTankTable,
+  formatFuel,
+  RefuelRateSetting,
+} from '../FuelLayout';
 
 interface FuelProps {
   simbriefDataLoaded: boolean;
@@ -284,453 +189,145 @@ export const A380Fuel: React.FC<FuelProps> = ({
     }
   };
 
-  const formatRefuelStatusLabel = useCallback(() => {
-    if (isRefuelAllowed()) {
-      if (refuelStartedByUser) {
-        return fuelDesiredKg > totalFuelWeightKg
-          ? `(${t('Ground.Fuel.Refueling')}...)`
-          : `(${t('Ground.Fuel.Defueling')}...)`;
-      }
-
-      if (isDesiredEqualTo(totalFuelWeightKg)) {
-        return `(${t('Ground.Fuel.Completed')})`;
-      }
-
-      if (gsxFuelSyncEnabled === 1) {
-        if (gsxRefuelActive()) {
-          return `(${t('Ground.Fuel.GSXFuelRequested')})`;
-        }
-        if (gsxRefuelCallable() && refuelRate !== RefuelRateSetting.INSTANT) {
-          return `(${t('Ground.Fuel.GSXFuelSyncEnabled')})`;
-        }
-      }
-
-      return `(${t('Ground.Fuel.ReadyToStart')})`;
+  /** What the refuel does now, and its tone */
+  const refuelStatus = (): { text: string; tone: M3Tone } => {
+    if (!isRefuelAllowed()) {
+      return { text: t('Ground.Fuel.Unavailable'), tone: 'idle' };
     }
-
-    return `(${t('Ground.Fuel.Unavailable')})`;
-  }, [fuelDesiredKg, totalFuelWeightKg, refuelStartedByUser, gsxFuelSyncEnabled, gsxRefuelState, refuelRate]);
-
-  const formatRefuelStatusClass = useCallback(() => {
     if (refuelStartedByUser) {
-      return fuelDesiredKg > totalFuelWeightKg ? 'text-green-500' : 'text-yellow-500';
+      return {
+        text: fuelDesiredKg > totalFuelWeightKg ? t('Ground.Fuel.Refueling') : t('Ground.Fuel.Defueling'),
+        tone: 'busy',
+      };
     }
-
-    if (isRefuelAllowed()) {
-      if (isDesiredEqualTo(totalFuelWeightKg) || !refuelStartedByUser) {
-        return 'text-theme-highlight';
+    if (isDesiredEqualTo(totalFuelWeightKg)) {
+      return { text: t('Ground.Fuel.Completed'), tone: 'active' };
+    }
+    if (gsxFuelSyncEnabled === 1) {
+      if (gsxRefuelActive()) {
+        return { text: t('Ground.Fuel.GSXFuelRequested'), tone: 'busy' };
+      }
+      if (gsxRefuelCallable() && refuelRate !== RefuelRateSetting.INSTANT) {
+        return { text: t('Ground.Fuel.GSXFuelSyncEnabled'), tone: 'idle' };
       }
     }
-    return 'text-theme-accent';
-  }, [fuelDesiredKg, totalFuelWeightKg, refuelStartedByUser]);
+    return { text: t('Ground.Fuel.ReadyToStart'), tone: 'active' };
+  };
 
-  const formatRefuelRateStatusClass = useCallback(
-    (rate) => {
-      if (onlyInstantRefuelAllowed()) {
-        if (rate === refuelRate) {
-          return 'bg-theme-highlight opacity-40 text-theme-highlight';
-        } else {
-          return 'opacity-20';
-        }
-      }
-    },
-    [refuelRate, eng1Running, eng2Running, eng3Running, eng4Running, isOnGround],
-  );
+  /** A tank of the tables, in the display unit */
+  const tank = (name: string, gallons: number, capacityKg: number): FuelTank => ({
+    name: t(`Ground.Fuel.Tanks.${name}`),
+    quantity: roundNearest10(Units.kilogramToUser(Math.max(gallons, 0) * FUEL_GALLONS_TO_KG)),
+    capacity: Units.kilogramToUser(capacityKg),
+  });
+  const percent = (gallons: number, capacityKg: number) =>
+    (Math.max(gallons * FUEL_GALLONS_TO_KG, 0) / capacityKg) * 100;
+
+  const status = refuelStatus();
+  const onBoard = Units.kilogramToUser(totalFuelWeightKg);
+  const target = Units.kilogramToUser(fuelDesiredKg);
+  const capacity = Units.kilogramToUser(TOTAL_MAX_FUEL_KG);
+  const enginesOff = !eng1Running && !eng2Running && !eng3Running && !eng4Running;
 
   return (
-    <div className="relative flex flex-col justify-center">
-      <Card
-        className="absolute top-0 flex self-center"
-        childrenContainerClassName={`w-full ${simbriefDataLoaded ? 'rounded-r-none' : ''}`}
-      >
-        <table className="table-fixed">
-          <tbody>
-            <tr>
-              <td className="text-md whitespace-nowrap px-2 font-medium">Total</td>
-              <td className="text-md whitespace-nowrap px-2 font-medium">
-                <ProgressBar
-                  height="10px"
-                  width="80px"
-                  displayBar={false}
-                  completedBarBegin={100}
-                  isLabelVisible={false}
-                  bgcolor="var(--color-highlight)"
-                  completed={(totalFuelWeightKg / TOTAL_MAX_FUEL_KG) * 100}
-                />
-              </td>
-              <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-medium">
-                <ValueUnitDisplay value={Units.kilogramToUser(totalFuelWeightKg)} padTo={6} unit={massUnitForDisplay} />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </Card>
-
-      <div className="relative flex h-content-section-reduced w-full flex-row justify-between">
-        <Card
-          className="absolute left-0 top-6 flex w-fit"
-          childrenContainerClassName={`w-full ${simbriefDataLoaded ? 'rounded-r-none' : ''}`}
-        >
-          <table className="table-fixed">
-            <tbody>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Feed Two</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(feedTwoGal * FUEL_GALLONS_TO_KG) / INNER_FEED_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(feedTwoGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Left Inner</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(leftInnerGal * FUEL_GALLONS_TO_KG) / INNER_TANK_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(leftInnerGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Left Mid</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(leftMidGal * FUEL_GALLONS_TO_KG) / MID_TANK_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(leftMidGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Feed One</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(feedOneGal * FUEL_GALLONS_TO_KG) / OUTER_FEED_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(feedOneGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Left Outer</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(leftOuterGal * FUEL_GALLONS_TO_KG) / OUTER_TANK_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(leftOuterGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </Card>{' '}
-        <Card
-          className="absolute right-0 top-6 flex w-fit"
-          childrenContainerClassName={`w-full ${simbriefDataLoaded ? 'rounded-r-none' : ''}`}
-        >
-          <table className="table-fixed">
-            <tbody>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Feed Three</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(feedThreeGal * FUEL_GALLONS_TO_KG) / INNER_FEED_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(feedThreeGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Right Inner</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(rightInnerGal * FUEL_GALLONS_TO_KG) / INNER_TANK_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(rightInnerGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Right Mid</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(rightMidGal * FUEL_GALLONS_TO_KG) / MID_TANK_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(rightMidGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Feed Four</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(feedFourGal * FUEL_GALLONS_TO_KG) / OUTER_FEED_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(feedFourGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="text-md whitespace-nowrap px-2 font-light">Right Outer</td>
-                <td className="text-md whitespace-nowrap px-2 font-light">
-                  <ProgressBar
-                    height="10px"
-                    width="80px"
-                    displayBar={false}
-                    completedBarBegin={100}
-                    isLabelVisible={false}
-                    bgcolor="var(--color-highlight)"
-                    completed={(roundNearest10(rightOuterGal * FUEL_GALLONS_TO_KG) / OUTER_TANK_MAX_KG) * 100}
-                  />
-                </td>
-                <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                  <ValueUnitDisplay
-                    value={roundNearest10(Units.kilogramToUser(rightOuterGal * FUEL_GALLONS_TO_KG))}
-                    padTo={5}
-                    unit={massUnitForDisplay}
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </Card>
-        <A380FuelOutline
-          className="absolute inset-x-0 right-4 top-20 mx-auto flex h-full w-full text-theme-text"
-          feed1Percent={(Math.max(feedThreeGal * FUEL_GALLONS_TO_KG, 0) / OUTER_FEED_MAX_KG) * 100}
-          feed2Percent={(Math.max(feedThreeGal * FUEL_GALLONS_TO_KG, 0) / INNER_FEED_MAX_KG) * 100}
-          feed3Percent={(Math.max(feedThreeGal * FUEL_GALLONS_TO_KG, 0) / INNER_FEED_MAX_KG) * 100}
-          feed4Percent={(Math.max(feedThreeGal * FUEL_GALLONS_TO_KG, 0) / OUTER_FEED_MAX_KG) * 100}
-          leftInnerPercent={(Math.max(leftInnerGal * FUEL_GALLONS_TO_KG, 0) / INNER_TANK_MAX_KG) * 100}
-          leftMidPercent={(Math.max(leftMidGal * FUEL_GALLONS_TO_KG, 0) / MID_TANK_MAX_KG) * 100}
-          leftOuterPercent={(Math.max(leftOuterGal * FUEL_GALLONS_TO_KG, 0) / OUTER_TANK_MAX_KG) * 100}
-          rightInnerPercent={(Math.max(rightInnerGal * FUEL_GALLONS_TO_KG, 0) / INNER_TANK_MAX_KG) * 100}
-          rightMidPercent={(Math.max(rightMidGal * FUEL_GALLONS_TO_KG, 0) / MID_TANK_MAX_KG) * 100}
-          rightOuterPercent={(Math.max(rightOuterGal * FUEL_GALLONS_TO_KG, 0) / OUTER_TANK_MAX_KG) * 100}
-          trimPercent={(Math.max(trimGal * FUEL_GALLONS_TO_KG, 0) / TRIM_TANK_MAX_KG) * 100}
-          enableDynamic={(!eng1Running && !eng2Running && !eng3Running && !eng4Running) || refuelStartedByUser}
-        />
-      </div>
-
-      <Card
-        className="absolute bottom-40 left-20 flex"
-        childrenContainerClassName={`w-full ${simbriefDataLoaded ? 'rounded-r-none' : ''}`}
-      >
-        <table className="table-fixed">
-          <tbody>
-            <tr>
-              <td className="text-md whitespace-nowrap px-2 font-light">Trim</td>
-              <td className="text-md whitespace-nowrap px-2 font-light">
-                <ProgressBar
-                  height="10px"
-                  width="80px"
-                  displayBar={false}
-                  completedBarBegin={100}
-                  isLabelVisible={false}
-                  bgcolor="var(--color-highlight)"
-                  completed={(roundNearest10(trimGal * FUEL_GALLONS_TO_KG) / TRIM_TANK_MAX_KG) * 100}
-                />
-              </td>
-              <td className="text-md my-2 whitespace-nowrap px-2 font-mono font-light">
-                <ValueUnitDisplay
-                  value={roundNearest10(Units.kilogramToUser(trimGal * FUEL_GALLONS_TO_KG))}
-                  padTo={5}
-                  unit={massUnitForDisplay}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </Card>
-      <div className="flex flex-col items-center justify-end">
-        <div className="border-theme-accentborder-2 absolute bottom-0 left-0 z-10 flex max-w-4xl flex-row overflow-x-hidden rounded-2xl border">
-          <div className="space-y-4 px-5 py-3">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex flex-row items-center space-x-3">
-                <h2 className="font-medium">{t('Ground.Fuel.Refuel')}</h2>
-                <p className={formatRefuelStatusClass()}>{formatRefuelStatusLabel()}</p>
-              </div>
-              <p>{`${t('Ground.Fuel.EstimatedDuration')}: ${calculateEta()}`}</p>
-            </div>
-            <div className="flex flex-row items-center space-x-32">
-              <Slider
-                disabled={refuelStartedByUser}
-                style={{ width: '28rem' }}
-                value={(fuelDesiredKg / TOTAL_MAX_FUEL_KG) * 100}
-                onChange={updateDesiredFuelPercent}
-              />
-              <div className="flex flex-row">
-                <ValueSimbriefInput
-                  min={0}
-                  max={Math.ceil(Units.kilogramToUser(TOTAL_MAX_FUEL_KG))}
-                  value={Units.kilogramToUser(fuelDesiredKg)}
-                  onBlur={(x) => {
-                    if (!Number.isNaN(parseInt(x) || parseInt(x) === 0)) {
-                      updateDesiredFuel(Units.userToKilogram(parseInt(x)));
-                    }
-                  }}
-                  unit={massUnitForDisplay}
-                  showSimbriefButton={showSimbriefButton()}
-                  onClickSync={handleSimbriefFuelSync}
-                  isInputEnabled={!refuelStartedByUser}
-                />
-              </div>
-            </div>
-          </div>
-          {(!gsxFuelSyncEnabled || (refuelRate === RefuelRateSetting.INSTANT && !gsxRefuelActive())) && (
-            <div
-              className={`flex w-48 items-center justify-center ${formatRefuelStatusClass()} bg-current`}
-              onClick={() => switchRefuelState()}
-            >
-              <div className={`${isRefuelAllowed() ? 'text-white' : 'text-theme-unselected'}`}>
-                <PlayFill size={50} className={refuelStartedByUser ? 'hidden' : ''} />
-                <StopCircleFill size={50} className={refuelStartedByUser ? '' : 'hidden'} />
-              </div>
-            </div>
+    <FuelLayout
+      chips={
+        <>
+          <M3Chip tone={status.tone} icon={<FuelPumpFill size={16} />}>
+            {status.text}
+          </M3Chip>
+          {simbriefDataLoaded && (
+            <M3Chip tone="idle" icon={<CloudArrowDown size={16} />}>
+              {`${t('Ground.Fuel.SimbriefBlock')} ${formatFuel(Units.kilogramToUser(getSimbriefPlanRamp()))} ${massUnitForDisplay}`}
+            </M3Chip>
           )}
-        </div>
-      </div>
-
-      <div className="absolute bottom-0 right-6 flex flex-col items-center justify-center space-y-2 overflow-x-hidden rounded-2xl border border-theme-accent px-6 py-3">
-        <h2 className="flex font-medium">{t('Ground.Fuel.RefuelTime')}</h2>
-        <SelectGroup>
-          <SelectItem
-            selected={refuelRate === RefuelRateSetting.INSTANT}
-            onSelect={() => setRefuelRate(RefuelRateSetting.INSTANT)}
-          >
-            {t('Settings.Instant')}
-          </SelectItem>
-
-          <TooltipWrapper
-            text={!isRefuelAllowed() ? `${t('Ground.Fuel.TT.AircraftMustBeColdAndDarkToChangeRefuelTimes')}` : ''}
-          >
-            <div>
-              <SelectItem
-                className={`${formatRefuelRateStatusClass(RefuelRateSetting.FAST)}`}
-                disabled={onlyInstantRefuelAllowed()}
-                selected={refuelRate === RefuelRateSetting.FAST}
-                onSelect={() => setRefuelRate(RefuelRateSetting.FAST)}
-              >
-                {t('Settings.Fast')}
-              </SelectItem>
-            </div>
-          </TooltipWrapper>
-          <TooltipWrapper
-            text={!isRefuelAllowed() ? `${t('Ground.Fuel.TT.AircraftMustBeColdAndDarkToChangeRefuelTimes')}` : ''}
-          >
-            <div>
-              <SelectItem
-                className={`${formatRefuelRateStatusClass(RefuelRateSetting.REAL)}`}
-                disabled={onlyInstantRefuelAllowed()}
-                selected={refuelRate === RefuelRateSetting.REAL}
-                onSelect={() => setRefuelRate(RefuelRateSetting.REAL)}
-              >
-                {t('Settings.Real')}
-              </SelectItem>
-            </div>
-          </TooltipWrapper>
-        </SelectGroup>
-      </div>
-    </div>
+          {gsxFuelSyncEnabled === 1 && <M3Chip tone="active">{t('Ground.Fuel.GsxSync')}</M3Chip>}
+        </>
+      }
+      rail={
+        <FuelRail
+          status={status}
+          etaMinutes={calculateEta()}
+          unit={massUnitForDisplay}
+          target={target.toFixed(0)}
+          targetMax={Math.ceil(capacity)}
+          onTargetBlur={(x) => {
+            if (!Number.isNaN(parseInt(x))) {
+              updateDesiredFuel(Units.userToKilogram(parseInt(x)));
+            }
+          }}
+          sliderPercent={(fuelDesiredKg / TOTAL_MAX_FUEL_KG) * 100}
+          onBoardPercent={(totalFuelWeightKg / TOTAL_MAX_FUEL_KG) * 100}
+          onSlider={updateDesiredFuelPercent}
+          started={!!refuelStartedByUser}
+          allowed={!!isRefuelAllowed()}
+          showStartStop={!gsxFuelSyncEnabled || (refuelRate === RefuelRateSetting.INSTANT && !gsxRefuelActive())}
+          onStartStop={switchRefuelState}
+          delta={target - onBoard}
+          simbriefBlock={simbriefDataLoaded ? Units.kilogramToUser(getSimbriefPlanRamp()) : null}
+          showSimbrief={showSimbriefButton()}
+          onSimbrief={handleSimbriefFuelSync}
+          onBoard={onBoard}
+          rate={refuelRate}
+          setRate={setRefuelRate}
+          onlyInstant={!!onlyInstantRefuelAllowed()}
+        />
+      }
+    >
+      {/* the whole aircraft, its tanks filled to their level */}
+      <A380FuelOutline
+        className="absolute inset-0 h-full w-full text-m3-muted"
+        viewBox="0 30 864 810"
+        feed1Percent={percent(feedOneGal, OUTER_FEED_MAX_KG)}
+        feed2Percent={percent(feedTwoGal, INNER_FEED_MAX_KG)}
+        feed3Percent={percent(feedThreeGal, INNER_FEED_MAX_KG)}
+        feed4Percent={percent(feedFourGal, OUTER_FEED_MAX_KG)}
+        leftInnerPercent={percent(leftInnerGal, INNER_TANK_MAX_KG)}
+        leftMidPercent={percent(leftMidGal, MID_TANK_MAX_KG)}
+        leftOuterPercent={percent(leftOuterGal, OUTER_TANK_MAX_KG)}
+        rightInnerPercent={percent(rightInnerGal, INNER_TANK_MAX_KG)}
+        rightMidPercent={percent(rightMidGal, MID_TANK_MAX_KG)}
+        rightOuterPercent={percent(rightOuterGal, OUTER_TANK_MAX_KG)}
+        trimPercent={percent(trimGal, TRIM_TANK_MAX_KG)}
+        enableDynamic={enginesOff || refuelStartedByUser}
+      />
+      <FuelHeadline
+        className="absolute left-4 top-4"
+        quantity={onBoard}
+        capacity={capacity}
+        unit={massUnitForDisplay}
+      />
+      <FuelTankTable
+        className="absolute right-4 top-4"
+        title={t('Ground.Fuel.Tanks.Tail')}
+        unit={massUnitForDisplay}
+        tanks={[tank('Trim', trimGal, TRIM_TANK_MAX_KG)]}
+      />
+      {/* the tanks from the tip to the root on the left, from the root to the tip on the right: as on the wings */}
+      <FuelTankTable
+        className="absolute bottom-4 left-4"
+        title={t('Ground.Fuel.Tanks.LeftWing')}
+        unit={massUnitForDisplay}
+        tanks={[
+          tank('LeftOuter', leftOuterGal, OUTER_TANK_MAX_KG),
+          tank('Feed1', feedOneGal, OUTER_FEED_MAX_KG),
+          tank('LeftMid', leftMidGal, MID_TANK_MAX_KG),
+          tank('LeftInner', leftInnerGal, INNER_TANK_MAX_KG),
+          tank('Feed2', feedTwoGal, INNER_FEED_MAX_KG),
+        ]}
+      />
+      <FuelTankTable
+        className="absolute bottom-4 right-4"
+        title={t('Ground.Fuel.Tanks.RightWing')}
+        unit={massUnitForDisplay}
+        tanks={[
+          tank('Feed3', feedThreeGal, INNER_FEED_MAX_KG),
+          tank('RightInner', rightInnerGal, INNER_TANK_MAX_KG),
+          tank('RightMid', rightMidGal, MID_TANK_MAX_KG),
+          tank('Feed4', feedFourGal, OUTER_FEED_MAX_KG),
+          tank('RightOuter', rightOuterGal, OUTER_TANK_MAX_KG),
+        ]}
+      />
+    </FuelLayout>
   );
 };

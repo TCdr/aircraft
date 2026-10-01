@@ -4,7 +4,6 @@
 
 /* eslint-disable max-len */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CloudArrowDown } from 'react-bootstrap-icons';
 import {
   CargoStationInfo,
   PaxStationInfo,
@@ -15,23 +14,14 @@ import {
   useSeatFlags,
   useSimVar,
 } from '@flybywiresim/fbw-sdk-react';
-import {
-  setPayloadImported,
-  useAppDispatch,
-  Card,
-  t,
-  TooltipWrapper,
-  SelectGroup,
-  SelectItem,
-  PromptModal,
-  useModals,
-} from '@flybywiresim/flypad';
+import { setPayloadImported, useAppDispatch, t, PromptModal, useModals } from '@flybywiresim/flypad';
 import { SeatOutlineBg } from '../../../../Assets/SeatOutlineBg';
 import { BoardingInput, MiscParamsInput, PayloadInputTable } from '../PayloadElements';
 import { CargoWidget } from './CargoWidget';
 import { ChartWidget } from '../Chart/ChartWidget';
 import { SeatMapWidget } from '../Seating/SeatMapWidget';
 import { PayloadProps } from '../PayloadPage';
+import { PAYLOAD_CHART, PayloadLayout } from '../PayloadLayout';
 
 export const A320Payload: React.FC<PayloadProps> = ({
   airframeInfo,
@@ -411,15 +401,6 @@ export const A320Payload: React.FC<PayloadProps> = ({
     boardingRate,
   ]);
 
-  const boardingStatusClass = useMemo(() => {
-    if (!boardingStarted) {
-      return 'text-theme-highlight';
-    }
-    return totalPaxDesired * paxWeight + totalCargoDesired >= totalPax * paxWeight + totalCargo
-      ? 'text-green-500'
-      : 'text-yellow-500';
-  }, [boardingStarted, paxWeight, totalCargoDesired, totalCargo, totalPaxDesired, totalPax]);
-
   // Init
   useEffect(() => {
     if (paxWeight === 0) {
@@ -534,168 +515,109 @@ export const A320Payload: React.FC<PayloadProps> = ({
   );
 
   return (
-    <div>
-      <div className="relative h-content-section-reduced">
-        <div className="mb-10">
-          <div className="relative flex flex-col">
-            <SeatOutlineBg stroke={getTheme(theme)[0]} highlight="#69BD45" />
-            <SeatMapWidget
-              payloadSeatDisplay={flypadInfo.payload.seatDisplay}
-              seatMap={seatMap}
-              desiredFlags={desiredFlags}
-              activeFlags={activeFlags}
-              onClickSeat={onClickSeat}
-              theme={getTheme(theme)}
-              isMainDeck
-              width={flypadInfo.payload.planeCanvas.width}
-              height={flypadInfo.payload.planeCanvas.height}
-              canvasX={flypadInfo.payload.planeCanvas.canvasX}
-              canvasY={flypadInfo.payload.planeCanvas.canvasY}
-            />
-          </div>
-        </div>
-        <CargoWidget cargo={cargo} cargoDesired={cargoDesired} cargoMap={cargoMap} onClickCargo={onClickCargo} />
-
-        <div className="relative right-0 mt-16 flex flex-row justify-between px-4">
-          <div className="flex grow flex-col pr-24">
-            <div className="flex w-full flex-row">
-              <Card
-                className="col-1 w-full"
-                childrenContainerClassName={`w-full ${simbriefDataLoaded ? 'rounded-r-none' : ''}`}
-              >
-                <PayloadInputTable
-                  airframeInfo={airframeInfo}
-                  emptyWeight={emptyWeight}
-                  massUnitForDisplay={massUnitForDisplay}
-                  displayZfw={displayZfw}
-                  BoardingInProgress={gsxInProgress() || boardingStarted}
-                  totalPax={totalPax}
-                  totalPaxDesired={totalPaxDesired}
-                  maxPax={maxPax}
-                  totalCargo={totalCargo}
-                  totalCargoDesired={totalCargoDesired}
-                  maxCargo={maxCargo}
-                  zfw={zfw}
-                  zfwDesired={zfwDesired}
-                  zfwCgMac={zfwCgMac}
-                  desiredZfwCgMac={desiredZfwCgMac}
-                  gw={gw}
-                  gwDesired={gwDesired}
-                  gwCgMac={gwCgMac}
-                  desiredGwCgMac={desiredGwCgMac}
-                  setTargetPax={setTargetPax}
-                  setTargetCargo={setTargetCargo}
-                  processZfw={processZfw}
-                  processGw={processGw}
-                  setDisplayZfw={setDisplayZfw}
-                />
-                <hr className="mb-4 border-gray-700" />
-                <div className="flex flex-row items-center justify-start">
-                  <MiscParamsInput
-                    disable={gsxInProgress() || boardingStarted}
-                    minPaxWeight={Math.round(cabinInfo.minPaxWeight)}
-                    maxPaxWeight={Math.round(cabinInfo.maxPaxWeight)}
-                    defaultPaxWeight={Math.round(cabinInfo.defaultPaxWeight)}
-                    minBagWeight={Math.round(cabinInfo.minBagWeight)}
-                    maxBagWeight={Math.round(cabinInfo.maxBagWeight)}
-                    defaultBagWeight={Math.round(cabinInfo.defaultBagWeight)}
-                    paxWeight={paxWeight}
-                    bagWeight={paxBagWeight}
-                    massUnitForDisplay={massUnitForDisplay}
-                    setPaxWeight={setPaxWeight}
-                    setBagWeight={setPaxBagWeight}
-                  />
-                  {gsxPayloadSyncEnabled !== 1 && (
-                    <BoardingInput
-                      boardingStatusClass={boardingStatusClass}
-                      boardingStarted={boardingStarted}
-                      totalPax={totalPax}
-                      totalCargo={totalCargo}
-                      setBoardingStarted={setBoardingStarted}
-                      handleDeboarding={handleDeboarding}
-                    />
-                  )}
-                </div>
-              </Card>
-              {showSimbriefButton && (
-                <TooltipWrapper text={t('Ground.Payload.TT.FillPayloadFromSimbrief')}>
-                  <div
-                    className={`flex h-auto items-center justify-center rounded-md rounded-l-none
-                                                       border-2 border-theme-highlight bg-theme-highlight
-                                                       px-2 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight`}
-                    onClick={setSimBriefValues}
-                  >
-                    <CloudArrowDown size={26} />
-                  </div>
-                </TooltipWrapper>
-              )}
-            </div>
-            {gsxPayloadSyncEnabled !== 1 && (
-              <div className="mt-4 flex flex-row">
-                <Card className="h-full w-full" childrenContainerClassName="flex flex-col w-full h-full">
-                  <div className="flex flex-row items-center justify-between">
-                    <div className="flex font-medium">
-                      {t('Ground.Payload.BoardingTime')}
-                      <span className="relative ml-2 flex flex-row items-center text-sm font-light">
-                        ({remainingTimeString()})
-                      </span>
-                    </div>
-
-                    <SelectGroup>
-                      <SelectItem selected={boardingRate === 'INSTANT'} onSelect={() => setBoardingRate('INSTANT')}>
-                        {t('Settings.Instant')}
-                      </SelectItem>
-
-                      <TooltipWrapper
-                        text={`${!coldAndDark ? t('Ground.Fuel.TT.AircraftMustBeColdAndDarkToChangeRefuelTimes') : ''}`}
-                      >
-                        <div>
-                          <SelectItem
-                            className={`${!coldAndDark && 'opacity-20'}`}
-                            selected={boardingRate === 'FAST'}
-                            disabled={!coldAndDark}
-                            onSelect={() => setBoardingRate('FAST')}
-                          >
-                            {t('Settings.Fast')}
-                          </SelectItem>
-                        </div>
-                      </TooltipWrapper>
-
-                      <div>
-                        <SelectItem
-                          className={`${!coldAndDark && 'opacity-20'}`}
-                          selected={boardingRate === 'REAL'}
-                          disabled={!coldAndDark}
-                          onSelect={() => setBoardingRate('REAL')}
-                        >
-                          {t('Settings.Real')}
-                        </SelectItem>
-                      </div>
-                    </SelectGroup>
-                  </div>
-                </Card>
-              </div>
-            )}
-            {gsxPayloadSyncEnabled === 1 && (
-              <div className="pl-2 pt-6">{t('Ground.Payload.GSXPayloadSyncEnabled')}</div>
-            )}
-          </div>
-          <div className="col-1 border border-theme-accent">
-            <ChartWidget
-              width={525}
-              height={511}
-              envelope={airframeInfo.designLimits.performanceEnvelope}
-              limits={flypadInfo.payload.chartLimits}
-              cg={boardingStarted ? Math.round(gwCgMac * 100) / 100 : Math.round(desiredGwCgMac * 100) / 100}
-              gw={boardingStarted ? Math.round(gw) : Math.round(gwDesired)}
-              mldwCg={boardingStarted ? Math.round(gwCgMac * 100) / 100 : Math.round(desiredGwCgMac * 100) / 100}
-              mldw={boardingStarted ? Math.round(gw) : Math.round(gwDesired)}
-              zfwCg={boardingStarted ? Math.round(zfwCgMac * 100) / 100 : Math.round(desiredZfwCgMac * 100) / 100}
-              zfw={boardingStarted ? Math.round(zfw) : Math.round(zfwDesired)}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <PayloadLayout
+      cabin={
+        <>
+          <SeatOutlineBg stroke={getTheme(theme)[0]} highlight="#69BD45" />
+          <SeatMapWidget
+            payloadSeatDisplay={flypadInfo.payload.seatDisplay}
+            seatMap={seatMap}
+            desiredFlags={desiredFlags}
+            activeFlags={activeFlags}
+            onClickSeat={onClickSeat}
+            theme={getTheme(theme)}
+            isMainDeck
+            width={flypadInfo.payload.planeCanvas.width}
+            height={flypadInfo.payload.planeCanvas.height}
+            canvasX={flypadInfo.payload.planeCanvas.canvasX}
+            canvasY={flypadInfo.payload.planeCanvas.canvasY}
+          />
+        </>
+      }
+      seatColours={getTheme(theme)}
+      cargo={<CargoWidget cargo={cargo} cargoDesired={cargoDesired} cargoMap={cargoMap} onClickCargo={onClickCargo} />}
+      table={
+        <PayloadInputTable
+          airframeInfo={airframeInfo}
+          emptyWeight={emptyWeight}
+          massUnitForDisplay={massUnitForDisplay}
+          displayZfw={displayZfw}
+          BoardingInProgress={gsxInProgress() || boardingStarted}
+          totalPax={totalPax}
+          totalPaxDesired={totalPaxDesired}
+          maxPax={maxPax}
+          totalCargo={totalCargo}
+          totalCargoDesired={totalCargoDesired}
+          maxCargo={maxCargo}
+          zfw={zfw}
+          zfwDesired={zfwDesired}
+          zfwCgMac={zfwCgMac}
+          desiredZfwCgMac={desiredZfwCgMac}
+          gw={gw}
+          gwDesired={gwDesired}
+          gwCgMac={gwCgMac}
+          desiredGwCgMac={desiredGwCgMac}
+          setTargetPax={setTargetPax}
+          setTargetCargo={setTargetCargo}
+          processZfw={processZfw}
+          processGw={processGw}
+          setDisplayZfw={setDisplayZfw}
+        />
+      }
+      miscParams={
+        <MiscParamsInput
+          disable={gsxInProgress() || boardingStarted}
+          minPaxWeight={Math.round(cabinInfo.minPaxWeight)}
+          maxPaxWeight={Math.round(cabinInfo.maxPaxWeight)}
+          defaultPaxWeight={Math.round(cabinInfo.defaultPaxWeight)}
+          minBagWeight={Math.round(cabinInfo.minBagWeight)}
+          maxBagWeight={Math.round(cabinInfo.maxBagWeight)}
+          defaultBagWeight={Math.round(cabinInfo.defaultBagWeight)}
+          paxWeight={paxWeight}
+          bagWeight={paxBagWeight}
+          massUnitForDisplay={massUnitForDisplay}
+          setPaxWeight={setPaxWeight}
+          setBagWeight={setPaxBagWeight}
+        />
+      }
+      showSimbrief={showSimbriefButton}
+      onSimbrief={setSimBriefValues}
+      gsxSync={gsxPayloadSyncEnabled === 1}
+      boardingStarted={!!boardingStarted}
+      totalPax={totalPax}
+      totalPaxDesired={totalPaxDesired}
+      totalCargo={totalCargo}
+      totalCargoDesired={totalCargoDesired}
+      gw={boardingStarted ? gw : gwDesired}
+      gwCg={boardingStarted ? gwCgMac : desiredGwCgMac}
+      massUnit={massUnitForDisplay}
+      boardingRate={boardingRate}
+      setBoardingRate={setBoardingRate}
+      coldAndDark={coldAndDark}
+      remainingTime={remainingTimeString()}
+      boarding={
+        <BoardingInput
+          boardingStarted={boardingStarted}
+          totalPax={totalPax}
+          totalCargo={totalCargo}
+          setBoardingStarted={setBoardingStarted}
+          handleDeboarding={handleDeboarding}
+        />
+      }
+      chart={
+        <ChartWidget
+          width={PAYLOAD_CHART.width}
+          height={PAYLOAD_CHART.height}
+          envelope={airframeInfo.designLimits.performanceEnvelope}
+          limits={flypadInfo.payload.chartLimits}
+          cg={boardingStarted ? Math.round(gwCgMac * 100) / 100 : Math.round(desiredGwCgMac * 100) / 100}
+          gw={boardingStarted ? Math.round(gw) : Math.round(gwDesired)}
+          mldwCg={boardingStarted ? Math.round(gwCgMac * 100) / 100 : Math.round(desiredGwCgMac * 100) / 100}
+          mldw={boardingStarted ? Math.round(gw) : Math.round(gwDesired)}
+          zfwCg={boardingStarted ? Math.round(zfwCgMac * 100) / 100 : Math.round(desiredZfwCgMac * 100) / 100}
+          zfw={boardingStarted ? Math.round(zfw) : Math.round(zfwDesired)}
+        />
+      }
+    />
   );
 };

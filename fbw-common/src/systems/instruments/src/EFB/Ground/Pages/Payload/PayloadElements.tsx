@@ -4,17 +4,10 @@
 
 /* eslint-disable max-len */
 import React from 'react';
-import {
-  ArrowLeftRight,
-  BoxArrowRight,
-  BriefcaseFill,
-  CaretDownFill,
-  PersonFill,
-  Shuffle,
-  StopCircleFill,
-} from 'react-bootstrap-icons';
+import { BoxArrowRight, BriefcaseFill, PersonFill, PlayFill, Shuffle, StopFill } from 'react-bootstrap-icons';
 import { AirframeInfo, Units } from '@flybywiresim/fbw-sdk-react';
-import { ProgressBar, t, TooltipWrapper, SimpleInput } from '@flybywiresim/flypad';
+import { t, TooltipWrapper, SimpleInput } from '@flybywiresim/flypad';
+import { M3ActionChip, M3Button, M3_INPUT } from '../../../UtilComponents/Material/Material';
 
 export type AirframeSpec = {
   prefix: string;
@@ -48,19 +41,28 @@ interface PayloadValueInputProps {
   disabled?: boolean;
 }
 
+/** A whole number with a thin space between thousands */
+export const formatPayload = (value: number): string =>
+  Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+/** A planned value of the load table: a number field with its unit */
 export const PayloadValueInput: React.FC<PayloadValueInputProps> = ({ min, max, value, onBlur, unit, disabled }) => (
-  <div className="relative w-44">
+  <div className="relative w-40">
     <SimpleInput
       disabled={disabled}
-      className="my-2 w-full font-mono"
-      fontSizeClassName="text-2xl"
+      className={`w-full ${M3_INPUT} font-bold`}
+      fontSizeClassName="text-lg"
       number
       min={min}
       max={max}
       value={value.toFixed(0)}
       onBlur={onBlur}
     />
-    <div className="absolute right-3 top-0 flex h-full items-center font-mono text-2xl text-gray-400">{unit}</div>
+    <span className="pointer-events-none absolute right-3 top-0 flex h-full items-center text-xs font-semibold text-m3-muted">
+      {unit}
+    </span>
   </div>
 );
 
@@ -80,33 +82,50 @@ interface CargoBarProps {
   cargoDesired: number[];
   cargoMap: CargoStationInfo[];
   onClickCargo: (cargoStation: number, event: any) => void;
+  /** The short name of the hold */
+  label: string;
+  className?: string;
 }
 
-export const CargoBar: React.FC<CargoBarProps> = ({ cargoId, cargo, cargoDesired, cargoMap, onClickCargo }) => (
-  <>
-    <div>
-      <BriefcaseFill size={25} className="mx-3 my-1" />
+/**
+ * A cargo hold: its load over its capacity, and a bar to set the planned load (the mark) by a click. The bar keeps
+ * the width of the cabin configuration: the click position is read against it.
+ */
+export const CargoBar: React.FC<CargoBarProps> = ({
+  cargoId,
+  cargo,
+  cargoDesired,
+  cargoMap,
+  onClickCargo,
+  label,
+  className,
+}) => {
+  const station = cargoMap[cargoId];
+  const fraction = (weight: number) => Math.max(0, Math.min(1, weight / station.weight));
+  return (
+    <div className={`flex shrink-0 flex-col ${className ?? ''}`} style={{ minWidth: `${station.progressBarWidth}px` }}>
+      <span className="whitespace-nowrap text-xs font-bold uppercase tracking-widest text-m3-muted">{label}</span>
+      <span className="whitespace-nowrap text-xs font-semibold">
+        {formatPayload(Units.kilogramToUser(cargo[cargoId]))}
+        <span className="text-xs text-m3-muted">{` / ${formatPayload(Units.kilogramToUser(station.weight))}`}</span>
+      </span>
+      <div
+        className="relative mt-1 h-3 cursor-pointer rounded-full bg-m3-tile"
+        style={{ width: `${station.progressBarWidth}px` }}
+        onClick={(e) => onClickCargo(cargoId, e)}
+      >
+        <div
+          className="pointer-events-none h-3 rounded-full bg-m3-primary"
+          style={{ width: `${fraction(cargo[cargoId]) * 100}%` }}
+        />
+        <span
+          className="pointer-events-none absolute h-5 w-1 rounded-full bg-m3-text"
+          style={{ top: '-4px', left: `${fraction(cargoDesired[cargoId]) * station.progressBarWidth - 2}px` }}
+        />
+      </div>
     </div>
-    <div className="cursor-pointer" onClick={(e) => onClickCargo(cargoId, e)}>
-      <ProgressBar
-        height="20px"
-        width={`${cargoMap[cargoId].progressBarWidth}px`}
-        displayBar={false}
-        completedBarBegin={100}
-        isLabelVisible={false}
-        bgcolor="var(--color-highlight)"
-        completed={(cargo[cargoId] / cargoMap[cargoId].weight) * 100}
-      />
-      <CaretDownFill
-        size={25}
-        className="absolute top-0"
-        style={{
-          transform: `translateY(-12px) translateX(${(cargoDesired[cargoId] / cargoMap[cargoId].weight) * cargoMap[cargoId].progressBarWidth - 12}px)`,
-        }}
-      />
-    </div>
-  </>
-);
+  );
+};
 
 interface MiscParamsProps {
   disable: boolean;
@@ -139,47 +158,56 @@ export const MiscParamsInput: React.FC<MiscParamsProps> = ({
 }) => (
   <>
     <TooltipWrapper text={t('Ground.Payload.TT.PerPaxWeight')}>
-      <div className="text-medium relative flex flex-row items-center font-light">
-        <PersonFill size={25} className="mx-3" />
-        <SimpleInput
-          disabled={disable}
-          className="w-24"
-          number
-          min={minPaxWeight}
-          max={maxPaxWeight}
-          placeholder={defaultPaxWeight.toString()}
-          value={Units.kilogramToUser(paxWeight).toFixed(0)}
-          onBlur={(x) => {
-            if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) setPaxWeight(Units.userToKilogram(parseInt(x)));
-          }}
-        />
-        <div className="absolute right-3 top-2 text-lg text-gray-400">{massUnitForDisplay}</div>
+      <div className="mr-4 flex min-w-0 flex-1 flex-row items-center">
+        <PersonFill size={20} className="mr-2 shrink-0 text-m3-muted" />
+        <div className="relative min-w-0 flex-1">
+          <SimpleInput
+            disabled={disable}
+            className={`w-full ${M3_INPUT} font-bold`}
+            fontSizeClassName="text-base"
+            number
+            min={minPaxWeight}
+            max={maxPaxWeight}
+            placeholder={defaultPaxWeight.toString()}
+            value={Units.kilogramToUser(paxWeight).toFixed(0)}
+            onBlur={(x) => {
+              if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) setPaxWeight(Units.userToKilogram(parseInt(x)));
+            }}
+          />
+          <span className="pointer-events-none absolute right-3 top-0 flex h-full items-center text-xs font-semibold text-m3-muted">
+            {massUnitForDisplay}
+          </span>
+        </div>
       </div>
     </TooltipWrapper>
 
     <TooltipWrapper text={t('Ground.Payload.TT.PerPaxBagWeight')}>
-      <div className="text-medium relative flex flex-row items-center font-light">
-        <BriefcaseFill size={25} className="mx-3" />
-        <SimpleInput
-          disabled={disable}
-          className="w-24"
-          number
-          min={minBagWeight}
-          max={maxBagWeight}
-          placeholder={defaultBagWeight.toString()}
-          value={Units.kilogramToUser(bagWeight).toFixed(0)}
-          onBlur={(x) => {
-            if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) setBagWeight(Units.userToKilogram(parseInt(x)));
-          }}
-        />
-        <div className="absolute right-3 top-2 text-lg text-gray-400">{massUnitForDisplay}</div>
+      <div className="flex min-w-0 flex-1 flex-row items-center">
+        <BriefcaseFill size={20} className="mr-2 shrink-0 text-m3-muted" />
+        <div className="relative min-w-0 flex-1">
+          <SimpleInput
+            disabled={disable}
+            className={`w-full ${M3_INPUT} font-bold`}
+            fontSizeClassName="text-base"
+            number
+            min={minBagWeight}
+            max={maxBagWeight}
+            placeholder={defaultBagWeight.toString()}
+            value={Units.kilogramToUser(bagWeight).toFixed(0)}
+            onBlur={(x) => {
+              if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) setBagWeight(Units.userToKilogram(parseInt(x)));
+            }}
+          />
+          <span className="pointer-events-none absolute right-3 top-0 flex h-full items-center text-xs font-semibold text-m3-muted">
+            {massUnitForDisplay}
+          </span>
+        </div>
       </div>
     </TooltipWrapper>
   </>
 );
 
 interface BoardingInputProps {
-  boardingStatusClass: string;
   boardingStarted: boolean;
   totalPax: number;
   totalCargo: number;
@@ -187,8 +215,8 @@ interface BoardingInputProps {
   handleDeboarding: () => void;
 }
 
+/** Start or stop the boarding (towards the planned load), and deboard everything */
 export const BoardingInput: React.FC<BoardingInputProps> = ({
-  boardingStatusClass,
   boardingStarted,
   totalPax,
   totalCargo,
@@ -196,31 +224,21 @@ export const BoardingInput: React.FC<BoardingInputProps> = ({
   handleDeboarding,
 }) => (
   <>
-    <TooltipWrapper text={t('Ground.Payload.TT.StartBoarding')}>
-      <button
-        type="button"
-        className={`ml-auto flex h-12 w-24 items-center justify-center rounded-lg ${boardingStatusClass} bg-current`}
-        onClick={() => setBoardingStarted(!boardingStarted)}
-      >
-        <div className="text-theme-body">
-          <ArrowLeftRight size={32} className={boardingStarted ? 'hidden' : ''} />
-          <StopCircleFill size={32} className={boardingStarted ? '' : 'hidden'} />
-        </div>
-      </button>
-    </TooltipWrapper>
-
-    <TooltipWrapper text={t('Ground.Payload.TT.StartDeboarding')}>
-      <button
-        type="button"
-        className={`ml-1 flex h-12 w-16 items-center justify-center rounded-lg bg-current text-theme-highlight ${((totalPax === 0 && totalCargo === 0) || boardingStarted) && 'pointer-events-none opacity-20'}`}
-        onClick={() => handleDeboarding()}
-      >
-        <div className="text-theme-body">
-          {' '}
-          <BoxArrowRight size={32} />
-        </div>
-      </button>
-    </TooltipWrapper>
+    <M3Button tone={boardingStarted ? 'warn' : 'primary'} onClick={() => setBoardingStarted(!boardingStarted)}>
+      {boardingStarted ? <StopFill size={22} /> : <PlayFill size={22} />}
+      <span className="text-lg text-current">
+        {boardingStarted ? t('Ground.Payload.StopBoarding') : t('Ground.Payload.TT.StartBoarding')}
+      </span>
+    </M3Button>
+    <M3Button
+      tone="outline"
+      className="mt-2"
+      disabled={(totalPax === 0 && totalCargo === 0) || boardingStarted}
+      onClick={handleDeboarding}
+    >
+      <BoxArrowRight size={20} />
+      <span className="text-lg text-current">{t('Ground.Payload.TT.StartDeboarding')}</span>
+    </M3Button>
   </>
 );
 
@@ -241,31 +259,20 @@ interface NumberUnitDisplayProps {
   unit: string;
 }
 
-export const PayloadValueUnitDisplay: React.FC<NumberUnitDisplayProps> = ({ value, padTo, unit }) => {
-  const fixedValue = value.toFixed(0);
-  const leadingZeroCount = Math.max(0, padTo - fixedValue.length);
+/** A current value of the load table (padTo is kept for the callers: the value is no longer zero padded) */
+export const PayloadValueUnitDisplay: React.FC<NumberUnitDisplayProps> = ({ value, unit }) => (
+  <span className="whitespace-nowrap text-base font-semibold">
+    {formatPayload(value)}
+    <span className="ml-1 text-xs text-m3-muted">{unit}</span>
+  </span>
+);
 
-  return (
-    <span className="flex items-center">
-      <span className="flex w-20 justify-end pr-2 text-2xl">
-        <span className="text-2xl text-gray-400">{'0'.repeat(leadingZeroCount)}</span>
-        {fixedValue}
-      </span>{' '}
-      <span className="text-2xl text-gray-500">{unit}</span>
-    </span>
-  );
-};
-
-export const PayloadPercentUnitDisplay: React.FC<{ value: number }> = ({ value }) => {
-  const fixedValue = value.toFixed(2);
-
-  return (
-    <span className="flex items-center">
-      <span className="flex w-20 justify-end pr-2 text-2xl">{fixedValue}</span>{' '}
-      <span className="text-2xl text-gray-500">%</span>
-    </span>
-  );
-};
+export const PayloadPercentUnitDisplay: React.FC<{ value: number }> = ({ value }) => (
+  <span className="whitespace-nowrap text-base font-semibold">
+    {value.toFixed(2)}
+    <span className="ml-1 text-xs text-m3-muted">%</span>
+  </span>
+);
 
 interface PayloadInputTableProps {
   airframeInfo: AirframeInfo;
@@ -319,175 +326,145 @@ export const PayloadInputTable: React.FC<PayloadInputTableProps> = ({
   processZfw,
   processGw,
   setDisplayZfw,
-}) => (
-  <table className="w-full table-fixed">
-    <thead className="mx-2 w-full border-b px-8">
-      <tr className="py-2">
-        <th scope="col" className="text-md w-2/5 px-4 py-2 text-left font-medium">
-          {' '}
-        </th>
-        <th scope="col" className="text-md w-1/2 px-4 py-2 text-left font-medium">
+}) => {
+  const weights = airframeInfo?.designLimits.weights;
+  const row = 'flex h-12 flex-row items-center';
+  const name = 'min-w-0 grow truncate text-base font-semibold';
+  const current = 'w-28 shrink-0 text-right';
+  return (
+    <div className="flex flex-col">
+      <div className="mb-1 flex flex-row items-center">
+        <div className="grow" />
+        <span className="w-40 shrink-0 text-center text-xs font-bold uppercase tracking-widest text-m3-muted">
           {t('Ground.Payload.Planned')}
-        </th>
-        <th scope="col" className="text-md w-1/4 px-4 py-2 text-left font-medium">
+        </span>
+        <span className={`${current} text-xs font-bold uppercase tracking-widest text-m3-muted`}>
           {t('Ground.Payload.Current')}
-        </th>
-      </tr>
-    </thead>
+        </span>
+      </div>
 
-    <tbody>
-      <tr className="h-2" />
-      <tr>
-        <td className="text-md whitespace-nowrap px-4 font-light">{t('Ground.Payload.Passengers')}</td>
-        <td className="mx-8">
-          <TooltipWrapper text={`${t('Ground.Payload.TT.MaxPassengers')} ${maxPax}`}>
-            <div className="text-md whitespace-nowrap px-4 font-light">
-              <PayloadValueInput
-                min={0}
-                max={maxPax > 0 ? maxPax : 999}
-                value={totalPaxDesired}
-                onBlur={(x) => {
-                  if (!Number.isNaN(parseInt(x) || parseInt(x) === 0)) {
-                    setTargetPax(parseInt(x));
-                    setTargetCargo(parseInt(x), 0);
-                  }
-                }}
-                unit="PAX"
-                disabled={BoardingInProgress}
-              />
-            </div>
-          </TooltipWrapper>
-        </td>
-        <td className="text-md w-20 whitespace-nowrap px-4 font-mono font-light">
+      <div className={row}>
+        <span className={name}>{t('Ground.Payload.Passengers')}</span>
+        <TooltipWrapper text={`${t('Ground.Payload.TT.MaxPassengers')} ${maxPax}`}>
+          <div>
+            <PayloadValueInput
+              min={0}
+              max={maxPax > 0 ? maxPax : 999}
+              value={totalPaxDesired}
+              onBlur={(x) => {
+                if (!Number.isNaN(parseInt(x) || parseInt(x) === 0)) {
+                  setTargetPax(parseInt(x));
+                  setTargetCargo(parseInt(x), 0);
+                }
+              }}
+              unit="PAX"
+              disabled={BoardingInProgress}
+            />
+          </div>
+        </TooltipWrapper>
+        <span className={current}>
           <PayloadValueUnitDisplay value={totalPax} padTo={3} unit="PAX" />
-        </td>
-      </tr>
+        </span>
+      </div>
 
-      <tr>
-        <td className="text-md whitespace-nowrap px-4 font-light">{t('Ground.Payload.Cargo')}</td>
-        <td>
-          <TooltipWrapper
-            text={`${t('Ground.Payload.TT.MaxCargo')} ${Units.kilogramToUser(maxCargo).toFixed(0)} ${massUnitForDisplay}`}
-          >
-            <div className="text-md whitespace-nowrap px-4 font-light">
+      <div className={row}>
+        <span className={name}>{t('Ground.Payload.Cargo')}</span>
+        <TooltipWrapper
+          text={`${t('Ground.Payload.TT.MaxCargo')} ${Units.kilogramToUser(maxCargo).toFixed(0)} ${massUnitForDisplay}`}
+        >
+          <div>
+            <PayloadValueInput
+              min={0}
+              max={maxCargo > 0 ? Math.round(Units.kilogramToUser(maxCargo)) : 99999}
+              value={Units.kilogramToUser(totalCargoDesired)}
+              onBlur={(x) => {
+                if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) {
+                  setTargetCargo(0, Units.userToKilogram(parseInt(x)));
+                }
+              }}
+              unit={massUnitForDisplay}
+              disabled={BoardingInProgress}
+            />
+          </div>
+        </TooltipWrapper>
+        <span className={current}>
+          <PayloadValueUnitDisplay value={Units.kilogramToUser(totalCargo)} padTo={5} unit={massUnitForDisplay} />
+        </span>
+      </div>
+
+      <div className={row}>
+        <span className="flex min-w-0 grow flex-row items-center">
+          <span className="mr-2 text-base font-semibold">
+            {displayZfw ? t('Ground.Payload.ZFW') : t('Ground.Payload.GW')}
+          </span>
+          {/* the table shows the zero fuel weight or the gross weight */}
+          <M3ActionChip onClick={() => setDisplayZfw(!displayZfw)} aria-label="ZFW / GW">
+            <span className="flex flex-row items-center text-sm text-current">
+              <Shuffle size={14} className="mr-1" />
+              {displayZfw ? t('Ground.Payload.GW') : t('Ground.Payload.ZFW')}
+            </span>
+          </M3ActionChip>
+        </span>
+        <TooltipWrapper
+          text={
+            displayZfw
+              ? `${t('Ground.Payload.TT.MaxZFW')} ${Units.kilogramToUser(weights?.maxZfw).toFixed(0)} ${massUnitForDisplay}`
+              : `${t('Ground.Payload.TT.MaxGW')} ${Units.kilogramToUser(weights?.maxGw).toFixed(0)} ${massUnitForDisplay}`
+          }
+        >
+          <div>
+            {displayZfw ? (
               <PayloadValueInput
-                min={0}
-                max={maxCargo > 0 ? Math.round(Units.kilogramToUser(maxCargo)) : 99999}
-                value={Units.kilogramToUser(totalCargoDesired)}
+                min={Math.round(Units.kilogramToUser(emptyWeight))}
+                max={Math.round(Units.kilogramToUser(weights?.maxZfw))}
+                value={Units.kilogramToUser(zfwDesired)}
                 onBlur={(x) => {
-                  if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) {
-                    setTargetCargo(0, Units.userToKilogram(parseInt(x)));
-                  }
+                  if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) processZfw(Units.userToKilogram(parseInt(x)));
                 }}
                 unit={massUnitForDisplay}
                 disabled={BoardingInProgress}
               />
-            </div>
-          </TooltipWrapper>
-        </td>
-        <td className="text-md w-20 whitespace-nowrap px-4 font-mono font-light">
-          <PayloadValueUnitDisplay value={Units.kilogramToUser(totalCargo)} padTo={5} unit={massUnitForDisplay} />
-        </td>
-      </tr>
-
-      <tr>
-        <td className="text-md whitespace-nowrap px-4 font-light">
-          {displayZfw ? t('Ground.Payload.ZFW') : t('Ground.Payload.GW')}
-        </td>
-        <td>
-          {displayZfw ? (
-            <TooltipWrapper
-              text={`${t('Ground.Payload.TT.MaxZFW')} ${Units.kilogramToUser(airframeInfo?.designLimits.weights.maxZfw).toFixed(0)} ${massUnitForDisplay}`}
-            >
-              <div className="text-md whitespace-nowrap px-4 font-light">
-                <PayloadValueInput
-                  min={Math.round(Units.kilogramToUser(emptyWeight))}
-                  max={Math.round(Units.kilogramToUser(airframeInfo?.designLimits.weights.maxZfw))}
-                  value={Units.kilogramToUser(zfwDesired)}
-                  onBlur={(x) => {
-                    if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) processZfw(Units.userToKilogram(parseInt(x)));
-                  }}
-                  unit={massUnitForDisplay}
-                  disabled={BoardingInProgress}
-                />
-              </div>
-            </TooltipWrapper>
-          ) : (
-            <TooltipWrapper
-              text={`${t('Ground.Payload.TT.MaxGW')} ${Units.kilogramToUser(airframeInfo?.designLimits.weights.maxGw).toFixed(0)} ${massUnitForDisplay}`}
-            >
-              <div className="text-md whitespace-nowrap px-4 font-light">
-                <PayloadValueInput
-                  min={Math.round(Units.kilogramToUser(emptyWeight))}
-                  max={Math.round(Units.kilogramToUser(airframeInfo?.designLimits.weights.maxGw))}
-                  value={Units.kilogramToUser(gwDesired)}
-                  onBlur={(x) => {
-                    if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) processGw(Units.userToKilogram(parseInt(x)));
-                  }}
-                  unit={massUnitForDisplay}
-                  disabled={BoardingInProgress}
-                />
-              </div>
-            </TooltipWrapper>
-          )}
-        </td>
-        <td className="text-md w-20 whitespace-nowrap px-4 font-mono">
+            ) : (
+              <PayloadValueInput
+                min={Math.round(Units.kilogramToUser(emptyWeight))}
+                max={Math.round(Units.kilogramToUser(weights?.maxGw))}
+                value={Units.kilogramToUser(gwDesired)}
+                onBlur={(x) => {
+                  if (!Number.isNaN(parseInt(x)) || parseInt(x) === 0) processGw(Units.userToKilogram(parseInt(x)));
+                }}
+                unit={massUnitForDisplay}
+                disabled={BoardingInProgress}
+              />
+            )}
+          </div>
+        </TooltipWrapper>
+        <span className={current}>
           <PayloadValueUnitDisplay
             value={displayZfw ? Units.kilogramToUser(zfw) : Units.kilogramToUser(gw)}
             padTo={5}
             unit={massUnitForDisplay}
           />
-        </td>
-      </tr>
-      <tr>
-        <td className="text-md whitespace-nowrap px-4 font-light">
-          <div className="relative flex flex-row items-center justify-start">
-            <div>{t(displayZfw ? 'Ground.Payload.ZFWCG' : 'Ground.Payload.GWCG')}</div>
-            <div className="ml-auto">
-              <button
-                type="button"
-                className={`ml-auto flex h-8 w-12 items-center justify-center rounded-lg
-                                                        bg-current text-theme-highlight`}
-                onClick={() => setDisplayZfw(!displayZfw)}
-              >
-                <div className="text-theme-body">
-                  <Shuffle size={24} />
-                </div>
-              </button>
-            </div>
+        </span>
+      </div>
+
+      <div className="flex h-9 flex-row items-center">
+        <span className={name}>{t(displayZfw ? 'Ground.Payload.ZFWCG' : 'Ground.Payload.GWCG')}</span>
+        <TooltipWrapper
+          text={
+            displayZfw
+              ? `${t('Ground.Payload.TT.MaxZFWCG')} ${weights?.maxZfwCg}%`
+              : `${t('Ground.Payload.TT.MaxGWCG')} ${weights?.maxGwCg}%`
+          }
+        >
+          <div className="w-40 shrink-0 text-center">
+            {/* TODO FIXME: Setting pax/cargo given desired ZFWCG, ZFW, total pax, total cargo */}
+            <PayloadPercentUnitDisplay value={displayZfw ? desiredZfwCgMac : desiredGwCgMac} />
           </div>
-        </td>
-        <td>
-          <TooltipWrapper
-            text={
-              displayZfw
-                ? `${t('Ground.Payload.TT.MaxZFWCG')} ${airframeInfo?.designLimits.weights.maxZfwCg}%`
-                : `${t('Ground.Payload.TT.MaxGWCG')} ${airframeInfo?.designLimits.weights.maxGwCg}%`
-            }
-          >
-            <div className="text-md whitespace-nowrap px-4 font-mono">
-              {/* TODO FIXME: Setting pax/cargo given desired ZFWCG, ZFW, total pax, total cargo */}
-              <div className="rounded-md px-3 py-4 transition">
-                <PayloadPercentUnitDisplay value={displayZfw ? desiredZfwCgMac : desiredGwCgMac} />
-              </div>
-              {/*
-                                <SimpleInput
-                                    className="my-2 w-24"
-                                    number
-                                    disabled
-                                    min={0}
-                                    max={maxPax > 0 ? maxPax : 999}
-                                    value={zfwCgMac.toFixed(2)}
-                                    onBlur={{(x) => processZfwCg(x)}
-                                />
-                            */}
-            </div>
-          </TooltipWrapper>
-        </td>
-        <td className="text-md whitespace-nowrap px-4 font-mono">
+        </TooltipWrapper>
+        <span className={current}>
           <PayloadPercentUnitDisplay value={displayZfw ? zfwCgMac : gwCgMac} />
-        </td>
-      </tr>
-    </tbody>
-  </table>
-);
+        </span>
+      </div>
+    </div>
+  );
+};

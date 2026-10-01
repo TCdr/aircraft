@@ -24,11 +24,21 @@ import {
   taxiFindStand,
   taxiStandMatches,
 } from '@flybywiresim/fbw-sdk';
-import { ArrowClockwise, CheckLg, Lightbulb, Trash } from 'react-bootstrap-icons';
+import { ArrowClockwise, CheckLg, ExclamationTriangleFill, GeoAltFill, Lightbulb, Trash } from 'react-bootstrap-icons';
 import { t } from '../../../Localization/translation';
 import { SimpleInput } from '../../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { SelectInput } from '../../../UtilComponents/Form/SelectInput/SelectInput';
-import { SelectGroup, SelectItem } from '../../../UtilComponents/Form/Select';
+import {
+  M3ActionChip,
+  M3Banner,
+  M3Button,
+  M3Card,
+  M3Chip,
+  M3IconButton,
+  M3Page,
+  M3Segmented,
+  M3_INPUT,
+} from '../../../UtilComponents/Material/Material';
 import { useAppDispatch, useAppSelector } from '../../../Store/store';
 import {
   clearTaxiRoute,
@@ -50,22 +60,42 @@ const START_MODES: Record<TaxiRouteDirection, TaxiRouteStartMode[]> = {
   [TaxiRouteDirection.Departure]: [TaxiRouteStartMode.Stand, TaxiRouteStartMode.Aircraft],
 };
 
-const Section: FC<{ title: string }> = ({ title, children }) => (
-  <div className="flex flex-col rounded-md border-2 border-theme-accent px-3 pb-3 pt-1.5">
-    <h2 className="mb-1.5 text-base font-bold uppercase tracking-wider text-theme-unselected">{title}</h2>
-    <div className="flex flex-col space-y-2">{children}</div>
-  </div>
+/** The look of a drop-down on a card (SelectInput brings its own border) */
+const SELECT_LOOK = 'h-10 !border-m3-outline bg-m3-ground';
+
+/** A card of the route form; a drop-down may hang out of it */
+const Section: FC<{ title: string; badge?: string | null; badgeWarn?: boolean }> = ({
+  title,
+  badge,
+  badgeWarn,
+  children,
+}) => (
+  <M3Card className="mb-3 shrink-0 !overflow-visible px-4 py-3">
+    <div className="mb-2 flex flex-row items-center">
+      <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">{title}</span>
+      <div className="grow" />
+      {badge && (
+        <span
+          className={`rounded-full px-2 py-1 text-xs font-bold leading-none ${
+            badgeWarn ? 'bg-m3-warn-container text-m3-on-warn' : 'bg-m3-tile text-m3-muted'
+          }`}
+        >
+          {badge}
+        </span>
+      )}
+    </div>
+    <div className="flex flex-col space-y-1">{children}</div>
+  </M3Card>
 );
 
 const Row: FC<{ label: string; missing?: boolean }> = ({ label, missing, children }) => (
   <div className="flex h-10 flex-row items-center justify-between">
-    <span className={`mr-2 whitespace-nowrap ${missing ? 'text-utility-amber' : 'text-theme-text'}`}>{label}</span>
+    <span className={`mr-2 whitespace-nowrap text-sm font-semibold ${missing ? 'text-m3-on-warn' : 'text-m3-text'}`}>
+      {label}
+    </span>
     {children}
   </div>
 );
-
-const buttonClass =
-  'flex flex-row items-center justify-center space-x-2 rounded-md border-2 py-1.5 outline-none transition duration-100 disabled:opacity-40';
 
 /** The route as a clearance reads: EXIT B3, A, K, GATE 42 (or GATE 42, A, S1, HOLDING POINT RWY 09) */
 function routeText(route: TaxiRoute, end: string | null): string {
@@ -290,10 +320,10 @@ export const TaxiPage = () => {
   const standField = (
     <>
       <Row label={t('Ground.Taxi.Stand')} missing={!standInfo}>
-        <div className="flex flex-row items-center space-x-2">
-          {standInfo?.terminal && <span className="text-theme-unselected">{standInfo.terminal}</span>}
+        <div className="flex flex-row items-center">
+          {standInfo?.terminal && <span className="mr-2 text-sm text-m3-muted">{standInfo.terminal}</span>}
           <SimpleInput
-            className="w-32 text-center"
+            className={`w-32 text-center ${M3_INPUT} font-bold`}
             fontSizeClassName="text-base"
             value={stand ?? ''}
             placeholder={t('Ground.Taxi.StandShort')}
@@ -304,27 +334,22 @@ export const TaxiPage = () => {
         </div>
       </Row>
       {standMatches.length > 0 && (
-        <div className="flex flex-row flex-wrap">
+        <div className="-m-1 flex flex-row flex-wrap">
           {standMatches.map((s) => (
-            <button
-              key={s.name}
-              type="button"
-              className="mb-1 mr-1 rounded-md border-2 border-theme-accent px-2 text-sm hover:border-theme-highlight"
-              onClick={() => set({ stand: s.name, accepted: false })}
-            >
+            <M3ActionChip key={s.name} className="m-1" onClick={() => set({ stand: s.name, accepted: false })}>
               {s.name}
-            </button>
+            </M3ActionChip>
           ))}
         </div>
       )}
-      {standUnknown && <span className="text-utility-amber">{t('Ground.Taxi.StandNotFound')}</span>}
+      {standUnknown && <span className="text-sm text-m3-on-warn">{t('Ground.Taxi.StandNotFound')}</span>}
     </>
   );
 
   const runwayField = (
     <Row label={t('Ground.Taxi.Runway')} missing={!runway}>
       <SelectInput
-        className="w-48"
+        className={`w-48 ${SELECT_LOOK}`}
         value={runway ?? ''}
         options={[{ value: '', displayValue: '-' }, ...runways.map((r) => ({ value: r, displayValue: r }))]}
         onChange={(v) =>
@@ -336,231 +361,245 @@ export const TaxiPage = () => {
   );
 
   const aircraftField = (
-    <div className="flex flex-row items-center justify-between">
-      <span className={aircraftStart ? 'text-theme-text' : 'text-utility-amber'}>
+    <div className="flex h-10 flex-row items-center justify-between">
+      <span className={`text-sm font-semibold ${aircraftStart ? 'text-m3-text' : 'text-m3-on-warn'}`}>
         {aircraftStart ? t('Ground.Taxi.AircraftPosition') : t('Ground.Taxi.NotAtAirport')}
       </span>
-      <button
-        type="button"
-        className="flex flex-row items-center space-x-2 rounded-md border-2 border-theme-highlight px-3 py-1 text-theme-highlight hover:bg-theme-highlight hover:text-theme-body"
-        onClick={takeAircraftPosition}
-      >
-        <ArrowClockwise size={18} />
-        <span>{t('Ground.Taxi.Update')}</span>
-      </button>
+      <M3ActionChip primary onClick={takeAircraftPosition}>
+        <span className="flex flex-row items-center text-sm text-current">
+          <ArrowClockwise size={16} className="mr-2" />
+          {t('Ground.Taxi.Update')}
+        </span>
+      </M3ActionChip>
     </div>
   );
 
-  return (
-    <div className="flex h-content-section-reduced flex-row space-x-3 overflow-hidden text-base">
-      <div className="flex w-[27rem] shrink-0 flex-col space-y-3">
-        <Section title={t('Ground.Taxi.Airport')}>
-          <SelectGroup>
-            {[TaxiRouteDirection.Departure, TaxiRouteDirection.Arrival].map((d) => (
-              <SelectItem key={d} className="w-1/2" selected={direction === d} onSelect={() => setDirection(d)}>
-                {t(`Ground.Taxi.Directions.${d}`)}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-          <Row label="ICAO" missing={!airport}>
-            <div className="flex flex-row space-x-2">
-              <SimpleInput
-                className="w-24 text-center"
-                fontSizeClassName="text-base"
-                value={icao}
-                placeholder="ICAO"
-                maxLength={4}
-                uppercase
-                onChange={(v) =>
-                  set({ icao: v.toUpperCase(), runway: undefined, exit: undefined, entry: undefined, accepted: false })
-                }
-              />
-              {[departingAirport, arrivingAirport].map((ofpIcao, i) => (
-                <button
-                  // eslint-disable-next-line react/no-array-index-key
-                  key={i}
-                  type="button"
-                  disabled={!ofpIcao}
-                  className="rounded-md border-2 border-theme-highlight px-2 text-sm text-theme-highlight hover:bg-theme-highlight hover:text-theme-body disabled:opacity-40"
-                  onClick={() =>
-                    set({
-                      icao: ofpIcao.toUpperCase(),
-                      runway: undefined,
-                      exit: undefined,
-                      entry: undefined,
-                      accepted: false,
-                    })
-                  }
-                >
-                  {i === 0 ? t('Ground.Taxi.Origin') : t('Ground.Taxi.Destination')}
-                </button>
-              ))}
-            </div>
-          </Row>
-          {airportStatus && (
-            <span className={airport ? 'text-theme-unselected' : 'text-utility-amber'}>{airportStatus}</span>
-          )}
-        </Section>
+  const setAirport = (newIcao: string) =>
+    set({ icao: newIcao.toUpperCase(), runway: undefined, exit: undefined, entry: undefined, accepted: false });
 
-        <Section title={t('Ground.Taxi.From')}>
-          <SelectGroup>
-            {START_MODES[direction].map((mode) => (
-              <SelectItem
-                key={mode}
-                className="w-1/2"
-                selected={startMode === mode}
-                onSelect={() => {
+  let routeStatus = t('Ground.Taxi.Suggested');
+  if (accepted) {
+    routeStatus = t('Ground.Taxi.Accepted');
+  } else if (cleared) {
+    routeStatus = t('Ground.Taxi.Preview');
+  }
+
+  return (
+    <M3Page
+      chips={
+        <>
+          <M3Chip tone="idle" icon={<GeoAltFill size={16} />}>
+            {`${icao || '----'} · ${t(`Ground.Taxi.Directions.${direction}`)}`}
+          </M3Chip>
+          {shownRoute && (
+            <M3Chip tone={accepted ? 'active' : 'idle'} icon={accepted ? <CheckLg size={16} /> : undefined}>
+              {`${routeStatus} · ${(shownRoute.length / 1000).toFixed(1)} km`}
+            </M3Chip>
+          )}
+          {shownRoute && crossings.length > 0 && (
+            <M3Chip tone="warn" icon={<ExclamationTriangleFill size={16} />}>
+              {`${t('Ground.Taxi.CrossRunway')} ${crossings.map((c) => c.runway).join(', ')}`}
+            </M3Chip>
+          )}
+        </>
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-row overflow-hidden text-base">
+        <div className="mr-4 flex h-full w-[420px] shrink-0 flex-col">
+          <Section title={t('Ground.Taxi.Airport')} badge={airportStatus} badgeWarn={!airport}>
+            <M3Segmented
+              options={[TaxiRouteDirection.Departure, TaxiRouteDirection.Arrival].map((d) => ({
+                label: t(`Ground.Taxi.Directions.${d}`),
+                selected: direction === d,
+                onClick: () => setDirection(d),
+              }))}
+            />
+            <Row label="ICAO" missing={!airport}>
+              <div className="flex flex-row items-center">
+                <SimpleInput
+                  className={`w-24 text-center ${M3_INPUT} font-bold`}
+                  fontSizeClassName="text-base"
+                  value={icao}
+                  placeholder="ICAO"
+                  maxLength={4}
+                  uppercase
+                  onChange={setAirport}
+                />
+                {[departingAirport, arrivingAirport].map((ofpIcao, i) => (
+                  <M3ActionChip
+                    // eslint-disable-next-line react/no-array-index-key
+                    key={i}
+                    className="ml-2"
+                    disabled={!ofpIcao}
+                    primary={!!ofpIcao && ofpIcao.toUpperCase() === icao}
+                    onClick={() => setAirport(ofpIcao)}
+                  >
+                    {i === 0 ? t('Ground.Taxi.Origin') : t('Ground.Taxi.Destination')}
+                  </M3ActionChip>
+                ))}
+              </div>
+            </Row>
+          </Section>
+
+          <Section title={t('Ground.Taxi.From')}>
+            <M3Segmented
+              options={START_MODES[direction].map((mode) => ({
+                label: t(`Ground.Taxi.StartModes.${mode}`),
+                selected: startMode === mode,
+                onClick: () => {
                   set({ startMode: mode, accepted: false });
                   if (mode === TaxiRouteStartMode.Aircraft) {
                     takeAircraftPosition();
                   }
-                }}
-              >
-                {t(`Ground.Taxi.StartModes.${mode}`)}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-          {startMode === TaxiRouteStartMode.Exit && (
-            <>
-              {runwayField}
-              <Row label={t('Ground.Taxi.Exit')} missing={!exit}>
-                <SelectInput
-                  className="w-48"
-                  value={exit ?? ''}
-                  options={[
-                    { value: '', displayValue: '-' },
-                    ...exits.map((e) => ({ value: e.name, displayValue: `${e.name}  ${Math.round(e.distance)} m` })),
-                  ]}
-                  onChange={(v) => set({ exit: (v as string) || undefined, accepted: false })}
-                  maxHeight={20}
-                />
-              </Row>
-            </>
-          )}
-          {startMode === TaxiRouteStartMode.Stand && standField}
-          {startMode === TaxiRouteStartMode.Aircraft && aircraftField}
-        </Section>
+                },
+              }))}
+            />
+            {startMode === TaxiRouteStartMode.Exit && (
+              <>
+                {runwayField}
+                <Row label={t('Ground.Taxi.Exit')} missing={!exit}>
+                  <SelectInput
+                    className={`w-48 ${SELECT_LOOK}`}
+                    value={exit ?? ''}
+                    options={[
+                      { value: '', displayValue: '-' },
+                      ...exits.map((e) => ({ value: e.name, displayValue: `${e.name}  ${Math.round(e.distance)} m` })),
+                    ]}
+                    onChange={(v) => set({ exit: (v as string) || undefined, accepted: false })}
+                    maxHeight={20}
+                  />
+                </Row>
+              </>
+            )}
+            {startMode === TaxiRouteStartMode.Stand && standField}
+            {startMode === TaxiRouteStartMode.Aircraft && aircraftField}
+          </Section>
 
-        <Section title={t('Ground.Taxi.To')}>
-          {departure ? (
-            <>
-              {runwayField}
-              <Row label={t('Ground.Taxi.Entry')} missing={!entryInfo}>
-                <SelectInput
-                  className="w-48"
-                  value={entryInfo?.name ?? ''}
-                  options={entries.map((e, i) => ({
-                    value: e.name,
-                    displayValue: `${e.name}  ${i === 0 ? t('Ground.Taxi.FullLength') : `${Math.round(e.remaining)} m`}`,
-                  }))}
-                  onChange={(v) => set({ entry: v as string, accepted: false })}
-                  maxHeight={20}
-                />
-              </Row>
-            </>
-          ) : (
-            standField
-          )}
-        </Section>
+          <Section title={t('Ground.Taxi.To')}>
+            {departure ? (
+              <>
+                {runwayField}
+                <Row label={t('Ground.Taxi.Entry')} missing={!entryInfo}>
+                  <SelectInput
+                    className={`w-48 ${SELECT_LOOK}`}
+                    value={entryInfo?.name ?? ''}
+                    options={entries.map((e, i) => ({
+                      value: e.name,
+                      displayValue: `${e.name}  ${i === 0 ? t('Ground.Taxi.FullLength') : `${Math.round(e.remaining)} m`}`,
+                    }))}
+                    onChange={(v) => set({ entry: v as string, accepted: false })}
+                    maxHeight={20}
+                  />
+                </Row>
+              </>
+            ) : (
+              standField
+            )}
+          </Section>
 
-        <Section title={t('Ground.Taxi.Clearance')}>
-          <div className="flex flex-row space-x-2">
+          <Section title={t('Ground.Taxi.Clearance')}>
             <SimpleInput
-              className="w-full min-w-0"
+              className={`w-full min-w-0 ${M3_INPUT} font-bold`}
               fontSizeClassName="text-base"
               value={clearance}
               placeholder={t('Ground.Taxi.ClearancePlaceholder')}
               uppercase
               onChange={(v) => set({ clearance: v.toUpperCase(), accepted: false })}
             />
-          </div>
-          <div className="flex flex-row space-x-2">
-            <button
-              type="button"
-              disabled={!suggestion || suggestion.error !== TaxiRouteError.None}
-              className={`${buttonClass} w-full border-theme-highlight text-theme-highlight hover:bg-theme-highlight hover:text-theme-body`}
-              onClick={() => suggestion && set({ clearance: suggestion.taxiways.join(' '), accepted: false })}
-            >
-              <Lightbulb size={18} />
-              <span>{t('Ground.Taxi.Suggest')}</span>
-            </button>
-            <button
-              type="button"
-              disabled={!cleared || cleared.error !== TaxiRouteError.None || accepted}
-              className={`${buttonClass} w-full border-utility-green bg-utility-green text-theme-body hover:bg-theme-body hover:text-utility-green`}
-              onClick={() => set({ accepted: true })}
-            >
-              <CheckLg size={18} />
-              <span>{t('Ground.Taxi.Accept')}</span>
-            </button>
-            <button
-              type="button"
-              className={`${buttonClass} w-16 shrink-0 border-utility-red text-utility-red hover:bg-utility-red hover:text-theme-body`}
-              onClick={() => {
-                dispatch(clearTaxiRoute());
-                setAircraftStart(null);
-              }}
-            >
-              <Trash size={18} />
-            </button>
-          </div>
-        </Section>
+            <div className="flex flex-row pt-1">
+              <M3Button
+                tone="outline"
+                className="!h-11 flex-1"
+                disabled={!suggestion || suggestion.error !== TaxiRouteError.None}
+                onClick={() => suggestion && set({ clearance: suggestion.taxiways.join(' '), accepted: false })}
+              >
+                <Lightbulb size={18} />
+                <span className="text-sm text-current">{t('Ground.Taxi.Suggest')}</span>
+              </M3Button>
+              <M3Button
+                className="ml-2 !h-11 flex-1"
+                disabled={!cleared || cleared.error !== TaxiRouteError.None || accepted}
+                onClick={() => set({ accepted: true })}
+              >
+                <CheckLg size={18} />
+                <span className="text-sm text-current">{t('Ground.Taxi.Accept')}</span>
+              </M3Button>
+              <M3IconButton
+                aria-label="Clear"
+                className="ml-2 !h-11 w-12 !flex-none text-m3-on-error"
+                onClick={() => {
+                  dispatch(clearTaxiRoute());
+                  setAircraftStart(null);
+                }}
+              >
+                <Trash size={18} />
+              </M3IconButton>
+            </div>
+          </Section>
 
-        <div className="flex min-h-0 flex-1 flex-col rounded-md border-2 border-theme-accent px-3 py-2">
-          {shownRoute ? (
-            <>
-              <span className={accepted ? 'font-bold text-utility-green' : 'text-theme-highlight'}>
-                {accepted ? t('Ground.Taxi.Accepted') : cleared ? t('Ground.Taxi.Preview') : t('Ground.Taxi.Suggested')}
-                {hasOans && flagRoute && ` · ${t('Ground.Taxi.FlagsOnOans')}`}
-              </span>
-              <span className="leading-snug">{routeText(shownRoute, routeEnd)}</span>
-              <span className="text-theme-unselected">
-                {(shownRoute.length / 1000).toFixed(1)} km
-                {shownRoute.taxiways.length > 0 && ` · ${shownRoute.taxiways.join(' ')}`}
-              </span>
-              {crossings.map((c, i) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <span key={i} className="font-bold text-utility-red">
-                  {t('Ground.Taxi.CrossRunway')} {c.runway}
+          <M3Card low className="scrollbar min-h-0 flex-1 !overflow-y-auto px-4 py-3">
+            {shownRoute ? (
+              <>
+                <span
+                  className={`shrink-0 text-sm font-bold ${accepted ? 'text-m3-on-primary-container' : 'text-m3-muted'}`}
+                >
+                  {routeStatus}
+                  {hasOans && flagRoute && ` · ${t('Ground.Taxi.FlagsOnOans')}`}
                 </span>
-              ))}
-            </>
-          ) : (
-            <span className={routeError ? 'text-utility-red' : 'text-theme-unselected'}>
-              {routeError ?? t(departure ? 'Ground.Taxi.HelpDeparture' : 'Ground.Taxi.Help')}
-            </span>
-          )}
+                <span className="mt-1 shrink-0 text-base leading-snug">{routeText(shownRoute, routeEnd)}</span>
+                <span className="mt-1 shrink-0 text-xs text-m3-muted">
+                  {(shownRoute.length / 1000).toFixed(1)} km
+                  {shownRoute.taxiways.length > 0 && ` · ${shownRoute.taxiways.join(' ')}`}
+                </span>
+                {crossings.map((c, i) => (
+                  <M3Banner
+                    // eslint-disable-next-line react/no-array-index-key
+                    key={i}
+                    tone="warn"
+                    className="mt-2 shrink-0"
+                    icon={<ExclamationTriangleFill size={16} />}
+                  >
+                    {`${t('Ground.Taxi.CrossRunway')} ${c.runway}`}
+                  </M3Banner>
+                ))}
+              </>
+            ) : (
+              <span className={`text-sm leading-snug ${routeError ? 'text-m3-on-error' : 'text-m3-muted'}`}>
+                {routeError ?? t(departure ? 'Ground.Taxi.HelpDeparture' : 'Ground.Taxi.Help')}
+              </span>
+            )}
+          </M3Card>
         </div>
-      </div>
 
-      <div className="relative flex min-w-0 flex-1 flex-col rounded-md border-2 border-theme-accent">
-        {airport ? (
-          <TaxiMap
-            airport={airport}
-            route={shownRoute}
-            accepted={accepted && cleared !== null}
-            crossings={crossings}
-            stand={standInfo}
-            hold={hold}
-            entries={entries}
-            aircraft={aircraft}
-            onStandPick={
-              !departure || startMode === TaxiRouteStartMode.Stand
-                ? (name) => set({ stand: name, accepted: false })
-                : undefined
-            }
+        <M3Card low className="relative h-full min-w-0 flex-1">
+          {airport ? (
+            <TaxiMap
+              airport={airport}
+              route={shownRoute}
+              accepted={accepted && cleared !== null}
+              crossings={crossings}
+              stand={standInfo}
+              hold={hold}
+              entries={entries}
+              aircraft={aircraft}
+              onStandPick={
+                !departure || startMode === TaxiRouteStartMode.Stand
+                  ? (name) => set({ stand: name, accepted: false })
+                  : undefined
+              }
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-m3-muted">
+              {airportStatus ?? t('Ground.Taxi.EnterAirport')}
+            </div>
+          )}
+          <TaxiFrequencyPanel
+            icao={icao}
+            origin={(departingAirport ?? '').toUpperCase()}
+            destination={(arrivingAirport ?? '').toUpperCase()}
           />
-        ) : (
-          <div className="flex h-full items-center justify-center text-theme-unselected">
-            {airportStatus ?? t('Ground.Taxi.EnterAirport')}
-          </div>
-        )}
-        <TaxiFrequencyPanel
-          icao={icao}
-          origin={(departingAirport ?? '').toUpperCase()}
-          destination={(arrivingAirport ?? '').toUpperCase()}
-        />
+        </M3Card>
       </div>
-    </div>
+    </M3Page>
   );
 };
