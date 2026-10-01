@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useEffect, useState } from 'react';
-import { Trash } from 'react-bootstrap-icons';
+import { Printer, Trash } from 'react-bootstrap-icons';
 import { t } from '@flybywiresim/flypad';
 
 import { Printout, Printouts } from '../Printouts';
+import { M3Button, M3Card, M3List } from '../../UtilComponents/Material/Material';
 
 const hhmm = (seconds: number) =>
   `${Math.floor(seconds / 3600)
@@ -36,47 +37,68 @@ export const PrintoutsPage = () => {
 
   if (printouts.length === 0) {
     return (
-      <div className="flex h-content-section-reduced w-full items-center justify-center rounded-lg border-2 border-theme-accent p-6">
+      <M3Card low className="h-content-section-reduced w-full items-center justify-center p-6">
         <h1 className="max-w-4xl text-center">{t('Dispatch.Printouts.NoPrintout')}</h1>
-      </div>
+      </M3Card>
     );
   }
 
   return (
-    <div className="flex h-content-section-reduced w-full space-x-4 overflow-hidden rounded-lg border-2 border-theme-accent p-4">
-      <div className="flex w-80 shrink-0 flex-col">
-        <div className="flex-1 space-y-2 overflow-y-auto pr-2">
-          {printouts.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setSelectedId(p.id)}
-              className={`w-full rounded-md border-2 px-3 py-2 text-left transition duration-100 ${
-                p.id === selectedId
-                  ? 'border-theme-highlight bg-theme-highlight text-theme-body'
-                  : 'border-theme-accent hover:border-theme-highlight'
-              }`}
-            >
-              <p className="font-bold">{p.title}</p>
-              <p className="text-sm">{hhmm(p.utcSeconds)}Z</p>
-            </button>
-          ))}
+    <div className="flex h-content-section-reduced w-full flex-row overflow-hidden text-m3-text">
+      <M3Card className="mr-4 h-full w-80 shrink-0 p-3">
+        <div className="mb-2 flex shrink-0 flex-row items-center px-1">
+          <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">
+            {t('Dispatch.Printouts.Title')}
+          </span>
+          <div className="grow" />
+          <span className="rounded-full bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
+            {printouts.length}
+          </span>
         </div>
-        <button
-          type="button"
-          onClick={() => Printouts.clear()}
-          className="mt-3 flex items-center justify-center space-x-2 rounded-md border-2 border-utility-red px-3 py-2 text-utility-red transition duration-100 hover:bg-utility-red hover:text-theme-body"
-        >
+        <M3List>
+          {printouts.map((p) => {
+            const selectedRow = p.id === selectedId;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelectedId(p.id)}
+                className={`mb-1 flex min-h-[52px] w-full shrink-0 flex-row items-center rounded-xl px-3 py-2 text-left transition duration-100 ${
+                  selectedRow ? 'bg-m3-primary-container' : 'bg-transparent hover:bg-m3-tile'
+                }`}
+              >
+                <span
+                  className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                    selectedRow ? 'bg-m3-primary text-m3-on-primary' : 'bg-m3-tile text-m3-muted'
+                  }`}
+                >
+                  <Printer size={18} />
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span
+                    className={`truncate text-base font-semibold leading-tight ${
+                      selectedRow ? 'text-m3-on-primary-container' : 'text-m3-text'
+                    }`}
+                  >
+                    {p.title}
+                  </span>
+                  <span className="text-xs leading-tight text-m3-muted">{`${hhmm(p.utcSeconds)}Z`}</span>
+                </span>
+              </button>
+            );
+          })}
+        </M3List>
+        <M3Button tone="danger" className="mt-3 !h-12 shrink-0" onClick={() => Printouts.clear()}>
           <Trash size={20} />
-          <p>{t('Dispatch.Printouts.DeleteAll')}</p>
-        </button>
-      </div>
+          <span className="text-base text-current">{t('Dispatch.Printouts.DeleteAll')}</span>
+        </M3Button>
+      </M3Card>
       {selected && (
-        <div className="relative flex-1 overflow-y-auto rounded-md bg-white p-6">
+        <div className="scrollbar relative h-full min-w-0 flex-1 overflow-y-auto rounded-2xl bg-white p-6">
           <button
             type="button"
             onClick={() => Printouts.remove(selected.id)}
-            className="absolute right-4 top-4 rounded-md p-2 text-black transition duration-100 hover:bg-utility-red hover:text-white"
+            className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-xl border border-gray-400 bg-white text-black transition duration-100 hover:bg-utility-red hover:text-white"
           >
             <Trash size={20} />
           </button>

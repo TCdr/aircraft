@@ -2,7 +2,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   LineupAngle,
   MathUtils,
@@ -25,15 +25,13 @@ import {
 import { useEventBus } from '@flybywiresim/flypad';
 import { toast } from 'react-toastify';
 import Slider from 'rc-slider';
-import { Calculator, CloudArrowDown, Send, Trash } from 'react-bootstrap-icons';
+import { Calculator, Send, Trash } from 'react-bootstrap-icons';
 import { getAirportMagVar, getRunways } from '../Data/Runways';
 import { t } from '../../Localization/translation';
 import { TooltipWrapper } from '../../UtilComponents/TooltipWrapper';
 import { PromptModal, useModals } from '../../UtilComponents/Modals/Modals';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { SelectInput } from '../../UtilComponents/Form/SelectInput/SelectInput';
-import { SelectGroup, SelectItem } from '../../UtilComponents/Form/Select';
-import { Toggle } from '../../UtilComponents/Form/Toggle';
 import { useAppDispatch, useAppSelector } from '../../Store/store';
 import { clearTakeoffValues, initialState, setTakeoffValues } from '../../Store/features/performance';
 import { AircraftContext } from '../../AircraftContext';
@@ -48,6 +46,19 @@ import {
 import { fetchRawMetarBySource } from '../../Service/WeatherService';
 import { CompanyTakeoffRequests, requestFmsTakeoffData, sendTakeoffDataToFms } from './TakeoffFmsLink';
 import { TakeoffRunway } from './TakeoffRunway';
+import { M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
+import {
+  PERF_INPUT,
+  PERF_SELECT,
+  PERF_SMALL_BUTTON,
+  PerfFillFrom,
+  PerfResult,
+  PerfResultRow,
+  PerfRow as Row,
+  PerfSection as Section,
+  PerfTitle,
+  PerfValue as Value,
+} from './PerformanceKit';
 
 /** What differs between the aircraft */
 interface CalculatorProfile {
@@ -128,37 +139,6 @@ const RUNWAY_CONDITIONS: RunwayCondition[] = [
   RunwayCondition.Contaminated10mmDrySnow,
   RunwayCondition.Contaminated100mmDrySnow,
 ];
-
-const Section: FC<{ title: string }> = ({ title, children }) => (
-  <div className="flex flex-col rounded-md border-2 border-theme-accent px-3 pb-3 pt-1.5">
-    <h2 className="mb-1.5 text-base font-bold uppercase tracking-wider text-theme-unselected">{title}</h2>
-    <div className="flex flex-col space-y-2">{children}</div>
-  </div>
-);
-
-/** A labelled input; the label is amber while the input is `missing` (the calculation needs it) */
-const Row: FC<{ label: string; missing?: boolean }> = ({ label, missing, children }) => (
-  <div className="flex h-10 flex-row items-center justify-between">
-    <span className={`mr-2 whitespace-nowrap ${missing ? 'text-utility-amber' : 'text-theme-text'}`}>{label}</span>
-    {children}
-  </div>
-);
-
-/** A value of the results panel: green, or amber with an asterisk for an estimate, with its unit in cyan */
-const Value: FC<{ text: string; unit?: string; estimate?: boolean; big?: boolean }> = ({
-  text,
-  unit,
-  estimate,
-  big,
-}) => (
-  <span className={big ? 'text-3xl' : 'text-2xl'}>
-    <span className={estimate ? 'text-utility-amber' : 'text-utility-green'}>
-      {text}
-      {estimate ? '*' : ''}
-    </span>
-    {unit && <span className="ml-1.5 text-xl text-theme-highlight">{unit}</span>}
-  </span>
-);
 
 /**
  * The takeoff calculator of the A380X and the A32NX, with the results in the layout of the RESULTS panel of the Airbus
@@ -788,57 +768,43 @@ export const TakeoffWidget = () => {
 
   const unitSelect = <T extends string>(value: string, options: T[], onChange: (v: T) => void, width = 'w-20') => (
     <SelectInput
+      fontSizeClassName="text-base"
       value={value}
-      className={`${width} rounded-l-none`}
+      className={`${width} ml-1 ${PERF_SELECT}`}
       options={options.map((o) => ({ value: o, displayValue: o === 'C' || o === 'F' ? `°${o}` : o }))}
       onChange={(v: T) => onChange(v)}
     />
   );
 
   return (
-    <div className="flex h-content-section-reduced flex-col space-y-3 overflow-hidden text-base">
-      {/* Airport, data sources and data mode */}
-      <div className="flex flex-row items-center justify-between">
-        <div className="flex flex-row items-center space-x-4">
-          <Row label={t('Performance.Takeoff.Airport')}>
-            <SimpleInput
-              className="w-24 text-center uppercase"
-              fontSizeClassName="text-base"
-              value={icao}
-              placeholder="ICAO"
-              onChange={handleICAOChange}
-              maxLength={4}
-            />
-          </Row>
-          <div className="flex flex-row">
-            <button
-              onClick={isAutoFillIcaoValid() ? handleAutoFill : undefined}
-              className={`flex flex-row items-center justify-center space-x-3 rounded-md rounded-r-none border-2 border-theme-highlight bg-theme-highlight px-5 py-1.5 text-theme-body outline-none transition duration-100 ${!isAutoFillIcaoValid() ? 'opacity-50' : 'hover:bg-theme-body hover:text-theme-highlight'}`}
-              type="button"
-            >
-              <CloudArrowDown size={22} />
-              <p className="text-current">{t('Performance.Landing.FillDataFrom')}</p>
-            </button>
-            <SelectInput
-              value={autoFillSource}
-              className="w-28 rounded-l-none"
-              options={[
-                { value: 'FMS', displayValue: 'FMS' },
-                { value: 'OFP', displayValue: 'OFP' },
-                { value: 'METAR', displayValue: 'METAR' },
-              ]}
-              onChange={(value: 'METAR' | 'OFP' | 'FMS') => setAutoFillSource(value)}
-            />
-          </div>
-        </div>
+    <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
+      {/* Airport and data sources */}
+      <div className="mb-3 flex shrink-0 flex-row items-center">
+        <span className="mr-2 text-sm font-semibold text-m3-muted">{t('Performance.Takeoff.Airport')}</span>
+        <SimpleInput
+          className={`mr-3 w-24 text-center uppercase ${PERF_INPUT}`}
+          fontSizeClassName="text-base"
+          value={icao}
+          placeholder="ICAO"
+          onChange={handleICAOChange}
+          maxLength={4}
+        />
+        <PerfFillFrom
+          enabled={isAutoFillIcaoValid()}
+          onClick={handleAutoFill}
+          source={autoFillSource}
+          sources={['FMS', 'OFP', 'METAR']}
+          onSource={(value: 'METAR' | 'OFP' | 'FMS') => setAutoFillSource(value)}
+        />
       </div>
 
       {/* Inputs */}
-      <div className="grid grid-cols-4 gap-3">
-        <Section title={t('Performance.Takeoff.Calc.SectionRunway')}>
+      <div className="mb-3 flex shrink-0 flex-row">
+        <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Takeoff.Calc.SectionRunway')}>
           <Row label={t('Performance.Takeoff.Runway')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               defaultValue={initialState.takeoff.selectedRunwayIndex}
               value={selectedRunwayIndex}
               onChange={(index: number) => set(setRunway(availableRunways, index))}
@@ -851,7 +817,7 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Calc.Heading')} missing={missingInputs.heading}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={runwayBearing}
               placeholder="°"
@@ -866,7 +832,7 @@ export const TakeoffWidget = () => {
           <Row label={t('Performance.Takeoff.Tora')} missing={missingInputs.tora}>
             <div className="flex w-40 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={displayed(runwayLength, distanceUnit === 'ft', Units.metreToFoot)}
                 placeholder={distanceUnit}
@@ -884,7 +850,7 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Calc.Elevation')} missing={missingInputs.elevation}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={elevation}
               placeholder="ft"
@@ -897,7 +863,7 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Calc.Slope')} missing={missingInputs.slope}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={runwaySlope}
               placeholder="%"
@@ -909,7 +875,8 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Calc.EntryAngle')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               defaultValue={initialState.takeoff.lineupAngle}
               value={lineupAngle}
               onChange={(v: LineupAngle) => set({ lineupAngle: v })}
@@ -921,10 +888,11 @@ export const TakeoffWidget = () => {
           </Row>
         </Section>
 
-        <Section title={t('Performance.Takeoff.Calc.SectionConditions')}>
+        <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Takeoff.Calc.SectionConditions')}>
           <Row label={t('Performance.Takeoff.Calc.Condition')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               defaultValue={initialState.takeoff.runwayCondition}
               value={runwayCondition}
               onChange={(v: RunwayCondition) =>
@@ -938,7 +906,7 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Wind')} missing={missingInputs.wind}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={windEntry}
               placeholder="°/kt"
@@ -950,7 +918,7 @@ export const TakeoffWidget = () => {
           <Row label={t('Performance.Takeoff.Calc.Oat')} missing={missingInputs.oat}>
             <div className="flex w-40 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={displayed(oat, temperatureUnit === 'F', Units.celsiusToFahrenheit)}
                 placeholder={`°${temperatureUnit}`}
@@ -967,7 +935,7 @@ export const TakeoffWidget = () => {
           <Row label={t('Performance.Takeoff.Qnh')} missing={missingInputs.qnh}>
             <div className="flex w-40 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={displayed(qnh, pressureUnit === 'inHg', Units.hectopascalToInchOfMercury)}
                 placeholder={pressureUnit}
@@ -985,7 +953,8 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.AntiIce')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               defaultValue={initialState.takeoff.antiIce}
               value={antiIce}
               onChange={(v: TakeoffAntiIceSetting) => set({ antiIce: v })}
@@ -998,7 +967,8 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Packs')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               defaultValue={initialState.takeoff.packs}
               value={packs}
               onChange={(v: boolean) => set({ packs: v })}
@@ -1010,12 +980,12 @@ export const TakeoffWidget = () => {
           </Row>
         </Section>
 
-        <Section title={t('Performance.Takeoff.Calc.SectionAircraft')}>
+        <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Takeoff.Calc.SectionAircraft')}>
           <Row label={t('Performance.Takeoff.Calc.Tow')} missing={missingInputs.tow}>
             <div className="flex w-40 flex-row">
               {/* In tonnes or thousands of pounds, as the TOW of the FMS and of the results: 68.0, 512.0 */}
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={
                   weight !== undefined
@@ -1040,7 +1010,7 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Calc.TakeoffCg')}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={cg}
               placeholder="% MAC"
@@ -1053,7 +1023,8 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Calc.Flaps')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               defaultValue={initialState.takeoff.config}
               value={config}
               onChange={(v: number) => set({ config: v })}
@@ -1067,7 +1038,8 @@ export const TakeoffWidget = () => {
           </Row>
           <Row label={t('Performance.Takeoff.Thrust')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               defaultValue={initialState.takeoff.forceToga}
               value={forceToga}
               // The results have both thrusts: only the thrust of the takeoff run changes
@@ -1083,7 +1055,7 @@ export const TakeoffWidget = () => {
           </Row>
         </Section>
 
-        <Section title={t('Performance.Takeoff.Calc.SectionDeparture')}>
+        <Section className="min-w-0 flex-1" title={t('Performance.Takeoff.Calc.SectionDeparture')}>
           {(
             [
               ['ThrRed', thrRed, 'thrustReductionAltitude'],
@@ -1093,7 +1065,7 @@ export const TakeoffWidget = () => {
           ).map(([label, value, key]) => (
             <Row key={key} label={t(`Performance.Takeoff.Calc.${label}`)}>
               <SimpleInput
-                className="w-40"
+                className={`w-40 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={value}
                 placeholder="ft"
@@ -1108,11 +1080,9 @@ export const TakeoffWidget = () => {
           {profile.noise && (
             <>
               <Row label={t('Performance.Takeoff.Calc.Noise')}>
-                <Toggle value={!!noiseEnabled} onToggle={(v) => set({ noiseEnabled: v })} />
+                <M3Switch value={!!noiseEnabled} onToggle={(v) => set({ noiseEnabled: v })} />
               </Row>
-              <div
-                className={`flex flex-row items-center justify-between space-x-2 ${noiseEnabled ? '' : 'opacity-40'}`}
-              >
+              <div className={`flex flex-row items-end justify-between space-x-2 ${noiseEnabled ? '' : 'opacity-40'}`}>
                 {(
                   [
                     ['NoiseEnd', noiseEndAltitude, 'noiseEndAltitude', 'ft', 'w-24'],
@@ -1121,7 +1091,7 @@ export const TakeoffWidget = () => {
                   ] as const
                 ).map(([label, value, key, unit, width]) => (
                   <div key={key} className="flex flex-col">
-                    <span className="text-sm text-theme-unselected">{t(`Performance.Takeoff.Calc.${label}`)}</span>
+                    <span className="text-xs text-m3-muted">{t(`Performance.Takeoff.Calc.${label}`)}</span>
                     <SimpleInput
                       className={width}
                       fontSizeClassName="text-base"
@@ -1141,8 +1111,8 @@ export const TakeoffWidget = () => {
       </div>
 
       {/* Results, takeoff run and actions */}
-      <div className="flex min-h-0 flex-1 flex-row space-x-3">
-        <div className="flex w-[32.5rem] shrink-0 flex-col space-y-3">
+      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+        <div className="mr-3 flex h-full w-[32.5rem] shrink-0 flex-col">
           <ResultsPanel
             result={result}
             runway={selectedRunway?.ident}
@@ -1164,48 +1134,39 @@ export const TakeoffWidget = () => {
             speeds={runResult}
             legend={t(profile.resultsLegend)}
           />
-          <div className="flex flex-row space-x-3">
-            <button
-              onClick={handleCalculateTakeoff}
-              className={`flex w-full flex-row items-center justify-center space-x-3 rounded-md border-2 border-theme-highlight bg-theme-highlight py-2 text-theme-body outline-none hover:bg-theme-body hover:text-theme-highlight ${!areInputsValid() ? 'pointer-events-none opacity-50' : ''}`}
-              type="button"
-              disabled={!areInputsValid()}
-            >
-              <Calculator size={22} />
-              <p className="font-bold text-current">{t('Performance.Takeoff.Calculate')}</p>
-            </button>
-            <button
-              onClick={() => dispatch(clearTakeoffValues())}
-              className="flex w-full flex-row items-center justify-center space-x-3 rounded-md border-2 border-utility-red bg-utility-red py-2 text-theme-body outline-none hover:bg-theme-body hover:text-utility-red"
-              type="button"
-            >
-              <Trash size={22} />
-              <p className="font-bold text-current">{t('Performance.Takeoff.Clear')}</p>
-            </button>
+          <div className="mt-3 flex shrink-0 flex-row">
+            <M3Button className="mr-2 !h-12 flex-1" disabled={!areInputsValid()} onClick={handleCalculateTakeoff}>
+              <Calculator size={20} />
+              <span className="text-base text-current">{t('Performance.Takeoff.Calculate')}</span>
+            </M3Button>
+            <M3Button tone="danger" className="mr-2 !h-12" onClick={() => dispatch(clearTakeoffValues())}>
+              <Trash size={20} />
+              <span className="text-base text-current">{t('Performance.Takeoff.Clear')}</span>
+            </M3Button>
             <TooltipWrapper text={sendTooltip()}>
-              <button
-                onClick={handleSendToFms}
-                className={`flex w-full flex-row items-center justify-center space-x-3 rounded-md border-2 border-theme-highlight py-2 text-theme-highlight outline-none hover:bg-theme-highlight hover:text-theme-body ${!canSend ? 'pointer-events-none opacity-50' : ''}`}
-                type="button"
-                disabled={!canSend}
-              >
-                <Send size={22} />
-                <p className="whitespace-nowrap font-bold text-current">{t('Performance.Takeoff.Calc.SendToFms')}</p>
-              </button>
+              <div>
+                <M3Button tone="tonal" className="!h-12" disabled={!canSend} onClick={handleSendToFms}>
+                  <Send size={20} />
+                  <span className="whitespace-nowrap text-base text-current">
+                    {t('Performance.Takeoff.Calc.SendToFms')}
+                  </span>
+                </M3Button>
+              </div>
             </TooltipWrapper>
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col rounded-md border-2 border-theme-accent px-4 pb-2 pt-1.5">
-          <div className="flex flex-row items-center justify-between">
-            <h2 className="text-base font-bold uppercase tracking-wider text-theme-unselected">
-              {t('Performance.Takeoff.Calc.TakeoffRun')}
-            </h2>
+        <M3Card className="h-full min-w-0 flex-1 px-4 py-3">
+          <div className="flex shrink-0 flex-row items-center">
+            <PerfTitle>{t('Performance.Takeoff.Calc.TakeoffRun')}</PerfTitle>
+            <div className="grow" />
             {distances !== undefined && (
-              <div className="flex flex-row space-x-5 text-lg">
-                <span>
-                  {t('Performance.Takeoff.Calc.Required')}{' '}
-                  <span className={distances.requiredEstimated ? 'text-utility-amber' : 'text-utility-green'}>
+              <>
+                <span className="mr-4 text-sm text-m3-muted">
+                  {`${t('Performance.Takeoff.Calc.Required')} `}
+                  <span
+                    className={`text-sm font-bold ${distances.requiredEstimated ? 'text-m3-on-warn' : 'text-m3-on-primary-container'}`}
+                  >
                     {distances.required !== undefined
                       ? `${formatDistance(distances.required)} ${distanceUnit}${distances.requiredEstimated ? '*' : ''}`
                       : distances.requiredBelowData
@@ -1216,75 +1177,75 @@ export const TakeoffWidget = () => {
                         : t('Performance.Takeoff.Calc.AboveData')}
                   </span>
                 </span>
-                <span>
-                  {t('Performance.Takeoff.Calc.Available')}{' '}
-                  <span className="text-utility-green">
-                    {formatDistance(distances.available)} {distanceUnit}
+                <span className="text-sm text-m3-muted">
+                  {`${t('Performance.Takeoff.Calc.Available')} `}
+                  <span className="text-sm font-bold text-m3-text">
+                    {`${formatDistance(distances.available)} ${distanceUnit}`}
                   </span>
                 </span>
                 {margin !== undefined && (
-                  <span>
-                    {t('Performance.Takeoff.Calc.Margin')}{' '}
+                  <span className="ml-4 text-sm text-m3-muted">
+                    {`${t('Performance.Takeoff.Calc.Margin')} `}
                     <span
-                      className={
+                      className={`text-sm font-bold ${
                         margin < 0
-                          ? 'text-utility-red'
+                          ? 'text-m3-on-error'
                           : distances.requiredEstimated
-                            ? 'text-utility-amber'
-                            : 'text-utility-green'
-                      }
+                            ? 'text-m3-on-warn'
+                            : 'text-m3-on-primary-container'
+                      }`}
                     >
-                      {formatDistance(margin)} {distanceUnit}
-                      {distances.requiredEstimated ? '*' : ''}
+                      {`${formatDistance(margin)} ${distanceUnit}${distances.requiredEstimated ? '*' : ''}`}
                     </span>
                   </span>
                 )}
-              </div>
+              </>
             )}
           </div>
 
           {/* Thrust of the takeoff run: TOGA, or a FLEX temperature from the lowest possible one to the maximum */}
-          <div className="mt-2 flex flex-row items-center space-x-4">
-            <span className="text-theme-text">{t('Performance.Takeoff.Calc.FlexSimulation')}</span>
-            <SelectGroup>
-              <SelectItem
-                selected={result !== undefined && runFlex === undefined}
-                disabled={result === undefined}
-                onSelect={() =>
-                  result !== undefined && dispatch(setTakeoffValues({ selectedFlex: null, forceToga: true }))
-                }
-                className="px-4 py-1"
-              >
-                {t('Performance.Takeoff.Calc.Toga')}
-              </SelectItem>
-              <SelectItem
-                selected={runFlex !== undefined}
-                disabled={!flexPossible}
-                onSelect={() => flexPossible && dispatch(setTakeoffValues({ selectedFlex: flexMax, forceToga: false }))}
-                className="px-4 py-1"
-              >
-                FLEX
-              </SelectItem>
-            </SelectGroup>
+          <div className="mt-3 flex shrink-0 flex-row items-center">
+            <span className="mr-3 text-sm font-semibold text-m3-text">
+              {t('Performance.Takeoff.Calc.FlexSimulation')}
+            </span>
+            <M3Segmented
+              className="mr-3 w-44"
+              options={[
+                {
+                  label: t('Performance.Takeoff.Calc.Toga'),
+                  selected: result !== undefined && runFlex === undefined,
+                  disabled: result === undefined,
+                  onClick: () =>
+                    result !== undefined && dispatch(setTakeoffValues({ selectedFlex: null, forceToga: true })),
+                },
+                {
+                  label: 'FLEX',
+                  selected: runFlex !== undefined,
+                  disabled: !flexPossible,
+                  onClick: () =>
+                    flexPossible && dispatch(setTakeoffValues({ selectedFlex: flexMax, forceToga: false })),
+                },
+              ]}
+            />
             <button
               type="button"
-              className={`h-9 w-9 rounded-md border-2 border-theme-accent text-xl ${runFlex === undefined || runFlex <= flexMin ? 'pointer-events-none opacity-40' : 'hover:border-theme-highlight'}`}
+              className={`${PERF_SMALL_BUTTON} w-10 text-xl ${runFlex === undefined || runFlex <= flexMin ? 'pointer-events-none opacity-40' : 'hover:bg-m3-tile'}`}
               onClick={() =>
                 runFlex !== undefined && dispatch(setTakeoffValues({ selectedFlex: Math.max(flexMin, runFlex - 1) }))
               }
             >
               −
             </button>
-            <span className="w-24 text-center text-2xl">
+            <span className="w-24 text-center">
               {runFlex !== undefined ? (
                 <Value text={`${runFlex}°C`} estimate={isEstimate(TakeoffPerformanceEstimate.Flex)} />
               ) : (
-                <span className="text-theme-unselected">---</span>
+                <span className="text-lg text-m3-muted">---</span>
               )}
             </span>
             <button
               type="button"
-              className={`h-9 w-9 rounded-md border-2 border-theme-accent text-xl ${runFlex === undefined || runFlex >= flexMax ? 'pointer-events-none opacity-40' : 'hover:border-theme-highlight'}`}
+              className={`${PERF_SMALL_BUTTON} mr-4 w-10 text-xl ${runFlex === undefined || runFlex >= flexMax ? 'pointer-events-none opacity-40' : 'hover:bg-m3-tile'}`}
               onClick={() =>
                 runFlex !== undefined && dispatch(setTakeoffValues({ selectedFlex: Math.min(flexMax, runFlex + 1) }))
               }
@@ -1292,7 +1253,7 @@ export const TakeoffWidget = () => {
               +
             </button>
             <div className={`flex flex-1 flex-row items-center space-x-3 ${runFlex === undefined ? 'opacity-40' : ''}`}>
-              <span className="text-sm text-theme-unselected">{flexPossible ? `${flexMin}°` : ''}</span>
+              <span className="text-xs text-m3-muted">{flexPossible ? `${flexMin}°` : ''}</span>
               <Slider
                 disabled={runFlex === undefined || flexMin === flexMax}
                 min={flexMin ?? 0}
@@ -1301,13 +1262,13 @@ export const TakeoffWidget = () => {
                 value={runFlex ?? flexMax ?? 0}
                 onChange={(v: number) => dispatch(setTakeoffValues({ selectedFlex: v }))}
               />
-              <span className="whitespace-nowrap text-sm text-theme-unselected">
+              <span className="whitespace-nowrap text-xs text-m3-muted">
                 {flexPossible ? `${flexMax}° ${t('Performance.Takeoff.Calc.FlexMax')}` : ''}
               </span>
             </div>
           </div>
 
-          <div className="mt-1 min-h-0 flex-1">
+          <div className="mt-2 min-h-0 flex-1">
             {result !== undefined ? (
               <TakeoffRunway
                 ident={selectedRunway?.ident}
@@ -1323,13 +1284,13 @@ export const TakeoffWidget = () => {
                 shortestDataLength={distances?.shortestDataLength ?? 0}
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-theme-unselected">
+              <div className="flex h-full items-center justify-center text-base text-m3-muted">
                 {t('Performance.Takeoff.Calc.NoResult')}
               </div>
             )}
           </div>
-          <div className="text-sm text-theme-unselected">{t(profile.runwayLegend)}</div>
-        </div>
+          <span className="shrink-0 text-xs leading-tight text-m3-muted">{t(profile.runwayLegend)}</span>
+        </M3Card>
       </div>
     </div>
   );
@@ -1380,90 +1341,91 @@ const ResultsPanel = ({
   speeds,
   legend,
 }: ResultsPanelProps) => {
-  const speed = (value: number | undefined, estimate: TakeoffPerformanceEstimate) => (
-    <Value text={value?.toFixed(0) ?? '---'} unit="kt" estimate={value !== undefined && isEstimate(estimate)} />
+  const speed = (name: string, value: number | undefined, estimate: TakeoffPerformanceEstimate, primary = false) => (
+    <PerfResult name={name}>
+      <Value
+        text={value?.toFixed(0) ?? '---'}
+        unit="kt"
+        estimate={value !== undefined && isEstimate(estimate)}
+        primary={primary}
+        big
+      />
+    </PerfResult>
   );
-  const altitude = (value: number | undefined) => (
-    <Value text={value !== undefined ? value.toFixed(0) : '-----'} unit="ft" />
+  const altitude = (name: string, value: number | undefined) => (
+    <PerfResult name={name}>
+      <Value text={value !== undefined ? value.toFixed(0) : '-----'} unit="ft" />
+    </PerfResult>
   );
+  /** The runway, the flaps and the thrust of the results, on one line */
+  let thrust = '----';
+  if (result !== undefined) {
+    thrust = flex !== undefined ? `FLEX ${flex}°C${isEstimate(TakeoffPerformanceEstimate.Flex) ? '*' : ''}` : 'TOGA';
+    if (flex !== undefined && !flexIsMax) {
+      thrust += ` (max ${result.flex})`;
+    }
+  }
+  const flaps = result ? (result.inputs.conf === 1 ? '1+F' : result.inputs.conf.toFixed(0)) : '-';
   return (
-    <div className="flex flex-1 flex-col justify-between rounded-md bg-black px-4 pb-2 pt-1.5 text-white">
-      <div className="flex flex-row items-baseline justify-between">
-        <span className="text-base uppercase tracking-wider text-theme-unselected">
-          {t('Performance.Takeoff.Calc.Results')}
-        </span>
-        <span className="text-xl">
-          RWY <Value text={runway ?? '---'} />
+    <M3Card low className="min-h-0 flex-1 px-4 py-3">
+      <div className="mb-2 flex shrink-0 flex-row items-center">
+        <PerfTitle>{t('Performance.Takeoff.Calc.Results')}</PerfTitle>
+        <div className="grow" />
+        <span
+          className={`rounded-full bg-m3-tile px-3 py-1 text-xs font-bold leading-none ${
+            flex !== undefined && isEstimate(TakeoffPerformanceEstimate.Flex) ? 'text-m3-on-warn' : 'text-m3-text'
+          }`}
+        >
+          {`RWY ${runway ?? '---'} · FLAPS ${flaps} · ${thrust}`}
         </span>
       </div>
-      <div className="flex flex-row items-baseline justify-between">
-        <span className="text-xl">
-          TOW <Value text={formatWeight(result?.inputs.tow)} unit={weightUnit} big />
-        </span>
-        <span className="text-xl">
-          MTOW(perf){' '}
+      <PerfResultRow className="mb-2">
+        {speed('V1', speeds?.v1, TakeoffPerformanceEstimate.V1)}
+        {speed('VR', speeds?.vR, TakeoffPerformanceEstimate.VR)}
+        {speed('V2', speeds?.v2, TakeoffPerformanceEstimate.V2, true)}
+      </PerfResultRow>
+      <PerfResultRow className="mb-2">
+        <PerfResult name="TOW">
+          <Value text={formatWeight(result?.inputs.tow)} unit={weightUnit} />
+        </PerfResult>
+        <PerfResult name="MTOW(perf)">
           <Value
             text={formatWeight(result?.mtow)}
             unit={weightUnit}
             estimate={result?.mtow !== undefined && weightsEstimated}
           />
-        </span>
-      </div>
-      <div className="flex flex-row justify-between">
-        <div className="flex flex-col text-xl">
-          <span>V1 {speed(speeds?.v1, TakeoffPerformanceEstimate.V1)}</span>
-          <span>VR {speed(speeds?.vR, TakeoffPerformanceEstimate.VR)}</span>
-          <span>V2 {speed(speeds?.v2, TakeoffPerformanceEstimate.V2)}</span>
-        </div>
-        <div className="flex flex-col items-end justify-between text-xl">
-          <span>
-            {t('Performance.Takeoff.Calc.Margin').toUpperCase()}{' '}
-            <Value
-              text={formatDistance(margin, '---')}
-              unit={distanceUnit}
-              estimate={margin !== undefined && marginEstimated}
-            />
-          </span>
-          <span>
-            {result === undefined ? (
-              <Value text="----" />
-            ) : flex !== undefined ? (
-              <>
-                <Value text={`FLEX ${flex}°C`} estimate={isEstimate(TakeoffPerformanceEstimate.Flex)} />
-                {!flexIsMax && <span className="ml-2 text-base text-theme-unselected">(max {result.flex})</span>}
-              </>
-            ) : (
-              <Value text="TOGA" />
-            )}
-          </span>
-          <span>
-            FLAPS <Value text={result ? (result.inputs.conf === 1 ? '1+F' : result.inputs.conf.toFixed(0)) : '-'} />
-          </span>
-        </div>
-      </div>
-      <div className="flex flex-row justify-between text-xl">
-        <span>
-          T.O CG <Value text={cg !== undefined ? cg.toFixed(1) : '--.-'} unit="%" />
-        </span>
-        <span>
-          T.O SHIFT <Value text={result ? formatDistance(shift ?? 0) : '----'} unit={distanceUnit} />
-        </span>
-      </div>
-      <div className="flex flex-row justify-between text-xl">
-        <span>THR RED {altitude(thrRed)}</span>
-        <span>ACCEL {altitude(accel)}</span>
-      </div>
-      <div className="flex flex-row justify-between text-xl">
-        <span>
-          {result?.stabTrim !== undefined && (
-            <>
-              THS <Value text={`${result.stabTrim < 0 ? 'DN' : 'UP'}${Math.abs(result.stabTrim).toFixed(1)}`} />
-            </>
-          )}
-        </span>
-        <span>EO ACCEL {altitude(eoAccel)}</span>
-      </div>
-      <div className="text-sm leading-tight text-theme-unselected">{legend}</div>
-    </div>
+        </PerfResult>
+        <PerfResult name={t('Performance.Takeoff.Calc.Margin')}>
+          <Value
+            text={formatDistance(margin, '---')}
+            unit={distanceUnit}
+            estimate={margin !== undefined && marginEstimated}
+            warning={margin !== undefined && margin < 0}
+          />
+        </PerfResult>
+      </PerfResultRow>
+      <PerfResultRow className="mb-2">
+        <PerfResult name="T.O CG">
+          <Value text={cg !== undefined ? cg.toFixed(1) : '--.-'} unit="%" />
+        </PerfResult>
+        <PerfResult name="T.O SHIFT">
+          <Value text={result ? formatDistance(shift ?? 0) : '----'} unit={distanceUnit} />
+        </PerfResult>
+        {result?.stabTrim !== undefined ? (
+          <PerfResult name="THS">
+            <Value text={`${result.stabTrim < 0 ? 'DN' : 'UP'}${Math.abs(result.stabTrim).toFixed(1)}`} />
+          </PerfResult>
+        ) : (
+          <div className="min-w-0 flex-1" />
+        )}
+      </PerfResultRow>
+      <PerfResultRow className="mb-2">
+        {altitude('THR RED', thrRed)}
+        {altitude('ACCEL', accel)}
+        {altitude('EO ACCEL', eoAccel)}
+      </PerfResultRow>
+      <div className="grow" />
+      <span className="shrink-0 text-xs leading-tight text-m3-muted">{legend}</span>
+    </M3Card>
   );
 };

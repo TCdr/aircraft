@@ -2,7 +2,7 @@
 // Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, useContext, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   AirframeType,
   MathUtils,
@@ -34,13 +34,11 @@ import {
 } from '@flybywiresim/fbw-sdk';
 import { useEventBus } from '@flybywiresim/flypad';
 import { toast } from 'react-toastify';
-import { Calculator, CloudArrowDown, Trash } from 'react-bootstrap-icons';
+import { Calculator, Trash } from 'react-bootstrap-icons';
 import { t } from '../../Localization/translation';
 import { PromptModal, useModals } from '../../UtilComponents/Modals/Modals';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { SelectInput } from '../../UtilComponents/Form/SelectInput/SelectInput';
-import { SelectGroup, SelectItem } from '../../UtilComponents/Form/Select';
-import { Toggle } from '../../UtilComponents/Form/Toggle';
 import { useAppDispatch, useAppSelector } from '../../Store/store';
 import { clearLandingValues, initialState, setLandingValues } from '../../Store/features/performance';
 import { AircraftContext } from '../../AircraftContext';
@@ -56,6 +54,18 @@ import {
 import { getAirportMagVar, getRunways } from '../Data/Runways';
 import { LandingRunway, LandingRunwayStop } from './LandingRunway';
 import { LandingRunwayExits, loadLandingRunwayExits } from './LandingBtv';
+import { M3ActionChip, M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
+import {
+  PERF_INPUT,
+  PERF_SELECT,
+  PerfFillFrom,
+  PerfResult,
+  PerfResultRow,
+  PerfRow as Row,
+  PerfSection as Section,
+  PerfTitle,
+  PerfValue as Value,
+} from './PerformanceKit';
 
 /** The labels of the braking modes, as on the autobrake selectors (A380 LO/2/3/HI/BTV, A320 LO/MED) */
 const BRAKING_LABELS: Record<LandingBrakingMode, string> = {
@@ -71,43 +81,6 @@ const BRAKING_LABELS: Record<LandingBrakingMode, string> = {
 
 /** Water and slush 1/2": Airbus does not recommend their operational use (A380 FCOM PER-LND-LCD-OCD) */
 const NOT_RECOMMENDED = [LandingRunwayCondition.Water13mm, LandingRunwayCondition.Slush13mm];
-
-const Section: FC<{ title: string }> = ({ title, children }) => (
-  <div className="flex flex-col rounded-md border-2 border-theme-accent px-3 pb-3 pt-1.5">
-    <h2 className="mb-1.5 text-base font-bold uppercase tracking-wider text-theme-unselected">{title}</h2>
-    <div className="flex flex-col space-y-2">{children}</div>
-  </div>
-);
-
-/** A labelled input; the label is amber while the input is `missing` (the calculation needs it) */
-const Row: FC<{ label: string; missing?: boolean; note?: string }> = ({ label, missing, note, children }) => (
-  <div className="flex h-10 flex-row items-center justify-between">
-    <span
-      className={`mr-2 flex flex-col whitespace-nowrap leading-tight ${missing ? 'text-utility-amber' : 'text-theme-text'}`}
-    >
-      {label}
-      {note && <span className="text-sm text-theme-unselected">{note}</span>}
-    </span>
-    {children}
-  </div>
-);
-
-/** A value of the results panel: green, or amber with an asterisk for an estimate, with its unit in cyan */
-const Value: FC<{ text: string; unit?: string; estimate?: boolean; big?: boolean; warning?: boolean }> = ({
-  text,
-  unit,
-  estimate,
-  big,
-  warning,
-}) => (
-  <span className={big ? 'text-3xl' : 'text-2xl'}>
-    <span className={warning ? 'text-utility-red' : estimate ? 'text-utility-amber' : 'text-utility-green'}>
-      {text}
-      {estimate ? '*' : ''}
-    </span>
-    {unit && <span className="ml-1.5 text-xl text-theme-highlight">{unit}</span>}
-  </span>
-);
 
 /**
  * The landing calculator of the A380X and the A32NX, after the LDG PERF application of the A380 (A380 FCOM PER-LND):
@@ -577,8 +550,9 @@ export const LandingWidget = () => {
 
   const unitSelect = <T extends string>(value: string, options: T[], onChange: (v: T) => void, width = 'w-20') => (
     <SelectInput
+      fontSizeClassName="text-base"
       value={value}
-      className={`${width} rounded-l-none`}
+      className={`${width} ml-1 ${PERF_SELECT}`}
       options={options.map((o) => ({ value: o, displayValue: o === 'C' || o === 'F' ? `°${o}` : o }))}
       onChange={(v: T) => onChange(v)}
     />
@@ -642,64 +616,44 @@ export const LandingWidget = () => {
         : [];
 
   return (
-    <div className="flex h-content-section-reduced flex-col space-y-3 overflow-hidden text-base">
+    <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
       {/* Airport, data sources and computation type */}
-      <div className="flex flex-row items-center justify-between">
-        <div className="flex flex-row items-center space-x-4">
-          <Row label={t('Performance.Landing.Airport')}>
-            <SimpleInput
-              className="w-24 text-center uppercase"
-              fontSizeClassName="text-base"
-              value={icao}
-              placeholder="ICAO"
-              onChange={handleICAOChange}
-              maxLength={4}
-            />
-          </Row>
-          <div className="flex flex-row">
-            <button
-              onClick={isAutoFillIcaoValid() ? handleAutoFill : undefined}
-              className={`flex flex-row items-center justify-center space-x-3 rounded-md rounded-r-none border-2 border-theme-highlight bg-theme-highlight px-5 py-1.5 text-theme-body outline-none transition duration-100 ${!isAutoFillIcaoValid() ? 'opacity-50' : 'hover:bg-theme-body hover:text-theme-highlight'}`}
-              type="button"
-            >
-              <CloudArrowDown size={22} />
-              <p className="text-current">{t('Performance.Landing.FillDataFrom')}</p>
-            </button>
-            <SelectInput
-              value={autoFillSource}
-              className="w-28 rounded-l-none"
-              options={[
-                { value: 'FMS', displayValue: 'FMS' },
-                { value: 'OFP', displayValue: 'OFP' },
-                { value: 'METAR', displayValue: 'METAR' },
-              ]}
-              onChange={(value: 'METAR' | 'OFP' | 'FMS') => setAutoFillSource(value)}
-            />
-          </div>
-        </div>
-        <div className="flex flex-row items-center space-x-4">
-          <span className="text-theme-text">{t('Performance.Landing.Calc.Computation')}</span>
-          <SelectGroup>
-            {[LandingComputationType.Dispatch, LandingComputationType.InFlight].map((type) => (
-              <SelectItem
-                key={type}
-                selected={computationType === type}
-                onSelect={() => handleComputationTypeChange(type)}
-                className="px-4 py-1"
-              >
-                {t(`Performance.Landing.Calc.${type === LandingComputationType.Dispatch ? 'Dispatch' : 'InFlight'}`)}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </div>
+      <div className="mb-3 flex shrink-0 flex-row items-center">
+        <span className="mr-2 text-sm font-semibold text-m3-muted">{t('Performance.Landing.Airport')}</span>
+        <SimpleInput
+          className={`mr-3 w-24 text-center uppercase ${PERF_INPUT}`}
+          fontSizeClassName="text-base"
+          value={icao}
+          placeholder="ICAO"
+          onChange={handleICAOChange}
+          maxLength={4}
+        />
+        <PerfFillFrom
+          enabled={isAutoFillIcaoValid()}
+          onClick={handleAutoFill}
+          source={autoFillSource}
+          sources={['FMS', 'OFP', 'METAR']}
+          onSource={(value: 'METAR' | 'OFP' | 'FMS') => setAutoFillSource(value)}
+        />
+        <div className="grow" />
+        <span className="mr-3 text-sm font-semibold text-m3-muted">{t('Performance.Landing.Calc.Computation')}</span>
+        <M3Segmented
+          className="w-64"
+          options={[LandingComputationType.Dispatch, LandingComputationType.InFlight].map((type) => ({
+            label: t(`Performance.Landing.Calc.${type === LandingComputationType.Dispatch ? 'Dispatch' : 'InFlight'}`),
+            selected: computationType === type,
+            onClick: () => handleComputationTypeChange(type),
+          }))}
+        />
       </div>
 
       {/* Inputs */}
-      <div className="grid grid-cols-4 gap-3">
-        <Section title={t('Performance.Landing.Calc.SectionRunway')}>
+      <div className="mb-3 flex shrink-0 flex-row">
+        <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Landing.Calc.SectionRunway')}>
           <Row label={t('Performance.Landing.Runway')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               defaultValue={initialState.landing.selectedRunwayIndex}
               value={selectedRunwayIndex}
               onChange={(index: number) => set(setRunway(availableRunways, index))}
@@ -712,7 +666,7 @@ export const LandingWidget = () => {
           </Row>
           <Row label={t('Performance.Landing.Calc.Heading')} missing={missingInputs.heading}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={runwayHeading}
               placeholder="°"
@@ -727,7 +681,7 @@ export const LandingWidget = () => {
           <Row label={t('Performance.Landing.Calc.Lda')} missing={missingInputs.lda}>
             <div className="flex w-40 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={displayed(runwayLength, distanceUnit === 'ft', Units.metreToFoot)}
                 placeholder={distanceUnit}
@@ -745,7 +699,7 @@ export const LandingWidget = () => {
           </Row>
           <Row label={t('Performance.Landing.Calc.Elevation')} missing={missingInputs.elevation}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={elevation}
               placeholder="ft"
@@ -758,7 +712,7 @@ export const LandingWidget = () => {
           </Row>
           <Row label={t('Performance.Landing.Calc.Slope')} missing={missingInputs.slope}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={slope}
               placeholder="%"
@@ -771,7 +725,7 @@ export const LandingWidget = () => {
           {features.goAround && (
             <Row label={t('Performance.Landing.Calc.GoAroundAltitude')}>
               <SimpleInput
-                className="w-40"
+                className={`w-40 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={goAroundAltitude}
                 placeholder={elevation !== undefined ? `${elevation} ft` : 'ft'}
@@ -785,10 +739,11 @@ export const LandingWidget = () => {
           )}
         </Section>
 
-        <Section title={t('Performance.Landing.Calc.SectionConditions')}>
+        <Section className="mr-3 min-w-0 flex-1" title={t('Performance.Landing.Calc.SectionConditions')}>
           <Row label={t('Performance.Landing.Calc.Condition')}>
             <SelectInput
-              className="w-48 whitespace-nowrap"
+              fontSizeClassName="text-base"
+              className={`w-48 whitespace-nowrap ${PERF_SELECT}`}
               value={runwayCondition}
               onChange={(v: LandingRunwayCondition) => handleRunwayConditionChange(v)}
               options={runwayConditions.map((c) => ({
@@ -799,7 +754,7 @@ export const LandingWidget = () => {
           </Row>
           <Row label={t('Performance.Landing.Wind')} missing={missingInputs.wind} note={windNote}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={windEntry}
               placeholder="°/kt"
@@ -815,7 +770,7 @@ export const LandingWidget = () => {
           >
             <div className="flex w-40 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={displayed(temperature, temperatureUnit === 'F', Units.celsiusToFahrenheit)}
                 placeholder={`°${temperatureUnit}`}
@@ -832,7 +787,7 @@ export const LandingWidget = () => {
           <Row label={t('Performance.Landing.Qnh')} missing={missingInputs.qnh}>
             <div className="flex w-40 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={displayed(pressure, pressureUnit === 'inHg', Units.hectopascalToInchOfMercury)}
                 placeholder={pressureUnit}
@@ -853,7 +808,8 @@ export const LandingWidget = () => {
           {features.antiIce && (
             <Row label={t('Performance.Landing.Calc.AntiIce')}>
               <SelectInput
-                className="w-40"
+                fontSizeClassName="text-base"
+                className={`w-40 ${PERF_SELECT}`}
                 value={antiIce}
                 onChange={(v: LandingAntiIce) => set({ antiIce: v })}
                 options={[
@@ -867,7 +823,8 @@ export const LandingWidget = () => {
           {features.airConditioning && (
             <Row label={t('Performance.Landing.Calc.AirConditioning')}>
               <SelectInput
-                className="w-40"
+                fontSizeClassName="text-base"
+                className={`w-40 ${PERF_SELECT}`}
                 value={airConditioning}
                 onChange={(v: boolean) => set({ airConditioning: v })}
                 options={onOff}
@@ -876,19 +833,21 @@ export const LandingWidget = () => {
           )}
         </Section>
 
-        <Section title={t('Performance.Landing.Calc.SectionAircraft')}>
+        <Section
+          className="mr-3 min-w-0 flex-1"
+          title={t('Performance.Landing.Calc.SectionAircraft')}
+          action={
+            // The maximum landing weight as the landing weight
+            <M3ActionChip className="!h-6 !px-2 !text-xs" onClick={() => set({ weight: calculator.mlw })}>
+              MLW
+            </M3ActionChip>
+          }
+        >
           <Row label={t('Performance.Landing.Calc.Lw')} missing={missingInputs.weight}>
-            <div className="flex w-52 flex-row">
-              <button
-                type="button"
-                className="rounded-md rounded-r-none border-2 border-theme-accent px-1.5 text-sm hover:border-theme-highlight"
-                onClick={() => set({ weight: calculator.mlw })}
-              >
-                MLW
-              </button>
+            <div className="flex w-40 flex-row">
               {/* In tonnes or thousands of pounds, as the LW of the FMS and of the results: 56.0, 386.0 */}
               <SimpleInput
-                className="w-full min-w-0 rounded-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={
                   weight !== undefined
@@ -913,7 +872,8 @@ export const LandingWidget = () => {
           </Row>
           <Row label={t('Performance.Landing.Calc.LandingConf')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               value={conf}
               onChange={(v: LandingConf) => set({ conf: v })}
               options={[
@@ -926,7 +886,8 @@ export const LandingWidget = () => {
           {showGaConf && (
             <Row label={t('Performance.Landing.Calc.GoAroundConf')}>
               <SelectInput
-                className="w-40"
+                fontSizeClassName="text-base"
+                className={`w-40 ${PERF_SELECT}`}
                 value={goAroundConf ?? LandingGoAroundConf.Conf2}
                 onChange={(v: LandingGoAroundConf) => set({ goAroundConf: v })}
                 options={[
@@ -939,7 +900,8 @@ export const LandingWidget = () => {
           {features.approachType && (
             <Row label={t('Performance.Landing.Calc.ApproachType')}>
               <SelectInput
-                className="w-40"
+                fontSizeClassName="text-base"
+                className={`w-40 ${PERF_SELECT}`}
                 value={approachType}
                 onChange={(v: LandingApproachType) => set({ approachType: v })}
                 options={[
@@ -952,7 +914,7 @@ export const LandingWidget = () => {
           {features.goAround && (
             <Row label={t('Performance.Landing.Calc.GoAroundGradient')}>
               <SimpleInput
-                className="w-40"
+                className={`w-40 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={goAroundGradient}
                 placeholder={`MIN ${calculator.minGoAroundGradient} %`}
@@ -966,7 +928,7 @@ export const LandingWidget = () => {
           )}
           <Row label={t('Performance.Landing.Calc.SpeedIncrement')}>
             <SimpleInput
-              className="w-40"
+              className={`w-40 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={speedIncrement}
               placeholder={
@@ -983,10 +945,11 @@ export const LandingWidget = () => {
           </Row>
         </Section>
 
-        <Section title={t('Performance.Landing.Calc.SectionLanding')}>
+        <Section className="min-w-0 flex-1" title={t('Performance.Landing.Calc.SectionLanding')}>
           <Row label={t('Performance.Landing.Calc.Technique')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               value={autoland}
               onChange={(v: boolean) => set({ autoland: v })}
               options={[
@@ -998,7 +961,7 @@ export const LandingWidget = () => {
           {autoland && (
             <Row label={t('Performance.Landing.Calc.GlideSlope')}>
               <SimpleInput
-                className="w-40"
+                className={`w-40 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={glideSlope}
                 placeholder="°"
@@ -1012,7 +975,8 @@ export const LandingWidget = () => {
           )}
           <Row label={t('Performance.Landing.Calc.BrakingMode')}>
             <SelectInput
-              className="w-40"
+              fontSizeClassName="text-base"
+              className={`w-40 ${PERF_SELECT}`}
               value={inFlight ? brakingMode : LandingBrakingMode.Manual}
               onChange={(v: LandingBrakingMode) => set({ brakingMode: v })}
               options={calculator.brakingModes().map((m) => ({
@@ -1025,20 +989,20 @@ export const LandingWidget = () => {
           </Row>
           <Row label={t('Performance.Landing.ReverseThrust')}>
             <div className={reverseAvailable ? '' : 'pointer-events-none opacity-40'}>
-              <Toggle value={reverseThrust && reverseAvailable} onToggle={(v) => set({ reverseThrust: v })} />
+              <M3Switch value={reverseThrust && reverseAvailable} onToggle={(v) => set({ reverseThrust: v })} />
             </div>
           </Row>
           {features.overweightProcedure && inFlight && (
             <Row label={t('Performance.Landing.OverweightProcedure')}>
-              <Toggle value={overweightProcedure} onToggle={(v) => set({ overweightProcedure: v })} />
+              <M3Switch value={overweightProcedure} onToggle={(v) => set({ overweightProcedure: v })} />
             </Row>
           )}
         </Section>
       </div>
 
       {/* Results, landing roll and actions */}
-      <div className="flex min-h-0 flex-1 flex-row space-x-3">
-        <div className="flex w-[32.5rem] shrink-0 flex-col space-y-3">
+      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+        <div className="mr-3 flex h-full w-[32.5rem] shrink-0 flex-col">
           <ResultsPanel
             result={result}
             runway={selectedRunway?.ident}
@@ -1050,58 +1014,47 @@ export const LandingWidget = () => {
             goAround={features.goAround}
             brakingLabel={result ? BRAKING_LABELS[result.inputs.brakingMode] : ''}
           />
-          <div className="flex flex-row space-x-3">
-            <button
-              onClick={handleCalculateLanding}
-              className={`flex w-full flex-row items-center justify-center space-x-3 rounded-md border-2 border-theme-highlight bg-theme-highlight py-2 text-theme-body outline-none hover:bg-theme-body hover:text-theme-highlight ${!areInputsValid() ? 'pointer-events-none opacity-50' : ''}`}
-              type="button"
-              disabled={!areInputsValid()}
-            >
-              <Calculator size={22} />
-              <p className="font-bold text-current">{t('Performance.Landing.Calculate')}</p>
-            </button>
-            <button
-              onClick={() => dispatch(clearLandingValues())}
-              className="flex w-full flex-row items-center justify-center space-x-3 rounded-md border-2 border-utility-red bg-utility-red py-2 text-theme-body outline-none hover:bg-theme-body hover:text-utility-red"
-              type="button"
-            >
-              <Trash size={22} />
-              <p className="font-bold text-current">{t('Performance.Landing.Clear')}</p>
-            </button>
+          <div className="mt-3 flex shrink-0 flex-row">
+            <M3Button className="mr-2 !h-12 flex-1" disabled={!areInputsValid()} onClick={handleCalculateLanding}>
+              <Calculator size={20} />
+              <span className="text-base text-current">{t('Performance.Landing.Calculate')}</span>
+            </M3Button>
+            <M3Button tone="danger" className="!h-12" onClick={() => dispatch(clearLandingValues())}>
+              <Trash size={20} />
+              <span className="text-base text-current">{t('Performance.Landing.Clear')}</span>
+            </M3Button>
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col rounded-md border-2 border-theme-accent px-4 pb-2 pt-1.5">
-          <div className="flex flex-row items-center justify-between">
-            <h2 className="text-base font-bold uppercase tracking-wider text-theme-unselected">
-              {t('Performance.Landing.Calc.LandingRoll')}
-            </h2>
+        <M3Card className="h-full min-w-0 flex-1 px-4 py-3">
+          <div className="flex shrink-0 flex-row items-center">
+            <PerfTitle>{t('Performance.Landing.Calc.LandingRoll')}</PerfTitle>
+            <div className="grow" />
             {result !== undefined && (
-              <div className="flex flex-row space-x-5 text-lg">
-                <span>
-                  {t('Performance.Landing.Calc.Available')}{' '}
-                  <span className="text-utility-green">
-                    {formatDistance(result.inputs.lda)} {distanceUnit}
+              <>
+                <span className="mr-4 text-sm text-m3-muted">
+                  {`${t('Performance.Landing.Calc.Available')} `}
+                  <span className="text-sm font-bold text-m3-text">
+                    {`${formatDistance(result.inputs.lda)} ${distanceUnit}`}
                   </span>
                 </span>
-                <span>
-                  {t('Performance.Landing.Calc.Crosswind')}{' '}
+                <span className="text-sm text-m3-muted">
+                  {`${t('Performance.Landing.Calc.Crosswind')} `}
                   <span
-                    className={
+                    className={`text-sm font-bold ${
                       result.inputs.crosswind >
                       calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat)
-                        ? 'text-utility-red'
-                        : 'text-utility-green'
-                    }
+                        ? 'text-m3-on-error'
+                        : 'text-m3-text'
+                    }`}
                   >
-                    {Math.round(result.inputs.crosswind)} /{' '}
-                    {calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat)} kt
+                    {`${Math.round(result.inputs.crosswind)} / ${calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat)} kt`}
                   </span>
                 </span>
-              </div>
+              </>
             )}
           </div>
-          <div className="mt-1 min-h-0 flex-1">
+          <div className="mt-2 min-h-0 flex-1">
             {result !== undefined ? (
               <LandingRunway
                 ident={selectedRunway?.ident}
@@ -1117,47 +1070,46 @@ export const LandingWidget = () => {
                 btv={btvAllowed ? { lines: result.btv, exits: btvExits } : undefined}
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-theme-unselected">
+              <div className="flex h-full items-center justify-center text-base text-m3-muted">
                 {t('Performance.Landing.Calc.NoResult')}
               </div>
             )}
           </div>
           {/* BTV: the exits the flight crew can select on the OANS (A380 FCOM PRO-NOR-SOP-160, runway exit) */}
           {features.btv && result !== undefined && (
-            <div className="mb-1 flex flex-col text-base leading-snug">
+            <div className="mb-1 flex shrink-0 flex-col">
               <div>
-                <span className="mr-3 font-bold uppercase tracking-wider text-theme-unselected">BTV</span>
+                <span className="mr-3 text-xs font-bold uppercase tracking-widest text-m3-muted">BTV</span>
                 {!btvAllowed ? (
-                  <span className="text-utility-amber">{t('Performance.Landing.Calc.Btv.Contaminated')}</span>
+                  <span className="text-sm text-m3-on-warn">{t('Performance.Landing.Calc.Btv.Contaminated')}</span>
                 ) : (
                   <>
-                    <span className="mr-3 text-[#ff94ff]">
-                      DRY {formatDistance(result.btv.dry)} {distanceUnit} · WET {formatDistance(result.btv.wet)}{' '}
-                      {distanceUnit}
+                    <span className="mr-3 text-sm text-[#ff94ff]">
+                      {`DRY ${formatDistance(result.btv.dry)} ${distanceUnit} · WET ${formatDistance(result.btv.wet)} ${distanceUnit}`}
                     </span>
-                    {btvStatusText() !== undefined && <span className="text-theme-unselected">{btvStatusText()}</span>}
+                    {btvStatusText() !== undefined && <span className="text-sm text-m3-muted">{btvStatusText()}</span>}
                   </>
                 )}
               </div>
               {/* One row per group, from the threshold: an exit, its distance from the threshold */}
               {(
                 [
-                  [[BtvExitStatus.Recommended, BtvExitStatus.BeyondWet], 'WetOrDry', 'text-utility-green'],
-                  [[BtvExitStatus.DryOnly], 'DryOnly', 'text-utility-amber'],
-                  [[BtvExitStatus.NotAchievable], 'NotAchievable', 'text-utility-red'],
+                  [[BtvExitStatus.Recommended, BtvExitStatus.BeyondWet], 'WetOrDry', 'text-m3-on-primary-container'],
+                  [[BtvExitStatus.DryOnly], 'DryOnly', 'text-m3-on-warn'],
+                  [[BtvExitStatus.NotAchievable], 'NotAchievable', 'text-m3-on-error'],
                 ] as const
               ).map(([statuses, label, colour]) => {
                 const exits = btvExits.filter((e) => (statuses as readonly BtvExitStatus[]).includes(e.status));
                 return (
                   exits.length > 0 && (
                     <div key={label}>
-                      <span className={`mr-2 text-sm font-bold uppercase ${colour}`}>
+                      <span className={`mr-2 text-xs font-bold uppercase ${colour}`}>
                         {t(`Performance.Landing.Calc.Btv.${label}`)}
                       </span>
                       {exits.map((e, index) => (
                         <span
                           key={`${e.name}${e.distance}`}
-                          className={`${colour} ${e.status === BtvExitStatus.Recommended ? 'font-bold' : ''}`}
+                          className={`text-sm ${colour} ${e.status === BtvExitStatus.Recommended ? 'font-bold' : ''}`}
                         >
                           {index > 0 ? ', ' : ''}
                           {e.name} {formatDistance(e.distance)}
@@ -1172,10 +1124,10 @@ export const LandingWidget = () => {
               })}
             </div>
           )}
-          <div className="text-sm text-theme-unselected">
+          <span className="shrink-0 text-xs leading-tight text-m3-muted">
             {t(isA380 ? 'Performance.Landing.Calc.RunwayLegend' : 'Performance.Landing.Calc.RunwayLegendA320')}
-          </div>
-        </div>
+          </span>
+        </M3Card>
       </div>
     </div>
   );
@@ -1213,125 +1165,98 @@ const ResultsPanel = ({
   const distanceEstimate = isEstimate(LandingPerformanceEstimate.LandingDistance);
   const limited = result !== undefined && result.limitation !== LandingLimitation.Weight;
   const overrun = result?.stopMargin !== undefined && result.stopMargin < 0;
-  const speed = (value: number | undefined) => (
-    <Value text={value !== undefined ? value.toFixed(0) : '---'} unit="kt" />
-  );
-  const flap = (label: string, active: boolean) => (
-    <span className={`ml-2 inline-flex items-center ${active ? 'text-utility-green' : 'text-theme-unselected'}`}>
-      <span
-        className={`mr-1 inline-block h-4 w-4 rounded-full border-2 ${active ? 'border-utility-green bg-utility-green' : 'border-theme-unselected'}`}
-      />
-      {label}
-    </span>
-  );
+  const flaps = result?.conf === LandingConf.Conf3 ? '3' : result?.conf === LandingConf.Full ? 'FULL' : '---';
+  let distanceName = t('Performance.Landing.Calc.LdgDist');
+  if (dispatchType) {
+    distanceName = t('Performance.Landing.Calc.RegulatoryLdgDist');
+  } else if (result?.factoredLandingDistance !== undefined) {
+    distanceName = t('Performance.Landing.Calc.FactoredLdgDist');
+  }
   return (
-    <div className="flex flex-1 flex-col justify-between rounded-md bg-black px-4 pb-2 pt-1.5 text-white">
-      <div className="flex flex-row items-baseline justify-between">
-        <span className="text-base uppercase tracking-wider text-theme-unselected">
-          {t('Performance.Landing.Calc.Results')}
-        </span>
+    <M3Card low className="min-h-0 flex-1 px-4 py-3">
+      <div className="mb-2 flex shrink-0 flex-row items-center">
+        <PerfTitle>{t('Performance.Landing.Calc.Results')}</PerfTitle>
         {result?.overweight && (
-          <span className="text-lg font-bold text-utility-amber">
+          <span className="ml-3 rounded-full bg-m3-warn-container px-3 py-1 text-xs font-bold leading-none text-m3-on-warn">
             {t('Performance.Landing.Calc.OverweightLanding')}
           </span>
         )}
-        <span className="text-xl">
-          RWY <Value text={runway ?? '---'} />
+        <div className="grow" />
+        <span className="rounded-full bg-m3-tile px-3 py-1 text-xs font-bold leading-none text-m3-text">
+          {`RWY ${runway ?? '---'} · FLAPS ${flaps}${result?.inputs.type === LandingComputationType.InFlight ? ` · BRK ${brakingLabel}` : ''}`}
         </span>
       </div>
-      <div className="flex flex-row items-baseline justify-between">
-        <span className="text-xl">
-          LW <Value text={formatWeight(result?.inputs.weight)} unit={weightUnit} big />
-        </span>
-        <span className="text-xl">
-          MLW(perf){' '}
+      <PerfResultRow className="mb-2">
+        <PerfResult name={distanceName}>
+          <Value
+            text={formatDistance(result?.landingDistance)}
+            unit={distanceUnit}
+            estimate={result?.landingDistance !== undefined && distanceEstimate}
+            warning={overrun}
+            primary
+            big
+          />
+        </PerfResult>
+        <PerfResult name={t('Performance.Landing.Calc.StopMargin')}>
+          <Value
+            text={formatDistance(result?.stopMargin)}
+            unit={distanceUnit}
+            estimate={result?.stopMargin !== undefined && distanceEstimate}
+            warning={overrun}
+            big
+          />
+        </PerfResult>
+        <PerfResult name="VAPP">
+          <Value text={result !== undefined ? Math.round(result.vapp).toFixed(0) : '---'} unit="kt" big />
+          <span className="text-xs leading-tight text-m3-muted">
+            {result !== undefined ? `VLS ${Math.round(result.vls)} + ${result.speedIncrement}` : ''}
+          </span>
+        </PerfResult>
+      </PerfResultRow>
+      <PerfResultRow className="mb-2">
+        <PerfResult name="LW">
+          <Value text={formatWeight(result?.inputs.weight)} unit={weightUnit} />
+        </PerfResult>
+        <PerfResult name="MLW(perf)">
           <Value
             text={formatWeight(result?.mlwPerf)}
             unit={weightUnit}
             estimate={result?.mlwPerf !== undefined && isEstimate(LandingPerformanceEstimate.MlwPerf)}
           />
-        </span>
-      </div>
-      <div className="flex flex-row items-center justify-between text-xl">
-        <span>
-          {t('Performance.Landing.Calc.LimitationCode')} <Value text={result?.limitation ?? '---'} warning={limited} />
-        </span>
-        <span className="flex flex-row items-center">
-          FLAPS
-          {flap('3', result?.conf === LandingConf.Conf3)}
-          {flap('FULL', result?.conf === LandingConf.Full)}
-        </span>
-      </div>
-      <div className="flex flex-row justify-between text-xl">
-        <div className="flex flex-col">
-          <span>
-            {dispatchType
-              ? t('Performance.Landing.Calc.RegulatoryLdgDist')
-              : result?.factoredLandingDistance !== undefined
-                ? t('Performance.Landing.Calc.FactoredLdgDist')
-                : t('Performance.Landing.Calc.LdgDist')}{' '}
+        </PerfResult>
+        <PerfResult name={t('Performance.Landing.Calc.LimitationCode')}>
+          <Value text={result?.limitation ?? '---'} warning={limited} />
+        </PerfResult>
+      </PerfResultRow>
+      {goAround && (
+        <PerfResultRow className="mb-2">
+          <PerfResult name={t('Performance.Landing.Calc.GaSpeed')}>
+            <Value text={result?.goAroundSpeed !== undefined ? result.goAroundSpeed.toFixed(0) : '---'} unit="kt" />
+          </PerfResult>
+          <PerfResult name={t('Performance.Landing.Calc.GaGradient')}>
             <Value
-              text={formatDistance(result?.landingDistance)}
-              unit={distanceUnit}
-              estimate={result?.landingDistance !== undefined && distanceEstimate}
-              warning={overrun}
+              text={result?.goAroundGradient !== undefined ? result.goAroundGradient.toFixed(1) : '-.-'}
+              unit="%"
+              estimate={
+                result?.goAroundGradient !== undefined && isEstimate(LandingPerformanceEstimate.GoAroundGradient)
+              }
+              warning={result !== undefined && result.goAroundGradient < result.inputs.goAroundGradient}
             />
-          </span>
-          <span>
-            {t('Performance.Landing.Calc.StopMargin')}{' '}
-            <Value
-              text={formatDistance(result?.stopMargin)}
-              unit={distanceUnit}
-              estimate={result?.stopMargin !== undefined && distanceEstimate}
-              warning={overrun}
-            />
-          </span>
-          {goAround && (
-            <>
-              <span>
-                {t('Performance.Landing.Calc.GaSpeed')} {speed(result?.goAroundSpeed)}
-              </span>
-              <span>
-                {t('Performance.Landing.Calc.GaGradient')}{' '}
-                <Value
-                  text={result?.goAroundGradient !== undefined ? result.goAroundGradient.toFixed(1) : '-.-'}
-                  unit="%"
-                  estimate={
-                    result?.goAroundGradient !== undefined && isEstimate(LandingPerformanceEstimate.GoAroundGradient)
-                  }
-                  warning={result !== undefined && result.goAroundGradient < result.inputs.goAroundGradient}
-                />
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex flex-col items-end">
-          <span>VAPP {speed(result !== undefined ? Math.round(result.vapp) : undefined)}</span>
-          <span className="text-base text-theme-unselected">
-            {result !== undefined ? `VLS ${Math.round(result.vls)} + ${result.speedIncrement}` : ''}
-          </span>
-          {result?.inputs.type === LandingComputationType.InFlight && (
-            <span>
-              BRK <Value text={brakingLabel} />
-            </span>
-          )}
-        </div>
-      </div>
+          </PerfResult>
+          <div className="min-w-0 flex-1" />
+        </PerfResultRow>
+      )}
+      <div className="grow" />
       {/* MORE panel */}
-      <div className="text-sm leading-tight text-theme-unselected">
-        {result !== undefined && (
-          <>
-            {`ALD ${formatDistance(result.actualLandingDistance)} ${distanceUnit} · Vwind ${result.windIncrement} kt · `}
-            {result.goAroundConf !== undefined &&
-              `GA CONF ${{ CONF_3: '3', CONF_2: '2', CONF_1F: '1+F' }[result.goAroundConf]} · `}
-            {t(
-              result.reverseCredit
-                ? 'Performance.Landing.Calc.ReverseCredit'
-                : 'Performance.Landing.Calc.NoReverseCredit',
-            )}
-          </>
-        )}
-      </div>
-    </div>
+      <span className="shrink-0 text-xs leading-tight text-m3-muted">
+        {result !== undefined
+          ? `ALD ${formatDistance(result.actualLandingDistance)} ${distanceUnit} · Vwind ${result.windIncrement} kt · ${
+              result.goAroundConf !== undefined
+                ? `GA CONF ${{ CONF_3: '3', CONF_2: '2', CONF_1F: '1+F' }[result.goAroundConf]} · `
+                : ''
+            }${t(result.reverseCredit ? 'Performance.Landing.Calc.ReverseCredit' : 'Performance.Landing.Calc.NoReverseCredit')}`
+          : ''}
+      </span>
+    </M3Card>
   );
 };

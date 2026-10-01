@@ -6,6 +6,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { usePersistentProperty } from '@flybywiresim/fbw-sdk-react';
 import { ZoomIn, ZoomOut } from 'react-bootstrap-icons';
+import { M3Card, M3IconButton } from '../../UtilComponents/Material/Material';
 
 import {
   t,
@@ -79,28 +80,31 @@ export const LoadSheetWidget = () => {
   const { ofpScroll } = useAppSelector((state) => state.dispatchPage);
 
   return (
-    <div className="relative h-content-section-reduced w-full overflow-hidden rounded-lg border-2 border-theme-accent p-6">
+    <M3Card low className="relative h-content-section-reduced w-full p-6">
       {isSimbriefDataLoaded() ? (
         <>
-          <div className="absolute right-16 top-6 overflow-hidden rounded-md bg-theme-secondary">
+          <div className="absolute right-16 top-6 flex flex-row">
             <TooltipWrapper text={t('Dispatch.Ofp.TT.ReduceFontSize')}>
-              <button
-                type="button"
-                onClick={handleFontDecrease}
-                className="px-3 py-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
-              >
-                <ZoomOut size={30} />
-              </button>
+              <div>
+                <M3IconButton
+                  aria-label="Smaller"
+                  className="w-12 !flex-none !bg-m3-ground"
+                  onClick={handleFontDecrease}
+                >
+                  <ZoomOut size={22} />
+                </M3IconButton>
+              </div>
             </TooltipWrapper>
-
             <TooltipWrapper text={t('Dispatch.Ofp.TT.IncreaseFontSize')}>
-              <button
-                type="button"
-                onClick={handleFontIncrease}
-                className="px-3 py-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
-              >
-                <ZoomIn size={30} />
-              </button>
+              <div>
+                <M3IconButton
+                  aria-label="Larger"
+                  className="ml-2 w-12 !flex-none !bg-m3-ground"
+                  onClick={handleFontIncrease}
+                >
+                  <ZoomIn size={22} />
+                </M3IconButton>
+              </div>
             </TooltipWrapper>
           </div>
           <ScrollableContainer
@@ -121,6 +125,6 @@ export const LoadSheetWidget = () => {
           <h1 className="max-w-4xl text-center">{t('Dispatch.Ofp.YouHaveNotYetImportedAnySimBriefData')}</h1>
         </div>
       )}
-    </div>
+    </M3Card>
   );
 };

@@ -28,6 +28,7 @@ interface SelectInputProps {
   className?: string;
   forceShowAll?: boolean; // Forces dropdown to show all options
   maxHeight?: number; // max height before it becomes scrollable
+  fontSizeClassName?: string; // text size of the value and of the options (the flyPad default otherwise)
   disabled?: boolean;
 }
 
@@ -74,7 +75,7 @@ export const SelectInput = (props: SelectInputProps) => {
                 ${showDropdown && (props.dropdownOnTop ? 'rounded-t-none border-t-theme-body' : 'rounded-b-none border-b-theme-body')}`}
         onClick={handleToggleDropdown}
       >
-        <div className="relative flex px-3 py-1.5">
+        <div className={`relative flex px-3 py-1.5 ${props.fontSizeClassName ?? ''}`}>
           {value}
           <ChevronDown
             className={`absolute inset-y-0 right-3 h-full duration-100${showDropdown && '-rotate-180'}`}
@@ -98,7 +99,7 @@ export const SelectInput = (props: SelectInputProps) => {
                   (option.tooltip ? (
                     <TooltipWrapper key={option.value} text={option.tooltip}>
                       <div
-                        className="hover:bg-theme-highlight/5 px-3 py-1.5 transition duration-300 hover:text-theme-body"
+                        className={`hover:bg-theme-highlight/5 px-3 py-1.5 transition duration-300 hover:text-theme-body ${props.fontSizeClassName ?? ''}`}
                         onClick={() => onOptionClicked(option)}
                       >
                         {option.displayValue}
@@ -107,7 +108,7 @@ export const SelectInput = (props: SelectInputProps) => {
                   ) : (
                     <div
                       key={option.value}
-                      className="hover:bg-theme-highlight/5 px-3 py-1.5 transition duration-300 hover:text-theme-body"
+                      className={`hover:bg-theme-highlight/5 px-3 py-1.5 transition duration-300 hover:text-theme-body ${props.fontSizeClassName ?? ''}`}
                       onClick={() => onOptionClicked(option)}
                     >
                       {option.displayValue}

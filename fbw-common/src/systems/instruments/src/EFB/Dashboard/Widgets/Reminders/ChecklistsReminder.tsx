@@ -4,8 +4,8 @@
 
 import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Check } from 'react-bootstrap-icons';
-import { Link } from 'react-router-dom';
+import { ArrowRight, Check, ListCheck } from 'react-bootstrap-icons';
+import { useHistory } from 'react-router-dom';
 import { t } from '@flybywiresim/flypad';
 import {
   areAllChecklistItemsCompleted,
@@ -16,52 +16,44 @@ import {
 import { RemindersSection } from './RemindersSection';
 import { useAppDispatch, useAppSelector } from '../../../Store/store';
 import { getRelevantChecklistIndices } from '../../../Checklists/Checklists';
+import { M3ListRow, M3Tone } from '../../../UtilComponents/Material/Material';
 
 interface ChecklistReminderCardProps {
   checklist: TrackingChecklist;
   checklistIndex: number;
-  className?: string;
 }
 
-const ChecklistReminderCard = ({ checklist, checklistIndex, className }: ChecklistReminderCardProps) => {
+/** A checklist of the flight phase: its progress, a tap opens it */
+const ChecklistReminderCard = ({ checklist, checklistIndex }: ChecklistReminderCardProps) => {
   const dispatch = useAppDispatch();
+  const history = useHistory();
+  const completion = getChecklistCompletion(checklistIndex);
 
-  let color = 'text-theme-highlight';
-
+  // All items done but not marked completed: to confirm
+  let tone: M3Tone = completion > 0 ? 'active' : 'idle';
   if (areAllChecklistItemsCompleted(checklistIndex)) {
-    if (checklist.markedCompleted) {
-      color = 'text-colors-lime-400';
-    } else {
-      color = 'text-colors-orange-400';
-    }
+    tone = checklist.markedCompleted ? 'active' : 'busy';
   }
 
   return (
-    <Link
-      to="/checklists"
-      className={`relative mt-4 flex flex-col flex-wrap overflow-hidden rounded-md bg-theme-accent px-2 pb-2 pt-3 ${color} ${className}`}
+    <M3ListRow
+      icon={<ListCheck size={18} />}
+      tone={tone}
+      name={checklist.name}
+      status={`${Math.round(completion * 100)} %`}
+      progress={completion}
+      trailing={
+        checklist.markedCompleted ? (
+          <Check className="text-m3-on-primary-container" size={24} />
+        ) : (
+          <ArrowRight className="text-m3-muted" size={18} />
+        )
+      }
       onClick={() => {
         dispatch(setSelectedChecklistIndex(checklistIndex));
+        history.push('/checklists');
       }}
-    >
-      <div className="absolute left-0 top-0 h-1.5 w-full flex-row bg-theme-secondary text-current">
-        <div
-          className="h-full bg-current text-current"
-          style={{
-            width: `${getChecklistCompletion(checklistIndex) * 100}%`,
-            transition: 'width 0.5s ease',
-          }}
-        />
-      </div>
-
-      <h2 className="font-bold">{checklist.name}</h2>
-
-      {checklist.markedCompleted ? (
-        <Check className="text-colors-lime-400 ml-auto mt-auto" size={28} />
-      ) : (
-        <ArrowRight className="ml-auto mt-auto text-current" />
-      )}
-    </Link>
+    />
   );
 };
 
@@ -82,20 +74,19 @@ export const ChecklistsReminder = () => {
   return (
     <RemindersSection title={t('Dashboard.ImportantInformation.Checklists.Title')} pageLinkPath="/checklists">
       {relevantChecklists.length ? (
-        <div className="grid grid-cols-2">
-          {relevantChecklists.map((checklist, index) => (
+        <div className="-mx-4 flex flex-col">
+          {relevantChecklists.map((checklist) => (
             <ChecklistReminderCard
               key={checklist.name}
               checklist={checklist}
               checklistIndex={checklists.findIndex((cl) => cl.name === checklist.name)}
-              className={`${index && index % 2 !== 0 && 'ml-4'}`}
             />
           ))}
         </div>
       ) : (
-        <h1 className="m-auto my-4 text-center font-bold opacity-60">
+        <span className="my-2 text-center text-base text-m3-muted">
           {t('Dashboard.ImportantInformation.Checklists.NoRelevantChecklists')}
-        </h1>
+        </span>
       )}
     </RemindersSection>
   );

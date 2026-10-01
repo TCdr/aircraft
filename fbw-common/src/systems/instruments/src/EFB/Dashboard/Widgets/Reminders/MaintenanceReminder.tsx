@@ -4,7 +4,7 @@
 
 import { AtaChapterNumber } from '@flybywiresim/fbw-sdk-react';
 import React, { FC } from 'react';
-import { ArrowRight } from 'react-bootstrap-icons';
+import { ArrowRight, ExclamationTriangleFill } from 'react-bootstrap-icons';
 import { useHistory } from 'react-router';
 import { t } from '../../../Localization/translation';
 import { RemindersSection } from './RemindersSection';
@@ -12,6 +12,7 @@ import { useFailuresOrchestrator } from '../../../failures-orchestrator-provider
 import { findLatestSeenPathname } from '../../../Utils/routing';
 import { useAppDispatch } from '../../../Store/store';
 import { setSearchQuery } from '../../../Store/features/failuresPage';
+import { M3ListRow } from '../../../UtilComponents/Material/Material';
 
 interface ActiveFailureCardProps {
   ata?: AtaChapterNumber;
@@ -23,8 +24,12 @@ const ActiveFailureCard: FC<ActiveFailureCardProps> = ({ ata, name }) => {
   const history = useHistory();
 
   return (
-    <div
-      className="mr-4 mt-4 flex flex-col flex-wrap rounded-md border-2 border-theme-accent bg-theme-accent p-2 hover:border-theme-highlight"
+    <M3ListRow
+      icon={<ExclamationTriangleFill size={18} />}
+      tone="warn"
+      name={name}
+      status={`Active Failure${ata ? ` · ATA ${ata}` : ''}`}
+      trailing={<ArrowRight size={18} className="text-m3-muted" />}
       onClick={() => {
         dispatch(setSearchQuery(name.toUpperCase()));
 
@@ -40,11 +45,7 @@ const ActiveFailureCard: FC<ActiveFailureCardProps> = ({ ata, name }) => {
           history.push('/failures/compact');
         }
       }}
-    >
-      <h3 className="font-bold">Active Failure</h3>
-      <span className="font-inter mt-2">{name}</span>
-      <ArrowRight className="ml-auto" />
-    </div>
+    />
   );
 };
 
@@ -53,7 +54,7 @@ export const MaintenanceReminder = () => {
 
   return (
     <RemindersSection title={t('Dashboard.ImportantInformation.Maintenance.Title')} pageLinkPath="/failures">
-      <div className="flex flex-row flex-wrap">
+      <div className="-mx-4 flex flex-col">
         {Array.from(activeFailures)
           // Sorts the failures by name length, greatest to least
           .sort(
@@ -64,13 +65,13 @@ export const MaintenanceReminder = () => {
           .map((failureIdentifier) => {
             const failure = allFailures.find((it) => it.identifier === failureIdentifier);
 
-            return <ActiveFailureCard ata={failure?.ata} name={failure?.name ?? '<unknown>'} />;
+            return <ActiveFailureCard key={failureIdentifier} ata={failure?.ata} name={failure?.name ?? '<unknown>'} />;
           })}
 
         {!activeFailures.size && (
-          <h1 className="m-auto my-4 text-center font-bold opacity-60">
+          <span className="my-2 text-center text-base text-m3-muted">
             {t('Dashboard.ImportantInformation.Maintenance.NoActiveFailures')}
-          </h1>
+          </span>
         )}
       </div>
     </RemindersSection>
