@@ -47,8 +47,10 @@ export class IsisPowerUnit {
    * Updates the unit
    * @param powered whether the unit is supplied
    * @param deltaSeconds the time since the previous update
+   * @returns true at a power-up: the unit was off and starts its tests (a power loss shorter than the standby is not
+   * a power-up)
    */
-  update(powered: boolean, deltaSeconds: number): void {
+  update(powered: boolean, deltaSeconds: number): boolean {
     if (this.timer !== null) {
       if (this.timer > 0) {
         this.timer -= deltaSeconds;
@@ -70,9 +72,11 @@ export class IsisPowerUnit {
     } else if (this.currentState === IsisUnitState.Off && powered) {
       this.currentState = IsisUnitState.SelfTest;
       this.timer = ISIS_POWER_UP_TEST_S;
+      return true;
     } else if (this.currentState === IsisUnitState.SelfTest && !powered) {
       this.currentState = IsisUnitState.Off;
       this.timer = null;
     }
+    return false;
   }
 }

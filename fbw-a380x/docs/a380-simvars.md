@@ -1878,6 +1878,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Enum
     - Set by the MODE pb of either ISIS, which goes to the next configuration (SFD/SND reconfiguration, A380 FCOM
       DSC-34-10-20-20-10). The other ISIS controls act on the display of their ISIS.
+    - Back to 0 at each power-up of the ISIS (after the unit has gone off, not after a short power loss). The FCOM is
+      silent on it: a design choice.
       | State | ISIS 1 | ISIS 2 |
       |-------|--------|--------|
       | 0     | SFD    | SND    |

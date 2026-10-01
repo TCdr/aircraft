@@ -4,7 +4,13 @@
 import { FSComponent, Subject } from '@microsoft/msfs-sdk';
 import { readSndNavigation, SndNavigation } from './SndData';
 import { IsisPowerUnit, IsisUnitState } from './SndPower';
-import { isisDisplay, isisUnitOf, ISIS_CONFIGURATION_VAR, IsisUnit } from '@shared/IsisConfiguration';
+import {
+  isisDisplay,
+  isisUnitOf,
+  ISIS_CONFIGURATION_VAR,
+  IsisConfiguration,
+  IsisUnit,
+} from '@shared/IsisConfiguration';
 import { SndDisplay } from './SndDisplay';
 import { SndPoint } from './SndGeo';
 import { SndMenu } from './SndMenu';
@@ -138,7 +144,12 @@ class A380X_SND extends BaseInstrument {
     const deltaSeconds = this.lastUpdate !== null ? (now - this.lastUpdate) / 1000 : 0;
     this.lastUpdate = now;
     this.powerUnit ??= new IsisPowerUnit(SimVar.GetSimVarValue('L:A32NX_COLD_AND_DARK_SPAWN', 'bool'));
-    this.powerUnit.update(powered, deltaSeconds);
+    if (this.powerUnit.update(powered, deltaSeconds)) {
+      // The ISIS start in their normal configuration (ISIS 1 SFD, ISIS 2 SND) at each power-up, whatever the MODE pb
+      // selected before. Not in the FCOM (silent on it): a design choice. Both SND gauges see the same power-up and
+      // write the same value.
+      SimVar.SetSimVarValue(ISIS_CONFIGURATION_VAR, 'number', IsisConfiguration.Normal);
+    }
 
     const state = this.powerUnit.state;
     const displayed = isisDisplay(this.unit, SimVar.GetSimVarValue(ISIS_CONFIGURATION_VAR, 'number')) === 'SND';
