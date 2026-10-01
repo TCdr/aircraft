@@ -63,6 +63,7 @@ import { Printouts } from './Dispatch/Printouts';
 import { CompanyTakeoffRequests } from './Performance/Widgets/TakeoffFmsLink';
 import { TroubleshootingContextProvider } from './TroubleshootingContext';
 import { checkFileHashes } from './Utils/fileHashes';
+import { efbSetting, efbSimVar, isCaptainEfb } from './Utils/efbIndex';
 import { setFileHashMismatches } from './Store/features/fileHashes';
 
 // './Assets/Efb.scss' is imported by the aircraft EFB instrument the wraps this file
@@ -189,9 +190,13 @@ interface EfbProps {
 export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
   const [powerState, setPowerState] = useState<PowerStates>(PowerStates.SHUTOFF);
   const [absoluteTime] = useSimVar('E:ABSOLUTE TIME', 'seconds', 5000);
-  const [, setBrightness] = useSimVar('L:A32NX_EFB_BRIGHTNESS', 'number');
-  const [brightnessSetting] = usePersistentNumberProperty('EFB_BRIGHTNESS', 0);
-  const [usingAutobrightness] = useSimVar('L:A32NX_EFB_USING_AUTOBRIGHTNESS', 'bool', 300);
+  // The brightness is per tablet (the first officer's flyPad has its own variable and settings, see efbIndex)
+  const [, setBrightness] = useSimVar(efbSimVar('L:A32NX_EFB_BRIGHTNESS'), 'number');
+  const [brightnessSetting] = usePersistentNumberProperty(efbSetting('EFB_BRIGHTNESS'), 0);
+  // the captain's automatic brightness is synced to a simvar (Settings/sync.ts), the first officer's is read as stored
+  const [captainUsingAutobrightness] = useSimVar('L:A32NX_EFB_USING_AUTOBRIGHTNESS', 'bool', 300);
+  const [foUsingAutobrightness] = usePersistentNumberProperty('EFB_2_USING_AUTOBRIGHTNESS', 1);
+  const usingAutobrightness = isCaptainEfb() ? captainUsingAutobrightness : foUsingAutobrightness;
   const [batteryLifeEnabled] = usePersistentNumberProperty('EFB_BATTERY_LIFE_ENABLED', 1);
 
   const dispatch = useAppDispatch();
@@ -301,9 +306,9 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
     }
   }, [batteryLevel, powerState]);
 
-  // Automatically load a lighting preset
+  // Automatically load a lighting preset (by the captain's flyPad only)
   useEffect(() => {
-    if (ac1BusIsPowered && powerState === PowerStates.LOADED && autoLoadLightingPresetEnabled) {
+    if (isCaptainEfb() && ac1BusIsPowered && powerState === PowerStates.LOADED && autoLoadLightingPresetEnabled) {
       // TIME OF DAY enum : 1 = Day ; 2 = Dusk/Dawn ; 3 = Night
       switch (timeOfDay) {
         case 1:
@@ -409,7 +414,7 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
   // ECAM "NW STRG DISC" message also disappears.y
   const [nwStrgDisc] = useSimVar('L:A32NX_HYD_NW_STRG_DISC_ECAM_MEMO', 'Bool', 100);
   useEffect(() => {
-    if (!nwStrgDisc) {
+    if (!nwStrgDisc && isCaptainEfb()) {
       SimVar.SetSimVarValue('K:TUG_DISABLE', 'Bool', 1);
     }
   }, [nwStrgDisc]);

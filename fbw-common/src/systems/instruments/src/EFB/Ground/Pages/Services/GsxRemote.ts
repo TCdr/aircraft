@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { useEffect, useState } from 'react';
+import { isCaptainEfb } from '../../../Utils/efbIndex';
 
 /**
  * The GSX services, by their Couatl Remote API v2 id (GSX Pro manual for MSFS, Couatl Remote API v2 developer guide,
@@ -156,7 +157,8 @@ class GsxRemoteClient {
    * the GSX menu back to the user
    */
   public setRemoteControl(on: boolean): void {
-    if (on === this.remoteControl) {
+    // by the captain's flyPad only: the first officer's leaving the page would give the menu back under the captain
+    if (on === this.remoteControl || !isCaptainEfb()) {
       return;
     }
     this.remoteControl = on;
