@@ -15,7 +15,7 @@ export enum IsisConfiguration {
   SndOff = 2,
 }
 
-/** The configuration, written by the MODE pb of the ISIS (cockpit behaviour) */
+/** The configuration, written by the MODE pb of the ISIS (cockpit behaviour), back to Normal at each ISIS power-up */
 export const ISIS_CONFIGURATION_VAR = 'L:A380X_ISIS_CONFIGURATION';
 
 export type IsisUnit = 1 | 2;
