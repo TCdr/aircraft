@@ -58,6 +58,8 @@ import { NDFMMessageTypes } from '@shared/FmMessages';
 
 import './style.scss';
 import './oans-style.scss';
+import './nd-interactive.scss';
+import { NdInteractive } from './NdInteractive';
 import { VerticalDisplay } from './VerticalDisplay/VerticalDisplay';
 import { InternalKccuKeyEvent } from '../MFD/shared/MFDSimvarPublisher';
 import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
@@ -166,6 +168,13 @@ class NDInstrument implements FsInstrument {
   private readonly oansNotAvailable = ConsumerSubject.create(null, true);
 
   private readonly oansShown = Subject.create(false);
+
+  /** Interactive ND: the revision lists, the DIRECT TO page and the temporary flight plan buttons over the map */
+  private readonly ndInteractiveRef = FSComponent.createRef<NdInteractive>();
+
+  private readonly cursorInNd = Subject.create(false);
+
+  private readonly mapShown = this.oansShown.map((shown) => !shown);
 
   constructor() {
     const side: EfisSide = getDisplayIndex() === 1 ? 'L' : 'R';
@@ -278,6 +287,7 @@ class NDInstrument implements FsInstrument {
             rangeChangeMessage={a380NdRangeChange}
             modeChangeMessage={a380NdModeChange}
             mapOptions={{ waypointBoxing: true, secondaryFlightPlanWaypointsInWhite: true }}
+            onMapClick={(click) => this.ndInteractiveRef.getOrDefault()?.onMapClick(click)}
             fmMessages={Object.values(NDFMMessageTypes)}
           />
           <ContextMenu
@@ -325,6 +335,13 @@ class NDInstrument implements FsInstrument {
               togglePanel={() => this.controlPanelVisible.set(!this.controlPanelVisible.get())}
             />
           </div>
+          <NdInteractive
+            ref={this.ndInteractiveRef}
+            bus={this.bus}
+            side={this.efisSide}
+            cursorInNd={this.cursorInNd}
+            mapShown={this.mapShown}
+          />
           <MouseCursor
             ref={this.mouseCursorRef}
             side={Subject.create(this.efisSide === 'L' ? 'CAPT' : 'FO')}
@@ -347,7 +364,9 @@ class NDInstrument implements FsInstrument {
         this.mouseCursorRef.instance.updatePosition(ev.clientX, ev.clientY);
         this.cursorVisible.set(true);
       }
+      this.cursorInNd.set(true);
     });
+    this.topRef.instance.addEventListener('mouseleave', () => this.cursorInNd.set(false));
 
     if (this.oansRef?.instance?.labelContainerRef?.instance) {
       this.oansRef.instance.labelContainerRef.instance.addEventListener('dblclick', (e) => {

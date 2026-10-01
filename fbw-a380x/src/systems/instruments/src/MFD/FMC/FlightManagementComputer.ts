@@ -74,6 +74,7 @@ import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { HistoryWind } from '@fmgc/wind/HistoryWind';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { FmsPrinter } from './FmsPrinter';
+import { NdInteractiveRevisions } from './NdInteractiveRevisions';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
@@ -238,6 +239,9 @@ export class FlightManagementComputer implements FmcInterface {
   get printer(): FmsPrinter | null {
     return this.#printer;
   }
+
+  /** The revisions of the interactive NDs (FMC-A) */
+  #ndInteractive: NdInteractiveRevisions<A380FlightPlanPerformanceData> | null = null;
 
   get lastSequencedWaypoint() {
     return this.#sequencedWaypointRecorder?.lastSequencedWaypoint ?? null;
@@ -454,6 +458,19 @@ export class FlightManagementComputer implements FmcInterface {
         () => ({ direction: this.#navigation.getWindDirection(), speed: this.#navigation.getWindSpeed() }),
         () => this.fmgc.getFOB(),
       );
+      this.#ndInteractive = new NdInteractiveRevisions(this.bus, {
+        flightPlanInterface: this.flightPlanInterface,
+        entry: this,
+        presentPosition: () => {
+          const ppos = this.#navigation.getPpos();
+          return ppos && (ppos.lat !== 0 || ppos.long !== 0) ? ppos : null;
+        },
+        trueTrack: () => SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree'),
+        groundSpeed: () => this.#navigation.groundSpeed,
+        setRevisedWaypoint: (index, planIndex, isAltn) => this.setRevisedWaypoint(index, planIndex, isAltn),
+        resetRevisedWaypoint: () => this.resetRevisedWaypoint(),
+        showFmsErrorMessage: (type) => this.showFmsErrorMessage(type),
+      });
     }
 
     // FIXME implement sync between FMCs and also let FMC-B and FMC-C compute

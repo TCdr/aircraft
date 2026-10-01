@@ -65,12 +65,33 @@ const DEFAULT_CLIP = new Path2D(
 const DASHES = [15, 12];
 const NO_DASHES = [];
 
+/** A click on the map of an interactive ND (A380 FCOM DSC-31-20-30-90) */
+export interface NdMapClick {
+  /** The click position on the display */
+  clientX: number;
+  clientY: number;
+  /** The interactive elements under the cursor (waypoints, NAVAIDs, airports) */
+  symbols: NdSymbol[];
+  /** The aircraft mock-up is under the cursor */
+  aircraft: boolean;
+  /** The coordinates of the clicked point of the map (a blank area gives a latitude/longitude waypoint), null when unknown */
+  coordinates: Coordinates | null;
+}
+
 export interface CanvasMapProps {
   bus: EventBus;
   x: Subscribable<number>;
   y: Subscribable<number>;
   options?: Partial<MapOptions>;
+  /** Interactive ND: a click on the map in ARC, PLAN or ROSE-NAV mode */
+  onClick?: (click: NdMapClick) => void;
 }
+
+/** The aircraft mock-up is under the cursor within this distance of its centre, in pixels */
+const AIRCRAFT_INTERACTIVE_RADIUS = 40;
+
+/** The map canvas is this wide and high, in pixels; the map centre is its centre */
+const MAP_SIZE = 768;
 
 export class CanvasMap extends DisplayComponent<CanvasMapProps> {
   private readonly canvasRef = FSComponent.createRef<HTMLCanvasElement>();
@@ -117,6 +138,13 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
 
   public pointerY = 0;
 
+  /** The aircraft mock-up position on the map canvas, and whether it is shown */
+  private planeX = 0;
+
+  private planeY = 0;
+
+  private planeShown = false;
+
   private readonly constraintsLayer = new ConstraintsLayer();
 
   private readonly waypointLayer = new WaypointLayer(this, this.props.options);
@@ -149,6 +177,10 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
       .on('ndMode')
       .whenChanged()
       .handle((v) => this.mapMode.set(v));
+
+    sub.on('set_show_plane').handle((show) => (this.planeShown = show));
+    sub.on('set_plane_x').handle((x) => (this.planeX = x));
+    sub.on('set_plane_y').handle((y) => (this.planeY = y));
 
     this.setupCallbacks();
     this.setupEvents();
@@ -264,6 +296,40 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
     touchContainer.addEventListener('mousemove', (e) => {
       this.pointerX = e.offsetX;
       this.pointerY = e.offsetY;
+    });
+
+    touchContainer.addEventListener('click', (e) => {
+      const mode = this.mapMode.get();
+      if (
+        !this.props.onClick ||
+        !this.mapVisible.get() ||
+        this.mapRecomputing.get() ||
+        (mode !== EfisNdMode.ARC && mode !== EfisNdMode.PLAN && mode !== EfisNdMode.ROSE_NAV)
+      ) {
+        return;
+      }
+      this.props.onClick({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        symbols: this.interactiveSymbolsAt(e.offsetX, e.offsetY),
+        aircraft:
+          this.planeShown && Math.hypot(e.offsetX - this.planeX, e.offsetY - this.planeY) < AIRCRAFT_INTERACTIVE_RADIUS,
+        coordinates: this.mapParams.valid
+          ? this.mapParams.xyToCoordinates(e.offsetX - MAP_SIZE / 2, e.offsetY - MAP_SIZE / 2)
+          : null,
+      });
+    });
+  }
+
+  /** The interactive elements whose area (the box drawn under the cursor) contains a point of the map canvas */
+  private interactiveSymbolsAt(px: number, py: number): NdSymbol[] {
+    return this.waypointLayer.data.filter((symbol) => {
+      if (!WaypointLayer.isInteractive(symbol)) {
+        return false;
+      }
+      const [x, y] = this.mapParams.coordinatesToXYy(symbol.location);
+      const [left, top, width, height] = WaypointLayer.interactiveArea(x + MAP_SIZE / 2, y + MAP_SIZE / 2, symbol);
+      return px > left && px < left + width && py > top && py < top + height;
     });
   }
 

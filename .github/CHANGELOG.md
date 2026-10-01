@@ -110,6 +110,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
 1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
+1. [A380X/ND] Interactive ND: revision lists of the waypoints, NAVAIDs, airports and aircraft (FROM P.POS DIR TO, INSERT NEXT WPT, DELETE, DATA), DIRECT TO and INSERT NEXT WPT pages with KCCU entries, DUPLICATE page, latitude/longitude waypoints from a click on the map, INSERT / ERASE of the temporary flight plan; DIR TO UTC estimate on the MFD - @TCdr
 
 ## 2024.1.0
 
