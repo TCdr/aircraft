@@ -182,6 +182,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Descent calculator: a waypoint of the FMS flight plan as the target, with its altitude constraint and its distance along the route - @TCdr
 1. [A380X/EFB] Landing calculator: BTV braking mode, landing at the BTV DRY or WET line - @TCdr
 1. [EFB] Ground services: switch to request the GSX services (jet bridge, stairs, fuel, GPU, catering, boarding, pushback...) through the GSX Remote API - @TCdr
+1. [A380X/ND] Interactive ND: revision lists of the waypoints, NAVAIDs, airports and aircraft (FROM P.POS DIR TO, INSERT NEXT WPT, DELETE, DATA), DIRECT TO and INSERT NEXT WPT pages with KCCU entries, DUPLICATE page, latitude/longitude waypoints from a click on the map, INSERT / ERASE of the temporary flight plan; DIR TO UTC estimate on the MFD - @TCdr
 
 ## 2024.1.0
 

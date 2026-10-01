@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-import { Coordinates } from 'msfs-geo';
+import { Coordinates, placeBearingDistance } from 'msfs-geo';
 
 export class MapParameters {
   public centerCoordinates: Coordinates;
@@ -49,6 +49,19 @@ export class MapParameters {
     const yNm = distance * Math.sin((bearing * Math.PI) / 180);
 
     return [xNm * this.nmToPx, yNm * this.nmToPx + this.centerYBias];
+  }
+
+  /**
+   * The coordinates of a point of the map (the inverse of {@link coordinatesToXYy}), for a click on the map
+   * @param x pixels to the right of the map centre
+   * @param y pixels below the map centre
+   */
+  xyToCoordinates(x: number, y: number): Coordinates {
+    const xNm = x / this.nmToPx;
+    const yNm = (y - this.centerYBias) / this.nmToPx;
+    const distance = Math.hypot(xNm, yNm);
+    const bearing = (Math.atan2(yNm, xNm) * 180) / Math.PI + this.mapUpTrueDeg + 90;
+    return placeBearingDistance(this.centerCoordinates, ((bearing % 360) + 360) % 360, distance);
   }
 
   /**
