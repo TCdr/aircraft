@@ -113,6 +113,8 @@ interface TPerformanceDescent {
   /** Pressure altitudes in feet */
   initialAltitude?: number;
   targetAltitude?: number;
+  /** The waypoint of the active flight plan the target altitude and distance are taken from (undefined: entries) */
+  targetWaypoint?: string;
   /** Speed schedule: undefined for the standard one of the aircraft (ECON: the FMS managed one) */
   mach?: number;
   cas?: number;
