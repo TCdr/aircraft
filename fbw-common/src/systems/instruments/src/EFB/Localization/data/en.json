@@ -205,6 +205,13 @@
       "DoorFwd": "Door Fwd",
       "ExternalPower": "Ground Power Unit",
       "FuelTruck": "Fuel Truck",
+      "Gsx": {
+        "Connected": "Service buttons linked to GSX",
+        "Link": "GSX services",
+        "NotAccepted": "GSX did not accept {service}",
+        "NotConnected": "GSX not found: start GSX, with its Remote control server on (GSX settings)",
+        "NotRunning": "GSX is starting..."
+      },
       "JetBridge": "Jet Bridge",
       "Title": "Services",
       "WheelChocks": "Wheel Chocks",
