@@ -63,7 +63,7 @@ import { Printouts } from './Dispatch/Printouts';
 import { CompanyTakeoffRequests } from './Performance/Widgets/TakeoffFmsLink';
 import { TroubleshootingContextProvider } from './TroubleshootingContext';
 import { checkFileHashes } from './Utils/fileHashes';
-import { efbSetting, efbSimVar, isCaptainEfb } from './Utils/efbIndex';
+import { efbEvent, efbSetting, efbSimVar, isCaptainEfb } from './Utils/efbIndex';
 import { setFileHashMismatches } from './Store/features/fileHashes';
 
 // './Assets/Efb.scss' is imported by the aircraft EFB instrument the wraps this file
@@ -385,7 +385,8 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
     return <></>;
   };
 
-  useInteractionEvent('A32NX_EFB_POWER', () => {
+  // each tablet has its own power button (A320 interior: H:A32NX_EFB_POWER left, H:A32NX_EFB_2_POWER right)
+  useInteractionEvent(efbEvent('A32NX_EFB_POWER'), () => {
     if (powerState === PowerStates.STANDBY) {
       offToLoaded();
     } else {
