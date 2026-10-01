@@ -13,6 +13,8 @@ import { ScrollableContainer } from '../../UtilComponents/ScrollableContainer';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { PromptModal, useModals } from '../../UtilComponents/Modals/Modals';
 import { TooltipWrapper } from '../../UtilComponents/TooltipWrapper';
+import { PlayFill, Save } from 'react-bootstrap-icons';
+import { M3_INPUT, M3Card, M3SectionHeader } from '../../UtilComponents/Material/Material';
 
 export const LightPresets = () => {
   // Manage names for presets in EFB only and always map them to the
@@ -65,27 +67,36 @@ export const LightPresets = () => {
   }, []);
 
   return (
-    <div className="my-2 h-content-section-reduced rounded-lg border-2 border-theme-accent p-2">
-      <div className="mb-3 flex h-16 flex-row items-center justify-center space-x-2 rounded-md border-2 border-theme-accent p-2">
-        {isPowered
-          ? t('Presets.InteriorLighting.SelectAnInteriorLightingPresetToLoadOrSave')
-          : t('Presets.InteriorLighting.TheAircraftMustBePoweredForInteriorLightingPresets')}
-      </div>
-      <ScrollableContainer height={48}>
-        <div className="grid grid-flow-row grid-cols-1 grid-rows-5 gap-0">
-          {/* These the IDs for each row of presets. Add or remove numbers to add or remove rows */}
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <SinglePreset
-              key={i}
-              presetID={i}
-              getPresetName={getPresetName}
-              storePresetName={storePresetName}
-              namesMap={namesMap}
-            />
-          ))}
+    <div className="flex h-content-section-reduced flex-row overflow-hidden">
+      <M3Card className="mr-4 min-w-0 flex-1 pb-3">
+        <M3SectionHeader
+          title={t('Presets.InteriorLighting.Presets')}
+          trailing={
+            <span className={`text-sm font-semibold ${isPowered ? 'text-m3-muted' : 'text-m3-on-warn'}`}>
+              {isPowered
+                ? t('Presets.InteriorLighting.SelectAnInteriorLightingPresetToLoadOrSave')
+                : t('Presets.InteriorLighting.TheAircraftMustBePoweredForInteriorLightingPresets')}
+            </span>
+          }
+        />
+        <div className="min-h-0 flex-1 px-2">
+          <ScrollableContainer height={47}>
+            {/* These the IDs for each row of presets. Add or remove numbers to add or remove rows */}
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <SinglePreset
+                key={i}
+                presetID={i}
+                getPresetName={getPresetName}
+                storePresetName={storePresetName}
+                namesMap={namesMap}
+              />
+            ))}
+          </ScrollableContainer>
         </div>
+      </M3Card>
+      <div className="flex w-[400px] shrink-0 flex-col">
         <AutoLoadConfiguration namesMap={namesMap} storedNames={storedNames} />
-      </ScrollableContainer>
+      </div>
     </div>
   );
 };
@@ -132,39 +143,37 @@ const AutoLoadConfiguration = (props: AutoLoadConfigurationProps) => {
     setPresetSelectionOptions(generatePresetSelectionOptions());
   }, [props.namesMap, props.storedNames]);
 
-  return (
-    <div className="mt-2 rounded-md border-2 border-theme-accent px-4 py-2">
-      <div className="flex h-10 flex-row items-center">
-        <div className="pr-3">{t('Presets.InteriorLighting.AutoLoadLightingPreset')}</div>
-        <Toggle value={!!autoLoadPreset} onToggle={(value) => setAutoLoadPreset(value ? 1 : 0)} />
-      </div>
-      <div className="mt-3 flex flex-row items-center justify-start space-x-4">
-        <div>{t('Presets.InteriorLighting.AutoLoadDay')}</div>
+  const autoLoadRow = (name: string, value: number, onChange: (value: number) => void) => (
+    <div className="mt-3 flex flex-row items-center">
+      <span className="w-28 shrink-0 text-sm font-semibold text-m3-text">{name.replace(/:$/, '')}</span>
+      <div className="min-w-0 flex-1">
         <SelectInput
-          className="h-12 w-72"
+          className={`h-10 w-full ${M3_INPUT}`}
+          fontSizeClassName="text-base"
           options={presetSelectionOptions}
-          value={autoLoadDayPresetID}
-          dropdownOnTop
-          onChange={(newPreset) => setAutoLoadDayPresetID(newPreset as number)}
-        />
-        <div>{t('Presets.InteriorLighting.AutoLoadDawnDusk')}</div>
-        <SelectInput
-          className="h-12 w-72"
-          options={presetSelectionOptions}
-          value={autoLoadDawnDuskPresetID}
-          dropdownOnTop
-          onChange={(newPreset) => setAutoLoadDawnDuskPresetID(newPreset as number)}
-        />
-        <div>{t('Presets.InteriorLighting.AutoLoadNight')}</div>
-        <SelectInput
-          className="h-12 w-72"
-          options={presetSelectionOptions}
-          value={autoLoadNightPresetID}
-          dropdownOnTop
-          onChange={(newPreset) => setAutoLoadNightPresetID(newPreset as number)}
+          value={value}
+          onChange={(newPreset) => onChange(newPreset as number)}
         />
       </div>
     </div>
+  );
+
+  return (
+    <M3Card className="!overflow-visible p-4">
+      <div className="flex flex-row items-center">
+        <span className="grow text-base font-bold text-m3-text">
+          {t('Presets.InteriorLighting.AutoLoadLightingPreset').replace(/:$/, '')}
+        </span>
+        <Toggle value={!!autoLoadPreset} onToggle={(value) => setAutoLoadPreset(value ? 1 : 0)} />
+      </div>
+      {autoLoadRow(t('Presets.InteriorLighting.AutoLoadDay'), autoLoadDayPresetID, setAutoLoadDayPresetID)}
+      {autoLoadRow(
+        t('Presets.InteriorLighting.AutoLoadDawnDusk'),
+        autoLoadDawnDuskPresetID,
+        setAutoLoadDawnDuskPresetID,
+      )}
+      {autoLoadRow(t('Presets.InteriorLighting.AutoLoadNight'), autoLoadNightPresetID, setAutoLoadNightPresetID)}
+    </M3Card>
   );
 };
 
@@ -272,22 +281,23 @@ const SinglePreset = (props: SinglePresetParams) => {
   }, [props.namesMap, presetName]);
 
   return (
-    <div className="my-2 flex flex-row justify-between">
-      <div className="flex w-24 items-center justify-center">{props.presetID}</div>
+    <div className="flex h-14 flex-row items-center px-2">
+      <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-m3-tile text-base font-bold text-white">
+        {props.presetID}
+      </span>
 
-      <div className="mx-4 flex h-16 w-full items-center justify-center rounded-md border-2 border-theme-accent bg-theme-accent text-theme-text">
-        <TooltipWrapper text={t('Presets.InteriorLighting.TT.ClickTextToChangeThePresetsName')}>
-          <div>
-            <SimpleInput
-              className="w-80 text-center text-2xl font-medium"
-              placeholder={t('Presets.InteriorLighting.NoName')}
-              value={presetName}
-              onBlur={(value) => changePresetName(presetName, value)}
-              maxLength={16}
-            />
-          </div>
-        </TooltipWrapper>
-      </div>
+      <TooltipWrapper text={t('Presets.InteriorLighting.TT.ClickTextToChangeThePresetsName')}>
+        <div className="min-w-0 grow">
+          <SimpleInput
+            className={`w-full ${M3_INPUT}`}
+            fontSizeClassName="text-base"
+            placeholder={t('Presets.InteriorLighting.NoName')}
+            value={presetName}
+            onBlur={(value) => changePresetName(presetName, value)}
+            maxLength={16}
+          />
+        </div>
+      </TooltipWrapper>
 
       <TooltipWrapper
         text={
@@ -296,11 +306,15 @@ const SinglePreset = (props: SinglePresetParams) => {
             : t('Presets.InteriorLighting.TT.AircraftMustBePowered')
         }
       >
-        <div
-          className={`mx-4 flex h-16 w-full items-center justify-center rounded-md border-2 border-theme-accent bg-theme-accent text-theme-text transition duration-100 hover:bg-theme-highlight hover:text-theme-body ${!isPowered && 'opacity-50'}`}
-          onClick={() => handleLoad()}
-        >
-          {t('Presets.InteriorLighting.LoadPreset')}
+        <div className="ml-3">
+          <button
+            type="button"
+            className={`flex h-10 items-center whitespace-nowrap rounded-xl bg-m3-primary-container px-4 text-sm font-bold text-m3-on-primary-container transition duration-100 hover:brightness-110 ${!isPowered && 'opacity-40'}`}
+            onClick={() => handleLoad()}
+          >
+            <PlayFill size={14} className="mr-2" />
+            {t('Presets.InteriorLighting.LoadPreset')}
+          </button>
         </div>
       </TooltipWrapper>
 
@@ -311,11 +325,15 @@ const SinglePreset = (props: SinglePresetParams) => {
             : t('Presets.InteriorLighting.TT.AircraftMustBePowered')
         }
       >
-        <div
-          className={`mx-4 flex h-16 w-full items-center justify-center rounded-md border-2 border-green-700 bg-green-700 text-white transition duration-100 hover:border-green-800 hover:bg-green-500 ${!isPowered && 'opacity-50'}`}
-          onClick={() => handleSave()}
-        >
-          {t('Presets.InteriorLighting.SavePreset')}
+        <div className="ml-2">
+          <button
+            type="button"
+            className={`flex h-10 items-center whitespace-nowrap rounded-xl border border-m3-outline bg-transparent px-4 text-sm font-bold text-m3-text transition duration-100 hover:bg-m3-tile ${!isPowered && 'opacity-40'}`}
+            onClick={() => handleSave()}
+          >
+            <Save size={14} className="mr-2" />
+            {t('Presets.InteriorLighting.SavePreset')}
+          </button>
         </div>
       </TooltipWrapper>
     </div>

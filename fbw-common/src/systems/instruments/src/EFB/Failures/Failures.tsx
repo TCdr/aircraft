@@ -5,7 +5,7 @@
 import React from 'react';
 import { AtaChaptersTitle } from '@flybywiresim/fbw-sdk-react';
 import { Route } from 'react-router-dom';
-import { InfoCircleFill } from 'react-bootstrap-icons';
+import { ExclamationTriangle, InfoCircleFill } from 'react-bootstrap-icons';
 import { t } from '../Localization/translation';
 import { CompactUI } from './Pages/Compact';
 import { ComfortUI } from './Pages/Comfort';
@@ -15,10 +15,10 @@ import { SimpleInput } from '../UtilComponents/Form/SimpleInput/SimpleInput';
 import { PageLink, PageRedirect } from '../Utils/routing';
 import { useFailuresOrchestrator } from '../failures-orchestrator-provider';
 import { setSearchQuery } from '../Store/features/failuresPage';
-import { ScrollableContainer } from '../UtilComponents/ScrollableContainer';
+import { M3_INPUT, M3Banner, M3Chip } from '../UtilComponents/Material/Material';
 
 export const Failures = () => {
-  const { allFailures } = useFailuresOrchestrator();
+  const { allFailures, activeFailures } = useFailuresOrchestrator();
   const chapters = Array.from(new Set(allFailures.map((it) => it.ata))).sort((a, b) => a - b);
 
   const dispatch = useAppDispatch();
@@ -57,35 +57,36 @@ export const Failures = () => {
 
   return (
     <>
-      <div className="flex flex-row justify-between space-x-4">
-        <h1 className="font-bold">{t('Failures.Title')}</h1>
-
-        <div className="flex flex-row items-center space-x-2 rounded-md bg-yellow-400 px-4 py-1">
-          <InfoCircleFill className="text-black" />
-          <p className="text-black">{t('Failures.FullSimulationOfTheFailuresBelowIsntYetGuaranteed')}</p>
-        </div>
+      <div className="mb-4 flex flex-row items-center">
+        <h1 className="grow font-bold">{t('Failures.Title')}</h1>
+        {activeFailures.size > 0 && (
+          <M3Chip tone="warn" className="mr-3" icon={<ExclamationTriangle size={16} />}>
+            {`${activeFailures.size} ${t('Failures.ActiveFailures')}`}
+          </M3Chip>
+        )}
+        <Navbar basePath="/failures" tabs={tabs} />
       </div>
 
-      <div className="mt-4 h-content-section-reduced space-y-4 rounded-lg border-2 border-theme-accent p-4">
-        <div className="flex flex-row space-x-4">
-          <SimpleInput
-            placeholder={t('Failures.Search')}
-            className="grow uppercase"
-            value={searchQuery}
-            onChange={(value) => dispatch(setSearchQuery(value.toUpperCase()))}
-          />
-          <Navbar basePath="/failures" tabs={tabs} />
-        </div>
+      <div className="flex h-content-section-reduced flex-col overflow-hidden">
+        <M3Banner tone="busy" icon={<InfoCircleFill size={16} />} className="mb-3 shrink-0">
+          {t('Failures.FullSimulationOfTheFailuresBelowIsntYetGuaranteed')}
+        </M3Banner>
+
+        <SimpleInput
+          placeholder={t('Failures.Search')}
+          className={`mb-3 w-full shrink-0 uppercase ${M3_INPUT}`}
+          fontSizeClassName="text-base"
+          value={searchQuery}
+          onChange={(value) => dispatch(setSearchQuery(value.toUpperCase()))}
+        />
 
         <Route path="/failures/comfort">
           <ComfortUI filteredChapters={filteredChapters} allChapters={chapters} failures={filteredFailures} />
         </Route>
 
-        <ScrollableContainer height={48}>
-          <Route path="/failures/compact">
-            <CompactUI chapters={filteredChapters} failures={filteredFailures} />
-          </Route>
-        </ScrollableContainer>
+        <Route path="/failures/compact">
+          <CompactUI chapters={filteredChapters} failures={filteredFailures} />
+        </Route>
       </div>
 
       <PageRedirect basePath="/failures" tabs={tabs} />

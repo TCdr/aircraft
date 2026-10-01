@@ -152,7 +152,7 @@ export const MsfsChartUI = ({ msfsProvider, tab, provider }: MsfsChartUIProps) =
     <div className="flex h-content-section-reduced w-full flex-row overflow-x-hidden rounded-lg">
       <>
         {!isFullScreen && (
-          <div className="shrink-0" style={{ width: '450px' }}>
+          <div className="flex shrink-0 flex-col rounded-2xl bg-m3-card p-4" style={{ width: '450px' }}>
             <div className="flex flex-row items-center justify-center">
               <SimpleInput
                 placeholder="ICAO"
@@ -191,14 +191,17 @@ export const MsfsChartUI = ({ msfsProvider, tab, provider }: MsfsChartUIProps) =
               )}
             </div>
 
-            <div className="flex h-11 w-full flex-row items-center">
-              <ArrowReturnRight size={30} />
-              <div className="block w-full overflow-hidden whitespace-nowrap px-4" style={{ textOverflow: 'ellipsis' }}>
+            <div className="flex h-11 w-full flex-row items-center text-m3-muted">
+              <ArrowReturnRight size={22} />
+              <div
+                className="block w-full overflow-hidden whitespace-nowrap px-3 text-base font-semibold text-m3-muted"
+                style={{ textOverflow: 'ellipsis' }}
+              >
                 {getStatusBarText()}
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-2">
               <SelectGroup>
                 {(['SID', 'STAR', 'APPR', 'ARPT'] satisfies MsfsChartCategory[]).map((tabType) => (
                   <SelectItem
@@ -211,7 +214,7 @@ export const MsfsChartUI = ({ msfsProvider, tab, provider }: MsfsChartUIProps) =
                   </SelectItem>
                 ))}
               </SelectGroup>
-              <ScrollableContainer className="mt-5" height={42.75}>
+              <ScrollableContainer className="mt-4" height={40}>
                 <MsfsChartSelector
                   selectedTab={organizedCharts[selectedTabType]}
                   provider={provider}

@@ -354,11 +354,13 @@ export const PushbackPage = () => {
                 className="w-full"
               >
                 <TruckFlatbed size={22} />
-                {pushbackActive
-                  ? t('Pushback.ReleaseTug')
-                  : tugInTransit
-                    ? t('Pushback.TugInTransit')
-                    : t('Pushback.CallTug')}
+                <span className="text-lg font-bold text-current">
+                  {pushbackActive
+                    ? t('Pushback.ReleaseTug')
+                    : tugInTransit
+                      ? t('Pushback.TugInTransit')
+                      : t('Pushback.CallTug')}
+                </span>
               </M3Button>
             </TooltipWrapper>
             <TooltipWrapper text={t('Pushback.TT.SetReleaseParkingBrake')}>
@@ -401,7 +403,7 @@ export const PushbackPage = () => {
                   label: (
                     <>
                       <ArrowDown size={16} />
-                      {t('Pushback.Backward')}
+                      <span className="text-sm text-current">{t('Pushback.Backward')}</span>
                     </>
                   ),
                   onClick: () => handleTugSpeed(tugCmdSpdFactor - 0.1),
@@ -411,7 +413,7 @@ export const PushbackPage = () => {
                   label: (
                     <>
                       {tugCmdSpdFactor !== 0 ? <PauseCircleFill size={16} /> : <PlayCircleFill size={16} />}
-                      {movingLabel}
+                      <span className="text-sm text-current">{movingLabel}</span>
                     </>
                   ),
                   onClick: stopMovement,
@@ -421,7 +423,7 @@ export const PushbackPage = () => {
                   label: (
                     <>
                       <ArrowUp size={16} />
-                      {t('Pushback.Forward')}
+                      <span className="text-sm text-current">{t('Pushback.Forward')}</span>
                     </>
                   ),
                   onClick: () => handleTugSpeed(tugCmdSpdFactor + 0.1),

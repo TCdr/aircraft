@@ -2,6 +2,9 @@
   "AirTrafficControl": {
     "Active": "Active",
     "ChangeATISATCSourceButton": "Change ATIS/ATC source",
+    "Com1": "COM 1",
+    "ControllerInformation": "Controller information",
+    "ControllersOnline": "Controllers online",
     "NoInformationAvailableForThisFrequency": "No information available for this frequency",
     "SearchPlaceholder": "Search",
     "SelectCorrectATISATCSource": "This page is only available when IVAO or VATSIM is selected as the ATIS/ATC source in the settings page.",
@@ -26,6 +29,8 @@
     "AreYouSureYouWantToResetAllChecklists": "Are you sure you want to reset all checklists?",
     "AreYouSureYouWantToResetChecklists": "Are you sure you want to reset all checklists?",
     "ChecklistResetWarning": "Checklist Reset Warning",
+    "CurrentFlightPhase": "Current flight phase",
+    "ItemsDone": "done",
     "MarkChecklistAsComplete": "Mark checklist as complete",
     "MarkItemAsComplete": "Mark item as complete",
     "ProceedToNextChecklist": "Proceed to next checklist",
@@ -123,15 +128,20 @@
     "Title": "Dispatch"
   },
   "Failures": {
+    "Active": "active",
+    "ActiveFailures": "active failures",
     "Comfort": {
       "Title": "Comfort"
     },
     "Compact": {
       "Title": "Compact"
     },
+    "FailedTapToRestore": "Failed, tap to restore",
+    "Failures": "failures",
     "FullSimulationOfTheFailuresBelowIsntYetGuaranteed": "Full simulation of the failures below isn't yet guaranteed.",
     "Search": "Search",
-    "Title": "Failures"
+    "Title": "Failures",
+    "Working": "Working"
   },
   "Ground": {
     "Fuel": {
@@ -793,6 +803,7 @@
       "ConfirmationDialogMsg": "Please confirm loading of preset.",
       "CurrentProcedureStep": "Current Procedure Step",
       "ExpediteLoading": "Fast loading (unrealistic):",
+      "Loading": "Loading",
       "PleaseConfirmLoadingOfPreset": "Please confirm loading of preset.",
       "Powered": "Powered",
       "ReadyPushback": "Ready for Pushback",
@@ -818,6 +829,7 @@
       "NewNameConfirmationDialogMsg": "Please confirm the new name for the lighting preset",
       "NoName": "No Name",
       "PleaseConfirmSavingPreset": "Please Confirm Saving Preset",
+      "Presets": "Presets",
       "SavePreset": "Save Preset",
       "SavingPreset": "Saving Preset",
       "SelectAnInteriorLightingPresetToLoadOrSave": "Select an interior lighting preset to load or save.",
@@ -885,7 +897,12 @@
   },
   "QuickControls": {
     "AlignAdirs": "Align ADIRS",
+    "Auto": "Auto",
+    "Brightness": "flyPad brightness",
+    "CabinLighting": "Cabin lighting",
     "FinishBoarding": "Finish Boarding",
+    "Off": "Off",
+    "On": "On",
     "OnScreenKeyboard": "OnScreen Keyboard",
     "SimBridge": "SimBridge",
     "SimBridgeConnected": "Connected",
@@ -1148,6 +1165,10 @@
     "Thu": "Thu",
     "Tue": "Tue",
     "Wed": "Wed"
+  },
+  "ToolBar": {
+    "Atc": "ATC",
+    "Navigation": "Navigation"
   },
   "VersionCheck": {
     "CurrentVersionText": "You are using the $edition edition with version:",
