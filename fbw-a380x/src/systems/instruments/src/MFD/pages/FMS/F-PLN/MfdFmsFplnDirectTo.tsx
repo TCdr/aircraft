@@ -12,6 +12,7 @@ import { ADIRS } from '../../../shared/Adirs';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
+import { directToEtaSeconds, formatUtc } from '../../../FMC/DirectToEta';
 import { Fix, MagVar } from '@flybywiresim/fbw-sdk';
 import { bearingTo } from 'msfs-geo';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -109,10 +110,20 @@ export class MfdFmsFplnDirectTo extends FmsPage<MfdFmsFplnDirectToProps> {
         this.dropdownMenuRef.instance.forceLabel(this.manualWptIdent);
       }
 
-      // TODO Display ETA; target waypoint is now activeLeg termination in temporary fpln
+      // The target waypoint is the active leg termination of the temporary flight plan. No predictions of the temporary
+      // flight plan: the UTC is estimated from the distance and the ground speed (as on the ND DIRECT TO page)
       if (this.loadedFlightPlan?.activeLeg instanceof FlightPlanLeg) {
-        // No predictions for temporary fpln atm, so only distance is displayed
-        this.distToWpt.set(this.loadedFlightPlan?.activeLeg?.calculated?.cumulativeDistance?.toFixed(0) ?? '---');
+        const distance = this.loadedFlightPlan?.activeLeg?.calculated?.cumulativeDistance ?? null;
+        this.distToWpt.set(distance?.toFixed(0) ?? '---');
+        this.utcEta.set(
+          formatUtc(
+            directToEtaSeconds(
+              distance,
+              SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots'),
+              SimVar.GetGlobalVarValue('ZULU TIME', 'seconds'),
+            ),
+          ),
+        );
       }
     }
   }
