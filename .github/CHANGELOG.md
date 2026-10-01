@@ -122,6 +122,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Material 3 look of the Ground pages: Services (doors and ground equipment lists, the aircraft from above zoomed on the fuselage with its doors, GSX turnaround) and Pushback (map and control rail), with a shared Material kit - @TCdr
 1. [EFB] Material 3 look of the Ground pages, continued: Fuel (the aircraft with its tanks, the tank quantities, a refuel rail), Payload (cabin and holds, load table, boarding, balance chart) and Taxi (route cards, map) - @TCdr
 1. [EFB] Material 3 look of the Dashboard, the Dispatch pages (OFP, Overview, Printouts) and the Performance calculators (Takeoff, Top of Descent, Landing, Temperature Correction) - @TCdr
+1. [EFB] Material 3 look of the flyPad frame (navigation rail with labels, status bar, quick controls, section tabs) and of the Navigation, ATC, Failures, Checklists, Presets and Settings pages (settings in two panes) - @TCdr
 
 ## 2024.1.0
 

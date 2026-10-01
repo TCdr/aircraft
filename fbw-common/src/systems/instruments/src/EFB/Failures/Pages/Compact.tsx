@@ -37,7 +37,7 @@ const FailureGroup = ({ title, failures }: FailureGroupProps) => {
 
   return (
     <div className="space-y-2">
-      <h2>{title}</h2>
+      <span className="block text-xs font-bold uppercase tracking-widest text-m3-muted">{title}</span>
 
       <div className="grid auto-rows-auto grid-cols-4">
         {failures.map((failure, index) => (
@@ -47,7 +47,7 @@ const FailureGroup = ({ title, failures }: FailureGroupProps) => {
             isActive={activeFailures.has(failure.identifier)}
             highlightedTerm={getHighlightedTerm(failure.name)}
             onClick={() => handleFailureButtonClick(failure.identifier)}
-            className={`${index && index % 4 !== 0 && 'ml-4'} ${index >= 4 && 'mt-4'} h-36`}
+            className={`${index % 4 !== 0 ? 'ml-3' : ''} ${index >= 4 ? 'mt-3' : ''} h-20`}
           />
         ))}
       </div>
@@ -65,8 +65,8 @@ export const CompactUI = ({ chapters, failures }: CompactUIProps) => {
   const { searchQuery } = useAppSelector((state) => state.failuresPage);
 
   return (
-    <ScrollableContainer height={48}>
-      <div className="space-y-8">
+    <ScrollableContainer height={44}>
+      <div className="space-y-6">
         {searchQuery.length === 0 && activeFailures.size !== 0 && (
           <FailureGroup
             title="Active Failures"
@@ -81,11 +81,8 @@ export const CompactUI = ({ chapters, failures }: CompactUIProps) => {
           />
         ))}
         {failures.length === 0 && (
-          <div
-            className="flex items-center justify-center rounded-md border-2 border-theme-accent"
-            style={{ height: '48rem' }}
-          >
-            <p>{t('Failures.NoItemsFound')}</p>
+          <div className="flex h-96 items-center justify-center rounded-2xl bg-m3-card-low">
+            <p className="text-lg text-m3-muted">{t('Failures.NoItemsFound')}</p>
           </div>
         )}
       </div>

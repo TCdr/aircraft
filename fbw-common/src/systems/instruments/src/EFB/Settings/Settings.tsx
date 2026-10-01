@@ -4,14 +4,26 @@
 
 import React, { FC } from 'react';
 
-import { Route, Switch, useHistory } from 'react-router';
-import { Link } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router';
+import { Link, NavLink } from 'react-router-dom';
 
-import { ArrowLeft, ChevronRight } from 'react-bootstrap-icons';
+import {
+  Airplane,
+  ArrowLeft,
+  BroadcastPin,
+  ChevronRight,
+  InfoCircle,
+  Plug,
+  Sliders,
+  Speedometer2,
+  Tablet,
+  VolumeUp,
+} from 'react-bootstrap-icons';
 import { t } from '../Localization/translation';
 import { AboutPage } from './Pages/AboutPage';
 import { ScrollableContainer } from '../UtilComponents/ScrollableContainer';
-import { PageLink, pathify, TabRoutes } from '../Utils/routing';
+import { PageLink, PageRedirect, pathify, TabRoutes } from '../Utils/routing';
+import { M3Card } from '../UtilComponents/Material/Material';
 import { AircraftOptionsPinProgramsPage } from './Pages/AircraftOptionsPinProgramsPage';
 import { SimOptionsPage } from './Pages/SimOptionsPage';
 import { RealismPage } from './Pages/RealismPage';
@@ -29,17 +41,36 @@ interface SelectionTabsProps {
   tabs: PageLink[];
 }
 
+/** The icons of the categories, in the order of the tabs */
+const SETTINGS_ICONS = [
+  <Airplane key="aircraft" size={20} />,
+  <Sliders key="sim" size={20} />,
+  <Speedometer2 key="realism" size={20} />,
+  <Plug key="third-party" size={20} />,
+  <BroadcastPin key="atsu" size={20} />,
+  <VolumeUp key="audio" size={20} />,
+  <Tablet key="flypad" size={20} />,
+  <InfoCircle key="about" size={20} />,
+];
+
+/** The categories of the settings, the open one tonal (it stays so on the pages under it) */
 export const SelectionTabs = ({ tabs }: SelectionTabsProps) => (
-  <div className="space-y-6">
-    {tabs.map((tab) => (
-      <Link
+  <div className="space-y-1">
+    {tabs.map((tab, index) => (
+      <NavLink
         key={tab.name}
-        to={`settings/${pathify(tab.name)}`}
-        className="flex items-center justify-between rounded-md border-2 border-transparent bg-theme-accent p-6 transition duration-100 hover:border-theme-highlight"
+        to={`/settings/${pathify(tab.name)}`}
+        className="group flex h-12 flex-row items-center rounded-xl px-3 text-m3-text transition duration-100 hover:bg-m3-tile"
+        activeClassName="!bg-m3-primary-container !text-m3-on-primary-container"
       >
-        <p className="text-2xl">{tab.alias ?? tab.name}</p>
-        <ChevronRight size={30} />
-      </Link>
+        <span className="mr-3 flex text-m3-muted group-[.active]:text-m3-on-primary-container">
+          {SETTINGS_ICONS[index]}
+        </span>
+        <span className="grow truncate text-base font-semibold text-current group-[.active]:font-bold">
+          {tab.alias ?? tab.name}
+        </span>
+        <ChevronRight size={16} />
+      </NavLink>
     ))}
   </div>
 );
@@ -60,15 +91,20 @@ export const Settings = () => {
     { alias: t('Settings.About.Title'), name: 'About', component: <AboutPage /> },
   ];
 
+  // Two panes: the categories on the left, the open page on the right (the first category, or the last one seen,
+  // when the section is opened)
   return (
-    <div className="h-content-section-reduced w-full">
-      <Switch>
-        <Route exact path="/settings">
-          <h1 className="mb-4 font-bold">{t('Settings.Title')}</h1>
+    <div className="w-full">
+      <h1 className="mb-4 font-bold">{t('Settings.Title')}</h1>
+      <div className="flex h-content-section-reduced flex-row">
+        <M3Card className="mr-4 w-[340px] shrink-0 p-2">
           <SelectionTabs tabs={tabs} />
-        </Route>
-        <TabRoutes basePath="/settings" tabs={tabs} />
-      </Switch>
+        </M3Card>
+        <div className="min-w-0 flex-1">
+          <PageRedirect basePath="/settings" tabs={tabs} />
+          <TabRoutes basePath="/settings" tabs={tabs} />
+        </div>
+      </div>
     </div>
   );
 };
@@ -78,53 +114,49 @@ type SettingsPageProps = {
   backRoute?: string;
 };
 
-export const SettingsPage: FC<SettingsPageProps> = ({ name, backRoute, children }) => {
+/** The title of a settings page, with a back button on the pages under a category (Troubleshooting...) */
+const SettingsPageTitle = ({ name, backRoute }: SettingsPageProps) => {
   const history = useHistory();
+  const location = useLocation();
+  const nested = location.pathname.split('/').filter((part) => part !== '').length > 2;
 
   return (
-    <div>
-      <Link
-        to={backRoute ?? '/settings'}
-        onClick={(e) => {
-          if (!backRoute && history.length > 1) {
-            e.preventDefault();
-            history.goBack();
-          }
-        }}
-        className="mb-4 inline-block"
-      >
-        <div className="flex flex-row items-center space-x-3 transition duration-100 hover:text-theme-highlight">
-          <ArrowLeft size={30} />
-          <h1 className="font-bold text-current">
-            {t('Settings.Title')}
-            {' - '}
-            {name}
-          </h1>
-        </div>
-      </Link>
-      <div className="h-content-section-reduced w-full rounded-lg border-2 border-theme-accent px-6 py-2">
-        <ScrollableContainer height={53} innerClassName="h-full">
-          <div className="h-full divide-y-2 divide-theme-accent">{children}</div>
-        </ScrollableContainer>
-      </div>
+    <div className="flex shrink-0 flex-row items-center px-6 pb-2 pt-5">
+      {nested && (
+        <Link
+          to={backRoute ?? '/settings'}
+          onClick={(e) => {
+            if (!backRoute && history.length > 1) {
+              e.preventDefault();
+              history.goBack();
+            }
+          }}
+          className="mr-3 flex h-10 w-10 items-center justify-center rounded-xl bg-m3-tile text-m3-text transition duration-100 hover:bg-m3-outline"
+        >
+          <ArrowLeft size={20} />
+        </Link>
+      )}
+      <span className="text-2xl font-bold text-white">{name}</span>
     </div>
   );
 };
 
-export const FullscreenSettingsPage: FC<SettingsPageProps> = ({ name, children }) => (
-  <div>
-    <Link to="/settings" className="mb-4 inline-block">
-      <div className="flex flex-row items-center space-x-3 transition duration-100 hover:text-theme-highlight">
-        <ArrowLeft size={30} />
-        <h1 className="font-bold text-current">
-          {t('Settings.Title')}
-          {' - '}
-          {name}
-        </h1>
-      </div>
-    </Link>
-    <div className="h-content-section-reduced w-full rounded-lg border-2 border-theme-accent px-6 py-2">{children}</div>
-  </div>
+export const SettingsPage: FC<SettingsPageProps> = ({ name, backRoute, children }) => (
+  <M3Card className="h-content-section-reduced w-full">
+    <SettingsPageTitle name={name} backRoute={backRoute} />
+    <div className="min-h-0 flex-1 px-6 pb-2">
+      <ScrollableContainer height={48} innerClassName="h-full">
+        <div className="h-full divide-y divide-m3-outline pr-5">{children}</div>
+      </ScrollableContainer>
+    </div>
+  </M3Card>
+);
+
+export const FullscreenSettingsPage: FC<SettingsPageProps> = ({ name, backRoute, children }) => (
+  <M3Card className="h-content-section-reduced w-full">
+    <SettingsPageTitle name={name} backRoute={backRoute} />
+    <div className="min-h-0 flex-1 px-6 pb-4">{children}</div>
+  </M3Card>
 );
 
 // SettingsGroup wraps several SettingsItems into a group (no divider and closer together).<br/>
@@ -139,25 +171,30 @@ type SettingItemProps = {
 };
 
 export const SettingItem: FC<SettingItemProps> = ({ name, unrealistic, groupType, disabled, children }) => {
-  const UnrealisticHint = () => <span className="ml-2 text-theme-highlight"> ({t('Settings.Unrealistic')})</span>;
+  const UnrealisticHint = () => (
+    <span className="ml-3 whitespace-nowrap rounded-full bg-m3-warn-container px-2 py-1 text-xs font-bold uppercase leading-none text-m3-on-warn">
+      {t('Settings.Unrealistic')}
+    </span>
+  );
 
   return (
-    <div className={`flex flex-row items-center justify-between ${(groupType === undefined && 'py-4') || 'h-12'}`}>
+    <div
+      className={`flex flex-row items-center justify-between ${(groupType === undefined && 'min-h-[60px] py-3') || 'h-12'}`}
+    >
       {groupType === 'sub' ? (
-        <span className="ml-6 flex flex-row">
-          <span className="ml-2">
-            {name}
-            {unrealistic && <UnrealisticHint />}
-          </span>
+        <span className="ml-8 flex flex-row items-center">
+          <span className="mr-3 h-3 w-3 border-b-2 border-l-2 border-m3-outline" />
+          <span className="text-base font-semibold text-m3-muted">{name}</span>
+          {unrealistic && <UnrealisticHint />}
         </span>
       ) : (
-        <span>
-          {name}
+        <span className="mr-4 flex flex-row items-center">
+          <span className="text-base font-semibold text-m3-text">{name}</span>
           {unrealistic && <UnrealisticHint />}
         </span>
       )}
 
-      <div className={`${disabled && 'pointer-events-none grayscale'}`}>{children}</div>
+      <div className={`shrink-0 ${disabled && 'pointer-events-none opacity-40'}`}>{children}</div>
     </div>
   );
 };

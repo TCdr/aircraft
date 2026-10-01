@@ -39,42 +39,31 @@ export const AtaChapterPage = ({ chapter, failures }: AtaChapterPageProps) => {
   };
 
   return (
-    <div>
-      <Link to="/failures/comfort" className="inline-block">
-        <div className="flex flex-row items-center space-x-3 transition duration-100 hover:text-theme-highlight">
-          <ArrowLeft size={30} />
-          <h1 className="font-bold text-current">
-            {t('Failures.Title')}
-            {' > '}
-            {AtaChaptersTitle[chapter]}
-          </h1>
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <Link to="/failures/comfort" className="mb-3 inline-flex shrink-0 flex-row items-center self-start">
+        <span className="mr-3 flex h-10 w-10 items-center justify-center rounded-xl bg-m3-tile text-m3-text">
+          <ArrowLeft size={20} />
+        </span>
+        <span className="text-2xl font-bold text-white">{`ATA ${chapter} · ${AtaChaptersTitle[chapter]}`}</span>
       </Link>
 
       {filteredFailures.length === 0 ? (
-        <div
-          className="mt-4 flex items-center justify-center rounded-md border-2 border-theme-accent"
-          style={{ height: '44.5rem' }}
-        >
-          <p>{t('Failures.NoItemsFound')}</p>
+        <div className="flex h-96 items-center justify-center rounded-2xl bg-m3-card-low">
+          <p className="text-lg text-m3-muted">{t('Failures.NoItemsFound')}</p>
         </div>
       ) : (
-        <div
-          className="mt-4 h-content-section-reduced rounded-lg border-2 border-theme-accent p-4"
-          style={{ height: '44.5rem' }}
-        >
-          <ScrollableContainer innerClassName="grid grid-cols-4 auto-rows-auto" height={44}>
-            {filteredFailures.map((failure, index) => (
-              <FailureButton
-                name={failure.name}
-                isActive={activeFailures.has(failure.identifier)}
-                highlightedTerm={getHighlightedTerm(failure.name)}
-                onClick={() => handleFailureButtonClick(failure.identifier)}
-                className={`${index && index % 4 !== 0 && 'ml-4'} ${index >= 4 && 'mt-4'} h-36`}
-              />
-            ))}
-          </ScrollableContainer>
-        </div>
+        <ScrollableContainer innerClassName="grid grid-cols-4 auto-rows-auto" height={40}>
+          {filteredFailures.map((failure, index) => (
+            <FailureButton
+              key={failure.identifier}
+              name={failure.name}
+              isActive={activeFailures.has(failure.identifier)}
+              highlightedTerm={getHighlightedTerm(failure.name)}
+              onClick={() => handleFailureButtonClick(failure.identifier)}
+              className={`${index % 4 !== 0 ? 'ml-3' : ''} ${index >= 4 ? 'mt-3' : ''} h-20`}
+            />
+          ))}
+        </ScrollableContainer>
       )}
     </div>
   );

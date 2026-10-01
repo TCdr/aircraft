@@ -69,29 +69,29 @@ export const PinnedChartCard = ({ pinnedChart, className, showDelete }: PinnedCh
     <>
       {showDelete ? (
         <div
-          className={`relative flex cursor-pointer flex-col flex-wrap overflow-hidden rounded-md px-2 pb-2 pt-3 ${className}`}
+          className={`relative flex cursor-pointer flex-col flex-wrap overflow-hidden rounded-2xl bg-m3-error-container px-4 pb-3 pt-4 ${className}`}
           onClick={() => dispatch(removedPinnedChart({ chartId: pinnedChart.chartId }))}
           onMouseEnter={() => setCurrentTag('DEL')}
           onMouseLeave={() => setCurrentTag(tag)}
         >
           <TooltipWrapper text={t('NavigationAndCharts.PinnedCharts.Delete')}>
-            <div className="absolute bottom-0 right-0 z-10 text-utility-red">
-              <IconTrash className="z-10" size={48} />
+            <div className="absolute bottom-2 right-2 z-10 text-m3-on-error">
+              <IconTrash className="z-10" size={32} />
             </div>
           </TooltipWrapper>
           <div className="opacity-70">
             <div className={`${getTagColor(currentTag)} absolute inset-x-0 top-0 h-1.5 w-full bg-current`} />
-            <h2 className="break-all font-bold">
-              {title} <div className="inline-block text-theme-unselected">{tag}</div>
+            <h2 className="break-all text-xl font-bold text-white">
+              {title} <div className="inline-block text-m3-muted">{tag}</div>
             </h2>
-            <p className="font-inter mt-2">{subTitle}</p>
+            <p className="font-inter mt-2 text-base text-m3-text">{subTitle}</p>
             <IconArrowRight className={`ml-auto mt-auto opacity-0 ${getTagColor(tag)}`} />
           </div>
         </div>
       ) : (
         <Link
           to={`/navigation/${pathify(provider)}`}
-          className={`${showDelete && 'rounded-t-none'} relative flex flex-col flex-wrap overflow-hidden rounded-md bg-theme-accent px-2 pb-2 pt-3 ${className}`}
+          className={`relative flex flex-col flex-wrap overflow-hidden rounded-2xl bg-m3-card px-4 pb-3 pt-4 transition duration-100 hover:bg-m3-tile ${className}`}
           onClick={() => {
             dispatch(editTabProperty({ tab, chartDimensions: { width: undefined, height: undefined } }));
             dispatch(
@@ -133,10 +133,10 @@ export const PinnedChartCard = ({ pinnedChart, className, showDelete }: PinnedCh
           }}
         >
           <div className={`${getTagColor(tag)} absolute inset-x-0 top-0 h-1.5 w-full bg-current`} />
-          <h2 className="break-all font-bold">
-            {title} <div className="inline-block text-theme-unselected">{tag}</div>
+          <h2 className="break-all text-xl font-bold text-white">
+            {title} <div className="inline-block text-m3-muted">{tag}</div>
           </h2>
-          <p className="font-inter mt-2">{subTitle}</p>
+          <p className="font-inter mt-2 text-base text-m3-text">{subTitle}</p>
           <IconArrowRight className={`ml-auto mt-auto ${getTagColor(tag)}`} />
         </Link>
       )}
@@ -286,7 +286,7 @@ export const PinnedChartUI = () => {
   };
 
   return (
-    <div className="h-content-section-reduced space-y-4 rounded-lg border-2 border-theme-accent p-4">
+    <div className="h-content-section-reduced space-y-4 rounded-2xl bg-m3-card-low p-4">
       <div className="space-y-4">
         {/* FIXME: The spacex4 is causing the keyboard to be shifted as well */}
         <div className="flex flex-row items-center space-x-4">
@@ -355,13 +355,13 @@ export const PinnedChartUI = () => {
             </SelectGroup>
           ) : (
             <>
-              <div className="flex grow items-center justify-center rounded-md border border-theme-accent px-6 py-2">
+              <div className="flex grow items-center justify-center rounded-full border border-m3-outline px-6 py-2 text-base text-m3-muted">
                 {t('NavigationAndCharts.PinnedCharts.ShowingChartsFromAllProviders')}
               </div>
               {editMode && (
                 <TooltipWrapper text={t('NavigationAndCharts.PinnedCharts.TT.RemoveAllPinnedCharts')}>
                   <div
-                    className="flex w-min shrink items-center justify-center rounded-md border-2 border-utility-red bg-utility-red p-2 text-center text-theme-body transition duration-100 hover:bg-theme-body hover:text-utility-red"
+                    className="flex w-min shrink items-center justify-center rounded-xl border border-m3-on-error bg-transparent p-2 text-center text-m3-on-error transition duration-100 hover:bg-m3-error-container"
                     onClick={removeAll}
                   >
                     <IconTrash />
@@ -419,7 +419,7 @@ export const PinnedChartUI = () => {
         </ScrollableContainer>
       ) : (
         <div
-          className="flex items-center justify-center rounded-lg border-2 border-theme-accent"
+          className="flex items-center justify-center rounded-2xl bg-m3-card text-lg text-m3-muted"
           style={{ height: '44rem' }}
         >
           {t('NavigationAndCharts.PinnedCharts.NoItemsFound')}
