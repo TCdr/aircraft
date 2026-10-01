@@ -22,16 +22,18 @@ import {
   setSimbriefDataPending,
 } from '@flybywiresim/flypad';
 import { useNavigraphAuthInfo } from '../../Apis/Navigraph/Components/Authentication';
+import { M3Button, M3Card, M3Chip } from '../../UtilComponents/Material/Material';
 
 interface InformationEntryProps {
   title: string;
   info: string;
 }
 
+/** A figure of the flight: its name over its value */
 const InformationEntry = ({ title, info }: InformationEntryProps) => (
-  <div className="justify-content flex w-full flex-col items-center">
-    <h3 className="text-center font-light">{title}</h3>
-    <h2 className="font-bold">{info}</h2>
+  <div className="flex min-w-0 flex-1 flex-col rounded-xl bg-m3-tile px-4 py-2">
+    <span className="truncate text-xs font-bold uppercase tracking-widest text-m3-muted">{title}</span>
+    <span className="truncate text-lg font-bold text-m3-text">{info}</span>
   </div>
 );
 
@@ -157,118 +159,106 @@ export const FlightWidget = () => {
   const simbriefDataLoaded = isSimbriefDataLoaded();
 
   return (
-    <div className="w-1/2">
+    <div className="mr-4 flex min-w-0 flex-1 flex-col text-m3-text">
       <div className="mb-4 flex flex-row items-center justify-between">
         <h1 className="font-bold">{t('Dashboard.YourFlight.Title')}</h1>
-        <h1>
-          {simbriefDataLoaded ? `${(airline.length > 0 ? airline : '') + flightNum} | ` : ''}
-          {airframeInfo.variant}
-        </h1>
+        <M3Chip tone="idle">
+          {`${simbriefDataLoaded ? `${(airline.length > 0 ? airline : '') + flightNum} · ` : ''}${airframeInfo.variant}`}
+        </M3Chip>
       </div>
-      <div className="relative h-content-section-reduced w-full overflow-hidden rounded-lg border-2 border-theme-accent p-6">
-        <div className="flex h-full flex-col justify-between">
-          {simbriefDataLoaded && (
-            <div className="space-y-8">
-              <div className="flex flex-row justify-between">
-                <div>
-                  <h1 className="text-4xl font-bold">{departingAirport}</h1>
-                  <p className="w-52 text-sm">{departingName}</p>
-                </div>
-                <div>
-                  <h1 className="text-right text-4xl font-bold">{arrivingAirport}</h1>
-                  <p className="w-52 text-right text-sm">{arrivingName}</p>
-                </div>
+      <M3Card className="h-content-section-reduced w-full p-6">
+        {simbriefDataLoaded && (
+          <>
+            <div className="flex shrink-0 flex-row justify-between">
+              <div className="flex flex-col">
+                <span className="text-4xl font-bold leading-none">{departingAirport}</span>
+                <span className="mt-1 w-52 text-sm text-m3-muted">{departingName}</span>
               </div>
-              <div>
-                <div className="flex w-full flex-row items-center">
-                  <p className={`font-body ${flightPlanProgress > 1 ? 'text-theme-highlight' : 'text-theme-text'}`}>
-                    {schedOutParsed}
-                  </p>
-                  <div className="relative mx-6 flex h-1 w-full flex-row">
-                    <div className="absolute inset-x-0 border-b-4 border-dashed border-theme-text" />
-
-                    <div className="relative w-full bg-theme-highlight" style={{ width: `${flightPlanProgress}%` }}>
-                      {!!flightPlanProgress && (
-                        <IconPlane
-                          className="absolute right-0 -translate-y-1/2 translate-x-1/2 fill-current text-theme-highlight"
-                          size={50}
-                          strokeLinejoin="miter"
-                        />
-                      )}
-                    </div>
-                  </div>
-                  <p
-                    className={`text-right font-body ${Math.round(flightPlanProgress) >= 98 ? 'text-theme-highlight' : 'text-theme-text'}`}
-                  >
-                    {schedInParsed}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <div className="mb-4 flex flex-row justify-around">
-                  <InformationEntry title={t('Dashboard.YourFlight.Alternate')} info={altIcao ?? 'NONE'} />
-                  <div className="mx-4 my-auto h-8 w-1 bg-theme-accent" />
-                  <InformationEntry
-                    title={t('Dashboard.YourFlight.CompanyRoute')}
-                    info={departingIata + arrivingIata}
-                  />
-                  <div className="mx-4 my-auto h-8 w-1 bg-theme-accent" />
-                  <InformationEntry title={t('Dashboard.YourFlight.ZFW')} info={estimatedZfw} />
-                </div>
-                <div className="my-auto h-0.5 w-full bg-theme-accent" />
-                <div className="mt-4 flex flex-row justify-around">
-                  <InformationEntry title={t('Dashboard.YourFlight.CostIndex')} info={costInd} />
-                  <div className="mx-4 my-auto h-8 w-1 bg-theme-accent" />
-                  <InformationEntry title={t('Dashboard.YourFlight.AverageWind')} info={avgWind} />
-                  <div className="mx-4 my-auto h-8 w-1 bg-theme-accent" />
-                  <InformationEntry title={t('Dashboard.YourFlight.CruiseAlt')} info={crzAlt} />
-                </div>
-              </div>
-              <div>
-                <h5 className="mb-2 text-2xl font-bold">{t('Dashboard.YourFlight.Route')}</h5>
-                <ScrollableContainer height={15}>
-                  <p className="font-mono text-2xl">
-                    <span className="text-2xl text-theme-highlight">
-                      {departingAirport}/{departingRunway}
-                    </span>{' '}
-                    {route}{' '}
-                    <span className="text-2xl text-theme-highlight">
-                      {arrivingAirport}/{arrivingRunway}
-                    </span>
-                  </p>
-                </ScrollableContainer>
+              <div className="flex flex-col items-end">
+                <span className="text-4xl font-bold leading-none">{arrivingAirport}</span>
+                <span className="mt-1 w-52 text-right text-sm text-m3-muted">{arrivingName}</span>
               </div>
             </div>
-          )}
-          <div
-            className={simbriefDataLoaded ? '' : 'flex h-full w-full flex-col items-center justify-center space-y-4'}
-          >
-            {simbriefDataPending ? (
-              <CloudArrowDown
-                className={`${simbriefDataLoaded ? 'w-full justify-self-center' : ''} animate-bounce`}
-                size={40}
-              />
-            ) : (
-              <>
-                {!simbriefDataLoaded && (
-                  <h1 className="text-center" style={{ maxWidth: '18em' }}>
-                    {t('Dashboard.YourFlight.SimBriefDataNotYetLoaded')}
-                  </h1>
-                )}
 
-                <button
-                  type="button"
-                  onClick={fetchData}
-                  className="flex w-full items-center justify-center space-x-4 rounded-md border-2 border-theme-highlight bg-theme-highlight p-2 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-                >
-                  <CloudArrowDown size={26} />
-                  <p className="text-current">{t('Dashboard.YourFlight.ImportSimBriefData')}</p>
-                </button>
-              </>
-            )}
-          </div>
+            {/* the scheduled times, the progress of the flight between them */}
+            <div className="mt-6 flex shrink-0 flex-row items-center">
+              <span
+                className={`text-lg font-bold ${flightPlanProgress > 1 ? 'text-m3-on-primary-container' : 'text-m3-text'}`}
+              >
+                {schedOutParsed}
+              </span>
+              <div className="relative mx-6 flex h-1 flex-1 flex-row">
+                <div className="absolute inset-x-0 border-b-4 border-dashed border-m3-outline" />
+                <div className="relative bg-m3-primary" style={{ width: `${flightPlanProgress}%` }}>
+                  {!!flightPlanProgress && (
+                    <IconPlane
+                      className="absolute right-0 -translate-y-1/2 translate-x-1/2 fill-current text-m3-on-primary-container"
+                      size={50}
+                      strokeLinejoin="miter"
+                    />
+                  )}
+                </div>
+              </div>
+              <span
+                className={`text-lg font-bold ${Math.round(flightPlanProgress) >= 98 ? 'text-m3-on-primary-container' : 'text-m3-text'}`}
+              >
+                {schedInParsed}
+              </span>
+            </div>
+
+            <div className="mt-6 flex shrink-0 flex-row space-x-2">
+              <InformationEntry title={t('Dashboard.YourFlight.Alternate')} info={altIcao ?? 'NONE'} />
+              <InformationEntry title={t('Dashboard.YourFlight.CompanyRoute')} info={departingIata + arrivingIata} />
+              <InformationEntry title={t('Dashboard.YourFlight.ZFW')} info={estimatedZfw} />
+            </div>
+            <div className="mt-2 flex shrink-0 flex-row space-x-2">
+              <InformationEntry title={t('Dashboard.YourFlight.CostIndex')} info={costInd} />
+              <InformationEntry title={t('Dashboard.YourFlight.AverageWind')} info={avgWind} />
+              <InformationEntry title={t('Dashboard.YourFlight.CruiseAlt')} info={crzAlt} />
+            </div>
+
+            <span className="mt-6 shrink-0 text-xs font-bold uppercase tracking-widest text-m3-muted">
+              {t('Dashboard.YourFlight.Route')}
+            </span>
+            <div className="mt-2 shrink-0 rounded-xl bg-m3-ground p-3">
+              <ScrollableContainer height={15}>
+                <p className="font-mono text-xl">
+                  <span className="text-xl text-m3-on-primary-container">
+                    {departingAirport}/{departingRunway}
+                  </span>{' '}
+                  {route}{' '}
+                  <span className="text-xl text-m3-on-primary-container">
+                    {arrivingAirport}/{arrivingRunway}
+                  </span>
+                </p>
+              </ScrollableContainer>
+            </div>
+            <div className="grow" />
+          </>
+        )}
+        <div
+          className={simbriefDataLoaded ? 'mt-4 shrink-0' : 'flex h-full w-full flex-col items-center justify-center'}
+        >
+          {simbriefDataPending ? (
+            <CloudArrowDown
+              className={`${simbriefDataLoaded ? 'w-full justify-self-center' : ''} animate-bounce`}
+              size={40}
+            />
+          ) : (
+            <>
+              {!simbriefDataLoaded && (
+                <h1 className="mb-4 text-center" style={{ maxWidth: '18em' }}>
+                  {t('Dashboard.YourFlight.SimBriefDataNotYetLoaded')}
+                </h1>
+              )}
+              <M3Button tone={simbriefDataLoaded ? 'tonal' : 'primary'} className="w-full" onClick={fetchData}>
+                <CloudArrowDown size={24} />
+                <span className="text-lg text-current">{t('Dashboard.YourFlight.ImportSimBriefData')}</span>
+              </M3Button>
+            </>
+          )}
         </div>
-      </div>
+      </M3Card>
     </div>
   );
 };

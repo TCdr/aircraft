@@ -7,7 +7,7 @@ import { FlightWidget } from './Widgets/FlightWidget';
 import { RemindersWidget } from './Widgets/RemindersWidget';
 
 export const Dashboard = () => (
-  <div className="flex w-full space-x-8">
+  <div className="flex w-full flex-row">
     <FlightWidget />
     <RemindersWidget />
   </div>

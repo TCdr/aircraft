@@ -12,6 +12,7 @@ import { PinnedChartsReminder } from './Reminders/PinnedChartsReminder';
 import { MaintenanceReminder } from './Reminders/MaintenanceReminder';
 import { ChecklistsReminder } from './Reminders/ChecklistsReminder';
 import { ScrollableContainer } from '../../UtilComponents/ScrollableContainer';
+import { M3IconButton } from '../../UtilComponents/Material/Material';
 
 type ReminderKey = 'Weather' | 'Pinned Charts' | 'Maintenance' | 'Checklists';
 
@@ -37,34 +38,22 @@ interface ReminderKeyEditCardProps {
 }
 
 const ReminderKeyEditCard = ({ reminderText, setter, index, keyArrLen }: ReminderKeyEditCardProps) => (
-  <div className="flex w-full flex-row items-center justify-between rounded-md bg-theme-accent p-4">
-    <h1>{reminderText}</h1>
-    <div className="flex flex-row">
-      <div className="w-10">
-        <ArrowUp
-          size={25}
-          onClick={() => {
-            if (index === 0) {
-              setter(keyArrLen - 1);
-            } else {
-              setter(index - 1);
-            }
-          }}
-        />
-      </div>
-      <div className="w-10">
-        <ArrowDown
-          size={25}
-          onClick={() => {
-            if (index === keyArrLen - 1) {
-              setter(0);
-            } else {
-              setter(index + 1);
-            }
-          }}
-        />
-      </div>
-    </div>
+  <div className="flex w-full flex-row items-center rounded-2xl bg-m3-card px-4 py-3">
+    <span className="grow text-lg font-bold text-m3-text">{reminderText}</span>
+    <M3IconButton
+      aria-label="Up"
+      className="ml-2 w-12 !flex-none"
+      onClick={() => setter(index === 0 ? keyArrLen - 1 : index - 1)}
+    >
+      <ArrowUp size={22} />
+    </M3IconButton>
+    <M3IconButton
+      aria-label="Down"
+      className="ml-2 w-12 !flex-none"
+      onClick={() => setter(index === keyArrLen - 1 ? 0 : index + 1)}
+    >
+      <ArrowDown size={22} />
+    </M3IconButton>
   </div>
 );
 
@@ -96,27 +85,32 @@ export const RemindersWidget = () => {
   };
 
   return (
-    <div className="w-1/2">
-      <div className="flex flex-row items-center justify-between space-x-3">
+    <div className="flex w-[34rem] shrink-0 flex-col text-m3-text">
+      <div className="mb-4 flex flex-row items-center justify-between">
         <h1 className="font-bold">{t('Dashboard.ImportantInformation.Title')}</h1>
         <TooltipWrapper text={t('Dashboard.ImportantInformation.TT.RearrangeWidgets')}>
-          <PencilFill
-            className={`transition duration-100 ${reorderMode && 'text-theme-highlight'}`}
-            size={25}
-            onClick={() => setReorderMode((old) => !old)}
-          />
+          <div>
+            <M3IconButton
+              aria-label="Rearrange"
+              className="!h-9 w-12 !flex-none"
+              selected={reorderMode}
+              onClick={() => setReorderMode((old) => !old)}
+            >
+              <PencilFill size={18} />
+            </M3IconButton>
+          </div>
         </TooltipWrapper>
       </div>
-      <div className="relative mt-4 h-content-section-reduced w-full rounded-lg border-2 border-theme-accent p-6">
-        <ScrollableContainer height={51}>
-          <div className="flex flex-col space-y-4">{reminderKeyArr.map((key) => REMINDERS.get(key))}</div>
+      <div className="relative h-content-section-reduced w-full overflow-hidden">
+        <ScrollableContainer height={54}>
+          <div className="flex flex-col space-y-3">{reminderKeyArr.map((key) => REMINDERS.get(key))}</div>
         </ScrollableContainer>
         <div
           className={`absolute inset-0 z-30 transition duration-100 ${reorderMode ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         >
-          <div className="absolute inset-0 bg-theme-body opacity-80" />
+          <div className="absolute inset-0 bg-m3-ground opacity-90" />
           <div className="absolute inset-0">
-            <ScrollableContainer innerClassName="p-6 space-y-4" height={51}>
+            <ScrollableContainer innerClassName="space-y-3" height={54}>
               {reminderKeyArr.map((key, index) => (
                 <ReminderKeyEditCard
                   reminderText={t(TRANSLATIONS.get(key)!)}

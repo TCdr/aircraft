@@ -349,6 +349,7 @@ export const TaxiPage = () => {
   const runwayField = (
     <Row label={t('Ground.Taxi.Runway')} missing={!runway}>
       <SelectInput
+        fontSizeClassName="text-base"
         className={`w-48 ${SELECT_LOOK}`}
         value={runway ?? ''}
         options={[{ value: '', displayValue: '-' }, ...runways.map((r) => ({ value: r, displayValue: r }))]}
@@ -459,6 +460,7 @@ export const TaxiPage = () => {
                 {runwayField}
                 <Row label={t('Ground.Taxi.Exit')} missing={!exit}>
                   <SelectInput
+                    fontSizeClassName="text-base"
                     className={`w-48 ${SELECT_LOOK}`}
                     value={exit ?? ''}
                     options={[
@@ -481,6 +483,7 @@ export const TaxiPage = () => {
                 {runwayField}
                 <Row label={t('Ground.Taxi.Entry')} missing={!entryInfo}>
                   <SelectInput
+                    fontSizeClassName="text-base"
                     className={`w-48 ${SELECT_LOOK}`}
                     value={entryInfo?.name ?? ''}
                     options={entries.map((e, i) => ({
