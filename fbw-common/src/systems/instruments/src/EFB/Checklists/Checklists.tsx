@@ -9,7 +9,6 @@ import { PromptModal, ScrollableContainer, t, useModals } from '@flybywiresim/fl
 import { ChecklistJsonDefinition } from '@flybywiresim/checklists';
 import { ChecklistPage } from './ChecklistsPage';
 import {
-  areAllChecklistItemsCompleted,
   setChecklistCompletion,
   setChecklistItemCompletion,
   setSelectedChecklistIndex,
@@ -162,20 +161,15 @@ export const Checklists = () => {
   };
 
   /**
-   * @brief The mark of a checklist in the list: done (marked complete), all items done but not yet marked (amber),
-   * the next one of the flight phase when autofill is on (link), or open.
+   * @brief The mark of a checklist in the list: done (marked complete with "Mark checklist as complete": filled green
+   * with a check, whatever the flight phase), the next one of the flight phase when autofill is on (link), or open
+   * (empty circle).
    * @param index - The index of the checklist.
    */
   const getChecklistMark = (index: number) => {
-    const isChecklistCompleted = areAllChecklistItemsCompleted(index);
-    const isIndexRelevant = relevantChecklistIndices.includes(index);
-    if (isChecklistCompleted && isIndexRelevant) {
+    if (checklists[index].markedCompleted) {
       return (
-        <span
-          className={`flex h-7 w-7 items-center justify-center rounded-full ${
-            checklists[index].markedCompleted ? 'bg-m3-primary text-m3-on-primary' : 'bg-m3-on-warn text-m3-on-primary'
-          }`}
-        >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-utility-green text-m3-ground">
           <CheckLg size={16} />
         </span>
       );
@@ -261,7 +255,7 @@ export const Checklists = () => {
               {aircraftChecklists.map((cl, index) => {
                 const selected = index === selectedChecklistIndex;
                 const counts = getItemCounts(index);
-                const done = areAllChecklistItemsCompleted(index) && relevantChecklistIndices.includes(index);
+                const done = checklists[index].markedCompleted;
                 return (
                   <div
                     key={cl.name}
