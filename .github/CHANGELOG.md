@@ -118,6 +118,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OANS] Mark the taxi route accepted on the flyPad with green flags on the OANS: at the start of each taxiway and at the gate or holding point - @TCdr
 1. [GSX] External power becomes available when the GSX external power synchronization is enabled with the GSX GPU or jetway already connected - @TCdr
 1. [EFB] Taxi page: ATC frequencies of the origin or destination airport in a chart-style box - @TCdr
+1. [EFB] Ground services: switch to request the GSX services (jet bridge, stairs, fuel, GPU, catering, boarding, pushback...) through the GSX Remote API - @TCdr
 
 ## 2024.1.0
 

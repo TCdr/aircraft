@@ -4,7 +4,7 @@
 
 /* eslint-disable no-console */
 import React, { FC, useEffect, useRef } from 'react';
-import { GPUControlEvents, useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { GPUControlEvents, usePersistentNumberProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { ArchiveFill, DoorClosedFill, HandbagFill, PersonPlusFill, PlugFill, Truck } from 'react-bootstrap-icons';
 import { ActionCreatorWithOptionalPayload } from '@reduxjs/toolkit';
 import {
@@ -25,6 +25,8 @@ import {
   setStairsButtonState,
   useEventBus,
 } from '@flybywiresim/flypad';
+import { GsxServiceId, GsxServiceLook, gsxServiceLook, useGsxRemote } from '../GsxRemote';
+import { GsxServicesPanel, triggerGsxService } from '../GsxServicesPanel';
 
 interface ServiceButtonWrapperProps {
   className?: string;
@@ -67,6 +69,23 @@ enum ServiceButtonState {
   ACTIVE,
   RELEASED,
 }
+
+/** The GSX service of a service button, when the page is linked to GSX (GSX Remote API service ids) */
+const GSX_SERVICE_OF_BUTTON: Partial<Record<ServiceButton, GsxServiceId>> = {
+  [ServiceButton.JetBridge]: GsxServiceId.OperateJetways,
+  [ServiceButton.Stairs]: GsxServiceId.OperateStairs,
+  [ServiceButton.FuelTruck]: GsxServiceId.Refueling,
+  [ServiceButton.Gpu]: GsxServiceId.Gpu,
+  [ServiceButton.CateringTruck]: GsxServiceId.Catering,
+};
+
+const GSX_LOOK_STATES: Record<GsxServiceLook, ServiceButtonState> = {
+  disabled: ServiceButtonState.DISABLED,
+  inactive: ServiceButtonState.INACTIVE,
+  called: ServiceButtonState.CALLED,
+  active: ServiceButtonState.ACTIVE,
+  released: ServiceButtonState.RELEASED,
+};
 
 interface GroundServiceButtonProps {
   name: string;
@@ -126,6 +145,25 @@ export const A380Services: React.FC = () => {
 
   const eventBus = useEventBus();
   const pub = eventBus.getPublisher<GPUControlEvents>();
+
+  // GSX link: the service buttons request the GSX services (GSX Remote API) instead of the sim ground vehicles; GSX
+  // loads the baggage with the boarding, on the GSX panel
+  const [gsxLinkSetting, setGsxLinkSetting] = usePersistentNumberProperty('GSX_SERVICES_LINK', 0);
+  const gsxLinked = gsxLinkSetting === 1;
+  const gsx = useGsxRemote(gsxLinked);
+  const gsxReady = gsxLinked && gsx.connected && gsx.gsxRunning;
+  const shownState = (button: ServiceButton, state: ServiceButtonState): ServiceButtonState => {
+    if (!gsxReady) {
+      return state;
+    }
+    if (button === ServiceButton.BaggageTruck) {
+      return ServiceButtonState.HIDDEN;
+    }
+    const gsxService = GSX_SERVICE_OF_BUTTON[button];
+    return gsxService !== undefined
+      ? GSX_LOOK_STATES[gsxServiceLook(gsx.services.find((s) => s.id === gsxService))]
+      : state;
+  };
   // Wheel Chocks and Cones
   // TODO FIXME: Reenable
   /*
@@ -284,6 +322,11 @@ export const A380Services: React.FC = () => {
 
   // Centralized handler for managing clicks to any button
   const handleButtonClick = (id: ServiceButton) => {
+    const gsxService = gsxReady ? GSX_SERVICE_OF_BUTTON[id] : undefined;
+    if (gsxService !== undefined) {
+      triggerGsxService(gsxService, gsx.services.find((s) => s.id === gsxService)?.displayName ?? gsxService);
+      return;
+    }
     switch (id) {
       case ServiceButton.Main1Left:
         handleDoors(boarding1DoorButtonState, setBoarding1DoorButtonState);
@@ -561,6 +604,12 @@ export const A380Services: React.FC = () => {
 
   return (
     <div className="relative h-content-section-reduced">
+      <GsxServicesPanel
+        className="absolute bottom-0 left-1/2 z-10 w-80 -translate-x-1/2"
+        linked={gsxLinked}
+        onLinkChange={(v) => setGsxLinkSetting(v ? 1 : 0)}
+        gsx={gsx}
+      />
       <A380GroundServiceOutline
         main1LeftStatus={main1LeftDoorOpen >= 1.0}
         main2LeftStatus={main2LeftDoorOpen >= 1.0}
@@ -582,7 +631,7 @@ export const A380Services: React.FC = () => {
         {/* JET BRIDGE */}
         <GroundServiceButton
           name={t('Ground.Services.JetBridge')}
-          state={jetWayButtonState}
+          state={shownState(ServiceButton.JetBridge, jetWayButtonState)}
           onClick={() => handleButtonClick(ServiceButton.JetBridge)}
         >
           <PersonPlusFill size={36} />
@@ -591,7 +640,7 @@ export const A380Services: React.FC = () => {
         {/* PASSENGER STAIRS */}
         <GroundServiceButton
           name={t('Ground.Services.Stairs')}
-          state={stairsButtonState}
+          state={shownState(ServiceButton.Stairs, stairsButtonState)}
           onClick={() => handleButtonClick(ServiceButton.Stairs)}
         >
           <PersonPlusFill size={36} />
@@ -600,7 +649,7 @@ export const A380Services: React.FC = () => {
         {/* FUEL TRUCK */}
         <GroundServiceButton
           name={t('Ground.Services.FuelTruck')}
-          state={fuelTruckButtonState}
+          state={shownState(ServiceButton.FuelTruck, fuelTruckButtonState)}
           onClick={() => handleButtonClick(ServiceButton.FuelTruck)}
         >
           <Truck size={36} />
@@ -631,7 +680,7 @@ export const A380Services: React.FC = () => {
         {/* GPU */}
         <GroundServiceButton
           name={t('Ground.Services.ExternalPower')}
-          state={gpuButtonState}
+          state={shownState(ServiceButton.Gpu, gpuButtonState)}
           onClick={() => handleButtonClick(ServiceButton.Gpu)}
         >
           <PlugFill size={36} />
@@ -649,7 +698,7 @@ export const A380Services: React.FC = () => {
         {/* BAGGAGE TRUCK */}
         <GroundServiceButton
           name={t('Ground.Services.BaggageTruck')}
-          state={baggageButtonState}
+          state={shownState(ServiceButton.BaggageTruck, baggageButtonState)}
           onClick={() => handleButtonClick(ServiceButton.BaggageTruck)}
         >
           <HandbagFill size={36} />
@@ -669,7 +718,7 @@ export const A380Services: React.FC = () => {
         {/* CATERING TRUCK */}
         <GroundServiceButton
           name={t('Ground.Services.CateringTruck')}
-          state={cateringButtonState}
+          state={shownState(ServiceButton.CateringTruck, cateringButtonState)}
           onClick={() => handleButtonClick(ServiceButton.CateringTruck)}
         >
           <ArchiveFill size={36} />
