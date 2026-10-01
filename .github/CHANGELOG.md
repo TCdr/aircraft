@@ -188,6 +188,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Material 3 look of the Ground pages, continued: Fuel (the aircraft with its tanks, the tank quantities, a refuel rail), Payload (cabin and holds, load table, boarding, balance chart) and Taxi (route cards, map) - @TCdr
 1. [EFB] Material 3 look of the Dashboard, the Dispatch pages (OFP, Overview, Printouts) and the Performance calculators (Takeoff, Top of Descent, Landing, Temperature Correction) - @TCdr
 1. [EFB] Material 3 look of the flyPad frame (navigation rail with labels, status bar, quick controls, section tabs) and of the Navigation, ATC, Failures, Checklists, Presets and Settings pages (settings in two panes) - @TCdr
+1. [EFB] Fixed the checklists sometimes missing from the flyPad: the checklist file is now parsed before the flyPad stores the list - @TCdr
 
 ## 2024.1.0
 
