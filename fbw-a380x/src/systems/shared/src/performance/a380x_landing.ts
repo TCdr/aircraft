@@ -4,6 +4,7 @@
 import {
   BTV_TOUCHDOWN_DISTANCE,
   BtvLines,
+  isBtvRunwayCondition,
   LandingAntiIce,
   LandingApproachType,
   LandingBrakingDistance,
@@ -228,6 +229,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
       LandingBrakingMode.Two,
       LandingBrakingMode.Three,
       LandingBrakingMode.Hi,
+      LandingBrakingMode.Btv,
     ];
   }
 
@@ -312,12 +314,15 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     result.stopMargin = inputs.lda - result.landingDistance;
     result.airDistance = this.groundSpeed(inputs, result.vapp, pressureAlt) * TOUCHDOWN_TIME;
     if (inFlight) {
-      result.brakingDistances = this.brakingModes().map(
-        (mode): LandingBrakingDistance => ({
-          mode,
-          distance: this.actualLandingDistance(inputs, weight, chosen.conf, mode),
-        }),
-      );
+      // BTV on dry and wet runways only (A380 FCOM DSC-32-20-220)
+      result.brakingDistances = this.brakingModes()
+        .filter((mode) => mode !== LandingBrakingMode.Btv || isBtvRunwayCondition(inputs.runwayCondition))
+        .map(
+          (mode): LandingBrakingDistance => ({
+            mode,
+            distance: this.actualLandingDistance(inputs, weight, chosen.conf, mode),
+          }),
+        );
     }
 
     // MLW(PERF): the highest weight of the landing distance and go-around gradient requirements, of the best
@@ -364,6 +369,13 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     }
     if (Math.abs(inputs.slope) > A380842LandingPerformanceCalculator.MAX_SLOPE) {
       return LandingPerformanceError.MaximumRunwaySlope;
+    }
+    if (
+      inputs.type === LandingComputationType.InFlight &&
+      inputs.brakingMode === LandingBrakingMode.Btv &&
+      !isBtvRunwayCondition(inputs.runwayCondition)
+    ) {
+      return LandingPerformanceError.BtvRunwayCondition;
     }
     return LandingPerformanceError.None;
   }
@@ -481,7 +493,8 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
   /**
    * The actual landing distance (50 ft above the threshold to the stop) in metres: the chart distance, changed in the
    * ratio of the model distance with the conditions to the model distance of the chart.
-   * @param brakingMode an autobrake mode, the maximum manual braking when undefined or MANUAL
+   * @param brakingMode an autobrake mode, the maximum manual braking when undefined or MANUAL; BTV: the DRY or WET line
+   *   (the landing distance in autoland and with autobrake before the runway exit is selected, FCOM DSC-32-20-220)
    * @param dry the distance on a dry runway whatever the runway condition
    */
   private actualLandingDistance(
@@ -499,6 +512,11 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     );
     const vapp = this.vls(conf, weight) + speedIncrement;
     const condition = dry ? LandingRunwayCondition.Dry : inputs.runwayCondition;
+
+    if (brakingMode === LandingBrakingMode.Btv) {
+      const lines = this.btvLines(inputs, vapp, pressureAlt);
+      return condition === LandingRunwayCondition.Dry ? lines.dry : lines.wet;
+    }
 
     // The temperature counts on water contaminated runways and for autoland only, the slope for autoland only
     // (PER-LND-LCD-OCD Outside air temperature, PER-LND-LCD-RWY Slope)
