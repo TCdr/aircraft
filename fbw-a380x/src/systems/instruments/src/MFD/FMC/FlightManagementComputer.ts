@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
+import { descentTargetWaypoints } from '@fmgc/performance/DescentTargetWaypoints';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import {
@@ -1546,6 +1547,7 @@ export class FlightManagementComputer implements FmcInterface {
       managedCas: plan ? this.fmgc.getManagedDescentSpeed() : null,
       speedLimitCas: pd?.descentSpeedLimitSpeed.get() ?? null,
       speedLimitAltitude: pd?.descentSpeedLimitAltitude.get() ?? null,
+      waypoints: plan ? descentTargetWaypoints(plan, this.fmgc.getDistanceToDestination()) : [],
     };
   }
 
