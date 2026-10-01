@@ -45,3 +45,69 @@
     --color-statusbar: #FFFFFF;
     --color-statusbar-mismatch: #ff7f7f;
 }
+
+/* Material 3 tones of the flyPad (UtilComponents/Material): surfaces, outline, text, and the primary, warn and error
+   containers; one set per theme, the primary on the theme highlight */
+:root,
+  :root.theme-blue {
+    --m3-ground: #101216;
+    --m3-card: #1b1e24;
+    --m3-card-low: #16191e;
+    --m3-tile: #262a31;
+    --m3-outline: #44474e;
+    --m3-outline-strong: #5c6069;
+    --m3-text: #e3e5ea;
+    --m3-muted: #9aa0a8;
+    --m3-primary: #00a4ad;
+    --m3-on-primary: #061a1b;
+    --m3-primary-container: #0f3d3f;
+    --m3-on-primary-container: #7fd9e0;
+    --m3-primary-light: #b2f0f4;
+    --m3-tonal: #2b4a4d;
+    --m3-warn-container: #3a2d0e;
+    --m3-on-warn: #f2c14e;
+    --m3-error-container: #4a1d1d;
+    --m3-on-error: #ffb4ab;
+}
+
+:root.theme-dark {
+    --m3-ground: #0b0d11;
+    --m3-card: #161a21;
+    --m3-card-low: #12151b;
+    --m3-tile: #222833;
+    --m3-outline: #3a4150;
+    --m3-outline-strong: #525a6b;
+    --m3-text: #e3e5ea;
+    --m3-muted: #9aa0a8;
+    --m3-primary: #3b82f6;
+    --m3-on-primary: #0b1b36;
+    --m3-primary-container: #16284a;
+    --m3-on-primary-container: #9cc0ff;
+    --m3-primary-light: #cfe0ff;
+    --m3-tonal: #22395f;
+    --m3-warn-container: #3a2d0e;
+    --m3-on-warn: #f2c14e;
+    --m3-error-container: #4a1d1d;
+    --m3-on-error: #ffb4ab;
+}
+
+:root.theme-light {
+    --m3-ground: #e4e4e4;
+    --m3-card: #ffffff;
+    --m3-card-low: #f4f5f7;
+    --m3-tile: #e6e8ec;
+    --m3-outline: #c5c8ce;
+    --m3-outline-strong: #aeb2b9;
+    --m3-text: #1b1e24;
+    --m3-muted: #5f6670;
+    --m3-primary: #1d6fe0;
+    --m3-on-primary: #ffffff;
+    --m3-primary-container: #d6e4ff;
+    --m3-on-primary-container: #0b3f8f;
+    --m3-primary-light: #0b3f8f;
+    --m3-tonal: #c4d8fb;
+    --m3-warn-container: #fff0c2;
+    --m3-on-warn: #7a5a00;
+    --m3-error-container: #ffdad6;
+    --m3-on-error: #93000a;
+}

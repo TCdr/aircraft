@@ -19,6 +19,7 @@ import {
   setMapRange,
   TScreenCoordinates,
 } from '../../../Store/features/pushback';
+import { PushbackAirportLayer } from './PushbackAirportLayer';
 
 interface TurningRadiusIndicatorProps {
   turningRadius: number;
@@ -232,7 +233,7 @@ export const PushbackMap = () => {
     <>
       {/* Map Container */}
       <div
-        className="relative flex h-[430px] grow flex-col space-y-4 overflow-hidden rounded-lg border-2 border-theme-accent"
+        className="relative flex h-full grow flex-col overflow-hidden rounded-2xl"
         onMouseDown={(e) => {
           setMouseDown(true);
           setDragStartCoords({ x: e.pageX, y: e.pageY });
@@ -267,6 +268,13 @@ export const PushbackMap = () => {
           />
         )}
 
+        {/* The airport map (Navigraph), heading up around the map centre */}
+        <PushbackAirportLayer
+          center={actualMapLatLon}
+          headingTrue={planeHeadingTrue}
+          pxPerMetre={someConstant / mapRange}
+        />
+
         {/* Aircraft and Turning Radius Indicator */}
         <div className="absolute inset-0 flex items-center justify-center">
           {centerPlaneMode && !Number.isNaN(turningRadius) && Number.isFinite(turningRadius) && (
@@ -294,12 +302,12 @@ export const PushbackMap = () => {
         </div>
 
         {/* Map Controls */}
-        <div className="absolute bottom-6 right-6 z-30 flex cursor-pointer flex-col overflow-hidden rounded-md">
+        <div className="absolute bottom-6 right-6 z-30 flex cursor-pointer flex-col space-y-2">
           <TooltipWrapper text={t('Pushback.TT.CenterPlaneMode')}>
             <button
               type="button"
               onClick={() => handleCenterPlaneModeChange()}
-              className="cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
             >
               <IconPlane
                 className={`-rotate-90 text-white${centerPlaneMode && 'fill-current'}`}
@@ -312,7 +320,7 @@ export const PushbackMap = () => {
             <button
               type="button"
               onClick={() => handleZoomIn()}
-              className="cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
             >
               <ZoomIn size={40} />
             </button>
@@ -321,7 +329,7 @@ export const PushbackMap = () => {
             <button
               type="button"
               onClick={() => handleZoomOut()}
-              className="cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
             >
               <ZoomOut size={40} />
             </button>
