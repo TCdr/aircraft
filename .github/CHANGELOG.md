@@ -127,6 +127,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Fixed clicks in the quick controls opening the troubleshooting page when the status bar shows an issue - @TCdr
 1. [A380X/EFB] Independent flyPads: the first officer's flyPad has its own pages, OFP, checklists and brightness (the captain's runs the automatic actions such as closing the doors and GSX remote control) - @TCdr
 1. [A32NX/EFB] Independent flyPads: the first officer's flyPad has its own pages, OFP, checklists, brightness and power button (the captain's runs the automatic actions such as closing the doors and GSX remote control) - @TCdr
+1. [EFB] The automatic loading of lighting presets offers all eight presets, also the unnamed ones - @TCdr
 
 ## 2024.1.0
 
