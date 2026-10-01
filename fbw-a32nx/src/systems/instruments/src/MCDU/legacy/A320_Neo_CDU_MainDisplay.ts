@@ -14,6 +14,7 @@ import {
   UpdateThrottler,
 } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
+import { descentTargetWaypoints } from '@fmgc/performance/DescentTargetWaypoints';
 import { FMCMainDisplay } from './A32NX_FMCMainDisplay';
 import { recallMessageById } from '@fmgc/components';
 import { Keypad } from './A320_Neo_CDU_Keypad';
@@ -360,6 +361,9 @@ export class A320_Neo_CDU_MainDisplay
       managedCas: this.managedSpeedDescend,
       speedLimitCas: pd?.descentSpeedLimitSpeed.get() ?? null,
       speedLimitAltitude: pd?.descentSpeedLimitAltitude.get() ?? null,
+      waypoints: plan
+        ? descentTargetWaypoints(plan, distance !== null && Number.isFinite(distance) ? distance : null)
+        : [],
     };
   }
 

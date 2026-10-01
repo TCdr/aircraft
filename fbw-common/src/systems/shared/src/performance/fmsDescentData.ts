@@ -3,6 +3,21 @@
 
 import { EventBus, Subscription } from '@microsoft/msfs-sdk';
 
+/** An altitude constraint of a flight plan waypoint, in feet: between is altitude1 (upper) to altitude2 (lower) */
+export interface FmsDescentAltitudeConstraint {
+  type: 'at' | 'atOrAbove' | 'atOrBelow' | 'between';
+  altitude1: number;
+  altitude2?: number;
+}
+
+/** A waypoint of the active flight plan ahead of the aircraft, as a descent target for the flypad */
+export interface FmsDescentWaypoint {
+  ident: string;
+  /** Distance from the aircraft along the flight plan, in NM; null when the FMS has not computed it */
+  distance: number | null;
+  constraint: FmsDescentAltitudeConstraint | null;
+}
+
 /**
  * The descent data of the FMS, for the flypad descent calculator: the cruise level, the destination and the distance to
  * it, the gross weight, and the managed descent speeds and speed limit of the active flight plan.
@@ -26,6 +41,8 @@ export interface FmsDescentData {
   /** The descent speed limit: CAS in knots below a pressure altitude in feet */
   speedLimitCas: number | null;
   speedLimitAltitude: number | null;
+  /** The waypoints ahead, up to the missed approach, with their altitude constraints and distances */
+  waypoints: FmsDescentWaypoint[];
 }
 
 export type FmsDescentDataContent = Omit<FmsDescentData, 'answersRequestId'>;
