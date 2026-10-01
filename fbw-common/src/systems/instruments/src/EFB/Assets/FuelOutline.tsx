@@ -64,6 +64,7 @@ export const A380FuelOutline = ({
   rightOuterPercent,
   trimPercent,
   enableDynamic,
+  viewBox = '0 200 864 864',
 }: {
   className: string;
   feed1Percent: number;
@@ -78,6 +79,8 @@ export const A380FuelOutline = ({
   rightOuterPercent: number;
   trimPercent: number;
   enableDynamic: boolean;
+  /** The part of the drawing shown (the whole aircraft is 0 30 864 810) */
+  viewBox?: string;
 }) => (
   <svg
     width="864"
@@ -86,7 +89,7 @@ export const A380FuelOutline = ({
     className={className}
     stroke="currentColor"
     fill="none"
-    viewBox="0 200 864 864"
+    viewBox={viewBox}
   >
     <defs>
       <style>

@@ -139,14 +139,41 @@
       "EstimatedTime": "Estimated Time",
       "GSXFuelSyncEnabled": "Call GSX Refuel",
       "GSXFuelRequested": "GSX Refuel requested",
+      "GsxSync": "GSX fuel sync",
       "LeftInnerTank": "Left Inner Tank",
       "LeftOuterTank": "Left Outer Tank",
+      "Minutes": "min",
+      "OnBoard": "On board",
+      "Plan": "Plan",
       "ReadyToStart": "Ready to Start",
       "Refuel": "Refuel",
       "RefuelTime": "Refuel Time",
       "Refueling": "Refueling",
       "RightInnerTank": "Right Inner Tank",
       "RightOuterTank": "Right Outer Tank",
+      "SimbriefBlock": "SimBrief block",
+      "Start": "Start refuelling",
+      "StartDefuel": "Start defuelling",
+      "Stop": "Stop",
+      "Tanks": {
+        "Feed1": "Feed 1",
+        "Feed2": "Feed 2",
+        "Feed3": "Feed 3",
+        "Feed4": "Feed 4",
+        "LeftInner": "Left inner",
+        "LeftMid": "Left mid",
+        "LeftOuter": "Left outer",
+        "LeftWing": "Left wing",
+        "RightInner": "Right inner",
+        "RightMid": "Right mid",
+        "RightOuter": "Right outer",
+        "RightWing": "Right wing",
+        "Tail": "Tail",
+        "Trim": "Trim"
+      },
+      "Target": "Target fuel",
+      "ToDefuel": "To defuel",
+      "ToLoad": "To load",
       "TT": {
         "AircraftMustBeColdAndDarkToChangeRefuelTimes": "Aircraft Must Be On the Ground and Have Engines Shutdown to Change Refueling Duration",
         "FillBlockFuelFromSimBrief": "Fill Block Fuel from SimBrief"
@@ -156,6 +183,8 @@
       "Unavailable": "Unavailable"
     },
     "Payload": {
+      "Balance": "Balance",
+      "Boarding": "Boarding",
       "BoardingTime": "Boarding Time",
       "Cargo": "Cargo",
       "Current": "Current",
@@ -167,6 +196,19 @@
       "GSXPayloadSyncEnabled": "GSX Payload Sync Enabled",
       "GW": "GW",
       "GWCG": "GW CG",
+      "Holds": {
+        "Aft": "Aft hold",
+        "AftBaggage": "Aft baggage",
+        "AftContainer": "Aft container",
+        "Bulk": "Bulk",
+        "Fwd": "Fwd hold"
+      },
+      "Legend": {
+        "Boarded": "Boarded",
+        "Empty": "Empty",
+        "Planned": "Planned"
+      },
+      "Load": "Load",
       "LoadingTime": "Loading Time",
       "Passengers": "Passengers",
       "Planned": "Planned",
@@ -175,6 +217,7 @@
         "UpperDeck": "Upper",
         "CargoDeck": "Cargo"
       },
+      "StopBoarding": "Stop",
       "TT": {
         "AircraftMustBeColdAndDarkToChangeBoardingTimes": "Aircraft Must Be On the Ground and Have Engines Shutdown to Change Boarding Duration",
         "FillPayloadFromSimbrief": "Fill Payload Information from Simbrief",
