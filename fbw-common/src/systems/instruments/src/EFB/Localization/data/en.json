@@ -452,7 +452,8 @@
           "MaximumPressureAlt": "The airport pressure altitude is above {max_zp} ft",
           "MaximumTailwind": "The tailwind is above the maximum of {max_tailwind} kt",
           "MaximumRunwaySlope": "The runway slope is outside -2 % to +2 %",
-          "RunwayCondition": "Select a runway condition of this computation"
+          "RunwayCondition": "Select a runway condition of this computation",
+          "BtvRunwayCondition": "BTV: dry or wet runway only"
         },
         "Btv": {
           "Contaminated": "BTV is prohibited on a contaminated runway: use autobrake 3",

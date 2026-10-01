@@ -180,6 +180,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ISIS] SFD/SND reconfiguration with the MODE pb: each ISIS displays the SFD or the SND - @TCdr
 1. [EFB] Taxi page: ATC frequencies of the origin or destination airport in a chart-style box - @TCdr
 1. [EFB] Descent calculator: a waypoint of the FMS flight plan as the target, with its altitude constraint and its distance along the route - @TCdr
+1. [A380X/EFB] Landing calculator: BTV braking mode, landing at the BTV DRY or WET line - @TCdr
 
 ## 2024.1.0
 
