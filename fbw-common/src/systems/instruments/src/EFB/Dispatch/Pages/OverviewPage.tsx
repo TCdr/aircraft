@@ -6,20 +6,26 @@ import { useSimVar, Units, AirframeType } from '@flybywiresim/fbw-sdk-react';
 import { IconPlane } from '@tabler/icons';
 import { Box, LightningFill, PeopleFill, Rulers, Speedometer2 } from 'react-bootstrap-icons';
 import { t, A320NoseOutline, A380NoseOutline, useAppSelector, getMaxPax } from '@flybywiresim/flypad';
+import { M3Card, M3Chip } from '../../UtilComponents/Material/Material';
 
 interface InformationEntryProps {
   title: string;
   info: string;
 }
 
+/** A figure of the aircraft: its icon, its name, its value */
 const InformationEntry: FC<InformationEntryProps> = ({ children, title, info }) => (
-  <div>
-    <div className="flex flex-row items-center space-x-4 text-theme-highlight">
+  <div className="flex h-14 shrink-0 flex-row items-center px-4">
+    <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-m3-tile text-m3-on-primary-container">
       {children}
-      <p className="whitespace-nowrap">{title}</p>
-    </div>
-    <p className="font-bold">{info}</p>
+    </span>
+    <span className="grow truncate text-sm text-m3-muted">{title}</span>
+    <span className="ml-3 whitespace-nowrap text-base font-bold text-m3-text">{info}</span>
   </div>
+);
+
+const SectionTitle: FC = ({ children }) => (
+  <span className="px-4 pb-1 pt-4 text-xs font-bold uppercase tracking-widest text-m3-muted">{children}</span>
 );
 
 export const OverviewPage = () => {
@@ -46,83 +52,87 @@ export const OverviewPage = () => {
   const airframeInfo = useAppSelector((state) => state.config.airframeInfo);
 
   return (
-    <div className="mr-3 h-content-section-reduced w-min overflow-hidden rounded-lg border-2 border-theme-accent p-6">
-      <h1 className="font-bold">{airframeInfo.name}</h1>
-      <p>{airline}</p>
-
-      <div className="mt-6 flex items-center justify-center">
+    <div className="flex h-content-section-reduced flex-row overflow-hidden text-m3-text">
+      {/* the aircraft */}
+      <M3Card low className="relative mr-4 h-full min-w-0 flex-1">
         {/* TODO: Make this SVG configurable */}
         {airframeInfo.variant === AirframeType.A380_842 ? (
-          <A380NoseOutline className="-ml-56 mr-32 h-64 text-theme-text" />
+          <A380NoseOutline className="absolute inset-0 h-full w-full text-m3-muted" />
         ) : (
-          <A320NoseOutline className="flip-horizontal -ml-96 mr-32 h-64 text-theme-text" />
+          <A320NoseOutline className="flip-horizontal absolute inset-0 h-full w-full text-m3-muted" />
         )}
-      </div>
-
-      <div className="mt-8 flex flex-row space-x-16">
-        <div className="flex flex-col space-y-8">
-          <InformationEntry
-            title={t('Dispatch.Overview.Model')}
-            info={`${airframeInfo.variant} [${airframeInfo.icao}]`}
+        <div className="absolute right-6 top-5 flex flex-col items-end">
+          <span className="text-3xl font-bold text-m3-text">{airframeInfo.name}</span>
+          <span className="text-sm text-m3-muted">{airline}</span>
+        </div>
+        <div className="absolute bottom-5 left-6 flex flex-row space-x-2">
+          <M3Chip
+            tone="idle"
+            icon={<IconPlane className="fill-current" size={18} stroke={1.5} strokeLinejoin="miter" />}
           >
-            <IconPlane className="fill-current" size={23} stroke={1.5} strokeLinejoin="miter" />
-          </InformationEntry>
+            {`${airframeInfo.variant} [${airframeInfo.icao}]`}
+          </M3Chip>
+          <M3Chip tone="idle" icon={<LightningFill size={16} />}>
+            {airframeInfo.engines}
+          </M3Chip>
+        </div>
+      </M3Card>
 
-          <InformationEntry
-            title={t('Dispatch.Overview.Range')}
-            info={getConvertedInfo(airframeInfo.designLimits.endurance.range, 'distance')}
-          >
-            <Rulers size={23} />
-          </InformationEntry>
-
+      {/* its figures */}
+      <div className="flex h-full w-[30rem] shrink-0 flex-col">
+        <M3Card className="mb-4 shrink-0 pb-2">
+          <SectionTitle>{t('Dispatch.Overview.Weights')}</SectionTitle>
           <InformationEntry
             title={t('Dispatch.Overview.ActualGW')}
             info={getConvertedInfo(actualGrossWeight, 'weight')}
           >
-            <Box size={23} />
+            <Box size={18} />
           </InformationEntry>
-
-          <InformationEntry
-            title={t('Dispatch.Overview.MZFW')}
-            info={getConvertedInfo(airframeInfo.designLimits.weights.maxZfw, 'weight')}
-          >
-            <Box size={23} />
-          </InformationEntry>
-
-          <InformationEntry title={t('Dispatch.Overview.MaximumPassengers')} info={`${getMaxPax()} passengers`}>
-            <PeopleFill size={23} />
-          </InformationEntry>
-        </div>
-        <div className="flex flex-col space-y-8">
-          <InformationEntry title={t('Dispatch.Overview.Engines')} info={airframeInfo.engines}>
-            <LightningFill size={23} />
-          </InformationEntry>
-
-          <InformationEntry title={t('Dispatch.Overview.MMO')} info={airframeInfo.designLimits.endurance.mmo}>
-            <Speedometer2 size={23} />
-          </InformationEntry>
-
           <InformationEntry
             title={t('Dispatch.Overview.MTOW')}
             info={getConvertedInfo(airframeInfo.designLimits.weights.maxGw, 'weight')}
           >
-            <Box size={23} />
+            <Box size={18} />
           </InformationEntry>
+          <InformationEntry
+            title={t('Dispatch.Overview.MZFW')}
+            info={getConvertedInfo(airframeInfo.designLimits.weights.maxZfw, 'weight')}
+          >
+            <Box size={18} />
+          </InformationEntry>
+        </M3Card>
 
+        <M3Card className="mb-4 shrink-0 pb-2">
+          <SectionTitle>{t('Dispatch.Overview.Capacity')}</SectionTitle>
           <InformationEntry
             title={t('Dispatch.Overview.MaximumFuelCapacity')}
             info={getConvertedInfo(airframeInfo.designLimits.weights.maxFuel, 'volume')}
           >
-            <Box size={23} />
+            <Box size={18} />
           </InformationEntry>
-
+          <InformationEntry title={t('Dispatch.Overview.MaximumPassengers')} info={`${getMaxPax()} passengers`}>
+            <PeopleFill size={18} />
+          </InformationEntry>
           <InformationEntry
             title={t('Dispatch.Overview.MaximumCargo')}
             info={getConvertedInfo(airframeInfo.designLimits.weights.maxCargo, 'weight')}
           >
-            <Box size={23} />
+            <Box size={18} />
           </InformationEntry>
-        </div>
+        </M3Card>
+
+        <M3Card className="min-h-0 flex-1 pb-2">
+          <SectionTitle>{t('Dispatch.Overview.Performance')}</SectionTitle>
+          <InformationEntry
+            title={t('Dispatch.Overview.Range')}
+            info={getConvertedInfo(airframeInfo.designLimits.endurance.range, 'distance')}
+          >
+            <Rulers size={18} />
+          </InformationEntry>
+          <InformationEntry title={t('Dispatch.Overview.MMO')} info={airframeInfo.designLimits.endurance.mmo}>
+            <Speedometer2 size={18} />
+          </InformationEntry>
+        </M3Card>
       </div>
     </div>
   );

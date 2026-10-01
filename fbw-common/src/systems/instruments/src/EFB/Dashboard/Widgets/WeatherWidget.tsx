@@ -21,7 +21,7 @@ import {
   setUserDepartureIcao,
   setUserDestinationIcao,
 } from '../../Store/features/dashboard';
-import { Toggle } from '../../UtilComponents/Form/Toggle';
+import { M3Switch, M3_INPUT } from '../../UtilComponents/Material/Material';
 import { TooltipWrapper } from '../../UtilComponents/TooltipWrapper';
 import { fetchRawMetarBySource, mapMetarErrorToDisplayMessage } from '../../Service/WeatherService';
 
@@ -94,13 +94,23 @@ export const WeatherWidget: FC<WeatherWidgetProps> = ({ name, simbriefIcao, user
 
   const [showMetar, setShowMetar] = usePersistentNumberProperty(`CONFIG_SHOW_METAR_${name}`, 0);
 
-  const BaroValue = () => {
+  const baroValue = () => {
     const displayedBaroType = baroType === 'AUTO' ? getBaroTypeForAirport(metar.icao) : baroType;
     if (displayedBaroType === 'IN HG') {
-      return <>{metar.barometer.hg.toFixed(2)} inHg</>;
+      return `${metar.barometer.hg.toFixed(2)} inHg`;
     }
-    return <>{metar.barometer.mb.toFixed(0)} mb</>;
+    return `${metar.barometer.mb.toFixed(0)} mb`;
   };
+
+  const notAvailable = t('Dashboard.ImportantInformation.Weather.NotAvailableShort');
+  /** A reading of the report: its icon, its name, its value */
+  const reading = (icon: JSX.Element, name: string, value: string) => (
+    <div className="flex min-w-0 flex-1 flex-col items-center">
+      <span className="text-m3-muted">{icon}</span>
+      <span className="mt-1 text-center text-xs text-m3-muted">{name}</span>
+      <span className="text-center text-base font-bold text-m3-text">{metar.raw_text ? value : notAvailable}</span>
+    </div>
+  );
 
   const handleIcao = (icao: string) => {
     if (name === 'origin') {
@@ -157,17 +167,19 @@ export const WeatherWidget: FC<WeatherWidgetProps> = ({ name, simbriefIcao, user
   return (
     <div>
       {metar === undefined ? (
-        <p>{t('Dashboard.ImportantInformation.Weather.Loading')}</p>
+        <span className="text-base text-m3-muted">{t('Dashboard.ImportantInformation.Weather.Loading')}</span>
       ) : (
         <>
-          <div className="flex flex-row items-center justify-between">
+          <div className="flex flex-row items-center">
             <SimpleInput
-              className="w-32 text-center !text-2xl font-medium uppercase"
+              className={`w-28 text-center font-bold uppercase ${M3_INPUT}`}
+              fontSizeClassName="text-lg"
               placeholder={simbriefIcao || 'ICAO'}
               value={userIcao ?? simbriefIcao}
               onChange={(value) => handleIcao(value)}
               maxLength={4}
             />
+            <div className="grow" />
             <TooltipWrapper
               text={
                 showMetar
@@ -175,71 +187,50 @@ export const WeatherWidget: FC<WeatherWidgetProps> = ({ name, simbriefIcao, user
                   : t('Dashboard.ImportantInformation.Weather.TT.SwitchToRawMetarView')
               }
             >
-              <div className="flex flex-row space-x-2">
-                <p>{t('Dashboard.ImportantInformation.Weather.Raw')}</p>
-                <Toggle value={!!showMetar} onToggle={(value) => setShowMetar(value ? 1 : 0)} />
+              <div className="flex flex-row items-center">
+                <span className="mr-2 text-sm font-semibold text-m3-muted">
+                  {t('Dashboard.ImportantInformation.Weather.Raw')}
+                </span>
+                <M3Switch value={!!showMetar} onToggle={(value) => setShowMetar(value ? 1 : 0)} />
               </div>
             </TooltipWrapper>
           </div>
-          <div style={{ minHeight: '100px' }}>
+          <div style={{ minHeight: '84px' }}>
             {!showMetar ? (
-              <>
-                <div className="mt-4 flex w-full flex-row items-center justify-between">
-                  <div className="flex flex-col items-center space-y-1">
-                    <Speedometer2 size={35} />
-                    <p className="text-center">{t('Dashboard.ImportantInformation.Weather.AirPressure')}</p>
-                    {metar.raw_text ? (
-                      <>{metar.barometer ? <BaroValue /> : 'N/A'}</>
-                    ) : (
-                      t('Dashboard.ImportantInformation.Weather.NotAvailableShort')
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center space-y-1">
-                    <Wind size={35} />
-                    <p className="text-center">{t('Dashboard.ImportantInformation.Weather.WindSpeed')}</p>
-                    {metar.raw_text ? (
-                      <>
-                        {metar.wind.degrees.toFixed(0)}
-                        &deg; / {metar.wind.speed_kts.toFixed(0)} kts
-                      </>
-                    ) : (
-                      t('Dashboard.ImportantInformation.Weather.NotAvailableShort')
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center space-y-1">
-                    <ThermometerHalf size={35} />
-                    <p className="text-center">{t('Dashboard.ImportantInformation.Weather.Temperature')}</p>
-                    {metar.raw_text ? (
-                      <>{metar.temperature.celsius.toFixed(0)} &deg;C</>
-                    ) : (
-                      t('Dashboard.ImportantInformation.Weather.NotAvailableShort')
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center space-y-1">
-                    <Droplet size={35} />
-                    <p className="text-center">{t('Dashboard.ImportantInformation.Weather.DewPoint')}</p>
-                    {metar.raw_text ? (
-                      <>{metar.dewpoint.celsius.toFixed(0)} &deg;C</>
-                    ) : (
-                      t('Dashboard.ImportantInformation.Weather.NotAvailableShort')
-                    )}
-                  </div>
-                </div>
-              </>
+              <div className="mt-3 flex w-full flex-row">
+                {reading(
+                  <Speedometer2 size={24} />,
+                  t('Dashboard.ImportantInformation.Weather.AirPressure'),
+                  metar.barometer ? baroValue() : 'N/A',
+                )}
+                {reading(
+                  <Wind size={24} />,
+                  t('Dashboard.ImportantInformation.Weather.WindSpeed'),
+                  `${metar.wind.degrees.toFixed(0)}° / ${metar.wind.speed_kts.toFixed(0)} kts`,
+                )}
+                {reading(
+                  <ThermometerHalf size={24} />,
+                  t('Dashboard.ImportantInformation.Weather.Temperature'),
+                  `${metar.temperature.celsius.toFixed(0)} °C`,
+                )}
+                {reading(
+                  <Droplet size={24} />,
+                  t('Dashboard.ImportantInformation.Weather.DewPoint'),
+                  `${metar.dewpoint.celsius.toFixed(0)} °C`,
+                )}
+              </div>
             ) : (
               <>
                 {metar.raw_text ? (
-                  <div className="mt-4 font-mono text-xl">
+                  <div className="mt-3 font-mono text-lg">
                     {usingColoredMetar ? (
-                      <>
-                        <ColoredMetar metar={metar} />
-                      </>
+                      <ColoredMetar metar={metar} />
                     ) : (
-                      <>{metar.raw_text}</>
+                      <span className="text-lg text-m3-text">{metar.raw_text}</span>
                     )}
                   </div>
                 ) : (
-                  <div className="mt-4 text-xl">{metarError}</div>
+                  <span className="mt-3 text-base text-m3-muted">{metarError}</span>
                 )}
               </>
             )}

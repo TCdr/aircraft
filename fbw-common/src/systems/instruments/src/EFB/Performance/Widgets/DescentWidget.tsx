@@ -2,7 +2,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import Slider from 'rc-slider';
 import { Units, usePersistentProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import {
@@ -18,59 +18,33 @@ import {
 } from '@flybywiresim/fbw-sdk';
 import { useEventBus } from '@flybywiresim/flypad';
 import { toast } from 'react-toastify';
-import { Calculator, CloudArrowDown, Trash } from 'react-bootstrap-icons';
+import { Calculator, Trash } from 'react-bootstrap-icons';
 import { t } from '../../Localization/translation';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { SelectInput } from '../../UtilComponents/Form/SelectInput/SelectInput';
-import { SelectGroup, SelectItem } from '../../UtilComponents/Form/Select';
-import { Toggle } from '../../UtilComponents/Form/Toggle';
 import { useAppDispatch, useAppSelector } from '../../Store/store';
 import { clearDescentValues, setDescentValues } from '../../Store/features/performance';
 import { AircraftContext } from '../../AircraftContext';
 import { isWindMagnitudeOnly, WIND_MAGNITUDE_ONLY_REGEX } from '../Data/Utils';
 import { DescentProfile } from './DescentProfile';
+import { M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
+import {
+  PERF_INPUT,
+  PERF_SELECT,
+  PERF_SMALL_BUTTON,
+  PerfFillFrom,
+  PerfResult,
+  PerfResultRow,
+  PerfRow as Row,
+  PerfSection as Section,
+  PerfTitle,
+  PerfValue as Value,
+} from './PerformanceKit';
 
 const DESCENT_TYPES = [DescentType.Econ, DescentType.Standard, DescentType.GivenVs, DescentType.Emergency];
 
 /** ISA temperature in °C at a pressure altitude in feet (troposphere) */
 const isaTemperature = (altitude: number) => 15 - 0.0019812 * Math.min(altitude, 36_089);
-
-const Section: FC<{ title: string }> = ({ title, children }) => (
-  <div className="flex flex-col rounded-md border-2 border-theme-accent px-3 pb-3 pt-1.5">
-    <h2 className="mb-1.5 text-base font-bold uppercase tracking-wider text-theme-unselected">{title}</h2>
-    <div className="flex flex-col space-y-2">{children}</div>
-  </div>
-);
-
-/** A labelled input; the label is amber while the input is `missing` (the calculation needs it) */
-const Row: FC<{ label: string; missing?: boolean; note?: string }> = ({ label, missing, note, children }) => (
-  <div className="flex h-10 flex-row items-center justify-between">
-    <span
-      className={`mr-2 flex flex-col whitespace-nowrap leading-tight ${missing ? 'text-utility-amber' : 'text-theme-text'}`}
-    >
-      {label}
-      {note && <span className="text-sm text-theme-unselected">{note}</span>}
-    </span>
-    {children}
-  </div>
-);
-
-/** A value of the results panel: green, or amber with an asterisk for an estimate, with its unit in cyan */
-const Value: FC<{ text: string; unit?: string; estimate?: boolean; caution?: boolean; warning?: boolean }> = ({
-  text,
-  unit,
-  estimate,
-  caution,
-  warning,
-}) => (
-  <span className="text-2xl">
-    <span className={warning ? 'text-utility-red' : estimate || caution ? 'text-utility-amber' : 'text-utility-green'}>
-      {text}
-      {estimate ? '*' : ''}
-    </span>
-    {unit && <span className="ml-1.5 text-lg text-theme-highlight">{unit}</span>}
-  </span>
-);
 
 /**
  * The descent calculator of the A380X and the A32NX, after the DES module of the Airbus in-flight performance
@@ -328,36 +302,31 @@ export const DescentWidget = () => {
     altitude >= 10_000 ? `FL${Math.round(altitude / 100)}` : `${Math.round(altitude)}`;
 
   return (
-    <div className="flex h-content-section-reduced flex-col space-y-3 overflow-hidden text-base">
+    <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
       {/* Data source and descent type */}
-      <div className="flex flex-row items-center justify-between">
-        <button
-          onClick={() => fillFromFms()}
-          className="flex flex-row items-center justify-center space-x-3 rounded-md border-2 border-theme-highlight bg-theme-highlight px-5 py-1.5 text-theme-body outline-none transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-          type="button"
-        >
-          <CloudArrowDown size={22} />
-          <p className="text-current">{t('Performance.TopOfDescent.Calc.FillFromFms')}</p>
-        </button>
-        <div className="flex flex-row items-center">
-          <span className="mr-4 text-theme-text">{t('Performance.TopOfDescent.Calc.DescentType')}</span>
-          <SelectGroup>
-            {DESCENT_TYPES.map((d) => (
-              <SelectItem key={d} selected={type === d} onSelect={() => handleTypeChange(d)} className="px-4 py-1">
-                {t(`Performance.TopOfDescent.Calc.Types.${d}`)}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </div>
+      <div className="mb-3 flex shrink-0 flex-row items-center">
+        <PerfFillFrom enabled onClick={() => fillFromFms()} label={t('Performance.TopOfDescent.Calc.FillFromFms')} />
+        <div className="grow" />
+        <span className="mr-3 text-sm font-semibold text-m3-muted">
+          {t('Performance.TopOfDescent.Calc.DescentType')}
+        </span>
+        <M3Segmented
+          className="w-[32rem]"
+          options={DESCENT_TYPES.map((d) => ({
+            label: t(`Performance.TopOfDescent.Calc.Types.${d}`),
+            selected: type === d,
+            onClick: () => handleTypeChange(d),
+          }))}
+        />
       </div>
 
       {/* Inputs */}
-      <div className="grid grid-cols-3 gap-3">
-        <Section title={t('Performance.TopOfDescent.Calc.SectionDescent')}>
+      <div className="mb-3 flex shrink-0 flex-row">
+        <Section className="mr-3 min-w-0 flex-1" title={t('Performance.TopOfDescent.Calc.SectionDescent')}>
           <Row label={t('Performance.TopOfDescent.Calc.InitialAltitude')} missing={missingInputs.initial}>
             <div className="flex w-44 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={initialAltitude}
                 placeholder="ft"
@@ -369,7 +338,7 @@ export const DescentWidget = () => {
               />
               <button
                 type="button"
-                className="rounded-md rounded-l-none border-2 border-theme-highlight px-2 text-sm text-theme-highlight hover:bg-theme-highlight hover:text-theme-body"
+                className={`${PERF_SMALL_BUTTON} ml-1 shrink-0 px-2 text-xs font-bold hover:bg-m3-tile`}
                 onClick={() => set({ initialAltitude: Math.round(pressureAltitude / 100) * 100 })}
               >
                 A/C
@@ -378,7 +347,7 @@ export const DescentWidget = () => {
           </Row>
           <Row label={t('Performance.TopOfDescent.Calc.TargetAltitude')} missing={missingInputs.target}>
             <SimpleInput
-              className="w-44"
+              className={`w-44 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={targetAltitude}
               placeholder="ft"
@@ -391,7 +360,8 @@ export const DescentWidget = () => {
           </Row>
           <Row label={t('Performance.TopOfDescent.Calc.TargetWaypoint')}>
             <SelectInput
-              className="w-44"
+              fontSizeClassName="text-base"
+              className={`w-44 ${PERF_SELECT}`}
               value={targetWaypoint ?? ''}
               options={[{ value: '', displayValue: '-' }, ...targetWaypointOptions]}
               onChange={(v) => selectTargetWaypoint(v as string)}
@@ -401,7 +371,7 @@ export const DescentWidget = () => {
           {type === DescentType.GivenVs && (
             <Row label={t('Performance.TopOfDescent.Calc.VerticalSpeed')} missing={missingInputs.verticalSpeed}>
               <SimpleInput
-                className="w-44"
+                className={`w-44 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={verticalSpeed}
                 placeholder="ft/min"
@@ -415,12 +385,12 @@ export const DescentWidget = () => {
           )}
           <Row label={t('Performance.TopOfDescent.Calc.SpeedBrakes')}>
             <div className={emergency ? 'pointer-events-none opacity-40' : ''}>
-              <Toggle value={speedBrakes || emergency} onToggle={(v) => set({ speedBrakes: v })} />
+              <M3Switch value={speedBrakes || emergency} onToggle={(v) => set({ speedBrakes: v })} />
             </div>
           </Row>
         </Section>
 
-        <Section title={t('Performance.TopOfDescent.Calc.SectionSchedule')}>
+        <Section className="mr-3 min-w-0 flex-1" title={t('Performance.TopOfDescent.Calc.SectionSchedule')}>
           {(
             [
               ['Mach', 'mach', mach, schedule.mach, standard.mach, 3, 'M'],
@@ -439,7 +409,7 @@ export const DescentWidget = () => {
           ).map(([label, key, entered, value, placeholder, precision, unit]) => (
             <Row key={key} label={t(`Performance.TopOfDescent.Calc.${label}`)}>
               <SimpleInput
-                className="w-44"
+                className={`w-44 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 // EMERGENCY: MMO/VMO; ECON: the managed speeds of the FMS; otherwise the entry, or the standard one
                 value={emergency || (type === DescentType.Econ && (key === 'mach' || key === 'cas')) ? value : entered}
@@ -453,11 +423,11 @@ export const DescentWidget = () => {
           ))}
         </Section>
 
-        <Section title={t('Performance.TopOfDescent.Calc.SectionConditions')}>
+        <Section className="min-w-0 flex-1" title={t('Performance.TopOfDescent.Calc.SectionConditions')}>
           <Row label={t('Performance.TopOfDescent.Calc.Weight')} missing={missingInputs.weight}>
             <div className="flex w-44 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={
                   weight !== undefined
@@ -478,8 +448,9 @@ export const DescentWidget = () => {
                 number
               />
               <SelectInput
+                fontSizeClassName="text-base"
                 value={weightUnitText}
-                className="w-[4.5rem] rounded-l-none"
+                className={`ml-1 w-[4.5rem] ${PERF_SELECT}`}
                 options={[
                   { value: 't', displayValue: 't' },
                   { value: 'klb', displayValue: 'klb' },
@@ -498,7 +469,7 @@ export const DescentWidget = () => {
           >
             <div className="flex w-44 flex-row">
               <SimpleInput
-                className="w-full min-w-0 rounded-r-none"
+                className={`w-full min-w-0 ${PERF_INPUT}`}
                 fontSizeClassName="text-base"
                 value={isaDeviation}
                 placeholder="ISA +0"
@@ -511,7 +482,7 @@ export const DescentWidget = () => {
               />
               <button
                 type="button"
-                className="rounded-md rounded-l-none border-2 border-theme-highlight px-2 text-sm text-theme-highlight hover:bg-theme-highlight hover:text-theme-body"
+                className={`${PERF_SMALL_BUTTON} ml-1 shrink-0 px-2 text-xs font-bold hover:bg-m3-tile`}
                 onClick={() => set({ isaDeviation: currentIsaDeviation() })}
               >
                 A/C
@@ -520,7 +491,7 @@ export const DescentWidget = () => {
           </Row>
           <Row label={t('Performance.TopOfDescent.Calc.Wind')}>
             <SimpleInput
-              className="w-44"
+              className={`w-44 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={windEntry}
               placeholder="HD/TL kt"
@@ -531,7 +502,8 @@ export const DescentWidget = () => {
           </Row>
           <Row label={t('Performance.TopOfDescent.Calc.AntiIce')}>
             <SelectInput
-              className="w-44"
+              fontSizeClassName="text-base"
+              className={`w-44 ${PERF_SELECT}`}
               value={antiIce}
               onChange={(v: DescentAntiIce) => set({ antiIce: v })}
               options={[
@@ -543,7 +515,7 @@ export const DescentWidget = () => {
           </Row>
           <Row label={t('Performance.TopOfDescent.Calc.FuelFactor')}>
             <SimpleInput
-              className="w-44"
+              className={`w-44 ${PERF_INPUT}`}
               fontSizeClassName="text-base"
               value={fuelFactor}
               placeholder="0.0 %"
@@ -559,8 +531,8 @@ export const DescentWidget = () => {
       </div>
 
       {/* Results, profile and actions */}
-      <div className="flex min-h-0 flex-1 flex-row space-x-3">
-        <div className="flex w-[30rem] shrink-0 flex-col space-y-3">
+      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+        <div className="mr-3 flex h-full w-[30rem] shrink-0 flex-col">
           <ResultsPanel
             result={result}
             formatFuel={formatFuel}
@@ -578,43 +550,34 @@ export const DescentWidget = () => {
           />
           {/* The buttons at the bottom, as on the takeoff and landing pages */}
           <div className="flex-1" />
-          <div className="flex flex-row space-x-3">
-            <button
-              onClick={handleCalculate}
-              className={`flex w-full flex-row items-center justify-center space-x-3 rounded-md border-2 border-theme-highlight bg-theme-highlight py-2 text-theme-body outline-none hover:bg-theme-body hover:text-theme-highlight ${!inputsValid ? 'pointer-events-none opacity-50' : ''}`}
-              type="button"
-              disabled={!inputsValid}
-            >
-              <Calculator size={22} />
-              <p className="font-bold text-current">{t('Performance.TopOfDescent.Calc.Calculate')}</p>
-            </button>
-            <button
-              onClick={() => dispatch(clearDescentValues())}
-              className="flex w-full flex-row items-center justify-center space-x-3 rounded-md border-2 border-utility-red bg-utility-red py-2 text-theme-body outline-none hover:bg-theme-body hover:text-utility-red"
-              type="button"
-            >
-              <Trash size={22} />
-              <p className="font-bold text-current">{t('Performance.TopOfDescent.Calc.Clear')}</p>
-            </button>
+          <div className="mt-3 flex shrink-0 flex-row">
+            <M3Button className="mr-2 !h-12 flex-1" disabled={!inputsValid} onClick={handleCalculate}>
+              <Calculator size={20} />
+              <span className="text-base text-current">{t('Performance.TopOfDescent.Calc.Calculate')}</span>
+            </M3Button>
+            <M3Button tone="danger" className="!h-12" onClick={() => dispatch(clearDescentValues())}>
+              <Trash size={20} />
+              <span className="text-base text-current">{t('Performance.TopOfDescent.Calc.Clear')}</span>
+            </M3Button>
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col rounded-md border-2 border-theme-accent px-4 pb-2 pt-1.5">
-          <div className="flex flex-row items-center justify-between">
-            <h2 className="text-base font-bold uppercase tracking-wider text-theme-unselected">
-              {t('Performance.TopOfDescent.Calc.Profile')}
-            </h2>
-            <SelectGroup>
-              {(['PROFILE', 'TABLE'] as const).map((v) => (
-                <SelectItem key={v} selected={view === v} onSelect={() => setView(v)} className="px-3 py-0.5">
-                  {t(`Performance.TopOfDescent.Calc.View${v === 'PROFILE' ? 'Profile' : 'Table'}`)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
+        <M3Card className="h-full min-w-0 flex-1 px-4 py-3">
+          <div className="flex shrink-0 flex-row items-center">
+            <PerfTitle>{t('Performance.TopOfDescent.Calc.Profile')}</PerfTitle>
+            <div className="grow" />
+            <M3Segmented
+              className="w-56"
+              options={(['PROFILE', 'TABLE'] as const).map((v) => ({
+                label: t(`Performance.TopOfDescent.Calc.View${v === 'PROFILE' ? 'Profile' : 'Table'}`),
+                selected: view === v,
+                onClick: () => setView(v),
+              }))}
+            />
           </div>
-          <div className="mt-1 min-h-0 flex-1">
+          <div className="mt-2 min-h-0 flex-1 overflow-hidden">
             {result === undefined ? (
-              <div className="flex h-full items-center justify-center text-theme-unselected">
+              <div className="flex h-full items-center justify-center text-base text-m3-muted">
                 {t('Performance.TopOfDescent.Calc.NoResult')}
               </div>
             ) : view === 'PROFILE' ? (
@@ -645,8 +608,10 @@ export const DescentWidget = () => {
           {result !== undefined && (
             <StartDistance result={result} offset={startOffset} onOffsetChange={setStartOffset} />
           )}
-          <div className="text-sm text-theme-unselected">{t('Performance.TopOfDescent.Calc.Legend')}</div>
-        </div>
+          <span className="shrink-0 text-xs leading-tight text-m3-muted">
+            {t('Performance.TopOfDescent.Calc.Legend')}
+          </span>
+        </M3Card>
       </div>
     </div>
   );
@@ -721,12 +686,12 @@ const StartDistance = ({ result, offset, onOffsetChange }: StartDistanceProps) =
   let note: React.ReactNode = null;
   if (steeper) {
     note = tooSteep ? (
-      <span className="text-utility-red">{t('Performance.TopOfDescent.Calc.SteeperThanSpeedBrakes')}</span>
+      <span className="text-sm text-m3-on-error">{t('Performance.TopOfDescent.Calc.SteeperThanSpeedBrakes')}</span>
     ) : (
-      <span className="text-utility-amber">{t('Performance.TopOfDescent.Calc.SteeperThanIdle')}</span>
+      <span className="text-sm text-m3-on-warn">{t('Performance.TopOfDescent.Calc.SteeperThanIdle')}</span>
     );
   } else if (offset > 0 && idle) {
-    note = <span className="text-theme-text">{t('Performance.TopOfDescent.Calc.ShallowerThanIdle')}</span>;
+    note = <span className="text-sm text-m3-text">{t('Performance.TopOfDescent.Calc.ShallowerThanIdle')}</span>;
   }
   const change =
     offset === 0
@@ -736,9 +701,11 @@ const StartDistance = ({ result, offset, onOffsetChange }: StartDistanceProps) =
           Math.abs(offset).toFixed(0),
         );
   return (
-    <div className="mb-1 flex flex-col border-t border-theme-accent pt-1.5">
-      <div className="flex flex-row items-center space-x-4">
-        <span className="shrink-0">{t('Performance.TopOfDescent.Calc.StartDistance')}</span>
+    <div className="mb-1 flex shrink-0 flex-col border-t border-m3-tile pt-2">
+      <div className="flex flex-row items-center">
+        <span className="mr-4 shrink-0 text-sm font-semibold text-m3-text">
+          {t('Performance.TopOfDescent.Calc.StartDistance')}
+        </span>
         {/* Reversed, as the chart: the farther from the target, the more to the left */}
         <Slider
           reverse
@@ -748,30 +715,25 @@ const StartDistance = ({ result, offset, onOffsetChange }: StartDistanceProps) =
           step={1}
           value={offset}
           onChange={(v) => onOffsetChange(v as number)}
-          trackStyle={{ backgroundColor: 'var(--color-highlight)' }}
-          railStyle={{ backgroundColor: 'var(--color-accent)' }}
-          handleStyle={{ backgroundColor: 'var(--color-highlight)' }}
         />
-        <span className="w-28 shrink-0 text-right">
+        <span className="ml-4 w-28 shrink-0 text-right">
           <Value text={Math.round(distance).toFixed(0)} unit="NM" />
         </span>
       </div>
-      <div className="flex flex-row justify-between text-lg">
-        <span className="text-theme-unselected">{change}</span>
-        <span>
-          V/S{' '}
-          <Value
-            text={`-${Math.round(rate / 10) * 10}`}
-            unit="ft/min"
-            caution={steeper && !tooSteep}
-            warning={tooSteep}
-          />
-          <span className="ml-4">
-            FPA <Value text={gradient.toFixed(1)} unit="°" caution={steeper && !tooSteep} warning={tooSteep} />
-          </span>
-        </span>
+      <div className="flex flex-row items-center">
+        <span className="text-sm text-m3-muted">{change}</span>
+        <div className="grow" />
+        <span className="mr-2 text-sm text-m3-muted">V/S</span>
+        <Value
+          text={`-${Math.round(rate / 10) * 10}`}
+          unit="ft/min"
+          caution={steeper && !tooSteep}
+          warning={tooSteep}
+        />
+        <span className="ml-4 mr-2 text-sm text-m3-muted">FPA</span>
+        <Value text={gradient.toFixed(1)} unit="°" caution={steeper && !tooSteep} warning={tooSteep} />
       </div>
-      {note && <div className="text-base leading-tight">{note}</div>}
+      {note && <div className="leading-tight">{note}</div>}
     </div>
   );
 };
@@ -792,53 +754,52 @@ const ResultsPanel = ({ result, formatFuel, fuelUnit, formatTime, formatAltitude
   const ruleOfThumb =
     result !== undefined ? ((result.inputs.initialAltitude - result.inputs.targetAltitude) / 1000) * 3 : undefined;
   return (
-    <div className="flex flex-col rounded-md bg-black px-4 pb-2 pt-1.5 text-white">
-      <span className="text-base uppercase tracking-wider text-theme-unselected">
-        {t('Performance.TopOfDescent.Calc.Results')}
-      </span>
-      <div className="flex flex-row justify-between text-xl">
-        <span>
-          {t('Performance.TopOfDescent.Calc.Time')}{' '}
-          <Value text={result ? formatTime(result.time) : '--:--'} unit="min" estimate={antiIce} />
-        </span>
-        <span>
-          {t('Performance.TopOfDescent.Calc.Distance')}{' '}
-          <Value text={result ? Math.round(result.distance).toFixed(0) : '---'} unit="NM" estimate={antiIce} />
-        </span>
-      </div>
-      <div className="flex flex-row justify-between text-xl">
-        <span>
-          {t('Performance.TopOfDescent.Calc.Fuel')}{' '}
-          <Value text={result ? formatFuel(result.fuel) : '---'} unit={fuelUnit} estimate={antiIce} />
-        </span>
-        <span>
-          V/S <Value text={result ? `-${Math.round(result.averageRate / 10) * 10}` : '----'} unit="ft/min" />
-        </span>
-      </div>
-      <div className="flex flex-row justify-between text-xl">
-        <span>
-          FPA <Value text={result ? result.averageGradient.toFixed(1) : '-.-'} unit="°" />
-        </span>
-        <span>
-          {t('Performance.TopOfDescent.Calc.RuleOfThumb')}{' '}
-          <span className="text-theme-unselected">
+    <M3Card low className="mb-3 shrink-0 px-4 py-3">
+      <PerfTitle className="mb-2">{t('Performance.TopOfDescent.Calc.Results')}</PerfTitle>
+      <PerfResultRow className="mb-2">
+        <PerfResult name={t('Performance.TopOfDescent.Calc.Distance')}>
+          <Value
+            text={result ? Math.round(result.distance).toFixed(0) : '---'}
+            unit="NM"
+            estimate={antiIce}
+            primary
+            big
+          />
+        </PerfResult>
+        <PerfResult name={t('Performance.TopOfDescent.Calc.Time')}>
+          <Value text={result ? formatTime(result.time) : '--:--'} unit="min" estimate={antiIce} big />
+        </PerfResult>
+        <PerfResult name={t('Performance.TopOfDescent.Calc.Fuel')}>
+          <Value text={result ? formatFuel(result.fuel) : '---'} unit={fuelUnit} estimate={antiIce} big />
+        </PerfResult>
+      </PerfResultRow>
+      <PerfResultRow className="mb-2">
+        <PerfResult name="V/S">
+          <Value text={result ? `-${Math.round(result.averageRate / 10) * 10}` : '----'} unit="ft/min" />
+        </PerfResult>
+        <PerfResult name="FPA">
+          <Value text={result ? result.averageGradient.toFixed(1) : '-.-'} unit="°" />
+        </PerfResult>
+        <PerfResult name={t('Performance.TopOfDescent.Calc.RuleOfThumb')}>
+          <span className="whitespace-nowrap text-lg font-bold text-m3-muted">
             {ruleOfThumb !== undefined ? `${Math.round(ruleOfThumb)} NM` : '---'}
           </span>
-        </span>
-      </div>
-      <div className="text-sm leading-tight text-theme-unselected">
-        {crossover && `${t('Performance.TopOfDescent.Calc.Crossover')} ${formatAltitude(crossover.altitude)} · `}
-        {decel && `${t('Performance.TopOfDescent.Calc.Decel')} ${formatAltitude(decel.altitude)} · `}
+        </PerfResult>
+      </PerfResultRow>
+      <span className="text-xs leading-tight text-m3-muted">
+        {`${crossover ? `${t('Performance.TopOfDescent.Calc.Crossover')} ${formatAltitude(crossover.altitude)} · ` : ''}${
+          decel ? `${t('Performance.TopOfDescent.Calc.Decel')} ${formatAltitude(decel.altitude)} · ` : ''
+        }`}
         {result?.verticalSpeedIdleBelow !== undefined && (
-          <span className="text-utility-amber">
+          <span className="text-xs text-m3-on-warn">
             {t('Performance.TopOfDescent.Calc.VsAtIdle').replace(
               '{altitude}',
               formatAltitude(result.verticalSpeedIdleBelow),
             )}
           </span>
         )}
-      </div>
-    </div>
+      </span>
+    </M3Card>
   );
 };
 
@@ -856,17 +817,21 @@ interface DescentCheckProps {
  */
 const DescentCheck = ({ result, distanceToTarget, onDistanceChange, altitude, groundSpeed }: DescentCheckProps) => {
   let message: React.ReactNode = (
-    <span className="text-theme-unselected">{t('Performance.TopOfDescent.Calc.CheckHelp')}</span>
+    <span className="text-sm text-m3-muted">{t('Performance.TopOfDescent.Calc.CheckHelp')}</span>
   );
   if (result !== undefined && distanceToTarget !== undefined && altitude > result.inputs.targetAltitude) {
     const needed = distanceNeeded(result, altitude);
     const margin = distanceToTarget - needed;
     if (Math.abs(margin) < 2) {
-      message = <span className="text-utility-green">{t('Performance.TopOfDescent.Calc.OnProfile')}</span>;
+      message = (
+        <span className="text-sm font-bold text-m3-on-primary-container">
+          {t('Performance.TopOfDescent.Calc.OnProfile')}
+        </span>
+      );
     } else if (margin > 0) {
       const minutes = groundSpeed > 50 ? Math.round((margin / groundSpeed) * 60) : undefined;
       message = (
-        <span className="text-utility-green">
+        <span className="text-sm font-bold text-m3-on-primary-container">
           {t('Performance.TopOfDescent.Calc.StartIn').replace('{distance}', Math.round(margin).toFixed(0))}
           {minutes !== undefined ? ` (${minutes} min)` : ''}
         </span>
@@ -877,7 +842,7 @@ const DescentCheck = ({ result, distanceToTarget, onDistanceChange, altitude, gr
       const rate = groundSpeed * 101.27 * Math.tan((fpa * Math.PI) / 180);
       // The V/S and FPA to set on the FCU: negative in descent, as on the RESULTS line
       message = (
-        <span className="text-utility-amber">
+        <span className="text-sm font-bold text-m3-on-warn">
           {t('Performance.TopOfDescent.Calc.Late')
             .replace('{distance}', Math.round(-margin).toFixed(0))
             .replace('{rate}', `-${(Math.round(rate / 100) * 100).toFixed(0)}`)
@@ -887,19 +852,20 @@ const DescentCheck = ({ result, distanceToTarget, onDistanceChange, altitude, gr
     }
   }
   return (
-    <div className="flex flex-col rounded-md border-2 border-theme-accent px-3 py-1.5">
-      <div className="flex flex-row items-center justify-between">
-        <span className="text-base font-bold uppercase tracking-wider text-theme-unselected">
-          {t('Performance.TopOfDescent.Calc.Check')}
-        </span>
-        <span className="text-sm text-theme-unselected">
+    <M3Card className="shrink-0 px-4 py-3">
+      <div className="flex flex-row items-center">
+        <PerfTitle>{t('Performance.TopOfDescent.Calc.Check')}</PerfTitle>
+        <div className="grow" />
+        <span className="text-xs text-m3-muted">
           {`${Math.round(altitude / 100) * 100} ft · GS ${Math.round(groundSpeed)} kt`}
         </span>
       </div>
-      <div className="flex flex-row items-center justify-between">
-        <span>{t('Performance.TopOfDescent.Calc.DistanceToTarget')}</span>
+      <div className="mt-1 flex h-10 flex-row items-center justify-between">
+        <span className="text-sm font-semibold text-m3-text">
+          {t('Performance.TopOfDescent.Calc.DistanceToTarget')}
+        </span>
         <SimpleInput
-          className="w-32"
+          className={`w-32 ${PERF_INPUT}`}
           fontSizeClassName="text-base"
           value={distanceToTarget}
           placeholder="NM"
@@ -913,8 +879,8 @@ const DescentCheck = ({ result, distanceToTarget, onDistanceChange, altitude, gr
           number
         />
       </div>
-      <div className="mt-1 text-lg leading-tight">{message}</div>
-    </div>
+      <div className="mt-1 leading-tight">{message}</div>
+    </M3Card>
   );
 };
 
@@ -930,8 +896,8 @@ interface ProfileTableProps {
  * descent and GRDT the descent gradient, both positive in descent (ROD = TAS x sin GRDT).
  */
 const ProfileTable = ({ result, formatFuel, formatTime, formatAltitude }: ProfileTableProps) => (
-  <table className="w-full text-right text-base">
-    <thead className="text-sm text-theme-unselected">
+  <table className="w-full text-right text-sm text-m3-text">
+    <thead className="text-xs text-m3-muted">
       <tr>
         {['ALT', 'TIME', 'DIST', 'FUEL', 'CAS', 'MACH', 'TAS', 'RATE', 'GRDT', ''].map((h) => (
           <th key={h} className="px-1 font-normal">
@@ -942,7 +908,7 @@ const ProfileTable = ({ result, formatFuel, formatTime, formatAltitude }: Profil
     </thead>
     <tbody>
       {result.points.map((p) => (
-        <tr key={`${p.altitude}${p.event ?? ''}`} className={p.event ? 'text-theme-highlight' : ''}>
+        <tr key={`${p.altitude}${p.event ?? ''}`} className={p.event ? 'text-m3-on-primary-container' : ''}>
           <td className="px-1">{formatAltitude(p.altitude)}</td>
           <td className="px-1">{formatTime(p.time)}</td>
           <td className="px-1">{Math.round(p.distance)}</td>
@@ -952,7 +918,7 @@ const ProfileTable = ({ result, formatFuel, formatTime, formatAltitude }: Profil
           <td className="px-1">{Math.round(p.tas)}</td>
           <td className="px-1">{p.rate > 0 ? Math.round(p.rate / 10) * 10 : ''}</td>
           <td className="px-1">{p.rate > 0 ? (-p.gradient).toFixed(1) : ''}</td>
-          <td className="px-1 text-left text-sm">{p.event ?? ''}</td>
+          <td className="px-1 text-left text-xs">{p.event ?? ''}</td>
         </tr>
       ))}
     </tbody>

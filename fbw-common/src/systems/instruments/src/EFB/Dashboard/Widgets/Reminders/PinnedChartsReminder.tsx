@@ -27,9 +27,9 @@ export const PinnedChartsReminder = () => {
       </div>
 
       {!pinnedCharts.length && (
-        <h1 className="m-auto my-4 text-center font-bold opacity-60">
+        <span className="my-2 text-center text-base text-m3-muted">
           {t('Dashboard.ImportantInformation.PinnedCharts.NoPinnedCharts')}
-        </h1>
+        </span>
       )}
     </RemindersSection>
   );
