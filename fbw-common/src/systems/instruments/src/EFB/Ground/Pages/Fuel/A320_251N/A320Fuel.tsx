@@ -5,7 +5,7 @@
 /* eslint-disable max-len */
 import React, { useCallback, useEffect } from 'react';
 import { round } from 'lodash';
-import { CloudArrowDown, PlayFill, StopCircleFill } from 'react-bootstrap-icons';
+import { CloudArrowDown, FuelPumpFill } from 'react-bootstrap-icons';
 import {
   useSimVar,
   Units,
@@ -13,71 +13,18 @@ import {
   usePersistentProperty,
   GsxServiceStates,
 } from '@flybywiresim/fbw-sdk-react';
-import Slider from 'rc-slider';
+import { useAppDispatch, useAppSelector, t, setFuelImported } from '@flybywiresim/flypad';
+import { M3Chip, M3Tone } from '../../../../UtilComponents/Material/Material';
 import {
-  useAppDispatch,
-  useAppSelector,
-  t,
-  TooltipWrapper,
-  SelectGroup,
-  SelectItem,
-  ProgressBar,
-  SimpleInput,
-  OverWingOutline,
-  setFuelImported,
-} from '@flybywiresim/flypad';
-
-interface TankReadoutProps {
-  title: string;
-  current: number;
-  target: number;
-  capacity: number;
-  currentUnit: string;
-  tankValue: number;
-  convertedFuelValue: number;
-  className?: string;
-  inlinedTitle?: boolean;
-  width?: number;
-}
-
-const TankReadoutWidget = ({
-  title,
-  current,
-  target,
-  capacity,
-  currentUnit,
-  tankValue,
-  convertedFuelValue,
-  className,
-  inlinedTitle,
-  width = 366,
-}: TankReadoutProps) => {
-  const getFuelBarPercent = (curr: number, max: number) => (Math.max(curr, 0) / max) * 100;
-
-  return (
-    <div className={`w-min space-y-3 overflow-hidden bg-theme-body p-4 ${className}`} style={{ width: `${width}px` }}>
-      <div className={inlinedTitle ? 'flex flex-row items-center justify-between' : undefined}>
-        <h2>{title}</h2>
-        <p>{`${convertedFuelValue}/${round(tankValue)} ${currentUnit}`}</p>
-      </div>
-      <ProgressBar
-        height="20px"
-        width={`${width - 40}px`}
-        displayBar={false}
-        completedBarBegin={getFuelBarPercent(target, capacity)}
-        isLabelVisible={false}
-        bgcolor="var(--color-highlight)"
-        completed={(Math.max(current, 0) / capacity) * 100}
-      />
-    </div>
-  );
-};
-
-enum RefuelRateSetting {
-  REAL = '0',
-  FAST = '1',
-  INSTANT = '2',
-}
+  FuelHeadline,
+  FuelLayout,
+  FuelRail,
+  FuelTank,
+  FuelTankTile,
+  formatFuel,
+  RefuelRateSetting,
+} from '../FuelLayout';
+import { A320FuelPlanform } from './A320FuelPlanform';
 
 interface FuelProps {
   simbriefDataLoaded: boolean;
@@ -193,76 +140,32 @@ export const A320Fuel: React.FC<FuelProps> = ({
     return val;
   };
 
-  const formatRefuelStatusLabel = useCallback(() => {
-    if (isRefuelAllowed()) {
-      if (refuelStartedByUser) {
-        return totalTarget > totalCurrentGallon()
-          ? `(${t('Ground.Fuel.Refueling')}...)`
-          : `(${t('Ground.Fuel.Defueling')}...)`;
-      }
-
-      if (isDesiredEqualTo(totalCurrentGallon())) {
-        return `(${t('Ground.Fuel.Completed')})`;
-      }
-
-      if (gsxFuelSyncEnabled === 1) {
-        if (gsxRefuelActive()) {
-          return `(${t('Ground.Fuel.GSXFuelRequested')})`;
-        }
-        if (gsxRefuelCallable() && refuelRate !== RefuelRateSetting.INSTANT) {
-          return `(${t('Ground.Fuel.GSXFuelSyncEnabled')})`;
-        }
-      }
-
-      return `(${t('Ground.Fuel.ReadyToStart')})`;
+  /** What the refuel does now, and its tone */
+  const refuelStatus = (): { text: string; tone: M3Tone } => {
+    if (!isRefuelAllowed()) {
+      return { text: t('Ground.Fuel.Unavailable'), tone: 'idle' };
     }
-
-    return `(${t('Ground.Fuel.Unavailable')})`;
-  }, [
-    totalTarget,
-    LInnCurrent,
-    LOutCurrent,
-    RInnCurrent,
-    ROutCurrent,
-    centerCurrent,
-    refuelStartedByUser,
-    gsxFuelSyncEnabled,
-    gsxRefuelState,
-    refuelRate,
-  ]);
-
-  const formatRefuelStatusClass = useCallback(() => {
     if (refuelStartedByUser) {
-      return totalTarget > totalCurrentGallon() ? 'text-green-500' : 'text-yellow-500';
+      return {
+        text: totalTarget > totalCurrentGallon() ? t('Ground.Fuel.Refueling') : t('Ground.Fuel.Defueling'),
+        tone: 'busy',
+      };
     }
-
-    if (isRefuelAllowed()) {
-      if (isDesiredEqualTo(totalCurrentGallon()) || !refuelStartedByUser) {
-        return 'text-theme-highlight';
+    if (isDesiredEqualTo(totalCurrentGallon())) {
+      return { text: t('Ground.Fuel.Completed'), tone: 'active' };
+    }
+    if (gsxFuelSyncEnabled === 1) {
+      if (gsxRefuelActive()) {
+        return { text: t('Ground.Fuel.GSXFuelRequested'), tone: 'busy' };
+      }
+      if (gsxRefuelCallable() && refuelRate !== RefuelRateSetting.INSTANT) {
+        return { text: t('Ground.Fuel.GSXFuelSyncEnabled'), tone: 'idle' };
       }
     }
-    return 'text-theme-accent';
-  }, [totalTarget, LInnCurrent, LOutCurrent, RInnCurrent, ROutCurrent, centerCurrent, refuelStartedByUser]);
-
-  const formatRefuelRateStatusClass = useCallback(
-    (rate) => {
-      if (onlyInstantRefuelAllowed()) {
-        if (rate === refuelRate) {
-          return 'bg-theme-highlight opacity-40 text-theme-highlight';
-        } else {
-          return 'opacity-20';
-        }
-      }
-    },
-    [refuelRate, eng1Running, eng2Running, isOnGround],
-  );
+    return { text: t('Ground.Fuel.ReadyToStart'), tone: 'active' };
+  };
 
   const getFuelMultiplier = () => galToKg * convertUnit;
-
-  const formatFuelFilling = (curr: number, max: number) => {
-    const percent = (Math.max(curr, 0) / max) * 100;
-    return `linear-gradient(to top, var(--color-highlight) ${percent}%,#ffffff00 0%)`;
-  };
 
   const convertFuelValue = (curr: number) => round(round(Math.max(curr, 0)) * getFuelMultiplier());
 
@@ -374,258 +277,78 @@ export const A320Fuel: React.FC<FuelProps> = ({
 
   const roundUpNearest100 = (plannedFuel: number) => Math.ceil(plannedFuel / 100) * 100;
 
+  const status = refuelStatus();
+  const onBoard = totalCurrent();
+  const target = Number(inputValue) || 0;
+  const level = (gallons: number, capacityGallons: number) => (Math.max(gallons, 0) / capacityGallons) * 100;
+  /** The tanks as on the aircraft, from the left wing tip to the right wing tip */
+  const tanks: FuelTank[] = [
+    { name: t('Ground.Fuel.LeftOuterTank'), quantity: convertFuelValueCenter(LOutCurrent), capacity: outerCell() },
+    { name: t('Ground.Fuel.LeftInnerTank'), quantity: convertFuelValue(LInnCurrent), capacity: innerCell() },
+    { name: t('Ground.Fuel.CenterTank'), quantity: convertFuelValueCenter(centerCurrent), capacity: centerTank() },
+    { name: t('Ground.Fuel.RightInnerTank'), quantity: convertFuelValueCenter(RInnCurrent), capacity: innerCell() },
+    { name: t('Ground.Fuel.RightOuterTank'), quantity: convertFuelValueCenter(ROutCurrent), capacity: outerCell() },
+  ];
+
   return (
-    <div className="relative mt-6 flex h-content-section-reduced flex-col justify-between">
-      <div className="z-30">
-        <div className="absolute inset-x-0 top-0 mx-auto flex flex-col items-center space-y-3">
-          <TankReadoutWidget
-            title={t('Ground.Fuel.TotalFuel')}
-            current={totalCurrent()}
-            target={totalTarget}
-            capacity={totalFuel()}
-            currentUnit={massUnitForDisplay}
-            tankValue={totalFuel()}
-            convertedFuelValue={totalCurrent()}
-            className="overflow-hidden rounded-2xl border-2 border-theme-accent"
-            inlinedTitle
-            width={420}
-          />
-          <TankReadoutWidget
-            title={t('Ground.Fuel.CenterTank')}
-            current={centerCurrent}
-            target={centerTarget}
-            capacity={CENTER_TANK_GALLONS}
-            currentUnit={massUnitForDisplay}
-            tankValue={centerTank()}
-            convertedFuelValue={convertFuelValueCenter(centerCurrent)}
-            className="overflow-hidden rounded-2xl border-2 border-theme-accent"
-            inlinedTitle
-            width={420}
-          />
-        </div>
-        <div className="absolute inset-x-0 top-40 flex flex-row justify-between">
-          <div className="w-min divide-y divide-theme-accent overflow-hidden rounded-2xl border-2 border-theme-accent">
-            <TankReadoutWidget
-              title={t('Ground.Fuel.LeftInnerTank')}
-              current={LInnCurrent}
-              target={LInnTarget}
-              capacity={INNER_CELL_GALLONS}
-              currentUnit={massUnitForDisplay}
-              tankValue={innerCell()}
-              convertedFuelValue={convertFuelValue(LInnCurrent)}
-            />
-            <TankReadoutWidget
-              title={t('Ground.Fuel.LeftOuterTank')}
-              current={LOutCurrent}
-              target={LOutTarget}
-              capacity={OUTER_CELL_GALLONS}
-              currentUnit={massUnitForDisplay}
-              tankValue={outerCell()}
-              convertedFuelValue={convertFuelValueCenter(LOutCurrent)}
-            />
-          </div>
-          <div className="w-min divide-y divide-theme-accent overflow-hidden rounded-2xl border-2 border-theme-accent">
-            <TankReadoutWidget
-              title={t('Ground.Fuel.RightInnerTank')}
-              current={RInnCurrent}
-              target={RInnTarget}
-              capacity={INNER_CELL_GALLONS}
-              currentUnit={massUnitForDisplay}
-              tankValue={innerCell()}
-              convertedFuelValue={convertFuelValueCenter(RInnCurrent)}
-            />
-            <TankReadoutWidget
-              title={t('Ground.Fuel.RightOuterTank')}
-              current={ROutCurrent}
-              target={ROutTarget}
-              capacity={OUTER_CELL_GALLONS}
-              currentUnit={massUnitForDisplay}
-              tankValue={outerCell()}
-              convertedFuelValue={convertFuelValueCenter(ROutCurrent)}
-            />
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col items-center justify-end">
-        {/* FIXME TODO: Replace with Tailwind JIT values later */}
-        <div className="absolute inset-x-0 bottom-0" style={{ transform: 'translate(0px, -150px)' }}>
-          <OverWingOutline className="absolute bottom-0 left-0 z-20" />
-
-          <div
-            className="absolute z-20"
-            style={{
-              width: '137px',
-              height: '110px',
-              bottom: '243px',
-              left: '572px',
-              background: formatFuelFilling(centerCurrent, CENTER_TANK_GALLONS),
-            }}
-          />
-          <div
-            className="absolute z-0"
-            style={{
-              width: '310px',
-              height: '215px',
-              bottom: '140px',
-              left: '260px',
-              background: formatFuelFilling(LInnCurrent, INNER_CELL_GALLONS),
-            }}
-          />
-          <div
-            className="absolute z-0"
-            style={{
-              width: '310px',
-              height: '215px',
-              bottom: '140px',
-              right: '260px',
-              background: formatFuelFilling(RInnCurrent, INNER_CELL_GALLONS),
-            }}
-          />
-          <div
-            className="absolute z-0"
-            style={{
-              width: '122px',
-              height: '98px',
-              bottom: '100px',
-              left: '138px',
-              background: formatFuelFilling(LOutCurrent, OUTER_CELL_GALLONS),
-            }}
-          />
-          <div
-            className="absolute z-0"
-            style={{
-              width: '122px',
-              height: '98px',
-              bottom: '100px',
-              right: '138px',
-              background: formatFuelFilling(ROutCurrent, OUTER_CELL_GALLONS),
-            }}
-          />
-          {/* tl overlay */}
-          <div
-            className="absolute bottom-overlay-t-y left-overlay-tl z-10 -rotate-26.5 bg-theme-body"
-            style={{ transform: 'rotate(-26.5deg)', width: '490px', height: '140px', bottom: '240px', left: '82px' }}
-          />
-          {/* tr overlay */}
-          <div
-            className="absolute bottom-overlay-t-y right-overlay-tr z-10 rotate-26.5 bg-theme-body"
-            style={{ transform: 'rotate(26.5deg)', width: '490px', height: '140px', bottom: '240px', right: '82px' }}
-          />
-          {/* bl overlay */}
-          <div
-            className="absolute bottom-overlay-b-y left-overlay-bl z-10 -rotate-18.5 bg-theme-body"
-            style={{ transform: 'rotate(-18.5deg)', width: '484px', height: '101px', bottom: '78px', left: '144px' }}
-          />
-          {/* br overlay */}
-          <div
-            className="absolute bottom-overlay-b-y right-overlay-br z-10 rotate-18.5 bg-theme-body"
-            style={{ transform: 'rotate(18.5deg)', width: '484px', height: '101px', bottom: '78px', right: '144px' }}
-          />
-        </div>
-
-        <div className="border-theme-accentborder-2 absolute bottom-0 left-0 z-10 flex max-w-4xl flex-row overflow-x-hidden rounded-2xl border">
-          <div className="space-y-4 px-5 py-3">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex flex-row items-center space-x-3">
-                <h2 className="font-medium">{t('Ground.Fuel.Refuel')}</h2>
-                <p className={formatRefuelStatusClass()}>{formatRefuelStatusLabel()}</p>
-              </div>
-              <p>{`${t('Ground.Fuel.EstimatedDuration')}: ${calculateEta()}`}</p>
-            </div>
-            <div className={`flex flex-row items-center space-x-32 ${refuelStartedByUser && 'opacity-50'}`}>
-              <Slider
-                disabled={refuelStartedByUser}
-                style={{ width: '28rem' }}
-                trackStyle={{ backgroundColor: 'var(--color-highlight)' }}
-                railStyle={{ backgroundColor: 'var(--color-accent)' }}
-                handleStyle={{ backgroundColor: 'var(--color-highlight)' }}
-                value={sliderValue}
-                onChange={updateSlider}
-              />
-              <div className="flex flex-row">
-                <div className="relative">
-                  <SimpleInput
-                    disabled={refuelStartedByUser}
-                    className={`w-32 ${!refuelStartedByUser && 'rounded-r-none'}`}
-                    placeholder={round(totalFuel()).toString()}
-                    number
-                    min={0}
-                    max={round(totalFuel())}
-                    value={inputValue}
-                    onChange={(x) => updateDesiredFuel(x)}
-                  />
-                  <div className="absolute right-4 top-2 text-lg text-gray-400">{massUnitForDisplay}</div>
-                </div>
-                {showSimbriefButton() && (
-                  <TooltipWrapper text={t('Ground.Fuel.TT.FillBlockFuelFromSimBrief')}>
-                    <div
-                      className={`${refuelStartedByUser && 'invisible'} flex h-auto items-center justify-center rounded-md rounded-l-none border-2 border-theme-highlight bg-theme-highlight px-2 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight`}
-                      onClick={handleFuelAutoFill}
-                    >
-                      <CloudArrowDown size={26} />
-                    </div>
-                  </TooltipWrapper>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {(!gsxFuelSyncEnabled || (refuelRate === RefuelRateSetting.INSTANT && !gsxRefuelActive())) && (
-            <div
-              className={`flex w-20 items-center justify-center ${formatRefuelStatusClass()} bg-current`}
-              onClick={() => switchRefuelState()}
-            >
-              <div className={`${isRefuelAllowed() ? 'text-white' : 'text-theme-unselected'}`}>
-                <PlayFill size={50} className={refuelStartedByUser ? 'hidden' : ''} />
-                <StopCircleFill size={50} className={refuelStartedByUser ? '' : 'hidden'} />
-              </div>
-            </div>
+    <FuelLayout
+      className="p-4"
+      chips={
+        <>
+          <M3Chip tone={status.tone} icon={<FuelPumpFill size={16} />}>
+            {status.text}
+          </M3Chip>
+          {simbriefDataLoaded && (
+            <M3Chip tone="idle" icon={<CloudArrowDown size={16} />}>
+              {`${t('Ground.Fuel.SimbriefBlock')} ${formatFuel(getSimbriefPlanRamp())} ${massUnitForDisplay}`}
+            </M3Chip>
           )}
-        </div>
-
-        <div className="absolute bottom-0 right-6 flex flex-col items-center justify-center space-y-2 overflow-x-hidden rounded-2xl border border-theme-accent px-6 py-3">
-          <h2 className="flex font-medium">{t('Ground.Fuel.RefuelTime')}</h2>
-
-          <SelectGroup>
-            <SelectItem
-              selected={refuelRate === RefuelRateSetting.INSTANT}
-              onSelect={() => setRefuelRate(RefuelRateSetting.INSTANT)}
-            >
-              {t('Settings.Instant')}
-            </SelectItem>
-
-            <TooltipWrapper
-              text={`${!isRefuelAllowed() && t('Ground.Fuel.TT.AircraftMustBeColdAndDarkToChangeRefuelTimes')}`}
-            >
-              <div>
-                <SelectItem
-                  className={`${formatRefuelRateStatusClass(RefuelRateSetting.FAST)}`}
-                  disabled={onlyInstantRefuelAllowed()}
-                  selected={refuelRate === RefuelRateSetting.FAST}
-                  onSelect={() => setRefuelRate(RefuelRateSetting.FAST)}
-                >
-                  {t('Settings.Fast')}
-                </SelectItem>
-              </div>
-            </TooltipWrapper>
-
-            <TooltipWrapper
-              text={`${!isRefuelAllowed() && t('Ground.Fuel.TT.AircraftMustBeColdAndDarkToChangeRefuelTimes')}`}
-            >
-              <div>
-                <SelectItem
-                  className={`${formatRefuelRateStatusClass(RefuelRateSetting.REAL)}`}
-                  disabled={onlyInstantRefuelAllowed()}
-                  selected={refuelRate === RefuelRateSetting.REAL}
-                  onSelect={() => setRefuelRate(RefuelRateSetting.REAL)}
-                >
-                  {t('Settings.Real')}
-                </SelectItem>
-              </div>
-            </TooltipWrapper>
-          </SelectGroup>
-        </div>
+          {gsxFuelSyncEnabled === 1 && <M3Chip tone="active">{t('Ground.Fuel.GsxSync')}</M3Chip>}
+        </>
+      }
+      rail={
+        <FuelRail
+          status={status}
+          etaMinutes={calculateEta()}
+          unit={massUnitForDisplay}
+          target={inputValue}
+          targetMax={round(totalFuel())}
+          onTargetChange={(x) => updateDesiredFuel(x)}
+          sliderPercent={sliderValue}
+          onBoardPercent={(totalCurrentGallon() / TOTAL_FUEL_GALLONS) * 100}
+          onSlider={updateSlider}
+          started={!!refuelStartedByUser}
+          allowed={!!isRefuelAllowed()}
+          showStartStop={!gsxFuelSyncEnabled || (refuelRate === RefuelRateSetting.INSTANT && !gsxRefuelActive())}
+          onStartStop={switchRefuelState}
+          delta={target - onBoard}
+          simbriefBlock={simbriefDataLoaded ? getSimbriefPlanRamp() : null}
+          showSimbrief={showSimbriefButton()}
+          onSimbrief={handleFuelAutoFill}
+          onBoard={onBoard}
+          rate={refuelRate}
+          setRate={setRefuelRate}
+          onlyInstant={!!onlyInstantRefuelAllowed()}
+        />
+      }
+    >
+      <FuelHeadline className="mb-4 shrink-0" quantity={onBoard} capacity={totalFuel()} unit={massUnitForDisplay} />
+      <div className="flex shrink-0 flex-row space-x-2">
+        {tanks.map((tank) => (
+          <FuelTankTile key={tank.name} tank={tank} unit={massUnitForDisplay} />
+        ))}
       </div>
-    </div>
+      {/* the wings from above, the tanks filled to their level */}
+      <A320FuelPlanform
+        className="mt-4 min-h-0 flex-1"
+        levels={{
+          centre: level(centerCurrent, CENTER_TANK_GALLONS),
+          leftInner: level(LInnCurrent, INNER_CELL_GALLONS),
+          leftOuter: level(LOutCurrent, OUTER_CELL_GALLONS),
+          rightInner: level(RInnCurrent, INNER_CELL_GALLONS),
+          rightOuter: level(ROutCurrent, OUTER_CELL_GALLONS),
+        }}
+      />
+    </FuelLayout>
   );
 };
