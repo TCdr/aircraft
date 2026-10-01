@@ -62,6 +62,8 @@ export enum LandingBrakingMode {
   Two = '2',
   Three = '3',
   Hi = 'HI',
+  /** A380 Brake To Vacate: the autobrake to the runway exit selected on the OANS (dry and wet runways) */
+  Btv = 'BTV',
   /** A320 autobrake */
   Low = 'LOW',
   Medium = 'MED',
@@ -110,6 +112,8 @@ export enum LandingPerformanceError {
   MaximumRunwaySlope = 'MaximumRunwaySlope',
   /** The runway condition is not one of the computation type */
   RunwayCondition = 'RunwayCondition',
+  /** IN-FLIGHT: BTV braking on a runway that is neither dry nor wet */
+  BtvRunwayCondition = 'BtvRunwayCondition',
 }
 
 export interface LandingPerformanceInputs {
