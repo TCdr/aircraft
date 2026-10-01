@@ -2,6 +2,9 @@
   "AirTrafficControl": {
     "Active": "Active",
     "ChangeATISATCSourceButton": "Change ATIS/ATC source",
+    "Com1": "COM 1",
+    "ControllerInformation": "Controller information",
+    "ControllersOnline": "Controllers online",
     "NoInformationAvailableForThisFrequency": "No information available for this frequency",
     "SearchPlaceholder": "Search",
     "SelectCorrectATISATCSource": "This page is only available when IVAO or VATSIM is selected as the ATIS/ATC source in the settings page.",
@@ -26,6 +29,8 @@
     "AreYouSureYouWantToResetAllChecklists": "Are you sure you want to reset all checklists?",
     "AreYouSureYouWantToResetChecklists": "Are you sure you want to reset all checklists?",
     "ChecklistResetWarning": "Checklist Reset Warning",
+    "CurrentFlightPhase": "Current flight phase",
+    "ItemsDone": "done",
     "MarkChecklistAsComplete": "Mark checklist as complete",
     "MarkItemAsComplete": "Mark item as complete",
     "ProceedToNextChecklist": "Proceed to next checklist",
@@ -100,6 +105,7 @@
     },
     "Overview": {
       "ActualGW": "Actual GW",
+      "Capacity": "Capacity",
       "Engines": "Engines",
       "MMO": "MMO",
       "MRW": "MRW",
@@ -109,8 +115,10 @@
       "MaximumFuelCapacity": "Maximum Fuel Capacity",
       "MaximumPassengers": "Maximum Passengers",
       "Model": "Model",
+      "Performance": "Performance",
       "Range": "Range",
-      "Title": "Overview"
+      "Title": "Overview",
+      "Weights": "Weights"
     },
     "Printouts": {
       "DeleteAll": "Delete All",
@@ -120,15 +128,20 @@
     "Title": "Dispatch"
   },
   "Failures": {
+    "Active": "active",
+    "ActiveFailures": "active failures",
     "Comfort": {
       "Title": "Comfort"
     },
     "Compact": {
       "Title": "Compact"
     },
+    "FailedTapToRestore": "Failed, tap to restore",
+    "Failures": "failures",
     "FullSimulationOfTheFailuresBelowIsntYetGuaranteed": "Full simulation of the failures below isn't yet guaranteed.",
     "Search": "Search",
-    "Title": "Failures"
+    "Title": "Failures",
+    "Working": "Working"
   },
   "Ground": {
     "Fuel": {
@@ -139,14 +152,41 @@
       "EstimatedTime": "Estimated Time",
       "GSXFuelSyncEnabled": "Call GSX Refuel",
       "GSXFuelRequested": "GSX Refuel requested",
+      "GsxSync": "GSX fuel sync",
       "LeftInnerTank": "Left Inner Tank",
       "LeftOuterTank": "Left Outer Tank",
+      "Minutes": "min",
+      "OnBoard": "On board",
+      "Plan": "Plan",
       "ReadyToStart": "Ready to Start",
       "Refuel": "Refuel",
       "RefuelTime": "Refuel Time",
       "Refueling": "Refueling",
       "RightInnerTank": "Right Inner Tank",
       "RightOuterTank": "Right Outer Tank",
+      "SimbriefBlock": "SimBrief block",
+      "Start": "Start refuelling",
+      "StartDefuel": "Start defuelling",
+      "Stop": "Stop",
+      "Tanks": {
+        "Feed1": "Feed 1",
+        "Feed2": "Feed 2",
+        "Feed3": "Feed 3",
+        "Feed4": "Feed 4",
+        "LeftInner": "Left inner",
+        "LeftMid": "Left mid",
+        "LeftOuter": "Left outer",
+        "LeftWing": "Left wing",
+        "RightInner": "Right inner",
+        "RightMid": "Right mid",
+        "RightOuter": "Right outer",
+        "RightWing": "Right wing",
+        "Tail": "Tail",
+        "Trim": "Trim"
+      },
+      "Target": "Target fuel",
+      "ToDefuel": "To defuel",
+      "ToLoad": "To load",
       "TT": {
         "AircraftMustBeColdAndDarkToChangeRefuelTimes": "Aircraft Must Be On the Ground and Have Engines Shutdown to Change Refueling Duration",
         "FillBlockFuelFromSimBrief": "Fill Block Fuel from SimBrief"
@@ -156,6 +196,8 @@
       "Unavailable": "Unavailable"
     },
     "Payload": {
+      "Balance": "Balance",
+      "Boarding": "Boarding",
       "BoardingTime": "Boarding Time",
       "Cargo": "Cargo",
       "Current": "Current",
@@ -167,6 +209,19 @@
       "GSXPayloadSyncEnabled": "GSX Payload Sync Enabled",
       "GW": "GW",
       "GWCG": "GW CG",
+      "Holds": {
+        "Aft": "Aft hold",
+        "AftBaggage": "Aft baggage",
+        "AftContainer": "Aft container",
+        "Bulk": "Bulk",
+        "Fwd": "Fwd hold"
+      },
+      "Legend": {
+        "Boarded": "Boarded",
+        "Empty": "Empty",
+        "Planned": "Planned"
+      },
+      "Load": "Load",
       "LoadingTime": "Loading Time",
       "Passengers": "Passengers",
       "Planned": "Planned",
@@ -175,6 +230,7 @@
         "UpperDeck": "Upper",
         "CargoDeck": "Cargo"
       },
+      "StopBoarding": "Stop",
       "TT": {
         "AircraftMustBeColdAndDarkToChangeBoardingTimes": "Aircraft Must Be On the Ground and Have Engines Shutdown to Change Boarding Duration",
         "FillPayloadFromSimbrief": "Fill Payload Information from Simbrief",
@@ -747,6 +803,7 @@
       "ConfirmationDialogMsg": "Please confirm loading of preset.",
       "CurrentProcedureStep": "Current Procedure Step",
       "ExpediteLoading": "Fast loading (unrealistic):",
+      "Loading": "Loading",
       "PleaseConfirmLoadingOfPreset": "Please confirm loading of preset.",
       "Powered": "Powered",
       "ReadyPushback": "Ready for Pushback",
@@ -772,6 +829,7 @@
       "NewNameConfirmationDialogMsg": "Please confirm the new name for the lighting preset",
       "NoName": "No Name",
       "PleaseConfirmSavingPreset": "Please Confirm Saving Preset",
+      "Presets": "Presets",
       "SavePreset": "Save Preset",
       "SavingPreset": "Saving Preset",
       "SelectAnInteriorLightingPresetToLoadOrSave": "Select an interior lighting preset to load or save.",
@@ -839,7 +897,12 @@
   },
   "QuickControls": {
     "AlignAdirs": "Align ADIRS",
+    "Auto": "Auto",
+    "Brightness": "flyPad brightness",
+    "CabinLighting": "Cabin lighting",
     "FinishBoarding": "Finish Boarding",
+    "Off": "Off",
+    "On": "On",
     "OnScreenKeyboard": "OnScreen Keyboard",
     "SimBridge": "SimBridge",
     "SimBridgeConnected": "Connected",
@@ -1102,6 +1165,10 @@
     "Thu": "Thu",
     "Tue": "Tue",
     "Wed": "Wed"
+  },
+  "ToolBar": {
+    "Atc": "ATC",
+    "Navigation": "Navigation"
   },
   "VersionCheck": {
     "CurrentVersionText": "You are using the $edition edition with version:",

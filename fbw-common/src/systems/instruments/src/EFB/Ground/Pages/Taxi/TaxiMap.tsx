@@ -394,7 +394,7 @@ export const TaxiMap = ({
   return (
     <div
       ref={container}
-      className="relative h-full w-full overflow-hidden rounded-md"
+      className="relative h-full w-full overflow-hidden rounded-2xl"
       onMouseDown={(e) => view && (drag.current = { x: e.clientX, y: e.clientY, view })}
       onMouseMove={(e) => {
         // Moves the drawn canvas only
@@ -414,7 +414,7 @@ export const TaxiMap = ({
         className="absolute"
         style={{ left: -size.width * MARGIN, top: -size.height * MARGIN }}
       />
-      <div className="absolute right-2 top-2 flex flex-col space-y-2">
+      <div className="absolute right-4 top-4 flex flex-col space-y-2">
         {[
           { icon: <ZoomIn size={22} />, onClick: () => zoom(1.5), disabled: false },
           { icon: <ZoomOut size={22} />, onClick: () => zoom(1 / 1.5), disabled: false },
@@ -427,10 +427,8 @@ export const TaxiMap = ({
             key={i}
             type="button"
             disabled={b.disabled}
-            className={`flex h-10 w-10 items-center justify-center rounded-md border-2 border-theme-accent bg-theme-body ${
-              b.disabled
-                ? 'text-theme-unselected opacity-50'
-                : 'text-theme-text hover:border-theme-highlight hover:text-theme-highlight'
+            className={`flex h-12 w-12 items-center justify-center rounded-xl border border-m3-outline bg-m3-ground ${
+              b.disabled ? 'text-m3-muted opacity-50' : 'text-m3-text hover:bg-m3-tile'
             }`}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={b.onClick}

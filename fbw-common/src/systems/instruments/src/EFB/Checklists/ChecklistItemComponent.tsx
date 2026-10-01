@@ -42,12 +42,15 @@ export const ChecklistItemComponent = ({ item, index }: ChecklistItemComponentPr
     .some((item) => item.completed && (autoFillChecklists ? !item.hasCondition : true));
   const itemImproperlyUnchecked = index === firstIncompleteIdx && itemCheckedAfterIncompleteItems;
 
-  let color = 'text-theme-text';
+  // done items step back (muted name, tonal result); an open item left behind done ones is red
+  let color = 'text-white';
   if (isItemCompleted && !isLine) {
-    color = 'text-utility-green';
+    color = 'text-m3-muted';
   } else if (itemImproperlyUnchecked && !isLine) {
-    color = 'text-utility-red';
+    color = 'text-m3-on-error';
   }
+  const resultColor = isItemCompleted && !isLine ? 'text-m3-on-primary-container' : 'text-current';
+  const isAutoItem = !!autoFillChecklists && !!item.condition;
 
   // If the user interacts with an auto complete item 3 times in a row, show a toast message
   // to point out that autofill is enabled and the item cannot be interacted with.
@@ -106,37 +109,41 @@ export const ChecklistItemComponent = ({ item, index }: ChecklistItemComponentPr
 
   return (
     <div
-      className={`flex flex-row items-center space-x-4 py-2 ${isSublistItem ? 'px-12' : 'px-0'} ${color}`}
+      className={`flex min-h-[48px] flex-row items-center py-1 ${isSublistItem ? 'pl-10' : 'pl-0'} ${color}`}
       onClick={handleChecklistItemClick}
     >
       {item.item && isAnyItemType && (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center border-4 border-current text-current">
-          {!!autoFillChecklists && item.condition && (
+        <div
+          className={`mr-4 box-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+            isAutoItem
+              ? isItemCompleted
+                ? 'bg-m3-primary-container text-m3-on-primary-container'
+                : 'border-2 border-m3-outline text-m3-muted'
+              : isItemCompleted
+                ? 'bg-m3-primary text-m3-on-primary'
+                : 'border-2 border-current'
+          }`}
+        >
+          {isAutoItem && (
             <Link45deg
-              size={40}
-              className={`${!autoCheckable && 'opacity-40'} ${checklistShake && 'shake text-utility-red'}`}
+              size={20}
+              className={`${!autoCheckable && 'opacity-40'} ${checklistShake && 'shake text-m3-on-error'}`}
             />
-          )}{' '}
-          {isItemCompleted && (!autoFillChecklists || (autoFillChecklists && !item.condition)) && <CheckLg size={40} />}
+          )}
+          {isItemCompleted && !isAutoItem && <CheckLg size={20} />}
         </div>
       )}
-      {isLine && (
-        <div className="flex w-full flex-row items-end text-current">
-          <div className="mx-0 mb-1.5 h-1.5 w-full bg-current text-current" />
-        </div>
-      )}
+      {isLine && <div className="my-3 h-0.5 w-full rounded-full bg-m3-outline" />}
       {isSubListHeader && (
-        <div className="flex w-full flex-row items-end text-current">
-          <div className="whitespace-nowrap text-2xl">{item.item}</div>
+        <div className="flex w-full flex-row items-end pt-3">
+          <div className="whitespace-nowrap text-base font-bold tracking-widest text-m3-muted">{item.item}</div>
         </div>
       )}
       {!isLine && !isSubListHeader && (
-        <div className="flex w-full flex-row items-end text-current">
-          <div className="whitespace-nowrap text-current">
-            {item.item} {isItemCompleted && ':'}
-          </div>
-          <div className={`mb-1.5 h-0.5 bg-current text-current ${isItemCompleted ? 'mx-2 w-0' : 'mx-4 w-full'}`} />
-          <div className="whitespace-nowrap text-current">{actionResultString}</div>
+        <div className="flex w-full flex-row items-center text-current">
+          <div className="whitespace-nowrap text-lg font-bold text-current">{item.item}</div>
+          <div className="mx-4 mt-3 min-w-[24px] grow border-b-2 border-dotted border-current opacity-50" />
+          <div className={`whitespace-nowrap text-lg font-bold ${resultColor}`}>{actionResultString}</div>
         </div>
       )}
     </div>

@@ -11,17 +11,15 @@ interface SelectItemProps {
   className?: string;
 }
 
+/** The look of one segment of the group: the selected one is tonal, as in the Material kit (M3Segmented) */
 const activeButtonRow = ({ disabled, selected }: Partial<SelectItemProps>) => {
   if (disabled) {
-    return 'flex items-center justify-center px-6 py-2 text-theme-unselected bg-opacity-0 hover:bg-opacity-100 transition duration-300 cursor-not-allowed';
+    return 'flex items-center justify-center px-5 h-10 text-base font-semibold text-m3-muted opacity-40 cursor-not-allowed';
   }
   if (selected) {
-    return 'flex items-center justify-center px-6 py-2 bg-theme-highlight bg-opacity-100 text-theme-body';
+    return 'flex items-center justify-center px-5 h-10 text-base font-bold bg-m3-primary-container text-m3-on-primary-container';
   }
-  if (!selected) {
-    return 'flex items-center justify-center px-6 py-2 bg-opacity-0 hover:bg-opacity-100 transition duration-300';
-  }
-  return undefined;
+  return 'flex items-center justify-center px-5 h-10 text-base font-semibold text-m3-text hover:bg-m3-tile transition duration-100';
 };
 
 export const SelectItem: React.FC<SelectItemProps> = ({ children, className, disabled, onSelect, selected }) => (
@@ -32,7 +30,7 @@ export const SelectItem: React.FC<SelectItemProps> = ({ children, className, dis
 
 export const SelectGroup: React.FC<{ className?: string }> = ({ children, className }) => (
   <div
-    className={`flex flex-row justify-between divide-x divide-theme-accent overflow-hidden rounded-md border border-theme-accent ${className}`}
+    className={`flex flex-row justify-between divide-x divide-m3-outline overflow-hidden rounded-full border border-m3-outline ${className}`}
   >
     {children}
   </div>
@@ -40,7 +38,7 @@ export const SelectGroup: React.FC<{ className?: string }> = ({ children, classN
 
 export const VerticalSelectGroup: React.FC<{ className?: string }> = ({ children, className }) => (
   <div
-    className={`flex flex-col divide-y divide-theme-accent overflow-hidden rounded-md border border-theme-accent ${className}`}
+    className={`flex flex-col divide-y divide-m3-outline overflow-hidden rounded-2xl border border-m3-outline ${className}`}
   >
     {children}
   </div>

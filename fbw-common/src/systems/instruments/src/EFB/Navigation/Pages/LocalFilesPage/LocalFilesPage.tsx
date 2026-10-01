@@ -73,7 +73,7 @@ export const LocalFilesPage = () => {
       return (
         <div
           className="flex h-content-section-reduced flex-col items-center justify-center space-y-8
-                            rounded-lg border-2 border-theme-accent"
+                            rounded-2xl bg-m3-card-low text-m3-on-primary-container"
         >
           <h1>{t('NavigationAndCharts.LocalFiles.EstablishingConnection')}</h1>
           <CloudArrowDown size={40} className="animate-bounce" />
@@ -83,14 +83,13 @@ export const LocalFilesPage = () => {
       return <LocalFileChartUI />;
     case ConnectionState.FAILED:
       return (
-        <div className="flex h-content-section-reduced items-center justify-center rounded-lg border-2 border-theme-accent">
+        <div className="flex h-content-section-reduced items-center justify-center rounded-2xl bg-m3-card-low">
           <div className="space-y-4">
             <h1>{t('NavigationAndCharts.LocalFiles.FailedToEstablishConnection')}</h1>
             <button
               type="button"
-              className="flex w-full items-center justify-center space-x-4 rounded-md border-2
-                         border-theme-highlight bg-theme-highlight py-2 text-theme-body transition
-                         duration-100 hover:bg-theme-body hover:text-theme-highlight"
+              className="flex h-14 w-full items-center justify-center space-x-4 rounded-2xl bg-m3-primary
+                         text-lg font-bold text-m3-on-primary transition duration-100 hover:brightness-110"
               onClick={handleConnectionRetry}
             >
               {t('NavigationAndCharts.LocalFiles.Retry')}

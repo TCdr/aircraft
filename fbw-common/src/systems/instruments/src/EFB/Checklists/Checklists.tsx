@@ -4,7 +4,7 @@
 
 import React, { useEffect } from 'react';
 import { usePersistentNumberProperty } from '@flybywiresim/fbw-sdk-react';
-import { Link45deg } from 'react-bootstrap-icons';
+import { CheckLg, Link45deg } from 'react-bootstrap-icons';
 import { PromptModal, ScrollableContainer, t, useModals } from '@flybywiresim/flypad';
 import { ChecklistJsonDefinition } from '@flybywiresim/checklists';
 import { ChecklistPage } from './ChecklistsPage';
@@ -15,6 +15,7 @@ import {
   setSelectedChecklistIndex,
 } from '../Store/features/checklists';
 import { RootState, store, useAppDispatch, useAppSelector } from '../Store/store';
+import { M3Button, M3Card, M3Chip } from '../UtilComponents/Material/Material';
 
 /**
  * @brief Get the relevant checklist indices based on the current flight phase.
@@ -146,30 +147,47 @@ export const Checklists = () => {
   };
 
   /**
-   * @brief Get the css/tailwind class name for the checklist tab-button
-   * @param index - The index of the checklist tab.
+   * @brief The number of done items of a checklist and its number of items (lines and sub-list headers aside).
+   * @param index - The index of the checklist.
    */
-  const getTabClassName = (index: number) => {
+  const getItemCounts = (index: number) => {
+    let done = 0;
+    let total = 0;
+    aircraftChecklists[index].items.forEach((item, itemIdx) => {
+      if (item.type === 'LINE' || item.type === 'SUBLISTHEADER') return;
+      total++;
+      if (checklists[index].items[itemIdx]?.completed) done++;
+    });
+    return { done, total };
+  };
+
+  /**
+   * @brief The mark of a checklist in the list: done (marked complete), all items done but not yet marked (amber),
+   * the next one of the flight phase when autofill is on (link), or open.
+   * @param index - The index of the checklist.
+   */
+  const getChecklistMark = (index: number) => {
     const isChecklistCompleted = areAllChecklistItemsCompleted(index);
-    const isMarkedCompleted = checklists[index].markedCompleted;
-    const isSelected = index === selectedChecklistIndex;
     const isIndexRelevant = relevantChecklistIndices.includes(index);
-    if (isSelected && isChecklistCompleted && isIndexRelevant) {
-      return isMarkedCompleted
-        ? 'bg-utility-green font-bold text-theme-body'
-        : 'bg-utility-amber font-bold text-theme-body';
-    }
-    if (isSelected) {
-      return 'bg-theme-highlight font-bold text-theme-body';
-    }
     if (isChecklistCompleted && isIndexRelevant) {
-      return isMarkedCompleted
-        ? 'bg-theme-body border-2 border-utility-green font-bold text-utility-green ' +
-            'hover:text-theme-body hover:bg-utility-green'
-        : 'bg-theme-body border-2 border-utility-amber ' +
-            'font-bold text-utility-amber hover:text-theme-body hover:bg-utility-amber';
+      return (
+        <span
+          className={`flex h-7 w-7 items-center justify-center rounded-full ${
+            checklists[index].markedCompleted ? 'bg-m3-primary text-m3-on-primary' : 'bg-m3-on-warn text-m3-on-primary'
+          }`}
+        >
+          <CheckLg size={16} />
+        </span>
+      );
     }
-    return 'bg-theme-accent border-2 border-theme-accent font-bold text-theme-text hover:bg-theme-highlight hover:text-theme-body';
+    if (!!autoFillChecklists && firstRelevantUnmarkedIdx === index) {
+      return (
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-m3-primary text-m3-on-primary">
+          <Link45deg size={18} />
+        </span>
+      );
+    }
+    return <span className="box-border h-6 w-6 rounded-full border-2 border-m3-outline" />;
   };
 
   /**
@@ -228,40 +246,57 @@ export const Checklists = () => {
 
   return (
     <>
-      <h1 className="mb-4 font-bold">{t('Checklists.Title')}</h1>
-      <div className="flex h-content-section-reduced flex-row space-x-6">
-        <div className="flex w-1/4 shrink-0 flex-col justify-between">
-          <ScrollableContainer innerClassName="space-y-4" height={46}>
-            {aircraftChecklists.map((cl, index) => (
-              <div
-                key={cl.name}
-                className={`flex h-12 w-full items-center justify-center rounded-md transition duration-100 ${getTabClassName(index)}`}
-                onClick={() => handleClick(index)}
-              >
-                {!!autoFillChecklists && firstRelevantUnmarkedIdx === index && <Link45deg size={24} />} {cl.name}
-              </div>
-            ))}
-          </ScrollableContainer>
+      <div className="mb-4 flex flex-row items-center">
+        <h1 className="grow font-bold">{t('Checklists.Title')}</h1>
+        {!!autoFillChecklists && (
+          <M3Chip tone="active" icon={<Link45deg size={18} />}>
+            {t('Settings.Realism.AutofillChecklists')}
+          </M3Chip>
+        )}
+      </div>
+      <div className="flex h-content-section-reduced flex-row overflow-hidden">
+        <div className="mr-4 flex w-[340px] shrink-0 flex-col">
+          <M3Card className="min-h-0 flex-1 p-2">
+            <ScrollableContainer innerClassName="space-y-1" height={46}>
+              {aircraftChecklists.map((cl, index) => {
+                const selected = index === selectedChecklistIndex;
+                const counts = getItemCounts(index);
+                const done = areAllChecklistItemsCompleted(index) && relevantChecklistIndices.includes(index);
+                return (
+                  <div
+                    key={cl.name}
+                    className={`flex h-12 w-full cursor-pointer flex-row items-center rounded-xl px-3 transition duration-100 ${
+                      selected ? 'bg-m3-primary-container' : 'hover:bg-m3-tile'
+                    }`}
+                    onClick={() => handleClick(index)}
+                  >
+                    <span className="mr-3 flex w-7 shrink-0 justify-center">{getChecklistMark(index)}</span>
+                    <span
+                      className={`grow truncate text-sm font-bold ${
+                        selected ? 'text-m3-on-primary-container' : done ? 'text-m3-muted' : 'text-m3-text'
+                      }`}
+                    >
+                      {cl.name}
+                    </span>
+                    <span
+                      className={`ml-2 text-xs font-bold ${selected ? 'text-m3-on-primary-container' : 'text-m3-muted'}`}
+                    >
+                      {`${counts.done}/${counts.total}`}
+                    </span>
+                  </div>
+                );
+              })}
+            </ScrollableContainer>
+          </M3Card>
 
-          <button
-            type="button"
-            className="flex h-12 items-center justify-center rounded-md border-2 border-utility-red
-                                   bg-theme-body font-bold text-utility-red transition duration-100
-                                   hover:bg-utility-red hover:text-theme-body"
-            onClick={handleResetAllConfirmation}
-          >
-            {t('Checklists.ResetAll')}
-          </button>
-
-          <button
-            type="button"
-            className="flex h-12 items-center justify-center rounded-md border-2 border-utility-red
-                                   bg-theme-body font-bold text-utility-red transition duration-100
-                                   hover:bg-utility-red hover:text-theme-body"
-            onClick={handleResetChecklist}
-          >
-            {t('Checklists.ResetChecklist')}
-          </button>
+          <div className="mt-3 flex shrink-0 flex-row">
+            <M3Button tone="danger" className="!h-12 flex-1" onClick={handleResetChecklist}>
+              <span className="text-base font-bold text-current">{t('Checklists.ResetChecklist')}</span>
+            </M3Button>
+            <M3Button tone="danger" className="ml-2 !h-12 flex-1" onClick={handleResetAllConfirmation}>
+              <span className="text-base font-bold text-current">{t('Checklists.ResetAll')}</span>
+            </M3Button>
+          </div>
         </div>
 
         <ChecklistPage />

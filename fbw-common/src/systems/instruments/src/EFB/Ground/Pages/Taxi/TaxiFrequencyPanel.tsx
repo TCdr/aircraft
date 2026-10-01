@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, Fragment, useEffect, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { useEventBus } from '@flybywiresim/flypad';
 import { Broadcast, X } from 'react-bootstrap-icons';
 import { t } from '../../../Localization/translation';
@@ -59,7 +59,7 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
     return (
       <button
         type="button"
-        className="absolute bottom-2 left-2 flex h-10 flex-row items-center space-x-2 rounded-md border-2 border-utility-green bg-theme-body px-3 text-theme-text hover:text-utility-green"
+        className="absolute bottom-4 left-4 flex h-12 flex-row items-center space-x-2 rounded-xl border-2 border-utility-green bg-m3-ground px-4 text-sm font-semibold text-m3-text hover:text-utility-green"
         onClick={() => setOpen(true)}
       >
         <Broadcast size={18} />
@@ -82,12 +82,16 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
 
   // The rows keep their height (shrink-0): the box scrolls instead of squeezing them
   return (
-    <div className="absolute bottom-2 left-2 flex max-h-[calc(100%-1rem)] w-80 flex-col rounded-md border-2 border-utility-green bg-theme-body">
+    <div className="absolute bottom-4 left-4 flex max-h-[calc(100%-2rem)] w-80 flex-col rounded-xl border-2 border-utility-green bg-m3-ground">
       <div className="flex shrink-0 flex-row items-center justify-between px-3 pt-2">
         <span className="font-bold uppercase tracking-wider text-utility-green">
           {t('Ground.Taxi.Frequencies.Title')}
         </span>
-        <button type="button" className="text-theme-text hover:text-utility-green" onClick={() => setOpen(false)}>
+        <button
+          type="button"
+          className="bg-transparent text-m3-text hover:text-utility-green"
+          onClick={() => setOpen(false)}
+        >
           <X size={24} />
         </button>
       </div>
@@ -96,10 +100,10 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
           <button
             key={`${a.label}${a.icao}`}
             type="button"
-            className={`flex-1 rounded-md border-2 px-2 py-1 text-sm ${
+            className={`h-8 flex-1 rounded-full border px-2 text-sm font-semibold ${
               shown === a.icao
-                ? 'border-utility-green bg-utility-green text-theme-body'
-                : 'border-theme-accent text-theme-text hover:border-utility-green'
+                ? 'border-utility-green bg-utility-green text-m3-ground'
+                : 'border-m3-outline bg-transparent text-m3-text hover:border-utility-green'
             }`}
             onClick={() => setShown(a.icao)}
           >
@@ -108,19 +112,20 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
         ))}
       </div>
       <div className="min-h-0 overflow-y-auto px-3 pb-2">
-        {status && <span className="text-theme-unselected">{status}</span>}
-        <div className="grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1">
-          {groups.map((g) => (
-            <Fragment key={g.label}>
-              <span className="font-bold text-utility-green">{g.label}</span>
-              <div className="grid grid-cols-2 gap-x-3 font-mono text-theme-text">
-                {g.frequencies.map((f) => (
-                  <span key={f.mhz}>{f.mhz.toFixed(3)}</span>
-                ))}
-              </div>
-            </Fragment>
-          ))}
-        </div>
+        {status && <span className="text-sm text-m3-muted">{status}</span>}
+        {/* rows, not a grid with gaps: the sim's rendering engine ignores the gap property */}
+        {groups.map((g) => (
+          <div key={g.label} className="flex flex-row py-0.5">
+            <span className="w-[4.5rem] shrink-0 font-bold text-utility-green">{g.label}</span>
+            <div className="flex min-w-0 flex-1 flex-row flex-wrap font-mono text-m3-text">
+              {g.frequencies.map((frequency) => (
+                <span key={frequency.mhz} className="w-1/2">
+                  {frequency.mhz.toFixed(3)}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

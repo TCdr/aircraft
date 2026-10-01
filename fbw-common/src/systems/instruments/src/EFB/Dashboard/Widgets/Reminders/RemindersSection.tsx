@@ -14,20 +14,19 @@ interface RemindersSectionProps {
 }
 
 export const RemindersSection: FC<RemindersSectionProps> = ({ title, children, pageLinkPath, noLink }) => (
-  <div className="flex flex-col border-b-2 border-gray-700 pb-6">
-    <div className="mb-2 flex flex-row items-center justify-between">
-      <h2 className="font-medium">{title}</h2>
-
+  <div className="flex flex-col rounded-2xl bg-m3-card px-4 py-3">
+    <div className="mb-2 flex h-8 flex-row items-center">
+      <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">{title}</span>
+      <div className="grow" />
       {!noLink && (
         <Link
           to={pageLinkPath}
-          className="flex items-center border-b-2 border-theme-highlight text-theme-highlight opacity-80 transition duration-100 hover:opacity-100"
+          className="flex h-8 flex-row items-center rounded-full border border-m3-outline px-3 text-m3-text"
         >
-          <span className="font-manrope font-bold text-theme-highlight">
+          <span className="mr-1 text-xs font-semibold text-m3-text">
             {t('Dashboard.ImportantInformation.GoToPage')}
           </span>
-
-          <ArrowRight className="fill-current" />
+          <ArrowRight className="fill-current" size={14} />
         </Link>
       )}
     </div>
