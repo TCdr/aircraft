@@ -45,4 +45,35 @@ describe('ISIS unit power-up', () => {
     unit.update(true, 0);
     expect(unit.state).toBe(IsisUnitState.SelfTest);
   });
+
+  it('reports a power-up only when the unit was off', () => {
+    const unit = new IsisPowerUnit(true);
+    expect(unit.update(false, 1)).toBe(false);
+    // power on: a power-up, once
+    expect(unit.update(true, 0)).toBe(true);
+    expect(unit.update(true, 1)).toBe(false);
+    for (let i = 0; i < 92; i++) {
+      expect(unit.update(true, 1)).toBe(false);
+    }
+    expect(unit.state).toBe(IsisUnitState.On);
+
+    // a short power loss (standby): no power-up when the power comes back
+    expect(unit.update(false, 0)).toBe(false);
+    expect(unit.update(true, 5)).toBe(false);
+    expect(unit.state).toBe(IsisUnitState.On);
+
+    // a long one: the unit goes off, the next power is a power-up
+    unit.update(false, 0);
+    for (let i = 0; i < 12; i++) {
+      unit.update(false, 1);
+    }
+    expect(unit.state).toBe(IsisUnitState.Off);
+    expect(unit.update(true, 0)).toBe(true);
+  });
+
+  it('does not report a power-up at a powered spawn', () => {
+    const unit = new IsisPowerUnit(false);
+    expect(unit.update(true, 0)).toBe(false);
+    expect(unit.state).toBe(IsisUnitState.On);
+  });
 });
