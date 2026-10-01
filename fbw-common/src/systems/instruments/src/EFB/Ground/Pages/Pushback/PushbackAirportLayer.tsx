@@ -58,7 +58,7 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
     return () => clearInterval(interval);
   }, [size.width, size.height]);
 
-  // The airport the aircraft is at, among the flight plan's
+  // The airport the aircraft is at, among the flight plan's (looked up again when the centre moves by ~100 m)
   const centerKey = `${center.lat.toFixed(3)},${center.long.toFixed(3)}`;
   useEffect(() => {
     let current = true;
@@ -162,7 +162,7 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
         ctx.fillText(stand.name, x, y + 1);
       }
     }
-  }, [airport, size.width, size.height, centerKey, Math.round(headingTrue), pxPerMetre]);
+  }, [airport, size.width, size.height, center.lat, center.long, headingTrue, pxPerMetre]);
 
   return (
     <div ref={container} className="pointer-events-none absolute inset-0">
