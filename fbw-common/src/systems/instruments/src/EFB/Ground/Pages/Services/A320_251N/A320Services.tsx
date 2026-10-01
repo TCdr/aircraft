@@ -3,24 +3,23 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /* eslint-disable no-console */
-import React, { FC, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { GPUControlEvents, usePersistentNumberProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import {
   ArchiveFill,
+  BoxSeam,
   ConeStriped,
   DoorClosedFill,
+  DoorOpenFill,
+  Fan,
   HandbagFill,
   PersonPlusFill,
   PlugFill,
-  TriangleFill as Chock,
   Truck,
-  VinylFill as Wheel,
-  Fan,
 } from 'react-bootstrap-icons';
 import { ActionCreatorWithOptionalPayload } from '@reduxjs/toolkit';
 import {
   t,
-  GroundServiceOutline,
   useAppDispatch,
   useAppSelector,
   setBoarding1DoorButtonState,
@@ -38,26 +37,10 @@ import {
   useEventBus,
 } from '@flybywiresim/flypad';
 import { GsxServiceId, GsxServiceLook, gsxServiceLook, useGsxRemote } from '../GsxRemote';
-import { GsxServicesPanel, gsxServiceStatus, triggerGsxService } from '../GsxServicesPanel';
-
-interface ServiceButtonWrapperProps {
-  className?: string;
-  xl?: number;
-  xr?: number;
-  y?: number;
-  /** In the flow of its parent instead of at an absolute position */
-  inline?: boolean;
-}
-
-// This groups buttons and sets a border and divider line
-const ServiceButtonWrapper: FC<ServiceButtonWrapperProps> = ({ children, className, xl, xr, y, inline }) => (
-  <div
-    className={`flex flex-col divide-y-2 divide-theme-accent overflow-hidden rounded-xl border-2 border-theme-accent ${className}`}
-    style={inline ? undefined : { position: 'absolute', left: xl, right: xr, top: y }}
-  >
-    {children}
-  </div>
-);
+import { gsxServiceStatus, triggerGsxService } from '../GsxServicesPanel';
+import { M3Chip, M3Tone } from '../../../../UtilComponents/Material/Material';
+import { PlanformTag } from '../FuselagePlanform';
+import { doorRow, equipmentRow, SERVICE_LOOKS, ServiceLook, ServicesLayout } from '../ServicesLayout';
 
 enum ServiceButton {
   CabinLeftDoor,
@@ -102,60 +85,6 @@ const GSX_LOOK_STATES: Record<GsxServiceLook, ServiceButtonState> = {
   released: ServiceButtonState.RELEASED,
 };
 
-interface GroundServiceButtonProps {
-  name: string;
-  state: ServiceButtonState;
-  onClick: () => void;
-  className?: string;
-  /** What GSX does with the service, under the name */
-  caption?: string;
-  /** The progress of the GSX service, 0 to 1 (a bar under the name) */
-  progress?: number | null;
-}
-
-// Button styles based on ServiceButtonState enum
-const buttonsStyles: Record<ServiceButtonState, string> = {
-  [ServiceButtonState.HIDDEN]: '',
-  [ServiceButtonState.DISABLED]: 'opacity-20 pointer-events-none',
-  [ServiceButtonState.INACTIVE]:
-    'hover:bg-theme-highlight text-theme-text hover:text-theme-secondary transition duration-200 disabled:bg-grey-600',
-  [ServiceButtonState.CALLED]: 'text-white bg-amber-600 border-amber-600 hover:bg-amber-400',
-  [ServiceButtonState.ACTIVE]: 'text-white bg-green-700 border-green-700 hover:bg-green-500 hover:text-theme-secondary',
-  [ServiceButtonState.RELEASED]: 'text-white bg-amber-600 border-amber-600 pointer-events-none',
-};
-
-const GroundServiceButton: React.FC<GroundServiceButtonProps> = ({
-  children,
-  name,
-  state,
-  onClick,
-  className,
-  caption,
-  progress,
-}) => {
-  if (state === ServiceButtonState.HIDDEN) {
-    return <></>;
-  }
-
-  return (
-    <div
-      className={`flex cursor-pointer flex-col p-6 ${buttonsStyles[state]} ${className}`}
-      onClick={state === ServiceButtonState.DISABLED ? undefined : onClick}
-    >
-      <div className="flex flex-row items-center space-x-6">
-        {children}
-        <h1 className="shrink-0 text-2xl font-medium text-current">{name}</h1>
-      </div>
-      {caption && <span className="mt-1 text-base text-current opacity-80">{caption}</span>}
-      {progress !== undefined && progress !== null && (
-        <div className="mt-2 h-1.5 w-full rounded bg-black/30">
-          <div className="h-1.5 rounded bg-current" style={{ width: `${Math.round(progress * 100)}%` }} />
-        </div>
-      )}
-    </div>
-  );
-};
-
 export const A320Services: React.FC = () => {
   const dispatch = useAppDispatch();
 
@@ -193,9 +122,17 @@ export const A320Services: React.FC = () => {
       return ServiceButtonState.HIDDEN;
     }
     const gsxService = GSX_SERVICE_OF_BUTTON[button];
-    return gsxService !== undefined
-      ? GSX_LOOK_STATES[gsxServiceLook(gsx.services.find((s) => s.id === gsxService))]
-      : state;
+    if (gsxService === undefined) {
+      return state;
+    }
+    const look = gsxServiceLook(gsx.services.find((s) => s.id === gsxService));
+    // GSX is idle on the jet bridge, stairs and GPU once their operation is done: the sim knows whether they are connected
+    const connectable =
+      button === ServiceButton.JetBridge || button === ServiceButton.Stairs || button === ServiceButton.Gpu;
+    if (connectable && (look === 'inactive' || look === 'disabled') && state >= ServiceButtonState.INACTIVE) {
+      return state;
+    }
+    return GSX_LOOK_STATES[look];
   };
 
   // Flight state
@@ -659,210 +596,254 @@ export const A320Services: React.FC = () => {
     }
   }, [groundServicesAvailable]);
 
-  const serviceIndicationCss = 'text-2xl font-bold text-utility-amber w-min';
+  // ---------------------------------------------------------------- the page (UtilComponents/Material)
+  const look = (state: ServiceButtonState): ServiceLook => SERVICE_LOOKS[state];
+  const shownLook = (button: ServiceButton, state: ServiceButtonState): ServiceLook =>
+    SERVICE_LOOKS[shownState(button, state)];
+  const gsxOf = (button: ServiceButton) => gsxStatus(button);
+  const doorIcon = (open: number) => (open >= 1 ? <DoorOpenFill size={18} /> : <DoorClosedFill size={18} />);
+  const click = (button: ServiceButton) => () => handleButtonClick(button);
+
+  const doors = [
+    doorRow(
+      'fwdL',
+      t('Ground.Services.DoorFwdL'),
+      doorIcon(cabinLeftDoorOpen),
+      cabinLeftDoorOpen,
+      look(boarding1DoorButtonState),
+      click(ServiceButton.CabinLeftDoor),
+    ),
+    doorRow(
+      'fwdR',
+      t('Ground.Services.DoorFwdR'),
+      doorIcon(cabinRightDoorOpen),
+      cabinRightDoorOpen,
+      look(boarding2DoorButtonState),
+      click(ServiceButton.CabinRightDoor),
+    ),
+    doorRow(
+      'aftL',
+      t('Ground.Services.DoorAftL'),
+      doorIcon(aftLeftDoorOpen),
+      aftLeftDoorOpen,
+      look(boarding3DoorButtonState),
+      click(ServiceButton.AftLeftDoor),
+    ),
+    doorRow(
+      'aftR',
+      t('Ground.Services.DoorAftR'),
+      doorIcon(aftRightDoorOpen),
+      aftRightDoorOpen,
+      look(serviceDoorButtonState),
+      click(ServiceButton.AftRightDoor),
+    ),
+    doorRow(
+      'cargoFwd',
+      t('Ground.Services.DoorCargoFwd'),
+      <BoxSeam size={18} />,
+      cargoDoorOpen,
+      look(cargo1DoorButtonState),
+      click(ServiceButton.CargoDoor),
+    ),
+  ];
+  const equipment = [
+    equipmentRow(
+      'jetBridge',
+      t('Ground.Services.JetBridge'),
+      <PersonPlusFill size={18} />,
+      shownLook(ServiceButton.JetBridge, jetWayButtonState),
+      click(ServiceButton.JetBridge),
+      { gsxStatus: gsxOf(ServiceButton.JetBridge).text, progress: gsxOf(ServiceButton.JetBridge).progress },
+    ),
+    equipmentRow(
+      'stairs',
+      t('Ground.Services.Stairs'),
+      <PersonPlusFill size={18} />,
+      shownLook(ServiceButton.Stairs, stairsButtonState),
+      click(ServiceButton.Stairs),
+      { gsxStatus: gsxOf(ServiceButton.Stairs).text, progress: gsxOf(ServiceButton.Stairs).progress },
+    ),
+    equipmentRow(
+      'fuel',
+      t('Ground.Services.FuelTruck'),
+      <Truck size={18} />,
+      shownLook(ServiceButton.FuelTruck, fuelTruckButtonState),
+      click(ServiceButton.FuelTruck),
+      {
+        activeStatus: t('Ground.Services.Refuelling'),
+        gsxStatus: gsxOf(ServiceButton.FuelTruck).text,
+        progress: gsxOf(ServiceButton.FuelTruck).progress,
+      },
+    ),
+    equipmentRow(
+      'gpu',
+      t('Ground.Services.ExternalPower'),
+      <PlugFill size={18} />,
+      shownLook(ServiceButton.Gpu, gpuButtonState),
+      click(ServiceButton.Gpu),
+      {
+        activeStatus: gpuAvail ? t('Ground.Services.Powered') : t('Ground.Services.Connected'),
+        gsxStatus: gsxOf(ServiceButton.Gpu).text,
+        progress: gsxOf(ServiceButton.Gpu).progress,
+      },
+    ),
+    equipmentRow(
+      'asu',
+      t('Ground.Services.AirStarterUnit'),
+      <Fan size={18} />,
+      look(asuButtonState),
+      click(ServiceButton.AirStarterUnit),
+      { activeStatus: t('Ground.Services.Running') },
+    ),
+    equipmentRow(
+      'catering',
+      t('Ground.Services.CateringTruck'),
+      <ArchiveFill size={18} />,
+      shownLook(ServiceButton.CateringTruck, cateringButtonState),
+      click(ServiceButton.CateringTruck),
+      { gsxStatus: gsxOf(ServiceButton.CateringTruck).text, progress: gsxOf(ServiceButton.CateringTruck).progress },
+    ),
+    equipmentRow(
+      'baggage',
+      t('Ground.Services.BaggageTruck'),
+      <HandbagFill size={18} />,
+      shownLook(ServiceButton.BaggageTruck, baggageButtonState),
+      click(ServiceButton.BaggageTruck),
+    ),
+  ].filter((row) => shownLook(ServiceButton.BaggageTruck, baggageButtonState) !== 'hidden' || row.key !== 'baggage');
+
+  const toneOf = (button: ServiceButton, state: ServiceButtonState): M3Tone => {
+    const l = shownLook(button, state);
+    return l === 'active' ? 'active' : l === 'called' || l === 'released' ? 'busy' : 'idle';
+  };
+  const fuelProgress = gsxOf(ServiceButton.FuelTruck).progress;
+  const planformTags: PlanformTag[] = [
+    {
+      label: gpuAvail ? t('Ground.Services.TagGpuPowered') : 'GPU',
+      tone: gpuAvail ? 'active' : toneOf(ServiceButton.Gpu, gpuButtonState),
+      side: 'R',
+      at: 40,
+    },
+    {
+      label: t('Ground.Services.TagBridge'),
+      tone: toneOf(ServiceButton.JetBridge, jetWayButtonState),
+      side: 'L',
+      at: 140,
+    },
+    {
+      label: t('Ground.Services.TagStairs'),
+      tone: toneOf(ServiceButton.Stairs, stairsButtonState),
+      side: 'L',
+      at: 200,
+    },
+    {
+      label:
+        fuelProgress !== null
+          ? `${t('Ground.Services.TagFuel')} ${Math.round(fuelProgress * 100)} %`
+          : t('Ground.Services.TagFuel'),
+      tone: toneOf(ServiceButton.FuelTruck, fuelTruckButtonState),
+      side: 'R',
+      at: 330,
+    },
+    {
+      label: t('Ground.Services.TagCatering'),
+      tone: toneOf(ServiceButton.CateringTruck, cateringButtonState),
+      side: 'R',
+      at: 140,
+    },
+    { label: 'ASU', tone: look(asuButtonState) === 'active' ? 'active' : 'idle', side: 'R', at: 230 },
+  ];
+  if (pushBackAttached) {
+    planformTags.push({ label: 'TUG', tone: 'busy', side: 'L', at: 12 });
+  }
+
+  const openDoorCount = doors.filter((d) => d.tone === 'active').length;
+  const chips = (
+    <>
+      {gpuAvail ? (
+        <M3Chip tone="active" icon={<PlugFill size={14} />}>
+          {t('Ground.Services.ChipGpu')}
+        </M3Chip>
+      ) : null}
+      {pushBackAttached ? (
+        <M3Chip tone="busy" icon={<Truck size={14} />}>
+          {t('Ground.Services.ChipTug')}
+        </M3Chip>
+      ) : null}
+      {wheelChocksVisible ? <M3Chip tone="idle">{t('Ground.Services.WheelChocks')}</M3Chip> : null}
+      {conesVisible ? (
+        <M3Chip tone="idle" icon={<ConeStriped size={14} />}>
+          {t('Ground.Services.Cones')}
+        </M3Chip>
+      ) : null}
+      <M3Chip tone="idle">{`${openDoorCount} ${t(openDoorCount === 1 ? 'Ground.Services.ChipDoorOpen' : 'Ground.Services.ChipDoorsOpen')}`}</M3Chip>
+    </>
+  );
 
   return (
-    <div className="relative h-content-section-reduced">
-      <GroundServiceOutline
-        cabinLeftStatus={cabinLeftDoorOpen >= 1.0}
-        cabinRightStatus={cabinRightDoorOpen >= 1.0}
-        aftLeftStatus={aftLeftDoorOpen >= 1.0}
-        aftRightStatus={aftRightDoorOpen >= 1.0}
-        className="inset-x-0 mx-auto h-full w-full text-theme-text"
-      />
-
-      <ServiceButtonWrapper xr={930} y={24}>
-        {/* CABIN DOOR */}
-        <GroundServiceButton
-          name={t('Ground.Services.DoorFwd')}
-          state={boarding1DoorButtonState}
-          onClick={() => handleButtonClick(ServiceButton.CabinLeftDoor)}
-        >
-          <DoorClosedFill size={36} />
-        </GroundServiceButton>
-
-        {/* JET BRIDGE */}
-        <GroundServiceButton
-          name={t('Ground.Services.JetBridge')}
-          state={shownState(ServiceButton.JetBridge, jetWayButtonState)}
-          caption={gsxStatus(ServiceButton.JetBridge).text || undefined}
-          progress={gsxStatus(ServiceButton.JetBridge).progress}
-          onClick={() => handleButtonClick(ServiceButton.JetBridge)}
-        >
-          <PersonPlusFill size={36} />
-        </GroundServiceButton>
-
-        {/* JET STAIRS */}
-        <GroundServiceButton
-          name={t('Ground.Services.Stairs')}
-          state={shownState(ServiceButton.Stairs, stairsButtonState)}
-          caption={gsxStatus(ServiceButton.Stairs).text || undefined}
-          progress={gsxStatus(ServiceButton.Stairs).progress}
-          onClick={() => handleButtonClick(ServiceButton.Stairs)}
-        >
-          <PersonPlusFill size={36} />
-        </GroundServiceButton>
-
-        {/* Air Starter Unit */}
-        <GroundServiceButton
-          name={t('Ground.Services.AirStarterUnit')}
-          state={asuButtonState}
-          onClick={() => handleButtonClick(ServiceButton.AirStarterUnit)}
-        >
-          <Fan size={36} />
-        </GroundServiceButton>
-      </ServiceButtonWrapper>
-
-      <ServiceButtonWrapper xr={930} y={600} className="">
-        {/* AFT DOOR */}
-        <GroundServiceButton
-          name={t('Ground.Services.DoorAft')}
-          state={boarding3DoorButtonState}
-          onClick={() => handleButtonClick(ServiceButton.AftLeftDoor)}
-        >
-          <DoorClosedFill size={36} />
-        </GroundServiceButton>
-
-        {/* Wheel Chocks and Security Cones are only visual information. To reuse styling */}
-        {/* the ServiceButtonWrapper has been re-used. */}
-        {!!wheelChocksEnabled && (
-          <div
-            className={`flex cursor-pointer flex-row items-center space-x-6 p-6 ${wheelChocksVisible ? 'text-green-500' : 'text-gray-500'}`}
-          >
-            <div
-              className={`-ml-2 mr-[-2px] flex items-end justify-center ${wheelChocksVisible ? 'text-green-500' : 'text-gray-500'}`}
-            >
-              <Chock size="12" stroke="4" />
-              <Wheel size="36" stroke="5" className="-mx-0.5" />
-              <Chock size="12" stroke="4" />
-            </div>
-            <h1 className="shrink-0 text-2xl font-medium text-current">{t('Ground.Services.WheelChocks')}</h1>
-          </div>
-        )}
-
-        {!!conesEnabled && (
-          <div
-            className={`flex cursor-pointer flex-row items-center space-x-6 p-6 ${conesVisible ? 'text-green-500' : 'text-gray-500'}`}
-          >
-            <ConeStriped size="38" stroke="1.5" className="mr-2" />
-            <h1 className="shrink-0 text-2xl font-medium text-current">{t('Ground.Services.Cones')}</h1>
-          </div>
-        )}
-      </ServiceButtonWrapper>
-
-      {/* The right-hand group, with the GSX panel under it */}
-      <div className="absolute flex w-80 flex-col space-y-3" style={{ left: 900, top: 24 }}>
-        <ServiceButtonWrapper inline className="">
-          {/* CABIN DOOR */}
-          <GroundServiceButton
-            name={t('Ground.Services.DoorFwd')}
-            state={boarding2DoorButtonState}
-            onClick={() => handleButtonClick(ServiceButton.CabinRightDoor)}
-          >
-            <DoorClosedFill size={36} />
-          </GroundServiceButton>
-
-          {/* GPU */}
-          <GroundServiceButton
-            name={t('Ground.Services.ExternalPower')}
-            state={shownState(ServiceButton.Gpu, gpuButtonState)}
-            caption={gsxStatus(ServiceButton.Gpu).text || undefined}
-            progress={gsxStatus(ServiceButton.Gpu).progress}
-            onClick={() => handleButtonClick(ServiceButton.Gpu)}
-          >
-            <PlugFill size={36} />
-          </GroundServiceButton>
-
-          {/* CARGO DOOR */}
-          <GroundServiceButton
-            name={t('Ground.Services.DoorCargo')}
-            state={cargo1DoorButtonState}
-            onClick={() => handleButtonClick(ServiceButton.CargoDoor)}
-          >
-            <DoorClosedFill size={36} />
-          </GroundServiceButton>
-
-          {/* BAGGAGE TRUCK */}
-          <GroundServiceButton
-            name={t('Ground.Services.BaggageTruck')}
-            state={shownState(ServiceButton.BaggageTruck, baggageButtonState)}
-            onClick={() => handleButtonClick(ServiceButton.BaggageTruck)}
-          >
-            <HandbagFill size={36} />
-          </GroundServiceButton>
-        </ServiceButtonWrapper>
-        <GsxServicesPanel linked={gsxLinked} onLinkChange={setGsxLink} gsx={gsx} />
-      </div>
-
-      <ServiceButtonWrapper xl={900} y={600} className="">
-        {/* AFT DOOR */}
-        <GroundServiceButton
-          name={t('Ground.Services.DoorAft')}
-          state={serviceDoorButtonState}
-          onClick={() => handleButtonClick(ServiceButton.AftRightDoor)}
-        >
-          <DoorClosedFill size={36} />
-        </GroundServiceButton>
-
-        {/* CATERING TRUCK */}
-        <GroundServiceButton
-          name={t('Ground.Services.CateringTruck')}
-          state={shownState(ServiceButton.CateringTruck, cateringButtonState)}
-          caption={gsxStatus(ServiceButton.CateringTruck).text || undefined}
-          progress={gsxStatus(ServiceButton.CateringTruck).progress}
-          onClick={() => handleButtonClick(ServiceButton.CateringTruck)}
-        >
-          <ArchiveFill size={36} />
-        </GroundServiceButton>
-
-        {/* FUEL TRUCK */}
-        <GroundServiceButton
-          name={t('Ground.Services.FuelTruck')}
-          state={shownState(ServiceButton.FuelTruck, fuelTruckButtonState)}
-          caption={gsxStatus(ServiceButton.FuelTruck).text || undefined}
-          progress={gsxStatus(ServiceButton.FuelTruck).progress}
-          onClick={() => handleButtonClick(ServiceButton.FuelTruck)}
-        >
-          <Truck size={36} />
-        </GroundServiceButton>
-      </ServiceButtonWrapper>
-
-      {/* Visual indications for tug and doors */}
-      {!!pushBackAttached && (
-        <div className={serviceIndicationCss} style={{ position: 'absolute', left: 540, right: 0, top: 0 }}>
-          TUG
-        </div>
-      )}
-      {cabinLeftDoorOpen >= 1.0 && (
-        <div className={serviceIndicationCss} style={{ position: 'absolute', left: 500, right: 0, top: 100 }}>
-          CABIN
-        </div>
-      )}
-      {cabinRightDoorOpen >= 1.0 && (
-        <div className={serviceIndicationCss} style={{ position: 'absolute', left: 700, right: 0, top: 100 }}>
-          CABIN
-        </div>
-      )}
-      {aftLeftDoorOpen >= 1.0 && (
-        <div className={serviceIndicationCss} style={{ position: 'absolute', left: 500, right: 0, top: 665 }}>
-          CABIN
-        </div>
-      )}
-      {aftRightDoorOpen >= 1.0 && (
-        <div className={serviceIndicationCss} style={{ position: 'absolute', left: 700, right: 0, top: 665 }}>
-          CABIN
-        </div>
-      )}
-      {cargoDoorOpen >= 1.0 && (
-        <div className={serviceIndicationCss} style={{ position: 'absolute', left: 700, right: 0, top: 165 }}>
-          CARGO
-        </div>
-      )}
-      {!!gpuAvail && (
-        <div className={serviceIndicationCss} style={{ position: 'absolute', left: 700, right: 0, top: 60 }}>
-          GPU
-        </div>
-      )}
-    </div>
+    <ServicesLayout
+      chips={chips}
+      doors={doors}
+      equipment={equipment}
+      aircraft="A320-251N"
+      variant="a320"
+      planformDoors={[
+        {
+          key: 'fwdL',
+          label: '1 L',
+          side: 'L',
+          at: 110,
+          artId: 'FWD_Left_PS_PSS',
+          open: cabinLeftDoorOpen,
+          disabled: boarding1DoorButtonState === ServiceButtonState.DISABLED,
+          onClick: click(ServiceButton.CabinLeftDoor),
+        },
+        {
+          key: 'fwdR',
+          label: '1 R',
+          side: 'R',
+          at: 110,
+          artId: 'FWD_Right_CAT',
+          open: cabinRightDoorOpen,
+          disabled: boarding2DoorButtonState === ServiceButtonState.DISABLED,
+          onClick: click(ServiceButton.CabinRightDoor),
+        },
+        {
+          key: 'aftL',
+          label: '2 L',
+          side: 'L',
+          at: 642,
+          artId: 'AFT_Left_PS_PSS',
+          open: aftLeftDoorOpen,
+          disabled: boarding3DoorButtonState === ServiceButtonState.DISABLED,
+          onClick: click(ServiceButton.AftLeftDoor),
+        },
+        {
+          key: 'aftR',
+          label: '2 R',
+          side: 'R',
+          at: 642,
+          artId: 'AFT_Right_CAT',
+          open: aftRightDoorOpen,
+          disabled: serviceDoorButtonState === ServiceButtonState.DISABLED,
+          onClick: click(ServiceButton.AftRightDoor),
+        },
+      ]}
+      planformHolds={[
+        {
+          key: 'cargoFwd',
+          label: 'FWD',
+          side: 'C',
+          at: 150,
+          open: cargoDoorOpen,
+          disabled: cargo1DoorButtonState === ServiceButtonState.DISABLED,
+          onClick: click(ServiceButton.CargoDoor),
+        },
+      ]}
+      planformTags={planformTags}
+      gsx={gsx}
+      gsxLinked={gsxLinked}
+      onGsxLinkChange={setGsxLink}
+    />
   );
 };
