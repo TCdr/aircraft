@@ -178,6 +178,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OANS] The Captain and F/O OANS each display their own airport - @TCdr
 1. [A380X/ISIS] The SND shows INIT during its power-up self-test, like the SFD - @TCdr
 1. [A380X/ISIS] SFD/SND reconfiguration with the MODE pb: each ISIS displays the SFD or the SND - @TCdr
+1. [A380X/ND] Interactive ND: revision lists of the waypoints, NAVAIDs, airports and aircraft (FROM P.POS DIR TO, INSERT NEXT WPT, DELETE, DATA), DIRECT TO and INSERT NEXT WPT pages with KCCU entries, DUPLICATE page, latitude/longitude waypoints from a click on the map, INSERT / ERASE of the temporary flight plan; DIR TO UTC estimate on the MFD - @TCdr
 
 ## 2024.1.0
 

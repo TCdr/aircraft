@@ -87,6 +87,7 @@ import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
 import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
+import { NdInteractiveRevisions } from './NdInteractiveRevisions';
 import { RejectedAtcElement } from './AtcRouteClearance';
 import { FmsDatalinkConnection } from './FmsDatalinkConnection';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
@@ -272,6 +273,9 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** Loads the route clearances of the ATC mailbox in SEC 3 (FMC-A) */
   #atcRouteClearance: AtcRouteClearanceLoader<A380FlightPlanPerformanceData> | null = null;
+
+  /** The revisions of the interactive NDs (FMC-A) */
+  #ndInteractive: NdInteractiveRevisions<A380FlightPlanPerformanceData> | null = null;
 
   private static readonly noRejectedAtcElements = Subject.create<readonly RejectedAtcElement[]>([]);
 
@@ -513,6 +517,19 @@ export class FlightManagementComputer implements FmcInterface {
         // FCOM DSC-22-FMS-20-30 P 344: RTA NOT ALLOWED IN EO / IN GA
         rtaAllowed: () => !this.fmgc.data.engineOut.get() && this.flightPhase.get() !== FmgcFlightPhase.GoAround,
         beforeCruise: () => this.flightPhase.get() < FmgcFlightPhase.Cruise,
+      });
+      this.#ndInteractive = new NdInteractiveRevisions(this.bus, {
+        flightPlanInterface: this.flightPlanInterface,
+        entry: this,
+        presentPosition: () => {
+          const ppos = this.#navigation.getPpos();
+          return ppos && (ppos.lat !== 0 || ppos.long !== 0) ? ppos : null;
+        },
+        trueTrack: () => SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree'),
+        groundSpeed: () => this.#navigation.groundSpeed,
+        setRevisedWaypoint: (index, planIndex, isAltn) => this.setRevisedWaypoint(index, planIndex, isAltn),
+        resetRevisedWaypoint: () => this.resetRevisedWaypoint(),
+        showFmsErrorMessage: (type) => this.showFmsErrorMessage(type),
       });
     }
 

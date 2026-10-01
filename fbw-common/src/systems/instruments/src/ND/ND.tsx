@@ -32,7 +32,7 @@ import { ArcModePage } from './pages/arc';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
 import { FmMessages } from './FmMessages';
 import { Flag, FlagProps } from './shared/Flag';
-import { CanvasMap } from './shared/map/CanvasMap';
+import { CanvasMap, NdMapClick } from './shared/map/CanvasMap';
 import { NDPage } from './pages/NDPage';
 import { PlanModePage } from './pages/plan';
 import { RadioNavInfo } from './shared/RadioNavInfo';
@@ -83,6 +83,8 @@ export interface NDProps<T extends number> {
   modeChangeMessage: string;
 
   mapOptions?: Partial<MapOptions>;
+  /** Interactive ND: a click on the map in ARC, PLAN or ROSE-NAV mode */
+  onMapClick?: (click: NdMapClick) => void;
 
   fmMessages: FMMessage[];
 }
@@ -514,6 +516,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             x={Subject.create(384)}
             y={Subject.create(384)}
             options={this.props.mapOptions}
+            onClick={this.props.onMapClick}
           />
 
           {/* ND Vector graphics - top layer */}
