@@ -37,6 +37,7 @@ import { PowerStates, usePower } from '../Efb';
 import { PiAirplaneLandingFill } from 'react-icons/pi';
 import { AircraftContext } from '@flybywiresim/flypad';
 import { M3Switch } from '../UtilComponents/Material/Material';
+import { efbSetting, efbSimVar } from '../Utils/efbIndex';
 
 interface QuickSettingsButtonProps {
   onClick: () => void;
@@ -152,9 +153,13 @@ export const QuickControlsPane = ({
   const history = useHistory();
   const power = usePower();
 
-  const [brightnessSetting, setBrightnessSetting] = usePersistentNumberProperty('EFB_BRIGHTNESS', 0);
-  const [brightness] = useSimVar('L:A32NX_EFB_BRIGHTNESS', 'number', 500);
-  const [usingAutobrightness, setUsingAutobrightness] = usePersistentNumberProperty('EFB_USING_AUTOBRIGHTNESS', 1);
+  // the brightness of this tablet (see efbIndex)
+  const [brightnessSetting, setBrightnessSetting] = usePersistentNumberProperty(efbSetting('EFB_BRIGHTNESS'), 0);
+  const [brightness] = useSimVar(efbSimVar('L:A32NX_EFB_BRIGHTNESS'), 'number', 500);
+  const [usingAutobrightness, setUsingAutobrightness] = usePersistentNumberProperty(
+    efbSetting('EFB_USING_AUTOBRIGHTNESS'),
+    1,
+  );
   const [cabinAutoBrightness] = useSimVar('L:A32NX_CABIN_AUTOBRIGHTNESS', 'number', 500);
   const [cabinManualBrightness, setCabinManualBrightness] = usePersistentNumberProperty('CABIN_MANUAL_BRIGHTNESS', 0);
   const [usingCabinAutobrightness, setUsingCabinAutobrightness] = usePersistentNumberProperty(

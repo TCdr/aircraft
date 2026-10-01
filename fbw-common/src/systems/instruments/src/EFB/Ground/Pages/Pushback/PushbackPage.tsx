@@ -34,6 +34,7 @@ import {
   M3Switch,
 } from '../../../UtilComponents/Material/Material';
 import { PushbackMap } from './PushbackMap';
+import { isCaptainEfb } from '../../../Utils/efbIndex';
 
 export const PushbackPage = () => {
   const { showModal } = useModals();
@@ -140,8 +141,12 @@ export const PushbackPage = () => {
     setCmdHdgFactor(MathUtils.clamp(value, -1, 1));
   };
 
-  // called once when loading and unloading the page
+  // called once when loading and unloading the page (by the captain's flyPad only: the first officer opening or leaving
+  // the page must not stop a pushback)
   useEffect(() => {
+    if (!isCaptainEfb()) {
+      return undefined;
+    }
     // when loading the page
     stopMovement();
 
