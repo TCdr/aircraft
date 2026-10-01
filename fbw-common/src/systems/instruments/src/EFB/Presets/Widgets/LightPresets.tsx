@@ -16,6 +16,9 @@ import { TooltipWrapper } from '../../UtilComponents/TooltipWrapper';
 import { PlayFill, Save } from 'react-bootstrap-icons';
 import { M3_INPUT, M3Card, M3SectionHeader } from '../../UtilComponents/Material/Material';
 
+/** The IDs of the preset rows (the IDs of the WASM implementation). Add or remove numbers to add or remove rows */
+const PRESET_IDS = [1, 2, 3, 4, 5, 6, 7, 8];
+
 export const LightPresets = () => {
   // Manage names for presets in EFB only and always map them to the
   // preset IDs used in the WASM implementation.
@@ -81,8 +84,7 @@ export const LightPresets = () => {
         />
         <div className="min-h-0 flex-1 px-2">
           <ScrollableContainer height={47}>
-            {/* These the IDs for each row of presets. Add or remove numbers to add or remove rows */}
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            {PRESET_IDS.map((i) => (
               <SinglePreset
                 key={i}
                 presetID={i}
@@ -124,13 +126,15 @@ const AutoLoadConfiguration = (props: AutoLoadConfigurationProps) => {
     { value: 0, displayValue: t('Presets.InteriorLighting.AutoLoadNoneSelection') },
   ]);
 
-  // Creates the option list for the selections, ignoring any that are the default NoName title
+  // Creates the option list for the selections: every preset row, by its number and its name (also the unnamed ones,
+  // which used to be left out: with no named preset the list only offered "None")
   const generatePresetSelectionOptions = () => {
     const options: Array<{ value: number; displayValue: string }> = [
       { value: 0, displayValue: t('Presets.InteriorLighting.AutoLoadNoneSelection') },
     ];
-    props.namesMap.forEach((value, key) => {
-      options.push({ value: key, displayValue: value });
+    PRESET_IDS.forEach((id) => {
+      const name = props.namesMap.get(id);
+      options.push({ value: id, displayValue: `${id} - ${name || t('Presets.InteriorLighting.NoName')}` });
     });
     return options;
   };
