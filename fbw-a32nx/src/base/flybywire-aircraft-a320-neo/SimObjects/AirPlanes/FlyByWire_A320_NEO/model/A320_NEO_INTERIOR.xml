@@ -80,12 +80,12 @@
                 </DefaultTemplateParameters>
 
                 <UseTemplate Name="ASOBO_GT_Material_Emissive_Code">
-                    <EMISSIVE_CODE>(L:A32NX_EFB_BRIGHTNESS, number) 10 max 100 min 100 /</EMISSIVE_CODE>
+                    <EMISSIVE_CODE>(L:A32NX_EFB_2_BRIGHTNESS, number) 10 max 100 min 100 /</EMISSIVE_CODE>
                 </UseTemplate>
             </Component>
             <Component ID="PUSH_EFB_SIDE_R" Node="PUSH_EFB_SIDE_R">
                 <UseTemplate Name="ASOBO_GT_Push_Button">
-                    <LEFT_SINGLE_CODE>(&gt;H:A32NX_EFB_POWER)</LEFT_SINGLE_CODE>
+                    <LEFT_SINGLE_CODE>(&gt;H:A32NX_EFB_2_POWER)</LEFT_SINGLE_CODE>
                     <TOOLTIPID>EFB power</TOOLTIPID>
                 </UseTemplate>
             </Component>

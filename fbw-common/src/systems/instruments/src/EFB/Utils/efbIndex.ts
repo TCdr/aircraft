@@ -43,6 +43,16 @@ export function efbSimVar(name: string): string {
 }
 
 /**
+ * The per-tablet name of a flyPad interaction (H:) event: the captain's keeps its name, the first officer's has `_2`
+ * after `EFB` (A32NX_EFB_POWER -> A32NX_EFB_2_POWER), so a button on one tablet acts on that tablet only
+ * @param name the captain's name, starting with A32NX_EFB_
+ * @returns the name for this tablet
+ */
+export function efbEvent(name: string): string {
+  return efbIndex() === 1 ? name : name.replace(/^A32NX_EFB_/, 'A32NX_EFB_2_');
+}
+
+/**
  * The per-tablet key of a flyPad persistent setting: the captain's keeps its key, the first officer's has `_2` after
  * `EFB` (EFB_BRIGHTNESS -> EFB_2_BRIGHTNESS)
  * @param key the captain's key, starting with EFB_

@@ -4560,6 +4560,21 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
         - -1.0
         - 1.0
 
+- A32NX_EFB_BRIGHTNESS, A32NX_EFB_2_BRIGHTNESS
+    - Number (0 to 100)
+    - The screen brightness of the captain's flyPad, of the first officer's flyPad. Each flyPad is its own gauge
+      (`efb.html` on the texture `EFB`, `efb.html?Index=2` on the texture `EFB_R`), with its own pages, loaded data and
+      checklists; the first officer's has its own brightness settings (`EFB_2_BRIGHTNESS`, `EFB_2_USING_AUTOBRIGHTNESS`).
+
+- A32NX_EFB_POWER, A32NX_EFB_2_POWER
+    - H event
+    - The power button of the captain's flyPad, of the first officer's flyPad
+
+- A32NX_EFB_CHECKLIST_COMPLETE_ITEM, A32NX_EFB_2_CHECKLIST_COMPLETE_ITEM
+    - Bool
+    - Set to true to complete the next item of the open checklist of the captain's flyPad, of the first officer's
+      flyPad (e.g. from a hardware button); the flyPad sets it back to false.
+
 ## Non-Systems Related
 
 - `L:FBW_BUILD_EDITION`
