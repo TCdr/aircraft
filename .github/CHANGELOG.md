@@ -191,6 +191,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Fixed the checklists sometimes missing from the flyPad: the checklist file is now parsed before the flyPad stores the list - @TCdr
 1. [A380X/ISIS] The ISIS go back to their normal configuration (SFD on the upper ISIS, SND on the lower one) at each power-up - @TCdr
 1. [EFB] Fixed clicks in the quick controls opening the troubleshooting page when the status bar shows an issue - @TCdr
+1. [A380X/EFB] Independent flyPads: the first officer's flyPad has its own pages, OFP, checklists and brightness (the captain's runs the automatic actions such as closing the doors and GSX remote control) - @TCdr
 
 ## 2024.1.0
 

@@ -12,6 +12,7 @@ import {
   setChecklistItemCompletion,
   setSelectedChecklistIndex,
 } from '../Store/features/checklists';
+import { efbSimVar } from '../Utils/efbIndex';
 
 export const CompletionButton = () => {
   const dispatch = useAppDispatch();
@@ -43,7 +44,11 @@ export const CompletionButton = () => {
 
   // allows the completion button to be used via LVar - if the LVar is set to true, the button will be clicked,
   // and the LVar will be reset to false. This can be used, for example, to trigger completion from a hardware button.
-  const [completeItemVar, setCompleteItemVar] = useSimVar('L:A32NX_EFB_CHECKLIST_COMPLETE_ITEM', 'bool', 200);
+  const [completeItemVar, setCompleteItemVar] = useSimVar(
+    efbSimVar('L:A32NX_EFB_CHECKLIST_COMPLETE_ITEM'),
+    'bool',
+    200,
+  );
   useEffect(() => {
     setCompleteItemVar(false);
   }, []);
