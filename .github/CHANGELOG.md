@@ -189,6 +189,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Material 3 look of the Dashboard, the Dispatch pages (OFP, Overview, Printouts) and the Performance calculators (Takeoff, Top of Descent, Landing, Temperature Correction) - @TCdr
 1. [EFB] Material 3 look of the flyPad frame (navigation rail with labels, status bar, quick controls, section tabs) and of the Navigation, ATC, Failures, Checklists, Presets and Settings pages (settings in two panes) - @TCdr
 1. [EFB] Fixed the checklists sometimes missing from the flyPad: the checklist file is now parsed before the flyPad stores the list - @TCdr
+1. [A380X/EFB] Independent flyPads: the first officer's flyPad has its own pages, OFP, checklists and brightness (the captain's runs the automatic actions such as closing the doors and GSX remote control) - @TCdr
 
 ## 2024.1.0
 

@@ -2008,3 +2008,14 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - If ground power is avail or not
   - {number}
         - 1 - 4
+
+- `L:A32NX_EFB_BRIGHTNESS`, `L:A32NX_EFB_2_BRIGHTNESS`
+  - Number (0 to 100)
+  - The screen brightness of the captain's flyPad, of the first officer's flyPad. Each flyPad is its own gauge
+    (`efb.html`, `efb.html?Index=2` on the texture `SCREEN_EFB_FO`), with its own pages, loaded data and checklists;
+    the first officer's has its own brightness settings (`EFB_2_BRIGHTNESS`, `EFB_2_USING_AUTOBRIGHTNESS`).
+
+- `L:A32NX_EFB_CHECKLIST_COMPLETE_ITEM`, `L:A32NX_EFB_2_CHECKLIST_COMPLETE_ITEM`
+  - Bool
+  - Set to true to complete the next item of the open checklist of the captain's flyPad, of the first officer's
+    flyPad (e.g. from a hardware button); the flyPad sets it back to false.
