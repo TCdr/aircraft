@@ -41,6 +41,13 @@ const BAR_TONES: Record<M3Tone, string> = {
   idle: 'bg-m3-muted',
 };
 
+/**
+ * The Material look of a text field, for the className of SimpleInput and SelectInput (important utilities: these
+ * components bring their own border and background)
+ */
+export const M3_INPUT =
+  '!rounded-xl !border !border-m3-outline !bg-m3-ground !text-m3-text focus-within:!border-m3-primary';
+
 // ------------------------------------------------------------------------------------------ page and cards
 
 interface M3PageProps {
