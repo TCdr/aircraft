@@ -87,15 +87,50 @@ export class WaypointLayer implements MapLayer<NdSymbol> {
         this.paintFlightPlanWaypoint(true, context, rx, ry, symbol, mapParameters);
       } else {
         this.paintWaypoint(true, context, rx, ry, symbol);
-        if (this.options.waypointBoxing) {
-          this.paintWaypointBox(context, rx, ry, symbol);
-        }
       }
 
       if (symbol.constraints) {
         this.paintSymbolConstraints(context, rx, ry, symbol);
       }
     }
+
+    // The interactive areas under the cursor, all of them when several elements are there (A380 FCOM DSC-31-20-30-90 P 2)
+    if (this.options.waypointBoxing) {
+      for (const symbol of this.data) {
+        if (!WaypointLayer.isInteractive(symbol)) {
+          continue;
+        }
+        const [x, y] = mapParameters.coordinatesToXYy(symbol.location);
+        this.paintWaypointBox(context, x + mapWidth / 2, y + mapHeight / 2, symbol);
+      }
+    }
+  }
+
+  /** A waypoint, NAVAID or airport the flight crew can select on an interactive ND */
+  public static isInteractive(symbol: NdSymbol): boolean {
+    return (
+      BitFlags.isAny(
+        symbol.type,
+        NdSymbolTypeFlags.Waypoint |
+          NdSymbolTypeFlags.FlightPlan |
+          NdSymbolTypeFlags.VorDme |
+          NdSymbolTypeFlags.Vor |
+          NdSymbolTypeFlags.Dme |
+          NdSymbolTypeFlags.Ndb |
+          NdSymbolTypeFlags.Airport,
+      ) && !BitFlags.isAny(symbol.type, NdSymbolTypeFlags.Runway | NdSymbolTypeFlags.FixInfo)
+    );
+  }
+
+  /**
+   * The interactive area of a symbol: the symbol and its ident
+   * @param x the symbol position on the map canvas
+   * @param y the symbol position on the map canvas
+   * @returns left, top, width and height
+   */
+  public static interactiveArea(x: number, y: number, symbol: NdSymbol): [number, number, number, number] {
+    const textLength = Math.max(110, symbol.ident.length * 13.5);
+    return [x - 7, y - 10, 10 + 13 + textLength, 29];
   }
 
   private paintSymbolConstraints(context: CanvasRenderingContext2D, x: number, y: number, symbol: NdSymbol) {
@@ -173,11 +208,11 @@ export class WaypointLayer implements MapLayer<NdSymbol> {
     const px = this.canvasMap.pointerX;
     const py = this.canvasMap.pointerY;
 
-    const TEXT_LENGTH = Math.max(110, symbol.ident.length * 13.5);
-    if (px > x - 7 && px < x + 13 + TEXT_LENGTH && py > y - 10 && py < y + 22) {
+    const [left, top, width, height] = WaypointLayer.interactiveArea(x, y, symbol);
+    if (px > left && px < left + width && py > top && py < top + height) {
       context.strokeStyle = '#0ff';
       context.lineWidth = 1.75;
-      context.strokeRect(x - 7, y - 10, 10 + 13 + TEXT_LENGTH, 29);
+      context.strokeRect(left, top, width, height);
     }
   }
 

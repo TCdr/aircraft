@@ -37,6 +37,7 @@ import { InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/InputField';
 import { AtcDatalinkSystem } from './ATCCOM/AtcDatalinkSystem';
 import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
 import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
+import { NdInteractiveEvents } from '@shared/NdInteractive';
 
 export const getDisplayIndex = () => {
   const url = document.getElementsByTagName('a380x-mfd')[0].getAttribute('url');
@@ -223,6 +224,18 @@ export class MfdComponent
     super.onAfterRender(node);
 
     const isCaptainSide = this.props.captOrFo === 'CAPT';
+
+    // The DATA revision of an airport on the ND of this side (A380 FCOM DSC-31-20-30-90 P 19): its DATA / AIRPORT page
+    this.subs.push(
+      this.props.bus
+        .getSubscriber<NdInteractiveEvents>()
+        .on('nd_interactive_request')
+        .handle((request) => {
+          if (request.kind === 'data' && request.side === this.side) {
+            this.uiService.navigateTo(`fms/data/airport/arpt/${request.element.ident}`);
+          }
+        }),
+    );
 
     this.subs.push(
       this.props.bus
