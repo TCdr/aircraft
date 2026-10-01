@@ -194,3 +194,39 @@ describe('A380 landing performance', () => {
     expect(calculator.calculateLandingPerformance({ ...CHART, lda: 1803 }).mlwPerf / 1000).toBeCloseTo(360, 0);
   });
 });
+
+describe('A380 in-flight landing with BTV (FCOM DSC-32-20-220)', () => {
+  const inFlight = { ...CHART, type: LandingComputationType.InFlight };
+
+  it('lands at the DRY line on a dry runway and at the WET line on a wet one', () => {
+    const dry = calculator.calculateLandingPerformance({ ...inFlight, brakingMode: LandingBrakingMode.Btv });
+    expect(dry.error).toBe(LandingPerformanceError.None);
+    expect(dry.actualLandingDistance).toBeCloseTo(dry.btv.dry, 3);
+
+    const wet = calculator.calculateLandingPerformance({
+      ...inFlight,
+      runwayCondition: LandingRunwayCondition.Wet,
+      brakingMode: LandingBrakingMode.Btv,
+    });
+    expect(wet.actualLandingDistance).toBeCloseTo(wet.btv.wet, 3);
+    expect(wet.actualLandingDistance).toBeGreaterThan(dry.actualLandingDistance);
+  });
+
+  it('lists BTV with the autobrake modes on dry and wet runways only', () => {
+    const modes = (condition: LandingRunwayCondition) =>
+      calculator
+        .calculateLandingPerformance({ ...inFlight, runwayCondition: condition })
+        .brakingDistances.map((d) => d.mode);
+    expect(modes(LandingRunwayCondition.Dry)).toContain(LandingBrakingMode.Btv);
+    expect(modes(LandingRunwayCondition.CompactedSnow)).not.toContain(LandingBrakingMode.Btv);
+  });
+
+  it('rejects BTV on a contaminated runway', () => {
+    const result = calculator.calculateLandingPerformance({
+      ...inFlight,
+      runwayCondition: LandingRunwayCondition.CompactedSnow,
+      brakingMode: LandingBrakingMode.Btv,
+    });
+    expect(result.error).toBe(LandingPerformanceError.BtvRunwayCondition);
+  });
+});

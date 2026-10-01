@@ -178,6 +178,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OANS] The Captain and F/O OANS each display their own airport - @TCdr
 1. [A380X/ISIS] The SND shows INIT during its power-up self-test, like the SFD - @TCdr
 1. [A380X/ISIS] SFD/SND reconfiguration with the MODE pb: each ISIS displays the SFD or the SND - @TCdr
+1. [A380X/EFB] Landing calculator: BTV braking mode, landing at the BTV DRY or WET line - @TCdr
 
 ## 2024.1.0
 
