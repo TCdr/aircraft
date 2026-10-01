@@ -190,6 +190,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Material 3 look of the flyPad frame (navigation rail with labels, status bar, quick controls, section tabs) and of the Navigation, ATC, Failures, Checklists, Presets and Settings pages (settings in two panes) - @TCdr
 1. [EFB] Fixed the checklists sometimes missing from the flyPad: the checklist file is now parsed before the flyPad stores the list - @TCdr
 1. [A380X/ISIS] The ISIS go back to their normal configuration (SFD on the upper ISIS, SND on the lower one) at each power-up - @TCdr
+1. [EFB] Fixed clicks in the quick controls opening the troubleshooting page when the status bar shows an issue - @TCdr
 
 ## 2024.1.0
 

@@ -297,16 +297,25 @@ export const QuickControlsPane = ({
     setSimBridgeClientState(ClientState.getInstance().getSimBridgeClientState());
   }, 200);
 
+  // The pane is drawn inside the status bar, whose click opens the troubleshooting page when the bar is red: its clicks
+  // stay here. The backdrop closes it on the click itself (closing on mouse down would let the click land on what is
+  // under it, such as the status bar).
+  const keepClick = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
     <>
       <div
         className="absolute left-0 top-0 z-30 h-screen w-screen bg-black opacity-40"
-        onMouseDown={() => setShowQuickControlsPane(false)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowQuickControlsPane(false);
+        }}
       />
 
       <div
         className="absolute z-40 flex flex-col rounded-3xl bg-m3-card p-5 shadow-2xl"
         style={{ top: '48px', right: '16px', width: '460px' }}
+        onClick={keepClick}
       >
         <div className="mb-5 flex flex-row items-center">
           <span className="grow text-xs font-bold uppercase tracking-widest text-m3-muted">
