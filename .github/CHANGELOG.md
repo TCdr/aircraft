@@ -179,6 +179,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ISIS] The SND shows INIT during its power-up self-test, like the SFD - @TCdr
 1. [A380X/ISIS] SFD/SND reconfiguration with the MODE pb: each ISIS displays the SFD or the SND - @TCdr
 1. [EFB] Ground services: switch to request the GSX services (jet bridge, stairs, fuel, GPU, catering, boarding, pushback...) through the GSX Remote API, with the GSX status and progress under the buttons and the GSX menus and messages on the flyPad (GSX under remote control) - @TCdr
+1. [EFB] Material 3 look of the Ground pages: Services (doors and ground equipment lists, the aircraft from above zoomed on the fuselage with its doors, GSX turnaround) and Pushback (map and control rail), with a shared Material kit - @TCdr
 
 ## 2024.1.0
 

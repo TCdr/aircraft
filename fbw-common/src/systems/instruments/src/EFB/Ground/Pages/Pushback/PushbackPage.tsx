@@ -9,8 +9,6 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-  ArrowsAngleContract,
-  ArrowsAngleExpand,
   ArrowUp,
   ChevronDoubleDown,
   ChevronDoubleUp,
@@ -18,15 +16,23 @@ import {
   ChevronRight,
   DashCircle,
   DashCircleFill,
+  ExclamationTriangleFill,
   PauseCircleFill,
   PlayCircleFill,
-  ToggleOff,
-  ToggleOn,
   TruckFlatbed,
 } from 'react-bootstrap-icons';
 import Slider from 'rc-slider';
 import { toast } from 'react-toastify';
-import { t, PromptModal, useModals, TooltipWrapper, Toggle } from '@flybywiresim/flypad';
+import { t, PromptModal, useModals, TooltipWrapper } from '@flybywiresim/flypad';
+import {
+  M3Button,
+  M3Card,
+  M3Chip,
+  M3IconButton,
+  M3Page,
+  M3Segmented,
+  M3Switch,
+} from '../../../UtilComponents/Material/Material';
 import { PushbackMap } from './PushbackMap';
 
 export const PushbackPage = () => {
@@ -279,232 +285,271 @@ export const PushbackPage = () => {
     return t('Pushback.CallTug');
   };
 
+  const tugTone = pushbackActive ? 'active' : tugInTransit ? 'busy' : 'idle';
+  const speedKt = Math.abs(planeGroundSpeed) < 0.5 ? 0 : Math.round(Math.abs(planeGroundSpeed) * 10) / 10;
+  const steeringDeg = Math.round(tugCmdHdgFactor * 70);
+  const steeringLabel = steeringDeg === 0 ? '0°' : `${steeringDeg < 0 ? 'L' : 'R'} ${Math.abs(steeringDeg)}°`;
+  const movingLabel = tugCmdSpdFactor !== 0 ? t('Pushback.Moving') : t('Pushback.Halt');
+  const dialX = 100 + 80 * Math.sin((tugCmdHdgFactor * 70 * Math.PI) / 180);
+  const dialY = 110 - 80 * Math.cos((tugCmdHdgFactor * 70 * Math.PI) / 180);
+
   return (
-    <>
-      <div className="relative flex h-full w-full flex-col space-y-4">
-        {/* Map Container */}
-        <div className="flex grow flex-col space-y-4">
-          <PushbackMap />
-        </div>
-
-        <div className="absolute inset-x-0">{showDebugInfo ? debugInformation() : <></>}</div>
-
-        {/* Show message when not on ground */}
-        {!pushbackUIAvailable && (
-          <div className="absolute top-2/3 text-center bu left-0 right-0 text-5xl border-white border-2}">
-            {t('Pushback.AvailableOnlyOnGround')}
+    <M3Page
+      chips={
+        <>
+          <M3Chip tone={tugTone} icon={<TruckFlatbed size={14} />}>
+            {callTugLabel()}
+          </M3Chip>
+          <M3Chip tone={parkingBrakeEngaged ? 'warn' : 'idle'} icon={<DashCircleFill size={14} />}>
+            {`${t('Pushback.ParkingBrake.Title')} ${
+              parkingBrakeEngaged ? t('Pushback.ParkingBrake.On') : t('Pushback.ParkingBrake.Off')
+            }`}
+          </M3Chip>
+          <M3Chip tone="idle">{`${speedKt} kt`}</M3Chip>
+        </>
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+        {/* the map */}
+        <M3Card low className="relative mr-4 h-full min-w-0 flex-1">
+          <div className="absolute inset-0">
+            <PushbackMap />
           </div>
-        )}
+          <div className="absolute inset-x-0 top-0">{showDebugInfo ? debugInformation() : <></>}</div>
+          {!pushbackUIAvailable && (
+            <div className="bg-m3-ground/70 absolute inset-0 flex items-center justify-center p-8 text-center text-2xl font-bold">
+              {t('Pushback.AvailableOnlyOnGround')}
+            </div>
+          )}
+        </M3Card>
 
-        {/* Manual Pushback Controls */}
+        {/* the control rail */}
         <div
-          className={`flex h-full flex-col space-y-2 rounded-lg border-2 border-theme-accent p-6 ${!pushbackUIAvailable && 'pointer-events-none opacity-20'}`}
+          className={`flex h-full w-[380px] shrink-0 flex-col ${!pushbackUIAvailable ? 'pointer-events-none opacity-30' : ''}`}
         >
-          <div className="flex flex-row space-x-4">
-            {/* Pushback System enabled On/Off */}
-            {pushbackSystemEnabled ? (
-              <div className="w-full">
-                <p className="text-center" onDoubleClick={() => setShowDebugInfo((old: any) => !old)}>
-                  {t('Pushback.SystemEnabledOn')}
-                </p>
-                <TooltipWrapper text={t('Pushback.TT.SystemEnabledOn')}>
-                  <button
-                    type="button"
-                    onClick={handleEnableSystem}
-                    className="flex h-20 w-full items-center justify-center rounded-md border-2 border-theme-accent bg-green-600 text-theme-text opacity-60 transition duration-100 hover:opacity-100"
-                  >
-                    <ToggleOn size={50} />
-                  </button>
-                </TooltipWrapper>
+          <M3Card className="mb-4 shrink-0 px-4 py-4">
+            <div className="mb-3 flex flex-row items-center">
+              <div
+                className="mr-3 flex min-w-0 grow flex-col"
+                onDoubleClick={() => setShowDebugInfo((old: any) => !old)}
+              >
+                <span className="text-base font-bold">{t('Pushback.SystemTitle')}</span>
+                <span className="text-xs leading-tight text-m3-muted">{t('Pushback.SystemSubtitle')}</span>
               </div>
-            ) : (
-              <div className="w-full">
-                <p className="text-center" onDoubleClick={() => setShowDebugInfo((old: any) => !old)}>
-                  {t('Pushback.SystemEnabledOff')}
-                </p>
-                <TooltipWrapper text={t('Pushback.TT.SystemEnabledOff')}>
-                  <button
-                    type="button"
-                    onClick={handleEnableSystem}
-                    className={`{ flex h-20 w-full items-center justify-center rounded-md border-2 border-theme-accent bg-red-600 text-theme-text opacity-60 transition duration-100 hover:opacity-100${!pushbackUIAvailable && 'pointer-events-none opacity-30'}`}
-                  >
-                    <ToggleOff size={50} />
-                  </button>
-                </TooltipWrapper>
+              <TooltipWrapper
+                text={pushbackSystemEnabled ? t('Pushback.TT.SystemEnabledOn') : t('Pushback.TT.SystemEnabledOff')}
+              >
+                <M3Switch
+                  value={!!pushbackSystemEnabled}
+                  onToggle={handleEnableSystem}
+                  aria-label={t('Pushback.SystemTitle')}
+                />
+              </TooltipWrapper>
+            </div>
+            <TooltipWrapper text={t('Pushback.TT.CallReleaseTug')}>
+              <M3Button
+                onClick={handleCallTug}
+                tone={tugInTransit ? 'warn' : pushbackActive ? 'outline' : 'primary'}
+                disabled={!pushbackSystemEnabled}
+                className="w-full"
+              >
+                <TruckFlatbed size={22} />
+                {pushbackActive
+                  ? t('Pushback.ReleaseTug')
+                  : tugInTransit
+                    ? t('Pushback.TugInTransit')
+                    : t('Pushback.CallTug')}
+              </M3Button>
+            </TooltipWrapper>
+            <TooltipWrapper text={t('Pushback.TT.SetReleaseParkingBrake')}>
+              <div
+                className={`mt-3 flex cursor-pointer flex-row items-center rounded-xl px-3 py-2 text-sm font-semibold ${
+                  parkingBrakeEngaged
+                    ? 'bg-m3-error-container text-m3-on-error'
+                    : 'border border-m3-outline text-m3-text'
+                }`}
+                onClick={() => setParkingBrakeEngaged((old: any) => !old)}
+              >
+                {parkingBrakeEngaged ? (
+                  <ExclamationTriangleFill size={18} />
+                ) : (
+                  <DashCircle size={18} className="-rotate-90" />
+                )}
+                <span className="ml-2 mr-2 grow">
+                  {parkingBrakeEngaged && pushbackActive
+                    ? t('Pushback.BrakeWarning')
+                    : `${t('Pushback.ParkingBrake.Title')} ${
+                        parkingBrakeEngaged ? t('Pushback.ParkingBrake.On') : t('Pushback.ParkingBrake.Off')
+                      }`}
+                </span>
+                <M3Switch
+                  value={!!parkingBrakeEngaged}
+                  onToggle={() => setParkingBrakeEngaged((old: any) => !old)}
+                  aria-label={t('Pushback.ParkingBrake.Title')}
+                />
               </div>
-            )}
+            </TooltipWrapper>
+          </M3Card>
 
-            {/* Call Tug */}
-            <div className={`w-full ${!pushbackSystemEnabled && 'pointer-events-none opacity-30'}`}>
-              <p className="text-center">{callTugLabel()}</p>
-              <TooltipWrapper text={t('Pushback.TT.CallReleaseTug')}>
-                <button
-                  type="button"
-                  onClick={handleCallTug}
-                  className={`duration-100'} flex h-20 w-full items-center justify-center rounded-md border-2 border-theme-accent text-theme-text opacity-60 transition hover:opacity-100 ${tugInTransit ? 'bg-utility-amber' : 'bg-green-600'} ${!pushbackSystemEnabled && 'pointer-events-none opacity-30'}`}
-                >
-                  <TruckFlatbed size={50} />{' '}
-                  {pushbackActive ? (
-                    <ArrowsAngleContract className="ml-4" size={40} />
-                  ) : (
-                    <ArrowsAngleExpand className="ml-4" size={40} />
-                  )}
-                </button>
+          <M3Card className={`min-h-0 flex-1 px-4 py-4 ${!pushbackActive ? 'pointer-events-none opacity-30' : ''}`}>
+            <span className="mb-4 text-xs font-bold uppercase tracking-widest text-m3-muted">
+              {t('Pushback.TugControl')}
+            </span>
+            <M3Segmented
+              options={[
+                {
+                  label: (
+                    <>
+                      <ArrowDown size={16} />
+                      {t('Pushback.Backward')}
+                    </>
+                  ),
+                  onClick: () => handleTugSpeed(tugCmdSpdFactor - 0.1),
+                  selected: tugCmdSpdFactor < 0,
+                },
+                {
+                  label: (
+                    <>
+                      {tugCmdSpdFactor !== 0 ? <PauseCircleFill size={16} /> : <PlayCircleFill size={16} />}
+                      {movingLabel}
+                    </>
+                  ),
+                  onClick: stopMovement,
+                  selected: tugCmdSpdFactor === 0,
+                },
+                {
+                  label: (
+                    <>
+                      <ArrowUp size={16} />
+                      {t('Pushback.Forward')}
+                    </>
+                  ),
+                  onClick: () => handleTugSpeed(tugCmdSpdFactor + 0.1),
+                  selected: tugCmdSpdFactor > 0,
+                },
+              ]}
+            />
+
+            <div className="mt-4 flex flex-row items-center">
+              {/* the steering dial */}
+              <div className="mr-4 flex grow flex-col items-center">
+                <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
+                  <path
+                    d="M20 110 A80 80 0 0 1 180 110"
+                    fill="none"
+                    stroke="var(--m3-tile)"
+                    strokeWidth="14"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={`M100 30 A80 80 0 0 ${tugCmdHdgFactor >= 0 ? 1 : 0} ${dialX} ${dialY}`}
+                    fill="none"
+                    stroke="var(--m3-on-primary-container)"
+                    strokeWidth="14"
+                    strokeLinecap="round"
+                    opacity={tugCmdHdgFactor === 0 ? 0 : 1}
+                  />
+                  <circle cx={dialX} cy={dialY} r="13" fill="var(--m3-text)" />
+                  <text
+                    x="100"
+                    y="104"
+                    textAnchor="middle"
+                    fontSize="26"
+                    fontWeight="700"
+                    fill="var(--m3-text)"
+                    style={{ fontFamily: 'Manrope, Inter, sans-serif' }}
+                  >
+                    {steeringLabel}
+                  </text>
+                </svg>
+                <TooltipWrapper text={t('Pushback.TT.SliderDirection')}>
+                  <div className="mt-1 flex w-[200px] flex-row items-center space-x-2">
+                    <ChevronLeft className="text-m3-muted" />
+                    <Slider
+                      ref={directionSliderRef}
+                      onChange={(value) => handleTugDirection(value)}
+                      onAfterChange={() => directionSliderRef.current.blur()}
+                      min={-1}
+                      step={0.01}
+                      max={1}
+                      value={tugCmdHdgFactor}
+                      startPoint={0}
+                    />
+                    <ChevronRight className="text-m3-muted" />
+                  </div>
+                </TooltipWrapper>
+                <span className="mt-1 text-xs text-m3-muted">{t('Pushback.TugDirection')}</span>
+              </div>
+              {/* the speed slider */}
+              <TooltipWrapper text={t('Pushback.TT.SliderSpeed')}>
+                <div className="flex flex-col items-center space-y-2">
+                  <ChevronDoubleUp className="text-m3-muted" />
+                  <div className="h-[120px]">
+                    <Slider
+                      ref={speedSliderRef}
+                      vertical
+                      onChange={(value) => handleTugSpeed(value)}
+                      onAfterChange={() => speedSliderRef.current.blur()}
+                      min={-1}
+                      step={0.01}
+                      max={1}
+                      value={tugCmdSpdFactor}
+                      startPoint={0}
+                    />
+                  </div>
+                  <ChevronDoubleDown className="text-m3-muted" />
+                  <span className="text-xs text-m3-muted">{t('Pushback.TugSpeed')}</span>
+                </div>
               </TooltipWrapper>
             </div>
 
-            {/* Parking Brake */}
-            <div className="w-full">
-              <p className="jus text-center">
-                {t('Pushback.ParkingBrake.Title')}{' '}
-                {parkingBrakeEngaged ? t('Pushback.ParkingBrake.On') : t('Pushback.ParkingBrake.Off')}
-              </p>
-              <TooltipWrapper text={t('Pushback.TT.SetReleaseParkingBrake')}>
-                <button
-                  type="button"
-                  onClick={() => setParkingBrakeEngaged((old: any) => !old)}
-                  className={`text-utility-white flex h-20 w-full items-center justify-center rounded-md opacity-60 transition duration-100 hover:opacity-100  ${parkingBrakeEngaged ? 'bg-red-600' : 'bg-green-600'} {${!pushbackUIAvailable && 'pointer-events-none opacity-30'}`}
-                >
-                  {parkingBrakeEngaged ? (
-                    <DashCircleFill className="" size={40} />
-                  ) : (
-                    <DashCircle className="-rotate-90" size={40} />
-                  )}
-                </button>
-              </TooltipWrapper>
-            </div>
-          </div>
-
-          <div className={`flex flex-row space-x-4 ${!pushbackActive && 'pointer-events-none opacity-30'}`}>
-            {/* Backward Button */}
-            <div className="w-full">
-              <p className="text-center">{t('Pushback.Backward')}</p>
-              <TooltipWrapper text={t('Pushback.TT.DecreaseSpeed')}>
-                <button
-                  type="button"
-                  className="flex h-20 w-full items-center justify-center rounded-md border-2 border-theme-highlight bg-theme-highlight transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-                  onClick={() => handleTugSpeed(tugCmdSpdFactor - 0.1)}
-                >
-                  <ArrowDown size={40} />
-                </button>
-              </TooltipWrapper>
-            </div>
-
-            {/* Forward Button */}
-            <div className="w-full">
-              <p className="text-center">{t('Pushback.Forward')}</p>
-              <TooltipWrapper text={t('Pushback.TT.IncreaseSpeed')}>
-                <button
-                  type="button"
-                  className="flex h-20 w-full items-center justify-center rounded-md border-2 border-theme-highlight bg-theme-highlight transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-                  onClick={() => handleTugSpeed(tugCmdSpdFactor + 0.1)}
-                >
-                  <ArrowUp size={40} />
-                </button>
-              </TooltipWrapper>
-            </div>
-
-            {/* Pause/Moving Button */}
-            <div className="w-full">
-              <p className="text-center">{tugCmdSpdFactor !== 0 ? t('Pushback.Moving') : t('Pushback.Halt')}</p>
-              <TooltipWrapper text={t('Pushback.TT.PausePushback')}>
-                <button
-                  type="button"
-                  onClick={stopMovement}
-                  className="flex h-20 w-full items-center justify-center rounded-md border-2 border-theme-highlight bg-theme-highlight transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-                >
-                  {tugCmdSpdFactor !== 0 ? <PauseCircleFill size={40} /> : <PlayCircleFill size={40} />}
-                </button>
-              </TooltipWrapper>
-            </div>
-
-            {/* Left Button */}
-            <div className="w-full">
-              <p className="text-center">{t('Pushback.Left')}</p>
+            <div className="mt-4 flex flex-row space-x-2">
               <TooltipWrapper text={t('Pushback.TT.Left')}>
-                <button
-                  type="button"
-                  className="flex h-20 w-full items-center justify-center rounded-md border-2 border-theme-highlight bg-theme-highlight transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
+                <M3IconButton
+                  aria-label={t('Pushback.Left')}
                   onClick={() => handleTugDirection(tugCmdHdgFactor - 0.05)}
+                  className="w-full"
                 >
-                  <ArrowLeft size={40} />
-                </button>
+                  <ArrowLeft size={22} />
+                </M3IconButton>
               </TooltipWrapper>
-            </div>
-
-            {/* Right Button */}
-            <div className="w-full">
-              <p className="text-center">{t('Pushback.Right')}</p>
+              <M3IconButton
+                aria-label={t('Pushback.Straight')}
+                onClick={() => handleTugDirection(0)}
+                selected={tugCmdHdgFactor === 0}
+                className="w-full"
+              >
+                <ArrowUp size={22} />
+              </M3IconButton>
               <TooltipWrapper text={t('Pushback.TT.Right')}>
-                <button
-                  type="button"
-                  className="flex h-20 w-full items-center justify-center rounded-md border-2 border-theme-highlight bg-theme-highlight transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
+                <M3IconButton
+                  aria-label={t('Pushback.Right')}
                   onClick={() => handleTugDirection(tugCmdHdgFactor + 0.05)}
+                  className="w-full"
                 >
-                  <ArrowRight size={40} />
-                </button>
+                  <ArrowRight size={22} />
+                </M3IconButton>
               </TooltipWrapper>
             </div>
-          </div>
 
-          {/* Direction Slider */}
-          <div className={`${!pushbackActive && 'pointer-events-none opacity-30'}`}>
-            <p className="text-center">{t('Pushback.TugDirection')}</p>
-            <TooltipWrapper text={t('Pushback.TT.SliderDirection')}>
-              <div className="flex flex-row items-center space-x-4">
-                <p className="text-unselected font-bold">
-                  <ChevronLeft />
-                </p>
-                <Slider
-                  ref={directionSliderRef}
-                  onChange={(value) => handleTugDirection(value)}
-                  onAfterChange={() => directionSliderRef.current.blur()}
-                  min={-1}
-                  step={0.01}
-                  max={1}
-                  value={tugCmdHdgFactor}
-                  startPoint={0}
+            <div className="grow" />
+
+            <TooltipWrapper text={t('Pushback.TT.UseControllerInput')}>
+              <div className="mt-4 flex flex-row items-center">
+                <div className="mr-3 flex min-w-0 grow flex-col">
+                  <span className="text-sm font-semibold">{t('Pushback.UseControllerInput')}</span>
+                  <span className="text-xs leading-tight text-m3-muted">{t('Pushback.ControllerHint')}</span>
+                </div>
+                <M3Switch
+                  value={!!useControllerInput}
+                  onToggle={(value) => setUseControllerInput(value ? 1 : 0)}
+                  aria-label={t('Pushback.UseControllerInput')}
                 />
-                <p className="text-unselected font-bold">
-                  <ChevronRight />
-                </p>
               </div>
             </TooltipWrapper>
-          </div>
-
-          {/* Speed Slider */}
-          <div className={`${!pushbackActive && 'pointer-events-none opacity-30'}`}>
-            <p className="text-center">{t('Pushback.TugSpeed')}</p>
-            <TooltipWrapper text={t('Pushback.TT.SliderSpeed')}>
-              <div className="flex flex-row items-center space-x-4">
-                <p className="text-unselected font-bold">
-                  <ChevronDoubleDown />
-                </p>
-                <Slider
-                  ref={speedSliderRef}
-                  onChange={(value) => handleTugSpeed(value)}
-                  onAfterChange={() => speedSliderRef.current.blur()}
-                  min={-1}
-                  step={0.01}
-                  max={1}
-                  value={tugCmdSpdFactor}
-                  startPoint={0}
-                />
-                <p className="text-unselected font-bold">
-                  <ChevronDoubleUp />
-                </p>
-              </div>
-            </TooltipWrapper>
-          </div>
-
-          <TooltipWrapper text={t('Pushback.TT.UseControllerInput')}>
-            <div className={`flex h-10 flex-row items-center ${!pushbackActive && 'pointer-events-none opacity-30'}`}>
-              <div className="mr-4">{t('Pushback.UseControllerInput')}</div>
-              <Toggle value={!!useControllerInput} onToggle={(value) => setUseControllerInput(value ? 1 : 0)} />
-            </div>
-          </TooltipWrapper>
+          </M3Card>
         </div>
       </div>
-    </>
+    </M3Page>
   );
 };
