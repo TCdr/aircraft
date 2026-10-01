@@ -629,6 +629,7 @@
         "SectionConditions": "Conditions",
         "InitialAltitude": "Initial alt",
         "TargetAltitude": "Target alt",
+        "TargetWaypoint": "Target wpt",
         "VerticalSpeed": "V/S",
         "SpeedBrakes": "Speed brakes",
         "Mach": "Mach",

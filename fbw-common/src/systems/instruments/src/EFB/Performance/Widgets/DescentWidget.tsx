@@ -12,6 +12,8 @@ import {
   DescentPerformanceResult,
   DescentSpeedSchedule,
   DescentType,
+  FmsDescentAltitudeConstraint,
+  FmsDescentWaypoint,
   requestFmsDescentData,
 } from '@flybywiresim/fbw-sdk';
 import { useEventBus } from '@flybywiresim/flypad';
@@ -85,6 +87,8 @@ export const DescentWidget = () => {
   const [view, setView] = useState<'PROFILE' | 'TABLE'>('PROFILE');
   /** The start of the descent earlier (> 0) or later (< 0) than the calculated T/D, in NM */
   const [startOffset, setStartOffset] = useState(0);
+  /** The waypoints ahead in the active flight plan of the FMS, as descent targets */
+  const [fmsWaypoints, setFmsWaypoints] = useState<FmsDescentWaypoint[]>([]);
 
   const [pressureAltitude] = useSimVar('PRESSURE ALTITUDE', 'feet', 1_000);
   const [sat] = useSimVar('AMBIENT TEMPERATURE', 'celsius', 1_000);
@@ -94,6 +98,7 @@ export const DescentWidget = () => {
     type,
     initialAltitude,
     targetAltitude,
+    targetWaypoint,
     mach,
     cas,
     limitCas,
@@ -147,6 +152,7 @@ export const DescentWidget = () => {
       toast.error(t('Performance.TopOfDescent.Calc.FmsNoData'));
       return;
     }
+    setFmsWaypoints(fms.waypoints);
     const econ =
       fms.managedMach !== null && fms.managedCas !== null ? { mach: fms.managedMach, cas: fms.managedCas } : {};
     if (econOnly) {
@@ -171,12 +177,74 @@ export const DescentWidget = () => {
         : {}),
       ...(type === DescentType.Econ ? econ : {}),
       ...(fms.distanceToDestination !== null ? { distanceToTarget: Math.round(fms.distanceToDestination) } : {}),
+      // The destination is the target
+      targetWaypoint: undefined,
       isaDeviation: currentIsaDeviation(),
     });
     if (fms.destination === null) {
       toast.info(t('Performance.TopOfDescent.Calc.FmsNoDestination'));
     }
   };
+
+  /**
+   * A waypoint of the flight plan as the target: its altitude constraint as the target altitude (the entry stays without
+   * one), and its distance along the flight plan
+   */
+  const selectTargetWaypoint = (ident: string) => {
+    const waypoint = fmsWaypoints.find((w) => w.ident === ident);
+    if (!waypoint) {
+      set({ targetWaypoint: undefined });
+      return;
+    }
+    set({
+      targetWaypoint: waypoint.ident,
+      ...(waypoint.constraint ? { targetAltitude: constraintTargetAltitude(waypoint.constraint) } : {}),
+      ...(waypoint.distance !== null ? { distanceToTarget: Math.round(waypoint.distance) } : {}),
+    });
+  };
+
+  // The waypoints of the flight plan, for the target list
+  useEffect(() => {
+    let current = true;
+    requestFmsDescentData(eventBus).then((fms) => current && fms !== null && setFmsWaypoints(fms.waypoints));
+    return () => {
+      current = false;
+    };
+  }, [eventBus]);
+
+  // The distance to the target waypoint follows the aircraft along the flight plan; a sequenced waypoint stops it
+  useEffect(() => {
+    if (targetWaypoint === undefined) {
+      return;
+    }
+    let current = true;
+    const refresh = async () => {
+      const fms = await requestFmsDescentData(eventBus);
+      if (!current || fms === null) {
+        return;
+      }
+      setFmsWaypoints(fms.waypoints);
+      const waypoint = fms.waypoints.find((w) => w.ident === targetWaypoint);
+      if (!waypoint) {
+        dispatch(setDescentValues({ targetWaypoint: undefined }));
+      } else if (waypoint.distance !== null) {
+        dispatch(setDescentValues({ distanceToTarget: Math.round(waypoint.distance) }));
+      }
+    };
+    const interval = setInterval(refresh, TARGET_WAYPOINT_REFRESH_MS);
+    return () => {
+      current = false;
+      clearInterval(interval);
+    };
+  }, [targetWaypoint, eventBus, dispatch]);
+
+  const targetWaypointOptions = fmsWaypoints.map((w) => ({
+    value: w.ident,
+    displayValue: `${w.ident} ${constraintText(w.constraint)}`.trim(),
+  }));
+  if (targetWaypoint !== undefined && !fmsWaypoints.some((w) => w.ident === targetWaypoint)) {
+    targetWaypointOptions.unshift({ value: targetWaypoint, displayValue: targetWaypoint });
+  }
 
   const handleTypeChange = (newType: DescentType) => {
     if (newType === DescentType.Econ) {
@@ -319,6 +387,15 @@ export const DescentWidget = () => {
               decimalPrecision={0}
               onChange={(v) => set({ targetAltitude: parseNumber(v, true) })}
               number
+            />
+          </Row>
+          <Row label={t('Performance.TopOfDescent.Calc.TargetWaypoint')}>
+            <SelectInput
+              className="w-44"
+              value={targetWaypoint ?? ''}
+              options={[{ value: '', displayValue: '-' }, ...targetWaypointOptions]}
+              onChange={(v) => selectTargetWaypoint(v as string)}
+              maxHeight={20}
             />
           </Row>
           {type === DescentType.GivenVs && (
@@ -494,7 +571,8 @@ export const DescentWidget = () => {
           <DescentCheck
             result={result}
             distanceToTarget={distanceToTarget}
-            onDistanceChange={(d) => dispatch(setDescentValues({ distanceToTarget: d }))}
+            // An entered distance is not the one of the target waypoint any more
+            onDistanceChange={(d) => dispatch(setDescentValues({ distanceToTarget: d, targetWaypoint: undefined }))}
             altitude={pressureAltitude}
             groundSpeed={groundSpeed}
           />
@@ -573,6 +651,32 @@ export const DescentWidget = () => {
     </div>
   );
 };
+
+/** The distance to the target waypoint is refreshed this often */
+const TARGET_WAYPOINT_REFRESH_MS = 5_000;
+
+/** The target altitude of an altitude constraint: altitude 1 (the upper one of a window), to the nearest 100 ft */
+function constraintTargetAltitude(constraint: FmsDescentAltitudeConstraint): number {
+  return Math.round(constraint.altitude1 / 100) * 100;
+}
+
+/** An altitude constraint as the F-PLN shows it: 9000, +9000, -9000, or 11000/9000 for a window */
+function constraintText(constraint: FmsDescentAltitudeConstraint | null): string {
+  if (constraint === null) {
+    return '';
+  }
+  const alt1 = Math.round(constraint.altitude1).toFixed(0);
+  switch (constraint.type) {
+    case 'atOrAbove':
+      return `+${alt1}`;
+    case 'atOrBelow':
+      return `-${alt1}`;
+    case 'between':
+      return `${alt1}/${Math.round(constraint.altitude2 ?? constraint.altitude1).toFixed(0)}`;
+    default:
+      return alt1;
+  }
+}
 
 /** The distance in NM the descent of the results needs from an altitude to the target (the whole one above it) */
 function distanceNeeded(result: DescentPerformanceResult, altitude: number): number {
