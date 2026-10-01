@@ -38,6 +38,7 @@ import {
 } from '../../../Store/features/taxiRoute';
 import { loadTaxiAirport, TaxiAirportState } from './TaxiAirport';
 import { TaxiMap } from './TaxiMap';
+import { TaxiFrequencyPanel } from './TaxiFrequencyPanel';
 
 /** The aircraft is at the airport within this distance of its reference point, in metres */
 const AT_AIRPORT_DISTANCE = 8000;
@@ -532,7 +533,7 @@ export const TaxiPage = () => {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col rounded-md border-2 border-theme-accent">
+      <div className="relative flex min-w-0 flex-1 flex-col rounded-md border-2 border-theme-accent">
         {airport ? (
           <TaxiMap
             airport={airport}
@@ -554,6 +555,11 @@ export const TaxiPage = () => {
             {airportStatus ?? t('Ground.Taxi.EnterAirport')}
           </div>
         )}
+        <TaxiFrequencyPanel
+          icao={icao}
+          origin={(departingAirport ?? '').toUpperCase()}
+          destination={(arrivingAirport ?? '').toUpperCase()}
+        />
       </div>
     </div>
   );
