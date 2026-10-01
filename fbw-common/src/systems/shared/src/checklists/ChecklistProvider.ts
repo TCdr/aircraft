@@ -18,6 +18,9 @@ export class ChecklistProvider {
 
   private checklists: ChecklistJsonDefinition[] = [];
 
+  /** The read of the checklist file in progress, if any */
+  private pendingRead: Promise<ChecklistJsonDefinition[]> | undefined = undefined;
+
   /**
    * Returns the singleton instance of the ChecklistProvider class.
    *
@@ -37,21 +40,34 @@ export class ChecklistProvider {
    * @return {Promise<ChecklistJsonDefinition[]>} A promise that resolves with an array of ChecklistJsonDefinition
    *                                              objects representing the checklists.
    */
-  public async readChecklist(): Promise<ChecklistJsonDefinition[]> {
+  public readChecklist(): Promise<ChecklistJsonDefinition[]> {
     if (this.checklists.length > 0) {
-      return this.checklists;
+      return Promise.resolve(this.checklists);
     }
 
-    await fetch(this.configFilename).then((response) => {
-      response
-        .text()
-        .then((rawData) => {
-          this.processChecklistJson(rawData);
-        })
-        .catch((error) => {
-          console.error(`Failed to read ${this.configFilename} checklists raw data: `, error);
-        });
-    });
+    // One read at a time: a second call while the file is being read waits for the same read
+    if (!this.pendingRead) {
+      this.pendingRead = this.loadChecklists();
+    }
+    return this.pendingRead;
+  }
+
+  /**
+   * Reads and parses the checklist file, and only then returns the checklists.
+   *
+   * The array must be complete when it is returned: the flyPad puts it in its store, which freezes it, so it cannot
+   * be filled in later.
+   */
+  private async loadChecklists(): Promise<ChecklistJsonDefinition[]> {
+    try {
+      const response = await fetch(this.configFilename);
+      const rawData = await response.text();
+      this.processChecklistJson(rawData);
+    } catch (error) {
+      console.error(`Failed to read ${this.configFilename} checklists raw data: `, error);
+    }
+    // a failed read can be tried again by the next call
+    this.pendingRead = undefined;
     return this.checklists;
   }
 
