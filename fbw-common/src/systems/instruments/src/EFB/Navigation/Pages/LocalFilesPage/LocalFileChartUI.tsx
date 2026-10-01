@@ -149,7 +149,7 @@ export const LocalFileChartUI = () => {
     <div className="flex h-content-section-reduced w-full flex-row overflow-x-hidden rounded-lg">
       <>
         {!isFullScreen && (
-          <div className="shrink-0 overflow-hidden" style={{ width: '450px' }}>
+          <div className="flex shrink-0 flex-col overflow-hidden rounded-2xl bg-m3-card p-4" style={{ width: '450px' }}>
             <div className="flex flex-row items-center justify-center">
               <SimpleInput
                 placeholder={t('NavigationAndCharts.LocalFiles.FileName')}
@@ -187,14 +187,17 @@ export const LocalFileChartUI = () => {
               )}
             </div>
 
-            <div className="flex h-11 w-full flex-row items-center">
-              <ArrowReturnRight size={30} />
-              <div className="block w-full overflow-hidden whitespace-nowrap px-4" style={{ textOverflow: 'ellipsis' }}>
+            <div className="flex h-11 w-full flex-row items-center text-m3-muted">
+              <ArrowReturnRight size={22} />
+              <div
+                className="block w-full overflow-hidden whitespace-nowrap px-3 text-base font-semibold text-m3-muted"
+                style={{ textOverflow: 'ellipsis' }}
+              >
                 {getStatusBarText()}
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-2">
               <SelectGroup>
                 {organizedCharts.map((organizedChart) => (
                   <SelectItem
@@ -212,7 +215,7 @@ export const LocalFileChartUI = () => {
                 ))}
               </SelectGroup>
 
-              <ScrollableContainer className="mt-5" height={42.75}>
+              <ScrollableContainer className="mt-4" height={40}>
                 <LocalFileChartSelector
                   selectedTab={organizedCharts[LocalChartCategoryToIndex[selectedTabType]]}
                   loading={loading}

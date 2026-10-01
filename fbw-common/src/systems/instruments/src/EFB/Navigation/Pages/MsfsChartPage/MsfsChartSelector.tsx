@@ -175,7 +175,7 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
   if (loading) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-md border-2 border-theme-accent"
+        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
         style={{ height: '42.75rem' }}
       >
         <CloudArrowDown className="animate-bounce" size={40} />
@@ -186,7 +186,7 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
   if (!selectedTab.charts.length) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-md border-2 border-theme-accent"
+        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
         style={{ height: '42.75rem' }}
       >
         <p>{t('NavigationAndCharts.ThereAreNoChartsToDisplay')}</p>
@@ -195,22 +195,28 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {selectedTab.bundleRunways ? (
         <>
           {organizedCharts.map((item) => (
-            <div className="flex w-full flex-col divide-y-2 divide-gray-700 overflow-hidden rounded-md" key={item.name}>
-              <span className="rounded-t-lg bg-theme-secondary p-1 text-center">{item.name}</span>
+            <div className="flex w-full flex-col space-y-1" key={item.name}>
+              <span className="px-2 pb-1 pt-2 text-xs font-bold uppercase tracking-widest text-m3-muted">
+                {item.name}
+              </span>
               {item.charts.map((chart) => (
-                <div className="flex flex-row bg-theme-accent" onClick={() => handleChartClick(chart)} key={chart.guid}>
+                <div
+                  className="flex flex-row overflow-hidden rounded-xl bg-m3-tile"
+                  onClick={() => handleChartClick(chart)}
+                  key={chart.guid}
+                >
                   <div className="flex flex-row items-center">
                     <div
                       className={`h-full w-2 transition duration-100 ${
-                        chart.guid === chartId ? 'bg-theme-highlight' : 'bg-theme-secondary'
+                        chart.guid === chartId ? 'bg-m3-primary' : 'bg-transparent'
                       }`}
                     />
                     <div
-                      className="flex h-full items-center px-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                      className="flex h-full items-center px-3 text-m3-muted transition duration-100 hover:bg-m3-card hover:text-m3-on-primary-container"
                       onClick={(event) => {
                         event.stopPropagation();
 
@@ -222,21 +228,21 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
                       }}
                     >
                       {pinnedCharts.some((pinnedChart) => pinnedChart.chartId === chart.guid) ? (
-                        <PinFill size={40} />
+                        <PinFill size={20} className="text-m3-on-primary-container" />
                       ) : (
-                        <Pin size={40} />
+                        <Pin size={20} />
                       )}
                     </div>
                   </div>
                   <div className="m-2 flex flex-col">
-                    <span>{chart.name}</span>
+                    <span className="text-base font-bold text-m3-text">{chart.name}</span>
                     <span>
-                      <span className="mr-auto rounded-sm bg-theme-secondary px-2 text-sm text-theme-text">
+                      <span className="mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
                         {chart.type.toUpperCase()}
                       </span>
                       {chart.runways.length > 1 &&
                         chart.runways.map((rw) => (
-                          <span className="ml-1 mr-auto rounded-sm bg-theme-secondary px-2 text-sm text-theme-text">
+                          <span className="ml-1 mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
                             {`RW${rw.number.padStart(2, '0')}${rw.designator}`}
                           </span>
                         ))}
@@ -251,18 +257,18 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
         <>
           {selectedTab.charts.map((chart) => (
             <div
-              className="flex w-full flex-row overflow-hidden rounded-md bg-theme-accent"
+              className="flex w-full flex-row overflow-hidden rounded-xl bg-m3-tile"
               onClick={() => handleChartClick(chart)}
               key={chart.guid}
             >
               <div className="flex flex-row items-center">
                 <div
                   className={`h-full w-2 transition duration-100 ${
-                    chart.guid === chartId ? 'bg-theme-highlight' : 'bg-theme-secondary'
+                    chart.guid === chartId ? 'bg-m3-primary' : 'bg-transparent'
                   }`}
                 />
                 <div
-                  className="flex h-full items-center px-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                  className="flex h-full items-center px-3 text-m3-muted transition duration-100 hover:bg-m3-card hover:text-m3-on-primary-container"
                   onClick={(event) => {
                     event.stopPropagation();
 
@@ -274,15 +280,15 @@ export const MsfsChartSelector = ({ selectedTab, loading, provider, tab }: MsfsC
                   }}
                 >
                   {pinnedCharts.some((pinnedChart) => pinnedChart.chartId === chart.guid) ? (
-                    <PinFill size={40} />
+                    <PinFill size={20} className="text-m3-on-primary-container" />
                   ) : (
-                    <Pin size={40} />
+                    <Pin size={20} />
                   )}
                 </div>
               </div>
               <div className="m-2 flex flex-col">
-                <span>{chart.name}</span>
-                <span className="mr-auto rounded-sm bg-theme-secondary px-2 text-sm text-theme-text">
+                <span className="text-base font-bold text-m3-text">{chart.name}</span>
+                <span className="mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
                   {chart.type.toUpperCase()}
                 </span>
               </div>

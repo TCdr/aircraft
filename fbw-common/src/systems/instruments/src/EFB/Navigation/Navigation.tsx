@@ -314,19 +314,19 @@ export const ChartViewer = () => {
   if (!chartLinks.light && !chartLinks.dark) {
     return (
       <div
-        className={`relative flex items-center justify-center rounded-lg bg-theme-accent ${!isFullScreen && 'ml-6 rounded-l-none'}`}
+        className={`relative flex items-center justify-center rounded-2xl bg-m3-card-low ${!isFullScreen && 'ml-6'}`}
         style={{ width: `${isFullScreen ? '1278px' : '804px'}` }}
       >
         {isFullScreen && (
           <div
-            className="absolute right-6 top-6 flex flex-row items-center rounded-md bg-theme-secondary p-4 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+            className="absolute right-6 top-6 flex h-11 flex-row items-center rounded-xl bg-m3-card px-4 text-m3-text transition duration-100 hover:bg-m3-tile"
             onClick={() => dispatch(editTabProperty({ tab: currentTab, isFullScreen: false }))}
           >
-            <FullscreenExit size={40} />
-            <p className="ml-4 text-current">{t('NavigationAndCharts.ExitFullscreenMode')}</p>
+            <FullscreenExit size={20} />
+            <p className="ml-3 text-base font-semibold text-current">{t('NavigationAndCharts.ExitFullscreenMode')}</p>
           </div>
         )}
-        <p>{t('NavigationAndCharts.ThereIsNoChartToDisplay')}</p>
+        <p className="text-lg text-m3-muted">{t('NavigationAndCharts.ThereIsNoChartToDisplay')}</p>
       </div>
     );
   }
@@ -341,10 +341,7 @@ export const ChartViewer = () => {
 
   // noinspection PointlessBooleanExpressionJS
   return (
-    <div
-      className={`relative ${!isFullScreen && 'ml-6 rounded-l-none'}`}
-      style={{ width: `${isFullScreen ? '1278px' : '804px'}` }}
-    >
+    <div className={`relative ${!isFullScreen && 'ml-6'}`} style={{ width: `${isFullScreen ? '1278px' : '804px'}` }}>
       <TransformWrapper
         ref={transformRef}
         initialScale={chartPosition.scale}
@@ -365,12 +362,12 @@ export const ChartViewer = () => {
             style={{ display: loading ? 'none' : 'block' }}
           >
             {pagesViewable > 1 && (
-              <div className="absolute left-6 top-6 z-40 flex flex-row items-center overflow-hidden rounded-md">
+              <div className="absolute left-6 top-6 z-40 flex h-11 flex-row items-center overflow-hidden rounded-xl bg-m3-card">
                 <div
-                  className={`flex h-14 cursor-pointer flex-row items-center justify-center bg-theme-secondary transition duration-100 hover:bg-theme-highlight hover:text-theme-body ${currentPage === 1 && 'pointer-events-none opacity-50'}`}
+                  className={`flex h-11 w-11 cursor-pointer flex-row items-center justify-center text-m3-text transition duration-100 hover:bg-m3-tile ${currentPage === 1 && 'pointer-events-none opacity-40'}`}
                   onClick={() => dispatch(editTabProperty({ tab: currentTab, currentPage: currentPage - 1 }))}
                 >
-                  <Dash size={40} />
+                  <Dash size={22} />
                 </div>
                 <SimpleInput
                   min={1}
@@ -385,40 +382,40 @@ export const ChartViewer = () => {
                       }),
                     );
                   }}
-                  className="h-14 w-16 rounded-none border-transparent"
+                  className="h-9 w-14 !rounded-lg text-center"
                 />
-                <div className="flex h-14 shrink-0 items-center bg-theme-secondary px-2">{`of ${pagesViewable}`}</div>
+                <div className="flex h-11 shrink-0 items-center px-2 text-base font-bold text-m3-text">{`of ${pagesViewable}`}</div>
                 <div
-                  className={`flex h-14 cursor-pointer flex-row items-center justify-center bg-theme-secondary transition duration-100 hover:bg-theme-highlight hover:text-theme-body ${currentPage === pagesViewable && 'pointer-events-none opacity-50'}`}
+                  className={`flex h-11 w-11 cursor-pointer flex-row items-center justify-center text-m3-text transition duration-100 hover:bg-m3-tile ${currentPage === pagesViewable && 'pointer-events-none opacity-40'}`}
                   onClick={() => dispatch(editTabProperty({ tab: currentTab, currentPage: currentPage + 1 }))}
                 >
-                  <Plus size={40} />
+                  <Plus size={22} />
                 </div>
               </div>
             )}
 
-            <div className="absolute inset-y-6 right-6 z-20 flex cursor-pointer flex-col justify-between overflow-hidden rounded-md">
-              <div className="flex flex-col overflow-hidden rounded-md">
+            <div className="absolute inset-y-6 right-6 z-20 flex cursor-pointer flex-col justify-between">
+              <div className="flex flex-col space-y-2">
                 <TooltipWrapper text={t('NavigationAndCharts.TT.RotateLeft45Degrees')}>
                   <button
                     type="button"
                     onClick={handleRotateLeft}
-                    className={`cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body ${planeInFocus && 'pointer-events-none text-theme-unselected'}`}
+                    className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile ${planeInFocus && 'pointer-events-none opacity-40'}`}
                   >
-                    <ArrowCounterclockwise size={40} />
+                    <ArrowCounterclockwise size={22} />
                   </button>
                 </TooltipWrapper>
                 <TooltipWrapper text={t('NavigationAndCharts.TT.RotateRight45Degrees')}>
                   <button
                     type="button"
                     onClick={handleRotateRight}
-                    className={`cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body ${planeInFocus && 'pointer-events-none text-theme-unselected'}`}
+                    className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile ${planeInFocus && 'pointer-events-none opacity-40'}`}
                   >
-                    <ArrowClockwise className="fill-current" size={40} />
+                    <ArrowClockwise className="fill-current" size={22} />
                   </button>
                 </TooltipWrapper>
               </div>
-              <div className="flex flex-col overflow-hidden rounded-md">
+              <div className="flex flex-col space-y-2">
                 <TooltipWrapper text={t('NavigationAndCharts.TT.FitChartToHeight')}>
                   <button
                     type="button"
@@ -464,9 +461,9 @@ export const ChartViewer = () => {
                         );
                       }
                     }}
-                    className="cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
-                    <ArrowsExpand size={40} />
+                    <ArrowsExpand size={22} />
                   </button>
                 </TooltipWrapper>
 
@@ -515,9 +512,9 @@ export const ChartViewer = () => {
                         );
                       }
                     }}
-                    className="cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
-                    <ArrowsExpand className="rotate-90" size={40} />
+                    <ArrowsExpand className="rotate-90" size={22} />
                   </button>
                 </TooltipWrapper>
 
@@ -534,9 +531,9 @@ export const ChartViewer = () => {
                         }),
                       );
                     }}
-                    className="cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
-                    <XCircleFill size={40} />
+                    <XCircleFill size={22} />
                   </button>
                 </TooltipWrapper>
 
@@ -544,9 +541,9 @@ export const ChartViewer = () => {
                   <button
                     type="button"
                     onClick={() => zoomIn()}
-                    className="cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
-                    <Plus size={40} />
+                    <Plus size={22} />
                   </button>
                 </TooltipWrapper>
 
@@ -554,15 +551,15 @@ export const ChartViewer = () => {
                   <button
                     type="button"
                     onClick={() => zoomOut()}
-                    className="cursor-pointer bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   >
-                    <Dash size={40} />
+                    <Dash size={22} />
                   </button>
                 </TooltipWrapper>
               </div>
-              <div className="flex flex-col overflow-hidden rounded-md">
+              <div className="flex flex-col space-y-2">
                 <div
-                  className="cursor-pointer rounded-md bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                  className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
                   onClick={() => {
                     dispatch(editTabProperty({ tab: currentTab, isFullScreen: !isFullScreen }));
                     if (chartRef.current && ref.current) {
@@ -576,22 +573,26 @@ export const ChartViewer = () => {
                     }
                   }}
                 >
-                  {isFullScreen ? <FullscreenExit size={40} /> : <ArrowsFullscreen size={40} />}
+                  {isFullScreen ? <FullscreenExit size={22} /> : <ArrowsFullscreen size={22} />}
                 </div>
 
                 {showDarkLightButton && (
                   <div
-                    className="mt-3 cursor-pointer rounded-md bg-theme-secondary p-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+                    className={`mt-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl transition duration-100 ${
+                      !usingLightTheme
+                        ? 'bg-m3-primary-container text-m3-on-primary-container'
+                        : 'bg-m3-card text-m3-text hover:bg-m3-tile'
+                    }`}
                     onClick={() => dispatch(setUsingLightTheme(!usingLightTheme))}
                   >
-                    {!usingLightTheme ? <MoonFill size={40} /> : <SunFill size={40} />}
+                    {!usingLightTheme ? <MoonFill size={22} /> : <SunFill size={22} />}
                   </div>
                 )}
               </div>
             </div>
 
             <div
-              className="grabbable no-scrollbar relative mx-auto flex h-full flex-row overflow-x-hidden overflow-y-scroll rounded-lg bg-theme-accent"
+              className="grabbable no-scrollbar relative mx-auto flex h-full flex-row overflow-x-hidden overflow-y-scroll rounded-2xl bg-m3-card-low"
               ref={ref}
             >
               <TransformComponent wrapperStyle={{ height: ref.current?.clientHeight, width: ref.current?.clientWidth }}>
@@ -610,7 +611,7 @@ export const ChartViewer = () => {
                   style={{ transform: `rotate(${chartRotation}deg)` }}
                 >
                   {chartLinks && provider === 'NAVIGRAPH' && (
-                    <p className="absolute left-0 top-0 -translate-y-full whitespace-nowrap font-bold text-theme-highlight transition duration-100">
+                    <p className="absolute left-0 top-0 -translate-y-full whitespace-nowrap font-bold text-m3-on-primary-container transition duration-100">
                       This chart is linked to {navigraphAuth.user?.preferred_username ?? '<not logged in>'}
                     </p>
                   )}

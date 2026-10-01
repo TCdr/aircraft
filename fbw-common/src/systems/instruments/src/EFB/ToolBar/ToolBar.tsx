@@ -16,64 +16,68 @@ import {
 } from 'react-bootstrap-icons';
 import { NavLink } from 'react-router-dom';
 import { t } from '../Localization/translation';
-import { TooltipWrapper } from '../UtilComponents/TooltipWrapper';
 
 // @ts-ignore
 import FbwTail from '../Assets/FBW-Tail.svg';
 
 interface ToolBarButtonProps {
   to: string;
-  tooltipText: string;
+  label: string;
 }
 
-const ToolBarButton: FC<ToolBarButtonProps> = ({ to, tooltipText, children }) => (
-  <TooltipWrapper text={tooltipText}>
-    <NavLink
-      to={to}
-      activeClassName="bg-theme-accent !text-theme-text"
-      className="flex items-center justify-center rounded-md p-3.5 text-theme-unselected transition duration-100 hover:bg-theme-accent hover:text-theme-text"
-    >
+/**
+ * A destination of the navigation rail: the icon in a pill (tonal when the section is open) and its name under it.
+ * NavLink marks the open section with the "active" class, which the group-[.active] variants read.
+ */
+const ToolBarButton: FC<ToolBarButtonProps> = ({ to, label, children }) => (
+  <NavLink to={to} className="group flex w-24 flex-col items-center">
+    <span className="flex h-9 w-16 items-center justify-center rounded-full text-m3-muted transition duration-100 hover:bg-m3-tile group-[.active]:bg-m3-primary-container group-[.active]:text-m3-on-primary-container">
       {children}
-    </NavLink>
-  </TooltipWrapper>
+    </span>
+    <span className="mt-1 text-xs font-semibold text-m3-muted group-[.active]:font-bold group-[.active]:text-m3-text">
+      {label}
+    </span>
+  </NavLink>
 );
 
+const ICON_SIZE = 24;
+
 export const ToolBar = () => (
-  <nav className="flex w-32 shrink-0 flex-col justify-between py-6">
-    <div className="mt-9 flex flex-col items-center space-y-4">
-      <ToolBarButton to="/dashboard" tooltipText={t('Dashboard.Title')}>
-        <img className="w-[35px]" src={FbwTail} alt="FbwTail" />
+  <nav className="flex w-32 shrink-0 flex-col items-center justify-between pb-6 pt-16">
+    <div className="flex flex-col items-center space-y-3">
+      <ToolBarButton to="/dashboard" label={t('Dashboard.Title')}>
+        <img className="w-[24px]" src={FbwTail} alt="FbwTail" />
       </ToolBarButton>
-      <ToolBarButton to="/dispatch" tooltipText={t('Dispatch.Title')}>
-        <Clipboard size={35} />
+      <ToolBarButton to="/dispatch" label={t('Dispatch.Title')}>
+        <Clipboard size={ICON_SIZE} />
       </ToolBarButton>
-      <ToolBarButton to="/ground" tooltipText={t('Ground.Title')}>
-        <Truck size={35} />
+      <ToolBarButton to="/ground" label={t('Ground.Title')}>
+        <Truck size={ICON_SIZE} />
       </ToolBarButton>
-      <ToolBarButton to="/performance" tooltipText={t('Performance.Title')}>
-        <Calculator size={35} />
+      <ToolBarButton to="/performance" label={t('Performance.Title')}>
+        <Calculator size={ICON_SIZE} />
       </ToolBarButton>
-      <ToolBarButton to="/navigation" tooltipText={t('NavigationAndCharts.Title')}>
-        <Compass size={35} />
+      <ToolBarButton to="/navigation" label={t('ToolBar.Navigation')}>
+        <Compass size={ICON_SIZE} />
       </ToolBarButton>
-      <ToolBarButton to="/atc" tooltipText={t('AirTrafficControl.Title')}>
-        <BroadcastPin size={35} />
+      <ToolBarButton to="/atc" label={t('ToolBar.Atc')}>
+        <BroadcastPin size={ICON_SIZE} />
       </ToolBarButton>
-      <ToolBarButton to="/failures" tooltipText={t('Failures.Title')}>
-        <ExclamationDiamond size={35} />
+      <ToolBarButton to="/failures" label={t('Failures.Title')}>
+        <ExclamationDiamond size={ICON_SIZE} />
       </ToolBarButton>
-      <ToolBarButton to="/checklists" tooltipText={t('Checklists.Title')}>
-        <JournalCheck size={35} />
+      <ToolBarButton to="/checklists" label={t('Checklists.Title')}>
+        <JournalCheck size={ICON_SIZE} />
       </ToolBarButton>
-      <ToolBarButton to="/presets" tooltipText={t('Presets.Title')}>
-        <Sliders size={35} />
+      <ToolBarButton to="/presets" label={t('Presets.Title')}>
+        <Sliders size={ICON_SIZE} />
       </ToolBarButton>
     </div>
 
     <div className="flex flex-col items-center">
-      <div className="my-4 h-1.5 w-14 rounded-full bg-theme-accent" />
-      <ToolBarButton to="/settings" tooltipText={t('Settings.Title')}>
-        <Gear color="currentColor" size={35} />
+      <div className="mb-3 h-px w-14 bg-m3-outline" />
+      <ToolBarButton to="/settings" label={t('Settings.Title')}>
+        <Gear color="currentColor" size={ICON_SIZE} />
       </ToolBarButton>
     </div>
   </nav>

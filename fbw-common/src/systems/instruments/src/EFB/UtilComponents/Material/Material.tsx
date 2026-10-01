@@ -358,6 +358,6 @@ export const M3Banner: FC<{ tone: M3Tone; icon?: ReactNode; className?: string }
     className={`flex flex-row items-center rounded-xl px-3 py-2 text-sm font-semibold ${CHIP_TONES[tone]} ${className ?? ''}`}
   >
     {icon && <span className="mr-2 flex shrink-0 items-center">{icon}</span>}
-    <span className="grow">{children}</span>
+    <span className="grow text-sm font-semibold text-current">{children}</span>
   </div>
 );

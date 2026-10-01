@@ -71,8 +71,8 @@ export const SelectInput = (props: SelectInputProps) => {
   return (
     <div className="flex flex-row">
       <div
-        className={`relative ${props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} rounded-md border-2 border-theme-accent ${props.className} ${' '}
-                ${showDropdown && (props.dropdownOnTop ? 'rounded-t-none border-t-theme-body' : 'rounded-b-none border-b-theme-body')}`}
+        className={`relative ${props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} rounded-xl border border-m3-outline bg-m3-ground text-m3-text ${props.className} ${' '}
+                ${showDropdown && (props.dropdownOnTop ? '!rounded-t-none' : '!rounded-b-none')}`}
         onClick={handleToggleDropdown}
       >
         <div className={`relative flex px-3 py-1.5 ${props.fontSizeClassName ?? ''}`}>
@@ -84,11 +84,11 @@ export const SelectInput = (props: SelectInputProps) => {
         </div>
         {showDropdown && (
           <div
-            className={`absolute -inset-x-0.5 z-10 flex overflow-hidden border-2 border-theme-accent bg-theme-body pb-2 pr-2 ${' '}
+            className={`absolute -inset-x-px z-10 flex overflow-hidden border border-m3-outline bg-m3-ground pb-2 pr-2 shadow-xl ${' '}
                         ${
                           props.dropdownOnTop
-                            ? 'top-0 -translate-y-full flex-col-reverse rounded-t-md border-b-0'
-                            : 'bottom-0 translate-y-full flex-col rounded-b-md border-t-0'
+                            ? 'top-0 -translate-y-full flex-col-reverse rounded-t-xl border-b-0'
+                            : 'bottom-0 translate-y-full flex-col rounded-b-xl border-t-0'
                         }
                         `}
           >
@@ -99,7 +99,7 @@ export const SelectInput = (props: SelectInputProps) => {
                   (option.tooltip ? (
                     <TooltipWrapper key={option.value} text={option.tooltip}>
                       <div
-                        className={`hover:bg-theme-highlight/5 px-3 py-1.5 transition duration-300 hover:text-theme-body ${props.fontSizeClassName ?? ''}`}
+                        className={`px-3 py-1.5 text-m3-text transition duration-100 hover:bg-m3-tile ${props.fontSizeClassName ?? ''}`}
                         onClick={() => onOptionClicked(option)}
                       >
                         {option.displayValue}
@@ -108,7 +108,7 @@ export const SelectInput = (props: SelectInputProps) => {
                   ) : (
                     <div
                       key={option.value}
-                      className={`hover:bg-theme-highlight/5 px-3 py-1.5 transition duration-300 hover:text-theme-body ${props.fontSizeClassName ?? ''}`}
+                      className={`px-3 py-1.5 text-m3-text transition duration-100 hover:bg-m3-tile ${props.fontSizeClassName ?? ''}`}
                       onClick={() => onOptionClicked(option)}
                     >
                       {option.displayValue}
