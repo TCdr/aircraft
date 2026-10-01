@@ -14,14 +14,14 @@ import {
   ConfigWeatherMap,
 } from '@flybywiresim/fbw-sdk-react';
 import { Link } from 'react-router-dom';
-import { CloudArrowDown, Gear, InfoCircle } from 'react-bootstrap-icons';
+import { CloudArrowDown, Gear, InfoCircle, X } from 'react-bootstrap-icons';
 import { toast } from 'react-toastify';
 import { t } from '../Localization/translation';
 import { pathify } from '../Utils/routing';
 import { ScrollableContainer } from '../UtilComponents/ScrollableContainer';
 import { SimpleInput } from '../UtilComponents/Form/SimpleInput/SimpleInput';
-import { SelectGroup, SelectItem } from '../UtilComponents/Form/Select';
 import { TooltipWrapper } from '../UtilComponents/TooltipWrapper';
+import { M3_INPUT, M3Card, M3SectionHeader } from '../UtilComponents/Material/Material';
 
 export declare class ATCInfoExtended extends apiClient.ATCInfo {
   distance: number;
@@ -31,36 +31,69 @@ interface FrequencyCardProps {
   className?: string;
   callsign: string;
   frequency: string;
+  /** The kind of station (Tower, Ground...) */
+  typeName?: string;
+  /** The distance from the aircraft, in nautical miles */
+  distance: number;
+  /** The station whose information is shown */
+  selected: boolean;
   setActive: () => void;
   setCurrent: () => void;
   setStandby: () => void;
 }
 
-const FrequencyCard = ({ className, callsign, frequency, setActive, setCurrent, setStandby }: FrequencyCardProps) => (
+/** A station: its callsign, kind and distance, its frequency and the buttons that tune it */
+const FrequencyCard = ({
+  className,
+  callsign,
+  frequency,
+  typeName,
+  distance,
+  selected,
+  setActive,
+  setCurrent,
+  setStandby,
+}: FrequencyCardProps) => (
   <div className={className}>
-    <div className="relative w-full overflow-hidden rounded-md bg-theme-secondary p-6">
-      <h2 className="font-bold">{callsign}</h2>
-      <h2>{frequency}</h2>
-
-      <div className="absolute inset-0 flex flex-row opacity-0 transition duration-100 hover:opacity-100">
-        <div
-          className="flex w-full items-center justify-center border-2 border-theme-highlight bg-theme-highlight px-2 text-center font-bold text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
+    <div className={`flex flex-col rounded-2xl px-4 py-3 ${selected ? 'bg-m3-primary-container' : 'bg-m3-tile'}`}>
+      <div className="flex flex-row items-center">
+        <span className={`truncate text-base font-bold ${selected ? 'text-m3-on-primary-container' : 'text-white'}`}>
+          {callsign}
+        </span>
+        {typeName && (
+          <span className="ml-2 whitespace-nowrap rounded-full bg-m3-ground px-2 py-1 text-xs font-bold leading-none text-m3-muted">
+            {typeName}
+          </span>
+        )}
+        <div className="grow" />
+        {distance > 0 && (
+          <span className="whitespace-nowrap text-xs font-semibold text-m3-muted">{`${distance.toFixed(0)} nm`}</span>
+        )}
+      </div>
+      <div className="mt-2 flex flex-row items-center">
+        <span className="grow text-2xl font-bold text-white">{frequency}</span>
+        <button
+          type="button"
           onClick={setActive}
+          className="h-9 rounded-xl bg-m3-primary px-3 text-sm font-bold text-m3-on-primary transition duration-100 hover:brightness-110"
         >
-          <h2 className="text-current">{t('AirTrafficControl.SetActive')}</h2>
-        </div>
-        <div
-          className="flex w-full items-center justify-center border-2 border-utility-amber bg-utility-amber px-2 text-center font-bold text-theme-body transition duration-100 hover:bg-theme-body hover:text-utility-amber"
+          {t('AirTrafficControl.SetActive')}
+        </button>
+        <button
+          type="button"
           onClick={setStandby}
+          className="ml-2 h-9 rounded-xl border border-m3-outline bg-transparent px-3 text-sm font-bold text-m3-text transition duration-100 hover:bg-m3-card"
         >
-          <h2 className="text-current">{t('AirTrafficControl.SetStandby')}</h2>
-        </div>
-        <div
-          className="flex w-1/4 items-center justify-center border-2 border-theme-text bg-theme-text font-bold text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-text"
+          {t('AirTrafficControl.SetStandby')}
+        </button>
+        <button
+          type="button"
+          aria-label={callsign}
           onClick={setCurrent}
+          className="ml-2 flex h-9 w-9 items-center justify-center rounded-xl border border-m3-outline bg-transparent text-m3-text transition duration-100 hover:bg-m3-card"
         >
-          <InfoCircle size={35} />
-        </div>
+          <InfoCircle size={18} />
+        </button>
       </div>
     </div>
   </div>
@@ -211,119 +244,141 @@ export const ATC = () => {
     { typeName: t('AirTrafficControl.ShowRadar'), atcType: AtcType.RADAR },
   ];
 
+  const shownControllers = controllers ? controllers.filter((c) => filterControllers(c)) : [];
+
   return (
     <div>
-      <div className="relative mb-2 flex flex-row items-center justify-between">
+      <div className="relative mb-4 flex flex-row items-center justify-between">
         <h1 className="font-bold">
           {t('AirTrafficControl.Title')}
           {(atisSource === ConfigWeatherMap.IVAO || atisSource === ConfigWeatherMap.VATSIM) && ` (${atisSource})`}
         </h1>
       </div>
       {atisSource === ConfigWeatherMap.IVAO || atisSource === ConfigWeatherMap.VATSIM ? (
-        <div className="mt-4 h-content-section-reduced w-full">
-          <div className="relative space-y-4">
-            <div className="flex flex-row items-center space-x-3">
-              <TooltipWrapper text={t('AirTrafficControl.TT.AtcCallSignSearch')}>
-                <div className="flex flex-row">
-                  <SimpleInput
-                    placeholder={t('AirTrafficControl.SearchPlaceholder')}
-                    className="w-64 grow rounded-r-none"
-                    value={controllerCallSignFilter}
-                    onChange={(value) => setControllerCallSignFilter(value)}
-                  />
+        <div className="flex h-content-section-reduced w-full flex-col overflow-hidden">
+          <div className="mb-4 flex shrink-0 flex-row items-center">
+            <TooltipWrapper text={t('AirTrafficControl.TT.AtcCallSignSearch')}>
+              <div className="mr-3 flex flex-row items-center">
+                <SimpleInput
+                  placeholder={t('AirTrafficControl.SearchPlaceholder')}
+                  className={`w-64 ${M3_INPUT}`}
+                  fontSizeClassName="text-base"
+                  value={controllerCallSignFilter}
+                  onChange={(value) => setControllerCallSignFilter(value)}
+                />
+                <button
+                  type="button"
+                  aria-label="Clear"
+                  className="ml-2 flex h-10 w-10 items-center justify-center rounded-xl border border-m3-outline bg-transparent text-m3-text transition duration-100 hover:bg-m3-tile"
+                  onClick={() => setControllerCallSignFilter('')}
+                >
+                  <X size={22} />
+                </button>
+              </div>
+            </TooltipWrapper>
+            {atcTypeOptions.map((option) => (
+              <TooltipWrapper
+                key={option.typeName}
+                text={`${t('AirTrafficControl.TT.AtcTypeFilter')} ${option.typeName}`}
+              >
+                <div className="ml-2">
                   <button
                     type="button"
-                    className="flex items-center rounded-md rounded-l-none border-2 border-utility-red px-3 text-utility-red transition duration-100 hover:bg-utility-red hover:text-theme-body"
-                    onClick={() => setControllerCallSignFilter('')}
+                    onClick={() => setControllerTypeFilter(option.atcType)}
+                    className={`h-9 whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition duration-100 ${
+                      controllerTypeFilter === option.atcType
+                        ? 'bg-m3-primary-container font-bold text-m3-on-primary-container'
+                        : 'border border-m3-outline bg-transparent text-m3-text hover:bg-m3-tile'
+                    }`}
                   >
-                    X
+                    {option.typeName}
                   </button>
                 </div>
               </TooltipWrapper>
-              <SelectGroup>
-                {atcTypeOptions.map((option) => (
-                  <TooltipWrapper
-                    key={option.typeName}
-                    text={`${t('AirTrafficControl.TT.AtcTypeFilter')} ${option.typeName}`}
-                  >
-                    <div>
-                      <SelectItem
-                        className="w-[120px] overflow-hidden whitespace-nowrap"
-                        selected={controllerTypeFilter === option.atcType}
-                        onSelect={() => setControllerTypeFilter(option.atcType)}
-                      >
-                        {option.typeName}
-                      </SelectItem>
-                    </div>
-                  </TooltipWrapper>
-                ))}
-              </SelectGroup>
-            </div>
+            ))}
+          </div>
 
-            <ScrollableContainer innerClassName="grid grid-cols-2" height={34}>
-              {controllers &&
-                controllers
-                  .filter((c) => filterControllers(c))
-                  .map((controller, index) => (
+          <div className="flex min-h-0 flex-1 flex-row">
+            <M3Card className="relative mr-4 min-w-0 flex-1 pb-3">
+              <M3SectionHeader title={t('AirTrafficControl.ControllersOnline')} badge={`${shownControllers.length}`} />
+              <div className="min-h-0 flex-1 px-4">
+                <ScrollableContainer innerClassName="grid grid-cols-2" height={40}>
+                  {shownControllers.map((controller, index) => (
                     <FrequencyCard
                       key={controller.callsign}
-                      className={`${index && index % 2 !== 0 && 'ml-4'} ${index >= 2 && 'mt-4'}`}
+                      className={`${index % 2 !== 0 ? 'ml-3' : ''} ${index >= 2 ? 'mt-3' : ''}`}
                       callsign={controller.callsign}
                       frequency={controller.frequency}
+                      typeName={
+                        atcTypeOptions.find((o) => o.atcType !== undefined && o.atcType === controller.type)?.typeName
+                      }
+                      distance={controller.distance}
+                      selected={currentAtc?.callsign === controller.callsign}
                       setActive={() => setActiveFrequency(toFrequency(controller.frequency))}
                       setCurrent={() => setCurrentAtc(controllers?.find((c) => c.frequency === controller.frequency))}
                       setStandby={() => setStandbyFrequency(toFrequency(controller.frequency))}
                     />
                   ))}
-            </ScrollableContainer>
+                </ScrollableContainer>
+              </div>
 
-            <div
-              className={`absolute inset-0 top-10 flex items-center justify-center rounded-md border-2 border-theme-accent bg-theme-body transition duration-200
+              <div
+                className={`absolute inset-0 flex items-center justify-center rounded-2xl bg-m3-card text-m3-on-primary-container transition duration-200
                             ${atcDataPending ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
-            >
-              {atcDataPending && <CloudArrowDown className="animate-bounce" size={40} />}
-            </div>
-          </div>
+              >
+                {atcDataPending && <CloudArrowDown className="animate-bounce" size={40} />}
+              </div>
+            </M3Card>
 
-          <div className="mt-4 flex h-64 flex-row divide-x-2 divide-theme-accent rounded-lg border-2 border-theme-accent">
-            <div className="flex flex-col justify-between p-4">
-              <div>
-                <p>{t('AirTrafficControl.Active')}</p>
-                <div className="h-18 mt-2 flex w-72 items-center justify-center rounded-lg border-2 border-theme-accent font-rmp text-6xl text-theme-highlight">
+            <div className="flex w-[380px] shrink-0 flex-col">
+              <M3Card className="mb-4 shrink-0 p-4">
+                <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">
+                  {t('AirTrafficControl.Com1')}
+                </span>
+                <span className="mt-3 text-xs font-bold uppercase tracking-widest text-m3-muted">
+                  {t('AirTrafficControl.Active')}
+                </span>
+                <div className="mt-1 flex h-[72px] items-center justify-center rounded-2xl border border-m3-outline bg-m3-ground font-rmp text-5xl text-m3-on-primary-container">
                   {displayedActiveFrequency && displayedActiveFrequency}
                 </div>
-              </div>
-              <div>
-                <p>{t('AirTrafficControl.Standby')}</p>
-                <div className="h-18 mt-2 flex w-72 items-center justify-center rounded-lg border-2 border-theme-accent font-rmp text-6xl text-utility-amber">
+                <span className="mt-3 text-xs font-bold uppercase tracking-widest text-m3-muted">
+                  {t('AirTrafficControl.Standby')}
+                </span>
+                <div className="mt-1 flex h-[72px] items-center justify-center rounded-2xl border border-m3-outline bg-m3-ground font-rmp text-5xl text-m3-on-warn">
                   {displayedStandbyFrequency && displayedStandbyFrequency}
                 </div>
-              </div>
+              </M3Card>
+
+              <M3Card className="min-h-0 flex-1 p-4">
+                <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-m3-muted">
+                  {t('AirTrafficControl.ControllerInformation')}
+                </span>
+                {currentAtc?.textAtis ? (
+                  <ControllerInformation currentAtc={currentAtc} />
+                ) : (
+                  <div className="flex grow items-center justify-center">
+                    <span className="text-center text-base font-bold text-m3-muted">
+                      {t('AirTrafficControl.NoInformationAvailableForThisFrequency')}
+                    </span>
+                  </div>
+                )}
+              </M3Card>
             </div>
-            {currentAtc?.textAtis ? (
-              <ControllerInformation currentAtc={currentAtc} />
-            ) : (
-              <div className="flex w-full items-center justify-center">
-                <h1 className="text-center font-bold">
-                  {t('AirTrafficControl.NoInformationAvailableForThisFrequency').toUpperCase()}
-                </h1>
-              </div>
-            )}
           </div>
         </div>
       ) : (
-        <div className="mt-4 flex h-content-section-reduced items-center justify-center rounded-lg border-2 border-theme-accent">
+        <M3Card low className="h-content-section-reduced items-center justify-center">
           <div className="max-w-4xl space-y-8">
             <h1 className="text-center">{t('AirTrafficControl.SelectCorrectATISATCSource')}</h1>
             <Link
               to={`/settings/${pathify('ATSU / AOC')}`}
-              className="flex w-full items-center justify-center space-x-4 rounded-md border-2 border-theme-highlight bg-theme-highlight p-2 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
+              className="flex h-14 w-full items-center justify-center space-x-4 rounded-2xl bg-m3-primary text-m3-on-primary transition duration-100 hover:brightness-110"
             >
-              <Gear size={26} />
-              <p className="text-current">{t('AirTrafficControl.ChangeATISATCSourceButton')}</p>
+              <Gear size={24} />
+              <p className="text-lg font-bold text-current">{t('AirTrafficControl.ChangeATISATCSourceButton')}</p>
             </Link>
           </div>
-        </div>
+        </M3Card>
       )}
     </div>
   );
@@ -334,9 +389,13 @@ interface ControllerInformationProps {
 }
 
 const ControllerInformation = ({ currentAtc }: ControllerInformationProps) => (
-  <ScrollableContainer height={15.9} className="p-3">
-    <h2 className="text-utility-amber">{currentAtc?.callsign}</h2>
-    {currentAtc?.textAtis.map((line) => <p className="mt-2 flex flex-wrap text-2xl">{line}</p>)}
+  <ScrollableContainer height={14} className="mt-3">
+    <span className="block text-lg font-bold text-white">{currentAtc?.callsign}</span>
+    {currentAtc?.textAtis.map((line) => (
+      <p key={line} className="mt-2 flex flex-wrap text-base leading-snug text-m3-text">
+        {line}
+      </p>
+    ))}
   </ScrollableContainer>
 );
 

@@ -41,6 +41,13 @@ const BAR_TONES: Record<M3Tone, string> = {
   idle: 'bg-m3-muted',
 };
 
+/**
+ * The Material look of a text field, for the className of SimpleInput and SelectInput (important utilities: these
+ * components bring their own border and background)
+ */
+export const M3_INPUT =
+  '!rounded-xl !border !border-m3-outline !bg-m3-ground !text-m3-text focus-within:!border-m3-primary';
+
 // ------------------------------------------------------------------------------------------ page and cards
 
 interface M3PageProps {
@@ -279,7 +286,7 @@ export const M3Segmented: FC<{ options: M3SegmentOption[]; className?: string }>
 
 interface M3ButtonProps {
   onClick: () => void;
-  tone?: 'primary' | 'warn' | 'outline';
+  tone?: 'primary' | 'tonal' | 'warn' | 'outline' | 'danger';
   disabled?: boolean;
   className?: string;
 }
@@ -290,6 +297,8 @@ export const M3Button: FC<M3ButtonProps> = ({ onClick, tone = 'primary', disable
     primary: 'bg-m3-primary text-m3-on-primary hover:brightness-110',
     warn: 'bg-m3-warn-container text-m3-on-warn hover:brightness-110',
     outline: 'border border-m3-outline bg-transparent text-m3-text hover:bg-m3-tile',
+    tonal: 'bg-m3-primary-container text-m3-on-primary-container hover:brightness-110',
+    danger: 'border border-m3-on-error bg-transparent text-m3-on-error hover:bg-m3-error-container',
   }[tone];
   return (
     <button
@@ -349,6 +358,6 @@ export const M3Banner: FC<{ tone: M3Tone; icon?: ReactNode; className?: string }
     className={`flex flex-row items-center rounded-xl px-3 py-2 text-sm font-semibold ${CHIP_TONES[tone]} ${className ?? ''}`}
   >
     {icon && <span className="mr-2 flex shrink-0 items-center">{icon}</span>}
-    <span className="grow">{children}</span>
+    <span className="grow text-sm font-semibold text-current">{children}</span>
   </div>
 );

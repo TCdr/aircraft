@@ -139,56 +139,63 @@ export const StatusBar = ({ batteryLevel, isCharging }: StatusBarProps) => {
       onClick={() => {
         hasTroubleshootingIssue && history.push(`/settings/${pathify('About')}/${pathify('Troubleshooting')}`);
       }}
-      className={`fixed z-30 flex h-10 w-full items-center justify-between ${hasTroubleshootingIssue ? 'bg-theme-statusbar-mismatch' : 'bg-theme-statusbar'} px-6 text-lg font-medium leading-none text-theme-text`}
+      className={`fixed z-30 flex h-10 w-full items-center justify-between ${hasTroubleshootingIssue ? 'bg-theme-statusbar-mismatch' : 'bg-m3-card-low'} pl-6 pr-4 text-base font-semibold leading-none text-m3-text`}
     >
-      <p>{`${dayName} ${monthName} ${dayOfMonth}`}</p>
+      <p className="text-base font-semibold text-m3-text">{`${dayName} ${monthName} ${dayOfMonth}`}</p>
 
       {outdatedVersionFlag ? (
         <div className="absolute left-48 flex h-10 w-96 items-center justify-center overflow-hidden ">
           <TooltipWrapper text={t('VersionCheck.TT.StatusBarWarning')}>
-            <span className="text-utility-red">{t('VersionCheck.StatusBarWarning').toUpperCase()}</span>
+            <span className="text-base font-bold text-m3-on-error">
+              {t('VersionCheck.StatusBarWarning').toUpperCase()}
+            </span>
           </TooltipWrapper>
         </div>
       ) : (
         ''
       )}
 
-      <div className="absolute inset-x-0 mx-auto flex w-min flex-row items-center justify-center space-x-4">
-        {(timeDisplayed === 'utc' || timeDisplayed === 'both') && <p>{getZuluFormattedTime(currentUTC)}</p>}
-        {timeDisplayed === 'both' && <p>/</p>}
-        {(timeDisplayed === 'local' || timeDisplayed === 'both') && <p>{getLocalFormattedTime(currentLocalTime)}</p>}
+      <div className="absolute inset-x-0 mx-auto flex w-min flex-row items-center justify-center space-x-2">
+        {(timeDisplayed === 'utc' || timeDisplayed === 'both') && (
+          <p className="whitespace-nowrap text-base font-semibold text-m3-text">{getZuluFormattedTime(currentUTC)}</p>
+        )}
+        {timeDisplayed === 'both' && <p className="text-base font-semibold text-m3-muted">·</p>}
+        {(timeDisplayed === 'local' || timeDisplayed === 'both') && (
+          <p className="whitespace-nowrap text-base font-semibold text-m3-muted">
+            {getLocalFormattedTime(currentLocalTime)}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center space-x-4">
         {!!showStatusBarFlightProgress && data !== initialState.data && (
           <div
-            className="flex h-10 flex-row items-center space-x-4 overflow-hidden pr-10"
+            className="flex h-10 flex-row items-center space-x-3 overflow-hidden pr-4"
             onClick={() => setShowSchedTimes((old) => !old)}
           >
             <div
               className={`${showSchedTimes ? '-translate-y-1/4' : 'translate-y-1/4'} flex flex-col space-y-1 text-right transition duration-100`}
             >
-              <p>{departingAirport}</p>
-              <p>{schedOutParsed}</p>
+              <p className="text-base font-semibold text-m3-text">{departingAirport}</p>
+              <p className="text-base font-semibold text-m3-muted">{schedOutParsed}</p>
             </div>
-            <div className="flex w-32 flex-row">
-              <div className="h-1 bg-theme-highlight" style={{ width: `${flightPlanProgress}%` }} />
-              <div className="h-1 bg-theme-text" style={{ width: `${100 - flightPlanProgress}%` }} />
+            <div className="flex h-1 w-32 flex-row overflow-hidden rounded-full bg-m3-outline">
+              <div className="h-1 rounded-full bg-m3-primary" style={{ width: `${flightPlanProgress}%` }} />
             </div>
             <div
               className={`${showSchedTimes ? '-translate-y-1/4' : 'translate-y-1/4'} flex flex-col space-y-1 transition duration-100`}
             >
-              <p>{arrivingAirport}</p>
-              <p>{schedInParsed}</p>
+              <p className="text-base font-semibold text-m3-text">{arrivingAirport}</p>
+              <p className="text-base font-semibold text-m3-muted">{schedInParsed}</p>
             </div>
           </div>
         )}
 
         {simRate !== 1 && (
           <TooltipWrapper text={`Simulation Rate is currently ${simRate}x`}>
-            <div className="flex items-center space-x-2">
-              <p>{`${simRate > 1 ? simRate.toFixed(0) : simRate.toFixed(2)}x`}</p>
-              <FastForwardFill size={26} />
+            <div className="flex items-center space-x-2 text-m3-on-warn">
+              <p className="text-base font-bold text-current">{`${simRate > 1 ? simRate.toFixed(0) : simRate.toFixed(2)}x`}</p>
+              <FastForwardFill size={22} />
             </div>
           </TooltipWrapper>
         )}
@@ -198,7 +205,9 @@ export const StatusBar = ({ batteryLevel, isCharging }: StatusBarProps) => {
         <TooltipWrapper
           text={simBridgeConnected ? t('StatusBar.TT.ConnectedToLocalApi') : t('StatusBar.TT.DisconnectedFromLocalApi')}
         >
-          {simBridgeConnected ? <Wifi size={26} /> : <WifiOff size={26} />}
+          <div className={`flex ${simBridgeConnected ? 'text-m3-on-primary-container' : 'text-m3-muted'}`}>
+            {simBridgeConnected ? <Wifi size={22} /> : <WifiOff size={22} />}
+          </div>
         </TooltipWrapper>
 
         <BatteryStatus batteryLevel={batteryLevel} isCharging={isCharging} />

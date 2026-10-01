@@ -13,15 +13,16 @@ interface NavbarProps {
   basePath: string;
 }
 
+/** The tabs of a flyPad section, as the segmented control of the Material kit */
 export const Navbar = ({ tabs, className, onSelected, basePath }: NavbarProps) => (
   <nav className={`flex justify-between ${className}`}>
-    <div className="flex divide-x divide-theme-accent overflow-hidden rounded-md border border-theme-accent">
+    <div className="flex flex-row divide-x divide-m3-outline overflow-hidden rounded-full border border-m3-outline">
       {tabs.map((tab, index) => (
         <NavLink
           onClick={() => onSelected?.(index)}
           to={`${basePath}/${pathify(tab.name)}`}
-          className="flex items-center px-6 py-2 transition duration-300"
-          activeClassName="flex items-center px-6 py-2 bg-theme-accent"
+          className="flex h-10 items-center whitespace-nowrap bg-transparent px-5 text-base font-semibold text-m3-text transition duration-100 hover:bg-m3-tile"
+          activeClassName="!bg-m3-primary-container font-bold !text-m3-on-primary-container"
           key={tab.name}
         >
           {tab.alias ?? tab.name}

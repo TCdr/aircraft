@@ -10,13 +10,20 @@ interface ToggleProps {
   disabled?: boolean;
 }
 
+/** An on/off switch, in the look of the Material kit (M3Switch) */
 export const Toggle = ({ value, onToggle, disabled }: ToggleProps) => (
   <div
-    className={`flex h-8 w-14 cursor-pointer items-center rounded-full ${disabled ? 'bg-theme-unselected' : 'bg-theme-accent'}`}
+    role="switch"
+    aria-checked={value}
+    className={`relative box-border h-6 w-12 shrink-0 cursor-pointer rounded-full transition duration-150 ${
+      value ? 'bg-m3-primary' : 'border-2 border-m3-outline-strong'
+    } ${disabled ? 'pointer-events-none opacity-40' : ''}`}
     onClick={() => !disabled && onToggle(!value)}
   >
     <div
-      className={`mx-1.5 h-6 w-6 rounded-full bg-white transition duration-200 ${value && 'translate-x-5 !bg-theme-highlight'}`}
+      className={`absolute rounded-full transition duration-150 ${
+        value ? 'left-[26px] top-0.5 h-5 w-5 bg-white' : 'left-0.5 top-0.5 h-4 w-4 bg-m3-muted'
+      }`}
     />
   </div>
 );

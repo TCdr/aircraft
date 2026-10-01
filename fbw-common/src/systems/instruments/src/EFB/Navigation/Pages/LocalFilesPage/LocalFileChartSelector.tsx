@@ -47,7 +47,7 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
   if (loading) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-md border-2 border-theme-accent"
+        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
         style={{ height: '42.75rem' }}
       >
         <CloudArrowDown className="animate-bounce" size={40} />
@@ -58,7 +58,7 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
   if (!selectedTab.charts.length) {
     return (
       <div
-        className="flex h-full items-center justify-center rounded-md border-2 border-theme-accent"
+        className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
         style={{ height: '42.75rem' }}
       >
         <p>{t('NavigationAndCharts.ThereAreNoChartsToDisplay')}</p>
@@ -109,21 +109,21 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {selectedTab.charts.map((chart) => (
         <div
-          className="flex w-full flex-row overflow-hidden rounded-md bg-theme-accent"
+          className="flex w-full flex-row overflow-hidden rounded-xl bg-m3-tile"
           onClick={() => handleChartClick(chart)}
           key={chart.fileName}
         >
           <div className="flex flex-row items-center">
             <div
               className={`h-full w-2 shrink-0 transition duration-100 ${
-                chart.fileName === chartId ? 'bg-theme-highlight' : 'bg-theme-secondary'
+                chart.fileName === chartId ? 'bg-m3-primary' : 'bg-transparent'
               }`}
             />
             <div
-              className="flex h-full items-center px-2 transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+              className="flex h-full items-center px-3 text-m3-muted transition duration-100 hover:bg-m3-card hover:text-m3-on-primary-container"
               onClick={(event) => {
                 event.stopPropagation();
 
@@ -167,15 +167,17 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
               }}
             >
               {pinnedCharts.some((pinnedChart) => pinnedChart.chartId === chart.fileName) ? (
-                <PinFill size={40} />
+                <PinFill size={20} className="text-m3-on-primary-container" />
               ) : (
-                <Pin size={40} />
+                <Pin size={20} />
               )}
             </div>
           </div>
           <div className="m-2 flex flex-col">
             <span>{chart.fileName}</span>
-            <span className="mr-auto rounded-sm bg-theme-secondary px-2 text-sm text-theme-text">{chart.type}</span>
+            <span className="mr-auto mt-1 rounded-full bg-m3-ground px-2 py-0.5 text-xs font-bold text-m3-muted">
+              {chart.type}
+            </span>
           </div>
         </div>
       ))}
