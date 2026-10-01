@@ -113,6 +113,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Add the A380 landing calculator and rework the A320 one: dispatch and in-flight landing distances from the FCOM, FMS data import, BTV exit advice on the A380 - @TCdr
 1. [EFB] Replace the top of descent calculator with a descent calculator: ECON, standard, given V/S and emergency descents from the FMS performance model, descent profile and descent check - @TCdr
 1. [EFB] Descent calculator: a waypoint of the FMS flight plan as the target, with its altitude constraint and its distance along the route - @TCdr
+1. [A380X/EFB] Landing calculator: BTV braking mode, landing at the BTV DRY or WET line - @TCdr
 
 ## 2024.1.0
 

@@ -57,13 +57,14 @@ import { getAirportMagVar, getRunways } from '../Data/Runways';
 import { LandingRunway, LandingRunwayStop } from './LandingRunway';
 import { LandingRunwayExits, loadLandingRunwayExits } from './LandingBtv';
 
-/** The labels of the braking modes, as on the autobrake selectors (A380 LO/2/3/HI, A320 LO/MED) */
+/** The labels of the braking modes, as on the autobrake selectors (A380 LO/2/3/HI/BTV, A320 LO/MED) */
 const BRAKING_LABELS: Record<LandingBrakingMode, string> = {
   [LandingBrakingMode.Manual]: 'MAN',
   [LandingBrakingMode.Lo]: 'LO',
   [LandingBrakingMode.Two]: '2',
   [LandingBrakingMode.Three]: '3',
   [LandingBrakingMode.Hi]: 'HI',
+  [LandingBrakingMode.Btv]: 'BTV',
   [LandingBrakingMode.Low]: 'LO',
   [LandingBrakingMode.Medium]: 'MED',
 };
