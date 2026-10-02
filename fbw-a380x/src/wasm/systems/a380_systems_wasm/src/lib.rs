@@ -425,6 +425,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_020, FailureType::RadioAntennaDirectCoupling(1)),
         (34_021, FailureType::RadioAntennaDirectCoupling(2)),
         (34_022, FailureType::RadioAntennaDirectCoupling(3)),
+        (34_040, FailureType::Gps(1)),
+        (34_041, FailureType::Gps(2)),
     ])
     .provides_aircraft_variable("ACCELERATION BODY X", "feet per second squared", 0)?
     .provides_aircraft_variable("ACCELERATION BODY Y", "feet per second squared", 0)?
@@ -478,6 +480,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("GPS GROUND SPEED", "Knots", 0)?
     .provides_aircraft_variable("GPS GROUND MAGNETIC TRACK", "Degrees", 0)?
     .provides_aircraft_variable("GPS GROUND TRUE TRACK", "Degrees", 0)?
+    .provides_aircraft_variable("PLANE ALTITUDE", "Feet", 0)?
     .provides_aircraft_variable("INCIDENCE ALPHA", "Degrees", 0)?
     .provides_aircraft_variable("INDICATED ALTITUDE", "Feet", 0)?
     .provides_aircraft_variable("INTERACTIVE POINT OPEN:0", "Percent", 0)?

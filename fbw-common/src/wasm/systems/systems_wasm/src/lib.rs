@@ -190,6 +190,7 @@ pub struct MsfsHandler {
     failures: Rc<RefCell<Failures>>,
     _commbus: CommBus<'static>,
     time: Time,
+    utc: UtcTime,
 }
 impl MsfsHandler {
     fn new(
@@ -216,12 +217,15 @@ impl MsfsHandler {
             });
         }
         CommBus::call("FBW_FAILURE_REQUEST", "", CommBusBroadcastFlags::JS);
+        let mut variables = variables;
+        let utc = UtcTime::new(sim_connect, &mut variables)?;
         Ok(Self {
             variables: Some(variables),
             aspects,
             failures,
             _commbus: commbus,
             time: Time::new(sim_connect)?,
+            utc,
         })
     }
 
@@ -246,6 +250,14 @@ impl MsfsHandler {
                 SimConnectRecv::SimObjectData(data) if data.id() == SimulationTime::REQUEST_ID => {
                     self.time
                         .increment(data.into::<SimulationTime>(sim_connect).unwrap());
+                }
+                SimConnectRecv::SimObjectData(data) if data.id() == UtcDateTime::REQUEST_ID => {
+                    if let (Some(date_time), Some(variables)) = (
+                        data.into::<UtcDateTime>(sim_connect),
+                        self.variables.as_mut(),
+                    ) {
+                        variables.write(&self.utc.identifier, date_time.unix_seconds());
+                    }
                 }
                 _ => {
                     self.handle_message(&message);
@@ -647,6 +659,58 @@ impl Time {
         } else {
             delta
         }
+    }
+}
+
+/// The simulator's UTC date and time, for the systems that need it (the GPS receivers compute the satellite
+/// positions from it): written once a second to `GNSS_UTC_UNIX_SECONDS`, in seconds since 1 January 1970 0000 UTC.
+#[data_definition]
+struct UtcDateTime {
+    #[name = "ZULU TIME"]
+    #[unit = "Seconds"]
+    time_of_day: f64,
+    #[name = "ZULU DAY OF MONTH"]
+    #[unit = "Number"]
+    day: f64,
+    #[name = "ZULU MONTH OF YEAR"]
+    #[unit = "Number"]
+    month: f64,
+    #[name = "ZULU YEAR"]
+    #[unit = "Number"]
+    year: f64,
+}
+
+impl UtcDateTime {
+    const REQUEST_ID: sys::DWORD = 1;
+
+    fn unix_seconds(&self) -> f64 {
+        systems::shared::days_since_unix_epoch(self.year as i64, self.month as i64, self.day as i64)
+            as f64
+            * 86_400.
+            + self.time_of_day
+    }
+}
+
+struct UtcTime {
+    identifier: VariableIdentifier,
+}
+
+impl UtcTime {
+    const VARIABLE_NAME: &'static str = "GNSS_UTC_UNIX_SECONDS";
+
+    fn new(
+        sim_connect: &mut SimConnect,
+        variables: &mut MsfsVariableRegistry,
+    ) -> Result<Self, Box<dyn Error>> {
+        sim_connect.request_data_on_sim_object::<UtcDateTime>(
+            UtcDateTime::REQUEST_ID,
+            SIMCONNECT_OBJECT_ID_USER,
+            Period::Second,
+        )?;
+
+        Ok(Self {
+            identifier: variables.get(Self::VARIABLE_NAME.to_owned()),
+        })
     }
 }
 

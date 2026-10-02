@@ -121,6 +121,8 @@ export const A320Failure = Object.freeze({
   RadioAntennaInterrupted2: 34011,
   RadioAntennaDirectCoupling1: 34020,
   RadioAntennaDirectCoupling2: 34021,
+  Gps1: 34040,
+  Gps2: 34041,
   Egpwc: 34030,
 });
 
@@ -236,6 +238,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.RadioAntennaInterrupted2, 'RA 2 Interrupted'],
   [34, A320Failure.RadioAntennaDirectCoupling1, 'RA 1 Direct Coupling'],
   [34, A320Failure.RadioAntennaDirectCoupling2, 'RA 2 Direct Coupling'],
+  [34, A320Failure.Gps1, 'GPS 1'],
+  [34, A320Failure.Gps2, 'GPS 2'],
 
   [34, A320Failure.Egpwc, 'EGPWC'],
 ];

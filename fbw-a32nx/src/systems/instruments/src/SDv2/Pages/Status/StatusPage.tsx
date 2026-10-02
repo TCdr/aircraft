@@ -1,6 +1,6 @@
 //  Copyright (c) 2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
-import { FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { ClockEvents, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { PageTitle } from '../Generic/PageTitle';
 import { SdPageProps } from '../../SD';
@@ -8,9 +8,20 @@ import { FormattedFwcText } from '../../../MsfsAvionicsCommon/FormattedFwcText';
 
 import './style.scss';
 import { SDSimvars } from '../../SDSimvarPublisher';
+import { formatStatusPage, STATUS_PAGE_LINES } from '@shared/StatusMessages';
 
+// The FWC STATUS page lines (codes of StatusMessages), left and right columns
+const STATUS_LINE_VARS = (side: 'LEFT' | 'RIGHT') =>
+  Array.from({ length: STATUS_PAGE_LINES }, (_, i) => `L:A32NX_ECAM_STATUS_${side}_LINE_${i + 1}`);
+const STATUS_LEFT_LINE_VARS = STATUS_LINE_VARS('LEFT');
+const STATUS_RIGHT_LINE_VARS = STATUS_LINE_VARS('RIGHT');
+
+/**
+ * The STATUS page (A320 FCOM DSC-31-20): the lines the FWC computes from the active alerts, information on the left and
+ * the inoperative systems on the right; NORMAL when there are none.
+ */
 export class StatusPage extends DestroyableComponent<SdPageProps> {
-  private readonly sub = this.props.bus.getSubscriber<SDSimvars>();
+  private readonly sub = this.props.bus.getSubscriber<SDSimvars & ClockEvents>();
 
   private readonly topSvgDisplay = this.props.visible.map((v) => (v ? 'inline' : 'none'));
 
@@ -21,7 +32,21 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    this.subscriptions.push(this.topSvgDisplay);
+    this.subscriptions.push(
+      this.topSvgDisplay,
+      this.sub
+        .on('realTime')
+        .atFrequency(2)
+        .handle(() => this.updateLines()),
+    );
+  }
+
+  private updateLines(): void {
+    const codes = (vars: string[]) =>
+      vars.map((name) => SimVar.GetSimVarValue(name, 'number').toString().padStart(9, '0'));
+    const page = formatStatusPage(codes(STATUS_LEFT_LINE_VARS), codes(STATUS_RIGHT_LINE_VARS));
+    this.linesLeft.set(page.left);
+    this.linesRight.set(page.right);
   }
 
   destroy(): void {
