@@ -195,6 +195,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EFB] Independent flyPads: the first officer's flyPad has its own pages, OFP, checklists, brightness and power button (the captain's runs the automatic actions such as closing the doors and GSX remote control) - @TCdr
 1. [EFB] The automatic loading of lighting presets offers all eight presets, also the unnamed ones - @TCdr
 1. [EFB] A checklist marked as complete shows a green check in the checklist list, whatever the flight phase - @TCdr
+1. [A380X/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit - @TCdr
 
 ## 2024.1.0
 
