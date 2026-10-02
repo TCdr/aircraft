@@ -249,6 +249,15 @@ describe('A380 landing performance', () => {
       expect(error({ weight: 510_100 })).toBe(LandingPerformanceError.MaximumTakeoffWeight);
     });
 
+    it('allows 40 kt of crosswind on dry and wet runways, less on contaminated ones (gust included)', () => {
+      // the maximum certified landing crosswind, increased from 35 kt to 40 kt (A380 FCOM revision, EA engines)
+      expect(calculator.crosswindLimit(LandingRunwayCondition.Dry, 15)).toBe(40);
+      expect(calculator.crosswindLimit(LandingRunwayCondition.Wet, 15)).toBe(40);
+      expect(calculator.crosswindLimit(LandingRunwayCondition.Slush13mm, 15)).toBe(20);
+      expect(calculator.crosswindLimit(LandingRunwayCondition.CompactedSnow, -20)).toBe(15);
+      expect(calculator.crosswindLimit(LandingRunwayCondition.Icy, -20)).toBe(5);
+    });
+
     it('brakes less on worse runway condition codes; compacted snow is code 4 at or below -15 °C, else 3 (design)', () => {
       const actual = (runwayCondition: LandingRunwayCondition, oat = 15) =>
         calculator.calculateLandingPerformance({ ...IN_FLIGHT, runwayCondition, oat }).actualLandingDistance!;

@@ -244,14 +244,16 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
   }
 
   /**
-   * A380 FCOM PER-LND-CTA-CWD: 35 kt on dry and wet runways (gust included), 20 kt with slush or dry snow, 15 kt with
-   * standing water or compacted snow (friction 0.2, poor), 5 kt on an icy runway.
+   * The maximum landing crosswind, gust included: 40 kt on dry and wet runways (the maximum certified crosswind at
+   * landing, increased from 35 kt to 40 kt by an A380 FCOM revision for the EA engines), and from A380 FCOM
+   * PER-LND-CTA-CWD 20 kt with slush or dry snow, 15 kt with standing water or compacted snow (friction 0.2, poor), 5 kt
+   * on an icy runway.
    */
   public crosswindLimit(condition: LandingRunwayCondition, _oat: number): number {
     switch (condition) {
       case LandingRunwayCondition.Dry:
       case LandingRunwayCondition.Wet:
-        return 35;
+        return 40;
       case LandingRunwayCondition.Slush6mm:
       case LandingRunwayCondition.Slush13mm:
         return 20;
