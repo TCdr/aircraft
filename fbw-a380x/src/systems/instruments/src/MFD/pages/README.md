@@ -40,9 +40,9 @@ Status legend:
 | 🟨 | fms/\*/f-pln-ll-xing-time-mkr | 9 | time marker pseudo waypoints and aural alert not modelled |
 |  |  |  |  |
 | ✅ | fms/position/irs | 1 | data sources inconsistent, ALIGN ON OTHER REF |
-| ✅ | fms/position/navaids | 2 | deselect glide, GPS deselection, radio nav mode/position |
+| ✅ | fms/position/navaids | 2 | deselect glide, radio nav position (the radio nav mode is the tuned navaids) |
 | ✅ | fms/position/monitor | 3 |  UPDATE AT, FM calculated position info, Independent fixes across both MFDs |
-| 🟨 | fms/position/gps | 3 | MMR not modelled: both receivers show the sim GPS, satellites / accuracy are stand-in values |
+| ✅ | fms/position/gps | 3 | GPS receivers of MMR 1/2 (computed constellation): DIFF from coarse SBAS service area boxes |
 | 🟨 | fms/position/report | 4 | SEND REPORT TO CPNY (ACARS downlink) |
 | 🟨 | fms/position/time | 4 | page not in the available FCOM (KAL 2011) |
 |  |  |  |  |

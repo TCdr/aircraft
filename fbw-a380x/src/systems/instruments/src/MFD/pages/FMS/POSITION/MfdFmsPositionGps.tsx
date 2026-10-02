@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { ClockEvents, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
-import { coordinateToString } from '@flybywiresim/fbw-sdk';
+import { Arinc429Register, coordinateToString } from '@flybywiresim/fbw-sdk';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
@@ -12,6 +12,8 @@ import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { noPositionAvailableText } from '../../../shared/utils';
 
 import { fcomAt } from '../../common/FcomLayout';
+
+import { gpsReceiverTexts } from './GpsReceiverTexts';
 
 import './MfdFmsPositionGps.scss';
 
@@ -34,24 +36,22 @@ class GpsReceiverData {
   readonly altitude = Subject.create('-----');
 
   readonly groundSpeed = Subject.create('---');
-
-  /**
-   * The simulator has no satellite constellation model. Until the MMR is modelled, the satellite count and the
-   * horizontal figure of merit are stand-in values, drawn once per page view as on the A32NX MCDU GPS MONITOR page
-   * (8 to 12 satellites, 40 to 49 ft of merit; the FCOM figure shows the accuracy in FT).
-   */
-  readonly standInSatellites = Math.floor(Math.random() * 5) + 8;
-
-  readonly standInHfomFeet = Math.floor(Math.random() * 10) + 40;
 }
 
 /**
  * POSITION / GPS page (A380 FCOM DSC-22-FMS-20-30 "POSITION / GPS PAGE"): GPS 1 and GPS 2 position, mode, number of
- * satellites, accuracy (HFOM), true track, UTC time, altitude and ground speed. Both receivers show the simulator's
- * single GPS solution until the MMR is modelled.
+ * satellites, accuracy (HFOM), true track, UTC time, altitude and ground speed, from the GPS receivers of MMR 1 and 2.
  */
 export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
   private readonly receivers = [new GpsReceiverData(), new GpsReceiverData()];
+
+  private static readonly word = Arinc429Register.empty();
+
+  /** The value of an ARINC 429 word, null when it is not in normal operation */
+  private static read(simVar: string): number | null {
+    MfdFmsPositionGps.word.setFromSimVar(simVar);
+    return MfdFmsPositionGps.word.isNormalOperation() ? MfdFmsPositionGps.word.value : null;
+  }
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -71,12 +71,6 @@ export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
   }
 
   private updateReceivers(): void {
-    // TODO replace with the MMR outputs once the MMR is modelled
-    const lat = SimVar.GetSimVarValue('GPS POSITION LAT', 'degree latitude');
-    const long = SimVar.GetSimVarValue('GPS POSITION LON', 'degree longitude');
-    const altitude = SimVar.GetSimVarValue('GPS POSITION ALT', 'feet');
-    const trueTrack = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degrees');
-    const groundSpeed = SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots');
     const utcSeconds = Math.floor(SimVar.GetGlobalVarValue('ZULU TIME', 'seconds'));
 
     const hours = Math.floor(utcSeconds / 3600) % 24;
@@ -84,16 +78,31 @@ export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {
     const seconds = utcSeconds % 60;
     const utc = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-    for (const receiver of this.receivers) {
-      receiver.position.set(coordinateToString({ lat, long }, false));
-      receiver.mode.set('NAV');
-      receiver.satellites.set(receiver.standInSatellites.toFixed(0));
-      receiver.accuracy.set(receiver.standInHfomFeet.toFixed(0));
-      receiver.track.set((Math.round(trueTrack * 10) / 10).toFixed(1));
-      receiver.utcTime.set(utc);
-      receiver.altitude.set(Math.round(altitude).toFixed(0));
-      receiver.groundSpeed.set(Math.round(groundSpeed).toFixed(0));
-    }
+    this.receivers.forEach((receiver, i) => {
+      const name = (s: string) => `L:A32NX_GPS_${i + 1}_${s}`;
+      const texts = gpsReceiverTexts({
+        mode: SimVar.GetSimVarValue(name('MODE'), 'number'),
+        satellites: MfdFmsPositionGps.read(name('SATELLITES')),
+        figureOfMerit: MfdFmsPositionGps.read(name('HORIZONTAL_FIGURE_OF_MERIT')),
+        trueTrack: MfdFmsPositionGps.read(name('TRUE_TRACK')),
+        altitude: MfdFmsPositionGps.read(name('ALTITUDE')),
+        groundSpeed: MfdFmsPositionGps.read(name('GROUND_SPEED')),
+      });
+      const lat = MfdFmsPositionGps.read(name('LATITUDE'));
+      const long = MfdFmsPositionGps.read(name('LONGITUDE'));
+      receiver.position.set(
+        texts.navigating && lat !== null && long !== null
+          ? coordinateToString({ lat, long }, false)
+          : noPositionAvailableText,
+      );
+      receiver.mode.set(texts.mode);
+      receiver.satellites.set(texts.satellites);
+      receiver.accuracy.set(texts.accuracy);
+      receiver.track.set(texts.track);
+      receiver.utcTime.set(texts.navigating ? utc : '--:--:--');
+      receiver.altitude.set(texts.altitude);
+      receiver.groundSpeed.set(texts.groundSpeed);
+    });
   }
 
   /**

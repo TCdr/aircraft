@@ -198,4 +198,10 @@ export const FMMessageTypes: Readonly<Record<string, FMMessage>> = {
     color: 'Amber',
     clearable: true,
   },
+  GpsIsDeselected: {
+    id: 23,
+    text: 'GPS IS DESELECTED',
+    color: 'White',
+    clearable: true,
+  },
 };

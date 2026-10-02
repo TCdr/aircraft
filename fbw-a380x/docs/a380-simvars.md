@@ -24,6 +24,7 @@
   - [Landing Gear ATA 32](#landing-gear-ata-32)
   - [Lights ATA 33](#lights-ata-33)
   - [Surveillance ATA 34](#surveillance-ata-34)
+  - [Navigation ATA 34](#navigation-ata-34)
   - [Standby Instruments ATA 34](#standby-instruments-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
@@ -1871,6 +1872,61 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
     - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
       the GPWS / TAWS section of fbw-a32nx/docs/a320-simvars.md
+
+## Navigation ATA 34
+
+- A32NX_GPS_{number}_LATITUDE, A32NX_GPS_{number}_LONGITUDE
+    - Arinc429<Degrees>
+    - The position of the GPS receiver of MMR {number} (1 or 2): valid in NAV mode, no computed data in INIT and ACQ,
+      failure warning when off or failed
+
+- A32NX_GPS_{number}_ALTITUDE, A32NX_GPS_{number}_GROUND_SPEED, A32NX_GPS_{number}_TRUE_TRACK
+    - Arinc429<Feet>, Arinc429<Knots>, Arinc429<Degrees>
+    - The GPS altitude, ground speed and true track of the receiver
+
+- A32NX_GPS_{number}_HORIZONTAL_FIGURE_OF_MERIT
+    - Arinc429<Feet>
+    - The 95 % horizontal accuracy (HFOM) of the receiver position, from the geometry of the satellites tracked
+
+- A32NX_GPS_{number}_HORIZONTAL_INTEGRITY_LIMIT
+    - Arinc429<Nautical miles>
+    - The horizontal integrity limit (HIL) of the receiver position; no computed data with fewer than five satellites
+
+- A32NX_GPS_{number}_SATELLITES
+    - Arinc429<Number>
+    - The number of satellites tracked (in ACQ and NAV), from the nominal 24-slot GPS constellation at the sim UTC time
+
+- A32NX_GPS_{number}_MODE
+    - Number
+    - The receiver mode
+      | Value | Mode  |
+      |-------|-------|
+      | 0     | Off   |
+      | 1     | INIT  |
+      | 2     | ACQ   |
+      | 3     | NAV   |
+      | 4     | FAULT |
+      | 5     | TEST (self test at power up) |
+      | 6     | ALTAID (three satellites and the ADR altitude) |
+      | 7     | AIDED (coasting on the IR data, up to two minutes) |
+      | 8     | DIFF (satellite based augmentation) |
+
+- A32NX_ADIRS_IR_{number}_GPIRS_LATITUDE, A32NX_ADIRS_IR_{number}_GPIRS_LONGITUDE
+    - Arinc429<Degrees>
+    - The GPIRS (hybrid GPS/IRS) position of IR {number}: valid when the IR is in NAV and has a GPS receiver in NAV
+
+- A32NX_ADIRS_IR_{number}_GPIRS_FIGURE_OF_MERIT, A32NX_ADIRS_IR_{number}_GPIRS_INTEGRITY_LIMIT
+    - Arinc429<Nautical miles>
+    - The accuracy (HFOM) and the horizontal integrity limit (HIL) of the GPIRS position
+
+- A32NX_ADIRS_IR_{number}_GPIRS_SOURCE
+    - Number
+    - The GPS receiver the IR uses (1 or 2, 0 for none): GPS 1 for IR 1, GPS 2 for IR 2, IR 3 by the ATT HDG selector
+      (GPS 2 on F/O 3); when one receiver is rejected, every IR uses the other
+
+- A32NX_GNSS_UTC_UNIX_SECONDS
+    - Number (seconds)
+    - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
 
 ## Standby Instruments ATA 34
 
