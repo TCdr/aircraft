@@ -8,7 +8,7 @@ Priority=0
 
 [Emitter.0]
 Lifetime=0.0, 0.0
-Delay=0.5, 0.5
+Delay=0.67, 0.67
 Bounce=0.0
 Light=1
 No Interpolate=1
