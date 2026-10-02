@@ -76,7 +76,7 @@ ScatDir=0.0
 
 [Emitter.1]
 Lifetime=0.0, 0.0
-Delay=0.10, 0.10
+Delay=0.11, 0.11
 Bounce=0.0
 Light=1
 No Interpolate=1
