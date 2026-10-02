@@ -4703,6 +4703,11 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Set to true to complete the next item of the open checklist of the captain's flyPad, of the first officer's
       flyPad (e.g. from a hardware button); the flyPad sets it back to false.
 
+- A32NX_PRINTER_DOOR
+    - Bool
+    - The paper door of the pedestal printer is open (a click on the door or its handle toggles it; cockpit
+      model animation PRINTER_DOOR). No effect on printing.
+
 ## Non-Systems Related
 
 - `L:FBW_BUILD_EDITION`
