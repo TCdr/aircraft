@@ -121,7 +121,6 @@
 // surface). All gauges run inside one WASM module instance, so all per-gauge
 // state lives in an Instance keyed by the gauge's FsContext.
 
-
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
 #include <MSFS/MSFS.h>
@@ -175,7 +174,7 @@ struct VdCutSegment {
   float startNorthNm;  // ... and north of the aircraft
   float trackDeg;      // its true track
   float lengthNm;
-  float startNm;       // its distance along the cut (the aircraft is at 0)
+  float startNm;  // its distance along the cut (the aircraft is at 0)
 };
 #endif
 
@@ -375,8 +374,13 @@ void colorizeRect(NVGcontext* vg, float x, float y, float w, float h);
 bool configurePrecipView(FsContext ctx, FsTextureId id);
 bool configureHotView(FsContext ctx, FsTextureId id);
 void arcAreaPath(NVGcontext* vg, float cx, float cy, float radius, float sweepFraction);
-void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRose, float rangeFraction, WeatherPass pass,
-                     Channels channels = kAllChannels, float sweepFraction = 1.0f);
+void drawWeatherRect(NVGcontext* vg,
+                     FsTextureId mapView,
+                     bool isRose,
+                     float rangeFraction,
+                     WeatherPass pass,
+                     Channels channels = kAllChannels,
+                     float sweepFraction = 1.0f);
 
 // terrain.cpp: the terrain views and the terrain / MAP mode pictures.
 bool configureTerrainView(FsContext ctx, FsTextureId id);
@@ -392,8 +396,18 @@ void drawMapMode(NVGcontext* vg, FsTextureId view, bool isRose, float headingDeg
 // vd.cpp: the vertical display.
 bool configureVdTerrainView(FsContext ctx, FsTextureId id);
 int buildVdPlanCut(float aircraftLat, float aircraftLon, float rangeNm, VdCutSegment* out);
-void drawVdWeather(NVGcontext* vg, FsTextureId precipView, FsTextureId hotView, bool hotReady, float ndRadiusNm, float vdRangeNm,
-                   const VdCutSegment* cut, int cutCount, float headingDeg, double baroAltFeet, double lowerFeet, double upperFeet);
+void drawVdWeather(NVGcontext* vg,
+                   FsTextureId precipView,
+                   FsTextureId hotView,
+                   bool hotReady,
+                   float ndRadiusNm,
+                   float vdRangeNm,
+                   const VdCutSegment* cut,
+                   int cutCount,
+                   float headingDeg,
+                   double baroAltFeet,
+                   double lowerFeet,
+                   double upperFeet);
 void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData* drawData);
 #endif
 
