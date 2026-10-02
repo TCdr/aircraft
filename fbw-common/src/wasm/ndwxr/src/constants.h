@@ -445,6 +445,21 @@ constexpr int kRoleWarmupFrames = 60;
 constexpr int kVdWarmupFrames = 15;
 #endif
 
+// Parking of the MapViews nothing shows (see ViewPark): every view the module creates is rendered by the
+// engine each frame while it is visible, drawn or not, so a view nobody needs for kParkAfterFrames is made
+// invisible, and one taken back into use is left alone for kUnparkWarmupFrames before it is drawn (an
+// invisible view's texture holds no picture; the same wait as a role change, kRoleWarmupFrames).
+constexpr int kParkAfterFrames = 120;
+constexpr int kUnparkWarmupFrames = 60;
+
+// Redraw pacing (see RedrawPacer): the pictures are drawn into a surface that keeps them between frames
+// (ndwxr.h), so they are redrawn at these rates instead of every frame, and at once when what the display
+// shows changes. At 20 Hz a standard rate turn (3 deg/s) moves the
+// ND picture by 0.15 deg per step, under one pixel at the ND's edge; at 10 Hz the VD moves by well under a
+// pixel at 500 kt or 2000 ft/min. The radar's first sweep (sweepFraction < 1) is still drawn every frame.
+constexpr double kNdRedrawPeriodSeconds = 1.0 / 20.0;
+constexpr double kVdRedrawPeriodSeconds = 1.0 / 10.0;
+
 constexpr double kSimBridgeStatusPeriodSeconds = 0.1;
 constexpr double kSimBridgeConnectRetrySeconds = 5.0;
 constexpr double kSimBridgeFiguresMaxAgeSeconds = 5.0;

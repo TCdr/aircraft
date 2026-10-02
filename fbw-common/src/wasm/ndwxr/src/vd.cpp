@@ -540,11 +540,26 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
            headingWord.isNo() && upperFeet > lowerFeet && terrainSystemUp() && g_terrSysOff.read() == 0.0;
   }
 
-  // The views run all the time; their settings only follow the aircraft while the VD shows, so its first frames are not drawn.
+  // The views' settings only follow the aircraft while the VD shows, so its first frames are not drawn; the views are
+  // parked while it does not (see kParkAfterFrames), and a parked view needs its own warm-up when the VD shows again.
   instance.vdShowFrames = show ? instance.vdShowFrames + 1 : 0;
-  const bool draw = show && instance.vdShowFrames > kVdWarmupFrames;
+  const bool terrainUsable = updateViewPark(ctx, instance.mapViewVdTerrain, instance.mapViewVdTerrainPark, show);
+  const bool waterUsable = updateViewPark(ctx, instance.mapViewVdWater, instance.mapViewVdWaterPark, show);
+  const bool draw = show && instance.vdShowFrames > kVdWarmupFrames && terrainUsable;
 
-  if (show) {
+  // The picture stays on the surface between redraws (see kVdRedrawPeriodSeconds); a change of what it shows
+  // (shown or not, range, scale, water view, the surface needing its clear) redraws it at once.
+  unsigned long long key = kRedrawKeySeed;
+  key = mixKey(key, draw);
+  key = mixKey(key, std::lround(vdRangeNm * 10.0f));
+  key = mixKey(key, std::llround(lowerFeet));
+  key = mixKey(key, std::llround(upperFeet));
+  key = mixKey(key, waterUsable);
+  key = mixKey(key, instance.layerDirty);
+  const bool redraw = (draw || instance.layerDirty) && redrawDue(instance.pacer, drawData->t, kVdRedrawPeriodSeconds, key);
+
+  // During the warm-up the views' settings follow the aircraft every frame; once drawn, at the redraws only.
+  if (show && (!draw || redraw)) {
     // The engine colors by ITS OWN (true) altitude minus the terrain height, v = true - E. The VD's
     // scale and its aircraft mock-up are the ADR's BARO altitude (VerticalDisplay.tsx), and the real VD
     // places the terrain under the mock-up by the TRUE height (FCOM DSC-31-20-40-10, terrain profile:
@@ -561,13 +576,13 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
     altitudeFeet = baroAltWord.isNo() ? static_cast<double>(baroAltWord.value()) : planeAltitudeFeet();
     fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet - (upperFeet - lowerFeet),
                                     altitudeFeet - lowerFeet);
-    fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdTerrain, vdRangeNm * kNmToMetres);
+    setViewRadius(ctx, instance.mapViewVdTerrain, instance.mapViewVdTerrainPark, vdRangeNm * kNmToMetres);
     if (instance.mapViewVdWaterReady) {
-      fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdWater, vdRangeNm * kNmToMetres);
+      setViewRadius(ctx, instance.mapViewVdWater, instance.mapViewVdWaterPark, vdRangeNm * kNmToMetres);
     }
   }
 
-  if (!draw && !instance.layerDirty) {
+  if (!redraw) {
     return;
   }
 
@@ -596,8 +611,9 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
       }
       const float cutHalfWidthNm =
           altitudeFeet >= static_cast<double>(kVdCutEnrouteFeet) ? kVdCutEnrouteHalfWidthNm : kVdCutTerminalHalfWidthNm;
-      drawVdTerrain(vg, instance.mapViewVdTerrain, instance.mapViewVdWaterReady ? instance.mapViewVdWater : 0, instance.vdRampImage,
-                    vdRangeNm, cut, cutCount, cutHalfWidthNm, greyFromNm, lowerFeet, upperFeet);
+      const FsTextureId waterView = instance.mapViewVdWaterReady && waterUsable ? instance.mapViewVdWater : 0;
+      drawVdTerrain(vg, instance.mapViewVdTerrain, waterView, instance.vdRampImage, vdRangeNm, cut, cutCount, cutHalfWidthNm, greyFromNm,
+                    lowerFeet, upperFeet);
     }
   }
   instance.layerDirty = draw;
