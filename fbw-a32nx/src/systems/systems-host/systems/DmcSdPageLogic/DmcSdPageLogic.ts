@@ -70,6 +70,8 @@ export class DmcSdPageLogic {
 
   private readonly sdManualSelectionPulseNode = new NXLogicPulseNode(true);
 
+  private readonly clearPulseNode = new NXLogicPulseNode(true);
+
   private selectedPage = Subject.create(SdPages.NONE);
 
   private sdMode = SdMode.FlightPhase;
@@ -214,9 +216,20 @@ export class DmcSdPageLogic {
 
     this.sdWarningOverridePulseNode.write(fwcSdPageRequest !== this.prevFwcRequestedSdPage);
 
-    const stsNormal = true;
+    // An empty STATUS page shows NORMAL for 3 s (A320 FCOM DSC-31-30 STS pb); the FWC says whether it is empty
+    const stsNormal = SimVar.GetSimVarValue('L:A32NX_ECAM_STATUS_NORMAL', 'Bool') !== 0;
     this.stsPageNormalMtrig.write(systemPageButtonPressed === SdPages.STS && stsNormal, dt);
     this.stsPageNormalPulse.write(this.stsPageNormalMtrig.read());
+
+    // CLR removes the STATUS page called with the STS pb, once no alert is shown on the E/WD (A320 FCOM DSC-31-30)
+    const clearPressed =
+      this.ecpWarningSwitchWord.get().bitValueOr(11, false) || this.ecpWarningSwitchWord.get().bitValueOr(16, false);
+    this.clearPulseNode.write(clearPressed);
+    const statusPageCleared =
+      this.clearPulseNode.read() &&
+      this.sdMode === SdMode.Manual &&
+      this.selectedPage.get() === SdPages.STS &&
+      !SimVar.GetSimVarValue('L:A32NX_EWD_LEFT_FAILURE_ACTIVE', 'Bool');
 
     if (this.sdManualSelectionPulseNode.read() && this.selectedPage.get() !== systemPageButtonPressed) {
       this.selectedPage.set(systemPageButtonPressed);
@@ -239,7 +252,8 @@ export class DmcSdPageLogic {
       (this.sdManualSelectionPulseNode.read() &&
         this.sdMode === SdMode.Manual &&
         this.selectedPage.get() === systemPageButtonPressed) ||
-      (this.stsPageNormalPulse.read() && this.selectedPage.get() === SdPages.STS)
+      (this.stsPageNormalPulse.read() && this.selectedPage.get() === SdPages.STS) ||
+      statusPageCleared
     ) {
       this.selectedPage.set(SdPages.NONE);
       this.sdMode = SdMode.FlightPhase;

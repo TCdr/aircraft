@@ -101,7 +101,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 Navigation
 
-- MMR implementation including GPIRS position
+- MMR implementation: the GPS receivers and the GPIRS position are modelled (satellites from the nominal 24-slot
+  constellation); the DIFF, TEST and AIDED/ALTAID GPS modes and the GPS deselection are not
 - GLS
 - ISIS SND (second ISIS): SFD/SND reconfiguration (the MODE pb only switches the SND off and on), power-up self-test,
   FIX display on the SFD; the position source is shown as GPIR (see MMR / GPIRS above); the coordinate entry with the

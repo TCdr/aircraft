@@ -138,6 +138,8 @@ export const NXSystemMessages = {
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
+  // FCOM DSC-22-FMS-20-30: the GPS deselected, 80 NM before the T/D or in APPROACH phase (type II, white)
+  gpsDeselected: new TypeIIMessage('GPS DESELECTED'),
   listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
   // FCOM DSC-22-FMS-20-110: a new pilot-stored waypoint rejected, the 50 of the database are used
   wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),

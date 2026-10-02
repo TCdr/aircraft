@@ -36,6 +36,10 @@ export class CDUSelectedNavaids {
     mcdu.pageRedrawCallback = () => CDUSelectedNavaids.ShowPage(mcdu);
     setTimeout(mcdu.requestUpdate.bind(mcdu), 500);
 
+    // [6L] GPS selection (A320 FCOM DSC-22_20-50-10-28): the state in the label line in blue small font, the action in
+    // white large font; the GPS is selected by default
+    const gpsDeselected = mcdu.navigation.isGpsDeselected();
+
     const template = [
       ['\xa0SELECTED NAVAIDS'],
       ['', 'DESELECT'],
@@ -48,8 +52,8 @@ export class CDUSelectedNavaids {
       [''],
       ['\xa0RADIONAV SELECTED[color]cyan'],
       ['{DESELECT[color]inop'],
-      ['\xa0GPS SELECTED[color]cyan'],
-      ['{DESELECT[color]inop', 'RETURN>'],
+      [`\xa0GPS ${gpsDeselected ? 'DESELECTED' : 'SELECTED'}[color]cyan`],
+      [`{${gpsDeselected ? 'SELECT' : 'DESELECT'}[color]white`, 'RETURN>'],
     ];
 
     /** @type {SelectedNavaid[]} */
@@ -134,6 +138,16 @@ export class CDUSelectedNavaids {
     }
 
     mcdu.setTemplate(template);
+
+    mcdu.onLeftInput[5] = (text, scratchpadCallback) => {
+      if (text !== '') {
+        scratchpadCallback();
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        return;
+      }
+      mcdu.navigation.setGpsDeselected(!gpsDeselected);
+      CDUSelectedNavaids.ShowPage(mcdu);
+    };
 
     mcdu.rightInputDelay[5] = () => {
       return mcdu.getDelaySwitchPage();

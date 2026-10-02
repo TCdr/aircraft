@@ -48,6 +48,9 @@ const NAVAID_TYPE_STRINGS: Record<SelectedNavaidType, string> = {
 export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
   public static readonly selectedForFmsNavExtra = 'nav';
 
+  /** GPS option: 0 SELECTED, 1 DESELECTED (A380 FCOM DSC-22-FMS-20-30 POSITION/NAVAIDS page) */
+  private readonly gpsSelectionIndex = Subject.create<number | null>(0);
+
   private readonly navaidsSelectedPageIndex = Subject.create<number>(
     this.props.mfd.uiService.activeUri.get().extra === MfdFmsPositionNavaids.selectedForFmsNavExtra ? 1 : 0,
   );
@@ -141,6 +144,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
   }
 
   protected onNewData() {
+    this.gpsSelectionIndex.set(this.props.fmcService.master?.navigation.isGpsDeselected() ? 1 : 0);
     if (!this.props.fmcService.master) {
       return;
     }
@@ -759,8 +763,12 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
                   463,
                   <RadioButtonGroup
                     values={['SELECTED', 'DESELECTED']}
-                    valuesDisabled={Subject.create([true, true])} // GPS deselection is not modelled
-                    selectedIndex={Subject.create(0)}
+                    selectedIndex={this.gpsSelectionIndex}
+                    onModified={(index) => {
+                      // The GPIRS positions are no longer used for the FMS position when the GPS is deselected
+                      this.props.fmcService.master?.navigation.setGpsDeselected(index === 1);
+                      this.gpsSelectionIndex.set(index);
+                    }}
                     idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_positionNavaidsGps`}
                   />,
                 )}

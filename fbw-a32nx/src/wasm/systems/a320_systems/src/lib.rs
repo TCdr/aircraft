@@ -28,6 +28,8 @@ use electrical::{
 use hydraulic::{A320Hydraulic, A320HydraulicOverheadPanel};
 use navigation::{A320AirDataInertialReferenceSystemBuilder, A320RadioAltimeters};
 use power_consumption::A320PowerConsumption;
+use systems::navigation::gnss::GpsReceiver;
+use systems::navigation::gpirs::Gpirs;
 use systems::navigation::ils::MultiModeReceiverShim;
 use systems::{
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
@@ -87,6 +89,9 @@ pub struct A320 {
     egpwc_2: EnhancedGroundProximityWarningComputer2,
     egpws_electrical_harness: A320EgpwsElectricalHarness,
     mmr: MultiModeReceiverShim,
+    gps_1: GpsReceiver,
+    gps_2: GpsReceiver,
+    gpirs: Gpirs,
     reverse_thrust: ReverserForce,
 }
 impl A320 {
@@ -130,6 +135,11 @@ impl A320 {
             pneumatic: A320Pneumatic::new(context),
             oxygen: A320Oxygen::new(context),
             radio_altimeters: A320RadioAltimeters::new(context),
+            // The GPS receivers of MMR 1 and 2. The FCOM gives no power supply: MMR 1 on AC ESS and MMR 2 on AC 2,
+            // as the other side 1 / side 2 navigation receivers (design choice)
+            gps_1: GpsReceiver::new(context, 1, ElectricalBusType::AlternatingCurrentEssential),
+            gps_2: GpsReceiver::new(context, 2, ElectricalBusType::AlternatingCurrent(2)),
+            gpirs: Gpirs::new(context),
             egpwc: EnhancedGroundProximityWarningComputer::new(
                 context,
                 ElectricalBusType::AlternatingCurrent(1),
@@ -216,6 +226,9 @@ impl Aircraft for A320 {
         );
 
         self.radio_altimeters.update(context);
+        self.gps_1.update(context);
+        self.gps_2.update(context);
+        self.gpirs.update();
 
         self.hydraulic.update(
             context,
@@ -312,6 +325,9 @@ impl SimulationElement for A320 {
         self.ext_pwr.accept(visitor);
         self.lgcius.accept(visitor);
         self.radio_altimeters.accept(visitor);
+        self.gps_1.accept(visitor);
+        self.gps_2.accept(visitor);
+        self.gpirs.accept(visitor);
         self.autobrake_panel.accept(visitor);
         self.brake_fan_panel.accept(visitor);
         self.hydraulic.accept(visitor);
