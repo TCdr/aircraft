@@ -60,6 +60,7 @@ import { A32NXFacBusEvents } from '@shared/publishers/A32NXFacBusPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
+import { acscPackFaults } from './Logic/AcscPackFaults';
 import { EcamStatus } from './EcamStatus';
 import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
 
@@ -496,6 +497,12 @@ export class PseudoFWC {
   private readonly acsc1Fault = Subject.create(false);
 
   private readonly acsc2Fault = Subject.create(false);
+
+  /** AIR PACK 1 FAULT: ACSC 1 lost, or pack 1 flow control valve disagree */
+  private readonly pack1FaultCaution = Subject.create(false);
+
+  /** AIR PACK 2 FAULT: ACSC 2 lost, or pack 2 flow control valve disagree */
+  private readonly pack2FaultCaution = Subject.create(false);
 
   private readonly pack1And2Fault = Subject.create(false);
 
@@ -3556,7 +3563,15 @@ export class PseudoFWC {
     const acsc2FT = this.acsc2DiscreteWord1.isFailureWarning();
     this.acsc1Fault.set(acsc1FT && !acsc2FT);
     this.acsc2Fault.set(!acsc1FT && acsc2FT);
-    const acscBothFault = acsc1FT && acsc2FT;
+    const packFaults = acscPackFaults({
+      acsc1Failed: acsc1FT,
+      acsc2Failed: acsc2FT,
+      pack1ValveDisagrees: this.acsc1DiscreteWord2.bitValueOr(21, false),
+      pack2ValveDisagrees: this.acsc2DiscreteWord2.bitValueOr(21, false),
+    });
+    this.pack1FaultCaution.set(packFaults.pack1Fault);
+    this.pack2FaultCaution.set(packFaults.pack2Fault);
+    const acscBothFault = packFaults.bothAcscFailed;
 
     this.ramAirOn.set(SimVar.GetSimVarValue('L:A32NX_AIRCOND_RAMAIR_TOGGLE', 'bool'));
 
@@ -6745,7 +6760,7 @@ export class PseudoFWC {
     2161202: {
       // PACK 1 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.acsc1Fault,
+      simVarIsActive: this.pack1FaultCaution,
       whichCodeToReturn: () => [0, this.pack1On.get() ? 1 : null],
       codesToReturn: ['216120201', '216120202'],
       memoInhibit: () => false,
@@ -6756,7 +6771,7 @@ export class PseudoFWC {
     2161203: {
       // PACK 2 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.acsc2Fault,
+      simVarIsActive: this.pack2FaultCaution,
       whichCodeToReturn: () => [0, this.pack2On.get() ? 1 : null],
       codesToReturn: ['216120301', '216120302'],
       memoInhibit: () => false,

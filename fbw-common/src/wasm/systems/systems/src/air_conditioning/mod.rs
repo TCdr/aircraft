@@ -893,12 +893,6 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystem<ZONES, ENGINES> {
         self.trim_air_valves[tav_id].trim_air_valve_has_fault()
     }
 
-    fn any_trim_air_valve_has_fault(&self) -> bool {
-        self.trim_air_valves
-            .iter()
-            .any(|tav| tav.trim_air_valve_has_fault())
-    }
-
     pub fn trim_air_high_pressure(&self) -> bool {
         self.outlet_air.pressure() > Pressure::new::<psi>(20.)
     }
