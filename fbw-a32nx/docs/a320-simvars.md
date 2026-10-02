@@ -4560,6 +4560,11 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
         - -1.0
         - 1.0
 
+- A32NX_PRINTER_DOOR
+    - Bool
+    - The paper door of the pedestal printer is open (a click on the door or its handle toggles it; cockpit
+      model animation PRINTER_DOOR). No effect on printing.
+
 ## Non-Systems Related
 
 - `L:FBW_BUILD_EDITION`
