@@ -1159,6 +1159,26 @@
                     <NODE_ID>PRINT_TORN</NODE_ID>
                 </UseTemplate>
 
+                <!-- The paper door of the printer: a click on the door or on its latch opens or closes it (the door swings
+                up about its forward edge, PRINTER_DOOR, frames 0 closed to 100 open), showing the paper roll -->
+                <Component ID="PRINTER_DOOR" Node="PRINTER_DOOR_PANEL">
+                    <UseTemplate Name="ASOBO_GT_Anim_Code">
+                        <ANIM_NAME>PRINTER_DOOR</ANIM_NAME>
+                        <ANIM_LAG>70</ANIM_LAG>
+                        <ANIM_CODE>(L:A380X_PRINTER_DOOR, Bool) 100 *</ANIM_CODE>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>(L:A380X_PRINTER_DOOR, Bool) ! (&gt;L:A380X_PRINTER_DOOR, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Open or close the printer paper door</TOOLTIPID>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PRINTER_DOOR_LATCH" Node="PRINTER_DOOR_LATCH">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>(L:A380X_PRINTER_DOOR, Bool) ! (&gt;L:A380X_PRINTER_DOOR, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Open or close the printer paper door</TOOLTIPID>
+                    </UseTemplate>
+                </Component>
+
                 <!-- The printed text on the paper: the printer display image (VCockpit PRINT, PRINT_STATIC) shows through the
                 emissive channel, as on the screens -->
                 <Component ID="Print_TEXT" Node="Print_TEXT">

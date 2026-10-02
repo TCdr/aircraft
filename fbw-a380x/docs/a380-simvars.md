@@ -1924,3 +1924,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - If ground power is avail or not
   - {number}
         - 1 - 4
+
+- `L:A380X_PRINTER_DOOR`
+  - Bool
+  - The paper door of the pedestal printer is open (a click on the door or its latch toggles it; cockpit model
+    animation PRINTER_DOOR). No effect on printing.
