@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { DescentAntiIce, DescentPerformanceError, DescentPerformanceInputs, DescentType } from '@flybywiresim/fbw-sdk';
+import {
+  DescentAntiIce,
+  DescentPerformanceError,
+  DescentPerformanceEstimate,
+  DescentPerformanceInputs,
+  DescentType,
+} from '@flybywiresim/fbw-sdk';
 import { A320AircraftConfig } from '@fmgc/flightplanning/A320AircraftConfig';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import { FmsDescentPerformanceCalculator } from './FmsDescentPerformanceCalculator';
@@ -95,5 +101,70 @@ describe('Descent performance', () => {
     expect(a380.calculateDescent({ ...standard.inputs, targetAltitude: 45_000 }).error).toBe(
       DescentPerformanceError.TargetAboveInitial,
     );
+  });
+
+  it('applies the anti-ice corrections of the A320 FCOM table (PER-DES-STD) to the results and the profile', () => {
+    const still = a320.calculateDescent(FCOM_TABLE);
+    expect(still.estimates).not.toContain(DescentPerformanceEstimate.AntiIce);
+    const corrections: [DescentAntiIce, number, number, number][] = [
+      [DescentAntiIce.Engine, 1.06, 1.28, 1.03],
+      [DescentAntiIce.Total, 1.06, 1.44, 1.04],
+    ];
+    for (const [antiIce, time, fuel, distance] of corrections) {
+      const result = a320.calculateDescent({ ...FCOM_TABLE, antiIce });
+      expect(result.time).toBeCloseTo(still.time * time, 6);
+      expect(result.fuel).toBeCloseTo(still.fuel * fuel, 6);
+      expect(result.distance).toBeCloseTo(still.distance * distance, 6);
+      expect(result.points[result.points.length - 1].distance).toBeCloseTo(result.distance, 6);
+      expect(result.estimates).toContain(DescentPerformanceEstimate.AntiIce);
+    }
+  });
+
+  it('descends steeper with the speed brakes', () => {
+    const still = a320.calculateDescent(FCOM_TABLE);
+    const speedBrakes = a320.calculateDescent({ ...FCOM_TABLE, speedBrakes: true });
+    expect(speedBrakes.distance).toBeLessThan(still.distance - 5);
+    expect(speedBrakes.time).toBeLessThan(still.time);
+  });
+
+  it('flies the MACH, then the SPD, then the SPD LIM below the speed limit altitude', () => {
+    const points = a320.calculateDescent(FCOM_TABLE).points;
+    const at = (altitude: number) => points.find((p) => p.altitude === altitude)!;
+    expect(at(35_000).mach).toBeCloseTo(0.78, 3);
+    expect(at(20_000).cas).toBeCloseTo(300, 0);
+    expect(at(10_000).cas).toBeCloseTo(250, 0);
+    expect(at(5_000).cas).toBeCloseTo(250, 0);
+    expect(points.some((p) => p.event === 'DECEL')).toBe(true);
+  });
+
+  it('gives the crossover altitude of the speed schedule (ISA)', () => {
+    // 300 kt / M.78: 29,314 ft; 300 kt / M.85: 33,638 ft
+    expect(a320.crossoverAltitude(a320.standardSchedule)).toBeCloseTo(29_314, -1);
+    expect(a380.crossoverAltitude(a380.standardSchedule)).toBeCloseTo(33_638, -1);
+  });
+
+  it('gives the average rate and gradient of the whole descent', () => {
+    const result = a320.calculateDescent(FCOM_TABLE);
+    const height = 39_000 - 1_500;
+    expect(result.averageRate).toBeCloseTo(height / (result.time / 60), 6);
+    expect(result.averageGradient).toBeCloseTo(-(Math.atan2(height, result.distance * 6076.12) * 180) / Math.PI, 6);
+    expect(result.averageGradient).toBeLessThan(-2);
+    expect(result.averageGradient).toBeGreaterThan(-4);
+  });
+
+  it('checks the altitude, the weight and the given V/S', () => {
+    const error = (inputs: Partial<DescentPerformanceInputs>) =>
+      a320.calculateDescent({ ...FCOM_TABLE, ...inputs }).error;
+    expect(error({ initialAltitude: 39_800 })).toBe(DescentPerformanceError.None);
+    expect(error({ initialAltitude: 39_900 })).toBe(DescentPerformanceError.MaximumAltitude);
+    expect(error({ weight: 42_500 })).toBe(DescentPerformanceError.None);
+    expect(error({ weight: 42_400 })).toBe(DescentPerformanceError.WeightOutOfRange);
+    expect(error({ weight: 79_000 })).toBe(DescentPerformanceError.None);
+    expect(error({ weight: 79_100 })).toBe(DescentPerformanceError.WeightOutOfRange);
+    expect(error({ targetAltitude: 39_000 })).toBe(DescentPerformanceError.TargetAboveInitial);
+    expect(error({ headwind: NaN })).toBe(DescentPerformanceError.InvalidData);
+    expect(error({ type: DescentType.GivenVs, verticalSpeed: 100 })).toBe(DescentPerformanceError.None);
+    expect(error({ type: DescentType.GivenVs, verticalSpeed: 90 })).toBe(DescentPerformanceError.VerticalSpeed);
+    expect(error({ type: DescentType.GivenVs })).toBe(DescentPerformanceError.VerticalSpeed);
   });
 });

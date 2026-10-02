@@ -168,6 +168,116 @@ describe('A380 landing performance', () => {
     expect(headwind.btv.dry).toBeLessThan(result.btv.dry);
   });
 
+  describe('autoland, glide slope and slope (in flight, 380 t, dry, manual braking)', () => {
+    const IN_FLIGHT: LandingPerformanceInputs = { ...CHART, type: LandingComputationType.InFlight };
+    const actual = (inputs: Partial<LandingPerformanceInputs>) =>
+      calculator.calculateLandingPerformance({ ...IN_FLIGHT, ...inputs }).actualLandingDistance!;
+    const autoland = (inputs: Partial<LandingPerformanceInputs> = {}) => actual({ autoland: true, ...inputs });
+
+    it('is longer with autoland', () => {
+      expect(autoland()).toBeGreaterThan(actual({}) + 100);
+    });
+
+    it('takes 3 degrees without a glide slope, and clamps it between 2.5 and 4.5 degrees', () => {
+      expect(autoland({ glideSlope: 0 })).toBeCloseTo(autoland({ glideSlope: 3 }), 6);
+      expect(autoland({ glideSlope: 2 })).toBeCloseTo(autoland({ glideSlope: 2.5 }), 6);
+      expect(autoland({ glideSlope: 5 })).toBeCloseTo(autoland({ glideSlope: 4.5 }), 6);
+      expect(autoland({ glideSlope: 2.5 })).toBeGreaterThan(autoland({ glideSlope: 3 }));
+    });
+
+    it('shortens the airborne distance by the 50 ft geometry of a steeper glide slope', () => {
+      // 15.24 m / tan 3° - 15.24 m / tan 3.5° = 41.7 m less from 50 ft to the touchdown
+      const shorter = autoland({ glideSlope: 3 }) - autoland({ glideSlope: 3.5 });
+      expect(shorter).toBeGreaterThan(30);
+      expect(shorter).toBeLessThan(55);
+    });
+
+    it('counts the slope for autoland only (PER-LND-LCD-RWY), a downhill slope making it longer', () => {
+      expect(actual({ slope: -1 })).toBeCloseTo(actual({}), 6);
+      const downhill = autoland({ slope: -1 });
+      const uphill = autoland({ slope: 1 });
+      expect(downhill).toBeGreaterThan(autoland());
+      expect(uphill).toBeLessThan(autoland());
+      // 1 % of slope changes the deceleration by 0.098 m/s²: tens of metres, not hundreds
+      expect(downhill - uphill).toBeLessThan(100);
+    });
+  });
+
+  describe('go-around (in flight, 380 t, CONF FULL, go-around CONF 3)', () => {
+    const IN_FLIGHT: LandingPerformanceInputs = { ...CHART, type: LandingComputationType.InFlight };
+    const result = (inputs: Partial<LandingPerformanceInputs>) =>
+      calculator.calculateLandingPerformance({ ...IN_FLIGHT, ...inputs });
+    const gradient = (inputs: Partial<LandingPerformanceInputs>) => result(inputs).goAroundGradient!;
+
+    it('loses gradient above ISA + 15 only, linearly to ISA + 60 (design model of the engine flat rating)', () => {
+      const isa = gradient({ oat: 15 });
+      expect(gradient({ oat: 30 })).toBeCloseTo(isa, 6);
+      const isa30 = gradient({ oat: 45 });
+      const isa50 = gradient({ oat: 65 });
+      expect(isa30).toBeLessThan(isa);
+      // the thrust loss is 0.4 x (dISA - 15) / 45: 35/15 times larger at ISA + 50 than at ISA + 30
+      expect((isa - isa50) / (isa - isa30)).toBeCloseTo(35 / 15, 6);
+    });
+
+    it('keeps the ISA deviation of the airport at the go-around altitude', () => {
+      // ISA + 14 at sea level, go-around at 5000 ft: the same gradient as at a 5000 ft airport at ISA + 14
+      const atAltitude = gradient({ oat: 29, goAroundAltitude: 5000 });
+      expect(atAltitude).toBeCloseTo(gradient({ elevation: 5000, oat: 29 - 9.906, goAroundAltitude: 5000 }), 6);
+      expect(atAltitude).toBeLessThan(gradient({ oat: 29 }));
+    });
+
+    it('flies the go-around at VLS of the go-around configuration, for CAT II at least VLS + 5 kt and VMCL + 5 kt', () => {
+      const normal = result({});
+      const cat2 = result({ approachType: LandingApproachType.Cat2 });
+      expect(cat2.goAroundSpeed!).toBeCloseTo(Math.max(normal.goAroundSpeed!, normal.vls + 5, 123 + 5), 6);
+      expect(cat2.goAroundSpeed!).toBeCloseTo(normal.vls + 5, 6);
+    });
+  });
+
+  describe('limits, runway condition codes and estimates', () => {
+    const IN_FLIGHT: LandingPerformanceInputs = { ...CHART, type: LandingComputationType.InFlight };
+
+    it('keeps the 2 % slope and the 10 kt tailwind of the FCOM (LIM-12)', () => {
+      const error = (inputs: Partial<LandingPerformanceInputs>) =>
+        calculator.calculateLandingPerformance({ ...IN_FLIGHT, ...inputs }).error;
+      expect(error({ slope: 2 })).toBe(LandingPerformanceError.None);
+      expect(error({ slope: -2.1 })).toBe(LandingPerformanceError.MaximumRunwaySlope);
+      expect(error({ headwind: -10 })).toBe(LandingPerformanceError.None);
+      expect(error({ headwind: -11 })).toBe(LandingPerformanceError.MaximumTailwind);
+      expect(error({ oat: NaN })).toBe(LandingPerformanceError.InvalidData);
+      expect(error({ weight: 510_000 })).toBe(LandingPerformanceError.None);
+      expect(error({ weight: 510_100 })).toBe(LandingPerformanceError.MaximumTakeoffWeight);
+    });
+
+    it('brakes less on worse runway condition codes; compacted snow is code 4 at or below -15 °C, else 3 (design)', () => {
+      const actual = (runwayCondition: LandingRunwayCondition, oat = 15) =>
+        calculator.calculateLandingPerformance({ ...IN_FLIGHT, runwayCondition, oat }).actualLandingDistance!;
+      const wet = actual(LandingRunwayCondition.Wet);
+      const coldSnow = actual(LandingRunwayCondition.CompactedSnow, -15);
+      const snow = actual(LandingRunwayCondition.CompactedSnow, -14);
+      expect(actual(LandingRunwayCondition.Dry)).toBeLessThan(wet);
+      expect(wet).toBeLessThan(coldSnow);
+      expect(coldSnow).toBeLessThan(snow);
+      expect(snow).toBeLessThan(actual(LandingRunwayCondition.Icy, -15));
+    });
+
+    it('marks the distance as an estimate outside the conditions of the Airbus chart', () => {
+      const estimated = (inputs: Partial<LandingPerformanceInputs>) =>
+        calculator
+          .calculateLandingPerformance({ ...CHART, ...inputs })
+          .estimates.includes(LandingPerformanceEstimate.LandingDistance);
+      expect(estimated({})).toBe(false);
+      expect(estimated({ weight: 300_000 })).toBe(false);
+      expect(estimated({ type: LandingComputationType.InFlight })).toBe(true);
+      expect(estimated({ runwayCondition: LandingRunwayCondition.Wet })).toBe(true);
+      expect(estimated({ autoland: true })).toBe(true);
+      expect(estimated({ conf: LandingConf.Conf3 })).toBe(true);
+      expect(estimated({ speedIncrement: 5 })).toBe(true);
+      expect(estimated({ headwind: 10 })).toBe(true);
+      expect(estimated({ elevation: -500 })).toBe(true);
+    });
+  });
+
   it('checks the limits', () => {
     expect(calculator.calculateLandingPerformance({ ...CHART, weight: 395_001 }).error).toBe(
       LandingPerformanceError.MaximumLandingWeight,

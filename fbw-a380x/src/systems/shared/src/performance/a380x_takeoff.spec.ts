@@ -77,7 +77,7 @@ const expectChartWeight = (mtow: number | undefined, tonnes: number) => {
 describe('A380842TakeoffPerformanceCalculator', () => {
   beforeAll(() => {
     // The VMCA and VMCG tables are interpolated with this sim helper, not in the common test mock
-    const utils = (globalThis as any).Avionics.Utils;
+    const utils = (window as any).Avionics.Utils;
     utils.lerpAngle ??= (from: number, to: number, d: number) => {
       const delta = ((((to - from) % 360) + 540) % 360) - 180;
       return (((from + delta * d) % 360) + 360) % 360;
@@ -121,6 +121,34 @@ describe('A380842TakeoffPerformanceCalculator', () => {
     });
   });
 
+  describe('above the flat rating temperature (estimate: density and a linear thrust loss to 60 % at ISA + 60)', () => {
+    // sea level, 3000 m: 577.0 t at ISA, 567.0 t at ISA + 15 °C (30 °C)
+    const limit = (oat: number) => calculate({ oat }).mtow!;
+    /** The density exponent k of W ~ density^k that the calculator used at a temperature above ISA + 15 */
+    const exponent = (oat: number, thrustRatio: number) =>
+      Math.log(limit(oat) / (567_000 * thrustRatio)) / Math.log((288.15 + 15) / (oat + 273.15));
+
+    it('is continuous at ISA + 15 °C', () => {
+      expect(limit(30)).toBeCloseTo(567_000, 0);
+      expect(limit(30) - limit(30.1)).toBeGreaterThan(0);
+      expect(limit(30) - limit(30.1)).toBeLessThan(1000);
+    });
+
+    it('uses the density exponent of the charts between ISA and ISA + 15 °C', () => {
+      // the charts at this point: 577.0 t -> 567.0 t for a density ratio of 288.15 / 303.15
+      const chartExponent = Math.log(567 / 577) / Math.log(288.15 / 303.15);
+      // the calculator averages k over the pressure altitudes of the charts
+      expect(exponent(45, 1 - (0.4 * 15) / 45)).toBeGreaterThan(chartExponent - 0.15);
+      expect(exponent(45, 1 - (0.4 * 15) / 45)).toBeLessThan(chartExponent + 0.15);
+    });
+
+    it('loses the thrust linearly down to 60 % at ISA + 60 °C', () => {
+      // the same exponent at every temperature (the limit is rounded to the kilogram)
+      expect(exponent(75, 0.6)).toBeCloseTo(exponent(45, 1 - (0.4 * 15) / 45), 3);
+      expect(exponent(60, 1 - (0.4 * 30) / 45)).toBeCloseTo(exponent(45, 1 - (0.4 * 15) / 45), 3);
+    });
+  });
+
   describe('corrections (A380 FCOM PER-TOF-TOC)', () => {
     it('takes the ASDA line-up distance off the runway', () => {
       expect(calculate({ lineupAngle: 90 }).params.adjustedTora).toBeCloseTo(3000 - 172.5 / FEET_PER_METRE, 6);
@@ -135,6 +163,15 @@ describe('A380842TakeoffPerformanceCalculator', () => {
       expect(tailwind.mtow!).toBeLessThan(calm);
       expect(calm - tailwind.mtow!).toBeGreaterThan(headwind.mtow! - calm);
       expect(headwind.estimates).toContain(TakeoffPerformanceEstimate.Wind);
+    });
+
+    it('weighs a tailwind about 5 times more than a headwind on 3000 m (150 % against 50 %, chart curvature)', () => {
+      const calm = calculate().mtow!;
+      const gain = calculate({ wind: 10 }).mtow! - calm;
+      const loss = calm - calculate({ wind: -10 }).mtow!;
+      // 1.5 / 0.5 = 3 times the wind, more in weight because the limit flattens on longer runways
+      expect(loss / gain).toBeGreaterThan(3);
+      expect(loss / gain).toBeLessThan(8);
     });
 
     it('lowers the limit uphill and raises it downhill', () => {
