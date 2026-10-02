@@ -83,7 +83,8 @@ export function requestFmsDescentData(bus: EventBus): Promise<FmsDescentData | n
         if (data.answersRequestId === requestId) {
           clearTimeout(timeout);
           sub.destroy();
-          resolve(data);
+          // an FMS built before the waypoints were added answers without them
+          resolve({ ...data, waypoints: data.waypoints ?? [] });
         }
       });
     bus.getPublisher<FmsDescentDataEvents>().pub('fms_descent_data_request', requestId, true, false);
