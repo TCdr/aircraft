@@ -65,6 +65,8 @@ pub enum FailureType {
     RadioAntennaInterrupted(usize),
     RadioAntennaDirectCoupling(usize),
     EnhancedGroundProximityWarningSystemComputer,
+    /// The GPS receiver of MMR 1 or 2
+    Gps(usize),
 }
 
 pub struct Failure {

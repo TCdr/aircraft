@@ -1368,6 +1368,25 @@ These variables are the interface between the 3D model and the systems/code.
 
 ## EIS Display System
 
+- A32NX_ECAM_STATUS_{side}_LINE_{number}
+    - Number
+    - The lines of the ECAM STATUS page computed by the FWC, as codes of `StatusMessages` (0 for no line): information on
+      the left, inoperative systems (INOP SYS) on the right
+    - {side}
+        - LEFT
+        - RIGHT
+    - {number}
+        - 1 to 16
+
+- A32NX_ECAM_STATUS_NORMAL
+    - Bool
+    - True when the ECAM STATUS page is empty (NORMAL)
+
+- A32NX_EWD_STS_REMINDER
+    - Bool
+    - True when the STS reminder is shown at the bottom of the E/WD (STATUS page not empty, not shown, and no alert on the
+      E/WD)
+
 - A32NX_FCU_EFIS_{side}_NAVAID_{1|2}_MODE
     - Enum
     - Provides the selected NAVAID knob posiiton. For use systems, use the FCU discrete words instead.
@@ -1925,6 +1944,59 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_PUSH_TRUE_REF
     - Bool
     - True reference pushbutton status
+
+- A32NX_GPS_{number}_LATITUDE, A32NX_GPS_{number}_LONGITUDE
+    - Arinc429<Degrees>
+    - The position of the GPS receiver of MMR {number} (1 or 2): valid in NAV mode, no computed data in INIT and ACQ,
+      failure warning when off or failed
+
+- A32NX_GPS_{number}_ALTITUDE, A32NX_GPS_{number}_GROUND_SPEED, A32NX_GPS_{number}_TRUE_TRACK
+    - Arinc429<Feet>, Arinc429<Knots>, Arinc429<Degrees>
+    - The GPS altitude, ground speed and true track of the receiver
+
+- A32NX_GPS_{number}_HORIZONTAL_FIGURE_OF_MERIT
+    - Arinc429<Feet>
+    - The 95 % horizontal accuracy (HFOM) of the receiver position, from the geometry of the satellites tracked
+
+- A32NX_GPS_{number}_HORIZONTAL_INTEGRITY_LIMIT
+    - Arinc429<Nautical miles>
+    - The horizontal integrity limit (HIL) of the receiver position; no computed data with fewer than five satellites
+
+- A32NX_GPS_{number}_SATELLITES
+    - Arinc429<Number>
+    - The number of satellites tracked (in ACQ and NAV), from the nominal 24-slot GPS constellation at the sim UTC time
+
+- A32NX_GPS_{number}_MODE
+    - Number
+    - The receiver mode
+      | Value | Mode  |
+      |-------|-------|
+      | 0     | Off   |
+      | 1     | INIT  |
+      | 2     | ACQ   |
+      | 3     | NAV   |
+      | 4     | FAULT |
+      | 5     | TEST (self test at power up) |
+      | 6     | ALTAID (three satellites and the ADR altitude) |
+      | 7     | AIDED (coasting on the IR data, up to two minutes) |
+      | 8     | DIFF (satellite based augmentation, A380X only) |
+
+- A32NX_ADIRS_IR_{number}_GPIRS_LATITUDE, A32NX_ADIRS_IR_{number}_GPIRS_LONGITUDE
+    - Arinc429<Degrees>
+    - The GPIRS (hybrid GPS/IRS) position of IR {number}: valid when the IR is in NAV and has a GPS receiver in NAV
+
+- A32NX_ADIRS_IR_{number}_GPIRS_FIGURE_OF_MERIT, A32NX_ADIRS_IR_{number}_GPIRS_INTEGRITY_LIMIT
+    - Arinc429<Nautical miles>
+    - The accuracy (HFOM) and the horizontal integrity limit (HIL) of the GPIRS position
+
+- A32NX_ADIRS_IR_{number}_GPIRS_SOURCE
+    - Number
+    - The GPS receiver the IR uses (1 or 2, 0 for none): GPS 1 for IR 1, GPS 2 for IR 2, IR 3 by the ATT HDG selector
+      (GPS 2 on F/O 3); when one receiver is rejected, every IR uses the other
+
+- A32NX_GNSS_UTC_UNIX_SECONDS
+    - Number (seconds)
+    - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
 
 ## Radio Receivers
 

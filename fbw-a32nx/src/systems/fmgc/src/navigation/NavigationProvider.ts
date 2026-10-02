@@ -32,6 +32,12 @@ export interface NavigationProvider {
    */
   getGpsPrimary(): boolean;
 
+  /** Whether the flight crew has deselected the GPS for the FMS position computation */
+  isGpsDeselected(): boolean;
+
+  /** Selects or deselects the GPS for the FMS position computation */
+  setGpsDeselected(deselected: boolean): void;
+
   /**
    * Get the pressure altitude
    * @returns pressure altitude in feet or null if invalid

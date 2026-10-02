@@ -54,6 +54,8 @@ import { A32NXFacBusEvents } from '@shared/publishers/A32NXFacBusPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
+import { EcamStatus } from './EcamStatus';
+import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -91,6 +93,10 @@ interface EWDFailureItem extends EWDMessageItem {
   cancel?: boolean;
   /** The monitor confirm time in seconds. Defaults to 0.3 s. */
   monitorConfirmTime?: number;
+  /** STATUS page: the codes of the inoperative systems (INOP SYS, right column), see StatusMessages */
+  inopSys?: () => string[];
+  /** STATUS page: the codes of the information lines (left column), see StatusMessages */
+  statusInfo?: () => string[];
 }
 
 interface EWDMemoItem extends EWDMessageItem {}
@@ -176,6 +182,27 @@ export class PseudoFWC {
   private readonly ewdMessageLinesLeft = Array.from({ length: PseudoFWC.EWD_MESSAGE_LINES }, (_, _i) =>
     Subject.create(''),
   );
+
+  /** The STATUS page lines (codes of StatusMessages), left and right columns */
+  private readonly statusLinesLeft = Array.from({ length: STATUS_PAGE_LINES }, () => Subject.create(''));
+
+  private readonly statusLinesRight = Array.from({ length: STATUS_PAGE_LINES }, () => Subject.create(''));
+
+  /** Whether the STATUS page is empty (NORMAL) */
+  private readonly statusNormal = Subject.create(true);
+
+  /** The STS reminder on the E/WD */
+  private readonly stsReminder = Subject.create(false);
+
+  private readonly ecamStatus = new EcamStatus();
+
+  /** The FWC calls the STATUS page (after the last alert is cleared, or CONF 1 selected in flight) */
+  private statusPageCalled = false;
+
+  /** A CLR push of this update cleared the last alert of the E/WD */
+  private lastAlertCleared = false;
+
+  private previousFlapsHandle = 0;
 
   private static readonly ewdMessageSimVarsRight = Array.from(
     { length: PseudoFWC.EWD_MESSAGE_LINES },
@@ -1723,6 +1750,11 @@ export class PseudoFWC {
 
   private readonly ra1Fault = Subject.create(false);
 
+  /** NAV GPS 1(2) FAULT: the GPS receiver of MMR 1(2) has failed (FAULT mode) */
+  private readonly gps1Fault = Subject.create(false);
+
+  private readonly gps2Fault = Subject.create(false);
+
   private readonly ra2Fault = Subject.create(false);
 
   private readonly tcasFault = Subject.create(false);
@@ -1808,6 +1840,15 @@ export class PseudoFWC {
         SimVar.SetSimVarValue(PseudoFWC.ewdMessageSimVarsLeft[i], 'string', l ?? '');
       }),
     );
+
+    this.statusLinesLeft.forEach((line, i) =>
+      line.sub((code) => SimVar.SetSimVarValue(`L:A32NX_ECAM_STATUS_LEFT_LINE_${i + 1}`, 'string', code), true),
+    );
+    this.statusLinesRight.forEach((line, i) =>
+      line.sub((code) => SimVar.SetSimVarValue(`L:A32NX_ECAM_STATUS_RIGHT_LINE_${i + 1}`, 'string', code), true),
+    );
+    this.statusNormal.sub((normal) => SimVar.SetSimVarValue('L:A32NX_ECAM_STATUS_NORMAL', 'bool', normal), true);
+    this.stsReminder.sub((reminder) => SimVar.SetSimVarValue('L:A32NX_EWD_STS_REMINDER', 'bool', reminder), true);
 
     this.ewdMessageLinesRight.forEach((ls, i) =>
       ls.sub((l) => {
@@ -2047,6 +2088,48 @@ export class PseudoFWC {
   mapOrder(array: string[]): string[] {
     array.sort((a, b) => (EwdMessageCodeOrder.get(a) ?? Infinity) - (EwdMessageCodeOrder.get(b) ?? Infinity));
     return array;
+  }
+
+  /**
+   * The STATUS page (A320 FCOM DSC-31-20): the information lines and the inoperative systems of the active alerts, the
+   * automatic call of the page and the STS reminder on the E/WD.
+   */
+  private updateStatus(primaryFailureDisplayed: boolean, flightPhase: number): void {
+    const info: string[] = [];
+    const inopSys: string[] = [];
+    for (const key of this.allCurrentFailures) {
+      const failure = this.ewdMessageFailures[key];
+      if (failure?.statusInfo) {
+        info.push(...failure.statusInfo());
+      }
+      if (failure?.inopSys) {
+        inopSys.push(...failure.inopSys());
+      }
+    }
+    const left = orderStatusCodes(info);
+    const right = orderStatusCodes(inopSys);
+    this.statusLinesLeft.forEach((line, i) => line.set(left[i] ?? ''));
+    this.statusLinesRight.forEach((line, i) => line.set(right[i] ?? ''));
+    const statusEmpty = left.length === 0 && right.length === 0;
+    this.statusNormal.set(statusEmpty);
+
+    // CONF 1 for the approach: the flaps lever from 0 to 1 in flight (FWC phases 5 to 7)
+    const flapsHandle = this.flapsHandle.get();
+    const conf1SelectedInFlight =
+      this.previousFlapsHandle === 0 && flapsHandle === 1 && flightPhase >= 5 && flightPhase <= 7;
+    this.previousFlapsHandle = flapsHandle;
+
+    const { requestStatusPage, reminder } = this.ecamStatus.update({
+      statusEmpty,
+      leftFailureDisplayed: primaryFailureDisplayed,
+      lastAlertCleared: this.lastAlertCleared,
+      clearPressed: this.ecpClearPulseUp,
+      statusPressed: this.ecpStatusPulseUp,
+      conf1SelectedInFlight,
+      sdShowsStatus: SimVar.GetSimVarValue('L:A32NX_ECAM_SD_PAGE_TO_DISPLAY', 'number') === EcamSysPage.STS,
+    });
+    this.statusPageCalled = requestStatusPage;
+    this.stsReminder.set(reminder);
   }
 
   private readonly ecpClear1Pulse = new NXLogicPulseNode(true);
@@ -3357,6 +3440,9 @@ export class PseudoFWC {
       this.fwcFlightPhase.get() !== 2,
     );
     this.ra1Fault.set(this.height1Failed.get() && !this.sdac00201Word.bitValue(20));
+    // GPS receivers: GPS_n_MODE 4 is FAULT (A320 FCOM PRO-ABN-NAV: the alert triggers when the GPS 1(2) is failed)
+    this.gps1Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_1_MODE', 'number') === 4);
+    this.gps2Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_2_MODE', 'number') === 4);
     this.ra2Fault.set(this.height2Failed.get() && !this.sdac00210Word.bitValue(20));
     this.tcasFault.set(SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', 'bool'));
     this.tcasSensitivity.set(SimVar.GetSimVarValue('L:A32NX_TCAS_SENSITIVITY', 'Enum'));
@@ -4539,7 +4625,9 @@ export class PseudoFWC {
       this.ecpClearPulseUpHandled = false;
     }
 
+    this.lastAlertCleared = false;
     if (this.ecpClearPulseUp && !this.ecpClearPulseUpHandled) {
+      const hadPrimaryFailure = this.failuresLeft.length > 0;
       const clearableFailures = this.failuresLeft.map((key) => {
         const value = this.ewdMessageFailures[key];
         const codeToReturn = value.whichCodeToReturn();
@@ -4597,6 +4685,7 @@ export class PseudoFWC {
         }
       }
 
+      this.lastAlertCleared = hadPrimaryFailure && this.failuresLeft.length === 0;
       this.ecpClearPulseUpHandled = true;
     }
 
@@ -4860,6 +4949,13 @@ export class PseudoFWC {
         activeFailureSysPageOrder = sysPageItem.order;
         activeFailureSysPage = sysPageItem.sysPage;
       }
+    }
+
+    this.updateStatus(failLeft, flightPhase);
+
+    // No failure displayed: the STATUS page when the FWC calls it
+    if (!failLeft && tempFailureArrayRight.length === 0 && this.statusPageCalled) {
+      activeFailureSysPage = EcamSysPage.STS;
     }
 
     this.activeFailureSysPage.set(activeFailureSysPage);
@@ -6747,6 +6843,33 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+    },
+    3400165: {
+      // GPS 1 FAULT: crew awareness (the flight phase inhibition is the one of the RA faults, design choice)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.gps1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['340016501'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      // STATUS (FCOM PRO-ABN-NAV NAV GPS 1(2) FAULT): INOP SYS GPS 1(2); if both GPS FAULT: FLS LIMITED TO F-APP + RAW
+      inopSys: () => [this.gps2Fault.get() ? '340300003' : '340300001'],
+      statusInfo: () => (this.gps2Fault.get() ? ['340200001'] : []),
+    },
+    3400175: {
+      // GPS 2 FAULT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.gps2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['340017501'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => [this.gps1Fault.get() ? '340300003' : '340300002'],
+      statusInfo: () => (this.gps1Fault.get() ? ['340200001'] : []),
     },
     3400150: {
       // RA 2 FAULT

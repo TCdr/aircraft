@@ -20,8 +20,12 @@ import { NavaidSelectionManager, VorSelectionReason } from '@fmgc/navigation/Nav
 import { NavaidTuner } from '@fmgc/navigation/NavaidTuner';
 import { NavigationProvider } from '@fmgc/navigation/NavigationProvider';
 import { RequiredPerformance } from '@fmgc/navigation/RequiredPerformance';
-import { EventBus, Subject, Subscribable } from '@microsoft/msfs-sdk';
-import { Coordinates } from 'msfs-geo';
+import { GpirsData, gpsNavigationState } from '@fmgc/navigation/GpsNavigation';
+import { FmNavigationMode, PositionUncertaintyEstimator } from '@fmgc/navigation/PositionUncertainty';
+import { FlightPhaseManagerEvents } from '@fmgc/flightphase';
+import { FmgcFlightPhase } from '@shared/flightphase';
+import { ConsumerSubject, EventBus, Subject, Subscribable } from '@microsoft/msfs-sdk';
+import { Coordinates, distanceTo } from 'msfs-geo';
 import { FlightPlanService } from '../flightplanning/FlightPlanService';
 import { NavigationDatabaseService } from '../flightplanning/NavigationDatabaseService';
 
@@ -129,13 +133,46 @@ export class Navigation implements NavigationProvider {
     (_, i) => `L:A32NX_ADIRS_ADR_${i + 1}_STATIC_AIR_TEMPERATURE`,
   );
 
-  private static readonly irDiscreteWordVars = Array.from(
+  private isGpirsAvailable = false;
+
+  /** The GPIRS position of each IR: the hybrid GPS/IRS position from the GPS receiver it selects */
+  private static readonly gpirsLatitudeVars = Array.from(
     { length: 3 },
-    (_, i) => `L:A32NX_ADIRS_IR_${i + 1}_MAINT_WORD`,
+    (_, i) => `L:A32NX_ADIRS_IR_${i + 1}_GPIRS_LATITUDE`,
   );
 
-  private isGpirsAvailable = false;
+  /** The 95 % accuracy of the GPIRS position, in NM */
+  private static readonly gpirsFigureOfMeritVars = Array.from(
+    { length: 3 },
+    (_, i) => `L:A32NX_ADIRS_IR_${i + 1}_GPIRS_FIGURE_OF_MERIT`,
+  );
+
+  /** The horizontal integrity limit (HIL) of the GPIRS position, in NM */
+  private static readonly gpirsIntegrityLimitVars = Array.from(
+    { length: 3 },
+    (_, i) => `L:A32NX_ADIRS_IR_${i + 1}_GPIRS_INTEGRITY_LIMIT`,
+  );
+
+  /** The GPIRS data of IR 1, 2 and 3, read at each update */
+  private readonly gpirs: [GpirsData, GpirsData, GpirsData] = [1, 2, 3].map(() => ({
+    positionValid: false,
+    figureOfMerit: null,
+    integrityLimit: null,
+  })) as [GpirsData, GpirsData, GpirsData];
   private readonly gpsPrimary = Subject.create(false);
+
+  /** Whether the flight crew has deselected the GPS: the GPIRS positions are then not used */
+  private readonly gpsDeselected = Subject.create(false);
+
+  /** The FM navigation mode and the estimated position uncertainty */
+  private readonly positionUncertainty = new PositionUncertaintyEstimator();
+
+  private navigationMode = FmNavigationMode.IrsOnly;
+
+  private readonly flightPhase = ConsumerSubject.create(
+    this.bus.getSubscriber<FlightPhaseManagerEvents>().on('fmgc_flight_phase'),
+    FmgcFlightPhase.Preflight,
+  );
 
   private windDirection = Subject.create<number | null>(null);
 
@@ -187,6 +224,9 @@ export class Navigation implements NavigationProvider {
       SimVar.SetSimVarValue('L:A32NX_FMGC_R_NAV_ACCURACY_HIGH', 'bool', v);
     }, true);
     this.gpsPrimary.sub((v) => this.publisher.pub('fms_nav_gps_primary', v, false, true), true);
+    // The GPS is selected again on the transition to the DONE phase (A380 FCOM DSC-22-FMS-20-30; the A320 FCOM does not
+    // say, the same is done)
+    this.flightPhase.sub((phase) => phase === FmgcFlightPhase.Done && this.gpsDeselected.set(false));
     this.windDirection.sub((v) => this.publisher.pub('fms_nav_wind_direction', v, false, true), true);
     this.windSpeed.sub((v) => this.publisher.pub('fms_nav_wind_speed', v, false, true), true);
 
@@ -201,8 +241,8 @@ export class Navigation implements NavigationProvider {
     this.requiredPerformance.update(deltaTime);
 
     this.updateAttHdgPosData();
-    this.updateCurrentPerformance();
     this.updatePosition();
+    this.updateCurrentPerformance(deltaTime);
     this.updateRadioHeight();
     this.updateAirData();
     this.updateInertialReference();
@@ -233,21 +273,50 @@ export class Navigation implements NavigationProvider {
     return null;
   }
 
-  private updateCurrentPerformance(): void {
-    const gs = SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots');
+  /**
+   * GPS mode: the estimated position uncertainty is the accuracy (figure of merit) of the GPIRS position. GPS PRIMARY
+   * also needs the integrity limit (HIL) within the required performance (A320 FCOM DSC-22_20: the FMS rejects the GPS
+   * mode when the GPIRS data does not comply with the HIL integrity criterion; A380 FCOM DSC-22-FMS-10-30-10: GPS
+   * PRIMARY = IRS/GPS mode and accuracy HIGH). Without the GPS (lost or deselected), the uncertainty is the one of the
+   * IRS/DME/DME, IRS/VOR/DME or IRS only mode (A320 FCOM DSC-22_20-20-20). The accuracy is HIGH when the uncertainty is
+   * within the required navigation performance.
+   */
+  private updateCurrentPerformance(deltaTime: number): void {
+    const rnp = this.requiredPerformance.activeRnp;
+    const state = gpsNavigationState(this.gpirs, rnp, this.gpsDeselected.get());
 
-    if (this.isGpirsAvailable) {
-      // FIXME fake it until we make it :D
-      const estimate = 0.03 + Math.random() * 0.02 + gs * 0.00015;
-      // basic IIR filter
-      this.currentPerformance =
-        this.currentPerformance === undefined ? estimate : this.currentPerformance * 0.9 + estimate * 0.1;
+    const distanceToNavaid = (navaid: VhfNavaid) => distanceTo(this.ppos, navaid.dmeLocation ?? navaid.location);
+    const dmePair = this.navaidTuner.isFmTuningActive() ? this.navaidSelectionManager.dmePair : null;
+    const vorDme =
+      this.navaidTuner.isFmTuningActive() &&
+      this.navaidSelectionManager.displayVorReason === VorSelectionReason.Navigation
+        ? this.navaidSelectionManager.displayVor
+        : null;
+    const { mode, uncertainty } = this.positionUncertainty.update(
+      deltaTime,
+      state.estimatedPositionUncertainty,
+      dmePair !== null ? [distanceToNavaid(dmePair[0]), distanceToNavaid(dmePair[1])] : null,
+      vorDme !== null ? distanceToNavaid(vorDme) : null,
+    );
+    this.navigationMode = mode;
+    this.currentPerformance = uncertainty;
+    this._accuracyHigh.set(uncertainty <= rnp);
+    this.gpsPrimary.set(state.gpsPrimary);
+  }
 
-      this._accuracyHigh.set(this.currentPerformance <= this.requiredPerformance.activeRnp);
-    } else {
-      this._accuracyHigh.set(false);
-    }
-    this.gpsPrimary.set(this.isGpirsAvailable && this.accuracyHigh.get());
+  /** Whether the flight crew has deselected the GPS */
+  public isGpsDeselected(): boolean {
+    return this.gpsDeselected.get();
+  }
+
+  /** Selects or deselects the GPS for the FMS position computation */
+  public setGpsDeselected(deselected: boolean): void {
+    this.gpsDeselected.set(deselected);
+  }
+
+  /** The FM navigation mode: IRS/GPS, IRS/DME/DME, IRS/VOR/DME or IRS only */
+  public getNavigationMode(): FmNavigationMode {
+    return this.navigationMode;
   }
 
   private updateRadioHeight(): void {
@@ -270,20 +339,22 @@ export class Navigation implements NavigationProvider {
     this.staticAirTemperature = this.getAdiruValue(Navigation.staticAirTemperatureVars);
   }
 
+  /**
+   * The GPIRS data of the three IRs (the hybrid GPS/IRS positions: valid when the IR is in NAV and has a GPS receiver
+   * in NAV); the FMS selects one of them in updateCurrentPerformance.
+   */
   private updateAttHdgPosData(): void {
-    this.isGpirsAvailable = false;
-    for (const simVar of Navigation.irDiscreteWordVars) {
+    const normalValue = (simVar: string): number | null => {
       Navigation.arincWordCache.setFromSimVar(simVar);
-      // Check if in NAV mode and aligned
-      if (
-        !Navigation.arincWordCache.isInvalid() &&
-        Navigation.arincWordCache.bitValue(3) &&
-        !Navigation.arincWordCache.bitValue(1)
-      ) {
-        this.isGpirsAvailable = true;
-        break;
-      }
+      return Navigation.arincWordCache.isNormalOperation() ? Navigation.arincWordCache.value : null;
+    };
+    for (let i = 0; i < 3; i++) {
+      Navigation.arincWordCache.setFromSimVar(Navigation.gpirsLatitudeVars[i]);
+      this.gpirs[i].positionValid = Navigation.arincWordCache.isNormalOperation();
+      this.gpirs[i].figureOfMerit = normalValue(Navigation.gpirsFigureOfMeritVars[i]);
+      this.gpirs[i].integrityLimit = normalValue(Navigation.gpirsIntegrityLimitVars[i]);
     }
+    this.isGpirsAvailable = this.gpirs.some((g) => g.positionValid);
   }
 
   private updateInertialReference(): void {

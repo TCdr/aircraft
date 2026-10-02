@@ -110,6 +110,14 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
 1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
+1. [A32NX/A380X] GPS receivers in MMR 1 and 2: satellites of the GPS constellation, INIT/ACQ/NAV/FAULT modes, accuracy and integrity limit, GPS 1 and GPS 2 failures - @TCdr
+1. [A32NX/A380X] GPIRS position in the ADIRUs and GPS PRIMARY from the real GPS accuracy and integrity limit - @TCdr
+1. [A32NX/MCDU] GPS MONITOR page shows the data of each GPS receiver - @TCdr
+1. [A380X/MFD] POSITION / GPS page shows the data of each GPS receiver - @TCdr
+1. [A32NX/A380X] NAV GPS 1(2) FAULT alerts - @TCdr
+1. [A32NX/A380X] GPS receiver degraded modes TEST, ALTAID and AIDED, antenna masking in turns, DIFF mode on the A380X - @TCdr
+1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the FCOM position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
+1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
 
 ## 2024.1.0
 
