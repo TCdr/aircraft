@@ -1694,6 +1694,13 @@ export class FwsCore {
   public readonly adr2Faulty = Subject.create(false);
   public readonly adr3Faulty = Subject.create(false);
 
+  /** NAV GPS 1 FAULT: the GPS receiver of MMR 1 has failed (FAULT mode), not the one of MMR 2 */
+  public readonly gps1Faulty = Subject.create(false);
+  /** NAV GPS 2 FAULT */
+  public readonly gps2Faulty = Subject.create(false);
+  /** NAV GPS 1+2 FAULT */
+  public readonly gps1And2Faulty = Subject.create(false);
+
   private readonly adr3UsedLeft = Subject.create(false);
   private readonly adr3UsedRight = Subject.create(false);
 
@@ -3506,6 +3513,13 @@ export class FwsCore {
     this.adr1Faulty.set(!(!this.acESSBusPowered.get() || flightPhase112) && adr1Fault);
     this.adr2Faulty.set(!(!this.ac4BusPowered.get() || flightPhase112) && adr2Fault);
     this.adr3Faulty.set(!(!this.ac2BusPowered.get() || flightPhase112) && adr3Fault);
+
+    // GPS receivers: GPS_n_MODE 4 is FAULT (a failure prevents the receiver from transmitting valid data)
+    const gps1Fault = SimVar.GetSimVarValue('L:A32NX_GPS_1_MODE', 'number') === 4;
+    const gps2Fault = SimVar.GetSimVarValue('L:A32NX_GPS_2_MODE', 'number') === 4;
+    this.gps1Faulty.set(gps1Fault && !gps2Fault);
+    this.gps2Faulty.set(gps2Fault && !gps1Fault);
+    this.gps1And2Faulty.set(gps1Fault && gps2Fault);
 
     // FIXME use the ARINC bus words
     this.adirsRemainingAlignTime.set(SimVar.GetSimVarValue('L:A32NX_ADIRS_REMAINING_IR_ALIGNMENT_TIME', 'Seconds'));

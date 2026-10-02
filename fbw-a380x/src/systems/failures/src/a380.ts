@@ -173,6 +173,8 @@ export const A380Failure = Object.freeze({
   RadioAntennaDirectCoupling1: 34020,
   RadioAntennaDirectCoupling2: 34021,
   RadioAntennaDirectCoupling3: 34022,
+  Gps1: 34040,
+  Gps2: 34041,
 
   Transponder1: 34003,
   Transponder2: 34004,
@@ -364,6 +366,8 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [34, A380Failure.Gpws2, 'GPWS 2'],
   [34, A380Failure.Transponder1, 'XPDR 1'],
   [34, A380Failure.Transponder2, 'XPDR 2'],
+  [34, A380Failure.Gps1, 'GPS 1'],
+  [34, A380Failure.Gps2, 'GPS 2'],
 
   [46, A380Failure.NssAnsu1, 'NSS AVNCS ANSU 1'],
   [46, A380Failure.NssAnsu2, 'NSS AVNCS ANSU 2'],

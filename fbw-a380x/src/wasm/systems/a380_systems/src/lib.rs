@@ -49,8 +49,10 @@ use systems::{
     engine::{reverser_thrust::ReverserForce, trent_engine::TrentEngine, EngineFireOverheadPanel},
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
-    navigation::adirs::{
-        AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel,
+    navigation::{
+        adirs::{AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel},
+        gnss::GpsReceiver,
+        gpirs::Gpirs,
     },
     shared::ElectricalBusType,
     simulation::{
@@ -90,6 +92,9 @@ pub struct A380 {
     landing_gear: LandingGear,
     pneumatic: A380Pneumatic,
     radio_altimeters: A380RadioAltimeters,
+    gps_1: GpsReceiver,
+    gps_2: GpsReceiver,
+    gpirs: Gpirs,
     cds: A380ControlDisplaySystem,
     egpwc: EnhancedGroundProximityWarningComputer,
     icing_simulation: Icing,
@@ -145,6 +150,22 @@ impl A380 {
             landing_gear: LandingGear::new(context, true),
             pneumatic: A380Pneumatic::new(context),
             radio_altimeters: A380RadioAltimeters::new(context),
+            // The GPS receivers of MMR 1 and 2. The FCOM gives no power supply: MMR 1 on AC ESS and MMR 2 on AC 2
+            // (design choice)
+            // The A380 MMRs use satellite based augmentation (DIFF mode, A380 FCOM DSC-22-FMS-20-30)
+            gps_1: GpsReceiver::new_with_augmentation(
+                context,
+                1,
+                ElectricalBusType::AlternatingCurrentEssential,
+                true,
+            ),
+            gps_2: GpsReceiver::new_with_augmentation(
+                context,
+                2,
+                ElectricalBusType::AlternatingCurrent(2),
+                true,
+            ),
+            gpirs: Gpirs::new(context),
             cds: A380ControlDisplaySystem::new(context),
             egpwc: EnhancedGroundProximityWarningComputer::new(
                 context,
@@ -251,6 +272,9 @@ impl Aircraft for A380 {
         );
 
         self.radio_altimeters.update(context);
+        self.gps_1.update(context);
+        self.gps_2.update(context);
+        self.gpirs.update();
 
         self.hydraulic.update(
             context,
@@ -385,6 +409,9 @@ impl SimulationElement for A380 {
         accept_iterable!(self.ext_pwrs, visitor);
         self.lgcius.accept(visitor);
         self.radio_altimeters.accept(visitor);
+        self.gps_1.accept(visitor);
+        self.gps_2.accept(visitor);
+        self.gpirs.accept(visitor);
         self.autobrake_panel.accept(visitor);
         self.hydraulic.accept(visitor);
         self.hydraulic_overhead.accept(visitor);

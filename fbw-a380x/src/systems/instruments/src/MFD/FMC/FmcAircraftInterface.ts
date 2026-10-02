@@ -37,6 +37,8 @@ import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { Vmcl, maxZfw } from '@shared/PerformanceConstants';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { GpsDeselectedMessageLogic } from '@fmgc/components/fms-messages/GpsDeselectedMessageLogic';
+import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
 import { FINAL_HOLDING_FUEL_FLOW_T_PER_MIN, FmgcDataService } from './fmgc';
 import { ADIRS } from '../shared/Adirs';
 import { NXSystemMessages } from '../shared/NXSystemMessages';
@@ -234,6 +236,8 @@ export class FmcAircraftInterface {
   );
   private readonly speedsManagedPfd = Subject.create<number | null>(null);
   private readonly latDiscontinuityAhead = Subject.create(false);
+
+  private readonly gpsDeselectedMessage = new GpsDeselectedMessageLogic();
 
   private readonly fcuEfisLeftDiscreteWord2 = Arinc429LocalVarConsumerSubject.create(
     this.bus.getSubscriber<FcuEfisCpBusEvents>().on('fcu_efis_l_discrete_word_2'),
@@ -1769,6 +1773,24 @@ export class FmcAircraftInterface {
 
   checkLateralDiscontinuityAhead() {
     this.latDiscontinuityAhead.set(this.fmc.guidanceController?.vnavDriver.shouldShowLatDiscontinuityAhead());
+  }
+
+  /** GPS DESELECTED (FCOM DSC-22-FMS-20-30): the GPS deselected, 80 NM before the T/D or in the APPROACH phase */
+  checkGpsDeselected() {
+    const guidanceController = this.fmc.guidanceController;
+    if (!guidanceController) {
+      return;
+    }
+    const update = this.gpsDeselectedMessage.update(
+      this.fmc.navigation.isGpsDeselected(),
+      this.flightPhase.get() === FmgcFlightPhase.Approach,
+      distanceToTopOfDescent(guidanceController),
+    );
+    if (update === 'send') {
+      this.fmc.addMessageToQueue(NXSystemMessages.gpsDeselected, undefined, undefined);
+    } else if (update === 'recall') {
+      this.fmc.removeMessageFromQueue(NXSystemMessages.gpsDeselected.text);
+    }
   }
 
   /** The last default ALTN computation of each flight plan, redone when its inputs change */
