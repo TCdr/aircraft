@@ -4517,6 +4517,23 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 
 ## Weather Radar (ATA 34)
 
+- A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION
+    - Feet
+    - The lower and upper figures of the TERR ON ND peaks box of each ND, written by the ndwxr gauge from the SimBridge
+      terrain thresholds; -1 hides the box (terrain not selected, not a map page, or no current SimBridge figures)
+    - {side}
+        - L
+        - R
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION_MODE / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION_MODE
+    - Enum (TerrainLevelMode)
+    - The colour level of the matching peaks box figure
+    - | Value | Description                  |
+      |:-----:|:----------------------------:|
+      | 0     | Peaks mode (green)           |
+      | 1     | Warning level (yellow on ND) |
+      | 2     | Caution level (red on ND)    |
+
 - A32NX_WXR_ND_{side}_MODE
     - Enum
     - The weather radar's indication on the ND, published by the ndwxr gauge on the map pages (ROSE ILS / VOR / NAV or ARC): the mode
