@@ -415,11 +415,17 @@ impl A320AirConditioningSystem {
             self.acsc[1].individual_pack_flow(),
         ];
 
-        let duct_demand_temperature = vec![
+        let duct_demand_temperature = Self::pack_temperature_demands(
             self.acsc[0].duct_demand_temperature()[0],
-            self.acsc[1].duct_demand_temperature()[1],
-            self.acsc[1].duct_demand_temperature()[2],
-        ];
+            [
+                self.acsc[1].duct_demand_temperature()[1],
+                self.acsc[1].duct_demand_temperature()[2],
+            ],
+            [
+                self.acsc[0].both_channels_failure(),
+                self.acsc[1].both_channels_failure(),
+            ],
+        );
 
         [0, 1].iter().for_each(|&id| {
             self.packs[id].update(
@@ -429,6 +435,22 @@ impl A320AirConditioningSystem {
                 self.acsc[id].both_channels_failure(),
             )
         });
+    }
+
+    /// The zone duct demands the packs regulate to (each pack supplies the lowest one). ACSC 1 computes the cockpit
+    /// demand and ACSC 2 the cabin demands; a controller with both lanes failed sends none, so the remaining pack only
+    /// follows the zones of the operative controller. FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT, ACSC 2 inoperative:
+    /// "Cabin duct temperature is the same as cockpit duct temperature", adjusted with the COCKPIT selector.
+    fn pack_temperature_demands(
+        cockpit_demand: ThermodynamicTemperature,
+        cabin_demands: [ThermodynamicTemperature; 2],
+        acsc_both_lanes_failed: [bool; 2],
+    ) -> Vec<ThermodynamicTemperature> {
+        match acsc_both_lanes_failed {
+            [true, false] => cabin_demands.to_vec(),
+            [false, true] => vec![cockpit_demand],
+            _ => vec![cockpit_demand, cabin_demands[0], cabin_demands[1]],
+        }
     }
 
     fn update_mixer_unit(&mut self) {
@@ -590,6 +612,9 @@ impl AirConditioningSystemInterfaceUnit {
             self.discrete_word_2.set_bit(18, trim_air_valve_fault[0]);
             self.discrete_word_2.set_bit(19, trim_air_valve_fault[1]);
             self.discrete_word_2.set_bit(20, trim_air_valve_fault[2]);
+            // Pack flow control valve of the pack this ACSC controls (ACSC 1 = pack 1, ACSC 2 = pack 2)
+            self.discrete_word_2
+                .set_bit(21, acsc.pack_flow_control_valve_disagrees());
             // 23 - Both packs off
             // 24 - One pack operation
         }
@@ -2083,6 +2108,45 @@ mod tests {
         test_bed_in_cruise()
             .vertical_speed_of(Velocity::new::<foot_per_minute>(-260.))
             .iterate(40)
+    }
+
+    mod a320_pack_temperature_demand_tests {
+        use super::*;
+
+        fn celsius(value: f64) -> ThermodynamicTemperature {
+            ThermodynamicTemperature::new::<degree_celsius>(value)
+        }
+
+        #[test]
+        fn packs_follow_all_zones_with_both_acsc_operative() {
+            let demands = A320AirConditioningSystem::pack_temperature_demands(
+                celsius(20.),
+                [celsius(15.), celsius(25.)],
+                [false, false],
+            );
+            assert_eq!(demands, vec![celsius(20.), celsius(15.), celsius(25.)]);
+        }
+
+        #[test]
+        fn pack_1_follows_the_cockpit_only_with_acsc_2_inoperative() {
+            // FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT: cabin duct temperature = cockpit duct temperature
+            let demands = A320AirConditioningSystem::pack_temperature_demands(
+                celsius(20.),
+                [celsius(15.), celsius(25.)],
+                [false, true],
+            );
+            assert_eq!(demands, vec![celsius(20.)]);
+        }
+
+        #[test]
+        fn pack_2_follows_the_cabin_only_with_acsc_1_inoperative() {
+            let demands = A320AirConditioningSystem::pack_temperature_demands(
+                celsius(10.),
+                [celsius(15.), celsius(25.)],
+                [true, false],
+            );
+            assert_eq!(demands, vec![celsius(15.), celsius(25.)]);
+        }
     }
 
     mod a320_pressurization_tests {
