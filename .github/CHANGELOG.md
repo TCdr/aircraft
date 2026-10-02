@@ -117,6 +117,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ATC] LOAD-SEC3 button of the ATC mailbox: a route clearance or a crossing constraint (altitude, speed, time) received by CPDLC is loaded in SEC 3, with the rejected elements on the REJECTED ATC INFO page - @TCdr
 1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr
 1. [A380X/ATCCOM] Print from the SD ATC mailbox and from the MFD ATC COM MSG RECORD pages - @TCdr
+1. [A380X/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit - @TCdr
 
 ## 2024.1.0
 
