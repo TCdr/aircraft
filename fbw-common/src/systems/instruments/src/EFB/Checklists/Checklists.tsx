@@ -8,6 +8,7 @@ import { CheckLg, Link45deg } from 'react-bootstrap-icons';
 import { PromptModal, ScrollableContainer, t, useModals } from '@flybywiresim/flypad';
 import { ChecklistJsonDefinition } from '@flybywiresim/checklists';
 import { ChecklistPage } from './ChecklistsPage';
+import { checklistMarkKind, firstRelevantUnmarkedChecklist } from './checklistMark';
 import {
   setChecklistCompletion,
   setChecklistItemCompletion,
@@ -133,9 +134,7 @@ export const Checklists = () => {
   }, [selectedChecklistIndex, autoFillChecklists]);
 
   const relevantChecklistIndices = getRelevantChecklistIndices();
-  const firstRelevantUnmarkedIdx = checklists.findIndex(
-    (cl, clIndex) => relevantChecklistIndices.includes(clIndex) && !cl.markedCompleted,
-  );
+  const firstRelevantUnmarkedIdx = firstRelevantUnmarkedChecklist(checklists, relevantChecklistIndices);
 
   /**
    * @brief Handles the click event for a checklist item.
@@ -167,14 +166,20 @@ export const Checklists = () => {
    * @param index - The index of the checklist.
    */
   const getChecklistMark = (index: number) => {
-    if (checklists[index].markedCompleted) {
+    const kind = checklistMarkKind(
+      checklists[index].markedCompleted,
+      !!autoFillChecklists,
+      index,
+      firstRelevantUnmarkedIdx,
+    );
+    if (kind === 'done') {
       return (
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-utility-green text-m3-ground">
           <CheckLg size={16} />
         </span>
       );
     }
-    if (!!autoFillChecklists && firstRelevantUnmarkedIdx === index) {
+    if (kind === 'next') {
       return (
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-m3-primary text-m3-on-primary">
           <Link45deg size={18} />
