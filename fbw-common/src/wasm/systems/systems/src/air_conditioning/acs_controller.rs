@@ -2,9 +2,10 @@ use crate::{
     failures::{Failure, FailureType},
     pneumatic::{EngineModeSelector, EngineState, PneumaticValveSignal},
     shared::{
-        pid::PidController, CabinAltitude, CabinSimulation, ControllerSignal, DelayedTrueLogicGate,
-        ElectricalBusType, EngineCorrectedN1, EngineFirePushButtons, EngineStartState,
-        LgciuWeightOnWheels, PackFlowValveState, PneumaticBleed,
+        pid::PidController, CabinAltitude, CabinSimulation, ControllerSignal,
+        DelayedFalseLogicGate, DelayedTrueLogicGate, ElectricalBusType, EngineCorrectedN1,
+        EngineFirePushButtons, EngineStartState, LgciuWeightOnWheels, PackFlowValveState,
+        PneumaticBleed,
     },
     simulation::{
         InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
@@ -170,6 +171,7 @@ impl<const ZONES: usize, const ENGINES: usize> AirConditioningSystemController<Z
 
         self.trim_air_system_controller.update(
             context,
+            &self.aircraft_state,
             acs_overhead,
             &self.duct_demand_temperature(),
             !both_channels_failure,
@@ -237,6 +239,12 @@ impl<const ZONES: usize, const ENGINES: usize> AirConditioningSystemController<Z
 
     pub fn pack_fault_determination(&self) -> bool {
         self.pack_flow_controller.fcv_fault_determination() || self.both_channels_failure()
+    }
+
+    /// The pack flow control valve position disagrees with the commanded position (one of the PACK 1(2) FAULT
+    /// triggers, FCOM PRO-ABN-AIR)
+    pub fn pack_flow_control_valve_disagrees(&self) -> bool {
+        self.pack_flow_controller.fcv_disagree_status()
     }
 
     pub fn cabin_fans_controller(&self) -> CabinFanController<ZONES> {
@@ -673,18 +681,21 @@ impl ZoneController {
         } else {
             acs_overhead.selected_cabin_temperature(self.zone_id.id())
         };
-        self.duct_demand_temperature =
-            if self.galley_fan_failure.is_active() && matches!(acsc_id, AcscId::Acsc2(_)) {
-                // Cabin zone temperature sensors are ventilated by air extracted by this fan, cabin temperature regulation is lost
-                // Cabin inlet duct is constant at 15C, cockpit air is unaffected
-                ThermodynamicTemperature::new::<degree_celsius>(15.)
-            } else {
-                self.calculate_duct_temp_demand(
-                    context,
-                    pressurization,
-                    zone_measured_temperature[self.zone_id.id()],
-                )
-            };
+        self.duct_demand_temperature = if self.galley_fan_failure.is_active()
+            && matches!(acsc_id, AcscId::Acsc2(_))
+            && is_enabled
+        {
+            // FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT: the cabin zone temperature sensors are ventilated by the air
+            // this fan extracts, so the cabin temperature regulation is lost. With ACSC 2 operative, the FWD CABIN and
+            // AFT CABIN selectors "control the cabin duct temperature directly". The cockpit regulation is normal.
+            self.zone_selected_temperature
+        } else {
+            self.calculate_duct_temp_demand(
+                context,
+                pressurization,
+                zone_measured_temperature[self.zone_id.id()],
+            )
+        };
     }
 
     fn calculate_duct_temp_demand(
@@ -837,6 +848,7 @@ pub struct PackFlowController<const ENGINES: usize> {
     fcv_failed_open_monitor: DelayedTrueLogicGate,
     fcv_failed_closed_monitor: DelayedTrueLogicGate,
     inlet_pressure_below_min: DelayedTrueLogicGate,
+    engine_start_closure: DelayedFalseLogicGate,
 }
 
 impl<const ENGINES: usize> PackFlowController<ENGINES> {
@@ -854,6 +866,9 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
     const FCV_FAILED_OPEN_TIME_LIMIT: Duration = Duration::from_secs(30);
     const FCV_FAILED_CLOSED_TIME_LIMIT: Duration = Duration::from_secs(17);
     const INLET_PRESSURE_BELOW_MIN_TIME: Duration = Duration::from_secs(5);
+    // FCOM DSC-21-10-50 (PACK pb-sw): "On ground, reopening of the valves is delayed for 30 s to avoid a
+    // supplementary pack closure cycle during second engine start."
+    const ENGINE_START_REOPENING_DELAY_ON_GROUND: Duration = Duration::from_secs(30);
 
     fn new(context: &mut InitContext, pack_id: Pack) -> Self {
         Self {
@@ -875,6 +890,9 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
             ),
             inlet_pressure_below_min: DelayedTrueLogicGate::new(
                 Self::INLET_PRESSURE_BELOW_MIN_TIME,
+            ),
+            engine_start_closure: DelayedFalseLogicGate::new(
+                Self::ENGINE_START_REOPENING_DELAY_ON_GROUND,
             ),
         }
     }
@@ -899,6 +917,8 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
         self.flow_demand = self.flow_demand_determination(aircraft_state, acs_overhead, pneumatic);
         self.update_pressure_condition(context, pneumatic);
         self.fcv_open_allowed = self.fcv_open_allowed_determination(
+            context,
+            aircraft_state,
             acs_overhead,
             engine_fire_push_buttons,
             pressurization_overhead,
@@ -982,23 +1002,40 @@ impl<const ENGINES: usize> PackFlowController<ENGINES> {
 
     fn fcv_open_allowed_determination(
         &mut self,
+        context: &UpdateContext,
+        aircraft_state: &AirConditioningStateManager,
         acs_overhead: &impl AirConditioningOverheadShared,
         engine_fire_push_buttons: &impl EngineFirePushButtons,
         pressurization_overhead: &impl PressurizationOverheadShared,
         pneumatic: &(impl PneumaticBleed + EngineStartState),
     ) -> bool {
-        let is_onside_engine_start = pneumatic.engine_state(self.id + 1) == EngineState::Starting
-            || pneumatic.engine_state(self.id + 1) == EngineState::Restarting;
+        let onside_engine_number = self.id + 1;
+        let is_onside_engine_start = pneumatic.engine_state(onside_engine_number)
+            == EngineState::Starting
+            || pneumatic.engine_state(onside_engine_number) == EngineState::Restarting;
         let is_offside_engine_start = pneumatic.engine_state(2 - self.id) == EngineState::Starting
             || pneumatic.engine_state(2 - self.id) == EngineState::Restarting;
 
+        let closed_for_engine_start = is_onside_engine_start
+            || (is_offside_engine_start && pneumatic.engine_crossbleed_is_on())
+            || (pneumatic.engine_mode_selector() == EngineModeSelector::Ignition
+                && (pneumatic.engine_state(onside_engine_number) == EngineState::Off
+                    || pneumatic.engine_state(onside_engine_number) == EngineState::Shutting));
+
+        // On ground the valve stays closed for 30 s after the engine start condition ends, in flight it reopens at once
+        self.engine_start_closure
+            .update(context, closed_for_engine_start);
+        let is_on_ground = !matches!(aircraft_state, AirConditioningStateManager::InFlight(_));
+        let kept_closed_by_engine_start = if is_on_ground {
+            self.engine_start_closure.output()
+        } else {
+            closed_for_engine_start
+        };
+
         acs_overhead.pack_pushbuttons_state()[self.id]
-            && !is_onside_engine_start
-            && (!is_offside_engine_start || !pneumatic.engine_crossbleed_is_on())
-            && (pneumatic.engine_mode_selector() != EngineModeSelector::Ignition
-                || (pneumatic.engine_state(self.id + 1) != EngineState::Off
-                    && pneumatic.engine_state(self.id + 1) != EngineState::Shutting))
-            && !engine_fire_push_buttons.is_released(1)
+            && !kept_closed_by_engine_start
+            // FCOM DSC-21-10-50: the valve closes when the FIRE pb of the engine on the related side is pressed
+            && !engine_fire_push_buttons.is_released(onside_engine_number)
             && !pressurization_overhead.ditching_is_on()
         // && ! pack 1 overheat
     }
@@ -1079,6 +1116,8 @@ struct TrimAirSystemController<const ZONES: usize, const ENGINES: usize> {
     is_enabled: bool,
     is_open: bool,
     overheat_timer: [Duration; ZONES],
+    // Excursions of the duct temperature above 80 deg C during the current flight, per zone
+    duct_excursions_above_80: [DuctTemperatureExcursionCounter; ZONES],
     taprv_open_disagrees: bool,
     taprv_open_timer: Duration,
     taprv_closed_disagrees: bool,
@@ -1088,7 +1127,11 @@ struct TrimAirSystemController<const ZONES: usize, const ENGINES: usize> {
 }
 
 impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, ENGINES> {
+    // FCOM PRO-ABN-COND DUCT OVHT: the duct temperature rises above 88 deg C, or above 80 deg C four times during the
+    // same flight. The FAULT light goes off below 70 deg C with the HOT AIR pb selected OFF (FCOM DSC-21-10-50).
     const DUCT_OVERHEAT_SET_LIMIT: f64 = 88.; // Deg C
+    const DUCT_REPEATED_EXCURSION_LIMIT: f64 = 80.; // Deg C
+    const DUCT_REPEATED_EXCURSIONS_FOR_OVERHEAT: u8 = 4;
     const DUCT_OVERHEAT_RESET_LIMIT: f64 = 70.; // Deg C
     const TAPRV_OPEN_COMMAND_DISAGREE_TIMER: f64 = 30.; // seconds
     const TAPRV_CLOSE_COMMAND_DISAGREE_TIMER: f64 = 14.; // seconds
@@ -1100,6 +1143,7 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
             is_enabled: false,
             is_open: false,
             overheat_timer: [Duration::default(); ZONES],
+            duct_excursions_above_80: [DuctTemperatureExcursionCounter::new(); ZONES],
             taprv_open_disagrees: false,
             taprv_open_timer: Duration::default(),
             taprv_closed_disagrees: false,
@@ -1112,6 +1156,7 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
     fn update(
         &mut self,
         context: &UpdateContext,
+        aircraft_state: &AirConditioningStateManager,
         acs_overhead: &impl AirConditioningOverheadShared,
         duct_demand_temperature: &[ThermodynamicTemperature],
         is_enabled: bool,
@@ -1119,10 +1164,20 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
         pneumatic: &impl PackFlowValveState,
         trim_air_system: &TrimAirSystem<ZONES, ENGINES>,
     ) {
+        // A new flight starts with the take-off run: the duct excursions of the previous flight are forgotten
+        if matches!(aircraft_state, AirConditioningStateManager::BeginTakeOff(_)) {
+            self.duct_excursions_above_80
+                .iter_mut()
+                .for_each(|counter| counter.reset());
+        }
+
         // If both lanes of the ACSC fail, the associated trim air valves close
+        let trim_air_valve_failed: Vec<bool> = (0..ZONES)
+            .map(|id| trim_air_system.trim_air_valve_has_fault(id))
+            .collect();
         self.is_enabled = self.trim_air_pressure_regulating_valve_status_determination(
             acs_overhead,
-            trim_air_system.any_trim_air_valve_has_fault(),
+            Self::trim_air_valve_failures_close_hot_air_valve(&trim_air_valve_failed),
             is_enabled,
             pack_flow_controller,
             pneumatic,
@@ -1163,7 +1218,7 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
     fn trim_air_pressure_regulating_valve_status_determination(
         &self,
         acs_overhead: &impl AirConditioningOverheadShared,
-        any_tav_has_fault: bool,
+        tav_failures_close_taprv: bool,
         is_enabled: bool,
         pack_flow_controller: &PackFlowController<ENGINES>,
         pneumatic: &impl PackFlowValveState,
@@ -1173,7 +1228,20 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
             && !pack_flow_controller.pack_start_condition_determination(pneumatic)
             && ((pneumatic.pack_flow_valve_is_open(1)) || (pneumatic.pack_flow_valve_is_open(2)))
             && !self.duct_overheat_monitor()
-            && !any_tav_has_fault
+            && !tav_failures_close_taprv
+    }
+
+    /// FCOM DSC-21-10-20 (hot-air pressure-regulating valve): the valve closes if the cockpit trim air valve fails or
+    /// if both cabin trim air valves fail, and remains operative if either the forward or the aft cabin trim air valve
+    /// fails. The first zone is the cockpit, the others are the cabin zones.
+    fn trim_air_valve_failures_close_hot_air_valve(trim_air_valve_failed: &[bool]) -> bool {
+        match trim_air_valve_failed.split_first() {
+            Some((&cockpit_failed, cabins_failed)) => {
+                cockpit_failed
+                    || (!cabins_failed.is_empty() && cabins_failed.iter().all(|&failed| failed))
+            }
+            None => false,
+        }
     }
 
     fn trim_air_valve_controllers(&self, zone_id: usize) -> TrimAirValveController {
@@ -1195,7 +1263,20 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
         duct_temperature: Vec<ThermodynamicTemperature>,
         zone_id: usize,
     ) -> bool {
-        if duct_temperature[zone_id]
+        let new_excursion_count = self.duct_excursions_above_80[zone_id].update(
+            context.delta(),
+            duct_temperature[zone_id]
+                > ThermodynamicTemperature::new::<degree_celsius>(
+                    Self::DUCT_REPEATED_EXCURSION_LIMIT,
+                ),
+            Duration::from_secs_f64(Self::TIMER_RESET),
+        );
+        if new_excursion_count
+            .is_some_and(|count| count >= Self::DUCT_REPEATED_EXCURSIONS_FOR_OVERHEAT)
+        {
+            // The fourth (or a later) excursion above 80 deg C in this flight is an overheat
+            true
+        } else if duct_temperature[zone_id]
             > ThermodynamicTemperature::new::<degree_celsius>(Self::DUCT_OVERHEAT_SET_LIMIT)
         {
             if self.overheat_timer[zone_id] > Duration::from_secs_f64(Self::TIMER_RESET) {
@@ -1288,6 +1369,54 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystemController<ZONES, EN
 
     fn taprv_disagree_status_monitor(&self) -> bool {
         self.taprv_open_disagrees || self.taprv_closed_disagrees
+    }
+}
+
+/// Counts the separate excursions of a duct temperature above a limit. An excursion counts once it has lasted the
+/// confirmation time; the next one can only count after the temperature went back below the limit.
+#[derive(Clone, Copy)]
+struct DuctTemperatureExcursionCounter {
+    excursions: u8,
+    time_above_limit: Duration,
+    current_excursion_counted: bool,
+}
+
+impl DuctTemperatureExcursionCounter {
+    fn new() -> Self {
+        Self {
+            excursions: 0,
+            time_above_limit: Duration::default(),
+            current_excursion_counted: false,
+        }
+    }
+
+    /// Returns the new number of excursions when this update counted one, `None` otherwise
+    fn update(
+        &mut self,
+        delta: Duration,
+        is_above_limit: bool,
+        confirmation_time: Duration,
+    ) -> Option<u8> {
+        if !is_above_limit {
+            self.time_above_limit = Duration::default();
+            self.current_excursion_counted = false;
+            return None;
+        }
+        if self.current_excursion_counted {
+            return None;
+        }
+        self.time_above_limit += delta;
+        if self.time_above_limit > confirmation_time {
+            self.current_excursion_counted = true;
+            self.excursions = self.excursions.saturating_add(1);
+            Some(self.excursions)
+        } else {
+            None
+        }
+    }
+
+    fn reset(&mut self) {
+        *self = Self::new();
     }
 }
 
@@ -2842,6 +2971,19 @@ mod acs_controller_tests {
             self.command(|a| a.engine_fire_push_buttons.release(2));
         }
 
+        fn command_engine_fire_pb_released(&mut self, engine_number: usize) {
+            self.command(|a| a.engine_fire_push_buttons.release(engine_number));
+        }
+
+        fn command_engines_running(&mut self) {
+            self.write_by_name("ENGINE_STATE:1", 1);
+            self.write_by_name("ENGINE_STATE:2", 1);
+        }
+
+        fn pack_flow_of(&self, pack_number: usize) -> MassRate {
+            self.query(|a| a.pneumatic.pack_flow_valve_air_flow(pack_number))
+        }
+
         fn command_ditching_on(&mut self) {
             self.write_by_name("OVHD_PRESS_DITCHING_PB_IS_ON", true);
         }
@@ -3600,7 +3742,7 @@ mod acs_controller_tests {
         }
 
         #[test]
-        fn failing_galley_fans_sets_duct_demand_to_15c() {
+        fn failing_galley_fans_makes_the_cabin_selector_set_the_duct_temperature_directly() {
             let mut test_bed = test_bed()
                 .with()
                 .both_packs_on()
@@ -3608,21 +3750,34 @@ mod acs_controller_tests {
                 .engine_idle()
                 .iterate(2)
                 .and()
-                .command_selected_temperature(
-                    [ThermodynamicTemperature::new::<degree_celsius>(30.); 2],
-                )
+                .command_selected_temperature([
+                    ThermodynamicTemperature::new::<degree_celsius>(24.),
+                    ThermodynamicTemperature::new::<degree_celsius>(27.),
+                ])
                 .iterate(500);
 
             test_bed.fail(FailureType::GalleyFans);
-
-            test_bed = test_bed.iterate(100);
-
-            assert!(
-                (test_bed.duct_demand_temperature()[1].get::<degree_celsius>() - 15.).abs() < 1.
+            test_bed.command_measured_temperature(
+                [ThermodynamicTemperature::new::<degree_celsius>(15.); 2],
             );
-            assert_eq!(
-                (test_bed.trim_air_valves_open_amount()[1]),
-                Ratio::default()
+            test_bed = test_bed.iterate(10);
+
+            // The cabin sensors are no longer ventilated: the demand is the selection, whatever they measure
+            let cabin_demand = test_bed.duct_demand_temperature()[1].get::<degree_celsius>();
+            assert!((cabin_demand - 27.).abs() < 0.01);
+
+            test_bed.command_measured_temperature(
+                [ThermodynamicTemperature::new::<degree_celsius>(35.); 2],
+            );
+            test_bed = test_bed.iterate(10);
+            assert!(
+                (test_bed.duct_demand_temperature()[1].get::<degree_celsius>() - 27.).abs() < 0.01
+            );
+
+            // The cockpit regulation is normal: its demand still reacts to the measured temperature
+            assert_lt!(
+                test_bed.duct_demand_temperature()[0].get::<degree_celsius>(),
+                24.
             );
         }
 
@@ -3857,6 +4012,84 @@ mod acs_controller_tests {
             test_bed = test_bed.iterate(2);
 
             assert_eq!(test_bed.pack_flow(), MassRate::default());
+        }
+
+        #[test]
+        fn engine_fire_pb_only_closes_the_pack_on_its_side() {
+            for (released_engine, other_pack) in [(1, 2), (2, 1)] {
+                let mut test_bed = test_bed()
+                    .with()
+                    .both_packs_on()
+                    .and()
+                    .engine_idle()
+                    .iterate(20);
+
+                test_bed.command_engine_fire_pb_released(released_engine);
+                test_bed = test_bed.iterate(2);
+
+                assert_eq!(test_bed.pack_flow_of(released_engine), MassRate::default());
+                assert_gt!(test_bed.pack_flow_of(other_pack), MassRate::default());
+            }
+        }
+
+        #[test]
+        fn pack_valves_reopen_30_s_after_engine_start_on_ground() {
+            let mut test_bed = test_bed()
+                .on_ground()
+                .with()
+                .both_packs_on()
+                .and()
+                .engine_idle()
+                .iterate(20);
+            assert!(test_bed.ac_state_is_on_ground());
+            assert_gt!(test_bed.pack_flow(), MassRate::default());
+
+            test_bed.command_engine_in_start_mode();
+            test_bed = test_bed.iterate(2);
+            assert_eq!(test_bed.pack_flow(), MassRate::default());
+
+            test_bed.command_engines_running();
+            test_bed = test_bed.iterate(25);
+            assert_eq!(test_bed.pack_flow(), MassRate::default());
+
+            test_bed = test_bed.iterate(10);
+            assert_gt!(test_bed.pack_flow(), MassRate::default());
+        }
+
+        #[test]
+        fn pack_valves_reopen_at_once_after_engine_relight_in_flight() {
+            let mut test_bed = test_bed().in_flight().with().both_packs_on().iterate(20);
+            assert!(test_bed.ac_state_is_in_flight());
+            assert_gt!(test_bed.pack_flow(), MassRate::default());
+
+            test_bed.command_engine_in_start_mode();
+            test_bed = test_bed.iterate(2);
+            assert_eq!(test_bed.pack_flow(), MassRate::default());
+
+            test_bed.command_engines_running();
+            test_bed = test_bed.iterate(3);
+            assert_gt!(test_bed.pack_flow(), MassRate::default());
+        }
+
+        #[test]
+        fn engine_start_reopening_delay_does_not_make_a_valve_disagree() {
+            let mut test_bed = test_bed()
+                .on_ground()
+                .with()
+                .both_packs_on()
+                .and()
+                .engine_idle()
+                .iterate(20);
+
+            test_bed.command_engine_in_start_mode();
+            test_bed = test_bed.iterate(2);
+            test_bed.command_engines_running();
+
+            for _ in 0..60 {
+                test_bed = test_bed.iterate(1);
+                assert!(!test_bed.query(|a| a.acsc[0].pack_flow_control_valve_disagrees()));
+                assert!(!test_bed.query(|a| a.acsc[1].pack_flow_control_valve_disagrees()));
+            }
         }
 
         #[test]
@@ -4541,6 +4774,70 @@ mod acs_controller_tests {
                 .abs()
                     < 1.
             );
+        }
+
+        #[test]
+        fn hot_air_closes_if_cockpit_tav_failed() {
+            let mut test_bed = test_bed()
+                .with()
+                .hot_air_pb_on(true)
+                .and()
+                .engine_idle()
+                .command_fwd_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                    30.,
+                ));
+            test_bed.command_measured_temperature(
+                [ThermodynamicTemperature::new::<degree_celsius>(15.); 2],
+            );
+            test_bed = test_bed.iterate(100);
+            assert!(test_bed.query(|a| a.acsc[0].trim_air_pressure_regulating_valve_is_open()));
+
+            test_bed.fail(FailureType::TrimAirFault(ZoneType::Cockpit));
+            test_bed = test_bed.iterate(20);
+
+            assert!(!test_bed.query(|a| a.acsc[0].trim_air_pressure_regulating_valve_is_open()));
+        }
+
+        #[test]
+        fn hot_air_stays_open_with_one_of_two_cabin_tavs_failed() {
+            // Zone order: cockpit, FWD cabin, AFT cabin (FCOM DSC-21-10-20)
+            let closes = |failed: [bool; 3]| {
+                TrimAirSystemController::<3, 2>::trim_air_valve_failures_close_hot_air_valve(
+                    &failed,
+                )
+            };
+            assert!(!closes([false, false, false]));
+            assert!(!closes([false, true, false]));
+            assert!(!closes([false, false, true]));
+            assert!(closes([false, true, true]));
+            assert!(closes([true, false, false]));
+            assert!(closes([true, true, true]));
+        }
+
+        #[test]
+        fn duct_excursions_are_counted_once_each_after_confirmation() {
+            let mut counter = DuctTemperatureExcursionCounter::new();
+            let confirmation = Duration::from_secs_f64(1.2);
+            let step = Duration::from_millis(500);
+
+            // Too short to count
+            assert_eq!(counter.update(step, true, confirmation), None);
+            assert_eq!(counter.update(step, false, confirmation), None);
+
+            for expected in 1..=4 {
+                assert_eq!(counter.update(step, true, confirmation), None);
+                assert_eq!(counter.update(step, true, confirmation), None);
+                assert_eq!(counter.update(step, true, confirmation), Some(expected));
+                // Staying above the limit is still the same excursion
+                assert_eq!(counter.update(step * 10, true, confirmation), None);
+                assert_eq!(counter.update(step, false, confirmation), None);
+            }
+
+            counter.reset();
+            for _ in 0..3 {
+                counter.update(step, true, confirmation);
+            }
+            assert_eq!(counter.excursions, 1);
         }
 
         #[test]
