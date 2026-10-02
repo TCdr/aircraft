@@ -192,6 +192,13 @@ struct ViewPark {
   float radiusSent = -1.0f;
 };
 
+// When a gauge last redrew its picture and what the picture showed then (a key built from the display's
+// mode, range, selections and view readiness), so it is redrawn at its pacing rate or at once on a change.
+struct RedrawPacer {
+  double lastDrawSeconds = -1.0;
+  unsigned long long lastKey = 0;
+};
+
 // Everything one ND's radar needs. The power bus, ND mode and range variables
 // differ per side; the LVar ids are looked up once at install.
 struct Instance {
@@ -276,6 +283,9 @@ struct Instance {
   ViewPark mapViewVdTerrainPark;
   ViewPark mapViewVdWaterPark;
 #endif
+
+  // The redraw pacing of this gauge's picture (ND or VD, see kNdRedrawPeriodSeconds).
+  RedrawPacer pacer;
 
   // True when the previous frame left anything on this gauge's surface that
   // needs clearing before the next draw (or before going quiet).
@@ -377,6 +387,13 @@ Instance* allocInstance();
 bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted);
 // fsMapViewSet2DViewRadiusInMeters, only when the radius differs from the one last sent to the view.
 void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres);
+// True when the picture is due: at once when its key changed (or on the first call, or when the sim time went
+// back), else once periodSeconds have passed since the last redraw. Records the redraw when it returns true.
+bool redrawDue(RedrawPacer& pacer, double nowSeconds, double periodSeconds, unsigned long long key);
+// A redraw key starts at kRedrawKeySeed and takes each value through mixKey (FNV-1a style), so a change of any
+// of the values changes the key.
+constexpr unsigned long long kRedrawKeySeed = 14695981039346656037ULL;
+unsigned long long mixKey(unsigned long long key, long long value);
 
 // simvars.cpp: the readers of the shared variables.
 int inertialSource(bool isRight, int attHdgKnob);

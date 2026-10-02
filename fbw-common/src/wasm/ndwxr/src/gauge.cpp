@@ -73,6 +73,16 @@ void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radius
   }
 }
 
+bool redrawDue(RedrawPacer& pacer, double nowSeconds, double periodSeconds, unsigned long long key) {
+  const bool firstOrTimeReset = pacer.lastDrawSeconds < 0.0 || nowSeconds < pacer.lastDrawSeconds;
+  if (!firstOrTimeReset && key == pacer.lastKey && nowSeconds - pacer.lastDrawSeconds < periodSeconds) {
+    return false;
+  }
+  pacer.lastDrawSeconds = nowSeconds;
+  pacer.lastKey = key;
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Install and kill.
 // ---------------------------------------------------------------------------
@@ -567,6 +577,36 @@ static void drawVdWeatherLayer(NVGcontext* vg, const Instance& instance, const N
 }
 #endif
 
+unsigned long long mixKey(unsigned long long key, long long value) {
+  return (key ^ static_cast<unsigned long long>(value)) * 1099511628211ULL;
+}
+
+// What the ND picture shows, as a key: everything that changes it in one step (page, range, selections, the
+// views becoming usable, the surface needing its clear). The continuous inputs (heading, position, altitude)
+// are not in it: they are followed at the pacing rate.
+static unsigned long long ndPictureKey(const Instance& instance, const NdFrame& frame, const ViewReadiness& ready) {
+  unsigned long long key = kRedrawKeySeed;
+  key = mixKey(key, frame.isRose);
+  key = mixKey(key, frame.showPrecip);
+  key = mixKey(key, frame.showTurb);
+  key = mixKey(key, frame.showTerrain);
+  key = mixKey(key, frame.showMap);
+  key = mixKey(key, frame.labelMode);
+  key = mixKey(key, std::lround(frame.rangeNmForMode * 10.0f));
+  key = mixKey(key, ready.precip);
+  key = mixKey(key, ready.hot);
+  key = mixKey(key, ready.terrain);
+  key = mixKey(key, instance.layerDirty);
+#ifdef A380X
+  key = mixKey(key, instance.ndRole);
+  key = mixKey(key, frame.showVd);
+  key = mixKey(key, std::lround(frame.vdRangeNm * 10.0f));
+  key = mixKey(key, std::llround(frame.vdLowerFeet));
+  key = mixKey(key, std::llround(frame.vdUpperFeet));
+#endif
+  return key;
+}
+
 // One frame of an ND gauge.
 static void drawNd(FsContext ctx, Instance& instance, const sGaugeDrawData* drawData) {
   // The first ND gauge writes the SimBridge status block (see simBridgeUpdate).
@@ -584,6 +624,12 @@ static void drawNd(FsContext ctx, Instance& instance, const sGaugeDrawData* draw
   if (!frame.drawsAnything() && !instance.layerDirty) {
     // Nothing on the surface from last frame and nothing to draw now -
     // skip opening a frame entirely.
+    return;
+  }
+  // The picture stays on the surface between redraws (see kNdRedrawPeriodSeconds); the radar's first sweep
+  // is animated, so it is drawn every frame.
+  const double period = frame.sweepFraction < 1.0f ? 0.0 : kNdRedrawPeriodSeconds;
+  if (!redrawDue(instance.pacer, drawData->t, period, ndPictureKey(instance, frame, ready))) {
     return;
   }
 
