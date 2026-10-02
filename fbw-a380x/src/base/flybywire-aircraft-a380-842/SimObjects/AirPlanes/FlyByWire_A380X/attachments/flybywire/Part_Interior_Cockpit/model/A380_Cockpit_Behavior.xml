@@ -1155,9 +1155,13 @@
                     </UseTemplate>
                 </Component>
 
-                <UseTemplate Name="FBW_Airbus_PAPER_TORN">
-                    <NODE_ID>PRINT_TORN</NODE_ID>
-                </UseTemplate>
+                <!-- The torn paper edge left in the slit between printouts is not shown: the paper only comes out of
+                the slit while printing (PAPER_PRINTER) -->
+                <Component ID="PRINT_TORN" Node="PRINT_TORN">
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>0</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
 
                 <!-- The paper door of the printer: a click on the door or on its latch opens or closes it (the door swings
                 up about its forward edge, PRINTER_DOOR, frames 0 closed to 100 open), showing the paper roll -->
