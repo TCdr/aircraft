@@ -478,10 +478,26 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
 };
 
 interface ErrorFallbackProps {
+  error?: unknown;
   resetErrorBoundary: (...args: Array<unknown>) => void;
 }
 
-export const ErrorFallback = ({ resetErrorBoundary }: ErrorFallbackProps) => {
+/** The React component stack of the last error caught by the boundary (the components it was thrown in) */
+let lastErrorComponentStack = '';
+
+/** The first lines of a stack, for the error screen */
+const stackHead = (stack: string | undefined, lines: number) =>
+  (stack ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .slice(0, lines)
+    .join('\n');
+
+export const ErrorFallback = ({ error, resetErrorBoundary }: ErrorFallbackProps) => {
+  // the boundary reports the component stack after this screen is rendered (componentDidCatch), read it once mounted
+  const [componentStack, setComponentStack] = useState('');
+  useEffect(() => setComponentStack(lastErrorComponentStack), []);
   const [sessionId] = usePersistentProperty('A32NX_SENTRY_SESSION_ID');
   const [sentryEnabled] = usePersistentProperty(SENTRY_CONSENT_KEY, SentryConsentState.Refused);
 
@@ -504,6 +520,21 @@ export const ErrorFallback = ({ resetErrorBoundary }: ErrorFallbackProps) => {
 
               <h1 className="text-center text-4xl font-extrabold tracking-wider">{sessionId}</h1>
             </>
+          )}
+
+          {/* What failed, to report it: the error, where it was thrown and in which components */}
+          {error !== undefined && (
+            <div className="max-h-64 overflow-hidden rounded-md bg-theme-accent px-4 py-3 font-mono text-sm leading-snug text-theme-text">
+              <p className="whitespace-pre-wrap break-all font-mono text-sm text-current">
+                {error instanceof Error ? `${error.name}: ${error.message}` : String(error)}
+              </p>
+              <p className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-current">
+                {stackHead(error instanceof Error ? error.stack : undefined, 6)}
+              </p>
+              <p className="mt-2 whitespace-pre-wrap break-all font-mono text-xs text-current">
+                {stackHead(componentStack, 6)}
+              </p>
+            </div>
           )}
 
           <div
@@ -552,7 +583,14 @@ export const EfbInstrument: React.FC<EfbInstrumentProps> = ({ failures, aircraft
   return (
     <TroubleshootingContextProvider eventBus={eventBus}>
       <FailuresOrchestratorProvider failures={failures}>
-        <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => setErr(false)} resetKeys={[err]}>
+        <ErrorBoundary
+          FallbackComponent={ErrorFallback}
+          onError={(_error, info) => {
+            lastErrorComponentStack = info?.componentStack ?? '';
+          }}
+          onReset={() => setErr(false)}
+          resetKeys={[err]}
+        >
           <Router>
             <ModalProvider>
               <EventBusContextProvider eventBus={eventBus}>
