@@ -118,6 +118,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Print the FMS pages on the pedestal printer paper, torn-off sheets on the pedestal or the CPT pull-out table - @TCdr
 1. [A380X/ATCCOM] Print from the SD ATC mailbox and from the MFD ATC COM MSG RECORD pages - @TCdr
 1. [A380X/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit - @TCdr
+1. [A32NX/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit; no torn paper edge left in the slit between printouts - @TCdr
 
 ## 2024.1.0
 
