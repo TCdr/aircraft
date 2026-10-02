@@ -9,7 +9,11 @@
 namespace ndwxr {
 
 // Shared MapView setup for the precipitation view and the hot view.
-static bool configureRadarView(FsContext ctx, FsTextureId id, FsRainRateColor* colors, unsigned colorCount, FsMapViewWeatherRadarMode mode) {
+static bool configureRadarView(FsContext ctx,
+                               FsTextureId id,
+                               FsRainRateColor* colors,
+                               unsigned colorCount,
+                               FsMapViewWeatherRadarMode mode) {
   if (id == 0) {
     return false;
   }
@@ -88,8 +92,13 @@ void arcAreaPath(NVGcontext* vg, float cx, float cy, float radius, float sweepFr
 // while the radar's buffer fills (from the left edge clockwise, see
 // kWxrBufferFillSeconds). channels selects which of the view's mask channels the pass
 // uses.
-void drawWeatherRect(NVGcontext* vg, FsTextureId mapView, bool isRose, float rangeFraction, WeatherPass pass,
-                     Channels channels, float sweepFraction) {
+void drawWeatherRect(NVGcontext* vg,
+                     FsTextureId mapView,
+                     bool isRose,
+                     float rangeFraction,
+                     WeatherPass pass,
+                     Channels channels,
+                     float sweepFraction) {
   // The three ROSE pages share one compass rose (RoseModeUnderlay.tsx, R = 250).
   const float centerYBias = isRose ? kRoseNavCenterYBias : kArcCenterYBias;
   const float pixelRadius = isRose ? kRoseNavPixelRadius : kArcPixelRadius;
