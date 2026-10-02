@@ -118,6 +118,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] GPS receiver degraded modes TEST, ALTAID and AIDED, antenna masking in turns, DIFF mode on the A380X - @TCdr
 1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the FCOM position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
 1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
+1. [A32NX/COND] Engine 2 FIRE pb now closes pack 2 (it closed pack 1 before); on ground the packs reopen 30 s after an engine start - @TCdr
+1. [A32NX/COND] Hot air valve stays open with one cabin trim air valve failed; it closes for the cockpit valve or both cabin valves - @TCdr
+1. [A32NX/COND] LAV + GALLEY FAN failure: the FWD/AFT CABIN selectors set the cabin duct temperature directly; with ACSC 2 lost the cabin gets the cockpit duct air - @TCdr
+1. [A32NX/FWC] DUCT OVHT also triggers on the fourth duct excursion above 80 °C in a flight; PACK 1(2) FAULT also triggers on a pack valve position disagree - @TCdr
 
 ## 2024.1.0
 
