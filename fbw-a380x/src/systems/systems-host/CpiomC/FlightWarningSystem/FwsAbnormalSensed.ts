@@ -3995,6 +3995,51 @@ export class FwsAbnormalSensed {
       redundLoss: () => [''],
       info: () => [''],
     },
+    // GPS 1(2) FAULT, GPS 1+2 FAULT: the A380 FCOM gives no procedure (crew awareness); the flight phase inhibition is
+    // the one of the ADR faults (design choice). STATUS (FCOM PRO-ABN-ECAM-10-34-10): INOP SYS GPS 1(2), GPS 1+2 and,
+    // for APPR & LDG, BTV and ROW/ROP
+    340800034: {
+      // GPS 1 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.gps1Faulty,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['340300050'],
+      inopSysApprLdg: () => [''],
+      redundLoss: () => [''],
+      info: () => [''],
+    },
+    340800035: {
+      // GPS 2 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.gps2Faulty,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['340300051'],
+      inopSysApprLdg: () => [''],
+      redundLoss: () => [''],
+      info: () => [''],
+    },
+    340800036: {
+      // GPS 1+2 FAULT
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.gps1And2Faulty,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => ['340300052'],
+      inopSysApprLdg: () => ['320300007', '320300022'],
+      redundLoss: () => [''],
+      info: () => [''],
+    },
     340800040: {
       // IR 1 FAULT
       flightPhaseInhib: [4, 5, 6, 9, 10],

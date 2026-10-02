@@ -196,6 +196,14 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] The automatic loading of lighting presets offers all eight presets, also the unnamed ones - @TCdr
 1. [EFB] A checklist marked as complete shows a green check in the checklist list, whatever the flight phase - @TCdr
 1. [A380X/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit - @TCdr
+1. [A32NX/A380X] GPS receivers in MMR 1 and 2: satellites of the GPS constellation, INIT/ACQ/NAV/FAULT modes, accuracy and integrity limit, GPS 1 and GPS 2 failures - @TCdr
+1. [A32NX/A380X] GPIRS position in the ADIRUs and GPS PRIMARY from the real GPS accuracy and integrity limit - @TCdr
+1. [A32NX/MCDU] GPS MONITOR page shows the data of each GPS receiver - @TCdr
+1. [A380X/MFD] POSITION / GPS page shows the data of each GPS receiver - @TCdr
+1. [A32NX/A380X] NAV GPS 1(2) FAULT alerts - @TCdr
+1. [A32NX/A380X] GPS receiver degraded modes TEST, ALTAID and AIDED, antenna masking in turns, DIFF mode on the A380X - @TCdr
+1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the FCOM position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
+1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
 
 ## 2024.1.0
 
