@@ -41,6 +41,38 @@ Instance* allocInstance() {
   return nullptr;
 }
 
+bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted) {
+  if (view == 0) {
+    return false;
+  }
+  if (park.warmupLeft > 0) {
+    --park.warmupLeft;
+  }
+  if (!wanted) {
+    if (!park.parked && ++park.idleFrames >= kParkAfterFrames) {
+      fsMapViewSetVisibility(ctx, view, false);
+      park.parked = true;
+    }
+    return false;
+  }
+  park.idleFrames = 0;
+  if (park.parked) {
+    fsMapViewSetVisibility(ctx, view, true);
+    park.parked = false;
+    park.warmupLeft = kUnparkWarmupFrames;
+    // Sent again after the wake-up, in case the engine dropped the view's settings while it was invisible.
+    park.radiusSent = -1.0f;
+  }
+  return park.warmupLeft == 0;
+}
+
+void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres) {
+  if (radiusMetres != park.radiusSent) {
+    fsMapViewSet2DViewRadiusInMeters(ctx, view, radiusMetres);
+    park.radiusSent = radiusMetres;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Install and kill.
 // ---------------------------------------------------------------------------
@@ -163,13 +195,17 @@ struct TerrainViews {
   FsTextureId terrain;
   FsTextureId water;
   bool ready;
+  ViewPark* terrainPark;
+  ViewPark* waterPark;
 };
 
-static TerrainViews terrainViews(const Instance& instance) {
+static TerrainViews terrainViews(Instance& instance) {
 #ifdef A380X
-  return TerrainViews{instance.mapView, instance.mapViewHot, instance.mapViewReady && instance.mapViewHotReady};
+  return TerrainViews{instance.mapView, instance.mapViewHot, instance.mapViewReady && instance.mapViewHotReady, &instance.mapViewPark,
+                      &instance.mapViewHotPark};
 #else
-  return TerrainViews{instance.mapViewTerrain, instance.mapViewWater, instance.mapViewTerrainReady && instance.mapViewWaterReady};
+  return TerrainViews{instance.mapViewTerrain, instance.mapViewWater, instance.mapViewTerrainReady && instance.mapViewWaterReady,
+                      &instance.mapViewTerrainPark, &instance.mapViewWaterPark};
 #endif
 }
 
@@ -368,11 +404,15 @@ static ViewReadiness updateViewRoles(FsContext ctx, Instance& instance, const Nd
     instance.terrainListMode = -1;
     instance.ndRole = 1;
     instance.roleWarmupLeft = kRoleWarmupFrames;
+    instance.mapViewPark.radiusSent = -1.0f;
+    instance.mapViewHotPark.radiusSent = -1.0f;
   } else if (weatherWanted && instance.ndRole != 0) {
     configurePrecipView(ctx, instance.mapView);
     configureHotView(ctx, instance.mapViewHot);
     instance.ndRole = 0;
     instance.roleWarmupLeft = kRoleWarmupFrames;
+    instance.mapViewPark.radiusSent = -1.0f;
+    instance.mapViewHotPark.radiusSent = -1.0f;
   }
   if (instance.roleWarmupLeft > 0) {
     --instance.roleWarmupLeft;
@@ -387,6 +427,28 @@ static ViewReadiness updateViewRoles(FsContext ctx, Instance& instance, const Nd
   (void)frame;
 #endif
   return ready;
+}
+
+// Parks the ND's views this frame does not show (see kParkAfterFrames) and wakes the ones it does; a view
+// still warming up after a wake-up is not drawn, like one still settling after a role change.
+static void updateNdViewParking(FsContext ctx, Instance& instance, const NdFrame& frame, ViewReadiness& ready) {
+#ifdef A380X
+  // The pair is the weather pair or the terrain pair (see updateViewRoles): wanted whenever the ND shows anything.
+  const bool pairWanted = frame.drawsAnything();
+  const bool mainUsable = updateViewPark(ctx, instance.mapView, instance.mapViewPark, pairWanted);
+  const bool hotUsable = updateViewPark(ctx, instance.mapViewHot, instance.mapViewHotPark, pairWanted);
+  ready.precip = ready.precip && mainUsable;
+  ready.hot = ready.hot && hotUsable;
+  // MAP mode draws from the terrain view (the main view) only.
+  ready.terrain = ready.terrain && mainUsable && (hotUsable || !frame.showTerrain);
+#else
+  ready.precip = ready.precip && updateViewPark(ctx, instance.mapView, instance.mapViewPark, frame.showPrecip);
+  ready.hot = ready.hot && updateViewPark(ctx, instance.mapViewHot, instance.mapViewHotPark, frame.showPrecip || frame.showTurb);
+  // MAP mode draws from the terrain view only; the water view is the terrain's.
+  const bool terrainUsable = updateViewPark(ctx, instance.mapViewTerrain, instance.mapViewTerrainPark, frame.showTerrain || frame.showMap);
+  const bool waterUsable = updateViewPark(ctx, instance.mapViewWater, instance.mapViewWaterPark, frame.showTerrain);
+  ready.terrain = ready.terrain && terrainUsable && (waterUsable || !frame.showTerrain);
+#endif
 }
 
 // The terrain (TERR ON ND) or the radar's MAP mode, both from the terrain view.
@@ -426,8 +488,8 @@ static void drawTerrainLayer(FsContext ctx,
       fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, static_cast<double>(kTerrainMinFeet + frame.terrainLookAheadFeet),
                                       static_cast<double>(kTerrainMaxFeet + frame.terrainLookAheadFeet));
     }
-    fsMapViewSet2DViewRadiusInMeters(ctx, views.terrain, radiusMetres);
-    fsMapViewSet2DViewRadiusInMeters(ctx, views.water, radiusMetres);
+    setViewRadius(ctx, views.terrain, *views.terrainPark, radiusMetres);
+    setViewRadius(ctx, views.water, *views.waterPark, radiusMetres);
     if (terrainReady && instance.terrainPatternImage != 0) {
       drawTerrain(vg, views.terrain, views.water, instance.terrainPatternImage, frame.isRose, frame.terrainHeadingDegrees);
     }
@@ -438,7 +500,7 @@ static void drawTerrainLayer(FsContext ctx,
       fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, static_cast<double>(kMapMinFeet), static_cast<double>(kMapMaxFeet));
       instance.terrainListMode = 1;
     }
-    fsMapViewSet2DViewRadiusInMeters(ctx, views.terrain, radiusMetres);
+    setViewRadius(ctx, views.terrain, *views.terrainPark, radiusMetres);
     if (terrainReady) {
       drawMapMode(vg, views.terrain, frame.isRose, frame.terrainHeadingDegrees);
     }
@@ -446,10 +508,10 @@ static void drawTerrainLayer(FsContext ctx,
 }
 
 // The weather: the precipitation view's green and yellow, then the hot view's red wipe and magenta.
-static void drawWeatherLayer(FsContext ctx, NVGcontext* vg, const Instance& instance, const NdFrame& frame, const ViewReadiness& ready) {
+static void drawWeatherLayer(FsContext ctx, NVGcontext* vg, Instance& instance, const NdFrame& frame, const ViewReadiness& ready) {
   const float radiusMetres = frame.rangeNmForMode * kNmToMetres;
   if (frame.showPrecip) {
-    fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapView, radiusMetres);
+    setViewRadius(ctx, instance.mapView, instance.mapViewPark, radiusMetres);
     if (ready.precip) {
       drawWeatherRect(vg, instance.mapView, frame.isRose, 1.0f, WeatherPass::Additive, Channels{1.0f, 1.0f, 0.0f}, frame.sweepFraction);
       drawWeatherRect(vg, instance.mapView, frame.isRose, 1.0f, WeatherPass::Sharpen);
@@ -460,7 +522,7 @@ static void drawWeatherLayer(FsContext ctx, NVGcontext* vg, const Instance& inst
   // (turbulence modes, near the aircraft only); the wipe also clears the green
   // channel under the magenta, in the whole rect.
   if ((frame.showPrecip || frame.showTurb) && instance.mapViewHotReady) {
-    fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewHot, radiusMetres);
+    setViewRadius(ctx, instance.mapViewHot, instance.mapViewHotPark, radiusMetres);
     if (ready.hot) {
       if (frame.showPrecip) {
         drawWeatherRect(vg, instance.mapViewHot, frame.isRose, 1.0f, WeatherPass::Erase, Channels{0.0f, 1.0f, 0.0f}, frame.sweepFraction);
@@ -516,7 +578,8 @@ static void drawNd(FsContext ctx, Instance& instance, const sGaugeDrawData* draw
   frame.sweepFraction = radarSweepFraction(drawData->t);
 #endif
   publishWxrLabel(instance, frame.labelMode);
-  const ViewReadiness ready = updateViewRoles(ctx, instance, frame);
+  ViewReadiness ready = updateViewRoles(ctx, instance, frame);
+  updateNdViewParking(ctx, instance, frame, ready);
 
   if (!frame.drawsAnything() && !instance.layerDirty) {
     // Nothing on the surface from last frame and nothing to draw now -
