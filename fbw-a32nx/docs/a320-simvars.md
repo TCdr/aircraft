@@ -2441,7 +2441,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
       | 18  | Trim valve F/D inop                                  |
       | 19  | Trim valve FWD inop                                  |
       | 20  | Trim valve AFT inop                                  |
-      | 21  | Not used                                             |
+      | 21  | Pack flow control valve position disagree            |
       | 22  | Not used                                             |
       | 23  | *FCV status (Both pakcs off)                         |
       | 24  | *One pack operation                                  |
