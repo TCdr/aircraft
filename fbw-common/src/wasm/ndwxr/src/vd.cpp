@@ -540,9 +540,12 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
            headingWord.isNo() && upperFeet > lowerFeet && terrainSystemUp() && g_terrSysOff.read() == 0.0;
   }
 
-  // The views run all the time; their settings only follow the aircraft while the VD shows, so its first frames are not drawn.
+  // The views' settings only follow the aircraft while the VD shows, so its first frames are not drawn; the views are
+  // parked while it does not (see kParkAfterFrames), and a parked view needs its own warm-up when the VD shows again.
   instance.vdShowFrames = show ? instance.vdShowFrames + 1 : 0;
-  const bool draw = show && instance.vdShowFrames > kVdWarmupFrames;
+  const bool terrainUsable = updateViewPark(ctx, instance.mapViewVdTerrain, instance.mapViewVdTerrainPark, show);
+  const bool waterUsable = updateViewPark(ctx, instance.mapViewVdWater, instance.mapViewVdWaterPark, show);
+  const bool draw = show && instance.vdShowFrames > kVdWarmupFrames && terrainUsable;
 
   if (show) {
     // The engine colors by ITS OWN (true) altitude minus the terrain height, v = true - E. The VD's
@@ -561,9 +564,9 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
     altitudeFeet = baroAltWord.isNo() ? static_cast<double>(baroAltWord.value()) : planeAltitudeFeet();
     fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet - (upperFeet - lowerFeet),
                                     altitudeFeet - lowerFeet);
-    fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdTerrain, vdRangeNm * kNmToMetres);
+    setViewRadius(ctx, instance.mapViewVdTerrain, instance.mapViewVdTerrainPark, vdRangeNm * kNmToMetres);
     if (instance.mapViewVdWaterReady) {
-      fsMapViewSet2DViewRadiusInMeters(ctx, instance.mapViewVdWater, vdRangeNm * kNmToMetres);
+      setViewRadius(ctx, instance.mapViewVdWater, instance.mapViewVdWaterPark, vdRangeNm * kNmToMetres);
     }
   }
 
@@ -596,8 +599,9 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
       }
       const float cutHalfWidthNm =
           altitudeFeet >= static_cast<double>(kVdCutEnrouteFeet) ? kVdCutEnrouteHalfWidthNm : kVdCutTerminalHalfWidthNm;
-      drawVdTerrain(vg, instance.mapViewVdTerrain, instance.mapViewVdWaterReady ? instance.mapViewVdWater : 0, instance.vdRampImage,
-                    vdRangeNm, cut, cutCount, cutHalfWidthNm, greyFromNm, lowerFeet, upperFeet);
+      const FsTextureId waterView = instance.mapViewVdWaterReady && waterUsable ? instance.mapViewVdWater : 0;
+      drawVdTerrain(vg, instance.mapViewVdTerrain, waterView, instance.vdRampImage, vdRangeNm, cut, cutCount, cutHalfWidthNm, greyFromNm,
+                    lowerFeet, upperFeet);
     }
   }
   instance.layerDirty = draw;

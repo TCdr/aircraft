@@ -95,6 +95,11 @@
 // and water mask). The module also reserves its memory up front (build.sh): growing
 // it while drawing crashes too.
 //
+// The engine renders every visible MapView each frame whether this module draws it or
+// not, so a view nothing has shown for kParkAfterFrames is parked (made invisible, see
+// updateViewPark) and is only drawn again kUnparkWarmupFrames after it is woken up: with
+// WX and TERR off, in PLAN or with the ND unpowered no view renders at all.
+//
 // The A380X's radar shows the same picture as the A32NX's: the weather the engine's
 // horizontal radar mode sees, a slice at about the aircraft's altitude. The FCOM's
 // AUTO mode (DSC-34-20-30, WX display function) also shows the weather the aircraft
@@ -178,6 +183,15 @@ struct VdCutSegment {
 };
 #endif
 
+// Whether one MapView is parked (made invisible because nothing has shown it for a while, see
+// kParkAfterFrames) and the radius last sent to it, so the setter is only called on a change.
+struct ViewPark {
+  bool parked = false;
+  int idleFrames = 0;
+  int warmupLeft = 0;
+  float radiusSent = -1.0f;
+};
+
 // Everything one ND's radar needs. The power bus, ND mode and range variables
 // differ per side; the LVar ids are looked up once at install.
 struct Instance {
@@ -251,6 +265,16 @@ struct Instance {
   // The VD's altitude limits (see kVdLeft).
   ID vdRangeLowerVar = -1;
   ID vdRangeUpperVar = -1;
+#endif
+
+  // The parking state of each view above (see updateViewPark).
+  ViewPark mapViewPark;
+  ViewPark mapViewHotPark;
+  ViewPark mapViewTerrainPark;
+  ViewPark mapViewWaterPark;
+#ifdef A380X
+  ViewPark mapViewVdTerrainPark;
+  ViewPark mapViewVdWaterPark;
 #endif
 
   // True when the previous frame left anything on this gauge's surface that
@@ -348,6 +372,11 @@ void registerSimVars();
 // gauge.cpp: the gauge instances.
 Instance* findInstance(FsContext ctx);
 Instance* allocInstance();
+// Parks a view nothing has wanted for kParkAfterFrames and takes it back when it is wanted again; true when
+// the view can be drawn this frame (wanted, visible and past its warm-up).
+bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted);
+// fsMapViewSet2DViewRadiusInMeters, only when the radius differs from the one last sent to the view.
+void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres);
 
 // simvars.cpp: the readers of the shared variables.
 int inertialSource(bool isRight, int attHdgKnob);
