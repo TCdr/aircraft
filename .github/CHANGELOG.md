@@ -110,6 +110,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] Add the weather radar to the ND and the weather to the VD, following the EFIS WX overlay and the SURV CONTROLS WXR settings - @TCdr
 1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
 1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ROSE and ARC pages - @TCdr
+1. [ND] Fewer stutters with the weather radar and TERR ON ND: the map views nothing shows are paused - @TCdr
 
 ## 2024.1.0
 

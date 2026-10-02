@@ -445,6 +445,13 @@ constexpr int kRoleWarmupFrames = 60;
 constexpr int kVdWarmupFrames = 15;
 #endif
 
+// Parking of the MapViews nothing shows (see ViewPark): every view the module creates is rendered by the
+// engine each frame while it is visible, drawn or not, so a view nobody needs for kParkAfterFrames is made
+// invisible, and one taken back into use is left alone for kUnparkWarmupFrames before it is drawn (an
+// invisible view's texture holds no picture; the same wait as a role change, kRoleWarmupFrames).
+constexpr int kParkAfterFrames = 120;
+constexpr int kUnparkWarmupFrames = 60;
+
 constexpr double kSimBridgeStatusPeriodSeconds = 0.1;
 constexpr double kSimBridgeConnectRetrySeconds = 5.0;
 constexpr double kSimBridgeFiguresMaxAgeSeconds = 5.0;
