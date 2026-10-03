@@ -1736,6 +1736,28 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Number (NM)
     - Distance along the cut at which the next track change is more than 3 degrees (the grey area of the VD), -1 when none
 
+- A380X_VD_RUNWAY_COUNT
+    - Number
+    - Number of runways (0 to 40) the ndwxr gauge draws as flat ground on the VD, published by EfisTawsBridge: the runways
+      of the airports within 25 NM of the aircraft, closest first (the terrain MapView draws the airport diagram over the
+      terrain, which the VD would otherwise read as high terrain)
+
+- A380X_VD_RUNWAY_{index}_LAT / A380X_VD_RUNWAY_{index}_LON
+    - Degrees
+    - The centre of runway {index} (0 to 39)
+
+- A380X_VD_RUNWAY_{index}_COURSE
+    - Degrees (true)
+    - The true course of the primary direction of runway {index}
+
+- A380X_VD_RUNWAY_{index}_HALF_LENGTH_NM / A380X_VD_RUNWAY_{index}_HALF_WIDTH_NM
+    - Number (NM)
+    - Half the length and half the width of runway {index}, each plus 0.15 NM for its edges and the start of its taxiways
+
+- A380X_VD_RUNWAY_{index}_ELEVATION_FT
+    - Number (feet)
+    - The higher threshold of runway {index}: the elevation of its flat ground on the VD
+
 - `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
     - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
       the GPWS / TAWS section of fbw-a32nx/docs/a320-simvars.md
