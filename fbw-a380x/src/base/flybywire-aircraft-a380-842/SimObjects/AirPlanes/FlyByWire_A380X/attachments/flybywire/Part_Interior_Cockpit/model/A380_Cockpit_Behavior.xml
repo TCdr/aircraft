@@ -3144,7 +3144,7 @@
 
                             <!-- HORN SHUT OFF -->
                             <UseTemplate Name="FBW_Push_Toggle">
-                                <NODE_ID>PUSH_OVHD_EVAC_HORN</NODE_ID>
+                                <NODE_ID>PUSH_OVHD_EVAC_HORN_OFF</NODE_ID>
                                 <LEFT_SINGLE_CODE>1 (&gt;L:PUSH_OVHD_EVAC_HORN)</LEFT_SINGLE_CODE>
                                 <MOMENTARY />
                                 <NO_SEQ1 />
@@ -4590,11 +4590,13 @@
                 <Component ID="Right_Pedestal_Misc">
                     <UseTemplate Name="FBW_Push_Held">
                         <NODE_ID>PUSH_ACMS_TRIGGER</NODE_ID>
+                        <ANIM_NAME>ANIM_PUSH_ACMS_TRIGGER</ANIM_NAME>
                         <HOLD_SIMVAR>L:A32NX_ACMS_TRIGGER_ON</HOLD_SIMVAR>
                         <TOOLTIP>ACMS trigger (Inop.)</TOOLTIP>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Push_Held">
                         <NODE_ID>PUSH_DFDR_EVENT</NODE_ID>
+                        <ANIM_NAME>ANIM_PUSH_DFDR_EVENT</ANIM_NAME>
                         <HOLD_SIMVAR>L:A32NX_DFDR_EVENT_ON</HOLD_SIMVAR>
                         <TOOLTIP>Print data (Inop.)</TOOLTIP>
                     </UseTemplate>
