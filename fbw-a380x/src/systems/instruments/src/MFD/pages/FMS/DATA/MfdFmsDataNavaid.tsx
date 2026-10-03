@@ -480,17 +480,19 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
     }
 
     const database = NavigationDatabaseService.activeDatabase;
-    const candidates: (VhfNavaid | NdbNavaid | IlsNavaid)[] = [
-      ...(await database.searchAllNavaid(ident)),
-      ...(await database.searchIls(ident)),
-    ];
+    // Plain await statements: the sim's JavaScriptCore rejects await used as an operand
+    const navaids = await database.searchAllNavaid(ident);
+    const ilss = await database.searchIls(ident);
+    const candidates: (VhfNavaid | NdbNavaid | IlsNavaid)[] = [...navaids, ...ilss];
     if (candidates.length === 0) {
       this.openNewNavaidFunction(ident);
       return true;
     }
 
-    const navaid =
-      candidates.length > 1 ? await this.props.fmcService.master.deduplicateFacilities(candidates) : candidates[0];
+    let navaid: VhfNavaid | NdbNavaid | IlsNavaid | undefined = candidates[0];
+    if (candidates.length > 1) {
+      navaid = await this.props.fmcService.master.deduplicateFacilities(candidates);
+    }
     if (navaid === undefined) {
       return false;
     }
