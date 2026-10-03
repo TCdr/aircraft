@@ -55,6 +55,8 @@ export const A380Failure = Object.freeze({
   CpcsApp3: 21048,
   CpcsApp4: 21049,
 
+  // Not listed in A380FailureDefinitions: the C++ FCDC input it sets (nwsCommunicationAvailable) is read by nothing
+  // until a steering control system exists. Kept so the id stays in sync with FailureList.h.
   Rollout: 22001,
   Fcu1: 22002,
   Fcu2: 22003,
@@ -164,10 +166,28 @@ export const A380Failure = Object.freeze({
   LgciuInternalError1: 32002,
   LgciuInternalError2: 32003,
 
-  GearProxSensorDamageGearUplockLeft1: 32004,
-  GearProxSensorDamageDoorDownlockRight2: 32005,
-  GearProxSensorDamageGearUplockNose1: 32006,
-  GearProxSensorDamageDoorUplockLeft2: 32007,
+  // Ids 32004-32025 follow the Rust map in a380_systems_wasm/src/lib.rs (same ids and meaning as the A32NX).
+  // A door uplock sensor detects the door closed, a door downlock sensor the door opened.
+  GearProxSensorDamageGearUplockNose1: 32004,
+  GearProxSensorDamageGearDownlockNose2: 32005,
+  GearProxSensorDamageGearUplockRight1: 32006,
+  GearProxSensorDamageGearDownlockRight2: 32007,
+  GearProxSensorDamageGearUplockLeft2: 32008,
+  GearProxSensorDamageGearDownlockLeft1: 32009,
+
+  GearProxSensorDamageGearDoorClosedNose1: 32010,
+  GearProxSensorDamageGearDoorOpenedNose2: 32011,
+  GearProxSensorDamageGearDoorClosedRight2: 32012,
+  GearProxSensorDamageGearDoorOpenedRight1: 32013,
+  GearProxSensorDamageGearDoorClosedLeft2: 32014,
+  GearProxSensorDamageGearDoorOpenedLeft1: 32015,
+
+  GearActuatorJammedGearNose: 32020,
+  GearActuatorJammedGearLeft: 32021,
+  GearActuatorJammedGearRight: 32022,
+  GearActuatorJammedGearDoorNose: 32023,
+  GearActuatorJammedGearDoorLeft: 32024,
+  GearActuatorJammedGearDoorRight: 32025,
 
   RadioAltimeter1: 34000,
   RadioAltimeter2: 34001,
@@ -253,7 +273,6 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [22, A380Failure.FmcA, 'FMC-A'],
   [22, A380Failure.FmcB, 'FMC-B'],
   [22, A380Failure.FmcC, 'FMC-C'],
-  [22, A380Failure.Rollout, 'ROLLOUT'],
   [22, A380Failure.Fcu1, 'FCU 1'],
   [22, A380Failure.Fcu2, 'FCU 2'],
 
@@ -360,6 +379,24 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [32, A380Failure.LgciuInternalError2, 'LGCIU 2 Internal error'],
 
   [32, A380Failure.GearProxSensorDamageGearUplockNose1, 'Proximity sensor damage uplock nose gear #1'],
+  [32, A380Failure.GearProxSensorDamageGearDownlockNose2, 'Proximity sensor damage downlock nose gear #2'],
+  [32, A380Failure.GearProxSensorDamageGearUplockRight1, 'Proximity sensor damage uplock right gear #1'],
+  [32, A380Failure.GearProxSensorDamageGearDownlockRight2, 'Proximity sensor damage downlock right gear #2'],
+  [32, A380Failure.GearProxSensorDamageGearUplockLeft2, 'Proximity sensor damage uplock left gear #2'],
+  [32, A380Failure.GearProxSensorDamageGearDownlockLeft1, 'Proximity sensor damage downlock left gear #1'],
+  [32, A380Failure.GearProxSensorDamageGearDoorClosedNose1, 'Proximity sensor damage closed nose gear door #1'],
+  [32, A380Failure.GearProxSensorDamageGearDoorOpenedNose2, 'Proximity sensor damage opened nose gear door #2'],
+  [32, A380Failure.GearProxSensorDamageGearDoorClosedRight2, 'Proximity sensor damage closed right gear door #2'],
+  [32, A380Failure.GearProxSensorDamageGearDoorOpenedRight1, 'Proximity sensor damage opened right gear door #1'],
+  [32, A380Failure.GearProxSensorDamageGearDoorClosedLeft2, 'Proximity sensor damage closed left gear door #2'],
+  [32, A380Failure.GearProxSensorDamageGearDoorOpenedLeft1, 'Proximity sensor damage opened left gear door #1'],
+
+  [32, A380Failure.GearActuatorJammedGearNose, 'Nose gear jammed actuator'],
+  [32, A380Failure.GearActuatorJammedGearLeft, 'Main left gear jammed actuator'],
+  [32, A380Failure.GearActuatorJammedGearRight, 'Main right gear jammed actuator'],
+  [32, A380Failure.GearActuatorJammedGearDoorNose, 'Nose gear door jammed actuator'],
+  [32, A380Failure.GearActuatorJammedGearDoorLeft, 'Main left gear door jammed actuator'],
+  [32, A380Failure.GearActuatorJammedGearDoorRight, 'Main right gear door jammed actuator'],
 
   [34, A380Failure.RadioAltimeter1, 'RA SYS A'],
   [34, A380Failure.RadioAltimeter2, 'RA SYS B'],
