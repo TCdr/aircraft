@@ -96,7 +96,6 @@ import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { toCoRoute } from './StoredRouteUtils';
 import { CoRouteUplinkAdapter } from '@fmgc/flightplanning/uplink/CoRouteUplinkAdapter';
-import { VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { WindEntry } from '@fmgc/flightplanning/data/wind';
 import { AtsuStatusCodes, CruiseWindRequest, WindRequestMessage, WindUplinkMessage } from '@datalink/common';
 import { AocFmsMessages, FmsAocMessages } from '@datalink/aoc';
@@ -2481,26 +2480,24 @@ export class FlightManagementComputer implements FmcInterface {
     );
   }
 
-  /** Whether the vertical profile contains a cruise step descent, which must not start the DESCENT phase. */
-  private hasStepDescent(): boolean {
-    return (
-      this.#guidanceController?.vnavDriver.mcduProfile?.findVerticalCheckpoint(VerticalCheckpointReason.StepDescent) !==
-      undefined
+  handleFcuAltKnobPushPull(): void {
+    this.flightPhaseManager.handleFcuAltKnobPushPull(
+      this.fmgc.getDistanceToDestination() ?? -1,
+      this.guidanceController.hasStepDescent(),
     );
   }
 
-  handleFcuAltKnobPushPull(): void {
-    this.flightPhaseManager.handleFcuAltKnobPushPull(this.fmgc.getDistanceToDestination() ?? -1, this.hasStepDescent());
-  }
-
   handleFcuAltKnobTurn(): void {
-    this.flightPhaseManager.handleFcuAltKnobTurn(this.fmgc.getDistanceToDestination() ?? -1, this.hasStepDescent());
+    this.flightPhaseManager.handleFcuAltKnobTurn(
+      this.fmgc.getDistanceToDestination() ?? -1,
+      this.guidanceController.hasStepDescent(),
+    );
   }
 
   handleFcuVSKnob(onStepClimbDescent: () => void): void {
     this.flightPhaseManager.handleFcuVSKnob(
       this.fmgc.getDistanceToDestination() ?? -1,
-      this.hasStepDescent(),
+      this.guidanceController.hasStepDescent(),
       onStepClimbDescent,
     );
   }
