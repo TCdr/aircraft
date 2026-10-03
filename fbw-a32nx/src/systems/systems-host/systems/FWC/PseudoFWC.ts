@@ -55,6 +55,17 @@ import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { acscPackFaults } from './Logic/AcscPackFaults';
+import {
+  alertStatus,
+  cabFansFaultStatus,
+  condCtlLaneFaultStatus,
+  ductOvhtStatus,
+  hotAirFaultStatus,
+  lavGalleyFanFaultStatus,
+  pack1And2FaultStatus,
+  packFaultStatus,
+  packOffStatus,
+} from './Logic/CondStatus';
 import { EcamStatus } from './EcamStatus';
 import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
 
@@ -388,6 +399,12 @@ export class PseudoFWC {
   private readonly acsc2Lane2Fault = Subject.create(false);
 
   private readonly acsc1Fault = Subject.create(false);
+
+  /** ACSC 1 lost (its words are failure warning: both lanes failed), whatever ACSC 2 */
+  private readonly acsc1Inoperative = Subject.create(false);
+
+  /** ACSC 2 lost (its words are failure warning: both lanes failed), whatever ACSC 1 */
+  private readonly acsc2Inoperative = Subject.create(false);
 
   private readonly acsc2Fault = Subject.create(false);
 
@@ -3249,6 +3266,8 @@ export class PseudoFWC {
 
     const acsc1FT = this.acsc1DiscreteWord1.isFailureWarning();
     const acsc2FT = this.acsc2DiscreteWord1.isFailureWarning();
+    this.acsc1Inoperative.set(acsc1FT);
+    this.acsc2Inoperative.set(acsc2FT);
     this.acsc1Fault.set(acsc1FT && !acsc2FT);
     this.acsc2Fault.set(!acsc1FT && acsc2FT);
     const packFaults = acscPackFaults({
@@ -6434,6 +6453,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.BLEED,
       side: 'LEFT',
+      ...alertStatus(() => pack1And2FaultStatus()),
     },
     2161202: {
       // PACK 1 FAULT
@@ -6445,6 +6465,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.BLEED,
       side: 'LEFT',
+      ...alertStatus(() => packFaultStatus(1, this.acsc1Inoperative.get())),
     },
     2161203: {
       // PACK 2 FAULT
@@ -6456,6 +6477,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.BLEED,
       side: 'LEFT',
+      ...alertStatus(() => packFaultStatus(2, this.acsc2Inoperative.get())),
     },
     2161207: {
       // PACK 1 ABNORMALLY OFF
@@ -6467,6 +6489,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.BLEED,
       side: 'LEFT',
+      ...alertStatus(() => packOffStatus(1)),
     },
     2161208: {
       // PACK 2 ABNORMALLY OFF
@@ -6478,6 +6501,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.BLEED,
       side: 'LEFT',
+      ...alertStatus(() => packOffStatus(2)),
     },
     2161291: {
       // COND CTL 1-A FAULT
@@ -6494,6 +6518,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      ...alertStatus(() => condCtlLaneFaultStatus(1, 'A')),
     },
     2161297: {
       // COND CTL 1-B FAULT
@@ -6510,6 +6535,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      ...alertStatus(() => condCtlLaneFaultStatus(1, 'B')),
     },
     2161294: {
       // COND CTL 2-A FAULT
@@ -6526,6 +6552,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      ...alertStatus(() => condCtlLaneFaultStatus(2, 'A')),
     },
     2161298: {
       // COND CTL 2-B FAULT
@@ -6542,6 +6569,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      ...alertStatus(() => condCtlLaneFaultStatus(2, 'B')),
     },
     2163210: {
       // CKPT DUCT OVHT
@@ -6553,6 +6581,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.COND,
       side: 'LEFT',
+      ...alertStatus(() => ductOvhtStatus()),
     },
     2163211: {
       // FWD DUCT OVHT
@@ -6564,6 +6593,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.COND,
       side: 'LEFT',
+      ...alertStatus(() => ductOvhtStatus()),
     },
     2163212: {
       // AFT DUCT OVHT
@@ -6575,6 +6605,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.COND,
       side: 'LEFT',
+      ...alertStatus(() => ductOvhtStatus()),
     },
     2163218: {
       // L+R CAB FAN FAULT
@@ -6590,6 +6621,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.COND,
       side: 'LEFT',
+      ...alertStatus(() => cabFansFaultStatus()),
     },
     2163260: {
       // LAV+GALLEY FAN FAULT
@@ -6601,23 +6633,49 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      ...alertStatus(() => lavGalleyFanFaultStatus(this.acsc2Inoperative.get())),
     },
     2163290: {
       // HOT AIR FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.hotAirDisagrees,
-      whichCodeToReturn: () => [
-        0,
-        this.hotAirPbOn.get() ? 1 : null,
-        this.anyDuctOvht.get() && this.hotAirPbOn.get() ? 2 : null,
-        this.anyDuctOvht.get() && this.pack1On.get() ? 3 : null,
-        this.anyDuctOvht.get() && this.pack2On.get() ? 4 : null,
+      // FCOM PRO-ABN-COND: HOT AIR (IF NOT CLOSED) OFF; IF HOT AIR STILL OPEN and DUCT OVHT persists: both packs OFF,
+      // descent to FL 100/MEA-MORA, then RAM AIR ON when DIFF PR < 1 PSI and below FL 100, MAX FL 100/MEA-MORA
+      whichCodeToReturn: () => {
+        const stillOpenWithOvht = this.anyDuctOvht.get() && this.hotAirOpen.get();
+        const descending = stillOpenWithOvht && !this.aircraftOnGround.get() && !this.ramAirOn.get();
+        return [
+          0,
+          this.hotAirPbOn.get() ? 1 : null,
+          stillOpenWithOvht ? 2 : null,
+          stillOpenWithOvht ? 3 : null,
+          stillOpenWithOvht && this.pack1On.get() ? 4 : null,
+          stillOpenWithOvht && this.pack2On.get() ? 5 : null,
+          descending ? 6 : null,
+          descending ? 7 : null,
+          descending ? 8 : null,
+          descending ? 9 : null,
+          stillOpenWithOvht && !this.aircraftOnGround.get() ? 10 : null,
+        ];
+      },
+      codesToReturn: [
+        '216329001',
+        '216329002',
+        '216329003',
+        '216329006',
+        '216329004',
+        '216329005',
+        '216329007',
+        '216329008',
+        '216329009',
+        '216329010',
+        '216329011',
       ],
-      codesToReturn: ['216329001', '216329002', '216329003', '216329004', '216329005'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.COND,
       side: 'LEFT',
+      ...alertStatus(() => hotAirFaultStatus(!this.hotAirOpen.get(), !this.pack1On.get() && !this.pack2On.get())),
     },
     2163305: {
       // TRIM AIR SYS FAULT
