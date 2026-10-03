@@ -61,6 +61,7 @@ import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { acscPackFaults } from './Logic/AcscPackFaults';
+import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
 import {
   alertStatus,
   cabFansFaultStatus,
@@ -1847,6 +1848,13 @@ export class PseudoFWC {
   private readonly fireButton2 = Subject.create(false);
 
   private readonly fireButtonAPU = Subject.create(false);
+
+  /** A fire detected in the engine 1 nacelle (the sim's engine fire, FBW has no fire detection loops model) */
+  private readonly eng1FireDetected = Subject.create(false);
+
+  private readonly eng2FireDetected = Subject.create(false);
+
+  private readonly apuFireDetected = Subject.create(false);
 
   /* ICE */
 
@@ -4478,6 +4486,10 @@ export class PseudoFWC {
     this.fireButton1.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG1', 'bool'));
     this.fireButton2.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG2', 'bool'));
     this.fireButtonAPU.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_APU', 'bool'));
+    // The fire signals the FIRE pb red lights already use (A32NX_Interior_Fire.xml, A320_NEO_INTERIOR.xml)
+    this.eng1FireDetected.set(SimVar.GetSimVarValue('ENG ON FIRE:1', 'bool') > 0);
+    this.eng2FireDetected.set(SimVar.GetSimVarValue('ENG ON FIRE:2', 'bool') > 0);
+    this.apuFireDetected.set(SimVar.GetSimVarValue('APU ON FIRE DETECTED', 'bool') > 0);
     // Must call write() unconditionally every tick (not on the right side of the || below) - it needs to
     // see the raw value while held too, or it can never observe the falling edge on release. The extended
     // value itself is only applied when the "Extend Fire Test Warnings After Button Release" EFB Realism
@@ -4517,7 +4529,8 @@ export class PseudoFWC {
       this.agent2Eng2DischargeTimer.write(this.fireButton2.get() && this.eng1Agent1PB.get(), deltaTime),
     );
     this.agentAPUDischarge.set(
-      this.agentAPUDischargeTimer.write(this.fireButton2.get() && this.eng1Agent1PB.get(), deltaTime),
+      // FCOM PRO-ABN-APUF: the AGENT AFTER 10 S countdown starts when the APU FIRE pb is pushed
+      this.agentAPUDischargeTimer.write(this.fireButtonAPU.get(), deltaTime),
     );
 
     /* ANTI ICE */
@@ -6069,8 +6082,16 @@ export class PseudoFWC {
       // ENG 1 FIRE
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
-        ([eng1FireTest, fireButton1]) => eng1FireTest || fireButton1,
+        ([fireTest, fireDetected]) => isFireWarningActive({ fireTest, fireDetected }),
         this.eng1FireTest,
+        this.eng1FireDetected,
+      ),
+      // a red warning chime, cancelled with MASTER WARN, and silenced by pushing the FIRE pb
+      auralWarning: MappedSubject.create(
+        ([fireTest, fireDetected, fireButtonPushed]) =>
+          isFireAuralActive({ fireTest, fireDetected, fireButtonPushed }) ? FwcAuralWarning.Crc : FwcAuralWarning.None,
+        this.eng1FireTest,
+        this.eng1FireDetected,
         this.fireButton1,
       ),
       whichCodeToReturn: () => [
@@ -6123,8 +6144,16 @@ export class PseudoFWC {
       // ENG 2 FIRE
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
-        ([eng2FireTest, fireButton2]) => eng2FireTest || fireButton2,
+        ([fireTest, fireDetected]) => isFireWarningActive({ fireTest, fireDetected }),
         this.eng2FireTest,
+        this.eng2FireDetected,
+      ),
+      // a red warning chime, cancelled with MASTER WARN, and silenced by pushing the FIRE pb
+      auralWarning: MappedSubject.create(
+        ([fireTest, fireDetected, fireButtonPushed]) =>
+          isFireAuralActive({ fireTest, fireDetected, fireButtonPushed }) ? FwcAuralWarning.Crc : FwcAuralWarning.None,
+        this.eng2FireTest,
+        this.eng2FireDetected,
         this.fireButton2,
       ),
       whichCodeToReturn: () => [
@@ -6177,8 +6206,16 @@ export class PseudoFWC {
       // APU FIRE
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
-        ([apuFireTest, fireButtonAPU]) => apuFireTest || fireButtonAPU,
+        ([fireTest, fireDetected]) => isFireWarningActive({ fireTest, fireDetected }),
         this.apuFireTest,
+        this.apuFireDetected,
+      ),
+      // a red warning chime, cancelled with MASTER WARN, and silenced by pushing the FIRE pb
+      auralWarning: MappedSubject.create(
+        ([fireTest, fireDetected, fireButtonPushed]) =>
+          isFireAuralActive({ fireTest, fireDetected, fireButtonPushed }) ? FwcAuralWarning.Crc : FwcAuralWarning.None,
+        this.apuFireTest,
+        this.apuFireDetected,
         this.fireButtonAPU,
       ),
       whichCodeToReturn: () => [
