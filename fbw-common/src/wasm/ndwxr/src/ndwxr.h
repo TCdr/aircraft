@@ -149,6 +149,7 @@
 #include "../../terronnd/src/types/arinc429.hpp"
 
 #include "constants.h"
+#include "vd_runways.h"  // VdCutSegment, the runway stretches of the A380X VD (pure geometry)
 
 namespace ndwxr {
 
@@ -172,16 +173,6 @@ struct NamedVar {
   double read() { return get_named_variable_value(id); }
 };
 
-#ifdef A380X
-// One straight piece of the vertical cut, relative to the aircraft (see buildVdPlanCut).
-struct VdCutSegment {
-  float startEastNm;   // where the piece starts, east ...
-  float startNorthNm;  // ... and north of the aircraft
-  float trackDeg;      // its true track
-  float lengthNm;
-  float startNm;  // its distance along the cut (the aircraft is at 0)
-};
-#endif
 
 // Whether one MapView is parked (made invisible because nothing has shown it for a while, see
 // kParkAfterFrames) and the radius last sent to it, so the setter is only called on a change.
@@ -350,6 +341,13 @@ extern NamedVar g_vdCutCount;
 extern NamedVar g_vdCutTrackChangeNm;
 extern ID g_vdCutLatVars[kVdCutMaxVertices];
 extern ID g_vdCutLonVars[kVdCutMaxVertices];
+extern NamedVar g_vdRunwayCount;
+extern ID g_vdRunwayLatVars[kVdRunwayMax];
+extern ID g_vdRunwayLonVars[kVdRunwayMax];
+extern ID g_vdRunwayCourseVars[kVdRunwayMax];
+extern ID g_vdRunwayHalfLengthVars[kVdRunwayMax];
+extern ID g_vdRunwayHalfWidthVars[kVdRunwayMax];
+extern ID g_vdRunwayElevationVars[kVdRunwayMax];
 extern NamedVar g_adirsTrueTrack[3];
 #endif
 #ifndef A380X
