@@ -388,6 +388,25 @@ export interface MailboxSegment {
 export type MailboxLine = MailboxSegment[];
 
 /**
+ * The segments of a freetext value: Hoppie/BeyondATC mark the variable fields of a freetext uplink with @ (e.g.
+ * "CLRD TO @CYVR@ RWY @06R@"). The marked fields are parameters (FCOM DSC-46-10-10-70: "the main parameters in blue"),
+ * the markers are dropped (the A380 display font draws @ as a triangle). An unclosed marker runs to the end of the
+ * text, as on the A32NX DCDU.
+ * @param value the freetext value
+ * @param parameterKind the kind of a marked field
+ * @returns the segments of the value
+ */
+function freetextSegments(value: string, parameterKind: MailboxSegment['kind']): MailboxSegment[] {
+  const segments: MailboxSegment[] = [];
+  value.split('@').forEach((part, i) => {
+    if (part !== '') {
+      segments.push({ text: part, kind: i % 2 === 1 ? parameterKind : 'text' });
+    }
+  });
+  return segments;
+}
+
+/**
  * The segments of a message element: the text of its CPDLC template, with its values as parameters
  * @param direction the direction of the message (uplink or downlink template)
  * @param element the message element
@@ -407,7 +426,12 @@ function elementSegments(direction: AtsuMessageDirection, element: CpdlcMessageE
     }
     if (i < parts.length - 1) {
       const value = element.Content[i]?.Value || '[      ]';
-      segments.push({ text: value, kind: freetext ? 'text' : monitored ? 'monitored' : 'parameter' });
+      const parameterKind = monitored ? 'monitored' : 'parameter';
+      if (freetext) {
+        segments.push(...freetextSegments(value, parameterKind));
+      } else {
+        segments.push({ text: value, kind: parameterKind });
+      }
     }
   });
   return segments;
@@ -436,18 +460,29 @@ function messageSegments(message: CpdlcMessage, kind?: MailboxSegment['kind']): 
   return kind ? segments.map((segment) => ({ ...segment, kind })) : segments;
 }
 
+/** A word of a message: a segment of one word, glued to the previous word when no space separates them */
+interface MailboxWord extends MailboxSegment {
+  glued: boolean;
+}
+
 /**
  * The segments as words, a word keeping the kind of its segment
  * @param segments the segments
- * @returns one segment per word, in capitals
+ * @returns one word per segment word, in capitals; a word that follows the previous segment without a space (the
+ * full stop in "@4611@.") is glued to it
  */
-function words(segments: MailboxSegment[]): MailboxSegment[] {
-  const result: MailboxSegment[] = [];
+function words(segments: MailboxSegment[]): MailboxWord[] {
+  const result: MailboxWord[] = [];
+  let previousEndsInWord = false;
   for (const segment of segments) {
-    for (const word of segment.text.replace(/\n/g, ' ').toUpperCase().split(' ')) {
+    const text = segment.text.replace(/\n/g, ' ').toUpperCase();
+    text.split(' ').forEach((word, i) => {
       if (word !== '') {
-        result.push({ text: word, kind: segment.kind });
+        result.push({ text: word, kind: segment.kind, glued: i === 0 && previousEndsInWord });
       }
+    });
+    if (text !== '') {
+      previousEndsInWord = !text.endsWith(' ');
     }
   }
   return result;
@@ -467,7 +502,9 @@ export function mailboxLines(block: MailboxBlock, length = MAILBOX_LINE_LENGTH):
     for (const word of words(segments)) {
       let text = word.text;
       while (text.length > 0) {
-        const needed = (lineLength > 0 ? 1 : 0) + Math.min(text.length, length);
+        // A glued word follows the previous one without a space (the first part of a word cut over lines only)
+        const space = lineLength > 0 && !(word.glued && text === word.text) ? 1 : 0;
+        const needed = space + Math.min(text.length, length);
         if (lineLength + needed > length) {
           lines.push(line);
           line = [];
@@ -478,13 +515,14 @@ export function mailboxLines(block: MailboxBlock, length = MAILBOX_LINE_LENGTH):
         text = text.substring(part.length);
         if (lineLength > 0) {
           const last = line[line.length - 1];
+          const separator = space === 1 ? ' ' : '';
           if (last.kind === word.kind) {
-            last.text += ` ${part}`;
+            last.text += `${separator}${part}`;
           } else {
-            last.text += ' ';
+            last.text += separator;
             line.push({ text: part, kind: word.kind });
           }
-          lineLength += 1 + part.length;
+          lineLength += space + part.length;
         } else {
           line.push({ text: part, kind: word.kind });
           lineLength = part.length;
