@@ -141,7 +141,7 @@ export const ScrollableContainer: FC<ScrollableContainerProps> = ({
           type="button"
           aria-label="Scroll up"
           onClick={handleScrollUp}
-          className="absolute right-0 top-0 z-10 flex h-6 w-6 items-center justify-center rounded-t-md bg-theme-secondary text-theme-text transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+          className="absolute right-0 top-0 z-10 flex h-6 w-6 items-center justify-center rounded-t-md bg-m3-tile text-m3-text transition duration-100 hover:bg-m3-primary hover:text-m3-on-primary"
         >
           <ChevronUp size={14} />
         </button>
@@ -150,7 +150,7 @@ export const ScrollableContainer: FC<ScrollableContainerProps> = ({
           type="button"
           aria-label="Scroll down"
           onClick={handleScrollDown}
-          className="absolute bottom-0 right-0 z-10 flex h-6 w-6 items-center justify-center rounded-b-md bg-theme-secondary text-theme-text transition duration-100 hover:bg-theme-highlight hover:text-theme-body"
+          className="absolute bottom-0 right-0 z-10 flex h-6 w-6 items-center justify-center rounded-b-md bg-m3-tile text-m3-text transition duration-100 hover:bg-m3-primary hover:text-m3-on-primary"
         >
           <ChevronDown size={14} />
         </button>
