@@ -27,6 +27,12 @@ import { ConfirmationDialog } from '../../../MsfsAvionicsCommon/UiWidgets/Confir
 import { NXSystemMessages } from '../../shared/NXSystemMessages';
 import { FmsErrorType } from '@fmgc/FmsError';
 import { fcomAt, fcomCentre } from '../common/FcomLayout';
+import {
+  WXR_MANUAL_SETTING_VARS,
+  WXR_NO_ENTRY,
+  WxrManualSetting,
+  wxrManualDefaultOnSelection,
+} from './WxrManualSettings';
 
 interface MfdSurvControlsProps extends AbstractMfdPageProps {}
 
@@ -46,8 +52,7 @@ enum WxrElevnTiltMode {
   Tilt = 2,
 }
 
-/** Value of the ELEVN, TILT and GAIN LVars while nothing is entered */
-const NO_ENTRY = -9999;
+const NO_ENTRY = WXR_NO_ENTRY;
 
 /**
  * SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 4-5), laid out on the FCOM figure, with the rules of the XPDR
@@ -376,23 +381,29 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
    */
   private setElevnTiltMode(mode: WxrElevnTiltMode) {
     SimVar.SetSimVarValue('L:A380X_WXR_ELEVN_TILT_MODE', SimVarValueType.Enum, mode);
-    if (mode === WxrElevnTiltMode.Elevn && this.wxrElevation.get() === null) {
-      const altitude = SimVar.GetSimVarValue(this.baroIsStd.get() ? 'PRESSURE ALTITUDE' : 'INDICATED ALTITUDE', 'feet');
-      SimVar.SetSimVarValue('L:A380X_WXR_ELEVN', SimVarValueType.Number, Math.max(0, Math.round(altitude / 100) * 100));
-    } else if (mode === WxrElevnTiltMode.Tilt && this.wxrTilt.get() === null) {
-      SimVar.SetSimVarValue(
-        'L:A380X_WXR_TILT',
-        SimVarValueType.Number,
-        this.props.fmcService.master.fmgc.isOnGround() ? 3 : 0,
-      );
+    if (mode === WxrElevnTiltMode.Elevn) {
+      this.enterDefaultIfEmpty('elevn');
+    } else if (mode === WxrElevnTiltMode.Tilt) {
+      this.enterDefaultIfEmpty('tilt');
     }
   }
 
-  /** FCOM DSC-34-20-30-20 P 4 (GAIN knob): the default GAIN value is 50 % */
+  /** The FCOM default of a manual setting when its manual mode is selected with nothing entered (wxrManualDefaultOnSelection) */
+  private enterDefaultIfEmpty(setting: WxrManualSetting) {
+    const name = WXR_MANUAL_SETTING_VARS[setting];
+    const value = wxrManualDefaultOnSelection(setting, SimVar.GetSimVarValue(name, SimVarValueType.Number), {
+      onGround: this.props.fmcService.master.fmgc.isOnGround(),
+      altitudeFeet: SimVar.GetSimVarValue(this.baroIsStd.get() ? 'PRESSURE ALTITUDE' : 'INDICATED ALTITUDE', 'feet'),
+    });
+    if (value !== null) {
+      SimVar.SetSimVarValue(name, SimVarValueType.Number, value);
+    }
+  }
+
   private setGainAuto(auto: boolean) {
     SimVar.SetSimVarValue('L:A380X_WXR_GAIN_MAN', SimVarValueType.Bool, !auto);
-    if (!auto && this.wxrGain.get() === null) {
-      SimVar.SetSimVarValue('L:A380X_WXR_GAIN', SimVarValueType.Number, 50);
+    if (!auto) {
+      this.enterDefaultIfEmpty('gain');
     }
   }
 
