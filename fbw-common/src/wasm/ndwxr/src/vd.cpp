@@ -309,6 +309,43 @@ int buildVdPlanCut(float aircraftLat, float aircraftLon, float rangeNm, VdCutSeg
   return n;
 }
 
+// The runways published by the systems host, relative to the aircraft (flat earth, as buildVdPlanCut), then the
+// stretches of the cut whose band reaches them (see vd_runways.h).
+static int buildVdFlatStretches(float aircraftLat,
+                                float aircraftLon,
+                                const VdCutSegment* cut,
+                                int cutCount,
+                                float halfWidthNm,
+                                float rangeNm,
+                                VdFlatStretch* out) {
+  int count = static_cast<int>(g_vdRunwayCount.read());
+  if (count > kVdRunwayMax) {
+    count = kVdRunwayMax;
+  }
+  if (count <= 0) {
+    return 0;
+  }
+  const float nmPerDegreeLon = 60.0f * std::cos(aircraftLat * kDegToRadF);
+  VdRunwayArea runways[kVdRunwayMax];
+  for (int i = 0; i < count; ++i) {
+    float dLon = static_cast<float>(get_named_variable_value(g_vdRunwayLonVars[i])) - aircraftLon;
+    if (dLon > 180.0f) {
+      dLon -= 360.0f;
+    } else if (dLon < -180.0f) {
+      dLon += 360.0f;
+    }
+    runways[i] = VdRunwayArea{
+        dLon * nmPerDegreeLon,
+        (static_cast<float>(get_named_variable_value(g_vdRunwayLatVars[i])) - aircraftLat) * 60.0f,
+        static_cast<float>(get_named_variable_value(g_vdRunwayCourseVars[i])),
+        static_cast<float>(get_named_variable_value(g_vdRunwayHalfLengthVars[i])),
+        static_cast<float>(get_named_variable_value(g_vdRunwayHalfWidthVars[i])),
+        static_cast<float>(get_named_variable_value(g_vdRunwayElevationVars[i])),
+    };
+  }
+  return vdRunwayStretches(cut, cutCount, halfWidthNm, rangeNm, runways, count, out, kVdFlatStretchMax);
+}
+
 // The color list of the VD terrain view: entry 0 is the water (B channel only, which takes
 // no part in the compare: the engine gives water the first entry whatever its height, and
 // the range is set so that no land reaches that entry), entries 1 .. kVdTerrainSteps - 1 are terrain above the top of
@@ -374,7 +411,10 @@ static void drawVdTerrain(NVGcontext* vg,
                           float cutHalfWidthNm,
                           float greyFromNm,
                           double lowerFeet,
-                          double upperFeet) {
+                          double upperFeet,
+                          const VdFlatStretch* flats,
+                          int flatCount,
+                          double terrainOffsetFeet) {
   const float vdBottom = kVdTop + kVdHeight;
   const float vdRight = kVdLeft + kVdWidth;
   const float centerY = kVdTop + 0.5f * kVdHeight;
@@ -491,7 +531,35 @@ static void drawVdTerrain(NVGcontext* vg,
     }
   }
 
-  // 7. the grey area: from the next track change of more than 3 degrees to the end of the
+  // 7. the runways: the terrain view draws the airport diagram over the terrain (see vd_runways.h), so the stretches of
+  // the cut whose band reaches a runway are cleared and drawn as flat ground at its elevation, placed on the scale as
+  // the terrain is (its elevation plus the baro - true offset, see drawVdTerrainGauge), in the terrain's brown.
+  if (flatCount > 0) {
+    const float feetPerPx = static_cast<float>(upperFeet - lowerFeet) / kVdHeight;
+    nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);
+    for (int i = 0; i < flatCount; ++i) {
+      const float x0 = std::fmax(kVdLeft + flats[i].startNm * pxPerNm, kVdLeft);
+      const float x1 = std::fmin(kVdLeft + flats[i].endNm * pxPerNm, vdRight);
+      if (x1 <= x0) {
+        continue;
+      }
+      nvgBeginPath(vg);
+      nvgRect(vg, x0, kVdTop, x1 - x0, kVdHeight);
+      nvgFillColor(vg, nvgRGBAf(0.0f, 0.0f, 0.0f, 1.0f));
+      nvgFill(vg);
+      const double groundFeet = static_cast<double>(flats[i].elevationFeet) + terrainOffsetFeet;
+      const float groundY = std::fmax(kVdTop + static_cast<float>(upperFeet - groundFeet) / feetPerPx, kVdTop);
+      if (groundY < vdBottom) {
+        nvgBeginPath(vg);
+        nvgRect(vg, x0, groundY, x1 - x0, vdBottom - groundY);
+        nvgFillPaint(vg, nvgLinearGradient(vg, 0.0f, kVdTop, 0.0f, vdBottom, nvgRGBAf(0.62f, 0.29f, 0.0f, 1.0f),
+                                           nvgRGBAf(0.42f, 0.19f, 0.0f, 1.0f)));
+        nvgFill(vg);
+      }
+    }
+  }
+
+  // 8. the grey area: from the next track change of more than 3 degrees to the end of the
   // range, the terrain is no longer the one ahead of the aircraft (only along the flight plan).
   if (greyFromNm >= 0.0f && greyFromNm < vdRangeNm) {
     const float greyLeft = kVdLeft + greyFromNm * pxPerNm;
@@ -515,6 +583,8 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
   double lowerFeet = 0.0;
   double upperFeet = 0.0;
   double altitudeFeet = 0.0;
+  // The terrain lands on the VD's baro scale at its elevation plus baro - true (see below)
+  double terrainOffsetFeet = 0.0;
 
   if (isPowered(instance)) {
     const double ndMode = get_named_variable_value(instance.ndModeVar);
@@ -574,6 +644,7 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
     const auto baroAltWord =
         types::Arinc429Word<float>::fromSimVar(instance.isRight ? g_adrBaroAlt2[adr - 1].read() : g_adrBaroAlt1[adr - 1].read());
     altitudeFeet = baroAltWord.isNo() ? static_cast<double>(baroAltWord.value()) : planeAltitudeFeet();
+    terrainOffsetFeet = baroAltWord.isNo() ? altitudeFeet - planeAltitudeFeet() : 0.0;
     fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet - (upperFeet - lowerFeet),
                                     altitudeFeet - lowerFeet);
     setViewRadius(ctx, instance.mapViewVdTerrain, instance.mapViewVdTerrainPark, vdRangeNm * kNmToMetres);
@@ -612,8 +683,10 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
       const float cutHalfWidthNm =
           altitudeFeet >= static_cast<double>(kVdCutEnrouteFeet) ? kVdCutEnrouteHalfWidthNm : kVdCutTerminalHalfWidthNm;
       const FsTextureId waterView = instance.mapViewVdWaterReady && waterUsable ? instance.mapViewVdWater : 0;
+      VdFlatStretch flats[kVdFlatStretchMax];
+      const int flatCount = buildVdFlatStretches(aircraftLat, aircraftLon, cut, cutCount, cutHalfWidthNm, vdRangeNm, flats);
       drawVdTerrain(vg, instance.mapViewVdTerrain, waterView, instance.vdRampImage, vdRangeNm, cut, cutCount, cutHalfWidthNm, greyFromNm,
-                    lowerFeet, upperFeet);
+                    lowerFeet, upperFeet, flats, flatCount, terrainOffsetFeet);
     }
   }
   instance.layerDirty = draw;
