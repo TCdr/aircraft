@@ -38,6 +38,7 @@ import { AesuBusEvents } from '../../MsfsAvionicsCommon/providers/AesuBusPublish
 import { FGVars } from '../../MsfsAvionicsCommon/providers/FGDataPublisher';
 import { MfdSurvEvents } from '../../MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
+import { VD_PLOT_AREA, VdWxrElevnTiltMode, WXR_SETTING_NO_ENTRY, vdWxrElevnTiltLine } from './VdWxrElevnTiltLine';
 
 export interface VerticalDisplayProps extends ComponentProps {
   bus: ArincEventBus;
@@ -371,6 +372,48 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
 
   private readonly wxDataMissing = this.weatherOnVdAvailable.map((available) => !available);
 
+  /** The radar indication of this side's ND (A32NX_WXR_ND_{L,R}_MODE): 1 = the WX display function, see WxrModeLabel */
+  private readonly wxrNdMode = ConsumerSubject.create(
+    this.sub.on(this.props.side === 'L' ? 'wxrNdModeLeft' : 'wxrNdModeRight'),
+    0,
+  );
+  private readonly wxrElevnTiltMode = ConsumerSubject.create(this.sub.on('wxrElevnTiltMode'), VdWxrElevnTiltMode.Auto);
+  private readonly wxrElevn = ConsumerSubject.create(this.sub.on('wxrElevn'), WXR_SETTING_NO_ENTRY);
+  private readonly wxrTilt = ConsumerSubject.create(this.sub.on('wxrTilt'), WXR_SETTING_NO_ENTRY);
+
+  /**
+   * The white line of the WXR's manual ELEVN or TILT mode (A380 FCOM DSC-34-20-30-20, see VdWxrElevnTiltLine), as an
+   * SVG path ('' when not shown). It goes with the ELEVN / TILT message of the ND, so it shows on the same condition (the
+   * ND showing the WX display function); hidden with the VD data (heading or track lost).
+   */
+  private readonly wxrElevnTiltLinePath = MappedSubject.create(
+    ([wxrNdMode, mode, elevn, tilt, alt, vdRange, verticalRange, vdAvailable]) => {
+      if (!vdAvailable) {
+        return '';
+      }
+      const line = vdWxrElevnTiltLine({
+        wxrModeShownOnNd: wxrNdMode === 1,
+        mode,
+        elevnFeet: elevn,
+        tiltDegrees: tilt,
+        aircraftAltitudeFeet: alt.isNormalOperation() ? alt.value : null,
+        vdRangeNm: vdRange,
+        verticalRange,
+        plot: VD_PLOT_AREA,
+      });
+      return line ? `M ${line.x1.toFixed(1)} ${line.y1.toFixed(1)} L ${line.x2.toFixed(1)} ${line.y2.toFixed(1)}` : '';
+    },
+    this.wxrNdMode,
+    this.wxrElevnTiltMode,
+    this.wxrElevn,
+    this.wxrTilt,
+    this.baroCorrectedAltitude,
+    this.vdRange,
+    this.verticalRange,
+    this.vdAvailable,
+  );
+  private readonly wxrElevnTiltLineVisibility = this.wxrElevnTiltLinePath.map((d) => (d ? 'inherit' : 'hidden'));
+
   /**
    * TERR SYS OFF only takes the terrain away, WX ON VD OFF (or a failed WXR) only the weather: each has its own
    * message, and both together get the combined one.
@@ -526,6 +569,12 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
       this.wxrVdOff,
       this.weatherOnVdAvailable,
       this.wxDataMissing,
+      this.wxrNdMode,
+      this.wxrElevnTiltMode,
+      this.wxrElevn,
+      this.wxrTilt,
+      this.wxrElevnTiltLinePath,
+      this.wxrElevnTiltLineVisibility,
       this.noTerrDataAvailFlagCondition,
       this.noWxDataAvailFlagCondition,
       this.noTerrDataAvailFlagVisibility,
@@ -718,6 +767,14 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
           >
             {this.targetAltitudeFormatted}
           </text>
+          {/* WXR ELEVN/TILT line, under the aircraft symbol so it leaves from the symbol's nose as in the FCOM figures */}
+          <path
+            d={this.wxrElevnTiltLinePath}
+            fill="none"
+            stroke="white"
+            stroke-width="2"
+            visibility={this.wxrElevnTiltLineVisibility}
+          />
           <g transform={this.planeSymbolTransform} visibility={this.planeRotationVisibility}>
             <line
               fill="none"
