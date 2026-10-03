@@ -9,6 +9,7 @@ import {
   FsInstrument,
   FsBaseInstrument,
   ClockPublisher,
+  SimVarValueType,
   Subject,
 } from '@microsoft/msfs-sdk';
 import { FmcService } from './FMC/FmcService';
@@ -27,6 +28,7 @@ import { FcuEfisCpBusPublisher } from '@shared/publishers/EfisCpBusPublisher';
 import { PrimFctlBusPublisher } from '@shared/publishers/PrimFctlPublisher';
 import { PrimFgBusPublisher } from '@shared/publishers/PrimFgPublisher';
 import { PrimChoiceProvider } from '@shared/publishers/PrimChoiceProvider';
+import { initWxrManualSettings } from './pages/SURV/WxrManualSettings';
 
 class MfdInstrument implements FsInstrument {
   private readonly bus = new EventBus();
@@ -100,6 +102,8 @@ class MfdInstrument implements FsInstrument {
 
   public doInit(): void {
     this.backplane.init();
+    // The SURV/CONTROLS page's manual radar settings start with nothing entered (FCOM defaults at the first selection)
+    initWxrManualSettings((name, value) => SimVar.SetSimVarValue(name, SimVarValueType.Number, value));
 
     const mfd = document.getElementById('MFD_CONTENT');
     if (mfd) {
