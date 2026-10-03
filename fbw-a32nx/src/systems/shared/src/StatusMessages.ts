@@ -7,13 +7,39 @@
  * alerts that have their status modelled are here.
  */
 export enum StatusPart {
+  Limitation,
   Information,
   InopSys,
 }
 
-/** The STATUS page lines, by code: 34 02 xxxxx information, 34 03 xxxxx inoperative systems (as the A380 codes) */
+/**
+ * The STATUS page lines, by code: ATA chapter, then 04 xxxxx limitations, 02 xxxxx information, 03 xxxxx inoperative
+ * systems (as the A380 codes). Their order here is their order on the page: the limitations come before the information
+ * in the left column.
+ */
 const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
+  // 21 AIR CONDITIONING (FCOM PRO-ABN-AIR, PRO-ABN-COND)
+  ['210400001', { part: StatusPart.Limitation, text: 'MAX FL.....100/MEA-MORA' }],
+  ['210200001', { part: StatusPart.Information, text: 'CKPT AT FIXED TEMP' }],
+  ['210200002', { part: StatusPart.Information, text: 'CAB AT FIXED TEMP' }],
+  ['210200003', { part: StatusPart.Information, text: 'CAB TEMP BY PACK ONLY' }],
+  ['210200004', { part: StatusPart.Information, text: 'CAB TEMP CKPT CTL ONLY' }],
+  // 34 NAVIGATION
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
+  // 21 AIR CONDITIONING
+  ['210300001', { part: StatusPart.InopSys, text: 'PACK 1' }],
+  ['210300002', { part: StatusPart.InopSys, text: 'PACK 2' }],
+  ['210300003', { part: StatusPart.InopSys, text: 'PACK 1+2' }],
+  ['210300004', { part: StatusPart.InopSys, text: 'COND CTL 1' }],
+  ['210300005', { part: StatusPart.InopSys, text: 'COND CTL 2' }],
+  ['210300006', { part: StatusPart.InopSys, text: 'COND CTL 1-A' }],
+  ['210300007', { part: StatusPart.InopSys, text: 'COND CTL 1-B' }],
+  ['210300008', { part: StatusPart.InopSys, text: 'COND CTL 2-A' }],
+  ['210300009', { part: StatusPart.InopSys, text: 'COND CTL 2-B' }],
+  ['210300010', { part: StatusPart.InopSys, text: 'HOT AIR' }],
+  ['210300011', { part: StatusPart.InopSys, text: 'L+R CAB FAN' }],
+  ['210300012', { part: StatusPart.InopSys, text: 'GALLEY FAN' }],
+  // 34 NAVIGATION
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
   ['340300003', { part: StatusPart.InopSys, text: 'GPS 1+2' }],
@@ -33,6 +59,7 @@ export function orderStatusCodes(codes: readonly string[]): string[] {
 
 /** The colour of the lines of each part, as FWC text control codes */
 const PART_COLOURS: Record<StatusPart, string> = {
+  [StatusPart.Limitation]: '\x1b<5m',
   [StatusPart.Information]: '\x1b<3m',
   [StatusPart.InopSys]: '\x1b<4m',
 };
