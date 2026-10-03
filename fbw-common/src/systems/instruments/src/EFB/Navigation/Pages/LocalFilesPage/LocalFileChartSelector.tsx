@@ -61,7 +61,7 @@ export const LocalFileChartSelector = ({ selectedTab, loading }: LocalFileChartS
         className="flex h-full items-center justify-center rounded-2xl bg-m3-card-low text-m3-muted"
         style={{ height: '42.75rem' }}
       >
-        <p>{t('NavigationAndCharts.ThereAreNoChartsToDisplay')}</p>
+        <p className="text-center text-lg text-m3-muted">{t('NavigationAndCharts.ThereAreNoChartsToDisplay')}</p>
       </div>
     );
   }
