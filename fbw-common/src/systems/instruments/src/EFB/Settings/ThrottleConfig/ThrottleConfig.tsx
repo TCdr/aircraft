@@ -5,17 +5,17 @@
 /* eslint-disable max-len */
 import React, { useContext, useEffect, useState } from 'react';
 import { usePersistentNumberProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
-import { ExclamationCircleFill } from 'react-bootstrap-icons';
+import { ExclamationCircleFill, InfoCircleFill } from 'react-bootstrap-icons';
 import {
   AircraftContext,
   PromptModal,
-  SelectGroup,
   SelectItem,
   t,
   Toggle,
   useModals,
   VerticalSelectGroup,
 } from '@flybywiresim/flypad';
+import { M3Banner, M3Button, M3Card, M3Segmented } from '../../UtilComponents/Material/Material';
 import { BaseThrottleConfig } from './BaseThrottleConfig';
 import { ThrottleSimvar } from './ThrottleSimVar';
 
@@ -188,11 +188,13 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
     }
   };
 
+  // the detent being calibrated, from TO/GA at the top to reverse full at the bottom
+  const detentItemClassName = '!px-2 !text-sm text-center';
   const navigationBar = (
     <VerticalSelectGroup>
       <SelectItem
         disabled={!togaOnAxis1}
-        className={`${togaOnAxis1 ? '' : 'opacity-30'}`}
+        className={detentItemClassName}
         onSelect={() => {
           if (togaOnAxis1) {
             switchDetent(5);
@@ -202,18 +204,18 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
       >
         TO/GA
       </SelectItem>
-      <SelectItem onSelect={() => switchDetent(4)} selected={selectedDetent === 4}>
+      <SelectItem className={detentItemClassName} onSelect={() => switchDetent(4)} selected={selectedDetent === 4}>
         FLX
       </SelectItem>
-      <SelectItem onSelect={() => switchDetent(3)} selected={selectedDetent === 3}>
+      <SelectItem className={detentItemClassName} onSelect={() => switchDetent(3)} selected={selectedDetent === 3}>
         CLB
       </SelectItem>
-      <SelectItem onSelect={() => switchDetent(2)} selected={selectedDetent === 2}>
+      <SelectItem className={detentItemClassName} onSelect={() => switchDetent(2)} selected={selectedDetent === 2}>
         Idle
       </SelectItem>
       <SelectItem
         disabled={!reverserOnAxis1}
-        className={`${reverserOnAxis1 ? '' : 'opacity-30'}`}
+        className={detentItemClassName}
         onSelect={() => {
           if (reverserOnAxis1) {
             switchDetent(1);
@@ -225,7 +227,7 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
       </SelectItem>
       <SelectItem
         disabled={!reverserOnAxis1}
-        className={`${reverserOnAxis1 ? '' : 'opacity-30'}`}
+        className={detentItemClassName}
         onSelect={() => {
           if (reverserOnAxis1) {
             switchDetent(0);
@@ -239,13 +241,14 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
   );
 
   const axisSelectGroup = (
-    <SelectGroup>
-      {aircraftContext.settingsPages.throttle.axisOptions.map((option) => (
-        <SelectItem selected={axisNum === option} onSelect={() => setAxisNum(option)}>
-          {option}
-        </SelectItem>
-      ))}
-    </SelectGroup>
+    <M3Segmented
+      className={aircraftContext.settingsPages.throttle.axisOptions.length > 2 ? 'w-36' : 'w-24'}
+      options={aircraftContext.settingsPages.throttle.axisOptions.map((option) => ({
+        label: `${option}`,
+        selected: axisNum === option,
+        onClick: () => setAxisNum(option),
+      }))}
+    />
   );
 
   // The calibration UI displays a number of axes usually corresponding to the number of levers/axes a user has for their throttle.
@@ -259,11 +262,17 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
   // We call the throttle mappings the "inputThrottle". (e.g. A380X userAxis 2 will use inputThrottle 3 as per MSFSconfig).
   // We call the number of user hardware axes the "numberOfUserAxes".
   // We call the number of throttles of the aircraft the "numberOfThrottles".
+  //
+  // Layout: the axis cards and the detent list share one row that fits the right pane of the Settings (about 920 px
+  // wide): one or two axes get cards of a fixed width, four axes share the row equally (narrow cards, smaller texts).
+  const wideAxisCard = 'w-72';
+  const narrowAxisCard = 'min-w-0 flex-1';
 
   // A320 uses axis 1 for throttle 1 and axis 2 for throttle 2
   const oneAxis = (
-    <div className="flex flex-row justify-center rounded-xl">
+    <div className="flex flex-row justify-center">
       <BaseThrottleConfig
+        className={wideAxisCard}
         userAxis={1}
         inputThrottle={1}
         numberOfUserAxes={1}
@@ -274,14 +283,15 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
         throttleSimvarsSet4={throttleFourSimvars}
         activeDetent={selectedDetent}
       />
-      <div className="my-auto ml-8 text-center">{navigationBar}</div>
+      <div className="ml-6 w-28 shrink-0 self-center">{navigationBar}</div>
     </div>
   );
 
   // A320 uses axis 1 for throttle 1 and axis 2 for throttle 2
   const twoAxisA320 = (
-    <div className="mx-32 flex flex-row">
+    <div className="flex flex-row justify-center">
       <BaseThrottleConfig
+        className={wideAxisCard}
         userAxis={1}
         inputThrottle={1}
         numberOfUserAxes={2}
@@ -289,8 +299,9 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
         throttleSimvarsSet1={throttleOneSimvars}
         activeDetent={selectedDetent}
       />
-      <div className="m-auto text-center">{navigationBar}</div>
+      <div className="mx-6 w-28 shrink-0 self-center">{navigationBar}</div>
       <BaseThrottleConfig
+        className={wideAxisCard}
         userAxis={2}
         inputThrottle={2}
         numberOfUserAxes={2}
@@ -303,8 +314,9 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
 
   // A380 uses axis 1 for throttle 1 + 2 and axis 2 for throttle 3 + 4
   const twoAxisA380 = (
-    <div className="mx-32 flex flex-row">
+    <div className="flex flex-row justify-center">
       <BaseThrottleConfig
+        className={wideAxisCard}
         userAxis={1}
         inputThrottle={1}
         numberOfUserAxes={2}
@@ -313,8 +325,9 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
         throttleSimvarsSet2={throttleTwoSimvars}
         activeDetent={selectedDetent}
       />
-      <div className="m-auto text-center">{navigationBar}</div>
+      <div className="mx-6 w-28 shrink-0 self-center">{navigationBar}</div>
       <BaseThrottleConfig
+        className={wideAxisCard}
         userAxis={2}
         inputThrottle={3} // A380X uses input of throttle 3 for the second user hardware axis as per MSFS mapping
         numberOfUserAxes={2}
@@ -327,8 +340,9 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
   );
 
   const fourAxis = (
-    <div className="mx-16 flex flex-row">
+    <div className="flex flex-row">
       <BaseThrottleConfig
+        className={narrowAxisCard}
         userAxis={1}
         inputThrottle={1}
         numberOfUserAxes={4}
@@ -338,6 +352,7 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
         reverseDisabled
       />
       <BaseThrottleConfig
+        className={`ml-2 ${narrowAxisCard}`}
         userAxis={2}
         inputThrottle={2}
         numberOfUserAxes={4}
@@ -345,8 +360,9 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
         throttleSimvarsSet1={throttleTwoSimvars}
         activeDetent={selectedDetent}
       />
-      <div className="m-auto text-center">{navigationBar}</div>
+      <div className="mx-2 w-28 shrink-0 self-center">{navigationBar}</div>
       <BaseThrottleConfig
+        className={narrowAxisCard}
         userAxis={3}
         inputThrottle={3}
         numberOfUserAxes={4}
@@ -355,6 +371,7 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
         activeDetent={selectedDetent}
       />
       <BaseThrottleConfig
+        className={`ml-2 ${narrowAxisCard}`}
         userAxis={4}
         inputThrottle={4}
         numberOfUserAxes={4}
@@ -387,57 +404,53 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
 
   if (!isShown) return null;
 
+  // One card in the right pane of the Settings, every row a direct child of it so that the buttons stay on screen:
+  // the title, the axis options, the axes (the rest of the height), the messages, the buttons.
   return (
-    <div className="flex h-content-section-full flex-col justify-between">
-      <div className="space-y-2">
-        <div>
-          <div className="mb-8 mt-auto flex w-full flex-row items-center justify-center space-x-16 rounded-lg border-2 border-theme-accent p-4">
-            <div className="flex flex-row items-center justify-center space-x-4">
-              <div>{t('Settings.ThrottleConfig.TogaOnAxis')}</div>
-              <Toggle value={!!togaOnAxis1} onToggle={(value) => setTogaOnAxis(value ? 1 : 0)} />
-            </div>
-            <div className="flex flex-row items-center justify-center space-x-4">
-              <div>{t('Settings.ThrottleConfig.ReverserOnAxis')}</div>
-              <Toggle value={!!reverserOnAxis1} onToggle={(value) => setReversersOnAxis(value ? 1 : 0)} />
-            </div>
-            <div className="flex flex-row items-center justify-center space-x-4">
-              <div>{t('Settings.ThrottleConfig.IndependentAxis')}</div>
-              {axisSelectGroup}
-            </div>
-          </div>
-          {getAxis()}
-        </div>
-
-        {/* To make sure users map throttles 1+2 to axis 1 and 3+4 to axis 2 and not any other grouping */}
-        {validConfig && numberOfThrottles === 4 && axisNum === 2 && (
-          <div className="w-full overflow-hidden rounded-md border-2 border-theme-accent">
-            <h2 className="py-4 text-center">{t('Settings.ThrottleConfig.FourThrottleWarning')}</h2>
-          </div>
-        )}
-
-        {!validConfig && (
-          <div className="w-full overflow-hidden rounded-md border-2 border-theme-accent">
-            <div className="flex w-full items-center justify-center bg-utility-red py-3">
-              <ExclamationCircleFill size={25} />
-            </div>
-            <h2 className="py-4 text-center">{validationError}</h2>
-          </div>
-        )}
+    <M3Card className="h-content-section-reduced w-full">
+      <div className="flex shrink-0 flex-row items-center px-6 pb-2 pt-5">
+        <span className="text-2xl font-bold text-m3-text">{t('Settings.SimOptions.ThrottleDetents')}</span>
       </div>
 
-      <div className="flex w-full flex-row justify-between rounded-lg border-2 border-theme-accent p-4">
-        <div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border-2 border-theme-highlight bg-theme-highlight px-5 py-2.5 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-          >
-            {t('Settings.ThrottleConfig.Back')}
-          </button>
+      <div className="mx-6 mt-2 flex shrink-0 flex-row items-center justify-between rounded-2xl bg-m3-card-low px-4 py-2">
+        <div className="flex flex-row items-center">
+          <span className="mr-3 text-sm font-semibold text-m3-text">{t('Settings.ThrottleConfig.TogaOnAxis')}</span>
+          <Toggle value={!!togaOnAxis1} onToggle={(value) => setTogaOnAxis(value ? 1 : 0)} />
         </div>
+        <div className="flex flex-row items-center">
+          <span className="mr-3 text-sm font-semibold text-m3-text">{t('Settings.ThrottleConfig.ReverserOnAxis')}</span>
+          <Toggle value={!!reverserOnAxis1} onToggle={(value) => setReversersOnAxis(value ? 1 : 0)} />
+        </div>
+        <div className="flex flex-row items-center">
+          <span className="mr-3 text-sm font-semibold text-m3-text">
+            {t('Settings.ThrottleConfig.IndependentAxis')}
+          </span>
+          {axisSelectGroup}
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden px-4 py-3">{getAxis()}</div>
+
+      {/* To make sure users map throttles 1+2 to axis 1 and 3+4 to axis 2 and not any other grouping */}
+      {validConfig && numberOfThrottles === 4 && axisNum === 2 && (
+        <M3Banner tone="idle" icon={<InfoCircleFill size={18} />} className="mx-6 shrink-0">
+          {t('Settings.ThrottleConfig.FourThrottleWarning')}
+        </M3Banner>
+      )}
+
+      {!validConfig && (
+        <M3Banner tone="warn" icon={<ExclamationCircleFill size={18} />} className="mx-6 shrink-0">
+          {validationError}
+        </M3Banner>
+      )}
+
+      <div className="mx-6 mb-5 mt-3 flex shrink-0 flex-row items-center justify-between">
+        <M3Button tone="outline" onClick={onClose}>
+          {t('Settings.ThrottleConfig.Back')}
+        </M3Button>
         <div className="flex flex-row space-x-3">
-          <button
-            type="button"
+          <M3Button
+            tone="outline"
             onClick={() => {
               showModal(
                 <PromptModal
@@ -451,49 +464,35 @@ export const ThrottleConfig = ({ isShown, onClose }: ThrottleConfigProps) => {
                 />,
               );
             }}
-            className="rounded-md border-2 border-theme-highlight bg-theme-highlight px-5 py-2.5 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
           >
             {t('Settings.ThrottleConfig.ResetToDefaults')}
-          </button>
-          <button
-            type="button"
+          </M3Button>
+          <M3Button
+            tone="outline"
             onClick={() => {
               syncToThrottle(1);
             }}
-            className="rounded-md border-2 border-theme-highlight bg-theme-highlight px-5 py-2.5 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
           >
             {t('Settings.ThrottleConfig.LoadFromFile')}
-          </button>
-          <button
-            type="button"
-            onClick={() => applyLocalVar(1)}
-            className={`rounded-md border-2 px-5 py-2.5 transition duration-100 ${
-              validConfig
-                ? 'border-theme-highlight bg-theme-highlight text-theme-body hover:bg-theme-body hover:text-theme-highlight'
-                : 'border-theme-accent bg-theme-accent opacity-30'
-            }`}
-          >
+          </M3Button>
+          {/* Apply stays clickable with an invalid configuration, as before: it only looks inactive */}
+          <M3Button tone="tonal" className={validConfig ? '' : 'opacity-40'} onClick={() => applyLocalVar(1)}>
             {t('Settings.ThrottleConfig.Apply')}
-          </button>
-          <button
-            type="button"
+          </M3Button>
+          <M3Button
+            tone="primary"
+            disabled={!validConfig}
             onClick={() => {
               if (validConfig) {
                 syncToDisk(1);
                 applyLocalVar(1);
               }
             }}
-            disabled={!validConfig}
-            className={`rounded-md border-2 px-5 py-2.5 transition duration-100 ${
-              validConfig
-                ? 'border-green-400 bg-green-400 text-theme-body hover:bg-theme-body hover:text-green-400'
-                : 'border-theme-accent bg-theme-accent opacity-30'
-            }`}
           >
             {t('Settings.ThrottleConfig.SaveAndApply')}
-          </button>
+          </M3Button>
         </div>
       </div>
-    </div>
+    </M3Card>
   );
 };

@@ -21,6 +21,7 @@ import { ButtonType, SettingGroup, SettingItem, SettingsPage } from '../Settings
 import { SelectGroup, SelectItem } from '../../UtilComponents/Form/Select';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 
+import { M3ActionChip, M3_STATUS_TONES } from '../../UtilComponents/Material/Material';
 import { ThrottleConfig } from '../ThrottleConfig/ThrottleConfig';
 import { AircraftContext } from '@flybywiresim/flypad';
 
@@ -104,7 +105,11 @@ export const SimOptionsPage = () => {
                 {t('Settings.SimOptions.Off')}
               </SelectItem>
             </SelectGroup>
-            <div className="pt-2 text-center">
+            <div
+              className={`pt-2 text-center text-sm font-semibold ${
+                simbridgeEnabled === 'AUTO ON' ? M3_STATUS_TONES.active : M3_STATUS_TONES.idle
+              }`}
+            >
               {simbridgeEnabled === 'AUTO ON' ? t('Settings.SimOptions.Active') : t('Settings.SimOptions.Inactive')}
             </div>
           </SettingItem>
@@ -211,14 +216,9 @@ export const SimOptionsPage = () => {
           )}
 
           <SettingItem name={t('Settings.SimOptions.ThrottleDetents')}>
-            <button
-              type="button"
-              className="rounded-md border-2 border-theme-highlight bg-theme-highlight px-5
-                                       py-2.5 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-              onClick={() => setShowThrottleSettings(true)}
-            >
+            <M3ActionChip primary className="!h-10 !px-5" onClick={() => setShowThrottleSettings(true)}>
               {t('Settings.SimOptions.Calibrate')}
-            </button>
+            </M3ActionChip>
           </SettingItem>
 
           {aircraftContext.settingsPages.sim.pilotSeat && (

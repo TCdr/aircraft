@@ -6,6 +6,7 @@ import React, { FC, useState } from 'react';
 import { PencilSquare } from 'react-bootstrap-icons';
 import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { t } from '@flybywiresim/flypad';
+import { M3Card } from '../../UtilComponents/Material/Material';
 import { DetentConfig, DummyDetentConfig } from './DetentConfig';
 import { ThrottleSimvar } from './ThrottleSimVar';
 
@@ -204,32 +205,33 @@ export const BaseThrottleConfig: FC<BaseThrottleConfigProps> = ({
     />
   );
 
+  // the detent bounds of axes 1 and 4 of the A380 cannot be set in reverse: these show the lever position only
+  const canConfigureDetent = !reverseDisabled || activeDetent >= 2;
+  // four axis cards share the row with the detent list: smaller texts so that each fits its narrow card
+  const compact = numberOfUserAxes === 4;
+
   return (
-    <div className={className}>
-      {numberOfUserAxes === 4 ? (
-        <h2 className="mb-2 text-center">{throttleNumberString}</h2>
-      ) : (
-        <h1 className="mb-2 text-center">{throttleNumberString}</h1>
-      )}
-      <div className="mt-4 flex flex-col items-center justify-center px-2 pt-5">
-        <div className="flex w-60 flex-row items-center justify-center space-x-2">
-          <p>
-            {t('Settings.ThrottleConfig.CurrentValue')}: {throttlePosition.toFixed(2)}
-          </p>
-          {!reverseDisabled || activeDetent >= 2 ? (
-            <PencilSquare
-              className="text-theme-highlight"
-              onMouseDown={() => setExpertMode(!expertMode)}
-              stroke="1.5"
-            />
-          ) : null}
-        </div>
-        <div className="flex flex-row">
-          <div className="flex flex-col items-center justify-between">
-            {!reverseDisabled || activeDetent >= 2 ? currentDetent : dummyDetent}
-          </div>
-        </div>
+    <M3Card low className={`items-center px-2 py-3 ${className ?? ''}`}>
+      <span className={`text-center font-bold leading-tight text-m3-text ${compact ? 'text-sm' : 'text-base'}`}>
+        {throttleNumberString}
+      </span>
+      <div className="mt-2 flex h-8 flex-row items-center justify-center">
+        <span
+          className={`whitespace-nowrap text-m3-muted ${compact ? 'text-xs' : 'text-sm'}`}
+        >{`${t('Settings.ThrottleConfig.CurrentValue')}: ${throttlePosition.toFixed(2)}`}</span>
+        {canConfigureDetent && (
+          <button
+            type="button"
+            className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-m3-on-primary-container transition duration-100 ${
+              expertMode ? 'bg-m3-primary-container' : 'bg-transparent hover:bg-m3-tile'
+            }`}
+            onMouseDown={() => setExpertMode(!expertMode)}
+          >
+            <PencilSquare size={16} />
+          </button>
+        )}
       </div>
-    </div>
+      <div className="mt-3 flex w-full flex-col items-center">{canConfigureDetent ? currentDetent : dummyDetent}</div>
+    </M3Card>
   );
 };
