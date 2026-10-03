@@ -109,8 +109,10 @@ export class AtcRouteClearanceLoader<P extends FlightPlanPerformanceData> {
     try {
       if (route !== null) {
         result = await this.upload(route);
+      } else if (constraints !== null) {
+        result = await this.uploadConstraints(constraints);
       } else {
-        result = constraints !== null ? await this.uploadConstraints(constraints) : null;
+        result = null;
       }
     } catch (e) {
       console.error('[AtcRouteClearanceLoader] ATC flight plan upload failed', e);
