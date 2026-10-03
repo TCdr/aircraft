@@ -11,6 +11,10 @@ import {
 } from '@flybywiresim/fbw-sdk-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { CanvasConst } from './Constants';
+import { chartWeightToY } from './ChartFit';
+
+/** Half the height of a weight axis label, in px: the labels are centred on their weight line */
+const WEIGHT_LABEL_HALF_HEIGHT = 14;
 
 interface ChartWidgetProps {
   width: number;
@@ -76,11 +80,10 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
     ctx.strokeStyle = '#2B313B';
     ctx.lineWidth = 1;
 
-    const yStep = height / limits.weight.lines;
     const xStep = width / limits.cg.lines;
     const shiftX = width / 18;
 
-    const weightToY = (weight: number) => ((limits.weight.max - weight) * yStep) / limits.weight.scale;
+    const weightToY = (weight: number) => chartWeightToY(weight, limits.weight, height);
     const cgToX = (cg: number) => (cg - limits.cg.min) * xStep;
     const cgWeightToXY = (cg: number, weight: number): [number, number] => {
       const xStart = cgToX(cg);
@@ -95,7 +98,9 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
     const drawWeightLines = () => {
       ctx.lineWidth = 1;
       ctx.strokeStyle = '#394049';
-      for (let y = yStep; y < height; y += yStep) {
+      // every grid weight under the top one, down to the lowest (the bottom of the chart)
+      for (let i = 1; i <= limits.weight.lines; i++) {
+        const y = weightToY(limits.weight.max - i * limits.weight.scale);
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
@@ -280,8 +285,9 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
   const [cgRows, setCgRows] = useState<Object[]>([]);
   const [weightRows, setWeightRows] = useState<Object[]>([]);
 
+  // under the lowest weight label
   const weightUnits = {
-    transform: `translateX(${CanvasConst.weightAxis.units.x * width}px) translateY(${CanvasConst.weightAxis.units.y * height}px)`,
+    transform: `translateX(${CanvasConst.weightAxis.units.x * width}px) translateY(${height + WEIGHT_LABEL_HALF_HEIGHT - 2}px)`,
   };
 
   useEffect(() => {
@@ -296,12 +302,12 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
     const wg: Object[] = [];
     for (let i = 0; i < limits.weight.values.length; i++) {
       const newRow = {
-        transform: `translateX(${CanvasConst.weightAxis.x * width}px) translateY(${height * (CanvasConst.weightAxis.yOffset + i * CanvasConst.weightAxis.ySpacing)}px)`,
+        transform: `translateX(${CanvasConst.weightAxis.x * width}px) translateY(${chartWeightToY(limits.weight.values[i] * 1000, limits.weight, height) - WEIGHT_LABEL_HALF_HEIGHT}px)`,
       };
       wg.push(newRow);
     }
     setWeightRows(wg);
-  }, []);
+  }, [width, height]);
 
   const cgAxis = cgRows.map((cgRow, i) => (
     // eslint-disable-next-line react/no-array-index-key

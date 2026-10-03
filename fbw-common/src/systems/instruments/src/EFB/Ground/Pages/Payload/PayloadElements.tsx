@@ -333,8 +333,11 @@ export const PayloadInputTable: React.FC<PayloadInputTableProps> = ({
   const current = 'w-28 shrink-0 text-right';
   return (
     <div className="flex flex-col">
+      {/* the card title on the column header row */}
       <div className="mb-1 flex flex-row items-center">
-        <div className="grow" />
+        <span className="min-w-0 grow text-xs font-bold uppercase tracking-widest text-m3-muted">
+          {t('Ground.Payload.Load')}
+        </span>
         <span className="w-40 shrink-0 text-center text-xs font-bold uppercase tracking-widest text-m3-muted">
           {t('Ground.Payload.Planned')}
         </span>
