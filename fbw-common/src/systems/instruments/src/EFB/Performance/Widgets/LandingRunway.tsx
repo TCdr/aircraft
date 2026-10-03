@@ -49,7 +49,17 @@ export interface LandingRunwayStop {
   /** The braking mode of the results: bold, with its margin */
   selected: boolean;
   estimate: boolean;
+  /** Beyond the data (a tailwind above the limit): amber, with ~ before and a dagger after */
+  extrapolated?: boolean;
 }
+
+/** A distance with the mark of an estimate (*) or of an extrapolated figure (~ and a dagger) */
+const marked = (text: string, estimate: boolean, extrapolated?: boolean) => {
+  if (extrapolated) {
+    return `~${text}\u2020`;
+  }
+  return estimate ? `${text}*` : text;
+};
 
 export interface LandingRunwayProps {
   ident: string | undefined;
@@ -59,7 +69,7 @@ export interface LandingRunwayProps {
   airDistance: number | undefined;
   stops: LandingRunwayStop[];
   /** DISPATCH: the required landing distance, in metres */
-  required?: { distance: number; estimate: boolean };
+  required?: { distance: number; estimate: boolean; extrapolated?: boolean };
   distanceUnit: 'm' | 'ft';
   /** A380: the BTV DRY and WET lines, and the runway exits with what BTV can achieve with them */
   btv?: { lines: BtvLines; exits: BtvExitAssessment[] };
@@ -147,7 +157,7 @@ export const LandingRunway = ({ ident, lda, airDistance, stops, required, distan
         const colour = overrun
           ? COLOURS.overrun
           : s.selected
-            ? s.estimate
+            ? s.estimate || s.extrapolated
               ? COLOURS.estimate
               : COLOURS.data
             : COLOURS.unselected;
@@ -170,7 +180,7 @@ export const LandingRunway = ({ ident, lda, airDistance, stops, required, distan
               fontWeight={s.selected ? 'bold' : 'normal'}
               textAnchor="end"
             >
-              {`${s.label} ${format(s.distance)}${s.estimate ? '*' : ''}`}
+              {`${s.label} ${marked(format(s.distance), s.estimate, s.extrapolated)}`}
             </text>
           </g>
         );
@@ -184,7 +194,7 @@ export const LandingRunway = ({ ident, lda, airDistance, stops, required, distan
             y={BAR_Y}
             width={Math.min(x(required.distance), runwayEnd) - RUNWAY_X}
             height={BAR_HEIGHT}
-            fill={required.estimate ? COLOURS.estimate : COLOURS.data}
+            fill={required.estimate || required.extrapolated ? COLOURS.estimate : COLOURS.data}
           />
           {required.distance > lda && (
             <rect
@@ -198,12 +208,18 @@ export const LandingRunway = ({ ident, lda, airDistance, stops, required, distan
           <text
             x={Math.max(Math.min(x(required.distance), WIDTH - 4), 260)}
             y={BAR_Y + BAR_HEIGHT + 20}
-            fill={required.distance > lda ? COLOURS.overrun : required.estimate ? COLOURS.estimate : COLOURS.data}
+            fill={
+              required.distance > lda
+                ? COLOURS.overrun
+                : required.estimate || required.extrapolated
+                  ? COLOURS.estimate
+                  : COLOURS.data
+            }
             fontSize={17}
             fontWeight="bold"
             textAnchor="end"
           >
-            {`${t('Performance.Landing.Calc.Required')} ${format(required.distance)}${required.estimate ? '*' : ''}`}
+            {`${t('Performance.Landing.Calc.Required')} ${marked(format(required.distance), required.estimate, required.extrapolated)}`}
           </text>
         </>
       )}

@@ -271,7 +271,7 @@ describe('A320 landing performance', () => {
     );
   });
 
-  it('keeps the limits of the FCOM (LIM-12): OEW, MTOW, 9200 ft, 15 kt of tailwind, 2 % slope', () => {
+  it('keeps the limits of the FCOM (LIM-12): OEW, MTOW, 9200 ft, 2 % slope', () => {
     const inFlight = { ...EXAMPLE, type: LandingComputationType.InFlight };
     const error = (inputs: Partial<LandingPerformanceInputs>) =>
       calculator.calculateLandingPerformance({ ...inFlight, ...inputs }).error;
@@ -281,11 +281,24 @@ describe('A320 landing performance', () => {
     expect(error({ weight: 79_100 })).toBe(LandingPerformanceError.MaximumTakeoffWeight);
     expect(error({ elevation: 9200, oat: -3 })).toBe(LandingPerformanceError.None);
     expect(error({ elevation: 9300, oat: -3 })).toBe(LandingPerformanceError.MaximumPressureAlt);
-    expect(error({ headwind: -15 })).toBe(LandingPerformanceError.None);
-    expect(error({ headwind: -16 })).toBe(LandingPerformanceError.MaximumTailwind);
     expect(error({ slope: -2 })).toBe(LandingPerformanceError.None);
     expect(error({ slope: 2.1 })).toBe(LandingPerformanceError.MaximumRunwaySlope);
     expect(error({ oat: NaN })).toBe(LandingPerformanceError.InvalidData);
+  });
+
+  it('extrapolates the figures beyond the 15 kt tailwind of the FCOM (LIM-AG), flagged', () => {
+    const inFlight = { ...EXAMPLE, type: LandingComputationType.InFlight };
+    const at = (headwind: number) => calculator.calculateLandingPerformance({ ...inFlight, headwind });
+    expect(at(-15).error).toBe(LandingPerformanceError.None);
+    expect(at(-15).tailwindExtrapolated).toBe(false);
+    expect(at(-16).error).toBe(LandingPerformanceError.None);
+    expect(at(-16).tailwindExtrapolated).toBe(true);
+    // the QRH tailwind correction per 5 kt continues beyond the limit
+    expect(at(-20).landingDistance!).toBeGreaterThan(at(-15).landingDistance!);
+    expect(at(-20).landingDistance! - at(-15).landingDistance!).toBeCloseTo(
+      at(-15).landingDistance! - at(-10).landingDistance!,
+      6,
+    );
   });
 
   it('allows 29 kt of crosswind on compacted snow at or below -15 °C, 25 kt above (PER-LDG-DIS-MAT)', () => {
