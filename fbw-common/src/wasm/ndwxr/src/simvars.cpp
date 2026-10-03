@@ -68,6 +68,13 @@ NamedVar g_vdCutCount{"A380X_VD_CUT_COUNT"};
 NamedVar g_vdCutTrackChangeNm{"A380X_VD_CUT_TRACK_CHANGE_NM"};
 ID g_vdCutLatVars[kVdCutMaxVertices];
 ID g_vdCutLonVars[kVdCutMaxVertices];
+NamedVar g_vdRunwayCount{"A380X_VD_RUNWAY_COUNT"};
+ID g_vdRunwayLatVars[kVdRunwayMax];
+ID g_vdRunwayLonVars[kVdRunwayMax];
+ID g_vdRunwayCourseVars[kVdRunwayMax];
+ID g_vdRunwayHalfLengthVars[kVdRunwayMax];
+ID g_vdRunwayHalfWidthVars[kVdRunwayMax];
+ID g_vdRunwayElevationVars[kVdRunwayMax];
 
 // The IR true track words for IR 1..3: the cut along the track follows the track, not the heading.
 NamedVar g_adirsTrueTrack[3] = {{"A32NX_ADIRS_IR_1_TRUE_TRACK"}, {"A32NX_ADIRS_IR_2_TRUE_TRACK"}, {"A32NX_ADIRS_IR_3_TRUE_TRACK"}};
@@ -315,6 +322,22 @@ void registerSimVars() {
     g_vdCutLatVars[i] = register_named_variable(name);
     std::snprintf(name, sizeof(name), "A380X_VD_CUT_%d_LON", i);
     g_vdCutLonVars[i] = register_named_variable(name);
+  }
+  g_vdRunwayCount.id = register_named_variable(g_vdRunwayCount.name);
+  for (int i = 0; i < kVdRunwayMax; ++i) {
+    char name[48];
+    std::snprintf(name, sizeof(name), "A380X_VD_RUNWAY_%d_LAT", i);
+    g_vdRunwayLatVars[i] = register_named_variable(name);
+    std::snprintf(name, sizeof(name), "A380X_VD_RUNWAY_%d_LON", i);
+    g_vdRunwayLonVars[i] = register_named_variable(name);
+    std::snprintf(name, sizeof(name), "A380X_VD_RUNWAY_%d_COURSE", i);
+    g_vdRunwayCourseVars[i] = register_named_variable(name);
+    std::snprintf(name, sizeof(name), "A380X_VD_RUNWAY_%d_HALF_LENGTH_NM", i);
+    g_vdRunwayHalfLengthVars[i] = register_named_variable(name);
+    std::snprintf(name, sizeof(name), "A380X_VD_RUNWAY_%d_HALF_WIDTH_NM", i);
+    g_vdRunwayHalfWidthVars[i] = register_named_variable(name);
+    std::snprintf(name, sizeof(name), "A380X_VD_RUNWAY_%d_ELEVATION_FT", i);
+    g_vdRunwayElevationVars[i] = register_named_variable(name);
   }
   for (NamedVar& track : g_adirsTrueTrack) {
     track.id = register_named_variable(track.name);
