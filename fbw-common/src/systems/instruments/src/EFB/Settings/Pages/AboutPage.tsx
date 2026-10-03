@@ -17,14 +17,16 @@ import { SettingsPage } from '../Settings';
 // @ts-ignore
 import FbwTail from '../../Assets/FBW-Tail.svg';
 import { useViewListenerEvent } from '../../Utils/listener';
-import { Link, Route, Switch } from 'react-router-dom';
+import { Route, Switch, useHistory } from 'react-router-dom';
 import { TroubleshootingPage } from './TroubleshootingPage';
+import { M3Button, M3Card, M3SectionHeader } from '../../UtilComponents/Material/Material';
 
 const baseAboutRoute = `/settings/${pathify('About')}`;
 
 interface BuildInfoEntryProps {
   title: string;
   value?: string;
+  /** The number of leading characters to highlight (the short SHA) */
   underline?: number;
 }
 
@@ -40,19 +42,18 @@ interface CommunityPanelPlayerData {
   sStatus: string;
 }
 
-const SPACE_BETWEEN = 28;
-
+/** A row of the build info list: the label muted on the left, the value on the right (long values wrap) */
 const BuildInfoEntry = ({ title, value, underline = 0 }: BuildInfoEntryProps) => {
   const first = value?.substring(0, underline);
   const last = value?.substring(underline);
 
   return (
-    <div className="mt-2 flex flex-row font-mono">
-      <p>{title + '\u00A0'.repeat(Math.abs(SPACE_BETWEEN - title.length))}</p>
-      <p className="ml-4">
-        <span className="text-theme-highlight underline">{first}</span>
+    <div className="flex flex-row items-start py-2">
+      <span className="w-56 shrink-0 text-sm font-semibold text-m3-muted">{title}</span>
+      <span className="min-w-0 flex-1 break-all text-sm text-m3-text">
+        {first && <span className="text-sm font-bold text-m3-on-primary-container underline">{first}</span>}
         {last}
-      </p>
+      </span>
     </div>
   );
 };
@@ -63,6 +64,7 @@ export const AboutPage = () => {
   const [sessionId] = usePersistentProperty('A32NX_SENTRY_SESSION_ID');
   const [version, setVersion] = useSessionStorage('SIM_VERSION', '');
   const [sentryEnabled] = usePersistentProperty(SENTRY_CONSENT_KEY, SentryConsentState.Refused);
+  const history = useHistory();
 
   const subTabs: PageLink[] = [
     { alias: t('Settings.Troubleshooting.Title'), name: 'Troubleshooting', component: <TroubleshootingPage /> },
@@ -84,28 +86,25 @@ export const AboutPage = () => {
     <Switch>
       <Route exact path={baseAboutRoute}>
         <SettingsPage name={t('Settings.About.Title')}>
-          <div className="absolute inset-y-0 flex flex-col justify-center px-16">
+          {/* One block in the normal flow under the page title (a single child: no list divider inside it) */}
+          <div className="pb-4 pt-2">
             <div className="flex flex-row items-center">
-              <div className="flex flex-col">
-                <div className="flex flex-row items-center">
-                  <img className="w-[36px]" src={FbwTail} alt="" />
-                  <h1 className="font-manrope ml-4 text-4xl font-bold">flyPadOS 3</h1>
-                </div>
-
-                <p className="mt-3 text-2xl">
-                  Made with love by contributors in Québec, Germany, the United States, Singapore, Indonesia, New
-                  Zealand, Australia, Spain, the United Kingdom, France, the Netherlands, Sweden, and Switzerland!
-                </p>
-              </div>
-            </div>
-            <div className="mt-8 flex flex-col justify-center">
-              <p>&copy; 2020-2025 FlyByWire Simulations and its contributors, all rights reserved.</p>
-              <p>Licensed under the GNU General Public License Version 3</p>
+              <img className="w-[36px]" src={FbwTail} alt="" />
+              <h1 className="font-manrope ml-4 text-3xl font-bold text-m3-text">flyPadOS 3</h1>
             </div>
 
-            <div className="mt-16">
-              <h1 className="font-bold">Build Info</h1>
-              <div className="mt-4">
+            <p className="mt-3 text-base text-m3-text">
+              Made with love by contributors in Québec, Germany, the United States, Singapore, Indonesia, New Zealand,
+              Australia, Spain, the United Kingdom, France, the Netherlands, Sweden, and Switzerland!
+            </p>
+            <p className="mt-4 text-sm text-m3-muted">
+              &copy; 2020-2025 FlyByWire Simulations and its contributors, all rights reserved.
+            </p>
+            <p className="text-sm text-m3-muted">Licensed under the GNU General Public License Version 3</p>
+
+            <M3Card low className="mt-6">
+              <M3SectionHeader title="Build Info" />
+              <div className="divide-y divide-m3-outline px-4 pb-2">
                 <BuildInfoEntry title="Sim Version" value={version} />
                 <BuildInfoEntry title="Aircraft Version" value={buildInfo?.version} />
                 <BuildInfoEntry title="Livery Title" value={title} />
@@ -118,17 +117,15 @@ export const AboutPage = () => {
                   <BuildInfoEntry title="Sentry Session ID" value={sessionId} />
                 )}
               </div>
-            </div>
+            </M3Card>
 
-            <div className="mt-16">
-              <Link
-                to={`${baseAboutRoute}/${pathify('Troubleshooting')}`}
-                className="rounded-md border-2 border-theme-highlight bg-theme-highlight px-5
-                                    py-2.5 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-              >
-                {t('Settings.Troubleshooting.Title')}
-              </Link>
-            </div>
+            <M3Button
+              tone="tonal"
+              className="mt-6 !h-12 w-64"
+              onClick={() => history.push(`${baseAboutRoute}/${pathify('Troubleshooting')}`)}
+            >
+              {t('Settings.Troubleshooting.Title')}
+            </M3Button>
           </div>
         </SettingsPage>
       </Route>

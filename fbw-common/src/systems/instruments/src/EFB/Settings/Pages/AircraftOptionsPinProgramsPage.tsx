@@ -4,7 +4,7 @@
 
 import { usePersistentNumberProperty, usePersistentProperty, usePersistentSetting } from '@flybywiresim/fbw-sdk-react';
 import React, { useContext, useState } from 'react';
-import { Link, Route, Switch } from 'react-router-dom';
+import { Route, Switch, useHistory } from 'react-router-dom';
 import { PageLink, TabRoutes, pathify } from '../../Utils/routing';
 import { t } from '../../Localization/translation';
 import { SelectGroup, SelectItem } from '../../UtilComponents/Form/Select';
@@ -12,11 +12,13 @@ import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { ButtonType, SettingItem, SettingsPage } from '../Settings';
 import { Toggle } from '../../UtilComponents/Form/Toggle';
 import { AircraftContext } from '@flybywiresim/flypad';
+import { M3Button } from '../../UtilComponents/Material/Material';
 
 const basePinProgRoute = `/settings/${pathify('Aircraft Options / Pin Programs')}`;
 
 export const AircraftOptionsPinProgramsPage = () => {
   const aircraftContext = useContext(AircraftContext);
+  const history = useHistory();
   const [acoPage] = useState(React.createElement(aircraftContext.settingsPages.autoCalloutsPage));
 
   const subTabs: PageLink[] = [
@@ -221,13 +223,12 @@ export const AircraftOptionsPinProgramsPage = () => {
           )}
 
           <SettingItem name={t('Settings.AutomaticCallOuts.Title')}>
-            <Link
-              to={`${basePinProgRoute}/${pathify('Automatic Call Outs')}`}
-              className="rounded-md border-2 border-theme-highlight bg-theme-highlight px-5
-                                py-2.5 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
+            <M3Button
+              className="!h-10 !rounded-xl !text-sm"
+              onClick={() => history.push(`${basePinProgRoute}/${pathify('Automatic Call Outs')}`)}
             >
               {t('Settings.AircraftOptionsPinPrograms.Select')}
-            </Link>
+            </M3Button>
           </SettingItem>
         </SettingsPage>
       </Route>
