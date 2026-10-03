@@ -2,25 +2,37 @@
 /* SPDX-License-Identifier: GPL-3.0 */
 
 
+/* The toasts in the Material 3 look of the flyPad: a card surface with an outline, the text and the icon on the m3
+   tones of the theme (Assets/Theme.css): primary for information and success, amber for warnings, red for errors.
+   The flyPad uses react-toastify's light theme, whose colours all come from the variables below. */
 :root {
     --toastify-toast-width: 600px;
 
-    --toastify-color-info: var(--color-highlight);
-    --toastify-color-error: var(--color-highlight);
-    --toastify-color-success: var(--color-highlight);
-    --toastify-color-warning: var(--color-highlight);
+    --toastify-color-light: var(--m3-card);
+    --toastify-text-color-light: var(--m3-text);
+
+    --toastify-color-info: var(--m3-primary);
+    --toastify-color-success: var(--m3-primary);
+    --toastify-color-warning: var(--m3-on-warn);
+    --toastify-color-error: var(--m3-on-error);
+
+    --toastify-color-progress-light: var(--m3-primary);
+
+    --toastify-spinner-color: var(--m3-primary);
+    --toastify-spinner-color-empty-area: var(--m3-tile);
 }
 
 .Toastify__toast {
     position: relative;
-    min-height: 90px;
+    min-height: 80px;
     box-sizing: border-box;
     margin-bottom: 1rem;
-    padding: 8px;
-    border-radius: 9px;
-    box-shadow: 0 1px 10px 0 rgba(0, 0, 0, 0.1), 0 2px 15px 0 rgba(0, 0, 0, 0.05);
-    border-width: 2px;
-    border-color: var(--color-accent);
+    padding: 8px 12px;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+    border-width: 1px;
+    border-style: solid;
+    border-color: var(--m3-outline);
     display: -ms-flexbox;
     display: flex;
     -ms-flex-pack: justify;
@@ -47,8 +59,9 @@
     align-items: center;
 }
 
+/* The flyPad stylesheet gives every div the old text colour: the message carries its own size and colour */
 .Toastify__toast-body > div {
-    @apply text-2xl;
+    @apply text-lg font-semibold text-m3-text;
 }
 
 .Toastify__toast-icon {
@@ -80,12 +93,12 @@
 }
 
 .Toastify__toast-theme--light {
-    background: var(--color-body);
-    color: var(--color-text);
+    background: var(--toastify-color-light);
+    color: var(--toastify-text-color-light);
 }
 
 .Toastify__close-button {
-    color: var(--color-text);
+    color: var(--m3-muted);
     background: transparent;
     outline: none;
     border: none;
@@ -102,15 +115,14 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 7px;
+    height: 4px;
     z-index: var(--toastify-z-index);
-    opacity: 0.7;
+    opacity: 1;
     transform-origin: left;
 }
 
-.Toastify__progress-bar-theme--light {
-    background: var(--color-highlight);
-}
+/* The bar takes react-toastify's own colours: --toastify-color-progress-light for an untyped or loading toast, the
+   colour of its type for an info, success, warning or error toast (a rule here would override the typed ones) */
 
 .Toastify__close-button > svg {
     fill: currentColor;
