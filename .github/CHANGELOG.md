@@ -218,6 +218,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/COND] With the hot air valve closed, pack 1 regulates the cockpit and pack 2 the cabin at the mean of the FWD/AFT selections - @TCdr
 1. [A32NX/SD] BLEED page: the pack outlet temperatures show each pack's own outlet temperature (was the FWD cabin temperature), amber above 90 °C - @TCdr
 1. [A32NX/FWC] ENG 1(2) FIRE and APU FIRE warnings come from a detected fire or the FIRE TEST only, no longer from a released FIRE pb; the APU AGENT 10 s countdown starts with the APU FIRE pb - @TCdr
+1. [A32NX/FUEL] The ENG MASTER switch and the ENG FIRE pb close the engine LP fuel valve (shown on the SD FUEL page); with the ENG FIRE pb pushed the engine shuts down once the fuel left downstream of the valve is burned, up to 2 min 30 s at idle - @TCdr
 
 ## 2024.1.0
 
