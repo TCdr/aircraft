@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 #include "logging.h"
@@ -59,7 +59,12 @@ void EngineControl_A380X::update() {
   for (int engine = 1; engine <= 4; engine++) {
     const int engineIdx = engine - 1;
 
-    const bool engineStarter = static_cast<bool>(simData.simVarsDataPtr->data().engineStarter[engineIdx]);
+    // FCOM DSC-28-10: "The LP valves automatically close, when their associated ENG FIRE pb is pushed."
+    // The systems WASM tracks the fuel left between the closed LP valve and the engine. Once it is burned the engine is
+    // starved and handled as if its starter (driven by the ENG MASTER switch) were off: it shuts down and cannot relight
+    // while starved. The MSFS starter itself is left alone, the ENG MASTER switch behaviour keeps it in sync with the switch.
+    const bool engineFuelStarved = simData.engineFuelStarved[engineIdx]->getAsBool();
+    const bool engineStarter = static_cast<bool>(simData.simVarsDataPtr->data().engineStarter[engineIdx]) && !engineFuelStarved;
     const int  engineIgniter = static_cast<int>(simData.simVarsDataPtr->data().engineIgniter[engineIdx]);
 
     // determine the current engine state based on the previous state and the current ignition, starter and other parameters
@@ -87,7 +92,12 @@ void EngineControl_A380X::update() {
         break;
       case SHUTTING:
         engineShutdownProcedure(engine, deltaTime, engineTimer, simN1, ambientTemperature);
-        updateFF(engine, simCN1, mach, pressureAltitude, ambientTemperature, ambientPressure);
+        if (engineFuelStarved) {
+          // No fuel reaches a starved engine, even while the MSFS starter, still on, keeps it turning.
+          simData.engineFF[engineIdx]->set(0.0);
+        } else {
+          updateFF(engine, simCN1, mach, pressureAltitude, ambientTemperature, ambientPressure);
+        }
         break;
       default:
         updatePrimaryParameters(engine, simN1, simN3);

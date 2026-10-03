@@ -1,4 +1,5 @@
-//! Engine low-pressure (LP) fuel valves and the fuel left between each valve and its engine.
+//! Engine low-pressure (LP) fuel valves of the A320 and the fuel left between each valve and its
+//! engine.
 //!
 //! FCOM DSC-28-10-30 (ENGINE LP VALVES): "The engine fuel flow can be stopped by its low pressure
 //! (LP) fuel valve. The LP fuel valve is closed by either: The engine master switch, or The ENG FIRE
@@ -14,48 +15,29 @@
 //! nozzles is burned. The time delay for engine shutdown depends on airport altitude and fuel
 //! recirculation system operation."
 //!
-//! This module therefore keeps track of the fuel between each LP valve and the engine nozzles: the
-//! line stays full while the valve is open and is burned at the engine fuel flow computed by the
-//! FADEC once the valve is fully closed. When it is empty the engine is starved: the systems WASM
-//! then closes a dedicated MSFS fuel valve in series with the engine feed (so MSFS stops the
-//! combustion) and the FADEC treats the engine as having no fuel (no relight while starved).
+//! The valve and the fuel left downstream of it are simulated by the aircraft-independent
+//! `systems::fuel::engine_lp_valve::EngineLpFuelValve`; this module gives it the A320 travel time
+//! and the A320 fuel downstream of the valve. When that fuel is burned the engine is starved: the
+//! systems WASM then closes a dedicated MSFS fuel valve in series with the engine feed (so MSFS stops
+//! the combustion) and the FADEC treats the engine as having no fuel (no relight while starved).
 //! The fuel recirculation system is not simulated.
 
 use std::time::Duration;
 use systems::{
+    fuel::engine_lp_valve,
     shared::EngineFirePushButtons,
-    simulation::{
-        InitContext, Read, SimulationElement, SimulatorReader, SimulatorWriter, UpdateContext,
-        VariableIdentifier, Write,
-    },
+    simulation::{InitContext, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
+#[cfg(test)]
+use uom::si::mass::kilogram;
 use uom::si::{
     f64::*,
-    mass::kilogram,
     mass_rate::kilogram_per_second,
-    ratio::ratio,
     time::{hour, second},
 };
 
 pub struct EngineLpFuelValve {
-    engine_number: usize,
-
-    // ENG MASTER switch position: the A32NX master switch drives the MSFS fuel valve switch of the
-    // same index (see FBW_ENGINE_Switch_Master_Template in A32NX_Interior_Misc.xml).
-    master_switch_id: VariableIdentifier,
-    // Engine fuel flow computed by the FADEC (A32NX_ENGINE_FF:{n}), in kg/h.
-    fuel_flow_id: VariableIdentifier,
-
-    open_percentage_id: VariableIdentifier,
-    starved_id: VariableIdentifier,
-    fuel_downstream_id: VariableIdentifier,
-
-    master_switch_is_on: bool,
-    engine_fuel_flow: MassRate,
-
-    position: Ratio,
-    position_is_initialised: bool,
-    fuel_downstream: Mass,
+    valve: engine_lp_valve::EngineLpFuelValve,
 }
 impl EngineLpFuelValve {
     /// The FCOM gives no LP valve travel time. The valve travels in the same 1.7 s as the MSFS
@@ -86,24 +68,12 @@ impl EngineLpFuelValve {
 
     pub fn new(context: &mut InitContext, engine_number: usize) -> Self {
         Self {
-            engine_number,
-            master_switch_id: context
-                .get_identifier(format!("FUELSYSTEM VALVE SWITCH:{}", engine_number)),
-            fuel_flow_id: context.get_identifier(format!("ENGINE_FF:{}", engine_number)),
-            open_percentage_id: context.get_identifier(format!(
-                "FUEL_ENG_{}_LP_VALVE_OPEN_PERCENTAGE",
-                engine_number
-            )),
-            starved_id: context.get_identifier(format!("FUEL_ENG_{}_STARVED", engine_number)),
-            fuel_downstream_id: context.get_identifier(format!(
-                "FUEL_ENG_{}_FUEL_DOWNSTREAM_LP_VALVE",
-                engine_number
-            )),
-            master_switch_is_on: false,
-            engine_fuel_flow: MassRate::default(),
-            position: Ratio::new::<ratio>(1.),
-            position_is_initialised: false,
-            fuel_downstream: Self::fuel_downstream_capacity(),
+            valve: engine_lp_valve::EngineLpFuelValve::new(
+                context,
+                engine_number,
+                Self::TRAVEL_TIME,
+                Self::fuel_downstream_capacity(),
+            ),
         }
     }
 
@@ -119,69 +89,19 @@ impl EngineLpFuelValve {
         context: &UpdateContext,
         engine_fire_push_buttons: &impl EngineFirePushButtons,
     ) {
-        // FCOM DSC-28-10-30: closed by the engine master switch or by the ENG FIRE PUSH pushbutton.
-        let is_commanded_open =
-            self.master_switch_is_on && !engine_fire_push_buttons.is_released(self.engine_number);
-        let commanded_position = Ratio::new::<ratio>(if is_commanded_open { 1. } else { 0. });
-
-        if self.position_is_initialised {
-            self.move_towards(commanded_position, context.delta());
-        } else {
-            // A freshly loaded flight starts with the valve where it is commanded, without travel.
-            self.position = commanded_position;
-            self.position_is_initialised = true;
-        }
-
-        if self.is_fully_closed() {
-            // The engine keeps burning the fuel left between the valve and its nozzles.
-            let burned_fuel = self.engine_fuel_flow * context.delta_as_time();
-            self.fuel_downstream = (self.fuel_downstream - burned_fuel).max(Mass::default());
-        } else {
-            self.fuel_downstream = Self::fuel_downstream_capacity();
-        }
-    }
-
-    fn move_towards(&mut self, commanded_position: Ratio, delta: Duration) {
-        let max_travel = Ratio::new::<ratio>(delta.as_secs_f64() / Self::TRAVEL_TIME.as_secs_f64());
-
-        self.position = if commanded_position > self.position {
-            (self.position + max_travel).min(commanded_position)
-        } else {
-            (self.position - max_travel).max(commanded_position)
-        };
-    }
-
-    fn is_fully_closed(&self) -> bool {
-        self.position.get::<ratio>() <= 0.
-    }
-
-    /// The LP valve is closed and the fuel between the valve and the nozzles has been burned.
-    pub fn engine_is_starved(&self) -> bool {
-        self.is_fully_closed() && self.fuel_downstream.get::<kilogram>() <= 0.
+        self.valve.update(context, engine_fire_push_buttons);
     }
 
     #[cfg(test)]
     fn fuel_downstream(&self) -> Mass {
-        self.fuel_downstream
+        self.valve.fuel_downstream()
     }
 }
 impl SimulationElement for EngineLpFuelValve {
-    fn read(&mut self, reader: &mut SimulatorReader) {
-        self.master_switch_is_on = reader.read(&self.master_switch_id);
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.valve.accept(visitor);
 
-        let fuel_flow_kg_per_hour: f64 = reader.read(&self.fuel_flow_id);
-        self.engine_fuel_flow = MassRate::new::<kilogram_per_second>(
-            fuel_flow_kg_per_hour.max(0.) / Time::new::<hour>(1.).get::<second>(),
-        );
-    }
-
-    fn write(&self, writer: &mut SimulatorWriter) {
-        writer.write(&self.open_percentage_id, self.position);
-        writer.write(&self.starved_id, self.engine_is_starved());
-        writer.write(
-            &self.fuel_downstream_id,
-            self.fuel_downstream.get::<kilogram>(),
-        );
+        visitor.visit(self);
     }
 }
 
