@@ -7,7 +7,8 @@ import React, { useEffect, useState } from 'react';
 import { t } from '../../Localization/translation';
 
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
-import { ProgressBar } from '../../UtilComponents/Progress/Progress';
+import { M3ActionChip } from '../../UtilComponents/Material/Material';
+import { ThrottleDetentGauge } from './ThrottleDetentGauge';
 
 interface Props {
   upperBoundDetentSetter;
@@ -44,73 +45,51 @@ export const DetentConfig: React.FC<Props> = (props: Props) => {
   }, [props.expertMode]);
 
   return (
-    <div className="flex shrink-0 flex-col items-center justify-between overflow-hidden text-white">
-      <div className="h-64">
-        <ProgressBar
-          height="225px"
-          width="40px"
-          isLabelVisible={false}
-          displayBar
-          borderRadius="0px"
-          completedBarBegin={(props.lowerBoundDetentGetter + 1) * 50}
-          completedBarBeginValue={props.lowerBoundDetentGetter.toFixed(2)}
-          completedBarEnd={(props.upperBoundDetentGetter + 1) * 50}
-          completedBarEndValue={props.upperBoundDetentGetter.toFixed(2)}
-          bgcolor="var(--color-highlight)"
-          vertical
-          baseBgColor="var(--color-accent)"
-          completed={((props.throttlePosition + 1) / 2) * 100}
-          completionValue={props.throttlePosition}
-          greenBarsWhenInRange
-        />
-      </div>
-      <div className="flex flex-col">
+    <div className="flex w-full shrink-0 flex-col items-center">
+      <ThrottleDetentGauge
+        position={props.throttlePosition}
+        lowerBound={props.lowerBoundDetentGetter}
+        upperBound={props.upperBoundDetentGetter}
+        showDetent
+      />
+      <div className="mt-3 flex w-full flex-col">
         {!props.expertMode && (
-          <div className="my-2">
-            <div>
-              <p>{t('Settings.ThrottleConfig.Deadband')} +/-</p>
-            </div>
-            <div>
-              <SimpleInput
-                className="mb-6 w-60"
-                value={deadZone.toFixed(2)}
-                reverse
-                onChange={(deadZone) => {
-                  if (parseFloat(deadZone) >= 0.01) {
-                    if (previousMode === props.expertMode) {
-                      setShowWarning(false);
-                      setDeadZone(parseFloat(deadZone));
-                    }
-                  } else {
-                    setShowWarning(true);
+          <>
+            <span className="text-xs font-semibold text-m3-muted">{`${t('Settings.ThrottleConfig.Deadband')} +/-`}</span>
+            <SimpleInput
+              className="mt-1 w-full text-center"
+              fontSizeClassName="text-sm"
+              value={deadZone.toFixed(2)}
+              reverse
+              onChange={(deadZone) => {
+                if (parseFloat(deadZone) >= 0.01) {
+                  if (previousMode === props.expertMode) {
+                    setShowWarning(false);
+                    setDeadZone(parseFloat(deadZone));
                   }
-                }}
-              />
-            </div>
-            <div>
-              <button
-                className="w-60 rounded-md border-2 border-theme-highlight bg-theme-highlight px-2 py-1 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
-                onClick={() => {
-                  setFromTo(
-                    props.throttlePosition,
-                    props.lowerBoundDetentSetter,
-                    props.upperBoundDetentSetter,
-                    deadZone,
-                  );
-                }}
-                type="button"
-              >
-                {t('Settings.ThrottleConfig.SetFromThrottle')}
-              </button>
-            </div>
-          </div>
+                } else {
+                  setShowWarning(true);
+                }
+              }}
+            />
+            <M3ActionChip
+              primary
+              className="mt-3 w-full"
+              onClick={() => {
+                setFromTo(props.throttlePosition, props.lowerBoundDetentSetter, props.upperBoundDetentSetter, deadZone);
+              }}
+            >
+              {t('Settings.ThrottleConfig.SetFromThrottle')}
+            </M3ActionChip>
+          </>
         )}
         {props.expertMode && (
-          <div className="my-2">
-            <p>{t('Settings.ThrottleConfig.ConfigureEnd')}</p>
+          <>
+            <span className="text-xs font-semibold text-m3-muted">{t('Settings.ThrottleConfig.ConfigureEnd')}</span>
             <SimpleInput
               reverse
-              className="mr-0 w-60"
+              className="mt-1 w-full text-center"
+              fontSizeClassName="text-sm"
               value={!props.expertMode ? deadZone : props.upperBoundDetentGetter.toFixed(2)}
               onChange={(deadZone) => {
                 if (previousMode === props.expertMode && deadZone.length > 1 && !Number.isNaN(Number(deadZone))) {
@@ -119,12 +98,12 @@ export const DetentConfig: React.FC<Props> = (props: Props) => {
                 }
               }}
             />
-
-            <p>
+            <span className="mt-2 text-xs font-semibold text-m3-muted">
               {props.expertMode ? t('Settings.ThrottleConfig.ConfigureStart') : t('Settings.ThrottleConfig.Deadband')}
-            </p>
+            </span>
             <SimpleInput
-              className="mt-2 w-60"
+              className="mt-1 w-full text-center"
+              fontSizeClassName="text-sm"
               reverse
               value={!props.expertMode ? deadZone : props.lowerBoundDetentGetter.toFixed(2)}
               onChange={(deadZone) => {
@@ -134,14 +113,14 @@ export const DetentConfig: React.FC<Props> = (props: Props) => {
                 }
               }}
             />
-          </div>
+          </>
         )}
-        <h2
+        <span
           style={{ visibility: showWarning ? 'visible' : 'hidden' }}
-          className="my-2 h-12 w-48 text-xl text-utility-red"
+          className="mt-2 h-8 w-full text-center text-xs leading-tight text-m3-on-error"
         >
-          {t('Settings.ThrottleConfig.PleaseEnterAValidDeadzone')} (&gt; 0.01)
-        </h2>
+          {`${t('Settings.ThrottleConfig.PleaseEnterAValidDeadzone')} (> 0.01)`}
+        </span>
       </div>
     </div>
   );
@@ -149,23 +128,12 @@ export const DetentConfig: React.FC<Props> = (props: Props) => {
 
 // this is a dummy component that is used to display the detent config without the ability to change it
 export const DummyDetentConfig: React.FC<Props> = (props: Props) => (
-  <div className="flex shrink-0 flex-col items-center justify-between overflow-hidden text-white">
-    <div className="h-64">
-      <ProgressBar
-        height="225px"
-        width="40px"
-        vertical
-        displayBar={false}
-        isLabelVisible={false}
-        bgcolor="var(--color-highlight)"
-        baseBgColor="var(--color-accent)"
-        completedBarBegin={(props.lowerBoundDetentGetter + 1) * 50}
-        completedBarBeginValue={props.lowerBoundDetentGetter.toFixed(2)}
-        completedBarEnd={(props.upperBoundDetentGetter + 1) * 50}
-        completedBarEndValue={props.upperBoundDetentGetter.toFixed(2)}
-        completed={((props.throttlePosition + 1) / 2) * 100}
-        borderRadius="0px"
-      />
-    </div>
+  <div className="flex w-full shrink-0 flex-col items-center">
+    <ThrottleDetentGauge
+      position={props.throttlePosition}
+      lowerBound={props.lowerBoundDetentGetter}
+      upperBound={props.upperBoundDetentGetter}
+      showDetent={false}
+    />
   </div>
 );
