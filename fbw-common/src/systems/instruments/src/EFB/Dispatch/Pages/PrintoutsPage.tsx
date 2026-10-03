@@ -98,7 +98,7 @@ export const PrintoutsPage = () => {
           <button
             type="button"
             onClick={() => Printouts.remove(selected.id)}
-            className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-xl border border-gray-400 bg-white text-black transition duration-100 hover:bg-utility-red hover:text-white"
+            className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-xl border border-gray-400 bg-white text-black transition duration-100 hover:border-m3-on-error hover:bg-m3-error-container hover:text-m3-on-error"
           >
             <Trash size={20} />
           </button>

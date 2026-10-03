@@ -31,7 +31,7 @@ export type ProgressBarProps = {
 };
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
-  bgcolor = '#6a1b9a',
+  bgcolor = 'var(--m3-primary)',
   className,
   completed,
   displayBar = false,
@@ -39,14 +39,14 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   completedBarBegin = 0,
   completedBarBeginValue,
   completionValue,
-  baseBgColor = 'var(--color-secondary)',
+  baseBgColor = 'var(--m3-tile)',
   height = '20px',
   width = '100%',
   margin,
   padding,
   borderRadius = '4px',
   labelAlignment = 'right',
-  labelColor = '#fff',
+  labelColor = 'var(--m3-text)',
   labelSize = '15px',
   isLabelVisible = true,
   vertical,
@@ -114,29 +114,31 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       const barEnd = parseFloat((completedBarEnd !== 0 ? completedBarEnd / 50 - 1 : 0.0).toFixed(2));
       const roundedCompletion = parseFloat(completionValue.toPrecision(2));
 
+      // a bound marker lights up (the light primary tone, which stands out on the primary fill) while the value is
+      // inside the range, and is muted otherwise
       if (vertical) {
         if (roundedCompletion <= barEnd && roundedCompletion >= barBegin && greenBarsWhenInRange) {
-          return 'absolute z-10 -mt-2.5 h-1.5 bg-green-500'; // horizontal progress bar with green bg
+          return 'absolute z-10 -mt-2.5 h-1.5 bg-m3-primary-light'; // horizontal marker, value in range
         }
-        return 'absolute z-10 -mt-2.5 h-1.5 bg-theme-unselected'; // horizontal progress bar
+        return 'absolute z-10 -mt-2.5 h-1.5 bg-m3-muted'; // horizontal marker
       }
       if (roundedCompletion <= barEnd && roundedCompletion >= barBegin && greenBarsWhenInRange) {
-        return 'absolute z-10 -mt-2.5 w-1.5 h-8 bg-green-500'; // vertical progress bar with green bg
+        return 'absolute z-10 -mt-2.5 w-1.5 h-8 bg-m3-primary-light'; // vertical marker, value in range
       }
     }
 
     if (vertical) {
-      return 'absolute z-10 -mt-2.5 h-1.5 bg-theme-unselected';
+      return 'absolute z-10 -mt-2.5 h-1.5 bg-m3-muted';
     }
 
-    return 'absolute z-10 -mt-2.5 w-1.5 h-8 bg-theme-unselected'; // vertical progress bar
+    return 'absolute z-10 -mt-2.5 w-1.5 h-8 bg-m3-muted'; // vertical marker
   };
 
   return (
     <div className={`flex flex-row ${className}`}>
       {vertical && displayBar && (
         <div
-          className="mr-2 text-xl"
+          className="mr-2 text-xl text-m3-text"
           style={
             vertical
               ? { marginTop: `${formatBar(completedBarBegin + 2 || 0)}`, width: fillerStyles.width }
@@ -179,7 +181,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       </div>
       {vertical && displayBar && (
         <div
-          className="ml-2 text-xl"
+          className="ml-2 text-xl text-m3-text"
           style={
             vertical
               ? { marginTop: `${formatBar((completedBarEnd ?? 0) + 2 || 0)}`, width: fillerStyles.width }
