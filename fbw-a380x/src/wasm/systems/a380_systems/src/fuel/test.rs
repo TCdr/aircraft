@@ -1,7 +1,10 @@
 use std::{collections::HashMap, time::Duration};
 
 use ntest::{assert_false, assert_true};
-use systems::{electrical::Electricity, fuel::RefuelRate, simulation::test::ReadByName};
+use systems::{
+    electrical::Electricity, engine::EngineFireOverheadPanel, fuel::RefuelRate,
+    simulation::test::ReadByName,
+};
 use uom::si::mass::kilogram;
 
 use super::*;
@@ -14,6 +17,7 @@ use crate::{
 };
 struct FuelTestAircraft {
     acdn: A380AvionicsDataCommunicationNetwork,
+    engine_fire_overhead: EngineFireOverheadPanel<4>,
     fuel: A380Fuel,
 }
 
@@ -21,6 +25,7 @@ impl FuelTestAircraft {
     fn new(context: &mut InitContext) -> Self {
         Self {
             acdn: A380AvionicsDataCommunicationNetwork::new(context),
+            engine_fire_overhead: EngineFireOverheadPanel::new(context),
             fuel: A380Fuel::new(context),
         }
     }
@@ -41,13 +46,18 @@ impl Aircraft for FuelTestAircraft {
         _electricity: &mut Electricity,
     ) {
         self.acdn.update();
-        self.fuel
-            .update(context, &self.acdn, A380Airframe::get_loadsheet());
+        self.fuel.update(
+            context,
+            &self.acdn,
+            A380Airframe::get_loadsheet(),
+            &self.engine_fire_overhead,
+        );
     }
 }
 impl SimulationElement for FuelTestAircraft {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.acdn.accept(visitor);
+        self.engine_fire_overhead.accept(visitor);
         self.fuel.accept(visitor);
 
         visitor.visit(self);
