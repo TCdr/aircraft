@@ -63,7 +63,10 @@ const START_MODES: Record<TaxiRouteDirection, TaxiRouteStartMode[]> = {
 /** The look of a drop-down on a card (SelectInput brings its own border) */
 const SELECT_LOOK = 'h-10 !border-m3-outline bg-m3-ground';
 
-/** A card of the route form; a drop-down may hang out of it */
+/**
+ * A card of the route form; a drop-down may hang out of it. The badge stays on the line of the title: a long one (the
+ * airport database messages) is cut with an ellipsis, its full text is on the map card.
+ */
 const Section: FC<{ title: string; badge?: string | null; badgeWarn?: boolean }> = ({
   title,
   badge,
@@ -72,11 +75,13 @@ const Section: FC<{ title: string; badge?: string | null; badgeWarn?: boolean }>
 }) => (
   <M3Card className="mb-3 shrink-0 !overflow-visible px-4 py-3">
     <div className="mb-2 flex flex-row items-center">
-      <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">{title}</span>
+      <span className="shrink-0 whitespace-nowrap text-xs font-bold uppercase tracking-widest text-m3-muted">
+        {title}
+      </span>
       <div className="grow" />
       {badge && (
         <span
-          className={`rounded-full px-2 py-1 text-xs font-bold leading-none ${
+          className={`ml-3 min-w-0 truncate rounded-full px-2 py-1 text-xs font-bold leading-none ${
             badgeWarn ? 'bg-m3-warn-container text-m3-on-warn' : 'bg-m3-tile text-m3-muted'
           }`}
         >
@@ -493,10 +498,16 @@ export const TaxiPage = () => {
                     fontSizeClassName="text-base"
                     className={`w-48 ${SELECT_LOOK}`}
                     value={entryInfo?.name ?? ''}
-                    options={entries.map((e, i) => ({
-                      value: e.name,
-                      displayValue: `${e.name}  ${i === 0 ? t('Ground.Taxi.FullLength') : `${Math.round(e.remaining)} m`}`,
-                    }))}
+                    // Without a runway there is no entry: '-' as the other drop-downs (an empty value would collapse
+                    // the line of the drop-down and draw its chevron at the top)
+                    options={
+                      entries.length === 0
+                        ? [{ value: '', displayValue: '-' }]
+                        : entries.map((e, i) => ({
+                            value: e.name,
+                            displayValue: `${e.name}  ${i === 0 ? t('Ground.Taxi.FullLength') : `${Math.round(e.remaining)} m`}`,
+                          }))
+                    }
                     onChange={(v) => set({ entry: v as string, accepted: false })}
                     maxHeight={20}
                   />
@@ -599,8 +610,10 @@ export const TaxiPage = () => {
               }
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-m3-muted">
-              {airportStatus ?? t('Ground.Taxi.EnterAirport')}
+            <div className="flex h-full items-center justify-center px-8">
+              <span className="text-center text-base text-m3-muted">
+                {airportStatus ?? t('Ground.Taxi.EnterAirport')}
+              </span>
             </div>
           )}
           <TaxiFrequencyPanel
