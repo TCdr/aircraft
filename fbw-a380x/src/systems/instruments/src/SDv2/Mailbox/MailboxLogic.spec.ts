@@ -175,4 +175,47 @@ describe('ATC mailbox', () => {
     expect(actions(block(constraint))[3]).toBe('LOAD-SEC3');
     expect(actions(block(message(AtsuMessageDirection.Uplink, 'UM20', 'FL340')))[3]).toBeNull();
   });
+
+  it('shows the @-marked values of a freetext uplink as parameters, without the markers (A32NX DCDU convention)', () => {
+    // BeyondATC departure clearance: Hoppie marks the variable fields with @ (the A380 font draws @ as a triangle)
+    const clearance = message(AtsuMessageDirection.Uplink, 'UM169', 'CLRD TO @CYVR@ RWY @06R@ SQUAWK @4611@. ATIS @U@');
+    // A wide line: the wrapping is not what is checked here
+    const lines = mailboxLines(block(clearance), 80);
+    expect(lines.flat().some((segment) => segment.text.includes('@'))).toBe(false);
+    expect(lines).toEqual([
+      [
+        { text: 'CLRD TO ', kind: 'text' },
+        { text: 'CYVR ', kind: 'parameter' },
+        { text: 'RWY ', kind: 'text' },
+        { text: '06R ', kind: 'parameter' },
+        { text: 'SQUAWK ', kind: 'text' },
+        { text: '4611', kind: 'parameter' },
+        { text: '. ATIS ', kind: 'text' },
+        { text: 'U', kind: 'parameter' },
+      ],
+    ]);
+    // On the real mailbox width the full stop stays on its word
+    const text = mailboxLines(block(clearance)).map((line) => line.map((segment) => segment.text).join(''));
+    expect(text.join('|')).toContain('4611.');
+  });
+
+  it('highlights an unclosed @ marker to the end of the text, as the A32NX DCDU', () => {
+    const lines = mailboxLines(
+      block(message(AtsuMessageDirection.Uplink, 'UM169', '@D8FBW@ CDA RECEIVED @CLEARANCE CONFIRMED')),
+      80,
+    );
+    expect(lines).toEqual([
+      [
+        { text: 'D8FBW ', kind: 'parameter' },
+        { text: 'CDA RECEIVED ', kind: 'text' },
+        { text: 'CLEARANCE CONFIRMED', kind: 'parameter' },
+      ],
+    ]);
+  });
+
+  it('keeps a freetext uplink without markers as plain text', () => {
+    expect(mailboxLines(block(message(AtsuMessageDirection.Uplink, 'UM169', 'CONTACT MONTREAL CENTER')))).toEqual([
+      [{ text: 'CONTACT MONTREAL CENTER', kind: 'text' }],
+    ]);
+  });
 });
