@@ -4,7 +4,7 @@
 import React from 'react';
 
 import { usePersistentNumberProperty } from '@flybywiresim/fbw-sdk-react';
-import { pathify, SettingItem, SettingsPage, t, Toggle } from '@flybywiresim/flypad';
+import { M3Button, pathify, SettingItem, SettingsPage, t, Toggle } from '@flybywiresim/flypad';
 import { A380X_DEFAULT_RADIO_AUTO_CALL_OUTS, A380XRadioAutoCallOutFlags } from '../../../../shared/src/AutoCallOuts';
 
 export const AutomaticCallOutsPage: React.FC = () => {
@@ -196,14 +196,12 @@ export const AutomaticCallOutsPage: React.FC = () => {
         </div>
       </div>
       <SettingItem name={t('Settings.AutomaticCallOuts.ResetStandardConfig')}>
-        <button
-          type="button"
-          className="rounded-md border-2 border-theme-highlight bg-theme-highlight px-5
-                                       py-2.5 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
+        <M3Button
+          className="!h-10 !rounded-xl !text-sm"
           onClick={() => setAutoCallOuts(A380X_DEFAULT_RADIO_AUTO_CALL_OUTS)}
         >
           {t('Settings.AutomaticCallOuts.Reset')}
-        </button>
+        </M3Button>
       </SettingItem>
     </SettingsPage>
   );
