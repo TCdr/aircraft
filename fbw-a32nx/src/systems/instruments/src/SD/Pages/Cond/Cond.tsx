@@ -7,6 +7,7 @@ import { useArinc429Var, usePersistentSetting, useSimVar } from '@flybywiresim/f
 import { UnitType } from '@microsoft/msfs-sdk';
 import { SvgGroup } from '../../Common/SvgGroup';
 import Valve from './Valve';
+import { trimAirValveFaults } from '@shared/TrimAirValveFaults';
 import '../../Common/CommonStyles.scss';
 
 export const CondPage = () => {
@@ -19,6 +20,10 @@ export const CondPage = () => {
   const acsc1DiscreteWord1 = useArinc429Var('L:A32NX_COND_ACSC_1_DISCRETE_WORD_1');
   const acsc2DiscreteWord1 = useArinc429Var('L:A32NX_COND_ACSC_2_DISCRETE_WORD_1');
   const acscDiscreteWord1 = !acsc1DiscreteWord1.isFailureWarning() ? acsc1DiscreteWord1 : acsc2DiscreteWord1;
+  const trimValveFaults = trimAirValveFaults(
+    useArinc429Var('L:A32NX_COND_ACSC_1_DISCRETE_WORD_2'),
+    useArinc429Var('L:A32NX_COND_ACSC_2_DISCRETE_WORD_2'),
+  );
 
   // TODO: If both Sign Status are Failure Warning or No Computed Data, the whole page should display XX's
 
@@ -103,6 +108,7 @@ export const CondPage = () => {
       <CondUnit
         title="CKPT"
         trimAirValve={cockpitTrimAirValve}
+        trimAirValveFailed={trimValveFaults.cockpit}
         cabinTemp={cockpitCabinTemp}
         trimTemp={cockpitTrimTemp}
         overheat={cockpitOverheat}
@@ -116,6 +122,7 @@ export const CondPage = () => {
       <CondUnit
         title="FWD"
         trimAirValve={fwdTrimAirValve}
+        trimAirValveFailed={trimValveFaults.forward}
         cabinTemp={fwdCabinTemp}
         trimTemp={fwdTrimTemp}
         overheat={fwdOverheat}
@@ -129,6 +136,7 @@ export const CondPage = () => {
       <CondUnit
         title="AFT"
         trimAirValve={aftTrimAirValve}
+        trimAirValveFailed={trimValveFaults.aft}
         cabinTemp={aftCabinTemp}
         trimTemp={aftTrimTemp}
         overheat={aftOverheat}
@@ -178,6 +186,8 @@ export const CondPage = () => {
 type CondUnitProps = {
   title: string;
   trimAirValve: number;
+  /** The ACSC reports the zone trim air valve as failed: amber XX instead of the arrow */
+  trimAirValveFailed: boolean;
   cabinTemp: number;
   trimTemp: number;
   overheat: boolean;
@@ -187,7 +197,18 @@ type CondUnitProps = {
   hotAir: boolean;
 };
 
-const CondUnit = ({ title, trimAirValve, cabinTemp, trimTemp, overheat, x, y, offset, hotAir }: CondUnitProps) => {
+const CondUnit = ({
+  title,
+  trimAirValve,
+  trimAirValveFailed,
+  cabinTemp,
+  trimTemp,
+  overheat,
+  x,
+  y,
+  offset,
+  hotAir,
+}: CondUnitProps) => {
   const rotateTemp = offset + (trimAirValve * 86) / 100;
 
   return (
@@ -207,11 +228,17 @@ const CondUnit = ({ title, trimAirValve, cabinTemp, trimTemp, overheat, x, y, of
       <text className="Standard" x={74} y={146}>
         H
       </text>
-      <g id="CkptGauge" transform={`rotate(${rotateTemp.toFixed(0)} 42 158 )`}>
-        <path className="GreenLine" d="m 37,137 l 10,0 l -5,-9 z" />
-        <line className="GreenLine" x1={42} y1={158} x2={42} y2={138} />
-      </g>
-      {/* TODO: When Trim valves are failed the gauge should be replaced by amber XX */}
+      {/* FCOM DSC-21-10-50: the arrow of a failed trim air valve is replaced by amber crosses */}
+      {trimAirValveFailed ? (
+        <text className="Standard Amber Center" x={42} y={150}>
+          XX
+        </text>
+      ) : (
+        <g id="CkptGauge" transform={`rotate(${rotateTemp.toFixed(0)} 42 158 )`}>
+          <path className="GreenLine" d="m 37,137 l 10,0 l -5,-9 z" />
+          <line className="GreenLine" x1={42} y1={158} x2={42} y2={138} />
+        </g>
+      )}
       <line className={hotAir ? 'AmberLine' : 'GreenLine'} x1={42} y1={207} x2={42} y2={158} />
       <g>
         <path className="WhiteLine" d="m 21,136 a 30 30 0 0 1 42 0" />
