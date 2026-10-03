@@ -1929,3 +1929,17 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - Bool
   - The paper door of the pedestal printer is open (a click on the door or its latch toggles it; cockpit model
     animation PRINTER_DOOR). No effect on printing.
+
+- `L:A380X_PRINTER_OFF`
+  - Bool
+  - The pedestal printer is switched off with the ON/OFF button of its control panel (0, the default, is on). The
+    green half of the ON/OFF button face (node PRINTER_ON_OFF_GREEN) is shown while the printer is on and AC 1 is
+    powered. While off or without AC 1, nothing is printed: the waiting sheets are dropped, the FMS shows PRINTER NOT
+    AVAIL on a print, and the ATC COM print functions show PRINTER NOT AVAIL.
+
+- `L:A380X_PRINTER_SLEW`, `L:A380X_PRINTER_TEST`, `L:A380X_PRINTER_ABORT`
+  - Bool
+  - Set to true by the SLEW, TEST and ABORT buttons of the pedestal printer control panel; the FMS printer sets them
+    back to false: SLEW feeds out a blank sheet, TEST prints the printer test page, ABORT drops the sheets waiting to be
+    printed (the sheet coming out finishes). Ignored while the printer is off or unpowered. Design choices: the A380
+    FCOM does not describe these buttons.

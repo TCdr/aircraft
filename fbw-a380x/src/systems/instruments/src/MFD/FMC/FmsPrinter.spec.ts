@@ -10,14 +10,23 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 
 import type { FlightManagementComputer } from './FlightManagementComputer';
 import { FMS_PRINT_EVENT, FlightPlanReport, FmsPrintEvents, FmsPrintPage, FmsPrinter } from './FmsPrinter';
+import { NXSystemMessages } from '../shared/NXSystemMessages';
 
-const { pedestalPrint } = vi.hoisted(() => ({ pedestalPrint: vi.fn() }));
+const { pedestalPrint, pedestalAvailable, pedestalUpdate } = vi.hoisted(() => ({
+  pedestalPrint: vi.fn(),
+  pedestalAvailable: vi.fn(() => true),
+  pedestalUpdate: vi.fn(),
+}));
 
 // The FMC module is not loaded: the printer only needs its company wind request states
 vi.mock('./FlightManagementComputer', () => ({ CompanyWindRequestState: { None: 0, Pending: 1, Received: 2 } }));
 vi.mock('./PedestalPrinter', () => ({
   PedestalPrinter: class {
     print = pedestalPrint;
+
+    isAvailable = pedestalAvailable;
+
+    update = pedestalUpdate;
   },
 }));
 
@@ -74,6 +83,7 @@ let cpnyFplnAvailable: Subject<boolean>;
 let windRequestState: Subject<number>;
 let pages: FmsPrintPage[];
 let printer: FmsPrinter;
+const addMessageToQueue = vi.fn();
 
 const setEnginesRunning = (running: boolean) => {
   for (let i = 1; i <= 4; i++) {
@@ -109,6 +119,10 @@ beforeEach(() => {
   cpnyFplnAvailable = Subject.create(false);
   windRequestState = Subject.create(0);
   pedestalPrint.mockClear();
+  pedestalAvailable.mockReset();
+  pedestalAvailable.mockReturnValue(true);
+  pedestalUpdate.mockClear();
+  addMessageToQueue.mockClear();
 
   const fmc = {
     fmgc: {
@@ -128,6 +142,7 @@ beforeEach(() => {
     getRouteReserveFuel: () => 4_000,
     getLandingWeight: () => 418_000,
     getExtraFuel: () => 5_000,
+    addMessageToQueue,
   } as unknown as FlightManagementComputer;
 
   const bus = new EventBus();
@@ -227,6 +242,31 @@ describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
       windRequestState.set(WIND_RECEIVED);
       expect(titles()).toEqual(['FM COMPANY FLIGHT PLAN INITIALIZATION DATA', 'FM ACTIVE WIND DATA']);
       expect(pages[0].lines.some((l) => l.includes('CPNY01'))).toBe(true);
+    });
+  });
+
+  describe('printer availability', () => {
+    it('handles the printer control panel buttons in its update', () => {
+      pedestalUpdate.mockClear();
+      printer.update();
+      expect(pedestalUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows PRINTER NOT AVAIL and prints nothing while the printer is off or unpowered (DSC-22-FMS-20-110 P 23)', () => {
+      pedestalAvailable.mockReturnValue(false);
+      expect(printer.isAvailable()).toBe(false);
+      printer.printTakeoffData();
+      printer.printText('ATC COM ATIS LFBO DEP', ['  LFBO DEP ATIS R   1145Z']);
+      expect(pedestalPrint).not.toHaveBeenCalled();
+      expect(pages).toEqual([]);
+      expect(addMessageToQueue).toHaveBeenCalledWith(NXSystemMessages.printerNotAvail);
+    });
+
+    it('prints without a message while the printer is available', () => {
+      expect(printer.isAvailable()).toBe(true);
+      printer.printTakeoffData();
+      expect(pedestalPrint).toHaveBeenCalledTimes(1);
+      expect(addMessageToQueue).not.toHaveBeenCalled();
     });
   });
 

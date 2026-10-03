@@ -120,6 +120,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit - @TCdr
 1. [A32NX/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit; no torn paper edge left in the slit between printouts - @TCdr
 1. [A380X/MODEL] No torn paper edge left in the pedestal printer slit between printouts - @TCdr
+1. [A380X/PRINTER] The pedestal printer control panel buttons are clickable: ON/OFF (green when on and AC 1 powered; switched off, the FMS and ATC COM prints show PRINTER NOT AVAIL), SLEW feeds paper, TEST prints a test page, ABORT cancels the waiting printouts - @TCdr
 
 ## 2024.1.0
 
