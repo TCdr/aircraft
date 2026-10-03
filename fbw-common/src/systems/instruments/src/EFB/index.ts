@@ -29,6 +29,7 @@ export * from './UtilComponents/Card/Card';
 export * from './UtilComponents/Form/Select';
 export * from './UtilComponents/Form/SimpleInput/SimpleInput';
 export * from './UtilComponents/Form/Toggle';
+export * from './UtilComponents/Material/Material';
 export * from './UtilComponents/Modals/Modals';
 export * from './UtilComponents/Navbar';
 export * from './UtilComponents/Progress/Progress';

@@ -17,9 +17,13 @@ import { t } from '../../Localization/translation';
 import { NavigraphAuthUIWrapper, useNavigraphAuthInfo } from '../../Apis/Navigraph/Components/Authentication';
 import { TooltipWrapper } from '../../UtilComponents/TooltipWrapper';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
+import { M3Button } from '../../UtilComponents/Material/Material';
 // @ts-ignore
 import NavigraphIcon from '../../Assets/navigraph-logo-alone.svg';
 import { navigraphAuth } from '../../../navigraph';
+
+/** A Material button sized for a settings row (as tall as the text fields next to it) */
+const ROW_BUTTON = '!h-10 !rounded-xl !text-sm';
 
 export const ThirdPartyOptionsPage = () => {
   const history = useHistory();
@@ -115,39 +119,34 @@ export const ThirdPartyOptionsPage = () => {
         <SettingsPage name={t('Settings.ThirdPartyOptions.Title')}>
           <SettingItem name={t('Settings.ThirdPartyOptions.NavigraphAccountLink.SettingTitle')}>
             {navigraphAuthInfo.loggedIn ? (
-              <>
-                <span className="py-2.5 pr-4">
-                  {navigraphAuthInfo.username}
-                  <img src={NavigraphIcon} className="mx-1.5 mb-1 inline-block w-6" alt="Navigrapg Icon" />
-                  {t(
-                    `Settings.ThirdPartyOptions.NavigraphAccountLink.SubscriptionStatus.${NavigraphSubscriptionStatus[navigraphAuthInfo.subscriptionStatus]}`,
-                  )}
+              <div className="flex flex-row items-center">
+                <span className="mr-4 flex flex-row items-center">
+                  <span className="text-base font-semibold text-m3-text">{navigraphAuthInfo.username}</span>
+                  <img src={NavigraphIcon} className="mx-1.5 w-6" alt="Navigraph Icon" />
+                  <span className="text-sm text-m3-muted">
+                    {t(
+                      `Settings.ThirdPartyOptions.NavigraphAccountLink.SubscriptionStatus.${NavigraphSubscriptionStatus[navigraphAuthInfo.subscriptionStatus]}`,
+                    )}
+                  </span>
                 </span>
 
-                <button
-                  type="button"
-                  className="rounded-md border-2 border-red-600 bg-red-600 px-5
-                                       py-2.5 text-theme-text transition duration-100 hover:bg-theme-body hover:text-red-600"
-                  onClick={handleNavigraphAccountUnlink}
-                >
+                <M3Button tone="danger" className={ROW_BUTTON} onClick={handleNavigraphAccountUnlink}>
                   {t('Settings.ThirdPartyOptions.NavigraphAccountLink.Unlink')}
-                </button>
-              </>
+                </M3Button>
+              </div>
             ) : (
-              <button
-                type="button"
-                className="rounded-md border-2 border-theme-highlight bg-theme-highlight px-5
-                                       py-2.5 text-theme-body transition duration-100 hover:bg-theme-body hover:text-theme-highlight"
+              <M3Button
+                className={ROW_BUTTON}
                 onClick={() => history.push('/settings/3rd-party-options/navigraph-login')}
               >
                 {t('Settings.ThirdPartyOptions.NavigraphAccountLink.Link')}
-              </button>
+              </M3Button>
             )}
           </SettingItem>
 
           <TooltipWrapper text={t('Settings.ThirdPartyOptions.TT.OverrideSimBriefUserID')}>
             <SettingItem name={t('Settings.ThirdPartyOptions.OverrideSimBriefUserID')}>
-              <div className="flex flex-row">
+              <div className="flex flex-row items-center">
                 <SimpleInput
                   className="w-30 mr-5 text-center"
                   value={overrideSimbriefDisplay}
@@ -155,13 +154,9 @@ export const ThirdPartyOptionsPage = () => {
                   onChange={(value) => setOverrideSimbriefDisplay(value)}
                 />
 
-                <div
-                  className="flex w-min shrink items-center justify-center rounded-md border-2 border-utility-red bg-utility-red p-2
-                                    text-center text-theme-body transition duration-100 hover:bg-theme-body hover:text-utility-red"
-                  onClick={handleOverrideSimBriefIDDelete}
-                >
-                  <IconTrash />
-                </div>
+                <M3Button tone="danger" className={`${ROW_BUTTON} w-10 !px-0`} onClick={handleOverrideSimBriefIDDelete}>
+                  <IconTrash size={20} />
+                </M3Button>
               </div>
             </SettingItem>
           </TooltipWrapper>
