@@ -66,7 +66,8 @@ function sortKey(timestamp: AtsuTimestamp | null | undefined): number {
 
 /** The text of a message element: its template with the entered values */
 function elementText(direction: AtsuMessageDirection, element: CpdlcMessageElement): string {
-  const values = element.Content.map((entry) => entry.Value ?? '');
+  // Without the @ markers of the freetext variable fields (Hoppie "CLRD TO @CYVR@"): the A380 font draws @ as a triangle
+  const values = element.Content.map((entry) => (entry.Value ?? '').replace(/@/g, ''));
   const catalog = direction === AtsuMessageDirection.Uplink ? CpdlcMessagesUplink : CpdlcMessagesDownlink;
   let text = catalog[element.TypeId]?.[0][0] ?? '';
   values.forEach((value) => (text = text.replace('%s', value !== '' ? value : '[      ]')));

@@ -107,4 +107,9 @@ describe('MSG RECORD', () => {
     );
     expect(wrapMsgRecordText('ABCDEFGHIJ KL', 4)).toEqual(['ABCD', 'EFGH', 'IJ', 'KL']);
   });
+
+  it('drops the @ markers of the uplink variable fields', () => {
+    const clearance = message(AtsuMessageDirection.Uplink, 'UM169', 'CLRD TO @CYVR@ RWY @06R@', timestamp(12, 23), 1);
+    expect(msgRecordEntries([clearance])[0].text).toBe('CLRD TO CYVR RWY 06R');
+  });
 });
