@@ -67,11 +67,12 @@
                 <TOOLTIPID>TT:COCKPIT.TOOLTIPS.ENG4_THROTTLE_CONTROL</TOOLTIPID>
             </UseTemplate>
 
+            <!-- A/THR instinctive disconnect pushbuttons on throttles 1 and 4 (model nodes and animations: ATHR_DISCONNECT_ENG1/2) -->
             <UseTemplate Name="FBW_AutoThrottle_Instinctive_Disconnect_Template">
-                <NODE_ID>PUSH_THROTTLE_1</NODE_ID>
+                <NODE_ID>ATHR_DISCONNECT_ENG1</NODE_ID>
             </UseTemplate>
             <UseTemplate Name="FBW_AutoThrottle_Instinctive_Disconnect_Template">
-                <NODE_ID>PUSH_THROTTLE_2</NODE_ID>
+                <NODE_ID>ATHR_DISCONNECT_ENG2</NODE_ID>
             </UseTemplate>
 
             <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
