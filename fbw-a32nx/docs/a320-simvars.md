@@ -2475,6 +2475,10 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Percent
     - Percentage flow coming out of each pack {1 or 2} into the cabin (LO: 80%, NORM: 100%, HI: 120%)
 
+- A32NX_COND_PACK_{index}_OUTLET_TEMPERATURE
+    - Degree Celsius
+    - Outlet temperature of the respective {1 or 2} pack
+
 - A32NX_COND_{id}_TRIM_AIR_VALVE_POSITION
     - Percentage
     - Percentage opening of each trim air valve (hot air)
