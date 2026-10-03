@@ -1561,6 +1561,33 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - RIGHT_INNER
     - TRIM
 
+- A32NX_FUEL_ENG_{number}_LP_VALVE_OPEN_PERCENTAGE
+  - Percent
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Position of the engine LP fuel valve, 0 when fully closed. The valve is closed by the ENG MASTER lever or the ENG FIRE pb (FCOM DSC-28-10 ENGINE LP VALVES) and travels in 3 s
+
+- A32NX_FUEL_ENG_{number}_FUEL_DOWNSTREAM_LP_VALVE
+  - Number in kilogram
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Fuel left between the engine LP fuel valve and the engine (1 gallon, the Extra tank of the fuel model). Full while the valve is open, burned at the engine fuel flow once the valve is fully closed
+
+- A32NX_FUEL_ENG_{number}_STARVED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the FADEC shuts the engine down and it cannot relight. Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL
