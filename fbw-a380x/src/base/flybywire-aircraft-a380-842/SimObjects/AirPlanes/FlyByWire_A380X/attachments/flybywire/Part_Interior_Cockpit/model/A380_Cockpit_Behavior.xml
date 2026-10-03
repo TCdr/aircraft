@@ -1183,6 +1183,47 @@
                     </UseTemplate>
                 </Component>
 
+                <!-- The control panel of the printer, in the row of push buttons beside the paper door: ON/OFF, SLEW, TEST,
+                ABORT and two blank buttons. The A380 FCOM does not describe these buttons (the printer is supplied by AC 1,
+                FCOM DSC-46-20-70 P 1); their functions are design choices, done by the FMS printer (MFD
+                FMC/PedestalPrinter.ts) on the request variables set here, SLEW after the A320 printer SLEW switch that feeds
+                paper (A320 FCOM DSC-45-30). The model has no press animation for these buttons, and no emissive light: the
+                green half of the ON/OFF button face is shown while the printer is on and powered. The blank buttons have
+                no function. -->
+                <Component ID="PRINTER_ON_OFF" Node="PRINTER_ON_OFF">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>(L:A380X_PRINTER_OFF, Bool) ! (&gt;L:A380X_PRINTER_OFF, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Printer ON/OFF</TOOLTIPID>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PRINTER_ON_OFF_GREEN" Node="PRINTER_ON_OFF_GREEN">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>(L:A380X_PRINTER_OFF, Bool) ! (&gt;L:A380X_PRINTER_OFF, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Printer ON/OFF</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                        <VISIBILITY_CODE>(L:A380X_PRINTER_OFF, Bool) ! (L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool) and</VISIBILITY_CODE>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PRINTER_SLEW" Node="PRINTER_SLEW">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>1 (&gt;L:A380X_PRINTER_SLEW, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Printer SLEW: feed paper</TOOLTIPID>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PRINTER_TEST" Node="PRINTER_TEST">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>1 (&gt;L:A380X_PRINTER_TEST, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Printer TEST: print the test page</TOOLTIPID>
+                    </UseTemplate>
+                </Component>
+                <Component ID="PRINTER_ABORT" Node="PRINTER_ABORT">
+                    <UseTemplate Name="ASOBO_GT_Interaction_LeftSingle_Code">
+                        <LEFT_SINGLE_CODE>1 (&gt;L:A380X_PRINTER_ABORT, Bool)</LEFT_SINGLE_CODE>
+                        <TOOLTIPID>Printer ABORT: cancel the waiting printouts</TOOLTIPID>
+                    </UseTemplate>
+                </Component>
+
                 <!-- The printed text on the paper: the printer display image (VCockpit PRINT, PRINT_STATIC) shows through the
                 emissive channel, as on the screens -->
                 <Component ID="Print_TEXT" Node="Print_TEXT">
