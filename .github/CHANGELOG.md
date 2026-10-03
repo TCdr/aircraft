@@ -130,6 +130,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] The automatic loading of lighting presets offers all eight presets, also the unnamed ones - @TCdr
 1. [EFB] A checklist marked as complete shows a green check in the checklist list, whatever the flight phase - @TCdr
 1. [EFB] The flyPad error screen shows the error, where it was thrown and in which page components - @TCdr
+1. [EFB] Landing calculator: a wind above the crosswind maximum or the tailwind limit no longer stops the calculation: the results show a warning banner (tailwind figures extrapolated and marked ~ and †), and a Wind check tab ranks the destination runways by wind and checks the OFP alternate with its METAR, each loadable into the calculator - @TCdr
 
 ## 2024.1.0
 
