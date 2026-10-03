@@ -1,11 +1,13 @@
 // Note: Fuel system for now is still handled in MSFS. This is used for calculating fuel-related factors.
 
 mod cpiom_f;
+mod engine_lp_valves;
 mod fuel_quantity_data_concentrator;
 use crate::{
     avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
     fuel::cpiom_f::A380FuelQuantityManagementSystem,
 };
+use engine_lp_valves::A380EngineLpFuelValves;
 use enum_map::{enum_map, Enum};
 use fuel_quantity_data_concentrator::FuelQuantityDataConcentrator;
 use nalgebra::Vector3;
@@ -14,7 +16,7 @@ use systems::{
     fuel::{FuelCG, FuelInfo, FuelPayload, FuelPump, FuelPumpProperties, FuelSystem},
     integrated_modular_avionics::AvionicsDataCommunicationNetwork,
     payload::LoadsheetInfo,
-    shared::{arinc429::Arinc429Word, ElectricalBusType},
+    shared::{arinc429::Arinc429Word, ElectricalBusType, EngineFirePushButtons},
     simulation::{InitContext, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 use uom::si::f64::*;
@@ -133,6 +135,7 @@ pub(crate) struct A380Fuel {
     fuel_system: A380FuelSystem,
     fuel_quantity_data_concentrators: [FuelQuantityDataConcentrator; 2],
     fuel_quantity_management_system: A380FuelQuantityManagementSystem,
+    engine_lp_valves: A380EngineLpFuelValves,
 }
 impl A380Fuel {
     pub(crate) fn new(context: &mut InitContext) -> Self {
@@ -145,6 +148,7 @@ impl A380Fuel {
             ]
             .map(|(i, powered_by)| FuelQuantityDataConcentrator::new(context, i, powered_by)),
             fuel_quantity_management_system: A380FuelQuantityManagementSystem::new(context),
+            engine_lp_valves: A380EngineLpFuelValves::new(context),
         }
     }
 
@@ -153,6 +157,7 @@ impl A380Fuel {
         context: &UpdateContext,
         acdn: &A380AvionicsDataCommunicationNetwork,
         loadsheet: &LoadsheetInfo,
+        engine_fire_push_buttons: &impl EngineFirePushButtons,
     ) {
         let cpioms = ["F1", "F2", "F3", "F4"].map(|id| acdn.get_cpiom(id));
         for fqdc in &mut self.fuel_quantity_data_concentrators {
@@ -165,6 +170,8 @@ impl A380Fuel {
             &self.fuel_quantity_data_concentrators,
             cpioms.map(|cpiom| cpiom.is_available()),
         );
+        self.engine_lp_valves
+            .update(context, engine_fire_push_buttons);
     }
 
     pub(crate) fn feed_four_tank_has_fuel(&self) -> bool {
@@ -193,6 +200,7 @@ impl SimulationElement for A380Fuel {
         self.fuel_system.accept(visitor);
         accept_iterable!(self.fuel_quantity_data_concentrators, visitor);
         self.fuel_quantity_management_system.accept(visitor);
+        self.engine_lp_valves.accept(visitor);
 
         visitor.visit(self);
     }
