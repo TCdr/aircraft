@@ -223,6 +223,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL] The ENG FIRE pb closes the engine LP fuel valve: the engine shuts down once the fuel left downstream of the valve is burned (about 17 s at idle at sea level); the SD FUEL page shows the LP valve, amber when abnormally open - @TCdr
 1. [EFB] Landing calculator: a wind above the crosswind maximum or the tailwind limit no longer stops the calculation: the results show a warning banner (tailwind figures extrapolated and marked ~ and †), and a Wind check tab ranks the destination runways by wind and checks the OFP alternate with its METAR, each loadable into the calculator - @TCdr
 1. [A380X] Cockpit: the A/THR instinctive disconnect pbs on the thrust levers and the EVAC HORN SHUT OFF pb can be clicked, and the DFDR EVENT and ACMS TRIGGER pbs move when pressed (the behaviour XML named nodes/animations that are not in the model) - @TCdr
+1. [A380X/Failures] flyPad failures: all landing gear proximity sensor and jammed actuator failures listed (32004-32025, named after the gear, door or sensor they fail), the uplock sensor failure that said nose gear but failed the right main gear relabelled, and the inactive ROLLOUT failure removed - @TCdr
 
 ## 2024.1.0
 
