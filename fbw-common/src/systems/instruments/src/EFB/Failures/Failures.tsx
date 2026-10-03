@@ -16,6 +16,7 @@ import { PageLink, PageRedirect } from '../Utils/routing';
 import { useFailuresOrchestrator } from '../failures-orchestrator-provider';
 import { setSearchQuery } from '../Store/features/failuresPage';
 import { M3_INPUT, M3Banner, M3Chip } from '../UtilComponents/Material/Material';
+import { activeFailuresLabel } from './activeFailuresLabel';
 
 export const Failures = () => {
   const { allFailures, activeFailures } = useFailuresOrchestrator();
@@ -61,7 +62,7 @@ export const Failures = () => {
         <h1 className="grow font-bold">{t('Failures.Title')}</h1>
         {activeFailures.size > 0 && (
           <M3Chip tone="warn" className="mr-3" icon={<ExclamationTriangle size={16} />}>
-            {`${activeFailures.size} ${t('Failures.ActiveFailures')}`}
+            {activeFailuresLabel(activeFailures.size, t)}
           </M3Chip>
         )}
         <Navbar basePath="/failures" tabs={tabs} />

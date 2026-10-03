@@ -29,26 +29,11 @@ import { SelectInput } from '../../UtilComponents/Form/SelectInput/SelectInput';
 import { pathify } from '../../Utils/routing';
 import { ScrollableContainer } from '../../UtilComponents/ScrollableContainer';
 
-const getTagColor = (tagName?: string) => {
-  switch (tagName) {
-    case 'STAR':
-      return 'text-utility-green';
-    case 'APP':
-    case 'APPR':
-      return 'text-utility-orange';
-    case 'TAXI':
-      return 'text-[#5280EA]';
-    case 'SID':
-      return 'text-utility-pink';
-    case 'ARPT':
-    case 'REF':
-      return 'text-utility-purple';
-    case 'DEL':
-      return 'text-utility-red';
-    default:
-      return 'text-theme-text';
-  }
-};
+/**
+ * The colour of the strip on top of a pinned chart card and of its arrow, in the Material tones: the chart category
+ * (SID, STAR, APPR...) is written next to the title, the strip turns red when the card deletes the chart.
+ */
+const getTagColor = (tagName?: string) => (tagName === 'DEL' ? 'text-m3-on-error' : 'text-m3-primary');
 
 interface PinnedChartCardProps {
   pinnedChart: PinnedChart;
@@ -81,8 +66,8 @@ export const PinnedChartCard = ({ pinnedChart, className, showDelete }: PinnedCh
           </TooltipWrapper>
           <div className="opacity-70">
             <div className={`${getTagColor(currentTag)} absolute inset-x-0 top-0 h-1.5 w-full bg-current`} />
-            <h2 className="break-all text-xl font-bold text-white">
-              {title} <div className="inline-block text-m3-muted">{tag}</div>
+            <h2 className="break-all text-xl font-bold text-m3-text">
+              {title} <div className="inline-block text-xl font-bold text-m3-muted">{tag}</div>
             </h2>
             <p className="font-inter mt-2 text-base text-m3-text">{subTitle}</p>
             <IconArrowRight className={`ml-auto mt-auto opacity-0 ${getTagColor(tag)}`} />
@@ -133,8 +118,8 @@ export const PinnedChartCard = ({ pinnedChart, className, showDelete }: PinnedCh
           }}
         >
           <div className={`${getTagColor(tag)} absolute inset-x-0 top-0 h-1.5 w-full bg-current`} />
-          <h2 className="break-all text-xl font-bold text-white">
-            {title} <div className="inline-block text-m3-muted">{tag}</div>
+          <h2 className="break-all text-xl font-bold text-m3-text">
+            {title} <div className="inline-block text-xl font-bold text-m3-muted">{tag}</div>
           </h2>
           <p className="font-inter mt-2 text-base text-m3-text">{subTitle}</p>
           <IconArrowRight className={`ml-auto mt-auto ${getTagColor(tag)}`} />
@@ -303,6 +288,7 @@ export const PinnedChartUI = () => {
             <div>
               <SelectInput
                 className="w-56"
+                fontSizeClassName="text-base"
                 options={Object.values(providerTabs).map(({ alias, provider }) => ({
                   key: alias,
                   displayValue: alias,
@@ -375,6 +361,7 @@ export const PinnedChartUI = () => {
             <div>
               <SelectInput
                 className="w-64"
+                fontSizeClassName="text-base"
                 options={[
                   { displayValue: t('NavigationAndCharts.PinnedCharts.SortMethods.None'), value: PinSort.NONE },
                   {

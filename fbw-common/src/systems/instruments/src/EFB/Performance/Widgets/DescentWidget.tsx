@@ -4,7 +4,7 @@
 
 import React, { useContext, useEffect, useState } from 'react';
 import Slider from 'rc-slider';
-import { Units, usePersistentProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { AirframeType, Units, usePersistentProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import {
   DescentAntiIce,
   DescentPerformanceError,
@@ -27,6 +27,7 @@ import { clearDescentValues, setDescentValues } from '../../Store/features/perfo
 import { AircraftContext } from '../../AircraftContext';
 import { isWindMagnitudeOnly, WIND_MAGNITUDE_ONLY_REGEX } from '../Data/Utils';
 import { DescentProfile } from './DescentProfile';
+import { DESCENT_NOTES_SEPARATOR, joinDescentNotes } from './descentNotes';
 import { M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
 import {
   PERF_INPUT,
@@ -55,6 +56,7 @@ const isaTemperature = (altitude: number) => 15 - 0.0019812 * Math.min(altitude,
 export const DescentWidget = () => {
   const dispatch = useAppDispatch();
   const calculator = useContext(AircraftContext).performanceCalculators.descent;
+  const isA380 = useAppSelector((state) => state.config.airframeInfo?.variant) === AirframeType.A380_842;
   const eventBus = useEventBus();
   const { usingMetric } = Units;
   const [weightUnit, setWeightUnit] = usePersistentProperty('EFB_PREFERRED_WEIGHT_UNIT', usingMetric ? 'kg' : 'lb');
@@ -609,7 +611,8 @@ export const DescentWidget = () => {
             <StartDistance result={result} offset={startOffset} onOffsetChange={setStartOffset} />
           )}
           <span className="shrink-0 text-xs leading-tight text-m3-muted">
-            {t('Performance.TopOfDescent.Calc.Legend')}
+            {/* Both aircraft use the anti-ice factors of the A320 FCOM table: the A380 FCOM has no such table */}
+            {t(isA380 ? 'Performance.TopOfDescent.Calc.LegendA380' : 'Performance.TopOfDescent.Calc.Legend')}
           </span>
         </M3Card>
       </div>
@@ -751,6 +754,10 @@ const ResultsPanel = ({ result, formatFuel, fuelUnit, formatTime, formatAltitude
   const antiIce = result?.estimates.includes(DescentPerformanceEstimate.AntiIce) ?? false;
   const crossover = result?.points.find((p) => p.event === 'CROSSOVER');
   const decel = result?.points.find((p) => p.event === 'DECEL');
+  const notes = joinDescentNotes([
+    crossover && `${t('Performance.TopOfDescent.Calc.Crossover')} ${formatAltitude(crossover.altitude)}`,
+    decel && `${t('Performance.TopOfDescent.Calc.Decel')} ${formatAltitude(decel.altitude)}`,
+  ]);
   const ruleOfThumb =
     result !== undefined ? ((result.inputs.initialAltitude - result.inputs.targetAltitude) / 1000) * 3 : undefined;
   return (
@@ -787,9 +794,8 @@ const ResultsPanel = ({ result, formatFuel, fuelUnit, formatTime, formatAltitude
         </PerfResult>
       </PerfResultRow>
       <span className="text-xs leading-tight text-m3-muted">
-        {`${crossover ? `${t('Performance.TopOfDescent.Calc.Crossover')} ${formatAltitude(crossover.altitude)} · ` : ''}${
-          decel ? `${t('Performance.TopOfDescent.Calc.Decel')} ${formatAltitude(decel.altitude)} · ` : ''
-        }`}
+        {/* One string (crossover · decel), then the separator only when the idle note (in amber) follows */}
+        {`${notes}${notes && result?.verticalSpeedIdleBelow !== undefined ? DESCENT_NOTES_SEPARATOR : ''}`}
         {result?.verticalSpeedIdleBelow !== undefined && (
           <span className="text-xs text-m3-on-warn">
             {t('Performance.TopOfDescent.Calc.VsAtIdle').replace(
