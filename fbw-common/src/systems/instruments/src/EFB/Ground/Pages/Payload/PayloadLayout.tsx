@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, ReactNode } from 'react';
+import React, { FC, ReactNode, useEffect, useRef, useState } from 'react';
 import { CloudArrowDown, PeopleFill } from 'react-bootstrap-icons';
 import { Units } from '@flybywiresim/fbw-sdk-react';
 import { t } from '../../../Localization/translation';
@@ -16,11 +16,12 @@ import {
   M3_STATUS_TONES,
 } from '../../../UtilComponents/Material/Material';
 import { formatPayload } from './PayloadElements';
+import { PAYLOAD_CHART_MIN_HEIGHT, payloadChartFit } from './Chart/ChartFit';
 
 const eyebrow = 'text-xs font-bold uppercase tracking-widest text-m3-muted';
 
-/** The balance chart on its card: the canvas, with room at the left and over it for its axis labels */
-export const PAYLOAD_CHART = { width: 390, height: 280, marginLeft: 72, marginTop: 30 };
+/** The balance chart on its card: the canvas width, with room at the left for its weight axis labels */
+export const PAYLOAD_CHART = { width: 390, marginLeft: 72 };
 
 interface PayloadLayoutProps {
   /** The deck selector of an aircraft with two passenger decks */
@@ -55,8 +56,8 @@ interface PayloadLayoutProps {
   remainingTime: string;
   /** The start, stop and deboard buttons */
   boarding: ReactNode;
-  /** The balance chart, PAYLOAD_CHART.width by PAYLOAD_CHART.height */
-  chart: ReactNode;
+  /** The balance chart, PAYLOAD_CHART.width wide, at the given height (it fills the height of its card) */
+  chart: (height: number) => ReactNode;
 }
 
 /**
@@ -88,6 +89,22 @@ export const PayloadLayout: FC<PayloadLayoutProps> = ({
   boarding,
   chart,
 }) => {
+  // The balance chart fills the height of its card
+  const chartAreaRef = useRef<HTMLDivElement>(null);
+  const [chartAreaHeight, setChartAreaHeight] = useState(0);
+  useEffect(() => {
+    // Measured again every 500 ms: the page is not at its final size on its first frames (page transition), and
+    // ResizeObserver is not relied on in the Coherent GT runtime. The state only changes when the height does.
+    const measure = () => setChartAreaHeight(chartAreaRef.current?.clientHeight ?? 0);
+    const frame = requestAnimationFrame(measure);
+    const timer = setInterval(measure, 500);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearInterval(timer);
+    };
+  }, []);
+  const chartFit = payloadChartFit(chartAreaHeight);
+
   const paxText = `${totalPax} / ${totalPaxDesired} ${t('Ground.Payload.Passengers')}`;
   const cargoText = `${formatPayload(Units.kilogramToUser(totalCargo))} / ${formatPayload(Units.kilogramToUser(totalCargoDesired))} ${massUnit}`;
   const loaded = totalPax === totalPaxDesired && Math.abs(totalCargo - totalCargoDesired) < 1;
@@ -127,19 +144,16 @@ export const PayloadLayout: FC<PayloadLayoutProps> = ({
 
       <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
         <M3Card className="mr-4 h-full w-[420px] shrink-0 px-4 py-4">
-          <div className="flex flex-row items-center">
-            <span className={eyebrow}>{t('Ground.Payload.Load')}</span>
-            <div className="grow" />
-            {showSimbrief && (
-              <M3ActionChip primary onClick={onSimbrief}>
-                <span className="flex flex-row items-center text-sm text-current">
-                  <CloudArrowDown size={16} className="mr-2" />
-                  SimBrief
-                </span>
-              </M3ActionChip>
-            )}
-          </div>
+          {/* the table carries the LOAD title on its PLANNED / CURRENT header row */}
           {table}
+          {showSimbrief && (
+            <M3ActionChip primary className="mt-3 !h-10 w-full !rounded-xl" onClick={onSimbrief}>
+              <span className="flex flex-row items-center justify-center text-sm text-current">
+                <CloudArrowDown size={18} className="mr-2" />
+                {t('Ground.Payload.TT.FillPayloadFromSimbrief')}
+              </span>
+            </M3ActionChip>
+          )}
           <div className="grow" />
           <div className="flex flex-row items-center border-t border-m3-tile pt-3">{miscParams}</div>
         </M3Card>
@@ -202,14 +216,21 @@ export const PayloadLayout: FC<PayloadLayoutProps> = ({
         <M3Card className="h-full shrink-0 px-4 py-4">
           <span className={eyebrow}>{t('Ground.Payload.Balance')}</span>
           <div
-            className="shrink-0"
-            style={{
-              marginLeft: `${PAYLOAD_CHART.marginLeft}px`,
-              marginTop: `${PAYLOAD_CHART.marginTop}px`,
-              width: `${PAYLOAD_CHART.width + 8}px`,
-            }}
+            ref={chartAreaRef}
+            className="min-h-0 flex-1"
+            style={{ width: `${PAYLOAD_CHART.marginLeft + PAYLOAD_CHART.width + 8}px` }}
           >
-            {chart}
+            {chartAreaHeight >= PAYLOAD_CHART_MIN_HEIGHT / 2 && (
+              <div
+                style={{
+                  marginLeft: `${PAYLOAD_CHART.marginLeft}px`,
+                  marginTop: `${chartFit.marginTop}px`,
+                  width: `${PAYLOAD_CHART.width + 8}px`,
+                }}
+              >
+                {chart(chartFit.height)}
+              </div>
+            )}
           </div>
         </M3Card>
       </div>

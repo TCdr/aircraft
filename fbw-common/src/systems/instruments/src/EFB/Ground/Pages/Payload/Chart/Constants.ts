@@ -11,13 +11,11 @@ export const CanvasConst = Object.freeze({
     xSpacing: 0.18,
     y: -0.08,
   },
+  // the weight labels are centred on their weight lines, the unit under the lowest label (ChartWidget)
   weightAxis: {
     x: -0.09,
-    yOffset: -0.02,
-    ySpacing: 0.22,
     units: {
       x: -0.17,
-      y: 0.95,
     },
   },
 });
