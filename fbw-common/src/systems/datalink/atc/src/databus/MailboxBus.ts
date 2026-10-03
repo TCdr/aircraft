@@ -103,6 +103,21 @@ export class MailboxBus {
         this.lastClosedMessage = [messages[idx], new Date().getTime()];
       }
 
+      this.leaveFile(messages, backlog, uid, uplink);
+    }
+
+    return idx !== -1;
+  }
+
+  /**
+   * Takes a message block out of the mailbox file (at most MaxMailboxFileSize open messages per direction) and moves
+   * the messages waiting for a place into it. A full downlink file shows FILE FULL until it has a place again (A380 FCOM
+   * DSC-46, mailbox information messages: "FILE FULL ... File no more full").
+   */
+  private leaveFile(messages: MailboxMessage[][], backlog: MailboxMessage[][], uid: number, uplink: boolean): void {
+    const idx = messages.findIndex((elem) => elem[0].MessageId === uid);
+    if (idx !== -1) {
+      const downlinkFileWasFull = !uplink && backlog.length !== 0;
       messages.splice(idx, 1);
       if (uplink) {
         this.validateNotificationCondition();
@@ -134,9 +149,11 @@ export class MailboxBus {
           this.uploadMessagesToMailbox(mailboxMessages);
         }
       }
-    }
 
-    return idx !== -1;
+      if (downlinkFileWasFull && backlog.length === 0) {
+        this.publisher.pub('systemStatus', MailboxStatusMessage.NoMessage, true, false);
+      }
+    }
   }
 
   constructor(
@@ -152,18 +169,20 @@ export class MailboxBus {
     this.publisher = this.bus.getPublisher<AtsuMailboxMessages>();
     this.subscriber = this.bus.getSubscriber<AtsuMailboxMessages>();
 
+    // A deleted message (e.g. a prepared downlink cancelled on the A380X SD mailbox) also leaves the mailbox file:
+    // otherwise its place stayed taken, and five of them made the file full for good (FILE FULL)
     this.subscriber.on('deleteMessage').handle((uid: number) => {
-      let idx = this.uplinkMessages.findIndex((elem) => elem[0].MessageId === uid);
-      if (idx > -1) {
-        this.uplinkMessages[idx].forEach((message) => {
-          this.atc.removeMessage(message.MessageId);
-        });
-      } else {
-        idx = this.downlinkMessages.findIndex((elem) => elem[0].MessageId === uid);
-        if (idx > -1) {
-          this.downlinkMessages[idx].forEach((message) => {
-            this.atc.removeMessage(message.MessageId);
-          });
+      const files: [MailboxMessage[][], MailboxMessage[][], boolean][] = [
+        [this.uplinkMessages, this.bufferedUplinkMessages, true],
+        [this.downlinkMessages, this.bufferedDownlinkMessages, false],
+      ];
+      for (const [messages, backlog, uplink] of files) {
+        const block = messages.find((elem) => elem[0].MessageId === uid);
+        if (block !== undefined) {
+          // removeMessage comes back here through dequeue(): the block may already have left the file then
+          block.forEach((message) => this.atc.removeMessage(message.MessageId));
+          this.leaveFile(messages, backlog, uid, uplink);
+          return;
         }
       }
     });
