@@ -13,8 +13,34 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CanvasConst } from './Constants';
 import { chartWeightToY } from './ChartFit';
 
-/** Half the height of a weight axis label, in px: the labels are centred on their weight line */
-const WEIGHT_LABEL_HALF_HEIGHT = 14;
+/** Half the height of a weight axis label (text-sm, 20 px line), in px: the labels are centred on their weight line */
+const WEIGHT_LABEL_HALF_HEIGHT = 10;
+
+/** The colours of the chart: the m3 colours of the flyPad theme */
+interface ChartColours {
+  /** MZFW line and point (m3-text) */
+  zfw: string;
+  /** MTOW (or FLIGHT) line and point (m3-primary) */
+  tow: string;
+  /** MLDW line and point (m3-on-warn) */
+  ldw: string;
+  /** The weight lines and the main CG lines (m3-outline) */
+  grid: string;
+  /** The other CG lines (m3-tile) */
+  gridMinor: string;
+  /** The ring around the points: the card under the chart (m3-card) */
+  ring: string;
+}
+
+/**
+ * The m3 colours of Assets/Theme.css for each flyPad theme (EFB_UI_THEME), the blue theme by default: a canvas cannot
+ * draw with the CSS variables of the theme.
+ */
+const CHART_COLOURS: Record<string, ChartColours> = {
+  blue: { zfw: '#e3e5ea', tow: '#00a4ad', ldw: '#f2c14e', grid: '#44474e', gridMinor: '#262a31', ring: '#1b1e24' },
+  dark: { zfw: '#e3e5ea', tow: '#3b82f6', ldw: '#f2c14e', grid: '#3a4150', gridMinor: '#222833', ring: '#161a21' },
+  light: { zfw: '#1b1e24', tow: '#1d6fe0', ldw: '#7a5a00', grid: '#c5c8ce', gridMinor: '#e6e8ec', ring: '#ffffff' },
+};
 
 interface ChartWidgetProps {
   width: number;
@@ -47,37 +73,17 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
   const [theme] = usePersistentSetting('EFB_UI_THEME');
   const [flightPhase] = useSimVar('L:A32NX_FMGC_FLIGHT_PHASE', 'enum');
 
-  const getTheme = (theme: string): [string, string, string, string] => {
-    let base = '#fff';
-    let primary = '#00C9E4';
-    let secondary = '#84CC16';
-    let alt = '#000';
-    switch (theme) {
-      case 'dark':
-        base = '#fff';
-        primary = '#3B82F6';
-        secondary = '#84CC16';
-        alt = '#000';
-        break;
-      case 'light':
-        base = '#000';
-        primary = '#3B82F6';
-        secondary = '#84CC16';
-        alt = '#fff';
-        break;
-      default:
-        break;
-    }
-    return [base, primary, secondary, alt];
-  };
-
   const draw = () => {
     if (!ctx) return;
 
-    const [base, primary, secondary, alt] = getTheme(theme);
+    const colours = CHART_COLOURS[theme] ?? CHART_COLOURS.blue;
+    const base = colours.zfw;
+    const primary = colours.tow;
+    const secondary = colours.ldw;
+    const alt = colours.ring;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.fillStyle = '#C9C9C9';
-    ctx.strokeStyle = '#2B313B';
+    ctx.fillStyle = base;
+    ctx.strokeStyle = colours.gridMinor;
     ctx.lineWidth = 1;
 
     const xStep = width / limits.cg.lines;
@@ -97,7 +103,7 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
 
     const drawWeightLines = () => {
       ctx.lineWidth = 1;
-      ctx.strokeStyle = '#394049';
+      ctx.strokeStyle = colours.grid;
       // every grid weight under the top one, down to the lowest (the bottom of the chart)
       for (let i = 1; i <= limits.weight.lines; i++) {
         const y = weightToY(limits.weight.max - i * limits.weight.scale);
@@ -111,12 +117,12 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
 
     const drawCgLines = () => {
       ctx.lineWidth = 1;
-      ctx.globalAlpha = theme !== 'light' ? 0.5 : 0.25;
+      ctx.globalAlpha = 0.5;
       const cgWidth = width - shiftX;
       for (let cgPercent = limits.cg.min, x = 0; x < cgWidth; x += xStep, cgPercent++) {
         if (x > 0 && x < cgWidth) {
           ctx.lineWidth = cgPercent % limits.cg.highlight ? 0.25 : 1;
-          ctx.strokeStyle = cgPercent % limits.cg.highlight ? '#2B313B' : '#394049';
+          ctx.strokeStyle = cgPercent % limits.cg.highlight ? colours.gridMinor : colours.grid;
 
           const [x1, y1] = cgWeightToXY(cgPercent, limits.weight.min);
           const [x2, y2] = cgWeightToXY(cgPercent, limits.weight.max);
@@ -313,13 +319,13 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
     // eslint-disable-next-line react/no-array-index-key
     <p
       key={`cgRow-${i}`}
-      className="text-md absolute top-0 font-mono font-medium"
+      className="absolute top-0 text-sm font-medium text-m3-muted"
       style={cgRow}
     >{`${limits.cg.values[i]}%`}</p>
   ));
   const weightAxis = weightRows.map((weightRow, i) => (
     // eslint-disable-next-line react/no-array-index-key
-    <p key={`weightRow-${i}`} className="text-md absolute top-0 font-mono font-medium" style={weightRow}>
+    <p key={`weightRow-${i}`} className="absolute top-0 text-sm font-medium text-m3-muted" style={weightRow}>
       {Math.round(Units.kilogramToUser(limits.weight.values[i] * 1000) / 1000)}
     </p>
   ));
@@ -329,16 +335,16 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
       <canvas ref={canvasRef} />
       {cgAxis}
       {weightAxis}
-      <p key="wu" className="absolute top-0 font-mono text-sm font-medium" style={weightUnits}>
+      <p key="wu" className="absolute top-0 text-xs font-medium text-m3-muted" style={weightUnits}>
         {usingMetric ? 'x 1000 kgs' : 'x 1000 lbs'}
       </p>
-      <p key="mtow" className="absolute top-0 font-mono font-medium text-theme-highlight drop-shadow" style={mtow}>
+      <p key="mtow" className="absolute top-0 text-sm font-bold text-m3-primary" style={mtow}>
         {flightPhase <= 1 || flightPhase >= 7 ? 'MTOW' : 'FLIGHT'}
       </p>
-      <p key="mldw" className="absolute top-0 font-mono font-medium text-lime-500" style={mlw}>
+      <p key="mldw" className="absolute top-0 text-sm font-bold text-m3-on-warn" style={mlw}>
         MLDW
       </p>
-      <p key="mzfw" className="absolute top-0 font-mono font-medium text-theme-text" style={mzfw}>
+      <p key="mzfw" className="absolute top-0 text-sm font-bold text-m3-text" style={mzfw}>
         MZFW
       </p>
     </div>
