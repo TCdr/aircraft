@@ -92,6 +92,7 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
+import { readFuelJettisonFlags } from './FuelJettisonFlags';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -5208,25 +5209,16 @@ export class FwsCore {
         !(this.egpwcPresentLatitude.isNormalOperation() && this.egpwcPresentLongitude.isNormalOperation()),
     );
 
-    // Fuel jettison (FuelJettison)
-    this.fuelJettisonInProgress.set(SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_IN_PROGRESS', SimVarValueType.Bool));
-    this.fuelJettisonCompleted.set(SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_COMPLETED', SimVarValueType.Bool));
-    this.fuelJettisonArmPbOn.set(
-      SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ARM_PB_IS_ON', SimVarValueType.Bool),
-    );
-    this.fuelJettisonActivePbOn.set(
-      SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ACTIVE_PB_IS_ON', SimVarValueType.Bool),
-    );
-    this.fuelJettisonNotAvail.set(SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_NOT_AVAIL', SimVarValueType.Bool));
-    this.fuelJettisonLValveFault.set(
-      SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_L_VALVE_FAULT', SimVarValueType.Bool),
-    );
-    this.fuelJettisonRValveFault.set(
-      SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_R_VALVE_FAULT', SimVarValueType.Bool),
-    );
-    this.fuelJettisonValveNotClosed.set(
-      SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_VALVE_NOT_CLOSED', SimVarValueType.Bool),
-    );
+    // Fuel jettison (FuelJettison), read as real booleans (see readFuelJettisonFlags)
+    const jettison = readFuelJettisonFlags((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool));
+    this.fuelJettisonInProgress.set(jettison.inProgress);
+    this.fuelJettisonCompleted.set(jettison.completed);
+    this.fuelJettisonArmPbOn.set(jettison.armPbOn);
+    this.fuelJettisonActivePbOn.set(jettison.activePbOn);
+    this.fuelJettisonNotAvail.set(jettison.notAvailable);
+    this.fuelJettisonLValveFault.set(jettison.leftValveFault);
+    this.fuelJettisonRValveFault.set(jettison.rightValveFault);
+    this.fuelJettisonValveNotClosed.set(jettison.valveNotClosed);
 
     // WXR (A380 FCOM DSC-34-20-30-20). The WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
     // shows then.
