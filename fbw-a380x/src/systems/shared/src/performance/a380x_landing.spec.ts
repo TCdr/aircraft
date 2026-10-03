@@ -237,16 +237,28 @@ describe('A380 landing performance', () => {
   describe('limits, runway condition codes and estimates', () => {
     const IN_FLIGHT: LandingPerformanceInputs = { ...CHART, type: LandingComputationType.InFlight };
 
-    it('keeps the 2 % slope and the 10 kt tailwind of the FCOM (LIM-12)', () => {
+    it('keeps the 2 % slope of the FCOM (LIM-12)', () => {
       const error = (inputs: Partial<LandingPerformanceInputs>) =>
         calculator.calculateLandingPerformance({ ...IN_FLIGHT, ...inputs }).error;
       expect(error({ slope: 2 })).toBe(LandingPerformanceError.None);
       expect(error({ slope: -2.1 })).toBe(LandingPerformanceError.MaximumRunwaySlope);
-      expect(error({ headwind: -10 })).toBe(LandingPerformanceError.None);
-      expect(error({ headwind: -11 })).toBe(LandingPerformanceError.MaximumTailwind);
       expect(error({ oat: NaN })).toBe(LandingPerformanceError.InvalidData);
       expect(error({ weight: 510_000 })).toBe(LandingPerformanceError.None);
       expect(error({ weight: 510_100 })).toBe(LandingPerformanceError.MaximumTakeoffWeight);
+    });
+
+    it('extrapolates the figures beyond the 10 kt tailwind of the FCOM (LIM-12), flagged', () => {
+      const at = (headwind: number) => calculator.calculateLandingPerformance({ ...IN_FLIGHT, headwind });
+      expect(at(-10).error).toBe(LandingPerformanceError.None);
+      expect(at(-10).tailwindExtrapolated).toBe(false);
+      expect(at(-10.4).tailwindExtrapolated).toBe(false);
+      expect(at(-11).error).toBe(LandingPerformanceError.None);
+      expect(at(-11).tailwindExtrapolated).toBe(true);
+      expect(at(5).tailwindExtrapolated).toBe(false);
+      // the tailwind correction continues: a longer distance and a smaller stop margin with more tailwind
+      expect(at(-13).landingDistance!).toBeGreaterThan(at(-10).landingDistance!);
+      expect(at(-13).stopMargin!).toBeLessThan(at(-10).stopMargin!);
+      expect(at(-13).brakingDistances.length).toBe(at(-10).brakingDistances.length);
     });
 
     it('allows 40 kt of crosswind on dry and wet runways, less on contaminated ones (gust included)', () => {
@@ -296,7 +308,7 @@ describe('A380 landing performance', () => {
         .error,
     ).toBe(LandingPerformanceError.None);
     expect(calculator.calculateLandingPerformance({ ...CHART, headwind: -11 }).error).toBe(
-      LandingPerformanceError.MaximumTailwind,
+      LandingPerformanceError.None,
     );
     expect(calculator.calculateLandingPerformance({ ...CHART, elevation: 9000 }).error).toBe(
       LandingPerformanceError.MaximumPressureAlt,

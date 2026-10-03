@@ -108,7 +108,6 @@ export enum LandingPerformanceError {
   /** IN-FLIGHT: above the certified MTOW */
   MaximumTakeoffWeight = 'MaximumTakeoffWeight',
   MaximumPressureAlt = 'MaximumPressureAlt',
-  MaximumTailwind = 'MaximumTailwind',
   MaximumRunwaySlope = 'MaximumRunwaySlope',
   /** The runway condition is not one of the computation type */
   RunwayCondition = 'RunwayCondition',
@@ -205,6 +204,16 @@ export interface LandingPerformanceResult {
   /** A380: the BTV DRY and WET lines, to choose the runway exit */
   btv?: BtvLines;
   estimates: LandingPerformanceEstimate[];
+  /**
+   * The tailwind is above the limit of the FCOM (maxTailwind, in whole knots): the distances, the stop margin and the
+   * MLW(PERF) continue the tailwind correction of the data beyond it (extrapolated, for information)
+   */
+  tailwindExtrapolated: boolean;
+}
+
+/** Whether a tailwind (a negative headwind) is above the tailwind limit, compared in whole knots */
+export function isTailwindBeyondLimit(headwind: number, maxTailwind: number): boolean {
+  return Math.round(-headwind) > maxTailwind;
 }
 
 export interface LandingPerformanceCalculator {

@@ -5,6 +5,7 @@ import {
   BTV_TOUCHDOWN_DISTANCE,
   BtvLines,
   isBtvRunwayCondition,
+  isTailwindBeyondLimit,
   LandingAntiIce,
   LandingApproachType,
   LandingBrakingDistance,
@@ -292,6 +293,7 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
       overweight: inFlight && weight > this.mlw,
       reverseCredit: inputs.reverseThrust && this.reverseThrustAvailable(inputs.type, inputs.runwayCondition),
       estimates: [LandingPerformanceEstimate.GoAroundGradient, LandingPerformanceEstimate.MlwPerf],
+      tailwindExtrapolated: isTailwindBeyondLimit(inputs.headwind, this.maxTailwind),
     };
     if (result.error !== LandingPerformanceError.None) {
       return result;
@@ -365,9 +367,6 @@ export class A380842LandingPerformanceCalculator implements LandingPerformanceCa
     }
     if (pressureAlt > this.maxPressureAlt) {
       return LandingPerformanceError.MaximumPressureAlt;
-    }
-    if (inputs.headwind < -this.maxTailwind) {
-      return LandingPerformanceError.MaximumTailwind;
     }
     if (Math.abs(inputs.slope) > A380842LandingPerformanceCalculator.MAX_SLOPE) {
       return LandingPerformanceError.MaximumRunwaySlope;
