@@ -17,6 +17,7 @@ import {
   FcuBusPublisher,
   FcuSimVars,
   MsfsMiscEvents,
+  NearbyRunwayProvider,
   PathVectorType,
   TawsAircraftStatusDataDto,
   TawsData,
@@ -51,6 +52,7 @@ import { AesuBusEvents } from '../../instruments/src/MsfsAvionicsCommon/provider
 // FIXME should not import from instruments
 import { MfdSurvEvents } from '../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { bearingTo, Coordinates, distanceTo, placeBearingDistance } from 'msfs-geo';
+import { closestVdRunways, vdRunways } from './VdRunways';
 
 /**
  * Collects EFIS information for a given EFIS side. Has to be used together with private bus since switchable publishers are used, don't want that to spill to the parent components
@@ -462,6 +464,29 @@ export class EfisTawsBridge implements Instrument {
   /** The values last written to the L:A380X_VD_CUT_* variables, so that only changes are written. */
   private readonly vdCutLastValues = new Map<string, number>();
 
+  /**
+   * The VD draws the runways of the airports within this distance of the aircraft as flat ground (L:A380X_VD_RUNWAY_*,
+   * see VdRunways.ts): enough for the VD ranges of the approach (design choice; at longer ranges a farther airport keeps
+   * the MapView's diagram).
+   */
+  private static readonly VD_AIRPORT_SEARCH_NM = 25;
+
+  /** The most airports searched around the aircraft */
+  private static readonly VD_AIRPORT_MAX = 24;
+
+  /** The most runways published to the VD gauge (kVdRunwayMax in ndwxr) */
+  private static readonly VD_RUNWAY_MAX = 40;
+
+  /** The runways of the airports around the aircraft, from the sim's airport database */
+  private readonly vdRunways = new NearbyRunwayProvider(
+    this.bus,
+    EfisTawsBridge.VD_AIRPORT_SEARCH_NM,
+    EfisTawsBridge.VD_AIRPORT_MAX,
+  );
+
+  /** The runway list last published, so that the runways are only published again after a new search */
+  private vdPublishedRunways: unknown = undefined;
+
   private readonly terr1Failed = Subject.create(false);
   private readonly terr2Failed = Subject.create(false);
   private readonly gpws1Failed = Subject.create(false);
@@ -667,6 +692,39 @@ export class EfisTawsBridge implements Instrument {
     );
   }
 
+  /**
+   * Publishes the runways around the aircraft to the native VD terrain gauge (ndwxr, L:A380X_VD_RUNWAY_*), which draws
+   * the stretches of its cut reaching them as flat ground at their elevation instead of the MapView's airport diagram.
+   */
+  private updateVdRunways(): void {
+    const latitude = this.latitude.get();
+    const longitude = this.longitude.get();
+    if (!latitude.isNormalOperation() || !longitude.isNormalOperation()) {
+      return;
+    }
+    this.vdRunways.update(latitude.value, longitude.value, Date.now());
+    const runways = this.vdRunways.runways;
+    if (runways === this.vdPublishedRunways) {
+      return;
+    }
+    this.vdPublishedRunways = runways;
+    const rectangles = closestVdRunways(
+      vdRunways(runways),
+      latitude.value,
+      longitude.value,
+      EfisTawsBridge.VD_RUNWAY_MAX,
+    );
+    rectangles.forEach((runway, i) => {
+      this.setVdCutVar(`L:A380X_VD_RUNWAY_${i}_LAT`, runway.latitude);
+      this.setVdCutVar(`L:A380X_VD_RUNWAY_${i}_LON`, runway.longitude);
+      this.setVdCutVar(`L:A380X_VD_RUNWAY_${i}_COURSE`, runway.course);
+      this.setVdCutVar(`L:A380X_VD_RUNWAY_${i}_HALF_LENGTH_NM`, runway.halfLengthNm);
+      this.setVdCutVar(`L:A380X_VD_RUNWAY_${i}_HALF_WIDTH_NM`, runway.halfWidthNm);
+      this.setVdCutVar(`L:A380X_VD_RUNWAY_${i}_ELEVATION_FT`, runway.elevationFt);
+    });
+    this.setVdCutVar('L:A380X_VD_RUNWAY_COUNT', rectangles.length);
+  }
+
   public async onUpdate() {
     const deltaTime = this.updateThrottler.canUpdate(this.instrument.deltaTime);
 
@@ -676,6 +734,8 @@ export class EfisTawsBridge implements Instrument {
     if (deltaTime < 0) {
       return;
     }
+
+    this.updateVdRunways();
 
     const tawsWxrSelected = SimVar.GetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number);
     const extremeLatitude = this.validIrMaintWord ? this.validIrMaintWord.get().bitValueOr(15, false) : false;
