@@ -70,6 +70,7 @@ import { SimBriefUplinkAdapter } from '@fmgc/flightplanning/uplink/SimBriefUplin
 import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanChangeNotifier';
 import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
+import { allFmcInop, allFmcResetsPulled } from './FmcResetPanel';
 
 export interface FmsErrorMessage {
   message: McduMessage;
@@ -1442,18 +1443,13 @@ export class FlightManagementComputer implements FmcInterface {
 
   private onUpdate(dt: number) {
     // Stop early, if not FmcA or if all FMCs failed
-    const allFmcResetsPulled =
-      SimVar.GetSimVarValue('L:A32NX_RESET_PANEL_FMC_A', SimVarValueType.Bool) &&
-      SimVar.GetSimVarValue('L:A32NX_RESET_PANEL_FMC_B', SimVarValueType.Bool) &&
-      SimVar.GetSimVarValue('L:A32NX_RESET_PANEL_FMC_B', SimVarValueType.Bool);
-    const allFmcInop =
-      !SimVar.GetSimVarValue('L:A32NX_FMC_A_IS_HEALTHY', SimVarValueType.Bool) &&
-      !SimVar.GetSimVarValue('L:A32NX_FMC_B_IS_HEALTHY', SimVarValueType.Bool) &&
-      !SimVar.GetSimVarValue('L:A32NX_FMC_C_IS_HEALTHY', SimVarValueType.Bool);
+    const readBool = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool);
+    const allResetsPulled = allFmcResetsPulled(readBool);
+    const allInop = allFmcInop(readBool);
 
-    this.legacyFmsIsHealthy.set(!allFmcInop);
+    this.legacyFmsIsHealthy.set(!allInop);
     // FIXME remove this condition if proper FMC sync is implemented. For now, we only reset if all FMCs failed.
-    if (allFmcResetsPulled || allFmcInop) {
+    if (allResetsPulled || allInop) {
       if (this.wasReset === false) {
         this.reset();
       }
