@@ -251,7 +251,9 @@ export const ATC = () => {
       <div className="relative mb-4 flex flex-row items-center justify-between">
         <h1 className="font-bold">
           {t('AirTrafficControl.Title')}
-          {(atisSource === ConfigWeatherMap.IVAO || atisSource === ConfigWeatherMap.VATSIM) && ` (${atisSource})`}
+          {/* The setting holds the network id in lower case ('ivao', 'vatsim'): show the network name, IVAO / VATSIM */}
+          {(atisSource === ConfigWeatherMap.IVAO || atisSource === ConfigWeatherMap.VATSIM) &&
+            ` (${atisSource.toUpperCase()})`}
         </h1>
       </div>
       {atisSource === ConfigWeatherMap.IVAO || atisSource === ConfigWeatherMap.VATSIM ? (
@@ -301,26 +303,37 @@ export const ATC = () => {
           <div className="flex min-h-0 flex-1 flex-row">
             <M3Card className="relative mr-4 min-w-0 flex-1 pb-3">
               <M3SectionHeader title={t('AirTrafficControl.ControllersOnline')} badge={`${shownControllers.length}`} />
-              <div className="min-h-0 flex-1 px-4">
-                <ScrollableContainer innerClassName="grid grid-cols-2" height={40}>
-                  {shownControllers.map((controller, index) => (
-                    <FrequencyCard
-                      key={controller.callsign}
-                      className={`${index % 2 !== 0 ? 'ml-3' : ''} ${index >= 2 ? 'mt-3' : ''}`}
-                      callsign={controller.callsign}
-                      frequency={controller.frequency}
-                      typeName={
-                        atcTypeOptions.find((o) => o.atcType !== undefined && o.atcType === controller.type)?.typeName
-                      }
-                      distance={controller.distance}
-                      selected={currentAtc?.callsign === controller.callsign}
-                      setActive={() => setActiveFrequency(toFrequency(controller.frequency))}
-                      setCurrent={() => setCurrentAtc(controllers?.find((c) => c.frequency === controller.frequency))}
-                      setStandby={() => setStandbyFrequency(toFrequency(controller.frequency))}
-                    />
-                  ))}
-                </ScrollableContainer>
-              </div>
+              {/* Empty state: no controller in range, all filtered out, or the network request failed */}
+              {shownControllers.length === 0 ? (
+                <div className="flex min-h-0 flex-1 items-center justify-center px-4">
+                  {!atcDataPending && (
+                    <span className="text-center text-base font-bold text-m3-muted">
+                      {t('AirTrafficControl.NoControllersToDisplay')}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="min-h-0 flex-1 px-4">
+                  <ScrollableContainer innerClassName="grid grid-cols-2" height={40}>
+                    {shownControllers.map((controller, index) => (
+                      <FrequencyCard
+                        key={controller.callsign}
+                        className={`${index % 2 !== 0 ? 'ml-3' : ''} ${index >= 2 ? 'mt-3' : ''}`}
+                        callsign={controller.callsign}
+                        frequency={controller.frequency}
+                        typeName={
+                          atcTypeOptions.find((o) => o.atcType !== undefined && o.atcType === controller.type)?.typeName
+                        }
+                        distance={controller.distance}
+                        selected={currentAtc?.callsign === controller.callsign}
+                        setActive={() => setActiveFrequency(toFrequency(controller.frequency))}
+                        setCurrent={() => setCurrentAtc(controllers?.find((c) => c.frequency === controller.frequency))}
+                        setStandby={() => setStandbyFrequency(toFrequency(controller.frequency))}
+                      />
+                    ))}
+                  </ScrollableContainer>
+                </div>
+              )}
 
               <div
                 className={`absolute inset-0 flex items-center justify-center rounded-2xl bg-m3-card text-m3-on-primary-container transition duration-200
