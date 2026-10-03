@@ -70,19 +70,37 @@ interface PerfValueProps {
   caution?: boolean;
   /** Out of limits */
   warning?: boolean;
+  /** Extrapolated beyond the data (e.g. a tailwind above the limit): amber, with ~ before and a dagger after */
+  extrapolated?: boolean;
 }
 
-/** A result value: white (teal for the main one), amber with an asterisk for an estimate, its unit muted */
-export const PerfValue: FC<PerfValueProps> = ({ text, unit, estimate, big, primary, caution, warning }) => {
+/**
+ * A result value: white (teal for the main one), amber with an asterisk for an estimate, amber between ~ and a dagger
+ * when extrapolated, its unit muted
+ */
+export const PerfValue: FC<PerfValueProps> = ({
+  text,
+  unit,
+  estimate,
+  big,
+  primary,
+  caution,
+  warning,
+  extrapolated,
+}) => {
   let colour = primary ? 'text-m3-on-primary-container' : 'text-m3-text';
   if (warning) {
     colour = 'text-m3-on-error';
-  } else if (estimate || caution) {
+  } else if (estimate || caution || extrapolated) {
     colour = 'text-m3-on-warn';
+  }
+  let shown = `${text}${estimate ? '*' : ''}`;
+  if (extrapolated) {
+    shown = `~${text}\u2020`;
   }
   return (
     <span className={`whitespace-nowrap font-bold ${big ? 'text-2xl' : 'text-lg'} ${colour}`}>
-      {`${text}${estimate ? '*' : ''}`}
+      {shown}
       {unit && <span className="ml-1 text-xs font-semibold text-m3-muted">{unit}</span>}
     </span>
   );

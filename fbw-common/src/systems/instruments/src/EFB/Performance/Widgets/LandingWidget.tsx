@@ -2,7 +2,7 @@
 // Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   AirframeType,
   MathUtils,
@@ -34,9 +34,8 @@ import {
 } from '@flybywiresim/fbw-sdk';
 import { useEventBus } from '@flybywiresim/flypad';
 import { toast } from 'react-toastify';
-import { Calculator, Trash } from 'react-bootstrap-icons';
+import { Calculator, ExclamationTriangle, Trash, Wind } from 'react-bootstrap-icons';
 import { t } from '../../Localization/translation';
-import { PromptModal, useModals } from '../../UtilComponents/Modals/Modals';
 import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { SelectInput } from '../../UtilComponents/Form/SelectInput/SelectInput';
 import { useAppDispatch, useAppSelector } from '../../Store/store';
@@ -54,6 +53,8 @@ import {
 import { getAirportMagVar, getRunways } from '../Data/Runways';
 import { LandingRunway, LandingRunwayStop } from './LandingRunway';
 import { LandingRunwayExits, loadLandingRunwayExits } from './LandingBtv';
+import { LandingAlternate, LandingWindCheck } from './LandingWindCheck';
+import { assessLandingWind, LandingWindAssessment } from '../Data/landingWind';
 import { M3ActionChip, M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
 import {
   PERF_INPUT,
@@ -92,12 +93,15 @@ export const LandingWidget = () => {
   const calculator = useContext(AircraftContext).performanceCalculators.landing;
   const isA380 = useAppSelector((state) => state.config.airframeInfo.variant) === AirframeType.A380_842;
   const eventBus = useEventBus();
-  const { showModal } = useModals();
   const { usingMetric } = Units;
 
   const [autoFillSource, setAutoFillSource] = useState<'METAR' | 'OFP' | 'FMS'>('FMS');
   /** A380 BTV: the exits of a runway (key: airport and runway) */
   const [runwayExits, setRunwayExits] = useState<(LandingRunwayExits & { key: string }) | undefined>(undefined);
+  /** The card beside the results: the landing roll, or the wind check (other runways, the alternate) */
+  const [sidePanel, setSidePanel] = useState<'roll' | 'wind'>('roll');
+  /** A runway or the alternate was loaded from the wind check: calculate once the inputs are in the store */
+  const [pendingCalculation, setPendingCalculation] = useState(false);
 
   const [temperatureUnit, setTemperatureUnit] = usePersistentProperty(
     'EFB_PREFERRED_TEMPERATURE_UNIT',
@@ -281,25 +285,54 @@ export const LandingWidget = () => {
     }
   };
 
+  // A wind above the crosswind maximum or the tailwind limit does not stop the calculation: the results show it on a
+  // banner, with the wind check (other runways, the alternate) beside them
   const handleCalculateLanding = (): void => {
-    if (!areInputsValid()) {
-      return;
-    }
-    const limit = calculator.crosswindLimit(runwayCondition, temperature);
-    if (wind.crosswind > limit) {
-      const replacements = { max_crosswind: limit.toFixed(0), actual_crosswind: wind.crosswind.toFixed(0) };
-      showModal(
-        <PromptModal
-          title={subReplacements(t('Performance.Landing.Calc.CrosswindAboveLimitTitle'), replacements)}
-          bodyText={subReplacements(t('Performance.Landing.Calc.CrosswindAboveLimitMessage'), replacements)}
-          cancelText="No"
-          confirmText="Yes"
-          onConfirm={performCalculateLanding}
-        />,
-      );
-    } else {
+    if (areInputsValid()) {
       performCalculateLanding();
     }
+  };
+
+  useEffect(() => {
+    if (pendingCalculation) {
+      setPendingCalculation(false);
+      handleCalculateLanding();
+    }
+  });
+
+  /** The limits of a runway condition at an OAT: crosswind maximum and tailwind limit */
+  const windLimits = (condition: LandingRunwayCondition, oat: number | undefined) => ({
+    crosswind: calculator.crosswindLimit(condition, oat ?? 15),
+    tailwind: calculator.maxTailwind,
+  });
+  const resultWind: LandingWindAssessment | undefined =
+    result !== undefined
+      ? assessLandingWind(result.inputs, windLimits(result.inputs.runwayCondition, result.inputs.oat))
+      : undefined;
+  const inputWind: LandingWindAssessment | undefined =
+    wind !== undefined ? assessLandingWind(wind, windLimits(runwayCondition, temperature)) : undefined;
+  const shownWind = resultWind ?? inputWind;
+  const windAboveLimits = shownWind !== undefined && (shownWind.crosswindExceeded || shownWind.tailwindExceeded);
+
+  /** Wind check: another runway of the destination, then the calculation on it */
+  const selectWindCheckRunway = (index: number) => {
+    dispatch(setLandingValues({ result: undefined, ...setRunway(availableRunways, index) }));
+    setSidePanel('roll');
+    setPendingCalculation(true);
+  };
+
+  /** Wind check: the alternate airport, its runway and the wind, OAT and QNH of its METAR, then the calculation */
+  const calculateAlternate = (alternate: LandingAlternate, runwayIndex: number) => {
+    dispatch(
+      setLandingValues({
+        icao: alternate.icao,
+        result: undefined,
+        ...setRunway(alternate.runways, runwayIndex),
+        ...metarValues(alternate.metar, alternate.magvar),
+      }),
+    );
+    setSidePanel('roll');
+    setPendingCalculation(true);
   };
 
   // ---------------------------------------------------------------------------------------------- data import
@@ -610,9 +643,18 @@ export const LandingWidget = () => {
           distance: d.distance,
           selected: d.mode === result.inputs.brakingMode,
           estimate: distanceEstimated,
+          extrapolated: result.tailwindExtrapolated,
         }))
       : result?.actualLandingDistance !== undefined
-        ? [{ label: 'ALD', distance: result.actualLandingDistance, selected: true, estimate: distanceEstimated }]
+        ? [
+            {
+              label: 'ALD',
+              distance: result.actualLandingDistance,
+              selected: true,
+              estimate: distanceEstimated,
+              extrapolated: result.tailwindExtrapolated,
+            },
+          ]
         : [];
 
   return (
@@ -1013,6 +1055,18 @@ export const LandingWidget = () => {
             distanceUnit={distanceUnit}
             goAround={features.goAround}
             brakingLabel={result ? BRAKING_LABELS[result.inputs.brakingMode] : ''}
+            windAlert={
+              result !== undefined && resultWind !== undefined
+                ? {
+                    ...resultWind,
+                    crosswind: Math.round(result.inputs.crosswind),
+                    tailwind: Math.round(-result.inputs.headwind),
+                    crosswindLimit: calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat),
+                    tailwindLimit: calculator.maxTailwind,
+                  }
+                : undefined
+            }
+            onWindCheck={() => setSidePanel('wind')}
           />
           <div className="mt-3 flex shrink-0 flex-row">
             <M3Button className="mr-2 !h-12 flex-1" disabled={!areInputsValid()} onClick={handleCalculateLanding}>
@@ -1028,33 +1082,88 @@ export const LandingWidget = () => {
 
         <M3Card className="h-full min-w-0 flex-1 px-4 py-3">
           <div className="flex shrink-0 flex-row items-center">
-            <PerfTitle>{t('Performance.Landing.Calc.LandingRoll')}</PerfTitle>
+            <PerfTitle className="whitespace-nowrap">
+              {t(
+                sidePanel === 'roll'
+                  ? 'Performance.Landing.Calc.LandingRoll'
+                  : 'Performance.Landing.Calc.WindCheck.Title',
+              )}
+            </PerfTitle>
             <div className="grow" />
-            {result !== undefined && (
+            {result !== undefined && sidePanel === 'roll' && (
               <>
-                <span className="mr-4 text-sm text-m3-muted">
+                <span className="mr-3 whitespace-nowrap text-xs text-m3-muted">
                   {`${t('Performance.Landing.Calc.Available')} `}
-                  <span className="text-sm font-bold text-m3-text">
+                  <span className="text-xs font-bold text-m3-text">
                     {`${formatDistance(result.inputs.lda)} ${distanceUnit}`}
                   </span>
                 </span>
-                <span className="text-sm text-m3-muted">
+                <span className="mr-3 whitespace-nowrap text-xs text-m3-muted">
                   {`${t('Performance.Landing.Calc.Crosswind')} `}
                   <span
-                    className={`text-sm font-bold ${
-                      result.inputs.crosswind >
-                      calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat)
-                        ? 'text-m3-on-error'
-                        : 'text-m3-text'
-                    }`}
+                    className={`text-xs font-bold ${resultWind?.crosswindExceeded ? 'text-m3-on-error' : 'text-m3-text'}`}
                   >
                     {`${Math.round(result.inputs.crosswind)} / ${calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat)} kt`}
                   </span>
                 </span>
+                {Math.round(-result.inputs.headwind) > 0 && (
+                  <span className="mr-3 whitespace-nowrap text-xs text-m3-muted">
+                    {`${t('Performance.Landing.Calc.WindCheck.Tailwind')} `}
+                    <span
+                      className={`text-xs font-bold ${resultWind?.tailwindExceeded ? 'text-m3-on-error' : 'text-m3-text'}`}
+                    >
+                      {`${Math.round(-result.inputs.headwind)} / ${calculator.maxTailwind} kt`}
+                    </span>
+                  </span>
+                )}
               </>
             )}
+            <M3Segmented
+              className="w-56 shrink-0"
+              options={[
+                {
+                  label: (
+                    <span className="text-sm font-bold text-current">{t('Performance.Landing.Calc.LandingRoll')}</span>
+                  ),
+                  selected: sidePanel === 'roll',
+                  onClick: () => setSidePanel('roll'),
+                },
+                {
+                  label: (
+                    <>
+                      <span className="text-sm font-bold text-current">
+                        {t('Performance.Landing.Calc.WindCheck.Title')}
+                      </span>
+                      {windAboveLimits && <span className="ml-2 h-2 w-2 rounded-full bg-m3-on-error" />}
+                    </>
+                  ),
+                  selected: sidePanel === 'wind',
+                  onClick: () => setSidePanel('wind'),
+                },
+              ]}
+            />
           </div>
-          <div className="mt-2 min-h-0 flex-1">
+          {sidePanel === 'wind' && (
+            <div className="mt-2 flex min-h-0 flex-1 flex-col">
+              <LandingWindCheck
+                icao={icao}
+                runways={availableRunways}
+                selectedRunwayIndex={selectedRunwayIndex ?? -1}
+                windDirection={windDirection}
+                windSpeed={windMagnitude}
+                windEntry={windEntry}
+                crosswindLimit={(oat) => calculator.crosswindLimit(runwayCondition, oat)}
+                oat={temperature}
+                maxTailwind={calculator.maxTailwind}
+                conditionLabel={t(`Performance.Landing.Calc.Conditions.${runwayCondition}`)}
+                formatDistance={formatDistance}
+                distanceUnit={distanceUnit}
+                onUseRunway={selectWindCheckRunway}
+                onCalculateAlternate={calculateAlternate}
+              />
+            </div>
+          )}
+          <div className={`mt-2 min-h-0 flex-1 ${sidePanel === 'roll' ? '' : 'hidden'}`}>
             {result !== undefined ? (
               <LandingRunway
                 ident={selectedRunway?.ident}
@@ -1063,7 +1172,11 @@ export const LandingWidget = () => {
                 stops={stops}
                 required={
                   result.inputs.type === LandingComputationType.Dispatch && result.landingDistance !== undefined
-                    ? { distance: result.landingDistance, estimate: distanceEstimated }
+                    ? {
+                        distance: result.landingDistance,
+                        estimate: distanceEstimated,
+                        extrapolated: result.tailwindExtrapolated,
+                      }
                     : undefined
                 }
                 distanceUnit={distanceUnit === 'ft' ? 'ft' : 'm'}
@@ -1076,7 +1189,7 @@ export const LandingWidget = () => {
             )}
           </div>
           {/* BTV: the exits the flight crew can select on the OANS (A380 FCOM PRO-NOR-SOP-160, runway exit) */}
-          {features.btv && result !== undefined && (
+          {features.btv && result !== undefined && sidePanel === 'roll' && (
             <div className="mb-1 flex shrink-0 flex-col">
               <div>
                 <span className="mr-3 text-xs font-bold uppercase tracking-widest text-m3-muted">BTV</span>
@@ -1124,9 +1237,11 @@ export const LandingWidget = () => {
               })}
             </div>
           )}
-          <span className="shrink-0 text-xs leading-tight text-m3-muted">
-            {t(isA380 ? 'Performance.Landing.Calc.RunwayLegend' : 'Performance.Landing.Calc.RunwayLegendA320')}
-          </span>
+          {sidePanel === 'roll' && (
+            <span className="shrink-0 text-xs leading-tight text-m3-muted">
+              {t(isA380 ? 'Performance.Landing.Calc.RunwayLegend' : 'Performance.Landing.Calc.RunwayLegendA320')}
+            </span>
+          )}
         </M3Card>
       </div>
     </div>
@@ -1144,6 +1259,16 @@ interface ResultsPanelProps {
   /** The aircraft data has the go-around gradient */
   goAround: boolean;
   brakingLabel: string;
+  /** The wind of the results against the crosswind maximum and the tailwind limit, in whole knots */
+  windAlert?: LandingWindAlert;
+  onWindCheck: () => void;
+}
+
+interface LandingWindAlert extends LandingWindAssessment {
+  crosswind: number;
+  tailwind: number;
+  crosswindLimit: number;
+  tailwindLimit: number;
 }
 
 /**
@@ -1160,8 +1285,14 @@ const ResultsPanel = ({
   distanceUnit,
   goAround,
   brakingLabel,
+  windAlert,
+  onWindCheck,
 }: ResultsPanelProps) => {
   const dispatchType = result?.inputs.type === LandingComputationType.Dispatch;
+  // A tailwind above the limit: the distances, the stop margin and the MLW(PERF) are extrapolated beyond the data
+  const extrapolated = result?.tailwindExtrapolated ?? false;
+  const replace = (msg: string, values: Record<string, string>) =>
+    msg.replace(/\{([a-z_]+)\}/g, (m, key: string) => values[key] ?? m);
   const distanceEstimate = isEstimate(LandingPerformanceEstimate.LandingDistance);
   const limited = result !== undefined && result.limitation !== LandingLimitation.Weight;
   const overrun = result?.stopMargin !== undefined && result.stopMargin < 0;
@@ -1186,12 +1317,48 @@ const ResultsPanel = ({
           {`RWY ${runway ?? '---'} · FLAPS ${flaps}${result?.inputs.type === LandingComputationType.InFlight ? ` · BRK ${brakingLabel}` : ''}`}
         </span>
       </div>
+      {/* The wind above the crosswind maximum or the tailwind limit: the figures stay, for information */}
+      {windAlert !== undefined && (windAlert.crosswindExceeded || windAlert.tailwindExceeded) && (
+        <div className="mb-2 flex shrink-0 flex-row items-center rounded-xl bg-m3-error-container px-3 py-2 text-m3-on-error">
+          <ExclamationTriangle size={20} className="mr-3 shrink-0" />
+          <div className="mr-3 flex min-w-0 flex-1 flex-col">
+            {windAlert.crosswindExceeded && (
+              <span className="text-sm font-bold leading-tight text-current">
+                {replace(t('Performance.Landing.Calc.WindCheck.CrosswindTitle'), {
+                  actual: windAlert.crosswind.toFixed(0),
+                  limit: windAlert.crosswindLimit.toFixed(0),
+                })}
+              </span>
+            )}
+            {windAlert.tailwindExceeded && (
+              <span className="text-sm font-bold leading-tight text-current">
+                {replace(t('Performance.Landing.Calc.WindCheck.TailwindTitle'), {
+                  actual: windAlert.tailwind.toFixed(0),
+                  limit: windAlert.tailwindLimit.toFixed(0),
+                })}
+              </span>
+            )}
+            <span className="text-xs leading-tight text-m3-text">
+              {t(
+                windAlert.tailwindExceeded
+                  ? 'Performance.Landing.Calc.WindCheck.TailwindBody'
+                  : 'Performance.Landing.Calc.WindCheck.CrosswindBody',
+              )}
+            </span>
+          </div>
+          <M3ActionChip className="flex !h-9 shrink-0 flex-row items-center !px-3" onClick={onWindCheck}>
+            <Wind size={16} className="mr-2" />
+            <span className="text-sm font-bold text-current">{t('Performance.Landing.Calc.WindCheck.Title')}</span>
+          </M3ActionChip>
+        </div>
+      )}
       <PerfResultRow className="mb-2">
         <PerfResult name={distanceName}>
           <Value
             text={formatDistance(result?.landingDistance)}
             unit={distanceUnit}
             estimate={result?.landingDistance !== undefined && distanceEstimate}
+            extrapolated={result?.landingDistance !== undefined && extrapolated}
             warning={overrun}
             primary
             big
@@ -1202,6 +1369,7 @@ const ResultsPanel = ({
             text={formatDistance(result?.stopMargin)}
             unit={distanceUnit}
             estimate={result?.stopMargin !== undefined && distanceEstimate}
+            extrapolated={result?.stopMargin !== undefined && extrapolated}
             warning={overrun}
             big
           />
@@ -1222,6 +1390,7 @@ const ResultsPanel = ({
             text={formatWeight(result?.mlwPerf)}
             unit={weightUnit}
             estimate={result?.mlwPerf !== undefined && isEstimate(LandingPerformanceEstimate.MlwPerf)}
+            extrapolated={result?.mlwPerf !== undefined && extrapolated}
           />
         </PerfResult>
         <PerfResult name={t('Performance.Landing.Calc.LimitationCode')}>
@@ -1247,10 +1416,17 @@ const ResultsPanel = ({
         </PerfResultRow>
       )}
       <div className="grow" />
+      {extrapolated && windAlert !== undefined && (
+        <span className="shrink-0 text-xs leading-tight text-m3-on-warn">
+          {replace(t('Performance.Landing.Calc.WindCheck.ExtrapolatedNote'), {
+            limit: windAlert.tailwindLimit.toFixed(0),
+          })}
+        </span>
+      )}
       {/* MORE panel */}
       <span className="shrink-0 text-xs leading-tight text-m3-muted">
         {result !== undefined
-          ? `ALD ${formatDistance(result.actualLandingDistance)} ${distanceUnit} · Vwind ${result.windIncrement} kt · ${
+          ? `ALD ${extrapolated ? '~' : ''}${formatDistance(result.actualLandingDistance)} ${distanceUnit} · Vwind ${result.windIncrement} kt · ${
               result.goAroundConf !== undefined
                 ? `GA CONF ${{ CONF_3: '3', CONF_2: '2', CONF_1F: '1+F' }[result.goAroundConf]} · `
                 : ''

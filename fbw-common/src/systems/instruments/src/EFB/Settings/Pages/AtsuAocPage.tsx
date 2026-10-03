@@ -30,7 +30,7 @@ import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { SettingItem, SettingsPage } from '../Settings';
 import { AcarsConnector, AcarsClient } from '../../../../../datalink/router/src';
 
-const CONFIG_WEATHER_SOURCE_LABELS: Record<ConfigWeatherMap, string> = {
+export const CONFIG_WEATHER_SOURCE_LABELS: Record<ConfigWeatherMap, string> = {
   [ConfigWeatherMap.FAA]: 'FAA (US)',
   [ConfigWeatherMap.IVAO]: 'IVAO',
   [ConfigWeatherMap.MSFS]: 'MSFS',
