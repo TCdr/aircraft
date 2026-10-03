@@ -415,7 +415,12 @@ impl A320AirConditioningSystem {
             self.acsc[1].individual_pack_flow(),
         ];
 
-        let duct_demand_temperature = Self::pack_temperature_demands(
+        // The valve position of the previous update: the trim air system is updated after the packs
+        let hot_air_valve_is_open = self
+            .trim_air_system
+            .trim_air_pressure_regulating_valve_is_open(1);
+
+        let duct_demand_temperature_per_pack = Self::pack_temperature_demands_per_pack(
             self.acsc[0].duct_demand_temperature()[0],
             [
                 self.acsc[1].duct_demand_temperature()[1],
@@ -425,19 +430,59 @@ impl A320AirConditioningSystem {
                 self.acsc[0].both_channels_failure(),
                 self.acsc[1].both_channels_failure(),
             ],
+            hot_air_valve_is_open,
         );
 
         [0, 1].iter().for_each(|&id| {
             self.packs[id].update(
                 context,
                 pack_flow[id],
-                &duct_demand_temperature,
+                &duct_demand_temperature_per_pack[id],
                 self.acsc[id].both_channels_failure(),
             )
         });
     }
 
-    /// The zone duct demands the packs regulate to (each pack supplies the lowest one). ACSC 1 computes the cockpit
+    /// The zone duct demands each pack regulates to (a pack supplies the lowest demand of its list).
+    ///
+    /// Hot air pressure regulating valve open, FCOM DSC-21-10-20: "A signal corresponding to the lowest demanded zone
+    /// temperature goes to the pack controller or the ACSC, which then make both packs supply the required outlet
+    /// temperature." The trim air valves then add hot air to the warmer zones.
+    ///
+    /// Valve closed, FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed: "Trim air valves are
+    /// driven to the fully closed position. Pack 1 controls the cockpit temperature to the selected value and pack 2
+    /// controls the cabin temperature (FWD and AFT) to the mean value of the selected temperatures." Without trim air
+    /// the packs are the only temperature control, so the same rule applies whatever closed the valve (failure, HOT
+    /// AIR pb OFF, or the automatic closure on trim air valve failures). Each cabin zone demand drives its zone to its
+    /// own selection, so the mean of the FWD and AFT demands drives the cabin to the mean of the two selections.
+    fn pack_temperature_demands_per_pack(
+        cockpit_demand: ThermodynamicTemperature,
+        cabin_demands: [ThermodynamicTemperature; 2],
+        acsc_both_lanes_failed: [bool; 2],
+        hot_air_valve_is_open: bool,
+    ) -> [Vec<ThermodynamicTemperature>; 2] {
+        if hot_air_valve_is_open {
+            let lowest_zone_demand_inputs = Self::pack_temperature_demands(
+                cockpit_demand,
+                cabin_demands,
+                acsc_both_lanes_failed,
+            );
+            return [lowest_zone_demand_inputs.clone(), lowest_zone_demand_inputs];
+        }
+
+        let [_, acsc_2_both_lanes_failed] = acsc_both_lanes_failed;
+        let pack_2_demand = if acsc_2_both_lanes_failed {
+            // FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT, ACSC 2 inoperative: "Cabin duct temperature is the same as
+            // cockpit duct temperature" (pack 2 itself then runs at its fixed backup outlet temperature)
+            cockpit_demand
+        } else {
+            cabin_demands.iter().average()
+        };
+        // A pack whose ACSC has both lanes failed ignores its demand and runs at its fixed backup outlet temperature
+        [vec![cockpit_demand], vec![pack_2_demand]]
+    }
+
+    /// The zone duct demands both packs regulate to with the hot air valve open (each pack supplies the lowest one). ACSC 1 computes the cockpit
     /// demand and ACSC 2 the cabin demands; a controller with both lanes failed sends none, so the remaining pack only
     /// follows the zones of the operative controller. FCOM PRO-ABN-COND LAV + GALLEY FAN FAULT, ACSC 2 inoperative:
     /// "Cabin duct temperature is the same as cockpit duct temperature", adjusted with the COCKPIT selector.
@@ -2146,6 +2191,137 @@ mod tests {
                 [true, false],
             );
             assert_eq!(demands, vec![celsius(15.), celsius(25.)]);
+        }
+
+        #[test]
+        fn both_packs_follow_all_zones_with_the_hot_air_valve_open() {
+            let demands = A320AirConditioningSystem::pack_temperature_demands_per_pack(
+                celsius(20.),
+                [celsius(15.), celsius(25.)],
+                [false, false],
+                true,
+            );
+            let all_zones = vec![celsius(20.), celsius(15.), celsius(25.)];
+            assert_eq!(demands, [all_zones.clone(), all_zones]);
+        }
+
+        #[test]
+        fn pack_1_follows_the_cockpit_and_pack_2_the_cabin_mean_with_the_hot_air_valve_closed() {
+            // FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed
+            let demands = A320AirConditioningSystem::pack_temperature_demands_per_pack(
+                celsius(20.),
+                [celsius(15.), celsius(25.)],
+                [false, false],
+                false,
+            );
+            assert_eq!(demands, [vec![celsius(20.)], vec![celsius(20.)]]);
+
+            let demands = A320AirConditioningSystem::pack_temperature_demands_per_pack(
+                celsius(26.),
+                [celsius(14.), celsius(18.)],
+                [false, false],
+                false,
+            );
+            assert_eq!(demands, [vec![celsius(26.)], vec![celsius(16.)]]);
+        }
+
+        #[test]
+        fn pack_2_follows_the_cockpit_with_the_hot_air_valve_closed_and_acsc_2_inoperative() {
+            let demands = A320AirConditioningSystem::pack_temperature_demands_per_pack(
+                celsius(26.),
+                [celsius(14.), celsius(18.)],
+                [false, true],
+                false,
+            );
+            assert_eq!(demands, [vec![celsius(26.)], vec![celsius(26.)]]);
+        }
+    }
+
+    mod a320_hot_air_valve_pack_regulation_tests {
+        use super::*;
+
+        // The overhead temperature selectors run from 0 to 300 for 18 to 30 deg C
+        const SELECTOR_AT_18_C: f64 = 0.;
+        const SELECTOR_AT_22_C: f64 = 100.;
+        const SELECTOR_AT_30_C: f64 = 300.;
+
+        // The pack outlet is low-pass filtered and the zone demands move with the cabin temperatures
+        const PACK_OUTLET_TOLERANCE_C: f64 = 1.;
+        // Long enough for the zone demands to settle at their limits and the pack outlets to catch up
+        const SETTLING_TIME_S: usize = 600;
+
+        /// Cockpit selected hot, the two cabin zones cold and different from each other, so the lowest demand,
+        /// the cockpit demand and the mean cabin demand are three different temperatures.
+        fn test_bed_with_cockpit_hot_and_cabin_cold(hot_air_pb_is_on: bool) -> CabinAirTestBed {
+            let mut test_bed = test_bed();
+            test_bed.write_by_name("OVHD_COND_HOT_AIR_PB_IS_ON", hot_air_pb_is_on);
+            test_bed.write_by_name("OVHD_COND_CKPT_SELECTOR_KNOB", SELECTOR_AT_30_C);
+            test_bed.write_by_name("OVHD_COND_FWD_SELECTOR_KNOB", SELECTOR_AT_18_C);
+            test_bed.write_by_name("OVHD_COND_AFT_SELECTOR_KNOB", SELECTOR_AT_22_C);
+            test_bed.iterate(SETTLING_TIME_S)
+        }
+
+        /// Duct demand temperatures (deg C) of the cockpit, FWD and AFT zones, as computed by their ACSC
+        fn zone_duct_demands(test_bed: &CabinAirTestBed) -> [f64; 3] {
+            test_bed.query(|a| {
+                let acs = &a.a320_cabin_air.a320_air_conditioning_system;
+                [
+                    acs.acsc[0].duct_demand_temperature()[0],
+                    acs.acsc[1].duct_demand_temperature()[1],
+                    acs.acsc[1].duct_demand_temperature()[2],
+                ]
+                .map(|demand| demand.get::<degree_celsius>())
+            })
+        }
+
+        fn pack_outlet_temperatures(test_bed: &CabinAirTestBed) -> [f64; 2] {
+            test_bed.query(|a| {
+                a.a320_cabin_air
+                    .a320_air_conditioning_system
+                    .packs
+                    .each_ref()
+                    .map(|pack| pack.outlet_air().temperature().get::<degree_celsius>())
+            })
+        }
+
+        fn hot_air_valve_is_open(test_bed: &CabinAirTestBed) -> bool {
+            test_bed.query(|a| {
+                a.a320_cabin_air
+                    .a320_air_conditioning_system
+                    .trim_air_system
+                    .trim_air_pressure_regulating_valve_is_open(1)
+            })
+        }
+
+        #[test]
+        fn with_the_hot_air_valve_open_both_packs_follow_the_lowest_zone_demand() {
+            let test_bed = test_bed_with_cockpit_hot_and_cabin_cold(true);
+            assert!(hot_air_valve_is_open(&test_bed));
+
+            let lowest_demand = zone_duct_demands(&test_bed)
+                .into_iter()
+                .fold(f64::INFINITY, f64::min);
+            for pack_outlet in pack_outlet_temperatures(&test_bed) {
+                assert_about_eq!(pack_outlet, lowest_demand, PACK_OUTLET_TOLERANCE_C);
+            }
+        }
+
+        #[test]
+        fn with_the_hot_air_valve_closed_pack_1_regulates_the_cockpit_and_pack_2_the_cabin_mean() {
+            // FCOM DSC-21-10-40 HOT AIR PRESSURE REGULATING VALVE FAILURE, failed closed
+            let test_bed = test_bed_with_cockpit_hot_and_cabin_cold(false);
+            assert!(!hot_air_valve_is_open(&test_bed));
+
+            let [cockpit_demand, fwd_cabin_demand, aft_cabin_demand] = zone_duct_demands(&test_bed);
+            let [pack_1_outlet, pack_2_outlet] = pack_outlet_temperatures(&test_bed);
+            // The selections are far enough apart that the two packs must differ
+            assert_gt!(pack_1_outlet - pack_2_outlet, 3.);
+            assert_about_eq!(pack_1_outlet, cockpit_demand, PACK_OUTLET_TOLERANCE_C);
+            assert_about_eq!(
+                pack_2_outlet,
+                (fwd_cabin_demand + aft_cabin_demand) / 2.,
+                PACK_OUTLET_TOLERANCE_C
+            );
         }
     }
 
