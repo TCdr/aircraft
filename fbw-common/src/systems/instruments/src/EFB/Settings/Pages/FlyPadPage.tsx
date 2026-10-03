@@ -83,6 +83,7 @@ export const FlyPadPage = () => {
       <SettingItem name={tt('Settings.flyPad.Language', language)}>
         <SelectInput
           className="w-72"
+          fontSizeClassName="text-base"
           value={language}
           onChange={(value) => setLanguage(value as string)}
           options={languageOptions.map((option) => ({
@@ -97,6 +98,7 @@ export const FlyPadPage = () => {
       <SettingItem name={tt('Settings.flyPad.OnscreenKeyboardLayout', language)}>
         <SelectInput
           className="w-64"
+          fontSizeClassName="text-base"
           value={keyboardLayout}
           onChange={(value) => setKeyboardLayout(value as string)}
           options={keyboardLayoutOptions.map((option) => ({

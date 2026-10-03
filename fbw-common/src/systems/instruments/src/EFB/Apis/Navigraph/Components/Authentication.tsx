@@ -12,6 +12,7 @@ import { useHistory } from 'react-router-dom';
 import { t } from '../../../Localization/translation';
 import { useNavigraphAuth } from '../../../../react/navigraph';
 import { CancelToken, User } from '@navigraph/auth';
+import { M3Button } from '../../../UtilComponents/Material/Material';
 
 const NAVIGRAPH_SUBSCRIPTION_CHARTS = 'charts';
 const NAVIGRAPH_SUBSCRIPTION_FMSDATA = 'fmsdata';
@@ -92,19 +93,19 @@ const Loading: React.FC<LoadingProps> = ({ onNewDeviceFlowParams }) => {
   return (
     <div className="flex flex-col items-center justify-center">
       <div
-        className="flex items-center justify-center rounded-md bg-theme-secondary"
+        className="flex items-center justify-center rounded-2xl bg-m3-tile text-m3-muted"
         style={{ width: '400px', height: '400px' }}
       >
         <CloudArrowDown className="animate-bounce" size={40} />
       </div>
-      <button
-        type="button"
-        className={`mt-6 flex items-center justify-center rounded-md bg-theme-highlight p-2 opacity-0 transition duration-200 focus:outline-none ${showResetButton && 'opacity-100'}`}
-        style={{ width: '400px' }}
+      {/* Shown after 2 s, when the sign-in may be stuck on an old refresh token */}
+      <M3Button
+        tone="tonal"
+        className={`mt-6 !h-12 w-[400px] ${showResetButton ? 'opacity-100' : 'opacity-0'}`}
         onClick={handleResetRefreshToken}
       >
         {t('NavigationAndCharts.Navigraph.ResetNavigraphAuthentication')}
-      </button>
+      </M3Button>
     </div>
   );
 };
@@ -124,18 +125,20 @@ export const NavigraphAuthUI = () => {
   const hasQr = !!verificationUrl;
 
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-x-hidden rounded-lg bg-theme-accent p-6">
+    <div className="flex h-full w-full items-center justify-center overflow-x-hidden rounded-2xl bg-m3-card-low p-6">
       <div className="flex flex-col items-center justify-center">
-        <ShieldLock className="mr-2" size={40} />
+        <span className="flex text-m3-on-primary-container">
+          <ShieldLock size={40} />
+        </span>
 
-        <h2 className="mt-2 flex items-center justify-center">
+        <h2 className="mt-2 flex items-center justify-center text-2xl font-bold text-m3-text">
           {t('NavigationAndCharts.Navigraph.AuthenticateWithNavigraph')}
         </h2>
 
-        <p className="mt-6 w-2/3 text-center">
+        <p className="mt-4 w-2/3 text-center text-base text-m3-muted">
           {t('NavigationAndCharts.Navigraph.ScanTheQrCodeOrOpen')}{' '}
           <span
-            className="text-theme-highlight"
+            className="text-base font-semibold text-m3-on-primary-container"
             onClick={() => verificationUrl && Coherent.call('OPEN_WEB_BROWSER', verificationUrl)}
           >
             {verificationUrl}
@@ -144,13 +147,13 @@ export const NavigraphAuthUI = () => {
         </p>
 
         <h1
-          className="mt-4 flex h-16 items-center rounded-md border-2 border-theme-highlight bg-theme-secondary px-4 text-4xl font-bold tracking-wider"
+          className="mt-4 flex h-16 items-center justify-center rounded-xl border-2 border-m3-primary bg-m3-ground px-4 text-4xl font-bold tracking-wider text-m3-text"
           style={{ minWidth: '200px' }}
         >
           {displayAuthCode}
         </h1>
 
-        <div className="mt-16">
+        <div className="mt-8">
           {hasQr ? (
             <div className="rounded-md bg-white p-3">
               <QRCode value={params.verification_uri_complete} size={400} />
@@ -199,7 +202,7 @@ export const NavigraphAuthUIWrapper: React.FC<NavigraphAuthUIWrapperProps> = ({
     <>{ui}</>
   ) : (
     <div className="mr-4 flex h-content-section-reduced w-full items-center justify-center overflow-x-hidden">
-      <p className="mb-6 pt-6 text-3xl">{t('NavigationAndCharts.Navigraph.InsufficientEnv')}</p>
+      <p className="mb-6 pt-6 text-3xl text-m3-text">{t('NavigationAndCharts.Navigraph.InsufficientEnv')}</p>
     </div>
   );
 };
@@ -212,19 +215,15 @@ export const NavigraphAuthRedirectUI = () => {
   };
 
   return (
-    <div className="flex h-content-section-reduced items-center justify-center rounded-lg border-2 border-theme-accent">
-      <div className="flex flex-col items-center justify-center space-y-4">
-        <h1>{t('NavigationAndCharts.Navigraph.GoToThirdPartyOptions.Title')}</h1>
+    <div className="flex h-content-section-reduced items-center justify-center rounded-2xl bg-m3-card-low">
+      <div className="flex flex-col items-center justify-center">
+        <h1 className="text-2xl font-bold text-m3-text">
+          {t('NavigationAndCharts.Navigraph.GoToThirdPartyOptions.Title')}
+        </h1>
 
-        <button
-          type="button"
-          className="flex w-52 items-center justify-center space-x-4 rounded-md border-2
-                         border-theme-highlight bg-theme-highlight py-2 text-theme-body transition
-                         duration-100 hover:bg-theme-body hover:text-theme-highlight"
-          onClick={handleGoToThirdPartySettings}
-        >
+        <M3Button className="mt-4 !h-12 w-72" onClick={handleGoToThirdPartySettings}>
           {t('NavigationAndCharts.Navigraph.GoToThirdPartyOptions.Button')}
-        </button>
+        </M3Button>
       </div>
     </div>
   );
