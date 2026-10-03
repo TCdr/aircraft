@@ -215,6 +215,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [LIGHTS] Strobe and beacon flash timing follows the real lights: 60 ms gap in the strobe double flash, A380X beacons flash halfway between the strobes - @TCdr
 1. [A32NX/SD] COND page: a failed trim air valve shows amber crosses (XX) in place of its arrow - @TCdr
 1. [A32NX/FWC] HOT AIR FAULT procedure completed (packs off, descent, RAM AIR, MAX FL), CKPT TRIM VALVE text, and the STATUS page lines of the air conditioning alerts - @TCdr
+1. [A32NX/COND] With the hot air valve closed, pack 1 regulates the cockpit and pack 2 the cabin at the mean of the FWD/AFT selections - @TCdr
 
 ## 2024.1.0
 
