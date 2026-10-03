@@ -39,6 +39,7 @@ import {
 import { Error as ErrorIcon } from './Assets/Error';
 import { FailuresOrchestratorProvider } from './failures-orchestrator-provider';
 import { AlertModal, ModalContainer, ModalProvider, useModals } from './UtilComponents/Modals/Modals';
+import { M3Button } from './UtilComponents/Material/Material';
 import { FbwLogo } from './UtilComponents/FbwLogo';
 import { Tooltip } from './UtilComponents/TooltipWrapper';
 import { StatusBar } from './StatusBar/StatusBar';
@@ -502,29 +503,29 @@ export const ErrorFallback = ({ error, resetErrorBoundary }: ErrorFallbackProps)
   const [sentryEnabled] = usePersistentProperty(SENTRY_CONSENT_KEY, SentryConsentState.Refused);
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-theme-body">
+    <div className="flex h-screen w-full items-center justify-center bg-m3-ground">
       <div className="max-w-4xl">
         <ErrorIcon />
         <div className="mt-6 space-y-12">
-          <h1 className="text-4xl font-bold">A critical error has been encountered.</h1>
+          <h1 className="text-4xl font-bold text-m3-text">A critical error has been encountered.</h1>
 
-          <h2 className="text-3xl">You are able to reset this tablet to recover from this error.</h2>
+          <h2 className="text-3xl text-m3-muted">You are able to reset this tablet to recover from this error.</h2>
 
           {sentryEnabled === SentryConsentState.Given && (
             <>
-              <h2 className="text-3xl leading-relaxed">
+              <h2 className="text-3xl leading-relaxed text-m3-muted">
                 You have opted into anonymous error reporting and this issue has been relayed to us. If you want
                 immediate support, please share the following code to a member of staff in the #support channel on the
                 FlyByWire Discord server:
               </h2>
 
-              <h1 className="text-center text-4xl font-extrabold tracking-wider">{sessionId}</h1>
+              <h1 className="text-center text-4xl font-extrabold tracking-wider text-m3-text">{sessionId}</h1>
             </>
           )}
 
           {/* What failed, to report it: the error, where it was thrown and in which components */}
           {error !== undefined && (
-            <div className="max-h-64 overflow-hidden rounded-md bg-theme-accent px-4 py-3 font-mono text-sm leading-snug text-theme-text">
+            <div className="max-h-64 overflow-hidden rounded-2xl border border-m3-outline bg-m3-card px-4 py-3 font-mono text-sm leading-snug text-m3-text">
               <p className="whitespace-pre-wrap break-all font-mono text-sm text-current">
                 {error instanceof Error ? `${error.name}: ${error.message}` : String(error)}
               </p>
@@ -537,12 +538,9 @@ export const ErrorFallback = ({ error, resetErrorBoundary }: ErrorFallbackProps)
             </div>
           )}
 
-          <div
-            className="w-full rounded-md border-2 border-utility-red bg-utility-red px-8 py-4 text-theme-body transition duration-100 hover:bg-theme-body hover:text-utility-red"
-            onClick={resetErrorBoundary}
-          >
-            <h2 className="text-center font-bold text-current">Reset Display</h2>
-          </div>
+          <M3Button tone="danger" className="w-full" onClick={resetErrorBoundary}>
+            <span className="text-2xl font-bold text-current">Reset Display</span>
+          </M3Button>
         </div>
       </div>
     </div>

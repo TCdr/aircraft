@@ -291,7 +291,7 @@ export const PushbackMap = () => {
             </div>
           )}
           <IconPlane
-            className="text-theme-highlight"
+            className="text-m3-primary"
             style={{
               transform: `rotate(-90deg) translateY(${Math.sign(aircraftIconPosition.x) * Math.min(1000, Math.abs(aircraftIconPosition.x))}px) translateX(${Math.sign(aircraftIconPosition.y) * Math.min(1000, Math.abs(aircraftIconPosition.y))}px)`,
             }}
