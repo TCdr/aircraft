@@ -17,6 +17,7 @@ import {
   M3_INPUT,
   M3_STATUS_TONES,
 } from '../../../UtilComponents/Material/Material';
+import { fuelFraction } from './fuelFraction';
 
 /** The refuel duration setting (the persistent property REFUEL_RATE_SETTING) */
 export enum RefuelRateSetting {
@@ -54,7 +55,7 @@ export const FuelHeadline: FC<FuelHeadlineProps> = ({ quantity, capacity, unit, 
     <span className="text-3xl font-bold">
       {formatFuel(quantity)}
       <span className="ml-2 text-sm font-semibold text-m3-muted">
-        {`/ ${formatFuel(capacity)} ${unit} · ${Math.round((Math.max(quantity, 0) / capacity) * 100)} %`}
+        {`/ ${formatFuel(capacity)} ${unit} · ${Math.round(fuelFraction(quantity, capacity) * 100)} %`}
       </span>
     </span>
   </div>
@@ -80,7 +81,7 @@ export const FuelTankTable: FC<FuelTankTableProps> = ({ title, unit, tanks, clas
         <span className={`w-24 shrink-0 truncate text-sm font-semibold ${tank.quantity > 0 ? '' : 'text-m3-muted'}`}>
           {tank.name}
         </span>
-        <M3Progress value={tank.quantity / tank.capacity} className="mx-3 w-auto flex-1" />
+        <M3Progress value={fuelFraction(tank.quantity, tank.capacity)} className="mx-3 w-auto flex-1" />
         <span className={`w-14 shrink-0 text-right text-sm font-semibold ${tank.quantity > 0 ? '' : 'text-m3-muted'}`}>
           {formatFuel(tank.quantity)}
         </span>
@@ -97,7 +98,7 @@ export const FuelTankTile: FC<{ tank: FuelTank; unit: string; className?: string
       {formatFuel(tank.quantity)}
       <span className="ml-1 text-xs font-semibold text-m3-muted">{`/ ${formatFuel(tank.capacity)} ${unit}`}</span>
     </span>
-    <M3Progress value={tank.quantity / tank.capacity} className="mt-2" />
+    <M3Progress value={fuelFraction(tank.quantity, tank.capacity)} className="mt-2" />
   </div>
 );
 

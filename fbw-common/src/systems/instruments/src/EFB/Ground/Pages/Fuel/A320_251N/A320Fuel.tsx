@@ -25,6 +25,7 @@ import {
   RefuelRateSetting,
 } from '../FuelLayout';
 import { A320FuelPlanform } from './A320FuelPlanform';
+import { fuelFraction } from '../fuelFraction';
 
 interface FuelProps {
   simbriefDataLoaded: boolean;
@@ -280,7 +281,7 @@ export const A320Fuel: React.FC<FuelProps> = ({
   const status = refuelStatus();
   const onBoard = totalCurrent();
   const target = Number(inputValue) || 0;
-  const level = (gallons: number, capacityGallons: number) => (Math.max(gallons, 0) / capacityGallons) * 100;
+  const level = (gallons: number, capacityGallons: number) => fuelFraction(gallons, capacityGallons) * 100;
   /** The tanks as on the aircraft, from the left wing tip to the right wing tip */
   const tanks: FuelTank[] = [
     { name: t('Ground.Fuel.LeftOuterTank'), quantity: convertFuelValueCenter(LOutCurrent), capacity: outerCell() },
