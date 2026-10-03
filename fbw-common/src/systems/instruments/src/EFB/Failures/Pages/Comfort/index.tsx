@@ -11,6 +11,7 @@ import { t } from '../../../Localization/translation';
 import { pathify } from '../../../Utils/routing';
 import { AtaChapterPage } from './AtaChapterPage';
 import { useFailuresOrchestrator } from '../../../failures-orchestrator-provider';
+import { failuresCountLabel } from '../../activeFailuresLabel';
 
 interface ATAChapterCardProps {
   ataNumber: AtaChapterNumber;
@@ -49,7 +50,7 @@ const ATAChapterCard = ({ ataNumber, description, title, className }: ATAChapter
             </span>
           )}
           <span className="ml-2 whitespace-nowrap rounded-full bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
-            {`${chapterFailures.length} ${t('Failures.Failures')}`}
+            {failuresCountLabel(chapterFailures.length, t)}
           </span>
         </div>
         <p className="mt-1 line-clamp-2 text-xs leading-snug text-m3-muted">{description}</p>

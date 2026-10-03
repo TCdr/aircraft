@@ -5,6 +5,7 @@
     "Com1": "COM 1",
     "ControllerInformation": "Controller information",
     "ControllersOnline": "Controllers online",
+    "NoControllersToDisplay": "There are no controllers to display.",
     "NoInformationAvailableForThisFrequency": "No information available for this frequency",
     "SearchPlaceholder": "Search",
     "SelectCorrectATISATCSource": "This page is only available when IVAO or VATSIM is selected as the ATIS/ATC source in the settings page.",
@@ -129,6 +130,7 @@
   },
   "Failures": {
     "Active": "active",
+    "ActiveFailure": "active failure",
     "ActiveFailures": "active failures",
     "Comfort": {
       "Title": "Comfort"
@@ -137,6 +139,7 @@
       "Title": "Compact"
     },
     "FailedTapToRestore": "Failed, tap to restore",
+    "Failure": "failure",
     "Failures": "failures",
     "FullSimulationOfTheFailuresBelowIsntYetGuaranteed": "Full simulation of the failures below isn't yet guaranteed.",
     "Search": "Search",
@@ -728,7 +731,7 @@
     },
     "Title": "Performance",
     "TopOfDescent": {
-      "Title": "Top of Descent",
+      "Title": "Descent",
       "Calc": {
         "FillFromFms": "Fill data from FMS",
         "DescentType": "Descent type",
@@ -778,6 +781,7 @@
         "ShallowerThanIdle": "Shallower than the idle descent: thrust needed, more fuel",
         "NoResult": "Enter the descent data, then calculate",
         "Legend": "Idle descent (or given V/S) with the flight and engine models of the FMS predictions. ECON: the managed descent speeds of the FMS. Amber*: anti-ice corrections of the A320 FCOM descent table.",
+        "LegendA380": "Idle descent (or given V/S) with the flight and engine models of the FMS predictions. ECON: the managed descent speeds of the FMS. Amber*: anti-ice corrections estimated with the A320 FCOM descent table (the A380 FCOM gives no anti-ice table).",
         "Check": "Descent check",
         "DistanceToTarget": "Distance to target",
         "CheckHelp": "Enter the distance to the target (Fill data from FMS: to the destination)",
