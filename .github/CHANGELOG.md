@@ -213,6 +213,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/COND] LAV + GALLEY FAN failure: the FWD/AFT CABIN selectors set the cabin duct temperature directly; with ACSC 2 lost the cabin gets the cockpit duct air - @TCdr
 1. [A32NX/FWC] DUCT OVHT also triggers on the fourth duct excursion above 80 °C in a flight; PACK 1(2) FAULT also triggers on a pack valve position disagree - @TCdr
 1. [LIGHTS] Strobe and beacon flash timing follows the real lights: 60 ms gap in the strobe double flash, A380X beacons flash halfway between the strobes - @TCdr
+1. [A32NX/SD] COND page: a failed trim air valve shows amber crosses (XX) in place of its arrow - @TCdr
+1. [A32NX/FWC] HOT AIR FAULT procedure completed (packs off, descent, RAM AIR, MAX FL), CKPT TRIM VALVE text, and the STATUS page lines of the air conditioning alerts - @TCdr
 
 ## 2024.1.0
 
