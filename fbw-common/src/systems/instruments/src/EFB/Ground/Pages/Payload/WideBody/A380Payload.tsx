@@ -772,10 +772,10 @@ export const A380Payload: React.FC<PayloadProps> = ({
           handleDeboarding={handleDeboarding}
         />
       }
-      chart={
+      chart={(height) => (
         <ChartWidget
           width={PAYLOAD_CHART.width}
-          height={PAYLOAD_CHART.height}
+          height={height}
           envelope={airframeInfo.designLimits.performanceEnvelope}
           limits={flypadInfo.payload.chartLimits}
           cg={boardingStarted ? Math.round(gwCgMac * 100) / 100 : Math.round(desiredGwCgMac * 100) / 100}
@@ -785,7 +785,7 @@ export const A380Payload: React.FC<PayloadProps> = ({
           zfwCg={boardingStarted ? Math.round(zfwCgMac * 100) / 100 : Math.round(desiredZfwCgMac * 100) / 100}
           zfw={boardingStarted ? Math.round(zfw) : Math.round(zfwDesired)}
         />
-      }
+      )}
     />
   );
 };
