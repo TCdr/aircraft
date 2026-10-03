@@ -14,6 +14,7 @@ import { AirlineModifiableInformation } from '@shared/AirlineModifiableInformati
 import type { FlightManagementComputer } from './FlightManagementComputer';
 import { CompanyWindRequestState } from './FlightManagementComputer';
 import { PedestalPrinter } from './PedestalPrinter';
+import { NXSystemMessages } from '../shared/NXSystemMessages';
 
 /** One printed page: printed on the pedestal printer, and kept on the flypad. */
 export interface FmsPrintPage {
@@ -194,6 +195,7 @@ export class FmsPrinter {
 
   /** Called by the FMC update loop */
   public update(): void {
+    this.pedestalPrinter.update();
     this.flightPhase.set(this.fmc.fmgc.getFlightPhase());
     this.enginesRunning.set([1, 2, 3, 4].some((i) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_N2:${i}`, 'number') > 20));
     const onGround = this.fmc.fmgc.isOnGround();
@@ -584,7 +586,18 @@ export class FmsPrinter {
       .catch(() => {});
   }
 
+  /** Whether the cockpit printer can print (AC 1 powered, switched on with its ON/OFF button) */
+  public isAvailable(): boolean {
+    return this.pedestalPrinter.isAvailable();
+  }
+
   private send(title: string, lines: string[]): void {
+    // FCOM DSC-22-FMS-20-110 P 23: PRINTER NOT AVAIL (type II) when a report cannot be printed. Nothing is printed, so
+    // nothing is kept on the flypad either.
+    if (!this.pedestalPrinter.isAvailable()) {
+      this.fmc.addMessageToQueue(NXSystemMessages.printerNotAvail);
+      return;
+    }
     this.refreshDatabase();
     const page: FmsPrintPage = { title, utcSeconds: this.utc(), lines };
     this.pedestalPrinter.print(lines);
