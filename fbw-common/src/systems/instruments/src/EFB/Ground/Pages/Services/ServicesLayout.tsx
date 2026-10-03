@@ -211,17 +211,17 @@ export const ServicesLayout: FC<ServicesLayoutProps> = ({
             <FuselagePlanform variant={variant} doors={planformDoors} holds={planformHolds} tags={planformTags} />
           </div>
           <div className="flex shrink-0 flex-col pt-2 text-xs text-m3-muted">
-            <span className="inline-flex items-center">
+            <span className="inline-flex items-center text-xs text-m3-muted">
               <span className="mr-2 h-2 w-2 rounded-full bg-m3-primary" />
-              {t('Ground.Services.LegendActive')}
+              <span className="text-xs text-m3-muted">{t('Ground.Services.LegendActive')}</span>
             </span>
-            <span className="mt-1 inline-flex items-center">
+            <span className="mt-1 inline-flex items-center text-xs text-m3-muted">
               <span className="mr-2 h-2 w-2 rounded-full bg-m3-on-warn" />
-              {t('Ground.Services.LegendBusy')}
+              <span className="text-xs text-m3-muted">{t('Ground.Services.LegendBusy')}</span>
             </span>
-            <span className="mt-1 inline-flex items-center">
+            <span className="mt-1 inline-flex items-center text-xs text-m3-muted">
               <span className="mr-2 h-2 w-2 rounded-full border border-m3-outline-strong bg-m3-tile" />
-              {t('Ground.Services.LegendIdle')}
+              <span className="text-xs text-m3-muted">{t('Ground.Services.LegendIdle')}</span>
             </span>
           </div>
         </M3Card>
