@@ -5,6 +5,7 @@ import React, { FC, useEffect, useState } from 'react';
 import { useEventBus } from '@flybywiresim/flypad';
 import { Broadcast, X } from 'react-bootstrap-icons';
 import { t } from '../../../Localization/translation';
+import { M3Card, M3SectionHeader, M3Segmented } from '../../../UtilComponents/Material/Material';
 import { groupTaxiFrequencies, loadTaxiFrequencies, TaxiFrequenciesState } from './TaxiFrequencies';
 
 interface TaxiFrequencyPanelProps {
@@ -57,13 +58,14 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
 
   if (!open) {
     return (
+      // The look of the map buttons (TaxiMap)
       <button
         type="button"
-        className="absolute bottom-4 left-4 flex h-12 flex-row items-center space-x-2 rounded-xl border-2 border-utility-green bg-m3-ground px-4 text-sm font-semibold text-m3-text hover:text-utility-green"
+        className="absolute bottom-4 left-4 flex h-12 flex-row items-center space-x-2 rounded-xl border border-m3-outline bg-m3-ground px-4 text-m3-text hover:bg-m3-tile"
         onClick={() => setOpen(true)}
       >
         <Broadcast size={18} />
-        <span>{t('Ground.Taxi.Frequencies.Title')}</span>
+        <span className="text-sm font-semibold text-current">{t('Ground.Taxi.Frequencies.Title')}</span>
       </button>
     );
   }
@@ -80,46 +82,44 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
     status = t('Ground.Taxi.Frequencies.None');
   }
 
-  // The rows keep their height (shrink-0): the box scrolls instead of squeezing them
+  // A raised card over the map; the rows keep their height (shrink-0): the list scrolls instead of squeezing them
   return (
-    <div className="absolute bottom-4 left-4 flex max-h-[calc(100%-2rem)] w-80 flex-col rounded-xl border-2 border-utility-green bg-m3-ground">
-      <div className="flex shrink-0 flex-row items-center justify-between px-3 pt-2">
-        <span className="font-bold uppercase tracking-wider text-utility-green">
-          {t('Ground.Taxi.Frequencies.Title')}
-        </span>
-        <button
-          type="button"
-          className="bg-transparent text-m3-text hover:text-utility-green"
-          onClick={() => setOpen(false)}
-        >
-          <X size={24} />
-        </button>
-      </div>
-      <div className="flex shrink-0 flex-row space-x-2 px-3 py-2">
-        {airports.map((a) => (
+    <M3Card className="absolute bottom-4 left-4 max-h-[calc(100%-2rem)] w-96 border border-m3-outline shadow-lg">
+      <M3SectionHeader
+        title={t('Ground.Taxi.Frequencies.Title')}
+        trailing={
           <button
-            key={`${a.label}${a.icao}`}
             type="button"
-            className={`h-8 flex-1 rounded-full border px-2 text-sm font-semibold ${
-              shown === a.icao
-                ? 'border-utility-green bg-utility-green text-m3-ground'
-                : 'border-m3-outline bg-transparent text-m3-text hover:border-utility-green'
-            }`}
-            onClick={() => setShown(a.icao)}
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-transparent text-m3-muted hover:bg-m3-tile hover:text-m3-text"
+            onClick={() => setOpen(false)}
           >
-            {a.label} {a.icao}
+            <X size={22} />
           </button>
-        ))}
-      </div>
-      <div className="min-h-0 overflow-y-auto px-3 pb-2">
-        {status && <span className="text-sm text-m3-muted">{status}</span>}
+        }
+      />
+      {airports.length > 0 && (
+        <div className="shrink-0 px-4 pb-2">
+          <M3Segmented
+            options={airports.map((a) => ({
+              label: (
+                <span className="min-w-0 truncate px-2 text-sm font-semibold text-current">{`${a.label} ${a.icao}`}</span>
+              ),
+              selected: shown === a.icao,
+              onClick: () => setShown(a.icao),
+            }))}
+          />
+        </div>
+      )}
+      <div className="scrollbar min-h-0 overflow-y-auto px-4 pb-3">
+        {status && <span className="block py-1 text-sm text-m3-muted">{status}</span>}
         {/* rows, not a grid with gaps: the sim's rendering engine ignores the gap property */}
         {groups.map((g) => (
-          <div key={g.label} className="flex flex-row py-0.5">
-            <span className="w-[4.5rem] shrink-0 font-bold text-utility-green">{g.label}</span>
-            <div className="flex min-w-0 flex-1 flex-row flex-wrap font-mono text-m3-text">
+          <div key={g.label} className="flex shrink-0 flex-row py-1">
+            <span className="w-[4.5rem] shrink-0 text-sm font-bold text-m3-on-primary-container">{g.label}</span>
+            <div className="flex min-w-0 flex-1 flex-row flex-wrap">
               {g.frequencies.map((frequency) => (
-                <span key={frequency.mhz} className="w-1/2">
+                <span key={frequency.mhz} className="w-1/2 text-sm font-semibold text-m3-text">
                   {frequency.mhz.toFixed(3)}
                 </span>
               ))}
@@ -127,6 +127,6 @@ export const TaxiFrequencyPanel: FC<TaxiFrequencyPanelProps> = ({ icao, origin, 
           </div>
         ))}
       </div>
-    </div>
+    </M3Card>
   );
 };
