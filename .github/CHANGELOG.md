@@ -108,6 +108,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
 1. [A32NX/FWC] ENG 1(2) FIRE and APU FIRE warnings come from a detected fire or the FIRE TEST only, no longer from a released FIRE pb; the APU AGENT 10 s countdown starts with the APU FIRE pb - @TCdr
 1. [A32NX/FUEL] The ENG MASTER switch and the ENG FIRE pb close the engine LP fuel valve (shown on the SD FUEL page); with the ENG FIRE pb pushed the engine shuts down once the fuel left downstream of the valve is burned, up to 2 min 30 s at idle - @TCdr
+1. [A380X/FUEL] The ENG FIRE pb closes the engine LP fuel valve: the engine shuts down once the fuel left downstream of the valve is burned (about 17 s at idle at sea level); the SD FUEL page shows the LP valve, amber when abnormally open - @TCdr
 
 ## 2024.1.0
 
