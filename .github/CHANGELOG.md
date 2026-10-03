@@ -227,6 +227,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PRINTER] The pedestal printer control panel buttons are clickable: ON/OFF (green when on and AC 1 powered; switched off, the FMS and ATC COM prints show PRINTER NOT AVAIL), SLEW feeds paper, TEST prints a test page, ABORT cancels the waiting printouts - @TCdr
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
+1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
 
 ## 2024.1.0
 
