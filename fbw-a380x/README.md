@@ -35,7 +35,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 - Full separation into three synchronized FMCs and two FMSs (currently one FMC serving one FMS)
 - Accurate CI, OPT and REC MAX FL computation
 - NADP (see THR NOISE above)
-- ATC / datalink / CPDLC
+- ATC / datalink / CPDLC: the MFD ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD
+  mailbox work through the FBW ATSU and its ACARS providers; datalink functions outside those pages are not implemented
 - FCU BKUP
 - STEP ALTs: Optimum step calculation
 
