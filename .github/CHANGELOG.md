@@ -109,6 +109,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
 1. [LIGHTS] Strobe and beacon flash timing follows the real lights: 60 ms gap in the strobe double flash, A380X beacons flash halfway between the strobes - @TCdr
+1. [EFB] Loading an interior lighting preset that was never saved (or auto-loading one) sets the lights to 50 % as the flyPad says, instead of fading every light, displays and MCDUs included, to off - @TCdr
+1. [EFB] Saving an interior lighting preset works again: the presets file was never written (the ini library refused the existing work folder), so no preset could be saved or loaded - @TCdr
 
 ## 2024.1.0
 
