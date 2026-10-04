@@ -106,6 +106,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Single chime sound can be interrupted - @BravoMike99 (bruno_pt99)
 1. [A380X/RMP] Fix RMP brightness initialisation - @CameronCarlyon (YouBaconMeCrazy)
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
+1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
+1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
 1. [A380X/FWS] EMER CANC pushbutton: cancels the aural and MASTER WARN of a warning, a caution for the rest of the flight (CANCELLED CAUTION on the STATUS page, recalled with RCL held 3 s) - @TCdr
 1. [A380X/FIRE] Option to extend the FIRE TEST warnings and lights for a few seconds after the button is released - @TCdr
 1. [A380X/FWS] STATUS limitations, INOP SYS and INFO of the L/G, cockpit window and fuel leak/balancing ABN PROC procedures - @TCdr
