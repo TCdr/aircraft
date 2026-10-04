@@ -35,7 +35,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 - Full separation into three synchronized FMCs and two FMSs (currently one FMC serving one FMS)
 - Accurate CI, OPT and REC MAX FL computation
 - NADP (see THR NOISE above)
-- ATC / datalink / CPDLC
+- ATC / datalink / CPDLC: the MFD ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD
+  mailbox work through the FBW ATSU and its ACARS providers; datalink functions outside those pages are not implemented
 - FCU BKUP
 - STEP ALTs: Optimum step calculation
 
@@ -80,7 +81,9 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 - CDS / displays (automatic) reconfiguration
 - PFD backup scales
-- Interactive ND
+- Interactive ND: the revision lists (waypoints, NAVAIDs, airports, aircraft), the DIRECT TO, INSERT NEXT WPT and
+  DUPLICATE pages, the latitude/longitude waypoints from a click on the map and the temporary flight plan INSERT /
+  ERASE work; the other ND interactions of the FCOM are not implemented yet
 - Independent QNH
 - KCCU soft keyboard
 - ECAM: Completely accurate STS page implementation
@@ -101,8 +104,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 Navigation
 
-- MMR implementation: the GPS receivers and the GPIRS position are modelled (satellites from the nominal 24-slot
-  constellation); the DIFF, TEST and AIDED/ALTAID GPS modes and the GPS deselection are not
+- MMR implementation: the GPS receivers, the GPIRS position, the GPS modes (TEST, ALTAID, AIDED, DIFF) and the GPS
+  deselection are modelled; the satellites come from the nominal 24-slot constellation, not from a real almanac
 - GLS
 - ISIS SND (second ISIS): SFD/SND reconfiguration (the MODE pb only switches the SND off and on), power-up self-test,
   FIX display on the SFD; the position source is shown as GPIR (see MMR / GPIRS above); the coordinate entry with the
@@ -110,7 +113,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 Surveillance / TCAS / TAWS / WXR / XPDR
 
-- Weather radar / WXR due to sim limitation
+- Weather radar: the native radar shows the sim's weather; the PRED W/S, GAIN and ELEVN/TILT settings do not change the
+  radar picture
 - TAWS obstacles
 
 ### ATA 34 ROW/ROP
