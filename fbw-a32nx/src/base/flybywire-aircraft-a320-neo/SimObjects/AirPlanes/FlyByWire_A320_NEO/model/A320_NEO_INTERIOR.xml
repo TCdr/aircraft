@@ -2267,6 +2267,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_PUMP1</NODE_ID>
                     <PART_ID>OVHD_FUEL_PUMP1</PART_ID>
                     <ID>9</ID>
+                    <PB_IS_ON_VAR>L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON</PB_IS_ON_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2282,6 +2283,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_PUMP2</NODE_ID>
                     <PART_ID>OVHD_FUEL_PUMP2</PART_ID>
                     <ID>10</ID>
+                    <PB_IS_ON_VAR>L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON</PB_IS_ON_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2348,18 +2350,22 @@
                     <ON_TOOLTIP>A32NX.COCKPIT.TOOLTIPS.OVHD_FUEL_MODESEL_ON</ON_TOOLTIP>
                 </UseTemplate>
 
-                <!-- run the MSFS jet "pump" depending on which valves are open -->
+                <!-- run the MSFS jet "pump" depending on which valves are open and on the inner tank pumps of its wing -->
                 <UseTemplate Name="FBW_JET_PUMP">
                     <PUMP_INDEX>1</PUMP_INDEX>
                     <JUNCTION_INDEX>4</JUNCTION_INDEX>
                     <AUTO_VALVE_INDEX>11</AUTO_VALVE_INDEX>
                     <DISABLE_VALVE_INDEX>9</DISABLE_VALVE_INDEX>
+                    <MOTIVE_PUMP_1_INDEX>2</MOTIVE_PUMP_1_INDEX>
+                    <MOTIVE_PUMP_2_INDEX>5</MOTIVE_PUMP_2_INDEX>
                 </UseTemplate>
                 <UseTemplate Name="FBW_JET_PUMP">
                     <PUMP_INDEX>4</PUMP_INDEX>
                     <JUNCTION_INDEX>5</JUNCTION_INDEX>
                     <AUTO_VALVE_INDEX>12</AUTO_VALVE_INDEX>
                     <DISABLE_VALVE_INDEX>10</DISABLE_VALVE_INDEX>
+                    <MOTIVE_PUMP_1_INDEX>3</MOTIVE_PUMP_1_INDEX>
+                    <MOTIVE_PUMP_2_INDEX>6</MOTIVE_PUMP_2_INDEX>
                 </UseTemplate>
             </Component>
 

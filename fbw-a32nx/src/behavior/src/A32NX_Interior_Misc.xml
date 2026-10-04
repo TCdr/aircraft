@@ -213,15 +213,20 @@
         </UseTemplate>
     </Template>
 
+    <!--
+    CTR TK L (R) XFR pb-sw. The pb-sw only toggles its selection (PB_IS_ON_VAR, OFF light and animation): the systems host
+    (Fuel/FuelPumpsAndValves) drives the MSFS inhibit valve #ID# of the centre tank transfer valve from it, and holds the
+    transfer valve open or closed while it is jammed.
+    -->
     <Template Name="FBW_Airbus_Fuel_Jet_Pump">
         <UseTemplate Name="FBW_Push_Toggle">
-            <LEFT_SINGLE_CODE>#ID# (&gt;K:FUELSYSTEM_VALVE_TOGGLE)</LEFT_SINGLE_CODE>
+            <TOGGLE_SIMVAR>#PB_IS_ON_VAR#</TOGGLE_SIMVAR>
 
-            <SEQ2_CODE>(A:FUELSYSTEM VALVE SWITCH:#ID#, Enum) 0 ==</SEQ2_CODE>
+            <SEQ2_CODE>(#PB_IS_ON_VAR#, Bool) !</SEQ2_CODE>
 
-            <DOWN_CODE>(A:FUELSYSTEM VALVE SWITCH:#ID#, Enum) 1 ==</DOWN_CODE>
+            <DOWN_CODE>(#PB_IS_ON_VAR#, Bool)</DOWN_CODE>
 
-            <TOOLTIPID>%((A:FUELSYSTEM VALVE SWITCH:#ID#, Enum) 0 ==)%{if}TT:#OFF_TOOLTIP#%{else}TT:#ON_TOOLTIP#%{end}</TOOLTIPID>
+            <TOOLTIPID>%((#PB_IS_ON_VAR#, Bool) !)%{if}TT:#OFF_TOOLTIP#%{else}TT:#ON_TOOLTIP#%{end}</TOOLTIPID>
         </UseTemplate>
     </Template>
 
@@ -598,12 +603,20 @@ if groundCtl and !groundControlPermissives {
         </Update>
     </Template>
 
+    <!--
+    The MSFS "pump" of a centre tank jet pump: it runs while the transfer valve is open (both MSFS valves, or the inhibit
+    valve with the MODE SEL MAN junction) and an inner tank pump of the same wing (MOTIVE_PUMP_1/2_INDEX) runs, as the jet
+    pump is driven by their flow (A320 FCOM DSC-28-10 CENTER TANK FUEL TRANSFER: "fuel from the inner tank pumps flows
+    through the jet pump and creates a suction in it").
+    -->
     <Template Name="FBW_JET_PUMP">
         <Parameters Type="Default">
             <PUMP_INDEX>1</PUMP_INDEX>
             <JUNCTION_INDEX>1</JUNCTION_INDEX>
             <AUTO_VALVE_INDEX>1</AUTO_VALVE_INDEX>
             <DISABLE_VALVE_INDEX>1</DISABLE_VALVE_INDEX>
+            <MOTIVE_PUMP_1_INDEX>2</MOTIVE_PUMP_1_INDEX>
+            <MOTIVE_PUMP_2_INDEX>5</MOTIVE_PUMP_2_INDEX>
         </Parameters>
         <Component ID="JET_PUMP_#PUMP_INDEX#">
             <UseTemplate Name="Asobo_GT_Update">
@@ -612,9 +625,10 @@ if groundCtl and !groundControlPermissives {
                     let manualSelected = (A:FUELSYSTEM JUNCTION SETTING:#JUNCTION_INDEX#, number) > 1.5;
                     let autoSelected = (A:FUELSYSTEM VALVE OPEN:#AUTO_VALVE_INDEX#, percent over 100) > 0.0 and !manualSelected;
                     let valveOpen = (A:FUELSYSTEM VALVE OPEN:#DISABLE_VALVE_INDEX#, percent over 100) > 0.0 and (autoSelected or manualSelected);
+                    let motiveFlow = (A:FUELSYSTEM PUMP ACTIVE:#MOTIVE_PUMP_1_INDEX#, bool) or (A:FUELSYSTEM PUMP ACTIVE:#MOTIVE_PUMP_2_INDEX#, bool);
                     let jetPump = (A:FUELSYSTEM PUMP ACTIVE:#PUMP_INDEX#, bool);
 
-                    if valveOpen != jetPump {
+                    if (valveOpen and motiveFlow) != jetPump {
                         (K:FUELSYSTEM_PUMP_TOGGLE) = #PUMP_INDEX, number#;
                     }
                 </UPDATE_CODE>

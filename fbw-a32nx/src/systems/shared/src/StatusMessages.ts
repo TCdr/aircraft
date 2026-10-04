@@ -28,6 +28,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
   // 34 NAVIGATION
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
+  // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
+  ['280200001', { part: StatusPart.Information, text: 'CTR TK USABLE BY GRAVITY' }],
+  ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
   // 21 AIR CONDITIONING
@@ -64,6 +67,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280300005', { part: StatusPart.InopSys, text: 'L TK PUMPS' }],
   ['280300006', { part: StatusPart.InopSys, text: 'R TK PUMPS' }],
   ['280300007', { part: StatusPart.InopSys, text: 'FUEL X FEED' }],
+  ['280300008', { part: StatusPart.InopSys, text: 'CTR TK L XFR' }],
+  ['280300009', { part: StatusPart.InopSys, text: 'CTR TK R XFR' }],
+  ['280300010', { part: StatusPart.InopSys, text: 'CTR TK XFR' }],
   // 34 NAVIGATION
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
