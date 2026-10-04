@@ -30,6 +30,7 @@ import { A32NXFacBusPublisher } from '../shared/src/publishers/A32NXFacBusPublis
 import { TawsStatusBridge } from './systems/TawsStatusBridge';
 import { RaasSystem } from './systems/Raas/RaasSystem';
 import { Transponder } from './systems/Transponder/Transponder';
+import { RadioCommunicationFailures } from './systems/Communications/RadioCommunicationFailures';
 
 class SystemsHost extends BaseInstrument {
   private readonly bus = new EventBus();
@@ -72,6 +73,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('TawsStatusBridge', new TawsStatusBridge());
     this.backplane.addInstrument('Raas', new RaasSystem(this.bus));
     this.backplane.addInstrument('Transponder', new Transponder());
+    this.backplane.addInstrument('RadioCommunicationFailures', new RadioCommunicationFailures());
 
     this.backplane.addPublisher('HEvent', this.hEventPublisher);
     this.backplane.addPublisher('FuelSystem', this.fuelSystemPublisher);
