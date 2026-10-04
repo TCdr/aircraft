@@ -7706,7 +7706,7 @@ mod tests {
                 self.read_by_name("HYD_GREEN_AUXILIARY_1_SECTION_PRESSURE")
             }
 
-            fn _get_yellow_reservoir_volume(&mut self) -> Volume {
+            fn get_yellow_reservoir_volume(&mut self) -> Volume {
                 self.read_by_name("HYD_YELLOW_RESERVOIR_LEVEL")
             }
 
@@ -7750,7 +7750,7 @@ mod tests {
                 self.read_by_name("HYD_BRAKE_NORM_RIGHT_PRESS")
             }
 
-            fn _get_brake_yellow_accumulator_pressure(&mut self) -> Pressure {
+            fn get_brake_yellow_accumulator_pressure(&mut self) -> Pressure {
                 self.read_by_name("HYD_BRAKE_ALTN_ACC_PRESS")
             }
 
@@ -11489,6 +11489,92 @@ mod tests {
             assert_gt!(
                 test_bed.get_brake_right_green_pressure(),
                 Pressure::new::<psi>(500.)
+            );
+        }
+
+        fn test_bed_on_ground_with_all_engines_running() -> A380HydraulicsTestBed {
+            test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_one_tick()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(30))
+        }
+
+        #[test]
+        fn brakes_norm_circuit_leak_drains_green_fluid_only() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            assert!(test_bed.is_green_pressure_switch_pressurised());
+
+            let green_level_before = test_bed.get_green_reservoir_volume();
+            let yellow_level_before = test_bed.get_yellow_reservoir_volume();
+
+            test_bed.fail(FailureType::BrakeHydraulicLeak(HydraulicColor::Green));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(10));
+
+            // The leak flows 0.1 gal/s out of the pressurised circuit
+            assert_gt!(
+                green_level_before - test_bed.get_green_reservoir_volume(),
+                Volume::new::<gallon>(0.5)
+            );
+            assert_lt!(
+                (yellow_level_before - test_bed.get_yellow_reservoir_volume()).abs(),
+                Volume::new::<gallon>(0.1)
+            );
+        }
+
+        #[test]
+        fn brakes_altn_circuit_leak_drains_yellow_fluid_only() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+
+            let green_level_before = test_bed.get_green_reservoir_volume();
+            let yellow_level_before = test_bed.get_yellow_reservoir_volume();
+
+            test_bed.fail(FailureType::BrakeHydraulicLeak(HydraulicColor::Yellow));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(10));
+
+            assert_gt!(
+                yellow_level_before - test_bed.get_yellow_reservoir_volume(),
+                Volume::new::<gallon>(0.5)
+            );
+            assert_lt!(
+                (green_level_before - test_bed.get_green_reservoir_volume()).abs(),
+                Volume::new::<gallon>(0.1)
+            );
+        }
+
+        #[test]
+        fn brakes_altn_accumulator_gas_leak_drops_the_stored_brake_pressure() {
+            // Charge the ALTN brake accumulator, then stop the engines so that only the accumulator holds pressure
+            let charged_and_isolated = || {
+                test_bed_on_ground_with_all_engines_running()
+                    .engines_off()
+                    .run_waiting_for(Duration::from_secs(30))
+            };
+
+            let mut test_bed_without_failure = charged_and_isolated();
+            let mut test_bed_with_failure = charged_and_isolated();
+            assert!(!test_bed_with_failure.is_yellow_pressure_switch_pressurised());
+            assert_gt!(
+                test_bed_with_failure.get_brake_yellow_accumulator_fluid_volume(),
+                Volume::new::<gallon>(0.01)
+            );
+
+            test_bed_with_failure.fail(FailureType::BrakeAccumulatorGasLeak);
+            test_bed_without_failure =
+                test_bed_without_failure.run_waiting_for(Duration::from_secs(30));
+            test_bed_with_failure = test_bed_with_failure.run_waiting_for(Duration::from_secs(30));
+
+            let stored_pressure = test_bed_without_failure.get_brake_yellow_accumulator_pressure();
+            assert_gt!(stored_pressure, Pressure::new::<psi>(1500.));
+            assert_lt!(
+                test_bed_with_failure.get_brake_yellow_accumulator_pressure(),
+                stored_pressure / 2.
             );
         }
 

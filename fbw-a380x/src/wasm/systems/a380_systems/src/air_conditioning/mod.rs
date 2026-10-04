@@ -2879,6 +2879,15 @@ mod tests {
             })
         }
 
+        fn trim_air_valve_open_amount_in_zone(&self, zone_index: usize) -> Ratio {
+            self.query(|a| {
+                a.a380_cabin_air
+                    .a380_air_conditioning_system
+                    .trim_air_system
+                    .trim_air_valves_open_amount()[zone_index]
+            })
+        }
+
         fn hot_air_is_enabled(&self) -> bool {
             self.query(|a| {
                 a.a380_cabin_air
@@ -5175,6 +5184,96 @@ mod tests {
                         - test_bed.measured_temperature().get::<degree_celsius>())
                     .abs()
                         < 1.
+                );
+            }
+        }
+
+        mod trim_air_failure_tests {
+            use super::*;
+
+            // Zone indices of the zones used by the flyPad trim air failures (see `cabin_zones`)
+            const COCKPIT: usize = 0;
+            const MAIN_DECK_1: usize = 1;
+
+            // A380 FCOM PRO-ABN-ECAM-10-21-10 COND DUCT OVHT: a duct overheats above 70 deg C
+            const FCOM_DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
+
+            fn test_bed_with_trim_air_valves_open() -> CabinAirTestBed {
+                test_bed()
+                    .with()
+                    .hot_air_pbs_on()
+                    .and()
+                    .engines_idle()
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        30.,
+                    ))
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        18.,
+                    ))
+                    .iterate(200)
+            }
+
+            #[test]
+            fn trim_air_fault_jams_the_valve_of_its_zone_only() {
+                let mut test_bed = test_bed_with_trim_air_valves_open();
+                let cockpit_open_amount = test_bed.trim_air_valve_open_amount_in_zone(COCKPIT);
+                assert_gt!(cockpit_open_amount, Ratio::new::<percent>(1.));
+                assert_gt!(
+                    test_bed.trim_air_valve_open_amount_in_zone(MAIN_DECK_1),
+                    Ratio::new::<percent>(1.)
+                );
+
+                test_bed.fail(FailureType::TrimAirFault(ZoneType::Cockpit));
+                // Now the zones are too hot: the controller commands every trim air valve closed
+                test_bed = test_bed
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        18.,
+                    ))
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        30.,
+                    ))
+                    .iterate(100);
+
+                assert_eq!(
+                    test_bed.trim_air_valve_open_amount_in_zone(COCKPIT),
+                    cockpit_open_amount
+                );
+                assert_lt!(
+                    test_bed.trim_air_valve_open_amount_in_zone(MAIN_DECK_1),
+                    Ratio::new::<percent>(1.)
+                );
+            }
+
+            #[test]
+            fn trim_air_overheat_heats_the_duct_of_its_zone_until_hot_air_is_set_off() {
+                let mut test_bed = test_bed()
+                    .with()
+                    .hot_air_pbs_on()
+                    .and()
+                    .engines_idle()
+                    .iterate(50);
+                assert_lt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+
+                assert_gt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+                assert_lt!(
+                    test_bed.duct_temperature()[MAIN_DECK_1].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+
+                // FCOM COND DUCT OVHT procedure: HOT AIR OFF stops the overheat
+                test_bed = test_bed.hot_air_pbs_off().iterate(50);
+                assert_lt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
                 );
             }
         }
