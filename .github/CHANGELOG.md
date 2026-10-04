@@ -117,6 +117,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
 1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ROSE and ARC pages - @TCdr
 1. [ND] Fewer stutters with the weather radar and TERR ON ND: the map views nothing shows are paused - @TCdr
+1. [A380X/ND] The ND shows the WXR messages of the manual radar settings of the MFD SURV CONTROLS page: GAIN with the GAIN button at MAN, ELEVN or TILT instead of WX - @TCdr
+1. [A380X/MFD] WXR GAIN, TILT and ELEVN take the FCOM default values (GAIN 50 %, TILT +3.0 deg on ground and 0 deg in flight, ELEVN the current altitude) at the first manual selection - @TCdr
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 
 ## 2024.1.0
