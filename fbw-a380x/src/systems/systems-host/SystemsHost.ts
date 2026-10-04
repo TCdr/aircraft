@@ -10,7 +10,6 @@ import {
   ClockEvents,
   ConsumerSubject,
   MappedSubject,
-  SubscribableMapFunctions,
   WeightBalanceSimvarPublisher,
   StallWarningPublisher,
   SimVarValueType,
@@ -91,7 +90,7 @@ class SystemsHost extends BaseInstrument {
   private soundManager: LegacySoundManager | undefined;
 
   private readonly acEssBusPowered = ConsumerSubject.create(this.sub.on('acBusEss'), false);
-  private readonly acBus2Powered = ConsumerSubject.create(this.sub.on('acBus2'), false);
+  private readonly acBus4Powered = ConsumerSubject.create(this.sub.on('acBus4'), false);
   private readonly dcEssBusPowered = ConsumerSubject.create(this.sub.on('dcBusEss'), false);
   private readonly dcBus1Powered = ConsumerSubject.create(this.sub.on('dcBus1'), false);
   private readonly dcBus2Powered = ConsumerSubject.create(this.sub.on('dcBus2'), false);
@@ -105,15 +104,15 @@ class SystemsHost extends BaseInstrument {
   private readonly amu2 = new AudioManagementUnit(this.bus, 2, this.failuresConsumer);
   private readonly simAudioManager = new SimAudioManager(this.bus, this.amu1, this.amu2);
 
-  private readonly xpdr1 = new Transponder(
+  // XPDR 1 (SURV SYS 1, AC ESS) and XPDR 2 (SURV SYS 2, AC 4), A380 FCOM DSC-34-20-100 (a380_fcom.txt:92741-92743).
+  // MSFS supports only one transponder (circuit 41): it acts as the transponder of the selected system.
+  private readonly xpdr = new Transponder(
     this.bus,
-    1,
     41,
-    MappedSubject.create(SubscribableMapFunctions.or(), this.acEssBusPowered, this.acBus2Powered),
+    this.acEssBusPowered,
+    this.acBus4Powered,
     this.failuresConsumer,
   );
-  // MSFS only supports 1
-  // private readonly xpdr2 = new Transponder(2, 144, this.acBus2Powered, this.failuresConsumer);
 
   private readonly atsu = new AtsuSystem(this.bus);
 
@@ -208,7 +207,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('Amu1', this.amu1, true);
     this.backplane.addInstrument('Amu2', this.amu2, true);
     this.backplane.addInstrument('SimAudioManager', this.simAudioManager);
-    this.backplane.addInstrument('Xpndr1', this.xpdr1, true);
+    this.backplane.addInstrument('Xpndr', this.xpdr, true);
     this.backplane.addInstrument('AtsuSystem', this.atsu);
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);

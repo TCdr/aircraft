@@ -215,6 +215,12 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
     - ARINC429 - BCD VHF COM Frequency
     - The tuned frequency from the VHF radios.
 
+- `L:A32NX_NSS_ANSU_{1,2}_IS_HEALTHY`, `L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY`
+    - Boolean
+    - The NSS AVNCS ANSU 1/2 and the FLT OPS ANSU are powered, not failed (46001, 46002, 46003), not reset and the NSS
+      master is on. The NSS AVNCS applications run while either NSS AVNCS ANSU is healthy (ANSU 2 takes over from
+      ANSU 1).
+
 ## Sim Specific
 
 ### Local Vars

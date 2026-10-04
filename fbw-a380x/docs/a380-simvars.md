@@ -989,10 +989,10 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Bool
     - True when the contactor is CLOSED
     - {name}
-        - 3XB.1: Contactor between the static inverter and AC EMER BUS (AC ESS)
-        - 3XB.2: Contactor between AC ESS BUS (AC ESS SCHED) and AC EMER BUS (AC ESS)
-        - 3XC1: AC ESS feed contactor between AC BUS 1 and AC ESS BUS (AC ESS SCHED)
-        - 3XC2: AC ESS feed contactor between AC BUS 4 and AC ESS BUS (AC ESS SCHED)
+        - 3XB.1: Contactor between AC ESS BUS (400XP, variable AC_ESS_SHED) and AC EMER BUS (491XP, variable AC_ESS)
+        - 3XB.2: Contactor between the static inverter and AC EMER BUS (491XP, variable AC_ESS)
+        - 3XC1: AC ESS feed contactor between AC BUS 1 and AC ESS BUS (400XP, variable AC_ESS_SHED)
+        - 3XC2: AC ESS feed contactor between AC BUS 4 and AC ESS BUS (400XP, variable AC_ESS_SHED)
         - 5PB: Battery APU contactor
         - 5XE: Emergency generator contactor
         - 6PB3: Battery ESS contactor
@@ -1005,7 +1005,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 14PH: Contactor from DC ESS BUS to DC EHA BUS
         - 900XU: System isolation contactor
         - 911XN: Contactor from AC BUS 3 to AC EHA BUS
-        - 911XH: Contactor from AC ESS BUS (AC ESS SCHED) to AC EHA BUS
+        - 911XH: Contactor from AC ESS BUS (400XP, variable AC_ESS_SHED) to AC EHA BUS
         - 970PN: Contactor from DC BUS 2 to DC GND/FLT SVC BUS
         - 970PN2: Contactor from DC BUS 2 to DC EHA BUS
         - 980PC: Inter bus line contactor between DC BUS 1 and DC BUS 2
@@ -1034,18 +1034,24 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_ELEC_{name}_BUS_IS_POWERED
     - Bool
     - True when the given bus is powered
+    - The AC ESS names come from the A320: on the A380 `AC_ESS_SHED` is the AC ESS busbar (400XP) and `AC_ESS` is
+      the AC EMER busbar (491XP). Failure 24105 (AC ESS) fails AC_ESS_SHED, failure 24104 (AC EMER) fails AC_ESS.
     - {name}
       - AC_1
       - AC_2
       - AC_3
       - AC_4
-      - AC_ESS
-      - AC_ESS_SCHED
-      - AC_247XP
+      - AC_ESS: AC EMER busbar (491XP), supplied by the AC ESS busbar or the static inverter
+      - AC_ESS_SHED: AC ESS busbar (400XP), supplied by AC 1, AC 4 (AC ESS FEED ALTN) or the emergency generator
+      - 247XP: AC EHA busbar
+      - AC_GND_FLT_SVC
       - DC_1
       - DC_2
       - DC_ESS
-      - DC_247PP
+      - 108PH: DC ESS in-flight sub-busbar
+      - 247PP: DC EHA busbar
+      - 309PP: DC APU busbar
+      - 502PP: refuel on battery busbar
       - DC_HOT_1
       - DC_HOT_2
       - DC_HOT_3
@@ -1800,6 +1806,23 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Number
     - Written by the ABV / BLW buttons of the pedestal SURV panel, read and reset to 0 by the TCAS computer
     - 0 = no request, otherwise the wanted `L:A380X_TCAS_ALT_SELECT` plus one
+
+- `L:A32NX_TRANSPONDER_SYSTEM`
+    - Number
+    - The XPDR & TCAS system in use, set on the SURV panel and the MFD SURV STATUS & SWITCHING page: 0 = SYS 1, 1 = SYS 2
+    - MSFS has one transponder: it is driven as the transponder of the selected system (XPDR 1: failure 34003,
+      AC ESS; XPDR 2: failure 34004, AC 4)
+
+- `L:A32NX_XPDR_{1,2}_FAILED`
+    - Bool
+    - True when the transponder of SURV SYS 1/2 is failed (failure 34003/34004) or unpowered (SYS 1: AC ESS,
+      SYS 2: AC 4), whether it is selected or not. Shown on the MFD SURV STATUS & SWITCHING page
+
+- `L:A32NX_TCAS_{1,2}_FAILED`
+    - Bool
+    - True when the TCAS of SURV SYS 1/2 is inoperative: its XPDR is failed or unpowered (`L:A32NX_XPDR_{1,2}_FAILED`),
+      or the system is selected and the TCAS computer reports a fault (`L:A32NX_TCAS_FAULT`, the single sim TCAS is
+      the TCAS of the selected system). Shown on the MFD SURV STATUS & SWITCHING page
 
 ## Navigation ATA 34
 

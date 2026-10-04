@@ -14,6 +14,7 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { OitSimvars } from '../../OitSimvarPublisher';
+import { isNssAvncsAvailable } from '../../System/AnsuLogic';
 
 interface OitAvncsLoadingScreenProps {
   readonly bus: EventBus;
@@ -26,7 +27,15 @@ export class OitAvncsLoadingScreen extends DisplayComponent<OitAvncsLoadingScree
 
   private readonly sub = this.props.bus.getSubscriber<OitSimvars & ClockEvents>();
 
-  private readonly ansuPowered = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
+  private readonly nssAnsu1Healthy = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
+  private readonly nssAnsu2Healthy = ConsumerSubject.create(this.sub.on('nssAnsu2Healthy'), false);
+
+  /** The NSS AVNCS applications run while ANSU 1 or ANSU 2 is healthy (A380 FCOM, a380_fcom.txt:107931-107932). */
+  private readonly ansuPowered = MappedSubject.create(
+    ([ansu1, ansu2]) => isNssAvncsAvailable(ansu1, ansu2),
+    this.nssAnsu1Healthy,
+    this.nssAnsu2Healthy,
+  );
 
   /** in seconds */
   private readonly remainingStartupTime = Subject.create(24);
@@ -63,7 +72,7 @@ export class OitAvncsLoadingScreen extends DisplayComponent<OitAvncsLoadingScree
       }, true),
     );
 
-    this.subscriptions.push(this.progressBarFillWidth);
+    this.subscriptions.push(this.progressBarFillWidth, this.nssAnsu1Healthy, this.nssAnsu2Healthy, this.ansuPowered);
   }
 
   public destroy(): void {

@@ -55,6 +55,10 @@ export type MfdSimvars = {
   baroStdL: boolean;
   baroStdR: boolean;
   xpdrSystem: number;
+  xpdr1Failed: boolean;
+  xpdr2Failed: boolean;
+  tcas1Failed: boolean;
+  tcas2Failed: boolean;
 };
 
 export type InternalKccuKeyEvent = {
@@ -116,6 +120,10 @@ export enum MfdVars {
   baroStdL = 'L:A32NX_FCU_EFIS_L_DISPLAY_BARO_IS_STD',
   baroStdR = 'L:A32NX_FCU_EFIS_R_DISPLAY_BARO_IS_STD',
   xpdrSystem = 'L:A32NX_TRANSPONDER_SYSTEM',
+  xpdr1Failed = 'L:A32NX_XPDR_1_FAILED',
+  xpdr2Failed = 'L:A32NX_XPDR_2_FAILED',
+  tcas1Failed = 'L:A32NX_TCAS_1_FAILED',
+  tcas2Failed = 'L:A32NX_TCAS_2_FAILED',
 }
 
 /** A publisher to poll and publish nav/com simvars. */
@@ -173,6 +181,10 @@ export class MfdSimvarPublisher extends SimVarPublisher<MfdSimvars> {
     ['baroStdL', { name: MfdVars.baroStdL, type: SimVarValueType.Bool }],
     ['baroStdR', { name: MfdVars.baroStdR, type: SimVarValueType.Bool }],
     ['xpdrSystem', { name: MfdVars.xpdrSystem, type: SimVarValueType.Number }],
+    ['xpdr1Failed', { name: MfdVars.xpdr1Failed, type: SimVarValueType.Bool }],
+    ['xpdr2Failed', { name: MfdVars.xpdr2Failed, type: SimVarValueType.Bool }],
+    ['tcas1Failed', { name: MfdVars.tcas1Failed, type: SimVarValueType.Bool }],
+    ['tcas2Failed', { name: MfdVars.tcas2Failed, type: SimVarValueType.Bool }],
   ]);
 
   public constructor(bus: EventBus) {

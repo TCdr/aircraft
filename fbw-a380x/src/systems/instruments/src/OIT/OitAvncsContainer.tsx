@@ -25,6 +25,7 @@ import { OitAvncsFooter } from './Pages/NssAvncs/OitAvncsFooter';
 import { OitAvncsLoadingScreen } from './Pages/NssAvncs/OitAvncsLoadingScreen';
 import { OitAvncsLogin } from './Pages/NssAvncs/OitAvncsLogin';
 import { AnsuOps } from './System/AnsuOps';
+import { isNssAvncsAvailable } from './System/AnsuLogic';
 
 interface OitAvncsContainerProps {
   readonly bus: EventBus;
@@ -55,7 +56,15 @@ export abstract class OitAvncsContainer extends DisplayComponent<OitAvncsContain
 
   private readonly topRef = FSComponent.createRef<HTMLDivElement>();
 
-  private readonly ansuPowered = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
+  private readonly nssAnsu1Healthy = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
+  private readonly nssAnsu2Healthy = ConsumerSubject.create(this.sub.on('nssAnsu2Healthy'), false);
+
+  /** The NSS AVNCS applications run while ANSU 1 or ANSU 2 is healthy (A380 FCOM, a380_fcom.txt:107931-107932). */
+  private readonly ansuPowered = MappedSubject.create(
+    ([ansu1, ansu2]) => isNssAvncsAvailable(ansu1, ansu2),
+    this.nssAnsu1Healthy,
+    this.nssAnsu2Healthy,
+  );
 
   private readonly hideContent = MappedSubject.create(
     ([mode, powered]) => mode === 'flt-ops' || !powered,
@@ -83,6 +92,8 @@ export abstract class OitAvncsContainer extends DisplayComponent<OitAvncsContain
           this.uiService.navigateTo('nss-avncs');
         }
       }),
+      this.nssAnsu1Healthy,
+      this.nssAnsu2Healthy,
       this.ansuPowered,
       this.hideContent,
       this.hideContainer,
