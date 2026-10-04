@@ -1751,6 +1751,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A380X_VD_CUT_TRACK_CHANGE_NM
     - Number (NM)
     - Distance along the cut at which the next track change is more than 3 degrees (the grey area of the VD), -1 when none
+
 - `L:A380X_WXR_OFF`
     - Bool
     - Set from the WXR button of the MFD SURV CONTROLS page. True when the weather radar is switched OFF (false = AUTO)
@@ -1830,11 +1831,11 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Written by the ABV / BLW buttons of the pedestal SURV panel, read and reset to 0 by the TCAS computer
     - 0 = no request, otherwise the wanted `L:A380X_TCAS_ALT_SELECT` plus one
 
-## Bleed Air ATA 36
-
 - `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
     - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
       the GPWS / TAWS section of fbw-a32nx/docs/a320-simvars.md
+
+## Bleed Air ATA 36
 
 - A32NX_PNEU_ENG_{number}_INTERMEDIATE_TRANSDUCER_PRESSURE
   - Psi
