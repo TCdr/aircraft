@@ -139,6 +139,18 @@ bool isDisplayUnitOn(const Instance& instance) {
   return get_named_variable_value(instance.powerBusVars[0]) != 0.0 || get_named_variable_value(instance.powerBusVars[1]) != 0.0;
 }
 
+// Whether the ND under this gauge shows its picture, so the weather and terrain may be drawn on it.
+// A32NX: nd.html also reports its display unit's state (A32NX_ND_x_DU_SHOWING_PICTURE, 1 while the DU is ON):
+// a DU that is switched off, self-testing or failed from the flyPad (A320 FCOM DSC-31-05-60, failure of a DU:
+// blank screen) shows no weather or terrain either.
+bool ndPictureShown(const Instance& instance) {
+#ifdef A380X
+  return isDisplayUnitOn(instance);
+#else
+  return isDisplayUnitOn(instance) && get_named_variable_value(instance.duShowingPictureVar) != 0.0;
+#endif
+}
+
 // Whether the crew has asked for the radar on this ND and the radar system can
 // supply it (the radar mode, ND page, position source and ground inhibit are
 // checked separately).
