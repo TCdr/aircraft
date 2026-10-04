@@ -9,6 +9,7 @@ import {
   computeCdsDisplays,
   DisplayUnitMap,
   DU_RECONF_SEQUENCE,
+  duReconfCycle,
   duReconfTarget,
   encodeDisplay,
   nextDuReconfDisplay,
@@ -143,15 +144,32 @@ describe('CDS reconfiguration (A380 FCOM DSC-31-15-20)', () => {
     expect(duReconfTarget('FO', lost(DisplayUnitID.FoMfd))).toBe(DisplayUnitID.FoNd);
     expect(duReconfTarget('FO', lost(DisplayUnitID.FoPfd))).toBe(DisplayUnitID.FoMfd);
     expect(duReconfTarget('FO', lost(DisplayUnitID.FoNd, DisplayUnitID.FoMfd))).toBe(DisplayUnitID.FoPfd);
+    // PFD and MFD DUs failed: CAPT rule 2; F/O rule 2 ends on the failed MFD DU, so the remaining ND DU
+    expect(duReconfTarget('CAPT', lost(DisplayUnitID.CaptPfd, DisplayUnitID.CaptMfd))).toBe(DisplayUnitID.CaptNd);
+    expect(duReconfTarget('FO', lost(DisplayUnitID.FoPfd, DisplayUnitID.FoMfd))).toBe(DisplayUnitID.FoNd);
   });
 
-  it('never takes an automatic display away with the DU RECONF pb', () => {
+  it('puts the automatic PFD at the head of the ND DU cycle, with the EWD and the SD (the MFD is not drawn)', () => {
+    expect(duReconfCycle(DisplayUnitID.CaptNd, CdsDisplay.Pfd)).toEqual([
+      CdsDisplay.Pfd,
+      CdsDisplay.Ewd,
+      CdsDisplay.Sd,
+    ]);
+    expect(duReconfCycle(DisplayUnitID.FoNd, CdsDisplay.Pfd)).toEqual([CdsDisplay.Pfd, CdsDisplay.Ewd, CdsDisplay.Sd]);
+    expect(duReconfCycle(DisplayUnitID.CaptNd, CdsDisplay.Nd)).toEqual([CdsDisplay.Nd, CdsDisplay.Ewd, CdsDisplay.Sd]);
+    expect(duReconfCycle(DisplayUnitID.CaptPfd, CdsDisplay.Pfd)).toEqual([CdsDisplay.Pfd, CdsDisplay.Nd]);
+    expect(duReconfCycle(DisplayUnitID.CaptMfd, CdsDisplay.Mfd)).toEqual([CdsDisplay.Mfd]);
+  });
+
+  it('takes the automatic PFD away from the ND DU with the DU RECONF pb, and gives it back after the SD', () => {
     const displays = computeCdsDisplays({
-      operative: lost(DisplayUnitID.CaptPfd),
+      operative: lost(DisplayUnitID.CaptPfd, DisplayUnitID.CaptMfd),
       pfdNdSwapped: NOT_SWAPPED,
       manual: {},
     });
-    expect(nextDuReconfDisplay(DisplayUnitID.CaptNd, CdsDisplay.Pfd, displays)).toBe(CdsDisplay.Pfd);
+    expect(nextDuReconfDisplay(DisplayUnitID.CaptNd, CdsDisplay.Pfd, CdsDisplay.Pfd, displays)).toBe(CdsDisplay.Ewd);
+    expect(nextDuReconfDisplay(DisplayUnitID.CaptNd, CdsDisplay.Ewd, CdsDisplay.Pfd, displays)).toBe(CdsDisplay.Sd);
+    expect(nextDuReconfDisplay(DisplayUnitID.CaptNd, CdsDisplay.Sd, CdsDisplay.Pfd, displays)).toBe(CdsDisplay.Pfd);
   });
 
   it('ignores a manual display the DU cannot draw', () => {
@@ -160,10 +178,22 @@ describe('CDS reconfiguration (A380 FCOM DSC-31-15-20)', () => {
         computeCdsDisplays({
           operative: lost(DisplayUnitID.Sd),
           pfdNdSwapped: NOT_SWAPPED,
-          manual: { [DisplayUnitID.CaptNd]: CdsDisplay.Sd },
+          manual: { [DisplayUnitID.CaptMfd]: CdsDisplay.Sd },
         }),
       ),
     ).toEqual({});
+  });
+
+  it('draws the SD on the ND DU when it is selected there', () => {
+    expect(
+      changes(
+        computeCdsDisplays({
+          operative: lost(DisplayUnitID.Sd),
+          pfdNdSwapped: NOT_SWAPPED,
+          manual: { [DisplayUnitID.FoNd]: CdsDisplay.Sd },
+        }),
+      ),
+    ).toEqual({ [DisplayUnitID.FoNd]: CdsDisplay.Sd });
   });
 
   describe('reconfiguration state', () => {
@@ -185,6 +215,67 @@ describe('CDS reconfiguration (A380 FCOM DSC-31-15-20)', () => {
       expect(changes(state.update(operative))).toEqual({ [DisplayUnitID.CaptPfd]: CdsDisplay.Nd });
       state.pressDuReconf('CAPT');
       expect(changes(state.update(operative))).toEqual({});
+    });
+
+    for (const [side, pfd, nd, mfd] of [
+      ['CAPT', DisplayUnitID.CaptPfd, DisplayUnitID.CaptNd, DisplayUnitID.CaptMfd],
+      ['FO', DisplayUnitID.FoPfd, DisplayUnitID.FoNd, DisplayUnitID.FoMfd],
+    ] as const) {
+      it(`cycles the ${side} ND DU through PFD, EWD, SD and back to the PFD when the PFD and MFD DUs are failed`, () => {
+        const operative = lost(pfd, mfd);
+        const state = new CdsReconfigurationState(operative);
+        expect(changes(state.update(operative))).toEqual({ [nd]: CdsDisplay.Pfd });
+        state.pressDuReconf(side);
+        expect(changes(state.update(operative))).toEqual({ [nd]: CdsDisplay.Ewd });
+        state.pressDuReconf(side);
+        expect(changes(state.update(operative))).toEqual({ [nd]: CdsDisplay.Sd });
+        state.pressDuReconf(side);
+        expect(changes(state.update(operative))).toEqual({ [nd]: CdsDisplay.Pfd });
+      });
+    }
+
+    it('never shows the EWD (SD) on both sides at the same time', () => {
+      const operative = lost(DisplayUnitID.CaptPfd, DisplayUnitID.CaptMfd, DisplayUnitID.FoPfd, DisplayUnitID.FoMfd);
+      const state = new CdsReconfigurationState(operative);
+      state.pressDuReconf('CAPT');
+      expect(state.update(operative)[DisplayUnitID.CaptNd]).toBe(CdsDisplay.Ewd);
+      // the F/O pb skips the EWD shown on the CAPT side
+      state.pressDuReconf('FO');
+      expect(state.update(operative)[DisplayUnitID.FoNd]).toBe(CdsDisplay.Sd);
+      // the CAPT pb skips the SD shown on the F/O side: back to the PFD
+      state.pressDuReconf('CAPT');
+      expect(changes(state.update(operative))).toEqual({
+        [DisplayUnitID.CaptNd]: CdsDisplay.Pfd,
+        [DisplayUnitID.FoNd]: CdsDisplay.Sd,
+      });
+    });
+
+    it('cycles the CAPT ND DU through ND, EWD and SD when only the MFD DU is failed', () => {
+      const operative = lost(DisplayUnitID.CaptMfd);
+      const state = new CdsReconfigurationState(operative);
+      state.pressDuReconf('CAPT');
+      expect(changes(state.update(operative))).toEqual({ [DisplayUnitID.CaptNd]: CdsDisplay.Ewd });
+      state.pressDuReconf('CAPT');
+      expect(changes(state.update(operative))).toEqual({ [DisplayUnitID.CaptNd]: CdsDisplay.Sd });
+      state.pressDuReconf('CAPT');
+      expect(changes(state.update(operative))).toEqual({});
+    });
+
+    it('shows the SD on the F/O ND DU with the F/O DU RECONF pb when the SD DU is off (ATC mailbox procedure)', () => {
+      const operative = lost(DisplayUnitID.Sd);
+      const state = new CdsReconfigurationState(operative);
+      state.pressDuReconf('FO');
+      state.pressDuReconf('FO');
+      expect(changes(state.update(operative))).toEqual({ [DisplayUnitID.FoNd]: CdsDisplay.Sd });
+    });
+
+    it('gives the PFD back to the ND DU when the PFD DU fails after a DU RECONF selection there', () => {
+      const mfdLost = lost(DisplayUnitID.CaptMfd);
+      const state = new CdsReconfigurationState(mfdLost);
+      state.pressDuReconf('CAPT');
+      expect(changes(state.update(mfdLost))).toEqual({ [DisplayUnitID.CaptNd]: CdsDisplay.Ewd });
+      const pfdAndMfdLost = lost(DisplayUnitID.CaptPfd, DisplayUnitID.CaptMfd);
+      expect(changes(state.update(pfdAndMfdLost))).toEqual({ [DisplayUnitID.CaptNd]: CdsDisplay.Pfd });
     });
 
     it('does nothing with the DU RECONF pb when no on-side DU is failed', () => {

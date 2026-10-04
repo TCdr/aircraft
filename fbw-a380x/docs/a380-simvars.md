@@ -1790,8 +1790,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 1: PFD (on the ND DU: PFD DU lost, or PFD/ND pb)
     - 2: ND (on the PFD DU: PFD/ND pb, or DU RECONF pb)
     - 3: MFD (not drawn on another DU)
-    - 4: EWD (on the SD DU: EWD DU lost)
-    - 5: SD (not drawn on another DU)
+    - 4: EWD (on the SD DU: EWD DU lost; on the ND DU: DU RECONF pb)
+    - 5: SD (on the ND DU: DU RECONF pb; without the ATC mailbox)
   - {DU}
     - CAPT_PFD
     - CAPT_ND

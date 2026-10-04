@@ -249,6 +249,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] WHEEL page: AUTO BRK no longer turns amber when an engine is off (single-engine taxi, engine failure) - @TCdr
 1. [A32NX/FWS] ALL ENGINES FAILURE: the APU START line shows below FL 250 as in the FCOM, not only below 2 500 ft radio altitude - @TCdr
 1. [ADIRS] A fast IR alignment (mode selector OFF then back to NAV within 5 s) takes 30 s as in the FCOM, not 180 s - @TCdr
+1. [A380X/CDS] With the CAPT (F/O) PFD and MFD DUs failed, the DU RECONF pb now cycles the ND DU from the PFD through the EWD and the SD and back to the PFD (FCOM DSC-31-15-20; also the EWD and the SD on the ND DU when only the MFD DU or the SD DU is failed); the EWD (SD) is never shown on both sides at once - @TCdr
 1. [EFB] Loading an interior lighting preset that was never saved (or auto-loading one) sets the lights to 50 % as the flyPad says, instead of fading every light, displays and MCDUs included, to off - @TCdr
 1. [EFB] Saving an interior lighting preset works again: the presets file was never written (the ini library refused the existing work folder), so no preset could be saved or loaded - @TCdr
 1. [A32NX] Fire protection: new flyPad failures of the engine 1, engine 2 and APU fire detection units (FDU): the zone gives the ENG 1(2) / APU FIRE DET FAULT caution with healthy loops and can no longer give a fire warning - @TCdr
