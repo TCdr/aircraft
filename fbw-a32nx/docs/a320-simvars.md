@@ -392,7 +392,19 @@
     - Bool
     - True when the detection loop of the zone is failed: flyPad failure (break), or no electrical supply (ENG 1 loop A
       and ENG 2 loop B: DC ESS bus, ENG 1 loop B and ENG 2 loop A: DC 2 bus, APU loops: DC BAT bus)
-    - Drives the ENG 1(2) / APU FIRE LOOP A(B) FAULT and FIRE DET FAULT cautions
+    - Drives the ENG 1(2) / APU FIRE LOOP A(B) FAULT and FIRE DET FAULT cautions; ENG 1 loop A and ENG 2 loop B also
+      keep the ENG MASTER panel FIRE light of that engine dark during its FIRE TEST (A320 FCOM DSC-26-20-20)
+
+- A32NX_FIRE_{ENG1 | ENG2 | APU}_FDU_FAULT
+    - Bool
+    - True when the fire detection unit of the zone is failed (flyPad failure "Engine 1(2) / APU fire detection unit
+      (FDU)"). The zone then gives no fire warning (A32NX_FIRE_DETECTED_* stays false)
+    - Drives the ENG 1(2) / APU FIRE DET FAULT caution, which then replaces the LOOP A(B) FAULT cautions of the zone
+
+- A32NX_FIRE_APU_EXTERNAL_HORN
+    - Bool
+    - True while the fire detection unit gives the APU fire warning with the aircraft on the ground (not during the
+      FIRE TEST): the external horn in the nose gear bay sounds (sound.xml, A320 FCOM DSC-26-20-20 APU FIRE LIGHT)
 
 - A32NX_ENG_{1 | 2}_ON_FIRE
     - Bool

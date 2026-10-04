@@ -124,6 +124,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the FCOM position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
 1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
 1. [A32NX/EFB] Failures: clearer failure names after an audit (hot air valve, FMGC flight guidance, RA antennas) - @TCdr
+1. [A32NX] Fire protection: new flyPad failures of the engine 1, engine 2 and APU fire detection units (FDU): the zone gives the ENG 1(2) / APU FIRE DET FAULT caution with healthy loops and can no longer give a fire warning - @TCdr
+1. [A32NX] The ENG MASTER panel FIRE light stays dark during the ENG 1 FIRE TEST with ENG 1 loop A faulted and during the ENG 2 FIRE TEST with ENG 2 loop B faulted, as in the FCOM - @TCdr
+1. [A32NX] An APU fire on the ground sounds the external horn in the nose gear bay - @TCdr
 1. [A32NX/SURV] Added ATC/XPDR 1 and ATC/XPDR 2 failures: the failed transponder stops replying while selected and lights ATC FAIL, NAV ATC/XPDR 1(2) and 1+2 FAULT show on the ECAM, and the TCAS goes to standby with both lost; ATC/XPDR STBY no longer shows when the selected transponder loses power - @TCdr
 1. [A32NX/EFB] New ATA 23 failures RMP 1, RMP 2, VHF 1, VHF 2 and VHF 3: a failed RMP goes blank and stops tuning (the other RMP still tunes every radio), a failed VHF switches its COM radio off - @TCdr
 1. [A32NX/FWS] New flyPad failures FWC 1 and FWC 2 (ATA 31): one failed FWC shows FWS FWC 1(2) FAULT with its STATUS (CAT 3 SINGLE ONLY, INOP SYS CAT 3 DUAL, FWC 1(2)); with both failed the E/WD shows FWS FWC 1+2 FAULT and its NOT AVAIL list, and the ECAM alerts, memos, STATUS, MASTER lights, aurals and callouts are lost - @TCdr

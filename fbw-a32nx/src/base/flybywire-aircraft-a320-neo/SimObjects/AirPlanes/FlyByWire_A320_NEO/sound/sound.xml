@@ -1997,6 +1997,12 @@
             <Range LowerBound="1" />
         </Sound>
 
+        <!-- The same external horn in the nose gear bay sounds for an APU fire on the ground (A320 FCOM DSC-26-20-20 APU FIRE
+             LIGHT, DSC-49-10-20: "A horn in the nose gear bay sounds"); L:A32NX_FIRE_APU_EXTERNAL_HORN from systems.wasm -->
+        <Sound WwiseData="true" WwiseEvent="mechhorn" NodeName="WHEELS_C" LocalVar="A32NX_FIRE_APU_EXTERNAL_HORN" Continuous="true">
+            <Range LowerBound="1" />
+        </Sound>
+
         <Sound WwiseData="true" WwiseEvent="evachorncockpit" NodeName="PUSH_OVHD_ELEC_BAT1" LocalVar="A32NX_EVAC_COMMAND_TOGGLE" Continuous="true">
             <Range UpperBound="0" />
             <Requires LocalVar="PUSH_OVHD_EVAC_HORN">
