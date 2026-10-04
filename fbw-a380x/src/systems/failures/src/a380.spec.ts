@@ -44,6 +44,23 @@ describe('A380X flyPad failure definitions', () => {
     expect(nameOf(32006)).toBe('Proximity sensor damage uplock right gear #1');
   });
 
+  it('names the buses, TRs and controllers as the A380 FCOM and SD do (failure names audit 2026-10-03)', () => {
+    const label = (id: number) => A380FailureDefinitions.find(([, i]) => i === id)?.[2];
+    expect(label(24002)).toBe('ESS TR');
+    expect(label(24003)).toBe('APU TR');
+    expect(label(24104)).toBe('AC EMER');
+    expect(label(24105)).toBe('AC ESS');
+    expect(label(24106)).toBe('AC EHA (247XP)');
+    expect(label(24112)).toBe('DC APU (309PP)');
+    expect(label(32000)).toBe('LGCIS 1 power supply');
+    expect(label(32021)).toBe('Left main gears (body + wing) jammed actuator');
+    expect(label(34003)).toBe('XPDR 1');
+    expect(label(34004)).toBe('XPDR 2');
+    expect(A380FailureDefinitions.every(([, , name]) => !name.includes('Foward') && !name.includes('LGCIU'))).toBe(
+      true,
+    );
+  });
+
   it('does not list ROLLOUT (22001), which no system reacts to', () => {
     expect(listedIds).not.toContain(22001);
   });
