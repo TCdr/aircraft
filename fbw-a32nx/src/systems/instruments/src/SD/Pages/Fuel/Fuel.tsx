@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -9,6 +9,7 @@ import { fuelForDisplay, fuelInTanksForDisplay } from '../../Common/FuelFunction
 import { Triangle } from '../../Common/Shapes';
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
+import { isEngineLpValveGreen } from './EngineLpValveColour';
 
 import './Fuel.scss';
 
@@ -338,11 +339,16 @@ type EngineLpValveProps = {
   engineNumber?: number;
 };
 
+/** The engine LP valve: its colour follows the FCOM rule of isEngineLpValveGreen */
 const EngineLpValve = ({ x, y, engineNumber }: EngineLpValveProps) => {
-  const [position] = useSimVar(`FUELSYSTEM VALVE OPEN:${engineNumber}`, 'percent', 500);
+  const [position] = useSimVar(`L:A32NX_FUEL_ENG_${engineNumber}_LP_VALVE_OPEN_PERCENTAGE`, 'percent', 500);
+  // The ENG MASTER switch drives the MSFS fuel valve switch of the same index
+  const [engineMasterSwitchOn] = useSimVar(`FUELSYSTEM VALVE SWITCH:${engineNumber}`, 'bool', 500);
+
+  const isGreen = isEngineLpValveGreen(position, engineMasterSwitchOn > 0);
 
   return (
-    <g className={`ThickShape ${position < 100 ? 'ValveAmber' : 'ValveGreen'}`}>
+    <g className={`ThickShape ${isGreen ? 'ValveGreen' : 'ValveAmber'}`}>
       <circle cx={x} cy={y} r={15} />
 
       <EngineLpValveLine x={x} y={y} position={position} />

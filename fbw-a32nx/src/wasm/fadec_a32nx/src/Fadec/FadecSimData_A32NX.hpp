@@ -189,6 +189,7 @@ class FadecSimData_A32NX {
   NamedVariablePtr apuRpmPercent;       // Percent
   NamedVariablePtr engineEgt[2];
   NamedVariablePtr engineFF[2];
+  NamedVariablePtr engineFuelStarved[2];  // Bool - LP fuel valve closed and the fuel downstream of it burned (systems WASM)
   NamedVariablePtr engineFuelUsed[2];
   NamedVariablePtr engineIdleEGT;
   NamedVariablePtr engineIdleFF;
@@ -296,6 +297,9 @@ class FadecSimData_A32NX {
 
     engineFF[L] = dm->make_named_var("A32NX_ENGINE_FF:1", UNITS.Number, AUTO_READ_WRITE);
     engineFF[R] = dm->make_named_var("A32NX_ENGINE_FF:2", UNITS.Number, AUTO_READ_WRITE);
+
+    engineFuelStarved[L] = dm->make_named_var("A32NX_FUEL_ENG_1_STARVED", UNITS.Number, AUTO_READ);
+    engineFuelStarved[R] = dm->make_named_var("A32NX_FUEL_ENG_2_STARVED", UNITS.Number, AUTO_READ);
 
     engineFuelUsed[L] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[R] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);
