@@ -206,8 +206,23 @@ rect.shadow {
   fill: none;
 }
 
+// Chronometer box (bottom left) and digit colours. Each aircraft can override these variables in its own
+// ND style.scss before importing this file; the defaults are the original look (green digits on a grey box).
+$nd-chrono-box-fill: $display-grey !default;
+$nd-chrono-text: $display-green !default;
+
 .chrono {
   font-family: "NDChrono", monospace !important;
+}
+
+.chrono .ChronoBox {
+  fill: $nd-chrono-box-fill;
+  stroke: none;
+}
+
+.chrono text.ChronoText {
+  fill: $nd-chrono-text;
+  stroke: none;
 }
 
 path.rounded {
