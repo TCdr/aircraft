@@ -219,14 +219,49 @@
         </UseTemplate>
     </Template>
 
-    <Template Name="FBW_HANDLING_Spoiler_Template">
+    <!--
+    One spoiler animation of the exterior model.
+    DEFLECTION: code that leaves the panel deflection on the stack, as A32NX_HYD_SPOILER_n_<side>_DEFLECTION gives it:
+    0 = retracted, 1 = 50 degrees (the hydraulic model commands surface angle / 50).
+    The model keyframes go from 0 to 45 degrees, so the deflection is converted to degrees and then to the share of
+    45 degrees; the 50 degrees of the ground spoilers show as the model maximum.
+    -->
+    <Template Name="FBW_HANDLING_Spoiler_Anim_Template">
         <UseTemplate Name="ASOBO_GT_Anim_Code">
-            <ANIM_NAME>l_spoiler_key</ANIM_NAME>
-            <ANIM_CODE>(L:A32NX_HYD_SPOILERS_LEFT_DEFLECTION, number) 100 *</ANIM_CODE>
+            <ANIM_NAME>#ANIM_NAME#</ANIM_NAME>
+            <ANIM_CODE>#DEFLECTION# 50 * 45 / 100 * 100 min 0 max</ANIM_CODE>
         </UseTemplate>
-        <UseTemplate Name="ASOBO_GT_Anim_Code">
-            <ANIM_NAME>r_spoiler_key</ANIM_NAME>
-            <ANIM_CODE>(L:A32NX_HYD_SPOILERS_RIGHT_DEFLECTION, number) 100 *</ANIM_CODE>
+    </Template>
+
+    <!--
+    The spoilers move by panel group, from the deflection of their own panels, so the roll spoilers (2 to 5) and
+    the speedbrakes (2 to 4) deflect without spoiler 1. The model has three groups per wing: its panels 2 and 3 share
+    two skin joints (every vertex blended between them), and so do panels 4 and 5; a group shows the mean of its panels.
+    -->
+    <Template Name="FBW_HANDLING_Spoiler_Template">
+        <UseTemplate Name="FBW_HANDLING_Spoiler_Anim_Template">
+            <ANIM_NAME>l_spoiler_panel_1_key</ANIM_NAME>
+            <DEFLECTION>(L:A32NX_HYD_SPOILER_1_LEFT_DEFLECTION, number)</DEFLECTION>
+        </UseTemplate>
+        <UseTemplate Name="FBW_HANDLING_Spoiler_Anim_Template">
+            <ANIM_NAME>l_spoiler_panels_2_3_key</ANIM_NAME>
+            <DEFLECTION>(L:A32NX_HYD_SPOILER_2_LEFT_DEFLECTION, number) (L:A32NX_HYD_SPOILER_3_LEFT_DEFLECTION, number) + 2 /</DEFLECTION>
+        </UseTemplate>
+        <UseTemplate Name="FBW_HANDLING_Spoiler_Anim_Template">
+            <ANIM_NAME>l_spoiler_panels_4_5_key</ANIM_NAME>
+            <DEFLECTION>(L:A32NX_HYD_SPOILER_4_LEFT_DEFLECTION, number) (L:A32NX_HYD_SPOILER_5_LEFT_DEFLECTION, number) + 2 /</DEFLECTION>
+        </UseTemplate>
+        <UseTemplate Name="FBW_HANDLING_Spoiler_Anim_Template">
+            <ANIM_NAME>r_spoiler_panel_1_key</ANIM_NAME>
+            <DEFLECTION>(L:A32NX_HYD_SPOILER_1_RIGHT_DEFLECTION, number)</DEFLECTION>
+        </UseTemplate>
+        <UseTemplate Name="FBW_HANDLING_Spoiler_Anim_Template">
+            <ANIM_NAME>r_spoiler_panels_2_3_key</ANIM_NAME>
+            <DEFLECTION>(L:A32NX_HYD_SPOILER_2_RIGHT_DEFLECTION, number) (L:A32NX_HYD_SPOILER_3_RIGHT_DEFLECTION, number) + 2 /</DEFLECTION>
+        </UseTemplate>
+        <UseTemplate Name="FBW_HANDLING_Spoiler_Anim_Template">
+            <ANIM_NAME>r_spoiler_panels_4_5_key</ANIM_NAME>
+            <DEFLECTION>(L:A32NX_HYD_SPOILER_4_RIGHT_DEFLECTION, number) (L:A32NX_HYD_SPOILER_5_RIGHT_DEFLECTION, number) + 2 /</DEFLECTION>
         </UseTemplate>
     </Template>
 
