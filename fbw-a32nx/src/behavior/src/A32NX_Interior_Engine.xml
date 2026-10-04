@@ -145,8 +145,11 @@
         <UseTemplate Name="FBW_Push_Toggle">
             <DUMMY_BUTTON>True</DUMMY_BUTTON>
             <!-- ENG MASTER panel FIRE light: the FIRE TEST pb, or the engine fire warning (A320 FCOM DSC-26-20-20 ENG 1(2)
-                 FIRE LIGHT: "The light comes on red when an engine fire warning is triggered") -->
-            <SEQ1_CODE>(L:A32NX_FIRE_TEST_ENG#ID#, bool) (L:A32NX_FIRE_DETECTED_ENG#ID#, bool) or</SEQ1_CODE>
+                 FIRE LIGHT: "The light comes on red when an engine fire warning is triggered"). During the FIRE TEST, FCOM
+                 DSC-26-20-20 ENG 1(2) FIRE TEST PB note: "The FIRE lights do not illuminate in case of Engine Fire
+                 Detection Loop A fault on the Engine 1 or Engine Fire Detection Loop B fault on the Engine 2" (a loop
+                 fault is a loop failure or its loss of DC ESS supply, from systems.wasm). -->
+            <SEQ1_CODE>(L:A32NX_FIRE_TEST_ENG#ID#, bool) (L:A32NX_FIRE_ENG1_LOOP_A_FAULT, bool) #ID# 1 == and (L:A32NX_FIRE_ENG2_LOOP_B_FAULT, bool) #ID# 2 == and or ! and (L:A32NX_FIRE_DETECTED_ENG#ID#, bool) or</SEQ1_CODE>
             <SEQ2_CODE>(A:ENG FAILED:#ID#, bool)</SEQ2_CODE>
         </UseTemplate>
     </Template>

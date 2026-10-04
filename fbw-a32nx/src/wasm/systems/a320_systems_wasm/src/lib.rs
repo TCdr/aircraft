@@ -204,6 +204,18 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             26_008,
             FailureType::FireDetectionLoop(FireDetectionLoopID::B, FireDetectionZone::Apu),
         ),
+        (
+            26_009,
+            FailureType::FireDetectionUnit(FireDetectionZone::Engine(1)),
+        ),
+        (
+            26_010,
+            FailureType::FireDetectionUnit(FireDetectionZone::Engine(2)),
+        ),
+        (
+            26_011,
+            FailureType::FireDetectionUnit(FireDetectionZone::Apu),
+        ),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Blue)),
         (29_002, FailureType::ReservoirLeak(HydraulicColor::Yellow)),

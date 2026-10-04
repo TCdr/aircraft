@@ -8,7 +8,11 @@
 //!   fires, so a test never shuts the APU down (FCOM DSC-26-20-20 APU FIRE TEST PB note).
 //! - The AGENT pbs, squibs and DISCH lights: the cockpit behaviour XML sets L:A32NX_FIRE_<ZONE>_AGENT<n>_Discharge; this
 //!   module only reads them (and sets the APU one for the automatic discharge on the ground).
-//! - The fire detection units themselves cannot fail (no FDU failure), so FIRE DET FAULT comes from both loops failed.
+//! - The FIRE DET FAULT caution itself: the FWC raises it from both loops failed or the FDU failed (flyPad FDU failure,
+//!   written here as L:A32NX_FIRE_<ZONE>_FDU_FAULT).
+//! - The APU FIRE light and the APU SHUT OFF pb of the external power panel: the exterior model has no such panel. The
+//!   external warning horn of an APU fire on the ground is written here (L:A32NX_FIRE_APU_EXTERNAL_HORN) and played by
+//!   the sound.xml at the nose landing gear.
 
 use std::time::Duration;
 
@@ -53,6 +57,9 @@ pub(super) struct A320FireProtection {
 
     /// For each zone: loop A, loop B failed
     loop_fault_id: [[VariableIdentifier; 2]; 3],
+    /// For each zone: its FDU failed
+    unit_fault_id: [VariableIdentifier; 3],
+    external_horn_id: VariableIdentifier,
 }
 
 impl A320FireProtection {
@@ -107,14 +114,26 @@ impl A320FireProtection {
             apu_auto_extinguishing_was_commanded: false,
 
             loop_fault_id: A320_FIRE_ZONES.map(|zone| {
-                let zone_name = match zone {
-                    FireDetectionZone::Engine(number) => format!("ENG{}", number),
-                    _ => zone.to_string(),
-                };
                 ["A", "B"].map(|loop_name| {
-                    context.get_identifier(format!("FIRE_{}_LOOP_{}_FAULT", zone_name, loop_name))
+                    context.get_identifier(format!(
+                        "FIRE_{}_LOOP_{}_FAULT",
+                        Self::zone_name(zone),
+                        loop_name
+                    ))
                 })
             }),
+            unit_fault_id: A320_FIRE_ZONES.map(|zone| {
+                context.get_identifier(format!("FIRE_{}_FDU_FAULT", Self::zone_name(zone)))
+            }),
+            external_horn_id: context.get_identifier("FIRE_APU_EXTERNAL_HORN".to_owned()),
+        }
+    }
+
+    /// The zone in the variable names: ENG1, ENG2, APU
+    fn zone_name(zone: FireDetectionZone) -> String {
+        match zone {
+            FireDetectionZone::Engine(number) => format!("ENG{}", number),
+            _ => zone.to_string(),
         }
     }
 
@@ -171,6 +190,22 @@ impl SimulationElement for A320FireProtection {
                     .loop_has_failed(FireDetectionLoopID::B, zone),
             );
         }
+        for (&zone, unit_fault_id) in A320_FIRE_ZONES.iter().zip(&self.unit_fault_id) {
+            writer.write(
+                unit_fault_id,
+                self.fire_detection_unit.unit_has_failed(zone),
+            );
+        }
+
+        // FCOM DSC-26-20-20 APU FIRE LIGHT (external power panel): "The red APU FIRE light comes on and an external
+        // warning horn sounds when the system detects an APU fire"; FCOM DSC-49-10-20, APU running unattended on the
+        // ground: "In case of fire in the APU compartment: [...] A horn in the nose gear bay sounds". On the ground only
+        // (design choice from that FCOM context), and not during the FIRE TEST (the FDU here only sees real fires).
+        // The APU SHUT OFF pb of the external power panel, which silences it, is not modelled (no panel in the model).
+        writer.write(
+            &self.external_horn_id,
+            self.fire_detection_unit.apu_fire_on_ground(),
+        );
 
         // Only written when discharging: the AGENT pb (cockpit behaviour XML) writes this variable too
         if self.apu_agent_auto_discharge {
@@ -330,6 +365,16 @@ mod tests {
             self
         }
 
+        fn unit_failure(mut self, zone: FireDetectionZone) -> Self {
+            self.fail(FailureType::FireDetectionUnit(zone));
+            self
+        }
+
+        fn resolve_unit_failure(mut self, zone: FireDetectionZone) -> Self {
+            self.unfail(FailureType::FireDetectionUnit(zone));
+            self
+        }
+
         fn simulator_fire(mut self, name: &str) -> Self {
             self.write_by_name(name, true);
             self
@@ -361,6 +406,14 @@ mod tests {
 
         fn loop_fault(&mut self, zone_name: &str, loop_name: &str) -> bool {
             self.read_by_name(&format!("FIRE_{}_LOOP_{}_FAULT", zone_name, loop_name))
+        }
+
+        fn unit_fault(&mut self, zone_name: &str) -> bool {
+            self.read_by_name(&format!("FIRE_{}_FDU_FAULT", zone_name))
+        }
+
+        fn external_horn(&mut self) -> bool {
+            self.read_by_name("FIRE_APU_EXTERNAL_HORN")
         }
 
         fn apu_agent_discharged(&mut self) -> bool {
@@ -527,6 +580,121 @@ mod tests {
             assert!(test_bed.loop_fault(zone_name, "B"));
             assert!(!test_bed.fire_detected(zone_name));
         }
+    }
+
+    #[test]
+    fn no_fdu_fault_when_healthy() {
+        let mut test_bed = test_bed().and_run();
+
+        for zone_name in ["ENG1", "ENG2", "APU"] {
+            assert!(!test_bed.unit_fault(zone_name));
+        }
+    }
+
+    #[test]
+    fn a_failed_fdu_gives_an_fdu_fault_and_no_fire_warning_with_healthy_loops() {
+        let mut test_bed = test_bed()
+            .unit_failure(FireDetectionZone::Engine(1))
+            .simulator_fire("ENG ON FIRE:1")
+            .simulator_fire("ENG ON FIRE:2")
+            .and_run();
+
+        assert!(test_bed.unit_fault("ENG1"));
+        assert!(!test_bed.loop_fault("ENG1", "A"));
+        assert!(!test_bed.loop_fault("ENG1", "B"));
+        assert!(!test_bed.fire_detected("ENG1"));
+
+        // The other zones keep their own FDU
+        assert!(!test_bed.unit_fault("ENG2"));
+        assert!(!test_bed.unit_fault("APU"));
+        assert!(test_bed.fire_detected("ENG2"));
+    }
+
+    #[test]
+    fn a_failed_fdu_gives_no_fire_warning_on_a_flame_effect_either() {
+        let mut test_bed = test_bed()
+            .unit_failure(FireDetectionZone::Engine(2))
+            .loop_failure(FireDetectionLoopID::A, FireDetectionZone::Engine(2))
+            .run_for(Duration::from_secs(1))
+            .loop_failure(FireDetectionLoopID::B, FireDetectionZone::Engine(2))
+            .and_run();
+
+        assert!(!test_bed.fire_detected("ENG2"));
+    }
+
+    #[test]
+    fn a_fire_already_burning_is_detected_again_when_the_fdu_failure_is_resolved() {
+        let mut test_bed = test_bed()
+            .unit_failure(FireDetectionZone::Engine(2))
+            .fire_failure(FireDetectionZone::Engine(2))
+            .and_run()
+            .and_run();
+        assert!(!test_bed.fire_detected("ENG2"));
+
+        test_bed = test_bed
+            .resolve_unit_failure(FireDetectionZone::Engine(2))
+            .and_run();
+
+        assert!(!test_bed.unit_fault("ENG2"));
+        assert!(test_bed.fire_detected("ENG2"));
+    }
+
+    #[test]
+    fn a_failed_apu_fdu_neither_shuts_the_apu_down_nor_discharges_the_bottle_on_ground() {
+        let mut test_bed = test_bed()
+            .on_ground()
+            .unit_failure(FireDetectionZone::Apu)
+            .fire_failure(FireDetectionZone::Apu)
+            .and_run()
+            .and_run()
+            .run_for(Duration::from_secs(10));
+
+        assert!(test_bed.unit_fault("APU"));
+        assert!(!test_bed.fire_detected("APU"));
+        assert!(!test_bed.apu_fire_on_ground());
+        assert!(!test_bed.apu_agent_discharged());
+        assert!(!test_bed.external_horn());
+    }
+
+    #[test]
+    fn apu_fire_on_ground_sounds_the_external_horn_until_the_fire_is_out() {
+        let mut test_bed = test_bed()
+            .on_ground()
+            .fire_failure(FireDetectionZone::Apu)
+            .and_run()
+            .and_run();
+
+        assert!(test_bed.external_horn());
+
+        test_bed = test_bed
+            .resolve_fire_failure(FireDetectionZone::Apu)
+            .and_run()
+            .and_run();
+
+        assert!(!test_bed.external_horn());
+    }
+
+    #[test]
+    fn apu_fire_in_flight_does_not_sound_the_external_horn() {
+        let mut test_bed = test_bed()
+            .fire_failure(FireDetectionZone::Apu)
+            .and_run()
+            .and_run();
+
+        assert!(test_bed.fire_detected("APU"));
+        assert!(!test_bed.external_horn());
+    }
+
+    #[test]
+    fn engine_fire_on_ground_does_not_sound_the_external_horn() {
+        let mut test_bed = test_bed()
+            .on_ground()
+            .fire_failure(FireDetectionZone::Engine(1))
+            .and_run()
+            .and_run();
+
+        assert!(test_bed.fire_detected("ENG1"));
+        assert!(!test_bed.external_horn());
     }
 
     #[test]

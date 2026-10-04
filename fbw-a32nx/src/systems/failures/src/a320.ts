@@ -71,6 +71,9 @@ export const A320Failure = Object.freeze({
   Engine2FireLoopB: 26006,
   ApuFireLoopA: 26007,
   ApuFireLoopB: 26008,
+  Engine1FireDetectionUnit: 26009,
+  Engine2FireDetectionUnit: 26010,
+  ApuFireDetectionUnit: 26011,
 
   Elac1Failure: 27000,
   Elac2Failure: 27001,
@@ -221,6 +224,9 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [26, A320Failure.Engine2FireLoopB, 'Engine 2 fire detection loop B'],
   [26, A320Failure.ApuFireLoopA, 'APU fire detection loop A'],
   [26, A320Failure.ApuFireLoopB, 'APU fire detection loop B'],
+  [26, A320Failure.Engine1FireDetectionUnit, 'Engine 1 fire detection unit (FDU)'],
+  [26, A320Failure.Engine2FireDetectionUnit, 'Engine 2 fire detection unit (FDU)'],
+  [26, A320Failure.ApuFireDetectionUnit, 'APU fire detection unit (FDU)'],
 
   [27, A320Failure.Elac1Failure, 'ELAC 1'],
   [27, A320Failure.Elac2Failure, 'ELAC 2'],
