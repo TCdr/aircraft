@@ -10,6 +10,7 @@ import { Triangle } from '../../Common/Shapes';
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { isEngineLpValveGreen } from './EngineLpValveColour';
+import { isCrossFeedValveGreen, WingPumpIndication, wingPumpIndication } from './FuelPumpValveIndications';
 
 import './Fuel.scss';
 
@@ -368,11 +369,14 @@ const CrossFeedValveLine = ({ x, y, position }: EngineValveProps) => {
   return <line x1={x - 15} y1={y} x2={x + 15} y2={y} />;
 };
 
+/** The X FEED valve: its colour follows the FCOM rule of isCrossFeedValveGreen */
 const CrossFeedValve = ({ x, y }: EngineLpValveProps) => {
   const [position] = useSimVar('FUELSYSTEM VALVE OPEN:3', 'percent', 500);
+  // The X FEED pb-sw selection (the MSFS valve switch is held still while the valve is jammed)
+  const [pbOn] = useSimVar('L:A32NX_OVHD_FUEL_XFEED_PB_IS_ON', 'bool', 500);
 
   return (
-    <g className={`ThickShape ${position > 0 && position < 100 ? 'ValveAmber' : 'ValveGreen'}`}>
+    <g className={`ThickShape ${isCrossFeedValveGreen(position, pbOn > 0) ? 'ValveGreen' : 'ValveAmber'}`}>
       <circle cx={x} cy={y} r={15} />
 
       <CrossFeedValveLine x={x} y={y} position={position} />
@@ -385,45 +389,26 @@ type PumpProps = {
   y: number;
   onBus?: string;
   pumpNumber: number;
-  centreTank?: boolean;
-  tankQuantity?: number;
 };
 
-const Pump = ({ x, y, onBus = 'DC_ESS', pumpNumber, centreTank, tankQuantity }: PumpProps) => {
-  const [active] = useSimVar(`FUELSYSTEM PUMP ACTIVE:${pumpNumber}`, 'bool', 500);
+/** A wing tank pump: its symbol follows the FCOM rule of wingPumpIndication */
+const Pump = ({ x, y, onBus = 'DC_ESS', pumpNumber }: PumpProps) => {
   const [busIsPowered] = useSimVar(`L:A32NX_ELEC_${onBus}_BUS_IS_POWERED`, 'bool', 1000);
-  const [centreTankGreen, setCentreTankGreen] = useState(false);
-  const [pushButton] = useSimVar(`FUELSYSTEM PUMP SWITCH:${pumpNumber}`, 'bool', 500);
-  const [simOnGround] = useSimVar('SIM ON GROUND', 'bool', 1000);
-  // FIXME add centre tank logic once fuel system implemented
-  useEffect(() => {
-    if (centreTank) {
-      setCentreTankGreen(pushButton && (tankQuantity === 0 || simOnGround));
-    }
-  }, [pushButton]);
+  // The pb-sw selection (the MSFS pump switch is held off while the pump is failed)
+  const [pushButton] = useSimVar(`L:A32NX_OVHD_FUEL_PUMP_${pumpNumber}_PB_IS_ON`, 'bool', 500);
+  const [lowPressure] = useSimVar(`L:A32NX_FUEL_PUMP_${pumpNumber}_LO_PR`, 'bool', 500);
+
+  const indication = wingPumpIndication(pushButton > 0, lowPressure > 0, busIsPowered > 0);
 
   return (
-    <g className={(active && busIsPowered) || centreTankGreen ? 'ThickShape PumpActive' : 'ThickShape PumpInactive'}>
+    <g className={indication === WingPumpIndication.InlineGreen ? 'ThickShape PumpActive' : 'ThickShape PumpInactive'}>
       <rect x={x} y={y} width="30" height="30" />
-      {active && busIsPowered ? <line x1={x + 15} y1={y} x2={x + 15} y2={y + 30} /> : null}
-      {!active && busIsPowered ? <line x1={x + 5} y1={y + 15} x2={x + 25} y2={y + 15} /> : null}
-      {busIsPowered ? null : (
+      {indication === WingPumpIndication.InlineGreen && <line x1={x + 15} y1={y} x2={x + 15} y2={y + 30} />}
+      {indication === WingPumpIndication.CrosslineAmber && <line x1={x + 5} y1={y + 15} x2={x + 25} y2={y + 15} />}
+      {indication === WingPumpIndication.LoAmber && (
         <text className="LoIndication" x={x + 15} y={y + 20}>
           LO
         </text>
-      )}
-      {(pumpNumber === 1 || pumpNumber === 4) && active && (
-        <g className="ThickShape PumpActive">
-          <line x1={x + 15} y1={y + 30} x2={x + 15} y2={y + 60} />
-          <line
-            x1={pumpNumber === 1 ? x + 16 : x + 14}
-            y1={y + 60}
-            x2={pumpNumber === 1 ? x - 8 : x + 40}
-            y2={y + 60}
-          />
-          {pumpNumber === 1 && <Triangle x={x - 26} y={y + 60} colour="Green" fill={0} orientation={-90} />}
-          {pumpNumber === 4 && <Triangle x={x + 59} y={y + 60} colour="Green" fill={0} orientation={90} />}
-        </g>
       )}
     </g>
   );
