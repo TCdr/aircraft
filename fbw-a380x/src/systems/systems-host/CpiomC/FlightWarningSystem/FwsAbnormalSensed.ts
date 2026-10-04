@@ -22,6 +22,7 @@ import {
 // FIXME should not import from instruments
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
+import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -97,6 +98,92 @@ export class FwsAbnormalSensed {
   /** Whether the XPDR & TCAS system selected on the SURV panel (L:A32NX_TRANSPONDER_SYSTEM, 0 = SYS 1) is the given one. */
   private xpdrTcasSystemIs(system: 1 | 2): boolean {
     return SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') === system - 1;
+  }
+
+  /**
+   * ELEC GEN 1(2)(3)(4) FAULT, FCOM PRO-ABN-ECAM-10-24 l.142304, PDF p.4945 (master caution, SC).
+   * GEN x ... OFF (l.142349, the Impacted DU procedure: the texts have no "OFF THEN ON" reset line).
+   * @param gen 0 to 3 for GEN 1 to GEN 4
+   */
+  private elecGenFaultItem(gen: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
+      simVarIsActive: this.fws.elecGenFault[gen],
+      // Design choice: ELEC EMER CONFIG has its own GENs procedure
+      notActiveWhenItemActive: ['240800055'],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.elecGenPbOn[gen].get()],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    };
+  }
+
+  /**
+   * ELEC GEN 1(2)(3)(4) OFF, FCOM l.142388, PDF p.4947 (master caution, SC): crew awareness, no procedure line.
+   * @param gen 0 to 3 for GEN 1 to GEN 4
+   */
+  private elecGenOffItem(gen: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
+      simVarIsActive: this.fws.elecGenOff[gen],
+      notActiveWhenItemActive: ['240800055'],
+      // Design choice (not in the FCOM): 5 s, so that the GEN ... OFF THEN ON resets of other procedures do not
+      // flash this alert
+      monitorConfirmTime: 5,
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    };
+  }
+
+  /**
+   * ELEC DRIVE 1(2)(3)(4) DISCONNECTED, FCOM l.141179, PDF p.4918 (master caution, SC).
+   * The FCOM procedure is crew awareness only (l.141222): the GEN x OFF line of the text is hidden.
+   * @param drive 0 to 3 for DRIVE 1 to DRIVE 4
+   */
+  private elecDriveDisconnectedItem(drive: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecDriveDisconnected[drive],
+      notActiveWhenItemActive: ['240800055'],
+      whichItemsToShow: () => [false],
+      whichItemsChecked: () => [!this.fws.elecGenPbOn[drive].get()],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    };
+  }
+
+  /**
+   * ELEC APU GEN A(B) FAULT, FCOM l.139366, PDF p.4872 (master caution, SC): APU GEN A(B) ... OFF (l.139412).
+   * @param gen 0 for APU GEN A, 1 for APU GEN B
+   */
+  private elecApuGenFaultItem(gen: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecApuGenFault[gen],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.elecApuGenPbOn[gen].get()],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    };
+  }
+
+  /**
+   * ELEC TR 1(2)(ESS) FAULT, FCOM l.142822, PDF p.4961 (no master light, no audio): crew awareness.
+   * @param tr 0 for TR 1, 1 for TR 2, 2 for TR ESS
+   */
+  private elecTrFaultItem(tr: number): EwdAbnormalItem {
+    return {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecTrFault[tr],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.ElecDc,
+    };
   }
 
   public readonly abnormalShown = Subject.create(false);
@@ -1925,6 +2012,363 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.None,
     },
+    // ATA 24 - ELECTRICAL
+    // Conditions: FwsElecAlerts. Source: A380 FCOM PRO-ABN-ECAM-10-24 (16 AUG 11), "FCOM l." = line of the text copy
+    // references/manuals/a380_fcom.txt; the flight phase inhibitions and the master light/audio come from the figures
+    // of airbus-a380-fcom_compress.pdf ("PDF p."). Procedure lines of the texts (ata24.ts) that the FCOM procedure does
+    // not contain are hidden (the texts were written from another FCOM standard: GENs resets, COMMERCIAL, CROSSFEED,
+    // "IR x MODE SEL" after landing instead of the FCOM "BEFORE LAST ENG STOP : ELEC EXT PWR ON").
+    240800002: {
+      // AC BUS 1 FAULT, FCOM l.137656, PDF p.4832
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcBusFault[0],
+      notActiveWhenItemActive: [],
+      // On ground: FOR ENG STOP : KEEP ENG 4 LAST (FCOM l.137672)
+      whichItemsToShow: () => [this.fws.aircraftOnGround.get()],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800004: {
+      // AC BUS 2 FAULT, FCOM l.137875, PDF p.4838
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcBusFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.137909
+        // LDG DIST IMPACT ON WET/CONTAM RWY ONLY (FCOM l.137904), always
+        return [false, false, false, true, lowFeedTanks, lowFeedTanks, lowFeedTanks, false, false];
+      },
+      whichItemsChecked: () => [
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800007: {
+      // AC BUS 3 FAULT, FCOM l.138682, PDF p.4855
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcBusFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        // On ground: BEFORE OPENING ANY CABIN DOOR: RESIDUAL DIFF PRESS CHECK, CABIN CREW ADVISE (FCOM l.138711)
+        const onGround = this.fws.aircraftOnGround.get();
+        return [false, false, false, false, false, false, false, false, false, onGround, onGround, onGround];
+      },
+      whichItemsChecked: () => Array(12).fill(false),
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800009: {
+      // AC BUS 4 FAULT, FCOM l.139000, PDF p.4863
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcBusFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const onGround = this.fws.aircraftOnGround.get();
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.139053
+        // On ground: FOR ENG STOP : KEEP ENG 1 LAST (l.139030); in flight: VENT AVNCS EXTRACT (l.139039)
+        return [onGround, !onGround, true, true, true, true, lowFeedTanks, lowFeedTanks, lowFeedTanks];
+      },
+      whichItemsChecked: () => [
+        false,
+        false, // VENT AVNCS EXTRACT: no avionics ventilation pb-sw in the simulation
+        this.fws.airKnob.get() === 2, // AIR DATA SWTG F/O ON 3
+        this.fws.tawsWxrSelected.get() === 1,
+        this.xpdrTcasSystemIs(1),
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800011: {
+      // AC ESS BUS ALTN, FCOM l.139130, PDF p.4866: crew awareness
+      flightPhaseInhib: [4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: this.fws.elecAcEssBusAltn,
+      // Design choice: not when AC 4 takes over automatically after the loss of AC 1 (ELEC AC BUS 1 FAULT), nor when
+      // the AC ESS busbar is lost anyway
+      notActiveWhenItemActive: ['240800002', '240800012'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800012: {
+      // AC ESS BUS FAULT, FCOM l.139158, PDF p.4867
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        // IF NOT SUCCESSFUL (l.139193): the alert is still there with the AC ESS FEED pb-sw in ALTN
+        const notSuccessful = this.fws.elecAcEssFeedAltn.get();
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.139203
+        return [
+          true,
+          notSuccessful,
+          notSuccessful,
+          notSuccessful,
+          notSuccessful,
+          notSuccessful,
+          lowFeedTanks,
+          lowFeedTanks,
+          lowFeedTanks,
+          false,
+          false,
+        ];
+      },
+      whichItemsChecked: () => [
+        this.fws.elecAcEssFeedAltn.get(),
+        false,
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+        false,
+        false,
+      ],
+      // STATUS (FCOM l.139256-139289), see ELEC_AC_ESS_BUS_FAULT_STATUS. The REDUND LOSS items are FwsInopSys
+      // entries active with this alert: the redundLoss field of this table never reaches the STATUS page.
+      limitationsApprLdg: () => ELEC_AC_ESS_BUS_FAULT_STATUS.limitationsApprLdg,
+      inopSysAllPhases: () => ELEC_AC_ESS_BUS_FAULT_STATUS.inopSysAllPhases,
+      inopSysApprLdg: () => ELEC_AC_ESS_BUS_FAULT_STATUS.inopSysApprLdg,
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800014: this.elecApuGenFaultItem(0),
+    240800015: this.elecApuGenFaultItem(1),
+    240800016: {
+      // APU TR FAULT, FCOM l.139442, PDF p.4874
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecApuTrFault,
+      notActiveWhenItemActive: [],
+      // "If the APU is off, and the APU battery is on: WHEN APU NOT RQRD : APU BAT OFF" (FCOM l.139454). Design
+      // choice: shown with the APU off; the APU BAT line then shows ticked if the battery is already off.
+      whichItemsToShow: () => {
+        const apuOff = this.fws.apuMasterSwitch.get() === 0;
+        return [apuOff, apuOff];
+      },
+      whichItemsChecked: () => [false, !this.fws.elecApuBatAuto.get()],
+      failure: 1,
+      sysPage: SdPages.ElecDc,
+    },
+    240800019: {
+      // BUS TIE OFF, FCOM l.139586, PDF p.4879: crew awareness
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.elecBusTieOff,
+      // Not when ELEC EMER CONFIG asks for BUS TIE OFF (FCOM l.141663)
+      notActiveWhenItemActive: ['240800055'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    240800026: {
+      // DC BUS 1 FAULT, FCOM l.139733, PDF p.4884
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecDcBusFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.139781
+        return [
+          this.fws.taxiInFlapsLever0For1Min.get(), // FCOM l.139761
+          true,
+          true,
+          false,
+          false,
+          true,
+          lowFeedTanks,
+          lowFeedTanks,
+          lowFeedTanks,
+          false,
+          false,
+        ];
+      },
+      whichItemsChecked: () => [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800029: {
+      // DC BUS 2 FAULT, FCOM l.140567, PDF p.4903
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecDcBusFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.140620
+        return [
+          this.fws.taxiInFlapsLever0For1Min.get(), // FCOM l.140595
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          true,
+          lowFeedTanks,
+          lowFeedTanks,
+          lowFeedTanks,
+        ];
+      },
+      whichItemsChecked: () => [
+        false,
+        this.fws.airKnob.get() === 2, // AIR DATA SWTG F/O ON 3
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800030: {
+      // DC ESS BUS FAULT, FCOM l.140758, PDF p.4908
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.elecDcEssBusFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // FCOM l.140819
+        // FOR TAXI : FLAPS SELECT CONF 1+F has no condition in this procedure (FCOM l.140788)
+        return [...Array(15).fill(true), lowFeedTanks, lowFeedTanks, lowFeedTanks, false, false];
+      },
+      whichItemsChecked: () => [
+        false,
+        this.fws.airKnob.get() === 0, // AIR DATA SWTG CAPT ON 3
+        false,
+        false,
+        false,
+        false,
+        this.fws.tawsWxrSelected.get() === 2,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        this.fws.fuelEmerOutrTkXfrOn.get(),
+        false,
+        false,
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800036: this.elecDriveDisconnectedItem(0),
+    240800037: this.elecDriveDisconnectedItem(1),
+    240800038: this.elecDriveDisconnectedItem(2),
+    240800039: this.elecDriveDisconnectedItem(3),
+    240800055: {
+      // EMER CONFIG, FCOM l.141552, PDF p.4929: master warning, CRC
+      flightPhaseInhib: [1, 5, 10, 12],
+      simVarIsActive: this.fws.elecEmerConfig,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const proc = this.fws.elecEmerConfigProcedure;
+        // "If the flight crew did not activate the FIRE SMOKE/FUMES alert" (FCOM l.141654, l.141715)
+        const noSmoke = !this.fws.smokeFumesActivated.get();
+        // IF NOT SUCCESSFUL (l.141662): the alert is still there after the first GENs reset
+        const firstResetDone = proc.firstGensReset.isCompleted;
+        const lowFl = proc.triggeredAtOrBelowFl230; // l.141704 / l.141776
+        const lowFeedTanks = this.fws.feedTanks1And4BelowEmerOutrXfrThreshold.get(); // l.141817
+        return [
+          true, // RAT MAN ON
+          true, // MIN RAT SPEED
+          noSmoke, // ALL GENs OFF THEN ON
+          noSmoke && firstResetDone, // IF NOT SUCCESSFUL
+          noSmoke && firstResetDone, // BUS TIE OFF
+          noSmoke && firstResetDone, // ALL GENs OFF THEN ON
+          true, // USE VHF 1 OR HF 1
+          true, // A/THR
+          true, // ATC COM VOICE ONLY
+          true, // VENT AVNCS EXTRACT
+          // Design choice: the maximum flight level is taken as not restricted below FL 200 by another alert (the FWS
+          // has no such restriction yet), so the DESCENT/MAX FL lines show and "APU CONSIDER" (l.141726) does not
+          lowFl, // DESCENT TO FL 200/MEA
+          lowFl, // MAX FL
+          lowFl && noSmoke, // WHEN BELOW FL 200 : APU
+          true, // SLATS SLOW
+          true, // L/G GRVTY EXTN ONLY
+          true, // AVOID ICING CONDs
+          true, // FOR SD : MAILBOX
+          true, // INR TKs NOT USABLE
+          true, // MID TKs NOT USABLE
+          true, // FEED TK 1
+          true, // FEED TK 4
+          !lowFl, // DESCENT TO FL 200/MEA
+          !lowFl, // MAX FL
+          !lowFl && noSmoke, // WHEN BELOW FL 200 : APU
+          false, // APU CONSIDER (maximum flight level restricted below FL 200)
+          false, // FUEL CONSUMPT INCRSD: STATUS INFO in the FCOM (l.142032), not a procedure line
+          false, // FMS PRED UNRELIABLE: idem
+          false, // IF SEVERE ICE ACCRETION: LIMITATIONS / DEFERRED PROC in the FCOM (l.141866, l.141891)
+          true, // LDG PERF AFFECTED (l.141809)
+          lowFeedTanks, // EMER OUTR TK XFR
+        ];
+      },
+      whichItemsChecked: () => {
+        const proc = this.fws.elecEmerConfigProcedure;
+        return [
+          this.fws.ratDeployed.get() > 0,
+          false,
+          proc.firstGensReset.isCompleted,
+          false,
+          this.fws.elecBusTieOff.get(),
+          proc.secondGensReset.isCompleted,
+          false,
+          !this.fws.autoThrustEngaged.get(),
+          false,
+          false, // VENT AVNCS EXTRACT: no avionics ventilation pb-sw in the simulation
+          ...Array(20).fill(false),
+        ];
+      },
+      failure: 3,
+      sysPage: SdPages.ElecAc,
+    },
+    240800061: this.elecGenFaultItem(0),
+    240800062: this.elecGenFaultItem(1),
+    240800063: this.elecGenFaultItem(2),
+    240800064: this.elecGenFaultItem(3),
+    240800065: this.elecGenOffItem(0),
+    240800066: this.elecGenOffItem(1),
+    240800067: this.elecGenOffItem(2),
+    240800068: this.elecGenOffItem(3),
+    240800081: this.elecTrFaultItem(0),
+    240800082: this.elecTrFaultItem(1),
+    240800083: this.elecTrFaultItem(2),
     // ATA 26 - FIRE PROTECTION
     260800001: {
       // APU FIRE

@@ -92,6 +92,12 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
+import {
+  ElecAlertLogic,
+  ElecEmerConfigProcedureState,
+  feedTanks1And4BelowEmerOutrXfrThreshold,
+  readElecNetworkInputs,
+} from './FwsElecAlerts';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -826,6 +832,67 @@ export class FwsCore {
   public readonly elecGalleyOff = Subject.create(false);
 
   public readonly elecPaxSysOff = Subject.create(false);
+
+  /** ELEC alert conditions from the electrical network state, see FwsElecAlerts */
+  private readonly elecAlertLogic = new ElecAlertLogic();
+
+  /** ELEC AC BUS 1(2)(3)(4) FAULT */
+  public readonly elecAcBusFault = Array.from(Array(4), () => Subject.create(false));
+
+  public readonly elecAcEssBusFault = Subject.create(false);
+
+  public readonly elecAcEssBusAltn = Subject.create(false);
+
+  /** ELEC DC BUS 1(2) FAULT */
+  public readonly elecDcBusFault = Array.from(Array(2), () => Subject.create(false));
+
+  public readonly elecDcEssBusFault = Subject.create(false);
+
+  /** ELEC GEN 1(2)(3)(4) FAULT */
+  public readonly elecGenFault = Array.from(Array(4), () => Subject.create(false));
+
+  /** ELEC GEN 1(2)(3)(4) OFF */
+  public readonly elecGenOff = Array.from(Array(4), () => Subject.create(false));
+
+  /** ELEC DRIVE 1(2)(3)(4) DISCONNECTED */
+  public readonly elecDriveDisconnected = Array.from(Array(4), () => Subject.create(false));
+
+  /** ELEC APU GEN A(B) FAULT */
+  public readonly elecApuGenFault = Array.from(Array(2), () => Subject.create(false));
+
+  /** ELEC TR 1(2)(ESS) FAULT */
+  public readonly elecTrFault = Array.from(Array(3), () => Subject.create(false));
+
+  public readonly elecApuTrFault = Subject.create(false);
+
+  public readonly elecBusTieOff = Subject.create(false);
+
+  /** The state the ELEC EMER CONFIG procedure lines depend on (FL 230 branch, GENs resets) */
+  public readonly elecEmerConfigProcedure = new ElecEmerConfigProcedureState();
+
+  /** GEN 1-4 pb-sw ON, for the GEN ... OFF procedure lines */
+  public readonly elecGenPbOn = Array.from(Array(4), () => Subject.create(true));
+
+  /** APU GEN A(B) pb-sw ON, for the APU GEN A(B) ... OFF procedure lines */
+  public readonly elecApuGenPbOn = Array.from(Array(2), () => Subject.create(true));
+
+  /** AC ESS FEED pb-sw in ALTN */
+  public readonly elecAcEssFeedAltn = Subject.create(false);
+
+  /** APU BAT pb-sw in AUTO */
+  public readonly elecApuBatAuto = Subject.create(false);
+
+  /** EMER OUTR TK XFR pb-sw ON */
+  public readonly fuelEmerOutrTkXfrOn = Subject.create(false);
+
+  /** Feed tanks 1 and 4 below 19 000 kg: the ELEC procedures then ask for EMER OUTR TK XFR ON */
+  public readonly feedTanks1And4BelowEmerOutrXfrThreshold = Subject.create(false);
+
+  /** "During taxi-in, one minute after the FLAPS lever is set to 0" (FCOM PRO-ABN-ECAM-10-24, ELEC DC BUS 1(2) FAULT) */
+  public readonly taxiInFlapsLever0For1Min = Subject.create(false);
+
+  private readonly taxiInFlapsLever0ConfirmNode = new NXLogicConfirmNode(60, true);
+
   /* 26 - FIRE */
 
   public readonly fduDiscreteWord = Arinc429Register.empty();
@@ -4558,6 +4625,53 @@ export class FwsCore {
         SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_BAT_ESS_PB_IS_AUTO', 'bool') ||
         SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_BAT_APU_PB_IS_AUTO', 'bool')
       ),
+    );
+
+    // ELEC alerts (FwsElecAlerts, A380 FCOM PRO-ABN-ECAM-10-24)
+    const elecInputs = readElecNetworkInputs((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool));
+    const elecFlags = this.elecAlertLogic.update(elecInputs);
+    elecFlags.acBusFault.forEach((fault, i) => this.elecAcBusFault[i].set(fault));
+    this.elecAcEssBusFault.set(elecFlags.acEssBusFault);
+    this.elecAcEssBusAltn.set(elecFlags.acEssBusAltn);
+    elecFlags.dcBusFault.forEach((fault, i) => this.elecDcBusFault[i].set(fault));
+    this.elecDcEssBusFault.set(elecFlags.dcEssBusFault);
+    elecFlags.genFault.forEach((fault, i) => this.elecGenFault[i].set(fault));
+    elecFlags.genOff.forEach((off, i) => this.elecGenOff[i].set(off));
+    elecFlags.driveDisconnected.forEach((disc, i) => this.elecDriveDisconnected[i].set(disc));
+    elecFlags.apuGenFault.forEach((fault, i) => this.elecApuGenFault[i].set(fault));
+    elecFlags.trFault.forEach((fault, i) => this.elecTrFault[i].set(fault));
+    this.elecApuTrFault.set(elecFlags.apuTrFault);
+    this.elecBusTieOff.set(elecFlags.busTieOff);
+
+    elecInputs.engGenPbOn.forEach((on, i) => this.elecGenPbOn[i].set(on));
+    this.elecApuGenPbOn[0].set(SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_APU_GEN_1_PB_IS_ON', SimVarValueType.Bool) > 0);
+    this.elecApuGenPbOn[1].set(SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_APU_GEN_2_PB_IS_ON', SimVarValueType.Bool) > 0);
+    this.elecAcEssFeedAltn.set(
+      !(SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_AC_ESS_FEED_PB_IS_NORMAL', SimVarValueType.Bool) > 0),
+    );
+    this.elecApuBatAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_BAT_APU_PB_IS_AUTO', SimVarValueType.Bool) > 0);
+    this.fuelEmerOutrTkXfrOn.set(
+      SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_EMER_OUTR_XFR_PB_IS_ON', SimVarValueType.Bool) > 0,
+    );
+    // Feed tank 1 = FUELSYSTEM TANK 2, feed tank 4 = FUELSYSTEM TANK 9 (as the feed tank LO LEVEL logic below)
+    this.feedTanks1And4BelowEmerOutrXfrThreshold.set(
+      feedTanks1And4BelowEmerOutrXfrThreshold(
+        SimVar.GetSimVarValue('FUELSYSTEM TANK WEIGHT:2', 'kilogram'),
+        SimVar.GetSimVarValue('FUELSYSTEM TANK WEIGHT:9', 'kilogram'),
+      ),
+    );
+    this.taxiInFlapsLever0For1Min.set(
+      this.taxiInFlapsLever0ConfirmNode.write(
+        this.flightPhase.get() === FwcFlightPhase.AtOrBelowEightyKnots && this.flapsHandle.get() === 0,
+        deltaTime,
+      ),
+    );
+    this.elecEmerConfigProcedure.update(
+      elecFlags.emerConfig,
+      this.adrPressureAltitude.get(),
+      elecInputs.engGenPbOn.every((on) => !on),
+      elecInputs.engGenPbOn.every((on) => on),
+      !elecInputs.busTiePbAuto,
     );
 
     /* OTHER STUFF */
