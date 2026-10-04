@@ -4679,35 +4679,220 @@
                 </Component>
 
                 <Component ID="Overhead_Reset_Panel">
-                <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                    <!-- Reset buttons read by the avionics (ResetPanelPublisher, FMC) -->
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>ARPT_NAV</NAME>
+                        <TOOLTIPID>ARPT NAV reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>FMC_A</NAME>
+                        <TOOLTIPID>FMC A reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>FMC_B</NAME>
+                        <TOOLTIPID>FMC B reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>FMC_C</NAME>
+                        <TOOLTIPID>FMC C reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>FWS1</NAME>
+                        <TOOLTIPID>FWS 1 reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>FWS2</NAME>
+                        <TOOLTIPID>FWS 2 reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>AESU1</NAME>
+                        <TOOLTIPID>AESU 1 reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>AESU2</NAME>
+                        <TOOLTIPID>AESU 2 reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>NSS_AVNCS</NAME>
+                        <TOOLTIPID>NSS AVNCS reset</TOOLTIPID>
                     </UseTemplate>
                     <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
                         <NAME>NSS_FLT_OPS</NAME>
+                        <TOOLTIPID>NSS FLT OPS reset</TOOLTIPID>
+                    </UseTemplate>
+
+                    <!-- The other reset buttons of the panel (FCOM PRO-SUP-24-00 list of computer resets). They toggle
+                    L:A32NX_RESET_PANEL_<NAME> like the ones above, but no system reads these variables yet, so they are
+                    visual only. The blank CB_EMPTY1..8 slots of the model have no button and are not wired. -->
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>AICU1</NAME>
+                        <TOOLTIPID>AICU 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>AICU2</NAME>
+                        <TOOLTIPID>AICU 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>ATC</NAME>
+                        <TOOLTIPID>ATC reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>AVS1</NAME>
+                        <TOOLTIPID>AVS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>AVS2</NAME>
+                        <TOOLTIPID>AVS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>BSCS1</NAME>
+                        <TOOLTIPID>BSCS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>BSCS2</NAME>
+                        <TOOLTIPID>BSCS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>CIDS1</NAME>
+                        <TOOLTIPID>CIDS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>CIDS2</NAME>
+                        <TOOLTIPID>CIDS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>CIDS3</NAME>
+                        <TOOLTIPID>CIDS 3 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>CPCS1</NAME>
+                        <TOOLTIPID>CPCS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>CPCS2</NAME>
+                        <TOOLTIPID>CPCS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>DSMS</NAME>
+                        <TOOLTIPID>DSMS reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>DTLNKROUTER</NAME>
+                        <TOOLTIPID>DATALINK ROUTER reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>ENG1_EIPM2</NAME>
+                        <TOOLTIPID>ENG 1 EIPM 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>ENG2_EIPM1</NAME>
+                        <TOOLTIPID>ENG 2 EIPM 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>ENG3_EIPM2</NAME>
+                        <TOOLTIPID>ENG 3 EIPM 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>ENG4_EIPM1</NAME>
+                        <TOOLTIPID>ENG 4 EIPM 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>ESS_TR</NAME>
+                        <TOOLTIPID>ESS TR reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>FLAPS1</NAME>
+                        <TOOLTIPID>FLAPS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>FLAPS2</NAME>
+                        <TOOLTIPID>FLAPS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>FQMS1</NAME>
+                        <TOOLTIPID>FQMS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>FQMS2</NAME>
+                        <TOOLTIPID>FQMS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>GCU</NAME>
+                        <TOOLTIPID>GCU reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>LGCIS1</NAME>
+                        <TOOLTIPID>LGCIS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>LGCIS2</NAME>
+                        <TOOLTIPID>LGCIS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>PACK1_CTL</NAME>
+                        <TOOLTIPID>PACK 1 CTL reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>PACK2_CTL</NAME>
+                        <TOOLTIPID>PACK 2 CTL reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>PAX_BBAND</NAME>
+                        <TOOLTIPID>PAX BBAND reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>SCS1</NAME>
+                        <TOOLTIPID>SCS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>SCS2</NAME>
+                        <TOOLTIPID>SCS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>SDF1</NAME>
+                        <TOOLTIPID>SDF 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>SDF2</NAME>
+                        <TOOLTIPID>SDF 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>SDF3</NAME>
+                        <TOOLTIPID>SDF 3 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>SLATS1</NAME>
+                        <TOOLTIPID>SLATS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>SLATS2</NAME>
+                        <!-- The model names this button CB_SLAT2 (CB_SLATS1 for SLATS 1) -->
+                        <NODE_ID>CB_SLAT2</NODE_ID>
+                        <TOOLTIPID>SLATS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>TCS1</NAME>
+                        <TOOLTIPID>TCS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>TCS2</NAME>
+                        <TOOLTIPID>TCS 2 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>TR1</NAME>
+                        <TOOLTIPID>TR 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>TR_2A</NAME>
+                        <TOOLTIPID>TR 2A reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>VCS1</NAME>
+                        <TOOLTIPID>VCS 1 reset (Inop.)</TOOLTIPID>
+                    </UseTemplate>
+                    <UseTemplate Name="FBW_Airbus_RESET_PANEL_BUTTON">
+                        <NAME>VCS2</NAME>
+                        <TOOLTIPID>VCS 2 reset (Inop.)</TOOLTIPID>
                     </UseTemplate>
                 </Component>
             </Component>
