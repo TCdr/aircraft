@@ -24,8 +24,12 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210200002', { part: StatusPart.Information, text: 'CAB AT FIXED TEMP' }],
   ['210200003', { part: StatusPart.Information, text: 'CAB TEMP BY PACK ONLY' }],
   ['210200004', { part: StatusPart.Information, text: 'CAB TEMP CKPT CTL ONLY' }],
+  // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
   // 34 NAVIGATION
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
+  // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
   // 21 AIR CONDITIONING
   ['210300001', { part: StatusPart.InopSys, text: 'PACK 1' }],
   ['210300002', { part: StatusPart.InopSys, text: 'PACK 2' }],
@@ -39,6 +43,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210300010', { part: StatusPart.InopSys, text: 'HOT AIR' }],
   ['210300011', { part: StatusPart.InopSys, text: 'L+R CAB FAN' }],
   ['210300012', { part: StatusPart.InopSys, text: 'GALLEY FAN' }],
+  // 31 INDICATING/RECORDING (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  ['310300001', { part: StatusPart.InopSys, text: 'FWC 1' }],
+  ['310300002', { part: StatusPart.InopSys, text: 'FWC 2' }],
   // 34 NAVIGATION
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],

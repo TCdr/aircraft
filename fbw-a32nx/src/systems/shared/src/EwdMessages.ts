@@ -59,6 +59,8 @@ const EwdGroups: Record<string, string> = {
   'AIR$7': '\x1b<4m\x1b4mAIR\x1bm',
   'COND$4': '\x1b<4m\x1b4mCOND\x1bm',
   'CAB PR$4': '\x1b<4m\x1b4mCAB PR\x1bm',
+  'FWS$1': '\x1b<4m\x1b4mFWS\x1bm',
+  'FWS$2': '\x1b<4m\x1b4mFWS\x1bm',
 };
 /* eslint-enable prettier/prettier */
 
@@ -506,6 +508,20 @@ const EwdMessages = new Map<
   ['320018001', { group: 'L/G$6', text: ' LGCIU 1 FAULT' }],
   ['320018002', { text: '\x1b<5m -GPWS SYS...........OFF' }],
   ['320019001', { group: 'L/G$6', text: ' LGCIU 2 FAULT' }],
+  // FWS FWC 1(2) FAULT, crew awareness (A320 FCOM PRO-ABN-FWS)
+  ['310050001', { group: 'FWS$1', text: ' FWC 1 FAULT' }],
+  ['310051001', { group: 'FWS$1', text: ' FWC 2 FAULT' }],
+  // FWS FWC 1+2 FAULT (A320 FCOM PRO-ABN-FWS): written instead of the alerts and memos when no FWC is left, see
+  // Logic/FwcAvailability. Left: the alert and its procedure; right: what is not available.
+  ['310052001', { group: 'FWS$2', text: ' FWC 1+2 FAULT' }],
+  ['310052002', { text: '\x1b<5m -MONITOR SYS' }],
+  ['310052003', { text: '\x1b<5m -MONITOR OVERHEAD PANEL' }],
+  ['310052011', { text: '\x1b<4m\x1b4mNOT AVAIL\x1bm' }],
+  ['310052012', { text: '\x1b<4mECAM WARN' }],
+  ['310052013', { text: '\x1b<4mALTI ALERT' }],
+  ['310052014', { text: '\x1b<4mSTATUS' }],
+  ['310052015', { text: '\x1b<4mA/CALL OUT' }],
+  ['310052016', { text: '\x1b<4mMEMO' }],
   ['216129101', { group: 'AIR$7', text: ' COND CTL 1-A FAULT' }],
   ['216129701', { group: 'AIR$7', text: ' COND CTL 1-B FAULT' }],
   ['216129401', { group: 'AIR$7', text: ' COND CTL 2-A FAULT' }],
