@@ -209,6 +209,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MODEL] The paper door of the pedestal printer opens and closes with a click, showing the paper roll and the roller unit; no torn paper edge left in the slit between printouts - @TCdr
 1. [A380X/MODEL] No torn paper edge left in the pedestal printer slit between printouts - @TCdr
 1. [ND] Fewer stutters with the weather radar and TERR ON ND: the map views nothing shows are paused - @TCdr
+1. [A380X/ND] The ND shows the WXR messages of the manual radar settings of the MFD SURV CONTROLS page: GAIN with the GAIN button at MAN, ELEVN or TILT instead of WX - @TCdr
+1. [A380X/MFD] WXR GAIN, TILT and ELEVN take the FCOM default values (GAIN 50 %, TILT +3.0 deg on ground and 0 deg in flight, ELEVN the current altitude) at the first manual selection - @TCdr
 1. [A32NX/COND] Engine 2 FIRE pb now closes pack 2 (it closed pack 1 before); on ground the packs reopen 30 s after an engine start - @TCdr
 1. [A32NX/COND] Hot air valve stays open with one cabin trim air valve failed; it closes for the cockpit valve or both cabin valves - @TCdr
 1. [A32NX/COND] LAV + GALLEY FAN failure: the FWD/AFT CABIN selectors set the cabin duct temperature directly; with ACSC 2 lost the cabin gets the cockpit duct air - @TCdr
