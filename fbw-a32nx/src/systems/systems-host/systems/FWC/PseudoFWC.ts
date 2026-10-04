@@ -2212,10 +2212,6 @@ export class PseudoFWC {
     this.failuresRight.length = 0;
     this.recallFailures.length = 0;
     this.allCurrentFailures.length = 0;
-    this.ewdPrimaryFailuresClearedLines.clear();
-    this.ewdSecondaryFailuresCleared.clear();
-    this.currentEwdLeftLayout = EMPTY_EWD_LAYOUT;
-    this.currentEwdSecondaryFailureKey = undefined;
 
     // No aural nor attention getter request left behind
     this.auralCrcKeys = [];
@@ -2232,7 +2228,6 @@ export class PseudoFWC {
 
     // E/WD: the FWC 1+2 FAULT display instead of the alerts (left) and the memos (right)
     this.ewdLeftFailureActive.set(false);
-    this.ewdLowerLeftOverflow.set(false);
     this.ewdMessageLinesLeft.forEach((l, i) => l.set(FWC_1_AND_2_FAULT_EWD.left[i] ?? ''));
     this.ewdMessageLinesRight.forEach((l, i) => l.set(FWC_1_AND_2_FAULT_EWD.right[i] ?? ''));
 
