@@ -230,6 +230,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A32NX/FWS] AIR PACK 2 OFF checks the ENG 2 BLEED pb (it read ENG 1 BLEED) - @TCdr
+1. [A32NX/BLEED] BLEED page: the bleed temperature turns amber when the bleed supplies air below 150 °C with WING ANTI ICE on in flight (the low temperature flag was set only with the bleed valve closed) - @TCdr
+1. [A32NX/TCAS] A GPWS warning or alert now puts the TCAS in TA ONLY automatically (it read an A380X variable) - @TCdr
+1. [A32NX/SD] CRUISE page: delta P pulses only above 1.5 PSI in the approach phase (resets at 1 PSI), not during the whole cruise - @TCdr
+1. [A32NX/SD] WHEEL page: AUTO BRK no longer turns amber when an engine is off (single-engine taxi, engine failure) - @TCdr
+1. [A32NX/FWS] ALL ENGINES FAILURE: the APU START line shows below FL 250 as in the FCOM, not only below 2 500 ft radio altitude - @TCdr
 1. [EFB] Loading an interior lighting preset that was never saved (or auto-loading one) sets the lights to 50 % as the flyPad says, instead of fading every light, displays and MCDUs included, to off - @TCdr
 1. [EFB] Saving an interior lighting preset works again: the presets file was never written (the ini library refused the existing work folder), so no preset could be saved or loaded - @TCdr
 1. [A32NX] Fire protection: new flyPad failures of the engine 1, engine 2 and APU fire detection units (FDU): the zone gives the ENG 1(2) / APU FIRE DET FAULT caution with healthy loops and can no longer give a fire warning - @TCdr

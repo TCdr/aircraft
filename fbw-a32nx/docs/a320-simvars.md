@@ -2821,6 +2821,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_PNEU_ENG_{number}_LOW_TEMPERATURE:
     - Indicates whether the engine bleed air temperature is low
+    - Set when the bleed supplies air (valve open) below 150 °C in flight with WING ANTI ICE on (BLEED LO TEMP)
     - Bool
     - {number}
         - 1
