@@ -108,6 +108,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
 1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
+1. [A32NX] Exterior spoilers move by panel group from their own deflection instead of the wing average: spoiler 1 stays down in turns and with the speedbrakes, and the deflection is shown in true degrees - @TCdr
 
 ## 2024.1.0
 
