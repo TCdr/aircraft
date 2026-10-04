@@ -4,7 +4,7 @@
 import { createRequire } from 'module';
 import { describe, expect, it } from 'vitest';
 
-const { scopeCss, hostedHtml } = createRequire(import.meta.url)('./hostedInstrument.cjs');
+const { scopeCss, hostedHtml, packageIds } = createRequire(import.meta.url)('./hostedInstrument.cjs');
 
 /** The stylesheet without line breaks and repeated spaces, for comparisons */
 function flat(css: string): string {
@@ -22,6 +22,12 @@ describe('hosted instrument stylesheet (CDS reconfiguration)', () => {
     expect(flat(scopeCss(':root { --x: 1; } html body .a { color: red; } body { margin: 0; }', '#ND_CONTENT'))).toBe(
       '#ND_CONTENT { --x: 1; } #ND_CONTENT .a { color: red; } #ND_CONTENT { margin: 0; }',
     );
+  });
+
+  it('maps the panel element of the gauges to the mount element', () => {
+    expect(
+      flat(scopeCss('vcockpit-panel { font-family: Ecam; } vcockpit-panel-x { color: red; }', '#MSFS_REACT_MOUNT')),
+    ).toBe('#MSFS_REACT_MOUNT { font-family: Ecam; } #MSFS_REACT_MOUNT vcockpit-panel-x { color: red; }');
   });
 
   it('scopes rules inside media queries and leaves font faces alone', () => {
@@ -57,5 +63,39 @@ describe('hosted instrument stylesheet (CDS reconfiguration)', () => {
     expect(html).toContain('import-script="/JS/dataStorage.js"');
     expect(html).toContain('<link rel="stylesheet" href="/Pages/VCockpit/Instruments/A380X/PFD/pfd-hosted.css" />');
     expect(html).toContain('import-script="/Pages/VCockpit/Instruments/A380X/PFD/pfd.js"');
+  });
+
+  it('keeps a selector that already starts with the mount element', () => {
+    expect(
+      flat(scopeCss('#MSFS_REACT_MOUNT { width: 100%; } #MSFS_REACT_MOUNTED .a { color: red; }', '#MSFS_REACT_MOUNT')),
+    ).toBe('#MSFS_REACT_MOUNT { width: 100%; } #MSFS_REACT_MOUNT #MSFS_REACT_MOUNTED .a { color: red; }');
+  });
+
+  it("uses Mach's ids of the package: the React mount element for the legacy SD", () => {
+    expect(packageIds('SD', { type: 'react', fileName: 'sd' })).toEqual({
+      templateId: 'SD',
+      mountElementId: 'MSFS_REACT_MOUNT',
+    });
+    expect(
+      packageIds('SDv2', {
+        type: 'baseInstrument',
+        templateId: 'A380X_SDv2',
+        mountElementId: 'SDv2_CONTENT',
+        fileName: 'sdv2',
+      }),
+    ).toEqual({ templateId: 'A380X_SDv2', mountElementId: 'SDv2_CONTENT' });
+  });
+
+  it('writes the hosted SD HTML around the React harness script', () => {
+    const html = hostedHtml({
+      ...packageIds('SD', { type: 'react', fileName: 'sd' }),
+      imports: ['/JS/dataStorage.js', '/JS/fbw-a380x/A380X_Simvars.js'],
+      cssPath: '/Pages/VCockpit/Instruments/A380X/SD/sd-hosted.css',
+      jsPath: '/Pages/VCockpit/Instruments/A380X/SD/sd.js',
+    });
+    expect(html).toContain('<script type="text/html" id="SD">');
+    expect(html).toContain('<div id="MSFS_REACT_MOUNT">');
+    expect(html).toContain('import-script="/JS/fbw-a380x/A380X_Simvars.js"');
+    expect(html).toContain('import-script="/Pages/VCockpit/Instruments/A380X/SD/sd.js"');
   });
 });

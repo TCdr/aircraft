@@ -23,14 +23,20 @@ const postcss = require('postcss');
 const KEYFRAMES_PREFIX = 'hosted-';
 
 /**
- * Scopes one selector to the mount element. Document-level selectors (:root, html, body) stand for the mount element.
+ * Scopes one selector to the mount element. Document-level selectors (:root, html, body, and vcockpit-panel: the panel
+ * element of the gauges, e.g. the legacy SD's Ecam font) stand for the mount element,
+ * and a selector that already starts with the mount element is kept.
  * @param {string} selector the selector
  * @param {string} scope the scope selector (e.g. #PFD_CONTENT)
  * @returns {string} the scoped selector
  */
 function scopeSelector(selector, scope) {
     const trimmed = selector.trim();
-    const documentLevel = /^((:root|html|body)\b\s*)+/i.exec(trimmed);
+    // e.g. `#SDv2_CONTENT .page` stays, `#SDv2_CONTENTS` does not (the next character continues the name)
+    if (trimmed.startsWith(scope) && !/[\w-]/.test(trimmed.charAt(scope.length))) {
+        return trimmed;
+    }
+    const documentLevel = /^((:root|html|body|vcockpit-panel)(?![\w-])\s*)+/i.exec(trimmed);
     if (documentLevel) {
         const rest = trimmed.slice(documentLevel[0].length).trim();
         return rest ? `${scope} ${rest}` : scope;
@@ -90,10 +96,25 @@ function hostedHtml({ templateId, mountElementId, imports, cssPath, jsPath }) {
 }
 
 /**
+ * The template and mount element ids of an instrument's package, as Mach writes them: a React instrument (legacy SD)
+ * has Mach's `MSFS_REACT_MOUNT` element and its name as template id unless set; its script (`<file>.js`) is Mach's
+ * BaseInstrument harness with the bundle inside, which the hosted HTML loads the same way.
+ * @param {string} name the instrument name (folder)
+ * @param {{ type?: string, templateId?: string, mountElementId?: string }} simulatorPackage
+ * @returns {{ templateId: string, mountElementId: string }} the ids
+ */
+function packageIds(name, simulatorPackage) {
+    if (simulatorPackage.type === 'react') {
+        return { templateId: simulatorPackage.templateId ?? name, mountElementId: 'MSFS_REACT_MOUNT' };
+    }
+    return { templateId: simulatorPackage.templateId, mountElementId: simulatorPackage.mountElementId };
+}
+
+/**
  * esbuild plugin of a Mach instrument (mach.config.js): after the build, writes `<file>-hosted.css` and
  * `<file>-hosted.html` next to the instrument's package files
  * @param {string} name the instrument name (folder)
- * @param {{ templateId: string, mountElementId: string, fileName: string, imports?: string[] }} simulatorPackage
+ * @param {{ type?: string, templateId?: string, mountElementId?: string, fileName: string, imports?: string[] }} simulatorPackage
  * @returns {import('esbuild').Plugin} the plugin
  */
 function hostedInstrumentPlugin(name, simulatorPackage) {
@@ -117,7 +138,8 @@ function hostedInstrumentPlugin(name, simulatorPackage) {
                     name,
                 );
                 const packagePath = `/Pages/VCockpit/Instruments/${process.env.PACKAGE_NAME}/${name}`;
-                const { fileName, templateId, mountElementId } = simulatorPackage;
+                const { fileName } = simulatorPackage;
+                const { templateId, mountElementId } = packageIds(name, simulatorPackage);
 
                 await fs.promises.mkdir(packageTarget, { recursive: true });
                 await fs.promises.writeFile(
@@ -139,4 +161,4 @@ function hostedInstrumentPlugin(name, simulatorPackage) {
     };
 }
 
-module.exports = { hostedInstrumentPlugin, scopeCss, scopeSelector, hostedHtml };
+module.exports = { hostedInstrumentPlugin, packageIds, scopeCss, scopeSelector, hostedHtml };

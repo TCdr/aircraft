@@ -59,16 +59,17 @@ export const DU_RECONF_SEQUENCE: Readonly<Record<DisplayUnitID, readonly CdsDisp
 
 /**
  * The displays the simulation can draw on each DU: every display is a gauge of its own, so a DU can only show a display
- * that has a gauge on its texture (panel.cfg). Design choice, not FCOM: the PFD and the ND on both DUs of a side and the
- * EWD on the SD DU. The MFD (one gauge over both MFD screens, which also runs the FMS) and the SD (two gauges, one of
- * them a legacy React instrument) are not drawn on another DU, so the DU RECONF pb skips them.
+ * that has a gauge on its texture (panel.cfg). Design choice, not FCOM: the PFD and the ND on both DUs of a side, the
+ * EWD and the SD also on the ND DUs, and the EWD on the SD DU. The MFD (one gauge over both MFD screens, which also runs
+ * the FMS) is not drawn on another DU, and nothing is drawn on the MFD DUs (one texture over both MFD screens), so the
+ * DU RECONF pb skips them.
  */
 export const DRAWN_DISPLAYS: Readonly<Record<DisplayUnitID, readonly CdsDisplay[]>> = {
   [DisplayUnitID.CaptPfd]: [CdsDisplay.Pfd, CdsDisplay.Nd],
-  [DisplayUnitID.CaptNd]: [CdsDisplay.Nd, CdsDisplay.Pfd],
+  [DisplayUnitID.CaptNd]: [CdsDisplay.Nd, CdsDisplay.Pfd, CdsDisplay.Ewd, CdsDisplay.Sd],
   [DisplayUnitID.CaptMfd]: [CdsDisplay.Mfd],
   [DisplayUnitID.FoPfd]: [CdsDisplay.Pfd, CdsDisplay.Nd],
-  [DisplayUnitID.FoNd]: [CdsDisplay.Nd, CdsDisplay.Pfd],
+  [DisplayUnitID.FoNd]: [CdsDisplay.Nd, CdsDisplay.Pfd, CdsDisplay.Ewd, CdsDisplay.Sd],
   [DisplayUnitID.FoMfd]: [CdsDisplay.Mfd],
   [DisplayUnitID.Ewd]: [CdsDisplay.Ewd],
   [DisplayUnitID.Sd]: [CdsDisplay.Sd, CdsDisplay.Ewd],
@@ -229,7 +230,9 @@ export function computeCdsDisplays(inputs: CdsReconfigurationInputs): DisplayUni
  * F/O: the ND DU if the PFD DU and ND DU are both operative; the MFD DU if either is failed; the PFD DU if both the ND
  * DU and MFD DU are failed ("to favor the display of the PFD on either the PFD or ND DU").
  * Design choice: a DU that is not operative (failed, unpowered or switched off) counts as failed; when the F/O's PFD or
- * ND DU and the MFD DU are failed, the remaining one of the PFD and ND DUs.
+ * ND DU and the MFD DU are failed, the F/O order ends on the failed MFD DU (rule 2; rule 3 needs the ND DU failed), so
+ * the pb acts on the remaining one of the PFD and ND DUs, as the CAPT pb does with the same failures (CAPT rule 2: the
+ * ND DU, which then shows the PFD).
  * @param side the side of the pb
  * @param operative the DU states
  * @returns the DU, or null while the pb is not active (or no DU is left)
@@ -260,21 +263,42 @@ export function duReconfTarget(side: CdsSide, operative: Readonly<DisplayUnitMap
 }
 
 /**
- * The display after one press of the DU RECONF pb on a DU: the next one of its sequence that the DU can draw, skipping
- * an EWD or SD shown on the other side; after the last one, the normal display.
- * Design choice: a DU that shows an automatic display (the PFD on the ND DU, the EWD on the SD DU) keeps it, so the pb
- * never takes the PFD away from the DU it moved to.
+ * The DU RECONF cycle of a DU: its base display (what it shows without a DU RECONF selection), then the "Manual"
+ * displays of its FCOM sequence that it can draw, in the FCOM order.
+ *
+ * The base display is the normal display, or the display the automatic reconfiguration or the PFD/ND pb put there.
+ * With the CAPT (F/O) PFD and MFD DUs failed, the pb acts on the ND DU ("2. The ND DU, if the MFD DU is failed",
+ * a380_fcom.txt:63166), which shows the PFD automatically ("If the CAPT (F/O) PFD DU fails, the PFD is automatically
+ * displayed on the CAPT (F/O) ND DU", a380_fcom.txt:63146), and the "Manual" displays of the ND DU are MFD, EWD and SD
+ * (capability table, a380_fcom.txt:63207-63211). Design choice: the automatic PFD takes the place of the normal display
+ * (the ND, lost) at the head of the cycle, so the cycle is PFD, (MFD, not drawn,) EWD, SD and back to the PFD; while
+ * the EWD or the SD is selected, that side has no PFD (its PFD and MFD DUs are failed: no other DU to show it on).
+ * @param du the DU
+ * @param base its base display
+ * @returns the cycle, the base display first
+ */
+export function duReconfCycle(du: DisplayUnitID, base: CdsDisplay): CdsDisplay[] {
+  const manualDisplays = DU_RECONF_SEQUENCE[du].slice(1).filter((display) => display !== base);
+  return [base, ...manualDisplays.filter((display) => DRAWN_DISPLAYS[du].includes(display))];
+}
+
+/**
+ * The display after one press of the DU RECONF pb on a DU: the next one of its cycle (duReconfCycle), skipping an EWD
+ * or SD shown on the other side ("The EWD (SD) cannot be displayed on both sides at the same time",
+ * a380_fcom.txt:63186-63187); after the last one, the base display.
  * @param du the DU
  * @param current the display it shows
+ * @param base the display it shows without a DU RECONF selection (normal, automatic or PFD/ND pb)
  * @param displays the displays of all DUs
  * @returns the next display (the current one if there is nothing else to show)
  */
 export function nextDuReconfDisplay(
   du: DisplayUnitID,
   current: CdsDisplay,
+  base: CdsDisplay,
   displays: Readonly<DisplayUnitMap<CdsDisplay>>,
 ): CdsDisplay {
-  const sequence = DU_RECONF_SEQUENCE[du].filter((display) => DRAWN_DISPLAYS[du].includes(display));
+  const sequence = duReconfCycle(du, base);
   const index = sequence.indexOf(current);
   const side = sideOf(du);
   if (index < 0 || side === null) {
@@ -299,6 +323,9 @@ export class CdsReconfigurationState {
 
   private readonly manual: Partial<DisplayUnitMap<CdsDisplay>> = {};
 
+  /** The base display of each DU with a DU RECONF selection, when the selection was made */
+  private readonly manualBase: Partial<DisplayUnitMap<CdsDisplay>> = {};
+
   private operative: DisplayUnitMap<boolean>;
 
   constructor(operative: Readonly<DisplayUnitMap<boolean>>) {
@@ -311,6 +338,7 @@ export class CdsReconfigurationState {
    */
   public pressPfdNd(side: CdsSide): void {
     this.pfdNdSwapped[side] = !this.pfdNdSwapped[side];
+    this.dropEndedSelections();
   }
 
   /**
@@ -323,32 +351,58 @@ export class CdsReconfigurationState {
       return;
     }
     const displays = this.displays();
-    const next = nextDuReconfDisplay(target, displays[target], displays);
-    if (next === NORMAL_DISPLAY[target]) {
+    const base = this.baseDisplays()[target];
+    const next = nextDuReconfDisplay(target, displays[target], base, displays);
+    if (next === base) {
       delete this.manual[target];
+      delete this.manualBase[target];
     } else {
       this.manual[target] = next;
+      this.manualBase[target] = base;
     }
   }
 
   /**
    * New DU states. The DU RECONF selections of a side end when its pb is no longer active (no failed DU left), and the
-   * selection of a DU that is no longer operative is dropped (design choice).
+   * selection of a DU that is no longer operative is dropped (design choice). Design choice: a selection also ends when
+   * the base display of its DU changes (e.g. the PFD moves onto the ND DU because the PFD DU fails afterwards): the
+   * automatic reconfiguration of the PFD, one of the "two displays [...] considered as more important for continuing
+   * the flight" (a380_fcom.txt:63143-63144), wins over an earlier selection.
    * @param operative the DU states
    * @returns the display of each DU
    */
   public update(operative: Readonly<DisplayUnitMap<boolean>>): DisplayUnitMap<CdsDisplay> {
     this.operative = { ...operative };
+    this.dropEndedSelections();
+    return this.displays();
+  }
+
+  /** Drops the DU RECONF selections that ended (see update) */
+  private dropEndedSelections(): void {
+    const bases = this.baseDisplays();
     for (const du of DISPLAY_UNITS) {
       if (this.manual[du] === undefined) {
         continue;
       }
       const side = sideOf(du);
-      if (!operative[du] || side === null || duReconfTarget(side, operative) === null) {
+      if (
+        !this.operative[du] ||
+        side === null ||
+        duReconfTarget(side, this.operative) === null ||
+        this.manualBase[du] !== bases[du]
+      ) {
         delete this.manual[du];
+        delete this.manualBase[du];
       }
     }
-    return this.displays();
+  }
+
+  /**
+   * The display of each DU without the DU RECONF selections (normal, automatic reconfiguration and PFD/ND pb)
+   * @returns the displays
+   */
+  private baseDisplays(): DisplayUnitMap<CdsDisplay> {
+    return computeCdsDisplays({ operative: this.operative, pfdNdSwapped: this.pfdNdSwapped, manual: {} });
   }
 
   /**

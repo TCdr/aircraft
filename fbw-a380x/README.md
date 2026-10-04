@@ -80,9 +80,10 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 ### ATA 31 Indicating / Recording / ECAM / EFIS / Displays
 
 - CDS / display unit reconfiguration: partly implemented. Automatic (PFD to the ND DU, EWD to the SD DU), the PFD/ND
-  pb and the DU RECONF pb work, but the MFD and the SD are not drawn on another DU (the DU RECONF pb skips them), the
-  ND on the PFD DU has no weather radar or terrain image (the native ndwxr gauges stay on the ND DUs), and the KCCU keys
-  do not reconfigure the DUs
+  pb and the DU RECONF pb work (the EWD and the SD can be selected on the ND DUs), but the MFD is not drawn on another
+  DU and nothing is drawn on the MFD DUs (the DU RECONF pb skips them, so it does nothing when it acts on an MFD DU),
+  the SD on an ND DU has no ATC mailbox (the mailbox stays on the SD DU), the ND on the PFD DU has no weather radar or
+  terrain image (the native ndwxr gauges stay on the ND DUs), and the KCCU keys do not reconfigure the DUs
 - PFD backup scales
 - Interactive ND
 - Independent QNH
