@@ -17,14 +17,20 @@ export interface FireDetectionFaultAlerts {
  * is failed, or Both loops are failed, or The FDU fails"; FCOM PRO-ABN-ENG ENG 1(2) FIRE DET FAULT and PRO-ABN-APU APU
  * FIRE DET FAULT: "This alert triggers when: Both loops are inoperative, or Fire Detector Unit is inoperative". When
  * both loops are failed, the DET FAULT caution is shown instead of the two LOOP FAULT cautions (design choice: the FCOM
- * does not give the triggering conditions of the LOOP A(B) FAULT cautions; the A380 FWS does the same). The FDU itself
- * cannot fail in the simulation.
+ * does not give the triggering conditions of the LOOP A(B) FAULT cautions; the A380 FWS does the same). A failed FDU
+ * gives the DET FAULT caution whatever the state of the loops, and no LOOP FAULT caution (design choice: an FDU that
+ * is inoperative cannot tell which loop is failed).
  * @param loopAFailed loop A of the zone is failed
  * @param loopBFailed loop B of the zone is failed
+ * @param unitFailed the fire detection unit of the zone is failed (flyPad FDU failure)
  * @returns the cautions of the zone
  */
-export function fireDetectionFaultAlerts(loopAFailed: boolean, loopBFailed: boolean): FireDetectionFaultAlerts {
-  const detectionFault = loopAFailed && loopBFailed;
+export function fireDetectionFaultAlerts(
+  loopAFailed: boolean,
+  loopBFailed: boolean,
+  unitFailed: boolean,
+): FireDetectionFaultAlerts {
+  const detectionFault = (loopAFailed && loopBFailed) || unitFailed;
   return {
     loopAFault: loopAFailed && !detectionFault,
     loopBFault: loopBFailed && !detectionFault,
