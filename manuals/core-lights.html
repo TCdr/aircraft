@@ -1,0 +1,69 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Strobe and beacon flash timing - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>Strobe and beacon flash timing</h1>
+<div class="subtitle">The wing strobes flash the double flash of the real Airbus LED strobes, and the A380X beacons flash halfway between the strobes</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X</span>
+<b>Where to find it</b><span>Exterior lights: overhead EXT LT panel, STROBE and BEACON switches; seen from the outside view</span>
+<b>Branch</b><span><code>core/lights</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent.</span>
+<b>Status</b><span>Checked in the sim by the user at night on both aircraft: OK (2026-10-02).</span>
+<b>Pictures</b><span>No pictures: a flash timing does not show on a still picture.</span>
+</div>
+<h2>1. Strobe double flash and beacon phase</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> EXT LT panel: STROBE ON, BEACON ON; outside view &nbsp;|&nbsp; <b>Status:</b> Checked in the sim by the user at night on both aircraft ("both look right", 2026-10-02).</div>
+<h3>What it is for</h3>
+<p>The FCOM gives no flash rates (A320 DSC-33-20-20, A380 DSC-33-30-20); the A380 FCOM only says that the strobes and the beacons alternate. The timing of the real lights comes from the Collins LED light data: a wing strobe double flash of 50 ms on, 60 ms off, 50 ms on, about 60 times a minute, the beacons flashing between the strobes. The FBW effects had a 50 ms gap (A32NX) and a 150 ms gap (A380X) in the double flash, and the A380X beacons flashed too close to the strobes.</p>
+<h3>What changed</h3>
+<table><tr><th>Light</th><th>Before</th><th>Now</th></tr><tr><td>A32NX wing strobes</td><td>double flash 50-50-50 ms</td><td>double flash <b>50-60-50 ms</b>, 60 per minute (unchanged rate)</td></tr><tr><td>A380X wing strobes</td><td>double flash 50-150-50 ms</td><td>double flash <b>50-60-50 ms</b>, 45 per minute (unchanged rate)</td></tr><tr><td>A380X beacons</td><td>at +0.5 s in a 1.33 s cycle</td><td>at <b>+0.67 s</b>: exactly halfway between two strobe flashes</td></tr><tr><td>A32NX beacon, tail strobe</td><td>-</td><td>unchanged (beacon already halfway, at +0.5 s in a 1 s cycle)</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The A380X keeps its 45 flashes per minute.</td><td>There is no A380 source for the rate; 45 per minute is inside the Collins LED range (45 +/- 2).</td><td>-</td></tr><tr><td>A full MSFS restart is needed after an update.</td><td>The effect files (.fx) are loaded at sim start.</td><td>Restart the sim after installing.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: switch the <b>STROBE</b> and <b>BEACON</b> lights ON on the overhead EXT LT panel as usual.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX at night (or dusk), on the ground. Switch <b>STROBE ON</b> and <b>BEACON ON</b>. Go to an outside view that shows a wing tip and the fuselage.</td><td>Each wing strobe gives a crisp double flash (two short flashes very close together) about once a second.</td></tr><tr><td>2</td><td>Watch the beacon and the strobes together.</td><td>The beacon flashes halfway between two strobe double flashes: strobe, beacon, strobe, beacon, evenly spaced.</td></tr><tr><td>3</td><td>Repeat with the A380X.</td><td>Same crisp double flash of the wing strobes, a little slower (45 per minute); the beacons (top and belly) flash exactly halfway between the strobes, not right after them.</td></tr></table>
+</body></html>

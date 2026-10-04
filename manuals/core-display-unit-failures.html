@@ -1,0 +1,84 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Display unit failures - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>Display unit failures</h1>
+<div class="subtitle">flyPad failures for the A32NX ND and ECAM display units and the eight A380X CDS display units: the failed display goes blank, with the A380X CDS ... DU FAULT alert</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X</span>
+<b>Where to find it</b><span>flyPad &gt; Failures &gt; ATA 31 Indicating / Recording System; the display units; A380X E/WD and SD STATUS</span>
+<b>Branch</b><span><code>core/display-unit-failures</code>, based on <code>core/nd-weather-terrain</code> (stacked: needs core/nd-weather-terrain merged first, the radar / terrain gauge goes blank with a failed ND).</span>
+<b>Status</b><span>Both features tested in the sim by the user: OK (2026-10-04).</span>
+<b>Pictures</b><span>No pictures: a failed display unit is blank, the alerts are the stock FBW E/WD and SD displays.</span>
+</div>
+<h2>1. A32NX ND and ECAM display unit failures</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 31; CPT / F/O ND, upper and lower ECAM &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>The flyPad could fail the two PFDs only. Four more display units (DUs) can now be failed: the CAPT and F/O NDs and the upper and lower ECAM DUs. A failed DU goes blank, the way a failed PFD already did. The A320 FCOM (DSC-31-05-60, FAILURE OF A DU) lists a blank screen with an amber F, a distorted display or a blank screen with INVALID DISPLAY UNIT; the blank (OFF) screen is used here.</p>
+<ul><li>The weather radar and terrain picture of the ND (the native gauge over it) goes blank with a failed ND.</li><li>It is also no longer drawn on an ND that is switched off (brightness knob OFF) or still in its self-test.</li><li>The lower ECAM failure blanks the whole SD (both of its display layers). Before, the SD display unit ignored a failure change.</li><li>When the failure is cleared, the DU runs its self-test, then shows its picture again.</li></ul>
+<h3>The flyPad failures (ATA 31 Indicating / Recording System)</h3>
+<table><tr><th>flyPad failure name</th><th>Display unit that goes blank</th></tr><tr><td>Captain PFD display</td><td>CAPT PFD (existing failure)</td></tr><tr><td>F/O PFD display</td><td>F/O PFD (existing failure)</td></tr><tr><td>Captain ND display</td><td>CAPT ND, with its weather / terrain picture</td></tr><tr><td>F/O ND display</td><td>F/O ND, with its weather / terrain picture</td></tr><tr><td>Upper ECAM display</td><td>Upper ECAM DU (E/WD)</td></tr><tr><td>Lower ECAM display</td><td>Lower ECAM DU (SD)</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No ECAM alert for a failed DU.</td><td>The branch only blanks the DU.</td><td>-</td></tr><tr><td>No automatic transfer of a picture to another DU.</td><td>The FCOM transfers (E/WD to the lower ECAM DU, PFD to the ND DU, DSC-31-05-60) are not part of this branch.</td><td>Use the ECAM / EIS switching as available.</td></tr><tr><td>Always a blank screen.</td><td>The amber F, the distorted picture and INVALID DISPLAY UNIT of the FCOM are not drawn.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open <b>flyPad &gt; Failures</b>, chapter <b>ATA 31 Indicating / Recording System</b>.</li><li>Activate one of the display failures (table above): that DU goes blank.</li><li>Deactivate it to get the DU back (after its self-test).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, any phase, all displays on. CPT ND in ARC with the weather radar on (weather around) or TERR ON ND. flyPad &gt; Failures &gt; ATA 31: activate <b>Captain ND display</b>.</td><td>The CPT ND goes blank, with no weather or terrain left on it. The F/O ND is not affected.</td></tr><tr><td>2</td><td>Deactivate <b>Captain ND display</b>.</td><td>The CPT ND shows its self-test, then the ND picture with the weather / terrain.</td></tr><tr><td>3</td><td>Activate <b>F/O ND display</b>, then deactivate it.</td><td>Same on the F/O ND.</td></tr><tr><td>4</td><td>Activate <b>Upper ECAM display</b>.</td><td>The upper ECAM DU (E/WD) goes blank.</td></tr><tr><td>5</td><td>Deactivate it; activate <b>Lower ECAM display</b>.</td><td>The E/WD comes back after its self-test; the lower ECAM DU (SD) goes blank, whatever SD page was shown.</td></tr><tr><td>6</td><td>Deactivate it.</td><td>The SD comes back after its self-test.</td></tr><tr><td>7</td><td>No failure. With the weather radar picture on the CPT ND, turn the CPT ND brightness knob fully OFF, then back on.</td><td>The ND and its weather picture go dark together (no weather left on the dark ND) and come back together.</td></tr></table>
+<h2>2. A380X CDS display unit failures</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 31; the 8 CDS DUs; E/WD; SD STATUS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>The eight display units of the A380 CDS (A380 FCOM DSC-31-15-10: CAPT PFD, CAPT ND, CAPT MFD, E/WD, SD, F/O MFD, F/O ND, F/O PFD) can be failed from the flyPad. The failed DU goes blank (on an ND, the weather radar and terrain picture too, the VD included) and the FWS raises the <b>CDS ... DU FAULT</b> alert with its FCOM procedure and its INOP SYS line (FCOM PRO-ABN-ECAM-10-31).</p>
+<h3>The flyPad failures (ATA 31 Indicating / Recording System)</h3>
+<table><tr><th>flyPad failure name</th><th>ECAM alert (amber)</th><th>STATUS INOP SYS</th></tr><tr><td>CAPT PFD display unit</td><td>CDS CAPT PFD DU FAULT</td><td>CAPT PFD DU</td></tr><tr><td>CAPT ND display unit</td><td>CDS CAPT ND DU FAULT</td><td>CAPT ND DU</td></tr><tr><td>CAPT MFD display unit</td><td>CDS CAPT MFD DU FAULT</td><td>CAPT MFD DU</td></tr><tr><td>EWD display unit</td><td>CDS EWD DU FAULT</td><td>EWD DU</td></tr><tr><td>SD display unit</td><td>CDS SD DU FAULT</td><td>(none: the FCOM lists no SD line)</td></tr><tr><td>F/O MFD display unit</td><td>CDS F/O MFD DU FAULT</td><td>F/O MFD DU</td></tr><tr><td>F/O ND display unit</td><td>CDS F/O ND DU FAULT</td><td>F/O ND DU</td></tr><tr><td>F/O PFD display unit</td><td>CDS F/O PFD DU FAULT</td><td>F/O PFD DU</td></tr></table>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Failure activated</td><td>The DU goes blank. Single chime, MASTER CAUT, and the amber alert on the E/WD.</td></tr><tr><td>ECAM procedure (each DU)</td><td><i>xx</i> DU ..... OFF 5 S THEN ON; IF NOT SUCCESSFUL: <i>xx</i> DU ..... OFF; DU RECONF P/B AVAIL (green). The SD DU FAULT adds: IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX.</td></tr><tr><td>SD STATUS page</td><td>INOP SYS (all phases): the DU line of the table above.</td></tr><tr><td>Takeoff and landing</td><td>The alert is inhibited in the FWS flight phases 3 to 7, 9 and 10 (FCOM PDF p. 5386); the DU is blank anyway.</td></tr><tr><td>DU without power</td><td>No DU FAULT alert (design choice): the lost busbar has its own ELEC alert.</td></tr><tr><td>Failure cleared</td><td>The DU runs its self-test and shows its picture again; the alert and the INOP SYS line go.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No automatic reconfiguration (PFD to the ND DU, E/WD to the SD DU), no DU RECONF pushbutton.</td><td>Not modelled on this branch.</td><td>With the EWD or SD DU failed, read the alert or the STATUS on the other ECAM DU when it is not the failed one.</td></tr><tr><td>The OFF 5 S THEN ON item does not bring the DU back.</td><td>The flyPad failure stays until it is cleared, which is the procedure's NOT SUCCESSFUL branch.</td><td>Clear the failure in the flyPad.</td></tr><tr><td>The second FCOM trigger (a DU that declared two other DUs faulty in turn) is not modelled.</td><td>It needs the DU monitoring loops, which are not simulated.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open <b>flyPad &gt; Failures</b>, chapter <b>ATA 31 Indicating / Recording System</b>.</li><li>Activate one of the eight <b>... display unit</b> failures.</li><li>Follow the ECAM procedure, then check the SD STATUS page.</li><li>Deactivate the failure to get the DU back.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground (before the takeoff power) or in cruise, all DUs on. CPT ND in ARC with the WX overlay and weather around. flyPad &gt; Failures &gt; ATA 31: activate <b>CAPT ND display unit</b>.</td><td>The CAPT ND and its VD go blank, with no weather or terrain left. Single chime, MASTER CAUT. E/WD: <b>CDS CAPT ND DU FAULT</b> with CAPT ND DU ..... OFF 5 S THEN ON, IF NOT SUCCESSFUL, CAPT ND DU ..... OFF, DU RECONF P/B AVAIL in green.</td></tr><tr><td>2</td><td>Open the SD <b>STATUS</b> page.</td><td>INOP SYS: <b>CAPT ND DU</b>.</td></tr><tr><td>3</td><td>Deactivate the failure.</td><td>The CAPT ND runs its self-test, then shows the ND, the VD and the weather again; the alert and the INOP SYS line are gone.</td></tr><tr><td>4</td><td>Repeat with <b>CAPT PFD display unit</b>, <b>CAPT MFD display unit</b>, <b>F/O PFD display unit</b>, <b>F/O ND display unit</b> and <b>F/O MFD display unit</b>.</td><td>Each time the named DU goes blank and the E/WD shows the matching CDS ... DU FAULT, with its INOP SYS line on the STATUS.</td></tr><tr><td>5</td><td>Activate <b>SD display unit</b>.</td><td>The SD goes blank; E/WD: <b>CDS SD DU FAULT</b> with the extra green line IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX (the FCOM gives this alert no INOP SYS line).</td></tr><tr><td>6</td><td>Deactivate it; activate <b>EWD display unit</b>.</td><td>The E/WD goes blank (its alert cannot be read: no reconfiguration); single chime and MASTER CAUT; the SD STATUS page lists INOP SYS <b>EWD DU</b>.</td></tr><tr><td>7</td><td>Activate any DU failure during the takeoff roll (above takeoff power).</td><td>The DU goes blank but no alert until the end of the inhibition.</td></tr></table>
+</body></html>

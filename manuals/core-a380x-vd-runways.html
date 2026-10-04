@@ -1,0 +1,70 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X VD runways as flat ground - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X VD runways as flat ground</h1>
+<div class="subtitle">The A380X VD terrain profile shows the runways as flat ground at their elevation instead of spikes</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>VD under the ND (terrain profile)</span>
+<b>Branch</b><span><code>core/a380x-vd-runways</code>, based on <code>core/nd-weather-terrain</code> with <code>core/oans-btv-raas</code> merged in (stacked: needs both merged first; the runway search uses the nearby runway provider of core/oans-btv-raas).</span>
+<b>Status</b><span>Tested in the sim by the user (2026-10-03): spikes gone at VHHH, one short spike left at CYUL (accepted).</span>
+<b>Pictures</b><span>No pictures.</span>
+</div>
+<h2>1. VD runways drawn as flat ground</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> VD terrain profile &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user (2026-10-03): OK at VHHH; one short spike left at CYUL, accepted.</div>
+<h3>What it is for</h3>
+<p>The MSFS terrain map draws the airport diagram in light grey over the terrain, and no setting hides it. The VD read that grey as terrain far above its plot: spikes wherever the vertical cut crossed an airport, the destination on approach included.</p>
+<ul><li>The systems host searches the airports within 25 NM in the sim's airport database and publishes up to 40 runways, closest first, as rectangles: the runway length and width plus 0.15 NM on each side, at the higher threshold elevation.</li><li>Where the cut crosses such a rectangle, the VD draws flat ground at the runway elevation instead of the terrain map.</li><li>Rectangles around the runways (not a circle around the airport) keep the real terrain next to the runways.</li></ul>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>VD cut across an airport</td><td>Flat brown ground at the runway elevation, no spike.</td></tr><tr><td>Approach to the destination</td><td>The runway ahead shows as flat ground at its elevation.</td></tr><tr><td>Terrain next to the runways</td><td>Drawn as before (for example the hills near VHHH).</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>A short spike can remain over a taxiway or apron.</td><td>The flat area covers the runways plus 0.15 NM only (a design choice, kept after the CYUL test).</td><td>-</td></tr><tr><td>Airports beyond 25 NM are not flattened.</td><td>Design choice of the search radius.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: read the VD terrain profile as usual (TERR SYS of the SURV page not OFF).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on approach to CYUL (or any airport), VD terrain profile shown, the cut crossing the airport.</td><td>The runways show as flat ground at their elevation; no tall spikes. A short spike over an apron is possible.</td></tr><tr><td>2</td><td>A380X near VHHH with the cut over the airport and the hills next to it.</td><td>The runway is flat, the hills next to it are still drawn.</td></tr><tr><td>3</td><td>Line up on a runway, VD in ARC.</td><td>Flat ground under and ahead of the aircraft along the runway.</td></tr></table>
+</body></html>

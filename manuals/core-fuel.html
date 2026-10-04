@@ -1,0 +1,106 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X fuel jettison - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X fuel jettison</h1>
+<div class="subtitle">Fuel jettison down to the JTSN GW with its ECAM memo and procedures, the jettison valve failures with their alerts, and a fuel mist plume at the jettison outlets</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>Overhead FUEL panel: JETTISON ARM and ACTIVE; MFD FMS ACTIVE/FUEL&amp;LOAD: JTSN GW; E/WD and SD FUEL; flyPad &gt; Failures &gt; ATA 28; outside view of the wings</span>
+<b>Branch</b><span><code>core/fuel</code>, based on <code>core/a380x-mfd-fms</code> (stacked: needs <code>core/surveillance</code> and <code>core/a380x-mfd-fms</code> merged first). The plume needs the aircraft-large-files companion change fa6c5d1 (jettison outlet nodes, fork TCdr/aircraft-large-files).</span>
+<b>Status</b><span>Jettison: tested in the sim (September 2026), rate checked live on 2026-10-02 (2.5 t/min, feed tanks untouched). Valve failures with FUEL JETTISON FAULT, VLV NOT CLOSED and INOP SYS JETTISON: OK 2026-10-02. Plume: look and logic OK in flight 2026-10-03, position at the outlets OK 2026-10-04.</span>
+<b>Pictures</b><span>MFD and EWD in the local browser harness, running the builds installed in the sim; the EWD states are the ones the FWS sends in flight. No pictures for the failures and the plume.</span>
+</div>
+<h2>1. Fuel jettison with the JTSN GW, ECAM memo and procedures</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Overhead JETTISON ARM / ACTIVE; MFD FUEL&amp;LOAD JTSN GW; ECP ABN PROC &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user (September 2026); jettison rate measured live on 2026-10-02: 2.5 t per minute from the outer, mid and trim tanks, feed tanks untouched. Unit tests: FuelJettison.spec.ts (FCOM DSC-28-40).</div>
+<h3>What it is for</h3>
+<p>FBW had the overhead JETTISON ARM and ACTIVE pushbuttons, but they did nothing. The fuel management (FQMS) now jettisons the fuel of the transfer tanks down to the gross weight entered on the MFD, and the ECAM shows the memo and the procedures of the FCOM.</p>
+<h3>1. Set the jettison gross weight</h3>
+<ol><li>MFD FMS <b>ACTIVE/FUEL&amp;LOAD</b> page. <b>JTSN GW</b> is shown when the active flight plan has its mandatory data.</li><li>Enter the gross weight at which the jettison must stop, in tonnes (or 1000 lb with the LBS unit).</li><li>Allowed range: from <b>ZFW + 11 000 lb</b> (5.0 t) to the maximum gross weight (FCOM DSC-22-FMS-20-100). Outside it: ENTRY OUT OF RANGE with the range.</li></ol>
+<div class="row"><figure><img src="img/15/m01_jtsn_gw.png"><figcaption><b>Figure 1.</b> JTSN GW 400.0 t entered (ZFW 300.0 t).</figcaption></figure><figure><img src="img/15/m02_jtsn_gw_out_of_range.png"><figcaption><b>Figure 2.</b> 290 t is below ZFW + 5.0 t: the range is shown in the message area.</figcaption></figure></div>
+<div class="warn"><b class="t">Caution</b>Without a JTSN GW the FQMS has no target weight: the jettison then runs until the transfer tanks are empty (or a pushbutton is set OFF).</div>
+<h3>2. Run the procedure</h3>
+<p>The ABN PROC procedure takes the crew through the steps. ECP <b>ABN PROC</b>, then FUEL, then JETTISON:</p>
+<div class="row"><figure><img src="img/15/e02_abn_proc_menu.png"><figcaption><b>Figure 3.</b> ABN PROC menu: FUEL selected.</figcaption></figure><figure><img src="img/15/e03_abn_proc_fuel.png"><figcaption><b>Figure 4.</b> FUEL sub-menu: JETTISON.</figcaption></figure></div>
+<div class="row"><figure><img src="img/15/e04_jettison_not_active.png"><figcaption><b>Figure 5.</b> The procedure before ACTIVATE: all lines in grey.</figcaption></figure><figure><img src="img/15/e05_jettison_active.png"><figcaption><b>Figure 6.</b> Activated: the FMS lines checked by the crew, JETTISON ARM and ACTIVE ticked by the FWS as the pushbuttons are set (sensed lines).</figcaption></figure></div>
+<ul><li>FMS FUEL &amp; LOAD PAGE ... SELECT, JETTISON GW ... ENTER: crew check lines.</li><li>IF TRIM TK NOT EMPTY &amp; NO TRIM &amp; APU LINE FAULT: TRIM TK FEED AUTO (condition line, confirmed by the crew).</li><li><b>JETTISON ARM ON</b>, <b>JETTISON ACTIVE ON</b>: sensed, they tick themselves.</li><li>JETTISON &amp; CG ... MONITOR: watch the SD FUEL page and the CG.</li><li>WHEN JETTISON COMPLETED (AUTO RCL) / IF RQRD TO MANUALLY STOP JETTISON: ACTIVE OFF then ARM OFF, sensed.</li></ul>
+<h3>3. During the jettison</h3>
+<figure><img src="img/15/e01_memo.png" style="width:75%"><figcaption><b>Figure 7.</b> The EWD memo while the fuel is jettisoned.</figcaption></figure>
+<ul><li>Memo <b>JETTISON IN PROGRESS</b> (green).</li><li>Fuel leaves the <b>transfer tanks</b> (outer, mid, inner and trim) at the FCOM rate of <b>330 693 lb/h</b> (about 2.5 t per minute), in proportion to their content, so they empty together. The <b>feed tanks are never jettisoned</b>.</li><li>The trim tank is held when the CG reaches the forward T.O/LDG limit, and resumes when the CG is 0.5 % aft of it.</li><li>The other automatic transfers pause during the jettison.</li><li>The SD FUEL page shows the two jettison valves open and the quantities decreasing.</li></ul>
+<h3>4. When it stops</h3>
+<figure><img src="img/15/e06_completed.png" style="width:75%"><figcaption><b>Figure 8.</b> FUEL JETTISON COMPLETED: set ACTIVE then ARM OFF; the lines tick as the pushbuttons are released.</figcaption></figure>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Gross weight reaches the JTSN GW</td><td>The jettison stops, FUEL JETTISON COMPLETED shows, the ACTIVE ON light goes off.</td></tr><tr><td>All transfer tanks empty (or no JTSN GW entered)</td><td>Same: stops and COMPLETED.</td></tr><tr><td>ACTIVE or ARM set OFF by the crew</td><td>Stops at once (manual stop). No COMPLETED alert.</td></tr><tr><td>Both pushbuttons OFF after COMPLETED</td><td>The alert and the COMPLETED state clear; a new jettison can be started.</td></tr><tr><td>ACTIVE ON without ARM</td><td>Nothing: ARM is needed.</td></tr><tr><td>AC 1 bus not powered</td><td>No jettison (FQMS channel unpowered).</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>JETTISON FAULT, VLV NOT CLOSED and INOP SYS JETTISON come only from the flyPad valve failures.</td><td>No other cause of a jettison valve fault is simulated; the four valve failures are described in the next feature.</td><td>-</td></tr><tr><td>The fuel does not really flow out through the outlets.</td><td>The MSFS fuel system has no overboard dump: the FQMS sets the tank quantities directly and opens valves 57 / 58 for the SD picture. A fuel mist plume is drawn at the outlets (last feature).</td><td>-</td></tr><tr><td>After an update, the first flight needs a full MSFS restart.</td><td>The change touches the behaviour XML of the overhead, which MSFS loads at start.</td><td>Restart MSFS once after installing.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>MFD FMS <b>ACTIVE/FUEL&amp;LOAD</b>: enter <b>JTSN GW</b> (the gross weight at which the jettison stops).</li><li>ECP <b>ABN PROC</b> &gt; FUEL &gt; JETTISON, ACTIVATE, and follow the lines.</li><li>Overhead FUEL panel: <b>JETTISON ARM</b> ON, then <b>ACTIVE</b> ON. Monitor the SD FUEL page and the CG.</li><li>At FUEL JETTISON COMPLETED (or to stop earlier): ACTIVE OFF, then ARM OFF.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X with fuel in the transfer tanks (e.g. 150 t block), AC power, active flight plan with its mandatory data. MFD FMS ACTIVE/FUEL&amp;LOAD: type a JTSN GW below ZFW + 5.0 t.</td><td>ENTRY OUT OF RANGE with the allowed range in the message area.</td></tr><tr><td>2</td><td>Type a JTSN GW about 20 t below the current gross weight.</td><td>JTSN GW shows the value.</td></tr><tr><td>3</td><td>ECP ABN PROC &gt; FUEL &gt; JETTISON, ACTIVATE.</td><td>The ABN PROC FUEL JETTISON procedure; JETTISON ARM and ACTIVE lines not ticked.</td></tr><tr><td>4</td><td>Set <b>JETTISON ACTIVE</b> ON without ARM.</td><td>Nothing happens (ARM is needed).</td></tr><tr><td>5</td><td>Set <b>JETTISON ARM</b> ON (ACTIVE ON).</td><td>Memo JETTISON IN PROGRESS (green); the ARM and ACTIVE lines tick; SD FUEL: both jettison valves open, the outer, mid, inner and trim quantities fall together (about 2.5 t per minute); feed tanks unchanged.</td></tr><tr><td>6</td><td>Wait until the gross weight reaches the JTSN GW.</td><td>The jettison stops; FUEL JETTISON COMPLETED with ACTIVE OFF / ARM OFF; the ACTIVE ON light goes off.</td></tr><tr><td>7</td><td>Set ACTIVE OFF, then ARM OFF.</td><td>The lines tick and the COMPLETED alert clears.</td></tr><tr><td>8</td><td>Start a new jettison and set ACTIVE OFF halfway.</td><td>It stops at once, without COMPLETED.</td></tr></table>
+<h2>2. Jettison valve failures: FUEL JETTISON FAULT, VLV NOT CLOSED, INOP SYS JETTISON</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 28; E/WD; SD STATUS; overhead JETTISON ACTIVE OPEN light &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: one valve stuck closed, both stuck closed, stuck open, all OK (2026-10-02, after the FAULT / INOP SYS fix); the cases again with the plume on 2026-10-03. Unit tests: FuelJettison.spec.ts, FuelJettisonFlags.spec.ts.</div>
+<h3>What it is for</h3>
+<p>The A380 FCOM has two jettison alerts, FUEL JETTISON FAULT and FUEL JETTISON VLV NOT CLOSED (PRO-ABN-ECAM-10-28 P 61-63), and INOP SYS JETTISON on the STATUS page. FBW had no jettison valve failure to trigger them. There are now four failures, one per valve and position. A first version never showed the FAULT caution and the INOP SYS: the FWS read the FQMS flags as numbers (1) and combined them with a function that only counts <code>true</code>; they are now read as real booleans.</p>
+<h3>The failures</h3>
+<table><tr><th>flyPad &gt; Failures &gt; ATA 28 (Fuel)</th><th>Effect</th></tr><tr><td><b>Jettison valve L stuck closed</b> / <b>Jettison valve R stuck closed</b></td><td>That valve does not open: the fuel goes through the other one at <b>half the rate</b>. The FQMS records the valve fault when the jettison is selected (ARM and ACTIVE ON), until the failure is removed.</td></tr><tr><td>Both stuck closed</td><td>The jettison is <b>not available</b>: no fuel leaves.</td></tr><tr><td><b>Jettison valve L stuck open</b> / <b>Jettison valve R stuck open</b></td><td>That valve stays open: the <b>OPEN</b> light of the JETTISON ACTIVE pushbutton stays on and the SD shows the valve open, also with no jettison running. No fuel is lost by it (the jettison itself still needs ARM and ACTIVE).</td></tr></table>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>One valve stuck closed, jettison selected</td><td>Amber caution <b>FUEL JETTISON FAULT</b>; on the ground with the line JETTISON L (R) VLV FAULT. Jettison at half rate. STATUS: INOP SYS <b>JETTISON</b> (the FWS lists it whenever FUEL JETTISON FAULT is active).</td></tr><tr><td>Both valves stuck closed, jettison selected</td><td><b>FUEL JETTISON FAULT</b> with JETTISON NOT AVAIL, then JETTISON ACTIVE ... OFF and JETTISON ARM ... OFF (they tick as the pushbuttons are set OFF). STATUS: INOP SYS <b>JETTISON</b>. No fuel jettisoned.</td></tr><tr><td>A valve stuck open, no jettison running</td><td>Amber caution <b>FUEL JETTISON VLV NOT CLOSED</b> with JETTISON ACTIVE ... OFF and JETTISON ARM ... OFF; OPEN light on.</td></tr><tr><td>Takeoff and landing</td><td>The alerts are inhibited in the takeoff and landing flight phases (FCOM inhibitions).</td></tr></table>
+<h3>How to use</h3>
+<ol><li>flyPad &gt; <b>Failures</b> &gt; <b>ATA 28</b>: activate one of the four jettison valve failures.</li><li>Run a jettison (or not, for a valve stuck open) and follow the ECAM.</li><li>Deactivate the failure in the flyPad to repair the valve.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground (or in cruise), fuel in the transfer tanks, AC power, JTSN GW entered. flyPad &gt; Failures &gt; ATA 28: activate <b>Jettison valve L stuck closed</b>. Set JETTISON ARM and ACTIVE ON.</td><td>Amber <b>FUEL JETTISON FAULT</b> (on the ground with JETTISON L VLV FAULT); SD FUEL: only the right jettison valve open; the transfer tanks empty at half the normal rate (about 1.25 t per minute). STATUS: INOP SYS JETTISON.</td></tr><tr><td>2</td><td>Also activate <b>Jettison valve R stuck closed</b>.</td><td>FUEL JETTISON FAULT with JETTISON NOT AVAIL, JETTISON ACTIVE OFF, JETTISON ARM OFF; no fuel leaves; STATUS: INOP SYS JETTISON.</td></tr><tr><td>3</td><td>Set ACTIVE OFF, then ARM OFF.</td><td>The ACTIVE and ARM lines tick.</td></tr><tr><td>4</td><td>Deactivate both failures, activate <b>Jettison valve L stuck open</b> (pushbuttons OFF).</td><td>Amber <b>FUEL JETTISON VLV NOT CLOSED</b>; OPEN light of JETTISON ACTIVE on; SD FUEL: left jettison valve open; the fuel quantities do not change.</td></tr><tr><td>5</td><td>Deactivate the failure.</td><td>The valve closes, the OPEN light goes off and the alert clears.</td></tr></table>
+<h2>3. Fuel jettison plume at the outlets</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Outside view: wing trailing edge, at the second-outermost flap track fairing &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user in flight: look, both / left only / right only and the valve failure cases OK (2026-10-03); position at the outlets OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>The jettisoned fuel left no trace outside. A fuel mist plume now trails from each wing's jettison outlet while fuel flows out of that side. The FCOM says there is "one discharge point on the trailing edge of each wing" (DSC-28-40); the outlet is the tube at the aft end of the second-outermost flap track fairing (MFTF 5, forum source), where the companion model adds the effect points.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Jettison in progress, both valves open</td><td>A mist plume behind each wing outlet; it gets longer with the true airspeed (its particles stay where they were released).</td></tr><tr><td>One valve stuck closed</td><td>The plume on the other side only.</td></tr><tr><td>Valve stuck open, no jettison running</td><td>No plume (no fuel flows).</td></tr><tr><td>Below 40 kt true airspeed</td><td>The low-speed version of the mist (the stock MSFS water-ballast effect switches at 40 kt).</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Needs the aircraft-large-files companion.</td><td>The effect hangs on the FX_JETTISON_LH / RH nodes added at the outlets in the A380_WINGS models (fa6c5d1); without them no plume shows.</td><td>Install it; a full MSFS restart is needed after the update.</td></tr><tr><td>The look is the stock water-ballast mist.</td><td>Closest stock MSFS effect: design choice.</td><td>-</td></tr><tr><td>No fuel puddle on the ground.</td><td>Jettisoned fuel evaporates; nothing is drawn on the ground.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Run a fuel jettison (first feature) and look at the wings from the outside view.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in flight (companion models installed, MSFS restarted), JTSN GW entered. Set JETTISON ARM and ACTIVE ON. Outside view of a wing.</td><td>A mist plume trails from the trailing edge at the second-outermost flap track fairing, on both wings.</td></tr><tr><td>2</td><td>Speed up or slow down.</td><td>The plume gets longer at a higher true airspeed.</td></tr><tr><td>3</td><td>flyPad &gt; Failures &gt; ATA 28: <b>Jettison valve L stuck closed</b>.</td><td>The left plume stops; the right one goes on.</td></tr><tr><td>4</td><td>Set ACTIVE OFF.</td><td>Both plumes stop.</td></tr><tr><td>5</td><td>Remove the failure, activate <b>Jettison valve R stuck open</b> without a jettison.</td><td>No plume.</td></tr></table>
+</body></html>

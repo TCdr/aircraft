@@ -1,0 +1,91 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X weather radar GAIN, ELEVN and TILT - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X weather radar GAIN, ELEVN and TILT</h1>
+<div class="subtitle">The manual GAIN, ELEVN and TILT settings of the MFD SURV CONTROLS page reach the ND messages and the VD white line, and start from their FCOM default values</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>MFD SURV &gt; CONTROLS (WXR block: GAIN, ELEVN/TILT); ND, right side above the TERR box; VD</span>
+<b>Branch</b><span><code>core/a380x-wxr-controls</code>, based on <code>core/nd-weather-terrain</code> with <code>core/a380x-mfd-fms</code> merged in (stacked: needs core/nd-weather-terrain, core/surveillance and core/a380x-mfd-fms merged first).</span>
+<b>Status</b><span>ND messages tested in the sim by the user: OK (2026-10-02); FCOM defaults user-checked in the sim (2026-10-02); VD white line tested in the sim by the user: OK (2026-10-03).</span>
+<b>Pictures</b><span>No pictures: the messages and the line are drawn by the stock ND / VD code (no screenshot of this state).</span>
+</div>
+<h2>1. ND messages of the manual GAIN, ELEVN and TILT</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> ND, right side above the TERR box &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02).</div>
+<h3>What it is for</h3>
+<p>The GAIN button and the ELEVN/TILT option list of the MFD SURV CONTROLS page kept their state but showed nothing. The ND now shows the manual radar settings as the A380 FCOM WXR MESSAGES (DSC-34-20-30-20 P 17).</p>
+<h3>What you see</h3>
+<table><tr><th>SURV CONTROLS setting</th><th>ND message</th></tr><tr><td>GAIN AUTO, ELEVN/TILT AUTO</td><td><b>WX</b> in green (as before)</td></tr><tr><td>GAIN MAN, value 53</td><td><b>GAIN 53%</b> in cyan, above the mode line; with ELEVN/TILT at AUTO the mode line is empty and GAIN takes its place</td></tr><tr><td>ELEVN/TILT at TILT, value -12.0</td><td><b>TILT -12.0°</b> in cyan instead of WX</td></tr><tr><td>ELEVN/TILT at ELEVN, value 12500, QNH reference</td><td><b>ELEVN 12500FT</b> in cyan instead of WX</td></tr><tr><td>ELEVN/TILT at ELEVN, STD baro reference on that side</td><td><b>ELEVN FL125</b> in cyan</td></tr><tr><td>Manual mode without a value</td><td>GAIN ---%, TILT ---.-°, ELEVN -----FT (or ELEVN FL---)</td></tr><tr><td>MODE MAP</td><td>MAP in green (GAIN nn% above it with GAIN MAN); no ELEVN / TILT message</td></tr><tr><td>WXR OFF</td><td>WXR OFF in white, no GAIN line</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The radar picture does not change with GAIN, ELEVN or TILT.</td><td>The MSFS radar has no gain and no height data; tilting its beam crashed the gauge.</td><td>The settings show in the messages and on the VD line only.</td></tr><tr><td>Cyan is a choice.</td><td>The A380 FCOM gives no colour; cyan is the colour of the manual modes of the same radar family in the A320 FCOM (DSC-34-SURV-30-30 P 10).</td><td>-</td></tr><tr><td>The grey background the FCOM figure prints behind GAIN is not drawn.</td><td>Not reproduced.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>MFD <b>SURV &gt; CONTROLS</b>, WXR block (WXR AUTO, MODE WX).</li><li>GAIN: press the button to <b>MAN</b>, enter a value in the field below it (0 to 100 %).</li><li>ELEVN/TILT: select <b>ELEVN</b> (enter an altitude or FL) or <b>TILT</b> (enter -15.0 to +15.0 degrees) in the field below the list.</li><li>Read the message on the ND (WX overlay selected). Back to <b>AUTO</b> for WX.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X, CPT EFIS <b>WX</b> overlay, ND ARC. MFD SURV &gt; CONTROLS: WXR AUTO, MODE WX, GAIN AUTO, ELEVN/TILT AUTO.</td><td>ND: <b>WX</b> in green on the right.</td></tr><tr><td>2</td><td>GAIN to <b>MAN</b>, enter <b>53</b>.</td><td>ND: <b>GAIN 53%</b> in cyan, the WX message gone.</td></tr><tr><td>3</td><td>ELEVN/TILT: select <b>TILT</b>, enter <b>-12</b>.</td><td>ND: <b>TILT -12.0°</b> in cyan, with GAIN 53% above it.</td></tr><tr><td>4</td><td>Select <b>ELEVN</b>, enter <b>12500</b> (QNH set on the CPT side).</td><td>ND: <b>ELEVN 12500FT</b> in cyan.</td></tr><tr><td>5</td><td>Set the CPT baro reference to <b>STD</b>.</td><td>ND: <b>ELEVN FL125</b>.</td></tr><tr><td>6</td><td>GAIN and ELEVN/TILT back to <b>AUTO</b>.</td><td>ND: <b>WX</b> in green, no GAIN line.</td></tr><tr><td>7</td><td><b>MODE MAP</b> with GAIN MAN.</td><td>ND: <b>MAP</b> in green with the GAIN line above it.</td></tr><tr><td>8</td><td>WXR <b>OFF</b> (confirm).</td><td>ND: <b>WXR OFF</b> in white, no GAIN line.</td></tr></table>
+<h2>2. GAIN, TILT and ELEVN take the FCOM defaults at the first selection</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> MFD SURV &gt; CONTROLS, WXR block &nbsp;|&nbsp; <b>Status:</b> User-checked in the sim after a flight reload (2026-10-02): GAIN 50 %, TILT +3.0° on the ground, ELEVN 100 FT at CYUL.</div>
+<h3>What it is for</h3>
+<p>A380 FCOM DSC-34-20-30-20-10 (GAIN and ELEVN knobs): "The default GAIN value is 50 %", "The default ELEVN value is the current aircraft altitude", the default TILT value is +3.00° on ground and 0° in flight. The page applies a default only when nothing is entered, but a value nobody had written read 0, a valid entry: after a power-up the first GAIN MAN, TILT or ELEVN selection kept 0. The MFD now starts with the three settings at no entry.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>First GAIN MAN after the MFD starts</td><td>GAIN field 50 %; ND GAIN 50%.</td></tr><tr><td>First TILT selection on the ground</td><td>TILT +3.0°; ND TILT +3.0°.</td></tr><tr><td>First TILT selection in flight</td><td>TILT +0.0°.</td></tr><tr><td>First ELEVN selection</td><td>The current altitude, rounded to 100 ft (FL with the STD reference).</td></tr><tr><td>Later selections</td><td>The value entered or set before is kept.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Select GAIN <b>MAN</b>, <b>ELEVN</b> or <b>TILT</b> on the SURV CONTROLS page: the default value is entered.</li><li>Overwrite it in the entry field if needed.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, after a flight load or reload. MFD SURV &gt; CONTROLS: GAIN to <b>MAN</b>.</td><td>GAIN field <b>50 %</b>; ND (WX overlay) <b>GAIN 50%</b>.</td></tr><tr><td>2</td><td>ELEVN/TILT: select <b>TILT</b>.</td><td>TILT field <b>+3.0°</b>; ND <b>TILT +3.0°</b>.</td></tr><tr><td>3</td><td>Select <b>ELEVN</b>.</td><td>ELEVN field = the airport elevation rounded to 100 ft (for example 100 FT at CYUL).</td></tr><tr><td>4</td><td>Enter TILT -5, go to AUTO, then select TILT again.</td><td>TILT <b>-5.0°</b> is kept (no default over an entry).</td></tr><tr><td>5</td><td>Reload the flight, take off, and select TILT for the first time in flight.</td><td>TILT <b>+0.0°</b>.</td></tr></table>
+<h2>3. VD white line of the manual ELEVN and TILT</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> VD under the ND &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-03).</div>
+<h3>What it is for</h3>
+<p>A380 FCOM DSC-34-20-30-20: "The VD displays a white line indicating the elevation or tilt value". In manual ELEVN the VD shows a horizontal white line at the selected altitude; in manual TILT a straight white line from the aircraft symbol at the selected angle (zero tilt = the horizon as seen by the ADIRS), as in the FCOM VD figures.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>ELEVN selected</td><td>Horizontal white line at the selected altitude, from the aircraft to the end of the VD range.</td></tr><tr><td>TILT selected</td><td>Straight white line from the nose of the aircraft symbol, up for a positive tilt, down for a negative one.</td></tr><tr><td>Selected altitude off the VD scale</td><td>No line.</td></tr><tr><td>ELEVN/TILT AUTO, MODE MAP, WXR OFF or no WX overlay</td><td>No line (it goes with the ELEVN / TILT message of the ND).</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The line shows only while that side's ND shows the WX function.</td><td>Design choice: the line goes with the ND message.</td><td>-</td></tr><tr><td>The tilt line is straight.</td><td>Design choice, as in the FCOM figure: no earth curvature or beam refraction.</td><td>-</td></tr><tr><td>The weather on the VD does not follow ELEVN or TILT.</td><td>The MSFS radar has no height data.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Select the <b>WX</b> overlay on the EFIS panel and ND ARC or ROSE NAV (the pages with the VD).</li><li>On MFD SURV &gt; CONTROLS select <b>ELEVN</b> or <b>TILT</b> and enter the value.</li><li>Read the white line on the VD.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in flight, for example at 10 000 ft. CPT EFIS WX overlay, ND ARC 40 NM. SURV CONTROLS: ELEVN/TILT <b>ELEVN</b>, enter <b>12000</b>.</td><td>VD: a horizontal white line at 12 000 ft, ahead of the aircraft symbol.</td></tr><tr><td>2</td><td>Select <b>TILT</b>, enter <b>+3</b>.</td><td>VD: a straight white line from the nose of the aircraft symbol, rising to the end of the range.</td></tr><tr><td>3</td><td>Enter <b>-3</b>.</td><td>The line goes down from the aircraft symbol.</td></tr><tr><td>4</td><td>Select <b>ELEVN</b> with a value far above the VD scale (for example 60000).</td><td>No line.</td></tr><tr><td>5</td><td>ELEVN/TILT back to <b>AUTO</b>.</td><td>The line goes; ND shows WX.</td></tr><tr><td>6</td><td>With TILT selected, deselect the WX overlay.</td><td>The line goes with the ND message.</td></tr></table>
+</body></html>

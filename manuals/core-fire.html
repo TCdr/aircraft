@@ -1,0 +1,96 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fire warnings and the ENG FIRE pushbutton - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>Fire warnings and the ENG FIRE pushbutton</h1>
+<div class="subtitle">The A32NX fire warnings come only from a detected fire or the FIRE TEST, and the ENG FIRE pushbutton closes the engine LP fuel valve on both aircraft, so the engine runs down as in the FCOM</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX (fire warnings, LP fuel valve) and A380X (LP fuel valve)</span>
+<b>Where to find it</b><span>Overhead FIRE panel (ENG and APU FIRE pushbuttons, AGENT pushbuttons, TEST); E/WD; SD FUEL page</span>
+<b>Branch</b><span><code>core/fire</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent of the other core branches. <code>core/failures-a32nx</code> merges it in (its fire failures use these warnings).</span>
+<b>Status</b><span>All three features tested in the sim by the user: OK (2026-10-03).</span>
+<b>Pictures</b><span>No pictures: the warnings and the SD FUEL page are the stock FBW displays.</span>
+</div>
+<h2>1. A32NX fire warnings only from a detected fire or the FIRE TEST</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> E/WD, master warning, overhead FIRE panel &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-03), with an engine fire set through SimConnect.</div>
+<h3>What it is for</h3>
+<p>The ENG 1 FIRE, ENG 2 FIRE and APU FIRE warnings were raised by the FIRE TEST <i>or by the FIRE pushbutton</i>. Releasing (pushing) a FIRE pushbutton without any fire showed the fire warning: a regression of the FBW E/WD port. On the aircraft the fire warning comes from the fire detection or the FIRE TEST only (A320 FCOM DSC-26-20-10). The warnings now use the sim fire signals that the red FIRE pushbutton lights already read (<code>ENG ON FIRE:1/2</code>, <code>APU ON FIRE DETECTED</code>).</p>
+<ul><li>The fire chime is a normal red warning chime: <b>MASTER WARN</b> cancels it (FCOM DSC-31-10), and pushing the FIRE pushbutton silences it (FCOM DSC-26-20-20).</li><li>The forced master warning and chime of the FIRE TEST pushbuttons are unchanged.</li><li>The <b>APU AGENT AFTER 10 S</b> countdown now starts with the <b>APU FIRE</b> pushbutton (FCOM PRO-ABN-APUF). Before, it started from the ENG 2 FIRE pushbutton and the ENG 1 AGENT 1 pushbutton (a copy-paste error).</li></ul>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>ENG or APU FIRE pushbutton pushed, no fire</td><td>No fire warning, no chime (before: ENG / APU FIRE warning).</td></tr><tr><td>Engine fire detected</td><td>ENG 1(2) FIRE warning, master warning, continuous chime, red FIRE pushbutton light.</td></tr><tr><td>MASTER WARN pressed during the fire</td><td>The chime stops; the warning stays on the E/WD.</td></tr><tr><td>FIRE pushbutton pushed during the fire</td><td>The chime stops (the pushbutton silences the aural).</td></tr><tr><td>APU fire, APU FIRE pushbutton pushed</td><td>The APU AGENT AFTER 10 S line counts down from the APU FIRE pushbutton.</td></tr><tr><td>FIRE TEST pushbutton held</td><td>Same as before: test warnings, master warning, chime, lights.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>A fire set in the sim stays on while the engine runs.</td><td>MSFS keeps <code>ENG ON FIRE</code> at 1 while the engine turns and ignores the extinguish event; FBW AGENT pushbuttons do not send it.</td><td>Stop the engine (ENG MASTER OFF, or the LP valve below) to end the fire.</td></tr><tr><td>There is no flyPad fire failure on this branch.</td><td>The fire detection model and the fire failures are on <code>core/failures-a32nx</code>.</td><td>Use that branch, or set the sim variable with a SimConnect tool.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the warnings follow the fire detection.</li><li>In a fire, follow the ECAM: MASTER WARN to silence, then the ENG FIRE procedure (ENG MASTER OFF, FIRE pushbutton PUSH, AGENT 1 after 10 s...).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX on the ground, engines running, no fire. Push (release) the <b>ENG 1 FIRE</b> pushbutton on the overhead.</td><td>No ENG 1 FIRE warning on the E/WD, no master warning, no chime. Reset the pushbutton afterwards.</td></tr><tr><td>2</td><td>Push the <b>APU FIRE</b> pushbutton with the APU running and no fire.</td><td>No APU FIRE warning, no chime.</td></tr><tr><td>3</td><td>Hold the <b>ENG 1 FIRE TEST</b> pushbutton.</td><td>ENG 1 FIRE test warning, master warning, chime and the FIRE pushbutton light, as before.</td></tr><tr><td>4</td><td>Start an engine 1 fire: set the sim variable <code>ENG ON FIRE:1</code> to 1 with a SimConnect tool (or, with <code>core/failures-a32nx</code>, the flyPad engine 1 fire failure).</td><td>ENG 1 FIRE warning in red, master warning flashing, continuous chime, red light in the ENG 1 FIRE pushbutton.</td></tr><tr><td>5</td><td>Press <b>MASTER WARN</b>.</td><td>The chime stops and the master warning goes off; the ENG 1 FIRE warning and its procedure stay on the E/WD.</td></tr><tr><td>6</td><td>Start the fire again, then push the ENG 1 FIRE pushbutton without pressing MASTER WARN.</td><td>The chime stops when the pushbutton is pushed.</td></tr><tr><td>7</td><td>With an APU fire, push the APU FIRE pushbutton.</td><td>The APU AGENT AFTER 10 S line counts down from that moment (not from the ENG 2 FIRE pushbutton).</td></tr></table>
+<h2>2. A32NX: the ENG FIRE pushbutton closes the LP fuel valve</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> Overhead ENG FIRE pushbuttons; SD FUEL page &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-03): the engine starved, then restarted with IGN/START.</div>
+<h3>What it is for</h3>
+<p>A32NX FCOM DSC-28-10-30: "The LP fuel valve is closed by either the engine master switch or the ENG FIRE PUSH pushbutton". Nothing linked the FIRE pushbutton to a fuel valve, so an engine kept running for ever with its FIRE pushbutton pushed. Each engine now has its LP valve: closed by the ENG MASTER switch OFF or the ENG FIRE pushbutton, with the 1.7 s travel of the engine valves.</p>
+<p>Once the valve is closed, the fuel left between the valve and the engine is burned at the engine fuel flow. The FCOM ENG FIRE procedure says the engine stops "UP TO 2 MIN 30 S" after the LP valve closes, when that fuel is burned (PRO-ABN-ENG). The amount is sized on the lowest ground idle fuel flow (14 100 ft ISA), so the engine stops after about 99 s at a sea-level idle, sooner at higher thrust. The fuel is refilled when the valve opens again.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>ENG FIRE pushbutton pushed, ENG MASTER still ON</td><td>SD FUEL: the LP valve symbol closes (crossline). The engine keeps running on the remaining fuel, then shuts down (about 1 min 40 s at sea-level idle, never more than 2 min 30 s).</td></tr><tr><td>ENG MASTER OFF</td><td>The LP valve closes too (the engine also shuts down through its HP valve, as before).</td></tr><tr><td>Engine starved</td><td>The FADEC handles it as a closed fuel valve: shutdown, no relight while starved.</td></tr><tr><td>FIRE pushbutton reset and ENG MASTER ON again</td><td>The LP valve opens, the line refills, the engine can be restarted with the normal start (IGN/START).</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>A full MSFS restart is needed after an update.</td><td>The systems and FADEC WASM modules and flight_model.cfg / systems.cfg change (new MSFS fuel valves 13 and 14).</td><td>Restart the sim after installing.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>In an engine fire, follow the ECAM procedure: <b>ENG MASTER OFF</b>, then <b>ENG FIRE pushbutton PUSH</b>. Both close the LP valve.</li><li>Watch the LP valve on the <b>SD FUEL</b> page: green inline = open, amber crossline = closed.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX on the ground, engines running at idle. Open the SD <b>FUEL</b> page.</td><td>Both LP valve symbols green, inline (open).</td></tr><tr><td>2</td><td>Push the <b>ENG 1 FIRE</b> pushbutton. Leave the ENG 1 MASTER switch ON. Start a timer.</td><td>The ENG 1 LP valve symbol turns to an amber crossline within about 2 s (amber while in transit). No fire warning (no fire). Engine 1 keeps running for now.</td></tr><tr><td>3</td><td>Wait, watching N1 / N2 and the fuel flow of engine 1.</td><td>Engine 1 runs down by itself after about 1 min 40 s (sea level idle), never later than 2 min 30 s.</td></tr><tr><td>4</td><td>Reset the ENG 1 FIRE pushbutton, set ENG MASTER 1 OFF, then restart the engine with IGN/START and ENG MASTER 1 ON.</td><td>The LP valve opens again (green inline) and the engine starts normally.</td></tr><tr><td>5</td><td>Set ENG MASTER 2 OFF on a running engine.</td><td>The ENG 2 LP valve closes on the SD and the engine shuts down as before.</td></tr></table>
+<h2>3. A380X: the ENG FIRE pushbutton closes the LP fuel valve</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Overhead ENG FIRE pushbuttons; SD FUEL page &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-03).</div>
+<h3>What it is for</h3>
+<p>A380 FCOM DSC-28-10 ENGINE LP VALVES: "The ENG MASTER sw control the LP valves. The LP valves automatically close, when their associated ENG FIRE pb is pushed." Pushing an ENG FIRE pushbutton closed no valve, so the engine kept running. The four engines now have the same logic as the A32NX, with a 3 s valve travel.</p>
+<p>The A380 FCOM gives no shutdown delay. The fuel left after the valve is the 1 gallon tank the FBW fuel model already has between each LP valve and its engine: the engine stops about <b>17 s</b> after the pushbutton at a sea-level idle (about 24 s at 14 100 ft).</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>ENG FIRE pushbutton pushed</td><td>The engine LP valve closes; the engine shuts down after about 17 s at idle; no start or relight while it is starved.</td></tr><tr><td>SD FUEL page</td><td>LP valve per FCOM DSC-28-20: green inline = open, amber inline = abnormally open, amber crossline = closed.</td></tr><tr><td>ENG MASTER switches</td><td>Unchanged: they still open and close their engine valves as before.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>A full MSFS restart is needed after an update.</td><td>The systems and FADEC WASM modules, flight_model.cfg and systems.cfg change (new feed valves 60 to 63).</td><td>Restart the sim after installing.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>In an engine fire, follow the ECAM: <b>ENG MASTER OFF</b>, <b>ENG FIRE pushbutton PUSH</b>.</li><li>Check the LP valve of that engine on the <b>SD FUEL</b> page.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, four engines at idle. Open the SD <b>FUEL</b> page.</td><td>Four LP valves green, inline.</td></tr><tr><td>2</td><td>Push the <b>ENG 1 FIRE</b> pushbutton, ENG MASTER 1 left ON. Start a timer.</td><td>The ENG 1 LP valve turns to an amber crossline after about 3 s.</td></tr><tr><td>3</td><td>Watch engine 1.</td><td>It runs down by itself about 17 s after the pushbutton (sea-level idle).</td></tr><tr><td>4</td><td>Try to restart engine 1 with the FIRE pushbutton still pushed.</td><td>No start: the engine is starved.</td></tr><tr><td>5</td><td>Reset the FIRE pushbutton, ENG MASTER 1 OFF then ON with the start selector.</td><td>The valve opens (green) and the engine starts.</td></tr></table>
+</body></html>

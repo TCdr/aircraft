@@ -1,0 +1,102 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A32NX air conditioning per the FCOM - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A32NX air conditioning per the FCOM</h1>
+<div class="subtitle">The A32NX air conditioning controllers, alerts, STATUS lines and SD COND / BLEED pages follow the A320 FCOM (DSC-21-10, PRO-ABN-AIR, PRO-ABN-COND)</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX</span>
+<b>Where to find it</b><span>Overhead AIR COND panel (PACK, HOT AIR, temperature selectors), ENG FIRE pushbuttons; E/WD; SD COND, BLEED and STATUS pages</span>
+<b>Branch</b><span><code>core/a32nx-air-conditioning</code>, based on <code>core/gps</code> (stacked: needs core/surveillance, core/a380x-mfd-fms and core/gps merged first; the STATUS lines use the A32NX STATUS page of core/gps).</span>
+<b>Status</b><span>All four features tested in the sim by the user: OK (2026-10-02). Two triggers cannot be produced in the sim (fourth duct excursion above 80 &deg;C, pack valve position disagree): covered by Rust and vitest unit tests. A full MSFS restart is needed after installing (systems WASM).</span>
+<b>Pictures</b><span>No pictures: the COND and BLEED pages are the stock FBW pages with the changes described.</span>
+</div>
+<div class="toc"><div>1. Air conditioning controller per the FCOM</div><div>2. COND page trim air valve XX and air conditioning STATUS lines</div><div>3. Packs regulate cockpit and cabin separately with the hot air valve closed</div><div>4. BLEED page: each pack's own outlet temperature</div></div>
+<h2>1. Air conditioning controller per the FCOM</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> Overhead AIR COND panel, ENG FIRE pb; SD BLEED / COND &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02): trim air valves, galley fan, FIRE pb per side, 30 s reopening. Fourth excursion and valve disagree: unit tests only.</div>
+<h3>What it is for</h3>
+<p>An audit of the air conditioning system controllers (ACSC) against A320 FCOM DSC-21-10 and PRO-ABN-AIR / PRO-ABN-COND found six deviations. All six are fixed:</p>
+<ul><li><b>ENG FIRE pushbutton:</b> each one closes the pack of its own side (DSC-21-10-50). Before, the pack flow controller read the ENG 1 FIRE pb for both packs: ENG 2 FIRE closed pack 1.</li><li><b>Pack valves after an engine start:</b> on the ground they reopen 30 s after the engine start (DSC-21-10-50 PACK pb: "reopening of the valves is delayed for 30 s to avoid a supplementary pack closure cycle during second engine start"); in flight at once.</li><li><b>Hot air valve and trim air valve failures:</b> the hot air pressure regulating valve closes when the cockpit trim air valve fails or both cabin ones fail, and stays open with one cabin trim air valve failed (DSC-21-10-20). Before, it closed on any trim air valve failure.</li><li><b>LAV + GALLEY FAN fault:</b> the cabin temperature sensors are no longer ventilated, so the FWD / AFT CABIN selectors set the cabin duct temperature directly (it was fixed at 15 &deg;C). With ACSC 2 also lost, the cabin gets the cockpit duct air (PRO-ABN-COND).</li><li><b>DUCT OVHT</b> also triggers on the fourth excursion of a duct temperature above 80 &deg;C in one flight, not only above 88 &deg;C (PRO-ABN-COND). The count restarts at each takeoff run.</li><li><b>PACK 1(2) FAULT</b> also triggers when the pack flow control valve position disagrees with its command, not only on the loss of both lanes of the ACSC (PRO-ABN-AIR).</li></ul>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>ENG 2 FIRE pb pushed</td><td>SD BLEED: pack 2 valve closes, pack 1 stays open (before: pack 1 closed).</td></tr><tr><td>Engine start on the ground, PACK pbs ON</td><td>The pack valves stay closed for 30 s after the start, then open.</td></tr><tr><td>Forward (or aft) cabin trim air valve failed</td><td>The hot air valve stays open; only that zone loses its trim.</td></tr><tr><td>Cockpit trim air valve failed, or both cabin ones</td><td>The hot air valve closes (SD COND: hot air valve symbol closed). The HOT AIR pb shows no FAULT for this automatic closure.</td></tr><tr><td>Lavatory and galley extraction fan failed</td><td>COND LAV+GALLEY FAN FAULT; turning the FWD / AFT CABIN selectors moves the cabin duct temperature directly.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The fourth-excursion DUCT OVHT and the valve-disagree PACK FAULT cannot be produced in the sim.</td><td>There is no pack valve failure, and the valve closes by itself on low pressure; the duct temperature cannot be driven above 80 &deg;C four times on purpose.</td><td>Covered by Rust tests and the AcscPackFaults vitest spec.</td></tr><tr><td>Not simulated: PACK REGUL FAULT, bypass valve and ram air inlet, pack overheat.</td><td>The packs are a placeholder in the FBW model.</td><td>None.</td></tr><tr><td>A full MSFS restart is needed after installing.</td><td>The controllers are in the systems WASM module.</td><td>Restart the sim.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing new to set: use the AIR COND panel as usual (PACK 1 / 2, HOT AIR, COCKPIT / FWD CABIN / AFT CABIN).</li><li>In an engine fire the ENG FIRE pb closes the pack of that side only.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX on the ground, both engines running, PACK 1 and 2 ON. Open the SD <b>BLEED</b> page. Push the <b>ENG 2 FIRE</b> pb.</td><td>Pack 2 valve closes; pack 1 stays open. (Without <code>core/fire</code> the stock FBW also shows an ENG 2 FIRE warning when the pb is pushed: not part of this test.) Reset the pb.</td></tr><tr><td>2</td><td>Engines off, APU bleed ON, PACKs ON. Start engine 1 and watch the pack valves on the BLEED page.</td><td>The pack valves close during the start and reopen about 30 s after the engine is started.</td></tr><tr><td>3</td><td>Open the SD <b>COND</b> page. flyPad &gt; Failures &gt; ATA 21 Air Conditioning &gt; <b>Forward Zone Trim Air Valve</b>.</td><td>The hot air valve stays open; the FWD valve shows amber XX (see the next feature).</td></tr><tr><td>4</td><td>Add <b>Aft Zone Trim Air Valve</b>.</td><td>The hot air valve closes (both cabin valves failed).</td></tr><tr><td>5</td><td>Clear them; fail <b>Cockpit Trim Air Valve</b> alone.</td><td>The hot air valve closes.</td></tr><tr><td>6</td><td>Clear the failures. flyPad &gt; Failures &gt; ATA 21 Air Conditioning &gt; <b>Extraction Fan of lavatory and galley</b>. Turn the FWD CABIN selector from cold to hot.</td><td>E/WD: COND LAV+GALLEY FAN FAULT. The FWD cabin duct temperature on the COND page follows the selector directly.</td></tr><tr><td>7</td><td>Also fail <b>ACSC 2 Lane 1</b> and <b>ACSC 2 Lane 2</b>.</td><td>The cabin ducts take the cockpit duct temperature.</td></tr></table>
+<h2>2. COND page trim air valve XX and air conditioning STATUS lines</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> SD COND page; E/WD; SD STATUS page &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02).</div>
+<h3>What it is for</h3>
+<p>FCOM DSC-21-10-50 (COND page, zone trim air valve): "The arrow is green. It is replaced by amber crosses ("XX") if the valve fails". The FBW page had a TODO there. It now shows amber XX for a valve that either ACSC reports failed.</p>
+<p>The air conditioning alerts now fill the ECAM STATUS page (PRO-ABN-AIR, PRO-ABN-COND). The STATUS page gains a limitations part (blue, before the information):</p>
+<table><tr><th>Alert</th><th>STATUS left column</th><th>INOP SYS</th></tr><tr><td>AIR PACK 1(2) FAULT</td><td>CKPT (CAB) AT FIXED TEMP when ACSC 1 (2) is lost</td><td>PACK 1(2), COND CTL 1(2) when the ACSC is lost</td></tr><tr><td>AIR PACK 1+2 FAULT</td><td>MAX FL.....100/MEA-MORA (blue, first), CKPT AT FIXED TEMP, CAB AT FIXED TEMP</td><td>PACK 1+2, COND CTL 1, COND CTL 2</td></tr><tr><td>AIR PACK 1(2) OFF</td><td>-</td><td>PACK 1(2)</td></tr><tr><td>AIR COND CTL 1(2)-A(B) FAULT</td><td>-</td><td>COND CTL 1(2)-A(B)</td></tr><tr><td>COND CKPT / FWD CAB / AFT CAB DUCT OVHT</td><td>CAB TEMP BY PACK ONLY</td><td>HOT AIR</td></tr><tr><td>COND HOT AIR FAULT</td><td>CAB TEMP BY PACK ONLY (hot air closed, packs on)</td><td>HOT AIR; PACK 1+2 with both packs off</td></tr><tr><td>COND L+R CAB FAN FAULT</td><td>-</td><td>L+R CAB FAN</td></tr><tr><td>COND LAV+GALLEY FAN FAULT</td><td>CAB TEMP CKPT CTL ONLY (ACSC 2 working) or CAB AT FIXED TEMP (ACSC 2 lost)</td><td>GALLEY FAN (+ PACK 2, COND CTL 2 with ACSC 2 lost)</td></tr></table>
+<ul><li>COND HOT AIR FAULT gets the full FCOM procedure: -HOT AIR...OFF, then ".IF HOT AIR STILL OPEN AND DUCT OVHT PERSISTS:" -PACK 1 OFF, -PACK 2 OFF, -DES TO FL 100/MEA-MORA, ".WHEN DIFF PR &lt;1 PSI AND FL BELOW 100:" -RAM AIR ON, MAX FL 100/MEA-MORA (the descent lines in flight only).</li><li>The TRIM AIR SYS FAULT line "CPKT TRIM VALVE" is now spelled <b>CKPT TRIM VALVE</b>.</li><li>The FCOM FWD CRG HEAT line is left out: the FBW A320 has no cargo heating.</li></ul>
+<h3>How to use</h3>
+<ol><li>After an air conditioning alert, clear it with CLR and read the STATUS page (it comes up by itself, or press STS).</li><li>On the SD COND page, an amber XX in place of a zone arrow means that trim air valve has failed.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX powered, packs on. SD COND page. flyPad &gt; Failures &gt; ATA 21 Air Conditioning &gt; <b>Cockpit Trim Air Valve</b>.</td><td>COND page: amber XX in place of the cockpit valve arrow. E/WD: COND TRIM AIR SYS FAULT, -CKPT TRIM VALVE (not CPKT).</td></tr><tr><td>2</td><td>Clear it. Fail <b>Cabin Fan 1</b> and <b>Cabin Fan 2</b>.</td><td>COND L+R CAB FAN FAULT, -PACK FLOW...HI. After CLR, STATUS: INOP SYS L+R CAB FAN.</td></tr><tr><td>3</td><td>Clear them. Fail <b>ACSC 1 Lane 1</b>.</td><td>AIR COND CTL 1-A FAULT; STATUS: INOP SYS COND CTL 1-A.</td></tr><tr><td>4</td><td>Also fail <b>ACSC 1 Lane 2</b>.</td><td>AIR PACK 1 FAULT; STATUS: CKPT AT FIXED TEMP (green), INOP SYS PACK 1 and COND CTL 1.</td></tr><tr><td>5</td><td>Also fail <b>ACSC 2 Lane 1</b> and <b>ACSC 2 Lane 2</b>.</td><td>AIR PACK 1+2 FAULT; STATUS: MAX FL.....100/MEA-MORA in blue on top, then CKPT AT FIXED TEMP and CAB AT FIXED TEMP; INOP SYS PACK 1+2, COND CTL 1, COND CTL 2.</td></tr><tr><td>6</td><td>Clear all. Fail <b>Cockpit Duct Overheat</b>.</td><td>COND CKPT DUCT OVHT; STATUS: CAB TEMP BY PACK ONLY, INOP SYS HOT AIR.</td></tr><tr><td>7</td><td>In flight, with <b>Trim Air Pressure Regulating Valve</b> failed (the valve stays where it is) and a duct overheat failure, watch COND HOT AIR FAULT if it is raised with the valve still open.</td><td>The lines .IF HOT AIR STILL OPEN AND DUCT OVHT PERSISTS:, -PACK 1 / -PACK 2 OFF, -DES TO FL 100/MEA-MORA, .WHEN DIFF PR &lt;1 PSI AND FL BELOW 100:, -RAM AIR ON, MAX FL 100/MEA-MORA.</td></tr></table>
+<h2>3. Packs regulate cockpit and cabin separately with the hot air valve closed</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> Overhead HOT AIR pb and temperature selectors; SD BLEED &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02): HOT AIR OFF pack 1 16 &deg;C / pack 2 29 &deg;C; ON both back to the same value within 60 s.</div>
+<h3>What it is for</h3>
+<p>With the hot air pressure regulating valve closed (failure, HOT AIR pb OFF or the automatic closure), the trim air valves cannot mix the zones. FCOM DSC-21-10-40 (hot air valve failed closed): pack 1 regulates to the cockpit demand and pack 2 to the mean of the FWD and AFT cabin demands. With ACSC 2 lost, pack 2 follows the cockpit demand (PRO-ABN-COND). With the valve open, both packs still supply the lowest zone demand (DSC-21-10-20). Before, both packs always followed the lowest demand.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The zone temperatures do not separate as much as the pack outlets.</td><td>The FBW air mixer gives every zone the same air, so pack 1 cannot cool the cockpit alone.</td><td>Read the effect on the BLEED page pack outlet temperatures.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>With the HOT AIR pb OFF (or the valve failed closed), set the COCKPIT selector for the cockpit and the FWD / AFT CABIN selectors for the cabin: pack 1 serves the cockpit, pack 2 the cabin.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, packs running, SD <b>BLEED</b> page. HOT AIR pb ON. Set COCKPIT cold, FWD and AFT CABIN hot.</td><td>Both pack outlet temperatures are the same (the lowest demand).</td></tr><tr><td>2</td><td>Set the HOT AIR pb OFF and wait about a minute.</td><td>Pack 1 outlet colder (cockpit demand), pack 2 warmer (cabin demand): for example 16 &deg;C and 29 &deg;C.</td></tr><tr><td>3</td><td>Set the HOT AIR pb ON again.</td><td>Both pack outlets go back to the same value within about 60 s.</td></tr></table>
+<h2>4. BLEED page: each pack's own outlet temperature</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> SD BLEED page &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02): HOT AIR ON 10 / 10 &deg;C, OFF 15 / 30 &deg;C.</div>
+<h3>What it is for</h3>
+<p>The pack outlet temperatures of the SD BLEED page were a placeholder showing the FWD cabin zone temperature on both packs. They now show the outlet temperature the air conditioning system computes for each pack, in 5 &deg;C steps, amber above 90 &deg;C (FCOM DSC-21-10-50, ECAM BLEED page, item 1).</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The pack bypass valve and the compressor outlet temperature are still placeholders.</td><td>The packs are not modelled internally yet.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open the SD <b>BLEED</b> page: the temperature above each pack is that pack's outlet temperature.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, packs running, SD BLEED page, HOT AIR pb ON.</td><td>Both pack outlet values equal (for example 10), in steps of 5.</td></tr><tr><td>2</td><td>HOT AIR pb OFF, COCKPIT cold and cabin selectors hot.</td><td>The two values differ (for example 15 and 30): they are each pack's own outlet, no longer the FWD cabin temperature.</td></tr></table>
+</body></html>

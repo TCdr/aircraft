@@ -1,0 +1,97 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X electrical alerts and AC ESS loads - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X electrical alerts and AC ESS loads</h1>
+<div class="subtitle">The A380X ECAM raises the FCOM ELEC alerts from the electrical network, the AC ESS loads are on the AC ESS busbar, and the two transponders and the second NSS ANSU are wired</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>Overhead ELEC panel; E/WD and SD (ELEC AC / DC, STATUS); pedestal SURV panel and MFD SURV &gt; STATUS &amp; SWITCHING; OIT</span>
+<b>Branch</b><span><code>core/a380x-elec</code>, based on <code>core/gps</code> (stacked: needs core/surveillance, core/a380x-mfd-fms and core/gps merged first).</span>
+<b>Status</b><span>Tested in the sim by the user: ELEC AC BUS 2 and AC BUS 4 FAULT OK (2026-10-03); ELEC AC ESS BUS FAULT with its STATUS, GEN OFF, the AC ESS and AC EMER failures, XPDR 1 / XPDR 2 with the SURV alerts and ANSU 1 / 2 OK (2026-10-04). The other ELEC alerts are not sim-tested (unit tests: 30). A full MSFS restart is needed after installing (systems WASM, cockpit XML).</span>
+<b>Pictures</b><span>No pictures: the alerts use the stock E/WD and SD STATUS pages.</span>
+</div>
+<div class="toc"><div>1. ELEC alerts from the electrical network</div><div>2. AC ESS and AC EMER loads</div><div>3. XPDR 1 / XPDR 2, per-system TCAS faults and SURV XPDR alerts</div><div>4. NSS AVNCS ANSU 2</div></div>
+<h2>1. ELEC alerts from the electrical network</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> E/WD; SD ELEC AC / DC and STATUS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: AC BUS 2 / AC BUS 4 FAULT OK (2026-10-03), AC ESS BUS FAULT with STATUS and GEN OFF OK (2026-10-04). Other alerts not sim-tested (unit tests: 30).</div>
+<h3>What it is for</h3>
+<p>The A380X ECAM had the ELEC alert texts but nothing raised them. The flight warning system now computes them from the electrical network (busbars, engine and APU generators, TRs, pushbuttons), with the procedures, the flight phase inhibitions and the master lights of A380 FCOM PRO-ABN-ECAM-10-24:</p>
+<ul><li><b>ELEC AC BUS 1(2)(3)(4) FAULT</b>, <b>AC ESS BUS FAULT</b>, <b>AC ESS BUS ALTN</b> (AC ESS supplied through AC 4: AC ESS FEED in ALTN), <b>DC BUS 1(2) FAULT</b>, <b>DC ESS BUS FAULT</b>, <b>EMER CONFIG</b> (all four AC busbars lost, master warning).</li><li><b>ELEC GEN 1(2)(3)(4) FAULT</b> (stays, with its GEN OFF line ticked, after the generator is switched off, until it works again), <b>GEN 1(2)(3)(4) OFF</b> (GEN pb-sw OFF with its engine running, after 5 s), <b>DRIVE 1(2)(3)(4) DISCONNECTED</b>, <b>APU GEN A(B) FAULT</b>, <b>TR 1(2)(ESS) FAULT</b> (no master light, no chime), <b>APU TR FAULT</b>, <b>BUS TIE OFF</b>.</li><li>Procedure lines are sensed where the FCOM says so (switches set, OFF THEN ON resets, AIR DATA SWTG, WXR &amp; TAWS / XPDR &amp; TCAS SYS 2...). Lines that the FBW texts had from another FCOM standard and that the FCOM procedure does not contain are hidden.</li><li>ELEC AC BUS 2 FAULT shows <b>LDG DIST: AFFECTED</b> (FCOM: LDG DIST IMPACT ON WET/CONTAM RWY ONLY).</li><li><b>ELEC AC ESS BUS FAULT</b> has its FCOM STATUS: LIMITATIONS (APPR &amp; LDG) SLATS SLOW; INOP SYS all phases ADR 1, GPS 1, WXR 1, XPDR 1, TCAS 1, HF 1, FEED TK 2 MAIN PMP, STBY PITOT HEATG, L WINDSHIELD HEATG, DFDR; INOP SYS APPR &amp; LDG SLAT SYS 1, CAT 2, GLS AUTOLAND, LS 1, TAWS 1; REDUND LOSS (STATUS MORE) RA SYS C, FEED TK 3 STBY PMP, TRIM TK L PMP, ENG 1+2+3+4 IGN A, PACK 1 CTL 1, PACK 2 CTL 1. GPWS 1, TERR SYS 1 and ADS-B RPTG 1 are not shown as separate alerts while it is active.</li></ul>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>A bus fault alert needs at least one AC busbar powered.</td><td>Design choice: with all four AC busbars off the aircraft is unpowered on the ground or in ELEC EMER CONFIG, whose procedure covers the lost busbars.</td><td>None.</td></tr><tr><td>"Failed" means "no normal output although it should give one".</td><td>The sim gives no health word for the generators and TRs, only their output.</td><td>None.</td></tr><tr><td>Not done: combined faults, BAT faults, DRIVE OIL, units that are not simulated, T.O CONFIG, STATUS of the alerts other than AC ESS BUS FAULT.</td><td>First batch of the ELEC alerts.</td><td>None.</td></tr><tr><td>VENT AVNCS EXTRACT lines are never ticked.</td><td>There is no avionics ventilation pushbutton in the sim.</td><td>None.</td></tr><tr><td>REDUND LOSS needs the ECP MORE key fix.</td><td>The MORE key and light fix is on <code>core/ecam-fws</code>.</td><td>Merge that branch to page to STATUS MORE.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>When an ELEC alert shows, follow the E/WD procedure (the sensed lines tick by themselves as you act).</li><li>Check the ELEC AC / DC SD page (called with the alert) and the STATUS page afterwards.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, four engines running, all GEN pb-sw ON, BUS TIE AUTO. flyPad &gt; Failures &gt; ATA 24 Electrical Power &gt; <b>AC 2</b>.</td><td>E/WD: <b>ELEC AC BUS 2 FAULT</b> with its procedure, including LDG DIST: AFFECTED; SD ELEC AC page.</td></tr><tr><td>2</td><td>Clear it. Fail <b>AC 4</b>.</td><td><b>ELEC AC BUS 4 FAULT</b>; on the ground the line FOR ENG STOP : KEEP ENG 1 LAST.</td></tr><tr><td>3</td><td>Clear it. Fail <b>AC ESS</b> (this label is the A380 AC ESS busbar).</td><td><b>ELEC AC ESS BUS FAULT</b>, first line AC ESS FEED ..... ALTN; FAULT light in the AC ESS FEED pb-sw. No separate GPWS 1, TERR SYS 1 or ADS-B RPTG 1 alert.</td></tr><tr><td>4</td><td>Press CLR until the STATUS page shows (or press STS).</td><td>SLATS SLOW; INOP SYS ADR 1, GPS 1, WXR 1, XPDR 1, TCAS 1, HF 1, FEED TK 2 MAIN PMP, STBY PITOT HEATG, L WINDSHIELD HEATG, DFDR; APPR &amp; LDG SLAT SYS 1, CAT 2, GLS AUTOLAND, LS 1, TAWS 1. With <code>core/ecam-fws</code>: MORE shows the REDUND LOSS list.</td></tr><tr><td>5</td><td>Clear it. Set the <b>GEN 2</b> pb-sw OFF (engine 2 running).</td><td>After 5 s: <b>ELEC GEN 2 OFF</b>. GEN 2 ON: the alert goes.</td></tr><tr><td>6</td><td>Fail <b>Generator 3</b>.</td><td><b>ELEC GEN 3 FAULT</b> with GEN 3 ... OFF. Set GEN 3 OFF: the line ticks and the alert stays. Clear the failure and set GEN 3 ON: the alert goes.</td></tr><tr><td>7</td><td>APU running, APU GEN A pb-sw ON. Fail <b>APU Generator 1</b>.</td><td><b>ELEC APU GEN A FAULT</b> with APU GEN A ... OFF.</td></tr><tr><td>8</td><td>Fail <b>TR 1</b>, then <b>TR APU</b>.</td><td><b>ELEC TR 1 FAULT</b> (no master caution, no chime), then <b>ELEC APU TR FAULT</b>.</td></tr><tr><td>9</td><td>Fail <b>DC 1</b>, then (cleared) <b>DC ESS</b>.</td><td><b>ELEC DC BUS 1 FAULT</b>, then <b>ELEC DC ESS BUS FAULT</b>, with their procedures.</td></tr><tr><td>10</td><td>No failure. Set the BUS TIE pb-sw OFF.</td><td><b>ELEC BUS TIE OFF</b>.</td></tr><tr><td>11</td><td>Set the AC ESS FEED pb-sw to ALTN.</td><td><b>ELEC AC ESS BUS ALTN</b>.</td></tr><tr><td>12</td><td>In flight, fail <b>AC 1</b>, <b>AC 2</b>, <b>AC 3</b> and <b>AC 4</b>.</td><td><b>ELEC EMER CONFIG</b> in red (master warning) with its procedure; the descent / APU lines depend on whether it triggered above or below FL 230.</td></tr></table>
+<h2>2. AC ESS and AC EMER loads</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Overhead ELEC panel (AC ESS FEED); flyPad failures AC ESS / AC EMER &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04) with the AC ESS and AC EMER failures.</div>
+<h3>What it is for</h3>
+<p>The A380X electrical model uses the A320 bus names: the real A380 <b>AC ESS</b> busbar (400XP) is the A320 "AC ESS SHED" bus in the code, and the <b>AC EMER</b> busbar (491XP) is the A320 "AC ESS" bus. About twenty consumers read the wrong one, so they were on AC EMER where the FCOM puts them on AC ESS. They now use the AC ESS busbar (TypeScript, cockpit XML and Rust):</p>
+<ul><li>SURV SYS 1 (XPDR 1, TCAS 1, TAWS 1, WXR 1), RA SYS C, the slat motor, the 427XP EHAs, the feed tank 2 main, feed tank 3 standby and trim tank left pumps, channel 1 of both pack controllers, the F/O OIT and the FLT OPS ANSU (A380 FCOM DSC-24, DSC-34-20-100, DSC-46-20-70, DSC-21).</li><li>The <b>AC ESS FEED</b> FAULT light shows a loss of the AC ESS busbar (FCOM DSC-24-20: "The AC ESS busbar is not supplied"). An AC EMER failure leaves AC ESS supplied: no FAULT light.</li><li>The manual crossbleed control is powered by DC ESS (FCOM DSC-36-30) and the outflow valve manual control by its controller supplies DC 1 / 2 or DC ESS (FCOM DSC-21-30-10). Before, both were on A320 buses that the A380 does not have, so they had no power.</li><li>With only the batteries (static inverter on AC EMER), the AC ESS loads (427XP EHAs, TAWS 1, XPDR 1...) are unpowered and the AC EMER loads (VOR 1, LS 1, GPS 1...) remain.</li></ul>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The flyPad labels are <b>AC ESS</b> (the real AC ESS busbar) and <b>AC EMER</b>; the code names stay the A320 ones.</td><td>Renaming the buses in the code would touch every system.</td><td>Use the flyPad labels.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing new to set. In an AC ESS loss, follow ELEC AC ESS BUS FAULT (AC ESS FEED ALTN).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, engines running. flyPad &gt; Failures &gt; ATA 24 Electrical Power &gt; <b>AC ESS</b>.</td><td>AC ESS FEED pb-sw FAULT light on; ELEC AC ESS BUS FAULT; the F/O OIT goes dark; MFD SURV STATUS &amp; SWITCHING shows XPDR 1 and TCAS 1 failed.</td></tr><tr><td>2</td><td>Clear it. Fail <b>AC EMER</b>.</td><td>No AC ESS FEED FAULT light, no ELEC AC ESS BUS FAULT; XPDR 1, TCAS 1 and the F/O OIT keep working.</td></tr></table>
+<h2>3. XPDR 1 / XPDR 2, per-system TCAS faults and SURV XPDR alerts</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Pedestal SURV panel; MFD SURV &gt; STATUS &amp; SWITCHING; E/WD; SD STATUS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04) with XPDR 1, XPDR 2 and both failed.</div>
+<h3>What it is for</h3>
+<p>The A380 has two surveillance systems, each with its transponder and TCAS: SURV SYS 1 on AC ESS and SURV SYS 2 on AC 4 (FCOM DSC-34-20-100). MSFS has one transponder: it now acts as the transponder of the selected system (XPDR &amp; TCAS SYS 1 / SYS 2 on the SURV panel or the MFD SURV page). The XPDR 2 failure did nothing before.</p>
+<ul><li>XPDR 1 failed or unpowered: TCAS 1 is inoperative too; same for 2. The sim TCAS computer fault counts for the selected system only.</li><li><b>SURV TCAS 1(2) FAULT</b> is per system: no false TCAS 2 FAULT when AC ESS is lost (TCAS 2 is on AC 4). They need the busbar of that system powered (ELEC AC ESS BUS FAULT lists XPDR 1 / TCAS 1 itself).</li><li>New <b>SURV XPDR 1 FAULT</b>, <b>XPDR 2 FAULT</b> and <b>XPDR 1+2 FAULT</b> (FCOM PRO-ABN-ECAM-10-34-20): caution, line XPDR &amp; TCAS ..... SYS 2 (1) when the failed system is selected and the other one works; STATUS INOP SYS XPDR 1(2) and TCAS 1(2), plus AP/FD TCAS MODE when the failed system is selected; XPDR 1+2 FAULT: XPDR 1+2, TCAS 1+2. The TCAS FAULT alert of the same system is not shown with it.</li><li>MFD SURV STATUS &amp; SWITCHING: XPDR 1(2) and TCAS 1(2) shown failed when that XPDR is failed or unpowered.</li></ul>
+<h3>How to use</h3>
+<ol><li>Select the XPDR &amp; TCAS system on the pedestal SURV panel or MFD SURV &gt; STATUS &amp; SWITCHING.</li><li>On SURV XPDR 1(2) FAULT, select the other system as the E/WD line asks.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, powered, XPDR &amp; TCAS SYS 1 selected. flyPad &gt; Failures &gt; ATA 34 Navigation &gt; <b>XPDR 1</b>.</td><td>E/WD: <b>SURV XPDR 1 FAULT</b> with XPDR &amp; TCAS ..... SYS 2. MFD SURV STATUS &amp; SWITCHING: XPDR 1 and TCAS 1 failed. STATUS: INOP SYS XPDR 1, TCAS 1, AP/FD TCAS MODE. No separate TCAS 1 FAULT.</td></tr><tr><td>2</td><td>Select SYS 2.</td><td>The line ticks; AP/FD TCAS MODE leaves the STATUS; the transponder works again (as XPDR 2).</td></tr><tr><td>3</td><td>Also fail <b>XPDR 2</b>.</td><td><b>SURV XPDR 1+2 FAULT</b>; STATUS: XPDR 1+2, TCAS 1+2.</td></tr><tr><td>4</td><td>Clear both; with SYS 1 selected fail only <b>XPDR 2</b>.</td><td><b>SURV XPDR 2 FAULT</b> without the switching line; STATUS XPDR 2, TCAS 2, no AP/FD TCAS MODE.</td></tr><tr><td>5</td><td>Clear it. flyPad &gt; Failures &gt; ATA 24 Electrical Power &gt; <b>AC ESS</b>.</td><td>No SURV TCAS 2 FAULT (before: a false one); XPDR 1 / TCAS 1 are listed by ELEC AC ESS BUS FAULT.</td></tr></table>
+<h2>4. NSS AVNCS ANSU 2</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> OIT (NSS AVNCS applications) &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>A380 FCOM DSC-46-20-30: the avionics side of the network server system (NSS AVNCS) has two servers; ANSU 2 provides the functions when ANSU 1 fails. Only ANSU 1 existed (the ANSU 2 failure did nothing). ANSU 2 is now built and takes over; with both failed the NSS AVNCS applications (AOC, eLogbook, maintenance) are lost. Supplies (FCOM DSC-46-20-70): ANSU 1 AC 2 or BAT 2, ANSU 2 AC 1 or AC EMER or BAT 1, FLT OPS ANSU AC ESS or BAT 1.</p>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the OIT avionics applications use whichever NSS AVNCS ANSU works.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, OIT on an NSS AVNCS page. flyPad &gt; Failures &gt; ATA 46 Information Systems &gt; <b>NSS AVNCS ANSU 1</b>.</td><td>The OIT avionics applications stay available (ANSU 2).</td></tr><tr><td>2</td><td>Also fail <b>NSS AVNCS ANSU 2</b>.</td><td>The NSS AVNCS applications are lost on the OIT.</td></tr><tr><td>3</td><td>Clear both failures.</td><td>The applications become available again.</td></tr></table>
+</body></html>

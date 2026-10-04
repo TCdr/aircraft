@@ -1,0 +1,102 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Independent CPT and F/O MCDUs - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>Independent CPT and F/O MCDUs</h1>
+<div class="subtitle">The two A32NX MCDUs stop mirroring each other: each has its own page, scratchpad, messages and keyboard entry, on the one shared FMS</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX</span>
+<b>Where to find it</b><span>The two MCDUs on the pedestal (and the SimBridge remote MCDU)</span>
+<b>Branch</b><span><code>core/a32nx-mcdu</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent of the other core branches. The close-up cockpit model needs a companion change in the <code>aircraft-large-files</code> repository (commit 5563e31, see the last feature).</span>
+<b>Status</b><span>Independent MCDUs tested in the sim by the user: OK (2026-09-21, pages, scratchpads, shared FMS data, messages, BRT/DIM and power per side). The keyboard entry, SimBridge remote MCDU and ATSU status follow-up is not sim-tested.</span>
+<b>Pictures</b><span>The MCDU gauge in the local browser harness, running the build installed in the sim; the gauge draws the CPT screen in its left half and the F/O screen in its right half, shown here side by side.</span>
+</div>
+<h2>1. Independent CPT and F/O MCDUs</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> The two MCDUs on the pedestal &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-21): all 7 test points (pages, scratchpads, shared FMS data, per-screen messages, BRT/DIM, power).</div>
+<h3>What it is for</h3>
+<p>The two MCDUs mirrored each other: same page, same scratchpad. On the aircraft each MCDU is its own display, working on the shared FMGC data (A320 FCOM DSC-22_10-10). Now each pilot can work on a different page.</p>
+<figure><img src="img/08/m01_two_pages.png" style="width:90%"><figcaption><b>Figure 1.</b> CPT on F-PLN, F/O on PROG at the same time.</figcaption></figure>
+<h3>What is per MCDU and what is shared</h3>
+<table><tr><th>Per MCDU</th><th>Shared (one FMS)</th></tr><tr><td>The page shown, the line keys</td><td>The flight plans, performance, fuel, navigation data</td></tr><tr><td>The scratchpad and what is typed in it</td><td>The data entered from either MCDU</td></tr><tr><td>The scratchpad messages (FORMAT ERROR, NOT ALLOWED ...) of an entry</td><td>FMGC messages (queued on both)</td></tr><tr><td>The keyboard entry (the MCDU that was clicked)</td><td>The EFIS symbols, the guidance</td></tr></table>
+<figure><img src="img/08/m02_two_scratchpads.png" style="width:90%"><figcaption><b>Figure 2.</b> Each scratchpad keeps its own text: LFBO on the CPT, 250/12 on the F/O.</figcaption></figure>
+<h3>Messages</h3>
+<div class="row"><figure><img src="img/08/m03_message_one_side.png"><figcaption><b>Figure 3.</b> A wrong entry on the F/O MCDU: FORMAT ERROR there only.</figcaption></figure><figure><img src="img/08/m04_clr_one_side.png"><figcaption><b>Figure 4.</b> CLR on the F/O MCDU: its message clears and its entry comes back; the CPT scratchpad is untouched.</figcaption></figure></div>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>An entry is rejected</td><td>The message shows on the MCDU where the entry was made.</td></tr><tr><td>An FMGC message (e.g. CHECK TAKE OFF DATA)</td><td>Queued on both MCDUs; CLR on one clears it there only.</td></tr><tr><td>The FMS changes pages by itself (flight phase change on PROG / PERF / IDENT, engine-out page, INIT B to FUEL PRED)</td><td>Applies to both MCDUs.</td></tr><tr><td>ATSU system status (not the answer to an entry)</td><td>On the ATSU scratchpad of both MCDUs.</td></tr><tr><td>Typing with the PC keyboard (next feature)</td><td>Goes to the MCDU that was clicked last; only that MCDU animates its keys.</td></tr><tr><td>SimBridge remote MCDU (next feature)</td><td>CPT screen on its left side, F/O screen on its right side.</td></tr></table>
+<h3>Power</h3>
+<ul><li>CPT MCDU: AC ESS SHED bus. F/O MCDU: AC 2 bus.</li><li>An unpowered MCDU ignores its keys; the other one keeps working.</li></ul>
+<h3>How it works</h3>
+<p>The FMS cannot be run twice: the MCDU code is the aircraft FMS (flight plan, guidance, EFIS symbols) as well as the display. So the two MCDUs are two screens on that one FMS, the way the A380X draws its two MFD screens: one 2048x1024 MCDU gauge, the CPT MCDU drawn in its left half and the F/O MCDU in its right half, and each screen of the cockpit model samples its own half. The F/O screen has its own copy of what belongs to a screen (page, line key actions, scratchpad, message queue, key handlers); everything else is the shared FMS.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No return to the MENU page after a power loss.</td><td>Same as the CPT MCDU before this change.</td><td>-</td></tr><tr><td>Close-up cockpit model: both screens show the whole texture until the companion change is merged.</td><td>The 4 UV values of the high-detail model (LOD00) live in the aircraft-large-files repository; this branch only changes LOD01 (see the last feature).</td><td>Install the aircraft-large-files change (commit 5563e31) and bump the large-files pointer.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Use each MCDU as on the aircraft: each pilot can open any page on his MCDU without changing the other one.</li><li>Data entered on either MCDU (flight plan, INIT, PERF, fuel) is FMS data: it shows on both MCDUs.</li><li>A scratchpad message (FORMAT ERROR, NOT ALLOWED...) shows on the MCDU where the entry was made; clear it there with CLR.</li><li>An FMGC message is queued on both MCDUs: clear it with CLR on each MCDU.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX cold and dark at a gate. Set external power or the batteries and the APU so that AC ESS SHED and AC 2 are powered.</td><td>Both MCDUs show the MCDU MENU page.</td></tr><tr><td>2</td><td>CPT MCDU: MCDU MENU &gt; FMGC, then <b>F-PLN</b>. F/O MCDU: stay on MCDU MENU, then press <b>PROG</b>.</td><td>CPT MCDU on F-PLN, F/O MCDU on PROG at the same time (before: both on the same page).</td></tr><tr><td>3</td><td>Type <code>LFBO</code> on the CPT MCDU and <code>250/12</code> on the F/O MCDU, without pressing a line key.</td><td>Each scratchpad keeps its own text.</td></tr><tr><td>4</td><td>On the CPT MCDU, open INIT A and enter a city pair (e.g. <code>LFBO/LFPG</code>). Open F-PLN on the F/O MCDU.</td><td>The F/O F-PLN shows the new flight plan: the FMS data is shared.</td></tr><tr><td>5</td><td>On the F/O MCDU, enter a wrong value on a page (e.g. <code>ABC</code> into a speed field).</td><td>FORMAT ERROR on the F/O scratchpad only; the CPT scratchpad is unchanged.</td></tr><tr><td>6</td><td>Press <b>CLR</b> on the F/O MCDU.</td><td>The F/O message clears and its entry comes back; the CPT scratchpad is untouched.</td></tr><tr><td>7</td><td>Press BRT / DIM on one MCDU.</td><td>Only that MCDU screen changes brightness.</td></tr><tr><td>8</td><td>Fail AC bus 2: flyPad &gt; Failures &gt; ATA 24 &gt; <b>AC 2</b>. Press keys on both MCDUs.</td><td>The F/O MCDU ignores its keys; the CPT MCDU (AC ESS SHED) keeps working.</td></tr></table>
+<h2>2. Keyboard entry, SimBridge remote MCDU and ATSU status on both MCDUs</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> The MCDUs; flyPad &gt; Settings &gt; Realism; SimBridge remote MCDU &nbsp;|&nbsp; <b>Status:</b> Not sim-tested.</div>
+<h3>What it is for</h3>
+<p>After the split, three things still knew only the CPT MCDU: the PC keyboard entry, the SimBridge remote MCDU and the ATSU system messages. They now work with both MCDUs.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Keyboard entry on, click on an MCDU screen</td><td>That MCDU gets the keyboard (cyan band at the top of its screen, highlighted scratchpad); the other MCDU loses it. Only one MCDU has the keyboard at a time.</td></tr><tr><td>Typing on the PC keyboard</td><td>The text goes into the scratchpad of the MCDU that has the keyboard; only the keys of that MCDU animate (before: both).</td></tr><tr><td>That MCDU is not powered</td><td>Typing does nothing (CPT MCDU: AC ESS SHED; F/O MCDU: AC 2).</td></tr><tr><td>A click outside both screens</td><td>The keyboard goes to the CPT MCDU, as before.</td></tr><tr><td>SimBridge remote MCDU</td><td>Left side = CPT MCDU, right side = F/O MCDU (before: the CPT MCDU on both sides).</td></tr><tr><td>An ATSU system status that is not the answer to an entry (ATIS auto-update failure, a failed send from the mailbox, mailbox full)</td><td>Shown on the ATSU scratchpad of both MCDUs (before: CPT only).</td></tr><tr><td>An ATSU status that answers an entry made on a page</td><td>Shown on the MCDU of that page only.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>An MCDU does not go back to the MENU page after a power loss.</td><td>Neither MCDU did before (only the model blanks the screen); a reset could also cause nuisance resets on short bus transfers.</td><td>-</td></tr><tr><td>The SimBridge remote MCDU needs SimBridge.</td><td>It is an external program.</td><td>Install and start SimBridge.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Turn on <b>flyPad &gt; Settings &gt; Realism &gt; MCDU Keyboard Input</b> (optionally set the MCDU Focus Timeout).</li><li>Click the screen of the MCDU you want to type into, then type. Click it again (or press Alt) to give the keyboard back.</li><li>For the remote MCDU, enable <b>flyPad &gt; Settings &gt; Sim Options &gt; Enable MCDU Server Connection</b> and open the SimBridge remote MCDU.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX powered, both MCDUs on the MCDU MENU. Turn on flyPad &gt; Settings &gt; Realism &gt; MCDU Keyboard Input.</td><td>The setting is on; the focus timeout field appears.</td></tr><tr><td>2</td><td>Click the F/O MCDU screen, then type <code>ABC</code> on the PC keyboard.</td><td>The F/O MCDU top band turns cyan, ABC appears in the F/O scratchpad only, and only the F/O MCDU keys animate.</td></tr><tr><td>3</td><td>Click the CPT MCDU screen and type <code>123</code>.</td><td>The keyboard moves to the CPT MCDU: 123 in the CPT scratchpad; the F/O MCDU loses its cyan band.</td></tr><tr><td>4</td><td>Activate the flyPad failure ATA 24 &gt; <b>AC 2</b>, click the F/O MCDU and type.</td><td>Nothing is typed on the F/O MCDU.</td></tr><tr><td>5</td><td>With SimBridge running: enable flyPad &gt; Settings &gt; Sim Options &gt; Enable MCDU Server Connection, open the SimBridge remote MCDU, put the two MCDUs on different pages.</td><td>The remote MCDU shows the CPT page on its left side and the F/O page on its right side.</td></tr><tr><td>6</td><td>Optional (hard to trigger on purpose): make the ATSU report a system status, e.g. an ATIS auto-update that fails.</td><td>The ATSU message appears on both MCDUs.</td></tr></table>
+<h2>3. Close-up cockpit model: the MCDU screens in aircraft-large-files</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> Cockpit model, high detail (LOD00) &nbsp;|&nbsp; <b>Status:</b> The same 4 UV values were tested in the sim with the code above (2026-09-21); the large-files commit is byte-identical to the tested model. Pushed to the fork TCdr/aircraft-large-files 2026-09-29.</div>
+<h3>What it is for</h3>
+<p>The high-detail interior model <code>A320_NEO_INTERIOR_LOD00</code>, the one shown in the cockpit, is not in the aircraft repository: it lives in <code>flybywiresim/aircraft-large-files</code>. Its two MCDU screens (<code>SCREEN_MCDUL</code>, <code>SCREEN_MCDUR</code>) both sampled the whole MCDU texture. The companion commit 5563e31 (branch <code>feat/a32nx-mcdu-screen-uv-split</code>) maps each screen to one half:</p>
+<table><tr><th>Mesh</th><th>Texture U before</th><th>Texture U after</th></tr><tr><td>SCREEN_MCDUL (CPT)</td><td>0 .. 1</td><td>0 .. 0.5 (left half)</td></tr><tr><td>SCREEN_MCDUR (F/O)</td><td>0 .. 1</td><td>0.5 .. 1 (right half)</td></tr></table>
+<p>Four float16 values change in <code>A320_NEO_INTERIOR_LOD00.bin.part01</code>, nothing else. This branch makes the same change to <code>A320_NEO_INTERIOR_LOD01</code> (in the aircraft repository); the lower LODs have no MCDU screens.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Without the companion change, each MCDU screen shows both MCDU pictures side by side, squeezed.</td><td>This branch draws the 2048x1024 two-screen texture; the large-files pointer of the branch still points to the unchanged model (5f07408).</td><td>Merge the large-files change first, then bump the <code>large-files</code> submodule pointer on this branch.</td></tr><tr><td>The companion alone does nothing useful.</td><td>With the stock 1024x1024 MCDU gauge, each screen would show half of the MCDU picture.</td><td>Always install it with this branch.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Merge the aircraft-large-files commit 5563e31, bump the <code>large-files</code> submodule pointer, then build the A32NX with this branch.</li><li>Nothing to set in the cockpit.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Build and install the A32NX with this branch and the large-files change. Load a flight, power the aircraft and look at the MCDUs from the pilot seat (high-detail model).</td><td>Each MCDU shows one full MCDU page, not stretched or squeezed.</td></tr><tr><td>2</td><td>CPT MCDU: MCDU MENU &gt; FMGC. F/O MCDU: stay on MCDU MENU.</td><td>Two different pages.</td></tr><tr><td>3</td><td>Type on one MCDU keypad.</td><td>Only that MCDU scratchpad changes.</td></tr></table>
+</body></html>

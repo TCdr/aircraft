@@ -1,0 +1,111 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X cockpit buttons, lights and probes - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X cockpit buttons, lights and probes</h1>
+<div class="subtitle">Dead A380X cockpit pushbuttons now work, the 52 RESET panel buttons can be clicked, the FMC-C reset button is checked, the AUTOLAND lights flash, and the side slip and angle of attack vanes on the nose move</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>Thrust levers, overhead EVAC and RESET panels, right pedestal, glareshield AUTOLAND lights, nose probes (outside view)</span>
+<b>Branch</b><span><code>core/a380x-cockpit</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent of the other core branches. The MFP vanes also need the companion aircraft-large-files change (fork TCdr/aircraft-large-files, branch feat/a380x-mfp-vane-animations, b8fb739).</span>
+<b>Status</b><span>All five features tested in the sim by the user: OK. Pushbuttons, RESET panel and side slip vanes, FMC-C reset check on 2026-10-03; AUTOLAND light and MFP vanes on 2026-10-04.</span>
+<b>Pictures</b><span>No pictures: the buttons and the vanes are the existing cockpit and fuselage models.</span>
+</div>
+<div class="toc"><div>1. A/THR disconnect, EVAC HORN, DFDR EVENT and ACMS TRIGGER pushbuttons work</div><div>2. Clickable RESET panel buttons and side slip probe vanes</div><div>3. FMC-C reset button checked in the all-FMCs-reset test</div><div>4. AUTOLAND light press-to-test and flashing</div><div>5. MFP vanes follow the angle of attack</div></div>
+<h2>1. A/THR disconnect, EVAC HORN, DFDR EVENT and ACMS TRIGGER pushbuttons work</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Thrust levers 1 and 4, overhead EVAC panel, right pedestal &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-03).</div>
+<h3>What it is for</h3>
+<p>The cockpit behaviour XML named model nodes or animations that are not in the A380X cockpit model, so these pushbuttons could not be clicked or did not move. Checked against the cockpit model:</p>
+<table><tr><th>Pushbutton</th><th>Before</th><th>Now</th></tr><tr><td>A/THR instinctive disconnect pbs (thrust levers 1 and 4)</td><td>Not clickable (PUSH_THROTTLE_1/2)</td><td>Clickable (ATHR_DISCONNECT_ENG1/2): they disconnect the A/THR through the existing FBW interface</td></tr><tr><td>EVAC HORN SHUT OFF</td><td>Not clickable (PUSH_OVHD_EVAC_HORN)</td><td>Clickable (PUSH_OVHD_EVAC_HORN_OFF)</td></tr><tr><td>DFDR EVENT, ACMS TRIGGER (right pedestal)</td><td>Did not move</td><td>Move when pressed (ANIM_PUSH_DFDR_EVENT / ANIM_PUSH_ACMS_TRIGGER)</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>DFDR EVENT and ACMS TRIGGER only move.</td><td>There is no flight data recorder or ACMS function behind them; their tooltips still say (Inop.).</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Press an A/THR instinctive disconnect pushbutton on thrust lever 1 or 4 to disconnect the A/THR.</li><li>Press EVAC HORN SHUT OFF on the overhead EVAC panel, DFDR EVENT or ACMS TRIGGER on the right pedestal as on the aircraft.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in flight, A/THR active. Click the instinctive disconnect pushbutton on thrust lever 1.</td><td>The pushbutton moves and the A/THR disconnects (A/THR leaves the FMA).</td></tr><tr><td>2</td><td>Engage the A/THR again and click the pushbutton on thrust lever 4.</td><td>Same result.</td></tr><tr><td>3</td><td>Click EVAC HORN SHUT OFF on the overhead EVAC panel.</td><td>The pushbutton can be clicked and moves.</td></tr><tr><td>4</td><td>Click DFDR EVENT and ACMS TRIGGER on the right pedestal.</td><td>Each one moves in and out when pressed.</td></tr></table>
+<h2>2. Clickable RESET panel buttons and side slip probe vanes</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Overhead RESET panels; nose side slip probes &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-03); the user accepted that 42 buttons only drive their variable, and confirmed the vane direction.</div>
+<h3>What it is for</h3>
+<p>All 52 circuit breakers of the overhead RESET panels can now be pulled and pushed, with their FCOM label as tooltip. Each one writes <code>L:A32NX_RESET_PANEL_&lt;name&gt;</code> (true = pulled, computer reset).</p>
+<ul><li>Read by the avionics: ARPT NAV, FMC A, FMC B, FMC C, FWS 1, FWS 2, AESU 1, AESU 2, NSS AVNCS, NSS FLT OPS.</li><li>The other 42 (AICU, ATC, AVS, BSCS, CIDS, CPCS, DSMS, DTLNK ROUTER, EIPMs, ESS TR, TR 1, TR 2A, FLAPS, FQMS, GCU, LGCIS, PACK CTL, PAX BBAND, SCS, SDF, SLATS, TCS, VCS) are clickable but no system reads them yet.</li></ul>
+<p>The three side slip probe vanes on the nose now follow the side slip angle (sim <code>INCIDENCE BETA</code>, up to 60 degrees each side): they line up with the airflow.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>42 RESET buttons do nothing in the systems.</td><td>The systems they reset are not wired to the RESET panel yet.</td><td>Use the 10 wired ones to test a reset.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Hover a RESET panel button to read its label; click to pull it (reset), click again to push it back.</li><li>Look at the nose from the outside view to see the side slip vanes.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Hover the buttons of the overhead RESET panels.</td><td>Each one shows its FCOM label as tooltip.</td></tr><tr><td>2</td><td>Click a button.</td><td>It pulls out; click again: it pushes in.</td></tr><tr><td>3</td><td>Click one of the 42 not wired buttons, for example a PACK CTL button.</td><td>It moves; no system reacts.</td></tr><tr><td>4</td><td>In flight, outside view on the nose. Fly a steady sideslip with the rudder (for example right rudder).</td><td>The three side slip vanes turn to line up with the airflow; centred in coordinated flight.</td></tr></table>
+<h2>3. FMC-C reset button checked in the all-FMCs-reset test</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Overhead RESET panels: FMC A, FMC B, FMC C &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-03): FMC-A and FMC-B pulled, the FMS kept the plan with FMC-C in. Unit tests: FmcResetPanel.spec.ts.</div>
+<h3>What it is for</h3>
+<p>The FMS stops and resets when all the FMC reset buttons are pulled. The check read FMC-B twice and never FMC-C, so pulling FMC-A and FMC-B alone reset the FMS and lost the flight plan while FMC-C was still in. Per A380 FCOM DSC-22-FMS-30 FMC-C is the standby FMC, and FMS 1 and FMS 2 are only lost when FMC-A, FMC-B and FMC-C all fail (PRO-ABN-ECAM-10-22-FMS AUTO FLT FMS 1+2 FAULT). The check now covers A, B and C.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>FMC-A and FMC-B pulled, FMC-C in</td><td>The FMS keeps running; the flight plan stays.</td></tr><tr><td>FMC-A, FMC-B and FMC-C pulled</td><td>The FMS stops and resets (the flight plan is lost), as before.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Pull FMC A, FMC B and / or FMC C on the overhead RESET panels to reset those FMCs; push them back in to restore.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X with a flight plan in the MFD F-PLN page.</td><td>The plan is shown.</td></tr><tr><td>2</td><td>Pull the <b>FMC A</b> and <b>FMC B</b> reset buttons.</td><td>The flight plan stays on the MFD (FMC-C still in).</td></tr><tr><td>3</td><td>Pull <b>FMC C</b> as well.</td><td>The FMS resets: the flight plan is lost.</td></tr></table>
+<h2>4. AUTOLAND light press-to-test and flashing</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Glareshield, captain and F/O AUTOLAND lights &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>A380 FCOM DSC-22-FG-80-100: the AUTOLAND light flashes in autoland below 200 ft RA when the autoland conditions are lost, and "as long as the AUTOLAND light is pressed, the AUTOLAND light flashes" (light test). The cockpit lamp code cannot read the sim time, so the old flashing expression never lit the light. The flashing (1 Hz: half on, half off) is now computed in the systems host, for the light test and for the autoland warning.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>AUTOLAND light held pressed</td><td>It flashes red at 1 Hz until released.</td></tr><tr><td>Autoland below 200 ft RA, autoland conditions lost</td><td>Both AUTOLAND lights flash (the warning itself is the existing FBW logic).</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Press and hold the AUTOLAND light on the glareshield to test it (cockpit preparation).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, on the ground. Press and hold the captain AUTOLAND light.</td><td>It flashes red, about once per second.</td></tr><tr><td>2</td><td>Release it.</td><td>It goes off.</td></tr><tr><td>3</td><td>Repeat with the F/O AUTOLAND light.</td><td>Same.</td></tr></table>
+<h2>5. MFP vanes follow the angle of attack</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Nose multifunction probes (outside view) &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>The angle of attack vanes of the three multifunction probes on the nose (one on the left, two on the right, A380 FCOM DSC-34-10-30-10) now follow the angle of attack (sim <code>INCIDENCE ALPHA</code>, up to 60 degrees each way, smoothed so that the jumps at very low speed on the ground do not show).</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The vanes do not move without the companion model change.</td><td>The MFP_ANGLE1..3 animations are in the A380_FUSELAGE model of the aircraft-large-files repository (fork branch feat/a380x-mfp-vane-animations, b8fb739).</td><td>Install that model change with this branch.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Look at the nose probes from the outside view in flight.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in flight, outside view on the nose probes. Pitch up slowly to raise the angle of attack.</td><td>The three MFP vanes turn: their trailing tip rises with the angle of attack.</td></tr><tr><td>2</td><td>Lower the nose to a small angle of attack.</td><td>The vanes come back near their neutral position.</td></tr></table>
+</body></html>

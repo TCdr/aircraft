@@ -1,0 +1,120 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cockpit printers - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>Cockpit printers</h1>
+<div class="subtitle">The A380X MFD and ATC COM print on the paper of the pedestal printer, whose buttons work, and both aircraft get a printer paper door and no torn paper stuck in the slit</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X (printing, buttons) and A32NX (paper door, no torn paper edge)</span>
+<b>Where to find it</b><span>Pedestal printer; A380X MFD FMS &gt; DATA &gt; PRINTER, SEC INDEX, ATC COM ATIS and MSG RECORD; SD MAILBOX PRINT</span>
+<b>Branch</b><span><code>core/printer</code>, based on <code>core/a380x-atccom-datalink</code> (stacked: needs <code>core/surveillance</code>, <code>core/a380x-mfd-fms</code> and <code>core/a380x-atccom-datalink</code> merged first). The 3D parts are in four aircraft-large-files companion changes: pedestal paper 36b4bd9, A380X door 27d6123, A380X ON light 8c14d21, A32NX door 99237fb (fork TCdr/aircraft-large-files).</span>
+<b>Status</b><span>FMS and ATIS printing: tested in the sim 2026-09-27, FMS print again 2026-10-02. Mailbox PRINT: OK 2026-10-02 (MSG RECORD print not sim-tested). Paper doors: A32NX OK 2026-10-01; A380X looked at during the work and committed at the user's request 2026-10-01. No torn paper edge: no sim test recorded. Printer buttons and ON light: OK 2026-10-03.</span>
+<b>Pictures</b><span>MFD pages in the local browser harness (build installed in the sim); the paper sheets rendered by the printer page of the build, with the printouts of the unit tests (test flight plan LFPG - EGLL). No pictures for the doors, the slit and the buttons.</span>
+</div>
+<div class="toc"><div>1. A380X pedestal printer: FMS pages and the ATIS on paper</div><div>2. A380X ATC COM print: SD mailbox and MSG RECORD</div><div>3. Printer paper door (A380X and A32NX)</div><div>4. No torn paper edge left in the printer slit</div><div>5. A380X printer control panel: ON/OFF, SLEW, TEST, ABORT</div></div>
+<h2>1. A380X pedestal printer: FMS pages and the ATIS on paper</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> MFD FMS &gt; DATA &gt; PRINTER, SEC INDEX, ATC COM ATIS; pedestal printer &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user with the paper added to the installed cockpit model (feed animation, tear-off, sheets on the pedestal and the CPT table, FMS pages and ATIS): OK (2026-09-27); FMS print again OK (2026-10-02). Unit tests: 26 FMS print + printer tests, ATIS print.</div>
+<h3>What it is for</h3>
+<p>The A380 has a printer on the pedestal. The FMS prints its data (initialization, takeoff, winds, flight reports) and the ATC COM prints the ATIS, so the crew has them on paper. The printer now works as on the FBW A320: the sheet comes out of the printer, you tear it off and read it.</p>
+<h3>Printing</h3>
+<table><tr><th>From</th><th>What prints</th></tr><tr><td>FMS &gt; DATA &gt; PRINTER</td><td>F-PLN INIT, T.O DATA, WIND DATA; the active flight plan PRE-FLIGHT, IN-FLIGHT and POST-FLIGHT reports; the SEC 1 to 3 reports; the AUTO PRINT options (company data on reception, reports at engine start, takeoff and shutdown)</td></tr><tr><td>FMS &gt; SEC INDEX</td><td>PRINT of a secondary flight plan</td></tr><tr><td>ATC COM &gt; ATIS</td><td>PRINT of one ATIS, PRINT ALL (all the ATIS on one printout), and the auto print (printer icon) when an ATIS is received</td></tr></table>
+<div class="row"><figure><img src="img/27/m01_data_printer.png"><figcaption><b>Figure 1.</b> FMS DATA / PRINTER: the PRINT buttons and the AUTO PRINT options.</figcaption></figure><figure><img src="img/27/m02_atis_list.png"><figcaption><b>Figure 2.</b> ATC COM ATIS: the printer icon (auto print) and PRINT ALL.</figcaption></figure></div>
+<h3>The paper</h3>
+<ul><li>Each printout starts with its title, the date and the time (UTC); an ATIS printout shows the time of the ATIS message.</li><li>A sheet holds 45 lines: a longer page (e.g. a flight report) comes out on several sheets, one after the other.</li><li>Click the sheet in the printer to tear it off: it goes on the pedestal (or the captain's pull-out table), where you can page through the torn sheets and discard them, as on the A320.</li></ul>
+<div class="row"><figure><img src="img/27/p01_preflight_report.png"><figcaption><b>Figure 3.</b> FM ACTIVE PREFLIGHT REPORT.</figcaption></figure><figure><img src="img/27/p02_takeoff_data.png"><figcaption><b>Figure 4.</b> FM ACTIVE TAKE-OFF DATA.</figcaption></figure></div>
+<figure><img src="img/27/p03_atis.png" style="width:45%"><figcaption><b>Figure 5.</b> ATC COM ATIS printout.</figcaption></figure>
+<h3>Limitations and why</h3>
+<table><tr><th>Limitation</th><th>Why</th></tr><tr><td>The paper needs the aircraft-large-files companion</td><td>the FBW A380 cockpit model has no paper nodes: they are in the aircraft-large-files companion <i>pedestal printer paper</i> (36b4bd9 on the fork TCdr/aircraft-large-files). Without it the printouts still reach the flyPad Printouts page</td></tr><tr><td>The paper looks like the A320 one</td><td>the paper, its animation and its buttons come from the A320 printer</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Printer powered (AC 1) and ON (green window on the printer control panel).</li><li>MFD FMS &gt; DATA &gt; <b>PRINTER</b>: press the PRINT of the page or report; or SEC INDEX &gt; PRINT; or ATC COM &gt; ATIS: PRINT (OPTIONS menu), PRINT ALL, or the printer icon for the auto print.</li><li>Watch the sheet come out of the printer, click it to tear it off.</li><li>Read the torn sheets on the pedestal (or the CPT pull-out table when it is out): page through them, discard them.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X with the paper companion model installed, on the ground, AC power, flight plan entered (e.g. LFPG - EGLL). MFD FMS &gt; DATA &gt; PRINTER: press PRINT for F-PLN INIT.</td><td>A sheet comes out of the printer slit: title, date and UTC time, then the page in 64 columns; no characters cut at the right edge.</td></tr><tr><td>2</td><td>Print a long report (PRE-FLIGHT report).</td><td>Several sheets of 45 lines, one after the other (about 2.5 s apart).</td></tr><tr><td>3</td><td>Click the sheet in the printer.</td><td>It is torn off and lies on the pedestal beside the printer; the page buttons page through the torn sheets; discard removes them.</td></tr><tr><td>4</td><td>Pull out the CPT table, print again and tear the sheet off.</td><td>The sheet lies on the table and slides aft with the meal table.</td></tr><tr><td>5</td><td>ATC COM &gt; ATIS with an ATIS received: OPTIONS &gt; PRINT, then PRINT ALL with two areas filled.</td><td>PRINT: the ATIS of that area, with the time written in the ATIS. PRINT ALL: all the ATIS on ONE printout, one after the other.</td></tr><tr><td>6</td><td>Tick the printer icon (AUTO PRINT) of an area and wait for a new ATIS version.</td><td>The new version prints when it is received.</td></tr><tr><td>7</td><td>MFD FMS &gt; SEC INDEX: PRINT of a secondary flight plan.</td><td>The SEC report prints.</td></tr></table>
+<h2>2. A380X ATC COM print: SD mailbox and MSG RECORD</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> SD MAILBOX PRINT; MFD ATC COM &gt; MSG RECORD &nbsp;|&nbsp; <b>Status:</b> Mailbox PRINT tested in the sim by the user (a route clearance printed): OK (2026-10-02). MSG RECORD PRINT ALL / PRINT not sim-tested (unit tests).</div>
+<h3>What it is for</h3>
+<p>The FCOM lets the crew print an ATC message from the mailbox (DSC-46-10-20-60) and the message record from the MFD (DSC-46-10-20-30 P 29, DSC-46-10-40 P 30). These buttons said PRINTER NOT AVAIL; they now print on the pedestal printer, through the same queue as the FMS prints.</p>
+<h3>What you see</h3>
+<table><tr><th>From</th><th>What prints</th><th>Printout title</th></tr><tr><td>SD MAILBOX: PRINT</td><td>The message displayed in the mailbox; PRINTING in the information area while it prints</td><td>ATC COM MAILBOX</td></tr><tr><td>MFD ATC COM &gt; MSG RECORD (list): PRINT ALL</td><td>All the recorded messages: for each one its time, direction, station and status, then its text, in 64 columns</td><td>ATC COM MSG RECORD</td></tr><tr><td>MFD ATC COM &gt; MSG RECORD (zoom): PRINT</td><td>The message shown in the zoom</td><td>ATC COM MSG RECORD</td></tr></table>
+<p>A stray closing brace at the end of the printed CPDLC text is gone. With the printer off or unpowered, the buttons show PRINTER NOT AVAIL (see the printer buttons below).</p>
+<h3>How to use</h3>
+<ol><li>SD mailbox: with the message displayed, press <b>PRINT</b>.</li><li>MFD ATC COM &gt; <b>MSG RECORD</b>: PRINT ALL for the whole record, or ZOOM a message and PRINT it.</li><li>Tear the sheet off the pedestal printer as for any printout.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X, datalink connected, printer ON. Receive an uplink (a live controller, or the self-sent route clearance of <code>core/a380x-atccom-datalink</code>). Press <b>PRINT</b> in the SD mailbox.</td><td>PRINTING in the mailbox information area; a sheet titled ATC COM MAILBOX with the message comes out of the printer, without a } at the end.</td></tr><tr><td>2</td><td>Close a few dialogues, open MFD ATC COM &gt; MSG RECORD, press <b>PRINT ALL</b>.</td><td>One printout ATC COM MSG RECORD: each message with its time, direction, station and status, then its text.</td></tr><tr><td>3</td><td>ZOOM one message and press <b>PRINT</b>.</td><td>A printout of that message only.</td></tr><tr><td>4</td><td>Set the printer OFF (ON/OFF button) and press PRINT again.</td><td>PRINTER NOT AVAIL; nothing prints.</td></tr></table>
+<h2>3. Printer paper door (A380X and A32NX)</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> Pedestal printer: paper door and its latch / handle &nbsp;|&nbsp; <b>Status:</b> A32NX: tested in the sim by the user, OK (2026-10-01). A380X: looked at in the sim during the work (2026-10-01) and committed at the user's request after the model crash fix; no separate test record of the final version.</div>
+<h3>What it is for</h3>
+<p>Neither cockpit model had an animated printer door. A click on the paper door (or its latch on the A380X, its handle on the A32NX) now opens or closes it: the door swings up about its forward edge and shows the paper roll and the roller unit under the slit. The A320 FCOM has a PRINTER DOOR LATCH (DSC-45-30); the A380 FCOM does not describe the door: its look and travel are design choices. Opening the door has no effect on printing.</p>
+<h3>What you see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Click on the closed door (or latch / handle)</td><td>The door swings up (about 80 degrees on the A380X): paper roll, roller unit and the paper going up into the slit.</td></tr><tr><td>Click again</td><td>The door closes.</td></tr><tr><td>Printing with the door open (A380X)</td><td>The sheet still comes out of the slit; its lower part shows in the open compartment.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Needs the aircraft-large-files companion models.</td><td>The door parts, the compartment and the mechanism are in the cockpit models: A380X 27d6123 (on the pedestal paper 36b4bd9), A32NX 99237fb.</td><td>Install them with this branch; a full MSFS restart is needed after a model change.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Click the printer paper door (or its latch / handle) to open it; click again to close it.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X with the companion models installed (MSFS restarted). Click the printer paper door on the pedestal.</td><td>The door swings up about its forward edge; paper roll and roller unit visible; variable <code>L:A380X_PRINTER_DOOR</code> = 1.</td></tr><tr><td>2</td><td>Click the latch.</td><td>The door closes (variable back to 0).</td></tr><tr><td>3</td><td>Print an FMS page with the door open.</td><td>Printing works as with the door closed.</td></tr><tr><td>4</td><td>A32NX with its companion model installed. Click the printer door, then its handle.</td><td>The door opens, then closes (<code>L:A32NX_PRINTER_DOOR</code>).</td></tr></table>
+<h2>4. No torn paper edge left in the printer slit</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> Pedestal printer slit &nbsp;|&nbsp; <b>Status:</b> No sim test recorded (behaviour change only).</div>
+<h3>What it is for</h3>
+<p>The torn paper edge of the FBW printer (the PRINT_TORN part) stood in the slit whenever the printer was not printing: it looked like a sheet stuck in the printer. It is no longer shown on either aircraft: paper only comes out of the slit while printing.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Printer idle</td><td>Empty slit, no paper strip.</td></tr><tr><td>Printing</td><td>The sheet comes out of the slit as before; once torn off, the slit is empty again.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: print and tear off sheets as usual.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX cold and dark, look at the pedestal printer.</td><td>No paper strip in the slit.</td></tr><tr><td>2</td><td>Print a page (e.g. MCDU or flyPad print), tear the sheet off.</td><td>The sheet comes out while printing; after the tear-off the slit is empty.</td></tr><tr><td>3</td><td>Same on the A380X (print an FMS page from MFD DATA &gt; PRINTER).</td><td>Empty slit before and after the print.</td></tr></table>
+<h2>5. A380X printer control panel: ON/OFF, SLEW, TEST, ABORT</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Pedestal printer control panel &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-03), the green ON window after the emissive fix of the companion model. Unit tests: PedestalPrinter.spec.ts, FmsPrinter.spec.ts.</div>
+<h3>What it is for</h3>
+<p>The A380 cockpit model has the printer control panel (ON/OFF with a green window, SLEW, TEST, ABORT), but nothing was clickable. The printer is supplied by AC 1 (FCOM DSC-46-20-70). The A380 FCOM does not describe the buttons: SLEW, TEST and ABORT follow the usual printer functions (design choices).</p>
+<h3>What you see</h3>
+<table><tr><th>Button</th><th>What it does</th></tr><tr><td>ON/OFF</td><td>Switches the printer on or off. The green window shows while the printer is on and AC 1 is powered. Off or unpowered: an FMS print shows <b>PRINTER NOT AVAIL</b> (type II, FCOM DSC-22-FMS-20-110) and nothing prints; the ATC COM prints show their PRINTER NOT AVAIL.</td></tr><tr><td>SLEW</td><td>Feeds out one blank sheet.</td></tr><tr><td>TEST</td><td>Prints the test page: PRINTER TEST, date and time, lines of the character set, END OF TEST.</td></tr><tr><td>ABORT</td><td>Drops the sheets waiting to be printed.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The green window needs the aircraft-large-files companion.</td><td>Its emissive material is in the companion change 8c14d21 (on the door 27d6123).</td><td>Install it; restart MSFS.</td></tr><tr><td>No buttons on the A32NX printer.</td><td>The A32NX model has no printer button parts (the FCOM SLEW switch, DSC-45-30): it needs model work.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Keep the printer ON (green window) to print.</li><li>SLEW to feed a blank sheet, TEST to check the printer, ABORT to cancel a long printout.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X with the companion models installed, cold and dark. Look at the printer control panel.</td><td>Green window off.</td></tr><tr><td>2</td><td>Switch the batteries and AC power on (AC 1 powered).</td><td>Green window on.</td></tr><tr><td>3</td><td>Press <b>ON/OFF</b>.</td><td>Green window off (<code>L:A380X_PRINTER_OFF</code> = 1).</td></tr><tr><td>4</td><td>MFD FMS &gt; DATA &gt; PRINTER: PRINT F-PLN INIT.</td><td>MFD message <b>PRINTER NOT AVAIL</b>; no sheet.</td></tr><tr><td>5</td><td>Press ON/OFF again, then <b>TEST</b>.</td><td>Green window on; the test page prints: PRINTER TEST with the date and time, the character lines, END OF TEST.</td></tr><tr><td>6</td><td>Press <b>SLEW</b>.</td><td>One blank sheet comes out.</td></tr><tr><td>7</td><td>Print a long report (PRE-FLIGHT) and press <b>ABORT</b> after the first sheet.</td><td>The remaining sheets are not printed.</td></tr></table>
+</body></html>
