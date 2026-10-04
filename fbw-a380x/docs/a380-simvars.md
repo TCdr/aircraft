@@ -42,6 +42,44 @@
       | BRT   | 1     |
       | DIM   | 2     |
 
+- A32NX_RESET_PANEL_{name}
+    - Bool
+    - True when the reset button {name} of the overhead RESET panels is pulled (computer reset). Written by the
+      cockpit button (CB_{name} in the cockpit model; SLATS2 uses the model node CB_SLAT2)
+    - {name} read by the avionics (ResetPanelPublisher, FMC)
+        - ARPT_NAV
+        - FMC_A
+        - FMC_B
+        - FMC_C
+        - FWS1
+        - FWS2
+        - AESU1
+        - AESU2
+        - NSS_AVNCS
+        - NSS_FLT_OPS
+    - {name} wired in the cockpit only, not read by any system yet
+        - AICU1, AICU2
+        - ATC
+        - AVS1, AVS2
+        - BSCS1, BSCS2
+        - CIDS1, CIDS2, CIDS3
+        - CPCS1, CPCS2
+        - DSMS
+        - DTLNKROUTER
+        - ENG1_EIPM2, ENG2_EIPM1, ENG3_EIPM2, ENG4_EIPM1
+        - ESS_TR, TR1, TR_2A
+        - FLAPS1, FLAPS2
+        - FQMS1, FQMS2
+        - GCU
+        - LGCIS1, LGCIS2
+        - PACK1_CTL, PACK2_CTL
+        - PAX_BBAND
+        - SCS1, SCS2
+        - SDF1, SDF2, SDF3
+        - SLATS1, SLATS2
+        - TCS1, TCS2
+        - VCS1, VCS2
+
 - A32NX_OVHD_{name}_PB_IS_AVAILABLE
     - Bool
     - True when the push button's AVAIL light should illuminate
