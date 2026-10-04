@@ -113,7 +113,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 Surveillance / TCAS / TAWS / WXR / XPDR
 
-- Weather radar / WXR due to sim limitation
+- Weather radar: the native radar shows the sim's weather; the PRED W/S, GAIN and ELEVN/TILT settings do not change the
+  radar picture
 - TAWS obstacles
 
 ### ATA 34 ROW/ROP
