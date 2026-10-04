@@ -125,6 +125,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] CRUISE page: delta P pulses only above 1.5 PSI in the approach phase (resets at 1 PSI), not during the whole cruise - @TCdr
 1. [A32NX/SD] WHEEL page: AUTO BRK no longer turns amber when an engine is off (single-engine taxi, engine failure) - @TCdr
 1. [A32NX/FWS] ALL ENGINES FAILURE: the APU START line shows below FL 250 as in the FCOM, not only below 2 500 ft radio altitude - @TCdr
+1. [ADIRS] A fast IR alignment (mode selector OFF then back to NAV within 5 s) takes 30 s as in the FCOM, not 180 s - @TCdr
 
 ## 2024.1.0
 
