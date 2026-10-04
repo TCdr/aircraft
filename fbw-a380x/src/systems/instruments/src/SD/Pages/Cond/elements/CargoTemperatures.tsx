@@ -2,6 +2,7 @@ import React from 'react';
 import { useSimVar } from '@instruments/common/simVars';
 import { Position } from '@instruments/common/types';
 import { useArinc429Var } from '@flybywiresim/fbw-sdk-react';
+import { Triangle } from '@instruments/common/Shapes';
 
 const CargoTemperatures: React.FC<Position> = ({ x, y }) => {
   const [fwdCargoTemp] = useSimVar('L:A32NX_COND_CARGO_FWD_TEMP', 'celsius', 1000);
@@ -25,8 +26,11 @@ const CargoTemperatures: React.FC<Position> = ({ x, y }) => {
   }
 
   const bulkHeaterFault = vcsDiscreteWordToUse.bitValueOr(22, true);
+  // A380 FCOM DSC-21-10-20 COND system display, cargo: OVHT (duct overheat) and the trim air valve mark (failed trim air
+  // valve) of the forward cargo, written by the temperature controller (a380_systems trim_air_drive_device.rs)
+  const [fwdCargoOverheat] = useSimVar('L:A32NX_COND_CARGO_FWD_DUCT_OVHT', 'bool', 1000);
+  const [fwdCargoTrimAirValveFault] = useSimVar('L:A32NX_COND_CARGO_FWD_TRIM_AIR_VALVE_FAULT', 'bool', 1000);
   // TODO: Replace with actual LVars when failures simulated
-  const fwdCargoOverheat = false;
   const fwdCargoSmoke = false;
   const bulkCargoSmoke = false;
 
@@ -40,6 +44,12 @@ const CargoTemperatures: React.FC<Position> = ({ x, y }) => {
       </text>
 
       {/* Forward cargo warnings */}
+      <g id="TrimAirFailure-CARGO_FWD" className={fwdCargoTrimAirValveFault ? 'Show' : 'Hide'}>
+        <text x={215} y={329} className="Amber F22">
+          H
+        </text>
+        <Triangle x={240} y={329} colour="Amber" fill={0} orientation={180} scale={1} />
+      </g>
       <text x={340} y={329} className={`Amber F22 MiddleAlign ${fwdCargoOverheat ? 'Show' : 'Hide'}`}>
         OVHT
       </text>

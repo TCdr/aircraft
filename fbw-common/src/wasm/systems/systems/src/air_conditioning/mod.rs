@@ -755,6 +755,9 @@ pub struct TrimAirSystem<const ZONES: usize, const ENGINES: usize> {
 
     trim_air_pressure_regulating_valves: Vec<TrimAirPressureRegulatingValve>,
     trim_air_valves: [TrimAirValve; ZONES],
+    // Index (0-based) of the trim air pressure regulating (hot-air) valve whose manifolds supply the trim air valve
+    // of each zone. None: the trim air valves count as supplied while any hot-air valve is open.
+    hot_air_valve_index_by_zone: Option<[usize; ZONES]>,
     // These are not a real components of the system, but a tool to simulate the mixing of air
     pack_mixer_container: PneumaticPipe,
     trim_air_mixers: [MixerUnit<1>; ZONES],
@@ -784,6 +787,7 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystem<ZONES, ENGINES> {
             trim_air_pressure_regulating_valves,
             trim_air_valves: cabin_zone_ids
                 .map(|id| TrimAirValve::new(context, trim_air_valve_container_volume, &id)),
+            hot_air_valve_index_by_zone: None,
             pack_mixer_container: PneumaticPipe::new(
                 pack_mixer_container_volume,
                 Pressure::new::<psi>(14.7),
@@ -794,6 +798,23 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystem<ZONES, ENGINES> {
             duct_high_pressure: Failure::new(FailureType::TrimAirHighPressure),
             outlet_air: Air::new(),
         }
+    }
+
+    /// For aircraft with several hot-air valves each supplying its own trim air manifolds: `hot_air_valve_ids` holds
+    /// the id (1-based, as in `taprv_ids`) of the hot-air valve supplying the trim air valve of each zone. Closing that
+    /// valve stops the hot air of a TrimAirOverheat failure in its zones; the zones of the other valve keep theirs.
+    /// The air itself still flows from the first hot-air valve to every trim air valve (model simplification kept so
+    /// the temperature regulation of the zones is unchanged).
+    pub fn with_hot_air_valve_per_zone(mut self, hot_air_valve_ids: [usize; ZONES]) -> Self {
+        let valve_count = self.trim_air_pressure_regulating_valves.len();
+        assert!(
+            hot_air_valve_ids
+                .iter()
+                .all(|id| (1..=valve_count).contains(id)),
+            "Every zone must be fed by an existing hot-air valve"
+        );
+        self.hot_air_valve_index_by_zone = Some(hot_air_valve_ids.map(|id| id - 1));
+        self
     }
 
     pub fn update(
@@ -834,12 +855,19 @@ impl<const ZONES: usize, const ENGINES: usize> TrimAirSystem<ZONES, ENGINES> {
         }
 
         for (id, tav) in self.trim_air_valves.iter_mut().enumerate() {
+            let hot_air_supplied = match self.hot_air_valve_index_by_zone {
+                Some(index_by_zone) => {
+                    self.trim_air_pressure_regulating_valves[index_by_zone[id]].is_open()
+                }
+                None => self
+                    .trim_air_pressure_regulating_valves
+                    .iter()
+                    .any(|taprv| taprv.is_open()),
+            };
             tav.update(
                 context,
                 mixer_air.flow_rate(),
-                self.trim_air_pressure_regulating_valves
-                    .iter()
-                    .any(|taprv| taprv.is_open()),
+                hot_air_supplied,
                 &mut self.trim_air_pressure_regulating_valves[0],
                 tav_controller[id].trim_air_valve_controllers(id),
             );
