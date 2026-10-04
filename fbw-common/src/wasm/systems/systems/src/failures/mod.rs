@@ -47,6 +47,8 @@ pub enum FailureType {
     // ATA26
     SetOnFire(FireDetectionZone),
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
+    /// The fire detection unit (FDU) channel of one zone is inoperative: no fire warning from that zone
+    FireDetectionUnit(FireDetectionZone),
     // ATA29
     ReservoirLeak(HydraulicColor),
     ReservoirAirLeak(HydraulicColor),

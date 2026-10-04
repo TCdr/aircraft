@@ -8,6 +8,11 @@
 //! - breaks occur in both loops within 5 s of each other (flame effect), or
 //! - a test is performed on the FIRE panel.
 //!
+//! The FDU of each zone can fail ([`FailureType::FireDetectionUnit`]): A320 FCOM DSC-26-20-10 "A loop-fault caution
+//! appears, if: [...] The FDU fails" and PRO-ABN-ENG / PRO-ABN-APU FIRE DET FAULT "This alert triggers when: Both loops
+//! are inoperative, or Fire Detector Unit is inoperative". A failed FDU gives no fire warning for its zone (it is the
+//! FDU that processes the loop signals), whatever its loops detect. The aircraft that model it map the failure.
+//!
 //! The aircraft give the zones, the electrical supply of each loop and the extinguishing bottles; this module also
 //! holds the [`SetOnFireModule`], which sets a zone on fire from a flyPad failure.
 
@@ -52,6 +57,8 @@ pub struct FireDetectionZoneConfig<'a> {
 /// The fire detection unit of the zones, with their two detection loops.
 pub struct FireDetectionUnit<const N: usize> {
     fire_detection_loop: [FireDetectionLoop<N>; 2],
+    /// The failure of the FDU channel of each zone
+    unit_failures: [Failure; N],
 
     fire_detected_id: [VariableIdentifier; N],
 
@@ -93,6 +100,8 @@ impl<const N: usize> FireDetectionUnit<N> {
                     power_loss,
                 ),
             ],
+            unit_failures: fire_detection_zones
+                .map(|zone| Failure::new(FailureType::FireDetectionUnit(zone))),
 
             fire_detected_id: fire_detection_zones.map(|zone| Self::init_identifier(context, zone)),
 
@@ -140,29 +149,31 @@ impl<const N: usize> FireDetectionUnit<N> {
 
     fn fire_detection_determination(&self, fire_test_pb: bool) -> [bool; N] {
         let mut fire_detected = [false; N];
-        for ((&zone, &interval_between_loop_failures), fire_detected) in self
+        for (((&zone, &interval_between_loop_failures), unit_failure), fire_detected) in self
             .fire_detection_zones
             .iter()
             .zip(&self.interval_between_loop_failures)
+            .zip(&self.unit_failures)
             .zip(&mut fire_detected)
         {
-            *fire_detected = (self.fire_detection_loop[0]
-                .fire_detected_in_loop(zone, fire_test_pb)
-                && self.fire_detection_loop[1].fire_detected_in_loop(zone, fire_test_pb))
-                || (self
-                    .fire_detection_loop
-                    .iter()
-                    .any(|l| l.fire_detected_in_loop(zone, fire_test_pb))
-                    && self
+            // A failed FDU processes nothing: no fire warning from its zone
+            *fire_detected = !unit_failure.is_active()
+                && ((self.fire_detection_loop[0].fire_detected_in_loop(zone, fire_test_pb)
+                    && self.fire_detection_loop[1].fire_detected_in_loop(zone, fire_test_pb))
+                    || (self
                         .fire_detection_loop
                         .iter()
-                        .any(|l| l.loop_has_failed(zone)))
-                || (self
-                    .fire_detection_loop
-                    .iter()
-                    .all(|l| l.loop_is_broken(zone))
-                    && interval_between_loop_failures < Self::FLAME_EFFECT_INTERVAL
-                    && zone != FireDetectionZone::Mlg);
+                        .any(|l| l.fire_detected_in_loop(zone, fire_test_pb))
+                        && self
+                            .fire_detection_loop
+                            .iter()
+                            .any(|l| l.loop_has_failed(zone)))
+                    || (self
+                        .fire_detection_loop
+                        .iter()
+                        .all(|l| l.loop_is_broken(zone))
+                        && interval_between_loop_failures < Self::FLAME_EFFECT_INTERVAL
+                        && zone != FireDetectionZone::Mlg));
         }
         fire_detected
     }
@@ -212,6 +223,14 @@ impl<const N: usize> FireDetectionUnit<N> {
         detection_loop.loop_has_failed(zone)
     }
 
+    /// Whether the FDU channel of the zone is failed (false for a zone it does not protect)
+    pub fn unit_has_failed(&self, zone: FireDetectionZone) -> bool {
+        self.fire_detection_zones
+            .iter()
+            .position(|&z| z == zone)
+            .is_some_and(|index| self.unit_failures[index].is_active())
+    }
+
     pub fn should_extinguish_apu_fire(&self) -> bool {
         self.should_extinguish_apu_fire.output()
     }
@@ -230,6 +249,7 @@ impl<const N: usize> SimulationElement for FireDetectionUnit<N> {
 
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         accept_iterable!(self.fire_detection_loop, visitor);
+        accept_iterable!(self.unit_failures, visitor);
 
         visitor.visit(self);
     }
