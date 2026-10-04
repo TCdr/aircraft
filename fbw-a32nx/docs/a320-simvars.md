@@ -1314,7 +1314,8 @@
 - A32NX_LIGHTING_PRESET_LOAD
     - Number
     - ID for preset
-    - When set to >0 the corresponding preset will be loaded if defined
+    - When set to >0 the corresponding preset will be loaded; a preset that was never saved loads the default
+      preset (all lights at 50 %)
     - Will be reset to 0 after loading is done
 
 - A32NX_LIGHTING_PRESET_SAVE
