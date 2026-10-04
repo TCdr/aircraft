@@ -17,6 +17,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { LegacyGpws } from './Misc/LegacyGpws';
 import { LegacyFuel } from './CpiomF/LegacyFuel';
+import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
 import { FuelJettison } from './CpiomF/FuelJettison';
 import { AutolandLights } from './Misc/AutolandLights';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
@@ -195,6 +196,7 @@ class SystemsHost extends BaseInstrument {
   private readonly fuelJettison = new FuelJettison(this.bus, this, this.failuresConsumer);
 
   private readonly autolandLights = new AutolandLights();
+  private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
 
   /**
    * "mainmenu" = 0
@@ -219,6 +221,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
     this.backplane.addInstrument('AutolandLights', this.autolandLights);
+    this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addPublisher('RmpAmuBusPublisher', this.rmpAmuBusPublisher);

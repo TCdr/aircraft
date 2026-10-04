@@ -1632,6 +1632,36 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the FADEC shuts the engine down and it cannot relight. Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank
 
+- A380X_FUEL_FEED_TK_{number}_{pump}_PMP_LO_PR
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - {pump}
+    - MAIN
+    - STBY
+  - True when the feed tank pump pb-sw is ON and the pump is not running (failed). Drives the pb-sw FAULT light, the amber pump of the SD FUEL page and the FUEL FEED TK {number} MAIN (STBY) PMP FAULT alerts (FCOM DSC-28-20, PRO-ABN-ECAM-10-28). Written by the systems host (CpiomF/FuelPumpsAndValves), which also simulates the ATA 28 feed pump failures by holding the MSFS pump switch (FUELSYSTEM PUMP SWITCH 1-8, ON in the flight files) off while the pb-sw keeps the pump circuit connected
+
+- A380X_FUEL_CROSSFEED_VLV_{number}_ABNORMAL
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the crossfeed valve position has disagreed with its CROSSFEED pb-sw for more than 5 s (abnormally closed or open): amber valve on the SD FUEL page and FUEL CROSSFEED VLV {number} FAULT. Written by the systems host (CpiomF/FuelPumpsAndValves)
+
+- A380X_OVHD_FUEL_CROSSFEED_{number}_PB_IS_ON
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the CROSSFEED {number} pb-sw is ON (the flight crew selection, ON light and pb-sw animation). The systems host (CpiomF/FuelPumpsAndValves) commands the MSFS valve 46 (crossfeed 1) to 49 (crossfeed 4) (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the valve is jammed (failures 28020-28023), when the valve stays where it was. A valve switch change from outside (K:FUELSYSTEM_VALVE_* events, the refuel logic closing the valves) is taken as the new selection
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL
