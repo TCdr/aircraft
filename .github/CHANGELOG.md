@@ -106,6 +106,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Single chime sound can be interrupted - @BravoMike99 (bruno_pt99)
 1. [A380X/RMP] Fix RMP brightness initialisation - @CameronCarlyon (YouBaconMeCrazy)
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
+1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
+1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
 1. [A32NX/ND] Add a native weather radar display on the ROSE and ARC pages, controlled by the WX SYS and MODE knobs - @TCdr
 1. [A380X/ND] Add the weather radar to the ND and the weather to the VD, following the EFIS WX overlay and the SURV CONTROLS WXR settings - @TCdr
 1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
