@@ -5,7 +5,7 @@
  * Gauges of a display drawn on another DU for the CDS reconfiguration (A380 FCOM DSC-31-15-20).
  *
  * Every display is a gauge of its own on the texture of its DU (panel.cfg). To show the PFD on the ND DU, the ND on the
- * PFD DU or the EWD on the SD DU, panel.cfg stacks an extra gauge of that display on the other DU's texture, with
+ * PFD DU, the EWD on the SD DU, or the EWD and the SD (its two gauges, SD and SDv2) on the ND DU, panel.cfg stacks an extra gauge of that display on the other DU's texture, with
  * `hostDu=<duID of that DU>` in its URL and the `-hosted` HTML file (the same script, its stylesheet scoped to the
  * display's mount element, see buildSrc/hostedInstrument.js: all gauges of a panel.cfg block share one document).
  * Such a hosted gauge starts nothing until the systems host first puts its display on the DU
@@ -76,13 +76,18 @@ export class HostedDisplayGate {
    * @param hostDisplayUnit the DU the gauge draws on
    * @param display the display of the gauge
    * @param mountElementId the id of the gauge's mount element (e.g. PFD_CONTENT)
-   * @param start starts the instrument (backplane, rendering), called once
+   * @param start starts the instrument (backplane, rendering): called once, or each time the display is shown again
+   * when there is a stop function
+   * @param stop stops the instrument when the display is no longer shown (e.g. unmounts a React instrument, whose
+   * hooks would otherwise keep running on every frame); without it the instrument stays started and the gauge's own
+   * update loop is skipped while the display is not shown
    */
   constructor(
     private readonly hostDisplayUnit: DisplayUnitID,
     private readonly display: CdsDisplay,
     private readonly mountElementId: string,
     private readonly start: () => void,
+    private readonly stop?: () => void,
   ) {}
 
   /**
@@ -94,6 +99,9 @@ export class HostedDisplayGate {
     if (shown && !this.started) {
       this.started = true;
       this.start();
+    } else if (!shown && this.started && this.stop) {
+      this.started = false;
+      this.stop();
     }
     if (shown !== this.shown) {
       this.shown = shown;

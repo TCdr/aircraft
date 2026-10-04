@@ -41,8 +41,8 @@ const UPDATE_PERIOD_MS = 200;
 /**
  * The CDS display unit reconfiguration (A380 FCOM DSC-31-15-20, logic in shared/src/CdsReconfiguration.ts): reads the DU
  * states and the PFD/ND and DU RECONF pbs, and writes the display of each DU into L:A380X_CDS_{DU}_DU_DISPLAY, which
- * the display gauges read to show or hide (each display is a gauge of its own; panel.cfg puts the PFD on the ND DUs,
- * the ND on the PFD DUs and the EWD on the SD DU as extra gauges that only run while they are shown).
+ * the display gauges read to show or hide (each display is a gauge of its own; panel.cfg puts the PFD, the EWD and the
+ * SD on the ND DUs, the ND on the PFD DUs and the EWD on the SD DU as extra gauges that only run while they are shown).
  * Each variable stays 0 (its own display) in normal operation.
  */
 export class CdsReconfiguration implements Instrument {

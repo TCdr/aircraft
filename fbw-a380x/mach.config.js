@@ -30,7 +30,8 @@ module.exports = {
   ],
   instruments: [
     msfsAvionicsInstrument('Clock'),
-    // EWD, ND and PFD: also drawn on another DU (CDS reconfiguration), with a scoped stylesheet (*-hosted.html/css)
+    // EWD, ND, PFD and the SD (SDv2 + legacy SD): also drawn on another DU (CDS reconfiguration), with a scoped
+    // stylesheet (*-hosted.html/css)
     msfsAvionicsInstrument('EWD', 'instrument.tsx', true),
     msfsAvionicsInstrument('FCU'),
     msfsAvionicsInstrument('MFD'),
@@ -38,7 +39,7 @@ module.exports = {
     msfsAvionicsInstrument('OIT'),
     msfsAvionicsInstrument('PFD', 'instrument.tsx', true),
     msfsAvionicsInstrument('RMP'),
-    msfsAvionicsInstrument('SDv2'),
+    msfsAvionicsInstrument('SDv2', 'instrument.tsx', true),
     msfsAvionicsInstrument('popup'),
 
     reactInstrument('BAT'),
@@ -46,7 +47,7 @@ module.exports = {
     reactInstrument('ISISlegacy'),
     reactInstrument('OITlegacy'),
     reactInstrument('RTPI'),
-    reactInstrument('SD'),
+    reactInstrument('SD', undefined, true),
   ],
 };
 
@@ -66,15 +67,17 @@ function msfsAvionicsInstrument(name, index = 'instrument.tsx', hosted = false) 
   };
 }
 
-function reactInstrument(name, additionalImports) {
+function reactInstrument(name, additionalImports, hosted = false) {
+  const simulatorPackage = {
+    type: 'react',
+    isInteractive: false,
+    fileName: name.toLowerCase(),
+    imports: ['/JS/dataStorage.js', '/JS/fbw-a380x/A380X_Simvars.js', ...(additionalImports ?? [])],
+  };
   return {
     name,
     index: `src/systems/instruments/src/${name}/index.tsx`,
-    simulatorPackage: {
-      type: 'react',
-      isInteractive: false,
-      fileName: name.toLowerCase(),
-      imports: ['/JS/dataStorage.js', '/JS/fbw-a380x/A380X_Simvars.js', ...(additionalImports ?? [])],
-    },
+    simulatorPackage,
+    plugins: hosted ? [hostedInstrumentPlugin(name, simulatorPackage)] : undefined,
   };
 }
