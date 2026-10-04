@@ -2479,21 +2479,21 @@ export class FlightManagementComputer implements FmcInterface {
   handleFcuAltKnobPushPull(): void {
     this.flightPhaseManager.handleFcuAltKnobPushPull(
       this.fmgc.getDistanceToDestination() ?? -1,
-      this.guidanceController.hasStepDescent(),
+      this.guidanceController.isStepDescentAhead(),
     );
   }
 
   handleFcuAltKnobTurn(): void {
     this.flightPhaseManager.handleFcuAltKnobTurn(
       this.fmgc.getDistanceToDestination() ?? -1,
-      this.guidanceController.hasStepDescent(),
+      this.guidanceController.isStepDescentAhead(),
     );
   }
 
   handleFcuVSKnob(onStepClimbDescent: () => void): void {
     this.flightPhaseManager.handleFcuVSKnob(
       this.fmgc.getDistanceToDestination() ?? -1,
-      this.guidanceController.hasStepDescent(),
+      this.guidanceController.isStepDescentAhead(),
       onStepClimbDescent,
     );
   }
