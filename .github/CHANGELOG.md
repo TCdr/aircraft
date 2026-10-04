@@ -110,6 +110,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
 1. [A380X] Cockpit: the A/THR instinctive disconnect pbs on the thrust levers and the EVAC HORN SHUT OFF pb can be clicked, and the DFDR EVENT and ACMS TRIGGER pbs move when pressed (the behaviour XML named nodes/animations that are not in the model) - @TCdr
 1. [A380X] The AUTOLAND lights on the glareshield flash while pressed, the light test from the FCOM - @TCdr
+1. [A380X] The angle of attack vanes of the three multifunction probes on the nose (one left, two right) follow the angle of attack - @TCdr
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
 
