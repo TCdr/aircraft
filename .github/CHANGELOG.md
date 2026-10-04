@@ -111,6 +111,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
 1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
 1. [A380X/FUEL] Jettison valve stuck open and stuck closed failures with their ECAM alerts and STATUS - @TCdr
+1. [A380X] Fuel jettison: a fuel mist plume trails from each wing's jettison outlet while fuel flows out of that side - @TCdr
 
 ## 2024.1.0
 
