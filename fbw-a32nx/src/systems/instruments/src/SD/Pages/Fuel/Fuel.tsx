@@ -10,7 +10,12 @@ import { Triangle } from '../../Common/Shapes';
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { isEngineLpValveGreen } from './EngineLpValveColour';
-import { isCrossFeedValveGreen, WingPumpIndication, wingPumpIndication } from './FuelPumpValveIndications';
+import {
+  isCentreTankQuantityBoxed,
+  isCrossFeedValveGreen,
+  WingPumpIndication,
+  wingPumpIndication,
+} from './FuelPumpValveIndications';
 
 import './Fuel.scss';
 
@@ -26,6 +31,9 @@ export const FuelPage = () => {
   const [rightOuterInnerValve] = useSimVar('FUELSYSTEM VALVE OPEN:5', 'bool', 500);
   const [modelSelectManual] = useSimVar('L:A32NX_OVHD_FUEL_MODESEL_MANUAL', 'bool', 500);
   const [autoShutoffRequired] = useSimVar('FUELSYSTEM TRIGGER STATUS:9', 'bool', 500);
+  // Both centre tank transfer valves failed closed (systems host Fuel/FuelPumpsAndValves)
+  const [leftCtrXfrNotFullyOpen] = useSimVar('L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_NOT_FULLY_OPEN', 'bool', 500);
+  const [rightCtrXfrNotFullyOpen] = useSimVar('L:A32NX_FUEL_CTR_TK_R_XFR_VALVE_NOT_FULLY_OPEN', 'bool', 500);
 
   const [useMetric] = usePersistentSetting('CONFIG_USING_METRIC_UNIT');
 
@@ -140,6 +148,9 @@ export const FuelPage = () => {
         />
 
         {/* Quantities */}
+        {isCentreTankQuantityBoxed(leftCtrXfrNotFullyOpen > 0, rightCtrXfrNotFullyOpen > 0) && (
+          <rect className="AmberLine" x={236} y={298} width={100} height={34} fill="none" />
+        )}
         <text className="TankQuantity" x={330} y={315}>
           {fuelInTanksForDisplay(tankCenter, useMetric, fuelWeightPerGallon)}
         </text>
@@ -441,7 +452,8 @@ const CentreToInnerTransfer: FC<CentreToInnerTransferProps> = ({
     'percent over 100',
     1000,
   );
-  const [transferValveSwitch] = useSimVar(`A:FUELSYSTEM VALVE SWITCH:${side === 'R' ? 10 : 9}`, 'boolean', 1000);
+  // The CTR TK XFR pb-sw selection (the MSFS inhibit valve switch is held while the transfer valve is jammed)
+  const [transferValveSwitch] = useSimVar(`L:A32NX_OVHD_FUEL_CTR_TK_${side}_XFR_PB_IS_ON`, 'bool', 1000);
   const [transferJunction] = useSimVar(`A:FUELSYSTEM JUNCTION SETTING:${side === 'R' ? 5 : 4}`, 'number', 1000);
   const [transferValveFullyOpen, setTransferValveFullyOpen] = useState(false);
   const [transferValveFullyClosed, setTransferValveFullyClosed] = useState(false);

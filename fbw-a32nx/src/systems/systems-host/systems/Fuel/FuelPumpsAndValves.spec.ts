@@ -7,7 +7,14 @@ import { A320Failure } from '@failures';
 import {
   A320_CROSSFEED_PB_IS_ON_VAR,
   A320_CROSSFEED_VALVE,
+  A320_FUEL_MODE_SEL_MAN_VAR,
+  centreTransferValveDisagreement,
+  centreTransferValveOpenRatio,
+  ctrTkXfrPbIsOnVar,
+  ctrTkXfrValveNotFullyClosedVar,
+  ctrTkXfrValveNotFullyOpenVar,
   FuelPumpsAndValves,
+  isCentreTransferValveCommandedOpen,
   isTankPumpLowPressure,
   tankPumpLowPressureVar,
   tankPumpPbIsOnVar,
@@ -152,5 +159,148 @@ describe('A320 fuel pump and valve failures', () => {
     activeFailures.clear();
     system.update(200);
     expect(commands).toEqual([`VALVE ${A320_CROSSFEED_VALVE} ON`]);
+  });
+});
+
+describe('A320 centre tank transfer valve (FCOM DSC-28-10 CENTER TANK FUEL TRANSFER, jet pump variant)', () => {
+  it('is open as far as the less open of its two MSFS valves in series, in AUTO', () => {
+    expect(centreTransferValveOpenRatio(1, 1, false)).toBe(1);
+    expect(centreTransferValveOpenRatio(1, 0, false)).toBe(0);
+    expect(centreTransferValveOpenRatio(0, 1, false)).toBe(0);
+  });
+
+  it('follows its inhibit valve alone in MAN, the junction bypassing the auto valve', () => {
+    expect(centreTransferValveOpenRatio(1, 0, true)).toBe(1);
+    expect(centreTransferValveOpenRatio(0, 1, true)).toBe(0);
+  });
+
+  it('is commanded open by the pb-sw ON with MAN, or with AUTO when the FLSCU opens it; closed by the pb-sw OFF', () => {
+    expect(isCentreTransferValveCommandedOpen(true, true, false)).toBe(true);
+    expect(isCentreTransferValveCommandedOpen(true, false, true)).toBe(true);
+    expect(isCentreTransferValveCommandedOpen(true, false, false)).toBe(false);
+    expect(isCentreTransferValveCommandedOpen(false, true, true)).toBe(false);
+  });
+
+  it('disagrees "failed in open position" when open while commanded closed, "in closed position" in the other case', () => {
+    expect(centreTransferValveDisagreement(false, 1)).toEqual({ notFullyClosed: true, notFullyOpen: false });
+    expect(centreTransferValveDisagreement(true, 0)).toEqual({ notFullyClosed: false, notFullyOpen: true });
+    expect(centreTransferValveDisagreement(true, 1)).toEqual({ notFullyClosed: false, notFullyOpen: false });
+    expect(centreTransferValveDisagreement(false, 0)).toEqual({ notFullyClosed: false, notFullyOpen: false });
+  });
+});
+
+describe('A320 centre tank transfer valve failures', () => {
+  const activeFailures = new Set<number>();
+  const commands: string[] = [];
+  /** The MSFS valves follow their switch at once (the transfer valves have no OpeningTime) */
+  const valves: FuelSwitchAccess = {
+    isSelected: (selectionVar) => simVars.get(selectionVar) === true,
+    setSelected: (selectionVar, on) => simVars.set(selectionVar, on),
+    isSwitchOn: (index) => simVars.get(`A:FUELSYSTEM VALVE SWITCH:${index}`) === 1,
+    position: (index) => (simVars.get(`A:FUELSYSTEM VALVE SWITCH:${index}`) === 1 ? 1 : 0),
+    command: (index, on) => {
+      commands.push(`VALVE ${index} ${on ? 'ON' : 'OFF'}`);
+      simVars.set(`A:FUELSYSTEM VALVE SWITCH:${index}`, on ? 1 : 0);
+    },
+  };
+  const pumps: FuelSwitchAccess = { ...valves, command: () => {} };
+  let system: FuelPumpsAndValves;
+
+  /** An MSFS trigger (the FLSCU) opens or closes an auto valve */
+  const flscu = (valve: number, open: boolean) => simVars.set(`A:FUELSYSTEM VALVE SWITCH:${valve}`, open ? 1 : 0);
+
+  const run = (durationMs: number) => {
+    for (let time = 0; time < durationMs; time += 200) {
+      system.update(200);
+    }
+  };
+
+  /** A loaded flight in AUTO: both CTR TK XFR pb-sw ON, the inner tanks not full (the FLSCU opens the auto valves) */
+  const loadTransferring = () => {
+    for (const valve of [9, 10, 11, 12]) {
+      simVars.set(`A:FUELSYSTEM VALVE SWITCH:${valve}`, 1);
+    }
+  };
+
+  beforeEach(() => {
+    simVars.clear();
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
+      simVars.set(name, value);
+      return Promise.resolve();
+    });
+    activeFailures.clear();
+    commands.length = 0;
+    system = new FuelPumpsAndValves(
+      { update: () => {}, isActive: (failure) => activeFailures.has(failure) },
+      pumps,
+      valves,
+    );
+  });
+
+  it('takes the pb-sw selections from the loaded flight and gives no fault while the FLSCU opens and closes the valve', () => {
+    loadTransferring();
+    run(1000);
+    expect(simVars.get(ctrTkXfrPbIsOnVar('L'))).toBe(true);
+    expect(simVars.get(ctrTkXfrPbIsOnVar('R'))).toBe(true);
+    // the left inner tank is full: the FLSCU closes the left auto valve
+    flscu(11, false);
+    run(10_000);
+    expect(commands).toEqual([]);
+    for (const side of ['L', 'R'] as const) {
+      expect(simVars.get(ctrTkXfrValveNotFullyClosedVar(side))).toBe(false);
+      expect(simVars.get(ctrTkXfrValveNotFullyOpenVar(side))).toBe(false);
+    }
+  });
+
+  it('closes the inhibit valve from the pb-sw selection without failure', () => {
+    loadTransferring();
+    run(400);
+    simVars.set(ctrTkXfrPbIsOnVar('R'), false);
+    run(400);
+    expect(commands).toEqual(['VALVE 10 OFF']);
+  });
+
+  it('keeps a valve jammed open open against the pb-sw OFF and the FLSCU, and gives NOT FULLY CLOSED', () => {
+    loadTransferring();
+    run(400);
+    activeFailures.add(A320Failure.CentreTankLeftTransferValveJammed);
+    run(400);
+    simVars.set(ctrTkXfrPbIsOnVar('L'), false);
+    run(400);
+    flscu(11, false);
+    run(1000);
+    expect(commands).toEqual(['VALVE 11 ON']);
+    expect(valves.position(9)).toBe(1);
+    expect(valves.position(11)).toBe(1);
+    expect(simVars.get(ctrTkXfrPbIsOnVar('L'))).toBe(false);
+    run(FuelPumpsAndValves.CTR_TK_XFR_DISAGREE_CONFIRM_S * 1000);
+    expect(simVars.get(ctrTkXfrValveNotFullyClosedVar('L'))).toBe(true);
+    expect(simVars.get(ctrTkXfrValveNotFullyOpenVar('L'))).toBe(false);
+    expect(simVars.get(ctrTkXfrValveNotFullyClosedVar('R'))).toBe(false);
+  });
+
+  it('keeps a valve jammed closed closed in MAN, and gives NOT FULLY OPEN', () => {
+    loadTransferring();
+    // the right inner tank is full: the FLSCU has closed the right auto valve, the transfer valve is closed
+    flscu(12, false);
+    run(400);
+    activeFailures.add(A320Failure.CentreTankRightTransferValveJammed);
+    run(400);
+    // FUEL MODE SEL MAN: the junction bypasses the auto valve
+    simVars.set(A320_FUEL_MODE_SEL_MAN_VAR, true);
+    simVars.set('A:FUELSYSTEM JUNCTION SETTING:5', 2);
+    run(400);
+    expect(valves.position(10)).toBe(0);
+    run(FuelPumpsAndValves.CTR_TK_XFR_DISAGREE_CONFIRM_S * 1000);
+    expect(simVars.get(ctrTkXfrValveNotFullyOpenVar('R'))).toBe(true);
+    expect(simVars.get(ctrTkXfrValveNotFullyClosedVar('R'))).toBe(false);
+    expect(simVars.get(ctrTkXfrPbIsOnVar('R'))).toBe(true);
+
+    // repaired: the valve opens again, the fault goes
+    activeFailures.clear();
+    run(1000);
+    expect(valves.position(10)).toBe(1);
+    expect(simVars.get(ctrTkXfrValveNotFullyOpenVar('R'))).toBe(false);
   });
 });

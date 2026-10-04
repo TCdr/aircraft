@@ -258,3 +258,123 @@ describe('FailableFuelSwitchesDriver, failed pump without a selection L:var (A38
     ]);
   });
 });
+
+describe('FailableFuelSwitchesDriver, valve jam decided by jammedOn (A32NX centre tank transfer valves)', () => {
+  const FAILURE = 28005;
+  const VALVE = 11;
+  let jamDecision: boolean | null = null;
+  let jamDecisions = 0;
+
+  beforeEach(() => {
+    jamDecision = null;
+    jamDecisions = 0;
+    setUp([
+      {
+        failure: FAILURE,
+        index: VALVE,
+        effect: 'jam',
+        jammedOn: () => {
+          jamDecisions++;
+          return jamDecision;
+        },
+      },
+    ]);
+  });
+
+  it('holds the valve open when jammedOn says so, even though the valve was closed', () => {
+    sim.load(VALVE, false);
+    run(200);
+    jamDecision = true;
+    activeFailures.add(FAILURE);
+    run(4000);
+    expect(sim.isSwitchOn(VALVE)).toBe(true);
+    expect(sim.position(VALVE)).toBe(1);
+    // an MSFS trigger closes it (the FLSCU): commanded back open, the trigger command kept as the selection
+    sim.keyEvent(VALVE, false);
+    run(1000);
+    expect(sim.isSwitchOn(VALVE)).toBe(true);
+    expect(driver.getSelection(0)).toBe(false);
+  });
+
+  it('decides the jam once, when the failure becomes active', () => {
+    run(200);
+    jamDecision = false;
+    activeFailures.add(FAILURE);
+    run(1000);
+    jamDecision = true;
+    run(1000);
+    expect(jamDecisions).toBe(1);
+    expect(sim.isSwitchOn(VALVE)).toBe(false);
+  });
+
+  it('leaves the valve to its selection when jammedOn gives null', () => {
+    sim.load(VALVE, false);
+    run(200);
+    jamDecision = null;
+    activeFailures.add(FAILURE);
+    run(200);
+    sim.keyEvent(VALVE, true);
+    run(4000);
+    expect(sim.isSwitchOn(VALVE)).toBe(true);
+    expect(sim.commands).toEqual([]);
+  });
+
+  it('decides again at the next failure', () => {
+    run(200);
+    jamDecision = false;
+    activeFailures.add(FAILURE);
+    run(500);
+    activeFailures.clear();
+    run(500);
+    jamDecision = true;
+    activeFailures.add(FAILURE);
+    run(4000);
+    expect(jamDecisions).toBe(2);
+    expect(sim.position(VALVE)).toBe(1);
+  });
+});
+
+describe('FailableFuelSwitchesDriver.getSelection', () => {
+  it('gives the automatic command of a failed pump without a selection L:var, while its switch is held off', () => {
+    setUp([{ failure: 28030, index: 9, effect: 'off' }]);
+    sim.load(9, false);
+    run(200);
+    expect(driver.getSelection(0)).toBe(false);
+    activeFailures.add(28030);
+    run(200);
+    // the FQMS (an MSFS trigger StartPump) starts the pump
+    sim.keyEvent(9, true);
+    run(1000);
+    expect(sim.isSwitchOn(9)).toBe(false);
+    expect(driver.getSelection(0)).toBe(true);
+  });
+});
+
+describe('FailableFuelSwitchesDriver.setAutomaticSelection', () => {
+  it('keeps a repaired pump off when its owner stopped it while the failure held its switch off', () => {
+    setUp([{ failure: 28036, index: 19, effect: 'off' }]);
+    sim.load(19, true);
+    run(200);
+    activeFailures.add(28036);
+    run(1000);
+    expect(sim.isSwitchOn(19)).toBe(false);
+    // the owner (the A380X FQMS, an MSFS trigger StopPump) stops the pump: the switch, already off, does not move
+    driver.setAutomaticSelection(0, false);
+    run(500);
+    activeFailures.clear();
+    run(1000);
+    expect(sim.isSwitchOn(19)).toBe(false);
+    expect(driver.getSelection(0)).toBe(false);
+    expect(sim.commands).toEqual([[19, false]]);
+  });
+
+  it('does not change the crew selection of a switch with a selection L:var', () => {
+    setUp([{ failure: 28001, index: 5, effect: 'off', selectionVar: 'L:TEST_PUMP_5_PB_IS_ON' }]);
+    sim.load(5, true);
+    run(200);
+    driver.setAutomaticSelection(0, false);
+    run(500);
+    expect(driver.getSelection(0)).toBe(true);
+    expect(sim.isSwitchOn(5)).toBe(true);
+  });
+});
