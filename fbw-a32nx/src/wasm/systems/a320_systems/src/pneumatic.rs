@@ -815,14 +815,30 @@ impl BleedMonitoringComputerChannel {
         self.has_low_bleed_temperature = if let Some(precooler_outlet_temperature) =
             sensors.bleed_temperature_sensor_temperature()
         {
-            precooler_outlet_temperature.get::<degree_celsius>()
-                < Self::LOW_BLEED_TEMPERATURE_THRESHOLD_C
-                && wing_anti_ice.is_wai_selected()
-                && self.pressure_regulating_valve_is_closed
-                && context.is_in_flight() // TODO: Figure out where this signal comes from.
+            Self::is_low_bleed_temperature(
+                precooler_outlet_temperature.get::<degree_celsius>(),
+                wing_anti_ice.is_wai_selected(),
+                self.pressure_regulating_valve_is_closed,
+                context.is_in_flight(), // TODO: Figure out where this signal comes from.
+            )
         } else {
             false
         }
+    }
+
+    /// AIR ENG 1(2) BLEED LO TEMP: "This alert triggers when the associated engine bleed supplies bleed air at a
+    /// temperature below 150 °C in flight and the WING A-ICE pb-sw is set to ON" (A320 FCOM DSC-36 annunciations).
+    /// The bleed only supplies air while its pressure regulating valve is open, so a closed valve gives no alert.
+    fn is_low_bleed_temperature(
+        precooler_outlet_temperature_c: f64,
+        wai_selected: bool,
+        pressure_regulating_valve_is_closed: bool,
+        in_flight: bool,
+    ) -> bool {
+        precooler_outlet_temperature_c < Self::LOW_BLEED_TEMPERATURE_THRESHOLD_C
+            && wai_selected
+            && !pressure_regulating_valve_is_closed
+            && in_flight
     }
 
     fn operation_mode(&self) -> BleedMonitoringComputerChannelOperationMode {
@@ -5418,5 +5434,30 @@ pub mod tests {
             assert_lt!(test_bed.pack_flow_valve_flow(1), flow_rate_tolerance());
             assert_lt!(test_bed.pack_flow_valve_flow(2), flow_rate_tolerance());
         }
+    }
+
+    /// FCOM BLEED LO TEMP: the bleed must be supplying air (valve open), not shut off.
+    #[test]
+    fn low_bleed_temperature_flag_set_when_open_bleed_supplies_cold_air_with_wai_in_flight() {
+        use super::BleedMonitoringComputerChannel;
+
+        // Valve open (not closed), 140 °C, WAI on, in flight: the alert condition of the FCOM.
+        assert!(BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            140., true, false, true
+        ));
+        // A closed bleed valve supplies no air: no LO TEMP.
+        assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            140., true, true, true
+        ));
+        // At 150 °C, without WAI, or on the ground: no LO TEMP.
+        assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            150., true, false, true
+        ));
+        assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            140., false, false, true
+        ));
+        assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            140., true, false, false
+        ));
     }
 }
