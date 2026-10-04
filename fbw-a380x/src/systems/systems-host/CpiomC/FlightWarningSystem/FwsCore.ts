@@ -60,6 +60,7 @@ import {
 // FIXME should not import from instruments
 import { ProcedureLinesGenerator } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/ProcedureLinesGenerator';
 import PitchTrimUtils from '@shared/PitchTrimUtils';
+import { isStatusMoreAvailable } from '@shared/EcamSdMore';
 // FIXME should not import from instruments
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwsMemos } from './FwsMemos';
@@ -294,6 +295,16 @@ export class FwsCore {
 
   /** The cancelled cautions, for the CANCELLED CAUTION section of the STATUS page */
   private readonly cancelledCautionKeys = Subject.create<string[]>([]);
+
+  /**
+   * Whether the STATUS page has a STATUS MORE page (REDUND LOSS or CANCELLED CAUTION). The FWS decides it from its
+   * own lists, so the ECP MORE pb does not depend on the SD writing a value back (FwsSystemDisplayLogic).
+   */
+  public readonly statusMoreAvailable = MappedSubject.create(
+    ([redundancyLossKeys, cancelledCautionKeys]) => isStatusMoreAvailable(redundancyLossKeys, cancelledCautionKeys),
+    this.inopSysRedundLossKeys,
+    this.cancelledCautionKeys,
+  );
 
   /** FCOM: RCL pb pressed for more than 3 s recalls the alerts cancelled with the EMER CANC pb */
   private static readonly RECALL_LONG_PRESS_MS = 3_000;
@@ -6381,6 +6392,9 @@ export class FwsCore {
     SimVar.SetSimVarValue('L:A32NX_STATUS_NORMAL', SimVarValueType.Bool, true);
     SimVar.SetSimVarValue('L:A32NX_ECAM_FAILURE_ACTIVE', SimVarValueType.Bool, false);
     SimVar.SetSimVarValue('L:A32NX_ECAM_SFAIL', SimVarValueType.Number, -1);
+    // No FWS left to handle the MORE pb: drop the STATUS MORE page and its pb light
+    SimVar.SetSimVarValue('L:A32NX_ECAM_SD_STS_MORE_AVAILABLE', SimVarValueType.Number, 0);
+    SimVar.SetSimVarValue('L:A32NX_ECAM_SD_MORE_SHOWN', SimVarValueType.Number, 0);
     SimVar.SetSimVarValue('L:A32NX_MASTER_CAUTION', SimVarValueType.Bool, false);
     SimVar.SetSimVarValue('L:A32NX_MASTER_WARNING', SimVarValueType.Bool, false);
     SimVar.SetSimVarValue('L:A32NX_FWC_1_LG_RED_ARROW', SimVarValueType.Bool, false);
@@ -6445,6 +6459,8 @@ export class FwsCore {
     this.limitations.destroy();
     this.inopSys.destroy();
     this.memos.destroy();
+    // Else its H event handler outlives this FWS, and a new FWS after a recovery would see every ECP MORE pb twice
+    this.systemDisplayLogic.destroy();
     this.resetAudioOutputs();
     this.subs.forEach((s) => s.destroy());
     FwsCore.sendFailureWarning(this.bus);

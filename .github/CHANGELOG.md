@@ -109,6 +109,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] EMER CANC pushbutton: cancels the aural and MASTER WARN of a warning, a caution for the rest of the flight (CANCELLED CAUTION on the STATUS page, recalled with RCL held 3 s) - @TCdr
 1. [A380X/FIRE] Option to extend the FIRE TEST warnings and lights for a few seconds after the button is released - @TCdr
 1. [A380X/FWS] STATUS limitations, INOP SYS and INFO of the L/G, cockpit window and fuel leak/balancing ABN PROC procedures - @TCdr
+1. [A380X/ECAM] The ECP MORE key opens the STATUS MORE page (INOP SYS REDUND, CANCELLED CAUTION) again, and its light shows while that page is displayed - @TCdr
 
 ## 2024.1.0
 
