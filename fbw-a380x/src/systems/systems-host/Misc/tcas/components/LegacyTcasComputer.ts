@@ -40,6 +40,7 @@ import { LegacySoundManager } from '../../LegacySoundManager';
 import { ClockEvents, ConsumerSubject, EventBus, GameStateProvider, Instrument, Wait } from '@microsoft/msfs-sdk';
 // FIXME should not import from instruments
 import { MfdSurvEvents } from '../../../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
+import { isXpdrTcasPowered, selectedSurvSystem } from '../../Communications/TransponderSystem';
 
 export class NDTcasTraffic {
   ID: string;
@@ -189,6 +190,8 @@ export class LegacyTcasComputer implements Instrument {
 
   private tcasPower: boolean; // is TCAS computer powered?
 
+  private selectedXpdrFailed: boolean; // is the XPDR of the selected SURV system failed or unpowered?
+
   private tcasMode: LocalSimVar<TcasMode>; // TCAS S/MODE TODO FIXME: ARINC429
 
   private tcasThreat: number; // TCAS Threat Setting
@@ -288,6 +291,7 @@ export class LegacyTcasComputer implements Instrument {
     this.debug = false;
     NXDataStore.setLegacy('TCAS_DEBUG', '0'); // force debug off
     this.tcasPower = false;
+    this.selectedXpdrFailed = false;
     this.tcasMode = new LocalSimVar('L:A32NX_TCAS_MODE', 'Enum');
     this.tcasState = new LocalSimVar('L:A32NX_TCAS_STATE', 'Enum');
     this.tcasFault = new LocalSimVar('L:A32NX_TCAS_FAULT', 'bool');
@@ -328,11 +332,20 @@ export class LegacyTcasComputer implements Instrument {
     this.ppos.long = SimVar.GetSimVarValue('PLANE LONGITUDE', 'degree longitude');
     this.planeAlt = SimVar.GetSimVarValue('PLANE ALTITUDE', 'feet');
 
-    this.tcasPower =
-      SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', 'boolean') ||
-      SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', 'boolean');
     this.activeXpdr = SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number');
-    this.xpdrStatus = SimVar.GetSimVarValue(`TRANSPONDER STATE:${this.activeXpdr + 1}`, 'number');
+    // The TCAS of the selected SURV system: SYS 1 on AC ESS (400XP, the AC_ESS_SHED variable), SYS 2 on AC 4
+    // (A380 FCOM DSC-34-20-100, a380_fcom.txt:92741-92743).
+    this.tcasPower = isXpdrTcasPowered(
+      selectedSurvSystem(this.activeXpdr),
+      SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', 'boolean') > 0,
+      SimVar.GetSimVarValue('L:A32NX_ELEC_AC_4_BUS_IS_POWERED', 'boolean') > 0,
+    );
+    // The TCAS of a SURV system is lost with its XPDR: SURV XPDR 1(2) FAULT lists TCAS 1(2) as INOP SYS
+    // (A380 FCOM a380_fcom.txt:167311-167322). L:A32NX_XPDR_n_FAILED is published by Transponder.ts.
+    this.selectedXpdrFailed =
+      SimVar.GetSimVarValue(`L:A32NX_XPDR_${selectedSurvSystem(this.activeXpdr)}_FAILED`, 'bool') > 0;
+    // MSFS has only one transponder, driven as the transponder of the selected system (Transponder.ts)
+    this.xpdrStatus = SimVar.GetSimVarValue('TRANSPONDER STATE:1', 'number');
 
     const alternateAirDataSourceSelect =
       SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum') ===
@@ -433,7 +446,8 @@ export class LegacyTcasComputer implements Instrument {
       !this.pressureAlt ||
       (!this.pressureAlt.isNormalOperation() && !this.pressureAlt.isFunctionalTest()) ||
       this.radioAlt.isFailureWarning() ||
-      !this.tcasPower
+      !this.tcasPower ||
+      this.selectedXpdrFailed
     ) {
       this.resetDisplay();
       this.tcasFault.setVar(true);

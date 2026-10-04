@@ -393,17 +393,21 @@ impl A380AirConditioningSystem {
                 FullDigitalAGUController::new(
                     context,
                     FdacId::One,
+                    // Pack 1 channel 1 = DC 1 and AC ESS, channel 2 = DC ESS and AC 2
+                    // (A380 FCOM a380_fcom.txt:6223-6224). AC ESS (403XP) is AlternatingCurrentEssentialShed,
+                    // AlternatingCurrentEssential is AC EMER (491XP).
                     [
-                        ElectricalBusType::AlternatingCurrentEssential, // 403XP
-                        ElectricalBusType::AlternatingCurrent(2),       // 117XP
+                        ElectricalBusType::AlternatingCurrentEssentialShed, // 403XP
+                        ElectricalBusType::AlternatingCurrent(2),           // 117XP
                     ],
                 ),
                 FullDigitalAGUController::new(
                     context,
                     FdacId::Two,
+                    // Pack 2 channel 1 = DC ESS and AC ESS, channel 2 = DC 2 and AC 4 (a380_fcom.txt:6225-6227)
                     [
-                        ElectricalBusType::AlternatingCurrentEssential, // 403XP
-                        ElectricalBusType::AlternatingCurrent(4),       // 204XP
+                        ElectricalBusType::AlternatingCurrentEssentialShed, // 403XP
+                        ElectricalBusType::AlternatingCurrent(4),           // 204XP
                     ],
                 ),
             ],
@@ -1988,9 +1992,10 @@ mod tests {
                 ac_2_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(2)),
                 ac_3_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(3)),
                 ac_4_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(4)),
+                // The A380 AC ESS busbar (400XP) that supplies the FDACs
                 ac_ess_bus: ElectricalBus::new(
                     context,
-                    ElectricalBusType::AlternatingCurrentEssential,
+                    ElectricalBusType::AlternatingCurrentEssentialShed,
                 ),
                 dc_ess_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentEssential),
                 dc_bat_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentBattery),

@@ -29,7 +29,10 @@ enum PowerSupplySimvarSources {
   acBus2 = 'L:A32NX_ELEC_AC_2_BUS_IS_POWERED',
   acBus3 = 'L:A32NX_ELEC_AC_3_BUS_IS_POWERED',
   acBus4 = 'L:A32NX_ELEC_AC_4_BUS_IS_POWERED',
-  acBusEss = 'L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED',
+  // The A380 AC ESS busbar (400XP) is published as AC_ESS_SHED; AC_ESS is the A380 AC EMER busbar (491XP), a name
+  // kept from the A320 (a380_systems electrical/alternating_current.rs). Users: SURV SYS 1 (XPDR/TCAS, WXR/TAWS) =
+  // 115 V AC ESS (A380 FCOM DSC-34-20-100, a380_fcom.txt:92741-92742).
+  acBusEss = 'L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED',
   dcBus1 = 'L:A32NX_ELEC_DC_1_BUS_IS_POWERED',
   dcBus2 = 'L:A32NX_ELEC_DC_2_BUS_IS_POWERED',
   dcBusEss = 'L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED',

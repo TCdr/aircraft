@@ -35,7 +35,11 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly sub = this.props.bus.getSubscriber<MfdSimvars & MfdSurvEvents>();
 
-  private readonly tcas1Failed = ConsumerSubject.create(this.sub.on('tcasFail'), true);
+  /**
+   * TCAS 1 inoperative (systems host Transponder.ts): XPDR 1 failed or unpowered (A380 FCOM SURV XPDR 1 FAULT STATUS,
+   * a380_fcom.txt:167311-167322), or SYS 1 selected and the TCAS computer faulty
+   */
+  private readonly tcas1Failed = ConsumerSubject.create(this.sub.on('tcas1Failed'), false);
 
   private readonly wxr1Failed = ConsumerSubject.create(this.sub.on('wxr1Failed'), false);
 
@@ -43,7 +47,8 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly predWs1Failed = Subject.create<boolean>(false);
 
-  private readonly xpdr1Failed = Subject.create<boolean>(false);
+  /** XPDR 1 failed or unpowered (systems host Transponder.ts) */
+  private readonly xpdr1Failed = ConsumerSubject.create(this.sub.on('xpdr1Failed'), false);
 
   private readonly terr1Failed = ConsumerSubject.create(this.sub.on('terr1Failed'), false);
 
@@ -59,9 +64,14 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
   private readonly gpws2Failed = ConsumerSubject.create(this.sub.on('gpws2Failed'), false);
 
-  private readonly xpdr2Failed = Subject.create<boolean>(false);
+  /** XPDR 2 failed or unpowered (systems host Transponder.ts) */
+  private readonly xpdr2Failed = ConsumerSubject.create(this.sub.on('xpdr2Failed'), false);
 
-  private readonly tcas2Failed = Subject.create<boolean>(false);
+  /**
+   * TCAS 2 inoperative (systems host Transponder.ts): XPDR 2 failed or unpowered, or SYS 2 selected and the TCAS
+   * computer faulty
+   */
+  private readonly tcas2Failed = ConsumerSubject.create(this.sub.on('tcas2Failed'), false);
 
   private readonly activeSystemGroupWxrTaws = ConsumerSubject.create(this.sub.on('wxrTawsSysSelected'), 0);
   private readonly wxrTaws1Active = this.activeSystemGroupWxrTaws.map((s) => s === 1);
@@ -78,12 +88,15 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
 
     this.subs.push(
       this.tcas1Failed,
+      this.tcas2Failed,
       this.wxr1Failed,
       this.wxr2Failed,
       this.terr1Failed,
       this.gpws1Failed,
       this.terr2Failed,
       this.gpws2Failed,
+      this.xpdr1Failed,
+      this.xpdr2Failed,
       this.activeSystemGroupWxrTaws,
       this.wxrTaws1Active,
       this.wxrTaws2Active,

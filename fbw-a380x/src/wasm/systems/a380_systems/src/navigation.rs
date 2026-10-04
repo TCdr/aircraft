@@ -86,10 +86,12 @@ impl A380RadioAltimeters {
                     Length::new::<foot>(26.2),
                 ),
             ),
+            // RA SYS C = AC ESS (A380 FCOM DSC-34-10-100, a380_fcom.txt:87595-87601; ELEC AC ESS BUS FAULT:
+            // RA SYS C redundancy loss, 139284). AC ESS (400XP) is AlternatingCurrentEssentialShed.
             radio_altimeter_3: A380RadioAltimeter::new(
                 context,
                 3,
-                ElectricalBusType::AlternatingCurrentEssential,
+                ElectricalBusType::AlternatingCurrentEssentialShed,
                 AntennaInstallation::new(
                     Length::new::<foot>(14.75) - Length::new::<meter>(4.27),
                     Length::new::<meter>(15.90),
