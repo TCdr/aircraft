@@ -5,6 +5,7 @@
 import { EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import { MappedSubject, SubscribableMapFunctions, Subscription } from '@microsoft/msfs-sdk';
 import { FwsCore, FwsSuppressableItem } from './FwsCore';
+import { DisplayUnitID } from '@shared/CdsDisplayUnits';
 
 export enum FwsInopSysPhases {
   AllPhases,
@@ -485,6 +486,43 @@ export class FwsInopSys {
     310300003: {
       // FWS 2
       simVarIsActive: this.fws.fws2Failed,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    // CDS ... DU FAULT STATUS, INOP SYS ALL PHASES (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt:157972-157978): one line
+    // per failed DU; the FCOM lists none for the SD DU.
+    310300005: {
+      // EWD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Ewd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300006: {
+      // CAPT PFD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptPfd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300007: {
+      // F/O PFD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoPfd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300008: {
+      // CAPT ND DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptNd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300009: {
+      // F/O ND DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoNd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300010: {
+      // CAPT MFD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptMfd],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300011: {
+      // F/O MFD DU
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoMfd],
       phase: FwsInopSysPhases.AllPhases,
     },
     320300007: {
