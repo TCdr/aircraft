@@ -179,6 +179,13 @@ export class AltitudeOrFlightLevelFormat extends SubscriptionCollector implement
 
   private transAlt: number | null = null;
 
+  /**
+   * The last value entered as a flight level (3 characters or less): FCOM DSC-22-FMS-20-100 (ACCEL ALT, ALT, EO ACCEL,
+   * PRED TO, THR RED): "the FMS considers the entry as a flight level. In this case, the unit of the entry field reverts
+   * to FL".
+   */
+  private flightLevelEntry: number | null = null;
+
   reFormatTrigger = Subject.create(false);
 
   constructor(
@@ -209,6 +216,9 @@ export class AltitudeOrFlightLevelFormat extends SubscriptionCollector implement
     if (value === null || value === undefined) {
       return [this.placeholder, null, 'FT'] as FieldFormatTuple;
     }
+    if (value === this.flightLevelEntry) {
+      return [(value / 100).toFixed(0).padStart(3, '0'), 'FL', null] as FieldFormatTuple;
+    }
     if (this.transAlt !== null) {
       if (
         (!this.isTransAltFlightLevel.get() && value > this.transAlt) ||
@@ -225,10 +235,10 @@ export class AltitudeOrFlightLevelFormat extends SubscriptionCollector implement
       return null;
     }
 
-    let nbr = Number(input);
-    if (input.length <= 3) {
-      nbr = Number(input) * 100;
-    }
+    // NNNNN = feet, NNN (or FLNNN) = flight level
+    const flMatch = input.match(/^FL(\d{1,3})$/);
+    const isFlightLevel = flMatch !== null || input.length <= 3;
+    const nbr = flMatch !== null ? Number(flMatch[1]) * 100 : isFlightLevel ? Number(input) * 100 : Number(input);
 
     if (Number.isNaN(nbr)) {
       throw getFormattedFormatError(this.requiredFormat);
@@ -236,6 +246,7 @@ export class AltitudeOrFlightLevelFormat extends SubscriptionCollector implement
       throw new A380FmsError(FmsErrorType.EntryOutOfRange);
     }
 
+    this.flightLevelEntry = isFlightLevel ? nbr : null;
     return nbr;
   }
 
@@ -564,7 +575,7 @@ export class WeightFormat extends SubscriptionCollector implements DataEntryForm
 }
 
 export class PercentageFormat extends SubscriptionCollector implements DataEntryFormat<number> {
-  public readonly placeholder = '--.-';
+  public placeholder = '--.-';
 
   public maxDigits = 4;
 
@@ -572,7 +583,7 @@ export class PercentageFormat extends SubscriptionCollector implements DataEntry
 
   public readonly unit = '%';
 
-  private readonly requiredFormat = 'XX.X';
+  private requiredFormat = 'XX.X';
 
   private minValue = 0;
 
@@ -581,8 +592,15 @@ export class PercentageFormat extends SubscriptionCollector implements DataEntry
   constructor(
     minValue: Subscribable<number> = Subject.create(0),
     maxValue: Subscribable<number> = Subject.create(Number.POSITIVE_INFINITY),
+    /** Decimals of the value (FCOM DSC-22-FMS-20-100: 1 for THS, ZFWCG and RTE RSV, 0 for N1 (NOISE)) */
+    private readonly decimals = 1,
   ) {
     super();
+    if (decimals === 0) {
+      this.placeholder = '---';
+      this.maxDigits = 3;
+      this.requiredFormat = 'XXX';
+    }
     this.subscriptions.push(minValue.sub((val) => (this.minValue = val), true));
     this.subscriptions.push(maxValue.sub((val) => (this.maxValue = val), true));
   }
@@ -591,7 +609,7 @@ export class PercentageFormat extends SubscriptionCollector implements DataEntry
     if (value === null || value === undefined) {
       return [this.placeholder, null, this.unit] as FieldFormatTuple;
     }
-    return [value.toFixed(1), null, this.unit] as FieldFormatTuple;
+    return [value.toFixed(this.decimals), null, this.unit] as FieldFormatTuple;
   }
 
   public async parse(input: string) {
@@ -600,11 +618,18 @@ export class PercentageFormat extends SubscriptionCollector implements DataEntry
     }
 
     const nbr = Number(input);
+    if (this.decimals === 0 && !Number.isInteger(nbr)) {
+      throw getFormattedFormatError(this.requiredFormat, this.unit);
+    }
     if (!Number.isNaN(nbr) && nbr <= this.maxValue && nbr >= this.minValue) {
       return nbr;
     }
     if (nbr > this.maxValue || nbr < this.minValue) {
-      throw getFormattedEntryOutOfRangeError(this.minValue.toFixed(1), this.maxValue.toFixed(1), this.unit);
+      throw getFormattedEntryOutOfRangeError(
+        this.minValue.toFixed(this.decimals),
+        this.maxValue.toFixed(this.decimals),
+        this.unit,
+      );
     } else {
       throw getFormattedFormatError(this.requiredFormat, this.unit);
     }
@@ -713,6 +738,108 @@ export class CrzTempFormat implements DataEntryFormat<number> {
   }
 }
 
+/**
+ * Altitude of a climb or descent wind entry (A380 FCOM DSC-22-FMS-20-100 p. 30 "WIND ALTITUDE": NNN = flight level,
+ * NNNNN = feet, from FL 1 / 1 ft to the maximum certified altitude). The WIND page shows it in feet below the transition
+ * altitude and as a flight level above it, and "GND" for a ground wind, which the crew enters as "GND" or as an altitude
+ * within 400 ft of the airport (A380 FCOM DSC-22-FMS-20-30, CLIMB / DESCENT WIND ENTRY FIELDS).
+ */
+export class WindAltitudeFormat extends SubscriptionCollector implements DataEntryFormat<number> {
+  /** A wind at or below the airport elevation plus this height is a ground wind (FCOM: "less than 400 ft"). */
+  private static readonly GroundWindBandFeet = 400;
+
+  public readonly placeholder = '-----';
+
+  public readonly maxDigits = 5;
+
+  private readonly requiredFormat = 'FOR ALT XXXXX FOR FL XXX OR GND';
+
+  private transitionAltitudeFeet: number | null = null;
+
+  private groundAltitude: number | null = null;
+
+  /**
+   * Altitudes entered (or uplinked) as flight levels: without a transition altitude (none in the navigation database)
+   * they keep the unit of their entry, FL for NNN (FCOM DSC-22-FMS-20-100 "WIND ALTITUDE": NNN = FL, NNNNN = FT).
+   */
+  private readonly flightLevelAltitudes = new Set<number>();
+
+  public readonly reFormatTrigger = Subject.create(false);
+
+  /** The altitudes of the shown winds that were entered or uplinked as flight levels */
+  public setFlightLevelAltitudes(altitudes: Iterable<number>): void {
+    this.flightLevelAltitudes.clear();
+    for (const altitude of altitudes) {
+      this.flightLevelAltitudes.add(altitude);
+    }
+    this.reFormatTrigger.notify();
+  }
+
+  /** Whether the altitude was last entered as a flight level */
+  public isFlightLevelEntry(altitude: number): boolean {
+    return this.flightLevelAltitudes.has(altitude);
+  }
+
+  /**
+   * @param transitionAltitudeFeet transition altitude (climb) or transition level in feet (descent)
+   * @param groundAltitude elevation of the airport the winds refer to, in feet
+   */
+  constructor(transitionAltitudeFeet: Subscribable<number | null>, groundAltitude: Subscribable<number | null>) {
+    super();
+    this.subscriptions.push(
+      transitionAltitudeFeet.sub((v) => {
+        this.transitionAltitudeFeet = v;
+        this.reFormatTrigger.notify();
+      }, true),
+      groundAltitude.sub((v) => {
+        this.groundAltitude = v;
+        this.reFormatTrigger.notify();
+      }, true),
+    );
+  }
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, 'FT'];
+    }
+    // Without the airport elevation, GND is stored as 0 ft
+    if (value <= (this.groundAltitude ?? 0) + WindAltitudeFormat.GroundWindBandFeet) {
+      return ['GND', null, null];
+    }
+    const isFlightLevel =
+      this.transitionAltitudeFeet !== null ? value > this.transitionAltitudeFeet : this.flightLevelAltitudes.has(value);
+    if (isFlightLevel) {
+      return [(value / 100).toFixed(0).padStart(3, '0'), 'FL', null];
+    }
+    return [value.toFixed(0), null, 'FT'];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (input === 'GND') {
+      return this.groundAltitude ?? 0;
+    }
+
+    const match = input.match(/^(?:FL)?(\d{1,3})$|^(\d{4,5})$/);
+    if (!match) {
+      throw getFormattedFormatError(this.requiredFormat);
+    }
+
+    const altitude = match[2] !== undefined ? Number(match[2]) : Number(match[1]) * 100;
+    if (altitude < 1 || altitude > maxCertifiedAlt) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange);
+    }
+    if (match[2] === undefined) {
+      this.flightLevelAltitudes.add(altitude);
+    } else {
+      this.flightLevelAltitudes.delete(altitude);
+    }
+    return altitude;
+  }
+}
+
 export class WindDirectionFormat implements DataEntryFormat<number> {
   public readonly placeholder = '---';
 
@@ -805,7 +932,8 @@ export class TripWindFormat implements DataEntryFormat<number> {
       return [this.placeholder, null, null] as FieldFormatTuple;
     }
 
-    if (value >= 0) {
+    // FCOM DSC-22-FMS-20-30 INIT page: a zero trip wind reads HD000
+    if (value > 0) {
       return [Math.abs(value).toFixed(0).toString().padStart(3, '0'), 'TL', null] as FieldFormatTuple;
     }
     return [Math.abs(value).toFixed(0).toString().padStart(3, '0'), 'HD', null] as FieldFormatTuple;
@@ -1212,6 +1340,29 @@ export class WaypointFormat implements DataEntryFormat<string> {
   }
 }
 
+/** Free text of a given maximum length, e.g. the 24 characters sent with the position report (A380 FCOM, POSITION / REPORT page). */
+export class FreeTextFormat implements DataEntryFormat<string> {
+  public readonly placeholder: string;
+
+  constructor(public readonly maxDigits: number) {
+    this.placeholder = '-'.repeat(Math.min(maxDigits, 10));
+  }
+
+  public format(value: string | null): FieldFormatTuple {
+    return [value ? value : this.placeholder, null, null];
+  }
+
+  public async parse(input: string): Promise<string | null> {
+    if (input === '') {
+      return null;
+    }
+    if (input.length > this.maxDigits) {
+      throw new A380FmsError(FmsErrorType.FormatError);
+    }
+    return input;
+  }
+}
+
 export class LongAlphanumericFormat implements DataEntryFormat<string> {
   public readonly placeholder = '----------';
 
@@ -1386,6 +1537,349 @@ export class TimeHHMMSSFormat implements DataEntryFormat<number> {
   }
 }
 
+/**
+ * Latitude of the DATA pages (A380 FCOM DSC-22-FMS-20-100 "LAT": XDD°MM.M, DD°MM.MX, XDDMM.M, DDMM.MX, XDD or DDX,
+ * X = N or S). Displayed as DD°MM.MX. The value is in decimal degrees, positive north.
+ */
+export class LatitudeDmsFormat implements DataEntryFormat<number> {
+  public readonly placeholder: string = '--°--.--';
+
+  public readonly maxDigits = 8;
+
+  private readonly requiredFormat = 'XDDMM.M OR DDMM.MX';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null];
+    }
+    return [formatDegreesMinutes(value, 2, value < 0 ? 'S' : 'N'), null, null];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    const value = parseDegreesMinutes(input, 'N', 'S', 90, this.requiredFormat);
+    return value;
+  }
+}
+
+/**
+ * Longitude of the DATA pages (A380 FCOM DSC-22-FMS-20-100 "LONG": YDDD°MM.M, DDD°MM.MY, YDDDMM.M, DDDMM.MY, YDDD or
+ * DDDY, Y = E or W). Displayed as DDD°MM.MY. The value is in decimal degrees, positive east.
+ */
+export class LongitudeDmsFormat implements DataEntryFormat<number> {
+  public readonly placeholder: string = '---°--.--';
+
+  public readonly maxDigits = 9;
+
+  private readonly requiredFormat = 'YDDDMM.M OR DDDMM.MY';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null];
+    }
+    return [formatDegreesMinutes(value, 3, value < 0 ? 'W' : 'E'), null, null];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    return parseDegreesMinutes(input, 'E', 'W', 180, this.requiredFormat);
+  }
+}
+
+function formatDegreesMinutes(value: number, degreeDigits: number, hemisphere: string): string {
+  const absolute = Math.abs(value);
+  const degrees = Math.floor(absolute);
+  const minutes = (absolute - degrees) * 60;
+  return `${degrees.toFixed(0).padStart(degreeDigits, '0')}°${minutes.toFixed(1).padStart(4, '0')}${hemisphere}`;
+}
+
+/** Parses the FCOM LAT / LONG entry formats (hemisphere letter leading or trailing, minutes optional). */
+function parseDegreesMinutes(
+  input: string,
+  positiveLetter: string,
+  negativeLetter: string,
+  maxDegrees: number,
+  requiredFormat: string,
+): number {
+  const match = input
+    .toUpperCase()
+    .match(
+      new RegExp(
+        `^([${positiveLetter}${negativeLetter}])?(\\d{1,3})(?:°?(\\d{2}(?:\\.\\d)?))?([${positiveLetter}${negativeLetter}])?$`,
+      ),
+    );
+  if (!match || (match[1] !== undefined) === (match[4] !== undefined)) {
+    throw getFormattedFormatError(requiredFormat);
+  }
+  const hemisphere = match[1] ?? match[4];
+  const degrees = Number(match[2]);
+  const minutes = match[3] !== undefined ? Number(match[3]) : 0;
+  if (Number.isNaN(degrees) || Number.isNaN(minutes) || minutes >= 60) {
+    throw getFormattedFormatError(requiredFormat);
+  }
+  const value = degrees + minutes / 60;
+  if (value > maxDegrees) {
+    throw new A380FmsError(FmsErrorType.EntryOutOfRange);
+  }
+  return hemisphere === negativeLetter ? -value : value;
+}
+
+/** Bearing of a place/bearing entry (A380 FCOM DSC-22-FMS-20-100, PBD / PB-PB: NNN, degrees, 0 to 360). */
+export class BearingFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---';
+
+  public readonly maxDigits = 3;
+
+  public readonly unit = '°';
+
+  private readonly requiredFormat = 'NNN';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [(Math.round(value) % 360).toFixed(0).padStart(3, '0'), null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^\d{1,3}$/)) {
+      throw getFormattedFormatError(this.requiredFormat, this.unit);
+    }
+    const value = Number(input);
+    if (value > 360) {
+      throw getFormattedEntryOutOfRangeError('0', '360', this.unit);
+    }
+    return value;
+  }
+}
+
+/** Distance of a place/bearing/distance entry (A380 FCOM DSC-22-FMS-20-100, PBD: NNN.N nautical miles). */
+export class DistanceFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---.-';
+
+  public readonly maxDigits = 5;
+
+  public readonly unit = 'NM';
+
+  private readonly requiredFormat = 'NNN.N';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [value.toFixed(1), null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^\d{1,3}(\.\d)?$/)) {
+      throw getFormattedFormatError(this.requiredFormat, this.unit);
+    }
+    const value = Number(input);
+    if (value <= 0 || value > 999.9) {
+      throw getFormattedEntryOutOfRangeError('0.1', '999.9', this.unit);
+    }
+    return value;
+  }
+}
+
+/**
+ * Elevation of a NAVAID or runway (A380 FCOM DSC-22-FMS-20-100 "NAVAID ELEVATION": ±NNNNN feet, -1 000 to 20 470 ft,
+ * no sign means +).
+ */
+export class ElevationFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '-----';
+
+  public readonly maxDigits = 6;
+
+  public readonly unit = 'FT';
+
+  private readonly requiredFormat = '+/-NNNNN';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [Math.round(value).toFixed(0), null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^[+-]?\d{1,5}$/)) {
+      throw getFormattedFormatError(this.requiredFormat, this.unit);
+    }
+    const value = Number(input);
+    if (value < -1000 || value > 20470) {
+      throw getFormattedEntryOutOfRangeError('-1000', '20470', this.unit);
+    }
+    return value;
+  }
+}
+
+/**
+ * Station declination of a VOR (A380 FCOM DSC-22-FMS-20-100 "STATION DECLINATION": NNNY, Y = W or E, 0 to 360°).
+ * The value is in degrees, positive east.
+ */
+export class StationDeclinationFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---';
+
+  public readonly maxDigits = 4;
+
+  private readonly requiredFormat = 'NNNY';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null];
+    }
+    return [`${Math.abs(Math.round(value)).toFixed(0).padStart(3, '0')}°${value < 0 ? 'W' : 'E'}`, null, null];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    const match = input.toUpperCase().match(/^(\d{1,3})([EW])$/);
+    if (!match) {
+      throw getFormattedFormatError(this.requiredFormat);
+    }
+    const value = Number(match[1]);
+    if (value > 360) {
+      throw getFormattedEntryOutOfRangeError('0', '360', '°');
+    }
+    return match[2] === 'W' ? -value : value;
+  }
+}
+
+/** GLS channel (five digits, 20001 to 99999). */
+export class GlsChannelFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '-----';
+
+  public readonly maxDigits = 5;
+
+  private readonly requiredFormat = 'NNNNN';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null];
+    }
+    return [value.toFixed(0), null, null];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^\d{5}$/)) {
+      throw getFormattedFormatError(this.requiredFormat);
+    }
+    const value = Number(input);
+    // FCOM DSC-22-FMS-20-100 CHANNEL (GLS): 20001 to 99999
+    if (value < 20001 || value > 99999) {
+      throw getFormattedEntryOutOfRangeError('20001', '99999');
+    }
+    return value;
+  }
+}
+
+/** GLS slope (A380 FCOM DSC-22-FMS-20-100 "LS SLOPE": AN.N, -9.9 to 0°, "-" by default). */
+export class GlsSlopeFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '-.-';
+
+  public readonly maxDigits = 4;
+
+  public readonly unit = '°';
+
+  private readonly requiredFormat = '-N.N';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [value.toFixed(1), null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^-?\d(\.\d)?$/)) {
+      throw getFormattedFormatError(this.requiredFormat, this.unit);
+    }
+    const value = -Math.abs(Number(input));
+    if (value < -9.9) {
+      throw getFormattedEntryOutOfRangeError('-9.9', '0', this.unit);
+    }
+    return value;
+  }
+}
+
+/** A number from a small set of allowed integers, e.g. the approach category (1, 2, 3) or the figure of merit (0-3). */
+export class SmallIntegerFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '-';
+
+  public readonly maxDigits = 1;
+
+  constructor(
+    private readonly minValue: number,
+    private readonly maxValue: number,
+  ) {}
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null];
+    }
+    return [value.toFixed(0), null, null];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^\d$/)) {
+      throw getFormattedFormatError('N');
+    }
+    const value = Number(input);
+    if (value < this.minValue || value > this.maxValue) {
+      throw getFormattedEntryOutOfRangeError(this.minValue.toString(), this.maxValue.toString());
+    }
+    return value;
+  }
+}
+
+/** Company route ident (up to 10 alphanumeric characters, as the SimBridge company routes). */
+export class CompanyRouteFormat implements DataEntryFormat<string> {
+  public readonly placeholder = '----------';
+
+  public readonly maxDigits = 10;
+
+  private readonly requiredFormat = 'XXXXXXXXXX';
+
+  public format(value: string | null): FieldFormatTuple {
+    return [value ? value : this.placeholder, null, null];
+  }
+
+  public async parse(input: string): Promise<string | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^[A-Z0-9]{1,10}$/i)) {
+      throw getFormattedFormatError(this.requiredFormat);
+    }
+    return input.toUpperCase();
+  }
+}
+
 export class LatitudeFormat implements DataEntryFormat<number> {
   public placeholder = '----.--';
 
@@ -1434,7 +1928,7 @@ export class HeadingFormat extends SubscriptionCollector implements DataEntryFor
 
   constructor(
     minValue: Subscribable<number> = Subject.create(0),
-    maxValue: Subscribable<number> = Subject.create(Number.POSITIVE_INFINITY),
+    maxValue: Subscribable<number> = Subject.create(360),
   ) {
     super();
     this.subscriptions.push(minValue.sub((val) => (this.minValue = val), true));
@@ -1489,7 +1983,7 @@ export class InboundCourseFormat extends SubscriptionCollector implements DataEn
 
   constructor(
     minValue: Subscribable<number> = Subject.create(0),
-    maxValue: Subscribable<number> = Subject.create(Number.POSITIVE_INFINITY),
+    maxValue: Subscribable<number> = Subject.create(360),
   ) {
     super();
     this.subscriptions.push(minValue.sub((val) => (this.minValue = val), true));
@@ -1508,7 +2002,10 @@ export class InboundCourseFormat extends SubscriptionCollector implements DataEn
       return null;
     }
 
-    const nbr = Number(input);
+    // FCOM DSC-22-FMS-20-100 INBOUND CRS: NNNB or BNNN, B = M or nothing for magnetic, T for true (true courses are
+    // not modelled: the hold is stored in the magnetic reference)
+    const match = input.match(/^M?(\d{1,3})M?$/);
+    const nbr = match ? Number(match[1]) : Number.NaN;
     if (!Number.isNaN(nbr) && nbr <= this.maxValue && nbr >= this.minValue) {
       return nbr;
     }
@@ -1539,7 +2036,7 @@ export class HoldDistFormat extends SubscriptionCollector implements DataEntryFo
 
   constructor(
     minValue: Subscribable<number> = Subject.create(0),
-    maxValue: Subscribable<number> = Subject.create(Number.POSITIVE_INFINITY),
+    maxValue: Subscribable<number> = Subject.create(99.9),
   ) {
     super();
     this.subscriptions.push(minValue.sub((val) => (this.minValue = val), true));
@@ -1589,7 +2086,7 @@ export class HoldTimeFormat extends SubscriptionCollector implements DataEntryFo
 
   constructor(
     minValue: Subscribable<number> = Subject.create(0),
-    maxValue: Subscribable<number> = Subject.create(Number.POSITIVE_INFINITY),
+    maxValue: Subscribable<number> = Subject.create(9.9),
   ) {
     super();
     this.subscriptions.push(minValue.sub((val) => (this.minValue = val), true));
@@ -1974,5 +2471,372 @@ export class FuelPenaltyPercentFormat implements DataEntryFormat<number> {
     }
 
     return numberInput;
+  }
+}
+
+/** An integer of up to two digits in a range (FCOM entry formats INCREMENT 1-20 and NUMBER 1-99, format NN) */
+export class TwoDigitIntegerFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '--';
+
+  public readonly maxDigits = 2;
+
+  constructor(
+    private readonly minValue: number,
+    private readonly maxValue: number,
+  ) {}
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null];
+    }
+    return [value.toFixed(0), null, null];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^\d{1,2}$/)) {
+      throw getFormattedFormatError('NN');
+    }
+    const value = Number(input);
+    if (value < this.minValue || value > this.maxValue) {
+      throw getFormattedEntryOutOfRangeError(this.minValue.toString(), this.maxValue.toString());
+    }
+    return value;
+  }
+}
+
+/** A time of day or a duration as HHMM or HHMMSS, in seconds (FCOM TIME MARKER UTC and REMAINING TIME formats) */
+export class TimeHhMmSsFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '--:--:--';
+
+  public readonly maxDigits = 8;
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null];
+    }
+    const total = Math.max(0, Math.floor(value));
+    const hours = Math.floor(total / 3600) % 24;
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return [
+      `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`,
+      null,
+      null,
+    ];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    const digits = input.replace(/:/g, '');
+    if (!digits.match(/^(\d{4}|\d{6})$/)) {
+      throw getFormattedFormatError('HHMM OR HHMMSS');
+    }
+    const hours = Number(digits.substring(0, 2));
+    const minutes = Number(digits.substring(2, 4));
+    const seconds = digits.length === 6 ? Number(digits.substring(4, 6)) : 0;
+    if (hours > 23 || minutes > 59 || seconds > 59) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange);
+    }
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+}
+
+/** A runway designator (FCOM RWY IDENT entry format of the takeoff data pages): NN, NNL, NNC or NNR */
+export class RunwayDesignatorFormat implements DataEntryFormat<string> {
+  public readonly placeholder = '---';
+
+  public readonly maxDigits = 3;
+
+  public format(value: string | null): FieldFormatTuple {
+    return [value ?? this.placeholder, null, null];
+  }
+
+  public async parse(input: string): Promise<string | null> {
+    if (input === '') {
+      return null;
+    }
+    const match = input.match(/^(\d{1,2})([LCR]?)$/);
+    if (!match || Number(match[1]) < 1 || Number(match[1]) > 36) {
+      throw getFormattedFormatError('NNX');
+    }
+    return `${match[1].padStart(2, '0')}${match[2]}`;
+  }
+}
+
+/**
+ * Origin of the LAT / LONG crossings (FCOM LL XING - TIME MKR page, LAT and LONG entry formats): displayed as whole
+ * degrees with the hemisphere letter (45N, 010E).
+ */
+export class CrossingOriginFormat implements DataEntryFormat<number> {
+  public readonly maxDigits: number;
+
+  public readonly placeholder: string;
+
+  private readonly requiredFormat: string;
+
+  constructor(private readonly isLatitude: boolean) {
+    this.maxDigits = isLatitude ? 8 : 9;
+    this.placeholder = isLatitude ? '---' : '----';
+    this.requiredFormat = isLatitude ? 'XDD OR DDX' : 'YDDD OR DDDY';
+  }
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null];
+    }
+    const degrees = Math.abs(Math.round(value))
+      .toFixed(0)
+      .padStart(this.isLatitude ? 2 : 3, '0');
+    const hemisphere = this.isLatitude ? (value < 0 ? 'S' : 'N') : value < 0 ? 'W' : 'E';
+    return [`${degrees}${hemisphere}`, null, null];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    return this.isLatitude
+      ? parseDegreesMinutes(input, 'N', 'S', 90, this.requiredFormat)
+      : parseDegreesMinutes(input, 'E', 'W', 180, this.requiredFormat);
+  }
+}
+
+/** Intercept angle of a lateral offset (A380 FCOM DSC-22-FMS-20-100 "INTERCEPT ANGLE": NN, 10 to 50 degrees). */
+export class InterceptAngleFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '--';
+
+  public readonly maxDigits = 2;
+
+  public readonly unit = '°';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [value.toFixed(0), null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^\d{1,2}$/)) {
+      throw getFormattedFormatError('NN', this.unit);
+    }
+    const value = Number(input);
+    if (value < 10 || value > 50) {
+      throw getFormattedEntryOutOfRangeError('10', '50', this.unit);
+    }
+    return value;
+  }
+}
+
+/**
+ * Lateral offset distance (A380 FCOM DSC-22-FMS-20-100 "OFFSET DIST": NN, ANN or NNA, A = L or R, 0 to 50 NM). The side
+ * entered with the distance goes to `onSide`; the field then only shows the distance (DSC-22-FMS-20-30 OFFSET page).
+ */
+export class OffsetDistanceFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '--';
+
+  public readonly maxDigits = 3;
+
+  public readonly unit = 'NM';
+
+  constructor(private readonly onSide: (side: 'L' | 'R') => void = () => {}) {}
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [value.toFixed(0), null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    const match = input.match(/^([LR]?)(\d{1,2})([LR]?)$/);
+    if (!match || (match[1] !== '' && match[3] !== '')) {
+      throw getFormattedFormatError('NN OR LNN OR NNR', this.unit);
+    }
+    const value = Number(match[2]);
+    if (value > 50) {
+      throw getFormattedEntryOutOfRangeError('0', '50', this.unit);
+    }
+    const side = match[1] || match[3];
+    if (side === 'L' || side === 'R') {
+      this.onSide(side);
+    }
+    return value;
+  }
+}
+
+/**
+ * Weather radar elevation of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10 "ELEVN"): with the STD baro
+ * reference FL NNN or NNN (FL 0 to FL 600), with the QNH reference NNNNN FT or NNNNN (0 to 60 000 ft, "FT" must be written
+ * between 0 and 1 000 ft). The value is in feet.
+ */
+export class WxrElevationFormat extends SubscriptionCollector implements DataEntryFormat<number> {
+  public placeholder = '-----';
+
+  public maxDigits = 7;
+
+  private isStd = false;
+
+  public readonly reFormatTrigger = Subject.create(false);
+
+  constructor(isStd: Subscribable<boolean>) {
+    super();
+    this.subscriptions.push(
+      isStd.sub((v) => {
+        this.isStd = v;
+        this.placeholder = v ? '---' : '-----';
+        this.reFormatTrigger.notify();
+      }, true),
+    );
+  }
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return this.isStd ? [this.placeholder, 'FL', null] : [this.placeholder, null, 'FT'];
+    }
+    return this.isStd ? [(value / 100).toFixed(0).padStart(3, '0'), 'FL', null] : [value.toFixed(0), null, 'FT'];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (this.isStd) {
+      const match = input.match(/^(?:FL)?(\d{1,3})$/);
+      if (!match) {
+        throw new A380FmsError(FmsErrorType.FormatError, 'FORMAT: FL XXX');
+      }
+      const fl = Number(match[1]);
+      if (fl > 600) {
+        throw new A380FmsError(FmsErrorType.EntryOutOfRange, 'RANGE: FL 0 TO FL 600');
+      }
+      return fl * 100;
+    }
+    const match = input.match(/^(\d{1,5})(FT)?$/);
+    if (!match || (match[2] === undefined && Number(match[1]) < 1000)) {
+      throw new A380FmsError(FmsErrorType.FormatError, 'FORMAT: XXXXX FT');
+    }
+    const feet = Number(match[1]);
+    if (feet > 60000) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange, 'RANGE: 0 FT TO 60000 FT');
+    }
+    return feet;
+  }
+}
+
+/** Weather radar gain of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10 "GAIN": NNN, 0 to 100 %). */
+export class WxrGainFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---';
+
+  public readonly maxDigits = 3;
+
+  public readonly unit = '%';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [value.toFixed(0), null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    if (!input.match(/^\d{1,3}$/)) {
+      throw new A380FmsError(FmsErrorType.FormatError, 'FORMAT: XXX %');
+    }
+    const value = Number(input);
+    if (value > 100) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange, 'RANGE: 0 % TO 100 %');
+    }
+    return value;
+  }
+}
+
+/**
+ * Weather radar tilt of the SURV / CONTROLS page (A380 FCOM DSC-34-20-60-50 P 10-11 "TILT": ±NN.N or ±NN.N°, "-" may be
+ * entered as M, "+" displayed when there is no sign, -15.0 to +15.0°).
+ */
+export class WxrTiltFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---.-';
+
+  public readonly maxDigits = 6;
+
+  public readonly unit = '°';
+
+  public format(value: number | null): FieldFormatTuple {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, this.unit];
+    }
+    return [`${value < 0 ? '-' : '+'}${Math.abs(value).toFixed(1)}`, null, this.unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    const match = input.match(/^([+\-M]?)(\d{1,2}(?:\.\d)?)°?$/);
+    if (!match) {
+      throw new A380FmsError(FmsErrorType.FormatError, 'FORMAT: +/-XX.X °');
+    }
+    const value = (match[1] === '-' || match[1] === 'M' ? -1 : 1) * Number(match[2]);
+    if (value < -15 || value > 15) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange, 'RANGE: -15.0 ° TO +15.0 °');
+    }
+    return value;
+  }
+}
+
+/**
+ * CRS IN / CRS OUT of the DIRECT TO page (A380 FCOM DSC-22-FMS-20-100 "COURSE IN/OUT": NNNB or BNNN, 0 to 360°, B = M
+ * or nothing for a magnetic course, T for a true course). The reference goes to `onTrue`; the field shows °T for a true
+ * course.
+ */
+export class DirectToCourseFormat implements DataEntryFormat<number> {
+  public readonly placeholder = '---';
+
+  public readonly maxDigits = 4;
+
+  public readonly unit = '°';
+
+  constructor(
+    private readonly isTrue: Subscribable<boolean>,
+    private readonly onTrue: (isTrue: boolean) => void = () => {},
+  ) {}
+
+  public format(value: number | null): FieldFormatTuple {
+    const unit = this.isTrue.get() ? '°T' : this.unit;
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, unit];
+    }
+    return [value.toFixed(0).padStart(3, '0'), null, unit];
+  }
+
+  public async parse(input: string): Promise<number | null> {
+    if (input === '') {
+      return null;
+    }
+    const match = input.match(/^([MT]?)(\d{1,3})([MT]?)$/);
+    if (!match || (match[1] !== '' && match[3] !== '')) {
+      throw getFormattedFormatError('NNNB', this.unit);
+    }
+    const value = Number(match[2]);
+    if (value > 360) {
+      throw getFormattedEntryOutOfRangeError('0', '360', this.unit);
+    }
+    this.onTrue(match[1] === 'T' || match[3] === 'T');
+    return value;
   }
 }

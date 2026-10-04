@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.
 import {
+  BitFlags,
   ArraySubject,
   ClockEvents,
   ComponentProps,
@@ -24,6 +25,7 @@ import {
 } from '@microsoft/msfs-sdk';
 
 import './MfdFmsFpln.scss';
+import { cpnyFplnReportPage } from '../MfdFmsFreeTextSend';
 import { AbstractMfdPageProps } from '../../../MFD';
 import { Footer } from '../../common/Footer';
 
@@ -34,7 +36,7 @@ import { FplnRevisionsMenuType, getRevisionsMenu } from './FplnRevisionsMenu';
 import { DestinationWindow } from './DestinationWindow';
 import { InsertNextWptFromWindow, NextWptInfo } from './InsertNextWptFrom';
 import { FmsPage } from '../../common/FmsPage';
-import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
+import { FlightPlanLeg, FlightPlanLegFlags } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { PseudoWaypoint } from '@fmgc/guidance/PseudoWaypoint';
 import { Coordinates, bearingTo } from 'msfs-geo';
@@ -212,6 +214,10 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
   };
 
   private readonly discontinuityLabel = 'DISCONTINUITY';
+
+  private isPendingAbeamPoint(leg: FlightPlanLeg): boolean {
+    return BitFlags.isAny(leg.flags, FlightPlanLegFlags.PendingDirectToAbeamPoint);
+  }
 
   private emptyFlightPlanRendered = false;
 
@@ -457,7 +463,13 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
           this.lineData.push(data);
         }
 
-        if (leg instanceof FlightPlanLeg) {
+        if (leg instanceof FlightPlanLeg && this.isPendingAbeamPoint(leg)) {
+          // FCOM DSC-22-FMS-20-30 P 162: a pending DIRECT WITH ABEAM shows ABEAM PTS instead of its abeam points
+          const previous = jointFlightPlan[i - 1];
+          if (!(previous instanceof FlightPlanLeg && this.isPendingAbeamPoint(previous))) {
+            this.lineData.push({ type: FplnLineType.Special, originalLegIndex: null, label: '(ABEAM PTS)' });
+          }
+        } else if (leg instanceof FlightPlanLeg) {
           const transAlt = this.loadedFlightPlan.performanceData.transitionAltitude.get();
           const transLevel = this.loadedFlightPlan.performanceData.transitionLevel.get();
           const transLevelAsAlt = transLevel !== null && transLevel !== undefined ? transLevel * 100 : null;
@@ -1038,7 +1050,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                   </div>
                 }
                 onClick={() => {}}
-                buttonStyle="margin-right: 5px; width: 260px; height: 43px;"
+                buttonStyle="margin-right: 5px; min-width: 285px; min-height: 59px; box-sizing: border-box; padding: 0 12px;"
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_windbtn`}
                 menuItems={this.efobAndWindButtonMenuItems}
               />
@@ -1098,7 +1110,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-arrival`,
                     );
                   }}
-                  buttonStyle="font-size: 30px; width: 150px; margin-right: 5px;"
+                  buttonStyle="font-size: 30px; min-width: 150px; margin-right: 5px;"
                 />
               }
               componentIfTrue={
@@ -1166,7 +1178,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 label="DEST"
                 disabled={this.destNotLoaded}
                 onClick={() => this.scrollToDest()}
-                buttonStyle="height: 60px; margin-right: 5px; padding: auto 15px auto 15px;"
+                buttonStyle="min-height: 60px; margin-right: 5px; padding: auto 15px auto 15px;"
               />
             </div>
           </div>
@@ -1182,7 +1194,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                       `fms/sec/index/${this.loadedFlightPlanIndex.get() - FlightPlanIndex.FirstSecondary + 1}`,
                     )
                   }
-                  buttonStyle="width: 125px;"
+                  buttonStyle="min-width: 125px;"
                 />
               }
               componentIfFalse={
@@ -1197,7 +1209,7 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                           `fms/${this.props.mfd.uiService.activeUri.get().category}/init`,
                         )
                       }
-                      buttonStyle="width: 125px;"
+                      buttonStyle="min-width: 125px;"
                     />
                   }
                   componentIfFalse={<></>}
@@ -1212,7 +1224,6 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
               menuItems={Subject.create([
                 {
                   label: 'ALTERNATE',
-                  disabled: true,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-alternate`,
@@ -1220,7 +1231,8 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'CLOSEST AIRPORTS',
-                  disabled: true,
+                  // FCOM DSC-22-FMS-20-30 CLOSEST AIRPORTS page: accessed via the ACTIVE / F-PLN page only
+                  disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-closest-airports`,
@@ -1228,7 +1240,8 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'EQUI-TIME POINT',
-                  disabled: true,
+                  // FCOM DSC-22-FMS-20-30 P 135: only available for the active flight plan
+                  disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-equi-time-point`,
@@ -1239,17 +1252,18 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                   disabled: this.secActive,
                   action: () => this.props.mfd.uiService.navigateTo(fixInfoUri),
                 },
+                // FCOM DSC-22-FMS-20-30 p.211: LL CROSSING and TIME MARKER both open the LL XING - TIME MKR page
                 {
                   label: 'LL CROSSING',
-                  disabled: true,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-ll-xing-time-mkr`,
                     ),
                 },
                 {
-                  label: 'TIME',
-                  disabled: true,
+                  label: 'TIME MARKER',
+                  // FCOM P 210: the time markers are for the active flight plan only
+                  disabled: this.secActive,
                   action: () =>
                     this.props.mfd.uiService.navigateTo(
                       `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-ll-xing-time-mkr`,
@@ -1257,8 +1271,9 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 },
                 {
                   label: 'CPNY F-PLN REPORT',
-                  disabled: true,
-                  action: () => {},
+                  // FCOM DSC-22-FMS-20-30 P 25: only available for the active flight plan
+                  disabled: this.secActive,
+                  action: () => this.props.mfd.uiService.navigateTo(`fms/active/${cpnyFplnReportPage}`),
                 },
               ] as ButtonMenuItem[])}
             />
@@ -1783,10 +1798,11 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
     }
 
     return (
+      // Each cell holds three digits of the value font (18 px each) and a margin: narrower, they run over the slash
       <div style="display: flex; flex-direction: row; justify-self: flex-end">
-        <div style="width: 45px; text-align: center;">{directionStr}</div>
+        <div style="width: 56px; text-align: center;">{directionStr}</div>
         <span>/</span>
-        <div style="width: 45px; text-align: center;">{speedStr}</div>
+        <div style="width: 56px; text-align: center;">{speedStr}</div>
       </div>
     );
   }
@@ -1997,7 +2013,7 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
         onClick={() => {
           this.props.callbacks.onImmediateExitHold!();
         }}
-        buttonStyle="color: #e68000; padding-right: 2px; width:200px;"
+        buttonStyle="color: #e68000; padding-right: 2px; min-width:200px;"
       />
     );
   }

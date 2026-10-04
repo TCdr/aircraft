@@ -246,6 +246,10 @@ export class TcasComputer {
 
   private gpwsWarning: boolean; // GPWS warning on/off
 
+  private raInhibitedLow = false; // RAs inhibited by the low-altitude hysteresis (see updateInhibitions)
+
+  private taAuralInhibitedLow = false; // TA aural inhibited by the low-altitude hysteresis
+
   // private since this is a singleton class
   private constructor() {
     registerTrafficListener();
@@ -345,19 +349,38 @@ export class TcasComputer {
    * Set inhibition level
    */
   private updateInhibitions(): void {
-    // TODO: Add more TA only conditions here (i.e GPWS active, Windshear warning active, stall)
+    // TODO: Add more TA only conditions here (i.e Windshear warning active, stall)
     // TODO FIXME: Less magic numbers, Use constants defined in TcasConstants
+    // The low-altitude inhibitions have a hysteresis (TcasConstants): RAs are inhibited below 900 ft AGL in
+    // descent and 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in
+    // descent and 600 ft in climb (A380 FCTM, Supplementary Information, TCAS).
+    if (!this.radioAlt.isFailureWarning() && !this.radioAlt.isNoComputedData()) {
+      if (
+        this.raInhibitedLow
+          ? this.radioAlt.value > TCAS.INHIBIT_ALL_RA_AGL_CLIMB
+          : this.radioAlt.value < TCAS.INHIBIT_ALL_RA_AGL_DESCENT
+      ) {
+        this.raInhibitedLow = !this.raInhibitedLow;
+      }
+      if (
+        this.taAuralInhibitedLow
+          ? this.radioAlt.value > TCAS.INHIBIT_TA_AURAL_AGL_CLIMB
+          : this.radioAlt.value < TCAS.INHIBIT_TA_AURAL_AGL_DESCENT
+      ) {
+        this.taAuralInhibitedLow = !this.taAuralInhibitedLow;
+      }
+    } else {
+      this.raInhibitedLow = false;
+      this.taAuralInhibitedLow = false;
+    }
     if (
       this.radioAlt.isFailureWarning() ||
-      (!this.radioAlt.isNoComputedData() && this.radioAlt.value < 500) ||
+      this.taAuralInhibitedLow ||
       this.gpwsWarning ||
       this.tcasMode.getVar() === TcasMode.STBY
     ) {
       this.inhibitions = Inhibit.ALL_RA_AURAL_TA;
-    } else if (
-      (!this.radioAlt.isNoComputedData() && this.radioAlt.value < 1000) ||
-      this.tcasMode.getVar() === TcasMode.TA
-    ) {
+    } else if (this.raInhibitedLow || this.tcasMode.getVar() === TcasMode.TA) {
       this.inhibitions = Inhibit.ALL_RA;
     } else if (!this.radioAlt.isNoComputedData() && this.radioAlt.value < 1100) {
       this.inhibitions = Inhibit.ALL_DESC_RA;
@@ -678,7 +701,15 @@ export class TcasComputer {
         accelTest = TaRaIntrusion.PROXIMITY;
       }
 
-      const desiredIntrusionLevel: TaRaIntrusion = Math.min(rangeTest, altTest, accelTest);
+      let desiredIntrusionLevel: TaRaIntrusion = Math.min(rangeTest, altTest, accelTest);
+      // With all RAs inhibited (TA ONLY mode, below 1000 ft radio altitude) an intruder that meets the RA criteria is
+      // shown (red square -> amber circle) and counted as a traffic advisory, as the RA cannot be issued.
+      if (
+        desiredIntrusionLevel === TaRaIntrusion.RA &&
+        (this.inhibitions === Inhibit.ALL_RA || this.inhibitions === Inhibit.ALL_RA_AURAL_TA)
+      ) {
+        desiredIntrusionLevel = TaRaIntrusion.TA;
+      }
       switch (traffic.intrusionLevel) {
         case TaRaIntrusion.RA:
           if (

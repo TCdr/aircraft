@@ -5,6 +5,7 @@ import {
   ComponentProps,
   DisplayComponent,
   FSComponent,
+  MappedSubscribable,
   Subject,
   Subscribable,
   SubscribableMapFunctions,
@@ -13,6 +14,7 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { TriangleDown, TriangleUp } from './shapes';
+import { raiseFcomItem } from './raiseFcomItem';
 
 export type ButtonMenuItem = {
   label: string | Subscribable<string>;
@@ -67,6 +69,23 @@ export class Button extends DisplayComponent<ButtonProps> {
 
   private readonly visible = SubscribableUtils.toSubscribable(this.props.visible ?? Subject.create(true), true);
 
+  /** The label mapped by this button, which it destroys */
+  private readonly ownedLabel: MappedSubscribable<string> | null = SubscribableUtils.isSubscribable(this.props.label)
+    ? this.props.label.map(Button.toNewlines)
+    : null;
+
+  /**
+   * Text labels with line breaks as newlines. A "<br />" in a text child is only parsed as HTML when it is first rendered:
+   * the SDK then updates the last text node alone, so a label that changes (e.g. REQUEST PENDING...) would show the raw
+   * "<br />" and keep its first line.
+   */
+  private readonly labelContent: string | VNode | Subscribable<string> =
+    typeof this.props.label === 'string' ? Button.toNewlines(this.props.label) : this.ownedLabel ?? this.props.label;
+
+  private static toNewlines(label: string): string {
+    return label.replace(/<br\s*\/?>/gi, '\n');
+  }
+
   private onClick() {
     if (!this.disabled.get()) {
       this.props.onClick();
@@ -87,6 +106,21 @@ export class Button extends DisplayComponent<ButtonProps> {
   }
 
   private onDropdownMenuElementClickHandler = this.onDropdownMenuElementClick.bind(this);
+
+  /**
+   * Opens the menu upwards if it would leave the screen at the bottom. Measured each time the menu opens: the page is
+   * then laid out, which it may not be yet when the menu items are set.
+   */
+  private placeDropdownMenu(): void {
+    const menu = this.dropdownMenuRef.instance;
+    menu.style.top = '';
+    const menuRect = menu.getBoundingClientRect();
+    const opensUpwards = menuRect.bottom > 1024;
+    this.menuOpensUpwards.set(opensUpwards);
+    if (opensUpwards) {
+      menu.style.top = `${Math.round(-menuRect.height)}px`;
+    }
+  }
 
   private scrollMenuTo(elementIndex: number) {
     // Assume 36px height for each menu item div
@@ -187,24 +221,6 @@ export class Button extends DisplayComponent<ButtonProps> {
               .getElementById(`${this.props.idPrefix}_${i}`)
               ?.addEventListener('click', this.onDropdownMenuElementClickHandler.bind(this, val));
           }
-
-          // Check if menu would overflow vertically (i.e. leave screen at the bottom). If so, open menu upwards
-          // Open menu for a split second to measure size
-          this.dropdownMenuRef.instance.style.display = 'block';
-          this.buttonRef.instance.classList.add('opened');
-
-          // Check if menu leaves screen at the bottom, reposition if needed
-          const boundingRect = this.dropdownMenuRef.instance.getBoundingClientRect();
-          const overflowsVertically = boundingRect.top + boundingRect.height > 1024;
-          this.menuOpensUpwards.set(overflowsVertically);
-
-          if (overflowsVertically) {
-            this.dropdownMenuRef.instance.style.top = `${Math.round(-boundingRect.height)}px`;
-          }
-
-          // Close again
-          this.dropdownMenuRef.instance.style.display = 'none';
-          this.buttonRef.instance.classList.remove('opened');
         }, true),
       );
     }
@@ -217,9 +233,11 @@ export class Button extends DisplayComponent<ButtonProps> {
     this.subs.push(
       this.dropdownIsOpened.sub((val) => {
         this.dropdownMenuRef.instance.style.display = val ? 'block' : 'none';
+        raiseFcomItem(this.topRef.instance, val);
 
         if (val) {
           this.buttonRef.instance.classList.add('opened');
+          this.placeDropdownMenu();
         } else {
           this.buttonRef.instance.classList.remove('opened');
         }
@@ -262,6 +280,7 @@ export class Button extends DisplayComponent<ButtonProps> {
   public destroy(): void {
     // Destroy all subscriptions to remove all references to this instance.
     this.subs.forEach((x) => x.destroy());
+    this.ownedLabel?.destroy();
 
     this.buttonRef.instance.removeEventListener('click', this.onClickHandler);
     document.getElementById('MFD_CONTENT')?.removeEventListener('click', this.onCloseDropdownHandler);
@@ -290,7 +309,7 @@ export class Button extends DisplayComponent<ButtonProps> {
         >
           {this.props.menuItems !== undefined && this.props.showArrow !== false ? (
             <div class="mfd-fms-fpln-button-dropdown">
-              <span class="mfd-fms-fpln-button-dropdown-label">{this.props.label}</span>
+              <span class="mfd-fms-fpln-button-dropdown-label mfd-button-label">{this.labelContent}</span>
               <span class="mfd-fms-fpln-button-dropdown-arrow">
                 <TriangleUp
                   class={{ hidden: this.menuOpensUpwards.map(SubscribableMapFunctions.not()) }}
@@ -300,7 +319,7 @@ export class Button extends DisplayComponent<ButtonProps> {
               </span>
             </div>
           ) : (
-            <span>{this.props.label}</span>
+            <span class="mfd-button-label">{this.labelContent}</span>
           )}
         </span>
         <div

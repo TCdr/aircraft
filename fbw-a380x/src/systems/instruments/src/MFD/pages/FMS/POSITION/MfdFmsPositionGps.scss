@@ -1,0 +1,36 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// Positions in page container coordinates, taken from the FCOM figure (DSC-22-FMS-20-30 P 271)
+.mfd-position-gps-canvas {
+  position: relative;
+  flex: 1;
+}
+
+.mfd-position-gps-item {
+  position: absolute;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 36px;
+  white-space: nowrap;
+}
+
+.mfd-position-gps-title {
+  width: 100px;
+  justify-content: center;
+}
+
+.mfd-position-gps-label {
+  left: 284px;
+  width: 200px;
+  justify-content: center;
+}
+
+.mfd-position-gps-separator {
+  position: absolute;
+  top: 382px;
+  left: 5px;
+  right: 8px;
+  height: 0;
+  border-top: 1px solid $display-light-grey;
+}

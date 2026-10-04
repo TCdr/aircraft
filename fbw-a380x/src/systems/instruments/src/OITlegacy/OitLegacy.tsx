@@ -109,6 +109,7 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
             pilotAvatars: false,
             eclSoftKeys: true,
             autoStepClimb: true,
+            keepPilotStoredElements: true,
           },
           sim: {
             cones: false,

@@ -1,0 +1,111 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 21: title line at y = 168, column titles at y = 218, CLOSEST ARPTs box y = 262..550 (lines
+// of 62 px from y = 309), OTHER ARPT box y = 600..808 (lines of 57 px from y = 650)
+.mfd-closest-airports-title {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  margin: 7px 0 0 9px;
+}
+
+.mfd-closest-airports-header,
+.mfd-closest-airports-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.mfd-closest-airports-header {
+  padding-left: 121px;
+  height: 36px;
+  margin-top: 14px;
+
+  .dist {
+    width: 100px;
+    text-align: center;
+  }
+
+  .brg {
+    width: 154px;
+    text-align: center;
+  }
+
+  .time {
+    width: 70px;
+    text-align: center;
+  }
+
+  .efob {
+    width: 184px;
+    text-align: center;
+  }
+
+  .wind {
+    width: 130px;
+    text-align: center;
+    white-space: nowrap;
+  }
+}
+
+.mfd-closest-airports-box {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-sizing: border-box;
+  border: 2px solid #505050;
+  margin: 26px 6px 0 2px;
+  height: 288px;
+  padding: 16px 0 0 7px;
+
+  &.other {
+    margin-top: 50px;
+    height: 208px;
+    padding-top: 21px;
+
+    .mfd-closest-airports-line {
+      height: 57px;
+    }
+  }
+}
+
+.mfd-closest-airports-box-title {
+  position: absolute;
+  top: -14px;
+  left: 29px;
+  padding: 0 6px;
+  background-color: $display-background;
+}
+
+.mfd-closest-airports-line {
+  height: 62px;
+}
+
+.mfd-closest-airports-cell {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+
+  &.dist {
+    width: 132px;
+  }
+
+  &.brg {
+    width: 105px;
+  }
+
+  &.time {
+    width: 116px;
+  }
+
+  &.efob {
+    width: 179px;
+    margin-right: 11px;
+  }
+}
+
+.mfd-closest-airports-entry {
+  height: 57px;
+  display: flex;
+  align-items: center;
+}

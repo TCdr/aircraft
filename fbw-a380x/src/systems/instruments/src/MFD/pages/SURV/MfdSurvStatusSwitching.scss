@@ -1,31 +1,35 @@
-﻿@import "../../../MsfsAvionicsCommon/definitions.scss";
+@import "../../../MsfsAvionicsCommon/definitions.scss";
 
+// SURV / STATUS & SWITCHING page (A380 FCOM DSC-34-20-60-50 P 6), page container coordinates
+.mfd-surv-status {
+  .sys-box,
+  .sys-group {
+    position: absolute;
+    box-sizing: border-box;
+    border: 2px solid $display-light-grey;
+  }
 
-.sys-box {
-  border: 1px solid $display-light-grey;
-  padding: 10px;
-  padding-top: 50px;
-  width: 270px;
-  position: relative;
-}
+  // The green frame shows the selected system
+  .sys-group.active {
+    border-color: $display-green;
+  }
 
-.sys-box.active {
-  border: 1px solid $display-green;
-}
+  .mfd-surv-status-button-slot {
+    position: absolute;
+    width: 98px;
+    height: 72px;
+  }
 
-.sys-group {
-  border: 1px solid $display-light-grey;
-  padding: 5px;
-}
+  .mfd-surv-status-button {
+    position: static;
+    box-sizing: border-box;
+    width: 98px;
+    height: 72px;
+    margin: 0;
+  }
 
-.sys-group.active {
-  border: 1px solid $display-green;
-}
-
-.sys-group.failed {
-  border: 1px solid $display-amber;
-}
-
-.sys-status-item.failed {
-  color: $display-amber;
+  .mfd-surv-status-button-label {
+    margin: 0;
+    padding-top: 5px;
+  }
 }

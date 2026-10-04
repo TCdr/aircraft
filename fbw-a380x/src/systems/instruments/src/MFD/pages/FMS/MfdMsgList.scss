@@ -1,13 +1,15 @@
-﻿@import "../../../MsfsAvionicsCommon/definitions";
+@import "../../../MsfsAvionicsCommon/definitions";
 
+// FCOM DSC-22-FMS-20-30 P 207: messages in big font between lines 80 px apart, from x = 67 to 687 and y = 194
 .mfd-msg-list-element-container {
-  margin: 75px;
-  border-top: 2px solid white;
+  margin: 51px 81px 0 67px;
+  border-top: 2px solid $display-light-grey;
 }
 
-.mfd-label.msg-list-element {
-  font-size: 26px;
+.mfd-msg-list-element-container .mfd-label.msg-list-element {
+  font-size: 30px;
   height: 80px;
-  padding: 5px;
-  border-bottom: 2px solid white;
+  box-sizing: border-box;
+  padding: 6px 5px 0 5px;
+  border-bottom: 2px solid $display-light-grey;
 }

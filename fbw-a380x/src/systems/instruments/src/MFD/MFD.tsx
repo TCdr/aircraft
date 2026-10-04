@@ -1,4 +1,4 @@
-//  Copyright (c) 2024-2025 FlyByWire Simulations
+//  Copyright (c) 2024-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import './pages/common/style.scss';
@@ -36,6 +36,7 @@ import { MfdFmsPageNotAvail } from './pages/FMS/MfdFmsPageNotAvail';
 import { InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/InputField';
 import { AtcDatalinkSystem } from './ATCCOM/AtcDatalinkSystem';
 import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
+import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
 
 export const getDisplayIndex = () => {
   const url = document.getElementsByTagName('a380x-mfd')[0].getAttribute('url');
@@ -96,6 +97,9 @@ export class MfdComponent
   public readonly hEventConsumer = this.props.bus.getSubscriber<InternalKccuKeyEvent>().on('kccuKeyEvent');
 
   public readonly interactionMode = Subject.create<InteractionMode>(InteractionMode.Touchscreen);
+
+  /** CCD ON/OFF switch of this side's KCCU */
+  private kccuCursorControlDeviceOn = false;
 
   private readonly fmsDataKnob = ConsumerSubject.create(this.sub.on('fmsDataKnob').whenChanged(), 0);
 
@@ -226,6 +230,11 @@ export class MfdComponent
         .on(isCaptainSide ? 'kccuOnL' : 'kccuOnR')
         .whenChanged()
         .handle((it) => this.interactionMode.set(it ? InteractionMode.Kccu : InteractionMode.Touchscreen)),
+      this.props.bus
+        .getSubscriber<MfdSimvars>()
+        .on(isCaptainSide ? 'kccuCcdOnL' : 'kccuCcdOnR')
+        .whenChanged()
+        .handle((it) => (this.kccuCursorControlDeviceOn = it)),
     );
 
     this.subs.push(
@@ -235,6 +244,11 @@ export class MfdComponent
         .handle((eventName) => {
           if (eventName.startsWith(this.props.captOrFo === 'CAPT' ? 'A32NX_KCCU_L' : 'A32NX_KCCU_R')) {
             const key = eventName.substring(13);
+            if (
+              !isKccuKeyActive(key, this.interactionMode.get() === InteractionMode.Kccu, this.kccuCursorControlDeviceOn)
+            ) {
+              return;
+            }
 
             this.props.bus
               .getPublisher<InternalKccuKeyEvent>()
@@ -352,6 +366,9 @@ export class MfdComponent
         this.props.atcService,
       );
     }
+
+    // FMS pages use the display frame of the FCOM figures (A380 FCOM DSC-22-FMS-20-30), see common/style.scss
+    this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());
     FSComponent.render(this.activePage, this.activePageRef?.getOrDefault());
