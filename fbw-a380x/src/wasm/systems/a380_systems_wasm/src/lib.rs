@@ -32,7 +32,7 @@ use reversers::reversers;
 use rudder::rudder;
 use spoilers::spoilers;
 use std::error::Error;
-use systems::air_conditioning::{Channel, FdacId, OcsmId, VcmId};
+use systems::air_conditioning::{Channel, FdacId, OcsmId, VcmId, ZoneType};
 use systems::failures::FailureType;
 use systems::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use systems::shared::{
@@ -151,6 +151,18 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (21_047, FailureType::CpcsApp(CpiomId::B2)),
         (21_048, FailureType::CpcsApp(CpiomId::B3)),
         (21_049, FailureType::CpcsApp(CpiomId::B4)),
+        // Trim air: one zone per case of the A380 FCOM COND DUCT OVHT procedure (CKPT, CABIN on each deck,
+        // FWD CARGO) and the COND FWD CARGO TEMP REGUL FAULT cargo trim air valve. The bulk cargo is
+        // left out: its duct temperature comes from the bulk heater, not from its trim air valve.
+        // TrimAirHighPressure is not mapped: no A380 system reads the trim air outlet pressure.
+        (21_050, FailureType::TrimAirFault(ZoneType::Cockpit)),
+        (21_051, FailureType::TrimAirFault(ZoneType::Cabin(11))), // MAIN_DECK_1
+        (21_052, FailureType::TrimAirFault(ZoneType::Cabin(21))), // UPPER_DECK_1
+        (21_053, FailureType::TrimAirFault(ZoneType::Cargo(1))),  // CARGO_FWD
+        (21_054, FailureType::TrimAirOverheat(ZoneType::Cockpit)),
+        (21_055, FailureType::TrimAirOverheat(ZoneType::Cabin(11))), // MAIN_DECK_1
+        (21_056, FailureType::TrimAirOverheat(ZoneType::Cabin(21))), // UPPER_DECK_1
+        (21_057, FailureType::TrimAirOverheat(ZoneType::Cargo(1))),  // CARGO_FWD
         (24_000, FailureType::TransformerRectifier(1)),
         (24_001, FailureType::TransformerRectifier(2)),
         (24_002, FailureType::TransformerRectifier(3)),
@@ -427,6 +439,18 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             32_025,
             FailureType::GearActuatorJammed(GearActuatorId::GearDoorRight),
         ),
+        // Brakes: the model feeds the NORM circuit from the GREEN system and the ALTN circuit (with
+        // its accumulator) from the YELLOW system. On the real aircraft the ALTN brakes use the LEHGS
+        // and accumulators (A380 FCOM DSC-32-10-30-30).
+        (
+            32_100,
+            FailureType::BrakeHydraulicLeak(HydraulicColor::Green),
+        ),
+        (
+            32_101,
+            FailureType::BrakeHydraulicLeak(HydraulicColor::Yellow),
+        ),
+        (32_150, FailureType::BrakeAccumulatorGasLeak),
         (34_000, FailureType::RadioAltimeter(1)),
         (34_001, FailureType::RadioAltimeter(2)),
         (34_002, FailureType::RadioAltimeter(3)),
