@@ -1,0 +1,89 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>FCOM audit fixes - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>FCOM audit fixes</h1>
+<div class="subtitle">Small upstream bugs found by the FCOM audit of every A32NX and A380X system (2026-10-02): eleven A380X fixes, six A32NX fixes and the fast ADIRS alignment of both aircraft, each checked against the FCOM</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X</span>
+<b>Where to find it</b><span>A380X: GPWS, OANS, SD (CRZ, PRESS, DOOR/OXY), FADEC, FWS (BRAKES HOT, T.O CONFIG, F/CTL ALTN LAW, HYD), ELEC panel, EWD EGT. A32NX: FWS (AIR PACK 2 OFF, ALL ENGINES FAILURE), BLEED, TCAS, SD (CRUISE, WHEEL). Both: ADIRS</span>
+<b>Branch</b><span><code>core/fcom-audit-fixes</code>, based on <code>master</code> (FlyByWire master 255546cb0); independent of the other core branches. Each fix is small and can be taken upstream on its own. The twelfth A380X fix of the audit (SD FUEL jettison lines white during a normal jettison) needs the jettison of <code>core/fuel</code> and is in that branch.</span>
+<b>Status</b><span>All fixes tested in the sim by the user on develop (2026-10-04). Not sim-tested on the master base; unit tests and Rust tests pass there.</span>
+<b>Pictures</b><span>No pictures: every fix changes a stock FBW display, alert or system value.</span>
+</div>
+<h2>1. A380X FCOM fixes</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> GPWS, OANS, SD, FADEC, FWS, ELEC panel, EWD &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on develop: OK (2026-10-04). Unit tests: LegacyGpws, OancSelectedRunway, FwsSystemDisplayLogicCrzPage, FadecWingAntiIce, BrakesHot, ElecPanelPbs, EgtLimits, CabinAltitudeIndication, FwsAbnormalSensedItems, OxygenIndication specs; Rust test in hydraulic/mod.rs (each fails without its fix).</div>
+<h3>What it is for</h3>
+<p>The FCOM audit of 2026-10-02 compared every A380X system with the A380 FCOM. These eleven findings were one or two wrong lines each (a variable nothing writes, a copy-paste index, an inverted condition). Each is now fixed as the FCOM describes.</p>
+<table><tr><th>What</th><th>Before</th><th>Now</th><th>FCOM</th></tr><tr><td>GPWS TOO LOW FLAPS</td><td>The FLAP MODE OFF selection was ignored (the GPWS read L:A32NX_GPWS_FLAP_OFF, which nothing writes)</td><td>TAWS FLAP MODE OFF on the MFD SURV CONTROLS page inhibits TOO LOW FLAPS</td><td>DSC-34-SURV</td></tr><tr><td>OANS selected runway</td><td>The FMS landing runway was compared with the FMS origin twice</td><td>The landing runway is green (selected) at the destination airport</td><td>DSC-34-10-70-20</td></tr><tr><td>SD automatic CRZ page</td><td>Engine 4 was not checked (engine 3 read twice)</td><td>Engine 4 alone at takeoff power also delays the CRZ page after takeoff</td><td>-</td></tr><tr><td>FADEC thrust limits</td><td>The wing anti-ice input read an A32NX variable that the A380X never writes</td><td>WING ANTI ICE ON (STRUCTURAL DEICE SWITCH) enters the thrust limit computation</td><td>DSC-70</td></tr><tr><td>BRAKES HOT and T.O CONFIG</td><td>Never triggered (L:A32NX_BRAKES_HOT is not written on the A380X)</td><td>From the 16 reported brake temperatures: one brake at or above 300 &deg;C</td><td>PRO-ABN BRAKES HOT</td></tr><tr><td>ELEC panel COMMERCIAL 2 and ELMU pbs</td><td>All three pbs toggled COMMERCIAL (ELMU shed the commercial loads)</td><td>Each pb has its own state</td><td>DSC-24-20</td></tr><tr><td>EWD EGT amber limit</td><td>From the thrust lever angle</td><td>From the active thrust limit: none at FLEX/TOGA or in reverse, amber above the limit at MCT/CLB</td><td>DSC-70-90</td></tr><tr><td>SD PRESS CAB ALT needle</td><td>A320 delta P limits applied to feet</td><td>Red above 9 550 ft, like the value</td><td>DSC-21-30-20</td></tr><tr><td>F/CTL ALTN LAW procedure</td><td>MAX SPEED 310 KT shown only in ALT 1A (inverted)</td><td>Shown except in ALT 1A</td><td>PRO-ABN F/CTL ALTN LAW</td></tr><tr><td>HYD G RSVR LEVEL LO / G SYS OVHT</td><td>The G ELEC PMP A and B OFF line ticked from the yellow pumps; engine 3 and 4 pump disconnection on swapped DC buses</td><td>Green pumps; ENG 3 pump disconnection on DC 2, ENG 4 on DC 1</td><td>PRO-ABN HYD, DSC-29-40</td></tr><tr><td>SD DOOR/OXY crew supply</td><td>CREW SUPPLY OFF could not show; the CABIN line followed the crew oxygen pb</td><td>CKPT legend amber and REGUL PR LO on the ground with CREW SUPPLY OFF; the CABIN line amber on a low pressure only</td><td>DSC-35-20-20, DSC-35-30-20</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Only the wrong lines found by the audit were changed.</td><td>Each fix is kept to its finding so it can go upstream on its own; the rest of each system is as before.</td><td>-</td></tr><tr><td>ELMU and COMMERCIAL 2 have a state but no consumer yet.</td><td>Nothing in the electrical model sheds loads by those pbs (a380-simvars: A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF, A380X_OVHD_ELEC_ELMU_PB_IS_OFF).</td><td>-</td></tr><tr><td>The EDP disconnection bus change has no cockpit test.</td><td>It only matters with DC 1 or DC 2 lost while disconnecting an engine pump; a Rust test covers it.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to do: the systems behave as in the FCOM.</li><li>TAWS FLAP MODE: MFD &gt; SURV &gt; CONTROLS, FLAP MODE OFF to inhibit TOO LOW FLAPS (e.g. a landing in a non-standard flap configuration).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on approach (FMS approach phase), gear down, flaps not in landing configuration, below 159 kt. MFD SURV CONTROLS: FLAP MODE on. Descend below 245 ft RA.</td><td>TOO LOW FLAPS.</td></tr><tr><td>2</td><td>Repeat with FLAP MODE OFF on the MFD SURV CONTROLS page.</td><td>No TOO LOW FLAPS.</td></tr><tr><td>3</td><td>Flight plan with a destination and a landing runway. At the destination, open the OANS map of the destination airport.</td><td>The FMS landing runway is shown green (selected runway).</td></tr><tr><td>4</td><td>After takeoff (climb), flaps and spoilers retracted, SD page not selected: keep thrust lever 4 alone at FLX/MCT or TOGA, levers 1-3 in CL.</td><td>The SD does not switch to the CRZ page at once: it waits for its 60 s timer, as with any engine at takeoff power. With all levers in CL it switches at once.</td></tr><tr><td>5</td><td>In flight, note the thrust limit on the E/WD; set WING ANTI ICE ON.</td><td>The thrust limit changes (the FADEC now sees the wing anti-ice).</td></tr><tr><td>6</td><td>After a high-energy stop (rejected takeoff or heavy braking), watch the SD WHEEL brake temperatures.</td><td>As soon as one brake reaches 300 &deg;C: amber BRAKES HOT; the T.O CONFIG test then reports the hot brakes.</td></tr><tr><td>7</td><td>Overhead ELEC panel: press ELMU, then COMMERCIAL 2.</td><td>The COMMERCIAL pb stays as it was; each pb changes only itself.</td></tr><tr><td>8</td><td>Takeoff at FLX or TOGA, then thrust levers to CL.</td><td>EGT gauge: no amber EGT limit at FLX/TOGA; at CL the amber limit of the CLB thrust applies (EGT amber above it).</td></tr><tr><td>9</td><td>SD PRESS page with the cabin altitude above 9 550 ft (e.g. manual cabin altitude).</td><td>CAB ALT value and needle red.</td></tr><tr><td>10</td><td>Reach F/CTL ALTN LAW outside ALT 1A (e.g. with flyPad flight control failures).</td><td>The procedure shows MAX SPEED ..... 310 KT; in ALT 1A it does not.</td></tr><tr><td>11</td><td>flyPad &gt; Failures &gt; ATA 29: activate <b>Green reservoir leak</b>; when HYD G RSVR LEVEL LO shows, set the green electric pumps A and B OFF.</td><td>The procedure line of the green electric pumps A and B OFF ticks (the yellow pumps no longer tick it).</td></tr><tr><td>12</td><td>On the ground, overhead OXYGEN CREW SUPPLY pb OFF; SD DOOR/OXY page.</td><td>CKPT legend amber with REGUL PR LO; the CABIN line unchanged.</td></tr></table>
+<h2>2. A32NX FCOM fixes</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> E/WD, SD BLEED, CRUISE and WHEEL pages, TCAS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on develop: OK (2026-10-04). Unit tests: DeltaPIndication, AutoBrakeIndication, AllEnginesFailure, TcasGpwsInhibit specs; Rust test in pneumatic.rs (each fails without its fix).</div>
+<h3>What it is for</h3>
+<p>The same audit on the A32NX found six one-line bugs. Each now follows the A320 FCOM.</p>
+<table><tr><th>What</th><th>Before</th><th>Now</th><th>FCOM</th></tr><tr><td>AIR PACK 2 OFF</td><td>Checked the ENG 1 BLEED pb</td><td>Checks the ENG 2 BLEED pb (each pack against its own bleed)</td><td>PRO-ABN AIR PACK 1(2) OFF</td></tr><tr><td>BLEED LO TEMP flag</td><td>Set only with the bleed valve closed (inverted)</td><td>Set when the bleed supplies air (valve open) below 150 &deg;C in flight with WING ANTI ICE on; the bleed temperature turns amber on the SD BLEED page</td><td>DSC-36</td></tr><tr><td>TCAS TA ONLY on a GPWS alert</td><td>Read L:A32NX_GPWS_Warning_Active (an A380X variable)</td><td>A GPWS warning or alert (L:A32NX_GPWS_WARNING_LIGHT_ON / ALERT_LIGHT_ON) inhibits the RAs (TA ONLY)</td><td>DSC-34-SURV-60-10-10</td></tr><tr><td>SD CRUISE delta P pulse</td><td>Pulsed during the whole cruise</td><td>Pulses only in flight phase 7 above 1.5 PSI, resets at 1 PSI</td><td>DSC-21-20-40</td></tr><tr><td>SD WHEEL AUTO BRK colour</td><td>Amber with an engine off (single-engine taxi, engine failure)</td><td>Green when armed; amber only on an AUTO BRK failure (not modelled)</td><td>DSC-32-30-20</td></tr><tr><td>ENG ALL ENGINES FAILURE: APU START line</td><td>Only below 2 500 ft radio altitude</td><td>Below FL 250 (pressure altitude), text unchanged</td><td>PRO-ABN ENG ALL ENGINES FAILURE</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The APU START line does not say "(BELOW FL 250)".</td><td>The 24-character ECAM line has no room; the condition gates the line instead, as for the other conditional lines.</td><td>-</td></tr><tr><td>AUTO BRK never turns amber.</td><td>The AUTO BRK failure that the FCOM links to the amber colour is not modelled.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to do: the alerts and pages behave as in the FCOM.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX in cruise. ENG 1 BLEED OFF, ENG 2 BLEED ON, X BLEED closed. Set PACK 2 pb OFF.</td><td>After 5 s: AIR PACK 2 OFF.</td></tr><tr><td>2</td><td>In flight with WING ANTI ICE ON, at low engine power (cold bleed air); SD BLEED page.</td><td>When a bleed supplies air below 150 &deg;C, its bleed temperature is amber; with that ENG BLEED pb OFF (valve closed) it is not.</td></tr><tr><td>3</td><td>In flight with a TCAS RA possible (traffic), trigger a GPWS alert (e.g. SINK RATE).</td><td>The TCAS goes TA ONLY (no RA) while the GPWS alert is on.</td></tr><tr><td>4</td><td>SD CRUISE page in cruise with delta P above 1.5 PSI.</td><td>Delta P does not pulse. In the approach (flight phase 7) above 1.5 PSI it pulses, until it is below 1 PSI.</td></tr><tr><td>5</td><td>On the ground, one engine running, AUTO BRK MAX armed; SD WHEEL page.</td><td>AUTO BRK green (it was amber).</td></tr><tr><td>6</td><td>In flight above 2 500 ft RA and below FL 250, APU off: all engines flame out (e.g. fuel cut-off).</td><td>ENG ALL ENGINES FAILURE shows the APU ..... START line.</td></tr></table>
+<h2>3. ADIRS fast alignment in 30 s</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> Overhead ADIRS panel &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on develop: OK (2026-10-04). Rust tests in adirs.rs (the existing fast alignment test tightened to 30 s).</div>
+<h3>What it is for</h3>
+<p>A fast (re)alignment, the IR mode selector set to OFF and back to NAV within 5 s, took 180 s. Both FCOMs give about 30 s (A320 FCOM DSC-22_20-20-40, IRS alignment page: "a fast alignment takes 30 s"; A380 FCOM DSC-34-10-30-30). The shared systems code now takes 30 s.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Only the fast alignment changed.</td><td>A normal alignment from an unaligned IR is unchanged.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>With the IRs aligned on the ground, set an IR mode selector to OFF and back to NAV within 5 s.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Aircraft on the ground, IRs aligned (NAV). Set IR 1 to OFF and back to NAV within 5 s; start a stopwatch.</td><td>IR 1 is aligned again after about 30 s (not 3 min).</td></tr><tr><td>2</td><td>Repeat on the A380X.</td><td>Same: about 30 s.</td></tr></table>
+</body></html>
