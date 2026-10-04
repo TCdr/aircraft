@@ -119,6 +119,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] F/CTL ALTN LAW shows MAX SPEED 310 KT except in ALT 1A, not only in ALT 1A - @TCdr
 1. [A380X/HYD] G RSVR LEVEL LO and G SYS OVHT tick the G ELEC PMP A and B OFF line from the green electric pumps (they read the yellow ones); the engine 3 and 4 pump disconnection now use DC 2 and DC 1 as in the FCOM (they were swapped) - @TCdr
 1. [A380X/SD] DOOR/OXY page: CREW SUPPLY OFF now shows the CKPT legend amber and REGUL PR LO on ground; the CABIN line no longer follows the crew oxygen pb - @TCdr
+1. [A32NX/FWS] AIR PACK 2 OFF checks the ENG 2 BLEED pb (it read ENG 1 BLEED) - @TCdr
+1. [A32NX/BLEED] BLEED page: the bleed temperature turns amber when the bleed supplies air below 150 °C with WING ANTI ICE on in flight (the low temperature flag was set only with the bleed valve closed) - @TCdr
+1. [A32NX/TCAS] A GPWS warning or alert now puts the TCAS in TA ONLY automatically (it read an A380X variable) - @TCdr
+1. [A32NX/SD] CRUISE page: delta P pulses only above 1.5 PSI in the approach phase (resets at 1 PSI), not during the whole cruise - @TCdr
+1. [A32NX/SD] WHEEL page: AUTO BRK no longer turns amber when an engine is off (single-engine taxi, engine failure) - @TCdr
+1. [A32NX/FWS] ALL ENGINES FAILURE: the APU START line shows below FL 250 as in the FCOM, not only below 2 500 ft radio altitude - @TCdr
 
 ## 2024.1.0
 

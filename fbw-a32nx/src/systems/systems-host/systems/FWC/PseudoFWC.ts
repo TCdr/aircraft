@@ -54,6 +54,7 @@ import { A32NXFacBusEvents } from '@shared/publishers/A32NXFacBusPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
+import { isApuStartLineShown } from './Logic/AllEnginesFailure';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -1017,6 +1018,9 @@ export class PseudoFWC {
   private readonly rightFuelPump2Auto = ConsumerValue.create(null, false);
 
   private readonly fuelCtrTankModeSelMan = ConsumerValue.create(null, false);
+
+  /** ADR pressure altitude of the last update, null when no ADR is valid */
+  private pressureAltitudeFt: number | null = null;
 
   /* HYDRAULICS */
 
@@ -3214,7 +3218,7 @@ export class PseudoFWC {
     const crossbleedFullyClosed = SimVar.GetSimVarValue('L:A32NX_PNEU_XBLEED_VALVE_FULLY_CLOSED', 'bool');
     const eng1Bleed = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_1_BLEED_PB_IS_AUTO', 'bool');
     const eng1BleedPbFault = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_1_BLEED_PB_HAS_FAULT', 'bool');
-    const eng2Bleed = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_1_BLEED_PB_IS_AUTO', 'bool');
+    const eng2Bleed = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_2_BLEED_PB_IS_AUTO', 'bool');
     const eng2BleedPbFault = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_2_BLEED_PB_HAS_FAULT', 'bool');
     const pack1Fault = SimVar.GetSimVarValue('L:A32NX_OVHD_COND_PACK_1_PB_HAS_FAULT', 'bool');
     const pack2Fault = SimVar.GetSimVarValue('L:A32NX_OVHD_COND_PACK_2_PB_HAS_FAULT', 'bool');
@@ -3376,6 +3380,8 @@ export class PseudoFWC {
     this.lrTankLow.set(this.lrTankLowConfirm.write(leftFuelLow && rightFuelLow, deltaTime));
     this.leftFuelLow.set(this.leftFuelLowConfirm.write(leftFuelLow && !this.lrTankLow.get(), deltaTime));
     this.rightFuelLow.set(this.rightFuelLowConfirm.write(rightFuelLow && !this.lrTankLow.get(), deltaTime));
+
+    this.pressureAltitudeFt = pressureAltitude;
 
     /* F/CTL */
     const fcdc1DiscreteWord1 = Arinc429Word.fromSimVarValue('L:A32NX_FCDC_1_DISCRETE_WORD_1');
@@ -5575,7 +5581,9 @@ export class PseudoFWC {
         0,
         !this.sdac00410Word.bitValue(27) ? 1 : null,
         5,
-        !(this.apuMasterSwitch.get() === 1 || this.apuAvail.get() === 1) && this.radioAlt.get() < 2500 ? 6 : null,
+        isApuStartLineShown(this.apuMasterSwitch.get() === 1, this.apuAvail.get() === 1, this.pressureAltitudeFt)
+          ? 6
+          : null,
         this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0 ? 7 : null,
         this.fac1Failed.get() === 1 ? 8 : null,
         9,
