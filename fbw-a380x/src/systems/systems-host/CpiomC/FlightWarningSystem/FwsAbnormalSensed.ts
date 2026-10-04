@@ -24,6 +24,7 @@ import {
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
+import { isApFdTcasModeInop } from './FwsSurvAlerts';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -4788,32 +4789,86 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     341800016: {
-      // TCAS 1 FAULT
+      // TCAS 1 FAULT (A380 FCOM a380_fcom.txt:166882-166927). Not with XPDR 1 FAULT: a failed XPDR 1 makes TCAS 1
+      // inoperative, and SURV XPDR 1 FAULT lists TCAS 1 in its STATUS (a380_fcom.txt:167319-167320).
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1Fault,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [true],
-      whichItemsChecked: () => [this.xpdrTcasSystemIs(2)],
+      notActiveWhenItemActive: ['341800061'],
+      // XPDR & TCAS ..... SYS 2: if selected on SYS 1 and the XPDR/TCAS on SYS 2 is operative
+      whichItemsToShow: () => [this.fws.tcas1SwitchLine.isShown()],
+      whichItemsChecked: () => [this.fws.tcas1SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
+      // STATUS: TCAS 1 (FwsInopSys 340300011), AP/FD TCAS MODE if the XPDR/TCAS is selected on SYS 1
+      inopSysAllPhases: () => [isApFdTcasModeInop(1, this.fws.xpdrTcasSystem.get()) ? '220300020' : null],
       failure: 2,
       sysPage: SdPages.None,
     },
     341800017: {
-      // TCAS 2 FAULT
+      // TCAS 2 FAULT (A380 FCOM a380_fcom.txt:166882-166927). Not with XPDR 2 FAULT (see TCAS 1 FAULT).
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas2Fault,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [true],
-      whichItemsChecked: () => [this.xpdrTcasSystemIs(1)],
+      notActiveWhenItemActive: ['341800062'],
+      // XPDR & TCAS ..... SYS 1: if selected on SYS 2 and the XPDR/TCAS on SYS 1 is operative
+      whichItemsToShow: () => [this.fws.tcas2SwitchLine.isShown()],
+      whichItemsChecked: () => [this.fws.tcas2SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
+      // STATUS: TCAS 2 (FwsInopSys 340300012), AP/FD TCAS MODE if the XPDR/TCAS is selected on SYS 2
+      inopSysAllPhases: () => [isApFdTcasModeInop(2, this.fws.xpdrTcasSystem.get()) ? '220300020' : null],
       failure: 2,
       sysPage: SdPages.None,
     },
     341800018: {
-      // TCAS 1+2 FAULT
+      // TCAS 1+2 FAULT (A380 FCOM a380_fcom.txt:166935-166958): crew awareness, STATUS TCAS 1+2 (FwsInopSys
+      // 340300029). Not with XPDR 1+2 FAULT, which lists TCAS 1+2 in its STATUS (a380_fcom.txt:167361-167362).
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
       simVarIsActive: this.fws.tcas1And2Fault,
+      notActiveWhenItemActive: ['341800063'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    341800061: {
+      // XPDR 1 FAULT (A380 FCOM a380_fcom.txt:167281-167322): the XPDR function of SURV SYS 1 is failed. Caution
+      // (single chime, MASTER CAUT); flight phase inhibition as the TCAS FAULT alerts.
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.xpdr1Fault,
+      notActiveWhenItemActive: [],
+      // XPDR & TCAS ..... SYS 2: if selected on SYS 1 and XPDR 2 is operative
+      whichItemsToShow: () => [this.fws.xpdr1SwitchLine.isShown()],
+      whichItemsChecked: () => [this.fws.xpdr1SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
+      // STATUS: XPDR 1, TCAS 1, AP/FD TCAS MODE if the XPDR/TCAS is selected on SYS 1
+      inopSysAllPhases: () => [
+        '340300053',
+        '340300011',
+        isApFdTcasModeInop(1, this.fws.xpdrTcasSystem.get()) ? '220300020' : null,
+      ],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    341800062: {
+      // XPDR 2 FAULT (A380 FCOM a380_fcom.txt:167281-167322): the XPDR function of SURV SYS 2 is failed
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.xpdr2Fault,
+      notActiveWhenItemActive: [],
+      // XPDR & TCAS ..... SYS 1: if selected on SYS 2 and XPDR 1 is operative
+      whichItemsToShow: () => [this.fws.xpdr2SwitchLine.isShown()],
+      whichItemsChecked: () => [this.fws.xpdr2SwitchLine.isChecked(this.fws.xpdrTcasSystem.get())],
+      // STATUS: XPDR 2, TCAS 2, AP/FD TCAS MODE if the XPDR/TCAS is selected on SYS 2
+      inopSysAllPhases: () => [
+        '340300056',
+        '340300012',
+        isApFdTcasModeInop(2, this.fws.xpdrTcasSystem.get()) ? '220300020' : null,
+      ],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    341800063: {
+      // XPDR 1+2 FAULT (A380 FCOM a380_fcom.txt:167324-167362): crew awareness, STATUS XPDR 1+2, TCAS 1+2
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.xpdr1And2Fault,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
+      inopSysAllPhases: () => ['340300057', '340300029'],
       failure: 2,
       sysPage: SdPages.None,
     },

@@ -96,10 +96,11 @@ impl OutflowValveControlModule {
             acp: AutomaticControlPartition::new(outflow_valve_id),
             sop: SafetyAndOverridePartition::new(),
             epp: EmergencyPressurizationPartition::new(context, outflow_valve_id),
-            outflow_valve: OutflowValve::new(
-                powered_by.to_vec(),
-                vec![ElectricalBusType::DirectCurrentBattery],
-            ),
+            // Each A380 outflow valve is driven by a single electrical motor (A380 FCOM DSC-21-30-10,
+            // a380_fcom.txt:7357), controlled by its outflow valve controller in auto and in manual mode
+            // (7316-7319), supplied by DC 1/2 or DC ESS (8122-8125). The A320 manual motor on the DC BAT
+            // busbar (a bus the A380 does not have) therefore gets the controller supplies too.
+            outflow_valve: OutflowValve::new(powered_by.to_vec(), powered_by.to_vec()),
             fault: None,
         }
     }

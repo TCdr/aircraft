@@ -36,7 +36,9 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
   private static simvars = new Map<keyof OitSimvars, SimVarDefinition>([
     ['coldDark', { name: 'L:A32NX_COLD_AND_DARK_SPAWN', type: SimVarValueType.Number }],
     ['elec', { name: 'L:A32NX_ELEC_AC_2_BUS_IS_POWERED', type: SimVarValueType.Bool }],
-    ['elecFo', { name: 'L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', type: SimVarValueType.Bool }],
+    // F/O OIT = AC ESS (A380 FCOM DSC-46-20-70, a380_fcom.txt:107810). The A380 AC ESS busbar (400XP) is the
+    // AC_ESS_SHED variable; AC_ESS is the A380 AC EMER busbar (491XP).
+    ['elecFo', { name: 'L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', type: SimVarValueType.Bool }],
     ['potentiometerCaptain', { name: 'LIGHT POTENTIOMETER:78', type: SimVarValueType.Number }],
     ['potentiometerFo', { name: 'LIGHT POTENTIOMETER:79', type: SimVarValueType.Number }],
     ['oisDomainSwitchCapt', { name: 'L:A380X_SWITCH_OIT_SIDE_LEFT', type: SimVarValueType.Bool }],
