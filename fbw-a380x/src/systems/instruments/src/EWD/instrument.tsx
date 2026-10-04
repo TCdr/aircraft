@@ -37,8 +37,8 @@ class A380X_EWD extends BaseInstrument {
   private readonly clock = new Clock(this.bus);
 
   /**
-   * The run gate when this gauge is the EWD drawn on the SD DU (CDS reconfiguration, panel.cfg hostDu): it starts and
-   * runs only while the EWD is shown there. Null for the EWD DU's own gauge.
+   * The run gate when this gauge is the EWD drawn on the SD DU or an ND DU (CDS reconfiguration, panel.cfg hostDu): it
+   * starts and runs only while the EWD is shown there. Null for the EWD DU's own gauge.
    */
   private readonly hostedGate: HostedDisplayGate | null;
 
