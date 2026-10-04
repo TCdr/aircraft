@@ -1,6 +1,7 @@
 // Copyright (c) 2024-2025 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 import { CdsDisplayUnit, DisplayUnitID } from '../MsfsAvionicsCommon/CdsDisplayUnit';
+import { hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
 
 import {
   ConsumerSubject,
@@ -220,6 +221,7 @@ export class EngineWarningDisplay extends DestroyableComponent<{ bus: ArincEvent
       <CdsDisplayUnit
         bus={this.props.bus}
         displayUnitId={DisplayUnitID.Ewd}
+        hostDisplayUnitId={hostDisplayUnitOf('EWD') ?? undefined}
         test={Subject.create(-1)}
         failed={Subject.create(false)}
       >

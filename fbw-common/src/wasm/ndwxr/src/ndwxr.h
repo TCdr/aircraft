@@ -149,6 +149,7 @@
 #include "../../terronnd/src/types/arinc429.hpp"
 
 #include "constants.h"
+#include "cds_display.h"  // the A380X CDS reconfiguration check (pure logic)
 
 namespace ndwxr {
 
@@ -229,6 +230,9 @@ struct Instance {
   // A380X_CDS_CAPT(FO)_ND_DU_FAILED: the ND's display unit is failed (flyPad failure), written by its
   // CdsDisplayUnit (shared/src/CdsDisplayUnits.ts). A failed DU is blank, so this module draws nothing either.
   ID displayUnitFailedVar = -1;
+  // A380X_CDS_CAPT(FO)_ND_DU_DISPLAY: the display the ND's DU shows (CDS reconfiguration, see cds_display.h). While it
+  // shows the PFD, this module draws nothing either.
+  ID displayUnitDisplayVar = -1;
 #endif
 
   FsTextureId mapView = 0;

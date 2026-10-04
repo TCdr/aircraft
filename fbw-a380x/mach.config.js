@@ -4,6 +4,7 @@ const tailwind = require('tailwindcss');
 const postCssColorFunctionalNotation = require('postcss-color-functional-notation');
 const postCssInset = require('postcss-inset');
 const { typecheckingPlugin } = require('#build-utils');
+const { hostedInstrumentPlugin } = require('./src/systems/instruments/buildSrc/hostedInstrument.cjs');
 
 /** @type { import('@synaptic-simulations/mach').MachConfig } */
 module.exports = {
@@ -29,12 +30,13 @@ module.exports = {
   ],
   instruments: [
     msfsAvionicsInstrument('Clock'),
-    msfsAvionicsInstrument('EWD'),
+    // EWD, ND and PFD: also drawn on another DU (CDS reconfiguration), with a scoped stylesheet (*-hosted.html/css)
+    msfsAvionicsInstrument('EWD', 'instrument.tsx', true),
     msfsAvionicsInstrument('FCU'),
     msfsAvionicsInstrument('MFD'),
-    msfsAvionicsInstrument('ND'),
+    msfsAvionicsInstrument('ND', 'instrument.tsx', true),
     msfsAvionicsInstrument('OIT'),
-    msfsAvionicsInstrument('PFD'),
+    msfsAvionicsInstrument('PFD', 'instrument.tsx', true),
     msfsAvionicsInstrument('RMP'),
     msfsAvionicsInstrument('SDv2'),
     msfsAvionicsInstrument('popup'),
@@ -48,17 +50,19 @@ module.exports = {
   ],
 };
 
-function msfsAvionicsInstrument(name, index = 'instrument.tsx') {
+function msfsAvionicsInstrument(name, index = 'instrument.tsx', hosted = false) {
+  const simulatorPackage = {
+    type: 'baseInstrument',
+    templateId: `A380X_${name}`,
+    mountElementId: `${name}_CONTENT`,
+    fileName: name.toLowerCase(),
+    imports: ['/JS/dataStorage.js'],
+  };
   return {
     name,
     index: `src/systems/instruments/src/${name}/${index}`,
-    simulatorPackage: {
-      type: 'baseInstrument',
-      templateId: `A380X_${name}`,
-      mountElementId: `${name}_CONTENT`,
-      fileName: name.toLowerCase(),
-      imports: ['/JS/dataStorage.js'],
-    },
+    simulatorPackage,
+    plugins: hosted ? [hostedInstrumentPlugin(name, simulatorPackage)] : undefined,
   };
 }
 

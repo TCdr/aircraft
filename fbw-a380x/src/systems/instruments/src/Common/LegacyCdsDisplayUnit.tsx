@@ -2,7 +2,8 @@
 import React, { forwardRef, PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { DcElectricalBus } from '@shared/electrical';
-import { DisplayUnitID, displayUnitFailedVar } from '@shared/CdsDisplayUnits';
+import { DisplayUnitID, displayUnitDisplayVar, displayUnitFailedVar } from '@shared/CdsDisplayUnits';
+import { normalDisplayOf, resolveDisplay } from '@shared/CdsReconfiguration';
 import { useSimVar } from './simVars';
 import { useUpdate } from './hooks';
 
@@ -83,6 +84,9 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
       200,
     );
     const [homeCockpit] = useSimVar('L:A32NX_HOME_COCKPIT_ENABLED', 'bool', 200);
+    // The DU shows another display (CDS reconfiguration, e.g. the EWD on the SD DU): this one draws nothing
+    const [duDisplay] = useSimVar(displayUnitDisplayVar(displayUnitId), 'number', 200);
+    const shown = resolveDisplay(displayUnitId, duDisplay) === normalDisplayOf(displayUnitId);
 
     useUpdate(
       useCallback(
@@ -156,6 +160,10 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
         setTimer(null);
       }
     }, [timer, state, potentiometer, electricityState0, electricityState1, failed]);
+
+    if (!shown) {
+      return <></>;
+    }
 
     if (window.ACE_ENGINE_HANDLE) {
       return (
