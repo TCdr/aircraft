@@ -1984,6 +1984,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
    Sounds (Future PR by Boris) - @oliverpope03 (Oliver Pope)
 1. [Sounds] Added new sounds for fuel pumps, flaps, ground roll and rattles, touchdowns, and wind - @hotshotp (Boris)
 1. [ND] Hide the aircraft indicator in PLAN mode while ADIRS are not aligned - @lousybyte (lousybyte)
+1. [A32NX/ND] The chronometer at the bottom left of the ND now shows white digits on a black box (FCOM: white), instead of green digits on a light grey box that were hard to read - @TCdr
 1. [LIGHTS] Improved Strobe, Nav and beacon lights - @lukecologne (lukecologne)
 1. [Sounds] Added new startup sounds - @hotshotp (Boris)
 1. [ECAM] ELAC/SEC warning color fix, added spoiler functionality to ECAM page - @wpine215 (Iceman)
