@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -35,6 +35,7 @@ import {
   GenericAdirsEvents,
   MapParameters,
   MathUtils,
+  NearbyRunwayProvider,
   OansControlEvents,
   OansFmsDataStore,
   OansMapProjection,
@@ -211,6 +212,9 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
   ];
 
   public readonly amdbClient = new NavigraphAmdbClient();
+
+  /** The runways of the sim's airport database, for RWY AHEAD while no airport map is loaded */
+  private readonly runwaysWithoutMap = new NearbyRunwayProvider(this.props.bus);
 
   private readonly labelManager = new OancLabelManager<T>(this);
 
@@ -435,16 +439,19 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
       this.props.bus.getPublisher<OansControlEvents>().pub('oans_show_set_plan_mode', v, true),
     );
 
-    this.sub
-      .on('oans_display_airport')
-      .whenChanged()
-      .handle((airport) => {
-        if (this.oansPerformanceModeHide.get()) {
-          this.dataAirportIcao.set(airport);
-        } else {
-          this.loadAirportMap(airport);
-        }
-      });
+    let displayedAirport: string | null = null;
+    this.sub.on('oans_display_airport').handle(({ side, airport }) => {
+      // The airport of this side's OANS (FCOM DSC-34-10-70-10)
+      if (side !== this.props.side || airport === displayedAirport) {
+        return;
+      }
+      displayedAirport = airport;
+      if (this.oansPerformanceModeHide.get()) {
+        this.dataAirportIcao.set(airport);
+      } else {
+        this.loadAirportMap(airport);
+      }
+    });
 
     this.sub
       .on('oans_performance_mode_hide')
@@ -612,7 +619,8 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
   }
 
   public unloadAirportMap(performanceModeUnload: boolean = false) {
-    if (!performanceModeUnload) {
+    // The BTV selection made on this side's airport (the other side may have its own airport and BTV selection)
+    if (!performanceModeUnload && this.btvUtils.btvRunway.get() !== null) {
       this.btvUtils.clearSelection();
     }
     this.markerManager.eraseAllCrosses();
@@ -624,7 +632,17 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     this.data = undefined;
     this.aircraftWithinAirport.set(false);
 
-    this.btvUtils.transmitRwyAheadAdvisory(false, '', true);
+    if (this.isRwyAheadSource) {
+      this.btvUtils.transmitRwyAheadAdvisory(false, '', true);
+    }
+  }
+
+  /**
+   * The RWY AHEAD advisory is one for the aircraft: computed by the Captain's OANS, which may display another airport
+   * than the First Officer's one
+   */
+  private get isRwyAheadSource(): boolean {
+    return this.props.side === 'L';
   }
 
   /**
@@ -1149,14 +1167,33 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
       this.unloadAirportMap(true);
     }
 
-    if (!this.data || this.dataLoading || this.resetPulled.get()) {
-      return;
-    }
-
     this.aircraftOnGround.set(
       // FIXME use an enum...
       ![6, 7, 8, 9].includes(SimVar.GetSimVarValue('L:A32NX_FWC_FLIGHT_PHASE', SimVarValueType.Number)),
     );
+
+    if (
+      this.isRwyAheadSource &&
+      (!this.data || !this.aircraftWithinAirport.get()) &&
+      !this.dataLoading &&
+      !this.resetPulled.get() &&
+      !this.pposNotAvailable.get() &&
+      this.aircraftOnGround.get()
+    ) {
+      // No airport map (no AMDB data, e.g. no Navigraph subscription), or the map of another airport (PLAN mode): RWY
+      // AHEAD from the sim's runways
+      const ppos = this.ppos.get();
+      this.runwaysWithoutMap.update(ppos.lat, ppos.long, now);
+      this.btvUtils.updateRwyAheadAdvisoryWithoutMap(
+        ppos,
+        this.trueHeadingWord.get().value,
+        this.runwaysWithoutMap.runways,
+      );
+    }
+
+    if (!this.data || this.dataLoading || this.resetPulled.get()) {
+      return;
+    }
 
     const arpCoordinates = this.arpCoordinates.get();
     if (!this.pposNotAvailable.get() && arpCoordinates) {
@@ -1198,12 +1235,14 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
         this.positionVisible.set(false);
       }
 
-      this.btvUtils.updateRwyAheadAdvisory(
-        this.ppos.get(),
-        arpCoordinates,
-        this.trueHeadingWord.get().value,
-        this.layerFeatures[2],
-      );
+      if (this.isRwyAheadSource && this.aircraftWithinAirport.get()) {
+        this.btvUtils.updateRwyAheadAdvisory(
+          this.ppos.get(),
+          arpCoordinates,
+          this.trueHeadingWord.get().value,
+          this.layerFeatures[2],
+        );
+      }
     } else {
       this.positionVisible.set(false);
     }

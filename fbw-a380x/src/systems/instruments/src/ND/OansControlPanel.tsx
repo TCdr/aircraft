@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import './oans-style.scss';
@@ -16,7 +16,7 @@ import { InputField, InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/Inp
 import { RadioButtonGroup } from '../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
 import { TopTabNavigator, TopTabNavigatorPage } from '../MsfsAvionicsCommon/UiWidgets/TopTabNavigator';
 import { NDSimvars } from './NDSimvarPublisher';
-import { Coordinates, distanceTo } from 'msfs-geo';
+import { Coordinates } from 'msfs-geo';
 
 import {
   AmdbAirportSearchResult,
@@ -24,7 +24,9 @@ import {
   Arinc429LocalVarConsumerSubject,
   BTV_MIN_TOUCHDOWN_ZONE_DISTANCE,
   BtvData,
+  EfisNdMode,
   EfisSide,
+  FcuSimVars,
   FeatureType,
   FeatureTypeString,
   FmsOansData,
@@ -33,7 +35,6 @@ import {
   NXLogicConfirmNode,
   OansControlEvents,
   OansFmsDataStore,
-  RegisteredSimVar,
 } from '@flybywiresim/fbw-sdk';
 import {
   ControlPanelAirportSearchMode,
@@ -65,6 +66,7 @@ import {
 } from '@microsoft/msfs-sdk';
 
 import { OansRunwayInfoBox } from './OANSRunwayInfoBox';
+import { oansDefaultAirport } from './OansDefaultAirport';
 
 export interface OansProps extends ComponentProps {
   bus: EventBus;
@@ -82,6 +84,7 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
     AdirsSimVars &
       BtvData &
       ClockEvents &
+      FcuSimVars &
       FmsOansData &
       LgciuBusEvents &
       NDSimvars &
@@ -182,8 +185,19 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
     this.selectedFeatureId,
   );
 
+  /**
+   * The flight crew displayed an airport (ARPT SEL). Only the PLAN mode displays an airport other than the default one
+   * (A380 FCOM DSC-34-10-70-20): the selection is kept until the ND leaves the PLAN mode, or the aircraft lands or
+   * takes off.
+   */
   private manualAirportSelection = false;
-  private manualAirportSelectionTime: number = 0;
+
+  /** In flight (FWC flight phases LIFT OFF to BELOW 800 FT), at the last automatic airport check */
+  private lastInFlight: boolean | null = null;
+
+  private readonly ndMode = ConsumerSubject.create(this.sub.on('ndMode'), EfisNdMode.ARC);
+
+  private readonly altitudeWord = Arinc429LocalVarConsumerSubject.create(this.sub.on('baroCorrectedAltitude'));
 
   // TODO: Should be using GPS position interpolated with IRS velocity data
   private readonly pposLatWord = Arinc429LocalVarConsumerSubject.create(this.sub.on('latitude'));
@@ -230,8 +244,6 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
   private readonly oansRequestedStoppingDistance = Arinc429LocalVarConsumerSubject.create(
     this.sub.on('oansRequestedStoppingDistance'),
   );
-
-  private readonly simTimeVar = RegisteredSimVar.create<number>('E:SIMULATION TIME', SimVarValueType.Seconds);
 
   // Need to add touchdown zone distance to displayed value. BTV computes from TDZ internally,
   // but users enter LDA from threshold
@@ -405,7 +417,23 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
         }),
     );
 
-    this.subs.push(this.sub.on('oans_display_airport').handle((arpt) => this.handleSelectAirport(arpt)));
+    this.subs.push(
+      this.sub.on('oans_display_airport').handle(({ side, airport }) => {
+        if (side === this.props.side && airport !== '') {
+          this.handleSelectAirport(airport);
+        }
+      }),
+    );
+
+    let previousNdMode = this.ndMode.get();
+    this.subs.push(
+      this.ndMode.sub((mode) => {
+        if (previousNdMode === EfisNdMode.PLAN && mode !== EfisNdMode.PLAN) {
+          this.manualAirportSelection = false;
+        }
+        previousNdMode = mode;
+      }),
+    );
 
     this.subs.push(
       this.selectedEntityIndex.sub((val) => {
@@ -605,8 +633,9 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
     }
 
     this.manualAirportSelection = true;
-    this.manualAirportSelectionTime = this.simTimeVar.get();
-    this.props.bus.getPublisher<OansControlEvents>().pub('oans_display_airport', selectedArpt.idarpt, true);
+    this.props.bus
+      .getPublisher<OansControlEvents>()
+      .pub('oans_display_airport', { side: this.props.side, airport: selectedArpt.idarpt }, true);
     this.store.loadedAirport.set(selectedArpt);
     this.store.isAirportSelectionPending.set(false); // TODO should be done when airport is fully loaded
   };
@@ -645,58 +674,62 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
 
   private unloadCurrentAirport() {
     if (this.store.loadedAirport.get()) {
-      this.props.bus.getPublisher<OansControlEvents>().pub('oans_display_airport', '', true);
+      this.props.bus
+        .getPublisher<OansControlEvents>()
+        .pub('oans_display_airport', { side: this.props.side, airport: '' }, true);
       this.store.loadedAirport.set(null);
       this.store.isAirportSelectionPending.set(false);
     }
   }
 
+  /**
+   * Displays the default airport of the moving airport map (A380 FCOM DSC-34-10-70-20, MOVING AIRPORT MAP): the current
+   * airport on ground, the origin, destination or alternate airport in flight (see {@link oansDefaultAirport}).
+   */
   private autoLoadAirport() {
-    // If we don't have ppos or airport unloaded due to performance reasons, do not try to auto load
-    // If airport has been manually selected within the last 10 minutes, do not auto load.
-    // FIXME reset manualAirportSelection after a while, to enable auto-load for destination even if departure was selected manually
+    const flightPhase = SimVar.GetSimVarValue('L:A32NX_FWC_FLIGHT_PHASE', SimVarValueType.Number);
+    const inFlight = [6, 7, 8, 9].includes(flightPhase);
+    if (this.lastInFlight !== null && this.lastInFlight !== inFlight) {
+      this.manualAirportSelection = false;
+    }
+    this.lastInFlight = inFlight;
+
+    // No present position, airport unloaded for performance, manual selection, selection pending in the ARPT SEL panel,
+    // no airport database, or the ARPT NAV reset panel pulled: no automatic airport
     if (
       this.presentPosNotAvailable.get() ||
       this.oansPerformanceModeAndMovedOutOfZoomRange.read() ||
-      (this.manualAirportSelection === true && this.simTimeVar.get() - this.manualAirportSelectionTime < 600) ||
+      this.manualAirportSelection ||
       this.store.loadedAirport.get() !== this.store.selectedAirport.get() ||
       this.store.airports.length === 0 ||
       this.oansResetPulled.get()
     ) {
       return;
     }
-    // If on ground, and no airport is loaded, find current airport.
-    if (![6, 7, 8, 9].includes(SimVar.GetSimVarValue('L:A32NX_FWC_FLIGHT_PHASE', SimVarValueType.Number))) {
-      // Go through all airports, load if distance <20NM
-      const nearestAirports = this.store.airports
-        .getArray()
-        .filter((ap) => distanceTo(this.presentPos.get(), { lat: ap.coordinates.lat, long: ap.coordinates.lon }) < 20);
-      const sortedAirports = nearestAirports.sort(
-        (a, b) =>
-          distanceTo(this.presentPos.get(), { lat: a.coordinates.lat, long: a.coordinates.lon }) -
-          distanceTo(this.presentPos.get(), { lat: b.coordinates.lat, long: b.coordinates.lon }),
-      );
-      if (sortedAirports.length > 0) {
-        const ap = sortedAirports[0];
-        if (ap.idarpt !== this.store.loadedAirport.get()?.idarpt) {
-          this.props.bus.getPublisher<OansControlEvents>().pub('oans_display_airport', ap.idarpt, true);
-          this.store.loadedAirport.set(ap);
-          this.store.isAirportSelectionPending.set(false); // TODO should be done when airport is fully loaded
-        }
-        return;
-      }
-    }
-    // If in flight, load destination airport if distance is <50NM. This could cause stutters, consider deactivating.
-    else {
-      const destArpt = this.store.airports.getArray().find((it) => it.idarpt === this.fmsDataStore.destination.get());
-      if (destArpt && destArpt.idarpt !== this.store.loadedAirport.get()?.idarpt) {
-        if (distanceTo(this.presentPos.get(), { lat: destArpt.coordinates.lat, long: destArpt.coordinates.lon }) < 50) {
-          this.props.bus.getPublisher<OansControlEvents>().pub('oans_display_airport', destArpt.idarpt, true);
-          this.store.loadedAirport.set(destArpt);
-          this.store.isAirportSelectionPending.set(false); // TODO should be done when airport is fully loaded
-          return;
-        }
-      }
+
+    // Each side has its own OANS and airport (FCOM DSC-34-10-70-10): the PLAN mode default follows this ND only
+    const planMode = this.ndMode.get() === EfisNdMode.PLAN;
+
+    const altitude = this.altitudeWord.get();
+    const loaded = this.store.loadedAirport.get();
+    const icao = oansDefaultAirport({
+      airports: this.store.airports.getArray(),
+      position: this.presentPos.get(),
+      altitude: altitude.isNormalOperation() ? altitude.value : null,
+      onGround: !inFlight,
+      planMode,
+      origin: this.fmsDataStore.origin.get(),
+      destination: this.fmsDataStore.destination.get(),
+      alternate: this.fmsDataStore.alternate.get(),
+      displayed: loaded?.idarpt ?? null,
+    });
+    const airport = icao !== null ? this.store.airports.getArray().find((it) => it.idarpt === icao) : undefined;
+    if (airport && airport.idarpt !== loaded?.idarpt) {
+      this.props.bus
+        .getPublisher<OansControlEvents>()
+        .pub('oans_display_airport', { side: this.props.side, airport: airport.idarpt }, true);
+      this.store.loadedAirport.set(airport);
+      this.store.isAirportSelectionPending.set(false); // TODO should be done when airport is fully loaded
     }
   }
 

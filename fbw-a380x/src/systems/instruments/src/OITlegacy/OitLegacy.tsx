@@ -102,6 +102,7 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
             satcom: false,
             latLonExtend: false,
             rmpVhfSpacing: false,
+            raas: false,
           },
           realism: {
             mcduKeyboard: false,
