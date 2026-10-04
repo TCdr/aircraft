@@ -232,6 +232,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
 1. [EFB] Loading an interior lighting preset that was never saved (or auto-loading one) sets the lights to 50 % as the flyPad says, instead of fading every light, displays and MCDUs included, to off - @TCdr
 1. [EFB] Saving an interior lighting preset works again: the presets file was never written (the ini library refused the existing work folder), so no preset could be saved or loaded - @TCdr
+1. [A32NX] Fire protection: new flyPad failures of the engine 1, engine 2 and APU fire detection units (FDU): the zone gives the ENG 1(2) / APU FIRE DET FAULT caution with healthy loops and can no longer give a fire warning - @TCdr
+1. [A32NX] The ENG MASTER panel FIRE light stays dark during the ENG 1 FIRE TEST with ENG 1 loop A faulted and during the ENG 2 FIRE TEST with ENG 2 loop B faulted, as in the FCOM - @TCdr
+1. [A32NX] An APU fire on the ground sounds the external horn in the nose gear bay - @TCdr
 1. [A380X] The AUTOLAND lights on the glareshield flash while pressed, the light test from the FCOM - @TCdr
 1. [A380X] The angle of attack vanes of the three multifunction probes on the nose (one left, two right) follow the angle of attack - @TCdr
 1. [A380X/EFB] New failures on the flyPad: brakes NORM and ALTN circuit leaks, ALTN brake accumulator gas leak, and jammed trim air valves and duct overheats for the cockpit, main deck zone 1, upper deck zone 1 and forward cargo - @TCdr

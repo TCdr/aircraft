@@ -4682,6 +4682,7 @@ export class PseudoFWC {
     const eng1FireDetectionFaults = fireDetectionFaultAlerts(
       SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_LOOP_A_FAULT', 'bool') > 0,
       SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_LOOP_B_FAULT', 'bool') > 0,
+      SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_FDU_FAULT', 'bool') > 0,
     );
     this.eng1FireLoopAFault.set(eng1FireDetectionFaults.loopAFault);
     this.eng1FireLoopBFault.set(eng1FireDetectionFaults.loopBFault);
@@ -4689,6 +4690,7 @@ export class PseudoFWC {
     const eng2FireDetectionFaults = fireDetectionFaultAlerts(
       SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_LOOP_A_FAULT', 'bool') > 0,
       SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_LOOP_B_FAULT', 'bool') > 0,
+      SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_FDU_FAULT', 'bool') > 0,
     );
     this.eng2FireLoopAFault.set(eng2FireDetectionFaults.loopAFault);
     this.eng2FireLoopBFault.set(eng2FireDetectionFaults.loopBFault);
@@ -4696,6 +4698,7 @@ export class PseudoFWC {
     const apuFireDetectionFaults = fireDetectionFaultAlerts(
       SimVar.GetSimVarValue('L:A32NX_FIRE_APU_LOOP_A_FAULT', 'bool') > 0,
       SimVar.GetSimVarValue('L:A32NX_FIRE_APU_LOOP_B_FAULT', 'bool') > 0,
+      SimVar.GetSimVarValue('L:A32NX_FIRE_APU_FDU_FAULT', 'bool') > 0,
     );
     this.apuFireLoopAFault.set(apuFireDetectionFaults.loopAFault);
     this.apuFireLoopBFault.set(apuFireDetectionFaults.loopBFault);
