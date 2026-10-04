@@ -14,15 +14,31 @@ import {
 } from '@microsoft/msfs-sdk';
 import { FailuresConsumer, NXDataStore } from '@flybywiresim/fbw-sdk';
 // import { getSupplier } from '@flybywiresim/fbw-sdk';
-import { DisplayUnitFailure, DisplayUnitID, displayUnitFailedVar, isDisplayUnitPowered } from '@shared/CdsDisplayUnits';
+import {
+  DisplayUnitFailure,
+  DisplayUnitID,
+  displayUnitDisplayVar,
+  displayUnitFailedVar,
+  isDisplayUnitPowered,
+} from '@shared/CdsDisplayUnits';
+import { normalDisplayOf, resolveDisplay } from '@shared/CdsReconfiguration';
 import { DisplayVars } from './SimVarTypes';
+import { findInstrumentUrl } from './HostedDisplay';
 
 import './common.scss';
 
-export const getDisplayIndex = () => {
-  const url = Array.from(document.querySelectorAll('vcockpit-panel > *'))
-    ?.find((it) => it.tagName.toLowerCase() !== 'wasm-instrument')
-    ?.getAttribute('url');
+/**
+ * The last digit of the gauge URL (its duID)
+ * @param folder the instrument folder of the gauge (PFD, ND): all gauges of a panel.cfg block share the document, and a
+ * gauge drawn on another DU (CDS reconfiguration) is not the first one. Without it, the first gauge.
+ * @returns the digit, 0 without a URL
+ */
+export const getDisplayIndex = (folder?: string) => {
+  const url = folder
+    ? findInstrumentUrl(folder)
+    : Array.from(document.querySelectorAll('vcockpit-panel > *'))
+        ?.find((it) => it.tagName.toLowerCase() !== 'wasm-instrument')
+        ?.getAttribute('url');
 
   return url ? parseInt(url.substring(url.length - 1), 10) : 0;
 };
@@ -43,7 +59,13 @@ const DisplayUnitToPotentiometer: { [k in DisplayUnitID]: number } = {
 
 interface DisplayUnitProps {
   bus: EventBus;
+  /** The DU of the display (its normal DU): the display is the normal display of this DU */
   displayUnitId: DisplayUnitID;
+  /**
+   * The DU this gauge draws on when it is a hosted gauge (CDS reconfiguration, MsfsAvionicsCommon/HostedDisplay.ts):
+   * its power, brightness knob and failure apply. Without it, the DU of displayUnitId.
+   */
+  hostDisplayUnitId?: DisplayUnitID;
   /** An extra failure condition of the instrument; the DU's own flyPad failure is always applied */
   failed?: Subscribable<boolean>;
   test?: Subscribable<number>;
@@ -60,9 +82,29 @@ enum DisplayUnitState {
 }
 
 export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
-  private state: DisplayUnitState = SimVar.GetSimVarValue('L:A32NX_COLD_AND_DARK_SPAWN', 'Bool')
-    ? DisplayUnitState.Off
-    : DisplayUnitState.Standby;
+  /** The DU this display is drawn on */
+  private readonly physicalDisplayUnit = this.props.hostDisplayUnitId ?? this.props.displayUnitId;
+
+  /** The display of this gauge */
+  private readonly display = normalDisplayOf(this.props.displayUnitId);
+
+  /** The L:var with the display the DU shows (CDS reconfiguration, written by the systems host) */
+  private readonly displayVar = displayUnitDisplayVar(this.physicalDisplayUnit);
+
+  /**
+   * A hosted gauge starts when its display moves onto a DU that is already running: no power-up from Off (design
+   * choice, the DU does not boot again because it shows another display).
+   */
+  private state: DisplayUnitState =
+    this.props.hostDisplayUnitId === undefined && SimVar.GetSimVarValue('L:A32NX_COLD_AND_DARK_SPAWN', 'Bool')
+      ? DisplayUnitState.Off
+      : DisplayUnitState.Standby;
+
+  /**
+   * The DU shows this gauge's display (CDS reconfiguration, A380 FCOM DSC-31-15-20). Only the gauge of the display
+   * shown draws on the DU, also its power-up test screens.
+   */
+  private shown = true;
 
   private timeOut: number = 0;
 
@@ -122,9 +164,9 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
     }, true);
 
     // The DU's own failure: the DU goes blank (Off) and boots again (self test) when the failure is cleared
-    this.failuresConsumer.register(DisplayUnitFailure[this.props.displayUnitId], (f) => {
+    this.failuresConsumer.register(DisplayUnitFailure[this.physicalDisplayUnit], (f) => {
       this.displayUnitFailed = f;
-      SimVar.SetSimVarValue(displayUnitFailedVar(this.props.displayUnitId), 'Bool', f);
+      SimVar.SetSimVarValue(displayUnitFailedVar(this.physicalDisplayUnit), 'Bool', f);
       this.onFailedChanged();
     });
   }
@@ -169,17 +211,25 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
     this.failuresConsumer.update();
 
     const potentiometer = SimVar.GetSimVarValue(
-      `LIGHT POTENTIOMETER:${DisplayUnitToPotentiometer[this.props.displayUnitId]}`,
+      `LIGHT POTENTIOMETER:${DisplayUnitToPotentiometer[this.physicalDisplayUnit]}`,
       'percent over 100',
     );
 
     this.brightness.set(potentiometer);
     this.powered.set(
       isDisplayUnitPowered(
-        this.props.displayUnitId,
+        this.physicalDisplayUnit,
         (bus) => SimVar.GetSimVarValue(`L:A32NX_ELEC_${bus}_BUS_IS_POWERED`, 'Bool') > 0,
       ),
     );
+
+    const shown =
+      resolveDisplay(this.physicalDisplayUnit, SimVar.GetSimVarValue(this.displayVar, 'number')) === this.display;
+    if (shown !== this.shown) {
+      this.shown = shown;
+      // only what is drawn changes: the DU state (power-up sequence) is the DU's own
+      this.updateVisibility();
+    }
   }
 
   updateState() {
@@ -216,7 +266,19 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
       clearTimeout(this.timeOut);
     }
 
-    if (this.state === DisplayUnitState.Selftest) {
+    this.updateVisibility();
+  }
+
+  /** Shows the element of the DU state, or nothing when the DU shows another display */
+  private updateVisibility(): void {
+    if (!this.shown) {
+      // the DU shows another display (CDS reconfiguration): this gauge draws nothing, its DU state keeps running
+      this.selfTestRef.instance.style.display = 'none';
+      this.thalesBootupRef.instance.style.display = 'none';
+      this.maintenanceModeRef.instance.style.display = 'none';
+      this.engineeringTestModeRef.instance.style.display = 'none';
+      this.pfdRef.instance.style.display = 'none';
+    } else if (this.state === DisplayUnitState.Selftest) {
       this.selfTestRef.instance.style.display = 'block';
       this.thalesBootupRef.instance.style.display = 'none';
       this.maintenanceModeRef.instance.style.display = 'none';

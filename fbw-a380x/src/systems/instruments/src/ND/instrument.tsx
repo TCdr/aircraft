@@ -46,6 +46,8 @@ import { TcasBusPublisher } from '../MsfsAvionicsCommon/providers/TcasBusPublish
 import { FGDataPublisher } from '../MsfsAvionicsCommon/providers/FGDataPublisher';
 import { NDControlEvents } from './NDControlEvents';
 import { CdsDisplayUnit, DisplayUnitID, getDisplayIndex } from '../MsfsAvionicsCommon/CdsDisplayUnit';
+import { HostedDisplayGate, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
+import { CdsDisplay } from '@shared/CdsReconfiguration';
 import { EgpwcBusPublisher } from '../MsfsAvionicsCommon/providers/EgpwcBusPublisher';
 import { DmcPublisher } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { FMBusPublisher } from '../MsfsAvionicsCommon/providers/FMBusPublisher';
@@ -162,7 +164,7 @@ class NDInstrument implements FsInstrument {
   private readonly oansShown = Subject.create(false);
 
   constructor() {
-    const side: EfisSide = getDisplayIndex() === 1 ? 'L' : 'R';
+    const side: EfisSide = getDisplayIndex('ND') === 1 ? 'L' : 'R';
     const stateSubject = Subject.create<'L' | 'R'>(side);
     this.efisSide = side;
 
@@ -228,7 +230,8 @@ class NDInstrument implements FsInstrument {
       <div ref={this.topRef}>
         <CdsDisplayUnit
           bus={this.bus}
-          displayUnitId={getDisplayIndex() === 1 ? DisplayUnitID.CaptNd : DisplayUnitID.FoNd}
+          displayUnitId={getDisplayIndex('ND') === 1 ? DisplayUnitID.CaptNd : DisplayUnitID.FoNd}
+          hostDisplayUnitId={hostDisplayUnitOf('ND') ?? undefined}
           test={Subject.create(-1)}
           failed={Subject.create(false)}
         >
@@ -495,9 +498,57 @@ class NDInstrument implements FsInstrument {
   }
 }
 
-class A380X_ND extends FsBaseInstrument<NDInstrument> {
-  constructInstrument(): NDInstrument {
-    return new NDInstrument();
+/**
+ * The ND drawn on the PFD DU (CDS reconfiguration, PFD/ND pb; panel.cfg hostDu): the ND instrument is only created
+ * when the ND is first shown there, and then only runs while it is shown.
+ */
+class HostedNDInstrument implements FsInstrument {
+  private nd: NDInstrument | null = null;
+
+  private readonly gate: HostedDisplayGate;
+
+  private shown = false;
+
+  constructor(
+    public readonly instrument: BaseInstrument,
+    hostDisplayUnit: DisplayUnitID,
+  ) {
+    this.gate = new HostedDisplayGate(hostDisplayUnit, CdsDisplay.Nd, 'ND_CONTENT', () => {
+      this.nd = new NDInstrument();
+    });
+    this.gate.update();
+  }
+
+  public Update(): void {
+    this.shown = this.gate.update();
+    if (this.shown) {
+      this.nd?.Update();
+    }
+  }
+
+  public onInteractionEvent(args: string[]): void {
+    if (this.shown) {
+      this.nd?.onInteractionEvent(args);
+    }
+  }
+
+  onGameStateChanged(oldState: GameState, newState: GameState) {
+    this.nd?.onGameStateChanged(oldState, newState);
+  }
+
+  onFlightStart() {
+    this.nd?.onFlightStart();
+  }
+
+  onSoundEnd(soundEventId: Name_Z) {
+    this.nd?.onSoundEnd(soundEventId);
+  }
+}
+
+class A380X_ND extends FsBaseInstrument<FsInstrument> {
+  constructInstrument(): FsInstrument {
+    const hostDisplayUnit = hostDisplayUnitOf('ND');
+    return hostDisplayUnit === null ? new NDInstrument() : new HostedNDInstrument(this, hostDisplayUnit);
   }
 
   get isInteractive(): boolean {

@@ -1590,6 +1590,32 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - FO_ND
     - FO_PFD
 
+- A380X_CDS_{DU}_DU_DISPLAY
+  - Number
+  - The display the display unit shows after the CDS reconfiguration (A380 FCOM DSC-31-15-20). Written by the systems
+    host (Misc/CdsReconfiguration.ts); read by the display gauges of the DU (the DU's own gauge hides, a hosted gauge of
+    another display starts and runs only while shown) and, for the ND DUs, by the ND weather radar / terrain gauge
+    (ndwxr), which draws nothing while the ND DU shows another display. Stays 0 in normal operation.
+    - 0: its own display
+    - 1: PFD (on the ND DU: PFD DU lost, or PFD/ND pb)
+    - 2: ND (on the PFD DU: PFD/ND pb, or DU RECONF pb)
+    - 3: MFD (not drawn on another DU)
+    - 4: EWD (on the SD DU: EWD DU lost)
+    - 5: SD (not drawn on another DU)
+  - {DU}
+    - CAPT_PFD
+    - CAPT_ND
+    - CAPT_MFD
+    - EWD
+    - SD
+    - FO_MFD
+    - FO_ND
+    - FO_PFD
+  - A display unit is lost when it is failed (flyPad ATA 31), unpowered, or switched off with its brightness knob.
+    The PFD/ND pbs send `H:A380X_EFIS_L_PFD_ND_PUSHED` / `H:A380X_EFIS_R_PFD_ND_PUSHED` and the DU RECONF pbs
+    `H:A380X_EFIS_L_DU_RECONF_PUSHED` / `H:A380X_EFIS_R_DU_RECONF_PUSHED` (cockpit behaviour); the systems host keeps
+    their state.
+
 ## ECAM Control Panel ATA 31
 
 - A32NX_BTN_{button_name}

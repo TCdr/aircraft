@@ -13,6 +13,8 @@ import { EngineWarningDisplay } from './EWD';
 import { AdrBusPublisher, ArincEventBus, CpiomDataPublisher, IrBusPublisher } from '@flybywiresim/fbw-sdk';
 import { FcdcBusPublisher } from '@shared/publishers/FcdcPublisher';
 import { FGDataPublisher } from '../MsfsAvionicsCommon/providers/FGDataPublisher';
+import { HostedDisplayGate, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
+import { CdsDisplay } from '@shared/CdsReconfiguration';
 
 class A380X_EWD extends BaseInstrument {
   private readonly bus = new ArincEventBus();
@@ -34,8 +36,20 @@ class A380X_EWD extends BaseInstrument {
 
   private readonly clock = new Clock(this.bus);
 
+  /**
+   * The run gate when this gauge is the EWD drawn on the SD DU (CDS reconfiguration, panel.cfg hostDu): it starts and
+   * runs only while the EWD is shown there. Null for the EWD DU's own gauge.
+   */
+  private readonly hostedGate: HostedDisplayGate | null;
+
   constructor() {
     super();
+
+    const hostDisplayUnit = hostDisplayUnitOf('EWD');
+    this.hostedGate =
+      hostDisplayUnit === null
+        ? null
+        : new HostedDisplayGate(hostDisplayUnit, CdsDisplay.Ewd, 'EWD_CONTENT', () => this.startInstrument());
 
     this.backplane.addInstrument('Clock', this.clock);
     this.backplane.addPublisher('SimVars', this.simVarPublisher);
@@ -57,6 +71,15 @@ class A380X_EWD extends BaseInstrument {
   public connectedCallback(): void {
     super.connectedCallback();
 
+    if (this.hostedGate) {
+      this.hostedGate.update();
+    } else {
+      this.startInstrument();
+    }
+  }
+
+  /** Starts the EWD: at once for the EWD DU's own gauge, when first shown for a hosted gauge */
+  private startInstrument(): void {
     this.arincProvider.init();
     this.backplane.init();
 
@@ -68,6 +91,10 @@ class A380X_EWD extends BaseInstrument {
 
   public Update(): void {
     super.Update();
+
+    if (this.hostedGate && !this.hostedGate.update()) {
+      return;
+    }
 
     this.backplane.onUpdate();
   }

@@ -90,6 +90,16 @@ export function displayUnitFailedVar(du: DisplayUnitID): string {
 }
 
 /**
+ * The L:var that tells which display a DU shows after the CDS reconfiguration (written by the systems host,
+ * CdsReconfiguration.ts): 0 its own display, else a CdsDisplay value. The gauges of the DU read it to show or hide.
+ * @param du the DU
+ * @returns the L:var name, with the `L:` prefix
+ */
+export function displayUnitDisplayVar(du: DisplayUnitID): string {
+  return `L:A380X_CDS_${DisplayUnitVarName[du]}_DU_DISPLAY`;
+}
+
+/**
  * Whether a DU is powered: either of its DC busbars is.
  * @param du the DU
  * @param isBusPowered whether a DC busbar is powered
