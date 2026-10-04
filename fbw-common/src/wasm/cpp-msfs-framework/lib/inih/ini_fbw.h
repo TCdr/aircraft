@@ -89,6 +89,7 @@
 
 #include <sys/stat.h>
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <fstream>
 #include <memory>
@@ -140,8 +141,15 @@ inline bool createDirectory(std::string path) {
     path[last] = '\0';
   }
 
+  // An existing directory (the \work folder always is one) is fine. mkdir returns -1 for it and puts EEXIST in errno,
+  // not in its return value: checking only the return value made every write() fail, so lighting presets were never
+  // saved.
+  struct stat info;
+  if (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode)) {
+    return true;
+  }
   int ret = mkdir(path.c_str(), 777);
-  return ret == 0 || ret == EEXIST;
+  return ret == 0 || errno == EEXIST;
 }
 };  // namespace INIDirUtil
 

@@ -34,6 +34,7 @@ set(INCLUDE_FILES
     ${FBW_COMMON}/extra-backend/AircraftPresets/PresetProcedures.hpp
     ${FBW_COMMON}/extra-backend/AircraftPresets/ProcedureStep.hpp
     ${FBW_COMMON}/extra-backend/LightingPresets/LightingPresets.h
+    ${FBW_COMMON}/extra-backend/LightingPresets/PresetLoadTarget.hpp
 )
 
 # create the targets
