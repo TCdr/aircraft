@@ -96,8 +96,9 @@ export class Chrono extends DisplayComponent<ChronoProps> {
         visibility={this.state.map((state) => (state === ChronoState.Hidden ? 'hidden' : 'inherit'))}
         style={{ 'margin-right': this.timeMargin.map((v) => (v ? '0.01px' : '0px')) }}
       >
-        <rect x={0} y={632} width={104} height={30} class="Grey Fill" />
-        <text x={8} y={652} font-size={24} class="Green">
+        {/* Box and digit colours come from each aircraft's ND style ($nd-chrono-* in ND/style.scss) */}
+        <rect x={0} y={632} width={104} height={30} class="ChronoBox" />
+        <text x={8} y={652} font-size={24} class="ChronoText">
           {this.displayedTime}
         </text>
       </g>
