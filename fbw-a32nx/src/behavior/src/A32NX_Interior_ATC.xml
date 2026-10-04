@@ -147,8 +147,9 @@
             <TRANSPONDER_SYSTEM_1>0</TRANSPONDER_SYSTEM_1>
             <TRANSPONDER_SYSTEM_2>1</TRANSPONDER_SYSTEM_2>
 
-            <TRANSPONDER_BUS_1>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, bool)</TRANSPONDER_BUS_1>
-            <TRANSPONDER_BUS_2>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, bool)</TRANSPONDER_BUS_2>
+            <!-- XPDR 1 (AC ESS SHED) and XPDR 2 (AC 2) failed or unpowered, from the systems host (Transponder.ts) -->
+            <TRANSPONDER_1_FAILED>(L:A32NX_XPDR_1_FAILED, bool)</TRANSPONDER_1_FAILED>
+            <TRANSPONDER_2_FAILED>(L:A32NX_XPDR_2_FAILED, bool)</TRANSPONDER_2_FAILED>
         </OverrideTemplateParameters>
         <Component ID="AIRLINER_ATC_Shared_Components">
             <UseTemplate Name="ASOBO_GT_Helper_Recursive_ID">
@@ -179,7 +180,7 @@
                 alias xpdrSelected = (L:A32NX_TRANSPONDER_SYSTEM, number);
                 alias xpdrIdentEvent = (K:XPNDR_IDENT_ON, number);
 
-                if (xpdrSelected == #TRANSPONDER_SYSTEM_1, number# and #TRANSPONDER_BUS_1, bool#) or (xpdrSelected == #TRANSPONDER_SYSTEM_2, number# and #TRANSPONDER_BUS_2, bool#) {
+                if (xpdrSelected == #TRANSPONDER_SYSTEM_1, number# and !#TRANSPONDER_1_FAILED, bool#) or (xpdrSelected == #TRANSPONDER_SYSTEM_2, number# and !#TRANSPONDER_2_FAILED, bool#) {
                     xpdrIdentEvent = 0;
                 }
             </LEFT_SINGLE_CODE>
@@ -196,7 +197,8 @@
                     alias altReporting = (L:A32NX_SWITCH_ATC_ALT, bool);
                     alias xpdrState = (A:TRANSPONDER STATE:1, number);
 
-                    if (xpdrSelected == #TRANSPONDER_SYSTEM_1, number# and !#TRANSPONDER_BUS_1, bool#) or (xpdrSelected == #TRANSPONDER_SYSTEM_2, number# and !#TRANSPONDER_BUS_2, bool#) {
+                    // the single sim transponder is the selected one: off when that one is failed or unpowered
+                    if (xpdrSelected == #TRANSPONDER_SYSTEM_1, number# and #TRANSPONDER_1_FAILED, bool#) or (xpdrSelected == #TRANSPONDER_SYSTEM_2, number# and #TRANSPONDER_2_FAILED, bool#) {
                         xpdrState = #TRANSPONDER_STATE_OFF, number#;
                     } else if xpdrMode == #TRANSPONDER_MODE_STBY, number# {
                         xpdrState = #TRANSPONDER_STATE_STANDBY, number#;

@@ -124,6 +124,8 @@ export const A320Failure = Object.freeze({
   Gps1: 34040,
   Gps2: 34041,
   Egpwc: 34030,
+  Transponder1: 34050,
+  Transponder2: 34051,
 });
 
 export const A320FailureDefinitions: FailureDefinition[] = [
@@ -242,4 +244,6 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Gps2, 'GPS 2'],
 
   [34, A320Failure.Egpwc, 'EGPWC'],
+  [34, A320Failure.Transponder1, 'ATC/XPDR 1'],
+  [34, A320Failure.Transponder2, 'ATC/XPDR 2'],
 ];
