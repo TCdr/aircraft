@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus, MappedSubject, Subject } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
 import {
@@ -80,7 +80,7 @@ function setUp() {
   const pressMore = () => bus.getPublisher<{ hEvent: string }>().pub('hEvent', 'A32NX_SD_REQUEST_MORE');
   const moreShown = () => simvars.get('L:A32NX_ECAM_SD_MORE_SHOWN') ?? 0;
 
-  return { logic, redundancyLoss, cancelledCaution, showPage, pressMore, moreShown };
+  return { logic, fws, redundancyLoss, cancelledCaution, showPage, pressMore, moreShown };
 }
 
 describe('FwsSystemDisplayLogic ECP MORE pb on the STATUS page', () => {
@@ -206,5 +206,33 @@ describe('ECP MORE pb light (ecam-cp.xml)', () => {
     );
     const emissive = template.match(/<SEQ2_EMISSIVE_CODE>([^<]*)<\/SEQ2_EMISSIVE_CODE>/);
     expect(emissive?.[1]).toContain('(L:A32NX_ECAM_SD_MORE_SHOWN, Bool)');
+  });
+});
+
+describe('FwsSystemDisplayLogic automatic CRZ page in flight (phases 8-11)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('engine 4 alone at T.O power delays the CRZ page, as the other engines do', () => {
+    const values: Record<string, number> = {
+      'L:A32NX_AUTOTHRUST_TLA:4': 40,
+      'ENG N1 RPM:1': 20,
+      'ENG N1 RPM:2': 20,
+      'ENG N1 RPM:3': 20,
+      'ENG N1 RPM:4': 20,
+    };
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => values[name] ?? 0);
+    const { logic, fws } = setUp();
+    const pageWhenUnselected = (logic as unknown as { pageWhenUnselected: Subject<SdPages> }).pageWhenUnselected;
+    pageWhenUnselected.set(SdPages.Wheel);
+    fws.flightPhase.set(8);
+
+    // 0.2 s of flight phase 8
+    logic.update(100);
+    logic.update(100);
+
+    // T.O power set: the CRZ page waits for its 60 s timer
+    expect(pageWhenUnselected.get()).toBe(SdPages.Wheel);
   });
 });

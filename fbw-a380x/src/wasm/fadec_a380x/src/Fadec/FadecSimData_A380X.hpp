@@ -249,7 +249,7 @@ class FadecSimData_A380X {
   NamedVariablePtr thrustLimitMct;
   NamedVariablePtr thrustLimitToga;
   NamedVariablePtr thrustLimitType;
-  NamedVariablePtr wingAntiIce;
+  AircraftVariablePtr wingAntiIce;  // WING ANTI ICE pb (the A380X has no Rust wing anti-ice system)
 
   NamedVariablePtr fadecQuickMode;  // 0 or 1
   NamedVariablePtr engineTla[4];
@@ -442,7 +442,9 @@ class FadecSimData_A380X {
 
     packsState[0]       = dm->make_named_var("A32NX_COND_PACK_1_IS_OPERATING", UNITS.Number, AUTO_READ);
     packsState[1]       = dm->make_named_var("A32NX_COND_PACK_2_IS_OPERATING", UNITS.Number, AUTO_READ);
-    wingAntiIce         = dm->make_named_var("A32NX_PNEU_WING_ANTI_ICE_SYSTEM_ON", UNITS.Number, AUTO_READ);
+    // The WING ANTI ICE pb toggles STRUCTURAL DEICE SWITCH: the TOGA thrust takes the bleed demand into account
+    // (A380 FCOM DSC-70 CONTROLS AND INDICATORS: BLEED SUPPLY lists the wing anti-ice), as the EWD and the FWS read it
+    wingAntiIce         = dm->make_aircraft_var("STRUCTURAL DEICE SWITCH", 0, "", nullptr, UNITS.Bool, AUTO_READ);
     refuelRate          = dm->make_named_var("A32NX_EFB_REFUEL_RATE_SETTING", UNITS.Number, AUTO_READ);
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);
     airlinerToFlexTemp  = dm->make_named_var("A32NX_AIRLINER_TO_FLEX_TEMP", UNITS.Number, AUTO_READ);
