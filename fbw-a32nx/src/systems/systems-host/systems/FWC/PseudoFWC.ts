@@ -62,6 +62,7 @@ import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { acscPackFaults } from './Logic/AcscPackFaults';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
+import { fireDetectionFaultAlerts } from './Logic/FireDetectionFaults';
 import {
   alertStatus,
   cabFansFaultStatus,
@@ -1849,12 +1850,36 @@ export class PseudoFWC {
 
   private readonly fireButtonAPU = Subject.create(false);
 
-  /** A fire detected in the engine 1 nacelle (the sim's engine fire, FBW has no fire detection loops model) */
+  /**
+   * The fire detection unit gives a fire warning for engine 1: both loops detect a fire, or one does and the other is
+   * failed, or both loops broke within 5 s (systems.wasm fire protection, A320 FCOM DSC-26-20-10). The fire comes from
+   * the flyPad failure or from the sim's own engine fire (MSFS failures menu).
+   */
   private readonly eng1FireDetected = Subject.create(false);
 
   private readonly eng2FireDetected = Subject.create(false);
 
   private readonly apuFireDetected = Subject.create(false);
+
+  /** ENG 1 FIRE LOOP A FAULT (only loop A of engine 1 is failed: break or loss of supply) */
+  private readonly eng1FireLoopAFault = Subject.create(false);
+
+  private readonly eng1FireLoopBFault = Subject.create(false);
+
+  /** ENG 1 FIRE DET FAULT (both loops of engine 1 are failed) */
+  private readonly eng1FireDetFault = Subject.create(false);
+
+  private readonly eng2FireLoopAFault = Subject.create(false);
+
+  private readonly eng2FireLoopBFault = Subject.create(false);
+
+  private readonly eng2FireDetFault = Subject.create(false);
+
+  private readonly apuFireLoopAFault = Subject.create(false);
+
+  private readonly apuFireLoopBFault = Subject.create(false);
+
+  private readonly apuFireDetFault = Subject.create(false);
 
   /* ICE */
 
@@ -4486,10 +4511,32 @@ export class PseudoFWC {
     this.fireButton1.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG1', 'bool'));
     this.fireButton2.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG2', 'bool'));
     this.fireButtonAPU.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_APU', 'bool'));
-    // The fire signals the FIRE pb red lights already use (A32NX_Interior_Fire.xml, A320_NEO_INTERIOR.xml)
-    this.eng1FireDetected.set(SimVar.GetSimVarValue('ENG ON FIRE:1', 'bool') > 0);
-    this.eng2FireDetected.set(SimVar.GetSimVarValue('ENG ON FIRE:2', 'bool') > 0);
-    this.apuFireDetected.set(SimVar.GetSimVarValue('APU ON FIRE DETECTED', 'bool') > 0);
+    // The fire detection unit outputs (systems.wasm), also used by the FIRE pb red lights (A32NX_Interior_Fire.xml,
+    // A320_NEO_INTERIOR.xml). The sim's own engine/APU fire (MSFS failures menu) is one of their inputs.
+    this.eng1FireDetected.set(SimVar.GetSimVarValue('L:A32NX_FIRE_DETECTED_ENG1', 'bool') > 0);
+    this.eng2FireDetected.set(SimVar.GetSimVarValue('L:A32NX_FIRE_DETECTED_ENG2', 'bool') > 0);
+    this.apuFireDetected.set(SimVar.GetSimVarValue('L:A32NX_FIRE_DETECTED_APU', 'bool') > 0);
+    const eng1FireDetectionFaults = fireDetectionFaultAlerts(
+      SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_LOOP_A_FAULT', 'bool') > 0,
+      SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_LOOP_B_FAULT', 'bool') > 0,
+    );
+    this.eng1FireLoopAFault.set(eng1FireDetectionFaults.loopAFault);
+    this.eng1FireLoopBFault.set(eng1FireDetectionFaults.loopBFault);
+    this.eng1FireDetFault.set(eng1FireDetectionFaults.detectionFault);
+    const eng2FireDetectionFaults = fireDetectionFaultAlerts(
+      SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_LOOP_A_FAULT', 'bool') > 0,
+      SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_LOOP_B_FAULT', 'bool') > 0,
+    );
+    this.eng2FireLoopAFault.set(eng2FireDetectionFaults.loopAFault);
+    this.eng2FireLoopBFault.set(eng2FireDetectionFaults.loopBFault);
+    this.eng2FireDetFault.set(eng2FireDetectionFaults.detectionFault);
+    const apuFireDetectionFaults = fireDetectionFaultAlerts(
+      SimVar.GetSimVarValue('L:A32NX_FIRE_APU_LOOP_A_FAULT', 'bool') > 0,
+      SimVar.GetSimVarValue('L:A32NX_FIRE_APU_LOOP_B_FAULT', 'bool') > 0,
+    );
+    this.apuFireLoopAFault.set(apuFireDetectionFaults.loopAFault);
+    this.apuFireLoopBFault.set(apuFireDetectionFaults.loopBFault);
+    this.apuFireDetFault.set(apuFireDetectionFaults.detectionFault);
     // Must call write() unconditionally every tick (not on the right side of the || below) - it needs to
     // see the raw value while held too, or it can never observe the falling edge on release. The extended
     // value itself is only applied when the "Extend Fire Test Warnings After Button Release" EFB Realism
@@ -6230,6 +6277,115 @@ export class PseudoFWC {
       failure: 3,
       sysPage: EcamSysPage.APU,
       side: 'LEFT',
+    },
+    2600200: {
+      // ENG 1 FIRE DET FAULT: crew awareness, STATUS INOP SYS FIRE DET 1 (FCOM PRO-ABN-ENG). The flight
+      // phase inhibition is the one of the other crew awareness cautions (design choice, the FCOM gives it as a figure)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.eng1FireDetFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260020001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300007'],
+    },
+    2600210: {
+      // ENG 1 FIRE LOOP A FAULT: crew awareness, STATUS INOP SYS ENG 1 LOOP A (FCOM PRO-ABN-ENG)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.eng1FireLoopAFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260021001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300001'],
+    },
+    2600220: {
+      // ENG 1 FIRE LOOP B FAULT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.eng1FireLoopBFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260022001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300002'],
+    },
+    2600230: {
+      // ENG 2 FIRE DET FAULT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.eng2FireDetFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260023001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300008'],
+    },
+    2600240: {
+      // ENG 2 FIRE LOOP A FAULT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.eng2FireLoopAFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260024001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300003'],
+    },
+    2600250: {
+      // ENG 2 FIRE LOOP B FAULT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.eng2FireLoopBFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260025001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300004'],
+    },
+    2600260: {
+      // APU FIRE DET FAULT: crew awareness, STATUS INOP SYS APU FIRE DET (FCOM PRO-ABN-APU)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.apuFireDetFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260026001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300009'],
+    },
+    2600270: {
+      // APU FIRE LOOP A FAULT: crew awareness, STATUS INOP SYS APU LOOP A (FCOM PRO-ABN-APU)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.apuFireLoopAFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260027001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300005'],
+    },
+    2600280: {
+      // APU FIRE LOOP B FAULT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.apuFireLoopBFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260028001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['260300006'],
     },
     2700052: {
       // FLAP LVR NOT ZERO

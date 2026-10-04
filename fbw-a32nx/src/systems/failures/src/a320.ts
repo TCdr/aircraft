@@ -55,6 +55,16 @@ export const A320Failure = Object.freeze({
   DirectCurrentHot2: 24112,
   DirectCurrentGndFltService: 24113,
 
+  Engine1Fire: 26000,
+  Engine2Fire: 26001,
+  ApuFire: 26002,
+  Engine1FireLoopA: 26003,
+  Engine1FireLoopB: 26004,
+  Engine2FireLoopA: 26005,
+  Engine2FireLoopB: 26006,
+  ApuFireLoopA: 26007,
+  ApuFireLoopB: 26008,
+
   Elac1Failure: 27000,
   Elac2Failure: 27001,
   Sec1Failure: 27002,
@@ -176,6 +186,16 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [24, A320Failure.DirectCurrentHot1, 'DC HOT 1'],
   [24, A320Failure.DirectCurrentHot2, 'DC HOT 2'],
   [24, A320Failure.DirectCurrentGndFltService, 'DC GND FLT SRV'],
+
+  [26, A320Failure.Engine1Fire, 'Engine 1 fire'],
+  [26, A320Failure.Engine2Fire, 'Engine 2 fire'],
+  [26, A320Failure.ApuFire, 'APU fire'],
+  [26, A320Failure.Engine1FireLoopA, 'Engine 1 fire detection loop A'],
+  [26, A320Failure.Engine1FireLoopB, 'Engine 1 fire detection loop B'],
+  [26, A320Failure.Engine2FireLoopA, 'Engine 2 fire detection loop A'],
+  [26, A320Failure.Engine2FireLoopB, 'Engine 2 fire detection loop B'],
+  [26, A320Failure.ApuFireLoopA, 'APU fire detection loop A'],
+  [26, A320Failure.ApuFireLoopB, 'APU fire detection loop B'],
 
   [27, A320Failure.Elac1Failure, 'ELAC 1'],
   [27, A320Failure.Elac2Failure, 'ELAC 2'],

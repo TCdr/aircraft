@@ -3,6 +3,7 @@ extern crate systems;
 mod air_conditioning;
 mod airframe;
 mod electrical;
+mod fire_protection;
 mod fuel;
 pub mod hydraulic;
 mod navigation;
@@ -14,6 +15,7 @@ mod surveillance;
 
 use self::{
     air_conditioning::A320AirConditioning,
+    fire_protection::A320FireProtection,
     fuel::A320Fuel,
     oxygen::A320Oxygen,
     payload::A320Payload,
@@ -73,6 +75,7 @@ pub struct A320 {
     engine_1: LeapEngine,
     engine_2: LeapEngine,
     engine_fire_overhead: EngineFireOverheadPanel<2>,
+    fire_protection: A320FireProtection,
     electrical: A320Electrical,
     power_consumption: A320PowerConsumption,
     ext_pwr: ExternalPowerSource,
@@ -119,6 +122,7 @@ impl A320 {
             engine_1: LeapEngine::new(context, 1),
             engine_2: LeapEngine::new(context, 2),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
+            fire_protection: A320FireProtection::new(context),
             electrical: A320Electrical::new(context),
             power_consumption: A320PowerConsumption::new(context),
             ext_pwr: ExternalPowerSource::new(context, 1),
@@ -172,7 +176,7 @@ impl Aircraft for A320 {
         self.apu.update_before_electrical(
             context,
             &self.apu_overhead,
-            false, // Todo: fire detection system
+            self.fire_protection.apu_fire_on_ground(),
             &self.apu_fire_overhead,
             self.pneumatic_overhead.apu_bleed_is_on(),
             // This will be replaced when integrating the whole electrical system.
@@ -226,6 +230,9 @@ impl Aircraft for A320 {
             self.hydraulic.gear_system(),
             self.ext_pwr.output_potential().is_powered(),
         );
+
+        self.fire_protection
+            .update(context, [self.lgcius.lgciu1(), self.lgcius.lgciu2()]);
 
         self.radio_altimeters.update(context);
         self.gps_1.update(context);
@@ -322,6 +329,7 @@ impl SimulationElement for A320 {
         self.engine_1.accept(visitor);
         self.engine_2.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
+        self.fire_protection.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
         self.ext_pwr.accept(visitor);

@@ -59,6 +59,8 @@ const EwdGroups: Record<string, string> = {
   'AIR$7': '\x1b<4m\x1b4mAIR\x1bm',
   'COND$4': '\x1b<4m\x1b4mCOND\x1bm',
   'CAB PR$4': '\x1b<4m\x1b4mCAB PR\x1bm',
+  'ENG$4': '\x1b<4m\x1b4mENG\x1bm',
+  'APU$1': '\x1b<4m\x1b4mAPU\x1bm',
 };
 /* eslint-enable prettier/prettier */
 
@@ -514,6 +516,16 @@ const EwdMessages = new Map<
   ['216330505', { text: '\x1b<4m -TRIM AIR HI PR' }],
   ['213122201', { group: 'CAB PR$4', text: ' SYS 1 FAULT' }],
   ['213122301', { group: 'CAB PR$4', text: ' SYS 2 FAULT' }],
+  // Fire detection faults (A320 FCOM PRO-ABN-ENG ENG 1(2) FIRE DET FAULT / FIRE LOOP A(B) FAULT, PRO-ABN-APU)
+  ['260020001', { group: 'ENG$4', text: ' 1 FIRE DET FAULT' }],
+  ['260021001', { group: 'ENG$4', text: ' 1 FIRE LOOP A FAULT' }],
+  ['260022001', { group: 'ENG$4', text: ' 1 FIRE LOOP B FAULT' }],
+  ['260023001', { group: 'ENG$4', text: ' 2 FIRE DET FAULT' }],
+  ['260024001', { group: 'ENG$4', text: ' 2 FIRE LOOP A FAULT' }],
+  ['260025001', { group: 'ENG$4', text: ' 2 FIRE LOOP B FAULT' }],
+  ['260026001', { group: 'APU$1', text: ' FIRE DET FAULT' }],
+  ['260027001', { group: 'APU$1', text: ' FIRE LOOP A FAULT' }],
+  ['260028001', { group: 'APU$1', text: ' FIRE LOOP B FAULT' }],
   ['000000001', { text: '              \x1b<3mNORMAL' }],
   ['000001001', { text: '\x1b<3m\x1b4mT.O\x1bm AUTO BRK\x1b<5m.....MAX' }],
   ['000001002', { text: '\x1b<3m\x1b4mT.O\x1bm AUTO BRK MAX' }],
