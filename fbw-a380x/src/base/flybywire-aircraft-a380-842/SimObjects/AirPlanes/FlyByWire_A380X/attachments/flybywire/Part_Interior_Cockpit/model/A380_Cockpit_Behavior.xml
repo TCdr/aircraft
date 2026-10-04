@@ -1934,29 +1934,32 @@
                         commercial%{else}Turn ON commercial%{end}</TOOLTIPID>
                 </UseTemplate>
 
+                <!-- COMMERCIAL 2 and ELMU have their own pbs (A380 FCOM DSC-24-20 ELEC PANEL: ELMU pb-sw is a separate
+                     function). Their variables are "IS_OFF" so that the normal (pb in, no OFF light) state is the
+                     default 0. Nothing consumes them yet; before, both toggled the COMMERCIAL pb and shed the commercial loads. -->
                 <UseTemplate Name="FBW_Push_Toggle">
                     <NODE_ID>PUSH_OVHD_ELEC_COMMERCIAL2</NODE_ID>
-                    <TOGGLE_SIMVAR>L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON</TOGGLE_SIMVAR>
+                    <TOGGLE_SIMVAR>L:A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF</TOGGLE_SIMVAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
-                    <SEQ2_CODE>(L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON, Bool) !</SEQ2_CODE>
+                    <SEQ2_CODE>(L:A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF, Bool)</SEQ2_CODE>
                     <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON, Bool))%{if}Turn OFF
-                        commercial%{else}Turn ON commercial%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF, Bool))%{if}Turn ON
+                        commercial 2%{else}Turn OFF commercial 2%{end}</TOOLTIPID>
                 </UseTemplate>
                 <UseTemplate Name="FBW_Push_Toggle">
                     <NODE_ID>PUSH_OVHD_ELEC_ELMU</NODE_ID>
-                    <TOGGLE_SIMVAR>L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON</TOGGLE_SIMVAR>
+                    <TOGGLE_SIMVAR>L:A380X_OVHD_ELEC_ELMU_PB_IS_OFF</TOGGLE_SIMVAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
-                    <SEQ2_CODE>(L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON, Bool) !</SEQ2_CODE>
+                    <SEQ2_CODE>(L:A380X_OVHD_ELEC_ELMU_PB_IS_OFF, Bool)</SEQ2_CODE>
                     <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON, Bool))%{if}Turn OFF
-                        commercial%{else}Turn ON commercial%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_ELEC_ELMU_PB_IS_OFF, Bool))%{if}Turn ON
+                        ELMU%{else}Turn OFF ELMU%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- ELEC GALLEY-->
