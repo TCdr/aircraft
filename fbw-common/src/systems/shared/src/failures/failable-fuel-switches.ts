@@ -22,6 +22,13 @@ export interface FailableFuelSwitch {
    * position last set by something else than this driver.
    */
   selectionVar?: string;
+  /**
+   * For the 'jam' effect: where the switch is held while the failure is active, decided once when the failure becomes
+   * active: true (held on), false (held off) or null (not held, the switch follows its selection). Without it, the switch
+   * is held where the valve is (FUELSYSTEM VALVE OPEN). Used when one cockpit valve is made of several MSFS valves (the
+   * A32NX centre tank transfer valves), whose jam depends on all of them.
+   */
+  jammedOn?: () => boolean | null;
 }
 
 /** Reads and commands one kind of MSFS fuel switch (valves or pumps), and the crew selection L:vars */
@@ -69,7 +76,9 @@ interface SwitchState {
   selected: boolean;
   /** The time left before the switch is read again after a command, in milliseconds */
   settleTimeLeft: number;
-  /** While a valve is jammed: whether it is jammed open; null while it is not jammed */
+  /** Whether the jam of the valve has been decided since its failure became active */
+  jamDecided: boolean;
+  /** While a valve is jammed: whether it is held open (true) or closed (false); null while it is not held */
   jammedOn: boolean | null;
 }
 
@@ -104,7 +113,36 @@ export class FailableFuelSwitchesDriver {
     private readonly isFailureActive: (failure: number) => boolean,
     private readonly access: FuelSwitchAccess,
   ) {
-    this.states = switches.map(() => ({ expectedOn: null, selected: false, settleTimeLeft: 0, jammedOn: null }));
+    this.states = switches.map(() => ({
+      expectedOn: null,
+      selected: false,
+      settleTimeLeft: 0,
+      jamDecided: false,
+      jammedOn: null,
+    }));
+  }
+
+  /**
+   * The selection of a switch: the crew selection, or the automatic command (the MSFS triggers of the fuel system,
+   * the FQMS...) for a switch without a selection L:var. A failed pump or a jammed valve keeps its selection.
+   * @param switchNumber the position of the switch in the list given to the constructor
+   */
+  public getSelection(switchNumber: number): boolean {
+    return this.states[switchNumber].selected;
+  }
+
+  /**
+   * Sets the automatic command of a switch without a selection L:var, as its owner sees it (the A380X FQMS: the edges of
+   * the MSFS fuel triggers). While a failure holds a pump off, an automatic stop does not move its switch, so this driver
+   * cannot see it: without this, the repaired pump would be switched back on although its owner stopped it meanwhile.
+   * Ignored for a switch with a selection L:var (the crew selection).
+   * @param switchNumber the position of the switch in the list given to the constructor
+   * @param on whether the automatic command is on
+   */
+  public setAutomaticSelection(switchNumber: number, on: boolean): void {
+    if (this.switches[switchNumber].selectionVar === undefined) {
+      this.states[switchNumber].selected = on;
+    }
   }
 
   /**
@@ -116,17 +154,21 @@ export class FailableFuelSwitchesDriver {
   }
 
   private updateSwitch(
-    { failure, index, effect, selectionVar }: FailableFuelSwitch,
+    { failure, index, effect, selectionVar, jammedOn }: FailableFuelSwitch,
     state: SwitchState,
     deltaTime: number,
   ): void {
     const failed = this.isFailureActive(failure);
 
-    // A valve jams where it is when the failure becomes active
+    // A valve jams where it is (or where jammedOn says) when the failure becomes active
     if (!failed) {
+      state.jamDecided = false;
       state.jammedOn = null;
-    } else if (effect === 'jam' && state.jammedOn === null) {
-      state.jammedOn = this.access.position(index) >= FailableFuelSwitchesDriver.JAMMED_OPEN_RATIO;
+    } else if (effect === 'jam' && !state.jamDecided) {
+      state.jamDecided = true;
+      state.jammedOn = jammedOn
+        ? jammedOn()
+        : this.access.position(index) >= FailableFuelSwitchesDriver.JAMMED_OPEN_RATIO;
     }
 
     state.settleTimeLeft -= deltaTime;

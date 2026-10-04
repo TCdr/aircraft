@@ -3064,9 +3064,11 @@ export class FwsAbnormalSensed {
         this.fws.feedTank4Low,
       ),
       whichItemsToShow: () => [true, true, false, false, false, false, false],
+      // CROSSFEED 1+2+3+4 ON and ALL FEED TKs PMPs ON: the crew actions, sensed on the pb-sw (a jammed valve or a failed
+      // pump does not prevent them)
       whichItemsChecked: () => [
-        this.fws.allCrossFeedValvesOpen.get(),
-        this.fws.allFeedTankPumpsOn.get(),
+        this.fws.allCrossFeedPbsOn.get(),
+        this.fws.allFeedTankPumpPbsOn.get(),
         false,
         false,
         false,
@@ -3085,7 +3087,17 @@ export class FwsAbnormalSensed {
       flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
       simVarIsActive: this.fws.feedTank1Low,
       whichItemsToShow: () => [true, true, true, false, false, false, false, false],
-      whichItemsChecked: () => [false, false, false, false, false, false, false, false],
+      // IF NO FUEL LEAK: CROSSFEED 1 ON, CROSSFEED 2 ON (FCOM PRO-ABN-ECAM-10-28 l.149903-149906), sensed on the pb-sw
+      whichItemsChecked: () => [
+        false,
+        this.fws.crossFeedPbOn[0].get(),
+        this.fws.crossFeedPbOn[1].get(),
+        false,
+        false,
+        false,
+        false,
+        false,
+      ],
       failure: 2,
       sysPage: SdPages.Fuel,
       notActiveWhenItemActive: ['281800102', '281800002'],
@@ -3098,8 +3110,8 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [true, true, true, false, false, false, false, false],
       whichItemsChecked: () => [
         false,
-        this.fws.crossFeed1ValveOpen.get(),
-        this.fws.crossFeed2ValveOpen.get(),
+        this.fws.crossFeedPbOn[0].get(),
+        this.fws.crossFeedPbOn[1].get(),
         false,
         false,
         false,
@@ -3118,8 +3130,8 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [true, true, true, false, false, false, false, false],
       whichItemsChecked: () => [
         false,
-        this.fws.crossFeed3ValveOpen.get(),
-        this.fws.crossFeed4ValveOpen.get(),
+        this.fws.crossFeedPbOn[2].get(),
+        this.fws.crossFeedPbOn[3].get(),
         false,
         false,
         false,
@@ -3138,8 +3150,8 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [true, true, true, false, false, false, false, false],
       whichItemsChecked: () => [
         false,
-        this.fws.crossFeed3ValveOpen.get(),
-        this.fws.crossFeed4ValveOpen.get(),
+        this.fws.crossFeedPbOn[2].get(),
+        this.fws.crossFeedPbOn[3].get(),
         false,
         false,
         false,
@@ -3247,6 +3259,255 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Fuel,
       redundLoss: () => ['280300010'],
     },
+    281800068: {
+      // L OUTR TK PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28 l.151632-151680): L OUTR TK PMP OFF; STATUS INOP SYS
+      // L OUTR TK PMP, INFO OUTR TKs XFR BY GRVTY ONLY if the outer tanks are not empty. The FCOM flight phase inhibition is a figure (design choice: the one of the feed tank pump alerts).
+      // The FQMS shut-off of the symmetric pump and the gravity transfer are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.outerTankPumpFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.leftOuter.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300019'],
+      info: () => (this.fws.outerTanksNotEmpty.get() ? ['280200008'] : []),
+    },
+    281800069: {
+      // R OUTR TK PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28 l.151632-151680): R OUTR TK PMP OFF; STATUS INOP SYS
+      // R OUTR TK PMP, INFO OUTR TKs XFR BY GRVTY ONLY if the outer tanks are not empty. The FCOM flight phase inhibition is a figure (design choice: the one of the feed tank pump alerts).
+      // The FQMS shut-off of the symmetric pump and the gravity transfer are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.outerTankPumpFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.rightOuter.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300020'],
+      info: () => (this.fws.outerTanksNotEmpty.get() ? ['280200008'] : []),
+    },
+    281800063: {
+      // L INR TK FWD PMP FAULT (FCOM l.151494-151555): L INR TK FWD PMP OFF; STATUS INOP SYS L INR TK FWD PMP.
+      // The alternate transfers (INFO FUEL ALTN XFR IN USE) are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.innerTankPumpFaults[0].fwd,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.leftInnerFwd.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300021'],
+    },
+    281800058: {
+      // L INR TK AFT PMP FAULT (FCOM l.151415-151490): L INR TK AFT PMP OFF; STATUS INOP SYS L INR TK AFT PMP.
+      // The aft gallery pumps never run in the simulation: only turned off by the flight crew. The manual transfers
+      // (FUEL MAN XFR PROCEDURE) are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.innerTankPumpFaults[0].aft,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.leftInnerAft.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300025'],
+    },
+    281800056: {
+      // L INR TK FWD+AFT PMPs FAULT (FCOM l.151340-151410): L INR TK FWD and AFT PMP OFF; LIMITATION
+      // L INR TK NOT USABLE if the tank is not empty; STATUS INOP SYS L INR TK PMPs. The INFO MAN XFR AVAIL is not
+      // shown: the manual transfers are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.innerTankPumpFaults[0].fwdAndAft,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [
+        !this.fws.transferPumpFlags.leftInnerFwd.pbOn,
+        !this.fws.transferPumpFlags.leftInnerAft.pbOn,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300029'],
+      limitationsAllPhases: () => (this.fws.innerTankNotEmpty[0].get() ? ['280400007'] : []),
+    },
+    281800065: {
+      // R INR TK FWD PMP FAULT (FCOM l.151494-151555): R INR TK FWD PMP OFF; STATUS INOP SYS R INR TK FWD PMP.
+      // The alternate transfers (INFO FUEL ALTN XFR IN USE) are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.innerTankPumpFaults[1].fwd,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.rightInnerFwd.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300022'],
+    },
+    281800060: {
+      // R INR TK AFT PMP FAULT (FCOM l.151415-151490): R INR TK AFT PMP OFF; STATUS INOP SYS R INR TK AFT PMP.
+      // The aft gallery pumps never run in the simulation: only turned off by the flight crew. The manual transfers
+      // (FUEL MAN XFR PROCEDURE) are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.innerTankPumpFaults[1].aft,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.rightInnerAft.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300026'],
+    },
+    281800057: {
+      // R INR TK FWD+AFT PMPs FAULT (FCOM l.151340-151410): R INR TK FWD and AFT PMP OFF; LIMITATION
+      // R INR TK NOT USABLE if the tank is not empty; STATUS INOP SYS R INR TK PMPs. The INFO MAN XFR AVAIL is not
+      // shown: the manual transfers are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.innerTankPumpFaults[1].fwdAndAft,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [
+        !this.fws.transferPumpFlags.rightInnerFwd.pbOn,
+        !this.fws.transferPumpFlags.rightInnerAft.pbOn,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300030'],
+      limitationsAllPhases: () => (this.fws.innerTankNotEmpty[1].get() ? ['280400008'] : []),
+    },
+    281800062: {
+      // L MID TK FWD PMP FAULT (FCOM l.151494-151555): L MID TK FWD PMP OFF; STATUS INOP SYS L MID TK FWD PMP.
+      // The alternate transfers (INFO FUEL ALTN XFR IN USE) are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.midTankPumpFaults[0].fwd,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.leftMidFwd.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300023'],
+    },
+    281800059: {
+      // L MID TK AFT PMP FAULT (FCOM l.151415-151490): L MID TK AFT PMP OFF; STATUS INOP SYS L MID TK AFT PMP.
+      // The aft gallery pumps never run in the simulation: only turned off by the flight crew. The manual transfers
+      // (FUEL MAN XFR PROCEDURE) are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.midTankPumpFaults[0].aft,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.leftMidAft.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300027'],
+    },
+    281800066: {
+      // L MID TK FWD+AFT PMPs FAULT (FCOM l.151559-151628): L MID TK FWD and AFT PMP OFF; LIMITATION
+      // L MID TK NOT USABLE if the tank is not empty; STATUS INOP SYS L MID TK PMPs. The INFO MAN XFR AVAIL is not
+      // shown: the manual transfers are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.midTankPumpFaults[0].fwdAndAft,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [
+        !this.fws.transferPumpFlags.leftMidFwd.pbOn,
+        !this.fws.transferPumpFlags.leftMidAft.pbOn,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300031'],
+      limitationsAllPhases: () => (this.fws.midTankNotEmpty[0].get() ? ['280400009'] : []),
+    },
+    281800064: {
+      // R MID TK FWD PMP FAULT (FCOM l.151494-151555): R MID TK FWD PMP OFF; STATUS INOP SYS R MID TK FWD PMP.
+      // The alternate transfers (INFO FUEL ALTN XFR IN USE) are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.midTankPumpFaults[1].fwd,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.rightMidFwd.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300024'],
+    },
+    281800061: {
+      // R MID TK AFT PMP FAULT (FCOM l.151415-151490): R MID TK AFT PMP OFF; STATUS INOP SYS R MID TK AFT PMP.
+      // The aft gallery pumps never run in the simulation: only turned off by the flight crew. The manual transfers
+      // (FUEL MAN XFR PROCEDURE) are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.midTankPumpFaults[1].aft,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.rightMidAft.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300028'],
+    },
+    281800067: {
+      // R MID TK FWD+AFT PMPs FAULT (FCOM l.151559-151628): R MID TK FWD and AFT PMP OFF; LIMITATION
+      // R MID TK NOT USABLE if the tank is not empty; STATUS INOP SYS R MID TK PMPs. The INFO MAN XFR AVAIL is not
+      // shown: the manual transfers are not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.midTankPumpFaults[1].fwdAndAft,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [
+        !this.fws.transferPumpFlags.rightMidFwd.pbOn,
+        !this.fws.transferPumpFlags.rightMidAft.pbOn,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300032'],
+      limitationsAllPhases: () => (this.fws.midTankNotEmpty[1].get() ? ['280400010'] : []),
+    },
+    281800089: {
+      // TRIM TK L PMP FAULT (FCOM l.153692-153740): TRIM TK L PMP OFF; MORE INFO REDUND LOSS TRIM TK L PMP
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.trimTankPumpFaults.left,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.trimLeft.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      redundLoss: () => ['280300004'],
+    },
+    281800090: {
+      // TRIM TK R PMP FAULT (FCOM l.153692-153740): TRIM TK R PMP OFF; MORE INFO REDUND LOSS TRIM TK R PMP
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.trimTankPumpFaults.right,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.transferPumpFlags.trimRight.pbOn],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      redundLoss: () => ['280300033'],
+    },
+    281800091: {
+      // TRIM TK L+R PMPs FAULT (FCOM l.153742-153808): TRIM TK L and R PMP OFF, in flight PITCH ATT < 3° FOR GRVTY FWD
+      // XFR, TRIM TK FEED OPEN, if the pumps are failed TRIM TK : 2300 KG MAX NOT USABLE; LIMITATIONS FOR TRIM TK FWD XFR:
+      // PITCH ATT < 3°, FUEL PARTLY UNUSABLE if the pumps are failed; STATUS INOP SYS TRIM TK PMPs, INFO TRIM TK XFR BY
+      // GRVTY ONLY, TRIM TK GRVTY XFR : AROUND 3000 KG / HR. The gravity transfer from the trim tank is not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.trimTankPumpFaults.leftAndRight,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const pumpsFailed = this.fws.transferPumpFlags.trimLeft.fault && this.fws.transferPumpFlags.trimRight.fault;
+        return [true, true, !this.fws.aircraftOnGround.get(), true, pumpsFailed];
+      },
+      whichItemsChecked: () => [
+        !this.fws.transferPumpFlags.trimLeft.pbOn,
+        !this.fws.transferPumpFlags.trimRight.pbOn,
+        false,
+        false,
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300034'],
+      limitationsAllPhases: () =>
+        this.fws.transferPumpFlags.trimLeft.fault && this.fws.transferPumpFlags.trimRight.fault
+          ? ['280400011', '280400001']
+          : ['280400011'],
+      info: () =>
+        this.fws.transferPumpFlags.trimLeft.fault && this.fws.transferPumpFlags.trimRight.fault
+          ? ['280200009', '280200010', '280200011']
+          : ['280200009', '280200010'],
+    },
     281800027: {
       // FEED TK 1 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 1 and 2 ON, then both pumps
       // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 1 PMPs, INFO FEED TK 1 BY GRVTY ONLY. The
@@ -3259,8 +3520,8 @@ export class FwsAbnormalSensed {
         return [inFlight, inFlight, true, true, true];
       },
       whichItemsChecked: () => [
-        this.fws.crossFeed1ValveOpen.get(),
-        this.fws.crossFeed2ValveOpen.get(),
+        this.fws.crossFeedPbOn[0].get(),
+        this.fws.crossFeedPbOn[1].get(),
         !this.fws.feedTankMainPumpPbOn[0].get(),
         !this.fws.feedTankStbyPumpPbOn[0].get(),
         false,
@@ -3282,8 +3543,8 @@ export class FwsAbnormalSensed {
         return [inFlight, inFlight, true, true, true];
       },
       whichItemsChecked: () => [
-        this.fws.crossFeed1ValveOpen.get(),
-        this.fws.crossFeed2ValveOpen.get(),
+        this.fws.crossFeedPbOn[0].get(),
+        this.fws.crossFeedPbOn[1].get(),
         !this.fws.feedTankMainPumpPbOn[1].get(),
         !this.fws.feedTankStbyPumpPbOn[1].get(),
         false,
@@ -3305,8 +3566,8 @@ export class FwsAbnormalSensed {
         return [inFlight, inFlight, true, true, true];
       },
       whichItemsChecked: () => [
-        this.fws.crossFeed3ValveOpen.get(),
-        this.fws.crossFeed4ValveOpen.get(),
+        this.fws.crossFeedPbOn[2].get(),
+        this.fws.crossFeedPbOn[3].get(),
         !this.fws.feedTankMainPumpPbOn[2].get(),
         !this.fws.feedTankStbyPumpPbOn[2].get(),
         false,
@@ -3328,8 +3589,8 @@ export class FwsAbnormalSensed {
         return [inFlight, inFlight, true, true, true];
       },
       whichItemsChecked: () => [
-        this.fws.crossFeed3ValveOpen.get(),
-        this.fws.crossFeed4ValveOpen.get(),
+        this.fws.crossFeedPbOn[2].get(),
+        this.fws.crossFeedPbOn[3].get(),
         !this.fws.feedTankMainPumpPbOn[3].get(),
         !this.fws.feedTankStbyPumpPbOn[3].get(),
         false,
@@ -3413,7 +3674,7 @@ export class FwsAbnormalSensed {
         this.fws.feedTank2Low,
       ),
       whichItemsToShow: () => [true, true, false, false, false, false, false],
-      whichItemsChecked: () => [false, this.fws.allCrossFeedValvesOpen.get(), false, false, false, false, false],
+      whichItemsChecked: () => [false, this.fws.allCrossFeedPbsOn.get(), false, false, false, false, false],
       failure: 2,
       sysPage: SdPages.Fuel,
       notActiveWhenItemActive: ['281800002'],
@@ -3428,7 +3689,7 @@ export class FwsAbnormalSensed {
         this.fws.feedTank4Low,
       ),
       whichItemsToShow: () => [true, true, false, false, false, false, false],
-      whichItemsChecked: () => [false, this.fws.allCrossFeedValvesOpen.get(), false, false, false, false, false],
+      whichItemsChecked: () => [false, this.fws.allCrossFeedPbsOn.get(), false, false, false, false, false],
       failure: 2,
       sysPage: SdPages.Fuel,
       notActiveWhenItemActive: ['281800002'],
@@ -4878,7 +5139,7 @@ export class FwsAbnormalSensed {
         this.fws.tcasTaOnly.get(),
         this.fws.gearLeverPos.get(),
         false,
-        this.fws.crossFeed1ValveOpen.get(),
+        this.fws.crossFeedPbOn[0].get(),
         false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
@@ -4907,7 +5168,7 @@ export class FwsAbnormalSensed {
         this.fws.tcasTaOnly.get(),
         this.fws.gearLeverPos.get(),
         false,
-        this.fws.crossFeed2ValveOpen.get(),
+        this.fws.crossFeedPbOn[1].get(),
         false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
@@ -4937,7 +5198,7 @@ export class FwsAbnormalSensed {
         this.fws.tcasTaOnly.get(),
         this.fws.gearLeverPos.get(),
         false,
-        this.fws.crossFeed3ValveOpen.get(),
+        this.fws.crossFeedPbOn[2].get(),
         false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
@@ -4966,7 +5227,7 @@ export class FwsAbnormalSensed {
         this.fws.tcasTaOnly.get(),
         this.fws.gearLeverPos.get(),
         false,
-        this.fws.crossFeed4ValveOpen.get(),
+        this.fws.crossFeedPbOn[3].get(),
         false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
