@@ -11,12 +11,12 @@ import {
   FailuresConsumer,
 } from '@flybywiresim/fbw-sdk';
 
-import { A320Failure } from '@failures';
 import { AttitudeIndicatorWarnings } from '@flybywiresim/pfd';
 import { DmcLogicEvents } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { LagFilter } from './PFDUtils';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { DisplayUnit } from '../MsfsAvionicsCommon/displayUnit';
+import { pfdDisplayUnitFailure } from '../MsfsAvionicsCommon/displayUnitFailures';
 import './style.scss';
 import { AltitudeIndicator, AltitudeIndicatorOfftape } from './AltitudeIndicator';
 import { AttitudeIndicatorFixedCenter, AttitudeIndicatorFixedUpper } from './AttitudeIndicatorFixed';
@@ -72,7 +72,9 @@ export class PFDComponent extends DisplayComponent<PFDProps> {
 
     const isCaptainSide = getDisplayIndex() === 1;
 
-    this.failuresConsumer.register(isCaptainSide ? A320Failure.LeftPfdDisplay : A320Failure.RightPfdDisplay);
+    const displayUnitFailure = pfdDisplayUnitFailure(getDisplayIndex());
+
+    this.failuresConsumer.register(displayUnitFailure);
 
     const sub = this.props.bus.getSubscriber<Arinc429Values & ClockEvents & DmcLogicEvents & PFDSimvars>();
 
@@ -107,9 +109,7 @@ export class PFDComponent extends DisplayComponent<PFDProps> {
       .atFrequency(1)
       .handle((_t) => {
         this.failuresConsumer.update();
-        this.displayFailed.set(
-          this.failuresConsumer.isActive(isCaptainSide ? A320Failure.LeftPfdDisplay : A320Failure.RightPfdDisplay),
-        );
+        this.displayFailed.set(this.failuresConsumer.isActive(displayUnitFailure));
         if (
           !this.isAttExcessive.get() &&
           ((this.pitch.isNormalOperation() && (this.pitch.value > 25 || this.pitch.value < -13)) ||

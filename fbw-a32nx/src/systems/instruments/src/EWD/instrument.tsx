@@ -4,12 +4,14 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Clock, EventBus, FSComponent, InstrumentBackplane, Subject } from '@microsoft/msfs-sdk';
+import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { ExtendedClockEventProvider } from '../MsfsAvionicsCommon/providers/ExtendedClockProvider';
 import { FuelSystemPublisher } from '../MsfsAvionicsCommon/providers/FuelSystemPublisher';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { A32NXSfccBusPublisher } from '@shared/publishers/A32NXSfccBusPublisher';
 import { EwdComponent } from './EWD';
 import { EwdSimvarPublisher } from './shared/EwdSimvarPublisher';
+import { UPPER_ECAM_DISPLAY_UNIT_FAILURE } from '../MsfsAvionicsCommon/displayUnitFailures';
 
 import './style.scss';
 
@@ -28,6 +30,11 @@ class A32NX_EWD extends BaseInstrument {
 
   private readonly sfccBusPublisher = new A32NXSfccBusPublisher(this.bus);
 
+  /** Receives the flyPad failures: the upper ECAM display unit failure blanks the E/WD. */
+  private readonly failuresConsumer = new FailuresConsumer();
+
+  private readonly displayFailed = Subject.create(false);
+
   constructor() {
     super();
 
@@ -38,6 +45,8 @@ class A32NX_EWD extends BaseInstrument {
     this.backplane.addPublisher('FuelSystem', this.fuelSystemPublisher);
 
     this.backplane.addPublisher('SfccBus', this.sfccBusPublisher);
+
+    this.failuresConsumer.register(UPPER_ECAM_DISPLAY_UNIT_FAILURE, (failed) => this.displayFailed.set(failed));
   }
 
   get templateID(): string {
@@ -50,7 +59,10 @@ class A32NX_EWD extends BaseInstrument {
     this.arincProvider.init();
     this.backplane.init();
 
-    FSComponent.render(<EwdComponent bus={this.bus} instrument={this} />, document.getElementById('EWD_CONTENT'));
+    FSComponent.render(
+      <EwdComponent bus={this.bus} instrument={this} failed={this.displayFailed} />,
+      document.getElementById('EWD_CONTENT'),
+    );
 
     // Remove "instrument didn't load" text
     document.getElementById('EWD_CONTENT').querySelector(':scope > h1').remove();
@@ -60,6 +72,7 @@ class A32NX_EWD extends BaseInstrument {
     super.Update();
 
     this.backplane.onUpdate();
+    this.failuresConsumer.update();
   }
 }
 
