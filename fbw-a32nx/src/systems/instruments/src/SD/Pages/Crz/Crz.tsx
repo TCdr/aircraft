@@ -8,6 +8,7 @@ import { UnitType } from '@microsoft/msfs-sdk';
 import { useSimVar, useArinc429Var, usePersistentSetting } from '@flybywiresim/fbw-sdk-react';
 import { fuelForDisplay } from '../../Common/FuelFunctions';
 
+import { deltaPClass, deltaPPulses } from './DeltaPIndication';
 import './Crz.scss';
 
 export const CrzPage = () => (
@@ -195,6 +196,8 @@ export const PressureComponent = () => {
 
   const [vsShouldFlash, setVsShouldFlash] = useState(false);
   const [cabAltShouldFlash, setCabAltShouldFlash] = useState(false);
+  const [deltaPShouldPulse, setDeltaPShouldPulse] = useState(false);
+  const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
 
   useEffect(() => {
     setVsShouldFlash((prev) => Math.abs(cabinVs) > (prev ? 1650 : 1750));
@@ -203,6 +206,11 @@ export const PressureComponent = () => {
   useEffect(() => {
     setCabAltShouldFlash((prev) => cabinAlt > (prev ? 8600 : 8800));
   }, [cabinAlt]);
+
+  useEffect(() => {
+    setDeltaPShouldPulse((prev) => deltaPPulses(deltaPsi, fwcFlightPhase, prev));
+  }, [deltaPsi, fwcFlightPhase]);
+  const deltaPClassName = deltaPClass(deltaPsi, deltaPShouldPulse);
 
   useEffect(() => {
     setLdgElevMode(landingElevationIsMan ? 'MAN' : 'AUTO');
@@ -320,21 +328,10 @@ export const PressureComponent = () => {
       <text className="Standard" x="218" y="370">
         @P
       </text>
-      <text
-        id="Large Green"
-        className={`Large ${deltaPsi >= 8.5 || deltaPsi <= -0.4 ? (deltaPsi > 1.5 ? 'AmberTextPulse' : 'Amber') : deltaPsi > 1.5 ? 'GreenTextPulse' : 'Green'}`}
-        x="290"
-        y="370"
-        textAnchor="end"
-      >
+      <text id="Large Green" className={`Large ${deltaPClassName}`} x="290" y="370" textAnchor="end">
         {deltaPress[0]}.
       </text>
-      <text
-        id="standard green"
-        className={`Standard ${deltaPsi >= 8.5 || deltaPsi <= -0.4 ? (deltaPsi > 1.5 ? 'AmberTextPulse' : 'Amber') : deltaPsi > 1.5 ? 'GreenTextPulse' : 'Green'}`}
-        x="290"
-        y="370"
-      >
+      <text id="standard green" className={`Standard ${deltaPClassName}`} x="290" y="370">
         {deltaPress[1]}
       </text>
       <text className="Standard Cyan" x="320" y="370">

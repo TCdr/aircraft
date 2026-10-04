@@ -33,6 +33,7 @@ import {
   UpDownAdvisoryStatus,
 } from '../lib/TcasConstants';
 import { TcasSoundManager } from './TcasSoundManager';
+import { isGpwsAlertActive } from '../lib/TcasGpwsInhibit';
 import { isTcasStandbyWithoutXpdr } from '@shared/TransponderSystem';
 
 export class NDTcasTraffic {
@@ -345,7 +346,7 @@ export class TcasComputer {
     this.trueHeading = SimVar.GetSimVarValue('PLANE HEADING DEGREES TRUE', 'degrees');
     this.isSlewActive = !!SimVar.GetSimVarValue('IS SLEW ACTIVE', 'boolean');
     this.simRate = SimVar.GetGlobalVarValue('SIMULATION RATE', 'number');
-    this.gpwsWarning = !!SimVar.GetSimVarValue('L:A32NX_GPWS_Warning_Active', 'boolean');
+    this.gpwsWarning = isGpwsAlertActive((name) => SimVar.GetSimVarValue(name, 'bool'));
 
     this.tcasMode.setVar(
       this.xpdrStatus === XpdrMode.STBY || this.bothXpdrsFailed || !this.tcasPower || !this.altRptgSwitchPos
