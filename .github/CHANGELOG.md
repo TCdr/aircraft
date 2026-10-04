@@ -127,6 +127,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SURV] Added ATC/XPDR 1 and ATC/XPDR 2 failures: the failed transponder stops replying while selected and lights ATC FAIL, NAV ATC/XPDR 1(2) and 1+2 FAULT show on the ECAM, and the TCAS goes to standby with both lost; ATC/XPDR STBY no longer shows when the selected transponder loses power - @TCdr
 1. [A32NX/EFB] New ATA 23 failures RMP 1, RMP 2, VHF 1, VHF 2 and VHF 3: a failed RMP goes blank and stops tuning (the other RMP still tunes every radio), a failed VHF switches its COM radio off - @TCdr
 1. [A32NX/FWS] New flyPad failures FWC 1 and FWC 2 (ATA 31): one failed FWC shows FWS FWC 1(2) FAULT with its STATUS (CAT 3 SINGLE ONLY, INOP SYS CAT 3 DUAL, FWC 1(2)); with both failed the E/WD shows FWS FWC 1+2 FAULT and its NOT AVAIL list, and the ECAM alerts, memos, STATUS, MASTER lights, aurals and callouts are lost - @TCdr
+1. [A32NX] Fire protection: engine 1, engine 2 and APU fires and their fire detection loop A/B failures in the flyPad, with the fire detection units of the real aircraft (both loops must detect, one loop alone if the other is failed, fire warning if both loops break within 5 s), the ENG 1(2)/APU FIRE LOOP A(B) FAULT and FIRE DET FAULT cautions with their STATUS lines, the ENG MASTER panel FIRE lights, an APU shutdown and automatic APU AGENT discharge 3 s after an APU fire on the ground, and a chance for each AGENT discharge to put a flyPad fire out; the engine fires of the MSFS failures menu still raise the warnings - @TCdr
 
 ## 2024.1.0
 

@@ -30,7 +30,8 @@ use systems::air_conditioning::{
 use systems::failures::FailureType;
 use systems::shared::{
     report_diagnostic, AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType,
-    GearActuatorId, HydraulicColor, LgciuId, ProximityDetectorId,
+    FireDetectionLoopID, FireDetectionZone, GearActuatorId, HydraulicColor, LgciuId,
+    ProximityDetectorId,
 };
 use systems_wasm::aspects::ExecuteOn;
 use systems_wasm::{MsfsSimulationBuilder, Variable};
@@ -175,6 +176,33 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (
             24_113,
             FailureType::ElectricalBus(ElectricalBusType::DirectCurrentGndFltService),
+        ),
+        (26_000, FailureType::SetOnFire(FireDetectionZone::Engine(1))),
+        (26_001, FailureType::SetOnFire(FireDetectionZone::Engine(2))),
+        (26_002, FailureType::SetOnFire(FireDetectionZone::Apu)),
+        (
+            26_003,
+            FailureType::FireDetectionLoop(FireDetectionLoopID::A, FireDetectionZone::Engine(1)),
+        ),
+        (
+            26_004,
+            FailureType::FireDetectionLoop(FireDetectionLoopID::B, FireDetectionZone::Engine(1)),
+        ),
+        (
+            26_005,
+            FailureType::FireDetectionLoop(FireDetectionLoopID::A, FireDetectionZone::Engine(2)),
+        ),
+        (
+            26_006,
+            FailureType::FireDetectionLoop(FireDetectionLoopID::B, FireDetectionZone::Engine(2)),
+        ),
+        (
+            26_007,
+            FailureType::FireDetectionLoop(FireDetectionLoopID::A, FireDetectionZone::Apu),
+        ),
+        (
+            26_008,
+            FailureType::FireDetectionLoop(FireDetectionLoopID::B, FireDetectionZone::Apu),
         ),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Blue)),
@@ -328,9 +356,12 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("AMBIENT WIND Y", "meter per second", 0)?
     .provides_aircraft_variable("AMBIENT WIND Z", "meter per second", 0)?
     .provides_aircraft_variable("ANTISKID BRAKES ACTIVE", "Bool", 0)?
+    .provides_aircraft_variable("APU ON FIRE DETECTED", "Bool", 0)?
     .provides_aircraft_variable("CONTACT POINT COMPRESSION", "Percent", 0)?
     .provides_aircraft_variable("CONTACT POINT COMPRESSION", "Percent", 1)?
     .provides_aircraft_variable("CONTACT POINT COMPRESSION", "Percent", 2)?
+    .provides_aircraft_variable("ENG ON FIRE", "Bool", 1)?
+    .provides_aircraft_variable("ENG ON FIRE", "Bool", 2)?
     .provides_aircraft_variable("FUEL TANK CENTER QUANTITY", "gallons", 0)?
     .provides_aircraft_variable("FUEL TANK LEFT MAIN QUANTITY", "gallons", 0)?
     .provides_aircraft_variable("FUEL TANK LEFT AUX QUANTITY", "gallons", 0)?
