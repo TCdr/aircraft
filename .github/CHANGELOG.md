@@ -109,6 +109,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
 1. [A380X/Failures] flyPad failures: all landing gear proximity sensor and jammed actuator failures listed (32004-32025, named after the gear, door or sensor they fail), the uplock sensor failure that said nose gear but failed the right main gear relabelled, and the inactive ROLLOUT failure removed - @TCdr
+1. [A380X/EFB] Failures: clearer failure names after an audit (ESS/APU TR, EHA and APU buses, LGCIS, main gear groups, fire detection loops, RA antennas) - @TCdr
 
 ## 2024.1.0
 
