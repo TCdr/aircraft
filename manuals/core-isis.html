@@ -1,0 +1,119 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X standby instruments (ISIS) - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X standby instruments (ISIS)</h1>
+<div class="subtitle">The lower ISIS becomes the Standby Navigation Display (SND) with its power-up test, and the MODE pb swaps the SFD and the SND between the two ISIS, back to normal at each power-up</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>Centre instrument panel: the two ISIS (upper: SFD, lower: SND) and their MODE, MENU, LS/DIR TO, +/- and SET/SEL controls</span>
+<b>Branch</b><span><code>core/isis</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent.</span>
+<b>Status</b><span>SND tested in the sim by the user: OK (2026-09-29). SFD/SND reconfiguration tested by the user: OK (2026-10-02). SND power-up test and the normal configuration at power-up: not sim-tested (unit tests).</span>
+<b>Pictures</b><span>The SND instrument in the local browser harness, running the build of the branch, with ADIRU data typed in (the harness has no aircraft). No pictures for the power-up test and the reconfiguration.</span>
+</div>
+<div class="toc"><div>1. Standby Navigation Display (SND)</div><div>2. SND power-up self-test</div><div>3. SFD/SND reconfiguration with the MODE pb</div><div>4. Normal ISIS configuration at each power-up</div></div>
+<h2>1. Standby Navigation Display (SND)</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Lower ISIS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-29). 10 unit tests.</div>
+<h3>What it is for</h3>
+<p>The A380 has two ISIS (integrated standby instrument systems): the upper one is the Standby Flight Display (SFD: attitude, speed, altitude), the lower one the <b>Standby Navigation Display</b> (SND): heading, position and a small navigation of its own, independent of the FMS (A380 FCOM DSC-34-10-20). On the FBW A380 the lower screen was black; it is now the SND.</p>
+<h3>The screen</h3>
+<figure><img src="img/31/n01_h1_normal.png" style="width:55%"><figcaption><b>Figure 1.</b> The SND: ground speed, heading source IR3, heading rose with the yellow heading index and the green track diamond, aircraft symbol, position from ADIRU 3.</figcaption></figure>
+<table><tr><th>Item</th><th>Meaning</th></tr><tr><td>GS 370</td><td>ground speed, kt</td></tr><tr><td>IR3</td><td>the heading comes from ADIRU 3 (IR1 when ADIRU 3 has none); <b>TRU</b> in cyan in true reference</td></tr><tr><td>Heading rose</td><td>240° shown, a mark every 5°, numbers every 30°; white markers at 45° and 90°</td></tr><tr><td>Green diamond</td><td>the aircraft track</td></tr><tr><td>GPIR3 N 48 15.5 / E 003 32.3</td><td>the aircraft position (degrees and minutes) and its source</td></tr><tr><td>HDG, PPOS (amber)</td><td>heading or position not available</td></tr></table>
+<div class="row"><figure><img src="img/31/n02_h2_true_ppos.png"><figcaption><b>Figure 2.</b> True reference (TRU), no position (PPOS), no ground speed.</figcaption></figure><figure><img src="img/31/n03_h3_hdg_flag.png"><figcaption><b>Figure 3.</b> No heading from either ADIRU: HDG replaces the rose.</figcaption></figure></div>
+<h3>Buttons</h3>
+<table><tr><th>Button</th><th>Action</th></tr><tr><td>MODE</td><td>SFD/SND reconfiguration: see the feature below</td></tr><tr><td>+ / -</td><td>brightness</td></tr><tr><td>MENU</td><td>opens the menu under the white line; press again to leave it</td></tr><tr><td>SET/SEL knob</td><td>turn: next item or value; push: select, or go to the next field</td></tr><tr><td>LS/DIR TO</td><td>DIR TO (see below); press again to leave it</td></tr></table>
+<h3>The waypoint list</h3>
+<p>The SND has its own list of waypoints, entered by coordinates (it has no database). Press MENU: the menu shows INSERT WPT, INSERT FIX, EDIT WPT / FIX and CLEAR WPT / FIX in cyan; turn the knob to choose, push to select.</p>
+<ol><li>MENU, then push on <b>INSERT WPT</b>: the coordinates show, starting from the last waypoint (or your position).</li><li>Turn the knob to change the underlined field, push to go to the next one: N/S, degrees, minutes, tenths, then E/W, degrees, minutes, tenths.</li><li>Push on the last field: the waypoint is added at the end of the list.</li></ol>
+<div class="row"><figure><img src="img/31/n04_s2_menu.png"><figcaption><b>Figure 4.</b> The menu: INSERT WPT.</figcaption></figure><figure><img src="img/31/n05_s2_editor.png"><figcaption><b>Figure 5.</b> Entering the coordinates: the degrees of latitude being set.</figcaption></figure></div>
+<p>EDIT and CLEAR WPT / FIX: turn to choose the waypoint ("2/3 N5015/E00232", then the FIX last), push to edit or to delete it.</p>
+<h3>DIR TO and the navigation</h3>
+<ol><li>Press <b>LS/DIR TO</b>. With a list, turn to choose the waypoint and push. Without a list, enter the coordinates of the point as above.</li><li>The navigation starts from your position: FROM, TO (white) and NEXT under the line, the bearing and distance to the TO waypoint top right, and the course on the rose.</li><li>Passing abeam the TO waypoint, the SND goes on to the next one.</li></ol>
+<div class="row"><figure><img src="img/31/n06_s2_list.png"><figcaption><b>Figure 6.</b> Two waypoints, navigation not active: the true bearing and distance between them.</figcaption></figure><figure><img src="img/31/n08_s2_nav.png"><figcaption><b>Figure 7.</b> After DIR TO: FROM / TO / NEXT, TO WPT 342° 126 NM, the course arrow.</figcaption></figure></div>
+<figure><img src="img/31/n09_s2_deviation.png" style="width:45%"><figcaption><b>Figure 8.</b> About 5 NM right of the track: the deviation bar one large mark left of the aircraft (large marks every 5 NM, small every 2.5 NM).</figcaption></figure>
+<h3>The FIX</h3>
+<p>One point you want to watch (a beacon, an airport): MENU, <b>INSERT FIX</b>, enter its coordinates. The SND shows its distance top left, a magenta pointer towards it on the rose, and its coordinates in magenta at the bottom of the list. A new FIX replaces the old one; EDIT / CLEAR WPT / FIX offer it after the waypoints.</p>
+<div class="row"><figure><img src="img/31/n10_s3_fix.png"><figcaption><b>Figure 9.</b> A FIX alone: 291 NM, bearing 060°.</figcaption></figure><figure><img src="img/31/n11_s3_nav_fix.png"><figcaption><b>Figure 10.</b> The FIX together with a DIR TO: FROM / TO / NEXT / FIX.</figcaption></figure></div>
+<h3>Limitations and why</h3>
+<table><tr><th>Limitation</th><th>Why</th></tr><tr><td>No automatic SFD/SND reconfiguration</td><td>FBW has no ISIS display failure; the MODE pb reconfigures by hand (see SFD/SND reconfiguration below)</td></tr><tr><td>The list is lost when the flight is reloaded</td><td>the ISIS keeps it while it runs</td></tr><tr><td>Position source always GPIR</td><td>the FBW ADIRS has no separate GPS / IRS positions yet</td></tr><tr><td>Coordinate entry, 10 waypoints at most, sequencing abeam</td><td>the FCOM figures of these procedures stop at the first frame: this is our reading</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Read heading, track, ground speed and position on the lower ISIS.</li><li>Waypoints: <b>MENU</b>, <b>INSERT WPT</b>, set the coordinates with the SET/SEL knob (turn to change, push for the next field).</li><li><b>LS/DIR TO</b>, choose a waypoint and push: the SND guides you there (TO WPT bearing and distance, course, deviation bar).</li><li>One point to watch: MENU, <b>INSERT FIX</b>. EDIT / CLEAR WPT / FIX to change the list.</li><li><b>+ / -</b> for the brightness.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, ADIRS aligned (NAV). Look at the lower ISIS.</td><td>GS, IR3 (or IR1), the heading rose with the yellow heading index and the green track diamond, GPIR3 and the position at the bottom.</td></tr><tr><td>2</td><td>Press the <b>TRUE</b> north reference pushbutton (MAG / TRUE).</td><td>TRU in cyan; heading and track in true. Press again: back to magnetic.</td></tr><tr><td>3</td><td>Press <b>MENU</b>.</td><td>INSERT WPT, INSERT FIX, EDIT WPT / FIX, CLEAR WPT / FIX in cyan.</td></tr><tr><td>4</td><td>Push the SET/SEL knob on INSERT WPT; turn and push through the 8 fields.</td><td>The waypoint is added to the list under the white line.</td></tr><tr><td>5</td><td>Add a second waypoint the same way.</td><td>The true bearing and distance between the two show in the list.</td></tr><tr><td>6</td><td>Press <b>LS/DIR TO</b>, choose the first waypoint, push.</td><td>FROM / TO / NEXT, TO WPT bearing and distance top right, the course arrow on the rose.</td></tr><tr><td>7</td><td>Fly off the course by about 5 NM.</td><td>The deviation bar moves one large mark (5 NM) from the aircraft.</td></tr><tr><td>8</td><td>MENU, INSERT FIX, enter a point.</td><td>FIX distance top left, a magenta pointer towards it, its coordinates in magenta at the bottom.</td></tr><tr><td>9</td><td>Press <b>+</b> and <b>-</b>.</td><td>Brighter, dimmer.</td></tr></table>
+<h2>2. SND power-up self-test</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Lower ISIS &nbsp;|&nbsp; <b>Status:</b> Not sim-tested (2 unit tests). It was installed with the SFD/SND reconfiguration that the user tested on 2026-10-02, with no separate record.</div>
+<h3>What it is for</h3>
+<p>The two ISIS of the A380 are the same unit, SFD or SND (A380 FCOM DSC-34-10-20-10). The SFD (upper ISIS) already ran its power-up tests: a yellow INIT box and a countdown for 90 seconds. The SND came on at once. It now behaves as the SFD. The A380 FCOM gives no time: the 90 s and the 10 s below are the ones of the FBW SFD.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Cold and dark spawn, first power-up</td><td>INIT and the seconds left in a yellow box for 90 s; HDG and PPOS flags meanwhile; then the normal SND.</td></tr><tr><td>Spawn with the aircraft powered (runway, cruise...)</td><td>The SND is on at once, no test.</td></tr><tr><td>Power loss</td><td>The display stays on for 10 s; power back within 10 s: no new test. Longer: off, and the tests run again at the next power-up.</td></tr><tr><td>Power supply</td><td>As the SFD: DC ESS bus, or DC HOT 1 above 50 kt.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to do: after a cold and dark start, wait for the end of INIT (90 s) before using the SND.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X cold and dark. Switch the batteries on (DC ESS powered).</td><td>The upper (SFD) and lower (SND) ISIS both show INIT with a countdown from 90.</td></tr><tr><td>2</td><td>Wait 90 seconds.</td><td>The SND shows its rose; HDG / PPOS flags until the ADIRS give heading and position.</td></tr><tr><td>3</td><td>Remove the power for less than 10 seconds, then restore it.</td><td>The SND stays on; no new INIT.</td></tr><tr><td>4</td><td>Remove the power for more than 10 seconds, then restore it.</td><td>The SND goes off, then runs INIT again for 90 s.</td></tr><tr><td>5</td><td>Spawn on a runway (powered).</td><td>The SND is on at once, without INIT.</td></tr></table>
+<h2>3. SFD/SND reconfiguration with the MODE pb</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> MODE pb of either ISIS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02). 2 unit tests.</div>
+<h3>What it is for</h3>
+<p>A380 FCOM DSC-34-10-20-20-10: the MODE pb "enables to switch from SFD to SND display or to switch off the corresponding standby display". Before, MODE only switched the SND off and on. Now each press goes to the next configuration, and one SFD is always displayed. Both ISIS screens carry both displays; the knob and the pushbuttons of an ISIS act on the display it shows.</p>
+<h3>What you see</h3>
+<table><tr><th>MODE pressed</th><th>Upper ISIS (1)</th><th>Lower ISIS (2)</th></tr><tr><td>Normal</td><td>SFD</td><td>SND</td></tr><tr><td>1st press</td><td>SND</td><td>SFD</td></tr><tr><td>2nd press</td><td>SFD</td><td>off</td></tr><tr><td>3rd press</td><td>SFD</td><td>SND (back to normal)</td></tr></table>
+<ul><li>The SND waypoint list, DIR TO and FIX are the same whichever ISIS shows the SND.</li><li>On the SFD, the <b>MENU</b> pb opens the BUGS page (the A380 FCOM puts the bugs in the SFD menu); the A320 ATT RST on that pb is gone (not in the A380 FCOM).</li></ul>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No automatic reconfiguration.</td><td>The FCOM reconfigures automatically on an SFD display failure; FBW has no ISIS display failure.</td><td>Use the MODE pb.</td></tr><tr><td>A full MSFS restart is needed after an update.</td><td>The cockpit behaviour files and panel.cfg change.</td><td>Restart the sim after installing.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Press <b>MODE</b> on either ISIS to go to the next configuration (swapped, SND off, normal).</li><li>Use the knob and the pushbuttons of the ISIS that shows the display you want to work on.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, both ISIS after INIT. Upper ISIS: SFD, lower ISIS: SND.</td><td>Normal configuration.</td></tr><tr><td>2</td><td>Press <b>MODE</b> on the lower ISIS.</td><td>The upper ISIS shows the SND, the lower one the SFD.</td></tr><tr><td>3</td><td>Turn the knob of the upper ISIS (now SND), press its MENU.</td><td>The SND menu opens on the upper ISIS; the waypoint list is the one entered before.</td></tr><tr><td>4</td><td>Press MENU on the lower ISIS (now SFD).</td><td>The SFD BUGS page.</td></tr><tr><td>5</td><td>Press MODE again.</td><td>Upper ISIS SFD, lower ISIS off.</td></tr><tr><td>6</td><td>Press MODE again.</td><td>Back to normal: upper SFD, lower SND.</td></tr></table>
+<h2>4. Normal ISIS configuration at each power-up</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Both ISIS &nbsp;|&nbsp; <b>Status:</b> Not sim-tested (2 unit tests).</div>
+<h3>What it is for</h3>
+<p>The configuration chosen with the MODE pb survived a power cycle: an ISIS could come back swapped or off. The ISIS now start in the normal configuration (upper ISIS SFD, lower ISIS SND) at each power-up. The FCOM (DSC-34-10-20-20-10) says nothing about it: this is a design choice.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>ISIS off, then powered (they run INIT)</td><td>Normal configuration, whatever MODE showed before.</td></tr><tr><td>Power loss shorter than the 10 s standby</td><td>The configuration is kept (not a power-up).</td></tr><tr><td>Spawn with the aircraft powered</td><td>The configuration is not changed by the spawn.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to do: after a power-up the ISIS are back to normal; use MODE again if you need another configuration.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, both ISIS on. Press MODE once.</td><td>Upper ISIS SND, lower ISIS SFD.</td></tr><tr><td>2</td><td>Remove the power for more than 10 seconds (batteries and external power off), then restore it.</td><td>Both ISIS run INIT; after it, upper SFD and lower SND (normal).</td></tr><tr><td>3</td><td>Press MODE once, then remove the power for less than 10 seconds and restore it.</td><td>The swapped configuration is kept.</td></tr></table>
+</body></html>

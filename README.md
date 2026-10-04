@@ -1,5 +1,8 @@
 # Upstream PR drafts (flybywiresim/aircraft, base branch `master`)
 
+> **Note (2026-10-04):** the user manuals in `manuals/` now follow the `core/*` branches of the fork (one manual per core
+> branch, see "User manuals" below). The PR description drafts `NN-*.md` still describe the older `pr/NN` branches.
+
 _Last updated 2026-09-25 (local master `50db576cc`, 89 ahead; upstream `origin/master` still `2baa2b35e`; `master` and the 9 branches are on
 the fork https://github.com/TCdr/aircraft, no PR opened). The assistant's own notes on the same
 state live in its memory files `project_fbw_pr_readiness.md`, `project_fbw_wx_radar.md` and `project_fbw_terrain_on_nd.md`; this README is
@@ -12,8 +15,14 @@ The branches exist in the local repo (`E:\MSFS2024 mods\repos\fbw`), one branch 
 version the installer delivered on 2026-09-21) from the commits of the local `master` (tip `38bc26241`, 75 commits ahead). On 2026-09-25 `master` and the 9 branches were pushed to the fork `TCdr/aircraft`; no PR is open.
 The tree and the table below are the CURRENT state (2026-09-23 evening); the dated sections at the end are the log of how it got there.
 
-**User manuals (2026-09-28):** `manuals/00-index.html` lists one user manual per PR (HTML with its `img/NN/` screenshots, and PDF);
-`manuals/FBW-user-manuals.pdf` holds them all with bookmarks. `manuals/FINDINGS.md` lists the bugs found while making them.
+**User manuals (restructured 2026-10-04):** the manuals now follow the `core/*` branches, not the `pr/NN` branches:
+`manuals/00-index.html` lists one manual per core branch (`manuals/core-<scope>.html` / `.pdf`, 26 manuals: the 25 core branches plus `core/a380x-vd-runways`, created on 2026-10-04), with the base of
+each branch, the merge order of the stacks and the aircraft-large-files companion commits. Each manual has one section per
+feature of its branch, with How to use, How to test (steps with the expected result) and the test status of that feature.
+The content of the 31 per-PR manuals of 2026-09-28 is merged into them (the old `NN-*.html/.pdf` files are removed; the
+pictures stay in `manuals/img/NN/`). `manuals/FBW-user-manuals.pdf` holds them all with bookmarks (per manual and per
+feature), `manuals/FBW-user-manuals.docx` is the editable Word version, `manuals/FINDINGS.md` lists the bugs found while
+making the 2026-09-28 manuals. The PR description drafts `NN-*.md` below are unchanged.
 
 Each file is one PR: title, branch, labels, the issue to open first, the CHANGELOG line, and the body to paste into
 the template. Anything marked **TO ADD** is something only you can supply (a real-life reference, screenshots, your Discord name).

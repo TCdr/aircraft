@@ -1,0 +1,126 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Runway awareness: RAAS and OANS - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>Runway awareness: RAAS and OANS</h1>
+<div class="subtitle">The A32NX gets the Honeywell RAAS runway callouts, and the A380X OANS gives RWY AHEAD without a Navigraph map, loads the FCOM default airport by itself and shows one airport per side</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX (RAAS) and A380X (OANS)</span>
+<b>Where to find it</b><span>A32NX: flyPad &gt; Settings &gt; Aircraft Options / Pin Programs &gt; RAAS. A380X: ND at the ZOOM range or in PLAN (OANS), ARPT SEL panel; RWY AHEAD on the PFD and ND</span>
+<b>Branch</b><span><code>core/oans-btv-raas</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent.</span>
+<b>Status</b><span>RAAS and RWY AHEAD without a map tested in the sim by the user: OK (2026-10-02). OANS default airport tested by the user: OK (2026-09-27). One airport per side: not sim-tested.</span>
+<b>Pictures</b><span>flyPad setting and the Captain ND from the local browser harness, running the build installed in the sim (RAAS callouts drawn as diagrams from the code; the RWY AHEAD advisory and the test airport XTST set up by the harness). No pictures for the airport per side.</span>
+</div>
+<div class="toc"><div>1. A32NX RAAS runway awareness callouts</div><div>2. A380X RWY AHEAD without an airport map</div><div>3. A380X OANS default airport</div><div>4. A380X one OANS airport per side</div></div>
+<h2>1. A32NX RAAS runway awareness callouts</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Settings &gt; Aircraft Options / Pin Programs &gt; RAAS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: first callout heard 2026-09-26; "RAAS is working well" on 2026-10-02 (approaching on the ground and in the air, extended holding, distance remaining, volume).</div>
+<h3>What it is for</h3>
+<p>RAAS is an option of the A320's Honeywell EGPWS (A320 FCOM GEN aircraft configuration, used as a line-up aid in PRO-NOR-SOP-11 TAKEOFF RUNWAY CONFIRM). It tells the crew which runway they are approaching or are on, warns of a taxiway takeoff or landing, and calls the distance remaining. It needs no airport map: the runways come from the sim's airport database.</p>
+<h3>Turning it on</h3>
+<figure><img src="img/18/r01_pin_programs.png" style="width:80%"><figcaption><b>Figure 1.</b> flyPad Settings &gt; Aircraft Options / Pin Programs.</figcaption></figure>
+<figure><img src="img/18/r02_setting.png" style="width:80%"><figcaption><b>Figure 2.</b> RAAS: Off, Feet (default) or Meters. The unit is the one of the distance callouts.</figcaption></figure>
+<ul><li>The callouts run while the EGPWC is powered (AC BUS 1) and the <b>GPWS SYS</b> pushbutton is not OFF.</li><li>The EGPWS aural alerts (e.g. "TOO LOW TERRAIN", "GLIDE SLOPE") have priority: RAAS waits for them.</li><li>The voice is played word by word.</li></ul>
+<h3>On the ground</h3>
+<figure><img src="img/18/d01_ground.png" style="width:100%"><figcaption><b>Figure 3.</b> The ground callouts, in blue the advisories, in amber the cautions.<span class="refonly">Diagram drawn for this manual: not representative of the in-game UI, reference for the explanation only.</span></figcaption></figure>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Taxiing towards a runway (below 40 kt)</td><td>"Approaching" and the runway end nearest to where you will enter; "Approaching runways" when two at once.</td></tr><tr><td>Lining up</td><td>"On runway" and the runway, once, when the runway was entered on the ground.</td></tr><tr><td>Lining up with less than 1800 m (5900 ft) ahead</td><td>The length remaining is added; at the start of the roll (above 40 kt), "Caution, short runway".</td></tr><tr><td>Holding on the runway for 90 s</td><td>"On runway ..." twice, then every 120 s while you stay.</td></tr><tr><td>Starting a takeoff roll on a taxiway (above 40 kt)</td><td>"On taxiway, on taxiway".</td></tr><tr><td>Rejected takeoff (ground speed down 7 kt from its maximum)</td><td>The distance remaining on the last half of the runway.</td></tr><tr><td>Slow near the end (within 100 ft, below 40 kt)</td><td>"One hundred remaining" (Feet) or "Thirty remaining" (Meters).</td></tr></table>
+<h3>Approach and landing</h3>
+<figure><img src="img/18/d02_air.png" style="width:100%"><figcaption><b>Figure 4.</b> The approach callouts and the suppress window.<span class="refonly">Diagram drawn for this manual: not representative of the in-game UI, reference for the explanation only.</span></figcaption></figure>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Between 750 and 300 ft, lined up, within 3 NM</td><td>"Approaching" and the runway, once. Not between 450 and 350 ft (the Airbus suppress window, where the crew is busy with the auto callouts).</td></tr><tr><td>The runway is shorter than 1500 m (4900 ft)</td><td>The available length is added; below the window: "Caution, short runway".</td></tr><tr><td>150 to 250 ft, not lined up with any runway</td><td>"Caution taxiway, caution taxiway".</td></tr><tr><td>Landing roll</td><td>The distance remaining on the last half: every 1000 ft (Feet) or 300 m (Meters), the last one at 500 ft / 100 m; then the runway end.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Only runways known to the sim.</td><td>The runways come from the MSFS airport database, not from an airport map: no taxiway geometry, so "on taxiway" is judged as "not aligned with a runway".</td><td>-</td></tr><tr><td>One synthetic voice.</td><td>The clips are generated with the Piper text-to-speech engine (voice trained on the public-domain LJ Speech dataset); its licence allows the clips in the aircraft.</td><td>-</td></tr><tr><td>No RAAS on the A380X.</td><td>The A380X uses the OANS runway alerts instead (see A380X RWY AHEAD without an airport map below).</td><td>-</td></tr></table>
+<div class="note"><b class="t">Note</b>The A380X OIT flyPad settings pages carry the same RAAS option entry, only so that the A380X builds: the A380X has no RAAS.</div>
+<h3>How to use</h3>
+<ol><li>flyPad &gt; <b>Settings</b> &gt; <b>Aircraft Options / Pin Programs</b> &gt; <b>RAAS</b>: <b>Feet</b> (the default) or <b>Meters</b> for the distance callouts, <b>Off</b> to remove them.</li><li>Keep the <b>GPWS SYS</b> pushbutton on (not OFF): RAAS is part of the EGPWS.</li><li>Taxi, take off and land as usual: listen to the callouts.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX on the ground at an airport, AC BUS 1 powered, GPWS SYS not OFF, RAAS set to <b>Feet</b>. Taxi towards a runway below 40 kt.</td><td>"Approaching" and the runway name (for example "Approaching zero six right") before the holding point.</td></tr><tr><td>2</td><td>Line up on the runway.</td><td>"On runway" and the runway name, once.</td></tr><tr><td>3</td><td>Stay lined up for 90 seconds.</td><td>"On runway ..." twice, then again every 120 s while you stay.</td></tr><tr><td>4</td><td>On a runway shorter than 1800 m (5900 ft): line up.</td><td>The length remaining is added; above 40 kt, "Caution, short runway".</td></tr><tr><td>5</td><td>Start a takeoff roll on a taxiway (above 40 kt).</td><td>"On taxiway, on taxiway".</td></tr><tr><td>6</td><td>Reject a takeoff (slow down by 7 kt or more from the maximum ground speed).</td><td>The distance remaining on the last half of the runway.</td></tr><tr><td>7</td><td>In flight, final approach lined up with the runway, within 3 NM, between 750 and 300 ft.</td><td>"Approaching" and the runway, once; never between 450 and 350 ft.</td></tr><tr><td>8</td><td>Landing roll.</td><td>Distance remaining every 1000 ft on the last half (last one at 500 ft), then the runway end.</td></tr><tr><td>9</td><td>Set RAAS to <b>Meters</b> and land again.</td><td>Distance remaining every 300 m, the last one at 100 m.</td></tr><tr><td>10</td><td>Set the <b>GPWS SYS</b> pushbutton OFF, or RAAS Off.</td><td>No more RAAS callouts.</td></tr></table>
+<h2>2. A380X RWY AHEAD without an airport map</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> PFD and ND, automatic while taxiing &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02, without a Navigraph map). 4 unit tests.</div>
+<h3>What it is for</h3>
+<p>While taxiing, the A380 OANS warns the crew before the aircraft enters a runway: <b>RWY AHEAD</b> with the runway name, on the PFD and the ND. In FBW this advisory came from the Navigraph airport map (AMDB): without a Navigraph subscription, or at an airport without a map, it never came. Now, while no airport map is loaded, the OANS uses the runways of the sim's own airport database with the same rule.</p>
+<h3>The rule</h3>
+<figure><img src="img/19/r00_volume.png" style="width:90%"><figcaption><b>Figure 5.</b> The prediction volume: from the nose to 7 seconds ahead at the current ground speed, 60 m wide. When it reaches a runway, RWY AHEAD appears for that runway.<span class="refonly">Diagram drawn for this manual: not representative of the in-game UI, reference for the explanation only.</span></figcaption></figure>
+<ul><li>On the ground, from 1 to 40 kt.</li><li>The advisory stays at most 30 s, and goes when the aircraft is on the runway.</li><li>With an airport map loaded, nothing changes: the map is used as before.</li></ul>
+<h3>What it looks like</h3>
+<figure><img src="img/19/r01_nd_rwy_ahead.png" style="width:50%"><figcaption><b>Figure 6.</b> The ND advisory: the runway name in a yellow box at the top (here 09-27, when the aircraft taxis south towards runway 09/27). The PFD shows RWY AHEAD too.</figcaption></figure>
+<h3>What to expect</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Taxiing towards a runway, no Navigraph map</td><td>RWY AHEAD with the runway name, up to 30 s.</td></tr><tr><td>Taxiing towards a runway, with the Navigraph map</td><td>RWY AHEAD from the map (as before).</td></tr><tr><td>Stopped, or above 40 kt</td><td>No advisory.</td></tr><tr><td>On the runway</td><td>The advisory goes.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Runway rectangles only.</td><td>The sim database gives each runway as a rectangle (threshold, length, width); displaced thresholds and runway shapes of the airport map are not known.</td><td>-</td></tr><tr><td>Shares its runway search with the A32NX RAAS.</td><td>One runway module (sim airport database) serves both; both are on this branch.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: taxi as usual. Before entering a runway, RWY AHEAD shows on the PFD and the ND with the runway name.</li><li>With the Navigraph airport map loaded the advisory comes from the map; without it, from the sim runways.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, without a Navigraph airport map (flyPad not linked to Navigraph, or an airport not in the airport database). Taxi towards a runway between 1 and 40 kt.</td><td>About 7 seconds before the nose reaches the runway: RWY AHEAD on the PFD, and the runway name in a yellow box at the top of the ND.</td></tr><tr><td>2</td><td>Stop before the runway.</td><td>The advisory goes after 30 s at most; no new one while stopped.</td></tr><tr><td>3</td><td>Taxi onto the runway.</td><td>The advisory goes once the aircraft is on the runway.</td></tr><tr><td>4</td><td>Repeat with the Navigraph map loaded.</td><td>RWY AHEAD as before, from the map.</td></tr></table>
+<h2>3. A380X OANS default airport</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> ND at ZOOM range or PLAN; OANS ARPT SEL &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-27). 4 unit tests.</div>
+<h3>What it is for</h3>
+<p>The OANS draws the airport around the aircraft on the ND. The FCOM (DSC-34-10-70-20, MOVING AIRPORT MAP) says no manual selection is needed: the OANS shows a <b>default airport</b>. FBW loaded the nearest airport on ground, but in flight only the destination (within 50 NM, at any height), and a manual selection stopped the automatic choice for 10 minutes. Now the FCOM rules apply.</p>
+<h3>The rules</h3>
+<table><tr><th>ND mode</th><th>Default airport</th></tr><tr><td>ARC, ROSE-NAV (on ground)</td><td>The airport where the aircraft is.</td></tr><tr><td>ARC, ROSE-NAV (in flight)</td><td>The <b>origin, destination or alternate</b> of the FMS while the aircraft is inside its virtual cylinder: <b>20 NM</b> radius, <b>5000 ft</b> above the airport. The OANS keeps it while the aircraft stays in the cylinder.</td></tr><tr><td>PLAN (in flight)</td><td>The origin if it is closer than 50 NM, otherwise the destination; the destination when origin and destination are less than 300 NM apart.</td></tr><tr><td>Manual (ARPT SEL)</td><td>Only in PLAN: another airport can be displayed. It stays until the ND leaves PLAN, or the aircraft lands or takes off. In ARC / ROSE-NAV the OANS says SET PLAN MODE.</td></tr></table>
+<p>Each ND has its own OANS and its own airport (see A380X one OANS airport per side below): the rules apply to each ND by itself.</p>
+<h3>What it looks like</h3>
+<div class="row"><figure><img src="img/25/o01_inflight_in_cylinder.png"><figcaption><b>Figure 7.</b> In flight, 12 NM from the destination XTST at 3000 ft: the destination loads by itself (name top right; the arrow points to the airport, still outside the zoom range).</figcaption></figure><figure><img src="img/25/o02_inflight_outside.png"><figcaption><b>Figure 8.</b> 30 NM away at 9000 ft: outside the cylinder, no airport is loaded.</figcaption></figure></div>
+<figure><img src="img/25/o03_ground.png" style="width:45%"><figcaption><b>Figure 9.</b> On ground at XTST: the current airport, with the aircraft at its gate.</figcaption></figure>
+<h3>What to expect</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>On ground</td><td>The airport where you are, whatever the flight plan.</td></tr><tr><td>Climbing out of the origin</td><td>The origin until you leave its 20 NM / 5000 ft cylinder, then nothing (or the alternate / destination when inside theirs).</td></tr><tr><td>Approach to the destination</td><td>The destination from 20 NM and 5000 ft above it.</td></tr><tr><td>Diversion to the alternate</td><td>The alternate from 20 NM and 5000 ft above it.</td></tr><tr><td>ARPT SEL in PLAN</td><td>Your airport until you leave PLAN, land or take off.</td></tr><tr><td>No present position</td><td>No automatic airport.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Needs the Navigraph airport database.</td><td>The OANS map is the Navigraph AMDB.</td><td>Link Navigraph in the flyPad.</td></tr><tr><td>The Captain and F/O NDs can show different airports.</td><td>Each side has its own OANS (FCOM DSC-34-10-70-10); see the airport per side below.</td><td>-</td></tr><tr><td>The destination arrow (5 NM range, map out of range) is FBW's.</td><td>Not part of this change.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Set the ND to ARC or ROSE-NAV and turn the range knob to <b>ZOOM</b>: the OANS shows the default airport by itself.</li><li>To look at another airport: ND in <b>PLAN</b>, open the OANS <b>ARPT SEL</b> panel, choose the airport. It stays until the ND leaves PLAN, or the aircraft lands or takes off.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground at an airport with a Navigraph airport map; ND ARC, range ZOOM.</td><td>The OANS shows the airport where you are, whatever the flight plan.</td></tr><tr><td>2</td><td>Take off and climb out (ND ARC ZOOM).</td><td>The origin stays until you leave its 20 NM / 5000 ft cylinder, then no airport.</td></tr><tr><td>3</td><td>Approach the destination of the FMS flight plan.</td><td>The destination loads by itself from 20 NM and 5000 ft above it.</td></tr><tr><td>4</td><td>In flight, ND in PLAN.</td><td>The origin if it is closer than 50 NM, else the destination (the destination when origin and destination are less than 300 NM apart).</td></tr><tr><td>5</td><td>In PLAN, choose another airport with ARPT SEL, then set the ND back to ARC.</td><td>Your airport while in PLAN; back in ARC ZOOM, the default airport again.</td></tr><tr><td>6</td><td>In ARC or ROSE-NAV, try ARPT SEL.</td><td>The OANS asks SET PLAN MODE.</td></tr></table>
+<h2>4. A380X one OANS airport per side</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Captain and F/O NDs (OANS) &nbsp;|&nbsp; <b>Status:</b> Not sim-tested.</div>
+<h3>What it is for</h3>
+<p>A380 FCOM DSC-34-10-70-10: there is a Captain's OANS (ADIRS 1, MMR 1, FMS 1) and a First Officer's OANS (side 2), each shown on its own ND. FBW loaded one airport for both NDs, so an airport chosen on one side replaced the airport of the other. Now each side displays its own airport.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Both NDs at ZOOM on the ground</td><td>Each OANS shows the current airport (each finds it by itself).</td></tr><tr><td>F/O ND in PLAN, another airport chosen with ARPT SEL</td><td>The F/O ND shows that airport; the Captain ND keeps its own airport.</td></tr><tr><td>PLAN default airport</td><td>Follows the mode of that ND only (before, it also looked at the other ND).</td></tr><tr><td>RWY AHEAD</td><td>Still one advisory for the aircraft, computed by the Captain side OANS: from its airport map when the aircraft is within that airport, else from the sim runways.</td></tr><tr><td>An airport unloaded on one side</td><td>The BTV runway and exit selection is cleared only if it was made on that side.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The runway crossing and flag events are not split by side.</td><td>An item of the other side's airport is not found on this side's map.</td><td>-</td></tr><tr><td>RWY AHEAD comes from the Captain side only.</td><td>It is one advisory for the aircraft (one PFD / ND message word).</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Use each ND's OANS as usual: ZOOM range for the default airport, PLAN + ARPT SEL for another one.</li><li>Each pilot can look at a different airport without changing the other's map.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground at an airport with a Navigraph airport map. Both NDs ARC, range ZOOM.</td><td>Both NDs show the current airport.</td></tr><tr><td>2</td><td>Set the F/O ND to PLAN and choose another airport with the F/O OANS ARPT SEL.</td><td>The F/O ND shows the chosen airport; the Captain ND still shows the current airport.</td></tr><tr><td>3</td><td>Set the Captain ND to PLAN and choose a third airport.</td><td>Each ND shows its own choice.</td></tr><tr><td>4</td><td>Set both NDs back to ARC ZOOM.</td><td>Both go back to the current airport.</td></tr><tr><td>5</td><td>Select a BTV runway and exit on the Captain OANS, then unload the airport on the F/O side.</td><td>The Captain BTV selection stays.</td></tr></table>
+</body></html>

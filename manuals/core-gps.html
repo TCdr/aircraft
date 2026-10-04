@@ -1,0 +1,122 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>GPS receivers, GPS deselection and ECAM STATUS - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>GPS receivers, GPS deselection and ECAM STATUS</h1>
+<div class="subtitle">Real GPS receivers in MMR 1 and 2 for both aircraft, with the GPIRS position, GPS PRIMARY from the real accuracy, the GPS pages, the NAV GPS FAULT alerts, GPS deselection and the A32NX ECAM STATUS page</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X (shared systems code); the ECAM STATUS page and STS reminder are A32NX only</span>
+<b>Where to find it</b><span>MCDU DATA &gt; GPS MONITOR and SELECTED NAVAIDS (A32NX); MFD FMS &gt; POSITION &gt; GPS and NAVAIDS (A380X); E/WD and SD STATUS page; flyPad &gt; Failures &gt; ATA 34 Navigation</span>
+<b>Branch</b><span><code>core/gps</code>, based on <code>core/a380x-mfd-fms</code> (stacked: needs core/surveillance and core/a380x-mfd-fms merged first). <code>core/a32nx-air-conditioning</code>, <code>core/a380x-elec</code> and <code>core/failures-a32nx</code> build on it.</span>
+<b>Status</b><span>All six features tested in the sim by the user: OK (2026-10-02): receivers and pages, A380X DIFF mode, GPS deselection on both aircraft, NAV GPS FAULT alerts, A32NX STATUS page and STS reminder, A380X INOP SYS. A full MSFS restart is needed after installing (systems WASM).</span>
+<b>Pictures</b><span>One picture: the A380X POSITION/GPS page layout, taken in the browser harness before the receivers existed (the values on it are the old stand-in values). The other displays are text only.</span>
+</div>
+<div class="toc"><div>1. GPS receivers in MMR 1 and 2</div><div>2. GPIRS position and GPS PRIMARY</div><div>3. GPS pages: MCDU GPS MONITOR and MFD POSITION/GPS</div><div>4. NAV GPS 1(2) FAULT alerts</div><div>5. GPS deselection and position uncertainty</div><div>6. A32NX ECAM STATUS page and STS reminder</div></div>
+<h2>1. GPS receivers in MMR 1 and 2</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> No control: the receivers run when powered &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02). Degraded modes also covered by 21 Rust unit tests.</div>
+<h3>What it is for</h3>
+<p>There was no GPS receiver in either aircraft: the pages showed the sim GPS position for both receivers with random satellite counts and figures of merit, and GPS PRIMARY came from a random estimate. Now each Multi-Mode Receiver (MMR 1 and MMR 2) has a GPS receiver. A320 FCOM DSC-34: "Worldwide, 24 satellites broadcast accurate navigation data"; the two independent receivers process them and send their data to the ADIRUs.</p>
+<ul><li><b>Satellites:</b> the sim has none, so they are computed from the nominal 24-slot GPS constellation (six orbital planes, four satellites each) at the sim UTC date and time. A satellite counts when it is more than 5&deg; above the horizon. Their geometry gives the dilution of precision, and from it the figure of merit (accuracy) and the integrity limit (HIL) of the position. Fewer than 5 satellites: no integrity limit.</li><li><b>Modes</b> (A320 FCOM DSC-22_20 GPS MONITOR, A380 FCOM DSC-34-10-40-10): <b>TEST</b> (self test at power up, 1.5 to 2.5 s), <b>INIT</b> (2.5 to 4.5 s), <b>ACQ</b> (satellite acquisition), <b>NAV</b> (4 or more satellites, data to the ADIRUs), <b>FAULT</b> (failed receiver).</li><li><b>Acquisition time:</b> 15 to 30 s after a short power cut (unpowered 15 min or less: warm start), 80 to 130 s from a cold start, 5 to 15 s to re-acquire after a loss of the signals.</li><li><b>Degraded modes</b> (the FCOMs only name them; the behaviour follows ARINC 743A, a design choice): <b>ALTAID</b> with 3 satellites (the ADR barometric altitude is the fourth measurement, no integrity limit); <b>AIDED</b> with fewer satellites, the receiver coasts on the IR velocities for up to 2 min, its accuracy gets worse with time and it gives no integrity limit. After that: back to ACQ.</li><li><b>Antenna masking:</b> the antenna is on top of the fuselage. In a turn or a steep climb, satellites low on the far side of the aircraft are masked.</li><li><b>DIFF (A380X only):</b> the A380 receivers use satellite based augmentation. In NAV inside a WAAS (North America), EGNOS (Europe), MSAS (Japan) or GAGAN (India) service area, the mode shows DIFF and the position is several times more accurate. The service areas are coarse latitude/longitude boxes (design choice).</li><li><b>Power:</b> the FCOM gives none. GPS 1 is on AC ESS and GPS 2 on AC 2, as the other side 1 / side 2 navigation receivers (design choice). On the A380X the bus named AC ESS in the code is the AC EMER busbar.</li><li><b>Failures:</b> flyPad &gt; Failures &gt; ATA 34 Navigation &gt; <b>GPS 1</b> and <b>GPS 2</b> put the receiver in FAULT.</li></ul>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The satellite positions are the nominal constellation, not the real satellites of the day.</td><td>No almanac file is used: the 24 nominal slots give a realistic count and geometry anywhere in the world.</td><td>None needed.</td></tr><tr><td>ALTAID and AIDED are rarely seen in flight.</td><td>With 24 satellites, 4 or more are almost always in view; masking in a steep turn seldom leaves fewer.</td><td>Covered by the Rust unit tests.</td></tr><tr><td>A full MSFS restart is needed after installing.</td><td>The receivers are in the systems WASM module.</td><td>Restart the sim.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: power the aircraft and the receivers start (TEST, INIT, ACQ, then NAV).</li><li>Watch them on the A32NX MCDU <b>DATA &gt; GPS MONITOR</b> page or the A380X MFD <b>FMS &gt; POSITION &gt; GPS</b> page (see "GPS pages" below).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Cold and dark (aircraft unpowered more than 15 min). Power the aircraft (batteries, external power or APU) and open the GPS page at once.</td><td>Both receivers show TEST briefly, then INIT, then ACQ with a rising number of satellites; NAV after about 80 to 130 s.</td></tr><tr><td>2</td><td>Remove the power for less than 15 min, then power again.</td><td>ACQ lasts only 15 to 30 s (warm start).</td></tr><tr><td>3</td><td>In NAV, read the satellites and the figure of merit.</td><td>Between 4 and 12 satellites (7 to 10 on average) and a merit of about 30 to 100 ft; the two receivers slightly different.</td></tr><tr><td>4</td><td>A380X in Europe or North America (for example EGLL or KJFK): open POSITION / GPS.</td><td>MODE shows <b>DIFF</b> on both receivers.</td></tr><tr><td>5</td><td>A380X outside the service areas (for example SBGR, FAOR or YSSY).</td><td>MODE shows <b>NAV</b>.</td></tr><tr><td>6</td><td>flyPad &gt; Failures &gt; ATA 34 Navigation &gt; <b>GPS 1</b>.</td><td>GPS 1 shows FAULT, its data dashed; GPS 2 unchanged. Clear the failure: GPS 1 goes back through ACQ to NAV.</td></tr></table>
+<h2>2. GPIRS position and GPS PRIMARY</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> MCDU PROG page (A32NX); MFD POSITION / MONITOR (A380X); ND messages &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02).</div>
+<h3>What it is for</h3>
+<p>Each IR of the ADIRUs now mixes its inertial position with the position of one GPS receiver: the GPIRS position. The selection follows A320 FCOM DSC-22_20: IR 1 uses GPS 1, IR 2 uses GPS 2, IR 3 uses GPS 1 (GPS 2 with the ATT HDG selector on F/O 3). If one receiver is rejected, all the IRs use the other one. The same rule is used on the A380X (design choice: the A380 FCOM does not give it).</p>
+<p>The FMS (the same code in the A32NX FMGC and the A380X FMC) uses the onside GPIRS, else GPIRS 3, else the offside one (A380 FCOM DSC-22-FMS-10-30-10). Its estimated position uncertainty (EPU) is the GPIRS figure of merit. Accuracy is <b>HIGH</b> when the EPU is within the required navigation performance (RNP), and <b>GPS PRIMARY</b> needs accuracy HIGH and the integrity limit within the RNP. Before, a random estimate gave GPS PRIMARY.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>IRs aligned, receivers in NAV</td><td>GPS PRIMARY (A32NX PROG page, A380X POSITION / MONITOR), accuracy HIGH.</td></tr><tr><td>Receivers still in ACQ, or IRs not in NAV</td><td>No GPIRS position: no GPS PRIMARY; the FMS uses radio or IRS positions.</td></tr><tr><td>GPS 1 failed</td><td>IR 1 and IR 3 switch to GPS 2: GPS PRIMARY stays.</td></tr><tr><td>Both GPS failed</td><td>GPS PRIMARY is lost: the FMS shows GPS PRIMARY LOST.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Align the IRs as usual. GPS PRIMARY comes once the IRs are in NAV and the receivers are in NAV.</li><li>Check GPS PRIMARY on the A32NX MCDU PROG page or the A380X MFD POSITION / MONITOR page before an RNAV procedure.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Cold and dark, power the aircraft and start the IR alignment. Open the A32NX PROG page (or the A380X POSITION / MONITOR page).</td><td>No GPS PRIMARY until the IRs are aligned and the receivers in NAV.</td></tr><tr><td>2</td><td>Wait for the end of the alignment.</td><td>GPS PRIMARY appears (green on the A32NX PROG page).</td></tr><tr><td>3</td><td>flyPad &gt; Failures &gt; ATA 34 Navigation &gt; <b>GPS 1</b>.</td><td>GPS PRIMARY stays (the IRs use GPS 2).</td></tr><tr><td>4</td><td>Also fail <b>GPS 2</b>.</td><td>GPS PRIMARY disappears; GPS PRIMARY LOST is shown. Clear both failures: GPS PRIMARY comes back once a receiver is in NAV again.</td></tr></table>
+<h2>3. GPS pages: MCDU GPS MONITOR and MFD POSITION/GPS</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX (MCDU), A380X (MFD) &nbsp;|&nbsp; <b>Where:</b> A32NX MCDU DATA &gt; GPS MONITOR; A380X MFD FMS &gt; POSITION &gt; GPS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02).</div>
+<h3>What it is for</h3>
+<p>Both pages showed the sim GPS solution for both receivers with random satellite counts and figures of merit. They now show the data of each receiver.</p>
+<h4>A32NX MCDU GPS MONITOR</h4>
+<p>Per receiver (A320 FCOM DSC-22_20-50-10-28): GPS1(2) POSITION, TTRK (true track, in degrees: the old page showed the magnetic track in radians), GS, UTC, MERIT (figure of merit, FT), MODE/SAT (mode and number of satellites), GPS ALT. The data is dashed while the receiver is not in NAV (or ALTAID / AIDED), and for a receiver that no ADIRU has selected ("the data of the GPS that is not selected is dashed").</p>
+<h4>A380X MFD POSITION/GPS</h4>
+<p>Per receiver (A380 FCOM DSC-22-FMS-20-30): position, MODE (TEST, INIT, ACQ, NAV, ALTAID, AIDED, DIFF, FAULT), NBR OF SAT (while acquiring and navigating), ACCURACY (HFOM, in FT as on the FCOM figure), TRK, UTC, ALT and GND SPD. Dashes while the receiver does not compute a position.</p>
+<figure><img src="img/10/p25_pos_gps.png" style="width:45%"><figcaption><b>Figure 1.</b> MFD POSITION/GPS: the page layout (picture from the browser harness, taken before the receivers existed: the values are the old stand-in values).</figcaption></figure>
+<h3>How to use</h3>
+<ol><li>A32NX: MCDU <b>DATA</b> key &gt; <b>GPS MONITOR</b>.</li><li>A380X: MFD <b>FMS</b> &gt; <b>POSITION</b> menu &gt; <b>GPS</b>.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, powered, receivers in NAV: MCDU DATA &gt; GPS MONITOR.</td><td>Two receivers with their own position, TTRK in degrees (same as the true track), GS, MERIT in FT and MODE/SAT such as NAV/9.</td></tr><tr><td>2</td><td>Fail GPS 1 (flyPad &gt; Failures &gt; ATA 34 Navigation &gt; <b>GPS 1</b>).</td><td>GPS1 line: MODE/SAT shows FAULT, position, TTRK, GS, MERIT and GPS ALT dashed.</td></tr><tr><td>3</td><td>A380X, powered: MFD FMS &gt; POSITION &gt; GPS.</td><td>GPS 1 and GPS 2 columns with their own values; MODE NAV or DIFF.</td></tr><tr><td>4</td><td>Fail GPS 2.</td><td>GPS 2 column: MODE FAULT, data dashed, UTC --:--:--.</td></tr></table>
+<h2>4. NAV GPS 1(2) FAULT alerts</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> E/WD; SD STATUS page &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02).</div>
+<h3>What it is for</h3>
+<p>There was no GPS alert. A failed receiver (mode FAULT) now raises the FCOM alert:</p>
+<ul><li><b>A32NX:</b> <b>NAV GPS 1 FAULT</b> / <b>NAV GPS 2 FAULT</b> (FCOM PRO-ABN-NAV: "GPS 1(2) is failed"), amber caution, no procedure line. Flight phase inhibition as the radio altimeter faults (design choice). STATUS: INOP SYS GPS 1(2); with both: INOP SYS GPS 1+2 and the information FLS LIMITED TO F-APP + RAW (see "A32NX ECAM STATUS page").</li><li><b>A380X:</b> <b>NAV GPS 1 FAULT</b>, <b>NAV GPS 2 FAULT</b> or <b>NAV GPS 1+2 FAULT</b>, crew awareness (the A380 FCOM gives no procedure), inhibited as the ADR faults (design choice). STATUS (FCOM PRO-ABN-ECAM-10-34-10): INOP SYS GPS 1, GPS 2 or GPS 1+2; with both also BTV and ROW/ROP in APPR &amp; LDG.</li></ul>
+<h3>How to use</h3>
+<ol><li>Read the alert on the E/WD and clear it with CLR.</li><li>Check the inoperative systems on the SD STATUS page (STS key).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX on the ground, engines off or at idle (not during the takeoff run). flyPad &gt; Failures &gt; ATA 34 Navigation &gt; <b>GPS 1</b>.</td><td>E/WD: <b>NAV GPS 1 FAULT</b> in amber, MASTER CAUT.</td></tr><tr><td>2</td><td>Press CLR, then open the SD STATUS page.</td><td>INOP SYS: GPS 1.</td></tr><tr><td>3</td><td>Also fail <b>GPS 2</b>.</td><td>NAV GPS 2 FAULT; STATUS: INOP SYS GPS 1+2, and FLS LIMITED TO F-APP + RAW in green.</td></tr><tr><td>4</td><td>A380X on the ground: fail <b>GPS 1</b>.</td><td>E/WD: <b>NAV GPS 1 FAULT</b>. SD STATUS: INOP SYS GPS 1.</td></tr><tr><td>5</td><td>Also fail <b>GPS 2</b>.</td><td>The alert becomes <b>NAV GPS 1+2 FAULT</b>. STATUS: INOP SYS GPS 1+2; APPR &amp; LDG: BTV, ROW/ROP.</td></tr></table>
+<h2>5. GPS deselection and position uncertainty</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> A32NX MCDU SELECTED NAVAIDS; A380X MFD POSITION &gt; NAVAIDS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK on both aircraft (2026-10-02).</div>
+<h3>What it is for</h3>
+<p>The crew can tell the FMS not to use the GPS (for example when told GPS is unreliable in an area). The A32NX DESELECT key was inoperative and the A380X had no GPS option. Now:</p>
+<ul><li><b>A32NX</b> SELECTED NAVAIDS page, key [6L] (A320 FCOM DSC-22_20-50-10-28): GPS SELECTED / DESELECTED in blue small font, the action ({DESELECT or {SELECT) in white.</li><li><b>A380X</b> POSITION / NAVAIDS page: GPS SELECTED / DESELECTED radio buttons (A380 FCOM DSC-22-FMS-20-30).</li><li>With the GPS deselected the GPIRS position is no longer used: the FMS goes to IRS/DME/DME, IRS/VOR/DME or IRS only, and GPS PRIMARY is lost.</li><li>The deselection is reset at the end of the flight (DONE phase).</li><li><b>GPS IS DESELECTED</b> (A32NX, white MCDU message) / <b>GPS DESELECTED</b> (A380X, white MFD message) when the GPS is deselected and the aircraft is less than 80 NM from the top of descent, or in the approach phase. The message is removed when the GPS is selected again.</li><li><b>Position uncertainty without GPS</b> (A320 FCOM DSC-22_20-20-20 table): IRS/DME/DME 0.27 to 0.37 NM, IRS/VOR/DME 0.30 to 0.42 NM (growing with the distance to the navaids, up to 100 NM: design choice), IRS only growing from its starting value at 6 NM/h for 40 min, 0 for 50 min, 4 NM/h for 40 min, 0 for 45 min, then 2 NM/h; 5 NM after an IRS alignment.</li></ul>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The 0.2 NM reset of the uncertainty at takeoff is not done.</td><td>Not part of this change.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>A32NX: MCDU <b>DATA</b> &gt; <b>POSITION MONITOR</b> &gt; <b>NAVAIDS&gt;</b> [6R] &gt; press [6L] <b>{DESELECT</b>. Press [6L] <b>{SELECT</b> to use the GPS again.</li><li>A380X: MFD <b>FMS</b> &gt; <b>POSITION</b> &gt; <b>NAVAIDS</b>, GPS: select <b>DESELECTED</b> (or <b>SELECTED</b>).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, IRs aligned, GPS PRIMARY on the PROG page. MCDU DATA &gt; POSITION MONITOR &gt; NAVAIDS&gt; [6R].</td><td>Line 6 left: GPS SELECTED in blue small font, {DESELECT in white.</td></tr><tr><td>2</td><td>Press [6L].</td><td>GPS DESELECTED, {SELECT. The PROG page loses GPS PRIMARY; the EPU becomes a radio or IRS only value (for example 0.27 to 0.42 NM near DMEs).</td></tr><tr><td>3</td><td>Type something in the scratchpad, then press [6L].</td><td>NOT ALLOWED; the selection does not change.</td></tr><tr><td>4</td><td>In flight with a flight plan, GPS deselected, fly to less than 80 NM from the T/D.</td><td>White MCDU message <b>GPS IS DESELECTED</b>.</td></tr><tr><td>5</td><td>Press [6L] {SELECT.</td><td>The message is removed; GPS PRIMARY comes back.</td></tr><tr><td>6</td><td>A380X: MFD FMS &gt; POSITION &gt; NAVAIDS, GPS: DESELECTED.</td><td>POSITION / MONITOR no longer shows GPS PRIMARY. Near the T/D (80 NM) or in approach: MFD message <b>GPS DESELECTED</b>.</td></tr><tr><td>7</td><td>Finish the flight (DONE phase).</td><td>The GPS is selected again.</td></tr></table>
+<h2>6. A32NX ECAM STATUS page and STS reminder</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> SD STATUS page (STS key on the ECAM control panel); bottom of the E/WD &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-02).</div>
+<h3>What it is for</h3>
+<p>The A32NX STATUS page was a frame that always showed NORMAL. The FWC now fills it (A320 FCOM DSC-31-20 and DSC-31-25-20):</p>
+<ul><li>Left column: the information lines in green (the limitations in blue are added by <code>core/a32nx-air-conditioning</code>). Right column: <b>INOP SYS</b> (white, underlined) and the inoperative systems in amber. An empty page shows NORMAL in green.</li><li>The page appears by itself when it is not empty and the crew clears the last alert of the E/WD with CLR, or selects CONF 1 for the approach (flaps lever 0 to 1 in flight). The next CLR (or STS) push removes it.</li><li><b>STS reminder:</b> STS in white, framed, at the bottom of the E/WD, while the STATUS page is not empty and not shown and no alert is shown.</li><li>On this branch only the GPS alerts fill it (INOP SYS GPS 1, GPS 2, GPS 1+2; FLS LIMITED TO F-APP + RAW). Other branches add their alerts.</li></ul>
+<h3>How to use</h3>
+<ol><li>After clearing the alerts with CLR, read the STATUS page that comes up, then press CLR to remove it.</li><li>When STS shows at the bottom of the E/WD, press <b>STS</b> to review the status.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX powered, no failure. Press STS.</td><td>STATUS page: NORMAL in green.</td></tr><tr><td>2</td><td>Fail GPS 1 (flyPad &gt; Failures &gt; ATA 34 Navigation &gt; <b>GPS 1</b>).</td><td>NAV GPS 1 FAULT on the E/WD.</td></tr><tr><td>3</td><td>Press CLR.</td><td>The SD shows the STATUS page by itself: INOP SYS (underlined) and GPS 1 in amber.</td></tr><tr><td>4</td><td>Press CLR again.</td><td>The STATUS page goes; <b>STS</b>, white and framed, shows at the bottom of the E/WD.</td></tr><tr><td>5</td><td>Press STS.</td><td>The STATUS page shows; the STS reminder goes off while it is shown.</td></tr><tr><td>6</td><td>Clear the failure.</td><td>STATUS back to NORMAL; no STS reminder.</td></tr><tr><td>7</td><td>In flight with GPS 1 failed and its alert cleared, select flaps 1 for the approach.</td><td>The STATUS page comes up by itself.</td></tr></table>
+</body></html>

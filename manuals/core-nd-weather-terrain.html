@@ -1,0 +1,169 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Weather radar and terrain on the ND and VD - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>Weather radar and terrain on the ND and VD</h1>
+<div class="subtitle">A native weather radar and TERR ON ND terrain display on the NDs of both aircraft, and the terrain and weather on the A380X vertical display, drawn from the MSFS radar and terrain data without SimBridge</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X</span>
+<b>Where to find it</b><span>NDs (ARC and ROSE pages); A32NX weather radar panel and TERR ON ND pushbutton; A380X EFIS WX / TERR overlay, MFD SURV CONTROLS; A380X VD</span>
+<b>Branch</b><span><code>core/nd-weather-terrain</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent. <code>core/display-unit-failures</code> and <code>core/a380x-wxr-controls</code> stack on it.</span>
+<b>Status</b><span>Radar, mode messages and VD tested in the sim over several sessions (September 2026; A380X messages, antenna sweeps, 320 NM limit and ARC bottom by the user 2026-09-24); terrain tested by the user: OK (2026-09-29); parked views and 20 / 10 Hz redraw user-checked in the sim and measured (2026-10-02); OANS mouse fix user-tested (2026-09-27).</span>
+<b>Pictures</b><span>In-sim screenshots taken during development (the radar and terrain are drawn by a native WASM gauge, which the browser harness cannot run), and two A32NX NDs from the local browser harness for the mode message. Some A380X radar pictures predate later changes: their captions say so.</span>
+</div>
+<div class="toc"><div>1. A32NX weather radar on the ND</div><div>2. A380X weather radar on the ND and weather on the VD</div><div>3. Weather radar mode and messages on the ND</div><div>4. Terrain on the ND (TERR ON ND) and A380X VD terrain</div><div>5. Radar, terrain and VD after the A380 and A320 manuals</div><div>6. Fewer stutters: idle map views paused, 20 Hz / 10 Hz redraw</div><div>7. A380X: the OANS map takes the mouse through the radar gauges</div></div>
+<h2>1. A32NX weather radar on the ND</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> Both NDs; pedestal WX SYS and MODE knobs &nbsp;|&nbsp; <b>Status:</b> Tested in the sim over several sessions and weather presets (September 2026); antenna sweep tested by the user 2026-09-24.</div>
+<h3>What it is for</h3>
+<p>The A32NX ND had no working weather radar. A native gauge (<code>ndwxr</code>) now draws the MSFS weather radar on the CPT and F/O NDs, aligned with the range rings, in the colours of an airborne radar.</p>
+<div class="row"><figure><img src="img/01/s01_a320_radar.png"><figcaption><b>Figure 1.</b> A32NX ND in ARC with weather ahead: green, yellow and red cells.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure><figure><img src="img/01/s02_a320_radar.png"><figcaption><b>Figure 2.</b> Another cell field, ROSE-like forward view.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure></div>
+<h3>Using it</h3>
+<table><tr><th>Control</th><th>Position</th><th>ND</th></tr><tr><td>WX SYS knob</td><td>SYS 1 / SYS 2</td><td>Radar on (system 1 or 2)</td></tr><tr><td></td><td>OFF</td><td>No radar</td></tr><tr><td>MODE knob</td><td>WX</td><td>Precipitation</td></tr><tr><td></td><td>WX+T</td><td>Precipitation and turbulence (magenta)</td></tr><tr><td></td><td>TURB</td><td>Turbulence only</td></tr><tr><td></td><td>MAP</td><td>Ground map from the terrain: black water, green ground, amber mountains</td></tr><tr><td>EFIS</td><td>ARC or any ROSE page (NAV, ILS, VOR)</td><td>Radar shown over the antenna sweep (180 degrees, the forward half); nothing in PLAN</td></tr></table>
+<p>The selected mode is written on the ND (see the feature <i>Weather radar mode and messages on the ND</i>).</p>
+<h3>Reading the picture</h3>
+<table><tr><th>Colour</th><th>Rain rate</th><th>Meaning</th></tr><tr><td>Green</td><td>from 0.7 mm/h</td><td>Light precipitation</td></tr><tr><td>Yellow</td><td>from 4 mm/h</td><td>Moderate</td></tr><tr><td>Red</td><td>from 12 mm/h</td><td>Heavy: avoid</td></tr><tr><td>Magenta</td><td>above 20 mm/h, within 40 NM</td><td>Turbulence (WX+T, TURB)</td></tr></table>
+<p>The engine's rain rate is noisy pixel by pixel; each level is smoothed, so the picture shows solid areas with crisp edges.</p>
+<h3>What to expect</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>On the ground</td><td>Drawn as in flight: the radar scans on the ground once it is switched on with a display mode (A320 FCOM DSC-34-SURV-30-30).</td></tr><tr><td>Clear sky</td><td>No picture (nothing to return).</td></tr><tr><td>WX SYS OFF</td><td>No picture; WXR OFF in white on the ND.</td></tr><tr><td>CPT and F/O NDs</td><td>Independent: each ND uses its own IR position (IR 1 CPT, IR 2 F/O, IR 3 by the ATT HDG knob) and its own range and mode; the two knobs are shared.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Turbulence is a proxy.</td><td>MSFS gives no turbulence data; rain above 20 mm/h within 40 NM is drawn magenta.</td><td>-</td></tr><tr><td>No tilt, no gain.</td><td>The MSFS radar has neither.</td><td>-</td></tr><tr><td>Drawn only with weather around.</td><td>The MSFS radar only returns precipitation.</td><td>Test with the MSFS weather presets.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Set the <b>WX SYS</b> knob of the weather radar panel to <b>SYS 1</b> or <b>SYS 2</b>.</li><li>Set the <b>MODE</b> knob: <b>WX</b> (precipitation), <b>WX+T</b> (precipitation and turbulence), <b>TURB</b> (turbulence only) or <b>MAP</b> (ground map).</li><li>On the EFIS control panel select <b>ARC</b> or a <b>ROSE</b> mode and a range.</li><li>Read the colours (table above); WX SYS <b>OFF</b> takes the radar off.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX in flight (or on the ground) with an MSFS weather preset with storms. CPT EFIS: ND <b>ARC</b>, <b>40 NM</b>. WX SYS <b>SYS 1</b>, MODE <b>WX</b>.</td><td>Green, yellow and red cells ahead of the aircraft, aligned with the range rings; <b>WX</b> in green on the right of the ND.</td></tr><tr><td>2</td><td>MODE <b>WX+T</b>.</td><td>Heavy rain (above 20 mm/h) within 40 NM turns magenta; message <b>WX+T</b>.</td></tr><tr><td>3</td><td>MODE <b>TURB</b>.</td><td>Only the magenta areas are left; message <b>TURB</b>.</td></tr><tr><td>4</td><td>MODE <b>MAP</b>.</td><td>A ground map: black water, green ground, amber mountains; message <b>MAP</b>.</td></tr><tr><td>5</td><td>MODE WX, then ND mode <b>ROSE ILS</b>, <b>ROSE VOR</b>, <b>ROSE NAV</b>, then <b>PLAN</b>.</td><td>The radar is shown on every ROSE page (forward half), not in PLAN.</td></tr><tr><td>6</td><td>Change the F/O ND range only.</td><td>The F/O ND redraws at its own range; the CPT ND does not change.</td></tr><tr><td>7</td><td>WX SYS <b>OFF</b>.</td><td>No weather picture; <b>WXR OFF</b> in white on the ND.</td></tr><tr><td>8</td><td>Select a clear-sky weather preset with WX SYS on.</td><td>No picture (nothing to return).</td></tr></table>
+<h2>2. A380X weather radar on the ND and weather on the VD</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Both NDs and VDs; EFIS WX overlay; MFD SURV CONTROLS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim (September 2026); 160 degree sweep and 320 NM limit tested by the user 2026-09-24.</div>
+<h3>What it is for</h3>
+<p>The A380X ND always showed WXR INOP (both WXR systems were hard-coded as failed) and had no radar picture. It now has the native radar of the A32NX, with the A380 rules, and the VD shows the weather on its vertical cut.</p>
+<figure><img src="img/02/s01_a380_radar_vd.png" style="width:55%"><figcaption><b>Figure 3.</b> A380X ND with weather cells ahead, and the same cells on the VD below. <i>Development picture: the WX+T label and the hatched off-path areas seen here were removed later; the A380X ND now reads WX.</i><span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure>
+<h3>Using it</h3>
+<ul><li>EFIS control panel: select the <b>WX</b> overlay.</li><li>MFD SURV CONTROLS: WXR AUTO or OFF, TURB AUTO or OFF, MODE WX or MAP, WX ON VD. These buttons are wired on <code>core/surveillance</code>; with this branch alone the radar runs at their default settings (WXR AUTO, TURB AUTO, MODE WX, WX ON VD AUTO).</li><li>The radar is shown when the WXR &amp; TAWS system selected on the SURV panel is not failed. A system is failed only while its AESU is reset or its power is lost (AC ESS for system 1, AC 4 for system 2).</li><li>The ND range table is -1 (ZOOM, the airport map) and 10 to 640 NM; the radar is hidden at ZOOM and at 640 NM: "The ND can only display the weather, if the selected range is below, or equal to, 320 nm" (A380 FCOM DSC-31-20-50).</li></ul>
+<div class="row"><figure><img src="img/02/s02_a380_radar_yellow.png"><figcaption><b>Figure 4.</b> Moderate rain (yellow) over a wide area, with its VD cut. <i>Development picture: the WX+T label and the hatched off-path areas seen here were removed later; the A380X ND now reads WX.</i><span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure><figure><img src="img/02/s03_a380_turb.png"><figcaption><b>Figure 5.</b> TURB on: heavy rain drawn magenta (turbulence proxy). <i>Development picture: the WX+T label and the hatched off-path areas seen here were removed later; the A380X ND now reads WX.</i><span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure></div>
+<h3>Weather on the VD</h3>
+<ul><li>WX ON VD (SURV CONTROLS) shows the weather on the VD, along the same cut as the terrain (see <i>Radar, terrain and VD after the A380 and A320 manuals</i>).</li><li>Cells are drawn green and yellow with a red core; no magenta: the real VD does not display turbulence (FCOM DSC-31-20-40-10).</li><li>Heights are placed on the ADR baro-corrected altitude, like the VD's aircraft symbol.</li></ul>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The VD weather is stylised.</td><td>The vertical MapView of MSFS is a single thin beam (tilting it crashes the gauge); the VD picture is built from the ND radar views.</td><td>-</td></tr><tr><td>PRED W/S and GAIN are not drawn.</td><td>The MSFS radar has no predictive windshear or gain.</td><td>-</td></tr><tr><td>No TURB-only mode.</td><td>The A380 has none: TURB off gives WX, on gives WX+T.</td><td>-</td></tr></table>
+<h3>Antenna sweep</h3>
+<p>The picture covers the real antenna sweep of the A380's Honeywell RDR-4000: 160 degrees (80 degrees each side of the nose; Honeywell IntuVue white paper). The real display fills up to 90 degrees from the radar's memory, which the MSFS radar does not have, so nothing is painted beside and behind the aircraft there.</p>
+<h3>How to use</h3>
+<ol><li>On the EFIS control panel select the <b>WX</b> overlay, the <b>ARC</b> or a <b>ROSE</b> mode and a range of 10 to 320 NM.</li><li>With <code>core/surveillance</code>: set the WXR block of <b>MFD SURV &gt; CONTROLS</b> (WXR, TURB, MODE, WX ON VD). Without it the radar runs at the default settings.</li><li>Read the weather on the ND and its vertical cut on the VD below.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in flight with an MSFS storm preset. CPT EFIS: <b>WX</b> overlay, ND <b>ARC</b> 40 NM.</td><td>Green, yellow and red cells over the 160 degree sweep; <b>WX</b> in green on the right of the ND.</td></tr><tr><td>2</td><td>Look at the VD under the ND.</td><td>The cells on the flight path drawn as green and yellow columns with a red core at the aircraft level; no magenta on the VD.</td></tr><tr><td>3</td><td>ND range <b>640 NM</b>, then the smallest range (<b>ZOOM</b>).</td><td>No weather at 640 NM (the terrain, if selected, is still drawn); none at ZOOM. Back to 320 NM: the weather comes back.</td></tr><tr><td>4</td><td>With <code>core/surveillance</code>: MFD SURV &gt; CONTROLS, <b>TURB OFF</b>.</td><td>No more magenta on the ND; the message stays <b>WX</b>.</td></tr><tr><td>5</td><td>With <code>core/surveillance</code>: <b>MODE MAP</b>.</td><td>Ground map on the ND; message <b>MAP</b>.</td></tr><tr><td>6</td><td>With <code>core/surveillance</code>: <b>WX ON VD OFF</b>.</td><td>The VD weather goes; the ND keeps it.</td></tr><tr><td>7</td><td>Deselect the <b>WX</b> overlay.</td><td>No weather on the ND, no radar message.</td></tr></table>
+<h2>3. Weather radar mode and messages on the ND</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> ND, right side above the TERR box &nbsp;|&nbsp; <b>Status:</b> Tested in the sim (September 2026); A380X WX / MAP / WXR OFF messages tested by the user 2026-09-24.</div>
+<h3>What it is for</h3>
+<p>Nothing on the ND told the crew which radar mode was selected. The mode now appears in green on the right of the ARC and ROSE pages while the radar is selected, as on the real ND. The A32NX shows the Honeywell list of the A320 FCOM (DSC-34-SURV-30-30); the A380X shows the A380's own WXR messages (A380 FCOM DSC-34-20-30-20 "WXR MESSAGES"): WX for the WX display function whatever the TURB button, MAP, WXR OFF.</p>
+<table><tr><th>ND message</th><th>A32NX (MODE knob)</th><th>A380X (SURV CONTROLS)</th></tr><tr><td>WX (green)</td><td>WX</td><td>WX display function, whatever the TURB button</td></tr><tr><td>WX+T (green)</td><td>WX+T</td><td>-- (not an A380 message)</td></tr><tr><td>TURB (green)</td><td>TURB</td><td>-- (no TURB-only mode on the A380)</td></tr><tr><td>MAP (green)</td><td>MAP</td><td>MODE MAP</td></tr><tr><td>WXR OFF (white)</td><td>WX SYS OFF</td><td>WXR button OFF</td></tr><tr><td>(none)</td><td>-</td><td>no WX overlay on the EFIS panel, or the WXR &amp; TAWS system failed</td></tr></table>
+<div class="row"><figure><img src="img/03/n01_a320_arc_wxt.png"><figcaption><b>Figure 6.</b> A32NX ARC: WX+T above the TERR box.</figcaption></figure><figure><img src="img/03/n02_a320_rose_wx.png"><figcaption><b>Figure 7.</b> A32NX ROSE NAV: WX.</figcaption></figure></div>
+<ul><li>Shown on the ARC and ROSE pages (NAV, ILS, VOR), not in PLAN, and not while the terrain replaces the weather (TERR ON ND).</li><li>Shown on the ground too, where the radar also scans.</li><li>The native radar gauge decides and publishes the label (<code>A32NX_WXR_ND_{L,R}_MODE</code>), so the ND follows exactly what the gauge draws.</li></ul>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No label in PLAN.</td><td>The radar is not shown in PLAN.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the message follows the radar selection (A32NX MODE knob; A380X WX overlay and SURV CONTROLS).</li><li>Check the message on the right of the ND, above the TERR box, after each radar change.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, ND ARC: WX SYS SYS 1, turn the MODE knob through WX, WX+T, TURB, MAP.</td><td>The message follows in green: WX, WX+T, TURB, MAP.</td></tr><tr><td>2</td><td>A32NX: WX SYS <b>OFF</b>.</td><td><b>WXR OFF</b> in white.</td></tr><tr><td>3</td><td>A32NX: press <b>TERR ON ND</b>.</td><td>The radar message goes while the terrain replaces the weather.</td></tr><tr><td>4</td><td>A380X, WX overlay, default SURV settings (TURB AUTO).</td><td><b>WX</b> in green (not WX+T).</td></tr><tr><td>5</td><td>A380X with <code>core/surveillance</code>: MODE MAP, then WXR OFF on the SURV CONTROLS page.</td><td><b>MAP</b> in green, then <b>WXR OFF</b> in white.</td></tr><tr><td>6</td><td>Either aircraft: ND mode <b>PLAN</b>.</td><td>No radar message.</td></tr></table>
+<h2>4. Terrain on the ND (TERR ON ND) and A380X VD terrain</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> A32NX TERR ON ND pushbutton; A380X EFIS TERR overlay; A380X VD &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-29).</div>
+<h3>What it is for</h3>
+<p>TERR ON ND needed SimBridge. The native gauge now draws it from MSFS's own terrain, with the EGPWS colours, on every map page but PLAN, also on the ground.</p>
+<div class="row"><figure><img src="img/04/s01_a380_terrain_10nm.png"><figcaption><b>Figure 8.</b> A380X at Aspen, 10 NM: terrain far above the aircraft in red, close in yellow, below in green; the VD terrain profile in brown.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure><figure><img src="img/04/s02_a380_terrain_160nm.png"><figcaption><b>Figure 9.</b> The same place at 160 NM.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure></div>
+<h3>Reading the colours</h3>
+<table><tr><th>Terrain relative to the aircraft</th><th>Colour</th></tr><tr><td>More than 2000 ft above</td><td>Dense red</td></tr><tr><td>1000 to 2000 ft above</td><td>Dense yellow</td></tr><tr><td>500 ft below (250 ft gear down) to 1000 ft above</td><td>Medium yellow</td></tr><tr><td>Down to 1000 ft below (500 ft gear down)</td><td>Dense green</td></tr><tr><td>1000 to 2000 ft below</td><td>Light green</td></tr><tr><td>More than 2000 ft below</td><td>Nothing</td></tr><tr><td>Water</td><td>Cyan-blue dots</td></tr></table>
+<p>The dots are a random stipple, as on the real display. The map turns with the ND's heading; ARC shows the forward half, the ROSE modes the whole disk.</p>
+<h3>A380X vertical display</h3>
+<figure><img src="img/04/s03_a380_vd_terrain.png" style="width:70%"><figcaption><b>Figure 10.</b> The A380X VD terrain profile (brown), water in cyan from sea level down.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure>
+<ul><li>Needs the TERR SYS button of the SURV page not OFF (otherwise NO TERR DATA AVAILABLE).</li><li>The cut follows the flight plan or the track (see <i>Radar, terrain and VD after the A380 and A320 manuals</i>).</li></ul>
+<h3>The peaks box</h3>
+<p>The TERR box with the highest and lowest elevations of the range needs real elevations, which a gauge cannot read from MSFS: its figures come from <b>SimBridge</b> when it runs. Without SimBridge the box stays empty and the terrain is drawn as usual.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>At most 8 map views per module.</td><td>MSFS crashes a 9th; the A380X switches its views between weather and terrain.</td><td>-</td></tr><tr><td>Peaks box only with SimBridge.</td><td>No elevation readback from MSFS.</td><td>Run SimBridge.</td></tr><tr><td>Terrain far above the range top is shown red.</td><td>MSFS does not clamp to the first colour entry.</td><td>-</td></tr></table>
+<h3>Peaks mode (with SimBridge)</h3>
+<p>When the SimBridge figures say that the highest terrain of the range is more than 2000 ft below the aircraft, the terrain is drawn in green by its elevation within the range: solid for the top 5 %, dense dots down to 65 %, light dots down to 35 %, nothing lower. Without SimBridge the standard colours above apply.</p>
+<h3>Other details</h3>
+<ul><li>When descending faster than 1000 ft/min, the colours use the altitude expected in 30 s (A320 FCOM DSC-31-45).</li><li>The old <code>terronnd</code> gauge (SimBridge's own terrain picture) is no longer loaded: SimBridge is only used for the peaks box figures. The A32NX systems host now posts the aircraft status to SimBridge itself.</li></ul>
+<h3>How to use</h3>
+<ol><li>A32NX: press the <b>TERR ON ND</b> pushbutton of the side wanted (ND in ARC or ROSE).</li><li>A380X: select the <b>TERR</b> overlay on the EFIS control panel; keep the TERR SYS of the SURV page not OFF for the VD profile.</li><li>Optional: run SimBridge for the peaks box figures and the peaks mode.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX or A380X on the ground at a mountain airport (for example KASE, Aspen). ND ARC 10 NM. Press TERR ON ND (A380X: TERR overlay).</td><td>Terrain far above the aircraft in red, close above in yellow, below in green; lakes as cyan-blue dots; the radar message goes.</td></tr><tr><td>2</td><td>Range 160 NM.</td><td>The same colour logic over the wider area; the map turns with the heading.</td></tr><tr><td>3</td><td>ND mode <b>PLAN</b>.</td><td>No terrain.</td></tr><tr><td>4</td><td>A380X: look at the VD.</td><td>Brown terrain profile along the flight plan or the track, water in teal.</td></tr><tr><td>5</td><td>A380X: set the TERR SYS button of the SURV page to OFF.</td><td>VD: NO TERR DATA AVAILABLE.</td></tr><tr><td>6</td><td>Start SimBridge and wait a few seconds.</td><td>The TERR box shows the highest and lowest elevations of the range.</td></tr><tr><td>7</td><td>Without SimBridge.</td><td>The TERR box stays empty; the terrain is drawn as before.</td></tr></table>
+<h2>5. Radar, terrain and VD after the A380 and A320 manuals</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X (VD) and both aircraft (weather picture) &nbsp;|&nbsp; <b>Where:</b> A380X VD; both NDs with the radar &nbsp;|&nbsp; <b>Status:</b> Tested in the sim (September 2026).</div>
+<h3>The vertical cut (A380X VD)</h3>
+<ul><li>In the managed lateral modes the VD shows the terrain and weather <b>along the flight plan</b> (a 200 NM window from just behind the aircraft, with the turns); in the selected modes <b>along the track</b> (FCOM: VIEW ALONG ACFT TRK). More than 5 NM off the plan: the track.</li><li>The terrain is the highest across a width of 2 × RNP (1 NM terminal, 2 NM en route above 18 000 ft).</li><li>The grey area starts at the next track change of more than 3° (the VD no longer matches the ND beyond it).</li></ul>
+<h3>The VD scale and the terrain height</h3>
+<ul><li>With a trajectory, the highest of the aircraft and the path sits at three quarters of the window: <b>in cruise the ground stays on the plot</b>, as on the real aircraft at FL400.</li><li>The gap under the aircraft symbol is the true height, whatever the altimeter setting (FCOM / FCTM).</li><li>Water in the ND teal; no magenta on the VD; no VD weather when TERR is not available.</li></ul>
+<figure><img src="img/09/s03_vd_terrain.png" style="width:70%"><figcaption><b>Figure 11.</b> A380X VD with the terrain profile and water (in-sim).<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure>
+<h3>The weather picture (both aircraft)</h3>
+<ul><li>The radar scans and draws on the ground too (A320 FCOM DSC-34-SURV-30-30: "on the ground, the radar is scanning when the flight crew sets one radar to ON and selects a display mode").</li><li>MAP mode is a ground map from the terrain.</li><li>The picture <b>builds up over 30 s</b> after the radar starts, sweeping left to right (A380 FCOM).</li><li>The ARC picture keeps the ND bottom corners free and stops just above the TCAS / WXR message box, as on the real display.</li></ul>
+<div class="row"><figure><img src="img/09/s01_buildup.png"><figcaption><b>Figure 12.</b> Just after WX is selected: the picture is building up.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure><figure><img src="img/09/s02_buildup_later.png"><figcaption><b>Figure 13.</b> A few seconds later.<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure></div>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No A380 AUTO off-path display.</td><td>MSFS runs one radar per aircraft; a third view changed what the beam views delivered, so it was removed.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the VD cut follows the lateral mode (managed: the flight plan; selected: the track).</li><li>After switching the radar on, allow 30 s for the picture to build up.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in flight in NAV mode with a flight plan that turns ahead, WX and terrain around.</td><td>The VD terrain and weather follow the flight plan; the grey area starts at the next track change of more than 3 degrees.</td></tr><tr><td>2</td><td>Select a heading (HDG mode).</td><td>The VD follows the track.</td></tr><tr><td>3</td><td>Cruise at a high level (for example FL380) over land.</td><td>The ground stays on the VD plot (not cut off at the bottom).</td></tr><tr><td>4</td><td>Either aircraft: switch the radar off, then on (A32NX WX SYS; A380X WX overlay).</td><td>The picture builds up over about 30 s, sweeping left to right.</td></tr><tr><td>5</td><td>ND ARC with weather or terrain.</td><td>The picture stops just above the TCAS / WXR message box; both bottom corners stay clear.</td></tr></table>
+<h2>6. Fewer stutters: idle map views paused, 20 Hz / 10 Hz redraw</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> NDs and A380X VDs (no control) &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user (2026-10-02): same picture on the NDs and the VD; measured with PresentMon.</div>
+<h3>What it is for</h3>
+<p>The radar and terrain gauge uses up to eight MSFS map views per aircraft, and the sim renders every visible view each frame, drawn or not. On the A380X this cost frame rate and caused stutters.</p>
+<ul><li>A view nothing has shown for 120 frames is now paused (made invisible). It is woken up with a 60-frame warm-up before it is drawn again. With WX and TERR off, in PLAN or with the ND unpowered, no view renders at all.</li><li>The ND picture is redrawn at 20 Hz and the VD terrain at 10 Hz instead of every frame, and at once when what the display shows changes (page, range, WX / TERR selection). The first radar sweep is still drawn every frame. At 20 Hz a 3 degree/s turn moves the picture by less than one pixel per step.</li></ul>
+<h3>What you should see</h3>
+<table><tr><th>A380X in cruise, WX on, ARC 40 NM (PresentMon, 2 x 120 s)</th><th>Before</th><th>Views paused</th><th>+ 20/10 Hz</th></tr><tr><td>Average FPS</td><td>86-90</td><td>93-94</td><td>95-101</td></tr><tr><td>1 % low FPS</td><td>18-22</td><td>28-30</td><td>28-32</td></tr><tr><td>Stutters over 50 ms per 120 s</td><td>20-30</td><td>2-5</td><td>-</td></tr></table>
+<p>The A32NX never had the problem (its result is neutral). The picture itself is the same.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>A paused view needs about 1 s to come back.</td><td>The 60-frame warm-up lets the sim render the view again before it is drawn (no white flash).</td><td>Normal: switching WX / TERR already took about a second on the A380X.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in cruise, WX overlay on, ND ARC 40 NM with weather around. Fly a turn.</td><td>The weather picture turns smoothly with the ND, no stepping.</td></tr><tr><td>2</td><td>Change the range and the ND mode a few times.</td><td>The picture redraws at once at each change.</td></tr><tr><td>3</td><td>Switch from WX to TERR and back after a few seconds.</td><td>The picture comes back after about a second, without a white square or flash.</td></tr><tr><td>4</td><td>Watch the VD.</td><td>Terrain and weather follow as before.</td></tr><tr><td>5</td><td>Optional: compare the frame rate with an earlier build (WX on, ARC 40 NM).</td><td>Fewer stutters and a higher 1 % low frame rate.</td></tr></table>
+<h2>7. A380X: the OANS map takes the mouse through the radar gauges</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> ND, OANS airport map (ZOOM range) &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-27): OANS drag and BTV runway / exit clicks.</div>
+<h3>What it is for</h3>
+<p>The radar and terrain gauges sit over the ND and caught every mouse event on the map area: the OANS airport map could not be dragged and its runway and exit labels could not be clicked (BTV selection). The gauges only draw, so they no longer take the mouse.</p>
+<h3>How to use</h3>
+<ol><li>Select the ND ZOOM range to show the OANS airport map (stock FBW OANS, needs its airport data).</li><li>Drag the map with the mouse or the KCCU cursor, click runway and exit labels as usual.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground at an airport with OANS data, ND ZOOM range. Drag the map.</td><td>The map moves.</td></tr><tr><td>2</td><td>Click a runway label, then an exit label (BTV).</td><td>The runway and the exit are selected.</td></tr><tr><td>3</td><td>With the WX or TERR overlay on.</td><td>The same: the gauges do not block the mouse.</td></tr></table>
+</body></html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Surveillance: SURV controls, ECAM SURV lines and TCAS - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>Surveillance: SURV controls, ECAM SURV lines and TCAS</h1>
+<div class="subtitle">The A380X SURV pages and pedestal SURV panel work and stay in step, the ECAM procedures sense the SURV system selection, and the TCAS of both aircraft shows TAs while RAs are inhibited, with the real low-altitude hysteresis</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X (SURV panel, VD messages, ECAM lines) and A32NX + A380X (TCAS)</span>
+<b>Where to find it</b><span>A380X MFD <b>SURV</b> pages and pedestal SURV panel; A380X VD and E/WD; ND traffic display and TCAS controls of both aircraft</span>
+<b>Branch</b><span><code>core/surveillance</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent. <code>core/a380x-mfd-fms</code> is stacked on it (it adds the FCOM layout of the SURV pages and the SURV memos).</span>
+<b>Status</b><span>SURV panel and MFD SURV wiring tested in the sim by the user (2026-09-19); VD messages and ECAM SURV lines tested in the sim (September 2026); the three TCAS changes tested in the sim by the user: OK (2026-09-29).</span>
+<b>Pictures</b><span>Captain MFD, ND, VD and E/WD in the local browser harness, running the full development build installed in the sim (it also has the FCOM layout of the SURV pages from <code>core/a380x-mfd-fms</code>, so the SURV page frames on this branch alone look slightly different); the SURV CONTROLS in-sim screenshot; the TCAS symbol legend is a drawing (the harness has no traffic).</span>
+</div>
+<div class="toc"><div>1. A380X SURV controls, STATUS &amp;amp; SWITCHING and the pedestal SURV panel</div><div>2. A380X VD: separate NO TERR / NO WX DATA messages</div><div>3. A380X ECAM procedures: WXR &amp;amp; TAWS and XPDR &amp;amp; TCAS lines sensed</div><div>4. A380X ECAM LINE-UP checklist: CABIN CREW line</div><div>5. TCAS: intruders shown and announced as TAs while RAs are inhibited</div><div>6. TCAS: low-altitude RA and TA aural inhibitions with the real hysteresis</div><div>7. A32NX: TCAS message centred at the bottom of the ND</div></div>
+<h2>1. A380X SURV controls, STATUS &amp;amp; SWITCHING and the pedestal SURV panel</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> MFD SURV pages; pedestal SURV panel &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-19: pedestal buttons and MFD pages switch in step; WXR buttons drive the radar).</div>
+<h3>What it is for</h3>
+<p>The weather radar block of the MFD SURV CONTROLS page, the STATUS &amp; SWITCHING system selection and the pedestal SURV panel buttons were stubs. They now work and drive the same systems.</p>
+<h3>What it is for</h3>
+<p>The A380 has no separate radar, TCAS or TAWS control panels: they are on the MFD SURV pages and the pedestal SURV panel (FCOM DSC-34-20-60-50). In FBW the weather radar block of the page was a stub (every button greyed), STATUS &amp; SWITCHING did not reflect failures, and no button of the pedestal panel worked. Now they do, and the page and the panel stay in step.</p>
+<h3>SURV CONTROLS</h3>
+<figure><img src="img/05/s01_controls.png" style="width:60%"><figcaption><b>Figure 1.</b> SURV CONTROLS: XPDR (code, IDENT, AUTO / ON / STBY, ALT RPTG), TCAS (TA/RA, TA ONLY, STBY; NORM, ABV, BLW), WXR, TAWS, and DEFAULT SETTINGS.</figcaption></figure>
+<table><tr><th>WXR button</th><th>Effect</th></tr><tr><td>WXR AUTO / OFF</td><td>Weather radar on or off (the ND radar picture of <code>core/nd-weather-terrain</code>).</td></tr><tr><td>PRED W/S AUTO / OFF</td><td>Predictive windshear (written for the systems; MSFS has no predictive windshear).</td></tr><tr><td>TURB AUTO / OFF</td><td>Turbulence detection (magenta on the ND with the native radar of <code>core/nd-weather-terrain</code>).</td></tr><tr><td>GAIN AUTO / MAN</td><td>Radar gain (written; MSFS has no gain).</td></tr><tr><td>MODE WX / MAP</td><td>Weather or ground mapping.</td></tr><tr><td>WX ON VD AUTO / OFF</td><td>Weather on the vertical display.</td></tr><tr><td>ELEVN / TILT</td><td>AUTO, or a manual elevation or tilt.</td></tr></table>
+<p>The WXR buttons are inhibited only when the selected WXR system has really failed.</p>
+<h3>STATUS &amp;amp; SWITCHING</h3>
+<figure><img src="img/05/s02_status.png" style="width:60%"><figcaption><b>Figure 2.</b> STATUS &amp; SWITCHING: SYS 1 / SYS 2 of the WXR and TAWS (top) and of the XPDR and TCAS (bottom); the selected system is lit, each item shows its real state.</figcaption></figure>
+<ul><li>WXR DISPLAY, TURB, PRED W/S, TERR SYS, GPWS items show the real failure of each system.</li><li>XPDR / TCAS SYS 1 / SYS 2 select the transponder system (the one the TCAS uses) and light from it.</li></ul>
+<figure><img src="img/05/s03_insim.png" style="width:50%"><figcaption><b>Figure 3.</b> The SURV CONTROLS page in the sim (in-sim screenshot).<span class="refonly">In-sim screenshot taken during development: not representative of the final in-game UI, reference for the explanation only.</span></figcaption></figure>
+<h3>The pedestal SURV panel</h3>
+<p>The panel buttons never worked: their light template runs the button code only when the panel is powered, and the pedestal never told it so. They are powered from DC 1 now and linked to the MFD pages:</p>
+<table><tr><th>Panel button</th><th>Does</th><th>Same as</th></tr><tr><td>WXR TAWS SYS 1 / SYS 2</td><td>Selects the WXR / TAWS system</td><td>STATUS &amp; SWITCHING, top</td></tr><tr><td>XPDR TCAS SYS 1 / SYS 2</td><td>Selects the transponder system</td><td>STATUS &amp; SWITCHING, bottom</td></tr><tr><td>G/S MODE</td><td>Glide slope mode of the GPWS on / off</td><td>SURV CONTROLS, TAWS</td></tr><tr><td>TCAS ABV / BLW / TA ONLY</td><td>TCAS display and mode</td><td>SURV CONTROLS, TCAS</td></tr></table>
+<p>Each button lights from the same value the page uses, so pressing one on the pedestal changes the page, and the reverse.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>PRED W/S and GAIN MAN do nothing visible.</td><td>The MSFS radar has no predictive windshear and no gain; the values are written for when it does.</td><td>-</td></tr><tr><td>One MSFS radar for both systems.</td><td>SYS 1 / SYS 2 select the failure state and the lights; the picture comes from the same sim radar.</td><td>-</td></tr></table>
+<div class="note"><b class="t">Note</b>Code clean-up on this branch with no visible effect: the ECAM procedure tables read the selected XPDR &amp; TCAS system through one helper.</div>
+<h3>How to use</h3>
+<ol><li>Open the SURV pages: MFD system menu <b>SURV</b> (or the KCCU SURV key), then <b>CONTROLS</b> or <b>STATUS &amp; SWITCHING</b>.</li><li>On CONTROLS set the WXR (WXR, PRED W/S, TURB, GAIN, MODE, WX ON VD, ELEVN/TILT), the TCAS (TA/RA, TA ONLY, STBY; NORM, ABV, BLW) and the TAWS options.</li><li>On STATUS &amp; SWITCHING, or with the pedestal buttons, select WXR / TAWS SYS 1 or SYS 2 and XPDR / TCAS SYS 1 or SYS 2.</li><li>Use the pedestal TCAS ABV / BLW / TA ONLY and G/S MODE buttons as shortcuts: the MFD page follows.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, aircraft powered (DC 1 bus powered). MFD &gt; SURV &gt; <b>STATUS &amp; SWITCHING</b>.</td><td>The selected WXR / TAWS and XPDR / TCAS systems are lit; each item shows the real state of its system.</td></tr><tr><td>2</td><td>Press <b>XPDR TCAS SYS 2</b> on the pedestal SURV panel.</td><td>The pedestal button lights; on the MFD page XPDR / TCAS SYS 2 is now the selected one.</td></tr><tr><td>3</td><td>Select XPDR / TCAS <b>SYS 1</b> on the MFD page.</td><td>The pedestal SYS 1 button lights, SYS 2 goes off.</td></tr><tr><td>4</td><td>Press <b>WXR TAWS SYS 2</b> on the pedestal, then SYS 1.</td><td>The WXR / TAWS selection on the MFD page follows each press.</td></tr><tr><td>5</td><td>MFD &gt; SURV &gt; <b>CONTROLS</b>. Press the pedestal <b>TA ONLY</b> button.</td><td>The SURV CONTROLS TCAS block shows TA ONLY and the pedestal button is lit; the ND shows TA ONLY.</td></tr><tr><td>6</td><td>Press the pedestal <b>ABV</b>, then <b>BLW</b> button.</td><td>The TCAS NORM / ABV / BLW selection on the page follows; selecting NORM on the page turns the pedestal light off.</td></tr><tr><td>7</td><td>Press the pedestal <b>G/S MODE</b> button.</td><td>The TAWS G/S MODE on SURV CONTROLS changes with it (and back on the second press).</td></tr><tr><td>8</td><td>On SURV CONTROLS set <b>WXR</b> OFF, then AUTO (needs the native radar of <code>core/nd-weather-terrain</code> for the ND picture).</td><td>The ND radar picture goes away and comes back; the WXR buttons are greyed only if the selected WXR system has failed.</td></tr><tr><td>9</td><td>Cut the DC 1 bus (or start cold and dark) and press a pedestal SURV button.</td><td>Nothing happens and the buttons stay dark.</td></tr></table>
+<h2>2. A380X VD: separate NO TERR / NO WX DATA messages</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Vertical display (VD) under the ND &nbsp;|&nbsp; <b>Status:</b> Tested in the sim (September 2026).</div>
+<h3>What it is for</h3>
+<p>TERR SYS OFF removed both the terrain and the weather from the VD message logic, so the VD always said "NO TERR AND WX DATA AVAILABLE". Each source now has its own message.</p>
+<h3>Messages on the vertical display</h3>
+<p>The VD message was always "NO TERR AND WX DATA AVAILABLE" when TERR SYS was off. Now:</p>
+<table><tr><th>Situation</th><th>VD message</th></tr><tr><td>TERR SYS OFF only</td><td>NO TERR DATA AVAILABLE</td></tr><tr><td>WXR failed or OFF, or WX ON VD OFF</td><td>NO WX DATA AVAILABLE</td></tr><tr><td>Both</td><td>NO TERR AND WX DATA AVAILABLE</td></tr></table>
+<div class="row"><figure><img src="img/05/v02_wxr_off.png"><figcaption><b>Figure 4.</b> WXR off: NO WX DATA AVAILABLE.</figcaption></figure><figure><img src="img/05/v03_both_off.png"><figcaption><b>Figure 5.</b> TERR SYS off and WXR off: NO TERR AND WX DATA AVAILABLE.</figcaption></figure></div>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the VD message follows the TERR SYS, WXR and WX ON VD buttons of MFD &gt; SURV &gt; CONTROLS.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X, ND in ARC or ROSE NAV so that the VD shows. MFD &gt; SURV &gt; CONTROLS: TERR SYS, WXR and WX ON VD all on.</td><td>No "NO ... DATA" message on the VD.</td></tr><tr><td>2</td><td>Set <b>TERR SYS</b> OFF only.</td><td>VD: <b>NO TERR DATA AVAILABLE</b>.</td></tr><tr><td>3</td><td>TERR SYS back ON, set <b>WX ON VD</b> OFF.</td><td>VD: <b>NO WX DATA AVAILABLE</b>.</td></tr><tr><td>4</td><td>WX ON VD back ON, set <b>WXR</b> OFF.</td><td>VD: <b>NO WX DATA AVAILABLE</b>.</td></tr><tr><td>5</td><td>With WXR OFF, also set TERR SYS OFF.</td><td>VD: <b>NO TERR AND WX DATA AVAILABLE</b>.</td></tr></table>
+<h2>3. A380X ECAM procedures: WXR &amp;amp; TAWS and XPDR &amp;amp; TCAS lines sensed</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> E/WD procedures; MFD SURV STATUS &amp; SWITCHING &nbsp;|&nbsp; <b>Status:</b> Tested in the sim (September 2026).</div>
+<h3>What it is for</h3>
+<p>The dual ADR and IR fault procedures ask the crew to move the WXR &amp; TAWS and the XPDR &amp; TCAS to the system that still has valid data. Those lines were hard-coded as done, so the ECAM ticked them even when the wrong system stayed selected. They now follow the selection made on the MFD SURV STATUS &amp; SWITCHING page, and the TCAS 1 / 2 FAULT procedures show their XPDR &amp; TCAS line, which was hidden.</p>
+<h3>Where the systems are selected</h3>
+<figure><img src="img/06/m01_surv_status.png" style="width:55%"><figcaption><b>Figure 6.</b> MFD SURV STATUS &amp; SWITCHING: the SYS 1 / SYS 2 buttons of WXR &amp; TAWS (top) and XPDR &amp; TCAS (bottom).</figcaption></figure>
+<h3>What you see</h3>
+<div class="row"><figure><img src="img/06/e01_ir12_before.png"><figcaption><b>Figure 7.</b> IR 1+2 FAULT with both systems on SYS 2: the two lines wait, in cyan.</figcaption></figure><figure><img src="img/06/e02_ir12_after.png"><figcaption><b>Figure 8.</b> After selecting SYS 1 on the SURV page: the lines are done (white) and the cursor moves on.</figcaption></figure></div>
+<table><tr><th>Procedure</th><th>WXR &amp; TAWS</th><th>XPDR &amp; TCAS</th></tr><tr><td>ADR 1+2 FAULT, ADR 2+3 FAULT, IR 1+2 FAULT, IR 2+3 FAULT</td><td>SYS 1</td><td>SYS 1</td></tr><tr><td>ADR 1+3 FAULT, IR 1+3 FAULT</td><td>SYS 2</td><td>SYS 2</td></tr><tr><td>TCAS 1 FAULT</td><td>-</td><td>SYS 2</td></tr><tr><td>TCAS 2 FAULT</td><td>-</td><td>SYS 1</td></tr></table>
+<figure><img src="img/06/e03_tcas1_fault.png" style="width:75%"><figcaption><b>Figure 9.</b> TCAS 1 FAULT: the XPDR &amp; TCAS line is now shown.</figcaption></figure>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>The right system is already selected when the fault appears</td><td>The line is shown already done.</td></tr><tr><td>The crew selects the other system</td><td>The line ticks within a second; the cursor moves to the next line.</td></tr><tr><td>The crew goes back to the failed side</td><td>The line becomes due again (it follows the live selection).</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>TCAS 1 FAULT and TCAS 2 FAULT come together.</td><td>FBW has one TCAS computer: both procedures read the same TCAS fault (an FBW note in the code).</td><td>Select the system the procedure you follow asks for.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>When an ADR / IR dual fault or a TCAS fault procedure asks for <b>WXR &amp; TAWS ... SYS n</b> or <b>XPDR &amp; TCAS ... SYS n</b>, select that system on MFD &gt; SURV &gt; STATUS &amp; SWITCHING (or with the pedestal SYS buttons).</li><li>The line ticks by itself; the E/WD cursor moves to the next line.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, one engine running (the ADR faults are not raised in flight phases 1 and 12). MFD &gt; SURV &gt; STATUS &amp; SWITCHING: select WXR / TAWS <b>SYS 2</b> and XPDR / TCAS <b>SYS 2</b>.</td><td>Both SYS 2 selected.</td></tr><tr><td>2</td><td>Overhead ADIRS panel: set the <b>ADR 1</b> and <b>ADR 2</b> pushbuttons OFF.</td><td>E/WD: <b>ADR 1+2 FAULT</b>. Its WXR &amp; TAWS ... SYS 1 and XPDR &amp; TCAS ... SYS 1 lines are cyan (to do).</td></tr><tr><td>3</td><td>Select WXR / TAWS <b>SYS 1</b> on the SURV page.</td><td>Within a second the WXR &amp; TAWS line turns white (done).</td></tr><tr><td>4</td><td>Select XPDR / TCAS <b>SYS 1</b> (page or pedestal).</td><td>The XPDR &amp; TCAS line is done; the cursor moves on.</td></tr><tr><td>5</td><td>Select XPDR / TCAS SYS 2 again.</td><td>The XPDR &amp; TCAS line is due again (it follows the live selection). Set the ADR pushbuttons back ON afterwards.</td></tr><tr><td>6</td><td>Raise a TCAS fault: flyPad &gt; Failures &gt; ATA 34 <b>RA SYS A</b> and <b>RA SYS B</b> (the TCAS uses radio altimeter 1, else 2), on the ground.</td><td>E/WD: TCAS 1 FAULT and TCAS 2 FAULT, each now with its XPDR &amp; TCAS line (before: hidden). The radio altimeter alerts show too.</td></tr><tr><td>7</td><td>Select XPDR / TCAS SYS 2, then SYS 1.</td><td>With SYS 2 the TCAS 1 FAULT line is done, with SYS 1 the TCAS 2 FAULT line. Clear the failures afterwards.</td></tr></table>
+<h2>4. A380X ECAM LINE-UP checklist: CABIN CREW line</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> E/WD normal checklist LINE-UP &nbsp;|&nbsp; <b>Status:</b> Tested in the sim (September 2026).</div>
+<h3>What it is for</h3>
+<p>The A380 FCOM BEFORE TAKEOFF checklist has a CABIN CREW item; the ECAM LINE-UP checklist did not.</p>
+<h3>LINE-UP checklist</h3>
+<figure><img src="img/06/e04_lineup.png" style="width:75%"><figcaption><b>Figure 10.</b> ECAM LINE-UP: the CABIN CREW ... ADVISED line (crew check).</figcaption></figure>
+<p>The ECAM LINE-UP checklist gets the CABIN CREW line that the flyPad checklist already had (A380 FCOM BEFORE TAKEOFF checklist: CABIN CREW ... ADVISE). It is ticked by the crew.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No SURV lines in the normal checklists.</td><td>The A380 FCOM normal checklists (PRO-NOR-C-L) have none (SURV, WX &amp; TERR and TCAS are SOP flow items); an earlier version of this change added some and was reverted.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>At line-up, call the ECAM LINE-UP checklist (C/L key on the ECAM control panel).</li><li>Advise the cabin crew, then tick the <b>CABIN CREW ... ADVISED</b> line.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X ready for takeoff. Press <b>C/L</b> on the ECAM control panel and go to the <b>LINE-UP</b> checklist.</td><td>The checklist shows a <b>CABIN CREW ... ADVISED</b> line, in cyan (to do).</td></tr><tr><td>2</td><td>Tick the line (ECAM control panel or KCCU).</td><td>The line turns white (done); it is not ticked by itself.</td></tr></table>
+<h2>5. TCAS: intruders shown and announced as TAs while RAs are inhibited</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> ND traffic display; TCAS mode &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-29).</div>
+<h3>What it is for</h3>
+<p>With every RA inhibited (TA ONLY selected, or low: below 900 ft radio altitude in descent, until 1100 ft in climb, see the next feature), the TCAS kept classifying an intruder that met the RA criteria as an RA. The ND drew it as a red RA square, and since it was not a TA, there was no "TRAFFIC, TRAFFIC" and no TA state. A real TCAS in TA ONLY shows it as an amber TA with the TA aural. The classification is now capped at TA while all RAs are inhibited.</p>
+<figure><img src="img/07/t00_symbols.png" style="width:90%"><figcaption><b>Figure 11.</b> The ND traffic symbols: other, proximate, TA, RA, with the relative altitude in hundreds of feet and the vertical trend arrow.<span class="refonly">Diagram drawn for this manual: not representative of the in-game UI, reference for the explanation only.</span></figcaption></figure>
+<h3>What you see</h3>
+<div class="row"><figure><img src="img/07/t01_a320_ta_only_ta.png"><figcaption><b>Figure 12.</b> A32NX: TA ONLY, centred at the bottom of the ND (A320 FCOM DSC-34-SURV-60-20 figure).</figcaption></figure><figure><img src="img/07/t03_a380_ta_only_ta.png"><figcaption><b>Figure 13.</b> A380X: TA ONLY in the message box.</figcaption></figure></div>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>TA ONLY selected, intruder meeting the RA criteria</td><td>Amber TA circle and "TRAFFIC, TRAFFIC" (before: red RA square, no aural).</td></tr><tr><td>Below 900 ft radio altitude in descent, until 1100 ft in climb (all RAs inhibited)</td><td>Same: TAs only, TA ONLY on the ND.</td></tr><tr><td>Partial inhibits (no CLIMB / DESCEND / INCREASE DESCENT RA)</td><td>Unchanged: RAs are still issued.</td></tr><tr><td>An RA already running when the inhibit starts</td><td>It runs to its own end.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Same change on both aircraft.</td><td>The A32NX TcasComputer and the A380X LegacyTcasComputer share the classification code.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Select TA ONLY: A32NX ATC/TCAS panel TCAS mode selector to <b>TA</b>; A380X MFD &gt; SURV &gt; CONTROLS TCAS <b>TA ONLY</b> (or the pedestal TA ONLY button).</li><li>Traffic that would give an RA is shown as an amber TA with the "TRAFFIC, TRAFFIC" aural.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>In flight above 1100 ft radio altitude with traffic (AI or multiplayer) converging on you. TCAS in TA/RA.</td><td>An intruder meeting the RA criteria is a red square with an RA aural.</td></tr><tr><td>2</td><td>Select TA ONLY (A32NX: TCAS mode selector TA; A380X: SURV CONTROLS TA ONLY).</td><td>TA ONLY on the ND. The same intruder is now an amber TA circle with "TRAFFIC, TRAFFIC" (before: a red RA square and no aural).</td></tr><tr><td>3</td><td>Back to TA/RA during an RA already running, then TA ONLY again.</td><td>An RA already running when the inhibition starts runs to its own end.</td></tr></table>
+<h2>6. TCAS: low-altitude RA and TA aural inhibitions with the real hysteresis</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> ND traffic display (TA ONLY message); TCAS aurals &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-29, with the TA ONLY change).</div>
+<h3>What it is for</h3>
+<p>The TCAS inhibits all RAs close to the ground, and lower down the TA aural too. Both used a flat threshold (1000 ft and 500 ft radio altitude). The A380 FCTM (Supplementary Information, TCAS) gives a hysteresis, the FCOM "below 1000 ft &plusmn;100 ft". Both TCAS computers now use it:</p>
+<table><tr><th>Inhibition</th><th>Starts (descending through)</th><th>Ends (climbing through)</th></tr><tr><td>All RAs (TA ONLY on the ND)</td><td>900 ft radio altitude</td><td>1100 ft radio altitude</td></tr><tr><td>TA aural ("TRAFFIC, TRAFFIC")</td><td>400 ft radio altitude</td><td>600 ft radio altitude</td></tr></table>
+<ul><li>Without a valid radio altitude, neither low-altitude inhibition applies.</li><li>The four altitudes are named constants of the TCAS code (no other effect).</li></ul>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the inhibitions follow the radio altitude.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX or A380X on approach, TCAS in TA/RA, descending through 1000 ft radio altitude. Watch the ND.</td><td>No TA ONLY message yet at 1000 ft.</td></tr><tr><td>2</td><td>Continue below 900 ft radio altitude.</td><td><b>TA ONLY</b> appears on the ND (all RAs inhibited).</td></tr><tr><td>3</td><td>Go around and climb.</td><td>TA ONLY stays up to 1100 ft radio altitude and disappears above it.</td></tr><tr><td>4</td><td>With traffic close by on a low approach (AI or multiplayer), descend below 400 ft radio altitude.</td><td>The TA symbol stays, the "TRAFFIC, TRAFFIC" aural is not given; it is given again above 600 ft in the climb.</td></tr></table>
+<h2>7. A32NX: TCAS message centred at the bottom of the ND</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> ND, bottom centre &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-09-24; again 2026-09-29 with the TCAS changes).</div>
+<h3>What it is for</h3>
+<p>The shared TCAS / WXR message component put the TCAS message ("TA ONLY", "TCAS", "TCAS STBY") at the left of its line. The A320 ND shows it at the bottom centre, below the aircraft symbol between the ADF and VOR fields (A320 FCOM DSC-34-SURV-60-20, ND indications figure), where the A380X already placed it. The A32NX ND now centres it the same way (see the A32NX picture in the TA feature above).</p>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the message shows wherever the TCAS sends one.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, ND in ROSE NAV or ARC. Set the TCAS mode selector on the ATC/TCAS panel to <b>TA</b>.</td><td><b>TA ONLY</b> at the bottom centre of the ND, below the aircraft symbol, between the ADF/VOR fields (before: at the left).</td></tr><tr><td>2</td><td>Set the TCAS mode selector to <b>STBY</b>.</td><td><b>TCAS STBY</b> at the same centred place.</td></tr></table>
+</body></html>

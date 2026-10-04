@@ -1,0 +1,131 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A32NX flyPad failures - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A32NX flyPad failures</h1>
+<div class="subtitle">Clearer A32NX failure names and new failures with their FCOM alerts: transponders, RMPs and VHF radios, FWC 1 and 2, engine and APU fires with a real fire detection model, wing tank pumps and the X FEED valve</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX</span>
+<b>Where to find it</b><span>flyPad &gt; Failures (ATA 21, 22, 23, 26, 28, 31, 34); E/WD, STATUS and SD pages; pedestal ATC and RMP panels; overhead FIRE and FUEL panels</span>
+<b>Branch</b><span><code>core/failures-a32nx</code>, based on <code>core/gps</code> (stacked: needs core/surveillance, core/a380x-mfd-fms and core/gps merged first), with <code>core/fire</code> merged in (the fire failures use its fire warnings). Only the six features below belong to this branch; the GPS and fire warning features are described in the core/gps and core/fire manuals.</span>
+<b>Status</b><span>Transponder, RMP/VHF, FWC, fire and fuel failures tested in the sim by the user: OK (2026-10-04). Clearer names: not sim-tested (labels only).</span>
+<b>Pictures</b><span>No pictures: the failures page, the ECAM alerts and the panels are the stock FBW displays.</span>
+</div>
+<div class="toc"><div>1. Clearer failure names</div><div>2. Transponder failures</div><div>3. RMP and VHF failures</div><div>4. FWC 1 and FWC 2 failures</div><div>5. Fire detection model and fire failures</div><div>6. Wing tank pump and X FEED valve failures</div></div>
+<h2>1. Clearer failure names</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &nbsp;|&nbsp; <b>Status:</b> Not sim-tested (labels only).</div>
+<h3>What it is for</h3>
+<p>The failure names were audited ATA by ATA against what the systems code fails. Three names were misleading: the ATA 21 valve is the hot air pressure regulating valve, the FMGC failures only fail the flight guidance part of the FMGC, and the RA failures are antenna failures. Only the labels change.</p>
+<table><tr><th>ATA</th><th>Before</th><th>Now</th></tr><tr><td>21</td><td>Trim Air Pressure Regulating Valve</td><td>Hot Air Pressure Regulating Valve</td></tr><tr><td>22</td><td>FMGC 1 / FMGC 2</td><td>FMGC 1 (flight guidance) / FMGC 2 (flight guidance)</td></tr><tr><td>34</td><td>RA 1 Interrupted / RA 2 Interrupted</td><td>RA 1 antenna interrupted / RA 2 antenna interrupted</td></tr><tr><td>34</td><td>RA 1 Direct Coupling / RA 2 Direct Coupling</td><td>RA 1 antenna direct coupling / RA 2 antenna direct coupling</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Failures and pick the failure by its new name (table above).</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Open flyPad &gt; Failures &gt; ATA 21 Air Conditioning.</td><td>"Hot Air Pressure Regulating Valve" is listed.</td></tr><tr><td>2</td><td>Open ATA 22 Auto Flight.</td><td>"FMGC 1 (flight guidance)" and "FMGC 2 (flight guidance)".</td></tr><tr><td>3</td><td>Open ATA 34 Navigation.</td><td>"RA 1 antenna interrupted", "RA 2 antenna interrupted", "RA 1 antenna direct coupling", "RA 2 antenna direct coupling".</td></tr></table>
+<h2>2. Transponder failures</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 34 Navigation; pedestal ATC/TCAS panel; E/WD, STATUS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>Two new failures, <b>ATC/XPDR 1</b> and <b>ATC/XPDR 2</b>. MSFS has a single transponder: it stands for the transponder selected on the ATC panel (SYS 1 / SYS 2). When the selected one fails, the sim transponder stops replying and the ATC FAIL light comes on; selecting the other system brings the replies back. With both lost, the TCAS goes to standby. The ECAM alerts and STATUS follow the A320 FCOM PRO-ABN-NAV procedures.</p>
+<p>Fix on the way: the ATC/XPDR STBY indication read a second sim transponder that does not exist; the standby state of each transponder now comes from the system selection and the mode selector.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>ATC/XPDR 1 failed, SYS 1 selected</td><td>ATC FAIL light; no transponder reply. E/WD amber <b>NAV ATC/XPDR 1 FAULT</b> with -ATC/XPDR ...... SYS 2 (only while XPDR 1 is selected and XPDR 2 works). STATUS INOP SYS: ATC/XPDR 1, ADS-B RPTG 1.</td></tr><tr><td>SYS 2 selected</td><td>ATC FAIL off, replies again; the procedure line is done.</td></tr><tr><td>ATC/XPDR 2 failed</td><td>The same with NAV ATC/XPDR 2 FAULT, -ATC/XPDR ...... SYS 1, INOP SYS ATC/XPDR 2, ADS-B RPTG 2.</td></tr><tr><td>Both failed</td><td><b>NAV ATC/XPDR 1+2 FAULT</b> (crew awareness); STATUS INOP SYS: TCAS, ATC/XPDR 1, ATC/XPDR 2, ADS-B RPTG 1, ADS-B RPTG 2; the TCAS goes to standby.</td></tr><tr><td>A transponder loses its bus (AC ESS SHED for XPDR 1, AC 2 for XPDR 2)</td><td>The transponder is lost, but no ATC/XPDR FAULT: a bus loss is an ELEC alert.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The ATC/XPDR alerts are inhibited during the takeoff and below 800 ft in approach to the landing roll.</td><td>The FCOM gives the inhibition as a figure: the one of the RA faults is used (flight phases 3, 4, 5, 7, 8).</td><td>Test at the gate or in cruise.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Failures &gt; ATA 34 Navigation and activate <b>ATC/XPDR 1</b> or <b>ATC/XPDR 2</b>.</li><li>Follow the ECAM: select the other system on the ATC/TCAS panel.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX at the gate, powered, ATC/TCAS panel: SYS 1, mode AUTO (or ON).</td><td>No ATC FAIL light.</td></tr><tr><td>2</td><td>Activate <b>ATC/XPDR 1</b>.</td><td>ATC FAIL light on; master caution and single chime; E/WD NAV ATC/XPDR 1 FAULT with -ATC/XPDR ...... SYS 2. ATC (or a traffic tool) no longer sees your transponder.</td></tr><tr><td>3</td><td>Open the STATUS page.</td><td>INOP SYS: ATC/XPDR 1, ADS-B RPTG 1.</td></tr><tr><td>4</td><td>Select SYS 2 on the ATC panel.</td><td>ATC FAIL off, the transponder replies again, the SYS 2 line is done.</td></tr><tr><td>5</td><td>Activate <b>ATC/XPDR 2</b> as well.</td><td>NAV ATC/XPDR 1+2 FAULT; STATUS INOP SYS: TCAS, ATC/XPDR 1, ATC/XPDR 2, ADS-B RPTG 1, ADS-B RPTG 2; the TCAS is in standby.</td></tr><tr><td>6</td><td>Deactivate both failures.</td><td>The alerts clear; the TCAS works again.</td></tr></table>
+<h2>3. RMP and VHF failures</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 23 Communication; pedestal RMP 1 and RMP 2 &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>Five new ATA 23 failures: <b>RMP 1</b>, <b>RMP 2</b>, <b>VHF 1</b>, <b>VHF 2</b> and <b>VHF 3</b> (same ids as the A380X ATA 23 failures). A failed RMP goes blank and stops tuning; the other RMP still tunes every VHF (A320 FCOM DSC-23-10-20: "If one RMP fails, the remaining one controls all the VHF transceivers"). A failed VHF switches its MSFS COM radio off: it neither receives nor transmits.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>RMP 1 (or 2) failed</td><td>Both frequency displays blank, the green key lights and SEL off, the keys and knobs do nothing (FCOM DSC-23-60 failure cases).</td></tr><tr><td>The other RMP</td><td>Still tunes VHF 1, 2 and 3.</td></tr><tr><td>VHF 1 (2, 3) failed</td><td>COM 1 (2, 3) silent: no reception, no transmission. The RMPs still show and change its frequency.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No ECAM alert for these failures.</td><td>Not part of this change.</td><td>Check the RMP and the radio.</td></tr><tr><td>A NAV key left on on a failed RMP still holds the FMGC navaid tuning.</td><td>As with an RMP switched off: the navaid tuner (shared with the A380X) reads the NAV key only.</td><td>Avoid the NAV key before failing an RMP.</td></tr><tr><td>No RMP 3 and no audio control panel / AMU failure.</td><td>RMP 3 is not in the A32NX cockpit, and the MSFS radios have no audio channel to fail.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Failures &gt; ATA 23 Communication and activate RMP 1, RMP 2, VHF 1, VHF 2 or VHF 3.</li><li>With an RMP failed, tune the radios from the other RMP.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX powered, an ATIS frequency on VHF 1, audible.</td><td>The ATIS is heard.</td></tr><tr><td>2</td><td>Activate <b>RMP 1</b>.</td><td>RMP 1 goes blank, its key lights go off, its knobs do nothing. The ATIS is still heard (VHF 1 itself works).</td></tr><tr><td>3</td><td>On RMP 2, press the VHF 1 key and tune another frequency, transfer it.</td><td>VHF 1 changes frequency: RMP 2 tunes VHF 1.</td></tr><tr><td>4</td><td>Deactivate RMP 1. Activate <b>VHF 1</b>.</td><td>COM 1 goes silent; transmitting on VHF 1 is not possible. RMP 1 still shows the frequency.</td></tr><tr><td>5</td><td>Deactivate VHF 1.</td><td>The ATIS is heard again.</td></tr></table>
+<h2>4. FWC 1 and FWC 2 failures</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 31 Indicating / Recording System; E/WD, STATUS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>Two new failures, <b>FWC 1</b> and <b>FWC 2</b> (A320 FCOM DSC-31-05-30, PRO-ABN-FWS). With one FWC failed, the other one keeps the warning system working and shows the fault. With both failed, the ECAM alerts, memos, STATUS, MASTER WARN / CAUT lights, aurals (including the STALL aural) and the altitude callouts are lost, and the E/WD shows the FWC 1+2 FAULT display. Each FWC also follows its own electrical supply.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>FWC 1 failed</td><td>E/WD <b>FWS FWC 1 FAULT</b> (shown by FWC 2), level 1: no MASTER CAUT, no chime. STATUS: CAT 3 SINGLE ONLY; INOP SYS: CAT 3 DUAL, FWC 1.</td></tr><tr><td>FWC 2 failed</td><td>The same with FWS FWC 2 FAULT and FWC 2.</td></tr><tr><td>Both failed</td><td>E/WD: <b>FWS FWC 1+2 FAULT</b>, -MONITOR SYS, -MONITOR OVERHEAD PANEL; right side NOT AVAIL: ECAM WARN, ALTI ALERT, STATUS, A/CALL OUT, MEMO. No other alert, memo, STATUS, STS reminder, master light or aural.</td></tr><tr><td>One FWC restored</td><td>Every active alert is shown again, as a new one.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>FWS FWC 1(2) FAULT is level 1 and inhibited during the takeoff and the landing (phases 3, 4, 5, 7, 8).</td><td>The FCOM gives the level and the inhibition in figures only: those of the other computer faults are used.</td><td>Test at the gate or in cruise.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Failures &gt; ATA 31 Indicating / Recording System and activate FWC 1 and / or FWC 2.</li><li>With both failed, monitor the systems and the overhead panel yourself.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX at the gate, powered, no alert. Activate <b>FWC 1</b>.</td><td>E/WD: FWS FWC 1 FAULT, no master caution, no chime.</td></tr><tr><td>2</td><td>Open the STATUS page.</td><td>CAT 3 SINGLE ONLY; INOP SYS: CAT 3 DUAL, FWC 1.</td></tr><tr><td>3</td><td>Activate <b>FWC 2</b> as well.</td><td>E/WD: FWS FWC 1+2 FAULT, -MONITOR SYS, -MONITOR OVERHEAD PANEL, and NOT AVAIL: ECAM WARN, ALTI ALERT, STATUS, A/CALL OUT, MEMO. The memos are gone.</td></tr><tr><td>4</td><td>Press the STS key on the ECAM control panel.</td><td>No STATUS page (STATUS is in the NOT AVAIL list).</td></tr><tr><td>5</td><td>Deactivate FWC 2.</td><td>FWS FWC 1 FAULT again; the active alerts come back as new ones.</td></tr></table>
+<h2>5. Fire detection model and fire failures</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 26 Fire Protection; overhead FIRE panel; ENG MASTER panel; E/WD, STATUS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04).</div>
+<h3>What it is for</h3>
+<p>Nine new failures: <b>Engine 1 fire</b>, <b>Engine 2 fire</b>, <b>APU fire</b>, and <b>Engine 1 fire detection loop A</b>, <b>Engine 1 fire detection loop B</b>, <b>Engine 2 fire detection loop A</b>, <b>Engine 2 fire detection loop B</b>, <b>APU fire detection loop A</b>, <b>APU fire detection loop B</b>.</p>
+<p>Each zone now has the two detection loops and the fire detection unit of the aircraft (A320 FCOM DSC-26-20-10). A fire warning comes when both loops detect the fire, when one loop detects it and the other one is failed, or when both loops break within 5 s (flame effect). The logic moved from the A380X into the common code; the A380X behaviour is unchanged. The fires of the MSFS failures menu still give the warnings, through the loops. The FIRE TEST is unchanged.</p>
+<ul><li>The ENG MASTER panel FIRE light comes on with the engine fire warning (before: FIRE TEST only).</li><li>APU fire on the ground: the APU shuts down and the APU AGENT discharges automatically 3 s after the warning (FCOM DSC-26-20-20).</li><li>Each AGENT discharge has one chance in two to put a flyPad fire out.</li><li>Loop supplies (FCOM PRO-ABN-ELEC INOP SYS): DC BUS 2 for ENG 1 LOOP B and ENG 2 LOOP A, DC ESS BUS for ENG 1 LOOP A and ENG 2 LOOP B, DC BAT BUS for both APU loops. An unpowered loop is a failed loop.</li></ul>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Engine 1 fire</td><td>ENG 1 FIRE warning (from <code>core/fire</code>), red ENG 1 FIRE pushbutton light and red FIRE light on the ENG MASTER panel.</td></tr><tr><td>APU fire on the ground</td><td>APU FIRE warning; the APU shuts down; 3 s later the APU AGENT discharges (DISCH light).</td></tr><tr><td>AGENT discharged</td><td>The fire goes out, or not (one chance in two per discharge).</td></tr><tr><td>One loop failed</td><td>Amber <b>ENG 1 FIRE LOOP A FAULT</b> (LOOP B, ENG 2, APU FIRE LOOP A / B); STATUS INOP SYS ENG 1 LOOP A (ENG 1 LOOP B, ENG 2 LOOP A / B, APU LOOP A / B). A fire is still detected by the other loop.</td></tr><tr><td>Both loops of a zone failed</td><td><b>ENG 1 FIRE DET FAULT</b> (ENG 2, APU FIRE DET FAULT) instead of the two loop cautions; STATUS INOP SYS FIRE DET 1 (FIRE DET 2, APU FIRE DET).</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The fire detection unit itself cannot fail.</td><td>No FDU failure: FIRE DET FAULT comes only from both loops failed.</td><td>Fail both loops.</td></tr><tr><td>The LOOP and DET FAULT cautions are inhibited during the takeoff and the landing (phases 3, 4, 5, 7, 8).</td><td>The FCOM gives the inhibition as a figure: that of the other crew awareness cautions is used.</td><td>Test at the gate or in cruise.</td></tr><tr><td>A full MSFS restart is needed after an update.</td><td>The systems WASM module and the cockpit behaviour XML change.</td><td>Restart the sim after installing.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Failures &gt; ATA 26 Fire Protection and activate a fire or a loop failure.</li><li>Fight a fire with the ECAM procedure (FIRE pushbutton, AGENT 1, AGENT 2). Deactivating the failure also ends the fire.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX on the ground, engines running. Activate <b>Engine 1 fire</b>.</td><td>ENG 1 FIRE warning, master warning, continuous chime, red light in the ENG 1 FIRE pushbutton and on the ENG MASTER 1 panel.</td></tr><tr><td>2</td><td>Follow the ECAM: ENG MASTER 1 OFF, push the ENG 1 FIRE pushbutton, press AGENT 1.</td><td>AGENT 1 DISCH; the fire goes out or not (one chance in two). If not, AGENT 2 gives another chance.</td></tr><tr><td>3</td><td>Deactivate the failure, reset the FIRE pushbutton. With the APU running, activate <b>APU fire</b>.</td><td>APU FIRE warning; the APU shuts down; about 3 s later the APU AGENT discharges by itself.</td></tr><tr><td>4</td><td>Deactivate it. Activate <b>Engine 2 fire detection loop A</b>.</td><td>Amber ENG 2 FIRE LOOP A FAULT; STATUS INOP SYS ENG 2 LOOP A.</td></tr><tr><td>5</td><td>Activate <b>Engine 2 fire</b> with loop A still failed.</td><td>ENG 2 FIRE warning: loop B alone detects the fire.</td></tr><tr><td>6</td><td>Deactivate the fire, activate <b>Engine 2 fire detection loop B</b> as well.</td><td>The loop cautions are replaced by ENG 2 FIRE DET FAULT; STATUS INOP SYS FIRE DET 2.</td></tr><tr><td>7</td><td>Optional: start an engine fire from the MSFS failures menu.</td><td>The ENG FIRE warning still comes (through the loops).</td></tr></table>
+<h2>6. Wing tank pump and X FEED valve failures</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 28 Fuel; overhead FUEL panel; SD FUEL &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: OK (2026-10-04), after the fix that holds the MSFS pump / valve switch.</div>
+<h3>What it is for</h3>
+<p>Five new failures: <b>L TK pump 1</b>, <b>L TK pump 2</b>, <b>R TK pump 1</b>, <b>R TK pump 2</b> and <b>X FEED valve jammed in place</b>. The FUEL panel pushbuttons now set a selection, and the systems host moves the MSFS pump or valve switch from it: a failed pump is held off, the jammed valve is held where it was. The FAULT lights, the SD FUEL page and the cautions compare the selection with the real state (A320 FCOM PRO-ABN-FUEL).</p>
+<ul><li>SD FUEL page: amber LO only for a pump that is ON with a low pressure; the X FEED valve is amber when it disagrees with its pushbutton (FCOM colours).</li><li>The FUEL X FEED memo now needs the X FEED pushbutton ON and the valve not fully closed.</li></ul>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>L TK pump 1 failed, pushbutton ON</td><td>FAULT light; amber LO on the SD FUEL page (page called). E/WD <b>FUEL L TK PUMP 1 LO PR</b> with -L TK PUMP 1 ...... OFF (shown while the pushbutton is ON). STATUS INOP SYS L TK PUMP 1.</td></tr><tr><td>Both pumps of one wing failed</td><td><b>FUEL L TK PUMP 1+2 LO PR</b> (R for the right wing): .IF NO FUEL LEAK: -FUEL X FEED ON (above FL 150 only), -ENG MODE SEL IGN, -L TK PUMP 1 OFF, -L TK PUMP 2 OFF, .WHEN L TK FUEL RQRD: L TK FEED GRVTY ONLY, -FUEL X FEED OFF (below FL 150, X FEED ON), PROC:GRVTY FUEL FEEDING, AVOID NEGATIVE G FACTOR. Each action line goes once done. STATUS INOP SYS L TK PUMPS.</td></tr><tr><td>X FEED valve jammed, pushbutton moved</td><td>The valve stays: amber on the SD FUEL page, <b>FUEL X FEED VALVE FAULT</b> (crew awareness), STATUS INOP SYS FUEL X FEED. With the valve stuck closed, no FUEL X FEED memo.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The cautions are inhibited during the takeoff and the landing (phases 3, 4, 5, 7, 8).</td><td>The FCOM gives the inhibition as a figure: that of the other single system faults is used.</td><td>Test at the gate or in cruise.</td></tr><tr><td>No centre tank pump failure.</td><td>Only the wing tank pumps and the X FEED valve are in this change.</td><td>None.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Failures &gt; ATA 28 Fuel and activate a pump or the X FEED valve failure.</li><li>Follow the ECAM with the overhead FUEL panel; check the SD FUEL page.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX at the gate, APU or engines running, all fuel pumps ON. Activate <b>L TK pump 1</b>.</td><td>After a few seconds: FAULT light in the L TK PUMP 1 pushbutton, SD FUEL page with amber LO, master caution, E/WD FUEL L TK PUMP 1 LO PR with -L TK PUMP 1 ...... OFF.</td></tr><tr><td>2</td><td>Set the L TK PUMP 1 pushbutton OFF. Open STATUS.</td><td>The FAULT light and the OFF line go; no LO on the SD; STATUS INOP SYS L TK PUMP 1.</td></tr><tr><td>3</td><td>Set it ON again and also activate <b>L TK pump 2</b>.</td><td>FUEL L TK PUMP 1+2 LO PR with its procedure (on the ground, below FL 150: .IF NO FUEL LEAK:, -ENG MODE SEL IGN, -L TK PUMP 1 OFF, -L TK PUMP 2 OFF, ...); STATUS INOP SYS L TK PUMPS.</td></tr><tr><td>4</td><td>Deactivate both. With the X FEED valve closed, activate <b>X FEED valve jammed in place</b>, then set the X FEED pushbutton ON.</td><td>The valve stays closed: amber X FEED valve on the SD, FUEL X FEED VALVE FAULT, STATUS INOP SYS FUEL X FEED, no FUEL X FEED memo.</td></tr><tr><td>5</td><td>Deactivate the failure.</td><td>The valve opens; the FUEL X FEED memo comes; the caution clears.</td></tr></table>
+</body></html>
