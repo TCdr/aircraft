@@ -386,6 +386,37 @@
       release when the flyPad realism option "Extend Fire Test Warnings After Button Release" is on
     - Written by the FWC; drives the FIRE pb and AGENT/SQUIB DISCH lights, so they stay lit as long as the ECAM and the CRC
 
+- A32NX_FIRE_DETECTED_{ENG1 | ENG2 | APU}
+    - Bool
+    - True when the fire detection unit gives the fire warning of the zone: both loops A and B detect a fire, or one
+      loop detects it and the other is failed, or both loops broke within 5 s (A320 FCOM DSC-26-20-10). Does not include
+      the FIRE TEST pbs (see A32NX_FWC_FIRE_TEST_{ENG1 | ENG2 | APU}_ACTIVE)
+    - The fire comes from A32NX_ENG_{1 | 2}_ON_FIRE / A32NX_APU_ON_FIRE or from the sim's own fire (`ENG ON FIRE:{1 | 2}`,
+      `APU ON FIRE DETECTED`, MSFS failures menu)
+    - Read by the FWC, the FIRE pb red lights and the ENG MASTER panel FIRE lights
+
+- A32NX_FIRE_{ENG1 | ENG2 | APU}_LOOP_{A | B}_FAULT
+    - Bool
+    - True when the detection loop of the zone is failed: flyPad failure (break), or no electrical supply (ENG 1 loop A
+      and ENG 2 loop B: DC ESS bus, ENG 1 loop B and ENG 2 loop A: DC 2 bus, APU loops: DC BAT bus)
+    - Drives the ENG 1(2) / APU FIRE LOOP A(B) FAULT and FIRE DET FAULT cautions
+
+- A32NX_ENG_{1 | 2}_ON_FIRE
+    - Bool
+    - The engine is on fire (flyPad failure "Engine 1(2) fire"). Set by the failure, cleared when the failure is
+      removed or, with a chance of 1/2, by each new AGENT discharge of that engine
+
+- A32NX_APU_ON_FIRE
+    - Bool
+    - The APU is on fire (flyPad failure "APU fire"). Set by the failure, cleared when the failure is removed or, with a
+      chance of 1/2, by the APU AGENT discharge
+
+- A32NX_FIRE_{ENG1 | ENG2 | APU}_AGENT{1 | 2}_Discharge
+    - Bool
+    - The AGENT pb has discharged that fire extinguisher bottle (set by the cockpit behaviour while the FIRE pb is
+      released). A32NX_FIRE_APU_AGENT1_Discharge is also set by the systems 3 s after an APU fire is detected on the
+      ground (automatic discharge)
+
 - A32NX_RMP_L_TOGGLE_SWITCH
     - Boolean
     - Whether the left radio management panel toggle switch is on or off.

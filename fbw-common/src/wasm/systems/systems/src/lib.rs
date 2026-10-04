@@ -15,6 +15,7 @@ pub mod electrical;
 pub mod engine;
 pub mod enhanced_gpwc;
 pub mod failures;
+pub mod fire_protection;
 pub mod fuel;
 pub mod hydraulic;
 pub mod icing_state;
