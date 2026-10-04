@@ -25,6 +25,7 @@ import { ChecklistState, FwsEvents } from '../../../MsfsAvionicsCommon/providers
 import { MoreLabel, PageTitle } from '../Generic/PageTitle';
 import { SDSimvars } from '../../SDSimvarPublisher';
 import { SdPageProps } from '../../SD';
+import { isStatusMoreAvailable } from '@shared/EcamSdMore';
 
 import './style.scss';
 import { RegisteredSimVar } from '@flybywiresim/fbw-sdk';
@@ -51,10 +52,6 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
 
   private readonly stsNumberOfPagesSimvar = RegisteredSimVar.create(
     'L:A32NX_ECAM_SD_STS_NUMBER_OF_PAGES',
-    SimVarValueType.Number,
-  );
-  private readonly stsMoreAvailableSimvar = RegisteredSimVar.create<number>(
-    'L:A32NX_ECAM_SD_STS_MORE_AVAILABLE',
     SimVarValueType.Number,
   );
 
@@ -222,8 +219,10 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
   private readonly cancelledCautionHeight = this.cancelledCaution.map((keys) => `${keys.length * 30 + 3}px`);
 
   private readonly moreActive = ConsumerSubject.create(this.sub.on('moreActive'), false);
+  // Only draws the boxed MORE label: the FWS decides whether the MORE pb works, with the same rule on the same lists,
+  // and is the only writer of L:A32NX_ECAM_SD_STS_MORE_AVAILABLE (a write from here was lost while this page was paused)
   private readonly moreAvailable = MappedSubject.create(
-    ([inopSysRedund, cancelledCaution]) => inopSysRedund.length > 0 || cancelledCaution.length > 0,
+    ([inopSysRedund, cancelledCaution]) => isStatusMoreAvailable(inopSysRedund, cancelledCaution),
     this.inopSysRedund,
     this.cancelledCaution,
   );
@@ -451,9 +450,6 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
         this.moreActive,
         this.inopSysRedund,
       ),
-      this.moreAvailable.sub((v) => {
-        this.stsMoreAvailableSimvar.set(v ? 1 : 0);
-      }, true),
     );
   }
 
