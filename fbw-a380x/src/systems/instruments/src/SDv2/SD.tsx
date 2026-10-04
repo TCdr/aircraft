@@ -27,6 +27,13 @@ import { SDSimvars } from './SDSimvarPublisher';
 
 export interface SDProps {
   readonly bus: EventBus;
+  /**
+   * The DU this gauge draws on when it is a hosted gauge (CDS reconfiguration: the SD on an ND DU,
+   * MsfsAvionicsCommon/HostedDisplay.ts). Such a copy has no ATC mailbox: the mailbox is a client of the ATC function
+   * with its own queue, displayed message and read state, and a second client would publish its own displayed / read
+   * messages over those of the SD DU's mailbox (design choice).
+   */
+  readonly hostDisplayUnitId?: DisplayUnitID;
 }
 
 export interface SdPageProps extends ComponentProps {
@@ -104,11 +111,15 @@ export class SD extends DestroyableComponent<SDProps> {
 
   render(): VNode | null {
     return (
-      <CdsDisplayUnit bus={this.props.bus} displayUnitId={DisplayUnitID.Sd}>
+      <CdsDisplayUnit
+        bus={this.props.bus}
+        displayUnitId={DisplayUnitID.Sd}
+        hostDisplayUnitId={this.props.hostDisplayUnitId}
+      >
         {this.sdPages}
         <div class="sd-content-area-blocker" style={{ visibility: this.anyPageVisibleStyle }} />
         <PermanentData bus={this.props.bus} />
-        <AtcMailbox bus={this.props.bus} />
+        {this.props.hostDisplayUnitId === undefined ? <AtcMailbox bus={this.props.bus} /> : null}
       </CdsDisplayUnit>
     );
   }
