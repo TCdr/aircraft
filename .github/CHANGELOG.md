@@ -114,6 +114,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] 50 pilot-stored waypoints: the oldest one not used in a flight plan is replaced, 50 WPTS MAX : ALL IN USE when all are used - @TCdr
 1. [A380X/FUEL] Jettison valve stuck open and stuck closed failures with their ECAM alerts and STATUS - @TCdr
 1. [A380X] Fuel jettison: a fuel mist plume trails from each wing's jettison outlet while fuel flows out of that side - @TCdr
+1. [A380X/SD] FUEL page: during a normal fuel jettison the jettison lines and JETTISON legends are white instead of amber (amber stays for a valve open without jettison, or closed during jettison) - @TCdr
 
 ## 2024.1.0
 
