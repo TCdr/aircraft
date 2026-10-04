@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "LightingPresets.h"
+#include "PresetLoadTarget.hpp"
 #include "ScopedTimer.hpp"
 #include "math_utils.hpp"
 
@@ -111,10 +112,9 @@ void LightingPresets::saveLightingPreset(INT64 savePresetRequest) {
 bool LightingPresets::readFromStore(INT64 presetNr) {
   // only read ini file from disk if we load a new preset
   if (readIniFile) {
-    if (!iniFile.read(ini)) {
-      LOG_ERROR("LightingPresets_A32NX: Could not read ini file");
-      return false;
-    };
+    if (!lighting_presets::readPresetsForLoad(iniFile, ini)) {
+      LOG_INFO("LightingPresets: no presets file yet, every preset loads the default preset");
+    }
     readIniFile = false;
   }
   loadFromIni(ini, fmt::format("preset {}", presetNr));

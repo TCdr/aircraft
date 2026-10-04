@@ -132,6 +132,9 @@ class LightingPresets_A32NX : public LightingPresets {
    */
   void setValidCabinLightValue(FLOAT64 level);
 
+  // The default preset, loaded for a preset row that was never saved. Values in the 0..100 scale of the stored presets
+  // (readFromAircraft/applyToAircraft convert the DCDU and MCDU brightness from and to their own ranges), like the
+  // defaults of loadFromIni: the DCDU and MCDU used to be 0.5 here (0.005 and 0.04 once converted), so dark.
   const LightingValues_A32NX DEFAULT_50 = {
       50.0,  // efbBrightness
       50.0,  // cabinLightLevel
@@ -149,10 +152,10 @@ class LightingPresets_A32NX : public LightingPresets {
       50.0,  // wxTerrainBrtFoLevel
       50.0,  // consoleLightFoLevel
       0.0,   // isisManualOffsetLevel
-      0.5,   // dcduLeftLightLevel
-      0.5,   // dcduRightLightLevel
-      0.5,   // mcduLeftLightLevel
-      0.5,   // mcduRightLightLevel
+      50.0,  // dcduLeftLightLevel
+      50.0,  // dcduRightLightLevel
+      50.0,  // mcduLeftLightLevel
+      50.0,  // mcduRightLightLevel
       50.0,  // ecamUpperLightLevel
       50.0,  // ecamLowerLightLevel
       50.0,  // floodPnlLightLevel
