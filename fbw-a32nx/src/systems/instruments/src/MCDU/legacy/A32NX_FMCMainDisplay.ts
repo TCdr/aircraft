@@ -5886,7 +5886,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private handleFcuVSKnob(onStepClimbDescent: () => void): void {
     this.flightPhaseManager.handleFcuVSKnob(
       this.getDistanceToDestination() ?? -1,
-      this.guidanceController.hasStepDescent(),
+      this.guidanceController.isStepDescentAhead(),
       onStepClimbDescent,
     );
   }
@@ -5894,14 +5894,14 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   handleFcuAltKnobPushPull(): void {
     this.flightPhaseManager.handleFcuAltKnobPushPull(
       this.getDistanceToDestination() ?? -1,
-      this.guidanceController.hasStepDescent(),
+      this.guidanceController.isStepDescentAhead(),
     );
   }
 
   handleFcuAltKnobTurn(): void {
     this.flightPhaseManager.handleFcuAltKnobTurn(
       this.getDistanceToDestination() ?? -1,
-      this.guidanceController.hasStepDescent(),
+      this.guidanceController.isStepDescentAhead(),
     );
   }
 
