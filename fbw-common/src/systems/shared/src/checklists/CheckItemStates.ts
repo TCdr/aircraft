@@ -29,14 +29,22 @@ export function checkA380XEnginesOff(): boolean {
   return eng1N1 <= 3 && eng2N1 <= 3 && eng3N1 <= 3 && eng4N1 <= 3;
 }
 
+/**
+ * The A32NX fuel pump pb-sw selections that the FUEL PUMPS OFF item checks (the crew action, not whether the pumps run:
+ * a failed pump, or a pump in an empty tank, does not run with its pb-sw ON): L TK PUMPS 1 and 2, R TK PUMPS 1 and 2
+ * (by MSFS pump number). Not the CTR TK L(R) XFR pb-sw: the FCOM lists them as items of their own, never as part of
+ * FUEL PUMPS (PRO-ABN-FUEL FUEL IMBALANCE, a320_fcom.txt l.84823-84832). The flyPad checklist (checklists.json5) reads
+ * the same.
+ */
+export const A32NX_FUEL_PUMP_PB_SELECTIONS = [
+  'L:A32NX_OVHD_FUEL_PUMP_2_PB_IS_ON',
+  'L:A32NX_OVHD_FUEL_PUMP_5_PB_IS_ON',
+  'L:A32NX_OVHD_FUEL_PUMP_3_PB_IS_ON',
+  'L:A32NX_OVHD_FUEL_PUMP_6_PB_IS_ON',
+];
+
 export function checkA32NXFuelPumpsOff(): boolean {
-  const pumpOneOff = !SimVar.GetSimVarValue('FUELSYSTEM PUMP ACTIVE:1', 'Number');
-  const pumpTwoOff = !SimVar.GetSimVarValue('FUELSYSTEM PUMP ACTIVE:2', 'Number');
-  const pumpThreeOff = !SimVar.GetSimVarValue('FUELSYSTEM PUMP ACTIVE:3', 'Number');
-  const pumpFourOff = !SimVar.GetSimVarValue('FUELSYSTEM PUMP ACTIVE:4', 'Number');
-  const pumpFiveOff = !SimVar.GetSimVarValue('FUELSYSTEM PUMP ACTIVE:5', 'Number');
-  const pumpSixOff = !SimVar.GetSimVarValue('FUELSYSTEM PUMP ACTIVE:6', 'Number');
-  return pumpOneOff && pumpTwoOff && pumpThreeOff && pumpFourOff && pumpFiveOff && pumpSixOff;
+  return A32NX_FUEL_PUMP_PB_SELECTIONS.every((selection) => !SimVar.GetSimVarValue(selection, 'Number'));
 }
 
 export function checkA380XFuelPumpsOff(): boolean {

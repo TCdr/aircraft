@@ -55,6 +55,9 @@ import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import {
+  centreTransferNotClosedLines,
+  centreTransferNotOpenLines,
+  centreTransferValveAlerts,
   isCrossFeedMemoShown,
   isCrossFeedValveDisagree,
   wingTankPumpAlerts,
@@ -1018,9 +1021,30 @@ export class PseudoFWC {
 
   /* FUEL */
 
-  private readonly centerFuelPump1Auto = ConsumerValue.create(null, false);
+  /**
+   * The CTR TK L XFR pb-sw is ON (its selection L:var: the MSFS valve switch is held while the transfer valve is jammed,
+   * and the MSFS jet pump stops when the transfer valve closes)
+   */
+  private readonly centerFuelPump1Auto = Subject.create(false);
 
-  private readonly centerFuelPump2Auto = ConsumerValue.create(null, false);
+  /** The CTR TK R XFR pb-sw is ON */
+  private readonly centerFuelPump2Auto = Subject.create(false);
+
+  /** The centre tank is empty (design choice: less than 1 kg in the MSFS tank) */
+  private readonly centerTankEmpty = Subject.create(false);
+
+  /** The FUEL CTR XFR FAULT cautions, from the systems host flags (Fuel/FuelPumpsAndValves, confirmed) */
+  private readonly ctrLeftXfrNotFullyClosed = Subject.create(false);
+
+  private readonly ctrRightXfrNotFullyClosed = Subject.create(false);
+
+  private readonly ctrLeftRightXfrNotFullyClosed = Subject.create(false);
+
+  private readonly ctrLeftXfrNotFullyOpen = Subject.create(false);
+
+  private readonly ctrRightXfrNotFullyOpen = Subject.create(false);
+
+  private readonly ctrLeftRightXfrNotFullyOpen = Subject.create(false);
 
   private readonly centerFuelQuantity = Subject.create(0);
 
@@ -2054,8 +2078,6 @@ export class PseudoFWC {
     this.fuelCtrTankModeSelMan.setConsumer(sub.on('fuel_ctr_tk_mode_sel_man'));
     this.engine1ValueSwitch.setConsumer(sub.on('fuel_valve_switch_1'));
     this.engine2ValueSwitch.setConsumer(sub.on('fuel_valve_switch_2'));
-    this.centerFuelPump1Auto.setConsumer(sub.on('fuel_pump_switch_1'));
-    this.centerFuelPump2Auto.setConsumer(sub.on('fuel_pump_switch_4'));
     this.leftOuterInnerValve.setConsumer(sub.on('fuel_valve_open_4'));
     this.rightOuterInnerValve.setConsumer(sub.on('fuel_valve_open_5'));
 
@@ -3617,6 +3639,10 @@ export class PseudoFWC {
     const fuelGallonsToKg = SimVar.GetSimVarValue('FUEL WEIGHT PER GALLON', 'kilogram');
     this.centerFuelQuantity.set(SimVar.GetSimVarValue('FUEL TANK CENTER QUANTITY', 'gallons') * fuelGallonsToKg);
     this.fuelXFeedPBOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_XFEED_PB_IS_ON', 'bool') > 0);
+    // The CTR TK L(R) XFR pb-sw selections (Fuel/FuelPumpsAndValves)
+    this.centerFuelPump1Auto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 'bool') > 0);
+    this.centerFuelPump2Auto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 'bool') > 0);
+    this.centerTankEmpty.set(this.centerFuelQuantity.get() < 1);
     // The wing tank pump pb-sw selections, by MSFS pump number (Fuel/FuelPumpsAndValves)
     this.leftFuelPump1Auto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_PUMP_2_PB_IS_ON', 'bool') > 0);
     this.leftFuelPump2Auto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_PUMP_5_PB_IS_ON', 'bool') > 0);
@@ -3652,6 +3678,22 @@ export class PseudoFWC {
         deltaTime,
       ),
     );
+    const ctrXfr = centreTransferValveAlerts(
+      {
+        notFullyClosed: SimVar.GetSimVarValue('L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_NOT_FULLY_CLOSED', 'bool') > 0,
+        notFullyOpen: SimVar.GetSimVarValue('L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_NOT_FULLY_OPEN', 'bool') > 0,
+      },
+      {
+        notFullyClosed: SimVar.GetSimVarValue('L:A32NX_FUEL_CTR_TK_R_XFR_VALVE_NOT_FULLY_CLOSED', 'bool') > 0,
+        notFullyOpen: SimVar.GetSimVarValue('L:A32NX_FUEL_CTR_TK_R_XFR_VALVE_NOT_FULLY_OPEN', 'bool') > 0,
+      },
+    );
+    this.ctrLeftXfrNotFullyClosed.set(ctrXfr.leftNotFullyClosed);
+    this.ctrRightXfrNotFullyClosed.set(ctrXfr.rightNotFullyClosed);
+    this.ctrLeftRightXfrNotFullyClosed.set(ctrXfr.bothNotFullyClosed);
+    this.ctrLeftXfrNotFullyOpen.set(ctrXfr.leftNotFullyOpen);
+    this.ctrRightXfrNotFullyOpen.set(ctrXfr.rightNotFullyOpen);
+    this.ctrLeftRightXfrNotFullyOpen.set(ctrXfr.bothNotFullyOpen);
     this.aboveFl150.set((pressureAltitude ?? 0) > 15_000);
 
     /* F/CTL */
@@ -7639,6 +7681,166 @@ export class PseudoFWC {
       sysPage: EcamSysPage.FUEL,
       side: 'LEFT',
       inopSys: () => ['280300007'],
+    },
+    2800211: {
+      // CTR L XFR FAULT (VALVE NOT FULLY CLOSED): the valve failed open (FCOM PRO-ABN-FUEL l.85400-85460):
+      // stop the transfer by switching off the L TK pumps, both engines fed by the other wing; STATUS INOP SYS
+      // CTR TK L XFR. The FCOM flight phase inhibition is a figure: the one of the other fuel faults (design choice)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.ctrLeftXfrNotFullyClosed,
+      whichCodeToReturn: () =>
+        centreTransferNotClosedLines({
+          ctrTkXfrOn: this.centerFuelPump1Auto.get(),
+          modeSelMan: this.fuelCtrTankModeSelMan.get(),
+          crossFeedOn: this.fuelXFeedPBOn.get(),
+          pump1On: this.leftFuelPump1Auto.get(),
+          pump2On: this.leftFuelPump2Auto.get(),
+          centreTankEmpty: this.centerTankEmpty.get(),
+        }).map((show, index) => (show ? index : null)),
+      codesToReturn: [
+        '280021101',
+        '280021102',
+        '280021103',
+        '280021104',
+        '280021105',
+        '280021106',
+        '280021107',
+        '280021108',
+        '280021109',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300008'],
+    },
+    2800212: {
+      // CTR R XFR FAULT (VALVE NOT FULLY CLOSED): the valve failed open (FCOM PRO-ABN-FUEL l.85400-85460):
+      // stop the transfer by switching off the R TK pumps, both engines fed by the other wing; STATUS INOP SYS
+      // CTR TK R XFR. The FCOM flight phase inhibition is a figure: the one of the other fuel faults (design choice)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.ctrRightXfrNotFullyClosed,
+      whichCodeToReturn: () =>
+        centreTransferNotClosedLines({
+          ctrTkXfrOn: this.centerFuelPump2Auto.get(),
+          modeSelMan: this.fuelCtrTankModeSelMan.get(),
+          crossFeedOn: this.fuelXFeedPBOn.get(),
+          pump1On: this.rightFuelPump1Auto.get(),
+          pump2On: this.rightFuelPump2Auto.get(),
+          centreTankEmpty: this.centerTankEmpty.get(),
+        }).map((show, index) => (show ? index : null)),
+      codesToReturn: [
+        '280021201',
+        '280021202',
+        '280021203',
+        '280021204',
+        '280021205',
+        '280021206',
+        '280021207',
+        '280021208',
+        '280021209',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300009'],
+    },
+    2800213: {
+      // CTR L + R XFR FAULT (VALVES NOT FULLY CLOSED): both valves failed open (FCOM PRO-ABN-FUEL l.85555-85590): CTR TK
+      // L and R XFR OFF; STATUS INOP SYS CTR TK XFR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.ctrLeftRightXfrNotFullyClosed,
+      whichCodeToReturn: () => [
+        0,
+        this.centerFuelPump1Auto.get() ? 1 : null,
+        this.centerFuelPump2Auto.get() ? 2 : null,
+      ],
+      codesToReturn: ['280021301', '280021302', '280021303'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300010'],
+    },
+    2800214: {
+      // CTR L XFR FAULT (VALVE NOT FULLY OPEN): the valve failed closed (FCOM PRO-ABN-FUEL l.85479-85530):
+      // MODE SEL MAN, if unsuccessful both engines fed by the L wing; STATUS INOP SYS CTR TK L XFR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.ctrLeftXfrNotFullyOpen,
+      whichCodeToReturn: () =>
+        centreTransferNotOpenLines({
+          ctrTkXfrOn: this.centerFuelPump1Auto.get(),
+          modeSelMan: this.fuelCtrTankModeSelMan.get(),
+          crossFeedOn: this.fuelXFeedPBOn.get(),
+          pump1On: this.leftFuelPump1Auto.get(),
+          pump2On: this.leftFuelPump2Auto.get(),
+          centreTankEmpty: this.centerTankEmpty.get(),
+        }).map((show, index) => (show ? index : null)),
+      codesToReturn: [
+        '280021401',
+        '280021402',
+        '280021403',
+        '280021404',
+        '280021405',
+        '280021406',
+        '280021407',
+        '280021408',
+        '280021409',
+        '280021410',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300008'],
+    },
+    2800215: {
+      // CTR R XFR FAULT (VALVE NOT FULLY OPEN): the valve failed closed (FCOM PRO-ABN-FUEL l.85479-85530):
+      // MODE SEL MAN, if unsuccessful both engines fed by the R wing; STATUS INOP SYS CTR TK R XFR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.ctrRightXfrNotFullyOpen,
+      whichCodeToReturn: () =>
+        centreTransferNotOpenLines({
+          ctrTkXfrOn: this.centerFuelPump2Auto.get(),
+          modeSelMan: this.fuelCtrTankModeSelMan.get(),
+          crossFeedOn: this.fuelXFeedPBOn.get(),
+          pump1On: this.rightFuelPump1Auto.get(),
+          pump2On: this.rightFuelPump2Auto.get(),
+          centreTankEmpty: this.centerTankEmpty.get(),
+        }).map((show, index) => (show ? index : null)),
+      codesToReturn: [
+        '280021501',
+        '280021502',
+        '280021503',
+        '280021504',
+        '280021505',
+        '280021506',
+        '280021507',
+        '280021508',
+        '280021509',
+        '280021510',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300009'],
+    },
+    2800216: {
+      // CTR L + R XFR FAULT (VALVES NOT FULLY OPEN): both valves failed closed (FCOM PRO-ABN-FUEL l.85599-85651): MODE
+      // SEL MAN, IF UNSUCCESSFUL: CTR AVAIL BY GRAVITY, 2 T UNUSABLE; STATUS CTR TK USABLE BY GRAVITY, 2 T UNUSABLE, INOP
+      // SYS CTR TK XFR. The gravity transfer from the centre tank is not simulated.
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.ctrLeftRightXfrNotFullyOpen,
+      whichCodeToReturn: () => [0, this.fuelCtrTankModeSelMan.get() ? null : 1, 2, 3, 4],
+      codesToReturn: ['280021601', '280021602', '280021603', '280021604', '280021605'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300010'],
+      statusInfo: () => ['280200001', '280200002'],
     },
   };
 
