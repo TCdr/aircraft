@@ -399,6 +399,12 @@
     - Bool
     - Whether the NAV push button on the corresponding RMP is pushed or not.
 
+- A32NX_RMP_{L,R}_FAILED
+    - Bool
+    - Whether the left (RMP 1) or right (RMP 2) radio management panel has failed (flyPad failures RMP 1/2)
+    - Written by the systems host; a failed RMP shows blank displays, ignores its keys and knobs and its key lights
+      and SEL stay off
+
 - A32NX_RMP_L_VHF2_STANDBY
     - Hz
     - The VHF 2 standby frequency for the left RMP.
