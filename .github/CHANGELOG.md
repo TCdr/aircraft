@@ -228,6 +228,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A32NX/EFB] flyPad failures: the CAPT and F/O ND and the upper and lower ECAM display units can be failed (ATA 31); a failed display unit goes blank like a failed PFD, with no weather or terrain drawn on a failed ND - @TCdr
+1. [A32NX/ND] The weather radar returns and the terrain are no longer drawn on an ND that is switched off or in its self-test - @TCdr
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A32NX] Exterior spoilers move by panel group from their own deflection instead of the wing average: spoiler 1 stays down in turns and with the speedbrakes, and the deflection is shown in true degrees - @TCdr
 1. [A380X] Fuel jettison: a fuel mist plume trails from each wing's jettison outlet while fuel flows out of that side - @TCdr

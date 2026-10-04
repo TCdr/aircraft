@@ -72,6 +72,7 @@ export const DisplayUnit: React.FC<DisplayUnitProps> = (props) => {
   useEffect(() => {
     if (state !== DisplayUnitState.Off && props.failed) {
       setState(DisplayUnitState.Off);
+      timer.current = null;
     } else if (state === DisplayUnitState.On && (potentiometer === 0 || electricityState === 0)) {
       setState(DisplayUnitState.Standby);
       timer.current = 10;
@@ -85,7 +86,8 @@ export const DisplayUnit: React.FC<DisplayUnitProps> = (props) => {
       setState(DisplayUnitState.Off);
       timer.current = null;
     }
-  }, [timer.current, state, potentiometer, electricityState]);
+    // props.failed is a dependency too: without it, a failure (or its end) alone would not change the state
+  }, [timer.current, state, potentiometer, electricityState, props.failed]);
 
   if (state === DisplayUnitState.Selftest) {
     return (
