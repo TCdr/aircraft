@@ -92,7 +92,16 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
-import { feedTankPumpAlerts, readCrossFeedValveFlags, readFeedTankPumpFlags } from './FuelPumpValveFlags';
+import {
+  FeedTankLevelLoMonitor,
+  feedTankPumpAlerts,
+  readCrossFeedPbSelections,
+  readCrossFeedValveFlags,
+  readFeedTankPumpFlags,
+  readTransferPumpFlags,
+  transferPumpAlerts,
+  TransferPumpsFlags,
+} from './FuelPumpValveFlags';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -1233,15 +1242,9 @@ export class FwsCore {
 
   public readonly feedTank1Low = Subject.create(false);
 
-  public readonly feedTank1LowConfirm = new NXLogicConfirmNode(30, true);
-
   public readonly feedTank2Low = Subject.create(false);
 
-  public readonly feedTank2LowConfirm = new NXLogicConfirmNode(30, true);
-
   public readonly feedTank3Low = Subject.create(false);
-
-  public readonly feedTank3LowConfirm = new NXLogicConfirmNode(30, true);
 
   public readonly feedTank4Low = Subject.create(false);
 
@@ -1249,7 +1252,8 @@ export class FwsCore {
 
   public readonly rightFuelLowConfirm = new NXLogicConfirmNode(30, true);
 
-  public readonly feedTank4LowConfirm = new NXLogicConfirmNode(30, true);
+  /** FUEL FEED TK 1(2)(3)(4) LEVEL LO detection, one 30 s confirmation per feed tank */
+  private readonly feedTankLevelLo = new FeedTankLevelLoMonitor();
 
   public readonly crossFeed1ValveOpen = Subject.create(false);
   public readonly crossFeed2ValveOpen = Subject.create(false);
@@ -1281,6 +1285,54 @@ export class FwsCore {
   public readonly crossFeedValveFault = [1, 2, 3, 4].map(() => Subject.create(false));
 
   public readonly crossFeedValveClosed = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /**
+   * The CROSSFEED 1-4 pb-sw ON (their selection L:vars), for the sensed CROSSFEED ... ON items: the crew action, done
+   * even if the valve is jammed closed
+   */
+  public readonly crossFeedPbOn = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** All CROSSFEED pb-sw ON, for the sensed CROSSFEED 1+2+3+4 ON / ALL CROSSFEEDs ON items */
+  public readonly allCrossFeedPbsOn = Subject.create(false);
+
+  /** All FEED TK MAIN and STBY pb-sw ON, for the sensed ALL FEED TKs PMPs ON item (the crew action) */
+  public readonly allFeedTankPumpPbsOn = Subject.create(false);
+
+  /** The transfer pumps (pb-sw and FAULT, CpiomF/FuelPumpsAndValves), for the sensed items of their alerts */
+  public transferPumpFlags: TransferPumpsFlags = readTransferPumpFlags(() => 0);
+
+  /** FUEL L (R) OUTR TK PMP FAULT (transferPumpAlerts) */
+  public readonly outerTankPumpFault = [0, 1].map(() => Subject.create(false));
+
+  /** FUEL L (R) INR TK FWD PMP FAULT, AFT PMP FAULT, FWD+AFT PMPs FAULT (transferPumpAlerts) */
+  public readonly innerTankPumpFaults = [0, 1].map(() => ({
+    fwd: Subject.create(false),
+    aft: Subject.create(false),
+    fwdAndAft: Subject.create(false),
+  }));
+
+  /** FUEL L (R) MID TK FWD PMP FAULT, AFT PMP FAULT, FWD+AFT PMPs FAULT (transferPumpAlerts) */
+  public readonly midTankPumpFaults = [0, 1].map(() => ({
+    fwd: Subject.create(false),
+    aft: Subject.create(false),
+    fwdAndAft: Subject.create(false),
+  }));
+
+  /** FUEL TRIM TK L PMP FAULT, TRIM TK R PMP FAULT, TRIM TK L+R PMPs FAULT (transferPumpAlerts) */
+  public readonly trimTankPumpFaults = {
+    left: Subject.create(false),
+    right: Subject.create(false),
+    leftAndRight: Subject.create(false),
+  };
+
+  /** The outer tanks hold fuel (design choice: at least 1 gal, LegacyFuel's not empty quantity) */
+  public readonly outerTanksNotEmpty = Subject.create(false);
+
+  /** The left (right) inner tank holds fuel */
+  public readonly innerTankNotEmpty = [0, 1].map(() => Subject.create(false));
+
+  /** The left (right) mid tank holds fuel */
+  public readonly midTankNotEmpty = [0, 1].map(() => Subject.create(false));
 
   public readonly crossFeedOpenMemo = MappedSubject.create(
     ([cf1, cf2, cf3, cf4]) => [cf1, cf2, cf3, cf4].filter((c) => c === true).length >= 2,
@@ -4568,17 +4620,15 @@ export class FwsCore {
     this.voiceVhf3.set(this.rmp3ActiveMode.get() !== FrequencyMode.Data);
 
     /* FUEL */
-    const feedTank1Low = SimVar.GetSimVarValue('FUELSYSTEM TANK WEIGHT:2', 'kilogram') < 1375;
-    this.feedTank1Low.set(this.feedTank1LowConfirm.write(feedTank1Low, deltaTime));
-
-    const feedTank2Low = SimVar.GetSimVarValue('FUELSYSTEM TANK WEIGHT:5', 'kilogram') < 1375;
-    this.feedTank2Low.set(this.feedTank1LowConfirm.write(feedTank2Low, deltaTime));
-
-    const feedTank3Low = SimVar.GetSimVarValue('FUELSYSTEM TANK WEIGHT:6', 'kilogram') < 1375;
-    this.feedTank3Low.set(this.feedTank1LowConfirm.write(feedTank3Low, deltaTime));
-
-    const feedTank4Low = SimVar.GetSimVarValue('FUELSYSTEM TANK WEIGHT:9', 'kilogram') < 1375;
-    this.feedTank4Low.set(this.feedTank1LowConfirm.write(feedTank4Low, deltaTime));
+    // Feed tanks 1 to 4 = MSFS tanks 2, 5, 6 and 9, each with its own 30 s confirmation (FeedTankLevelLoMonitor)
+    const [feedTank1Low, feedTank2Low, feedTank3Low, feedTank4Low] = this.feedTankLevelLo.update(
+      [2, 5, 6, 9].map((tank) => SimVar.GetSimVarValue(`FUELSYSTEM TANK WEIGHT:${tank}`, 'kilogram')),
+      deltaTime,
+    );
+    this.feedTank1Low.set(feedTank1Low);
+    this.feedTank2Low.set(feedTank2Low);
+    this.feedTank3Low.set(feedTank3Low);
+    this.feedTank4Low.set(feedTank4Low);
 
     this.crossFeed1ValveOpen.set(SimVar.GetSimVarValue('FUELSYSTEM VALVE OPEN:46', 'kilogram') > 0.1);
     this.crossFeed2ValveOpen.set(SimVar.GetSimVarValue('FUELSYSTEM VALVE OPEN:47', 'kilogram') > 0.1);
@@ -5177,6 +5227,39 @@ export class FwsCore {
       this.feedTankMainPumpPbOn[tank].set(pumps.mainPbOn);
       this.feedTankStbyPumpPbOn[tank].set(pumps.stbyPbOn);
     });
+    const crossFeedPbs = readCrossFeedPbSelections(readBool);
+    crossFeedPbs.forEach((on, index) => this.crossFeedPbOn[index].set(on));
+    this.allCrossFeedPbsOn.set(crossFeedPbs.every((on) => on));
+    this.allFeedTankPumpPbsOn.set(
+      this.feedTankMainPumpPbOn.every((pb) => pb.get()) && this.feedTankStbyPumpPbOn.every((pb) => pb.get()),
+    );
+
+    // Transfer pumps (CpiomF/FuelPumpsAndValves), and the transfer tanks holding fuel (Tank.N, gallons)
+    this.transferPumpFlags = readTransferPumpFlags(readBool);
+    const transferPumps = transferPumpAlerts(this.transferPumpFlags, this.flightPhase.get());
+    this.outerTankPumpFault[0].set(transferPumps.leftOuter);
+    this.outerTankPumpFault[1].set(transferPumps.rightOuter);
+    [transferPumps.leftInner, transferPumps.rightInner].forEach((pair, side) => {
+      this.innerTankPumpFaults[side].fwd.set(pair.first);
+      this.innerTankPumpFaults[side].aft.set(pair.second);
+      this.innerTankPumpFaults[side].fwdAndAft.set(pair.both);
+    });
+    [transferPumps.leftMid, transferPumps.rightMid].forEach((pair, side) => {
+      this.midTankPumpFaults[side].fwd.set(pair.first);
+      this.midTankPumpFaults[side].aft.set(pair.second);
+      this.midTankPumpFaults[side].fwdAndAft.set(pair.both);
+    });
+    this.trimTankPumpFaults.left.set(transferPumps.trim.first);
+    this.trimTankPumpFaults.right.set(transferPumps.trim.second);
+    this.trimTankPumpFaults.leftAndRight.set(transferPumps.trim.both);
+    const tankHasFuel = (tank: number) =>
+      SimVar.GetSimVarValue(`FUELSYSTEM TANK QUANTITY:${tank}`, SimVarValueType.GAL) >= 1;
+    this.outerTanksNotEmpty.set(tankHasFuel(1) || tankHasFuel(10));
+    this.innerTankNotEmpty[0].set(tankHasFuel(4));
+    this.innerTankNotEmpty[1].set(tankHasFuel(7));
+    this.midTankNotEmpty[0].set(tankHasFuel(3));
+    this.midTankNotEmpty[1].set(tankHasFuel(8));
+
     readCrossFeedValveFlags(readBool, (valve) =>
       SimVar.GetSimVarValue(`FUELSYSTEM VALVE OPEN:${valve}`, SimVarValueType.PercentOver100),
     ).forEach((valve, index) => {

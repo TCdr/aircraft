@@ -1533,6 +1533,19 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - STBY
   - True when the feed tank pump pb-sw is ON and the pump is not running (failed). Drives the pb-sw FAULT light, the amber pump of the SD FUEL page and the FUEL FEED TK {number} MAIN (STBY) PMP FAULT alerts (FCOM DSC-28-20, PRO-ABN-ECAM-10-28). Written by the systems host (CpiomF/FuelPumpsAndValves), which also simulates the ATA 28 feed pump failures by holding the MSFS pump switch (FUELSYSTEM PUMP SWITCH 1-8, ON in the flight files) off while the pb-sw keeps the pump circuit connected
 
+- A380X_FUEL_{pump}_PMP_FAULT
+  - Bool
+  - {pump}
+    - L_OUTR_TK (MSFS pump 9)
+    - R_OUTR_TK (pump 14)
+    - L_MID_TK_FWD (pump 10)
+    - R_MID_TK_FWD (pump 15)
+    - L_INR_TK_FWD (pump 12)
+    - R_INR_TK_FWD (pump 13)
+    - TRIM_TK_L (pump 19)
+    - TRIM_TK_R (pump 20)
+  - True when the transfer pump pb-sw is ON and, for more than 2 s, the pump is failed (its failure 28030-28037 is active, whether or not the FQMS runs it at that time) or runs in an empty tank (below 0.1 gal): an empty tank alone gives no fault. Drives the pb-sw FAULT light, the amber pump of the SD FUEL page and the FUEL ... PMP FAULT alerts with the pb-sw OFF condition (FCOM DSC-28-20, PRO-ABN-ECAM-10-28). Written by the systems host (CpiomF/FuelPumpsAndValves), which also simulates the transfer pump failures by holding the MSFS pump switch off whatever the FQMS (the MSFS triggers of CpiomF/LegacyFuel) commands; while a pump is failed it follows the FQMS start/stop commands from the trigger changes (FUELSYSTEM TRIGGER STATUS), so that the repaired pump returns to what the FQMS wants
+
 - A380X_FUEL_CROSSFEED_VLV_{number}_ABNORMAL
   - Bool
   - {number}
@@ -1549,7 +1562,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 2
     - 3
     - 4
-  - True when the CROSSFEED {number} pb-sw is ON (the flight crew selection, ON light and pb-sw animation). The systems host (CpiomF/FuelPumpsAndValves) commands the MSFS valve 46 (crossfeed 1) to 49 (crossfeed 4) (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the valve is jammed (failures 28020-28023), when the valve stays where it was. A valve switch change from outside (K:FUELSYSTEM_VALVE_* events, the refuel logic closing the valves) is taken as the new selection
+  - True when the CROSSFEED {number} pb-sw is ON (the flight crew selection, ON light and pb-sw animation). The systems host (CpiomF/FuelPumpsAndValves) commands the MSFS valve 46 (crossfeed 1) to 49 (crossfeed 4) (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the valve is jammed (failures 28020-28023), when the valve stays where it was. A valve switch change from outside (K:FUELSYSTEM_VALVE_* events, the refuel logic closing the valves) is taken as the new selection. The ECAM sensed CROSSFEED ... ON items read it (the crew action, done even if the valve is jammed closed); the green OPEN light of the pb-sw shows the valve fully open (FUELSYSTEM VALVE OPEN)
 
 ## Indicating-Recording ATA 31
 

@@ -110,6 +110,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
 1. [A380X/Failures] flyPad failures: all landing gear proximity sensor and jammed actuator failures listed (32004-32025, named after the gear, door or sensor they fail), the uplock sensor failure that said nose gear but failed the right main gear relabelled, and the inactive ROLLOUT failure removed - @TCdr
 1. [A380X/EFB] Failures: clearer failure names after an audit (ESS/APU TR, EHA and APU buses, LGCIS, main gear groups, fire detection loops, RA antennas) - @TCdr
+1. [A380X/FUEL] Outer, mid fwd, inner fwd and trim tank transfer pump failures (flyPad ATA 28) with their FAULT lights and the FCOM FUEL ... PMP FAULT alerts as soon as the pump fails (also for transfer pumps switched off); an empty tank gives no fault - @TCdr
+1. [A380X/FWS] FUEL FEED TK 1(2)(3)(4) LEVEL LO now triggers for a single low feed tank (the four tanks shared one 30 s confirmation, so only all four low together could trigger it) - @TCdr
+1. [A380X/FUEL] The sensed CROSSFEED ... ON and ALL FEED TKs PMPs ON items of the ECAM procedures tick on the pushbuttons, even with a jammed valve or a failed pump; the CROSSFEED pushbutton OPEN light now works - @TCdr
 1. [A380X/EFB] New failures on the flyPad: brakes NORM and ALTN circuit leaks, ALTN brake accumulator gas leak, and jammed trim air valves and duct overheats for the cockpit, main deck zone 1, upper deck zone 1 and forward cargo - @TCdr
 1. [A380X/FUEL] Added feed tank pump and crossfeed valve failures (feed tank 1-4 main and standby pumps, crossfeed valves 1-4 jammed): FAULT light, amber pump or valve on the SD FUEL page, FEED TK MAIN/STBY/MAIN + STBY PMP(s) FAULT and CROSSFEED VLV FAULT alerts with their STATUS - @TCdr
 
