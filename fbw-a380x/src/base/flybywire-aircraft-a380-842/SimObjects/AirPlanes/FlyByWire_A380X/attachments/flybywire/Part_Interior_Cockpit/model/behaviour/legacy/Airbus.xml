@@ -49,20 +49,17 @@
         </Component>
     </Template>
 
-    <Template Name="FBW_AIRBUS_Push_Transfer_Template">
+    <!-- A momentary pushbutton that sends an H: event (A380X EFIS PFD/ND and DU RECONF pbs) -->
+    <Template Name="FBW_AIRBUS_Push_Event_Template">
         <DefaultTemplateParameters>
-            <NODE_ID>AIRBUS_Push_Transfer</NODE_ID>
-            <ANIM_NAME>AIRBUS_Push_Transfer</ANIM_NAME>
-            <PART_ID>AIRBUS_Push_Transfer</PART_ID>
-            <ID>1</ID>
             <WWISE_EVENT_1>roundbutton</WWISE_EVENT_1>
             <WWISE_EVENT_2>roundbutton</WWISE_EVENT_2>
         </DefaultTemplateParameters>
 
         <Component ID="#NODE_ID#" Node="#NODE_ID#">
             <UseTemplate Name="ASOBO_GT_Push_Button_Held">
-                <LEFT_SINGLE_CODE>0</LEFT_SINGLE_CODE><!-- TODO -->
-                <TOOLTIPID>Inoperant</TOOLTIPID>
+                <LEFT_SINGLE_CODE>(&gt;H:#EVENT#)</LEFT_SINGLE_CODE>
+                <TOOLTIPID>#TOOLTIP#</TOOLTIPID>
             </UseTemplate>
         </Component>
     </Template>
