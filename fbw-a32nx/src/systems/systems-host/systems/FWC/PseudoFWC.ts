@@ -57,6 +57,13 @@ import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { EcamStatus } from './EcamStatus';
 import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
+import {
+  isXpdrStandbyDiscrete,
+  isXpdrSwitchLineShown,
+  selectedXpdrSystem,
+  splitXpdrFaults,
+  xpdrFaultCondition,
+} from '@shared/TransponderSystem';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -123,15 +130,6 @@ enum FwcAuralWarning {
   CChord,
   HundredAbove,
   Minimum,
-}
-
-enum TransponderState {
-  Off = 0,
-  Standby = 1,
-  Test = 2,
-  On = 3,
-  Alt = 4,
-  Ground = 5,
 }
 
 enum EngineState {
@@ -1787,6 +1785,21 @@ export class PseudoFWC {
 
   private readonly xpdrStbyWarning = Subject.create(false);
 
+  /** The XPDR selected on the ATC/TCAS panel */
+  private readonly selectedXpdr = Subject.create<1 | 2>(1);
+
+  /** XPDR 1 (2) failed or unpowered (L:A32NX_XPDR_1(2)_FAILED, from the systems host Transponder) */
+  private readonly xpdr1Inop = Subject.create(false);
+
+  private readonly xpdr2Inop = Subject.create(false);
+
+  /** NAV ATC/XPDR 1 FAULT, NAV ATC/XPDR 2 FAULT and NAV ATC/XPDR 1+2 FAULT (FCOM PRO-ABN-NAV) */
+  private readonly xpdr1Fault = Subject.create(false);
+
+  private readonly xpdr2Fault = Subject.create(false);
+
+  private readonly xpdr1And2Fault = Subject.create(false);
+
   private readonly toConfigMemoNormal = Subject.create(false);
 
   private readonly wingAntiIce = Subject.create(false);
@@ -2234,8 +2247,8 @@ export class PseudoFWC {
     this.rtp['07E'] = !this.fac2HealthyVar.get();
   }
 
-  private readonly xpdr1StatusVar = RegisteredSimVar.create('A:TRANSPONDER STATE:1', SimVarValueType.Number);
-  private readonly xpdr2StatusVar = RegisteredSimVar.create('A:TRANSPONDER STATE:2', SimVarValueType.Number);
+  private readonly xpdrModeVar = RegisteredSimVar.create('L:A32NX_TRANSPONDER_MODE', SimVarValueType.Number);
+  private readonly xpdrSystemVar = RegisteredSimVar.create('L:A32NX_TRANSPONDER_SYSTEM', SimVarValueType.Number);
 
   private readonly ratDeployedVar = RegisteredSimVar.create(
     'L:A32NX_RAT_STOW_POSITION',
@@ -2292,23 +2305,16 @@ export class PseudoFWC {
   private readonly apuGenSwitchVar = RegisteredSimVar.createBoolean('A:APU GENERATOR SWITCH:1');
 
   private acquireSdac(): void {
-    const xpdr1Status = this.xpdr1StatusVar.get();
-    const xpdr2Status = this.xpdr2StatusVar.get();
+    // XPDR 1 and 2 STBY discretes: the not selected XPDR is in standby, both are on the mode selector STBY (mode
+    // selector L:A32NX_TRANSPONDER_MODE: 0 = STBY). Not from TRANSPONDER STATE, which is also off with the selected XPDR
+    // failed or unpowered (and does not exist for XPDR 2).
+    const selectedXpdr = selectedXpdrSystem(this.xpdrSystemVar.get());
+    const xpdrModeSelectorStby = this.xpdrModeVar.get() === 0;
 
     this.sdac00100Word.set(0);
     this.sdac00100Word.setSsm(Arinc429SignStatusMatrix.NormalOperation);
-    this.sdac00100Word.setBitValue(
-      24,
-      xpdr1Status === TransponderState.Off ||
-        xpdr1Status === TransponderState.Standby ||
-        xpdr1Status === TransponderState.Test,
-    );
-    this.sdac00100Word.setBitValue(
-      25,
-      xpdr2Status === TransponderState.Off ||
-        xpdr2Status === TransponderState.Standby ||
-        xpdr2Status === TransponderState.Test,
-    );
+    this.sdac00100Word.setBitValue(24, isXpdrStandbyDiscrete(1, selectedXpdr, xpdrModeSelectorStby));
+    this.sdac00100Word.setBitValue(25, isXpdrStandbyDiscrete(2, selectedXpdr, xpdrModeSelectorStby));
 
     this.sdac00101Word.set(0);
     this.sdac00101Word.setSsm(Arinc429SignStatusMatrix.NormalOperation);
@@ -3453,6 +3459,19 @@ export class PseudoFWC {
     this.gps2Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_2_MODE', 'number') === 4);
     this.ra2Fault.set(this.height2Failed.get() && !this.sdac00210Word.bitValue(20));
     this.tcasFault.set(SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', 'bool'));
+    // ATC/XPDR 1(2) FAULT: the transponder failed with its bus powered (a bus loss is an ELEC alert)
+    this.selectedXpdr.set(selectedXpdrSystem(SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number')));
+    this.xpdr1Inop.set(SimVar.GetSimVarValue('L:A32NX_XPDR_1_FAILED', 'bool') > 0);
+    this.xpdr2Inop.set(SimVar.GetSimVarValue('L:A32NX_XPDR_2_FAILED', 'bool') > 0);
+    const acEssShedPowered = SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', 'bool') > 0;
+    const ac2Powered = SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', 'bool') > 0;
+    const xpdrFaults = splitXpdrFaults(
+      xpdrFaultCondition(1, this.xpdr1Inop.get(), acEssShedPowered, ac2Powered),
+      xpdrFaultCondition(2, this.xpdr2Inop.get(), acEssShedPowered, ac2Powered),
+    );
+    this.xpdr1Fault.set(xpdrFaults.xpdr1);
+    this.xpdr2Fault.set(xpdrFaults.xpdr2);
+    this.xpdr1And2Fault.set(xpdrFaults.xpdr1And2);
     this.tcasSensitivity.set(SimVar.GetSimVarValue('L:A32NX_TCAS_SENSITIVITY', 'Enum'));
     this.tcasControlPanelPosition.set(SimVar.GetSimVarValue('L:A32NX_SWITCH_TCAS_Position', 'number'));
     this.wingAntiIce.set(SimVar.GetSimVarValue('L:A32NX_PNEU_WING_ANTI_ICE_SYSTEM_SELECTED', 'bool'));
@@ -6919,8 +6938,46 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
+    3400860: {
+      // NAV ATC/XPDR 1 FAULT (FCOM PRO-ABN-NAV, a320_fcom.txt:92764-92790; the flight phase inhibition is the one of
+      // the RA faults, design choice): ATC/XPDR SYS 2 while XPDR 1 is selected; INOP SYS ATC/XPDR 1, ADS-B RPTG 1
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.xpdr1Fault,
+      whichCodeToReturn: () => [0, isXpdrSwitchLineShown(1, this.selectedXpdr.get(), !this.xpdr2Inop.get()) ? 1 : null],
+      codesToReturn: ['340086001', '340086002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['340300005', '340300007'],
+    },
+    3400870: {
+      // NAV ATC/XPDR 2 FAULT: as NAV ATC/XPDR 1 FAULT for XPDR 2
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.xpdr2Fault,
+      whichCodeToReturn: () => [0, isXpdrSwitchLineShown(2, this.selectedXpdr.get(), !this.xpdr1Inop.get()) ? 1 : null],
+      codesToReturn: ['340087001', '340087002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['340300006', '340300008'],
+    },
+    3400890: {
+      // NAV ATC/XPDR 1+2 FAULT (a320_fcom.txt:92802-92830): crew awareness; INOP SYS TCAS, ATC/XPDR 1, ATC/XPDR 2,
+      // ADS-B RPTG 1, ADS-B RPTG 2 (flight phase inhibition of the RA faults, design choice)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.xpdr1And2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['340089001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ['340300004', '340300005', '340300006', '340300007', '340300008'],
+    },
     3400500: {
-      // TCAS FAULT
+      // TCAS FAULT: INOP SYS TCAS (FCOM PRO-ABN-NAV NAV TCAS FAULT, a320_fcom.txt:93880-93904)
       flightPhaseInhib: [1, 3, 4, 5, 7, 8, 10],
       simVarIsActive: this.tcasFault,
       whichCodeToReturn: () => [0],
@@ -6929,6 +6986,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      inopSys: () => ['340300004'],
     },
     3400507: {
       // NAV TCAS STBY
