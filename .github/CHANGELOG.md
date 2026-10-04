@@ -125,6 +125,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
 1. [A32NX/EFB] Failures: clearer failure names after an audit (hot air valve, FMGC flight guidance, RA antennas) - @TCdr
 1. [A32NX/SURV] Added ATC/XPDR 1 and ATC/XPDR 2 failures: the failed transponder stops replying while selected and lights ATC FAIL, NAV ATC/XPDR 1(2) and 1+2 FAULT show on the ECAM, and the TCAS goes to standby with both lost; ATC/XPDR STBY no longer shows when the selected transponder loses power - @TCdr
+1. [A32NX/EFB] New ATA 23 failures RMP 1, RMP 2, VHF 1, VHF 2 and VHF 3: a failed RMP goes blank and stops tuning (the other RMP still tunes every radio), a failed VHF switches its COM radio off - @TCdr
 
 ## 2024.1.0
 

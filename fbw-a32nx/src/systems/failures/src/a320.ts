@@ -33,6 +33,13 @@ export const A320Failure = Object.freeze({
   Fcu1Failure: 22004,
   Fcu2Failure: 22005,
 
+  // Same ids as the A380X ATA 23 failures; 23000/23001 (AMU) and 23004 (RMP 3) are not simulated on the A32NX
+  RadioManagementPanel1: 23002,
+  RadioManagementPanel2: 23003,
+  Vhf1: 23005,
+  Vhf2: 23006,
+  Vhf3: 23007,
+
   TransformerRectifier1: 24000,
   TransformerRectifier2: 24001,
   TransformerRectifierEssential: 24002,
@@ -156,6 +163,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [22, A320Failure.Fmgc2Failure, 'FMGC 2 (flight guidance)'],
   [22, A320Failure.Fcu1Failure, 'FCU 1'],
   [22, A320Failure.Fcu2Failure, 'FCU 2'],
+
+  [23, A320Failure.RadioManagementPanel1, 'RMP 1'],
+  [23, A320Failure.RadioManagementPanel2, 'RMP 2'],
+  [23, A320Failure.Vhf1, 'VHF 1'],
+  [23, A320Failure.Vhf2, 'VHF 2'],
+  [23, A320Failure.Vhf3, 'VHF 3'],
 
   [24, A320Failure.TransformerRectifier1, 'TR 1'],
   [24, A320Failure.TransformerRectifier2, 'TR 2'],
