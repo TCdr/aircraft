@@ -201,6 +201,11 @@
 
             <SEQ2_CODE>#CIRCUIT_CONNECTED_TO_BUS# 0 ==</SEQ2_CODE>
 
+            <!-- FAULT light: the pump is ON and running at low pressure or failed (systems host CpiomF/FuelPumpsAndValves) -->
+            <Condition Check="LO_PR_VAR">
+                <SEQ1_CODE>(#LO_PR_VAR#, Bool)</SEQ1_CODE>
+            </Condition>
+
             <DOWN_CODE>#CIRCUIT_CONNECTED_TO_BUS# 1 ==</DOWN_CODE>
 
             <TOOLTIPID>%((#CIRCUIT_CONNECTED_TO_BUS# 0 ==))%{if}TT:#OFF_TOOLTIP#%{else}TT:#ON_TOOLTIP#%{end}</TOOLTIPID>
@@ -213,11 +218,15 @@
         </Update>
     </Template>
 
+    <!--
+    CROSSFEED pb-sw. The pb-sw only toggles its selection (PB_IS_ON_VAR, ON light and animation): the systems host
+    (CpiomF/FuelPumpsAndValves) drives the MSFS valve #ID# from it, and holds the valve where it is while it is jammed.
+    -->
     <Template Name="FBW_Airbus_Fuel_Crossfeed">
         <UseTemplate Name="FBW_Push_Toggle">
-            <SEQ2_CODE>(A:FUELSYSTEM VALVE SWITCH:#ID#, Bool)</SEQ2_CODE>
-            <LEFT_SINGLE_CODE>#ID# (&gt;K:FUELSYSTEM_VALVE_TOGGLE)</LEFT_SINGLE_CODE>
-            <TOOLTIPID>%((A:FUELSYSTEM VALVE SWITCH:#ID#, Bool) !)%{if}TT:#OFF_TOOLTIP#%{else}TT:#ON_TOOLTIP#%{end}</TOOLTIPID>
+            <SEQ2_CODE>(#PB_IS_ON_VAR#, Bool)</SEQ2_CODE>
+            <TOGGLE_SIMVAR>#PB_IS_ON_VAR#</TOGGLE_SIMVAR>
+            <TOOLTIPID>%((#PB_IS_ON_VAR#, Bool) !)%{if}TT:#OFF_TOOLTIP#%{else}TT:#ON_TOOLTIP#%{end}</TOOLTIPID>
         </UseTemplate>
     </Template>
 

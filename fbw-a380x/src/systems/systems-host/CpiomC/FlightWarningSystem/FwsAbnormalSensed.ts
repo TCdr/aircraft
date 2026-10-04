@@ -3151,6 +3151,250 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: ['281800103', '281800002'],
       inopSysAllPhases: () => [],
     },
+    281800031: {
+      // FEED TK 1 MAIN PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.150267-150315): FEED TK 1 MAIN PMP
+      // OFF; STATUS INOP SYS FEED TK 1 MAIN PMP. The FCOM flight phase inhibition is a figure (design choice: the one
+      // of JETTISON VLV NOT CLOSED)
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankMainPumpFault[0],
+      notActiveWhenItemActive: ['281800027'],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.feedTankMainPumpPbOn[0].get()],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300005'],
+    },
+    281800032: {
+      // FEED TK 2 MAIN PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.150267-150315): FEED TK 2 MAIN PMP
+      // OFF; STATUS INOP SYS FEED TK 2 MAIN PMP. The FCOM flight phase inhibition is a figure (design choice: the one
+      // of JETTISON VLV NOT CLOSED)
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankMainPumpFault[1],
+      notActiveWhenItemActive: ['281800028'],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.feedTankMainPumpPbOn[1].get()],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300002'],
+    },
+    281800033: {
+      // FEED TK 3 MAIN PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.150267-150315): FEED TK 3 MAIN PMP
+      // OFF; STATUS INOP SYS FEED TK 3 MAIN PMP. The FCOM flight phase inhibition is a figure (design choice: the one
+      // of JETTISON VLV NOT CLOSED)
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankMainPumpFault[2],
+      notActiveWhenItemActive: ['281800029'],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.feedTankMainPumpPbOn[2].get()],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300006'],
+    },
+    281800034: {
+      // FEED TK 4 MAIN PMP FAULT (A380 FCOM PRO-ABN-ECAM-10-28, a380_fcom.txt l.150267-150315): FEED TK 4 MAIN PMP
+      // OFF; STATUS INOP SYS FEED TK 4 MAIN PMP. The FCOM flight phase inhibition is a figure (design choice: the one
+      // of JETTISON VLV NOT CLOSED)
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankMainPumpFault[3],
+      notActiveWhenItemActive: ['281800030'],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [!this.fws.feedTankMainPumpPbOn[3].get()],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300007'],
+    },
+    281800035: {
+      // FEED TK 1 STBY PMP FAULT (FCOM l.150328-150372): crew awareness; MORE INFO REDUND LOSS FEED TK 1 STBY PMP
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankStbyPumpFault[0],
+      notActiveWhenItemActive: ['281800027'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      redundLoss: () => ['280300008'],
+    },
+    281800036: {
+      // FEED TK 2 STBY PMP FAULT (FCOM l.150328-150372): crew awareness; MORE INFO REDUND LOSS FEED TK 2 STBY PMP
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankStbyPumpFault[1],
+      notActiveWhenItemActive: ['281800028'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      redundLoss: () => ['280300009'],
+    },
+    281800037: {
+      // FEED TK 3 STBY PMP FAULT (FCOM l.150328-150372): crew awareness; MORE INFO REDUND LOSS FEED TK 3 STBY PMP
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankStbyPumpFault[2],
+      notActiveWhenItemActive: ['281800029'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      redundLoss: () => ['280300003'],
+    },
+    281800038: {
+      // FEED TK 4 STBY PMP FAULT (FCOM l.150328-150372): crew awareness; MORE INFO REDUND LOSS FEED TK 4 STBY PMP
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankStbyPumpFault[3],
+      notActiveWhenItemActive: ['281800030'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      redundLoss: () => ['280300010'],
+    },
+    281800027: {
+      // FEED TK 1 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 1 and 2 ON, then both pumps
+      // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 1 PMPs, INFO FEED TK 1 BY GRVTY ONLY. The
+      // gravity feed ceiling (MAX FL 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankMainAndStbyPumpsFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const inFlight = !this.fws.aircraftOnGround.get();
+        return [inFlight, inFlight, true, true, true];
+      },
+      whichItemsChecked: () => [
+        this.fws.crossFeed1ValveOpen.get(),
+        this.fws.crossFeed2ValveOpen.get(),
+        !this.fws.feedTankMainPumpPbOn[0].get(),
+        !this.fws.feedTankStbyPumpPbOn[0].get(),
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300011'],
+      info: () => ['280200004'],
+    },
+    281800028: {
+      // FEED TK 2 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 1 and 2 ON, then both pumps
+      // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 2 PMPs, INFO FEED TK 2 BY GRVTY ONLY. The
+      // gravity feed ceiling (MAX FL 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankMainAndStbyPumpsFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const inFlight = !this.fws.aircraftOnGround.get();
+        return [inFlight, inFlight, true, true, true];
+      },
+      whichItemsChecked: () => [
+        this.fws.crossFeed1ValveOpen.get(),
+        this.fws.crossFeed2ValveOpen.get(),
+        !this.fws.feedTankMainPumpPbOn[1].get(),
+        !this.fws.feedTankStbyPumpPbOn[1].get(),
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300012'],
+      info: () => ['280200005'],
+    },
+    281800029: {
+      // FEED TK 3 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 3 and 4 ON, then both pumps
+      // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 3 PMPs, INFO FEED TK 3 BY GRVTY ONLY. The
+      // gravity feed ceiling (MAX FL 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankMainAndStbyPumpsFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const inFlight = !this.fws.aircraftOnGround.get();
+        return [inFlight, inFlight, true, true, true];
+      },
+      whichItemsChecked: () => [
+        this.fws.crossFeed3ValveOpen.get(),
+        this.fws.crossFeed4ValveOpen.get(),
+        !this.fws.feedTankMainPumpPbOn[2].get(),
+        !this.fws.feedTankStbyPumpPbOn[2].get(),
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300013'],
+      info: () => ['280200006'],
+    },
+    281800030: {
+      // FEED TK 4 MAIN + STBY PMPs FAULT (FCOM l.149935-150260): after takeoff, CROSSFEED 3 and 4 ON, then both pumps
+      // OFF (before takeoff: both pumps OFF); STATUS INOP SYS FEED TK 4 PMPs, INFO FEED TK 4 BY GRVTY ONLY. The
+      // gravity feed ceiling (MAX FL 280 or 50/MEA once the inner and mid tanks are empty) is not simulated.
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.feedTankMainAndStbyPumpsFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => {
+        const inFlight = !this.fws.aircraftOnGround.get();
+        return [inFlight, inFlight, true, true, true];
+      },
+      whichItemsChecked: () => [
+        this.fws.crossFeed3ValveOpen.get(),
+        this.fws.crossFeed4ValveOpen.get(),
+        !this.fws.feedTankMainPumpPbOn[3].get(),
+        !this.fws.feedTankStbyPumpPbOn[3].get(),
+        false,
+      ],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300014'],
+      info: () => ['280200007'],
+    },
+    281800014: {
+      // CROSSFEED VLV 1 FAULT (FCOM l.149618-149680): crew awareness; if the valve is abnormally closed and ENG 1 is
+      // not running: FEED TK 1 NOT USABLE; STATUS INOP SYS CROSSFEED VLV 1
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.crossFeedValveFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300015'],
+      limitationsAllPhases: () =>
+        this.fws.crossFeedValveClosed[0].get() && !this.fws.engine1Running.get() ? ['280400003'] : [],
+    },
+    281800015: {
+      // CROSSFEED VLV 2 FAULT (FCOM l.149618-149680): crew awareness; if the valve is abnormally closed and ENG 2 is
+      // not running: FEED TK 2 NOT USABLE; STATUS INOP SYS CROSSFEED VLV 2
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.crossFeedValveFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300016'],
+      limitationsAllPhases: () =>
+        this.fws.crossFeedValveClosed[1].get() && !this.fws.engine2Running.get() ? ['280400004'] : [],
+    },
+    281800016: {
+      // CROSSFEED VLV 3 FAULT (FCOM l.149618-149680): crew awareness; if the valve is abnormally closed and ENG 3 is
+      // not running: FEED TK 3 NOT USABLE; STATUS INOP SYS CROSSFEED VLV 3
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.crossFeedValveFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300017'],
+      limitationsAllPhases: () =>
+        this.fws.crossFeedValveClosed[2].get() && !this.fws.engine3Running.get() ? ['280400005'] : [],
+    },
+    281800017: {
+      // CROSSFEED VLV 4 FAULT (FCOM l.149618-149680): crew awareness; if the valve is abnormally closed and ENG 4 is
+      // not running: FEED TK 4 NOT USABLE; STATUS INOP SYS CROSSFEED VLV 4
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.crossFeedValveFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+      inopSysAllPhases: () => ['280300018'],
+      limitationsAllPhases: () =>
+        this.fws.crossFeedValveClosed[3].get() && !this.fws.engine4Running.get() ? ['280400006'] : [],
+    },
     281800101: {
       // ZFW OR ZFWCG FMS DISAGREE
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11, 12],
