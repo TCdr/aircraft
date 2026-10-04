@@ -46,14 +46,15 @@ table.test td:nth-child(2) { width: 50%; }
 .toc div { break-inside: avoid; }
 </style></head><body>
 <h1>FCOM audit fixes</h1>
-<div class="subtitle">Small upstream bugs found by the FCOM audit of every A32NX and A380X system (2026-10-02): eleven A380X fixes, six A32NX fixes and the fast ADIRS alignment of both aircraft, each checked against the FCOM</div>
+<div class="subtitle">Small upstream bugs found by the FCOM audit of every A32NX and A380X system (2026-10-02): eleven A380X fixes, six A32NX fixes, the fast ADIRS alignment of both aircraft and the A32NX ND chronometer colour, each checked against the FCOM</div>
 <div class="meta">
 <b>Aircraft</b><span>A32NX and A380X</span>
-<b>Where to find it</b><span>A380X: GPWS, OANS, SD (CRZ, PRESS, DOOR/OXY), FADEC, FWS (BRAKES HOT, T.O CONFIG, F/CTL ALTN LAW, HYD), ELEC panel, EWD EGT. A32NX: FWS (AIR PACK 2 OFF, ALL ENGINES FAILURE), BLEED, TCAS, SD (CRUISE, WHEEL). Both: ADIRS</span>
+<b>Where to find it</b><span>A380X: GPWS, OANS, SD (CRZ, PRESS, DOOR/OXY), FADEC, FWS (BRAKES HOT, T.O CONFIG, F/CTL ALTN LAW, HYD), ELEC panel, EWD EGT. A32NX: FWS (AIR PACK 2 OFF, ALL ENGINES FAILURE), BLEED, TCAS, SD (CRUISE, WHEEL), ND chronometer. Both: ADIRS</span>
 <b>Branch</b><span><code>core/fcom-audit-fixes</code>, based on <code>master</code> (FlyByWire master 255546cb0); independent of the other core branches. Each fix is small and can be taken upstream on its own. The twelfth A380X fix of the audit (SD FUEL jettison lines white during a normal jettison) needs the jettison of <code>core/fuel</code> and is in that branch.</span>
 <b>Status</b><span>All fixes tested in the sim by the user on develop (2026-10-04). Not sim-tested on the master base; unit tests and Rust tests pass there.</span>
 <b>Pictures</b><span>No pictures: every fix changes a stock FBW display, alert or system value.</span>
 </div>
+<div class="toc"><div>1. A380X FCOM fixes</div><div>2. A32NX FCOM fixes</div><div>3. ADIRS fast alignment in 30 s</div><div>4. A32NX ND chronometer in white</div></div>
 <h2>1. A380X FCOM fixes</h2>
 <div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> GPWS, OANS, SD, FADEC, FWS, ELEC panel, EWD &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on develop: OK (2026-10-04). Unit tests: LegacyGpws, OancSelectedRunway, FwsSystemDisplayLogicCrzPage, FadecWingAntiIce, BrakesHot, ElecPanelPbs, EgtLimits, CabinAltitudeIndication, FwsAbnormalSensedItems, OxygenIndication specs; Rust test in hydraulic/mod.rs (each fails without its fix).</div>
 <h3>What it is for</h3>
@@ -86,4 +87,14 @@ table.test td:nth-child(2) { width: 50%; }
 <ol><li>With the IRs aligned on the ground, set an IR mode selector to OFF and back to NAV within 5 s.</li></ol>
 <h3>How to test</h3>
 <table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Aircraft on the ground, IRs aligned (NAV). Set IR 1 to OFF and back to NAV within 5 s; start a stopwatch.</td><td>IR 1 is aligned again after about 30 s (not 3 min).</td></tr><tr><td>2</td><td>Repeat on the A380X.</td><td>Same: about 30 s.</td></tr></table>
+<h2>4. A32NX ND chronometer in white</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> ND, CHRONO pb on the EFIS control panel &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on develop: OK (2026-10-04). Spec ChronoColours.spec.ts (compiled styles of both aircraft).</div>
+<h3>What it is for</h3>
+<p>The ND chronometer was drawn in green digits on a light grey box, hard to read. The A320 FCOM gives "Chronometer Indication (white)" (DSC-31-45, INDICATIONS ON ND, item 9). The A32NX now shows white digits on a box in the display background colour.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The dark box is a design choice.</td><td>The FCOM shows no box; a dark box keeps the digits readable over the map and terrain.</td><td>-</td></tr><tr><td>The A380X is unchanged.</td><td>Its FCOM gives no colour for the chronometer.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Press CHRONO on the EFIS control panel: the elapsed time appears at the bottom left of the ND. Press again to freeze it, a third time to reset and hide it.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, ND powered: press CHRONO.</td><td>White digits on a black box at the bottom left of the ND, counting.</td></tr><tr><td>2</td><td>A380X: press CHRONO.</td><td>Unchanged: green digits on the grey box.</td></tr></table>
 </body></html>
