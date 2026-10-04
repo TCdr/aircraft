@@ -92,6 +92,7 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
+import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
 import {
   FeedTankLevelLoMonitor,
   feedTankPumpAlerts,
@@ -510,6 +511,21 @@ export class FwsCore {
   public readonly hotAir1PbOn = Subject.create(false);
 
   public readonly hotAir2PbOn = Subject.create(false);
+
+  /** Trim air monitoring of the temperature controller (TCS discrete word bits 17-23, CondTrimAirFlags) */
+  public readonly ckptDuctOvht = Subject.create(false);
+
+  public readonly cabinDuctOvhtHotAir1 = Subject.create(false);
+
+  public readonly cabinDuctOvhtHotAir2 = Subject.create(false);
+
+  public readonly fwdCargoDuctOvht = Subject.create(false);
+
+  public readonly ckptTrimAirValveFault = Subject.create(false);
+
+  public readonly cabinTrimAirValveFault = Subject.create(false);
+
+  public readonly fwdCargoTrimAirValveFault = Subject.create(false);
 
   public readonly tempCtl1Fault = Subject.create(false);
 
@@ -2837,6 +2853,31 @@ export class FwsCore {
     this.keyEventManager.interceptKey('AUTO_THROTTLE_ARM', true);
   }
 
+  /** The trim air monitoring flags, for the COND DUCT OVHT and COND FWD CARGO TEMP REGUL FAULT alerts */
+  public trimAirMonitoringFlags(): TrimAirMonitoringFlags {
+    return {
+      ckptDuctOvht: this.ckptDuctOvht.get(),
+      cabinDuctOvhtHotAir1: this.cabinDuctOvhtHotAir1.get(),
+      cabinDuctOvhtHotAir2: this.cabinDuctOvhtHotAir2.get(),
+      fwdCargoDuctOvht: this.fwdCargoDuctOvht.get(),
+      ckptTrimAirValveFault: this.ckptTrimAirValveFault.get(),
+      cabinTrimAirValveFault: this.cabinTrimAirValveFault.get(),
+      fwdCargoTrimAirValveFault: this.fwdCargoTrimAirValveFault.get(),
+    };
+  }
+
+  /** HOT AIR 1 and HOT AIR 2, as real booleans (the pb Subjects hold the SimVar number 1) */
+  public hotAirValveFlags(): [HotAirValveFlags, HotAirValveFlags] {
+    return [
+      { pbOn: !!this.hotAir1PbOn.get(), open: !!this.hotAir1Open.get(), disagrees: !!this.hotAir1Disagrees.get() },
+      { pbOn: !!this.hotAir2PbOn.get(), open: !!this.hotAir2Open.get(), disagrees: !!this.hotAir2Disagrees.get() },
+    ];
+  }
+
+  public packPbsOn(): PackPbsOn {
+    return [!!this.pack1On.get(), !!this.pack2On.get()];
+  }
+
   healthInjector(): void {
     SimVar.SetSimVarValue('L:A32NX_NO_SMOKING_MEMO', SimVarValueType.Bool, true);
     SimVar.SetSimVarValue('L:A32NX_CABIN_READY', SimVarValueType.Bool, true);
@@ -4368,6 +4409,15 @@ export class FwsCore {
 
     this.hotAir1PbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_COND_HOT_AIR_1_PB_IS_ON', 'bool'));
     this.hotAir2PbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_COND_HOT_AIR_2_PB_IS_ON', 'bool'));
+
+    const trimAirMonitoring = readTrimAirMonitoringFlags(tcsDiscreteWordToUse);
+    this.ckptDuctOvht.set(trimAirMonitoring.ckptDuctOvht);
+    this.cabinDuctOvhtHotAir1.set(trimAirMonitoring.cabinDuctOvhtHotAir1);
+    this.cabinDuctOvhtHotAir2.set(trimAirMonitoring.cabinDuctOvhtHotAir2);
+    this.fwdCargoDuctOvht.set(trimAirMonitoring.fwdCargoDuctOvht);
+    this.ckptTrimAirValveFault.set(trimAirMonitoring.ckptTrimAirValveFault);
+    this.cabinTrimAirValveFault.set(trimAirMonitoring.cabinTrimAirValveFault);
+    this.fwdCargoTrimAirValveFault.set(trimAirMonitoring.fwdCargoTrimAirValveFault);
 
     const taddChannel1Failure: boolean = SimVar.GetSimVarValue('L:A32NX_COND_TADD_CHANNEL_1_FAILURE', 'bool');
     const taddChannel2Failure: boolean = SimVar.GetSimVarValue('L:A32NX_COND_TADD_CHANNEL_2_FAILURE', 'bool');
