@@ -228,6 +228,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A32NX/FUEL] Added fuel pump and X FEED valve failures (L/R TK pump 1 and 2, X FEED valve jammed): FAULT light, amber LO on the SD FUEL page, FUEL L(R) TK PUMP 1(2) LO PR, L(R) TK PUMP 1+2 LO PR and X FEED VALVE FAULT cautions with their STATUS - @TCdr
+1. [A32NX/SD] FUEL page: the wing pumps and the X FEED valve now show the FCOM colours (LO only for a pump ON with a low pressure, amber X FEED valve when it disagrees with its pushbutton) - @TCdr
+1. [A32NX/FWC] The FUEL X FEED memo now needs the X FEED pushbutton ON and the valve not fully closed, as in the FCOM - @TCdr
+1. [A380X/FUEL] Added feed tank pump and crossfeed valve failures (feed tank 1-4 main and standby pumps, crossfeed valves 1-4 jammed): FAULT light, amber pump or valve on the SD FUEL page, FEED TK MAIN/STBY/MAIN + STBY PMP(s) FAULT and CROSSFEED VLV FAULT alerts with their STATUS - @TCdr
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A32NX] Exterior spoilers move by panel group from their own deflection instead of the wing average: spoiler 1 stays down in turns and with the speedbrakes, and the deflection is shown in true degrees - @TCdr
 1. [A380X] Fuel jettison: a fuel mist plume trails from each wing's jettison outlet while fuel flows out of that side - @TCdr
