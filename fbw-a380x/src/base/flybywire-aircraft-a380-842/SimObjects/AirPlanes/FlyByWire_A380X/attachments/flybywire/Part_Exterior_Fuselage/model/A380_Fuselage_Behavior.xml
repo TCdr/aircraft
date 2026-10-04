@@ -145,6 +145,30 @@
 				<ANIM_CODE>(L:A32NX_AFT_FLEX_POSITION, number) 100 *</ANIM_CODE>
 			</UseTemplate>
 		</Component>
+		<Component ID="SIDE_SLIP_PROBES">
+			<!-- The three side slip angle (SSA) probes on the nose, in front of the windshield, one per ADIRU
+			(FCOM DSC-34-10-30-10). Their vanes (SSP_FIN1..3) are free to turn and line up with the local airflow,
+			so they follow the side slip angle. Each SSP_ANGLE animation has 21 keyframes: keyframe 10 (50 %)
+			is the vane straight along the fuselage, keyframes 0 and 20 are about 60 degrees either side, so
+			1 degree of side slip = 50/60 % of the animation. Positive INCIDENCE BETA (airflow from the right)
+			turns the vane tail to the left (keyframes 11..20). Clamped to the 60 degrees the animation covers;
+			the lag smooths the jumps of the side slip angle at very low speed on the ground. -->
+			<UseTemplate Name="ASOBO_GT_Anim">
+				<ANIM_NAME>SSP_ANGLE1</ANIM_NAME>
+				<ANIM_CODE>(A:INCIDENCE BETA, degrees) -60 max 60 min 50 * 60 / 50 +</ANIM_CODE>
+				<ANIM_LAG>100</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Anim">
+				<ANIM_NAME>SSP_ANGLE2</ANIM_NAME>
+				<ANIM_CODE>(A:INCIDENCE BETA, degrees) -60 max 60 min 50 * 60 / 50 +</ANIM_CODE>
+				<ANIM_LAG>100</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Anim">
+				<ANIM_NAME>SSP_ANGLE3</ANIM_NAME>
+				<ANIM_CODE>(A:INCIDENCE BETA, degrees) -60 max 60 min 50 * 60 / 50 +</ANIM_CODE>
+				<ANIM_LAG>100</ANIM_LAG>
+			</UseTemplate>
+		</Component>
 		<Component ID="FX_CONTRAIL_QUAD">
 			<OverrideTemplateParameters>
 				<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt;</FX_CODE>
