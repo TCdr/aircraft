@@ -63,6 +63,12 @@ import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { acscPackFaults } from './Logic/AcscPackFaults';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
 import {
+  isCrossFeedMemoShown,
+  isCrossFeedValveDisagree,
+  wingTankPumpAlerts,
+  wingTankPumps1And2Lines,
+} from './Logic/FuelPumpValveFaults';
+import {
   alertStatus,
   cabFansFaultStatus,
   condCtlLaneFaultStatus,
@@ -1149,7 +1155,11 @@ export class PseudoFWC {
 
   private readonly centerFuelQuantity = Subject.create(0);
 
+  /** The X FEED pb-sw is ON (its selection L:var: the MSFS valve switch is held still while the valve is jammed) */
   private readonly fuelXFeedPBOn = Subject.create(false);
+
+  /** FUEL X FEED memo: the X FEED pb-sw is ON and the X FEED valve is not fully closed (FCOM DSC-28-20, l.43407) */
+  private readonly fuelXFeedMemo = Subject.create(false);
 
   private readonly leftOuterInnerValve = ConsumerSubject.create(null, 0);
 
@@ -1157,9 +1167,10 @@ export class PseudoFWC {
 
   private readonly leftFuelLowConfirm = new NXLogicConfirmNode(30, true);
 
-  private readonly leftFuelPump1Auto = ConsumerValue.create(null, false);
+  /** The L TK PUMPS 1 pb-sw is ON (its selection L:var: the MSFS pump switch is held off while the pump is failed) */
+  private readonly leftFuelPump1Auto = Subject.create(false);
 
-  private readonly leftFuelPump2Auto = ConsumerValue.create(null, false);
+  private readonly leftFuelPump2Auto = Subject.create(false);
 
   private readonly lrTankLow = Subject.create(false);
 
@@ -1171,11 +1182,39 @@ export class PseudoFWC {
 
   private readonly rightFuelLowConfirm = new NXLogicConfirmNode(30, true);
 
-  private readonly rightFuelPump1Auto = ConsumerValue.create(null, false);
+  private readonly rightFuelPump1Auto = Subject.create(false);
 
-  private readonly rightFuelPump2Auto = ConsumerValue.create(null, false);
+  private readonly rightFuelPump2Auto = Subject.create(false);
 
   private readonly fuelCtrTankModeSelMan = ConsumerValue.create(null, false);
+
+  /**
+   * The wing tank pumps L1, L2, R1, R2 (MSFS pumps 2, 5, 3, 6) ON with a low delivery pressure, from the systems host
+   * (Fuel/FuelPumpsAndValves), confirmed for 2 s (design choice: no pump spin-up caution)
+   */
+  private readonly tankPumpLowPressureConfirms = [2, 5, 3, 6].map((pump) => ({
+    pump,
+    confirm: new NXLogicConfirmNode(2, true),
+  }));
+
+  private readonly leftTankPump1LoPr = Subject.create(false);
+
+  private readonly leftTankPump2LoPr = Subject.create(false);
+
+  private readonly leftTankPumps1And2LoPr = Subject.create(false);
+
+  private readonly rightTankPump1LoPr = Subject.create(false);
+
+  private readonly rightTankPump2LoPr = Subject.create(false);
+
+  private readonly rightTankPumps1And2LoPr = Subject.create(false);
+
+  /** The X FEED valve position disagrees with the pb-sw, longer than its 3 s travel (design choice: 5 s) */
+  private readonly crossFeedValveFault = Subject.create(false);
+
+  private readonly crossFeedValveFaultConfirm = new NXLogicConfirmNode(5, true);
+
+  private readonly aboveFl150 = Subject.create(false);
 
   /* HYDRAULICS */
 
@@ -2124,11 +2163,7 @@ export class PseudoFWC {
     this.centerFuelPump1Auto.setConsumer(sub.on('fuel_pump_switch_1'));
     this.centerFuelPump2Auto.setConsumer(sub.on('fuel_pump_switch_4'));
     this.leftOuterInnerValve.setConsumer(sub.on('fuel_valve_open_4'));
-    this.leftFuelPump1Auto.setConsumer(sub.on('fuel_pump_switch_2'));
-    this.leftFuelPump2Auto.setConsumer(sub.on('fuel_pump_switch_5'));
     this.rightOuterInnerValve.setConsumer(sub.on('fuel_valve_open_5'));
-    this.rightFuelPump1Auto.setConsumer(sub.on('fuel_pump_switch_3'));
-    this.rightFuelPump2Auto.setConsumer(sub.on('fuel_pump_switch_6'));
 
     // Inhibit single chimes for the first two seconds after power-on
     this.auralSingleChimeInhibitTimer.schedule(
@@ -3807,7 +3842,14 @@ export class PseudoFWC {
     /* FUEL */
     const fuelGallonsToKg = SimVar.GetSimVarValue('FUEL WEIGHT PER GALLON', 'kilogram');
     this.centerFuelQuantity.set(SimVar.GetSimVarValue('FUEL TANK CENTER QUANTITY', 'gallons') * fuelGallonsToKg);
-    this.fuelXFeedPBOn.set(SimVar.GetSimVarValue('L:XMLVAR_Momentary_PUSH_OVHD_FUEL_XFEED_Pressed', 'bool'));
+    this.fuelXFeedPBOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_XFEED_PB_IS_ON', 'bool') > 0);
+    // The wing tank pump pb-sw selections, by MSFS pump number (Fuel/FuelPumpsAndValves)
+    this.leftFuelPump1Auto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_PUMP_2_PB_IS_ON', 'bool') > 0);
+    this.leftFuelPump2Auto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_PUMP_5_PB_IS_ON', 'bool') > 0);
+    this.rightFuelPump1Auto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_PUMP_3_PB_IS_ON', 'bool') > 0);
+    this.rightFuelPump2Auto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FUEL_PUMP_6_PB_IS_ON', 'bool') > 0);
+    const crossFeedValveOpenPercent = SimVar.GetSimVarValue('FUELSYSTEM VALVE OPEN:3', 'percent');
+    this.fuelXFeedMemo.set(isCrossFeedMemoShown(this.fuelXFeedPBOn.get(), crossFeedValveOpenPercent));
 
     const leftInnerFuelQuantity = SimVar.GetSimVarValue('FUEL TANK LEFT MAIN QUANTITY', 'gallons') * fuelGallonsToKg;
     const rightInnerFuelQuantity = SimVar.GetSimVarValue('FUEL TANK RIGHT MAIN QUANTITY', 'gallons') * fuelGallonsToKg;
@@ -3816,6 +3858,27 @@ export class PseudoFWC {
     this.lrTankLow.set(this.lrTankLowConfirm.write(leftFuelLow && rightFuelLow, deltaTime));
     this.leftFuelLow.set(this.leftFuelLowConfirm.write(leftFuelLow && !this.lrTankLow.get(), deltaTime));
     this.rightFuelLow.set(this.rightFuelLowConfirm.write(rightFuelLow && !this.lrTankLow.get(), deltaTime));
+
+    const [left1LowPressure, left2LowPressure, right1LowPressure, right2LowPressure] =
+      this.tankPumpLowPressureConfirms.map(({ pump, confirm }) =>
+        confirm.write(SimVar.GetSimVarValue(`L:A32NX_FUEL_PUMP_${pump}_LO_PR`, 'bool') > 0, deltaTime),
+      );
+    const leftPumps = wingTankPumpAlerts(left1LowPressure, left2LowPressure);
+    this.leftTankPump1LoPr.set(leftPumps.pump1LoPr);
+    this.leftTankPump2LoPr.set(leftPumps.pump2LoPr);
+    this.leftTankPumps1And2LoPr.set(leftPumps.pumps1And2LoPr);
+    const rightPumps = wingTankPumpAlerts(right1LowPressure, right2LowPressure);
+    this.rightTankPump1LoPr.set(rightPumps.pump1LoPr);
+    this.rightTankPump2LoPr.set(rightPumps.pump2LoPr);
+    this.rightTankPumps1And2LoPr.set(rightPumps.pumps1And2LoPr);
+
+    this.crossFeedValveFault.set(
+      this.crossFeedValveFaultConfirm.write(
+        isCrossFeedValveDisagree(crossFeedValveOpenPercent, this.fuelXFeedPBOn.get()),
+        deltaTime,
+      ),
+    );
+    this.aboveFl150.set((pressureAltitude ?? 0) > 15_000);
 
     /* F/CTL */
     const fcdc1DiscreteWord1 = Arinc429Word.fromSimVarValue('L:A32NX_FCDC_1_DISCRETE_WORD_1');
@@ -7517,6 +7580,135 @@ export class PseudoFWC {
       sysPage: EcamSysPage.FUEL,
       side: 'LEFT',
     },
+    2800201: {
+      // L TK PUMP 1 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP (FCOM PRO-ABN-FUEL l.86168-86190).
+      // The FCOM flight phase inhibition is a figure: the one of the other single system faults (design choice)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.leftTankPump1LoPr,
+      whichCodeToReturn: () => [0, this.leftFuelPump1Auto.get() ? 1 : null],
+      codesToReturn: ['280020101', '280020102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300001'],
+    },
+    2800202: {
+      // L TK PUMP 2 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP (FCOM PRO-ABN-FUEL l.86168-86190).
+      // The FCOM flight phase inhibition is a figure: the one of the other single system faults (design choice)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.leftTankPump2LoPr,
+      whichCodeToReturn: () => [0, this.leftFuelPump2Auto.get() ? 1 : null],
+      codesToReturn: ['280020201', '280020202'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300002'],
+    },
+    2800203: {
+      // R TK PUMP 1 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP (FCOM PRO-ABN-FUEL l.86168-86190).
+      // The FCOM flight phase inhibition is a figure: the one of the other single system faults (design choice)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.rightTankPump1LoPr,
+      whichCodeToReturn: () => [0, this.rightFuelPump1Auto.get() ? 1 : null],
+      codesToReturn: ['280020301', '280020302'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300003'],
+    },
+    2800204: {
+      // R TK PUMP 2 LO PR: -TK PUMP (AFFECTED) OFF, STATUS INOP SYS TK PUMP (FCOM PRO-ABN-FUEL l.86168-86190).
+      // The FCOM flight phase inhibition is a figure: the one of the other single system faults (design choice)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.rightTankPump2LoPr,
+      whichCodeToReturn: () => [0, this.rightFuelPump2Auto.get() ? 1 : null],
+      codesToReturn: ['280020401', '280020402'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300004'],
+    },
+    2800205: {
+      // L TK PUMP 1+2 LO PR (FCOM PRO-ABN-FUEL l.86207-86260, see wingTankPumps1And2Lines); STATUS INOP SYS
+      // L TK PUMPS
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.leftTankPumps1And2LoPr,
+      whichCodeToReturn: () =>
+        wingTankPumps1And2Lines({
+          crossFeedOn: this.fuelXFeedPBOn.get(),
+          engModeSelIgn: this.engSelectorPosition.get() === 2,
+          pump1On: this.leftFuelPump1Auto.get(),
+          pump2On: this.leftFuelPump2Auto.get(),
+          aboveFl150: this.aboveFl150.get(),
+        }).map((show, index) => (show ? index : null)),
+      codesToReturn: [
+        '280020501',
+        '280020502',
+        '280020503',
+        '280020504',
+        '280020505',
+        '280020506',
+        '280020507',
+        '280020508',
+        '280020509',
+        '280020510',
+        '280020511',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300005'],
+    },
+    2800206: {
+      // R TK PUMP 1+2 LO PR (FCOM PRO-ABN-FUEL l.86207-86260, see wingTankPumps1And2Lines); STATUS INOP SYS
+      // R TK PUMPS
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.rightTankPumps1And2LoPr,
+      whichCodeToReturn: () =>
+        wingTankPumps1And2Lines({
+          crossFeedOn: this.fuelXFeedPBOn.get(),
+          engModeSelIgn: this.engSelectorPosition.get() === 2,
+          pump1On: this.rightFuelPump1Auto.get(),
+          pump2On: this.rightFuelPump2Auto.get(),
+          aboveFl150: this.aboveFl150.get(),
+        }).map((show, index) => (show ? index : null)),
+      codesToReturn: [
+        '280020601',
+        '280020602',
+        '280020603',
+        '280020604',
+        '280020605',
+        '280020606',
+        '280020607',
+        '280020608',
+        '280020609',
+        '280020610',
+        '280020611',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300006'],
+    },
+    2800210: {
+      // X FEED VALVE FAULT: the valve position disagrees with the pb-sw; crew awareness; STATUS INOP SYS FUEL X FEED
+      // (FCOM PRO-ABN-FUEL l.86717-86735)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.crossFeedValveFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280021001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+      inopSys: () => ['280300007'],
+    },
   };
 
   ewdMessageMemos: EWDMessageDict<EWDMemoItem> = {
@@ -8106,7 +8298,7 @@ export class PseudoFWC {
     '0000250': {
       // FUEL X FEED
       flightPhaseInhib: [],
-      simVarIsActive: this.fuelXFeedPBOn,
+      simVarIsActive: this.fuelXFeedMemo,
       whichCodeToReturn: () => [[3, 4, 5].includes(this.fwcFlightPhase.get()) ? 1 : 0],
       codesToReturn: ['000025001', '000025002'],
       memoInhibit: () => false,

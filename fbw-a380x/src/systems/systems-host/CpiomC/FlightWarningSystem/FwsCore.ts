@@ -97,6 +97,7 @@ import {
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { readFuelJettisonFlags } from './FuelJettisonFlags';
+import { feedTankPumpAlerts, readCrossFeedValveFlags, readFeedTankPumpFlags } from './FuelPumpValveFlags';
 import {
   ElecAlertLogic,
   ElecEmerConfigProcedureState,
@@ -1370,6 +1371,25 @@ export class FwsCore {
     this.crossFeed3ValveOpen,
     this.crossFeed4ValveOpen,
   );
+
+  /** FUEL FEED TK 1-4 MAIN PMP FAULT (feedTankPumpAlerts) */
+  public readonly feedTankMainPumpFault = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** FUEL FEED TK 1-4 STBY PMP FAULT (feedTankPumpAlerts) */
+  public readonly feedTankStbyPumpFault = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** FUEL FEED TK 1-4 MAIN + STBY PMPs FAULT (feedTankPumpAlerts) */
+  public readonly feedTankMainAndStbyPumpsFault = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** The FEED TK 1-4 MAIN and STBY pb-sw ON */
+  public readonly feedTankMainPumpPbOn = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  public readonly feedTankStbyPumpPbOn = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** FUEL CROSSFEED VLV 1-4 FAULT: the valve abnormally closed or open (CPIOM-F fuel monitoring) */
+  public readonly crossFeedValveFault = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  public readonly crossFeedValveClosed = [1, 2, 3, 4].map(() => Subject.create(false));
 
   public readonly crossFeedOpenMemo = MappedSubject.create(
     ([cf1, cf2, cf3, cf4]) => [cf1, cf2, cf3, cf4].filter((c) => c === true).length >= 2,
@@ -5483,6 +5503,23 @@ export class FwsCore {
     this.fuelJettisonLValveFault.set(jettison.leftValveFault);
     this.fuelJettisonRValveFault.set(jettison.rightValveFault);
     this.fuelJettisonValveNotClosed.set(jettison.valveNotClosed);
+
+    // Feed tank pumps and crossfeed valves (CpiomF/FuelPumpsAndValves), read as real booleans
+    const readBool = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool);
+    readFeedTankPumpFlags(readBool).forEach((pumps, tank) => {
+      const alerts = feedTankPumpAlerts(pumps, this.flightPhase.get());
+      this.feedTankMainPumpFault[tank].set(alerts.mainFault);
+      this.feedTankStbyPumpFault[tank].set(alerts.stbyFault);
+      this.feedTankMainAndStbyPumpsFault[tank].set(alerts.mainAndStbyFault);
+      this.feedTankMainPumpPbOn[tank].set(pumps.mainPbOn);
+      this.feedTankStbyPumpPbOn[tank].set(pumps.stbyPbOn);
+    });
+    readCrossFeedValveFlags(readBool, (valve) =>
+      SimVar.GetSimVarValue(`FUELSYSTEM VALVE OPEN:${valve}`, SimVarValueType.PercentOver100),
+    ).forEach((valve, index) => {
+      this.crossFeedValveFault[index].set(valve.abnormal);
+      this.crossFeedValveClosed[index].set(valve.closed);
+    });
 
     // WXR (A380 FCOM DSC-34-20-30-20). The WXR button OFF also sets PRED W/S and TURB to OFF: only the WXR OFF memo
     // shows then.

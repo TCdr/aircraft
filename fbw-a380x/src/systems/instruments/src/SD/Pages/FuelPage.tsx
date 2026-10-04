@@ -125,6 +125,21 @@ export const FuelPage = () => {
   const [crossFeed3ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:48', 'Percent over 100', 1000);
   const [crossFeed4ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:49', 'Percent over 100', 1000);
 
+  // Feed pumps ON and running at low pressure or failed, and crossfeed valves abnormally closed or open (FCOM DSC-28-20
+  // FUEL SD page FEED TANK MAIN/STBY PUMP and CROSSFEED VALVE), from the CPIOM-F fuel monitoring (FuelPumpsAndValves)
+  const [feed1MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_1_MAIN_PMP_LO_PR', 'bool', 1000);
+  const [feed1StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_1_STBY_PMP_LO_PR', 'bool', 1000);
+  const [feed2MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_2_MAIN_PMP_LO_PR', 'bool', 1000);
+  const [feed2StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_2_STBY_PMP_LO_PR', 'bool', 1000);
+  const [feed3MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_3_MAIN_PMP_LO_PR', 'bool', 1000);
+  const [feed3StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_3_STBY_PMP_LO_PR', 'bool', 1000);
+  const [feed4MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_4_MAIN_PMP_LO_PR', 'bool', 1000);
+  const [feed4StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_4_STBY_PMP_LO_PR', 'bool', 1000);
+  const [crossFeed1ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_1_ABNORMAL', 'bool', 1000);
+  const [crossFeed2ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_2_ABNORMAL', 'bool', 1000);
+  const [crossFeed3ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_3_ABNORMAL', 'bool', 1000);
+  const [crossFeed4ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_4_ABNORMAL', 'bool', 1000);
+
   const isSideToSideFuelTransferActive =
     (crossFeed1ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD ||
       crossFeed2ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD) &&
@@ -847,13 +862,18 @@ export const FuelPage = () => {
         <TankQuantity x={138} y={268} smallFont quantity={collectorCell1Weight} hasFault={isCollectorCell1NotFull} />
       )}
       {/* Feed tank 1 main pump */}
-      <Pump x={95} y={227} running={feed1Pump1Active} hasFault={isFeed1Pump1SwitchOff} />
+      <Pump
+        x={95}
+        y={227}
+        running={feed1Pump1Active}
+        hasFault={isFeed1Pump1SwitchOff || feed1MainPumpLowPressure > 0}
+      />
       {/* Feed tank 1 standby pump. TODO actually deactivate the pump when the main one is active  */}
       <Pump
         x={127}
         y={227}
         running={feed1Pump2Active && !feed1Pump1Active}
-        hasFault={isFeed1Pump2SwitchOff}
+        hasFault={isFeed1Pump2SwitchOff || feed1StbyPumpLowPressure > 0}
         displayWhenInactive={showMore}
       />
 
@@ -869,6 +889,7 @@ export const FuelPage = () => {
         horizontal
         open={crossFeed1ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD}
         normallyClosed
+        amber={crossFeed1ValveAbnormal > 0}
       />
 
       {/* LEFT OUTER/MID/INNER */}
@@ -888,13 +909,18 @@ export const FuelPage = () => {
         <TankQuantity x={310} y={252} smallFont quantity={collectorCell2Weight} hasFault={isCollectorCell2NotFull} />
       )}
       {/* Feed tank 2 main pump */}
-      <Pump x={258} y={208} running={feed2Pump1Active} hasFault={isFeed2Pump1SwitchOff} />
+      <Pump
+        x={258}
+        y={208}
+        running={feed2Pump1Active}
+        hasFault={isFeed2Pump1SwitchOff || feed2MainPumpLowPressure > 0}
+      />
       {/* Feed tank 2 standby pump. TODO actually deactivate the pump when the main one is active */}
       <Pump
         x={290}
         y={208}
         running={feed2Pump2Active && !feed2Pump1Active}
-        hasFault={isFeed2Pump2SwitchOff}
+        hasFault={isFeed2Pump2SwitchOff || feed2StbyPumpLowPressure > 0}
         displayWhenInactive={showMore}
       />
 
@@ -910,6 +936,7 @@ export const FuelPage = () => {
         horizontal
         open={crossFeed2ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD}
         normallyClosed
+        amber={crossFeed2ValveAbnormal > 0}
       />
 
       {/* FEED TANK 3 */}
@@ -924,13 +951,18 @@ export const FuelPage = () => {
         <TankQuantity x={518} y={252} smallFont quantity={collectorCell3Weight} hasFault={isCollectorCell3NotFull} />
       )}
       {/* Feed tank 3 main pump */}
-      <Pump x={476} y={208} running={feed3Pump1Active} hasFault={isFeed3Pump1SwitchOff} />
+      <Pump
+        x={476}
+        y={208}
+        running={feed3Pump1Active}
+        hasFault={isFeed3Pump1SwitchOff || feed3MainPumpLowPressure > 0}
+      />
       {/* Feed tank 3 standby pump. TODO actually deactivate the pump when the main one is active */}
       <Pump
         x={508}
         y={208}
         running={feed3Pump2Active && !feed3Pump1Active}
-        hasFault={isFeed3Pump2SwitchOff}
+        hasFault={isFeed3Pump2SwitchOff || feed3StbyPumpLowPressure > 0}
         displayWhenInactive={showMore}
       />
 
@@ -946,6 +978,7 @@ export const FuelPage = () => {
         horizontal
         open={crossFeed3ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD}
         normallyClosed
+        amber={crossFeed3ValveAbnormal > 0}
       />
 
       {/* RIGHT INNER/MID/OUTER */}
@@ -965,13 +998,18 @@ export const FuelPage = () => {
         <TankQuantity x={690} y={268} smallFont quantity={collectorCell4Weight} hasFault={isCollectorCell4NotFull} />
       )}
       {/* Feed tank 4 main pump */}
-      <Pump x={639} y={227} running={feed4Pump1Active} hasFault={isFeed4Pump1SwitchOff} />
+      <Pump
+        x={639}
+        y={227}
+        running={feed4Pump1Active}
+        hasFault={isFeed4Pump1SwitchOff || feed4MainPumpLowPressure > 0}
+      />
       {/* Feed tank 4 standby pump. TODO actually deactivate the pump when the main one is active */}
       <Pump
         x={671}
         y={227}
         running={feed4Pump2Active && !feed4Pump1Active}
-        hasFault={isFeed4Pump2SwitchOff}
+        hasFault={isFeed4Pump2SwitchOff || feed4StbyPumpLowPressure > 0}
         displayWhenInactive={showMore}
       />
 
@@ -987,6 +1025,7 @@ export const FuelPage = () => {
         horizontal
         open={crossFeed4ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD}
         normallyClosed
+        amber={crossFeed4ValveAbnormal > 0}
       />
 
       <text x={10} y={620} className="White T2">

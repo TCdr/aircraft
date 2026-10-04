@@ -39,6 +39,14 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210300010', { part: StatusPart.InopSys, text: 'HOT AIR' }],
   ['210300011', { part: StatusPart.InopSys, text: 'L+R CAB FAN' }],
   ['210300012', { part: StatusPart.InopSys, text: 'GALLEY FAN' }],
+  // 28 FUEL (FCOM PRO-ABN-FUEL)
+  ['280300001', { part: StatusPart.InopSys, text: 'L TK PUMP 1' }],
+  ['280300002', { part: StatusPart.InopSys, text: 'L TK PUMP 2' }],
+  ['280300003', { part: StatusPart.InopSys, text: 'R TK PUMP 1' }],
+  ['280300004', { part: StatusPart.InopSys, text: 'R TK PUMP 2' }],
+  ['280300005', { part: StatusPart.InopSys, text: 'L TK PUMPS' }],
+  ['280300006', { part: StatusPart.InopSys, text: 'R TK PUMPS' }],
+  ['280300007', { part: StatusPart.InopSys, text: 'FUEL X FEED' }],
   // 34 NAVIGATION
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
