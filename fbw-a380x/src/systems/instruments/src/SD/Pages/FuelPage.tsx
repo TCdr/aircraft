@@ -135,6 +135,15 @@ export const FuelPage = () => {
   const [feed3StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_3_STBY_PMP_LO_PR', 'bool', 1000);
   const [feed4MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_4_MAIN_PMP_LO_PR', 'bool', 1000);
   const [feed4StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_4_STBY_PMP_LO_PR', 'bool', 1000);
+  // Transfer pumps failed or running in an empty tank, pb-sw ON (systems host CpiomF/FuelPumpsAndValves)
+  const [leftOuterTankPumpFault] = useSimVar('L:A380X_FUEL_L_OUTR_TK_PMP_FAULT', 'bool', 1000);
+  const [rightOuterTankPumpFault] = useSimVar('L:A380X_FUEL_R_OUTR_TK_PMP_FAULT', 'bool', 1000);
+  const [leftMidTankFwdPumpFault] = useSimVar('L:A380X_FUEL_L_MID_TK_FWD_PMP_FAULT', 'bool', 1000);
+  const [rightMidTankFwdPumpFault] = useSimVar('L:A380X_FUEL_R_MID_TK_FWD_PMP_FAULT', 'bool', 1000);
+  const [leftInnerTankFwdPumpFault] = useSimVar('L:A380X_FUEL_L_INR_TK_FWD_PMP_FAULT', 'bool', 1000);
+  const [rightInnerTankFwdPumpFault] = useSimVar('L:A380X_FUEL_R_INR_TK_FWD_PMP_FAULT', 'bool', 1000);
+  const [leftTrimTankPumpFault] = useSimVar('L:A380X_FUEL_TRIM_TK_L_PMP_FAULT', 'bool', 1000);
+  const [rightTrimTankPumpFault] = useSimVar('L:A380X_FUEL_TRIM_TK_R_PMP_FAULT', 'bool', 1000);
   const [crossFeed1ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_1_ABNORMAL', 'bool', 1000);
   const [crossFeed2ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_2_ABNORMAL', 'bool', 1000);
   const [crossFeed3ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_3_ABNORMAL', 'bool', 1000);
@@ -288,7 +297,7 @@ export const FuelPage = () => {
       x: 84,
       y: 384,
       running: isLeftOuterTankPumpActive,
-      hasFault: isLeftOuterTankPumpSwitchOff,
+      hasFault: isLeftOuterTankPumpSwitchOff || leftOuterTankPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.10
@@ -296,7 +305,7 @@ export const FuelPage = () => {
       x: 140,
       y: 384,
       running: isLeftMidTankPumpFwdActive,
-      hasFault: isLeftMidTankPumpFwdSwitchOff,
+      hasFault: isLeftMidTankPumpFwdSwitchOff || leftMidTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.12
@@ -304,7 +313,7 @@ export const FuelPage = () => {
       x: 232,
       y: 384,
       running: isLeftInnerTankPumpFwdActive,
-      hasFault: isLeftInnerTankPumpFwdSwitchOff,
+      hasFault: isLeftInnerTankPumpFwdSwitchOff || leftInnerTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.13
@@ -312,7 +321,7 @@ export const FuelPage = () => {
       x: 482,
       y: 384,
       running: isRightInnerTankPumpFwdActive,
-      hasFault: isRightInnerTankPumpFwdSwitchOff,
+      hasFault: isRightInnerTankPumpFwdSwitchOff || rightInnerTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.15
@@ -320,7 +329,7 @@ export const FuelPage = () => {
       x: 584,
       y: 384,
       running: isRightMidTankPumpFwdActive,
-      hasFault: isRightMidTankPumpFwdSwitchOff,
+      hasFault: isRightMidTankPumpFwdSwitchOff || rightMidTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.14
@@ -328,7 +337,7 @@ export const FuelPage = () => {
       x: 680,
       y: 384,
       running: isRightOuterTankPumpActive,
-      hasFault: isRightOuterTankPumpSwitchOff,
+      hasFault: isRightOuterTankPumpSwitchOff || rightOuterTankPumpFault > 0,
       displayWhenInactive: showMore,
     },
   ];
@@ -1279,7 +1288,7 @@ export const FuelPage = () => {
           x={298}
           y={610}
           running={isLeftTrimTankPumpActive}
-          hasFault={isLeftTrimTankPumpSwitchOff}
+          hasFault={isLeftTrimTankPumpSwitchOff || leftTrimTankPumpFault > 0}
           displayWhenInactive={showMore}
         />
         <FuelLine x1={468} y1={596} x2={468} y2={568} active={false} displayWhenInactive={showMore} />
@@ -1287,7 +1296,7 @@ export const FuelPage = () => {
           x={468}
           y={610}
           running={isRightTrimTankPumpActive}
-          hasFault={isRightTrimTankPumpSwitchOff}
+          hasFault={isRightTrimTankPumpSwitchOff || rightTrimTankPumpFault > 0}
           displayWhenInactive={showMore}
         />
 

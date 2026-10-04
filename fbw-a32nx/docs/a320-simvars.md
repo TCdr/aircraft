@@ -4065,6 +4065,20 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2)
 
+- A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_CLOSED
+  - Bool
+  - {side}
+    - L
+    - R
+  - True when the CTR TK {side} XFR valve has stayed not fully closed for more than 5 s while commanded closed (CTR TK XFR pb-sw OFF, or AUTO with the FLSCU closing it): the valve failed open. Gives FUEL CTR {side} XFR FAULT (VALVE NOT FULLY CLOSED) or FUEL CTR L + R XFR FAULT (FCOM PRO-ABN-FUEL). The valve is the MSFS inhibit valve 9 (10) in series with the auto valve 11 (12), bypassed by the junction 4 (5) at MODE SEL MAN. Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_OPEN
+  - Bool
+  - {side}
+    - L
+    - R
+  - True when the CTR TK {side} XFR valve has stayed not fully open for more than 5 s while commanded open (CTR TK XFR pb-sw ON with MODE SEL MAN, or AUTO with the FLSCU opening it): the valve failed closed. Gives FUEL CTR {side} XFR FAULT (VALVE NOT FULLY OPEN) or FUEL CTR L + R XFR FAULT, and boxes the SD FUEL centre tank quantity in amber when both are true (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
+
 - A32NX_FUEL_PUMP_{number}_LO_PR
   - Bool
   - {number}, the MSFS fuel pump
@@ -4082,6 +4096,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 3 (R TK PUMP 1)
     - 6 (R TK PUMP 2)
   - True when the wing tank pump pb-sw is ON (the flight crew selection, OFF light and pb-sw animation). The systems host (Fuel/FuelPumpsAndValves) switches the MSFS pump {number} (K:FUELSYSTEM_PUMP_ON/OFF) to follow it, except while the pump is failed (failures 28000-28003), when the MSFS pump is held off. A pump switch change from outside (K:FUELSYSTEM_PUMP_* events from a hardware panel, an aircraft preset, a loaded flight) is taken as the new selection
+
+- A32NX_OVHD_FUEL_CTR_TK_{side}_XFR_PB_IS_ON
+  - Bool
+  - {side}
+    - L
+    - R
+  - True when the CTR TK {side} XFR pb-sw is ON (the flight crew selection, OFF light and pb-sw animation). The systems host (Fuel/FuelPumpsAndValves) commands the MSFS inhibit valve 9 (L) or 10 (R) of the centre tank transfer valve (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the transfer valve is jammed (failures 28005, 28006): jammed open, the inhibit valve and the auto valve 11 (12) are held open; jammed closed, the inhibit valve is held closed. A valve switch change from outside (an aircraft preset, a loaded flight) is taken as the new selection
 
 - A32NX_OVHD_FUEL_XFEED_PB_IS_ON
   - Bool

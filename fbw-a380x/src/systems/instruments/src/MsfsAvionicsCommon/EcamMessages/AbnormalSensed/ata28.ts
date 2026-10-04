@@ -568,72 +568,84 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800056: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L INR TK FWD+AFT PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'L INR TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'L INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800057: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R INR TK FWD+AFT PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'R INR TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'R INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800058: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L INR TK AFT PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800059: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L MID TK AFT PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800060: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R INR TK AFT PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800061: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R MID TK AFT PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800062: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L MID TK FWD PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L MID TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800063: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L INR TK FWD PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L INR TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800064: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R MID TK FWD PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R MID TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800065: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R INR TK FWD PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R INR TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800066: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L MID TK FWD+AFT PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'L MID TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'L MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800067: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R MID TK FWD+AFT PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'R MID TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'R MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800068: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L OUTR TK PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L OUTR TK PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800069: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R OUTR TK PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R OUTR TK PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800070: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L WING FEED PMPs FAULT',
@@ -740,17 +752,23 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800089: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK L PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'TRIM TK L PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800090: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK R PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'TRIM TK R PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800091: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK L+R PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'TRIM TK L PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'TRIM TK R PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'PITCH ATT < 3° FOR GRVTY FWD XFR', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'TRIM TK FEED', sensed: false, labelNotCompleted: 'OPEN' },
+      { name: 'TRIM TK : 2300 KG MAX NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
   },
   281800092: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK MAN XFR COMPLETED',

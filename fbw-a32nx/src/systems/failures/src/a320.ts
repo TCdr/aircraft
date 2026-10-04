@@ -87,6 +87,9 @@ export const A320Failure = Object.freeze({
   RightTankPump1: 28002,
   RightTankPump2: 28003,
   CrossFeedValveJammed: 28004,
+  // A centre tank transfer valve jam holds the valve open or closed (both MSFS valves of the CTR TK L(R) XFR valve)
+  CentreTankLeftTransferValveJammed: 28005,
+  CentreTankRightTransferValveJammed: 28006,
 
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
@@ -235,6 +238,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [28, A320Failure.RightTankPump1, 'R TK pump 1'],
   [28, A320Failure.RightTankPump2, 'R TK pump 2'],
   [28, A320Failure.CrossFeedValveJammed, 'X FEED valve jammed in place'],
+  [28, A320Failure.CentreTankLeftTransferValveJammed, 'CTR TK L XFR valve jammed in place'],
+  [28, A320Failure.CentreTankRightTransferValveJammed, 'CTR TK R XFR valve jammed in place'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],
