@@ -22,6 +22,15 @@ import {
 // FIXME should not import from instruments
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
+import {
+  condDuctOvhtActive,
+  condDuctOvhtInfo,
+  condDuctOvhtInopSys,
+  condDuctOvhtItems,
+  condDuctOvhtOutItems,
+  fwdCargoTempRegulFaultActive,
+  fwdCargoTempRegulFaultItemsToShow,
+} from './CondTrimAirFlags';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -604,6 +613,28 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Cond,
       inopSysAllPhases: () => ['210300013', '210300015'],
     },
+    211800028: {
+      // COND DUCT OVHT (A380 FCOM PRO-ABN-ECAM-10-21-10, a380_fcom.txt:132563-132674)
+      // Design choice: the phase inhibition of COND HOT AIR FAULT (the FCOM inhibition column is a picture)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: MappedSubject.create(
+        () => condDuctOvhtActive(this.fws.trimAirMonitoringFlags()),
+        this.fws.ckptDuctOvht,
+        this.fws.cabinDuctOvhtHotAir1,
+        this.fws.cabinDuctOvhtHotAir2,
+        this.fws.fwdCargoDuctOvht,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        condDuctOvhtItems(this.fws.trimAirMonitoringFlags(), this.fws.hotAirValveFlags(), this.fws.packPbsOn()).show,
+      whichItemsChecked: () =>
+        condDuctOvhtItems(this.fws.trimAirMonitoringFlags(), this.fws.hotAirValveFlags(), this.fws.packPbsOn()).checked,
+      // Indications: audio, master light, HOT AIR pb local light and COND SD page (a380_fcom.txt:132577-132581)
+      failure: 2,
+      sysPage: SdPages.Cond,
+      info: () => condDuctOvhtInfo(this.fws.trimAirMonitoringFlags()),
+      inopSysAllPhases: () => condDuctOvhtInopSys(this.fws.trimAirMonitoringFlags()),
+    },
     211800029: {
       // FWD CARGO ISOL FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
@@ -618,6 +649,24 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Cond,
       inopSysAllPhases: () => ['210300016'],
+    },
+    211800030: {
+      // COND FWD CARGO TEMP REGUL FAULT (A380 FCOM PRO-ABN-ECAM-10-21-10, a380_fcom.txt:132245-132297)
+      // Design choice: the phase inhibition of COND FWD CARGO ISOL FAULT (the FCOM inhibition column is a picture)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: MappedSubject.create(
+        () => fwdCargoTempRegulFaultActive(this.fws.trimAirMonitoringFlags()),
+        this.fws.fwdCargoTrimAirValveFault,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => fwdCargoTempRegulFaultItemsToShow(this.fws.trimAirMonitoringFlags()),
+      whichItemsChecked: () => [false, false],
+      // Indications: COND SD page only, no audio and no master light (a380_fcom.txt:132254-132258)
+      failure: 1,
+      sysPage: SdPages.Cond,
+      // FWD CRG TEMP REGUL DEGRADED (a380_fcom.txt:132294-132297)
+      info: () => ['210200003'],
+      inopSysAllPhases: () => [],
     },
     211800031: {
       // FWD CARGO VENT FAULT
@@ -751,7 +800,8 @@ export class FwsAbnormalSensed {
       // HOT AIR 1 OFF
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
       simVarIsActive: MappedSubject.create(([hotAirPbOn]) => !hotAirPbOn, this.fws.hotAir1PbOn),
-      notActiveWhenItemActive: [],
+      // Not while COND DUCT OVHT asks for this pb OFF (design choice: the pb is not abnormally OFF then)
+      notActiveWhenItemActive: ['211800028'],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       failure: 2,
@@ -763,7 +813,8 @@ export class FwsAbnormalSensed {
       // HOT AIR 2 OFF
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
       simVarIsActive: MappedSubject.create(([hotAirPbOn]) => !hotAirPbOn, this.fws.hotAir2PbOn),
-      notActiveWhenItemActive: [],
+      // Not while COND DUCT OVHT asks for this pb OFF (design choice: the pb is not abnormally OFF then)
+      notActiveWhenItemActive: ['211800028'],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       failure: 2,
@@ -5356,6 +5407,19 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true, true],
       whichItemsChecked: () => [this.fws.ramAirOn.get(), this.fws.cabinAirExtractOn.get()],
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    210700003: {
+      // WHEN DUCT OVHT OUT (COND DUCT OVHT deferred procedure)
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        condDuctOvhtOutItems(this.fws.trimAirMonitoringFlags(), this.fws.hotAirValveFlags(), this.fws.packPbsOn()).show,
+      whichItemsChecked: () =>
+        condDuctOvhtOutItems(this.fws.trimAirMonitoringFlags(), this.fws.hotAirValveFlags(), this.fws.packPbsOn())
+          .checked,
       failure: 0,
       sysPage: SdPages.None,
     },

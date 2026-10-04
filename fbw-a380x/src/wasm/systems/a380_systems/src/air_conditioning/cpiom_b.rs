@@ -30,7 +30,7 @@ use crate::avionics_data_communication_network::A380AvionicsDataCommunicationNet
 use super::{
     local_controllers::{
         outflow_valve_control_module::{CpcsShared, OcsmShared},
-        trim_air_drive_device::TaddShared,
+        trim_air_drive_device::{hot_air_valve_feeding_zone, TaddShared},
     },
     A380AirConditioningSystem,
 };
@@ -207,6 +207,10 @@ impl CoreProcessingInputOutputModuleB {
 
     fn hot_air_is_open(&self, hot_air: Pack) -> bool {
         self.tcs_app.hot_air_is_open(hot_air)
+    }
+
+    fn trim_air_monitoring(&self) -> &TrimAirMonitoring {
+        &self.tcs_app.trim_air_monitoring
     }
 
     fn fwd_extraction_fan_is_on(&self) -> bool {
@@ -567,19 +571,65 @@ impl SimulationElement for AirGenerationSystemApplication {
     }
 }
 
+/// Duct overheats and jammed trim air valves found by the temperature controller, grouped as the FWS alerts need
+/// them (A380 FCOM COND DUCT OVHT, a380_fcom.txt:132599-132623, and COND FWD CARGO TEMP REGUL FAULT,
+/// a380_fcom.txt:132278-132279)
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+struct TrimAirMonitoring {
+    cockpit_duct_overheat: bool,
+    /// A cabin duct fed by HOT AIR 1 (index 0) or HOT AIR 2 (index 1) is overheated
+    cabin_duct_overheat: [bool; 2],
+    fwd_cargo_duct_overheat: bool,
+    cockpit_trim_air_valve_fault: bool,
+    cabin_trim_air_valve_fault: bool,
+    fwd_cargo_trim_air_valve_fault: bool,
+}
+
+impl TrimAirMonitoring {
+    fn from_zones(zones: &[ZoneType], trim_air_drive_device: &impl TaddShared) -> Self {
+        let mut monitoring = Self::default();
+        for (index, zone) in zones.iter().enumerate() {
+            let overheat = trim_air_drive_device.duct_overheat(index);
+            let valve_fault = trim_air_drive_device.trim_air_valve_fault(index);
+            match zone {
+                ZoneType::Cockpit => {
+                    monitoring.cockpit_duct_overheat |= overheat;
+                    monitoring.cockpit_trim_air_valve_fault |= valve_fault;
+                }
+                ZoneType::Cabin(_) => {
+                    monitoring.cabin_duct_overheat[hot_air_valve_feeding_zone(*zone) - 1] |=
+                        overheat;
+                    monitoring.cabin_trim_air_valve_fault |= valve_fault;
+                }
+                ZoneType::Cargo(1) => {
+                    monitoring.fwd_cargo_duct_overheat |= overheat;
+                    monitoring.fwd_cargo_trim_air_valve_fault |= valve_fault;
+                }
+                // The bulk cargo has no trim air valve (electric heater)
+                ZoneType::Cargo(_) => {}
+            }
+        }
+        monitoring
+    }
+}
+
 struct TemperatureControlSystemApplication {
+    zones: [ZoneType; 18],
     zone_controllers: [ZoneController; 18],
     hot_air_is_enabled: [bool; 2],
     hot_air_is_open: [bool; 2],
+    trim_air_monitoring: TrimAirMonitoring,
 
     failure: Failure,
 }
 impl TemperatureControlSystemApplication {
     fn new(cpiom_id: CpiomId, cabin_zones: &[ZoneType; 18]) -> Self {
         Self {
+            zones: *cabin_zones,
             zone_controllers: cabin_zones.map(ZoneController::new),
             hot_air_is_enabled: [false; 2],
             hot_air_is_open: [false; 2],
+            trim_air_monitoring: TrimAirMonitoring::default(),
 
             failure: Failure::new(FailureType::TcsApp(cpiom_id)),
         }
@@ -615,6 +665,8 @@ impl TemperatureControlSystemApplication {
             trim_air_drive_device.trim_air_pressure_regulating_valve_is_open(1),
             trim_air_drive_device.trim_air_pressure_regulating_valve_is_open(2),
         ];
+        self.trim_air_monitoring =
+            TrimAirMonitoring::from_zones(&self.zones, trim_air_drive_device);
     }
 
     fn should_close_taprv(&self) -> [bool; 2] {
@@ -1597,6 +1649,21 @@ impl CpiomBInterfaceUnit {
             .set_bit(15, cpiom.hot_air_is_open(Pack(1)));
         self.discrete_word_tcs
             .set_bit(16, cpiom.hot_air_is_open(Pack(2)));
+        let trim_air = cpiom.trim_air_monitoring();
+        self.discrete_word_tcs
+            .set_bit(17, trim_air.cockpit_duct_overheat);
+        self.discrete_word_tcs
+            .set_bit(18, trim_air.cabin_duct_overheat[0]);
+        self.discrete_word_tcs
+            .set_bit(19, trim_air.cabin_duct_overheat[1]);
+        self.discrete_word_tcs
+            .set_bit(20, trim_air.fwd_cargo_duct_overheat);
+        self.discrete_word_tcs
+            .set_bit(21, trim_air.cockpit_trim_air_valve_fault);
+        self.discrete_word_tcs
+            .set_bit(22, trim_air.cabin_trim_air_valve_fault);
+        self.discrete_word_tcs
+            .set_bit(23, trim_air.fwd_cargo_trim_air_valve_fault);
 
         if cpiom.vcs_has_fault() {
             self.discrete_word_vcs = Arinc429Word::new(0, SignStatus::FailureWarning);

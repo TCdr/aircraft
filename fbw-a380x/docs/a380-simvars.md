@@ -213,6 +213,13 @@
       | 14  | Hot Air 2 position disagrees                         |
       | 15  | Trim Air Pressure Regulating Valve 1 is open         |
       | 16  | Trim Air Pressure Regulating Valve 2 is open         |
+      | 17  | Cockpit duct overheat                                |
+      | 18  | Cabin duct overheat in a zone supplied by HOT AIR 1  |
+      | 19  | Cabin duct overheat in a zone supplied by HOT AIR 2  |
+      | 20  | Forward cargo duct overheat                          |
+      | 21  | Cockpit trim air valve fault (jammed)                |
+      | 22  | Cabin trim air valve fault (jammed, any zone)        |
+      | 23  | Forward cargo trim air valve fault (jammed)          |
 
 - A32NX_COND_CPIOM_B{id}_VCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -306,6 +313,23 @@
     - {id}
         - 1 or 2
 
+- A32NX_COND_{id}_DUCT_OVHT
+    - Bool
+    - True if the temperature controller detects a duct overheat in the zone: the duct temperature
+      (A32NX_COND_{id}_DUCT_TEMP) stays above 70 deg C; it stays true until the duct is back below
+      70 deg C with the HOT AIR pb supplying the zone set OFF (HOT AIR 2: CKPT and UPPER_DECK_x,
+      HOT AIR 1: MAIN_DECK_x and CARGO_FWD). Always false for CARGO_BULK (no trim air valve)
+    - {id}
+        - Same as A32NX_COND_{id}_TEMP
+
+- A32NX_COND_{id}_TRIM_AIR_VALVE_FAULT
+    - Bool
+    - True if the temperature controller finds the trim air valve of the zone jammed: its position
+      stays more than 10 % away from the command for more than 10 s. Clears when the valve moves
+      again. Always false for CARGO_BULK
+    - {id}
+        - Same as A32NX_COND_{id}_TEMP
+
 - A32NX_VENT_{id1}_VCM_CHANNEL_{id2}_FAILURE
     - Bool
     - True if the channel is failed
@@ -397,7 +421,8 @@
 
 - A32NX_OVHD_COND_HOT_AIR_{index}_PB_HAS_FAULT
     - Bool
-    - True if the hot air {1 or 2} trim system has a fault
+    - True if the hot air {1 or 2} trim system has a fault: a duct overheat in a zone supplied by
+      that hot-air valve (see A32NX_COND_{id}_DUCT_OVHT)
 
 - A32NX_OVHD_COND_RAM_AIR_PB_IS_ON
     - Bool

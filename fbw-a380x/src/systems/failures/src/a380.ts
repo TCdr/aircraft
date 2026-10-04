@@ -55,7 +55,8 @@ export const A380Failure = Object.freeze({
   CpcsApp3: 21048,
   CpcsApp4: 21049,
   // Ids 21050-21057 are mapped in a380_systems_wasm/src/lib.rs. A jammed trim air valve stays where it was when
-  // the failure was set; a duct overheat blows 200 deg C air into the zone duct while its hot-air valve is open.
+  // the failure was set; a duct overheat blows 200 deg C air into the zone duct while the hot-air valve supplying the
+  // zone is open (HOT AIR 2: cockpit and upper deck, HOT AIR 1: main deck and forward cargo, trim_air_drive_device.rs).
   CkptTrimAirValveJammed: 21050,
   MainDeck1TrimAirValveJammed: 21051,
   UpperDeck1TrimAirValveJammed: 21052,
