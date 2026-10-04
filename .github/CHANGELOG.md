@@ -228,6 +228,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A380X/ECAM] The ECP MORE key opens the STATUS MORE page (INOP SYS REDUND, CANCELLED CAUTION) again, and its light shows while that page is displayed - @TCdr
 
 ## 2024.1.0
 
