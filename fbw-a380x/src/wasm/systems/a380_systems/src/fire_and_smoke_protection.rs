@@ -2,7 +2,9 @@ use std::time::Duration;
 
 use systems::{
     accept_iterable,
-    failures::{Failure, FailureType},
+    fire_protection::{
+        FireDetectionUnit, FireDetectionZoneConfig, FireLoopPowerLoss, SetOnFireModule,
+    },
     overhead::{FirePushButton, MomentaryPushButton},
     shared::{
         arinc429::{Arinc429Word, SignStatus},
@@ -15,12 +17,24 @@ use systems::{
     },
 };
 
-use std::iter::zip;
+// The tests below set failures by their type
+#[cfg(test)]
+use systems::failures::FailureType;
+
+/// The A380 fire zones: ENG 1 to 4, APU, MLG bay
+const A380_FIRE_ZONES: [FireDetectionZone; 6] = [
+    FireDetectionZone::Engine(1),
+    FireDetectionZone::Engine(2),
+    FireDetectionZone::Engine(3),
+    FireDetectionZone::Engine(4),
+    FireDetectionZone::Apu,
+    FireDetectionZone::Mlg,
+];
 
 pub(super) struct A380FireAndSmokeProtection {
     a380_fire_protection_system: FireProtectionSystem,
     // a380_smoke_detection_function
-    set_zone_on_fire: SetOnFireModule,
+    set_zone_on_fire: SetOnFireModule<6, 9>,
 }
 
 impl A380FireAndSmokeProtection {
@@ -28,7 +42,13 @@ impl A380FireAndSmokeProtection {
         Self {
             a380_fire_protection_system: FireProtectionSystem::new(context),
 
-            set_zone_on_fire: SetOnFireModule::new(context),
+            // The 9 bottles of the FireExtinguishingSystem: two for each engine and one for the APU (zone 4). The MLG
+            // bay (zone 5) does not have a fire extinguishing system.
+            set_zone_on_fire: SetOnFireModule::new(
+                context,
+                A380_FIRE_ZONES,
+                [0, 0, 1, 1, 2, 2, 3, 3, 4],
+            ),
         }
     }
 
@@ -60,8 +80,13 @@ impl SimulationElement for A380FireAndSmokeProtection {
 }
 
 struct FireProtectionSystem {
-    fire_detection_unit: FireDetectionUnit,
+    fire_detection_unit: FireDetectionUnit<6>,
     fire_extinguishing_system: FireExtinguishingSystem,
+
+    // The FDU sends discrete signals to the overhead panel and arinc signals to the FWS
+    // Fixme: We assume a discrete word is sent, validate with references
+    discrete_word_id: VariableIdentifier,
+    discrete_word: Arinc429Word<u32>,
 
     fire_test_pushbutton_id: VariableIdentifier,
     fire_test_pushbutton_is_pressed: bool,
@@ -80,11 +105,28 @@ struct FireProtectionSystem {
 impl FireProtectionSystem {
     const DELAY_FIRE_TEST_MILLIS: Duration = Duration::from_millis(500);
     const FIRE_TEST_EXTENSION: Duration = Duration::from_secs(7);
+    const DELAY_APU_FIRE_EXTINGUISHING: Duration = Duration::from_secs(10);
 
     fn new(context: &mut InitContext) -> Self {
+        // Loop A is supplied by the DC ESS bus and loop B by the DC 2 bus, in every zone
+        let zones = A380_FIRE_ZONES.map(|zone| FireDetectionZoneConfig {
+            zone,
+            loop_a_powered_by: ElectricalBusType::DirectCurrentEssential,
+            loop_b_powered_by: ElectricalBusType::DirectCurrent(2),
+            additional_fire_source: None,
+        });
+
         Self {
-            fire_detection_unit: FireDetectionUnit::new(context),
+            fire_detection_unit: FireDetectionUnit::new(
+                context,
+                zones,
+                FireLoopPowerLoss::TransientBreak,
+                Self::DELAY_APU_FIRE_EXTINGUISHING,
+            ),
             fire_extinguishing_system: FireExtinguishingSystem::new(context),
+
+            discrete_word_id: context.get_identifier("FIRE_FDU_DISCRETE_WORD".to_owned()),
+            discrete_word: Arinc429Word::new(0, SignStatus::NoComputedData),
 
             fire_test_pushbutton_id: context
                 .get_identifier("OVHD_FIRE_TEST_PB_IS_PRESSED".to_owned()),
@@ -118,12 +160,38 @@ impl FireProtectionSystem {
             .update(context, self.fire_test_active);
         self.fire_detection_unit
             .update(context, self.fire_test_pushbutton_signal.output(), lgciu);
+        self.update_discrete_word();
         self.fire_extinguishing_system.update(
             context,
             engine_fire_push_buttons,
             self.fire_test_pushbutton_signal.output(),
             self.fire_detection_unit.should_extinguish_apu_fire(),
         )
+    }
+
+    fn update_discrete_word(&mut self) {
+        // TODO: Add electrical supply for FDU, when not powered it should return NCD
+        self.discrete_word = Arinc429Word::new(0, SignStatus::NormalOperation);
+
+        // Fixme: The bit order is assumed as no references
+        // Bits 11 to 16: FIRE ENG 1, ENG 2, ENG 3, ENG 4, APU, MLG
+        for (bit, &zone) in (11..).zip(&A380_FIRE_ZONES) {
+            self.discrete_word
+                .set_bit(bit, self.fire_detection_unit.fire_detected(zone));
+        }
+        // Bits 18 to 29: ENG 1 LOOP A has failed, ENG 1 LOOP B has failed, ENG 2 LOOP A, ..., MLG LOOP B
+        for (loop_a_bit, &zone) in (18..).step_by(2).zip(&A380_FIRE_ZONES) {
+            self.discrete_word.set_bit(
+                loop_a_bit,
+                self.fire_detection_unit
+                    .loop_has_failed(FireDetectionLoopID::A, zone),
+            );
+            self.discrete_word.set_bit(
+                loop_a_bit + 1,
+                self.fire_detection_unit
+                    .loop_has_failed(FireDetectionLoopID::B, zone),
+            );
+        }
     }
 
     fn apu_fire_on_ground(&self) -> bool {
@@ -143,6 +211,7 @@ impl SimulationElement for FireProtectionSystem {
 
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.fire_test_active_id, self.fire_test_active);
+        writer.write(&self.discrete_word_id, self.discrete_word);
     }
 
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -150,375 +219,6 @@ impl SimulationElement for FireProtectionSystem {
         self.fire_extinguishing_system.accept(visitor);
 
         visitor.visit(self);
-    }
-}
-
-struct FireDetectionUnit {
-    fire_detection_loop: [FireDetectionLoop; 2],
-
-    fire_detected_id: [VariableIdentifier; 6],
-
-    fire_detected: [bool; 6],
-    fire_detection_zones: [FireDetectionZone; 6],
-    interval_between_loop_failures: [Duration; 6],
-    apu_fire_on_ground: bool,
-    should_extinguish_apu_fire: DelayedTrueLogicGate,
-
-    // The FDU sends discrete signals to the overhead panel and arinc signals to the FWS
-    // Fixme: We assume a discrete word is sent, validate with references
-    discrete_word_id: VariableIdentifier,
-    discrete_word: Arinc429Word<u32>,
-}
-
-impl FireDetectionUnit {
-    const DELAY_APU_FIRE_EXTINGUISHING: Duration = Duration::from_secs(10);
-
-    fn new(context: &mut InitContext) -> Self {
-        let fire_detection_zones = [
-            FireDetectionZone::Engine(1),
-            FireDetectionZone::Engine(2),
-            FireDetectionZone::Engine(3),
-            FireDetectionZone::Engine(4),
-            FireDetectionZone::Apu,
-            FireDetectionZone::Mlg,
-        ];
-
-        Self {
-            fire_detection_loop: [
-                FireDetectionLoop::new(
-                    context,
-                    FireDetectionLoopID::A,
-                    &fire_detection_zones,
-                    ElectricalBusType::DirectCurrentEssential,
-                ),
-                FireDetectionLoop::new(
-                    context,
-                    FireDetectionLoopID::B,
-                    &fire_detection_zones,
-                    ElectricalBusType::DirectCurrent(2),
-                ),
-            ],
-
-            fire_detected_id: fire_detection_zones.map(|zone| Self::init_identifier(context, zone)),
-
-            fire_detected: [false; 6],
-            fire_detection_zones,
-            interval_between_loop_failures: [Duration::ZERO; 6],
-            apu_fire_on_ground: false,
-            should_extinguish_apu_fire: DelayedTrueLogicGate::new(
-                Self::DELAY_APU_FIRE_EXTINGUISHING,
-            ),
-
-            discrete_word_id: context.get_identifier("FIRE_FDU_DISCRETE_WORD".to_owned()),
-            discrete_word: Arinc429Word::new(0, SignStatus::NoComputedData),
-        }
-    }
-
-    fn init_identifier(
-        context: &mut InitContext,
-        zone_id: FireDetectionZone,
-    ) -> VariableIdentifier {
-        if matches!(zone_id, FireDetectionZone::Engine(_)) {
-            context.get_identifier(format!("FIRE_DETECTED_ENG{}", zone_id))
-        } else {
-            context.get_identifier(format!("FIRE_DETECTED_{}", zone_id))
-        }
-    }
-
-    fn update(
-        &mut self,
-        context: &UpdateContext,
-        fire_test_pushbutton_is_pressed: bool,
-        lgciu: [&impl LgciuWeightOnWheels; 2],
-    ) {
-        self.interval_between_loop_failures = self.calculate_interval_between_failures(context);
-
-        self.fire_detected = self.fire_detection_determination(fire_test_pushbutton_is_pressed);
-
-        self.fire_detection_loop
-            .iter_mut()
-            .for_each(|l| l.update_was_powered());
-
-        // If a fire is detected in the APU while the aircraft is on the ground, the extinguishim system is automatically activated after a delay
-        self.apu_fire_on_ground = self.fire_detected[4]
-            && !fire_test_pushbutton_is_pressed
-            && lgciu.iter().all(|a| a.left_and_right_gear_compressed(true));
-        self.should_extinguish_apu_fire
-            .update(context, self.apu_fire_on_ground);
-
-        self.update_discrete_word();
-    }
-
-    fn fire_detection_determination(&self, fire_test_pb: bool) -> [bool; 6] {
-        let mut fire_detected = [false; 6];
-        for ((&zone, &interval_between_loop_failures), fire_detected) in self
-            .fire_detection_zones
-            .iter()
-            .zip(&self.interval_between_loop_failures)
-            .zip(&mut fire_detected)
-        {
-            *fire_detected = (self.fire_detection_loop[0]
-                .fire_detected_in_loop(zone, fire_test_pb)
-                && self.fire_detection_loop[1].fire_detected_in_loop(zone, fire_test_pb))
-                || (self
-                    .fire_detection_loop
-                    .iter()
-                    .any(|l| l.fire_detected_in_loop(zone, fire_test_pb))
-                    && self
-                        .fire_detection_loop
-                        .iter()
-                        .any(|l| l.loop_has_failed(zone)))
-                || (self
-                    .fire_detection_loop
-                    .iter()
-                    .all(|l| l.loop_has_failed(zone))
-                    && interval_between_loop_failures < Duration::from_secs(5)
-                    && zone != FireDetectionZone::Mlg);
-        }
-        fire_detected
-    }
-
-    fn calculate_interval_between_failures(&self, context: &UpdateContext) -> [Duration; 6] {
-        let mut interval = [Duration::ZERO; 6];
-        for ((&zone, &interval_between_loop_failures), interval) in self
-            .fire_detection_zones
-            .iter()
-            .zip(&self.interval_between_loop_failures)
-            .zip(&mut interval)
-        {
-            *interval = if self
-                .fire_detection_loop
-                .iter()
-                .all(|l| !l.loop_has_failed(zone))
-            {
-                Duration::ZERO
-            } else if self
-                .fire_detection_loop
-                .iter()
-                .all(|l| l.loop_has_failed(zone))
-            {
-                interval_between_loop_failures
-            } else {
-                interval_between_loop_failures + context.delta()
-            }
-        }
-        interval
-    }
-
-    fn should_extinguish_apu_fire(&self) -> bool {
-        self.should_extinguish_apu_fire.output()
-    }
-
-    fn apu_fire_on_ground(&self) -> bool {
-        self.apu_fire_on_ground
-    }
-
-    fn update_discrete_word(&mut self) {
-        // TODO: Add electrical supply for FDU, when not powered it should return NCD
-        self.discrete_word = Arinc429Word::new(0, SignStatus::NormalOperation);
-
-        // Fixme: The bit order is assumed as no references
-        self.discrete_word.set_bit(11, self.fire_detected[0]); // FIRE ENG 1
-        self.discrete_word.set_bit(12, self.fire_detected[1]); // FIRE ENG 2
-        self.discrete_word.set_bit(13, self.fire_detected[2]); // FIRE ENG 3
-        self.discrete_word.set_bit(14, self.fire_detected[3]); // FIRE ENG 4
-        self.discrete_word.set_bit(15, self.fire_detected[4]); // FIRE APU
-        self.discrete_word.set_bit(16, self.fire_detected[5]); // FIRE MLG
-        self.discrete_word.set_bit(
-            18,
-            self.fire_detection_loop[0].loop_has_failed(FireDetectionZone::Engine(1)),
-        ); // ENG 1 LOOP A has failed
-        self.discrete_word.set_bit(
-            19,
-            self.fire_detection_loop[1].loop_has_failed(FireDetectionZone::Engine(1)),
-        ); // ENG 1 LOOP B has failed
-        self.discrete_word.set_bit(
-            20,
-            self.fire_detection_loop[0].loop_has_failed(FireDetectionZone::Engine(2)),
-        ); // ENG 2 LOOP A has failed
-        self.discrete_word.set_bit(
-            21,
-            self.fire_detection_loop[1].loop_has_failed(FireDetectionZone::Engine(2)),
-        ); // ENG 2 LOOP B has failed
-        self.discrete_word.set_bit(
-            22,
-            self.fire_detection_loop[0].loop_has_failed(FireDetectionZone::Engine(3)),
-        ); // ENG 3 LOOP A has failed
-        self.discrete_word.set_bit(
-            23,
-            self.fire_detection_loop[1].loop_has_failed(FireDetectionZone::Engine(3)),
-        ); // ENG 3 LOOP B has failed
-        self.discrete_word.set_bit(
-            24,
-            self.fire_detection_loop[0].loop_has_failed(FireDetectionZone::Engine(4)),
-        ); // ENG 4 LOOP A has failed
-        self.discrete_word.set_bit(
-            25,
-            self.fire_detection_loop[1].loop_has_failed(FireDetectionZone::Engine(4)),
-        ); // ENG 4 LOOP B has failed
-        self.discrete_word.set_bit(
-            26,
-            self.fire_detection_loop[0].loop_has_failed(FireDetectionZone::Apu),
-        ); // APU LOOP A has failed
-        self.discrete_word.set_bit(
-            27,
-            self.fire_detection_loop[1].loop_has_failed(FireDetectionZone::Apu),
-        ); // APU LOOP B has failed
-        self.discrete_word.set_bit(
-            28,
-            self.fire_detection_loop[0].loop_has_failed(FireDetectionZone::Mlg),
-        ); // MLG LOOP A has failed
-        self.discrete_word.set_bit(
-            29,
-            self.fire_detection_loop[1].loop_has_failed(FireDetectionZone::Mlg),
-        ); // MLG LOOP B has failed
-    }
-}
-
-impl SimulationElement for FireDetectionUnit {
-    fn write(&self, writer: &mut SimulatorWriter) {
-        for (id, fire_detected) in self.fire_detected_id.iter().zip(self.fire_detected) {
-            writer.write(id, fire_detected);
-        }
-        writer.write(&self.discrete_word_id, self.discrete_word);
-    }
-
-    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
-        accept_iterable!(self.fire_detection_loop, visitor);
-
-        visitor.visit(self);
-    }
-}
-
-struct FireDetectionLoop {
-    loop_id: FireDetectionLoopID,
-    powered_by: ElectricalBusType,
-    is_powered: bool,
-    was_powered_before: bool,
-    failures: [Failure; 6],
-
-    fire_detectors: [FireDetector; 6],
-}
-
-impl FireDetectionLoop {
-    fn new(
-        context: &mut InitContext,
-        loop_id: FireDetectionLoopID,
-        fire_detection_zones: &[FireDetectionZone; 6],
-        powered_by: ElectricalBusType,
-    ) -> Self {
-        Self {
-            loop_id,
-            powered_by,
-            is_powered: false,
-            was_powered_before: false,
-            failures: fire_detection_zones
-                .map(|zone| Failure::new(FailureType::FireDetectionLoop(loop_id, zone))),
-
-            fire_detectors: fire_detection_zones.map(|zone| FireDetector::new(context, zone)),
-        }
-    }
-
-    fn fire_detected_in_loop(
-        &self,
-        fire_detection_zone: FireDetectionZone,
-        fire_test_pushbutton_is_pressed: bool,
-    ) -> bool {
-        let failure = self
-            .failures
-            .iter()
-            .find(|&f| {
-                f.failure_type()
-                    == FailureType::FireDetectionLoop(self.loop_id, fire_detection_zone)
-            })
-            .unwrap();
-
-        !failure.is_active()
-            && self.is_powered
-            && (self
-                .fire_detectors
-                .iter()
-                .find(|detector| fire_detection_zone == detector.zone_id())
-                .unwrap()
-                .fire_detected()
-                || fire_test_pushbutton_is_pressed)
-    }
-
-    fn loop_has_failed(&self, fire_detection_zone: FireDetectionZone) -> bool {
-        let failure = self
-            .failures
-            .iter()
-            .find(|&f| {
-                f.failure_type()
-                    == FailureType::FireDetectionLoop(self.loop_id, fire_detection_zone)
-            })
-            .unwrap();
-
-        failure.is_active() || (!self.is_powered && self.was_powered_before)
-    }
-
-    /// This is to avoid a fire detection on initial load
-    fn update_was_powered(&mut self) {
-        self.was_powered_before = self.is_powered
-    }
-}
-
-impl SimulationElement for FireDetectionLoop {
-    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
-        accept_iterable!(self.failures, visitor);
-        accept_iterable!(self.fire_detectors, visitor);
-        visitor.visit(self);
-    }
-
-    fn receive_power(&mut self, buses: &impl ElectricalBuses) {
-        self.is_powered = buses.is_powered(self.powered_by);
-    }
-}
-
-// Electro-pneumatic fire detectors. There are multiple detectors in 3 fire zones per engine, one per pylon, one in the APU and one in the MLG
-// For simplicity here we simulate just one detection zone per engine, when we have deep engine simulation we can modify this accordingly
-struct FireDetector {
-    zone_id: FireDetectionZone,
-
-    fire_detection_id: VariableIdentifier,
-    fire_detected: bool,
-}
-
-impl FireDetector {
-    const ENGINE_ON_FIRE: &'static str = "ENG ON FIRE:";
-
-    fn new(context: &mut InitContext, fire_zone_id: FireDetectionZone) -> Self {
-        Self {
-            zone_id: fire_zone_id,
-
-            fire_detection_id: Self::init_identifier(context, fire_zone_id),
-            fire_detected: false,
-        }
-    }
-
-    fn init_identifier(
-        context: &mut InitContext,
-        zone_id: FireDetectionZone,
-    ) -> VariableIdentifier {
-        if matches!(zone_id, FireDetectionZone::Engine(_)) {
-            context.get_identifier(format!("{}{}", Self::ENGINE_ON_FIRE, zone_id))
-        } else {
-            context.get_identifier(format!("{}_ON_FIRE", zone_id))
-        }
-    }
-
-    fn zone_id(&self) -> FireDetectionZone {
-        self.zone_id
-    }
-
-    fn fire_detected(&self) -> bool {
-        self.fire_detected
-    }
-}
-
-impl SimulationElement for FireDetector {
-    fn read(&mut self, reader: &mut SimulatorReader) {
-        self.fire_detected = reader.read(&self.fire_detection_id);
     }
 }
 
@@ -714,124 +414,6 @@ impl SimulationElement for ExtinguishingAgentBottle {
 
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
         self.is_powered = self.powered_by.iter().any(|&p| buses.is_powered(p));
-    }
-}
-
-/// Small module that sets each zone on fire when the failure is triggered. This is independent to the system implementation.
-struct SetOnFireModule {
-    fire_id: [VariableIdentifier; 6],
-
-    fire: [Failure; 6],
-    should_set_zone_on_fire: [bool; 6],
-    should_extinguish_zone: [bool; 6],
-    // We use this to avoid having a previously discharged bottle extinguish a fire
-    bottle_already_discharged: [bool; 9],
-    // We use this to know when to cancel the fire command when the failure is resolved
-    was_on_fire: [bool; 6],
-}
-
-impl SetOnFireModule {
-    fn new(context: &mut InitContext) -> Self {
-        Self {
-            fire_id: [
-                context.get_identifier(format!("ENG_{}_ON_FIRE", 1)),
-                context.get_identifier(format!("ENG_{}_ON_FIRE", 2)),
-                context.get_identifier(format!("ENG_{}_ON_FIRE", 3)),
-                context.get_identifier(format!("ENG_{}_ON_FIRE", 4)),
-                context.get_identifier("APU_ON_FIRE".to_owned()),
-                context.get_identifier("MLG_ON_FIRE".to_owned()),
-            ],
-
-            fire: [
-                Failure::new(FailureType::SetOnFire(FireDetectionZone::Engine(1))),
-                Failure::new(FailureType::SetOnFire(FireDetectionZone::Engine(2))),
-                Failure::new(FailureType::SetOnFire(FireDetectionZone::Engine(3))),
-                Failure::new(FailureType::SetOnFire(FireDetectionZone::Engine(4))),
-                Failure::new(FailureType::SetOnFire(FireDetectionZone::Apu)),
-                Failure::new(FailureType::SetOnFire(FireDetectionZone::Mlg)),
-            ],
-            should_set_zone_on_fire: [false; 6],
-            should_extinguish_zone: [false; 6],
-            bottle_already_discharged: [false; 9],
-            was_on_fire: [false; 6],
-        }
-    }
-
-    fn update(&mut self, bottle_discharge: [bool; 9]) {
-        for id in 0..6 {
-            self.should_set_zone_on_fire[id] = self.fire[id].is_active()
-                && !self.should_set_zone_on_fire[id]
-                && !self.was_on_fire[id]
-        }
-
-        self.should_extinguish_zone = self.zone_extinguishing_determination(bottle_discharge);
-        self.bottle_already_discharged = bottle_discharge;
-        self.was_on_fire = self
-            .fire
-            .iter()
-            .map(|f| f.is_active())
-            .collect::<Vec<bool>>()
-            .try_into()
-            .unwrap_or_else(|v: Vec<bool>| {
-                panic!("Expected a Vec of length {} but it was {}", 6, v.len())
-            });
-    }
-
-    /// We check any "new" bottle discharges and then add a random factor on whether it should extinguish a fire
-    /// We also use this function to "extinguish" a fire if the user deselects the failure
-    fn zone_extinguishing_determination(&self, bottle_discharge: [bool; 9]) -> [bool; 6] {
-        [
-            (zip(
-                bottle_discharge[..2].iter(),
-                self.bottle_already_discharged[..2].iter(),
-            )
-            .any(|(discharge, already_discharged)| *discharge && !already_discharged)
-                && rand::random())
-                || (self.was_on_fire[0] && !self.fire[0].is_active()),
-            (zip(
-                bottle_discharge[2..4].iter(),
-                self.bottle_already_discharged[2..4].iter(),
-            )
-            .any(|(discharge, already_discharged)| *discharge && !already_discharged)
-                && rand::random())
-                || (self.was_on_fire[1] && !self.fire[1].is_active()),
-            (zip(
-                bottle_discharge[4..6].iter(),
-                self.bottle_already_discharged[4..6].iter(),
-            )
-            .any(|(discharge, already_discharged)| *discharge && !already_discharged)
-                && rand::random())
-                || (self.was_on_fire[2] && !self.fire[2].is_active()),
-            (zip(
-                bottle_discharge[6..8].iter(),
-                self.bottle_already_discharged[6..8].iter(),
-            )
-            .any(|(discharge, already_discharged)| *discharge && !already_discharged)
-                && rand::random())
-                || (self.was_on_fire[3] && !self.fire[3].is_active()),
-            (bottle_discharge[8] && !self.bottle_already_discharged[8] && rand::random())
-                || (self.was_on_fire[4] && !self.fire[4].is_active()),
-            // MLG does not have a fire extinguishing system
-            false,
-        ]
-    }
-}
-
-impl SimulationElement for SetOnFireModule {
-    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
-        accept_iterable!(self.fire, visitor);
-
-        visitor.visit(self);
-    }
-
-    fn write(&self, writer: &mut SimulatorWriter) {
-        for (id, zone) in self.fire_id.iter().enumerate() {
-            if self.should_set_zone_on_fire[id] {
-                writer.write(zone, true)
-            } else if self.should_extinguish_zone[id] {
-                writer.write(zone, false)
-            }
-        }
     }
 }
 
