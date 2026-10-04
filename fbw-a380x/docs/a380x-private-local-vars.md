@@ -236,6 +236,12 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
     - Indicates that the MFD displays a recorded message on the MSG RECORD/ZOOM page (the other MFD then cannot erase
       the recorded messages: MSG RECORD USED OFFSIDE).
 
+- `L:A32NX_NSS_ANSU_{1,2}_IS_HEALTHY`, `L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY`
+    - Boolean
+    - The NSS AVNCS ANSU 1/2 and the FLT OPS ANSU are powered, not failed (46001, 46002, 46003), not reset and the NSS
+      master is on. The NSS AVNCS applications run while either NSS AVNCS ANSU is healthy (ANSU 2 takes over from
+      ANSU 1).
+
 ## Sim Specific
 
 ### Local Vars

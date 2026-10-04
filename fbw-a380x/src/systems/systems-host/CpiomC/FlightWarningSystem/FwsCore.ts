@@ -78,6 +78,8 @@ import { FuelSystemEvents } from '../../../instruments/src/MsfsAvionicsCommon/pr
 // FIXME should not import from instruments
 import { FmsMessageVars } from '../../../instruments/src/MsfsAvionicsCommon/providers/FmsMessagePublisher';
 import { FwsSystemDisplayLogic } from './FwsSystemDisplayLogic';
+import { splitSurvFaults, tcasFaultCondition, xpdrFaultCondition, XpdrTcasSwitchLine } from './FwsSurvAlerts';
+import { isTcasInoperative, selectedSurvSystem, SurvSystem } from '../../Misc/Communications/TransponderSystem';
 import { FwsInopSys, FwsInopSysPhases } from './FwsInopSys';
 import { FwsInformation } from './FwsInformation';
 import { FwsLimitations, FwsLimitationsPhases } from './FwsLimitations';
@@ -826,6 +828,10 @@ export class FwsCore {
 
   public readonly ac4BusPowered = Subject.create(false);
 
+  /**
+   * The A380 AC ESS busbar (400XP, the AC_ESS_SHED variable). FCOM ELEC AC ESS BUS FAULT (a380_fcom.txt:139230,
+   * 139270-139286): ADR 1, XPDR/TCAS 1, WXR/TAWS 1, RA SYS C, PACK 1 CTL 1 and PACK 2 CTL 1 are lost with it.
+   */
   public readonly acESSBusPowered = Subject.create(false);
 
   public readonly dcESSBusPowered = Subject.create(false);
@@ -1861,6 +1867,42 @@ export class FwsCore {
   public readonly xpdrAltReporting = Subject.create(false);
 
   public readonly tcasInop = Subject.create(false);
+
+  /** The XPDR & TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM) */
+  public readonly xpdrTcasSystem = Subject.create<SurvSystem>(1);
+
+  /** XPDR 1 failed (failure 34003) or unpowered (AC ESS), published by the systems host transponder */
+  public readonly xpdr1Failed = Subject.create(false);
+
+  /** XPDR 2 failed (failure 34004) or unpowered (AC 4), published by the systems host transponder */
+  public readonly xpdr2Failed = Subject.create(false);
+
+  /** TCAS of SURV SYS 1 inoperative: XPDR 1 failed, or SYS 1 selected and the (single) sim TCAS computer faulty */
+  public readonly tcas1Inop = Subject.create(false);
+
+  /** TCAS of SURV SYS 2 inoperative: XPDR 2 failed, or SYS 2 selected and the (single) sim TCAS computer faulty */
+  public readonly tcas2Inop = Subject.create(false);
+
+  /** SURV XPDR 1 FAULT (A380 FCOM a380_fcom.txt:167281-167322) */
+  public readonly xpdr1Fault = Subject.create(false);
+
+  /** SURV XPDR 2 FAULT (A380 FCOM a380_fcom.txt:167281-167322) */
+  public readonly xpdr2Fault = Subject.create(false);
+
+  /** SURV XPDR 1+2 FAULT (A380 FCOM a380_fcom.txt:167324-167362) */
+  public readonly xpdr1And2Fault = Subject.create(false);
+
+  /** The XPDR & TCAS ..... SYS 2 line of SURV TCAS 1 FAULT */
+  public readonly tcas1SwitchLine = new XpdrTcasSwitchLine(1);
+
+  /** The XPDR & TCAS ..... SYS 1 line of SURV TCAS 2 FAULT */
+  public readonly tcas2SwitchLine = new XpdrTcasSwitchLine(2);
+
+  /** The XPDR & TCAS ..... SYS 2 line of SURV XPDR 1 FAULT */
+  public readonly xpdr1SwitchLine = new XpdrTcasSwitchLine(1);
+
+  /** The XPDR & TCAS ..... SYS 1 line of SURV XPDR 2 FAULT */
+  public readonly xpdr2SwitchLine = new XpdrTcasSwitchLine(2);
 
   public readonly tcas1Fault = Subject.create(false);
 
@@ -3115,7 +3157,8 @@ export class FwsCore {
     this.ac3BusPowered.set(SimVar.GetSimVarValue('L:A32NX_ELEC_AC_3_BUS_IS_POWERED', 'bool') > 0);
     this.ac4BusPowered.set(SimVar.GetSimVarValue('L:A32NX_ELEC_AC_4_BUS_IS_POWERED', 'bool') > 0);
     this.dc1BusPowered.set(SimVar.GetSimVarValue('L:A32NX_ELEC_DC_1_BUS_IS_POWERED', 'bool') > 0);
-    this.acESSBusPowered.set(SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', 'bool') > 0);
+    // AC_ESS_SHED = the A380 AC ESS busbar 400XP (AC_ESS is the AC EMER busbar 491XP)
+    this.acESSBusPowered.set(SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', 'bool') > 0);
     this.dc108PhBusPowered.set(SimVar.GetSimVarValue('L:A32NX_ELEC_108PH_BUS_IS_POWERED', 'Bool') > 0);
     this.dcEhaPowered.set(SimVar.GetSimVarValue('L:A32NX_ELEC_247PP_BUS_IS_POWERED', 'Bool') > 0);
     this.elecGalleyOff.set(!SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_GALY_AND_CAB_PB_IS_AUTO', 'bool')); // FIXME elecGalleyOff and elecPaxSysOff currently use same simvar as buttons are linked
@@ -5162,15 +5205,27 @@ export class FwsCore {
         : transponder1State === 5 || transponder1State === 4,
     ); // mode S or mode C
 
-    this.tcasInop.set(SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', 'bool'));
-    const tcasFaulty = SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', 'bool');
+    // The single sim TCAS computer is the TCAS of the selected system; it also reports a fault when the XPDR of the
+    // selected system is failed (LegacyTcasComputer).
+    const tcasFaulty = SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', 'bool') > 0;
+    this.tcasInop.set(tcasFaulty);
     const tcasMode = SimVar.GetSimVarValue('L:A32NX_TCAS_MODE', 'Enum');
 
     this.tcasTaOnly.set(tcasMode === 1);
     this.tcasTaRa.set(tcasMode === 2);
     const tcasStandby = tcasMode === 0;
 
-    // FIX ME Verify no XPDR fault once implemented
+    // Per-system XPDR and TCAS state. A380 FCOM SURV XPDR 1(2) FAULT (a380_fcom.txt:167311-167322): a failed XPDR
+    // 1(2) makes TCAS 1(2) inoperative too.
+    this.xpdrTcasSystem.set(selectedSurvSystem(SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number')));
+    const xpdrTcasSystem = this.xpdrTcasSystem.get();
+    this.xpdr1Failed.set(SimVar.GetSimVarValue('L:A32NX_XPDR_1_FAILED', 'bool') > 0);
+    this.xpdr2Failed.set(SimVar.GetSimVarValue('L:A32NX_XPDR_2_FAILED', 'bool') > 0);
+    this.tcas1Inop.set(isTcasInoperative(1, xpdrTcasSystem, this.xpdr1Failed.get(), tcasFaulty));
+    this.tcas2Inop.set(isTcasInoperative(2, xpdrTcasSystem, this.xpdr2Failed.get(), tcasFaulty));
+
+    // TCAS STBY needs the TCAS not faulty (a380_fcom.txt:166975): the sim TCAS fault includes the XPDR of the
+    // selected system failed.
     this.tcasStandby3sConfNode.write(!tcasFaulty && tcasStandby, deltaTime);
     this.tcasStandbyMemo3sConfNode.write(tcasStandby, deltaTime);
     this.tcasStandby.set(this.tcasStandby3sConfNode.read() && flightPhase8);
@@ -5189,12 +5244,21 @@ export class FwsCore {
 
     this.tcas1AdrInopOrIrConfNode.write(oneUsedLeftAdrInop || oneLeftUsedIrInop || leftIrFaultyOrInAlign, deltaTime);
     this.tcas1FaultAndNoAdiruInop.write(
-      tcasFaulty && !(flightPhase112 && this.tcas1AdrInopOrIrConfNode.read()),
+      this.tcas1Inop.get() && !(flightPhase112 && this.tcas1AdrInopOrIrConfNode.read()),
       deltaTime,
     );
-    this.tcas1FaultCond.set(!allRaInvalid && this.acESSBusPowered.get() && this.tcas1FaultAndNoAdiruInop.read());
+    // SURV SYS 1 is on AC ESS (a380_fcom.txt:92741): with AC ESS lost, ELEC AC ESS BUS FAULT lists TCAS 1 itself
+    this.tcas1FaultCond.set(
+      tcasFaultCondition(
+        1,
+        this.tcas1FaultAndNoAdiruInop.read(),
+        allRaInvalid,
+        this.acESSBusPowered.get(),
+        this.ac4BusPowered.get(),
+      ),
+    );
 
-    // TCAS FAULT SYS 2 FIXME: Replace with proper independent TCAS fault var once implemented as only one system exists currently
+    // TCAS fault SYS 2
     const oneUsedRightAdrInop =
       (adr2Fault &&
         (adr2PressureAltitude.isFailureWarning() || adr2PressureAltitude.isNoComputedData()) &&
@@ -5210,14 +5274,39 @@ export class FwsCore {
 
     this.tcas2AdrInopOrIrConfNode.write(oneUsedRightAdrInop || oneUsedRightIrInop || rightIrFaultyOrInAlign, deltaTime);
     this.tcas2FaultAndNoAdiruInop.write(
-      tcasFaulty && !(flightPhase112 && this.tcas2AdrInopOrIrConfNode.read()),
+      this.tcas2Inop.get() && !(flightPhase112 && this.tcas2AdrInopOrIrConfNode.read()),
       deltaTime,
     );
-    this.tcas2FaultCond.set(!allRaInvalid && this.ac2BusPowered.get() && this.tcas2FaultAndNoAdiruInop.read());
+    // SURV SYS 2 is on AC 4 (a380_fcom.txt:92743)
+    this.tcas2FaultCond.set(
+      tcasFaultCondition(
+        2,
+        this.tcas2FaultAndNoAdiruInop.read(),
+        allRaInvalid,
+        this.acESSBusPowered.get(),
+        this.ac4BusPowered.get(),
+      ),
+    );
 
-    this.tcas1Fault.set(this.tcas1FaultCond.get() && !this.tcas2FaultCond.get());
-    this.tcas2Fault.set(this.tcas2FaultCond.get() && !this.tcas1FaultCond.get());
-    this.tcas1And2Fault.set(this.tcas1FaultCond.get() && this.tcas2FaultCond.get());
+    const tcasAlerts = splitSurvFaults(this.tcas1FaultCond.get(), this.tcas2FaultCond.get());
+    this.tcas1Fault.set(tcasAlerts.sys1);
+    this.tcas2Fault.set(tcasAlerts.sys2);
+    this.tcas1And2Fault.set(tcasAlerts.sys1And2);
+
+    // XPDR faults (a380_fcom.txt:167281-167362), not when the XPDR is only lost with its busbar (ELEC alerts)
+    const xpdrAlerts = splitSurvFaults(
+      xpdrFaultCondition(1, this.xpdr1Failed.get(), this.acESSBusPowered.get(), this.ac4BusPowered.get()),
+      xpdrFaultCondition(2, this.xpdr2Failed.get(), this.acESSBusPowered.get(), this.ac4BusPowered.get()),
+    );
+    this.xpdr1Fault.set(xpdrAlerts.sys1);
+    this.xpdr2Fault.set(xpdrAlerts.sys2);
+    this.xpdr1And2Fault.set(xpdrAlerts.sys1And2);
+
+    // XPDR & TCAS ..... SYS 2(1): if selected on the failed system and the other XPDR/TCAS (XPDR) is operative
+    this.tcas1SwitchLine.update(this.tcas1Fault.get(), xpdrTcasSystem, !this.tcas2Inop.get());
+    this.tcas2SwitchLine.update(this.tcas2Fault.get(), xpdrTcasSystem, !this.tcas1Inop.get());
+    this.xpdr1SwitchLine.update(this.xpdr1Fault.get(), xpdrTcasSystem, !this.xpdr2Failed.get());
+    this.xpdr2SwitchLine.update(this.xpdr2Fault.get(), xpdrTcasSystem, !this.xpdr1Failed.get());
     const isNormalLaw = fcdc1DiscreteWord1.bitValue(11) || fcdc2DiscreteWord1.bitValue(11);
     // we need to check this since the MSFS SDK stall warning does not.
     const isCasAbove60 =
