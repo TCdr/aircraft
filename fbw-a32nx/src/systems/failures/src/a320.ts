@@ -80,6 +80,14 @@ export const A320Failure = Object.freeze({
   Fcdc1Failure: 27005,
   Fcdc2Failure: 27006,
 
+  // ATA 28 (systems-host Fuel/FuelPumpsAndValves): a pump failure holds the MSFS pump switch off, the X FEED valve jam
+  // holds the MSFS valve switch where the valve was, while the pb-sw selections still change
+  LeftTankPump1: 28000,
+  LeftTankPump2: 28001,
+  RightTankPump1: 28002,
+  RightTankPump2: 28003,
+  CrossFeedValveJammed: 28004,
+
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
   YellowReservoirLeak: 29002,
@@ -221,6 +229,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [27, A320Failure.Sec3Failure, 'SEC 3'],
   [27, A320Failure.Fcdc1Failure, 'FCDC 1'],
   [27, A320Failure.Fcdc2Failure, 'FCDC 2'],
+
+  [28, A320Failure.LeftTankPump1, 'L TK pump 1'],
+  [28, A320Failure.LeftTankPump2, 'L TK pump 2'],
+  [28, A320Failure.RightTankPump1, 'R TK pump 1'],
+  [28, A320Failure.RightTankPump2, 'R TK pump 2'],
+  [28, A320Failure.CrossFeedValveJammed, 'X FEED valve jammed in place'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],
