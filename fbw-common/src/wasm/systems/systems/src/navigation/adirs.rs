@@ -1742,7 +1742,9 @@ impl InertialReference {
 
     const WIND_VELOCITY_TIME_CONSTANT: Duration = Duration::from_millis(100);
     const QUICK_REALIGN_AVAILABLE_TIME: Duration = Duration::from_secs(5);
-    const QUICK_REALIGN_ALIGN_TIME: Duration = Duration::from_secs(180);
+    // Fast alignment (mode selector OFF then NAV within 5 s): "A fast alignment takes 30 s"
+    // (A320 FCOM DSC-22_20-20-40, A380 FCOM DSC-34-10-30-30 "It takes about 30 s").
+    const QUICK_REALIGN_ALIGN_TIME: Duration = Duration::from_secs(30);
     const ALIGNMENT_VELOCITY_TIME_CONSTANT: Duration = Duration::from_millis(500);
     const MAX_ALIGNMENT_VELOCITY_FPS: f64 = 0.011;
     const MAX_LATITUDE_FOR_ALIGNMENT: f64 = 82.;
@@ -3635,7 +3637,7 @@ mod tests {
     fn adirs_aligns_in_90_seconds_when_configured_align_time_is_fast(#[case] adiru_number: usize) {
         // TODO: Once the ADIRUs are split, this unit test needs to be modified to test all
         // ADIRUs individually.
-        let mut test_bed = test_bed_with()
+        let mut test_bed = all_adirus_unaligned_test_bed_with()
             .align_time_configured_as(AlignTime::Fast)
             .and()
             .ir_mode_selector_set_to(adiru_number, InertialReferenceMode::Navigation);
@@ -3814,7 +3816,8 @@ mod tests {
 
         let alignment_time = test_bed.remaining_alignment_time();
 
-        assert!(alignment_time <= Duration::from_secs(180));
+        // FCOM: a fast alignment takes 30 s.
+        assert!(alignment_time <= Duration::from_secs(30));
     }
 
     #[rstest]
@@ -4577,7 +4580,7 @@ mod tests {
         fn in_nav_mode_attitude_is_available_28_seconds_after_alignment_began(
             #[case] adiru_number: usize,
         ) {
-            let mut test_bed = test_bed_with()
+            let mut test_bed = all_adirus_unaligned_test_bed_with()
                 .ir_mode_selector_set_to(adiru_number, InertialReferenceMode::Navigation);
             test_bed.run_without_delta();
 
@@ -4828,7 +4831,7 @@ mod tests {
         fn true_heading_is_normal_when_remaining_align_is_less_than_two_minutes(
             #[case] adiru_number: usize,
         ) {
-            let mut test_bed = test_bed_with()
+            let mut test_bed = all_adirus_unaligned_test_bed_with()
                 .realistic_navigation_align_until(adiru_number, Duration::from_millis(119999));
 
             assert!(test_bed.true_heading(adiru_number).is_normal_operation());
@@ -4841,7 +4844,7 @@ mod tests {
         fn true_heading_is_not_normal_when_remaining_align_is_equal_to_two_minutes(
             #[case] adiru_number: usize,
         ) {
-            let mut test_bed = test_bed_with()
+            let mut test_bed = all_adirus_unaligned_test_bed_with()
                 .realistic_navigation_align_until(adiru_number, Duration::from_millis(120000));
 
             assert!(!test_bed.true_heading(adiru_number).is_normal_operation());
