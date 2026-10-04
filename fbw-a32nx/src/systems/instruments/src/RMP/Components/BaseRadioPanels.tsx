@@ -8,6 +8,7 @@ import { TransceiverType } from './StandbyFrequency';
 import { VhfRadioPanel } from './VhfRadioPanel';
 import { NavRadioPanel } from './NavRadioPanel';
 import { RadioPanelDisplay } from './RadioPanelDisplay';
+import { isRmpOperative, RmpSide, rmpFailedVar } from '@shared/communications/RadioCommunicationLogic';
 
 interface Props {
   /**
@@ -18,8 +19,8 @@ interface Props {
 
 /**
  * Root radio management panel React component.
- * Hooks into toggleSwitch and powerAvailable SimVars.
- * Renders a Powered or Unpowered sub-component.
+ * Hooks into toggleSwitch, powerAvailable and RMP failed SimVars.
+ * Renders a Powered or Unpowered (also used when failed) sub-component.
  */
 export const RootRadioPanel = (props: Props) => {
   const toggleSwitchName = `A32NX_RMP_${props.side}_TOGGLE_SWITCH`;
@@ -30,9 +31,12 @@ export const RootRadioPanel = (props: Props) => {
     'Boolean',
     250,
   );
-  const powered = powerAvailable && panelSwitch;
+  // A failed RMP (flyPad failure RMP 1/2) goes blank and no longer tunes, as when it is switched off
+  // (A320 FCOM DSC-23-60 failure cases).
+  const [failed] = useSimVar(rmpFailedVar(props.side as RmpSide), 'Bool', 250);
+  const operative = isRmpOperative(!!powerAvailable, !!panelSwitch, !!failed);
 
-  if (!powered) return <UnpoweredRadioPanel />;
+  if (!operative) return <UnpoweredRadioPanel />;
   return <PoweredRadioPanel side={props.side} />;
 };
 
