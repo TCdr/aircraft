@@ -1626,8 +1626,10 @@ impl PneumaticValve for CrossBleedValve {
 }
 impl SimulationElement for CrossBleedValve {
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
+        // A380 FCOM DSC-36-30 (a380_fcom.txt:94500-94505): each crossbleed valve is supplied by DC 1/2 or DC ESS.
+        // The manual control uses the DC ESS supply (the A320 DC ESS SHED busbar does not exist on the A380).
         self.is_powered_for_manual_control =
-            buses.is_powered(ElectricalBusType::DirectCurrentEssentialShed);
+            buses.is_powered(ElectricalBusType::DirectCurrentEssential);
         self.is_powered_for_automatic_control =
             buses.is_powered(ElectricalBusType::DirectCurrent(2));
     }
@@ -1929,7 +1931,6 @@ mod tests {
         dc_1_bus: ElectricalBus,
         dc_2_bus: ElectricalBus,
         dc_ess_bus: ElectricalBus,
-        dc_ess_shed_bus: ElectricalBus,
         ac_1_bus: ElectricalBus,
         ac_2_bus: ElectricalBus,
         ac_4_bus: ElectricalBus,
@@ -1937,7 +1938,6 @@ mod tests {
         is_dc_1_powered: bool,
         is_dc_2_powered: bool,
         is_dc_ess_powered: bool,
-        is_dc_ess_shed_powered: bool,
         is_ac_1_powered: bool,
         is_ac_2_powered: bool,
     }
@@ -1963,24 +1963,23 @@ mod tests {
                 dc_1_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
                 dc_2_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(2)),
                 dc_ess_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentEssential),
-                dc_ess_shed_bus: ElectricalBus::new(
-                    context,
-                    ElectricalBusType::DirectCurrentEssentialShed,
-                ),
                 ac_1_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(1)),
                 ac_2_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(2)),
                 ac_4_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(4)),
                 is_dc_1_powered: true,
                 is_dc_2_powered: true,
                 is_dc_ess_powered: true,
-                is_dc_ess_shed_powered: true,
                 is_ac_1_powered: true,
                 is_ac_2_powered: true,
             }
         }
 
-        fn set_dc_ess_shed_bus_power(&mut self, is_powered: bool) {
-            self.is_dc_ess_shed_powered = is_powered;
+        fn set_dc_ess_bus_power(&mut self, is_powered: bool) {
+            self.is_dc_ess_powered = is_powered;
+        }
+
+        fn set_dc_2_bus_power(&mut self, is_powered: bool) {
+            self.is_dc_2_powered = is_powered;
         }
     }
     impl Aircraft for PneumaticTestAircraft {
@@ -2001,10 +2000,6 @@ mod tests {
 
             if self.is_dc_ess_powered {
                 electricity.flow(&self.powered_source, &self.dc_ess_bus);
-            }
-
-            if self.is_dc_ess_shed_powered {
-                electricity.flow(&self.powered_source, &self.dc_ess_shed_bus);
             }
 
             if self.is_ac_1_powered {
@@ -2562,8 +2557,14 @@ mod tests {
                 .set_pack_flow_pb_is_auto(2, true)
         }
 
-        fn set_dc_ess_shed_bus_power(mut self, is_powered: bool) -> Self {
-            self.command(|a| a.set_dc_ess_shed_bus_power(is_powered));
+        fn set_dc_ess_bus_power(mut self, is_powered: bool) -> Self {
+            self.command(|a| a.set_dc_ess_bus_power(is_powered));
+
+            self
+        }
+
+        fn set_dc_2_bus_power(mut self, is_powered: bool) -> Self {
+            self.command(|a| a.set_dc_2_bus_power(is_powered));
 
             self
         }
@@ -4085,7 +4086,7 @@ mod tests {
             .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Shut)
             .mach_number(MachNumber(0.))
             .both_packs_auto()
-            .set_dc_ess_shed_bus_power(false)
+            .set_dc_ess_bus_power(false)
             .and_run();
 
         assert!(test_bed.cross_bleed_valves_are_powered_for_automatic_control());
@@ -4097,6 +4098,31 @@ mod tests {
             .and_run();
 
         assert!(!test_bed.cross_bleed_valves_are_open());
+    }
+
+    /// A380 FCOM DSC-36-30 (a380_fcom.txt:94500-94505): the crossbleed valves are also supplied by DC ESS, so the
+    /// XBLEED selector still opens them manually with DC 2 lost (before, manual control used the A320 DC ESS SHED
+    /// busbar, which the A380 does not have, and was never powered).
+    #[test]
+    fn cross_bleed_valve_opens_manually_on_dc_ess() {
+        let mut test_bed = test_bed_with()
+            .stop_eng1()
+            .stop_eng2()
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Shut)
+            .mach_number(MachNumber(0.))
+            .both_packs_auto()
+            .set_dc_2_bus_power(false)
+            .and_run();
+
+        assert!(!test_bed.cross_bleed_valves_are_powered_for_automatic_control());
+        assert!(test_bed.cross_bleed_valves_are_powered_for_manual_control());
+        assert!(!test_bed.cross_bleed_valves_are_open());
+
+        test_bed = test_bed
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Open)
+            .and_run();
+
+        assert!(test_bed.cross_bleed_valves_are_open());
     }
 
     #[test]
