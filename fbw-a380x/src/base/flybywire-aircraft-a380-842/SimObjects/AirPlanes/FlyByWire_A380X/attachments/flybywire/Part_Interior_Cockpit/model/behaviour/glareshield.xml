@@ -17,12 +17,19 @@
         </UseTemplate>
 
         <!-- AUTO LAND -->
-        <UseTemplate Name="FBW_Push_Toggle">
+        <!-- Lit and flashing from the systems host (Misc/AutolandLights.ts): the lamp code cannot read the sim time -->
+        <!-- A380 FCOM DSC-22-FG-80-100: the light flashes in autoland below 200 ft RA when the autoland conditions are lost,
+             and "as long as the AUTOLAND light is pressed, the AUTOLAND light flashes" (light test) -->
+        <UseTemplate Name="FBW_Push_Held">
             <NODE_ID>PUSH_GLARESHIELD_CS_AUTOLAND</NODE_ID>
+            <TOOLTIPID>AUTOLAND (PRESS TO TEST)</TOOLTIPID>
+            <HOLD_SIMVAR>L:A380X_GLARESHIELD_AUTOLAND_TEST_L</HOLD_SIMVAR>
             <!-- FIXME korry should be split in two, and each half connected to correct CPIOM + power supply  -->
-            <INDICATOR_CODE>(L:A32NX_AUTOPILOT_AUTOLAND_WARNING, bool) (E:ABSOLUTE TIME, seconds) 1 % 0.4 &gt; and</INDICATOR_CODE>
+            <SEQ1_CODE>(L:A380X_GLARESHIELD_AUTOLAND_LIGHT_L, bool)</SEQ1_CODE>
             <SEQ1_POWERED>(L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED) (L:A32NX_ELEC_DC_2_BUS_IS_POWERED) or</SEQ1_POWERED>
             <DISABLE_SEQ2/>
+            <WWISE_EVENT_1>pb1on</WWISE_EVENT_1>
+            <WWISE_EVENT_2>pb1off</WWISE_EVENT_2>
         </UseTemplate>
 
         <!-- MASTER WARN -->
@@ -92,12 +99,19 @@
         </UseTemplate>
 
         <!-- AUTO LAND -->
-        <UseTemplate Name="FBW_Push_Toggle">
+        <!-- Lit and flashing from the systems host (Misc/AutolandLights.ts): the lamp code cannot read the sim time -->
+        <!-- A380 FCOM DSC-22-FG-80-100: the light flashes in autoland below 200 ft RA when the autoland conditions are lost,
+             and "as long as the AUTOLAND light is pressed, the AUTOLAND light flashes" (light test) -->
+        <UseTemplate Name="FBW_Push_Held">
             <NODE_ID>PUSH_GLARESHIELD_FO_AUTOLAND</NODE_ID>
+            <TOOLTIPID>AUTOLAND (PRESS TO TEST)</TOOLTIPID>
+            <HOLD_SIMVAR>L:A380X_GLARESHIELD_AUTOLAND_TEST_R</HOLD_SIMVAR>
             <!-- FIXME korry should be split in two, and each half connected to correct CPIOM + power supply  -->
-            <INDICATOR_CODE>(L:A32NX_AUTOPILOT_AUTOLAND_WARNING, bool) (E:ABSOLUTE TIME, seconds) 1 % 0.4 &gt; and</INDICATOR_CODE>
+            <SEQ1_CODE>(L:A380X_GLARESHIELD_AUTOLAND_LIGHT_R, bool)</SEQ1_CODE>
             <SEQ1_POWERED>(L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED) (L:A32NX_ELEC_DC_2_BUS_IS_POWERED) or</SEQ1_POWERED>
             <DISABLE_SEQ2/>
+            <WWISE_EVENT_1>pb1on</WWISE_EVENT_1>
+            <WWISE_EVENT_2>pb1off</WWISE_EVENT_2>
         </UseTemplate>
 
         <!-- MASTER WARN -->
