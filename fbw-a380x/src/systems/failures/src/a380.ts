@@ -159,6 +159,16 @@ export const A380Failure = Object.freeze({
   FuelCrossFeedValve2Jammed: 28021,
   FuelCrossFeedValve3Jammed: 28022,
   FuelCrossFeedValve4Jammed: 28023,
+  // CpiomF/FuelPumpsAndValves: a transfer pump failure holds the MSFS pump switch off whatever the FQMS commands (the
+  // pumps that the FBW fuel transfers run; the aft gallery pumps never run in the simulation)
+  FuelLeftOuterTankPump: 28030,
+  FuelRightOuterTankPump: 28031,
+  FuelLeftMidTankFwdPump: 28032,
+  FuelRightMidTankFwdPump: 28033,
+  FuelLeftInnerTankFwdPump: 28034,
+  FuelRightInnerTankFwdPump: 28035,
+  FuelTrimTankLeftPump: 28036,
+  FuelTrimTankRightPump: 28037,
 
   GreenReservoirLeak: 29000,
   YellowReservoirLeak: 29001,
@@ -408,6 +418,14 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [28, A380Failure.FuelCrossFeedValve2Jammed, 'Crossfeed valve 2 jammed in place'],
   [28, A380Failure.FuelCrossFeedValve3Jammed, 'Crossfeed valve 3 jammed in place'],
   [28, A380Failure.FuelCrossFeedValve4Jammed, 'Crossfeed valve 4 jammed in place'],
+  [28, A380Failure.FuelLeftOuterTankPump, 'L outer tank pump'],
+  [28, A380Failure.FuelRightOuterTankPump, 'R outer tank pump'],
+  [28, A380Failure.FuelLeftMidTankFwdPump, 'L mid tank fwd pump'],
+  [28, A380Failure.FuelRightMidTankFwdPump, 'R mid tank fwd pump'],
+  [28, A380Failure.FuelLeftInnerTankFwdPump, 'L inner tank fwd pump'],
+  [28, A380Failure.FuelRightInnerTankFwdPump, 'R inner tank fwd pump'],
+  [28, A380Failure.FuelTrimTankLeftPump, 'Trim tank L pump'],
+  [28, A380Failure.FuelTrimTankRightPump, 'Trim tank R pump'],
 
   [29, A380Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A380Failure.YellowReservoirLeak, 'Yellow reservoir leak'],

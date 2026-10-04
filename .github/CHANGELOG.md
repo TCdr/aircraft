@@ -228,6 +228,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A32NX/FUEL] CTR TK L and R XFR valve jam failures (flyPad ATA 28): the valve stays open or closed, with the FCOM FUEL CTR L(R) XFR FAULT and CTR L + R XFR FAULT cautions, STATUS and the boxed centre tank quantity on the SD - @TCdr
+1. [A32NX/FUEL] The centre tank jet pumps only transfer while an inner tank pump of their wing runs, as in the FCOM: switching off the wing pumps stops the centre tank transfer - @TCdr
+1. [A380X/FUEL] Outer, mid fwd, inner fwd and trim tank transfer pump failures (flyPad ATA 28) with their FAULT lights and the FCOM FUEL ... PMP FAULT alerts as soon as the pump fails (also for transfer pumps switched off); an empty tank gives no fault - @TCdr
+1. [A380X/FWS] FUEL FEED TK 1(2)(3)(4) LEVEL LO now triggers for a single low feed tank (the four tanks shared one 30 s confirmation, so only all four low together could trigger it) - @TCdr
+1. [A380X/FUEL] The sensed CROSSFEED ... ON and ALL FEED TKs PMPs ON items of the ECAM procedures tick on the pushbuttons, even with a jammed valve or a failed pump; the CROSSFEED pushbutton OPEN light now works - @TCdr
+1. [EFB] The A32NX securing checklist FUEL PUMPS OFF item reads the fuel pump pushbuttons, not whether the pumps run - @TCdr
 1. [A380X] The AUTOLAND lights on the glareshield flash while pressed, the light test from the FCOM - @TCdr
 1. [A380X] The angle of attack vanes of the three multifunction probes on the nose (one left, two right) follow the angle of attack - @TCdr
 1. [A380X/EFB] New failures on the flyPad: brakes NORM and ALTN circuit leaks, ALTN brake accumulator gas leak, and jammed trim air valves and duct overheats for the cockpit, main deck zone 1, upper deck zone 1 and forward cargo - @TCdr

@@ -340,29 +340,24 @@
         {
           "item": "FUEL PUMPS",
           "result": "OFF",
+          // The pb-sw selections (the crew action), not whether the pumps run: a failed pump or a pump in an empty tank
+          // does not run with its pb-sw ON. L (R) TK PUMPS 1 and 2 only: in the FCOM the CTR TK L(R) XFR pb-sw are items of
+          // their own, never part of FUEL PUMPS (PRO-ABN-FUEL FUEL IMBALANCE, a320_fcom.txt l.84823-84832).
           condition: [
             {
-              varName: "FUELSYSTEM PUMP ACTIVE:1",
+              varName: "L:A32NX_OVHD_FUEL_PUMP_2_PB_IS_ON",
               result: 0
             },
             {
-              varName: "FUELSYSTEM PUMP ACTIVE:2",
+              varName: "L:A32NX_OVHD_FUEL_PUMP_5_PB_IS_ON",
               result: 0
             },
             {
-              varName: "FUELSYSTEM PUMP ACTIVE:3",
+              varName: "L:A32NX_OVHD_FUEL_PUMP_3_PB_IS_ON",
               result: 0
             },
             {
-              varName: "FUELSYSTEM PUMP ACTIVE:4",
-              result: 0
-            },
-            {
-              varName: "FUELSYSTEM PUMP ACTIVE:5",
-              result: 0
-            },
-            {
-              varName: "FUELSYSTEM PUMP ACTIVE:6",
+              varName: "L:A32NX_OVHD_FUEL_PUMP_6_PB_IS_ON",
               result: 0
             },
           ]
