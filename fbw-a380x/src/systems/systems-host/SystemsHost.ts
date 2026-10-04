@@ -18,6 +18,7 @@ import {
 import { LegacyGpws } from './Misc/LegacyGpws';
 import { LegacyFuel } from './CpiomF/LegacyFuel';
 import { FuelJettison } from './CpiomF/FuelJettison';
+import { AutolandLights } from './Misc/AutolandLights';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
 import { VhfRadio } from './Misc/Communications/VhfRadio';
@@ -193,6 +194,8 @@ class SystemsHost extends BaseInstrument {
 
   private readonly fuelJettison = new FuelJettison(this.bus, this, this.failuresConsumer);
 
+  private readonly autolandLights = new AutolandLights();
+
   /**
    * "mainmenu" = 0
    * "loading" = 1
@@ -215,6 +218,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('AtsuSystem', this.atsu);
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
+    this.backplane.addInstrument('AutolandLights', this.autolandLights);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addPublisher('RmpAmuBusPublisher', this.rmpAmuBusPublisher);
