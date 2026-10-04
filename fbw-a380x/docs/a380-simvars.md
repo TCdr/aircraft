@@ -1686,6 +1686,20 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - ArincWord852<>
   - Second CAN bus of the CDS on the first officer's side
 
+- A380X_CDS_{DU}_DU_FAILED
+  - Bool
+  - The display unit is failed (flyPad failure, ATA 31): it is blank. Written by the DU's instrument (CdsDisplayUnit);
+    the legacy SD reads the SD one, the ND weather radar / terrain gauge (ndwxr) the ND ones.
+  - {DU}
+    - CAPT_PFD
+    - CAPT_ND
+    - CAPT_MFD
+    - EWD
+    - SD
+    - FO_MFD
+    - FO_ND
+    - FO_PFD
+
 ## ECAM Control Panel ATA 31
 
 - A32NX_BTN_{button_name}

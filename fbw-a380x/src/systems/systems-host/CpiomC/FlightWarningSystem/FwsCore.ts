@@ -103,6 +103,14 @@ import {
   feedTanks1And4BelowEmerOutrXfrThreshold,
   readElecNetworkInputs,
 } from './FwsElecAlerts';
+import {
+  ALL_DISPLAY_UNITS,
+  DisplayUnitFailure,
+  DisplayUnitID,
+  isDisplayUnitFaultTriggered,
+  isDisplayUnitPowered,
+} from '@shared/CdsDisplayUnits';
+import { DcElectricalBus } from '@shared/electrical';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -200,6 +208,18 @@ export class FwsCore {
   );
 
   public readonly fwsEcpFailed = Subject.create(false);
+
+  /** CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT, one per display unit */
+  public readonly displayUnitFault: Readonly<Record<DisplayUnitID, Subject<boolean>>> = {
+    [DisplayUnitID.CaptPfd]: Subject.create(false),
+    [DisplayUnitID.CaptNd]: Subject.create(false),
+    [DisplayUnitID.CaptMfd]: Subject.create(false),
+    [DisplayUnitID.FoPfd]: Subject.create(false),
+    [DisplayUnitID.FoNd]: Subject.create(false),
+    [DisplayUnitID.FoMfd]: Subject.create(false),
+    [DisplayUnitID.Ewd]: Subject.create(false),
+    [DisplayUnitID.Sd]: Subject.create(false),
+  };
 
   public readonly soundManager = new FwsSoundManager(this.bus, this.startupCompleted, this.audioFunctionLost);
 
@@ -3130,6 +3150,18 @@ export class FwsCore {
 
     this.fws1AudioFunctionLost.set(this.failuresConsumer.isActive(A380Failure.Fws1AudioFunction));
     this.fws2AudioFunctionLost.set(this.failuresConsumer.isActive(A380Failure.Fws2AudioFunction));
+
+    // CDS ... DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31): the DU failure, while the DU is powered
+    const isDcBusPowered = (bus: DcElectricalBus) =>
+      SimVar.GetSimVarValue(`L:A32NX_ELEC_${bus}_BUS_IS_POWERED`, SimVarValueType.Bool) > 0;
+    for (const du of ALL_DISPLAY_UNITS) {
+      this.displayUnitFault[du].set(
+        isDisplayUnitFaultTriggered(
+          this.failuresConsumer.isActive(DisplayUnitFailure[du]),
+          isDisplayUnitPowered(du, isDcBusPowered),
+        ),
+      );
+    }
 
     // Update flight phases
     this.flightPhases.update(deltaTime);

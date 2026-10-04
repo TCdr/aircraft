@@ -25,6 +25,7 @@ import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionics
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
 import { isApFdTcasModeInop } from './FwsSurvAlerts';
+import { DisplayUnitID } from '@shared/CdsDisplayUnits';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -4129,6 +4130,87 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.None,
       redundLoss: () => ['310300003'],
+    },
+    311800013: {
+      // CDS CAPT PFD DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt:157885-157978; SC, MASTER CAUT and the
+      // flight phase inhibition from the PDF p. 5386). The INOP SYS of its STATUS are in FwsInopSys (310300005-011).
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptPfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800013),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800013].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800014: {
+      // CDS CAPT ND DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptNd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800014),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800014].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800015: {
+      // CDS CAPT MFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.CaptMfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800015),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800015].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800016: {
+      // CDS EWD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Ewd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800016),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800016].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800017: {
+      // CDS SD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.Sd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800017),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800017].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800018: {
+      // CDS F/O PFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoPfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800018),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800018].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800019: {
+      // CDS F/O ND DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoNd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800019),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800019].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800020: {
+      // CDS F/O MFD DU FAULT
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoMfd],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800020),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800020].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
     },
     // ATA 32 - LANDING GEAR & BRAKES
     320800008: {
