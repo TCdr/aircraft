@@ -110,6 +110,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
 1. [A380X/Failures] flyPad failures: all landing gear proximity sensor and jammed actuator failures listed (32004-32025, named after the gear, door or sensor they fail), the uplock sensor failure that said nose gear but failed the right main gear relabelled, and the inactive ROLLOUT failure removed - @TCdr
 1. [A380X/EFB] Failures: clearer failure names after an audit (ESS/APU TR, EHA and APU buses, LGCIS, main gear groups, fire detection loops, RA antennas) - @TCdr
+1. [A380X/EFB] New failures on the flyPad: brakes NORM and ALTN circuit leaks, ALTN brake accumulator gas leak, and jammed trim air valves and duct overheats for the cockpit, main deck zone 1, upper deck zone 1 and forward cargo - @TCdr
 
 ## 2024.1.0
 

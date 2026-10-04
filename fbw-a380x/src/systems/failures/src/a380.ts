@@ -54,6 +54,16 @@ export const A380Failure = Object.freeze({
   CpcsApp2: 21047,
   CpcsApp3: 21048,
   CpcsApp4: 21049,
+  // Ids 21050-21057 are mapped in a380_systems_wasm/src/lib.rs. A jammed trim air valve stays where it was when
+  // the failure was set; a duct overheat blows 200 deg C air into the zone duct while its hot-air valve is open.
+  CkptTrimAirValveJammed: 21050,
+  MainDeck1TrimAirValveJammed: 21051,
+  UpperDeck1TrimAirValveJammed: 21052,
+  FwdCargoTrimAirValveJammed: 21053,
+  CkptDuctOverheat: 21054,
+  MainDeck1DuctOverheat: 21055,
+  UpperDeck1DuctOverheat: 21056,
+  FwdCargoDuctOverheat: 21057,
 
   // Not listed in A380FailureDefinitions: the C++ FCDC input it sets (nwsCommunicationAvailable) is read by nothing
   // until a steering control system exists. Kept so the id stays in sync with FailureList.h.
@@ -184,6 +194,12 @@ export const A380Failure = Object.freeze({
   GearActuatorJammedGearDoorLeft: 32024,
   GearActuatorJammedGearDoorRight: 32025,
 
+  // Same ids as the A32NX. In this model the NORM brakes are fed by the GREEN system and the ALTN brakes (with the
+  // brake accumulator) by the YELLOW system; a circuit leak drains that system's fluid while it is pressurised.
+  BrakesNormCircuitLeak: 32100,
+  BrakesAltnCircuitLeak: 32101,
+  BrakesAltnAccumulatorGasLeak: 32150,
+
   RadioAltimeter1: 34000,
   RadioAltimeter2: 34001,
   RadioAltimeter3: 34002,
@@ -262,6 +278,14 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [21, A380Failure.CpcsApp2, 'CPCS Application in CPIOM B2'],
   [21, A380Failure.CpcsApp3, 'CPCS Application in CPIOM B3'],
   [21, A380Failure.CpcsApp4, 'CPCS Application in CPIOM B4'],
+  [21, A380Failure.CkptTrimAirValveJammed, 'Cockpit trim air valve jammed'],
+  [21, A380Failure.MainDeck1TrimAirValveJammed, 'Main deck zone 1 trim air valve jammed'],
+  [21, A380Failure.UpperDeck1TrimAirValveJammed, 'Upper deck zone 1 trim air valve jammed'],
+  [21, A380Failure.FwdCargoTrimAirValveJammed, 'Forward cargo trim air valve jammed'],
+  [21, A380Failure.CkptDuctOverheat, 'Cockpit duct overheat (hot trim air)'],
+  [21, A380Failure.MainDeck1DuctOverheat, 'Main deck zone 1 duct overheat (hot trim air)'],
+  [21, A380Failure.UpperDeck1DuctOverheat, 'Upper deck zone 1 duct overheat (hot trim air)'],
+  [21, A380Failure.FwdCargoDuctOverheat, 'Forward cargo duct overheat (hot trim air)'],
 
   [22, A380Failure.FmcA, 'FMC-A'],
   [22, A380Failure.FmcB, 'FMC-B'],
@@ -385,6 +409,10 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [32, A380Failure.GearActuatorJammedGearDoorNose, 'Nose gear door jammed actuator'],
   [32, A380Failure.GearActuatorJammedGearDoorLeft, 'Left main gear doors jammed actuator'],
   [32, A380Failure.GearActuatorJammedGearDoorRight, 'Right main gear doors jammed actuator'],
+
+  [32, A380Failure.BrakesNormCircuitLeak, 'Brakes NORM circuit leak (green hydraulic)'],
+  [32, A380Failure.BrakesAltnCircuitLeak, 'Brakes ALTN circuit leak (yellow hydraulic)'],
+  [32, A380Failure.BrakesAltnAccumulatorGasLeak, 'Brakes ALTN accumulator gas leak'],
 
   [34, A380Failure.RadioAltimeter1, 'RA SYS A'],
   [34, A380Failure.RadioAltimeter2, 'RA SYS B'],
