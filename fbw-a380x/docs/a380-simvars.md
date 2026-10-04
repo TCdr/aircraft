@@ -109,6 +109,16 @@
     - Bool
     - True when the AC ESS FEED push button is NORMAL
 
+- A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF
+    - Bool
+    - True when the COMMERCIAL 2 push button of the ELEC panel is OFF (default 0 = normal, pb in)
+    - Written by the cockpit behaviour only; nothing consumes it yet
+
+- A380X_OVHD_ELEC_ELMU_PB_IS_OFF
+    - Bool
+    - True when the ELMU push button of the ELEC panel is OFF (default 0 = normal, pb in)
+    - Written by the cockpit behaviour only; nothing consumes it yet
+
 - A380X_OVHD_ELEC_BAT_SELECTOR_KNOB
     - Number
     - The position of the battery display knob from left to right
@@ -132,6 +142,7 @@
     - celsius
     - represents the reported brake temperature of the main wheels by the sensor.
     - Since no CPIOM G is implemented yet these are the values directly reported by the sensor.
+    - The FWS raises BRAKES HOT (and fails the T.O CONFIG brake check) when one of them is at or above 300 °C
 
 
 - A32NX_LIGHTING_PRESET_LOAD

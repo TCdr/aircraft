@@ -92,6 +92,7 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
+import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -1541,6 +1542,9 @@ export class FwsCore {
   public readonly antiSkidSwitchOff = Subject.create(false);
 
   public readonly brakesHot = Subject.create(false);
+
+  /** At least one brake at or above 300 °C, read once per update */
+  private anyBrakeHot = false;
 
   public readonly phase815MinConfNode = new NXLogicConfirmNode(900);
 
@@ -3558,7 +3562,9 @@ export class FwsCore {
 
     this.antiSkidSwitchOff.set(!SimVar.GetSimVarValue('ANTISKID BRAKES ACTIVE', 'bool'));
 
-    const brakesHot = SimVar.GetSimVarValue('L:A32NX_BRAKES_HOT', 'bool');
+    // BRAKES HOT from the reported brake temperatures (A380 FCOM: at least one brake at or above 300 °C)
+    const brakesHot = isAnyBrakeHot(readReportedBrakeTemperaturesC((name) => SimVar.GetSimVarValue(name, 'celsius')));
+    this.anyBrakeHot = brakesHot;
 
     this.brakesHot.set(brakesHot && !this.phase815MinConfNode.read());
 
@@ -5491,7 +5497,7 @@ export class FwsCore {
       const catering = SimVar.GetSimVarValue('INTERACTIVE POINT OPEN:3', 'percent');
       const cargofwdLocked = SimVar.GetSimVarValue('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'bool');
       const cargoaftLocked = SimVar.GetSimVarValue('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'bool');
-      const brakesHot = SimVar.GetSimVarValue('L:A32NX_BRAKES_HOT', 'bool');
+      const brakesHot = this.anyBrakeHot;
 
       const speeds = !toSpeedsTooLow && !toV2VRV2Disagree && !fmToSpeedsNotInserted;
       const doors = !!(cabin === 0 && catering === 0 && cargoaftLocked && cargofwdLocked);

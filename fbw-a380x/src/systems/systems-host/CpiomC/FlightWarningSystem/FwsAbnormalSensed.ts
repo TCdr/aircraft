@@ -2579,7 +2579,8 @@ export class FwsAbnormalSensed {
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.altnLawCondition,
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [this.fws.altn1ALawCondition.get()],
+      // MAX SPEED 310 KT: "The limitation is not applicable in ALT 1A" (A380 FCOM PRO-ABN F/CTL ALTN LAW)
+      whichItemsToShow: () => [!this.fws.altn1ALawCondition.get()],
       whichItemsChecked: () => [false],
       failure: 2,
       sysPage: SdPages.None,
@@ -3382,7 +3383,8 @@ export class FwsAbnormalSensed {
         !this.fws.eng2APumpAuto.get() && !this.fws.eng2BPumpAuto.get(),
         this.fws.eng1PumpDisc.get(),
         this.fws.eng2PumpDisc.get(),
-        !this.fws.yellowAPumpAuto.get() && !this.fws.yellowBPumpAuto.get(),
+        // G ELEC PMP A and B ... OFF (A380 FCOM PRO-ABN HYD G RSVR LEVEL LO / G SYS OVHT)
+        !this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get(),
       ],
       failure: 2,
       sysPage: SdPages.Hyd,
@@ -3426,7 +3428,8 @@ export class FwsAbnormalSensed {
         !this.fws.eng2APumpAuto.get() && !this.fws.eng2BPumpAuto.get(),
         this.fws.eng1PumpDisc.get(),
         this.fws.eng2PumpDisc.get(),
-        !this.fws.yellowAPumpAuto.get() && !this.fws.yellowBPumpAuto.get(),
+        // G ELEC PMP A and B ... OFF (A380 FCOM PRO-ABN HYD G RSVR LEVEL LO / G SYS OVHT)
+        !this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get(),
       ],
       failure: 2,
       sysPage: SdPages.Hyd,

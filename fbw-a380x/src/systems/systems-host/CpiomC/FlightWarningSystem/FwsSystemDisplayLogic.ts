@@ -199,7 +199,7 @@ export class FwsSystemDisplayLogic {
               SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number'),
               SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:2', 'number'),
               SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:3', 'number'),
-              SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:3', 'number'),
+              SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:4', 'number'),
             ) >= 35 &&
             SimVar.GetSimVarValue('ENG N1 RPM:1', 'Percent') > 15 &&
             SimVar.GetSimVarValue('ENG N1 RPM:2', 'Percent') > 15 &&

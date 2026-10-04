@@ -516,7 +516,8 @@ export class LegacyGpws {
       mode.current = 0;
       return;
     }
-    const FlapModeOff = SimVar.GetSimVarValue('L:A32NX_GPWS_FLAP_OFF', 'Bool');
+    // FLAP MODE OFF on the MFD SURV CONTROLS page inhibits mode 4B (A380 FCOM DSC-34-SURV, TOO LOW FLAPS)
+    const FlapModeOff = SimVar.GetSimVarValue('L:A32NX_GPWS_FLAPS_OFF', 'Bool');
 
     // Mode 4 A and B logic
     if (!gearExtended && phase === FmgcFlightPhase.Approach) {
