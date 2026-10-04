@@ -19,6 +19,7 @@ import {
   a320TerrainThresholdPadValue,
   ArincEventBus,
   EfisSide,
+  FailuresConsumer,
 } from '@flybywiresim/fbw-sdk';
 import { NDComponent } from '@flybywiresim/navigation-display';
 
@@ -31,6 +32,7 @@ import { TcasBusPublisher } from '../MsfsAvionicsCommon/providers/TcasBusPublish
 import { FGDataPublisher } from '../MsfsAvionicsCommon/providers/FGDataPublisher';
 import { NDControlEvents } from './NDControlEvents';
 import { DisplayUnit, getDisplayIndex } from '../MsfsAvionicsCommon/displayUnit';
+import { ndDisplayUnitFailure, ndDisplayUnitShowingVar } from '../MsfsAvionicsCommon/displayUnitFailures';
 import { EgpwcBusPublisher } from '../MsfsAvionicsCommon/providers/EgpwcBusPublisher';
 import { DmcPublisher } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { FMBusPublisher } from '../MsfsAvionicsCommon/providers/FMBusPublisher';
@@ -77,6 +79,9 @@ class NDInstrument implements FsInstrument {
   private displayFailed = Subject.create(false);
 
   private displayPowered = Subject.create(false);
+
+  /** Receives the flyPad failures: the CAPT or F/O ND display unit failure blanks this ND (displayFailed). */
+  private readonly failuresConsumer = new FailuresConsumer();
 
   constructor(public readonly instrument: BaseInstrument) {
     const side: EfisSide = getDisplayIndex() === 1 ? 'L' : 'R';
@@ -126,6 +131,8 @@ class NDInstrument implements FsInstrument {
 
     const isCaptainSide = getDisplayIndex() === 1;
 
+    this.failuresConsumer.register(ndDisplayUnitFailure(getDisplayIndex()), (failed) => this.displayFailed.set(failed));
+
     sub
       .on(isCaptainSide ? 'potentiometerCaptain' : 'potentiometerFo')
       .whenChanged()
@@ -147,6 +154,10 @@ class NDInstrument implements FsInstrument {
         powered={this.displayPowered}
         failed={this.displayFailed}
         normDmc={getDisplayIndex()}
+        onPictureShownChanged={(shown) =>
+          // tells the native weather/terrain layer (ndwxr) not to draw over a blank ND
+          SimVar.SetSimVarValue(ndDisplayUnitShowingVar(getDisplayIndex()), 'Bool', shown ? 1 : 0)
+        }
       >
         <NDComponent
           bus={this.bus}
@@ -171,6 +182,7 @@ class NDInstrument implements FsInstrument {
    */
   public Update(): void {
     this.backplane.onUpdate();
+    this.failuresConsumer.update();
   }
 
   public onInteractionEvent(args: string[]): void {
