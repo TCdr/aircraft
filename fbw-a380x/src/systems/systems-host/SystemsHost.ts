@@ -20,6 +20,7 @@ import { LegacyFuel } from './CpiomF/LegacyFuel';
 import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
 import { FuelJettison } from './CpiomF/FuelJettison';
 import { AutolandLights } from './Misc/AutolandLights';
+import { CdsReconfiguration } from './Misc/CdsReconfiguration';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
 import { VhfRadio } from './Misc/Communications/VhfRadio';
@@ -196,6 +197,8 @@ class SystemsHost extends BaseInstrument {
   private readonly fuelJettison = new FuelJettison(this.bus, this, this.failuresConsumer);
 
   private readonly autolandLights = new AutolandLights();
+
+  private readonly cdsReconfiguration = new CdsReconfiguration(this.bus, this.failuresConsumer);
   private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
 
   /**
@@ -221,6 +224,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
     this.backplane.addInstrument('AutolandLights', this.autolandLights);
+    this.backplane.addInstrument('CdsReconfiguration', this.cdsReconfiguration);
     this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);

@@ -95,6 +95,8 @@ static void registerInstanceVars(Instance& instance) {
   instance.overlayVar = register_named_variable(instance.isRight ? "A380X_EFIS_R_ACTIVE_OVERLAY" : "A380X_EFIS_L_ACTIVE_OVERLAY");
   instance.displayUnitFailedVar =
       register_named_variable(instance.isRight ? "A380X_CDS_FO_ND_DU_FAILED" : "A380X_CDS_CAPT_ND_DU_FAILED");
+  instance.displayUnitDisplayVar =
+      register_named_variable(instance.isRight ? "A380X_CDS_FO_ND_DU_DISPLAY" : "A380X_CDS_CAPT_ND_DU_DISPLAY");
   if (instance.isRight) {
     instance.powerBusVars[0] = register_named_variable("A32NX_ELEC_DC_1_BUS_IS_POWERED");
     instance.powerBusVars[1] = register_named_variable("A32NX_ELEC_DC_2_BUS_IS_POWERED");
