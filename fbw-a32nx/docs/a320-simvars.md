@@ -4049,6 +4049,28 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2)
 
+- A32NX_FUEL_PUMP_{number}_LO_PR
+  - Bool
+  - {number}, the MSFS fuel pump
+    - 2 (L TK PUMP 1)
+    - 5 (L TK PUMP 2)
+    - 3 (R TK PUMP 1)
+    - 6 (R TK PUMP 2)
+  - True when the wing tank pump pb-sw is ON and the pump delivery pressure is low: pump not running (failed, or tank empty) or outlet line pressure below 6 psi. Drives the pb-sw FAULT light, the amber LO of the SD FUEL page and the FUEL L(R) TK PUMP 1(2) LO PR cautions (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_OVHD_FUEL_PUMP_{number}_PB_IS_ON
+  - Bool
+  - {number}, the MSFS fuel pump
+    - 2 (L TK PUMP 1)
+    - 5 (L TK PUMP 2)
+    - 3 (R TK PUMP 1)
+    - 6 (R TK PUMP 2)
+  - True when the wing tank pump pb-sw is ON (the flight crew selection, OFF light and pb-sw animation). The systems host (Fuel/FuelPumpsAndValves) switches the MSFS pump {number} (K:FUELSYSTEM_PUMP_ON/OFF) to follow it, except while the pump is failed (failures 28000-28003), when the MSFS pump is held off. A pump switch change from outside (K:FUELSYSTEM_PUMP_* events from a hardware panel, an aircraft preset, a loaded flight) is taken as the new selection
+
+- A32NX_OVHD_FUEL_XFEED_PB_IS_ON
+  - Bool
+  - True when the X FEED pb-sw is ON (the flight crew selection, ON light and pb-sw animation). The systems host (Fuel/FuelPumpsAndValves) commands the MSFS valve 3 (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the valve is jammed (failure 28004), when the valve stays where it was. A valve switch change from outside (K:FUELSYSTEM_VALVE_OPEN/CLOSE/TOGGLE 3 from a hardware panel, a loaded flight) is taken as the new selection. The OPEN light, the SD FUEL page and the FWC read the valve position (FUELSYSTEM VALVE OPEN:3)
+
 ## Indication and Recording Systems (ATA 31)
 
 ### DMC

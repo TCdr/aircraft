@@ -128,6 +128,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EFB] New ATA 23 failures RMP 1, RMP 2, VHF 1, VHF 2 and VHF 3: a failed RMP goes blank and stops tuning (the other RMP still tunes every radio), a failed VHF switches its COM radio off - @TCdr
 1. [A32NX/FWS] New flyPad failures FWC 1 and FWC 2 (ATA 31): one failed FWC shows FWS FWC 1(2) FAULT with its STATUS (CAT 3 SINGLE ONLY, INOP SYS CAT 3 DUAL, FWC 1(2)); with both failed the E/WD shows FWS FWC 1+2 FAULT and its NOT AVAIL list, and the ECAM alerts, memos, STATUS, MASTER lights, aurals and callouts are lost - @TCdr
 1. [A32NX] Fire protection: engine 1, engine 2 and APU fires and their fire detection loop A/B failures in the flyPad, with the fire detection units of the real aircraft (both loops must detect, one loop alone if the other is failed, fire warning if both loops break within 5 s), the ENG 1(2)/APU FIRE LOOP A(B) FAULT and FIRE DET FAULT cautions with their STATUS lines, the ENG MASTER panel FIRE lights, an APU shutdown and automatic APU AGENT discharge 3 s after an APU fire on the ground, and a chance for each AGENT discharge to put a flyPad fire out; the engine fires of the MSFS failures menu still raise the warnings - @TCdr
+1. [A32NX/FUEL] Added fuel pump and X FEED valve failures (L/R TK pump 1 and 2, X FEED valve jammed): FAULT light, amber LO on the SD FUEL page, FUEL L(R) TK PUMP 1(2) LO PR, L(R) TK PUMP 1+2 LO PR and X FEED VALVE FAULT cautions with their STATUS - @TCdr
+1. [A32NX/SD] FUEL page: the wing pumps and the X FEED valve now show the FCOM colours (LO only for a pump ON with a low pressure, amber X FEED valve when it disagrees with its pushbutton) - @TCdr
+1. [A32NX/FWC] The FUEL X FEED memo now needs the X FEED pushbutton ON and the valve not fully closed, as in the FCOM - @TCdr
 
 ## 2024.1.0
 
