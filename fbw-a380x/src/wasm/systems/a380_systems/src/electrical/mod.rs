@@ -220,8 +220,9 @@ impl A380Electrical {
             .emergency_generator_contactor_is_closed()
     }
 
-    fn ac_emer_bus_is_powered(&self, electricity: &Electricity) -> bool {
-        self.alternating_current.ac_emer_bus_is_powered(electricity)
+    /// Whether the AC ESS busbar (400XP, `AlternatingCurrentEssentialShed`) is powered.
+    fn ac_ess_bus_is_powered(&self, electricity: &Electricity) -> bool {
+        self.alternating_current.ac_ess_bus_powered(electricity)
     }
 
     fn galley_is_shed(&self) -> bool {
@@ -372,8 +373,9 @@ impl A380ElectricalOverheadPanel {
         electrical: &A380Electrical,
         electricity: &Electricity,
     ) {
+        // A380 FCOM DSC-24-20 AC ESS FEED pb-sw FAULT: "The AC ESS busbar is not supplied." (a380_fcom.txt:50689)
         self.ac_ess_feed
-            .set_fault(!electrical.ac_emer_bus_is_powered(electricity));
+            .set_fault(!electrical.ac_ess_bus_is_powered(electricity));
 
         self.generators
             .iter_mut()
@@ -2874,13 +2876,39 @@ mod a380_electrical_circuit_tests {
     }
 
     #[test]
-    fn when_ac_emer_bus_is_unpowered_ac_ess_feed_has_fault() {
+    fn when_ac_ess_bus_is_unpowered_ac_ess_feed_has_fault() {
         let mut test_bed = test_bed_with()
             .airspeed(Velocity::default())
             .all_bats_off()
             .run();
 
         assert!(test_bed.ac_ess_feed_has_fault());
+    }
+
+    /// A380 FCOM DSC-24-20 AC ESS FEED pb-sw FAULT: "The AC ESS busbar is not supplied." (a380_fcom.txt:50689)
+    #[test]
+    fn ac_ess_busbar_failure_lights_the_ac_ess_feed_fault() {
+        let mut test_bed = test_bed_with()
+            .all_bats_auto()
+            .and()
+            .running_engines()
+            .failed_bus(ElectricalBusType::AlternatingCurrentEssentialShed)
+            .run();
+
+        assert!(test_bed.ac_ess_feed_has_fault());
+    }
+
+    /// An AC EMER busbar (491XP) failure leaves the AC ESS busbar supplied: no AC ESS FEED fault.
+    #[test]
+    fn ac_emer_busbar_failure_does_not_light_the_ac_ess_feed_fault() {
+        let mut test_bed = test_bed_with()
+            .all_bats_auto()
+            .and()
+            .running_engines()
+            .failed_bus(ElectricalBusType::AlternatingCurrentEssential)
+            .run();
+
+        assert!(!test_bed.ac_ess_feed_has_fault());
     }
 
     #[test]
@@ -3121,6 +3149,59 @@ mod a380_electrical_circuit_tests {
             .airspeed(Velocity::default())
             .run();
         assert!(test_bed.dc_named_bus_output("108PH").is_unpowered());
+    }
+
+    /// On the A380 the AC ESS busbar (400XP) is `AlternatingCurrentEssentialShed` and the AC EMER busbar (491XP) is
+    /// `AlternatingCurrentEssential` (the names come from the A320). The loads the FCOM puts on AC ESS are bound to
+    /// the first, the AC EMER loads to the second. A380 FCOM DSC-24-40 (a380_fcom.txt:51946-51953): when the AC ESS
+    /// busbar is lost, AC EMER and AC ESS are lost.
+    #[test]
+    fn ac_ess_busbar_failure_loses_ac_ess_and_ac_emer_loads() {
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .and()
+            .running_engines()
+            .failed_bus(ElectricalBusType::AlternatingCurrentEssentialShed)
+            .run();
+
+        assert!(test_bed.ac_ess_shed_bus_output().is_unpowered());
+        assert!(test_bed.ac_ess_bus_output().is_unpowered());
+        for i in 1..=4 {
+            assert!(test_bed.ac_bus_output(i).is_powered());
+        }
+    }
+
+    /// An AC EMER busbar (491XP) failure only removes the AC EMER loads: the AC ESS busbar (400XP) keeps its loads.
+    #[test]
+    fn ac_emer_busbar_failure_keeps_the_ac_ess_loads() {
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .and()
+            .running_engines()
+            .failed_bus(ElectricalBusType::AlternatingCurrentEssential)
+            .run();
+
+        assert!(test_bed.ac_ess_bus_output().is_unpowered());
+        assert!(test_bed
+            .ac_ess_shed_bus_output()
+            .is_single(PotentialOrigin::EngineGenerator(1)));
+    }
+
+    /// With the static inverter supplying AC EMER (batteries only), the AC ESS busbar and its loads (e.g. the 427XP
+    /// EHAs, TAWS 1, XPDR 1) are unpowered, while the AC EMER loads (VOR 1, LS 1, GPS 1...) remain.
+    #[test]
+    fn static_inverter_powers_ac_emer_but_not_ac_ess() {
+        let test_bed = test_bed_with()
+            .all_bats_auto()
+            .on_the_ground()
+            .and()
+            .airspeed(Velocity::default())
+            .run();
+
+        assert!(test_bed
+            .ac_ess_bus_output()
+            .is_single(PotentialOrigin::StaticInverter));
+        assert!(test_bed.ac_ess_shed_bus_output().is_unpowered());
     }
 
     fn test_bed_with() -> A380ElectricalTestBed {
@@ -3753,6 +3834,11 @@ mod a380_electrical_circuit_tests {
 
         fn failed_tr_1(mut self) -> Self {
             self.test_bed.fail(FailureType::TransformerRectifier(1));
+            self
+        }
+
+        fn failed_bus(mut self, bus_type: ElectricalBusType) -> Self {
+            self.test_bed.fail(FailureType::ElectricalBus(bus_type));
             self
         }
 

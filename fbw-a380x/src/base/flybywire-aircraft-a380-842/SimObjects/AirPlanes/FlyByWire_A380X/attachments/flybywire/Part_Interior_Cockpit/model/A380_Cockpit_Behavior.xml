@@ -320,17 +320,18 @@
             </Component>
 
             <!-- OIT_R -->
+            <!-- A380 FCOM DSC-46-20-70 (a380_fcom.txt:107810): F/O OIT = AC ESS. On the A380 AC ESS (400XP) is the AC_ESS_SHED variable (AC_ESS = AC EMER 491XP) -->
             <Component ID="OITR">
                 <Component ID="SCREEN_OITR">
                     <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                         <NODE_ID>SCREEN_OIT_RIGHT</NODE_ID>
                         <POTENTIOMETER>@POT_EFIS_FO_OIT</POTENTIOMETER>
-                        <EMISSIVE_CODE>(L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
+                        <EMISSIVE_CODE>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
                     </UseTemplate>
                     <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                         <NODE_ID>SCREEN_BACKLIGHT_DU_OITR</NODE_ID>
                         <POTENTIOMETER>@POT_EFIS_FO_OIT</POTENTIOMETER>
-                        <EMISSIVE_CODE>(L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED, Bool) 5 *</EMISSIVE_CODE>
+                        <EMISSIVE_CODE>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) 5 *</EMISSIVE_CODE>
                     </UseTemplate>
                 </Component>
             </Component>

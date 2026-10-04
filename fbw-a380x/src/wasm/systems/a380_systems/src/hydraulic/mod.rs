@@ -381,8 +381,10 @@ impl A380AileronFactory {
     const MAX_DAMPING_CONSTANT_FOR_SLOW_DAMPING: f64 = 3500000.;
     const MAX_FLOW_PRECISION_PER_ACTUATOR_PERCENT: f64 = 10.;
 
-    // 427XP - AC ESS
-    const MIDDLE_PANEL_EHA_BUS: ElectricalBusType = ElectricalBusType::AlternatingCurrentEssential;
+    // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
+    // All EHAs are powered via the AC ESS busbar after an all engine flameout (A380 FCOM a380_fcom.txt:54735).
+    const MIDDLE_PANEL_EHA_BUS: ElectricalBusType =
+        ElectricalBusType::AlternatingCurrentEssentialShed;
     // 247XP - AC EHA
     const INWARD_PANEL_EHA_BUS: ElectricalBusType = AC_EHA_BUS;
 
@@ -564,8 +566,10 @@ impl A380SpoilerFactory {
 
     const MAX_FLOW_PRECISION_PER_ACTUATOR_PERCENT: f64 = 20.;
 
-    // 427XP - AC ESS
-    const SPOILER_6_EBHA_BUS: ElectricalBusType = ElectricalBusType::AlternatingCurrentEssential;
+    // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
+    // A380 FCOM a380_fcom.txt:54783-54784: spoiler 6 operates as an EHA powered by the AC ESS busbar.
+    const SPOILER_6_EBHA_BUS: ElectricalBusType =
+        ElectricalBusType::AlternatingCurrentEssentialShed;
 
     fn a380_spoiler_actuator(
         context: &mut InitContext,
@@ -717,12 +721,13 @@ impl A380ElevatorFactory {
 
     // 247XP - AC EHA
     const LEFT_OUTWARD_PANEL_EHA_BUS: ElectricalBusType = AC_EHA_BUS;
-    // 427XP - AC ESS
+    // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380.
+    // All EHAs are powered via the AC ESS busbar after an all engine flameout (A380 FCOM a380_fcom.txt:54622).
     const RIGHT_OUTWARD_PANEL_EHA_BUS: ElectricalBusType =
-        ElectricalBusType::AlternatingCurrentEssential;
+        ElectricalBusType::AlternatingCurrentEssentialShed;
     // 427XP - AC ESS
     const LEFT_INWARD_PANEL_EHA_BUS: ElectricalBusType =
-        ElectricalBusType::AlternatingCurrentEssential;
+        ElectricalBusType::AlternatingCurrentEssentialShed;
     // 247XP - AC EHA
     const RIGHT_INWARD_PANEL_EHA_BUS: ElectricalBusType = AC_EHA_BUS;
 
@@ -896,9 +901,9 @@ impl A380RudderFactory {
     const MAX_DAMPING_CONSTANT_FOR_SLOW_DAMPING: f64 = 1000000.;
     const MAX_FLOW_PRECISION_PER_ACTUATOR_PERCENT: f64 = 10.;
 
-    // 427XP - AC ESS
+    // 427XP - AC ESS = AlternatingCurrentEssentialShed on the A380
     const UPPER_AND_LOWER_PANEL_UPPER_EBHA_BUS: ElectricalBusType =
-        ElectricalBusType::AlternatingCurrentEssential;
+        ElectricalBusType::AlternatingCurrentEssentialShed;
     // 247XP - ACEHA
     const UPPER_PANEL_LOWER_EBHA_BUS: ElectricalBusType = AC_EHA_BUS;
     // 100XP1 - AC 1
@@ -7336,9 +7341,10 @@ mod tests {
                         context,
                         ElectricalBusType::DirectCurrentGndFltService,
                     ),
+                    // The A380 AC ESS busbar (400XP), supply of the 427XP EHAs/EBHAs
                     ac_ess_bus: ElectricalBus::new(
                         context,
-                        ElectricalBusType::AlternatingCurrentEssential,
+                        ElectricalBusType::AlternatingCurrentEssentialShed,
                     ),
                     ac_1_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(1)),
                     ac_2_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(2)),

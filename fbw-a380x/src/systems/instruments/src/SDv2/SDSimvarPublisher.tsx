@@ -225,7 +225,10 @@ export class SDSimvarPublisher extends UpdatableSimVarPublisher<SDSimvars> {
       'yellowPressureSwitch',
       { name: 'L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH', type: SimVarValueType.Bool },
     ],
-    ['acEssPowered', { name: 'L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', type: SimVarValueType.Bool }],
+    // The A380 AC ESS busbar (400XP) is the AC_ESS_SHED variable (AC_ESS is the AC EMER busbar 491XP). FCOM: slat
+    // electrical motor (SLAT SYS 1) on AC ESS (a380_fcom.txt:57093-57100), spoiler 6 EBHA on AC ESS (54784), rudder
+    // upper EBHAs on 427XP, an AC ESS sub-busbar (Rust hydraulic model, all EHAs on AC ESS after flameout: 54622).
+    ['acEssPowered', { name: 'L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', type: SimVarValueType.Bool }],
     ['ac1Powered', { name: 'L:A32NX_ELEC_AC_1_BUS_IS_POWERED', type: SimVarValueType.Bool }],
     ['acEhaPowered', { name: 'L:A32NX_ELEC_247XP_BUS_IS_POWERED', type: SimVarValueType.Bool }],
     ['sec1RudderStatusWord', { name: 'L:A32NX_SEC_1_RUDDER_STATUS_WORD', type: SimVarValueType.Enum }],
