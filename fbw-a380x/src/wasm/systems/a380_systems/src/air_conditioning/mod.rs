@@ -46,7 +46,7 @@ use self::{
     local_controllers::{
         full_digital_agu_controller::FullDigitalAGUController,
         outflow_valve_control_module::{OcsmShared, OutflowValveControlModule},
-        trim_air_drive_device::{TaddShared, TrimAirDriveDevice},
+        trim_air_drive_device::{hot_air_valve_feeding_zone, TaddShared, TrimAirDriveDevice},
         ventilation_control_module::VentilationControlModule,
     },
 };
@@ -417,6 +417,7 @@ impl A380AirConditioningSystem {
                     ElectricalBusType::AlternatingCurrent(2), // 117XP
                     ElectricalBusType::AlternatingCurrent(4), // 206XP
                 ],
+                cabin_zones,
             ),
             vcm: [
                 VentilationControlModule::new(
@@ -463,7 +464,8 @@ impl A380AirConditioningSystem {
                 &[1, 2],
                 Volume::new::<cubic_meter>(7.),
                 Volume::new::<cubic_meter>(0.2),
-            ),
+            )
+            .with_hot_air_valve_per_zone(cabin_zones.map(hot_air_valve_feeding_zone)),
 
             air_conditioning_overhead: A380AirConditioningSystemOverhead::new(context),
         }
@@ -641,6 +643,12 @@ impl A380AirConditioningSystem {
 
         self.air_conditioning_overhead
             .set_cargo_heater_fault(self.vcm[1].cargo_heater_has_failed());
+
+        self.air_conditioning_overhead
+            .set_hot_air_pushbutton_fault([
+                self.tadd.hot_air_pushbutton_has_fault(1),
+                self.tadd.hot_air_pushbutton_has_fault(2),
+            ]);
     }
 
     fn pack_fault_determination(&self) -> [bool; 2] {
@@ -749,6 +757,12 @@ impl TaddShared for A380AirConditioningSystem {
     fn trim_air_pressure_regulating_valve_is_open(&self, taprv_id: usize) -> bool {
         self.tadd
             .trim_air_pressure_regulating_valve_is_open(taprv_id)
+    }
+    fn duct_overheat(&self, zone_index: usize) -> bool {
+        self.tadd.duct_overheat(zone_index)
+    }
+    fn trim_air_valve_fault(&self, zone_index: usize) -> bool {
+        self.tadd.trim_air_valve_fault(zone_index)
     }
 }
 
@@ -876,6 +890,13 @@ impl A380AirConditioningSystemOverhead {
 
     fn set_cargo_heater_fault(&mut self, cargo_heater_fault: bool) {
         self.cargo_heater_pb.set_fault(cargo_heater_fault);
+    }
+
+    fn set_hot_air_pushbutton_fault(&mut self, pb_has_fault: [bool; 2]) {
+        self.hot_air_pbs
+            .iter_mut()
+            .zip(pb_has_fault)
+            .for_each(|(pushbutton, fault)| pushbutton.set_fault(fault));
     }
 }
 
@@ -2891,6 +2912,23 @@ mod tests {
                     .trim_air_system
                     .trim_air_valves_open_amount()[zone_index]
             })
+        }
+
+        fn duct_overheat_in_zone(&mut self, zone: ZoneType) -> bool {
+            self.read_by_name(&format!("COND_{}_DUCT_OVHT", zone))
+        }
+
+        fn trim_air_valve_fault_in_zone(&mut self, zone: ZoneType) -> bool {
+            self.read_by_name(&format!("COND_{}_TRIM_AIR_VALVE_FAULT", zone))
+        }
+
+        fn hot_air_pb_has_fault(&mut self, pb_id: usize) -> bool {
+            self.read_by_name(&format!("OVHD_COND_HOT_AIR_{}_PB_HAS_FAULT", pb_id))
+        }
+
+        fn tcs_discrete_word_bit(&mut self, bit: u8) -> bool {
+            let word: Arinc429Word<u32> = self.read_by_name("COND_CPIOM_B1_TCS_DISCRETE_WORD");
+            word.get_bit(bit)
         }
 
         fn hot_air_is_enabled(&self) -> bool {
@@ -5280,6 +5318,211 @@ mod tests {
                     test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
                     FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
                 );
+            }
+
+            // CPIOM B TCS discrete word bits of the trim air monitoring (docs/a380-simvars.md)
+            const TCS_BIT_CKPT_DUCT_OVHT: u8 = 17;
+            const TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_1: u8 = 18;
+            const TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_2: u8 = 19;
+            const TCS_BIT_FWD_CARGO_DUCT_OVHT: u8 = 20;
+            const TCS_BIT_CKPT_TRIM_AIR_VALVE_FAULT: u8 = 21;
+            const TCS_BIT_CABIN_TRIM_AIR_VALVE_FAULT: u8 = 22;
+            const TCS_BIT_FWD_CARGO_TRIM_AIR_VALVE_FAULT: u8 = 23;
+
+            fn test_bed_with_hot_air_on() -> CabinAirTestBed {
+                test_bed()
+                    .with()
+                    .hot_air_pbs_on()
+                    .and()
+                    .engines_idle()
+                    .iterate(50)
+            }
+
+            fn all_monitored_zones() -> Vec<ZoneType> {
+                let mut zones = vec![ZoneType::Cockpit, ZoneType::Cargo(1)];
+                zones.extend((11..=18).map(ZoneType::Cabin));
+                zones.extend((21..=27).map(ZoneType::Cabin));
+                zones
+            }
+
+            #[test]
+            fn no_duct_overheat_or_valve_fault_in_normal_operation() {
+                let mut test_bed = test_bed_with_trim_air_valves_open()
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        20.,
+                    ))
+                    .iterate(200)
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        28.,
+                    ))
+                    .iterate(200);
+
+                for zone in all_monitored_zones() {
+                    assert!(!test_bed.duct_overheat_in_zone(zone), "{}", zone);
+                    assert!(!test_bed.trim_air_valve_fault_in_zone(zone), "{}", zone);
+                }
+                assert!(!test_bed.hot_air_pb_has_fault(1));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+                for bit in TCS_BIT_CKPT_DUCT_OVHT..=TCS_BIT_FWD_CARGO_TRIM_AIR_VALVE_FAULT {
+                    assert!(!test_bed.tcs_discrete_word_bit(bit), "bit {}", bit);
+                }
+            }
+
+            #[test]
+            fn cockpit_duct_overheat_is_detected_and_lights_the_hot_air_2_fault() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.duct_overheat_in_zone(ZoneType::Cabin(11)));
+                // FCOM COND DUCT OVHT: a cockpit duct overheat asks for HOT AIR 2 OFF
+                assert!(test_bed.hot_air_pb_has_fault(2));
+                assert!(!test_bed.hot_air_pb_has_fault(1));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_DUCT_OVHT));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_1));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_2));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_FWD_CARGO_DUCT_OVHT));
+            }
+
+            #[test]
+            fn hot_air_2_off_alone_ends_the_cockpit_duct_overheat() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+
+                // HOT AIR 2 feeds the cockpit duct: closing it stops the hot air, HOT AIR 1 stays on
+                test_bed = test_bed.command_hot_air_pb_on(false, 2).iterate(50);
+
+                assert_lt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+                assert!(!test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_DUCT_OVHT));
+            }
+
+            #[test]
+            fn duct_overheat_stays_after_cooling_down_until_the_hot_air_pb_is_off() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+
+                test_bed.unfail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+                assert_lt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+                // FCOM DSC-21-10-20: the FAULT light goes off below 70 deg C AND with the HOT AIR pb OFF
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+                assert!(test_bed.hot_air_pb_has_fault(2));
+
+                // The HOT AIR 1 pb does not reset a duct fed by HOT AIR 2
+                test_bed = test_bed.command_hot_air_pb_on(false, 1).iterate(2);
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+
+                test_bed = test_bed.command_hot_air_pb_on(false, 2).iterate(2);
+                assert!(!test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+            }
+
+            #[test]
+            fn cabin_duct_overheats_light_the_fault_of_the_hot_air_valve_feeding_them() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cabin(11)));
+                test_bed = test_bed.iterate(50);
+
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cabin(11)));
+                assert!(test_bed.hot_air_pb_has_fault(1));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_1));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_2));
+
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cabin(21)));
+                test_bed = test_bed.iterate(50);
+
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cabin(21)));
+                assert!(test_bed.hot_air_pb_has_fault(2));
+                assert!(!test_bed.hot_air_pb_has_fault(1));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_2));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_1));
+            }
+
+            #[test]
+            fn fwd_cargo_duct_overheat_lights_the_hot_air_1_fault() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cargo(1)));
+                test_bed = test_bed.iterate(50);
+
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cargo(1)));
+                assert!(test_bed.hot_air_pb_has_fault(1));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_FWD_CARGO_DUCT_OVHT));
+            }
+
+            #[test]
+            fn jammed_trim_air_valve_is_detected_when_it_does_not_follow_its_command() {
+                let mut test_bed = test_bed_with_trim_air_valves_open();
+                test_bed.fail(FailureType::TrimAirFault(ZoneType::Cockpit));
+                // The zones are now too hot: the controller commands the trim air valves closed
+                test_bed = test_bed
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        18.,
+                    ))
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        30.,
+                    ))
+                    .iterate(5);
+                // Not yet: a valve has some seconds to follow its command
+                assert!(!test_bed.trim_air_valve_fault_in_zone(ZoneType::Cockpit));
+
+                test_bed = test_bed.iterate(30);
+                assert!(test_bed.trim_air_valve_fault_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.trim_air_valve_fault_in_zone(ZoneType::Cabin(11)));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_TRIM_AIR_VALVE_FAULT));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_TRIM_AIR_VALVE_FAULT));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_FWD_CARGO_TRIM_AIR_VALVE_FAULT));
+                // A jammed trim air valve is no duct overheat: the HOT AIR FAULT lights stay off
+                assert!(!test_bed.hot_air_pb_has_fault(1));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+
+                // Once the valve moves again the fault clears
+                test_bed.unfail(FailureType::TrimAirFault(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(10);
+                assert!(!test_bed.trim_air_valve_fault_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_TRIM_AIR_VALVE_FAULT));
+            }
+
+            #[test]
+            fn jammed_cabin_and_fwd_cargo_trim_air_valves_set_their_own_bits() {
+                let mut test_bed = test_bed_with_trim_air_valves_open()
+                    .command_cargo_selected_temperature(ThermodynamicTemperature::new::<
+                        degree_celsius,
+                    >(25.))
+                    // A cold cargo compartment: the forward cargo trim air valve opens too
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        10.,
+                    ))
+                    .iterate(20);
+                assert_gt!(
+                    test_bed.trim_air_valve_open_amount_in_zone(ZoneType::Cargo(1).id()),
+                    Ratio::new::<percent>(20.)
+                );
+                test_bed.fail(FailureType::TrimAirFault(ZoneType::Cabin(21)));
+                test_bed.fail(FailureType::TrimAirFault(ZoneType::Cargo(1)));
+                // HOT AIR OFF: the controller closes every trim air valve, the jammed ones stay where they are
+                test_bed = test_bed.hot_air_pbs_off().iterate(30);
+
+                assert!(test_bed.trim_air_valve_fault_in_zone(ZoneType::Cabin(21)));
+                assert!(test_bed.trim_air_valve_fault_in_zone(ZoneType::Cargo(1)));
+                assert!(!test_bed.trim_air_valve_fault_in_zone(ZoneType::Cockpit));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_TRIM_AIR_VALVE_FAULT));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_FWD_CARGO_TRIM_AIR_VALVE_FAULT));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_TRIM_AIR_VALVE_FAULT));
             }
         }
 
