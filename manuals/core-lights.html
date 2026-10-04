@@ -1,4 +1,4 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>Strobe and beacon flash timing - user manual</title><style>
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lights: strobe and beacon timing, interior lighting presets - user manual</title><style>
 @page { size: A4; margin: 14mm 13mm 15mm 13mm; }
 * { box-sizing: border-box; }
 body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
@@ -45,14 +45,14 @@ table.test td:nth-child(2) { width: 50%; }
 .toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
 .toc div { break-inside: avoid; }
 </style></head><body>
-<h1>Strobe and beacon flash timing</h1>
-<div class="subtitle">The wing strobes flash the double flash of the real Airbus LED strobes, and the A380X beacons flash halfway between the strobes</div>
+<h1>Lights: strobe and beacon timing, interior lighting presets</h1>
+<div class="subtitle">The wing strobes flash the double flash of the real Airbus LED strobes, the A380X beacons flash halfway between the strobes, and the flyPad interior lighting presets save and load again</div>
 <div class="meta">
 <b>Aircraft</b><span>A32NX and A380X</span>
-<b>Where to find it</b><span>Exterior lights: overhead EXT LT panel, STROBE and BEACON switches; seen from the outside view</span>
+<b>Where to find it</b><span>Exterior lights: overhead EXT LT panel, STROBE and BEACON switches, seen from the outside view; interior lighting presets: flyPad &gt; Presets &gt; Interior Lighting</span>
 <b>Branch</b><span><code>core/lights</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent.</span>
-<b>Status</b><span>Checked in the sim by the user at night on both aircraft: OK (2026-10-02).</span>
-<b>Pictures</b><span>No pictures: a flash timing does not show on a still picture.</span>
+<b>Status</b><span>Strobe and beacon timing checked in the sim by the user at night on both aircraft: OK (2026-10-02). Lighting presets tested in the sim on the A32NX (save, load of a saved row, load of an unsaved row at 50 %): OK (2026-10-04); the A380X uses the same fixed code but was not sim-tested.</span>
+<b>Pictures</b><span>No pictures: a flash timing does not show on a still picture, and the presets page is the stock FBW flyPad page.</span>
 </div>
 <h2>1. Strobe double flash and beacon phase</h2>
 <div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> EXT LT panel: STROBE ON, BEACON ON; outside view &nbsp;|&nbsp; <b>Status:</b> Checked in the sim by the user at night on both aircraft ("both look right", 2026-10-02).</div>
@@ -66,4 +66,17 @@ table.test td:nth-child(2) { width: 50%; }
 <ol><li>Nothing to set: switch the <b>STROBE</b> and <b>BEACON</b> lights ON on the overhead EXT LT panel as usual.</li></ol>
 <h3>How to test</h3>
 <table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX at night (or dusk), on the ground. Switch <b>STROBE ON</b> and <b>BEACON ON</b>. Go to an outside view that shows a wing tip and the fuselage.</td><td>Each wing strobe gives a crisp double flash (two short flashes very close together) about once a second.</td></tr><tr><td>2</td><td>Watch the beacon and the strobes together.</td><td>The beacon flashes halfway between two strobe double flashes: strobe, beacon, strobe, beacon, evenly spaced.</td></tr><tr><td>3</td><td>Repeat with the A380X.</td><td>Same crisp double flash of the wing strobes, a little slower (45 per minute); the beacons (top and belly) flash exactly halfway between the strobes, not right after them.</td></tr></table>
+<h2>2. Interior lighting presets save and load again</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Presets &gt; Interior Lighting &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on the A32NX: OK (2026-10-04). A380X: same code, not sim-tested. Native unit tests: extra-backend test/run_tests.sh.</div>
+<h3>What it is for</h3>
+<p>The flyPad interior lighting presets did nothing or the wrong thing on both aircraft, because of three bugs in the C++ extra-backend:</p>
+<ul><li><b>No preset was ever saved.</b> The shared ini library refused the existing work folder (it read the mkdir result the wrong way), so every save failed silently and no presets file was written. It now accepts an existing folder. The FADEC fuel configuration save uses the same library and benefits too.</li><li><b>An unsaved row faded every light to off.</b> Loading a row that was never saved left the target values unset, so every light, the PFD, ND, ECAM and MCDU brightness included, faded to 0. Such a row now loads the default preset, <b>all lights at 50 %</b>, as the flyPad page says. The A32NX default also had its DCDU and MCDU values in the wrong scale (0.5 instead of 50).</li><li><b>A load before the first save failed.</b> With no presets file yet (fresh install), a load now gives the default 50 % preset instead of leaving the lights untouched.</li></ul>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Save Preset on a row (aircraft powered)</td><td>The current lighting levels are stored; the row loads them later, also after a sim restart.</td></tr><tr><td>Load Preset on a saved row</td><td>The cockpit lights and display brightness fade to the saved levels.</td></tr><tr><td>Load Preset on a row never saved</td><td>Every light and display brightness fades to 50 %; nothing goes dark.</td></tr><tr><td>Automatic loading (Day / Dawn/Dusk / Night set to a row)</td><td>The selected row loads as above: its saved levels, or 50 % if it was never saved.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Presets saved before the fix do not exist.</td><td>No save ever reached the file before.</td><td>Save the rows again once.</td></tr><tr><td>The aircraft must be powered to save or load.</td><td>Stock flyPad rule.</td><td>Power the aircraft first.</td></tr><tr><td>A full MSFS restart is needed after an update.</td><td>The extra-backend WASM module changes.</td><td>Restart the sim after installing.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Power the aircraft and set the cockpit lights and display brightness as you like.</li><li>Open flyPad &gt; Presets &gt; Interior Lighting, optionally rename a row, and press <b>Save Preset</b> on it.</li><li>Later, press <b>Load Preset</b> on that row to get the same lighting back.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX (or A380X) powered, on the ground. Set the panel and flood lights and the display brightness to clearly different levels. flyPad &gt; Presets &gt; Interior Lighting: press <b>Save Preset</b> on row 1 and confirm.</td><td>The save completes.</td></tr><tr><td>2</td><td>Change the lights, then press <b>Load Preset</b> on row 1.</td><td>The lights and displays fade back to the saved levels.</td></tr><tr><td>3</td><td>Press <b>Load Preset</b> on a row that was never saved.</td><td>Every light and display brightness fades to 50 %: the PFD, ND, ECAM and MCDU stay readable.</td></tr><tr><td>4</td><td>Restart the sim, power the aircraft and load row 1 again.</td><td>The saved levels come back (the presets file was written).</td></tr></table>
 </body></html>
