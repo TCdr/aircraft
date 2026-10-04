@@ -4,6 +4,7 @@ import { useSimVar } from '@instruments/common/simVars';
 import { MoreLabel, PageTitle } from './Generic/PageTitle';
 import { useArinc429Var } from '@instruments/common/arinc429';
 import { NXUnits, useInterval } from '@flybywiresim/fbw-sdk-react';
+import { engineLpValveIndication } from './EngineLpValveIndication';
 
 export const FuelPage = () => {
   const CROSS_FEED_VALVE_CLOSED_THRESHOLD = 0.1;
@@ -32,12 +33,6 @@ export const FuelPage = () => {
 
   const allEngFuelFlow = eng1FuelFlowPph + eng2FuelFlowPph + eng3FuelFlowPph + eng4FuelFlowPph;
   const allEngFuelFlowDisplayed = Math.floor(NXUnits.kgToUser(allEngFuelFlow) / 60 / 10) * 10; // kg/min
-
-  // LP valves
-  const [engine1Valve] = useSimVar('FUELSYSTEM VALVE OPEN:1', 'Percent over 100', 1000);
-  const [engine2Valve] = useSimVar('FUELSYSTEM VALVE OPEN:2', 'Percent over 100', 1000);
-  const [engine3Valve] = useSimVar('FUELSYSTEM VALVE OPEN:3', 'Percent over 100', 1000);
-  const [engine4Valve] = useSimVar('FUELSYSTEM VALVE OPEN:4', 'Percent over 100', 1000);
 
   // Fuel pump states
   const fqmsLeftPumpStates = useArinc429Var('L:A32NX_FQMS_LEFT_FUEL_PUMP_RUNNING_WORD', 1000);
@@ -808,69 +803,25 @@ export const FuelPage = () => {
 
       {/* Engines and LP valves */}
       <Engine x={74} y={105} index={1} />
-      <Valve x={111} y={150} open={engine1Valve >= 0.5} />
-      <FuelLine x1={111} y1={132} x2={111} y2={124} active displayWhenInactive={false} />
-      <FuelLine
-        x1={111}
-        y1={132}
-        x2={111}
-        y2={124}
-        active={engine1Valve >= 0.5}
-        displayWhenInactive={false}
-        endArrow="out"
-        endArrowSize={12}
-      />
+      <EngineLpValve x={111} y={150} engineNumber={1} />
       <text textAnchor="middle" x={111} y={84} className="Green T3">
         {Math.floor(NXUnits.kgToUser(eng1FuelUsed) / 50) * 50}
       </text>
 
       <Engine x={236} y={81} index={2} />
-      <Valve x={273} y={123} open={engine2Valve >= 0.5} />
-      <FuelLine x1={273} y1={105} x2={273} y2={97} active displayWhenInactive={false} />
-      <FuelLine
-        x1={273}
-        y1={105}
-        x2={273}
-        y2={97}
-        active={engine2Valve >= 0.5}
-        displayWhenInactive={false}
-        endArrow="out"
-        endArrowSize={12}
-      />
+      <EngineLpValve x={273} y={123} engineNumber={2} />
       <text textAnchor="middle" x={273} y={68} className="Green T3">
         {Math.floor(NXUnits.kgToUser(eng2FuelUsed) / 50) * 50}
       </text>
 
       <Engine x={456} y={81} index={3} />
-      <Valve x={493} y={123} open={engine3Valve >= 0.5} />
-      <FuelLine x1={493} y1={105} x2={493} y2={97} active displayWhenInactive={false} />
-      <FuelLine
-        x1={493}
-        y1={105}
-        x2={493}
-        y2={97}
-        active={engine3Valve >= 0.5}
-        displayWhenInactive={false}
-        endArrow="out"
-        endArrowSize={12}
-      />
+      <EngineLpValve x={493} y={123} engineNumber={3} />
       <text textAnchor="middle" x={493} y={68} className="Green T3">
         {Math.floor(NXUnits.kgToUser(eng3FuelUsed) / 50) * 50}
       </text>
 
       <Engine x={618} y={105} index={4} />
-      <Valve x={655} y={150} open={engine4Valve >= 0.5} />
-      <FuelLine x1={655} y1={132} x2={655} y2={124} active displayWhenInactive={false} />
-      <FuelLine
-        x1={655}
-        y1={132}
-        x2={655}
-        y2={124}
-        active={engine4Valve >= 0.5}
-        displayWhenInactive={false}
-        endArrow="out"
-        endArrowSize={12}
-      />
+      <EngineLpValve x={655} y={150} engineNumber={4} />
       <text textAnchor="middle" x={655} y={84} className="Green T3">
         {Math.floor(NXUnits.kgToUser(eng4FuelUsed) / 50) * 50}
       </text>
@@ -1558,10 +1509,12 @@ interface ValveProps extends Position {
   open: boolean;
   horizontal?: boolean;
   normallyClosed?: boolean;
+  /** Shows the valve amber whatever its position, e.g. when it is abnormally open */
+  amber?: boolean;
 }
 
-const Valve: FC<ValveProps> = ({ x, y, open, horizontal = false, normallyClosed = false }) => {
-  const color = !open && !normallyClosed ? 'Amber' : 'Green';
+const Valve: FC<ValveProps> = ({ x, y, open, horizontal = false, normallyClosed = false, amber = false }) => {
+  const color = amber || (!open && !normallyClosed) ? 'Amber' : 'Green';
   const rotation = open !== !horizontal ? 90 : 0;
   const radius = 16;
 
@@ -1571,6 +1524,37 @@ const Valve: FC<ValveProps> = ({ x, y, open, horizontal = false, normallyClosed 
 
       <line x1={x} y1={y - radius} x2={x} y2={y + radius} />
     </g>
+  );
+};
+
+interface EngineLpValveProps extends Position {
+  engineNumber: number;
+}
+
+/** An engine LP valve and the fuel line from it to its engine, shown per FCOM DSC-28-20 (engineLpValveIndication) */
+const EngineLpValve: FC<EngineLpValveProps> = ({ x, y, engineNumber }) => {
+  const [openPercentage] = useSimVar(`L:A32NX_FUEL_ENG_${engineNumber}_LP_VALVE_OPEN_PERCENTAGE`, 'percent', 1000);
+  // The ENG MASTER lever drives the MSFS fuel valve switch of the same index
+  const [engineMasterOn] = useSimVar(`FUELSYSTEM VALVE SWITCH:${engineNumber}`, 'bool', 1000);
+  const [firePbReleased] = useSimVar(`L:A32NX_FIRE_BUTTON_ENG${engineNumber}`, 'bool', 1000);
+
+  const { inline, amber } = engineLpValveIndication(openPercentage, engineMasterOn > 0 && !(firePbReleased > 0));
+
+  return (
+    <>
+      <Valve x={x} y={y} open={inline} amber={amber} />
+      <FuelLine x1={x} y1={y - 18} x2={x} y2={y - 26} active displayWhenInactive={false} />
+      <FuelLine
+        x1={x}
+        y1={y - 18}
+        x2={x}
+        y2={y - 26}
+        active={inline}
+        displayWhenInactive={false}
+        endArrow="out"
+        endArrowSize={12}
+      />
+    </>
   );
 };
 

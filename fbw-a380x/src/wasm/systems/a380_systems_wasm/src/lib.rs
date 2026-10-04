@@ -83,6 +83,17 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .with_engine_anti_ice(4)?
     .with_wing_anti_ice()?
     .with_fuel_pumps(1..=21)?
+    // An engine starves once its LP fuel valve is closed and the fuel left downstream of it is burned
+    // (see a380_systems fuel/engine_lp_valves.rs). Fuel valves 60 to 63 of flight_model.cfg feed the
+    // engines 1 to 4 in series after their Extra tanks: closing them stops the MSFS combustion exactly
+    // when the engine starves. The ENG MASTER valves 1 to 4 are not used for this: they move the
+    // ENG MASTER switches and toggle the MSFS starters.
+    .with_fuel_valves_closed_while([
+        (Variable::named("FUEL_ENG_1_STARVED"), 60),
+        (Variable::named("FUEL_ENG_2_STARVED"), 61),
+        (Variable::named("FUEL_ENG_3_STARVED"), 62),
+        (Variable::named("FUEL_ENG_4_STARVED"), 63),
+    ])?
     .with_failures([
         (21_000, FailureType::RapidDecompression),
         (21_001, FailureType::CabinFan(1)),
@@ -467,6 +478,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("FUELSYSTEM TANK QUANTITY", "gallons", 10)?
     .provides_aircraft_variable("FUELSYSTEM TANK QUANTITY", "gallons", 11)?
     .provides_aircraft_variable("FUELSYSTEM LINE FUEL FLOW", "gallons per hour", 141)?
+    .provides_aircraft_variable_range("FUELSYSTEM VALVE SWITCH", "Bool", 1..=4)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 0)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 1)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 2)?
