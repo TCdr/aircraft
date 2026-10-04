@@ -15,10 +15,7 @@ import { A380Failure } from '@failures';
 import { ResetPanelSimvars } from '../../MsfsAvionicsCommon/providers/ResetPanelPublisher';
 import { OitSimvars } from '../OitSimvarPublisher';
 import { SecureCommunicationInterface } from './SecureCommunicationInterface';
-
-type AnsuIndex = 1 | 2;
-
-type AnsuType = 'nss-avncs' | 'flt-ops';
+import { AnsuIndex, AnsuType, isAnsuPowered } from './AnsuLogic';
 
 export class AircraftNetworkServerUnit implements Instrument {
   protected readonly subscriptions: Subscription[] = [];
@@ -48,7 +45,7 @@ export class AircraftNetworkServerUnit implements Instrument {
 
   constructor(
     protected readonly bus: EventBus,
-    protected readonly index: AnsuIndex, // use only one ANSU index per type for now
+    protected readonly index: AnsuIndex, // NSS AVNCS: ANSU 1 and 2, FLT OPS: one ANSU (index 1)
     protected readonly type: AnsuType,
     protected readonly failuresConsumer: FailuresConsumer,
   ) {}
@@ -66,25 +63,17 @@ export class AircraftNetworkServerUnit implements Instrument {
   onUpdate(): void {
     const failed = this.failuresConsumer.isActive(this.failureKey);
 
-    if (this.type === 'nss-avncs') {
-      if (this.index === 1) {
-        this.powered.set(
-          SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', SimVarValueType.Bool) ||
-            SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED', SimVarValueType.Bool),
-        );
-      } else {
-        this.powered.set(
-          SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', SimVarValueType.Bool) ||
-            SimVar.GetSimVarValue('L:A32NX_ELEC_AC_EMER_BUS_IS_POWERED', SimVarValueType.Bool) ||
-            SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', SimVarValueType.Bool),
-        );
-      }
-    } else if (this.type === 'flt-ops') {
-      this.powered.set(
-        SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', SimVarValueType.Bool) ||
-          SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', SimVarValueType.Bool),
-      );
-    }
+    // The A380 busbar names come from the A320: AC_ESS_SHED is the A380 AC ESS (400XP), AC_ESS the AC EMER (491XP)
+    this.powered.set(
+      isAnsuPowered(this.type, this.index, {
+        ac1: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+        ac2: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+        acEss: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+        acEmer: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+        dcHot1: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+        dcHot2: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+      }),
+    );
 
     this._isHealthy.set(!failed && this.powered.get() && !this.resetPbStatus.get() && !this.nssMasterOff.get());
 

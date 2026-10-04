@@ -228,6 +228,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A380X/ELEC] The loads the FCOM puts on AC ESS (SURV SYS 1 XPDR/TCAS/TAWS/WXR, RA SYS C, slat motor, 427XP EHAs, feed 2 main/feed 3 stby/trim L pumps, pack controllers channel 1, F/O OIT, FLT OPS ANSU) are on the AC ESS busbar instead of AC EMER; XPDR 2 is wired (failure and AC 4 power of the selected XPDR system, MFD SURV status), NSS AVNCS ANSU 2 is built and takes over from ANSU 1; manual crossbleed control is powered by DC ESS; SURV TCAS 1/2 FAULT are per system (no false TCAS 2 FAULT with AC ESS lost, TCAS 2 on AC 4), TCAS 1(2) shows failed on the MFD SURV STATUS page with XPDR 1(2) failed, new SURV XPDR 1, 2 and 1+2 FAULT alerts - @TCdr
 
 ## 2024.1.0
 

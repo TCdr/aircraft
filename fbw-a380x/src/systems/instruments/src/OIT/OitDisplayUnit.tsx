@@ -38,6 +38,7 @@ export enum OitDisplayUnitID {
 
 const DisplayUnitToDCBus: { [k in OitDisplayUnitID]: (DcElectricalBus | AcElectricalBus)[] } = {
   [OitDisplayUnitID.CaptOit]: [AcElectricalBus.Ac2, DcElectricalBus.Dc2],
+  // A380 FCOM DSC-46-20-70 (a380_fcom.txt:107810): F/O OIT = AC ESS and DC 1 or DC ESS
   [OitDisplayUnitID.FoOit]: [AcElectricalBus.AcEss, DcElectricalBus.DcEssInFlight, DcElectricalBus.Dc1],
 };
 
