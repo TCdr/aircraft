@@ -169,6 +169,31 @@
 				<ANIM_LAG>100</ANIM_LAG>
 			</UseTemplate>
 		</Component>
+		<Component ID="MFP_VANES">
+			<!-- The three multifunction probes (MFP) give the angle of attack, one per ADIRU: one on the left side
+			(MFP3), two on the right side (MFP1, MFP2) (FCOM DSC-34-10-30-10). Their vanes (MFP1..3_FIN) turn about
+			the probe axis and line up with the local airflow, so they follow the angle of attack. Each MFP_ANGLE
+			animation has 21 keyframes: keyframe 10 (50 %) is 0 degrees of angle of attack, keyframes 0 and 20 are
+			-60 and +60 degrees, so 1 degree = 50/60 % of the animation (same mapping as the side slip probes). The
+			left/right mirroring is in the keyframes: a positive INCIDENCE ALPHA (nose above the flight path) raises
+			the trailing tip of every vane (the air flows aft and up along the fuselage). Clamped to the 60 degrees
+			the animation covers; the lag smooths the jumps of the angle of attack at very low speed on the ground. -->
+			<UseTemplate Name="ASOBO_GT_Anim">
+				<ANIM_NAME>MFP_ANGLE1</ANIM_NAME>
+				<ANIM_CODE>(A:INCIDENCE ALPHA, degrees) -60 max 60 min 50 * 60 / 50 +</ANIM_CODE>
+				<ANIM_LAG>100</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Anim">
+				<ANIM_NAME>MFP_ANGLE2</ANIM_NAME>
+				<ANIM_CODE>(A:INCIDENCE ALPHA, degrees) -60 max 60 min 50 * 60 / 50 +</ANIM_CODE>
+				<ANIM_LAG>100</ANIM_LAG>
+			</UseTemplate>
+			<UseTemplate Name="ASOBO_GT_Anim">
+				<ANIM_NAME>MFP_ANGLE3</ANIM_NAME>
+				<ANIM_CODE>(A:INCIDENCE ALPHA, degrees) -60 max 60 min 50 * 60 / 50 +</ANIM_CODE>
+				<ANIM_LAG>100</ANIM_LAG>
+			</UseTemplate>
+		</Component>
 		<Component ID="FX_CONTRAIL_QUAD">
 			<OverrideTemplateParameters>
 				<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt;</FX_CODE>
