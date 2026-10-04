@@ -9,8 +9,23 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
 ## Contents
 
 - [A380X Private Local Vars](#a380x-private-local-vars)
+  - [22 - Auto Flight](#22---auto-flight)
   - [23 - Communications](#23---communications)
   - [Sim Specific](#sim-specific)
+
+## 22 - Auto Flight
+
+### Local Vars
+
+- `L:A380X_GLARESHIELD_AUTOLAND_TEST_{side}`
+    - Boolean
+    - The AUTOLAND light pushbutton on the captain's (`L`) or first officer's (`R`) glareshield is held pressed (light
+      test: the light flashes while pressed)
+
+- `L:A380X_GLARESHIELD_AUTOLAND_LIGHT_{side}`
+    - Boolean
+    - The captain's (`L`) or first officer's (`R`) AUTOLAND light is lit, flashing at 1 Hz (written by the systems
+      host from the autoland warning and the light test)
 
 ## 23 - Communications
 
