@@ -1597,10 +1597,12 @@ interface ValveProps extends Position {
   open: boolean;
   horizontal?: boolean;
   normallyClosed?: boolean;
+  /** Shows the valve amber whatever its position, e.g. when it is abnormally open */
+  amber?: boolean;
 }
 
-const Valve: FC<ValveProps> = ({ x, y, open, horizontal = false, normallyClosed = false }) => {
-  const color = !open && !normallyClosed ? 'Amber' : 'Green';
+const Valve: FC<ValveProps> = ({ x, y, open, horizontal = false, normallyClosed = false, amber = false }) => {
+  const color = amber || (!open && !normallyClosed) ? 'Amber' : 'Green';
   const rotation = open !== !horizontal ? 90 : 0;
   const radius = 16;
 
