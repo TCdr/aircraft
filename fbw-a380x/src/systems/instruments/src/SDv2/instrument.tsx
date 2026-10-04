@@ -12,6 +12,8 @@ import { SDSimvarPublisher } from './SDSimvarPublisher';
 import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
 import { FcuEfisCpBusPublisher } from '@shared/publishers/EfisCpBusPublisher';
 import { FqmsBusPublisher } from '@shared/publishers/FqmsBusPublisher';
+import { CdsDisplay } from '@shared/CdsReconfiguration';
+import { HostedDisplayGate, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
 
 class SdInstrument implements FsInstrument {
   private readonly bus = new ArincEventBus();
@@ -34,6 +36,15 @@ class SdInstrument implements FsInstrument {
 
   private readonly failuresConsumer = new FailuresConsumer();
 
+  /** The DU this gauge draws on when it is the SD drawn on an ND DU (CDS reconfiguration, panel.cfg hostDu), else null */
+  private readonly hostDisplayUnit = hostDisplayUnitOf('SDv2');
+
+  /**
+   * The run gate when this gauge is the SD drawn on an ND DU: it starts and runs only while the SD is shown there. Null
+   * for the SD DU's own gauge.
+   */
+  private readonly hostedGate: HostedDisplayGate | null;
+
   constructor(public readonly instrument: BaseInstrument) {
     this.hEventPublisher = new HEventPublisher(this.bus);
 
@@ -44,9 +55,19 @@ class SdInstrument implements FsInstrument {
     this.backplane.addPublisher('fcuBus', this.fcuBusPublisher);
     this.backplane.addPublisher('fqms', this.fqmsPublisher);
 
-    this.doInit();
+    this.hostedGate =
+      this.hostDisplayUnit === null
+        ? null
+        : new HostedDisplayGate(this.hostDisplayUnit, CdsDisplay.Sd, 'SDv2_CONTENT', () => this.doInit());
+    if (this.hostedGate) {
+      // hides the hosted gauge at once, starts it if the SD is already shown on its DU
+      this.hostedGate.update();
+    } else {
+      this.doInit();
+    }
   }
 
+  /** Starts the SD: at once for the SD DU's own gauge, when first shown for a hosted gauge */
   public doInit(): void {
     this.backplane.init();
 
@@ -54,7 +75,10 @@ class SdInstrument implements FsInstrument {
 
     const sdv2 = document.getElementById('SDv2_CONTENT');
 
-    FSComponent.render(<SD bus={this.bus} />, document.getElementById('SDv2_CONTENT'));
+    FSComponent.render(
+      <SD bus={this.bus} hostDisplayUnitId={this.hostDisplayUnit ?? undefined} />,
+      document.getElementById('SDv2_CONTENT'),
+    );
 
     // Remove "instrument didn't load" text
     sdv2?.querySelector(':scope > h1')?.remove();
@@ -64,11 +88,19 @@ class SdInstrument implements FsInstrument {
    * A callback called when the instrument gets a frame update.
    */
   public Update(): void {
+    if (this.hostedGate && !this.hostedGate.update()) {
+      return;
+    }
+
     this.backplane.onUpdate();
     this.failuresConsumer.update();
   }
 
   public onInteractionEvent(args: string[]): void {
+    if (this.hostedGate && !this.hostedGate.update()) {
+      return;
+    }
+
     this.hEventPublisher.dispatchHEvent(args[0]);
   }
 

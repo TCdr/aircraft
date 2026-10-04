@@ -1,10 +1,28 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DisplayUnitID } from '@shared/CdsDisplayUnits';
-import { CdsDisplay } from '@shared/CdsReconfiguration';
+import { ALL_DISPLAY_UNITS, DisplayUnitID } from '@shared/CdsDisplayUnits';
+import { CdsDisplay, DRAWN_DISPLAYS, normalDisplayOf } from '@shared/CdsReconfiguration';
 import { findInstrumentUrl, HostedDisplayGate, parseHostDisplayUnit } from './HostedDisplay';
+
+/** The cockpit panel.cfg with the gauges of each DU */
+const PANEL_CFG = join(
+  __dirname,
+  '../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire',
+  'Part_Interior_Cockpit/panel/panel.cfg',
+);
+
+/** The display each instrument folder draws */
+const FOLDER_DISPLAY: Readonly<Record<string, CdsDisplay>> = {
+  PFD: CdsDisplay.Pfd,
+  ND: CdsDisplay.Nd,
+  EWD: CdsDisplay.Ewd,
+  SD: CdsDisplay.Sd,
+  SDv2: CdsDisplay.Sd,
+};
 
 /** A document like the one of a panel.cfg block: the DU's own gauge, WASM gauges, then the hosted gauge */
 function setUpPanel(urls: [string, string][]): void {
@@ -64,5 +82,66 @@ describe('hosted display gauges (CDS reconfiguration)', () => {
     expect(gate.update()).toBe(false);
     expect(mount.style.display).toBe('none');
     expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops a hosted gauge with a stop function when its display is no longer shown, and starts it again', () => {
+    setUpPanel([['a380x-sd', 'A380X/SD/sd-hosted.html?hostDu=4&duID=7']]);
+    const start = vi.fn();
+    const stop = vi.fn();
+    const gate = new HostedDisplayGate(DisplayUnitID.FoNd, CdsDisplay.Sd, 'PFD_CONTENT', start, stop);
+
+    expect(gate.update()).toBe(false);
+    expect(start).not.toHaveBeenCalled();
+    expect(stop).not.toHaveBeenCalled();
+
+    SimVar.SetSimVarValue('L:A380X_CDS_FO_ND_DU_DISPLAY', 'number', CdsDisplay.Sd);
+    expect(gate.update()).toBe(true);
+    expect(gate.update()).toBe(true);
+    expect(start).toHaveBeenCalledTimes(1);
+
+    SimVar.SetSimVarValue('L:A380X_CDS_FO_ND_DU_DISPLAY', 'number', CdsDisplay.Ewd);
+    expect(gate.update()).toBe(false);
+    expect(gate.update()).toBe(false);
+    expect(stop).toHaveBeenCalledTimes(1);
+
+    SimVar.SetSimVarValue('L:A380X_CDS_FO_ND_DU_DISPLAY', 'number', CdsDisplay.Sd);
+    expect(gate.update()).toBe(true);
+    expect(start).toHaveBeenCalledTimes(2);
+    SimVar.SetSimVarValue('L:A380X_CDS_FO_ND_DU_DISPLAY', 'number', 0);
+  });
+
+  it('reads the DU of a hosted SD gauge, and not of an SDv2 gauge, from the SD folder', () => {
+    setUpPanel([
+      ['a380x-nd', 'A380X/ND/nd.html?Index=2?duID=4'],
+      ['a380x-sd', 'A380X/SD/sd-hosted.html?hostDu=4&duID=7'],
+      ['a380x-sdv2', 'A380X/SDv2/sdv2-hosted.html?hostDu=4&duID=7'],
+    ]);
+    expect(findInstrumentUrl('SD')).toBe('A380X/SD/sd-hosted.html?hostDu=4&duID=7');
+    expect(findInstrumentUrl('SDv2')).toBe('A380X/SDv2/sdv2-hosted.html?hostDu=4&duID=7');
+  });
+
+  it('has a hosted gauge in panel.cfg for every display a DU can draw, and no other', () => {
+    const hostedUrls = Array.from(
+      readFileSync(PANEL_CFG, 'utf-8').matchAll(/^htmlgauge\d+\s*=\s*A380X\/(\w+)\/([^,\s]+)/gm),
+    );
+    const drawn = new Map<DisplayUnitID, Set<CdsDisplay>>(
+      ALL_DISPLAY_UNITS.map((du) => [du, new Set([normalDisplayOf(du)])]),
+    );
+    const hostedFolders = new Map<DisplayUnitID, string[]>();
+    for (const [, folder, file] of hostedUrls) {
+      const hostDu = parseHostDisplayUnit(file);
+      if (hostDu !== null) {
+        expect(file).toContain('-hosted.html');
+        drawn.get(hostDu)!.add(FOLDER_DISPLAY[folder]);
+        hostedFolders.set(hostDu, [...(hostedFolders.get(hostDu) ?? []), folder]);
+      }
+    }
+    for (const du of ALL_DISPLAY_UNITS) {
+      expect([...drawn.get(du)!].sort()).toEqual([...DRAWN_DISPLAYS[du]].sort());
+    }
+    // the SD is two gauges (legacy SD pages + SDv2): both on each ND DU
+    for (const du of [DisplayUnitID.CaptNd, DisplayUnitID.FoNd]) {
+      expect(hostedFolders.get(du)).toEqual(expect.arrayContaining(['SD', 'SDv2']));
+    }
   });
 });

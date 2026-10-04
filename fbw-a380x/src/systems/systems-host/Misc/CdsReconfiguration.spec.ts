@@ -87,6 +87,20 @@ describe('CDS reconfiguration in the systems host (A380 FCOM DSC-31-15-20)', () 
     expect(captPfdDuDisplay()).toBe(0);
   });
 
+  it('cycles the CAPT ND DU through the EWD, the SD and the PFD with the CAPT DU RECONF pb (CAPT PFD and MFD DUs failed)', () => {
+    const captNdDuDisplay = () => simVars.get(displayUnitDisplayVar(DisplayUnitID.CaptNd));
+    activeFailures.add(A380Failure.CaptPfdDisplayUnit);
+    activeFailures.add(A380Failure.CaptMfdDisplayUnit);
+    update();
+    expect(captNdDuDisplay()).toBe(CdsDisplay.Pfd);
+    press(DU_RECONF_PB_EVENT.CAPT);
+    expect(captNdDuDisplay()).toBe(CdsDisplay.Ewd);
+    press(DU_RECONF_PB_EVENT.CAPT);
+    expect(captNdDuDisplay()).toBe(CdsDisplay.Sd);
+    press(DU_RECONF_PB_EVENT.CAPT);
+    expect(captNdDuDisplay()).toBe(CdsDisplay.Pfd);
+  });
+
   it('acts on the DU states of the moment of the press, also a DU that failed since the last periodic update', () => {
     activeFailures.add(A380Failure.CaptNdDisplayUnit);
     activeFailures.add(A380Failure.CaptMfdDisplayUnit);
