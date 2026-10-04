@@ -136,7 +136,13 @@ int airDataSource(bool isRight, int airDataKnob) {
 }
 #endif
 
-bool isPowered(const Instance& instance) {
+// Whether the ND's display unit shows a picture: it is powered and, on the A380X, not failed.
+bool isDisplayUnitOn(const Instance& instance) {
+#ifdef A380X
+  if (get_named_variable_value(instance.displayUnitFailedVar) != 0.0) {
+    return false;
+  }
+#endif
   return get_named_variable_value(instance.powerBusVars[0]) != 0.0 || get_named_variable_value(instance.powerBusVars[1]) != 0.0;
 }
 

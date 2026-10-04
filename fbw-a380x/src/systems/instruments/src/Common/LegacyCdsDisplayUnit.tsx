@@ -2,6 +2,7 @@
 import React, { forwardRef, PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { DcElectricalBus } from '@shared/electrical';
+import { DisplayUnitID, displayUnitFailedVar } from '@shared/CdsDisplayUnits';
 import { useSimVar } from './simVars';
 import { useUpdate } from './hooks';
 
@@ -10,16 +11,7 @@ import './pixels.scss';
 
 import './CdsDisplayUnit.scss';
 
-export enum DisplayUnitID {
-  CaptPfd,
-  CaptNd,
-  CaptMfd,
-  FoPfd,
-  FoNd,
-  FoMfd,
-  Ewd,
-  Sd,
-}
+export { DisplayUnitID };
 
 const DisplayUnitToDCBus: { [k in DisplayUnitID]: DcElectricalBus[] } = {
   [DisplayUnitID.CaptPfd]: [DcElectricalBus.DcEss],
@@ -65,7 +57,11 @@ function BacklightBleed(props) {
 }
 
 export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<DisplayUnitProps>>(
-  ({ displayUnitId, failed, hideBootTestScreens, children }, ref) => {
+  ({ displayUnitId, failed: failedProp, hideBootTestScreens, children }, ref) => {
+    // The DU's own flyPad failure, published by the FSComponent instrument of the same DU (CdsDisplayUnit; for the SD,
+    // SDv2 shares the DU with this legacy SD)
+    const [displayUnitFailed] = useSimVar(displayUnitFailedVar(displayUnitId), 'Bool', 200);
+    const failed = !!failedProp || displayUnitFailed > 0;
     const [coldDark] = useSimVar('L:A32NX_COLD_AND_DARK_SPAWN' /* TODO 380 simvar */, 'Bool', 200);
     const [state, setState] = useState(coldDark ? DisplayUnitState.Off : DisplayUnitState.Standby);
     const [timer, setTimer] = useState<number | null>(null);
@@ -127,6 +123,8 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
     useEffect(() => {
       if (state !== DisplayUnitState.Off && failed) {
         setState(DisplayUnitState.Off);
+        // stop a boot or standby countdown, which would switch the DU back on
+        setTimer(null);
       } else if (
         state === DisplayUnitState.On &&
         (potentiometer === 0 || (electricityState0 === 0 && electricityState1 === 0))
@@ -157,7 +155,7 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
         setState(DisplayUnitState.Off);
         setTimer(null);
       }
-    }, [timer, state, potentiometer, electricityState0, electricityState1]);
+    }, [timer, state, potentiometer, electricityState0, electricityState1, failed]);
 
     if (window.ACE_ENGINE_HANDLE) {
       return (
