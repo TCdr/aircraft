@@ -113,6 +113,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
 1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ROSE and ARC pages - @TCdr
 1. [ND] Fewer stutters with the weather radar and TERR ON ND: the map views nothing shows are paused - @TCdr
+1. [A380X/EFB] New flyPad failures for the 8 display units (CAPT/F/O PFD, ND, MFD, EWD, SD): the failed display unit goes blank and the ECAM shows CDS ... DU FAULT with its procedure and INOP SYS - @TCdr
 
 ## 2024.1.0
 

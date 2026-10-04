@@ -516,7 +516,7 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
   double upperFeet = 0.0;
   double altitudeFeet = 0.0;
 
-  if (isPowered(instance)) {
+  if (isDisplayUnitOn(instance)) {
     const double ndMode = get_named_variable_value(instance.ndModeVar);
     const int ir = inertialSource(instance.isRight, static_cast<int>(g_attHdgKnob.read()));
     const auto latWord = types::Arinc429Word<float>::fromSimVar(g_adirsLat[ir - 1].read());

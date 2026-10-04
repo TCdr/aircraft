@@ -223,6 +223,9 @@ struct Instance {
   ID powerBusVars[2] = {-1, -1};
 #ifdef A380X
   ID overlayVar = -1;
+  // A380X_CDS_CAPT(FO)_ND_DU_FAILED: the ND's display unit is failed (flyPad failure), written by its
+  // CdsDisplayUnit (shared/src/CdsDisplayUnits.ts). A failed DU is blank, so this module draws nothing either.
+  ID displayUnitFailedVar = -1;
 #endif
 
   FsTextureId mapView = 0;
@@ -398,7 +401,7 @@ unsigned long long mixKey(unsigned long long key, long long value);
 // simvars.cpp: the readers of the shared variables.
 int inertialSource(bool isRight, int attHdgKnob);
 bool isMapPage(double ndMode);
-bool isPowered(const Instance& instance);
+bool isDisplayUnitOn(const Instance& instance);
 bool radarSelected(const Instance& instance);
 double radarMode();
 bool terrainSelected(const Instance& instance);

@@ -85,6 +85,230 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
+  // CDS CAPT PFD(CAPT ND)(CAPT MFD)(EWD)(SD)(F/O PFD)(F/O ND)(F/O MFD) DU FAULT (A380 FCOM PRO-ABN-ECAM-10-31,
+  // a380_fcom.txt:157885-157950), the branch "if monitoring function on affected DU is not detected faulty": the DU
+  // is switched off for 5 s then on, and off if that is not successful. The DU RECONF pb is not simulated yet.
+  311800013: {
+    title: '\x1b<4m\x1b4mCDS\x1bm CAPT PFD DU FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'CAPT PFD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF 5 S THEN ON',
+      },
+      {
+        name: 'NOT SUCCESSFUL',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'CAPT PFD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'DU RECONF P/B AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
+  },
+  311800014: {
+    title: '\x1b<4m\x1b4mCDS\x1bm CAPT ND DU FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'CAPT ND DU',
+        sensed: false,
+        labelNotCompleted: 'OFF 5 S THEN ON',
+      },
+      {
+        name: 'NOT SUCCESSFUL',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'CAPT ND DU',
+        sensed: false,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'DU RECONF P/B AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
+  },
+  311800015: {
+    title: '\x1b<4m\x1b4mCDS\x1bm CAPT MFD DU FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'CAPT MFD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF 5 S THEN ON',
+      },
+      {
+        name: 'NOT SUCCESSFUL',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'CAPT MFD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'DU RECONF P/B AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
+  },
+  311800016: {
+    title: '\x1b<4m\x1b4mCDS\x1bm EWD DU FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'EWD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF 5 S THEN ON',
+      },
+      {
+        name: 'NOT SUCCESSFUL',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'EWD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'DU RECONF P/B AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
+  },
+  311800017: {
+    title: '\x1b<4m\x1b4mCDS\x1bm SD DU FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'SD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF 5 S THEN ON',
+      },
+      {
+        name: 'NOT SUCCESSFUL',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'SD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'DU RECONF P/B AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
+  },
+  311800018: {
+    title: '\x1b<4m\x1b4mCDS\x1bm F/O PFD DU FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'F/O PFD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF 5 S THEN ON',
+      },
+      {
+        name: 'NOT SUCCESSFUL',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'F/O PFD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'DU RECONF P/B AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
+  },
+  311800019: {
+    title: '\x1b<4m\x1b4mCDS\x1bm F/O ND DU FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'F/O ND DU',
+        sensed: false,
+        labelNotCompleted: 'OFF 5 S THEN ON',
+      },
+      {
+        name: 'NOT SUCCESSFUL',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'F/O ND DU',
+        sensed: false,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'DU RECONF P/B AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
+  },
+  311800020: {
+    title: '\x1b<4m\x1b4mCDS\x1bm F/O MFD DU FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'F/O MFD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF 5 S THEN ON',
+      },
+      {
+        name: 'NOT SUCCESSFUL',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'F/O MFD DU',
+        sensed: false,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'DU RECONF P/B AVAIL',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+    ],
+  },
   313800001: {
     title: '\x1b<4m\x1b4mCDS\x1bm CAPT CURSOR CTL FAULT',
     sensed: true,
