@@ -4,6 +4,7 @@ import { GaugeComponent, GaugeMarkerComponent, ThrottlePositionDonutComponent } 
 import { useSimVar } from '@instruments/common/simVars';
 import { Position, ValidRedundantSystem } from '@instruments/common/types';
 import React from 'react';
+import { cabinAltitudeNeedleClass } from './CabinAltitudeIndication';
 
 export const CabAlt: React.FC<Position & ValidRedundantSystem> = ({ x, y, system }) => {
   const [manCabinAlt] = useSimVar('L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 'feet', 500);
@@ -140,7 +141,7 @@ export const CabAlt: React.FC<Position & ValidRedundantSystem> = ({ x, y, system
           radius={radius}
           startAngle={startAngle}
           endAngle={endAngle}
-          className={`GaugeIndicator SW4 ${cabAlt50 < -0.4 || cabAlt50 >= 8.5 ? 'Amber' : ''}`}
+          className={`${cabinAltitudeNeedleClass(cabAlt50)} SW4`}
           indicator
           multiplierOuter={1.01}
         />

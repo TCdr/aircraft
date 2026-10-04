@@ -5,6 +5,7 @@ import { MoreLabel, PageTitle } from './Generic/PageTitle';
 import { useArinc429Var } from '@instruments/common/arinc429';
 import { NXUnits, useInterval } from '@flybywiresim/fbw-sdk-react';
 import { engineLpValveIndication } from './EngineLpValveIndication';
+import { jettisonValveIndication } from './JettisonValveIndication';
 
 export const FuelPage = () => {
   const CROSS_FEED_VALVE_CLOSED_THRESHOLD = 0.1;
@@ -726,7 +727,11 @@ export const FuelPage = () => {
   const isLeftJettisonValveOpen = leftJettisonValveOpen >= JETTISON_VALVE_CLOSED_THRESHOLD;
   const [rightJettisonValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:58', 'Percent over 100', 1000);
   const isRightJettisonValveOpen = rightJettisonValveOpen >= JETTISON_VALVE_CLOSED_THRESHOLD;
-  const isJettisonActive = false; // TODO
+  // Written by the FQMS (CpiomF/FuelJettison.ts) while both jettison pbs are pressed and the jettison runs
+  const [jettisonInProgress] = useSimVar('L:A380X_FUEL_JETTISON_IN_PROGRESS', 'Bool', 1000);
+  const isJettisonActive = jettisonInProgress > 0;
+  const leftJettisonIndication = jettisonValveIndication(isLeftJettisonValveOpen, isJettisonActive);
+  const rightJettisonIndication = jettisonValveIndication(isRightJettisonValveOpen, isJettisonActive);
 
   // Collector cells
   const collectorCell1Weight = 1200;
@@ -1223,10 +1228,10 @@ export const FuelPage = () => {
           endArrow="out"
           endArrowSize={16}
           fillEndArrow={true}
-          hasFault={isLeftJettisonValveOpen && !isJettisonActive}
+          hasFault={leftJettisonIndication.fault}
         />
         {(isJettisonActive || isLeftJettisonValveOpen) && (
-          <text x={134} y={562} className={`${isLeftJettisonValveOpen !== isJettisonActive ? 'Amber' : 'White'} T2`}>
+          <text x={134} y={562} className={`${leftJettisonIndication.textClass} T2`}>
             JETTISON
           </text>
         )}
@@ -1244,10 +1249,10 @@ export const FuelPage = () => {
           endArrow="out"
           endArrowSize={16}
           fillEndArrow={true}
-          hasFault={isRightJettisonValveOpen && !isJettisonActive}
+          hasFault={rightJettisonIndication.fault}
         />
         {(isJettisonActive || isRightJettisonValveOpen) && (
-          <text x={514} y={562} className={`${isRightJettisonValveOpen !== isJettisonActive ? 'Amber' : 'White'} T2`}>
+          <text x={514} y={562} className={`${rightJettisonIndication.textClass} T2`}>
             JETTISON
           </text>
         )}

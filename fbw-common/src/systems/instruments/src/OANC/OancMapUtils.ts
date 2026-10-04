@@ -101,3 +101,32 @@ export function pointToLineDistance(point: Position, lineStart: Position, lineEn
     ((lineEnd[1] - lineStart[1]) ** 2 + (lineEnd[0] - lineStart[0]) ** 2) ** 0.5
   );
 }
+
+/**
+ * Whether a runway of the displayed airport is an FMS selected runway: the departure runway at the FMS origin, or the
+ * landing runway at the FMS destination. A380 FCOM DSC-34-10-70-20: "If the flight crew selects an origin runway, or a
+ * destination runway in the FMS flight plan, the OANS displays [...] The QFU of the selected runway on the runway label
+ * in green."
+ * @param airportIcao ICAO code of the airport shown on the OANS
+ * @param origin FMS origin ICAO code
+ * @param destination FMS destination ICAO code
+ * @param departureRunway FMS departure runway designator (without the airport ICAO code)
+ * @param landingRunway FMS landing runway designator (without the airport ICAO code)
+ * @param designators the designators of the runway
+ * @returns true if the runway is the FMS selected runway of that airport
+ */
+export function isFmsSelectedRunway(
+  airportIcao: string | null,
+  origin: string | null,
+  destination: string | null,
+  departureRunway: string | undefined,
+  landingRunway: string | undefined,
+  designators: readonly string[],
+): boolean {
+  const isFmsOrigin = airportIcao === origin;
+  const isFmsDestination = airportIcao === destination;
+  return (
+    (isFmsOrigin && !!departureRunway && designators.includes(departureRunway)) ||
+    (isFmsDestination && !!landingRunway && designators.includes(landingRunway))
+  );
+}

@@ -10,6 +10,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
 import { GaugeComponent, GaugeMarkerComponent, GaugeMaxEGTComponent } from '../../MsfsAvionicsCommon/gauges';
+import { egtColour, egtLimitMarkVisible, trimmedEgt } from './EgtLimits';
 
 interface EGTProps {
   bus: EventBus;
@@ -22,10 +23,8 @@ interface EGTProps {
 export class EGT extends DisplayComponent<EGTProps> {
   private readonly sub = this.props.bus.getSubscriber<EwdSimvars>();
 
-  private readonly throttlePosition = ConsumerSubject.create(
-    this.sub.on(`throttle_position_${this.props.engine}`).whenChanged(),
-    0,
-  );
+  /** FADEC thrust limit type (NONE 0, CLB 1, MCT 2, FLEX 3, TOGA 4, REVERSE 5), see EgtLimits.ts */
+  private readonly thrustLimitType = ConsumerSubject.create(this.sub.on('thrust_limit_type').whenChanged(), 0);
 
   private readonly egt = ConsumerSubject.create(
     this.sub.on(`egt_${this.props.engine}`).withPrecision(1).whenChanged(),
@@ -38,29 +37,19 @@ export class EGT extends DisplayComponent<EGTProps> {
   private min = 0;
   private max = 1000;
 
-  private warningEGTColor = (EGTemperature: number, throttleMode: number) => {
-    if (EGTemperature >= 900) {
-      return 'Red';
-    }
-    if (EGTemperature > 850 && throttleMode < 3) {
-      return 'Amber';
-    }
-    return 'Green';
-  };
-
-  private readonly amberVisible = this.throttlePosition.map((tm) => tm < 33);
+  private readonly amberVisible = this.thrustLimitType.map(egtLimitMarkVisible);
 
   private readonly egtColour = MappedSubject.create(
-    ([egt, tm]) => this.warningEGTColor(egt, tm),
+    ([egt, limitType]) => egtColour(egt, limitType),
     this.egt,
-    this.throttlePosition,
+    this.thrustLimitType,
   );
 
   // EEC trims EGT to a max value
   private readonly trimmedEGT = MappedSubject.create(
-    ([egt, throttleMode]) => Math.min([3, 4].includes(throttleMode) ? 900 : 850, egt),
+    ([egt, limitType]) => trimmedEgt(egt, limitType),
     this.egt,
-    this.throttlePosition,
+    this.thrustLimitType,
   );
 
   public onAfterRender(node: VNode): void {
@@ -87,9 +76,7 @@ export class EGT extends DisplayComponent<EGTProps> {
           </g>
           <g visibility={this.props.active.map((it) => (it ? 'inherit' : 'hidden'))}>
             <text class={this.egtColour.map((col) => `Large End ${col}`)} x={this.props.x + 33} y={this.props.y + 11.7}>
-              {this.egt.map((egt) =>
-                Math.min([3, 4].includes(this.throttlePosition.get()) ? 900 : 850, Math.round(egt)),
-              )}
+              {this.egt.map((egt) => trimmedEgt(Math.round(egt), this.thrustLimitType.get()))}
             </text>
             <GaugeComponent
               x={this.props.x}
