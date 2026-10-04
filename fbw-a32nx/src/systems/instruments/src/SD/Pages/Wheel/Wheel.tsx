@@ -10,6 +10,7 @@ import { HydraulicIndicator } from '../../Common/HydraulicIndicator';
 import { ComponentPositionProps } from '../../Common/ComponentPositionProps';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { Spoilers } from '../../Common/Spoilers';
+import { autoBrakeIndicationClass } from './AutoBrakeIndication';
 
 import '../../Common/CommonStyles.scss';
 import '../../Common/animations.scss';
@@ -229,9 +230,9 @@ const AccumulatorOnly = ({ x, y }: ComponentPositionProps) => (
 );
 
 const AutoBrake = ({ x, y }: ComponentPositionProps) => {
-  const [eng1] = useSimVar('ENG COMBUSTION:1', 'Bool');
-  const [eng2] = useSimVar('ENG COMBUSTION:2', 'Bool');
-  const available = eng1 === 1 && eng2 === 1;
+  // Amber only on an AUTO BRK failure (FCOM DSC-32-30-20), which is not modelled yet: not when an engine is off
+  const autoBrakeFailed = false;
+  const available = !autoBrakeFailed;
 
   const [autoBrakeLevel] = useSimVar('L:A32NX_AUTOBRAKES_ARMED_MODE', 'Number', maxStaleness);
   const [autoBrakeActive] = useSimVar('L:A32NX_AUTOBRAKES_ACTIVE', 'boolean', maxStaleness);
@@ -252,7 +253,7 @@ const AutoBrake = ({ x, y }: ComponentPositionProps) => {
   if (autoBrakeLevel !== 0) {
     return (
       <SvgGroup x={x} y={y}>
-        <text className={`Large ${available ? 'Green' : 'Amber'}`}>AUTO BRK</text>
+        <text className={`Large ${autoBrakeIndicationClass(autoBrakeFailed)}`}>AUTO BRK</text>
 
         <SvgGroup x={40} y={32}>
           {autoBrakeLevel === 1 ? <AutoBrakeLevel text="LO" available={available} /> : null}
