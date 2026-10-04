@@ -532,5 +532,49 @@
 				<FX_NODE>fx_tire_contactPoint_right_out</FX_NODE>
 			</UseTemplate>
 		</Component>
+		<!--
+			Fuel jettison plume, one per wing while fuel flows out of that side: the FQMS jettisons
+			(L:A380X_FUEL_JETTISON_IN_PROGRESS, FuelJettison.ts) and that side's jettison valve is open (fuel system
+			valve 57 left, 58 right). FCOM DSC-28-40: "one discharge point on the trailing edge of each wing"; the exit is
+			the tube (anti-corona device) at the aft end of the second-outermost flap track fairing, MFTF 5 (forum source,
+			PPRuNe 2010-11-20), modelled as "MFTF 5 Moveable.008-010". The effect hangs, with no offset, on the node
+			FX_JETTISON_LH / FX_JETTISON_RH that aircraft-large-files adds at that tube (child of the fairing bone in
+			LOD00, so it follows the wing flex; at the scene root in LOD01/02). FX offsets on other nodes did not land
+			where expected in the sim.
+			The look is the stock MSFS water-ballast mist (the closest stock match, design choice), in its
+			high-speed version from 40 kt TAS and its low-speed version below, as Asobo switches it. The plume's
+			particles stay where they were released, so it gets longer with the true airspeed by itself (user-checked in
+			flight).
+		-->
+		<Component ID="FUEL_JETTISON_FX">
+			<Component ID="FUEL_JETTISON_FX_LEFT_FAST" Node="FX_JETTISON_LH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{AA642D83-552F-46F5-992A-6A6AB82CBF18}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_LEFT_FAST</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_CODE>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_FX_LEFT_SLOW" Node="FX_JETTISON_LH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{CAF32131-A4D7-4FC8-9831-83F3283C2575}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_LEFT_SLOW</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_CODE>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_FX_RIGHT_FAST" Node="FX_JETTISON_RH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{AA642D83-552F-46F5-992A-6A6AB82CBF18}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_RIGHT_FAST</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_CODE>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_FX_RIGHT_SLOW" Node="FX_JETTISON_RH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{CAF32131-A4D7-4FC8-9831-83F3283C2575}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_RIGHT_SLOW</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_CODE>
+				</UseTemplate>
+			</Component>
+		</Component>
 	</Behaviors>
 </ModelInfo>
