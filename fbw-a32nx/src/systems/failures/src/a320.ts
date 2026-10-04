@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -84,6 +84,8 @@ export const A320Failure = Object.freeze({
   UpperEcamDisplay: 31004,
   LowerEcamDisplay: 31005,
   EcamControlPanel: 31006,
+  Fwc1: 31007,
+  Fwc2: 31008,
 
   LgciuPowerSupply1: 32000,
   LgciuPowerSupply2: 32001,
@@ -202,6 +204,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [31, A320Failure.LeftPfdDisplay, 'Captain PFD display'],
   [31, A320Failure.RightPfdDisplay, 'F/O PFD display'],
   [31, A320Failure.EcamControlPanel, 'ECAM Control Panel'],
+  [31, A320Failure.Fwc1, 'FWC 1'],
+  [31, A320Failure.Fwc2, 'FWC 2'],
 
   [32, A320Failure.LgciuPowerSupply1, 'LGCIU 1 Power supply'],
   [32, A320Failure.LgciuPowerSupply2, 'LGCIU 2 Power supply'],

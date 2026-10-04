@@ -74,6 +74,7 @@ import {
   packOffStatus,
 } from './Logic/CondStatus';
 import { EcamStatus } from './EcamStatus';
+import { FWC_1_AND_2_FAULT_EWD, FWC_FAULT_EWD_CODES, FwcAvailability, fwcFaultStatus } from './Logic/FwcAvailability';
 import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
 
 export function xor(a: boolean, b: boolean): boolean {
@@ -1914,6 +1915,21 @@ export class PseudoFWC {
 
   private readonly gps2Fault = Subject.create(false);
 
+  /** FWS FWC 1 FAULT, shown by FWC 2 (see Logic/FwcAvailability) */
+  private readonly fwc1FaultAlert = this.fwcAvailability.map((a) => a.fwc1FaultAlert);
+
+  /** FWS FWC 2 FAULT, shown by FWC 1 */
+  private readonly fwc2FaultAlert = this.fwcAvailability.map((a) => a.fwc2FaultAlert);
+
+  /** FWS FWC 1+2 FAULT: no FWC left, the display units show the fault instead of the alerts and memos */
+  private readonly fwc1And2Fault = this.fwcAvailability.map((a) => a.fwc1And2FaultAlert);
+
+  /** At least one FWC works: it sends the FWC output words and drives the aurals alone */
+  private readonly anyFwcOperative = this.fwcAvailability.map((a) => a.anyFwcOperative);
+
+  /** The FWC output words when no FWC works: no data, failure warning */
+  private static readonly FWC_FAILED_WORD = Arinc429Register.empty();
+
   private readonly ra2Fault = Subject.create(false);
 
   private readonly tcasFault = Subject.create(false);
@@ -1977,6 +1993,8 @@ export class PseudoFWC {
     private readonly bus: EventBus,
     private readonly soundManager: FwsSoundManager,
     private readonly startupCompleted: Subscribable<boolean>,
+    /** Which of the two FWCs works (FwsManager) */
+    private readonly fwcAvailability: Subscribable<FwcAvailability>,
   ) {
     for (const [key, item] of Object.entries(this.ewdMessageFailures)) {
       item.simVarIsActive.sub((v) => {
@@ -2077,43 +2095,38 @@ export class PseudoFWC {
       true,
     );
 
-    this.masterCaution.sub((caution) => {
-      // Inhibit master warning/cautions until FWC startup has been completed
-      SimVar.SetSimVarValue('L:A32NX_MASTER_CAUTION', 'bool', this.startupCompleted.get() ? caution : false);
+    // Inhibit master warning/cautions until FWC startup has been completed, and when no FWC works (A320 FCOM PRO-ABN-FWS
+    // FWS FWC 1 + 2 FAULT: "master caution and warning lights are lost")
+    MappedSubject.create(this.masterCaution, this.startupCompleted).sub(([caution, fwsAvailable]) => {
+      SimVar.SetSimVarValue('L:A32NX_MASTER_CAUTION', 'bool', fwsAvailable ? caution : false);
     }, true);
 
-    this.masterWarningOutput.sub((warning) => {
-      // Inhibit master warning/cautions until FWC startup has been completed
-      SimVar.SetSimVarValue('L:A32NX_MASTER_WARNING', 'Bool', this.startupCompleted.get() ? warning : false);
+    MappedSubject.create(this.masterWarningOutput, this.startupCompleted).sub(([warning, fwsAvailable]) => {
+      SimVar.SetSimVarValue('L:A32NX_MASTER_WARNING', 'Bool', fwsAvailable ? warning : false);
     }, true);
 
-    // L/G lever red arrow sinking outputs
-    this.lgLeverRedArrow.sub((on) => {
-      // TODO FWCs need to be powered...
-      SimVar.SetSimVarValue('L:A32NX_FWC_1_LG_RED_ARROW', SimVarValueType.Bool, on);
-      SimVar.SetSimVarValue('L:A32NX_FWC_2_LG_RED_ARROW', SimVarValueType.Bool, on);
+    // L/G lever red arrow sinking outputs, one per FWC
+    MappedSubject.create(this.lgLeverRedArrow, this.fwcAvailability).sub(([on, fwcs]) => {
+      SimVar.SetSimVarValue('L:A32NX_FWC_1_LG_RED_ARROW', SimVarValueType.Bool, on && fwcs.fwc1Operative);
+      SimVar.SetSimVarValue('L:A32NX_FWC_2_LG_RED_ARROW', SimVarValueType.Bool, on && fwcs.fwc2Operative);
     }, true);
 
     this.altiBaroDiscrepancy.sub((v) => this.fwcOut124.setBitValue(25, v));
     this.altiStdDiscrepancy.sub((v) => this.fwcOut124.setBitValue(24, v));
-    this.fwcOut124.sub((v) => {
-      v.writeToSimVar('L:A32NX_FWC_1_DISCRETE_WORD_124');
-      v.writeToSimVar('L:A32NX_FWC_2_DISCRETE_WORD_124');
-    }, true);
+    this.fwcOut124.sub(() => this.writeFwcOutputWords(), true);
 
-    this.stallWarning.sub((v) => {
-      this.fwcOut126.setBitValue(17, v);
+    this.stallWarning.sub((v) => this.fwcOut126.setBitValue(17, v), true);
+    // The STALL aural is an FWC level 3 warning (A320 FCOM DSC-31-10 WARNING/CAUTION CLASSIFICATION): lost without FWC
+    MappedSubject.create(this.stallWarning, this.anyFwcOperative).sub(([stall, fwcOperative]) => {
       // set the sound on/off
-      SimVar.SetSimVarValue('L:A32NX_AUDIO_STALL_WARNING', 'bool', v);
+      SimVar.SetSimVarValue('L:A32NX_AUDIO_STALL_WARNING', 'bool', stall && fwcOperative);
     }, true);
     this.aircraftOnGround.sub((v) => this.fwcOut126.setBitValue(28, v), true);
 
-    this.fwcOut126.sub((v) => {
-      v.writeToSimVar('L:A32NX_FWC_1_DISCRETE_WORD_126');
-      v.writeToSimVar('L:A32NX_FWC_2_DISCRETE_WORD_126');
-    }, true);
+    this.fwcOut126.sub(() => this.writeFwcOutputWords(), true);
+    this.anyFwcOperative.sub(() => this.writeFwcOutputWords(), true);
 
-    // FIXME depend on FWC state
+    // The words are sent while one FWC works (writeFwcOutputWords)
     this.fwcOut126.setSsm(Arinc429SignStatusMatrix.NormalOperation);
 
     const sub = this.bus.getSubscriber<FuelSystemEvents>();
@@ -2305,6 +2318,74 @@ export class PseudoFWC {
     const codes = this.getEwdMessageCodes(this.ewdMessageFailures[failureKey]);
 
     return getEwdMessageGroup(codes[0]!);
+  }
+
+  /**
+   * Writes the FWC 1 and FWC 2 output words (altitude alert, stall, discrepancies for the PFDs). The one PseudoFWC
+   * computes them for both FWCs: they are sent while at least one FWC works (design choice: the PFDs read FWC 1 only for
+   * some bits), and become failed words (no data) when no FWC is left.
+   */
+  private writeFwcOutputWords(): void {
+    const fwcOperative = this.anyFwcOperative.get();
+    const word124 = fwcOperative ? this.fwcOut124.get() : PseudoFWC.FWC_FAILED_WORD;
+    const word126 = fwcOperative ? this.fwcOut126.get() : PseudoFWC.FWC_FAILED_WORD;
+    word124.writeToSimVar('L:A32NX_FWC_1_DISCRETE_WORD_124');
+    word124.writeToSimVar('L:A32NX_FWC_2_DISCRETE_WORD_124');
+    word126.writeToSimVar('L:A32NX_FWC_1_DISCRETE_WORD_126');
+    word126.writeToSimVar('L:A32NX_FWC_2_DISCRETE_WORD_126');
+  }
+
+  /**
+   * FWS FWC 1+2 FAULT (A320 FCOM PRO-ABN-FWS, lines 86756-86806): no FWC is left. "ECAM Cautions and Warnings, aural
+   * warnings, master caution and warning lights are lost": no alert, memo nor STATUS (NOT AVAIL: ECAM WARN, ALTI ALERT,
+   * STATUS, A/CALL OUT, MEMO). The display units then show FWC 1+2 FAULT with its procedure on the E/WD; the A32NX writes
+   * these lines here, in place of the alerts and memos. The aurals and the MASTER lights are stopped by the FWC startup
+   * state (FwsManager), which is false while no FWC works.
+   */
+  private showFwc1And2Fault(): void {
+    // A restarted FWC shows every active alert again, as a new one
+    this.failuresLeft.length = 0;
+    this.failuresRight.length = 0;
+    this.recallFailures.length = 0;
+    this.allCurrentFailures.length = 0;
+    this.ewdPrimaryFailuresClearedLines.clear();
+    this.ewdSecondaryFailuresCleared.clear();
+    this.currentEwdLeftLayout = EMPTY_EWD_LAYOUT;
+    this.currentEwdSecondaryFailureKey = undefined;
+
+    // No aural nor attention getter request left behind
+    this.auralCrcKeys = [];
+    this.auralScKeys = [];
+    this.auralCrcActive.set(false);
+    this.auralSingleChimePending = false;
+    this.cavalryChargeActive.set(false);
+    this.cChordActive.set(false);
+    this.nonCancellableWarningCount = 0;
+    this.requestMasterCautionFromFaults = false;
+    this.requestMasterWarningFromFaults = false;
+    this.masterCaution.set(false);
+    this.masterWarning.set(false);
+
+    // E/WD: the FWC 1+2 FAULT display instead of the alerts (left) and the memos (right)
+    this.ewdLeftFailureActive.set(false);
+    this.ewdLowerLeftOverflow.set(false);
+    this.ewdMessageLinesLeft.forEach((l, i) => l.set(FWC_1_AND_2_FAULT_EWD.left[i] ?? ''));
+    this.ewdMessageLinesRight.forEach((l, i) => l.set(FWC_1_AND_2_FAULT_EWD.right[i] ?? ''));
+
+    // STATUS NOT AVAIL: no STATUS lines, no STS reminder, no system page called
+    this.statusLinesLeft.forEach((line) => line.set(''));
+    this.statusLinesRight.forEach((line) => line.set(''));
+    this.statusNormal.set(false);
+    this.stsReminder.set(false);
+    this.statusPageCalled = false;
+    this.activeFailureSysPage.set(EcamSysPage.NONE);
+  }
+
+  /** Reset all buffered inputs, at the end of each update */
+  private resetBufferedInputs(): void {
+    this.apDiscInputBuffer.write(false, true);
+    this.autoThrustInstinctiveDisconnectPressed = false;
+    this.apInstinctiveDisconnectPressed = false;
   }
 
   /**
@@ -5083,6 +5164,13 @@ export class PseudoFWC {
       ),
     );
 
+    // No FWC left: no alert, memo nor STATUS, the E/WD shows FWS FWC 1+2 FAULT (A320 FCOM PRO-ABN-FWS)
+    if (this.fwc1And2Fault.get()) {
+      this.showFwc1And2Fault();
+      this.resetBufferedInputs();
+      return;
+    }
+
     let tempMemoArrayLeft: string[] = [];
     let tempMemoArrayRight: string[] = [];
     const allFailureKeys: string[] = [];
@@ -5353,10 +5441,7 @@ export class PseudoFWC {
         PseudoFWC.AURAL_SC_INHIBIT_TIME,
       );
     }
-    // Reset all buffered inputs
-    this.apDiscInputBuffer.write(false, true);
-    this.autoThrustInstinctiveDisconnectPressed = false;
-    this.apInstinctiveDisconnectPressed = false;
+    this.resetBufferedInputs();
   }
 
   private updateEwdFailureTimers(deltaTime: number): void {
@@ -7302,6 +7387,35 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => [this.gps1Fault.get() ? '340300003' : '340300002'],
       statusInfo: () => (this.gps1Fault.get() ? ['340200001'] : []),
+    },
+    3100500: {
+      // FWS FWC 1 FAULT (A320 FCOM PRO-ABN-FWS, line 86821): crew awareness, shown by FWC 2. Level 1 (no MASTER CAUT,
+      // no chime) and the flight phase inhibition of the other computer faults are design choices: the FCOM gives them
+      // in figures only.
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fwc1FaultAlert,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [FWC_FAULT_EWD_CODES.fwc1],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      // STATUS (FCOM lines 86846-86849): CAT 3 SINGLE ONLY, INOP SYS CAT 3 DUAL, FWC 1
+      inopSys: () => fwcFaultStatus(1).inopSys,
+      statusInfo: () => fwcFaultStatus(1).info,
+    },
+    3100510: {
+      // FWS FWC 2 FAULT, shown by FWC 1
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fwc2FaultAlert,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [FWC_FAULT_EWD_CODES.fwc2],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => fwcFaultStatus(2).inopSys,
+      statusInfo: () => fwcFaultStatus(2).info,
     },
     3400150: {
       // RA 2 FAULT
