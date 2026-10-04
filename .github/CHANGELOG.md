@@ -124,6 +124,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the FCOM position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
 1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
 1. [A32NX/EFB] Failures: clearer failure names after an audit (hot air valve, FMGC flight guidance, RA antennas) - @TCdr
+1. [A32NX/SURV] Added ATC/XPDR 1 and ATC/XPDR 2 failures: the failed transponder stops replying while selected and lights ATC FAIL, NAV ATC/XPDR 1(2) and 1+2 FAULT show on the ECAM, and the TCAS goes to standby with both lost; ATC/XPDR STBY no longer shows when the selected transponder loses power - @TCdr
 
 ## 2024.1.0
 

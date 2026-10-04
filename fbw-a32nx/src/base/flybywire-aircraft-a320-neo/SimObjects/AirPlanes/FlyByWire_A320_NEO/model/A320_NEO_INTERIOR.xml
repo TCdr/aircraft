@@ -4902,9 +4902,10 @@
                 <POTENTIOMETER>85</POTENTIOMETER>
                 <SEQ1_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ1_POWERED>
             </UseTemplate>
+            <!-- ATC FAIL light: the selected XPDR failed or unpowered (FCOM DSC-34-SURV-10-20 item 8), or the annunciator test -->
             <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                 <NODE_ID>PUSH_ATC_FAIL_SEQ2</NODE_ID>
-                <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 == (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) and (L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) and</EMISSIVE_CODE>
+                <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 == (L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) and (L:A32NX_TRANSPONDER_SYSTEM, number) 1 == (L:A32NX_XPDR_2_FAILED, Bool) and (L:A32NX_TRANSPONDER_SYSTEM, number) 1 != (L:A32NX_XPDR_1_FAILED, Bool) and or or (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) and</EMISSIVE_CODE>
             </UseTemplate>
             <!-- TCAS MODE -->
             <UseTemplate Name="FBW_Anim_Interactions">

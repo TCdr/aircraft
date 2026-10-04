@@ -33,6 +33,7 @@ import {
   UpDownAdvisoryStatus,
 } from '../lib/TcasConstants';
 import { TcasSoundManager } from './TcasSoundManager';
+import { isTcasStandbyWithoutXpdr } from '@shared/TransponderSystem';
 
 export class NDTcasTraffic {
   ID: string;
@@ -184,6 +185,8 @@ export class TcasComputer {
 
   private xpdrStatus: number; // Active XPDR ON/OFF
 
+  private bothXpdrsFailed: boolean; // Both transponders failed or unpowered: no XPDR for the TCAS
+
   private tcasPower: boolean; // is TCAS computer powered?
 
   private tcasSwitchPos: number; // TCAS Switch position STBY/TA/TARA
@@ -313,6 +316,10 @@ export class TcasComputer {
     this.tcasThreat = SimVar.GetSimVarValue('L:A32NX_SWITCH_TCAS_Traffic_Position', 'number');
     this.xpdrStatus = SimVar.GetSimVarValue('TRANSPONDER STATE:1', 'number');
     this.activeXpdr = SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number');
+    this.bothXpdrsFailed = isTcasStandbyWithoutXpdr(
+      SimVar.GetSimVarValue('L:A32NX_XPDR_1_FAILED', 'bool') > 0,
+      SimVar.GetSimVarValue('L:A32NX_XPDR_2_FAILED', 'bool') > 0,
+    );
 
     const alternateAirDataSourceSelect =
       SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum') ===
@@ -336,10 +343,10 @@ export class TcasComputer {
     this.gpwsWarning = !!SimVar.GetSimVarValue('L:A32NX_GPWS_Warning_Active', 'boolean');
 
     this.tcasMode.setVar(
-      this.xpdrStatus === XpdrMode.STBY || !this.tcasPower || !this.altRptgSwitchPos
+      this.xpdrStatus === XpdrMode.STBY || this.bothXpdrsFailed || !this.tcasPower || !this.altRptgSwitchPos
         ? TcasMode.STBY
         : this.tcasSwitchPos,
-    ); // 34-43-00:A32
+    ); // 34-43-00:A32; both ATCs failed: TCAS STBY (FCOM DSC-34-SURV-60-20 memo display)
   }
 
   /**

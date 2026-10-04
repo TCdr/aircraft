@@ -17,6 +17,12 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
   ['340300003', { part: StatusPart.InopSys, text: 'GPS 1+2' }],
+  // NAV TCAS FAULT, NAV ATC/XPDR 1(2) FAULT and 1+2 FAULT, in the order of the 1+2 FAULT STATUS (FCOM PRO-ABN-NAV)
+  ['340300004', { part: StatusPart.InopSys, text: 'TCAS' }],
+  ['340300005', { part: StatusPart.InopSys, text: 'ATC/XPDR 1' }],
+  ['340300006', { part: StatusPart.InopSys, text: 'ATC/XPDR 2' }],
+  ['340300007', { part: StatusPart.InopSys, text: 'ADS-B RPTG 1' }],
+  ['340300008', { part: StatusPart.InopSys, text: 'ADS-B RPTG 2' }],
 ]);
 
 const StatusMessageOrder = new Map([...StatusMessages.keys()].map((code, index) => [code, index]));
