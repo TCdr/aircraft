@@ -108,6 +108,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
 1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
+1. [A32NX/EGPWS] Add the RAAS runway awareness callouts (approaching, on runway, on taxiway, distance remaining...) as an aircraft option in the flyPad - @TCdr
+1. [A380X/OANS] Show the RWY AHEAD advisory without a Navigraph airport map, from the sim's own runways - @TCdr
+1. [A380X/OANS] Display the default airport of the FCOM automatically: the current airport on ground, the origin, destination or alternate airport in flight within 20 NM and 5000 ft of it - @TCdr
+1. [A380X/OANS] The Captain and F/O OANS each display their own airport - @TCdr
 1. [A32NX/ND] Add a native weather radar display on the ROSE and ARC pages, controlled by the WX SYS and MODE knobs - @TCdr
 1. [A380X/ND] Add the weather radar to the ND and the weather to the VD, following the EFIS WX overlay and the SURV CONTROLS WXR settings - @TCdr
 1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
