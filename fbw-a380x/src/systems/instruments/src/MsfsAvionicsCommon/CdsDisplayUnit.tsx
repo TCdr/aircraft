@@ -12,9 +12,9 @@ import {
   Subscribable,
   VNode,
 } from '@microsoft/msfs-sdk';
-import { NXDataStore } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, NXDataStore } from '@flybywiresim/fbw-sdk';
 // import { getSupplier } from '@flybywiresim/fbw-sdk';
-import { DcElectricalBus } from '@shared/electrical';
+import { DisplayUnitFailure, DisplayUnitID, displayUnitFailedVar, isDisplayUnitPowered } from '@shared/CdsDisplayUnits';
 import { DisplayVars } from './SimVarTypes';
 
 import './common.scss';
@@ -27,27 +27,8 @@ export const getDisplayIndex = () => {
   return url ? parseInt(url.substring(url.length - 1), 10) : 0;
 };
 
-export enum DisplayUnitID {
-  CaptPfd,
-  CaptNd,
-  CaptMfd,
-  FoPfd,
-  FoNd,
-  FoMfd,
-  Ewd,
-  Sd,
-}
-
-const DisplayUnitToDCBus: { [k in DisplayUnitID]: DcElectricalBus[] } = {
-  [DisplayUnitID.CaptPfd]: [DcElectricalBus.DcEssInFlight], // powered by 409PP
-  [DisplayUnitID.CaptNd]: [DcElectricalBus.DcEssInFlight, DcElectricalBus.Dc1], // powered by 415PP or 105PP
-  [DisplayUnitID.CaptMfd]: [DcElectricalBus.DcEss, DcElectricalBus.Dc1], // powered by 423PP or 111PP
-  [DisplayUnitID.FoPfd]: [DcElectricalBus.Dc2],
-  [DisplayUnitID.FoNd]: [DcElectricalBus.Dc1, DcElectricalBus.Dc2],
-  [DisplayUnitID.FoMfd]: [DcElectricalBus.Dc1, DcElectricalBus.Dc2],
-  [DisplayUnitID.Ewd]: [DcElectricalBus.DcEss], // powered by 423PP
-  [DisplayUnitID.Sd]: [DcElectricalBus.Dc2],
-};
+// The DUs and their supplies live in @shared/CdsDisplayUnits (shared with the FWS); re-exported for the instruments
+export { DisplayUnitID };
 
 const DisplayUnitToPotentiometer: { [k in DisplayUnitID]: number } = {
   [DisplayUnitID.CaptPfd]: 88,
@@ -63,6 +44,7 @@ const DisplayUnitToPotentiometer: { [k in DisplayUnitID]: number } = {
 interface DisplayUnitProps {
   bus: EventBus;
   displayUnitId: DisplayUnitID;
+  /** An extra failure condition of the instrument; the DU's own flyPad failure is always applied */
   failed?: Subscribable<boolean>;
   test?: Subscribable<number>;
 }
@@ -100,6 +82,14 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
 
   private failed = false;
 
+  /** The instrument's extra failure condition (props.failed) */
+  private externalFailed = false;
+
+  /** The DU's own flyPad failure (shared/src/CdsDisplayUnits.ts DisplayUnitFailure) */
+  private displayUnitFailed = false;
+
+  private readonly failuresConsumer = new FailuresConsumer();
+
   private readonly powered = Subject.create(false);
 
   public onAfterRender(node: VNode): void {
@@ -127,9 +117,21 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
     );
 
     this.props.failed?.sub((f) => {
-      this.failed = f;
-      this.updateState();
+      this.externalFailed = f;
+      this.onFailedChanged();
     }, true);
+
+    // The DU's own failure: the DU goes blank (Off) and boots again (self test) when the failure is cleared
+    this.failuresConsumer.register(DisplayUnitFailure[this.props.displayUnitId], (f) => {
+      this.displayUnitFailed = f;
+      SimVar.SetSimVarValue(displayUnitFailedVar(this.props.displayUnitId), 'Bool', f);
+      this.onFailedChanged();
+    });
+  }
+
+  private onFailedChanged(): void {
+    this.failed = this.externalFailed || this.displayUnitFailed;
+    this.updateState();
   }
 
   setTimer(time: number) {
@@ -164,21 +166,20 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
     */
 
   public update() {
+    this.failuresConsumer.update();
+
     const potentiometer = SimVar.GetSimVarValue(
       `LIGHT POTENTIOMETER:${DisplayUnitToPotentiometer[this.props.displayUnitId]}`,
       'percent over 100',
     );
-    const poweredByBus1 = SimVar.GetSimVarValue(
-      `L:A32NX_ELEC_${DisplayUnitToDCBus[this.props.displayUnitId][0]}_BUS_IS_POWERED`,
-      'Bool',
-    );
-    const poweredByBus2 = SimVar.GetSimVarValue(
-      `L:A32NX_ELEC_${DisplayUnitToDCBus[this.props.displayUnitId][1]}_BUS_IS_POWERED`,
-      'Bool',
-    );
 
     this.brightness.set(potentiometer);
-    this.powered.set(poweredByBus1 || poweredByBus2);
+    this.powered.set(
+      isDisplayUnitPowered(
+        this.props.displayUnitId,
+        (bus) => SimVar.GetSimVarValue(`L:A32NX_ELEC_${bus}_BUS_IS_POWERED`, 'Bool') > 0,
+      ),
+    );
   }
 
   updateState() {
