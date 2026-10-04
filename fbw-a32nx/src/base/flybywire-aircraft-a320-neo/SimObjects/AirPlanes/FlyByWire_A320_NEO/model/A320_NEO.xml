@@ -102,10 +102,7 @@
             <UseTemplate Name="FBW_HANDLING_Rudder_Template">
                 <ANIM_NAME>rudder_percent_key</ANIM_NAME>
             </UseTemplate>
-            <UseTemplate Name="FBW_HANDLING_Spoiler_Template">
-                <ANIM_NAME_LEFT>l_spoiler_key</ANIM_NAME_LEFT>
-                <ANIM_NAME_RIGHT>r_spoiler_key</ANIM_NAME_RIGHT>
-            </UseTemplate>
+            <UseTemplate Name="FBW_HANDLING_Spoiler_Template"/>
             <UseTemplate Name="ASOBO_HANDLING_Flaps_Template">
                 <ANIM_NAME_LEFT>l_flap_percent_key</ANIM_NAME_LEFT>
                 <ANIM_NAME_RIGHT>r_flap_percent_key</ANIM_NAME_RIGHT>
