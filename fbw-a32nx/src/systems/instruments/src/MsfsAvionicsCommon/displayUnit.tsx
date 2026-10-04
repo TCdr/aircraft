@@ -25,6 +25,8 @@ type DisplayUnitProps = {
   powered?: Subscribable<boolean>;
   brightness?: Subscribable<number>;
   test?: Subscribable<number>;
+  /** Called with true when the DU starts showing its picture (ON state) and with false when it stops. */
+  onPictureShownChanged?: (shown: boolean) => void;
 };
 
 enum DisplayUnitState {
@@ -58,6 +60,9 @@ export class DisplayUnit extends DisplayComponent<DisplayUnitProps> {
   private failed = false;
 
   private powered = false;
+
+  /** Whether the picture was shown at the last state update, so onPictureShownChanged only fires on a change. */
+  private pictureShown: boolean | null = null;
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -164,6 +169,12 @@ export class DisplayUnit extends DisplayComponent<DisplayUnitProps> {
       this.maintenanceModeRef.instance.style.display = 'none';
       this.engineeringTestModeRef.instance.style.display = 'none';
       this.pfdRef.instance.style.display = 'none';
+    }
+
+    const pictureShown = this.state === DisplayUnitState.On;
+    if (pictureShown !== this.pictureShown) {
+      this.pictureShown = pictureShown;
+      this.props.onPictureShownChanged?.(pictureShown);
     }
   }
 

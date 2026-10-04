@@ -234,6 +234,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EFB] New flyPad failures for the 8 display units (CAPT/F/O PFD, ND, MFD, EWD, SD): the failed display unit goes blank and the ECAM shows CDS ... DU FAULT with its procedure and INOP SYS - @TCdr
 1. [A32NX/SURV] Added ATC/XPDR 1 and ATC/XPDR 2 failures: the failed transponder stops replying while selected and lights ATC FAIL, NAV ATC/XPDR 1(2) and 1+2 FAULT show on the ECAM, and the TCAS goes to standby with both lost; ATC/XPDR STBY no longer shows when the selected transponder loses power - @TCdr
 1. [A32NX/EFB] New ATA 23 failures RMP 1, RMP 2, VHF 1, VHF 2 and VHF 3: a failed RMP goes blank and stops tuning (the other RMP still tunes every radio), a failed VHF switches its COM radio off - @TCdr
+1. [A32NX/EFB] flyPad failures: the CAPT and F/O ND and the upper and lower ECAM display units can be failed (ATA 31); a failed display unit goes blank like a failed PFD, with no weather or terrain drawn on a failed ND - @TCdr
+1. [A32NX/ND] The weather radar returns and the terrain are no longer drawn on an ND that is switched off or in its self-test - @TCdr
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A32NX] Exterior spoilers move by panel group from their own deflection instead of the wing average: spoiler 1 stays down in turns and with the speedbrakes, and the deflection is shown in true degrees - @TCdr
 1. [A380X] Fuel jettison: a fuel mist plume trails from each wing's jettison outlet while fuel flows out of that side - @TCdr

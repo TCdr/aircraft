@@ -204,6 +204,9 @@ struct Instance {
   // EGPWC_ND_x_TERRAIN_ACTIVE: this side's TERR ON ND pb is on, the ND is powered
   // and the position data is valid (enhanced_gpwc/navigation_display.rs).
   ID terrainActiveVar = -1;
+  // A32NX_ND_x_DU_SHOWING_PICTURE: nd.html's display unit is ON (powered, brightness above 0, self-test done,
+  // not failed from the flyPad), see ndPictureShown.
+  ID duShowingPictureVar = -1;
 #endif
   // The buses that switch this ND on (it is on while either is powered). The
   // live-MapView-texture render pass bypasses whatever backlight/emissive
@@ -400,6 +403,7 @@ unsigned long long mixKey(unsigned long long key, long long value);
 int inertialSource(bool isRight, int attHdgKnob);
 bool isMapPage(double ndMode);
 bool isDisplayUnitOn(const Instance& instance);
+bool ndPictureShown(const Instance& instance);
 bool radarSelected(const Instance& instance);
 double radarMode();
 bool terrainSelected(const Instance& instance);

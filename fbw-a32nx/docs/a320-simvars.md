@@ -4192,6 +4192,17 @@ Use the `A32NXDisplayManagementPublisher` for these in A32NX code.
      | 21  | Altitude below baro minimum |
 
 
+### Display Units
+
+- `L:A32NX_ND_{side}_DU_SHOWING_PICTURE`
+  - Bool
+  - Written by nd.html: 1 while the ND display unit is ON and shows the ND picture (powered, brightness above 0,
+    self-test done, not failed from the flyPad), 0 otherwise. The native weather/terrain gauge (ndwxr) draws nothing
+    while it is 0.
+  - {side}
+    - L
+    - R
+
 ### ECP
 
 Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.

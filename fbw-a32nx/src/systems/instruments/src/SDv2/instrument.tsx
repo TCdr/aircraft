@@ -3,6 +3,7 @@
 import {
   FSComponent,
   HEventPublisher,
+  Subject,
   InstrumentBackplane,
   FsInstrument,
   FsBaseInstrument,
@@ -17,6 +18,7 @@ import { A32NXAdrBusPublisher } from '@shared/publishers/A32NXAdrBusPublisher';
 import { A32NXFacBusPublisher } from '@shared/publishers/A32NXFacBusPublisher';
 import { A32NXFcdcBusPublisher } from '@shared/publishers/A32NXFcdcBusPublisher';
 import { FcdcChoiceProvider } from './providers/FcdcChoiceProvider';
+import { LOWER_ECAM_DISPLAY_UNIT_FAILURE } from '../MsfsAvionicsCommon/displayUnitFailures';
 
 class SdInstrument implements FsInstrument {
   private readonly bus = new ArincEventBus();
@@ -34,6 +36,9 @@ class SdInstrument implements FsInstrument {
   private readonly fmsDataPublisher = new FmsDataPublisher(this.bus);
 
   private readonly failuresConsumer = new FailuresConsumer();
+
+  /** The lower ECAM display unit has failed (flyPad failure): the SD is blank. */
+  private readonly displayFailed = Subject.create(false);
 
   private readonly facBusPublisher = new A32NXFacBusPublisher(this.bus);
 
@@ -59,6 +64,8 @@ class SdInstrument implements FsInstrument {
 
     this.backplane.addInstrument('fcdcChoiceProvider', this.fcdcChoiceProvider);
 
+    this.failuresConsumer.register(LOWER_ECAM_DISPLAY_UNIT_FAILURE, (failed) => this.displayFailed.set(failed));
+
     this.doInit();
   }
 
@@ -69,7 +76,7 @@ class SdInstrument implements FsInstrument {
 
     const sdv2 = document.getElementById('SDv2_CONTENT');
 
-    FSComponent.render(<SD bus={this.bus} />, document.getElementById('SDv2_CONTENT'));
+    FSComponent.render(<SD bus={this.bus} failed={this.displayFailed} />, document.getElementById('SDv2_CONTENT'));
 
     // Remove "instrument didn't load" text
     sdv2?.querySelector(':scope > h1')?.remove();
