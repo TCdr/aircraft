@@ -34,6 +34,7 @@ import { EventBus } from '@microsoft/msfs-sdk';
 import { FlightPlanIndex } from '../../flightplanning/FlightPlanManager';
 import { VnavConfig } from './VnavConfig';
 import { isLeg } from '../../flightplanning/legs/FlightPlanLeg';
+import { isStepDescentInitiation } from './StepDescentWindow';
 
 export class VnavDriver implements GuidanceComponent {
   version: number = 0;
@@ -642,8 +643,14 @@ export class VnavDriver implements GuidanceComponent {
     return this.profileManager.computeTacticalToGuidanceProfileOffset();
   }
 
-  public hasStepDescent(): boolean {
-    return this.mcduProfile?.findVerticalCheckpoint(VerticalCheckpointReason.StepDescent) !== undefined;
+  /** Whether the aircraft is reaching a step descent point, so that the crew action initiates the step descent */
+  public isStepDescentAhead(): boolean {
+    const stepDescent = this.mcduProfile?.findVerticalCheckpoint(VerticalCheckpointReason.StepDescent);
+    const presentPosition = this.mcduProfile?.findVerticalCheckpoint(VerticalCheckpointReason.PresentPosition);
+
+    return isStepDescentInitiation(
+      stepDescent && presentPosition ? stepDescent.distanceFromStart - presentPosition.distanceFromStart : undefined,
+    );
   }
 }
 

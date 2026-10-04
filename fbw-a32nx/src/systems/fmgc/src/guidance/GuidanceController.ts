@@ -654,9 +654,10 @@ export class GuidanceController {
   }
 
   /**
-   * @return true if the vertical profile has a step descent, false otherwise.
+   * @return true if the aircraft is reaching a step descent point (STEP AHEAD), so that lowering the FCU altitude
+   * initiates the step descent instead of the descent phase.
    */
-  public hasStepDescent(): boolean {
-    return this.vnavDriver.hasStepDescent();
+  public isStepDescentAhead(): boolean {
+    return this.vnavDriver.isStepDescentAhead();
   }
 }
