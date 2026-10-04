@@ -232,6 +232,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] The angle of attack vanes of the three multifunction probes on the nose (one left, two right) follow the angle of attack - @TCdr
 1. [A380X/EFB] New failures on the flyPad: brakes NORM and ALTN circuit leaks, ALTN brake accumulator gas leak, and jammed trim air valves and duct overheats for the cockpit, main deck zone 1, upper deck zone 1 and forward cargo - @TCdr
 1. [A380X/EFB] New flyPad failures for the 8 display units (CAPT/F/O PFD, ND, MFD, EWD, SD): the failed display unit goes blank and the ECAM shows CDS ... DU FAULT with its procedure and INOP SYS - @TCdr
+1. [A32NX/SURV] Added ATC/XPDR 1 and ATC/XPDR 2 failures: the failed transponder stops replying while selected and lights ATC FAIL, NAV ATC/XPDR 1(2) and 1+2 FAULT show on the ECAM, and the TCAS goes to standby with both lost; ATC/XPDR STBY no longer shows when the selected transponder loses power - @TCdr
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A32NX] Exterior spoilers move by panel group from their own deflection instead of the wing average: spoiler 1 stays down in turns and with the speedbrakes, and the deflection is shown in true degrees - @TCdr
 1. [A380X] Fuel jettison: a fuel mist plume trails from each wing's jettison outlet while fuel flows out of that side - @TCdr

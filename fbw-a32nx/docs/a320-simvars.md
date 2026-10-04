@@ -4443,6 +4443,16 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
       Transponder 1 | 0
       Transponder 2 | 1
 
+- A32NX_XPDR_{number}_FAILED
+    - Bool
+    - Read-Only
+    - Whether transponder {number} is failed (flyPad failure ATC/XPDR {number}) or unpowered (XPDR 1: AC ESS SHED bus,
+      XPDR 2: AC BUS 2). MSFS has one transponder: it is switched off while the selected transponder is failed or
+      unpowered, the ATC FAIL light then comes on; the TCAS goes to standby when both are failed or unpowered
+    - {number}
+        - 1
+        - 2
+
 - A32NX_SWITCH_ATC_ALT
     - The transponder altitude reporting switch position
     - Bool
