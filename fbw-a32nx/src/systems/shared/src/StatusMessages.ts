@@ -14,6 +14,13 @@ export enum StatusPart {
 /** The STATUS page lines, by code: 34 02 xxxxx information, 34 03 xxxxx inoperative systems (as the A380 codes) */
 const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
+  // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
+  // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
+  // 31 INDICATING/RECORDING (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
+  ['310300001', { part: StatusPart.InopSys, text: 'FWC 1' }],
+  ['310300002', { part: StatusPart.InopSys, text: 'FWC 2' }],
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
   ['340300003', { part: StatusPart.InopSys, text: 'GPS 1+2' }],

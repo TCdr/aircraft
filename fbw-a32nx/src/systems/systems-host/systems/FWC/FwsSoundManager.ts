@@ -310,6 +310,32 @@ export class FwsSoundManager {
     const sub = this.bus.getSubscriber<FwsSoundManagerControlEvents>();
     sub.on('enqueueSound').handle((s) => this.enqueueSound(s));
     sub.on('dequeueSound').handle((s) => this.dequeueSound(s));
+
+    // No FWC working (both failed or unpowered): the aural alerts and callouts are lost (A320 FCOM PRO-ABN-FWS FWS
+    // FWC 1 + 2 FAULT, line 86806), including the one being played (a continuous sound would otherwise go on).
+    this.startupCompleted.sub((completed) => {
+      if (!completed) {
+        this.silenceAll();
+      }
+    });
+  }
+
+  /** Stops every sound and forgets the pending ones: the FWC stopped working */
+  private silenceAll(): void {
+    Object.values(FwsAuralsList).forEach((a) => {
+      if (a.localVarName) {
+        SimVar.SetSimVarValue(`L:${a.localVarName}`, SimVarValueType.Bool, false);
+        this.setFwsAudioOutputs(a.localVarName, false);
+      }
+    });
+    this.soundQueue.clear();
+    this.singleChimesPending = 0;
+    this.currentSoundPlaying = null;
+    this.currentSoundPlayTimeRemaining = 0;
+    this.repeatNextCycleSound = null;
+    this.numberOfTimesToRepeatSound = null;
+    this.soundToRepeat = null;
+    this.soundToRepeatDelay = null;
   }
 
   /** Get the current emitted sound or the sound which is about to be repeated, for example for the AP OFF logic computation. */
