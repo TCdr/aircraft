@@ -105,6 +105,8 @@ static void registerInstanceVars(Instance& instance) {
 #else
   instance.terrainActiveVar =
       register_named_variable(instance.isRight ? "A32NX_EGPWC_ND_R_TERRAIN_ACTIVE" : "A32NX_EGPWC_ND_L_TERRAIN_ACTIVE");
+  instance.duShowingPictureVar =
+      register_named_variable(instance.isRight ? "A32NX_ND_R_DU_SHOWING_PICTURE" : "A32NX_ND_L_DU_SHOWING_PICTURE");
   instance.powerBusVars[0] =
       register_named_variable(instance.isRight ? "A32NX_ELEC_AC_2_BUS_IS_POWERED" : "A32NX_ELEC_AC_ESS_BUS_IS_POWERED");
   instance.powerBusVars[1] = instance.powerBusVars[0];
@@ -258,7 +260,7 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
 #ifdef A380X
   instance.wxrRequested = false;
 #endif
-  if (!isDisplayUnitOn(instance)) {
+  if (!ndPictureShown(instance)) {
     return frame;
   }
   const double ndMode = get_named_variable_value(instance.ndModeVar);

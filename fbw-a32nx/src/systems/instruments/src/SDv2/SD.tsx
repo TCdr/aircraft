@@ -23,6 +23,8 @@ import { FctlPage } from './Pages/Fctl/FctlPage';
 
 export interface SDProps {
   readonly bus: EventBus;
+  /** The lower ECAM display unit has failed (flyPad failure): the DU is blank. */
+  readonly failed: Subscribable<boolean>;
 }
 
 export interface SdPageProps extends ComponentProps {
@@ -101,7 +103,13 @@ export class SD extends DestroyableComponent<SDProps> {
 
   render(): VNode | null {
     return (
-      <DisplayUnit bus={this.props.bus} normDmc={1} brightness={this.sdPotentiometer} powered={this.ac2BusPowered}>
+      <DisplayUnit
+        bus={this.props.bus}
+        normDmc={1}
+        brightness={this.sdPotentiometer}
+        powered={this.ac2BusPowered}
+        failed={this.props.failed}
+      >
         <div class="sdv2">
           {this.sdPages}
           <div class="sd-content-area-blocker" style={{ visibility: this.anyPageVisibleStyle }} />

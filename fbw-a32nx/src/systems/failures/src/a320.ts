@@ -199,6 +199,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
 
   [31, A320Failure.LeftPfdDisplay, 'Captain PFD display'],
   [31, A320Failure.RightPfdDisplay, 'F/O PFD display'],
+  [31, A320Failure.LeftNdDisplay, 'Captain ND display'],
+  [31, A320Failure.RightNdDisplay, 'F/O ND display'],
+  [31, A320Failure.UpperEcamDisplay, 'Upper ECAM display'],
+  [31, A320Failure.LowerEcamDisplay, 'Lower ECAM display'],
   [31, A320Failure.EcamControlPanel, 'ECAM Control Panel'],
 
   [32, A320Failure.LgciuPowerSupply1, 'LGCIU 1 Power supply'],
