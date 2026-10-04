@@ -3,6 +3,7 @@
 
 #include <iostream>
 
+#include "LightingPresets/PresetLoadTarget.hpp"
 #include "LightingPresets_A380X.h"
 #include "UpdateMode.h"
 #include "logging.h"
@@ -153,46 +154,45 @@ void LightingPresets_A380X::applyToAircraft() {
 }
 
 void LightingPresets_A380X::loadFromIni(const mINI::INIStructure& ini, const std::string& iniSectionName) {
-  // check if iniSectionName is available
-  // if not use a 50% default iniSectionName
-  if (!ini.has(iniSectionName)) {
-    intermediateLightValues = DEFAULT_50;
-    return;
-  }
+  // The target of the load: the preset saved in its ini section, or the default preset (all lights at 50 %) for a preset
+  // row that was never saved. calculateIntermediateValues() fades every light to loadedLightValues, so it must be set in
+  // both cases (it was left unset for a missing section, which faded every light, displays included, to 0).
+  loadedLightValues = lighting_presets::presetLoadTarget(ini.has(iniSectionName), DEFAULT_50, [&]() {
+    LightingValues_A380X saved{};
+    saved.efbBrightness = iniGetOrDefault(ini, iniSectionName, "efb_brightness", 80.0);
 
-  // reading data structure from ini
-  loadedLightValues.efbBrightness = iniGetOrDefault(ini, iniSectionName, "efb_brightness", 80.0);
+    saved.readingLightCptLevel = iniGetOrDefault(ini, iniSectionName, "reading_cpt_lt", 50.0);
+    saved.readingLightFoLevel  = iniGetOrDefault(ini, iniSectionName, "reading_fo_lt", 50.0);
 
-  loadedLightValues.readingLightCptLevel = iniGetOrDefault(ini, iniSectionName, "reading_cpt_lt", 50.0);
-  loadedLightValues.readingLightFoLevel  = iniGetOrDefault(ini, iniSectionName, "reading_fo_lt", 50.0);
+    saved.glareshieldIntegralLightLevel = iniGetOrDefault(ini, iniSectionName, "glareshield_int_lt", 50.0);
+    saved.glareshieldLcdLightLevel      = iniGetOrDefault(ini, iniSectionName, "glareshield_lcd_lt", 50.0);
+    saved.tableLightCptLevel            = iniGetOrDefault(ini, iniSectionName, "table_cpt_lt", 50.0);
+    saved.tableLightFoLevel             = iniGetOrDefault(ini, iniSectionName, "table_fo_lt", 50.0);
 
-  loadedLightValues.glareshieldIntegralLightLevel = iniGetOrDefault(ini, iniSectionName, "glareshield_int_lt", 50.0);
-  loadedLightValues.glareshieldLcdLightLevel      = iniGetOrDefault(ini, iniSectionName, "glareshield_lcd_lt", 50.0);
-  loadedLightValues.tableLightCptLevel            = iniGetOrDefault(ini, iniSectionName, "table_cpt_lt", 50.0);
-  loadedLightValues.tableLightFoLevel             = iniGetOrDefault(ini, iniSectionName, "table_fo_lt", 50.0);
+    saved.pfdBrtCptLevel       = iniGetOrDefault(ini, iniSectionName, "pfd_cpt_lvl", 50.0);
+    saved.ndBrtCptLevel        = iniGetOrDefault(ini, iniSectionName, "nd_cpt_lvl", 50.0);
+    saved.wxTerrainBrtCptLevel = iniGetOrDefault(ini, iniSectionName, "wx_cpt_lvl", 50.0);
+    saved.mfdBrtCptLevel       = iniGetOrDefault(ini, iniSectionName, "mfd_cpt_lvl", 50.0);
+    saved.consoleLightCptLevel = iniGetOrDefault(ini, iniSectionName, "console_cpt_lt", 50.0);
 
-  loadedLightValues.pfdBrtCptLevel       = iniGetOrDefault(ini, iniSectionName, "pfd_cpt_lvl", 50.0);
-  loadedLightValues.ndBrtCptLevel        = iniGetOrDefault(ini, iniSectionName, "nd_cpt_lvl", 50.0);
-  loadedLightValues.wxTerrainBrtCptLevel = iniGetOrDefault(ini, iniSectionName, "wx_cpt_lvl", 50.0);
-  loadedLightValues.mfdBrtCptLevel       = iniGetOrDefault(ini, iniSectionName, "mfd_cpt_lvl", 50.0);
-  loadedLightValues.consoleLightCptLevel = iniGetOrDefault(ini, iniSectionName, "console_cpt_lt", 50.0);
+    saved.pfdBrtFoLevel       = iniGetOrDefault(ini, iniSectionName, "pfd_fo_lvl", 50.0);
+    saved.ndBrtFoLevel        = iniGetOrDefault(ini, iniSectionName, "nd_fo_lvl", 50.0);
+    saved.wxTerrainBrtFoLevel = iniGetOrDefault(ini, iniSectionName, "wx_fo_lvl", 50.0);
+    saved.mfdBrtFoLevel       = iniGetOrDefault(ini, iniSectionName, "mfd_fo_lvl", 50.0);
+    saved.consoleLightFoLevel = iniGetOrDefault(ini, iniSectionName, "console_fo_lt", 50.0);
 
-  loadedLightValues.pfdBrtFoLevel       = iniGetOrDefault(ini, iniSectionName, "pfd_fo_lvl", 50.0);
-  loadedLightValues.ndBrtFoLevel        = iniGetOrDefault(ini, iniSectionName, "nd_fo_lvl", 50.0);
-  loadedLightValues.wxTerrainBrtFoLevel = iniGetOrDefault(ini, iniSectionName, "wx_fo_lvl", 50.0);
-  loadedLightValues.mfdBrtFoLevel       = iniGetOrDefault(ini, iniSectionName, "mfd_fo_lvl", 50.0);
-  loadedLightValues.consoleLightFoLevel = iniGetOrDefault(ini, iniSectionName, "console_fo_lt", 50.0);
+    saved.rmpCptLightLevel    = iniGetOrDefault(ini, iniSectionName, "rmp_cpt_lt", 50.0);
+    saved.rmpFoLightLevel     = iniGetOrDefault(ini, iniSectionName, "rmp_fo_lt", 50.0);
+    saved.rmpOvhdLightLevel   = iniGetOrDefault(ini, iniSectionName, "rmp_ovhd_lt", 50.0);
+    saved.ecamUpperLightLevel = iniGetOrDefault(ini, iniSectionName, "ecam_upper_lvl", 50.0);
+    saved.ecamLowerLightLevel = iniGetOrDefault(ini, iniSectionName, "ecam_lower_lvl", 50.0);
 
-  loadedLightValues.rmpCptLightLevel    = iniGetOrDefault(ini, iniSectionName, "rmp_cpt_lt", 50.0);
-  loadedLightValues.rmpFoLightLevel     = iniGetOrDefault(ini, iniSectionName, "rmp_fo_lt", 50.0);
-  loadedLightValues.rmpOvhdLightLevel   = iniGetOrDefault(ini, iniSectionName, "rmp_ovhd_lt", 50.0);
-  loadedLightValues.ecamUpperLightLevel = iniGetOrDefault(ini, iniSectionName, "ecam_upper_lvl", 50.0);
-  loadedLightValues.ecamLowerLightLevel = iniGetOrDefault(ini, iniSectionName, "ecam_lower_lvl", 50.0);
-
-  loadedLightValues.pedFloodLightLevel     = iniGetOrDefault(ini, iniSectionName, "flood_ped_lvl", 50.0);
-  loadedLightValues.mainPnlFloodLightLevel = iniGetOrDefault(ini, iniSectionName, "flood_pnl_lt", 50.0);
-  loadedLightValues.integralLightLevel     = iniGetOrDefault(ini, iniSectionName, "pedestal_int_lt", 50.0);
-  loadedLightValues.ambientLightLevel      = iniGetOrDefault(ini, iniSectionName, "cabin_light", 50.0);
+    saved.pedFloodLightLevel     = iniGetOrDefault(ini, iniSectionName, "flood_ped_lvl", 50.0);
+    saved.mainPnlFloodLightLevel = iniGetOrDefault(ini, iniSectionName, "flood_pnl_lt", 50.0);
+    saved.integralLightLevel     = iniGetOrDefault(ini, iniSectionName, "pedestal_int_lt", 50.0);
+    saved.ambientLightLevel      = iniGetOrDefault(ini, iniSectionName, "cabin_light", 50.0);
+    return saved;
+  });
 }
 
 void LightingPresets_A380X::saveToIni(mINI::INIStructure& ini, const std::string& iniSectionName) const {
