@@ -106,6 +106,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Single chime sound can be interrupted - @BravoMike99 (bruno_pt99)
 1. [A380X/RMP] Fix RMP brightness initialisation - @CameronCarlyon (YouBaconMeCrazy)
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
+1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
+1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
 1. [A380X/MFD] Make the SURV CONTROLS page (WXR, TCAS), the STATUS & SWITCHING WXR and XPDR/TCAS selection and the pedestal SURV panel buttons work - @TCdr
 1. [A380X/FWS] Sense the WXR & TAWS and XPDR & TCAS lines of the ECAM procedures and add the CABIN CREW line to the ECAM LINE-UP checklist - @TCdr
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
