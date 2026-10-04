@@ -58,7 +58,9 @@
             <SEQ1_POWERED>1</SEQ1_POWERED>
             <SEQ2_POWERED>0</SEQ2_POWERED>
             <SEQ3_POWERED>0</SEQ3_POWERED>
-            <ON_FIRE>(A:ENG ON FIRE:#ID#, Bool) 1 ==</ON_FIRE>
+            <!-- The fire warning of the fire detection unit (systems.wasm, A320 FCOM DSC-26-20-20: the red lights come on
+                 whenever the fire warning of the zone is activated); the sim's own engine fire is one of its inputs -->
+            <ON_FIRE>(L:A32NX_FIRE_DETECTED_ENG#ID#, Bool)</ON_FIRE>
         </DefaultTemplateParameters>
         <Component ID="#NODE_ID#" Node="#NODE_ID#">
 

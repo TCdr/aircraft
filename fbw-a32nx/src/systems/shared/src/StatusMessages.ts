@@ -39,6 +39,16 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210300010', { part: StatusPart.InopSys, text: 'HOT AIR' }],
   ['210300011', { part: StatusPart.InopSys, text: 'L+R CAB FAN' }],
   ['210300012', { part: StatusPart.InopSys, text: 'GALLEY FAN' }],
+  // 26 FIRE PROTECTION (FCOM PRO-ABN-ENG ENG 1(2) FIRE LOOP A(B) FAULT / FIRE DET FAULT, PRO-ABN-APU)
+  ['260300001', { part: StatusPart.InopSys, text: 'ENG 1 LOOP A' }],
+  ['260300002', { part: StatusPart.InopSys, text: 'ENG 1 LOOP B' }],
+  ['260300003', { part: StatusPart.InopSys, text: 'ENG 2 LOOP A' }],
+  ['260300004', { part: StatusPart.InopSys, text: 'ENG 2 LOOP B' }],
+  ['260300005', { part: StatusPart.InopSys, text: 'APU LOOP A' }],
+  ['260300006', { part: StatusPart.InopSys, text: 'APU LOOP B' }],
+  ['260300007', { part: StatusPart.InopSys, text: 'FIRE DET 1' }],
+  ['260300008', { part: StatusPart.InopSys, text: 'FIRE DET 2' }],
+  ['260300009', { part: StatusPart.InopSys, text: 'APU FIRE DET' }],
   // 34 NAVIGATION
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
