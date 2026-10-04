@@ -339,9 +339,26 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   211800028: {
+    // A380 FCOM PRO-ABN-ECAM-10-21-10 COND DUCT OVHT (a380_fcom.txt:132599-132623). Which lines show: CondTrimAirFlags.ts
     title: '\x1b<4m\x1b4mCOND\x1bm DUCT OVHT  ',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CKPT DUCT OVHT', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'HOT AIR 2', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HOT AIR JAMMED OPEN', sensed: true, condition: true },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'CABIN DUCT OVHT', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HOT AIR 2', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HOT AIR JAMMED OPEN', sensed: true, condition: true },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'FWD CARGO DUCT OVHT', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HOT AIR JAMMED OPEN', sensed: true, condition: true },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   211800029: {
     title: '\x1b<4m\x1b4mCOND\x1bm FWD CARGO ISOL FAULT  ',
@@ -355,16 +372,18 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     ],
   },
   211800030: {
+    // A380 FCOM PRO-ABN-ECAM-10-21-10 COND FWD CARGO TEMP REGUL FAULT (a380_fcom.txt:132278-132282)
     title: '\x1b<4m\x1b4mCOND\x1bm FWD CARGO TEMP REGUL FAULT  ',
     sensed: true,
     items: [
       {
         name: 'CARGO TRIM AIR VLV FAULT',
-        sensed: false,
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
       },
       {
         name: 'CARGO TEMP',
-        sensed: true,
+        sensed: false,
         labelNotCompleted: 'MONITOR',
       },
     ],
@@ -2315,6 +2334,19 @@ export const EcamDeferredProcAta212223: { [n: number]: DeferredProcedure } = {
         sensed: true,
         labelNotCompleted: 'OVRD',
       },
+    ],
+  },
+  210700003: {
+    // A380 FCOM PRO-ABN-ECAM-10-21-10 COND DUCT OVHT, DEFERRED PROC (a380_fcom.txt:132645-132651)
+    fromAbnormalProcs: ['211800028'],
+    title: 'WHEN DUCT OVHT OUT',
+    type: DeferredProcedureType.ALL_PHASES,
+    items: [
+      { name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'HOT AIR 2', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'HOT AIR JAMMED OPEN', sensed: true, condition: true },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'ON', level: 1 },
     ],
   },
   221700001: {

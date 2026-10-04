@@ -228,6 +228,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A380X/COND] Trim air duct overheat (above 70 deg C) and jammed trim air valve detection: COND DUCT OVHT (CKPT/CABIN/FWD CARGO cases with HOT AIR 1 or 2 OFF, deferred WHEN DUCT OVHT OUT, STATUS) and COND FWD CARGO TEMP REGUL FAULT on the ECAM, the HOT AIR 1(2) FAULT light, and the OVHT and trim air valve marks of the SD COND page - @TCdr
 1. [A380X] The AUTOLAND lights on the glareshield flash while pressed, the light test from the FCOM - @TCdr
 1. [A380X] The angle of attack vanes of the three multifunction probes on the nose (one left, two right) follow the angle of attack - @TCdr
 1. [A380X/EFB] New failures on the flyPad: brakes NORM and ALTN circuit leaks, ALTN brake accumulator gas leak, and jammed trim air valves and duct overheats for the cockpit, main deck zone 1, upper deck zone 1 and forward cargo - @TCdr
