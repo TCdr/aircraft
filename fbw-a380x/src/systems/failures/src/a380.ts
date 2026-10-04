@@ -155,6 +155,17 @@ export const A380Failure = Object.freeze({
   EnginePump4AOHeat: 29016,
   EnginePump4BOHeat: 29017,
 
+  // The 8 display units of the CDS (A380 FCOM DSC-31-15-10, a380_fcom.txt:62972-62980): the DU goes blank and the FWS
+  // raises CDS ... DU FAULT (see shared/src/CdsDisplayUnits.ts)
+  CaptPfdDisplayUnit: 31000,
+  CaptNdDisplayUnit: 31001,
+  CaptMfdDisplayUnit: 31002,
+  EwdDisplayUnit: 31003,
+  SdDisplayUnit: 31004,
+  FoMfdDisplayUnit: 31005,
+  FoNdDisplayUnit: 31006,
+  FoPfdDisplayUnit: 31007,
+
   Fws1: 31100,
   Fws2: 31101,
   Fws1AudioFunction: 31102,
@@ -367,6 +378,14 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [29, A380Failure.EnginePump4AOHeat, 'Engine 4 pump A overheat'],
   [29, A380Failure.EnginePump4BOHeat, 'Engine 4 pump B overheat'],
 
+  [31, A380Failure.CaptPfdDisplayUnit, 'CAPT PFD display unit'],
+  [31, A380Failure.CaptNdDisplayUnit, 'CAPT ND display unit'],
+  [31, A380Failure.CaptMfdDisplayUnit, 'CAPT MFD display unit'],
+  [31, A380Failure.EwdDisplayUnit, 'EWD display unit'],
+  [31, A380Failure.SdDisplayUnit, 'SD display unit'],
+  [31, A380Failure.FoMfdDisplayUnit, 'F/O MFD display unit'],
+  [31, A380Failure.FoNdDisplayUnit, 'F/O ND display unit'],
+  [31, A380Failure.FoPfdDisplayUnit, 'F/O PFD display unit'],
   [31, A380Failure.Fws1, 'FWS 1'],
   [31, A380Failure.Fws2, 'FWS 2'],
   [31, A380Failure.Fws1AudioFunction, 'FWS 1 Audio Function'],

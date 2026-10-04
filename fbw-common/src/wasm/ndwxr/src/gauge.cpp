@@ -93,6 +93,8 @@ static void registerInstanceVars(Instance& instance) {
   instance.vdRangeLowerVar = register_named_variable(instance.isRight ? "A32NX_VD_2_RANGE_LOWER" : "A32NX_VD_1_RANGE_LOWER");
   instance.vdRangeUpperVar = register_named_variable(instance.isRight ? "A32NX_VD_2_RANGE_UPPER" : "A32NX_VD_1_RANGE_UPPER");
   instance.overlayVar = register_named_variable(instance.isRight ? "A380X_EFIS_R_ACTIVE_OVERLAY" : "A380X_EFIS_L_ACTIVE_OVERLAY");
+  instance.displayUnitFailedVar =
+      register_named_variable(instance.isRight ? "A380X_CDS_FO_ND_DU_FAILED" : "A380X_CDS_CAPT_ND_DU_FAILED");
   if (instance.isRight) {
     instance.powerBusVars[0] = register_named_variable("A32NX_ELEC_DC_1_BUS_IS_POWERED");
     instance.powerBusVars[1] = register_named_variable("A32NX_ELEC_DC_2_BUS_IS_POWERED");
@@ -256,7 +258,7 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
 #ifdef A380X
   instance.wxrRequested = false;
 #endif
-  if (!isPowered(instance)) {
+  if (!isDisplayUnitOn(instance)) {
     return frame;
   }
   const double ndMode = get_named_variable_value(instance.ndModeVar);
@@ -271,7 +273,7 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   const int rangeIndex = static_cast<int>(get_named_variable_value(instance.ndRangeVar));
   const float rangeNm = kRangeTableNm[rangeIndex >= 0 && rangeIndex < kRangeCount ? rangeIndex : 0];
 
-  // Gating: the ND is powered (above), the crew has the radar selected
+  // Gating: the ND's display unit is on (powered and not failed, above), the crew has the radar selected
   // and its system is up (radarSelected), the ND page has a map (the three
   // ROSE pages and ARC, not PLAN, as on the real aircraft) with a real range
   // (not the A380X's OANS view) and the ND's position source is valid (ADIRS
