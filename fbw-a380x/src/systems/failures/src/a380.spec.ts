@@ -1,12 +1,33 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { A380Failure, A380FailureDefinitions } from './a380';
 
 // The flyPad failures page lists exactly A380FailureDefinitions; a definition is [ATA chapter, id, name].
 const listedIds = A380FailureDefinitions.map(([, id]) => id);
 const enumIds: number[] = Object.values(A380Failure);
+
+/**
+ * Reads the failure id -> Rust FailureType map from the `.with_failures([...])` call of the A380 systems wasm, as
+ * a map of id (e.g. 32100) to the FailureType without its prefix (e.g. 'BrakeHydraulicLeak(HydraulicColor::Green)').
+ */
+function readRustFailureMap(): Map<number, string> {
+  const source = readFileSync(resolve(__dirname, '../../../wasm/systems/a380_systems_wasm/src/lib.rs'), 'utf8');
+  const start = source.indexOf('.with_failures([');
+  const block = source
+    .slice(start, source.indexOf('])', start))
+    .replace(/\/\/.*/g, '')
+    .replace(/\s+/g, '');
+  const map = new Map<number, string>();
+  // After removing the whitespace an entry reads (32_100,FailureType::BrakeHydraulicLeak(HydraulicColor::Green)),
+  for (const [, thousands, units, failureType] of block.matchAll(/\((\d+)_(\d+),FailureType::(.+?),?\),(?=\(\d|$)/g)) {
+    map.set(Number(thousands + units), failureType);
+  }
+  return map;
+}
 
 describe('A380X flyPad failure definitions', () => {
   it('lists every failure id only once', () => {
@@ -63,5 +84,34 @@ describe('A380X flyPad failure definitions', () => {
 
   it('does not list ROLLOUT (22001), which no system reacts to', () => {
     expect(listedIds).not.toContain(22001);
+  });
+
+  it('lists the brake and trim air failures the Rust model simulates, under the ids the Rust map uses', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [21050, 'TrimAirFault(ZoneType::Cockpit)', 'Cockpit trim air valve jammed'],
+      [21051, 'TrimAirFault(ZoneType::Cabin(11))', 'Main deck zone 1 trim air valve jammed'],
+      [21052, 'TrimAirFault(ZoneType::Cabin(21))', 'Upper deck zone 1 trim air valve jammed'],
+      [21053, 'TrimAirFault(ZoneType::Cargo(1))', 'Forward cargo trim air valve jammed'],
+      [21054, 'TrimAirOverheat(ZoneType::Cockpit)', 'Cockpit duct overheat (hot trim air)'],
+      [21055, 'TrimAirOverheat(ZoneType::Cabin(11))', 'Main deck zone 1 duct overheat (hot trim air)'],
+      [21056, 'TrimAirOverheat(ZoneType::Cabin(21))', 'Upper deck zone 1 duct overheat (hot trim air)'],
+      [21057, 'TrimAirOverheat(ZoneType::Cargo(1))', 'Forward cargo duct overheat (hot trim air)'],
+      [32100, 'BrakeHydraulicLeak(HydraulicColor::Green)', 'Brakes NORM circuit leak (green hydraulic)'],
+      [32101, 'BrakeHydraulicLeak(HydraulicColor::Yellow)', 'Brakes ALTN circuit leak (yellow hydraulic)'],
+      [32150, 'BrakeAccumulatorGasLeak', 'Brakes ALTN accumulator gas leak'],
+    ];
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id)?.[2];
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), nameOf(id)])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name]),
+    );
+  });
+
+  it('lists every failure the Rust systems map reacts to', () => {
+    const rustIds = [...readRustFailureMap().keys()];
+    // Sanity check of the parser: the map holds well over a hundred failures.
+    expect(rustIds.length).toBeGreaterThan(100);
+    expect(rustIds.filter((id) => !listedIds.includes(id))).toEqual([]);
   });
 });
