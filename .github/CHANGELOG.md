@@ -230,6 +230,18 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A380X/GPWS] Setting the TAWS FLAP MODE to OFF on the MFD SURV CONTROLS page now inhibits the TOO LOW FLAPS alert (the GPWS read a variable nothing writes) - @TCdr
+1. [A380X/SD] FUEL page: during a normal fuel jettison the jettison lines and JETTISON legends are white instead of amber (amber stays for a valve open without jettison, or closed during jettison) - @TCdr
+1. [A380X/OANS] The FMS landing runway is shown green (selected runway) at the destination airport when its map is loaded (the check compared the airport with the FMS origin twice) - @TCdr
+1. [A380X/SD] The automatic CRZ page after takeoff also waits while engine 4 alone is at takeoff power (the check read engine 3 twice) - @TCdr
+1. [A380X/FADEC] The thrust limits now take the wing anti-ice into account when WING ANTI ICE is on (the FADEC read an A32NX variable nothing on the A380X writes) - @TCdr
+1. [A380X/FWS] BRAKES HOT and the T.O CONFIG brake temperature check now work: they come from the 16 brake temperatures (at or above 300 °C) instead of a variable nothing on the A380X writes - @TCdr
+1. [A380X/ELEC] The ELMU and COMMERCIAL 2 pbs on the ELEC panel no longer switch the COMMERCIAL pb (pressing ELMU shed the commercial loads); they now have their own state - @TCdr
+1. [A380X/EWD] The EGT gauge uses the thrust limit (no amber limit at FLEX/TOGA or reverse, amber above the limit at MCT/CLB) instead of the thrust lever angle - @TCdr
+1. [A380X/SD] PRESS page: the CAB ALT needle turns red above 9 550 ft like the value, instead of using A320 delta P limits - @TCdr
+1. [A380X/FWS] F/CTL ALTN LAW shows MAX SPEED 310 KT except in ALT 1A, not only in ALT 1A - @TCdr
+1. [A380X/HYD] G RSVR LEVEL LO and G SYS OVHT tick the G ELEC PMP A and B OFF line from the green electric pumps (they read the yellow ones); the engine 3 and 4 pump disconnection now use DC 2 and DC 1 as in the FCOM (they were swapped) - @TCdr
+1. [A380X/SD] DOOR/OXY page: CREW SUPPLY OFF now shows the CKPT legend amber and REGUL PR LO on ground; the CABIN line no longer follows the crew oxygen pb - @TCdr
 1. [EFB] Loading an interior lighting preset that was never saved (or auto-loading one) sets the lights to 50 % as the flyPad says, instead of fading every light, displays and MCDUs included, to off - @TCdr
 1. [EFB] Saving an interior lighting preset works again: the presets file was never written (the ini library refused the existing work folder), so no preset could be saved or loaded - @TCdr
 1. [A32NX] Fire protection: new flyPad failures of the engine 1, engine 2 and APU fire detection units (FDU): the zone gives the ENG 1(2) / APU FIRE DET FAULT caution with healthy loops and can no longer give a fire warning - @TCdr

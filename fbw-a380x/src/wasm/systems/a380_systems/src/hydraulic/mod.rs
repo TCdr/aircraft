@@ -3627,11 +3627,19 @@ impl A380EngineDrivenPumpController {
 
             are_pumps_commanded_disconnected: false,
 
-            disconnection_mechanism: EnginePumpDisconnectionClutch::new(match engine_num {
-                1 | 4 => ElectricalBusType::DirectCurrent(2),
-                2 | 3 => ElectricalBusType::DirectCurrent(1),
-                _ => panic!("Only 4 engines on A380"),
-            }),
+            disconnection_mechanism: EnginePumpDisconnectionClutch::new(
+                Self::disconnection_power_supply(engine_num),
+            ),
+        }
+    }
+
+    /// Engine pump disconnection supply, A380 FCOM DSC-29-40 ELECTRICAL SUPPLY table:
+    /// engine 1 pumps DC 2, engine 2 pumps DC 1, engine 3 pumps DC 2, engine 4 pumps DC 1.
+    fn disconnection_power_supply(engine_num: usize) -> ElectricalBusType {
+        match engine_num {
+            1 | 3 => ElectricalBusType::DirectCurrent(2),
+            2 | 4 => ElectricalBusType::DirectCurrent(1),
+            _ => panic!("Only 4 engines on A380"),
         }
     }
 
@@ -9842,6 +9850,57 @@ mod tests {
 
             assert!(!test_bed.is_yellow_pressure_switch_pressurised());
             assert_lt!(test_bed.yellow_pressure(), Pressure::new::<psi>(1500.));
+        }
+
+        /// FCOM DSC-29-40: the engine 3 pump disconnection is supplied by DC 2, the engine 4 one by DC 1.
+        #[test]
+        fn yellow_edp_disconnection_engine_3_on_dc_2_engine_4_on_dc_1() {
+            let mut test_bed = test_bed_on_ground_with()
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_waiting_for(Duration::from_secs(5));
+
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+
+            // DC 1 lost: the engine 4 pumps can no longer be disconnected, the engine 3 pumps still can.
+            test_bed = test_bed
+                .dc_bus_1_lost()
+                .set_disconnect_engine_edp(4)
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(test_bed.query(|a| a
+                .hydraulics
+                .engine_driven_pump_4a_controller
+                .is_input_shaft_connected()));
+
+            test_bed = test_bed
+                .set_disconnect_engine_edp(3)
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(!test_bed.query(|a| a
+                .hydraulics
+                .engine_driven_pump_3a_controller
+                .is_input_shaft_connected()));
+        }
+
+        #[test]
+        fn edp_disconnection_power_supply_matches_fcom() {
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(1),
+                ElectricalBusType::DirectCurrent(2)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(2),
+                ElectricalBusType::DirectCurrent(1)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(3),
+                ElectricalBusType::DirectCurrent(2)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(4),
+                ElectricalBusType::DirectCurrent(1)
+            );
         }
 
         #[test]
