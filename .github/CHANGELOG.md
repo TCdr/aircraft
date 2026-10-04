@@ -108,6 +108,17 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Make flightdeck lighting panel-state and time-of-day aware. Adjust existing values. @CameronCarlyon (YouBaconMeCrazy)
 1. [FMS] Limit step descent guidance to -1000fpm - @Jonny23787 (Jonathan), @BlueberryKing (BlueberryKing)
 1. [A380X/SD] Correct EL/DC page APU TR text display color - @ksleungac (pzb-85)
+1. [A380X/GPWS] Setting the TAWS FLAP MODE to OFF on the MFD SURV CONTROLS page now inhibits the TOO LOW FLAPS alert (the GPWS read a variable nothing writes) - @TCdr
+1. [A380X/OANS] The FMS landing runway is shown green (selected runway) at the destination airport when its map is loaded (the check compared the airport with the FMS origin twice) - @TCdr
+1. [A380X/SD] The automatic CRZ page after takeoff also waits while engine 4 alone is at takeoff power (the check read engine 3 twice) - @TCdr
+1. [A380X/FADEC] The thrust limits now take the wing anti-ice into account when WING ANTI ICE is on (the FADEC read an A32NX variable nothing on the A380X writes) - @TCdr
+1. [A380X/FWS] BRAKES HOT and the T.O CONFIG brake temperature check now work: they come from the 16 brake temperatures (at or above 300 °C) instead of a variable nothing on the A380X writes - @TCdr
+1. [A380X/ELEC] The ELMU and COMMERCIAL 2 pbs on the ELEC panel no longer switch the COMMERCIAL pb (pressing ELMU shed the commercial loads); they now have their own state - @TCdr
+1. [A380X/EWD] The EGT gauge uses the thrust limit (no amber limit at FLEX/TOGA or reverse, amber above the limit at MCT/CLB) instead of the thrust lever angle - @TCdr
+1. [A380X/SD] PRESS page: the CAB ALT needle turns red above 9 550 ft like the value, instead of using A320 delta P limits - @TCdr
+1. [A380X/FWS] F/CTL ALTN LAW shows MAX SPEED 310 KT except in ALT 1A, not only in ALT 1A - @TCdr
+1. [A380X/HYD] G RSVR LEVEL LO and G SYS OVHT tick the G ELEC PMP A and B OFF line from the green electric pumps (they read the yellow ones); the engine 3 and 4 pump disconnection now use DC 2 and DC 1 as in the FCOM (they were swapped) - @TCdr
+1. [A380X/SD] DOOR/OXY page: CREW SUPPLY OFF now shows the CKPT legend amber and REGUL PR LO on ground; the CABIN line no longer follows the crew oxygen pb - @TCdr
 
 ## 2024.1.0
 

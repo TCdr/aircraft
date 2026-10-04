@@ -64,7 +64,7 @@ import { OancPositionComputer } from './OancPositionComputer';
 import { OancMarkerManager } from './OancMarkerManager';
 import { ResetPanelSimvars } from './ResetPanelPublisher';
 import { NavigraphAmdbClient } from './api/NavigraphAmdbClient';
-import { pointAngle } from './OancMapUtils';
+import { isFmsSelectedRunway, pointAngle } from './OancMapUtils';
 import { LubberLine } from '../ND/pages/arc/LubberLine';
 
 export const OANC_RENDER_WIDTH = 768;
@@ -976,13 +976,14 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
           designators.push(copied[1], copied[0]);
         }
 
-        const isFmsOrigin = this.dataAirportIcao.get() === this.fmsDataStore.origin.get();
-        const isFmsDestination = this.dataAirportIcao.get() === this.fmsDataStore.origin.get();
-        const depRwy = this.fmsDataStore.departureRunway.get()?.substring(4);
-        const ldgRwy = this.fmsDataStore.landingRunway.get()?.substring(4);
-        const isSelectedRunway =
-          (isFmsOrigin && depRwy && designators.includes(depRwy)) ||
-          (isFmsDestination && ldgRwy && designators.includes(ldgRwy));
+        const isSelectedRunway = isFmsSelectedRunway(
+          this.dataAirportIcao.get(),
+          this.fmsDataStore.origin.get(),
+          this.fmsDataStore.destination.get(),
+          this.fmsDataStore.departureRunway.get()?.substring(4),
+          this.fmsDataStore.landingRunway.get()?.substring(4),
+          designators,
+        );
 
         const label1: Label = {
           text: designators[0],
