@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -239,11 +239,18 @@ export class LegacyTcasComputer implements Instrument {
 
   private gpwsWarning: boolean; // GPWS warning on/off
 
+  private raInhibitedLow = false; // RAs inhibited by the low-altitude hysteresis (see updateInhibitions)
+
+  private taAuralInhibitedLow = false; // TA aural inhibited by the low-altitude hysteresis
+
   private readonly sub = this.bus.getSubscriber<MfdSurvEvents>();
 
   private readonly tcasAlertLevel = ConsumerSubject.create(this.sub.on('mfd_tcas_alert_level'), 0); // TCAS - STBY/TA/TARA
 
   private readonly tcasAltSelect = ConsumerSubject.create(this.sub.on('mfd_tcas_alt_select'), 0); // TCAS - NORM/ABV/BLW
+
+  /** The ALT RPTG button of the MFD SURV CONTROLS page. */
+  private readonly xpdrAltReporting = ConsumerSubject.create(this.sub.on('mfd_xpdr_set_alt_reporting'), true);
 
   private trafficLeftEfisFilter: boolean;
 
@@ -272,6 +279,10 @@ export class LegacyTcasComputer implements Instrument {
         lastUpdateTime = now;
         this.update(dt);
       });
+
+    // The pedestal TCAS buttons (ABV / BLW / TA ONLY) follow the MFD SURV TCAS settings through these LVars.
+    this.tcasAlertLevel.sub((v) => SimVar.SetSimVarValue('L:A380X_TCAS_ALERT_LEVEL', 'number', v), true);
+    this.tcasAltSelect.sub((v) => SimVar.SetSimVarValue('L:A380X_TCAS_ALT_SELECT', 'number', v), true);
 
     SimVar.SetSimVarValue('L:A32NX_TCAS_STATE', 'Enum', 0);
     this.debug = false;
@@ -350,8 +361,10 @@ export class LegacyTcasComputer implements Instrument {
     this.trafficLeftEfisFilter = SimVar.GetSimVarValue('L:A380X_EFIS_L_TRAF_BUTTON_IS_ON', 'boolean');
     this.trafficRightEfisFilter = SimVar.GetSimVarValue('L:A380X_EFIS_R_TRAF_BUTTON_IS_ON', 'boolean');
 
+    // With ALT RPTG OFF the TCAS is in standby too (A380 FCOM DSC-34-20-50-20 P 7: TCAS STBY message on the ND, TCAS
+    // STBY memo).
     this.tcasMode.setVar(
-      this.xpdrStatus === XpdrMode.STBY || !this.tcasPower || this.tcasFault.getVar()
+      this.xpdrStatus === XpdrMode.STBY || !this.xpdrAltReporting.get() || !this.tcasPower || this.tcasFault.getVar()
         ? TcasMode.STBY
         : this.tcasAlertLevel.get(),
     ); // 34-43-00:A32
@@ -364,19 +377,38 @@ export class LegacyTcasComputer implements Instrument {
    * Set inhibition level
    */
   private updateInhibitions(): void {
-    // TODO: Add more TA only conditions here (i.e GPWS active, Windshear warning active, stall)
+    // TODO: Add more TA only conditions here (i.e Windshear warning active, stall)
     // TODO FIXME: Less magic numbers, Use constants defined in TcasConstants
+    // The low-altitude inhibitions have a hysteresis (TcasConstants): RAs are inhibited below 900 ft AGL in
+    // descent and 1 100 ft AGL in climb (the FCOM's "below 1 000 ft +-100 ft"), the TA aural below 400 ft in
+    // descent and 600 ft in climb (A380 FCTM, Supplementary Information, TCAS).
+    if (!this.radioAlt.isFailureWarning() && !this.radioAlt.isNoComputedData()) {
+      if (
+        this.raInhibitedLow
+          ? this.radioAlt.value > TCAS.INHIBIT_ALL_RA_AGL_CLIMB
+          : this.radioAlt.value < TCAS.INHIBIT_ALL_RA_AGL_DESCENT
+      ) {
+        this.raInhibitedLow = !this.raInhibitedLow;
+      }
+      if (
+        this.taAuralInhibitedLow
+          ? this.radioAlt.value > TCAS.INHIBIT_TA_AURAL_AGL_CLIMB
+          : this.radioAlt.value < TCAS.INHIBIT_TA_AURAL_AGL_DESCENT
+      ) {
+        this.taAuralInhibitedLow = !this.taAuralInhibitedLow;
+      }
+    } else {
+      this.raInhibitedLow = false;
+      this.taAuralInhibitedLow = false;
+    }
     if (
       this.radioAlt.isFailureWarning() ||
-      (!this.radioAlt.isNoComputedData() && this.radioAlt.value < 500) ||
+      this.taAuralInhibitedLow ||
       this.gpwsWarning ||
       this.tcasMode.getVar() === TcasMode.STBY
     ) {
       this.inhibitions = Inhibit.ALL_RA_AURAL_TA;
-    } else if (
-      (!this.radioAlt.isNoComputedData() && this.radioAlt.value < 1000) ||
-      this.tcasMode.getVar() === TcasMode.TA
-    ) {
+    } else if (this.raInhibitedLow || this.tcasMode.getVar() === TcasMode.TA) {
       this.inhibitions = Inhibit.ALL_RA;
     } else if (!this.radioAlt.isNoComputedData() && this.radioAlt.value < 1100) {
       this.inhibitions = Inhibit.ALL_DESC_RA;
@@ -692,7 +724,15 @@ export class LegacyTcasComputer implements Instrument {
         accelTest = TaRaIntrusion.PROXIMITY;
       }
 
-      const desiredIntrusionLevel: TaRaIntrusion = Math.min(rangeTest, altTest, accelTest);
+      let desiredIntrusionLevel: TaRaIntrusion = Math.min(rangeTest, altTest, accelTest);
+      // With all RAs inhibited (TA ONLY mode, below 1000 ft radio altitude) an intruder that meets the RA criteria is
+      // shown (red square -> amber circle) and counted as a traffic advisory, as the RA cannot be issued.
+      if (
+        desiredIntrusionLevel === TaRaIntrusion.RA &&
+        (this.inhibitions === Inhibit.ALL_RA || this.inhibitions === Inhibit.ALL_RA_AURAL_TA)
+      ) {
+        desiredIntrusionLevel = TaRaIntrusion.TA;
+      }
       switch (traffic.intrusionLevel) {
         case TaRaIntrusion.RA:
           if (
@@ -1343,10 +1383,36 @@ export class LegacyTcasComputer implements Instrument {
   onUpdate() {}
 
   /**
+   * Applies the settings requested with the pedestal TCAS buttons. A button press leaves the wanted setting plus one
+   * in L:A380X_TCAS_ALERT_LEVEL_REQUEST / L:A380X_TCAS_ALT_SELECT_REQUEST (0 = no request), which is then published
+   * like the MFD SURV page does.
+   */
+  private applyPedestalRequests(): void {
+    const publisher = this.bus.getPublisher<MfdSurvEvents>();
+
+    const alertLevelRequest = SimVar.GetSimVarValue('L:A380X_TCAS_ALERT_LEVEL_REQUEST', 'number');
+    if (alertLevelRequest > 0) {
+      SimVar.SetSimVarValue('L:A380X_TCAS_ALERT_LEVEL_REQUEST', 'number', 0);
+      if (this.tcasFault.getVar() !== true) {
+        publisher.pub('mfd_tcas_alert_level', alertLevelRequest - 1, true);
+      }
+    }
+
+    const altSelectRequest = SimVar.GetSimVarValue('L:A380X_TCAS_ALT_SELECT_REQUEST', 'number');
+    if (altSelectRequest > 0) {
+      SimVar.SetSimVarValue('L:A380X_TCAS_ALT_SELECT_REQUEST', 'number', 0);
+      if (this.tcasFault.getVar() !== true) {
+        publisher.pub('mfd_tcas_alt_select', altSelectRequest - 1, true);
+      }
+    }
+  }
+
+  /**
    * Main update loop
    * @param _deltaTime delta time of this frame
    */
   update(_deltaTime: number): void {
+    this.applyPedestalRequests();
     this.updateVars();
     this.updateInhibitions();
     this.updateStatusFaults();

@@ -1,0 +1,35 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// FCOM figures (DSC-22-FMS-20-30 P 83-89, P 324): geometry in RouteSummaryDisplay.tsx
+.mfd-route-summary {
+  position: absolute;
+}
+
+.mfd-route-summary-box {
+  position: relative;
+  box-sizing: border-box;
+  border: 2px solid #505050;
+}
+
+.mfd-route-summary-text {
+  position: absolute;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.mfd-route-summary-separator {
+  position: absolute;
+  left: 4px;
+  right: 6px;
+  height: 0;
+  border-top: 2px solid #505050;
+}
+
+// Scroll buttons centred below the box (P 85: x = 311 to 447 for a box from 100 to 660)
+.mfd-route-summary-scroll {
+  position: absolute;
+  left: 211px;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}

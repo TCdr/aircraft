@@ -1,0 +1,52 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 135 (page container coordinates)
+.mfd-etp-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+
+  ellipse,
+  polyline {
+    fill: none;
+    stroke: $display-light-grey;
+    stroke-width: 1.5;
+  }
+}
+
+.mfd-etp-box {
+  position: absolute;
+  width: 228px;
+  height: 122px;
+  border: 1px solid $display-light-grey;
+  box-sizing: border-box;
+}
+
+// REF bracket: a box open at the top around the REF label
+.mfd-etp-ref-bracket {
+  position: absolute;
+  top: 282px;
+  width: 228px;
+  height: 153px;
+  border: 1px solid $display-light-grey;
+  border-top: none;
+  box-sizing: border-box;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    width: 70px;
+    border-top: 1px solid $display-light-grey;
+  }
+
+  &::before {
+    left: 0;
+  }
+
+  &::after {
+    right: 0;
+  }
+}

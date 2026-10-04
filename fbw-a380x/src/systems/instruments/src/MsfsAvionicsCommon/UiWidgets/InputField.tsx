@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-//  Copyright (c) 2024-2025 FlyByWire Simulations
+//  Copyright (c) 2024-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -88,6 +88,13 @@ export class InputField<
 > extends DisplayComponent<ConditionalInputFieldProps<T, U, S>> {
   private static readonly MAX_CHARACTERS_FREE_TEXT = 24;
 
+  /**
+   * The field in edition, per KCCU key consumer (one per display side). A field selected with the mouse stays in edition
+   * (the keys go to it and to no other field) until ENT, ESC or the selection of another field, whatever loses the display
+   * focus in between (e.g. a click on a KCCU key): the previous field is validated here when another field is selected.
+   */
+  private static readonly fieldInEdition = new WeakMap<object, { onBlur(validateAndUpdate: boolean): Promise<void> }>();
+
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
 
@@ -174,6 +181,18 @@ export class InputField<
           : this.props.dataEntryFormat.maxDigits + this.props.dataEntryFormat.maxOverflowDigits!
         : this.props.dataEntryFormat.maxDigits;
 
+      // A typed keyword or prefixed entry (GND, NONE, FL350, HD020...) carries its own meaning: the units of the field
+      // (e.g. FT) are only shown next to numeric entries
+      const typed = this.modifiedFieldValue.get() ?? '';
+      if (/^[A-Z]/.test(typed)) {
+        this.leadingUnit.set('');
+        this.trailingUnit.set('');
+      } else {
+        const [, leadingUnit, trailingUnit] = this.props.dataEntryFormat.format(null);
+        this.leadingUnit.set(leadingUnit ?? '');
+        this.trailingUnit.set(trailingUnit ?? '');
+      }
+
       if ((this.modifiedFieldValue.get()?.length ?? 0) < numDigits || !this.isFocused.get()) {
         this.textInputRef.instance.innerText = this.modifiedFieldValue.get() ?? '';
         this.caretRef.instance.innerText = '';
@@ -229,6 +248,10 @@ export class InputField<
 
     if (ev.keyCode === KeyCode.KEY_BACK_SPACE) {
       this.handleBackspace();
+    }
+
+    if (ev.keyCode === KeyCode.KEY_ESCAPE) {
+      this.handleEscape();
     }
   }
 
@@ -294,10 +317,22 @@ export class InputField<
     this.onInput();
   };
 
+  /** ENT: validates the entry, without depending on a blur event of the display */
   private handleEnter() {
-    if (this.props.handleFocusBlurExternally) {
-      this.onBlur(true);
-    } else {
+    this.onBlur(true);
+    if (!this.props.handleFocusBlurExternally) {
+      this.textInputRef.instance.blur();
+    }
+  }
+
+  /** ESC: cancels the current field edition, the field returns to the last valid value (A380 FCOM DSC-31-30-20 P 8) */
+  private handleEscape() {
+    this.modifiedFieldValue.set(null);
+    if (this.isOverFlow) {
+      this.overflow(false);
+    }
+    this.onBlur(false);
+    if (!this.props.handleFocusBlurExternally) {
       this.textInputRef.instance.blur();
     }
   }
@@ -312,14 +347,13 @@ export class InputField<
       if (this.props.interactionMode.get() === InteractionMode.Touchscreen) {
         Coherent.trigger('FOCUS_INPUT_FIELD', this.guid, '', '', this.readValue.get(), false);
       }
+      const fieldInEdition = InputField.fieldInEdition.get(this.props.hEventConsumer);
+      if (fieldInEdition && fieldInEdition !== this) {
+        fieldInEdition.onBlur(true);
+      }
+      InputField.fieldInEdition.set(this.props.hEventConsumer, this);
       this.isFocused.set(true);
 
-      // After 20s, unfocus field, if some other weird focus error happens
-      setTimeout(() => {
-        if (this.isFocused.get()) {
-          Coherent.trigger('UNFOCUS_INPUT_FIELD', this.guid);
-        }
-      }, 20_000);
       this.textInputRef.instance.classList.add('valueSelected');
       this.textInputRef.instance.classList.add('editing');
       if (this.props.mandatory?.get()) {
@@ -339,6 +373,9 @@ export class InputField<
         Coherent.trigger('UNFOCUS_INPUT_FIELD', this.guid);
       }
       this.isFocused.set(false);
+      if (InputField.fieldInEdition.get(this.props.hEventConsumer) === this) {
+        InputField.fieldInEdition.delete(this.props.hEventConsumer);
+      }
       this.textInputRef.instance.classList.remove('valueSelected');
       this.caretRef.instance.style.display = 'none';
       this.updateDisplayElement();
@@ -442,6 +479,8 @@ export class InputField<
 
   private onFocusTextInput() {
     this.textInputRef.instance.focus();
+    // The element may already have the display focus (no focus event): select the field anyway
+    this.onFocus();
   }
 
   private onFocusTextInputHandler = this.onFocusTextInput.bind(this);
@@ -584,7 +623,6 @@ export class InputField<
 
     if (!this.props.handleFocusBlurExternally) {
       this.textInputRef.instance.addEventListener('focus', this.onFocusHandler);
-      this.textInputRef.instance.addEventListener('blur', this.onBlur.bind(this, true));
       this.spanningDivRef.instance.addEventListener('click', this.onFocusTextInputHandler);
       this.leadingUnitRef.instance.addEventListener('click', this.onFocusTextInputHandler);
       this.trailingUnitRef.instance.addEventListener('click', this.onFocusTextInputHandler);
@@ -634,9 +672,7 @@ export class InputField<
       }
 
       if (key[1] === 'ESC' || key[1] === 'ESC2') {
-        const [formatted] = this.props.dataEntryFormat.format(this.readValue.get());
-        this.modifiedFieldValue.set(formatted);
-        this.handleEnter();
+        this.handleEscape();
       }
 
       if (key[1] === 'UP' || key[1] === 'RIGHT' || key[1] === 'DOWN' || key[1] === 'LEFT') {
@@ -670,10 +706,19 @@ export class InputField<
 
     if (!this.props.handleFocusBlurExternally) {
       this.textInputRef.getOrDefault()?.removeEventListener('focus', this.onFocusHandler);
-      this.textInputRef.getOrDefault()?.removeEventListener('blur', this.onBlur.bind(this, true));
       this.spanningDivRef.getOrDefault()?.removeEventListener('click', this.onFocusTextInputHandler);
       this.leadingUnitRef.getOrDefault()?.removeEventListener('click', this.onFocusTextInputHandler);
       this.trailingUnitRef.getOrDefault()?.removeEventListener('click', this.onFocusTextInputHandler);
+    }
+
+    if (InputField.fieldInEdition.get(this.props.hEventConsumer) === this) {
+      InputField.fieldInEdition.delete(this.props.hEventConsumer);
+    }
+
+    // A field still in edition (page changed before ENT / ESC) gives the PC keyboard back to the sim
+    if (this.isFocused.get()) {
+      this.isFocused.set(false);
+      Coherent.trigger('UNFOCUS_INPUT_FIELD', this.guid);
     }
 
     this.props.dataEntryFormat?.destroy();
@@ -687,7 +732,13 @@ export class InputField<
         <div ref={this.containerRef} class="mfd-input-field-container" style={`${this.props.containerStyle ?? ''}`}>
           <span
             ref={this.leadingUnitRef}
-            class={`mfd-label-unit ${this.props.bigUnit ? 'bigger' : ''} mfd-unit-leading mfd-input-field-unit`}
+            class={{
+              'mfd-label-unit': true,
+              bigger: !!this.props.bigUnit,
+              'mfd-unit-leading': true,
+              'mfd-input-field-unit': true,
+              'mfd-input-field-unit-empty': this.leadingUnit.map((u) => u.trim() === ''),
+            }}
           >
             {this.leadingUnit}
           </span>
@@ -703,7 +754,13 @@ export class InputField<
           </div>
           <span
             ref={this.trailingUnitRef}
-            class={`mfd-label-unit ${this.props.bigUnit ? 'bigger' : ''} mfd-unit-trailing mfd-input-field-unit`}
+            class={{
+              'mfd-label-unit': true,
+              bigger: !!this.props.bigUnit,
+              'mfd-unit-trailing': true,
+              'mfd-input-field-unit': true,
+              'mfd-input-field-unit-empty': this.trailingUnit.map((u) => u.trim() === ''),
+            }}
           >
             {this.trailingUnit}
           </span>

@@ -20,9 +20,10 @@
   - [Indicating-Recording ATA 31](#indicating-recording-ata-31)
   - [ECAM Control Panel ATA 31](#ecam-control-panel-ata-31)
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
+  - [KCCU ATA 31](#kccu-ata-31)
   - [Landing Gear ATA 32](#landing-gear-ata-32)
-  - [Surveillance ATA 34](#surveillance-ata-34)
   - [Lights ATA 33](#lights-ata-33)
+  - [Surveillance ATA 34](#surveillance-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
@@ -1672,6 +1673,21 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Not for FBW systems use!
     - {side} = L or R
 
+## KCCU ATA 31
+
+- A32NX_KCCU_{side}_KBD_ON_OFF
+    - Bool
+    - The keyboard ON/OFF switch of the KCCU: the keyboard keys (and the MFD entry by KCCU) work only when ON
+      (A380 FCOM DSC-31-30-20)
+    - ON by default: set ON in every flight start (cold and dark included) and by the Powered aircraft preset
+    - {side} = L or R
+
+- A32NX_KCCU_{side}_CCD_ON_OFF
+    - Bool
+    - The cursor control device ON/OFF switch of the KCCU: its ESC, KBD and navigation keys work only when ON
+    - ON by default: set ON in every flight start (cold and dark included) and by the Powered aircraft preset
+    - {side} = L or R
+
 ## Landing Gear ATA 32
 
 - A32NX_BTV_STATE
@@ -1735,6 +1751,84 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A380X_VD_CUT_TRACK_CHANGE_NM
     - Number (NM)
     - Distance along the cut at which the next track change is more than 3 degrees (the grey area of the VD), -1 when none
+- `L:A380X_WXR_OFF`
+    - Bool
+    - Set from the WXR button of the MFD SURV CONTROLS page. True when the weather radar is switched OFF (false = AUTO)
+
+- `L:A380X_WXR_PRED_WS_OFF`
+    - Bool
+    - Set from the PRED W/S button of the MFD SURV CONTROLS page. True when the predictive windshear is switched OFF (false = AUTO)
+    - Not used by any system yet
+
+- `L:A380X_WXR_TURB_OFF`
+    - Bool
+    - Set from the TURB button of the MFD SURV CONTROLS page. True when the turbulence detection is switched OFF (false = AUTO)
+
+- `L:A380X_WXR_GAIN_MAN`
+    - Bool
+    - Set from the GAIN button of the MFD SURV CONTROLS page. True when the gain is MANUAL (false = AUTO)
+    - Not used by any system yet
+
+- `L:A380X_WXR_GAIN`
+    - Number (percent)
+    - Set from the GAIN entry field of the MFD SURV CONTROLS page (shown with GAIN MAN), 0 to 100, -9999 when nothing is entered
+    - Not used by any system yet
+
+- `L:A380X_WXR_ELEVN_TILT_MODE`
+    - Enum
+    - Set from the ELEVN/TILT option list of the MFD SURV CONTROLS page
+    - Not used by any system yet
+    -   | State | Number |
+        |-------|--------|
+        | AUTO  | 0      |
+        | ELEVN | 1      |
+        | TILT  | 2      |
+
+- `L:A380X_WXR_ELEVN`
+    - Number (feet)
+    - Set from the ELEVN entry field of the MFD SURV CONTROLS page, 0 to 60000 (FL 0 to FL 600 with the STD reference), -9999 when nothing is entered
+    - Not used by any system yet
+
+- `L:A380X_WXR_TILT`
+    - Number (degrees)
+    - Set from the TILT entry field of the MFD SURV CONTROLS page, -15.0 to +15.0, -9999 when nothing is entered
+    - Not used by any system yet
+
+- `L:A380X_WXR_MODE_MAP`
+    - Bool
+    - Set from the MODE button of the MFD SURV CONTROLS page. True when the radar mode is MAP (false = WX)
+
+- `L:A380X_WXR_VD_OFF`
+    - Bool
+    - Set from the WX ON VD button of the MFD SURV CONTROLS page. True when the weather on the VD is switched OFF (false = AUTO)
+
+- `L:A380X_TCAS_ALERT_LEVEL`
+    - Enum
+    - The TCAS alert level selected on the MFD SURV CONTROLS page, mirrored by the TCAS computer for the pedestal SURV panel lights
+    -   | State   | Number |
+        |---------|--------|
+        | STBY    | 0      |
+        | TA ONLY | 1      |
+        | TA/RA   | 2      |
+
+- `L:A380X_TCAS_ALT_SELECT`
+    - Enum
+    - The TCAS altitude range selected on the MFD SURV CONTROLS page, mirrored by the TCAS computer for the pedestal SURV panel lights
+    -   | State | Number |
+        |-------|--------|
+        | NORM  | 0      |
+        | ABV   | 1      |
+        | BLW   | 2      |
+
+- `L:A380X_TCAS_ALERT_LEVEL_REQUEST`
+    - Number
+    - Written by the TCAS buttons of the pedestal SURV panel, read and reset to 0 by the TCAS computer
+    - 0 = no request, otherwise the wanted `L:A380X_TCAS_ALERT_LEVEL` plus one
+
+- `L:A380X_TCAS_ALT_SELECT_REQUEST`
+    - Number
+    - Written by the ABV / BLW buttons of the pedestal SURV panel, read and reset to 0 by the TCAS computer
+    - 0 = no request, otherwise the wanted `L:A380X_TCAS_ALT_SELECT` plus one
 
 ## Bleed Air ATA 36
 
