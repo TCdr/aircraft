@@ -131,7 +131,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [21, A320Failure.Acsc1Lane2, 'ACSC 1 Lane 2'],
   [21, A320Failure.Acsc2Lane1, 'ACSC 2 Lane 1'],
   [21, A320Failure.Acsc2Lane2, 'ACSC 2 Lane 2'],
-  [21, A320Failure.HotAir, 'Trim Air Pressure Regulating Valve'],
+  [21, A320Failure.HotAir, 'Hot Air Pressure Regulating Valve'],
   [21, A320Failure.TrimAirHighPressure, 'Trim Air System High Pressure'],
   [21, A320Failure.CkptTrimAirFailure, 'Cockpit Trim Air Valve'],
   [21, A320Failure.FwdTrimAirFailure, 'Forward Zone Trim Air Valve'],
@@ -150,8 +150,8 @@ export const A320FailureDefinitions: FailureDefinition[] = [
 
   [22, A320Failure.Fac1Failure, 'FAC 1'],
   [22, A320Failure.Fac2Failure, 'FAC 2'],
-  [22, A320Failure.Fmgc1Failure, 'FMGC 1'],
-  [22, A320Failure.Fmgc2Failure, 'FMGC 2'],
+  [22, A320Failure.Fmgc1Failure, 'FMGC 1 (flight guidance)'],
+  [22, A320Failure.Fmgc2Failure, 'FMGC 2 (flight guidance)'],
   [22, A320Failure.Fcu1Failure, 'FCU 1'],
   [22, A320Failure.Fcu2Failure, 'FCU 2'],
 
@@ -234,10 +234,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
 
   [34, A320Failure.RadioAltimeter1, 'RA 1'],
   [34, A320Failure.RadioAltimeter2, 'RA 2'],
-  [34, A320Failure.RadioAntennaInterrupted1, 'RA 1 Interrupted'],
-  [34, A320Failure.RadioAntennaInterrupted2, 'RA 2 Interrupted'],
-  [34, A320Failure.RadioAntennaDirectCoupling1, 'RA 1 Direct Coupling'],
-  [34, A320Failure.RadioAntennaDirectCoupling2, 'RA 2 Direct Coupling'],
+  [34, A320Failure.RadioAntennaInterrupted1, 'RA 1 antenna interrupted'],
+  [34, A320Failure.RadioAntennaInterrupted2, 'RA 2 antenna interrupted'],
+  [34, A320Failure.RadioAntennaDirectCoupling1, 'RA 1 antenna direct coupling'],
+  [34, A320Failure.RadioAntennaDirectCoupling2, 'RA 2 antenna direct coupling'],
   [34, A320Failure.Gps1, 'GPS 1'],
   [34, A320Failure.Gps2, 'GPS 2'],
 

@@ -231,6 +231,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A32NX] Exterior spoilers move by panel group from their own deflection instead of the wing average: spoiler 1 stays down in turns and with the speedbrakes, and the deflection is shown in true degrees - @TCdr
 1. [A380X] Fuel jettison: a fuel mist plume trails from each wing's jettison outlet while fuel flows out of that side - @TCdr
+1. [EFB] Failures: clearer failure names after an audit of both aircraft (A380X ESS/APU TR, EHA and APU buses, LGCIS, main gear groups, fire detection loops, RA antennas; A32NX hot air valve, FMGC flight guidance) - @TCdr
 
 ## 2024.1.0
 
