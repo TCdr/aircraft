@@ -136,10 +136,14 @@ int airDataSource(bool isRight, int airDataKnob) {
 }
 #endif
 
-// Whether the ND's display unit shows a picture: it is powered and, on the A380X, not failed.
+// Whether the ND's display unit shows a picture: it is powered and, on the A380X, not failed and showing the ND (not
+// the PFD after a CDS reconfiguration, see cds_display.h).
 bool isDisplayUnitOn(const Instance& instance) {
 #ifdef A380X
   if (get_named_variable_value(instance.displayUnitFailedVar) != 0.0) {
+    return false;
+  }
+  if (!isNdShownOnNdDisplayUnit(get_named_variable_value(instance.displayUnitDisplayVar))) {
     return false;
   }
 #endif

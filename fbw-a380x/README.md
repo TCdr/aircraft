@@ -78,7 +78,10 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 31 Indicating / Recording / ECAM / EFIS / Displays
 
-- CDS / displays (automatic) reconfiguration
+- CDS / display unit reconfiguration: partly implemented. Automatic (PFD to the ND DU, EWD to the SD DU), the PFD/ND
+  pb and the DU RECONF pb work, but the MFD and the SD are not drawn on another DU (the DU RECONF pb skips them), the
+  ND on the PFD DU has no weather radar or terrain image (the native ndwxr gauges stay on the ND DUs), and the KCCU keys
+  do not reconfigure the DUs
 - PFD backup scales
 - Interactive ND
 - Independent QNH
