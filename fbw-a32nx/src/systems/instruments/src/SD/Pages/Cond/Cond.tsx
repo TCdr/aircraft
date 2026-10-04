@@ -188,7 +188,17 @@ type CondUnitProps = {
   hotAir: boolean;
 };
 
-const CondUnit = ({ title, trimAirValve, trimAirValveFailed, cabinTemp, trimTemp, x, y, offset, hotAir }: CondUnitProps) => {
+const CondUnit = ({
+  title,
+  trimAirValve,
+  trimAirValveFailed,
+  cabinTemp,
+  trimTemp,
+  x,
+  y,
+  offset,
+  hotAir,
+}: CondUnitProps) => {
   const rotateTemp = offset + (trimAirValve * 86) / 100;
   const overheat = trimTemp > 80;
 
