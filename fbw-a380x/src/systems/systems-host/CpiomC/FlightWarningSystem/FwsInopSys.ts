@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
-import { MappedSubject, SubscribableMapFunctions, Subscription } from '@microsoft/msfs-sdk';
+import { MappedSubject, Subscribable, SubscribableMapFunctions, Subscription } from '@microsoft/msfs-sdk';
 import { FwsCore, FwsSuppressableItem } from './FwsCore';
 
 export enum FwsInopSysPhases {
@@ -46,6 +46,21 @@ export class FwsInopSys {
   }
 
   /** INOP SYS shown on SD */
+  /**
+   * A SURV SYS 1 item that the ELEC AC ESS BUS FAULT STATUS already covers: with the AC ESS busbar lost, the FCOM STATUS
+   * lists TAWS 1 (APPR & LDG) and XPDR 1 (ALL PHASES) but neither GPWS 1, TERR SYS 1 nor ADS-B RPTG 1 (A380 FCOM
+   * PRO-ABN-ECAM-10-24, a380_fcom.txt:139267-139280), so these are not shown while that alert is active.
+   * @param failed the item's own condition
+   * @returns the item's condition, false while the ELEC AC ESS BUS FAULT alert is active
+   */
+  private notWithAcEssBusFault(failed: Subscribable<boolean>): MappedSubject<[boolean, boolean], boolean> {
+    return MappedSubject.create(
+      ([itemFailed, acEssBusFault]) => itemFailed && !acEssBusFault,
+      failed,
+      this.fws.elecAcEssBusFault,
+    );
+  }
+
   inopSys: FwsInopSysDict = {
     280300001: {
       // JETTISON (A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON FAULT, STATUS)
@@ -510,7 +525,7 @@ export class FwsInopSys {
     },
     340300001: {
       // GPWS 1
-      simVarIsActive: this.fws.gpws1Failed,
+      simVarIsActive: this.notWithAcEssBusFault(this.fws.gpws1Failed),
       phase: FwsInopSysPhases.AllPhases,
       notActiveWhenItemActive: ['340300003'],
     },
@@ -697,7 +712,7 @@ export class FwsInopSys {
     },
     340300039: {
       // TERR SYS 1
-      simVarIsActive: this.fws.terrSys1Failed,
+      simVarIsActive: this.notWithAcEssBusFault(this.fws.terrSys1Failed),
       phase: FwsInopSysPhases.AllPhases,
       notActiveWhenItemActive: ['340300044'],
     },
@@ -718,7 +733,7 @@ export class FwsInopSys {
     },
     340300041: {
       // ADS-B RPTG 1
-      simVarIsActive: this.fws.terrSys1Failed, // FIXME only if ADS-B OUT function uses GPIRS. Use terr sys failure status since it behaves similarly
+      simVarIsActive: this.notWithAcEssBusFault(this.fws.terrSys1Failed), // FIXME only if ADS-B OUT function uses GPIRS. Use terr sys failure status since it behaves similarly
       phase: FwsInopSysPhases.AllPhases,
       notActiveWhenItemActive: ['340300045'],
     },
@@ -781,6 +796,43 @@ export class FwsInopSys {
         this.fws.reverser3Inop,
       ),
       phase: FwsInopSysPhases.ApprLdg,
+    },
+
+    // ELEC AC ESS BUS FAULT, REDUND LOSS (A380 FCOM PRO-ABN-ECAM-10-24 l.139282-139289), see
+    // ELEC_AC_ESS_BUS_FAULT_STATUS. RA SYS C (l.139284) is the 340300024 entry above: the RA 3 is supplied by the
+    // AC ESS busbar (a380_systems navigation.rs) and reports a failure warning without power.
+    // PACK 1 CTL 1 and PACK 2 CTL 1 are also the REDUND LOSS of AIR PACK 1(2) CTL 1(2) FAULT, whose redundLoss in
+    // FwsAbnormalSensed is not shown (only these entries reach the STATUS page): a pack controller fault condition
+    // would be added to the same entries.
+    280300003: {
+      // FEED TK 3 STBY PMP (l.139285)
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    280300004: {
+      // TRIM TK L PMP (l.139286)
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    740300001: {
+      // ENG 1+2+3+4 IGN A (l.139287)
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    210300001: {
+      // PACK 1 CTL 1 (l.139288)
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    210300003: {
+      // PACK 2 CTL 1 (l.139289)
+      simVarIsActive: this.fws.elecAcEssBusFault,
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
     },
   };
 

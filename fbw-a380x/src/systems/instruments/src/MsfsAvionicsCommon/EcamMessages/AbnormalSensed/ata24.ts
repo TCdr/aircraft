@@ -83,6 +83,11 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         sensed: true,
         labelNotCompleted: 'OFF THEN ON',
       },
+      // A380 FCOM PRO-ABN-ECAM-10-24 ELEC AC BUS 2 FAULT: LDG DIST IMPACT ON WET/CONTAM RWY ONLY (one reverser inoperative)
+      {
+        name: 'LDG DIST: AFFECTED',
+        sensed: false,
+      },
       // If fuel quantity in feed tank 1 and 4 is below 19 000 kg
 
       {
