@@ -891,27 +891,33 @@
                 <EMISSIVE_CODE>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</EMISSIVE_CODE>
             </UseTemplate>
 
-            <UseTemplate Name="FBW_AIRBUS_Push_Transfer_Template">
+            <!-- PFD/ND pb: exchanges the onside PFD and ND (A380 FCOM DSC-31-20-50); DU RECONF pb: manual DU
+                 reconfiguration (DSC-31-15-20). The systems host (Misc/CdsReconfiguration.ts) handles the H: events. -->
+            <UseTemplate Name="FBW_AIRBUS_Push_Event_Template">
                 <NODE_ID>PUSH_EFIS_CS_PFD</NODE_ID>
                 <ANIM_NAME>PUSH_EFIS_CS_PFD</ANIM_NAME>
-                <ID>1</ID>
+                <EVENT>A380X_EFIS_L_PFD_ND_PUSHED</EVENT>
+                <TOOLTIP>PFD/ND (exchange PFD and ND)</TOOLTIP>
             </UseTemplate>
-            <UseTemplate Name="FBW_AIRBUS_Push_Transfer_Template">
+            <UseTemplate Name="FBW_AIRBUS_Push_Event_Template">
                 <NODE_ID>PUSH_EFIS_FO_PFD</NODE_ID>
                 <ANIM_NAME>PUSH_EFIS_FO_PFD</ANIM_NAME>
-                <ID>2</ID>
+                <EVENT>A380X_EFIS_R_PFD_ND_PUSHED</EVENT>
+                <TOOLTIP>PFD/ND (exchange PFD and ND)</TOOLTIP>
             </UseTemplate>
 
-            <UseTemplate Name="FBW_AIRBUS_Push_Round_Button_Template">
+            <UseTemplate Name="FBW_AIRBUS_Push_Event_Template">
                 <NODE_ID>PUSH_EFIS_CS_RECONF</NODE_ID>
                 <ANIM_NAME>PUSH_EFIS_CS_RECONF</ANIM_NAME>
-                <ID>1</ID>
+                <EVENT>A380X_EFIS_L_DU_RECONF_PUSHED</EVENT>
+                <TOOLTIP>DU RECONF</TOOLTIP>
             </UseTemplate>
 
-            <UseTemplate Name="FBW_AIRBUS_Push_Round_Button_Template">
+            <UseTemplate Name="FBW_AIRBUS_Push_Event_Template">
                 <NODE_ID>PUSH_EFIS_FO_RECONF</NODE_ID>
                 <ANIM_NAME>PUSH_EFIS_FO_RECONF</ANIM_NAME>
-                <ID>2</ID>
+                <EVENT>A380X_EFIS_R_DU_RECONF_PUSHED</EVENT>
+                <TOOLTIP>DU RECONF</TOOLTIP>
             </UseTemplate>
 
             <UseTemplate Name="FBW_AIRBUS_Push_Round_Button_Template">

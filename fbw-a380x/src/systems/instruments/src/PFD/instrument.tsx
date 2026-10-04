@@ -2,6 +2,8 @@
 import { Clock, FSComponent, HEventPublisher, InstrumentBackplane, Subject } from '@microsoft/msfs-sdk';
 import { ArincEventBus, EfisSide } from '@flybywiresim/fbw-sdk';
 import { getDisplayIndex } from '../MsfsAvionicsCommon/CdsDisplayUnit';
+import { HostedDisplayGate, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
+import { CdsDisplay } from '@shared/CdsReconfiguration';
 import { DmcPublisher } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { ExtendedClockEventProvider } from '../MsfsAvionicsCommon/providers/ExtendedClockProvider';
 import { FmsDataPublisher } from '../MsfsAvionicsCommon/providers/FmsDataPublisher';
@@ -78,10 +80,22 @@ class A380X_PFD extends BaseInstrument {
 
   private readonly efisCpBusPublisher = new FcuEfisCpBusPublisher(this.bus);
 
+  /**
+   * The run gate when this gauge is the PFD drawn on the ND DU (CDS reconfiguration, panel.cfg hostDu): it starts and
+   * runs only while the PFD is shown there. Null for the PFD DU's own gauge.
+   */
+  private readonly hostedGate: HostedDisplayGate | null;
+
   constructor() {
     super();
 
-    const side: EfisSide = getDisplayIndex() === 1 ? 'L' : 'R';
+    const hostDisplayUnit = hostDisplayUnitOf('PFD');
+    this.hostedGate =
+      hostDisplayUnit === null
+        ? null
+        : new HostedDisplayGate(hostDisplayUnit, CdsDisplay.Pfd, 'PFD_CONTENT', () => this.startInstrument());
+
+    const side: EfisSide = getDisplayIndex('PFD') === 1 ? 'L' : 'R';
     const stateSubject = Subject.create<'L' | 'R'>(side);
     this.fmsDataPublisher = new FmsDataPublisher(this.bus, stateSubject);
 
@@ -126,6 +140,15 @@ class A380X_PFD extends BaseInstrument {
   public connectedCallback(): void {
     super.connectedCallback();
 
+    if (this.hostedGate) {
+      this.hostedGate.update();
+    } else {
+      this.startInstrument();
+    }
+  }
+
+  /** Starts the PFD: at once for the PFD DU's own gauge, when first shown for a hosted gauge */
+  private startInstrument(): void {
     this.backplane.init();
     this.primChoiceProvider.init();
 
@@ -140,6 +163,10 @@ class A380X_PFD extends BaseInstrument {
    */
   public Update(): void {
     super.Update();
+
+    if (this.hostedGate && !this.hostedGate.update()) {
+      return;
+    }
 
     this.backplane.onUpdate();
   }
