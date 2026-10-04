@@ -80,7 +80,9 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 - CDS / displays (automatic) reconfiguration
 - PFD backup scales
-- Interactive ND
+- Interactive ND: the revision lists (waypoints, NAVAIDs, airports, aircraft), the DIRECT TO, INSERT NEXT WPT and
+  DUPLICATE pages, the latitude/longitude waypoints from a click on the map and the temporary flight plan INSERT /
+  ERASE work; the other ND interactions of the FCOM are not implemented yet
 - Independent QNH
 - KCCU soft keyboard
 - ECAM: Completely accurate STS page implementation
