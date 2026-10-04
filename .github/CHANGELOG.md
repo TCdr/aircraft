@@ -123,6 +123,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] GPS receiver degraded modes TEST, ALTAID and AIDED, antenna masking in turns, DIFF mode on the A380X - @TCdr
 1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the FCOM position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
 1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
+1. [A32NX/EFB] Failures: clearer failure names after an audit (hot air valve, FMGC flight guidance, RA antennas) - @TCdr
 
 ## 2024.1.0
 
