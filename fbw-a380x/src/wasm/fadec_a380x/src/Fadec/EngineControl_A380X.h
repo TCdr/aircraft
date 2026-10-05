@@ -64,6 +64,9 @@ class EngineControl_A380X {
   // TODO - might not be required - feeds into stateMachine but really relevant
   double prevSimEngineN3[4] = {0.0, 0.0, 0.0, 0.0};
 
+  // the FADEC set the MSFS ignition switch to IGN for an in-flight relight and must give it back to the ENG START selector
+  bool relightIgnitionSet[4] = {false, false, false, false};
+
   // Engine oil state
   double thermalEnergy[4] = {0.0, 0.0, 0.0, 0.0};
 
@@ -73,6 +76,11 @@ class EngineControl_A380X {
   static constexpr int    MAX_OIL_TEMP        = 85;
   static constexpr double FORCE_LB_TO_N       = 4.4482216153;
   static constexpr double FUEL_RATE_THRESHOLD = 661;  // lbs/sec for determining fuel ui tampering
+
+  // Seizure failure: the core stops in about 3 s (design choice, the FCOM gives no rate): N3 decays at 2 /s from the
+  // failure and is 0 below 0.5 %.
+  static constexpr double SEIZED_CORE_DECAY_RATE = 2.0;  // 1/s
+  static constexpr double SEIZED_CORE_STOPPED_N3 = 0.5;  // percent
 
   /**
    * @enum EngineState
@@ -187,15 +195,18 @@ class EngineControl_A380X {
    * @param engineTimer A timer used to calculate the elapsed time for various operations.
    * @param simN3 The current N3 value from the simulator in percent (actually reading the sim's N2 as the sim does not have an N3.
    * @param ambientTemperature The current ambient temperature in degrees Celsius.
+   * @param engineFuelCut The systems WASM keeps the engine fuel cut (an in-flight relight that has not lit up yet).
    *
    * @see EngineState
+   * @see RelightStart_A380X for the MSFS core speed during the start
    */
   void engineStartProcedure(int         engine,
                             EngineState engineState,
                             double      deltaTime,
                             double      engineTimer,
                             double      simN3,
-                            double      ambientTemperature);
+                            double      ambientTemperature,
+                            bool        engineFuelCut);
 
   /**
    * @brief This function manages the engine shutdown procedure.
@@ -206,8 +217,27 @@ class EngineControl_A380X {
    * @param simN1 The current N1 value from the simulator.
    * @param deltaTime The time difference since the last update. This is used to calculate the rate of change of various parameters.
    * @param engineTimer A timer used to calculate the elapsed time for various operations.
+   * @param engineSeized The core is seized (seizure failure): N3 stops in about 3 s.
+   * @param simOnGround Whether the aircraft is on the ground: in flight the engine windmills.
+   * @param windmillN1 The N1 of the engine windmilling without combustion, in percent (systems WASM).
+   * @param windmillN3 The N3 (core speed) of the engine windmilling without combustion, in percent (systems WASM).
    */
-  void engineShutdownProcedure(int engine, double deltaTime, double engineTimer, double simN1, double ambientTemperature);
+  void engineShutdownProcedure(int    engine,
+                               double deltaTime,
+                               double engineTimer,
+                               double simN1,
+                               double ambientTemperature,
+                               bool   engineSeized,
+                               bool   simOnGround,
+                               double windmillN1,
+                               double windmillN3);
+
+  /**
+   * @brief Updates the oil pressure of an engine that is shutting down, windmilling or seized: it follows N3 down.
+   *
+   * @param engine The engine number (1-4).
+   */
+  void updateShutdownOilPressure(int engine);
 
   /**
    * @brief Updates the fuel flow of the engine.
