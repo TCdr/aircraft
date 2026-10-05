@@ -109,6 +109,7 @@ export class SD extends DestroyableComponent<SDProps> {
         brightness={this.sdPotentiometer}
         powered={this.ac2BusPowered}
         failed={this.props.failed}
+        picture="SD"
       >
         <div class="sdv2">
           {this.sdPages}

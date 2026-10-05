@@ -31,6 +31,7 @@ module.exports = {
   ],
   instruments: [
     msfsAvionicsInstrument('Clock'),
+    msfsAvionicsInstrument('DuMessage'),
     msfsAvionicsInstrument('EWD'),
     msfsAvionicsInstrument('FCU'),
     msfsAvionicsInstrument('MCDU', 'McduBaseInstrument.ts'),
