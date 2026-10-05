@@ -10668,6 +10668,100 @@ mod tests {
             assert!(test_bed.rat_deploy_commanded());
         }
 
+        /// RAT out after a loss of AC BUS 1 + 2 in flight
+        fn test_bed_with_rat_deployed_in_flight() -> A320HydraulicsTestBed {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .ac_bus_1_lost()
+                .ac_bus_2_lost()
+                .run_waiting_for(Duration::from_secs(3));
+
+            assert!(test_bed.rat_deploy_commanded());
+            assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
+
+            test_bed
+        }
+
+        #[test]
+        fn rat_stays_deployed_after_landing() {
+            let mut test_bed = test_bed_with_rat_deployed_in_flight()
+                .on_the_ground()
+                .run_waiting_for(Duration::from_secs(5));
+
+            // A320 FCOM DSC-29-10-20: stowed only on the ground (by maintenance), never by itself
+            assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
+        }
+
+        #[test]
+        fn rat_stows_on_the_ground_on_maintenance_request() {
+            let mut test_bed = test_bed_with_rat_deployed_in_flight()
+                .on_the_ground()
+                .run_waiting_for(Duration::from_secs(2));
+
+            test_bed.write_by_name("RAT_STOW_REQUEST", true);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+
+            assert_le!(test_bed.get_rat_position(), 0.);
+        }
+
+        #[test]
+        fn rat_stow_request_is_ignored_in_flight() {
+            let mut test_bed = test_bed_with_rat_deployed_in_flight();
+            // AC back (engines relit): no more deployment command, the RAT stays out
+            test_bed.command(|a| {
+                a.set_ac_bus_1_is_powered(true);
+                a.set_ac_bus_2_is_powered(true);
+            });
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(1));
+            assert!(!test_bed.rat_deploy_commanded());
+
+            test_bed.write_by_name("RAT_STOW_REQUEST", true);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+            assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
+
+            // The refused request is not kept for after the landing
+            test_bed = test_bed
+                .on_the_ground()
+                .run_waiting_for(Duration::from_secs(3));
+            assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
+        }
+
+        #[test]
+        fn rat_stow_request_is_refused_while_the_emergency_condition_is_still_there() {
+            // Rolling on the runway above 100 kt with AC BUS 1 + 2 still lost: emergency electrical configuration
+            let mut test_bed = test_bed_with_rat_deployed_in_flight();
+            test_bed.set_on_ground(true);
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(120.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(1));
+            assert!(test_bed.rat_deploy_commanded());
+
+            test_bed.write_by_name("RAT_STOW_REQUEST", true);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+
+            assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
+        }
+
+        #[test]
+        fn rat_redeploys_after_a_stow_when_rat_man_on_is_pressed() {
+            let mut test_bed = test_bed_with_rat_deployed_in_flight()
+                .on_the_ground()
+                .run_waiting_for(Duration::from_secs(2));
+            test_bed.write_by_name("RAT_STOW_REQUEST", true);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+            assert_le!(test_bed.get_rat_position(), 0.);
+
+            test_bed.write_by_name("OVHD_HYD_RAT_MAN_ON_IS_PRESSED", true);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+
+            assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
+        }
+
         #[test]
         fn blue_epump_unavailable_if_unpowered() {
             let mut test_bed = test_bed_on_ground_with()

@@ -970,6 +970,12 @@
     - Percent over 100
     - RAT position, from fully stowed (0) to fully deployed (1)
 
+- A32NX_RAT_STOW_REQUEST
+    - Bool
+    - Maintenance stow request of the RAT (flyPad Ground > Services). Accepted only on the ground and while no
+      extension is commanded (emergency electrical configuration, RAT MAN ON, EMER ELEC PWR MAN ON); written back to 0
+      by the systems once evaluated, so a request in flight is dropped
+
 - A32NX_RAT_RPM
     - Rpm
     - RAT propeller current RPM
