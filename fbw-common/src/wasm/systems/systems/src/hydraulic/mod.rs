@@ -9,7 +9,8 @@ use crate::wind_turbine::WindTurbine;
 
 use crate::physics::{GravityEffect, WobblePhysics};
 use crate::shared::{
-    interpolation, low_pass_filter::LowPassFilter, random_from_normal_distribution,
+    interpolation, low_pass_filter::LowPassFilter,
+    ram_air_turbine_deployment::RamAirTurbineDeployment, random_from_normal_distribution,
     random_from_range, AirbusElectricPumpId, AirbusEngineDrivenPumpId, DelayedTrueLogicGate,
     ElectricalBusType, ElectricalBuses, HydraulicColor, RamAirTurbineController, SectionPressure,
 };
@@ -2921,18 +2922,12 @@ impl Default for RatAntiStallPumpController {
 }
 
 pub struct RamAirTurbine {
-    stow_position_id: VariableIdentifier,
-
-    deployment_commanded: bool,
+    deployment: RamAirTurbineDeployment,
     pump: Pump,
     pump_controller: RatAntiStallPumpController,
     wind_turbine: WindTurbine,
-    position: f64,
 }
 impl RamAirTurbine {
-    // Speed to go from 0 to 1 stow position per sec. 1 means full deploying in 1s
-    const STOWING_SPEED: f64 = 1.;
-
     pub const RPM_GOVERNOR_BREAKPTS: [f64; 9] = [
         0.0, 1000., 4700.0, 5500.0, 6250.0, 6300.0, 6450.0, 9000.0, 15000.0,
     ];
@@ -2946,9 +2941,7 @@ impl RamAirTurbine {
 
     pub fn new(context: &mut InitContext, pump_characteristics: PumpCharacteristics) -> Self {
         Self {
-            stow_position_id: context.get_identifier("RAT_STOW_POSITION".to_owned()),
-
-            deployment_commanded: false,
+            deployment: RamAirTurbineDeployment::new(context),
             pump: Pump::new(pump_characteristics),
             pump_controller: RatAntiStallPumpController::new(),
 
@@ -2961,7 +2954,6 @@ impl RamAirTurbine {
                 Self::BEST_EFFICIENCY_TIP_SPEED_RATIO,
                 Self::PROPELLER_INERTIA,
             ),
-            position: 0.,
         }
     }
 
@@ -2972,8 +2964,8 @@ impl RamAirTurbine {
         reservoir: &Reservoir,
         controller: &impl RamAirTurbineController,
     ) {
-        // Once commanded, stays commanded forever
-        self.deployment_commanded = controller.should_deploy() || self.deployment_commanded;
+        // Extension command, or maintenance stow on the ground
+        self.deployment.update(context, controller);
 
         self.pump_controller
             .update(context, self.wind_turbine.speed());
@@ -2991,18 +2983,13 @@ impl RamAirTurbine {
         let resistant_torque = self.resistant_torque(self.delta_vol_max(), pressure.pressure());
         self.wind_turbine.update(
             context,
-            Ratio::new::<ratio>(self.position),
+            Ratio::new::<ratio>(self.deployment.position()),
             resistant_torque,
         );
     }
 
     pub fn update_position(&mut self, delta_time: &Duration) {
-        if self.deployment_commanded {
-            self.position += delta_time.as_secs_f64() * Self::STOWING_SPEED;
-
-            // Finally limiting pos in [0:1] range
-            self.position = self.position.clamp(0., 1.);
-        }
+        self.deployment.update_position(*delta_time);
     }
 
     fn resistant_torque(&mut self, displacement: Volume, pressure: Pressure) -> Torque {
@@ -3041,13 +3028,10 @@ impl PressureSource for RamAirTurbine {
 }
 impl SimulationElement for RamAirTurbine {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.deployment.accept(visitor);
         self.wind_turbine.accept(visitor);
 
         visitor.visit(self);
-    }
-
-    fn write(&self, writer: &mut SimulatorWriter) {
-        writer.write(&self.stow_position_id, self.position);
     }
 }
 impl HeatingElement for RamAirTurbine {}
