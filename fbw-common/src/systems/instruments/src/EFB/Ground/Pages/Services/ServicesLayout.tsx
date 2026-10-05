@@ -68,7 +68,8 @@ export function doorRow(
 
 /**
  * A ground equipment row: its chip requests or releases the service; the status line is GSX's when the page is
- * linked to GSX, else the state of the sim service
+ * linked to GSX, else the state of the sim service (or `status`, for rows that are not a sim service). `action` names
+ * the request on the chip (default "Request").
  */
 export function equipmentRow(
   key: string,
@@ -76,10 +77,17 @@ export function equipmentRow(
   icon: ReactNode,
   look: ServiceLook,
   onClick: () => void,
-  options: { activeStatus?: string; gsxStatus?: string; progress?: number | null; detail?: string } = {},
+  options: {
+    activeStatus?: string;
+    gsxStatus?: string;
+    status?: string;
+    action?: string;
+    progress?: number | null;
+    detail?: string;
+  } = {},
 ): ServiceRowSpec {
   const tone: M3Tone = look === 'active' ? 'active' : look === 'called' || look === 'released' ? 'busy' : 'idle';
-  let status = options.gsxStatus ?? '';
+  let status = options.gsxStatus || options.status || '';
   if (!status) {
     switch (look) {
       case 'active':
@@ -111,7 +119,7 @@ export function equipmentRow(
       action = t('Ground.Services.Leaving');
       break;
     default:
-      action = t('Ground.Services.Request');
+      action = options.action ?? t('Ground.Services.Request');
       break;
   }
   const disabled = look === 'disabled' || look === 'hidden';

@@ -3113,6 +3113,76 @@ mod a380_electrical_circuit_tests {
             .is_single(PotentialOrigin::EmergencyGenerator));
     }
 
+    /// RAT out after the loss of all AC busbars in flight, then the engine generators back on line
+    fn test_bed_with_rat_deployed_in_flight_and_ac_back() -> A380ElectricalTestBed {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .gen_off(1)
+            .gen_off(2)
+            .gen_off(3)
+            .and()
+            .gen_off(4)
+            .run_waiting_for(Duration::from_secs(3));
+        assert!((test_bed.rat_position() - 1.).abs() < f64::EPSILON);
+
+        for number in 1..=4 {
+            test_bed.write_by_name(&format!("OVHD_ELEC_ENG_GEN_{}_PB_IS_ON", number), true);
+        }
+        test_bed.run_waiting_for(Duration::from_secs(3))
+    }
+
+    #[test]
+    fn rat_stays_deployed_after_landing() {
+        let mut test_bed = test_bed_with_rat_deployed_in_flight_and_ac_back()
+            .airspeed(Velocity::new::<knot>(0.))
+            .on_the_ground()
+            .run_waiting_for(Duration::from_secs(5));
+
+        assert!((test_bed.rat_position() - 1.).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn rat_stows_on_the_ground_on_maintenance_request() {
+        let mut test_bed = test_bed_with_rat_deployed_in_flight_and_ac_back()
+            .airspeed(Velocity::new::<knot>(0.))
+            .on_the_ground()
+            .run();
+
+        test_bed.write_by_name("RAT_STOW_REQUEST", true);
+        test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+
+        assert!(test_bed.rat_position() <= 0.);
+    }
+
+    #[test]
+    fn rat_stow_request_is_ignored_in_flight() {
+        let mut test_bed = test_bed_with_rat_deployed_in_flight_and_ac_back();
+
+        test_bed.write_by_name("RAT_STOW_REQUEST", true);
+        test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+        assert!((test_bed.rat_position() - 1.).abs() < f64::EPSILON);
+
+        test_bed = test_bed
+            .airspeed(Velocity::new::<knot>(0.))
+            .on_the_ground()
+            .run_waiting_for(Duration::from_secs(3));
+        assert!((test_bed.rat_position() - 1.).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn rat_stow_request_is_refused_while_rat_man_on_is_pressed() {
+        let mut test_bed = test_bed_with_rat_deployed_in_flight_and_ac_back()
+            .airspeed(Velocity::new::<knot>(0.))
+            .on_the_ground()
+            .rat_and_emer_gen_man_on_pressed()
+            .run();
+
+        test_bed.write_by_name("RAT_STOW_REQUEST", true);
+        test_bed = test_bed.run_waiting_for(Duration::from_secs(3));
+
+        assert!((test_bed.rat_position() - 1.).abs() < f64::EPSILON);
+    }
+
     #[rstest]
     #[case(1)]
     #[case(2)]
@@ -4080,6 +4150,10 @@ mod a380_electrical_circuit_tests {
 
         fn gen_has_fault(&mut self, number: usize) -> bool {
             self.read_by_name(&format!("OVHD_ELEC_ENG_GEN_{}_PB_HAS_FAULT", number))
+        }
+
+        fn rat_position(&mut self) -> f64 {
+            self.read_by_name("RAT_STOW_POSITION")
         }
 
         fn rat_and_emer_gen_has_fault(&mut self) -> bool {
