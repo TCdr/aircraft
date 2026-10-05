@@ -4,6 +4,7 @@
 import { Arinc429Register, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { SimVarValueType, Subject, Subscription } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
+import { sdMoreShownAfterMorePb, sdMoreShownToKeep } from '@shared/EcamSdMore';
 import { FwsCore } from './FwsCore';
 
 const CRZ_CONDITION_TIMER_DURATION = 60;
@@ -13,8 +14,6 @@ const FCTL_CONDITION_TIMER_DURATION = 20;
 const STS_DISPLAY_TIMER_DURATION = 3;
 const ECAM_LIGHT_DELAY_ALL = 200;
 const ECAM_ALL_CYCLE_DELAY = 3000;
-
-const MORE_AVAILABLE_FOR_PAGES = [SdPages.Status];
 
 export class FwsSystemDisplayLogic {
   private readonly subscriptions: Subscription[] = [];
@@ -26,6 +25,7 @@ export class FwsSystemDisplayLogic {
   private readonly sdFailPageIndexSimvar = RegisteredSimVar.create<SdPages>('L:A32NX_ECAM_SFAIL', SimVarValueType.Enum);
   private readonly ecamAllButtonPushedSimvar = RegisteredSimVar.createBoolean('L:A32NX_BTN_ALL');
 
+  /** The MORE page is shown on the SD; also lights the ECP MORE pb (ecam-cp.xml) */
   private readonly sdMoreShownSimvar = RegisteredSimVar.create('L:A32NX_ECAM_SD_MORE_SHOWN', SimVarValueType.Number);
 
   private readonly userSelectedPage = Subject.create<SdPages>(SdPages.None);
@@ -60,6 +60,7 @@ export class FwsSystemDisplayLogic {
     'L:A32NX_ECAM_SD_STS_PAGE_TO_SHOW',
     SimVarValueType.Number,
   );
+  /** Output only, written from FwsCore.statusMoreAvailable (the FWS is its single writer) */
   private readonly stsMoreAvailableSimvar = RegisteredSimVar.create<number>(
     'L:A32NX_ECAM_SD_STS_MORE_AVAILABLE',
     SimVarValueType.Number,
@@ -68,6 +69,10 @@ export class FwsSystemDisplayLogic {
   constructor(private fws: FwsCore) {}
 
   init() {
+    this.subscriptions.push(
+      this.fws.statusMoreAvailable.sub((available) => this.stsMoreAvailableSimvar.set(available ? 1 : 0), true),
+    );
+
     this.subscriptions.push(
       this.fws.sub.on('hEvent').handle((eventName) => {
         // Handle next STS page event. To reduce code clutter, the SD tells us how many pages there are,
@@ -83,14 +88,17 @@ export class FwsSystemDisplayLogic {
           } else {
             this.stsPageToShowSimvar.set(currentPage + 1);
           }
-        } else if (eventName === 'A32NX_SD_REQUEST_MORE' && MORE_AVAILABLE_FOR_PAGES.includes(this.currentPage.get())) {
-          if (this.currentPage.get() === SdPages.Status && !this.stsMoreAvailableSimvar.get()) {
-            // Only switch if MORE available
-            this.sdMoreShownSimvar.set(0);
-            return;
+        } else if (eventName === 'A32NX_SD_REQUEST_MORE') {
+          // The FWS decides from its own REDUND LOSS / CANCELLED CAUTION lists, not from a value the SD writes back
+          const wasShown = this.sdMoreShownSimvar.get() === 1;
+          const moreShown = sdMoreShownAfterMorePb(
+            this.currentPage.get(),
+            wasShown,
+            this.fws.statusMoreAvailable.get(),
+          );
+          if (moreShown !== undefined && moreShown !== wasShown) {
+            this.setMoreShown(moreShown);
           }
-          this.stsPageToShowSimvar.set(0);
-          this.sdMoreShownSimvar.set(this.sdMoreShownSimvar.get() === 1 ? 0 : 1);
         }
       }),
     );
@@ -256,6 +264,12 @@ export class FwsSystemDisplayLogic {
       this.prevFailPage.set(failPage);
     }
 
+    // The MORE page (and the MORE pb light) goes away when the SD leaves the page or that page has nothing MORE
+    const wasMoreShown = this.sdMoreShownSimvar.get() === 1;
+    if (wasMoreShown && !sdMoreShownToKeep(this.currentPage.get(), wasMoreShown, this.fws.statusMoreAvailable.get())) {
+      this.setMoreShown(false);
+    }
+
     SimVar.SetSimVarValue('L:A32NX_ECAM_SD_PAGE_TO_SHOW', SimVarValueType.Enum, this.currentPage.get());
 
     this.prevEcamAllButtonState.set(ecamAllButtonPushed);
@@ -299,6 +313,12 @@ export class FwsSystemDisplayLogic {
       this.pageWhenUnselected.set(SdPages.Apu);
     }
   };
+
+  /** Shows or clears the MORE page; the SD restarts on the first page of the page it then shows */
+  private setMoreShown(shown: boolean): void {
+    this.stsPageToShowSimvar.set(0);
+    this.sdMoreShownSimvar.set(shown ? 1 : 0);
+  }
 
   private checkStsPage = (deltaTime: number) => {
     const isStatusPageEmpty = this.fws.ecamStatusNormal.get();
