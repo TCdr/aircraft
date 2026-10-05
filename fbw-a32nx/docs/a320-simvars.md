@@ -3919,6 +3919,27 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - Number in Gallons
   - The total physical volume of fuel in the tanks
 
+- A32NX_FUEL_ENG_{number}_LP_VALVE_OPEN_PERCENTAGE
+  - Percent
+  - {number}
+    - 1
+    - 2
+  - Position of the engine LP fuel valve, 0 when fully closed. The valve is closed by the ENG MASTER switch or the ENG FIRE pushbutton (FCOM DSC-28-10-30)
+
+- A32NX_FUEL_ENG_{number}_FUEL_DOWNSTREAM_LP_VALVE
+  - Number in kilogram
+  - {number}
+    - 1
+    - 2
+  - Fuel left between the engine LP fuel valve and the engine nozzles. Full while the valve is open, burned at the engine fuel flow once the valve is fully closed
+
+- A32NX_FUEL_ENG_{number}_STARVED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2)
+
 ## Indication and Recording Systems (ATA 31)
 
 ### DMC

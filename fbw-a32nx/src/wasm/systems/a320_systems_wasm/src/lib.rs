@@ -72,6 +72,14 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 7)?
     .with_engine_anti_ice(2)?
     .with_wing_anti_ice()?
+    // The engine starves once its LP fuel valve is closed and the fuel left downstream of it is burned
+    // (FCOM PRO-ABN-ENG, see a320_systems fuel/engine_lp_valve.rs). Fuel valves 13 and 14 of
+    // flight_model.cfg feed the engines in series with their MSFS engine valves 1 and 2: closing them
+    // stops the MSFS combustion exactly when the engine starves.
+    .with_fuel_valves_closed_while([
+        (Variable::named("FUEL_ENG_1_STARVED"), 13),
+        (Variable::named("FUEL_ENG_2_STARVED"), 14),
+    ])?
     .with_failures([
         (
             21_000,
@@ -328,6 +336,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("FUEL TANK RIGHT AUX QUANTITY", "gallons", 0)?
     .provides_aircraft_variable("FUELSYSTEM LINE FUEL FLOW", "gallons per hour", 18)?
     .provides_aircraft_variable_range("FUELSYSTEM PUMP ACTIVE", "Bool", 1..=7)?
+    .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 1)?
+    .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 2)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 0)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 1)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 2)?

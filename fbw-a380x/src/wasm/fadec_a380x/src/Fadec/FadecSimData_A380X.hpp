@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 #ifndef FLYBYWIRE_AIRCRAFT_FADECSIMDATA_A380X_HPP
@@ -213,6 +213,7 @@ class FadecSimData_A380X {
   NamedVariablePtr apuRpmPercent;       // Percent
   NamedVariablePtr engineEgt[4];        // Celsius
   NamedVariablePtr engineFF[4];         // kg/hour
+  NamedVariablePtr engineFuelStarved[4];  // Bool - LP fuel valve closed and the fuel downstream of it burned (systems WASM)
   NamedVariablePtr engineFuelUsed[4];   // kg
   NamedVariablePtr engineIdleEGT;       // Celsius
   NamedVariablePtr engineIdleFF;
@@ -384,6 +385,11 @@ class FadecSimData_A380X {
     engineFF[E2] = dm->make_named_var("A32NX_ENGINE_FF:2", UNITS.Number, AUTO_READ_WRITE);
     engineFF[E3] = dm->make_named_var("A32NX_ENGINE_FF:3", UNITS.Number, AUTO_READ_WRITE);
     engineFF[E4] = dm->make_named_var("A32NX_ENGINE_FF:4", UNITS.Number, AUTO_READ_WRITE);
+
+    engineFuelStarved[E1] = dm->make_named_var("A32NX_FUEL_ENG_1_STARVED", UNITS.Number, AUTO_READ);
+    engineFuelStarved[E2] = dm->make_named_var("A32NX_FUEL_ENG_2_STARVED", UNITS.Number, AUTO_READ);
+    engineFuelStarved[E3] = dm->make_named_var("A32NX_FUEL_ENG_3_STARVED", UNITS.Number, AUTO_READ);
+    engineFuelStarved[E4] = dm->make_named_var("A32NX_FUEL_ENG_4_STARVED", UNITS.Number, AUTO_READ);
 
     engineFuelUsed[E1] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[E2] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);
