@@ -46,7 +46,7 @@ table.test td:nth-child(2) { width: 50%; }
 .toc div { break-inside: avoid; }
 </style></head><body>
 <h1>FCOM audit fixes</h1>
-<div class="subtitle">Small upstream bugs found by the FCOM audit of every A32NX and A380X system (2026-10-02): eleven A380X fixes, six A32NX fixes, the fast ADIRS alignment of both aircraft and the A32NX ND chronometer colour, each checked against the FCOM</div>
+<div class="subtitle">Small upstream bugs found by the FCOM audit of every A32NX and A380X system (2026-10-02): eleven A380X fixes, six A32NX fixes, the fast ADIRS alignment of both aircraft and the A32NX ND chronometer colour, each checked against the FCOM, and an A32NX climb thrust regression test</div>
 <div class="meta">
 <b>Aircraft</b><span>A32NX and A380X</span>
 <b>Where to find it</b><span>A380X: GPWS, OANS, SD (CRZ, PRESS, DOOR/OXY), FADEC, FWS (BRAKES HOT, T.O CONFIG, F/CTL ALTN LAW, HYD), ELEC panel, EWD EGT. A32NX: FWS (AIR PACK 2 OFF, ALL ENGINES FAILURE), BLEED, TCAS, SD (CRUISE, WHEEL), ND chronometer. Both: ADIRS</span>
@@ -54,7 +54,7 @@ table.test td:nth-child(2) { width: 50%; }
 <b>Status</b><span>All fixes tested in the sim by the user on develop (2026-10-04). Not sim-tested on the master base; unit tests and Rust tests pass there.</span>
 <b>Pictures</b><span>No pictures: every fix changes a stock FBW display, alert or system value.</span>
 </div>
-<div class="toc"><div>1. A380X FCOM fixes</div><div>2. A32NX FCOM fixes</div><div>3. ADIRS fast alignment in 30 s</div><div>4. A32NX ND chronometer in white</div></div>
+<div class="toc"><div>1. A380X FCOM fixes</div><div>2. A32NX FCOM fixes</div><div>3. ADIRS fast alignment in 30 s</div><div>4. A32NX ND chronometer in white</div><div>5. A32NX climb thrust regression test</div></div>
 <h2>1. A380X FCOM fixes</h2>
 <div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> GPWS, OANS, SD, FADEC, FWS, ELEC panel, EWD &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on develop: OK (2026-10-04). Unit tests: LegacyGpws, OancSelectedRunway, FwsSystemDisplayLogicCrzPage, FadecWingAntiIce, BrakesHot, ElecPanelPbs, EgtLimits, CabinAltitudeIndication, FwsAbnormalSensedItems, OxygenIndication specs; Rust test in hydraulic/mod.rs (each fails without its fix).</div>
 <h3>What it is for</h3>
@@ -97,4 +97,14 @@ table.test td:nth-child(2) { width: 50%; }
 <ol><li>Press CHRONO on the EFIS control panel: the elapsed time appears at the bottom left of the ND. Press again to freeze it, a third time to reset and hide it.</li></ol>
 <h3>How to test</h3>
 <table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, ND powered: press CHRONO.</td><td>White digits on a black box at the bottom left of the ND, counting.</td></tr><tr><td>2</td><td>A380X: press CHRONO.</td><td>Unchanged: green digits on the grey box.</td></tr></table>
+<h2>5. A32NX climb thrust regression test</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> Unit tests (FMS and FADEC climb thrust tables) &nbsp;|&nbsp; <b>Status:</b> Test only, no code change: A320ClimbThrustLimit.spec.ts passes.</div>
+<h3>What it is for</h3>
+<p>A check of the A32NX climb against the A320neo FCOM climb tables (IndiGo FCOM PER-CLB-CLT, PDF pages 7248-7250 at ISA+10 and 7258-7260 at ISA+20, PW1127G-JM engines; no LEAP-1A table is available) found that the A32NX already climbs within 1-3 % of them, so no CLB thrust value was changed. The test keeps it so: the FADEC CLB N1 table (ThrustLimits_A32NX.hpp) and its FMS copy (cn1ClimbLimit) must stay identical row by row, and a climb computed with the FMS engine and flight models from FL 100 to FL 300 at 300 kt / M.78 must stay within 5 % of the FCOM times (8 % for each half) at 52 to 76 t.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Nothing changes in the aircraft.</td><td>The finding was that the climb already matches the FCOM.</td><td>-</td></tr><tr><td>The reference is the PW1127G-JM table.</td><td>FBW models the LEAP-1A26; no LEAP climb table is available.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to do in the sim. When changing the CLB N1 table, change both copies and run the test.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Run <code>npx vitest run fbw-a32nx/src/systems/fmgc/src/flightplanning/A320ClimbThrustLimit.spec.ts</code>.</td><td>All tests pass.</td></tr><tr><td>2</td><td>Optional in the sim: climbs at 52, 60 and 64 t, ISA+10, no wind, managed CLB speed, cruise FL 350; time from FL 100 to FL 300.</td><td>Within 5 % of 7.67 min (52 t), 9.08 min (60 t), 9.97 min (64 t); at ISA 2-5 % quicker.</td></tr></table>
 </body></html>
