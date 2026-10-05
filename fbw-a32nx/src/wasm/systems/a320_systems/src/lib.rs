@@ -3,6 +3,7 @@ extern crate systems;
 mod air_conditioning;
 mod airframe;
 mod electrical;
+mod engine_failure;
 mod fire_protection;
 mod fuel;
 pub mod hydraulic;
@@ -15,6 +16,7 @@ mod surveillance;
 
 use self::{
     air_conditioning::A320AirConditioning,
+    engine_failure::A320EngineFailures,
     fire_protection::A320FireProtection,
     fuel::A320Fuel,
     oxygen::A320Oxygen,
@@ -75,6 +77,7 @@ pub struct A320 {
     engine_1: LeapEngine,
     engine_2: LeapEngine,
     engine_fire_overhead: EngineFireOverheadPanel<2>,
+    engine_failures: A320EngineFailures,
     fire_protection: A320FireProtection,
     electrical: A320Electrical,
     power_consumption: A320PowerConsumption,
@@ -122,6 +125,7 @@ impl A320 {
             engine_1: LeapEngine::new(context, 1),
             engine_2: LeapEngine::new(context, 2),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
+            engine_failures: A320EngineFailures::new(context),
             fire_protection: A320FireProtection::new(context),
             electrical: A320Electrical::new(context),
             power_consumption: A320PowerConsumption::new(context),
@@ -223,6 +227,7 @@ impl Aircraft for A320 {
         self.asu.update();
 
         self.fuel.update(context, &self.engine_fire_overhead);
+        self.engine_failures.update(context, &self.fuel);
 
         self.lgcius.update(
             context,
@@ -329,6 +334,7 @@ impl SimulationElement for A320 {
         self.engine_1.accept(visitor);
         self.engine_2.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
+        self.engine_failures.accept(visitor);
         self.fire_protection.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
@@ -352,5 +358,56 @@ impl SimulationElement for A320 {
         self.reverse_thrust.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use systems::simulation::{
+        test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
+        InitContext,
+    };
+
+    /// The whole aircraft on the ground, both engines running at ground idle (FADEC fuel flow at
+    /// sea level, ISA: 298.6 kg/h).
+    fn aircraft_with_engines_at_idle() -> SimulationTestBed<A320> {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));
+        test_bed.set_on_ground(true);
+        for engine_number in 1..=2 {
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", engine_number), true);
+            test_bed.write_by_name(&format!("ENGINE_FF:{}", engine_number), 298.6);
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", engine_number), 1.);
+            test_bed.write_by_name(&format!("ENGINE_N2:{}", engine_number), 68.);
+        }
+        test_bed.run_with_delta(Duration::from_millis(50));
+        test_bed
+    }
+
+    /// FCOM PRO-ABN-ENG: with the ENG FIRE pb pushed the engine shuts down "after a time delay" once
+    /// the fuel between the LP valve and the nozzles is burned (fuel/engine_lp_valve.rs: about 99 s
+    /// at a sea-level idle). The starvation must still cut the engine fuel (MSFS valve 13/14 and the
+    /// FADEC) now that the engine failures share that cut (engine_failure.rs).
+    #[test]
+    fn the_eng_fire_pb_cuts_the_engine_fuel_after_the_residual_fuel_is_burned() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        test_bed.write_by_name("FIRE_BUTTON_ENG1", true);
+
+        for _ in 0..(95 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+        let cut_before: bool = test_bed.read_by_name("ENGINE_1_FUEL_CUT");
+        assert!(!cut_before, "the engine runs on its residual fuel");
+
+        for _ in 0..(10 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+        let starved: bool = test_bed.read_by_name("FUEL_ENG_1_STARVED");
+        let cut: bool = test_bed.read_by_name("ENGINE_1_FUEL_CUT");
+        let other_cut: bool = test_bed.read_by_name("ENGINE_2_FUEL_CUT");
+        assert!(starved);
+        assert!(cut);
+        assert!(!other_cut);
     }
 }

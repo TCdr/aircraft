@@ -133,6 +133,11 @@ impl A320Fuel {
         }
     }
 
+    /// The LP fuel valve of the engine is closed and the fuel downstream of it is burned.
+    pub fn engine_is_starved(&self, engine_number: usize) -> bool {
+        self.engine_lp_valves[engine_number - 1].engine_is_starved()
+    }
+
     pub fn left_inner_tank_has_fuel_remaining(&self) -> bool {
         self.fuel_system
             .tank_has_fuel(A320FuelTankType::LeftInner.into())

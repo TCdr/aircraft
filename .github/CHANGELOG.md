@@ -230,6 +230,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
 1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A32NX/EFB] New flyPad failures Engine 1(2) flameout (crew relight possible) and Engine 1(2) seizure (no relight): the engine fuel is cut; a flamed out engine relights with ENG MASTER OFF then ON inside the FCOM relight envelope, a seized one does not relight - @TCdr
+1. [EFB] The flyPad failures page describes the ATA 28 Fuel and ATA 72 Engine chapters like the others - @TCdr
+1. [A32NX/FWS] New ENG 1(2) FAIL and ENG 1(2) SHUT DOWN cautions with their FCOM procedures, STATUS and INOP SYS, and LAND ASAP; ALL ENGINES FAILURE gets its FCOM flight phase inhibition - @TCdr
+1. [A32NX/FADEC] An in-flight engine relight follows the FCOM relight envelope; a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N2; both igniters during an in-flight relight, which also lights up a quick relight with the ENG MODE selector at NORM - @TCdr
 1. [A32NX/ND] The chronometer at the bottom left of the ND now shows white digits on a black box (FCOM: white), instead of green digits on a light grey box that were hard to read - @TCdr
 1. [A380X/GPWS] Setting the TAWS FLAP MODE to OFF on the MFD SURV CONTROLS page now inhibits the TOO LOW FLAPS alert (the GPWS read a variable nothing writes) - @TCdr
 1. [A380X/SD] FUEL page: during a normal fuel jettison the jettison lines and JETTISON legends are white instead of amber (amber stays for a valve open without jettison, or closed during jettison) - @TCdr
