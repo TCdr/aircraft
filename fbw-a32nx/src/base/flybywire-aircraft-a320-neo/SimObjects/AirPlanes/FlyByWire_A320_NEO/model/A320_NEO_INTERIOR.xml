@@ -811,6 +811,7 @@
                 <NODE_ID>PUSH_EFIS_CS_PFD</NODE_ID>
                 <ANIM_NAME>PUSH_EFIS_CS_PFD</ANIM_NAME>
                 <ID>1</ID>
+                <SIDE>L</SIDE>
             </UseTemplate>
 
             <UseTemplate Name="FBW_Anim_Interactions">
@@ -819,6 +820,7 @@
                 <NODE_ID>PUSH_EFIS_FO_PFD</NODE_ID>
                 <ANIM_NAME>PUSH_EFIS_FO_PFD</ANIM_NAME>
                 <ID>2</ID>
+                <SIDE>R</SIDE>
             </UseTemplate>
 
             <Component ID="Screens_Left">
@@ -914,6 +916,141 @@
                     <CAMERA_TITLE>MFD</CAMERA_TITLE>
                     <!-- Effects such as pixels and glass reflections require the screen brightness to be increased -->
                     <EMISSIVE_CODE>12</EMISSIVE_CODE>
+                </UseTemplate>
+
+                <!-- DU reconfiguration (A320 FCOM DSC-31-05-60): the glass each DU shows (templates in A32NX/Airbus.xml,
+                FBW_A32NX_DU_Picture_Glass). The overlay glasses SCREEN_<DU>_<PICTURE> are in the interior model. -->
+                <!-- PFD_L DU: its own picture, the ND of its side, blank -->
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_PFD_L</NODE_ID>
+                    <DU>PFD_L</DU>
+                    <PICTURE>0</PICTURE>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_PFD_L_ND</NODE_ID>
+                    <DU>PFD_L</DU>
+                    <PICTURE>2</PICTURE>
+                    <POTENTIOMETER>88</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_PFD_L_BLANK</NODE_ID>
+                    <DU>PFD_L</DU>
+                    <PICTURE>6</PICTURE>
+                </UseTemplate>
+                <!-- ND_L DU: its own picture, the PFD of its side, the E/WD, the SD, blank -->
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_MFD_L</NODE_ID>
+                    <DU>ND_L</DU>
+                    <PICTURE>0</PICTURE>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_MFD_L_PFD</NODE_ID>
+                    <DU>ND_L</DU>
+                    <PICTURE>1</PICTURE>
+                    <POTENTIOMETER>89</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_MFD_L_EWD</NODE_ID>
+                    <DU>ND_L</DU>
+                    <PICTURE>3</PICTURE>
+                    <POTENTIOMETER>89</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_MFD_L_SD</NODE_ID>
+                    <DU>ND_L</DU>
+                    <PICTURE>4</PICTURE>
+                    <POTENTIOMETER>89</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_MFD_L_BLANK</NODE_ID>
+                    <DU>ND_L</DU>
+                    <PICTURE>6</PICTURE>
+                </UseTemplate>
+                <!-- UPPER_ECAM DU: its own picture, the SD, blank -->
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_EICAS1</NODE_ID>
+                    <DU>UPPER_ECAM</DU>
+                    <PICTURE>0</PICTURE>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_EICAS1_SD</NODE_ID>
+                    <DU>UPPER_ECAM</DU>
+                    <PICTURE>4</PICTURE>
+                    <POTENTIOMETER>92</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_EICAS1_BLANK</NODE_ID>
+                    <DU>UPPER_ECAM</DU>
+                    <PICTURE>6</PICTURE>
+                </UseTemplate>
+                <!-- LOWER_ECAM DU: its own picture, the E/WD, the ECAM ON ND message, blank -->
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_EICAS2</NODE_ID>
+                    <DU>LOWER_ECAM</DU>
+                    <PICTURE>0</PICTURE>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_EICAS2_EWD</NODE_ID>
+                    <DU>LOWER_ECAM</DU>
+                    <PICTURE>3</PICTURE>
+                    <POTENTIOMETER>93</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_EICAS2_MSG</NODE_ID>
+                    <DU>LOWER_ECAM</DU>
+                    <PICTURE>5</PICTURE>
+                    <POTENTIOMETER>93</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_EICAS2_BLANK</NODE_ID>
+                    <DU>LOWER_ECAM</DU>
+                    <PICTURE>6</PICTURE>
+                </UseTemplate>
+                <!-- ND_R DU: its own picture, the PFD of its side, the E/WD, the SD, blank -->
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_MFD_R</NODE_ID>
+                    <DU>ND_R</DU>
+                    <PICTURE>0</PICTURE>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_MFD_R_PFD</NODE_ID>
+                    <DU>ND_R</DU>
+                    <PICTURE>1</PICTURE>
+                    <POTENTIOMETER>91</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_MFD_R_EWD</NODE_ID>
+                    <DU>ND_R</DU>
+                    <PICTURE>3</PICTURE>
+                    <POTENTIOMETER>91</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_MFD_R_SD</NODE_ID>
+                    <DU>ND_R</DU>
+                    <PICTURE>4</PICTURE>
+                    <POTENTIOMETER>91</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_MFD_R_BLANK</NODE_ID>
+                    <DU>ND_R</DU>
+                    <PICTURE>6</PICTURE>
+                </UseTemplate>
+                <!-- PFD_R DU: its own picture, the ND of its side, blank -->
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_PFD_R</NODE_ID>
+                    <DU>PFD_R</DU>
+                    <PICTURE>0</PICTURE>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Picture_Glass">
+                    <NODE_ID>SCREEN_PFD_R_ND</NODE_ID>
+                    <DU>PFD_R</DU>
+                    <PICTURE>2</PICTURE>
+                    <POTENTIOMETER>90</POTENTIOMETER>
+                </UseTemplate>
+                <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+                    <NODE_ID>SCREEN_PFD_R_BLANK</NODE_ID>
+                    <DU>PFD_R</DU>
+                    <PICTURE>6</PICTURE>
                 </UseTemplate>
 
                 <!-- DCDU -->
