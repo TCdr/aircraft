@@ -116,6 +116,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/COND] Trim air duct overheat (above 70 deg C) and jammed trim air valve detection: COND DUCT OVHT (CKPT/CABIN/FWD CARGO cases with HOT AIR 1 or 2 OFF, deferred WHEN DUCT OVHT OUT, STATUS) and COND FWD CARGO TEMP REGUL FAULT on the ECAM, the HOT AIR 1(2) FAULT light, and the OVHT and trim air valve marks of the SD COND page - @TCdr
 1. [A380X/EFB] New failures on the flyPad: brakes NORM and ALTN circuit leaks, ALTN brake accumulator gas leak, and jammed trim air valves and duct overheats for the cockpit, main deck zone 1, upper deck zone 1 and forward cargo - @TCdr
 1. [A380X/FUEL] Added feed tank pump and crossfeed valve failures (feed tank 1-4 main and standby pumps, crossfeed valves 1-4 jammed): FAULT light, amber pump or valve on the SD FUEL page, FEED TK MAIN/STBY/MAIN + STBY PMP(s) FAULT and CROSSFEED VLV FAULT alerts with their STATUS - @TCdr
+1. [A32NX/FWC] ENG 1(2) FIRE and APU FIRE warnings come from a detected fire or the FIRE TEST only, no longer from a released FIRE pb; the APU AGENT 10 s countdown starts with the APU FIRE pb - @TCdr
+1. [A32NX/FUEL] The ENG MASTER switch and the ENG FIRE pb close the engine LP fuel valve (shown on the SD FUEL page); with the ENG FIRE pb pushed the engine shuts down once the fuel left downstream of the valve is burned, up to 2 min 30 s at idle - @TCdr
+1. [A380X/FUEL] The ENG FIRE pb closes the engine LP fuel valve: the engine shuts down once the fuel left downstream of the valve is burned (about 17 s at idle at sea level); the SD FUEL page shows the LP valve, amber when abnormally open - @TCdr
 
 ## 2024.1.0
 

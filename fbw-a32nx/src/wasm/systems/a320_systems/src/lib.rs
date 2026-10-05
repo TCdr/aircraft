@@ -204,6 +204,8 @@ impl Aircraft for A320 {
 
         self.asu.update();
 
+        self.fuel.update(context, &self.engine_fire_overhead);
+
         self.lgcius.update(
             context,
             &self.landing_gear,
