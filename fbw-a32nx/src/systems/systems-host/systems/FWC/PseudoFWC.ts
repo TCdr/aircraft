@@ -54,6 +54,7 @@ import { A32NXFacBusEvents } from '@shared/publishers/A32NXFacBusPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
+import { isSwitchingPanelMemoShown, pfdNdXfrVar } from '@shared/DisplayReconfiguration';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -1708,6 +1709,12 @@ export class PseudoFWC {
 
   private readonly ndXfrKnob = Subject.create(0);
 
+  /** Whether the CAPT PFD/ND XFR pb has cross-changed the PFD and ND images (DMC, DmcDisplayReconfiguration) */
+  private readonly pfdNdXfrL = Subject.create(false);
+
+  /** Whether the F/O PFD/ND XFR pb has cross-changed the PFD and ND images (DMC, DmcDisplayReconfiguration) */
+  private readonly pfdNdXfrR = Subject.create(false);
+
   private readonly manLandingElevation = Subject.create(false);
 
   private readonly noSmoking = Subject.create(0);
@@ -3345,6 +3352,8 @@ export class PseudoFWC {
     this.manLandingElevation.set(activeCpc.bitValueOr(17, false));
     this.seatBelt.set(SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'bool'));
     this.ndXfrKnob.set(SimVar.GetSimVarValue('L:A32NX_ECAM_ND_XFR_SWITCHING_KNOB', 'enum'));
+    this.pfdNdXfrL.set(SimVar.GetSimVarValue(pfdNdXfrVar('L'), 'number') > 0);
+    this.pfdNdXfrR.set(SimVar.GetSimVarValue(pfdNdXfrVar('R'), 'number') > 0);
     this.noSmoking.set(SimVar.GetSimVarValue('L:A32NX_NO_SMOKING_MEMO', 'bool'));
     this.noSmokingSwitchPosition.set(SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 'Enum'));
     this.strobeLightsOn.set(SimVar.GetSimVarValue('L:LIGHTING_STROBE_0', 'Bool'));
@@ -7511,10 +7520,14 @@ export class PseudoFWC {
     '0000290': {
       // SWITCHING PNL
       flightPhaseInhib: [],
+      // A320 FCOM DSC-31-30 MEMO DISPLAY (l.46928-46935): a PFD/ND XFR pb together with ECAM/ND XFR, or EIS DMC
       simVarIsActive: MappedSubject.create(
-        ([ndXfrKnob, dmcSwitchingKnob]) => ndXfrKnob !== 1 || dmcSwitchingKnob !== 1,
+        ([ndXfrKnob, dmcSwitchingKnob, pfdNdXfrL, pfdNdXfrR]) =>
+          isSwitchingPanelMemoShown(ndXfrKnob, dmcSwitchingKnob, pfdNdXfrL, pfdNdXfrR),
         this.ndXfrKnob,
         this.dmcSwitchingKnob,
+        this.pfdNdXfrL,
+        this.pfdNdXfrR,
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000029001'],

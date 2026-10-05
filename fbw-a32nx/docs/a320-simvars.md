@@ -4084,7 +4084,58 @@ Use the `A32NXDisplayManagementPublisher` for these in A32NX code.
   - Bool
   - Written by nd.html: 1 while the ND display unit is ON and shows the ND picture (powered, brightness above 0,
     self-test done, not failed from the flyPad), 0 otherwise. The native weather/terrain gauge (ndwxr) draws nothing
-    while it is 0.
+    while it is 0. It is 1 too while the ND is shown on another DU (DU reconfiguration, see
+    `L:A32NX_EIS_PICTURE_{picture}_ON_OTHER_DU`).
+  - {side}
+    - L
+    - R
+
+- `L:A32NX_EIS_DU_{du}_PICTURE`
+  - Enum
+  - Written by the DMC logic of the systems host (DmcDisplayReconfiguration): the picture the display unit shows
+    (A320 FCOM DSC-31-05-60 DU reconfiguration). Read by the cockpit model: each DU has one glass per picture it can
+    show (the overlay glasses carry the material of that picture's texture), and only the glass of this value is shown.
+    Value | Meaning
+    --- | ---
+    0 | The DU's own picture (PFD, ND, E/WD on the upper and SD on the lower ECAM DU): the normal configuration
+    1 | PFD of the DU's side
+    2 | ND of the DU's side
+    3 | E/WD
+    4 | SD
+    5 | ECAM ON ND message (lower ECAM DU while the SD is on an ND)
+    6 | Blank: the DU is failed, unpowered or switched off with its brightness knob
+  - {du}
+    - PFD_L
+    - ND_L
+    - UPPER_ECAM
+    - LOWER_ECAM
+    - ND_R
+    - PFD_R
+
+- `L:A32NX_EIS_PICTURE_{picture}_ON_OTHER_DU`
+  - Bool
+  - Written by the DMC logic of the systems host: 1 while the picture is shown on a DU other than its own one and that
+    DU is available (e.g. the PFD on the ND DU with the PFD DU failed). The gauge of the picture then draws it whatever
+    the state of its own DU.
+  - {picture}
+    - PFD_L
+    - ND_L
+    - EWD
+    - SD
+    - ND_R
+    - PFD_R
+
+- `L:A32NX_EFIS_{side}_PFD_ND_XFR`
+  - Bool
+  - Written by the DMC logic of the systems host: 1 while the PFD/ND XFR pb of that side has cross-changed the PFD and
+    ND images (toggled by each push, back to 0 when the PFD DU fails, is switched off or comes back). Read by the FWC
+    for the SWITCHING PNL memo.
+  - {side}
+    - L
+    - R
+
+- `H:A32NX_EFIS_{side}_PFD_ND_XFR_PUSHED`
+  - Sent by the PFD/ND XFR pb of that side console (cockpit behaviour).
   - {side}
     - L
     - R
