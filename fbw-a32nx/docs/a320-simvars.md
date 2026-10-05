@@ -4101,7 +4101,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - N2 of the engine windmilling without combustion at the current airspeed (8.5 % at 260 kt), 0 on the ground. The FADEC keeps a shut down (not seized) engine at or above it in flight. Written by the systems WASM
+  - N2 of the engine windmilling without combustion at the current airspeed (8 % at 270 kt), 0 on the ground. The FADEC keeps a shut down (not seized) engine at or above it in flight. Written by the systems WASM
 
 - A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_CLOSED
   - Bool
