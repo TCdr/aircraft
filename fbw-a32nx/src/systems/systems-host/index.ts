@@ -26,6 +26,7 @@ import { A32NXEcpBusPublisher } from '../shared/src/publishers/A32NXEcpBusPublis
 import { FakeDmc } from './systems/ECP/FakeDmc';
 import { FwsManager } from './systems/FWC/FwsManager';
 import { DmcSdPageLogic } from './systems/DmcSdPageLogic/DmcSdPageLogic';
+import { DmcDisplayReconfiguration } from './systems/DmcDisplayReconfiguration/DmcDisplayReconfiguration';
 import { A32NXFacBusPublisher } from '../shared/src/publishers/A32NXFacBusPublisher';
 import { TawsStatusBridge } from './systems/TawsStatusBridge';
 import { RaasSystem } from './systems/Raas/RaasSystem';
@@ -64,6 +65,8 @@ class SystemsHost extends BaseInstrument {
 
   private readonly dmcSdPage = new DmcSdPageLogic(this.bus);
 
+  private readonly dmcDisplayReconfiguration = new DmcDisplayReconfiguration(this.bus);
+
   constructor() {
     super();
 
@@ -93,6 +96,7 @@ class SystemsHost extends BaseInstrument {
 
     this.fwc.init();
     this.dmcSdPage.init();
+    this.dmcDisplayReconfiguration.init();
     let lastUpdateTime: number;
     this.bus
       .getSubscriber<ClockEvents>()
@@ -104,6 +108,7 @@ class SystemsHost extends BaseInstrument {
 
         this.fwc.update(dt);
         this.dmcSdPage.update(dt);
+        this.dmcDisplayReconfiguration.update(dt);
       });
   }
 
