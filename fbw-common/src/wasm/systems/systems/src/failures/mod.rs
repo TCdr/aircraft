@@ -69,6 +69,11 @@ pub enum FailureType {
     EnhancedGroundProximityWarningSystemComputer,
     /// The GPS receiver of MMR 1 or 2
     Gps(usize),
+    // ATA72
+    /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
+    EngineFlameout(usize),
+    /// The core of engine n seizes: no relight while the failure is active (engine::engine_failure)
+    EngineSeizure(usize),
 }
 
 pub struct Failure {

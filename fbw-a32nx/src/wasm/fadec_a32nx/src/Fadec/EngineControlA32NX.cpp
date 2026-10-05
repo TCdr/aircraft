@@ -73,27 +73,44 @@ void EngineControl_A32NX::update() {
     const int    engineIgniter = static_cast<int>(simData.simVarsDataPtr->data().engineIgniter[engineIdx]);  // 0: crank, 1:norm, 2: ign
     bool         engineStarter = static_cast<bool>(simData.simVarsDataPtr->data().engineStarter[engineIdx]);
     const double engineStarterPressurized   = simData.engineStarterPressurized[engineIdx]->get();
-    // FCOM DSC-28-10-30: the LP fuel valve is closed by the engine master switch or the ENG FIRE PUSH pushbutton.
-    // FCOM PRO-ABN-ENG: "The engine shuts down when the remaining fuel between the LP fuel valve and the nozzles is burned."
-    // The systems WASM tracks that remaining fuel. Once it is burned the engine is starved and is handled as if its fuel valve
-    // were closed: the starter is no longer held, the engine shuts down and it cannot relight while starved.
-    const bool   engineFuelStarved          = simData.engineFuelStarved[engineIdx]->getAsBool();
-    const double engineFuelValveOpen        = engineFuelStarved ? 0.0 : simData.simVarsDataPtr->data().engineFuelValveOpen[engineIdx];
+    // The systems WASM cuts the engine fuel (L:A32NX_ENGINE_n_FUEL_CUT; it also closes the MSFS fuel valve in series with the
+    // engine feed, so MSFS stops the combustion):
+    // - when the engine is starved. FCOM DSC-28-10-30: the LP fuel valve is closed by the engine master switch or the ENG
+    //   FIRE PUSH pushbutton. FCOM PRO-ABN-ENG: "The engine shuts down when the remaining fuel between the LP fuel valve and
+    //   the nozzles is burned."
+    // - after a flameout or a seizure failure, and during an in-flight relight, until the engine lights up inside the relight
+    //   envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT, see a320_systems engine_failure.rs).
+    // An engine whose fuel is cut is handled as if its fuel valve were closed: the starter is no longer held, the engine shuts
+    // down and it cannot relight while its fuel is cut.
+    const bool   engineFuelCut              = simData.engineFuelCut[engineIdx]->getAsBool();
+    const bool   engineSeized               = simData.engineSeized[engineIdx]->getAsBool();
+    const double engineMasterValveOpen      = simData.simVarsDataPtr->data().engineFuelValveOpen[engineIdx];
+    const double engineFuelValveOpen        = engineFuelCut ? 0.0 : engineMasterValveOpen;
     const bool   engineFuelValveFullyClosed = engineFuelValveOpen == 0;
     const bool   engineFuelValveFullyOpen   = engineFuelValveOpen == 1;
+    const bool   simOnGround                = msfsHandlerPtr->getSimOnGround();
 
     // simulates delay to start valve open through fuel valve travel time
-    const bool engineMasterTurnedOn  = (prevEngineMasterPos[engineIdx] < 1 && engineFuelValveFullyOpen);
-    const bool engineMasterTurnedOff = (prevEngineMasterPos[engineIdx] > 0 && engineFuelValveFullyClosed);
+    // The master switch transitions come from the MSFS engine valve the master drives, not from the fuel cut: at the MASTER ON
+    // the FADEC begins an in-flight start (RESTARTING, start valve open) while the fuel is still cut, so that a starter assisted
+    // relight gets its starter air. The systems WASM releases the fuel cut when the engine lights up.
+    const bool engineMasterTurnedOn  = (prevEngineMasterPos[engineIdx] < 1 && engineMasterValveOpen == 1);
+    const bool engineMasterTurnedOff = (prevEngineMasterPos[engineIdx] > 0 && engineMasterValveOpen == 0);
+
+    // In flight, an engine that is out (shutting down or restarting) and whose fuel is no longer cut is lighting up: its starter
+    // is held even when it windmills below 20 % N2 without starter air, so that MSFS spins it up to idle.
+    const EngineState previousEngineState = static_cast<EngineState>(simData.engineState[engineIdx]->get());
+    const bool        inFlightRelight     = !simOnGround && (previousEngineState == SHUTTING || previousEngineState == RESTARTING);
 
     // starts engines if Engine Master is turned on and Starter is pressurized
     // or the engine is still spinning fast enough
-    if (!engineStarter && engineFuelValveFullyOpen && (engineStarterPressurized || simN2 >= 20)) {
+    if (!engineStarter && engineFuelValveFullyOpen && (engineStarterPressurized || simN2 >= 20 || inFlightRelight)) {
       simData.setStarterHeldEvent[engineIdx]->trigger(1);
       engineStarter = true;
     }
     // shuts off engines if Engine Master is turned off or starter is depressurized while N2 is below 20%
-    else if (engineStarter && (engineFuelValveFullyClosed || (engineFuelValveFullyOpen && !engineStarterPressurized && simN2 < 20))) {
+    else if (engineStarter && (engineFuelValveFullyClosed ||
+                               (engineFuelValveFullyOpen && !engineStarterPressurized && simN2 < 20 && !inFlightRelight))) {
       simData.setStarterHeldEvent[engineIdx]->trigger(0);
       simData.setStarterEvent[engineIdx]->trigger(0);
       engineStarter = false;
@@ -110,7 +127,29 @@ void EngineControl_A32NX::update() {
                                                  engineMasterTurnedOff,   //
                                                  simN2,                   //
                                                  idleN2,                  //
-                                                 ambientTemperature);     //
+                                                 ambientTemperature,      //
+                                                 simOnGround);            //
+
+    // In-flight relight ignition. A320 FCOM DSC-70-80-30 (a320_fcom.txt l.63481): "In case of start attempt in flight, when
+    // the ENG MASTER sw is ON, both igniters are supplied", and the windmilling quick relight works "regardless of the rotary
+    // selector position" (l.63538-63541). MSFS only burns during a start with its ignition switch at IGN: with the ENG MODE
+    // selector at NORM a granted quick relight crawled for minutes without combustion. While the systems WASM reports a relight
+    // lighting up (fuel back, master ON, engine not running), the ignition switch of that engine is set to IGN, then given
+    // back to the ENG MODE selector position once the engine runs or the relight ends.
+    const bool relightIgnition = simData.engineRelightIgnition[engineIdx]->getAsBool() && !simOnGround &&
+                                 (engineState == SHUTTING || engineState == RESTARTING);
+    if (relightIgnition) {
+      if (engineIgniter != 2) {
+        simData.setIgnitionSwitchEvent[engineIdx]->trigger(2);
+      }
+      relightIgnitionSet[engineIdx] = true;
+    } else if (relightIgnitionSet[engineIdx]) {
+      const int selectorPosition = static_cast<int>(simData.engineModeSelector->get());
+      if (engineIgniter != selectorPosition) {
+        simData.setIgnitionSwitchEvent[engineIdx]->trigger(static_cast<DWORD>(selectorPosition));
+      }
+      relightIgnitionSet[engineIdx] = false;
+    }
 
     switch (engineState) {
       case STARTING:
@@ -120,8 +159,18 @@ void EngineControl_A32NX::update() {
           break;
         }
       case SHUTTING:
-        engineShutdownProcedure(engine, ambientTemperature, simN1, deltaTime, engineTimer);
-        updateFF(engine, imbalance, simCN1, mach, pressureAltitude, ambientTemperature, ambientPressure);
+        engineShutdownProcedure(engine, ambientTemperature, simN1, deltaTime, engineTimer, engineSeized, simOnGround,
+                                simData.engineWindmillN1[engineIdx]->get(), simData.engineWindmillN2[engineIdx]->get());
+        // No fuel flows into an engine whose fuel valve is closed or whose fuel is cut. The fuel flow was computed from the
+        // windmilling MSFS N1 here, so a dead engine showed (and burned) a small fuel flow.
+        if (engineFuelValveFullyOpen) {
+          updateFF(engine, imbalance, simCN1, mach, pressureAltitude, ambientTemperature, ambientPressure);
+        } else {
+          simData.engineFF[engineIdx]->set(0);
+        }
+        // The oil pressure falls with N2. It stayed frozen at its last running value during the whole shutdown, which never
+        // ends in flight (the MSFS N2 of a windmilling engine never reaches the 0.05 % of the OFF state).
+        updateShutdownOilPressure(engine, imbalance);
         break;
       default:
         updatePrimaryParameters(engine, imbalance, simN1, simN2);
@@ -133,7 +182,7 @@ void EngineControl_A32NX::update() {
 
     // set highest N1 from either engine
     simN1highest                      = (std::max)(simN1highest, simN1);
-    prevEngineMasterPos[engineIdx]    = engineFuelValveOpen;
+    prevEngineMasterPos[engineIdx]    = engineMasterValveOpen;
     prevEngineStarterState[engineIdx] = engineStarter;
   }
 
@@ -389,7 +438,8 @@ EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    
                                                                          bool   engineMasterTurnedOff,   //
                                                                          double simN2,                   //
                                                                          double idleN2,                  //
-                                                                         double ambientTemperature) {    //
+                                                                         double ambientTemperature,      //
+                                                                         bool   simOnGround) {           //
 #ifdef PROFILING
   profilerEngineStateMachine.start();
 #endif
@@ -450,7 +500,8 @@ EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    
     } else if (!engineStarter && simN2 < 0.05 && simData.engineEgt[engineIdx]->get() <= ambientTemperature) {
       engineState = OFF;
       resetTimer  = true;
-    } else if (engineStarter && simN2 > 50) {
+    } else if (engineStarter && (simN2 > 50 || !simOnGround)) {
+      // quick relight with the engine still turning fast, or in flight a relight that lights up (see inFlightRelight)
       engineState = RESTARTING;
       resetTimer  = true;
     } else {
@@ -563,7 +614,11 @@ void EngineControl_A32NX::engineShutdownProcedure(int    engine,              //
                                                   double ambientTemperature,  //
                                                   double simN1,               //
                                                   double deltaTime,           //
-                                                  double engineTimer) {       //
+                                                  double engineTimer,         //
+                                                  bool   engineSeized,        //
+                                                  bool   simOnGround,         //
+                                                  double windmillN1,          //
+                                                  double windmillN2) {        //
 #ifdef PROFILING
   profilerEngineShutdownProcedure.start();
 #endif
@@ -585,6 +640,13 @@ void EngineControl_A32NX::engineShutdownProcedure(int    engine,              //
     return;
   }
 
+  // Seizure failure: the core stops, from the failure on, without the delay of a normal shutdown. FCOM ENG 1(2) FAIL
+  // (a320_fcom.txt l.79791-79795): engine damage may be accompanied by "no N2 indication".
+  if (engineSeized) {
+    const double seizedN2 = simData.engineN2[engineIdx]->get() * (std::exp)(-SEIZED_CORE_DECAY_RATE * deltaTime);
+    simData.engineN2[engineIdx]->set(seizedN2 < SEIZED_CORE_STOPPED_N2 ? 0.0 : seizedN2);
+  }
+
   if (engineTimer < 1.8) {
     simData.engineTimer[engineIdx]->set(engineTimer + deltaTime);
   } else {
@@ -596,8 +658,18 @@ void EngineControl_A32NX::engineShutdownProcedure(int    engine,              //
     if (simN1 < 5 && simN1 > newN1Fbw) {  // Takes care of windmilling
       newN1Fbw = simN1;
     }
-    const double newN2Fbw  = Polynomial_A32NX::shutdownN2(preN2Fbw, deltaTime);
+    double       newN2Fbw  = engineSeized ? preN2Fbw : Polynomial_A32NX::shutdownN2(preN2Fbw, deltaTime);
     const double newEgtFbw = Polynomial_A32NX::shutdownEGT(preEgtFbw, ambientTemperature, deltaTime);
+
+    // In flight an engine without combustion windmills: N1 and N2 run down to the windmilling speeds of the airspeed (systems
+    // WASM, A320RelightEnvelope) and stay there, instead of decaying to 0. The IDG and the engine-driven pump, which follow
+    // the N2, see the low windmilling speed. A seized core does not turn.
+    if (!simOnGround) {
+      newN1Fbw = (std::max)(newN1Fbw, windmillN1);
+      if (!engineSeized) {
+        newN2Fbw = (std::max)(newN2Fbw, windmillN2);
+      }
+    }
 
     simData.engineN1[engineIdx]->set(newN1Fbw);
     simData.engineN2[engineIdx]->set(newN2Fbw);
@@ -1158,6 +1230,28 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
     profilerUpdateThrustLimits.print();
   }
 #endif
+}
+
+void EngineControl_A32NX::updateShutdownOilPressure(int engine, double imbalance) {
+  const int engineIdx = engine - 1;
+
+  const double engineImbalanced = imbalanceExtractor(imbalance, 1);
+  double       paramImbalance   = imbalanceExtractor(imbalance, 6) / 10;
+  const double oilIdleRandom    = imbalanceExtractor(imbalance, 7) - 6;
+  if (engineImbalanced != engine) {
+    paramImbalance = 0;
+  }
+
+  // The oil pump is driven through the accessory gearbox by the core: the oil pressure follows the N2 the FADEC shows
+  // (shutdown, windmilling or seized core), with the oil pressure polynomial of the running engine. The idle offsets of the
+  // engine fade with N2 so that a stopped core has no oil pressure.
+  const double n2          = simData.engineN2[engineIdx]->get();
+  const double idleN2      = simData.engineIdleN2->get();
+  const double offsetScale = idleN2 > 0 ? (std::min)(1.0, n2 / idleN2) : 0.0;
+  const double oilPressure = (std::max)(0.0, Polynomial_A32NX::oilPressure(n2) + (oilIdleRandom - paramImbalance) * offsetScale);
+
+  simData.oilPsiDataPtr[engineIdx]->data().oilPsi = oilPressure;
+  simData.oilPsiDataPtr[engineIdx]->writeDataToSim();
 }
 
 /*

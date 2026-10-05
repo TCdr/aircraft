@@ -55,6 +55,14 @@ import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import {
+  CrossBleedSelector,
+  EngineFailMonitor,
+  engineFailLines,
+  engineShutDownLines,
+  engineShutDownStatus,
+  isEngineShutDown,
+} from './Logic/EngineFailAlerts';
+import {
   centreTransferNotClosedLines,
   centreTransferNotOpenLines,
   centreTransferValveAlerts,
@@ -1548,6 +1556,21 @@ export class PseudoFWC {
   private readonly N2Eng2 = Subject.create(0);
 
   private readonly N1IdleEng = Subject.create(0);
+
+  /** ENG 1(2) FAIL and ENG 1(2) SHUT DOWN, see Logic/EngineFailAlerts */
+  private readonly engine1FailMonitor = new EngineFailMonitor();
+
+  private readonly engine2FailMonitor = new EngineFailMonitor();
+
+  private readonly engine1Fail = Subject.create(false);
+
+  private readonly engine2Fail = Subject.create(false);
+
+  private readonly engine1ShutDown = Subject.create(false);
+
+  private readonly engine2ShutDown = Subject.create(false);
+
+  private crossBleedSelector = CrossBleedSelector.Auto;
 
   private readonly engineOnFor30Seconds = new NXLogicConfirmNode(30);
 
@@ -4331,6 +4354,41 @@ export class PseudoFWC {
     this.eng1FireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG1', 'bool'));
     this.eng2FireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG2', 'bool'));
     this.apuFireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_APU', 'bool'));
+
+    /* ENG 1(2) FAIL, ENG 1(2) SHUT DOWN (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts) */
+
+    const engineIdleN2 = SimVar.GetSimVarValue('L:A32NX_ENGINE_IDLE_N2', 'number');
+    const engine1MasterOn = !!this.engine1Master.get();
+    const engine2MasterOn = !!this.engine2Master.get();
+    const engine1FirePbPushed = !!this.fireButton1.get();
+    const engine2FirePbPushed = !!this.fireButton2.get();
+    this.engine1FailMonitor.update(
+      {
+        masterOn: engine1MasterOn,
+        firePbPushed: engine1FirePbPushed,
+        engineRunning: this.engine1State.get() === EngineState.On,
+        n2Percent: this.N2Eng1.get(),
+        idleN2Percent: engineIdleN2,
+      },
+      deltaTime / 1000,
+    );
+    this.engine2FailMonitor.update(
+      {
+        masterOn: engine2MasterOn,
+        firePbPushed: engine2FirePbPushed,
+        engineRunning: this.engine2State.get() === EngineState.On,
+        n2Percent: this.N2Eng2.get(),
+        idleN2Percent: engineIdleN2,
+      },
+      deltaTime / 1000,
+    );
+    // Design choice: while ENG ALL ENGINES FAILURE is active, its procedure replaces the single engine alerts.
+    const allEnginesFailed = this.engDualFault.get();
+    this.engine1Fail.set(this.engine1FailMonitor.isActive && !allEnginesFailed);
+    this.engine2Fail.set(this.engine2FailMonitor.isActive && !allEnginesFailed);
+    this.engine1ShutDown.set(isEngineShutDown(engine1MasterOn, engine1FirePbPushed, flightPhase) && !allEnginesFailed);
+    this.engine2ShutDown.set(isEngineShutDown(engine2MasterOn, engine2FirePbPushed, flightPhase) && !allEnginesFailed);
+    this.crossBleedSelector = SimVar.GetSimVarValue('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number');
     // The fire detection unit outputs (systems.wasm), also used by the FIRE pb red lights (A32NX_Interior_Fire.xml,
     // A320_NEO_INTERIOR.xml). The sim's own engine/APU fire (MSFS failures menu) is one of their inputs.
     this.eng1FireDetected.set(SimVar.GetSimVarValue('L:A32NX_FIRE_DETECTED_ENG1', 'bool') > 0);
@@ -5932,7 +5990,8 @@ export class PseudoFWC {
     },
     7700027: {
       // DUAL ENGINE FAILURE
-      flightPhaseInhib: [],
+      // FCOM PRO-ABN-ENG ENG ALL ENGINES FAILURE flight phase inhibition (2019 FCOM PDF page 2244): phases 1-4 and 8-10
+      flightPhaseInhib: [1, 2, 3, 4, 8, 9, 10],
       simVarIsActive: this.engDualFault,
       whichCodeToReturn: () => [
         0,
@@ -5963,6 +6022,136 @@ export class PseudoFWC {
       failure: 3,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
+    },
+    7700101: {
+      // ENG 1 FAIL (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
+      flightPhaseInhib: [],
+      simVarIsActive: this.engine1Fail,
+      whichCodeToReturn: () =>
+        engineFailLines({
+          flightPhase: this.fwcFlightPhase.get(),
+          engModeSelIgn: this.engSelectorPosition.get() === 2,
+          thrLeverIdle: this.thr1TLA.get() === 0,
+          relightWaitElapsed: this.engine1FailMonitor.relightWaitElapsed,
+        }),
+      codesToReturn: [
+        '770010101',
+        '770010102',
+        '770010103',
+        '770010104',
+        '770010105',
+        '770010106',
+        '770010107',
+        '770010108',
+        '770010109',
+        '770010110',
+        '770010111',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700102: {
+      // ENG 2 FAIL (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
+      flightPhaseInhib: [],
+      simVarIsActive: this.engine2Fail,
+      whichCodeToReturn: () =>
+        engineFailLines({
+          flightPhase: this.fwcFlightPhase.get(),
+          engModeSelIgn: this.engSelectorPosition.get() === 2,
+          thrLeverIdle: this.thr2TLA.get() === 0,
+          relightWaitElapsed: this.engine2FailMonitor.relightWaitElapsed,
+        }),
+      codesToReturn: [
+        '770010201',
+        '770010202',
+        '770010203',
+        '770010204',
+        '770010205',
+        '770010206',
+        '770010207',
+        '770010208',
+        '770010209',
+        '770010210',
+        '770010211',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700111: {
+      // ENG 1 SHUT DOWN (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
+      flightPhaseInhib: [],
+      simVarIsActive: this.engine1ShutDown,
+      whichCodeToReturn: () =>
+        engineShutDownLines({
+          engineNumber: 1,
+          wingAntiIceOn: !!this.wingAntiIce.get(),
+          elecEmerConfig: !!this.elecEmergency.get(),
+          firePbPushed: !!this.fireButton1.get(),
+          pack1On: !!this.pack1On.get(),
+          pack2On: !!this.pack2On.get(),
+          crossBleedSelector: this.crossBleedSelector,
+          engModeSelIgn: this.engSelectorPosition.get() === 2,
+          tcasModeTa: this.tcasControlPanelPosition.get() === 1,
+        }),
+      codesToReturn: [
+        '770011101',
+        '770011102',
+        '770011103',
+        '770011104',
+        '770011105',
+        '770011106',
+        '770011107',
+        '770011108',
+        '770011109',
+        '770011110',
+        '770011111',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get()).inopSys,
+      statusInfo: () => engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get()).left,
+    },
+    7700112: {
+      // ENG 2 SHUT DOWN (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
+      flightPhaseInhib: [],
+      simVarIsActive: this.engine2ShutDown,
+      whichCodeToReturn: () =>
+        engineShutDownLines({
+          engineNumber: 2,
+          wingAntiIceOn: !!this.wingAntiIce.get(),
+          elecEmerConfig: !!this.elecEmergency.get(),
+          firePbPushed: !!this.fireButton2.get(),
+          pack1On: !!this.pack1On.get(),
+          pack2On: !!this.pack2On.get(),
+          crossBleedSelector: this.crossBleedSelector,
+          engModeSelIgn: this.engSelectorPosition.get() === 2,
+          tcasModeTa: this.tcasControlPanelPosition.get() === 1,
+        }),
+      codesToReturn: [
+        '770011201',
+        '770011202',
+        '770011203',
+        '770011204',
+        '770011205',
+        '770011206',
+        '770011207',
+        '770011208',
+        '770011209',
+        '770011210',
+        '770011211',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).inopSys,
+      statusInfo: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).left,
     },
     7700382: {
       // ENG REV SET
@@ -8161,13 +8350,20 @@ export class PseudoFWC {
     '0000360': {
       // LAND ASAP AMBER
       flightPhaseInhib: [],
+      // also with ENG 1(2) FAIL and ENG 1(2) SHUT DOWN: "LAND ASAP" (FCOM PRO-ABN-ENG, l.79797 and l.81087)
       simVarIsActive: MappedSubject.create(
-        ([landAsapRed, aircraftOnGround, engine1State, engine2State]) =>
-          !landAsapRed && !aircraftOnGround && (engine1State === 0 || engine2State === 0),
+        ([landAsapRed, aircraftOnGround, engine1State, engine2State, eng1Fail, eng2Fail, eng1ShutDown, eng2ShutDown]) =>
+          !landAsapRed &&
+          !aircraftOnGround &&
+          (engine1State === 0 || engine2State === 0 || eng1Fail || eng2Fail || eng1ShutDown || eng2ShutDown),
         this.landAsapRed,
         this.aircraftOnGround,
         this.engine1State,
         this.engine2State,
+        this.engine1Fail,
+        this.engine2Fail,
+        this.engine1ShutDown,
+        this.engine2ShutDown,
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000036001'],

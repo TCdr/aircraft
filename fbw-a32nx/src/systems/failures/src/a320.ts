@@ -159,6 +159,10 @@ export const A320Failure = Object.freeze({
   Egpwc: 34030,
   Transponder1: 34050,
   Transponder2: 34051,
+  Eng1Flameout: 72000,
+  Eng2Flameout: 72001,
+  Eng1Seizure: 72010,
+  Eng2Seizure: 72011,
 });
 
 export const A320FailureDefinitions: FailureDefinition[] = [
@@ -308,4 +312,11 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Egpwc, 'EGPWC'],
   [34, A320Failure.Transponder1, 'ATC/XPDR 1'],
   [34, A320Failure.Transponder2, 'ATC/XPDR 2'],
+
+  // The flame goes out once (fuel cut); the crew relights it with ENG MASTER OFF then ON inside the relight envelope
+  [72, A320Failure.Eng1Flameout, 'Engine 1 flameout (crew relight possible)'],
+  [72, A320Failure.Eng2Flameout, 'Engine 2 flameout (crew relight possible)'],
+  // The core stops; no relight while the failure is active
+  [72, A320Failure.Eng1Seizure, 'Engine 1 seizure (no relight)'],
+  [72, A320Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
 ];
