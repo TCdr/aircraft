@@ -62,6 +62,8 @@ class EngineControl_A32NX {
   double prevEngineMasterPos[2]    = {0, 0};
   bool   prevEngineStarterState[2] = {false, false};
   double prevSimEngineN2[2]        = {0, 0};
+  // the FADEC set the MSFS ignition switch to IGN for an in-flight relight and must give it back to the ENG MODE selector
+  bool relightIgnitionSet[2] = {false, false};
 
   // Engine oil state
   double thermalEnergy[2] = {0.0, 0.0};
@@ -77,6 +79,11 @@ class EngineControl_A32NX {
   static constexpr double FUEL_RATE_THRESHOLD = 661;  // lbs/sec for determining fuel ui tampering
   static constexpr int    MAX_OIL_TEMP        = 85;   // degree Celsius
   static constexpr double FORCE_LB_TO_N       = 4.4482216153;
+
+  // Seizure failure: the core stops in about 3 s (design choice, the FCOM gives no rate): N2 decays at 2 /s from the
+  // failure and is 0 below 0.5 %.
+  static constexpr double SEIZED_CORE_DECAY_RATE = 2.0;  // 1/s
+  static constexpr double SEIZED_CORE_STOPPED_N2 = 0.5;  // percent
 
   /**
    * @enum EngineState
@@ -222,6 +229,7 @@ class EngineControl_A32NX {
    * @param simN2 The current N2 value from the simulator.
    * @param idleN2 The idle N2 value.
    * @param ambientTemperature The current ambient temperature.
+   * @param simOnGround Whether the aircraft is on the ground.
    * @return The current state of the engine as an enum of type EngineState.
    * @see EngineState
    */
@@ -233,7 +241,8 @@ class EngineControl_A32NX {
                                                       bool   engineMasterTurnedOff,
                                                       double simN2,
                                                       double idleN2,
-                                                      double ambientTemperature);
+                                                      double ambientTemperature,
+                                                      bool   simOnGround);
 
   /**
    * @brief This function manages the engine start procedure.
@@ -267,8 +276,28 @@ class EngineControl_A32NX {
    * @param simN1 The current N1 value from the simulator.
    * @param deltaTime The time difference since the last update. This is used to calculate the rate of change of various parameters.
    * @param engineTimer A timer used to calculate the elapsed time for various operations.
+   * @param engineSeized The core is seized (seizure failure): N2 stops in about 3 s.
+   * @param simOnGround Whether the aircraft is on the ground: in flight the engine windmills.
+   * @param windmillN1 The N1 of the engine windmilling without combustion, in percent (systems WASM).
+   * @param windmillN2 The N2 of the engine windmilling without combustion, in percent (systems WASM).
    */
-  void engineShutdownProcedure(int engine, double ambientTemperature, double simN1, double deltaTime, double engineTimer);
+  void engineShutdownProcedure(int    engine,
+                               double ambientTemperature,
+                               double simN1,
+                               double deltaTime,
+                               double engineTimer,
+                               bool   engineSeized,
+                               bool   simOnGround,
+                               double windmillN1,
+                               double windmillN2);
+
+  /**
+   * @brief Updates the oil pressure of an engine that is shutting down, windmilling or seized: it follows N2 down.
+   *
+   * @param engine The engine number (1 or 2).
+   * @param imbalance The current encoded imbalance number of the engine.
+   */
+  void updateShutdownOilPressure(int engine, double imbalance);
 
   /**
    * @brief Updates the fuel flow of the engine.
