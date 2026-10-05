@@ -16,7 +16,7 @@ version the installer delivered on 2026-09-21) from the commits of the local `ma
 The tree and the table below are the CURRENT state (2026-09-23 evening); the dated sections at the end are the log of how it got there.
 
 **User manuals (restructured 2026-10-04):** the manuals now follow the `core/*` branches, not the `pr/NN` branches:
-`manuals/00-index.html` lists one manual per core branch (`manuals/core-<scope>.html` / `.pdf`, 27 manuals: the 25 core branches plus `core/a380x-vd-runways`, created on 2026-10-04, and `core/fcom-audit-fixes`, created on 2026-10-04 evening), with the base of
+`manuals/00-index.html` lists one manual per core branch (`manuals/core-<scope>.html` / `.pdf`, 28 manuals: the 25 core branches plus `core/a380x-vd-runways`, created on 2026-10-04, `core/fcom-audit-fixes`, created on 2026-10-04 evening, and `core/rat-ground-stow`, created on 2026-10-05, whose flyPad row is on `core/efb-redesign`), with the base of
 each branch, the merge order of the stacks and the aircraft-large-files companion commits. Each manual has one section per
 feature of its branch, with How to use, How to test (steps with the expected result) and the test status of that feature.
 The content of the 31 per-PR manuals of 2026-09-28 is merged into them (the old `NN-*.html/.pdf` files are removed; the
