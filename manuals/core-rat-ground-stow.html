@@ -1,0 +1,72 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>RAT ground stow - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>RAT ground stow</h1>
+<div class="subtitle">The ram air turbine (RAT) of both aircraft can be stowed again after the landing, on the ground only, as the FCOMs describe; a request in flight or while an extension is still commanded is refused</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X</span>
+<b>Where to find it</b><span>The aircraft systems (A32NX hydraulic RAT, A380X electrical RAT); requested from the flyPad Ground &gt; Services page (row on <code>core/efb-redesign</code>)</span>
+<b>Branch</b><span><code>core/rat-ground-stow</code>, based on <code>master</code> (FlyByWire master 255546cb0); independent of the other core branches. It holds the systems part (shared Rust, tests, simvar docs, CHANGELOG line). The flyPad row that sends the request is on <code>core/efb-redesign</code>, because it is a row of the Material 3 Services page: the feature works for the user only when both branches are merged. Without the flyPad row the request can be written as <code>L:A32NX_RAT_STOW_REQUEST</code> with any L:var tool; without this branch the flyPad row shows while the RAT is out but pressing it has no effect.</span>
+<b>Status</b><span>Sim-tested by the user on both aircraft on develop: OK (2026-10-05). Not sim-tested on the master base; Rust tests pass there.</span>
+<b>Pictures</b><span>No pictures: the flyPad row is one line of the Services equipment list; the A380X RAT rig and the A32NX HYD page are stock.</span>
+</div>
+<h2>1. RAT stow on the ground</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Ground &gt; Services, row "RAT stow (maintenance)" &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on develop: OK on both aircraft (2026-10-05). Rust tests in systems (ram_air_turbine_deployment.rs), a320_systems (hydraulic) and a380_systems (electrical); vitest ratStow.spec on <code>core/efb-redesign</code>.</div>
+<h3>What it is for</h3>
+<p>Once the RAT had extended (both AC buses lost, RAT MAN ON, A32NX EMER ELEC PWR MAN ON), nothing stowed it again: it stayed out for the rest of the session, and on the A32NX HYD RAT FAULT stayed on. On the real aircraft the ground crew stows it after the flight.</p>
+<div class="note"><b class="t">Note</b>A320 FCOM DSC-29-10-20 (a320_fcom.txt l.43637-43653): "The RAT deploys automatically if AC BUS 1 and AC BUS 2 are both lost. It can be deployed manually from the overhead panel. It can be stowed only when the aircraft is on the ground."</div>
+<div class="note"><b class="t">Note</b>A380 FCOM DSC-29-10 (a380_fcom.txt l.61250): "The green hydraulic system powers RAT retraction, on ground."</div>
+<p>The systems now accept a maintenance stow request (<code>L:A32NX_RAT_STOW_REQUEST</code>) on the ground, while no extension is commanded. One shared Rust model (<code>ram_air_turbine_deployment.rs</code>) moves the strut of both aircraft, so the A320 and the A380X behave the same.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>RAT stowed</td><td>No RAT row in the Services list.</td></tr><tr><td>RAT out, aircraft on the ground and stopped</td><td>Row "RAT stow (maintenance)", status "RAT extended", button <b>Stow</b>.</td></tr><tr><td>Stow pressed and accepted</td><td>Status "Stowing" for about 3 s; the strut moves in 1 s; the row disappears. A380X: the RAT rig retracts. A32NX: the HYD page RAT indication goes back to stowed.</td></tr><tr><td>RAT out in flight, or on the ground but moving</td><td>Row greyed, status "RAT extended · stow when stopped on the ground".</td></tr><tr><td>Stow pressed while an extension is still commanded (emergency electrical configuration, RAT MAN ON or A32NX EMER ELEC PWR MAN ON held in)</td><td>Refused: the RAT stays out.</td></tr><tr><td>RAT MAN ON (or the automatic extension) after a stow</td><td>The RAT extends again.</td></tr><tr><td>A32NX on the ground with the RAT out</td><td>HYD RAT FAULT, as the FCOM says (PRO-ABN-HYD, a320_fcom.txt l.88843-88851: "The RAT is not fully stowed"); it clears after the stow.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The stow needs no hydraulic pressure.</td><td>Design choice: the FCOMs say only "on the ground" (A320) and that green hydraulics power the retraction on ground (A380); the stow is a ground crew action, so it is not tied to the aircraft hydraulics being pressurised.</td><td>-</td></tr><tr><td>The strut travels in 1 s.</td><td>Design choice: the same speed as the stock extension; no FCOM value.</td><td>-</td></tr><tr><td>No RAT on the A32NX model.</td><td>The A32NX exterior model has no RAT yet: only the HYD page, HYD RAT FAULT and the RAT pump show the stow.</td><td>-</td></tr><tr><td>A request in flight is dropped.</td><td>Each request is evaluated once (written back to 0), so a request in flight does not stow the RAT after the landing.</td><td>Request again on the ground.</td></tr><tr><td>The flyPad row needs the stationary aircraft.</td><td>Design choice of the flyPad (like the other ground services); the systems themselves only need "on the ground".</td><td>Stop the aircraft.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>After a flight with the RAT out, stop on the ground.</li><li>Restore normal electrical power (engines or APU generators, or external power) so that no extension is commanded; on the A32NX the RAT MAN ON and EMER ELEC PWR MAN ON pbs are not pressed.</li><li>flyPad &gt; Ground &gt; Services: press <b>Stow</b> on the row "RAT stow (maintenance)".</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, engines running, parking brake set. Overhead EMER ELEC PWR panel: open the guard and press RAT MAN ON.</td><td>The RAT extends (rig out); the flyPad Services list shows "RAT stow (maintenance)", active.</td></tr><tr><td>2</td><td>With RAT MAN ON released, press Stow on the flyPad.</td><td>"Stowing", the rig retracts in about 1 s and the row disappears. (While RAT MAN ON is held in, the extension is still commanded and the stow is refused.)</td></tr><tr><td>3</td><td>A380X in flight: press RAT MAN ON, then look at the flyPad.</td><td>Row greyed ("stow when stopped on the ground"); a request written in flight is dropped.</td></tr><tr><td>4</td><td>Land with the RAT out, stop, press Stow.</td><td>The RAT stows.</td></tr><tr><td>5</td><td>A32NX on the ground, engines running. HYD panel: RAT MAN ON (or EMER ELEC PWR MAN ON).</td><td>The RAT extends: HYD page RAT out, HYD RAT FAULT (FCOM: the RAT is not fully stowed); flyPad row "RAT stow (maintenance)".</td></tr><tr><td>6</td><td>Press Stow on the flyPad.</td><td>The HYD page RAT goes back to stowed, HYD RAT FAULT clears, the row disappears.</td></tr><tr><td>7</td><td>A32NX: press RAT MAN ON again.</td><td>The RAT extends again.</td></tr></table>
+</body></html>
