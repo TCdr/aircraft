@@ -5843,7 +5843,8 @@ export class FwsAbnormalSensed {
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
+        !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
+        !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
         this.fws.aircraftOnGround.get(),
         this.fws.aircraftOnGround.get(),
         this.fws.aircraftOnGround.get(),
@@ -5866,6 +5867,7 @@ export class FwsAbnormalSensed {
         !this.fws.apuBleedPbOn.get(),
         false,
         this.fws.eng1Agent1Discharged.get(),
+        false,
         false,
         false,
         false,
@@ -5903,7 +5905,8 @@ export class FwsAbnormalSensed {
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
+        !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
+        !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
         this.fws.aircraftOnGround.get(),
         this.fws.aircraftOnGround.get(),
         this.fws.aircraftOnGround.get(),
@@ -5926,6 +5929,7 @@ export class FwsAbnormalSensed {
         !this.fws.apuBleedPbOn.get(),
         false,
         this.fws.eng2Agent1Discharged.get(),
+        false,
         false,
         false,
         false,
@@ -5963,7 +5967,8 @@ export class FwsAbnormalSensed {
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
+        !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
+        !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
         this.fws.aircraftOnGround.get(),
         this.fws.aircraftOnGround.get(),
         this.fws.aircraftOnGround.get(),
@@ -5986,6 +5991,7 @@ export class FwsAbnormalSensed {
         !this.fws.apuBleedPbOn.get(),
         false,
         this.fws.eng3Agent1Discharged.get(),
+        false,
         false,
         false,
         false,
@@ -6023,7 +6029,8 @@ export class FwsAbnormalSensed {
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
+        !this.fws.aircraftOnGround.get() && !this.fws.engineRelightProcApply.get(),
+        !this.fws.aircraftOnGround.get() && this.fws.engineRelightProcApply.get(),
         this.fws.aircraftOnGround.get(),
         this.fws.aircraftOnGround.get(),
         this.fws.aircraftOnGround.get(),
@@ -6046,6 +6053,7 @@ export class FwsAbnormalSensed {
         !this.fws.apuBleedPbOn.get(),
         false,
         this.fws.eng4Agent1Discharged.get(),
+        false,
         false,
         false,
         false,
@@ -6180,7 +6188,7 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
     },
     701800151: {
-      // ALL ENGINES FAILURE
+      // ALL ENG FLAME OUT
       simVarIsActive: this.fws.allEnginesFailure,
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 10, 11, 12],
       notActiveWhenItemActive: [],
@@ -6338,6 +6346,52 @@ export class FwsAbnormalSensed {
       ],
       sysPage: SdPages.Eng,
       failure: 3,
+    },
+    701800159: {
+      // ENG TWO ENGS OUT ON SAME SIDE (A380 FCOM l.175216-175470). Phases 5 and 6 inhibited (PDF p.5862).
+      flightPhaseInhib: this.fws.phase56Inhibition,
+      simVarIsActive: this.fws.twoEnginesOutSameSide,
+      notActiveWhenItemActive: [],
+      // l.175265-175271: PACK 1(2) OFF depending on the failed engines (EngineFailAlerts.sameSideLines), LDG PERF
+      // AFFECTED, if ENG 1+2 failed: FOR TAXI : STEER ENDURANCE LIMITED
+      whichItemsToShow: () => [
+        this.fws.twoEnginesOutLeftSide.get(),
+        this.fws.twoEnginesOutRightSide.get(),
+        true,
+        this.fws.twoEnginesOutLeftSide.get(),
+      ],
+      whichItemsChecked: () => [!this.fws.pack1On.get(), !this.fws.pack2On.get(), false, false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+      // STATUS l.175436-175454; GEN, G(Y) HYD SYS, ENG BLEED and REVERSER come from FwsInopSys, BTV too
+      inopSysApprLdg: () =>
+        this.fws.twoEnginesOutLeftSide.get()
+          ? ['290100003', '290100006', '320300020', '220300027', '220300010']
+          : ['290100004', '320300014', '220300027', '220300010'],
+      info: () => (this.fws.twoEnginesOutRightSide.get() ? ['800200003'] : []),
+      // LIMITATIONS l.175317-175327: FOR LDG : FLAP LVR 3, FLAPS SLOW, LDG PERF AFFECTED; if ENG 1+2 failed: SLATS SLOW,
+      // L/G GRVTY EXTN ONLY, STEER ENDUR LIMITED. LAND ANSA comes from the recommendation of the procedure.
+      limitationsApprLdg: () =>
+        this.fws.twoEnginesOutLeftSide.get()
+          ? ['270400001', '290400001', '290400002', '320400002', '800400003', '320400003']
+          : ['270400001', '290400002', '800400003'],
+    },
+    701800160: {
+      // ENG TWO ENGS OUT ON OPPOSITE SIDE (A380 FCOM l.175471-175633). Phases 5 and 6 inhibited (PDF p.5868).
+      // The "Depending on the failed engines: PACK 1(2) OFF" line (l.175518-175519) is not shown: the FCOM does not say
+      // which pack goes with which pair of engines on opposite sides.
+      flightPhaseInhib: this.fws.phase56Inhibition,
+      simVarIsActive: this.fws.twoEnginesOutOppositeSide,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+      // STATUS l.175614-175632: BTV (FwsInopSys), CAT 3; INFO CAT 2 ONLY
+      inopSysApprLdg: () => ['220300029'],
+      info: () => ['220200017'],
+      // LIMITATIONS l.175549-175551: FOR LDG : FLAP LVR 3, LDG PERF AFFECTED
+      limitationsApprLdg: () => ['270400001', '800400003'],
     },
     701800158: {
       // ENGINE THRUST LOCKED

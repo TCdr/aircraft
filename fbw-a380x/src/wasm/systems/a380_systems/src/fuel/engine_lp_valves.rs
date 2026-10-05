@@ -76,6 +76,12 @@ impl A380EngineLpFuelValves {
             valve.update(context, engine_fire_push_buttons);
         }
     }
+
+    /// The LP valve of the engine (1 to 4) is closed and the fuel between it and the engine is
+    /// burned.
+    pub(super) fn engine_is_starved(&self, engine_number: usize) -> bool {
+        self.valves[engine_number - 1].engine_is_starved()
+    }
 }
 impl SimulationElement for A380EngineLpFuelValves {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
