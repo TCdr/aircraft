@@ -103,7 +103,8 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
   const [pressureAboveHigh, setPressureAboveHigh] = useState(false);
   const [pressureBelowLow, setPressureBelowLow] = useState(false);
   const [shouldPressurePulse, setShouldPressurePulse] = useState(false);
-  const [n2Percent] = useSimVar(`ENG N2 RPM:${engineNumber}`, 'percent', 50);
+  // The N2 the FADEC shows (EWD): a seized core is at 0 while the MSFS engine still windmills
+  const [n2Percent] = useSimVar(`L:A32NX_ENGINE_N2:${engineNumber}`, 'number', 50);
   const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engineNumber}`, 'number');
 
   const engineRunning = engineState > 0;
@@ -264,7 +265,8 @@ const QuantityGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
 
 const ValveGroup = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) => {
   const [isValveOpen] = useSimVar(`L:A32NX_PNEU_ENG_${engineNumber}_STARTER_VALVE_OPEN`, 'bool', 250);
-  const [n2Percent] = useSimVar(`ENG N2 RPM:${engineNumber}`, 'percent', 50);
+  // The N2 the FADEC shows (EWD): a seized core is at 0 while the MSFS engine still windmills
+  const [n2Percent] = useSimVar(`L:A32NX_ENGINE_N2:${engineNumber}`, 'number', 50);
   const [engSelectorPosition] = useSimVar('L:XMLVAR_ENG_MODE_SEL', 'Enum');
   const [igniterAactive] = useSimVar(`L:A32NX_FADEC_IGNITER_A_ACTIVE_ENG${engineNumber}`, 'bool', 300);
   const [igniterBactive] = useSimVar(`L:A32NX_FADEC_IGNITER_B_ACTIVE_ENG${engineNumber}`, 'bool', 300);

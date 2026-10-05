@@ -4077,7 +4077,49 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2)
+  - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Cuts the engine fuel (A32NX_ENGINE_{number}_FUEL_CUT)
+
+- A32NX_ENGINE_{number}_FUEL_CUT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED), a flameout or seizure failure (flyPad failures 72000/72001 and 72010/72011), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2); the FADEC handles the engine as one without fuel. Written by the systems WASM (a320_systems engine_failure.rs)
+
+- A32NX_ENGINE_{number}_FLAMED_OUT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine has no flame and its fuel stays cut until a relight lights it up: set by the flameout failure (latched), the seizure failure, or the ENG MASTER ON of an engine not running in flight; cleared when a relight attempt (ENG MASTER OFF then ON) lights up inside the relight envelope. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_SEIZED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the seizure failure of the engine is active: its core (N2) stops and no relight lights up. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_WINDMILL_N1
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+  - N1 of the engine windmilling without combustion at the current airspeed, 0 on the ground. The FADEC keeps a shut down engine at or above it in flight. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_RELIGHT_IGNITION
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True in flight while a relight is lighting up (fuel no longer cut, ENG MASTER ON, engine not running yet): the igniters are supplied whatever the ENG MODE selector position (FCOM DSC-70-80-30). The FADEC sets the MSFS ignition switch of that engine to IGN meanwhile and gives it back to the selector afterwards. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_WINDMILL_N2
+  - Number (% N2)
+  - {number}
+    - 1
+    - 2
+  - N2 of the engine windmilling without combustion at the current airspeed (8.5 % at 260 kt), 0 on the ground. The FADEC keeps a shut down (not seized) engine at or above it in flight. Written by the systems WASM
 
 - A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_CLOSED
   - Bool
