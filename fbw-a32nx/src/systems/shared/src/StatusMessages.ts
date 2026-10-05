@@ -8,6 +8,8 @@
  */
 export enum StatusPart {
   Limitation,
+  /** A condition of the next limitation or procedure lines (white), e.g. "IF SEVERE ICE ACCRETION:" */
+  Condition,
   Information,
   InopSys,
 }
@@ -20,12 +22,26 @@ export enum StatusPart {
 const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // 21 AIR CONDITIONING (FCOM PRO-ABN-AIR, PRO-ABN-COND)
   ['210400001', { part: StatusPart.Limitation, text: 'MAX FL.....100/MEA-MORA' }],
+  // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, a320_fcom.txt l.81168-81264), in the order of the FCOM
+  ['700400001', { part: StatusPart.Limitation, text: 'AVOID ICING CONDITIONS' }],
+  ['700500001', { part: StatusPart.Condition, text: 'IF SEVERE ICE ACCRETION:' }],
+  ['700400002', { part: StatusPart.Limitation, text: 'MIN SPD....VLS+10/G DOT' }],
+  ['700400003', { part: StatusPart.Limitation, text: 'MANEUVER WITH CARE' }],
+  ['700400004', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  ['700500002', { part: StatusPart.Condition, text: 'IF PERF PERMITS:' }],
+  ['700400005', { part: StatusPart.Limitation, text: 'X BLEED...........OPEN' }],
+  ['700500003', { part: StatusPart.Condition, text: 'IF NO ENG 1 DAMAGE:' }],
+  ['700400006', { part: StatusPart.Limitation, text: 'CONSIDER ENG 1 RELIGHT' }],
+  ['700500004', { part: StatusPart.Condition, text: 'IF NO ENG 2 DAMAGE:' }],
+  ['700400007', { part: StatusPart.Limitation, text: 'CONSIDER ENG 2 RELIGHT' }],
   ['210200001', { part: StatusPart.Information, text: 'CKPT AT FIXED TEMP' }],
   ['210200002', { part: StatusPart.Information, text: 'CAB AT FIXED TEMP' }],
   ['210200003', { part: StatusPart.Information, text: 'CAB TEMP BY PACK ONLY' }],
   ['210200004', { part: StatusPart.Information, text: 'CAB TEMP CKPT CTL ONLY' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
+  // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, l.81263)
+  ['700200001', { part: StatusPart.Information, text: 'ONE PACK ONLY IF WAI ON' }],
   // 34 NAVIGATION
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
@@ -33,6 +49,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
+  // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
+  ['360300001', { part: StatusPart.InopSys, text: 'ENG 1 BLEED' }],
+  ['360300002', { part: StatusPart.InopSys, text: 'ENG 2 BLEED' }],
   // 21 AIR CONDITIONING
   ['210300001', { part: StatusPart.InopSys, text: 'PACK 1' }],
   ['210300002', { part: StatusPart.InopSys, text: 'PACK 2' }],
@@ -46,6 +65,13 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210300010', { part: StatusPart.InopSys, text: 'HOT AIR' }],
   ['210300011', { part: StatusPart.InopSys, text: 'L+R CAB FAN' }],
   ['210300012', { part: StatusPart.InopSys, text: 'GALLEY FAN' }],
+  // ENG 1(2) SHUT DOWN INOP SYS (FCOM PRO-ABN-ENG, l.81170-81181), in its order with 22 CAT 3 DUAL and 21 PACK 1(2)
+  ['240300001', { part: StatusPart.InopSys, text: 'MAIN GALLEY' }],
+  ['240300002', { part: StatusPart.InopSys, text: 'GEN 1' }],
+  ['240300003', { part: StatusPart.InopSys, text: 'GEN 2' }],
+  ['290300001', { part: StatusPart.InopSys, text: 'G ENG 1 PUMP' }],
+  ['290300002', { part: StatusPart.InopSys, text: 'Y ENG 2 PUMP' }],
+  ['300300001', { part: StatusPart.InopSys, text: 'WING A. ICE' }],
   // 31 INDICATING/RECORDING (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['310300001', { part: StatusPart.InopSys, text: 'FWC 1' }],
   ['310300002', { part: StatusPart.InopSys, text: 'FWC 2' }],
@@ -97,6 +123,7 @@ export function orderStatusCodes(codes: readonly string[]): string[] {
 /** The colour of the lines of each part, as FWC text control codes */
 const PART_COLOURS: Record<StatusPart, string> = {
   [StatusPart.Limitation]: '\x1b<5m',
+  [StatusPart.Condition]: '\x1b<7m',
   [StatusPart.Information]: '\x1b<3m',
   [StatusPart.InopSys]: '\x1b<4m',
 };

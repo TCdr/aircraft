@@ -94,13 +94,14 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 7)?
     .with_engine_anti_ice(2)?
     .with_wing_anti_ice()?
-    // The engine starves once its LP fuel valve is closed and the fuel left downstream of it is burned
-    // (FCOM PRO-ABN-ENG, see a320_systems fuel/engine_lp_valve.rs). Fuel valves 13 and 14 of
-    // flight_model.cfg feed the engines in series with their MSFS engine valves 1 and 2: closing them
-    // stops the MSFS combustion exactly when the engine starves.
+    // The engine fuel is cut when the engine starves (its LP fuel valve is closed and the fuel left
+    // downstream of it is burned, FCOM PRO-ABN-ENG, see a320_systems fuel/engine_lp_valve.rs), and
+    // by a flameout or seizure failure until a relight lights it up (a320_systems engine_failure.rs).
+    // Fuel valves 13 and 14 of flight_model.cfg feed the engines in series with their MSFS engine
+    // valves 1 and 2: closing them stops the MSFS combustion exactly when the fuel is cut.
     .with_fuel_valves_closed_while([
-        (Variable::named("FUEL_ENG_1_STARVED"), 13),
-        (Variable::named("FUEL_ENG_2_STARVED"), 14),
+        (Variable::named("ENGINE_1_FUEL_CUT"), 13),
+        (Variable::named("ENGINE_2_FUEL_CUT"), 14),
     ])?
     .with_failures([
         (
@@ -367,6 +368,10 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_021, FailureType::RadioAntennaDirectCoupling(2)),
         (34_040, FailureType::Gps(1)),
         (34_041, FailureType::Gps(2)),
+        (72_000, FailureType::EngineFlameout(1)),
+        (72_001, FailureType::EngineFlameout(2)),
+        (72_010, FailureType::EngineSeizure(1)),
+        (72_011, FailureType::EngineSeizure(2)),
         (
             34_030,
             FailureType::EnhancedGroundProximityWarningSystemComputer,
@@ -446,6 +451,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 1)?
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 2)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 1)?
+    .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 2)?
     .provides_aircraft_variable("UNLIMITED FUEL", "Bool", 0)?
     .provides_aircraft_variable("VELOCITY BODY X", "feet per second", 0)?
     .provides_aircraft_variable("VELOCITY BODY Y", "feet per second", 0)?

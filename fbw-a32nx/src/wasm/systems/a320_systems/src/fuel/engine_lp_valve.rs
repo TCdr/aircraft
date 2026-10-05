@@ -92,6 +92,11 @@ impl EngineLpFuelValve {
         self.valve.update(context, engine_fire_push_buttons);
     }
 
+    /// The LP valve is closed and the fuel between the valve and the nozzles has been burned.
+    pub fn engine_is_starved(&self) -> bool {
+        self.valve.engine_is_starved()
+    }
+
     #[cfg(test)]
     fn fuel_downstream(&self) -> Mass {
         self.valve.fuel_downstream()
