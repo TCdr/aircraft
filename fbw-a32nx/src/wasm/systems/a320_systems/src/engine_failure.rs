@@ -5,17 +5,17 @@
 //! The fuel cut it computes closes the MSFS fuel valves 13/14 (see a320_systems_wasm) and the FADEC
 //! reads it in place of the LP valve starvation.
 //!
-//! Relight envelope: the A320neo chart of [QRH] ENG RELIGHT IN FLIGHT (FCOM 21 JAN 19, PRO-ABN-ENG
-//! P 1/368, PDF page 4761 of "A320 Neo FCOM_1.pdf", applicable to MSN 06720-09063, A320neo with
-//! PW1100G-JM engines). FBW models the LEAP-1A: no LEAP chart is available, so the neo (PW) chart is
-//! used. The values were read off the chart (Zp the pressure altitude, Vc the calibrated airspeed,
-//! used here as the indicated airspeed):
-//! - (1) STARTER ASSISTED RELIGHT: Vc 150 to 260 kt up to 15 000 ft; above, the lowest speed rises
-//!   linearly to 180 kt at 20 000 ft; from 20 000 ft to 28 000 ft, Vc 200 to 280 kt.
-//! - (3) STABILIZED WINDMILL RELIGHT, "N2 > 8.5%": Vc 260 to 350 kt up to 20 000 ft; from 20 000 ft,
-//!   Vc 280 to 350 kt up to 26 000 ft, the ceiling falling linearly from 26 000 ft at 340 kt to
-//!   24 000 ft at 350 kt.
-//! - (2) WINDMILL QUICK RELIGHT, "T < 20 s, N2 > 15%": Vc 230 to 260 kt up to 13 000 ft.
+//! Relight envelope: the LEAP-1A chart of the Air Arabia A320 QRH 18-Aug-21 ABN-19.06A ENG RELIGHT
+//! IN FLIGHT (A6-ATA..ATF, CFM LEAP-1A; page dated 17-Aug-20). FBW models the A320neo with LEAP-1A
+//! engines: this chart replaces the PW1100G-JM chart of the A320neo FCOM (PRO-ABN-ENG P 1/368, PDF
+//! page 4761 of "A320 Neo FCOM_1.pdf") that was used while no LEAP chart was available. The values
+//! were read off the chart grid (Zp the pressure altitude, Vc the calibrated airspeed, used here as
+//! the indicated airspeed):
+//! - (1) STARTER ASSISTED RELIGHT: Vc 135 to 270 kt up to 15 000 ft; from 15 000 ft to 27 000 ft,
+//!   Vc 200 to 270 kt.
+//! - (3) STABILIZED WINDMILL RELIGHT, "N2 > 8%": Vc 270 to 350 kt up to 27 000 ft, the ceiling
+//!   falling linearly from 27 000 ft at 330 kt to 24 000 ft at 350 kt.
+//! - (2) WINDMILL QUICK RELIGHT, "t < 20 s": Vc 230 to 270 kt up to 20 000 ft.
 //!
 //! How each zone lights up the engine (FCOM):
 //! - PDF page 4762 (a320_fcom.txt l.78284 for the CFM56): "If outside the windmilling start
@@ -27,7 +27,10 @@
 //!   of inadvertent engine shutdown by cycling the Engine Master lever to OFF then ON, in the
 //!   windmilling quick relight envelope, the FADEC will attempt automatically a relight regardless of
 //!   the rotary selector position": zone 2, with the master OFF for less than 20 s (design choice:
-//!   T is how long the master stayed OFF) and N2 above 15 %, at any ENG MODE selector position.
+//!   t is how long the master stayed OFF), at any ENG MODE selector position. Design choice, not on
+//!   the LEAP chart: the core must still turn above 15 % N2 (the value of the PW1100G chart), the
+//!   sign of an engine that was running before the master cycle; an engine that has windmilled for
+//!   a while turns at 8 % N2 or less in zone 2 and needs IGN (zone 1 or 3).
 //! - On the ground (FCOM ENG 1(2) FAIL, l.79815: "If no damage, a new start sequence may be
 //!   initiated") a failed engine starts again as a normal start, with starter air.
 
@@ -53,78 +56,64 @@ use crate::fuel::A320Fuel;
 
 pub struct A320RelightEnvelope;
 impl A320RelightEnvelope {
-    /// Zone 1, starter assisted relight
-    const STARTER_ASSISTED_MIN_CAS_KNOTS: f64 = 150.;
-    const STARTER_ASSISTED_MIN_CAS_SLOPE_START_FEET: f64 = 15_000.;
-    const STARTER_ASSISTED_MIN_CAS_AT_20000_FEET_KNOTS: f64 = 180.;
-    const HIGH_REGION_FLOOR_FEET: f64 = 20_000.;
-    const HIGH_STARTER_ASSISTED_MIN_CAS_KNOTS: f64 = 200.;
-    const HIGH_STARTER_ASSISTED_MAX_CAS_KNOTS: f64 = 280.;
-    const STARTER_ASSISTED_CEILING_FEET: f64 = 28_000.;
+    /// Zone 1, starter assisted relight: a low step up to 15 000 ft, a narrower high step above.
+    const STARTER_ASSISTED_LOW_MIN_CAS_KNOTS: f64 = 135.;
+    const STARTER_ASSISTED_LOW_CEILING_FEET: f64 = 15_000.;
+    const STARTER_ASSISTED_HIGH_MIN_CAS_KNOTS: f64 = 200.;
+    const STARTER_ASSISTED_CEILING_FEET: f64 = 27_000.;
+    /// Zone 1 ends where zone 3 begins: from 270 kt the engine windmills fast enough to relight.
+    const STARTER_ASSISTED_MAX_CAS_KNOTS: f64 = 270.;
     /// Zone 3, stabilized windmill relight
-    const WINDMILL_MIN_CAS_KNOTS: f64 = 260.;
-    const HIGH_WINDMILL_MIN_CAS_KNOTS: f64 = 280.;
+    const WINDMILL_MIN_CAS_KNOTS: f64 = 270.;
     const MAX_CAS_KNOTS: f64 = 350.;
-    const WINDMILL_CEILING_FEET: f64 = 26_000.;
-    const WINDMILL_CEILING_SLOPE_START_CAS_KNOTS: f64 = 340.;
+    const WINDMILL_CEILING_FEET: f64 = 27_000.;
+    /// The windmill ceiling falls linearly from 27 000 ft at 330 kt to 24 000 ft at 350 kt.
+    const WINDMILL_CEILING_SLOPE_START_CAS_KNOTS: f64 = 330.;
     const WINDMILL_CEILING_AT_MAX_CAS_FEET: f64 = 24_000.;
-    /// Zone 2, windmill quick relight "T < 20 s, N2 > 15%"
+    /// Zone 2, windmill quick relight "t < 20 s"
     const QUICK_RELIGHT_MIN_CAS_KNOTS: f64 = 230.;
-    const QUICK_RELIGHT_CEILING_FEET: f64 = 13_000.;
+    const QUICK_RELIGHT_MAX_CAS_KNOTS: f64 = 270.;
+    const QUICK_RELIGHT_CEILING_FEET: f64 = 20_000.;
     const QUICK_RELIGHT_MAX_MASTER_OFF: Duration = Duration::from_secs(20);
+    /// Design choice, not on the LEAP chart (see the module comment).
     const QUICK_RELIGHT_MIN_N2_PERCENT: f64 = 15.;
 
-    /// The windmill N2. The chart marks zone 3 "STABILIZED WINDMILL RELIGHT N2 > 8.5%", from 260 kt
-    /// up to 20 000 ft. Design choice: the windmill N2 is proportional to the airspeed and is 8.5 %
-    /// at 260 kt, at any altitude (9.8 % at 300 kt). The CFM56 FCOM gives 12 % at 300 kt (a320_fcom.txt
-    /// l.107842-107843: "above 300 kt (corresponding N2 above 12 %)"): a CFM56 value, not used.
-    const WINDMILL_N2_PERCENT_AT_260_KNOTS: f64 = 8.5;
+    /// The windmill N2. The chart marks zone 3 "STABILIZED WINDMILL RELIGHT N2 > 8%", from 270 kt.
+    /// Design choice: the windmill N2 is proportional to the airspeed and is 8 % at 270 kt, where
+    /// zone 3 begins, at any altitude (8.9 % at 300 kt). The CFM56 FCOM gives 12 % at 300 kt
+    /// (a320_fcom.txt l.107842-107843: "above 300 kt (corresponding N2 above 12 %)"): a CFM56
+    /// value, not used.
+    const WINDMILL_N2_PERCENT_AT_270_KNOTS: f64 = 8.;
+    const WINDMILL_N2_REFERENCE_CAS_KNOTS: f64 = 270.;
     /// Design choice, no FCOM value: the fan windmills at 1.5 times the core speed.
     const WINDMILL_N1_TO_N2_RATIO: f64 = 1.5;
 
     fn is_in_starter_assisted_zone(cas_knots: f64, altitude_feet: f64) -> bool {
-        if altitude_feet <= Self::HIGH_REGION_FLOOR_FEET {
-            let min_cas_knots = if altitude_feet <= Self::STARTER_ASSISTED_MIN_CAS_SLOPE_START_FEET
-            {
-                Self::STARTER_ASSISTED_MIN_CAS_KNOTS
-            } else {
-                Self::STARTER_ASSISTED_MIN_CAS_KNOTS
-                    + (Self::STARTER_ASSISTED_MIN_CAS_AT_20000_FEET_KNOTS
-                        - Self::STARTER_ASSISTED_MIN_CAS_KNOTS)
-                        * (altitude_feet - Self::STARTER_ASSISTED_MIN_CAS_SLOPE_START_FEET)
-                        / (Self::HIGH_REGION_FLOOR_FEET
-                            - Self::STARTER_ASSISTED_MIN_CAS_SLOPE_START_FEET)
-            };
-            (min_cas_knots..Self::WINDMILL_MIN_CAS_KNOTS).contains(&cas_knots)
+        let min_cas_knots = if altitude_feet <= Self::STARTER_ASSISTED_LOW_CEILING_FEET {
+            Self::STARTER_ASSISTED_LOW_MIN_CAS_KNOTS
         } else {
-            altitude_feet <= Self::STARTER_ASSISTED_CEILING_FEET
-                && (Self::HIGH_STARTER_ASSISTED_MIN_CAS_KNOTS
-                    ..=Self::HIGH_STARTER_ASSISTED_MAX_CAS_KNOTS)
-                    .contains(&cas_knots)
-        }
+            Self::STARTER_ASSISTED_HIGH_MIN_CAS_KNOTS
+        };
+        altitude_feet <= Self::STARTER_ASSISTED_CEILING_FEET
+            && (min_cas_knots..=Self::STARTER_ASSISTED_MAX_CAS_KNOTS).contains(&cas_knots)
     }
 
     fn is_in_stabilized_windmill_zone(cas_knots: f64, altitude_feet: f64) -> bool {
-        if cas_knots > Self::MAX_CAS_KNOTS {
-            false
-        } else if altitude_feet <= Self::HIGH_REGION_FLOOR_FEET {
-            cas_knots >= Self::WINDMILL_MIN_CAS_KNOTS
+        let ceiling_feet = if cas_knots <= Self::WINDMILL_CEILING_SLOPE_START_CAS_KNOTS {
+            Self::WINDMILL_CEILING_FEET
         } else {
-            let ceiling_feet = if cas_knots <= Self::WINDMILL_CEILING_SLOPE_START_CAS_KNOTS {
-                Self::WINDMILL_CEILING_FEET
-            } else {
-                Self::WINDMILL_CEILING_FEET
-                    - (Self::WINDMILL_CEILING_FEET - Self::WINDMILL_CEILING_AT_MAX_CAS_FEET)
-                        * (cas_knots - Self::WINDMILL_CEILING_SLOPE_START_CAS_KNOTS)
-                        / (Self::MAX_CAS_KNOTS - Self::WINDMILL_CEILING_SLOPE_START_CAS_KNOTS)
-            };
-            cas_knots > Self::HIGH_WINDMILL_MIN_CAS_KNOTS && altitude_feet <= ceiling_feet
-        }
+            Self::WINDMILL_CEILING_FEET
+                - (Self::WINDMILL_CEILING_FEET - Self::WINDMILL_CEILING_AT_MAX_CAS_FEET)
+                    * (cas_knots - Self::WINDMILL_CEILING_SLOPE_START_CAS_KNOTS)
+                    / (Self::MAX_CAS_KNOTS - Self::WINDMILL_CEILING_SLOPE_START_CAS_KNOTS)
+        };
+        (Self::WINDMILL_MIN_CAS_KNOTS..=Self::MAX_CAS_KNOTS).contains(&cas_knots)
+            && altitude_feet <= ceiling_feet
     }
 
     fn is_in_quick_relight_zone(cas_knots: f64, altitude_feet: f64) -> bool {
         altitude_feet <= Self::QUICK_RELIGHT_CEILING_FEET
-            && (Self::QUICK_RELIGHT_MIN_CAS_KNOTS..Self::WINDMILL_MIN_CAS_KNOTS)
+            && (Self::QUICK_RELIGHT_MIN_CAS_KNOTS..=Self::QUICK_RELIGHT_MAX_CAS_KNOTS)
                 .contains(&cas_knots)
     }
 }
@@ -156,8 +145,8 @@ impl EngineRelightEnvelope for A320RelightEnvelope {
 
     fn windmill_n2(&self, indicated_airspeed: Velocity, _: Length) -> Ratio {
         Ratio::new::<percent>(
-            Self::WINDMILL_N2_PERCENT_AT_260_KNOTS * indicated_airspeed.get::<knot>().max(0.)
-                / Self::WINDMILL_MIN_CAS_KNOTS,
+            Self::WINDMILL_N2_PERCENT_AT_270_KNOTS * indicated_airspeed.get::<knot>().max(0.)
+                / Self::WINDMILL_N2_REFERENCE_CAS_KNOTS,
         )
     }
 }
@@ -299,44 +288,56 @@ mod tests {
 
     #[test]
     fn stabilized_windmill_relight_in_zone_3() {
-        assert!(lights_up(conditions(260., 0.)));
+        // from 270 kt to 350 kt, at any altitude up to 27 000 ft
+        assert!(lights_up(conditions(270., 0.)));
         assert!(lights_up(conditions(300., 20_000.)));
-        assert!(lights_up(conditions(285., 26_000.)));
+        assert!(lights_up(conditions(275., 22_000.)));
+        assert!(lights_up(conditions(275., 26_500.)));
+        assert!(lights_up(conditions(300., 27_000.)));
+        // the ceiling stays at 27 000 ft up to 330 kt, then falls to 24 000 ft at 350 kt
+        assert!(lights_up(conditions(330., 27_000.)));
+        assert!(lights_up(conditions(340., 25_500.)));
         assert!(lights_up(conditions(350., 24_000.)));
     }
 
     #[test]
     fn no_windmill_relight_outside_zone_3() {
+        // below 270 kt
         assert!(!lights_up(conditions(255., 10_000.)));
-        // from 20 000 ft the zone starts above 280 kt
-        assert!(!lights_up(conditions(275., 22_000.)));
-        // above the ceiling: 26 000 ft, falling from 340 kt to 24 000 ft at 350 kt
-        assert!(!lights_up(conditions(300., 27_000.)));
-        assert!(!lights_up(conditions(350., 25_000.)));
-        assert!(lights_up(conditions(345., 24_900.)));
+        assert!(!lights_up(conditions(265., 10_000.)));
+        // above the ceiling: 27 000 ft, falling from 330 kt to 24 000 ft at 350 kt
+        assert!(!lights_up(conditions(300., 27_500.)));
+        assert!(!lights_up(conditions(340., 26_000.)));
+        assert!(!lights_up(conditions(345., 25_000.)));
+        assert!(lights_up(conditions(345., 24_700.)));
+        assert!(!lights_up(conditions(350., 24_500.)));
         // above 350 kt, and at cruise
         assert!(!lights_up(conditions(360., 10_000.)));
-        assert!(!lights_up(conditions(270., 35_000.)));
+        assert!(!lights_up(conditions(280., 35_000.)));
     }
 
     #[test]
     fn starter_assisted_relight_in_zone_1_with_starter_air() {
-        assert!(with_starter_air_lights_up(150., 5_000.));
-        assert!(with_starter_air_lights_up(250., 15_000.));
-        // the lowest speed rises from 150 kt at 15 000 ft to 180 kt at 20 000 ft
-        assert!(with_starter_air_lights_up(170., 18_000.));
-        assert!(!with_starter_air_lights_up(160., 18_000.));
-        // 200 to 280 kt from 20 000 ft to 28 000 ft
-        assert!(with_starter_air_lights_up(200., 27_500.));
-        assert!(with_starter_air_lights_up(280., 21_000.));
+        // 135 to 270 kt up to 15 000 ft
+        assert!(with_starter_air_lights_up(135., 5_000.));
+        assert!(with_starter_air_lights_up(140., 10_000.));
+        assert!(with_starter_air_lights_up(140., 15_000.));
+        assert!(with_starter_air_lights_up(265., 10_000.));
+        // 200 to 270 kt from 15 000 ft to 27 000 ft
+        assert!(with_starter_air_lights_up(200., 18_000.));
+        assert!(with_starter_air_lights_up(200., 27_000.));
+        assert!(with_starter_air_lights_up(265., 26_500.));
+        // starter air is needed
         assert!(!lights_up(conditions(210., 10_000.)));
     }
 
     #[test]
     fn no_starter_assisted_relight_outside_zone_1() {
-        assert!(!with_starter_air_lights_up(145., 5_000.));
-        assert!(!with_starter_air_lights_up(190., 22_000.));
-        assert!(!with_starter_air_lights_up(250., 29_000.));
+        assert!(!with_starter_air_lights_up(130., 5_000.));
+        assert!(!with_starter_air_lights_up(190., 18_000.));
+        assert!(!with_starter_air_lights_up(195., 22_000.));
+        assert!(!with_starter_air_lights_up(250., 27_500.));
+        assert!(!with_starter_air_lights_up(265., 28_000.));
     }
 
     #[test]
@@ -347,6 +348,14 @@ mod tests {
         quick.master_off_duration = Duration::from_secs(5);
         assert!(lights_up(quick));
 
+        // 230 to 270 kt up to 20 000 ft
+        let mut fast_and_high = quick;
+        fast_and_high.indicated_airspeed = Velocity::new::<knot>(265.);
+        fast_and_high.pressure_altitude = Length::new::<foot>(18_000.);
+        assert!(lights_up(fast_and_high));
+        fast_and_high.pressure_altitude = Length::new::<foot>(20_000.);
+        assert!(lights_up(fast_and_high));
+
         let mut slow_cycle = quick;
         slow_cycle.master_off_duration = Duration::from_secs(25);
         assert!(!lights_up(slow_cycle));
@@ -355,13 +364,17 @@ mod tests {
         low_n2.core_speed = Ratio::new::<percent>(14.);
         assert!(!lights_up(low_n2));
 
-        // below 230 kt and above 13 000 ft there is no quick relight
+        // below 230 kt and above 20 000 ft there is no quick relight
         let mut slow = quick;
-        slow.indicated_airspeed = Velocity::new::<knot>(220.);
+        slow.indicated_airspeed = Velocity::new::<knot>(225.);
         assert!(!lights_up(slow));
         let mut high = quick;
-        high.pressure_altitude = Length::new::<foot>(14_000.);
+        high.pressure_altitude = Length::new::<foot>(21_000.);
         assert!(!lights_up(high));
+        // from 270 kt it is the stabilized windmill zone, which needs IGN
+        let mut windmill_zone = quick;
+        windmill_zone.indicated_airspeed = Velocity::new::<knot>(275.);
+        assert!(!lights_up(windmill_zone));
     }
 
     #[test]
@@ -474,6 +487,43 @@ mod tests {
         }
 
         #[test]
+        fn engine_1_relights_by_windmilling_at_275_knots_and_26_500_feet() {
+            let mut test_bed = flying_test_bed();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(275.));
+            test_bed.set_pressure_altitude(Length::new::<foot>(26_500.));
+            test_bed.fail(FailureType::EngineFlameout(1));
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 9.);
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+            run(&mut test_bed);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+            run(&mut test_bed);
+
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn a_master_cycled_off_then_on_quickly_relights_at_265_knots_and_15_000_feet_at_norm() {
+            let mut test_bed = flying_test_bed();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(265.));
+            test_bed.set_pressure_altitude(Length::new::<foot>(15_000.));
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 1.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 40.);
+            for _ in 0..100 {
+                run(&mut test_bed);
+            }
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+            run(&mut test_bed);
+
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
         fn a_starter_assisted_relight_reads_the_starter_air_of_its_engine() {
             let mut test_bed = flying_test_bed();
             test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
@@ -516,18 +566,18 @@ mod tests {
     }
 
     #[test]
-    fn the_windmill_n2_is_8_5_percent_at_260_knots() {
-        // the chart: zone 3 from 260 kt, "STABILIZED WINDMILL RELIGHT N2 > 8.5%"
-        assert!((windmill_n2_percent(260., 10_000.) - 8.5).abs() < 1e-9);
+    fn the_windmill_n2_is_8_percent_at_270_knots() {
+        // the chart: zone 3 from 270 kt, "STABILIZED WINDMILL RELIGHT N2 > 8%"
+        assert!((windmill_n2_percent(270., 10_000.) - 8.).abs() < 1e-9);
         // proportional to the airspeed, at any altitude
-        assert!((windmill_n2_percent(130., 0.) - 4.25).abs() < 1e-9);
+        assert!((windmill_n2_percent(135., 0.) - 4.).abs() < 1e-9);
         assert!((windmill_n2_percent(300., 35_000.) - windmill_n2_percent(300., 0.)).abs() < 1e-9);
     }
 
     #[test]
     fn the_windmill_n1_is_one_and_a_half_times_the_windmill_n2() {
         let n1 =
-            A320RelightEnvelope.windmill_n1(Velocity::new::<knot>(260.), Length::new::<foot>(0.));
-        assert!((n1.get::<percent>() - 12.75).abs() < 1e-9);
+            A320RelightEnvelope.windmill_n1(Velocity::new::<knot>(270.), Length::new::<foot>(0.));
+        assert!((n1.get::<percent>() - 12.).abs() < 1e-9);
     }
 }
