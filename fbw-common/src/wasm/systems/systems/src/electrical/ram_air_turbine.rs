@@ -1,13 +1,10 @@
 use crate::{
     shared::{
-        interpolation, AngularSpeedSensor, EmergencyElectricalRatPushButton,
-        EmergencyElectricalState, EmergencyGeneratorControlUnit, EmergencyGeneratorPower,
-        LgciuWeightOnWheels, RamAirTurbineController,
+        interpolation, ram_air_turbine_deployment::RamAirTurbineDeployment, AngularSpeedSensor,
+        EmergencyElectricalRatPushButton, EmergencyElectricalState, EmergencyGeneratorControlUnit,
+        EmergencyGeneratorPower, LgciuWeightOnWheels, RamAirTurbineController,
     },
-    simulation::{
-        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
-        VariableIdentifier, Write,
-    },
+    simulation::{InitContext, SimulationElement, SimulationElementVisitor, UpdateContext},
     wind_turbine::WindTurbine,
 };
 
@@ -21,17 +18,11 @@ use uom::si::{
 };
 
 pub struct RamAirTurbine {
-    stow_position_id: VariableIdentifier,
-
-    deployment_commanded: bool,
+    deployment: RamAirTurbineDeployment,
 
     wind_turbine: WindTurbine,
-    stow_position: f64,
 }
 impl RamAirTurbine {
-    // Speed to go from 0 to 1 stow position per sec. 1 means full deploying in 1s
-    const STOWING_SPEED: f64 = 1.;
-
     // Factor used to compute resistant torque. 1.1 means resistant torque is 10% higher than elec power we generate
     //  thus a 90% efficiency
     const GENERATOR_EFFICIENCY_PENALTY: f64 = 1.1;
@@ -51,9 +42,7 @@ impl RamAirTurbine {
 
     pub fn new(context: &mut InitContext) -> Self {
         Self {
-            stow_position_id: context.get_identifier("RAT_STOW_POSITION".to_owned()),
-
-            deployment_commanded: false,
+            deployment: RamAirTurbineDeployment::new(context),
 
             wind_turbine: WindTurbine::new(
                 context,
@@ -64,7 +53,6 @@ impl RamAirTurbine {
                 Self::BEST_EFFICIENCY_TIP_SPEED_RATIO,
                 Self::PROPELLER_INERTIA,
             ),
-            stow_position: 0.,
         }
     }
 
@@ -74,10 +62,9 @@ impl RamAirTurbine {
         controller: &impl RamAirTurbineController,
         generator_power: &impl EmergencyGeneratorPower,
     ) {
-        // Once commanded, stays commanded forever
-        self.deployment_commanded = controller.should_deploy() || self.deployment_commanded;
-
-        self.update_position(context);
+        // Extension command, or maintenance stow on the ground
+        self.deployment.update(context, controller);
+        self.deployment.update_position(context.delta());
 
         self.update_physics(context, generator_power);
     }
@@ -90,17 +77,9 @@ impl RamAirTurbine {
         let resistant_torque = self.resistant_torque(generator_power);
         self.wind_turbine.update(
             context,
-            Ratio::new::<ratio>(self.stow_position),
+            Ratio::new::<ratio>(self.deployment.position()),
             resistant_torque,
         );
-    }
-
-    fn update_position(&mut self, context: &UpdateContext) {
-        if self.deployment_commanded {
-            self.stow_position += context.delta_as_secs_f64() * Self::STOWING_SPEED;
-
-            self.stow_position = self.stow_position.clamp(0., 1.);
-        }
     }
 
     fn resistant_torque(&mut self, generator_power: &impl EmergencyGeneratorPower) -> Torque {
@@ -117,13 +96,10 @@ impl RamAirTurbine {
 }
 impl SimulationElement for RamAirTurbine {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.deployment.accept(visitor);
         self.wind_turbine.accept(visitor);
 
         visitor.visit(self);
-    }
-
-    fn write(&self, writer: &mut SimulatorWriter) {
-        writer.write(&self.stow_position_id, self.stow_position);
     }
 }
 impl AngularSpeedSensor for RamAirTurbine {
