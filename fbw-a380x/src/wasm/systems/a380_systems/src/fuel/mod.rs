@@ -174,6 +174,11 @@ impl A380Fuel {
             .update(context, engine_fire_push_buttons);
     }
 
+    /// The LP fuel valve of the engine is closed and the fuel downstream of it is burned.
+    pub(crate) fn engine_is_starved(&self, engine_number: usize) -> bool {
+        self.engine_lp_valves.engine_is_starved(engine_number)
+    }
+
     pub(crate) fn feed_four_tank_has_fuel(&self) -> bool {
         self.fuel_system.tank_has_fuel(A380FuelTankType::FeedFour)
     }

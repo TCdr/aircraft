@@ -96,6 +96,16 @@ import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
 import {
+  EngineFailMonitor,
+  EnginesOut,
+  FadecEngineState,
+  relightProcMustBeApplied,
+  shutDownBtvInop,
+  shutDownCat3SingleOnly,
+  TwoEnginesOut,
+  twoEnginesOut,
+} from './EngineFailAlerts';
+import {
   FeedTankLevelLoMonitor,
   feedTankPumpAlerts,
   readCrossFeedPbSelections,
@@ -130,7 +140,8 @@ enum engineState {
   OFF = 0,
   ON = 1,
   STARTING = 2,
-  SHUTTING = 3,
+  RESTARTING = 3,
+  SHUTTING = 4,
 }
 
 export interface FwsSuppressableItem {
@@ -2019,11 +2030,6 @@ export class FwsCore {
   public readonly engine3Master = ConsumerSubject.create(this.sub.on('engine_master_3'), false);
   public readonly engine4Master = ConsumerSubject.create(this.sub.on('engine_master_4'), false);
 
-  private readonly engine1masterOnPulseNode = new NXLogicPulseNode();
-  private readonly engine2masterOnPulseNode = new NXLogicPulseNode();
-  private readonly engine3masterOnPulseNode = new NXLogicPulseNode();
-  private readonly engine4masterOnPulseNode = new NXLogicPulseNode();
-
   public readonly engine1State = Subject.create(0);
   public readonly engine2State = Subject.create(0);
   public readonly engine3State = Subject.create(0);
@@ -2092,24 +2098,31 @@ export class FwsCore {
   public readonly allEnginesFailure = Subject.create(false);
 
   public readonly eng1Fail = Subject.create(false);
-  private readonly eng1NotStartingConfNode = new NXLogicConfirmNode(5, false);
-  private readonly eng1WasRunningMemoryNode = new NXLogicMemoryNode();
-  private readonly eng1FailMemoryNode = new NXLogicMemoryNode();
-
   public readonly eng2Fail = Subject.create(false);
-  private readonly eng2FailMemoryNode = new NXLogicMemoryNode();
-  private readonly eng2NotStartingConfNode = new NXLogicConfirmNode(5, false);
-  private readonly eng2WasRunningMemoryNode = new NXLogicMemoryNode();
-
   public readonly eng3Fail = Subject.create(false);
-  private readonly eng3FailMemoryNode = new NXLogicMemoryNode();
-  private readonly eng3NotStartingConfNode = new NXLogicConfirmNode(5, false);
-  private readonly eng3WasRunningMemoryNode = new NXLogicMemoryNode();
-
   public readonly eng4Fail = Subject.create(false);
-  private readonly eng4FailMemoryNode = new NXLogicMemoryNode();
-  private readonly eng4NotStartingConfNode = new NXLogicConfirmNode(5, false);
-  private readonly eng4WasRunningMemoryNode = new NXLogicMemoryNode();
+
+  /** The ENG FAIL memory of the engines 1 to 4, the same logic for the four engines (EngineFailAlerts.ts) */
+  private readonly engineFailMonitors = [1, 2, 3, 4].map(() => new EngineFailMonitor());
+
+  /** ENG FAIL, IF NOT DAMAGED: more than two engines failed, the RELIGHT PROC line reads APPLY (FCOM l.171871-171872) */
+  public readonly engineRelightProcApply = Subject.create(false);
+
+  /** ENG TWO ENGS OUT ON SAME SIDE (FCOM l.175224): the engines 1 and 2 (left), or 3 and 4 (right) */
+  public readonly twoEnginesOutLeftSide = Subject.create(false);
+  public readonly twoEnginesOutRightSide = Subject.create(false);
+  public readonly twoEnginesOutSameSide = MappedSubject.create(
+    ([left, right]) => left || right,
+    this.twoEnginesOutLeftSide,
+    this.twoEnginesOutRightSide,
+  );
+  /** ENG TWO ENGS OUT ON OPPOSITE SIDE (FCOM l.175477) */
+  public readonly twoEnginesOutOppositeSide = Subject.create(false);
+
+  /** ENG SHUT DOWN (engine 2 or 3) or TWO ENGS OUT: INOP SYS BTV (FCOM l.172781, 175443, 175620) */
+  public readonly engineOutBtvInop = Subject.create(false);
+  /** ENG SHUT DOWN with the APU off: INOP SYS CAT 3 DUAL, INFO CAT 3 SINGLE ONLY (FCOM l.172783, 172792-172793) */
+  public readonly engineShutDownCat3SingleOnly = Subject.create(false);
 
   private readonly eng1ShutDown = Subject.create(false);
   private readonly eng2ShutDown = Subject.create(false);
@@ -2244,13 +2257,13 @@ export class FwsCore {
 
   private readonly throttle3Position = Subject.create(0);
 
-  private readonly thrustLever3Reverse = this.throttle2Position.map((v) => v > 0);
+  private readonly thrustLever3Reverse = this.throttle3Position.map((v) => v > 0);
 
-  public readonly thrustLever3Idle = this.throttle2Position.map((v) => v <= 2.6);
+  public readonly thrustLever3Idle = this.throttle3Position.map((v) => v <= 2.6);
 
   private readonly throttle4Position = Subject.create(0);
 
-  public readonly thrustLever4Idle = this.throttle2Position.map((v) => v <= 2.6);
+  public readonly thrustLever4Idle = this.throttle4Position.map((v) => v <= 2.6);
 
   public readonly allThrottleIdle = MappedSubject.create(
     SubscribableMapFunctions.and(),
@@ -2458,7 +2471,7 @@ export class FwsCore {
 
   public readonly eng3BleedInop = this.eng3Out; // TODO add bleed inop conditions
 
-  public readonly eng4BleedInop = this.gen4Inop; // TODO add bleed inop conditions
+  public readonly eng4BleedInop = this.eng4Out; // TODO add bleed inop conditions
 
   // TODO disable when abnormal hydralic pressure
   public readonly eng1HydraulicInop = this.gen1Inop;
@@ -5561,87 +5574,26 @@ export class FwsCore {
 
     /** ATA 70- Engines */
 
-    // ENG FAIL
-
-    // FIXME Workaround due to starting state only being set when ignitires kick in. Starting state signal from fadec should handle this
-    this.eng1NotStartingConfNode.write(
-      this.engine1State.get() !== engineState.STARTING && this.engine1Running.get(),
-      deltaTime,
+    // ENG FAIL (FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL, l.171718), the same logic for the four engines
+    const engineFailInputs = [
+      [this.engine1Master, this.fireButtonEng1, this.engine1State, this.HPNEng1],
+      [this.engine2Master, this.fireButtonEng2, this.engine2State, this.HPNEng2],
+      [this.engine3Master, this.fireButtonEng3, this.engine3State, this.HPNEng3],
+      [this.engine4Master, this.fireButtonEng4, this.engine4State, this.HPNEng4],
+    ] as const;
+    engineFailInputs.forEach(([master, firePb, state, coreSpeed], index) =>
+      this.engineFailMonitors[index].update(
+        {
+          masterOn: master.get(),
+          firePbPushed: !!firePb.get(),
+          engineState: state.get() as FadecEngineState,
+          coreSpeedPercent: coreSpeed.get(),
+        },
+        deltaTime,
+      ),
     );
-    this.eng1WasRunningMemoryNode.write(
-      this.eng1NotStartingConfNode.read(),
-      this.engine1masterOnPulseNode.write(this.engine1Master.get()),
-    );
-    this.eng2NotStartingConfNode.write(
-      this.engine2State.get() !== engineState.STARTING && this.engine2Running.get(),
-      deltaTime,
-    );
-    this.eng2WasRunningMemoryNode.write(
-      this.eng2NotStartingConfNode.read(),
-      this.engine2masterOnPulseNode.write(this.engine2Master.get()),
-    );
-    this.eng3NotStartingConfNode.write(
-      this.engine3Master.get() && this.engine3State.get() !== engineState.STARTING,
-      deltaTime,
-    );
-    this.eng3WasRunningMemoryNode.write(
-      this.eng3NotStartingConfNode.read(),
-      this.engine3masterOnPulseNode.write(this.engine3Master.get()),
-    );
-    this.eng4NotStartingConfNode.write(
-      this.engine4Master.get() && this.engine4State.get() !== engineState.STARTING,
-      deltaTime,
-    );
-    this.eng4WasRunningMemoryNode.write(
-      this.eng4NotStartingConfNode.read(),
-      this.engine4masterOnPulseNode.write(this.engine4Master.get()),
-    );
-
-    this.eng1Fail.set(
-      !this.allEnginesFailure.get() &&
-        this.eng1FailMemoryNode.write(
-          this.engine1Master.get() &&
-            this.eng1WasRunningMemoryNode.read() &&
-            !this.fireButtonEng1.get() &&
-            this.HPNEng1.get() < 50,
-          this.engine1State.get() === engineState.ON ||
-            (this.HPNEng1.get() > 50 && this.engine1State.get() === engineState.STARTING),
-        ),
-    );
-
-    this.eng2Fail.set(
-      !this.allEnginesFailure.get() &&
-        this.eng2FailMemoryNode.write(
-          this.engine2Master.get() &&
-            this.eng2WasRunningMemoryNode.read() &&
-            !this.fireButtonEng2.get() &&
-            this.HPNEng2.get() < 50,
-          this.engine2State.get() === engineState.ON ||
-            (this.HPNEng2.get() > 50 && this.engine2State.get() === engineState.STARTING),
-        ),
-    );
-
-    this.eng3Fail.set(
-      !this.allEnginesFailure.get() &&
-        this.eng3FailMemoryNode.write(
-          this.engine3Master.get() &&
-            this.eng3WasRunningMemoryNode.read() &&
-            !this.fireButtonEng3.get() &&
-            this.HPNEng3.get() < 50,
-          this.engine3State.get() === engineState.ON ||
-            (this.HPNEng3.get() > 50 && this.engine3State.get() === engineState.STARTING),
-        ),
-    );
-    this.eng4Fail.set(
-      !this.allEnginesFailure.get() &&
-        this.eng4FailMemoryNode.write(
-          this.engine4Master.get() &&
-            this.eng4WasRunningMemoryNode.read() &&
-            !this.fireButtonEng4.get() &&
-            this.HPNEng4.get() < 50,
-          this.engine4State.get() === engineState.ON ||
-            (this.HPNEng4.get() > 50 && this.engine4State.get() === engineState.STARTING),
-        ),
+    [this.eng1Fail, this.eng2Fail, this.eng3Fail, this.eng4Fail].forEach((engFail, index) =>
+      engFail.set(!this.allEnginesFailure.get() && this.engineFailMonitors[index].failed),
     );
 
     // Attnetion getting box
@@ -5672,10 +5624,30 @@ export class FwsCore {
     this.eng3ShutDown.set(engineShutdownPreCondition && (this.fireButtonEng3.get() || !this.engine3Master.get()));
     this.eng4ShutDown.set(engineShutdownPreCondition && (this.fireButtonEng4.get() || !this.engine4Master.get()));
 
-    this.eng1Out.set(this.eng1ShutDown.get() || this.eng1FailMemoryNode.read());
-    this.eng2Out.set(this.eng2ShutDown.get() || this.eng2FailMemoryNode.read());
-    this.eng3Out.set(this.eng3ShutDown.get() || this.eng3FailMemoryNode.read());
-    this.eng4Out.set(this.eng4ShutDown.get() || this.eng4FailMemoryNode.read());
+    this.eng1Out.set(this.eng1ShutDown.get() || this.engineFailMonitors[0].failed);
+    this.eng2Out.set(this.eng2ShutDown.get() || this.engineFailMonitors[1].failed);
+    this.eng3Out.set(this.eng3ShutDown.get() || this.engineFailMonitors[2].failed);
+    this.eng4Out.set(this.eng4ShutDown.get() || this.engineFailMonitors[3].failed);
+
+    const enginesOut: EnginesOut = [this.eng1Out.get(), this.eng2Out.get(), this.eng3Out.get(), this.eng4Out.get()];
+    this.engineRelightProcApply.set(relightProcMustBeApplied(enginesOut));
+    const twoOut = twoEnginesOut(enginesOut);
+    this.twoEnginesOutLeftSide.set(twoOut === TwoEnginesOut.SameSide && enginesOut[0]);
+    this.twoEnginesOutRightSide.set(twoOut === TwoEnginesOut.SameSide && enginesOut[3]);
+    this.twoEnginesOutOppositeSide.set(twoOut === TwoEnginesOut.OppositeSide);
+    this.engineOutBtvInop.set(
+      shutDownBtvInop(this.eng2ShutdownAbnormalSensed.get(), this.eng3ShutdownAbnormalSensed.get()) ||
+        twoOut !== TwoEnginesOut.None,
+    );
+    this.engineShutDownCat3SingleOnly.set(
+      shutDownCat3SingleOnly(
+        this.eng1ShutdownAbnormalSensed.get() ||
+          this.eng2ShutdownAbnormalSensed.get() ||
+          this.eng3ShutdownAbnormalSensed.get() ||
+          this.eng4ShutdownAbnormalSensed.get(),
+        this.apuAvail.get(),
+      ),
+    );
 
     this.allEnginesFailure.set(
       !this.aircraftOnGround.get() &&

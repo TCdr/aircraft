@@ -10,6 +10,7 @@
 #include "EngineControl_A380X.h"
 #include "EngineRatios.hpp"
 #include "Polynomials_A380X.hpp"
+#include "RelightStart_A380X.hpp"
 #include "Table1502_A380X.hpp"
 #include "ThrustLimits_A380X.hpp"
 
@@ -59,13 +60,23 @@ void EngineControl_A380X::update() {
   for (int engine = 1; engine <= 4; engine++) {
     const int engineIdx = engine - 1;
 
-    // FCOM DSC-28-10: "The LP valves automatically close, when their associated ENG FIRE pb is pushed."
-    // The systems WASM tracks the fuel left between the closed LP valve and the engine. Once it is burned the engine is
-    // starved and handled as if its starter (driven by the ENG MASTER switch) were off: it shuts down and cannot relight
-    // while starved. The MSFS starter itself is left alone, the ENG MASTER switch behaviour keeps it in sync with the switch.
-    const bool engineFuelStarved = simData.engineFuelStarved[engineIdx]->getAsBool();
-    const bool engineStarter = static_cast<bool>(simData.simVarsDataPtr->data().engineStarter[engineIdx]) && !engineFuelStarved;
-    const int  engineIgniter = static_cast<int>(simData.simVarsDataPtr->data().engineIgniter[engineIdx]);
+    // The systems WASM cuts the engine fuel (L:A32NX_ENGINE_n_FUEL_CUT; it also closes the MSFS fuel valve 60 to 63 in series
+    // with the engine feed, so MSFS stops the combustion):
+    // - when the engine is starved. FCOM DSC-28-10: "The LP valves automatically close, when their associated ENG FIRE pb is
+    //   pushed." The systems WASM tracks the fuel left between the closed LP valve and the engine.
+    // - after a flameout or a seizure failure, and during an in-flight relight, until the engine lights up inside the relight
+    //   envelope (FCOM PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT, see a380_systems engine_failure.rs).
+    // An engine whose fuel is cut is handled as if its starter (driven by the ENG MASTER switch) were off: it shuts down and
+    // cannot relight while its fuel is cut. During a relight attempt (the 30 s after a MASTER ON for a relight) the FADEC runs
+    // its start sequence while the fuel is still cut: the start valve opens (FCOM DSC-70-30 IN FLIGHT, l.113567) so that a
+    // starter assisted relight gets its starter air, and the systems WASM releases the fuel cut when the engine lights up.
+    // The MSFS starter itself is left alone, the ENG MASTER switch behaviour keeps it in sync with the switch.
+    const bool engineFuelCut        = simData.engineFuelCut[engineIdx]->getAsBool();
+    const bool engineSeized         = simData.engineSeized[engineIdx]->getAsBool();
+    const bool engineRelightAttempt = simData.engineRelightAttempt[engineIdx]->getAsBool();
+    const bool engineMasterStarter  = static_cast<bool>(simData.simVarsDataPtr->data().engineStarter[engineIdx]);
+    const bool engineStarter        = engineMasterStarter && (!engineFuelCut || engineRelightAttempt);
+    const int  engineIgniter        = static_cast<int>(simData.simVarsDataPtr->data().engineIgniter[engineIdx]);
 
     // determine the current engine state based on the previous state and the current ignition, starter and other parameters
     // also resets the engine timer if the engine is starting or restarting
@@ -84,20 +95,54 @@ void EngineControl_A380X::update() {
     const double deltaN3       = simN3 - prevSimEngineN3[engineIdx];
     prevSimEngineN3[engineIdx] = simN3;
 
+    // In-flight relight ignition. A380 FCOM DSC-70-30 IN FLIGHT (a380_fcom.txt l.113572): at the MASTER ON "Ignition starts
+    // (igniters A + B)", and the quick relight "automatically selects the continuous ignition with both igniters" (l.112541-112543)
+    // whatever the ENG START selector. MSFS only burns during a start with its ignition switch at IGN (on the A32NX a quick
+    // relight at NORM crawled for minutes without combustion). While the systems WASM reports a relight lighting up (fuel back,
+    // master ON, engine not running), the MSFS ignition switch of that engine is set to IGN, then given back to the ENG START
+    // selector position once the engine runs or the relight ends.
+    const bool relightIgnition = simData.engineRelightIgnition[engineIdx]->getAsBool() && !simOnGround &&
+                                 (engineState == SHUTTING || engineState == RESTARTING || engineState == STARTING);
+    if (relightIgnition) {
+      if (engineIgniter != 2) {
+        simData.setIgnitionSwitchEvent[engineIdx]->trigger(2);
+      }
+      relightIgnitionSet[engineIdx] = true;
+    } else if (relightIgnitionSet[engineIdx]) {
+      const int selectorPosition = static_cast<int>(simData.engineStartSelector->get());
+      if (engineIgniter != selectorPosition) {
+        simData.setIgnitionSwitchEvent[engineIdx]->trigger(static_cast<DWORD>(selectorPosition));
+      }
+      relightIgnitionSet[engineIdx] = false;
+    }
+
     // Update various engine values based on the current engine state
     switch (static_cast<int>(engineState)) {
       case STARTING:
-      case RESTARTING:
-        engineStartProcedure(engine, engineState, deltaTime, engineTimer, simN3, ambientTemperature);
+      case RESTARTING: {
+        const double preStartEgt = simData.engineEgt[engineIdx]->get();
+        engineStartProcedure(engine, engineState, deltaTime, engineTimer, simN3, ambientTemperature, engineFuelCut);
+        if (engineFuelCut) {
+          // An in-flight start attempt that has not lit up yet: the starter or the airflow turns the core, but no fuel flows
+          // (the systems WASM keeps the fuel cut) and the EGT does not rise.
+          simData.engineFF[engineIdx]->set(0.0);
+          simData.engineEgt[engineIdx]->set(Polynomial_A380X::shutdownEGT(preStartEgt, ambientTemperature, deltaTime));
+        }
         break;
+      }
       case SHUTTING:
-        engineShutdownProcedure(engine, deltaTime, engineTimer, simN1, ambientTemperature);
-        if (engineFuelStarved) {
-          // No fuel reaches a starved engine, even while the MSFS starter, still on, keeps it turning.
+        engineShutdownProcedure(engine, deltaTime, engineTimer, simN1, ambientTemperature, engineSeized, simOnGround,
+                                simData.engineWindmillN1[engineIdx]->get(), simData.engineWindmillN3[engineIdx]->get());
+        if (engineFuelCut || !engineMasterStarter) {
+          // No fuel reaches an engine whose fuel is cut or whose ENG MASTER is OFF, even while it turns (MSFS starter still on,
+          // or windmilling). The fuel flow was computed from the windmilling corrected N1 with the master OFF.
           simData.engineFF[engineIdx]->set(0.0);
         } else {
           updateFF(engine, simCN1, mach, pressureAltitude, ambientTemperature, ambientPressure);
         }
+        // The oil pressure falls with N3. It stayed frozen at its last running value during the whole shutdown, which never
+        // ends in flight (the MSFS N2 of a windmilling engine never reaches the 0.05 % of the OFF state).
+        updateShutdownOilPressure(engine);
         break;
       default:
         updatePrimaryParameters(engine, simN1, simN3);
@@ -413,7 +458,8 @@ void EngineControl_A380X::engineStartProcedure(int         engine,
                                                double      deltaTime,
                                                double      engineTimer,
                                                double      simN3,
-                                               double      ambientTemperature) {
+                                               double      ambientTemperature,
+                                               bool        engineFuelCut) {
 #ifdef PROFILING
   profilerEngineStartProcedure.start();
 #endif
@@ -439,14 +485,30 @@ void EngineControl_A380X::engineStartProcedure(int         engine,
     simData.engineState[engineIdx]->set(ON);
     return;
   }
+
+  // The MSFS core speed during the start: held at 0 during the start delay on the ground, and in flight brought to the light-up
+  // speed once the systems WASM lets the relight light up (see RelightStart_A380X).
+  const bool simOnGround = msfsHandlerPtr->getSimOnGround();
+  // GENERAL ENG COMBUSTION is only needed (and read) in flight while the fuel is not cut
+  bool simCombustion = false;
+  if (!simOnGround && !engineFuelCut) {
+    const FLOAT64 combustion = simData.engineCombustion[engineIdx]->updateFromSim(msfsHandlerPtr->getTimeStamp(),  //
+                                                                                  msfsHandlerPtr->getTickCounter());
+    simCombustion            = static_cast<bool>(combustion);
+  }
+  const std::optional<double> correctedN3Command =
+      RelightStart_A380X::correctedN2Command({simOnGround, engineTimer, engineFuelCut, simCombustion, simN3, ambientTemperature});
+  if (correctedN3Command) {
+    simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 = *correctedN3Command;
+    simData.engineCorrectedN3DataPtr[engineIdx]->writeDataToSim();
+  }
+
   // delay to simulate the delay between master-switch setting and actual engine start
-  else if (engineTimer < 1.7) {
-    if (msfsHandlerPtr->getSimOnGround()) {
+  if (engineTimer < RelightStart_A380X::START_DELAY_SECONDS) {
+    if (simOnGround) {
       simData.engineFuelUsed[engineIdx]->set(0);
     }
     simData.engineTimer[engineIdx]->set(engineTimer + deltaTime);
-    simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 = 0;
-    simData.engineCorrectedN3DataPtr[engineIdx]->writeDataToSim();
   }
   // engine start procedure after the delay
   else {
@@ -493,7 +555,11 @@ void EngineControl_A380X::engineShutdownProcedure(int    engine,
                                                   double deltaTime,
                                                   double engineTimer,
                                                   double simN1,
-                                                  double ambientTemperature) {
+                                                  double ambientTemperature,
+                                                  bool   engineSeized,
+                                                  bool   simOnGround,
+                                                  double windmillN1,
+                                                  double windmillN3) {
 #ifdef PROFILING
   profilerEngineShutdownProcedure.start();
 #endif
@@ -515,8 +581,18 @@ void EngineControl_A380X::engineShutdownProcedure(int    engine,
     simData.engineTimer[engineIdx]->set(2.0);  // to skip the delay further down
     return;
   }
+
+  // Seizure failure: the core stops, from the failure on, without the delay of a normal shutdown (design choice: about 3 s).
+  // FCOM ENG 1(2)(3)(4) FAIL (a380_fcom.txt l.171834) treats a damaged engine (fire pb, agent) apart from the relight.
+  if (engineSeized) {
+    const double decayedN3 = simData.engineN3[engineIdx]->get() * (std::exp)(-SEIZED_CORE_DECAY_RATE * deltaTime);
+    const double seizedN3  = decayedN3 < SEIZED_CORE_STOPPED_N3 ? 0.0 : decayedN3;
+    simData.engineN3[engineIdx]->set(seizedN3);
+    simData.engineN2[engineIdx]->set(seizedN3 == 0 ? 0 : seizedN3 + 0.7);
+  }
+
   // delay to simulate the delay between master-switch setting and actual engine shutdown
-  else if (engineTimer < 1.8) {
+  if (engineTimer < 1.8) {
     simData.engineTimer[engineIdx]->set(engineTimer + deltaTime);
   } else {
     const double preN1Fbw  = simData.engineN1[engineIdx]->get();
@@ -527,8 +603,18 @@ void EngineControl_A380X::engineShutdownProcedure(int    engine,
     if (simN1 < 5 && simN1 > newN1Fbw) {  // Takes care of windmilling
       newN1Fbw = simN1;
     }
-    const double newN3Fbw  = Polynomial_A380X::shutdownN3(preN3Fbw, deltaTime);
+    double       newN3Fbw  = engineSeized ? preN3Fbw : Polynomial_A380X::shutdownN3(preN3Fbw, deltaTime);
     const double newEgtFbw = Polynomial_A380X::shutdownEGT(preEgtFbw, ambientTemperature, deltaTime);
+
+    // In flight an engine without combustion windmills: N1 and N3 run down to the windmilling speeds of the airspeed (systems
+    // WASM, A380RelightEnvelope) and stay there, instead of decaying to 0. The IDG and the engine-driven pumps, which follow
+    // the N3, see the low windmilling speed. A seized core does not turn.
+    if (!simOnGround) {
+      newN1Fbw = (std::max)(newN1Fbw, windmillN1);
+      if (!engineSeized) {
+        newN3Fbw = (std::max)(newN3Fbw, windmillN3);
+      }
+    }
 
     simData.engineN1[engineIdx]->set(newN1Fbw);
     simData.engineN2[engineIdx]->set(newN3Fbw == 0 ? 0 : newN3Fbw + 0.7);
@@ -600,6 +686,18 @@ void EngineControl_A380X::updateSecondaryParameters(int          engine,
 #ifdef PROFILING
   profilerUpdateSecondaryParameters.stop();
 #endif
+}
+
+void EngineControl_A380X::updateShutdownOilPressure(int engine) {
+  const int engineIdx = engine - 1;
+
+  // The oil pump is driven through the accessory gearbox by the core: the oil pressure follows the N3 the FADEC shows (shutdown,
+  // windmilling or seized core), with the oil pressure polynomial of the running engine (updateOil).
+  const double n3          = simData.engineN3[engineIdx]->get();
+  const double oilPressure = (std::max)(0.0, Polynomial_A380X::oilPressure(n3));
+
+  simData.oilPsiDataPtr[engineIdx]->data().oilPsi = oilPressure;
+  simData.oilPsiDataPtr[engineIdx]->writeDataToSim();
 }
 
 void EngineControl_A380X::updateEGT(int          engine,

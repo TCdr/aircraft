@@ -488,8 +488,17 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     320300007: {
-      // BTV
-      simVarIsActive: this.fws.btvLost,
+      // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions (A380 FCOM l.172781, 175443, 175620)
+      simVarIsActive: MappedSubject.create(
+        ([btvLost, engineOut]) => btvLost || engineOut,
+        this.fws.btvLost,
+        this.fws.engineOutBtvInop,
+      ),
+      phase: FwsInopSysPhases.ApprLdg,
+    },
+    220300028: {
+      // CAT 3 DUAL: ENG 1(2)(3)(4) SHUT DOWN with the APU off (A380 FCOM l.172783)
+      simVarIsActive: this.fws.engineShutDownCat3SingleOnly,
       phase: FwsInopSysPhases.ApprLdg,
     },
     320300022: {

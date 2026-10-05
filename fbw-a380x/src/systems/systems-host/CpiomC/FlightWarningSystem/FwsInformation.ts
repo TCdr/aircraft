@@ -34,6 +34,10 @@ export class FwsInformation {
       // APPR 1 ONLY
       simVarIsActive: this.fws.land2Inop,
     },
+    220200016: {
+      // CAT 3 SINGLE ONLY: ENG 1(2)(3)(4) SHUT DOWN with the APU off (A380 FCOM l.172792-172795)
+      simVarIsActive: this.fws.engineShutDownCat3SingleOnly,
+    },
     270200003: {
       // F/CTL BKUP CTL ACTIVE
       simVarIsActive: MappedSubject.create(
