@@ -62,7 +62,7 @@ import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { acscPackFaults } from './Logic/AcscPackFaults';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
-import { isApuStartLineShown } from './Logic/AllEnginesFailure';
+import { ALL_ENGINES_FAILURE_CODES, allEnginesFailureLines, isApuStartLineShown } from './Logic/AllEnginesFailure';
 import {
   CrossBleedSelector,
   EngineFailMonitor,
@@ -6369,33 +6369,18 @@ export class PseudoFWC {
       // FCOM PRO-ABN-ENG ENG ALL ENGINES FAILURE flight phase inhibition (2019 FCOM PDF page 2244): phases 1-4 and 8-10
       flightPhaseInhib: [1, 2, 3, 4, 8, 9, 10],
       simVarIsActive: this.engDualFault,
-      whichCodeToReturn: () => [
-        0,
-        !this.sdac00410Word.bitValue(27) ? 1 : null,
-        5,
-        isApuStartLineShown(this.apuMasterSwitch.get() === 1, this.apuAvail.get() === 1, this.pressureAltitudeFt)
-          ? 6
-          : null,
-        this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0 ? 7 : null,
-        this.fac1Failed.get() === 1 ? 8 : null,
-        9,
-        10,
-        11,
-      ],
-      codesToReturn: [
-        '770002701',
-        '770002702',
-        '770002703',
-        '770002704',
-        '770002705',
-        '770002706',
-        '770002707',
-        '770002708',
-        '770002709',
-        '770002710',
-        '770002711',
-        '770002712',
-      ],
+      whichCodeToReturn: () =>
+        allEnginesFailureLines({
+          emerElecPwrManOnPushed: this.sdac00410Word.bitValue(27),
+          apuStartLineShown: isApuStartLineShown(
+            this.apuMasterSwitch.get() === 1,
+            this.apuAvail.get() === 1,
+            this.pressureAltitudeFt,
+          ),
+          thrustLeverAboveIdle: this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0,
+          fac1Failed: this.fac1Failed.get() === 1,
+        }),
+      codesToReturn: ALL_ENGINES_FAILURE_CODES,
       memoInhibit: () => false,
       failure: 3,
       sysPage: EcamSysPage.ENG,
