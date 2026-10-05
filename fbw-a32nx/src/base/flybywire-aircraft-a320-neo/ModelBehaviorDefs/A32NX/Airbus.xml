@@ -25,6 +25,8 @@
         </UseTemplate>
     </Template>
 
+    <!-- PFD/ND XFR pb on each side console (A320 FCOM DSC-31-05-40, DSC-31-50): pushing it interchanges the PFD and the
+         ND. SIDE L = CAPT, R = F/O. The DMC logic (systems host, DmcDisplayReconfiguration) receives the H event. -->
     <Template Name="FBW_AIRBUS_Push_Transfer_Template">
         <DefaultTemplateParameters>
             <NODE_ID>AIRBUS_Push_Transfer</NODE_ID>
@@ -33,14 +35,46 @@
             <ID>1</ID>
             <WWISE_EVENT_1>roundbutton</WWISE_EVENT_1>
             <WWISE_EVENT_2>roundbutton</WWISE_EVENT_2>
+            <SIDE>L</SIDE>
         </DefaultTemplateParameters>
 
         <Component ID="#NODE_ID#" Node="#NODE_ID#">
             <UseTemplate Name="ASOBO_GT_Push_Button_Held">
-                <LEFT_SINGLE_CODE>0</LEFT_SINGLE_CODE><!-- TODO -->
-                <TOOLTIPID>Inoperant</TOOLTIPID>
+                <LEFT_SINGLE_CODE>(&gt;H:A32NX_EFIS_#SIDE#_PFD_ND_XFR_PUSHED)</LEFT_SINGLE_CODE>
+                <TOOLTIPID>PFD/ND XFR</TOOLTIPID>
             </UseTemplate>
         </Component>
+    </Template>
+
+    <!-- A32NX DU reconfiguration (A320 FCOM DSC-31-05-60, shared/src/DisplayReconfiguration.ts): every DU has one glass
+         per picture it can show, the extra glasses being copies of the DU glass with the material of another picture's
+         texture. The glass of a DU shown is the one of the picture in L:A32NX_EIS_DU_#DU#_PICTURE (written by the DMC
+         logic of the systems host): 0 the DU's own picture, 1 PFD, 2 ND, 3 E/WD, 4 SD, 5 ECAM ON ND, 6 blank. -->
+    <Template Name="FBW_A32NX_DU_Glass_Visibility">
+        <Component ID="#NODE_ID#_VISIBILITY" Node="#NODE_ID#">
+            <UseTemplate Name="ASOBO_GT_Visibility_Code">
+                <VISIBILITY_CODE>(L:A32NX_EIS_DU_#DU#_PICTURE, number) #PICTURE# ==</VISIBILITY_CODE>
+            </UseTemplate>
+        </Component>
+    </Template>
+
+    <!-- The glass of another picture on a DU: lit by the DU's own brightness knob (POTENTIOMETER) -->
+    <Template Name="FBW_A32NX_DU_Picture_Glass">
+        <DefaultTemplateParameters>
+            <!-- Effects such as pixels and glass reflections require the screen brightness to be increased -->
+            <EMISSIVE_CODE>12</EMISSIVE_CODE>
+        </DefaultTemplateParameters>
+
+        <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
+            <NODE_ID>#NODE_ID#</NODE_ID>
+            <POTENTIOMETER>#POTENTIOMETER#</POTENTIOMETER>
+            <EMISSIVE_CODE>#EMISSIVE_CODE#</EMISSIVE_CODE>
+        </UseTemplate>
+        <UseTemplate Name="FBW_A32NX_DU_Glass_Visibility">
+            <NODE_ID>#NODE_ID#</NODE_ID>
+            <DU>#DU#</DU>
+            <PICTURE>#PICTURE#</PICTURE>
+        </UseTemplate>
     </Template>
 
     <Template Name="FBW_AIRBUS_Push_TERRONND_Template">

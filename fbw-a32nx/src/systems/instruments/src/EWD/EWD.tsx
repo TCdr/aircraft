@@ -58,6 +58,7 @@ export class EwdComponent extends DisplayComponent<EwdProps> {
         brightness={this.ewdPotentiometer}
         powered={this.acEssBus}
         failed={this.props.failed}
+        picture="EWD"
       >
         <svg class="ewd-svg" version="1.1" viewBox="0 0 768 768" xmlns="http://www.w3.org/2000/svg">
           <UpperDisplay bus={this.props.bus} />

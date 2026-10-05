@@ -6,6 +6,7 @@
 import { FSComponent, ClockEvents, DisplayComponent, EventBus, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 // import { getSupplier } from '@flybywiresim/fbw-sdk';
+import { EisPictureId, pictureOnOtherDuVar } from '@shared/DisplayReconfiguration';
 import { DisplayVars } from './SimVarTypes';
 
 import './common.scss';
@@ -25,8 +26,17 @@ type DisplayUnitProps = {
   powered?: Subscribable<boolean>;
   brightness?: Subscribable<number>;
   test?: Subscribable<number>;
-  /** Called with true when the DU starts showing its picture (ON state) and with false when it stops. */
+  /**
+   * Called with true when the picture starts being shown (DU ON, or the picture shown on another DU) and with false when
+   * it stops.
+   */
   onPictureShownChanged?: (shown: boolean) => void;
+  /**
+   * The picture this gauge draws (DU reconfiguration, A320 FCOM DSC-31-05-60): while the DMC shows it on another DU that
+   * is available, the gauge draws it whatever the state of its own DU (e.g. the PFD on the ND DU with the PFD DU
+   * failed or switched off). The cockpit model routes the picture to that DU.
+   */
+  picture?: EisPictureId;
 };
 
 enum DisplayUnitState {
@@ -64,6 +74,9 @@ export class DisplayUnit extends DisplayComponent<DisplayUnitProps> {
   /** Whether the picture was shown at the last state update, so onPictureShownChanged only fires on a change. */
   private pictureShown: boolean | null = null;
 
+  /** Whether the DMC shows this gauge's picture on another DU that is available */
+  private shownOnOtherDu = false;
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
@@ -93,6 +106,20 @@ export class DisplayUnit extends DisplayComponent<DisplayUnitProps> {
       this.powered = f;
       this.updateState();
     }, true);
+
+    if (this.props.picture !== undefined) {
+      const onOtherDuVar = pictureOnOtherDuVar(this.props.picture);
+      sub
+        .on('realTime')
+        .atFrequency(10)
+        .handle(() => {
+          const shown = SimVar.GetSimVarValue(onOtherDuVar, 'number') > 0;
+          if (shown !== this.shownOnOtherDu) {
+            this.shownOnOtherDu = shown;
+            this.updateState();
+          }
+        });
+    }
   }
 
   setTimer(time: number) {
@@ -144,22 +171,25 @@ export class DisplayUnit extends DisplayComponent<DisplayUnitProps> {
       clearTimeout(this.timeOut);
     }
 
-    if (this.state === DisplayUnitState.Selftest) {
+    // the picture shown on another DU is drawn whatever this DU does (no self-test of its own there, design choice)
+    const displayedState = this.shownOnOtherDu ? DisplayUnitState.On : this.state;
+
+    if (displayedState === DisplayUnitState.Selftest) {
       this.selfTestRef.instance.style.display = 'block';
       this.maintenanceModeRef.instance.style.display = 'none';
       this.engineeringTestModeRef.instance.style.display = 'none';
       this.pfdRef.instance.style.display = 'none';
-    } else if (this.state === DisplayUnitState.On) {
+    } else if (displayedState === DisplayUnitState.On) {
       this.selfTestRef.instance.style.display = 'none';
       this.maintenanceModeRef.instance.style.display = 'none';
       this.engineeringTestModeRef.instance.style.display = 'none';
       this.pfdRef.instance.style.display = 'block';
-    } else if (this.state === DisplayUnitState.MaintenanceMode) {
+    } else if (displayedState === DisplayUnitState.MaintenanceMode) {
       this.selfTestRef.instance.style.display = 'none';
       this.maintenanceModeRef.instance.style.display = 'block';
       this.engineeringTestModeRef.instance.style.display = 'none';
       this.pfdRef.instance.style.display = 'none';
-    } else if (this.state === DisplayUnitState.EngineeringTest) {
+    } else if (displayedState === DisplayUnitState.EngineeringTest) {
       this.selfTestRef.instance.style.display = 'none';
       this.maintenanceModeRef.instance.style.display = 'none';
       this.engineeringTestModeRef.instance.style.display = 'block';
@@ -171,7 +201,7 @@ export class DisplayUnit extends DisplayComponent<DisplayUnitProps> {
       this.pfdRef.instance.style.display = 'none';
     }
 
-    const pictureShown = this.state === DisplayUnitState.On;
+    const pictureShown = displayedState === DisplayUnitState.On;
     if (pictureShown !== this.pictureShown) {
       this.pictureShown = pictureShown;
       this.props.onPictureShownChanged?.(pictureShown);

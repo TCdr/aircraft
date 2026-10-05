@@ -50,6 +50,17 @@ describe('SD display unit (React) failure', () => {
     expect(container.querySelector('#sd-picture')).toBeNull();
     expect(container.textContent).not.toContain('SELF TEST');
 
+    // DU reconfiguration: the SD shown on another DU is drawn even with the lower ECAM DU failed
+    act(() => {
+      ReactDOM.render(
+        <DisplayUnit electricitySimvar="L:TEST_DU_POWERED" potentiometerIndex={93} normDmc={1} failed shownOnOtherDu>
+          <span id="sd-picture" />
+        </DisplayUnit>,
+        container,
+      );
+    });
+    expect(container.querySelector('#sd-picture')).not.toBeNull();
+
     renderUnit(false);
     expect(container.textContent).toContain('SELF TEST IN PROGRESS');
 
