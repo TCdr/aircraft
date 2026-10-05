@@ -54,7 +54,7 @@ import { A32NXFacBusEvents } from '@shared/publishers/A32NXFacBusPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
-import { isApuStartLineShown } from './Logic/AllEnginesFailure';
+import { ALL_ENGINES_FAILURE_CODES, allEnginesFailureLines, isApuStartLineShown } from './Logic/AllEnginesFailure';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -5577,33 +5577,18 @@ export class PseudoFWC {
       // DUAL ENGINE FAILURE
       flightPhaseInhib: [],
       simVarIsActive: this.engDualFault,
-      whichCodeToReturn: () => [
-        0,
-        !this.sdac00410Word.bitValue(27) ? 1 : null,
-        5,
-        isApuStartLineShown(this.apuMasterSwitch.get() === 1, this.apuAvail.get() === 1, this.pressureAltitudeFt)
-          ? 6
-          : null,
-        this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0 ? 7 : null,
-        this.fac1Failed.get() === 1 ? 8 : null,
-        9,
-        10,
-        11,
-      ],
-      codesToReturn: [
-        '770002701',
-        '770002702',
-        '770002703',
-        '770002704',
-        '770002705',
-        '770002706',
-        '770002707',
-        '770002708',
-        '770002709',
-        '770002710',
-        '770002711',
-        '770002712',
-      ],
+      whichCodeToReturn: () =>
+        allEnginesFailureLines({
+          emerElecPwrManOnPushed: this.sdac00410Word.bitValue(27),
+          apuStartLineShown: isApuStartLineShown(
+            this.apuMasterSwitch.get() === 1,
+            this.apuAvail.get() === 1,
+            this.pressureAltitudeFt,
+          ),
+          thrustLeverAboveIdle: this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0,
+          fac1Failed: this.fac1Failed.get() === 1,
+        }),
+      codesToReturn: ALL_ENGINES_FAILURE_CODES,
       memoInhibit: () => false,
       failure: 3,
       sysPage: EcamSysPage.ENG,
