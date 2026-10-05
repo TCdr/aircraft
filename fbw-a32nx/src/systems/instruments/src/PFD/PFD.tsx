@@ -146,6 +146,7 @@ export class PFDComponent extends DisplayComponent<PFDProps> {
         powered={this.displayPowered}
         brightness={this.displayBrightness}
         normDmc={getDisplayIndex()}
+        picture={getDisplayIndex() === 1 ? 'PFD_L' : 'PFD_R'}
       >
         <svg class="pfd-svg" version="1.1" viewBox="0 0 158.75 158.75" xmlns="http://www.w3.org/2000/svg">
           <Horizon

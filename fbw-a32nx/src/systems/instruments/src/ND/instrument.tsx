@@ -154,6 +154,7 @@ class NDInstrument implements FsInstrument {
         powered={this.displayPowered}
         failed={this.displayFailed}
         normDmc={getDisplayIndex()}
+        picture={getDisplayIndex() === 1 ? 'ND_L' : 'ND_R'}
         onPictureShownChanged={(shown) =>
           // tells the native weather/terrain layer (ndwxr) not to draw over a blank ND
           SimVar.SetSimVarValue(ndDisplayUnitShowingVar(getDisplayIndex()), 'Bool', shown ? 1 : 0)
