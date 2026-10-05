@@ -108,6 +108,22 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  // The labels say what a380_systems engine_failure.rs does with ids 72000-72013 (failure names audit rule)
+  it('lists the engine flameout and seizure failures of the four engines in ATA 72 Engine', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [1, 2, 3, 4].flatMap((engine): [number, string, string][] => [
+      [72000 + engine - 1, `EngineFlameout(${engine})`, `Engine ${engine} flameout (crew relight possible)`],
+      [72010 + engine - 1, `EngineSeizure(${engine})`, `Engine ${engine} seizure (no relight)`],
+    ]);
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 72]),
+    );
+    expect(A380Failure.Eng1Flameout).toBe(72000);
+    expect(A380Failure.Eng4Seizure).toBe(72013);
+  });
+
   it('lists every failure the Rust systems map reacts to', () => {
     const rustIds = [...readRustFailureMap().keys()];
     // Sanity check of the parser: the map holds well over a hundred failures.

@@ -251,6 +251,15 @@ export const A380Failure = Object.freeze({
   FirstOfficerLaptop: 46005,
   CaptainOit: 46006,
   FirstOfficerOit: 46007,
+
+  Eng1Flameout: 72000,
+  Eng2Flameout: 72001,
+  Eng3Flameout: 72002,
+  Eng4Flameout: 72003,
+  Eng1Seizure: 72010,
+  Eng2Seizure: 72011,
+  Eng3Seizure: 72012,
+  Eng4Seizure: 72013,
 });
 
 export const A380FailureDefinitions: FailureDefinition[] = [
@@ -484,4 +493,16 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [46, A380Failure.FirstOfficerLaptop, 'F/O Laptop'],
   [46, A380Failure.CaptainOit, 'Captain OIT'],
   [46, A380Failure.FirstOfficerOit, 'F/O OIT'],
+
+  // The flame goes out once (fuel cut); the crew relights it with ENG MASTER OFF then ON (ENG START selector at IGN START)
+  // inside the relight envelope (a380_systems engine_failure.rs)
+  [72, A380Failure.Eng1Flameout, 'Engine 1 flameout (crew relight possible)'],
+  [72, A380Failure.Eng2Flameout, 'Engine 2 flameout (crew relight possible)'],
+  [72, A380Failure.Eng3Flameout, 'Engine 3 flameout (crew relight possible)'],
+  [72, A380Failure.Eng4Flameout, 'Engine 4 flameout (crew relight possible)'],
+  // The core stops; no relight while the failure is active
+  [72, A380Failure.Eng1Seizure, 'Engine 1 seizure (no relight)'],
+  [72, A380Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
+  [72, A380Failure.Eng3Seizure, 'Engine 3 seizure (no relight)'],
+  [72, A380Failure.Eng4Seizure, 'Engine 4 seizure (no relight)'],
 ];

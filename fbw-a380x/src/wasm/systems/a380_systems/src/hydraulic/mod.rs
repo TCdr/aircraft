@@ -3582,6 +3582,7 @@ impl Display for A380ElectricPumpId {
 struct A380EngineDrivenPumpController {
     low_press_id: VariableIdentifier,
     disconnected_id: VariableIdentifier,
+    windmill_start_id: VariableIdentifier,
 
     is_powered: bool,
     powered_by: Vec<ElectricalBusType>,
@@ -3595,6 +3596,9 @@ struct A380EngineDrivenPumpController {
 
     are_pumps_commanded_disconnected: bool,
 
+    /// The FADEC is starting the engine by windmilling (a380_systems engine_failure.rs)
+    engine_windmill_start: bool,
+
     disconnection_mechanism: EnginePumpDisconnectionClutch,
 }
 impl A380EngineDrivenPumpController {
@@ -3607,6 +3611,8 @@ impl A380EngineDrivenPumpController {
         Self {
             low_press_id: context.get_identifier(format!("HYD_EDPUMP_{}_LOW_PRESS", pump_id)),
             disconnected_id: context.get_identifier(format!("HYD_ENG_{}AB_PUMP_DISC", engine_num)),
+            windmill_start_id: context
+                .get_identifier(format!("ENGINE_{}_WINDMILL_START", engine_num)),
 
             is_powered: false,
             powered_by,
@@ -3621,6 +3627,8 @@ impl A380EngineDrivenPumpController {
             has_overheat_fault: false,
 
             are_pumps_commanded_disconnected: false,
+
+            engine_windmill_start: false,
 
             disconnection_mechanism: EnginePumpDisconnectionClutch::new(match engine_num {
                 1 | 4 => ElectricalBusType::DirectCurrent(2),
@@ -3686,6 +3694,14 @@ impl A380EngineDrivenPumpController {
             should_pressurise_if_powered = false;
         }
 
+        // A380 FCOM DSC-70-80-30-20 (a380_fcom.txt l.112570-112571): "During a windmilling engine
+        // start, the FADEC disconnects both hydraulic pumps in order to increase the relight
+        // envelope." Design choice: both pumps of the engine are depressurised (off-loaded) for the
+        // start; the clutch of the ENG PUMPS DISC pb is not used, it cannot be reconnected in flight.
+        if self.engine_windmill_start {
+            should_pressurise_if_powered = false;
+        }
+
         self.are_pumps_commanded_disconnected = self.are_pumps_commanded_disconnected
             || overhead_panel.engines_edp_disconnected(self.pump_id.into_engine_num());
 
@@ -3729,6 +3745,10 @@ impl SimulationElement for A380EngineDrivenPumpController {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.disconnection_mechanism.accept(visitor);
         visitor.visit(self);
+    }
+
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        self.engine_windmill_start = reader.read(&self.windmill_start_id);
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
@@ -10779,6 +10799,28 @@ mod tests {
             assert!(!test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
 
             test_bed = test_bed.set_green_ed_pump(true).run_one_tick();
+            assert!(test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
+        }
+
+        #[test]
+        fn controller_engine_driven_pumps_depressurise_during_a_windmilling_start_of_their_engine()
+        {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .run_one_tick();
+            assert!(test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
+
+            test_bed.write_by_name("ENGINE_1_WINDMILL_START", true);
+            test_bed = test_bed.run_one_tick();
+            assert!(!test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
+            // the other engines' pumps are not affected
+            assert!(test_bed.query(|a| a.is_edp2a_yellow_pump_controller_pressurising()));
+
+            test_bed.write_by_name("ENGINE_1_WINDMILL_START", false);
+            test_bed = test_bed.run_one_tick();
             assert!(test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
         }
 
