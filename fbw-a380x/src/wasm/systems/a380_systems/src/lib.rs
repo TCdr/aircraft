@@ -5,6 +5,7 @@ mod airframe;
 mod avionics_data_communication_network;
 mod control_display_system;
 mod electrical;
+mod engine_failure;
 mod fire_and_smoke_protection;
 mod fuel;
 pub mod hydraulic;
@@ -20,6 +21,7 @@ use self::{
     air_conditioning::{A380AirConditioning, A380PressurizationOverheadPanel},
     avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
     control_display_system::A380ControlDisplaySystem,
+    engine_failure::A380EngineFailures,
     fuel::A380Fuel,
     pneumatic::{A380Pneumatic, A380PneumaticOverheadPanel},
     structural_flex::A380StructuralFlex,
@@ -82,6 +84,7 @@ pub struct A380 {
     engine_3: TrentEngine,
     engine_4: TrentEngine,
     engine_fire_overhead: EngineFireOverheadPanel<4>,
+    engine_failures: A380EngineFailures,
     electrical: A380Electrical,
     power_consumption: A380PowerConsumption,
     ext_pwrs: [ExternalPowerSource; 4],
@@ -136,6 +139,7 @@ impl A380 {
             engine_3: TrentEngine::new(context, 3),
             engine_4: TrentEngine::new(context, 4),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
+            engine_failures: A380EngineFailures::new(context),
             electrical: A380Electrical::new(context),
             power_consumption: A380PowerConsumption::new(context),
             ext_pwrs: [1, 2, 3, 4].map(|i| ExternalPowerSource::new(context, i)),
@@ -366,6 +370,11 @@ impl Aircraft for A380 {
             A380Airframe::get_loadsheet(),
             &self.engine_fire_overhead,
         );
+        // After the fuel system: the LP valve starvation also cuts the engine fuel.
+        self.engine_failures.update(
+            context,
+            [1, 2, 3, 4].map(|engine_number| self.fuel.engine_is_starved(engine_number)),
+        );
 
         self.engine_reverser_control[0].update(
             &self.engine_2,
@@ -411,6 +420,7 @@ impl SimulationElement for A380 {
         self.engine_3.accept(visitor);
         self.engine_4.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
+        self.engine_failures.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
         accept_iterable!(self.ext_pwrs, visitor);

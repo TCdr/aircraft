@@ -176,6 +176,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'ENG 1 NOT DAMAGED', sensed: false, condition: true },
       { name: 'ENG 1 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'ENG 1 RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY', level: 1 },
       { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
       { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ENG 1 DAMAGED', sensed: false, condition: true },
@@ -206,6 +207,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'ENG 2 NOT DAMAGED', sensed: false, condition: true },
       { name: 'ENG 2 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'ENG 2 RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY', level: 1 },
       { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
       { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ENG 2 DAMAGED', sensed: false, condition: true },
@@ -236,6 +238,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'ENG 3 NOT DAMAGED', sensed: false, condition: true },
       { name: 'ENG 3 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'ENG 3 RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY', level: 1 },
       { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
       { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ENG 3 DAMAGED', sensed: false, condition: true },
@@ -266,6 +269,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'ENG 4 NOT DAMAGED', sensed: false, condition: true },
       { name: 'ENG 4 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'ENG 4 RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY', level: 1 },
       { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
       { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ENG 4 DAMAGED', sensed: false, condition: true },
@@ -1029,8 +1033,8 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800151: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG ALL ENG FLAME OUT
-    title: '\x1b<2m\x1b4mENG\x1bm ALL ENGINES FAILURE',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG ALL ENG FLAME OUT (a380_fcom.txt l.114538)
+    title: '\x1b<2m\x1b4mENG\x1bm ALL ENG FLAME OUT',
     sensed: true,
     items: [
       { name: 'RAT MAN ON', sensed: false, labelNotCompleted: 'PRESS' },
@@ -1251,14 +1255,23 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800159: {
-    title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENG OUT ON SAME SIDE\x1bm",
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG TWO ENGS OUT ON SAME SIDE (a380_fcom.txt l.175261-175271)
+    title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENGS OUT ON SAME SIDE\x1bm",
+    recommendation: 'LAND ANSA',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'LDG PERF AFFECTED', sensed: false },
+      { name: 'FOR TAXI : STEER ENDURANCE LIMITED', sensed: false },
+    ],
   },
   701800160: {
-    title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENG OUT ON OPPOSITE SIDE\x1bm",
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG TWO ENGS OUT ON OPPOSITE SIDE (a380_fcom.txt l.175514-175521)
+    title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENGS OUT ON OPPOSITE SIDE\x1bm",
+    recommendation: 'LAND ANSA',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG PERF AFFECTED', sensed: false }],
   },
   701800161: {
     title: '\x1b<4m\x1b4mENG\x1bm TYPE DISAGREE',

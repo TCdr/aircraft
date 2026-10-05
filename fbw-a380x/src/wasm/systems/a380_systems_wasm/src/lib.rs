@@ -83,16 +83,17 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .with_engine_anti_ice(4)?
     .with_wing_anti_ice()?
     .with_fuel_pumps(1..=21)?
-    // An engine starves once its LP fuel valve is closed and the fuel left downstream of it is burned
-    // (see a380_systems fuel/engine_lp_valves.rs). Fuel valves 60 to 63 of flight_model.cfg feed the
-    // engines 1 to 4 in series after their Extra tanks: closing them stops the MSFS combustion exactly
-    // when the engine starves. The ENG MASTER valves 1 to 4 are not used for this: they move the
-    // ENG MASTER switches and toggle the MSFS starters.
+    // The engine fuel is cut when the engine starves (its LP fuel valve is closed and the fuel left
+    // downstream of it is burned, see a380_systems fuel/engine_lp_valves.rs), and by a flameout or
+    // seizure failure until a relight lights it up (a380_systems engine_failure.rs). Fuel valves 60 to
+    // 63 of flight_model.cfg feed the engines 1 to 4 in series after their Extra tanks: closing them
+    // stops the MSFS combustion exactly when the fuel is cut. The ENG MASTER valves 1 to 4 are not used
+    // for this: they move the ENG MASTER switches and toggle the MSFS starters.
     .with_fuel_valves_closed_while([
-        (Variable::named("FUEL_ENG_1_STARVED"), 60),
-        (Variable::named("FUEL_ENG_2_STARVED"), 61),
-        (Variable::named("FUEL_ENG_3_STARVED"), 62),
-        (Variable::named("FUEL_ENG_4_STARVED"), 63),
+        (Variable::named("ENGINE_1_FUEL_CUT"), 60),
+        (Variable::named("ENGINE_2_FUEL_CUT"), 61),
+        (Variable::named("ENGINE_3_FUEL_CUT"), 62),
+        (Variable::named("ENGINE_4_FUEL_CUT"), 63),
     ])?
     .with_failures([
         (21_000, FailureType::RapidDecompression),
@@ -462,6 +463,14 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_022, FailureType::RadioAntennaDirectCoupling(3)),
         (34_040, FailureType::Gps(1)),
         (34_041, FailureType::Gps(2)),
+        (72_000, FailureType::EngineFlameout(1)),
+        (72_001, FailureType::EngineFlameout(2)),
+        (72_002, FailureType::EngineFlameout(3)),
+        (72_003, FailureType::EngineFlameout(4)),
+        (72_010, FailureType::EngineSeizure(1)),
+        (72_011, FailureType::EngineSeizure(2)),
+        (72_012, FailureType::EngineSeizure(3)),
+        (72_013, FailureType::EngineSeizure(4)),
     ])
     .provides_aircraft_variable("ACCELERATION BODY X", "feet per second squared", 0)?
     .provides_aircraft_variable("ACCELERATION BODY Y", "feet per second squared", 0)?
@@ -601,6 +610,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 16)?
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 17)?
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 18)?
+    // The ENG START selector position (0 CRANK, 1 NORM, 2 IGN START): an in-flight relight needs IGN START
+    .provides_named_variable("XMLVAR_ENG_MODE_SEL")?
     .provides_named_variable("FSDT_GSX_BOARDING_STATE")?
     .provides_named_variable("FSDT_GSX_DEBOARDING_STATE")?
     .provides_named_variable("FSDT_GSX_NUMPASSENGERS_BOARDING_TOTAL")?
