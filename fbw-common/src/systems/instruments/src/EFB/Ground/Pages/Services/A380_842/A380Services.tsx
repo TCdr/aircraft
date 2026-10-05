@@ -38,6 +38,7 @@ import { gsxServiceStatus, triggerGsxService } from '../GsxServicesPanel';
 import { M3Chip, M3Tone } from '../../../../UtilComponents/Material/Material';
 import { PlanformTag } from '../FuselagePlanform';
 import { doorRow, equipmentRow, SERVICE_LOOKS, ServiceLook, ServicesLayout } from '../ServicesLayout';
+import { useRatStowRow } from '../RatStowRow';
 
 enum ServiceButton {
   Main1Left,
@@ -89,6 +90,9 @@ export const A380Services: React.FC = () => {
   const [aircraftIsStationary] = useSimVar('L:A32NX_IS_STATIONARY', 'bool', 250);
   const [pushBackAttached] = useSimVar('Pushback Attached', 'enum', 250);
   const groundServicesAvailable = simOnGround && aircraftIsStationary && !pushBackAttached;
+
+  // Maintenance: RAT stow, on the ground only (the tug does not matter)
+  const ratStowRow = useRatStowRow(!!simOnGround && !!aircraftIsStationary);
 
   // Ground Services
   const [main1LeftDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:0', 'Percent over 100', 200);
@@ -690,7 +694,9 @@ export const A380Services: React.FC = () => {
       shownLook(ServiceButton.BaggageTruck, baggageButtonState),
       click(ServiceButton.BaggageTruck),
     ),
-  ].filter((row) => shownLook(ServiceButton.BaggageTruck, baggageButtonState) !== 'hidden' || row.key !== 'baggage');
+  ]
+    .filter((row) => shownLook(ServiceButton.BaggageTruck, baggageButtonState) !== 'hidden' || row.key !== 'baggage')
+    .concat(ratStowRow ? [ratStowRow] : []);
 
   const toneOf = (button: ServiceButton, state: ServiceButtonState): M3Tone => {
     const l = shownLook(button, state);
