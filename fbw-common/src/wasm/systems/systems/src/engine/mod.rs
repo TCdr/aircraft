@@ -7,6 +7,7 @@ use crate::{
     simulation::{SimulationElement, SimulationElementVisitor},
 };
 
+pub mod engine_failure;
 pub mod leap_engine;
 pub mod reverser;
 pub mod reverser_thrust;

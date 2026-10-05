@@ -65,6 +65,11 @@ pub enum FailureType {
     RadioAntennaInterrupted(usize),
     RadioAntennaDirectCoupling(usize),
     EnhancedGroundProximityWarningSystemComputer,
+    // ATA72
+    /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
+    EngineFlameout(usize),
+    /// The core of engine n seizes: no relight while the failure is active (engine::engine_failure)
+    EngineSeizure(usize),
 }
 
 pub struct Failure {
