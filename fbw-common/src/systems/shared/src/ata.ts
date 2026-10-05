@@ -99,10 +99,12 @@ export const AtaChaptersDescription = Object.freeze({
   24: 'All things related to the electrical system. The electrical system supplies power from the engines, APU, batteries, or emergency generator to all cockpit instruments.',
   26: 'The fire and smoke protection system the detection and extinguishing of fire in the engines, APU and main landing gear bay and smoke in the cabin, cargo compartments and avionics bays.',
   27: 'The flight controls contain the various systems used to control the aircraft in flight, such as control surfaces, but also flight control computers. Failure of these systems may lead to loss of control over the aircraft, and/or loss of information about the status of the flight controls.',
+  28: 'The fuel system stores the fuel in the tanks and feeds it to the engines and the APU through pumps and valves. Failures of pumps or valves can leave fuel unusable in a tank, unbalance the aircraft or affect the fuel feed to the engines.',
   29: 'The hydraulic system connects to the flight controls, flaps and landing gear to provide pressure to these surfaces. Failing these can cause loss of control over some flight surfaces.',
   31: 'The cockpit displays give critical flight information to the pilots. In a failure where displays are lost, the pilots must deal with a lack of flight data given to them.',
   32: 'The landing gear components are responsible for supporting and steering the aircraft on the ground, and make it possible to retract and store the landing gear in flight. Includes the functioning and maintenance aspects of the landing gear doors.',
   34: 'The navigation systems provide data about the position, speed, heading, and altitude of the aircraft. Failures in a system such as the ADIRS can cause a loss of data sent to instrumentation.',
+  72: 'The engines produce the thrust and drive the generators, the hydraulic pumps and the bleed air system. An engine failure, such as a flameout or a seizure, causes a loss of thrust and of the systems driven by that engine.',
   46: 'Information systems provide means of communication between Airline Operational Control (AOC), Air Traffic Control (ATC), and various applications around the organization of on-board information (e.g. via the OIS)',
 });
 

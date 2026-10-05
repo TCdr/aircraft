@@ -179,6 +179,8 @@ class FadecSimData_A32NX {
   CallbackID     toggleEngineStarter2EventCallback{};
   ClientEventPtr setStarterHeldEvent[2];
   ClientEventPtr setStarterEvent[2];
+  // the MSFS engine ignition switch (TURB ENG IGNITION SWITCH EX1: 0 crank, 1 norm, 2 ign), set by the ENG MODE selector
+  ClientEventPtr setIgnitionSwitchEvent[2];
 
   // SimVars
   AircraftVariablePtr engineCombustion[2];  // Bool
@@ -189,7 +191,13 @@ class FadecSimData_A32NX {
   NamedVariablePtr apuRpmPercent;       // Percent
   NamedVariablePtr engineEgt[2];
   NamedVariablePtr engineFF[2];
-  NamedVariablePtr engineFuelStarved[2];  // Bool - LP fuel valve closed and the fuel downstream of it burned (systems WASM)
+  // Bool - the engine must not burn: LP valve starvation, flameout or seizure failure, relight not lit up (systems WASM)
+  NamedVariablePtr engineFuelCut[2];
+  NamedVariablePtr engineSeized[2];      // Bool - seizure failure: the core stops (systems WASM)
+  NamedVariablePtr engineWindmillN1[2];  // Percent - N1 of the engine windmilling without combustion (systems WASM)
+  NamedVariablePtr engineWindmillN2[2];  // Percent - N2 of the engine windmilling without combustion (systems WASM)
+  NamedVariablePtr engineRelightIgnition[2];  // Bool - an in-flight relight is lighting up: igniters on (systems WASM)
+  NamedVariablePtr engineModeSelector;        // Enum - ENG MODE selector: 0 crank, 1 norm, 2 ign/start
   NamedVariablePtr engineFuelUsed[2];
   NamedVariablePtr engineIdleEGT;
   NamedVariablePtr engineIdleFF;
@@ -276,6 +284,10 @@ class FadecSimData_A32NX {
 
     setStarterEvent[L] = dm->make_client_event("STARTER1_SET", true, NOTIFICATION_GROUP_0);
     setStarterEvent[R] = dm->make_client_event("STARTER2_SET", true, NOTIFICATION_GROUP_0);
+
+    // not in a notification group: the events of the ENG MODE selector must not be masked
+    setIgnitionSwitchEvent[L] = dm->make_client_event("TURBINE_IGNITION_SWITCH_SET1", true);
+    setIgnitionSwitchEvent[R] = dm->make_client_event("TURBINE_IGNITION_SWITCH_SET2", true);
   }
 
   void initSimvars(DataManager* dm) {
@@ -298,8 +310,19 @@ class FadecSimData_A32NX {
     engineFF[L] = dm->make_named_var("A32NX_ENGINE_FF:1", UNITS.Number, AUTO_READ_WRITE);
     engineFF[R] = dm->make_named_var("A32NX_ENGINE_FF:2", UNITS.Number, AUTO_READ_WRITE);
 
-    engineFuelStarved[L] = dm->make_named_var("A32NX_FUEL_ENG_1_STARVED", UNITS.Number, AUTO_READ);
-    engineFuelStarved[R] = dm->make_named_var("A32NX_FUEL_ENG_2_STARVED", UNITS.Number, AUTO_READ);
+    engineFuelCut[L] = dm->make_named_var("A32NX_ENGINE_1_FUEL_CUT", UNITS.Number, AUTO_READ);
+    engineFuelCut[R] = dm->make_named_var("A32NX_ENGINE_2_FUEL_CUT", UNITS.Number, AUTO_READ);
+    engineSeized[L]  = dm->make_named_var("A32NX_ENGINE_1_SEIZED", UNITS.Number, AUTO_READ);
+    engineSeized[R]  = dm->make_named_var("A32NX_ENGINE_2_SEIZED", UNITS.Number, AUTO_READ);
+
+    engineWindmillN1[L] = dm->make_named_var("A32NX_ENGINE_1_WINDMILL_N1", UNITS.Number, AUTO_READ);
+    engineWindmillN1[R] = dm->make_named_var("A32NX_ENGINE_2_WINDMILL_N1", UNITS.Number, AUTO_READ);
+    engineWindmillN2[L] = dm->make_named_var("A32NX_ENGINE_1_WINDMILL_N2", UNITS.Number, AUTO_READ);
+    engineWindmillN2[R] = dm->make_named_var("A32NX_ENGINE_2_WINDMILL_N2", UNITS.Number, AUTO_READ);
+
+    engineRelightIgnition[L] = dm->make_named_var("A32NX_ENGINE_1_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
+    engineRelightIgnition[R] = dm->make_named_var("A32NX_ENGINE_2_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
+    engineModeSelector       = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ);
 
     engineFuelUsed[L] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[R] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);

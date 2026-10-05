@@ -124,6 +124,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the FCOM position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
 1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
 1. [A32NX/EFB] Failures: clearer failure names after an audit (hot air valve, FMGC flight guidance, RA antennas) - @TCdr
+1. [A32NX/EFB] New flyPad failures Engine 1(2) flameout (crew relight possible) and Engine 1(2) seizure (no relight): the engine fuel is cut; a flamed out engine relights with ENG MASTER OFF then ON inside the FCOM relight envelope, a seized one does not relight - @TCdr
+1. [EFB] The flyPad failures page describes the ATA 28 Fuel and ATA 72 Engine chapters like the others - @TCdr
+1. [A32NX/FWS] New ENG 1(2) FAIL and ENG 1(2) SHUT DOWN cautions with their FCOM procedures, STATUS and INOP SYS, and LAND ASAP; ALL ENGINES FAILURE gets its FCOM flight phase inhibition - @TCdr
+1. [A32NX/FADEC] An in-flight engine relight follows the FCOM relight envelope; a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N2; both igniters during an in-flight relight, which also lights up a quick relight with the ENG MODE selector at NORM - @TCdr
 1. [A32NX] Fire protection: new flyPad failures of the engine 1, engine 2 and APU fire detection units (FDU): the zone gives the ENG 1(2) / APU FIRE DET FAULT caution with healthy loops and can no longer give a fire warning - @TCdr
 1. [A32NX] The ENG MASTER panel FIRE light stays dark during the ENG 1 FIRE TEST with ENG 1 loop A faulted and during the ENG 2 FIRE TEST with ENG 2 loop B faulted, as in the FCOM - @TCdr
 1. [A32NX] An APU fire on the ground sounds the external horn in the nose gear bay - @TCdr
