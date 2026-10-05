@@ -15,7 +15,7 @@ import { EcamAbnormalSensedAta34, EcamDeferredProcAta34 } from './AbnormalSensed
 import { EcamAbnormalSensedAta353642 } from './AbnormalSensed/ata35-36-42';
 import { EcamAbnormalSensedAta46495256 } from './AbnormalSensed/ata46-49-52-56';
 import { EcamAbnormalSensedAta70 } from './AbnormalSensed/ata70';
-import { EcamAbnormalSensedAta80Rest } from './AbnormalSensed/ata80-rest';
+import { EcamAbnormalSensedAta80Rest, EcamDeferredProcAta80Rest } from './AbnormalSensed/ata80-rest';
 import { EcamAbnormalSecondaryFailures } from './AbnormalSensed/secondary-failures';
 import { AbnormalNonSensedCategory } from '../providers/FwsPublisher';
 
@@ -105,6 +105,7 @@ export const EcamMemos: { [n: string]: string } = {
   '300000002': '\x1b<3mWING A-ICE',
   '300000003': '\x1b<3mICE NOT DETECTED',
   '310000001': '\x1b<4mMEMO NOT AVAIL',
+  '310000002': '\x1b<3mEMERGENCY CANCEL ON',
   '314000001': '\x1b<6mT.O INHIBIT',
   '314000002': '\x1b<6mLDG INHIBIT',
   '317000001': '\x1b<3mCLOCK INT',
@@ -229,6 +230,9 @@ export const EcamInfos: { [n: string]: string } = {
   340200017: '\x1b<3m\xa0\xa0INCREASE THRUST BY 5 %',
   340200018: '\x1b<3m\xa0\xa0FUEL CONSUMPT INCRSD',
   340200019: '\x1b<3m\xa0\xa0FMS PRED UNRELIABLE',
+  280200001: '\x1b<3mMIN FUEL USABLE : OTHER FEED TKs',
+  280200002: '\x1b<3m(ALL OTHER FUEL MAYBE LOST)',
+  280200003: '\x1b<3mFUEL CONSUMPT INCRSD : FMS PRED DISREGARD',
   280200004: '\x1b<3mFEED TK 1 BY GRVTY ONLY', // FEED TK 1 MAIN + STBY PMPs FAULT (A380 FCOM l.150245)
   280200005: '\x1b<3mFEED TK 2 BY GRVTY ONLY', // FEED TK 2 MAIN + STBY PMPs FAULT (A380 FCOM l.150245)
   280200006: '\x1b<3mFEED TK 3 BY GRVTY ONLY', // FEED TK 3 MAIN + STBY PMPs FAULT (A380 FCOM l.150245)
@@ -238,6 +242,11 @@ export const EcamInfos: { [n: string]: string } = {
   280200010: '\x1b<3mTRIM TK GRVTY XFR : AROUND 3000 KG / HR', // TRIM TK L+R PMPs FAULT (A380 FCOM l.153805)
   280200011: '\x1b<3mTRIM TK : 2300 KG MAX NOT USABLE', // TRIM TK L+R PMPs FAULT (A380 FCOM l.153807)
   800200002: '\x1b<3mON DRY RWY ONLY : LDG DIST AFFECTED < 15%',
+  990200001: '\x1b<3mACFT FL   CABIN ALT TRGT',
+  990200002: '\x1b<3m  100       LDG ELEVN',
+  990200003: '\x1b<3m  150         3000',
+  990200004: '\x1b<3m  200         6000',
+  990200005: '\x1b<3m  230         8000',
   800200003: '\x1b<3mTAXI WITH CARE',
   800200004: '\x1b<5mAVOID MAX TILLER ANGLE TURN ON WET/CONTAM RWY',
   800200005: '\x1b<3mNO BRAKED PIVOT TURN',
@@ -265,6 +274,8 @@ export const EcamLimitations: { [n: string]: string } = {
   290400001: '\x1b<5mSLATS SLOW',
   290400002: '\x1b<5mFLAPS SLOW',
   300400001: '\x1b<5mAVOID ICING CONDs',
+  280400001: '\x1b<5mFUEL PARTLY UNUSABLE',
+  280400002: '\x1b<5mDELAY T.O',
   280400003: '\x1b<5mFEED TK 1 NOT USABLE', // CROSSFEED VLV 1 FAULT (A380 FCOM l.149660)
   280400004: '\x1b<5mFEED TK 2 NOT USABLE', // CROSSFEED VLV 2 FAULT (A380 FCOM l.149660)
   280400005: '\x1b<5mFEED TK 3 NOT USABLE', // CROSSFEED VLV 3 FAULT (A380 FCOM l.149660)
@@ -278,9 +289,11 @@ export const EcamLimitations: { [n: string]: string } = {
   320400002: '\x1b<5mL/G GRVTY EXTN ONLY',
   320400003: '\x1b<5mSTEER ENDUR LIMITED',
   320400004: '\x1b<5mAUTO BRK:DO NOT USE',
+  320400005: '\x1b<5mMAX LDG WEIGHT',
   340400001: '\x1b<5mALL SPEED : MAX 330 / M .82',
   700400001: '\x1b<5mREV : SYM USE ONLY',
   800400001: '\x1b<5mFUEL CONSUMPT INCRSD',
+  990400001: '\x1b<5mMAX FL : 230/MEA',
   800400002: '\x1b<5mLDG DIST AFFECTED',
   800400003: '\x1b<5mLDG PERF AFFECTED',
   800400004: '\x1b<5mFOR GA : KEEP S/F CONF',
@@ -586,6 +599,13 @@ export const EcamInopSys: { [n: string]: string } = {
   310300001: '\x1b<4mAUTO CALLOUT',
   310300002: '\x1b<4mFWS 1',
   310300003: '\x1b<4mFWS 2',
+  300300001: '\x1b<4mWING A-ICE',
+  300300002: '\x1b<4mL WINDSHIELD HEATG',
+  300300003: '\x1b<4mL SLIDG WINDOW HEATG',
+  300300004: '\x1b<4mL FIXED WINDOW HEATG',
+  300300005: '\x1b<4mR WINDSHIELD HEATG',
+  300300006: '\x1b<4mR SLIDG WINDOW HEATG',
+  300300007: '\x1b<4mR FIXED WINDOW HEATG',
   320300001: '\x1b<4mA-SKID',
   320300002: '\x1b<4mAUTO BRK',
   320300003: '\x1b<4mPART A-SKID',
@@ -853,6 +873,7 @@ export const EcamDeferredProcedures: { [n: string]: DeferredProcedure } = {
   ...EcamDeferredProcAta27,
   ...EcamDeferredProcAta313233,
   ...EcamDeferredProcAta34,
+  ...EcamDeferredProcAta80Rest,
 };
 
 /** Used for one common representation of data defining the visual appearance of ECAM lines on the WD (for the ECL part) */

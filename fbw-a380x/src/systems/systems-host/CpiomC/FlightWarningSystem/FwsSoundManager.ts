@@ -338,6 +338,23 @@ export class FwsSoundManager {
     this.soundQueue.delete(soundKey);
   }
 
+  /**
+   * EMER CANC pb (A380 FCOM DSC-31-40-20): cancels all the audio indicators and aural alerts, the one playing and the
+   * queued ones. A sound whose triggering conditions occur again sounds again.
+   * @returns whether there was a sound to cancel
+   */
+  cancelAll(): boolean {
+    const anySound = this.currentSoundPlaying !== null || this.soundQueue.size > 0 || this.singleChimesPending > 0;
+    for (const soundKey of [...this.soundQueue]) {
+      this.dequeueSound(soundKey);
+    }
+    if (this.currentSoundPlaying !== null) {
+      this.dequeueSound(this.currentSoundPlaying);
+    }
+    this.singleChimesPending = 0;
+    return anySound;
+  }
+
   private stopCurrentSound(currentSound?: FwsAural) {
     const sound =
       currentSound !== undefined

@@ -60,9 +60,11 @@ import {
 // FIXME should not import from instruments
 import { ProcedureLinesGenerator } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/ProcedureLinesGenerator';
 import PitchTrimUtils from '@shared/PitchTrimUtils';
+import { isStatusMoreAvailable } from '@shared/EcamSdMore';
 // FIXME should not import from instruments
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwsMemos } from './FwsMemos';
+import { FwsEmerCancel } from './FwsEmerCancel';
 import { FwsNormalChecklists } from './FwsNormalChecklists';
 import { EwdAbnormalDict, EwdAbnormalItem, FwsAbnormalSensed } from './FwsAbnormalSensed';
 import { FwsAbnormalNonSensed } from './FwsAbnormalNonSensed';
@@ -260,6 +262,7 @@ export class FwsCore {
   public readonly toConfigInputBuffer = new NXLogicMemoryNode(false);
   public readonly clearButtonInputBuffer = new NXLogicMemoryNode(false);
   public readonly recallButtonInputBuffer = new NXLogicMemoryNode(false);
+  public readonly emerCancelInputBuffer = new NXLogicMemoryNode(false);
   public readonly clInputBuffer = new NXLogicMemoryNode(false);
   public readonly clCheckInputBuffer = new NXLogicMemoryNode(false);
   public readonly clUpInputBuffer = new NXLogicMemoryNode(false);
@@ -297,6 +300,38 @@ export class FwsCore {
   public readonly deferredUpdatedItems = new Map<string, number[]>();
 
   public recallFailures: string[] = [];
+
+  /** EMER CANC pb: the cautions cancelled for the flight and the warnings silenced (A380 FCOM DSC-31-40-20) */
+  public readonly emerCancel = new FwsEmerCancel();
+
+  /** The cancelled cautions, for the CANCELLED CAUTION section of the STATUS page */
+  private readonly cancelledCautionKeys = Subject.create<string[]>([]);
+
+  /**
+   * Whether the STATUS page has a STATUS MORE page (REDUND LOSS or CANCELLED CAUTION). The FWS decides it from its
+   * own lists, so the ECP MORE pb does not depend on the SD writing a value back (FwsSystemDisplayLogic).
+   */
+  public readonly statusMoreAvailable = MappedSubject.create(
+    ([redundancyLossKeys, cancelledCautionKeys]) => isStatusMoreAvailable(redundancyLossKeys, cancelledCautionKeys),
+    this.inopSysRedundLossKeys,
+    this.cancelledCautionKeys,
+  );
+
+  /** FCOM: RCL pb pressed for more than 3 s recalls the alerts cancelled with the EMER CANC pb */
+  private static readonly RECALL_LONG_PRESS_MS = 3_000;
+
+  /** How long the RCL pb has been held, in ms */
+  private recallHeldTime = 0;
+
+  private recallLongPressDone = false;
+
+  /** FCOM: EMER CANC pb pressed with nothing to cancel, the EWD displays EMERGENCY CANCEL ON */
+  public readonly emergencyCancelOnMemo = Subject.create(false);
+
+  /** How long the EMERGENCY CANCEL ON memo is displayed, in ms (the FCOM gives no time: as the RCL NORMAL, 3 s) */
+  private static readonly EMERGENCY_CANCEL_ON_MEMO_MS = 3_000;
+
+  private emergencyCancelOnMemoTime = 0;
 
   private requestMasterCautionFromFaults = false;
 
@@ -1595,6 +1630,8 @@ export class FwsCore {
 
   public readonly rclUpPulseNode = new NXLogicPulseNode();
 
+  public readonly emerCancelPulseNode = new NXLogicPulseNode();
+
   public readonly clPulseNode = new NXLogicPulseNode();
 
   public readonly clCheckPulseNode = new NXLogicPulseNode();
@@ -2512,6 +2549,7 @@ export class FwsCore {
           this.allCurrentFailures.length = 0;
           this.presentedFailures.length = 0;
           this.recallFailures.length = 0;
+          this.emerCancel.reset();
         } else {
           FwsCore.sendFailureWarning(this.bus);
           this.resetAudioOutputs();
@@ -2535,6 +2573,7 @@ export class FwsCore {
           this.allCurrentFailures.length = 0;
           this.presentedFailures.length = 0;
           this.recallFailures.length = 0;
+          this.emerCancel.reset();
         }
       }),
     );
@@ -2664,6 +2703,7 @@ export class FwsCore {
       this.inopSysApprLdgKeys.sub((v) => this.publisher.pub('fws_inop_sys_appr_ldg', v, true)),
       this.alertsImpactingLdgPerfKeys.sub((v) => this.publisher.pub('fws_alerts_impacting_ldg_perf', v, true)),
       this.inopSysRedundLossKeys.sub((v) => this.publisher.pub('fws_inop_sys_redundancy_loss', v, true)),
+      this.cancelledCautionKeys.sub((v) => this.publisher.pub('fws_cancelled_caution', v, true)),
     );
 
     this.subs.push(
@@ -2996,6 +3036,12 @@ export class FwsCore {
     if (recallButton && !this.fwsEcpFailed.get()) {
       this.recallButtonInputBuffer.write(true, false);
     }
+    this.recallHeldTime = recallButton && !this.fwsEcpFailed.get() ? this.recallHeldTime + deltaTime : 0;
+
+    // EMER CANC button
+    if (SimVar.GetSimVarValue('L:A32NX_BTN_EMERCANC', 'bool') && !this.fwsEcpFailed.get()) {
+      this.emerCancelInputBuffer.write(true, false);
+    }
 
     // C/L buttons
     if (SimVar.GetSimVarValue('L:A32NX_BTN_CL', 'bool')) {
@@ -3053,6 +3099,7 @@ export class FwsCore {
     this.toConfigPulseNode.write(this.toConfigInputBuffer.read());
     this.clrPulseNode.write(this.clearButtonInputBuffer.read());
     this.rclUpPulseNode.write(this.recallButtonInputBuffer.read());
+    this.emerCancelPulseNode.write(this.emerCancelInputBuffer.read());
     this.clPulseNode.write(this.clInputBuffer.read());
     this.clCheckPulseNode.write(this.clCheckInputBuffer.read());
     this.clUpPulseNode.write(this.clUpInputBuffer.read());
@@ -5445,7 +5492,8 @@ export class FwsCore {
     this.cargoFireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', 'bool'));
     this.cargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_FWD_DISCHARGED', 'bool'));
 
-    this.fireTestPb.set(SimVar.GetSimVarValue('L:A32NX_OVHD_FIRE_TEST_PB_IS_PRESSED', 'bool'));
+    // The FIRE TEST pb, extended after its release when the flyPad setting is on
+    this.fireTestPb.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ACTIVE', 'bool'));
 
     /* 42 AVIONICS NETWORK */
     this.cpiomC1Available.set(SimVar.GetSimVarValue('L:A32NX_CPIOM_C1_AVAIL', 'bool'));
@@ -5705,6 +5753,28 @@ export class FwsCore {
       }
     }
 
+    /* EMER CANC */
+    if (this.emerCancelPulseNode.read()) {
+      this.emergencyCancel();
+    }
+
+    // RCL pb for more than 3 s: the cautions cancelled with EMER CANC and still active appear again on the EWD
+    if (this.recallHeldTime >= FwsCore.RECALL_LONG_PRESS_MS) {
+      if (!this.recallLongPressDone) {
+        this.recallLongPressDone = true;
+        const recalled = this.emerCancel.recall(this.allCurrentFailures);
+        this.presentedFailures.push(...recalled.filter((key) => !this.presentedFailures.includes(key)));
+        this.recallFailures = this.recallFailures.filter((key) => !recalled.includes(key));
+      }
+    } else {
+      this.recallLongPressDone = false;
+    }
+
+    if (this.emergencyCancelOnMemoTime > 0) {
+      this.emergencyCancelOnMemoTime -= deltaTime;
+      this.emergencyCancelOnMemo.set(this.emergencyCancelOnMemoTime > 0);
+    }
+
     // Output logic
 
     this.landAsap.set(
@@ -5730,7 +5800,7 @@ export class FwsCore {
     const ewdLimitationsApprLdgKeys: string[] = [];
     const pfdLimitationsKeys: string[] = [];
     let failureKeys: string[] = this.presentedFailures;
-    let recallFailureKeys: string[] = this.recallFailures;
+    let recallFailureKeys: string[] = this.recallFailures.filter((key) => !this.emerCancel.isCancelledCaution(key));
     let failureSystemCount = 0;
     const auralCrcKeys: string[] = [];
     let newScKey = false;
@@ -5796,7 +5866,9 @@ export class FwsCore {
       const proc = EcamAbnormalProcedures[key];
       const isProcedure = !value.nonProcedureKey;
       const newWarning = isProcedure
-        ? !this.presentedFailures.includes(key) && !recallFailureKeys.includes(key)
+        ? !this.presentedFailures.includes(key) &&
+          !recallFailureKeys.includes(key) &&
+          !this.emerCancel.isCancelledCaution(key)
         : !this.allCurrentFailures.includes(key);
 
       if (proc === undefined && isProcedure) {
@@ -5822,7 +5894,8 @@ export class FwsCore {
           }
         }
 
-        if (isProcedure) {
+        // A caution cancelled with EMER CANC stays off the EWD
+        if (isProcedure && !this.emerCancel.isCancelledCaution(key)) {
           const itemsChecked = value.whichItemsChecked().map((v, i) => (!proc.items[i]?.sensed ? false : !!v));
           const itemsToShow = value.whichItemsToShow ? value.whichItemsToShow() : Array(itemsChecked.length).fill(true);
           const itemsActive = value.whichItemsActive ? value.whichItemsActive() : Array(itemsChecked.length).fill(true);
@@ -5933,7 +6006,7 @@ export class FwsCore {
           }
         }
 
-        if (value.cancel === false && value.failure === 3) {
+        if (value.cancel === false && value.failure === 3 && !this.emerCancel.isSilencedWarning(key)) {
           this.nonCancellableWarningCount++;
         }
 
@@ -6000,7 +6073,7 @@ export class FwsCore {
         anyScKeyActive = true;
       }
 
-      if (value.auralWarning?.get() === FwcAuralWarning.CavalryCharge) {
+      if (value.auralWarning?.get() === FwcAuralWarning.CavalryCharge && !this.emerCancel.isSilencedWarning(key)) {
         this.soundManager.enqueueSound('cavalryChargeCont');
       }
     }
@@ -6084,6 +6157,15 @@ export class FwsCore {
 
     this.auralCrcKeys = auralCrcKeys;
 
+    this.emerCancel.update(allFailureKeys);
+    const cancelledCautions = this.emerCancel.cancelledCautions;
+    if (
+      this.cancelledCautionKeys.get().length !== cancelledCautions.length ||
+      !this.cancelledCautionKeys.get().every((value, index) => value === cancelledCautions[index])
+    ) {
+      this.cancelledCautionKeys.set([...cancelledCautions]);
+    }
+
     if (this.auralCrcKeys.length === 0) {
       this.auralCrcActive.set(false);
     }
@@ -6091,7 +6173,7 @@ export class FwsCore {
     const newScMtrig = this.singleChimeMtrig.write(newScKey, deltaTime);
     const singleChimeRequestMemory = this.singleChimeRequestedMemory.write(
       newScMtrig,
-      !newScMtrig || masterCautionPressed || !anyScKeyActive,
+      !newScMtrig || masterCautionPressed || this.emerCancelPulseNode.read() || !anyScKeyActive,
     );
     this.auralSingleChimeRequest.set(singleChimeRequestMemory);
 
@@ -6381,6 +6463,7 @@ export class FwsCore {
     this.toConfigInputBuffer.write(false, true);
     this.clearButtonInputBuffer.write(false, true);
     this.recallButtonInputBuffer.write(false, true);
+    this.emerCancelInputBuffer.write(false, true);
     this.clInputBuffer.write(false, true);
     this.clCheckInputBuffer.write(false, true);
     this.clUpInputBuffer.write(false, true);
@@ -6434,11 +6517,54 @@ export class FwsCore {
     this.debugDataToOisSubject.notify();
   }
 
+  /**
+   * EMER CANC pb (A380 FCOM DSC-31-40-20 P 5), on the alert at the top of the EWD:
+   * - a warning: its audio indicator and MASTER WARN light are cancelled, the procedure stays on the EWD,
+   * - a caution: cancelled for the remainder of the flight, with its procedure and the MASTER CAUT light,
+   * and in all cases: all the audio indicators and aural alerts, and any activated not-sensed procedure.
+   * With nothing to cancel, the EWD displays EMERGENCY CANCEL ON.
+   */
+  private emergencyCancel(): void {
+    let cancelled = false;
+    const top = this.abnormalSensed.activeProcedureId.get();
+    const topSensed = top !== null && EcamAbnormalProcedures[top]?.sensed !== false;
+    const level = top !== null ? this.ewdAbnormal[top]?.failure : undefined;
+    if (topSensed && level === 3) {
+      this.emerCancel.silenceWarnings(this.allCurrentFailures.filter((key) => this.ewdAbnormal[key]?.failure === 3));
+      this.requestMasterWarningFromFaults = false;
+      this.requestMasterWarningFromApOff = false;
+      this.auralCrcActive.set(false);
+      cancelled = true;
+    } else if (topSensed && top !== null && (level === 1 || level === 2)) {
+      this.emerCancel.cancelCaution(top);
+      this.abnormalSensed.clearActiveProcedure();
+      this.recallFailures = this.recallFailures.filter((key) => key !== top);
+      this.presentedAbnormalProceduresList.delete(top);
+      this.clearedAbnormalProceduresList.delete(top);
+      this.requestMasterCautionFromFaults = false;
+      cancelled = true;
+    }
+    if (this.soundManager.cancelAll()) {
+      cancelled = true;
+    }
+    if (this.activeAbnormalNonSensedKeys.get().size > 0) {
+      this.activeAbnormalNonSensedKeys.clear();
+      cancelled = true;
+    }
+    if (!cancelled) {
+      this.emergencyCancelOnMemoTime = FwsCore.EMERGENCY_CANCEL_ON_MEMO_MS;
+      this.emergencyCancelOnMemo.set(true);
+    }
+  }
+
   static sendFailureWarning(bus: EventBus) {
     // In case of FWS1+2 failure, populate output with FW messages
     SimVar.SetSimVarValue('L:A32NX_STATUS_NORMAL', SimVarValueType.Bool, true);
     SimVar.SetSimVarValue('L:A32NX_ECAM_FAILURE_ACTIVE', SimVarValueType.Bool, false);
     SimVar.SetSimVarValue('L:A32NX_ECAM_SFAIL', SimVarValueType.Number, -1);
+    // No FWS left to handle the MORE pb: drop the STATUS MORE page and its pb light
+    SimVar.SetSimVarValue('L:A32NX_ECAM_SD_STS_MORE_AVAILABLE', SimVarValueType.Number, 0);
+    SimVar.SetSimVarValue('L:A32NX_ECAM_SD_MORE_SHOWN', SimVarValueType.Number, 0);
     SimVar.SetSimVarValue('L:A32NX_MASTER_CAUTION', SimVarValueType.Bool, false);
     SimVar.SetSimVarValue('L:A32NX_MASTER_WARNING', SimVarValueType.Bool, false);
     SimVar.SetSimVarValue('L:A32NX_FWC_1_LG_RED_ARROW', SimVarValueType.Bool, false);
@@ -6503,6 +6629,8 @@ export class FwsCore {
     this.limitations.destroy();
     this.inopSys.destroy();
     this.memos.destroy();
+    // Else its H event handler outlives this FWS, and a new FWS after a recovery would see every ECP MORE pb twice
+    this.systemDisplayLogic.destroy();
     this.resetAudioOutputs();
     this.subs.forEach((s) => s.destroy());
     FwsCore.sendFailureWarning(this.bus);

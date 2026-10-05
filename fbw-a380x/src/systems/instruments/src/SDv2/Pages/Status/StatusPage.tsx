@@ -14,6 +14,7 @@ import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import {
   DEFERRED_PROCEDURE_TYPE_TO_STRING,
   DeferredProcedureType,
+  EcamAbnormalProcedures,
   EcamDeferredProcedures,
   EcamInfos,
   EcamInopSys,
@@ -24,6 +25,7 @@ import { ChecklistState, FwsEvents } from '../../../MsfsAvionicsCommon/providers
 import { MoreLabel, PageTitle } from '../Generic/PageTitle';
 import { SDSimvars } from '../../SDSimvarPublisher';
 import { SdPageProps } from '../../SD';
+import { isStatusMoreAvailable } from '@shared/EcamSdMore';
 
 import './style.scss';
 import { RegisteredSimVar } from '@flybywiresim/fbw-sdk';
@@ -50,10 +52,6 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
 
   private readonly stsNumberOfPagesSimvar = RegisteredSimVar.create(
     'L:A32NX_ECAM_SD_STS_NUMBER_OF_PAGES',
-    SimVarValueType.Number,
-  );
-  private readonly stsMoreAvailableSimvar = RegisteredSimVar.create<number>(
-    'L:A32NX_ECAM_SD_STS_MORE_AVAILABLE',
     SimVarValueType.Number,
   );
 
@@ -204,8 +202,30 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
 
   private readonly inopSysRedundHeight = this.inopSysRedundLines.map((lines) => `${lines * 30 + 3}px`);
 
+  /* CANCELLED CAUTION: the cautions cancelled with the EMER CANC pb, in white (FCOM DSC-31-40-10) */
+  private readonly cancelledCaution = ConsumerSubject.create(this.sub.on('fws_cancelled_caution'), []);
+
+  private readonly cancelledCautionFormatString = this.cancelledCaution.map((keys) =>
+    keys
+      .map((key) => EcamAbnormalProcedures[key]?.title)
+      .filter((title): title is string => title !== undefined)
+      // eslint-disable-next-line no-control-regex
+      .map((title) => `\x1b<7m${title.replace(/\x1b<\d+m/g, '\x1b<7m')}`)
+      .join('\r'),
+  );
+
+  private readonly cancelledCautionDisplay = this.cancelledCaution.map((keys) => (keys.length > 0 ? 'flex' : 'none'));
+
+  private readonly cancelledCautionHeight = this.cancelledCaution.map((keys) => `${keys.length * 30 + 3}px`);
+
   private readonly moreActive = ConsumerSubject.create(this.sub.on('moreActive'), false);
-  private readonly moreAvailable = this.inopSysRedund.map((lines) => lines.length > 0);
+  // Only draws the boxed MORE label: the FWS decides whether the MORE pb works, with the same rule on the same lists,
+  // and is the only writer of L:A32NX_ECAM_SD_STS_MORE_AVAILABLE (a write from here was lost while this page was paused)
+  private readonly moreAvailable = MappedSubject.create(
+    ([inopSysRedund, cancelledCaution]) => isStatusMoreAvailable(inopSysRedund, cancelledCaution),
+    this.inopSysRedund,
+    this.cancelledCaution,
+  );
   private readonly moreAvailableVisibility = this.moreAvailable.map((v) => (v ? 'inherit' : 'hidden'));
   private readonly moreActiveVisibility = this.moreActive.map((v) => (v ? 'inherit' : 'hidden'));
 
@@ -283,6 +303,11 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
       this.inopSysDisplay,
       this.inopSysHeight,
       this.pressStsForNextStatusPageVisibility,
+      this.cancelledCaution,
+      this.cancelledCautionFormatString,
+      this.cancelledCautionDisplay,
+      this.cancelledCautionHeight,
+      this.moreAvailable,
     );
 
     this.subscriptions.push(
@@ -425,9 +450,6 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
         this.moreActive,
         this.inopSysRedund,
       ),
-      this.moreAvailable.sub((v) => {
-        this.stsMoreAvailableSimvar.set(v ? 1 : 0);
-      }, true),
     );
   }
 
@@ -597,6 +619,18 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
             <StatusPageSectionHeading title="INOP SYS REDUND" showSeparationLines={Subject.create(false)} />
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style={{ height: this.inopSysRedundHeight }}>
               <FormattedFwcText x={0} y={24} message={this.inopSysRedundFormatString} />
+            </svg>
+          </div>
+          {/* CANCELLED CAUTION */}
+          <div
+            class="sd-sts-section-container"
+            style={{
+              display: this.cancelledCautionDisplay,
+            }}
+          >
+            <StatusPageSectionHeading title="CANCELLED CAUTION" showSeparationLines={Subject.create(true)} />
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style={{ height: this.cancelledCautionHeight }}>
+              <FormattedFwcText x={0} y={24} message={this.cancelledCautionFormatString} />
             </svg>
           </div>
           <div style="flex-grow: 1" />

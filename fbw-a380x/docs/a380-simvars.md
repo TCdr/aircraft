@@ -1319,6 +1319,16 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Bool
     - True when the overhead fire test pushbutton is pressed
 
+- A32NX_FIRE_TEST_EXTEND
+    - Bool
+    - True when the fire test goes on for 7 seconds after the fire test pushbutton is released (flyPad Realism
+      setting "Extend Fire Test Warnings After Button Release", not aircraft behaviour)
+
+- A32NX_FIRE_TEST_ACTIVE
+    - Bool
+    - True while the fire test is requested: the fire test pushbutton is pressed, or was released less than 7 seconds
+      ago when A32NX_FIRE_TEST_EXTEND is true
+
 ## Flight Controls (ATA 27)
 
 ### Electronic Flight Control System (EFCS)

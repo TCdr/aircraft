@@ -121,6 +121,14 @@ export class FwsMemos {
       codesToReturn: ['300000003'],
       memoInhibit: () => false,
     },
+    '310000002': {
+      // EMERGENCY CANCEL ON: EMER CANC pb pressed with nothing to cancel (FCOM DSC-31-40-20)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.emergencyCancelOnMemo,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['310000002'],
+      memoInhibit: () => false,
+    },
     '0000170': {
       // APU AVAIL
       flightPhaseInhib: [],

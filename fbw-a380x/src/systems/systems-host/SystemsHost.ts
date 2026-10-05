@@ -34,6 +34,7 @@ import {
   SwitchingPanelPublisher,
   RaBusPublisher,
   LgciuBusPublisher,
+  NXDataStore,
 } from '@flybywiresim/fbw-sdk';
 import { AudioManagementUnit } from './Misc/Communications/AudioManagementUnit';
 import { RmpAmuBusPublisher } from './Misc/Communications/RmpAmuBusPublisher';
@@ -245,6 +246,13 @@ class SystemsHost extends BaseInstrument {
     this.soundManager = new LegacySoundManager();
     this.gpws = new LegacyGpws(this.bus, this.soundManager);
     this.gpws.init();
+
+    // flyPad Realism setting, for the fire protection system: the FIRE TEST goes on a few seconds after the pb release
+    NXDataStore.getAndSubscribeLegacy(
+      'FIRE_TEST_EXTEND',
+      (_, value) => SimVar.SetSimVarValue('L:A32NX_FIRE_TEST_EXTEND', SimVarValueType.Bool, value === 'ENABLED'),
+      'ENABLED',
+    );
 
     this.backplane.addInstrument('TcasComputer', new LegacyTcasComputer(this.bus, this.soundManager));
 
