@@ -1677,7 +1677,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 2
     - 3
     - 4
-  - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the FADEC shuts the engine down and it cannot relight. Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank
+  - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the FADEC shuts the engine down and it cannot relight. Cuts the engine fuel (A32NX_ENGINE_{number}_FUEL_CUT)
 
 - A380X_FUEL_FEED_TK_{number}_{pump}_PMP_LO_PR
   - Bool
@@ -2232,6 +2232,87 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - L:A32NX_OVHD_FADEC_{ENG}
   - The powered status of the associated engine's FADEC dependant on the button on the OVHD
   - {ENG} = 1, 2, 3, 4
+
+- A32NX_ENGINE_{number}_FUEL_CUT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED), a flameout or seizure failure (flyPad failures 72000-72003 and 72010-72013), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank; the FADEC handles the engine as one without fuel. Written by the systems WASM (a380_systems engine_failure.rs)
+
+- A32NX_ENGINE_{number}_FLAMED_OUT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine has no flame and its fuel stays cut until a relight lights it up: set by the flameout failure (latched), the seizure failure, or the ENG MASTER ON of an engine not running in flight; cleared when a relight attempt (ENG MASTER OFF then ON) lights up inside the relight envelope. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_SEIZED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the seizure failure of the engine is active: its core (N3) stops and no relight lights up. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_WINDMILL_N1
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N1 of the engine windmilling without combustion at the current airspeed (1.5 times the windmilling core speed), 0 on the ground. The FADEC keeps a shut down engine at or above it in flight. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_WINDMILL_N2
+  - Number (% N3)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Core speed of the engine windmilling without combustion at the current airspeed (11 % at 260 kt), 0 on the ground. The shared systems module names it N2 (the HP spool of the GP7270 of the FCOM): on the A380X it is the N3 of the Trent. The FADEC keeps a shut down (not seized) engine's N3 at or above it in flight. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_RELIGHT_IGNITION
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True in flight while a relight is lighting up (fuel no longer cut, ENG MASTER ON, engine not running yet): the igniters are supplied whatever the ENG START selector position (FCOM DSC-70-30, DSC-70-80-30-20 quick relight). The FADEC sets the MSFS ignition switch of that engine to IGN meanwhile and gives it back to the selector afterwards. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_RELIGHT_ATTEMPT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True during a relight attempt: from the ENG MASTER ON of a relight until the engine lights up or 30 s have elapsed (FCOM ENG RELIGHT IN FLIGHT: "Engine must relight within 30 s after fuel flow increases"). The FADEC runs its start sequence (start valve, igniters) meanwhile, with the fuel still cut. Written by the systems WASM (a380_systems engine_failure.rs)
+
+- A32NX_ENGINE_{number}_WINDMILL_START
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC starts the engine in flight by windmilling (start valve closed: N3 at or above 11 % and CAS at or above 260 kt, FCOM DSC-70-30): the engine-driven pumps of that engine are depressurised meanwhile (FCOM DSC-70-80-30-20 "the FADEC disconnects both hydraulic pumps"). Written by the systems WASM
+
+- A32NX_PNEU_ENG_{number}_STARTER_PRESSURIZED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when air pressure in the engine starter duct, downstream of the start valve, turns the pneumatic starter (more than 10 PSI gauge, down to 5 PSI once pressurized): a starter assisted relight can light up. The start valve opens while the FADEC starts or restarts the engine (on the ground; in flight below 11 % N3 or 260 kt) and closes above 58.4 % N3 (FCOM DSC-70-30). Written by the systems WASM (a380_systems pneumatic.rs)
 
 ## Hydraulics
 
