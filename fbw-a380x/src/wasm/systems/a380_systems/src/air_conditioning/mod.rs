@@ -1113,7 +1113,8 @@ impl PressurizationConstants for A380PressurizationConstants {
 
     const MAX_CLIMB_RATE: f64 = 1000.; // fpm
     const MAX_CLIMB_RATE_IN_DESCENT: f64 = 500.; // fpm
-    const MAX_DESCENT_RATE: f64 = -350.; // fpm
+                                                 // A380 FCOM DSC-21-30-30 (a380_fcom.txt l.7948): "The cabin descent rate is limited to 300 ft/min."
+    const MAX_DESCENT_RATE: f64 = -300.; // fpm
     const MAX_ABORT_DESCENT_RATE: f64 = -500.; //fpm
     const MAX_TAKEOFF_DELTA_P: f64 = 0.1; // PSI
     const MAX_CLIMB_DELTA_P: f64 = 8.6; // PSI
@@ -3481,6 +3482,20 @@ mod tests {
 
             assert_gt!(test_bed.cabin_vs(), Velocity::new::<foot_per_minute>(-750.));
             assert_lt!(test_bed.cabin_vs(), Velocity::new::<foot_per_minute>(0.));
+        }
+
+        #[test]
+        // A380 FCOM DSC-21-30-30: "The cabin descent rate is limited to 300 ft/min."
+        fn cabin_descent_rate_is_limited_to_300_fpm() {
+            // A fast aircraft descent: the target cabin rate ramps to the limit and stays there
+            let mut test_bed = test_bed_in_cruise()
+                .vertical_speed_of(Velocity::new::<foot_per_minute>(-8000.))
+                .iterate(60);
+
+            let target_vs = test_bed.cabin_target_vertical_speed();
+            assert_ge!(target_vs, Velocity::new::<foot_per_minute>(-300.5));
+            assert_le!(target_vs, Velocity::new::<foot_per_minute>(-290.));
+            assert_ge!(test_bed.cabin_vs(), Velocity::new::<foot_per_minute>(-305.));
         }
 
         #[test]

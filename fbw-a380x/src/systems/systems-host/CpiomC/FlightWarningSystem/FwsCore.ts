@@ -93,6 +93,7 @@ import {
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
+import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -1404,6 +1405,15 @@ export class FwsCore {
   public readonly eng4BPumpFault = Subject.create(false);
 
   public readonly eng4PumpDisc = Subject.create(false);
+
+  /** ENG n PMP A or B pb-sw OFF with the pump still pressurised (HYD SYS OVHT DISC lines, see HydOverheatFlags) */
+  public readonly eng1PumpsOffUnsuccessful = Subject.create(false);
+
+  public readonly eng2PumpsOffUnsuccessful = Subject.create(false);
+
+  public readonly eng3PumpsOffUnsuccessful = Subject.create(false);
+
+  public readonly eng4PumpsOffUnsuccessful = Subject.create(false);
 
   public readonly yellowAbnormLoPressure = Subject.create(false);
 
@@ -3336,6 +3346,14 @@ export class FwsCore {
           !this.greenYellowAbnormLoPressure.get() &&
           !this.greenRsvOverheat.get()),
     );
+    this.eng1PumpsOffUnsuccessful.set(
+      isEnginePumpsTurnOffUnsuccessful(
+        this.eng1APumpAuto.get(),
+        !eng1APumpBelow2900,
+        this.eng1BPumpAuto.get(),
+        !eng1BPumpBelow2900,
+      ),
+    );
 
     this.eng2APumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_2A_PUMP_PB_IS_AUTO', 'bool'));
     this.eng2BPumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_2B_PUMP_PB_IS_AUTO', 'bool'));
@@ -3375,6 +3393,14 @@ export class FwsCore {
           eng2BPumpBelow2900 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.greenRsvOverheat.get()),
+    );
+    this.eng2PumpsOffUnsuccessful.set(
+      isEnginePumpsTurnOffUnsuccessful(
+        this.eng2APumpAuto.get(),
+        !eng2APumpBelow2900,
+        this.eng2BPumpAuto.get(),
+        !eng2BPumpBelow2900,
+      ),
     );
 
     this.eng3APumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_3A_PUMP_PB_IS_AUTO', 'bool'));
@@ -3417,6 +3443,14 @@ export class FwsCore {
           !this.greenYellowAbnormLoPressure.get() &&
           !this.yellowRsvOverheat.get()),
     );
+    this.eng3PumpsOffUnsuccessful.set(
+      isEnginePumpsTurnOffUnsuccessful(
+        this.eng3APumpAuto.get(),
+        !eng3APumpBelow2900,
+        this.eng3BPumpAuto.get(),
+        !eng3BPumpBelow2900,
+      ),
+    );
 
     this.eng4APumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_4A_PUMP_PB_IS_AUTO', 'bool'));
     this.eng4BPumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_4B_PUMP_PB_IS_AUTO', 'bool'));
@@ -3457,6 +3491,14 @@ export class FwsCore {
           eng4BPumpBelow2900 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.yellowRsvOverheat.get()),
+    );
+    this.eng4PumpsOffUnsuccessful.set(
+      isEnginePumpsTurnOffUnsuccessful(
+        this.eng4APumpAuto.get(),
+        !eng4APumpBelow2900,
+        this.eng4BPumpAuto.get(),
+        !eng4BPumpBelow2900,
+      ),
     );
 
     this.threeYellowPumpsFailed.set(
