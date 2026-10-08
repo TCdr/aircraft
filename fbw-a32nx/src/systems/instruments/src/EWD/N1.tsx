@@ -12,6 +12,7 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
+import { ExceedanceMemory, N1_RED_LIMIT_PERCENT, isGroundStartSequence, n1Color } from '@shared/EngineLimits';
 import {
   GaugeComponent,
   GaugeMarkerComponent,
@@ -364,10 +365,55 @@ export class N1 extends DisplayComponent<N1Props> {
 
   private throttle = Subject.create(0);
 
+  private n1 = 0;
+
+  private n1LimitPercent = 0;
+
+  private engineState = 0;
+
+  private onGround = false;
+
+  /** FCOM DSC-70-90-40 (see shared/EngineLimits): amber above the N1 limit, red above the red limit */
+  private readonly n1Color = Subject.create('Green');
+
+  private readonly n1IndicatorClass = Subject.create('GaugeIndicator Gauge');
+
+  /** The red mark at the highest N1 reached above the red limit (FCOM DSC-70-90-40 N1 EXCEEDANCE) */
+  private readonly n1Exceedance = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
+
+  private readonly n1ExceedanceValue = Subject.create(0);
+
+  private readonly n1ExceedanceClass = Subject.create('Hide');
+
+  private updateN1Limits(): void {
+    const color = n1Color(this.n1, this.n1LimitPercent);
+    this.n1Color.set(color);
+    this.n1IndicatorClass.set(color === 'Green' ? 'GaugeIndicator Gauge' : `GaugeIndicator Gauge ${color}`);
+    this.n1Exceedance.update(this.n1, isGroundStartSequence(this.engineState, this.onGround));
+    this.n1ExceedanceValue.set(Math.max(Math.min(this.n1Exceedance.highestValue, 110), 20) / 10);
+    this.n1ExceedanceClass.set(this.n1Exceedance.exceeded ? 'GaugeExceedanceMark' : 'Hide');
+  }
+
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
     const sub = this.props.bus.getSubscriber<EwdSimvars>();
+
+    sub
+      .on(`engine${this.props.engine}State`)
+      .whenChanged()
+      .handle((state) => {
+        this.engineState = state;
+        this.updateN1Limits();
+      });
+
+    sub
+      .on('left1LandingGear')
+      .whenChanged()
+      .handle((onGround) => {
+        this.onGround = onGround;
+        this.updateN1Limits();
+      });
 
     sub
       .on(`engine${this.props.engine}Fadec`)
@@ -386,6 +432,8 @@ export class N1 extends DisplayComponent<N1Props> {
         this.textN1Fract.set(n1Parts[1]);
 
         this.gaugeN1.set(Math.max(Math.min(n1, 110), 20) / 10);
+        this.n1 = n1;
+        this.updateN1Limits();
       });
 
     sub
@@ -393,6 +441,9 @@ export class N1 extends DisplayComponent<N1Props> {
       .whenChanged()
       .handle((n1) => {
         this.gaugeN1Limit.set(Math.abs(n1 / 10));
+        // The N1 limit is the maximum N1 in the TO/GA detent (FCOM DSC-70-90-40 N1 LIMIT)
+        this.n1LimitPercent = Math.abs(n1);
+        this.updateN1Limits();
       });
 
     sub
@@ -425,13 +476,13 @@ export class N1 extends DisplayComponent<N1Props> {
           </text>
         </g>
         <g visibility={this.activeVisibility}>
-          <text class="Huge End Green" x={44} y={47}>
+          <text class={this.n1Color.map((color) => `Huge End ${color}`)} x={44} y={47}>
             {this.textN1Int}
           </text>
-          <text class="Large End Green" x={56} y={46}>
+          <text class={this.n1Color.map((color) => `Large End ${color}`)} x={56} y={46}>
             .
           </text>
-          <text class="Standard End Green" x={72} y={46}>
+          <text class={this.n1Color.map((color) => `Standard End ${color}`)} x={72} y={46}>
             {this.textN1Fract}
           </text>
 
@@ -583,6 +634,17 @@ export class N1 extends DisplayComponent<N1Props> {
               class="GaugeThrustLimitIndicatorFill Gauge"
             />
             <GaugeMarkerComponent
+              value={this.n1ExceedanceValue}
+              x={0}
+              y={0}
+              min={gaugeMin}
+              max={gaugeMax}
+              radius={gaugeRadius}
+              startAngle={this.gaugeStartAngle}
+              endAngle={this.gaugeEndAngle}
+              class={this.n1ExceedanceClass}
+            />
+            <GaugeMarkerComponent
               value={this.gaugeN1}
               x={0}
               y={0}
@@ -591,7 +653,7 @@ export class N1 extends DisplayComponent<N1Props> {
               radius={gaugeRadius}
               startAngle={this.gaugeStartAngle}
               endAngle={this.gaugeEndAngle}
-              class="GaugeIndicator Gauge"
+              class={this.n1IndicatorClass}
               indicator
               roundLinecap
             />

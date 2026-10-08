@@ -149,6 +149,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] The automatic engine start follows the FCOM: one igniter (alternated between starts) from 16 % N2, fuel at 22 %, ignition off and start valve closed at 50 % N2; on the ground a start that does not light up, stalls, hangs or goes above 725 °C EGT is aborted, dry cranked for 30 s and tried again with both igniters, up to three attempts, then the ENG FAULT light comes on - @TCdr
 1. [A32NX/ENG] The ENG MAN START pushbuttons work (manual start, dry crank and wet crank), continuous ignition with the ENG MODE selector at IGN/START, and the SD ENG start indications show at CRANK too - @TCdr
 1. [A32NX/FWS] New ENG 1(2) START FAULT, START VALVE FAULT and IGN FAULT cautions with their FCOM lines and STATUS; the IGNITION memo shows when the continuous ignition is on - @TCdr
+1. [A32NX/EFB] New flyPad failures Engine 1(2) compressor stall, EGT overtemperature, N1/N2 overspeed indication and high vibration: a stalled engine loses thrust with a rising EGT and fluctuating N1/N2 above 60 % N1 and recovers at idle; the EGT and N1/N2 run above their limits at high thrust; the vibrations exceed the SD advisory - @TCdr
+1. [A32NX/ECAM] ENG 1(2) STALL and ENG 1(2) N1/N2/EGT OVER LIMIT cautions with their FCOM procedures - @TCdr
+1. [A32NX/EWD] N1 turns amber above the N1 limit and red above 104 %, N2 red above 105 % with a red cross, and the EGT gauge shows a red mark at the highest EGT above its 975 °C red limit; the SD shows separate N1 and N2 vibrations that pulse above the advisory - @TCdr
 
 ## 2024.1.0
 

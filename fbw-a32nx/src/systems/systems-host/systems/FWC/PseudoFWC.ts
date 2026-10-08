@@ -78,6 +78,12 @@ import {
   startValveFaultStatus,
 } from './Logic/EngineStartAlerts';
 import {
+  EngineOverLimitMonitor,
+  engineOverLimitLines,
+  engineStallLines,
+  engineStallStatus,
+} from './Logic/EngineParameterAlerts';
+import {
   centreTransferNotClosedLines,
   centreTransferNotOpenLines,
   centreTransferValveAlerts,
@@ -1635,6 +1641,19 @@ export class PseudoFWC {
   private apuBleedPbOn = false;
 
   private crossBleedValveOpen = false;
+
+  /** ENG 1(2) STALL and ENG 1(2) N1/N2/EGT OVER LIMIT, see Logic/EngineParameterAlerts */
+  private readonly engine1Stall = Subject.create(false);
+
+  private readonly engine2Stall = Subject.create(false);
+
+  private readonly engine1OverLimitMonitor = new EngineOverLimitMonitor();
+
+  private readonly engine2OverLimitMonitor = new EngineOverLimitMonitor();
+
+  private readonly engine1OverLimit = Subject.create(false);
+
+  private readonly engine2OverLimit = Subject.create(false);
 
   private readonly engineOnFor30Seconds = new NXLogicConfirmNode(30);
 
@@ -4505,6 +4524,35 @@ export class PseudoFWC {
     this.continuousIgnition.set(continuousIgnition);
     this.apuBleedPbOn = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool') > 0;
     this.crossBleedValveOpen = !SimVar.GetSimVarValue('L:A32NX_PNEU_XBLEED_VALVE_FULLY_CLOSED', 'bool');
+
+    /* ENG 1(2) STALL, ENG 1(2) N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts) */
+
+    // The FADEC detects the stall (systems.wasm, a320_systems engine_malfunction.rs)
+    this.engine1Stall.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_1_STALL', 'bool') > 0);
+    this.engine2Stall.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_2_STALL', 'bool') > 0);
+    const thrustLimitType = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE', 'number');
+    const engine1Starting =
+      this.engine1State.get() === EngineState.Starting || this.engine1State.get() === EngineState.Restarting;
+    const engine2Starting =
+      this.engine2State.get() === EngineState.Starting || this.engine2State.get() === EngineState.Restarting;
+    this.engine1OverLimitMonitor.update({
+      n1Percent: this.N1Eng1.get(),
+      n2Percent: this.N2Eng1.get(),
+      egtDegrees: SimVar.GetSimVarValue('L:A32NX_ENGINE_EGT:1', 'number'),
+      engineStarting: engine1Starting,
+      onGround: this.aircraftOnGround.get(),
+      thrustLimitType,
+    });
+    this.engine2OverLimitMonitor.update({
+      n1Percent: this.N1Eng2.get(),
+      n2Percent: this.N2Eng2.get(),
+      egtDegrees: SimVar.GetSimVarValue('L:A32NX_ENGINE_EGT:2', 'number'),
+      engineStarting: engine2Starting,
+      onGround: this.aircraftOnGround.get(),
+      thrustLimitType,
+    });
+    this.engine1OverLimit.set(this.engine1OverLimitMonitor.isActive);
+    this.engine2OverLimit.set(this.engine2OverLimitMonitor.isActive);
     // The fire detection unit outputs (systems.wasm), also used by the FIRE pb red lights (A32NX_Interior_Fire.xml,
     // A320_NEO_INTERIOR.xml). The sim's own engine/APU fire (MSFS failures menu) is one of their inputs.
     this.eng1FireDetected.set(SimVar.GetSimVarValue('L:A32NX_FIRE_DETECTED_ENG1', 'bool') > 0);
@@ -6349,6 +6397,62 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).inopSys,
       statusInfo: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).left,
+    },
+    7700721: {
+      // ENG 1 STALL (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts): amber, inhibited in phases 3, 4, 5, 7 and 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engine1Stall,
+      whichCodeToReturn: () => engineStallLines(this.fwcFlightPhase.get(), this.thr1TLA.get() === 0),
+      codesToReturn: ['770072101', '770072102', '770072103', '770072104', '770072105'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => engineStallStatus(1),
+    },
+    7700722: {
+      // ENG 2 STALL (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts): amber, inhibited in phases 3, 4, 5, 7 and 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engine2Stall,
+      whichCodeToReturn: () => engineStallLines(this.fwcFlightPhase.get(), this.thr2TLA.get() === 0),
+      codesToReturn: ['770072201', '770072202', '770072203', '770072204', '770072205'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => engineStallStatus(2),
+    },
+    7700731: {
+      // ENG 1 N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts): amber, inhibited in phases 4 and 8
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.engine1OverLimit,
+      whichCodeToReturn: () =>
+        engineOverLimitLines(
+          this.engine1OverLimitMonitor.overLimitParameter,
+          this.engine1OverLimitMonitor.inShutdownBand,
+          this.thr1TLA.get() === 0,
+        ),
+      codesToReturn: ['770073101', '770073102', '770073103', '770073104', '770073105', '770073106'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700732: {
+      // ENG 2 N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts): amber, inhibited in phases 4 and 8
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.engine2OverLimit,
+      whichCodeToReturn: () =>
+        engineOverLimitLines(
+          this.engine2OverLimitMonitor.overLimitParameter,
+          this.engine2OverLimitMonitor.inShutdownBand,
+          this.thr2TLA.get() === 0,
+        ),
+      codesToReturn: ['770073201', '770073202', '770073203', '770073204', '770073205', '770073206'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
     },
     7707901: {
       // ENG 1 OIL LO PR (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): red warning, inhibited in phases 1 and 10
