@@ -76,6 +76,7 @@ import {
   isEngineShutDown,
 } from './Logic/EngineFailAlerts';
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
+import { FUEL_FILTER_CLOG_PHASE_INHIBITION, engineFuelFilterClog } from './Logic/EngineFuelFilterAlerts';
 import {
   EngineStartFault,
   EngineStartPhase,
@@ -1766,6 +1767,11 @@ export class PseudoFWC {
   private readonly engine1OilFilterClog = Subject.create(false);
 
   private readonly engine2OilFilterClog = Subject.create(false);
+
+  /** ENG 1(2) FUEL FILTER CLOG, see Logic/EngineFuelFilterAlerts */
+  private readonly engine1FuelFilterClog = Subject.create(false);
+
+  private readonly engine2FuelFilterClog = Subject.create(false);
 
   /*
    * ENG 1(2) START FAULT, START VALVE FAULT and IGN FAULT (Logic/EngineStartAlerts), from the FADEC start sequence of the
@@ -4937,6 +4943,19 @@ export class PseudoFWC {
     this.engine1OilFilterClog.set(this.engineOilMonitors[0].isFilterClogged);
     this.engine2OilFilterClog.set(this.engineOilMonitors[1].isFilterClogged);
 
+    /* ENG 1(2) FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts) */
+    // The clogged filter from the systems (engine/fuel_filter_failure.rs)
+    [this.engine1FuelFilterClog, this.engine2FuelFilterClog].forEach((alert, index) => {
+      const engineNumber = index + 1;
+      alert.set(
+        engineFuelFilterClog({
+          masterOn: engineNumber === 1 ? engine1MasterOn : engine2MasterOn,
+          engineRunning: (engineNumber === 1 ? this.engine1State : this.engine2State).get() === EngineState.On,
+          fuelFilterClogged: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FUEL_FILTER_CLOGGED`, 'bool') > 0,
+        }),
+      );
+    });
+
     /* ENG 1(2) START FAULT, START VALVE FAULT, IGN FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts) */
 
     let continuousIgnition = false;
@@ -7272,6 +7291,28 @@ export class PseudoFWC {
       simVarIsActive: this.engine2OilFilterClog,
       whichCodeToReturn: () => [0],
       codesToReturn: ['770792201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7707301: {
+      // ENG 1 FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts): amber, crew awareness
+      flightPhaseInhib: FUEL_FILTER_CLOG_PHASE_INHIBITION,
+      simVarIsActive: this.engine1FuelFilterClog,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770730101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7707302: {
+      // ENG 2 FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts): amber, crew awareness
+      flightPhaseInhib: FUEL_FILTER_CLOG_PHASE_INHIBITION,
+      simVarIsActive: this.engine2FuelFilterClog,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770730201'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.ENG,

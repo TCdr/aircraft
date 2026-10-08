@@ -58,8 +58,8 @@ use systems::{
     },
     electrical::{Electricity, ElectricitySource, ExternalPowerSource},
     engine::{
-        leap_engine::LeapEngine, oil_failure::EngineOilFailures, reverser_thrust::ReverserForce,
-        EngineFireOverheadPanel,
+        fuel_filter_failure::EngineFuelFilterFailures, leap_engine::LeapEngine,
+        oil_failure::EngineOilFailures, reverser_thrust::ReverserForce, EngineFireOverheadPanel,
     },
     hydraulic::brake_circuit::AutobrakePanel,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
@@ -90,6 +90,8 @@ pub struct A320 {
     engine_failures: A320EngineFailures,
     /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
     engine_oil_failures: EngineOilFailures<2>,
+    /// Fuel filter clog of each engine: SD ENGINE indication and FWC caution only
+    engine_fuel_filter_failures: EngineFuelFilterFailures<2>,
     engine_malfunctions: A320EngineMalfunctions,
     engine_control_failures: A320EngineControlFailures,
     fire_protection: A320FireProtection,
@@ -141,6 +143,7 @@ impl A320 {
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             engine_failures: A320EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
+            engine_fuel_filter_failures: EngineFuelFilterFailures::new(context),
             engine_malfunctions: A320EngineMalfunctions::new(context),
             engine_control_failures: A320EngineControlFailures::new(context),
             fire_protection: A320FireProtection::new(context),
@@ -376,6 +379,7 @@ impl SimulationElement for A320 {
         self.engine_fire_overhead.accept(visitor);
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
+        self.engine_fuel_filter_failures.accept(visitor);
         self.engine_malfunctions.accept(visitor);
         self.engine_control_failures.accept(visitor);
         self.fire_protection.accept(visitor);
@@ -474,6 +478,20 @@ mod tests {
         assert!(!read(&mut test_bed, "ENGINE_1_OIL_FILTER_CLOGGED"));
         assert!(read(&mut test_bed, "ENGINE_2_OIL_OVERHEAT"));
         assert!(!read(&mut test_bed, "ENGINE_1_OIL_OVERHEAT"));
+    }
+
+    /// The flyPad fuel filter clog failures 73100-73101 (a320_systems_wasm) reach the SD ENGINE page
+    /// and the FWC through the fuel filter variable of each engine (systems::engine::fuel_filter_failure).
+    #[test]
+    fn the_engine_fuel_filter_clog_is_written_for_the_sd_and_the_fwc() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        test_bed.fail(FailureType::EngineFuelFilterClog(2));
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let clogged_2: bool = test_bed.read_by_name("ENGINE_2_FUEL_FILTER_CLOGGED");
+        let clogged_1: bool = test_bed.read_by_name("ENGINE_1_FUEL_FILTER_CLOGGED");
+        assert!(clogged_2);
+        assert!(!clogged_1);
     }
 
     /// The A320 engine malfunctions (engine_malfunction.rs) are part of the aircraft: a stall of

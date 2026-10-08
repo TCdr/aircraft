@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { AtaChaptersDescription, AtaChaptersTitle } from '@flybywiresim/fbw-sdk';
 import { A320Failure, A320FailureDefinitions } from './a320';
@@ -73,5 +75,15 @@ describe('A320 flyPad failures', () => {
     expect(label(A320Failure.Reverser1Fault)).toEqual([78, 78000, 'Reverser 1 fault (does not deploy)']);
     expect(label(A320Failure.Reverser2Unlocked)).toEqual([78, 78011, 'Reverser 2 unlocked (engine at idle)']);
     expect(label(A320Failure.Reverser1Pressurized)).toEqual([78, 78020, 'Reverser 1 pressurized (shutoff valve open)']);
+  });
+
+  // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73101 (failure names audit rule)
+  it('lists the engine fuel filter clog failures in ATA 73 with the Rust failure they trigger', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.Eng1FuelFilterClog)).toEqual([73, 73100, 'Engine 1 fuel filter clog']);
+    expect(label(A320Failure.Eng2FuelFilterClog)).toEqual([73, 73101, 'Engine 2 fuel filter clog']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    expect(wasm).toContain('(73_100, FailureType::EngineFuelFilterClog(1)),');
+    expect(wasm).toContain('(73_101, FailureType::EngineFuelFilterClog(2)),');
   });
 });
