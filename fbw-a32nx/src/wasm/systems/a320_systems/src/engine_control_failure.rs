@@ -661,6 +661,32 @@ mod tests {
         assert_eq!(override_tla(&mut test_bed), None);
     }
 
+    /// Sim test 2026-10-06 (s8_main1.log): reverser 1 failed (stays stowed), reverser 2 deployed.
+    /// Each engine's reverse thrust waits for its own reverser only.
+    #[test]
+    fn each_engine_waits_for_its_own_reverser_only() {
+        let mut test_bed = test_bed(true, -20.);
+        test_bed.command(|a| a.reversers[1].fully_deployed = true);
+        test_bed.run();
+        assert_eq!(override_tla(&mut test_bed), Some(REVERSE_IDLE_TLA_DEG));
+        let engine_2_override: bool = test_bed.read_by_name("ENGINE_2_FADEC_TLA_OVERRIDE_ACTIVE");
+        assert!(!engine_2_override, "engine 2 gets the full reverse lever");
+    }
+
+    /// Normal landing: both reversers deployed, both engines get the full reverse lever.
+    #[test]
+    fn normal_reverse_with_both_reversers_deployed_is_not_limited() {
+        let mut test_bed = test_bed(true, -20.);
+        test_bed.command(|a| {
+            a.reversers[0].fully_deployed = true;
+            a.reversers[1].fully_deployed = true;
+        });
+        test_bed.run();
+        assert_eq!(override_tla(&mut test_bed), None);
+        let engine_2_override: bool = test_bed.read_by_name("ENGINE_2_FADEC_TLA_OVERRIDE_ACTIVE");
+        assert!(!engine_2_override);
+    }
+
     #[test]
     fn unlocked_reverser_sets_the_engine_at_idle() {
         let mut test_bed = test_bed(false, 25.);
