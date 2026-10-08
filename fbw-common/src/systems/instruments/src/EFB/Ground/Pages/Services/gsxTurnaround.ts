@@ -15,11 +15,12 @@ import type { GsxService } from './GsxRemote';
  * read all the time (startGsxTurnaroundTracker) and from the Remote API services.
  *
  * Design choices:
- * - Remembered: boarding, deboarding, catering and refuelling (the services GSX resets after one turnaround step). The
- *   jet bridge, stairs and GPU follow the sim (connected or not), the pushback ends the turnaround.
- * - Forgotten: a service requested or running again; the boarding when a deboarding starts and the deboarding when a
- *   boarding starts; everything at the end of the turnaround, i.e. an engine running or the pushback requested or
- *   running. A new flight loads a new flyPad, with nothing remembered.
+ * - Remembered: boarding, deboarding, catering and refuelling (the services GSX resets after one turnaround step), and
+ *   the baggage loading and unloading (GsxBaggageId, from their own L:vars). The jet bridge, stairs and GPU follow the
+ *   sim (connected or not), the pushback ends the turnaround.
+ * - Forgotten: a service requested or running again; the boarding and its baggage when a deboarding starts and the
+ *   deboarding and its baggage when a boarding starts; everything at the end of the turnaround, i.e. an engine running
+ *   or the pushback requested or running. A new flight loads a new flyPad, with nothing remembered.
  * - Not used: the boarding total equal to the planned passengers. The total stays after the boarding (170 above) until
  *   the next boarding starts, so it would mark the next turnaround's boarding done.
  */
@@ -33,6 +34,82 @@ export const GSX_REMEMBERED_SERVICES: Record<string, string> = {
 };
 
 const DEPARTURE_STATE_VAR = 'L:FSDT_GSX_DEPARTURE_STATE';
+
+/**
+ * The baggage (cargo) loading and unloading. GSX has no baggage service of its own (Remote API developer guide,
+ * Appendix B: no such id, so nothing to request): it loads the baggage during the boarding and unloads it during the
+ * deboarding, and reports it through L:vars (GSX manual, DEVELOPERS - Interfacing with the Cargo loading process):
+ * - L:FSDT_GSX_BOARDING_CARGO / L:FSDT_GSX_DEBOARDING_CARGO: "1 if GSX is loading / unloading Luggage/Cargo";
+ * - L:FSDT_GSX_BOARDING_CARGO_PERCENT / L:FSDT_GSX_DEBOARDING_CARGO_PERCENT: the progress 0-100, the average of the
+ *   loaders; "when the loading/unloading process ends, the relevant variable will read 100".
+ * Design choices: done = 100 % reached after the process was seen running in this turnaround (the manual does not say
+ * when the percentage goes back to 0: a 100 % left from an earlier loading must not mark the next one done). Remembered
+ * and forgotten like the boarding (loading) and the deboarding (unloading).
+ */
+export enum GsxBaggageId {
+  /** The baggage loaded with the boarding */
+  Loading = 'BaggageLoading',
+  /** The baggage unloaded with the deboarding */
+  Unloading = 'BaggageUnloading',
+}
+
+export const GSX_BAGGAGE_IDS: GsxBaggageId[] = [GsxBaggageId.Loading, GsxBaggageId.Unloading];
+
+/** The GSX L:vars of the baggage loading and unloading */
+export const GSX_BAGGAGE_VARS: Record<GsxBaggageId, { active: string; percent: string }> = {
+  [GsxBaggageId.Loading]: { active: 'L:FSDT_GSX_BOARDING_CARGO', percent: 'L:FSDT_GSX_BOARDING_CARGO_PERCENT' },
+  [GsxBaggageId.Unloading]: { active: 'L:FSDT_GSX_DEBOARDING_CARGO', percent: 'L:FSDT_GSX_DEBOARDING_CARGO_PERCENT' },
+};
+
+/** The GSX service (Remote API id) that carries each baggage process: the row is shown while GSX offers it */
+export const GSX_BAGGAGE_CARRIER: Record<GsxBaggageId, string> = {
+  [GsxBaggageId.Loading]: 'Boarding',
+  [GsxBaggageId.Unloading]: 'Deboarding',
+};
+
+/** The baggage L:vars as read */
+export interface GsxBaggageReading {
+  /** L:FSDT_GSX_(DE)BOARDING_CARGO is 1 */
+  active: boolean;
+  /** L:FSDT_GSX_(DE)BOARDING_CARGO_PERCENT, 0 to 100 */
+  percent: number;
+}
+
+const BAGGAGE_FULL_PERCENT = 100;
+
+/** GSX is loading or unloading the baggage now */
+function isBaggageRunning(reading: GsxBaggageReading): boolean {
+  return reading.active && reading.percent < BAGGAGE_FULL_PERCENT;
+}
+
+/**
+ * The baggage step of the turnaround list, as a GSX service so that it looks like the other steps: performing with its
+ * percentage while GSX loads or unloads, completed once remembered done, idle otherwise. Never callable (no Request
+ * chip): GSX starts it with the boarding or deboarding.
+ * @param id loading or unloading
+ * @param displayName the name of the row
+ * @param reading the L:vars now
+ * @param done the memory says it completed in this turnaround
+ */
+export function gsxBaggageService(
+  id: GsxBaggageId,
+  displayName: string,
+  reading: GsxBaggageReading,
+  done: boolean,
+): GsxService {
+  if (isBaggageRunning(reading)) {
+    const percent = Math.max(0, Math.round(reading.percent));
+    return {
+      id,
+      displayName,
+      state: 'performing',
+      canTrigger: false,
+      progress: { current: percent, total: BAGGAGE_FULL_PERCENT, unit: '%' },
+      progressText: `${percent} %`,
+    };
+  }
+  return { id, displayName, state: done ? 'completed' : 'available', canTrigger: false };
+}
 
 /** GSX state variable values (GSX manual: 4 requested, 5 being performed, 6 completed) */
 const REQUESTED = 4;
@@ -50,10 +127,15 @@ export interface GsxTurnaroundInput {
   departureState: number;
   /** An engine is running */
   enginesRunning: boolean;
+  /** The baggage L:vars of each process (missing: not read) */
+  baggage?: Partial<Record<GsxBaggageId, GsxBaggageReading>>;
 }
 
 export class GsxTurnaroundMemory {
   private readonly done = new Set<string>();
+
+  /** The baggage processes seen running in this turnaround: only those can complete */
+  private readonly baggageSeen = new Set<string>();
 
   private readonly listeners = new Set<() => void>();
 
@@ -70,6 +152,7 @@ export class GsxTurnaroundMemory {
 
   /** Forgets every completion (end of the turnaround, or a test) */
   public clear(): void {
+    this.baggageSeen.clear();
     if (this.done.size > 0) {
       this.done.clear();
       this.notify();
@@ -85,6 +168,7 @@ export class GsxTurnaroundMemory {
     }
     let changed = false;
     const forget = (id: string) => {
+      this.baggageSeen.delete(id);
       changed = this.done.delete(id) || changed;
     };
     for (const id of Object.keys(input.states)) {
@@ -96,11 +180,28 @@ export class GsxTurnaroundMemory {
         forget(id);
       }
     }
+    for (const id of GSX_BAGGAGE_IDS) {
+      const reading = input.baggage?.[id];
+      if (reading === undefined) {
+        continue;
+      }
+      if (isBaggageRunning(reading)) {
+        // running (again): not done until it reaches 100 %
+        forget(id);
+        this.baggageSeen.add(id);
+      } else if (reading.percent >= BAGGAGE_FULL_PERCENT && this.baggageSeen.has(id) && !this.done.has(id)) {
+        this.done.add(id);
+        changed = true;
+      }
+    }
+    // a deboarding starts the next turnaround step: the boarding and its baggage are over, and the other way round
     if (busy(input.states.Deboarding)) {
       forget('Boarding');
+      forget(GsxBaggageId.Loading);
     }
     if (busy(input.states.Boarding)) {
       forget('Deboarding');
+      forget(GsxBaggageId.Unloading);
     }
     if (changed) {
       this.notify();
@@ -157,7 +258,19 @@ function readTurnaroundInput(): GsxTurnaroundInput {
   for (let engine = 1; engine <= 4; engine++) {
     enginesRunning = enginesRunning || SimVar.GetSimVarValue(`ENG COMBUSTION:${engine}`, 'bool') > 0;
   }
-  return { states, departureState: SimVar.GetSimVarValue(DEPARTURE_STATE_VAR, 'number'), enginesRunning };
+  const baggage: Partial<Record<GsxBaggageId, GsxBaggageReading>> = {};
+  for (const id of GSX_BAGGAGE_IDS) {
+    baggage[id] = readGsxBaggage(id);
+  }
+  return { states, departureState: SimVar.GetSimVarValue(DEPARTURE_STATE_VAR, 'number'), enginesRunning, baggage };
+}
+
+/** Reads the baggage L:vars of a process */
+export function readGsxBaggage(id: GsxBaggageId): GsxBaggageReading {
+  return {
+    active: SimVar.GetSimVarValue(GSX_BAGGAGE_VARS[id].active, 'number') > 0,
+    percent: SimVar.GetSimVarValue(GSX_BAGGAGE_VARS[id].percent, 'number'),
+  };
 }
 
 /**
