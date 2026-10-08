@@ -8,3 +8,5 @@ clang++ -std=c++20 -Wall -Wextra -Werror relight_start_test.cpp -o ../obj/religh
 ../obj/relight_start_test
 clang++ -std=c++20 -Wall -Wextra -Werror auto_relight_test.cpp -o ../obj/auto_relight_test
 ../obj/auto_relight_test
+clang++ -std=c++20 -Wall -Wextra -Werror igniter_selection_test.cpp -o ../obj/igniter_selection_test
+../obj/igniter_selection_test
