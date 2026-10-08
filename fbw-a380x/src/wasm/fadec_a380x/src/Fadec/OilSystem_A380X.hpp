@@ -22,13 +22,17 @@ namespace OilSystem_A380X {
  *   DSC-70-90 OIL QUANTITY, a380_fcom.txt l.113343), reached at about 1.5 to 1.9 qt in the system. A healthy engine
  *   holds 17 to 20 qt;
  * - an oil overheat drives the oil to 170 C at idle, between the 163 C pulsing and the 177 C amber of the SD (FCOM
- *   DSC-70-90 OIL TEMPERATURE, l.113362-113371), and to 225 C at 100 % N3, above the 196 C of ENG OIL TEMP HI (FCOM
- *   l.172561), with a 60 s time constant: reducing thrust brings it back below the limit (FCOM l.172585).
+ *   DSC-70-90 OIL TEMPERATURE, l.113362-113371), and to 230 C at 100 % N3, above the 196 C of ENG OIL TEMP HI (FCOM
+ *   l.172561), with a 60 s time constant. The target rises with the square root of the N3 fraction above idle: about 214 C
+ *   at a cruise N3 half way between idle and 100 % (OIL TEMP HI after about 2 min), back at 196 C at a fifth of the way.
+ *   The procedure "THR LEVER ... REDUCE BELOW OIL TEMP LIMIT. Gradually reduce thrust on the affected engine, to decrease
+ *   the oil temperature below limit" (FCOM l.172585-172586) then brings it below 196 C, at IDLE within about 1 min. A linear
+ *   target (225 C at 100 % N3) only reached 196.3 C after 4 min at cruise N1 55-60 % (sim test 2026-10-07).
  */
 constexpr double                                LEAK_RATE               = 2.0 / 60.0;  // qt/s
 constexpr double                                FULL_PRESSURE_TOTAL_QTY = 1.3;         // qt
 constexpr double                                NO_PRESSURE_TOTAL_QTY   = 0.3;         // qt
-constexpr EngineOilFailures::OverheatParameters OVERHEAT                = {170.0, 225.0, 60.0};
+constexpr EngineOilFailures::OverheatParameters OVERHEAT                = {170.0, 230.0, 60.0, 0.5};
 
 /** The A380X oil gulping polynomial (Polynomial_A380X::oilGulpPct) takes the thrust in newtons */
 constexpr double POUNDS_TO_NEWTONS = 4.4482216153;
