@@ -10,3 +10,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-c
   engine_start_throttle_hold_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
   -o ../obj/engine_start_throttle_hold_test
 ../obj/engine_start_throttle_hold_test
+# Reverse thrust: the hold must pass the negative MSFS throttle of the thrust loop (sim test 2026-10-06, s8_main1.log)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  reverse_throttle_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
+  -o ../obj/reverse_throttle_test
+../obj/reverse_throttle_test
