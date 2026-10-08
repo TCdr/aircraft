@@ -28,10 +28,36 @@ import {
 } from './GsxRemote';
 import { GsxPaxProgress, gsxPaxProgress } from './gsxPassengers';
 import { useGsxPassengers } from './useGsxPassengers';
+import {
+  GSX_BAGGAGE_CARRIER,
+  GSX_BAGGAGE_VARS,
+  GsxBaggageId,
+  GsxBaggageReading,
+  gsxBaggageService,
+  gsxTurnaround,
+} from './gsxTurnaround';
 
-/** The turnaround steps of a departure (at the origin) and of an arrival (after landing), in order */
-const DEPARTURE_TURNAROUND: GsxServiceId[] = [GsxServiceId.Catering, GsxServiceId.Boarding, GsxServiceId.Departure];
-const ARRIVAL_TURNAROUND: GsxServiceId[] = [GsxServiceId.Deboarding, GsxServiceId.Catering];
+/**
+ * The turnaround steps of a departure (at the origin) and of an arrival (after landing), in order. The baggage follows
+ * the boarding / deboarding that carries it (GSX loads it during the boarding, unloads it during the deboarding).
+ */
+type TurnaroundStepId = GsxServiceId | GsxBaggageId;
+const DEPARTURE_TURNAROUND: TurnaroundStepId[] = [
+  GsxServiceId.Catering,
+  GsxServiceId.Boarding,
+  GsxBaggageId.Loading,
+  GsxServiceId.Departure,
+];
+const ARRIVAL_TURNAROUND: TurnaroundStepId[] = [GsxServiceId.Deboarding, GsxBaggageId.Unloading, GsxServiceId.Catering];
+
+/** The status line of an idle baggage step: it has no Request of its own */
+const BAGGAGE_IDLE_TEXT: Record<GsxBaggageId, string> = {
+  [GsxBaggageId.Loading]: 'Ground.Services.Gsx.BaggageWithBoarding',
+  [GsxBaggageId.Unloading]: 'Ground.Services.Gsx.BaggageWithDeboarding',
+};
+
+/** How often the panel reads the baggage L:vars */
+const BAGGAGE_READ_MS = 500;
 
 /** The FMGC flight phase after landing (FmgcFlightPhase.Done) */
 const FLIGHT_PHASE_DONE = 7;
@@ -133,7 +159,9 @@ const TurnaroundStep: FC<{
   pax: GsxPaxProgress | null;
   /** Before the request of the service (the boarding gives GSX the passenger number first) */
   onRequest?: () => void;
-}> = ({ service, last, pax, onRequest }) => {
+  /** The status line while idle (default: not requested) */
+  idleText?: string;
+}> = ({ service, last, pax, onRequest, idleText }) => {
   if (!service) {
     return null;
   }
@@ -168,7 +196,7 @@ const TurnaroundStep: FC<{
         <div className="flex min-w-0 grow flex-col">
           <span className="text-base font-semibold leading-tight">{service.displayName}</span>
           <span className={`text-xs leading-tight ${M3_STATUS_TONES[done ? 'idle' : tone]}`}>
-            {text || t('Ground.Services.NotRequested')}
+            {text || idleText || t('Ground.Services.NotRequested')}
           </span>
         </div>
         {action && (
@@ -184,15 +212,20 @@ const TurnaroundStep: FC<{
           </M3ActionChip>
         )}
       </div>
-      {progress !== null && <M3Progress value={progress} tone={tone} className="ml-9 mt-2 w-auto" />}
+      {/* the bar under the texts: its own full width inside the indented box (ml-9 on the bar itself pushed it out) */}
+      {progress !== null && (
+        <div className="ml-9 mt-2">
+          <M3Progress value={progress} tone={tone} />
+        </div>
+      )}
     </div>
   );
 };
 
 /**
  * The GSX card of the Services page: the link switch (greyed out until GSX is found), the turnaround timeline of the
- * departure (catering, boarding, pushback) or of the arrival (deboarding, catering), the other GSX services as chips,
- * and, with GSX under remote control, its questions and messages.
+ * departure (catering, boarding, baggage, pushback) or of the arrival (deboarding, baggage, catering), the other GSX
+ * services as chips, and, with GSX under remote control, its questions and messages.
  */
 export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChange, gsx, className }) => {
   const found = gsx.connected && gsx.gsxRunning;
@@ -234,7 +267,34 @@ export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChan
     status = t('Ground.Services.Gsx.Connected');
     statusTone = 'active';
   }
-  const service = (id: GsxServiceId) => gsx.services.find((s) => s.id === id);
+  const service = (id: string) => gsx.services.find((s) => s.id === id);
+
+  // The baggage: its L:vars now, and its completion remembered in this turnaround (re-rendered when that changes)
+  const [boardingCargo] = useSimVar(GSX_BAGGAGE_VARS[GsxBaggageId.Loading].active, 'number', BAGGAGE_READ_MS);
+  const [boardingCargoPercent] = useSimVar(GSX_BAGGAGE_VARS[GsxBaggageId.Loading].percent, 'number', BAGGAGE_READ_MS);
+  const [deboardingCargo] = useSimVar(GSX_BAGGAGE_VARS[GsxBaggageId.Unloading].active, 'number', BAGGAGE_READ_MS);
+  const [deboardingCargoPercent] = useSimVar(
+    GSX_BAGGAGE_VARS[GsxBaggageId.Unloading].percent,
+    'number',
+    BAGGAGE_READ_MS,
+  );
+  const baggageReadings: Record<GsxBaggageId, GsxBaggageReading> = {
+    [GsxBaggageId.Loading]: { active: boardingCargo > 0, percent: boardingCargoPercent },
+    [GsxBaggageId.Unloading]: { active: deboardingCargo > 0, percent: deboardingCargoPercent },
+  };
+  const [, setMemoryVersion] = useState(0);
+  useEffect(() => gsxTurnaround.subscribe(() => setMemoryVersion((v) => v + 1)), []);
+
+  /** The service of a step; a baggage step only while GSX offers the service that carries it */
+  const stepService = (id: TurnaroundStepId): GsxService | undefined => {
+    if (id !== GsxBaggageId.Loading && id !== GsxBaggageId.Unloading) {
+      return service(id);
+    }
+    if (!service(GSX_BAGGAGE_CARRIER[id])) {
+      return undefined;
+    }
+    return gsxBaggageService(id, t('Ground.Services.Gsx.Baggage'), baggageReadings[id], gsxTurnaround.isDone(id));
+  };
 
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className ?? ''}`}>
@@ -251,14 +311,18 @@ export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChan
       {ready && (
         <M3Card className="min-h-0 flex-1">
           <M3SectionHeader title={t('Ground.Services.Turnaround')} />
-          <div className="scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
+          {/* vertical scrolling only: nothing in the list is wider than the card */}
+          <div className="scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 pb-4">
             {turnaround.map((id, index) => (
               <TurnaroundStep
                 key={id}
-                service={service(id)}
+                service={stepService(id)}
                 last={index === turnaround.length - 1}
                 pax={gsxPaxProgress(id, service(id)?.state, paxCounts)}
                 onRequest={id === GsxServiceId.Boarding || id === GsxServiceId.Deboarding ? announcePax : undefined}
+                idleText={
+                  id === GsxBaggageId.Loading || id === GsxBaggageId.Unloading ? t(BAGGAGE_IDLE_TEXT[id]) : undefined
+                }
               />
             ))}
             <div className="-m-1 mt-2 flex flex-row flex-wrap">
