@@ -6,7 +6,10 @@ use msfs::legacy::trigger_key_event;
 use crate::{aspects::MsfsAspectBuilder, ExecuteOn, Variable};
 use msfs::sys::{KEY_FUELSYSTEM_VALVE_CLOSE, KEY_FUELSYSTEM_VALVE_OPEN};
 use std::error::Error;
-use systems::shared::to_bool;
+use systems::{
+    fuel::sim_fuel_valve::{sim_fuel_valve_command, SimFuelValveCommand, SimFuelValveInputs},
+    shared::to_bool,
+};
 
 pub(super) fn fuel_pumps(
     pump_indexes: impl IntoIterator<Item = u32>,
@@ -23,8 +26,13 @@ pub(super) fn fuel_pumps(
 }
 
 /// Closes each MSFS fuel valve while its variable is true and opens it while the variable is false.
-/// The valve is commanded whenever the variable changes, and once on the first tick so that the
-/// MSFS valve matches the variable on a freshly loaded flight.
+///
+/// Both the variable and the MSFS valve switch (FUELSYSTEM VALVE SWITCH:n) are watched, so the
+/// valve is commanded again when MSFS moves it on its own (e.g. the flight state application or
+/// the power-up of the electrical circuit of the valve) while the variable does not change. The
+/// valve is also commanded once on the first tick so that it matches the variable on a freshly
+/// loaded flight. The decision is made by [`sim_fuel_valve_command`], which is unit tested in the
+/// systems crate.
 pub(super) fn fuel_valves_closed_while(
     valves: impl IntoIterator<Item = (Variable, u32)>,
 ) -> impl FnOnce(&mut MsfsAspectBuilder) -> Result<(), Box<dyn Error>> {
@@ -33,17 +41,35 @@ pub(super) fn fuel_valves_closed_while(
         const NEVER_WRITTEN: f64 = -1.;
 
         for (closed_variable, valve_number) in valves {
+            let msfs_valve_switch_variable =
+                Variable::aircraft("FUELSYSTEM VALVE SWITCH", "Bool", valve_number as _);
+
             builder.on_change_with_starting_values(
                 ExecuteOn::PostTick,
-                vec![closed_variable],
-                vec![NEVER_WRITTEN],
-                Box::new(move |_, values| {
-                    let key_event = if to_bool(values[0]) {
-                        KEY_FUELSYSTEM_VALVE_CLOSE
-                    } else {
-                        KEY_FUELSYSTEM_VALVE_OPEN
+                vec![closed_variable, msfs_valve_switch_variable],
+                vec![NEVER_WRITTEN, NEVER_WRITTEN],
+                Box::new(move |previous_values, current_values| {
+                    let to_inputs = |values: &[f64]| {
+                        SimFuelValveInputs::new(to_bool(values[0]), to_bool(values[1]))
                     };
-                    trigger_key_event(key_event, valve_number);
+
+                    #[allow(clippy::float_cmp)]
+                    let is_first_tick = previous_values[0] == NEVER_WRITTEN;
+                    let previous = if is_first_tick {
+                        None
+                    } else {
+                        Some(to_inputs(previous_values))
+                    };
+
+                    match sim_fuel_valve_command(previous, to_inputs(current_values)) {
+                        Some(SimFuelValveCommand::Close) => {
+                            trigger_key_event(KEY_FUELSYSTEM_VALVE_CLOSE, valve_number)
+                        }
+                        Some(SimFuelValveCommand::Open) => {
+                            trigger_key_event(KEY_FUELSYSTEM_VALVE_OPEN, valve_number)
+                        }
+                        None => {}
+                    }
                 }),
             );
         }
