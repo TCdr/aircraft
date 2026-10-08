@@ -133,7 +133,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] A checklist marked as complete shows a green check in the checklist list, whatever the flight phase - @TCdr
 1. [EFB] The flyPad error screen shows the error, where it was thrown and in which page components - @TCdr
 1. [EFB] Landing calculator: a wind above the crosswind maximum or the tailwind limit no longer stops the calculation: the results show a warning banner (tailwind figures extrapolated and marked ~ and †), and a Wind check tab ranks the destination runways by wind and checks the OFP alternate with its METAR, each loadable into the calculator - @TCdr
-1. [EFB] Settings > flyPad: custom theme (Grey, Black or Light base with a primary and a secondary colour, contrast-checked); the Blue, Dark and Light themes are unchanged - @TCdr
+1. [EFB] Settings > flyPad: custom theme (Grey, Black or Light base with a primary and a secondary colour picked from swatches or a colour wheel, contrast-checked); the Blue, Dark and Light themes are unchanged - @TCdr
 1. [A32NX/EFB] New Performance > Buffet tab: the buffet onset envelope (coffin corner) from the A320 FCOM chart, live or what-if, with the buffet margin, max bank, 1.3 g ceiling and Mach range and the FMS REC MAX - @TCdr
 
 ## 2024.1.0
