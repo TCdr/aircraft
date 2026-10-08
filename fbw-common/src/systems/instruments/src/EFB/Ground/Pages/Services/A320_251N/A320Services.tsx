@@ -36,7 +36,7 @@ import {
   setAsuButtonState,
   useEventBus,
 } from '@flybywiresim/flypad';
-import { GsxServiceId, GsxServiceLook, gsxServiceLook, useGsxRemote } from '../GsxRemote';
+import { GsxServiceId, GsxServiceLook, gsxRequestable, gsxServiceLook, useGsxRemote } from '../GsxRemote';
 import { gsxServiceStatus, triggerGsxService } from '../GsxServicesPanel';
 import { M3Chip, M3Tone } from '../../../../UtilComponents/Material/Material';
 import { PlanformTag } from '../FuselagePlanform';
@@ -109,11 +109,15 @@ export const A320Services: React.FC = () => {
       setGsxPayloadSync(1);
     }
   };
-  const gsxStatus = (button: ServiceButton): { text: string; progress: number | null } => {
+  // the status line of a GSX-linked button, and whether it may offer Request (not on a service GSX does not let be
+  // triggered, e.g. completed)
+  const gsxStatus = (button: ServiceButton): { text: string; progress: number | null; requestable: boolean } => {
     const gsxService = gsxReady ? GSX_SERVICE_OF_BUTTON[button] : undefined;
-    return gsxService !== undefined
-      ? gsxServiceStatus(gsx.services.find((s) => s.id === gsxService))
-      : { text: '', progress: null };
+    if (gsxService === undefined) {
+      return { text: '', progress: null, requestable: true };
+    }
+    const service = gsx.services.find((s) => s.id === gsxService);
+    return { ...gsxServiceStatus(service), requestable: gsxRequestable(service) };
   };
   const shownState = (button: ServiceButton, state: ServiceButtonState): ServiceButtonState => {
     if (!gsxReady) {
@@ -657,7 +661,11 @@ export const A320Services: React.FC = () => {
       <PersonPlusFill size={18} />,
       shownLook(ServiceButton.JetBridge, jetWayButtonState),
       click(ServiceButton.JetBridge),
-      { gsxStatus: gsxOf(ServiceButton.JetBridge).text, progress: gsxOf(ServiceButton.JetBridge).progress },
+      {
+        gsxStatus: gsxOf(ServiceButton.JetBridge).text,
+        progress: gsxOf(ServiceButton.JetBridge).progress,
+        requestable: gsxOf(ServiceButton.JetBridge).requestable,
+      },
     ),
     equipmentRow(
       'stairs',
@@ -665,7 +673,11 @@ export const A320Services: React.FC = () => {
       <PersonPlusFill size={18} />,
       shownLook(ServiceButton.Stairs, stairsButtonState),
       click(ServiceButton.Stairs),
-      { gsxStatus: gsxOf(ServiceButton.Stairs).text, progress: gsxOf(ServiceButton.Stairs).progress },
+      {
+        gsxStatus: gsxOf(ServiceButton.Stairs).text,
+        progress: gsxOf(ServiceButton.Stairs).progress,
+        requestable: gsxOf(ServiceButton.Stairs).requestable,
+      },
     ),
     equipmentRow(
       'fuel',
@@ -677,6 +689,7 @@ export const A320Services: React.FC = () => {
         activeStatus: t('Ground.Services.Refuelling'),
         gsxStatus: gsxOf(ServiceButton.FuelTruck).text,
         progress: gsxOf(ServiceButton.FuelTruck).progress,
+        requestable: gsxOf(ServiceButton.FuelTruck).requestable,
       },
     ),
     equipmentRow(
@@ -689,6 +702,7 @@ export const A320Services: React.FC = () => {
         activeStatus: gpuAvail ? t('Ground.Services.Powered') : t('Ground.Services.Connected'),
         gsxStatus: gsxOf(ServiceButton.Gpu).text,
         progress: gsxOf(ServiceButton.Gpu).progress,
+        requestable: gsxOf(ServiceButton.Gpu).requestable,
       },
     ),
     equipmentRow(
@@ -705,7 +719,11 @@ export const A320Services: React.FC = () => {
       <ArchiveFill size={18} />,
       shownLook(ServiceButton.CateringTruck, cateringButtonState),
       click(ServiceButton.CateringTruck),
-      { gsxStatus: gsxOf(ServiceButton.CateringTruck).text, progress: gsxOf(ServiceButton.CateringTruck).progress },
+      {
+        gsxStatus: gsxOf(ServiceButton.CateringTruck).text,
+        progress: gsxOf(ServiceButton.CateringTruck).progress,
+        requestable: gsxOf(ServiceButton.CateringTruck).requestable,
+      },
     ),
     equipmentRow(
       'baggage',

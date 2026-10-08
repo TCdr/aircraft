@@ -32,6 +32,7 @@ import { ChartWidget } from '../Chart/ChartWidget';
 import { SeatMapWidget } from '../Seating/SeatMapWidget';
 import { PayloadProps } from '../PayloadPage';
 import { PAYLOAD_CHART, PayloadLayout } from '../PayloadLayout';
+import { announceGsxPassengers } from '../../Services/gsxPassengerSync';
 
 export const A380Payload: React.FC<PayloadProps> = ({
   airframeInfo,
@@ -297,7 +298,6 @@ export const A380Payload: React.FC<PayloadProps> = ({
 
   // GSX
   const [gsxPayloadSyncEnabled] = usePersistentNumberProperty('GSX_PAYLOAD_SYNC', 0);
-  const [_, setGsxNumPassengers] = useSimVar('L:FSDT_GSX_NUMPASSENGERS', 'Number', 223);
   const [gsxBoardingState] = useSimVar('L:FSDT_GSX_BOARDING_STATE', 'Number', 227);
   const [gsxDeBoardingState] = useSimVar('L:FSDT_GSX_DEBOARDING_STATE', 'Number', 229);
   const gsxInProgress = () =>
@@ -354,8 +354,6 @@ export const A380Payload: React.FC<PayloadProps> = ({
 
   const setTargetPax = useCallback(
     (numOfPax: number) => {
-      setGsxNumPassengers(numOfPax);
-
       if (numOfPax === totalPaxDesired || numOfPax > maxPax || numOfPax < 0) return;
 
       let paxRemaining = numOfPax;
@@ -593,6 +591,13 @@ export const A380Payload: React.FC<PayloadProps> = ({
       }
     }
   }, [gsxDeBoardingState]);
+
+  // GSX passenger number (L:FSDT_GSX_NUMPASSENGERS), by the same rule as the Services page: the planned passengers,
+  // or the passengers on board once GSX deboarding is requested or after landing (GSX manual: set before Boarding or
+  // Deboarding). It was the target set above, i.e. 0 for a GSX deboarding.
+  useEffect(() => {
+    announceGsxPassengers(seatMap, true);
+  }, [seatMap, totalPaxDesired, totalPax, gsxBoardingState, gsxDeBoardingState]);
 
   useEffect(() => {
     let simbriefStatus = false;
