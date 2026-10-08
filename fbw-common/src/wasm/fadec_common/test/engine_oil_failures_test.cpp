@@ -71,6 +71,42 @@ int main() {
   }
   expectNear("then 10 min at idle: back at the idle temperature", temperature, 135.0, 0.1);
 
+  // The sim test of 2026-10-06 (A380X engine 4 overheat at FL200, 300 kt: N3 84.3 %, idle N3 60.5 %, oil at 75 C): the
+  // oil temperature stopped at 128 C. MSFS moves GENERAL ENG OIL TEMPERATURE with its own oil model between two FADEC
+  // updates; this emulation of it (a pull towards -172 C with a 240 s time constant, fitted to the recording: 94.5 C after
+  // 20 s, 106.5 C after 40 s, 113.6 C after 60 s, 128 C after 280 s) reproduces that plateau.
+  const OverheatParameters a380Overheat{170.0, 225.0, 60.0};
+  const double             frame = 0.05;
+  auto msfsOilModel = [frame](double written) { return written + (-172.0 - written) * (1.0 - std::exp(-frame / 240.0)); };
+
+  // Integrating the overheat from the value read back (the FADEC before the fix) gives the plateau of the recording
+  double readBack = 75.0;
+  for (int step = 0; step < static_cast<int>(280.0 / frame); ++step) {
+    readBack = msfsOilModel(overheatTemperature(readBack, 84.3, 60.5, frame, a380Overheat));
+  }
+  expectNear("emulated MSFS oil model: the read back integration stops near 128 C after 280 s", readBack, 128.0, 1.5);
+
+  // The FADEC keeps its own overheat temperature (OverheatTracker): ENG OIL TEMP HI (above 196 C) within 4 min at cruise
+  OverheatTracker tracker;
+  double          simTemperature = 75.0;
+  double          aboveLimitAt   = -1.0;
+  for (int step = 0; step < static_cast<int>(240.0 / frame); ++step) {
+    const double written = tracker.update(true, simTemperature, 84.3, 60.5, frame, a380Overheat);
+    if (aboveLimitAt < 0.0 && written > 196.0) {
+      aboveLimitAt = step * frame;
+    }
+    simTemperature = msfsOilModel(written);
+  }
+  expectTrue("overheat at cruise N3 passes the 196 C of ENG OIL TEMP HI within 4 min despite the MSFS oil model",
+             aboveLimitAt > 0.0);
+  expectTrue("the written temperature is the tracker's, not the MSFS one", simTemperature > 196.0);
+
+  // Without the failure the tracker hands back the MSFS value, and a new failure starts from it again
+  expectNear("no overheat: the MSFS temperature", tracker.update(false, 90.0, 84.3, 60.5, frame, a380Overheat), 90.0);
+  expectNear("a new overheat starts from the MSFS temperature",
+             tracker.update(true, 90.0, 84.3, 60.5, frame, a380Overheat),
+             overheatTemperature(90.0, 84.3, 60.5, frame, a380Overheat));
+
   if (failures == 0) {
     std::printf("engine_oil_failures_test: all passed\n");
   }
