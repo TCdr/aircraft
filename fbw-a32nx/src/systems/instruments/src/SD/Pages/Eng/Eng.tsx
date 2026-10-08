@@ -10,6 +10,7 @@ import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { isStartIndicationShown } from './StartIndications';
+import { fuelFilterClogShown } from './EngFuelFilterIndication';
 import { N1_VIBRATION_ADVISORY_UNITS, N2_VIBRATION_ADVISORY_UNITS, vibrationClassName } from './EngVibration';
 
 import './Eng.scss';
@@ -308,6 +309,9 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
   const [useMetric] = usePersistentSetting('CONFIG_USING_METRIC_UNIT');
   const [fuelUsed] = useSimVar(`L:A32NX_FUEL_USED:${engineNumber}`, 'number', 500);
   const displayedFuelUsed = useMetric ? Math.round(fuelUsed / 10) * 10 : Math.round(fuelUsed / 0.4535934 / 20) * 20;
+  // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state, see EngFuelFilterIndication
+  const [fuelFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engineNumber}_FUEL_FILTER_CLOGGED`, 'bool', 500);
+  const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engineNumber}`, 'number', 500);
 
   const [engineOilTemperature] = useSimVar(`GENERAL ENG OIL TEMPERATURE:${engineNumber}`, 'celsius', 250);
   const OIL_TEMP_LOW_TAKEOFF = 38;
@@ -373,6 +377,14 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
     <SvgGroup x={x} y={y}>
       <text x={x} y={y} className="FillGreen FontLarge TextCenter">
         {displayedFuelUsed}
+      </text>
+      {/* FCOM DSC-70-90-40 FUEL FILTER CLOG INDICATION, below the fuel used */}
+      <text
+        x={x}
+        y={y + 22}
+        className={`FontMedium TextCenter FillAmber ${!fuelFilterClogShown(!!fuelFilterClogged, engineState) && 'Hidden'}`}
+      >
+        CLOG
       </text>
 
       <QuantityGauge x={x} y={y + 85} engineNumber={engineNumber} fadecOn={fadecOn} />
