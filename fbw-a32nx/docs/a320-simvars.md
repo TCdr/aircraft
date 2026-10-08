@@ -4274,6 +4274,97 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - N2 (HP rotor) vibration shown on the ENGINE SD page, pulsing from 4.3 units: 60 % of the MSFS engine vibration (design choice), plus the high vibration failure (5 units at 100 % N2). Written by the systems WASM
 
+- A32NX_ENGINE_{number}_FADEC_CHANNEL_A_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when FADEC channel A of the engine is lost (flyPad failure 73010/73011) while channel B works: ENG 1(2) FADEC A FAULT (FCOM PRO-ABN-ENG). Written by the systems WASM (a320_systems engine_control_failure.rs)
+
+- A32NX_ENGINE_{number}_FADEC_CHANNEL_B_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - As A32NX_ENGINE_{number}_FADEC_CHANNEL_A_FAULT for channel B (flyPad failure 73020/73021). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when both FADEC channels of the engine are lost: ENG 1(2) FADEC FAULT. The engine data are lost (A32NX_FADEC_POWERED_ENG{number} false, E/WD and SD XX), the FADEC no longer receives the A/THR orders (the A/THR disconnects) and the reverser no longer deploys; the engine keeps following its thrust lever. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_HI_TEMP
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the FADEC of the engine detects a high temperature (flyPad failure 73030/73031): ENG 1(2) FADEC HI TEMP. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_THR_LEVER_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when both resolvers of the thrust lever are lost (flyPad failure 73040/73041): ENG 1(2) THR LEVER FAULT. The FADEC selects the rating of A32NX_ENGINE_{number}_THR_LEVER_RATING and no longer deploys the reverser. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_THR_LEVER_DISAGREE
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the two resolvers of the thrust lever disagree (flyPad failure 73050/73051) and are not both lost: ENG 1(2) THR LEVER DISAGREE. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_THR_LEVER_RATING
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The rating the FADEC selects with a failed thrust lever (FCOM PRO-ABN-ENG THR LEVER FAULT / DISAGREE): 0 the lever works, 1 idle (definitively, even for go-around), 2 TO / FLX TO frozen, 3 CLB (idle to CLB with the A/THR). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE_ACTIVE
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the FADEC model of the flight computers uses A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE in place of the thrust lever angle A32NX_AUTOTHRUST_TLA:{number}: reverse idle until the reverser is deployed (FCOM DSC-70-70), idle with an unlocked reverser, or a thrust lever failure. Written by the systems WASM, read by fbw.wasm (FadecFailureInputs.h)
+
+- A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE
+  - Number (degrees)
+  - {number}
+    - 1
+    - 2
+  - The thrust lever angle the FADEC uses while A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE_ACTIVE is true. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_AUTO_IDLE
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the FADEC automatically sets the engine at idle: an unlocked reverser, or a failed thrust lever at idle. Shows the "ENG 1(2) AT IDLE" ECAM lines and lifts the phase 4 and 5 inhibition of THR LEVER FAULT / DISAGREE and REVERSE UNLOCKED. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_UNLOCKED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when a door of the reverser is not locked in its stowed position without a deploy order (flyPad failure 78010/78011): ENG 1(2) REVERSE UNLOCKED. The E/WD shows REV amber. Written by the systems WASM (a320_systems hydraulic A320Reversers)
+
+- A32NX_REVERSER_{number}_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the reverser is failed (flyPad failure 78000/78001): it does not deploy, ENG 1(2) REVERSER FAULT. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_PRESSURIZED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the reverser is pressurized while its doors are stowed and locked, without a deploy order (flyPad failure 78020/78021, shutoff valve stuck open): ENG 1(2) REV PRESSURIZED. Written by the systems WASM
+
 - A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_CLOSED
   - Bool
   - {side}
