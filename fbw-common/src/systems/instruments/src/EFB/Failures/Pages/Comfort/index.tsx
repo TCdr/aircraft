@@ -37,13 +37,13 @@ const ATAChapterCard = ({ ataNumber, description, title, className }: ATAChapter
     >
       <div className="relative mr-4 flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-xl bg-m3-tile">
         <span className="text-xs font-bold tracking-widest text-m3-muted">ATA</span>
-        <span className="text-3xl font-bold leading-none text-white">{ataNumber}</span>
+        <span className="text-3xl font-bold leading-none text-m3-text">{ataNumber}</span>
         {hasActiveFailure && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-m3-on-error" />}
       </div>
 
       <div className="flex min-w-0 grow flex-col">
         <div className="flex flex-row items-center">
-          <span className="grow truncate text-base font-bold text-white">{title}</span>
+          <span className="grow truncate text-base font-bold text-m3-text">{title}</span>
           {activeCount > 0 && (
             <span className="ml-2 whitespace-nowrap rounded-full bg-m3-error-container px-2 py-1 text-xs font-bold leading-none text-m3-on-error">
               {`${activeCount} ${t('Failures.Active')}`}

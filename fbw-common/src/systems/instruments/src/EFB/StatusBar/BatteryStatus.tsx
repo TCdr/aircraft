@@ -37,7 +37,7 @@ const BatteryStatusIcon = ({ batteryLevel, isCharging }: BatteryStatusProps) => 
     return (
       <Battery
         size={BATTERY_ICON_SIZE}
-        className={batteryLevel < BATTERY_LEVEL_WARNING ? 'text-utility-red' : 'text-white'}
+        className={batteryLevel < BATTERY_LEVEL_WARNING ? 'text-utility-red' : 'text-m3-text'}
       />
     );
   }
