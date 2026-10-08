@@ -110,9 +110,18 @@ void EngineControl_A380X::update() {
 
     const bool   simOnGround   = msfsHandlerPtr->getSimOnGround();
     const double engineTimer   = simData.engineTimer[engineIdx]->get();
-    const double simCN1        = simData.engineCorrectedN1DataPtr[engineIdx]->data().correctedN1;
-    const double simN1         = simData.simVarsDataPtr->data().simEngineN1[engineIdx];
-    const double simN3         = simData.simVarsDataPtr->data().simEngineN2[engineIdx];  // as the sim does not have N3, we use N2
+    const double msfsCN1       = simData.engineCorrectedN1DataPtr[engineIdx]->data().correctedN1;
+    const double msfsN1        = simData.simVarsDataPtr->data().simEngineN1[engineIdx];
+    const double msfsN3        = simData.simVarsDataPtr->data().simEngineN2[engineIdx];  // as the sim does not have N3, we use N2
+    // At the end of an MSFS start (in-flight relight) the MSFS core jumps to the top of its fuel flow table for a few seconds
+    // (96.9-99.2 % recorded, sim tests 2026-10-06). The FADEC uses and shows the speeds through the guard, which holds them at idle
+    // (start that ends) or at a normal acceleration (running engine) meanwhile; MSFS values otherwise (see CoreSpikeGuard_A380X).
+    const CoreSpikeGuard_A380X::Output guardedSpeeds = coreSpikeGuard[engineIdx].update(
+        {msfsN3, msfsN1, engineState == STARTING || engineState == RESTARTING, idleN3, simData.engineIdleN1->get(), deltaTime});
+    const double simN1 = guardedSpeeds.n1;
+    const double simN3 = guardedSpeeds.n3;
+    // the corrected N1 (fuel flow, EGT) is scaled with the N1: the ratio of the two is the same at the same instant
+    const double simCN1        = msfsN1 > 0.0 ? msfsCN1 * (simN1 / msfsN1) : msfsCN1;
     const double deltaN3       = simN3 - prevSimEngineN3[engineIdx];
     prevSimEngineN3[engineIdx] = simN3;
 
