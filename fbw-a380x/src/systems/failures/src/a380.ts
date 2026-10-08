@@ -349,6 +349,10 @@ export const A380Failure = Object.freeze({
   ThrustLever2Resolvers: 73041,
   ThrustLever3Resolvers: 73042,
   ThrustLever4Resolvers: 73043,
+  Eng1FuelFilterClog: 73100,
+  Eng2FuelFilterClog: 73101,
+  Eng3FuelFilterClog: 73102,
+  Eng4FuelFilterClog: 73103,
   Reverser2Fault: 78001,
   Reverser3Fault: 78002,
   Reverser2Unlocked: 78011,
@@ -703,6 +707,12 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [73, A380Failure.ThrustLever2Resolvers, 'Thrust lever 2 resolvers (both)'],
   [73, A380Failure.ThrustLever3Resolvers, 'Thrust lever 3 resolvers (both)'],
   [73, A380Failure.ThrustLever4Resolvers, 'Thrust lever 4 resolvers (both)'],
+  // CLOGGED below the fuel flow on the ENGINE SD page and ENG FUEL FILTER CLOGGED, no other effect (systems
+  // engine/fuel_filter_failure.rs)
+  [73, A380Failure.Eng1FuelFilterClog, 'Engine 1 fuel filter clog'],
+  [73, A380Failure.Eng2FuelFilterClog, 'Engine 2 fuel filter clog'],
+  [73, A380Failure.Eng3FuelFilterClog, 'Engine 3 fuel filter clog'],
+  [73, A380Failure.Eng4FuelFilterClog, 'Engine 4 fuel filter clog'],
 
   // Thrust reversers of engines 2 and 3 (a380_systems reverser)
   [78, A380Failure.Reverser2Fault, 'Reverser 2 fault (does not deploy)'],

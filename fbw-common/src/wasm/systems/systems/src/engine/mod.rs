@@ -11,6 +11,7 @@ pub mod engine_control_failure;
 pub mod engine_failure;
 pub mod engine_malfunction;
 pub mod engine_start;
+pub mod fuel_filter_failure;
 pub mod leap_engine;
 pub mod oil_failure;
 pub mod reverser;

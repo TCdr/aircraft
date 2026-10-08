@@ -282,6 +282,9 @@ const EwdMessages = new Map<
   ['770791203', { text: '\x1b<5m -ENG MASTER 2.......OFF' }],
   ['770792101', { group: 'ENG$5', text: ' 1 OIL FILTER CLOG' }],
   ['770792201', { group: 'ENG$5', text: ' 2 OIL FILTER CLOG' }],
+  // ENG 1(2) FUEL FILTER CLOG (FCOM PRO-ABN-ENG, a320_fcom.txt l.80166-80185): crew awareness, no procedure line
+  ['770730101', { group: 'ENG$5', text: ' 1 FUEL FILTER CLOG' }],
+  ['770730201', { group: 'ENG$5', text: ' 2 FUEL FILTER CLOG' }],
   // ENG 1(2) START FAULT (FCOM PRO-ABN-ENG, a320_fcom.txt l.81353-81528), lines by FWC/Logic/EngineStartAlerts startFaultLines
   ['770080101', { group: 'ENG$5', text: ' 1 START FAULT' }],
   ['770080102', { text: '\x1b<4m IGNITION FAULT' }],
