@@ -2305,6 +2305,24 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True while the FADEC starts the engine in flight by windmilling (start valve closed: N3 at or above 11 % and CAS at or above 260 kt, FCOM DSC-70-30): the engine-driven pumps of that engine are depressurised meanwhile (FCOM DSC-70-80-30-20 "the FADEC disconnects both hydraulic pumps"). Written by the systems WASM
 
+- A32NX_FADEC_IGNITER_A_ACTIVE_ENG{number}
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC energizes igniter A of the engine (SD ENGINE page ignition indication, FCOM DSC-70-90). Automatic start on the ground: one igniter, alternated A then B at each start, from 20 % to 58 % N3 (FCOM DSC-70-30, DSC-70-80-20); both igniters during a start in flight, the continuous ignition (ENG START selector at IGN START with the engine running: in flight, or on the ground after the selector was set to NORM then back to IGN START and above low power, N1 below 53 % for more than 30 s), the quick relight (60 s after the ENG MASTER lever is set back to ON) and the auto relight (until 60 s after the engine relights); none with the ENG MASTER OFF or the ENG FIRE pb released. Written by the FADEC (fadec_a380x IgniterSelection_A380X)
+
+- A32NX_FADEC_IGNITER_B_ACTIVE_ENG{number}
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC energizes igniter B of the engine; see A32NX_FADEC_IGNITER_A_ACTIVE_ENG{number}. Written by the FADEC
+
 - A32NX_PNEU_ENG_{number}_STARTER_PRESSURIZED
   - Bool
   - {number}
