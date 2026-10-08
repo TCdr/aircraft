@@ -8,8 +8,9 @@
 //! MASTER lever OFF "The FADEC closes the LP and HP fuel valves. The engine decelerates and stops."
 //! (also DSC-70-40 FUEL SHUTOFF VALVES l.111846-111847, STARTING INTERRUPTION l.113598-113599). The
 //! MSFS fuel valves 60 to 63 feed the engines after their Extra tanks (see a380_systems_wasm): they
-//! are the HP fuel valves, closed while the ENG MASTER is OFF or the fuel is cut
-//! (`ENGINE_n_HP_FUEL_VALVE_CLOSED`). The ENG MASTER only closes the MSFS LP valve (Valve.1-4)
+//! are the HP fuel valves (`ENGINE_n_HP_FUEL_VALVE_CLOSED`, see `HpFuelValve`): closed while the
+//! ENG MASTER is OFF or the fuel is cut, and on the ground until the FADEC start sequence (ENG START
+//! selector at IGN START) or the quick relight opens them. The ENG MASTER only closes the MSFS LP valve (Valve.1-4)
 //! upstream of the 1 gallon Extra tank, which MSFS does not burn (engines.cfg fuel_flow_scalar = 0)
 //! and the FADEC no longer drains once its fuel flow is 0 (master OFF): MSFS kept the combustion and
 //! the idle N2 of a shut down engine for 20 to 60 s (sim recordings 2026-10-05 and 2026-10-06), and a
@@ -69,7 +70,9 @@ use systems::{
         engine_failure::{
             EngineFailure, EngineFailureInputs, EngineRelightEnvelope, RelightConditions,
         },
-        engine_start::{EngineStartInputs, EngineStartSchedule, EngineStartSequence},
+        engine_start::{
+            EngineStartInputs, EngineStartPhase, EngineStartSchedule, EngineStartSequence,
+        },
     },
     pneumatic::{EngineModeSelector, EngineState},
     simulation::{
@@ -258,6 +261,91 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
     }
 }
 
+/// What the HP fuel valve of an engine depends on, for one update.
+struct HpFuelValveInputs {
+    on_ground: bool,
+    master_switch_is_on: bool,
+    /// The engine fuel is cut (`EngineFailure::fuel_is_cut`).
+    fuel_is_cut: bool,
+    /// On the ground, the FADEC start sequence gives the engine its fuel (see
+    /// `A380EngineFailure::ground_start_fuel_on`).
+    ground_start_fuel_on: bool,
+    /// The core speed (FADEC N3, the FCOM N2).
+    core_speed: Ratio,
+    /// The aircraft presets start the engines at once, without start sequence.
+    preset_quick_mode: bool,
+}
+
+/// The HP fuel valve of one engine: MSFS fuel valve 60 to 63 (see a380_systems_wasm), which feeds
+/// the engine after its Extra tank, so MSFS burns exactly while it is open.
+///
+/// A380 FCOM (a380_fcom.txt):
+/// - DSC-70-30 ENGINE SHUTDOWN (l.113611): with the ENG MASTER OFF "The FADEC closes the LP and HP
+///   fuel valves".
+/// - DSC-70-30 AUTOMATIC STARTING SEQUENCE ON GROUND (l.113553-113557): the ENG START selector is set
+///   to IGN START first, then at the MASTER ON "At 20 % N2: ... FMV and HP fuel valve open". At NORM
+///   the MASTER ON starts nothing: the HP fuel valve stays closed (sim recording 2026-10-07: MASTER ON
+///   at NORM, the MSFS starter, which follows the lever, turned the core and MSFS lit it at 22 % N2
+///   without any FADEC start).
+/// - DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545): MASTER ON to OFF then back to ON
+///   within 30 s, "The quick relight function immediately opens the FMV", "available provided that
+///   N2 is greater than 45 %".
+///
+/// The valve opens, ENG MASTER ON and fuel not cut, for:
+/// - in flight, any engine: the in-flight relight logic (relight envelope, quick relight, starter
+///   assisted and windmilling starts) keeps the fuel cut until the engine may light up;
+/// - on the ground, the FADEC start sequence at its fuel-on point, the quick relight, the aircraft
+///   presets, and a flight loaded with the master ON (engine running).
+///
+/// It then stays open until the master OFF or a fuel cut: a running engine keeps its fuel when the
+/// selector is set back to NORM, and its auto relight (DSC-70-80-30-20 AUTO RELIGHT) has fuel.
+struct HpFuelValve {
+    is_open: bool,
+    /// None until the first update: a flight loaded with the master ON is a running engine.
+    previous_master_switch_is_on: Option<bool>,
+    /// How long the ENG MASTER has been OFF, or stayed OFF before its last MASTER ON.
+    master_off_duration: Duration,
+}
+impl HpFuelValve {
+    /// FCOM DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545)
+    const QUICK_RELIGHT_MAX_MASTER_OFF_DURATION: Duration = Duration::from_secs(30);
+    const QUICK_RELIGHT_MIN_N2_PERCENT: f64 = 45.;
+
+    fn new() -> Self {
+        Self {
+            is_open: false,
+            previous_master_switch_is_on: None,
+            master_off_duration: Duration::ZERO,
+        }
+    }
+
+    fn update(&mut self, delta: Duration, inputs: &HpFuelValveInputs) {
+        let flight_loaded_with_master_on =
+            self.previous_master_switch_is_on.is_none() && inputs.master_switch_is_on;
+        if !inputs.master_switch_is_on {
+            if self.previous_master_switch_is_on != Some(false) {
+                self.master_off_duration = Duration::ZERO;
+            }
+            self.master_off_duration += delta;
+        }
+        self.previous_master_switch_is_on = Some(inputs.master_switch_is_on);
+
+        let quick_relight = self.master_off_duration <= Self::QUICK_RELIGHT_MAX_MASTER_OFF_DURATION
+            && inputs.core_speed.get::<percent>() > Self::QUICK_RELIGHT_MIN_N2_PERCENT;
+        let opens = !inputs.on_ground
+            || inputs.ground_start_fuel_on
+            || quick_relight
+            || inputs.preset_quick_mode
+            || flight_loaded_with_master_on;
+
+        self.is_open = inputs.master_switch_is_on && !inputs.fuel_is_cut && (self.is_open || opens);
+    }
+
+    fn is_closed(&self) -> bool {
+        !self.is_open
+    }
+}
+
 /// The engine failures, start sequence and ignition faults of one A380 engine and the variables
 /// they read.
 struct A380EngineFailure {
@@ -284,6 +372,8 @@ struct A380EngineFailure {
     relight_attempt_id: VariableIdentifier,
     windmill_start_id: VariableIdentifier,
     hp_fuel_valve_closed_id: VariableIdentifier,
+
+    hp_fuel_valve: HpFuelValve,
 
     master_switch_is_on: bool,
     /// The ENG START selector (one for the four engines): 0 CRANK, 1 NORM, 2 IGN START.
@@ -331,6 +421,7 @@ impl A380EngineFailure {
                 .get_identifier(format!("ENGINE_{}_WINDMILL_START", engine_number)),
             hp_fuel_valve_closed_id: context
                 .get_identifier(format!("ENGINE_{}_HP_FUEL_VALVE_CLOSED", engine_number)),
+            hp_fuel_valve: HpFuelValve::new(),
             master_switch_is_on: false,
             engine_start_selector: 1.,
             starter_air_pressurized: false,
@@ -344,10 +435,12 @@ impl A380EngineFailure {
         self.engine_state == EngineState::On
     }
 
-    /// The HP fuel valve is closed: by the ENG MASTER OFF (FCOM DSC-70-30 ENGINE SHUTDOWN), or
-    /// while the engine fuel is cut. It stops the MSFS combustion at once (MSFS fuel valve 60-63).
-    fn hp_fuel_valve_is_closed(&self) -> bool {
-        !self.master_switch_is_on || self.failure.fuel_is_cut()
+    /// On the ground, the FADEC start sequence gives the engine its fuel: an automatic or manual
+    /// start (ENG START selector at IGN START, then the MASTER ON: FCOM DSC-70-30,
+    /// DSC-70-80-30-30). The start sequence keeps the fuel cut until its fuel-on point ("At 20 % N2:
+    /// ... FMV and HP fuel valve open", l.113555-113557), so the HP fuel valve opens there.
+    fn ground_start_fuel_on(&self) -> bool {
+        self.start.phase() == EngineStartPhase::Starting
     }
 
     /// Design choice: the thrust lever is at idle within 1 degree of the IDLE detent (TLA 0).
@@ -410,6 +503,18 @@ impl A380EngineFailure {
         self.start
             .update_starter_motoring(context, self.failure.fuel_is_cut(), &start_inputs);
 
+        self.hp_fuel_valve.update(
+            context.delta(),
+            &HpFuelValveInputs {
+                on_ground: context.is_on_ground(),
+                master_switch_is_on: self.master_switch_is_on,
+                fuel_is_cut: self.failure.fuel_is_cut(),
+                ground_start_fuel_on: self.ground_start_fuel_on(),
+                core_speed: self.core_speed,
+                preset_quick_mode: self.preset_quick_mode,
+            },
+        );
+
         // A windmilling start: an in-flight start (the FADEC is starting the engine with the
         // master ON) that the FADEC does not assist with the starter.
         let starting = matches!(
@@ -462,7 +567,7 @@ impl SimulationElement for A380EngineFailure {
         writer.write(&self.windmill_start_id, self.windmill_start);
         writer.write(
             &self.hp_fuel_valve_closed_id,
-            self.hp_fuel_valve_is_closed(),
+            self.hp_fuel_valve.is_closed(),
         );
     }
 }
@@ -1087,6 +1192,195 @@ mod tests {
             run(&mut test_bed);
 
             assert!(hp_fuel_valve_is_closed(&mut test_bed, 3));
+        }
+
+        /// On the ground, engine 2 shut down and at rest (ENG MASTER OFF for 2 min), the three other
+        /// engines running, ENG START selector at the given position.
+        fn engine_2_shut_down_test_bed(selector: f64) -> SimulationTestBed<TestAircraft> {
+            let mut test_bed = engines_at_ground_idle_test_bed();
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", false);
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:2", 0.);
+            test_bed.write_by_name("ENGINE_N3:2", 0.);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", selector);
+            for _ in 0..(120 * 20) {
+                run(&mut test_bed);
+            }
+            test_bed
+        }
+
+        #[test]
+        fn on_the_ground_a_master_on_at_norm_leaves_the_hp_fuel_valve_closed() {
+            // Sim recording 2026-10-07 (a380rt1.log): MASTER 2 ON at NORM at 311.3 s, the MSFS
+            // starter turned the core and MSFS lit it at 22 % N2 (333.2 s) without a FADEC start.
+            let mut test_bed = engine_2_shut_down_test_bed(1.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
+            run(&mut test_bed);
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 2));
+
+            // the MSFS starter turns the core up to 25 %
+            for second in 0..30 {
+                test_bed.write_by_name("ENGINE_N3:2", (second as f64).min(25.));
+                for _ in 0..20 {
+                    run(&mut test_bed);
+                }
+                assert!(hp_fuel_valve_is_closed(&mut test_bed, 2));
+            }
+            for engine_number in [1, 3, 4] {
+                assert!(!hp_fuel_valve_is_closed(&mut test_bed, engine_number));
+            }
+        }
+
+        /// IGN START, then ENG MASTER 2 ON: the FADEC starts the engine with APU air at the open
+        /// start valve; N3 at the light-up.
+        fn start_engine_2(test_bed: &mut SimulationTestBed<TestAircraft>) {
+            test_bed.write_by_name("PNEU_ENG_2_STARTER_PRESSURIZED", true);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
+            run(test_bed);
+            test_bed.write_by_name("ENGINE_STATE:2", 2.);
+            test_bed.write_by_name("PNEU_ENG_2_STARTER_VALVE_OPEN", true);
+            test_bed.write_by_name("ENGINE_N3:2", 22.);
+            run(test_bed);
+        }
+
+        #[test]
+        fn on_the_ground_the_ign_start_start_opens_the_hp_fuel_valve() {
+            let mut test_bed = engine_2_shut_down_test_bed(2.);
+            start_engine_2(&mut test_bed);
+
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 2));
+        }
+
+        #[test]
+        fn a_started_engine_keeps_its_hp_fuel_valve_open_with_the_selector_back_at_norm() {
+            let mut test_bed = engine_2_shut_down_test_bed(2.);
+            start_engine_2(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:2", 1.);
+            test_bed.write_by_name("ENGINE_N3:2", 63.);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 1.);
+            for _ in 0..(60 * 20) {
+                run(&mut test_bed);
+            }
+
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 2));
+        }
+
+        #[test]
+        fn on_the_ground_the_quick_relight_at_norm_opens_the_hp_fuel_valve_within_30_s() {
+            // FCOM DSC-70-80-30-20 QUICK RELIGHT: MASTER OFF then ON within 30 s, N2 above 45 %
+            let mut test_bed = engines_at_ground_idle_test_bed();
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 1.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:3", false);
+            for _ in 0..(5 * 20) {
+                run(&mut test_bed);
+            }
+            test_bed.write_by_name("ENGINE_STATE:3", 4.);
+            test_bed.write_by_name("ENGINE_N3:3", 55.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:3", true);
+            run(&mut test_bed);
+
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 3));
+        }
+
+        #[test]
+        fn on_the_ground_no_quick_relight_after_30_s_with_the_master_off() {
+            let mut test_bed = engines_at_ground_idle_test_bed();
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 1.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:3", false);
+            for _ in 0..(31 * 20) {
+                run(&mut test_bed);
+            }
+            test_bed.write_by_name("ENGINE_STATE:3", 4.);
+            test_bed.write_by_name("ENGINE_N3:3", 50.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:3", true);
+            run(&mut test_bed);
+
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 3));
+        }
+
+        #[test]
+        fn the_aircraft_presets_open_the_hp_fuel_valve_at_norm() {
+            let mut test_bed = engine_2_shut_down_test_bed(1.);
+            test_bed.write_by_name("AIRCRAFT_PRESET_QUICK_MODE", true);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
+            run(&mut test_bed);
+
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 2));
+        }
+
+        #[test]
+        fn an_in_flight_quick_relight_at_norm_opens_the_hp_fuel_valve_once_it_lights_up() {
+            let mut test_bed = flying_test_bed();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(240.));
+            test_bed.set_pressure_altitude(Length::new::<foot>(15_000.));
+            test_bed.fail(FailureType::EngineFlameout(4));
+            run(&mut test_bed);
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 4));
+            test_bed.write_by_name("ENGINE_STATE:4", 4.);
+            test_bed.write_by_name("ENGINE_N3:4", 62.);
+            master_off_then_on(&mut test_bed, 4);
+
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 4));
+        }
+
+        #[test]
+        fn an_in_flight_windmilling_relight_at_ign_start_opens_the_hp_fuel_valve() {
+            let mut test_bed = flying_test_bed();
+            flame_out(&mut test_bed, 1);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+            master_off_then_on(&mut test_bed, 1);
+
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn an_in_flight_relight_outside_the_envelope_keeps_the_hp_fuel_valve_closed() {
+            let mut test_bed = flying_test_bed();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+            flame_out(&mut test_bed, 1);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+            master_off_then_on(&mut test_bed, 1);
+
+            // no starter air at 200 kt
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn on_the_ground_the_hp_fuel_valve_opens_at_the_fuel_on_point_of_the_start_sequence() {
+            // FCOM DSC-70-30 ON GROUND (l.113553-113557): MASTER ON, start valve opens, "At 20 % N2:
+            // ... FMV and HP fuel valve open"
+            let mut test_bed = ground_test_bed();
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:2", 2.);
+            test_bed.write_by_name("PNEU_ENG_2_STARTER_VALVE_OPEN", true);
+            for n3 in [2., 10., 18.] {
+                test_bed.write_by_name("ENGINE_N3:2", n3);
+                run(&mut test_bed);
+                assert!(hp_fuel_valve_is_closed(&mut test_bed, 2));
+            }
+
+            test_bed.write_by_name("ENGINE_N3:2", 22.);
+            run(&mut test_bed);
+            assert!(!hp_fuel_valve_is_closed(&mut test_bed, 2));
+        }
+
+        #[test]
+        fn on_the_ground_ign_start_selected_after_the_master_on_at_norm_starts_nothing() {
+            // Sim recording 2026-10-07 (a380rt1.log, 337.3 s): the automatic start needs IGN START
+            // before the MASTER ON
+            let mut test_bed = ground_test_bed();
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 1.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
+            run(&mut test_bed);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+            test_bed.write_by_name("ENGINE_STATE:2", 3.);
+            test_bed.write_by_name("ENGINE_N3:2", 22.);
+            for _ in 0..(10 * 20) {
+                run(&mut test_bed);
+            }
+
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 2));
         }
 
         #[test]
