@@ -238,7 +238,8 @@ describe('PseudoFWC wiring of ENG 1(2) FAIL / SHUT DOWN', () => {
   });
 
   it('calls LAND ASAP (amber) with ENG FAIL and SHUT DOWN', () => {
-    const landAsap = block("'0000360'");
+    // whitespace collapsed: the condition is split over several lines once more alerts call LAND ASAP
+    const landAsap = block("'0000360'").replace(/\s+/g, ' ');
     expect(landAsap).toContain('eng1Fail || eng2Fail || eng1ShutDown || eng2ShutDown');
   });
 

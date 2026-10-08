@@ -6,6 +6,7 @@
 #include "Arinc429.h"
 #include "CalculatedRadioReceiver.h"
 #include "EngineStartThrottleHold.h"
+#include "FadecFailureInputs.h"
 #include "FadecComputer.h"
 #include "InterpolatingLookupTable.h"
 #include "LocalVariable.h"
@@ -664,6 +665,11 @@ class FlyByWireInterface {
 
   std::unique_ptr<LocalVariable> idEcuStatusWord3[2];
   std::unique_ptr<LocalVariable> idEcuMaintenanceWord6[2];
+
+  // FADEC, thrust lever and reverser failures (systems.wasm engine_control_failure.rs, see FadecFailureInputs.h)
+  std::unique_ptr<LocalVariable> idEngineFadecTlaOverrideActive[2];
+  std::unique_ptr<LocalVariable> idEngineFadecTlaOverride[2];
+  std::unique_ptr<LocalVariable> idEngineFadecFault[2];
 
   void loadConfiguration();
   void setupLocalVariables();
