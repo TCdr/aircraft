@@ -1874,7 +1874,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 2
     - 3
     - 4
-  - True when the engine HP fuel valve is closed: ENG MASTER lever OFF (FCOM DSC-70-30 ENGINE SHUTDOWN: "The FADEC closes the LP and HP fuel valves") or engine fuel cut (A32NX_ENGINE_{number}_FUEL_CUT). Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank, so MSFS stops the combustion at once. Written by the systems WASM (a380_systems engine_failure.rs)
+  - True when the engine HP fuel valve is closed: ENG MASTER lever OFF (FCOM DSC-70-30 ENGINE SHUTDOWN: "The FADEC closes the LP and HP fuel valves"), engine fuel cut (A32NX_ENGINE_{number}_FUEL_CUT), and on the ground until the FADEC start sequence reaches its fuel-on point (ENG START selector at IGN START, then ENG MASTER ON) or the quick relight opens it (MASTER OFF then ON within 30 s above 45 % N3; FCOM DSC-70-80-30-20). A MASTER ON at NORM on the ground leaves it closed. Once open it stays open until the MASTER OFF or a fuel cut. Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank, so MSFS stops the combustion at once. Written by the systems WASM (a380_systems engine_failure.rs)
 
 - A32NX_ENGINE_{number}_FLAMED_OUT
   - Bool
