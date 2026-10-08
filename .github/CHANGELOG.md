@@ -304,6 +304,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The weather radar GAIN of the MFD SURV CONTROLS page changes the weather colours (50 % = calibrated, lower gain turns red to yellow, yellow to green and removes green, higher gain the opposite; turbulence unchanged), and a manual TILT or ELEVN that reaches the ground hides the weather beyond that range - @TCdr
 1. [A380X/MFD] FINAL fuel and time from the A380 holding fuel flow at the ZFW (green dot + 25 kt, 1500 ft, ISA) instead of a fixed 6 t per 30 min; the EXTRA time uses the same fuel flow - @TCdr
 1. [EFB] Settings > flyPad: custom theme (Grey, Black or Light base with a primary and a secondary colour, contrast-checked); the Blue, Dark and Light themes are unchanged - @TCdr
+1. [A32NX/EFB] New Performance > Buffet tab: the buffet onset envelope (coffin corner) from the A320 FCOM chart, live or what-if, with the buffet margin, max bank, 1.3 g ceiling and Mach range and the FMS REC MAX - @TCdr
 
 ## 2024.1.0
 
