@@ -12,6 +12,7 @@ import { DescentWidget } from './Widgets/DescentWidget';
 import { TabRoutes, PageLink, PageRedirect } from '../Utils/routing';
 import { AircraftContext } from '../AircraftContext';
 import { TemperatureCorrectionWidget } from './Widgets/TemperatureCorrectionWidget';
+import { BuffetWidget } from './Widgets/BuffetWidget';
 
 export const Performance = () => {
   const calculators = useContext(AircraftContext).performanceCalculators;
@@ -35,6 +36,10 @@ export const Performance = () => {
       alias: t('Performance.TemperatureCorrection.Title'),
       component: <TemperatureCorrectionWidget />,
     },
+    // Only for an aircraft with a buffet onset chart (A32NX: A320 FCOM LIM-13)
+    calculators.buffetEnvelope
+      ? { name: 'Buffet', alias: t('Performance.Buffet.Title'), component: <BuffetWidget /> }
+      : null,
   ].filter((t) => t !== null);
 
   return (

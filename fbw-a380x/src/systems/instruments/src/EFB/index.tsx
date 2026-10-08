@@ -36,6 +36,8 @@ render(
           oew: 300_006,
           mtow: 510_000,
         }),
+        // No Buffet tab: no A380 buffet onset chart in the FCOM (PER BUFFET CEILING is a qualitative figure only)
+        buffetEnvelope: null,
       },
       pushbackPage: {
         turnIndicatorTuningDefault: 1.35,

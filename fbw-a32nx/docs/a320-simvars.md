@@ -320,6 +320,11 @@
     - Bool
     - True if CONF 3 is selected in the performance approach page.
 
+- A32NX_FM_REC_MAX_FL
+    - Number (flight level)
+    - The recommended maximum flight level (REC MAX) of the MCDU PROG page, 0 when the FMS has no gross weight to
+      compute it. Read by the flyPad Performance > Buffet page.
+
 - A32NX_SPEEDS_VAPP
     - Number (Knots)
     - The VAPP pilot entry if it exists or the VAPP calculated by the FMS.
