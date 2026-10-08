@@ -223,6 +223,8 @@ class FadecSimData_A380X {
   NamedVariablePtr engineRelightIgnition[4];  // Bool - an in-flight relight is lighting up: igniters on (systems WASM)
   NamedVariablePtr engineRelightAttempt[4];   // Bool - a relight attempt is in progress (systems WASM)
   NamedVariablePtr engineStartSelector;       // Enum - ENG START selector: 0 crank, 1 norm, 2 ign start
+  NamedVariablePtr engineOilLeak[4];          // Bool - oil leak failure: the oil system loses oil (systems WASM)
+  NamedVariablePtr engineOilOverheat[4];      // Bool - oil overheat failure: the oil is not cooled enough (systems WASM)
   NamedVariablePtr engineFuelUsed[4];   // kg
   NamedVariablePtr engineIdleEGT;       // Celsius
   NamedVariablePtr engineIdleFF;
@@ -419,6 +421,15 @@ class FadecSimData_A380X {
     engineWindmillN3[E2] = dm->make_named_var("A32NX_ENGINE_2_WINDMILL_N2", UNITS.Number, AUTO_READ);
     engineWindmillN3[E3] = dm->make_named_var("A32NX_ENGINE_3_WINDMILL_N2", UNITS.Number, AUTO_READ);
     engineWindmillN3[E4] = dm->make_named_var("A32NX_ENGINE_4_WINDMILL_N2", UNITS.Number, AUTO_READ);
+
+    engineOilLeak[E1]     = dm->make_named_var("A32NX_ENGINE_1_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilLeak[E2]     = dm->make_named_var("A32NX_ENGINE_2_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilLeak[E3]     = dm->make_named_var("A32NX_ENGINE_3_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilLeak[E4]     = dm->make_named_var("A32NX_ENGINE_4_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilOverheat[E1] = dm->make_named_var("A32NX_ENGINE_1_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+    engineOilOverheat[E2] = dm->make_named_var("A32NX_ENGINE_2_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+    engineOilOverheat[E3] = dm->make_named_var("A32NX_ENGINE_3_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+    engineOilOverheat[E4] = dm->make_named_var("A32NX_ENGINE_4_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
 
     engineRelightIgnition[E1] = dm->make_named_var("A32NX_ENGINE_1_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
     engineRelightIgnition[E2] = dm->make_named_var("A32NX_ENGINE_2_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);

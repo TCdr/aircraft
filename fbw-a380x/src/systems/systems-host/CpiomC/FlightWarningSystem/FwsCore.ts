@@ -107,6 +107,7 @@ import {
   TwoEnginesOut,
   twoEnginesOut,
 } from './EngineFailAlerts';
+import { engineOilAlerts } from './EngineOilAlerts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import {
   FeedTankLevelLoMonitor,
@@ -2292,6 +2293,15 @@ export class FwsCore {
 
   /** The ENG FAIL memory of the engines 1 to 4, the same logic for the four engines (EngineFailAlerts.ts) */
   private readonly engineFailMonitors = [1, 2, 3, 4].map(() => new EngineFailMonitor());
+
+  /** ENG 1(2)(3)(4) OIL PRESS LO, by engine (EngineOilAlerts.ts) */
+  public readonly engineOilPressLo = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** ENG 1(2)(3)(4) OIL TEMP HI, by engine (EngineOilAlerts.ts) */
+  public readonly engineOilTempHi = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** ENG 1(2)(3)(4) OIL FILTER CLOGGED, by engine (EngineOilAlerts.ts) */
+  public readonly engineOilFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** ENG FAIL, IF NOT DAMAGED: more than two engines failed, the RELIGHT PROC line reads APPLY (FCOM l.171871-171872) */
   public readonly engineRelightProcApply = Subject.create(false);
@@ -5946,6 +5956,22 @@ export class FwsCore {
     [this.eng1Fail, this.eng2Fail, this.eng3Fail, this.eng4Fail].forEach((engFail, index) =>
       engFail.set(!this.allEnginesFailure.get() && this.engineFailMonitors[index].failed),
     );
+
+    // ENG OIL PRESS LO, OIL TEMP HI, OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): the oil pressure
+    // and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
+    engineFailInputs.forEach(([master, , state], index) => {
+      const engineNumber = index + 1;
+      const oilAlerts = engineOilAlerts({
+        masterOn: master.get(),
+        engineState: state.get() as FadecEngineState,
+        oilPressurePsi: SimVar.GetSimVarValue(`GENERAL ENG OIL PRESSURE:${engineNumber}`, 'psi'),
+        oilTemperatureCelsius: SimVar.GetSimVarValue(`GENERAL ENG OIL TEMPERATURE:${engineNumber}`, 'celsius'),
+        oilFilterClogged: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_OIL_FILTER_CLOGGED`, 'bool') > 0,
+      });
+      this.engineOilPressLo[index].set(oilAlerts.pressureLow);
+      this.engineOilTempHi[index].set(oilAlerts.temperatureHigh);
+      this.engineOilFilterClogged[index].set(oilAlerts.filterClogged);
+    });
 
     // Attnetion getting box
     this.eng1StartOrCrank.set(

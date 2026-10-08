@@ -7,6 +7,7 @@ import NacelleTemperatureGauge from './NacelleTemperatureGauge';
 import OilPressureGauge from './OilPressureGauge';
 import OilQuantityGauge from './OilQuantityGauge';
 import StartValve from './StartValve';
+import { oilQuantityPulses, oilTemperatureClass } from '../OilIndications';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
 
 interface EngineColumnProps {
@@ -37,6 +38,9 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const n3Vibration = n1Vibration;
 
   const [oilQuantity] = useSimVar(`L:A32NX_ENGINE_OIL_QTY:${engine}`, 'number', 500); // TODO: Update with correct SimVars
+  // FCOM DSC-70-90 OIL QUANTITY: pulses below the 1.2 qt advisory, except at TOGA or in reverse (OilIndications)
+  const [thrustLeverAngle] = useSimVar(`L:A32NX_AUTOTHRUST_TLA:${engine}`, 'number', 500);
+  const oilQuantityPulse = oilQuantityPulses(oilQuantity, thrustLeverAngle);
   const [engineOilTemperature] = useSimVar(`GENERAL ENG OIL TEMPERATURE:${engine}`, 'celsius', 100); // TODO: Update with correct SimVars
   // fbw-a380x\src\wasm\fadec_a380x\src\Fadec\EngineControl_A380X.cpp
   // has all the engine oil simvars in a large section commented out
@@ -63,15 +67,22 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
         </text>
       )}
       {/* OIL */}
-      <OilQuantityGauge x={x} y={y + 206} engine={engine} active={fadecPowered} value={oilQuantity} />
-      <DecimalValues x={x} y={y + 206} value={oilQuantity} active={fadecPowered} />
+      <OilQuantityGauge
+        x={x}
+        y={y + 206}
+        engine={engine}
+        active={fadecPowered}
+        value={oilQuantity}
+        pulse={oilQuantityPulse}
+      />
+      <DecimalValues x={x} y={y + 206} value={oilQuantity} active={fadecPowered} pulse={oilQuantityPulse} />
       {!fadecPowered && (
         <text x={x} y={y + 242} className="Amber F29 MiddleAlign">
           XX
         </text>
       )}
       {fadecPowered && (
-        <text x={x + 20} y={y + 248} className={`${engineOilTemperature > 177 ? 'Amber' : 'Green'} EndAlign F29`}>
+        <text x={x + 20} y={y + 248} className={`${oilTemperatureClass(engineOilTemperature)} EndAlign F29`}>
           {engineOilTemperature < 0 ? 0 : Math.round(engineOilTemperature)}
         </text>
       )}

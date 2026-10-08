@@ -471,6 +471,18 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (72_011, FailureType::EngineSeizure(2)),
         (72_012, FailureType::EngineSeizure(3)),
         (72_013, FailureType::EngineSeizure(4)),
+        (79_000, FailureType::EngineOilLeak(1)),
+        (79_001, FailureType::EngineOilLeak(2)),
+        (79_002, FailureType::EngineOilLeak(3)),
+        (79_003, FailureType::EngineOilLeak(4)),
+        (79_020, FailureType::EngineOilFilterClog(1)),
+        (79_021, FailureType::EngineOilFilterClog(2)),
+        (79_022, FailureType::EngineOilFilterClog(3)),
+        (79_023, FailureType::EngineOilFilterClog(4)),
+        (79_030, FailureType::EngineOilOverheat(1)),
+        (79_031, FailureType::EngineOilOverheat(2)),
+        (79_032, FailureType::EngineOilOverheat(3)),
+        (79_033, FailureType::EngineOilOverheat(4)),
     ])
     .provides_aircraft_variable("ACCELERATION BODY X", "feet per second squared", 0)?
     .provides_aircraft_variable("ACCELERATION BODY Y", "feet per second squared", 0)?

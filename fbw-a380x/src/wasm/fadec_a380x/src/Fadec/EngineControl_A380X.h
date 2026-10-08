@@ -6,6 +6,7 @@
 
 #include "MsfsHandler.h"
 
+#include "EngineOilFailures.hpp"
 #include "FadecSimData_A380X.hpp"
 #include "FuelConfiguration_A380X.h"
 
@@ -81,6 +82,19 @@ class EngineControl_A380X {
   // failure and is 0 below 0.5 %.
   static constexpr double SEIZED_CORE_DECAY_RATE = 2.0;  // 1/s
   static constexpr double SEIZED_CORE_STOPPED_N3 = 0.5;  // percent
+
+  // Engine oil failures (fadec_common EngineOilFailures.hpp). Design choices, the FCOM gives no rates:
+  // - an oil leak empties the oil system at 2 qt/min;
+  // - the oil pump delivers its normal pressure down to 1 qt in the tank, below the 1.2 qt oil advisory of the SD (FCOM
+  //   DSC-70-90 OIL QUANTITY, a380_fcom.txt l.113343), and no pressure at 0.2 qt, so that ENG OIL PRESS LO (below 25 PSI,
+  //   FCOM PRO-ABN-ECAM-10-70 l.172486) follows the low oil quantity advisory;
+  // - an oil overheat drives the oil to 170 C at idle, between the 163 C pulsing and the 177 C amber of the SD (FCOM
+  //   DSC-70-90 OIL TEMPERATURE, l.113361-113371), and to 225 C at 100 % N3, above the 196 C of ENG OIL TEMP HI (FCOM
+  //   l.172561), with a 60 s time constant: reducing thrust brings it back below the limit (FCOM l.172585).
+  static constexpr double                                OIL_LEAK_RATE              = 2.0 / 60.0;  // qt/s
+  static constexpr double                                OIL_FULL_PRESSURE_TANK_QTY = 1.0;         // qt
+  static constexpr double                                OIL_NO_PRESSURE_TANK_QTY   = 0.2;         // qt
+  static constexpr EngineOilFailures::OverheatParameters OIL_OVERHEAT               = {170.0, 225.0, 60.0};
 
   /**
    * @enum EngineState

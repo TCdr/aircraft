@@ -693,8 +693,11 @@ void EngineControl_A380X::updateShutdownOilPressure(int engine) {
 
   // The oil pump is driven through the accessory gearbox by the core: the oil pressure follows the N3 the FADEC shows (shutdown,
   // windmilling or seized core), with the oil pressure polynomial of the running engine (updateOil).
-  const double n3          = simData.engineN3[engineIdx]->get();
-  const double oilPressure = (std::max)(0.0, Polynomial_A380X::oilPressure(n3));
+  const double n3 = simData.engineN3[engineIdx]->get();
+  // An oil tank emptied by a leak no longer feeds the pump (EngineOilFailures.hpp)
+  const double tankFactor =
+      EngineOilFailures::pressureFactor(simData.engineOil[engineIdx]->get(), OIL_FULL_PRESSURE_TANK_QTY, OIL_NO_PRESSURE_TANK_QTY);
+  const double oilPressure = (std::max)(0.0, Polynomial_A380X::oilPressure(n3)) * tankFactor;
 
   simData.oilPsiDataPtr[engineIdx]->data().oilPsi = oilPressure;
   simData.oilPsiDataPtr[engineIdx]->writeDataToSim();
@@ -1174,6 +1177,12 @@ void EngineControl_A380X::updateOil(int          engine,
   simData.oilTempDataPtr[engineIdx]->requestDataFromSim();
   double oilTemperaturePre = simData.oilTempDataPtr[engineIdx]->data().oilTemp;
 
+  // The core speed the FADEC shows, and the oil failures of the flyPad (systems WASM, EngineOilFailures.hpp)
+  const double n3          = simData.engineN3[engineIdx]->get();
+  const double idleN3      = simData.engineIdleN3->get();
+  const bool   oilLeak     = simData.engineOilLeak[engineIdx]->getAsBool();
+  const bool   oilOverheat = simData.engineOilOverheat[engineIdx]->getAsBool();
+
   //--------------------------------------------
   // Oil Temperature
   //--------------------------------------------
@@ -1184,11 +1193,18 @@ void EngineControl_A380X::updateOil(int          engine,
     thermalEnergy[engineIdx] = (0.995 * thermalEnergy[engineIdx]) + (deltaN3 / deltaTime);
 
     oilTemperature = Polynomial_A380X::oilTemperature(thermalEnergy[engineIdx], oilTemperaturePre, MAX_OIL_TEMP, deltaTime);
+    // An oil overheat heats the oil with the thrust instead
+    if (oilOverheat) {
+      oilTemperature = EngineOilFailures::overheatTemperature(oilTemperaturePre, n3, idleN3, deltaTime, OIL_OVERHEAT);
+    }
   }
 
   //--------------------------------------------
   // Oil Quantity
   //--------------------------------------------
+  // An oil leak takes the oil out of the whole oil system (tank and circuit)
+  oilTotalActual -= EngineOilFailures::leakedQuantity(oilLeak, n3, oilTotalActual, OIL_LEAK_RATE, deltaTime);
+
   // Calculating Oil Qty as a function of thrust
   double thrust   = simData.simVarsDataPtr->data().simEngineThrust[engineIdx] * FORCE_LB_TO_N;
   oilQtyObjective = oilTotalActual * (1 - Polynomial_A380X::oilGulpPct(thrust));
@@ -1196,8 +1212,8 @@ void EngineControl_A380X::updateOil(int          engine,
 
   // Oil burnt taken into account for tank and total oil
   oilBurn        = (0.00011111 * deltaTime);
-  oilQtyActual   = oilQtyActual - oilBurn;
-  oilTotalActual = oilTotalActual - oilBurn;
+  oilQtyActual   = (std::max)(0.0, oilQtyActual - oilBurn);
+  oilTotalActual = (std::max)(0.0, oilTotalActual - oilBurn);
 
   //--------------------------------------------
   // Oil Pressure
@@ -1205,7 +1221,9 @@ void EngineControl_A380X::updateOil(int          engine,
   oilPressureIdle = 0;
 
   double simN3 = simData.simVarsDataPtr->data().simEngineN2[engineIdx];
-  oilPressure  = Polynomial_A380X::oilPressure(simN3) + oilPressureIdle;
+  // An oil tank emptied by a leak no longer feeds the pump (EngineOilFailures.hpp)
+  const double tankFactor = EngineOilFailures::pressureFactor(oilQtyActual, OIL_FULL_PRESSURE_TANK_QTY, OIL_NO_PRESSURE_TANK_QTY);
+  oilPressure             = (std::max)(0.0, Polynomial_A380X::oilPressure(simN3) + oilPressureIdle) * tankFactor;
 
   //--------------------------------------------
   // Engine Writing
