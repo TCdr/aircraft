@@ -2240,7 +2240,16 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 2
     - 3
     - 4
-  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED), a flameout or seizure failure (flyPad failures 72000-72003 and 72010-72013), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank; the FADEC handles the engine as one without fuel. Written by the systems WASM (a380_systems engine_failure.rs)
+  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED), a flameout or seizure failure (flyPad failures 72000-72003 and 72010-72013), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT). Closes the HP fuel valve (A32NX_ENGINE_{number}_HP_FUEL_VALVE_CLOSED); the FADEC handles the engine as one without fuel. Written by the systems WASM (a380_systems engine_failure.rs)
+
+- A32NX_ENGINE_{number}_HP_FUEL_VALVE_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine HP fuel valve is closed: ENG MASTER lever OFF (FCOM DSC-70-30 ENGINE SHUTDOWN: "The FADEC closes the LP and HP fuel valves") or engine fuel cut (A32NX_ENGINE_{number}_FUEL_CUT). Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank, so MSFS stops the combustion at once. Written by the systems WASM (a380_systems engine_failure.rs)
 
 - A32NX_ENGINE_{number}_FLAMED_OUT
   - Bool
