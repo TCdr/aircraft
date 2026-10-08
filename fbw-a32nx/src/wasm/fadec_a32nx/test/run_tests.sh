@@ -5,6 +5,8 @@
 set -e
 cd "$(dirname "$0")"
 mkdir -p ../obj
+# A sim LVar that is not A32NX_-prefixed (XMLVAR_*, ...) must be created with noPrefix = true.
+bash ../../../../../fbw-common/src/wasm/cpp-msfs-framework/test/check_named_var_prefix.sh ../src
 FLAGS=""
 if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then
   FLAGS="-DWITHOUT_THE_FIX"
