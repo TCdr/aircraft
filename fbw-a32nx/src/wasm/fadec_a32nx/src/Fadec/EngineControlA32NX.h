@@ -66,6 +66,9 @@ class EngineControl_A32NX {
   // the FADEC set the MSFS ignition switch to IGN for an in-flight relight and must give it back to the ENG MODE selector
   bool relightIgnitionSet[2] = {false, false};
 
+  // The EGT excess of a hot start or a stall (StartSequence_A32NX::egtOvershoot), in degrees Celsius
+  double startEgtExcess[2] = {0.0, 0.0};
+
   // Engine oil state
   double thermalEnergy[2] = {0.0, 0.0};
 
@@ -243,6 +246,8 @@ class EngineControl_A32NX {
    * @param idleN2 The idle N2 value.
    * @param ambientTemperature The current ambient temperature.
    * @param simOnGround Whether the aircraft is on the ground.
+   * @param starterMotoring The start sequence turns the core without fuel: the engine is not running.
+   * @param startN2Hang A hung start or a stall holds the core below idle: the start is not over.
    * @return The current state of the engine as an enum of type EngineState.
    * @see EngineState
    */
@@ -255,7 +260,9 @@ class EngineControl_A32NX {
                                                       double simN2,
                                                       double idleN2,
                                                       double ambientTemperature,
-                                                      bool   simOnGround);
+                                                      bool   simOnGround,
+                                                      bool   starterMotoring,
+                                                      bool   startN2Hang);
 
   /**
    * @brief This function manages the engine start procedure.
@@ -268,6 +275,10 @@ class EngineControl_A32NX {
    * @param simN2 The current N2 value from the simulator in percent.
    * @param pressureAltitude The current pressure altitude of the aircraft in feet.
    * @param ambientTemperature The current ambient temperature in degrees Celsius.
+   * @param lit The engine burns: its fuel is not cut by the systems WASM (StartSequence_A32NX::startIsLit).
+   * @param startPhase The phase of the start sequence of the systems WASM (StartSequence_A32NX::StartPhase).
+   * @param startN2Hang Hung start or stall: the core hangs below idle.
+   * @param startEgtOvershoot Hot start or stall: the EGT overshoots.
    *
    * @see EngineState
    */
@@ -278,7 +289,11 @@ class EngineControl_A32NX {
                             double      engineTimer,
                             double      simN2,
                             double      pressureAltitude,
-                            double      ambientTemperature);
+                            double      ambientTemperature,
+                            bool        lit,
+                            int         startPhase,
+                            bool        startN2Hang,
+                            bool        startEgtOvershoot);
 
   /**
    * @brief This function manages the engine shutdown procedure.
