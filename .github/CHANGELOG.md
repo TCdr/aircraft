@@ -310,6 +310,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EFB] New flyPad failures Engine 1(2) oil leak, oil filter clog and oil overheat: the oil quantity falls then the oil pressure, CLOG shows on the ENGINE SD page, the oil temperature rises with thrust - @TCdr
 1. [A32NX/FWS] New ENG 1(2) OIL LO PR warning and ENG 1(2) OIL HI TEMP and OIL FILTER CLOG cautions with their FCOM procedures and flight phase inhibitions - @TCdr
 1. [A32NX/SD] The ENGINE and CRUISE pages show the engine oil quantity the FADEC computes; the ENGINE page has the FCOM 0-22 QT oil quantity scale with its 3 QT advisory, the FCOM oil pressure red range (below 13 PSI) and low pressure advisory, and the oil filter CLOG indication - @TCdr
+1. [A380X/EFB] New flyPad failures Engine 1(2)(3)(4) oil leak, oil filter clog and oil overheat: the oil quantity falls then the oil pressure, CLOGGED shows on the ENGINE SD page, the oil temperature rises with thrust - @TCdr
+1. [A380X/FWS] New ENG 1(2)(3)(4) OIL PRESS LO red warning, OIL TEMP HI and OIL FILTER CLOGGED cautions with their FCOM procedures and flight phase inhibitions - @TCdr
+1. [A380X/SD] ENGINE page oil indications per the FCOM: the oil quantity pulses below the 1.2 qt advisory (first white dash), the oil temperature pulses above 163 °C, the oil pressure uses the FCOM 0-100/100-440 PSI scale and is red at or below 25 PSI, and CLOGGED shows below it - @TCdr
 
 ## 2024.1.0
 

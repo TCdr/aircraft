@@ -1,5 +1,6 @@
 import React, { FC } from 'react';
 import { GaugeComponent, GaugeMarkerComponent } from '@instruments/common/gauges';
+import { OIL_QTY_ADVISORY_QT } from '../OilIndications';
 
 interface OilQuantityGaugeProps {
   x: number;
@@ -7,9 +8,11 @@ interface OilQuantityGaugeProps {
   engine: number;
   active: boolean;
   value: number;
+  /** The needle pulses below the oil advisory limit (OilIndications oilQuantityPulses) */
+  pulse: boolean;
 }
 
-const OilQuantityGauge: FC<OilQuantityGaugeProps> = ({ x, y, engine, active, value }) => {
+const OilQuantityGauge: FC<OilQuantityGaugeProps> = ({ x, y, engine, active, value, pulse }) => {
   const radius = 53;
   const startAngle = -90;
   const endAngle = 90;
@@ -47,8 +50,9 @@ const OilQuantityGauge: FC<OilQuantityGaugeProps> = ({ x, y, engine, active, val
               className="White SW2"
               showValue={false}
             />
+            {/* FCOM DSC-70-90 OIL QUANTITY: the first white dash is the 1.2 qt oil advisory limit */}
             <GaugeMarkerComponent
-              value={3.7}
+              value={OIL_QTY_ADVISORY_QT}
               x={x}
               y={y}
               min={min}
@@ -92,7 +96,7 @@ const OilQuantityGauge: FC<OilQuantityGaugeProps> = ({ x, y, engine, active, val
               radius={radius}
               startAngle={startAngle}
               endAngle={endAngle}
-              className="GaugeIndicator Gauge LineRound SW4"
+              className={`GaugeIndicator Gauge LineRound SW4 ${pulse ? 'LinePulse' : ''}`}
               indicator
               halfIndicator
               multiplierInner={0.8}

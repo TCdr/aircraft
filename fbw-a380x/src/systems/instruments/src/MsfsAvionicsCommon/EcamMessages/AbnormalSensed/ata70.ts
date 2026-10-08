@@ -543,24 +543,40 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800085: {
-    title: '\x1b<4m\x1b4mENG\x1bm 1 OIL PRESS LO',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
+    title: '\x1b<2m\x1b4mENG\x1bm 1 OIL PRESS LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800086: {
-    title: '\x1b<4m\x1b4mENG\x1bm 2 OIL PRESS LO',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
+    title: '\x1b<2m\x1b4mENG\x1bm 2 OIL PRESS LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800087: {
-    title: '\x1b<4m\x1b4mENG\x1bm 3 OIL PRESS LO',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
+    title: '\x1b<2m\x1b4mENG\x1bm 3 OIL PRESS LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800088: {
-    title: '\x1b<4m\x1b4mENG\x1bm 4 OIL PRESS LO',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
+    title: '\x1b<2m\x1b4mENG\x1bm 4 OIL PRESS LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800089: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL SYS CONTAMINATION',
@@ -583,24 +599,48 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800093: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
+    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL TEMP HI',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: false, labelNotCompleted: 'REDUCE BELOW OIL TEMP LIM' },
+      { name: 'HI TEMP PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800094: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
+    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 2 OIL TEMP HI',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: false, labelNotCompleted: 'REDUCE BELOW OIL TEMP LIM' },
+      { name: 'HI TEMP PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800095: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
+    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 3 OIL TEMP HI',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: false, labelNotCompleted: 'REDUCE BELOW OIL TEMP LIM' },
+      { name: 'HI TEMP PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800096: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
+    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 4 OIL TEMP HI',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: false, labelNotCompleted: 'REDUCE BELOW OIL TEMP LIM' },
+      { name: 'HI TEMP PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800097: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL TEMP LO',
