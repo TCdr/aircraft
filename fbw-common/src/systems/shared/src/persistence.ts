@@ -19,6 +19,11 @@ export interface NXDataStoreSettings {
   CONFIG_AUTO_SIM_ROUTE_LOAD: boolean;
   CONFIG_USING_METRIC_UNIT: boolean;
   EFB_UI_THEME: 'blue' | 'dark' | 'light';
+  /**
+   * The flyPad theme: 'blue', 'dark', 'light' or 'custom:<grey|black|light>:<#primary>:<#secondary or same>' (see
+   * EFB/Utils/themePalette.ts); '' until migrated from EFB_UI_THEME, which keeps the preset of the base
+   */
+  EFB_UI_PALETTE: string;
 }
 
 export type LegacyDataStoreSettingKey<k extends string = string> = k &
@@ -36,6 +41,7 @@ export class NXDataStore {
     CONFIG_AUTO_SIM_ROUTE_LOAD: false,
     CONFIG_USING_METRIC_UNIT: true,
     EFB_UI_THEME: 'blue',
+    EFB_UI_PALETTE: '',
   };
 
   private static readonly aircraftProjectPrefix: string = process.env.AIRCRAFT_PROJECT_PREFIX?.toUpperCase() ?? 'UNK';

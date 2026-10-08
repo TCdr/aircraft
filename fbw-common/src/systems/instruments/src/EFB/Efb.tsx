@@ -16,7 +16,6 @@ import {
   usePersistentProperty,
   useSimVar,
   ChecklistProvider,
-  usePersistentSetting,
 } from '@flybywiresim/fbw-sdk-react';
 
 import { Provider } from 'react-redux';
@@ -58,6 +57,8 @@ import { setFlightPlanProgress } from './Store/features/flightProgress';
 import { Checklists, setAutomaticItemStates } from './Checklists/Checklists';
 import { setAircraftChecklists, addTrackingChecklists } from './Store/features/checklists';
 import { FlyPadPage } from './Settings/Pages/FlyPadPage';
+import { applyThemeChoice } from './Utils/themePalette';
+import { useThemeChoice } from './Utils/useThemeChoice';
 import { NavigraphAuthProvider } from '../react/navigraph';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { Printouts } from './Dispatch/Printouts';
@@ -229,7 +230,8 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
     (state) => state.simbrief.data,
   );
 
-  const [theme] = usePersistentSetting('EFB_UI_THEME');
+  // the theme of this flyPad, applied again whenever it changes (also from the other tablet)
+  const [themeChoice, themeKey] = useThemeChoice();
 
   const { showModal } = useModals();
 
@@ -238,13 +240,17 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
   const { hashFile, hashSeed } = useContext(AircraftContext);
 
   useEffect(() => {
-    document.documentElement.classList.add(`theme-${theme}`, 'animationsEnabled');
+    document.documentElement.classList.add('animationsEnabled');
 
     // Check the critical file hashes and store the result for later use
     if (hashFile) {
       checkFileHashes(hashFile, hashSeed).then((mismatches) => dispatch(setFileHashMismatches(mismatches)));
     }
   }, []);
+
+  useEffect(() => {
+    applyThemeChoice(themeChoice);
+  }, [themeKey]);
 
   useEffect(() => {
     const remainingDistance = distanceTo({ lat, long }, { lat: arrivingPosLat, long: arrivingPosLong });
