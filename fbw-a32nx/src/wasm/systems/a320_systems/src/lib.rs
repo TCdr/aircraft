@@ -48,7 +48,10 @@ use systems::{
         AuxiliaryPowerUnitOverheadPanel,
     },
     electrical::{Electricity, ElectricitySource, ExternalPowerSource},
-    engine::{leap_engine::LeapEngine, reverser_thrust::ReverserForce, EngineFireOverheadPanel},
+    engine::{
+        leap_engine::LeapEngine, oil_failure::EngineOilFailures, reverser_thrust::ReverserForce,
+        EngineFireOverheadPanel,
+    },
     hydraulic::brake_circuit::AutobrakePanel,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
     navigation::adirs::{
@@ -76,6 +79,8 @@ pub struct A320 {
     engine_2: LeapEngine,
     engine_fire_overhead: EngineFireOverheadPanel<2>,
     engine_failures: A320EngineFailures,
+    /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
+    engine_oil_failures: EngineOilFailures<2>,
     fire_protection: A320FireProtection,
     electrical: A320Electrical,
     power_consumption: A320PowerConsumption,
@@ -123,6 +128,7 @@ impl A320 {
             engine_2: LeapEngine::new(context, 2),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             engine_failures: A320EngineFailures::new(context),
+            engine_oil_failures: EngineOilFailures::new(context),
             fire_protection: A320FireProtection::new(context),
             electrical: A320Electrical::new(context),
             power_consumption: A320PowerConsumption::new(context),
@@ -329,6 +335,7 @@ impl SimulationElement for A320 {
         self.engine_2.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
         self.engine_failures.accept(visitor);
+        self.engine_oil_failures.accept(visitor);
         self.fire_protection.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
@@ -358,6 +365,7 @@ impl SimulationElement for A320 {
 mod tests {
     use super::*;
     use std::time::Duration;
+    use systems::failures::FailureType;
     use systems::simulation::{
         test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
         InitContext,
@@ -402,5 +410,26 @@ mod tests {
         assert!(starved);
         assert!(cut);
         assert!(!other_cut);
+    }
+
+    /// The flyPad oil failures 79000-79031 (a320_systems_wasm) reach the FADEC through the oil
+    /// failure variables of each engine (systems::engine::oil_failure).
+    #[test]
+    fn the_engine_oil_failures_are_written_for_the_fadec() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        test_bed.fail(FailureType::EngineOilLeak(1));
+        test_bed.fail(FailureType::EngineOilFilterClog(2));
+        test_bed.fail(FailureType::EngineOilOverheat(2));
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let read = |test_bed: &mut SimulationTestBed<A320>, name: &str| -> bool {
+            test_bed.read_by_name(name)
+        };
+        assert!(read(&mut test_bed, "ENGINE_1_OIL_LEAK"));
+        assert!(!read(&mut test_bed, "ENGINE_2_OIL_LEAK"));
+        assert!(read(&mut test_bed, "ENGINE_2_OIL_FILTER_CLOGGED"));
+        assert!(!read(&mut test_bed, "ENGINE_1_OIL_FILTER_CLOGGED"));
+        assert!(read(&mut test_bed, "ENGINE_2_OIL_OVERHEAT"));
+        assert!(!read(&mut test_bed, "ENGINE_1_OIL_OVERHEAT"));
     }
 }
