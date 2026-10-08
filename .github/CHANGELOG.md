@@ -141,6 +141,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FUEL] Added fuel pump and X FEED valve failures (L/R TK pump 1 and 2, X FEED valve jammed): FAULT light, amber LO on the SD FUEL page, FUEL L(R) TK PUMP 1(2) LO PR, L(R) TK PUMP 1+2 LO PR and X FEED VALVE FAULT cautions with their STATUS - @TCdr
 1. [A32NX/SD] FUEL page: the wing pumps and the X FEED valve now show the FCOM colours (LO only for a pump ON with a low pressure, amber X FEED valve when it disagrees with its pushbutton) - @TCdr
 1. [A32NX/FWC] The FUEL X FEED memo now needs the X FEED pushbutton ON and the valve not fully closed, as in the FCOM - @TCdr
+1. [A32NX/FADEC] An engine started in flight no longer overshoots to 110-114 % N2 at the end of the start: it stabilises at idle, then accelerates to the thrust lever or A/THR demand - @TCdr
 
 ## 2024.1.0
 
