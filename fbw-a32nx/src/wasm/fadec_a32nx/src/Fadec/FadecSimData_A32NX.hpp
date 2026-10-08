@@ -348,7 +348,8 @@ class FadecSimData_A32NX {
     engineStartEgtOvershoot[R] = dm->make_named_var("A32NX_ENGINE_2_START_EGT_OVERSHOOT", UNITS.Number, AUTO_READ);
     engineStarterFailed[L]     = dm->make_named_var("A32NX_ENGINE_1_STARTER_FAILED", UNITS.Number, AUTO_READ);
     engineStarterFailed[R]     = dm->make_named_var("A32NX_ENGINE_2_STARTER_FAILED", UNITS.Number, AUTO_READ);
-    engineModeSelector       = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ);
+    // XMLVAR_ENG_MODE_SEL has no A32NX_ prefix in the sim: noPrefix = true (last parameter), else L:A32NX_XMLVAR_ENG_MODE_SEL (always 0).
+    engineModeSelector = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ, 0.0, 0, true);
 
     engineOilLeak[L]     = dm->make_named_var("A32NX_ENGINE_1_OIL_LEAK", UNITS.Number, AUTO_READ);
     engineOilLeak[R]     = dm->make_named_var("A32NX_ENGINE_2_OIL_LEAK", UNITS.Number, AUTO_READ);
