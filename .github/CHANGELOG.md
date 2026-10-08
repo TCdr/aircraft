@@ -132,6 +132,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] Hardened the engine feed-tank fuel draw: a long sim frame can no longer empty the feed tanks of all four engines at once, and the engine fuel used is counted in the right unit - @TCdr
 1. [A380X/SD] The ENGINE page shows the igniters the FADEC energizes (A, B or A B): one igniter alternated at each ground start, both for an in-flight start, the continuous ignition, the quick relight and the auto relight, as in the FCOM; they were an "A" drawn from N2 - @TCdr
 1. [A380X/FWS] ALL ENG FLAME OUT inhibits ELEC EMER CONFIG as in the FCOM, its RAT MAN ON line is sensed and it has the missing L/G GRVTY (EXTN 2 MIN) DOWN line before a forced landing; the ENG RELIGHT IN FLIGHT procedure shows the FCOM single engine limits (MAX GUARANTEED ALTITUDE 30000 FT, MIN SPEED FOR WINDML RELIGHT 260 KT) - @TCdr
+1. [A380X/EFB] New flyPad failures Engine 1(2)(3)(4) oil leak, oil filter clog and oil overheat: the oil quantity falls then the oil pressure, CLOGGED shows on the ENGINE SD page, the oil temperature rises with thrust - @TCdr
+1. [A380X/FWS] New ENG 1(2)(3)(4) OIL PRESS LO red warning, OIL TEMP HI and OIL FILTER CLOGGED cautions with their FCOM procedures and flight phase inhibitions - @TCdr
+1. [A380X/SD] ENGINE page oil indications per the FCOM: the oil quantity pulses below the 1.2 qt advisory (first white dash), the oil temperature pulses above 163 °C, the oil pressure uses the FCOM 0-100/100-440 PSI scale and is red at or below 25 PSI, and CLOGGED shows below it - @TCdr
 
 ## 2024.1.0
 
