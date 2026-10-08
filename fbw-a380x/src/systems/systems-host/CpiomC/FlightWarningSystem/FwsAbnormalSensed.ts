@@ -36,6 +36,7 @@ import {
   startValveNotClosedItems,
   startValveNotOpenItems,
 } from './EngineStartAlerts';
+import { ENG_OVER_LIMIT_ITEMS_SHOWN, ENG_STALL_ITEMS_SHOWN } from './EngineParameterAlerts';
 import {
   condDuctOvhtActive,
   condDuctOvhtInfo,
@@ -5506,6 +5507,126 @@ export class FwsAbnormalSensed {
       ],
       failure: 2,
       sysPage: SdPages.None,
+    },
+    701800113: {
+      // ENG 1 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.engStall[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_STALL_ITEMS_SHOWN,
+      whichItemsChecked: () => [this.fws.thrustLever1Idle.get(), false, false, !this.fws.engine1Master.get(), false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800009: {
+      // ENG 1 EGT OVER LIMIT (EngineParameterAlerts.ts): amber, inhibited in phases 4, 5 and 6
+      flightPhaseInhib: [4, 5, 6],
+      simVarIsActive: this.fws.engEgtOverLimit[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
+      whichItemsChecked: () => [false, false, !this.fws.engine1Master.get()],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800073: {
+      // ENG 1 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
+      flightPhaseInhib: [5, 6],
+      simVarIsActive: this.fws.engN1N2OverLimit[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
+      whichItemsChecked: () => [false, false, !this.fws.engine1Master.get()],
+      failure: 3,
+      sysPage: SdPages.Eng,
+    },
+    701800114: {
+      // ENG 2 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.engStall[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_STALL_ITEMS_SHOWN,
+      whichItemsChecked: () => [this.fws.thrustLever2Idle.get(), false, false, !this.fws.engine2Master.get(), false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800010: {
+      // ENG 2 EGT OVER LIMIT (EngineParameterAlerts.ts): amber, inhibited in phases 4, 5 and 6
+      flightPhaseInhib: [4, 5, 6],
+      simVarIsActive: this.fws.engEgtOverLimit[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
+      whichItemsChecked: () => [false, false, !this.fws.engine2Master.get()],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800074: {
+      // ENG 2 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
+      flightPhaseInhib: [5, 6],
+      simVarIsActive: this.fws.engN1N2OverLimit[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
+      whichItemsChecked: () => [false, false, !this.fws.engine2Master.get()],
+      failure: 3,
+      sysPage: SdPages.Eng,
+    },
+    701800115: {
+      // ENG 3 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.engStall[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_STALL_ITEMS_SHOWN,
+      whichItemsChecked: () => [this.fws.thrustLever3Idle.get(), false, false, !this.fws.engine3Master.get(), false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800011: {
+      // ENG 3 EGT OVER LIMIT (EngineParameterAlerts.ts): amber, inhibited in phases 4, 5 and 6
+      flightPhaseInhib: [4, 5, 6],
+      simVarIsActive: this.fws.engEgtOverLimit[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
+      whichItemsChecked: () => [false, false, !this.fws.engine3Master.get()],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800075: {
+      // ENG 3 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
+      flightPhaseInhib: [5, 6],
+      simVarIsActive: this.fws.engN1N2OverLimit[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
+      whichItemsChecked: () => [false, false, !this.fws.engine3Master.get()],
+      failure: 3,
+      sysPage: SdPages.Eng,
+    },
+    701800116: {
+      // ENG 4 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.engStall[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_STALL_ITEMS_SHOWN,
+      whichItemsChecked: () => [this.fws.thrustLever4Idle.get(), false, false, !this.fws.engine4Master.get(), false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800012: {
+      // ENG 4 EGT OVER LIMIT (EngineParameterAlerts.ts): amber, inhibited in phases 4, 5 and 6
+      flightPhaseInhib: [4, 5, 6],
+      simVarIsActive: this.fws.engEgtOverLimit[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
+      whichItemsChecked: () => [false, false, !this.fws.engine4Master.get()],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800076: {
+      // ENG 4 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
+      flightPhaseInhib: [5, 6],
+      simVarIsActive: this.fws.engN1N2OverLimit[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
+      whichItemsChecked: () => [false, false, !this.fws.engine4Master.get()],
+      failure: 3,
+      sysPage: SdPages.Eng,
     },
     701800110: {
       // ENG 2 SHUTDOWN

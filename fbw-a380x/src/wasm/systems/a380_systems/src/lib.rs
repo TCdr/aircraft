@@ -6,6 +6,7 @@ mod avionics_data_communication_network;
 mod control_display_system;
 mod electrical;
 mod engine_failure;
+mod engine_malfunction;
 #[cfg(test)]
 mod engine_out_aircraft_tests;
 mod fire_and_smoke_protection;
@@ -24,6 +25,7 @@ use self::{
     avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
     control_display_system::A380ControlDisplaySystem,
     engine_failure::A380EngineFailures,
+    engine_malfunction::A380EngineMalfunctions,
     fuel::A380Fuel,
     pneumatic::{A380Pneumatic, A380PneumaticOverheadPanel},
     structural_flex::A380StructuralFlex,
@@ -90,6 +92,7 @@ pub struct A380 {
     engine_failures: A380EngineFailures,
     /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
     engine_oil_failures: EngineOilFailures<4>,
+    engine_malfunctions: A380EngineMalfunctions,
     electrical: A380Electrical,
     power_consumption: A380PowerConsumption,
     ext_pwrs: [ExternalPowerSource; 4],
@@ -143,6 +146,7 @@ impl A380 {
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             engine_failures: A380EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
+            engine_malfunctions: A380EngineMalfunctions::new(context),
             electrical: A380Electrical::new(context),
             power_consumption: A380PowerConsumption::new(context),
             ext_pwrs: [1, 2, 3, 4].map(|i| ExternalPowerSource::new(context, i)),
@@ -356,6 +360,7 @@ impl Aircraft for A380 {
             context,
             [1, 2, 3, 4].map(|engine_number| self.fuel.engine_is_starved(engine_number)),
         );
+        self.engine_malfunctions.update(context);
 
         self.engine_reverser_control[0].update(
             &self.engine_2,
@@ -403,6 +408,7 @@ impl SimulationElement for A380 {
         self.engine_fire_overhead.accept(visitor);
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
+        self.engine_malfunctions.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
         accept_iterable!(self.ext_pwrs, visitor);
