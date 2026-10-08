@@ -300,6 +300,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] The automatic engine start follows the FCOM: one igniter (alternated between starts) from 16 % N2, fuel at 22 %, ignition off and start valve closed at 50 % N2; on the ground a start that does not light up, stalls, hangs or goes above 725 °C EGT is aborted, dry cranked for 30 s and tried again with both igniters, up to three attempts, then the ENG FAULT light comes on - @TCdr
 1. [A32NX/ENG] The ENG MAN START pushbuttons work (manual start, dry crank and wet crank), continuous ignition with the ENG MODE selector at IGN/START, and the SD ENG start indications show at CRANK too - @TCdr
 1. [A32NX/FWS] New ENG 1(2) START FAULT, START VALVE FAULT and IGN FAULT cautions with their FCOM lines and STATUS; the IGNITION memo shows when the continuous ignition is on - @TCdr
+1. [A380X/FADEC] Automatic relight: when an engine flames out with its ENG MASTER ON, the FADEC turns on both igniters whatever the ENG START selector position and keeps them on until 60 s after the engine relights (FCOM AUTO RELIGHT); not with the ENG MASTER OFF, the ENG FIRE pb released or a flyPad flameout or seizure failure - @TCdr
 
 ## 2024.1.0
 
