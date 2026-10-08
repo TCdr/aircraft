@@ -4137,7 +4137,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True while the oil leak failure of the engine is active (flyPad failures 79000/79001): the FADEC takes 2 qt/min out of the engine oil (A32NX_ENGINE_OIL_TOTAL/QTY) while the core turns, and the oil pressure falls once the tank holds less than 2 qt (ENG OIL LO PR below 13 PSI). Written by the systems WASM (systems engine/oil_failure.rs)
+  - True while the oil leak failure of the engine is active (flyPad failures 79000/79001): the FADEC takes 2 qt/min out of the engine oil system (A32NX_ENGINE_OIL_TOTAL; the tank quantity A32NX_ENGINE_OIL_QTY falls about 1.6 qt/min, the rest being the oil in the circuit) while the core turns, and the oil pressure falls once the whole oil system holds less than 2.5 qt (ENG OIL LO PR below 13 PSI; never without the failure, a healthy engine holds 14 to 20 qt). Written by the systems WASM (systems engine/oil_failure.rs)
 
 - A32NX_ENGINE_{number}_OIL_FILTER_CLOGGED
   - Bool
