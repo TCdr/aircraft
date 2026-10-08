@@ -5,15 +5,12 @@ import React, { useState } from 'react';
 import { Check2, PencilFill } from 'react-bootstrap-icons';
 import { SettingItem } from '../Settings';
 import { SelectGroup, SelectItem } from '../../UtilComponents/Form/Select';
-import { SimpleInput } from '../../UtilComponents/Form/SimpleInput/SimpleInput';
 import { M3Banner, M3Button, M3Chip, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
+import { useModals } from '../../UtilComponents/Modals/Modals';
 import { tt } from '../../Localization/translation';
 import {
-  alertHueClash,
   checkPalette,
-  contrast,
   M3Tokens,
-  parseHexColour,
   PRESET_BASE,
   PRESET_SEED,
   OFFERED_SWATCHES,
@@ -23,14 +20,10 @@ import {
   themeTokens,
 } from '../../Utils/themePalette';
 import { useThemeChoice } from '../../Utils/useThemeChoice';
+import { ColourSlot } from '../../Utils/colourWheel';
+import { checkColour, ColourWheelDialog, ContrastRow } from './ColourWheelDialog';
 
 type CustomTheme = Extract<ThemeChoice, { kind: 'custom' }>;
-
-/** The colour slot the hex field edits */
-type ColourSlot = 'primary' | 'secondary';
-
-/** The check mark on a selected swatch: white or near-black, whichever reads better on the swatch */
-const checkColour = (hex: string) => (contrast('#ffffff', hex) > 3 ? '#ffffff' : '#0b0d11');
 
 interface SwatchProps {
   hex: string;
@@ -61,7 +54,7 @@ const Swatch = ({ hex, name, selected, size, onSelect }: SwatchProps) => (
   </button>
 );
 
-/** The button that opens the hex field for a slot */
+/** The button that opens the colour dialog of a slot (highlighted while it is open) */
 const HexButton = ({ open, label, onClick }: { open: boolean; label: string; onClick: () => void }) => (
   <button
     type="button"
@@ -180,29 +173,7 @@ const ContrastList = ({
     {checkPalette(tokens)
       .filter((check) => !check.fixed)
       .map((check) => (
-        <div key={check.key} className="flex h-7 flex-row items-center">
-          <span
-            className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-m3-outline text-xs font-extrabold"
-            style={{ backgroundColor: tokens[check.bg], color: tokens[check.fg] }}
-          >
-            A
-          </span>
-          <span className="ml-2 grow truncate text-sm font-semibold text-m3-text">
-            {tt(`Settings.flyPad.ThemePalette.Checks.${check.key}`, language)}
-          </span>
-          <span
-            className={`ml-2 text-sm font-bold ${check.pass ? 'text-m3-on-primary-container' : 'text-m3-on-error'}`}
-          >{`${check.ratio.toFixed(1)}:1`}</span>
-          <span
-            className={`ml-2 rounded-md px-2 py-0.5 text-xs font-bold ${
-              check.pass
-                ? 'bg-m3-primary-container text-m3-on-primary-container'
-                : 'bg-m3-error-container text-m3-on-error'
-            }`}
-          >
-            {tt(`Settings.flyPad.ThemePalette.${check.pass ? 'Pass' : 'Fail'}`, language)}
-          </span>
-        </div>
+        <ContrastRow key={check.key} check={check} tokens={tokens} language={language} />
       ))}
     <div className="grow" />
     {footer}
@@ -211,21 +182,19 @@ const ContrastList = ({
 
 /**
  * The theme settings of Settings > flyPad: the preset (Blue, Dark, Light) or Custom; a custom theme has a base, a
- * primary and a secondary color (swatches or a hex code), a preview and its contrast checks. Colors near the alert
- * hues are offered for neither and refused as hex codes.
+ * primary and a secondary color (swatches, or the colour wheel and hex code of the pencil's dialog), a preview and its
+ * contrast checks. Colors near the alert hues are offered for neither and refused as hex codes.
  */
 export const ThemeSettings = ({ language }: { language: string }) => {
   const [themeChoice, , setThemeChoice] = useThemeChoice();
-  // the slot the hex field is open for, and why the last code was refused
-  const [hexSlot, setHexSlot] = useState<ColourSlot | null>(null);
-  const [hexError, setHexError] = useState<string | null>(null);
+  const { showModal } = useModals();
+  // the slot whose colour dialog is open
+  const [dialogSlot, setDialogSlot] = useState<ColourSlot | null>(null);
 
   const s = (key: string) => tt(`Settings.flyPad.ThemePalette.${key}`, language);
   const custom: CustomTheme | null = themeChoice.kind === 'custom' ? themeChoice : null;
 
   const selectPreset = (preset: ThemePreset) => {
-    setHexSlot(null);
-    setHexError(null);
     setThemeChoice({ kind: 'preset', preset });
   };
 
@@ -243,25 +212,9 @@ export const ThemeSettings = ({ language }: { language: string }) => {
     }
   };
 
-  const toggleHexSlot = (slot: ColourSlot) => {
-    setHexError(null);
-    setHexSlot(hexSlot === slot ? null : slot);
-  };
-
-  /** A hex code typed for the open slot: applied, or refused with the reason */
-  const applyHex = (text: string) => {
-    if (!hexSlot || text.trim() === '') {
-      return;
-    }
-    const hex = parseHexColour(text);
-    if (hex === null) {
-      setHexError(s('HexInvalid'));
-    } else if (alertHueClash(hex) !== null) {
-      setHexError(s('HexAlertHue'));
-    } else {
-      setHexError(null);
-      updateCustom(hexSlot === 'primary' ? { primary: hex } : { secondary: hex });
-    }
+  const openDialog = (slot: ColourSlot) => {
+    setDialogSlot(slot);
+    showModal(<ColourWheelDialog slot={slot} language={language} onClose={() => setDialogSlot(null)} />);
   };
 
   const themeButtons: { name: string; selected: boolean; onSelect: () => void }[] = [
@@ -278,9 +231,6 @@ export const ThemeSettings = ({ language }: { language: string }) => {
     { base: 'black', name: s('Black') },
     { base: 'light', name: s('Light') },
   ];
-
-  const slotColour =
-    custom && hexSlot ? (hexSlot === 'primary' ? custom.primary : custom.secondary ?? custom.primary) : '';
 
   return (
     <>
@@ -321,7 +271,7 @@ export const ThemeSettings = ({ language }: { language: string }) => {
                   onSelect={() => updateCustom({ primary: swatch.hex })}
                 />
               ))}
-              <HexButton open={hexSlot === 'primary'} label={s('EditHex')} onClick={() => toggleHexSlot('primary')} />
+              <HexButton open={dialogSlot === 'primary'} label={s('EditHex')} onClick={() => openDialog('primary')} />
             </div>
           </SettingItem>
 
@@ -349,35 +299,12 @@ export const ThemeSettings = ({ language }: { language: string }) => {
                 />
               ))}
               <HexButton
-                open={hexSlot === 'secondary'}
+                open={dialogSlot === 'secondary'}
                 label={s('EditHex')}
-                onClick={() => toggleHexSlot('secondary')}
+                onClick={() => openDialog('secondary')}
               />
             </div>
           </SettingItem>
-
-          {hexSlot && (
-            <SettingItem
-              name={s(hexSlot === 'primary' ? 'CustomPrimary' : 'CustomSecondary')}
-              description={hexError ?? s('HexDescription')}
-              descriptionTone={hexError ? 'error' : undefined}
-            >
-              <div className="flex flex-row items-center">
-                <SimpleInput
-                  className="w-36 text-center"
-                  fontSizeClassName="text-base"
-                  value={slotColour.toUpperCase()}
-                  uppercase
-                  maxLength={7}
-                  onBlur={applyHex}
-                />
-                <span
-                  className="ml-3 h-8 w-8 shrink-0 rounded-full border border-m3-outline"
-                  style={{ backgroundColor: slotColour }}
-                />
-              </div>
-            </SettingItem>
-          )}
 
           <div className="flex flex-row py-4">
             <ThemePreview language={language} />
