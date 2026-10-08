@@ -5,6 +5,7 @@
 
 #include "A380FadecComputer.h"
 #include "Arinc429.h"
+#include "FadecFailureInputs.h"
 #include "CalculatedRadioReceiver.h"
 #include "InterpolatingLookupTable.h"
 #include "LocalVariable.h"
@@ -249,6 +250,10 @@ class FlyByWireInterface {
 
   std::unique_ptr<LocalVariable> thrustLeverAngle[4];
   std::unique_ptr<LocalVariable> idAutothrustN1_TLA[4];
+  // FADEC, thrust lever and reverser failures (systems.wasm engine_control_failure.rs, see FadecFailureInputs.h)
+  std::unique_ptr<LocalVariable> idEngineFadecTlaOverrideActive[4];
+  std::unique_ptr<LocalVariable> idEngineFadecTlaOverride[4];
+  std::unique_ptr<LocalVariable> idEngineFadecFault[4];
   std::unique_ptr<LocalVariable> idAutothrustReverse[4];
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitType;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimit;

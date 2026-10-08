@@ -79,24 +79,52 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800013: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 1 FADEC FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: false, labelNotCompleted: 'MAN ADJUST' },
+      { name: 'ENG 1 PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'ABNORMAL', sensed: false, condition: true },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800014: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 2 FADEC FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: false, labelNotCompleted: 'MAN ADJUST' },
+      { name: 'ENG 2 PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'ABNORMAL', sensed: false, condition: true },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800015: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 3 FADEC FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: false, labelNotCompleted: 'MAN ADJUST' },
+      { name: 'ENG 3 PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'ABNORMAL', sensed: false, condition: true },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800016: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 4 FADEC FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: false, labelNotCompleted: 'MAN ADJUST' },
+      { name: 'ENG 4 PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'ABNORMAL', sensed: false, condition: true },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800017: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 FADEC IDENT FAULT',
@@ -923,24 +951,50 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800129: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 1 THR LEVER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 1 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 CLB ONLY', sensed: false },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'CLB' },
+    ],
   },
   701800130: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 2 THR LEVER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 2 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 CLB ONLY', sensed: false },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'CLB' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800131: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 3 THR LEVER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 3 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 CLB ONLY', sensed: false },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'CLB' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800132: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 4 THR LEVER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 4 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 CLB ONLY', sensed: false },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'CLB' },
+    ],
   },
   701800133: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 THRUST LOSS',
@@ -963,34 +1017,52 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800137: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER CTL FAULT (a380_fcom.txt l.173459-173462)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER CTL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800138: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER CTL FAULT (a380_fcom.txt l.173459-173462)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER CTL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800139: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER ENERGIZED (a380_fcom.txt l.173508)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER ENERGIZED',
     sensed: true,
-    items: [],
+    items: [{ name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' }],
   },
   701800140: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER ENERGIZED (a380_fcom.txt l.173508)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER ENERGIZED',
     sensed: true,
-    items: [],
+    items: [{ name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' }],
   },
   701800141: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER FAULT (a380_fcom.txt l.173527-173530)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800142: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER FAULT (a380_fcom.txt l.173527-173530)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800143: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER INHIBITED',
@@ -1003,14 +1075,22 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800145: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER LOCKED (a380_fcom.txt l.173606-173609)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REV LOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800146: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER LOCKED (a380_fcom.txt l.173606-173609)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REV LOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800147: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER MINOR FAULT',
@@ -1023,14 +1103,28 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800149: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER UNLOCKED (a380_fcom.txt l.173678-173692)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER UNLOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 2 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'BUFFET', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800150: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER UNLOCKED (a380_fcom.txt l.173678-173692)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER UNLOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 3 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'BUFFET', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800151: {
     // A380 FCOM PRO-ABN-ECAM-10-70 ENG ALL ENG FLAME OUT (a380_fcom.txt l.114538)
@@ -1224,9 +1318,14 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800154: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG REVERSER SELECTED (a380_fcom.txt l.175039)
     title: '\x1b<4m\x1b4mENG\x1bm REVERSER SELECTED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'FWD THR' },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'FWD THR' },
+      { name: 'THR LEVERS 2+3', sensed: true, labelNotCompleted: 'FWD THR' },
+    ],
   },
   701800155: {
     title: '\x1b<4m\x1b4mENG\x1bm T.O THRUST DISAGREE',

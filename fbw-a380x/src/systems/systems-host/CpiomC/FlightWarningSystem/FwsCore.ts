@@ -107,6 +107,7 @@ import {
   TwoEnginesOut,
   twoEnginesOut,
 } from './EngineFailAlerts';
+import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import {
   FeedTankLevelLoMonitor,
@@ -2345,6 +2346,40 @@ export class FwsCore {
   public readonly eng2Out = Subject.create(false);
   public readonly eng3Out = Subject.create(false);
   public readonly eng4Out = Subject.create(false);
+
+  /*
+   * FADEC, thrust lever and reverser alerts (engine failures stage B5, see FadecReverserAlerts.ts). The engines 1 to 4 at
+   * index 0 to 3; the reversers of the engines 2 and 3 at index 0 and 1. The FADEC status comes from systems.wasm
+   * (a380_systems engine_control_failure.rs and reverser).
+   */
+  public readonly fadecFault = [1, 2, 3, 4].map(() => Subject.create(false));
+  public readonly fadecSysFault = [1, 2, 3, 4].map(() => Subject.create(false));
+  public readonly fadecTempHi = [1, 2, 3, 4].map(() => Subject.create(false));
+  /** INOP SYS ENG 1(2)(3)(4) A/THR: FADEC FAULT with the A/THR engaged (A380 FCOM l.171599) */
+  public readonly fadecAthrInop = [1, 2, 3, 4].map(() => Subject.create(false));
+  public readonly thrLeverFault = [1, 2, 3, 4].map(() => Subject.create(false));
+  /** STATUS INFO ENG n IDLE ONLY (THR LEVER FAULT on ground, REVERSER UNLOCKED) and ENG n CLB ONLY */
+  public readonly engineIdleOnly = [1, 2, 3, 4].map(() => Subject.create(false));
+  public readonly engineClbOnly = [1, 2, 3, 4].map(() => Subject.create(false));
+  public readonly reverserFault = [2, 3].map(() => Subject.create(false));
+  public readonly reverserCtlFault = [2, 3].map(() => Subject.create(false));
+  public readonly reverserLocked = [2, 3].map(() => Subject.create(false));
+  public readonly reverserUnlocked = [2, 3].map(() => Subject.create(false));
+  public readonly reverserEnergized = [2, 3].map(() => Subject.create(false));
+  /** ENG REVERSER SELECTED: the reverser of the engine 2 (3) is selected in flight */
+  public readonly reverserSelected = [2, 3].map(() => Subject.create(false));
+  public readonly anyReverserSelected = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.reverserSelected[0],
+    this.reverserSelected[1],
+  );
+  /** The reverser of the engine 2 (3) cannot deploy: INOP SYS ENG 2(3) REVERSER and BTV (APPR) */
+  public readonly reverserFailureInop = [2, 3].map(() => Subject.create(false));
+  public readonly reverserBtvInop = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.reverserFailureInop[0],
+    this.reverserFailureInop[1],
+  );
   public readonly phase12561112Inhibition = [1, 2, 5, 6, 11, 12];
 
   public readonly phase56Inhibition = [5, 6];
@@ -2649,9 +2684,19 @@ export class FwsCore {
     this.engine4Running,
   );
 
-  public readonly reverser2Inop = this.eng2Out; // TODO add power loss conditions, hydraulic loss
+  // TODO add power loss conditions, hydraulic loss
+  public readonly reverser2Inop = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.eng2Out,
+    this.reverserFailureInop[0],
+  );
 
-  public readonly reverser3Inop = this.eng3Out; // TODO add power loss conditions, hydraulic loss
+  // TODO add power loss conditions, hydraulic loss
+  public readonly reverser3Inop = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.eng3Out,
+    this.reverserFailureInop[1],
+  );
 
   public readonly eng1BleedInop = this.eng1Out; // TODO add bleed inop conditions
 
@@ -3526,6 +3571,54 @@ export class FwsCore {
     this.throttle3Position.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:3', 'number'));
     this.throttle4Position.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:4', 'number'));
     this.autoThrustStatus.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_STATUS', 'enum'));
+
+    /* FADEC, thrust lever and reverser alerts (see FadecReverserAlerts.ts) */
+    const onGroundForFadec = this.aircraftOnGround.get();
+    const athrEngagedForFadec = this.autoThrustStatus.get() !== 0;
+    const throttlePositions = [
+      this.throttle1Position.get(),
+      this.throttle2Position.get(),
+      this.throttle3Position.get(),
+      this.throttle4Position.get(),
+    ];
+    for (let engineIndex = 0; engineIndex < 4; engineIndex++) {
+      const engine = engineIndex + 1;
+      const fadecFault = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_FAULT`, 'bool') > 0;
+      this.fadecFault[engineIndex].set(fadecFault);
+      this.fadecAthrInop[engineIndex].set(fadecFault && athrEngagedForFadec);
+      this.fadecSysFault[engineIndex].set(
+        SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_SYS_FAULT`, 'bool') > 0,
+      );
+      this.fadecTempHi[engineIndex].set(SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_HI_TEMP`, 'bool') > 0);
+      const thrLeverFault = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_THR_LEVER_FAULT`, 'bool') > 0;
+      this.thrLeverFault[engineIndex].set(thrLeverFault);
+      const info = thrLeverFaultInfo(thrLeverFault, onGroundForFadec);
+      this.engineClbOnly[engineIndex].set(info.clbOnly);
+      this.engineIdleOnly[engineIndex].set(info.idleOnly);
+    }
+    for (let reverserIndex = 0; reverserIndex < 2; reverserIndex++) {
+      const engine = reverserIndex + 2;
+      const read = (name: string) => SimVar.GetSimVarValue(`L:A32NX_REVERSER_${engine}_${name}`, 'bool') > 0;
+      const fault = read('FAULT');
+      const ctlFault = read('CTL_FAULT');
+      const locked = read('LOCKED');
+      const unlocked = read('UNLOCKED');
+      this.reverserFault[reverserIndex].set(fault);
+      this.reverserCtlFault[reverserIndex].set(ctlFault);
+      this.reverserLocked[reverserIndex].set(locked);
+      this.reverserUnlocked[reverserIndex].set(unlocked);
+      this.reverserEnergized[reverserIndex].set(read('ENERGIZED'));
+      this.reverserSelected[reverserIndex].set(
+        isReverserSelectedInFlight(throttlePositions[engine - 1], onGroundForFadec),
+      );
+      this.reverserFailureInop[reverserIndex].set(
+        isReverserInoperative(fault, ctlFault, locked, this.thrLeverFault[engine - 1].get()),
+      );
+      // ENG 2(3) REVERSER UNLOCKED: ENG 2(3) IDLE ONLY (l.173678, STATUS INFO l.173698)
+      if (unlocked) {
+        this.engineIdleOnly[engine - 1].set(true);
+      }
+    }
     this.athrOff.set(this.autoThrustStatus.get() === 0);
     this.athrOn.set(this.autoThrustStatus.get() === 1);
     this.autoThrustMode.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_MODE', 'enum'));

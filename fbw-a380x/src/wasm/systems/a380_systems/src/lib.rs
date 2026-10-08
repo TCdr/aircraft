@@ -5,6 +5,7 @@ mod airframe;
 mod avionics_data_communication_network;
 mod control_display_system;
 mod electrical;
+mod engine_control_failure;
 mod engine_failure;
 mod fire_and_smoke_protection;
 mod fuel;
@@ -21,6 +22,7 @@ use self::{
     air_conditioning::{A380AirConditioning, A380PressurizationOverheadPanel},
     avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
     control_display_system::A380ControlDisplaySystem,
+    engine_control_failure::A380EngineControlFailures,
     engine_failure::A380EngineFailures,
     fuel::A380Fuel,
     pneumatic::{A380Pneumatic, A380PneumaticOverheadPanel},
@@ -56,7 +58,7 @@ use systems::{
         gnss::GpsReceiver,
         gpirs::Gpirs,
     },
-    shared::ElectricalBusType,
+    shared::{ElectricalBusType, LgciuWeightOnWheels},
     simulation::{
         Aircraft, InitContext, SimulationElement, SimulationElementVisitor, UpdateContext,
     },
@@ -85,6 +87,7 @@ pub struct A380 {
     engine_4: TrentEngine,
     engine_fire_overhead: EngineFireOverheadPanel<4>,
     engine_failures: A380EngineFailures,
+    engine_control_failures: A380EngineControlFailures,
     electrical: A380Electrical,
     power_consumption: A380PowerConsumption,
     ext_pwrs: [ExternalPowerSource; 4],
@@ -140,6 +143,7 @@ impl A380 {
             engine_4: TrentEngine::new(context, 4),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             engine_failures: A380EngineFailures::new(context),
+            engine_control_failures: A380EngineControlFailures::new(context),
             electrical: A380Electrical::new(context),
             power_consumption: A380PowerConsumption::new(context),
             ext_pwrs: [1, 2, 3, 4].map(|i| ExternalPowerSource::new(context, i)),
@@ -376,6 +380,17 @@ impl Aircraft for A380 {
             [1, 2, 3, 4].map(|engine_number| self.fuel.engine_is_starved(engine_number)),
         );
 
+        // The FADECs' reverser inhibitions of the previous update (thrust lever fault of engine 2 or 3)
+        let reversers_deployment_inhibited = self
+            .engine_control_failures
+            .reversers_deployment_inhibited();
+        for (controller, inhibited) in self
+            .engine_reverser_control
+            .iter_mut()
+            .zip(reversers_deployment_inhibited)
+        {
+            controller.set_deployment_inhibited(inhibited);
+        }
         self.engine_reverser_control[0].update(
             &self.engine_2,
             self.lgcius.lgciu1(),
@@ -389,6 +404,16 @@ impl Aircraft for A380 {
 
         self.reversers_assembly
             .update(context, &self.engine_reverser_control);
+
+        // The thrust lever angle the FADECs use, from the reverser state and the FADEC / thrust
+        // lever failures (engine_control_failure.rs). On the ground as the FADEC model of the
+        // flight computers sees it: both main gears compressed.
+        self.engine_control_failures.update(
+            context,
+            self.lgcius.lgciu1().left_and_right_gear_compressed(false)
+                || self.lgcius.lgciu2().left_and_right_gear_compressed(false),
+            self.reversers_assembly.monitoring(),
+        );
 
         self.reverse_thrust.update(
             context,
@@ -421,6 +446,7 @@ impl SimulationElement for A380 {
         self.engine_4.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
         self.engine_failures.accept(visitor);
+        self.engine_control_failures.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
         accept_iterable!(self.ext_pwrs, visitor);
