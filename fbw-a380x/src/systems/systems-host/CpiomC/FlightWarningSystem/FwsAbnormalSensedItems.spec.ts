@@ -31,6 +31,60 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(checked).toContain('!this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get()');
     expect(checked).not.toContain('yellowAPumpAuto');
   });
+
+  /* A380 FCOM PRO-ABN HYD G (Y) SYS OVHT: "If turning off G (Y) ENG 1 (3) PMP A or B is not successful: ... DISC". */
+  it.each([
+    ['290800031', 'G SYS OVHT', 1, 2],
+    ['290800032', 'Y SYS OVHT', 3, 4],
+  ])('%s %s: the ENG PMP A+B DISC items show only when turning the pumps off failed', (id, _name, a, b) => {
+    const shown = alertBlock(id).split('whichItemsToShow')[1].split('whichItemsChecked')[0];
+    expect(shown).toContain(`this.fws.eng${a}PumpsOffUnsuccessful.get()`);
+    expect(shown).toContain(`this.fws.eng${b}PumpsOffUnsuccessful.get()`);
+    expect(shown).not.toMatch(/^\s+true,\s*$/m);
+  });
+
+  /* A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS. */
+  it('Y SYS PRESS LO INFO: TAXI WITH CARE, AVOID MAX TILLER ANGLE, NO BRAKED PIVOT TURN, CAT 3 SINGLE ONLY', () => {
+    expect(alertBlock('290800036')).toContain("info: () => ['800200003', '800200004', '800200005', '220200016']");
+  });
+
+  it.each(['290800035', '290800036'])('%s SYS PRESS LO: INOP SYS APPR & LDG has BTV and CAT 3 DUAL', (id) => {
+    const apprLdg = alertBlock(id).split('inopSysApprLdg')[1];
+    expect(apprLdg).toContain("'320300007'");
+    expect(apprLdg).toContain("'220300028'");
+  });
+
+  it.each([
+    ['290800035', 'prim3Healthy'],
+    ['290800036', 'prim2Healthy'],
+  ])('%s SYS PRESS LO: the PRIM-failed items read the PRIM state (%s), not the Subject itself', (id, prim) => {
+    const shown = alertBlock(id).split('whichItemsToShow')[1].split('whichItemsChecked')[0];
+    expect(shown).toContain(`!this.fws.${prim}.get()`);
+    expect(shown).not.toContain(`!this.fws.${prim},`);
+  });
+
+  /* A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO: L/G GRVTY EXTN ONLY for both; "For gravity extension: MAX SPEED : 220 KT". */
+  it('Y SYS PRESS LO: L/G GRVTY EXTN ONLY item and the MAX SPEED 220 KT limitation on the ECAM and the PFD', () => {
+    const block = alertBlock('290800036');
+    const shown = block.split('whichItemsToShow')[1].split('whichItemsChecked')[0];
+    const checked = block.split('whichItemsChecked')[1].split('failure')[0];
+    expect(shown).toContain('true, // L/G GRVTY EXTN ONLY');
+    expect(checked.match(/false/g)).toHaveLength(6);
+    expect(block).toContain("limitationsPfd: () => ['320400001']");
+    expect(block).toContain("limitationsApprLdg: () => ['320400001']");
+    const items = readFileSync(
+      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata29-30.ts'),
+      'utf-8',
+    );
+    const yItems = items.slice(items.indexOf('  290800036: {'), items.indexOf('  290800037: {'));
+    expect(yItems.match(/^ {6}\{/gm)).toHaveLength(6);
+    expect(yItems).toContain("name: 'L/G GRVTY EXTN ONLY'");
+  });
+
+  /* A380 FCOM PRO-ABN CAB PRESS EXCESS DIFF PRESS: flight phase inhibition 2-7 and 10-12 (PDF p.4755). */
+  it('EXCESS DIFF PRESS is active in flight phases 1, 8 and 9', () => {
+    expect(alertBlock('213800002')).toContain('flightPhaseInhib: [2, 3, 4, 5, 6, 7, 10, 11, 12],');
+  });
 });
 
 describe('ENG ALL ENG FLAME OUT (A380 FCOM PRO-ABN-ECAM-10-70, l.173768-174788)', () => {
