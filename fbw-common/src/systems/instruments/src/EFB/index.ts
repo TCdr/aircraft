@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 export * from './AircraftContext';
+export { A320_BUFFET_ENVELOPE } from './Performance/Data/buffet';
 export * from './Apis/Navigraph/Components/Authentication';
 export * from './Efb';
 export * from './Enum/Airframe';

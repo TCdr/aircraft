@@ -4,7 +4,12 @@
 import React from 'react';
 
 import { render } from '@instruments/common/index';
-import { AircraftContext, EfbWrapper, syncSettingsFromPersistentStorage } from '@flybywiresim/flypad';
+import {
+  A320_BUFFET_ENVELOPE,
+  AircraftContext,
+  EfbWrapper,
+  syncSettingsFromPersistentStorage,
+} from '@flybywiresim/flypad';
 import { A320FailureDefinitions } from '@failures';
 import { A320251NLandingCalculator } from '@shared/performance/a32nx_landing';
 import { A320AircraftConfig } from '@fmgc/flightplanning/A320AircraftConfig';
@@ -37,6 +42,8 @@ render(
           oew: 42_500,
           mtow: 79_000,
         }),
+        // A320 FCOM LIM-13 BUFFET ONSET chart (Performance > Buffet)
+        buffetEnvelope: A320_BUFFET_ENVELOPE,
       },
       pushbackPage: {
         turnIndicatorTuningDefault: 1.35,
