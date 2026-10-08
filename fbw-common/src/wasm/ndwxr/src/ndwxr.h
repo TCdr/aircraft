@@ -151,6 +151,7 @@
 #include "constants.h"
 #include "vd_runways.h"  // VdCutSegment, the runway stretches of the A380X VD (pure geometry)
 #include "cds_display.h"  // the A380X CDS reconfiguration check (pure logic)
+#include "wxr_controls.h"  // the A380X WXR GAIN and ELEVN/TILT selections (pure logic)
 
 namespace ndwxr {
 
@@ -268,6 +269,8 @@ struct Instance {
   int vdShowFrames = 0;
   // Whether this ND asked the radar to transmit last frame (see g_wxrTransmitting).
   bool wxrRequested = false;
+  // The receiver gain (dB, see wxr_controls.h) the weather pair's colour tables were last set for.
+  float appliedGainDb = 0.0f;
 #endif
 #ifdef A380X
   // The VD's altitude limits (see kVdLeft).
@@ -346,6 +349,11 @@ extern NamedVar g_wxrOff;
 extern NamedVar g_wxrTurbOff;
 extern NamedVar g_wxrModeMap;
 extern NamedVar g_wxrVdOff;
+extern NamedVar g_wxrGainMan;
+extern NamedVar g_wxrGain;
+extern NamedVar g_wxrElevnTiltMode;
+extern NamedVar g_wxrElevn;
+extern NamedVar g_wxrTilt;
 extern NamedVar g_vdCutMode;
 extern NamedVar g_vdCutCount;
 extern NamedVar g_vdCutTrackChangeNm;
@@ -417,6 +425,7 @@ double planeCoordinateDegrees(const char* name);
 bool isArcOrRoseNav(double ndMode);
 int airDataSource(bool isRight, int airDataKnob);
 bool terrainSystemUp();
+double planeHeightAboveGroundFeet();
 #endif
 
 // render.cpp: the shared NanoVG helpers.
@@ -426,8 +435,12 @@ void sharpenRect(NVGcontext* vg, float x, float y, float w, float h, int passes 
 void colorizeRect(NVGcontext* vg, float x, float y, float w, float h);
 
 // weather.cpp: the radar views and the weather picture.
-bool configurePrecipView(FsContext ctx, FsTextureId id);
-bool configureHotView(FsContext ctx, FsTextureId id);
+// The rain rate thresholds of the calibrated gain (constants.h), which the manual GAIN moves (see wxr_controls.h).
+constexpr RadarThresholds kCalibratedThresholds{kGreenFromMmH, kYellowFromMmH, kRedFromMmH, kTurbulenceRateMmH};
+bool configurePrecipView(FsContext ctx, FsTextureId id, const RadarThresholds& thresholds = kCalibratedThresholds);
+bool configureHotView(FsContext ctx, FsTextureId id, const RadarThresholds& thresholds = kCalibratedThresholds);
+// Sets only the colour tables of the weather pair (a gain change), not the rest of their setup.
+void setRadarThresholds(FsContext ctx, FsTextureId precipView, FsTextureId hotView, const RadarThresholds& thresholds);
 void arcAreaPath(NVGcontext* vg, float cx, float cy, float radius, float sweepFraction);
 void drawWeatherRect(NVGcontext* vg,
                      FsTextureId mapView,

@@ -8,3 +8,5 @@ clang++ -std=c++17 -Wall -Wextra -Werror vd_runways_test.cpp -o ../obj/vd_runway
 ../obj/vd_runways_test
 clang++ -std=c++17 -Wall -Wextra -Werror cds_display_test.cpp -o ../obj/cds_display_test
 ../obj/cds_display_test
+clang++ -std=c++17 -Wall -Wextra -Werror wxr_controls_test.cpp -o ../obj/wxr_controls_test
+../obj/wxr_controls_test
