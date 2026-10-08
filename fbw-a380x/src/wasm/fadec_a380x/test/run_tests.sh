@@ -12,3 +12,10 @@ clang++ -std=c++20 -Wall -Wextra -Werror feed_tank_draw_test.cpp -o ../obj/feed_
 ../obj/feed_tank_draw_test
 clang++ -std=c++20 -Wall -Wextra -Werror igniter_selection_test.cpp -o ../obj/igniter_selection_test
 ../obj/igniter_selection_test
+# With WITHOUT_THE_FIX=1 the start sequence test uses the FADEC decisions before the start sequence and must fail.
+FLAGS=""
+if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then
+  FLAGS="-DWITHOUT_THE_FIX"
+fi
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS start_sequence_test.cpp -o ../obj/start_sequence_test
+../obj/start_sequence_test

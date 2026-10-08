@@ -54,19 +54,23 @@
 
 use std::time::Duration;
 use systems::{
-    engine::engine_failure::{
-        EngineFailure, EngineFailureInputs, EngineRelightEnvelope, RelightConditions,
+    engine::{
+        engine_failure::{
+            EngineFailure, EngineFailureInputs, EngineRelightEnvelope, RelightConditions,
+        },
+        engine_start::{EngineStartInputs, EngineStartSchedule, EngineStartSequence},
     },
-    pneumatic::EngineState,
+    pneumatic::{EngineModeSelector, EngineState},
     simulation::{
         InitContext, Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
         SimulatorWriter, UpdateContext, VariableIdentifier, Write,
     },
 };
 use uom::si::{
-    f64::{Length, Ratio, Velocity},
+    f64::{Length, Ratio, ThermodynamicTemperature, Velocity},
     length::foot,
     ratio::percent,
+    thermodynamic_temperature::degree_celsius,
     velocity::knot,
 };
 
@@ -202,9 +206,64 @@ impl EngineRelightEnvelope for A380RelightEnvelope {
     }
 }
 
-/// The engine failures of one A380 engine and the variables they read.
+/// The A380 start sequence numbers (GP7270 FCOM, a380_fcom.txt). The FCOM "N2" is the HP spool of the
+/// GP7270: on the A380X (Trent 900) it is the FBW N3, as for the start valve and the relight envelope.
+pub fn a380_engine_start_schedule() -> EngineStartSchedule {
+    EngineStartSchedule {
+        // DSC-70-30 (l.113553-113555): "At 20 % N2: Ignition starts (igniters A or B) - FMV and HP
+        // fuel valve open, and FF increases". Design choice: the 20 % rule, not "20 s after N2
+        // reaches 20 %" (DSC-70-80-20 l.112329), as the igniter indication of the FADEC.
+        ground_ignition_on_n2: Ratio::new::<percent>(20.),
+        // DSC-70-80-20 (l.112341-112342): "Ignition automatically stops at the end of the start
+        // sequence, when N2 reaches approximately 58 %".
+        automatic_start_ignition_off_n2: Ratio::new::<percent>(58.),
+        // l.112348-112349: manual start, "The ignition automatically stops at the end of the start
+        // sequence when N2 reaches approximately 56 %".
+        manual_start_ignition_off_n2: Ratio::new::<percent>(56.),
+        fuel_on_n2: Ratio::new::<percent>(20.),
+        // DSC-70-30 (l.113558): "When N2 above 58.4 %: Engine start valve closes".
+        start_valve_close_n2: Ratio::new::<percent>(58.4),
+        // DSC-70-80-30-20 (l.112500): "On ground, automatic start is not aborted, when N2 is above
+        // 58.4 %".
+        start_abort_inhibition_n2: Ratio::new::<percent>(58.4),
+        // Design choice, the FCOM gives no light-up time for the automatic start: PRO-SUP-70-10
+        // MANUAL ENGINE START (l.180907-180908): "20 s maximum after ENG MASTER lever is set to ON:
+        // N1 AND EGT INCREASE ... CHECK".
+        no_light_up_time: Duration::from_secs(20),
+        // DSC-70-90 (l.113191): EGT limit "745 °C, during the ground start sequence".
+        start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(745.),
+        // DSC-70-80-30-20 (l.112489-112491): "initiates two further attempts of automatic start
+        // sequence after cranking ... If the third start attempt fails, the start sequence is aborted".
+        automatic_start_attempts: 3,
+        // Design choice: PRO-ABN-ECAM-10-70 ENG START FAULT (l.172943): "To clear fuel vapors, it is
+        // necessary to dry crank the engine for 30 seconds".
+        automatic_crank_time: Duration::from_secs(30),
+        // LIM-70 STARTER (l.189725-189726): "When the starter-on time exceeds 5 min continuous
+        // operation, the ENG x START FAULT STARTER TIME EXCEEDED ECAM alert triggers".
+        starter_time_limit: Some(Duration::from_secs(5 * 60)),
+        // DSC-70-80-20 (l.112367): "The FADEC uses both igniters, when the continuous ignition
+        // operates."
+        continuous_ignition_uses_both_igniters: true,
+    }
+}
+
+/// The engine failures, start sequence and ignition faults of one A380 engine and the variables
+/// they read.
 struct A380EngineFailure {
     failure: EngineFailure,
+    start: EngineStartSequence,
+    manual_start_id: VariableIdentifier,
+    fire_push_button_id: VariableIdentifier,
+    egt_id: VariableIdentifier,
+    start_valve_open_id: VariableIdentifier,
+    thrust_lever_angle_id: VariableIdentifier,
+    preset_quick_mode_id: VariableIdentifier,
+    manual_start_is_on: bool,
+    fire_push_button_is_released: bool,
+    egt: ThermodynamicTemperature,
+    start_valve_is_open: bool,
+    thrust_lever_angle_degrees: f64,
+    preset_quick_mode: bool,
 
     master_switch_id: VariableIdentifier,
     engine_start_selector_id: VariableIdentifier,
@@ -228,6 +287,22 @@ impl A380EngineFailure {
     fn new(context: &mut InitContext, engine_number: usize) -> Self {
         Self {
             failure: EngineFailure::new(context, engine_number),
+            start: EngineStartSequence::new(context, engine_number),
+            manual_start_id: context.get_identifier(format!("ENGMANSTART{}_TOGGLE", engine_number)),
+            fire_push_button_id: context
+                .get_identifier(format!("FIRE_BUTTON_ENG{}", engine_number)),
+            egt_id: context.get_identifier(format!("ENGINE_EGT:{}", engine_number)),
+            start_valve_open_id: context
+                .get_identifier(format!("PNEU_ENG_{}_STARTER_VALVE_OPEN", engine_number)),
+            thrust_lever_angle_id: context
+                .get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
+            preset_quick_mode_id: context.get_identifier("AIRCRAFT_PRESET_QUICK_MODE".to_owned()),
+            manual_start_is_on: false,
+            fire_push_button_is_released: false,
+            egt: ThermodynamicTemperature::default(),
+            start_valve_is_open: false,
+            thrust_lever_angle_degrees: 0.,
+            preset_quick_mode: false,
             // The ENG MASTER lever drives the MSFS engine valve 1 to 4 (and the MSFS starter).
             master_switch_id: context
                 .get_identifier(format!("FUELSYSTEM VALVE SWITCH:{}", engine_number)),
@@ -255,12 +330,45 @@ impl A380EngineFailure {
         self.engine_state == EngineState::On
     }
 
+    /// Design choice: the thrust lever is at idle within 1 degree of the IDLE detent (TLA 0).
+    const THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES: f64 = 1.;
+
+    fn engine_start_selector(&self) -> EngineModeSelector {
+        match self.engine_start_selector.round() as i64 {
+            0 => EngineModeSelector::Crank,
+            2 => EngineModeSelector::Ignition,
+            _ => EngineModeSelector::Norm,
+        }
+    }
+
+    fn start_inputs(&self) -> EngineStartInputs {
+        EngineStartInputs {
+            master_switch_is_on: self.master_switch_is_on,
+            mode_selector: self.engine_start_selector(),
+            manual_start_is_on: self.manual_start_is_on,
+            fire_push_button_is_released: self.fire_push_button_is_released,
+            engine_state: self.engine_state,
+            core_speed: self.core_speed,
+            egt: self.egt,
+            start_valve_is_open: self.start_valve_is_open,
+            starter_air_pressurized: self.starter_air_pressurized,
+            thrust_lever_at_idle: self.thrust_lever_angle_degrees.abs()
+                <= Self::THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES,
+            preset_quick_mode: self.preset_quick_mode,
+            relight_pending: self.failure.is_flamed_out() || self.failure.is_seized(),
+        }
+    }
+
     fn update(
         &mut self,
         context: &UpdateContext,
         envelope: &A380RelightEnvelope,
         lp_valve_starved: bool,
+        start_schedule: &EngineStartSchedule,
     ) {
+        let start_inputs = self.start_inputs();
+        self.start.update(context, start_schedule, &start_inputs);
+
         self.failure.update(
             context,
             envelope,
@@ -268,15 +376,19 @@ impl A380EngineFailure {
                 master_switch_is_on: self.master_switch_is_on,
                 ignition_selected: self.engine_start_selector
                     == Self::ENGINE_START_SELECTOR_IGN_START,
-                starter_air_pressurized: self.starter_air_pressurized,
+                // A starter that has failed gives no starter assisted relight.
+                starter_air_pressurized: self.starter_air_pressurized
+                    && !self.start.starter_has_failed(),
                 engine_is_running: self.is_running(),
                 core_speed: self.core_speed,
                 lp_valve_starved,
-                // The A380X start sequence (systems::engine::engine_start) is not wired yet.
-                start_sequence_fuel_cut: false,
-                ignition_available: true,
+                start_sequence_fuel_cut: self.start.fuel_is_cut(),
+                ignition_available: self.start.ignition_is_available(),
             },
         );
+
+        self.start
+            .update_starter_motoring(context, self.failure.fuel_is_cut(), &start_inputs);
 
         // A windmilling start: an in-flight start (the FADEC is starting the engine with the
         // master ON) that the FADEC does not assist with the starter.
@@ -297,6 +409,7 @@ impl A380EngineFailure {
 impl SimulationElement for A380EngineFailure {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.failure.accept(visitor);
+        self.start.accept(visitor);
 
         visitor.visit(self);
     }
@@ -311,6 +424,12 @@ impl SimulationElement for A380EngineFailure {
             EngineState::Off,
         );
         self.core_speed = Ratio::new::<percent>(reader.read(&self.core_speed_id));
+        self.manual_start_is_on = reader.read(&self.manual_start_id);
+        self.fire_push_button_is_released = reader.read(&self.fire_push_button_id);
+        self.egt = reader.read(&self.egt_id);
+        self.start_valve_is_open = reader.read(&self.start_valve_open_id);
+        self.thrust_lever_angle_degrees = reader.read(&self.thrust_lever_angle_id);
+        self.preset_quick_mode = reader.read(&self.preset_quick_mode_id);
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
@@ -324,9 +443,10 @@ impl SimulationElement for A380EngineFailure {
     }
 }
 
-/// The engine flameout and seizure failures of the four engines.
+/// The engine flameout and seizure failures, start sequences and ignition faults of the four engines.
 pub struct A380EngineFailures {
     engines: [A380EngineFailure; 4],
+    start_schedule: EngineStartSchedule,
 }
 impl A380EngineFailures {
     /// Two or more engines not running: the multiple-engine relight limits (FCOM l.174977-174979).
@@ -335,6 +455,7 @@ impl A380EngineFailures {
     pub fn new(context: &mut InitContext) -> Self {
         Self {
             engines: [1, 2, 3, 4].map(|number| A380EngineFailure::new(context, number)),
+            start_schedule: a380_engine_start_schedule(),
         }
     }
 
@@ -349,7 +470,7 @@ impl A380EngineFailures {
         let envelope = A380RelightEnvelope::new(engines_out >= Self::MULTIPLE_ENGINES_OUT);
 
         for (engine, starved) in self.engines.iter_mut().zip(lp_valves_starved) {
-            engine.update(context, &envelope, starved);
+            engine.update(context, &envelope, starved, &self.start_schedule);
         }
     }
 }
@@ -743,6 +864,107 @@ mod tests {
 
             assert!(fuel_is_cut(&mut test_bed, 3));
             assert!(!fuel_is_cut(&mut test_bed, 1));
+        }
+
+        /// On the ground, all engines off, APU bleed air at the starters, ENG START IGN START.
+        fn ground_test_bed() -> SimulationTestBed<TestAircraft> {
+            let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+            test_bed.set_on_ground(true);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+            for engine_number in 1..=4 {
+                test_bed.write_by_name(
+                    &format!("PNEU_ENG_{}_STARTER_PRESSURIZED", engine_number),
+                    true,
+                );
+            }
+            run(&mut test_bed);
+            test_bed
+        }
+
+        /// ENG MASTER ON: the FADEC starts the engine, whose start valve opens; N3 at the light-up.
+        fn automatic_start(test_bed: &mut SimulationTestBed<TestAircraft>, engine_number: usize) {
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", engine_number), true);
+            run(test_bed);
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", engine_number), 2.);
+            test_bed.write_by_name(
+                &format!("PNEU_ENG_{}_STARTER_VALVE_OPEN", engine_number),
+                true,
+            );
+            test_bed.write_by_name(&format!("ENGINE_N3:{}", engine_number), 22.);
+            run(test_bed);
+        }
+
+        fn run_for_seconds(test_bed: &mut SimulationTestBed<TestAircraft>, seconds: u64) {
+            for _ in 0..seconds * 20 {
+                run(test_bed);
+            }
+        }
+
+        #[test]
+        fn a_ground_start_of_engine_4_lights_up_with_a_working_igniter() {
+            let mut test_bed = ground_test_bed();
+            automatic_start(&mut test_bed, 4);
+
+            assert!(!fuel_is_cut(&mut test_bed, 4));
+            let igniters: f64 = test_bed.read_by_name("ENGINE_4_IGNITERS");
+            assert_eq!(igniters, 1.);
+        }
+
+        #[test]
+        fn a_ground_start_without_working_igniter_is_aborted_after_three_attempts() {
+            let mut test_bed = ground_test_bed();
+            test_bed.fail(FailureType::EngineIgniterA(2));
+            test_bed.fail(FailureType::EngineIgniterB(2));
+            automatic_start(&mut test_bed, 2);
+            assert!(fuel_is_cut(&mut test_bed, 2));
+
+            // 20 s without light up, then the 30 s dry crank, three times
+            run_for_seconds(&mut test_bed, 21);
+            let fault: f64 = test_bed.read_by_name("ENGINE_2_START_FAULT");
+            assert_eq!(fault, 1.);
+            run_for_seconds(&mut test_bed, 3 * 50);
+            let phase: f64 = test_bed.read_by_name("ENGINE_2_START_PHASE");
+            assert_eq!(phase, 4.);
+            let fault_light: bool = test_bed.read_by_name("ENGINE_2_FAULT_LIGHT");
+            assert!(fault_light);
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn a_start_longer_than_5_minutes_exceeds_the_starter_time() {
+            let mut test_bed = ground_test_bed();
+            automatic_start(&mut test_bed, 1);
+            // a slow but rising start, below the 58.4 % end of the starter assistance
+            for second in 0..302 {
+                test_bed.write_by_name("ENGINE_N3:1", 22. + second as f64 * 0.12);
+                run_for_seconds(&mut test_bed, 1);
+            }
+            let fault: f64 = test_bed.read_by_name("ENGINE_1_START_FAULT");
+            assert_eq!(fault, 8.);
+        }
+
+        #[test]
+        fn the_a380_start_schedule_follows_the_fcom() {
+            let schedule = a380_engine_start_schedule();
+            assert_eq!(schedule.ground_ignition_on_n2.get::<percent>(), 20.);
+            assert_eq!(schedule.start_valve_close_n2.get::<percent>(), 58.4);
+            assert_eq!(schedule.start_abort_inhibition_n2.get::<percent>(), 58.4);
+            assert_eq!(schedule.start_egt_limit.get::<degree_celsius>(), 745.);
+            assert_eq!(schedule.automatic_start_attempts, 3);
+            assert_eq!(schedule.starter_time_limit, Some(Duration::from_secs(300)));
+            assert!(schedule.continuous_ignition_uses_both_igniters);
+        }
+
+        #[test]
+        fn without_a_working_igniter_no_relight_lights_up_in_flight() {
+            let mut test_bed = flying_test_bed();
+            test_bed.fail(FailureType::EngineIgniterA(1));
+            test_bed.fail(FailureType::EngineIgniterB(1));
+            flame_out(&mut test_bed, 1);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+            master_off_then_on(&mut test_bed, 1);
+
+            assert!(fuel_is_cut(&mut test_bed, 1));
         }
 
         #[test]
