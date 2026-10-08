@@ -70,11 +70,12 @@ export const FuelComponent = () => {
 };
 
 export const OilComponent = () => {
-  const [oilQuantLeft] = useSimVar('ENG OIL QUANTITY:1', 'percent', 1000);
-  const [oilQuantRight] = useSimVar('ENG OIL QUANTITY:2', 'percent', 1000);
+  // The oil quantity in the tank that the FADEC computes (quarts), as on the ENGINE page
+  const [oilQuantLeft] = useSimVar('L:A32NX_ENGINE_OIL_QTY:1', 'number', 1000);
+  const [oilQuantRight] = useSimVar('L:A32NX_ENGINE_OIL_QTY:2', 'number', 1000);
 
-  const oilLeft = splitDecimals(oilQuantLeft * 0.01 * 25);
-  const oilRight = splitDecimals(oilQuantRight * 0.01 * 25);
+  const oilLeft = splitDecimals(Math.max(0, oilQuantLeft));
+  const oilRight = splitDecimals(Math.max(0, oilQuantRight));
 
   const [leftVIBN1] = useSimVar('TURB ENG VIBRATION:1', 'Number', 1000);
   const [rightVIBN1] = useSimVar('TURB ENG VIBRATION:2', 'Number', 1000);

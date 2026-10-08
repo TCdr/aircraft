@@ -2450,7 +2450,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_ENGINE_OIL_QTY:{index}
     - Number (quarts)
-    - Total engine {index} oil quantity in the oil tank
+    - Total engine {index} oil quantity in the oil tank, shown on the ENGINE and CRUISE SD pages
 
 ## Air Conditioning / Pressurisation / Ventilation
 
@@ -4126,6 +4126,27 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 1
     - 2
   - N2 of the engine windmilling without combustion at the current airspeed (8 % at 270 kt), 0 on the ground. The FADEC keeps a shut down (not seized) engine at or above it in flight. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_OIL_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the oil leak failure of the engine is active (flyPad failures 79000/79001): the FADEC takes 2 qt/min out of the engine oil (A32NX_ENGINE_OIL_TOTAL/QTY) while the core turns, and the oil pressure falls once the tank holds less than 2 qt (ENG OIL LO PR below 13 PSI). Written by the systems WASM (systems engine/oil_failure.rs)
+
+- A32NX_ENGINE_{number}_OIL_FILTER_CLOGGED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the oil filter clog failure of the engine is active (flyPad failures 79020/79021): CLOG on the ENGINE SD page and ENG OIL FILTER CLOG while the engine runs. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_OIL_OVERHEAT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the oil overheat failure of the engine is active (flyPad failures 79030/79031): the FADEC drives the oil temperature to 135 °C at idle and 175 °C at 100 % N2 (ENG OIL HI TEMP above 155 °C). Written by the systems WASM
 
 - A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_CLOSED
   - Bool
