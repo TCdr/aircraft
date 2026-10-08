@@ -40,6 +40,27 @@ import {
 } from './EngineStartAlerts';
 import { ENG_OVER_LIMIT_ITEMS_SHOWN, ENG_STALL_ITEMS_SHOWN } from './EngineParameterAlerts';
 import {
+  FADEC_FAULT_PHASE_INHIBITION,
+  FADEC_SYS_FAULT_PHASE_INHIBITION,
+  FADEC_TEMP_HI_PHASE_INHIBITION,
+  REVERSER_CTL_FAULT_PHASE_INHIBITION,
+  REVERSER_ENERGIZED_PHASE_INHIBITION,
+  REVERSER_FAULT_PHASE_INHIBITION,
+  REVERSER_LOCKED_PHASE_INHIBITION,
+  REVERSER_SELECTED_PHASE_INHIBITION,
+  REVERSER_UNLOCKED_PHASE_INHIBITION,
+  THR_LEVER_FAULT_PHASE_INHIBITION,
+  fadecFaultItemsChecked,
+  fadecFaultItemsShown,
+  isThrLeverInClimbDetent,
+  reverserInopItemsShown,
+  reverserSelectedItemsShown,
+  reverserUnlockedItemsChecked,
+  reverserUnlockedItemsShown,
+  thrLeverFaultItemsChecked,
+  thrLeverFaultItemsShown,
+} from './FadecReverserAlerts';
+import {
   condDuctOvhtActive,
   condDuctOvhtInfo,
   condDuctOvhtInopSys,
@@ -6678,6 +6699,299 @@ export class FwsAbnormalSensed {
       ],
       sysPage: SdPages.Eng,
       failure: 3,
+    },
+    701800013: {
+      // ENG 1 FADEC FAULT (A380 FCOM l.171542-171599, see FadecReverserAlerts)
+      flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => fadecFaultItemsShown(this.fws.autoThrustStatus.get() !== 0),
+      whichItemsChecked: () => fadecFaultItemsChecked(this.fws.thrustLever1Idle.get(), !this.fws.engine1Master.get()),
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800014: {
+      // ENG 2 FADEC FAULT (A380 FCOM l.171542-171599, see FadecReverserAlerts)
+      flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => fadecFaultItemsShown(this.fws.autoThrustStatus.get() !== 0),
+      whichItemsChecked: () => fadecFaultItemsChecked(this.fws.thrustLever2Idle.get(), !this.fws.engine2Master.get()),
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800015: {
+      // ENG 3 FADEC FAULT (A380 FCOM l.171542-171599, see FadecReverserAlerts)
+      flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => fadecFaultItemsShown(this.fws.autoThrustStatus.get() !== 0),
+      whichItemsChecked: () => fadecFaultItemsChecked(this.fws.thrustLever3Idle.get(), !this.fws.engine3Master.get()),
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800016: {
+      // ENG 4 FADEC FAULT (A380 FCOM l.171542-171599, see FadecReverserAlerts)
+      flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => fadecFaultItemsShown(this.fws.autoThrustStatus.get() !== 0),
+      whichItemsChecked: () => fadecFaultItemsChecked(this.fws.thrustLever4Idle.get(), !this.fws.engine4Master.get()),
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800021: {
+      // ENG 1 FADEC SYS FAULT (A380 FCOM l.171654-171667): crew awareness
+      flightPhaseInhib: FADEC_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecSysFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800022: {
+      // ENG 2 FADEC SYS FAULT (A380 FCOM l.171654-171667): crew awareness
+      flightPhaseInhib: FADEC_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecSysFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800023: {
+      // ENG 3 FADEC SYS FAULT (A380 FCOM l.171654-171667): crew awareness
+      flightPhaseInhib: FADEC_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecSysFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800024: {
+      // ENG 4 FADEC SYS FAULT (A380 FCOM l.171654-171667): crew awareness
+      flightPhaseInhib: FADEC_SYS_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecSysFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800025: {
+      // ENG 1 FADEC TEMP HI (A380 FCOM l.171683-171693): crew awareness
+      flightPhaseInhib: FADEC_TEMP_HI_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecTempHi[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800026: {
+      // ENG 2 FADEC TEMP HI (A380 FCOM l.171683-171693): crew awareness
+      flightPhaseInhib: FADEC_TEMP_HI_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecTempHi[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800027: {
+      // ENG 3 FADEC TEMP HI (A380 FCOM l.171683-171693): crew awareness
+      flightPhaseInhib: FADEC_TEMP_HI_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecTempHi[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800028: {
+      // ENG 4 FADEC TEMP HI (A380 FCOM l.171683-171693): crew awareness
+      flightPhaseInhib: FADEC_TEMP_HI_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fadecTempHi[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800129: {
+      // ENG 1 THR LEVER FAULT (A380 FCOM l.173303-173335, see FadecReverserAlerts)
+      flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => thrLeverFaultItemsShown(this.fws.aircraftOnGround.get(), false),
+      whichItemsChecked: () =>
+        thrLeverFaultItemsChecked(
+          this.fws.thrustLever1Idle.get(),
+          isThrLeverInClimbDetent(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number')),
+          false,
+        ),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800130: {
+      // ENG 2 THR LEVER FAULT (A380 FCOM l.173303-173335, see FadecReverserAlerts)
+      flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => thrLeverFaultItemsShown(this.fws.aircraftOnGround.get(), true),
+      whichItemsChecked: () =>
+        thrLeverFaultItemsChecked(
+          this.fws.thrustLever2Idle.get(),
+          isThrLeverInClimbDetent(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:2', 'number')),
+          true,
+        ),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800131: {
+      // ENG 3 THR LEVER FAULT (A380 FCOM l.173303-173335, see FadecReverserAlerts)
+      flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => thrLeverFaultItemsShown(this.fws.aircraftOnGround.get(), true),
+      whichItemsChecked: () =>
+        thrLeverFaultItemsChecked(
+          this.fws.thrustLever3Idle.get(),
+          isThrLeverInClimbDetent(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:3', 'number')),
+          true,
+        ),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800132: {
+      // ENG 4 THR LEVER FAULT (A380 FCOM l.173303-173335, see FadecReverserAlerts)
+      flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => thrLeverFaultItemsShown(this.fws.aircraftOnGround.get(), false),
+      whichItemsChecked: () =>
+        thrLeverFaultItemsChecked(
+          this.fws.thrustLever4Idle.get(),
+          isThrLeverInClimbDetent(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:4', 'number')),
+          false,
+        ),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800137: {
+      // ENG 2 REVERSER CTL FAULT (A380 FCOM l.173440-173471)
+      flightPhaseInhib: REVERSER_CTL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserCtlFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => reverserInopItemsShown(this.fws.aircraftOnGround.get()),
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800139: {
+      // ENG 2 REVERSER ENERGIZED (A380 FCOM l.173490-173508)
+      flightPhaseInhib: REVERSER_ENERGIZED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserEnergized[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever2Idle.get()],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800141: {
+      // ENG 2 REVERSER FAULT (A380 FCOM l.173510-173537)
+      flightPhaseInhib: REVERSER_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => reverserInopItemsShown(this.fws.aircraftOnGround.get()),
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800145: {
+      // ENG 2 REVERSER LOCKED (A380 FCOM l.173590-173617)
+      flightPhaseInhib: REVERSER_LOCKED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserLocked[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => reverserInopItemsShown(this.fws.aircraftOnGround.get()),
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800149: {
+      // ENG 2 REVERSER UNLOCKED (A380 FCOM l.173660-173698, see FadecReverserAlerts)
+      flightPhaseInhib: REVERSER_UNLOCKED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserUnlocked[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => reverserUnlockedItemsShown(this.fws.aircraftOnGround.get()),
+      whichItemsChecked: () =>
+        reverserUnlockedItemsChecked(this.fws.thrustLever2Idle.get(), !this.fws.engine2Master.get()),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800138: {
+      // ENG 3 REVERSER CTL FAULT (A380 FCOM l.173440-173471)
+      flightPhaseInhib: REVERSER_CTL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserCtlFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => reverserInopItemsShown(this.fws.aircraftOnGround.get()),
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800140: {
+      // ENG 3 REVERSER ENERGIZED (A380 FCOM l.173490-173508)
+      flightPhaseInhib: REVERSER_ENERGIZED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserEnergized[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever3Idle.get()],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800142: {
+      // ENG 3 REVERSER FAULT (A380 FCOM l.173510-173537)
+      flightPhaseInhib: REVERSER_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => reverserInopItemsShown(this.fws.aircraftOnGround.get()),
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800146: {
+      // ENG 3 REVERSER LOCKED (A380 FCOM l.173590-173617)
+      flightPhaseInhib: REVERSER_LOCKED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserLocked[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => reverserInopItemsShown(this.fws.aircraftOnGround.get()),
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800150: {
+      // ENG 3 REVERSER UNLOCKED (A380 FCOM l.173660-173698, see FadecReverserAlerts)
+      flightPhaseInhib: REVERSER_UNLOCKED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.reverserUnlocked[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => reverserUnlockedItemsShown(this.fws.aircraftOnGround.get()),
+      whichItemsChecked: () =>
+        reverserUnlockedItemsChecked(this.fws.thrustLever3Idle.get(), !this.fws.engine3Master.get()),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    701800154: {
+      // ENG REVERSER SELECTED (A380 FCOM l.175028-175039)
+      flightPhaseInhib: REVERSER_SELECTED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.anyReverserSelected,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        reverserSelectedItemsShown(this.fws.reverserSelected[0].get(), this.fws.reverserSelected[1].get()),
+      whichItemsChecked: () => [false, false, false],
+      failure: 2,
+      sysPage: SdPages.None,
     },
     701800159: {
       // ENG TWO ENGS OUT ON SAME SIDE (A380 FCOM l.175216-175470). Phases 5 and 6 inhibited (PDF p.5862).
