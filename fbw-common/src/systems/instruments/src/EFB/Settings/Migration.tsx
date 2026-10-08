@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { NXDataStore } from '@flybywiresim/fbw-sdk-react';
+import { themeSettingMigration } from '../Utils/themePalette';
 
 type SimVarProp = { name: string; defaultValue: string };
 type migrationSet = [oldSimvar: SimVarProp, newSimvar: string];
@@ -21,7 +22,21 @@ const settingsToMigrate: Map<string, migrationSet[]> = new Map([
   ],
 ]);
 
+/**
+ * The theme setting EFB_UI_PALETTE (presets and custom colours) replaces EFB_UI_THEME (presets only): written once from
+ * it, so an existing user keeps exactly their theme. EFB_UI_THEME stays written with the preset of the base.
+ */
+export function migrateThemeSetting() {
+  const palette = NXDataStore.getSetting('EFB_UI_PALETTE');
+  const migrated = themeSettingMigration(palette.get(), NXDataStore.getSetting('EFB_UI_THEME').get());
+  if (migrated !== null) {
+    palette.set(migrated);
+  }
+}
+
 export function migrateSettings() {
+  migrateThemeSetting();
+
   settingsToMigrate.forEach((migrations, migrationCheck) => {
     if (NXDataStore.getLegacy(migrationCheck, 'false') === 'false') {
       migrations.forEach((value) => {
