@@ -557,7 +557,11 @@ const BuffetEnvelope: FC<{ data: BuffetEnvelopeData }> = ({ data }) => {
 
   return (
     <div className="flex h-content-section-reduced flex-col overflow-hidden text-base text-m3-text">
-      <div className="mb-3 flex h-11 shrink-0 flex-row items-center">
+      {/*
+        no fixed height: the segmented pill is 46 px (44 px buttons + its border) and was centred in a 44 px row, so its
+        top stuck out above this overflow-hidden page and was cut off
+      */}
+      <div className="mb-3 flex shrink-0 flex-row items-center">
         <M3Segmented
           className="w-56 shrink-0"
           options={[
