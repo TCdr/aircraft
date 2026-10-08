@@ -203,13 +203,22 @@ impl EnhancedGroundProximityWarningComputerRuntime {
     const MODE_5_HARD_ALERT_BREAKPOINTS: [f64; 2] = [2., 3.4];
     const MODE_5_HARD_ALERT_VALUES: [f64; 2] = [150., 50.];
 
-    pub fn new_running(on_ground: bool, flight_phase: FlightPhase) -> Self {
-        Self::new(Duration::ZERO, on_ground, flight_phase)
+    pub fn new_running(
+        on_ground: bool,
+        flight_phase: FlightPhase,
+        pin_programs: EnhancedGroundProximityWarningComputerPinProgramming,
+    ) -> Self {
+        Self::new(Duration::ZERO, on_ground, flight_phase, pin_programs)
     }
 
-    pub fn new(self_check: Duration, on_ground: bool, flight_phase: FlightPhase) -> Self {
+    pub fn new(
+        self_check: Duration,
+        on_ground: bool,
+        flight_phase: FlightPhase,
+        pin_programs: EnhancedGroundProximityWarningComputerPinProgramming,
+    ) -> Self {
         Self {
-            pin_programs: EnhancedGroundProximityWarningComputerPinProgramming::default(),
+            pin_programs,
             remaining_startup: self_check,
 
             reposition_mode_confirm_node: ConfirmationNode::new_falling(Duration::from_secs(3)),
@@ -1035,7 +1044,8 @@ impl EnhancedGroundProximityWarningComputerRuntime {
         discrete_inputs: &TerrainAwarenessWarningSystemDiscreteInputs,
     ) {
         if self.pin_programs.alternate_lamp_format {
-            // TODO Complete rest of the modes.
+            // Warning lamp: mode 1 second boundary and mode 2 PULL UP; alert lamp: every other mode (sink rate,
+            // TERRAIN TERRAIN, don't sink, too low gear/flaps/terrain, glideslope).
             self.warning_lamp_activated = (self.mode_1_pull_up_active
                 || self.mode_2_pull_up_active)
                 && !discrete_inputs.gpws_inhibit
