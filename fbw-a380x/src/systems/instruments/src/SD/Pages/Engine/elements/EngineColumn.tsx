@@ -61,9 +61,8 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   });
 
   const [fuelFlow] = useSimVar(`L:A32NX_ENGINE_FF:${engine}`, 'number', 100);
-  // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state, see FuelFilterIndication
+  // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state (above), see FuelFilterIndication
   const [fuelFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engine}_FUEL_FILTER_CLOGGED`, 'bool', 500);
-  const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engine}`, 'number', 500);
 
   // The rotor vibrations of the systems WASM (see EngineVibration): MSFS has a single vibration value per engine.
   const [n1Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N1_VIBRATION`, 'number', 250);
