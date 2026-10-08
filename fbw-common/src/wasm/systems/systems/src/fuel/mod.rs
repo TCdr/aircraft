@@ -10,6 +10,7 @@ use num_traits::Zero;
 use uom::si::{electric_current::ampere, f64::*, mass::kilogram};
 
 pub mod engine_lp_valve;
+pub mod sim_fuel_valve;
 
 pub const FUEL_GALLONS_TO_KG: f64 = 3.039075693483925;
 
