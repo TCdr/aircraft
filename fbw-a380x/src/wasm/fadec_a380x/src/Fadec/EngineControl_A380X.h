@@ -9,6 +9,7 @@
 #include "EngineIgnition_A380X.hpp"
 #include "FadecSimData_A380X.hpp"
 #include "FuelConfiguration_A380X.h"
+#include "IgniterSelection_A380X.hpp"
 
 #define FILENAME_FADEC_CONF_DIRECTORY "\\work\\AircraftStates\\"
 #define FILENAME_FADEC_CONF_FILE_EXTENSION ".ini"
@@ -71,6 +72,9 @@ class EngineControl_A380X {
   // the FADEC set the MSFS ignition switch to IGN (in-flight relight or auto relight) and must give it back to the ENG START
   // selector
   bool fadecIgnitionSet[4] = {false, false, false, false};
+
+  // the igniters (A, B) the FADEC energizes per engine, for the SD ENGINE page (see IgniterSelection_A380X)
+  IgniterSelection_A380X igniterSelection[4]{};
 
   // Engine oil state
   double thermalEnergy[4] = {0.0, 0.0, 0.0, 0.0};

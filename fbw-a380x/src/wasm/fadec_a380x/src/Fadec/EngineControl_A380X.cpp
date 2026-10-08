@@ -175,6 +175,24 @@ void EngineControl_A380X::update() {
         updateSecondaryParameters(engine, engineState, deltaTime, simOnGround, ambientTemperature, deltaN3);
         break;
     }
+
+    // The igniters the FADEC energizes, shown on the SD ENGINE page (A, B or A B): one alternated igniter for a ground start,
+    // both in flight, for the continuous ignition, the quick relight and the FADEC relight ignition above
+    // (IgniterSelection_A380X)
+    const IgniterSelection_A380X::Igniters igniters = igniterSelection[engineIdx].update({
+        simOnGround,                                                //
+        engineState == ON,                                          //
+        engineState == STARTING || engineState == RESTARTING,       //
+        engineMasterStarter,                                        //
+        firePbReleased,                                             //
+        static_cast<int>(simData.engineStartSelector->get()) == 2,  //
+        fadecIgnition,                                              //
+        simData.engineN3[engineIdx]->get(),                         //
+        simData.engineN1[engineIdx]->get(),                         //
+        deltaTime,                                                  //
+    });
+    simData.engineIgniterA[engineIdx]->set(igniters.a ? 1.0 : 0.0);
+    simData.engineIgniterB[engineIdx]->set(igniters.b ? 1.0 : 0.0);
   }
 
   // Update fuel & tank data
