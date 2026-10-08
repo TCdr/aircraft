@@ -176,6 +176,8 @@ void EngineControl_A380X::update() {
       egtOffsetApplied[engineIdx] = 0.0;
     }
 
+    // the FADEC holds the MSFS core of a ground start without starter air at rest this frame (StartSequence_A380X::RestingCore)
+    bool coreHeldAtRestThisFrame = false;
     switch (static_cast<int>(engineState)) {
       case STARTING:
       case RESTARTING: {
@@ -196,10 +198,13 @@ void EngineControl_A380X::update() {
           const double unlitN3Fbw = StartSequence_A380X::unlitStartN3(preStartN3, motoredN3, deltaTime);
           simData.engineN3[engineIdx]->set(unlitN3Fbw);
           simData.engineN2[engineIdx]->set(unlitN3Fbw == 0 ? 0 : unlitN3Fbw + 0.7);
+          // The start valve stuck closed, no starter air, or a starter failure: the systems WASM reports no starter motoring
+          // (engine_start.rs update_starter_motoring), and the FADEC holds the MSFS core, which the MSFS starter would turn.
           if (StartSequence_A380X::coreHeldAtRest(startKeepsStarter, simData.engineStarterMotoring[engineIdx]->getAsBool())) {
-            simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 = StartSequence_A380X::restingCoreCorrectedN3(
-                simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3, deltaTime);
+            simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 =
+                restingCore[engineIdx].hold(simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3, deltaTime);
             simData.engineCorrectedN3DataPtr[engineIdx]->writeDataToSim();
+            coreHeldAtRestThisFrame = true;
           }
         }
         // A hung start or a stall hangs below idle; a hot start or a stall overshoots the EGT once lit
@@ -238,6 +243,9 @@ void EngineControl_A380X::update() {
         updateEGT(engine, engineState, deltaTime, simCN1, correctedFuelFlow, mach, pressureAltitude, ambientTemperature, simOnGround);
         updateSecondaryParameters(engine, engineState, deltaTime, simOnGround, ambientTemperature, deltaN3);
         break;
+    }
+    if (!coreHeldAtRestThisFrame) {
+      restingCore[engineIdx].release();
     }
 
     // The igniters the FADEC energizes, shown on the SD ENGINE page (A, B or A B): on the ground those of the start sequence
