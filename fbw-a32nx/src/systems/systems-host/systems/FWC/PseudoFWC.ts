@@ -71,6 +71,7 @@ import {
   engineShutDownStatus,
   isEngineShutDown,
 } from './Logic/EngineFailAlerts';
+import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
 import { fireDetectionFaultAlerts } from './Logic/FireDetectionFaults';
 import {
   centreTransferNotClosedLines,
@@ -1715,6 +1716,21 @@ export class PseudoFWC {
   private readonly engine2ShutDown = Subject.create(false);
 
   private crossBleedSelector = CrossBleedSelector.Auto;
+
+  /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
+  private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
+
+  private readonly engine1OilLoPr = Subject.create(false);
+
+  private readonly engine2OilLoPr = Subject.create(false);
+
+  private readonly engine1OilHiTemp = Subject.create(false);
+
+  private readonly engine2OilHiTemp = Subject.create(false);
+
+  private readonly engine1OilFilterClog = Subject.create(false);
+
+  private readonly engine2OilFilterClog = Subject.create(false);
 
   private readonly engineOnFor30Seconds = new NXLogicConfirmNode(30);
 
@@ -4788,6 +4804,28 @@ export class PseudoFWC {
     this.engine1ShutDown.set(isEngineShutDown(engine1MasterOn, engine1FirePbPushed, flightPhase) && !allEnginesFailed);
     this.engine2ShutDown.set(isEngineShutDown(engine2MasterOn, engine2FirePbPushed, flightPhase) && !allEnginesFailed);
     this.crossBleedSelector = SimVar.GetSimVarValue('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number');
+
+    /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
+    // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
+    this.engineOilMonitors.forEach((monitor, index) => {
+      const engineNumber = index + 1;
+      monitor.update(
+        {
+          masterOn: engineNumber === 1 ? engine1MasterOn : engine2MasterOn,
+          engineRunning: (engineNumber === 1 ? this.engine1State : this.engine2State).get() === EngineState.On,
+          oilPressurePsi: SimVar.GetSimVarValue(`GENERAL ENG OIL PRESSURE:${engineNumber}`, 'psi'),
+          oilTemperatureCelsius: SimVar.GetSimVarValue(`GENERAL ENG OIL TEMPERATURE:${engineNumber}`, 'celsius'),
+          oilFilterClogged: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_OIL_FILTER_CLOGGED`, 'bool') > 0,
+        },
+        deltaTime / 1000,
+      );
+    });
+    this.engine1OilLoPr.set(this.engineOilMonitors[0].isLowPressure);
+    this.engine2OilLoPr.set(this.engineOilMonitors[1].isLowPressure);
+    this.engine1OilHiTemp.set(this.engineOilMonitors[0].isHighTemperature);
+    this.engine2OilHiTemp.set(this.engineOilMonitors[1].isHighTemperature);
+    this.engine1OilFilterClog.set(this.engineOilMonitors[0].isFilterClogged);
+    this.engine2OilFilterClog.set(this.engineOilMonitors[1].isFilterClogged);
     // The fire detection unit outputs (systems.wasm), also used by the FIRE pb red lights (A32NX_Interior_Fire.xml,
     // A320_NEO_INTERIOR.xml). The sim's own engine/APU fire (MSFS failures menu) is one of their inputs.
     this.eng1FireDetected.set(SimVar.GetSimVarValue('L:A32NX_FIRE_DETECTED_ENG1', 'bool') > 0);
@@ -6515,6 +6553,74 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).inopSys,
       statusInfo: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).left,
+    },
+    7707901: {
+      // ENG 1 OIL LO PR (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): red warning, inhibited in phases 1 and 10
+      flightPhaseInhib: [1, 10],
+      simVarIsActive: this.engine1OilLoPr,
+      whichCodeToReturn: () => engineOilShutDownLines(this.thr1TLA.get() === 0),
+      codesToReturn: ['770790101', '770790102', '770790103'],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7707902: {
+      // ENG 2 OIL LO PR (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): red warning, inhibited in phases 1 and 10
+      flightPhaseInhib: [1, 10],
+      simVarIsActive: this.engine2OilLoPr,
+      whichCodeToReturn: () => engineOilShutDownLines(this.thr2TLA.get() === 0),
+      codesToReturn: ['770790201', '770790202', '770790203'],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7707911: {
+      // ENG 1 OIL HI TEMP (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): amber, inhibited in phases 4, 5, 7 and 8
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.engine1OilHiTemp,
+      whichCodeToReturn: () => engineOilShutDownLines(this.thr1TLA.get() === 0),
+      codesToReturn: ['770791101', '770791102', '770791103'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7707912: {
+      // ENG 2 OIL HI TEMP (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): amber, inhibited in phases 4, 5, 7 and 8
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.engine2OilHiTemp,
+      whichCodeToReturn: () => engineOilShutDownLines(this.thr2TLA.get() === 0),
+      codesToReturn: ['770791201', '770791202', '770791203'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7707921: {
+      // ENG 1 OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): amber, crew awareness, inhibited in phases
+      // 3, 4, 5, 7 and 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engine1OilFilterClog,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770792101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7707922: {
+      // ENG 2 OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts): amber, crew awareness, inhibited in phases
+      // 3, 4, 5, 7 and 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engine2OilFilterClog,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770792201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
     },
     7700382: {
       // ENG REV SET

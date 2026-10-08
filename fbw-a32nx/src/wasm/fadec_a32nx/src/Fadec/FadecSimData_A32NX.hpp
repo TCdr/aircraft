@@ -201,6 +201,8 @@ class FadecSimData_A32NX {
   NamedVariablePtr engineWindmillN2[2];  // Percent - N2 of the engine windmilling without combustion (systems WASM)
   NamedVariablePtr engineRelightIgnition[2];  // Bool - an in-flight relight is lighting up: igniters on (systems WASM)
   NamedVariablePtr engineModeSelector;        // Enum - ENG MODE selector: 0 crank, 1 norm, 2 ign/start
+  NamedVariablePtr engineOilLeak[2];          // Bool - oil leak failure: the oil system loses oil (systems WASM)
+  NamedVariablePtr engineOilOverheat[2];      // Bool - oil overheat failure: the oil is not cooled enough (systems WASM)
   NamedVariablePtr engineFuelUsed[2];
   NamedVariablePtr engineIdleEGT;
   NamedVariablePtr engineIdleFF;
@@ -326,6 +328,11 @@ class FadecSimData_A32NX {
     engineRelightIgnition[L] = dm->make_named_var("A32NX_ENGINE_1_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
     engineRelightIgnition[R] = dm->make_named_var("A32NX_ENGINE_2_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
     engineModeSelector       = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ);
+
+    engineOilLeak[L]     = dm->make_named_var("A32NX_ENGINE_1_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilLeak[R]     = dm->make_named_var("A32NX_ENGINE_2_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilOverheat[L] = dm->make_named_var("A32NX_ENGINE_1_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+    engineOilOverheat[R] = dm->make_named_var("A32NX_ENGINE_2_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
 
     engineFuelUsed[L] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[R] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);
