@@ -197,27 +197,57 @@ void drawWeatherRect(NVGcontext* vg,
 // threshold. The SDK documents the rates as mm/h and allows up to 128 entries. Both tables are
 // 0/1 channel masks (see kPrecipGain).
 //
+// The thresholds come from the receiver gain (wxr_controls.h: the calibrated ones of constants.h,
+// moved by the A380X's manual GAIN).
+//
 // Precipitation view: R = rate >= yellow threshold, G = rate >= green.
-bool configurePrecipView(FsContext ctx, FsTextureId id) {
-  FsRainRateColor precipColors[3] = {
-      {rgba(0.0f, 0.0f, 0.0f, 0.0f), kGreenFromMmH},
-      {rgba(0.0f, 1.0f, 0.0f, 1.0f), kYellowFromMmH},
-      {rgba(1.0f, 1.0f, 0.0f, 1.0f), kTopBandRate},
-  };
-  return configureRadarView(ctx, id, precipColors, 3, FS_MAP_VIEW_WEATHER_RADAR_MODE_HORIZONTAL);
+static void precipColors(const RadarThresholds& thresholds, FsRainRateColor colors[3]) {
+  MaskBand bands[3];
+  precipViewBands(thresholds, kTopBandRate, bands);
+  for (int i = 0; i < 3; ++i) {
+    // The empty band's alpha is 0 like before the gain existed (it makes no difference, see configureRadarView).
+    colors[i] = FsRainRateColor{rgba(bands[i].r, bands[i].g, bands[i].b, i == 0 ? 0.0f : 1.0f), bands[i].upToMmH};
+  }
+}
+
+bool configurePrecipView(FsContext ctx, FsTextureId id, const RadarThresholds& thresholds) {
+  FsRainRateColor colors[3];
+  precipColors(thresholds, colors);
+  return configureRadarView(ctx, id, colors, 3, FS_MAP_VIEW_WEATHER_RADAR_MODE_HORIZONTAL);
 }
 
 // Hot view: G = rate >= red threshold, drawn as the red wipe; R and B = rate >= turbulence
 // threshold, drawn as the magenta (R + B, also in the TURB-only mode, where no precipitation
 // is drawn; see WeatherPass). Kept visible for its whole life (toggling visibility flashes an
-// empty white texture) and simply not drawn when the mode doesn't call for it.
-bool configureHotView(FsContext ctx, FsTextureId id) {
-  FsRainRateColor hotColors[3] = {
-      {rgba(0.0f, 0.0f, 0.0f, 0.0f), kRedFromMmH},
-      {rgba(0.0f, 1.0f, 0.0f, 1.0f), kTurbulenceRateMmH},
-      {rgba(1.0f, 1.0f, 1.0f, 1.0f), kTopBandRate},
-  };
-  return configureRadarView(ctx, id, hotColors, 3, FS_MAP_VIEW_WEATHER_RADAR_MODE_HORIZONTAL);
+// empty white texture) and simply not drawn when the mode doesn't call for it. A reduced gain can
+// move the red threshold above the turbulence one: the bands then run empty / magenta / magenta + red
+// (see hotViewBands).
+static void hotColors(const RadarThresholds& thresholds, FsRainRateColor colors[3]) {
+  MaskBand bands[3];
+  hotViewBands(thresholds, kTopBandRate, bands);
+  for (int i = 0; i < 3; ++i) {
+    colors[i] = FsRainRateColor{rgba(bands[i].r, bands[i].g, bands[i].b, i == 0 ? 0.0f : 1.0f), bands[i].upToMmH};
+  }
+}
+
+bool configureHotView(FsContext ctx, FsTextureId id, const RadarThresholds& thresholds) {
+  FsRainRateColor colors[3];
+  hotColors(thresholds, colors);
+  return configureRadarView(ctx, id, colors, 3, FS_MAP_VIEW_WEATHER_RADAR_MODE_HORIZONTAL);
+}
+
+// A gain change: only the two colour tables are sent again (no other setting of the views changes).
+// Not measured yet: whether the engine repaints the whole picture at once or sector by sector with its sweep.
+void setRadarThresholds(FsContext ctx, FsTextureId precipView, FsTextureId hotView, const RadarThresholds& thresholds) {
+  FsRainRateColor colors[3];
+  if (precipView != 0) {
+    precipColors(thresholds, colors);
+    fsMapViewSetWeatherRadarRainColors(ctx, precipView, colors, 3);
+  }
+  if (hotView != 0) {
+    hotColors(thresholds, colors);
+    fsMapViewSetWeatherRadarRainColors(ctx, hotView, colors, 3);
+  }
 }
 
 }  // namespace ndwxr

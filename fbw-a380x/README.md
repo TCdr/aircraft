@@ -117,8 +117,9 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 Surveillance / TCAS / TAWS / WXR / XPDR
 
-- Weather radar: the native radar shows the sim's weather; the PRED W/S, GAIN and ELEVN/TILT settings do not change the
-  radar picture
+- Weather radar: the native radar shows the sim's weather, which has no cell heights: the PRED W/S setting does nothing,
+  the manual GAIN moves the colour levels, and the manual ELEVN/TILT only hide the weather where the selected altitude or
+  tilt reaches the ground (they cannot show a slice above or below the cells)
 - TAWS obstacles
 
 ### ATA 34 ROW/ROP

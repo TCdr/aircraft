@@ -238,6 +238,12 @@ struct NdFrame {
   float rangeNmForMode = 10.0f;
   // How much of the picture the radar has built since it started transmitting (see g_wxrTransmitting).
   float sweepFraction = 1.0f;
+  // The A380X's manual WXR selections (wxr_controls.h): the receiver gain in dB (0 = calibrated), the part of the
+  // display radius the precipitation is shown in (1 = all, less where the manual TILT / ELEVN reaches the ground), and
+  // the discrete selections as a redraw key.
+  float gainDb = 0.0f;
+  float precipRangeFraction = 1.0f;
+  long long wxControlsKey = 0;
 #ifdef A380X
   bool showVd = false;
   float vdRangeNm = 10.0f;
@@ -254,6 +260,31 @@ struct NdFrame {
     return showPrecip || showTurb || showTerrain || showMap;
   }
 };
+
+#ifdef A380X
+// The manual GAIN and ELEVN/TILT selections of the SURV page into the frame (see wxr_controls.h). altitudeFeet is the
+// aircraft's altitude on the ELEVN entry's scale (the ADR's baro-corrected altitude when valid).
+static void readWxrControls(NdFrame& frame, double altitudeFeet) {
+  const double gainMan = g_wxrGainMan.read();
+  const double gainPercent = g_wxrGain.read();
+  const double elevnTiltMode = g_wxrElevnTiltMode.read();
+  const double tiltDeg = g_wxrTilt.read();
+  const double elevnFeet = g_wxrElevn.read();
+  frame.gainDb = effectiveGainDb(gainMan != 0.0, gainPercent);
+  // Design choice: the ground under the aircraft (the sim's height above it) stands for the ground ahead.
+  const float heightAboveGroundFeet = static_cast<float>(planeHeightAboveGroundFeet());
+  const float groundElevationFeet = static_cast<float>(altitudeFeet) - heightAboveGroundFeet;
+  const float limitNm = wxDisplayRangeLimitNm(elevnTiltMode, tiltDeg, elevnFeet, heightAboveGroundFeet, groundElevationFeet);
+  frame.precipRangeFraction = wxRangeFraction(limitNm, frame.rangeNmForMode);
+  // The entries change the picture in one step, so they redraw it at once; the fraction follows the aircraft's
+  // height at the pacing rate.
+  long long key = std::lround(frame.gainDb * 10.0f);
+  key = key * 7 + std::llround(elevnTiltMode);
+  key = key * 1000003 + std::llround(tiltDeg * 10.0);
+  key = key * 1000003 + std::llround(elevnFeet);
+  frame.wxControlsKey = key;
+}
+#endif
 
 // Reads the ND's state and decides what the frame shows: the gating of the weather, the
 // terrain, the MAP mode, the mode text and (A380X) the VD weather.
@@ -318,8 +349,8 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   // The A380's ND messages of the WXR (A380 FCOM DSC-34-20-30-20, WXR MESSAGES): "WX" for the WX
   // display function whatever the TURB button (turbulence has no message of its own while the
   // weather is displayed), "MAP" for the ground mapping function, "WXR OFF" while the WXR button
-  // of the SURV CONTROLS page is OFF. (The manual GAIN / ELEVN / TILT values and the stand-alone
-  // TURB alert message are not modelled: the SURV knobs are not wired and the radar cannot be
+  // of the SURV CONTROLS page is OFF. (The manual GAIN / ELEVN / TILT messages are the JS ND's, from
+  // the SURV page's L:vars; the stand-alone TURB alert message is not modelled: the radar cannot be
   // read back.)
   if (mapPage && !frame.showTerrain && g_wxrOff.read() != 0.0) {
     frame.labelMode = kWxrLabelOff;
@@ -346,6 +377,9 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   const auto baroAltWord =
       types::Arinc429Word<float>::fromSimVar(instance.isRight ? g_adrBaroAlt2[adr - 1].read() : g_adrBaroAlt1[adr - 1].read());
   frame.vdBaroAltFeet = static_cast<double>(baroAltWord.value());
+  if (frame.showPrecip || frame.showTurb) {
+    readWxrControls(frame, baroAltWord.isNo() ? frame.vdBaroAltFeet : planeAltitudeFeet());
+  }
   // ... and, as on the real aircraft, not while the TERR function is unavailable (a failed TAWS or
   // TERR SYS OFF): "the VD does not display the weather when the TERR function is not available,
   // because it cannot locate the weather vertically" (FCOM DSC-31-20-40-10, VD messages).
@@ -423,12 +457,19 @@ static ViewReadiness updateViewRoles(FsContext ctx, Instance& instance, const Nd
     instance.mapViewPark.radiusSent = -1.0f;
     instance.mapViewHotPark.radiusSent = -1.0f;
   } else if (weatherWanted && instance.ndRole != 0) {
-    configurePrecipView(ctx, instance.mapView);
-    configureHotView(ctx, instance.mapViewHot);
+    const RadarThresholds thresholds = radarThresholdsForGain(kCalibratedThresholds, frame.gainDb);
+    configurePrecipView(ctx, instance.mapView, thresholds);
+    configureHotView(ctx, instance.mapViewHot, thresholds);
+    instance.appliedGainDb = frame.gainDb;
     instance.ndRole = 0;
     instance.roleWarmupLeft = kRoleWarmupFrames;
     instance.mapViewPark.radiusSent = -1.0f;
     instance.mapViewHotPark.radiusSent = -1.0f;
+  }
+  // A manual GAIN change while the pair holds the weather: only its colour tables are sent again.
+  if (weatherWanted && instance.ndRole == 0 && frame.gainDb != instance.appliedGainDb) {
+    setRadarThresholds(ctx, instance.mapView, instance.mapViewHot, radarThresholdsForGain(kCalibratedThresholds, frame.gainDb));
+    instance.appliedGainDb = frame.gainDb;
   }
   if (instance.roleWarmupLeft > 0) {
     --instance.roleWarmupLeft;
@@ -523,13 +564,16 @@ static void drawTerrainLayer(FsContext ctx,
   }
 }
 
-// The weather: the precipitation view's green and yellow, then the hot view's red wipe and magenta.
+// The weather: the precipitation view's green and yellow, then the hot view's red wipe and magenta. The
+// precipitation stops at frame.precipRangeFraction (the A380X's manual TILT / ELEVN in the ground, see
+// wxr_controls.h); the turbulence has its own range (the TURB function does not follow ELEVN/TILT).
 static void drawWeatherLayer(FsContext ctx, NVGcontext* vg, Instance& instance, const NdFrame& frame, const ViewReadiness& ready) {
   const float radiusMetres = frame.rangeNmForMode * kNmToMetres;
   if (frame.showPrecip) {
     setViewRadius(ctx, instance.mapView, instance.mapViewPark, radiusMetres);
     if (ready.precip) {
-      drawWeatherRect(vg, instance.mapView, frame.isRose, 1.0f, WeatherPass::Additive, Channels{1.0f, 1.0f, 0.0f}, frame.sweepFraction);
+      drawWeatherRect(vg, instance.mapView, frame.isRose, frame.precipRangeFraction, WeatherPass::Additive, Channels{1.0f, 1.0f, 0.0f},
+                      frame.sweepFraction);
       drawWeatherRect(vg, instance.mapView, frame.isRose, 1.0f, WeatherPass::Sharpen);
       drawWeatherRect(vg, instance.mapView, frame.isRose, 1.0f, WeatherPass::Colorize);
     }
@@ -541,7 +585,8 @@ static void drawWeatherLayer(FsContext ctx, NVGcontext* vg, Instance& instance, 
     setViewRadius(ctx, instance.mapViewHot, instance.mapViewHotPark, radiusMetres);
     if (ready.hot) {
       if (frame.showPrecip) {
-        drawWeatherRect(vg, instance.mapViewHot, frame.isRose, 1.0f, WeatherPass::Erase, Channels{0.0f, 1.0f, 0.0f}, frame.sweepFraction);
+        drawWeatherRect(vg, instance.mapViewHot, frame.isRose, frame.precipRangeFraction, WeatherPass::Erase, Channels{0.0f, 1.0f, 0.0f},
+                        frame.sweepFraction);
       }
       if (frame.showTurb) {
         const float turbFraction = kTurbulenceMaxRangeNm / frame.rangeNmForMode;
@@ -603,6 +648,7 @@ static unsigned long long ndPictureKey(const Instance& instance, const NdFrame& 
   key = mixKey(key, ready.hot);
   key = mixKey(key, ready.terrain);
   key = mixKey(key, instance.layerDirty);
+  key = mixKey(key, frame.wxControlsKey);
 #ifdef A380X
   key = mixKey(key, instance.ndRole);
   key = mixKey(key, frame.showVd);
