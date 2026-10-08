@@ -122,8 +122,10 @@ export function twoEnginesOut(enginesOut: EnginesOut): TwoEnginesOut {
 
 /**
  * The ECAM lines of ENG TWO ENGS OUT ON SAME SIDE that depend on the failed engines (l.175263-175271).
- * - "Depending on the failed engines: PACK 1(2) ... OFF". Design choice: the pack of the side of the failed engines (PACK 1
- *   for the engines 1 and 2, PACK 2 for 3 and 4; each pack is supplied from the bleed of its side).
+ * - "Depending on the failed engines: PACK 1(2) ... OFF": the pack of the side of the failed engines, PACK 1 for the
+ *   engines 1 and 2, PACK 2 for 3 and 4 (each pack is supplied from the bleed of its side; the FCOM pairs them the same
+ *   way in ENG START VLV FAULT, l.173107-173120: "IF L (if engine 1 or 2 is affected) or R (if engine 3 or 4 is
+ *   affected) XBLEED STILL OPEN ... PACK 1(2) ... OFF").
  * - "If ENG 1+2 failed: FOR TAXI : STEER ENDURANCE LIMITED" (the normal nose wheel steering, green hydraulics, is lost).
  */
 export function sameSideLines(enginesOut: EnginesOut): {
@@ -140,6 +142,41 @@ export function sameSideLines(enginesOut: EnginesOut): {
 }
 
 /**
+ * The hydraulic system lost with the two engines of its side out (DSC-29-10, l.60996-61024): "The pumps of Engines 1 and 2
+ * pressurize the GREEN hydraulic system - The pumps of Engines 3 and 4 pressurize the YELLOW hydraulic system", and "Two
+ * electric pumps can provide hydraulic power on ground only".
+ *
+ * ENG TWO ENGS OUT ON SAME SIDE, STATUS INOP SYS ALL PHASES (l.175440-175448) lists "PART SPLRs" and "G(Y) HYD SYS
+ * (Depending on the failed engines)". The FWS low pressure monitoring of a system needs an engine of its side running, so
+ * these lines come from the failed engines.
+ */
+export function hydraulicSystemsLostByEnginesOut(enginesOut: EnginesOut): { green: boolean; yellow: boolean } {
+  const [eng1, eng2, eng3, eng4] = enginesOut;
+  return { green: eng1 && eng2, yellow: eng3 && eng4 };
+}
+
+/** The generators 1 to 4, inoperative or not, generator 1 first */
+export type GeneratorsInop = readonly [boolean, boolean, boolean, boolean];
+
+/**
+ * ENG TWO ENGS OUT ON OPPOSITE SIDE, STATUS INOP SYS ALL PHASES (l.175620-175621): "GEN 1+4(1+3)(2+3)(2+4) (Depending on
+ * the failed engines)". One line for the two generators lost, when exactly these two generators are lost and they are on
+ * opposite sides (the generators 1 and 2 are on the left wing, 3 and 4 on the right wing; the same side pairs have their
+ * own GEN 1+2 and GEN 3+4 lines).
+ *
+ * @returns the generator numbers of the pair, or null
+ */
+export function oppositeSideGeneratorPair(gensInop: GeneratorsInop): readonly [number, number] | null {
+  const lost = [1, 2, 3, 4].filter((_, index) => gensInop[index]);
+  if (lost.length !== 2) {
+    return null;
+  }
+  const [first, second] = lost;
+  const sameSide = (first === 1 && second === 2) || (first === 3 && second === 4);
+  return sameSide ? null : [first, second];
+}
+
+/**
  * ENG 1(2)(3)(4) SHUT DOWN, STATUS (l.172777-172791):
  * - INOP SYS APPR: "BTV (If ENG 2(3) affected)", "CAT 3 DUAL (If APU off)".
  * - INFO: "If APU off: CAT 3 SINGLE ONLY. Only three different generators supply the AC busbars."
@@ -151,4 +188,23 @@ export function shutDownBtvInop(eng2ShutDown: boolean, eng3ShutDown: boolean): b
 
 export function shutDownCat3SingleOnly(anyEngineShutDown: boolean, apuAvailable: boolean): boolean {
   return anyEngineShutDown && !apuAvailable;
+}
+
+/**
+ * ENG ALL ENG FLAME OUT flight phase inhibition (FCOM PRO-ABN-ECAM-10-70 P 69/110, PDF p.5833): phases 1 to 6 and 10 to 12.
+ */
+export const ALL_ENG_FLAME_OUT_INHIBITED_PHASES: number[] = [1, 2, 3, 4, 5, 6, 10, 11, 12];
+
+/**
+ * ENG ALL ENG FLAME OUT, l.173795: "This alert inhibits the ELEC EMER CONFIG alert." Only while ALL ENG FLAME OUT is shown or
+ * about to be: it is already on the E/WD, or the flight phase lets it come up. The FWS phase inhibition only holds back a
+ * new alert, so an ALL ENG FLAME OUT already shown stays when a phase that inhibits it begins. Otherwise, e.g. all engines
+ * out between 400 ft and 1500 ft (phase 6), ELEC EMER CONFIG shows: one of the two alerts is always there.
+ */
+export function allEngFlameOutInhibitsElecEmerConfig(
+  allEnginesFailure: boolean,
+  allEngFlameOutPresented: boolean,
+  flightPhase: number,
+): boolean {
+  return allEnginesFailure && (allEngFlameOutPresented || !ALL_ENG_FLAME_OUT_INHIBITED_PHASES.includes(flightPhase));
 }
