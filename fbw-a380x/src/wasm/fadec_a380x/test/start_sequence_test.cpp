@@ -105,6 +105,13 @@ int main() {
   expect("a hung start does not reach idle", !reachesIdle(true, 62.0, 62.0, true));
   expect("a normal start reaches idle", reachesIdle(true, 62.0, 62.0, false));
 
+  // In flight the start sequence neither keeps a start going nor brings a core to rest: a windmilling engine with its ENG
+  // MASTER OFF (no starter motoring in flight) is left to the airflow (sim test 2026-10-06, FL100 255 kt)
+  expect("in flight: no core held at rest, unlit start",
+         !coreHeldAtRest(startSequenceKeepsStarter(false, true, STARTING), false));
+  expect("in flight: no core held at rest, master OFF", !coreHeldAtRest(startSequenceKeepsStarter(false, true, NONE), false));
+  expect("in flight, master OFF: no crank", !startSequenceCranks(false, NONE));
+
   // A core without starter air during such a start is brought to rest
   expect("no starter air: core held at rest", coreHeldAtRest(true, false));
   expect("starter air: core turns", !coreHeldAtRest(true, true));
