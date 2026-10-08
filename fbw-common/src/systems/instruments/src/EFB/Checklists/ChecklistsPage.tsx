@@ -39,7 +39,7 @@ export const ChecklistPage = () => {
   return (
     <M3Card className="min-w-0 flex-1 px-6 pb-6 pt-5">
       <div className="flex shrink-0 flex-row items-center">
-        <span className="text-2xl font-bold text-white">{aircraftChecklists[selectedChecklistIndex].name}</span>
+        <span className="text-2xl font-bold text-m3-text">{aircraftChecklists[selectedChecklistIndex].name}</span>
         {!!autoFillChecklists && selectedChecklistIndex === firstRelevantUnmarkedIdx && (
           <span className="ml-3 rounded-full bg-m3-primary-container px-2 py-1 text-xs font-bold uppercase leading-none text-m3-on-primary-container">
             {t('Checklists.CurrentFlightPhase')}
