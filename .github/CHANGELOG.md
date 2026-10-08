@@ -156,6 +156,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] Reverse thrust stays at reverse idle until the reverser is fully deployed (FCOM DSC-70-70): a reverser that does not deploy no longer gives forward thrust with the lever in reverse - @TCdr
 1. [A32NX/ECAM] T.O CONFIG NORMAL is not given with a FUEL L(R) TK PUMP 1+2 LO PR alert - @TCdr
 1. [A32NX/ECAM] FUEL L(R) WING TK LO LVL asks for FUEL MODE SEL MAN only if the centre tank is not empty, and gives its STATUS (INOP SYS L(R) TK PUMPS, CTR TK FEED: MAN ONLY if the centre tank is not empty) - @TCdr
+1. [EFB/ENG] New flyPad failures Engine 1(2)(3)(4) fuel filter clog (ATA 73): CLOG (A32NX) or CLOGGED (A380X) below the fuel used or fuel flow on the ENGINE SD page and the ENG FUEL FILTER CLOG(GED) caution - @TCdr
 
 ## 2024.1.0
 
