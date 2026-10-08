@@ -70,6 +70,13 @@ pub enum FailureType {
     EngineFlameout(usize),
     /// The core of engine n seizes: no relight while the failure is active (engine::engine_failure)
     EngineSeizure(usize),
+    // ATA79
+    /// Engine n loses oil overboard: its oil quantity falls, then its oil pressure (engine::oil_failure)
+    EngineOilLeak(usize),
+    /// The oil filter of engine n is clogged: a crew awareness indication (engine::oil_failure)
+    EngineOilFilterClog(usize),
+    /// The oil of engine n is no longer cooled enough: its temperature rises with thrust (engine::oil_failure)
+    EngineOilOverheat(usize),
 }
 
 pub struct Failure {
