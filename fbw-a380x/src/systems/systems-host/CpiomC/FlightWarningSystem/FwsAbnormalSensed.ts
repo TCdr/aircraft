@@ -25,6 +25,7 @@ import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionics
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
 import { isApFdTcasModeInop } from './FwsSurvAlerts';
+import { ALL_ENG_FLAME_OUT_INHIBITED_PHASES } from './EngineFailAlerts';
 import {
   condDuctOvhtActive,
   condDuctOvhtInfo,
@@ -2405,7 +2406,8 @@ export class FwsAbnormalSensed {
     240800055: {
       // EMER CONFIG, FCOM l.141552, PDF p.4929: master warning, CRC
       flightPhaseInhib: [1, 5, 10, 12],
-      simVarIsActive: this.fws.elecEmerConfig,
+      // Not while ENG ALL ENG FLAME OUT is shown: "This alert inhibits the ELEC EMER CONFIG alert." (FCOM l.173795)
+      simVarIsActive: this.fws.elecEmerConfigAlert,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => {
         const proc = this.fws.elecEmerConfigProcedure;
@@ -6190,11 +6192,11 @@ export class FwsAbnormalSensed {
     701800151: {
       // ALL ENG FLAME OUT
       simVarIsActive: this.fws.allEnginesFailure,
-      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 10, 11, 12],
+      flightPhaseInhib: ALL_ENG_FLAME_OUT_INHIBITED_PHASES,
       notActiveWhenItemActive: [],
       whichItemsToShow: showAllItems(701800151),
       whichItemsChecked: () => [
-        false,
+        this.fws.ratDeployed.get() > 0, // RAT MAN ON (as ELEC EMER CONFIG)
         this.fws.allThrottleIdle.get(),
         false,
         false,
@@ -6230,6 +6232,7 @@ export class FwsAbnormalSensed {
         this.fws.tawsGpwsOff.get(),
         false,
         false,
+        false, // L/G GRVTY (EXTN 2 MIN)
         false,
         this.fws.gearLeverPos.get(),
         false,
@@ -6363,7 +6366,10 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [!this.fws.pack1On.get(), !this.fws.pack2On.get(), false, false],
       failure: 2,
       sysPage: SdPages.Eng,
-      // STATUS l.175436-175454; GEN, G(Y) HYD SYS, ENG BLEED and REVERSER come from FwsInopSys, BTV too
+      // STATUS l.175434-175454. ALL PHASES: PART L/G RETRACTION, PACK 1(2) here (l.175441, 175448); PART SPLRs, GEN 1+2
+      // (3+4), G(Y) HYD SYS, ENG BLEED come from FwsInopSys (the HYD SYS lost with its two engines: FwsCore).
+      // APPR & LDG: the lines below, REVERSER and BTV from FwsInopSys
+      inopSysAllPhases: () => ['320300023', this.fws.twoEnginesOutLeftSide.get() ? '210300009' : '210300010'],
       inopSysApprLdg: () =>
         this.fws.twoEnginesOutLeftSide.get()
           ? ['290100003', '290100006', '320300020', '220300027', '220300010']
