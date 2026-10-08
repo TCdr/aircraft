@@ -296,6 +296,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] An in-flight engine relight follows the FCOM relight envelope (windmilling, starter assisted and quick relight zones, multiple-engine limits); a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N3; both igniters during an in-flight relight; the start valve stays closed for a windmilling start and the engine pumps are depressurised meanwhile - @TCdr
 1. [A380X/FWS] New ENG TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE cautions with their FCOM lines, STATUS and LAND ANSA; ENG FAIL shows RELIGHT PROC APPLY when more than two engines failed; ENG SHUT DOWN adds BTV and CAT 3 DUAL to the STATUS; ALL ENGINES FAILURE is renamed ALL ENG FLAME OUT as in the FCOM - @TCdr
 1. [A380X/FWS] ENG 3 and ENG 4 FAIL no longer come up during an engine start or a relight attempt that has not lit up, and their THR LEVER IDLE lines read their own thrust lever (they read engine 2's) - @TCdr
+1. [A380X/EFB] New flyPad failures Engine 1(2)(3)(4) oil leak, oil filter clog and oil overheat: the oil quantity falls then the oil pressure, CLOGGED shows on the ENGINE SD page, the oil temperature rises with thrust - @TCdr
+1. [A380X/FWS] New ENG 1(2)(3)(4) OIL PRESS LO red warning, OIL TEMP HI and OIL FILTER CLOGGED cautions with their FCOM procedures and flight phase inhibitions - @TCdr
+1. [A380X/SD] ENGINE page oil indications per the FCOM: the oil quantity pulses below the 1.2 qt advisory (first white dash), the oil temperature pulses above 163 °C, the oil pressure uses the FCOM 0-100/100-440 PSI scale and is red at or below 25 PSI, and CLOGGED shows below it - @TCdr
 
 ## 2024.1.0
 
