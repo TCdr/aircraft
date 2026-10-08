@@ -9,6 +9,7 @@
 
 #include "EngineControl_A380X.h"
 #include "EngineRatios.hpp"
+#include "FeedTankDraw_A380X.hpp"
 #include "Polynomials_A380X.hpp"
 #include "RelightStart_A380X.hpp"
 #include "Table1502_A380X.hpp"
@@ -786,10 +787,6 @@ void EngineControl_A380X::updateFuel(double deltaTimeSeconds) {
   double fuelRightOuterPre = simData.fuelRightOuterPre->get();  // Pounds
   double fuelTrimPre       = simData.fuelTrimPre->get();        // Pounds
 
-  const double extraOneQty   = simData.fuelExtraTankDataPtr->data().fuelSystemExtraOne * weightLbsPerGallon;    // Pounds
-  const double extraTwoQty   = simData.fuelExtraTankDataPtr->data().fuelSystemExtraTwo * weightLbsPerGallon;    // Pounds
-  const double extraThreeQty = simData.fuelExtraTankDataPtr->data().fuelSystemExtraThree * weightLbsPerGallon;  // Pounds
-  const double extraFourQty  = simData.fuelExtraTankDataPtr->data().fuelSystemExtraFour * weightLbsPerGallon;   // Pounds
   const double leftOuterQty  = simData.fuelTankDataPtr->data().fuelSystemLeftOuter * weightLbsPerGallon;        // Pounds
   const double feedOneQty    = simData.fuelTankDataPtr->data().fuelSystemFeedOne * weightLbsPerGallon;          // Pounds
   const double leftMidQty    = simData.fuelTankDataPtr->data().fuelSystemLeftMid * weightLbsPerGallon;          // Pounds
@@ -989,30 +986,36 @@ void EngineControl_A380X::updateFuel(double deltaTimeSeconds) {
     // Initialize arrays to avoid code duplication when looping over engines
     const double* engineFF[4]       = {&engine1FF, &engine2FF, &engine3FF, &engine4FF};
     const double* enginePreFF[4]    = {&engine1PreFF, &engine2PreFF, &engine3PreFF, &engine4PreFF};
-    const double* fuelExtraQty[4]   = {&extraOneQty, &extraTwoQty, &extraThreeQty, &extraFourQty};
     double*       fuelBurn[4]       = {&fuelBurn1, &fuelBurn2, &fuelBurn3, &fuelBurn4};
     double*       fuelUsedEngine[4] = {&fuelUsedEngine1, &fuelUsedEngine2, &fuelUsedEngine3, &fuelUsedEngine4};
 
+    // The Extra tank of each engine (MSFS Tank.12-15, gallons) and the feed tank that MSFS refills it from (pounds)
+    const double extraTankGallons[4] = {
+        simData.fuelExtraTankDataPtr->data().fuelSystemExtraOne, simData.fuelExtraTankDataPtr->data().fuelSystemExtraTwo,
+        simData.fuelExtraTankDataPtr->data().fuelSystemExtraThree, simData.fuelExtraTankDataPtr->data().fuelSystemExtraFour};
+    const double feedTankQty[4] = {feedOneQty, feedTwoQty, feedThreeQty, feedFourQty};
+    double       newExtraTankGallons[4];
+
     // Loop over engines
     for (int i = 0; i < 4; i++) {
-      // Engines fuel burn routine
-      if (*fuelExtraQty[i] > 0) {
-        // Cycle Fuel Burn
-        if (aircraftDevelopmentStateVar != 2 && msfsHandlerPtr->getPauseState() == 0) {
-          fuelFlowRateChange   = (*engineFF[i] - *enginePreFF[i]) / deltaTimeHours;
-          previousFuelFlowRate = *enginePreFF[i];
-          *fuelBurn[i]         = std::min((fuelFlowRateChange * std::pow(deltaTimeHours, 2) / 2) + (previousFuelFlowRate * deltaTimeHours),
-                                          *fuelExtraQty[i]);  // KG, limits fuelburn to remaining tank qty
-        }
-        // Fuel Used Accumulators
-        *fuelUsedEngine[i] += *fuelBurn[i];
+      // Cycle Fuel Burn (KG)
+      double cycleBurnKg = 0;
+      if (aircraftDevelopmentStateVar != 2 && msfsHandlerPtr->getPauseState() == 0) {
+        fuelFlowRateChange   = (*engineFF[i] - *enginePreFF[i]) / deltaTimeHours;
+        previousFuelFlowRate = *enginePreFF[i];
+        cycleBurnKg          = (fuelFlowRateChange * std::pow(deltaTimeHours, 2) / 2) + (previousFuelFlowRate * deltaTimeHours);
       }
+      // Taken from the Extra tank. While its feed tank holds fuel, one long frame does not empty it: an empty Extra tank leaves MSFS
+      // no fuel at the engine (suspected cause of the four-engine flameout of 2026-10-06). The burn that cannot be taken yet is
+      // carried to the next updates.
+      const FeedTankDraw_A380X::Output draw = FeedTankDraw_A380X::draw(
+          {extraTankGallons[i], weightLbsPerGallon, cycleBurnKg, carriedFeedTankBurnLbs[i], feedTankQty[i] > 0});
+      *fuelBurn[i]              = draw.drawnKg;
+      carriedFeedTankBurnLbs[i] = draw.carriedBurnLbs;
+      newExtraTankGallons[i]    = draw.extraTankGallons;
+      // Fuel Used Accumulators
+      *fuelUsedEngine[i] += *fuelBurn[i];
     }
-
-    const double fuelExtraOne   = std::max(extraOneQty - (fuelBurn1 * Fadec::KGS_TO_LBS), 0.0);    // Pounds
-    const double fuelExtraTwo   = std::max(extraTwoQty - (fuelBurn2 * Fadec::KGS_TO_LBS), 0.0);    // Pounds
-    const double fuelExtraThree = std::max(extraThreeQty - (fuelBurn3 * Fadec::KGS_TO_LBS), 0.0);  // Pounds
-    const double fuelExtraFour  = std::max(extraFourQty - (fuelBurn4 * Fadec::KGS_TO_LBS), 0.0);   // Pounds
 
     // Setting new pre-cycle conditions
     simData.enginePreFF[E1]->set(engine1FF);
@@ -1038,10 +1041,10 @@ void EngineControl_A380X::updateFuel(double deltaTimeSeconds) {
     simData.fuelRightOuterPre->set(rightOuterQty);
     simData.fuelTrimPre->set(trimQty);
 
-    simData.fuelExtraTankDataPtr->data().fuelSystemExtraOne   = (fuelExtraOne / weightLbsPerGallon);
-    simData.fuelExtraTankDataPtr->data().fuelSystemExtraTwo   = (fuelExtraTwo / weightLbsPerGallon);
-    simData.fuelExtraTankDataPtr->data().fuelSystemExtraThree = (fuelExtraThree / weightLbsPerGallon);
-    simData.fuelExtraTankDataPtr->data().fuelSystemExtraFour  = (fuelExtraFour / weightLbsPerGallon);
+    simData.fuelExtraTankDataPtr->data().fuelSystemExtraOne   = newExtraTankGallons[E1];
+    simData.fuelExtraTankDataPtr->data().fuelSystemExtraTwo   = newExtraTankGallons[E2];
+    simData.fuelExtraTankDataPtr->data().fuelSystemExtraThree = newExtraTankGallons[E3];
+    simData.fuelExtraTankDataPtr->data().fuelSystemExtraFour  = newExtraTankGallons[E4];
     simData.fuelExtraTankDataPtr->writeDataToSim();
   }
 
