@@ -107,7 +107,7 @@ export const PerfValue: FC<PerfValueProps> = ({
 };
 
 /** A result as a tile: its name over its value */
-export const PerfResult: FC<{ name: string; className?: string }> = ({ name, className, children }) => (
+export const PerfResult: FC<{ name: ReactNode; className?: string }> = ({ name, className, children }) => (
   <div className={`flex min-w-0 flex-1 flex-col rounded-xl bg-m3-card px-3 py-2 ${className ?? ''}`}>
     <span className={`truncate ${eyebrow}`}>{name}</span>
     {children}
