@@ -1920,6 +1920,113 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 3
     - 4
   - True during a relight attempt: from the ENG MASTER ON of a relight until the engine lights up or 30 s have elapsed (FCOM ENG RELIGHT IN FLIGHT: "Engine must relight within 30 s after fuel flow increases"). The FADEC runs its start sequence (start valve, igniters) meanwhile, with the fuel still cut. Written by the systems WASM (a380_systems engine_failure.rs)
+- A32NX_ENGINE_{number}_FADEC_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC of the engine cannot communicate via the avionics networks (flyPad failure 73010-73013): ENG 1(2)(3)(4) FADEC FAULT. The FADEC still controls the engine from its thrust lever, the PRIM (A/THR) orders no longer reach it (INOP SYS ENG n A/THR with the A/THR engaged) and the ENG SD page shows XX for the engine. Written by the systems WASM (a380_systems engine_control_failure.rs)
+
+- A32NX_ENGINE_{number}_FADEC_SYS_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True with the flyPad failure 73020-73023: ENG 1(2)(3)(4) FADEC SYS FAULT (crew awareness). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_HI_TEMP
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True with the flyPad failure 73030-73033: ENG 1(2)(3)(4) FADEC TEMP HI (crew awareness). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_THR_LEVER_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC has lost the thrust lever position (flyPad failure 73040-73043): ENG 1(2)(3)(4) THR LEVER FAULT. The FADEC limits the engine to CLB in flight and to idle on the ground; the reverser of the engine 2 or 3 no longer deploys. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_THR_LEVER_RATING
+  - Number
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The rating the FADEC selects with a failed thrust lever: 0 the lever works, 1 idle (on the ground), 3 CLB (in flight). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE_ACTIVE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC model of the flight computers uses A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE in place of the thrust lever angle A32NX_AUTOTHRUST_TLA:{number}: reverse idle until the reverser of the engine 2 or 3 is deployed (FCOM DSC-70-70), idle with an unlocked reverser, or a thrust lever failure. Written by the systems WASM, read by fbw.wasm (FadecFailureInputs.h)
+
+- A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE
+  - Number (degrees)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The thrust lever angle the FADEC uses while A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE_ACTIVE is true. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_AUTO_IDLE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC automatically sets the engine at idle: an unlocked reverser, or a failed thrust lever on the ground. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_UNLOCKED
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is not fully locked while not commanded deployed (flyPad failure 78011/78012): ENG 2(3) REVERSER UNLOCKED, ENG 2(3) IDLE ONLY. Written by the systems WASM (a380_systems reverser)
+
+- A32NX_REVERSER_{number}_FAULT
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is failed (flyPad failure 78001/78002): it does not deploy, ENG 2(3) REVERSER FAULT. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_CTL_FAULT
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser control system (ETRAC) is failed (flyPad failure 78041/78042): the reverser does not deploy, ENG 2(3) REVERSER CTL FAULT. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_LOCKED
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is failed locked (flyPad failure 78031/78032): its locks do not release, ENG 2(3) REVERSER LOCKED. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_ENERGIZED
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is energized with its tertiary lock released without a deploy order (flyPad failure 78021/78022): ENG 2(3) REVERSER ENERGIZED. Written by the systems WASM
+
 
 - A32NX_ENGINE_{number}_OIL_LEAK
   - Bool
