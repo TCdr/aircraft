@@ -105,7 +105,9 @@ export const AtaChaptersDescription = Object.freeze({
   32: 'The landing gear components are responsible for supporting and steering the aircraft on the ground, and make it possible to retract and store the landing gear in flight. Includes the functioning and maintenance aspects of the landing gear doors.',
   34: 'The navigation systems provide data about the position, speed, heading, and altitude of the aircraft. Failures in a system such as the ADIRS can cause a loss of data sent to instrumentation.',
   72: 'The engines produce the thrust and drive the generators, the hydraulic pumps and the bleed air system. An engine failure, such as a flameout or a seizure, causes a loss of thrust and of the systems driven by that engine.',
+  74: 'The ignition system has two igniters per engine, which the FADEC energizes to start and relight the engine. A failed igniter does not light the engine: the start can fail with no light up.',
   79: 'The engine oil system lubricates and cools the engine bearings and gears. An oil leak, a clogged oil filter or an oil overheat shows on the engine oil indications and may require the crew to reduce thrust or shut the engine down.',
+  80: 'The starting system turns the engine with an air starter fed through the start valve. Start valve, starter and start faults can prevent the engine from starting or make the FADEC abort the start.',
   46: 'Information systems provide means of communication between Airline Operational Control (AOC), Air Traffic Control (ATC), and various applications around the organization of on-board information (e.g. via the OIS)',
 });
 
