@@ -49,6 +49,9 @@ class EngineControl_A380X {
   FLOAT64                 lastFuelSaveTime   = 0;
   static constexpr double FUEL_SAVE_INTERVAL = 5.0;  // seconds
 
+  // the burn each engine could not take from its Extra tank yet (pounds), taken once MSFS has refilled it (FeedTankDraw_A380X.hpp)
+  double carriedFeedTankBurnLbs[4] = {0.0, 0.0, 0.0, 0.0};
+
   // thrust limits transition for flex
   bool                    isTransitionActive   = false;
   static constexpr double TRANSITION_WAIT_TIME = 10;
