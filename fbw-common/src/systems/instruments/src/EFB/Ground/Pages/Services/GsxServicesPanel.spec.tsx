@@ -119,3 +119,72 @@ describe('GSX turnaround steps after GSX resets a completed service to available
     expect(turnaroundChips([step('Boarding', 'Board', 'available', true)]).Board).toBe('Request');
   });
 });
+
+/** The turnaround rows (name, status line, action chip) of the panel, in their order */
+const turnaroundRows = (services: GsxService[]): { name: string; status: string; chip: string | null }[] => {
+  const gsx = withTurnaroundMemory({
+    connected: true,
+    gsxRunning: true,
+    services,
+    menuShown: false,
+    menu: { title: '', entries: [], disabled: [] },
+    message: { text: '', visible: false },
+  });
+  const container = document.createElement('div');
+  container.innerHTML = renderToStaticMarkup(<GsxServicesPanel linked onLinkChange={() => {}} gsx={gsx} />);
+  return Array.from(container.querySelectorAll('span.text-base.font-semibold')).map((name) => ({
+    name: name.textContent ?? '',
+    status: name.nextElementSibling?.textContent ?? '',
+    chip: name.parentElement?.parentElement?.querySelector('button')?.textContent ?? null,
+  }));
+};
+
+describe('GSX baggage step of the Services page', () => {
+  const departure = [
+    step('Catering', 'Catering', 'available', true),
+    step('Boarding', 'Board', 'performing', false),
+    step('Departure', 'Pushback', 'available', true),
+  ];
+
+  it('lists the baggage after the boarding, without a Request chip (GSX loads it with the boarding)', () => {
+    gsxTurnaround.clear();
+    const rows = turnaroundRows(departure);
+
+    expect(rows.map((r) => r.name)).toEqual(['Catering', 'Board', 'Baggage', 'Pushback']);
+    expect(rows[2]).toEqual({ name: 'Baggage', status: 'BaggageWithBoarding', chip: null });
+  });
+
+  it('keeps the baggage Done until the turnaround ends, like the boarding', () => {
+    gsxTurnaround.clear();
+    const cargo = (active: boolean, percent: number) => ({ BaggageLoading: { active, percent } });
+    gsxTurnaround.update({
+      states: { Boarding: 5 },
+      departureState: 1,
+      enginesRunning: false,
+      baggage: cargo(true, 60),
+    });
+    gsxTurnaround.update({
+      states: { Boarding: 5 },
+      departureState: 1,
+      enginesRunning: false,
+      baggage: cargo(false, 100),
+    });
+
+    expect(turnaroundRows(departure)[2]).toEqual({ name: 'Baggage', status: 'Done', chip: null });
+
+    gsxTurnaround.update({
+      states: { Boarding: 1 },
+      departureState: 1,
+      enginesRunning: true,
+      baggage: cargo(false, 100),
+    });
+    expect(turnaroundRows(departure)[2].status).toBe('BaggageWithBoarding');
+  });
+
+  it('has no baggage row while GSX does not offer the boarding here', () => {
+    gsxTurnaround.clear();
+    const rows = turnaroundRows([step('Catering', 'Catering', 'available', true)]);
+
+    expect(rows.map((r) => r.name)).toEqual(['Catering']);
+  });
+});
