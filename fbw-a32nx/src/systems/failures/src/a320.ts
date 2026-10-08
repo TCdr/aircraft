@@ -163,6 +163,22 @@ export const A320Failure = Object.freeze({
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
   Eng2Seizure: 72011,
+  Eng1FadecChannelA: 73010,
+  Eng2FadecChannelA: 73011,
+  Eng1FadecChannelB: 73020,
+  Eng2FadecChannelB: 73021,
+  Eng1FadecOverheat: 73030,
+  Eng2FadecOverheat: 73031,
+  ThrustLever1Resolvers: 73040,
+  ThrustLever2Resolvers: 73041,
+  ThrustLever1ResolverDisagree: 73050,
+  ThrustLever2ResolverDisagree: 73051,
+  Reverser1Fault: 78000,
+  Reverser2Fault: 78001,
+  Reverser1Unlocked: 78010,
+  Reverser2Unlocked: 78011,
+  Reverser1Pressurized: 78020,
+  Reverser2Pressurized: 78021,
 });
 
 export const A320FailureDefinitions: FailureDefinition[] = [
@@ -323,4 +339,27 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // The core stops; no relight while the failure is active
   [72, A320Failure.Eng1Seizure, 'Engine 1 seizure (no relight)'],
   [72, A320Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
+
+  // FADEC and thrust lever (a320_systems engine_control_failure.rs). One channel lost: the other takes control; both
+  // lost: engine indications and A/THR lost, no reverser, the engine keeps following its lever
+  [73, A320Failure.Eng1FadecChannelA, 'Engine 1 FADEC channel A'],
+  [73, A320Failure.Eng2FadecChannelA, 'Engine 2 FADEC channel A'],
+  [73, A320Failure.Eng1FadecChannelB, 'Engine 1 FADEC channel B'],
+  [73, A320Failure.Eng2FadecChannelB, 'Engine 2 FADEC channel B'],
+  [73, A320Failure.Eng1FadecOverheat, 'Engine 1 FADEC overheat'],
+  [73, A320Failure.Eng2FadecOverheat, 'Engine 2 FADEC overheat'],
+  // The FADEC selects idle, CLB or frozen takeoff thrust by the FCOM rules; no reverser with both resolvers lost
+  [73, A320Failure.ThrustLever1Resolvers, 'Thrust lever 1 resolvers (both)'],
+  [73, A320Failure.ThrustLever2Resolvers, 'Thrust lever 2 resolvers (both)'],
+  [73, A320Failure.ThrustLever1ResolverDisagree, 'Thrust lever 1 resolver disagree'],
+  [73, A320Failure.ThrustLever2ResolverDisagree, 'Thrust lever 2 resolver disagree'],
+
+  // Thrust reversers (a320_systems hydraulic A320ReverserController / A320Reversers)
+  [78, A320Failure.Reverser1Fault, 'Reverser 1 fault (does not deploy)'],
+  [78, A320Failure.Reverser2Fault, 'Reverser 2 fault (does not deploy)'],
+  // The doors leave their stowed and locked position (no reverse thrust); the FADEC sets the engine at idle
+  [78, A320Failure.Reverser1Unlocked, 'Reverser 1 unlocked (engine at idle)'],
+  [78, A320Failure.Reverser2Unlocked, 'Reverser 2 unlocked (engine at idle)'],
+  [78, A320Failure.Reverser1Pressurized, 'Reverser 1 pressurized (shutoff valve open)'],
+  [78, A320Failure.Reverser2Pressurized, 'Reverser 2 pressurized (shutoff valve open)'],
 ];

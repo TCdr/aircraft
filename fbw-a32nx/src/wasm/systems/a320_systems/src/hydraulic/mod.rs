@@ -18,6 +18,7 @@ use uom::si::{
 use systems::{
     accept_iterable,
     engine::Engine,
+    failures::{Failure, FailureType},
     hydraulic::{
         aerodynamic_model::AerodynamicModel,
         brake::{BrakeAssembly, BrakeFanPanel, BrakeProperties},
@@ -758,6 +759,19 @@ impl A320Hydraulic {
 
     pub fn reversers_position(&self) -> &[impl ReverserPosition] {
         self.reversers_assembly.reversers_position()
+    }
+
+    /// The reverser status the FADECs monitor (engine 1, engine 2).
+    pub fn reversers_monitoring(&self) -> [A320ReverserMonitoring; 2] {
+        self.reversers_assembly.monitoring()
+    }
+
+    /// The FADEC of engine 1 (2) no longer commands a reverser deployment (thrust lever fault, both
+    /// FADEC channels lost). Applies from the next update.
+    pub fn set_reversers_deployment_inhibited(&mut self, inhibited: [bool; 2]) {
+        for (controller, inhibited) in self.engine_reverser_control.iter_mut().zip(inhibited) {
+            controller.set_deployment_inhibited(inhibited);
+        }
     }
 
     #[cfg(test)]
@@ -4645,6 +4659,19 @@ struct A320ReverserController {
     state: ReverserControlState,
 
     tertiary_lock_from_sec_should_unlock: DelayedFalseLogicGate,
+
+    /// flyPad "Reverser N fault (does not deploy)": the reverser control is failed (FCOM ENG 1(2)
+    /// REVERSER FAULT, a320_fcom.txt l.80943-80944: "the thrust reverser on one engine is failed (due
+    /// to system components or inputs)"), the reverser stays stowed (INOP SYS REVERSER 1(2)).
+    fault: Failure,
+    /// flyPad "Reverser N pressurized (shutoff valve stuck open)": the hydraulic shutoff valve of the
+    /// reverser stays open, so the reverser is pressurized while stowed and locked (FCOM ENG 1(2) REV
+    /// PRESSURIZED, l.80764-80766, CFM engines). Design choice: modelled as a valve commanded open.
+    pressurized: Failure,
+    /// The FADEC no longer commands a deployment: thrust lever fault (INOP SYS REVERSER 1(2), FCOM
+    /// l.81892) or both FADEC channels lost (the deployment "requires one FADEC channel", l.63300).
+    /// Set by the engine control failures (engine_control_failure.rs).
+    deployment_inhibited: bool,
 }
 impl A320ReverserController {
     fn new(context: &mut InitContext, engine_number: usize) -> Self {
@@ -4658,7 +4685,30 @@ impl A320ReverserController {
             tertiary_lock_from_sec_should_unlock: DelayedFalseLogicGate::new(Duration::from_secs(
                 40,
             )),
+
+            fault: Failure::new(FailureType::ReverserFault(engine_number)),
+            pressurized: Failure::new(FailureType::ReverserPressurized(engine_number)),
+            deployment_inhibited: false,
         }
+    }
+
+    fn set_deployment_inhibited(&mut self, inhibited: bool) {
+        self.deployment_inhibited = inhibited;
+    }
+
+    /// The flight crew commands a deployment (the controller opens or holds the reverser open).
+    fn deploy_is_commanded(&self) -> bool {
+        self.state == ReverserControlState::TransitOpening
+            || self.state == ReverserControlState::FullyOpened
+    }
+
+    /// The controller drives a stowage after a deployment.
+    fn stow_is_commanded(&self) -> bool {
+        self.state == ReverserControlState::TransitClosing
+    }
+
+    fn is_faulty(&self) -> bool {
+        self.fault.is_active()
     }
 
     fn update(
@@ -4674,7 +4724,9 @@ impl A320ReverserController {
                 && !reverser_feedback.pressure_switch_pressurised();
 
         let deploy_authorized = engine.corrected_n2().get::<percent>() > 50.
-            && lgciu.left_and_right_gear_compressed(false);
+            && lgciu.left_and_right_gear_compressed(false)
+            && !self.fault.is_active()
+            && !self.deployment_inhibited;
 
         let allow_power_to_valves = self.throttle_lever_angle.get::<degree>() <= -3.8
             && lgciu.left_and_right_gear_compressed(false);
@@ -4737,6 +4789,13 @@ impl A320ReverserController {
     }
 }
 impl SimulationElement for A320ReverserController {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.fault.accept(visitor);
+        self.pressurized.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.throttle_lever_angle = reader.read(&self.throttle_lever_angle_id);
     }
@@ -4747,12 +4806,13 @@ impl ReverserInterface for A320ReverserController {
     }
 
     fn should_power_valves(&self) -> bool {
-        self.state != ReverserControlState::StowedOff
+        self.state != ReverserControlState::StowedOff || self.pressurized.is_active()
     }
 
     fn should_isolate_hydraulics(&self) -> bool {
-        self.state == ReverserControlState::StowedOff
-            || self.state == ReverserControlState::StowedOn
+        (self.state == ReverserControlState::StowedOff
+            || self.state == ReverserControlState::StowedOn)
+            && !self.pressurized.is_active()
     }
 
     fn should_deploy_reverser(&self) -> bool {
@@ -4786,6 +4846,18 @@ struct A320Reversers {
 
     reversers_in_transition: [bool; 2],
     reversers_deployed: [bool; 2],
+
+    /// flyPad "Reverser N unlocked": the reverser doors leave their stowed and locked position
+    /// without a deploy order (FCOM ENG 1(2) REVERSE UNLOCKED, a320_fcom.txt l.80858-80859). Design
+    /// choice: all four doors are unlocked (CFM), so the FADEC sets the engine at idle
+    /// (l.80888-80889); the doors do not open into the airflow (no reverse thrust, no buffet).
+    unlocked: [Failure; 2],
+
+    reverser_unlocked_ids: [VariableIdentifier; 2],
+    reverser_fault_ids: [VariableIdentifier; 2],
+    reverser_pressurized_ids: [VariableIdentifier; 2],
+
+    monitoring: [A320ReverserMonitoring; 2],
 }
 impl A320Reversers {
     // TODO Check busses and power, placeholder only for now
@@ -4845,13 +4917,27 @@ impl A320Reversers {
             ],
             reversers_in_transition: [false, false],
             reversers_deployed: [false, false],
+
+            unlocked: [
+                Failure::new(FailureType::ReverserUnlocked(1)),
+                Failure::new(FailureType::ReverserUnlocked(2)),
+            ],
+
+            reverser_unlocked_ids: [1, 2]
+                .map(|number| context.get_identifier(format!("REVERSER_{}_UNLOCKED", number))),
+            reverser_fault_ids: [1, 2]
+                .map(|number| context.get_identifier(format!("REVERSER_{}_FAULT", number))),
+            reverser_pressurized_ids: [1, 2]
+                .map(|number| context.get_identifier(format!("REVERSER_{}_PRESSURIZED", number))),
+
+            monitoring: [A320ReverserMonitoring::default(); 2],
         }
     }
 
     fn update(
         &mut self,
         context: &UpdateContext,
-        reverser_controllers: &[impl ReverserInterface; 2],
+        reverser_controllers: &[A320ReverserController; 2],
         left_reverser_section: &impl SectionPressure,
         right_reverser_section: &impl SectionPressure,
     ) {
@@ -4868,15 +4954,51 @@ impl A320Reversers {
         );
 
         self.update_sensors_state();
+        self.update_monitoring(reverser_controllers);
+    }
+
+    /// The door position switches: an unlocked door is not stowed.
+    fn doors_stowed_and_locked(&self, idx: usize) -> bool {
+        self.reversers[idx].proximity_sensor_all_stowed() && !self.unlocked[idx].is_active()
     }
 
     fn update_sensors_state(&mut self) {
-        for (idx, reverser) in self.reversers.iter().enumerate() {
-            self.reversers_deployed[idx] = reverser.proximity_sensor_all_deployed();
+        for idx in 0..self.reversers.len() {
+            let all_deployed = self.reversers[idx].proximity_sensor_all_deployed();
+            self.reversers_deployed[idx] = all_deployed;
 
-            self.reversers_in_transition[idx] = !reverser.proximity_sensor_all_deployed()
-                && !reverser.proximity_sensor_all_stowed();
+            // E/WD REV amber (FCOM DSC-70-90-40-50, l.64223-64227): the reverser is unlocked or in
+            // transit.
+            self.reversers_in_transition[idx] = !all_deployed && !self.doors_stowed_and_locked(idx);
         }
+    }
+
+    /// The reverser status the FADEC reports to the FWC (FCOM DSC-70-20 l.62693, "Thrust reverser
+    /// system status") and uses for its idle protection.
+    fn update_monitoring(&mut self, reverser_controllers: &[A320ReverserController; 2]) {
+        for (idx, controller) in reverser_controllers.iter().enumerate() {
+            let no_deploy_order =
+                !controller.deploy_is_commanded() && !controller.stow_is_commanded();
+            let stowed_and_locked = self.doors_stowed_and_locked(idx);
+
+            self.monitoring[idx] = A320ReverserMonitoring {
+                fully_deployed: self.reversers_deployed[idx],
+                // l.80858-80859: "one or more reverser doors are not locked in stowed position in
+                // flight, or on ground with no deploy order". The controller never deploys in
+                // flight, so both cases are a door not stowed without a deploy or stow order.
+                unlocked: !stowed_and_locked && no_deploy_order,
+                fault: controller.is_faulty(),
+                // l.80764-80766 (CFM): "the thrust reverser system is pressurized while the
+                // reverser doors are stowed and locked".
+                pressurized: self.reversers[idx].pressure_switch_pressurised()
+                    && stowed_and_locked
+                    && no_deploy_order,
+            };
+        }
+    }
+
+    fn monitoring(&self) -> [A320ReverserMonitoring; 2] {
+        self.monitoring
     }
 
     fn reverser_feedback(&self, reverser_index: usize) -> &impl ReverserFeedback {
@@ -4898,6 +5020,7 @@ impl A320Reversers {
 impl SimulationElement for A320Reversers {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         accept_iterable!(self.reversers, visitor);
+        accept_iterable!(self.unlocked, visitor);
 
         visitor.visit(self);
     }
@@ -4923,7 +5046,32 @@ impl SimulationElement for A320Reversers {
 
         writer.write(&self.reverser_1_deployed_id, self.reversers_deployed[0]);
         writer.write(&self.reverser_2_deployed_id, self.reversers_deployed[1]);
+
+        for idx in 0..self.monitoring.len() {
+            writer.write(
+                &self.reverser_unlocked_ids[idx],
+                self.monitoring[idx].unlocked,
+            );
+            writer.write(&self.reverser_fault_ids[idx], self.monitoring[idx].fault);
+            writer.write(
+                &self.reverser_pressurized_ids[idx],
+                self.monitoring[idx].pressurized,
+            );
+        }
     }
+}
+
+/// The status of one thrust reverser, as its FADEC monitors it.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct A320ReverserMonitoring {
+    /// All doors are deployed: the deployment is completed (reverse thrust above reverse idle).
+    pub fully_deployed: bool,
+    /// ENG 1(2) REVERSE UNLOCKED: a door is not locked in its stowed position without a deploy order.
+    pub unlocked: bool,
+    /// ENG 1(2) REVERSER FAULT
+    pub fault: bool,
+    /// ENG 1(2) REV PRESSURIZED
+    pub pressurized: bool,
 }
 
 #[cfg(test)]
@@ -11632,6 +11780,108 @@ mod tests {
 
             assert_lt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.01);
             assert_lt!(test_bed.get_reverser_2_position().get::<ratio>(), 0.01);
+        }
+
+        // Engine failures stage A5: the flyPad reverser failures and the FADEC reverser monitoring
+
+        fn reverser_flag(test_bed: &mut A320HydraulicsTestBed, name: &str) -> bool {
+            ReadByName::<A320HydraulicsTestBed, bool>::read_by_name(test_bed, name)
+        }
+
+        fn test_bed_on_ground_with_engines_running() -> A320HydraulicsTestBed {
+            test_bed_in_flight_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .start_eng1(Ratio::new::<percent>(60.))
+                .start_eng2(Ratio::new::<percent>(60.))
+                .run_waiting_for(Duration::from_secs_f64(10.))
+        }
+
+        #[test]
+        fn reverser_fault_keeps_the_reverser_stowed() {
+            let mut test_bed = test_bed_on_ground_with_engines_running();
+            test_bed.fail(FailureType::ReverserFault(1));
+
+            test_bed = test_bed
+                .eng1_throttle_reverse_full()
+                .eng2_throttle_reverse_full()
+                .run_waiting_for(Duration::from_secs_f64(3.));
+
+            assert_lt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.01);
+            assert_gt!(test_bed.get_reverser_2_position().get::<ratio>(), 0.99);
+            assert!(reverser_flag(&mut test_bed, "REVERSER_1_FAULT"));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_2_FAULT"));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_DEPLOYING"));
+        }
+
+        #[test]
+        fn fadec_inhibition_keeps_the_reverser_stowed_and_restows_it() {
+            let mut test_bed = test_bed_on_ground_with_engines_running()
+                .eng1_throttle_reverse_full()
+                .run_waiting_for(Duration::from_secs_f64(3.));
+            assert_gt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.99);
+
+            // "If associated thrust reverser is already deployed, FADEC commands restow"
+            test_bed.command(|a| {
+                a.hydraulics
+                    .set_reversers_deployment_inhibited([true, false])
+            });
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(5.));
+
+            assert_lt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.01);
+        }
+
+        #[test]
+        fn unlocked_reverser_is_reported_unlocked_in_transit_without_deploying() {
+            let mut test_bed = test_bed_in_flight_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .run_waiting_for(Duration::from_secs_f64(1.));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_2_UNLOCKED"));
+
+            test_bed.fail(FailureType::ReverserUnlocked(2));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(1.));
+
+            assert!(reverser_flag(&mut test_bed, "REVERSER_2_UNLOCKED"));
+            assert!(reverser_flag(&mut test_bed, "REVERSER_2_DEPLOYING"));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_UNLOCKED"));
+            assert_lt!(test_bed.get_reverser_2_position().get::<ratio>(), 0.01);
+            assert!(test_bed.query(|a| a.hydraulics.reversers_monitoring()[1].unlocked));
+        }
+
+        #[test]
+        fn pressurized_reverser_is_reported_while_stowed() {
+            let mut test_bed = test_bed_on_ground_with_engines_running();
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_PRESSURIZED"));
+
+            test_bed.fail(FailureType::ReverserPressurized(1));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(2.));
+
+            assert!(reverser_flag(&mut test_bed, "REVERSER_1_PRESSURIZED"));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_2_PRESSURIZED"));
+            assert_lt!(test_bed.get_reverser_1_position().get::<ratio>(), 0.01);
+        }
+
+        #[test]
+        fn normal_reverser_cycle_reports_no_reverser_alert() {
+            let mut test_bed = test_bed_on_ground_with_engines_running()
+                .eng1_throttle_reverse_full()
+                .run_waiting_for(Duration::from_secs_f64(0.5));
+            // in transit, then deployed: a deploy order, no alert
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_UNLOCKED"));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_PRESSURIZED"));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(2.5));
+            assert!(test_bed.query(|a| a.hydraulics.reversers_monitoring()[0].fully_deployed));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_UNLOCKED"));
+
+            test_bed = test_bed
+                .set_throttles_idle()
+                .run_waiting_for(Duration::from_secs_f64(0.5));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_UNLOCKED"));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(5.));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_UNLOCKED"));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_PRESSURIZED"));
+            assert!(!reverser_flag(&mut test_bed, "REVERSER_1_DEPLOYING"));
         }
     }
 }

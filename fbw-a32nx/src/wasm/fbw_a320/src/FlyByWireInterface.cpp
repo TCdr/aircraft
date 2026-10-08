@@ -873,6 +873,10 @@ void FlyByWireInterface::setupLocalVariables() {
 
     idEcuStatusWord3[i] = std::make_unique<LocalVariable>("A32NX_ECU_" + idString + "_STATUS_WORD_3");
     idEcuMaintenanceWord6[i] = std::make_unique<LocalVariable>("A32NX_ECU_" + idString + "_MAINTENANCE_WORD_6");
+
+    idEngineFadecTlaOverrideActive[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE_ACTIVE");
+    idEngineFadecTlaOverride[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE");
+    idEngineFadecFault[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_FAULT");
   }
 }
 
@@ -2670,7 +2674,10 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
 
   fadecInputs[fadecIndex].in.input.ATHR_disconnect =
       simConnectInterface.getSimInputThrottles().ATHR_disconnect || idAutothrustDisconnect->get() == 1;
-  fadecInputs[fadecIndex].in.input.TLA_deg = fadecIndex == 0 ? thrustLeverAngle_1->get() : thrustLeverAngle_2->get();
+  // the thrust lever, or the angle of a FADEC protection or a thrust lever failure (systems.wasm)
+  fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::fadecModelThrustLeverAngle(
+      fadecIndex == 0 ? thrustLeverAngle_1->get() : thrustLeverAngle_2->get(), idEngineFadecTlaOverrideActive[fadecIndex]->get(),
+      idEngineFadecTlaOverride[fadecIndex]->get());
   fadecInputs[fadecIndex].in.input.thrust_limit_REV_percent = idAutothrustThrustLimitREV->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent = idAutothrustThrustLimitIDLE->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_CLB_percent = idAutothrustThrustLimitCLB->get();
@@ -2681,7 +2688,10 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.input.is_air_conditioning_active = idAirConditioningPack_1->get();
   fadecInputs[fadecIndex].in.input.ATHR_reset_disable = simConnectInterface.getSimInputThrottles().ATHR_reset_disable == 1;
 
-  fadecInputs[fadecIndex].in.fcu_input = fcuBusOutputs;
+  // ENG FADEC FAULT (both channels lost): the A/THR orders no longer reach the FADEC, the A/THR loses the engine
+  // (A320 FCOM DSC-22_30-90, A/THR arming condition "Two FADECs operative")
+  fadecInputs[fadecIndex].in.fcu_input =
+      FadecFailureInputs::autothrustOrdersReceived(fcuBusOutputs, idEngineFadecFault[fadecIndex]->get() > 0.5);
 
   if (fadecIndex == fadecDisabled) {
     simConnectInterface.setClientDataFadecData(fadecInputs[fadecIndex].in.data);
