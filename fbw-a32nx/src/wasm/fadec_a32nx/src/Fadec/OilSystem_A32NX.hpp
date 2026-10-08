@@ -16,12 +16,16 @@ namespace OilSystem_A32NX {
 /*
  * Design choices, the FCOM gives no rates:
  * - an oil leak empties the oil system (A32NX_ENGINE_OIL_TOTAL) at 2 qt/min; the tank quantity shown on the SD is the total
- *   less the oil in the circuit (about 20 % at idle, 30 % at take-off thrust) and falls about 1.6 qt/min;
+ *   less the oil in the circuit (about 20 % at idle, 30 % at take-off thrust) and falls about 1.6 qt/min. The rate is per
+ *   simulation minute: at a 4x sim rate it is 8 qt per real minute (the 3 qt/min of the sim test of 2026-10-06, measured on
+ *   the real clock, was 2.0 qt/min of simulation time with 50 s of the leak at 4x);
  * - the oil pump delivers its normal pressure down to 2.5 qt in the whole oil system and no pressure at 0.6 qt, so that ENG
  *   OIL LO PR (below 13 PSI, FCOM PRO-ABN-ENG l.80569) follows the 3.25 QT pulsing of the SD oil quantity (FCOM
  *   DSC-70-90-40 l.64513), reached at about 4.5 qt in the system. A healthy engine holds 14 to 20 qt;
  * - an oil overheat drives the oil to 135 C at idle, below the 140 C advisory, and to 175 C at 100 % N2, above the 155 C
- *   of ENG OIL HI TEMP (FCOM PRO-ABN-ENG l.80528-80530), with a 60 s time constant.
+ *   of ENG OIL HI TEMP (FCOM PRO-ABN-ENG l.80528-80530), with a 60 s time constant, linear in N2 (about 165 C at cruise N2,
+ *   ENG OIL HI TEMP after about 2 min). THR LEVER IDLE (l.80536) brings it below 155 C within about 30 s, and below the
+ *   140 C advisory after that, also with the flight idle N2 a little above the idle of the FADEC.
  */
 constexpr double                                LEAK_RATE              = 2.0 / 60.0;  // qt/s
 constexpr double                                FULL_PRESSURE_TOTAL_QTY = 2.5;         // qt

@@ -19,7 +19,8 @@
 //!   100 % N1) takes a climb EGT above that EGT limit.
 //! - ENG HI VIBRATIONS (l.174816): the vibration advisory is N1, N2 above 5 units (also
 //!   DSC-70-90, l.113396). The high vibration failure (N1 7 units at 100 % N1, N3 6 units
-//!   at 100 % N3) is above the advisory at climb and cruise thrust and below it at reduced thrust.
+//!   at 100 % N3, with the square of the rotor speed) is above the advisory at climb and cruise
+//!   thrust, below it at reduced thrust and clearly below it at idle.
 //! - No overspeed failure: the FCOM red limits (N1 111 %, N2 118.7 %, DSC-70-90 l.113079,
 //!   113301) are about 25 % above the TOGA N1 of the FBW engine, so the N1/N2 OVER LIMIT alert is
 //!   not reachable by an indication offset of a credible size.
@@ -267,6 +268,31 @@ mod tests {
         let other_n1: f64 = test_bed.read_by_name("ENGINE_1_N1_VIBRATION");
         assert!(n1 > 5. && n2 > 5. && n3 > 5.);
         assert!(other_n1 < 5.);
+    }
+
+    /// Like the A320 of the sim test of 2026-10-06 (N2 vibration above its advisory at idle): at
+    /// flight idle (N1 28 %, N3 65 %, MSFS vibration 2.2 as recorded on 2026-10-06) N1, N2 and N3
+    /// are clearly below the 5 units advisory.
+    #[test]
+    fn at_idle_the_high_vibration_is_clearly_below_the_advisory() {
+        let mut test_bed = engines_at_climb_thrust();
+        test_bed.fail(FailureType::EngineHighVibration(2));
+        test_bed.write_by_name("TURB ENG N1:2", 28.);
+        test_bed.write_by_name("TURB ENG N2:2", 65.);
+        test_bed.write_by_name("AUTOTHRUST_N1_COMMANDED:2", 28.);
+        test_bed.write_by_name("TURB ENG VIBRATION:2", 2.2);
+        run_for(&mut test_bed, Duration::from_secs(40));
+
+        let n1: f64 = test_bed.read_by_name("ENGINE_2_N1_VIBRATION");
+        let n2: f64 = test_bed.read_by_name("ENGINE_2_N2_VIBRATION");
+        let n3: f64 = test_bed.read_by_name("ENGINE_2_N3_VIBRATION");
+        assert!(
+            n1 < 4. && n2 < 4. && n3 < 4.,
+            "N1 {} N2 {} N3 {}",
+            n1,
+            n2,
+            n3
+        );
     }
 
     #[test]

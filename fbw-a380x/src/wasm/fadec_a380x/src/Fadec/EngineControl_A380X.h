@@ -196,6 +196,8 @@ class EngineControl_A380X {
    * @param simN3 The current N2 value from the simulator used as N3 for the A380X in percent.
    * @param idleN3 The idle N3 value in percent.
    * @param ambientTemperature The current ambient temperature in degrees Celsius.
+   * @param startN3Hang The start sequence holds the core below idle (hung start).
+   * @param simCombustion MSFS burns in the engine (GENERAL ENG COMBUSTION), read while the engine is OFF.
    * @return The current state of the engine as an enum of type EngineState (OFF, ON, STARTING, RESTARTING, SHUTTING).
    * @see EngineState
    */
@@ -205,7 +207,8 @@ class EngineControl_A380X {
                                                       double simN3,
                                                       double idleN3,
                                                       double ambientTemperature,
-                                                      bool   startN3Hang);
+                                                      bool   startN3Hang,
+                                                      bool   simCombustion);
 
   /**
    * @brief This function manages the engine start procedure.

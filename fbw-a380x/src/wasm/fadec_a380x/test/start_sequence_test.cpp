@@ -61,6 +61,16 @@ static bool masterOn(bool simStarter, bool starterMotoring, int startPhase) {
 #endif
 }
 
+/// The OFF engine state becomes ON (EngineControl_A380X::engineStateMachine): before the fix without the MSFS combustion.
+static bool offIsRunning(int engineIgniter, bool engineStarter, double simN3, bool simCombustion) {
+#ifdef WITHOUT_THE_FIX
+  (void)simCombustion;
+  return engineIgniter == 1 && engineStarter && simN3 > 20;
+#else
+  return offEngineIsRunning(engineIgniter, engineStarter, simN3, simCombustion);
+#endif
+}
+
 int main() {
   // A dry crank with the ENG MASTER OFF: the cockpit XML engages the MSFS starter, which is no ENG MASTER ON (the engine model
   // must not start or show fuel)
@@ -82,6 +92,14 @@ int main() {
   expect("in flight the start sequence does not keep the starter", !engineStarter(true, true, false, false, STARTING));
   expect("ENG MASTER OFF releases the starter", !engineStarter(false, true, false, true, STARTING));
   expect("normal running engine", engineStarter(true, false, false, true, NONE));
+
+  // An OFF engine is ON only when MSFS burns in it (sim test 2026-10-07: a cold engine at NORM whose MSFS starter, which
+  // follows the ENG MASTER lever, turned the core past 20 % showed ON unlit, and the auto relight selected igniters A + B)
+  expect("an unlit core turned past 20 % at NORM is not running", !offIsRunning(1, true, 25.0, false));
+  expect("an engine running at the load of a flight is running (ground or air)", offIsRunning(1, true, 63.0, true));
+  expect("a core below 20 % is not running", !offIsRunning(1, true, 15.0, true));
+  expect("ENG START at IGN/START is a start, not a running engine", !offIsRunning(2, true, 63.0, true));
+  expect("ENG MASTER OFF is not running", !offIsRunning(1, false, 63.0, true));
 
   // A hung start does not end at idle
   expect("a hung start does not reach idle", !reachesIdle(true, 62.0, 62.0, true));
