@@ -414,6 +414,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_041, FailureType::ThrustLeverResolvers(2)),
         (73_050, FailureType::ThrustLeverResolverDisagree(1)),
         (73_051, FailureType::ThrustLeverResolverDisagree(2)),
+        (73_100, FailureType::EngineFuelFilterClog(1)),
+        (73_101, FailureType::EngineFuelFilterClog(2)),
         (78_000, FailureType::ReverserFault(1)),
         (78_001, FailureType::ReverserFault(2)),
         (78_010, FailureType::ReverserUnlocked(1)),
