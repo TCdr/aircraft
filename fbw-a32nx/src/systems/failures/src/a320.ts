@@ -169,6 +169,22 @@ export const A320Failure = Object.freeze({
   Eng2OilFilterClog: 79021,
   Eng1OilOverheat: 79030,
   Eng2OilOverheat: 79031,
+  Eng1IgniterA: 74000,
+  Eng2IgniterA: 74001,
+  Eng1IgniterB: 74010,
+  Eng2IgniterB: 74011,
+  Eng1StartValveStuckClosed: 80000,
+  Eng2StartValveStuckClosed: 80001,
+  Eng1StartValveStuckOpen: 80010,
+  Eng2StartValveStuckOpen: 80011,
+  Eng1HotStart: 80020,
+  Eng2HotStart: 80021,
+  Eng1HungStart: 80030,
+  Eng2HungStart: 80031,
+  Eng1StartStall: 80040,
+  Eng2StartStall: 80041,
+  Eng1Starter: 80050,
+  Eng2Starter: 80051,
 });
 
 export const A320FailureDefinitions: FailureDefinition[] = [
@@ -335,4 +351,25 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // The oil temperature rises with thrust above the ENG OIL HI TEMP limit
   [79, A320Failure.Eng1OilOverheat, 'Engine 1 oil overheat'],
   [79, A320Failure.Eng2OilOverheat, 'Engine 2 oil overheat'],
+
+  // The igniter does not light the engine (systems::engine::engine_start): IGN FAULT; no light up when the start uses it
+  [74, A320Failure.Eng1IgniterA, 'Engine 1 igniter A'],
+  [74, A320Failure.Eng2IgniterA, 'Engine 2 igniter A'],
+  [74, A320Failure.Eng1IgniterB, 'Engine 1 igniter B'],
+  [74, A320Failure.Eng2IgniterB, 'Engine 2 igniter B'],
+  // The start valve stays closed / open whatever the FADEC commands: START VALVE FAULT
+  [80, A320Failure.Eng1StartValveStuckClosed, 'Engine 1 start valve stuck closed'],
+  [80, A320Failure.Eng2StartValveStuckClosed, 'Engine 2 start valve stuck closed'],
+  [80, A320Failure.Eng1StartValveStuckOpen, 'Engine 1 start valve stuck open'],
+  [80, A320Failure.Eng2StartValveStuckOpen, 'Engine 2 start valve stuck open'],
+  // Ground start faults: START FAULT, automatic abort and new attempts
+  [80, A320Failure.Eng1HotStart, 'Engine 1 hot start (start EGT over limit)'],
+  [80, A320Failure.Eng2HotStart, 'Engine 2 hot start (start EGT over limit)'],
+  [80, A320Failure.Eng1HungStart, 'Engine 1 hung start (N2 stops below idle)'],
+  [80, A320Failure.Eng2HungStart, 'Engine 2 hung start (N2 stops below idle)'],
+  [80, A320Failure.Eng1StartStall, 'Engine 1 stall during the start'],
+  [80, A320Failure.Eng2StartStall, 'Engine 2 stall during the start'],
+  // The starter gets air but does not turn the engine: no start, no starter assisted relight
+  [80, A320Failure.Eng1Starter, 'Engine 1 starter shaft shear'],
+  [80, A320Failure.Eng2Starter, 'Engine 2 starter shaft shear'],
 ];

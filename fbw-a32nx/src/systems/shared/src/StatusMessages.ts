@@ -28,6 +28,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400006', { part: StatusPart.Limitation, text: 'CONSIDER ENG 1 RELIGHT' }],
   ['700500004', { part: StatusPart.Condition, text: 'IF NO ENG 2 DAMAGE:' }],
   ['700400007', { part: StatusPart.Limitation, text: 'CONSIDER ENG 2 RELIGHT' }],
+  // 80 STARTING (A320neo FCOM PRO-ABN-ENG ENG 1(2) START FAULT STATUS, STARTER SHAFT SHEAR)
+  ['800400001', { part: StatusPart.Limitation, text: 'ENG 1 WINDMILL START ONLY' }],
+  ['800400002', { part: StatusPart.Limitation, text: 'ENG 2 WINDMILL START ONLY' }],
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
   ['280200001', { part: StatusPart.Information, text: 'CTR TK USABLE BY GRAVITY' }],
@@ -84,6 +87,13 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['340300006', { part: StatusPart.InopSys, text: 'ATC/XPDR 2' }],
   ['340300007', { part: StatusPart.InopSys, text: 'ADS-B RPTG 1' }],
   ['340300008', { part: StatusPart.InopSys, text: 'ADS-B RPTG 2' }],
+  // 74 IGNITION (FCOM PRO-ABN-ENG ENG 1(2) IGN FAULT INOP SYS, a320_fcom.txt l.80295, 80331)
+  ['740300001', { part: StatusPart.InopSys, text: 'ENG 1 IGN A' }],
+  ['740300002', { part: StatusPart.InopSys, text: 'ENG 1 IGN B' }],
+  ['740300003', { part: StatusPart.InopSys, text: 'ENG 2 IGN A' }],
+  ['740300004', { part: StatusPart.InopSys, text: 'ENG 2 IGN B' }],
+  ['740300005', { part: StatusPart.InopSys, text: 'ENG 1 IGN' }],
+  ['740300006', { part: StatusPart.InopSys, text: 'ENG 2 IGN' }],
 ]);
 
 const StatusMessageOrder = new Map([...StatusMessages.keys()].map((code, index) => [code, index]));

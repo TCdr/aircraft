@@ -81,6 +81,23 @@ pub enum FailureType {
     EngineOilFilterClog(usize),
     /// The oil of engine n is no longer cooled enough: its temperature rises with thrust (engine::oil_failure)
     EngineOilOverheat(usize),
+    // ATA74
+    /// Igniter A (B) of engine n does not light the engine (engine::engine_start)
+    EngineIgniterA(usize),
+    EngineIgniterB(usize),
+    // ATA80
+    /// The start valve of engine n stays closed (engine::engine_start)
+    EngineStartValveStuckClosed(usize),
+    /// The start valve of engine n stays open (engine::engine_start)
+    EngineStartValveStuckOpen(usize),
+    /// The EGT of engine n overshoots during a start on the ground (engine::engine_start)
+    EngineHotStart(usize),
+    /// The core speed of engine n hangs below idle during a start on the ground (engine::engine_start)
+    EngineHungStart(usize),
+    /// Engine n stalls during a start on the ground (engine::engine_start)
+    EngineStartStall(usize),
+    /// The starter of engine n does not turn the engine (engine::engine_start)
+    EngineStarter(usize),
 }
 
 pub struct Failure {
