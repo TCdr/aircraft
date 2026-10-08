@@ -5,6 +5,7 @@
 #define FLYBYWIRE_AIRCRAFT_STARTSEQUENCE_A380X_HPP
 
 #include <algorithm>
+#include <optional>
 
 /**
  * @brief What the A380X FADEC engine model does with the start sequence of the systems WASM.
@@ -86,6 +87,32 @@ inline bool coreHeldAtRest(bool startSequenceKeepsStarter, bool starterMotoring)
 inline double restingCoreCorrectedN3(double correctedN3, double deltaTime) {
   return correctedN3 * (1.0 - (std::min)(1.0, deltaTime / UNLIT_N3_TIME_CONSTANT_SECONDS));
 }
+
+/**
+ * @brief The MSFS corrected N3 the FADEC writes, frame after frame, for a core it brings to rest (coreHeldAtRest).
+ *
+ * Design choice: the core runs down from the speed it had when the hold began, along the FADEC's own value, and not from the
+ * MSFS speed read back each frame. The MSFS starter (it follows the ENG MASTER lever) keeps adding its torque between two
+ * writes; a run-down applied to the MSFS speed read back settles where the two balance, at about the starter acceleration
+ * times the time constant: 5.7 % N3 with the APU bleed (sim test 2026-10-08, starter failure). The systems WASM detects a
+ * failed starter as starter air with the core below 5 % N2 for 10 s (engine_start.rs STARTER_FAULT_MAX_N2_PERCENT), so the
+ * starter failure was never detected. A380 FCOM DSC-70-80-30-20 (a380_fcom.txt l.112492-112493): "In the case of a starter
+ * failure [...] the FADEC automatically aborts the engine start without further attempt of automatic start sequence."
+ */
+class RestingCore {
+ public:
+  /// The corrected N3 to write this frame; the hold begins at the MSFS corrected N3 of its first frame.
+  double hold(double msfsCorrectedN3, double deltaTime) {
+    heldCorrectedN3 = restingCoreCorrectedN3(heldCorrectedN3.value_or(msfsCorrectedN3), deltaTime);
+    return *heldCorrectedN3;
+  }
+
+  /// The core is not held at rest this frame: MSFS turns it again.
+  void release() { heldCorrectedN3.reset(); }
+
+ private:
+  std::optional<double> heldCorrectedN3;
+};
 
 /**
  * @brief The OFF engine state becomes ON for an engine that runs at the load of a flight (on the ground or in the air): ENG
