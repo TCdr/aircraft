@@ -224,6 +224,8 @@ class FadecSimData_A380X {
   NamedVariablePtr engineRelightAttempt[4];   // Bool - a relight attempt is in progress (systems WASM)
   NamedVariablePtr engineStartSelector;       // Enum - ENG START selector: 0 crank, 1 norm, 2 ign start
   NamedVariablePtr engineFirePbReleased[4];   // Bool - ENG FIRE pb released: the FADEC is no longer supplied (FCOM DSC-26)
+  NamedVariablePtr engineIgniterA[4];         // Bool - igniter A energized (SD ENGINE page ignition indication)
+  NamedVariablePtr engineIgniterB[4];         // Bool - igniter B energized (SD ENGINE page ignition indication)
   NamedVariablePtr engineFuelUsed[4];   // kg
   NamedVariablePtr engineIdleEGT;       // Celsius
   NamedVariablePtr engineIdleFF;
@@ -434,6 +436,15 @@ class FadecSimData_A380X {
     engineFirePbReleased[E2]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG2", UNITS.Number, AUTO_READ);
     engineFirePbReleased[E3]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG3", UNITS.Number, AUTO_READ);
     engineFirePbReleased[E4]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG4", UNITS.Number, AUTO_READ);
+    // the igniters the FADEC energizes (IgniterSelection_A380X), the names of the A32NX (A32NX_FADEC.ts)
+    engineIgniterA[E1] = dm->make_named_var("A32NX_FADEC_IGNITER_A_ACTIVE_ENG1", UNITS.Bool, AUTO_WRITE);
+    engineIgniterA[E2] = dm->make_named_var("A32NX_FADEC_IGNITER_A_ACTIVE_ENG2", UNITS.Bool, AUTO_WRITE);
+    engineIgniterA[E3] = dm->make_named_var("A32NX_FADEC_IGNITER_A_ACTIVE_ENG3", UNITS.Bool, AUTO_WRITE);
+    engineIgniterA[E4] = dm->make_named_var("A32NX_FADEC_IGNITER_A_ACTIVE_ENG4", UNITS.Bool, AUTO_WRITE);
+    engineIgniterB[E1] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG1", UNITS.Bool, AUTO_WRITE);
+    engineIgniterB[E2] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG2", UNITS.Bool, AUTO_WRITE);
+    engineIgniterB[E3] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG3", UNITS.Bool, AUTO_WRITE);
+    engineIgniterB[E4] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG4", UNITS.Bool, AUTO_WRITE);
 
     engineFuelUsed[E1] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[E2] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);
@@ -524,6 +535,14 @@ class FadecSimData_A380X {
     engineN2[E2]->setAndWriteToSim(0);
     engineN2[E3]->setAndWriteToSim(0);
     engineN2[E4]->setAndWriteToSim(0);
+    engineIgniterA[E1]->setAndWriteToSim(0);
+    engineIgniterA[E2]->setAndWriteToSim(0);
+    engineIgniterA[E3]->setAndWriteToSim(0);
+    engineIgniterA[E4]->setAndWriteToSim(0);
+    engineIgniterB[E1]->setAndWriteToSim(0);
+    engineIgniterB[E2]->setAndWriteToSim(0);
+    engineIgniterB[E3]->setAndWriteToSim(0);
+    engineIgniterB[E4]->setAndWriteToSim(0);
     engineOilTotal[E1]->setAndWriteToSim(0);
     engineOilTotal[E2]->setAndWriteToSim(0);
     engineOilTotal[E3]->setAndWriteToSim(0);

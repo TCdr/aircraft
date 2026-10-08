@@ -31,6 +31,7 @@ set(INCLUDE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/ThrustLimits_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/Polynomials_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/RelightStart_A380X.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/IgniterSelection_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/Table1502_A380X.hpp
 )
 
