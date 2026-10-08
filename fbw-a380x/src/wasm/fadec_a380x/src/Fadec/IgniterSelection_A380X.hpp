@@ -34,19 +34,13 @@
  *    - in flight A + B (DSC-70-80-20 l.112353 "Both igniters are selected, when ENG MASTER lever is set to ON"; DSC-70-30
  *      l.113572 "Ignition starts (igniters A + B)") until the engine runs (l.113578 "Igniter is set to off when AVAIL
  *      appears");
- *    - on the ground (automatic start) one igniter (l.112328 "Only one igniter operates for an automatic start"), from
- *      GROUND_START_IGNITION_ON_N3 to GROUND_START_IGNITION_OFF_N3.
- *      Design choice: the FCOM gives "At 20 % N2: Ignition starts (igniters A or B)" with the fuel flow (DSC-70-30
- *      l.113553-113556) but also "20 s after N2 reaches 20 %" (DSC-70-80-20 l.112329, normal procedure l.119678-119680,
- *      together with the fuel flow increase). The FBW start model lights the fuel flow from about 20 % N3 without a 20 s dry
- *      motoring, so the igniter follows the 20 % rule and appears with the fuel flow, as all three texts pair them.
- *      Design choice: the end at 58 % is the automatic start value of DSC-70-80-20 (l.112341-112342 "Ignition automatically
- *      stops at the end of the start sequence, when N2 reaches approximately 58 %"); DSC-70-30 (l.113557) says 56 %, the
- *      value DSC-70-80-20 gives for the manual start (l.112348-112349).
- *      Design choice: the FCOM does not say which igniter an automatic start uses. As on the A32NX (A32NX_FADEC.ts) and as
- *      FADECs do to exercise both igniters, the igniter alternates (A, then B) at each automatic start that energized one.
- *      Not modelled: the automatic restart attempt with both igniters (l.112332) and the manual start (ENG MAN START pb):
- *      the FBW start sequence has neither.
+ *    - on the ground, the igniters of the start sequence of the systems WASM (L:A32NX_ENGINE_n_IGNITERS, written by
+ *      systems::engine::engine_start with the A380 schedule of a380_systems engine_failure.rs). The start sequence is the
+ *      one source of truth of the ground start: it also decides with them whether a failed igniter lights the engine up.
+ *      It energizes one igniter for a first automatic start (l.112328 "Only one igniter operates for an automatic start"),
+ *      alternated at each start, from 20 % to 58 % N2 (DSC-70-30 l.113553-113555, DSC-70-80-20 l.112341-112342), both
+ *      igniters for the new automatic attempts (l.112332) and none during the automatic dry crank. It is shown while that
+ *      start sequence runs (A32NX_ENGINE_n_START_PHASE not 0) or while the FBW engine state is STARTING on the ground.
  * 5. CONTINUOUS IGNITION (ENG START selector at IGN START, engine running), A + B (DSC-70-80-20 l.112367 "The FADEC uses
  *    both igniters, when the continuous ignition operates"):
  *    - in flight at once (l.112361-112362);
@@ -60,10 +54,6 @@
  */
 class IgniterSelection_A380X {
  public:
-  /// FCOM DSC-70-30 (l.113553-113555): "At 20 % N2: Ignition starts (igniters A or B)".
-  static constexpr double GROUND_START_IGNITION_ON_N3 = 20.0;
-  /// FCOM DSC-70-80-20 (l.112341-112342): automatic start, ignition stops "when N2 reaches approximately 58 %".
-  static constexpr double GROUND_START_IGNITION_OFF_N3 = 58.0;
   /// FCOM DSC-70-80-20 (l.112366): "The engine is at low power when N1 is below 53 % for more than 30 s."
   static constexpr double LOW_POWER_N1      = 53.0;
   static constexpr double LOW_POWER_SECONDS = 30.0;
@@ -86,6 +76,8 @@ class IgniterSelection_A380X {
     bool   firePbReleased;     // ENG FIRE pb released (A32NX_FIRE_BUTTON_ENGn): the FADEC is no longer supplied
     bool   ignStartSelected;   // ENG START selector at IGN START (XMLVAR_ENG_MODE_SEL = 2)
     bool   fadecBothIgniters;  // the FADEC selects both igniters by itself: auto relight or in-flight relight
+    bool   startSequenceActive;    // the ground start sequence of the systems WASM runs (A32NX_ENGINE_n_START_PHASE not 0)
+    int    startSequenceIgniters;  // the igniters that start sequence energizes (A32NX_ENGINE_n_IGNITERS): bit 0 A, bit 1 B
     double n3Percent;          // FBW N3 (A32NX_ENGINE_N3): the HP spool, the "N2" of the FCOM
     double n1Percent;          // FBW N1 (A32NX_ENGINE_N1)
     double deltaTime;          // seconds since the previous update
@@ -100,29 +92,12 @@ class IgniterSelection_A380X {
     updateQuickRelight(inputs);
     updateContinuousIgnitionConditions(inputs);
 
-    const Igniters igniters = select(inputs);
-
-    // Alternate the igniter of the automatic start: once a ground start that energized one igniter ends, the next one uses the
-    // other igniter (design choice, see the class comment)
-    if (inputs.engineStarting && inputs.simOnGround && (igniters.a != igniters.b)) {
-      groundStartIgniterUsed = true;
-    } else if (!inputs.engineStarting && groundStartIgniterUsed) {
-      groundStartUsesIgniterB = !groundStartUsesIgniterB;
-      groundStartIgniterUsed  = false;
-    }
-
-    return igniters;
+    return select(inputs);
   }
-
-  /// The igniter the next (or current) automatic start on the ground uses: false = A, true = B.
-  bool groundStartUsesB() const { return groundStartUsesIgniterB; }
 
  private:
   static constexpr Igniters NONE = {false, false};
   static constexpr Igniters BOTH = {true, true};
-
-  bool groundStartUsesIgniterB = false;  // the automatic start alternates A and B (starts with A)
-  bool groundStartIgniterUsed  = false;  // the current ground start has energized its igniter
 
   bool   previousMasterOn             = false;
   bool   previousEngineRunning        = false;
@@ -140,14 +115,13 @@ class IgniterSelection_A380X {
     if (inputs.fadecBothIgniters || quickRelightRemainingSeconds > 0.0) {
       return BOTH;
     }
+    if (inputs.simOnGround && (inputs.engineStarting || inputs.startSequenceActive)) {
+      // the ground start shows the igniters of the start sequence of the systems WASM (see the class comment)
+      return {(inputs.startSequenceIgniters & 1) != 0, (inputs.startSequenceIgniters & 2) != 0};
+    }
     if (inputs.engineStarting) {
-      if (!inputs.simOnGround) {
-        return BOTH;
-      }
-      if (inputs.n3Percent >= GROUND_START_IGNITION_ON_N3 && inputs.n3Percent < GROUND_START_IGNITION_OFF_N3) {
-        return {!groundStartUsesIgniterB, groundStartUsesIgniterB};
-      }
-      return NONE;
+      // in flight
+      return BOTH;
     }
     if (inputs.engineRunning && inputs.ignStartSelected) {
       if (!inputs.simOnGround) {

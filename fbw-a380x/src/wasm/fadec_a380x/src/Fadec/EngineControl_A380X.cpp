@@ -218,18 +218,20 @@ void EngineControl_A380X::update() {
         break;
     }
 
-    // The igniters the FADEC energizes, shown on the SD ENGINE page (A, B or A B): one alternated igniter for a ground start,
-    // both in flight, for the continuous ignition, the quick relight and the FADEC relight ignition above
-    // (IgniterSelection_A380X)
+    // The igniters the FADEC energizes, shown on the SD ENGINE page (A, B or A B): on the ground those of the start sequence
+    // of the systems WASM (L:A32NX_ENGINE_n_IGNITERS), both in flight, for the continuous ignition, the quick relight and the
+    // FADEC relight ignition above (IgniterSelection_A380X)
     const IgniterSelection_A380X::Igniters igniters = igniterSelection[engineIdx].update({
-        simOnGround,                                                //
-        engineState == ON,                                          //
-        engineState == STARTING || engineState == RESTARTING,       //
-        engineMasterStarter,                                        //
-        firePbReleased,                                             //
-        static_cast<int>(simData.engineStartSelector->get()) == 2,  //
-        fadecIgnition,                                              //
-        simData.engineN3[engineIdx]->get(),                         //
+        simOnGround,                                                            //
+        engineState == ON,                                                      //
+        engineState == STARTING || engineState == RESTARTING,                   //
+        engineMasterStarter,                                                    //
+        firePbReleased,                                                         //
+        static_cast<int>(simData.engineStartSelector->get()) == 2,              //
+        fadecIgnition,                                                          //
+        startPhase != 0,                                                        //
+        static_cast<int>(simData.engineStartIgniters[engineIdx]->get()),       //
+        simData.engineN3[engineIdx]->get(),                                     //
         simData.engineN1[engineIdx]->get(),                         //
         deltaTime,                                                  //
     });

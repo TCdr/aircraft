@@ -3248,6 +3248,23 @@ mod tests {
         test_bed.set_engine_state(1, EngineState::Restarting)
     }
 
+    fn engine_1_starter_pressurized_within(
+        test_bed: &mut PneumaticTestBed,
+        duration: Duration,
+    ) -> bool {
+        let step = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            test_bed.run_with_delta(step);
+            elapsed += step;
+            let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+            if pressurized {
+                return true;
+            }
+        }
+        false
+    }
+
     fn engine_1_lights_up_within(test_bed: &mut PneumaticTestBed, duration: Duration) -> bool {
         let step = Duration::from_millis(100);
         let mut elapsed = Duration::ZERO;
@@ -3458,6 +3475,10 @@ mod tests {
             .run_multiple_frames(Duration::from_secs(10));
         test_bed = with_engine_1_master_off_then_on(test_bed);
 
+        assert!(!engine_1_starter_pressurized_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
         assert!(!engine_1_lights_up_within(
             &mut test_bed,
             Duration::from_secs(30)
@@ -3478,6 +3499,10 @@ mod tests {
         test_bed.write_by_name("ENGINE_N3:1", 0.);
         test_bed = with_engine_1_master_off_then_on(test_bed);
 
+        assert!(!engine_1_starter_pressurized_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
         assert!(!engine_1_lights_up_within(
             &mut test_bed,
             Duration::from_secs(30)
@@ -3498,7 +3523,18 @@ mod tests {
             .run_multiple_frames(Duration::from_secs(30));
         test_bed = test_bed.set_bleed_air_running();
         test_bed = with_engine_1_master_off_then_on(test_bed);
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(3));
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(
+            pressurized,
+            "the APU bleed reaches the starter of the stopped engine"
+        );
 
+        // the starter air turns the core (the test bed does not spin it up): the B3 start sequence
+        // lights the fuel from 20 % N3
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
         assert!(engine_1_lights_up_within(
             &mut test_bed,
             Duration::from_secs(5)
