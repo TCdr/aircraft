@@ -22,3 +22,17 @@ export function vibrationClassName(vibrationUnits: number): string {
 export function n3ClassName(n3Percent: number): string {
   return n3Percent > N3_RED_LIMIT_PERCENT ? 'Red' : 'Green';
 }
+
+/**
+ * The red cross next to the N3 (the FCOM N2). A380 FCOM DSC-70-90 N2 (a380_fcom.txt l.113300-113302, figure "119.8 +"
+ * on PDF page 4109): "N2 value is above the red limit. N2 red limit value is 118.7 %. The red cross no longer appears
+ * after a subsequent engine start on ground." The cross comes with the exceedance and stays after the N3 is back below
+ * the limit, until the next start of that engine on the ground.
+ * @param shownBefore the cross was shown at the previous update
+ * @param n3Percent the N3 in percent
+ * @param groundStart that engine is starting on the ground (ENGINE_STATE starting or restarting, on ground)
+ * @returns whether the red cross shows
+ */
+export function n3RedCrossShown(shownBefore: boolean, n3Percent: number, groundStart: boolean): boolean {
+  return (shownBefore && !groundStart) || n3Percent > N3_RED_LIMIT_PERCENT;
+}
