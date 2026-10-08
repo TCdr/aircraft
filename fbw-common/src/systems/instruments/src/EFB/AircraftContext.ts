@@ -6,11 +6,14 @@ import { createContext } from 'react';
 import { DescentPerformanceCalculator } from '../../../shared/src/performance/descent';
 import { LandingPerformanceCalculator } from '../../../shared/src/performance/landing';
 import { TakeoffPerformanceCalculator } from '../../../shared/src/performance/takeoff';
+import { BuffetEnvelopeData } from './Performance/Data/buffet';
 
 interface PerformanceCalculators {
   takeoff: TakeoffPerformanceCalculator | null;
   landing: LandingPerformanceCalculator | null;
   descent: DescentPerformanceCalculator | null;
+  /** The buffet onset data of the Performance > Buffet page; null: no Buffet tab (no buffet chart for the aircraft) */
+  buffetEnvelope: BuffetEnvelopeData | null;
 }
 
 interface PushbackPage {
@@ -83,6 +86,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
     takeoff: null,
     landing: null,
     descent: null,
+    buffetEnvelope: null,
   },
   pushbackPage: {
     turnIndicatorTuningDefault: 0,

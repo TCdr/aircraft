@@ -83,6 +83,7 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
           takeoff: null,
           landing: null,
           descent: null,
+          buffetEnvelope: null,
         },
         pushbackPage: {
           turnIndicatorTuningDefault: 1.35,

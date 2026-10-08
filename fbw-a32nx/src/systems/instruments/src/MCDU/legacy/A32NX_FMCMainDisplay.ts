@@ -75,6 +75,7 @@ import {
 import { AdfRadioTuningStatus, MmrRadioTuningStatus, VorRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from './FmsFormatters';
+import { maxFlightLevel, REC_MAX_FL_LVAR, recMaxFlightLevelLVarValue } from './RecMaxFlightLevel';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
 import { FlightPhaseManager } from '@fmgc/flightphase';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
@@ -172,6 +173,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   /** Declaration of every variable used (NOT initialization) */
   private readonly maximumAllowedCruiseFlightLevel = 390;
   private readonly maximumRecommendedCruiseFlightLevel = 398;
+  /** The REC MAX flight level last written to its LVar (for the flyPad), to write it on change only */
+  private publishedRecMaxFl: number | undefined = undefined;
   public coRoute = { routeNumber: undefined, routes: undefined };
 
   private readonly fuelComputationsCache: Map<FlightPlanIndex, FuelPredComputations> = new Map();
@@ -570,7 +573,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this.flightPhaseManager.init();
     this.flightPhaseManager.addOnPhaseChanged(this.onFlightPhaseChanged.bind(this));
 
-    this.observableFlightPlanManager.activePlan.sub(async (_) => await this.onActiveFlightPlanChanged(), true);
+    this.observableFlightPlanManager.activePlan.sub(async (_) => {
+      await this.onActiveFlightPlanChanged();
+    }, true);
 
     // Start the check routine for system health and status
     setInterval(() => {
@@ -821,6 +826,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       this.updateMinimums();
       this.updateIlsCourse();
       this.updatePerfPageAltPredictions();
+      this.updateRecMaxFlightLevel();
       // this.checkEfobBelowMin(deltaTime);
     }
 
@@ -4434,9 +4440,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
    */
   //TODO: can this be an util?
   private getMaxFL(temp = A32NX_Util.getIsaTempDeviation(), gw = this.getGrossWeight()): number | null {
-    return gw !== null
-      ? Math.round(temp <= 10 ? -2.778 * gw + 578.667 : (temp * -0.039 - 2.389) * gw + temp * -0.667 + 585.334)
-      : null;
+    return maxFlightLevel(temp, gw);
   }
 
   /**
@@ -4448,6 +4452,18 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   public getMaxFlCorrected(): number | null {
     const maxFl = this.getMaxFL();
     return maxFl !== null ? Math.min(maxFl, this.maximumRecommendedCruiseFlightLevel) : null;
+  }
+
+  /**
+   * Publishes the REC MAX flight level of the PROG page in L:A32NX_FM_REC_MAX_FL (0 when not available), for the
+   * flyPad Performance > Buffet page. Written on change only.
+   */
+  private updateRecMaxFlightLevel(): void {
+    const value = recMaxFlightLevelLVarValue(this.getMaxFlCorrected());
+    if (value !== this.publishedRecMaxFl) {
+      this.publishedRecMaxFl = value;
+      SimVar.SetSimVarValue(REC_MAX_FL_LVAR, 'number', value);
+    }
   }
 
   // only used by trySetMinDestFob
