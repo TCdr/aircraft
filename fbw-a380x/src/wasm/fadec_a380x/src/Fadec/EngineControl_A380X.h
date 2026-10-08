@@ -12,6 +12,7 @@
 #include "FadecSimData_A380X.hpp"
 #include "FuelConfiguration_A380X.h"
 #include "IgniterSelection_A380X.hpp"
+#include "StartSequence_A380X.hpp"
 
 #define FILENAME_FADEC_CONF_DIRECTORY "\\work\\AircraftStates\\"
 #define FILENAME_FADEC_CONF_FILE_EXTENSION ".ini"
@@ -84,6 +85,9 @@ class EngineControl_A380X {
 
   // The EGT excess of a hot start or a stall (StartSequence_A380X::egtOvershoot), in degrees Celsius
   double startEgtExcess[4] = {0.0, 0.0, 0.0, 0.0};
+
+  // the core speed the FADEC holds a ground start without starter air at, per engine (see StartSequence_A380X::RestingCore)
+  StartSequence_A380X::RestingCore restingCore[4]{};
 
   // the igniters (A, B) the FADEC energizes per engine, for the SD ENGINE page (see IgniterSelection_A380X)
   IgniterSelection_A380X igniterSelection[4]{};
