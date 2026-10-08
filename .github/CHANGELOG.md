@@ -317,6 +317,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FADEC] The automatic engine start follows the FCOM: one igniter (alternated between starts) from 16 % N2, fuel at 22 %, ignition off and start valve closed at 50 % N2; on the ground a start that does not light up, stalls, hangs or goes above 725 °C EGT is aborted, dry cranked for 30 s and tried again with both igniters, up to three attempts, then the ENG FAULT light comes on - @TCdr
 1. [A32NX/ENG] The ENG MAN START pushbuttons work (manual start, dry crank and wet crank), continuous ignition with the ENG MODE selector at IGN/START, and the SD ENG start indications show at CRANK too - @TCdr
 1. [A32NX/FWS] New ENG 1(2) START FAULT, START VALVE FAULT and IGN FAULT cautions with their FCOM lines and STATUS; the IGNITION memo shows when the continuous ignition is on - @TCdr
+1. [A380X/EFB] New flyPad failures for engine ignition and starting: Engine 1(2)(3)(4) igniter A or B, start valve stuck closed or stuck open, hot start, hung start, stall during the start and starter shaft shear - @TCdr
+1. [A380X/FADEC] The automatic engine start on the ground follows the FCOM: a start that does not light up within 20 s, stalls, hangs or goes above 745 °C EGT is aborted, dry cranked for 30 s and tried again with both igniters, up to three attempts; a start valve stuck closed, no starter air or a failed starter leaves the core at rest; the ENG MAN START pushbuttons work (dry crank with the ENG MASTER OFF, wet crank, manual start) - @TCdr
+1. [A380X/FWS] New ENG START FAULT (with its FCOM sub-cases and lines), START VLV FAULT (NOT CLOSED / NOT OPEN) and IGN A, IGN B, IGN A+B FAULT cautions with their INOP SYS - @TCdr
 
 ## 2024.1.0
 

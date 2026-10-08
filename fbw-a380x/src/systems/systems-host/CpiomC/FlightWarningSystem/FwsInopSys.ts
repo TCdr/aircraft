@@ -83,6 +83,20 @@ export class FwsInopSys {
   }
 
   inopSys: FwsInopSysDict = {
+    // ENG n IGN A+B FAULT STATUS INOP SYS ALL PHASES: ENG n IGNITION; ENG n IGN A(B) FAULT MORE INFO REDUND LOSS: ENG n IGN
+    // A(B) (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt l.172254-172255, 172289)
+    740300002: { simVarIsActive: this.fws.engineIgnAPlusBFault[0], phase: FwsInopSysPhases.AllPhases },
+    740300003: { simVarIsActive: this.fws.engineIgnAPlusBFault[1], phase: FwsInopSysPhases.AllPhases },
+    740300004: { simVarIsActive: this.fws.engineIgnAPlusBFault[2], phase: FwsInopSysPhases.AllPhases },
+    740300005: { simVarIsActive: this.fws.engineIgnAPlusBFault[3], phase: FwsInopSysPhases.AllPhases },
+    740300006: { simVarIsActive: this.fws.engineIgnAFault[0], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300007: { simVarIsActive: this.fws.engineIgnAFault[1], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300008: { simVarIsActive: this.fws.engineIgnAFault[2], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300009: { simVarIsActive: this.fws.engineIgnAFault[3], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300010: { simVarIsActive: this.fws.engineIgnBFault[0], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300011: { simVarIsActive: this.fws.engineIgnBFault[1], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300012: { simVarIsActive: this.fws.engineIgnBFault[2], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300013: { simVarIsActive: this.fws.engineIgnBFault[3], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
     280300001: {
       // JETTISON (A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON FAULT, STATUS)
       simVarIsActive: this.fws.fuelJettisonFault,

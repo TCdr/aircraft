@@ -12,6 +12,7 @@ use uom::si::{
 use systems::{
     accept_iterable,
     air_conditioning::PackFlowControllers,
+    engine::engine_start::EngineStartValveSupervision,
     overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
     pneumatic::{
         valve::*, BleedMonitoringComputerIsAliveSignal, CompressionChamber,
@@ -154,10 +155,10 @@ impl A380Pneumatic {
             ],
             fadec: FullAuthorityDigitalEngineControl::new(context),
             engine_starter_valve_controllers: [
-                EngineStarterValveController::new(1),
-                EngineStarterValveController::new(2),
-                EngineStarterValveController::new(3),
-                EngineStarterValveController::new(4),
+                EngineStarterValveController::new(context, 1),
+                EngineStarterValveController::new(context, 2),
+                EngineStarterValveController::new(context, 3),
+                EngineStarterValveController::new(context, 4),
             ],
             apu_compression_chamber: CompressionChamber::new(Volume::new::<cubic_meter>(5.)),
             apu_bleed_air_valve: DefaultValve::new_closed(),
@@ -419,6 +420,7 @@ impl SimulationElement for A380Pneumatic {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.fadec.accept(visitor);
 
+        accept_iterable!(self.engine_starter_valve_controllers, visitor);
         accept_iterable!(self.cross_bleed_valves, visitor);
         accept_iterable!(self.engine_systems, visitor);
         accept_iterable!(self.packs, visitor);
@@ -491,9 +493,14 @@ fn engine_ducts_without_air_source(
     [0, 1, 2, 3].map(|engine| !engine_running[engine] && !group_has_source(group[engine]))
 }
 
+/// The FADEC control of the engine start valve. The start sequence on the ground (engine_failure.rs,
+/// systems::engine::engine_start) commands it for the start, the cranks and the abort; the schedule
+/// below covers the in-flight starts. The valve can be stuck (flyPad failures) and the FADEC detects
+/// a valve that does not follow its command (ENG START VLV FAULT).
 struct EngineStarterValveController {
     number: usize,
     should_open: bool,
+    supervision: EngineStartValveSupervision,
 }
 impl ControllerSignal<EngineStarterValveSignal> for EngineStarterValveController {
     fn signal(&self) -> Option<EngineStarterValveSignal> {
@@ -508,10 +515,11 @@ impl EngineStarterValveController {
     /// FCOM N2 (the HP spool of the GP7270), read on the Trent N3
     const START_VALVE_CLOSING_N3_PERCENT: f64 = 58.4;
 
-    fn new(number: usize) -> Self {
+    fn new(context: &mut InitContext, number: usize) -> Self {
         Self {
             number,
             should_open: false,
+            supervision: EngineStartValveSupervision::new(context, number),
         }
     }
 
@@ -535,9 +543,20 @@ impl EngineStarterValveController {
                 context.indicated_airspeed(),
             );
 
-        self.should_open = starting
+        let schedule_open = starting
             && starter_assisted
             && core_speed.get::<percent>() <= Self::START_VALVE_CLOSING_N3_PERCENT;
+        let commanded_open = self.supervision.commanded_open(schedule_open);
+        self.should_open = self.supervision.position_open(commanded_open);
+        self.supervision
+            .monitor(context.delta(), commanded_open, self.should_open);
+    }
+}
+impl SimulationElement for EngineStarterValveController {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.supervision.accept(visitor);
+
+        visitor.visit(self);
     }
 }
 
@@ -3170,6 +3189,43 @@ mod tests {
         test_bed.write_by_name("ENGINE_N3:1", 59.);
         test_bed = test_bed.and_run();
         assert!(!test_bed.es_valve_is_open(1));
+    }
+
+    #[test]
+    fn a_start_valve_stuck_closed_does_not_open_and_is_reported() {
+        let mut test_bed = test_bed_with().stop_eng3().and_run();
+        test_bed.fail(FailureType::EngineStartValveStuckClosed(3));
+        test_bed = test_bed.start_eng3().and_run();
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(6));
+
+        assert!(!test_bed.es_valve_is_open(3));
+        let fault: f64 = test_bed.read_by_name("ENGINE_3_START_VALVE_FAULT");
+        assert_eq!(fault, 1.);
+    }
+
+    #[test]
+    fn a_start_valve_stuck_open_stays_open_and_is_reported() {
+        let mut test_bed = test_bed_with().idle_eng4().and_run();
+        test_bed.fail(FailureType::EngineStartValveStuckOpen(4));
+        test_bed = test_bed.and_run();
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(6));
+
+        assert!(test_bed.es_valve_is_open(4));
+        let fault: f64 = test_bed.read_by_name("ENGINE_4_START_VALVE_FAULT");
+        assert_eq!(fault, 2.);
+    }
+
+    #[test]
+    fn the_start_sequence_opens_the_start_valve_of_an_engine_off_for_a_crank() {
+        let mut test_bed = test_bed_with().stop_eng2().and_run();
+        test_bed.write_by_name("ENGINE_2_START_VALVE_COMMAND", 1.);
+        test_bed = test_bed.and_run();
+
+        assert!(test_bed.es_valve_is_open(2));
     }
 
     /// Engine 1 has flamed out with its master ON (FADEC SHUTTING), ENG START selector at IGN START.

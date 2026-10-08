@@ -32,6 +32,13 @@ import {
   OIL_TEMP_HI_PHASE_INHIBITION,
 } from './EngineOilAlerts';
 import {
+  IGN_FAULT_FLIGHT_PHASE_INHIBITION,
+  START_ALERTS_FLIGHT_PHASE_INHIBITION,
+  startFaultItems,
+  startValveNotClosedItems,
+  startValveNotOpenItems,
+} from './EngineStartAlerts';
+import {
   condDuctOvhtActive,
   condDuctOvhtInfo,
   condDuctOvhtInopSys,
@@ -484,7 +491,83 @@ export class FwsAbnormalSensed {
     }
   }
 
+  /**
+   * ENG n START FAULT (701800117-120), START VLV FAULT (NOT CLOSED) (121-124), (NOT OPEN) (125-128), IGN A FAULT (057-060),
+   * IGN B FAULT (061-064), IGN A+B FAULT (065-068): A380 FCOM PRO-ABN-ECAM-10-70, see EngineStartAlerts.ts. Amber cautions.
+   */
+  private engineStartAlerts(): EwdAbnormalDict {
+    const alerts: EwdAbnormalDict = {};
+    const masters = [this.fws.engine1Master, this.fws.engine2Master, this.fws.engine3Master, this.fws.engine4Master];
+    for (let index = 0; index < 4; index++) {
+      const engineNumber = (index + 1) as 1 | 2 | 3 | 4;
+      const valveInputs = () => ({
+        engineNumber,
+        onGround: this.fws.aircraftOnGround.get(),
+        masterOn: masters[index].get(),
+        manualStartPbOn: this.fws.engineManualStartPbOn[index],
+        apuBleedPbOn: this.fws.apuBleedPbOn.get(),
+      });
+      const startFault = () =>
+        startFaultItems({
+          fault: this.fws.engineStartFault[index],
+          phase: this.fws.engineStartPhase[index],
+          attempt: this.fws.engineStartAttempt[index],
+          manualStart: this.fws.engineStartManual[index],
+          onGround: this.fws.aircraftOnGround.get(),
+          masterOn: masters[index].get(),
+          manualStartPbOn: this.fws.engineManualStartPbOn[index],
+          engStartSelector: this.fws.engSelectorPosition.get(),
+          apuBleedPbOn: this.fws.apuBleedPbOn.get(),
+          allThrustLeversIdle: this.fws.allThrottleIdle.get(),
+        });
+      alerts[701800117 + index] = {
+        flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.engineStartFaultActive[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => startFault().show,
+        whichItemsChecked: () => startFault().checked,
+        failure: 2,
+        sysPage: SdPages.Eng,
+      };
+      alerts[701800121 + index] = {
+        flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.engineStartValveNotClosed[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => startValveNotClosedItems(valveInputs()).show,
+        whichItemsChecked: () => startValveNotClosedItems(valveInputs()).checked,
+        failure: 2,
+        sysPage: SdPages.Eng,
+      };
+      alerts[701800125 + index] = {
+        flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.engineStartValveNotOpen[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => startValveNotOpenItems(valveInputs()).show,
+        whichItemsChecked: () => startValveNotOpenItems(valveInputs()).checked,
+        failure: 2,
+        sysPage: SdPages.Eng,
+      };
+      const ignitionFault = (simVarIsActive: Subscribable<boolean>, flightPhaseInhib: number[]) => ({
+        flightPhaseInhib,
+        simVarIsActive,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 2,
+        sysPage: SdPages.None,
+      });
+      alerts[701800057 + index] = ignitionFault(this.fws.engineIgnAFault[index], IGN_FAULT_FLIGHT_PHASE_INHIBITION);
+      alerts[701800061 + index] = ignitionFault(this.fws.engineIgnBFault[index], IGN_FAULT_FLIGHT_PHASE_INHIBITION);
+      alerts[701800065 + index] = ignitionFault(
+        this.fws.engineIgnAPlusBFault[index],
+        START_ALERTS_FLIGHT_PHASE_INHIBITION,
+      );
+    }
+    return alerts;
+  }
+
   public ewdAbnormalSensed: EwdAbnormalDict = {
+    ...this.engineStartAlerts(),
     // ATA 21 - AIR CONDITIONING AND PRESSURIZATION
     211800001: {
       // PACK 1 CTL 1 FAULT
