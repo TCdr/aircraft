@@ -94,6 +94,15 @@ pub enum FailureType {
     EngineStartStall(usize),
     /// The starter of engine n does not turn the engine (engine::engine_start)
     EngineStarter(usize),
+    // ATA72 and ATA77: the engine keeps running (engine::engine_malfunction)
+    /// Engine n stalls above a thrust threshold: thrust loss, EGT rise, fluctuating N1 and N2
+    EngineCompressorStall(usize),
+    /// The EGT of engine n is too high, more so at high thrust
+    EngineEgtOvertemperature(usize),
+    /// The N1 and N2 indications of engine n run above their values, more so at high thrust
+    EngineOverspeed(usize),
+    /// The N1 and N2 rotors of engine n vibrate above the advisory at high thrust
+    EngineHighVibration(usize),
 }
 
 pub struct Failure {
