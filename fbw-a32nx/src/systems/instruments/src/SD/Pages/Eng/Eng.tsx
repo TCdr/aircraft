@@ -10,6 +10,7 @@ import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { isStartIndicationShown } from './StartIndications';
+import { N1_VIBRATION_ADVISORY_UNITS, N2_VIBRATION_ADVISORY_UNITS, vibrationClassName } from './EngVibration';
 
 import './Eng.scss';
 import {
@@ -318,9 +319,10 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
   const [shouldTemperaturePulse, setShouldTemperaturePulse] = useState(false);
   const [tempBeenAboveAdvisory, setTempBeenAboveAdvisory] = useState(false);
 
-  const [n1Vibration] = useSimVar(`TURB ENG VIBRATION:${engineNumber}`, 'Number');
+  // The N1 and N2 vibrations of the systems WASM (see EngVibration): MSFS has a single vibration value per engine.
+  const [n1Vibration] = useSimVar(`L:A32NX_ENGINE_${engineNumber}_N1_VIBRATION`, 'number', 250);
 
-  const [n2Vibration] = useSimVar(`TURB ENG VIBRATION:${engineNumber}`, 'Number'); // FIXME TODO: should have a different value than N1, currently API limited
+  const [n2Vibration] = useSimVar(`L:A32NX_ENGINE_${engineNumber}_N2_VIBRATION`, 'number', 250);
 
   const activeVisibility = fadecOn ? 'visible' : 'hidden';
   const inactiveVisibility = fadecOn ? 'hidden' : 'visible';
@@ -382,13 +384,21 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
           {displayedEngineOilTemperature}
         </text>
 
-        <text x={x} y={y + 270} className="FillGreen TextCenter">
+        <text
+          x={x}
+          y={y + 270}
+          className={`${vibrationClassName(n1Vibration, N1_VIBRATION_ADVISORY_UNITS)} TextCenter`}
+        >
           <tspan className="FontLarge">{n1Vibration.toFixed(1).toString().split('.')[0]}</tspan>
           <tspan className="FontSmall">.</tspan>
           <tspan className="FontSmall">{n1Vibration.toFixed(1).toString().split('.')[1]}</tspan>
         </text>
 
-        <text x={x} y={y + 300} className="FillGreen TextCenter">
+        <text
+          x={x}
+          y={y + 300}
+          className={`${vibrationClassName(n2Vibration, N2_VIBRATION_ADVISORY_UNITS)} TextCenter`}
+        >
           <tspan className="FontLarge">{n2Vibration.toFixed(1).toString().split('.')[0]}</tspan>
           <tspan className="FontSmall">.</tspan>
           <tspan className="FontSmall">{n2Vibration.toFixed(1).toString().split('.')[1]}</tspan>

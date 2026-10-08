@@ -373,6 +373,15 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (80_041, FailureType::EngineStartStall(2)),
         (80_050, FailureType::EngineStarter(1)),
         (80_051, FailureType::EngineStarter(2)),
+        // Stage A4: the engine keeps running (a320_systems engine_malfunction.rs)
+        (72_100, FailureType::EngineCompressorStall(1)),
+        (72_101, FailureType::EngineCompressorStall(2)),
+        (72_110, FailureType::EngineEgtOvertemperature(1)),
+        (72_111, FailureType::EngineEgtOvertemperature(2)),
+        (72_120, FailureType::EngineOverspeed(1)),
+        (72_121, FailureType::EngineOverspeed(2)),
+        (77_000, FailureType::EngineHighVibration(1)),
+        (77_001, FailureType::EngineHighVibration(2)),
         (
             34_030,
             FailureType::EnhancedGroundProximityWarningSystemComputer,
@@ -453,6 +462,13 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 2)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 1)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 2)?
+    // The MSFS engine speeds and vibration (a320_systems engine_malfunction.rs)
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 1)?
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 2)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 1)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 2)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 1)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 2)?
     .provides_aircraft_variable("UNLIMITED FUEL", "Bool", 0)?
     .provides_aircraft_variable("VELOCITY BODY X", "feet per second", 0)?
     .provides_aircraft_variable("VELOCITY BODY Y", "feet per second", 0)?
