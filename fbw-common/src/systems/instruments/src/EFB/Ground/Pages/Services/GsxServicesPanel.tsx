@@ -24,7 +24,10 @@ import {
   gsxRemote,
   gsxServiceLook,
   gsxServiceProgress,
+  gsxTurnaroundAction,
 } from './GsxRemote';
+import { GsxPaxProgress, gsxPaxProgress } from './gsxPassengers';
+import { useGsxPassengers } from './useGsxPassengers';
 
 /** The turnaround steps of a departure (at the origin) and of an arrival (after landing), in order */
 const DEPARTURE_TURNAROUND: GsxServiceId[] = [GsxServiceId.Catering, GsxServiceId.Boarding, GsxServiceId.Departure];
@@ -67,9 +70,13 @@ export async function triggerGsxService(service: GsxServiceId, name: string): Pr
 /**
  * The status line of a GSX service, shown under its button: what GSX does with it, and its progress
  * @param service the service, undefined when GSX does not list it
+ * @param pax the flyPad's passenger counter of the boarding or deboarding (gsxPaxProgress), in place of GSX's own
  * @returns the text (empty when idle) and the progress 0 to 1 (null without one)
  */
-export function gsxServiceStatus(service: GsxService | undefined): { text: string; progress: number | null } {
+export function gsxServiceStatus(
+  service: GsxService | undefined,
+  pax: GsxPaxProgress | null = null,
+): { text: string; progress: number | null } {
   if (!service) {
     return { text: '', progress: null };
   }
@@ -94,6 +101,11 @@ export function gsxServiceStatus(service: GsxService | undefined): { text: strin
         break;
     }
   }
+  if (pax !== null) {
+    const counter = `${pax.current}/${pax.total}`;
+    text = text ? `${text} ${counter}` : counter;
+    return { text, progress: pax.total > 0 && service.state !== 'completed' ? pax.current / pax.total : null };
+  }
   if (service.progressText && (service.state === 'performing' || service.state === 'completing')) {
     text = text ? `${text} ${service.progressText}` : service.progressText;
   }
@@ -114,18 +126,26 @@ interface GsxServicesPanelProps {
 }
 
 /** A step of the turnaround timeline */
-const TurnaroundStep: FC<{ service: GsxService | undefined; last: boolean }> = ({ service, last }) => {
+const TurnaroundStep: FC<{
+  service: GsxService | undefined;
+  last: boolean;
+  /** The passenger counter of the boarding and deboarding steps */
+  pax: GsxPaxProgress | null;
+  /** Before the request of the service (the boarding gives GSX the passenger number first) */
+  onRequest?: () => void;
+}> = ({ service, last, pax, onRequest }) => {
   if (!service) {
     return null;
   }
   const tone = gsxServiceTone(service);
-  const { text, progress } = gsxServiceStatus(service);
+  const { text, progress } = gsxServiceStatus(service, pax);
   const done = service.state === 'completed';
   const look = gsxServiceLook(service);
+  const actionKind = gsxTurnaroundAction(service);
   let action: string | null = null;
-  if (look === 'inactive') {
+  if (actionKind === 'request') {
     action = t('Ground.Services.Request');
-  } else if (look === 'active' && service.canTrigger) {
+  } else if (actionKind === 'stop') {
     action = t('Ground.Services.Stop');
   }
   return (
@@ -155,7 +175,10 @@ const TurnaroundStep: FC<{ service: GsxService | undefined; last: boolean }> = (
           <M3ActionChip
             className="ml-3"
             primary={look === 'inactive'}
-            onClick={() => triggerGsxService(service.id as GsxServiceId, service.displayName)}
+            onClick={() => {
+              onRequest?.();
+              triggerGsxService(service.id as GsxServiceId, service.displayName);
+            }}
           >
             {action}
           </M3ActionChip>
@@ -176,6 +199,9 @@ export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChan
   const ready = linked && found;
   const [flightPhase] = useSimVar('L:A32NX_FMGC_FLIGHT_PHASE', 'enum', 1000);
   const turnaround = flightPhase === FLIGHT_PHASE_DONE ? ARRIVAL_TURNAROUND : DEPARTURE_TURNAROUND;
+  // The flyPad's passengers: given to GSX (planned before a departure, on board after landing) and counted on the
+  // boarding and deboarding steps
+  const { counts: paxCounts, announce: announcePax } = useGsxPassengers(ready);
 
   // GSX under remote control while linked
   useEffect(() => {
@@ -227,7 +253,13 @@ export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChan
           <M3SectionHeader title={t('Ground.Services.Turnaround')} />
           <div className="scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
             {turnaround.map((id, index) => (
-              <TurnaroundStep key={id} service={service(id)} last={index === turnaround.length - 1} />
+              <TurnaroundStep
+                key={id}
+                service={service(id)}
+                last={index === turnaround.length - 1}
+                pax={gsxPaxProgress(id, service(id)?.state, paxCounts)}
+                onRequest={id === GsxServiceId.Boarding || id === GsxServiceId.Deboarding ? announcePax : undefined}
+              />
             ))}
             <div className="-m-1 mt-2 flex flex-row flex-wrap">
               {EXTRA_SERVICES.map((id) => {
