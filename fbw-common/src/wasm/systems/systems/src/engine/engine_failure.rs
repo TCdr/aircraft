@@ -77,6 +77,12 @@ pub struct EngineFailureInputs {
     pub core_speed: Ratio,
     /// The LP fuel valve is closed and the fuel downstream of it is burned.
     pub lp_valve_starved: bool,
+    /// The start sequence on the ground keeps the fuel off: start not lit yet, crank, abort (see
+    /// `engine_start`).
+    pub start_sequence_fuel_cut: bool,
+    /// At least one igniter works: without, no relight lights up (ignition failures, see
+    /// `engine_start`).
+    pub ignition_available: bool,
 }
 
 pub struct EngineFailure {
@@ -188,7 +194,7 @@ impl EngineFailure {
                 core_speed: inputs.core_speed,
                 master_off_duration: self.master_off_duration,
             };
-            if envelope.engine_lights_up(&conditions) {
+            if inputs.ignition_available && envelope.engine_lights_up(&conditions) {
                 self.flamed_out = false;
                 self.relight_attempt_time = None;
             } else {
@@ -201,7 +207,8 @@ impl EngineFailure {
             }
         }
 
-        self.fuel_cut = inputs.lp_valve_starved || seized || self.flamed_out;
+        self.fuel_cut =
+            inputs.lp_valve_starved || seized || self.flamed_out || inputs.start_sequence_fuel_cut;
 
         // An in-flight relight that lights up (fuel no longer cut, master ON, engine not running yet)
         // has its igniters supplied whatever the ENG MODE selector position. A320 FCOM DSC-70-80-30
@@ -316,6 +323,8 @@ mod tests {
                     engine_is_running: true,
                     core_speed: Ratio::new::<percent>(80.),
                     lp_valve_starved: false,
+                    start_sequence_fuel_cut: false,
+                    ignition_available: true,
                 },
             }
         }
@@ -462,6 +471,30 @@ mod tests {
             .master_off_then_on();
 
         assert!(!test_bed.fuel_is_cut());
+        assert!(!test_bed.flamed_out());
+    }
+
+    #[test]
+    fn no_relight_lights_up_without_a_working_igniter() {
+        let mut test_bed = flamed_out_engine()
+            .with(|inputs| {
+                inputs.ignition_selected = true;
+                inputs.ignition_available = false;
+            })
+            .master_off_then_on()
+            .and_run_for(Duration::from_secs(5));
+
+        assert!(test_bed.fuel_is_cut());
+        assert!(test_bed.flamed_out());
+    }
+
+    #[test]
+    fn the_start_sequence_cuts_the_fuel_of_a_running_engine() {
+        let mut test_bed = EngineFailureTestBed::new()
+            .with(|inputs| inputs.start_sequence_fuel_cut = true)
+            .and_run();
+
+        assert!(test_bed.fuel_is_cut());
         assert!(!test_bed.flamed_out());
     }
 
