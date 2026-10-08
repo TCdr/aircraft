@@ -33,13 +33,14 @@ import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { WindUtils } from '@fmgc/guidance/vnav/wind/WindUtils';
 import { AlternateFuelPrediction, AlternateFuelPredictor } from './AlternateFuelPredictor';
+import { FinalHoldingPredictor, roundFuelUpToTenthTonne } from './FinalHoldingPredictor';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { Vmcl, maxZfw } from '@shared/PerformanceConstants';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { GpsDeselectedMessageLogic } from '@fmgc/components/fms-messages/GpsDeselectedMessageLogic';
 import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
-import { FINAL_HOLDING_FUEL_FLOW_T_PER_MIN, FmgcDataService } from './fmgc';
+import { FmgcDataService } from './fmgc';
 import { ADIRS } from '../shared/Adirs';
 import { NXSystemMessages } from '../shared/NXSystemMessages';
 import { A380OperatingSpeeds, A380SpeedsUtils } from '@shared/OperatingSpeeds';
@@ -1814,21 +1815,28 @@ export class FmcAircraftInterface {
       // Calculate alternate fuel: the FCOM default computation (CI 0, FL220 below 200 NM, else FL310), needs the ZFW
       const prediction = hasAlternate ? this.predictAlternate(fp, fpIndex) : null;
       pd.calculatedAlternateFuel.set(
-        hasAlternate ? (prediction !== null ? Math.ceil(Units.poundToKilogram(prediction.fuel) / 100) / 10 : null) : 0,
+        hasAlternate
+          ? prediction !== null
+            ? roundFuelUpToTenthTonne(Units.poundToKilogram(prediction.fuel) / 1000)
+            : null
+          : 0,
       );
       if (!hasAlternate) {
         pd.pilotAlternateFuel.set(null);
         this.alternatePredictions.delete(fpIndex);
       }
-      // Calculate final fuel.
+      // Calculate final fuel: a holding at green dot + 25 kt, 1500 ft above the alternate, that ends at the ZFW (FCOM
+      // PER-IFT-FPL-MRF HOLDING FUEL, see FinalHoldingPredictor). The calculated fuel is rounded up to 0.1 t like the
+      // ALTN fuel. Design choice (the FCOM only says the FINAL time default comes from the AMI company fuel policy): the
+      // FINAL time shown with a calculated fuel stays the time the fuel was computed from (default 30 min), not the
+      // slightly longer time of the rounded fuel.
+      const zfw = pd.zeroFuelWeight.get();
       if (pd.isFinalHoldingFuelPilotEntered.get()) {
-        const finalFuel = pd.pilotFinalHoldingFuel.get();
-        pd.calculatedFinalHoldingTime.set(finalFuel !== null ? finalFuel / FINAL_HOLDING_FUEL_FLOW_T_PER_MIN : null);
+        pd.calculatedFinalHoldingTime.set(FinalHoldingPredictor.timeForFuel(zfw, pd.pilotFinalHoldingFuel.get()));
         pd.calculatedFinalHoldingFuel.set(null);
       } else {
         pd.calculatedFinalHoldingTime.set(null);
-        const finalTime = pd.finalHoldingTime.get();
-        pd.calculatedFinalHoldingFuel.set(finalTime !== null ? finalTime * FINAL_HOLDING_FUEL_FLOW_T_PER_MIN : null);
+        pd.calculatedFinalHoldingFuel.set(FinalHoldingPredictor.calculatedFinalFuel(zfw, pd.finalHoldingTime.get()));
       }
     }
   }
