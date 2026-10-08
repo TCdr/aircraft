@@ -10,7 +10,6 @@ import {
   SeatFlags,
   Units,
   usePersistentNumberProperty,
-  usePersistentSetting,
   useSeatFlags,
   useSimVar,
 } from '@flybywiresim/fbw-sdk-react';
@@ -28,6 +27,8 @@ import {
 import { M3Segmented } from '../../../../UtilComponents/Material/Material';
 import { BoardingInput, MiscParamsInput, PayloadInputTable } from '../PayloadElements';
 import { CargoWidget } from './CargoWidget';
+import { seatColours } from '../../../../Utils/themePalette';
+import { useThemeChoice } from '../../../../Utils/useThemeChoice';
 import { ChartWidget } from '../Chart/ChartWidget';
 import { SeatMapWidget } from '../Seating/SeatMapWidget';
 import { PayloadProps } from '../PayloadPage';
@@ -639,30 +640,9 @@ export const A380Payload: React.FC<PayloadProps> = ({
     return `${minutes}:${padding}${seconds.toFixed(0)} ${t('Ground.Payload.EstimatedDurationUnit')}`;
   };
 
-  const [theme] = usePersistentSetting('EFB_UI_THEME');
-  const getTheme = useCallback(
-    (theme: string): [string, string, string] => {
-      let base = '#fff';
-      let primary = '#00C9E4';
-      let secondary = '#84CC16';
-      switch (theme) {
-        case 'dark':
-          base = '#fff';
-          primary = '#3B82F6';
-          secondary = '#84CC16';
-          break;
-        case 'light':
-          base = '#000000';
-          primary = '#3B82F6';
-          secondary = '#84CC16';
-          break;
-        default:
-          break;
-      }
-      return [base, primary, secondary];
-    },
-    [theme],
-  );
+  // the seat map colours of the flyPad theme
+  const [themeChoice] = useThemeChoice();
+  const seatThemeColours = seatColours(themeChoice);
 
   return (
     <PayloadLayout
@@ -685,15 +665,15 @@ export const A380Payload: React.FC<PayloadProps> = ({
       }
       cabin={
         <>
-          {displayPaxMainDeck && <A380SeatOutlineBg stroke={getTheme(theme)[0]} highlight="#69BD45" />}
-          {!displayPaxMainDeck && <A380SeatOutlineUpperBg stroke={getTheme(theme)[0]} highlight="#69BD45" />}
+          {displayPaxMainDeck && <A380SeatOutlineBg stroke={seatThemeColours[0]} highlight="#69BD45" />}
+          {!displayPaxMainDeck && <A380SeatOutlineUpperBg stroke={seatThemeColours[0]} highlight="#69BD45" />}
           <SeatMapWidget
             payloadSeatDisplay={flypadInfo.payload.seatDisplay}
             seatMap={seatMap}
             desiredFlags={desiredFlags}
             activeFlags={activeFlags}
             onClickSeat={onClickSeat}
-            theme={getTheme(theme)}
+            theme={seatThemeColours}
             isMainDeck={displayPaxMainDeck}
             width={flypadInfo.payload.planeCanvas.width}
             height={flypadInfo.payload.planeCanvas.height}
@@ -702,7 +682,7 @@ export const A380Payload: React.FC<PayloadProps> = ({
           />
         </>
       }
-      seatColours={getTheme(theme)}
+      seatColours={seatThemeColours}
       cargo={<CargoWidget cargo={cargo} cargoDesired={cargoDesired} cargoMap={cargoMap} onClickCargo={onClickCargo} />}
       table={
         <PayloadInputTable
