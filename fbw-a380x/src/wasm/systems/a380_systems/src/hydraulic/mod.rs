@@ -4638,22 +4638,22 @@ impl A380HydraulicBrakeSteerComputerUnit {
         let is_both_engine_low_oil_pressure =
             engine1.oil_pressure_is_low() && engine2.oil_pressure_is_low();
 
-        self.final_steering_position_request = if !is_both_engine_low_oil_pressure
-            && self.anti_skid_activated
-            && lgciu1.nose_gear_compressed(false)
-        {
-            (final_steer_rudder_plus_autopilot
-                + steer_angle_from_tiller
-                + self.heading_control_function.steering_output())
-            .min(Angle::new::<degree>(
-                Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
-            ))
-            .max(Angle::new::<degree>(
-                -Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
-            ))
-        } else {
-            Angle::new::<degree>(0.)
-        };
+        // A380 FCOM DSC-32-30-10 (a380_fcom.txt l.80959): "A-SKID sw OFF does not cut off NWS" (also l.79122): unlike
+        // the A320 A/SKID & N/W STRG switch, the A380 A-SKID switch does not gate the steering.
+        self.final_steering_position_request =
+            if !is_both_engine_low_oil_pressure && lgciu1.nose_gear_compressed(false) {
+                (final_steer_rudder_plus_autopilot
+                    + steer_angle_from_tiller
+                    + self.heading_control_function.steering_output())
+                .min(Angle::new::<degree>(
+                    Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
+                ))
+                .max(Angle::new::<degree>(
+                    -Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
+                ))
+            } else {
+                Angle::new::<degree>(0.)
+            };
     }
 
     fn norm_controller(&self) -> &impl BrakeCircuitController {
@@ -10381,6 +10381,29 @@ mod tests {
         }
 
         #[test]
+        // A380 FCOM DSC-32-10-30: the 10 s in flight disarming is "for RTO mode only"; "A landing AUTO BRK mode can be
+        // armed in flight, and on ground"
+        fn autobrakes_landing_mode_armed_on_ground_stays_armed_after_take_off() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .start_eng1(Ratio::new::<percent>(60.))
+                .start_eng2(Ratio::new::<percent>(60.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .set_autobrake_low()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::LOW);
+
+            test_bed = test_bed
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(15));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::LOW);
+        }
+
+        #[test]
         fn autobrakes_does_not_disarm_if_askid_off_but_sim_not_ready() {
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
@@ -11278,7 +11301,8 @@ mod tests {
         }
 
         #[test]
-        fn nose_steering_does_not_move_when_a_skid_off() {
+        // A380 FCOM DSC-32-30-10: "A-SKID sw OFF does not cut off NWS"
+        fn nose_steering_still_steers_when_a_skid_off() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
                 .on_the_ground()
@@ -11295,8 +11319,7 @@ mod tests {
                 .set_tiller_demand(Ratio::new::<ratio>(1.))
                 .run_waiting_for(Duration::from_secs_f64(5.));
 
-            assert_ge!(test_bed.nose_steering_position().get::<degree>(), -0.1);
-            assert_le!(test_bed.nose_steering_position().get::<degree>(), 0.1);
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
         }
 
         #[test]

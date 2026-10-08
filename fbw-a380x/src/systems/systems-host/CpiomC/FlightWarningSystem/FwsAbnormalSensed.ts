@@ -1252,8 +1252,9 @@ export class FwsAbnormalSensed {
       limitationsPfd: () => ['210400002'],
     },
     213800002: {
-      // EXCESS DIFF PRESS
-      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+      // EXCESS DIFF PRESS: active in flight phases 1, 8 and 9 (A380 FCOM PRO-ABN CAB PRESS EXCESS DIFF PRESS, flight
+      // phase inhibition figure, airbus-a380-fcom PDF p.4755); it was active in phase 8 only
+      flightPhaseInhib: [2, 3, 4, 5, 6, 7, 10, 11, 12],
       simVarIsActive: this.fws.excessDiffPressure,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true, true, this.fws.flightLevel.get() > 100, true, true, true, true],
@@ -4484,8 +4485,9 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [
         this.fws.engine1Running.get(),
         this.fws.engine2Running.get(),
-        true,
-        true,
+        // ENG PMP A+B DISC only "If turning off ... is not successful" (FCOM, see HydOverheatFlags)
+        this.fws.eng1PumpsOffUnsuccessful.get(),
+        this.fws.eng2PumpsOffUnsuccessful.get(),
         this.fws.enginesOffAndOnGroundSignal.read(),
       ],
       whichItemsChecked: () => [
@@ -4507,8 +4509,9 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [
         this.fws.engine3Running.get(),
         this.fws.engine4Running.get(),
-        true,
-        true,
+        // ENG PMP A+B DISC only "If turning off ... is not successful" (FCOM, see HydOverheatFlags)
+        this.fws.eng3PumpsOffUnsuccessful.get(),
+        this.fws.eng4PumpsOffUnsuccessful.get(),
         this.fws.enginesOffAndOnGroundSignal.read(),
       ],
       whichItemsChecked: () => [
@@ -4531,8 +4534,9 @@ export class FwsAbnormalSensed {
         true,
         true,
         true,
-        !this.fws.prim3Healthy,
-        !this.fws.prim3Healthy,
+        // FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE if PRIM 3 also failed (the Subject itself was tested: never shown)
+        !this.fws.prim3Healthy.get(),
+        !this.fws.prim3Healthy.get(),
         true,
         true,
       ],
@@ -4541,9 +4545,11 @@ export class FwsAbnormalSensed {
       limitationsPfd: () => ['320400001'],
       limitationsAllPhases: () => [!this.fws.prim3Healthy.get() ? '800400001' : null],
       limitationsApprLdg: () => ['320400001', '290400001', '290400002', '320400002', '320400003'],
-      info: () => ['220200011', '270200001'],
+      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS (a380_fcom.txt l.155731-155766): INFO CAT 3 SINGLE ONLY;
+      // INOP SYS APPR & LDG FLAPS SYS 1 (2), SLATS SYS 2 (G only), BTV, NORM N/W (B/W) STEER, CAT 3 DUAL
+      info: () => ['220200011', '270200001', '220200016'],
       inopSysAllPhases: () => ['290100001', '320300023', '290300021'],
-      inopSysApprLdg: () => ['290100003', '290100006', '320300020'],
+      inopSysApprLdg: () => ['290100003', '290100006', '320300007', '320300020', '220300028'],
       notActiveWhenItemActive: ['290800039'],
       sysPage: SdPages.Hyd,
     },
@@ -4554,16 +4560,26 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [
         this.fws.flightPhase1112MoreThanOneMin.get(),
         true,
-        !this.fws.prim2Healthy,
-        !this.fws.prim2Healthy,
+        true, // L/G GRVTY EXTN ONLY
+        // FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE if PRIM 2 also failed
+        !this.fws.prim2Healthy.get(),
+        !this.fws.prim2Healthy.get(),
         true,
       ],
-      whichItemsChecked: () => [false, false, false, false, false],
+      whichItemsChecked: () => [false, false, false, false, false, false],
       failure: 2,
+      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO LIMITATIONS (a380_fcom.txt l.155652-155700): "For gravity extension:
+      // MAX SPEED : 220 KT" on the ECAM (APPR & LDG) and on the PFD (ALL PHASES); the other limitation lines are "If G
+      // SYS PRESS LO" only
+      limitationsPfd: () => ['320400001'],
       limitationsAllPhases: () => [!this.fws.prim2Healthy.get() ? '800400001' : null],
-      info: () => ['800200004', '800200004'],
+      limitationsApprLdg: () => ['320400001'],
+      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS (a380_fcom.txt l.155731-155766), in the case of a Y SYS PRESS
+      // LO: INFO TAXI WITH CARE, AVOID MAX TILLER ANGLE TURN ON WET/CONTAM RWY, NO BRAKED PIVOT TURN, CAT 3 SINGLE ONLY
+      // (AVOID MAX TILLER ANGLE was listed twice); INOP SYS APPR & LDG FLAPS SYS 2, BTV, NORM B/W STEER, CAT 3 DUAL
+      info: () => ['800200003', '800200004', '800200005', '220200016'],
       inopSysAllPhases: () => ['290100001', '320300023', '290300022'],
-      inopSysApprLdg: () => ['290100004', '320300024'],
+      inopSysApprLdg: () => ['290100004', '320300007', '320300024', '220300028'],
       notActiveWhenItemActive: ['290800039'],
       sysPage: SdPages.Hyd,
     },
