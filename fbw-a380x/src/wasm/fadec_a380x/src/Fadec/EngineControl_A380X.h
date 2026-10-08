@@ -82,6 +82,8 @@ class EngineControl_A380X {
 
   // the igniters (A, B) the FADEC energizes per engine, for the SD ENGINE page (see IgniterSelection_A380X)
   IgniterSelection_A380X igniterSelection[4]{};
+  // the EGT offset of the engine failures (systems WASM) that updateEGT added to the EGT it wrote last, to take it out of the EGT lag
+  double egtOffsetApplied[4] = {0.0, 0.0, 0.0, 0.0};
 
   // Engine oil state
   double thermalEnergy[4] = {0.0, 0.0, 0.0, 0.0};

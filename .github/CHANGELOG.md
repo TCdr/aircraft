@@ -323,6 +323,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EFB] New flyPad failures Engine 1(2) compressor stall, EGT overtemperature, N1/N2 overspeed indication and high vibration: a stalled engine loses thrust with a rising EGT and fluctuating N1/N2 above 60 % N1 and recovers at idle; the EGT and N1/N2 run above their limits at high thrust; the vibrations exceed the SD advisory - @TCdr
 1. [A32NX/ECAM] ENG 1(2) STALL and ENG 1(2) N1/N2/EGT OVER LIMIT cautions with their FCOM procedures - @TCdr
 1. [A32NX/EWD] N1 turns amber above the N1 limit and red above 104 %, N2 red above 105 % with a red cross, and the EGT gauge shows a red mark at the highest EGT above its 975 °C red limit; the SD shows separate N1 and N2 vibrations that pulse above the advisory - @TCdr
+1. [A380X/EFB] New flyPad failures Engine 1(2)(3)(4) compressor stall, EGT overtemperature and high vibration: a stalled engine loses thrust with a rising EGT and fluctuating N1/N3 above 60 % N1 and recovers at idle; the EGT runs above its limits at high thrust; the vibrations exceed the SD advisory - @TCdr
+1. [A380X/FWS] ENG STALL, ENG EGT OVER LIMIT and ENG N1/N2 OVER LIMIT alerts with their FCOM procedures; the amber attention getter also comes up for an EGT, N1 or N2 above its limit - @TCdr
+1. [A380X/ECAM] The EWD EGT shows a red mark at the highest EGT above the red line; the SD shows separate N1, N2 and N3 vibrations that pulse above 5 units, and the N3 in red above its limit - @TCdr
 
 ## 2024.1.0
 
