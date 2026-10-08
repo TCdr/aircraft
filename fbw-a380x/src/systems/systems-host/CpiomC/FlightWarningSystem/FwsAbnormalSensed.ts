@@ -29,6 +29,7 @@ import {
   OIL_PRESS_LO_PHASE_INHIBITION,
   OIL_TEMP_HI_PHASE_INHIBITION,
 } from './EngineOilAlerts';
+import { FUEL_FILTER_CLOGGED_PHASE_INHIBITION } from './EngineFuelFilterAlerts';
 import {
   IGN_FAULT_FLIGHT_PHASE_INHIBITION,
   START_ALERTS_FLIGHT_PHASE_INHIBITION,
@@ -5736,6 +5737,46 @@ export class FwsAbnormalSensed {
       ],
       failure: 2,
       sysPage: SdPages.None,
+    },
+    701800033: {
+      // ENG 1 FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts): amber, crew awareness
+      flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineFuelFilterClogged[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800034: {
+      // ENG 2 FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts): amber, crew awareness
+      flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineFuelFilterClogged[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800035: {
+      // ENG 3 FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts): amber, crew awareness
+      flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineFuelFilterClogged[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800036: {
+      // ENG 4 FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts): amber, crew awareness
+      flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineFuelFilterClogged[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
     },
     701800081: {
       // ENG 1 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness

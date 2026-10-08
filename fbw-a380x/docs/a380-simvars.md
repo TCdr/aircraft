@@ -2055,6 +2055,15 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True while the oil filter clog failure of the engine is active (flyPad failures 79020-79023): CLOGGED on the ENGINE SD page while the engine runs, and ENG OIL FILTER CLOGGED (on the ground: FCOM flight phases 1, 2, 11 and 12). Written by the systems WASM
 
+- A32NX_ENGINE_{number}_FUEL_FILTER_CLOGGED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the fuel filter clog failure of the engine is active (flyPad failures 73100-73103): CLOGGED below the fuel flow on the ENGINE SD page while the engine runs, and ENG FUEL FILTER CLOGGED (on the ground: FCOM flight phases 1, 2, 11 and 12), no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
+
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
   - {number}

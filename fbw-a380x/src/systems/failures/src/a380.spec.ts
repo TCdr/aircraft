@@ -229,4 +229,24 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     expect(A380Failure.Reverser2Fault).toBe(78001);
     expect(A380Failure.Reverser3ControlFault).toBe(78042);
   });
+
+  // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73103 (failure names audit rule)
+  it('lists the engine fuel filter clog failures of the four engines in ATA 73', () => {
+    const rustMap = readRustFailureMap();
+    const expected = [1, 2, 3, 4].map((engine) => [
+      73100 + engine - 1,
+      `EngineFuelFilterClog(${engine})`,
+      `Engine ${engine} fuel filter clog`,
+      73,
+    ]);
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+    expect(
+      expected.map(([id]) => [
+        id,
+        rustMap.get(id as number),
+        definitionOf(id as number)?.[2],
+        definitionOf(id as number)?.[0],
+      ]),
+    ).toEqual(expected);
+  });
 });

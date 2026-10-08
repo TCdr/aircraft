@@ -109,6 +109,7 @@ import {
 } from './EngineFailAlerts';
 import { engineOilAlerts } from './EngineOilAlerts';
 import { EngineStartFault, EngineStartPhase, StartValveFault } from './EngineStartAlerts';
+import { engineFuelFilterClogged } from './EngineFuelFilterAlerts';
 import { isEgtOverLimit, isN1N2OverLimit, isStallAlertShown } from './EngineParameterAlerts';
 import { displayedEgt } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
@@ -2128,6 +2129,9 @@ export class FwsCore {
 
   /** ENG 1(2)(3)(4) OIL FILTER CLOGGED, by engine (EngineOilAlerts.ts) */
   public readonly engineOilFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** ENG 1(2)(3)(4) FUEL FILTER CLOGGED, by engine (EngineFuelFilterAlerts.ts) */
+  public readonly engineFuelFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /*
    * ENG START FAULT, START VLV FAULT (NOT CLOSED / NOT OPEN), IGN A(B) FAULT, IGN A+B FAULT (EngineStartAlerts.ts), from the
@@ -5800,6 +5804,14 @@ export class FwsCore {
       this.engineOilPressLo[index].set(oilAlerts.pressureLow);
       this.engineOilTempHi[index].set(oilAlerts.temperatureHigh);
       this.engineOilFilterClogged[index].set(oilAlerts.filterClogged);
+      // ENG FUEL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineFuelFilterAlerts.ts), from engine/fuel_filter_failure.rs
+      this.engineFuelFilterClogged[index].set(
+        engineFuelFilterClogged({
+          masterOn: master.get(),
+          engineState: state.get() as FadecEngineState,
+          fuelFilterClogged: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FUEL_FILTER_CLOGGED`, 'bool') > 0,
+        }),
+      );
     });
 
     // ENG START FAULT, START VLV FAULT, IGN FAULT (FCOM PRO-ABN-ECAM-10-70, see EngineStartAlerts.ts)

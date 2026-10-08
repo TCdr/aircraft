@@ -55,8 +55,8 @@ use systems::{
     },
     electrical::{Electricity, ElectricitySource, ExternalPowerSource},
     engine::{
-        oil_failure::EngineOilFailures, reverser_thrust::ReverserForce, trent_engine::TrentEngine,
-        EngineFireOverheadPanel,
+        fuel_filter_failure::EngineFuelFilterFailures, oil_failure::EngineOilFailures,
+        reverser_thrust::ReverserForce, trent_engine::TrentEngine, EngineFireOverheadPanel,
     },
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
@@ -94,6 +94,8 @@ pub struct A380 {
     engine_failures: A380EngineFailures,
     /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
     engine_oil_failures: EngineOilFailures<4>,
+    /// Fuel filter clog of each engine: SD ENGINE indication and FWS caution only
+    engine_fuel_filter_failures: EngineFuelFilterFailures<4>,
     engine_malfunctions: A380EngineMalfunctions,
     engine_control_failures: A380EngineControlFailures,
     electrical: A380Electrical,
@@ -149,6 +151,7 @@ impl A380 {
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             engine_failures: A380EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
+            engine_fuel_filter_failures: EngineFuelFilterFailures::new(context),
             engine_malfunctions: A380EngineMalfunctions::new(context),
             engine_control_failures: A380EngineControlFailures::new(context),
             electrical: A380Electrical::new(context),
@@ -433,6 +436,7 @@ impl SimulationElement for A380 {
         self.engine_fire_overhead.accept(visitor);
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
+        self.engine_fuel_filter_failures.accept(visitor);
         self.engine_malfunctions.accept(visitor);
         self.engine_control_failures.accept(visitor);
         self.electrical.accept(visitor);
@@ -488,5 +492,20 @@ mod tests {
         assert!(!read(&mut test_bed, "ENGINE_3_OIL_FILTER_CLOGGED"));
         assert!(read(&mut test_bed, "ENGINE_3_OIL_OVERHEAT"));
         assert!(!read(&mut test_bed, "ENGINE_4_OIL_OVERHEAT"));
+    }
+
+    /// The flyPad fuel filter clog failures 73100-73103 (a380_systems_wasm) reach the SD ENGINE page
+    /// and the FWS through the fuel filter variable of each engine (systems::engine::fuel_filter_failure).
+    #[test]
+    fn the_engine_fuel_filter_clog_is_written_for_the_sd_and_the_fws() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.fail(FailureType::EngineFuelFilterClog(4));
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let clogged_4: bool = test_bed.read_by_name("ENGINE_4_FUEL_FILTER_CLOGGED");
+        let clogged_1: bool = test_bed.read_by_name("ENGINE_1_FUEL_FILTER_CLOGGED");
+        assert!(clogged_4);
+        assert!(!clogged_1);
     }
 }
