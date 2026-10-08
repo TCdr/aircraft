@@ -47,6 +47,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
   ['280200001', { part: StatusPart.Information, text: 'CTR TK USABLE BY GRAVITY' }],
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
+  // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
+  ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, l.81263)
