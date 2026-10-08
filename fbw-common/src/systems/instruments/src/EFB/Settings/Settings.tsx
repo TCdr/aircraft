@@ -120,9 +120,8 @@ type SettingItemProps = {
   unrealistic?: boolean;
   groupType?: 'parent' | 'sub';
   disabled?: boolean;
-  /** A line under the name: what the setting changes, or why an entry was refused (tone error) */
+  /** A line under the name: what the setting changes */
   description?: string;
-  descriptionTone?: 'error';
 };
 
 export const SettingItem: FC<SettingItemProps> = ({
@@ -131,7 +130,6 @@ export const SettingItem: FC<SettingItemProps> = ({
   groupType,
   disabled,
   description,
-  descriptionTone,
   children,
 }) => {
   const UnrealisticHint = () => (
@@ -156,11 +154,7 @@ export const SettingItem: FC<SettingItemProps> = ({
             <span className="text-base font-semibold text-m3-text">{name}</span>
             {unrealistic && <UnrealisticHint />}
           </span>
-          <span
-            className={`text-sm font-semibold ${descriptionTone === 'error' ? 'text-m3-on-error' : 'text-m3-muted'}`}
-          >
-            {description}
-          </span>
+          <span className="text-sm font-semibold text-m3-muted">{description}</span>
         </span>
       ) : (
         <span className="mr-4 flex flex-row items-center">
