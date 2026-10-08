@@ -57,7 +57,7 @@ const FrequencyCard = ({
   <div className={className}>
     <div className={`flex flex-col rounded-2xl px-4 py-3 ${selected ? 'bg-m3-primary-container' : 'bg-m3-tile'}`}>
       <div className="flex flex-row items-center">
-        <span className={`truncate text-base font-bold ${selected ? 'text-m3-on-primary-container' : 'text-white'}`}>
+        <span className={`truncate text-base font-bold ${selected ? 'text-m3-on-primary-container' : 'text-m3-text'}`}>
           {callsign}
         </span>
         {typeName && (
@@ -71,7 +71,9 @@ const FrequencyCard = ({
         )}
       </div>
       <div className="mt-2 flex flex-row items-center">
-        <span className="grow text-2xl font-bold text-white">{frequency}</span>
+        <span className={`grow text-2xl font-bold ${selected ? 'text-m3-on-primary-container' : 'text-m3-text'}`}>
+          {frequency}
+        </span>
         <button
           type="button"
           onClick={setActive}
@@ -403,7 +405,7 @@ interface ControllerInformationProps {
 
 const ControllerInformation = ({ currentAtc }: ControllerInformationProps) => (
   <ScrollableContainer height={14} className="mt-3">
-    <span className="block text-lg font-bold text-white">{currentAtc?.callsign}</span>
+    <span className="block text-lg font-bold text-m3-text">{currentAtc?.callsign}</span>
     {currentAtc?.textAtis.map((line) => (
       <p key={line} className="mt-2 flex flex-wrap text-base leading-snug text-m3-text">
         {line}

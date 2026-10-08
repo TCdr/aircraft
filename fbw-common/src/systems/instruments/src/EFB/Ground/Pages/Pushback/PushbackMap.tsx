@@ -310,7 +310,7 @@ export const PushbackMap = () => {
               className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-m3-outline bg-m3-card text-m3-text transition duration-100 hover:bg-m3-tile"
             >
               <IconPlane
-                className={`-rotate-90 text-white${centerPlaneMode && 'fill-current'}`}
+                className={`-rotate-90 text-m3-text ${centerPlaneMode ? 'fill-current' : ''}`}
                 size={40}
                 strokeLinejoin="round"
               />

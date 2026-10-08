@@ -44,7 +44,7 @@ export const AtaChapterPage = ({ chapter, failures }: AtaChapterPageProps) => {
         <span className="mr-3 flex h-10 w-10 items-center justify-center rounded-xl bg-m3-tile text-m3-text">
           <ArrowLeft size={20} />
         </span>
-        <span className="text-2xl font-bold text-white">{`ATA ${chapter} · ${AtaChaptersTitle[chapter]}`}</span>
+        <span className="text-2xl font-bold text-m3-text">{`ATA ${chapter} · ${AtaChaptersTitle[chapter]}`}</span>
       </Link>
 
       {filteredFailures.length === 0 ? (
