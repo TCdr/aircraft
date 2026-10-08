@@ -190,6 +190,12 @@ class EngineStartThrottleHold {
     if (output.throttleAtIdle) {
       return (std::max)(IDLE_THROTTLE_PERCENT, output.minimumThrottle);
     }
+    // Only a fallback throttle (> 0) is a floor. A negative loop throttle is the reverse thrust of the thrust loop (its reverse
+    // integrator runs from 0 down to -100 %, MSFS full reverse at min_throttle_limit -1 %) and must reach MSFS: a floor at 0 kept
+    // both engines at idle with the levers in full reverse (sim test 2026-10-06, s8_main1.log).
+    if (output.minimumThrottle <= 0.0) {
+      return loopThrottle;
+    }
     return (std::max)(loopThrottle, output.minimumThrottle);
   }
 
