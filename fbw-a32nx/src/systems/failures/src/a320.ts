@@ -370,7 +370,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [72, A320Failure.Eng1Seizure, 'Engine 1 seizure (no relight)'],
   [72, A320Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
 
-  // The oil quantity falls at 2 qt/min, then the oil pressure once the tank is nearly empty (ENG OIL LO PR)
+  // The oil system loses 2 qt/min (the tank quantity on the SD falls about 1.6 qt/min), then the oil pressure once the tank is nearly empty (ENG OIL LO PR)
   [79, A320Failure.Eng1OilLeak, 'Engine 1 oil leak'],
   [79, A320Failure.Eng2OilLeak, 'Engine 2 oil leak'],
   // CLOG on the ENGINE SD page and ENG OIL FILTER CLOG, no other effect
