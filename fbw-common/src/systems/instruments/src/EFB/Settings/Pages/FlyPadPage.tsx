@@ -4,12 +4,7 @@
 
 import React, { useRef } from 'react';
 
-import {
-  usePersistentNumberProperty,
-  usePersistentProperty,
-  usePersistentSetting,
-  useSimVar,
-} from '@flybywiresim/fbw-sdk-react';
+import { usePersistentNumberProperty, usePersistentProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
 
 import Slider from 'rc-slider';
 import { Toggle } from '../../UtilComponents/Form/Toggle';
@@ -20,6 +15,7 @@ import { SelectInput } from '../../UtilComponents/Form/SelectInput/SelectInput';
 import { keyboardLayoutOptions } from '../../UtilComponents/KeyboardWrapper';
 import { languageOptions, tt } from '../../Localization/translation';
 import { efbSetting, efbSimVar } from '../../Utils/efbIndex';
+import { ThemeSettings } from './ThemeSettings';
 
 export const FlyPadPage = () => {
   // the brightness of this tablet (see efbIndex)
@@ -29,7 +25,6 @@ export const FlyPadPage = () => {
     efbSetting('EFB_USING_AUTOBRIGHTNESS'),
     1,
   );
-  const [theme, setTheme] = usePersistentSetting('EFB_UI_THEME');
   const [autoOSK, setAutoOSK] = usePersistentNumberProperty('EFB_AUTO_OSK', 0);
   const [timeDisplayed, setTimeDisplayed] = usePersistentProperty('EFB_TIME_DISPLAYED', 'utc');
   const [timeFormat, setTimeFormat] = usePersistentProperty('EFB_TIME_FORMAT', '24');
@@ -45,12 +40,6 @@ export const FlyPadPage = () => {
   // the tt() is a special case to update the page with the correct language after user
   // changes the language. the change to simvar hooks changed timing/order of updates.
 
-  const themeButtons = [
-    { name: tt('Settings.flyPad.Blue', language), setting: 'blue' },
-    { name: tt('Settings.flyPad.Dark', language), setting: 'dark' },
-    { name: tt('Settings.flyPad.Light', language), setting: 'light' },
-  ] as const;
-
   const timeDisplayButtons: ButtonType[] = [
     { name: tt('Settings.flyPad.Utc', language), setting: 'utc' },
     { name: tt('Settings.flyPad.Local', language), setting: 'local' },
@@ -61,16 +50,6 @@ export const FlyPadPage = () => {
     { name: tt('Settings.flyPad.TwelveHours', language), setting: '12' },
     { name: tt('Settings.flyPad.TwentyFourHours', language), setting: '24' },
   ];
-
-  const handleThemeSelect = (theme: 'blue' | 'dark' | 'light') => {
-    setTheme(theme);
-    document.documentElement.classList.forEach((className) => {
-      if (className.includes('theme-')) {
-        document.documentElement.classList.remove(className);
-      }
-    });
-    document.documentElement.classList.add(`theme-${theme}`);
-  };
 
   // To prevent keyboard input (esp. END key for external view) to change
   // the slider position. This is accomplished by a
@@ -197,19 +176,7 @@ export const FlyPadPage = () => {
         )}
       </SettingGroup>
 
-      <SettingItem name={tt('Settings.flyPad.Theme', language)}>
-        <SelectGroup>
-          {themeButtons.map((button) => (
-            <SelectItem
-              key={button.setting}
-              onSelect={() => handleThemeSelect(button.setting)}
-              selected={theme === button.setting}
-            >
-              {button.name}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SettingItem>
+      <ThemeSettings language={language} />
     </SettingsPage>
   );
 };
