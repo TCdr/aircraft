@@ -66,6 +66,8 @@ class EngineControl_A380X {
 
   // the FADEC set the MSFS ignition switch to IGN for an in-flight relight and must give it back to the ENG START selector
   bool relightIgnitionSet[4] = {false, false, false, false};
+  // the EGT offset of the engine failures (systems WASM) that updateEGT added to the EGT it wrote last, to take it out of the EGT lag
+  double egtOffsetApplied[4] = {0.0, 0.0, 0.0, 0.0};
 
   // Engine oil state
   double thermalEnergy[4] = {0.0, 0.0, 0.0, 0.0};

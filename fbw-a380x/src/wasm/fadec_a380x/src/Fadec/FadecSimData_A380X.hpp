@@ -5,6 +5,7 @@
 #define FLYBYWIRE_AIRCRAFT_FADECSIMDATA_A380X_HPP
 
 #include <MSFS/Legacy/gauges.h>
+#include <string>
 
 #include "DataManager.h"
 
@@ -223,6 +224,10 @@ class FadecSimData_A380X {
   NamedVariablePtr engineRelightIgnition[4];  // Bool - an in-flight relight is lighting up: igniters on (systems WASM)
   NamedVariablePtr engineRelightAttempt[4];   // Bool - a relight attempt is in progress (systems WASM)
   NamedVariablePtr engineStartSelector;       // Enum - ENG START selector: 0 crank, 1 norm, 2 ign start
+  // Stall and EGT overtemperature failures of a running engine (systems WASM, a380_systems engine_malfunction.rs)
+  NamedVariablePtr engineEgtOffset[4];  // Celsius - added to the EGT
+  NamedVariablePtr engineN1Offset[4];   // Percent - added to the N1
+  NamedVariablePtr engineN3Offset[4];   // Percent - added to the N3 (and the N2 derived from it)
   NamedVariablePtr engineFuelUsed[4];   // kg
   NamedVariablePtr engineIdleEGT;       // Celsius
   NamedVariablePtr engineIdleFF;
@@ -429,6 +434,13 @@ class FadecSimData_A380X {
     engineRelightAttempt[E3]  = dm->make_named_var("A32NX_ENGINE_3_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
     engineRelightAttempt[E4]  = dm->make_named_var("A32NX_ENGINE_4_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
     engineStartSelector       = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ);
+
+    for (int i = 0; i < 4; i++) {
+      const std::string engineNumber = std::to_string(i + 1);
+      engineEgtOffset[i] = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_EGT_OFFSET", UNITS.Number, AUTO_READ);
+      engineN1Offset[i]  = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_N1_OFFSET", UNITS.Number, AUTO_READ);
+      engineN3Offset[i]  = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_N3_OFFSET", UNITS.Number, AUTO_READ);
+    }
 
     engineFuelUsed[E1] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[E2] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);

@@ -259,6 +259,8 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitFLX;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitTOGA;
   std::unique_ptr<LocalVariable> idAutothrustN1_c[4];
+  // N1 lost by a stalled engine (systems WASM, a380_systems engine_malfunction.rs)
+  std::unique_ptr<LocalVariable> idEngineStallN1Loss[4];
   std::unique_ptr<LocalVariable> idAutothrustStatus;
   std::unique_ptr<LocalVariable> idAutothrustMode;
   std::unique_ptr<LocalVariable> idAutothrustModeMessage;
