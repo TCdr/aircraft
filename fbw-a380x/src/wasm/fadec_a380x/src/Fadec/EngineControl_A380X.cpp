@@ -95,25 +95,49 @@ void EngineControl_A380X::update() {
     const double deltaN3       = simN3 - prevSimEngineN3[engineIdx];
     prevSimEngineN3[engineIdx] = simN3;
 
-    // In-flight relight ignition. A380 FCOM DSC-70-30 IN FLIGHT (a380_fcom.txt l.113572): at the MASTER ON "Ignition starts
-    // (igniters A + B)", and the quick relight "automatically selects the continuous ignition with both igniters" (l.112541-112543)
-    // whatever the ENG START selector. MSFS only burns during a start with its ignition switch at IGN (on the A32NX a quick
-    // relight at NORM crawled for minutes without combustion). While the systems WASM reports a relight lighting up (fuel back,
-    // master ON, engine not running), the MSFS ignition switch of that engine is set to IGN, then given back to the ENG START
-    // selector position once the engine runs or the relight ends.
-    const bool relightIgnition = simData.engineRelightIgnition[engineIdx]->getAsBool() && !simOnGround &&
-                                 (engineState == SHUTTING || engineState == RESTARTING || engineState == STARTING);
-    if (relightIgnition) {
+    // The FADEC selects both igniters whatever the ENG START selector position (EngineIgnition_A380X):
+    // - In-flight relight. A380 FCOM DSC-70-30 IN FLIGHT (a380_fcom.txt l.113572): at the MASTER ON "Ignition starts
+    //   (igniters A + B)", and the quick relight "automatically selects the continuous ignition with both igniters"
+    //   (l.112541-112543). While the systems WASM reports a relight lighting up (fuel back, master ON, engine not running).
+    // - Auto relight. FCOM DSC-70-80-30-20 (l.112533-112537): "If the FADEC detects an engine flame out, on ground or in flight,
+    //   continuous ignition with both igniters is automatically selected. The ignition is maintained for 60 s after engine
+    //   relight." While an engine that must run (state ON, master ON, fuel not cut, FADEC supplied) has lost its MSFS combustion.
+    // MSFS only burns again with its ignition switch at IGN (on the A32NX a quick relight at NORM crawled for minutes without
+    // combustion; on 2026-10-06 four A380X engines windmilled at NORM for 150 s without combustion). The MSFS ignition switch of
+    // that engine is set to IGN meanwhile, then given back to the ENG START selector position.
+    const bool firePbReleased = simData.engineFirePbReleased[engineIdx]->getAsBool();
+    // GENERAL ENG COMBUSTION is only needed (and read) for a running engine: the auto relight watches no other state
+    const bool simCombustion = engineState == ON &&
+                               static_cast<bool>(simData.engineCombustion[engineIdx]->updateFromSim(msfsHandlerPtr->getTimeStamp(),  //
+                                                                                                    msfsHandlerPtr->getTickCounter()));
+    const bool autoRelightWasOn = engineIgnition[engineIdx].autoRelightIgnition();
+    const bool fadecIgnition    = engineIgnition[engineIdx].update({
+        simOnGround,                                                                       //
+        engineState == ON,                                                                 //
+        engineState == SHUTTING || engineState == RESTARTING || engineState == STARTING,  //
+        engineMasterStarter,                                                               //
+        engineFuelCut,                                                                     //
+        engineSeized,                                                                      //
+        firePbReleased,                                                                    //
+        simCombustion,                                                                     //
+        simData.engineRelightIgnition[engineIdx]->getAsBool(),                             //
+        deltaTime,                                                                         //
+    });
+    if (engineIgnition[engineIdx].autoRelightIgnition() != autoRelightWasOn) {
+      LOG_INFO("Fadec::EngineControl_A380X::update() - engine " + std::to_string(engine) + " auto relight ignition " +
+               (autoRelightWasOn ? "OFF" : "ON"));
+    }
+    if (fadecIgnition) {
       if (engineIgniter != 2) {
         simData.setIgnitionSwitchEvent[engineIdx]->trigger(2);
       }
-      relightIgnitionSet[engineIdx] = true;
-    } else if (relightIgnitionSet[engineIdx]) {
+      fadecIgnitionSet[engineIdx] = true;
+    } else if (fadecIgnitionSet[engineIdx]) {
       const int selectorPosition = static_cast<int>(simData.engineStartSelector->get());
       if (engineIgniter != selectorPosition) {
         simData.setIgnitionSwitchEvent[engineIdx]->trigger(static_cast<DWORD>(selectorPosition));
       }
-      relightIgnitionSet[engineIdx] = false;
+      fadecIgnitionSet[engineIdx] = false;
     }
 
     // Update various engine values based on the current engine state
