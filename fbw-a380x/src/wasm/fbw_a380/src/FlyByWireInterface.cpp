@@ -7,6 +7,7 @@
 #include <MathUtils.h>
 
 #include "Arinc429Utils.h"
+#include "FadecLgciu.h"
 #include "FlyByWireInterface.h"
 #include "interface/SimConnectData.h"
 
@@ -2956,8 +2957,10 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.data.H_ind_ft = simData.H_ind_ft;
   fadecInputs[fadecIndex].in.data.H_radio_ft = simData.H_radio_ft;
   fadecInputs[fadecIndex].in.data.H_dot_fpm = simData.H_dot_fpm;
+  // 4 FADECs, 2 LGCIUs: each FADEC reads the LGCIU of its side (FadecLgciu.h)
+  const int lgciuIndex = lgciuIndexForFadec(fadecIndex);
   fadecInputs[fadecIndex].in.data.on_ground =
-      idLgciuLeftMainGearCompressed[fadecIndex]->get() && idLgciuRightMainGearCompressed[fadecIndex]->get();
+      idLgciuLeftMainGearCompressed[lgciuIndex]->get() && idLgciuRightMainGearCompressed[lgciuIndex]->get();
   fadecInputs[fadecIndex].in.data.flap_handle_index = flapsHandleIndexFlapConf->get();
   fadecInputs[fadecIndex].in.data.is_engine_operative = engineRunning;
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = commanded_engine_N1_percent;
