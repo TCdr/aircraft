@@ -8759,6 +8759,34 @@ mod tests {
                 self
             }
 
+            /// Charges the yellow brake accumulator with the yellow electric pump A, then stops the
+            /// pump. The accumulator starts empty in 1 % of the test runs (empty after maintenance,
+            /// BrakeAccumulatorCharacteristics): a test that relies on its stored pressure calls this
+            /// first, like the A320 test bed (FBW #7794).
+            fn load_brake_accumulator(mut self) -> Self {
+                // Design choice: "charged" is 90 % of the regulated pressure; the accumulator only
+                // needs to hold enough for the brake applications of the test.
+                let charged_pressure_psi =
+                    0.9 * A380HydraulicCircuitFactory::HYDRAULIC_TARGET_PRESSURE_PSI;
+                let mut number_of_loops = 0;
+                while self.get_brake_yellow_accumulator_pressure().get::<psi>()
+                    <= charged_pressure_psi
+                {
+                    self = self
+                        .set_yellow_e_pump_a(true)
+                        .run_waiting_for(Duration::from_secs(2));
+                    number_of_loops += 1;
+                    assert_lt!(number_of_loops, 50);
+                }
+
+                // Let the yellow electric pump spool down
+                self = self
+                    .set_yellow_e_pump_a(false)
+                    .run_waiting_for(Duration::from_secs(5));
+
+                self
+            }
+
             fn empty_brake_accumulator_using_park_brake(mut self) -> Self {
                 self = self
                     .set_park_brake(true)
@@ -10275,11 +10303,15 @@ mod tests {
         #[test]
         // Testing that green for brakes is only available if park brake is on while altn pressure is at too low level
         fn brake_logic_green_backup_emergency() {
+            // The test starts with the yellow brake accumulator charged: without
+            // load_brake_accumulator it failed in the 1 % of runs where the accumulator starts empty
+            // (green brakes then rightly back up the parking brake from the start).
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
                 .on_the_ground()
                 .set_cold_dark_inputs()
-                .run_one_tick();
+                .run_one_tick()
+                .load_brake_accumulator();
 
             // Setting on ground with yellow side hydraulics off
             // This should prevent yellow accumulator to fill
