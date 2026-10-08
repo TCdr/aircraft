@@ -6,6 +6,7 @@
 #include "A380FadecComputer.h"
 #include "Arinc429.h"
 #include "CalculatedRadioReceiver.h"
+#include "EngineStartThrottleHold.h"
 #include "InterpolatingLookupTable.h"
 #include "LocalVariable.h"
 #include "RateLimiter.h"
@@ -111,6 +112,8 @@ class FlyByWireInterface {
   A380FadecComputer::ExternalInputs_A380FadecComputer_T fadecInputs[4];
   athr_output fadecOutputs[4];
   base_eec fadecBusOutputs[4];
+  // MSFS throttle of an engine out or (re)starting in flight, and its acceleration from idle once it runs
+  EngineStartThrottleHold engineStartThrottleHolds[4];
 
   base_ra_bus raBusOutputs[3] = {};
 
@@ -250,6 +253,8 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> thrustLeverAngle[4];
   std::unique_ptr<LocalVariable> idAutothrustN1_TLA[4];
   std::unique_ptr<LocalVariable> idAutothrustReverse[4];
+  std::unique_ptr<LocalVariable> idEngineState[4];
+  std::unique_ptr<LocalVariable> idEngineIdleN3;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitType;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimit;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitREV;
