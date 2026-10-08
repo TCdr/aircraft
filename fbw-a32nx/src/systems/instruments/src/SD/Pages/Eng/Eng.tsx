@@ -11,6 +11,16 @@ import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
 
 import './Eng.scss';
+import {
+  OIL_PSI_RED_MAX,
+  OIL_PSI_SCALE_MAX,
+  OIL_QTY_ADVISORY_QT,
+  OIL_QTY_SCALE_MAX_QT,
+  oilFilterClogShown,
+  oilPressureIsRed,
+  oilPressurePulses,
+  oilQuantityPulses,
+} from './EngOilIndications';
 
 export const EngPage: FC = () => {
   const [useMetric] = usePersistentSetting('CONFIG_USING_METRIC_UNIT');
@@ -93,16 +103,12 @@ interface ComponentPositionProps {
 }
 
 const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) => {
-  const [engineOilPressure] = useSimVar(`ENG OIL PRESSURE:${engineNumber}`, 'psi', 100);
+  // The oil pressure the FADEC computes (EngineControlA32NX updateOil), as the FWC reads it
+  const [engineOilPressure] = useSimVar(`GENERAL ENG OIL PRESSURE:${engineNumber}`, 'psi', 100);
   const displayedEngineOilPressure = Math.round(engineOilPressure / 2) * 2; // Engine oil pressure has a step of 2
-  const OIL_PSI_MAX = 130;
-  const OIL_PSI_HIGH_LIMIT = 130;
-  const OIL_PSI_LOW_LIMIT = 14; // TODO FIXME: standin value
-  const OIL_PSI_VLOW_LIMIT = 12;
-  const [psiNeedleRed, setPsiNeedleRed] = useState(true);
-  const [pressureAboveHigh, setPressureAboveHigh] = useState(false);
-  const [pressureBelowLow, setPressureBelowLow] = useState(false);
   const [shouldPressurePulse, setShouldPressurePulse] = useState(false);
+  // The oil filter clog failure (systems engine/oil_failure.rs), see EngOilIndications
+  const [oilFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engineNumber}_OIL_FILTER_CLOGGED`, 'bool', 500);
   // The N2 the FADEC shows (EWD): a seized core is at 0 while the MSFS engine still windmills
   const [n2Percent] = useSimVar(`L:A32NX_ENGINE_N2:${engineNumber}`, 'number', 50);
   const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engineNumber}`, 'number');
@@ -111,38 +117,13 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
 
   const activeVisibility = fadecOn ? 'visible' : 'hidden';
   const inactiveVisibility = fadecOn ? 'hidden' : 'visible';
-  /* Controls different styling of pressure needle and digital readout according to certain critical, or cautionary ranges.
+  /* Controls different styling of pressure needle and digital readout according to certain critical, or cautionary ranges
+   * (FCOM DSC-70-90-40 OIL PRESSURE, see EngOilIndications).
    */
   useEffect(() => {
-    if (displayedEngineOilPressure > OIL_PSI_HIGH_LIMIT - 1) {
-      setPressureAboveHigh(true);
-    }
-
-    if (pressureAboveHigh && displayedEngineOilPressure < OIL_PSI_HIGH_LIMIT - 4) {
-      setPressureAboveHigh(false);
-    }
-
-    if (displayedEngineOilPressure < OIL_PSI_LOW_LIMIT && n2Percent > 75) {
-      setPressureBelowLow(true);
-    }
-
-    if (pressureBelowLow && displayedEngineOilPressure > OIL_PSI_LOW_LIMIT + 2) {
-      setPressureBelowLow(false);
-    }
-
-    if (pressureAboveHigh || pressureBelowLow) {
-      setShouldPressurePulse(true);
-    } else {
-      setShouldPressurePulse(false);
-    }
-
-    if (displayedEngineOilPressure <= OIL_PSI_VLOW_LIMIT) {
-      setPsiNeedleRed(true);
-    }
-    if (psiNeedleRed && displayedEngineOilPressure >= OIL_PSI_VLOW_LIMIT + 0.5) {
-      setPsiNeedleRed(false);
-    }
-  }, [engineOilPressure]);
+    setShouldPressurePulse((wasPulsing) => oilPressurePulses(wasPulsing, engineOilPressure, n2Percent));
+  }, [engineOilPressure, n2Percent]);
+  const psiNeedleRed = oilPressureIsRed(engineOilPressure);
 
   let needleClassName = 'GreenLine';
   let textClassName = 'FillGreen';
@@ -164,7 +145,7 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
           x={x}
           y={y + 50}
           radius={50}
-          toValue={OIL_PSI_VLOW_LIMIT}
+          toValue={getNeedleValue(OIL_PSI_RED_MAX, OIL_PSI_SCALE_MAX)}
           scaleMax={100}
           className={`RedLine NoFill ${!engineRunning && 'Hidden'}`}
         />
@@ -173,12 +154,20 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
           y={y + 50}
           length={60}
           scaleMax={100}
-          value={getNeedleValue(engineOilPressure, OIL_PSI_MAX)}
+          value={getNeedleValue(engineOilPressure, OIL_PSI_SCALE_MAX)}
           className={`NoFill ${needleClassName}`}
           dashOffset={-40}
         />
         <text x={x} y={y + 45} className={`FontLarge TextCenter ${textClassName}`}>
           {displayedEngineOilPressure}
+        </text>
+        {/* FCOM DSC-70-90-40 OIL FILTER CLOG INDICATION, below the oil pressure */}
+        <text
+          x={x}
+          y={y + 72}
+          className={`FontMedium TextCenter FillAmber ${!oilFilterClogShown(!!oilFilterClogged, engineState) && 'Hidden'}`}
+        >
+          CLOG
         </text>
       </g>
       <g visibility={inactiveVisibility}>
@@ -191,27 +180,16 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
 };
 
 const QuantityGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) => {
-  const [engineOilQuantity] = useSimVar(`ENG OIL QUANTITY:${engineNumber}`, 'percent', 100);
-  const OIL_QTY_MAX = 24.25;
-  const OIL_QTY_LOW_ADVISORY = 1.35;
-  const displayedEngineOilQuantity =
-    engineOilQuantity === 100 ? OIL_QTY_MAX : Math.round(((engineOilQuantity / 100) * OIL_QTY_MAX) / 0.5) * 0.5; // Engine oil quantity has a step of 0.2
-  const [quantityAtOrBelowLow, setQuantityAtOrBelowLow] = useState(false);
+  // The oil quantity in the tank that the FADEC computes (quarts), which an oil leak empties (EngineControlA32NX updateOil)
+  const [engineOilQuantity] = useSimVar(`L:A32NX_ENGINE_OIL_QTY:${engineNumber}`, 'number', 100);
+  const displayedEngineOilQuantity = Math.max(0, Math.round(engineOilQuantity / 0.5) * 0.5); // Engine oil quantity has a step of 0.5
   const [shouldQuantityPulse, setShouldQuantityPulse] = useState(false);
 
   const activeVisibility = fadecOn ? 'visible' : 'hidden';
   const inactiveVisibility = fadecOn ? 'hidden' : 'visible';
-  // Sets engine oil quantity's pulsation based on advisory value constant, this should be changed in the future as its calculated on the fly in NEOs
+  // FCOM DSC-70-90-40 OIL QUANTITY: pulses below 3.25 QT until 4.75 QT, see EngOilIndications
   useEffect(() => {
-    if (displayedEngineOilQuantity <= OIL_QTY_LOW_ADVISORY) {
-      setQuantityAtOrBelowLow(true);
-    }
-
-    if (quantityAtOrBelowLow && displayedEngineOilQuantity >= OIL_QTY_LOW_ADVISORY + 2) {
-      setQuantityAtOrBelowLow(false);
-    }
-
-    setShouldQuantityPulse(quantityAtOrBelowLow);
+    setShouldQuantityPulse((wasPulsing) => oilQuantityPulses(wasPulsing, engineOilQuantity));
   }, [engineOilQuantity]);
 
   return (
@@ -226,7 +204,7 @@ const QuantityGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
           y={y}
           length={60}
           scaleMax={100}
-          value={getNeedleValue(engineOilQuantity, OIL_QTY_MAX)}
+          value={getNeedleValue(engineOilQuantity, OIL_QTY_SCALE_MAX_QT)}
           className={`NoFill ${displayedEngineOilQuantity === 0 && 'Hidden'} ${shouldQuantityPulse ? 'LinePulse' : 'GreenLine '}`}
           dashOffset={-40}
         />
@@ -235,7 +213,7 @@ const QuantityGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
           y={y}
           length={60}
           scaleMax={100}
-          value={getNeedleValue(OIL_QTY_LOW_ADVISORY, OIL_QTY_MAX) - 3}
+          value={getNeedleValue(OIL_QTY_ADVISORY_QT, OIL_QTY_SCALE_MAX_QT) - 3}
           className="NoFill AmberHeavy"
           dashOffset={-50}
         />
@@ -244,7 +222,7 @@ const QuantityGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
           y={y}
           length={50}
           scaleMax={100}
-          value={getNeedleValue(OIL_QTY_LOW_ADVISORY, OIL_QTY_MAX) - 2}
+          value={getNeedleValue(OIL_QTY_ADVISORY_QT, OIL_QTY_SCALE_MAX_QT) - 2}
           className="NoFill AmberLine"
           dashOffset={-45}
         />

@@ -6,6 +6,7 @@
 
 #include "MsfsHandler.h"
 
+#include "EngineOilFailures.hpp"
 #include "FadecSimData_A32NX.hpp"
 #include "FuelConfiguration_A32NX.h"
 
@@ -84,6 +85,18 @@ class EngineControl_A32NX {
   // failure and is 0 below 0.5 %.
   static constexpr double SEIZED_CORE_DECAY_RATE = 2.0;  // 1/s
   static constexpr double SEIZED_CORE_STOPPED_N2 = 0.5;  // percent
+
+  // Engine oil failures (fadec_common EngineOilFailures.hpp). Design choices, the FCOM gives no rates:
+  // - an oil leak empties the oil system at 2 qt/min;
+  // - the oil pump delivers its normal pressure down to 2 qt in the tank, below the 3 QT advisory of the SD oil quantity
+  //   (FCOM DSC-70-90-40, a320_fcom.txt l.64510), and no pressure at 0.5 qt, so that ENG OIL LO PR (below 13 PSI, FCOM
+  //   PRO-ABN-ENG l.80568) follows the low oil quantity advisory;
+  // - an oil overheat drives the oil to 135 C at idle, below the 140 C advisory, and to 175 C at 100 % N2, above the
+  //   155 C of ENG OIL HI TEMP (FCOM PRO-ABN-ENG l.80527-80529), with a 60 s time constant.
+  static constexpr double                                OIL_LEAK_RATE              = 2.0 / 60.0;  // qt/s
+  static constexpr double                                OIL_FULL_PRESSURE_TANK_QTY = 2.0;         // qt
+  static constexpr double                                OIL_NO_PRESSURE_TANK_QTY   = 0.5;         // qt
+  static constexpr EngineOilFailures::OverheatParameters OIL_OVERHEAT               = {135.0, 175.0, 60.0};
 
   /**
    * @enum EngineState

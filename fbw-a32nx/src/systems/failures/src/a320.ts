@@ -163,6 +163,12 @@ export const A320Failure = Object.freeze({
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
   Eng2Seizure: 72011,
+  Eng1OilLeak: 79000,
+  Eng2OilLeak: 79001,
+  Eng1OilFilterClog: 79020,
+  Eng2OilFilterClog: 79021,
+  Eng1OilOverheat: 79030,
+  Eng2OilOverheat: 79031,
 });
 
 export const A320FailureDefinitions: FailureDefinition[] = [
@@ -323,4 +329,14 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // The core stops; no relight while the failure is active
   [72, A320Failure.Eng1Seizure, 'Engine 1 seizure (no relight)'],
   [72, A320Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
+
+  // The oil quantity falls at 2 qt/min, then the oil pressure once the tank is nearly empty (ENG OIL LO PR)
+  [79, A320Failure.Eng1OilLeak, 'Engine 1 oil leak'],
+  [79, A320Failure.Eng2OilLeak, 'Engine 2 oil leak'],
+  // CLOG on the ENGINE SD page and ENG OIL FILTER CLOG, no other effect
+  [79, A320Failure.Eng1OilFilterClog, 'Engine 1 oil filter clog'],
+  [79, A320Failure.Eng2OilFilterClog, 'Engine 2 oil filter clog'],
+  // The oil temperature rises with thrust above the ENG OIL HI TEMP limit
+  [79, A320Failure.Eng1OilOverheat, 'Engine 1 oil overheat'],
+  [79, A320Failure.Eng2OilOverheat, 'Engine 2 oil overheat'],
 ];
