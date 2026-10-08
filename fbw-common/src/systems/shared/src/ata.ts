@@ -110,6 +110,8 @@ export const AtaChaptersDescription = Object.freeze({
   80: 'The starting system turns the engine with an air starter fed through the start valve. Start valve, starter and start faults can prevent the engine from starting or make the FADEC abort the start.',
   77: 'The engine indicating system shows the engine parameters (N1, N2, EGT, vibrations) on the ECAM and warns of exceedances. A high vibration shows on the ENGINE SD page.',
   46: 'Information systems provide means of communication between Airline Operational Control (AOC), Air Traffic Control (ATC), and various applications around the organization of on-board information (e.g. via the OIS)',
+  73: 'The FADEC (Full Authority Digital Engine Control) controls each engine from its thrust lever and the autothrust, with two redundant channels. A FADEC or thrust lever failure can freeze the thrust at idle or climb, or remove the engine from the autothrust.',
+  78: 'The thrust reversers deflect the engine airflow forward to slow the aircraft on the ground. A failed reverser does not deploy; an unlocked reverser sets its engine at idle.',
 });
 
 export type AtaChapterNumber = keyof typeof AtaChaptersTitle;
