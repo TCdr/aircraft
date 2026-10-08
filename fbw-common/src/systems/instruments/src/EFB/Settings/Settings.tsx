@@ -88,7 +88,7 @@ const SettingsPageTitle = ({ name, backRoute }: SettingsPageProps) => {
           <ArrowLeft size={20} />
         </Link>
       )}
-      <span className="text-2xl font-bold text-white">{name}</span>
+      <span className="text-2xl font-bold text-m3-text">{name}</span>
     </div>
   );
 };

@@ -274,7 +274,7 @@ const SinglePreset = (props: SinglePresetParams) => {
 
   return (
     <div className="flex h-14 flex-row items-center px-2">
-      <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-m3-tile text-base font-bold text-white">
+      <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-m3-tile text-base font-bold text-m3-text">
         {props.presetID}
       </span>
 
