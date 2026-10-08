@@ -150,6 +150,7 @@
 
 #include "constants.h"
 #include "vd_runways.h"  // VdCutSegment, the runway stretches of the A380X VD (pure geometry)
+#include "view_park.h"  // ViewPark, the parking of the MapViews and the re-sending of their settings (pure logic)
 
 namespace ndwxr {
 
@@ -173,15 +174,6 @@ struct NamedVar {
   double read() { return get_named_variable_value(id); }
 };
 
-
-// Whether one MapView is parked (made invisible because nothing has shown it for a while, see
-// kParkAfterFrames) and the radius last sent to it, so the setter is only called on a change.
-struct ViewPark {
-  bool parked = false;
-  int idleFrames = 0;
-  int warmupLeft = 0;
-  float radiusSent = -1.0f;
-};
 
 // When a gauge last redrew its picture and what the picture showed then (a key built from the display's
 // mode, range, selections and view readiness), so it is redrawn at its pacing rate or at once on a change.
@@ -381,10 +373,12 @@ void registerSimVars();
 Instance* findInstance(FsContext ctx);
 Instance* allocInstance();
 // Parks a view nothing has wanted for kParkAfterFrames and takes it back when it is wanted again; true when
-// the view can be drawn this frame (wanted, visible and past its warm-up).
+// the view can be drawn this frame (wanted, visible and past its warm-up). A view woken up has park.setupDue set:
+// its owner sends its whole setup again (see view_park.h).
 bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted);
-// fsMapViewSet2DViewRadiusInMeters, only when the radius differs from the one last sent to the view.
-void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres);
+// fsMapViewSet2DViewRadiusInMeters on a change of the radius, and again every kViewRadiusResendSeconds (see
+// viewRadiusSendDue); nowSeconds is the gauge draw's sim time.
+void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres, double nowSeconds);
 // True when the picture is due: at once when its key changed (or on the first call, or when the sim time went
 // back), else once periodSeconds have passed since the last redraw. Records the redraw when it returns true.
 bool redrawDue(RedrawPacer& pacer, double nowSeconds, double periodSeconds, unsigned long long key);
