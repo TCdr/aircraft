@@ -23,3 +23,5 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS start_sequence_test.cpp -o ../ob
 ../obj/start_sequence_test
 clang++ -std=c++20 -Wall -Wextra -Werror egt_failure_offset_test.cpp -o ../obj/egt_failure_offset_test
 ../obj/egt_failure_offset_test
+clang++ -std=c++20 -Wall -Wextra -Werror -I../../../../../fbw-common/src/wasm/fadec_common/src oil_system_test.cpp -o ../obj/oil_system_test
+../obj/oil_system_test

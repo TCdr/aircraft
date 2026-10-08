@@ -13,3 +13,6 @@ if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then
 fi
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS start_sequence_test.cpp -o ../obj/start_sequence_test
 ../obj/start_sequence_test
+# Polynomials_A32NX.hpp has a pre-existing unused lambda capture (also a warning of the WASM build)
+clang++ -std=c++20 -Wall -Wextra -Werror -Wno-unused-lambda-capture -I../../../../../fbw-common/src/wasm/fadec_common/src oil_system_test.cpp -o ../obj/oil_system_test
+../obj/oil_system_test

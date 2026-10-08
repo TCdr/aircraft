@@ -15,7 +15,7 @@
  * Pure functions without the MSFS SDK, unit tested natively (fadec_common/test/run_tests.sh).
  *
  * Design choice: the FCOMs give the alert thresholds of the oil parameters but not how fast a leak or an overheat
- * develops. A leak empties the oil system at a fixed rate while the oil pump turns; once the tank is nearly empty the pump
+ * develops. A leak empties the oil system at a fixed rate while the oil pump turns; once the system is nearly empty the pump
  * no longer delivers its normal pressure. An overheat (the oil no longer cooled enough) drives the oil temperature towards
  * a temperature that rises with the engine core speed, so that reducing thrust reduces it.
  */
@@ -41,20 +41,34 @@ inline double leakedQuantity(bool leaking, double coreSpeedPercent, double total
 }
 
 /**
- * @brief The fraction of its normal pressure the oil pump delivers with the oil left in the tank.
- * @param tankQuantity The oil quantity in the tank, in quarts.
- * @param fullPressureTankQuantity At or above this tank quantity the pump delivers its normal pressure, in quarts.
- * @param noPressureTankQuantity At or below this tank quantity the pump delivers no pressure, in quarts.
- * @return 1 with enough oil, falling linearly to 0 as the tank empties.
+ * @brief The fraction of its normal pressure the oil pump delivers with the oil left in the oil system.
+ *
+ * It takes the oil of the whole system (tank and circuit, A32NX_ENGINE_OIL_TOTAL), never the tank reading: at high
+ * thrust the oil moves from the tank into the circuit (gulping), which is normal and must not lower the pressure (sim
+ * test 2026-10-06: a false ENG OIL LO PR in a normal climb when the pressure followed the tank reading).
+ * @param totalQuantity The oil quantity in the whole oil system, in quarts.
+ * @param fullPressureQuantity At or above this quantity the pump delivers its normal pressure, in quarts.
+ * @param noPressureQuantity At or below this quantity the pump delivers no pressure, in quarts.
+ * @return 1 with enough oil, falling linearly to 0 as the oil system empties.
  */
-inline double pressureFactor(double tankQuantity, double fullPressureTankQuantity, double noPressureTankQuantity) {
-  if (tankQuantity >= fullPressureTankQuantity) {
+inline double pressureFactor(double totalQuantity, double fullPressureQuantity, double noPressureQuantity) {
+  if (totalQuantity >= fullPressureQuantity) {
     return 1.0;
   }
-  if (tankQuantity <= noPressureTankQuantity) {
+  if (totalQuantity <= noPressureQuantity) {
     return 0.0;
   }
-  return (tankQuantity - noPressureTankQuantity) / (fullPressureTankQuantity - noPressureTankQuantity);
+  return (totalQuantity - noPressureQuantity) / (fullPressureQuantity - noPressureQuantity);
+}
+
+/**
+ * @brief The oil quantity in the tank (the SD reading): the oil of the whole system less the oil gulped into the
+ * circuit, never below 0.
+ * @param totalQuantity The oil quantity in the whole oil system, in quarts.
+ * @param gulpFraction The fraction of the oil in the circuit (each aircraft's oil gulping polynomial), clamped to 0-1.
+ */
+inline double tankQuantity(double totalQuantity, double gulpFraction) {
+  return (std::max)(0.0, totalQuantity * (1.0 - std::clamp(gulpFraction, 0.0, 1.0)));
 }
 
 /** @brief The oil temperatures an overheat drives the oil towards, and how fast. */
