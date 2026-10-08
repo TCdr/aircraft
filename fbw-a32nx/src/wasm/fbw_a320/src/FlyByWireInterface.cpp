@@ -431,6 +431,8 @@ void FlyByWireInterface::setupLocalVariables() {
   idAutothrustReverse_2 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_REVERSE:2");
   idAutothrustN1_c_1 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_N1_COMMANDED:1");
   idAutothrustN1_c_2 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_N1_COMMANDED:2");
+  idEngineStallN1Loss_1 = std::make_unique<LocalVariable>("A32NX_ENGINE_1_STALL_N1_LOSS");
+  idEngineStallN1Loss_2 = std::make_unique<LocalVariable>("A32NX_ENGINE_2_STALL_N1_LOSS");
 
   idMasterWarning = std::make_unique<LocalVariable>("A32NX_MASTER_WARNING");
   idMasterCaution = std::make_unique<LocalVariable>("A32NX_MASTER_CAUTION");
@@ -2663,6 +2665,12 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent =
       fadecIndex == 0 ? simData.commanded_engine_N1_1_percent + simData.engine_N1_1_percent - simData.corrected_engine_N1_1_percent
                       : simData.commanded_engine_N1_2_percent + simData.engine_N1_2_percent - simData.corrected_engine_N1_2_percent;
+  // A stalled engine loses thrust (systems WASM, a320_systems engine_malfunction.rs; design choice): its thrust control loop is
+  // told that the MSFS engine is commanded that much more N1 than it is, so the loop sets the MSFS throttle lower and the MSFS
+  // engine runs at the N1 target minus the loss. The loss acts on the loop feedback, not on the throttle output, so the loop
+  // does not wind up while the engine is stalled.
+  fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent +=
+      fadecIndex == 0 ? idEngineStallN1Loss_1->get() : idEngineStallN1Loss_2->get();
   fadecInputs[fadecIndex].in.data.engine_N2_percent = 0;
   fadecInputs[fadecIndex].in.data.engine_N1_percent = fadecIndex == 0 ? simData.engine_N1_1_percent : simData.engine_N1_2_percent;
   fadecInputs[fadecIndex].in.data.TAT_degC = simData.total_air_temperature_celsius;

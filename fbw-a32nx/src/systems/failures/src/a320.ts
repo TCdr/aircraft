@@ -163,6 +163,14 @@ export const A320Failure = Object.freeze({
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
   Eng2Seizure: 72011,
+  Eng1CompressorStall: 72100,
+  Eng2CompressorStall: 72101,
+  Eng1EgtOvertemperature: 72110,
+  Eng2EgtOvertemperature: 72111,
+  Eng1Overspeed: 72120,
+  Eng2Overspeed: 72121,
+  Eng1HighVibration: 77000,
+  Eng2HighVibration: 77001,
 });
 
 export const A320FailureDefinitions: FailureDefinition[] = [
@@ -323,4 +331,17 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // The core stops; no relight while the failure is active
   [72, A320Failure.Eng1Seizure, 'Engine 1 seizure (no relight)'],
   [72, A320Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
+  // The engine keeps running (a320_systems engine_malfunction.rs). Stall: above 60 % N1 command, thrust loss, EGT rise,
+  // fluctuating N1/N2, ENG STALL; it ends with the thrust lever at idle and recurs above the threshold.
+  [72, A320Failure.Eng1CompressorStall, 'Engine 1 compressor stall (above 60 % N1)'],
+  [72, A320Failure.Eng2CompressorStall, 'Engine 2 compressor stall (above 60 % N1)'],
+  // The EGT is higher, more so at high thrust: ENG EGT OVER LIMIT at climb thrust
+  [72, A320Failure.Eng1EgtOvertemperature, 'Engine 1 EGT overtemperature'],
+  [72, A320Failure.Eng2EgtOvertemperature, 'Engine 2 EGT overtemperature'],
+  // The N1 and N2 indications run 7 % / 6 % above their value: ENG N1 OVER LIMIT at takeoff thrust; the thrust is unchanged
+  [72, A320Failure.Eng1Overspeed, 'Engine 1 N1/N2 overspeed indication'],
+  [72, A320Failure.Eng2Overspeed, 'Engine 2 N1/N2 overspeed indication'],
+  // N1 and N2 vibrations above the SD advisory (6 / 4.3 units) at climb and cruise thrust; no ECAM alert (QRH procedure)
+  [77, A320Failure.Eng1HighVibration, 'Engine 1 high vibration'],
+  [77, A320Failure.Eng2HighVibration, 'Engine 2 high vibration'],
 ];

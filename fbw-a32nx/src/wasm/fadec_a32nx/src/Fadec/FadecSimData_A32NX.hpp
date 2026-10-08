@@ -201,6 +201,10 @@ class FadecSimData_A32NX {
   NamedVariablePtr engineWindmillN2[2];  // Percent - N2 of the engine windmilling without combustion (systems WASM)
   NamedVariablePtr engineRelightIgnition[2];  // Bool - an in-flight relight is lighting up: igniters on (systems WASM)
   NamedVariablePtr engineModeSelector;        // Enum - ENG MODE selector: 0 crank, 1 norm, 2 ign/start
+  // Stall, EGT overtemperature and overspeed failures of a running engine (systems WASM, a320_systems engine_malfunction.rs)
+  NamedVariablePtr engineEgtOffset[2];  // Celsius - added to the EGT
+  NamedVariablePtr engineN1Offset[2];   // Percent - added to the N1
+  NamedVariablePtr engineN2Offset[2];   // Percent - added to the N2
   NamedVariablePtr engineFuelUsed[2];
   NamedVariablePtr engineIdleEGT;
   NamedVariablePtr engineIdleFF;
@@ -326,6 +330,13 @@ class FadecSimData_A32NX {
     engineRelightIgnition[L] = dm->make_named_var("A32NX_ENGINE_1_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
     engineRelightIgnition[R] = dm->make_named_var("A32NX_ENGINE_2_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
     engineModeSelector       = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ);
+
+    engineEgtOffset[L] = dm->make_named_var("A32NX_ENGINE_1_EGT_OFFSET", UNITS.Number, AUTO_READ);
+    engineEgtOffset[R] = dm->make_named_var("A32NX_ENGINE_2_EGT_OFFSET", UNITS.Number, AUTO_READ);
+    engineN1Offset[L]  = dm->make_named_var("A32NX_ENGINE_1_N1_OFFSET", UNITS.Number, AUTO_READ);
+    engineN1Offset[R]  = dm->make_named_var("A32NX_ENGINE_2_N1_OFFSET", UNITS.Number, AUTO_READ);
+    engineN2Offset[L]  = dm->make_named_var("A32NX_ENGINE_1_N2_OFFSET", UNITS.Number, AUTO_READ);
+    engineN2Offset[R]  = dm->make_named_var("A32NX_ENGINE_2_N2_OFFSET", UNITS.Number, AUTO_READ);
 
     engineFuelUsed[L] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[R] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);

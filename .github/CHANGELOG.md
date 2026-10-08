@@ -296,6 +296,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] An in-flight engine relight follows the FCOM relight envelope (windmilling, starter assisted and quick relight zones, multiple-engine limits); a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N3; both igniters during an in-flight relight; the start valve stays closed for a windmilling start and the engine pumps are depressurised meanwhile - @TCdr
 1. [A380X/FWS] New ENG TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE cautions with their FCOM lines, STATUS and LAND ANSA; ENG FAIL shows RELIGHT PROC APPLY when more than two engines failed; ENG SHUT DOWN adds BTV and CAT 3 DUAL to the STATUS; ALL ENGINES FAILURE is renamed ALL ENG FLAME OUT as in the FCOM - @TCdr
 1. [A380X/FWS] ENG 3 and ENG 4 FAIL no longer come up during an engine start or a relight attempt that has not lit up, and their THR LEVER IDLE lines read their own thrust lever (they read engine 2's) - @TCdr
+1. [A32NX/EFB] New flyPad failures Engine 1(2) compressor stall, EGT overtemperature, N1/N2 overspeed indication and high vibration: a stalled engine loses thrust with a rising EGT and fluctuating N1/N2 above 60 % N1 and recovers at idle; the EGT and N1/N2 run above their limits at high thrust; the vibrations exceed the SD advisory - @TCdr
+1. [A32NX/ECAM] ENG 1(2) STALL and ENG 1(2) N1/N2/EGT OVER LIMIT cautions with their FCOM procedures - @TCdr
+1. [A32NX/EWD] N1 turns amber above the N1 limit and red above 104 %, N2 red above 105 % with a red cross, and the EGT gauge shows a red mark at the highest EGT above its 975 °C red limit; the SD shows separate N1 and N2 vibrations that pulse above the advisory - @TCdr
 
 ## 2024.1.0
 

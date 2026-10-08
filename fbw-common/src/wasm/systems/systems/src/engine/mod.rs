@@ -8,6 +8,7 @@ use crate::{
 };
 
 pub mod engine_failure;
+pub mod engine_malfunction;
 pub mod leap_engine;
 pub mod reverser;
 pub mod reverser_thrust;

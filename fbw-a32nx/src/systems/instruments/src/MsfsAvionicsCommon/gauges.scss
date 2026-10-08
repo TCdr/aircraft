@@ -38,6 +38,21 @@
     fill: none;
   }
 
+  // The needle colour of a parameter above its limits, and the red exceedance mark (FCOM DSC-70-90-40)
+  .GaugeIndicator.Amber {
+    stroke: $display-amber;
+  }
+
+  .GaugeIndicator.Red {
+    stroke: $display-red;
+  }
+
+  .GaugeExceedanceMark {
+    stroke: $display-red;
+    stroke-width: 3;
+    fill: none;
+  }
+
   .GaugeThrustLimitIndicatorFill {
     stroke: $display-amber;
     stroke-width: 3;
