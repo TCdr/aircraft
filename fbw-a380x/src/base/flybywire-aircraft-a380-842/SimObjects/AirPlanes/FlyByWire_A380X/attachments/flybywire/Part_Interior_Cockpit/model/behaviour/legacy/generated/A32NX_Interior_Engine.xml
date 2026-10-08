@@ -150,7 +150,15 @@
         <UseTemplate Name="FBW_Push_Toggle">
             <DUMMY_BUTTON>True</DUMMY_BUTTON>
             <SEQ1_CODE>(L:A32NX_FIRE_DETECTED_ENG#ID#, Bool)</SEQ1_CODE>
-            <SEQ2_CODE>(A:ENG FAILED:#ID#, bool)</SEQ2_CODE>
+            <!-- ENG MASTER FAULT light (A380 FCOM DSC-70-90, a380_fcom.txt l.112849-112859): it comes on when "An
+                 automatic start sequence aborts, or - The HP fuel valve position is abnormal [...] - The overthrust
+                 protection is active and the FADEC automatically shut downs the engine." The FADEC start sequence of
+                 systems.wasm (systems::engine::engine_start, A380 schedule in a380_systems engine_failure.rs) lights it
+                 for an aborted automatic start. FBW has no HP fuel valve failure (the valve always follows its command)
+                 and no overthrust protection, so those two causes cannot occur. This file is hand-maintained: the A380X
+                 has no behavior generator. It followed the MSFS engine failure (A:ENG FAILED) before, which a start
+                 abort does not set. -->
+            <SEQ2_CODE>(L:A32NX_ENGINE_#ID#_FAULT_LIGHT, bool)</SEQ2_CODE>
         </UseTemplate>
     </Template>
 </ModelBehaviors>
