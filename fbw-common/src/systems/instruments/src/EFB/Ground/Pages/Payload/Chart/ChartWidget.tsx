@@ -2,45 +2,15 @@
 // Copyright (c) 2023-2024 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import {
-  useSimVar,
-  Units,
-  PayloadChartLimits,
-  AirframePerformanceEnvelope,
-  usePersistentSetting,
-} from '@flybywiresim/fbw-sdk-react';
+import { useSimVar, Units, PayloadChartLimits, AirframePerformanceEnvelope } from '@flybywiresim/fbw-sdk-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { CanvasConst } from './Constants';
 import { chartWeightToY } from './ChartFit';
+import { chartColours, themeTokens } from '../../../../Utils/themePalette';
+import { useThemeChoice } from '../../../../Utils/useThemeChoice';
 
 /** Half the height of a weight axis label (text-sm, 20 px line), in px: the labels are centred on their weight line */
 const WEIGHT_LABEL_HALF_HEIGHT = 10;
-
-/** The colours of the chart: the m3 colours of the flyPad theme */
-interface ChartColours {
-  /** MZFW line and point (m3-text) */
-  zfw: string;
-  /** MTOW (or FLIGHT) line and point (m3-primary) */
-  tow: string;
-  /** MLDW line and point (m3-on-warn) */
-  ldw: string;
-  /** The weight lines and the main CG lines (m3-outline) */
-  grid: string;
-  /** The other CG lines (m3-tile) */
-  gridMinor: string;
-  /** The ring around the points: the card under the chart (m3-card) */
-  ring: string;
-}
-
-/**
- * The m3 colours of Assets/Theme.css for each flyPad theme (EFB_UI_THEME), the blue theme by default: a canvas cannot
- * draw with the CSS variables of the theme.
- */
-const CHART_COLOURS: Record<string, ChartColours> = {
-  blue: { zfw: '#e3e5ea', tow: '#00a4ad', ldw: '#f2c14e', grid: '#44474e', gridMinor: '#262a31', ring: '#1b1e24' },
-  dark: { zfw: '#e3e5ea', tow: '#3b82f6', ldw: '#f2c14e', grid: '#3a4150', gridMinor: '#222833', ring: '#161a21' },
-  light: { zfw: '#1b1e24', tow: '#1d6fe0', ldw: '#7a5a00', grid: '#c5c8ce', gridMinor: '#e6e8ec', ring: '#ffffff' },
-};
 
 interface ChartWidgetProps {
   width: number;
@@ -70,13 +40,14 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({
   const { usingMetric } = Units;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
-  const [theme] = usePersistentSetting('EFB_UI_THEME');
+  // a canvas cannot draw with the CSS variables of the theme: the colours of the active theme's tokens
+  const [themeChoice] = useThemeChoice();
   const [flightPhase] = useSimVar('L:A32NX_FMGC_FLIGHT_PHASE', 'enum');
 
   const draw = () => {
     if (!ctx) return;
 
-    const colours = CHART_COLOURS[theme] ?? CHART_COLOURS.blue;
+    const colours = chartColours(themeTokens(themeChoice));
     const base = colours.zfw;
     const primary = colours.tow;
     const secondary = colours.ldw;
