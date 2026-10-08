@@ -118,6 +118,8 @@ pub enum FailureType {
     ThrustLeverResolvers(usize),
     /// The two resolvers of thrust lever n disagree (A320 ENG THR LEVER DISAGREE)
     ThrustLeverResolverDisagree(usize),
+    /// The fuel filter of engine n is clogged: a crew awareness indication (engine::fuel_filter_failure)
+    EngineFuelFilterClog(usize),
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),
