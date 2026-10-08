@@ -1975,6 +1975,14 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True while the FADEC energizes igniter B of the engine; see A32NX_FADEC_IGNITER_A_ACTIVE_ENG{number}. Written by the FADEC
 
+- A32NX_ENGINE_{number}_START_PHASE, _START_ATTEMPT, _START_MANUAL, _START_FAULT, _FAULT_LIGHT, _STARTER_MOTORING, _STARTER_FAILED, _START_N2_HANG, _START_EGT_OVERSHOOT, _IGNITER_A_FAULT, _IGNITER_B_FAULT, _IGNITERS, _CONTINUOUS_IGNITION, _START_VALVE_COMMAND, _START_VALVE_FAULT
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The FADEC start sequence on the ground, the ignition and the start and ignition failures (systems::engine::engine_start), with the A380 numbers (a380_systems engine_failure.rs a380_engine_start_schedule: ignition and fuel at 20 % N3, end of the start at 58.4 % N3, no light up after 20 s, start EGT limit 745 °C, three automatic attempts with a 30 s dry crank, starter time limit 5 min). The same variables as the A32NX, see fbw-a32nx/docs/a320-simvars.md; START_N2_HANG holds the N3. ENG START FAULT, START VLV FAULT, IGN FAULT (FwsCore, EngineStartAlerts). FAULT_LIGHT is written but the A380X cockpit has no ENG MASTER FAULT light yet; IGNITERS is the start sequence's own igniter choice (the SD igniter indication is the FADEC's). STARTER_MOTORING also engages the MSFS starter with the ENG MASTER OFF (dry crank, cockpit behaviour pedestal.xml A380X_ENGINE_Switch_Master_Template). Written by the systems WASM
+
 - A32NX_PNEU_ENG_{number}_STARTER_PRESSURIZED
   - Bool
   - {number}

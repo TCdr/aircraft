@@ -77,6 +77,9 @@ class EngineControl_A380X {
   // selector
   bool fadecIgnitionSet[4] = {false, false, false, false};
 
+  // The EGT excess of a hot start or a stall (StartSequence_A380X::egtOvershoot), in degrees Celsius
+  double startEgtExcess[4] = {0.0, 0.0, 0.0, 0.0};
+
   // the igniters (A, B) the FADEC energizes per engine, for the SD ENGINE page (see IgniterSelection_A380X)
   IgniterSelection_A380X igniterSelection[4]{};
 
@@ -210,7 +213,8 @@ class EngineControl_A380X {
                                                       bool   engineStarter,
                                                       double simN3,
                                                       double idleN3,
-                                                      double ambientTemperature);
+                                                      double ambientTemperature,
+                                                      bool   startN3Hang);
 
   /**
    * @brief This function manages the engine start procedure.

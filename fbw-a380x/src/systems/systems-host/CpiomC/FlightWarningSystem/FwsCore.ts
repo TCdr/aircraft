@@ -108,6 +108,7 @@ import {
   twoEnginesOut,
 } from './EngineFailAlerts';
 import { engineOilAlerts } from './EngineOilAlerts';
+import { EngineStartFault, EngineStartPhase, StartValveFault } from './EngineStartAlerts';
 import {
   FeedTankLevelLoMonitor,
   feedTankPumpAlerts,
@@ -2119,6 +2120,33 @@ export class FwsCore {
 
   /** ENG 1(2)(3)(4) OIL FILTER CLOGGED, by engine (EngineOilAlerts.ts) */
   public readonly engineOilFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /*
+   * ENG START FAULT, START VLV FAULT (NOT CLOSED / NOT OPEN), IGN A(B) FAULT, IGN A+B FAULT (EngineStartAlerts.ts), from the
+   * FADEC start sequence of the systems WASM. Index 0 = engine 1.
+   */
+  public readonly engineStartFault = [1, 2, 3, 4].map(() => EngineStartFault.None);
+
+  public readonly engineStartPhase = [1, 2, 3, 4].map(() => EngineStartPhase.None);
+
+  public readonly engineStartAttempt = [0, 0, 0, 0];
+
+  public readonly engineStartManual = [false, false, false, false];
+
+  public readonly engineManualStartPbOn = [false, false, false, false];
+
+  public readonly engineStartFaultActive = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  public readonly engineStartValveNotClosed = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  public readonly engineStartValveNotOpen = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** IGN A FAULT (A only), IGN B FAULT (B only), IGN A+B FAULT */
+  public readonly engineIgnAFault = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  public readonly engineIgnBFault = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  public readonly engineIgnAPlusBFault = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** ENG FAIL, IF NOT DAMAGED: more than two engines failed, the RELIGHT PROC line reads APPLY (FCOM l.171871-171872) */
   public readonly engineRelightProcApply = Subject.create(false);
@@ -5673,6 +5701,28 @@ export class FwsCore {
       this.engineOilTempHi[index].set(oilAlerts.temperatureHigh);
       this.engineOilFilterClogged[index].set(oilAlerts.filterClogged);
     });
+
+    // ENG START FAULT, START VLV FAULT, IGN FAULT (FCOM PRO-ABN-ECAM-10-70, see EngineStartAlerts.ts)
+    for (let index = 0; index < 4; index++) {
+      const engine = index + 1;
+      this.engineStartFault[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_FAULT`, 'number');
+      this.engineStartPhase[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_PHASE`, 'number');
+      this.engineStartAttempt[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_ATTEMPT`, 'number');
+      this.engineStartManual[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_MANUAL`, 'bool') > 0;
+      this.engineManualStartPbOn[index] = SimVar.GetSimVarValue(`L:A32NX_ENGMANSTART${engine}_TOGGLE`, 'bool') > 0;
+      this.engineStartFaultActive[index].set(this.engineStartFault[index] !== EngineStartFault.None);
+      const startValveFault: StartValveFault = SimVar.GetSimVarValue(
+        `L:A32NX_ENGINE_${engine}_START_VALVE_FAULT`,
+        'number',
+      );
+      this.engineStartValveNotClosed[index].set(startValveFault === StartValveFault.NotClosed);
+      this.engineStartValveNotOpen[index].set(startValveFault === StartValveFault.NotOpen);
+      const igniterAFault = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_IGNITER_A_FAULT`, 'bool') > 0;
+      const igniterBFault = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_IGNITER_B_FAULT`, 'bool') > 0;
+      this.engineIgnAFault[index].set(igniterAFault && !igniterBFault);
+      this.engineIgnBFault[index].set(igniterBFault && !igniterAFault);
+      this.engineIgnAPlusBFault[index].set(igniterAFault && igniterBFault);
+    }
 
     // Attnetion getting box
     this.eng1StartOrCrank.set(

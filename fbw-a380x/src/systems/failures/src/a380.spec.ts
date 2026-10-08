@@ -139,6 +139,34 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  // The labels say what systems::engine::engine_start does with ids 74000-74013 and 80000-80053 (failure names audit rule)
+  it('lists the ignition and starting failures of the four engines in ATA 74 and ATA 80', () => {
+    const rustMap = readRustFailureMap();
+    const kinds: [number, number, string, string][] = [
+      [74, 74000, 'EngineIgniterA', 'igniter A'],
+      [74, 74010, 'EngineIgniterB', 'igniter B'],
+      [80, 80000, 'EngineStartValveStuckClosed', 'start valve stuck closed'],
+      [80, 80010, 'EngineStartValveStuckOpen', 'start valve stuck open'],
+      [80, 80020, 'EngineHotStart', 'hot start (start EGT over limit)'],
+      [80, 80030, 'EngineHungStart', 'hung start (N3 stops below idle)'],
+      [80, 80040, 'EngineStartStall', 'stall during the start'],
+      [80, 80050, 'EngineStarter', 'starter shaft shear'],
+    ];
+    const expected = kinds.flatMap(([ata, base, failureType, label]) =>
+      [1, 2, 3, 4].map((engine) => [base + engine - 1, `${failureType}(${engine})`, `Engine ${engine} ${label}`, ata]),
+    );
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(
+      expected.map(([id]) => [
+        id,
+        rustMap.get(id as number),
+        definitionOf(id as number)?.[2],
+        definitionOf(id as number)?.[0],
+      ]),
+    ).toEqual(expected);
+  });
+
   it('lists every failure the Rust systems map reacts to', () => {
     const rustIds = [...readRustFailureMap().keys()];
     // Sanity check of the parser: the map holds well over a hundred failures.

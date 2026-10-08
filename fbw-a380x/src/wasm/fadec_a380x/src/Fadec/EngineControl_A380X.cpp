@@ -12,6 +12,7 @@
 #include "FeedTankDraw_A380X.hpp"
 #include "Polynomials_A380X.hpp"
 #include "RelightStart_A380X.hpp"
+#include "StartSequence_A380X.hpp"
 #include "Table1502_A380X.hpp"
 #include "ThrustLimits_A380X.hpp"
 
@@ -75,8 +76,18 @@ void EngineControl_A380X::update() {
     const bool engineFuelCut        = simData.engineFuelCut[engineIdx]->getAsBool();
     const bool engineSeized         = simData.engineSeized[engineIdx]->getAsBool();
     const bool engineRelightAttempt = simData.engineRelightAttempt[engineIdx]->getAsBool();
-    const bool engineMasterStarter  = static_cast<bool>(simData.simVarsDataPtr->data().engineStarter[engineIdx]);
-    const bool engineStarter        = engineMasterStarter && (!engineFuelCut || engineRelightAttempt);
+    // The start sequence on the ground (StartSequence_A380X.hpp) cuts the fuel of a start that has not lit up yet, of the
+    // automatic dry crank and of a wet crank: the start goes on (the MSFS starter turns the core) while the fuel is cut.
+    // During a dry crank with the ENG MASTER OFF the cockpit XML engages the MSFS starter: that is no ENG MASTER ON.
+    const bool simOnGroundForStart = msfsHandlerPtr->getSimOnGround();
+    const int  startPhase          = static_cast<int>(simData.engineStartPhase[engineIdx]->get());
+    const bool startSequenceCranks =
+        StartSequence_A380X::startSequenceCranks(simData.engineStarterMotoring[engineIdx]->getAsBool(), startPhase);
+    const bool engineMasterStarter = StartSequence_A380X::engineMasterOn(
+        static_cast<bool>(simData.simVarsDataPtr->data().engineStarter[engineIdx]), startSequenceCranks);
+    const bool startN3Hang         = simData.engineStartN3Hang[engineIdx]->getAsBool();
+    const bool startKeepsStarter   = StartSequence_A380X::startSequenceKeepsStarter(simOnGroundForStart, engineFuelCut, startPhase);
+    const bool engineStarter        = engineMasterStarter && (!engineFuelCut || engineRelightAttempt || startKeepsStarter);
     const int  engineIgniter        = static_cast<int>(simData.simVarsDataPtr->data().engineIgniter[engineIdx]);
 
     // determine the current engine state based on the previous state and the current ignition, starter and other parameters
@@ -86,7 +97,8 @@ void EngineControl_A380X::update() {
                                                  engineStarter,               //
                                                  prevSimEngineN3[engineIdx],  //
                                                  idleN3,                      //
-                                                 ambientTemperature);         //
+                                                 ambientTemperature,          //
+                                                 startN3Hang);                //
 
     const bool   simOnGround   = msfsHandlerPtr->getSimOnGround();
     const double engineTimer   = simData.engineTimer[engineIdx]->get();
@@ -146,12 +158,36 @@ void EngineControl_A380X::update() {
       case STARTING:
       case RESTARTING: {
         const double preStartEgt = simData.engineEgt[engineIdx]->get();
+        const double preStartN3  = simData.engineN3[engineIdx]->get();
         engineStartProcedure(engine, engineState, deltaTime, engineTimer, simN3, ambientTemperature, engineFuelCut);
         if (engineFuelCut) {
           // An in-flight start attempt that has not lit up yet: the starter or the airflow turns the core, but no fuel flows
           // (the systems WASM keeps the fuel cut) and the EGT does not rise.
           simData.engineFF[engineIdx]->set(0.0);
           simData.engineEgt[engineIdx]->set(Polynomial_A380X::shutdownEGT(preStartEgt, ambientTemperature, deltaTime));
+        }
+        if (startKeepsStarter && engineTimer >= RelightStart_A380X::START_DELAY_SECONDS) {
+          // A ground start without combustion (StartSequence_A380X.hpp): the core follows the motoring speed, up or down
+          // (the start N3 of a burning engine never runs down); without starter air the core is brought to rest.
+          const double idleN3Now  = simData.engineIdleN3->get();
+          const double motoredN3  = Polynomial_A380X::startN3(simN3, 0.0, idleN3Now);
+          const double unlitN3Fbw = StartSequence_A380X::unlitStartN3(preStartN3, motoredN3, deltaTime);
+          simData.engineN3[engineIdx]->set(unlitN3Fbw);
+          simData.engineN2[engineIdx]->set(unlitN3Fbw == 0 ? 0 : unlitN3Fbw + 0.7);
+          if (StartSequence_A380X::coreHeldAtRest(startKeepsStarter, simData.engineStarterMotoring[engineIdx]->getAsBool())) {
+            simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 = StartSequence_A380X::restingCoreCorrectedN3(
+                simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3, deltaTime);
+            simData.engineCorrectedN3DataPtr[engineIdx]->writeDataToSim();
+          }
+        }
+        // A hung start or a stall hangs below idle; a hot start or a stall overshoots the EGT once lit
+        const double hungN3 = StartSequence_A380X::hungStartN3(simData.engineN3[engineIdx]->get(), idleN3, startN3Hang);
+        simData.engineN3[engineIdx]->set(hungN3);
+        simData.engineN2[engineIdx]->set(hungN3 == 0 ? 0 : hungN3 + 0.7);
+        const bool startEgtOvershoot = simData.engineStartEgtOvershoot[engineIdx]->getAsBool() && !engineFuelCut;
+        startEgtExcess[engineIdx]    = StartSequence_A380X::egtOvershoot(startEgtExcess[engineIdx], startEgtOvershoot, deltaTime);
+        if (startEgtExcess[engineIdx] > 0.0 && engineState == STARTING) {
+          simData.engineEgt[engineIdx]->set(simData.engineEgt[engineIdx]->get() + startEgtExcess[engineIdx]);
         }
         break;
       }
@@ -172,6 +208,11 @@ void EngineControl_A380X::update() {
       default:
         updatePrimaryParameters(engine, simN1, simN3);
         double correctedFuelFlow = updateFF(engine, simCN1, mach, pressureAltitude, ambientTemperature, ambientPressure);
+        if (startSequenceCranks) {
+          // a core motored without fuel (dry crank) has no fuel flow
+          simData.engineFF[engineIdx]->set(0.0);
+          correctedFuelFlow = 0.0;
+        }
         updateEGT(engine, engineState, deltaTime, simCN1, correctedFuelFlow, mach, pressureAltitude, ambientTemperature, simOnGround);
         updateSecondaryParameters(engine, engineState, deltaTime, simOnGround, ambientTemperature, deltaN3);
         break;
@@ -415,7 +456,8 @@ EngineControl_A380X::EngineState EngineControl_A380X::engineStateMachine(int    
                                                                          bool   engineStarter,
                                                                          double simN3,
                                                                          double idleN3,
-                                                                         double ambientTemperature) {
+                                                                         double ambientTemperature,
+                                                                         bool   startN3Hang) {
 #ifdef PROFILING
   profilerEngineStateMachine.start();
 #endif
@@ -446,7 +488,7 @@ EngineControl_A380X::EngineState EngineControl_A380X::engineStateMachine(int    
   }
   // Current State: Starting.
   else if (engineState == STARTING) {
-    if (engineStarter && simN3 >= (idleN3 - 0.1)) {
+    if (StartSequence_A380X::startReachesIdle(engineStarter, simN3, idleN3, startN3Hang)) {
       engineState = ON;
       resetTimer  = true;
     } else if (!engineStarter) {
@@ -458,7 +500,7 @@ EngineControl_A380X::EngineState EngineControl_A380X::engineStateMachine(int    
   }
   // Current State: Re-Starting.
   else if (engineState == RESTARTING) {
-    if (engineStarter && simN3 >= (idleN3 - 0.1)) {
+    if (StartSequence_A380X::startReachesIdle(engineStarter, simN3, idleN3, startN3Hang)) {
       engineState = ON;
       resetTimer  = true;
     } else if (!engineStarter) {

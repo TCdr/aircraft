@@ -2,6 +2,58 @@
 <!-- SPDX-License-Identifier: GPL-3.0 -->
 
 <ModelBehaviors>
+    <!-- ENG MASTER lever. The A32NX template of the same lever (legacy/generated FBW_ENGINE_Switch_Master_Template) keeps the
+         MSFS starter equal to the lever every 0.2 s, so a dry crank with the lever OFF could not turn the engine. Here the
+         MSFS starter also follows the FADEC start sequence of the systems WASM: A32NX_ENGINE_n_STARTER_MOTORING is true while
+         the starter turns the core without fuel (A380 FCOM DSC-70-80-40 CRANKING, a380_fcom.txt l.112654-112660: "A dry
+         cranking cycle ventilates the engine ... The dry crank is stopped by setting either the ENG MAN START pb-sw to OFF or
+         setting the ENG START selector to NORM"). With the lever OFF the MSFS fuel valve stays closed: no combustion. -->
+    <Template Name="A380X_ENGINE_Switch_Master_Template">
+        <DefaultTemplateParameters>
+            <NODE_ID>ENGINE_Switch_Master_#ID#</NODE_ID>
+            <ANIM_NAME>ENGINE_Switch_Master_#ID#</ANIM_NAME>
+            <WWISE_EVENT_1>engmaster</WWISE_EVENT_1>
+            <WWISE_EVENT_2>engmaster</WWISE_EVENT_2>
+            <PART_ID>ENGINE_Switch_Master</PART_ID>
+            <ANIMTIP_0>TT:COCKPIT.TOOLTIPS.ENGINE#ID#_MASTER_TURN_ON</ANIMTIP_0>
+            <ANIMTIP_1>TT:COCKPIT.TOOLTIPS.ENGINE#ID#_MASTER_TURN_OFF</ANIMTIP_1>
+        </DefaultTemplateParameters>
+        <Component ID="#NODE_ID#" Node="#NODE_ID#">
+            <Update Frequency="5">
+                (* The MSFS starter is ON with the lever ON, or while the start sequence motors the core (dry crank). *)
+                (A:FUELSYSTEM VALVE SWITCH:#VALVE_ID#, Bool) (L:A32NX_ENGINE_#ID#_STARTER_MOTORING, Bool) or sp1
+                (A:GENERAL ENG STARTER:#ID#, Bool) l1 != if{
+                    (&gt;K:TOGGLE_STARTER#ID#)
+                }
+            </Update>
+            <UseTemplate Name="ASOBO_GT_Switch_Code">
+                <ANIM_CODE>
+                    (A:FUELSYSTEM VALVE SWITCH:#VALVE_ID#, Bool) 100 *
+                </ANIM_CODE>
+                <LEFT_SINGLE_CODE>
+                    (A:FUELSYSTEM VALVE SWITCH:#VALVE_ID#, Bool) if{
+                        #VALVE_ID# (&gt;K:FUELSYSTEM_VALVE_CLOSE)
+                        (A:GENERAL ENG STARTER:#ID#, Bool) if{
+                            (&gt;K:TOGGLE_STARTER#ID#)
+                        }
+                    } els{
+                        #VALVE_ID# (&gt;K:FUELSYSTEM_VALVE_OPEN)
+                        (A:GENERAL ENG STARTER:#ID#, Bool) ! if{
+                            (&gt;K:TOGGLE_STARTER#ID#)
+                        }
+                    }
+                </LEFT_SINGLE_CODE>
+            </UseTemplate>
+        </Component>
+        <Condition Check="POTENTIOMETER">
+            <Component ID="#NODE_ID#_SEQ1" Node="#NODE_ID#_SEQ1">
+                <UseTemplate Name="ASOBO_GT_Emissive_Gauge">
+                    <EMISSIVE_CODE>(A:LIGHT POTENTIOMETER:#POTENTIOMETER#, Percent over 100)</EMISSIVE_CODE>
+                </UseTemplate>
+            </Component>
+        </Condition>
+    </Template>
+
     <Template Name="A380X_SWITCH_PITCH_TRIM">
         <Component ID="#NODE_ID#" Node="#NODE_ID#">
             <UseTemplate Name="ASOBO_GT_Switch_3States">
@@ -94,7 +146,7 @@
                 <!-- ENG MASTER 1 -->
                 <UseTemplate Name="FBW_Anim_Interactions">
                     <ANIM_TYPE>SWITCH</ANIM_TYPE>
-                    <ANIM_TEMPLATE>FBW_ENGINE_Switch_Master_Template</ANIM_TEMPLATE>
+                    <ANIM_TEMPLATE>A380X_ENGINE_Switch_Master_Template</ANIM_TEMPLATE>
                     <AIRBUS_TYPE />
                     <ANIM_NAME>SWITCH_ENGINES_ENG1</ANIM_NAME>
                     <ANIM_LAG>250</ANIM_LAG>
@@ -109,7 +161,7 @@
                 <!-- ENG MASTER 2 -->
                 <UseTemplate Name="FBW_Anim_Interactions">
                     <ANIM_TYPE>SWITCH</ANIM_TYPE>
-                    <ANIM_TEMPLATE>FBW_ENGINE_Switch_Master_Template</ANIM_TEMPLATE>
+                    <ANIM_TEMPLATE>A380X_ENGINE_Switch_Master_Template</ANIM_TEMPLATE>
                     <AIRBUS_TYPE />
                     <ANIM_NAME>SWITCH_ENGINES_ENG2</ANIM_NAME>
                     <ANIM_LAG>250</ANIM_LAG>
@@ -123,7 +175,7 @@
                 <!-- ENG MASTER 3 -->
                 <UseTemplate Name="FBW_Anim_Interactions">
                     <ANIM_TYPE>SWITCH</ANIM_TYPE>
-                    <ANIM_TEMPLATE>FBW_ENGINE_Switch_Master_Template</ANIM_TEMPLATE>
+                    <ANIM_TEMPLATE>A380X_ENGINE_Switch_Master_Template</ANIM_TEMPLATE>
                     <AIRBUS_TYPE />
                     <ANIM_NAME>SWITCH_ENGINES_ENG3</ANIM_NAME>
                     <ANIM_LAG>250</ANIM_LAG>
@@ -137,7 +189,7 @@
                 <!-- ENG MASTER 4 -->
                 <UseTemplate Name="FBW_Anim_Interactions">
                     <ANIM_TYPE>SWITCH</ANIM_TYPE>
-                    <ANIM_TEMPLATE>FBW_ENGINE_Switch_Master_Template</ANIM_TEMPLATE>
+                    <ANIM_TEMPLATE>A380X_ENGINE_Switch_Master_Template</ANIM_TEMPLATE>
                     <AIRBUS_TYPE />
                     <ANIM_NAME>SWITCH_ENGINES_ENG4</ANIM_NAME>
                     <ANIM_LAG>250</ANIM_LAG>

@@ -135,6 +135,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EFB] New flyPad failures Engine 1(2)(3)(4) oil leak, oil filter clog and oil overheat: the oil quantity falls then the oil pressure, CLOGGED shows on the ENGINE SD page, the oil temperature rises with thrust - @TCdr
 1. [A380X/FWS] New ENG 1(2)(3)(4) OIL PRESS LO red warning, OIL TEMP HI and OIL FILTER CLOGGED cautions with their FCOM procedures and flight phase inhibitions - @TCdr
 1. [A380X/SD] ENGINE page oil indications per the FCOM: the oil quantity pulses below the 1.2 qt advisory (first white dash), the oil temperature pulses above 163 °C, the oil pressure uses the FCOM 0-100/100-440 PSI scale and is red at or below 25 PSI, and CLOGGED shows below it - @TCdr
+1. [A380X/EFB] New flyPad failures for engine ignition and starting: Engine 1(2)(3)(4) igniter A or B, start valve stuck closed or stuck open, hot start, hung start, stall during the start and starter shaft shear - @TCdr
+1. [A380X/FADEC] The automatic engine start on the ground follows the FCOM: a start that does not light up within 20 s, stalls, hangs or goes above 745 °C EGT is aborted, dry cranked for 30 s and tried again with both igniters, up to three attempts; a start valve stuck closed, no starter air or a failed starter leaves the core at rest; the ENG MAN START pushbuttons work (dry crank with the ENG MASTER OFF, wet crank, manual start) - @TCdr
+1. [A380X/FWS] New ENG START FAULT (with its FCOM sub-cases and lines), START VLV FAULT (NOT CLOSED / NOT OPEN) and IGN A, IGN B, IGN A+B FAULT cautions with their INOP SYS - @TCdr
 
 ## 2024.1.0
 
