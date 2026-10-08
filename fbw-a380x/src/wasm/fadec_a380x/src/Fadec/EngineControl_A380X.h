@@ -6,6 +6,7 @@
 
 #include "MsfsHandler.h"
 
+#include "CoreSpikeGuard_A380X.hpp"
 #include "EngineIgnition_A380X.hpp"
 #include "EngineOilFailures.hpp"
 #include "FadecSimData_A380X.hpp"
@@ -68,7 +69,11 @@ class EngineControl_A380X {
   double transitionFactor;
 
   // TODO - might not be required - feeds into stateMachine but really relevant
+  // The N3 of the frame before as the FADEC uses it (the MSFS N3 through the core spike guard)
   double prevSimEngineN3[4] = {0.0, 0.0, 0.0, 0.0};
+
+  // filters the jump of the MSFS core speed at the end of an MSFS start, per engine (see CoreSpikeGuard_A380X)
+  CoreSpikeGuard_A380X coreSpikeGuard[4]{};
 
   // the igniter selection of the FADEC per engine: in-flight relight and auto relight (see EngineIgnition_A380X)
   EngineIgnition_A380X engineIgnition[4]{};
