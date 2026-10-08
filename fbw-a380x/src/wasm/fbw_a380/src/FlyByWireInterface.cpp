@@ -3008,7 +3008,7 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   const EngineStartThrottleHold::Output engineStartThrottle = engineStartThrottleHolds[fadecIndex].update(
       {anyMainGearCompressed, idEngineState[fadecIndex]->get(), fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent,
        fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent, fadecOutputs[fadecIndex].N1_c_percent, sampleTime, engine_N2_percent,
-       idEngineIdleN3->get()});
+       idEngineIdleN3->get(), idEngineStallN1Loss[fadecIndex]->get()});
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
 
   // ENG FADEC FAULT: the FADEC cannot communicate via the avionics networks (A380 FCOM l.171549): the PRIM orders do not
