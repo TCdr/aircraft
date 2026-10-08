@@ -67,6 +67,7 @@ import { TroubleshootingContextProvider } from './TroubleshootingContext';
 import { checkFileHashes } from './Utils/fileHashes';
 import { efbEvent, efbSetting, efbSimVar, isCaptainEfb } from './Utils/efbIndex';
 import { setFileHashMismatches } from './Store/features/fileHashes';
+import { startGsxTurnaroundTracker } from './Ground/Pages/Services/gsxTurnaround';
 
 // './Assets/Efb.scss' is imported by the aircraft EFB instrument the wraps this file
 import './Assets/Theme.css';
@@ -238,6 +239,9 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
   const history = useHistory();
 
   const { hashFile, hashSeed } = useContext(AircraftContext);
+
+  // GSX: remember the services completed in this turnaround whatever page is open (GSX resets them to available)
+  useEffect(() => startGsxTurnaroundTracker(), []);
 
   useEffect(() => {
     document.documentElement.classList.add('animationsEnabled');
