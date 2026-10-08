@@ -12,6 +12,7 @@ import { oilQuantityPulses, oilTemperatureClass } from '../OilIndications';
 import { n3ClassName, vibrationClassName } from './EngineVibration';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
 import { areEngineParametersShown } from '../EngineParametersAvailability';
+import { fuelFilterCloggedShown } from '../FuelFilterIndication';
 
 interface EngineColumnProps {
   anyEngineRunning: boolean;
@@ -46,6 +47,9 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   });
 
   const [fuelFlow] = useSimVar(`L:A32NX_ENGINE_FF:${engine}`, 'number', 100);
+  // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state, see FuelFilterIndication
+  const [fuelFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engine}_FUEL_FILTER_CLOGGED`, 'bool', 500);
+  const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engine}`, 'number', 500);
 
   // The rotor vibrations of the systems WASM (see EngineVibration): MSFS has a single vibration value per engine.
   const [n1Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N1_VIBRATION`, 'number', 250);
@@ -79,6 +83,12 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
       {fadecPowered && (
         <text x={x + 30} y={y + 92} className="Green EndAlign F29">
           {Math.ceil(NXUnits.kgToUser(fuelFlow) / 10) * 10}
+        </text>
+      )}
+      {/* FCOM DSC-70-90 FUEL FLOW: CLOGGED in amber below the fuel flow */}
+      {fadecPowered && fuelFilterCloggedShown(!!fuelFilterClogged, engineState) && (
+        <text x={x} y={y + 118} className="Amber MiddleAlign F22">
+          CLOGGED
         </text>
       )}
       {/* OIL */}
