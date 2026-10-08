@@ -397,6 +397,9 @@ void FlyByWireInterface::setupLocalVariables() {
     idThrottlePosition3d[i] = std::make_unique<LocalVariable>("A32NX_3D_THROTTLE_LEVER_POSITION_" + idString);
     thrustLeverAngle[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA:" + idString);
     idAutothrustN1_TLA[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:" + idString);
+    idEngineFadecTlaOverrideActive[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE_ACTIVE");
+    idEngineFadecTlaOverride[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE");
+    idEngineFadecFault[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_FAULT");
     idAutothrustReverse[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_REVERSE:" + idString);
     idAutothrustN1_c[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_N1_COMMANDED:" + idString);
     idEngineState[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_STATE:" + idString);
@@ -2985,7 +2988,9 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
 
   fadecInputs[fadecIndex].in.input.ATHR_disconnect =
       simConnectInterface.getSimInputThrottles().ATHR_disconnect || idAutothrustDisconnect->get() == 1;
-  fadecInputs[fadecIndex].in.input.TLA_deg = thrustLeverAngle[fadecIndex]->get();
+  // the thrust lever, or the angle of a FADEC protection or a thrust lever failure (systems.wasm)
+  fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::fadecModelThrustLeverAngle(
+      thrustLeverAngle[fadecIndex]->get(), idEngineFadecTlaOverrideActive[fadecIndex]->get(), idEngineFadecTlaOverride[fadecIndex]->get());
   fadecInputs[fadecIndex].in.input.thrust_limit_REV_percent = idAutothrustThrustLimitREV->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent = idAutothrustThrustLimitIDLE->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_CLB_percent = idAutothrustThrustLimitCLB->get();
@@ -3006,9 +3011,12 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
        idEngineIdleN3->get()});
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
 
-  fadecInputs[fadecIndex].in.prim_1 = primsBusOutputs[0];
-  fadecInputs[fadecIndex].in.prim_2 = primsBusOutputs[1];
-  fadecInputs[fadecIndex].in.prim_3 = primsBusOutputs[2];
+  // ENG FADEC FAULT: the FADEC cannot communicate via the avionics networks (A380 FCOM l.171549): the PRIM orders do not
+  // reach it, the A/THR loses that engine ("ENG 1(2)(3)(4) A/THR" INOP SYS), which follows its thrust lever
+  const bool fadecNetworkLost = idEngineFadecFault[fadecIndex]->get() > 0.5;
+  fadecInputs[fadecIndex].in.prim_1 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[0], fadecNetworkLost);
+  fadecInputs[fadecIndex].in.prim_2 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[1], fadecNetworkLost);
+  fadecInputs[fadecIndex].in.prim_3 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[2], fadecNetworkLost);
 
   if (fadecIndex == fadecDisabled) {
     simConnectInterface.setClientDataFadecData(fadecInputs[fadecIndex].in.data);
