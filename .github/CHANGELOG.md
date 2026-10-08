@@ -120,6 +120,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ND] The ND shows the WXR messages of the manual radar settings of the MFD SURV CONTROLS page: GAIN with the GAIN button at MAN, ELEVN or TILT instead of WX - @TCdr
 1. [A380X/MFD] WXR GAIN, TILT and ELEVN take the FCOM default values (GAIN 50 %, TILT +3.0 deg on ground and 0 deg in flight, ELEVN the current altitude) at the first manual selection - @TCdr
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
+1. [A380X/ND] The weather radar GAIN of the MFD SURV CONTROLS page changes the weather colours (50 % = calibrated, lower gain turns red to yellow, yellow to green and removes green, higher gain the opposite; turbulence unchanged), and a manual TILT or ELEVN that reaches the ground hides the weather beyond that range - @TCdr
 
 ## 2024.1.0
 
