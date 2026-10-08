@@ -43,7 +43,7 @@ import {
   UpdateThrottler,
   IrBusEvents,
 } from '@flybywiresim/fbw-sdk';
-import { VerticalMode, LateralMode, AutoThrustModeMessage } from '@shared/autopilot';
+import { VerticalMode, LateralMode, AutoThrustMode, AutoThrustModeMessage } from '@shared/autopilot';
 import { RmpState, VhfComManagerDataEvents } from '@flybywiresim/rmp';
 // FIXME should not import from instruments
 import { PseudoFwcSimvars } from '../../../instruments/src/MsfsAvionicsCommon/providers/PseudoFwcPublisher';
@@ -107,6 +107,8 @@ import {
   TwoEnginesOut,
   twoEnginesOut,
 } from './EngineFailAlerts';
+import { isEgtOverLimit, isN1N2OverLimit, isStallAlertShown } from './EngineParameterAlerts';
+import { displayedEgt } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import {
   FeedTankLevelLoMonitor,
@@ -2289,6 +2291,11 @@ export class FwsCore {
   public readonly eng2Fail = Subject.create(false);
   public readonly eng3Fail = Subject.create(false);
   public readonly eng4Fail = Subject.create(false);
+
+  /** ENG STALL, ENG EGT OVER LIMIT, ENG N1/N2 OVER LIMIT of the engines 1 to 4 (EngineParameterAlerts.ts) */
+  public readonly engStall = [1, 2, 3, 4].map(() => Subject.create(false));
+  public readonly engEgtOverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
+  public readonly engN1N2OverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
 
   /** The ENG FAIL memory of the engines 1 to 4, the same logic for the four engines (EngineFailAlerts.ts) */
   private readonly engineFailMonitors = [1, 2, 3, 4].map(() => new EngineFailMonitor());
@@ -5974,6 +5981,47 @@ export class FwsCore {
     this.eng2ShutDown.set(engineShutdownPreCondition && (this.fireButtonEng2.get() || !this.engine2Master.get()));
     this.eng3ShutDown.set(engineShutdownPreCondition && (this.fireButtonEng3.get() || !this.engine3Master.get()));
     this.eng4ShutDown.set(engineShutdownPreCondition && (this.fireButtonEng4.get() || !this.engine4Master.get()));
+
+    // ENG STALL, ENG EGT OVER LIMIT, ENG N1/N2 OVER LIMIT (FCOM PRO-ABN-ECAM-10-70, see EngineParameterAlerts.ts). The FADEC
+    // detects the stall (systems WASM, a380_systems engine_malfunction.rs); the EGT is the one the EWD shows.
+    const engineStalls = [1, 2, 3, 4].map(
+      (engineNumber) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_STALL`, 'bool') > 0,
+    );
+    const stalledEngineCount = engineStalls.filter((stalled) => stalled).length;
+    const thrustLimitType = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE', 'number');
+    const alphaFloor = this.autoThrustMode.get() === AutoThrustMode.A_FLOOR;
+    const engineN1 = [this.N1Eng1, this.N1Eng2, this.N1Eng3, this.N1Eng4];
+    const engineN3 = [this.HPNEng1, this.HPNEng2, this.HPNEng3, this.HPNEng4];
+    const engineRunning = [this.engine1State, this.engine2State, this.engine3State, this.engine4State].map(
+      (state) => state.get() === engineState.ON,
+    );
+    for (let index = 0; index < 4; index++) {
+      const engineNumber = index + 1;
+      const egt = SimVar.GetSimVarValue(`L:A32NX_ENGINE_EGT:${engineNumber}`, 'number');
+      const egtOffset = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_EGT_OFFSET`, 'number');
+      const overLimitInputs = {
+        displayedEgtDegrees: displayedEgt(egt, egtOffset, thrustLimitType),
+        n1Percent: engineN1[index].get(),
+        n3Percent: engineN3[index].get(),
+        thrustLimitType,
+        alphaFloor,
+      };
+      this.engStall[index].set(isStallAlertShown(engineStalls[index], stalledEngineCount, this.flightPhase.get()));
+      this.engEgtOverLimit[index].set(engineRunning[index] && isEgtOverLimit(overLimitInputs));
+      this.engN1N2OverLimit[index].set(engineRunning[index] && isN1N2OverLimit(overLimitInputs));
+    }
+    // The amber attention getting box also comes up with an EGT, N1 or N2 above its limit: "as soon as any amber or
+    // red indication shows on the EWD" (FCOM DSC-70-90, a380_fcom.txt l.112899-112904; the gap B17 of the FCOM audit).
+    [
+      this.eng1PrimaryAbnormalParams,
+      this.eng2PrimaryAbnormalParams,
+      this.eng3PrimaryAbnormalParams,
+      this.eng4PrimaryAbnormalParams,
+    ].forEach((primaryAbnormal, index) =>
+      primaryAbnormal.set(
+        primaryAbnormal.get() || this.engEgtOverLimit[index].get() || this.engN1N2OverLimit[index].get(),
+      ),
+    );
 
     this.eng1Out.set(this.eng1ShutDown.get() || this.engineFailMonitors[0].failed);
     this.eng2Out.set(this.eng2ShutDown.get() || this.engineFailMonitors[1].failed);

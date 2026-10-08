@@ -2305,6 +2305,78 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True while the FADEC starts the engine in flight by windmilling (start valve closed: N3 at or above 11 % and CAS at or above 260 kt, FCOM DSC-70-30): the engine-driven pumps of that engine are depressurised meanwhile (FCOM DSC-70-80-30-20 "the FADEC disconnects both hydraulic pumps"). Written by the systems WASM
 
+- A32NX_ENGINE_{number}_STALL
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC detects a stall of the running engine: compressor stall failure (flyPad 72100-72103) active and N1 command (A32NX_AUTOTHRUST_N1_COMMANDED) at or above 60 %, until it falls below 57 % (design choice). Gives ENG 1(2)(3)(4) STALL (FCOM PRO-ABN-ECAM-10-70). Written by the systems WASM (a380_systems engine_malfunction.rs)
+
+- A32NX_ENGINE_{number}_STALL_N1_LOSS
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N1 lost by the stalled engine (15 % for a developed stall, design choice). The flight controls computer adds it to the commanded N1 feedback of the thrust control loop of that engine, so the MSFS engine runs that much below the N1 target. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_EGT_OFFSET
+  - Number (degrees Celsius)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Added by the FADEC to the EGT of the running engine: stall EGT rise (150 °C) and EGT overtemperature failure (flyPad 72110-72113, 120 °C at 100 % N1), design choices. The EWD shows the EEC-trimmed EGT of the healthy engine plus this offset. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N1_OFFSET
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Added by the FADEC to the N1 of the running engine: stall fluctuation (±3 %, design choice). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N3_OFFSET
+  - Number (% N3)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Added by the FADEC to the N3 (and the N2 derived from it) of the running engine: stall fluctuation (±1.5 %, design choice). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N1_VIBRATION
+  - Number (units)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N1 rotor vibration shown on the ENGINE SD page, pulsing above 5 units (FCOM DSC-70-90): the MSFS engine vibration, plus the high vibration failure (flyPad 77000-77003, 7 units at 100 % N1) and the stall. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N2_VIBRATION
+  - Number (units)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N2 (IP) rotor vibration shown on the ENGINE SD page: the mean of the N1 and N3 vibrations (design choice). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N3_VIBRATION
+  - Number (units)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N3 (HP) rotor vibration shown on the ENGINE SD page: 60 % of the MSFS engine vibration (design choice), plus the high vibration failure (6 units at 100 % N3). Written by the systems WASM
+
 - A32NX_PNEU_ENG_{number}_STARTER_PRESSURIZED
   - Bool
   - {number}

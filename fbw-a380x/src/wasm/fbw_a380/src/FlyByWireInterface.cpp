@@ -398,6 +398,7 @@ void FlyByWireInterface::setupLocalVariables() {
     idAutothrustN1_TLA[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:" + idString);
     idAutothrustReverse[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_REVERSE:" + idString);
     idAutothrustN1_c[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_N1_COMMANDED:" + idString);
+    idEngineStallN1Loss[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_STALL_N1_LOSS");
   }
 
   idAutothrustStatus = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_STATUS");
@@ -2960,6 +2961,11 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
       idLgciuLeftMainGearCompressed[fadecIndex]->get() && idLgciuRightMainGearCompressed[fadecIndex]->get();
   fadecInputs[fadecIndex].in.data.flap_handle_index = flapsHandleIndexFlapConf->get();
   fadecInputs[fadecIndex].in.data.is_engine_operative = engineRunning;
+  // A stalled engine loses thrust (systems WASM, a380_systems engine_malfunction.rs; design choice): its thrust control loop is
+  // told that the MSFS engine is commanded that much more N1 than it is, so the loop sets the MSFS throttle lower and the MSFS
+  // engine runs at the N1 target minus the loss. The loss acts on the loop feedback, not on the throttle output, so the loop
+  // does not wind up while the engine is stalled.
+  commanded_engine_N1_percent += idEngineStallN1Loss[fadecIndex]->get();
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = commanded_engine_N1_percent;
   fadecInputs[fadecIndex].in.data.engine_N2_percent = 0;
   fadecInputs[fadecIndex].in.data.engine_N1_percent = engine_N1_percent;

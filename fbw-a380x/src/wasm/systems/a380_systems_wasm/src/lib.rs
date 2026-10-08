@@ -471,6 +471,19 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (72_011, FailureType::EngineSeizure(2)),
         (72_012, FailureType::EngineSeizure(3)),
         (72_013, FailureType::EngineSeizure(4)),
+        // Stage B4: the engine keeps running (a380_systems engine_malfunction.rs)
+        (72_100, FailureType::EngineCompressorStall(1)),
+        (72_101, FailureType::EngineCompressorStall(2)),
+        (72_102, FailureType::EngineCompressorStall(3)),
+        (72_103, FailureType::EngineCompressorStall(4)),
+        (72_110, FailureType::EngineEgtOvertemperature(1)),
+        (72_111, FailureType::EngineEgtOvertemperature(2)),
+        (72_112, FailureType::EngineEgtOvertemperature(3)),
+        (72_113, FailureType::EngineEgtOvertemperature(4)),
+        (77_000, FailureType::EngineHighVibration(1)),
+        (77_001, FailureType::EngineHighVibration(2)),
+        (77_002, FailureType::EngineHighVibration(3)),
+        (77_003, FailureType::EngineHighVibration(4)),
     ])
     .provides_aircraft_variable("ACCELERATION BODY X", "feet per second squared", 0)?
     .provides_aircraft_variable("ACCELERATION BODY Y", "feet per second squared", 0)?
@@ -567,6 +580,19 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 2)?
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 3)?
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 4)?
+    // The MSFS engine speeds and vibration (a380_systems engine_malfunction.rs)
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 1)?
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 2)?
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 3)?
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 4)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 1)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 2)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 3)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 4)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 1)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 2)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 3)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 4)?
     .provides_aircraft_variable("UNLIMITED FUEL", "Bool", 0)?
     .provides_aircraft_variable("VELOCITY BODY X", "feet per second", 0)?
     .provides_aircraft_variable("VELOCITY BODY Y", "feet per second", 0)?

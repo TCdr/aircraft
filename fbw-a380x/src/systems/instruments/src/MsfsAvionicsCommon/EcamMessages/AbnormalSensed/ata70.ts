@@ -59,24 +59,44 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800009: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 1 EGT OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: false, labelNotCompleted: 'REDUCE BELOW EGT LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800010: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 2 EGT OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: false, labelNotCompleted: 'REDUCE BELOW EGT LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800011: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 3 EGT OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: false, labelNotCompleted: 'REDUCE BELOW EGT LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800012: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 4 EGT OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: false, labelNotCompleted: 'REDUCE BELOW EGT LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800013: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 FADEC FAULT',
@@ -483,24 +503,44 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800073: {
-    title: '\x1b<4m\x1b4mENG\x1bm 1 N1/N2 OVER LIMIT',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    title: '\x1b<2m\x1b4mENG\x1bm 1 N1/N2 OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: false, labelNotCompleted: 'REDUCE BELOW N1 LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800074: {
-    title: '\x1b<4m\x1b4mENG\x1bm 2 N1/N2 OVER LIMIT',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    title: '\x1b<2m\x1b4mENG\x1bm 2 N1/N2 OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: false, labelNotCompleted: 'REDUCE BELOW N1 LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800075: {
-    title: '\x1b<4m\x1b4mENG\x1bm 3 N1/N2 OVER LIMIT',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    title: '\x1b<2m\x1b4mENG\x1bm 3 N1/N2 OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: false, labelNotCompleted: 'REDUCE BELOW N1 LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800076: {
-    title: '\x1b<4m\x1b4mENG\x1bm 4 N1/N2 OVER LIMIT',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    title: '\x1b<2m\x1b4mENG\x1bm 4 N1/N2 OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: false, labelNotCompleted: 'REDUCE BELOW N1 LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800077: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL CHIP DETECTED',
@@ -843,24 +883,52 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800113: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 1 STALL',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 1 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800114: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 2 STALL',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 2 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800115: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 3 STALL',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 3 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800116: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 4 STALL',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 4 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800117: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 START FAULT',

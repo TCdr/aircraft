@@ -7,6 +7,7 @@ import NacelleTemperatureGauge from './NacelleTemperatureGauge';
 import OilPressureGauge from './OilPressureGauge';
 import OilQuantityGauge from './OilQuantityGauge';
 import StartValve from './StartValve';
+import { n3ClassName, vibrationClassName } from './EngineVibration';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
 
 interface EngineColumnProps {
@@ -32,9 +33,10 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
 
   const [fuelFlow] = useSimVar(`L:A32NX_ENGINE_FF:${engine}`, 'number', 100);
 
-  const [n1Vibration] = useSimVar(`TURB ENG VIBRATION:${engine}`, 'number', 100);
-  const n2Vibration = n1Vibration;
-  const n3Vibration = n1Vibration;
+  // The rotor vibrations of the systems WASM (see EngineVibration): MSFS has a single vibration value per engine.
+  const [n1Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N1_VIBRATION`, 'number', 250);
+  const [n2Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N2_VIBRATION`, 'number', 250);
+  const [n3Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N3_VIBRATION`, 'number', 250);
 
   const [oilQuantity] = useSimVar(`L:A32NX_ENGINE_OIL_QTY:${engine}`, 'number', 500); // TODO: Update with correct SimVars
   const [engineOilTemperature] = useSimVar(`GENERAL ENG OIL TEMPERATURE:${engine}`, 'celsius', 100); // TODO: Update with correct SimVars
@@ -49,7 +51,7 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
       <path className="White SW2" d={`M${engine > 2 ? x - 96 : x + 64},${y - 10} l 26, 0`} />
       {/* N3 */}
       <rect x={x - 55} y={y + 10} width={98} height={34} className={`LightGreyBox ${starting ? 'Show' : 'Hide'}`} />
-      <DecimalValues x={x} y={y + 38} value={N3} active={fadecPowered} />
+      <DecimalValues x={x} y={y + 38} value={N3} active={fadecPowered} className={n3ClassName(N3)} />
       <path className="White SW2" d={`M${engine > 2 ? x - 96 : x + 64},${y + 28} l 26, 0`} />
       {/* Fuel Flow */}
       {!fadecPowered && (
@@ -79,13 +81,34 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
       {/* Oil Pressure */}
       <OilPressureGauge x={x} y={y + 320} engine={engine} active={fadecPowered} />
       {/* VIB N1 */}
-      <DecimalValues x={x} y={y + 380} value={n1Vibration} active={fadecPowered} shift={-14} />
+      <DecimalValues
+        x={x}
+        y={y + 380}
+        value={n1Vibration}
+        active={fadecPowered}
+        shift={-14}
+        className={vibrationClassName(n1Vibration)}
+      />
       <path className="White SW2" d={`M${engine > 2 ? x - 96 : x + 64},${y + 370} l 26, 0`} />
       {/* VIB N2 */}
-      <DecimalValues x={x} y={y + 416} value={n2Vibration} active={fadecPowered} shift={-14} />
+      <DecimalValues
+        x={x}
+        y={y + 416}
+        value={n2Vibration}
+        active={fadecPowered}
+        shift={-14}
+        className={vibrationClassName(n2Vibration)}
+      />
       <path className="White SW2" d={`M${engine > 2 ? x - 96 : x + 64},${y + 406} l 26, 0`} />
       {/* VIB N3 */}
-      <DecimalValues x={x} y={y + 450} value={n3Vibration} active={fadecPowered} shift={-14} />
+      <DecimalValues
+        x={x}
+        y={y + 450}
+        value={n3Vibration}
+        active={fadecPowered}
+        shift={-14}
+        className={vibrationClassName(n3Vibration)}
+      />
       <path className="White SW2" d={`M${engine > 2 ? x - 96 : x + 64},${y + 440} l 26, 0`} />
 
       {/* NAC / Ignition */}

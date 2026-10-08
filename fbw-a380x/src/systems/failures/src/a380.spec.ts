@@ -124,6 +124,30 @@ describe('A380X flyPad failure definitions', () => {
     expect(A380Failure.Eng4Seizure).toBe(72013);
   });
 
+  // The labels say what a380_systems engine_malfunction.rs does with ids 72100-72113 and 77000-77003
+  it('lists the stall, EGT overtemperature and vibration failures of the four engines', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string, number][] = [1, 2, 3, 4].flatMap(
+      (engine): [number, string, string, number][] => [
+        [
+          72100 + engine - 1,
+          `EngineCompressorStall(${engine})`,
+          `Engine ${engine} compressor stall (above 60 % N1)`,
+          72,
+        ],
+        [72110 + engine - 1, `EngineEgtOvertemperature(${engine})`, `Engine ${engine} EGT overtemperature`, 72],
+        [77000 + engine - 1, `EngineHighVibration(${engine})`, `Engine ${engine} high vibration`, 77],
+      ],
+    );
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name, chapter]) => [id, failureType, name, chapter]),
+    );
+    // No overspeed failure on the A380X (engine_malfunction.rs): the FCOM red limits are out of reach
+    expect(rustMap.has(72120)).toBe(false);
+  });
+
   it('lists every failure the Rust systems map reacts to', () => {
     const rustIds = [...readRustFailureMap().keys()];
     // Sanity check of the parser: the map holds well over a hundred failures.
