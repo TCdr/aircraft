@@ -48,7 +48,8 @@ import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { AirlineModifiableInformation } from '@shared/AirlineModifiableInformation';
 import { getEtaFromUtcOrPresent, hhmmFormatter } from '../../shared/utils';
-import { CostIndexMode, FINAL_HOLDING_FUEL_FLOW_T_PER_MIN } from '../../FMC/fmgc';
+import { CostIndexMode } from '../../FMC/fmgc';
+import { FinalHoldingPredictor } from '../../FMC/FinalHoldingPredictor';
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanChangeNotifier } from '@fmgc/flightplanning/sync/FlightPlanChangeNotifier';
@@ -319,10 +320,18 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
 
           const extraFuel = this.props.fmcService.master.getExtraFuel(loadedfpIndex);
           this.extraFuelWeight.set(extraFuel ?? NaN);
-          // The time the EXTRA fuel lasts at the holding fuel flow of the FINAL fuel default
-          this.extraFuelTime.set(
-            extraFuel !== null ? (Math.max(extraFuel, 0) / 1000 / FINAL_HOLDING_FUEL_FLOW_T_PER_MIN) * 60_000 : null,
-          );
+          // The time the EXTRA fuel lasts in a holding at the FINAL fuel flow (FinalHoldingPredictor). Design choice: the
+          // EXTRA fuel is held at the destination, so this holding ends with the MIN FUEL AT DEST still on board.
+          const zfw = pd.zeroFuelWeight.get();
+          const minDestFob = pd.minimumDestinationFuelOnBoard.get();
+          const extraMinutes =
+            extraFuel !== null
+              ? FinalHoldingPredictor.timeForFuel(
+                  zfw !== null && minDestFob !== null ? zfw + minDestFob : zfw,
+                  Math.max(extraFuel, 0) / 1000,
+                )
+              : null;
+          this.extraFuelTime.set(extraMinutes !== null ? extraMinutes * 60_000 : null);
           this.updateDestAndAltnPredictions();
         }),
     );
