@@ -64,6 +64,8 @@ class EngineControl_A32NX {
   double prevSimEngineN2[2]        = {0, 0};
   // the FADEC set the MSFS ignition switch to IGN for an in-flight relight and must give it back to the ENG MODE selector
   bool relightIgnitionSet[2] = {false, false};
+  // the EGT offset of the engine failures (systems WASM) that updateEGT added to the EGT it wrote last, to take it out of the EGT lag
+  double egtOffsetApplied[2] = {0.0, 0.0};
 
   // Engine oil state
   double thermalEnergy[2] = {0.0, 0.0};

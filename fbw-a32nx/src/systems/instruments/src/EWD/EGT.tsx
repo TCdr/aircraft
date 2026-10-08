@@ -6,6 +6,13 @@ import { ClockEvents, EventBus, DisplayComponent, FSComponent, Subject, VNode } 
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
 import { GaugeComponent, GaugeMarkerComponent, GaugeMaxComponent } from '../MsfsAvionicsCommon/gauges';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
+import {
+  EGT_RED_LIMIT_DEGREES,
+  ExceedanceMemory,
+  egtAmberLimit,
+  egtColor,
+  isGroundStartSequence,
+} from '@shared/EngineLimits';
 
 import './style.scss';
 
@@ -16,9 +23,17 @@ interface EgtProps {
   engine: 1 | 2;
 }
 export class Egt extends DisplayComponent<EgtProps> {
+  private static readonly GAUGE_MIN = 0;
+
+  private static readonly GAUGE_MAX = 1200;
+
   private readonly gaugeStartAngle = Subject.create(270);
 
-  private readonly gaugeStartAngleRed = Subject.create(70);
+  // The red line starts at the EGT red limit (975 °C, see @shared/EngineLimits): the gauge sweeps 180 degrees clockwise from
+  // 270 over its scale. It started at 70 degrees, about 1067 °C, above the red limit of the EGT colour.
+  private readonly gaugeStartAngleRed = Subject.create(
+    270 + (EGT_RED_LIMIT_DEGREES / (Egt.GAUGE_MAX - Egt.GAUGE_MIN)) * 180 - 360,
+  );
 
   private readonly gaugeEndAngle = Subject.create(90);
 
@@ -39,6 +54,17 @@ export class Egt extends DisplayComponent<EgtProps> {
   private egtClass = Subject.create('');
 
   private egtMaxValue = Subject.create(0);
+
+  private engineState = 0;
+
+  private onGround = false;
+
+  /** The red mark at the highest EGT reached above the red limit (FCOM DSC-70-90-40 EGT EXCEEDANCE) */
+  private readonly egtExceedance = new ExceedanceMemory(EGT_RED_LIMIT_DEGREES);
+
+  private egtExceedanceValue = Subject.create(0);
+
+  private egtExceedanceClass = Subject.create('Hide');
 
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -69,63 +95,45 @@ export class Egt extends DisplayComponent<EgtProps> {
       });
 
     sub
+      .on(`engine${this.props.engine}State`)
+      .whenChanged()
+      .handle((state) => {
+        this.engineState = state;
+      });
+
+    sub
+      .on('left1LandingGear')
+      .whenChanged()
+      .handle((onGround) => {
+        this.onGround = onGround;
+      });
+
+    sub
       .on('realTime')
       .atFrequency(10)
       .handle((_t) => {
         this.egtMaxValue.set(this.egtMax);
+        this.egtExceedance.update(this.egt, isGroundStartSequence(this.engineState, this.onGround));
+        this.egtExceedanceValue.set(this.egtExceedance.highestValue);
+        this.egtExceedanceClass.set(this.egtExceedance.exceeded ? 'GaugeExceedanceMark' : 'Hide');
         this.egtText.set(Math.round(this.egt).toString());
         this.egtClass.set(`Large End ${this.egtColor}`);
         this.egtIndicatorClass.set(`GaugeIndicator Gauge ${this.egtColor}`);
       });
   }
 
-  // Limits below are the certified "Maximum permitted gas temperature" figures from the CFM56-5B
-  // TCDS (EASA E.003, -5B/P /2P /3 variant family) rather than the engine's absolute structural
-  // redline, which is not published - see EGT_ABSOLUTE_MAX below.
-  static readonly EGT_TAKEOFF_MAX = 940;
-
-  static readonly EGT_CONTINUOUS_MAX = 905;
-
-  static readonly EGT_START_MAX = 725;
-
-  // The TCDS notes a certified transient overshoot above the take-off limit is allowed, without
-  // giving an exact figure (it defers to the Specific Operating Instructions). Absent that number,
-  // this preserves the same margin the previous (uncalibrated) thresholds used between their
-  // TOGA-amber and fixed-red values, applied on top of the corrected take-off limit.
-  static readonly EGT_ABSOLUTE_MAX = Egt.EGT_TAKEOFF_MAX + 35;
-
+  /** The amber EGT limit of the thrust limit type (CFM56-5B TCDS values, see @shared/EngineLimits) */
   get egtMax(): number {
-    switch (this.thrustLimitType) {
-      // TOGA, and FLX (a de-rated take-off, certified under the same take-off rating)
-      case 4:
-      case 3:
-        return Egt.EGT_TAKEOFF_MAX;
-
-      // CLB, MCT, MREV (continuous-type ratings)
-      case 1:
-      case 2:
-      case 5:
-        return Egt.EGT_CONTINUOUS_MAX;
-
-      // Idle, cruise, and engine start - no rated thrust limit active
-      default:
-        return Egt.EGT_START_MAX;
-    }
+    return egtAmberLimit(this.thrustLimitType);
   }
 
   get egtColor(): string {
-    if (this.egt > Egt.EGT_ABSOLUTE_MAX) {
-      return 'Red';
-    }
-    if (this.egt > this.egtMax) {
-      return 'Amber';
-    }
-    return 'Green';
+    return egtColor(this.egt, this.egtMax);
   }
 
   render(): VNode {
-    const min = 0;
-    const max = 1200;
+    const min = Egt.GAUGE_MIN;
+    const max = Egt.GAUGE_MAX;
     const radius = 61;
 
     return (
@@ -219,6 +227,17 @@ export class Egt extends DisplayComponent<EgtProps> {
               startAngle={this.gaugeStartAngle}
               endAngle={this.gaugeEndAngle}
               class="GaugeThrustLimitIndicatorFill Gauge"
+            />
+            <GaugeMarkerComponent
+              value={this.egtExceedanceValue}
+              x={0}
+              y={0}
+              min={min}
+              max={max}
+              radius={radius}
+              startAngle={this.gaugeStartAngle}
+              endAngle={this.gaugeEndAngle}
+              class={this.egtExceedanceClass}
             />
 
             <rect x={-34} y={-16} width={69} height={24} class="DarkGreyBox" />

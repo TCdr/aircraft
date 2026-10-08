@@ -4127,6 +4127,55 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - N2 of the engine windmilling without combustion at the current airspeed (8 % at 270 kt), 0 on the ground. The FADEC keeps a shut down (not seized) engine at or above it in flight. Written by the systems WASM
 
+- A32NX_ENGINE_{number}_STALL
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC detects a stall of the running engine: compressor stall failure (flyPad 72100/72101) active and N1 command (A32NX_AUTOTHRUST_N1_COMMANDED) at or above 60 %, until it falls below 57 % (design choice). Gives ENG 1(2) STALL (FCOM PRO-ABN-ENG). Written by the systems WASM (a320_systems engine_malfunction.rs)
+
+- A32NX_ENGINE_{number}_STALL_N1_LOSS
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+  - N1 lost by the stalled engine (15 % for a developed stall, design choice). The flight controls computer adds it to the commanded N1 feedback of the thrust control loop of that engine, so the MSFS engine runs that much below the N1 target. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_EGT_OFFSET
+  - Number (degrees Celsius)
+  - {number}
+    - 1
+    - 2
+  - Added by the FADEC to the EGT of the running engine: stall EGT rise (150 °C) and EGT overtemperature failure (flyPad 72110/72111, 120 °C at 100 % N1), design choices. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N1_OFFSET
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+  - Added by the FADEC to the N1 of the running engine: stall fluctuation (±3 %) and N1/N2 overspeed indication failure (flyPad 72120/72121, 7 % of the N1), design choices. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N2_OFFSET
+  - Number (% N2)
+  - {number}
+    - 1
+    - 2
+  - Added by the FADEC to the N2 of the running engine: stall fluctuation (±1.5 %) and overspeed indication failure (6 % of the N2). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N1_VIBRATION
+  - Number (units)
+  - {number}
+    - 1
+    - 2
+  - N1 (LP rotor) vibration shown on the ENGINE SD page, pulsing from 6 units (FCOM [QRH] HIGH ENGINE VIBRATION): the MSFS engine vibration, plus the high vibration failure (flyPad 77000/77001, 8 units at 100 % N1) and the stall. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N2_VIBRATION
+  - Number (units)
+  - {number}
+    - 1
+    - 2
+  - N2 (HP rotor) vibration shown on the ENGINE SD page, pulsing from 4.3 units: 60 % of the MSFS engine vibration (design choice), plus the high vibration failure (5 units at 100 % N2). Written by the systems WASM
+
 - A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_CLOSED
   - Bool
   - {side}
