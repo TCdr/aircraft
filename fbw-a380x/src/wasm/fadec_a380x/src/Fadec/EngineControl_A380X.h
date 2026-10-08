@@ -87,6 +87,8 @@ class EngineControl_A380X {
 
   // Engine oil state
   double thermalEnergy[4] = {0.0, 0.0, 0.0, 0.0};
+  // The oil temperature of an oil overheat failure, kept by the FADEC (EngineOilFailures.hpp OverheatTracker)
+  EngineOilFailures::OverheatTracker oilOverheatTracker[4];
 
   // additional constants
   static constexpr int    MAX_OIL             = 200;

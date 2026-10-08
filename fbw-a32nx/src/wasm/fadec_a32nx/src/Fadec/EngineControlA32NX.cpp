@@ -1361,9 +1361,12 @@ void EngineControl_A32NX::updateOil(int         engine,
   } else {
     thermalEnergy[engineIdx] = (0.995 * thermalEnergy[engineIdx]) + (deltaN2 / deltaTime);
     oilTemperature           = Polynomial_A32NX::oilTemperature(thermalEnergy[engineIdx], oilTemperaturePre, MAX_OIL_TEMP, deltaTime);
-    // An oil overheat heats the oil with the thrust instead
+    // An oil overheat heats the oil with the thrust instead. Its temperature is the FADEC's own: MSFS moves the oil
+    // temperature it reads back with its own oil model (EngineOilFailures.hpp OverheatTracker).
+    const double trackedOverheatTemperature =
+        oilOverheatTracker[engineIdx].update(oilOverheat, oilTemperaturePre, n2, idleN2, deltaTime, OIL_OVERHEAT);
     if (oilOverheat) {
-      oilTemperature = EngineOilFailures::overheatTemperature(oilTemperaturePre, n2, idleN2, deltaTime, OIL_OVERHEAT);
+      oilTemperature = trackedOverheatTemperature;
     }
   }
 

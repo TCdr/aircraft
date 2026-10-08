@@ -91,6 +91,46 @@ inline double overheatTemperature(double previousTemperature,
   return previousTemperature + (target - previousTemperature) * blend;
 }
 
+/**
+ * @brief The oil temperature of an overheating engine, kept by the FADEC itself.
+ *
+ * MSFS runs its own oil temperature model on GENERAL ENG OIL TEMPERATURE (engines.cfg oil_temp_cooling_constant,
+ * oil_temp_heating_constant, oil_temp_tc): between two FADEC updates it moves the value the FADEC wrote towards its own
+ * temperature. An overheat integrated from the value read back therefore settles where the FADEC push and the MSFS pull
+ * balance, far below its target: sim test 2026-10-06, A380X engine 4 at FL200 and 84 % N3, the oil temperature stopped
+ * at 128 C for a 203 C target, and ENG OIL TEMP HI (196 C) never came up. The tracker takes the value read back only
+ * when the failure begins, then integrates its own temperature and the FADEC writes it every update.
+ */
+class OverheatTracker {
+ public:
+  /**
+   * @param overheating The oil overheat failure of the engine is active.
+   * @param simTemperature The oil temperature read back from MSFS, in degree Celsius.
+   * @return The oil temperature to write while overheating, or simTemperature without the failure.
+   */
+  double update(bool                      overheating,
+                double                    simTemperature,
+                double                    coreSpeedPercent,
+                double                    idleCoreSpeedPercent,
+                double                    deltaTimeSeconds,
+                const OverheatParameters& parameters) {
+    if (!overheating) {
+      active = false;
+      return simTemperature;
+    }
+    if (!active) {
+      active      = true;
+      temperature = simTemperature;
+    }
+    temperature = overheatTemperature(temperature, coreSpeedPercent, idleCoreSpeedPercent, deltaTimeSeconds, parameters);
+    return temperature;
+  }
+
+ private:
+  bool   active      = false;
+  double temperature = 0.0;
+};
+
 }  // namespace EngineOilFailures
 
 #endif  // FLYBYWIRE_AIRCRAFT_ENGINEOILFAILURES_HPP

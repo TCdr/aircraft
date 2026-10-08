@@ -1296,9 +1296,12 @@ void EngineControl_A380X::updateOil(int          engine,
     thermalEnergy[engineIdx] = (0.995 * thermalEnergy[engineIdx]) + (deltaN3 / deltaTime);
 
     oilTemperature = Polynomial_A380X::oilTemperature(thermalEnergy[engineIdx], oilTemperaturePre, MAX_OIL_TEMP, deltaTime);
-    // An oil overheat heats the oil with the thrust instead
+    // An oil overheat heats the oil with the thrust instead. Its temperature is the FADEC's own: MSFS moves the oil
+    // temperature it reads back with its own oil model (EngineOilFailures.hpp OverheatTracker).
+    const double trackedOverheatTemperature =
+        oilOverheatTracker[engineIdx].update(oilOverheat, oilTemperaturePre, n3, idleN3, deltaTime, OIL_OVERHEAT);
     if (oilOverheat) {
-      oilTemperature = EngineOilFailures::overheatTemperature(oilTemperaturePre, n3, idleN3, deltaTime, OIL_OVERHEAT);
+      oilTemperature = trackedOverheatTemperature;
     }
   }
 
