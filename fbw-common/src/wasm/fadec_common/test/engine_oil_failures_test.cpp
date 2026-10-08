@@ -45,11 +45,11 @@ int main() {
   expectNear("15 qt gone after 7.5 min", total, 0.0, 1e-6);
   expectTrue("the quantity never goes below 0", total >= 0.0);
 
-  // Pressure: the pump delivers its normal pressure down to 2 qt in the tank, none at 0.5 qt, linear in between.
-  expectNear("normal pressure with a full tank", pressureFactor(12.0, 2.0, 0.5), 1.0);
+  // Pressure: the pump delivers its normal pressure down to 2 qt in the oil system, none at 0.5 qt, linear in between.
+  expectNear("normal pressure with a full oil system", pressureFactor(12.0, 2.0, 0.5), 1.0);
   expectNear("normal pressure at the threshold", pressureFactor(2.0, 2.0, 0.5), 1.0);
   expectNear("half pressure half way", pressureFactor(1.25, 2.0, 0.5), 0.5);
-  expectNear("no pressure with an empty tank", pressureFactor(0.5, 2.0, 0.5), 0.0);
+  expectNear("no pressure with an empty oil system", pressureFactor(0.5, 2.0, 0.5), 0.0);
   expectNear("no pressure below the empty quantity", pressureFactor(0.0, 2.0, 0.5), 0.0);
 
   // Overheat: heads to 135 C at idle, 175 C at 100 % core speed, with a 60 s time constant.
