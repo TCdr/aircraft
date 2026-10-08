@@ -13,6 +13,7 @@
 #include "EngineControlA32NX.h"
 #include "EngineRatios.hpp"
 #include "Polynomials_A32NX.hpp"
+#include "StartSequence_A32NX.hpp"
 #include "Tables1502_A32NX.hpp"
 #include "ThrustLimits_A32NX.hpp"
 
@@ -105,15 +106,31 @@ void EngineControl_A32NX::update() {
     const EngineState previousEngineState = static_cast<EngineState>(simData.engineState[engineIdx]->get());
     const bool        inFlightRelight     = !simOnGround && (previousEngineState == SHUTTING || previousEngineState == RESTARTING);
 
-    // starts engines if Engine Master is turned on and Starter is pressurized
-    // or the engine is still spinning fast enough
-    if (!engineStarter && engineFuelValveFullyOpen && (engineStarterPressurized || simN2 >= 20 || inFlightRelight)) {
+    // The start sequence of the systems WASM (StartSequence_A32NX.hpp): it motors the core without fuel (cranks, start attempt
+    // not lit up yet), holds a hung start below idle, makes a hot start overshoot, and has the starter failure.
+    const bool starterMotoring   = simData.engineStarterMotoring[engineIdx]->getAsBool();
+    const int  startPhase        = static_cast<int>(simData.engineStartPhase[engineIdx]->get());
+    const bool startN2Hang       = simData.engineStartN2Hang[engineIdx]->getAsBool();
+    const bool startEgtOvershoot = simData.engineStartEgtOvershoot[engineIdx]->getAsBool();
+    const bool starterFailed     = simData.engineStarterFailed[engineIdx]->getAsBool();
+
+    // starts engines if Engine Master is turned on and Starter is pressurized, or the engine is still spinning fast enough, or
+    // the start sequence motors the core; shuts off engines if Engine Master is turned off or starter is depressurized while N2
+    // is below 20%
+    const StartSequence_A32NX::StarterCommand starterCommand = StartSequence_A32NX::starterCommand({
+        engineStarter,               //
+        engineFuelValveFullyOpen,    //
+        engineFuelValveFullyClosed,  //
+        engineStarterPressurized > 0.5,
+        starterFailed,    //
+        starterMotoring,  //
+        inFlightRelight,  //
+        simN2             //
+    });
+    if (starterCommand == StartSequence_A32NX::StarterCommand::ENGAGE) {
       simData.setStarterHeldEvent[engineIdx]->trigger(1);
       engineStarter = true;
-    }
-    // shuts off engines if Engine Master is turned off or starter is depressurized while N2 is below 20%
-    else if (engineStarter && (engineFuelValveFullyClosed ||
-                               (engineFuelValveFullyOpen && !engineStarterPressurized && simN2 < 20 && !inFlightRelight))) {
+    } else if (starterCommand == StartSequence_A32NX::StarterCommand::RELEASE) {
       simData.setStarterHeldEvent[engineIdx]->trigger(0);
       simData.setStarterEvent[engineIdx]->trigger(0);
       engineStarter = false;
@@ -131,7 +148,9 @@ void EngineControl_A32NX::update() {
                                                  simN2,                   //
                                                  idleN2,                  //
                                                  ambientTemperature,      //
-                                                 simOnGround);            //
+                                                 simOnGround,             //
+                                                 starterMotoring,         //
+                                                 startN2Hang);            //
 
     // In-flight relight ignition. A320 FCOM DSC-70-80-30 (a320_fcom.txt l.63481): "In case of start attempt in flight, when
     // the ENG MASTER sw is ON, both igniters are supplied", and the windmilling quick relight works "regardless of the rotary
@@ -158,7 +177,8 @@ void EngineControl_A32NX::update() {
       case STARTING:
       case RESTARTING:
         if (engineStarter) {
-          engineStartProcedure(engine, engineState, imbalance, deltaTime, engineTimer, simN2, pressureAltitude, ambientTemperature);
+          engineStartProcedure(engine, engineState, imbalance, deltaTime, engineTimer, simN2, pressureAltitude, ambientTemperature,
+                               StartSequence_A32NX::startIsLit(engineFuelCut), startPhase, startN2Hang, startEgtOvershoot);
           break;
         }
       case SHUTTING:
@@ -178,6 +198,10 @@ void EngineControl_A32NX::update() {
       default:
         updatePrimaryParameters(engine, imbalance, simN1, simN2);
         const double correctedFuelFlow = updateFF(engine, imbalance, simCN1, mach, pressureAltitude, ambientTemperature, ambientPressure);
+        if (starterMotoring) {
+          // a core motored without fuel (dry crank) has no fuel flow
+          simData.engineFF[engineIdx]->set(0);
+        }
         updateEGT(engine, imbalance, deltaTime, msfsHandlerPtr->getSimOnGround(), engineState, simCN1, correctedFuelFlow, mach,
                   pressureAltitude, ambientTemperature);
         updateOil(engine, engineState, deltaTime, msfsHandlerPtr->getSimOnGround(), ambientTemperature, deltaN2, imbalance);
@@ -449,7 +473,9 @@ EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    
                                                                          double simN2,                   //
                                                                          double idleN2,                  //
                                                                          double ambientTemperature,      //
-                                                                         bool   simOnGround) {           //
+                                                                         bool   simOnGround,             //
+                                                                         bool   starterMotoring,         //
+                                                                         bool   startN2Hang) {           //
 #ifdef PROFILING
   profilerEngineStateMachine.start();
 #endif
@@ -462,7 +488,7 @@ EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    
 
   // Current State: OFF
   if (engineState == OFF) {
-    if (engineIgniter == 1 && engineStarter && simN2 > 20) {
+    if (StartSequence_A32NX::offEngineIsRunning(static_cast<int>(engineIgniter), engineStarter, simN2, starterMotoring)) {
       engineState = ON;
     } else if (engineIgniter == 2 && engineMasterTurnedOn) {
       engineState = STARTING;
@@ -480,7 +506,7 @@ EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    
   }
   // Current State: Starting.
   else if (engineState == STARTING) {
-    if (engineStarter && simN2 >= (idleN2 - 0.1)) {
+    if (StartSequence_A32NX::startReachesIdle(engineStarter, simN2, idleN2, startN2Hang)) {
       engineState = ON;
       resetTimer  = true;
     } else if (engineStarterTurnedOff || engineMasterTurnedOff) {
@@ -492,7 +518,7 @@ EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    
   }
   // Current State: Re-Starting.
   else if (engineState == RESTARTING) {
-    if (engineStarter && simN2 >= (idleN2 - 0.1)) {
+    if (StartSequence_A32NX::startReachesIdle(engineStarter, simN2, idleN2, startN2Hang)) {
       engineState = ON;
       resetTimer  = true;
     } else if (engineStarterTurnedOff || engineMasterTurnedOff) {
@@ -541,7 +567,11 @@ void EngineControl_A32NX::engineStartProcedure(int                     engine,
                                                [[maybe_unused]] double engineTimer,
                                                double                  simN2,
                                                [[maybe_unused]] double pressureAltitude,
-                                               double                  ambientTemperature) {
+                                               double                  ambientTemperature,
+                                               bool                    lit,
+                                               int                     startPhase,
+                                               bool                    startN2Hang,
+                                               bool                    startEgtOvershoot) {
 #ifdef PROFILING
   profilerEngineStartProcedure.start();
 #endif
@@ -584,19 +614,32 @@ void EngineControl_A32NX::engineStartProcedure(int                     engine,
     return;
   }
 
-  const double preN2Fbw       = simData.engineN2[engineIdx]->get();
-  const double preEgtFbw      = simData.engineEgt[engineIdx]->get();
-  const double newN2Fbw       = Polynomial_A32NX::startN2(simN2, preN2Fbw, idleN2 - n2Imbalance);
-  const double startN1Fbw     = Polynomial_A32NX::startN1(newN2Fbw, idleN2 - n2Imbalance, idleN1);
-  const double startFfFbw     = Polynomial_A32NX::startFF(newN2Fbw, idleN2 - n2Imbalance, idleFF - ffImbalance);
-  const double startEgtFbw    = Polynomial_A32NX::startEGT(newN2Fbw, idleN2 - n2Imbalance, ambientTemperature, idleEGT - egtImbalance);
+  const double preN2Fbw  = simData.engineN2[engineIdx]->get();
+  const double preEgtFbw = simData.engineEgt[engineIdx]->get();
+  // A burning start never runs down (its N2 rises at least a little each frame); a core that turns without combustion (start
+  // not lit up yet, automatic crank) follows the motoring speed of MSFS, up or down. A hung start or a stall hangs below idle.
+  const double litN2Fbw   = Polynomial_A32NX::startN2(simN2, preN2Fbw, idleN2 - n2Imbalance);
+  const double unlitN2Fbw = StartSequence_A32NX::unlitStartN2(preN2Fbw, Polynomial_A32NX::startN2(simN2, 0.0, idleN2 - n2Imbalance),
+                                                              deltaTime);
+  const double newN2Fbw   = StartSequence_A32NX::hungStartN2(lit ? litN2Fbw : unlitN2Fbw, idleN2, startN2Hang);
+  const double startN1Fbw = Polynomial_A32NX::startN1(newN2Fbw, idleN2 - n2Imbalance, idleN1);
+  const double startFfFbw = Polynomial_A32NX::startFF(newN2Fbw, idleN2 - n2Imbalance, idleFF - ffImbalance);
+  const double startEgtFbw =
+      Polynomial_A32NX::startEGT(newN2Fbw, idleN2 - n2Imbalance, ambientTemperature, idleEGT - egtImbalance);
   const double shutdownEgtFbw = Polynomial_A32NX::shutdownEGT(preEgtFbw, ambientTemperature, deltaTime);
 
   simData.engineN2[engineIdx]->set(newN2Fbw);
   simData.engineN1[engineIdx]->set(startN1Fbw);
-  simData.engineFF[engineIdx]->set(startFfFbw);
 
-  if (engineState == RESTARTING) {
+  // A hot start or a stall: the EGT overshoots the normal start EGT once the engine has lit up
+  startEgtExcess[engineIdx] = StartSequence_A32NX::egtOvershoot(startEgtExcess[engineIdx], startEgtOvershoot && lit, deltaTime);
+
+  if (!lit) {
+    // No combustion: no EGT rise; fuel flows (unburnt) only once the HP fuel valve is open in a start attempt or a wet crank
+    simData.engineFF[engineIdx]->set(StartSequence_A32NX::fuelFlowsWithoutLightUp(startPhase, newN2Fbw) ? startFfFbw : 0.0);
+    simData.engineEgt[engineIdx]->set(shutdownEgtFbw);
+  } else if (engineState == RESTARTING) {
+    simData.engineFF[engineIdx]->set(startFfFbw);
     if ((std::abs)(startEgtFbw - preEgtFbw) <= 1.5) {
       simData.engineEgt[engineIdx]->set(startEgtFbw);
       simData.engineState[engineIdx]->set(STARTING);
@@ -606,7 +649,8 @@ void EngineControl_A32NX::engineStartProcedure(int                     engine,
       simData.engineEgt[engineIdx]->set(shutdownEgtFbw);
     }
   } else {
-    simData.engineEgt[engineIdx]->set(startEgtFbw);
+    simData.engineFF[engineIdx]->set(startFfFbw);
+    simData.engineEgt[engineIdx]->set(startEgtFbw + startEgtExcess[engineIdx]);
   }
 
   simData.oilTempDataPtr[engineIdx]->data().oilTemp = Polynomial_A32NX::startOilTemp(newN2Fbw, idleN2, ambientTemperature);

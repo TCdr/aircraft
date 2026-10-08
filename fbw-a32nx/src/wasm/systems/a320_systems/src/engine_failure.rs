@@ -33,22 +33,31 @@
 //!   a while turns at 8 % N2 or less in zone 2 and needs IGN (zone 1 or 3).
 //! - On the ground (FCOM ENG 1(2) FAIL, l.79815: "If no damage, a new start sequence may be
 //!   initiated") a failed engine starts again as a normal start, with starter air.
+//!
+//! The FADEC start sequence and ignition of each engine (`systems::engine::engine_start`: igniters,
+//! light-up, start faults, automatic start abort, ENG MAN START, start and ignition failures) run
+//! here as well, with the A320 numbers of [`a320_engine_start_schedule`]: their fuel cut and their
+//! ignition feed the relight logic above.
 
 use std::time::Duration;
 use systems::{
-    engine::engine_failure::{
-        EngineFailure, EngineFailureInputs, EngineRelightEnvelope, RelightConditions,
+    engine::{
+        engine_failure::{
+            EngineFailure, EngineFailureInputs, EngineRelightEnvelope, RelightConditions,
+        },
+        engine_start::{EngineStartInputs, EngineStartSchedule, EngineStartSequence},
     },
     pneumatic::{EngineModeSelector, EngineState},
     simulation::{
         InitContext, Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
-        UpdateContext, VariableIdentifier,
+        SimulatorWriter, UpdateContext, VariableIdentifier, Write,
     },
 };
 use uom::si::{
-    f64::{Length, Ratio, Velocity},
+    f64::{Length, Ratio, ThermodynamicTemperature, Velocity},
     length::foot,
     ratio::percent,
+    thermodynamic_temperature::degree_celsius,
     velocity::knot,
 };
 
@@ -151,22 +160,74 @@ impl EngineRelightEnvelope for A320RelightEnvelope {
     }
 }
 
-/// The engine failures of one A320 engine and the variables they read.
+/// The A320 start sequence numbers (CFM56-5B FCOM, a320_fcom.txt; FBW models the LEAP-1A, for which
+/// no FCOM is available: these are the numbers of the FCOM the FBW A320 follows).
+pub fn a320_engine_start_schedule() -> EngineStartSchedule {
+    EngineStartSchedule {
+        // DSC-70-80-30 (l.63495-63497): "The ignition comes on automatically when N2 reaches 16 % and
+        // cuts off automatically when N2 reaches 50 %."
+        ground_ignition_on_n2: Ratio::new::<percent>(16.),
+        automatic_start_ignition_off_n2: Ratio::new::<percent>(50.),
+        // l.63503-63504: manual start, "Both igniters are cut off when N2 reaches approximately 50 %."
+        manual_start_ignition_off_n2: Ratio::new::<percent>(50.),
+        // DSC-70-80-40 (l.63707-63708): "The HP fuel valve opens: On ground: when N2 > 22 %".
+        fuel_on_n2: Ratio::new::<percent>(22.),
+        // l.63711-63713: "When N2 > 50 %: The engine start valve closes".
+        start_valve_close_n2: Ratio::new::<percent>(50.),
+        // l.63777-63779: the FADEC aborts a manual start for the EGT "before reaching 50 % N2".
+        // Design choice: the same 50 % ends the automatic abort, where the start valve closes.
+        start_abort_inhibition_n2: Ratio::new::<percent>(50.),
+        // PRO-ABN-ENG ENG 1(2) START FAULT (l.81393): "The engine does not start within the 18 s that
+        // follow the ignition start."
+        no_light_up_time: Duration::from_secs(18),
+        // l.81366: "Engine overtemperature (above 725 °C)".
+        start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(725.),
+        // LIM-ENG STARTER (l.115972): "A standard automatic start that includes up to three start
+        // attempts, is considered one cycle".
+        automatic_start_attempts: 3,
+        // Design choice: PRO-NOR-SUP-ENG ENGINE VENTILATION (l.107098): "To clear fuel vapors, a 30
+        // seconds dry crank cycle is the minimum required"; the FCOM does not give the length of the
+        // automatic dry crank.
+        automatic_crank_time: Duration::from_secs(30),
+        // The FCOM gives no starter time limit (LIM-ENG STARTER, l.115970-115975).
+        starter_time_limit: None,
+        // DSC-70-80-30 (l.63533): continuous ignition, "Only one igniter is selected. If failed, both
+        // igniters are automatically selected."
+        continuous_ignition_uses_both_igniters: false,
+    }
+}
+
+/// The engine failures, start sequence and ignition of one A320 engine and the variables they read.
 struct A320EngineFailure {
     engine_number: usize,
     failure: EngineFailure,
+    start: EngineStartSequence,
 
     master_switch_id: VariableIdentifier,
     ignition_selector_id: VariableIdentifier,
     starter_pressurized_id: VariableIdentifier,
     engine_state_id: VariableIdentifier,
     n2_id: VariableIdentifier,
+    manual_start_id: VariableIdentifier,
+    fire_push_button_id: VariableIdentifier,
+    egt_id: VariableIdentifier,
+    start_valve_open_id: VariableIdentifier,
+    thrust_lever_angle_id: VariableIdentifier,
+    preset_quick_mode_id: VariableIdentifier,
+    igniter_a_active_id: VariableIdentifier,
+    igniter_b_active_id: VariableIdentifier,
 
     master_switch_is_on: bool,
     ignition_selector: EngineModeSelector,
     starter_air_pressurized: bool,
     engine_state: EngineState,
     n2: Ratio,
+    manual_start_is_on: bool,
+    fire_push_button_is_released: bool,
+    egt: ThermodynamicTemperature,
+    start_valve_is_open: bool,
+    thrust_lever_angle_degrees: f64,
+    preset_quick_mode: bool,
 }
 impl A320EngineFailure {
     fn new(context: &mut InitContext, engine_number: usize) -> Self {
@@ -182,34 +243,98 @@ impl A320EngineFailure {
                 .get_identifier(format!("PNEU_ENG_{}_STARTER_PRESSURIZED", engine_number)),
             engine_state_id: context.get_identifier(format!("ENGINE_STATE:{}", engine_number)),
             n2_id: context.get_identifier(format!("ENGINE_N2:{}", engine_number)),
+            manual_start_id: context.get_identifier(format!("ENGMANSTART{}_TOGGLE", engine_number)),
+            fire_push_button_id: context
+                .get_identifier(format!("FIRE_BUTTON_ENG{}", engine_number)),
+            egt_id: context.get_identifier(format!("ENGINE_EGT:{}", engine_number)),
+            start_valve_open_id: context
+                .get_identifier(format!("PNEU_ENG_{}_STARTER_VALVE_OPEN", engine_number)),
+            thrust_lever_angle_id: context
+                .get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
+            preset_quick_mode_id: context.get_identifier("AIRCRAFT_PRESET_QUICK_MODE".to_owned()),
+            // The SD ENG page shows the igniters (FCOM DSC-70-90-40 l.64587-64591).
+            igniter_a_active_id: context
+                .get_identifier(format!("FADEC_IGNITER_A_ACTIVE_ENG{}", engine_number)),
+            igniter_b_active_id: context
+                .get_identifier(format!("FADEC_IGNITER_B_ACTIVE_ENG{}", engine_number)),
+            start: EngineStartSequence::new(context, engine_number),
             master_switch_is_on: false,
             ignition_selector: EngineModeSelector::Norm,
             starter_air_pressurized: false,
             engine_state: EngineState::Off,
             n2: Ratio::default(),
+            manual_start_is_on: false,
+            fire_push_button_is_released: false,
+            egt: ThermodynamicTemperature::default(),
+            start_valve_is_open: false,
+            thrust_lever_angle_degrees: 0.,
+            preset_quick_mode: false,
         }
     }
 
-    fn update(&mut self, context: &UpdateContext, fuel: &A320Fuel) {
+    /// Design choice: the thrust lever is at idle within 1 degree of the IDLE detent (TLA 0).
+    const THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES: f64 = 1.;
+
+    fn start_inputs(&self) -> EngineStartInputs {
+        EngineStartInputs {
+            master_switch_is_on: self.master_switch_is_on,
+            mode_selector: self.ignition_selector,
+            manual_start_is_on: self.manual_start_is_on,
+            fire_push_button_is_released: self.fire_push_button_is_released,
+            engine_state: self.engine_state,
+            core_speed: self.n2,
+            egt: self.egt,
+            start_valve_is_open: self.start_valve_is_open,
+            starter_air_pressurized: self.starter_air_pressurized,
+            thrust_lever_at_idle: self.thrust_lever_angle_degrees.abs()
+                <= Self::THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES,
+            preset_quick_mode: self.preset_quick_mode,
+            relight_pending: self.failure.is_flamed_out() || self.failure.is_seized(),
+        }
+    }
+
+    fn update(
+        &mut self,
+        context: &UpdateContext,
+        fuel: &A320Fuel,
+        start_schedule: &EngineStartSchedule,
+    ) {
+        let start_inputs = self.start_inputs();
+        self.start.update(context, start_schedule, &start_inputs);
+
         self.failure.update(
             context,
             &A320RelightEnvelope,
             EngineFailureInputs {
                 master_switch_is_on: self.master_switch_is_on,
                 ignition_selected: self.ignition_selector == EngineModeSelector::Ignition,
-                starter_air_pressurized: self.starter_air_pressurized,
+                // A starter that has failed gives no starter assisted relight.
+                starter_air_pressurized: self.starter_air_pressurized
+                    && !self.start.starter_has_failed(),
                 engine_is_running: self.engine_state == EngineState::On,
                 core_speed: self.n2,
                 lp_valve_starved: fuel.engine_is_starved(self.engine_number),
+                start_sequence_fuel_cut: self.start.fuel_is_cut(),
+                ignition_available: self.start.ignition_is_available(),
             },
         );
+
+        self.start
+            .update_starter_motoring(context, self.failure.fuel_is_cut(), &start_inputs);
     }
 }
 impl SimulationElement for A320EngineFailure {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.failure.accept(visitor);
+        self.start.accept(visitor);
 
         visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        let igniters = self.start.igniters();
+        writer.write(&self.igniter_a_active_id, igniters.a);
+        writer.write(&self.igniter_b_active_id, igniters.b);
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {
@@ -226,24 +351,32 @@ impl SimulationElement for A320EngineFailure {
             EngineState::Off,
         );
         self.n2 = Ratio::new::<percent>(reader.read(&self.n2_id));
+        self.manual_start_is_on = reader.read(&self.manual_start_id);
+        self.fire_push_button_is_released = reader.read(&self.fire_push_button_id);
+        self.egt = reader.read(&self.egt_id);
+        self.start_valve_is_open = reader.read(&self.start_valve_open_id);
+        self.thrust_lever_angle_degrees = reader.read(&self.thrust_lever_angle_id);
+        self.preset_quick_mode = reader.read(&self.preset_quick_mode_id);
     }
 }
 
-/// The engine flameout and seizure failures of both engines.
+/// The engine flameout and seizure failures, start sequences and ignition of both engines.
 pub struct A320EngineFailures {
     engines: [A320EngineFailure; 2],
+    start_schedule: EngineStartSchedule,
 }
 impl A320EngineFailures {
     pub fn new(context: &mut InitContext) -> Self {
         Self {
             engines: [1, 2].map(|number| A320EngineFailure::new(context, number)),
+            start_schedule: a320_engine_start_schedule(),
         }
     }
 
     /// After the fuel system, whose LP valve starvation also cuts the fuel.
     pub fn update(&mut self, context: &UpdateContext, fuel: &A320Fuel) {
         for engine in &mut self.engines {
-            engine.update(context, fuel);
+            engine.update(context, fuel, &self.start_schedule);
         }
     }
 }
@@ -541,6 +674,129 @@ mod tests {
             test_bed.write_by_name("PNEU_ENG_1_STARTER_PRESSURIZED", true);
             run(&mut test_bed);
             assert!(!fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn without_a_working_igniter_no_relight_lights_up_in_flight() {
+            let mut test_bed = flying_test_bed();
+            test_bed.fail(FailureType::EngineFlameout(1));
+            test_bed.fail(FailureType::EngineIgniterA(1));
+            test_bed.fail(FailureType::EngineIgniterB(1));
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 12.);
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+            run(&mut test_bed);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+            run(&mut test_bed);
+
+            assert!(fuel_is_cut(&mut test_bed, 1));
+        }
+
+        /// On the ground, both engines off, APU bleed air at the starters, ENG MODE IGN/START.
+        fn ground_test_bed() -> SimulationTestBed<TestAircraft> {
+            let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+            test_bed.set_on_ground(true);
+            for engine_number in 1..=2 {
+                test_bed.write_by_name(
+                    &format!("PNEU_ENG_{}_STARTER_PRESSURIZED", engine_number),
+                    true,
+                );
+                test_bed.write_by_name(
+                    &format!("TURB ENG IGNITION SWITCH EX1:{}", engine_number),
+                    2.,
+                );
+            }
+            run(&mut test_bed);
+            test_bed
+        }
+
+        /// ENG MASTER 1 ON: the FADEC starts engine 1, whose start valve opens.
+        fn engine_1_automatic_start(test_bed: &mut SimulationTestBed<TestAircraft>) {
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+            run(test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 2.);
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_VALVE_OPEN", true);
+            test_bed.write_by_name("ENGINE_N2:1", 25.);
+            run(test_bed);
+        }
+
+        fn run_for_seconds(test_bed: &mut SimulationTestBed<TestAircraft>, seconds: u64) {
+            for _ in 0..seconds * 20 {
+                run(test_bed);
+            }
+        }
+
+        #[test]
+        fn a_ground_start_lights_up_with_one_igniter_shown_on_the_sd() {
+            let mut test_bed = ground_test_bed();
+            engine_1_automatic_start(&mut test_bed);
+
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+            let igniter_a: bool = test_bed.read_by_name("FADEC_IGNITER_A_ACTIVE_ENG1");
+            let igniter_b: bool = test_bed.read_by_name("FADEC_IGNITER_B_ACTIVE_ENG1");
+            assert!(igniter_a);
+            assert!(!igniter_b);
+        }
+
+        #[test]
+        fn a_ground_start_with_igniter_a_failed_lights_up_at_the_second_attempt() {
+            let mut test_bed = ground_test_bed();
+            test_bed.fail(FailureType::EngineIgniterA(1));
+            engine_1_automatic_start(&mut test_bed);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+            let motoring: bool = test_bed.read_by_name("ENGINE_1_STARTER_MOTORING");
+            assert!(motoring);
+
+            // 18 s without light up, then the 30 s automatic dry crank
+            run_for_seconds(&mut test_bed, 19);
+            let fault: f64 = test_bed.read_by_name("ENGINE_1_START_FAULT");
+            assert_eq!(fault, 1.);
+            let phase: f64 = test_bed.read_by_name("ENGINE_1_START_PHASE");
+            assert_eq!(phase, 3.);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+
+            run_for_seconds(&mut test_bed, 30);
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+            let igniter_b: bool = test_bed.read_by_name("FADEC_IGNITER_B_ACTIVE_ENG1");
+            assert!(igniter_b);
+            // the other engine is not affected
+            assert!(!fuel_is_cut(&mut test_bed, 2));
+        }
+
+        #[test]
+        fn the_man_start_pb_and_crank_motor_the_engine_with_the_master_off() {
+            let mut test_bed = ground_test_bed();
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:2", 0.);
+            test_bed.write_by_name("ENGMANSTART2_TOGGLE", true);
+            run(&mut test_bed);
+            let command: f64 = test_bed.read_by_name("ENGINE_2_START_VALVE_COMMAND");
+            assert_eq!(command, 1.);
+
+            test_bed.write_by_name("PNEU_ENG_2_STARTER_VALVE_OPEN", true);
+            run(&mut test_bed);
+            let motoring: bool = test_bed.read_by_name("ENGINE_2_STARTER_MOTORING");
+            assert!(motoring);
+            let phase: f64 = test_bed.read_by_name("ENGINE_2_START_PHASE");
+            assert_eq!(phase, 1.);
+        }
+
+        #[test]
+        fn the_a320_start_schedule_follows_the_fcom() {
+            let schedule = a320_engine_start_schedule();
+            assert_eq!(schedule.ground_ignition_on_n2.get::<percent>(), 16.);
+            assert_eq!(
+                schedule.automatic_start_ignition_off_n2.get::<percent>(),
+                50.
+            );
+            assert_eq!(schedule.fuel_on_n2.get::<percent>(), 22.);
+            assert_eq!(schedule.start_valve_close_n2.get::<percent>(), 50.);
+            assert_eq!(schedule.no_light_up_time, Duration::from_secs(18));
+            assert_eq!(schedule.start_egt_limit.get::<degree_celsius>(), 725.);
+            assert_eq!(schedule.automatic_start_attempts, 3);
+            assert!(schedule.starter_time_limit.is_none());
+            assert!(!schedule.continuous_ignition_uses_both_igniters);
         }
 
         #[test]
