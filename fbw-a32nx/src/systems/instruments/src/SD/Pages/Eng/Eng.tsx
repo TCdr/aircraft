@@ -119,6 +119,8 @@ const PressureGauge = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) 
   const [n2Percent] = useSimVar(`L:A32NX_ENGINE_N2:${engineNumber}`, 'number', 50);
   const [engine1State] = useSimVar('L:A32NX_ENGINE_STATE:1', 'number');
   const [engine2State] = useSimVar('L:A32NX_ENGINE_STATE:2', 'number');
+  // The state of this gauge's engine (the CLOG indication, see EngOilIndications)
+  const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engineNumber}`, 'number');
 
   const engineRunning = engine1State > 0 || engine2State > 0;
 

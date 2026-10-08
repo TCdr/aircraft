@@ -1155,6 +1155,9 @@ export class PseudoFWC {
 
   private readonly aboveFl150 = Subject.create(false);
 
+  /** ADR pressure altitude of the last update, null when no ADR is valid */
+  private pressureAltitudeFt: number | null = null;
+
   /* HYDRAULICS */
 
   private readonly blueElecPumpPBAuto = Subject.create(false);
@@ -3848,6 +3851,7 @@ export class PseudoFWC {
     this.ctrRightXfrNotFullyOpen.set(ctrXfr.rightNotFullyOpen);
     this.ctrLeftRightXfrNotFullyOpen.set(ctrXfr.bothNotFullyOpen);
     this.aboveFl150.set((pressureAltitude ?? 0) > 15_000);
+    this.pressureAltitudeFt = pressureAltitude;
 
     /* F/CTL */
     const fcdc1DiscreteWord1 = Arinc429Word.fromSimVarValue('L:A32NX_FCDC_1_DISCRETE_WORD_1');
