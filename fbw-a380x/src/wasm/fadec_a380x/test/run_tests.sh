@@ -8,3 +8,5 @@ clang++ -std=c++20 -Wall -Wextra -Werror relight_start_test.cpp -o ../obj/religh
 ../obj/relight_start_test
 clang++ -std=c++20 -Wall -Wextra -Werror auto_relight_test.cpp -o ../obj/auto_relight_test
 ../obj/auto_relight_test
+clang++ -std=c++20 -Wall -Wextra -Werror feed_tank_draw_test.cpp -o ../obj/feed_tank_draw_test
+../obj/feed_tank_draw_test
