@@ -114,6 +114,9 @@ class EngineStartThrottleHold {
     double deltaTime;       // seconds
     double coreSpeed;       // the MSFS core speed TURB ENG N2:n (the A380X Trent N3), percent
     double idleCoreSpeed;   // the FBW idle core speed, L:A32NX_ENGINE_IDLE_N2 (A32NX) or L:A32NX_ENGINE_IDLE_N3 (A380X), percent
+    /// The part of simCommandedN1 that is the compressor stall N1 loss (L:A32NX_ENGINE_n_STALL_N1_LOSS, systems WASM), not engine
+    /// speed: FlyByWireInterface adds it to the loop feedback so that a stalled engine gives less thrust. Percent, 0 without stall.
+    double stallN1Loss = 0.0;
   };
 
   struct Output {
@@ -157,8 +160,11 @@ class EngineStartThrottleHold {
       // N1 can already sit at the idle limit, as MSFS commands its idle N1 at throttle 0 to an engine that still turns fast (A32NX
       // quick relight, sim test 2026-10-05 T2: released at the RESTARTING, throttle 59 % at the start end, N2 96.8 % against 90 %).
       // A start that never reaches ON is covered by the fallback above.
-      const bool idleReached = inputs.engineState == ENGINE_STATE_ON &&
-                               inputs.simCommandedN1 >= inputs.idleN1Limit - parameters.idleReachedMarginPercent;
+      // The MSFS commanded N1 itself must reach idle: a compressor stall, active as soon as the engine is ON with an N1 target above
+      // its threshold, adds up to 15 % to the loop feedback and ended the hold while the MSFS commanded N1 still lagged.
+      const double msfsCommandedN1 = inputs.simCommandedN1 - inputs.stallN1Loss;
+      const bool   idleReached     = inputs.engineState == ENGINE_STATE_ON &&
+                                     msfsCommandedN1 >= inputs.idleN1Limit - parameters.idleReachedMarginPercent;
       if (idleReached || secondsSinceStartEnd >= parameters.idleStabilisationMaxSeconds) {
         phase          = Phase::ACCELERATING;
         releasedTarget = inputs.simCommandedN1;
