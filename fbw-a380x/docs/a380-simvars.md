@@ -1921,6 +1921,33 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True during a relight attempt: from the ENG MASTER ON of a relight until the engine lights up or 30 s have elapsed (FCOM ENG RELIGHT IN FLIGHT: "Engine must relight within 30 s after fuel flow increases"). The FADEC runs its start sequence (start valve, igniters) meanwhile, with the fuel still cut. Written by the systems WASM (a380_systems engine_failure.rs)
 
+- A32NX_ENGINE_{number}_OIL_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the oil leak failure of the engine is active (flyPad failures 79000-79003): the FADEC takes 2 qt/min out of the engine oil (A32NX_ENGINE_OIL_TOTAL/QTY) while the core turns, and the oil pressure falls once the tank holds less than 1 qt (ENG OIL PRESS LO below 25 PSI). Written by the systems WASM (systems engine/oil_failure.rs)
+
+- A32NX_ENGINE_{number}_OIL_FILTER_CLOGGED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the oil filter clog failure of the engine is active (flyPad failures 79020-79023): CLOGGED on the ENGINE SD page while the engine runs, and ENG OIL FILTER CLOGGED (on the ground: FCOM flight phases 1, 2, 11 and 12). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_OIL_OVERHEAT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the oil overheat failure of the engine is active (flyPad failures 79030-79033): the FADEC drives the oil temperature to 170 °C at idle and 225 °C at 100 % N3 (ENG OIL TEMP HI above 196 °C). Written by the systems WASM
+
 - A32NX_ENGINE_{number}_WINDMILL_START
   - Bool
   - {number}

@@ -260,6 +260,18 @@ export const A380Failure = Object.freeze({
   Eng2Seizure: 72011,
   Eng3Seizure: 72012,
   Eng4Seizure: 72013,
+  Eng1OilLeak: 79000,
+  Eng2OilLeak: 79001,
+  Eng3OilLeak: 79002,
+  Eng4OilLeak: 79003,
+  Eng1OilFilterClog: 79020,
+  Eng2OilFilterClog: 79021,
+  Eng3OilFilterClog: 79022,
+  Eng4OilFilterClog: 79023,
+  Eng1OilOverheat: 79030,
+  Eng2OilOverheat: 79031,
+  Eng3OilOverheat: 79032,
+  Eng4OilOverheat: 79033,
 });
 
 export const A380FailureDefinitions: FailureDefinition[] = [
@@ -505,4 +517,20 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [72, A380Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
   [72, A380Failure.Eng3Seizure, 'Engine 3 seizure (no relight)'],
   [72, A380Failure.Eng4Seizure, 'Engine 4 seizure (no relight)'],
+
+  // The oil quantity falls at 2 qt/min, then the oil pressure once the tank is nearly empty (ENG OIL PRESS LO)
+  [79, A380Failure.Eng1OilLeak, 'Engine 1 oil leak'],
+  [79, A380Failure.Eng2OilLeak, 'Engine 2 oil leak'],
+  [79, A380Failure.Eng3OilLeak, 'Engine 3 oil leak'],
+  [79, A380Failure.Eng4OilLeak, 'Engine 4 oil leak'],
+  // CLOGGED on the ENGINE SD page and ENG OIL FILTER CLOGGED, no other effect
+  [79, A380Failure.Eng1OilFilterClog, 'Engine 1 oil filter clog'],
+  [79, A380Failure.Eng2OilFilterClog, 'Engine 2 oil filter clog'],
+  [79, A380Failure.Eng3OilFilterClog, 'Engine 3 oil filter clog'],
+  [79, A380Failure.Eng4OilFilterClog, 'Engine 4 oil filter clog'],
+  // The oil temperature rises with thrust above the ENG OIL TEMP HI limit
+  [79, A380Failure.Eng1OilOverheat, 'Engine 1 oil overheat'],
+  [79, A380Failure.Eng2OilOverheat, 'Engine 2 oil overheat'],
+  [79, A380Failure.Eng3OilOverheat, 'Engine 3 oil overheat'],
+  [79, A380Failure.Eng4OilOverheat, 'Engine 4 oil overheat'],
 ];

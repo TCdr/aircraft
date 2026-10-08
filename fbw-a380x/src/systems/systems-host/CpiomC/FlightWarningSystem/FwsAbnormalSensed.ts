@@ -25,6 +25,11 @@ import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionics
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ALL_ENG_FLAME_OUT_INHIBITED_PHASES } from './EngineFailAlerts';
 import {
+  OIL_FILTER_CLOGGED_PHASE_INHIBITION,
+  OIL_PRESS_LO_PHASE_INHIBITION,
+  OIL_TEMP_HI_PHASE_INHIBITION,
+} from './EngineOilAlerts';
+import {
   condDuctOvhtActive,
   condDuctOvhtInfo,
   condDuctOvhtInopSys,
@@ -5506,6 +5511,126 @@ export class FwsAbnormalSensed {
       ],
       failure: 2,
       sysPage: SdPages.None,
+    },
+    701800081: {
+      // ENG 1 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness
+      flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilFilterClogged[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800085: {
+      // ENG 1 OIL PRESS LO (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): red warning
+      flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilPressLo[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.thrustLever1Idle.get(), !this.fws.engine1Master.get()],
+      failure: 3,
+      sysPage: SdPages.Eng,
+    },
+    701800093: {
+      // ENG 1 OIL TEMP HI (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber
+      flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilTempHi[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, false, !this.fws.engine1Master.get()],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800082: {
+      // ENG 2 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness
+      flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilFilterClogged[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800086: {
+      // ENG 2 OIL PRESS LO (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): red warning
+      flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilPressLo[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.thrustLever2Idle.get(), !this.fws.engine2Master.get()],
+      failure: 3,
+      sysPage: SdPages.Eng,
+    },
+    701800094: {
+      // ENG 2 OIL TEMP HI (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber
+      flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilTempHi[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, false, !this.fws.engine2Master.get()],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800083: {
+      // ENG 3 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness
+      flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilFilterClogged[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800087: {
+      // ENG 3 OIL PRESS LO (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): red warning
+      flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilPressLo[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.thrustLever3Idle.get(), !this.fws.engine3Master.get()],
+      failure: 3,
+      sysPage: SdPages.Eng,
+    },
+    701800095: {
+      // ENG 3 OIL TEMP HI (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber
+      flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilTempHi[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, false, !this.fws.engine3Master.get()],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800084: {
+      // ENG 4 OIL FILTER CLOGGED (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber, crew awareness
+      flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilFilterClogged[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800088: {
+      // ENG 4 OIL PRESS LO (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): red warning
+      flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilPressLo[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.thrustLever4Idle.get(), !this.fws.engine4Master.get()],
+      failure: 3,
+      sysPage: SdPages.Eng,
+    },
+    701800096: {
+      // ENG 4 OIL TEMP HI (FCOM PRO-ABN-ECAM-10-70, EngineOilAlerts.ts): amber
+      flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilTempHi[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [false, false, !this.fws.engine4Master.get()],
+      failure: 2,
+      sysPage: SdPages.Eng,
     },
     701800151: {
       // ALL ENG FLAME OUT

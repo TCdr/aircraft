@@ -50,7 +50,10 @@ use systems::{
         AuxiliaryPowerUnitOverheadPanel, Pw980ApuGenerator, Pw980Constants, Pw980StartMotor,
     },
     electrical::{Electricity, ElectricitySource, ExternalPowerSource},
-    engine::{reverser_thrust::ReverserForce, trent_engine::TrentEngine, EngineFireOverheadPanel},
+    engine::{
+        oil_failure::EngineOilFailures, reverser_thrust::ReverserForce, trent_engine::TrentEngine,
+        EngineFireOverheadPanel,
+    },
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
     navigation::adirs::{
@@ -85,6 +88,8 @@ pub struct A380 {
     engine_4: TrentEngine,
     engine_fire_overhead: EngineFireOverheadPanel<4>,
     engine_failures: A380EngineFailures,
+    /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
+    engine_oil_failures: EngineOilFailures<4>,
     electrical: A380Electrical,
     power_consumption: A380PowerConsumption,
     ext_pwrs: [ExternalPowerSource; 4],
@@ -137,6 +142,7 @@ impl A380 {
             engine_4: TrentEngine::new(context, 4),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             engine_failures: A380EngineFailures::new(context),
+            engine_oil_failures: EngineOilFailures::new(context),
             electrical: A380Electrical::new(context),
             power_consumption: A380PowerConsumption::new(context),
             ext_pwrs: [1, 2, 3, 4].map(|i| ExternalPowerSource::new(context, i)),
@@ -396,6 +402,7 @@ impl SimulationElement for A380 {
         self.engine_4.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
         self.engine_failures.accept(visitor);
+        self.engine_oil_failures.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
         accept_iterable!(self.ext_pwrs, visitor);
@@ -416,5 +423,38 @@ impl SimulationElement for A380 {
         self.reverse_thrust.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use systems::failures::FailureType;
+    use systems::simulation::{
+        test::{ReadByName, SimulationTestBed, TestBed},
+        InitContext,
+    };
+
+    /// The flyPad oil failures 79000-79033 (a380_systems_wasm) reach the FADEC through the oil
+    /// failure variables of each engine (systems::engine::oil_failure).
+    #[test]
+    fn the_engine_oil_failures_are_written_for_the_fadec() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.fail(FailureType::EngineOilLeak(4));
+        test_bed.fail(FailureType::EngineOilFilterClog(2));
+        test_bed.fail(FailureType::EngineOilOverheat(3));
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let read = |test_bed: &mut SimulationTestBed<A380>, name: &str| -> bool {
+            test_bed.read_by_name(name)
+        };
+        assert!(read(&mut test_bed, "ENGINE_4_OIL_LEAK"));
+        assert!(!read(&mut test_bed, "ENGINE_1_OIL_LEAK"));
+        assert!(read(&mut test_bed, "ENGINE_2_OIL_FILTER_CLOGGED"));
+        assert!(!read(&mut test_bed, "ENGINE_3_OIL_FILTER_CLOGGED"));
+        assert!(read(&mut test_bed, "ENGINE_3_OIL_OVERHEAT"));
+        assert!(!read(&mut test_bed, "ENGINE_4_OIL_OVERHEAT"));
     }
 }
