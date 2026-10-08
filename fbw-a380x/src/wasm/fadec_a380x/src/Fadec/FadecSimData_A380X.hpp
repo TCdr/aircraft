@@ -223,6 +223,7 @@ class FadecSimData_A380X {
   NamedVariablePtr engineRelightIgnition[4];  // Bool - an in-flight relight is lighting up: igniters on (systems WASM)
   NamedVariablePtr engineRelightAttempt[4];   // Bool - a relight attempt is in progress (systems WASM)
   NamedVariablePtr engineStartSelector;       // Enum - ENG START selector: 0 crank, 1 norm, 2 ign start
+  NamedVariablePtr engineFirePbReleased[4];   // Bool - ENG FIRE pb released: the FADEC is no longer supplied (FCOM DSC-26)
   NamedVariablePtr engineFuelUsed[4];   // kg
   NamedVariablePtr engineIdleEGT;       // Celsius
   NamedVariablePtr engineIdleFF;
@@ -429,6 +430,10 @@ class FadecSimData_A380X {
     engineRelightAttempt[E3]  = dm->make_named_var("A32NX_ENGINE_3_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
     engineRelightAttempt[E4]  = dm->make_named_var("A32NX_ENGINE_4_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
     engineStartSelector       = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ);
+    engineFirePbReleased[E1]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG1", UNITS.Number, AUTO_READ);
+    engineFirePbReleased[E2]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG2", UNITS.Number, AUTO_READ);
+    engineFirePbReleased[E3]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG3", UNITS.Number, AUTO_READ);
+    engineFirePbReleased[E4]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG4", UNITS.Number, AUTO_READ);
 
     engineFuelUsed[E1] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[E2] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);
