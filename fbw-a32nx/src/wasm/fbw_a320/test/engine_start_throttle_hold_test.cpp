@@ -108,6 +108,7 @@ struct Scenario {
   double      startEndN2;  // MSFS N2 at which its start ends
   double      outSeconds;  // engine out (SHUTTING) before the ENG MASTER ON
   double      relightN2;   // MSFS N2 when the relight starts
+  bool        compressorStall = false;  // the flyPad compressor stall failure is active (CompressorStallModel)
 };
 
 struct Result {
@@ -120,6 +121,34 @@ struct Result {
   double heldAfterOnSeconds = 0.0;
   double settledAfterOn     = -1.0;  // seconds from ON until N2 stays within 1 % of the lever value
   double steadyN2           = 0.0;   // the N2 for the lever position once settled
+  double releaseCommandedN1 = -1.0;  // the MSFS commanded N1 (without the stall loss) when the hold released the throttle, percent
+};
+
+/**
+ * The compressor stall failure as the systems WASM computes it (fbw-common engine_malfunction.rs with the A320 values of
+ * a320_systems engine_malfunction.rs, copied): the engine stalls once the FADEC reports it running (ENGINE_STATE ON) while its N1
+ * command (A32NX_AUTOTHRUST_N1_COMMANDED = the loop N1 target) is at or above 60 %, and recovers below 57 %. The stall intensity
+ * follows with a 1 s (onset) / 3 s (recovery) time constant; the N1 loss (ENGINE_n_STALL_N1_LOSS) is 15 % at full intensity, and
+ * FlyByWireInterface adds it to the MSFS commanded N1 given to the thrust loop and to the hold.
+ */
+struct CompressorStallModel {
+  static constexpr double THRESHOLD_N1_PERCENT = 60.0;
+  static constexpr double HYSTERESIS_PERCENT   = 3.0;
+  static constexpr double N1_LOSS_PERCENT      = 15.0;
+  static constexpr double ONSET_SECONDS        = 1.0;
+  static constexpr double RECOVERY_SECONDS     = 3.0;
+
+  bool   stalled   = false;
+  double intensity = 0.0;
+
+  /// @return the N1 loss of this frame, percent.
+  double update(bool engineOn, double commandedN1, double dt) {
+    stalled = engineOn && (stalled ? commandedN1 >= THRESHOLD_N1_PERCENT - HYSTERESIS_PERCENT : commandedN1 >= THRESHOLD_N1_PERCENT);
+    const double target       = stalled ? 1.0 : 0.0;
+    const double timeConstant = stalled ? ONSET_SECONDS : RECOVERY_SECONDS;
+    intensity += (target - intensity) * (1.0 - std::exp(-dt / timeConstant));
+    return intensity * N1_LOSS_PERCENT;
+  }
 };
 
 static Result run(const Scenario& s, bool commandedN1Lag, bool withHold, double durationSeconds) {
@@ -134,10 +163,15 @@ static Result run(const Scenario& s, bool commandedN1Lag, bool withHold, double 
 
   Result result;
   const double leverN1 = s.tlaDeg <= 0.0 ? s.idleLimit : s.clbLimit;
-  result.steadyN2      = engine.n2FromN1(std::max(leverN1, s.msfsIdleN1));
+  // a stalled engine settles at its N1 target minus the stall loss (the stall lasts while the target stays above 57 %)
+  const bool   stallsAtLever = s.compressorStall && leverN1 >= CompressorStallModel::THRESHOLD_N1_PERCENT;
+  const double settledN1     = stallsAtLever ? leverN1 - CompressorStallModel::N1_LOSS_PERCENT : leverN1;
+  result.steadyN2            = engine.n2FromN1(std::max(settledN1, s.msfsIdleN1));
 
-  FbwEngineState state        = SHUTTING;
-  double         loopTargetN1 = 0.0;
+  CompressorStallModel stall;
+  FbwEngineState       state        = SHUTTING;
+  double               loopTargetN1 = 0.0;
+  bool                 heldBefore   = false;
   for (double t = 0.0; t < durationSeconds; t += dt) {
     // ENG MASTER ON after the engine-out time: the relight starts (RESTARTING), the MSFS start begins.
     if (state == SHUTTING && t >= s.outSeconds) {
@@ -165,11 +199,24 @@ static Result run(const Scenario& s, bool commandedN1Lag, bool withHold, double 
     inputs.in.input.thrust_limit_TOGA_percent  = s.clbLimit + 5.0;
     inputs.in.input.thrust_limit_REV_percent   = 70.0;
 
-    EngineStartThrottleHold::Output output{false, engine.commandedN1, 0.0};
+    // FlyByWireInterface: the stall N1 loss is added to the MSFS commanded N1 that the loop and the hold get
+    const double stallN1Loss    = s.compressorStall ? stall.update(state == ON, loopTargetN1, dt) : 0.0;
+    const double loopFeedbackN1 = engine.commandedN1 + stallN1Loss;
+#ifdef WITHOUT_THE_STALL_FIX
+    const double holdStallN1Loss = 0.0;  // the hold takes the whole feedback for engine speed
+#else
+    const double holdStallN1Loss = stallN1Loss;
+#endif
+    EngineStartThrottleHold::Output output{false, loopFeedbackN1, 0.0};
     if (withHold) {
-      output = hold.update({false, static_cast<double>(state), engine.commandedN1, s.idleLimit, loopTargetN1, dt, engine.n2, s.fbwIdleN2});
+      output = hold.update({false, static_cast<double>(state), loopFeedbackN1, s.idleLimit, loopTargetN1, dt, engine.n2, s.fbwIdleN2,
+                            holdStallN1Loss});
     }
     inputs.in.data.commanded_engine_N1_percent = output.loopCommandedN1;
+    if (heldBefore && !output.throttleAtIdle && result.releaseCommandedN1 < 0.0) {
+      result.releaseCommandedN1 = engine.commandedN1;
+    }
+    heldBefore = output.throttleAtIdle;
 
     fadec.setExternalInputs(&inputs);
     fadec.step();
@@ -326,6 +373,22 @@ int main() {
   checkScenario(t5, 60.0, EngineStartThrottleHold::IDLE_STABILISATION_MAX_SECONDS + 10.0);
   checkScenario(t6, 60.0, EngineStartThrottleHold::IDLE_STABILISATION_MAX_SECONDS + 10.0);
   checkScenario(t7, 60.0, EngineStartThrottleHold::IDLE_STABILISATION_MAX_SECONDS + 10.0);
+
+  // T1 with a compressor stall active during the relight (flyPad ATA 72 compressor stall, lever CL: N1 target above the 60 % stall
+  // threshold): the engine stalls as soon as it is ON and the stall N1 loss (up to 15 %) is added to the MSFS commanded N1 that the
+  // hold sees. The hold must still wait for the MSFS commanded N1 itself to reach idle (integration note of 2026-10-07: "the stall
+  // makes the commanded N1 look higher"); the N2 must settle at the stalled value without overshoot.
+  {
+    Scenario t8        = t1;
+    t8.name            = "T8 = T1, compressor stall";
+    t8.compressorStall = true;
+    checkScenario(t8, 40.0, 15.0);
+    const Result r = run(t8, true, true, 40.0);
+    std::printf("%s: hold released with the MSFS commanded N1 at %.1f %% (idle limit %.1f %%)\n", t8.name, r.releaseCommandedN1,
+                t8.idleLimit);
+    expect(r.releaseCommandedN1 >= t8.idleLimit - EngineStartThrottleHold::IDLE_REACHED_MARGIN_PERCENT,
+           "T8: hold released only once the MSFS commanded N1 (without the stall loss) reached idle", r.releaseCommandedN1);
+  }
 
   replayA32nxQuickRelightT2();
 
