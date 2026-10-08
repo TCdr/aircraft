@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { Triangle } from '../../Common/Shapes';
+import { ptuSymbolColor } from './PtuIndication';
 
 import '../../Common/CommonStyles.scss';
 
@@ -57,6 +58,7 @@ export const HydPage = () => {
 
   // PTU variables
   const [ptuControlValveOpen] = useSimVar('L:A32NX_HYD_PTU_VALVE_OPENED', 'boolean', 500);
+  const [ptuPbIsAuto] = useSimVar('L:A32NX_OVHD_HYD_PTU_PB_IS_AUTO', 'boolean', 500);
 
   return (
     <>
@@ -113,6 +115,7 @@ export const HydPage = () => {
           yellowQuantity={yellowFluidLevel}
           greenQuantity={greenFluidLevel}
           ptuControlValveOff={!ptuControlValveOpen}
+          ptuPbIsAuto={!!ptuPbIsAuto}
           yellowElecPumpOn={yellowElectricPumpStatus}
         />
 
@@ -420,6 +423,7 @@ type PTUProps = {
   yellowQuantity: number;
   greenQuantity: number;
   ptuControlValveOff: boolean;
+  ptuPbIsAuto: boolean;
   yellowElecPumpOn: boolean;
 };
 
@@ -454,6 +458,7 @@ const PTU = ({
   yellowQuantity,
   greenQuantity,
   ptuControlValveOff,
+  ptuPbIsAuto,
   yellowElecPumpOn,
 }: PTUProps) => {
   const [transferState, setTransferState] = useState(TransferState.None);
@@ -523,13 +528,8 @@ const PTU = ({
     yellowElecPumpOn,
   ]);
 
-  // Should also be amber if PTU fault
-  let transferColor: TransferColor;
-  if (ptuControlValveOff) {
-    transferColor = TransferColor.Amber;
-  } else {
-    transferColor = TransferColor.Green;
-  }
+  // Amber only with the PTU pb-sw OFF (FCOM DSC-29-20, see ptuSymbolColor), not for the automatic inhibitions
+  const transferColor = ptuSymbolColor(ptuPbIsAuto) === 'Amber' ? TransferColor.Amber : TransferColor.Green;
 
   const triangleFill = transferState !== TransferState.None ? 1 : 0;
   const triangle1Orientation = transferState !== TransferState.GreenToYellow ? -90 : 90;

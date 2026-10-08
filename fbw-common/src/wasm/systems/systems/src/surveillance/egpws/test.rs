@@ -421,7 +421,10 @@ struct TestAircraft {
     power_consumption: Power,
 }
 impl TestAircraft {
-    fn new(context: &mut InitContext) -> Self {
+    fn new_with_pin_programming(
+        context: &mut InitContext,
+        pin_programming: EnhancedGroundProximityWarningComputerPinProgramming,
+    ) -> Self {
         Self {
             electricity_source: TestElectricitySource::powered(
                 context,
@@ -432,9 +435,10 @@ impl TestAircraft {
             adiru: TestAdiru::new(context),
             ils: TestIls::new(),
             egpws_electrical_harness: TestElectricalHarness::new(),
-            egpwc: EnhancedGroundProximityWarningComputer::new(
+            egpwc: EnhancedGroundProximityWarningComputer::new_with_pin_programming(
                 context,
                 ElectricalBusType::AlternatingCurrent(1),
+                pin_programming,
             ),
             is_ac_1_powered: false,
             power_consumption: Power::new::<watt>(0.),
@@ -495,11 +499,18 @@ struct EgpwcTestBed {
 }
 impl EgpwcTestBed {
     fn new() -> Self {
+        Self::new_with_pin_programming(
+            EnhancedGroundProximityWarningComputerPinProgramming::default(),
+        )
+    }
+
+    fn new_with_pin_programming(
+        pin_programming: EnhancedGroundProximityWarningComputerPinProgramming,
+    ) -> Self {
         let mut test_bed = Self {
-            test_bed: SimulationTestBed::new_with_start_state(
-                StartState::Cruise,
-                TestAircraft::new,
-            ),
+            test_bed: SimulationTestBed::new_with_start_state(StartState::Cruise, |context| {
+                TestAircraft::new_with_pin_programming(context, pin_programming)
+            }),
         };
         test_bed = test_bed.on_ground().powered().flaps_extended(false);
 
@@ -845,6 +856,41 @@ fn mode_1_test() {
 
     test_bed.run_with_delta(Duration::from_millis(200));
     test_bed.assert_no_warning_active();
+}
+
+/// The alternate (Airbus) lamp format, as the A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb: PULL UP for the mode 1
+/// second boundary, amber GPWS for the first one (SINK RATE).
+#[test]
+fn mode_1_alternate_lamp_format_test() {
+    let mut test_bed = EgpwcTestBed::new_with_pin_programming(
+        EnhancedGroundProximityWarningComputerPinProgramming {
+            alternate_lamp_format: true,
+            ..Default::default()
+        },
+    )
+    .altitude_of(Length::new::<foot>(1500.0))
+    .terrain_height_of(Length::new::<foot>(0.0))
+    .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
+    .cas_of(Velocity::new::<knot>(250.))
+    .and()
+    .powered();
+
+    test_bed.run_with_delta(Duration::from_millis(1));
+    test_bed.assert_no_warning_active();
+
+    // SINK RATE: amber GPWS lamp, no PULL UP
+    test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(-4000.0));
+    test_bed.run_with_delta(Duration::from_millis(1));
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::SinkRate as u8);
+    assert!(!test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
+
+    // PULL UP: red PULL UP lamp
+    test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(-5000.0));
+    test_bed.run_with_delta(Duration::from_millis(1_700));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
 }
 
 #[test]
