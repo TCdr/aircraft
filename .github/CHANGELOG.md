@@ -296,6 +296,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] An in-flight engine relight follows the FCOM relight envelope (windmilling, starter assisted and quick relight zones, multiple-engine limits); a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N3; both igniters during an in-flight relight; the start valve stays closed for a windmilling start and the engine pumps are depressurised meanwhile - @TCdr
 1. [A380X/FWS] New ENG TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE cautions with their FCOM lines, STATUS and LAND ANSA; ENG FAIL shows RELIGHT PROC APPLY when more than two engines failed; ENG SHUT DOWN adds BTV and CAT 3 DUAL to the STATUS; ALL ENGINES FAILURE is renamed ALL ENG FLAME OUT as in the FCOM - @TCdr
 1. [A380X/FWS] ENG 3 and ENG 4 FAIL no longer come up during an engine start or a relight attempt that has not lit up, and their THR LEVER IDLE lines read their own thrust lever (they read engine 2's) - @TCdr
+1. [A380X/ND] The weather radar GAIN of the MFD SURV CONTROLS page changes the weather colours (50 % = calibrated, lower gain turns red to yellow, yellow to green and removes green, higher gain the opposite; turbulence unchanged), and a manual TILT or ELEVN that reaches the ground hides the weather beyond that range - @TCdr
 
 ## 2024.1.0
 
