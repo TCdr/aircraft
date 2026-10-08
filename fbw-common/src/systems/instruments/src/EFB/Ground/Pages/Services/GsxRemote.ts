@@ -1,8 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { isCaptainEfb } from '../../../Utils/efbIndex';
+import { gsxTurnaround, startGsxTurnaroundTracker } from './gsxTurnaround';
 
 /**
  * The GSX services, by their Couatl Remote API v2 id (GSX Pro manual for MSFS, Couatl Remote API v2 developer guide,
@@ -249,9 +250,13 @@ class GsxRemoteClient {
   /** A top-level key of the state (a snapshot key or a patch), see developer guide §8 */
   private applyKey(key: string, value: any): void {
     switch (key) {
-      case 'services':
-        this.update({ services: Array.isArray(value) ? value : [] });
+      case 'services': {
+        const services: GsxService[] = Array.isArray(value) ? value : [];
+        // the completions of this turnaround, remembered past GSX's reset to available
+        gsxTurnaround.observeServices(services);
+        this.update({ services });
         break;
+      }
       case 'menuShown':
         this.update({ menuShown: value === true });
         break;
@@ -334,11 +339,24 @@ class GsxRemoteClient {
 
 export const gsxRemote = new GsxRemoteClient();
 
+/**
+ * The GSX state as the pages show it: the services that completed in this turnaround stay completed after GSX
+ * resets them to available (gsxTurnaround)
+ */
+export function withTurnaroundMemory(state: GsxRemoteState): GsxRemoteState {
+  const services = gsxTurnaround.apply(state.services);
+  return services === state.services ? state : { ...state, services };
+}
+
 /** The GSX state, followed while the component is shown (the Services page looks for GSX even with the link off) */
 export function useGsxRemote(): GsxRemoteState {
   const [state, setState] = useState<GsxRemoteState>(DISCONNECTED);
+  const [memoryVersion, setMemoryVersion] = useState(0);
   useEffect(() => gsxRemote.subscribe(setState), []);
-  return state;
+  useEffect(() => gsxTurnaround.subscribe(() => setMemoryVersion((v) => v + 1)), []);
+  // the flyPad root runs the tracker all the time; this keeps it running with the page too
+  useEffect(() => startGsxTurnaroundTracker(), []);
+  return useMemo(() => withTurnaroundMemory(state), [state, memoryVersion]);
 }
 
 /**
