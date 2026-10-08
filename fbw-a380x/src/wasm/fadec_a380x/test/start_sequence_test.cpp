@@ -71,7 +71,58 @@ static bool offIsRunning(int engineIgniter, bool engineStarter, double simN3, bo
 #endif
 }
 
+/// The MSFS starter acceleration of the recorded A380X core (sim test 2026-10-08, APU bleed): the old run-down settled at
+/// 5.7 % N3 with the 2 s time constant, so about 5.7 / 2 % per second.
+constexpr double RECORDED_MSFS_STARTER_ACCELERATION = 5.7 / UNLIT_N3_TIME_CONSTANT_SECONDS;
+/// The systems WASM detects a failed starter (start valve open with air) while the core stays below 5 % N2 for 10 s
+/// (engine_start.rs STARTER_FAULT_MAX_N2_PERCENT, STARTER_FAULT_DETECTION_TIME).
+constexpr double STARTER_FAULT_MAX_N2_PERCENT    = 5.0;
+constexpr double STARTER_FAULT_DETECTION_SECONDS = 10.0;
+
+/**
+ * @brief The highest MSFS core speed while the FADEC holds a start with a failed starter at rest for the detection time: the
+ * MSFS starter (it follows the ENG MASTER) adds its torque every frame, and the FADEC writes the corrected N3 of the hold.
+ * Before the fix the FADEC ran down the MSFS speed read back each frame.
+ */
+static double highestHeldCoreSpeed(double startCorrectedN3, double deltaTime) {
+  RestingCore restingCore;
+  double      msfsCorrectedN3 = startCorrectedN3;
+  double      highest         = msfsCorrectedN3;
+  for (double time = 0.0; time < STARTER_FAULT_DETECTION_SECONDS; time += deltaTime) {
+#ifdef WITHOUT_THE_FIX
+    (void)restingCore;
+    msfsCorrectedN3 = restingCoreCorrectedN3(msfsCorrectedN3, deltaTime);
+#else
+    msfsCorrectedN3 = restingCore.hold(msfsCorrectedN3, deltaTime);
+#endif
+    msfsCorrectedN3 += RECORDED_MSFS_STARTER_ACCELERATION * deltaTime;  // MSFS turns the core until the next write
+    highest = (std::max)(highest, msfsCorrectedN3);
+  }
+  return highest;
+}
+
 int main() {
+  // A starter failure (sim test 2026-10-08, ENG 1 starter shaft shear, APU bleed ON, ENG MASTER 1 ON at IGN START): the
+  // systems WASM reports no starter motoring and the FADEC holds the core at rest, which the MSFS starter turns. It must stay
+  // below the 5 % of the starter fault detection, so that the start sequence aborts the start (A380 FCOM DSC-70-80-30-20
+  // l.112492-112493). Before the fix it settled at 5.7 % N3 and no fault was ever detected.
+  expect("starter failure: no starter motoring, core held at rest",
+         coreHeldAtRest(startSequenceKeepsStarter(true, true, STARTING), false));
+  expect("starter failure, 30 fps: the held core stays below the starter fault threshold",
+         highestHeldCoreSpeed(0.0, 1.0 / 30.0) < STARTER_FAULT_MAX_N2_PERCENT);
+  expect("starter failure, 60 fps: the held core stays below the starter fault threshold",
+         highestHeldCoreSpeed(0.0, 1.0 / 60.0) < STARTER_FAULT_MAX_N2_PERCENT);
+  // A core that was turning when it lost its starter air (start valve closed) still runs down from its speed to rest
+  expect("a turning core runs down below the starter fault threshold",
+         highestHeldCoreSpeed(20.0, 1.0 / 30.0) <= 20.0 + RECORDED_MSFS_STARTER_ACCELERATION / 30.0);
+  {
+    RestingCore restingCore;
+    expectNear("the hold begins at the MSFS speed", restingCore.hold(20.0, 1.0), 10.0);
+    expectNear("the hold runs down along its own speed, not the MSFS speed read back", restingCore.hold(15.0, 1.0), 5.0);
+    restingCore.release();
+    expectNear("after a release the hold begins again at the MSFS speed", restingCore.hold(16.0, 1.0), 8.0);
+  }
+
   // A dry crank with the ENG MASTER OFF: the cockpit XML engages the MSFS starter, which is no ENG MASTER ON (the engine model
   // must not start or show fuel)
   expect("dry crank is no master ON", !masterOn(true, true, MOTORING));
