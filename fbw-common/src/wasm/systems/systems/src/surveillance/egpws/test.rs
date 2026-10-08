@@ -421,13 +421,6 @@ struct TestAircraft {
     power_consumption: Power,
 }
 impl TestAircraft {
-    fn new(context: &mut InitContext) -> Self {
-        Self::new_with_pin_programming(
-            context,
-            EnhancedGroundProximityWarningComputerPinProgramming::default(),
-        )
-    }
-
     fn new_with_pin_programming(
         context: &mut InitContext,
         pin_programming: EnhancedGroundProximityWarningComputerPinProgramming,
