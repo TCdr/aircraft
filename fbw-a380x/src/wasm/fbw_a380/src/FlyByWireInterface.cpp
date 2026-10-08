@@ -3017,6 +3017,10 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.prim_1 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[0], fadecNetworkLost);
   fadecInputs[fadecIndex].in.prim_2 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[1], fadecNetworkLost);
   fadecInputs[fadecIndex].in.prim_3 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[2], fadecNetworkLost);
+  // ...and is not thrust locked: the A/THR is not disconnected (see FadecFailureInputs.h). fadecOutputs still holds the
+  // previous frame here.
+  fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::thrustLeverAngleWithoutThrustLock(
+      fadecInputs[fadecIndex].in.input.TLA_deg, fadecNetworkLost, fadecOutputs[fadecIndex].athr_control_active);
 
   if (fadecIndex == fadecDisabled) {
     simConnectInterface.setClientDataFadecData(fadecInputs[fadecIndex].in.data);
