@@ -88,6 +88,18 @@ inline double restingCoreCorrectedN3(double correctedN3, double deltaTime) {
 }
 
 /**
+ * @brief The OFF engine state becomes ON for an engine that runs at the load of a flight (on the ground or in the air): ENG
+ * START selector at NORM, MSFS starter on (it follows the ENG MASTER lever), core above 20 % N3, and MSFS burning in it.
+ *
+ * Without the combustion a cold engine became ON as soon as its MSFS starter turned the core past 20 % with the ENG MASTER ON
+ * at NORM on the ground: the FADEC showed it running and the auto relight selected igniters A + B for an unlit engine (sim
+ * test 2026-10-07). A normal start (ENG START at IGN/START, also the aircraft presets) goes through STARTING.
+ */
+inline bool offEngineIsRunning(int engineIgniter, bool engineStarter, double simN3, bool simCombustion) {
+  return engineIgniter == 1 && engineStarter && simN3 > 20 && simCombustion;
+}
+
+/**
  * @brief A start (STARTING, RESTARTING) is over when the core reaches idle, unless a hung start or a stall holds it below.
  */
 inline bool startReachesIdle(bool engineStarter, double simN3, double idleN3, bool n3Hang) {

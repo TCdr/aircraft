@@ -84,11 +84,13 @@ inline StarterCommand starterCommand(const StarterInputs& in) {
 }
 
 /**
- * @brief The OFF engine state may become ON when the MSFS engine turns with its starter above 20 % N2 at NORM (an engine
- * running at the load of a flight). A core that the start sequence motors without fuel is not running.
+ * @brief The OFF engine state may become ON when the MSFS engine turns with its starter above 20 % N2 at NORM and MSFS burns in
+ * it (an engine running at the load of a flight). A core that the start sequence motors without fuel is not running, nor is a
+ * core that the MSFS starter turns without combustion (the same rule marked a cold A380X engine ON at NORM, sim test
+ * 2026-10-07). A normal start (ENG MODE at IGN/START, also the aircraft presets) goes through STARTING.
  */
-inline bool offEngineIsRunning(int engineIgniter, bool engineStarter, double simN2, bool starterMotoring) {
-  return engineIgniter == 1 && engineStarter && simN2 > 20 && !starterMotoring;
+inline bool offEngineIsRunning(int engineIgniter, bool engineStarter, double simN2, bool starterMotoring, bool simCombustion) {
+  return engineIgniter == 1 && engineStarter && simN2 > 20 && !starterMotoring && simCombustion;
 }
 
 /**
