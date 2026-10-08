@@ -543,10 +543,13 @@ export class FwsInopSys {
     },
     320300007: {
       // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions (A380 FCOM l.172781, 175443, 175620)
+      // and with the reverser of the engine 2 or 3 inoperative (REVERSER CTL FAULT, FAULT, LOCKED, THR LEVER 2(3)
+      // FAULT: A380 FCOM l.173471, 173537, 173617, 173329)
       simVarIsActive: MappedSubject.create(
-        ([btvLost, engineOut]) => btvLost || engineOut,
+        ([btvLost, engineOut, reverserInop]) => btvLost || engineOut || reverserInop,
         this.fws.btvLost,
         this.fws.engineOutBtvInop,
+        this.fws.reverserBtvInop,
       ),
       phase: FwsInopSysPhases.ApprLdg,
     },
@@ -829,6 +832,41 @@ export class FwsInopSys {
       simVarIsActive: this.fws.reverser3Inop,
       phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['700300003'],
+    },
+
+    // ENG 1(2)(3)(4) THR LEVER FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) THR LEVER (A380 FCOM l.173326)
+    700300050: {
+      simVarIsActive: this.fws.thrLeverFault[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    700300051: {
+      simVarIsActive: this.fws.thrLeverFault[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    700300052: {
+      simVarIsActive: this.fws.thrLeverFault[2],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    700300053: {
+      simVarIsActive: this.fws.thrLeverFault[3],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    // ENG 1(2)(3)(4) FADEC FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) A/THR "If A/THR engaged" (A380 FCOM l.171599)
+    220300014: {
+      simVarIsActive: this.fws.fadecAthrInop[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    220300015: {
+      simVarIsActive: this.fws.fadecAthrInop[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    220300016: {
+      simVarIsActive: this.fws.fadecAthrInop[2],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    220300017: {
+      simVarIsActive: this.fws.fadecAthrInop[3],
+      phase: FwsInopSysPhases.AllPhases,
     },
 
     700300003: {
