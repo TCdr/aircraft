@@ -296,6 +296,15 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] An in-flight engine relight follows the FCOM relight envelope (windmilling, starter assisted and quick relight zones, multiple-engine limits); a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N3; both igniters during an in-flight relight; the start valve stays closed for a windmilling start and the engine pumps are depressurised meanwhile - @TCdr
 1. [A380X/FWS] New ENG TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE cautions with their FCOM lines, STATUS and LAND ANSA; ENG FAIL shows RELIGHT PROC APPLY when more than two engines failed; ENG SHUT DOWN adds BTV and CAT 3 DUAL to the STATUS; ALL ENGINES FAILURE is renamed ALL ENG FLAME OUT as in the FCOM - @TCdr
 1. [A380X/FWS] ENG 3 and ENG 4 FAIL no longer come up during an engine start or a relight attempt that has not lit up, and their THR LEVER IDLE lines read their own thrust lever (they read engine 2's) - @TCdr
+1. [A32NX/ECAM] F/CTL ALTN LAW shows MAX SPEED 320 KT (320/.77 only with a dual hydraulic low pressure) and SPD BRK DO NOT USE only with an elevator fault, without MANEUVER WITH CARE; DIRECT LAW no longer shows SPD BRK DO NOT USE next to USE SPD BRK WITH CARE - @TCdr
+1. [A32NX/ECAM] F/CTL ELAC 1(2) FAULT shows its FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE lines - @TCdr
+1. [A32NX/ECAM] The APU BLEED memo follows the APU BLEED pb-sw (APU available and pb-sw ON), no longer the bleed valve - @TCdr
+1. [A32NX/ECAM] T.O CONFIG NORMAL is not given with a FUEL L(R) TK PUMP 1+2 LO PR alert - @TCdr
+1. [A32NX/ECAM] FUEL L(R) WING TK LO LVL asks for FUEL MODE SEL MAN only if the centre tank is not empty, and gives its STATUS (INOP SYS L(R) TK PUMPS, CTR TK FEED: MAN ONLY if the centre tank is not empty) - @TCdr
+1. [A32NX/SD] The PTU symbol of the HYD page is amber only with the PTU pb-sw OFF, no longer during the automatic PTU inhibitions - @TCdr
+1. [A32NX/BRAKES] Alternate braking without anti-skid is limited to 1 000 PSI as in the FCOM (was 1 160 PSI) - @TCdr
+1. [A32NX/BRAKES] The brake fans run when the left main gear is down and locked, also in flight before landing - @TCdr
+1. [A32NX/GPWS] The red PULL UP light comes on only for the mode 1 PULL UP and mode 2 warnings; the other GPWS alerts (SINK RATE, DON'T SINK, TOO LOW...) light the amber GPWS light - @TCdr
 
 ## 2024.1.0
 

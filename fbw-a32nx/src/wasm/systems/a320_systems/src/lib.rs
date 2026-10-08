@@ -37,7 +37,10 @@ use systems::navigation::gpirs::Gpirs;
 use systems::navigation::ils::MultiModeReceiverShim;
 use systems::{
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
-    surveillance::egpws::EnhancedGroundProximityWarningComputer as EnhancedGroundProximityWarningComputer2,
+    surveillance::egpws::{
+        EnhancedGroundProximityWarningComputer as EnhancedGroundProximityWarningComputer2,
+        EnhancedGroundProximityWarningComputerPinProgramming,
+    },
 };
 use systems::{hydraulic::brake::BrakeFanPanel, simulation::InitContext};
 use uom::si::{f64::Length, length::nautical_mile};
@@ -161,9 +164,16 @@ impl A320 {
                 ],
                 0,
             ),
-            egpwc_2: EnhancedGroundProximityWarningComputer2::new(
+            // A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb (a320_fcom.txt l.55481-55486): "PULL UP: Comes on when the
+            // second boundary of mode 1 is penetrated or when the mode 2 is activated", "GPWS: Comes on in amber when any
+            // other mode is activated": the alternate lamp format of the EGPWC.
+            egpwc_2: EnhancedGroundProximityWarningComputer2::new_with_pin_programming(
                 context,
                 ElectricalBusType::AlternatingCurrent(1),
+                EnhancedGroundProximityWarningComputerPinProgramming {
+                    alternate_lamp_format: true,
+                    ..Default::default()
+                },
             ),
             egpws_electrical_harness: A320EgpwsElectricalHarness::new(context),
             mmr: MultiModeReceiverShim::new(context),
@@ -409,5 +419,13 @@ mod tests {
         assert!(starved);
         assert!(cut);
         assert!(!other_cut);
+    }
+
+    /// A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb: red PULL UP for mode 1 second boundary and mode 2 only, amber
+    /// GPWS for every other mode: the alternate lamp format of the EGPWC (surveillance/egpws/test.rs checks the lamps).
+    #[test]
+    fn the_egpwc_uses_the_airbus_lamp_format() {
+        let test_bed = aircraft_with_engines_at_idle();
+        assert!(test_bed.query(|a| a.egpwc_2.pin_programming().alternate_lamp_format));
     }
 }

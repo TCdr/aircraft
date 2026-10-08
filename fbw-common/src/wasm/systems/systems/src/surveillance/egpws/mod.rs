@@ -36,6 +36,8 @@ pub trait EgpwsElectricalHarness {
 #[derive(Default, Clone, Copy, Debug)]
 pub struct EnhancedGroundProximityWarningComputerPinProgramming {
     pub audio_declutter_disable: bool,
+    /// The warning lamp lights for the mode 1 and mode 2 PULL UP warnings only, the alert lamp for every other mode.
+    /// Without it (the default format) the warning lamp lights for every mode 1 to 4 alert.
     pub alternate_lamp_format: bool,
 }
 
@@ -59,6 +61,9 @@ pub struct EnhancedGroundProximityWarningComputer {
 
     discrete_output_data: TerrainAwarenessWarningSystemDiscreteOutputs,
     bus_output_data: TerrainAwarenessWarningSystemBusOutputs,
+
+    /// The program pins of the aircraft wiring, given to every runtime started
+    pin_programming: EnhancedGroundProximityWarningComputerPinProgramming,
 
     /// NVM data
     on_ground: bool,
@@ -86,6 +91,19 @@ impl EnhancedGroundProximityWarningComputer {
     const AURAL_OUTPUT_KEY: &str = "GPWS_AURAL_OUTPUT";
 
     pub fn new(context: &mut InitContext, powered_by: ElectricalBusType) -> Self {
+        Self::new_with_pin_programming(
+            context,
+            powered_by,
+            EnhancedGroundProximityWarningComputerPinProgramming::default(),
+        )
+    }
+
+    /// A computer with the program pins of the aircraft wiring (lamp format, audio declutter).
+    pub fn new_with_pin_programming(
+        context: &mut InitContext,
+        powered_by: ElectricalBusType,
+        pin_programming: EnhancedGroundProximityWarningComputerPinProgramming,
+    ) -> Self {
         let is_powered = context.has_engines_running();
         let on_ground = context.is_on_ground();
         Self {
@@ -113,6 +131,7 @@ impl EnhancedGroundProximityWarningComputer {
                     } else {
                         FlightPhase::Approach
                     },
+                    pin_programming,
                 ))
             } else {
                 None
@@ -121,6 +140,7 @@ impl EnhancedGroundProximityWarningComputer {
 
             discrete_output_data: TerrainAwarenessWarningSystemDiscreteOutputs::default(),
             bus_output_data: TerrainAwarenessWarningSystemBusOutputs::default(),
+            pin_programming,
 
             on_ground,
             flight_phase: if on_ground {
@@ -181,6 +201,7 @@ impl EnhancedGroundProximityWarningComputer {
                     self.self_check_time,
                     self.on_ground,
                     self.flight_phase,
+                    self.pin_programming,
                 )
             });
             runtime.update(
@@ -202,6 +223,10 @@ impl EnhancedGroundProximityWarningComputer {
 
     pub fn has_failed(&self) -> bool {
         self.failure.is_active()
+    }
+
+    pub fn pin_programming(&self) -> EnhancedGroundProximityWarningComputerPinProgramming {
+        self.pin_programming
     }
 }
 
