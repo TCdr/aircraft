@@ -209,6 +209,10 @@ class FadecSimData_A32NX {
   NamedVariablePtr engineModeSelector;        // Enum - ENG MODE selector: 0 crank, 1 norm, 2 ign/start
   NamedVariablePtr engineOilLeak[2];          // Bool - oil leak failure: the oil system loses oil (systems WASM)
   NamedVariablePtr engineOilOverheat[2];      // Bool - oil overheat failure: the oil is not cooled enough (systems WASM)
+  // Stall, EGT overtemperature and overspeed failures of a running engine (systems WASM, a320_systems engine_malfunction.rs)
+  NamedVariablePtr engineEgtOffset[2];  // Celsius - added to the EGT
+  NamedVariablePtr engineN1Offset[2];   // Percent - added to the N1
+  NamedVariablePtr engineN2Offset[2];   // Percent - added to the N2
   NamedVariablePtr engineFuelUsed[2];
   NamedVariablePtr engineIdleEGT;
   NamedVariablePtr engineIdleFF;
@@ -350,6 +354,13 @@ class FadecSimData_A32NX {
     engineOilLeak[R]     = dm->make_named_var("A32NX_ENGINE_2_OIL_LEAK", UNITS.Number, AUTO_READ);
     engineOilOverheat[L] = dm->make_named_var("A32NX_ENGINE_1_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
     engineOilOverheat[R] = dm->make_named_var("A32NX_ENGINE_2_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+
+    engineEgtOffset[L] = dm->make_named_var("A32NX_ENGINE_1_EGT_OFFSET", UNITS.Number, AUTO_READ);
+    engineEgtOffset[R] = dm->make_named_var("A32NX_ENGINE_2_EGT_OFFSET", UNITS.Number, AUTO_READ);
+    engineN1Offset[L]  = dm->make_named_var("A32NX_ENGINE_1_N1_OFFSET", UNITS.Number, AUTO_READ);
+    engineN1Offset[R]  = dm->make_named_var("A32NX_ENGINE_2_N1_OFFSET", UNITS.Number, AUTO_READ);
+    engineN2Offset[L]  = dm->make_named_var("A32NX_ENGINE_1_N2_OFFSET", UNITS.Number, AUTO_READ);
+    engineN2Offset[R]  = dm->make_named_var("A32NX_ENGINE_2_N2_OFFSET", UNITS.Number, AUTO_READ);
 
     engineFuelUsed[L] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[R] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);

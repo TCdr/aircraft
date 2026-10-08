@@ -173,6 +173,11 @@ void EngineControl_A32NX::update() {
       relightIgnitionSet[engineIdx] = false;
     }
 
+    // updateEGT adds the EGT offset of the engine failures in the running branch only.
+    if (engineState == STARTING || engineState == RESTARTING || engineState == SHUTTING) {
+      egtOffsetApplied[engineIdx] = 0.0;
+    }
+
     switch (engineState) {
       case STARTING:
       case RESTARTING:
@@ -791,8 +796,10 @@ void EngineControl_A32NX::updatePrimaryParameters(int engine, double imbalance, 
   if (engineImbalanced == engine) {
     n2Imbalance = imbalanceExtractor(imbalance, 4) / 100;
   }
-  simData.engineN1[engineIdx]->set(simN1);
-  simData.engineN2[engineIdx]->set((std::max)(0.0, simN2 - n2Imbalance));
+  // The stall (N1 and N2 fluctuations) and overspeed failures of the systems WASM change the N1 and N2 indications of a running
+  // engine (a320_systems engine_malfunction.rs; design choice).
+  simData.engineN1[engineIdx]->set((std::max)(0.0, simN1 + simData.engineN1Offset[engineIdx]->get()));
+  simData.engineN2[engineIdx]->set((std::max)(0.0, simN2 - n2Imbalance + simData.engineN2Offset[engineIdx]->get()));
 
 #ifdef PROFILING
   profilerUpdatePrimaryParameters.stop();
@@ -827,11 +834,16 @@ void EngineControl_A32NX::updateEGT(int         engine,
     if (engineImbalanced == engine) {
       egtImbalance = imbalanceExtractor(imbalance, 2);
     }
+    // The EGT offset of the stall and EGT overtemperature failures (systems WASM, a320_systems engine_malfunction.rs) has its own
+    // dynamics: it is added after the slow EGT lag below, so that a stall gives the rapid EGT rise of the FCOM (ENG 1(2) STALL,
+    // a320_fcom.txt l.81325-81326: "high EGT and/or a rapid EGT rise").
+    const double egtOffset         = simData.engineEgtOffset[engineIdx]->get();
     const double correctedEGT      = Polynomial_A32NX::correctedEGT(simCN1, customFuelFlow, mach, pressureAltitude);
-    const double egtFbwPreviousEng = simData.engineEgt[engineIdx]->get();
+    const double egtFbwPreviousEng = simData.engineEgt[engineIdx]->get() - egtOffsetApplied[engineIdx];
     double       egtFbwActualEng   = (correctedEGT * EngineRatios::theta2(mach, ambientTemperature)) - egtImbalance;
     egtFbwActualEng                = egtFbwActualEng + (egtFbwPreviousEng - egtFbwActualEng) * (std::exp)(-0.1 * deltaTime);
-    simData.engineEgt[engineIdx]->set(egtFbwActualEng);
+    simData.engineEgt[engineIdx]->set(egtFbwActualEng + egtOffset);
+    egtOffsetApplied[engineIdx] = egtOffset;
   }
 
 #ifdef PROFILING

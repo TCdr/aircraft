@@ -1,10 +1,11 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
 import { ClockEvents, EventBus, DisplayComponent, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
+import { ExceedanceMemory, N2_RED_LIMIT_PERCENT, isGroundStartSequence, n2Color } from '@shared/EngineLimits';
 
 import './style.scss';
 
@@ -28,6 +29,15 @@ export class N2 extends DisplayComponent<N2Props> {
   private n2Fract = Subject.create('');
 
   private state: number = 0;
+
+  private onGround = false;
+
+  /** FCOM DSC-70-90-40 (see shared/EngineLimits): red above the N2 red limit, with a red cross that stays */
+  private readonly n2Color = Subject.create('Green');
+
+  private readonly n2Exceedance = new ExceedanceMemory(N2_RED_LIMIT_PERCENT);
+
+  private readonly redCrossVisibility = Subject.create('hidden');
 
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -60,10 +70,20 @@ export class N2 extends DisplayComponent<N2Props> {
       });
 
     sub
+      .on('left1LandingGear')
+      .whenChanged()
+      .handle((onGround) => {
+        this.onGround = onGround;
+      });
+
+    sub
       .on('realTime')
       .atFrequency(2)
       .handle((_t) => {
         this.starting.set(this.n2 < 58.5 && (this.state === 2 || this.state === 3) ? 'visible' : 'hidden');
+        this.n2Color.set(n2Color(this.n2));
+        this.n2Exceedance.update(this.n2, isGroundStartSequence(this.state, this.onGround));
+        this.redCrossVisibility.set(this.n2Exceedance.exceeded ? 'visible' : 'hidden');
       });
   }
 
@@ -77,15 +97,18 @@ export class N2 extends DisplayComponent<N2Props> {
         </g>
         <g visibility={this.activeVisibility}>
           <rect x={-9} y={22} width={80} height={25} class="LightGreyBox" visibility={this.starting} />
-          <text class="Large End Green" x={42} y={45}>
+          <text class={this.n2Color.map((color) => `Large End ${color}`)} x={42} y={45}>
             {this.n2Int}
           </text>
-          <text class="Large End Green" x={54} y={45}>
+          <text class={this.n2Color.map((color) => `Large End ${color}`)} x={54} y={45}>
             .
           </text>
-          <text class="Medium End Green" x={70} y={45}>
+          <text class={this.n2Color.map((color) => `Medium End ${color}`)} x={70} y={45}>
             {this.n2Fract}
           </text>
+          <g visibility={this.redCrossVisibility}>
+            <path class="RedLine" d="M -4 28 l 12 12 m 0 -12 l -12 12" />
+          </g>
         </g>
       </Layer>
     );
