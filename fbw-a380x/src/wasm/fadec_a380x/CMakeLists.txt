@@ -27,6 +27,7 @@ set(INCLUDE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/EngineControl_A380X.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/FuelConfiguration_A380X.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/FadecSimData_A380X.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/FeedTankDraw_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/ThrustLimits_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/Polynomials_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/RelightStart_A380X.hpp
