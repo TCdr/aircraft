@@ -14,3 +14,13 @@ describe('SD ENG page N2', () => {
     expect(page.match(/useSimVar\(`L:A32NX_ENGINE_N2:\$\{engineNumber\}`, 'number', 50\)/g)).toHaveLength(2);
   });
 });
+
+describe('SD ENG page vibrations', () => {
+  // MSFS has one vibration value per engine; the systems WASM (a320_systems engine_malfunction.rs) gives N1 and N2 their own.
+  it('reads separate N1 and N2 vibrations from the systems WASM', () => {
+    const page = readFileSync(resolve(__dirname, 'Eng.tsx'), 'utf-8');
+    expect(page).not.toContain('TURB ENG VIBRATION');
+    expect(page).toContain('_N1_VIBRATION`');
+    expect(page).toContain('_N2_VIBRATION`');
+  });
+});

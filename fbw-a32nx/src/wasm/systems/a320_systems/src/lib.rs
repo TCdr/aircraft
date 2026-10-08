@@ -4,6 +4,7 @@ mod air_conditioning;
 mod airframe;
 mod electrical;
 mod engine_failure;
+mod engine_malfunction;
 mod fire_protection;
 mod fuel;
 pub mod hydraulic;
@@ -17,6 +18,7 @@ mod surveillance;
 use self::{
     air_conditioning::A320AirConditioning,
     engine_failure::A320EngineFailures,
+    engine_malfunction::A320EngineMalfunctions,
     fire_protection::A320FireProtection,
     fuel::A320Fuel,
     oxygen::A320Oxygen,
@@ -83,6 +85,7 @@ pub struct A320 {
     engine_failures: A320EngineFailures,
     /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
     engine_oil_failures: EngineOilFailures<2>,
+    engine_malfunctions: A320EngineMalfunctions,
     fire_protection: A320FireProtection,
     electrical: A320Electrical,
     power_consumption: A320PowerConsumption,
@@ -132,6 +135,7 @@ impl A320 {
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
             engine_failures: A320EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
+            engine_malfunctions: A320EngineMalfunctions::new(context),
             fire_protection: A320FireProtection::new(context),
             electrical: A320Electrical::new(context),
             power_consumption: A320PowerConsumption::new(context),
@@ -234,6 +238,7 @@ impl Aircraft for A320 {
 
         self.fuel.update(context, &self.engine_fire_overhead);
         self.engine_failures.update(context, &self.fuel);
+        self.engine_malfunctions.update(context);
 
         self.lgcius.update(
             context,
@@ -342,6 +347,7 @@ impl SimulationElement for A320 {
         self.engine_fire_overhead.accept(visitor);
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
+        self.engine_malfunctions.accept(visitor);
         self.fire_protection.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
@@ -438,5 +444,36 @@ mod tests {
         assert!(!read(&mut test_bed, "ENGINE_1_OIL_FILTER_CLOGGED"));
         assert!(read(&mut test_bed, "ENGINE_2_OIL_OVERHEAT"));
         assert!(!read(&mut test_bed, "ENGINE_1_OIL_OVERHEAT"));
+    }
+
+    /// The A320 engine malfunctions (engine_malfunction.rs) are part of the aircraft: a stall of
+    /// engine 1 at climb thrust is detected and loses N1 on engine 1 only, and the vibration
+    /// failure takes the N1 vibration above the 6 units of the VIB advisory at climb thrust.
+    #[test]
+    fn an_engine_1_stall_at_climb_thrust_loses_n1_on_engine_1_only() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        for engine_number in 1..=2 {
+            test_bed.write_by_name(&format!("TURB ENG N1:{}", engine_number), 88.);
+            test_bed.write_by_name(&format!("TURB ENG N2:{}", engine_number), 97.);
+            test_bed.write_by_name(&format!("AUTOTHRUST_N1_COMMANDED:{}", engine_number), 88.);
+        }
+        test_bed.fail(FailureType::EngineCompressorStall(1));
+        test_bed.fail(FailureType::EngineHighVibration(1));
+        for _ in 0..(30 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+
+        let stall_1: bool = test_bed.read_by_name("ENGINE_1_STALL");
+        let stall_2: bool = test_bed.read_by_name("ENGINE_2_STALL");
+        let loss_1: f64 = test_bed.read_by_name("ENGINE_1_STALL_N1_LOSS");
+        let loss_2: f64 = test_bed.read_by_name("ENGINE_2_STALL_N1_LOSS");
+        let vibration_1: f64 = test_bed.read_by_name("ENGINE_1_N1_VIBRATION");
+        let vibration_2: f64 = test_bed.read_by_name("ENGINE_2_N1_VIBRATION");
+        assert!(stall_1);
+        assert!(!stall_2);
+        assert!(loss_1 > 14.);
+        assert!(loss_2 < 0.01);
+        assert!(vibration_1 >= 6.);
+        assert!(vibration_2 < 6.);
     }
 }
