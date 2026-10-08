@@ -425,6 +425,9 @@ void FlyByWireInterface::setupLocalVariables() {
   idAutothrustThrustLimitTOGA = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA");
   thrustLeverAngle_1 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA:1");
   thrustLeverAngle_2 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA:2");
+  idEngineState[0] = std::make_unique<LocalVariable>("A32NX_ENGINE_STATE:1");
+  idEngineState[1] = std::make_unique<LocalVariable>("A32NX_ENGINE_STATE:2");
+  idEngineIdleN2 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N2");
   idAutothrustN1_TLA_1 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:1");
   idAutothrustN1_TLA_2 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:2");
   idAutothrustReverse_1 = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_REVERSE:1");
@@ -2681,6 +2684,16 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.input.is_air_conditioning_active = idAirConditioningPack_1->get();
   fadecInputs[fadecIndex].in.input.ATHR_reset_disable = simConnectInterface.getSimInputThrottles().ATHR_reset_disable == 1;
 
+  // In flight, an engine out or (re)starting is held at idle and accelerates from idle once it runs: without this the thrust loop
+  // wound the MSFS throttle up during the start and MSFS took the engine to its N2 limit at the end (see EngineStartThrottleHold.h).
+  // The loop target is its N1 command of the previous frame.
+  const EngineStartThrottleHold::Output engineStartThrottle = engineStartThrottleHolds[fadecIndex].update(
+      {fadecInputs[fadecIndex].in.data.on_ground != 0, idEngineState[fadecIndex]->get(),
+       fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent, fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent,
+       fadecOutputs[fadecIndex].N1_c_percent, sampleTime, fadecIndex == 0 ? simData.engine_N2_1_percent : simData.engine_N2_2_percent,
+       idEngineIdleN2->get()});
+  fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
+
   fadecInputs[fadecIndex].in.fcu_input = fcuBusOutputs;
 
   if (fadecIndex == fadecDisabled) {
@@ -2697,6 +2710,9 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
     fadecOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.output;
     fadecBusOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.fadec_bus_output;
   }
+
+  fadecOutputs[fadecIndex].sim_throttle_lever_pos =
+      EngineStartThrottleHold::simThrottle(engineStartThrottle, fadecOutputs[fadecIndex].sim_throttle_lever_pos);
 
   idEcuStatusWord3[fadecIndex]->set(Arinc429Utils::toSimVar(fadecBusOutputs[fadecIndex].ecu_status_word_3));
   idEcuMaintenanceWord6[fadecIndex]->set(Arinc429Utils::toSimVar(fadecBusOutputs[fadecIndex].ecu_maintenance_word_6));
