@@ -462,7 +462,8 @@ class FadecSimData_A380X {
       engineStartEgtOvershoot[i] = dm->make_named_var(prefix + "START_EGT_OVERSHOOT", UNITS.Number, AUTO_READ);
       engineStartIgniters[i]     = dm->make_named_var(prefix + "IGNITERS", UNITS.Number, AUTO_READ);
     }
-    engineStartSelector       = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ);
+    // XMLVAR_ENG_MODE_SEL has no A32NX_ prefix in the sim: noPrefix = true (last parameter), else L:A32NX_XMLVAR_ENG_MODE_SEL (always 0).
+    engineStartSelector = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ, 0.0, 0, true);
     engineFirePbReleased[E1]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG1", UNITS.Number, AUTO_READ);
     engineFirePbReleased[E2]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG2", UNITS.Number, AUTO_READ);
     engineFirePbReleased[E3]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG3", UNITS.Number, AUTO_READ);
