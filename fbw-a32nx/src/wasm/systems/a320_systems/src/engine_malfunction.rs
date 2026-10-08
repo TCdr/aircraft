@@ -16,8 +16,10 @@
 //!   a climb EGT above its limit, which the crew brings back below the limit by reducing the
 //!   thrust; the overspeed (+7 % N1, +6 % N2) takes the N1 above 104 % at takeoff thrust only.
 //! - [QRH] HIGH ENGINE VIBRATION (l.78936): the VIB advisory is N1 6 units, N2 4.3 units. The
-//!   high vibration failure (N1 8 units at 100 % N1, N2 5 units at 100 % N2) is above the advisory
-//!   at climb and cruise thrust and below it once the thrust is reduced.
+//!   high vibration failure (N1 8 units at 100 % N1, N2 5 units at 100 % N2, with the square of
+//!   the rotor speed) is above the advisory at climb and cruise thrust, below it once the thrust
+//!   is reduced (N2 below about 78 %), and clearly below it at idle (sim test 2026-10-06: N2 4.6
+//!   units at idle with a vibration proportional to the rotor speed).
 //! - ENG 1(2) STALL (l.81322-81326): fluctuating parameters, sluggish thrust lever response, high
 //!   EGT. The engine stalls when the N1 command is at or above 60 % (above the approach thrust) and
 //!   recovers below 57 %: the QRH ENG STALL procedure (l.78834-78867) sets the thrust lever to IDLE,
@@ -136,5 +138,78 @@ impl SimulationElement for A320EngineMalfunctions {
         }
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use systems::{
+        failures::FailureType,
+        simulation::{
+            test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
+            Aircraft,
+        },
+    };
+
+    struct TestAircraft {
+        malfunctions: A320EngineMalfunctions,
+    }
+    impl TestAircraft {
+        fn new(context: &mut InitContext) -> Self {
+            Self {
+                malfunctions: A320EngineMalfunctions::new(context),
+            }
+        }
+    }
+    impl Aircraft for TestAircraft {
+        fn update_after_power_distribution(&mut self, context: &UpdateContext) {
+            self.malfunctions.update(context);
+        }
+    }
+    impl SimulationElement for TestAircraft {
+        fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+            self.malfunctions.accept(visitor);
+            visitor.visit(self);
+        }
+    }
+
+    /// Engine 1 with the high vibration failure at an N1 and N2, with the MSFS vibration of the
+    /// sim test of 2026-10-06 (2.0 at idle, 2.4 at cruise), after 40 s.
+    fn vibrations_with_the_failure_at(n1: f64, n2: f64, msfs_vibration: f64) -> (f64, f64) {
+        let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+        test_bed.set_on_ground(false);
+        test_bed.write_by_name("ENGINE_STATE:1", 1.);
+        test_bed.write_by_name("TURB ENG N1:1", n1);
+        test_bed.write_by_name("TURB ENG N2:1", n2);
+        test_bed.write_by_name("AUTOTHRUST_N1_COMMANDED:1", n1);
+        test_bed.write_by_name("TURB ENG VIBRATION:1", msfs_vibration);
+        test_bed.fail(FailureType::EngineHighVibration(1));
+        for _ in 0..(40 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+        (
+            test_bed.read_by_name("ENGINE_1_N1_VIBRATION"),
+            test_bed.read_by_name("ENGINE_1_N2_VIBRATION"),
+        )
+    }
+
+    /// [QRH] HIGH ENGINE VIBRATION: THRUST REDUCE BELOW ADVISORY THRESHOLD. Sim test 2026-10-06:
+    /// with the thrust lever at IDLE the N2 vibration stayed at 4.6 units, above the 4.3 advisory.
+    #[test]
+    fn at_idle_the_vibrations_are_clearly_below_the_advisory() {
+        let (n1_vibration, n2_vibration) = vibrations_with_the_failure_at(30., 69., 2.);
+        assert!(n1_vibration < 6. - 2., "N1 {}", n1_vibration);
+        assert!(n2_vibration < 4.3 - 0.5, "N2 {}", n2_vibration);
+    }
+
+    #[test]
+    fn at_climb_and_cruise_thrust_the_vibrations_are_above_the_advisory() {
+        for (n1, n2) in [(89., 100.), (80., 93.)] {
+            let (n1_vibration, n2_vibration) = vibrations_with_the_failure_at(n1, n2, 2.4);
+            assert!(n1_vibration > 6., "N1 {} at {} % N1", n1_vibration, n1);
+            assert!(n2_vibration > 4.3, "N2 {} at {} % N2", n2_vibration, n2);
+        }
     }
 }
