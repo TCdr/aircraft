@@ -69,7 +69,8 @@ export function doorRow(
 /**
  * A ground equipment row: its chip requests or releases the service; the status line is GSX's when the page is
  * linked to GSX, else the state of the sim service (or `status`, for rows that are not a sim service). `action` names
- * the request on the chip (default "Request").
+ * the request on the chip (default "Request"). `requestable` false (a GSX service GSX does not let be triggered, e.g.
+ * completed) leaves an idle row without its Request chip.
  */
 export function equipmentRow(
   key: string,
@@ -84,6 +85,7 @@ export function equipmentRow(
     action?: string;
     progress?: number | null;
     detail?: string;
+    requestable?: boolean;
   } = {},
 ): ServiceRowSpec {
   const tone: M3Tone = look === 'active' ? 'active' : look === 'called' || look === 'released' ? 'busy' : 'idle';
@@ -123,17 +125,18 @@ export function equipmentRow(
       break;
   }
   const disabled = look === 'disabled' || look === 'hidden';
+  const offersRequest = look !== 'inactive' || options.requestable !== false;
   return {
     key,
     name,
     icon,
     tone,
     status,
-    trailing: (
+    trailing: offersRequest ? (
       <M3ActionChip primary={look === 'inactive'} disabled={disabled || look === 'released'} onClick={onClick}>
         {action}
       </M3ActionChip>
-    ),
+    ) : null,
     progress: options.progress,
     disabled,
   };

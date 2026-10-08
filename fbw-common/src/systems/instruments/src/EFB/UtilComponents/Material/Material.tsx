@@ -207,18 +207,27 @@ interface M3ActionChipProps {
   'aria-label'?: string;
 }
 
+/**
+ * The greyed-out look of a disabled control, set from its `disabled` prop like the flyPad Toggle and M3ListRow.
+ * Design choice: the look does not rely on the `:disabled` pseudo-class (Tailwind `disabled:`) of the sim browser
+ * (Coherent GT, an old WebKit), whose support is not proven: the GSX link switch was reported not greyed out
+ * without GSX.
+ */
+export const m3DisabledLook = (disabled: boolean | undefined): string =>
+  disabled ? 'pointer-events-none opacity-40' : '';
+
 /** An action chip: Request, Release... */
 export const M3ActionChip: FC<M3ActionChipProps> = ({ onClick, primary, disabled, className, children, ...rest }) => (
   <button
     type="button"
     aria-label={rest['aria-label']}
     disabled={disabled}
-    onClick={onClick}
+    onClick={disabled ? undefined : onClick}
     className={`h-8 shrink-0 whitespace-nowrap rounded-full px-3 text-sm font-semibold transition duration-100 ${
       primary
         ? 'bg-m3-tonal text-m3-primary-light hover:bg-m3-primary hover:text-m3-on-primary'
         : 'border border-m3-outline bg-transparent text-m3-text hover:border-m3-on-primary-container hover:text-m3-on-primary-container'
-    } disabled:pointer-events-none disabled:opacity-40 ${className ?? ''}`}
+    } ${m3DisabledLook(disabled)} ${className ?? ''}`}
   >
     {children}
   </button>
@@ -239,8 +248,8 @@ export const M3Switch: FC<M3SwitchProps> = ({ value, onToggle, disabled, ...rest
     aria-checked={value}
     aria-label={rest['aria-label']}
     disabled={disabled}
-    onClick={() => onToggle(!value)}
-    className={`relative box-border h-6 w-12 shrink-0 rounded-full transition duration-150 disabled:pointer-events-none disabled:opacity-40 ${
+    onClick={() => !disabled && onToggle(!value)}
+    className={`relative box-border h-6 w-12 shrink-0 rounded-full transition duration-150 ${m3DisabledLook(disabled)} ${
       value ? 'bg-m3-primary' : 'border-2 border-m3-outline-strong bg-transparent'
     }`}
   >
@@ -269,8 +278,8 @@ export const M3Segmented: FC<{ options: M3SegmentOption[]; className?: string }>
         type="button"
         aria-label={option['aria-label']}
         disabled={option.disabled}
-        onClick={option.onClick}
-        className={`flex h-11 flex-1 items-center justify-center space-x-2 text-sm font-semibold transition duration-100 disabled:pointer-events-none disabled:opacity-40 ${
+        onClick={option.disabled ? undefined : option.onClick}
+        className={`flex h-11 flex-1 items-center justify-center space-x-2 text-sm font-semibold transition duration-100 ${m3DisabledLook(option.disabled)} ${
           index > 0 ? 'border-l border-m3-outline' : ''
         } ${
           option.selected
@@ -304,8 +313,8 @@ export const M3Button: FC<M3ButtonProps> = ({ onClick, tone = 'primary', disable
     <button
       type="button"
       disabled={disabled}
-      onClick={onClick}
-      className={`flex h-14 items-center justify-center space-x-2 rounded-2xl px-4 text-lg font-bold transition duration-100 disabled:pointer-events-none disabled:opacity-40 ${look} ${className ?? ''}`}
+      onClick={disabled ? undefined : onClick}
+      className={`flex h-14 items-center justify-center space-x-2 rounded-2xl px-4 text-lg font-bold transition duration-100 ${m3DisabledLook(disabled)} ${look} ${className ?? ''}`}
     >
       {children}
     </button>
@@ -326,8 +335,8 @@ export const M3IconButton: FC<M3IconButtonProps> = ({ onClick, disabled, selecte
     type="button"
     aria-label={rest['aria-label']}
     disabled={disabled}
-    onClick={onClick}
-    className={`flex h-12 flex-1 items-center justify-center rounded-xl border transition duration-100 disabled:pointer-events-none disabled:opacity-40 ${
+    onClick={disabled ? undefined : onClick}
+    className={`flex h-12 flex-1 items-center justify-center rounded-xl border transition duration-100 ${m3DisabledLook(disabled)} ${
       selected
         ? 'border-m3-primary-container bg-m3-primary-container text-m3-on-primary-container'
         : 'border-m3-outline bg-transparent text-m3-text hover:bg-m3-tile'
