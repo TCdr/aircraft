@@ -398,8 +398,10 @@ void FlyByWireInterface::setupLocalVariables() {
     idAutothrustN1_TLA[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:" + idString);
     idAutothrustReverse[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_REVERSE:" + idString);
     idAutothrustN1_c[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_N1_COMMANDED:" + idString);
+    idEngineState[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_STATE:" + idString);
   }
 
+  idEngineIdleN3 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N3");
   idAutothrustStatus = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_STATUS");
   idAutothrustMode = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_MODE");
   idAutothrustModeMessage = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_MODE_MESSAGE");
@@ -2906,8 +2908,9 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   SimData simData = simConnectInterface.getSimData();
 
   // set ground / flight for throttle handling
-  if (idLgciuLeftMainGearCompressed[0]->get() || idLgciuLeftMainGearCompressed[1]->get() || idLgciuRightMainGearCompressed[0]->get() ||
-      idLgciuRightMainGearCompressed[1]->get()) {
+  const bool anyMainGearCompressed = idLgciuLeftMainGearCompressed[0]->get() || idLgciuLeftMainGearCompressed[1]->get() ||
+                                     idLgciuRightMainGearCompressed[0]->get() || idLgciuRightMainGearCompressed[1]->get();
+  if (anyMainGearCompressed) {
     throttleAxis[fadecIndex]->setOnGround();
   } else {
     throttleAxis[fadecIndex]->setInFlight();
@@ -2921,25 +2924,30 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
 
   bool engineRunning = false;
   real_T engine_N1_percent = 0.;
+  real_T engine_N2_percent = 0.;  // the MSFS core speed (the Trent N3)
   real_T commanded_engine_N1_percent = 0.;
   if (fadecIndex == 0) {
     engineRunning = simData.engine_combustion_1;
     engine_N1_percent = simData.engine_N1_1_percent;
+    engine_N2_percent = simData.engine_N2_1_percent;
     commanded_engine_N1_percent =
         simData.commanded_engine_N1_1_percent + simData.engine_N1_1_percent - simData.corrected_engine_N1_1_percent;
   } else if (fadecIndex == 1) {
     engineRunning = simData.engine_combustion_2;
     engine_N1_percent = simData.engine_N1_2_percent;
+    engine_N2_percent = simData.engine_N2_2_percent;
     commanded_engine_N1_percent =
         simData.commanded_engine_N1_2_percent + simData.engine_N1_2_percent - simData.corrected_engine_N1_2_percent;
   } else if (fadecIndex == 2) {
     engineRunning = simData.engine_combustion_3;
     engine_N1_percent = simData.engine_N1_3_percent;
+    engine_N2_percent = simData.engine_N2_3_percent;
     commanded_engine_N1_percent =
         simData.commanded_engine_N1_3_percent + simData.engine_N1_3_percent - simData.corrected_engine_N1_3_percent;
   } else {
     engineRunning = simData.engine_combustion_4;
     engine_N1_percent = simData.engine_N1_4_percent;
+    engine_N2_percent = simData.engine_N2_4_percent;
     commanded_engine_N1_percent =
         simData.commanded_engine_N1_4_percent + simData.engine_N1_4_percent - simData.corrected_engine_N1_4_percent;
   }
@@ -2979,6 +2987,16 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.input.is_air_conditioning_active = idAirConditioningPack_1->get();
   fadecInputs[fadecIndex].in.input.ATHR_reset_disable = simConnectInterface.getSimInputThrottles().ATHR_reset_disable == 1;
 
+  // In flight, an engine out or (re)starting is held at idle and accelerates from idle once it runs: without this the thrust loop
+  // wound the MSFS throttle up during the start and MSFS took the engine to its N3 limit at the end (see EngineStartThrottleHold.h).
+  // On the ground as soon as any main gear is compressed (ground starts are unchanged). The loop target is its N1 command of the
+  // previous frame.
+  const EngineStartThrottleHold::Output engineStartThrottle = engineStartThrottleHolds[fadecIndex].update(
+      {anyMainGearCompressed, idEngineState[fadecIndex]->get(), fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent,
+       fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent, fadecOutputs[fadecIndex].N1_c_percent, sampleTime, engine_N2_percent,
+       idEngineIdleN3->get()});
+  fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
+
   fadecInputs[fadecIndex].in.prim_1 = primsBusOutputs[0];
   fadecInputs[fadecIndex].in.prim_2 = primsBusOutputs[1];
   fadecInputs[fadecIndex].in.prim_3 = primsBusOutputs[2];
@@ -2997,6 +3015,10 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
     fadecOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.output;
     fadecBusOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.fadec_bus_output;
   }
+
+  // kept in fadecOutputs: the throttles of engines 3 and 4 are written to the sim on the next frame (see below)
+  fadecOutputs[fadecIndex].sim_throttle_lever_pos =
+      EngineStartThrottleHold::simThrottle(engineStartThrottle, fadecOutputs[fadecIndex].sim_throttle_lever_pos);
 
   if (primDisabled != -1 || secDisabled != -1) {
     simConnectInterface.setClientDataFadec(fadecBusOutputs[fadecIndex], fadecIndex);

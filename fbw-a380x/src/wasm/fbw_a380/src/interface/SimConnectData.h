@@ -99,6 +99,10 @@ struct SimData {
   double corrected_engine_N1_2_percent;
   double corrected_engine_N1_3_percent;
   double corrected_engine_N1_4_percent;
+  double engine_N2_1_percent;
+  double engine_N2_2_percent;
+  double engine_N2_3_percent;
+  double engine_N2_4_percent;
   unsigned long long engine_combustion_1;
   unsigned long long engine_combustion_2;
   unsigned long long engine_combustion_3;
