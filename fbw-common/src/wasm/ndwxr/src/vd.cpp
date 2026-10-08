@@ -545,6 +545,13 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
   instance.vdShowFrames = show ? instance.vdShowFrames + 1 : 0;
   const bool terrainUsable = updateViewPark(ctx, instance.mapViewVdTerrain, instance.mapViewVdTerrainPark, show);
   const bool waterUsable = updateViewPark(ctx, instance.mapViewVdWater, instance.mapViewVdWaterPark, show);
+  // A view woken up gets its whole setup again (see view_park.h); its warm-up covers it, and the range follows below.
+  if (takeViewSetupDue(instance.mapViewVdTerrainPark)) {
+    configureVdTerrainView(ctx, instance.mapViewVdTerrain);
+  }
+  if (takeViewSetupDue(instance.mapViewVdWaterPark)) {
+    configureWaterMaskView(ctx, instance.mapViewVdWater);
+  }
   const bool draw = show && instance.vdShowFrames > kVdWarmupFrames && terrainUsable;
 
   // The picture stays on the surface between redraws (see kVdRedrawPeriodSeconds); a change of what it shows
@@ -576,9 +583,9 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
     altitudeFeet = baroAltWord.isNo() ? static_cast<double>(baroAltWord.value()) : planeAltitudeFeet();
     fsMapViewSetAltitudeRangeInFeet(ctx, instance.mapViewVdTerrain, altitudeFeet - upperFeet - (upperFeet - lowerFeet),
                                     altitudeFeet - lowerFeet);
-    setViewRadius(ctx, instance.mapViewVdTerrain, instance.mapViewVdTerrainPark, vdRangeNm * kNmToMetres);
+    setViewRadius(ctx, instance.mapViewVdTerrain, instance.mapViewVdTerrainPark, vdRangeNm * kNmToMetres, drawData->t);
     if (instance.mapViewVdWaterReady) {
-      setViewRadius(ctx, instance.mapViewVdWater, instance.mapViewVdWaterPark, vdRangeNm * kNmToMetres);
+      setViewRadius(ctx, instance.mapViewVdWater, instance.mapViewVdWaterPark, vdRangeNm * kNmToMetres, drawData->t);
     }
   }
 
