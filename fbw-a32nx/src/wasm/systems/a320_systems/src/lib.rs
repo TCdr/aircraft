@@ -3,6 +3,7 @@ extern crate systems;
 mod air_conditioning;
 mod airframe;
 mod electrical;
+mod engine_control_failure;
 mod engine_failure;
 mod engine_malfunction;
 mod fire_protection;
@@ -16,6 +17,7 @@ mod surveillance;
 
 use self::{
     air_conditioning::A320AirConditioning,
+    engine_control_failure::A320EngineControlFailures,
     engine_failure::A320EngineFailures,
     engine_malfunction::A320EngineMalfunctions,
     fire_protection::A320FireProtection,
@@ -59,7 +61,7 @@ use systems::{
     navigation::adirs::{
         AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel,
     },
-    shared::ElectricalBusType,
+    shared::{ElectricalBusType, LgciuWeightOnWheels},
     simulation::{Aircraft, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 
@@ -84,6 +86,7 @@ pub struct A320 {
     /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
     engine_oil_failures: EngineOilFailures<2>,
     engine_malfunctions: A320EngineMalfunctions,
+    engine_control_failures: A320EngineControlFailures,
     fire_protection: A320FireProtection,
     electrical: A320Electrical,
     power_consumption: A320PowerConsumption,
@@ -133,6 +136,7 @@ impl A320 {
             engine_failures: A320EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
             engine_malfunctions: A320EngineMalfunctions::new(context),
+            engine_control_failures: A320EngineControlFailures::new(context),
             fire_protection: A320FireProtection::new(context),
             electrical: A320Electrical::new(context),
             power_consumption: A320PowerConsumption::new(context),
@@ -251,6 +255,11 @@ impl Aircraft for A320 {
         self.gps_2.update(context);
         self.gpirs.update();
 
+        // The FADECs' reverser inhibitions of the previous update (thrust lever fault, FADEC fault)
+        self.hydraulic.set_reversers_deployment_inhibited(
+            self.engine_control_failures
+                .reversers_deployment_inhibited(),
+        );
         self.hydraulic.update(
             context,
             &self.engine_1,
@@ -270,6 +279,16 @@ impl Aircraft for A320 {
             context,
             [&self.engine_1, &self.engine_2],
             self.hydraulic.reversers_position(),
+        );
+
+        // The thrust lever angle the FADECs use, from the reverser state and the FADEC / thrust
+        // lever failures (engine_control_failure.rs). On the ground as the FADEC model of the
+        // flight computers sees it: both main gears compressed.
+        self.engine_control_failures.update(
+            context,
+            self.lgcius.lgciu1().left_and_right_gear_compressed(false)
+                || self.lgcius.lgciu2().left_and_right_gear_compressed(false),
+            self.hydraulic.reversers_monitoring(),
         );
 
         self.pneumatic.update_hydraulic_reservoir_spatial_volumes(
@@ -342,6 +361,7 @@ impl SimulationElement for A320 {
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
         self.engine_malfunctions.accept(visitor);
+        self.engine_control_failures.accept(visitor);
         self.fire_protection.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
