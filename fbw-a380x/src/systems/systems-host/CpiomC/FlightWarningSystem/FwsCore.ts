@@ -98,7 +98,9 @@ import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitor
 import {
   EngineFailMonitor,
   EnginesOut,
+  allEngFlameOutInhibitsElecEmerConfig,
   FadecEngineState,
+  hydraulicSystemsLostByEnginesOut,
   relightProcMustBeApplied,
   shutDownBtvInop,
   shutDownCat3SingleOnly,
@@ -2097,6 +2099,9 @@ export class FwsCore {
 
   public readonly allEnginesFailure = Subject.create(false);
 
+  /** ENG ALL ENG FLAME OUT (701800151) is on the E/WD (the failures presented last frame) */
+  private readonly allEngFlameOutPresented = Subject.create(false);
+
   public readonly eng1Fail = Subject.create(false);
   public readonly eng2Fail = Subject.create(false);
   public readonly eng3Fail = Subject.create(false);
@@ -2118,6 +2123,24 @@ export class FwsCore {
   );
   /** ENG TWO ENGS OUT ON OPPOSITE SIDE (FCOM l.175477) */
   public readonly twoEnginesOutOppositeSide = Subject.create(false);
+
+  /** The engines 1 and 2 (3 and 4) out in flight: the GREEN (YELLOW) hydraulic system is lost (EngineFailAlerts.ts) */
+  private readonly greenHydSysLostByEnginesOut = Subject.create(false);
+  private readonly yellowHydSysLostByEnginesOut = Subject.create(false);
+  /**
+   * INOP SYS G (Y) HYD SYS and PART SPLRs: the low pressure alert of the system, which needs an engine of its side running,
+   * or both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE STATUS, FCOM l.175440-175444)
+   */
+  public readonly greenHydSysInop = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.greenAbnormLoPressure,
+    this.greenHydSysLostByEnginesOut,
+  );
+  public readonly yellowHydSysInop = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.yellowAbnormLoPressure,
+    this.yellowHydSysLostByEnginesOut,
+  );
 
   /** ENG SHUT DOWN (engine 2 or 3) or TWO ENGS OUT: INOP SYS BTV (FCOM l.172781, 175443, 175620) */
   public readonly engineOutBtvInop = Subject.create(false);
@@ -2201,6 +2224,8 @@ export class FwsCore {
   public readonly emergencyGeneratorOn = this.emergencyElectricGeneratorPotential.map((it) => it > 0);
 
   public readonly elecEmerConfig = Subject.create(false);
+  /** The ELEC EMER CONFIG alert: EMER CONFIG unless ENG ALL ENG FLAME OUT inhibits it */
+  public readonly elecEmerConfigAlert = Subject.create(false);
 
   public readonly apuMasterSwitch = Subject.create(0);
 
@@ -2474,13 +2499,31 @@ export class FwsCore {
   public readonly eng4BleedInop = this.eng4Out; // TODO add bleed inop conditions
 
   // TODO disable when abnormal hydralic pressure
-  public readonly eng1HydraulicInop = this.gen1Inop;
+  // Not when the whole system of the side is lost with its two engines: ENG TWO ENGS OUT ON SAME SIDE lists G(Y) HYD SYS
+  // and no ENG PMP A+B line (FCOM l.175440-175448), while ON OPPOSITE SIDE lists G ENG 1(2) / Y ENG 3(4) PMP A+B
+  public readonly eng1HydraulicInop = MappedSubject.create(
+    ([genInop, systemLost]) => genInop && !systemLost,
+    this.gen1Inop,
+    this.greenHydSysLostByEnginesOut,
+  );
 
-  public readonly eng2HydraulicInop = this.gen2Inop;
+  public readonly eng2HydraulicInop = MappedSubject.create(
+    ([genInop, systemLost]) => genInop && !systemLost,
+    this.gen2Inop,
+    this.greenHydSysLostByEnginesOut,
+  );
 
-  public readonly eng3HydraulicInop = this.gen3Inop;
+  public readonly eng3HydraulicInop = MappedSubject.create(
+    ([genInop, systemLost]) => genInop && !systemLost,
+    this.gen3Inop,
+    this.yellowHydSysLostByEnginesOut,
+  );
 
-  public readonly eng4HydraulicInop = this.gen4Inop;
+  public readonly eng4HydraulicInop = MappedSubject.create(
+    ([genInop, systemLost]) => genInop && !systemLost,
+    this.gen4Inop,
+    this.yellowHydSysLostByEnginesOut,
+  );
 
   private static pushKeyUnique(val?: (state: boolean[]) => (string | null)[], pushTo?: string[], state?: boolean[]) {
     if (val && pushTo && state && val(state)) {
@@ -3204,6 +3247,15 @@ export class FwsCore {
     this.elecPaxSysOff.set(!SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_GALY_AND_CAB_PB_IS_AUTO', 'bool'));
     this.elecEmerConfig.set(
       !this.ac1BusPowered.get() && !this.ac2BusPowered.get() && !this.ac3BusPowered.get() && !this.ac4BusPowered.get(),
+    );
+    // ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown (FCOM l.173795, EngineFailAlerts.ts)
+    this.elecEmerConfigAlert.set(
+      this.elecEmerConfig.get() &&
+        !allEngFlameOutInhibitsElecEmerConfig(
+          this.allEnginesFailure.get(),
+          this.allEngFlameOutPresented.get(),
+          this.flightPhase.get(),
+        ),
     );
 
     /* ENGINE AND THROTTLE acquisition */
@@ -5635,6 +5687,9 @@ export class FwsCore {
     this.twoEnginesOutLeftSide.set(twoOut === TwoEnginesOut.SameSide && enginesOut[0]);
     this.twoEnginesOutRightSide.set(twoOut === TwoEnginesOut.SameSide && enginesOut[3]);
     this.twoEnginesOutOppositeSide.set(twoOut === TwoEnginesOut.OppositeSide);
+    const hydraulicSystemsLost = hydraulicSystemsLostByEnginesOut(enginesOut);
+    this.greenHydSysLostByEnginesOut.set(hydraulicSystemsLost.green);
+    this.yellowHydSysLostByEnginesOut.set(hydraulicSystemsLost.yellow);
     this.engineOutBtvInop.set(
       shutDownBtvInop(this.eng2ShutdownAbnormalSensed.get(), this.eng3ShutdownAbnormalSensed.get()) ||
         twoOut !== TwoEnginesOut.None,
@@ -6154,6 +6209,7 @@ export class FwsCore {
 
     this.presentedFailures.length = 0;
     this.presentedFailures.push(...failureKeys);
+    this.allEngFlameOutPresented.set(this.presentedFailures.includes('701800151'));
 
     // MEMOs (except T.O and LDG)
     for (const [, value] of Object.entries(this.memos.ewdMemos)) {

@@ -5,10 +5,13 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
+  allEngFlameOutInhibitsElecEmerConfig,
   EngineFailInputs,
   EngineFailMonitor,
   EnginesOut,
   FadecEngineState,
+  hydraulicSystemsLostByEnginesOut,
+  oppositeSideGeneratorPair,
   relightProcMustBeApplied,
   sameSideLines,
   shutDownBtvInop,
@@ -189,5 +192,96 @@ describe('ENG SHUT DOWN STATUS (l.172777-172795)', () => {
     expect(shutDownCat3SingleOnly(true, false)).toBe(true);
     expect(shutDownCat3SingleOnly(true, true)).toBe(false);
     expect(shutDownCat3SingleOnly(false, false)).toBe(false);
+  });
+});
+
+describe('ENG TWO ENGS OUT STATUS (l.175434-175454, 175614-175632)', () => {
+  const out = (...engines: number[]): EnginesOut =>
+    [1, 2, 3, 4].map((engine) => engines.includes(engine)) as unknown as EnginesOut;
+  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+  const inopSys = readFileSync(resolve(__dirname, 'FwsInopSys.ts'), 'utf-8');
+  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+  /** One entry of a FWS dictionary, from its key to the end of its object */
+  const entry = (source: string, key: number) => {
+    const start = source.indexOf(`    ${key}: {`);
+    expect(start).toBeGreaterThan(0);
+    return source.slice(start, source.indexOf('\n    },', start));
+  };
+
+  it('the two engines of a side out lose the hydraulic system of that side (DSC-29-10)', () => {
+    expect(hydraulicSystemsLostByEnginesOut(out(1, 2))).toEqual({ green: true, yellow: false });
+    expect(hydraulicSystemsLostByEnginesOut(out(3, 4))).toEqual({ green: false, yellow: true });
+    expect(hydraulicSystemsLostByEnginesOut(out(1, 3))).toEqual({ green: false, yellow: false });
+    expect(hydraulicSystemsLostByEnginesOut(out(1, 2, 3, 4))).toEqual({ green: true, yellow: true });
+  });
+
+  it('same side: G(Y) HYD SYS and PART SPLRs, no ENG PMP A+B line of the lost system', () => {
+    expect(fwsCore).toContain('const hydraulicSystemsLost = hydraulicSystemsLostByEnginesOut(enginesOut);');
+    expect(entry(inopSys, 290300021)).toContain('simVarIsActive: this.fws.greenHydSysInop,');
+    expect(entry(inopSys, 290300022)).toContain('simVarIsActive: this.fws.yellowHydSysInop,');
+    expect(inopSys).toMatch(
+      /partSplrs = MappedSubject\.create\(\s*SubscribableMapFunctions\.or\(\),\s*this\.fws\.greenHydSysInop,\s*this\.fws\.yellowHydSysInop,/,
+    );
+    for (const [engine, system] of [
+      [1, 'green'],
+      [2, 'green'],
+      [3, 'yellow'],
+      [4, 'yellow'],
+    ]) {
+      expect(fwsCore).toMatch(
+        new RegExp(
+          `eng${engine}HydraulicInop = MappedSubject\\.create\\(\\s*\\(\\[genInop, systemLost\\]\\) => genInop && !systemLost,\\s*this\\.gen${engine}Inop,\\s*this\\.${system}HydSysLostByEnginesOut,`,
+        ),
+      );
+    }
+  });
+
+  it('same side: PART L/G RETRACTION and the PACK of the failed side', () => {
+    expect(entry(abnormalSensed, 701800159)).toContain(
+      "inopSysAllPhases: () => ['320300023', this.fws.twoEnginesOutLeftSide.get() ? '210300009' : '210300010'],",
+    );
+  });
+
+  it('opposite side: one GEN line for the two generators lost', () => {
+    expect(oppositeSideGeneratorPair([true, false, true, false])).toEqual([1, 3]);
+    expect(oppositeSideGeneratorPair([true, false, false, true])).toEqual([1, 4]);
+    expect(oppositeSideGeneratorPair([false, true, true, false])).toEqual([2, 3]);
+    expect(oppositeSideGeneratorPair([false, true, false, true])).toEqual([2, 4]);
+    // same side pairs have their own GEN 1+2 and GEN 3+4 lines, one or three generators no pair line
+    expect(oppositeSideGeneratorPair([true, true, false, false])).toBeNull();
+    expect(oppositeSideGeneratorPair([false, false, true, true])).toBeNull();
+    expect(oppositeSideGeneratorPair([true, false, false, false])).toBeNull();
+    expect(oppositeSideGeneratorPair([true, true, true, false])).toBeNull();
+
+    for (const [key, pair] of [
+      [240300039, '13'],
+      [240300040, '14'],
+      [240300041, '23'],
+      [240300042, '24'],
+    ] as const) {
+      expect(entry(inopSys, key)).toContain(`simVarIsActive: this.gen${pair}Inop,`);
+    }
+    // GEN 1 is not shown with GEN 1+2, 1+3 or 1+4
+    expect(entry(inopSys, 240300010)).toContain("notActiveWhenItemActive: ['240300037', '240300039', '240300040'],");
+    expect(entry(inopSys, 240300013)).toContain("notActiveWhenItemActive: ['240300038', '240300040', '240300042'],");
+  });
+});
+
+describe('ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown (l.173795)', () => {
+  const PHASE_6_LIFT_OFF_TO_1500_FT = 6;
+  const PHASE_8_CRUISE = 8;
+
+  it('in a phase that shows ALL ENG FLAME OUT', () => {
+    expect(allEngFlameOutInhibitsElecEmerConfig(true, false, PHASE_8_CRUISE)).toBe(true);
+    expect(allEngFlameOutInhibitsElecEmerConfig(false, false, PHASE_8_CRUISE)).toBe(false);
+  });
+
+  it('not when the phase inhibits a new ALL ENG FLAME OUT: ELEC EMER CONFIG shows instead', () => {
+    expect(allEngFlameOutInhibitsElecEmerConfig(true, false, PHASE_6_LIFT_OFF_TO_1500_FT)).toBe(false);
+  });
+
+  it('an ALL ENG FLAME OUT already shown keeps inhibiting it in any phase', () => {
+    expect(allEngFlameOutInhibitsElecEmerConfig(true, true, PHASE_6_LIFT_OFF_TO_1500_FT)).toBe(true);
+    expect(allEngFlameOutInhibitsElecEmerConfig(true, true, 10)).toBe(true);
   });
 });

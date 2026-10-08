@@ -5,6 +5,7 @@
 import { EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import { MappedSubject, SubscribableMapFunctions, Subscription } from '@microsoft/msfs-sdk';
 import { FwsCore, FwsSuppressableItem } from './FwsCore';
+import { oppositeSideGeneratorPair } from './EngineFailAlerts';
 
 export enum FwsInopSysPhases {
   AllPhases,
@@ -25,10 +26,11 @@ export interface FwsInopSysDict {
 export class FwsInopSys {
   public readonly subscriptions: Subscription[] = [];
 
+  // The G (Y) HYD SYS lost: low pressure, or both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE, FwsCore)
   public readonly partSplrs = MappedSubject.create(
     SubscribableMapFunctions.or(),
-    this.fws.greenAbnormLoPressure,
-    this.fws.yellowAbnormLoPressure,
+    this.fws.greenHydSysInop,
+    this.fws.yellowHydSysInop,
     this.fws.sec1FaultCondition,
     this.fws.sec2FaultCondition,
     this.fws.sec3FaultCondition,
@@ -36,13 +38,31 @@ export class FwsInopSys {
 
   public readonly mostSplrs = MappedSubject.create(
     SubscribableMapFunctions.and(),
-    this.fws.greenAbnormLoPressure,
-    this.fws.yellowAbnormLoPressure,
+    this.fws.greenHydSysInop,
+    this.fws.yellowHydSysInop,
   );
+
+  /** GEN 1+3, 1+4, 2+3, 2+4: ENG TWO ENGS OUT ON OPPOSITE SIDE STATUS (FCOM l.175620-175621, EngineFailAlerts.ts) */
+  private readonly oppositeSideGenPair = MappedSubject.create(
+    ([gen1, gen2, gen3, gen4]) => {
+      const pair = oppositeSideGeneratorPair([gen1, gen2, gen3, gen4]);
+      return pair ? `${pair[0]}+${pair[1]}` : '';
+    },
+    this.fws.gen1Inop,
+    this.fws.gen2Inop,
+    this.fws.gen3Inop,
+    this.fws.gen4Inop,
+  );
+
+  public readonly gen13Inop = this.oppositeSideGenPair.map((pair) => pair === '1+3');
+  public readonly gen14Inop = this.oppositeSideGenPair.map((pair) => pair === '1+4');
+  public readonly gen23Inop = this.oppositeSideGenPair.map((pair) => pair === '2+3');
+  public readonly gen24Inop = this.oppositeSideGenPair.map((pair) => pair === '2+4');
 
   constructor(private fws: FwsCore) {
     this.subscriptions.push(this.partSplrs);
     this.subscriptions.push(this.mostSplrs);
+    this.subscriptions.push(this.oppositeSideGenPair, this.gen13Inop, this.gen14Inop, this.gen23Inop, this.gen24Inop);
   }
 
   /** INOP SYS shown on SD */
@@ -165,13 +185,13 @@ export class FwsInopSys {
       // GEN 1
       simVarIsActive: this.fws.gen1Inop,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['240300037'],
+      notActiveWhenItemActive: ['240300037', '240300039', '240300040'],
     },
     240300011: {
       // GEN 2
       simVarIsActive: this.fws.gen2Inop,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['240300037'],
+      notActiveWhenItemActive: ['240300037', '240300041', '240300042'],
     },
 
     240300037: {
@@ -184,17 +204,37 @@ export class FwsInopSys {
       // GEN 3
       simVarIsActive: this.fws.gen3Inop,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['240300038'],
+      notActiveWhenItemActive: ['240300038', '240300039', '240300041'],
     },
     240300013: {
       // GEN 4
       simVarIsActive: this.fws.gen4Inop,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['240300038'],
+      notActiveWhenItemActive: ['240300038', '240300040', '240300042'],
     },
     240300038: {
       // GEN 3+4
       simVarIsActive: MappedSubject.create(SubscribableMapFunctions.and(), this.fws.gen3Inop, this.fws.gen4Inop),
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    240300039: {
+      // GEN 1+3
+      simVarIsActive: this.gen13Inop,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    240300040: {
+      // GEN 1+4
+      simVarIsActive: this.gen14Inop,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    240300041: {
+      // GEN 2+3
+      simVarIsActive: this.gen23Inop,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    240300042: {
+      // GEN 2+4
+      simVarIsActive: this.gen24Inop,
       phase: FwsInopSysPhases.AllPhases,
     },
     260300002: {
@@ -449,12 +489,12 @@ export class FwsInopSys {
     },
     290300021: {
       // G HYD SYS
-      simVarIsActive: this.fws.greenAbnormLoPressure,
+      simVarIsActive: this.fws.greenHydSysInop,
       phase: FwsInopSysPhases.AllPhases,
     },
     290300022: {
       // Y HYD SYS
-      simVarIsActive: this.fws.yellowAbnormLoPressure,
+      simVarIsActive: this.fws.yellowHydSysInop,
       phase: FwsInopSysPhases.AllPhases,
     },
     290300023: {
