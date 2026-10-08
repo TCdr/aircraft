@@ -13,3 +13,8 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-c
 # SimConnect definition 0 against the SimData struct (SDK headers stubbed: only the struct layout is needed)
 clang++ -std=c++20 -Wall -Wextra -Werror -I sdk_stubs sim_data_layout_test.cpp -o ../obj/sim_data_layout_test
 ../obj/sim_data_layout_test ../src/interface/SimConnectInterface.cpp
+# ENG FADEC FAULT: the engine follows its lever, no THRUST LOCK (FadecFailureInputs.h)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  fadec_fault_manual_thrust_test.cpp ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp \
+  -o ../obj/fadec_fault_manual_thrust_test
+../obj/fadec_fault_manual_thrust_test
