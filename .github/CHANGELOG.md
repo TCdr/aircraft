@@ -154,6 +154,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EWD] N1 turns amber above the N1 limit and red above 104 %, N2 red above 105 % with a red cross, and the EGT gauge shows a red mark at the highest EGT above its 975 °C red limit; the SD shows separate N1 and N2 vibrations that pulse above the advisory - @TCdr
 1. [A32NX/EFB] New flyPad failures FADEC channel A / B and FADEC overheat (engines 1 and 2), thrust lever resolvers and thrust lever resolver disagree (levers 1 and 2), reverser fault, reverser unlocked and reverser pressurized (reversers 1 and 2), with the ENG FADEC A(B) FAULT, FADEC FAULT, FADEC HI TEMP, THR LEVER FAULT, THR LEVER DISAGREE, REVERSER FAULT, REVERSE UNLOCKED and REV PRESSURIZED cautions, procedures and STATUS of the FCOM; a failed thrust lever gives the FADEC idle, CLB or frozen takeoff thrust by the FCOM rules, both FADEC channels lost remove the engine data and the A/THR - @TCdr
 1. [A32NX/FADEC] Reverse thrust stays at reverse idle until the reverser is fully deployed (FCOM DSC-70-70): a reverser that does not deploy no longer gives forward thrust with the lever in reverse - @TCdr
+1. [A32NX/ECAM] T.O CONFIG NORMAL is not given with a FUEL L(R) TK PUMP 1+2 LO PR alert - @TCdr
+1. [A32NX/ECAM] FUEL L(R) WING TK LO LVL asks for FUEL MODE SEL MAN only if the centre tank is not empty, and gives its STATUS (INOP SYS L(R) TK PUMPS, CTR TK FEED: MAN ONLY if the centre tank is not empty) - @TCdr
 
 ## 2024.1.0
 
