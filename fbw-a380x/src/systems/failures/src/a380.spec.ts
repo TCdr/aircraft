@@ -124,6 +124,21 @@ describe('A380X flyPad failure definitions', () => {
     expect(A380Failure.Eng4Seizure).toBe(72013);
   });
 
+  // The labels say what systems engine/oil_failure.rs and the FADEC (EngineOilFailures.hpp) do with ids 79000-79033
+  it('lists the engine oil failures of the four engines in ATA 79 Oil', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [1, 2, 3, 4].flatMap((engine): [number, string, string][] => [
+      [79000 + engine - 1, `EngineOilLeak(${engine})`, `Engine ${engine} oil leak`],
+      [79020 + engine - 1, `EngineOilFilterClog(${engine})`, `Engine ${engine} oil filter clog`],
+      [79030 + engine - 1, `EngineOilOverheat(${engine})`, `Engine ${engine} oil overheat`],
+    ]);
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 79]),
+    );
+  });
+
   it('lists every failure the Rust systems map reacts to', () => {
     const rustIds = [...readRustFailureMap().keys()];
     // Sanity check of the parser: the map holds well over a hundred failures.
