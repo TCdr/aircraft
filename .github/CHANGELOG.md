@@ -349,6 +349,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PRESS] The cabin descent rate is limited to 300 ft/min as in the FCOM (was 350 ft/min) - @TCdr
 1. [A380X/BRAKES] The A-SKID switch OFF no longer cuts the nose wheel steering - @TCdr
 1. [A380X/BRAKES] A landing AUTO BRK mode armed on the ground stays armed after take-off; only RTO disarms 10 s after lift-off - @TCdr
+1. [A380X/SD] The ENGINE page shows the start valve in amber when it is abnormally open or closed, and a red cross next to the N3 after an exceedance until the next engine start on ground - @TCdr
 
 ## 2024.1.0
 
