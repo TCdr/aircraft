@@ -2706,7 +2706,7 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
       {fadecInputs[fadecIndex].in.data.on_ground != 0, idEngineState[fadecIndex]->get(),
        fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent, fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent,
        fadecOutputs[fadecIndex].N1_c_percent, sampleTime, fadecIndex == 0 ? simData.engine_N2_1_percent : simData.engine_N2_2_percent,
-       idEngineIdleN2->get()});
+       idEngineIdleN2->get(), fadecIndex == 0 ? idEngineStallN1Loss_1->get() : idEngineStallN1Loss_2->get()});
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
 
   // ENG FADEC FAULT (both channels lost): the A/THR orders no longer reach the FADEC, the A/THR loses the engine
