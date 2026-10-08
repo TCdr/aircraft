@@ -8,10 +8,20 @@ interface DecimalValueProps {
   shift?: number;
   /** The value pulses green */
   pulse?: boolean;
+  /** The colour class of the value (default Green) */
+  className?: string;
 }
 
-const DecimalValue: FC<DecimalValueProps> = ({ x, y, value, active, shift = 0, pulse = false }) => {
-  const colour = pulse ? 'Green FillPulse' : 'Green';
+const DecimalValue: FC<DecimalValueProps> = ({
+  x,
+  y,
+  value,
+  active,
+  shift = 0,
+  pulse = false,
+  className = 'Green',
+}) => {
+  const colour = pulse ? `${className} FillPulse` : className;
   value = value < 0 ? 0 : value;
   const shiftx = x + shift;
 

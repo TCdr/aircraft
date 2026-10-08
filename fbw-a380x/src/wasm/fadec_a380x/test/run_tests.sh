@@ -19,3 +19,5 @@ if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then
 fi
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS start_sequence_test.cpp -o ../obj/start_sequence_test
 ../obj/start_sequence_test
+clang++ -std=c++20 -Wall -Wextra -Werror egt_failure_offset_test.cpp -o ../obj/egt_failure_offset_test
+../obj/egt_failure_offset_test

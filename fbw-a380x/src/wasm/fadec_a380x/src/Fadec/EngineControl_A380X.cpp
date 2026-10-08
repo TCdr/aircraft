@@ -8,6 +8,7 @@
 #endif
 
 #include "EngineControl_A380X.h"
+#include "EgtFailureOffset_A380X.hpp"
 #include "EngineRatios.hpp"
 #include "FeedTankDraw_A380X.hpp"
 #include "Polynomials_A380X.hpp"
@@ -154,6 +155,11 @@ void EngineControl_A380X::update() {
     }
 
     // Update various engine values based on the current engine state
+    // updateEGT adds the EGT offset of the engine failures in the running branch only.
+    if (engineState == STARTING || engineState == RESTARTING || engineState == SHUTTING) {
+      egtOffsetApplied[engineIdx] = 0.0;
+    }
+
     switch (static_cast<int>(engineState)) {
       case STARTING:
       case RESTARTING: {
@@ -749,9 +755,13 @@ void EngineControl_A380X::updatePrimaryParameters(int engine, double simN1, doub
 
   const int engineIdx = engine - 1;
 
-  simData.engineN1[engineIdx]->set(simN1);
-  simData.engineN2[engineIdx]->set(simN3 > 0 ? simN3 + 0.7 : simN3);
-  simData.engineN3[engineIdx]->set(simN3);
+  // The stall failure of the systems WASM makes the N1 and the core speed of a running engine fluctuate (a380_systems
+  // engine_malfunction.rs; design choice). The N2 (IP) follows the N3 as before.
+  const double n1 = (std::max)(0.0, simN1 + simData.engineN1Offset[engineIdx]->get());
+  const double n3 = (std::max)(0.0, simN3 + simData.engineN3Offset[engineIdx]->get());
+  simData.engineN1[engineIdx]->set(n1);
+  simData.engineN2[engineIdx]->set(n3 > 0 ? n3 + 0.7 : n3);
+  simData.engineN3[engineIdx]->set(n3);
 
 #ifdef PROFILING
   profilerUpdatePrimaryParameters.stop();
@@ -808,11 +818,15 @@ void EngineControl_A380X::updateEGT(int          engine,
   if (simOnGround && engineState == 0) {
     simData.engineEgt[engineIdx]->set(ambientTemperature);
   } else {
+    // The EGT offset of the stall and EGT overtemperature failures (systems WASM, a380_systems engine_malfunction.rs) has its
+    // own dynamics: it is added after the slow EGT lag below, so that a stall gives the rapid EGT rise of the FCOM (ENG STALL,
+    // a380_fcom.txt l.172818: "high EGT, and/or a rapid EGT rise").
+    const double egtOffset       = simData.engineEgtOffset[engineIdx]->get();
     const double correctedEGT    = Polynomial_A380X::correctedEGT(simCN1, correctedFuelFlow, mach, pressureAltitude);
-    const double egtFbwPrevious  = simData.engineEgt[engineIdx]->get();
-    double       egtFbwActualEng = (correctedEGT * EngineRatios::theta2(mach, ambientTemperature));
-    egtFbwActualEng              = egtFbwActualEng + (egtFbwPrevious - egtFbwActualEng) * std::exp(-0.1 * deltaTime);
-    simData.engineEgt[engineIdx]->set(egtFbwActualEng);
+    const double egtFbwTarget    = (correctedEGT * EngineRatios::theta2(mach, ambientTemperature));
+    simData.engineEgt[engineIdx]->set(EgtFailureOffset_A380X::nextEgt(simData.engineEgt[engineIdx]->get(), egtOffsetApplied[engineIdx],
+                                                                      egtFbwTarget, egtOffset, deltaTime));
+    egtOffsetApplied[engineIdx] = egtOffset;
   }
 
 #ifdef PROFILING

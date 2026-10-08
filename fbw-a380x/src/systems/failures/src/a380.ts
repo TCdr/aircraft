@@ -304,6 +304,18 @@ export const A380Failure = Object.freeze({
   Eng2Starter: 80051,
   Eng3Starter: 80052,
   Eng4Starter: 80053,
+  Eng1CompressorStall: 72100,
+  Eng2CompressorStall: 72101,
+  Eng3CompressorStall: 72102,
+  Eng4CompressorStall: 72103,
+  Eng1EgtOvertemperature: 72110,
+  Eng2EgtOvertemperature: 72111,
+  Eng3EgtOvertemperature: 72112,
+  Eng4EgtOvertemperature: 72113,
+  Eng1HighVibration: 77000,
+  Eng2HighVibration: 77001,
+  Eng3HighVibration: 77002,
+  Eng4HighVibration: 77003,
 });
 
 export const A380FailureDefinitions: FailureDefinition[] = [
@@ -598,4 +610,20 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [80, A380Failure.Eng2Starter, 'Engine 2 starter shaft shear'],
   [80, A380Failure.Eng3Starter, 'Engine 3 starter shaft shear'],
   [80, A380Failure.Eng4Starter, 'Engine 4 starter shaft shear'],
+  // The engine keeps running (a380_systems engine_malfunction.rs). Stall: above 60 % N1 command, thrust loss, EGT rise,
+  // fluctuating N1/N3, ENG STALL; it ends with the thrust lever at idle and recurs above the threshold.
+  [72, A380Failure.Eng1CompressorStall, 'Engine 1 compressor stall (above 60 % N1)'],
+  [72, A380Failure.Eng2CompressorStall, 'Engine 2 compressor stall (above 60 % N1)'],
+  [72, A380Failure.Eng3CompressorStall, 'Engine 3 compressor stall (above 60 % N1)'],
+  [72, A380Failure.Eng4CompressorStall, 'Engine 4 compressor stall (above 60 % N1)'],
+  // The EGT is higher, more so at high thrust: ENG EGT OVER LIMIT at climb thrust
+  [72, A380Failure.Eng1EgtOvertemperature, 'Engine 1 EGT overtemperature'],
+  [72, A380Failure.Eng2EgtOvertemperature, 'Engine 2 EGT overtemperature'],
+  [72, A380Failure.Eng3EgtOvertemperature, 'Engine 3 EGT overtemperature'],
+  [72, A380Failure.Eng4EgtOvertemperature, 'Engine 4 EGT overtemperature'],
+  // N1, N2 and N3 vibrations above the SD advisory (5 units) at climb and cruise thrust; no ECAM alert (ABN PROC)
+  [77, A380Failure.Eng1HighVibration, 'Engine 1 high vibration'],
+  [77, A380Failure.Eng2HighVibration, 'Engine 2 high vibration'],
+  [77, A380Failure.Eng3HighVibration, 'Engine 3 high vibration'],
+  [77, A380Failure.Eng4HighVibration, 'Engine 4 high vibration'],
 ];
