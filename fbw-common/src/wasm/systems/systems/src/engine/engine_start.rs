@@ -1677,6 +1677,28 @@ mod tests {
     }
 
     #[test]
+    fn in_flight_a_windmilling_engine_with_the_master_off_is_left_to_the_airflow() {
+        // A flamed out engine in flight, ENG MASTER set OFF before a relight, start valve open with air: the start sequence
+        // neither motors it (no MSFS starter, no FADEC crank) nor commands its start valve; the windmill N2 is the
+        // engine_failure / FADEC business.
+        let mut test_bed = StartTestBed::new()
+            .in_flight()
+            .selector(EngineModeSelector::Ignition)
+            .master(true)
+            .engine_state(EngineState::Shutting)
+            .n2(12.)
+            .valve_open(true)
+            .with(|inputs| inputs.relight_pending = true)
+            .master(false)
+            .and_run_for(Duration::from_secs(40));
+
+        assert_eq!(test_bed.phase(), EngineStartPhase::None);
+        assert!(!test_bed.motoring());
+        assert!(!test_bed.fuel_is_cut());
+        assert_eq!(test_bed.valve_command(), StartValveCommand::FadecSchedule);
+    }
+
+    #[test]
     fn a_running_engine_is_not_motored() {
         let mut test_bed = StartTestBed::new()
             .master(true)
