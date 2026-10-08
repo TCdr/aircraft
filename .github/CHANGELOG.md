@@ -146,6 +146,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] Reverse thrust stays at reverse idle until the reverser is fully deployed (FCOM DSC-70-70): a reverser that does not deploy no longer gives forward thrust with the lever in reverse - @TCdr
 1. [EFB/ENG] New flyPad failures Engine 1(2)(3)(4) fuel filter clog (ATA 73): CLOG (A32NX) or CLOGGED (A380X) below the fuel used or fuel flow on the ENGINE SD page and the ENG FUEL FILTER CLOG(GED) caution - @TCdr
 1. [A380X/ENG] The ENG MASTER FAULT light comes on when the FADEC aborts an automatic start, no longer with the MSFS engine failure - @TCdr
+1. [A380X/SD] The ENGINE page shows the start valve in amber when it is abnormally open or closed, and a red cross next to the N3 after an exceedance until the next engine start on ground - @TCdr
 
 ## 2024.1.0
 
