@@ -72,6 +72,20 @@ import {
   isEngineShutDown,
 } from './Logic/EngineFailAlerts';
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
+import {
+  EngineStartFault,
+  EngineStartPhase,
+  IGN_A_PLUS_B_FAULT_FLIGHT_PHASE_INHIBITION,
+  ignitionFaultInopSys,
+  ignitionFaultLines,
+  isStartFaultActive,
+  START_ALERTS_FLIGHT_PHASE_INHIBITION,
+  startFaultLines,
+  startFaultStatus,
+  StartValveFault,
+  startValveFaultLines,
+  startValveFaultStatus,
+} from './Logic/EngineStartAlerts';
 import { fireDetectionFaultAlerts } from './Logic/FireDetectionFaults';
 import {
   centreTransferNotClosedLines,
@@ -1731,6 +1745,40 @@ export class PseudoFWC {
   private readonly engine1OilFilterClog = Subject.create(false);
 
   private readonly engine2OilFilterClog = Subject.create(false);
+
+  /*
+   * ENG 1(2) START FAULT, START VALVE FAULT and IGN FAULT (Logic/EngineStartAlerts), from the FADEC start sequence of the
+   * systems WASM. Index 0 = engine 1, 1 = engine 2.
+   */
+  private readonly engineStartFault = [EngineStartFault.None, EngineStartFault.None];
+
+  private readonly engineStartPhase = [EngineStartPhase.None, EngineStartPhase.None];
+
+  private readonly engineStartManual = [false, false];
+
+  private readonly engineManualStartPbOn = [false, false];
+
+  private readonly engineStartValveFault = [StartValveFault.None, StartValveFault.None];
+
+  private readonly engineIgniterAFault = [false, false];
+
+  private readonly engineIgniterBFault = [false, false];
+
+  private readonly engineBleedPbOn = [false, false];
+
+  private readonly engineStartFaultActive = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineStartValveFaultActive = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineIgnitionFaultActive = [Subject.create(false), Subject.create(false)];
+
+  /** A320 FCOM DSC-70-90-50 (a320_fcom.txt l.64667): the IGNITION memo "appears in green when continuous ignition is
+   * activated on any engine" (L:A32NX_ENGINE_n_CONTINUOUS_IGNITION, systems WASM) */
+  private readonly continuousIgnition = Subject.create(false);
+
+  private apuBleedPbOn = false;
+
+  private crossBleedValveOpen = false;
 
   private readonly engineOnFor30Seconds = new NXLogicConfirmNode(30);
 
@@ -4826,6 +4874,36 @@ export class PseudoFWC {
     this.engine2OilHiTemp.set(this.engineOilMonitors[1].isHighTemperature);
     this.engine1OilFilterClog.set(this.engineOilMonitors[0].isFilterClogged);
     this.engine2OilFilterClog.set(this.engineOilMonitors[1].isFilterClogged);
+
+    /* ENG 1(2) START FAULT, START VALVE FAULT, IGN FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts) */
+
+    let continuousIgnition = false;
+    for (const index of [0, 1]) {
+      const engine = index + 1;
+      this.engineStartFault[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_FAULT`, 'number');
+      this.engineStartPhase[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_PHASE`, 'number');
+      this.engineStartManual[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_MANUAL`, 'bool') > 0;
+      this.engineManualStartPbOn[index] = SimVar.GetSimVarValue(`L:A32NX_ENGMANSTART${engine}_TOGGLE`, 'bool') > 0;
+      this.engineStartValveFault[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_START_VALVE_FAULT`, 'number');
+      this.engineIgniterAFault[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_IGNITER_A_FAULT`, 'bool') > 0;
+      this.engineIgniterBFault[index] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_IGNITER_B_FAULT`, 'bool') > 0;
+      this.engineBleedPbOn[index] =
+        SimVar.GetSimVarValue(`L:A32NX_OVHD_PNEU_ENG_${engine}_BLEED_PB_IS_AUTO`, 'bool') > 0;
+      continuousIgnition =
+        continuousIgnition || SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_CONTINUOUS_IGNITION`, 'bool') > 0;
+
+      this.engineStartFaultActive[index].set(isStartFaultActive(this.engineStartFault[index], flightPhase));
+      this.engineStartValveFaultActive[index].set(this.engineStartValveFault[index] !== StartValveFault.None);
+      // IGN A OR B FAULT is also inhibited in flight phase 6, IGN A+B FAULT is not (2019 FCOM PDF pages 2275-2276)
+      const igniterAFault = this.engineIgniterAFault[index];
+      const igniterBFault = this.engineIgniterBFault[index];
+      this.engineIgnitionFaultActive[index].set(
+        (igniterAFault && igniterBFault) || ((igniterAFault || igniterBFault) && flightPhase !== 6),
+      );
+    }
+    this.continuousIgnition.set(continuousIgnition);
+    this.apuBleedPbOn = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool') > 0;
+    this.crossBleedValveOpen = !SimVar.GetSimVarValue('L:A32NX_PNEU_XBLEED_VALVE_FULLY_CLOSED', 'bool');
     // The fire detection unit outputs (systems.wasm), also used by the FIRE pb red lights (A32NX_Interior_Fire.xml,
     // A320_NEO_INTERIOR.xml). The sim's own engine/APU fire (MSFS failures menu) is one of their inputs.
     this.eng1FireDetected.set(SimVar.GetSimVarValue('L:A32NX_FIRE_DETECTED_ENG1', 'bool') > 0);
@@ -5768,6 +5846,87 @@ export class PseudoFWC {
 
   private readonly ewdFailureTiming = new Map<string, EWDFailureTimingState>();
 
+  /**
+   * ENG 1(2) START FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts): amber, flight phases 3, 4, 5, 7, 8 inhibited (and
+   * 6 for THR LEVER NOT AT IDLE, in isStartFaultActive).
+   */
+  private engineStartFaultAlert(engine: 1 | 2): EWDFailureItem {
+    const index = engine - 1;
+    const code = (line: number) => `770080${engine}${String(line).padStart(2, '0')}`;
+    return {
+      flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
+      simVarIsActive: this.engineStartFaultActive[index],
+      whichCodeToReturn: () =>
+        startFaultLines({
+          fault: this.engineStartFault[index],
+          phase: this.engineStartPhase[index],
+          manualStart: this.engineStartManual[index],
+          onGround: !!this.aircraftOnGround.get(),
+          masterOn: !!(engine === 1 ? this.engine1Master.get() : this.engine2Master.get()),
+          manualStartPbOn: this.engineManualStartPbOn[index],
+        }),
+      codesToReturn: Array.from({ length: 15 }, (_, line) => code(line + 1)),
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => startFaultStatus(engine, this.engineStartFault[index]),
+    };
+  }
+
+  /** ENG 1(2) START VALVE FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts): amber, phases 3, 4, 5, 7, 8 inhibited */
+  private engineStartValveFaultAlert(engine: 1 | 2): EWDFailureItem {
+    const index = engine - 1;
+    const code = (line: number) => `770081${engine}${String(line).padStart(2, '0')}`;
+    const onGround = () => !!this.aircraftOnGround.get();
+    return {
+      flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
+      simVarIsActive: this.engineStartValveFaultActive[index],
+      whichCodeToReturn: () =>
+        startValveFaultLines({
+          engineNumber: engine,
+          fault: this.engineStartValveFault[index],
+          onGround: onGround(),
+          masterOn: !!(engine === 1 ? this.engine1Master.get() : this.engine2Master.get()),
+          manualStartPbOn: this.engineManualStartPbOn[index],
+          apuBleedOn: this.apuBleedPbOn,
+          crossBleedOpen: this.crossBleedValveOpen,
+          crossBleedSelectorOpen: this.crossBleedSelector === CrossBleedSelector.Open,
+          engineBleedOn: this.engineBleedPbOn[index],
+          wingAntiIceOn: !!this.wingAntiIce.get(),
+          oppositeEngineRunning: (engine === 1 ? this.engine2State.get() : this.engine1State.get()) === EngineState.On,
+          apuAvailable: this.apuAvail.get() === 1,
+          belowFl200: (this.pressureAltitudeFt ?? 0) < 20_000,
+        }),
+      codesToReturn: Array.from({ length: 13 }, (_, line) => code(line + 1)),
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => startValveFaultStatus(this.engineStartValveFault[index], onGround()).inopSys,
+      statusInfo: () => startValveFaultStatus(this.engineStartValveFault[index], onGround()).left,
+    };
+  }
+
+  /**
+   * ENG 1(2) IGN FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts): amber; IGN A OR B FAULT inhibited in phases 3-8, IGN
+   * A+B FAULT in phases 3, 4, 5, 7, 8 (the phase 6 difference is in engineIgnitionFaultActive).
+   */
+  private engineIgnitionFaultAlert(engine: 1 | 2): EWDFailureItem {
+    const index = engine - 1;
+    return {
+      flightPhaseInhib: IGN_A_PLUS_B_FAULT_FLIGHT_PHASE_INHIBITION,
+      simVarIsActive: this.engineIgnitionFaultActive[index],
+      whichCodeToReturn: () => ignitionFaultLines(this.engineIgniterAFault[index], this.engineIgniterBFault[index]),
+      codesToReturn: [1, 2, 3, 4].map((line) => `770074${engine}0${line}`),
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => ignitionFaultInopSys(engine, this.engineIgniterAFault[index], this.engineIgniterBFault[index]),
+    };
+  }
+
   ewdMessageFailures: EWDMessageDict<EWDFailureItem> = {
     // 22 - AUTOFLIGHT
     2200005: {
@@ -6622,6 +6781,12 @@ export class PseudoFWC {
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
     },
+    7700801: this.engineStartFaultAlert(1),
+    7700802: this.engineStartFaultAlert(2),
+    7700811: this.engineStartValveFaultAlert(1),
+    7700812: this.engineStartValveFaultAlert(2),
+    7700741: this.engineIgnitionFaultAlert(1),
+    7700742: this.engineIgnitionFaultAlert(2),
     7700382: {
       // ENG REV SET
       flightPhaseInhib: [1, 2, 3, 4, 8, 9, 10],
@@ -8946,9 +9111,10 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000070': {
-      // IGNITION
+      // IGNITION: when continuous ignition is activated on any engine (FCOM DSC-70-90-50 l.64667), not merely when the
+      // ENG MODE selector is at IGN/START
       flightPhaseInhib: [],
-      simVarIsActive: this.engSelectorPosition.map((v) => v === 2),
+      simVarIsActive: this.continuousIgnition,
       whichCodeToReturn: () => [0],
       codesToReturn: ['000007001'],
       memoInhibit: () => false,

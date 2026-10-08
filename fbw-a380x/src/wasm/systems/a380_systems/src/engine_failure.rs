@@ -272,6 +272,9 @@ impl A380EngineFailure {
                 engine_is_running: self.is_running(),
                 core_speed: self.core_speed,
                 lp_valve_starved,
+                // The A380X start sequence (systems::engine::engine_start) is not wired yet.
+                start_sequence_fuel_cut: false,
+                ignition_available: true,
             },
         );
 
