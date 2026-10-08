@@ -4117,6 +4117,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True while the oil filter clog failure of the engine is active (flyPad failures 79020/79021): CLOG on the ENGINE SD page and ENG OIL FILTER CLOG while the engine runs. Written by the systems WASM
 
+- A32NX_ENGINE_{number}_FUEL_FILTER_CLOGGED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the fuel filter clog failure of the engine is active (flyPad failures 73100/73101): CLOG below the fuel used on the ENGINE SD page and ENG FUEL FILTER CLOG while the engine runs, no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
+
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
   - {number}

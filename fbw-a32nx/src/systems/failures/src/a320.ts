@@ -203,6 +203,8 @@ export const A320Failure = Object.freeze({
   ThrustLever2Resolvers: 73041,
   ThrustLever1ResolverDisagree: 73050,
   ThrustLever2ResolverDisagree: 73051,
+  Eng1FuelFilterClog: 73100,
+  Eng2FuelFilterClog: 73101,
   Reverser1Fault: 78000,
   Reverser2Fault: 78001,
   Reverser1Unlocked: 78010,
@@ -423,6 +425,9 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [73, A320Failure.ThrustLever2Resolvers, 'Thrust lever 2 resolvers (both)'],
   [73, A320Failure.ThrustLever1ResolverDisagree, 'Thrust lever 1 resolver disagree'],
   [73, A320Failure.ThrustLever2ResolverDisagree, 'Thrust lever 2 resolver disagree'],
+  // CLOG on the ENGINE SD page and ENG FUEL FILTER CLOG, no other effect (systems engine/fuel_filter_failure.rs)
+  [73, A320Failure.Eng1FuelFilterClog, 'Engine 1 fuel filter clog'],
+  [73, A320Failure.Eng2FuelFilterClog, 'Engine 2 fuel filter clog'],
 
   // Thrust reversers (a320_systems hydraulic A320ReverserController / A320Reversers)
   [78, A320Failure.Reverser1Fault, 'Reverser 1 fault (does not deploy)'],
