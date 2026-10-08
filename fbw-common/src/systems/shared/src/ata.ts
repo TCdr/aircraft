@@ -106,6 +106,8 @@ export const AtaChaptersDescription = Object.freeze({
   34: 'The navigation systems provide data about the position, speed, heading, and altitude of the aircraft. Failures in a system such as the ADIRS can cause a loss of data sent to instrumentation.',
   72: 'The engines produce the thrust and drive the generators, the hydraulic pumps and the bleed air system. An engine failure, such as a flameout or a seizure, causes a loss of thrust and of the systems driven by that engine.',
   46: 'Information systems provide means of communication between Airline Operational Control (AOC), Air Traffic Control (ATC), and various applications around the organization of on-board information (e.g. via the OIS)',
+  73: 'The FADEC (Full Authority Digital Engine Control) controls each engine from its thrust lever and the autothrust, with two redundant channels. A FADEC or thrust lever failure can freeze the thrust at idle or climb, or remove the engine from the autothrust.',
+  78: 'The thrust reversers deflect the engine airflow forward to slow the aircraft on the ground. A failed reverser does not deploy; an unlocked reverser sets its engine at idle.',
 });
 
 export type AtaChapterNumber = keyof typeof AtaChaptersTitle;

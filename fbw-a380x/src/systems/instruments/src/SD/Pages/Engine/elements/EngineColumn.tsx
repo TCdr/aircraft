@@ -8,6 +8,7 @@ import OilPressureGauge from './OilPressureGauge';
 import OilQuantityGauge from './OilQuantityGauge';
 import StartValve from './StartValve';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
+import { areEngineParametersShown } from '../EngineParametersAvailability';
 
 interface EngineColumnProps {
   anyEngineRunning: boolean;
@@ -28,7 +29,15 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const [fadecManuallyPowered] = useSimVar(`L:A32NX_OVHD_FADEC_${engine}`, 'bool', 500);
   const [engineFirePbReleased] = useSimVar(`L:A32NX_FIRE_BUTTON_ENG${engine}`, 'bool', 500);
 
-  const fadecPowered = (ignition || anyEngineRunning || fadecManuallyPowered) && !engineFirePbReleased;
+  const [fadecNetworkLost] = useSimVar(`L:A32NX_ENGINE_${engine}_FADEC_FAULT`, 'bool', 500);
+
+  const fadecPowered = areEngineParametersShown({
+    ignition: !!ignition,
+    anyEngineRunning,
+    fadecManuallyPowered: !!fadecManuallyPowered,
+    engineFirePbReleased: !!engineFirePbReleased,
+    fadecNetworkLost: !!fadecNetworkLost,
+  });
 
   const [fuelFlow] = useSimVar(`L:A32NX_ENGINE_FF:${engine}`, 'number', 100);
 

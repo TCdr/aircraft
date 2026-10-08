@@ -74,6 +74,33 @@ pub enum FailureType {
     EngineFlameout(usize),
     /// The core of engine n seizes: no relight while the failure is active (engine::engine_failure)
     EngineSeizure(usize),
+    // ATA73 FADEC and thrust lever (stage A5/B5, see a320_systems / a380_systems engine_control_failure)
+    /// FADEC channel A of engine n is lost
+    FadecChannelA(usize),
+    /// FADEC channel B of engine n is lost
+    FadecChannelB(usize),
+    /// The FADEC of engine n detects a high temperature
+    FadecOverheat(usize),
+    /// The FADEC of engine n cannot communicate via the avionics networks (A380 ENG FADEC FAULT)
+    FadecNetworkLink(usize),
+    /// A FADEC failure of engine n affects the engine control (A380 ENG FADEC SYS FAULT)
+    FadecSystem(usize),
+    /// Both resolvers of thrust lever n are lost (ENG THR LEVER FAULT)
+    ThrustLeverResolvers(usize),
+    /// The two resolvers of thrust lever n disagree (A320 ENG THR LEVER DISAGREE)
+    ThrustLeverResolverDisagree(usize),
+    // ATA78 thrust reversers (engine n)
+    /// The thrust reverser of engine n is failed: it does not deploy
+    ReverserFault(usize),
+    /// The thrust reverser of engine n is unlocked: it leaves its stowed and locked position
+    ReverserUnlocked(usize),
+    /// The thrust reverser of engine n is pressurized (A320) / energized (A380) without a deploy order
+    ReverserPressurized(usize),
+    /// The thrust reverser of engine n is failed locked: it does not unlock (A380 REVERSER LOCKED)
+    ReverserLocked(usize),
+    /// The thrust reverser control system of engine n is failed: the reverser is inoperative (A380
+    /// REVERSER CTL FAULT)
+    ReverserControlFault(usize),
 }
 
 pub struct Failure {

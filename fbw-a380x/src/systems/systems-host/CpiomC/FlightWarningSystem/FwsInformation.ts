@@ -18,6 +18,38 @@ export class FwsInformation {
   constructor(private fws: FwsCore) {}
   /** INFO shown on SD */
   info: FwsInfoDict = {
+    700200050: {
+      // ENG 1 IDLE ONLY: THR LEVER FAULT on ground (A380 FCOM l.173332-173333), ENG 1 REVERSER UNLOCKED (l.173698)
+      simVarIsActive: this.fws.engineIdleOnly[0],
+    },
+    700200051: {
+      // ENG 2 IDLE ONLY: THR LEVER FAULT on ground (A380 FCOM l.173332-173333), ENG 2 REVERSER UNLOCKED (l.173698)
+      simVarIsActive: this.fws.engineIdleOnly[1],
+    },
+    700200052: {
+      // ENG 3 IDLE ONLY: THR LEVER FAULT on ground (A380 FCOM l.173332-173333), ENG 3 REVERSER UNLOCKED (l.173698)
+      simVarIsActive: this.fws.engineIdleOnly[2],
+    },
+    700200053: {
+      // ENG 4 IDLE ONLY: THR LEVER FAULT on ground (A380 FCOM l.173332-173333), ENG 4 REVERSER UNLOCKED (l.173698)
+      simVarIsActive: this.fws.engineIdleOnly[3],
+    },
+    700200054: {
+      // ENG 1 CLB ONLY: THR LEVER FAULT in flight (A380 FCOM l.173334-173335)
+      simVarIsActive: this.fws.engineClbOnly[0],
+    },
+    700200055: {
+      // ENG 2 CLB ONLY: THR LEVER FAULT in flight (A380 FCOM l.173334-173335)
+      simVarIsActive: this.fws.engineClbOnly[1],
+    },
+    700200056: {
+      // ENG 3 CLB ONLY: THR LEVER FAULT in flight (A380 FCOM l.173334-173335)
+      simVarIsActive: this.fws.engineClbOnly[2],
+    },
+    700200057: {
+      // ENG 4 CLB ONLY: THR LEVER FAULT in flight (A380 FCOM l.173334-173335)
+      simVarIsActive: this.fws.engineClbOnly[3],
+    },
     220200004: {
       // LAND 2 ONLY
       simVarIsActive: this.fws.land3FailPassiveInop,

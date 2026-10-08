@@ -131,3 +131,35 @@ describe('A380X flyPad failure definitions', () => {
     expect(rustIds.filter((id) => !listedIds.includes(id))).toEqual([]);
   });
 });
+
+describe('A380X FADEC, thrust lever and reverser failures', () => {
+  // The labels say what a380_systems engine_control_failure.rs and the reversers do with ids 73010-78042 (failure names
+  // audit rule): the reversers are on engines 2 and 3 only (A380 FCOM DSC-70-70)
+  it('lists them in ATA 73 and 78 with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const fadec: [number, string, string][] = [1, 2, 3, 4].flatMap((engine): [number, string, string][] => [
+      [73010 + engine - 1, `FadecNetworkLink(${engine})`, `Engine ${engine} FADEC network link`],
+      [73020 + engine - 1, `FadecSystem(${engine})`, `Engine ${engine} FADEC system fault`],
+      [73030 + engine - 1, `FadecOverheat(${engine})`, `Engine ${engine} FADEC overheat`],
+      [73040 + engine - 1, `ThrustLeverResolvers(${engine})`, `Thrust lever ${engine} resolvers (both)`],
+    ]);
+    const reversers: [number, string, string][] = [2, 3].flatMap((engine): [number, string, string][] => [
+      [78000 + engine - 1, `ReverserFault(${engine})`, `Reverser ${engine} fault (does not deploy)`],
+      [78010 + engine - 1, `ReverserUnlocked(${engine})`, `Reverser ${engine} unlocked (engine at idle)`],
+      [78020 + engine - 1, `ReverserPressurized(${engine})`, `Reverser ${engine} energized (tertiary lock unlocked)`],
+      [78030 + engine - 1, `ReverserLocked(${engine})`, `Reverser ${engine} failed locked (does not deploy)`],
+      [78040 + engine - 1, `ReverserControlFault(${engine})`, `Reverser ${engine} control fault (ETRAC)`],
+    ]);
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+    for (const [chapter, expected] of [
+      [73, fadec],
+      [78, reversers],
+    ] as [number, [number, string, string][]][]) {
+      expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+        expected.map(([id, failureType, name]) => [id, failureType, name, chapter]),
+      );
+    }
+    expect(A380Failure.Reverser2Fault).toBe(78001);
+    expect(A380Failure.Reverser3ControlFault).toBe(78042);
+  });
+});
