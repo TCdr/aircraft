@@ -286,6 +286,9 @@
       "GroundEquipment": "Ground equipment",
       "Gsx": {
         "Asks": "GSX asks",
+        "Baggage": "Baggage",
+        "BaggageWithBoarding": "Loaded with the boarding",
+        "BaggageWithDeboarding": "Unloaded with the deboarding",
         "CloseMenu": "Close the GSX menu",
         "Connected": "Service buttons linked to GSX, GSX menus and messages shown here",
         "Found": "GSX found",

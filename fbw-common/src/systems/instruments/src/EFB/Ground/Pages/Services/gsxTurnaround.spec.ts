@@ -3,7 +3,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GsxService, gsxRequestable, gsxTurnaroundAction } from './GsxRemote';
-import { GsxTurnaroundInput, GsxTurnaroundMemory } from './gsxTurnaround';
+import { GsxBaggageId, GsxTurnaroundInput, GsxTurnaroundMemory, gsxBaggageService } from './gsxTurnaround';
 
 const input = (states: Record<string, number>, i: Partial<GsxTurnaroundInput> = {}): GsxTurnaroundInput => ({
   states,
@@ -76,5 +76,82 @@ describe('GSX turnaround memory', () => {
 
     expect(memory.apply([performing])[0]).toBe(performing);
     expect(memory.apply([available('Departure')])[0].state).toBe('available');
+  });
+});
+
+/** L:FSDT_GSX_BOARDING_CARGO (active) and L:FSDT_GSX_BOARDING_CARGO_PERCENT as the tracker reads them */
+const loading = (active: boolean, percent: number): GsxTurnaroundInput['baggage'] => ({
+  [GsxBaggageId.Loading]: { active, percent },
+});
+
+describe('GSX turnaround memory of the baggage', () => {
+  let memory: GsxTurnaroundMemory;
+  beforeEach(() => {
+    memory = new GsxTurnaroundMemory();
+  });
+
+  it('keeps the baggage loaded once GSX reached 100 % and stopped loading', () => {
+    memory.update(input({ Boarding: 5 }, { baggage: loading(true, 37.5) }));
+    memory.update(input({ Boarding: 5 }, { baggage: loading(true, 100) }));
+    memory.update(input({ Boarding: 5 }, { baggage: loading(false, 100) }));
+    // the boarding goes on and ends after the baggage: the baggage stays done
+    memory.update(input({ Boarding: 6 }, { baggage: loading(false, 100) }));
+    memory.update(input({ Boarding: 1 }, { baggage: loading(false, 0) }));
+
+    expect(memory.isDone(GsxBaggageId.Loading)).toBe(true);
+  });
+
+  it('does not take a 100 % left from an earlier loading as done', () => {
+    memory.update(input({ Boarding: 1 }, { baggage: loading(false, 100) }));
+
+    expect(memory.isDone(GsxBaggageId.Loading)).toBe(false);
+  });
+
+  it('forgets the baggage loading when a deboarding starts and at the end of the turnaround', () => {
+    memory.update(input({ Boarding: 5 }, { baggage: loading(true, 50) }));
+    memory.update(input({ Boarding: 5 }, { baggage: loading(false, 100) }));
+    memory.update(input({ Deboarding: 4 }, { baggage: loading(false, 100) }));
+    expect(memory.isDone(GsxBaggageId.Loading)).toBe(false);
+    // the stale 100 % does not bring it back
+    memory.update(input({ Deboarding: 1 }, { baggage: loading(false, 100) }));
+    expect(memory.isDone(GsxBaggageId.Loading)).toBe(false);
+
+    memory.update(input({ Boarding: 5 }, { baggage: loading(true, 50) }));
+    memory.update(input({ Boarding: 6 }, { baggage: loading(false, 100) }));
+    memory.update(input({ Boarding: 1 }, { baggage: loading(false, 100), departureState: 4 }));
+    expect(memory.isDone(GsxBaggageId.Loading)).toBe(false);
+    memory.update(input({ Boarding: 1 }, { baggage: loading(false, 100) }));
+    expect(memory.isDone(GsxBaggageId.Loading)).toBe(false);
+  });
+
+  it('keeps the baggage unloaded after the deboarding until a boarding starts', () => {
+    const unloading = (active: boolean, percent: number) => ({ [GsxBaggageId.Unloading]: { active, percent } });
+    memory.update(input({ Deboarding: 5 }, { baggage: unloading(true, 20) }));
+    memory.update(input({ Deboarding: 6 }, { baggage: unloading(false, 100) }));
+    memory.update(input({ Deboarding: 1 }, { baggage: unloading(false, 100) }));
+    expect(memory.isDone(GsxBaggageId.Unloading)).toBe(true);
+
+    memory.update(input({ Boarding: 4 }, { baggage: unloading(false, 100) }));
+    expect(memory.isDone(GsxBaggageId.Unloading)).toBe(false);
+  });
+});
+
+describe('GSX baggage step of the turnaround list', () => {
+  it('shows the loading in progress with its percentage, never callable', () => {
+    const step = gsxBaggageService(GsxBaggageId.Loading, 'Baggage', { active: true, percent: 37.5 }, false);
+
+    expect(step.state).toBe('performing');
+    expect(step.progress).toEqual({ current: 38, total: 100, unit: '%' });
+    expect(step.progressText).toBe('38 %');
+    expect(gsxTurnaroundAction(step)).toBeNull();
+  });
+
+  it('shows the remembered loading done, and idle before it without a Request chip', () => {
+    const done = gsxBaggageService(GsxBaggageId.Loading, 'Baggage', { active: false, percent: 0 }, true);
+    const idle = gsxBaggageService(GsxBaggageId.Loading, 'Baggage', { active: false, percent: 100 }, false);
+
+    expect(done.state).toBe('completed');
+    expect(idle.state).toBe('available');
+    expect(gsxTurnaroundAction(idle)).toBeNull();
   });
 });

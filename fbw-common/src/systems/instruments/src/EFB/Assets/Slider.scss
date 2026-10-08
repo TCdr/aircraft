@@ -3,6 +3,9 @@
 
 $slider-height: 8px;
 $handle-size: calc(#{$slider-height} * 3);
+// the same handle size as a number, for the arithmetic below
+$handle-size-px: $slider-height * 3;
+$vertical-rail-width: 4px;
 
 .rc-slider {
   position: relative;
@@ -114,7 +117,7 @@ $handle-size: calc(#{$slider-height} * 3);
 }
 .rc-slider-vertical .rc-slider-rail {
   height: 100%;
-  width: 4px;
+  width: $vertical-rail-width;
 }
 .rc-slider-vertical .rc-slider-track {
   left: 5px;
@@ -122,7 +125,10 @@ $handle-size: calc(#{$slider-height} * 3);
   width: 4px;
 }
 .rc-slider-vertical .rc-slider-handle {
-  margin-left: -5px;
+  /* centred on the rail: the handle and the rail both start at the 5 px padding, so shifting the handle left by half
+     their width difference ((24 - 4) / 2 = 10 px) centres it; rc-slider's -5 px suited its 14 px handle and left this
+     24 px one 5 px right of the line */
+  margin-left: -($handle-size-px - $vertical-rail-width) * 0.5;
   touch-action: pan-y;
 }
 .rc-slider-vertical .rc-slider-mark {
