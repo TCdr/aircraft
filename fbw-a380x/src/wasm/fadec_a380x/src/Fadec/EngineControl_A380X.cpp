@@ -91,6 +91,11 @@ void EngineControl_A380X::update() {
     const bool startKeepsStarter   = StartSequence_A380X::startSequenceKeepsStarter(simOnGroundForStart, engineFuelCut, startPhase);
     const bool engineStarter        = engineMasterStarter && (!engineFuelCut || engineRelightAttempt || startKeepsStarter);
     const int  engineIgniter        = static_cast<int>(simData.simVarsDataPtr->data().engineIgniter[engineIdx]);
+    // GENERAL ENG COMBUSTION of an OFF engine: only an engine MSFS burns in is running (StartSequence_A380X::offEngineIsRunning)
+    const bool offEngineCombustion =
+        static_cast<EngineState>(simData.engineState[engineIdx]->get()) == OFF &&
+        static_cast<bool>(simData.engineCombustion[engineIdx]->updateFromSim(msfsHandlerPtr->getTimeStamp(),  //
+                                                                             msfsHandlerPtr->getTickCounter()));
 
     // determine the current engine state based on the previous state and the current ignition, starter and other parameters
     // also resets the engine timer if the engine is starting or restarting
@@ -100,7 +105,8 @@ void EngineControl_A380X::update() {
                                                  prevSimEngineN3[engineIdx],  //
                                                  idleN3,                      //
                                                  ambientTemperature,          //
-                                                 startN3Hang);                //
+                                                 startN3Hang,                 //
+                                                 offEngineCombustion);        //
 
     const bool   simOnGround   = msfsHandlerPtr->getSimOnGround();
     const double engineTimer   = simData.engineTimer[engineIdx]->get();
@@ -466,7 +472,8 @@ EngineControl_A380X::EngineState EngineControl_A380X::engineStateMachine(int    
                                                                          double simN3,
                                                                          double idleN3,
                                                                          double ambientTemperature,
-                                                                         bool   startN3Hang) {
+                                                                         bool   startN3Hang,
+                                                                         bool   simCombustion) {
 #ifdef PROFILING
   profilerEngineStateMachine.start();
 #endif
@@ -479,7 +486,7 @@ EngineControl_A380X::EngineState EngineControl_A380X::engineStateMachine(int    
 
   // Current State: OFF
   if (engineState == OFF) {
-    if (engineIgniter == 1 && engineStarter && simN3 > 20) {
+    if (StartSequence_A380X::offEngineIsRunning(engineIgniter, engineStarter, simN3, simCombustion)) {
       engineState = ON;
     } else if (engineIgniter == 2 && engineStarter) {
       engineState = STARTING;
@@ -1291,17 +1298,17 @@ void EngineControl_A380X::updateOil(int          engine,
   // FIXME feel free to fix oil temperature, values are a little sus
   if (simOnGround == 1 && engineState == 0 && ambientTemperature > oilTemperaturePre - 10) {
     oilTemperature = ambientTemperature;
+    // a cold engine has no overheat left to cool down
+    oilOverheatTracker[engineIdx].reset();
   } else {
     thermalEnergy[engineIdx] = (0.995 * thermalEnergy[engineIdx]) + (deltaN3 / deltaTime);
 
     oilTemperature = Polynomial_A380X::oilTemperature(thermalEnergy[engineIdx], oilTemperaturePre, MAX_OIL_TEMP, deltaTime);
     // An oil overheat heats the oil with the thrust instead. Its temperature is the FADEC's own: MSFS moves the oil
-    // temperature it reads back with its own oil model (EngineOilFailures.hpp OverheatTracker).
-    const double trackedOverheatTemperature =
-        oilOverheatTracker[engineIdx].update(oilOverheat, oilTemperaturePre, n3, idleN3, deltaTime, OilSystem_A380X::OVERHEAT);
-    if (oilOverheat) {
-      oilTemperature = trackedOverheatTemperature;
-    }
+    // temperature it reads back with its own oil model (EngineOilFailures.hpp OverheatTracker). Once the failure is cleared
+    // the tracker cools it down gradually to the normal oil temperature computed above.
+    oilTemperature = oilOverheatTracker[engineIdx].update(oilOverheat, oilTemperaturePre, oilTemperature, n3, idleN3, deltaTime,
+                                                          OilSystem_A380X::OVERHEAT);
   }
 
   //--------------------------------------------

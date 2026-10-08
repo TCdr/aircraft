@@ -91,7 +91,7 @@ int main() {
   double          simTemperature = 75.0;
   double          aboveLimitAt   = -1.0;
   for (int step = 0; step < static_cast<int>(240.0 / frame); ++step) {
-    const double written = tracker.update(true, simTemperature, 84.3, 60.5, frame, a380Overheat);
+    const double written = tracker.update(true, simTemperature, 85.0, 84.3, 60.5, frame, a380Overheat);
     if (aboveLimitAt < 0.0 && written > 196.0) {
       aboveLimitAt = step * frame;
     }
@@ -101,10 +101,67 @@ int main() {
              aboveLimitAt > 0.0);
   expectTrue("the written temperature is the tracker's, not the MSFS one", simTemperature > 196.0);
 
-  // Without the failure the tracker hands back the MSFS value, and a new failure starts from it again
-  expectNear("no overheat: the MSFS temperature", tracker.update(false, 90.0, 84.3, 60.5, frame, a380Overheat), 90.0);
-  expectNear("a new overheat starts from the MSFS temperature",
-             tracker.update(true, 90.0, 84.3, 60.5, frame, a380Overheat),
+  // The thrust curve: linear by default, the square root rises quickly just above idle
+  const OverheatParameters curved{170.0, 230.0, 60.0, 0.5};
+  expectNear("curved target at idle", overheatTargetTemperature(61.0, 61.0, curved), 170.0);
+  expectNear("curved target at 100 %", overheatTargetTemperature(100.0, 61.0, curved), 230.0);
+  expectNear("curved target a quarter of the way: half of the rise", overheatTargetTemperature(70.75, 61.0, curved), 200.0);
+  expectNear("default curve stays linear", overheatTargetTemperature(70.75, 61.0, a380Overheat), 170.0 + 55.0 * 0.25);
+
+  // A healthy engine: the tracker writes the normal oil temperature of the FADEC
+  OverheatTracker healthy;
+  expectNear("no overheat: the normal FADEC temperature", healthy.update(false, 90.0, 84.0, 84.3, 60.5, frame, a380Overheat), 84.0);
+  expectTrue("no overheat: not tracking", !healthy.isTracking());
+
+  // A cleared overheat cools down gradually to the normal oil temperature (sim tests 2026-10-06/07: it dropped from 196.3 C
+  // to 84.1 C in one update on the A380X, from 158 C to 85 C on the A32NX), with the 60 s time constant of the overheat, and
+  // the FADEC gets its oil temperature back within 1 C of the normal one.
+  const double normal       = 85.0;
+  const double atClearing   = simTemperature;
+  double       written      = atClearing;
+  double       previous     = atClearing;
+  double       handedBackAt = -1.0;
+  bool         monotonic    = true;
+  double       after1s      = 0.0;
+  double       after60s     = 0.0;
+  for (int step = 1; step <= static_cast<int>(600.0 / frame); ++step) {
+    written = tracker.update(false, written, normal, 84.3, 60.5, frame, a380Overheat);
+    monotonic = monotonic && written <= previous && written >= normal;
+    previous  = written;
+    if (step == static_cast<int>(1.0 / frame)) {
+      after1s = written;
+    }
+    if (step == static_cast<int>(60.0 / frame)) {
+      after60s = written;
+    }
+    if (handedBackAt < 0.0 && !tracker.isTracking()) {
+      handedBackAt = step * frame;
+    }
+  }
+  expectTrue("cleared overheat: no step down, 1 s later the oil is still within 2.5 C", after1s > atClearing - 2.5);
+  expectNear("cleared overheat: one time constant later 63 % of the way down", after60s,
+             normal + (atClearing - normal) * std::exp(-1.0), 0.5);
+  expectTrue("cleared overheat: it falls steadily and never below the normal temperature", monotonic);
+  expectTrue("cleared overheat: handed back within 1 C, after about 4.5 to 5.5 min", handedBackAt > 270.0 && handedBackAt < 330.0);
+  expectNear("cleared overheat: then the normal FADEC temperature", written, normal);
+
+  // An overheat set again while cooling down goes on from the tracker's temperature, not from the MSFS one
+  OverheatTracker again;
+  again.update(true, 190.0, normal, 84.3, 60.5, frame, a380Overheat);
+  for (int step = 0; step < static_cast<int>(30.0 / frame); ++step) {
+    again.update(false, 75.0, normal, 84.3, 60.5, frame, a380Overheat);
+  }
+  const double cooled = again.update(false, 75.0, normal, 84.3, 60.5, frame, a380Overheat);
+  expectTrue("still cooling down after 30 s (190 C towards 85 C: about 149 C)", again.isTracking() && cooled > 140.0);
+  expectNear("an overheat set again goes on from the tracker's temperature",
+             again.update(true, 75.0, normal, 84.3, 60.5, frame, a380Overheat),
+             overheatTemperature(cooled, 84.3, 60.5, frame, a380Overheat));
+
+  // Reset (engine off on the ground, oil at ambient): a new overheat starts from the MSFS temperature again
+  again.reset();
+  expectTrue("reset: not tracking", !again.isTracking());
+  expectNear("after a reset a new overheat starts from the MSFS temperature",
+             again.update(true, 90.0, normal, 84.3, 60.5, frame, a380Overheat),
              overheatTemperature(90.0, 84.3, 60.5, frame, a380Overheat));
 
   if (failures == 0) {

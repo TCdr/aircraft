@@ -27,10 +27,13 @@
 //! - Overspeed: the N1 and core speed indications are higher by a fraction of their value, so that
 //!   they exceed their limits at high thrust only. The thrust follows the MSFS engine and does
 //!   not change.
-//! - High vibration: the N1 and core vibrations are higher by an amount proportional to the
-//!   rotor speed, so that reducing the thrust brings them below the advisory (QRH HIGH ENGINE
-//!   VIBRATION, a320_fcom.txt l.78975: "THRUST (affected engine) ... REDUCE BELOW ADVISORY
-//!   THRESHOLD").
+//! - High vibration: the N1 and core vibrations are higher by an amount that grows with the
+//!   square of the rotor speed, like the force of a rotor unbalance, so that reducing the thrust
+//!   brings them below the advisory (QRH HIGH ENGINE VIBRATION, a320_fcom.txt l.78975: "THRUST
+//!   (affected engine) ... REDUCE BELOW ADVISORY THRESHOLD"), and at idle clearly below it. With an
+//!   amount proportional to the rotor speed the core, which turns at about 70 % at idle, kept
+//!   most of its vibration: N2 4.6 units at idle on the A320, above the 4.3 advisory (sim test
+//!   2026-10-06).
 //!
 //! The values change gradually (first order lags) so that the indications move like engine
 //! parameters do, not in steps.
@@ -68,8 +71,8 @@ pub struct EngineMalfunctionParameters {
     /// The fractions of the N1 and of the core speed that the overspeed failure adds to them.
     pub overspeed_n1_fraction: f64,
     pub overspeed_core_fraction: f64,
-    /// The vibrations added by the high vibration failure at 100 % N1 (core speed), proportional
-    /// to the rotor speed.
+    /// The vibrations added by the high vibration failure at 100 % N1 (core speed), with the
+    /// square of the rotor speed below it.
     pub high_vibration_n1_units_at_full_speed: f64,
     pub high_vibration_core_units_at_full_speed: f64,
     /// The normal core vibration as a fraction of the MSFS engine vibration, which is the normal
@@ -205,11 +208,12 @@ impl EngineMalfunction {
         } else {
             (0., 0.)
         };
-        // A damaged engine vibrates whenever its rotors turn, also when windmilling.
+        // A damaged engine vibrates whenever its rotors turn, also when windmilling. Design
+        // choice: the vibration of an unbalanced rotor grows with the square of its speed.
         let (vibration_n1_target, vibration_core_target) = if self.high_vibration.is_active() {
             (
-                parameters.high_vibration_n1_units_at_full_speed * n1_percent / 100.,
-                parameters.high_vibration_core_units_at_full_speed * core_percent / 100.,
+                parameters.high_vibration_n1_units_at_full_speed * (n1_percent / 100.).powi(2),
+                parameters.high_vibration_core_units_at_full_speed * (core_percent / 100.).powi(2),
             )
         } else {
             (0., 0.)
@@ -622,13 +626,13 @@ mod tests {
     }
 
     #[test]
-    fn the_high_vibration_is_proportional_to_the_rotor_speed() {
+    fn the_high_vibration_grows_with_the_square_of_the_rotor_speed() {
         let mut test_bed = MalfunctionTestBed::new()
             .failed(FailureType::EngineHighVibration(1))
             .and_run_for(Duration::from_secs(40));
 
-        assert!((test_bed.n1_vibration() - (1. + 8. * 0.85)).abs() < 0.05);
-        assert!((test_bed.n2_vibration() - (0.6 + 5. * 0.95)).abs() < 0.05);
+        assert!((test_bed.n1_vibration() - (1. + 8. * 0.85 * 0.85)).abs() < 0.05);
+        assert!((test_bed.n2_vibration() - (0.6 + 5. * 0.95 * 0.95)).abs() < 0.05);
 
         test_bed = test_bed
             .with(|inputs| {
@@ -636,7 +640,27 @@ mod tests {
                 inputs.core_speed = Ratio::new::<percent>(70.);
             })
             .and_run_for(Duration::from_secs(40));
-        assert!((test_bed.n1_vibration() - (1. + 8. * 0.4)).abs() < 0.05);
+        assert!((test_bed.n1_vibration() - (1. + 8. * 0.4 * 0.4)).abs() < 0.05);
+        assert!((test_bed.n2_vibration() - (0.6 + 5. * 0.7 * 0.7)).abs() < 0.05);
+    }
+
+    /// Sim test 2026-10-06 (A320, lever at IDLE, MSFS vibration 2): the core at 69 % N2 kept a
+    /// vibration above the 4.3 units advisory. At idle the failure adds little: N2 clearly
+    /// below the advisory.
+    #[test]
+    fn at_idle_the_high_vibration_core_is_clearly_below_the_advisory() {
+        let mut test_bed = MalfunctionTestBed::new()
+            .with(|inputs| {
+                inputs.n1 = Ratio::new::<percent>(30.);
+                inputs.core_speed = Ratio::new::<percent>(69.);
+                inputs.commanded_n1 = Ratio::new::<percent>(30.);
+                inputs.msfs_vibration = 2.;
+            })
+            .failed(FailureType::EngineHighVibration(1))
+            .and_run_for(Duration::from_secs(40));
+
+        assert!(test_bed.n2_vibration() < 4.3 - 0.5);
+        assert!(test_bed.n1_vibration() < 6. - 2.);
     }
 
     #[test]
