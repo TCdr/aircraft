@@ -130,6 +130,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] An engine started in flight no longer overshoots to 97.5 % N3 at the end of the start: it stabilises at idle, then accelerates to the thrust lever or A/THR demand - @TCdr
 1. [A380X/FADEC] Automatic relight: when an engine flames out with its ENG MASTER ON, the FADEC turns on both igniters whatever the ENG START selector position and keeps them on until 60 s after the engine relights (FCOM AUTO RELIGHT); not with the ENG MASTER OFF, the ENG FIRE pb released or a flyPad flameout or seizure failure - @TCdr
 1. [A380X/FADEC] Hardened the engine feed-tank fuel draw: a long sim frame can no longer empty the feed tanks of all four engines at once, and the engine fuel used is counted in the right unit - @TCdr
+1. [A380X/SD] The ENGINE page shows the igniters the FADEC energizes (A, B or A B): one igniter alternated at each ground start, both for an in-flight start, the continuous ignition, the quick relight and the auto relight, as in the FCOM; they were an "A" drawn from N2 - @TCdr
 
 ## 2024.1.0
 
