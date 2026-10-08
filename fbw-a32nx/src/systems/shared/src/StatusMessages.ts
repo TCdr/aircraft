@@ -34,6 +34,18 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400006', { part: StatusPart.Limitation, text: 'CONSIDER ENG 1 RELIGHT' }],
   ['700500004', { part: StatusPart.Condition, text: 'IF NO ENG 2 DAMAGE:' }],
   ['700400007', { part: StatusPart.Limitation, text: 'CONSIDER ENG 2 RELIGHT' }],
+  // 70 ENGINE (FCOM PRO-ABN-ENG STATUS of FADEC FAULT l.79659-79660, THR LEVER DISAGREE l.81738-81771, THR LEVER FAULT
+  // l.81866-81874, ENG SHUT DOWN "If REV unlocked" l.81172-81173), lines by FWC/Logic/FadecReverserAlerts
+  ['700400050', { part: StatusPart.Limitation, text: 'THR LVR 1 NOT ABV IDLE' }],
+  ['700400051', { part: StatusPart.Limitation, text: 'THR LVR 2 NOT ABV IDLE' }],
+  ['700500050', { part: StatusPart.Condition, text: 'WHEN SLATS OUT:' }],
+  ['700400052', { part: StatusPart.Limitation, text: 'ENG 1 AT IDLE' }],
+  ['700400053', { part: StatusPart.Limitation, text: 'ENG 2 AT IDLE' }],
+  ['700400054', { part: StatusPart.Limitation, text: 'ENG 1 AVAIL MAX PWR:CLB' }],
+  ['700400055', { part: StatusPart.Limitation, text: 'ENG 2 AVAIL MAX PWR:CLB' }],
+  ['700400056', { part: StatusPart.Limitation, text: 'GND ENG 1 MAX PWR: IDLE' }],
+  ['700400057', { part: StatusPart.Limitation, text: 'GND ENG 2 MAX PWR: IDLE' }],
+  ['700400058', { part: StatusPart.Limitation, text: 'MAX SPEED.......300/.78' }],
   ['210200001', { part: StatusPart.Information, text: 'CKPT AT FIXED TEMP' }],
   ['210200002', { part: StatusPart.Information, text: 'CAB AT FIXED TEMP' }],
   ['210200003', { part: StatusPart.Information, text: 'CAB TEMP BY PACK ONLY' }],
@@ -52,6 +64,11 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
   ['360300001', { part: StatusPart.InopSys, text: 'ENG 1 BLEED' }],
   ['360300002', { part: StatusPart.InopSys, text: 'ENG 2 BLEED' }],
+  // 70 ENGINE (FCOM PRO-ABN-ENG REVERSER FAULT, THR LEVER FAULT and THR LEVER DISAGREE INOP SYS)
+  ['780300001', { part: StatusPart.InopSys, text: 'REVERSER 1' }],
+  ['780300002', { part: StatusPart.InopSys, text: 'REVERSER 2' }],
+  ['730300001', { part: StatusPart.InopSys, text: 'ENG 1 THR' }],
+  ['730300002', { part: StatusPart.InopSys, text: 'ENG 2 THR' }],
   // 21 AIR CONDITIONING
   ['210300001', { part: StatusPart.InopSys, text: 'PACK 1' }],
   ['210300002', { part: StatusPart.InopSys, text: 'PACK 2' }],

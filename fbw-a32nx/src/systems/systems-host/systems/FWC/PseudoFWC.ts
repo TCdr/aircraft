@@ -71,6 +71,21 @@ import {
   engineShutDownStatus,
   isEngineShutDown,
 } from './Logic/EngineFailAlerts';
+import {
+  ThrustLeverRating,
+  fadecFaultLines,
+  fadecFaultStatus,
+  fadecHiTempLines,
+  isReverserFaultShown,
+  isShownInTakeoffUnlessAutoIdle,
+  reverseUnlockedLines,
+  reverseUnlockedStatus,
+  reverserFaultInopSys,
+  revPressurizedLines,
+  thrustLeverDisagreeLines,
+  thrustLeverFaultLines,
+  thrustLeverStatus,
+} from './Logic/FadecReverserAlerts';
 import { fireDetectionFaultAlerts } from './Logic/FireDetectionFaults';
 import {
   centreTransferNotClosedLines,
@@ -1715,6 +1730,36 @@ export class PseudoFWC {
   private readonly engine2ShutDown = Subject.create(false);
 
   private crossBleedSelector = CrossBleedSelector.Auto;
+
+  /*
+   * FADEC, thrust lever and reverser alerts of engines 1 and 2 (index 0 and 1), see Logic/FadecReverserAlerts. The
+   * FADEC status comes from systems.wasm (engine_control_failure.rs, hydraulic reversers); the *Shown subjects apply
+   * the flight phase rules the static inhibitions cannot express ("not inhibited if the FADEC selects idle").
+   */
+  private readonly fadecChannelAFault = [Subject.create(false), Subject.create(false)];
+
+  private readonly fadecChannelBFault = [Subject.create(false), Subject.create(false)];
+
+  private readonly fadecFault = [Subject.create(false), Subject.create(false)];
+
+  private readonly fadecHiTemp = [Subject.create(false), Subject.create(false)];
+
+  private readonly thrLeverFaultShown = [Subject.create(false), Subject.create(false)];
+
+  private readonly thrLeverDisagreeShown = [Subject.create(false), Subject.create(false)];
+
+  private readonly thrLeverRating = [ThrustLeverRating.Normal, ThrustLeverRating.Normal];
+
+  private readonly reverseUnlockedShown = [Subject.create(false), Subject.create(false)];
+
+  private readonly reverserFaultShown = [Subject.create(false), Subject.create(false)];
+
+  private readonly revPressurized = [Subject.create(false), Subject.create(false)];
+
+  /** Design choice: 2 s, so that the pressure switch decay at the end of a reverser stowage gives no alert */
+  private readonly revPressurizedConfirm = [new NXLogicConfirmNode(2), new NXLogicConfirmNode(2)];
+
+  private readonly fadecAutoIdle = [false, false];
 
   private readonly engineOnFor30Seconds = new NXLogicConfirmNode(30);
 
@@ -4788,6 +4833,57 @@ export class PseudoFWC {
     this.engine1ShutDown.set(isEngineShutDown(engine1MasterOn, engine1FirePbPushed, flightPhase) && !allEnginesFailed);
     this.engine2ShutDown.set(isEngineShutDown(engine2MasterOn, engine2FirePbPushed, flightPhase) && !allEnginesFailed);
     this.crossBleedSelector = SimVar.GetSimVarValue('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number');
+
+    /* FADEC, thrust lever and reverser alerts (FCOM PRO-ABN-ENG, see Logic/FadecReverserAlerts) */
+
+    for (let engineIndex = 0; engineIndex < 2; engineIndex++) {
+      const engine = engineIndex + 1;
+      const autoIdle = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_AUTO_IDLE`, 'bool') > 0;
+      this.fadecAutoIdle[engineIndex] = autoIdle;
+      this.fadecChannelAFault[engineIndex].set(
+        SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_CHANNEL_A_FAULT`, 'bool') > 0,
+      );
+      this.fadecChannelBFault[engineIndex].set(
+        SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_CHANNEL_B_FAULT`, 'bool') > 0,
+      );
+      this.fadecFault[engineIndex].set(SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_FAULT`, 'bool') > 0);
+      this.fadecHiTemp[engineIndex].set(SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_FADEC_HI_TEMP`, 'bool') > 0);
+      this.thrLeverRating[engineIndex] = SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_THR_LEVER_RATING`, 'number');
+      this.thrLeverFaultShown[engineIndex].set(
+        isShownInTakeoffUnlessAutoIdle(
+          SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_THR_LEVER_FAULT`, 'bool') > 0,
+          flightPhase,
+          autoIdle,
+        ),
+      );
+      this.thrLeverDisagreeShown[engineIndex].set(
+        isShownInTakeoffUnlessAutoIdle(
+          SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_THR_LEVER_DISAGREE`, 'bool') > 0,
+          flightPhase,
+          autoIdle,
+        ),
+      );
+      this.reverseUnlockedShown[engineIndex].set(
+        isShownInTakeoffUnlessAutoIdle(
+          SimVar.GetSimVarValue(`L:A32NX_REVERSER_${engine}_UNLOCKED`, 'bool') > 0,
+          flightPhase,
+          autoIdle,
+        ),
+      );
+      this.reverserFaultShown[engineIndex].set(
+        isReverserFaultShown(
+          SimVar.GetSimVarValue(`L:A32NX_REVERSER_${engine}_FAULT`, 'bool') > 0,
+          flightPhase,
+          autoIdle,
+        ),
+      );
+      this.revPressurized[engineIndex].set(
+        this.revPressurizedConfirm[engineIndex].write(
+          SimVar.GetSimVarValue(`L:A32NX_REVERSER_${engine}_PRESSURIZED`, 'bool') > 0,
+          deltaTime,
+        ),
+      );
+    }
     // The fire detection unit outputs (systems.wasm), also used by the FIRE pb red lights (A32NX_Interior_Fire.xml,
     // A320_NEO_INTERIOR.xml). The sim's own engine/APU fire (MSFS failures menu) is one of their inputs.
     this.eng1FireDetected.set(SimVar.GetSimVarValue('L:A32NX_FIRE_DETECTED_ENG1', 'bool') > 0);
@@ -6515,6 +6611,302 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).inopSys,
       statusInfo: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).left,
+    },
+    7700501: {
+      // ENG 1 FADEC A FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fadecChannelAFault[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770050101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700502: {
+      // ENG 1 FADEC B FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fadecChannelBFault[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770050201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700511: {
+      // ENG 1 FADEC FAULT (FCOM PRO-ABN-ENG l.79616-79660), inhibited in phases 4, 5, 7, 8
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.fadecFault[0],
+      whichCodeToReturn: () => fadecFaultLines(this.fwcFlightPhase.get(), this.thr1TLA.get() === 0),
+      codesToReturn: ['770051101', '770051102', '770051103', '770051104', '770051105', '770051106'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => fadecFaultStatus(1, this.aircraftOnGround.get()),
+    },
+    7700521: {
+      // ENG 1 FADEC HI TEMP (FCOM PRO-ABN-ENG l.79690-79729), inhibited in phases 3, 4, 5, 7, 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fadecHiTemp[0],
+      whichCodeToReturn: () =>
+        fadecHiTempLines(this.fwcFlightPhase.get(), this.thr1TLA.get() === 0, this.engSelectorPosition.get() === 1),
+      codesToReturn: [
+        '770052101',
+        '770052102',
+        '770052103',
+        '770052104',
+        '770052105',
+        '770052106',
+        '770052107',
+        '770052108',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700531: {
+      // ENG 1 THR LEVER FAULT (FCOM PRO-ABN-ENG l.81792-81874), phases 4 and 5 in thrLeverFaultShown
+      flightPhaseInhib: [],
+      simVarIsActive: this.thrLeverFaultShown[0],
+      whichCodeToReturn: () =>
+        thrustLeverFaultLines({
+          flightPhase: this.fwcFlightPhase.get(),
+          rating: this.thrLeverRating[0],
+          thrLeverIdle: this.thr1TLA.get() === 0,
+          athrEngaged: this.autoThrustStatus.get() !== 0,
+        }),
+      codesToReturn: [
+        '770053101',
+        '770053102',
+        '770053103',
+        '770053104',
+        '770053105',
+        '770053106',
+        '770053107',
+        '770053108',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => thrustLeverStatus(1, true, this.thrLeverRating[0]).inopSys,
+      statusInfo: () => thrustLeverStatus(1, true, this.thrLeverRating[0]).left,
+    },
+    7700541: {
+      // ENG 1 THR LEVER DISAGREE (FCOM PRO-ABN-ENG l.81668-81771), phases 4 and 5 in thrLeverDisagreeShown
+      flightPhaseInhib: [],
+      simVarIsActive: this.thrLeverDisagreeShown[0],
+      whichCodeToReturn: () =>
+        thrustLeverDisagreeLines({
+          flightPhase: this.fwcFlightPhase.get(),
+          rating: this.thrLeverRating[0],
+          thrLeverIdle: this.thr1TLA.get() === 0,
+          athrEngaged: this.autoThrustStatus.get() !== 0,
+        }),
+      codesToReturn: [
+        '770054101',
+        '770054102',
+        '770054103',
+        '770054104',
+        '770054105',
+        '770054106',
+        '770054107',
+        '770054108',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => thrustLeverStatus(1, false, this.thrLeverRating[0]).inopSys,
+      statusInfo: () => thrustLeverStatus(1, false, this.thrLeverRating[0]).left,
+    },
+    7700551: {
+      // ENG 1 REVERSE UNLOCKED (FCOM PRO-ABN-ENG l.80848-80910), inhibited in phase 8, phases 4 and 5 in
+      // reverseUnlockedShown
+      flightPhaseInhib: [8],
+      simVarIsActive: this.reverseUnlockedShown[0],
+      whichCodeToReturn: () =>
+        reverseUnlockedLines(this.fwcFlightPhase.get(), this.fadecAutoIdle[0], this.thr1TLA.get() === 0),
+      codesToReturn: ['770055101', '770055102', '770055103', '770055104', '770055105', '770055106', '770055107'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => reverseUnlockedStatus(this.aircraftOnGround.get()),
+    },
+    7700561: {
+      // ENG 1 REVERSER FAULT (FCOM PRO-ABN-ENG l.80933-80962), phases 3, 4 and 5 in reverserFaultShown
+      flightPhaseInhib: [],
+      simVarIsActive: this.reverserFaultShown[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770056101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => reverserFaultInopSys(1),
+    },
+    7700571: {
+      // ENG 1 REV PRESSURIZED (FCOM PRO-ABN-ENG l.80755-80779), inhibited in phases 4, 5, 8
+      flightPhaseInhib: [4, 5, 8],
+      simVarIsActive: this.revPressurized[0],
+      whichCodeToReturn: () => revPressurizedLines(this.fwcFlightPhase.get(), this.thr1TLA.get() === 0),
+      codesToReturn: ['770057101', '770057102', '770057103'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700503: {
+      // ENG 2 FADEC A FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fadecChannelAFault[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770050301'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700504: {
+      // ENG 2 FADEC B FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fadecChannelBFault[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770050401'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700512: {
+      // ENG 2 FADEC FAULT (FCOM PRO-ABN-ENG l.79616-79660), inhibited in phases 4, 5, 7, 8
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.fadecFault[1],
+      whichCodeToReturn: () => fadecFaultLines(this.fwcFlightPhase.get(), this.thr2TLA.get() === 0),
+      codesToReturn: ['770051201', '770051202', '770051203', '770051204', '770051205', '770051206'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => fadecFaultStatus(2, this.aircraftOnGround.get()),
+    },
+    7700522: {
+      // ENG 2 FADEC HI TEMP (FCOM PRO-ABN-ENG l.79690-79729), inhibited in phases 3, 4, 5, 7, 8
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fadecHiTemp[1],
+      whichCodeToReturn: () =>
+        fadecHiTempLines(this.fwcFlightPhase.get(), this.thr2TLA.get() === 0, this.engSelectorPosition.get() === 1),
+      codesToReturn: [
+        '770052201',
+        '770052202',
+        '770052203',
+        '770052204',
+        '770052205',
+        '770052206',
+        '770052207',
+        '770052208',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    },
+    7700532: {
+      // ENG 2 THR LEVER FAULT (FCOM PRO-ABN-ENG l.81792-81874), phases 4 and 5 in thrLeverFaultShown
+      flightPhaseInhib: [],
+      simVarIsActive: this.thrLeverFaultShown[1],
+      whichCodeToReturn: () =>
+        thrustLeverFaultLines({
+          flightPhase: this.fwcFlightPhase.get(),
+          rating: this.thrLeverRating[1],
+          thrLeverIdle: this.thr2TLA.get() === 0,
+          athrEngaged: this.autoThrustStatus.get() !== 0,
+        }),
+      codesToReturn: [
+        '770053201',
+        '770053202',
+        '770053203',
+        '770053204',
+        '770053205',
+        '770053206',
+        '770053207',
+        '770053208',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => thrustLeverStatus(2, true, this.thrLeverRating[1]).inopSys,
+      statusInfo: () => thrustLeverStatus(2, true, this.thrLeverRating[1]).left,
+    },
+    7700542: {
+      // ENG 2 THR LEVER DISAGREE (FCOM PRO-ABN-ENG l.81668-81771), phases 4 and 5 in thrLeverDisagreeShown
+      flightPhaseInhib: [],
+      simVarIsActive: this.thrLeverDisagreeShown[1],
+      whichCodeToReturn: () =>
+        thrustLeverDisagreeLines({
+          flightPhase: this.fwcFlightPhase.get(),
+          rating: this.thrLeverRating[1],
+          thrLeverIdle: this.thr2TLA.get() === 0,
+          athrEngaged: this.autoThrustStatus.get() !== 0,
+        }),
+      codesToReturn: [
+        '770054201',
+        '770054202',
+        '770054203',
+        '770054204',
+        '770054205',
+        '770054206',
+        '770054207',
+        '770054208',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => thrustLeverStatus(2, false, this.thrLeverRating[1]).inopSys,
+      statusInfo: () => thrustLeverStatus(2, false, this.thrLeverRating[1]).left,
+    },
+    7700552: {
+      // ENG 2 REVERSE UNLOCKED (FCOM PRO-ABN-ENG l.80848-80910), inhibited in phase 8, phases 4 and 5 in
+      // reverseUnlockedShown
+      flightPhaseInhib: [8],
+      simVarIsActive: this.reverseUnlockedShown[1],
+      whichCodeToReturn: () =>
+        reverseUnlockedLines(this.fwcFlightPhase.get(), this.fadecAutoIdle[1], this.thr2TLA.get() === 0),
+      codesToReturn: ['770055201', '770055202', '770055203', '770055204', '770055205', '770055206', '770055207'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => reverseUnlockedStatus(this.aircraftOnGround.get()),
+    },
+    7700562: {
+      // ENG 2 REVERSER FAULT (FCOM PRO-ABN-ENG l.80933-80962), phases 3, 4 and 5 in reverserFaultShown
+      flightPhaseInhib: [],
+      simVarIsActive: this.reverserFaultShown[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['770056201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      inopSys: () => reverserFaultInopSys(2),
+    },
+    7700572: {
+      // ENG 2 REV PRESSURIZED (FCOM PRO-ABN-ENG l.80755-80779), inhibited in phases 4, 5, 8
+      flightPhaseInhib: [4, 5, 8],
+      simVarIsActive: this.revPressurized[1],
+      whichCodeToReturn: () => revPressurizedLines(this.fwcFlightPhase.get(), this.thr2TLA.get() === 0),
+      codesToReturn: ['770057201', '770057202', '770057203'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
     },
     7700382: {
       // ENG REV SET
@@ -8751,12 +9143,35 @@ export class PseudoFWC {
     '0000360': {
       // LAND ASAP AMBER
       flightPhaseInhib: [],
-      // also with ENG 1(2) FAIL and ENG 1(2) SHUT DOWN: "LAND ASAP" (FCOM PRO-ABN-ENG, l.79797 and l.81087)
+      // also with ENG 1(2) FAIL and ENG 1(2) SHUT DOWN: "LAND ASAP" (FCOM PRO-ABN-ENG, l.79797 and l.81087), and with
+      // ENG 1(2) THR LEVER FAULT (l.81826) and ENG 1(2) REVERSE UNLOCKED in flight (l.80895)
       simVarIsActive: MappedSubject.create(
-        ([landAsapRed, aircraftOnGround, engine1State, engine2State, eng1Fail, eng2Fail, eng1ShutDown, eng2ShutDown]) =>
+        ([
+          landAsapRed,
+          aircraftOnGround,
+          engine1State,
+          engine2State,
+          eng1Fail,
+          eng2Fail,
+          eng1ShutDown,
+          eng2ShutDown,
+          thrLever1Fault,
+          thrLever2Fault,
+          reverse1Unlocked,
+          reverse2Unlocked,
+        ]) =>
           !landAsapRed &&
           !aircraftOnGround &&
-          (engine1State === 0 || engine2State === 0 || eng1Fail || eng2Fail || eng1ShutDown || eng2ShutDown),
+          (engine1State === 0 ||
+            engine2State === 0 ||
+            eng1Fail ||
+            eng2Fail ||
+            eng1ShutDown ||
+            eng2ShutDown ||
+            thrLever1Fault ||
+            thrLever2Fault ||
+            reverse1Unlocked ||
+            reverse2Unlocked),
         this.landAsapRed,
         this.aircraftOnGround,
         this.engine1State,
@@ -8765,6 +9180,10 @@ export class PseudoFWC {
         this.engine2Fail,
         this.engine1ShutDown,
         this.engine2ShutDown,
+        this.thrLeverFaultShown[0],
+        this.thrLeverFaultShown[1],
+        this.reverseUnlockedShown[0],
+        this.reverseUnlockedShown[1],
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000036001'],
