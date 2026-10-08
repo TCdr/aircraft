@@ -17,6 +17,7 @@ import {
 } from './ActuatorIndication';
 import { MIN_VERTICAL_DEFLECTION, VerticalDeflectionIndication } from './VerticalDeflectionIndication';
 import { SDSimvars } from '../../../SDSimvarPublisher';
+import { isAileronDroopSymbolShown } from './AileronDroop';
 
 export enum AileronSide {
   Left = 'left',
@@ -39,7 +40,11 @@ interface AileronProps {
 }
 
 export class Aileron extends DisplayComponent<AileronProps> {
-  private readonly showAileronDroopSymbol = Subject.create(true);
+  /** The white aileron droop circle, in CONF 1+F, 2, 3 and FULL only (FCOM DSC-27-10-20, see isAileronDroopSymbolShown) */
+  private readonly showAileronDroopSymbol = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on('flapsConfIndex').whenChanged(),
+    0,
+  ).map(isAileronDroopSymbolShown);
 
   private readonly deflectionInfoValid = Subject.create(true);
 
