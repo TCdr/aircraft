@@ -91,7 +91,7 @@ export const AircraftPresets = () => {
                 <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">
                   {`${t('Presets.AircraftStates.Loading')} · ${AircraftPresetsList[loadPresetVar - 1]?.name ?? ''}`}
                 </span>
-                <span className="mt-1 truncate text-base font-bold text-white">
+                <span className="mt-1 truncate text-base font-bold text-m3-text">
                   {`${t('Presets.AircraftStates.CurrentProcedureStep')}: ${currentStepDescription}`}
                 </span>
               </div>

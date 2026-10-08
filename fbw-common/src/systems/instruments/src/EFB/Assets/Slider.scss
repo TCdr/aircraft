@@ -221,7 +221,8 @@ $handle-size: calc(#{$slider-height} * 3);
   height: 24px;
   font-size: 12px;
   line-height: 1;
-  color: #fff;
+  /* the legacy theme text: white on the Blue and Dark accent, black on the Light one */
+  color: var(--color-text);
   text-align: center;
   text-decoration: none;
   border-radius: 6px;

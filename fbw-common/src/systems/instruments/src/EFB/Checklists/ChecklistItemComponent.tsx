@@ -43,7 +43,7 @@ export const ChecklistItemComponent = ({ item, index }: ChecklistItemComponentPr
   const itemImproperlyUnchecked = index === firstIncompleteIdx && itemCheckedAfterIncompleteItems;
 
   // done items step back (muted name, tonal result); an open item left behind done ones is red
-  let color = 'text-white';
+  let color = 'text-m3-text';
   if (isItemCompleted && !isLine) {
     color = 'text-m3-muted';
   } else if (itemImproperlyUnchecked && !isLine) {
