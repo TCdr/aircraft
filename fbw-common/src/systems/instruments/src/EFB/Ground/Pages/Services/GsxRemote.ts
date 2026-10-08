@@ -364,6 +364,32 @@ export function gsxServiceLook(service: GsxService | undefined): GsxServiceLook 
 }
 
 /**
+ * The action chip of a turnaround step: Request while GSX offers the service, Stop while it runs and GSX lets it be
+ * triggered, none otherwise (e.g. a completed step).
+ * Remote API developer guide §8.1: canTrigger is "whether service.trigger is meaningful right now (true only when the
+ * service is available)"; its reference client triggers a service only when canTrigger. A service GSX allows to be
+ * requested again comes back as available with canTrigger, so it gets its Request chip back.
+ * Design choice: without canTrigger (not sent by an older server), Request only in the available state.
+ * @param service the service
+ */
+export function gsxTurnaroundAction(service: GsxService): 'request' | 'stop' | null {
+  const look = gsxServiceLook(service);
+  const requestable = typeof service.canTrigger === 'boolean' ? service.canTrigger : service.state === 'available';
+  if (look === 'inactive') {
+    return requestable ? 'request' : null;
+  }
+  return look === 'active' && service.canTrigger === true ? 'stop' : null;
+}
+
+/**
+ * Whether a GSX-linked button may offer Request: GSX lets the service be triggered (gsxTurnaroundAction), or GSX does
+ * not list it (the button then follows the sim)
+ */
+export function gsxRequestable(service: GsxService | undefined): boolean {
+  return service === undefined || gsxTurnaroundAction(service) === 'request';
+}
+
+/**
  * The progress of a GSX service, 0 to 1: the quantity of its status text (e.g. "12300/18000 kg" while refuelling),
  * else its passenger count; null when it has none
  */
