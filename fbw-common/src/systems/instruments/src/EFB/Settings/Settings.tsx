@@ -120,9 +120,20 @@ type SettingItemProps = {
   unrealistic?: boolean;
   groupType?: 'parent' | 'sub';
   disabled?: boolean;
+  /** A line under the name: what the setting changes, or why an entry was refused (tone error) */
+  description?: string;
+  descriptionTone?: 'error';
 };
 
-export const SettingItem: FC<SettingItemProps> = ({ name, unrealistic, groupType, disabled, children }) => {
+export const SettingItem: FC<SettingItemProps> = ({
+  name,
+  unrealistic,
+  groupType,
+  disabled,
+  description,
+  descriptionTone,
+  children,
+}) => {
   const UnrealisticHint = () => (
     <span className="ml-3 whitespace-nowrap rounded-full bg-m3-warn-container px-2 py-1 text-xs font-bold uppercase leading-none text-m3-on-warn">
       {t('Settings.Unrealistic')}
@@ -138,6 +149,18 @@ export const SettingItem: FC<SettingItemProps> = ({ name, unrealistic, groupType
           <span className="mr-3 h-3 w-3 border-b-2 border-l-2 border-m3-outline" />
           <span className="text-base font-semibold text-m3-muted">{name}</span>
           {unrealistic && <UnrealisticHint />}
+        </span>
+      ) : description ? (
+        <span className="mr-4 flex min-w-0 flex-col">
+          <span className="flex flex-row items-center">
+            <span className="text-base font-semibold text-m3-text">{name}</span>
+            {unrealistic && <UnrealisticHint />}
+          </span>
+          <span
+            className={`text-sm font-semibold ${descriptionTone === 'error' ? 'text-m3-on-error' : 'text-m3-muted'}`}
+          >
+            {description}
+          </span>
         </span>
       ) : (
         <span className="mr-4 flex flex-row items-center">
