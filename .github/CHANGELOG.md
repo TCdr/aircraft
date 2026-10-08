@@ -326,6 +326,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EFB] New flyPad failures Engine 1(2)(3)(4) compressor stall, EGT overtemperature and high vibration: a stalled engine loses thrust with a rising EGT and fluctuating N1/N3 above 60 % N1 and recovers at idle; the EGT runs above its limits at high thrust; the vibrations exceed the SD advisory - @TCdr
 1. [A380X/FWS] ENG STALL, ENG EGT OVER LIMIT and ENG N1/N2 OVER LIMIT alerts with their FCOM procedures; the amber attention getter also comes up for an EGT, N1 or N2 above its limit - @TCdr
 1. [A380X/ECAM] The EWD EGT shows a red mark at the highest EGT above the red line; the SD shows separate N1, N2 and N3 vibrations that pulse above 5 units, and the N3 in red above its limit - @TCdr
+1. [A32NX/EFB] New flyPad failures FADEC channel A / B and FADEC overheat (engines 1 and 2), thrust lever resolvers and thrust lever resolver disagree (levers 1 and 2), reverser fault, reverser unlocked and reverser pressurized (reversers 1 and 2), with the ENG FADEC A(B) FAULT, FADEC FAULT, FADEC HI TEMP, THR LEVER FAULT, THR LEVER DISAGREE, REVERSER FAULT, REVERSE UNLOCKED and REV PRESSURIZED cautions, procedures and STATUS of the FCOM; a failed thrust lever gives the FADEC idle, CLB or frozen takeoff thrust by the FCOM rules, both FADEC channels lost remove the engine data and the A/THR - @TCdr
+1. [A32NX/FADEC] Reverse thrust stays at reverse idle until the reverser is fully deployed (FCOM DSC-70-70): a reverser that does not deploy no longer gives forward thrust with the lever in reverse - @TCdr
 
 ## 2024.1.0
 

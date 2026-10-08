@@ -8,6 +8,29 @@
  * igniter failures (a320_systems engine_failure.rs, systems::engine::engine_start).
  */
 
+/** What decides whether the FADEC of an engine is powered and sends its engine data (L:A32NX_FADEC_POWERED_ENGn) */
+export interface FadecPowerInputs {
+  /** Both FADEC channels lost (L:A32NX_ENGINE_n_FADEC_FAULT, flyPad FADEC channel A + B failures) */
+  bothChannelsLost: boolean;
+  firePbPushed: boolean;
+  n2Percent: number;
+  engModeSelNorm: boolean;
+  fadecGroundPowerOn: boolean;
+  fadecTimerRunning: boolean;
+}
+
+/**
+ * Whether the FADEC is powered and sends its engine data to the displays (E/WD and SD XX when not).
+ * A FADEC with both channels lost sends nothing: A320 FCOM ENG 1(2) FADEC FAULT (a320_fcom.txt l.79652-79653), "Due to
+ * the fact that engine indications are lost, other system pages ... must be used to check engine status".
+ */
+export function isFadecPowered(inputs: FadecPowerInputs): boolean {
+  if (inputs.bothChannelsLost || inputs.firePbPushed) {
+    return false;
+  }
+  return inputs.n2Percent > 15 || !inputs.engModeSelNorm || inputs.fadecGroundPowerOn || inputs.fadecTimerRunning;
+}
+
 // FIXME move to systems host
 export class A32NX_FADEC {
   private fadecTimer = -1;
@@ -47,22 +70,14 @@ export class A32NX_FADEC {
   }
 
   isPowered() {
-    if (SimVar.GetSimVarValue(`L:A32NX_FIRE_BUTTON_ENG${this.engine}`, 'Bool') === 1) {
-      return false;
-    }
-    if (SimVar.GetSimVarValue(`TURB ENG N2:${this.engine}`, 'Percent') > 15) {
-      return true;
-    }
-    if (SimVar.GetSimVarValue('L:XMLVAR_ENG_MODE_SEL', 'Enum') !== 1) {
-      return true;
-    }
-    if (SimVar.GetSimVarValue(`L:A32NX_OVHD_FADEC_${this.engine}`, 'Bool')) {
-      return true;
-    }
-    if (this.fadecTimer > 0) {
-      return true;
-    }
-    return false;
+    return isFadecPowered({
+      bothChannelsLost: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${this.engine}_FADEC_FAULT`, 'Bool') > 0,
+      firePbPushed: SimVar.GetSimVarValue(`L:A32NX_FIRE_BUTTON_ENG${this.engine}`, 'Bool') === 1,
+      n2Percent: SimVar.GetSimVarValue(`TURB ENG N2:${this.engine}`, 'Percent'),
+      engModeSelNorm: SimVar.GetSimVarValue('L:XMLVAR_ENG_MODE_SEL', 'Enum') === 1,
+      fadecGroundPowerOn: !!SimVar.GetSimVarValue(`L:A32NX_OVHD_FADEC_${this.engine}`, 'Bool'),
+      fadecTimerRunning: this.fadecTimer > 0,
+    });
   }
 
   isDcEssPowered() {
