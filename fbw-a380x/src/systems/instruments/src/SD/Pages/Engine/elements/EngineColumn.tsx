@@ -1,15 +1,15 @@
 import { useSimVar } from '@instruments/common/simVars';
 import { EngineNumber, IgnitionActive, Position } from '@instruments/common/types';
-import React, { FC } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import DecimalValues from './DecimalValues';
 import IgnitionBorder from './IgnitionBorder';
 import NacelleTemperatureGauge from './NacelleTemperatureGauge';
 import OilPressureGauge from './OilPressureGauge';
 import OilQuantityGauge from './OilQuantityGauge';
 import StartValve from './StartValve';
-import { nacelleTemperatureVisible, startParametersVisible } from './StartParameters';
+import { StartValveFault, nacelleTemperatureVisible, startParametersVisible } from './StartParameters';
 import { oilQuantityPulses, oilTemperatureClass } from '../OilIndications';
-import { n3ClassName, vibrationClassName } from './EngineVibration';
+import { n3ClassName, n3RedCrossShown, vibrationClassName } from './EngineVibration';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
 import { areEngineParametersShown } from '../EngineParametersAvailability';
 import { fuelFilterCloggedShown } from '../FuelFilterIndication';
@@ -33,6 +33,20 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   // the igniters the FADEC energizes (fadec_a380x IgniterSelection_A380X)
   const [igniterA] = useSimVar(`L:A32NX_FADEC_IGNITER_A_ACTIVE_ENG${engine}`, 'bool', 300);
   const [igniterB] = useSimVar(`L:A32NX_FADEC_IGNITER_B_ACTIVE_ENG${engine}`, 'bool', 300);
+  // The start valve fault the FADEC start sequence detects (systems::engine::engine_start::StartValveFault)
+  const [startValveFaultValue] = useSimVar(`L:A32NX_ENGINE_${engine}_START_VALVE_FAULT`, 'number', 500);
+  const startValveFault = startValveFaultValue ?? StartValveFault.None;
+  const hasStartValveFault = startValveFault !== StartValveFault.None;
+
+  // FCOM DSC-70-90 N2: the red cross of an N3 exceedance stays until the next start of the engine on the ground
+  // (EngineVibration n3RedCrossShown). ENGINE_STATE 2 starting, 3 restarting.
+  const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engine}`, 'number', 500);
+  const [onGround] = useSimVar('SIM ON GROUND', 'bool', 500);
+  const groundStart = !!onGround && (engineState === 2 || engineState === 3);
+  const [n3RedCross, setN3RedCross] = useState(false);
+  useEffect(() => {
+    setN3RedCross((shownBefore) => n3RedCrossShown(shownBefore, N3, groundStart));
+  }, [N3, groundStart]);
   const [fadecManuallyPowered] = useSimVar(`L:A32NX_OVHD_FADEC_${engine}`, 'bool', 500);
   const [engineFirePbReleased] = useSimVar(`L:A32NX_FIRE_BUTTON_ENG${engine}`, 'bool', 500);
 
@@ -47,9 +61,8 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   });
 
   const [fuelFlow] = useSimVar(`L:A32NX_ENGINE_FF:${engine}`, 'number', 100);
-  // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state, see FuelFilterIndication
+  // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state (above), see FuelFilterIndication
   const [fuelFilterClogged] = useSimVar(`L:A32NX_ENGINE_${engine}_FUEL_FILTER_CLOGGED`, 'bool', 500);
-  const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engine}`, 'number', 500);
 
   // The rotor vibrations of the systems WASM (see EngineVibration): MSFS has a single vibration value per engine.
   const [n1Vibration] = useSimVar(`L:A32NX_ENGINE_${engine}_N1_VIBRATION`, 'number', 250);
@@ -73,6 +86,11 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
       {/* N3 */}
       <rect x={x - 55} y={y + 10} width={98} height={34} className={`LightGreyBox ${starting ? 'Show' : 'Hide'}`} />
       <DecimalValues x={x} y={y + 38} value={N3} active={fadecPowered} className={n3ClassName(N3)} />
+      {fadecPowered && n3RedCross && (
+        <text x={x + 46} y={y + 38} className="Red F25 MiddleAlign">
+          +
+        </text>
+      )}
       <path className="White SW2" d={`M${engine > 2 ? x - 96 : x + 64},${y + 28} l 26, 0`} />
       {/* Fuel Flow */}
       {!fadecPowered && (
@@ -146,10 +164,17 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
       <path className="White SW2" d={`M${engine > 2 ? x - 96 : x + 64},${y + 440} l 26, 0`} />
 
       {/* NAC / Ignition */}
-      {startParametersVisible(starting, ignition, !!igniterA, !!igniterB) && (
-        <StartValve x={x} y={y + 536} engine={engine} igniterA={!!igniterA} igniterB={!!igniterB} />
+      {startParametersVisible(starting, ignition, !!igniterA, !!igniterB, hasStartValveFault) && (
+        <StartValve
+          x={x}
+          y={y + 536}
+          engine={engine}
+          igniterA={!!igniterA}
+          igniterB={!!igniterB}
+          startValveFault={startValveFault}
+        />
       )}
-      {nacelleTemperatureVisible(!!starterValveOpen, ignition, !!igniterA, !!igniterB) && (
+      {nacelleTemperatureVisible(!!starterValveOpen, ignition, !!igniterA, !!igniterB, hasStartValveFault) && (
         <NacelleTemperatureGauge x={x} y={y + 536} engine={engine} active={fadecPowered} value={240} />
       )}
     </>
