@@ -8,6 +8,7 @@ import {
   EventBus,
   FSComponent,
   MappedSubject,
+  Subject,
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
@@ -19,6 +20,7 @@ import { Arinc429LocalVarConsumerSubject, NXDataStore, NXUnits } from '@flybywir
 import { SDSimvars } from './SDSimvarPublisher';
 import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
+import { GLoadIndication } from './GLoadIndication';
 
 export interface PermanentDataProps {
   readonly bus: EventBus;
@@ -77,11 +79,21 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
 
   private readonly normalAcc = Arinc429LocalVarConsumerSubject.create(this.sub.on('normalAccRaw'));
 
-  private readonly gLoadStyle = this.normalAcc.map(
-    (gLoad) => (gLoad.isNormalOperation() && (gLoad.value < 0.7 || gLoad.value > 1.4) ? 'inherit' : 'hidden'), // FIXME
-  );
+  private readonly fwcFlightPhase = ConsumerSubject.create(this.sub.on('fwcFlightPhase').whenChanged(), 0);
 
-  private readonly gLoadText = this.normalAcc.map((gLoad) => getValuePrefix(gLoad.value) + gLoad.value.toFixed(1));
+  /** Airborne, below 0.7 g or above 1.4 g for 2 s, kept 5 s (FCOM DSC-31-40-10, see GLoadIndication) */
+  private readonly gLoadIndication = new GLoadIndication();
+
+  private readonly gLoadShown = Subject.create(false);
+
+  private lastSimTime: number | null = null;
+
+  private readonly gLoadStyle = this.gLoadShown.map((shown) => (shown ? 'inherit' : 'hidden'));
+
+  // "XX" in amber: an abnormal G LOAD value has been measured, but the value is not available (FCOM)
+  private readonly gLoadText = this.normalAcc.map((gLoad) =>
+    gLoad.isNormalOperation() ? getValuePrefix(gLoad.value) + gLoad.value.toFixed(1) : 'XX',
+  );
 
   private readonly zuluTime = ConsumerSubject.create(this.sub.on('zuluTime'), 0);
 
@@ -137,6 +149,22 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
     super.onAfterRender(node);
 
     this.subscriptions.push(
+      this.sub.on('simTime').handle((simTime) => {
+        const deltaMs = this.lastSimTime === null ? 0 : Math.max(simTime - this.lastSimTime, 0);
+        this.lastSimTime = simTime;
+        const gLoad = this.normalAcc.get();
+        this.gLoadShown.set(
+          this.gLoadIndication.update(
+            deltaMs,
+            this.fwcFlightPhase.get(),
+            gLoad.isNormalOperation() ? gLoad.value : null,
+          ),
+        );
+      }),
+    );
+
+    this.subscriptions.push(
+      this.fwcFlightPhase,
       this.userWeight,
       this.sat,
       this.tat,

@@ -133,6 +133,15 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/BRAKES] Alternate braking without anti-skid is limited to 1 000 PSI as in the FCOM (was 1 160 PSI) - @TCdr
 1. [A32NX/BRAKES] The brake fans run when the left main gear is down and locked, also in flight before landing - @TCdr
 1. [A32NX/GPWS] The red PULL UP light comes on only for the mode 1 PULL UP and mode 2 warnings; the other GPWS alerts (SINK RATE, DON'T SINK, TOO LOW...) light the amber GPWS light - @TCdr
+1. [A380X/SD] The F/CTL page shows the aileron droop circle only in CONF 1+F, 2, 3 and FULL - @TCdr
+1. [A380X/SD] The G LOAD line shows only in flight, after more than 2 s outside 0.7-1.4 g, and stays 5 s after the G load is back to normal; XX when the value is not valid - @TCdr
+1. [A380X/FWS] HYD G(Y) SYS OVHT asks for ENG PMP A+B DISC only when turning the pumps OFF did not depressurise them - @TCdr
+1. [A380X/FWS] HYD G(Y) SYS PRESS LO: the STATUS lists BTV and CAT 3 DUAL inoperative and CAT 3 SINGLE ONLY, the Y STATUS shows TAXI WITH CARE and NO BRAKED PIVOT TURN (AVOID MAX TILLER ANGLE was shown twice), the FUEL CONSUMPT INCRSD lines show when the PRIM also failed, and Y SYS PRESS LO shows L/G GRVTY EXTN ONLY with the MAX SPEED 220 KT limitation - @TCdr
+1. [A380X/FWS] CAB PRESS EXCESS DIFF PRESS can trigger on the ground before take-off and below 800 ft before landing (flight phases 1, 8 and 9), not in cruise only - @TCdr
+1. [A380X/GPWS] Mode 4 gives TOO LOW TERRAIN above 200 kt with the gear up (4A) and above 180 kt with the flaps not in landing configuration (4B), the A380 speeds (was 190 kt and 159 kt); the alert ceiling is a flat 500 ft (4A) / 245 ft (4B) while the terrain function is available, and rises to 1 000 ft only with TERR SYS OFF or a TERR failure - @TCdr
+1. [A380X/PRESS] The cabin descent rate is limited to 300 ft/min as in the FCOM (was 350 ft/min) - @TCdr
+1. [A380X/BRAKES] The A-SKID switch OFF no longer cuts the nose wheel steering - @TCdr
+1. [A380X/BRAKES] A landing AUTO BRK mode armed on the ground stays armed after take-off; only RTO disarms 10 s after lift-off - @TCdr
 
 ## 2024.1.0
 
