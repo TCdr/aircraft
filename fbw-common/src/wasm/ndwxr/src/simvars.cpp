@@ -60,6 +60,14 @@ NamedVar g_wxrOff{"A380X_WXR_OFF"};
 NamedVar g_wxrTurbOff{"A380X_WXR_TURB_OFF"};
 NamedVar g_wxrModeMap{"A380X_WXR_MODE_MAP"};
 NamedVar g_wxrVdOff{"A380X_WXR_VD_OFF"};
+// The manual GAIN and ELEVN/TILT selections of the same page (see wxr_controls.h): GAIN MAN (bool), the GAIN
+// percentage, the ELEVN/TILT option (0 AUTO, 1 ELEVN, 2 TILT), the ELEVN altitude (feet) and the TILT angle
+// (degrees); the three values are -9999 while nothing is entered.
+NamedVar g_wxrGainMan{"A380X_WXR_GAIN_MAN"};
+NamedVar g_wxrGain{"A380X_WXR_GAIN"};
+NamedVar g_wxrElevnTiltMode{"A380X_WXR_ELEVN_TILT_MODE"};
+NamedVar g_wxrElevn{"A380X_WXR_ELEVN"};
+NamedVar g_wxrTilt{"A380X_WXR_TILT"};
 NamedVar g_vdCutMode{"A380X_VD_CUT_MODE"};
 NamedVar g_vdCutCount{"A380X_VD_CUT_COUNT"};
 
@@ -203,6 +211,16 @@ double planeAltitudeFeet() {
   return aircraft_varget(planeAltitude, feet, 0);
 }
 
+#ifdef A380X
+// The sim's height of the aircraft above the ground under it: where the WXR's manual TILT surface reaches the ground
+// (see tiltGroundRangeNm).
+double planeHeightAboveGroundFeet() {
+  static const ENUM planeAltAboveGround = get_aircraft_var_enum("PLANE ALT ABOVE GROUND");
+  static const ENUM feet = get_units_enum("feet");
+  return aircraft_varget(planeAltAboveGround, feet, 0);
+}
+#endif
+
 // ---------------------------------------------------------------------------
 // The SimBridge terrain service client: the TERR peaks box figures.
 //
@@ -306,6 +324,9 @@ void registerSimVars() {
   g_wxrTurbOff.id = register_named_variable(g_wxrTurbOff.name);
   g_wxrModeMap.id = register_named_variable(g_wxrModeMap.name);
   g_wxrVdOff.id = register_named_variable(g_wxrVdOff.name);
+  for (NamedVar* v : {&g_wxrGainMan, &g_wxrGain, &g_wxrElevnTiltMode, &g_wxrElevn, &g_wxrTilt}) {
+    v->id = register_named_variable(v->name);
+  }
   g_vdCutMode.id = register_named_variable(g_vdCutMode.name);
   g_vdCutCount.id = register_named_variable(g_vdCutCount.name);
   g_vdCutTrackChangeNm.id = register_named_variable(g_vdCutTrackChangeNm.name);

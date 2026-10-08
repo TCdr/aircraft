@@ -1768,17 +1768,17 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A380X_WXR_GAIN_MAN`
     - Bool
     - Set from the GAIN button of the MFD SURV CONTROLS page. True when the gain is MANUAL (false = AUTO)
-    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): MANUAL applies L:A380X_WXR_GAIN, AUTO the calibrated gain
 
 - `L:A380X_WXR_GAIN`
     - Number (percent)
     - Set from the GAIN entry field of the MFD SURV CONTROLS page (shown with GAIN MAN), 0 to 100, -9999 when nothing is entered
-    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr) with GAIN MAN: 50 % (and no entry) = calibrated, 0 % = -16 dB, 100 % = +10 dB, the rain rate each colour starts at moves with it (turbulence unchanged)
 
 - `L:A380X_WXR_ELEVN_TILT_MODE`
     - Enum
     - Set from the ELEVN/TILT option list of the MFD SURV CONTROLS page
-    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): in ELEVN or TILT the ND hides the weather where the selected altitude or tilt reaches the ground
     -   | State | Number |
         |-------|--------|
         | AUTO  | 0      |
@@ -1788,12 +1788,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A380X_WXR_ELEVN`
     - Number (feet)
     - Set from the ELEVN entry field of the MFD SURV CONTROLS page, 0 to 60000 (FL 0 to FL 600 with the STD reference), -9999 when nothing is entered
-    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): at or below the ground under the aircraft the ND shows no weather
 
 - `L:A380X_WXR_TILT`
     - Number (degrees)
     - Set from the TILT entry field of the MFD SURV CONTROLS page, -15.0 to +15.0, -9999 when nothing is entered
-    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); the radar picture does not follow it
+    - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): a down tilt shows the weather only up to the range where the tilted surface reaches the ground
 
 - `L:A380X_WXR_MODE_MAP`
     - Bool
