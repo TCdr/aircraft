@@ -150,7 +150,12 @@
                  Detection Loop A fault on the Engine 1 or Engine Fire Detection Loop B fault on the Engine 2" (a loop
                  fault is a loop failure or its loss of DC ESS supply, from systems.wasm). -->
             <SEQ1_CODE>(L:A32NX_FIRE_TEST_ENG#ID#, bool) (L:A32NX_FIRE_ENG1_LOOP_A_FAULT, bool) #ID# 1 == and (L:A32NX_FIRE_ENG2_LOOP_B_FAULT, bool) #ID# 2 == and or ! and (L:A32NX_FIRE_DETECTED_ENG#ID#, bool) or</SEQ1_CODE>
-            <SEQ2_CODE>(A:ENG FAILED:#ID#, bool)</SEQ2_CODE>
+            <!-- ENG MASTER panel FAULT light (A320 FCOM DSC-70-90-20 l.63944-63948): "This amber light comes on ... if
+                 there is: - The position of the HP fuel shutoff valve is abnormal, or - The automatic start sequence of the
+                 associated engine aborts, or - There is a malfunction of the thrust control." The FADEC start sequence of
+                 systems.wasm (systems::engine::engine_start) lights it for an aborted automatic start. It followed the MSFS
+                 engine failure (A:ENG FAILED) before, which a flameout does not light. -->
+            <SEQ2_CODE>(L:A32NX_ENGINE_#ID#_FAULT_LIGHT, bool)</SEQ2_CODE>
         </UseTemplate>
     </Template>
 </ModelBehaviors>

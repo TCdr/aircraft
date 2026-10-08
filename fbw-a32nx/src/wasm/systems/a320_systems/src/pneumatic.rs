@@ -13,6 +13,7 @@ use uom::si::{
 use systems::{
     accept_iterable,
     air_conditioning::PackFlowControllers,
+    engine::engine_start::EngineStartValveSupervision,
     overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
     pneumatic::{
         valve::*, BleedMonitoringComputerChannelOperationMode,
@@ -157,8 +158,8 @@ impl A320Pneumatic {
             cross_bleed_valve: CrossBleedValve::new(Ratio::new::<ratio>(0.4)),
             fadec: FullAuthorityDigitalEngineControl::new(context),
             engine_starter_valve_controllers: [
-                EngineStarterValveController::new(1),
-                EngineStarterValveController::new(2),
+                EngineStarterValveController::new(context, 1),
+                EngineStarterValveController::new(context, 2),
             ],
             apu_compression_chamber: CompressionChamber::new(Volume::new::<cubic_meter>(5.)),
             apu_bleed_air_valve: DefaultValve::new_closed(),
@@ -281,7 +282,7 @@ impl A320Pneumatic {
         bmc_two.check_for_failure(bmc_one);
 
         for controller in self.engine_starter_valve_controllers.iter_mut() {
-            controller.update(&self.fadec);
+            controller.update(context, &self.fadec);
         }
 
         for (engine_system, hydraulic_valve) in self
@@ -411,6 +412,7 @@ impl SimulationElement for A320Pneumatic {
         self.fadec.accept(visitor);
         self.wing_anti_ice.accept(visitor);
 
+        accept_iterable!(self.engine_starter_valve_controllers, visitor);
         accept_iterable!(self.bleed_monitoring_computers, visitor);
         accept_iterable!(self.engine_systems, visitor);
         accept_iterable!(self.packs, visitor);
@@ -455,34 +457,60 @@ impl ReservoirAirPressure for A320Pneumatic {
     }
 }
 
+/// The FADEC control of the engine start valve. The start sequence (engine_failure.rs,
+/// systems::engine::engine_start) commands it for the ground start, the cranks and the abort; the
+/// schedule of the engine states covers the in-flight starts. The valve can be stuck (flyPad failures)
+/// and the FADEC detects a valve that does not follow its command (ENG 1(2) START VALVE FAULT).
 struct EngineStarterValveController {
     number: usize,
     engine_state: EngineState,
     engine_n2_percent: f64,
+    supervision: EngineStartValveSupervision,
+    is_open: bool,
 }
 impl ControllerSignal<EngineStarterValveSignal> for EngineStarterValveController {
     fn signal(&self) -> Option<EngineStarterValveSignal> {
-        match self.engine_state {
-            //FIXME should start at around 60% N2 and complete at 65% N2 because of traveltime of valve
-            EngineState::Starting | EngineState::Restarting if self.engine_n2_percent < 65. => {
-                Some(EngineStarterValveSignal::new_open())
-            }
-            _ => Some(EngineStarterValveSignal::new_closed()),
+        if self.is_open {
+            Some(EngineStarterValveSignal::new_open())
+        } else {
+            Some(EngineStarterValveSignal::new_closed())
         }
     }
 }
 impl EngineStarterValveController {
-    fn new(number: usize) -> Self {
+    /// A320 FCOM DSC-70-80-40 (a320_fcom.txt l.63711-63713): "When N2 > 50 %: The engine start valve
+    /// closes". The valve stayed open to 65 % N2 before.
+    const START_VALVE_CLOSING_N2_PERCENT: f64 = 50.;
+
+    fn new(context: &mut InitContext, number: usize) -> Self {
         Self {
             number,
             engine_state: EngineState::Off,
             engine_n2_percent: 0.,
+            supervision: EngineStartValveSupervision::new(context, number),
+            is_open: false,
         }
     }
 
-    fn update(&mut self, fadec: &FullAuthorityDigitalEngineControl) {
+    fn update(&mut self, context: &UpdateContext, fadec: &FullAuthorityDigitalEngineControl) {
         self.engine_state = fadec.engine_state(self.number);
         self.engine_n2_percent = fadec.engine_n2_percent(self.number);
+
+        let schedule_open = matches!(
+            self.engine_state,
+            EngineState::Starting | EngineState::Restarting
+        ) && self.engine_n2_percent < Self::START_VALVE_CLOSING_N2_PERCENT;
+        let commanded_open = self.supervision.commanded_open(schedule_open);
+        self.is_open = self.supervision.position_open(commanded_open);
+        self.supervision
+            .monitor(context.delta(), commanded_open, self.is_open);
+    }
+}
+impl SimulationElement for EngineStarterValveController {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.supervision.accept(visitor);
+
+        visitor.visit(self);
     }
 }
 
@@ -3539,6 +3567,54 @@ pub mod tests {
 
         assert!(test_bed.es_valve_is_open(1));
         assert!(test_bed.es_valve_is_open(2));
+    }
+
+    #[test]
+    fn the_start_valve_closes_above_50_percent_n2() {
+        // A320 FCOM DSC-70-80-40: "When N2 > 50 %: The engine start valve closes"
+        let mut test_bed = test_bed_with().start_eng1().stop_eng2().and_run();
+        test_bed.write_by_name("ENGINE_N2:1", 49.);
+        test_bed = test_bed.and_run();
+        assert!(test_bed.es_valve_is_open(1));
+
+        test_bed.write_by_name("ENGINE_N2:1", 52.);
+        test_bed = test_bed.and_run();
+        assert!(!test_bed.es_valve_is_open(1));
+    }
+
+    #[test]
+    fn the_start_sequence_opens_the_start_valve_of_an_engine_off_for_a_crank() {
+        let mut test_bed = test_bed_with().stop_eng1().stop_eng2().and_run();
+        test_bed.write_by_name("ENGINE_1_START_VALVE_COMMAND", 1.);
+        test_bed = test_bed.and_run();
+
+        assert!(test_bed.es_valve_is_open(1));
+        assert!(!test_bed.es_valve_is_open(2));
+    }
+
+    #[test]
+    fn a_start_valve_stuck_closed_does_not_open_and_is_reported() {
+        let mut test_bed = test_bed_with().stop_eng1().stop_eng2().and_run();
+        test_bed.fail(FailureType::EngineStartValveStuckClosed(1));
+        test_bed = test_bed.start_eng1().and_run();
+        test_bed.run_multiple_frames(Duration::from_secs(6));
+
+        assert!(!test_bed.es_valve_is_open(1));
+        let fault: f64 = test_bed.read_by_name("ENGINE_1_START_VALVE_FAULT");
+        assert_eq!(fault, 1.);
+    }
+
+    #[test]
+    fn a_start_valve_stuck_open_stays_open_and_is_reported() {
+        let mut test_bed = test_bed_with().idle_eng1().idle_eng2().and_run();
+        test_bed.fail(FailureType::EngineStartValveStuckOpen(2));
+        test_bed = test_bed.and_run();
+        test_bed.run_multiple_frames(Duration::from_secs(6));
+
+        assert!(!test_bed.es_valve_is_open(1));
+        assert!(test_bed.es_valve_is_open(2));
+        let fault: f64 = test_bed.read_by_name("ENGINE_2_START_VALVE_FAULT");
+        assert_eq!(fault, 2.);
     }
 
     #[test]

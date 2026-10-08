@@ -170,11 +170,11 @@
 
 - A32NX_ENGMANSTART1_TOGGLE
     - Bool
-    - True if manual engine 1 start on
+    - True if manual engine 1 start on (ENG MAN START pb): manual start, dry and wet crank (systems WASM start sequence)
 
 - A32NX_ENGMANSTART2_TOGGLE
     - Bool
-    - True if manual engine 2 start on
+    - True if manual engine 2 start on (ENG MAN START pb): manual start, dry and wet crank (systems WASM start sequence)
 
 - A32NX_VENTILATION_BLOWER_FAULT
     - Bool
@@ -2404,11 +2404,11 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_FADEC_IGNITER_A_ACTIVE_ENG{index}
     - Boolean
-    - State of igniter A on engine {index}
+    - State of igniter A on engine {index}: energized by the FADEC (start sequence or continuous ignition). Written by the systems WASM
 
 - A32NX_FADEC_IGNITER_B_ACTIVE_ENG{index}
     - Boolean
-    - State of igniter B on engine {index}
+    - State of igniter B on engine {index}: energized by the FADEC (start sequence or continuous ignition). Written by the systems WASM
 
 - A32NX_ECU_{index}_STATUS_WORD_3
     - Arinc429<Discrete>
@@ -4126,6 +4126,107 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 1
     - 2
   - N2 of the engine windmilling without combustion at the current airspeed (8 % at 270 kt), 0 on the ground. The FADEC keeps a shut down (not seized) engine at or above it in flight. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_START_PHASE
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The FADEC start sequence on the ground (systems::engine::engine_start): 0 none, 1 motoring (dry crank, or manual start before the ENG MASTER ON), 2 start attempt, 3 automatic dry crank after an aborted attempt, 4 start aborted (fuel, ignition and start valve off until the ENG MASTER OFF), 5 wet crank. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_START_ATTEMPT
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The attempt of the current start on the ground (1 to 3), 0 without a start. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_START_MANUAL
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the current start is a manual start (ENG MAN START pb ON at the ENG MASTER ON). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_START_FAULT
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The start fault the FADEC reports (ENG 1(2) START FAULT, FCOM PRO-ABN-ENG): 0 none, 1 no light up (IGNITION FAULT), 2 stall, 3 EGT over limit, 4 hung start, 5 starter fault (STARTER SHAFT SHEAR), 6 low start air pressure, 7 thrust lever not at idle, 8 starter time exceeded (not on the A320). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FAULT_LIGHT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the ENG MASTER panel FAULT light is on: the automatic start of the engine aborted (FCOM DSC-70-90-20), until the ENG MASTER OFF. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_STARTER_MOTORING
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True on the ground when the starter turns the core without fuel (start valve open with air, engine fuel cut or ENG MASTER OFF): the FADEC keeps the MSFS starter engaged. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_STARTER_FAILED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the starter of the engine has failed (flyPad failure): the starter air does not turn the engine. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_START_N2_HANG
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True during a lit start attempt with a hung start or a stall (flyPad failures): the FADEC holds the N2 below idle. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_START_EGT_OVERSHOOT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True during a lit start attempt with a hot start or a stall (flyPad failures): the FADEC raises the start EGT above its normal value. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_IGNITER_{igniter}_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - {igniter}
+    - A
+    - B
+  - True when the igniter has failed (flyPad failure): ENG 1(2) IGN FAULT. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_IGNITERS
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The igniters the FADEC energizes: 0 none, 1 A, 2 B, 3 both. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_CONTINUOUS_IGNITION
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the continuous ignition of the engine is on (ENG MODE IGN/START with the engine running; on the ground after the selector was set to NORM then back to IGN/START): IGNITION memo. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_START_VALVE_COMMAND
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The start valve command of the start sequence: 0 the schedule of the engine states (STARTING or RESTARTING below 50 % N2), 1 open, 2 closed. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_START_VALVE_FAULT
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The start valve position disagrees with its command for 5 s (ENG 1(2) START VALVE FAULT): 0 none, 1 not open, 2 not closed. Written by the systems WASM
 
 - A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_CLOSED
   - Bool

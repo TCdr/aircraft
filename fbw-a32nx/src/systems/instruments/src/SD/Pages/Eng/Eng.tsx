@@ -9,6 +9,7 @@ import { usePersistentSetting, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
+import { isStartIndicationShown } from './StartIndications';
 
 import './Eng.scss';
 
@@ -60,11 +61,15 @@ export const EngPage: FC = () => {
       </text>
       <line className="Indicator" x1={350} y1={370} x2={375} y2={372} />
 
-      <text x={300} y={425} className={`FillWhite FontSmall TextCenter ${engSelectorPosition !== 2 && 'Hidden'}`}>
+      <text
+        x={300}
+        y={425}
+        className={`FillWhite FontSmall TextCenter ${!isStartIndicationShown(engSelectorPosition) && 'Hidden'}`}
+      >
         IGN
       </text>
 
-      <SvgGroup x={0} y={0} className={`${engSelectorPosition !== 2 && 'Hidden'}`}>
+      <SvgGroup x={0} y={0} className={`${!isStartIndicationShown(engSelectorPosition) && 'Hidden'}`}>
         <line className="Indicator" x1={250} y1={488} x2={225} y2={490} />
         <text x={300} y={490} className="FillCyan FontSmall TextCenter">
           PSI
@@ -291,7 +296,7 @@ const ValveGroup = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) => 
   const inactiveVisibility = fadecOn ? 'hidden' : 'visible';
 
   return (
-    <SvgGroup x={0} y={0} className={`${engSelectorPosition !== 2 && 'Hidden'}`}>
+    <SvgGroup x={0} y={0} className={`${!isStartIndicationShown(engSelectorPosition) && 'Hidden'}`}>
       <text x={x - 7} y={y} className={`FillGreen FontMedium TextCenter ${!igniterAactive && 'Hidden'}`}>
         A
       </text>

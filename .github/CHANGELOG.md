@@ -296,6 +296,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] An in-flight engine relight follows the FCOM relight envelope (windmilling, starter assisted and quick relight zones, multiple-engine limits); a shut down engine windmills in flight, shows no fuel flow and its oil pressure falls with N3; both igniters during an in-flight relight; the start valve stays closed for a windmilling start and the engine pumps are depressurised meanwhile - @TCdr
 1. [A380X/FWS] New ENG TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE cautions with their FCOM lines, STATUS and LAND ANSA; ENG FAIL shows RELIGHT PROC APPLY when more than two engines failed; ENG SHUT DOWN adds BTV and CAT 3 DUAL to the STATUS; ALL ENGINES FAILURE is renamed ALL ENG FLAME OUT as in the FCOM - @TCdr
 1. [A380X/FWS] ENG 3 and ENG 4 FAIL no longer come up during an engine start or a relight attempt that has not lit up, and their THR LEVER IDLE lines read their own thrust lever (they read engine 2's) - @TCdr
+1. [A32NX/EFB] New flyPad failures for engine ignition and starting: Engine 1(2) igniter A or B, start valve stuck closed or stuck open, hot start, hung start, stall during the start and starter shaft shear - @TCdr
+1. [A32NX/FADEC] The automatic engine start follows the FCOM: one igniter (alternated between starts) from 16 % N2, fuel at 22 %, ignition off and start valve closed at 50 % N2; on the ground a start that does not light up, stalls, hangs or goes above 725 °C EGT is aborted, dry cranked for 30 s and tried again with both igniters, up to three attempts, then the ENG FAULT light comes on - @TCdr
+1. [A32NX/ENG] The ENG MAN START pushbuttons work (manual start, dry crank and wet crank), continuous ignition with the ENG MODE selector at IGN/START, and the SD ENG start indications show at CRANK too - @TCdr
+1. [A32NX/FWS] New ENG 1(2) START FAULT, START VALVE FAULT and IGN FAULT cautions with their FCOM lines and STATUS; the IGNITION memo shows when the continuous ignition is on - @TCdr
 
 ## 2024.1.0
 
