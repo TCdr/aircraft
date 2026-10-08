@@ -83,17 +83,19 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .with_engine_anti_ice(4)?
     .with_wing_anti_ice()?
     .with_fuel_pumps(1..=21)?
-    // The engine fuel is cut when the engine starves (its LP fuel valve is closed and the fuel left
-    // downstream of it is burned, see a380_systems fuel/engine_lp_valves.rs), and by a flameout or
-    // seizure failure until a relight lights it up (a380_systems engine_failure.rs). Fuel valves 60 to
-    // 63 of flight_model.cfg feed the engines 1 to 4 in series after their Extra tanks: closing them
-    // stops the MSFS combustion exactly when the fuel is cut. The ENG MASTER valves 1 to 4 are not used
-    // for this: they move the ENG MASTER switches and toggle the MSFS starters.
+    // Fuel valves 60 to 63 of flight_model.cfg feed the engines 1 to 4 in series after their Extra
+    // tanks: they are the engine HP fuel valves, and closing one stops the MSFS combustion at once.
+    // The HP fuel valve is closed (a380_systems engine_failure.rs) while the ENG MASTER is OFF (FCOM
+    // DSC-70-30 ENGINE SHUTDOWN: "The FADEC closes the LP and HP fuel valves") and while the engine
+    // fuel is cut: the engine starves (its LP fuel valve is closed and the fuel left downstream of it
+    // is burned, see a380_systems fuel/engine_lp_valves.rs), or a flameout or seizure failure until a
+    // relight lights it up. The ENG MASTER valves 1 to 4 (the LP valves) are upstream of the Extra
+    // tanks, which MSFS does not burn: closing them alone left MSFS burning for 20 to 60 s.
     .with_fuel_valves_closed_while([
-        (Variable::named("ENGINE_1_FUEL_CUT"), 60),
-        (Variable::named("ENGINE_2_FUEL_CUT"), 61),
-        (Variable::named("ENGINE_3_FUEL_CUT"), 62),
-        (Variable::named("ENGINE_4_FUEL_CUT"), 63),
+        (Variable::named("ENGINE_1_HP_FUEL_VALVE_CLOSED"), 60),
+        (Variable::named("ENGINE_2_HP_FUEL_VALVE_CLOSED"), 61),
+        (Variable::named("ENGINE_3_HP_FUEL_VALVE_CLOSED"), 62),
+        (Variable::named("ENGINE_4_HP_FUEL_VALVE_CLOSED"), 63),
     ])?
     .with_failures([
         (21_000, FailureType::RapidDecompression),
