@@ -6,3 +6,5 @@ cd "$(dirname "$0")"
 mkdir -p ../obj
 clang++ -std=c++20 -Wall -Wextra -Werror relight_start_test.cpp -o ../obj/relight_start_test
 ../obj/relight_start_test
+clang++ -std=c++20 -Wall -Wextra -Werror auto_relight_test.cpp -o ../obj/auto_relight_test
+../obj/auto_relight_test

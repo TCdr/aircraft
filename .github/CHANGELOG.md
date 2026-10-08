@@ -128,6 +128,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New ENG TWO ENGS OUT ON SAME SIDE and ON OPPOSITE SIDE cautions with their FCOM lines, STATUS and LAND ANSA; ENG FAIL shows RELIGHT PROC APPLY when more than two engines failed; ENG SHUT DOWN adds BTV and CAT 3 DUAL to the STATUS; ALL ENGINES FAILURE is renamed ALL ENG FLAME OUT as in the FCOM - @TCdr
 1. [A380X/FWS] ENG 3 and ENG 4 FAIL no longer come up during an engine start or a relight attempt that has not lit up, and their THR LEVER IDLE lines read their own thrust lever (they read engine 2's) - @TCdr
 1. [A380X/FADEC] An engine started in flight no longer overshoots to 97.5 % N3 at the end of the start: it stabilises at idle, then accelerates to the thrust lever or A/THR demand - @TCdr
+1. [A380X/FADEC] Automatic relight: when an engine flames out with its ENG MASTER ON, the FADEC turns on both igniters whatever the ENG START selector position and keeps them on until 60 s after the engine relights (FCOM AUTO RELIGHT); not with the ENG MASTER OFF, the ENG FIRE pb released or a flyPad flameout or seizure failure - @TCdr
 
 ## 2024.1.0
 
