@@ -32,15 +32,28 @@ struct EngineConditions {
   bool   firePbReleased    = false;
   bool   ignStartSelected  = false;
   bool   fadecBothIgniters = false;
-  double n3                = 62.0;
-  double n1                = 20.0;
+  // the ground start sequence of the systems WASM: START_PHASE not 0, IGNITERS bit 0 A, bit 1 B
+  bool   startSequenceActive   = false;
+  int    startSequenceIgniters = 0;
+  double n3                    = 62.0;
+  double n1                    = 20.0;
 };
 
 static constexpr double FRAME_SECONDS = 1.0 / 30.0;
 
 static IgniterSelection_A380X::Inputs inputsOf(const EngineConditions& c) {
-  return {c.simOnGround, c.running, c.starting, c.masterOn, c.firePbReleased, c.ignStartSelected, c.fadecBothIgniters,
-          c.n3,          c.n1,      FRAME_SECONDS};
+  return {c.simOnGround,
+          c.running,
+          c.starting,
+          c.masterOn,
+          c.firePbReleased,
+          c.ignStartSelected,
+          c.fadecBothIgniters,
+          c.startSequenceActive,
+          c.startSequenceIgniters,
+          c.n3,
+          c.n1,
+          FRAME_SECONDS};
 }
 
 /// Runs the FADEC for this time with constant conditions; returns the igniters of the last frame.
@@ -52,60 +65,79 @@ static Igniters run(IgniterSelection_A380X& selection, const EngineConditions& c
   return igniters;
 }
 
-/// One automatic start on the ground with the selector at IGN START: returns the igniters seen at 10, 30 and 60 % N3.
-struct GroundStart {
-  Igniters at10;
-  Igniters at30;
-  Igniters at60;
-};
-
-static GroundStart groundStart(IgniterSelection_A380X& selection) {
+/// One automatic start on the ground with the selector at IGN START, the start sequence of the systems WASM energizing
+/// igniter A from 20 % to 58 % N3, then the engine runs.
+static void groundStart(IgniterSelection_A380X& selection) {
   EngineConditions c;
-  c.running          = false;
-  c.starting         = true;
-  c.ignStartSelected = true;
-  c.n3               = 10.0;
-  GroundStart start{};
-  start.at10 = run(selection, c, 1.0);
-  c.n3       = 30.0;
-  start.at30 = run(selection, c, 1.0);
-  c.n3       = 60.0;
-  start.at60 = run(selection, c, 1.0);
-  c.starting = false;
-  c.running  = true;
+  c.running             = false;
+  c.starting            = true;
+  c.ignStartSelected    = true;
+  c.startSequenceActive = true;
+  c.n3                  = 10.0;
   run(selection, c, 1.0);
-  return start;
+  c.n3                    = 30.0;
+  c.startSequenceIgniters = 1;
+  run(selection, c, 1.0);
+  c.n3                    = 60.0;
+  c.startSequenceIgniters = 0;
+  run(selection, c, 1.0);
+  c.starting            = false;
+  c.running             = true;
+  c.startSequenceActive = false;
+  run(selection, c, 1.0);
 }
 
-// FCOM DSC-70-80-20: "Only one igniter operates for an automatic start", from 20 % to 58 % N2 (the FBW N3)
-static void testGroundAutomaticStartUsesOneIgniterBetween20And58Percent() {
-  IgniterSelection_A380X selection;
-  const GroundStart      start = groundStart(selection);
-  expect(is(start.at10, false, false), "ground start: no igniter below 20 % N3");
-  expect(is(start.at30, true, false), "ground start: igniter A at 30 % N3");
-  expect(is(start.at60, false, false), "ground start: igniter off above 58 % N3");
-}
-
-// Design choice: the automatic starts alternate igniter A and igniter B
-static void testGroundStartsAlternateTheIgniters() {
-  IgniterSelection_A380X selection;
-  expect(is(groundStart(selection).at30, true, false), "1st ground start: igniter A");
-  expect(is(groundStart(selection).at30, false, true), "2nd ground start: igniter B");
-  expect(is(groundStart(selection).at30, true, false), "3rd ground start: igniter A again");
-}
-
-// A start aborted before the igniter came on does not change the igniter of the next start
-static void testAStartWithoutIgnitionKeepsTheIgniter() {
+// The ground start shows the igniters of the start sequence of the systems WASM (one source of truth with the igniter
+// failures): none, A, B (the start sequence alternates them) or A + B (new automatic attempt), whatever the N3
+static void testGroundStartFollowsTheStartSequence() {
   IgniterSelection_A380X selection;
   EngineConditions       c;
-  c.running  = false;
-  c.starting = true;
-  c.n3       = 10.0;
-  run(selection, c, 2.0);
-  c.starting = false;
-  c.masterOn = false;
-  run(selection, c, 2.0);
-  expect(is(groundStart(selection).at30, true, false), "aborted dry start: next start still uses igniter A");
+  c.running             = false;
+  c.starting            = true;
+  c.startSequenceActive = true;
+  c.n3                  = 30.0;
+  expect(is(run(selection, c, 1.0), false, false), "ground start: no igniter while the start sequence energizes none");
+  c.startSequenceIgniters = 1;
+  expect(is(run(selection, c, 1.0), true, false), "ground start: igniter A of the start sequence");
+  c.startSequenceIgniters = 2;
+  expect(is(run(selection, c, 1.0), false, true), "ground start: igniter B of the start sequence");
+  c.startSequenceIgniters = 3;
+  c.n3                    = 10.0;
+  expect(is(run(selection, c, 1.0), true, true), "ground start: A + B of a new automatic attempt");
+  // between two automatic attempts the FBW engine state is no longer STARTING but the start sequence still runs
+  c.starting              = false;
+  c.startSequenceIgniters = 0;
+  expect(is(run(selection, c, 1.0), false, false), "automatic dry crank: no igniter");
+  c.startSequenceIgniters = 3;
+  expect(is(run(selection, c, 1.0), true, true), "start sequence running, FBW state not STARTING: still its igniters");
+}
+
+// The start sequence igniters still obey the FADEC supply and the ENG MASTER, and the auto relight selects both
+static void testGroundStartIgnitersInhibitionsAndAutoRelight() {
+  IgniterSelection_A380X selection;
+  EngineConditions       c;
+  c.running               = false;
+  c.starting              = true;
+  c.startSequenceActive   = true;
+  c.startSequenceIgniters = 1;
+  c.masterOn              = false;
+  expect(is(run(selection, c, 1.0), false, false), "ground start, ENG MASTER OFF: no igniter");
+  c.masterOn       = true;
+  c.firePbReleased = true;
+  expect(is(run(selection, c, 1.0), false, false), "ground start, ENG FIRE pb released: no igniter");
+  c.firePbReleased    = false;
+  c.fadecBothIgniters = true;
+  expect(is(run(selection, c, 1.0), true, true), "auto relight on the ground: A + B over the start sequence igniter");
+}
+
+// In flight the start sequence of the systems WASM does not run: an in-flight start shows A + B (below)
+static void testInFlightIgnoresTheGroundStartSequence() {
+  IgniterSelection_A380X selection;
+  EngineConditions       c;
+  c.simOnGround           = false;
+  c.startSequenceActive   = true;
+  c.startSequenceIgniters = 1;
+  expect(is(run(selection, c, 1.0), false, false), "in flight, engine running at NORM: no igniter");
 }
 
 // FCOM DSC-70-80-20: in flight "Both igniters are selected, when ENG MASTER lever is set to ON", at any N2
@@ -213,9 +245,9 @@ static void testQuickRelight() {
 }
 
 int main() {
-  testGroundAutomaticStartUsesOneIgniterBetween20And58Percent();
-  testGroundStartsAlternateTheIgniters();
-  testAStartWithoutIgnitionKeepsTheIgniter();
+  testGroundStartFollowsTheStartSequence();
+  testGroundStartIgnitersInhibitionsAndAutoRelight();
+  testInFlightIgnoresTheGroundStartSequence();
   testInFlightStartUsesBothIgniters();
   testFadecBothIgnitersAndInhibitions();
   testContinuousIgnitionInFlight();
