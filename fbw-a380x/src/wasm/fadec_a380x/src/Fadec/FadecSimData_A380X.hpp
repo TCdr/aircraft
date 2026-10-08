@@ -5,6 +5,7 @@
 #define FLYBYWIRE_AIRCRAFT_FADECSIMDATA_A380X_HPP
 
 #include <MSFS/Legacy/gauges.h>
+#include <string>
 
 #include "DataManager.h"
 
@@ -234,6 +235,10 @@ class FadecSimData_A380X {
   NamedVariablePtr engineIgniterB[4];         // Bool - igniter B energized (SD ENGINE page ignition indication)
   NamedVariablePtr engineOilLeak[4];          // Bool - oil leak failure: the oil system loses oil (systems WASM)
   NamedVariablePtr engineOilOverheat[4];      // Bool - oil overheat failure: the oil is not cooled enough (systems WASM)
+  // Stall and EGT overtemperature failures of a running engine (systems WASM, a380_systems engine_malfunction.rs)
+  NamedVariablePtr engineEgtOffset[4];  // Celsius - added to the EGT
+  NamedVariablePtr engineN1Offset[4];   // Percent - added to the N1
+  NamedVariablePtr engineN3Offset[4];   // Percent - added to the N3 (and the N2 derived from it)
   NamedVariablePtr engineFuelUsed[4];   // kg
   NamedVariablePtr engineIdleEGT;       // Celsius
   NamedVariablePtr engineIdleFF;
@@ -471,6 +476,13 @@ class FadecSimData_A380X {
     engineIgniterB[E2] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG2", UNITS.Bool, AUTO_WRITE);
     engineIgniterB[E3] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG3", UNITS.Bool, AUTO_WRITE);
     engineIgniterB[E4] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG4", UNITS.Bool, AUTO_WRITE);
+
+    for (int i = 0; i < 4; i++) {
+      const std::string engineNumber = std::to_string(i + 1);
+      engineEgtOffset[i] = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_EGT_OFFSET", UNITS.Number, AUTO_READ);
+      engineN1Offset[i]  = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_N1_OFFSET", UNITS.Number, AUTO_READ);
+      engineN3Offset[i]  = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_N3_OFFSET", UNITS.Number, AUTO_READ);
+    }
 
     engineFuelUsed[E1] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[E2] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);
