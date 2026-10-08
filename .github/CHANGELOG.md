@@ -115,6 +115,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL] Jettison valve stuck open and stuck closed failures with their ECAM alerts and STATUS - @TCdr
 1. [A380X] Fuel jettison: a fuel mist plume trails from each wing's jettison outlet while fuel flows out of that side - @TCdr
 1. [A380X/SD] FUEL page: during a normal fuel jettison the jettison lines and JETTISON legends are white instead of amber (amber stays for a valve open without jettison, or closed during jettison) - @TCdr
+1. [A380X/MFD] FINAL fuel and time from the A380 holding fuel flow at the ZFW (green dot + 25 kt, 1500 ft, ISA) instead of a fixed 6 t per 30 min; the EXTRA time uses the same fuel flow - @TCdr
 
 ## 2024.1.0
 
