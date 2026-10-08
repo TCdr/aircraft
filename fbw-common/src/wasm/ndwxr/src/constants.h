@@ -452,6 +452,11 @@ constexpr int kVdWarmupFrames = 15;
 constexpr int kParkAfterFrames = 120;
 constexpr int kUnparkWarmupFrames = 60;
 
+// A view's radius is sent on a change and again at this interval while the view is in use (see view_park.h): a
+// setting the engine ignored once (a view just woken up) is not left wrong for the rest of the flight. The setter is a
+// plain call; once a second keeps it out of the per-frame work.
+constexpr double kViewRadiusResendSeconds = 1.0;
+
 // Redraw pacing (see RedrawPacer): the pictures are drawn into a surface that keeps them between frames
 // (ndwxr.h), so they are redrawn at these rates instead of every frame, and at once when what the display
 // shows changes. At 20 Hz a standard rate turn (3 deg/s) moves the

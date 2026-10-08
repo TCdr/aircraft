@@ -45,31 +45,17 @@ bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted
   if (view == 0) {
     return false;
   }
-  if (park.warmupLeft > 0) {
-    --park.warmupLeft;
+  const ViewParkStep step = stepViewPark(park, wanted, kParkAfterFrames, kUnparkWarmupFrames);
+  if (step.change != ViewVisibilityChange::None) {
+    fsMapViewSetVisibility(ctx, view, step.change == ViewVisibilityChange::Show);
   }
-  if (!wanted) {
-    if (!park.parked && ++park.idleFrames >= kParkAfterFrames) {
-      fsMapViewSetVisibility(ctx, view, false);
-      park.parked = true;
-    }
-    return false;
-  }
-  park.idleFrames = 0;
-  if (park.parked) {
-    fsMapViewSetVisibility(ctx, view, true);
-    park.parked = false;
-    park.warmupLeft = kUnparkWarmupFrames;
-    // Sent again after the wake-up, in case the engine dropped the view's settings while it was invisible.
-    park.radiusSent = -1.0f;
-  }
-  return park.warmupLeft == 0;
+  return step.usable;
 }
 
-void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres) {
-  if (radiusMetres != park.radiusSent) {
+void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres, double nowSeconds) {
+  if (viewRadiusSendDue(park, radiusMetres, nowSeconds, kViewRadiusResendSeconds)) {
     fsMapViewSet2DViewRadiusInMeters(ctx, view, radiusMetres);
-    park.radiusSent = radiusMetres;
+    noteViewRadiusSent(park, radiusMetres, nowSeconds);
   }
 }
 
@@ -480,6 +466,51 @@ static ViewReadiness updateViewRoles(FsContext ctx, Instance& instance, const Nd
   return ready;
 }
 
+// The terrain view of an ND got its whole setup again (a wake-up): its colour list (standard, peaks or MAP mode)
+// and the MAP mode's range are sent again by drawTerrainLayer.
+static void forgetTerrainList(Instance& instance) {
+  instance.terrainGearState = -1;
+  instance.terrainListMode = -1;
+}
+
+// Sends the whole setup of the ND's views that woke up this frame again (see view_park.h), as they were set at
+// creation or by the last role change; the warm-up of the wake-up covers it.
+static void resendNdViewSetups(FsContext ctx, Instance& instance) {
+#ifdef A380X
+  // The pair holds the weather (role 0, at the gain last applied) or the terrain and its water mask (role 1).
+  const RadarThresholds thresholds = radarThresholdsForGain(kCalibratedThresholds, instance.appliedGainDb);
+  if (takeViewSetupDue(instance.mapViewPark)) {
+    if (instance.ndRole == 1) {
+      configureTerrainView(ctx, instance.mapView);
+      forgetTerrainList(instance);
+    } else {
+      configurePrecipView(ctx, instance.mapView, thresholds);
+    }
+  }
+  if (takeViewSetupDue(instance.mapViewHotPark)) {
+    if (instance.ndRole == 1) {
+      configureWaterMaskView(ctx, instance.mapViewHot);
+    } else {
+      configureHotView(ctx, instance.mapViewHot, thresholds);
+    }
+  }
+#else
+  if (takeViewSetupDue(instance.mapViewPark)) {
+    configurePrecipView(ctx, instance.mapView);
+  }
+  if (takeViewSetupDue(instance.mapViewHotPark)) {
+    configureHotView(ctx, instance.mapViewHot);
+  }
+  if (takeViewSetupDue(instance.mapViewTerrainPark)) {
+    configureTerrainView(ctx, instance.mapViewTerrain);
+    forgetTerrainList(instance);
+  }
+  if (takeViewSetupDue(instance.mapViewWaterPark)) {
+    configureWaterMaskView(ctx, instance.mapViewWater);
+  }
+#endif
+}
+
 // Parks the ND's views this frame does not show (see kParkAfterFrames) and wakes the ones it does; a view
 // still warming up after a wake-up is not drawn, like one still settling after a role change.
 static void updateNdViewParking(FsContext ctx, Instance& instance, const NdFrame& frame, ViewReadiness& ready) {
@@ -488,6 +519,7 @@ static void updateNdViewParking(FsContext ctx, Instance& instance, const NdFrame
   const bool pairWanted = frame.drawsAnything();
   const bool mainUsable = updateViewPark(ctx, instance.mapView, instance.mapViewPark, pairWanted);
   const bool hotUsable = updateViewPark(ctx, instance.mapViewHot, instance.mapViewHotPark, pairWanted);
+  resendNdViewSetups(ctx, instance);
   ready.precip = ready.precip && mainUsable;
   ready.hot = ready.hot && hotUsable;
   // MAP mode draws from the terrain view (the main view) only.
@@ -498,6 +530,7 @@ static void updateNdViewParking(FsContext ctx, Instance& instance, const NdFrame
   // MAP mode draws from the terrain view only; the water view is the terrain's.
   const bool terrainUsable = updateViewPark(ctx, instance.mapViewTerrain, instance.mapViewTerrainPark, frame.showTerrain || frame.showMap);
   const bool waterUsable = updateViewPark(ctx, instance.mapViewWater, instance.mapViewWaterPark, frame.showTerrain);
+  resendNdViewSetups(ctx, instance);
   ready.terrain = ready.terrain && terrainUsable && (waterUsable || !frame.showTerrain);
 #endif
 }
@@ -508,7 +541,8 @@ static void drawTerrainLayer(FsContext ctx,
                              Instance& instance,
                              const NdFrame& frame,
                              const TerrainViews& views,
-                             bool terrainReady) {
+                             bool terrainReady,
+                             double nowSeconds) {
   const float radiusMetres = frame.rangeNmForMode * kNmToMetres;
   if (frame.showTerrain) {
     if (instance.terrainPatternImage == 0) {
@@ -539,8 +573,8 @@ static void drawTerrainLayer(FsContext ctx,
       fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, static_cast<double>(kTerrainMinFeet + frame.terrainLookAheadFeet),
                                       static_cast<double>(kTerrainMaxFeet + frame.terrainLookAheadFeet));
     }
-    setViewRadius(ctx, views.terrain, *views.terrainPark, radiusMetres);
-    setViewRadius(ctx, views.water, *views.waterPark, radiusMetres);
+    setViewRadius(ctx, views.terrain, *views.terrainPark, radiusMetres, nowSeconds);
+    setViewRadius(ctx, views.water, *views.waterPark, radiusMetres, nowSeconds);
     if (terrainReady && instance.terrainPatternImage != 0) {
       drawTerrain(vg, views.terrain, views.water, instance.terrainPatternImage, frame.isRose, frame.terrainHeadingDegrees);
     }
@@ -551,7 +585,7 @@ static void drawTerrainLayer(FsContext ctx,
       fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, static_cast<double>(kMapMinFeet), static_cast<double>(kMapMaxFeet));
       instance.terrainListMode = 1;
     }
-    setViewRadius(ctx, views.terrain, *views.terrainPark, radiusMetres);
+    setViewRadius(ctx, views.terrain, *views.terrainPark, radiusMetres, nowSeconds);
     if (terrainReady) {
       drawMapMode(vg, views.terrain, frame.isRose, frame.terrainHeadingDegrees);
     }
@@ -561,10 +595,15 @@ static void drawTerrainLayer(FsContext ctx,
 // The weather: the precipitation view's green and yellow, then the hot view's red wipe and magenta. The
 // precipitation stops at frame.precipRangeFraction (the A380X's manual TILT / ELEVN in the ground, see
 // wxr_controls.h); the turbulence has its own range (the TURB function does not follow ELEVN/TILT).
-static void drawWeatherLayer(FsContext ctx, NVGcontext* vg, Instance& instance, const NdFrame& frame, const ViewReadiness& ready) {
+static void drawWeatherLayer(FsContext ctx,
+                             NVGcontext* vg,
+                             Instance& instance,
+                             const NdFrame& frame,
+                             const ViewReadiness& ready,
+                             double nowSeconds) {
   const float radiusMetres = frame.rangeNmForMode * kNmToMetres;
   if (frame.showPrecip) {
-    setViewRadius(ctx, instance.mapView, instance.mapViewPark, radiusMetres);
+    setViewRadius(ctx, instance.mapView, instance.mapViewPark, radiusMetres, nowSeconds);
     if (ready.precip) {
       drawWeatherRect(vg, instance.mapView, frame.isRose, frame.precipRangeFraction, WeatherPass::Additive, Channels{1.0f, 1.0f, 0.0f},
                       frame.sweepFraction);
@@ -576,7 +615,7 @@ static void drawWeatherLayer(FsContext ctx, NVGcontext* vg, Instance& instance, 
   // (turbulence modes, near the aircraft only); the wipe also clears the green
   // channel under the magenta, in the whole rect.
   if ((frame.showPrecip || frame.showTurb) && instance.mapViewHotReady) {
-    setViewRadius(ctx, instance.mapViewHot, instance.mapViewHotPark, radiusMetres);
+    setViewRadius(ctx, instance.mapViewHot, instance.mapViewHotPark, radiusMetres, nowSeconds);
     if (ready.hot) {
       if (frame.showPrecip) {
         drawWeatherRect(vg, instance.mapViewHot, frame.isRose, frame.precipRangeFraction, WeatherPass::Erase, Channels{0.0f, 1.0f, 0.0f},
@@ -688,8 +727,8 @@ static void drawNd(FsContext ctx, Instance& instance, const sGaugeDrawData* draw
   if (instance.layerDirty) {
     clearLayer(vg, winWidth, winHeight);
   }
-  drawTerrainLayer(ctx, vg, instance, frame, views, ready.terrain);
-  drawWeatherLayer(ctx, vg, instance, frame, ready);
+  drawTerrainLayer(ctx, vg, instance, frame, views, ready.terrain, drawData->t);
+  drawWeatherLayer(ctx, vg, instance, frame, ready, drawData->t);
 #ifdef A380X
   drawVdWeatherLayer(vg, instance, frame, ready);
 #endif
