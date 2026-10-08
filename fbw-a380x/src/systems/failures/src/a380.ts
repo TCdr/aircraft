@@ -619,7 +619,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [72, A380Failure.Eng3Seizure, 'Engine 3 seizure (no relight)'],
   [72, A380Failure.Eng4Seizure, 'Engine 4 seizure (no relight)'],
 
-  // The oil quantity falls at 2 qt/min, then the oil pressure once the tank is nearly empty (ENG OIL PRESS LO)
+  // The oil system loses 2 qt/min (the tank quantity on the SD falls about 1.6 qt/min), then the oil pressure once the tank is nearly empty (ENG OIL PRESS LO)
   [79, A380Failure.Eng1OilLeak, 'Engine 1 oil leak'],
   [79, A380Failure.Eng2OilLeak, 'Engine 2 oil leak'],
   [79, A380Failure.Eng3OilLeak, 'Engine 3 oil leak'],
