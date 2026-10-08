@@ -73,6 +73,8 @@ class EngineControl_A32NX {
 
   // Engine oil state
   double thermalEnergy[2] = {0.0, 0.0};
+  // The oil temperature of an oil overheat failure, kept by the FADEC (EngineOilFailures.hpp OverheatTracker)
+  EngineOilFailures::OverheatTracker oilOverheatTracker[2];
 
   // FLX->CLB thrust limit transition
   double transitionStartTime;
