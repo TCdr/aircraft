@@ -126,6 +126,13 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] WHEEL page: AUTO BRK no longer turns amber when an engine is off (single-engine taxi, engine failure) - @TCdr
 1. [A32NX/FWS] ALL ENGINES FAILURE: the APU START line shows below FL 250 as in the FCOM, not only below 2 500 ft radio altitude - @TCdr
 1. [ADIRS] A fast IR alignment (mode selector OFF then back to NAV within 5 s) takes 30 s as in the FCOM, not 180 s - @TCdr
+1. [A32NX/ECAM] F/CTL ALTN LAW shows MAX SPEED 320 KT (320/.77 only with a dual hydraulic low pressure) and SPD BRK DO NOT USE only with an elevator fault, without MANEUVER WITH CARE; DIRECT LAW no longer shows SPD BRK DO NOT USE next to USE SPD BRK WITH CARE - @TCdr
+1. [A32NX/ECAM] F/CTL ELAC 1(2) FAULT shows its FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE lines - @TCdr
+1. [A32NX/ECAM] The APU BLEED memo follows the APU BLEED pb-sw (APU available and pb-sw ON), no longer the bleed valve - @TCdr
+1. [A32NX/SD] The PTU symbol of the HYD page is amber only with the PTU pb-sw OFF, no longer during the automatic PTU inhibitions - @TCdr
+1. [A32NX/BRAKES] Alternate braking without anti-skid is limited to 1 000 PSI as in the FCOM (was 1 160 PSI) - @TCdr
+1. [A32NX/BRAKES] The brake fans run when the left main gear is down and locked, also in flight before landing - @TCdr
+1. [A32NX/GPWS] The red PULL UP light comes on only for the mode 1 PULL UP and mode 2 warnings; the other GPWS alerts (SINK RATE, DON'T SINK, TOO LOW...) light the amber GPWS light - @TCdr
 
 ## 2024.1.0
 
