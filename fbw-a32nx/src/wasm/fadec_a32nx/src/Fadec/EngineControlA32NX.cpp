@@ -12,6 +12,7 @@
 
 #include "EngineControlA32NX.h"
 #include "EngineRatios.hpp"
+#include "OilSystem_A32NX.hpp"
 #include "Polynomials_A32NX.hpp"
 #include "StartSequence_A32NX.hpp"
 #include "Tables1502_A32NX.hpp"
@@ -1317,11 +1318,10 @@ void EngineControl_A32NX::updateShutdownOilPressure(int engine, double imbalance
   const double n2          = simData.engineN2[engineIdx]->get();
   const double idleN2      = simData.engineIdleN2->get();
   const double offsetScale = idleN2 > 0 ? (std::min)(1.0, n2 / idleN2) : 0.0;
-  // An oil tank emptied by a leak no longer feeds the pump (EngineOilFailures.hpp)
-  const double tankFactor =
-      EngineOilFailures::pressureFactor(simData.engineOil[engineIdx]->get(), OIL_FULL_PRESSURE_TANK_QTY, OIL_NO_PRESSURE_TANK_QTY);
+  // An oil system emptied by a leak no longer feeds the pump (the oil of the whole system, never the tank reading)
+  const double oilSystemFactor = OilSystem_A32NX::pressureFactor(simData.engineOilTotal[engineIdx]->get());
   const double oilPressure =
-      (std::max)(0.0, Polynomial_A32NX::oilPressure(n2) + (oilIdleRandom - paramImbalance) * offsetScale) * tankFactor;
+      (std::max)(0.0, Polynomial_A32NX::oilPressure(n2) + (oilIdleRandom - paramImbalance) * offsetScale) * oilSystemFactor;
 
   simData.oilPsiDataPtr[engineIdx]->data().oilPsi = oilPressure;
   simData.oilPsiDataPtr[engineIdx]->writeDataToSim();
@@ -1364,7 +1364,7 @@ void EngineControl_A32NX::updateOil(int         engine,
     // An oil overheat heats the oil with the thrust instead. Its temperature is the FADEC's own: MSFS moves the oil
     // temperature it reads back with its own oil model (EngineOilFailures.hpp OverheatTracker).
     const double trackedOverheatTemperature =
-        oilOverheatTracker[engineIdx].update(oilOverheat, oilTemperaturePre, n2, idleN2, deltaTime, OIL_OVERHEAT);
+        oilOverheatTracker[engineIdx].update(oilOverheat, oilTemperaturePre, n2, idleN2, deltaTime, OilSystem_A32NX::OVERHEAT);
     if (oilOverheat) {
       oilTemperature = trackedOverheatTemperature;
     }
@@ -1374,12 +1374,11 @@ void EngineControl_A32NX::updateOil(int         engine,
   // Oil Quantity
   //--------------------------------------------
   // An oil leak takes the oil out of the whole oil system (tank and circuit)
-  oilTotalActual -= EngineOilFailures::leakedQuantity(oilLeak, n2, oilTotalActual, OIL_LEAK_RATE, deltaTime);
+  oilTotalActual -= EngineOilFailures::leakedQuantity(oilLeak, n2, oilTotalActual, OilSystem_A32NX::LEAK_RATE, deltaTime);
 
   // Calculating Oil Qty as a function of thrust
-  const double thrust          = simData.simVarsDataPtr->data().engineThrust[engineIdx] * FORCE_LB_TO_N;
-  const double oilQtyObjective = oilTotalActual * (1 - Polynomial_A32NX::oilGulpPct(thrust));
-  oilQtyActual                 = oilQtyObjective;
+  // (OilSystem_A32NX.hpp: the gulping polynomial takes the thrust in pounds)
+  oilQtyActual = OilSystem_A32NX::tankQuantity(oilTotalActual, simData.simVarsDataPtr->data().engineThrust[engineIdx]);
 
   // Oil burnt taken into account for tank and total oil
   const double oilBurn = 0.00011111 * deltaTime;
@@ -1396,9 +1395,9 @@ void EngineControl_A32NX::updateOil(int         engine,
     paramImbalance = 0;
   }
   const double simN2 = simData.simVarsDataPtr->data().simEngineN2[engineIdx];
-  // An oil tank emptied by a leak no longer feeds the pump (EngineOilFailures.hpp)
-  const double tankFactor  = EngineOilFailures::pressureFactor(oilQtyActual, OIL_FULL_PRESSURE_TANK_QTY, OIL_NO_PRESSURE_TANK_QTY);
-  const double oilPressure = (std::max)(0.0, Polynomial_A32NX::oilPressure(simN2) - paramImbalance + oilIdleRandom) * tankFactor;
+  // An oil system emptied by a leak no longer feeds the pump (the oil of the whole system, never the tank reading)
+  const double oilSystemFactor = OilSystem_A32NX::pressureFactor(oilTotalActual);
+  const double oilPressure = (std::max)(0.0, Polynomial_A32NX::oilPressure(simN2) - paramImbalance + oilIdleRandom) * oilSystemFactor;
 
   //--------------------------------------------
   // Engine Writing
