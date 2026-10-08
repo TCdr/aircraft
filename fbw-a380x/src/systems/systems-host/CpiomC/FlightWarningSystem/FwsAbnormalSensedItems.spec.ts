@@ -32,3 +32,71 @@ describe('FwsAbnormalSensed item rules', () => {
     expect(checked).not.toContain('yellowAPumpAuto');
   });
 });
+
+describe('ENG ALL ENG FLAME OUT (A380 FCOM PRO-ABN-ECAM-10-70, l.173768-174788)', () => {
+  const ata70 = readFileSync(
+    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
+    'utf-8',
+  );
+  /** One procedure of ata70.ts, from its id to the end of its object */
+  const procedure = (id: string) => {
+    const start = ata70.indexOf(`  ${id}: {`);
+    expect(start).toBeGreaterThan(0);
+    return ata70.slice(start, ata70.indexOf('\n  },', start));
+  };
+  const itemNames = (id: string) => [...procedure(id).matchAll(/name: '([^']*)'/g)].map((match) => match[1]);
+  const checkedEntries = (id: string) => {
+    const checked = alertBlock(id).split('whichItemsChecked: () => [')[1];
+    return checked
+      .slice(0, checked.indexOf('\n      ],'))
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+  };
+
+  it('"This alert inhibits the ELEC EMER CONFIG alert." (l.173795), only while it is shown', () => {
+    // not with notActiveWhenItemActive: that reads the alert condition without its flight phase inhibition
+    expect(alertBlock('240800055')).toContain('simVarIsActive: this.fws.elecEmerConfigAlert,');
+    expect(alertBlock('240800055')).toContain('notActiveWhenItemActive: [],');
+    expect(alertBlock('701800151')).toContain('flightPhaseInhib: ALL_ENG_FLAME_OUT_INHIBITED_PHASES,');
+  });
+
+  it('has one checked entry per line', () => {
+    expect(checkedEntries('701800151').length).toBe(itemNames('701800151').length);
+  });
+
+  it('RAT MAN ON ... PRESS (l.173832) is sensed with the RAT out, as in ELEC EMER CONFIG', () => {
+    expect(procedure('701800151')).toContain("{ name: 'RAT MAN ON', sensed: true, labelNotCompleted: 'PRESS' }");
+    expect(itemNames('701800151')[0]).toBe('RAT MAN ON');
+    expect(checkedEntries('701800151')[0]).toContain('this.fws.ratDeployed.get() > 0');
+  });
+
+  it('both FORCED LDG parts have L/G GRVTY (EXTN 2 MIN) ... DOWN after FOR L/G GRVTY (l.173963, 174162)', () => {
+    const names = itemNames('701800151');
+    const gravityLines = names.flatMap((name, index) => (name === 'L/G GRVTY (EXTN 2 MIN)' ? [index] : []));
+    expect(gravityLines.length).toBe(2);
+    for (const index of gravityLines) {
+      expect(names[index - 1]).toBe('FOR L/G GRVTY : MAX SPEED 220 KT');
+      expect(checkedEntries('701800151')[index]).toMatch(/^false,/);
+    }
+  });
+});
+
+describe('ENG RELIGHT IN FLIGHT (A380 FCOM l.174864-175027)', () => {
+  const ata70 = readFileSync(
+    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
+    'utf-8',
+  );
+
+  it('single engine: 30000 FT and 260 KT (l.174902-174904); multiple engines: 28000 FT and 250 KT (l.174977-174979)', () => {
+    const start = ata70.indexOf('  700900001: {');
+    const procedure = ata70.slice(start, ata70.indexOf('\n  },', start));
+    const multiple = procedure.indexOf('FOR RELIGHT (MULTIPLE ENGINES)');
+    const single = procedure.slice(0, multiple);
+    expect(single).toContain("'MAX GUARANTEED ALTITUDE : 30000 FT'");
+    expect(single).toContain("'MIN SPEED FOR WINDML RELIGHT : 260 KT'");
+    expect(procedure.slice(multiple)).toContain("'MAX GUARANTEED ALTITUDE : 28000 FT'");
+    expect(procedure.slice(multiple)).toContain("'MIN SPEED FOR WINDML RELIGHT : 250 KT'");
+    expect(procedure).not.toContain('MAX SPEED FOR WINDML RELIGHT');
+  });
+});

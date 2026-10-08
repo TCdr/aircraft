@@ -1033,11 +1033,11 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800151: {
-    // A380 FCOM PRO-ABN-ECAM-10-70 ENG ALL ENG FLAME OUT (a380_fcom.txt l.114538)
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG ALL ENG FLAME OUT (a380_fcom.txt l.173768-174788)
     title: '\x1b<2m\x1b4mENG\x1bm ALL ENG FLAME OUT',
     sensed: true,
     items: [
-      { name: 'RAT MAN ON', sensed: false, labelNotCompleted: 'PRESS' },
+      { name: 'RAT MAN ON', sensed: true, labelNotCompleted: 'PRESS' },
       { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
       { name: 'FUEL QTY', sensed: false, labelNotCompleted: 'CHECK' },
       { name: 'FUEL REMAINS', sensed: false, condition: true },
@@ -1079,6 +1079,8 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 3,
       },
       { name: 'FOR L/G GRVTY : MAX SPEED 220 KT', sensed: false, level: 3 },
+      // l.173963, as in the NO FUEL part
+      { name: 'L/G GRVTY (EXTN 2 MIN)', sensed: false, labelNotCompleted: 'DOWN', level: 3 },
       { name: 'WHEN L/G LOCKED DOWN', sensed: false, condition: true, level: 3 },
       { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 4 },
       { name: 'APPROACH SPEED : VLS', sensed: false, level: 3 },
@@ -1282,9 +1284,10 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mENG\x1bm RELIGHT IN FLIGHT',
     sensed: false,
     items: [
+      // A380 FCOM ENG RELIGHT IN FLIGHT, single engine l.174902-174904, multiple engines l.174977-174979
       { name: 'FOR RELIGHT (SINGLE ENGINE)', sensed: false, condition: true },
-      { name: 'MAX GUARANTEED ALTITUDE : 28000 FT', sensed: false, level: 1 },
-      { name: 'MAX SPEED FOR WINDML RELIGHT : 250 KT', sensed: false, level: 1 },
+      { name: 'MAX GUARANTEED ALTITUDE : 30000 FT', sensed: false, level: 1 },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false, level: 1 },
       { name: 'THR LEVER (AFFECTED)', sensed: false, labelNotCompleted: 'IDLE', level: 1 },
       { name: 'ENG (AFFECTED) MASTER', sensed: false, labelNotCompleted: 'OFF', level: 1 },
       { name: 'XBLEED', sensed: true, labelNotCompleted: 'OPEN', level: 1 },
@@ -1303,7 +1306,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'THR LEVER (AFFECTED)', sensed: false, labelNotCompleted: 'IDLE', level: 1 },
       { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'IGN START', level: 1 },
       { name: 'MAX GUARANTEED ALTITUDE : 28000 FT', sensed: false, level: 1 },
-      { name: 'MAX SPEED FOR WINDML RELIGHT : 250 KT', sensed: false, level: 1 },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 250 KT', sensed: false, level: 1 },
       { name: 'XBLEED', sensed: true, labelNotCompleted: 'OPEN', level: 1 },
       { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
       { name: 'ENG (AFFECTED) MASTERS', sensed: false, labelNotCompleted: 'OFF 30S THEN ON', level: 1 },

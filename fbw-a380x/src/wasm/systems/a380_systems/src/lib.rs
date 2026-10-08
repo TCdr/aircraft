@@ -6,6 +6,8 @@ mod avionics_data_communication_network;
 mod control_display_system;
 mod electrical;
 mod engine_failure;
+#[cfg(test)]
+mod engine_out_aircraft_tests;
 mod fire_and_smoke_protection;
 mod fuel;
 pub mod hydraulic;
