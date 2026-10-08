@@ -5,6 +5,7 @@
 
 #include "Arinc429.h"
 #include "CalculatedRadioReceiver.h"
+#include "EngineStartThrottleHold.h"
 #include "FadecComputer.h"
 #include "InterpolatingLookupTable.h"
 #include "LocalVariable.h"
@@ -161,6 +162,8 @@ class FlyByWireInterface {
   FadecComputer::ExternalInputs_FadecComputer_T fadecInputs[2];
   athr_output fadecOutputs[2];
   base_ecu_bus fadecBusOutputs[2];
+  // MSFS throttle of an engine out or (re)starting in flight, and its acceleration from idle once it runs
+  EngineStartThrottleHold engineStartThrottleHolds[2];
 
   InterpolatingLookupTable throttleLookupTable;
 
@@ -241,6 +244,8 @@ class FlyByWireInterface {
 
   std::unique_ptr<LocalVariable> thrustLeverAngle_1;
   std::unique_ptr<LocalVariable> thrustLeverAngle_2;
+  std::unique_ptr<LocalVariable> idEngineState[2];
+  std::unique_ptr<LocalVariable> idEngineIdleN2;
   std::unique_ptr<LocalVariable> idAutothrustN1_TLA_1;
   std::unique_ptr<LocalVariable> idAutothrustN1_TLA_2;
   std::unique_ptr<LocalVariable> idAutothrustReverse_1;

@@ -88,6 +88,8 @@ struct SimData {
   double engine_N1_2_percent;
   double corrected_engine_N1_1_percent;
   double corrected_engine_N1_2_percent;
+  double engine_N2_1_percent;
+  double engine_N2_2_percent;
   double engineEngineOilTemperature_1;
   double engineEngineOilTemperature_2;
   double engineEngineOilPressure_1;
