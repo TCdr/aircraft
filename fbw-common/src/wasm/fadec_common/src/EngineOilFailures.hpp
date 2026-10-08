@@ -77,18 +77,25 @@ struct OverheatParameters {
   double idleTemperature;
   /** The temperature reached at 100 % core speed, in degree Celsius */
   double fullThrustTemperature;
-  /** The time constant of the approach to that temperature, in seconds */
+  /** The time constant of the approach to that temperature, and of the cooling down once the failure is cleared, in seconds */
   double timeConstantSeconds;
+  /**
+   * The shape of the rise from idle to full thrust: the target rises with (core speed fraction above idle)^exponent. 1 is
+   * linear in core speed; 0.5 rises quickly just above idle, so that the target is above the alert at cruise thrust and
+   * below it only near idle.
+   */
+  double thrustCurveExponent = 1.0;
 };
 
 /**
  * @brief The temperature the oil of an overheating engine heads to: from idleTemperature at the idle core speed to
- * fullThrustTemperature at 100 % core speed, linear in between.
+ * fullThrustTemperature at 100 % core speed, along the thrustCurveExponent curve in between.
  */
 inline double overheatTargetTemperature(double coreSpeedPercent, double idleCoreSpeedPercent, const OverheatParameters& parameters) {
   const double span     = 100.0 - idleCoreSpeedPercent;
   const double fraction = span > 0.0 ? std::clamp((coreSpeedPercent - idleCoreSpeedPercent) / span, 0.0, 1.0) : 1.0;
-  return parameters.idleTemperature + (parameters.fullThrustTemperature - parameters.idleTemperature) * fraction;
+  const double curve    = std::pow(fraction, parameters.thrustCurveExponent);
+  return parameters.idleTemperature + (parameters.fullThrustTemperature - parameters.idleTemperature) * curve;
 }
 
 /**
@@ -114,34 +121,63 @@ inline double overheatTemperature(double previousTemperature,
  * balance, far below its target: sim test 2026-10-06, A380X engine 4 at FL200 and 84 % N3, the oil temperature stopped
  * at 128 C for a 203 C target, and ENG OIL TEMP HI (196 C) never came up. The tracker takes the value read back only
  * when the failure begins, then integrates its own temperature and the FADEC writes it every update.
+ *
+ * Once the failure is cleared the tracker cools its temperature down towards the normal oil temperature of the FADEC, with
+ * the time constant of the overheat, and hands the oil temperature back to the FADEC within HANDBACK_DEGREES of it. Handing it
+ * back at once made the oil temperature drop from 196 C to 84 C in one update (sim test 2026-10-06/07, A380X; 158 C to 85 C on
+ * the A32NX): the normal oil model of the FADEC caps it at its maximum normal temperature. The OIL TEMP HI alerts, which
+ * watch the temperature, therefore stay until the oil has really cooled below their threshold.
  */
 class OverheatTracker {
  public:
+  /** Design choice: within 1 C of the normal oil temperature the difference no longer shows on the SD */
+  static constexpr double HANDBACK_DEGREES = 1.0;
+
   /**
    * @param overheating The oil overheat failure of the engine is active.
-   * @param simTemperature The oil temperature read back from MSFS, in degree Celsius.
-   * @return The oil temperature to write while overheating, or simTemperature without the failure.
+   * @param simTemperature The oil temperature read back from MSFS, in degree Celsius: the start of a new overheat.
+   * @param normalTemperature The oil temperature the FADEC writes without the failure, in degree Celsius.
+   * @return The oil temperature to write: the tracker's while overheating or cooling down, else normalTemperature.
    */
   double update(bool                      overheating,
                 double                    simTemperature,
+                double                    normalTemperature,
                 double                    coreSpeedPercent,
                 double                    idleCoreSpeedPercent,
                 double                    deltaTimeSeconds,
                 const OverheatParameters& parameters) {
-    if (!overheating) {
-      active = false;
-      return simTemperature;
+    if (overheating) {
+      // A failure set again while cooling down goes on from the tracker's temperature
+      if (phase == Phase::NORMAL) {
+        temperature = simTemperature;
+      }
+      phase       = Phase::OVERHEATING;
+      temperature = overheatTemperature(temperature, coreSpeedPercent, idleCoreSpeedPercent, deltaTimeSeconds, parameters);
+      return temperature;
     }
-    if (!active) {
-      active      = true;
-      temperature = simTemperature;
+    if (phase == Phase::NORMAL) {
+      return normalTemperature;
     }
-    temperature = overheatTemperature(temperature, coreSpeedPercent, idleCoreSpeedPercent, deltaTimeSeconds, parameters);
+    phase              = Phase::COOLING_DOWN;
+    const double blend = 1.0 - std::exp(-deltaTimeSeconds / parameters.timeConstantSeconds);
+    temperature += (normalTemperature - temperature) * blend;
+    if (std::fabs(temperature - normalTemperature) <= HANDBACK_DEGREES) {
+      phase = Phase::NORMAL;
+      return normalTemperature;
+    }
     return temperature;
   }
 
+  /** @brief Forgets the overheat, for an engine whose oil the FADEC sets to the ambient temperature (engine off on ground). */
+  void reset() { phase = Phase::NORMAL; }
+
+  /** @return The tracker writes its own temperature (overheating or cooling down). */
+  bool isTracking() const { return phase != Phase::NORMAL; }
+
  private:
-  bool   active      = false;
+  enum class Phase { NORMAL, OVERHEATING, COOLING_DOWN };
+
+  Phase  phase       = Phase::NORMAL;
   double temperature = 0.0;
 };
 

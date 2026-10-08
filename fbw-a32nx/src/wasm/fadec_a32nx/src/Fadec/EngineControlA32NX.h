@@ -240,6 +240,7 @@ class EngineControl_A32NX {
    * @param simOnGround Whether the aircraft is on the ground.
    * @param starterMotoring The start sequence turns the core without fuel: the engine is not running.
    * @param startN2Hang A hung start or a stall holds the core below idle: the start is not over.
+   * @param simCombustion MSFS burns in the engine (GENERAL ENG COMBUSTION), read while the engine is OFF.
    * @return The current state of the engine as an enum of type EngineState.
    * @see EngineState
    */
@@ -254,7 +255,8 @@ class EngineControl_A32NX {
                                                       double ambientTemperature,
                                                       bool   simOnGround,
                                                       bool   starterMotoring,
-                                                      bool   startN2Hang);
+                                                      bool   startN2Hang,
+                                                      bool   simCombustion);
 
   /**
    * @brief This function manages the engine start procedure.

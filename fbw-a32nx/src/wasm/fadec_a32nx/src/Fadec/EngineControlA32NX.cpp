@@ -138,6 +138,11 @@ void EngineControl_A32NX::update() {
     }
 
     const bool engineStarterTurnedOff = prevEngineStarterState[engineIdx] == 1 && !engineStarter;
+    // GENERAL ENG COMBUSTION of an OFF engine: only an engine MSFS burns in is running (StartSequence_A32NX::offEngineIsRunning)
+    const bool offEngineCombustion =
+        previousEngineState == OFF &&
+        static_cast<bool>(simData.engineCombustion[engineIdx]->updateFromSim(msfsHandlerPtr->getTimeStamp(),  //
+                                                                             msfsHandlerPtr->getTickCounter()));
 
     // Set & Check Engine Status for this Cycle
     EngineState engineState = engineStateMachine(engine,                  //
@@ -151,7 +156,8 @@ void EngineControl_A32NX::update() {
                                                  ambientTemperature,      //
                                                  simOnGround,             //
                                                  starterMotoring,         //
-                                                 startN2Hang);            //
+                                                 startN2Hang,             //
+                                                 offEngineCombustion);    //
 
     // In-flight relight ignition. A320 FCOM DSC-70-80-30 (a320_fcom.txt l.63481): "In case of start attempt in flight, when
     // the ENG MASTER sw is ON, both igniters are supplied", and the windmilling quick relight works "regardless of the rotary
@@ -481,7 +487,8 @@ EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    
                                                                          double ambientTemperature,      //
                                                                          bool   simOnGround,             //
                                                                          bool   starterMotoring,         //
-                                                                         bool   startN2Hang) {           //
+                                                                         bool   startN2Hang,             //
+                                                                         bool   simCombustion) {         //
 #ifdef PROFILING
   profilerEngineStateMachine.start();
 #endif
@@ -494,7 +501,8 @@ EngineControl_A32NX::EngineState EngineControl_A32NX::engineStateMachine(int    
 
   // Current State: OFF
   if (engineState == OFF) {
-    if (StartSequence_A32NX::offEngineIsRunning(static_cast<int>(engineIgniter), engineStarter, simN2, starterMotoring)) {
+    if (StartSequence_A32NX::offEngineIsRunning(static_cast<int>(engineIgniter), engineStarter, simN2, starterMotoring,
+                                                simCombustion)) {
       engineState = ON;
     } else if (engineIgniter == 2 && engineMasterTurnedOn) {
       engineState = STARTING;
@@ -1358,16 +1366,16 @@ void EngineControl_A32NX::updateOil(int         engine,
   double oilTemperature;
   if (simOnGround && engineState == OFF && ambientTemperature > oilTemperaturePre - 10) {
     oilTemperature = ambientTemperature;
+    // a cold engine has no overheat left to cool down
+    oilOverheatTracker[engineIdx].reset();
   } else {
     thermalEnergy[engineIdx] = (0.995 * thermalEnergy[engineIdx]) + (deltaN2 / deltaTime);
     oilTemperature           = Polynomial_A32NX::oilTemperature(thermalEnergy[engineIdx], oilTemperaturePre, MAX_OIL_TEMP, deltaTime);
     // An oil overheat heats the oil with the thrust instead. Its temperature is the FADEC's own: MSFS moves the oil
-    // temperature it reads back with its own oil model (EngineOilFailures.hpp OverheatTracker).
-    const double trackedOverheatTemperature =
-        oilOverheatTracker[engineIdx].update(oilOverheat, oilTemperaturePre, n2, idleN2, deltaTime, OilSystem_A32NX::OVERHEAT);
-    if (oilOverheat) {
-      oilTemperature = trackedOverheatTemperature;
-    }
+    // temperature it reads back with its own oil model (EngineOilFailures.hpp OverheatTracker). Once the failure is cleared
+    // the tracker cools it down gradually to the normal oil temperature computed above.
+    oilTemperature = oilOverheatTracker[engineIdx].update(oilOverheat, oilTemperaturePre, oilTemperature, n2, idleN2, deltaTime,
+                                                          OilSystem_A32NX::OVERHEAT);
   }
 
   //--------------------------------------------

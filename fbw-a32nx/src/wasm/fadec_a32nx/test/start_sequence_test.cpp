@@ -41,7 +41,7 @@ static StarterCommand starterDecision(const StarterInputs& in) {
   }
   return StarterCommand::NONE;
 }
-static bool offIsRunning(int engineIgniter, bool engineStarter, double simN2, bool) {
+static bool offIsRunning(int engineIgniter, bool engineStarter, double simN2, bool, bool) {
   return engineIgniter == 1 && engineStarter && simN2 > 20;
 }
 static bool reachesIdle(bool engineStarter, double simN2, double idleN2, bool) {
@@ -51,8 +51,8 @@ static bool reachesIdle(bool engineStarter, double simN2, double idleN2, bool) {
 static StarterCommand starterDecision(const StarterInputs& in) {
   return starterCommand(in);
 }
-static bool offIsRunning(int engineIgniter, bool engineStarter, double simN2, bool starterMotoring) {
-  return offEngineIsRunning(engineIgniter, engineStarter, simN2, starterMotoring);
+static bool offIsRunning(int engineIgniter, bool engineStarter, double simN2, bool starterMotoring, bool simCombustion) {
+  return offEngineIsRunning(engineIgniter, engineStarter, simN2, starterMotoring, simCombustion);
 }
 static bool reachesIdle(bool engineStarter, double simN2, double idleN2, bool n2Hang) {
   return startReachesIdle(engineStarter, simN2, idleN2, n2Hang);
@@ -122,8 +122,13 @@ int main() {
   }
 
   // The engine states
-  expect("a motored core at NORM is not running", !offIsRunning(1, true, 25.0, true));
-  expect("an engine turning above 20 % at NORM is running", offIsRunning(1, true, 25.0, false));
+  expect("a motored core at NORM is not running", !offIsRunning(1, true, 25.0, true, false));
+  expect("an engine burning above 20 % at NORM is running", offIsRunning(1, true, 25.0, false, true));
+  // A cold engine whose MSFS starter turns the core past 20 % at NORM without combustion is not running (sim test 2026-10-07
+  // on the A380X); an engine running at the load of a flight (MSFS burning, on the ground or in the air) is.
+  expect("an unlit core turned past 20 % by the MSFS starter at NORM is not running", !offIsRunning(1, true, 25.0, false, false));
+  expect("an engine running at the load of a flight is running", offIsRunning(1, true, 68.0, false, true));
+  expect("ENG MODE at IGN/START is a start, not a running engine", !offIsRunning(2, true, 68.0, false, true));
   expect("a hung start does not reach idle", !reachesIdle(true, 68.0, 68.0, true));
   expect("a normal start reaches idle", reachesIdle(true, 68.0, 68.0, false));
 
