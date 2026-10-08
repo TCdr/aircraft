@@ -5,7 +5,8 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { GsxServicesPanel, gsxServiceStatus } from './GsxServicesPanel';
-import { GsxRemoteState, GsxService } from './GsxRemote';
+import { GsxRemoteState, GsxService, withTurnaroundMemory } from './GsxRemote';
+import { gsxTurnaround } from './gsxTurnaround';
 import { gsxPaxProgress } from './gsxPassengers';
 
 // The panel's sim and flyPad dependencies (vi.mock is hoisted above the imports): only the status line is tested
@@ -49,14 +50,15 @@ describe('GSX boarding status line of the Services page', () => {
 
 /** The action chip (its text) of each turnaround step, by the step name */
 const turnaroundChips = (services: GsxService[]): Record<string, string | null> => {
-  const gsx: GsxRemoteState = {
+  // as useGsxRemote gives it to the page: with the completions remembered in this turnaround
+  const gsx: GsxRemoteState = withTurnaroundMemory({
     connected: true,
     gsxRunning: true,
     services,
     menuShown: false,
     menu: { title: '', entries: [], disabled: [] },
     message: { text: '', visible: false },
-  };
+  });
   const container = document.createElement('div');
   container.innerHTML = renderToStaticMarkup(<GsxServicesPanel linked onLinkChange={() => {}} gsx={gsx} />);
   const chips: Record<string, string | null> = {};
@@ -94,5 +96,26 @@ describe('GSX turnaround steps of the Services page', () => {
     const chips = turnaroundChips([step('Catering', 'Catering', 'available', true)]);
 
     expect(chips.Catering).toBe('Request');
+  });
+});
+
+describe('GSX turnaround steps after GSX resets a completed service to available', () => {
+  it('keeps Board done without a Request chip, also when the page is opened again', () => {
+    gsxTurnaround.clear();
+    // the 2026-10-06 recording: L:FSDT_GSX_BOARDING_STATE 5 -> 6 at the end of the boarding, 1 again 14 s later
+    gsxTurnaround.update({ states: { Boarding: 5 }, departureState: 1, enginesRunning: false });
+    gsxTurnaround.update({ states: { Boarding: 6 }, departureState: 1, enginesRunning: false });
+    gsxTurnaround.update({ states: { Boarding: 1 }, departureState: 1, enginesRunning: false });
+    const reset = [step('Catering', 'Catering', 'completed', false), step('Boarding', 'Board', 'available', true)];
+
+    // the page rendered, left (Payload) and rendered again: the memory lives outside the page
+    expect(turnaroundChips(reset).Board).toBeNull();
+    expect(turnaroundChips(reset).Board).toBeNull();
+    gsxTurnaround.clear();
+  });
+
+  it('offers Request again in the next turnaround', () => {
+    gsxTurnaround.clear();
+    expect(turnaroundChips([step('Boarding', 'Board', 'available', true)]).Board).toBe('Request');
   });
 });
