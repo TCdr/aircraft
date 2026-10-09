@@ -12,6 +12,7 @@
 
 #include "EngineControlA32NX.h"
 #include "EngineRatios.hpp"
+#include "FanBlockedStart_A32NX.hpp"
 #include "OilSystem_A32NX.hpp"
 #include "Polynomials_A32NX.hpp"
 #include "StartSequence_A32NX.hpp"
@@ -111,7 +112,10 @@ void EngineControl_A32NX::update() {
     // not lit up yet), holds a hung start below idle, makes a hot start overshoot, and has the starter failure.
     const bool starterMotoring   = simData.engineStarterMotoring[engineIdx]->getAsBool();
     const int  startPhase        = static_cast<int>(simData.engineStartPhase[engineIdx]->get());
-    const bool startN2Hang       = simData.engineStartN2Hang[engineIdx]->getAsBool();
+    // The fan blocked failure (FanBlockedStart_A32NX.hpp, ENG 1(2) LOW N1) also holds the core of a start below idle
+    const bool fanBlocked = FanBlockedStart_A32NX::isFanBlocked(simData.engineFanBlocked[engineIdx]->getAsBool(), simOnGround);
+    const bool startN2Hang =
+        FanBlockedStart_A32NX::coreHangsBelowIdle(simData.engineStartN2Hang[engineIdx]->getAsBool(), fanBlocked);
     const bool startEgtOvershoot = simData.engineStartEgtOvershoot[engineIdx]->getAsBool();
     const bool starterFailed     = simData.engineStarterFailed[engineIdx]->getAsBool();
 
@@ -643,7 +647,10 @@ void EngineControl_A32NX::engineStartProcedure(int                     engine,
   const double shutdownEgtFbw = Polynomial_A32NX::shutdownEGT(preEgtFbw, ambientTemperature, deltaTime);
 
   simData.engineN2[engineIdx]->set(newN2Fbw);
-  simData.engineN1[engineIdx]->set(startN1Fbw);
+  // ENG 1(2) LOW N1: with the fan blocked (FanBlockedStart_A32NX.hpp) the N1 does not rotate while the core turns
+  const bool fanBlocked =
+      FanBlockedStart_A32NX::isFanBlocked(simData.engineFanBlocked[engineIdx]->getAsBool(), msfsHandlerPtr->getSimOnGround());
+  simData.engineN1[engineIdx]->set(FanBlockedStart_A32NX::fanN1(startN1Fbw, fanBlocked));
 
   // A hot start or a stall: the EGT overshoots the normal start EGT once the engine has lit up
   startEgtExcess[engineIdx] = StartSequence_A32NX::egtOvershoot(startEgtExcess[engineIdx], startEgtOvershoot && lit, deltaTime);
@@ -723,7 +730,9 @@ void EngineControl_A32NX::engineShutdownProcedure(int    engine,              //
     const double preEgtFbw = simData.engineEgt[engineIdx]->get();
 
     double newN1Fbw = Polynomial_A32NX::shutdownN1(preN1Fbw, deltaTime);
-    if (simN1 < 5 && simN1 > newN1Fbw) {  // Takes care of windmilling
+    // A blocked fan (FanBlockedStart_A32NX.hpp) does not take the MSFS N1: after an aborted start its N1 stays at 0
+    const bool fanBlocked = FanBlockedStart_A32NX::isFanBlocked(simData.engineFanBlocked[engineIdx]->getAsBool(), simOnGround);
+    if (!fanBlocked && simN1 < 5 && simN1 > newN1Fbw) {  // Takes care of windmilling
       newN1Fbw = simN1;
     }
     double       newN2Fbw  = engineSeized ? preN2Fbw : Polynomial_A32NX::shutdownN2(preN2Fbw, deltaTime);
