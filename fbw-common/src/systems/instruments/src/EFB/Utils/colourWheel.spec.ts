@@ -8,104 +8,101 @@ import {
   COLOUR_WHEEL,
   CustomColours,
   findWedge,
-  hatchSegments,
   initialPick,
+  nearAlertColours,
   pickChange,
   pickTokens,
   primaryAdjustment,
   readHexEntry,
-  RING_RADII,
   shownColour,
   SLOT_CHECKS,
+  tint,
   wedgeAt,
   wedgePath,
-  WHEEL_RADIUS,
+  WHEEL_COLOURS,
 } from './colourWheel';
-import { alertHueClash, checkPalette, derivePalette, oklchToHex } from './themePalette';
+import { checkPalette, derivePalette, oklchToHex, parseThemeChoice } from './themePalette';
 
-// the approved design: 12 hues clockwise from the top, 4 rings rim to centre
-const HUES = [95, 125, 148, 178, 208, 238, 262, 290, 318, 350, 25, 55];
-const RINGS: [number, number][] = [
-  [0.64, 0.2],
-  [0.5, 0.16],
-  [0.8, 0.1],
-  [0.92, 0.045],
-];
+// the painter's wheel the user chose (2026-10-08): 12 pure colours clockwise from yellow right of the top, 5 rings
+// from the pure colour at the rim to a pale tint next to the centre
 const YELLOW = 0;
-const TEAL = 3;
-const BLUE = 6;
-const RED = 10;
-const VIVID = 0;
-const DEEP = 1;
-const LIGHT = 2;
-const PALE = 3;
+const GREEN = 2;
+const BLUE = 4;
+const RED = 8;
+const PURE = 0;
+const BRIGHT = 1;
+const SOFT = 2;
+const LIGHT = 3;
+const PALE = 4;
 
 describe('colour wheel colours', () => {
-  it('has 4 rings of 12 wedges, each the OKLCH colour of its ring and hue (sRGB clamped)', () => {
+  it('has 5 rings of 12 wedges, each its rim colour mixed with 0, 20, 40, 60 or 80 % white', () => {
     const wheel = buildColourWheel();
-    expect(wheel).toHaveLength(4);
+    expect(wheel).toHaveLength(5);
     wheel.forEach((ring, r) => {
       expect(ring).toHaveLength(12);
       ring.forEach((wedge, i) => {
         expect(wedge.ring).toBe(r);
         expect(wedge.index).toBe(i);
-        expect(wedge.hex).toBe(oklchToHex([RINGS[r][0], RINGS[r][1], HUES[i]]));
+        expect(wedge.hex).toBe(tint(WHEEL_COLOURS[i], [0, 0.2, 0.4, 0.6, 0.8][r]));
       });
     });
   });
 
-  it('gives the colours of the approved mockups', () => {
-    expect(COLOUR_WHEEL[VIVID][BLUE].hex).toBe('#4785ff');
-    expect(COLOUR_WHEEL[VIVID][TEAL].hex).toBe('#00a38c');
-    expect(COLOUR_WHEEL[PALE][YELLOW].hex).toBe('#eee5c3');
+  it("gives the pure colours of the painter's wheel on the rim, red and yellow included", () => {
+    expect(COLOUR_WHEEL[PURE][YELLOW].hex).toBe('#ffe100');
+    expect(COLOUR_WHEEL[PURE][GREEN].hex).toBe('#1fdd1f');
+    expect(COLOUR_WHEEL[PURE][BLUE].hex).toBe('#3344ff');
+    expect(COLOUR_WHEEL[PURE][RED].hex).toBe('#ff1a00');
   });
 
-  it('blocks exactly the wedges whose colour clashes with the alert hues', () => {
-    for (const ring of COLOUR_WHEEL) {
-      for (const wedge of ring) {
-        expect(wedge.blocked).toBe(alertHueClash(wedge.hex) !== null);
-      }
-    }
-    const blocked = COLOUR_WHEEL.map((ring) => ring.filter((w) => w.blocked).map((w) => w.index));
-    // yellow and red on the vivid, deep and light rings; the pale ones are greys for the rule, so allowed
-    expect(blocked).toEqual([[YELLOW, RED], [YELLOW, RED], [YELLOW, RED], []]);
+  it('mixes a colour with white', () => {
+    expect(tint('#ff1a00', 0)).toBe('#ff1a00');
+    expect(tint('#ff1a00', 0.5)).toBe('#ff8d80');
+    expect(tint('#000000', 1)).toBe('#ffffff');
+  });
+
+  it('offers every wedge, and notes the ones near the alert amber and red', () => {
+    expect(nearAlertColours(COLOUR_WHEEL[PURE][RED].hex)).toBe(true);
+    expect(nearAlertColours(COLOUR_WHEEL[PURE][11].hex)).toBe(true); // amber
+    expect(nearAlertColours(COLOUR_WHEEL[PURE][BLUE].hex)).toBe(false);
+    // a red or yellow theme is kept when stored (it was refused before 2026-10-08)
+    expect(parseThemeChoice('custom:grey:#ff1a00:#ffe100')).toEqual({
+      kind: 'custom',
+      base: 'grey',
+      primary: '#ff1a00',
+      secondary: '#ffe100',
+    });
   });
 
   it('finds the wedge of a colour, or none for a colour off the wheel', () => {
-    expect(findWedge('#4785ff')).toMatchObject({ ring: VIVID, index: BLUE });
+    expect(findWedge('#3344ff')).toMatchObject({ ring: PURE, index: BLUE });
     expect(findWedge(COLOUR_WHEEL[LIGHT][7].hex)).toMatchObject({ ring: LIGHT, index: 7 });
     expect(findWedge('#3b82f6')).toBeNull();
   });
 });
 
 describe('colour wheel geometry', () => {
-  it('draws wedge 0 centred on the top: its outer arc starts 15 degrees left of the top', () => {
-    const d = wedgePath(0, 152, 200);
-    const a = (-105 * Math.PI) / 180;
-    expect(
-      d.startsWith(`M ${(200 + 200 * Math.cos(a)).toFixed(2)} ${(200 + 200 * Math.sin(a)).toFixed(2)} A 200 200`),
-    ).toBe(true);
+  it("draws wedge 0 right of the top: its outer arc starts at 12 o'clock", () => {
+    const d = wedgePath(0, 164, 200);
+    expect(d.startsWith(`M ${(200).toFixed(2)} ${(0).toFixed(2)} A 200 200`)).toBe(true);
     expect(d.match(/A /g)).toHaveLength(2);
     expect(d.endsWith('Z')).toBe(true);
   });
 
   it('hit-tests a point to its ring and hue, clockwise from the top', () => {
-    expect(wedgeAt(200, 25)).toEqual({ ring: VIVID, index: 0 }); // top, on the rim
-    expect(wedgeAt(375, 200)).toEqual({ ring: VIVID, index: 3 }); // right
-    expect(wedgeAt(200, 375)).toEqual({ ring: VIVID, index: 6 }); // bottom
-    expect(wedgeAt(25, 200)).toEqual({ ring: VIVID, index: 9 }); // left
-    expect(wedgeAt(200, 200 - 135)).toEqual({ ring: DEEP, index: 0 });
-    expect(wedgeAt(200, 200 - 100)).toEqual({ ring: LIGHT, index: 0 });
-    expect(wedgeAt(200, 200 - 70)).toEqual({ ring: PALE, index: 0 });
-    // just either side of the boundary between wedge 0 and wedge 1 (15 degrees right of the top)
-    const at = (deg: number) => [
-      200 + 175 * Math.cos((deg * Math.PI) / 180),
-      200 + 175 * Math.sin((deg * Math.PI) / 180),
+    const at = (deg: number, r: number) => [
+      200 + r * Math.cos((deg * Math.PI) / 180),
+      200 + r * Math.sin((deg * Math.PI) / 180),
     ];
-    expect(wedgeAt(at(-76)[0], at(-76)[1])).toEqual({ ring: VIVID, index: 0 });
-    expect(wedgeAt(at(-74)[0], at(-74)[1])).toEqual({ ring: VIVID, index: 1 });
-    // wedge 11 is the last one before the top
-    expect(wedgeAt(at(-106)[0], at(-106)[1])).toEqual({ ring: VIVID, index: 11 });
+    expect(wedgeAt(...(at(-89, 180) as [number, number]))).toEqual({ ring: PURE, index: 0 }); // just right of the top
+    expect(wedgeAt(...(at(-91, 180) as [number, number]))).toEqual({ ring: PURE, index: 11 }); // just left of the top
+    expect(wedgeAt(...(at(1, 180) as [number, number]))).toEqual({ ring: PURE, index: 3 }); // just below 3 o'clock
+    expect(wedgeAt(...(at(91, 180) as [number, number]))).toEqual({ ring: PURE, index: 6 }); // just left of 6 o'clock
+    expect(wedgeAt(...(at(-85, 147) as [number, number]))).toEqual({ ring: BRIGHT, index: 0 });
+    expect(wedgeAt(...(at(-85, 114) as [number, number]))).toEqual({ ring: SOFT, index: 0 });
+    expect(wedgeAt(...(at(-85, 84) as [number, number]))).toEqual({ ring: LIGHT, index: 0 });
+    expect(wedgeAt(...(at(-85, 60) as [number, number]))).toEqual({ ring: PALE, index: 0 });
   });
 
   it('finds no wedge in the centre disc or outside the wheel', () => {
@@ -113,22 +110,6 @@ describe('colour wheel geometry', () => {
     expect(wedgeAt(200, 200 - CENTRE_RADIUS)).toBeNull();
     expect(wedgeAt(5, 5)).toBeNull();
     expect(wedgeAt(200, -10)).toBeNull();
-  });
-
-  it('hatches a wedge with parallel "/" lines kept inside it', () => {
-    const [r0, r1] = RING_RADII[VIVID];
-    const segments = hatchSegments(RED, r0, r1);
-    expect(segments.length).toBeGreaterThan(3);
-    for (const [x1, y1, x2, y2] of segments) {
-      expect(Math.abs(x1 + y1 - (x2 + y2))).toBeLessThan(1e-6);
-      for (const [x, y] of [
-        [x1, y1],
-        [x2, y2],
-      ]) {
-        expect(wedgeAt(x, y)).toEqual({ ring: VIVID, index: RED });
-        expect(Math.hypot(x - WHEEL_RADIUS, y - WHEEL_RADIUS)).toBeGreaterThanOrEqual(r0);
-      }
-    }
   });
 });
 
@@ -193,7 +174,7 @@ describe('colour wheel "used on the base" display', () => {
     expect(usedOn('light', '#4785ff')).toEqual({ used: '#326fe7', reason: 'AdjustedTooLightPage', ratio: '2.7' });
     expect(usedOn('grey', '#2c5dbd')).toEqual({ used: '#4b7fe2', reason: 'AdjustedTooDarkCard', ratio: '2.7' });
     // 2.98:1 on the card is shown as 2.9, not as a passing-looking 3.0
-    expect(usedOn('grey', COLOUR_WHEEL[DEEP][2].hex)?.ratio).toBe('2.9');
+    expect(usedOn('grey', oklchToHex([0.5, 0.16, 148]))?.ratio).toBe('2.9');
   });
 
   it('gives the button text as the reason when both surfaces pass', () => {
@@ -207,9 +188,9 @@ describe('colour wheel hex field', () => {
     expect(readHexEntry(' 0af ', '#3b82f6')).toEqual({ kind: 'pick', hex: '#00aaff' });
   });
 
-  it('refuses a code that is not a colour, and the alert hues', () => {
+  it('refuses a code that is not a colour; accepts the alert hues (the dialog notes them)', () => {
     expect(readHexEntry('#12345', '#3b82f6')).toEqual({ kind: 'invalid' });
-    expect(readHexEntry('#ff5449', '#3b82f6')).toEqual({ kind: 'alert' });
+    expect(readHexEntry('#ff5449', '#3b82f6')).toEqual({ kind: 'pick', hex: '#ff5449' });
   });
 
   it('changes nothing when the field leaves the focus with the colour it shows, or empty (keeps Same)', () => {

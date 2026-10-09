@@ -3,58 +3,73 @@
 
 /**
  * The colour wheel of the custom theme dialog (Settings > flyPad, the pencil of the primary and secondary colours):
- * 12 OKLCH hues x 4 rings of fixed lightness and chroma, the wedges near the alert hues blocked, the SVG geometry of
- * the wedges and of their hit test, and the decisions of the dialog (what the pick changes, how it is shown).
+ * 12 pure hues x 5 rings from the pure colour at the rim to pale tints next to the centre (the classic painter's wheel
+ * the user chose, red and yellow included), the SVG geometry of the wedges and of their hit test, and the decisions of
+ * the dialog (what the pick changes, how it is shown).
  *
  * Pure functions (no DOM, no React): the dialog is Settings/Pages/ColourWheelDialog.tsx.
  */
 
-import {
-  alertHueClash,
-  contrast,
-  derivePalette,
-  luminance,
-  M3Tokens,
-  oklchToHex,
-  parseHexColour,
-  ThemeBase,
-} from './themePalette';
+import { alertHueClash, contrast, derivePalette, luminance, M3Tokens, parseHexColour, ThemeBase } from './themePalette';
 
 // ------------------------------------------------------------------------------------------- the colours
 
-/** The 12 hues of the wheel (OKLCH degrees), clockwise from the top */
-export const WHEEL_HUES: readonly number[] = [95, 125, 148, 178, 208, 238, 262, 290, 318, 350, 25, 55];
+/**
+ * The 12 pure colours of the rim, clockwise from the top (wedge 0 starts at 12 o'clock): yellow, yellow-green, green,
+ * sky blue, blue, violet, magenta, crimson, red, red-orange, orange and amber. Design choice: the colours of the
+ * painter's wheel the user supplied (2026-10-08), full strength sRGB rather than equal-lightness OKLCH hues.
+ */
+export const WHEEL_COLOURS: readonly string[] = [
+  '#ffe100',
+  '#6cf000',
+  '#1fdd1f',
+  '#55d8ff',
+  '#3344ff',
+  '#8800ff',
+  '#ff00ee',
+  '#ff0066',
+  '#ff1a00',
+  '#ff5522',
+  '#ff8a22',
+  '#ffa500',
+];
 
 /**
- * The rings, rim to centre: OKLCH lightness and chroma cap (the chroma is then reduced to fit in sRGB by oklchToHex).
- * Vivid and Deep give the strong colours of the dark bases, Light and Pale the soft ones.
+ * The rings, rim to centre: the share of white mixed into the rim colour (0 = the pure colour, 0.8 = a pale tint).
  */
-export const WHEEL_RINGS: readonly { name: 'vivid' | 'deep' | 'light' | 'pale'; l: number; c: number }[] = [
-  { name: 'vivid', l: 0.64, c: 0.2 },
-  { name: 'deep', l: 0.5, c: 0.16 },
-  { name: 'light', l: 0.8, c: 0.1 },
-  { name: 'pale', l: 0.92, c: 0.045 },
+export const WHEEL_RINGS: readonly { name: 'pure' | 'bright' | 'soft' | 'light' | 'pale'; white: number }[] = [
+  { name: 'pure', white: 0 },
+  { name: 'bright', white: 0.2 },
+  { name: 'soft', white: 0.4 },
+  { name: 'light', white: 0.6 },
+  { name: 'pale', white: 0.8 },
 ];
+
+/** A colour mixed with white: share 0 keeps it, share 1 gives white (#rrggbb, lower case) */
+export function tint(hex: string, white: number): string {
+  const channel = (i: number) => {
+    const value = parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+    return Math.round(value + (255 - value) * white)
+      .toString(16)
+      .padStart(2, '0');
+  };
+  return `#${channel(0)}${channel(1)}${channel(2)}`;
+}
 
 /** One wedge of the wheel */
 export interface WheelWedge {
-  /** Ring index, 0 = the rim (vivid) to 3 = next to the centre (pale) */
+  /** Ring index, 0 = the rim (pure colour) to 4 = next to the centre (pale) */
   ring: number;
-  /** Hue index, 0 = the top wedge, clockwise */
+  /** Hue index, 0 = the wedge right of 12 o'clock, clockwise */
   index: number;
   /** #rrggbb, lower case */
   hex: string;
-  /** Too close to the amber or red of the alerts (alertHueClash): shown hatched, cannot be picked */
-  blocked: boolean;
 }
 
 /** The wedges of the wheel, ring by ring (rim first), each ring in hue order */
 export function buildColourWheel(): WheelWedge[][] {
   return WHEEL_RINGS.map((ring, ringIndex) =>
-    WHEEL_HUES.map((hue, index) => {
-      const hex = oklchToHex([ring.l, ring.c, hue]);
-      return { ring: ringIndex, index, hex, blocked: alertHueClash(hex) !== null };
-    }),
+    WHEEL_COLOURS.map((colour, index) => ({ ring: ringIndex, index, hex: tint(colour, ring.white) })),
   );
 }
 
@@ -79,17 +94,18 @@ export const WHEEL_RADIUS = 200;
 
 /** The inner and outer radius of each ring, rim first */
 export const RING_RADII: readonly [number, number][] = [
-  [152, 200],
-  [118, 152],
-  [86, 118],
-  [58, 86],
+  [164, 200],
+  [130, 164],
+  [98, 130],
+  [70, 98],
+  [50, 70],
 ];
 
 /** The disc in the middle showing the picked colour */
-export const CENTRE_RADIUS = 50;
+export const CENTRE_RADIUS = 42;
 
 /** The angular size of a wedge, in degrees */
-const WEDGE_DEGREES = 360 / WHEEL_HUES.length;
+const WEDGE_DEGREES = 360 / WHEEL_COLOURS.length;
 
 /** The point at radius r and angle deg (0 = the right, clockwise as the screen y goes down), "x y" */
 const polar = (r: number, deg: number): string => {
@@ -97,8 +113,8 @@ const polar = (r: number, deg: number): string => {
   return `${(WHEEL_RADIUS + r * Math.cos(a)).toFixed(2)} ${(WHEEL_RADIUS + r * Math.sin(a)).toFixed(2)}`;
 };
 
-/** The start angle of wedge i: wedge 0 is centred on the top */
-const wedgeStart = (index: number) => -90 - WEDGE_DEGREES / 2 + index * WEDGE_DEGREES;
+/** The start angle of wedge i: wedge 0 starts at the top (12 o'clock), as on the painter's wheel */
+const wedgeStart = (index: number) => -90 + index * WEDGE_DEGREES;
 
 /** The SVG path of an annular sector: wedge `index` between the radii r0 (inner) and r1 (outer) */
 export function wedgePath(index: number, r0: number, r1: number): string {
@@ -118,53 +134,7 @@ export function wedgeAt(x: number, y: number): { ring: number; index: number } |
   }
   // the angle from the start of wedge 0, clockwise, 0..360
   const degrees = ((((Math.atan2(dy, dx) * 180) / Math.PI - wedgeStart(0)) % 360) + 360) % 360;
-  return { ring, index: Math.floor(degrees / WEDGE_DEGREES) % WHEEL_HUES.length };
-}
-
-/**
- * The hatching of a blocked wedge as plain line segments [x1, y1, x2, y2] ("/" stripes, `spacing` apart), kept
- * `inset` inside the wedge so that the gaps between the wedges stay clean. Design choice: computed lines rather than
- * an SVG <pattern> or <clipPath>, whose support by the sim browser (Coherent GT) is not proven.
- */
-export function hatchSegments(index: number, r0: number, r1: number, spacing = 8, inset = 2): number[][] {
-  const a0 = wedgeStart(index);
-  const inside = (x: number, y: number) => {
-    const dx = x - WHEEL_RADIUS;
-    const dy = y - WHEEL_RADIUS;
-    const r = Math.hypot(dx, dy);
-    if (r < r0 + inset || r > r1 - inset) {
-      return false;
-    }
-    const degrees = ((((Math.atan2(dy, dx) * 180) / Math.PI - a0) % 360) + 360) % 360;
-    // the inset as an angle at this radius
-    const margin = (inset / r) * (180 / Math.PI);
-    return degrees >= margin && degrees <= WEDGE_DEGREES - margin;
-  };
-
-  const segments: number[][] = [];
-  const step = 0.5;
-  const lineSpacing = spacing * Math.SQRT2; // the lines x + y = c, `spacing` apart
-  for (let c = 0; c <= 4 * WHEEL_RADIUS; c += lineSpacing) {
-    // walk the line from its top-right end (x = c - y) down to its bottom-left one, keeping the runs inside the wedge
-    let start: number[] | null = null;
-    let last: number[] | null = null;
-    for (let y = 0; y <= 2 * WHEEL_RADIUS; y += step) {
-      const x = c - y;
-      if (inside(x, y)) {
-        if (start === null) {
-          start = [x, y];
-        }
-        last = [x, y];
-      } else if (start !== null && last !== null) {
-        segments.push([start[0], start[1], last[0], last[1]]);
-        start = null;
-      }
-    }
-    if (start !== null && last !== null) {
-      segments.push([start[0], start[1], last[0], last[1]]);
-    }
-  }
-  return segments.filter(([x1, y1, x2, y2]) => Math.hypot(x2 - x1, y2 - y1) >= 1);
+  return { ring, index: Math.floor(degrees / WEDGE_DEGREES) % WHEEL_COLOURS.length };
 }
 
 // ------------------------------------------------------------------------------------------- the dialog
@@ -271,7 +241,7 @@ export function primaryAdjustment(pick: string, tokens: M3Tokens): PrimaryAdjust
 }
 
 /** The outcome of a hex code typed in the dialog */
-export type HexEntry = { kind: 'unchanged' } | { kind: 'invalid' } | { kind: 'alert' } | { kind: 'pick'; hex: string };
+export type HexEntry = { kind: 'unchanged' } | { kind: 'invalid' } | { kind: 'pick'; hex: string };
 
 /**
  * Reads the hex field of the dialog (applied with Enter or when the field loses the focus). The field leaving the
@@ -288,8 +258,13 @@ export function readHexEntry(text: string, shown: string): HexEntry {
   if (hex === shown) {
     return { kind: 'unchanged' };
   }
-  if (alertHueClash(hex) !== null) {
-    return { kind: 'alert' };
-  }
   return { kind: 'pick', hex };
+}
+
+/**
+ * Whether a colour is close to the amber or red of the alerts (alertHueClash): the dialog then says that buttons and
+ * switches in it may look like warnings. Design choice (user, 2026-10-08): a note, no longer a block.
+ */
+export function nearAlertColours(hex: string): boolean {
+  return alertHueClash(hex) !== null;
 }
