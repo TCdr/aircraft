@@ -111,6 +111,8 @@ import {
 } from './EngineFailAlerts';
 import { engineOilAlerts } from './EngineOilAlerts';
 import { engineFuelFilterClogged } from './EngineFuelFilterAlerts';
+import { OilTemperatureLowMonitor, isFlexTakeoffMode, isThrustLeversNotSet } from './EngineTakeoffAlerts';
+import { isTakeoffThrustDisagree, isThrustLoss } from './EngineThrustAlerts';
 import { isEgtOverLimit, isN1N2OverLimit, isStallAlertShown } from './EngineParameterAlerts';
 import { displayedEgt } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
@@ -2331,6 +2333,20 @@ export class FwsCore {
   /** ENG 1(2)(3)(4) FUEL FILTER CLOGGED, by engine (EngineFuelFilterAlerts.ts) */
   public readonly engineFuelFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
 
+  /** ENG 1(2)(3)(4) OIL TEMP LO, by engine (EngineTakeoffAlerts.ts) */
+  private readonly oilTemperatureLowMonitors = [1, 2, 3, 4].map(() => new OilTemperatureLowMonitor());
+
+  public readonly engineOilTempLo = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** The take-off thrust mode of the FADECs is FLEX, for the lines of ENG THR LEVERS NOT SET (EngineTakeoffAlerts.ts) */
+  public readonly flexTakeoffMode = Subject.create(false);
+
+  /** ENG 1(2)(3)(4) THRUST LOSS, by engine (EngineThrustAlerts.ts) */
+  public readonly engineThrustLoss = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** ENG T.O THRUST DISAGREE (EngineThrustAlerts.ts) */
+  public readonly takeoffThrustDisagree = Subject.create(false);
+
   /*
    * ENG START FAULT, START VLV FAULT (NOT CLOSED / NOT OPEN), IGN A(B) FAULT, IGN A+B FAULT (EngineStartAlerts.ts), from the
    * FADEC start sequence of the systems WASM. Index 0 = engine 1.
@@ -4541,7 +4557,42 @@ export class FwsCore {
     );
 
     // Engine Logic
-    this.thrustLeverNotSet.set(this.autothrustLeverWarningFlex.get() || this.autothrustLeverWarningToga.get());
+    // ENG THR LEVERS NOT SET (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): the thrust levers of the running engines
+    // against the take-off thrust mode of the FADECs (the autothrust THRUST_LEVER_WARNING vars are never written)
+    this.flexTakeoffMode.set(
+      isFlexTakeoffMode(
+        SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number'),
+        SimVar.GetSimVarValue('TOTAL AIR TEMPERATURE', 'celsius'),
+      ),
+    );
+    this.thrustLeverNotSet.set(
+      isThrustLeversNotSet({
+        tlaDegrees: [
+          this.throttle1Position.get(),
+          this.throttle2Position.get(),
+          this.throttle3Position.get(),
+          this.throttle4Position.get(),
+        ],
+        engineStates: [
+          this.engine1State.get(),
+          this.engine2State.get(),
+          this.engine3State.get(),
+          this.engine4State.get(),
+        ] as FadecEngineState[],
+        flexTakeoffMode: this.flexTakeoffMode.get(),
+      }),
+    );
+    // ENG THRUST LOSS and ENG T.O THRUST DISAGREE (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): the max THR and the
+    // take-off mode each FADEC sends (fbw WASM, FadecThrustFailures.h)
+    const fadecMaxThr = [1, 2, 3, 4].map((engineNumber) =>
+      SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FADEC_MAX_THR`, 'number'),
+    );
+    const fadecTakeoffModes = [1, 2, 3, 4].map((engineNumber) =>
+      SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FADEC_TAKEOFF_MODE`, 'number'),
+    );
+    this.engineThrustLoss.forEach((thrustLoss, index) => thrustLoss.set(isThrustLoss(fadecMaxThr, index)));
+    this.takeoffThrustDisagree.set(isTakeoffThrustDisagree(fadecTakeoffModes));
+
     // FIXME ECU doesn't have the necessary output words so we go purely on TLA
     const flexThrustLimit = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE', 'number') === 3;
     const engOneOrTwoTakeoffPower =
@@ -6205,6 +6256,18 @@ export class FwsCore {
           fuelFilterClogged: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FUEL_FILTER_CLOGGED`, 'bool') > 0,
         }),
       );
+      // ENG OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): the oil temperature the FADEC computes
+      this.oilTemperatureLowMonitors[index].update(
+        {
+          onGround: this.aircraftOnGround.get(),
+          engineState: state.get() as FadecEngineState,
+          oilTemperatureCelsius: SimVar.GetSimVarValue(`GENERAL ENG OIL TEMPERATURE:${engineNumber}`, 'celsius'),
+          toConfigPressed: this.toConfigTestRaw,
+          takeoffPowerSet: this.eng1Or2TakeoffPower.get() || this.eng3Or4TakeoffPower.get(),
+        },
+        deltaTime,
+      );
+      this.engineOilTempLo[index].set(this.oilTemperatureLowMonitors[index].isActive);
     });
 
     // ENG START FAULT, START VLV FAULT, IGN FAULT (FCOM PRO-ABN-ECAM-10-70, see EngineStartAlerts.ts)

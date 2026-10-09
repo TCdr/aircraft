@@ -711,24 +711,40 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800097: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL TEMP LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'DELAY T.O FOR WARM UP', sensed: false },
+    ],
   },
   701800098: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 2 OIL TEMP LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'DELAY T.O FOR WARM UP', sensed: false },
+    ],
   },
   701800099: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 3 OIL TEMP LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'DELAY T.O FOR WARM UP', sensed: false },
+    ],
   },
   701800100: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 4 OIL TEMP LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'DELAY T.O FOR WARM UP', sensed: false },
+    ],
   },
   701800101: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 OVTHR PROT LOST',
@@ -1253,24 +1269,40 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800133: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 1 THRUST LOSS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800134: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 2 THRUST LOSS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800135: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 3 THRUST LOSS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800136: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 4 THRUST LOSS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800137: {
     // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER CTL FAULT (a380_fcom.txt l.173459-173462)
@@ -1586,6 +1618,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800155: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG T.O THRUST DISAGREE, l.175054-175070: crew awareness, no line
     title: '\x1b<4m\x1b4mENG\x1bm T.O THRUST DISAGREE',
     sensed: true,
     items: [],
@@ -1596,9 +1629,14 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800157: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG THR LEVERS NOT SET, l.175146-175184 (no derated take-off in FBW: its TOGA line is
+    // left out)
     title: '\x1b<4m\x1b4mENG\x1bm THR LEVERS NOT SET',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'TOGA' },
+      { name: 'THR LEVERS', sensed: true, labelNotCompleted: 'MCT/FLEX' },
+    ],
   },
   701800158: {
     title: '\x1b<4m\x1b4mENG\x1bm THRUST LOCKED',
