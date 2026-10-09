@@ -10,6 +10,7 @@ import {
   SubscribableMapFunctions,
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
+import { ExceedanceMemory, N1_RED_LIMIT_PERCENT, n1Colour } from './EgtLimits';
 import {
   GaugeComponent,
   GaugeMarkerComponent,
@@ -55,6 +56,27 @@ export class N1 extends DisplayComponent<N1Props> {
   private n1PercentSplit1 = this.n1.map((n1) => splitDecimals(n1)[0]);
   private n1PercentSplit2 = this.n1.map((n1) => splitDecimals(n1)[1]);
 
+  /** FCOM DSC-70-90 N1 INDICATIONS: the N1 value is red above the 111 % red limit (EgtLimits n1Colour) */
+  private readonly n1ClassLarge = this.n1.map((n1) => `F26 End ${n1Colour(n1)}`);
+
+  private readonly n1ClassSmall = this.n1.map((n1) => `F20 End ${n1Colour(n1)}`);
+
+  private readonly engineState = ConsumerSubject.create(
+    this.sub.on(`engine_state_${this.props.engine}`).whenChanged(),
+    0,
+  );
+
+  private readonly onGround = ConsumerSubject.create(this.sub.on('nose_gear_compressed_1').whenChanged(), false);
+
+  /**
+   * The red cross after the N1 value (FCOM DSC-70-90 N1 INDICATIONS, a380_fcom.txt l.113073-113082, figure "113.8 +" on
+   * PDF page 4103): it comes with an exceedance of the red limit and stays, also once the N1 is back below the limit,
+   * until the next engine start on the ground (the latch of the EGT red mark, ExceedanceMemory).
+   */
+  private readonly n1Exceedance = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
+
+  private readonly n1RedCrossVisible = Subject.create(false);
+
   private radius = 64;
   private startAngle = 230;
   private endAngle = 90;
@@ -65,6 +87,15 @@ export class N1 extends DisplayComponent<N1Props> {
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+
+    const updateN1Exceedance = () => {
+      // An engine start on ground (ENGINE_STATE Starting 2 or Restarting 3) takes the red cross away.
+      const state = this.engineState.get();
+      this.n1Exceedance.update(this.n1.get(), this.onGround.get() && (state === 2 || state === 3));
+      this.n1RedCrossVisible.set(this.n1Exceedance.exceeded);
+    };
+    this.n1.sub(updateN1Exceedance);
+    this.engineState.sub(updateN1Exceedance, true);
   }
 
   render() {
@@ -92,14 +123,22 @@ export class N1 extends DisplayComponent<N1Props> {
               this.props.n1Degraded,
             )}
           >
-            <text class="F26 End Green" x={this.props.x + 6} y={this.props.y + 45}>
+            <text class={this.n1ClassLarge} x={this.props.x + 6} y={this.props.y + 45}>
               {this.n1PercentSplit1}
             </text>
-            <text class="F26 End Green" x={this.props.x + 20} y={this.props.y + 45}>
+            <text class={this.n1ClassLarge} x={this.props.x + 20} y={this.props.y + 45}>
               .
             </text>
-            <text class="F20 End Green" x={this.props.x + 36} y={this.props.y + 45}>
+            <text class={this.n1ClassSmall} x={this.props.x + 36} y={this.props.y + 45}>
               {this.n1PercentSplit2}
+            </text>
+            <text
+              class="F26 Red"
+              x={this.props.x + 40}
+              y={this.props.y + 38}
+              visibility={this.n1RedCrossVisible.map((shown) => (shown ? 'inherit' : 'hidden'))}
+            >
+              +
             </text>
           </g>
           <g
@@ -109,14 +148,22 @@ export class N1 extends DisplayComponent<N1Props> {
               this.props.n1Degraded,
             ).map((it) => (it ? 'visible' : 'hidden'))}
           >
-            <text class="F26 End Green" x={this.xDegraded + 46} y={this.props.y + 45}>
+            <text class={this.n1ClassLarge} x={this.xDegraded + 46} y={this.props.y + 45}>
               {this.n1PercentSplit1}
             </text>
-            <text class="F26 End Green" x={this.xDegraded + 60} y={this.props.y + 45}>
+            <text class={this.n1ClassLarge} x={this.xDegraded + 60} y={this.props.y + 45}>
               .
             </text>
-            <text class="F20 End Green" x={this.xDegraded + 76} y={this.props.y + 45}>
+            <text class={this.n1ClassSmall} x={this.xDegraded + 76} y={this.props.y + 45}>
               {this.n1PercentSplit2}
+            </text>
+            <text
+              class="F26 Red"
+              x={this.xDegraded + 80}
+              y={this.props.y + 38}
+              visibility={this.n1RedCrossVisible.map((shown) => (shown ? 'inherit' : 'hidden'))}
+            >
+              +
             </text>
             <ThrustTransientComponent
               x={this.props.x}
