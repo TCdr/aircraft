@@ -268,6 +268,23 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   // ENG 1(2) FUEL FILTER CLOG (FCOM PRO-ABN-ENG, a320_fcom.txt l.80166-80185): crew awareness, no procedure line
   ['770730101', { group: 'ENG$5', text: ' 1 FUEL FILTER CLOG' }],
   ['770730201', { group: 'ENG$5', text: ' 2 FUEL FILTER CLOG' }],
+  // ENG 1(2) THR LEVER ABV IDLE (FCOM PRO-ABN-ENG, a320_fcom.txt l.81632-81666): red warning
+  ['770090101', { group: 'ENG$1', text: ' 1 THR LEVER ABV IDLE' }],
+  ['770090102', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
+  ['770090201', { group: 'ENG$1', text: ' 2 THR LEVER ABV IDLE' }],
+  ['770090202', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
+  // ENG SAT ABOVE FLEX TEMP (FCOM PRO-ABN-ENG, a320_fcom.txt l.80984-81000): amber caution
+  ['770091101', { group: 'ENG$5', text: ' SAT ABOVE FLEX TEMP' }],
+  ['770091102', { text: '\x1b<5m -T.O DATA.........CHECK' }],
+  // ENG 1(2) LOW N1 (FCOM PRO-ABN-ENG, a320_fcom.txt l.80343-80363): amber caution, lines by FWC/Logic/EngineLowN1Alerts
+  ['770092101', { group: 'ENG$5', text: ' 1 LOW N1' }],
+  ['770092102', { text: '\x1b<7m .IF CONFIRMED:' }],
+  ['770092103', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
+  ['770092104', { text: '\x1b<5m -ENG MASTER 1.......OFF' }],
+  ['770092201', { group: 'ENG$5', text: ' 2 LOW N1' }],
+  ['770092202', { text: '\x1b<7m .IF CONFIRMED:' }],
+  ['770092203', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
+  ['770092204', { text: '\x1b<5m -ENG MASTER 2.......OFF' }],
   // ENG 1(2) START FAULT (FCOM PRO-ABN-ENG, a320_fcom.txt l.81353-81528), lines by FWC/Logic/EngineStartAlerts startFaultLines
   ['770080101', { group: 'ENG$5', text: ' 1 START FAULT' }],
   ['770080102', { text: '\x1b<4m IGNITION FAULT' }],

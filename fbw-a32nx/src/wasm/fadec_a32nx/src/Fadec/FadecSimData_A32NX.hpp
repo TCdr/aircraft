@@ -206,6 +206,7 @@ class FadecSimData_A32NX {
   NamedVariablePtr engineStartN2Hang[2];        // Bool - hung start or stall: the core speed hangs below idle
   NamedVariablePtr engineStartEgtOvershoot[2];  // Bool - hot start or stall: the start EGT overshoots
   NamedVariablePtr engineStarterFailed[2];      // Bool - starter failure: the starter air does not turn the engine
+  NamedVariablePtr engineFanBlocked[2];         // Bool - fan blocked failure: no N1 rotation at start (FanBlockedStart_A32NX.hpp)
   NamedVariablePtr engineModeSelector;        // Enum - ENG MODE selector: 0 crank, 1 norm, 2 ign/start
   NamedVariablePtr engineOilLeak[2];          // Bool - oil leak failure: the oil system loses oil (systems WASM)
   NamedVariablePtr engineOilOverheat[2];      // Bool - oil overheat failure: the oil is not cooled enough (systems WASM)
@@ -348,6 +349,8 @@ class FadecSimData_A32NX {
     engineStartEgtOvershoot[R] = dm->make_named_var("A32NX_ENGINE_2_START_EGT_OVERSHOOT", UNITS.Number, AUTO_READ);
     engineStarterFailed[L]     = dm->make_named_var("A32NX_ENGINE_1_STARTER_FAILED", UNITS.Number, AUTO_READ);
     engineStarterFailed[R]     = dm->make_named_var("A32NX_ENGINE_2_STARTER_FAILED", UNITS.Number, AUTO_READ);
+    engineFanBlocked[L]        = dm->make_named_var("A32NX_ENGINE_1_FAN_BLOCKED", UNITS.Number, AUTO_READ);
+    engineFanBlocked[R]        = dm->make_named_var("A32NX_ENGINE_2_FAN_BLOCKED", UNITS.Number, AUTO_READ);
     // XMLVAR_ENG_MODE_SEL has no A32NX_ prefix in the sim: noPrefix = true (last parameter), else L:A32NX_XMLVAR_ENG_MODE_SEL (always 0).
     engineModeSelector = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ, 0.0, 0, true);
 

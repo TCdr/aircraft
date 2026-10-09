@@ -74,6 +74,9 @@ pub enum FailureType {
     EngineFlameout(usize),
     /// The core of engine n seizes: no relight while the failure is active (engine::engine_failure)
     EngineSeizure(usize),
+    /// The fan (N1 rotor) of engine n is blocked: no N1 rotation during a start on the ground
+    /// (A320 ENG 1(2) LOW N1, see a320_systems engine_failure)
+    EngineFanBlocked(usize),
     // ATA79
     /// Engine n loses oil overboard: its oil quantity falls, then its oil pressure (engine::oil_failure)
     EngineOilLeak(usize),

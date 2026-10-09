@@ -163,6 +163,8 @@ export const A320Failure = Object.freeze({
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
   Eng2Seizure: 72011,
+  Eng1FanBlocked: 72020,
+  Eng2FanBlocked: 72021,
   Eng1OilLeak: 79000,
   Eng2OilLeak: 79001,
   Eng1OilFilterClog: 79020,
@@ -367,6 +369,9 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // The core stops; no relight while the failure is active
   [72, A320Failure.Eng1Seizure, 'Engine 1 seizure (no relight)'],
   [72, A320Failure.Eng2Seizure, 'Engine 2 seizure (no relight)'],
+  // The fan does not turn: during a start on the ground the N1 stays at 0 and the core hangs below idle (ENG 1(2) LOW N1)
+  [72, A320Failure.Eng1FanBlocked, 'Engine 1 fan blocked (no N1 rotation at start)'],
+  [72, A320Failure.Eng2FanBlocked, 'Engine 2 fan blocked (no N1 rotation at start)'],
 
   // The oil system loses 2 qt/min (the tank quantity on the SD falls about 1.6 qt/min), then the oil pressure once the tank is nearly empty (ENG OIL LO PR)
   [79, A320Failure.Eng1OilLeak, 'Engine 1 oil leak'],
