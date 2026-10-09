@@ -352,6 +352,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] The ENG MASTER FAULT light comes on when the FADEC aborts an automatic start, no longer with the MSFS engine failure - @TCdr
 1. [EFB/ENG] New flyPad failures Engine 1(2)(3)(4) fuel filter clog (ATA 73): CLOG (A32NX) or CLOGGED (A380X) below the fuel used or fuel flow on the ENGINE SD page and the ENG FUEL FILTER CLOG(GED) caution - @TCdr
 1. [A380X/SD] The ENGINE page shows the start valve in amber when it is abnormally open or closed, and a red cross next to the N3 after an exceedance until the next engine start on ground - @TCdr
+1. [A32NX/FWS] New ENG 1(2) THR LEVER ABV IDLE warning with the repetitive RETARD callout when a thrust lever is above idle while the other one is in reverse, or comes out of reverse, during the landing roll - @TCdr
+1. [A32NX/FWS] New ENG SAT ABOVE FLEX TEMP caution before take-off when the outside air temperature is above the FLEX TEMP entered in the MCDU - @TCdr
+1. [A32NX/ENG] New flyPad failures Engine 1(2) fan blocked (no N1 rotation at start) (ATA 72) and the ENG 1(2) LOW N1 caution: during a start on the ground the N1 stays at 0 and the core hangs below idle - @TCdr
 
 ## 2024.1.0
 

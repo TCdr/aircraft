@@ -372,6 +372,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (72_001, FailureType::EngineFlameout(2)),
         (72_010, FailureType::EngineSeizure(1)),
         (72_011, FailureType::EngineSeizure(2)),
+        (72_020, FailureType::EngineFanBlocked(1)),
+        (72_021, FailureType::EngineFanBlocked(2)),
         (79_000, FailureType::EngineOilLeak(1)),
         (79_001, FailureType::EngineOilLeak(2)),
         (79_020, FailureType::EngineOilFilterClog(1)),
