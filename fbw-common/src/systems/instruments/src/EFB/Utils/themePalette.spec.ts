@@ -254,13 +254,16 @@ describe('alert hues', () => {
     expect(THEME_SWATCHES).toHaveLength(10);
   });
 
-  it('refuses a stored custom theme whose primary or secondary is an alert hue', () => {
-    expect(parseThemeChoice('custom:grey:#ea580c:same')).toBeNull();
-    expect(parseThemeChoice('custom:grey:#8b5cf6:#ea580c')).toBeNull(); // orange secondary
-    expect(parseThemeChoice('custom:black:#8b5cf6:#f59e0b')).toBeNull(); // amber secondary
-    expect(parseThemeChoice('custom:light:#8b5cf6:#dc2626')).toBeNull(); // red secondary
-    // a refused value falls back to the old preset
-    expect(resolveThemeChoice('custom:grey:#8b5cf6:#ea580c', 'dark')).toEqual({ kind: 'preset', preset: 'dark' });
+  it('keeps a stored custom theme whose primary or secondary is an alert hue (allowed since 2026-10-08)', () => {
+    expect(parseThemeChoice('custom:grey:#ea580c:same')).toEqual({
+      kind: 'custom',
+      base: 'grey',
+      primary: '#ea580c',
+      secondary: null,
+    });
+    expect(parseThemeChoice('custom:light:#8b5cf6:#dc2626')?.kind).toBe('custom'); // red secondary
+    // a value that is not valid still falls back to the old preset
+    expect(resolveThemeChoice('custom:grey:#8b5cf6:#zzzzzz', 'dark')).toEqual({ kind: 'preset', preset: 'dark' });
     // a grey secondary is fine
     expect(parseThemeChoice('custom:grey:#8b5cf6:#64748b')).toEqual({
       kind: 'custom',
