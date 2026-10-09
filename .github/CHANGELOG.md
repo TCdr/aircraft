@@ -151,6 +151,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New ENG 1(2)(3)(4) OIL TEMP LO caution on the ground when the engine oil is below 50 °C 30 s after the start, after the T.O CONFIG test or at take-off power - @TCdr
 1. [A380X/ENG] New flyPad failures Engine 1(2)(3)(4) max thrust miscalculated (thrust loss) (ATA 73): that engine gives 15 % less thrust above idle, with the ENG 1(2)(3)(4) THRUST LOSS caution at take-off - @TCdr
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
+1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 
 ## 2024.1.0
 

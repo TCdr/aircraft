@@ -117,6 +117,16 @@ export function n1Exceeds(n1: number): boolean {
 }
 
 /**
+ * The colour of the N1 value (A380 FCOM DSC-70-90 N1 INDICATIONS, a380_fcom.txt l.113073-113079, PDF page 4103): green
+ * in the normal range, red above the red limit.
+ * @param n1 the N1 in percent
+ * @returns the colour class
+ */
+export function n1Colour(n1: number): 'Red' | 'Green' {
+  return n1Exceeds(n1) ? 'Red' : 'Green';
+}
+
+/**
  * @param n3 the N3 in percent
  * @returns true above the N2 (FBW N3) red limit
  */
