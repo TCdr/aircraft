@@ -25,6 +25,16 @@ describe('A320 flyPad failures', () => {
     expect(label(A320Failure.Eng2Seizure)).toEqual([72, 72011, 'Engine 2 seizure (no relight)']);
   });
 
+  // The labels say what a320_systems engine_failure.rs and the FADEC (FanBlockedStart_A32NX.hpp) do with ids 72020-72021
+  it('lists the fan blocked failures in ATA 72 with the Rust failure they trigger', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.Eng1FanBlocked)).toEqual([72, 72020, 'Engine 1 fan blocked (no N1 rotation at start)']);
+    expect(label(A320Failure.Eng2FanBlocked)).toEqual([72, 72021, 'Engine 2 fan blocked (no N1 rotation at start)']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    expect(wasm).toContain('(72_020, FailureType::EngineFanBlocked(1)),');
+    expect(wasm).toContain('(72_021, FailureType::EngineFanBlocked(2)),');
+  });
+
   // The oil failure labels say what systems engine/oil_failure.rs and the FADEC (EngineOilFailures.hpp) do with ids 79000-79031
   it('lists the engine oil failures in ATA 79 Oil', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
