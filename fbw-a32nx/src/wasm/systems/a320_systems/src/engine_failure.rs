@@ -38,6 +38,11 @@
 //! light-up, start faults, automatic start abort, ENG MAN START, start and ignition failures) run
 //! here as well, with the A320 numbers of [`a320_engine_start_schedule`]: their fuel cut and their
 //! ignition feed the relight logic above.
+//!
+//! Fan blocked failure (A320 ENG 1(2) LOW N1, FCOM PRO-ABN-ENG, a320_fcom.txt l.80343-80363: "This
+//! alert triggers when N1 rotation is failed during start"): the fan (N1 rotor) of the engine does
+//! not turn. This module writes `ENGINE_n_FAN_BLOCKED`; the FADEC (C++, FanBlockedStart_A32NX.hpp)
+//! keeps the N1 of a start on the ground at 0 and the core below idle.
 
 use std::time::Duration;
 use systems::{
@@ -47,6 +52,7 @@ use systems::{
         },
         engine_start::{EngineStartInputs, EngineStartSchedule, EngineStartSequence},
     },
+    failures::{Failure, FailureType},
     pneumatic::{EngineModeSelector, EngineState},
     simulation::{
         InitContext, Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
@@ -202,6 +208,9 @@ struct A320EngineFailure {
     engine_number: usize,
     failure: EngineFailure,
     start: EngineStartSequence,
+    /// The fan of the engine is blocked: no N1 rotation during a start (ENG 1(2) LOW N1)
+    fan_blocked: Failure,
+    fan_blocked_id: VariableIdentifier,
 
     master_switch_id: VariableIdentifier,
     ignition_selector_id: VariableIdentifier,
@@ -258,6 +267,8 @@ impl A320EngineFailure {
             igniter_b_active_id: context
                 .get_identifier(format!("FADEC_IGNITER_B_ACTIVE_ENG{}", engine_number)),
             start: EngineStartSequence::new(context, engine_number),
+            fan_blocked: Failure::new(FailureType::EngineFanBlocked(engine_number)),
+            fan_blocked_id: context.get_identifier(format!("ENGINE_{}_FAN_BLOCKED", engine_number)),
             master_switch_is_on: false,
             ignition_selector: EngineModeSelector::Norm,
             starter_air_pressurized: false,
@@ -327,6 +338,7 @@ impl SimulationElement for A320EngineFailure {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.failure.accept(visitor);
         self.start.accept(visitor);
+        self.fan_blocked.accept(visitor);
 
         visitor.visit(self);
     }
@@ -335,6 +347,7 @@ impl SimulationElement for A320EngineFailure {
         let igniters = self.start.igniters();
         writer.write(&self.igniter_a_active_id, igniters.a);
         writer.write(&self.igniter_b_active_id, igniters.b);
+        writer.write(&self.fan_blocked_id, self.fan_blocked.is_active());
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {
@@ -726,6 +739,26 @@ mod tests {
             for _ in 0..seconds * 20 {
                 run(test_bed);
             }
+        }
+
+        #[test]
+        fn the_fan_blocked_failure_of_engine_2_tells_the_fadec_of_engine_2_only() {
+            let mut test_bed = ground_test_bed();
+            let fan_blocked =
+                |test_bed: &mut SimulationTestBed<TestAircraft>, engine: usize| -> bool {
+                    test_bed.read_by_name(&format!("ENGINE_{}_FAN_BLOCKED", engine))
+                };
+            assert!(!fan_blocked(&mut test_bed, 1));
+            assert!(!fan_blocked(&mut test_bed, 2));
+
+            test_bed.fail(FailureType::EngineFanBlocked(2));
+            run(&mut test_bed);
+            assert!(!fan_blocked(&mut test_bed, 1));
+            assert!(fan_blocked(&mut test_bed, 2));
+
+            test_bed.unfail(FailureType::EngineFanBlocked(2));
+            run(&mut test_bed);
+            assert!(!fan_blocked(&mut test_bed, 2));
         }
 
         #[test]
