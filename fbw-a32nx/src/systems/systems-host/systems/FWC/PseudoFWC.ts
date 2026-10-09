@@ -78,6 +78,13 @@ import {
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
 import { FUEL_FILTER_CLOG_PHASE_INHIBITION, engineFuelFilterClog } from './Logic/EngineFuelFilterAlerts';
 import {
+  SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION,
+  THR_LEVER_ABV_IDLE_PHASE_INHIBITION,
+  ThrustLeverAboveIdleMonitor,
+  isSatAboveFlexTemp,
+} from './Logic/EngineThrustSettingAlerts';
+import { EngineLowN1Monitor, LOW_N1_PHASE_INHIBITION, lowN1Lines } from './Logic/EngineLowN1Alerts';
+import {
   EngineStartFault,
   EngineStartPhase,
   IGN_A_PLUS_B_FAULT_FLIGHT_PHASE_INHIBITION,
@@ -1653,6 +1660,13 @@ export class PseudoFWC {
 
   private readonly adr3Cas = Arinc429LocalVarConsumerSubject.create(this.sub.on('a32nx_adr_computed_airspeed_3'));
 
+  /** The static air temperatures of ADR 1, 2 and 3, for ENG SAT ABOVE FLEX TEMP */
+  private readonly adrStaticAirTemperatures = [
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('a32nx_adr_static_air_temperature_1')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('a32nx_adr_static_air_temperature_2')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('a32nx_adr_static_air_temperature_3')),
+  ];
+
   private readonly adr123CasAbove220Kts = Subject.create(false);
 
   private readonly computedAirSpeedToNearest2 = this.adr1Cas.map((it) => Math.round(it.value / 2) * 2);
@@ -1772,6 +1786,24 @@ export class PseudoFWC {
   private readonly engine1FuelFilterClog = Subject.create(false);
 
   private readonly engine2FuelFilterClog = Subject.create(false);
+
+  /** ENG 1(2) THR LEVER ABV IDLE, see Logic/EngineThrustSettingAlerts */
+  private readonly thrustLeverAboveIdleMonitor = new ThrustLeverAboveIdleMonitor();
+
+  private readonly engine1ThrLeverAboveIdle = Subject.create(false);
+
+  private readonly engine2ThrLeverAboveIdle = Subject.create(false);
+
+  /** The repetitive RETARD-RETARD voice of ENG 1(2) THR LEVER ABV IDLE */
+  private readonly thrLeverAboveIdleRetardAudio = Subject.create(false);
+
+  /** ENG SAT ABOVE FLEX TEMP, see Logic/EngineThrustSettingAlerts */
+  private readonly satAboveFlexTemp = Subject.create(false);
+
+  /** ENG 1(2) LOW N1, see Logic/EngineLowN1Alerts. Index 0 = engine 1. */
+  private readonly engineLowN1Monitors = [new EngineLowN1Monitor(), new EngineLowN1Monitor()];
+
+  private readonly engineLowN1 = [Subject.create(false), Subject.create(false)];
 
   /*
    * ENG 1(2) START FAULT, START VALVE FAULT and IGN FAULT (Logic/EngineStartAlerts), from the FADEC start sequence of the
@@ -2481,7 +2513,12 @@ export class PseudoFWC {
       }
     });
 
-    this.autoCallouts.retardAudio.sub((v) => {
+    // The repetitive RETARD of the auto callouts and the RETARD-RETARD of ENG 1(2) THR LEVER ABV IDLE share one sound
+    MappedSubject.create(
+      ([autoCalloutRetard, thrLeverAboveIdleRetard]) => autoCalloutRetard || thrLeverAboveIdleRetard,
+      this.autoCallouts.retardAudio,
+      this.thrLeverAboveIdleRetardAudio,
+    ).sub((v) => {
       this.soundManager.handleSoundCondition('retard_continuous', v);
     });
 
@@ -4956,6 +4993,44 @@ export class PseudoFWC {
       );
     });
 
+    /* ENG 1(2) THR LEVER ABV IDLE, ENG SAT ABOVE FLEX TEMP (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts) */
+    this.thrustLeverAboveIdleMonitor.update({
+      onGround,
+      flightPhase,
+      tlaDegrees: [this.thr1TLA.get(), this.thr2TLA.get()],
+    });
+    this.engine1ThrLeverAboveIdle.set(this.thrustLeverAboveIdleMonitor.isActive(0));
+    this.engine2ThrLeverAboveIdle.set(this.thrustLeverAboveIdleMonitor.isActive(1));
+    this.thrLeverAboveIdleRetardAudio.set(
+      this.thrustLeverAboveIdleMonitor.isRetardCalloutRequired(this.adr1Cas.get().valueOr(0)),
+    );
+    // The SAT of the first ADR with a valid SAT; the FLEX TEMP the FMS writes (0 = none entered)
+    const validStaticAirTemperature = this.adrStaticAirTemperatures
+      .map((adrSat) => adrSat.get())
+      .find((sat) => sat.isNormalOperation());
+    this.satAboveFlexTemp.set(
+      isSatAboveFlexTemp({
+        flexTemperatureCelsius: SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number'),
+        staticAirTemperatureCelsius: validStaticAirTemperature?.value ?? null,
+      }),
+    );
+
+    /* ENG 1(2) LOW N1 (FCOM PRO-ABN-ENG, see Logic/EngineLowN1Alerts): the N1 and N2 the FADEC shows during a start */
+    this.engineLowN1Monitors.forEach((monitor, index) => {
+      const engineState = (index === 0 ? this.engine1State : this.engine2State).get();
+      monitor.update(
+        {
+          onGround,
+          masterOn: !!(index === 0 ? this.engine1Master.get() : this.engine2Master.get()),
+          engineStarting: engineState === EngineState.Starting || engineState === EngineState.Restarting,
+          n1Percent: (index === 0 ? this.N1Eng1 : this.N1Eng2).get(),
+          n2Percent: (index === 0 ? this.N2Eng1 : this.N2Eng2).get(),
+        },
+        deltaTime / 1000,
+      );
+      this.engineLowN1[index].set(monitor.isActive);
+    });
+
     /* ENG 1(2) START FAULT, START VALVE FAULT, IGN FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts) */
 
     let continuousIgnition = false;
@@ -6013,6 +6088,21 @@ export class PseudoFWC {
    * ENG 1(2) START FAULT (FCOM PRO-ABN-ENG, see Logic/EngineStartAlerts): amber, flight phases 3, 4, 5, 7, 8 inhibited (and
    * 6 for THR LEVER NOT AT IDLE, in isStartFaultActive).
    */
+  /** ENG 1(2) LOW N1 (FCOM PRO-ABN-ENG, see Logic/EngineLowN1Alerts): amber, inhibited in the phases 4 to 9 */
+  private engineLowN1Alert(engine: 1 | 2): EWDFailureItem {
+    const code = (line: number) => `77009${engine + 20}${String(line).padStart(2, '0')}`;
+    return {
+      flightPhaseInhib: LOW_N1_PHASE_INHIBITION,
+      simVarIsActive: this.engineLowN1[engine - 1],
+      whichCodeToReturn: () => lowN1Lines((engine === 1 ? this.thr1TLA : this.thr2TLA).get()),
+      codesToReturn: [code(1), code(2), code(3), code(4)],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    };
+  }
+
   private engineStartFaultAlert(engine: 1 | 2): EWDFailureItem {
     const index = engine - 1;
     const code = (line: number) => `770080${engine}${String(line).padStart(2, '0')}`;
@@ -7318,6 +7408,43 @@ export class PseudoFWC {
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
     },
+    7700901: {
+      // ENG 1 THR LEVER ABV IDLE (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts): red, RETARD-RETARD voice
+      flightPhaseInhib: THR_LEVER_ABV_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.engine1ThrLeverAboveIdle,
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['770090101', '770090102'],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    7700902: {
+      // ENG 2 THR LEVER ABV IDLE (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts): red, RETARD-RETARD voice
+      flightPhaseInhib: THR_LEVER_ABV_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.engine2ThrLeverAboveIdle,
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['770090201', '770090202'],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    7700911: {
+      // ENG SAT ABOVE FLEX TEMP (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts): amber, phase 2 only
+      flightPhaseInhib: SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION,
+      simVarIsActive: this.satAboveFlexTemp,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['770091101', '770091102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    7700921: this.engineLowN1Alert(1),
+    7700922: this.engineLowN1Alert(2),
     7700801: this.engineStartFaultAlert(1),
     7700802: this.engineStartFaultAlert(2),
     7700811: this.engineStartValveFaultAlert(1),
