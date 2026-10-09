@@ -37,8 +37,11 @@
  *     saturation (its value is not the engine speed yet), so that it does not overshoot the speed MSFS settles at.
  *   Once MSFS has settled (falls less than SETTLED_MAX_FALL in SETTLED_WINDOW), or after MAX_FILTER_SECONDS, the guarded value
  *   rises towards the MSFS value at the acceleration rate.
- * - The jump ends for each value when the MSFS value is back at or below the guarded value: from then on the MSFS value is used
- *   unchanged.
+ * - The jump ends for each value when MSFS has come down from its peak (or after MAX_FILTER_SECONDS) and is back at or below
+ *   the guarded value: from then on the MSFS value is used unchanged. The MSFS fan lags the core (sim test 2026-10-08, blip2.log:
+ *   in the sample where the core jumps 57.7 to 60.9 % the fan only goes 22.2 to 22.4 %, and creeps up to 59.7 % in 2.6 s), so
+ *   while MSFS still rises the guarded value uses the MSFS value whenever it is not above the allowed one. If the fan never rises
+ *   above the guarded value, the N1 jump ends with the N3 jump.
  * The MSFS thrust itself follows the MSFS N1 and is not changed by this guard.
  */
 class CoreSpikeGuard_A380X {
@@ -110,8 +113,13 @@ class CoreSpikeGuard_A380X {
       n1.startFiltering(inputs.engineStarting ? inputs.idleN1 : noCeiling, inputs.engineStarting);
     }
 
-    return {n3.update(inputs.simN3, inputs.deltaTime, N3_ACCELERATION_PERCENT_PER_SECOND),
-            n1.update(inputs.simN1, inputs.deltaTime, N1_ACCELERATION_PERCENT_PER_SECOND)};
+    const double guardedN3 = n3.update(inputs.simN3, inputs.deltaTime, N3_ACCELERATION_PERCENT_PER_SECOND);
+    const double guardedN1 = n1.update(inputs.simN1, inputs.deltaTime, N1_ACCELERATION_PERCENT_PER_SECOND);
+    if (!n3.isFiltering()) {
+      // the core is back at the MSFS value: a fan that never rose above its guarded value has no jump left to filter
+      n1.endIfNotRisen(inputs.simN1);
+    }
+    return {guardedN3, n1.isFiltering() ? guardedN1 : inputs.simN1};
   }
 
   /// True while the guarded N3 differs from the MSFS N3 (a jump is being filtered).
@@ -136,6 +144,14 @@ class CoreSpikeGuard_A380X {
       holdAtStartCeiling   = ceilingUntilSettled;
       settleWindowStart    = output;
       settleWindowDuration = 0.0;
+      simWentAbove         = false;
+    }
+
+    /// Ends the filtering if the MSFS value has not risen above the guarded value since the jump started.
+    void endIfNotRisen(double simValue) {
+      if (filtering && !simWentAbove) {
+        follow(simValue);
+      }
     }
 
     double update(double simValue, double deltaTime, double accelerationPerSecond) {
@@ -157,11 +173,16 @@ class CoreSpikeGuard_A380X {
       }
       const double raised = (std::min)(output + accelerationPerSecond * deltaTime, (std::max)(output, limit));
 
-      if (simValue <= raised) {
-        // MSFS is back at or below the guarded value: the jump is over for this speed
+      if (simValue > raised) {
+        simWentAbove = true;
+        output       = raised;
+      } else if (phase != Phase::SATURATED || elapsed >= MAX_FILTER_SECONDS) {
+        // MSFS has come down from its peak and is back at or below the guarded value: the jump is over for this speed
         follow(simValue);
       } else {
-        output = raised;
+        // MSFS has not risen yet, or still rises within the allowed rate (the fan lags the core): its value is used, the jump is
+        // still watched
+        output = simValue;
       }
       return output;
     }
@@ -202,6 +223,7 @@ class CoreSpikeGuard_A380X {
     bool   holdAtStartCeiling   = false;
     double settleWindowStart    = 0.0;  // the MSFS value at the start of the current settle window, percent
     double settleWindowDuration = 0.0;  // seconds
+    bool   simWentAbove         = false;  // the MSFS value has risen above the guarded value since the jump started
   };
 
   bool         initialized   = false;
