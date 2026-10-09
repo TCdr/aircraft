@@ -310,6 +310,73 @@ static void replay(const ReplayCase& replayCase) {
               idleTime);
 }
 
+// The MSFS fan lags the core jump (sim test 2026-10-08, blip2.log): N1 still below the FBW idle when the core jumps
+// ---------------------------------------------------------------------------------------------------------------------
+
+struct CoreFanSample {
+  double t;      // recording clock, seconds
+  int    state;  // A32NX_ENGINE_STATE as recorded
+  double simN3;  // TURB ENG N2 of the relit engine, percent
+  double simN1;  // TURB ENG N1 of the relit engine, percent
+};
+
+#include "core_spike_replay_2026_10_08.inc"
+
+/**
+ * Replays the 2026-10-08 relight with the recorded MSFS N1. At the jump the MSFS N1 is still at 22.4 %, below the FBW idle N1, and
+ * rises to 59.7 % only 2.6 s later: the guarded N1 (and with it the fuel flow and EGT the FADEC computes from it) must not follow it.
+ * The FBW idle N3/N1 are not in the recording: 61.2 % is the N3 the E/WD held at the end of the start, 25.8 % the idle N1 used above.
+ */
+static void testReplayFanLagsTheCore() {
+  constexpr double IDLE_N3             = 61.2;
+  constexpr double IDLE_N1             = 25.8;
+  constexpr double JUMP_TIME           = 274.0;  // the MSFS core jumps (57.5 to 96.2 % in 0.5 s)
+  constexpr double NORMAL_ACCEL_START  = 285.0;  // the MSFS throttle rises (EngineStartThrottleHold released)
+  constexpr double NORMAL_ACCEL_CHECK  = 286.0;  // from here the guard must follow MSFS unchanged
+  const int        count               = static_cast<int>(sizeof(REPLAY_B2) / sizeof(REPLAY_B2[0]));
+
+  GuardedEngine engine;
+  int           state        = REPLAY_B2[0].state;
+  double        maxN1        = 0.0;
+  double        maxN3        = 0.0;
+  bool          n1AboveSim   = false;
+  bool          accelLimited = false;
+  for (int i = 0; i + 1 < count; i++) {
+    const CoreFanSample& from = REPLAY_B2[i];
+    const CoreFanSample& to   = REPLAY_B2[i + 1];
+    for (double t = from.t; t < to.t - 1e-9; t += FRAME_SECONDS) {
+      // held between the samples, as the FADEC reads them from the sim: in the sample where the core jumps the fan has not followed
+      const double simN3          = from.simN3;
+      const double simN1          = from.simN1;
+      const bool   engineStarting = state == STARTING || state == RESTARTING;
+      const CoreSpikeGuard_A380X::Output output = engine.update(simN3, simN1, engineStarting, IDLE_N3, IDLE_N1, FRAME_SECONDS);
+      if (t < JUMP_TIME) {
+        state = from.state;
+      } else if (engineStarting && StartSequence_A380X::startReachesIdle(true, output.n3, IDLE_N3, false)) {
+        state = ON;
+      }
+      if (t >= JUMP_TIME && t < NORMAL_ACCEL_START) {
+        maxN1 = (std::max)(maxN1, output.n1);
+        maxN3 = (std::max)(maxN3, output.n3);
+      }
+      n1AboveSim |= output.n1 > simN1 + 1e-9;
+      if (t >= NORMAL_ACCEL_CHECK) {
+        accelLimited |= output.n1 != simN1 || output.n3 != simN3;
+      }
+    }
+  }
+
+  char what[200];
+  std::snprintf(what, sizeof(what), "replay B2: no N1 spike after the jump although the MSFS N1 lags the core (max %.1f %%)", maxN1);
+  expect(maxN1 <= IDLE_N1 + 0.1, what);
+  std::snprintf(what, sizeof(what), "replay B2: no N3 spike after the jump (max %.1f %%)", maxN3);
+  expect(maxN3 <= IDLE_N3 + 0.1, what);
+  expect(!n1AboveSim, "replay B2: the guarded N1 is never above the MSFS N1");
+  expect(!accelLimited, "replay B2: the normal acceleration afterwards is not limited");
+  std::printf("replay B2 (fan lags the core): guarded N1 max %.1f %%, N3 max %.1f %% between the jump and the throttle rise\n",
+              maxN1, maxN3);
+}
+
 static void testReplays() {
   // The FBW idle N3 (L:A32NX_ENGINE_IDLE_N3) is not in the recordings: Table1502_A380X::iCN3(altitude, Mach) * sqrt(theta), with the
   // Mach of the recorded IAS and altitude and theta from the MSFS start end at low_idle_n2 = 60 % corrected (T2/T3 0.968-0.970, S6
@@ -338,6 +405,7 @@ int main() {
   testMsfsSettlesAboveTheFbwIdle();
   testMsfsStaysSaturated();
   testReplays();
+  testReplayFanLagsTheCore();
 
   if (failures == 0) {
     std::printf("core_spike_guard_test: all passed\n");
