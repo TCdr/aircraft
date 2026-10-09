@@ -1245,7 +1245,7 @@
         "EditHex": "Enter a hex color",
         "Fail": "FAIL",
         "Gray": "Gray",
-        "HexAlertHue": "Too close to the amber and red of the alerts: not available as a theme color",
+        "HexAlertHue": "Close to the amber and red of the alerts: buttons and switches in this color may look like warnings",
         "HexDescription": "Hex code such as #8B5CF6, Enter to apply",
         "HexInvalid": "Not a hex color: type 6 digits such as #8B5CF6",
         "Light": "Light",

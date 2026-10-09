@@ -22,8 +22,8 @@ import {
   ColourSlot,
   CustomColours,
   findWedge,
-  hatchSegments,
   initialPick,
+  nearAlertColours,
   pickChange,
   pickTokens,
   primaryAdjustment,
@@ -81,19 +81,6 @@ const WHEEL_SIZE = 400;
 const VIEWBOX_MARGIN = 6;
 const VIEWBOX_SIZE = 2 * WHEEL_RADIUS + 2 * VIEWBOX_MARGIN;
 
-/** The hatching lines of the blocked wedges, computed once */
-const HATCHES: { key: string; segments: number[][] }[] = [];
-COLOUR_WHEEL.forEach((ring, r) =>
-  ring.forEach((wedge) => {
-    if (wedge.blocked) {
-      HATCHES.push({
-        key: `${r}-${wedge.index}`,
-        segments: hatchSegments(wedge.index, RING_RADII[r][0], RING_RADII[r][1]),
-      });
-    }
-  }),
-);
-
 interface WheelProps {
   /** The colour shown in the centre disc */
   centre: string;
@@ -107,8 +94,7 @@ interface WheelProps {
 }
 
 /**
- * The colour wheel: 12 hue wedges x 4 rings as SVG paths, 2.5 px gaps in the card colour, the alert-hue wedges faded
- * and hatched. Design choice: one click handler on the box with a geometric hit test (wedgeAt) rather than a handler
+ * The colour wheel: 12 hue wedges x 5 rings as SVG paths, 2.5 px gaps in the card colour. Design choice: one click handler on the box with a geometric hit test (wedgeAt) rather than a handler
  * per path, so the picking does not depend on the sim browser's SVG event support.
  */
 const ColourWheel = ({ centre, selected, dim, chrome, onPick }: WheelProps) => {
@@ -120,10 +106,7 @@ const ColourWheel = ({ centre, selected, dim, chrome, onPick }: WheelProps) => {
       (event.clientY - box.top) * scale - VIEWBOX_MARGIN,
     );
     if (hit) {
-      const wedge = COLOUR_WHEEL[hit.ring][hit.index];
-      if (!wedge.blocked) {
-        onPick(wedge.hex);
-      }
+      onPick(COLOUR_WHEEL[hit.ring][hit.index].hex);
     }
   };
 
@@ -146,28 +129,12 @@ const ColourWheel = ({ centre, selected, dim, chrome, onPick }: WheelProps) => {
               d={wedgePath(wedge.index, RING_RADII[r][0], RING_RADII[r][1])}
               fill={wedge.hex}
               // only the wedges are dimmed for Same: the centre disc keeps showing the primary at full strength
-              fillOpacity={(wedge.blocked ? 0.35 : 1) * (dim ? 0.4 : 1)}
+              fillOpacity={dim ? 0.4 : 1}
               stroke={chrome.card}
               strokeWidth={2.5}
             />
           )),
         )}
-        {HATCHES.map(({ key, segments }) => (
-          <g key={key}>
-            {segments.map(([x1, y1, x2, y2]) => (
-              <line
-                key={`${x1.toFixed(1)}-${y1.toFixed(1)}`}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke={chrome.card}
-                strokeOpacity={0.75}
-                strokeWidth={3}
-              />
-            ))}
-          </g>
-        ))}
         {selectedPath && (
           <>
             <path d={selectedPath} fill="none" stroke={chrome.card} strokeWidth={7} strokeLinejoin="round" />
@@ -192,24 +159,6 @@ const ColourWheel = ({ centre, selected, dim, chrome, onPick }: WheelProps) => {
         />
       </svg>
     </div>
-  );
-};
-
-/** The legend sample of a blocked wedge: a faded red disc with three hatching lines */
-const HatchSample = ({ chrome }: { chrome: M3Tokens }) => {
-  const lines = [-4.5, 0, 4.5].map((d) => {
-    // the "/" line at distance d from the centre, cut to a radius of 7
-    const h = Math.sqrt(49 - d * d);
-    const [cx, cy] = [9 + d / Math.SQRT2, 9 + d / Math.SQRT2];
-    return [cx - h / Math.SQRT2, cy + h / Math.SQRT2, cx + h / Math.SQRT2, cy - h / Math.SQRT2];
-  });
-  return (
-    <svg width={18} height={18} viewBox="0 0 18 18" style={{ display: 'block', flexShrink: 0 }}>
-      <circle cx={9} cy={9} r={8} fill={COLOUR_WHEEL[0][10].hex} fillOpacity={0.35} />
-      {lines.map(([x1, y1, x2, y2]) => (
-        <line key={x1} x1={x1} y1={y1} x2={x2} y2={y2} stroke={chrome.card} strokeOpacity={0.75} strokeWidth={2} />
-      ))}
-    </svg>
   );
 };
 
@@ -345,8 +294,6 @@ export const ColourWheelDialog = ({ slot, language, onClose }: ColourWheelDialog
     const entry = readHexEntry(text, shown);
     if (entry.kind === 'invalid') {
       setHexError(s('HexInvalid'));
-    } else if (entry.kind === 'alert') {
-      setHexError(s('HexAlertHue'));
     } else if (entry.kind === 'pick') {
       choose(entry.hex);
     }
@@ -386,10 +333,12 @@ export const ColourWheelDialog = ({ slot, language, onClose }: ColourWheelDialog
       <div className="mt-6 flex min-h-0 flex-1 flex-row">
         <div className="flex w-[400px] shrink-0 flex-col">
           <ColourWheel centre={shown} selected={selectedWedge} dim={pick.same} chrome={chrome} onPick={choose} />
-          <div className="mt-[18px] flex flex-row items-start">
-            <HatchSample chrome={chrome} />
-            <span className="ml-2.5 text-[13px] font-semibold leading-[18px] text-m3-muted">{s('HexAlertHue')}</span>
-          </div>
+          {nearAlertColours(shown) && (
+            <div className="mt-[18px] flex flex-row items-start">
+              <InfoCircle size={18} className="mt-px shrink-0 text-m3-muted" />
+              <span className="ml-2.5 text-[13px] font-semibold leading-[18px] text-m3-muted">{s('HexAlertHue')}</span>
+            </div>
+          )}
         </div>
 
         <div className="ml-9 flex min-w-0 flex-1 flex-col">
