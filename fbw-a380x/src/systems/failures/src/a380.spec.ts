@@ -191,6 +191,32 @@ describe('A380X flyPad failure definitions', () => {
     expect(rustMap.has(72120)).toBe(false);
   });
 
+  // The labels say what the FADEC models of fbw_a380 (FadecThrustFailures.h) do with ids 73050-73063: they are consumed
+  // by the fbw WASM (failures/FailureList.h), not by the Rust systems
+  it('lists the FADEC thrust failures of the four engines in ATA 73 under the ids of the fbw WASM', () => {
+    const failureList = readFileSync(resolve(__dirname, '../../../wasm/fbw_a380/src/failures/FailureList.h'), 'utf8');
+    const consumer = readFileSync(
+      resolve(__dirname, '../../../wasm/fbw_a380/src/failures/FailuresConsumer.cpp'),
+      'utf8',
+    );
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+    for (const engine of [1, 2, 3, 4]) {
+      const maxThrust = 73050 + engine - 1;
+      const flexTemp = 73060 + engine - 1;
+      expect(definitionOf(maxThrust)).toEqual([
+        73,
+        maxThrust,
+        `Engine ${engine} max thrust miscalculated (thrust loss)`,
+      ]);
+      expect(definitionOf(flexTemp)).toEqual([73, flexTemp, `FADEC ${engine} FLEX TEMP not received (T.O mode TOGA)`]);
+      expect(failureList).toContain(`Eng${engine}MaxThrustMiscalculated = ${maxThrust},`);
+      expect(failureList).toContain(`Fadec${engine}FlexTempNotReceived = ${flexTemp},`);
+      expect(consumer).toContain(`(Failures::Eng${engine}MaxThrustMiscalculated, false)`);
+      expect(consumer).toContain(`(Failures::Fadec${engine}FlexTempNotReceived, false)`);
+    }
+    expect(readRustFailureMap().has(73050)).toBe(false);
+  });
+
   it('lists every failure the Rust systems map reacts to', () => {
     const rustIds = [...readRustFailureMap().keys()];
     // Sanity check of the parser: the map holds well over a hundred failures.

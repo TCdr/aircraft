@@ -6,6 +6,7 @@
 #include "A380FadecComputer.h"
 #include "Arinc429.h"
 #include "FadecFailureInputs.h"
+#include "FadecThrustFailures.h"
 #include "CalculatedRadioReceiver.h"
 #include "EngineStartThrottleHold.h"
 #include "InterpolatingLookupTable.h"
@@ -271,6 +272,10 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idAutothrustN1_c[4];
   // N1 lost by a stalled engine (systems WASM, a380_systems engine_malfunction.rs)
   std::unique_ptr<LocalVariable> idEngineStallN1Loss[4];
+  // The maximum THR (percent) and the take-off mode of each FADEC, for ENG THRUST LOSS and ENG T.O THRUST DISAGREE
+  // (FadecThrustFailures.h)
+  std::unique_ptr<LocalVariable> idEngineFadecMaxThr[4];
+  std::unique_ptr<LocalVariable> idEngineFadecTakeoffMode[4];
   std::unique_ptr<LocalVariable> idAutothrustStatus;
   std::unique_ptr<LocalVariable> idAutothrustMode;
   std::unique_ptr<LocalVariable> idAutothrustModeMessage;

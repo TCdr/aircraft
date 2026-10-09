@@ -18,3 +18,12 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-c
   fadec_fault_manual_thrust_test.cpp ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp \
   -o ../obj/fadec_fault_manual_thrust_test
 ../obj/fadec_fault_manual_thrust_test
+# ENG THRUST LOSS and ENG T.O THRUST DISAGREE: the FADEC failures (FadecThrustFailures.h). With WITHOUT_THE_FIX=1 the FADEC
+# inputs are the ones before the failures and the test must fail.
+FLAGS=""
+if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then
+  FLAGS="-DWITHOUT_THE_FIX"
+fi
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model fadec_thrust_failures_test.cpp \
+  ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp -o ../obj/fadec_thrust_failures_test
+../obj/fadec_thrust_failures_test
