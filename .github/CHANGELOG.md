@@ -355,6 +355,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWS] New ENG 1(2) THR LEVER ABV IDLE warning with the repetitive RETARD callout when a thrust lever is above idle while the other one is in reverse, or comes out of reverse, during the landing roll - @TCdr
 1. [A32NX/FWS] New ENG SAT ABOVE FLEX TEMP caution before take-off when the outside air temperature is above the FLEX TEMP entered in the MCDU - @TCdr
 1. [A32NX/ENG] New flyPad failures Engine 1(2) fan blocked (no N1 rotation at start) (ATA 72) and the ENG 1(2) LOW N1 caution: during a start on the ground the N1 stays at 0 and the core hangs below idle - @TCdr
+1. [A380X/FWS] New ENG THR LEVERS NOT SET caution before take-off when a thrust lever of a running engine is at or between CL and FLX/MCT, or at FLX/MCT without a FLEX TEMP (TOGA take-off) - @TCdr
+1. [A380X/FWS] New ENG 1(2)(3)(4) OIL TEMP LO caution on the ground when the engine oil is below 50 °C 30 s after the start, after the T.O CONFIG test or at take-off power - @TCdr
+1. [A380X/ENG] New flyPad failures Engine 1(2)(3)(4) max thrust miscalculated (thrust loss) (ATA 73): that engine gives 15 % less thrust above idle, with the ENG 1(2)(3)(4) THRUST LOSS caution at take-off - @TCdr
+1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 
 ## 2024.1.0
 
