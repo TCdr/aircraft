@@ -404,6 +404,8 @@ void FlyByWireInterface::setupLocalVariables() {
     idAutothrustN1_c[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_N1_COMMANDED:" + idString);
     idEngineState[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_STATE:" + idString);
     idEngineStallN1Loss[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_STALL_N1_LOSS");
+    idEngineFadecMaxThr[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_MAX_THR");
+    idEngineFadecTakeoffMode[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TAKEOFF_MODE");
   }
 
   idEngineIdleN3 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N3");
@@ -2997,6 +2999,21 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.input.thrust_limit_MCT_percent = idAutothrustThrustLimitMCT->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_FLEX_percent = idAutothrustThrustLimitFLX->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_TOGA_percent = idAutothrustThrustLimitTOGA->get();
+  // ENG 1(2)(3)(4) THRUST LOSS: the FADEC of the "max thrust miscalculated" failure computes rating limits that are too low
+  // (FadecThrustFailures.h); its maximum THR goes to the FWS
+  {
+    const Failures maxThrustFailures[4] = {Failures::Eng1MaxThrustMiscalculated, Failures::Eng2MaxThrustMiscalculated,
+                                           Failures::Eng3MaxThrustMiscalculated, Failures::Eng4MaxThrustMiscalculated};
+    const bool maxThrustMiscalculated = failuresConsumer.isActive(maxThrustFailures[fadecIndex]);
+    athr_input& limits = fadecInputs[fadecIndex].in.input;
+    const double idleN1 = limits.thrust_limit_IDLE_percent;
+    limits.thrust_limit_CLB_percent = FadecThrustFailures::ratingLimit(limits.thrust_limit_CLB_percent, idleN1, maxThrustMiscalculated);
+    limits.thrust_limit_MCT_percent = FadecThrustFailures::ratingLimit(limits.thrust_limit_MCT_percent, idleN1, maxThrustMiscalculated);
+    limits.thrust_limit_FLEX_percent = FadecThrustFailures::ratingLimit(limits.thrust_limit_FLEX_percent, idleN1, maxThrustMiscalculated);
+    limits.thrust_limit_TOGA_percent = FadecThrustFailures::ratingLimit(limits.thrust_limit_TOGA_percent, idleN1, maxThrustMiscalculated);
+    idEngineFadecMaxThr[fadecIndex]->set(
+        FadecThrustFailures::maxThrPercent(limits.thrust_limit_TOGA_percent, idAutothrustThrustLimitTOGA->get(), idleN1));
+  }
   fadecInputs[fadecIndex].in.input.is_anti_ice_active = simData.engineAntiIce_1 == 1;
   fadecInputs[fadecIndex].in.input.is_air_conditioning_active = idAirConditioningPack_1->get();
   fadecInputs[fadecIndex].in.input.ATHR_reset_disable = simConnectInterface.getSimInputThrottles().ATHR_reset_disable == 1;
@@ -3022,6 +3039,18 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::thrustLeverAngleWithoutThrustLock(
       fadecInputs[fadecIndex].in.input.TLA_deg, fadecNetworkLost, fadecOutputs[fadecIndex].athr_control_active);
 
+  // ENG T.O THRUST DISAGREE: the FADEC of the "FLEX TEMP not received" failure gets no FLEX TEMP from the PRIMs, so its take-off
+  // mode is TOGA (FadecThrustFailures.h)
+  {
+    const Failures flexTempFailures[4] = {Failures::Fadec1FlexTempNotReceived, Failures::Fadec2FlexTempNotReceived,
+                                          Failures::Fadec3FlexTempNotReceived, Failures::Fadec4FlexTempNotReceived};
+    const bool flexTempNotReceived = failuresConsumer.isActive(flexTempFailures[fadecIndex]);
+    athr_in& in = fadecInputs[fadecIndex].in;
+    for (base_prim_out_bus* prim : {&in.prim_1, &in.prim_2, &in.prim_3}) {
+      prim->fg.flx_to_temp_deg_c = FadecThrustFailures::flexTemperatureReceived(prim->fg.flx_to_temp_deg_c, flexTempNotReceived);
+    }
+  }
+
   if (fadecIndex == fadecDisabled) {
     simConnectInterface.setClientDataFadecData(fadecInputs[fadecIndex].in.data);
     simConnectInterface.setClientDataFadecInput(fadecInputs[fadecIndex].in.input);
@@ -3035,6 +3064,8 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
     // get output from model ------------------------------------------------------------------------------------------
     fadecOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.output;
     fadecBusOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.fadec_bus_output;
+    idEngineFadecTakeoffMode[fadecIndex]->set(
+        FadecThrustFailures::takeoffMode(fadecs[fadecIndex].getExternalOutputs().out.data_computed.is_FLX_active));
   }
 
   // kept in fadecOutputs: the throttles of engines 3 and 4 are written to the sim on the next frame (see below)

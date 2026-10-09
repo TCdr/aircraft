@@ -36,6 +36,14 @@ FailuresConsumer::FailuresConsumer() {
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Sec3, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcdc1, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcdc2, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng1MaxThrustMiscalculated, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng2MaxThrustMiscalculated, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng3MaxThrustMiscalculated, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Eng4MaxThrustMiscalculated, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fadec1FlexTempNotReceived, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fadec2FlexTempNotReceived, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fadec3FlexTempNotReceived, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fadec4FlexTempNotReceived, false));
 }
 
 void FailuresConsumer::initialize() {
