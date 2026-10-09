@@ -8,6 +8,7 @@ import {
   NXLogicTriggeredMonostableNode,
 } from '@flybywiresim/fbw-sdk';
 import { FwsCore } from './FwsCore';
+import { twoEnginesTakeoffPowerSignal } from './FwsTakeoffPower';
 
 export enum FwcFlightPhase {
   ElecPwr = 1,
@@ -213,41 +214,23 @@ export class FwsFlightPhases {
     const hAbv400 = radioHeight.isNoComputedData() || radioHeight.value > 400;
 
     const eng1TLA = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number');
-    const eng1TLAFTO = SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number') !== 0; // is a flex temp is set?
-    const eng1MCT = eng1TLA > 33.3 && eng1TLA < 36.7;
-    const eng1TLAFullPwr = eng1TLA > 43.3;
     const eng1MCL = eng1TLA > 22.9;
-    const eng1SupMCT = !(eng1TLA < 36.7);
 
     const eng2TLA = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:2', 'number');
-    const eng2TLAFTO = eng1TLAFTO; // until we have proper FADECs
-    const eng2MCT = eng2TLA > 33.3 && eng2TLA < 36.7;
-    const eng2TLAFullPwr = eng2TLA > 43.3;
     const eng2MCL = eng2TLA > 22.9;
-    const eng2SupMCT = !(eng2TLA < 36.7);
 
     const eng3TLA = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:3', 'number');
-    const eng3TLAFTO = eng1TLAFTO; // until we have proper FADECs
-    const eng3MCT = eng3TLA > 33.3 && eng3TLA < 36.7;
-    const eng3TLAFullPwr = eng3TLA > 43.3;
     const eng3MCL = eng3TLA > 22.9;
-    const eng3SupMCT = !(eng3TLA < 36.7);
 
     const eng4TLA = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:4', 'number');
-    const eng4TLAFTO = eng1TLAFTO; // until we have proper FADECs
-    const eng4MCT = eng4TLA > 33.3 && eng4TLA < 36.7;
-    const eng4TLAFullPwr = eng3TLA > 43.3;
     const eng4MCL = eng4TLA > 22.9;
-    const eng4SupMCT = !(eng4TLA < 36.7);
 
     const twoEnginesMcl = [eng1MCL, eng2MCL, eng3MCL, eng4MCL].filter(Boolean).length >= 2;
-    const eng1TOPowerSignal = (eng1TLAFTO && eng1MCT) || eng1TLAFullPwr || eng1SupMCT;
-    const eng2TOPowerSignal = (eng2TLAFTO && eng2MCT) || eng2TLAFullPwr || eng2SupMCT;
-    const eng3TOPowerSignal = (eng3TLAFTO && eng3MCT) || eng3TLAFullPwr || eng3SupMCT;
-    const eng4TOPowerSignal = (eng4TLAFTO && eng4MCT) || eng4TLAFullPwr || eng4SupMCT;
 
-    const twoEnginesTOPowerSignal =
-      [eng1TOPowerSignal, eng2TOPowerSignal, eng3TOPowerSignal, eng4TOPowerSignal].filter(Boolean).length >= 2;
+    // a FLEX TEMP is entered (one value for all FADECs: no per-FADEC take-off words yet)
+    const flexTempSet = SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number') !== 0;
+    // each engine judged on its own thrust lever (FwsTakeoffPower)
+    const twoEnginesTOPowerSignal = twoEnginesTakeoffPowerSignal([eng1TLA, eng2TLA, eng3TLA, eng4TLA], flexTempSet);
 
     const twoEnginesTOPower =
       twoEnginesTOPowerSignal ||
