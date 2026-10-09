@@ -332,6 +332,14 @@ export const A380Failure = Object.freeze({
   ThrustLever2Resolvers: 73041,
   ThrustLever3Resolvers: 73042,
   ThrustLever4Resolvers: 73043,
+  Eng1MaxThrustMiscalculated: 73050,
+  Eng2MaxThrustMiscalculated: 73051,
+  Eng3MaxThrustMiscalculated: 73052,
+  Eng4MaxThrustMiscalculated: 73053,
+  Fadec1FlexTempNotReceived: 73060,
+  Fadec2FlexTempNotReceived: 73061,
+  Fadec3FlexTempNotReceived: 73062,
+  Fadec4FlexTempNotReceived: 73063,
   Eng1FuelFilterClog: 73100,
   Eng2FuelFilterClog: 73101,
   Eng3FuelFilterClog: 73102,
@@ -678,6 +686,16 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [73, A380Failure.ThrustLever4Resolvers, 'Thrust lever 4 resolvers (both)'],
   // CLOGGED below the fuel flow on the ENGINE SD page and ENG FUEL FILTER CLOGGED, no other effect (systems
   // engine/fuel_filter_failure.rs)
+  // The FADEC computes a max thrust 15 % too low: less thrust (ENG THRUST LOSS, fbw_a380 FadecThrustFailures.h)
+  [73, A380Failure.Eng1MaxThrustMiscalculated, 'Engine 1 max thrust miscalculated (thrust loss)'],
+  [73, A380Failure.Eng2MaxThrustMiscalculated, 'Engine 2 max thrust miscalculated (thrust loss)'],
+  [73, A380Failure.Eng3MaxThrustMiscalculated, 'Engine 3 max thrust miscalculated (thrust loss)'],
+  [73, A380Failure.Eng4MaxThrustMiscalculated, 'Engine 4 max thrust miscalculated (thrust loss)'],
+  // The FADEC does not receive the FLEX TEMP: its take-off mode is TOGA (ENG T.O THRUST DISAGREE; FadecThrustFailures.h)
+  [73, A380Failure.Fadec1FlexTempNotReceived, 'FADEC 1 FLEX TEMP not received (T.O mode TOGA)'],
+  [73, A380Failure.Fadec2FlexTempNotReceived, 'FADEC 2 FLEX TEMP not received (T.O mode TOGA)'],
+  [73, A380Failure.Fadec3FlexTempNotReceived, 'FADEC 3 FLEX TEMP not received (T.O mode TOGA)'],
+  [73, A380Failure.Fadec4FlexTempNotReceived, 'FADEC 4 FLEX TEMP not received (T.O mode TOGA)'],
   [73, A380Failure.Eng1FuelFilterClog, 'Engine 1 fuel filter clog'],
   [73, A380Failure.Eng2FuelFilterClog, 'Engine 2 fuel filter clog'],
   [73, A380Failure.Eng3FuelFilterClog, 'Engine 3 fuel filter clog'],

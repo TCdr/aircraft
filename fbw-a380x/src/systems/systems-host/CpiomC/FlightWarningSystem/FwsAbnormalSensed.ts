@@ -31,6 +31,16 @@ import {
 } from './EngineOilAlerts';
 import { FUEL_FILTER_CLOGGED_PHASE_INHIBITION } from './EngineFuelFilterAlerts';
 import {
+  OIL_TEMP_LO_PHASE_INHIBITION,
+  THR_LEVERS_NOT_SET_PHASE_INHIBITION,
+  thrLeversNotSetItemsShown,
+} from './EngineTakeoffAlerts';
+import {
+  THRUST_LOSS_PHASE_INHIBITION,
+  TO_THRUST_DISAGREE_PHASE_INHIBITION,
+  thrustLossItemsChecked,
+} from './EngineThrustAlerts';
+import {
   IGN_FAULT_FLIGHT_PHASE_INHIBITION,
   START_ALERTS_FLIGHT_PHASE_INHIBITION,
   startFaultItems,
@@ -5898,6 +5908,46 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Eng,
     },
+    701800097: {
+      // ENG 1 OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3
+      flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilTempLo[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.thrustLever1Idle.get(), false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800098: {
+      // ENG 2 OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3
+      flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilTempLo[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.thrustLever2Idle.get(), false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800099: {
+      // ENG 3 OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3
+      flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilTempLo[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.thrustLever3Idle.get(), false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800100: {
+      // ENG 4 OIL TEMP LO (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3
+      flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineOilTempLo[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [this.fws.thrustLever4Idle.get(), false],
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
     701800151: {
       // ALL ENG FLAME OUT
       simVarIsActive: this.fws.allEnginesFailure,
@@ -6341,6 +6391,56 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.None,
     },
+    701800133: {
+      // ENG 1 THRUST LOSS (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phase 3 only
+      flightPhaseInhib: THRUST_LOSS_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineThrustLoss[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => thrustLossItemsChecked(this.fws.thrustLever1Idle.get(), !!this.fws.engine1Master.get()),
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800134: {
+      // ENG 2 THRUST LOSS (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phase 3 only
+      flightPhaseInhib: THRUST_LOSS_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineThrustLoss[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => thrustLossItemsChecked(this.fws.thrustLever2Idle.get(), !!this.fws.engine2Master.get()),
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800135: {
+      // ENG 3 THRUST LOSS (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phase 3 only
+      flightPhaseInhib: THRUST_LOSS_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineThrustLoss[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => thrustLossItemsChecked(this.fws.thrustLever3Idle.get(), !!this.fws.engine3Master.get()),
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800136: {
+      // ENG 4 THRUST LOSS (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phase 3 only
+      flightPhaseInhib: THRUST_LOSS_PHASE_INHIBITION,
+      simVarIsActive: this.fws.engineThrustLoss[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => thrustLossItemsChecked(this.fws.thrustLever4Idle.get(), !!this.fws.engine4Master.get()),
+      failure: 2,
+      sysPage: SdPages.Eng,
+    },
+    701800155: {
+      // ENG T.O THRUST DISAGREE (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): amber, phases 2 and 11, crew awareness
+      flightPhaseInhib: TO_THRUST_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.takeoffThrustDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
     701800154: {
       // ENG REVERSER SELECTED (A380 FCOM l.175028-175039)
       flightPhaseInhib: REVERSER_SELECTED_PHASE_INHIBITION,
@@ -6400,6 +6500,18 @@ export class FwsAbnormalSensed {
       info: () => ['220200017'],
       // LIMITATIONS l.175549-175551: FOR LDG : FLAP LVR 3, LDG PERF AFFECTED
       limitationsApprLdg: () => ['270400001', '800400003'],
+    },
+    701800157: {
+      // ENG THR LEVERS NOT SET (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3. Design choice:
+      // confirmed 3 s, as the A32NX FWC (a lever moved through CL to FLX/MCT does not trigger it)
+      flightPhaseInhib: THR_LEVERS_NOT_SET_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrustLeverNotSet,
+      monitorConfirmTime: 3,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => thrLeversNotSetItemsShown(this.fws.flexTakeoffMode.get()),
+      whichItemsChecked: () => [this.fws.allThrottleToga.get(), this.fws.allThrottleMct.get()],
+      failure: 2,
+      sysPage: SdPages.None,
     },
     701800158: {
       // ENGINE THRUST LOCKED
