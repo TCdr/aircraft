@@ -37,6 +37,7 @@ import {
   WindVector,
 } from '../data/wind';
 import { PendingWindUplink } from './PendingWindUplink';
+import { AlternateCruiseLevelRule, alternateCruiseLevel } from './AlternateCruiseLevel';
 import { WindUtils } from '../../guidance/vnav/wind/WindUtils';
 
 export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerformanceData> extends BaseFlightPlan<P> {
@@ -57,6 +58,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     time?: number,
     draftOnWindsOnWindEdit = false,
     sortClimbWindsByDescendingAltitude = true,
+    alternateCruiseLevelRule: AlternateCruiseLevelRule = 'A320',
   ): FlightPlan<P> {
     return new FlightPlan<P>(
       context,
@@ -69,6 +71,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       time,
       draftOnWindsOnWindEdit,
       sortClimbWindsByDescendingAltitude,
+      alternateCruiseLevelRule,
     );
   }
 
@@ -129,6 +132,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     time?: number,
     private readonly draftOnWindsOnWindEdit = false,
     private readonly sortClimbWindsByDescendingAltitude = true,
+    private readonly alternateCruiseLevelRule: AlternateCruiseLevelRule = 'A320',
   ) {
     super(
       context,
@@ -167,6 +171,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       time,
       this.draftOnWindsOnWindEdit,
       this.sortClimbWindsByDescendingAltitude,
+      this.alternateCruiseLevelRule,
     );
 
     newPlan.version = this.version;
@@ -849,6 +854,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     maxCruiseWindLevels: number,
     maxDescentWindLevels: number,
     sortClimbDescending: boolean,
+    alternateCruiseLevelRule: AlternateCruiseLevelRule = 'A320',
   ): Promise<FlightPlan<P>> {
     const newPlan = FlightPlan.empty<P>(
       context,
@@ -861,6 +867,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       time,
       draftOnWindsOnWindEdit,
       sortClimbDescending,
+      alternateCruiseLevelRule,
     );
 
     // TODO init performance data
@@ -1352,13 +1359,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
       this.alternateDestinationAirport.location,
     );
 
-    if (distance > 200) {
-      return 310;
-    } else if (distance > 100) {
-      return 220;
-    }
-
-    return 100;
+    return alternateCruiseLevel(distance, this.alternateCruiseLevelRule);
   }
 
   /**

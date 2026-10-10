@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupTestDatabase } from '../test/Database';
 import { assertDiscontinuity, assertNotDiscontinuity } from '../test/LegUtils';
 import { LegType, WaypointDescriptor } from '@flybywiresim/fbw-sdk';
@@ -13,6 +13,9 @@ import { testFlightPlanService } from '@fmgc/flightplanning/test/TestFlightPlanS
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { testEventBus } from '@fmgc/flightplanning/test/TestEventBus';
+import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
+import { A320FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/A320FlightPlanPerformanceData';
+import { AlternateCruiseLevelRule } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
 
 describe('a base flight plan', () => {
   beforeAll(() => {
@@ -287,5 +290,53 @@ describe('a base flight plan', () => {
         expect(destinationLeg.definition.waypointDescriptor).not.toEqual(WaypointDescriptor.Runway);
       });
     });
+  });
+});
+
+describe('the alternate cruise level of a flight plan', () => {
+  const mockedUtils = Avionics.Utils as any;
+  const originalDistance = mockedUtils.computeGreatCircleDistance;
+
+  beforeAll(() => {
+    setupTestDatabase();
+    // The jest mock of Avionics.Utils has no great circle distance; use a 50 NM alternate
+    mockedUtils.computeGreatCircleDistance = () => 50;
+  });
+
+  afterAll(() => {
+    mockedUtils.computeGreatCircleDistance = originalDistance;
+  });
+
+  // FpmConfig.ALTERNATE_CRUISE_LEVEL_RULE reaches the plan through its constructor, and a clone must keep it
+  async function planWithAlternate(rule: AlternateCruiseLevelRule | undefined) {
+    const fp = FlightPlan.empty(
+      { syncClientID: 0, batchStack: [] },
+      0,
+      testEventBus,
+      new A320FlightPlanPerformanceData(),
+      0,
+      0,
+      0,
+      undefined,
+      false,
+      true,
+      rule,
+    );
+    await fp.setDestinationAirport('CYYZ');
+    await fp.setAlternateDestinationAirport('CYVR');
+    return fp;
+  }
+
+  it('uses the A320 rule by default (FL 100 below 100 NM)', async () => {
+    expect((await planWithAlternate(undefined)).getAlternateCruiseLevel()).toBe(100);
+  });
+
+  it('uses the A380 rule when configured (FL 220 below 100 NM)', async () => {
+    expect((await planWithAlternate('A380')).getAlternateCruiseLevel()).toBe(220);
+  });
+
+  it('keeps the rule in a clone', async () => {
+    const clone = (await planWithAlternate('A380')).clone(1);
+    expect(clone.getAlternateCruiseLevel()).toBe(220);
   });
 });

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
+import { AlternateCruiseLevelRule } from './plans/AlternateCruiseLevel';
+
 export interface FpmConfig {
   /** Whether deleting a waypoint or a discontinuity creates a temporary flight plan */
   TMPY_ON_DELETE_WAYPOINT: boolean;
@@ -59,6 +61,9 @@ export interface FpmConfig {
 
   /** The number of different flight levels for which descent wind entries may be made */
   NUM_DESCENT_WIND_LEVELS: number;
+
+  /** Which FCOM rule sets the default alternate cruise flight level (A320: FL100/220/310, A380: FL220/310) */
+  ALTERNATE_CRUISE_LEVEL_RULE: AlternateCruiseLevelRule;
 }
 
 export class FpmConfigs {
@@ -79,6 +84,7 @@ export class FpmConfigs {
     SORT_CLIMB_WIND_DESCENDING: true,
     NUM_DESCENT_WIND_LEVELS: 5,
     DRAFT_ON_WIND_EDIT: true,
+    ALTERNATE_CRUISE_LEVEL_RULE: 'A380',
   };
 
   static readonly A320_HONEYWELL_H4: FpmConfig = {
@@ -99,5 +105,6 @@ export class FpmConfigs {
     // Normally 5, 10 with the 4D RTA option
     NUM_DESCENT_WIND_LEVELS: 10,
     DRAFT_ON_WIND_EDIT: false,
+    ALTERNATE_CRUISE_LEVEL_RULE: 'A320',
   };
 }
