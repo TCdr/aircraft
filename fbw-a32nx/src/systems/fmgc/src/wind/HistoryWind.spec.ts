@@ -3,6 +3,7 @@
 
 import { EventBus } from '@microsoft/msfs-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FpmConfigs } from '../flightplanning/FpmConfig';
 import { HistoryWind } from './HistoryWind';
 
 // Develop stored the winds as Vec2 [x, y] with x = speed * cos(direction), y = speed * sin(direction);
@@ -85,6 +86,44 @@ describe('history winds storage', () => {
 
     expect(localStorage.getItem(HistoryWind.LEGACY_LOCALSTORAGE_KEYS.A32NX)).toBeNull();
     expect(localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY)).toBeNull();
+  });
+
+  describe('rows by aircraft', () => {
+    // The previous flight cruised at FL380; the plan now has FL350
+    const storeFlightWithCruiseAtFl380 = () =>
+      localStorage.setItem(
+        HistoryWind.LOCALSTORAGE_KEY,
+        JSON.stringify([
+          { altitude: 5000, vector: { direction: 1, magnitude: 10 } },
+          { altitude: 15000, vector: { direction: 1, magnitude: 20 } },
+          { altitude: 25000, vector: { direction: 1, magnitude: 30 } },
+          { altitude: 38000, vector: { direction: 1, magnitude: 40 } },
+        ]),
+      );
+
+    it('the A380 lists the CRZ FL and FL 250, 150, 050 only, with the measured cruise wind', () => {
+      storeFlightWithCruiseAtFl380();
+
+      const winds = new HistoryWind(new EventBus(), 'A380').getRecordedWinds(350, false);
+
+      expect(winds.map((w) => w.altitude)).toEqual([38000, 25000, 15000, 5000]);
+      expect(winds[0].vector.magnitude).toBe(40);
+      expect(winds.map((w) => w.isCruiseLevel)).toEqual([true, false, false, false]);
+    });
+
+    it('the A32NX keeps its list with the planned CRZ FL as well', () => {
+      storeFlightWithCruiseAtFl380();
+
+      const winds = new HistoryWind(new EventBus(), 'A320').getRecordedWinds(350, false);
+
+      expect(winds.map((w) => w.altitude)).toEqual([38000, 35000, 25000, 15000, 5000]);
+      expect(winds.every((w) => w.isCruiseLevel === undefined)).toBe(true);
+    });
+
+    it('is the default rule of the A32NX and a rule of the A380 configuration', () => {
+      expect(FpmConfigs.A380.HISTORY_WIND_ROWS_RULE).toBe('A380');
+      expect(FpmConfigs.A320_HONEYWELL_H4.HISTORY_WIND_ROWS_RULE).toBe('A320');
+    });
   });
 
   describe('on the A380X', () => {

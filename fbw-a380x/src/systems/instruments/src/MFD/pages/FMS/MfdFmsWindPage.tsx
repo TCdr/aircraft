@@ -44,7 +44,7 @@ import {
   WindSpeedFormat,
 } from '../common/DataEntryFormats';
 import { cruiseSatRow } from './cruiseSat';
-import { historyWindRows, MAX_HISTORY_WIND_ROWS } from './historyWindRows';
+import { MAX_HISTORY_WIND_ROWS } from '@fmgc/wind/historyWindRows';
 import { CpnyWindRequestButton } from './CpnyWindButtonUtils';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
 import { ProfilePhase } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
@@ -400,10 +400,8 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
     const subPage = this.selectedSubPage.get();
     const hasTmpy = this.tmpyActive.get();
     if (subPage === WindSubPageMenu.History) {
-      this.props.flightPlanInterface.getHistoryWindsEntries(false).then((fmsHistoryWinds) => {
+      this.props.flightPlanInterface.getHistoryWindsEntries(false).then((historyWinds) => {
         let hasNonEmptyWind = false;
-        const cruiseFlightLevel = fp?.performanceData.cruiseFlightLevel.get() ?? null;
-        const historyWinds = historyWindRows(fmsHistoryWinds, cruiseFlightLevel);
         for (let i = 0; i < MfdFmsWindPage.NUM_HISTORY_WIND_ENTRIES; i++) {
           const windEntry = historyWinds[i];
           if (windEntry) {
@@ -421,9 +419,7 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
               windVector.direction !== undefined && windVector.magnitude !== undefined,
             );
             this.historyWindValidEntry[i].set(true);
-            this.isHistoryWindCruiseFlightLevel[i].set(
-              cruiseFlightLevel !== null && windEntry.altitude == cruiseFlightLevel * 100,
-            );
+            this.isHistoryWindCruiseFlightLevel[i].set(windEntry.isCruiseLevel === true);
           } else {
             this.historyWindValidEntry[i].set(false);
           }

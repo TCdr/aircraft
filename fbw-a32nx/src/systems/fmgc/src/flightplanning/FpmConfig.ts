@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { AlternateCruiseLevelRule } from './plans/AlternateCruiseLevel';
+import { HistoryWindRowsRule } from '../wind/historyWindRows';
 
 export interface FpmConfig {
   /** Whether deleting a waypoint or a discontinuity creates a temporary flight plan */
@@ -64,6 +65,9 @@ export interface FpmConfig {
 
   /** Which FCOM rule sets the default alternate cruise flight level (A320: FL100/220/310, A380: FL220/310) */
   ALTERNATE_CRUISE_LEVEL_RULE: AlternateCruiseLevelRule;
+
+  /** Which history winds are listed and inserted (A320: the fixed levels, the recorded cruise level and the planned CRZ FL; A380: the CRZ FL and FL 250, 150, 050) */
+  HISTORY_WIND_ROWS_RULE: HistoryWindRowsRule;
 }
 
 export class FpmConfigs {
@@ -85,6 +89,7 @@ export class FpmConfigs {
     NUM_DESCENT_WIND_LEVELS: 5,
     DRAFT_ON_WIND_EDIT: true,
     ALTERNATE_CRUISE_LEVEL_RULE: 'A380',
+    HISTORY_WIND_ROWS_RULE: 'A380',
   };
 
   static readonly A320_HONEYWELL_H4: FpmConfig = {
@@ -106,5 +111,6 @@ export class FpmConfigs {
     NUM_DESCENT_WIND_LEVELS: 10,
     DRAFT_ON_WIND_EDIT: false,
     ALTERNATE_CRUISE_LEVEL_RULE: 'A320',
+    HISTORY_WIND_ROWS_RULE: 'A320',
   };
 }

@@ -9,6 +9,11 @@ export interface WindEntry {
   altitude: number | undefined;
 }
 
+/** A history wind; set when the entry is in the CRZ FL slot of the A380 history winds, see historyWindRows */
+export interface HistoryWindEntry extends WindEntry {
+  isCruiseLevel?: boolean;
+}
+
 export interface FlightPlanWindEntry extends WindEntry {
   flags: number;
 }

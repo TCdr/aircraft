@@ -14,7 +14,7 @@ import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performanc
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanContext } from '@fmgc/flightplanning/plans/BaseFlightPlan';
-import { WindEntry, PropagatedWindEntry, WindVector } from './data/wind';
+import { WindEntry, HistoryWindEntry, PropagatedWindEntry, WindVector } from './data/wind';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 
 /**
@@ -575,7 +575,7 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
    * Gets the history winds entries stored by the fms.
    * @param sortByAltitudeAscending whether to sort the wind entries by ascending order of altitude
    */
-  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<WindEntry>[]>;
+  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<HistoryWindEntry>[]>;
 
   /**
    * Tries to insert the history wind entries into the climb winds of the active flight-plan.

@@ -22,6 +22,7 @@ import { FlightPlanFlags } from './plans/FlightPlanFlags';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import {
   WindEntry,
+  HistoryWindEntry,
   PropagatedWindEntry,
   WindVector,
   FlightPlanWindEntry,
@@ -42,7 +43,7 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
 {
   private readonly flightPlanManager: FlightPlanManager<P>;
 
-  private readonly historyWinds = new HistoryWind(this.bus);
+  private readonly historyWinds = new HistoryWind(this.bus, this.config.HISTORY_WIND_ROWS_RULE);
 
   private readonly flightPhase = ConsumerValue.create(
     this.bus.getSubscriber<FlightPhaseManagerEvents>().on('fmgc_flight_phase'),
@@ -1118,7 +1119,7 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     return Promise.resolve(false);
   }
 
-  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<WindEntry>[]> {
+  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<HistoryWindEntry>[]> {
     return Promise.resolve(
       this.historyWinds.getRecordedWinds(this.active.performanceData.cruiseFlightLevel.get(), sortByAltitudeAscending),
     );
@@ -1154,7 +1155,8 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
         this.historyWinds.areWindsValidForInsertion() &&
         !this.active.pendingWindUplink.isWindUplinkInProgress() &&
         !this.active.pendingWindUplink.isWindUplinkReadyToInsert() &&
-        !this.haveHistoryWindsBeenInserted(await this.getHistoryWindsEntries()),
+        // Compared in the order the history winds are inserted in
+        !this.haveHistoryWindsBeenInserted(await this.getHistoryWindsEntries(!this.config.SORT_CLIMB_WIND_DESCENDING)),
     );
   }
 
