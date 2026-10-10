@@ -36,13 +36,14 @@ import {
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import {
+  CrzTempFormat,
   FlightLevelFormat,
-  TemperatureFormat,
   WindAltitudeFormat,
   WindDirectionFormat,
   WindFlightLevelFormat,
   WindSpeedFormat,
 } from '../common/DataEntryFormats';
+import { cruiseSatRow } from './cruiseSat';
 import { CpnyWindRequestButton } from './CpnyWindButtonUtils';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
 import { ProfilePhase } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
@@ -281,9 +282,17 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
       ),
   );
 
-  //TODO Dummies for now till implemented by systems
+  /** SAT row of the CRZ tab: one SAT at the cruise flight level, A380 FCOM l.42335-42345 */
   private readonly cruiseTemperatureFlightLevel = Subject.create<number | null>(null);
   private readonly cruiseTemperature = Subject.create<number | null>(null);
+  private readonly cruiseTemperatureIsPilotEntered = Subject.create(false);
+  private readonly cruiseTemperatureEditable = Subject.create(false);
+  /** The SAT cannot be entered without a cruise flight level, nor while a temporary flight plan exists. */
+  private readonly cruiseTemperatureDisabled = MappedSubject.create(
+    ([editable, hasTmpy]) => !editable || hasTmpy,
+    this.cruiseTemperatureEditable,
+    this.tmpyActive,
+  );
 
   // Descent Wind
   private static readonly DESCENT_WIND_ENTRIES_ARRAY = Array.from(
@@ -446,6 +455,14 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
         isActiveOrCopyOfActive && this.props.fmcService.master.fmgc.getFlightPhase() > FmgcFlightPhase.Cruise;
       this.cruiseWindsDisabled.set(fp === undefined || hasTmpy || this.availableWaypoints.length === 0);
       this.cruiseWindsInactive.set(cruiseWindsInactive);
+      const satRow = cruiseSatRow(
+        fp?.performanceData.cruiseFlightLevel.get() ?? null,
+        fp?.performanceData.cruiseTemperature.get() ?? null,
+      );
+      this.cruiseTemperatureFlightLevel.set(satRow.flightLevel);
+      this.cruiseTemperature.set(satRow.sat);
+      this.cruiseTemperatureEditable.set(satRow.satEditable);
+      this.cruiseTemperatureIsPilotEntered.set(fp?.performanceData.isCruiseTemperaturePilotEntered.get() ?? false);
       const legIndex = this.selectedWaypointLegIndex.get();
       const winds =
         legIndex !== null
@@ -1281,20 +1298,29 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
                     dataEntryFormat={new FlightLevelFormat()}
                     canBeCleared={true}
                     value={this.cruiseTemperatureFlightLevel}
-                    tmpyActive={this.draftWindsExist}
+                    tmpyActive={this.tmpyActive}
                   ></InputField>
-                  <InputField
+                  <InputField<number, number, false>
                     alignText={'flex-start'}
                     containerStyle="height:43px; width:113px;margin-left: 76px;"
                     inactive={false}
-                    disabled={true}
+                    disabled={this.cruiseTemperatureDisabled}
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                     hEventConsumer={this.props.mfd.hEventConsumer}
                     interactionMode={this.props.mfd.interactionMode}
-                    dataEntryFormat={new TemperatureFormat()}
+                    dataEntryFormat={new CrzTempFormat()}
+                    dataHandlerDuringValidation={async (v) => {
+                      await this.props.flightPlanInterface.setPerformanceData(
+                        'cruiseTemperaturePilotEntry',
+                        v,
+                        this.loadedFlightPlanIndex.get(),
+                      );
+                      this.updatePage();
+                    }}
+                    enteredByPilot={this.cruiseTemperatureIsPilotEntered}
                     canBeCleared={true}
-                    value={this.cruiseTemperature}
-                    tmpyActive={this.draftWindsExist}
+                    readonlyValue={this.cruiseTemperature}
+                    tmpyActive={this.tmpyActive}
                   ></InputField>
                 </div>
               </div>
