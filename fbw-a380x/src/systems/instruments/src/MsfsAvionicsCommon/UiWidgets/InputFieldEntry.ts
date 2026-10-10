@@ -15,3 +15,13 @@ export function isInputFieldEntryHandled<T>(
 ): boolean {
   return newValue !== oldValue || (handleSameValueEntry && newValue !== null);
 }
+
+/**
+ * Whether a handled InputField entry is stored (value) and passed to onModified: not when dataHandlerDuringValidation
+ * rejected it, by returning false or by throwing.
+ * @param dataHandlerResult what dataHandlerDuringValidation returned (undefined without a handler)
+ * @param dataHandlerThrew whether dataHandlerDuringValidation threw
+ */
+export function isInputFieldEntryApplied(dataHandlerResult: boolean | void, dataHandlerThrew: boolean): boolean {
+  return !dataHandlerThrew && dataHandlerResult !== false;
+}
