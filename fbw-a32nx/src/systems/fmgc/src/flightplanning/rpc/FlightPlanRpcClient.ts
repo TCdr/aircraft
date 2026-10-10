@@ -27,7 +27,7 @@ import { FlightPlan } from '../plans/FlightPlan';
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
-import { PropagatedWindEntry, WindEntry, WindVector } from '../data/wind';
+import { HistoryWindEntry, PropagatedWindEntry, WindEntry, WindVector } from '../data/wind';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 
 export type FunctionsOnlyAndUnwrapPromises<T> = {
@@ -628,7 +628,7 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     return this.callFunctionViaRpc('tryActivateEngineOutSid');
   }
 
-  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<WindEntry>[]> {
+  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<HistoryWindEntry>[]> {
     return this.callFunctionViaRpc('getHistoryWindsEntries', sortByAltitudeAscending);
   }
   insertHistoryWinds(): Promise<boolean> {

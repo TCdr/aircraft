@@ -6,7 +6,8 @@ import { MathUtils } from '@flybywiresim/fbw-sdk';
 import { FlightPhaseManagerEvents } from '../flightphase';
 import { FmgcFlightPhase } from '../../../shared/src/flightphase';
 import { WindUtils } from '../guidance/vnav/wind/WindUtils';
-import { WindEntry, WindVector } from '../flightplanning/data/wind';
+import { HistoryWindEntry, WindEntry, WindVector } from '../flightplanning/data/wind';
+import { historyWindRows, HistoryWindRowsRule } from './historyWindRows';
 
 export class HistoryWind {
   private static readonly AIRCRAFT_PREFIX: string = process.env.AIRCRAFT_PROJECT_PREFIX?.toUpperCase() ?? 'UNK';
@@ -49,7 +50,14 @@ export class HistoryWind {
 
   private readonly historyWinds: (WindEntry | null)[] = Array(this.defaultRecordedWind.length + 1).fill(null);
 
-  constructor(private readonly bus: EventBus) {
+  /**
+   * @param bus the event bus
+   * @param rowsRule which history winds getRecordedWinds lists, see FpmConfig.HISTORY_WIND_ROWS_RULE
+   */
+  constructor(
+    private readonly bus: EventBus,
+    private readonly rowsRule: HistoryWindRowsRule = 'A320',
+  ) {
     this.altitude.sub(this.handleAltitudeChange.bind(this));
     this.sub.on('fmgc_flight_phase').handle(this.handleFlightPhaseChange.bind(this));
     for (let i = 0; i < this.defaultRecordedWind.length; i++) {
@@ -120,7 +128,7 @@ export class HistoryWind {
     this.syncToLocalStorage();
   }
 
-  public getRecordedWinds(cruiseLevel: number | null, sortAscending = true): Readonly<WindEntry>[] {
+  public getRecordedWinds(cruiseLevel: number | null, sortAscending = true): Readonly<HistoryWindEntry>[] {
     const historyWinds = this.historyWinds.filter((wind) => wind !== null).sort((a, b) => a.altitude! - b.altitude!);
     const interpolationSourceWinds = historyWinds.filter(
       (entry) => entry.vector.direction !== undefined && entry.vector.magnitude !== undefined,
@@ -142,7 +150,14 @@ export class HistoryWind {
         vector: { direction: undefined, magnitude: undefined },
       });
     }
-    return historyWinds.sort((a, b) => (sortAscending ? a.altitude! - b.altitude! : b.altitude! - a.altitude!));
+    historyWinds.sort((a, b) => (sortAscending ? a.altitude! - b.altitude! : b.altitude! - a.altitude!));
+
+    if (this.rowsRule === 'A380') {
+      const recordedCruiseAltitude = this.historyWinds[this.defaultRecordedWind.length]?.altitude ?? null;
+      return historyWindRows(historyWinds, cruiseLevel, recordedCruiseAltitude);
+    }
+
+    return historyWinds;
   }
 
   private syncToLocalStorage() {
