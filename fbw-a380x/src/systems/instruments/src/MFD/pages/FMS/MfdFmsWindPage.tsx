@@ -44,6 +44,7 @@ import {
   WindSpeedFormat,
 } from '../common/DataEntryFormats';
 import { cruiseSatRow } from './cruiseSat';
+import { historyWindRows, MAX_HISTORY_WIND_ROWS } from './historyWindRows';
 import { CpnyWindRequestButton } from './CpnyWindButtonUtils';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
 import { ProfilePhase } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
@@ -96,7 +97,8 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
   private readonly tableHeaderDisplay = this.tmpyActive.map((exists) => (exists ? 'none' : 'flex'));
 
   // History Wind
-  private static readonly NUM_HISTORY_WIND_ENTRIES = 5;
+  // A380 FCOM l.42171: the CRZ FL and FL 250, 150 and 050
+  private static readonly NUM_HISTORY_WIND_ENTRIES = MAX_HISTORY_WIND_ROWS;
   private static readonly HISTORY_WIND_ENTRIES_ARRAY = Array.from(
     { length: MfdFmsWindPage.NUM_HISTORY_WIND_ENTRIES },
     (_, i) => i,
@@ -398,9 +400,10 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
     const subPage = this.selectedSubPage.get();
     const hasTmpy = this.tmpyActive.get();
     if (subPage === WindSubPageMenu.History) {
-      this.props.flightPlanInterface.getHistoryWindsEntries(false).then((historyWinds) => {
+      this.props.flightPlanInterface.getHistoryWindsEntries(false).then((fmsHistoryWinds) => {
         let hasNonEmptyWind = false;
         const cruiseFlightLevel = fp?.performanceData.cruiseFlightLevel.get() ?? null;
+        const historyWinds = historyWindRows(fmsHistoryWinds, cruiseFlightLevel);
         for (let i = 0; i < MfdFmsWindPage.NUM_HISTORY_WIND_ENTRIES; i++) {
           const windEntry = historyWinds[i];
           if (windEntry) {

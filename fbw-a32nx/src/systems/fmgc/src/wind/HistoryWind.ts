@@ -6,11 +6,21 @@ import { MathUtils } from '@flybywiresim/fbw-sdk';
 import { FlightPhaseManagerEvents } from '../flightphase';
 import { FmgcFlightPhase } from '../../../shared/src/flightphase';
 import { WindUtils } from '../guidance/vnav/wind/WindUtils';
-import { WindEntry } from '../flightplanning/data/wind';
+import { WindEntry, WindVector } from '../flightplanning/data/wind';
 
 export class HistoryWind {
-  private static readonly LOCALSTORAGE_KEY: string =
-    (process.env.AIRCRAFT_PROJECT_PREFIX?.toUpperCase() ?? 'UNK') + '.HistoryWinds';
+  private static readonly AIRCRAFT_PREFIX: string = process.env.AIRCRAFT_PROJECT_PREFIX?.toUpperCase() ?? 'UNK';
+
+  public static readonly LOCALSTORAGE_KEY: string = HistoryWind.AIRCRAFT_PREFIX + '.HistoryWinds';
+
+  /**
+   * The keys the history winds were stored under before they moved to {@link LOCALSTORAGE_KEY}, by aircraft prefix.
+   * Winds stored under such a key are converted and moved to the new key the first time they are read.
+   */
+  public static readonly LEGACY_LOCALSTORAGE_KEYS: Readonly<Record<string, string>> = {
+    A32NX: 'FBW.HistoryWinds',
+    A380X: 'FBW.A380X.HistoryWinds',
+  };
 
   private readonly sub = this.bus.getSubscriber<NavigationEvents & FlightPhaseManagerEvents>();
 
@@ -139,7 +149,59 @@ export class HistoryWind {
     localStorage.setItem(HistoryWind.LOCALSTORAGE_KEY, JSON.stringify(this.historyWinds));
   }
 
+  /**
+   * Converts a wind vector stored as a Vec2 [x, y] (x = speed * cos(direction), y = speed * sin(direction)) to a
+   * {@link WindVector}. A Float64Array is serialised as an object with the keys "0" and "1", an array as itself.
+   * @param stored the vector as it was read from local storage
+   * @returns the vector with its direction in radians and its magnitude in knots, or undefined if it is not a Vec2
+   */
+  private static windVectorFromStoredVec2(stored: unknown): WindVector | undefined {
+    const { 0: x, 1: y } = (stored ?? {}) as Record<number, unknown>;
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
+      return undefined;
+    }
+
+    return { direction: Math.atan2(y, x), magnitude: Math.hypot(x, y) };
+  }
+
+  /**
+   * Moves the history winds stored under the legacy key to the current key, converting their vectors.
+   * Nothing happens if the current key already holds winds.
+   */
+  private migrateLegacyLocalStorage() {
+    const legacyKey = HistoryWind.LEGACY_LOCALSTORAGE_KEYS[HistoryWind.AIRCRAFT_PREFIX];
+    if (legacyKey === undefined || localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY) !== null) {
+      return;
+    }
+
+    const legacyString = localStorage.getItem(legacyKey);
+    if (legacyString === null) {
+      return;
+    }
+
+    try {
+      const legacyWinds = JSON.parse(legacyString);
+
+      if (Array.isArray(legacyWinds) && legacyWinds.length === this.historyWinds.length) {
+        const converted = legacyWinds.map((wind): WindEntry | null => {
+          const vector = HistoryWind.windVectorFromStoredVec2(wind?.vector);
+          // A recorded cruise wind without a level was stored with NaN, which JSON turns into null: drop it.
+          return vector !== undefined && typeof wind.altitude === 'number' ? { altitude: wind.altitude, vector } : null;
+        });
+        localStorage.setItem(HistoryWind.LOCALSTORAGE_KEY, JSON.stringify(converted));
+      } else {
+        console.log(`[FMS/History Winds] Legacy history winds with invalid format: "${legacyString}"`);
+      }
+    } catch (e) {
+      console.log(`[FMS/History Winds] Error converting legacy history winds from local storage: ${e}`);
+    }
+
+    localStorage.removeItem(legacyKey);
+  }
+
   private syncFromLocalStorage() {
+    this.migrateLegacyLocalStorage();
+
     const historyWindsString = localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY);
     if (historyWindsString === null) {
       return;
