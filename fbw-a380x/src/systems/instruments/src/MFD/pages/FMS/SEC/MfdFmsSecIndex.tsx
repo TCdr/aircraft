@@ -1,5 +1,4 @@
 import { AbstractMfdPageProps, MfdDisplayInterface } from '../../../MFD';
-import { FmsPage } from '../../common/FmsPage';
 import { Footer } from '../../common/Footer';
 import { TopTabNavigator, TopTabNavigatorPage } from '../../../../MsfsAvionicsCommon/UiWidgets/TopTabNavigator';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
@@ -34,6 +33,7 @@ import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
 import { DateTimeFormatters } from '@flybywiresim/fbw-sdk';
 import { cpnyFplnRequestPage, showReturnButtonUriExtra } from '../../../shared/utils';
 import { fcomAt, fcomCentre, fcomTabBar } from '../../common/FcomLayout';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 
 interface MfdFmsSecIndexProps extends AbstractMfdPageProps {}
 
@@ -154,7 +154,7 @@ class MfdFmsSecIndexDataStore {
   }
 }
 
-export class MfdFmsSecIndex extends FmsPage<MfdFmsSecIndexProps> {
+export class MfdFmsSecIndex extends FmsFlightPlanPage<MfdFmsSecIndexProps> {
   private readonly sec1DataStore = new MfdFmsSecIndexDataStore(1, this.props.bus, this.props.fmcService.master);
   private readonly sec2DataStore = new MfdFmsSecIndexDataStore(2, this.props.bus, this.props.fmcService.master);
   private readonly sec3DataStore = new MfdFmsSecIndexDataStore(3, this.props.bus, this.props.fmcService.master);
@@ -483,9 +483,8 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
             label={this.cpnyFplnButtonLabel}
             disabled={this.cpnyFplnButtonDisabled}
             onClick={() =>
-              this.props.fmcService.master.fmgc.data.cpnyFplnAvailable.get()
-                ? {}
-                : this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/${cpnyFplnRequestPage}`)
+              // The button does not call onClick while it shows its INSERT* / CLEAR* menu (received F-PLN)
+              this.props.mfd.uiService.navigateTo(`${this.uriPrefix}/${cpnyFplnRequestPage}`)
             }
             buttonStyle="min-width: 185px; min-height: 60px;"
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_fplnreq_sec${this.props.flightPlanIndex}`}
@@ -594,7 +593,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
             <Button
               label={
                 <div style="display: flex; flex-direction: row; justify-content: space-between;">
-                  <span style="text-align: center; vertical-align: center; margin-right: 10px;">
+                  <span style="text-align: center; vertical-align: center; margin-right: 10px; color: #e68000;">
                     SWAP
                     <br />
                     ACTIVE
@@ -603,7 +602,7 @@ export class MfdFmsSecIndexTab extends DestroyableComponent<MfdFmsSecIndexTabPro
                 </div>
               }
               onClick={() => this.props.fmcService.master.swapActiveAndSecondaryPlan(this.secIndex)}
-              buttonStyle="color: #e68000; padding-right: 2px; min-width: 150px; min-height: 60px;"
+              buttonStyle="padding-right: 2px; min-width: 150px; min-height: 60px;"
               idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_sec${this.props.flightPlanIndex}index_swap-active`}
             />,
           )}

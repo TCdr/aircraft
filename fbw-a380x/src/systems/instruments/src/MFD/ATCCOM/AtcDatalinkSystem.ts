@@ -38,6 +38,7 @@ import {
   NXSystemMessages,
 } from '../shared/NXSystemMessages';
 import { atisPrintLines, atisTime } from '../pages/ATCCOM/AtisText';
+import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/A380XFmsAtcBusPublisher';
 
 /** The cockpit printer, as the ATC COM functions use it (the FMS printer, FmsPrinter) */
 export interface AtcComPrinter {
@@ -97,11 +98,14 @@ export interface AtcErrorMessage {
 }
 
 export class AtcDatalinkSystem implements Instrument {
+  // TODO this should be hosted in the CPIOM-D.
   private readonly messageStorage: MessageStorage;
 
   private readonly publisher = this.bus.getPublisher<FmsAtcMessages & FmsRouterMessages>();
 
-  private readonly sub = this.bus.getSubscriber<AtcFmsMessages & FmsData & RouterFmsMessages & FmsRouterMessages>();
+  private readonly sub = this.bus.getSubscriber<AtcFmsMessages & FmsData & RouterFmsMessages>();
+
+  private readonly fmsBusSub = this.bus.getSubscriber<FmsToDatalinkSubsystemEvents>();
 
   private requestId: number = 0;
 
@@ -338,6 +342,10 @@ export class AtcDatalinkSystem implements Instrument {
       .on('fmsAlternate')
       .whenChanged()
       .handle((icao) => this.initAtisArea(2, icao));
+
+    this.fmsBusSub.on('reset_auto_update').handle(() => {
+      this.resetAtisAutoUpdate();
+    });
   }
 
   init(): void {}
@@ -1075,5 +1083,9 @@ export class AtcDatalinkSystem implements Instrument {
       default:
         return DatalinkModeCode.None;
     }
+  }
+
+  private resetAtisAutoUpdate(): void {
+    this.publisher.pub('atcResetAtisAutoUpdate', true, true, false);
   }
 }

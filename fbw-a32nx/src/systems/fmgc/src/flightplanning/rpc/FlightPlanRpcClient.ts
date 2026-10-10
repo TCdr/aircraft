@@ -577,6 +577,10 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     return this.callFunctionViaRpc('setClimbWindEntry', altitude, entry, planIndex);
   }
 
+  editClimbWindEntry(index: number, entry: WindEntry, planIndex: number): Promise<void> {
+    return this.callFunctionViaRpc('editClimbWindEntry', index, entry, planIndex);
+  }
+
   setDescentWindEntry(
     altitude: number,
     entry: WindEntry | null,
@@ -584,6 +588,10 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     shouldUpdateTwrWind: boolean,
   ): Promise<void> {
     return this.callFunctionViaRpc('setDescentWindEntry', altitude, entry, planIndex, shouldUpdateTwrWind);
+  }
+
+  editDescentWindEntry(index: number, entry: WindEntry, planIndex: number): Promise<void> {
+    return this.callFunctionViaRpc('editDescentWindEntry', index, entry, planIndex);
   }
 
   deleteAllClimbWindEntries(): Promise<void> {
@@ -602,6 +610,10 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     return this.callFunctionViaRpc('setAlternateWind', entry, planIndex);
   }
 
+  clearAlternateWind(planIndex: number): Promise<void> {
+    return this.callFunctionViaRpc('clearAlternateWind', planIndex);
+  }
+
   insertWindUplink(planIndex: number): Promise<void> {
     return this.callFunctionViaRpc('insertWindUplink', planIndex);
   }
@@ -614,5 +626,21 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
   /** @inheritdoc */
   public tryEraseEngineOutSid(): Promise<boolean> {
     return this.callFunctionViaRpc('tryActivateEngineOutSid');
+  }
+
+  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<WindEntry>[]> {
+    return this.callFunctionViaRpc('getHistoryWindsEntries', sortByAltitudeAscending);
+  }
+  insertHistoryWinds(): Promise<boolean> {
+    return this.callFunctionViaRpc('insertHistoryWinds');
+  }
+  historyWindInsertionAllowed(): Promise<boolean> {
+    return this.callFunctionViaRpc('historyWindInsertionAllowed');
+  }
+  setApproachWind(direction: number | null, magnitude: number | null, planIndex: number): Promise<boolean> {
+    return this.callFunctionViaRpc('setApproachWind', direction, magnitude, planIndex);
+  }
+  deleteApproachWind(planIndex: number): Promise<boolean> {
+    return this.callFunctionViaRpc('deleteApproachWind', planIndex);
   }
 }

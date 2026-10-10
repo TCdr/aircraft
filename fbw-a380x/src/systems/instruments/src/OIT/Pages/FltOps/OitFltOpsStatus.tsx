@@ -41,7 +41,7 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
                   idPrefix={`${this.props.uiService.captOrFo}_OIT_acftRegistration`}
                   selectedIndex={Subject.create<number | null>(0)}
                   values={ArraySubject.create(['F-FBWA'])}
-                  freeTextAllowed={false}
+                  freeTextAllowed={false} // OIT list, not an FMS field: list only
                   containerStyle="width: 600px;"
                   alignLabels="center"
                   numberOfDigitsForInputField={8}

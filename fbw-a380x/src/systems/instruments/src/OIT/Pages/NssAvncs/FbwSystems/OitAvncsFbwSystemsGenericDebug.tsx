@@ -88,7 +88,7 @@ export abstract class OitAvncsFbwSystemsGenericDebug extends DestroyableComponen
               values={ArraySubject.create(['OFF', 'ON'])}
               selectedIndex={this.debugDataControlDropdownIndex}
               idPrefix={`${this.props.container.uiService.captOrFo}_OIT_${this.props.controlEventName}_control`}
-              freeTextAllowed={false}
+              freeTextAllowed={false} // OIT debug list, not an FMS field: list only
               containerStyle="width: 175px; margin-right: 15px;"
               numberOfDigitsForInputField={5}
               alignLabels="center"

@@ -18,6 +18,7 @@ import { SecureCommunicationInterface } from './SecureCommunicationInterface';
 import { AnsuIndex, AnsuType, isAnsuPowered } from './AnsuLogic';
 
 export class AircraftNetworkServerUnit implements Instrument {
+  //TODO ANSU should be under systems host and split between flt-opts and nss-avncs?
   protected readonly subscriptions: Subscription[] = [];
 
   protected readonly sub = this.bus.getSubscriber<ResetPanelSimvars & OitSimvars & ClockEvents>();

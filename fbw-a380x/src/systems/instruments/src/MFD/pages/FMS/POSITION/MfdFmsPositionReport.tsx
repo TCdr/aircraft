@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ClockEvents, FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import { ClockEvents, ConsumerSubject, FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { Units } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
@@ -18,6 +18,7 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
+import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { Footer } from '../../common/Footer';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -60,6 +61,12 @@ const cruiseProfileChangeTypes: ReadonlyMap<string, string> = new Map([
  * Not modelled: sending the report to the airline via ACARS (SEND REPORT).
  */
 export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
+  /** The FMS flight phase (this page loads no flight plan, so it is not given by FmsFlightPlanPage) */
+  private readonly activeFlightPhase = ConsumerSubject.create<FmgcFlightPhase>(
+    this.props.bus.getSubscriber<MfdSimvars>().on('flightPhase'),
+    FmgcFlightPhase.Preflight,
+  );
+
   private readonly timeKeeper = this.props.fmcService.master.timeKeeper;
 
   private readonly lastSequenced = new WaypointLine();
@@ -121,7 +128,9 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
         .on('realTime')
         .atFrequency(1)
         .handle(() => this.updateReport()),
+      this.activeFlightPhase,
     );
+    this.onNewData();
   }
 
   protected onNewData(): void {

@@ -32,8 +32,7 @@ Status legend:
 | ✅ | fms/\*/f-pln-fix-info | 3 | intecept predictions, abeam, insert as waypoint |
 | 🟨 | fms/\*/f-pln-alternate | 3 | database alternates from the SimBrief OFP (no navdata alternate records), no alternate company routes, simplified alternate fuel (level flight), selection is direct (no TMPY) |
 | 🟨 | fms/active/f-pln-closest-airports | 3 | simplified predictions (level flight at CRZ FL, no descent), default EFF WIND = INIT trip wind |
-| ✅ | fms/\*/cpny-wind-request | 4 | free text not sent (SimBrief winds through the AOC datalink) |
-| 🟨 | fms/\*/wind | 4 | draft winds (INSERT / CANCEL WIND), F-PLN wind prediction shortcut |
+| ✅ | fms/\*/wind | 4 | Cruise Temperature |
 | 🟨 | fms/active/cpny-to-request | 9 | no company takeoff data computation: SEND T.O REQUEST inactive |
 | 🟨 | fms/active/received-cpny-to-data | 9 | no received company takeoff data (dashes, INSERT / CLEAR inactive) |
 | 🟨 | fms/active/f-pln-equi-time-point | 9 | simplified times (cruise Mach TAS + entered wind), ETP not drawn on F-PLN / ND |

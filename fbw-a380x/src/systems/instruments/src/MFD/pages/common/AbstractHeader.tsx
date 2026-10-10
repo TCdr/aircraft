@@ -101,7 +101,7 @@ export abstract class AbstractHeader extends DisplayComponent<AbstractMfdHeaderP
           values={this.availableSystems}
           selectedIndex={this.sysSelectorSelectedIndex}
           idPrefix={`${this.props.uiService.captOrFo}_MFD_sysSelectorDropdown`}
-          freeTextAllowed={false}
+          freeTextAllowed={false} // MFD system selector: list only
           onModified={(val) => this.changeSystem(val)}
           containerStyle="width: 25%;"
           alignLabels="flex-start"

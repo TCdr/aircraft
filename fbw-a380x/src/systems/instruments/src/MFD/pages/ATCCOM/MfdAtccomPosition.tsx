@@ -159,7 +159,7 @@ export class MfdAtccomPosition extends DisplayComponent<AtccomMfdPageProps> {
         idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_positionReport_${key}`}
         selectedIndex={index}
         values={ArraySubject.create(values.map((v) => (v === '' ? ' ' : v)))}
-        freeTextAllowed={false}
+        freeTextAllowed={false} // FCOM: ICING / TURBULENCE selected in the list only
         onModified={(i) => this.atc.setPositionReportValue(key, values[i ?? 0] ?? '')}
         containerStyle="width: 212px;"
         alignLabels="center"

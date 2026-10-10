@@ -77,7 +77,7 @@ import { A380Failure } from '@failures';
 // FIXME should not import from instruments
 import { FuelSystemEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FuelSystemPublisher';
 // FIXME should not import from instruments
-import { FmsMessageVars } from '../../../instruments/src/MsfsAvionicsCommon/providers/FmsMessagePublisher';
+import { FmsMessageVars } from '../../../shared/src/publishers/FmsMessagePublisher';
 import { FwsSystemDisplayLogic } from './FwsSystemDisplayLogic';
 import { splitSurvFaults, tcasFaultCondition, xpdrFaultCondition, XpdrTcasSwitchLine } from './FwsSurvAlerts';
 import { isTcasInoperative, selectedSurvSystem, SurvSystem } from '../../Misc/Communications/TransponderSystem';
