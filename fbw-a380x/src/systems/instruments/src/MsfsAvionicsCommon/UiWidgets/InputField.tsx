@@ -18,7 +18,7 @@ import {
 import { DataEntryFormat } from '../../MFD/pages/common/DataEntryFormats';
 import { A380FmsError } from '../../MFD/shared/A380FmsError';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
-import { isInputFieldEntryHandled } from './InputFieldEntry';
+import { isInputFieldEntryApplied, isInputFieldEntryHandled } from './InputFieldEntry';
 import { EfisSide } from '@flybywiresim/fbw-sdk';
 
 export enum InteractionMode {
@@ -468,16 +468,15 @@ export class InputField<
 
     if (updateWasSuccessful && valueChanged) {
       const artificialWaitingTime = new Promise((resolve) => setTimeout(resolve, 500));
+      let dataHandlerResult: boolean | void = undefined;
+      let dataHandlerThrew = false;
       if (this.props.dataHandlerDuringValidation) {
         try {
           const realWaitingTime = this.props.dataHandlerDuringValidation(newValue, oldValue);
           const [validation] = await Promise.all([realWaitingTime, artificialWaitingTime]);
-
-          if (validation === false) {
-            updateWasSuccessful = false;
-          }
+          dataHandlerResult = validation;
         } catch {
-          updateWasSuccessful = false;
+          dataHandlerThrew = true;
           await artificialWaitingTime;
         }
       } else {
@@ -485,7 +484,10 @@ export class InputField<
       }
 
       // An entry rejected by dataHandlerDuringValidation (false or an exception) is neither stored nor passed on
-      if (updateWasSuccessful) {
+      const entryApplied = isInputFieldEntryApplied(dataHandlerResult, dataHandlerThrew);
+      if (!entryApplied) {
+        updateWasSuccessful = false;
+      } else {
         if (this.props.onModified) {
           try {
             await this.props.onModified(newValue);
