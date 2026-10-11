@@ -54,6 +54,7 @@ import { bearingTo, Coordinates } from 'msfs-geo';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmcIndex } from './FmcServiceInterface';
+import { uplinkedAlternateWindLevelDiffers } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
 import { FmsErrorType } from '@fmgc/FmsError';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
 import { FlightPhaseManager, FlightPhaseManagerEvents } from '@fmgc/flightphase';
@@ -1278,12 +1279,8 @@ export class FlightManagementComputer implements FmcInterface {
     const plan = this.flightPlanInterface.get(flightPlanIndex);
 
     // CHECK ALTN WIND
-    const uplinkAlternateCruiseLevel = plan.pendingWindUplink.alternateWind?.altitude;
-    const computedAlternateCruiseLevel = plan.getAlternateCruiseLevel();
     if (
-      uplinkAlternateCruiseLevel !== undefined &&
-      computedAlternateCruiseLevel !== undefined &&
-      Math.round(uplinkAlternateCruiseLevel) !== Math.round(computedAlternateCruiseLevel)
+      uplinkedAlternateWindLevelDiffers(plan.pendingWindUplink.alternateWind?.altitude, plan.getAlternateCruiseLevel())
     ) {
       this.addMessageToQueue(NXSystemMessages.checkAltnWind);
     }

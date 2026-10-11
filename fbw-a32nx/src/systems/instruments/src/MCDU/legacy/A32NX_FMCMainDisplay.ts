@@ -35,6 +35,7 @@ import { A32NX_Util } from '../../../../shared/src/A32NX_Util';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
 import { EfisSymbols } from '@fmgc/efis/EfisSymbols';
 import { A320AircraftConfig } from '@fmgc/flightplanning/A320AircraftConfig';
+import { uplinkedAlternateWindLevelDiffers } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { FlightPlanRpcServer } from '@fmgc/flightplanning/rpc/FlightPlanRpcServer';
 import { Fmgc, GuidanceController } from '@fmgc/guidance/GuidanceController';
@@ -5501,12 +5502,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
 
     // Insert winds
-    const uplinkAlternateCruiseLevel = plan.pendingWindUplink.alternateWind?.altitude;
-    const computedAlternateCruiseLevel = this.computeAlternateCruiseLevel(forPlan);
     if (
-      uplinkAlternateCruiseLevel !== undefined &&
-      computedAlternateCruiseLevel !== undefined &&
-      Math.round(uplinkAlternateCruiseLevel) !== Math.round(computedAlternateCruiseLevel)
+      uplinkedAlternateWindLevelDiffers(
+        plan.pendingWindUplink.alternateWind?.altitude,
+        this.computeAlternateCruiseLevel(forPlan),
+      )
     ) {
       this.addMessageToQueue(NXSystemMessages.checkAltnWind);
     }
