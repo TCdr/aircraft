@@ -15,6 +15,23 @@ const WATCHED_PLANS = [
 ];
 
 /**
+ * A check of the watched flight plans: returns true when a plan was created, deleted or modified (its version changed)
+ * since the previous call, and on the first call.
+ */
+export function createFlightPlansChangeDetector(flightPlanInterface: FlightPlanInterface): () => boolean {
+  let lastSignature: string | null = null;
+  return () => {
+    // One version per plan, -1 for a plan that does not exist
+    const signature = WATCHED_PLANS.map((index) =>
+      flightPlanInterface.has(index) ? flightPlanInterface.get(index).version : -1,
+    ).join(',');
+    const changed = signature !== lastSignature;
+    lastSignature = signature;
+    return changed;
+  };
+}
+
+/**
  * Calls `onChange` once per second at most when a flight plan is created, deleted or modified (its version changes).
  * For the pages on FmsPage (DATA, POSITION) that show flight plan data without loading a flight plan: FmsFlightPlanPage
  * does this for the pages that load one.
@@ -25,18 +42,13 @@ export function watchFlightPlanChanges(
   flightPlanInterface: FlightPlanInterface,
   onChange: () => void,
 ): Subscription {
-  let lastSignature = '';
+  const changed = createFlightPlansChangeDetector(flightPlanInterface);
   return bus
     .getSubscriber<ClockEvents>()
     .on('realTime')
     .atFrequency(1)
     .handle(() => {
-      // One version per plan, -1 for a plan that does not exist
-      const signature = WATCHED_PLANS.map((index) =>
-        flightPlanInterface.has(index) ? flightPlanInterface.get(index).version : -1,
-      ).join(',');
-      if (signature !== lastSignature) {
-        lastSignature = signature;
+      if (changed()) {
         onChange();
       }
     });
