@@ -24,3 +24,20 @@ export function alternateCruiseLevel(distanceNm: number, rule: AlternateCruiseLe
 
   return distanceNm > 100 ? 220 : 100;
 }
+
+/**
+ * Whether CHECK ALTN WIND is raised when company winds are inserted: the uplinked alternate wind level differs from the
+ * default alternate cruise level (A380 FCOM message list l.21975-21990, A320 FCOM l.22527-22528). The uplinked wind
+ * altitude is in feet, the default alternate cruise level a flight level.
+ * @param uplinkedAltitudeFt the altitude of the uplinked alternate wind, in feet, if any
+ * @param defaultFlightLevel the default alternate cruise flight level, if any
+ */
+export function uplinkedAlternateWindLevelDiffers(
+  uplinkedAltitudeFt: number | undefined,
+  defaultFlightLevel: number | undefined,
+): boolean {
+  if (uplinkedAltitudeFt === undefined || defaultFlightLevel === undefined) {
+    return false;
+  }
+  return Math.round(uplinkedAltitudeFt / 100) !== Math.round(defaultFlightLevel);
+}
