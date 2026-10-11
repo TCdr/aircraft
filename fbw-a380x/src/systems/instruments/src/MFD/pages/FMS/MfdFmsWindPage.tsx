@@ -457,6 +457,7 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
       const satRow = cruiseSatRow(
         fp?.performanceData.cruiseFlightLevel.get() ?? null,
         fp?.performanceData.cruiseTemperature.get() ?? null,
+        cruiseWindsInactive,
       );
       this.cruiseTemperatureFlightLevel.set(satRow.flightLevel);
       this.cruiseTemperature.set(satRow.sat);
@@ -1302,7 +1303,7 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
                   <InputField<number, number, false>
                     alignText={'flex-start'}
                     containerStyle="height:43px; width:113px;margin-left: 76px;"
-                    inactive={false}
+                    inactive={this.cruiseWindsInactive}
                     disabled={this.cruiseTemperatureDisabled}
                     errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                     hEventConsumer={this.props.mfd.hEventConsumer}
