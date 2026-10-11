@@ -9,7 +9,13 @@
  *
  * @param cruiseFl the cruise flight level of the loaded flight plan, or null if there is none
  * @param satEntry the SAT to show at the cruise flight level (the entry, or the FMS default), or null
+ * @param cruiseOver the cruise is over for this plan (active plan, or a copy of it, after the cruise phase): the CRZ
+ * tab is inactive, the SAT with it
  */
-export function cruiseSatRow(cruiseFl: number | null, satEntry: number | null) {
-  return { flightLevel: cruiseFl, sat: cruiseFl === null ? null : satEntry, satEditable: cruiseFl !== null };
+export function cruiseSatRow(cruiseFl: number | null, satEntry: number | null, cruiseOver = false) {
+  return {
+    flightLevel: cruiseFl,
+    sat: cruiseFl === null ? null : satEntry,
+    satEditable: cruiseFl !== null && !cruiseOver,
+  };
 }

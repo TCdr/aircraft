@@ -18,3 +18,14 @@ describe('CRZ tab SAT row', () => {
     expect(cruiseSatRow(null, -52)).toEqual({ flightLevel: null, sat: null, satEditable: false });
   });
 });
+
+describe('CRZ tab SAT row after the cruise phase', () => {
+  // The CRZ winds of the active plan are inactive after the cruise phase; the SAT at CRZ FL with them
+  it('is not editable once the cruise is over', () => {
+    expect(cruiseSatRow(350, -52, true)).toEqual({ flightLevel: 350, sat: -52, satEditable: false });
+  });
+
+  it('stays editable before the end of the cruise', () => {
+    expect(cruiseSatRow(350, -52, false).satEditable).toBe(true);
+  });
+});
