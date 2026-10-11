@@ -16,6 +16,7 @@ import { testEventBus } from '@fmgc/flightplanning/test/TestEventBus';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { A320FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/A320FlightPlanPerformanceData';
 import { AlternateCruiseLevelRule } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
+import { FlightPlanWindEntry, WindVector } from '@fmgc/flightplanning/data/wind';
 
 describe('a base flight plan', () => {
   beforeAll(() => {
@@ -338,5 +339,51 @@ describe('the alternate cruise level of a flight plan', () => {
   it('keeps the rule in a clone', async () => {
     const clone = (await planWithAlternate('A380')).clone(1);
     expect(clone.getAlternateCruiseLevel()).toBe(220);
+  });
+});
+
+describe('the draft winds of a flight plan', () => {
+  beforeAll(() => {
+    setupTestDatabase();
+  });
+
+  /** The draft wind values of the plan, which the WIND page fills before INSERT (private to the plan) */
+  interface DraftWinds {
+    draftClimbWindEntries: { set(v: FlightPlanWindEntry[] | null): void };
+    draftCruiseWindEntries: { set(v: Map<number, FlightPlanWindEntry[]> | null): void };
+    draftDescentWindEntries: { set(v: FlightPlanWindEntry[] | null): void };
+    alternateDraftWind: { set(v: WindVector | null): void };
+  }
+
+  const wind = (altitude: number, direction: number, magnitude: number): FlightPlanWindEntry => ({
+    altitude,
+    vector: { direction, magnitude },
+    flags: 0,
+  });
+
+  it('inserts the drafts when all four (CLB, CRZ, DES, ALTN) exist', async () => {
+    const fp = FlightPlan.empty(
+      { syncClientID: 0, batchStack: [] },
+      0,
+      testEventBus,
+      new A320FlightPlanPerformanceData(),
+      5,
+      4,
+      5,
+      undefined,
+      true,
+    );
+    const drafts = fp as unknown as DraftWinds;
+    drafts.draftClimbWindEntries.set([wind(10_000, Math.PI / 2, 20)]);
+    drafts.draftCruiseWindEntries.set(new Map());
+    drafts.draftDescentWindEntries.set([wind(8_000, Math.PI, 15)]);
+    drafts.alternateDraftWind.set({ direction: 0, magnitude: 10 });
+    expect(fp.hasDraftWindEntries()).toBe(true);
+
+    fp.insertDraftWindEntries();
+
+    expect(fp.hasDraftWindEntries()).toBe(false);
+    expect(fp.getClimbWindEntries().map((e) => e.altitude)).toEqual([10_000]);
+    expect(fp.getDescentWindEntries().map((e) => e.altitude)).toEqual([8_000]);
   });
 });
