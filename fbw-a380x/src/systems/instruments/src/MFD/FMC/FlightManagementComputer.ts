@@ -65,6 +65,7 @@ import { bearingTo, Coordinates } from 'msfs-geo';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmcIndex } from './FmcServiceInterface';
+import { CompanyReplyHold } from './CompanyReplyHold';
 import { FmsErrorType } from '@fmgc/FmsError';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
 import { FlightPhaseManager, FlightPhaseManagerEvents } from '@fmgc/flightphase';
@@ -482,6 +483,9 @@ export class FlightManagementComputer implements FmcInterface {
   /** FCOM DSC-22-FMS company F-PLN request: NO COMPANY REPLY when no response is received within 4 min */
   private static readonly CPNY_FPLN_REPLY_TIMEOUT_MS = 4 * 60_000;
 
+  /** Company wind replies wait for the datalink reply time of their request (flyPad realism setting) */
+  private readonly cpnyWindReplyHold = new CompanyReplyHold();
+
   /** Company takeoff data (A380 FCOM DSC-22-FMS): the request and the received data, from the flypad calculator */
   public readonly companyTakeoffData: CompanyTakeoffData;
   private lastUpdateTime: number | null = 0;
@@ -762,7 +766,7 @@ export class FlightManagementComputer implements FmcInterface {
       }),
       this.atsuBusSubscriber
         .on('wind_uplink_response')
-        .handle((response) => this.onCompanyWindUplinkResponseReceived(response)),
+        .handle((response) => this.deliverCompanyWindUplinkResponse(response)),
 
       this.bus
         .getSubscriber<FlightPlanOperationEvents>()
@@ -1410,8 +1414,15 @@ export class FlightManagementComputer implements FmcInterface {
         true,
         false,
       );
+      this.cpnyWindReplyHold.requested(flightPlanIndex);
       this.cpnyWindUplinkInProgress.set(true);
     }
+  }
+
+  /** Delivers a company wind uplink once the datalink reply time of its request has passed (flyPad realism setting) */
+  private async deliverCompanyWindUplinkResponse(response: WindUplinkResponse): Promise<void> {
+    await this.cpnyWindReplyHold.whenDeliverable(response.flightPlan);
+    this.onCompanyWindUplinkResponseReceived(response);
   }
 
   async insertCpnyWind(flightPlanIndex: number): Promise<void> {
