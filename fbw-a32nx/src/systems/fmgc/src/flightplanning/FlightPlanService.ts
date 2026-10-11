@@ -1131,7 +1131,7 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       await this.deleteAllClimbWindEntries();
       const historyWinds = this.historyWinds
         .getRecordedWinds(fp.performanceData.cruiseFlightLevel.get(), !this.config.SORT_CLIMB_WIND_DESCENDING)
-        .filter((entry) => entry.vector.direction !== undefined && entry.vector.magnitude !== undefined);
+        .filter(FlightPlanService.isInsertableHistoryWind);
       if (historyWinds.length > 0) {
         const entries: FlightPlanWindEntry[] = historyWinds.map((entry) => {
           return {
@@ -1161,7 +1161,8 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
 
     // Compared in the order the history winds are inserted in (an await as its own statement: Coherent GT rule)
     const listedWinds = await this.getHistoryWindsEntries(!this.config.SORT_CLIMB_WIND_DESCENDING);
-    return !this.haveHistoryWindsBeenInserted(listedWinds);
+    // Only the levels with a wind are inserted, so only they are compared
+    return !this.haveHistoryWindsBeenInserted(listedWinds.filter(FlightPlanService.isInsertableHistoryWind));
   }
 
   async setApproachWind(direction: number | null, magnitude: number | null, planIndex: number): Promise<boolean> {
@@ -1202,6 +1203,11 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       }
     }
     return false;
+  }
+
+  /** A listed history wind with a wind (a level without one is listed with dashes and not inserted) */
+  private static isInsertableHistoryWind(entry: Readonly<WindEntry>): boolean {
+    return entry.vector.direction !== undefined && entry.vector.magnitude !== undefined;
   }
 
   private haveHistoryWindsBeenInserted(historyWinds: WindEntry[]) {
