@@ -92,11 +92,11 @@ export const NXSystemMessages = {
   cpnyToDataReceivedPendingInsertion: new TypeIIMessage('COMPANY T.O DATA RECEIVED\nWAITING FOR INSERTION'),
   receivedCpnyToDataNotValid: new TypeIIMessage('RECEIVED COMPANY T.O DATA NOT VALID'),
   comWindRecievedPendingInsertionActive: new TypeIIMessage(
-    'COMPANY WIND RECIEVED\nWAITING FOR INSERTION IN ACTIVE',
+    'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN ACTIVE',
     false,
   ),
   comWindRecievedPendingInsertionInSecondary: new TypeIIMessage(
-    'COMPANY WIND RECIEVED\nWAITING FOR INSERTION IN SEC X',
+    'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN SEC X',
     false,
     'X',
   ),
@@ -104,7 +104,7 @@ export const NXSystemMessages = {
   comDatalinkNotAvail: new TypeIMessage('COM DATALINK NOT AVAIL'),
   cstrDelUpToWpt: new TypeIIMessage('CONSTRAINTS BEFORE WWWWW : DELETED', false, 'WWWWW'),
   destEfobBelowMin: new TypeIIMessage('DEST EFOB BELOW MIN', true),
-  draftWindsInserted: new TypeIMessage('DRAFT WINDS INSERTED'),
+  draftWindsInserted: new TypeIMessage('DRAFT WIND INSERTED'),
   enterDestData: new TypeIIMessage('ENTER DEST DATA', true),
   // FCOM DSC-22-FMS-20-110: the data communication between the FMS and the Avionics Communication Router is not available
   fmsDatalinkNotAvail: new TypeIIMessage('FMS DATALINK NOT AVAIL'),
@@ -126,7 +126,7 @@ export const NXSystemMessages = {
   atcFplnInsertedSec3: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3', false),
   atcFplnInsertedSec3Rejected: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3\nREJECTED INFO SEE SEC / INDEX', false),
   receivedAtcMsgNotValid: new TypeIIMessage('RECEIVED ATC MSG NOT VALID', false),
-  receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND NOT VALID', false),
+  receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND DATA NOT VALID', false),
   rwyLsDisagree: new TypeIIMessage('RUNWAY / LS DISAGREE', true),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPD'),
   tdReached: new TypeIIMessage('T/D REACHED'),
