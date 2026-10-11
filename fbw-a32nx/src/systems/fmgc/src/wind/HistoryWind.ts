@@ -176,7 +176,9 @@ export class HistoryWind {
       return undefined;
     }
 
-    return { direction: Math.atan2(y, x), magnitude: Math.hypot(x, y) };
+    // atan2 gives -180..180 deg; recorded winds use 0..360 deg, which the wind interpolation relies on
+    const direction = Math.atan2(y, x);
+    return { direction: direction < 0 ? direction + 2 * Math.PI : direction, magnitude: Math.hypot(x, y) };
   }
 
   /**
@@ -201,7 +203,10 @@ export class HistoryWind {
         const converted = legacyWinds.map((wind): WindEntry | null => {
           const vector = HistoryWind.windVectorFromStoredVec2(wind?.vector);
           // A recorded cruise wind without a level was stored with NaN, which JSON turns into null: drop it.
-          return vector !== undefined && typeof wind.altitude === 'number' ? { altitude: wind.altitude, vector } : null;
+          // Recorded winds have their level rounded to 100 ft; develop stored the measured cruise altitude unrounded.
+          return vector !== undefined && typeof wind.altitude === 'number'
+            ? { altitude: Math.round(wind.altitude / 100) * 100, vector }
+            : null;
         });
         localStorage.setItem(HistoryWind.LOCALSTORAGE_KEY, JSON.stringify(converted));
       } else {
