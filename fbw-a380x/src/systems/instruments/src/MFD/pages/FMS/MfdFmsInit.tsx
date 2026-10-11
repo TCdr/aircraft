@@ -44,7 +44,7 @@ import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { CpnyFplnButtonUtils } from '../../shared/CpnyFplnButtonUtils';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
-import { CpnyWindRequestButton } from './CpnyWindButtonUtils';
+import { CpnyWindRequestButton, cpnyWindRequestPage } from './CpnyWindButtonUtils';
 
 interface MfdFmsInitProps extends AbstractMfdPageProps {}
 
@@ -734,6 +734,11 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                   flightPlanIndex={this.loadedFlightPlanIndex}
                   tmpyExists={this.tmpyActive}
                   isActiveOrCopiedFromActive={this.fpIsActiveOrCopyOfActive}
+                  onOpenRequestPage={() =>
+                    this.props.mfd.uiService.navigateTo(
+                      `fms/${this.props.mfd.uiService.activeUri.get().category}/${cpnyWindRequestPage}`,
+                    )
+                  }
                   buttonStyle="min-width: 174px; min-height: 60px;"
                 />,
               )}
