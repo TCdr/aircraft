@@ -62,4 +62,43 @@ describe('history winds of the flight plan service', () => {
     const inserted = service.get(FlightPlanIndex.Active).performanceData.climbWindEntries.get()!;
     expect(inserted.map((w) => w.altitude).sort((a, b) => b! - a!)).toEqual([38000, 35000, 25000, 15000, 5000]);
   });
+
+  it('has nothing left to insert after inserting a list with a level without wind', async () => {
+    // FL150 has no recorded wind: it is listed (dashes) but not inserted
+    localStorage.setItem(
+      HistoryWind.LOCALSTORAGE_KEY,
+      JSON.stringify([
+        { altitude: 5000, vector: { direction: 1, magnitude: 10 } },
+        { altitude: 15000, vector: {} },
+        { altitude: 25000, vector: { direction: 1, magnitude: 30 } },
+        null,
+      ]),
+    );
+    const service = new FlightPlanService(
+      new EventBus(),
+      new A320FlightPlanPerformanceData(),
+      FpmConfigs.A320_HONEYWELL_H4,
+      true,
+    );
+    service.createFlightPlans();
+    for (let i = 1; i <= FpmConfigs.A320_HONEYWELL_H4.NUM_SECONDARY_FLIGHT_PLANS; i++) {
+      await service.secondaryInit(i);
+    }
+    service.active.setPerformanceData('cruiseFlightLevel', 350);
+
+    expect(await service.insertHistoryWinds()).toBe(true);
+    expect(await service.historyWindInsertionAllowed()).toBe(false);
+  });
+
+  it('builds the plans with the alternate cruise level rule of its aircraft', async () => {
+    // FpmConfig.ALTERNATE_CRUISE_LEVEL_RULE reaches every plan of the service (FlightPlanManager)
+    const a380 = await createService(FpmConfigs.A380);
+    const a320 = await createService(FpmConfigs.A320_HONEYWELL_H4);
+    const ruleOf = (service: FlightPlanService, index: number) =>
+      (service.get(index) as unknown as { alternateCruiseLevelRule: string }).alternateCruiseLevelRule;
+
+    expect(ruleOf(a380, FlightPlanIndex.Active)).toBe('A380');
+    expect(ruleOf(a380, FlightPlanIndex.FirstSecondary)).toBe('A380');
+    expect(ruleOf(a320, FlightPlanIndex.Active)).toBe('A320');
+  });
 });

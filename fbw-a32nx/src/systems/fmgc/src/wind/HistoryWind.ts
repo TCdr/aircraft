@@ -50,13 +50,20 @@ export class HistoryWind {
 
   private readonly historyWinds: (WindEntry | null)[] = Array(this.defaultRecordedWind.length + 1).fill(null);
 
+  /** {@link LOCALSTORAGE_KEY} of the aircraft of this FMS */
+  private get storageKey(): string {
+    return this.aircraftPrefix + '.HistoryWinds';
+  }
+
   /**
    * @param bus the event bus
    * @param rowsRule which history winds getRecordedWinds lists, see FpmConfig.HISTORY_WIND_ROWS_RULE
+   * @param aircraftPrefix the aircraft whose storage keys are used (AIRCRAFT_PROJECT_PREFIX by default)
    */
   constructor(
     private readonly bus: EventBus,
     private readonly rowsRule: HistoryWindRowsRule = 'A320',
+    private readonly aircraftPrefix: string = HistoryWind.AIRCRAFT_PREFIX,
   ) {
     this.altitude.sub(this.handleAltitudeChange.bind(this));
     this.sub.on('fmgc_flight_phase').handle(this.handleFlightPhaseChange.bind(this));
@@ -153,15 +160,20 @@ export class HistoryWind {
     historyWinds.sort((a, b) => (sortAscending ? a.altitude! - b.altitude! : b.altitude! - a.altitude!));
 
     if (this.rowsRule === 'A380') {
-      const recordedCruiseAltitude = this.historyWinds[this.defaultRecordedWind.length]?.altitude ?? null;
-      return historyWindRows(historyWinds, cruiseLevel, recordedCruiseAltitude);
+      const recordedCruise = this.historyWinds[this.defaultRecordedWind.length] ?? null;
+      // A cruise at a fixed level (e.g. FL 250) is listed once, with the measured cruise wind
+      const listed =
+        recordedCruise !== null
+          ? historyWinds.filter((wind) => wind === recordedCruise || wind.altitude !== recordedCruise.altitude)
+          : historyWinds;
+      return historyWindRows(listed, cruiseLevel, recordedCruise?.altitude ?? null);
     }
 
     return historyWinds;
   }
 
   private syncToLocalStorage() {
-    localStorage.setItem(HistoryWind.LOCALSTORAGE_KEY, JSON.stringify(this.historyWinds));
+    localStorage.setItem(this.storageKey, JSON.stringify(this.historyWinds));
   }
 
   /**
@@ -186,8 +198,13 @@ export class HistoryWind {
    * Nothing happens if the current key already holds winds.
    */
   private migrateLegacyLocalStorage() {
-    const legacyKey = HistoryWind.LEGACY_LOCALSTORAGE_KEYS[HistoryWind.AIRCRAFT_PREFIX];
-    if (legacyKey === undefined || localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY) !== null) {
+    const legacyKey = HistoryWind.LEGACY_LOCALSTORAGE_KEYS[this.aircraftPrefix];
+    if (legacyKey === undefined) {
+      return;
+    }
+    if (localStorage.getItem(this.storageKey) !== null) {
+      // Already moved (or recorded under the new key since): the legacy winds are not needed any more
+      localStorage.removeItem(legacyKey);
       return;
     }
 
@@ -208,7 +225,7 @@ export class HistoryWind {
             ? { altitude: Math.round(wind.altitude / 100) * 100, vector }
             : null;
         });
-        localStorage.setItem(HistoryWind.LOCALSTORAGE_KEY, JSON.stringify(converted));
+        localStorage.setItem(this.storageKey, JSON.stringify(converted));
       } else {
         console.log(`[FMS/History Winds] Legacy history winds with invalid format: "${legacyString}"`);
       }
@@ -222,7 +239,7 @@ export class HistoryWind {
   private syncFromLocalStorage() {
     this.migrateLegacyLocalStorage();
 
-    const historyWindsString = localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY);
+    const historyWindsString = localStorage.getItem(this.storageKey);
     if (historyWindsString === null) {
       return;
     }

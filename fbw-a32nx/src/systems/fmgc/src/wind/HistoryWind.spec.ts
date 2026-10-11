@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus } from '@microsoft/msfs-sdk';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FpmConfigs } from '../flightplanning/FpmConfig';
 import { HistoryWind } from './HistoryWind';
 
@@ -97,12 +97,18 @@ describe('history winds storage', () => {
     new HistoryWind(new EventBus());
 
     expect(JSON.parse(localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY)!)).toEqual(current);
+    // The legacy winds are not needed any more
+    expect(localStorage.getItem(HistoryWind.LEGACY_LOCALSTORAGE_KEYS.A32NX)).toBeNull();
   });
 
   it('drops a legacy value that cannot be read', () => {
     localStorage.setItem(HistoryWind.LEGACY_LOCALSTORAGE_KEYS.A32NX, '{not json');
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     new HistoryWind(new EventBus());
+
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('Error converting legacy history winds'));
+    log.mockRestore();
 
     expect(localStorage.getItem(HistoryWind.LEGACY_LOCALSTORAGE_KEYS.A32NX)).toBeNull();
     expect(localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY)).toBeNull();
@@ -140,6 +146,25 @@ describe('history winds storage', () => {
       expect(winds.every((w) => w.isCruiseLevel === undefined)).toBe(true);
     });
 
+    it('the A380 lists a cruise at a fixed level once, with the measured cruise wind', () => {
+      // The previous flight cruised at FL250: the fixed FL 250 entry and the cruise entry have the same level
+      localStorage.setItem(
+        HistoryWind.LOCALSTORAGE_KEY,
+        JSON.stringify([
+          { altitude: 5000, vector: { direction: 1, magnitude: 10 } },
+          { altitude: 15000, vector: { direction: 1, magnitude: 20 } },
+          { altitude: 25000, vector: { direction: 1, magnitude: 30 } },
+          { altitude: 25000, vector: { direction: 1, magnitude: 99 } },
+        ]),
+      );
+
+      const winds = new HistoryWind(new EventBus(), 'A380').getRecordedWinds(250, false);
+
+      expect(winds.map((w) => w.altitude)).toEqual([25000, 15000, 5000]);
+      expect(winds[0].vector.magnitude).toBe(99);
+      expect(winds[0].isCruiseLevel).toBe(true);
+    });
+
     it('is the default rule of the A32NX and a rule of the A380 configuration', () => {
       expect(FpmConfigs.A380.HISTORY_WIND_ROWS_RULE).toBe('A380');
       expect(FpmConfigs.A320_HONEYWELL_H4.HISTORY_WIND_ROWS_RULE).toBe('A320');
@@ -147,29 +172,19 @@ describe('history winds storage', () => {
   });
 
   describe('on the A380X', () => {
-    afterEach(() => {
-      vi.unstubAllEnvs();
-      vi.resetModules();
-    });
-
-    it('reads the A380X legacy key and leaves the A32NX one alone', async () => {
-      vi.stubEnv('AIRCRAFT_PROJECT_PREFIX', 'a380x');
-      vi.resetModules();
-      const { HistoryWind: A380History } = await import('./HistoryWind');
+    it('reads the A380X legacy key into its own key and leaves the A32NX one alone', () => {
       localStorage.setItem(
         'FBW.A380X.HistoryWinds',
         JSON.stringify([{ altitude: 5000, vector: legacyVec2(0, 30) }, null, null, null]),
       );
       localStorage.setItem('FBW.HistoryWinds', '[null,null,null,null]');
 
-      new A380History(new EventBus());
+      new HistoryWind(new EventBus(), 'A380', 'A380X');
 
-      expect(A380History.LOCALSTORAGE_KEY).toBe('A380X.HistoryWinds');
       expect(localStorage.getItem('FBW.A380X.HistoryWinds')).toBeNull();
       expect(localStorage.getItem('FBW.HistoryWinds')).toBe('[null,null,null,null]');
       const stored = JSON.parse(localStorage.getItem('A380X.HistoryWinds')!);
       expect(stored[0].vector.magnitude).toBeCloseTo(30);
-      // Loading the module again transforms the whole FMS code, which is slow
-    }, 60_000);
+    });
   });
 });
