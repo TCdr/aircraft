@@ -1148,16 +1148,20 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
   }
 
   async historyWindInsertionAllowed(): Promise<boolean> {
-    return Promise.resolve(
-      !this.hasTemporary &&
-        this.hasActive &&
-        !this.active.hasDraftWindEntries() &&
-        this.historyWinds.areWindsValidForInsertion() &&
-        !this.active.pendingWindUplink.isWindUplinkInProgress() &&
-        !this.active.pendingWindUplink.isWindUplinkReadyToInsert() &&
-        // Compared in the order the history winds are inserted in
-        !this.haveHistoryWindsBeenInserted(await this.getHistoryWindsEntries(!this.config.SORT_CLIMB_WIND_DESCENDING)),
-    );
+    if (
+      this.hasTemporary ||
+      !this.hasActive ||
+      this.active.hasDraftWindEntries() ||
+      !this.historyWinds.areWindsValidForInsertion() ||
+      this.active.pendingWindUplink.isWindUplinkInProgress() ||
+      this.active.pendingWindUplink.isWindUplinkReadyToInsert()
+    ) {
+      return false;
+    }
+
+    // Compared in the order the history winds are inserted in (an await as its own statement: Coherent GT rule)
+    const listedWinds = await this.getHistoryWindsEntries(!this.config.SORT_CLIMB_WIND_DESCENDING);
+    return !this.haveHistoryWindsBeenInserted(listedWinds);
   }
 
   async setApproachWind(direction: number | null, magnitude: number | null, planIndex: number): Promise<boolean> {
