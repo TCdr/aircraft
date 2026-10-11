@@ -67,6 +67,7 @@ import { MfdDisplayInterface } from '../MFD';
 import { FmcIndex } from './FmcServiceInterface';
 import { uplinkedAlternateWindLevelDiffers } from '@fmgc/flightplanning/plans/AlternateCruiseLevel';
 import { CompanyReplyHold } from './CompanyReplyHold';
+import { CompanyRequestTimeout } from './CompanyRequestTimeout';
 import { FmsErrorType } from '@fmgc/FmsError';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
 import { FlightPhaseManager, FlightPhaseManagerEvents } from '@fmgc/flightphase';
@@ -495,6 +496,12 @@ export class FlightManagementComputer implements FmcInterface {
   private readonly cpnyFplnRequestedForPlan = Subject.create<FlightPlanIndex | null>(null);
   private readonly cpnyFplnUplinkInProgress = Subject.create(false);
   private readonly cpnyWindUplinkInProgress = Subject.create(false);
+
+  /** The flight plan of the pending company wind request, null without one */
+  private readonly cpnyWindRequestedForPlan = Subject.create<FlightPlanIndex | null>(null);
+
+  /** NO COMPANY REPLY 4 min after a company wind request without an answer */
+  private readonly cpnyWindRequestTimeout = new CompanyRequestTimeout();
   private readonly uplinkRequestInProgress = MappedSubject.create(
     SubscribableMapFunctions.or(),
     this.cpnyFplnUplinkInProgress,
@@ -1416,6 +1423,8 @@ export class FlightManagementComputer implements FmcInterface {
         false,
       );
       this.cpnyWindReplyHold.requested(flightPlanIndex);
+      this.cpnyWindRequestTimeout.start(flightPlanIndex, () => this.onCompanyWindRequestTimedOut(flightPlanIndex));
+      this.cpnyWindRequestedForPlan.set(flightPlanIndex);
       this.cpnyWindUplinkInProgress.set(true);
     }
   }
@@ -1423,7 +1432,21 @@ export class FlightManagementComputer implements FmcInterface {
   /** Delivers a company wind uplink once the datalink reply time of its request has passed (flyPad realism setting) */
   private async deliverCompanyWindUplinkResponse(response: WindUplinkResponse): Promise<void> {
     await this.cpnyWindReplyHold.whenDeliverable(response.flightPlan);
+    if (!this.cpnyWindRequestTimeout.settle(response.flightPlan)) {
+      // Too late: NO COMPANY REPLY was already given, the request is over
+      return;
+    }
     this.onCompanyWindUplinkResponseReceived(response);
+  }
+
+  /** No answer within the FCOM 4 min (DSC-22-FMS-10-40-90): NO COMPANY REPLY, the request is over */
+  private onCompanyWindRequestTimedOut(planIndex: FlightPlanIndex): void {
+    if (this.flightPlanInterface.has(planIndex)) {
+      this.flightPlanInterface.get(planIndex).pendingWindUplink.onUplinkAborted();
+    }
+    this.addMessageToQueue(NXSystemMessages.noCompanyReply);
+    this.cpnyWindUplinkInProgress.set(false);
+    this.cpnyWindRequestedForPlan.set(null);
   }
 
   async insertCpnyWind(flightPlanIndex: number): Promise<void> {
@@ -2323,6 +2346,10 @@ export class FlightManagementComputer implements FmcInterface {
     return this.cpnyWindUplinkInProgress;
   }
 
+  getCpnyWindRequestedForPlan(): Subscribable<FlightPlanIndex | null> {
+    return this.cpnyWindRequestedForPlan;
+  }
+
   private checkDestData(): void {
     if (!this.destDataEntered.get()) {
       this.addMessageToQueue(NXSystemMessages.enterDestData);
@@ -2872,6 +2899,7 @@ export class FlightManagementComputer implements FmcInterface {
       }
     }
     this.cpnyWindUplinkInProgress.set(false);
+    this.cpnyWindRequestedForPlan.set(null);
   }
 
   // Deletes all the company wind uplinks or draft winds from flightplans which wind modification is disabled starting in descent phase (active & secs copy of active)

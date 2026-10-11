@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
-import { isCpnyFplnButtonDisabled } from './CpnyFplnButtonRule';
+import { isCpnyFplnButtonDisabled, isCpnyFplnSendDisabled } from './CpnyFplnButtonRule';
 
 const Active = FlightPlanIndex.Active;
 const Sec1 = FlightPlanIndex.FirstSecondary;
@@ -32,5 +32,24 @@ describe('CPNY F-PLN REQUEST button (FCOM DSC-22-FMS-20-30 INIT and SEC INDEX pa
   });
   it('is enabled on a SEC INDEX page with a pending request for itself (its request page stays reachable)', () => {
     expect(isCpnyFplnButtonDisabled(false, Sec1, false, false, Sec1)).toBe(false);
+  });
+});
+
+describe('SEND F-PLN REQUEST of the COMPANY F-PLN REQUEST page', () => {
+  it('is enabled for the active plan before engine start with nothing pending', () => {
+    expect(isCpnyFplnSendDisabled(false, false, false, FlightPlanIndex.Active)).toBe(false);
+  });
+
+  it('is disabled while the flight plan request is pending', () => {
+    expect(isCpnyFplnSendDisabled(true, false, false, FlightPlanIndex.Active)).toBe(true);
+  });
+
+  it('is disabled while a company wind request is pending (from either MFD)', () => {
+    expect(isCpnyFplnSendDisabled(false, true, false, FlightPlanIndex.FirstSecondary)).toBe(true);
+  });
+
+  it('is disabled for the active plan after engine start, not for a secondary plan', () => {
+    expect(isCpnyFplnSendDisabled(false, false, true, FlightPlanIndex.Active)).toBe(true);
+    expect(isCpnyFplnSendDisabled(false, false, true, FlightPlanIndex.FirstSecondary)).toBe(false);
   });
 });

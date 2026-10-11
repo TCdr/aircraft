@@ -15,14 +15,18 @@ function fakeFmc() {
     [FlightPlanIndex.FirstSecondary, Subject.create(false)],
   ]);
   const availableForAnyPlan = Subject.create(false);
+  const uplinkInProgress = Subject.create(false);
+  const cpnyWindUplinkInProgress = Subject.create(false);
+  const cpnyWindRequestedForPlan = Subject.create<number | null>(null);
   const fmc = {
     fmgc: { data: { flightPhase: Subject.create(FmgcFlightPhase.Preflight) } },
-    getUplinkInProgress: () => Subject.create(false),
-    getCpnyWindUplinkInProgress: () => Subject.create(false),
+    getUplinkInProgress: () => uplinkInProgress,
+    getCpnyWindUplinkInProgress: () => cpnyWindUplinkInProgress,
+    getCpnyWindRequestedForPlan: () => cpnyWindRequestedForPlan,
     getWindUplinkAvailableForPlan: (index?: number) =>
       index === undefined ? availableForAnyPlan : availableForPlan.get(index)!,
   } as unknown as FmcInterface;
-  return { fmc, availableForPlan };
+  return { fmc, availableForPlan, uplinkInProgress, cpnyWindUplinkInProgress, cpnyWindRequestedForPlan };
 }
 
 describe('CPNY WIND REQUEST button state', () => {
@@ -56,5 +60,32 @@ describe('CPNY WIND REQUEST button state', () => {
     (fmc.fmgc.data.flightPhase as Subject<FmgcFlightPhase>).set(FmgcFlightPhase.Descent);
     expect(tracker.state.get().flightPhaseDisallows).toBe(true);
     tracker.destroy();
+  });
+
+  it('shows a pending wind request only on the page of its flight plan', () => {
+    const { fmc, uplinkInProgress, cpnyWindUplinkInProgress, cpnyWindRequestedForPlan } = fakeFmc();
+    const active = new CpnyWindButtonStateTracker(
+      fmc,
+      Subject.create<number>(FlightPlanIndex.Active),
+      Subject.create(false),
+      Subject.create(true),
+    );
+    const sec = new CpnyWindButtonStateTracker(
+      fmc,
+      Subject.create<number>(FlightPlanIndex.FirstSecondary),
+      Subject.create(false),
+      Subject.create(false),
+    );
+
+    // A company wind request of the active plan
+    cpnyWindRequestedForPlan.set(FlightPlanIndex.Active);
+    uplinkInProgress.set(true);
+    cpnyWindUplinkInProgress.set(true);
+
+    expect(active.state.get().cpnyWindUplinkInProgress).toBe(true);
+    expect(sec.state.get().cpnyWindUplinkInProgress).toBe(false);
+
+    active.destroy();
+    sec.destroy();
   });
 });
