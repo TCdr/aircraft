@@ -1972,7 +1972,9 @@ export class FlightManagementComputer implements FmcInterface {
 
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined {
     // The plan applies the A380 rule of FpmConfigs.A380 (AlternateCruiseLevel.ts, A380 FCOM l.42387)
-    return this.#flightPlanService.has(forPlan) ? this.#flightPlanService.get(forPlan).getAlternateCruiseLevel() : undefined;
+    return this.#flightPlanService.has(forPlan)
+      ? this.#flightPlanService.get(forPlan).getAlternateCruiseLevel()
+      : undefined;
   }
 
   private checkDestination(oldDestination: string) {

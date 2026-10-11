@@ -2,14 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import {
-  ArraySubject,
-  FSComponent,
-  MappedSubject,
-  Subject,
-  Subscribable,
-  VNode,
-} from '@microsoft/msfs-sdk';
+import { ArraySubject, FSComponent, MappedSubject, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { CompanyRoute } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FmgcFlightPhase } from '@shared/flightphase';

@@ -14,7 +14,6 @@ import { FmsPage } from './FmsPage';
 import { activeFlightPhaseSubject } from './activeFlightPhase';
 
 export abstract class FmsFlightPlanPage<T extends AbstractMfdPageProps = AbstractMfdPageProps> extends FmsPage<T> {
-
   public loadedFlightPlan: ReadonlyFlightPlan<FlightPlanPerformanceData> | null = null;
 
   public loadedAlternateFlightPlan: AlternateFlightPlan<FlightPlanPerformanceData> | null = null;
