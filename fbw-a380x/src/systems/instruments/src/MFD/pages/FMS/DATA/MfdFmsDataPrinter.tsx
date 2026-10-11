@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ConsumerSubject, FSComponent, NodeReference, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import { FSComponent, NodeReference, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FmgcFlightPhase } from '@shared/flightphase';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
-import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { watchFlightPlanChanges } from '../../common/FlightPlansChangeWatcher';
 import { Footer } from '../../common/Footer';
 import { fcomAt, fcomCentre, fcomLine } from '../../common/FcomLayout';
@@ -16,6 +15,7 @@ import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { FlightPlanReport } from '../../../FMC/FmsPrinter';
 
 import './MfdFmsDataPrinter.scss';
+import { activeFlightPhaseSubject } from '../../common/activeFlightPhase';
 
 interface MfdFmsDataPrinterProps extends AbstractMfdPageProps {}
 
@@ -27,10 +27,7 @@ interface MfdFmsDataPrinterProps extends AbstractMfdPageProps {}
  */
 export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
   /** The FMS flight phase (this page loads no flight plan, so it is not given by FmsFlightPlanPage) */
-  private readonly activeFlightPhase = ConsumerSubject.create<FmgcFlightPhase>(
-    this.props.bus.getSubscriber<MfdSimvars>().on('flightPhase'),
-    FmgcFlightPhase.Preflight,
-  );
+  private readonly activeFlightPhase = activeFlightPhaseSubject(this.props.bus);
 
   private readonly printer = this.props.fmcService.master.printer;
 

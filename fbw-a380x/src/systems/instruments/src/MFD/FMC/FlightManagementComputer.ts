@@ -1572,24 +1572,8 @@ export class FlightManagementComputer implements FmcInterface {
   public readonly timeConstraint = Subject.create<TimeConstraint | null>(null);
 
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined {
-    const plan = this.#flightPlanService.get(forPlan);
-    if (!plan) {
-      return undefined;
-    }
-
-    if (!plan.destinationAirport || !plan.alternateDestinationAirport) {
-      return undefined;
-    }
-
-    // TODO use actual flight plan distance rather than great circle distance
-    const distance = Avionics.Utils.computeGreatCircleDistance(
-      plan.destinationAirport.location,
-      plan.alternateDestinationAirport.location,
-    );
-
-    // A380 FCOM DSC-22-FMS-20-30 (WIND page, ALTERNATE CRUISE ALTITUDE): FL 220 if the alternate flight plan distance is
-    // less than 200 nm, FL 310 if it is 200 nm or more
-    return distance < 200 ? 220 : 310;
+    // The plan applies the A380 rule of FpmConfigs.A380 (AlternateCruiseLevel.ts, A380 FCOM l.42387)
+    return this.#flightPlanService.has(forPlan) ? this.#flightPlanService.get(forPlan).getAlternateCruiseLevel() : undefined;
   }
 
   private checkDestination(oldDestination: string) {

@@ -1,21 +1,19 @@
 //  Copyright (c) 2025-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
-import { ClockEvents, ConsumerSubject, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
-import { FmgcFlightPhase } from '@shared/flightphase';
+import { ClockEvents, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 import { AbstractMfdPageProps } from '../../MFD';
 import { NXSystemMessages } from '../../shared/NXSystemMessages';
 import { ActivePageTitleBar } from './ActivePageTitleBar';
-import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
 import { AlternateFlightPlan } from '@fmgc/flightplanning/plans/AlternateFlightPlan';
 import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { initPage } from '../../shared/utils';
 import { FmsPage } from './FmsPage';
+import { activeFlightPhaseSubject } from './activeFlightPhase';
 
 export abstract class FmsFlightPlanPage<T extends AbstractMfdPageProps = AbstractMfdPageProps> extends FmsPage<T> {
-  private readonly sub = this.props.bus.getSubscriber<MfdSimvars>();
 
   public loadedFlightPlan: ReadonlyFlightPlan<FlightPlanPerformanceData> | null = null;
 
@@ -30,10 +28,7 @@ export abstract class FmsFlightPlanPage<T extends AbstractMfdPageProps = Abstrac
 
   protected readonly secActive = Subject.create<boolean>(false);
 
-  protected readonly activeFlightPhase = ConsumerSubject.create<FmgcFlightPhase>(
-    this.sub.on('flightPhase'),
-    FmgcFlightPhase.Preflight,
-  );
+  protected readonly activeFlightPhase = activeFlightPhaseSubject(this.props.bus);
 
   private readonly periodicNewDataCheck = this.props.bus
     .getSubscriber<ClockEvents>()

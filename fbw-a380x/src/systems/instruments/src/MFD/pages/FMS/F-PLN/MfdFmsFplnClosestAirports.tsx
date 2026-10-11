@@ -21,6 +21,7 @@ import { AirportFormat, TripWindFormat } from '../../common/DataEntryFormats';
 
 import { fcomAt } from '../../common/FcomLayout';
 import './MfdFmsFplnClosestAirports.scss';
+import { defaultTropopauseAlt } from '@shared/PerformanceConstants';
 
 interface MfdFmsFplnClosestAirportsProps extends AbstractMfdPageProps {}
 
@@ -206,7 +207,7 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
       -tailWind,
       isaDev,
       // No tropopause: the ISA one (FL 361)
-      fmc.fmgc.getTropoPause() ?? 36_090,
+      fmc.fmgc.getTropoPause() ?? defaultTropopauseAlt,
     );
     return {
       seconds: step.timeElapsed,

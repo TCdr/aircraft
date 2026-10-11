@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ClockEvents, ConsumerSubject, FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import { ClockEvents, FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { Units } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
@@ -18,7 +18,6 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
-import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { Footer } from '../../common/Footer';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -26,6 +25,7 @@ import { FreeTextFormat } from '../../common/DataEntryFormats';
 import { FmsTimeReference } from '../../../FMC/FmsTimeKeeper';
 
 import './MfdFmsPositionReport.scss';
+import { activeFlightPhaseSubject } from '../../common/activeFlightPhase';
 
 interface MfdFmsPositionReportProps extends AbstractMfdPageProps {}
 
@@ -62,10 +62,7 @@ const cruiseProfileChangeTypes: ReadonlyMap<string, string> = new Map([
  */
 export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
   /** The FMS flight phase (this page loads no flight plan, so it is not given by FmsFlightPlanPage) */
-  private readonly activeFlightPhase = ConsumerSubject.create<FmgcFlightPhase>(
-    this.props.bus.getSubscriber<MfdSimvars>().on('flightPhase'),
-    FmgcFlightPhase.Preflight,
-  );
+  private readonly activeFlightPhase = activeFlightPhaseSubject(this.props.bus);
 
   private readonly timeKeeper = this.props.fmcService.master.timeKeeper;
 

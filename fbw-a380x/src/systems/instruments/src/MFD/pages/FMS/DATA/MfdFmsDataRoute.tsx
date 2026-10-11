@@ -4,7 +4,6 @@
 
 import {
   ArraySubject,
-  ConsumerSubject,
   FSComponent,
   MappedSubject,
   Subject,
@@ -17,7 +16,6 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
-import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { watchFlightPlanChanges } from '../../common/FlightPlansChangeWatcher';
 import { Footer } from '../../common/Footer';
 import { TopTabNavigator, TopTabNavigatorPage } from '../../../../MsfsAvionicsCommon/UiWidgets/TopTabNavigator';
@@ -40,6 +38,7 @@ import { RouteSummaryDisplay } from './RouteSummaryDisplay';
 
 import './MfdFmsDataRoute.scss';
 import { fcomAt, fcomCentre, fcomRight, fcomTabBar } from '../../common/FcomLayout';
+import { activeFlightPhaseSubject } from '../../common/activeFlightPhase';
 
 interface MfdFmsDataRouteProps extends AbstractMfdPageProps {}
 
@@ -61,10 +60,7 @@ const noTokens: RouteSummaryToken[] = [];
  */
 export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
   /** The FMS flight phase (this page loads no flight plan, so it is not given by FmsFlightPlanPage) */
-  private readonly activeFlightPhase = ConsumerSubject.create<FmgcFlightPhase>(
-    this.props.bus.getSubscriber<MfdSimvars>().on('flightPhase'),
-    FmgcFlightPhase.Preflight,
-  );
+  private readonly activeFlightPhase = activeFlightPhaseSubject(this.props.bus);
 
   private readonly pilotStoredElements = this.props.fmcService.master.pilotStoredElements;
 
