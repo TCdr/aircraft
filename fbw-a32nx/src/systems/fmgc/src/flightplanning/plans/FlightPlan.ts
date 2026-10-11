@@ -1071,7 +1071,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     const entries = checkDraft
       ? this.prepareClimbWindDraftModification() ?? this.performanceData.climbWindEntries.get()
       : this.performanceData.climbWindEntries.get();
-    const hasDraft = this.draftClimbWindEntries?.get() ?? null !== null;
+    const hasDraft = (this.draftClimbWindEntries?.get() ?? null) !== null;
 
     // Partial entries not allowed on non draft winds
     if (entry !== null && !hasDraft && (altitude === undefined || isPartlyFilledWindVector(entry.vector))) {
@@ -1118,7 +1118,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     const entries = checkDraft
       ? this.prepareDescentWindDraftModification() ?? this.performanceData.descentWindEntries.get()
       : this.performanceData.descentWindEntries.get();
-    const hasDraft = this.draftDescentWindEntries?.get() ?? null !== null;
+    const hasDraft = (this.draftDescentWindEntries?.get() ?? null) !== null;
 
     // Partial entries not allowed on non draft winds
     if (entry !== null && !hasDraft && (altitude === undefined || isPartlyFilledWindVector(entry.vector))) {
@@ -1417,7 +1417,8 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     const hasDraftCruise = draftCruiseWind !== null;
     const hasDraftDescent = draftDescentWind !== null;
     const hasDraftAlternate = draftAlternateWind !== null;
-    if (hasDraftClimb && hasDraftCruise && hasDraftDescent && hasDraftAlternate) {
+    // Nothing to insert without any draft (the old check returned when all four drafts existed, inserting none)
+    if (!hasDraftClimb && !hasDraftCruise && !hasDraftDescent && !hasDraftAlternate) {
       return;
     }
 
