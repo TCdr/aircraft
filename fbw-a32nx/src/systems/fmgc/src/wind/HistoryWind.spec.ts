@@ -53,6 +53,26 @@ describe('history winds storage', () => {
     expect(winds[0].vector.magnitude).toBeCloseTo(30);
   });
 
+  it('stores the directions from 0 to 360 deg and the cruise level to the nearest 100 ft, as recorded winds are', () => {
+    // 25 kt from 270 deg: x = 0, y = -25 (atan2 gives -90 deg); develop stored the measured cruise altitude unrounded
+    localStorage.setItem(
+      HistoryWind.LEGACY_LOCALSTORAGE_KEYS.A32NX,
+      JSON.stringify([
+        { altitude: 5000, vector: legacyVec2(0, -25) },
+        null,
+        null,
+        { altitude: 35012, vector: legacyVec2(10, -10) },
+      ]),
+    );
+
+    new HistoryWind(new EventBus());
+
+    const stored = JSON.parse(localStorage.getItem(HistoryWind.LOCALSTORAGE_KEY)!);
+    expect(stored[0].vector.direction).toBeCloseTo((3 * Math.PI) / 2);
+    expect(stored[3].vector.direction).toBeCloseTo((7 * Math.PI) / 4);
+    expect(stored[3].altitude).toBe(35000);
+  });
+
   it('accepts a Vec2 stored as a plain array', () => {
     localStorage.setItem(
       HistoryWind.LEGACY_LOCALSTORAGE_KEYS.A32NX,
