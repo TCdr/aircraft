@@ -45,7 +45,7 @@ import {
 } from '../common/DataEntryFormats';
 import { cruiseSatRow } from './cruiseSat';
 import { MAX_HISTORY_WIND_ROWS } from '@fmgc/wind/historyWindRows';
-import { CpnyWindRequestButton } from './CpnyWindButtonUtils';
+import { CpnyWindRequestButton, cpnyWindRequestPage } from './CpnyWindButtonUtils';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
 import { ProfilePhase } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { NXSystemMessages } from '../../shared/NXSystemMessages';
@@ -1508,6 +1508,11 @@ export class MfdFmsWindPage extends FmsFlightPlanPage<MfdFmsWindProps> {
                 flightPlanIndex={this.loadedFlightPlanIndex}
                 tmpyExists={this.tmpyActive}
                 isActiveOrCopiedFromActive={this.fpIsActiveOrCopyOfActive}
+                onOpenRequestPage={() =>
+                  this.props.mfd.uiService.navigateTo(
+                    `fms/${this.props.mfd.uiService.activeUri.get().category}/${cpnyWindRequestPage}`,
+                  )
+                }
               />
             </div>
             <div class="mfd-fms-wind-insert-button-container" style={{ display: this.draftWindButtonDisplay }}>

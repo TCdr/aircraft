@@ -464,6 +464,11 @@ export class WindAltitudeFormat extends SubscriptionCollector implements DataEnt
       throw new A380FmsError(FmsErrorType.EntryOutOfRange);
     }
 
+    // A380 FCOM a380_fcom.txt l.42211-42212: an altitude below 400 ft is a ground wind
+    if (groundAlt !== null && nbr < 400) {
+      return groundAlt;
+    }
+
     return Math.max(nbr, groundAlt ?? 0);
   }
 

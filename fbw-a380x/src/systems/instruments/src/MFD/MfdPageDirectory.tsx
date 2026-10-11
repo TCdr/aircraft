@@ -83,6 +83,8 @@ import { MfdFmsFplnLlXingTimeMkr } from './pages/FMS/F-PLN/MfdFmsFplnLlXingTimeM
 import { AtcDatalinkSystem } from './ATCCOM/AtcDatalinkSystem';
 import { MfdFmsSecIndex } from './pages/FMS/SEC/MfdFmsSecIndex';
 import { MfdFmsWindPage } from './pages/FMS/MfdFmsWindPage';
+import { MfdFmsCpnyWindRequest } from './pages/FMS/MfdFmsCpnyWindRequest';
+import { cpnyWindRequestPage } from './pages/FMS/CpnyWindButtonUtils';
 
 export function pageForUrl(
   url: string,
@@ -125,6 +127,19 @@ export function pageForUrl(
       return (
         <MfdFmsWindPage
           pageTitle="WIND"
+          bus={bus}
+          mfd={mfd}
+          fmcService={fmcService}
+          flightPlanInterface={fmcService.master.flightPlanInterface}
+        />
+      );
+    case fmsActivePagePrefix + cpnyWindRequestPage:
+    case fmsSec1PagePrefix + cpnyWindRequestPage:
+    case fmsSec2PagePrefix + cpnyWindRequestPage:
+    case fmsSec3PagePrefix + cpnyWindRequestPage:
+      return (
+        <MfdFmsCpnyWindRequest
+          pageTitle="COMPANY WIND DATA REQUEST"
           bus={bus}
           mfd={mfd}
           fmcService={fmcService}
