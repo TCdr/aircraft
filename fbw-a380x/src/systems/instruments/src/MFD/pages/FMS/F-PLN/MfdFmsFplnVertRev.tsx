@@ -24,7 +24,7 @@ import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { AltitudeOrFlightLevelFormat, SpeedKnotsFormat, TimeHHMMSSFormat } from '../../common/DataEntryFormats';
 import { DropdownMenu } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
-import { dropdownEntryIndex } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownEntry';
+import { dropdownEntryIndex, onDropdownEntry } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownEntry';
 import { Vmo } from '@shared/PerformanceConstants';
 import { isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { RadioButtonColor, RadioButtonGroup } from '../../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
@@ -1556,7 +1556,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
                       }}
                       containerStyle="width: 175px;"
                       alignLabels="flex-start"
-                      onModified={(i) => this.onWptDropdownModified(i)}
+                      onModified={onDropdownEntry(this.availableWaypoints, (i) => this.onWptDropdownModified(i))}
                       numberOfDigitsForInputField={7}
                       tmpyActive={this.tmpyActive}
                       hEventConsumer={this.props.mfd.hEventConsumer}
@@ -1686,7 +1686,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
                       }}
                       containerStyle="width: 175px;"
                       alignLabels="flex-start"
-                      onModified={(i) => this.onWptDropdownModified(i)}
+                      onModified={onDropdownEntry(this.availableWaypoints, (i) => this.onWptDropdownModified(i))}
                       numberOfDigitsForInputField={7}
                       tmpyActive={this.tmpyActive}
                       hEventConsumer={this.props.mfd.hEventConsumer}
@@ -1853,7 +1853,9 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
                                   alignLabels="flex-start"
                                   numberOfDigitsForInputField={7}
                                   tmpyActive={this.tmpyActive}
-                                  onModified={(newWptIndex) => this.handleCruiseStepWaypointModified(newWptIndex, li)}
+                                  onModified={onDropdownEntry(this.availableWaypoints, (newWptIndex) =>
+                                    this.handleCruiseStepWaypointModified(newWptIndex, li),
+                                  )}
                                   hEventConsumer={this.props.mfd.hEventConsumer}
                                   interactionMode={this.props.mfd.interactionMode}
                                 />

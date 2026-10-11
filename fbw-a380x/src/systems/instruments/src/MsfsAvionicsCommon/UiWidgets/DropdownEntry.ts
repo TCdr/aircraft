@@ -22,3 +22,22 @@ export function dropdownEntryIndex(
   const typedIndex = values.getArray().indexOf(text);
   return typedIndex >= 0 ? typedIndex : null;
 }
+
+/**
+ * An onModified handler for a DropdownMenu with keyboardEntryAllowed: the given handler always gets a list index, the
+ * typed item's for a keyboard entry, and is not called for a typed text that is no item (the dropdown raises its
+ * errorOnNotInList).
+ * @param values the items of the dropdown
+ * @param handler what to do with the list index
+ */
+export function onDropdownEntry(
+  values: SubscribableArray<string>,
+  handler: (index: number) => void,
+): (index: number | null, text: string) => void {
+  return (index, text) => {
+    const entryIndex = dropdownEntryIndex(values, index, text);
+    if (entryIndex !== null) {
+      handler(entryIndex);
+    }
+  };
+}
