@@ -47,6 +47,7 @@ import { CpnyFplnButtonUtils } from '../../shared/CpnyFplnButtonUtils';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
 import { CpnyWindRequestButton, cpnyWindRequestPage } from './CpnyWindButtonUtils';
+import { alternateEntryTarget } from './alternateEntry';
 
 interface MfdFmsInitProps extends AbstractMfdPageProps {}
 
@@ -587,21 +588,13 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                   containerStyle="width: 88px;"
                   dataEntryFormat={new AirportFormat()}
                   onModified={async (v) => {
-                    const isClear = !v || v === 'NONE';
-                    this.altnIcao.set(isClear ? null : v);
-                    if (v) {
-                      if (!isClear) {
-                        const airport = await NavigationDatabaseService.activeDatabase.searchAirport(v);
-                        if (!airport) {
-                          throw new FmsError(FmsErrorType.NotInDatabase);
-                        }
-                      }
-                      await this.props.flightPlanInterface.setAlternate(
-                        isClear ? undefined : v,
-                        this.loadedFlightPlanIndex.get(),
-                      );
-                      this.props.fmcService.master.acInterface.updateFmsData();
-                    }
+                    // Checked first: a refused ident leaves the field and the plan unchanged; CLR deletes the alternate
+                    const alternate = await alternateEntryTarget(v, (ident) =>
+                      NavigationDatabaseService.activeDatabase.searchAirport(ident),
+                    );
+                    this.altnIcao.set(alternate ?? null);
+                    await this.props.flightPlanInterface.setAlternate(alternate, this.loadedFlightPlanIndex.get());
+                    this.props.fmcService.master.acInterface.updateFmsData();
                   }}
                   mandatory={this.mandatoryAndActiveFpln}
                   disabled={this.altnDisabled}
