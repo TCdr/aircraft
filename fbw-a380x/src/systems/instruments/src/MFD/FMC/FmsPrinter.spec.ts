@@ -18,8 +18,6 @@ const { pedestalPrint, pedestalAvailable, pedestalUpdate } = vi.hoisted(() => ({
   pedestalUpdate: vi.fn(),
 }));
 
-// The FMC module is not loaded: the printer only needs its company wind request states
-vi.mock('./FlightManagementComputer', () => ({}));
 vi.mock('./PedestalPrinter', () => ({
   PedestalPrinter: class {
     print = pedestalPrint;

@@ -43,7 +43,6 @@ import {
 } from '@shared/PerformanceConstants';
 import { FmsFlightPlanPage } from '../common/FmsFlightPlanPage';
 import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../common/FcomLayout';
-import { NXSystemMessages } from '../../shared/NXSystemMessages';
 import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { AirlineModifiableInformation } from '@shared/AirlineModifiableInformation';
@@ -953,11 +952,7 @@ export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
                 <InputField<number, number, false>
                   dataEntryFormat={new WeightFormat(undefined, Subject.create(maxMinDestFuel), this.weightUnit)}
                   dataHandlerDuringValidation={async (v) => {
-                    // FCOM DSC-22-FMS-20-30 FUEL&LOAD page: clearing MIN FUEL AT DEST without a value is NOT ALLOWED
-                    if (v === null) {
-                      this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
-                      return false;
-                    }
+                    // FCOM DSC-22-FMS-20-30 FUEL&LOAD page: clearing MIN FUEL AT DEST is NOT ALLOWED (canBeCleared={false})
                     this.props.flightPlanInterface?.setPerformanceData(
                       'pilotMinimumDestinationFuelOnBoard',
                       kilogramsToPerfPlanTonnes(v),

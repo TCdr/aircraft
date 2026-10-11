@@ -197,7 +197,11 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         revisedLeg.isDiscontinuity ||
         fpln.props.fmcService.master.flightPlanInterface.get(planIndex).alternateDestinationAirport === undefined,
       onPressed: () => {
-        const cruiseLevel = fpln.props.fmcService.master?.computeAlternateCruiseLevel(planIndex) ?? 100;
+        const cruiseLevel = fpln.props.fmcService.master?.computeAlternateCruiseLevel(planIndex);
+        if (cruiseLevel === undefined) {
+          // No destination or alternate airport: ENABLE ALTN is disabled then, nothing to enable
+          return;
+        }
         fpln.props.fmcService.master?.flightPlanInterface.enableAltn(legIndex, cruiseLevel, planIndex);
         fpln.props.fmcService.master?.acInterface.updateFmsData();
         fpln.props.fmcService.master?.acInterface.calculateFinalAndAlternateFuel(planIndex);
