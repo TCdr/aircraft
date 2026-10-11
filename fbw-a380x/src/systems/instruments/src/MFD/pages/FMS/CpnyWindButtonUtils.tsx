@@ -49,13 +49,16 @@ export class CpnyWindButtonStateTracker {
         tmpy,
         uplinkInProgress,
         cpnyWindUplinkInProgress,
+        cpnyWindRequestedForPlan,
+        planIndex,
         availableForPlan,
         availableForAnyPlan,
       ]): CpnyWindButtonState => ({
         flightPhaseDisallows: isActiveOrCopy && flightPhase > FmgcFlightPhase.Cruise,
         tmpyExists: tmpy,
         uplinkInProgress,
-        cpnyWindUplinkInProgress,
+        // A wind request of another flight plan is an uplink in progress, not this plan's REQUEST PENDING
+        cpnyWindUplinkInProgress: cpnyWindUplinkInProgress && cpnyWindRequestedForPlan === planIndex,
         availableForPlan,
         availableForAnyPlan,
       }),
@@ -64,6 +67,8 @@ export class CpnyWindButtonStateTracker {
       tmpyExists,
       fmc.getUplinkInProgress(),
       fmc.getCpnyWindUplinkInProgress(),
+      fmc.getCpnyWindRequestedForPlan(),
+      flightPlanIndex,
       this.availableForPlan,
       this.availableForAnyPlan,
     );
@@ -108,6 +113,9 @@ export class CpnyWindRequestButton extends DisplayComponent<CpnyWindRequestButto
 
   private readonly uplinkAvailable = this.tracker.state.map((s) => s.availableForPlan);
 
+  /** REQUEST PENDING ... of this plan's own request */
+  private readonly windRequestPendingForPlan = this.tracker.state.map((s) => s.cpnyWindUplinkInProgress);
+
   // TODO Disable when connection to ATSU is lost.
   private readonly disabled = this.tracker.state.map(isCpnyWindButtonDisabled);
 
@@ -120,7 +128,7 @@ export class CpnyWindRequestButton extends DisplayComponent<CpnyWindRequestButto
       return avail ? 'RECEIVED' : 'CPNY WIND';
     },
     this.uplinkAvailable,
-    this.props.fmc.getCpnyWindUplinkInProgress(),
+    this.windRequestPendingForPlan,
   );
 
   private readonly bottomLabel = MappedSubject.create(
@@ -132,13 +140,13 @@ export class CpnyWindRequestButton extends DisplayComponent<CpnyWindRequestButto
       return avail ? 'CPNY WIND' : 'REQUEST';
     },
     this.uplinkAvailable,
-    this.props.fmc.getCpnyWindUplinkInProgress(),
+    this.windRequestPendingForPlan,
   );
 
   private readonly showAsterisk = MappedSubject.create(
     ([avail, uplinkInProgress]) => !avail && !uplinkInProgress,
     this.uplinkAvailable,
-    this.props.fmc.getCpnyWindUplinkInProgress(),
+    this.windRequestPendingForPlan,
   );
 
   private readonly hideAsterisk = this.showAsterisk.map(SubscribableMapFunctions.not());
@@ -206,6 +214,7 @@ export class CpnyWindRequestButton extends DisplayComponent<CpnyWindRequestButto
 
   public destroy(): void {
     this.uplinkAvailable.destroy();
+    this.windRequestPendingForPlan.destroy();
     this.disabled.destroy();
     this.topLabel.destroy();
     this.bottomLabel.destroy();

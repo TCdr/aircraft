@@ -35,3 +35,22 @@ export function isCpnyFplnButtonDisabled(
   // A SEC plan: blocked by a request pending for another flight plan, not by its own
   return requestedForPlan !== null && requestedForPlan !== flightPlanIndex;
 }
+
+/**
+ * Whether SEND F-PLN REQUEST of the COMPANY F-PLN REQUEST page is disabled: one company request at a time (a pending
+ * flight plan or wind request, from either MFD), and after engine start only for a secondary flight plan.
+ * @param fplnRequestPending whether a company F-PLN request is pending
+ * @param windRequestPending whether a company wind request is pending
+ * @param enginesStarted whether the engines were started
+ * @param flightPlanIndex the flight plan of the page
+ */
+export function isCpnyFplnSendDisabled(
+  fplnRequestPending: boolean,
+  windRequestPending: boolean,
+  enginesStarted: boolean,
+  flightPlanIndex: number,
+): boolean {
+  return (
+    fplnRequestPending || windRequestPending || (enginesStarted && flightPlanIndex < FlightPlanIndex.FirstSecondary)
+  );
+}

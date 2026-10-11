@@ -13,6 +13,7 @@ import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField'
 import { CompanyRouteFormat, FreeTextFormat, LongAlphanumericFormat } from '../../common/DataEntryFormats';
 
 import { fcomAt, fcomCentre, fcomRight } from '../../common/FcomLayout';
+import { isCpnyFplnSendDisabled } from '../../../shared/CpnyFplnButtonRule';
 
 interface MfdFmsFplnCpnyFplnReqProps extends AbstractMfdPageProps {}
 
@@ -33,10 +34,12 @@ export class MfdFmsFplnCpnyFplnReq extends FmsFlightPlanPage<MfdFmsFplnCpnyFplnR
     .getCpnyFplnUplinkInProgress()
     .map((pending) => (pending ? 'REQUEST\nPENDING...' : 'SEND F-PLN\nREQUEST'));
 
-  /** FCOM: after engine start, a flight plan request can only be sent from a secondary flight plan */
+  /** One company request at a time; FCOM: after engine start, only from a secondary flight plan */
   private readonly sendButtonDisabled = MappedSubject.create(
-    ([pending, enginesStarted, planIndex]) => pending || (enginesStarted && planIndex < FlightPlanIndex.FirstSecondary),
+    ([pending, windPending, enginesStarted, planIndex]) =>
+      isCpnyFplnSendDisabled(pending, windPending, enginesStarted, planIndex),
     this.props.fmcService.master.getCpnyFplnUplinkInProgress(),
+    this.props.fmcService.master.getCpnyWindUplinkInProgress(),
     this.props.fmcService.master.enginesWereStarted,
     this.loadedFlightPlanIndex,
   );

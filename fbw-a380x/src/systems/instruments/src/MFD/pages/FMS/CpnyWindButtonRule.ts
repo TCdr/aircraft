@@ -9,7 +9,7 @@ export interface CpnyWindButtonState {
   tmpyExists: boolean;
   /** A company uplink (F-PLN or wind) is in progress */
   uplinkInProgress: boolean;
-  /** The uplink in progress is a company wind request */
+  /** The uplink in progress is the company wind request of this plan (REQUEST PENDING ...) */
   cpnyWindUplinkInProgress: boolean;
   /** Received company winds wait for insertion in this plan */
   availableForPlan: boolean;

@@ -454,6 +454,9 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    */
   getCpnyWindUplinkInProgress(): Subscribable<boolean>;
 
+  /** The flight plan of the pending company wind request, null without one */
+  getCpnyWindRequestedForPlan(): Subscribable<FlightPlanIndex | null>;
+
   setApproachWindDirection(value: number | null, forPlan: number): void;
   setApproachWindSpeed(value: number | null, forPlan: number): void;
 }
