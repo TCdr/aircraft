@@ -190,7 +190,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
       this.props.mfd.uiService.activeUri.sub((uri) => this.handleUriExtra(uri.extra ?? ''), true),
     );
 
-    this.refreshStoredWaypoints();
+    this.onNewData();
   }
 
   protected onNewData(): void {
@@ -611,7 +611,7 @@ export class MfdFmsDataWaypoint extends FmsPage<MfdFmsDataWaypointProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataWaypointStoredDropdown`}
             selectedIndex={this.selectedStored}
             values={this.storedIdents}
-            freeTextAllowed={false}
+            freeTextAllowed={false} // FCOM PILOT STORED WPTS WAYPOINT IDENT LIST: list only
             containerStyle="width: 179px;"
             alignLabels="flex-start"
             numberOfDigitsForInputField={7}

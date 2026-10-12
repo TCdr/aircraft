@@ -343,7 +343,7 @@ export class MfdFmsDataStatus extends FmsPage<MfdFmsDataStatusProps> {
                     idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataStatusDatabaseList`}
                     selectedIndex={this.selectedDatabase}
                     values={ArraySubject.create([...partNumberDatabases])}
-                    freeTextAllowed={false}
+                    freeTextAllowed={false} // FCOM DATABASE LIST: selected in the list only
                     containerStyle="width: 330px;"
                     alignLabels="flex-start"
                     numberOfDigitsForInputField={18}
