@@ -425,6 +425,15 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 ||||||| 19910a87e
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
+1. [A380X/FWS] New CAB PRESS alerts: EXCESS NEGATIVE DIFF PRESS (red warning, held until -0.32 PSI), DIFF PRESS HI, DIFF PRESS LO and LDG ELEVN FAULT (no landing elevation from the FMS), and the RAM AIR memo (green on ground with no engine running, amber otherwise) - @TCdr
+1. [A380X/FWS] AUTO FLT APPROACH CAPABILITY DOWNGRADED triggers with RA SYS B failed, with CAT 3 DUAL inoperative and CAT 3 SINGLE ONLY on the STATUS page - @TCdr
+1. [A380X/FWS] APU FAULT alert after an APU automatic or emergency shutdown, with APU MASTER SW OFF and INOP SYS APU - @TCdr
+1. [A380X/FWS] Fuel memos FWD XFR IN PROGRESS, OUTR TK XFR IN PROG (fuel leaving the trim or outer tanks), OUTR TKs XFRD and TRIM TK XFRD (cruise) - @TCdr
+1. [A380X/FWS] HYD: the ENG PMP PRESS LO alerts list the pumps under INOP SYS (two or more failed) or REDUND LOSS (one failed); RSVR AIR PRESS LO and SYS OVHT get their FOR APPROACH procedures; G+Y SYS PRESS LO shows LDG PERF AFFECTED and the FCOM INOP SYS list (BTV, CAT 2, GLS AUTOLAND, no STABILIZER) - @TCdr
+1. [A380X/FWS] A-ICE ICE DETECTED and A-ICE SEVERE ICE DETECTED alerts in cruise (ENG and WING A-ICE ON) - @TCdr
+1. [A380X/OXY] The cabin oxygen masks drop automatically when the cabin altitude goes above 13 800 ft - @TCdr
+1. [A380X/FWS] SURV GPWS 1(2)(1+2) FAULT alerts; SURV TAWS 1(2)(1+2) FAULT now trigger when the GPWS and the TERR SYS of a system are both failed, instead of the separate GPWS and TERR alerts - @TCdr
+1. [A380X/FWS] AIR ABNORM BLEED CONFIG lines (XBLEED, AIR FLOW, PACK, WING A-ICE) after ENG SHUT DOWN or ENG FIRE - @TCdr
 
 ## 2024.1.0
 
