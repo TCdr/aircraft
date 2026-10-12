@@ -35,10 +35,23 @@ import {
 } from '@flybywiresim/flypad';
 import { GsxServiceId, GsxServiceLook, gsxRequestable, gsxServiceLook, useGsxRemote } from '../GsxRemote';
 import { gsxServiceStatus, triggerGsxService } from '../GsxServicesPanel';
-import { M3Chip, M3Tone } from '../../../../UtilComponents/Material/Material';
+import { M3Chip, M3Switch, M3Tone } from '../../../../UtilComponents/Material/Material';
 import { PlanformTag } from '../FuselagePlanform';
 import { doorRow, equipmentRow, SERVICE_LOOKS, ServiceLook, ServicesLayout } from '../ServicesLayout';
 import { useRatStowRow } from '../RatStowRow';
+import {
+  AFT_CARGO_DOOR_LOCKED_VAR,
+  AFT_CARGO_DOOR_POSITION_VAR,
+  CARGO_DOOR_OPERATION_INHIBITED_VAR,
+  CargoDoorState,
+  FWD_CARGO_DOOR_LOCKED_VAR,
+  FWD_CARGO_DOOR_POSITION_VAR,
+  cargoDoorCanToggle,
+  cargoDoorOpening,
+  cargoDoorStatusKey,
+  cargoDoorTone,
+  combineCargoDoors,
+} from '../cargoDoor';
 
 enum ServiceButton {
   Main1Left,
@@ -99,7 +112,23 @@ export const A380Services: React.FC = () => {
   const [main2LeftDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:2', 'Percent over 100', 200);
   const [main4RightDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:9', 'Percent over 100', 200);
   const [upper1LeftDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:10', 'Percent over 100', 200);
+  // The ground crew request of the cargo doors: it opens both the forward and the aft door (systems WASM)
   const [frontCargoDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:16', 'Percent over 100', 200);
+  // The hydraulic cargo doors themselves, which follow the request only when their actuation has hydraulic power
+  const [fwdCargoDoorPosition] = useSimVar(FWD_CARGO_DOOR_POSITION_VAR, 'number', 200);
+  const [fwdCargoDoorLocked] = useSimVar(FWD_CARGO_DOOR_LOCKED_VAR, 'bool', 200);
+  const [aftCargoDoorPosition] = useSimVar(AFT_CARGO_DOOR_POSITION_VAR, 'number', 200);
+  const [aftCargoDoorLocked] = useSimVar(AFT_CARGO_DOOR_LOCKED_VAR, 'bool', 200);
+  const [cargoDoorOperationInhibited] = useSimVar(CARGO_DOOR_OPERATION_INHIBITED_VAR, 'bool', 200);
+  const cargoDoorOf = (positionPercent: number, locked: number): CargoDoorState => ({
+    positionPercent,
+    locked: !!locked,
+    operationInhibited: !!cargoDoorOperationInhibited,
+    requestedOpen: frontCargoDoorOpen >= 0.5,
+  });
+  const fwdCargoDoor = cargoDoorOf(fwdCargoDoorPosition, fwdCargoDoorLocked);
+  const aftCargoDoor = cargoDoorOf(aftCargoDoorPosition, aftCargoDoorLocked);
+  const cargoDoors = combineCargoDoors(fwdCargoDoor, aftCargoDoor);
   const [fuelingActive] = useSimVar('A:INTERACTIVE POINT OPEN:18', 'Percent over 100', 200);
   const [gpu1Avail] = useSimVar('L:A32NX_EXT_PWR_AVAIL:1', 'bool', 200);
   const [gpu2Avail] = useSimVar('L:A32NX_EXT_PWR_AVAIL:2', 'bool', 200);
@@ -600,6 +629,33 @@ export const A380Services: React.FC = () => {
   const doorIcon = (open: number) => (open >= 1 ? <DoorOpenFill size={18} /> : <DoorClosedFill size={18} />);
   const click = (button: ServiceButton) => () => handleButtonClick(button);
 
+  // The cargo doors row shows the hydraulic doors (both moved by the same request), not the request: its switch is
+  // the request, greyed out when a locked door cannot be opened for lack of hydraulic power
+  const cargoDoorsDisabled = cargo1DoorButtonState <= ServiceButtonState.DISABLED || !cargoDoorCanToggle(cargoDoors);
+  const cargoDoorsOpening = cargoDoorOpening(cargoDoors);
+  const cargoDoorsName = t('Ground.Services.DoorCargoFwdAft');
+  const cargoDoorsRow = {
+    ...doorRow(
+      'cargoFwd',
+      cargoDoorsName,
+      <BoxSeam size={18} />,
+      cargoDoorsOpening,
+      cargoDoorsDisabled ? 'disabled' : look(cargo1DoorButtonState),
+      click(ServiceButton.FrontCargoDoor),
+    ),
+    tone: cargoDoorTone(cargoDoors),
+    status: t(cargoDoorStatusKey(cargoDoors)),
+    progress: cargoDoorsOpening > 0 && cargoDoorsOpening < 1 ? cargoDoorsOpening : null,
+    trailing: (
+      <M3Switch
+        value={cargoDoors.requestedOpen}
+        onToggle={click(ServiceButton.FrontCargoDoor)}
+        disabled={cargoDoorsDisabled}
+        aria-label={cargoDoorsName}
+      />
+    ),
+  };
+
   const doors = [
     doorRow(
       'main1L',
@@ -633,14 +689,7 @@ export const A380Services: React.FC = () => {
       look(serviceDoorButtonState),
       click(ServiceButton.Main4Right),
     ),
-    doorRow(
-      'cargoFwd',
-      t('Ground.Services.DoorCargoFwd'),
-      <BoxSeam size={18} />,
-      frontCargoDoorOpen,
-      look(cargo1DoorButtonState),
-      click(ServiceButton.FrontCargoDoor),
-    ),
+    cargoDoorsRow,
   ];
   const equipment = [
     equipmentRow(
@@ -832,8 +881,17 @@ export const A380Services: React.FC = () => {
           label: 'FWD',
           side: 'C',
           at: 150,
-          open: frontCargoDoorOpen,
-          disabled: cargo1DoorButtonState === ServiceButtonState.DISABLED,
+          open: cargoDoorOpening(fwdCargoDoor),
+          disabled: cargoDoorsDisabled,
+          onClick: click(ServiceButton.FrontCargoDoor),
+        },
+        {
+          key: 'cargoAft',
+          label: 'AFT',
+          side: 'C',
+          at: 490,
+          open: cargoDoorOpening(aftCargoDoor),
+          disabled: cargoDoorsDisabled,
           onClick: click(ServiceButton.FrontCargoDoor),
         },
       ]}
