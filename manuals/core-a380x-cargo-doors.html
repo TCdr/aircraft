@@ -1,0 +1,72 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X cargo doors follow the hydraulics - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X cargo doors follow the hydraulics</h1>
+<div class="subtitle">The A380X forward and aft cargo doors stay locked when the ground crew is asked to open them while an engine runs (their electric pumps are inhibited), the request is carried out once the engines are stopped, and a moving door holds its position</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>The aircraft systems (A380X hydraulics); the doors are requested from the flyPad Ground &gt; Services page (row on <code>core/efb-redesign</code>) or from the sim door interactive point; SD DOOR page, E/WD</span>
+<b>Branch</b><span><code>core/a380x-cargo-doors</code>, based on <code>master</code> (FlyByWire master 76db0aef1); independent of the other core branches. It holds the systems part (Rust door controller and A380X hydraulics, tests, simvar documentation, CHANGELOG line). The flyPad part (the cargo door row of Ground &gt; Services shows the real doors and says when the request waits for hydraulic power) is on <code>core/efb-redesign</code>, because it is a row of the Material 3 Services page: for the flyPad to show the new state, merge both branches (like the RAT stow row of <code>core/rat-ground-stow</code>). Without this branch the flyPad reads <code>L:A32NX_HYD_CARGO_DOOR_OPERATION_INHIBITED</code> as 0 (not inhibited); without the flyPad part the doors behave as described, but the row still shows the request.</span>
+<b>Status</b><span>Sim-tested by the user on the integration build on 2026-10-11: PASS, recorder-checked (engine running: both doors stayed locked; opened after the engine stopped; door held at 87 % while inhibited, then closed and locked 35 s after the inhibition ended). The close after a normal open (test 2, step 3) was skipped in that run. Rust tests: 4 (a380_systems hydraulic).</span>
+<b>Pictures</b><span>No pictures: the behaviour is in the systems; the flyPad row is a single line of the Services doors list.</span>
+</div>
+<h2>1. Cargo doors locked while their pumps are inhibited</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> Systems; flyPad &gt; Ground &gt; Services &gt; Doors, row "Cargo fwd + aft" (<code>core/efb-redesign</code>) &nbsp;|&nbsp; <b>Status:</b> Sim-tested by the user, recorder-checked: PASS (2026-10-11), test card T1-T3 (the close after a normal open was not run). Rust tests: 4 in a380_systems (inhibited with an engine running; stays locked when opened with an engine running; opens once the engines are stopped; holds its position when an engine starts while it moves).</div>
+<h3>What it is for</h3>
+<p>On the A380X the cargo doors are moved by the green electric pumps. When the ground crew was asked to open a cargo door while an engine ran, the door unlocked anyway (0.24 % open in a sim run on 2026-10-10) although the pumps that move it are inhibited then. The cargo doors now follow the hydraulics.</p>
+<div class="note"><b class="t">Note</b>A380 FCOM DSC-29-10 P 3: the green electric pumps are the only power of the cargo door actuation, and they are inhibited as soon as an engine runs. DSC-52-30-40-10: an inhibited door is isolated from the hydraulics, there is no power to open it.</div>
+<p>The systems now compute whether the cargo door operation is inhibited. It is inhibited as soon as any of the four engines runs; this is the same rule as the one that stops the green electric pumps in the A380X hydraulics (a placeholder based on the engine oil pressure, which covers the FCOM cases: engines 1 and 2 running, engines 3 and 4 running, taxi and flight). The state is published as <code>L:A32NX_HYD_CARGO_DOOR_OPERATION_INHIBITED</code> (1 = inhibited).</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Engine running, a closed cargo door is asked to open</td><td>The door stays closed and locked. The request is kept.</td></tr><tr><td>Engines stopped, the request still pending (or asked again)</td><td>The door unlocks and opens (about 40 s); both doors, forward and aft.</td></tr><tr><td>Door moving or open, an engine starts</td><td>The door holds its position where it is (no further motion). It is not closed, so the usual open cargo door alerts apply (DOOR FWD CARGO / AFT CARGO NOT CLOSED, see the test).</td></tr><tr><td>Door held open, the request is switched off, then the engines are stopped</td><td>The inhibition ends, and the door closes and locks about 35 s later.</td></tr><tr><td>Engines stopped, normal open and close</td><td>As before: the doors open, then close and lock.</td></tr><tr><td>flyPad, engine running, door closed</td><td>Row "Cargo fwd + aft": "Closed · no hydraulic power, engine running"; the switch is greyed out (needs <code>core/efb-redesign</code>, see the next feature).</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>The inhibition is "any engine running".</td><td>The A380X electric pump controllers use a placeholder (the oil pressure of the engines) for the same condition. The FCOM cases (engines 1 and 2 running, taxi, flight, engines 3 and 4 running) are all covered by that one rule, so the same rule is used here.</td><td>-</td></tr><tr><td>The A32NX is not changed.</td><td>Design choice: the change is in the A380X hydraulics (the green electric pumps); the A32NX cargo door model is unchanged.</td><td>-</td></tr><tr><td>A door that is not closed at engine start stays open until the engines are stopped.</td><td>Without the green electric pumps there is no power to move it (FCOM DSC-52-30-40-10).</td><td>Stop the engines.</td></tr><tr><td>The flyPad row shows the new state only with <code>core/efb-redesign</code>.</td><td>The row is a row of the Material 3 Services page, which is on that branch.</td><td>Merge both branches.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Stop on the ground and stop the engines (the green electric pumps are then allowed).</li><li>flyPad &gt; Ground &gt; Services &gt; Doors: switch "Cargo fwd + aft" on to open both cargo doors, off to close them.</li><li>With an engine running, expect the doors to stay closed (the row says so); stop the engines first.</li></ol>
+<h3>How to test</h3>
+<p>The test card is E:/MSFS2024 mods/reports/test-card-cargo-door-2026-10-10.md (it also lists the SimConnect recorder command). The flyPad lines need <code>core/efb-redesign</code> merged too; with this branch alone request the doors from the exterior door interactive point of the sim and read the E/WD, the SD DOOR page and the exterior model. After a change of the Rust code: one MSFS restart (WASM).</p>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground, PARKING BRK ON, APU running (AC power), engine 1 running at idle (engines 2-4 off), all doors closed, no amber alert on the E/WD. ECAM control panel: press the DOOR key (SD DOOR/OXY page). flyPad &gt; Ground &gt; Services &gt; Doors: try the switch of the row "Cargo fwd + aft".</td><td>The row reads "Closed · no hydraulic power, engine running", its switch is greyed out and does nothing. No DOOR FWD CARGO / AFT CARGO alert on the E/WD; SD DOOR page: both cargo doors green; exterior: both doors shut. <code>L:A32NX_HYD_CARGO_DOOR_OPERATION_INHIBITED</code> = 1, <code>L:A32NX_FWD_DOOR_CARGO_LOCKED</code> = 1.</td></tr><tr><td>2</td><td>ENG MASTER 1 OFF; wait until engine 1 has stopped (N2 0 on the E/WD). flyPad: switch "Cargo fwd + aft" on; wait 40 s.</td><td>The row reads "Moving" with a progress bar, then "Open"; the FWD and AFT holds light up on the planform; exterior: both cargo doors open.</td></tr><tr><td>3</td><td>Switch "Cargo fwd + aft" off; wait 45 s.</td><td>The row reads "Closed"; SD DOOR page: both cargo doors green; exterior: both doors shut. (Not run on 2026-10-11.)</td></tr><tr><td>4</td><td>Switch "Cargo fwd + aft" on; wait 40 s (doors open). Engine start selector to IGN START, ENG MASTER 1 ON; wait until engine 1 is stable at idle.</td><td>E/WD amber DOOR FWD CARGO NOT CLOSED and DOOR AFT CARGO NOT CLOSED (test card; the recorder run of 2026-10-11 did not record the E/WD text). The inhibition is 1.</td></tr><tr><td>5</td><td>Switch "Cargo fwd + aft" off; wait 30 s.</td><td>The doors stay open (exterior view); the row is amber "Not locked · no hydraulic power, engine running", its switch still usable. The recorder shows both positions constant (87 % on 2026-10-11).</td></tr><tr><td>6</td><td>ENG MASTER 1 OFF; wait until engine 1 has stopped, then 45 s more; engine start selector back to NORM.</td><td>The inhibition returns to 0, both doors close and lock about 35 s later; the row reads "Closed"; the door alerts leave the E/WD. (Any MASTER CAUTION after the shutdown on 2026-10-11 came from other systems: FUEL NO ZFW OR ZFWCG DATA and SURV XPDR STBY, not from the doors.)</td></tr></table>
+</body></html>
