@@ -142,6 +142,19 @@
     alignment-baseline: central;
   }
 
+  // Wing imbalance advisory (FuelImbalanceIndication.ts): the heavier wing's quantities pulse green
+  .TankQuantityPulse {
+    @keyframes tank-quantity-pulse {
+      0%, 100% {
+        fill: $display-green;
+      }
+      50% {
+        fill: scale-color($display-green, $lightness: -50%);
+      }
+    }
+    animation: tank-quantity-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
   .Unit {
     fill: $display-cyan;
     font-size: 16px;

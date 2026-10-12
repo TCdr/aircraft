@@ -433,22 +433,62 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   701800053: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 HP FUEL VLV FAULT',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) HP FUEL VLV FAULT (a380_fcom.txt l.172203-172226), items by
+    // EngineMonitoringAlerts
+    items: [
+      { name: 'HP FUEL VALVE NOT OPEN', sensed: false },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HP FUEL VALVE NOT CLOSED', sensed: false },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 1 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH' },
+    ],
   },
   701800054: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 HP FUEL VLV FAULT',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) HP FUEL VLV FAULT (a380_fcom.txt l.172203-172226), items by
+    // EngineMonitoringAlerts
+    items: [
+      { name: 'HP FUEL VALVE NOT OPEN', sensed: false },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HP FUEL VALVE NOT CLOSED', sensed: false },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 2 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH' },
+    ],
   },
   701800055: {
     title: '\x1b<4m\x1b4mENG\x1bm 3 HP FUEL VLV FAULT',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) HP FUEL VLV FAULT (a380_fcom.txt l.172203-172226), items by
+    // EngineMonitoringAlerts
+    items: [
+      { name: 'HP FUEL VALVE NOT OPEN', sensed: false },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HP FUEL VALVE NOT CLOSED', sensed: false },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 3 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH' },
+    ],
   },
   701800056: {
     title: '\x1b<4m\x1b4mENG\x1bm 4 HP FUEL VLV FAULT',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) HP FUEL VLV FAULT (a380_fcom.txt l.172203-172226), items by
+    // EngineMonitoringAlerts
+    items: [
+      { name: 'HP FUEL VALVE NOT OPEN', sensed: false },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HP FUEL VALVE NOT CLOSED', sensed: false },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 4 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH' },
+    ],
   },
   701800057: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 IGN A FAULT',
@@ -867,7 +907,8 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
-        name: 'LDG DIST AFFECTED',
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN, inner engine (a380_fcom.txt l.172738-172741)
+        name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY',
         sensed: false,
       },
       {
@@ -914,7 +955,8 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
-        name: 'LDG DIST AFFECTED',
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN, inner engine (a380_fcom.txt l.172738-172741)
+        name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY',
         sensed: false,
       },
       {

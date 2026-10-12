@@ -560,6 +560,16 @@
     - Bool
     - True if ground control is on.
 
+- A32NX_RCDR_CVR_ENERGIZED
+    - Bool
+    - True if the CVR runs: GND CTL ON, the first 5 min after the electrical network power-up, an engine running, in
+      flight, and the 5 min after the last engine shutdown (written by the systems host).
+
+- A32NX_RCDR_CVR_TEST_TONE
+    - Bool
+    - True while the CVR TEST pb gives the test signal: pb held, CVR running and parking brake on (plays the cvr_test
+      sound).
+
 - A32NX_EMERELECPWR_GEN_TEST
     - Bool
     - True if emergency generator is being tested.
@@ -1648,6 +1658,11 @@ These variables are the interface between the 3D model and the systems/code.
 - A32NX_PFD_MSG_CHECK_SPEED_MODE
     - Bool
     - Indicates if the CHECK SPEED MODE message is shown on the PFD
+
+- A32NX_PFD_MSG_CHECK_APPR_SELECTION
+    - Bool
+    - Indicates if the CHECK APPR SELECTION message is shown on the PFD (FMGC: a non ILS approach in the F-PLN with an
+      ILS manually tuned on the RAD NAV page, in cruise less than 100 NM from the T/D, in descent or in approach)
 
 - A32NX_PFD_LINEAR_DEVIATION_ACTIVE
     - Bool
@@ -3677,6 +3692,18 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - If the FAC {number} is healthy.
     - Boolean
 
+- A32NX_FAC_{number}_YAW_DAMPER_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its yaw damper actuator failed (flyPad failure "Yaw damper actuator {number}"). Read by the FWC for AUTO FLT YAW DAMPER 1(2) / SYS.
+    - Boolean
+
+- A32NX_FAC_{number}_RUDDER_TRIM_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its rudder trim actuator motor failed (flyPad failure "Rudder trim actuator motor {number}"). Read by the FWC for AUTO FLT RUD TRIM 1(2) FAULT / SYS.
+    - Boolean
+
+- A32NX_FAC_{number}_RUDDER_TRAVEL_LIM_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its rudder travel limiter actuator motor failed (flyPad failure "Rudder travel limiter actuator motor {number}"). Read by the FWC for AUTO FLT RUD TRV LIM 1(2) / SYS.
+    - Boolean
+
 - A32NX_FAC_{number}_SIDESLIP_TARGET
     - The sideslip target in case of engine out.
     - Arinc429<Degrees>
@@ -4281,6 +4308,20 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True while the fuel filter clog failure of the engine is active (flyPad failures 73100/73101): CLOG below the fuel used on the ENGINE SD page and ENG FUEL FILTER CLOG while the engine runs, no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
 
+- A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The abnormal HP fuel valve position the FADEC detects (2 s) with the HP fuel valve stuck failure (flyPad failures 73200/73201): 0 none, 1 not open (closed while commanded open: no fuel, no start), 2 not closed (open while commanded closed). ENG 1(2) HP FUEL VALVE and the ENG FAULT light. Written by the systems WASM (systems engine/hp_fuel_valve_failure.rs)
+
+- A32NX_ENGINE_{number}_FADEC_ALTERNATOR_FAULT, _OVERSPEED_PROTECTION_FAULT, _PROBES_FAULT, _SENSOR_FAULT, _ONE_TLA_FAULT, _REVERSER_SWITCH_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors, 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
   - {number}
@@ -4321,7 +4362,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the ENG MASTER panel FAULT light is on: the automatic start of the engine aborted (FCOM DSC-70-90-20), until the ENG MASTER OFF. Written by the systems WASM
+  - True when the ENG MASTER panel FAULT light is on (FCOM DSC-70-90-20): the automatic start of the engine aborted (until the ENG MASTER OFF), the HP fuel valve position is abnormal (A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT), or the thrust control has a malfunction (both FADEC channels or both thrust lever resolvers lost). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_STARTER_MOTORING
   - Bool
@@ -4875,6 +4916,17 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - The hardwired discrete for emergency cancel/audio suppression to each DMC.
   - Boolean
 
+### FWC voices
+
+- A32NX_FWS_AUDIO_{voice}
+  - Boolean
+  - True while the FWC says this synthetic voice, played from a WAV clip (sound/fws_<voice>.wav, tools/fws-voice)
+  - {voice}
+    - DUAL_INPUT: both sidesticks deflected, every 5 s
+    - PRIORITY_LEFT: the CAPT holds the sidestick priority
+    - PRIORITY_RIGHT: the F/O holds the sidestick priority
+    - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning
+
 
 ## Landing Gear (ATA 32)
 
@@ -5238,6 +5290,18 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GPWS_FLAPS3
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
+
+- A32NX_GPWS_TERR_TEST_PATTERN
+    - Boolean
+    - True while the GPWS self-test (GPWS pushbutton pressed on the ground) shows the terrain test pattern, for the
+      TERR TST message of the ND (not displayed yet)
+    - Read-Only
+
+- A32NX_REACTIVE_WINDSHEAR_WARNING
+    - Boolean
+    - True while the reactive windshear detection of the FACs gives the WINDSHEAR warning (red WINDSHEAR on the PFDs),
+      written by the systems host (FacReactiveWindshear)
+    - Read-Only
 
 - A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION
     - Feet

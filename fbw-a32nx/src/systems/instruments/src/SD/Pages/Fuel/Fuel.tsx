@@ -16,6 +16,7 @@ import {
   WingPumpIndication,
   wingPumpIndication,
 } from './FuelPumpValveIndications';
+import { wingImbalancePulse } from './FuelImbalanceIndication';
 
 import './Fuel.scss';
 
@@ -46,6 +47,16 @@ export const FuelPage = () => {
   const [fuelWeightPerGallon] = useSimVar('FUEL WEIGHT PER GALLON', 'kilogram', 60_000);
 
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 1000);
+
+  const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
+  // FUEL QUANTITY - ADVISORY (FCOM DSC-28-20): the heavier wing pulses above 1 500 kg of imbalance in phases 2 and 6
+  const imbalancePulse = wingImbalancePulse(
+    (tankLeftInner + tankLeftOuter) * fuelWeightPerGallon,
+    (tankRightInner + tankRightOuter) * fuelWeightPerGallon,
+    fwcFlightPhase,
+  );
+  const leftWingQuantityClass = `TankQuantity${imbalancePulse.left ? ' TankQuantityPulse' : ''}`;
+  const rightWingQuantityClass = `TankQuantity${imbalancePulse.right ? ' TankQuantityPulse' : ''}`;
 
   return (
     // This is already in an svg so we should remove the containing one - TODO remove style once we are not in the Asobo ECAM
@@ -100,10 +111,10 @@ export const FuelPage = () => {
         <Pump x={180} y={215} onBus="DC_2" pumpNumber={5} />
 
         {/* Quantities */}
-        <text className="TankQuantity" x={80} y={285}>
+        <text className={leftWingQuantityClass} x={80} y={285}>
           {fuelInTanksForDisplay(tankLeftOuter, useMetric, fuelWeightPerGallon)}
         </text>
-        <text className="TankQuantity" x={190} y={285}>
+        <text className={leftWingQuantityClass} x={190} y={285}>
           {fuelInTanksForDisplay(tankLeftInner, useMetric, fuelWeightPerGallon)}
         </text>
 
@@ -174,10 +185,10 @@ export const FuelPage = () => {
         <Pump x={425} y={215} onBus="DC_2" pumpNumber={6} />
 
         {/* Quantities */}
-        <text className="TankQuantity" x={472} y={285}>
+        <text className={rightWingQuantityClass} x={472} y={285}>
           {fuelInTanksForDisplay(tankRightInner, useMetric, fuelWeightPerGallon)}
         </text>
-        <text className="TankQuantity" x={580} y={285}>
+        <text className={rightWingQuantityClass} x={580} y={285}>
           {fuelInTanksForDisplay(tankRightOuter, useMetric, fuelWeightPerGallon)}
         </text>
         {rightOuterInnerValve && <Triangle x={522} y={319} colour="Green" fill={0} orientation={-90} />}

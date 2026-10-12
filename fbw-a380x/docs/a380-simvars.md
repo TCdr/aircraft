@@ -566,6 +566,12 @@
 
 ### Flight Guidance and Flight Envelope (FG/FE)
 
+- A32NX_REACTIVE_WINDSHEAR_WARNING
+    - Boolean
+    - True while the reactive windshear detection of the PRIMs gives the WINDSHEAR warning (red WINDSHEAR on the
+      PFDs), written by the systems host (PseudoPRIM/PrimReactiveWindshear)
+    - Read-Only
+
 #### Flight Control Data Concentrators (FCDCs)
 
 The FCDCs receive FG and FE data from the PRIMs and from these compute warning data for the FWC
@@ -1870,6 +1876,14 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4: the F/O ND DU
     - -1: none (the SD is shown on no operative display unit)
 
+- A32NX_FWS_AUDIO_{voice}
+  - Bool
+  - True while the FWS says this synthetic voice, played from a WAV clip (sound/fws_<voice>.wav, tools/fws-voice)
+  - {voice}
+    - PRIORITY_LEFT: the CAPT holds the sidestick pb (CpiomC/FlightWarningSystem/FwsSidestickPriority.ts)
+    - PRIORITY_RIGHT: the F/O holds the sidestick pb
+    - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning (FlightWarningSystem/FwsWindshearAural.ts)
+
 ## ECAM Control Panel ATA 31
 
 - A32NX_BTN_{button_name}
@@ -2559,6 +2573,24 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 3
     - 4
   - True while the fuel filter clog failure of the engine is active (flyPad failures 73100-73103): CLOGGED below the fuel flow on the ENGINE SD page while the engine runs, and ENG FUEL FILTER CLOGGED (on the ground: FCOM flight phases 1, 2, 11 and 12), no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
+
+- A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT
+  - Number
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The abnormal HP fuel valve position the FADEC detects (2 s) with the HP fuel valve stuck failure (flyPad failures 73200-73203): 0 none, 1 not open (closed while commanded open: no fuel, no start), 2 not closed (open while commanded closed; the engine still stops, the MSFS valve of A32NX_ENGINE_{number}_HP_FUEL_VALVE_CLOSED models the LP valve closure). ENG HP FUEL VLV FAULT and the ENG MASTER FAULT light (A32NX_ENGINE_{number}_FAULT_LIGHT). Written by the systems WASM (systems engine/hp_fuel_valve_failure.rs)
+
+- A32NX_ENGINE_{number}_FUEL_STRAINER_CLOGGED, _FUEL_FILTER_MONITORING_FAULT, _OIL_CHIP_DETECTED, _MINOR_FAULT, _OVERTHRUST_PROTECTION_LOST, _SENSOR_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73110-73113 fuel strainer clog, 73120-73123 fuel filter monitoring, 79040-79043 oil chip, 73260-73263 FADEC minor fault, 73250-73253 overthrust protection, 73240-73243 pressure and temperature probes): the crew awareness alerts ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT (FwsCore, EngineMonitoringAlerts.ts), no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool

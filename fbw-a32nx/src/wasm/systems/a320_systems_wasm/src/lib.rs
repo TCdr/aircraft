@@ -48,6 +48,7 @@ use std::error::Error;
 use systems::air_conditioning::{
     acs_controller::AcscId, cabin_pressure_controller::CpcId, Channel, ZoneType,
 };
+use systems::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use systems::failures::FailureType;
 use systems::shared::{
     report_diagnostic, AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType,
@@ -455,6 +456,70 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_051, FailureType::ThrustLeverResolverDisagree(2)),
         (73_100, FailureType::EngineFuelFilterClog(1)),
         (73_101, FailureType::EngineFuelFilterClog(2)),
+        // FCOM PRO-ABN-ENG ENG 1(2) HP FUEL VALVE (systems engine/hp_fuel_valve_failure.rs)
+        (73_200, FailureType::EngineHpFuelValveStuck(1)),
+        (73_201, FailureType::EngineHpFuelValveStuck(2)),
+        // The FADEC faults without engine model effect (systems engine/engine_monitoring_fault.rs)
+        (
+            73_210,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FadecAlternator),
+        ),
+        (
+            73_211,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FadecAlternator),
+        ),
+        (
+            73_220,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::OverspeedProtection),
+        ),
+        (
+            73_221,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::OverspeedProtection),
+        ),
+        (
+            73_230,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::InletProbes),
+        ),
+        (
+            73_231,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::InletProbes),
+        ),
+        (
+            73_240,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_241,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_060,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::OneThrustLeverResolver,
+            ),
+        ),
+        (
+            73_061,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::OneThrustLeverResolver,
+            ),
+        ),
+        (
+            78_030,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::ReverserPermissionSwitch,
+            ),
+        ),
+        (
+            78_031,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::ReverserPermissionSwitch,
+            ),
+        ),
         (78_000, FailureType::ReverserFault(1)),
         (78_001, FailureType::ReverserFault(2)),
         (78_010, FailureType::ReverserUnlocked(1)),

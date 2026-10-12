@@ -22,3 +22,9 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model \
   ../src/utils/HysteresisNode.cpp ../src/utils/PulseNode.cpp ../src/utils/SRFlipFLop.cpp \
   -o ../obj/power_recovery_self_test_test
 ../obj/power_recovery_self_test_test
+# FAC rudder actuator failures (flyPad 22006-22011): FAC 2 takes a function over, the faults the FAC reports to the FWC
+clang++ -std=c++20 -Wall -Wextra -I ../src/model \
+  fac_actuator_failure_test.cpp ../src/fac/Fac.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
+  ../src/utils/PulseNode.cpp ../src/utils/SRFlipFLop.cpp \
+  -o ../obj/fac_actuator_failure_test
+../obj/fac_actuator_failure_test
