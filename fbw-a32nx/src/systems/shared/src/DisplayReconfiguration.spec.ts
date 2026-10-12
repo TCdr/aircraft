@@ -12,6 +12,7 @@ import {
   isDisplayUnitAvailable,
   isEcamPagePbHoldActive,
   isEcamPagePbHoldConfirmed,
+  isEcamSingleDisplay,
   isSwitchingPanelMemoShown,
   nextEcamPagePbHeldSeconds,
   nextPfdNdXfr,
@@ -254,5 +255,24 @@ describe('SWITCHING PNL memo (FCOM DSC-31-30)', () => {
     expect(isSwitchingPanelMemoShown(EcamNdXfrKnob.Norm, 1, true, false)).toBe(false);
     expect(isSwitchingPanelMemoShown(EcamNdXfrKnob.Fo, 1, true, false)).toBe(true);
     expect(isSwitchingPanelMemoShown(EcamNdXfrKnob.Norm, 0, false, false)).toBe(true);
+  });
+});
+
+describe('ECAM single display (FCOM DSC-31-05-60 l.45264-45298, DSC-31-30 l.46775)', () => {
+  it('two ECAM displays: the SD is shown without holding a page pb', () => {
+    expect(isEcamSingleDisplay(inputs())).toBe(false);
+    // the SD on an ND with ECAM/ND XFR: two displays still
+    expect(isEcamSingleDisplay(inputs({ ecamNdXfrKnob: EcamNdXfrKnob.Capt }, ['UPPER_ECAM']))).toBe(false);
+  });
+
+  it('one ECAM display: the upper or the lower ECAM DU lost, ECAM/ND XFR at NORM', () => {
+    expect(isEcamSingleDisplay(inputs({}, ['UPPER_ECAM']))).toBe(true);
+    expect(isEcamSingleDisplay(inputs({}, ['LOWER_ECAM']))).toBe(true);
+    // both lost, the E/WD on the CAPT ND: the SD there while a page pb is held
+    expect(isEcamSingleDisplay(inputs({ ecamNdXfrKnob: EcamNdXfrKnob.Capt }, ['UPPER_ECAM', 'LOWER_ECAM']))).toBe(true);
+  });
+
+  it('no ECAM display at all is not a single display', () => {
+    expect(isEcamSingleDisplay(inputs({}, ['UPPER_ECAM', 'LOWER_ECAM']))).toBe(false);
   });
 });

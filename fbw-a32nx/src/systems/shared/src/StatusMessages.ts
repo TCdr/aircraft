@@ -255,9 +255,6 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
 
 const StatusMessageOrder = new Map([...StatusMessages.keys()].map((code, index) => [code, index]));
 
-/** The number of lines of each column of the STATUS page */
-export const STATUS_PAGE_LINES = 16;
-
 /** The known codes, without duplicates, in the order of the STATUS page */
 export function orderStatusCodes(codes: readonly string[]): string[] {
   return [...new Set(codes)]

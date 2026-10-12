@@ -8,17 +8,14 @@ import { FormattedFwcText } from '../../../MsfsAvionicsCommon/FormattedFwcText';
 
 import './style.scss';
 import { SDSimvars } from '../../SDSimvarPublisher';
-import { formatStatusPage, STATUS_PAGE_LINES } from '@shared/StatusMessages';
+import { readStatusColumnCodes, STATUS_PAGE_INDEX_VAR, statusPageView } from '@shared/StatusPaging';
 
-// The FWC STATUS page lines (codes of StatusMessages), left and right columns
-const STATUS_LINE_VARS = (side: 'LEFT' | 'RIGHT') =>
-  Array.from({ length: STATUS_PAGE_LINES }, (_, i) => `L:A32NX_ECAM_STATUS_${side}_LINE_${i + 1}`);
-const STATUS_LEFT_LINE_VARS = STATUS_LINE_VARS('LEFT');
-const STATUS_RIGHT_LINE_VARS = STATUS_LINE_VARS('RIGHT');
+const readNumber = (name: string): number => SimVar.GetSimVarValue(name, 'number');
 
 /**
  * The STATUS page (A320 FCOM DSC-31-20): the lines the FWC computes from the active alerts, information on the left and
- * the inoperative systems on the right; NORMAL when there are none.
+ * the inoperative systems on the right; NORMAL when there are none. A page that overflows shows the page the FWC selects
+ * (CLR, or STS with one ECAM display) and a green arrow at the bottom of the column separator (l.46196-46199).
  */
 export class StatusPage extends DestroyableComponent<SdPageProps> {
   private readonly sub = this.props.bus.getSubscriber<SDSimvars & ClockEvents>();
@@ -28,6 +25,8 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
   private linesLeft = Subject.create('\r\r              \x1b<3mNORMAL');
 
   private linesRight = Subject.create('');
+
+  private readonly overflowArrowVisibility = Subject.create('hidden');
 
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -42,11 +41,14 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
   }
 
   private updateLines(): void {
-    const codes = (vars: string[]) =>
-      vars.map((name) => SimVar.GetSimVarValue(name, 'number').toString().padStart(9, '0'));
-    const page = formatStatusPage(codes(STATUS_LEFT_LINE_VARS), codes(STATUS_RIGHT_LINE_VARS));
+    const page = statusPageView(
+      readStatusColumnCodes('LEFT', readNumber),
+      readStatusColumnCodes('RIGHT', readNumber),
+      readNumber(STATUS_PAGE_INDEX_VAR),
+    );
     this.linesLeft.set(page.left);
     this.linesRight.set(page.right);
+    this.overflowArrowVisibility.set(page.overflow ? 'visible' : 'hidden');
   }
 
   destroy(): void {
@@ -72,6 +74,14 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
         <FormattedFwcText bus={this.props.bus} x={512} y={118} message={this.linesRight}></FormattedFwcText>
 
         <line class="SW4 Grey LineRound" x1="483" y1="96" x2="483" y2="593" />
+
+        {/* The overflow arrow (FCOM DSC-31-20 figure, item 8): green, pointing down, below the column separator, the
+        same arrow as the E/WD overflow arrow */}
+        <path
+          class="Green Fill"
+          d="m 480 597 h 6 v 17 h 4 l -7,14 l -7,-14 h 4 v -17"
+          visibility={this.overflowArrowVisibility}
+        />
       </svg>
     );
   }

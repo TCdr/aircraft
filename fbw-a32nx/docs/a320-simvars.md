@@ -1463,7 +1463,24 @@ These variables are the interface between the 3D model and the systems/code.
         - LEFT
         - RIGHT
     - {number}
-        - 1 to 16
+        - 1 to 64: all the codes, from line 1 on without gaps; the SD shows them by pages (see
+          A32NX_ECAM_STATUS_PAGE_INDEX)
+
+- A32NX_ECAM_STATUS_PAGE_INDEX
+    - Number
+    - Written by the FWC: the page of the ECAM STATUS page the SD shows, from 0. A page has 17 rows per column; a STATUS
+      page that overflows shows a green arrow, and CLR shows the next page (FCOM DSC-31-20), or the STS pb pushed again
+      within 2 s with one ECAM display (FCOM DSC-31-30)
+
+- A32NX_ECAM_STATUS_CLR_SCROLLS
+    - Bool
+    - Written by the FWC: the STATUS page shown on the SD has a next page and the next CLR push shows it. The DMC then
+      does not remove the STATUS page on that push
+
+- A32NX_ECAM_SINGLE_DISPLAY
+    - Bool
+    - Written by the DMC logic of the systems host: only one ECAM display is on, the SD is shown only while a system page
+      pb is held (FCOM DSC-31-05-60). The STS pb then pages the STATUS page
 
 - A32NX_ECAM_STATUS_NORMAL
     - Bool
