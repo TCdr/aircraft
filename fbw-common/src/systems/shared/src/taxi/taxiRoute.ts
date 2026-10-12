@@ -32,6 +32,11 @@ export interface TaxiRouteRequest {
   via?: readonly string[];
   /** The runways the clearance says to cross, e.g. 34L (see {@link readTaxiClearance}) */
   crossRunways?: readonly string[];
+  /**
+   * The lines too narrow for the aircraft (indices in the network, see taxiLineFits): the route avoids them when it can;
+   * a clearance that needs one is still followed (ATC may know better: the crew decides)
+   */
+  tooNarrow?: ReadonlySet<number>;
 }
 
 export enum TaxiRouteError {
@@ -55,6 +60,8 @@ export interface TaxiRouteLeg {
   start: TaxiPoint;
   /** The point halfway along the leg, to label it */
   mid: TaxiPoint;
+  /** The lines of the network the leg follows (indices) */
+  lines: number[];
 }
 
 /** A leg with its points, while the route is put together */
@@ -368,10 +375,10 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     (leadInDistance.get(e.to) ?? Infinity) <= LEAD_IN_LIMIT;
 
   /** The cost of an edge from layer k, and the layer after it; null when it cannot be taken */
-  const step = (edgeIndex: number, k: number, lastResort: boolean): [number, number] | null => {
+  const step = (edgeIndex: number, k: number, lastResort: boolean, avoidNarrow: boolean): [number, number] | null => {
     const e = edges[edgeIndex];
     const line = lines[e.line];
-    if (line.kind === TaxiLineKind.Runway) {
+    if (line.kind === TaxiLineKind.Runway || (avoidNarrow && request.tooNarrow?.has(e.line))) {
       return null;
     }
     if (startLines.has(e.line) && k === -1) {
@@ -429,7 +436,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     }
   };
 
-  const search = (lastResort: boolean): TaxiRoute | null => {
+  const search = (lastResort: boolean, avoidNarrow: boolean): TaxiRoute | null => {
     // State: node * layers + (k + 1), k = index of the current cleared taxiway (-1 before the first one)
     const cost = new Map<number, number>();
     const previous = new Map<number, [number, number]>(); // state -> [previous state, edge]
@@ -461,7 +468,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
         if (ei === startEdge) {
           continue;
         }
-        const next = step(ei, k, lastResort);
+        const next = step(ei, k, lastResort, avoidNarrow);
         if (next === null) {
           continue;
         }
@@ -506,6 +513,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
           name: lines[startLine].name,
           length: partial,
           points: [startPoint as TaxiPoint, nodes[at]],
+          lines: [startLine],
         });
       }
     }
@@ -519,8 +527,17 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
       if (leg && leg.kind === line.kind && leg.name === line.name) {
         leg.length += e.length;
         leg.points.push(nodes[at]);
+        if (!leg.lines.includes(e.line)) {
+          leg.lines.push(e.line);
+        }
       } else {
-        legPoints.push({ kind: line.kind, name: line.name, length: e.length, points: [from, nodes[at]] });
+        legPoints.push({
+          kind: line.kind,
+          name: line.name,
+          length: e.length,
+          points: [from, nodes[at]],
+          lines: [e.line],
+        });
       }
     }
     if (to.kind === 'stand') {
@@ -532,6 +549,7 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
       length: l.length,
       start: l.points[0],
       mid: halfway(l.points, l.length),
+      lines: l.lines,
     }));
     // The taxiways as a clearance lists them: the taxiway lines, and the runway exit lines other than the exit the
     // route starts from (an exit line can be a runway entry or a crossing taxiway, e.g. C1)
@@ -550,7 +568,14 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     return { error: TaxiRouteError.None, points: clean, length, legs, taxiways };
   };
 
-  return search(false) ?? search(true) ?? NO_ROUTE(TaxiRouteError.NoRoute);
+  // Without the lines too narrow for the aircraft first, then with them (flagged on the page) when there is no other way
+  const narrow = request.tooNarrow !== undefined && request.tooNarrow.size > 0;
+  return (
+    search(false, narrow) ??
+    search(true, narrow) ??
+    (narrow ? search(false, false) ?? search(true, false) : null) ??
+    NO_ROUTE(TaxiRouteError.NoRoute)
+  );
 }
 
 /** Flags closer than this to the previous one are left out, in metres */

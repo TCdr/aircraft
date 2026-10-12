@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useEffect, useRef, useState } from 'react';
-import { taxiDistance, TaxiLineKind, TaxiPoint, TaxiRoute, TaxiStand } from '@flybywiresim/fbw-sdk';
+import {
+  taxiDistance,
+  TaxiLineFit,
+  TaxiLineFitInfo,
+  TaxiLineKind,
+  TaxiPoint,
+  TaxiRoute,
+  TaxiStand,
+} from '@flybywiresim/fbw-sdk';
+import { t } from '../../../Localization/translation';
 import { ArrowsFullscreen, GeoAltFill, ZoomIn, ZoomOut } from 'react-bootstrap-icons';
 import { TaxiAirport } from './TaxiAirport';
 
@@ -24,6 +33,9 @@ const COLOURS = {
   entry: '#22d3ee',
   aircraft: '#facc15',
   taxiwayName: '#eab308',
+  /** A380: a taxi line too narrow, or whose width is not verified */
+  tooNarrow: '#f97316',
+  unverified: 'rgba(148, 163, 184, 0.8)',
 };
 
 /**
@@ -66,6 +78,8 @@ export interface TaxiMapProps {
   /** Departure: the entries of the runway */
   entries: { name: string; point: TaxiPoint }[];
   aircraft: { point: TaxiPoint; heading: number } | null;
+  /** A380: how each line of the airport network suits the aircraft (null: not checked) */
+  lineFits?: readonly TaxiLineFitInfo[] | null;
   /** Called with the name of the stand tapped on the map, when the page takes a stand */
   onStandPick?: (name: string) => void;
 }
@@ -107,6 +121,7 @@ export const TaxiMap = ({
   hold,
   entries,
   aircraft,
+  lineFits = null,
   onStandPick,
 }: TaxiMapProps) => {
   const container = useRef<HTMLDivElement>(null);
@@ -187,6 +202,23 @@ export const TaxiMap = ({
         }
       }
       ctx.stroke();
+    }
+
+    // A380: the taxi lines too narrow (solid) and those whose width is not verified (dashed), over the guidance lines
+    if (lineFits) {
+      for (const fit of [TaxiLineFit.Unverified, TaxiLineFit.TooNarrow]) {
+        ctx.strokeStyle = fit === TaxiLineFit.TooNarrow ? COLOURS.tooNarrow : COLOURS.unverified;
+        ctx.lineWidth = fit === TaxiLineFit.TooNarrow ? 3 : 2;
+        ctx.setLineDash(fit === TaxiLineFit.TooNarrow ? [] : [4, 4]);
+        ctx.beginPath();
+        airport.network.lines.forEach((line, index) => {
+          if (lineFits[index]?.fit === fit && line.kind !== TaxiLineKind.Stand) {
+            line.points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(sx(x), sy(y)) : ctx.lineTo(sx(x), sy(y))));
+          }
+        });
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
     }
 
     const label = (text: string, x: number, y: number, colour: string, font = 'bold 15px sans-serif') => {
@@ -330,7 +362,7 @@ export const TaxiMap = ({
       ctx.fill();
       ctx.restore();
     }
-  }, [airport, route, accepted, crossings, stand, hold, entries, aircraft, view, canvasWidth, canvasHeight]);
+  }, [airport, route, accepted, crossings, stand, hold, entries, aircraft, lineFits, view, canvasWidth, canvasHeight]);
 
   /** A tap on the map: the nearest stand to it */
   const pickStand = (clientX: number, clientY: number) => {
@@ -414,6 +446,25 @@ export const TaxiMap = ({
         className="absolute"
         style={{ left: -size.width * MARGIN, top: -size.height * MARGIN }}
       />
+      {lineFits && (
+        // A380: the legend of the width marks
+        <div
+          className="absolute left-4 top-4 flex flex-col space-y-1 rounded-xl border border-m3-outline bg-m3-ground px-3 py-2"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <span className="text-xs font-bold uppercase tracking-widest text-m3-muted">
+            {t('Ground.Taxi.Width.Legend')}
+          </span>
+          <div className="flex flex-row items-center">
+            <div className="mr-2 h-1 w-6 shrink-0 rounded-full" style={{ backgroundColor: COLOURS.tooNarrow }} />
+            <span className="text-xs text-m3-text">{t('Ground.Taxi.Width.TooNarrow')}</span>
+          </div>
+          <div className="flex flex-row items-center">
+            <div className="mr-2 w-6 shrink-0 border-t-2 border-dashed" style={{ borderColor: COLOURS.unverified }} />
+            <span className="text-xs text-m3-text">{t('Ground.Taxi.Width.Unverified')}</span>
+          </div>
+        </div>
+      )}
       <div className="absolute right-4 top-4 flex flex-col space-y-2">
         {[
           { icon: <ZoomIn size={22} />, onClick: () => zoom(1.5), disabled: false },

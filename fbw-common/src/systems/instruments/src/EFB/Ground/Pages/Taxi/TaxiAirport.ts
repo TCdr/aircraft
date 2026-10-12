@@ -15,6 +15,9 @@ import {
   TaxiMapShapes,
   taxiMapShapesFromAmdb,
   TaxiNetwork,
+  taxiPavement,
+  TaxiPavement,
+  taxiPavementFromAmdb,
   TaxiPoint,
   TaxiRunway,
   TaxiRunwayAxis,
@@ -43,6 +46,8 @@ export interface TaxiAirport {
   entries: Map<string, TaxiRunwayEntry[]>;
   /** The runway holding position lines */
   holdingLines: TaxiPoint[][];
+  /** The pavement (taxiway, apron and runway elements), to measure the taxiway widths for the A380 */
+  pavement: TaxiPavement;
 }
 
 export type TaxiAirportState =
@@ -59,6 +64,7 @@ const LAYERS = [
   FeatureTypeString.StandGuidanceLine,
   FeatureTypeString.ParkingStandLocation,
   FeatureTypeString.RunwayElement,
+  FeatureTypeString.RunwayIntersection,
   FeatureTypeString.TaxiwayElement,
   FeatureTypeString.ApronElement,
   FeatureTypeString.RunwayThreshold,
@@ -127,6 +133,7 @@ export async function loadTaxiAirport(icao: string): Promise<TaxiAirportState> {
       axes,
       entries,
       holdingLines: taxiHoldingLinesFromAmdb(features),
+      pavement: taxiPavement(taxiPavementFromAmdb(features)),
     };
     cache.push(airport);
     if (cache.length > CACHE_SIZE) {
