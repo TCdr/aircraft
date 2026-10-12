@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import {
+  AirportClassMask,
   AirportFacility,
   AirportRunway,
   EventBus,
@@ -26,6 +27,19 @@ export class NearbyRunwayProvider {
   private static readonly SEARCH_INTERVAL_MS = 10_000;
 
   private static readonly SEARCH_MOVE_M = 1_852;
+
+  /**
+   * The airport classes searched: those with a land runway. Heliports and water-only seaplane bases have no runway
+   * this provider can use (see toAwarenessRunways).
+   */
+  private static readonly RUNWAY_AIRPORT_CLASSES =
+    AirportClassMask.HardSurface | AirportClassMask.SoftSurface | AirportClassMask.Private;
+
+  /**
+   * DESIGN CHOICE: the shortest longest-runway of an airport searched, in metres. It leaves out the private heliports
+   * (no runway) the class filter keeps, and no runway that matters to the users of this provider.
+   */
+  private static readonly MIN_RUNWAY_LENGTH_M = 100;
 
   private static readonly WATER_SURFACES = [
     RunwaySurfaceType.WaterFSX,
@@ -126,7 +140,19 @@ export class NearbyRunwayProvider {
   private async startSession(): Promise<void> {
     this.sessionStarting = true;
     try {
-      this.session = await this.loader.startNearestSearchSessionWithIcaoStructs(FacilitySearchType.Airport);
+      const session = await this.loader.startNearestSearchSessionWithIcaoStructs(FacilitySearchType.Airport);
+      // A new session has no filter, and the search returns the closest maxAirports airports of every class. In a
+      // city the heliports fill that list: at RJTT (2026-10-11 sim test, 25 NM / 24 airports) only RJTT itself had
+      // runways on the ground, though RJTA, RJTF and RJTY are within 25 NM, and a few NM after take-off RJTT dropped
+      // out of the list too. So only the airports with a runway are searched.
+      session.setAirportFilter(false, NearbyRunwayProvider.RUNWAY_AIRPORT_CLASSES);
+      session.setExtendedAirportFilters(
+        NearestAirportSearchSession.Defaults.SurfaceTypeMask,
+        NearestAirportSearchSession.Defaults.ApproachTypeMask,
+        NearestAirportSearchSession.Defaults.ToweredMask,
+        NearbyRunwayProvider.MIN_RUNWAY_LENGTH_M,
+      );
+      this.session = session;
     } catch (e) {
       console.warn('[NearbyRunwayProvider] could not start the airport search', e);
     } finally {
