@@ -275,6 +275,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] New flyPad FADEC fault failures with their ECAM crew awareness alerts: A32NX ENG FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT; A380X ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT - @TCdr
 1. [A32NX/ENG] The ENG FAULT light also comes on for a thrust control malfunction (both FADEC channels or both thrust lever resolvers lost), as in the FCOM - @TCdr
 1. [A32NX/ENG] A hot engine gets a pre-start motoring (dry crank up to 60 s, by its residual heat) before the ignition of an automatic start, as the FCOM bow rotor protection - @TCdr
+1. [A32NX/FWC] New DUAL INPUT voice every 5 s while both sidesticks are moved, and PRIORITY LEFT / PRIORITY RIGHT voices when a pilot takes the sidestick priority (held 1 s, so an autopilot disconnection does not call it), from the FCDC as in the FCOM - @TCdr
+1. [A32NX/FWC] Intermediate radio height callout: below 410 ft, when no height callout came for 11 s (4 s below 50 ft), the FWC says the present height (FOUR HUNDRED down to FIVE, rounded down), then every 4 s - @TCdr
+1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
 
 ## 2024.1.0
 

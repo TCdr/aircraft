@@ -4815,6 +4815,17 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - The hardwired discrete for emergency cancel/audio suppression to each DMC.
   - Boolean
 
+### FWC voices
+
+- A32NX_FWS_AUDIO_{voice}
+  - Boolean
+  - True while the FWC says this synthetic voice, played from a WAV clip (sound/fws_<voice>.wav, tools/fws-voice)
+  - {voice}
+    - DUAL_INPUT: both sidesticks deflected, every 5 s
+    - PRIORITY_LEFT: the CAPT holds the sidestick priority
+    - PRIORITY_RIGHT: the F/O holds the sidestick priority
+    - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning
+
 
 ## Landing Gear (ATA 32)
 
