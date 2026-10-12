@@ -1696,6 +1696,7 @@ pub(super) struct A380Hydraulic {
     forward_cargo_door_controller: HydraulicDoorController,
     aft_cargo_door: CargoDoor,
     aft_cargo_door_controller: HydraulicDoorController,
+    cargo_door_operation_inhibition: A380CargoDoorOperationInhibition,
 
     elevator_system_controller: ElevatorSystemHydraulicController,
     aileron_system_controller: AileronSystemHydraulicController,
@@ -2044,6 +2045,7 @@ impl A380Hydraulic {
                 context,
                 Self::AFT_CARGO_DOOR_ID,
             ),
+            cargo_door_operation_inhibition: A380CargoDoorOperationInhibition::new(context),
 
             elevator_system_controller: ElevatorSystemHydraulicController::new(context),
             aileron_system_controller: AileronSystemHydraulicController::new(context),
@@ -2143,6 +2145,13 @@ impl A380Hydraulic {
         adirs: &(impl AdirsDiscreteOutputs + AdirsMeasurementOutputs),
     ) {
         self.core_hydraulic_updater.update(context);
+
+        self.cargo_door_operation_inhibition.update(engines);
+        let cargo_door_operation_inhibited = self.cargo_door_operation_inhibition.is_inhibited();
+        self.forward_cargo_door_controller
+            .set_operation_inhibited(cargo_door_operation_inhibited);
+        self.aft_cargo_door_controller
+            .set_operation_inhibited(cargo_door_operation_inhibited);
 
         self.update_with_sim_rate(
             context,
@@ -3203,6 +3212,7 @@ impl SimulationElement for A380Hydraulic {
 
         self.aft_cargo_door_controller.accept(visitor);
         self.aft_cargo_door.accept(visitor);
+        self.cargo_door_operation_inhibition.accept(visitor);
 
         self.pushback_tug.accept(visitor);
         self.bypass_pin.accept(visitor);
@@ -3922,6 +3932,46 @@ impl SimulationElement for A380ElectricPumpAutoLogic {
     }
 }
 
+// Should be the feedback used to disable elec pumps running when engines are on
+// Place holder logic for now using oil press
+fn is_any_engine_running(engines: [&impl Engine; 4]) -> bool {
+    !(engines[0].oil_pressure_is_low()
+        && engines[1].oil_pressure_is_low()
+        && engines[2].oil_pressure_is_low()
+        && engines[3].oil_pressure_is_low())
+}
+
+/// Whether the cargo door actuation has no hydraulic power. FCOM DSC-29-10: the cargo door actuation is powered only
+/// by the green electric pumps in automatic mode, and the green electric pumps are inhibited as soon as engine 1 or 2
+/// runs. FCOM DSC-52-30-40-10: the door operation is also inhibited in taxi and flight and with engines 3 and 4
+/// running (the actuator is then isolated by a valve). The electric pump controllers stop the pumps with any engine
+/// running (placeholder), which covers all these cases, so the same rule is used here.
+struct A380CargoDoorOperationInhibition {
+    inhibited_id: VariableIdentifier,
+    is_inhibited: bool,
+}
+impl A380CargoDoorOperationInhibition {
+    fn new(context: &mut InitContext) -> Self {
+        Self {
+            inhibited_id: context.get_identifier("HYD_CARGO_DOOR_OPERATION_INHIBITED".to_owned()),
+            is_inhibited: false,
+        }
+    }
+
+    fn update(&mut self, engines: [&impl Engine; 4]) {
+        self.is_inhibited = is_any_engine_running(engines);
+    }
+
+    fn is_inhibited(&self) -> bool {
+        self.is_inhibited
+    }
+}
+impl SimulationElement for A380CargoDoorOperationInhibition {
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.inhibited_id, self.is_inhibited);
+    }
+}
+
 struct A380ElectricPumpController {
     low_press_id: VariableIdentifier,
 
@@ -3993,13 +4043,8 @@ impl A380ElectricPumpController {
         self.update_overheat(pump_status)
     }
 
-    // Should be the feedback used to disable elec pumps running when engines are on
-    // Place holder logic for now using oil press
     fn is_any_engine_running(&self, engines: [&impl Engine; 4]) -> bool {
-        !(engines[0].oil_pressure_is_low()
-            && engines[1].oil_pressure_is_low()
-            && engines[2].oil_pressure_is_low()
-            && engines[3].oil_pressure_is_low())
+        is_any_engine_running(engines)
     }
 
     fn update_low_pressure(&mut self, hydraulic_circuit: &impl HydraulicPressureSensors) {
@@ -7692,6 +7737,10 @@ mod tests {
 
             fn cargo_aft_door_position(&mut self) -> f64 {
                 self.read_by_name("AFT_DOOR_CARGO_POSITION")
+            }
+
+            fn is_cargo_door_operation_inhibited(&mut self) -> bool {
+                self.read_by_name("HYD_CARGO_DOOR_OPERATION_INHIBITED")
             }
 
             fn green_pressure(&mut self) -> Pressure {
@@ -11489,6 +11538,97 @@ mod tests {
             assert_gt!(
                 test_bed.get_brake_right_green_pressure(),
                 Pressure::new::<psi>(500.)
+            );
+        }
+
+        // FCOM DSC-29-10 P 3/10: the green electric pumps, the only power of the cargo door actuation, are
+        // inhibited as soon as engine 1 or 2 runs. FCOM DSC-52-30-40-10 P 2/4: an inhibited door is isolated
+        // from the hydraulics, "there is no power to open the door".
+        #[test]
+        fn cargo_door_operation_is_inhibited_with_an_engine_running() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_waiting_for(Duration::from_secs(1));
+
+            assert!(!test_bed.is_cargo_door_operation_inhibited());
+
+            test_bed = test_bed
+                .start_eng1(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            assert!(test_bed.is_cargo_door_operation_inhibited());
+        }
+
+        #[test]
+        fn cargo_door_stays_locked_when_opened_with_an_engine_running() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .open_fwd_cargo_door()
+                .run_waiting_for(Duration::from_secs(30));
+
+            assert!(test_bed.is_cargo_fwd_door_locked_down());
+            assert_eq!(test_bed.cargo_fwd_door_position(), 0.);
+        }
+
+        #[test]
+        fn cargo_door_opens_once_the_engines_are_stopped_if_still_requested() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .open_fwd_cargo_door()
+                .run_waiting_for(Duration::from_secs(10));
+
+            assert!(test_bed.is_cargo_fwd_door_locked_down());
+
+            test_bed = test_bed
+                .stop_eng1()
+                .open_fwd_cargo_door()
+                .run_waiting_for(Duration::from_secs(40));
+
+            assert!(!test_bed.is_cargo_door_operation_inhibited());
+            // FWD_DOOR_CARGO_POSITION is in percent
+            assert_gt!(test_bed.cargo_fwd_door_position(), 85.);
+        }
+
+        #[test]
+        fn cargo_door_holds_its_position_when_an_engine_starts_while_it_moves() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_one_tick();
+
+            test_bed = test_bed.open_fwd_cargo_door().run_waiting_for(
+                HydraulicDoorController::DELAY_UNLOCK_TO_HYDRAULIC_CONTROL + Duration::from_secs(8),
+            );
+
+            // FWD_DOOR_CARGO_POSITION is in percent
+            let position_when_engine_starts = test_bed.cargo_fwd_door_position();
+            assert_lt!(position_when_engine_starts, 85.);
+            assert_gt!(position_when_engine_starts, 2.);
+
+            test_bed = test_bed
+                .start_eng1(Ratio::new::<percent>(80.))
+                .close_fwd_cargo_door()
+                .run_waiting_for(Duration::from_secs(30));
+
+            assert!(!test_bed.is_cargo_fwd_door_locked_down());
+            assert_lt!(
+                (test_bed.cargo_fwd_door_position() - position_when_engine_starts).abs(),
+                2.
             );
         }
 

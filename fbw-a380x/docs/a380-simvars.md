@@ -1770,6 +1770,23 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Disconnected pump feedback signal
     - {ENG} = 1, 2, 3, 4
 
+- A32NX_{DOOR}_DOOR_CARGO_POSITION
+    - Percent
+    - Real position of the hydraulic cargo door {DOOR} (the exterior model follows it)
+    - {DOOR} = FWD, AFT
+
+- A32NX_{DOOR}_DOOR_CARGO_LOCKED
+    - Boolean
+    - Cargo door {DOOR} is locked in closed position
+    - {DOOR} = FWD, AFT
+
+- A32NX_HYD_CARGO_DOOR_OPERATION_INHIBITED
+    - Boolean
+    - True when the cargo door actuation has no hydraulic power: the green electric pumps, its only power, are
+      inhibited with an engine running (FCOM DSC-29-10). A closed door then stays locked when the ground crew is asked to
+      open it, and a moving door holds its position; the request is carried out once the engines are stopped. Read by
+      the flyPad Services page
+
 ## Sound Variables
 
 - A380X_SOUND_COCKPIT_WINDOW_RATIO
