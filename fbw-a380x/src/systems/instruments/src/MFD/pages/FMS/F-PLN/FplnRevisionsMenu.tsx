@@ -3,8 +3,6 @@
 import { TurnDirection, WaypointDescriptor } from '@flybywiresim/fbw-sdk';
 import { HoldType } from '@fmgc/flightplanning/data/flightplan';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
-import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
-import { ProfilePhase } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { MfdFmsFpln } from './MfdFmsFpln';
 import { ContextMenuElement } from '../../../../MsfsAvionicsCommon/UiWidgets/ContextMenu';
 import { BitFlags } from '@microsoft/msfs-sdk';
@@ -199,7 +197,11 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         revisedLeg.isDiscontinuity ||
         fpln.props.fmcService.master.flightPlanInterface.get(planIndex).alternateDestinationAirport === undefined,
       onPressed: () => {
-        const cruiseLevel = fpln.props.fmcService.master?.computeAlternateCruiseLevel(planIndex) ?? 100;
+        const cruiseLevel = fpln.props.fmcService.master?.computeAlternateCruiseLevel(planIndex);
+        if (cruiseLevel === undefined) {
+          // No destination or alternate airport: ENABLE ALTN is disabled then, nothing to enable
+          return;
+        }
         fpln.props.fmcService.master?.flightPlanInterface.enableAltn(legIndex, cruiseLevel, planIndex);
         fpln.props.fmcService.master?.acInterface.updateFmsData();
         fpln.props.fmcService.master?.acInterface.calculateFinalAndAlternateFuel(planIndex);
@@ -248,39 +250,18 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
     },
     {
       name: 'WIND',
-      disabled: altnFlightPlan || !revisedLeg || revisedLeg.isDiscontinuity !== false,
+      disabled:
+        altnFlightPlan ||
+        !isLegTerminatingAtDatabaseFix ||
+        type === FplnRevisionsMenuType.Discontinuity ||
+        type === FplnRevisionsMenuType.TooSteepPath,
       onPressed: () => {
         if (!revisedLeg || revisedLeg.isDiscontinuity !== false) {
           return;
         }
-
-        // FCOM DSC-22-FMS-20-30 F-PLN page, WIND revision: the CLB, CRZ or DES panel of the WIND page, for a climb,
-        // cruise or descent waypoint. The vertical profile phase is used when predictions exist.
-        const profilePhase =
-          planIndex === FlightPlanIndex.Active
-            ? fpln.props.fmcService.master?.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(
-                legIndex,
-              )?.profilePhase
-            : undefined;
-        if (profilePhase !== undefined) {
-          const panel =
-            profilePhase === ProfilePhase.Descent ? 'des' : profilePhase === ProfilePhase.Cruise ? 'crz' : 'clb';
-          fpln.props.mfd.uiService.navigateTo(
-            `fms/${fpln.props.mfd.uiService.activeUri.get().category}/wind/${panel}/${showReturnButtonUriExtra}`,
-          );
-        } else if (revisedLeg.segment.class === SegmentClass.Arrival) {
-          fpln.props.mfd.uiService.navigateTo(
-            `fms/${fpln.props.mfd.uiService.activeUri.get().category}/wind/des/${showReturnButtonUriExtra}`,
-          );
-        } else if (revisedLeg.segment.class === SegmentClass.Enroute) {
-          fpln.props.mfd.uiService.navigateTo(
-            `fms/${fpln.props.mfd.uiService.activeUri.get().category}/wind/crz/${showReturnButtonUriExtra}`,
-          );
-        } else {
-          fpln.props.mfd.uiService.navigateTo(
-            `fms/${fpln.props.mfd.uiService.activeUri.get().category}/wind/clb/${showReturnButtonUriExtra}`,
-          );
-        }
+        fpln.props.mfd.uiService.navigateTo(
+          `fms/${fpln.props.mfd.uiService.activeUri.get().category}/wind/${showReturnButtonUriExtra}/${legIndex}`,
+        );
       },
     },
   ];

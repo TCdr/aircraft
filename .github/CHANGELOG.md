@@ -120,6 +120,16 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] GPS receiver degraded modes TEST, ALTAID and AIDED, antenna masking in turns, DIFF mode on the A380X - @TCdr
 1. [A32NX/A380X] GPS deselection (MCDU SELECTED NAVAIDS, MFD POSITION/NAVAIDS) with the GPS (IS) DESELECTED message and the FCOM position uncertainty of the IRS/DME/DME, IRS/VOR/DME and IRS only modes - @TCdr
 1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
+1. [A380X/MFD] The default alternate cruise level now follows the A380 FCOM (FL 220 below 200 NM, FL 310 from 200 NM) instead of the A320 rule - @TCdr
+1. [A380X/MFD] The WIND page CRZ tab now has a working SAT entry at the cruise flight level - @TCdr
+1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as in the FCOM, and the stored history winds are kept when the storage key changes - @TCdr
+1. [A380X/MFD] Company wind messages use the FCOM wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
+1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 
 ## 2024.1.0
 

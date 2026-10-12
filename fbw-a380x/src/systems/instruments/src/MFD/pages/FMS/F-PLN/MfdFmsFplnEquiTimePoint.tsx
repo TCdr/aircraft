@@ -10,7 +10,7 @@ import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
 
 import { AbstractMfdPageProps } from '../../../MFD';
-import { FmsPage } from '../../common/FmsPage';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { Footer } from '../../common/Footer';
 import { fcomAt, fcomCentre, fcomRight } from '../../common/FcomLayout';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -70,7 +70,7 @@ const noEtp = '';
  * atmosphere) and the wind entered at that reference; the time from P.POS to the ETP comes from the vertical
  * predictions when available. The ETP is not drawn as a pseudo waypoint on the F-PLN page or the ND.
  */
-export class MfdFmsFplnEquiTimePoint extends FmsPage<MfdFmsFplnEquiTimePointProps> {
+export class MfdFmsFplnEquiTimePoint extends FmsFlightPlanPage<MfdFmsFplnEquiTimePointProps> {
   private readonly references = [new Reference(), new Reference()];
 
   private readonly etpText = Subject.create(noEtp);
