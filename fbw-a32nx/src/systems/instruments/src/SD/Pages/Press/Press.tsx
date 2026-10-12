@@ -10,6 +10,14 @@ import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
 
+import {
+  cabinAltitudeNeedleClass,
+  cabinAltitudePulses,
+  cabinAltitudeTextClass,
+  cabinVsPulses,
+} from './PressIndications';
+import { deltaPClass, deltaPPulses } from '../Crz/DeltaPIndication';
+
 import './Press.scss';
 
 export const PressPage: FC = () => {
@@ -37,21 +45,21 @@ export const PressPage: FC = () => {
   const [flightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
   const [safetyValve] = useSimVar('L:A32NX_PRESS_SAFETY_VALVE_OPEN_PERCENTAGE', 'percentage', 500);
 
-  const [cabinAltTextCss, setCabinAltTextCss] = useState('');
-  const [cabinAltGaugeCss, setCabinAltGaugeCss] = useState('');
-
+  // CAB ALT colour and pulse with the 8800/8600 ft hysteresis (see PressIndications)
+  const displayedCabinAlt = Math.round(cabinAlt / 50) * 50;
+  const [cabinAltPulses, setCabinAltPulses] = useState(false);
   useEffect(() => {
-    if (Math.round(cabinAlt / 50) * 50 >= 8800 && Math.round(cabinAlt / 50) * 50 < 9550) {
-      setCabinAltTextCss('GreenTextPulse');
-      setCabinAltGaugeCss('GreenIndicatorPulse');
-    } else if (Math.round(cabinAlt / 50) * 50 >= 9550) {
-      setCabinAltTextCss('Red');
-      setCabinAltGaugeCss('Red');
-    } else {
-      setCabinAltTextCss('Green');
-      setCabinAltGaugeCss('Green');
-    }
-  }, [cabinAlt]);
+    setCabinAltPulses((wasPulsing) => cabinAltitudePulses(displayedCabinAlt, wasPulsing));
+  }, [displayedCabinAlt]);
+  const cabinAltTextCss = cabinAltitudeTextClass(displayedCabinAlt, cabinAltPulses);
+  const cabinAltGaugeCss = cabinAltitudeNeedleClass(displayedCabinAlt);
+
+  // Delta P digital value: pulses above 1.5 PSI (resets at 1 PSI) in phase 7, as on the CRUISE page (DeltaPIndication)
+  const [deltaPPulsing, setDeltaPPulsing] = useState(false);
+  useEffect(() => {
+    setDeltaPPulsing((wasPulsing) => deltaPPulses(deltaPsi, flightPhase, wasPulsing));
+  }, [deltaPsi, flightPhase]);
+  const deltaPCss = deltaPClass(deltaPsi, deltaPPulsing);
 
   const deltaPress = splitDecimals(MathUtils.clamp(deltaPsi, -9.9, 9.9));
   // TODO: SDAC logic missing. Delta pressure is not available when the SDAC indication is not valid.
@@ -81,25 +89,13 @@ export const PressPage: FC = () => {
         <text className="Medium Center Cyan" x={dpx - 5} y="100">
           PSI
         </text>
-        <text
-          className={`Huge End ${deltaPsi < -0.4 || deltaPsi >= 8.5 ? 'Amber' : 'Green'} ${deltaPressNotAvail ? 'hide' : 'show'}`}
-          x={dpx + 38}
-          y={y + 25}
-        >
+        <text className={`Huge End ${deltaPCss} ${deltaPressNotAvail ? 'hide' : 'show'}`} x={dpx + 38} y={y + 25}>
           {deltaPress[0]}
         </text>
-        <text
-          className={`Huge End ${deltaPsi < -0.4 || deltaPsi >= 8.5 ? 'Amber' : 'Green'} ${deltaPressNotAvail ? 'hide' : 'show'}`}
-          x={dpx + 53}
-          y={y + 25}
-        >
+        <text className={`Huge End ${deltaPCss} ${deltaPressNotAvail ? 'hide' : 'show'}`} x={dpx + 53} y={y + 25}>
           .
         </text>
-        <text
-          className={`Standard End ${deltaPsi < -0.4 || deltaPsi >= 8.5 ? 'Amber' : 'Green'} ${deltaPressNotAvail ? 'hide' : 'show'}`}
-          x={dpx + 63}
-          y={y + 25}
-        >
+        <text className={`Standard End ${deltaPCss} ${deltaPressNotAvail ? 'hide' : 'show'}`} x={dpx + 63} y={y + 25}>
           {deltaPress[1]}
         </text>
         <text className={`Standard End Amber ${deltaPressNotAvail ? 'show' : 'hide'}`} x={dpx + 53} y={y + 25}>
@@ -304,6 +300,12 @@ const CabinVerticalSpeedComponent: FC<CabinVerticalSpeedComponentType> = ({ vsx,
   const arincCabinVs = useArinc429Var(`L:A32NX_PRESS_CPC_${activeCpc}_CABIN_VS`, 500);
   const [manCabinVs] = useSimVar('L:A32NX_PRESS_MAN_CABIN_VS', 'feet per minute', 500);
   const cabinVs = arincCabinVs.isNormalOperation() ? arincCabinVs.value : manCabinVs;
+  // V/S digits pulse above 1750 ft/min until back at 1650 ft/min; the needle does not pulse (see PressIndications)
+  const displayedCabinVs = Math.round(cabinVs / 50) * 50;
+  const [cabinVsPulsing, setCabinVsPulsing] = useState(false);
+  useEffect(() => {
+    setCabinVsPulsing((wasPulsing) => cabinVsPulses(displayedCabinVs, wasPulsing));
+  }, [displayedCabinVs]);
 
   return (
     <>
@@ -314,11 +316,7 @@ const CabinVerticalSpeedComponent: FC<CabinVerticalSpeedComponentType> = ({ vsx,
         <text className="Medium Center Cyan" x={vsx + 20} y="100">
           FT/MIN
         </text>
-        <text
-          className={`Huge End ${Math.abs(Math.round(cabinVs / 50) * 50) > 1750 ? 'GreenTextPulse' : 'Green'}`}
-          x={vsx + 85}
-          y={y + 5}
-        >
+        <text className={`Huge End ${cabinVsPulsing ? 'GreenTextPulse' : 'Green'}`} x={vsx + 85} y={y + 5}>
           {Math.round(MathUtils.clamp(cabinVs, -6350, 6350) / 50) * 50}
         </text>
         <GaugeComponent
@@ -400,7 +398,7 @@ const CabinVerticalSpeedComponent: FC<CabinVerticalSpeedComponentType> = ({ vsx,
             radius={radius}
             startAngle={180}
             endAngle={0}
-            className={`GaugeIndicator ${Math.abs(Math.round(cabinVs / 50) * 50) > 1750 ? 'GreenIndicatorPulse' : ''}`}
+            className="GaugeIndicator"
             indicator
           />
         </GaugeComponent>

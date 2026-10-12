@@ -3,9 +3,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, useState, useEffect } from 'react';
+import React, { FC, useState, useEffect, useRef } from 'react';
 import { Arc, Needle } from '@instruments/common/gauges';
-import { usePersistentSetting, useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { usePersistentSetting, useSimVar, useUpdate } from '@flybywiresim/fbw-sdk-react';
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
@@ -23,6 +23,9 @@ import {
   oilPressureIsRed,
   oilPressurePulses,
   oilQuantityPulses,
+  oilTemperatureAdvisorySeconds,
+  oilTemperatureAdvisoryTimeExceeded,
+  oilTemperatureClassName,
 } from './EngOilIndications';
 
 export const EngPage: FC = () => {
@@ -317,13 +320,21 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
   const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${engineNumber}`, 'number', 500);
 
   const [engineOilTemperature] = useSimVar(`GENERAL ENG OIL TEMPERATURE:${engineNumber}`, 'celsius', 250);
-  const OIL_TEMP_LOW_TAKEOFF = 38;
-  const OIL_TEMP_HIGH_ADVISORY = 140;
-  const OIL_TEMP_VHIGH_LIMIT = 155;
   const displayedEngineOilTemperature = Math.round(engineOilTemperature / 5) * 5; // Engine oil temperature has a step of 5
-  const [tempAmber, setTempAmber] = useState(false);
-  const [shouldTemperaturePulse, setShouldTemperaturePulse] = useState(false);
-  const [tempBeenAboveAdvisory, setTempBeenAboveAdvisory] = useState(false);
+  // The time at or above the 140 °C advisory, timed on every SD update (see oilTemperatureAdvisorySeconds). A ref, so
+  // that only the change of the 15 min flag re-renders the page.
+  const oilTemperatureSecondsAboveAdvisory = useRef(0);
+  const [oilTemperatureAdvisoryTimeIsExceeded, setOilTemperatureAdvisoryTimeIsExceeded] = useState(false);
+  useUpdate((deltaTime) => {
+    oilTemperatureSecondsAboveAdvisory.current = oilTemperatureAdvisorySeconds(
+      oilTemperatureSecondsAboveAdvisory.current,
+      engineOilTemperature,
+      deltaTime / 1000,
+    );
+    setOilTemperatureAdvisoryTimeIsExceeded(
+      oilTemperatureAdvisoryTimeExceeded(oilTemperatureSecondsAboveAdvisory.current),
+    );
+  });
 
   // The N1 and N2 vibrations of the systems WASM (see EngVibration): MSFS has a single vibration value per engine.
   const [n1Vibration] = useSimVar(`L:A32NX_ENGINE_${engineNumber}_N1_VIBRATION`, 'number', 250);
@@ -333,48 +344,11 @@ const EngineColumn = ({ x, y, engineNumber, fadecOn }: ComponentPositionProps) =
   const activeVisibility = fadecOn ? 'visible' : 'hidden';
   const inactiveVisibility = fadecOn ? 'hidden' : 'visible';
 
-  useEffect(() => {
-    if (displayedEngineOilTemperature >= OIL_TEMP_HIGH_ADVISORY) {
-      setShouldTemperaturePulse(true);
-    } else if (!tempBeenAboveAdvisory) {
-      setShouldTemperaturePulse(false);
-    }
-
-    if (displayedEngineOilTemperature >= OIL_TEMP_VHIGH_LIMIT || engineOilTemperature < OIL_TEMP_LOW_TAKEOFF) {
-      setTempAmber(true);
-    } else {
-      setTempAmber(false);
-    }
-
-    let timeout: ReturnType<typeof setTimeout>;
-    if (engineOilTemperature > OIL_TEMP_HIGH_ADVISORY) {
-      timeout = setTimeout(() => {
-        if (engineOilTemperature > OIL_TEMP_HIGH_ADVISORY) {
-          setTempBeenAboveAdvisory(true);
-        }
-      }, 900_000);
-    } else {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-      setTempBeenAboveAdvisory(false);
-    }
-
-    return () => clearTimeout(timeout);
-  }, [engineOilTemperature]);
-
-  useEffect(() => {
-    if (tempBeenAboveAdvisory) {
-      setTempAmber(true);
-    }
-  }, [tempBeenAboveAdvisory]);
-
-  let textClassName = 'FillGreen';
-  if (tempAmber) {
-    textClassName = 'FillAmber';
-  } else if (shouldTemperaturePulse) {
-    textClassName = 'FillPulse';
-  }
+  const textClassName = oilTemperatureClassName(
+    displayedEngineOilTemperature,
+    engineOilTemperature,
+    oilTemperatureAdvisoryTimeIsExceeded,
+  );
 
   return (
     <SvgGroup x={x} y={y}>

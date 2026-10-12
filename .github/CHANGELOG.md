@@ -216,6 +216,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FIRE] An AGENT discharge (or the automatic APU discharge) can also put out a fire set from the MSFS failures menu, which then ends the ENG/APU FIRE warning - @TCdr
 1. [A380X/MODEL] An engine fire shows flames at the exhaust of the engine on fire (engines 1 to 4) and an APU fire shows smoke at the APU exhaust, until the fire is out (nothing during a FIRE TEST); an engine failed from the MSFS failures menu shows smoke; an engine oil leak (flyPad failure) shows smoke while the oil flows out; the stock MSFS engine fire, engine damage and oil leak effects are turned off so they do not show twice; the engine 2 effects (heat haze, contrails, fire) no longer vanish at the medium model detail (LOD01) - @TCdr
 1. [EFB] Settings > Sim Options: new "Situation Visual Effects (Engine and APU Fire, Engine Damage, Oil Leak)" switch, on by default, to turn the fire, smoke, engine damage and oil leak effects off - @TCdr
+1. [A32NX/ECAM] F/CTL DIRECT LAW no longer asks for MAN PITCH TRIM USE when the green and yellow hydraulic systems are both at low pressure (the trim cannot move), as in the FCOM - @TCdr
+1. [A32NX/GPWS] After a mode 2 PULL UP, leaving the warning envelope keeps the TERRAIN aural and the red PULL UP lights on until the aircraft has climbed 300 ft (45 s at most), as in the FCOM - @TCdr
+1. [A32NX/SD] CAB PRESS page: the CAB ALT value pulses from 8800 ft until back at 8600 ft, the V/S value pulses above 1750 ft/min until back at 1650 ft/min, delta P pulses above 1.5 PSI in approach, and the needles no longer pulse, as in the FCOM - @TCdr
+1. [A32NX/SD] ENGINE page: the oil temperature now turns amber after 15 min between 140 and 155 °C (the timer restarted at every temperature change and never ran out) - @TCdr
+1. [A32NX/COCKPIT] The RAT & EMER GEN MAN ON pushbutton tooltip no longer says "(Inop.)": the pushbutton extends the RAT and couples the emergency generator - @TCdr
 
 ## 2024.1.0
 

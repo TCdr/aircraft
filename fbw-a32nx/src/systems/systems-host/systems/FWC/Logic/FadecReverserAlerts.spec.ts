@@ -4,7 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { EwdMessageCodeOrder } from '../../../../shared/src/EwdMessages';
+import { EwdMessageCodeOrder, formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 import {
   ThrustLeverRating,
@@ -87,13 +87,27 @@ describe('ENG THR LEVER FAULT', () => {
     ]);
   });
 
-  it('shows ENG AT IDLE and the lever line when the FADEC selects idle', () => {
+  it('shows ENG AT IDLE and the lever line when the FADEC selects idle in flight', () => {
     expect(thrustLeverFaultLines({ ...inputs, flightPhase: APPROACH, rating: ThrustLeverRating.Idle })).toEqual([
       0, 1, 2,
     ]);
+  });
+
+  /* l.81826-81829: "On the ground: ENG (AFFECTED) IDLE POWER ONLY", THR LEVER (AFFECTED) IDLE */
+  it('shows ENG IDLE POWER ONLY (not ENG AT IDLE) and the lever line on the ground', () => {
+    expect(thrustLeverFaultLines({ ...inputs, flightPhase: TAXI, rating: ThrustLeverRating.Idle })).toEqual([0, 8, 2]);
     expect(
       thrustLeverFaultLines({ ...inputs, flightPhase: TAXI, rating: ThrustLeverRating.Idle, thrLeverIdle: true }),
-    ).toEqual([0, 1]);
+    ).toEqual([0, 8]);
+    expect(
+      thrustLeverFaultLines({ ...inputs, flightPhase: AFTER_TOUCHDOWN, rating: ThrustLeverRating.Normal }),
+    ).toEqual([0, 8, 2]);
+    // line 8 of the codes of ENG 1 and ENG 2 THR LEVER FAULT
+    expect(formatEwdMessages(['770053109'])[0]).toContain('ENG 1 IDLE POWER ONLY');
+    expect(formatEwdMessages(['770053209'])[0]).toContain('ENG 2 IDLE POWER ONLY');
+    const pseudoFwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+    expect(pseudoFwc).toContain("'770053109'");
+    expect(pseudoFwc).toContain("'770053209'");
   });
 
   it('puts WHEN SLATS OUT: ENG AT IDLE, REVERSER and ENG THR on the STATUS', () => {

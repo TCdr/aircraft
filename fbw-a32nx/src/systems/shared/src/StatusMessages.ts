@@ -22,6 +22,15 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400002', { part: StatusPart.Limitation, text: 'MIN SPD....VLS+10/G DOT' }],
   ['700400003', { part: StatusPart.Limitation, text: 'MANEUVER WITH CARE' }],
   ['700400004', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  // "If REV unlocked" (l.81172-81173, 81205-81214), see FWC/Logic/EngineFailAlerts engineShutDownStatus; MAX SPEED
+  // 300/.78 is also the STATUS of REVERSE UNLOCKED (FWC/Logic/FadecReverserAlerts)
+  ['700400058', { part: StatusPart.Limitation, text: 'MAX SPEED.......300/.78' }],
+  ['700500051', { part: StatusPart.Condition, text: 'APPR PROC:' }],
+  ['700500052', { part: StatusPart.Condition, text: 'IF BUFFET:' }],
+  ['700400059', { part: StatusPart.Limitation, text: 'FOR LDG......USE FLAP 3' }],
+  ['700400060', { part: StatusPart.Limitation, text: 'GPWS LDG FLAP 3......ON' }],
+  ['700400061', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
+  ['700400062', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
   ['700500002', { part: StatusPart.Condition, text: 'IF PERF PERMITS:' }],
   ['700400005', { part: StatusPart.Limitation, text: 'X BLEED...........OPEN' }],
   ['700500003', { part: StatusPart.Condition, text: 'IF NO ENG 1 DAMAGE:' }],
@@ -32,7 +41,7 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['800400001', { part: StatusPart.Limitation, text: 'ENG 1 WINDMILL START ONLY' }],
   ['800400002', { part: StatusPart.Limitation, text: 'ENG 2 WINDMILL START ONLY' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG STATUS of FADEC FAULT l.79659-79660, THR LEVER DISAGREE l.81738-81771, THR LEVER FAULT
-  // l.81866-81874, ENG SHUT DOWN "If REV unlocked" l.81172-81173), lines by FWC/Logic/FadecReverserAlerts
+  // l.81866-81874), lines by FWC/Logic/FadecReverserAlerts
   ['700400050', { part: StatusPart.Limitation, text: 'THR LVR 1 NOT ABV IDLE' }],
   ['700400051', { part: StatusPart.Limitation, text: 'THR LVR 2 NOT ABV IDLE' }],
   ['700500050', { part: StatusPart.Condition, text: 'WHEN SLATS OUT:' }],
@@ -42,7 +51,6 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400055', { part: StatusPart.Limitation, text: 'ENG 2 AVAIL MAX PWR:CLB' }],
   ['700400056', { part: StatusPart.Limitation, text: 'GND ENG 1 MAX PWR: IDLE' }],
   ['700400057', { part: StatusPart.Limitation, text: 'GND ENG 2 MAX PWR: IDLE' }],
-  ['700400058', { part: StatusPart.Limitation, text: 'MAX SPEED.......300/.78' }],
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
   ['280200001', { part: StatusPart.Information, text: 'CTR TK USABLE BY GRAVITY' }],

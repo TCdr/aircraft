@@ -948,8 +948,59 @@ fn mode_2_a_test() {
     assert!(test_bed.is_warning_light_on());
 
     // Exiting warning area due to lowering terrain. Now at 1000ft, since otherwise the Mode 4 warning would trigger.
+    // FCOM DSC-34-SURV-40-20: after leaving the warning conditions "TERRAIN" is repeated and the PULL UP red lights
+    // stay on (altitude gain hold).
     test_bed = test_bed.terrain_height_of(Length::new::<foot>(1500.0));
     test_bed.run_with_delta(Duration::from_millis(2_000));
+    assert!(test_bed.get_audio_on());
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
+    assert!(test_bed.is_warning_light_on());
+
+    // The hold ends once the aircraft has gained 300 ft.
+    test_bed = test_bed.altitude_of(Length::new::<foot>(2_810.0));
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    test_bed.assert_no_warning_active();
+}
+
+#[test]
+fn mode_2_a_terrain_hold_after_pull_up_ends_after_45_s_without_altitude_gain() {
+    let mut test_bed = test_bed_with()
+        .altitude_of(Length::new::<foot>(2500.0))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
+        .cas_of(Velocity::new::<knot>(310.0))
+        .and()
+        .powered();
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    test_bed.run_with_delta(Duration::from_millis(70_000));
+    test_bed.assert_no_warning_active();
+
+    // Closure rate into the envelope: TERRAIN TERRAIN, then PULL UP (same profile as mode_2_a_test).
+    test_bed = test_bed.terrain_height_of(Length::new::<foot>(1000.0));
+    test_bed.run_with_delta(Duration::from_millis(3_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
+    test_bed = test_bed.cas_of(Velocity::new::<knot>(230.0));
+    test_bed = test_bed.terrain_height_of(Length::new::<foot>(1125.0));
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    test_bed = test_bed.terrain_height_of(Length::new::<foot>(1500.0));
+    test_bed.run_with_delta(Duration::from_millis(3_000));
+    test_bed = test_bed.terrain_height_of(Length::new::<foot>(1700.0));
+    test_bed.run_with_delta(Duration::from_millis(5_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
+
+    // Out of the envelope, no altitude gain: TERRAIN and the PULL UP light are held...
+    test_bed = test_bed.terrain_height_of(Length::new::<foot>(1500.0));
+    for _ in 0..40 {
+        test_bed.run_with_delta(Duration::from_millis(1_000));
+    }
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
+    assert!(test_bed.is_warning_light_on());
+
+    // ...for at most 45 s.
+    for _ in 0..7 {
+        test_bed.run_with_delta(Duration::from_millis(1_000));
+    }
     test_bed.assert_no_warning_active();
 }
 
