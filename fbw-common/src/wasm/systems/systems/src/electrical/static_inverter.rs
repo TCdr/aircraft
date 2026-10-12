@@ -10,7 +10,9 @@ use super::{
 use crate::{
     failures::{Failure, FailureType},
     shared::{ConsumePower, PowerConsumptionReport},
-    simulation::{InitContext, SimulationElement, SimulatorWriter, UpdateContext},
+    simulation::{
+        InitContext, SimulationElement, SimulatorWriter, UpdateContext, VariableIdentifier, Write,
+    },
 };
 
 pub struct StaticInverter {
@@ -20,6 +22,8 @@ pub struct StaticInverter {
     output_potential: ElectricPotential,
     output_frequency: Frequency,
     failure: Failure,
+    fault_id: VariableIdentifier,
+    monitoring_is_powered: bool,
 }
 impl StaticInverter {
     pub fn new(context: &mut InitContext) -> StaticInverter {
@@ -30,7 +34,21 @@ impl StaticInverter {
             output_potential: ElectricPotential::new::<volt>(0.),
             output_frequency: Frequency::new::<hertz>(0.),
             failure: Failure::new(FailureType::StaticInverter),
+            fault_id: context.get_identifier("ELEC_STAT_INV_FAULT".to_owned()),
+            monitoring_is_powered: false,
         }
+    }
+
+    /// The aircraft tells whether the monitoring of the inverter is powered. An aircraft which
+    /// never calls this gets no static inverter fault output.
+    pub fn update_monitoring(&mut self, monitoring_is_powered: bool) {
+        self.monitoring_is_powered = monitoring_is_powered;
+    }
+
+    /// The fault output of the inverter (A320 ELEC STAT INV FAULT): a failed inverter with its
+    /// monitoring powered, also while it does not convert.
+    pub fn has_fault(&self) -> bool {
+        self.monitoring_is_powered && self.failure.is_active()
     }
 }
 provide_potential!(StaticInverter, (110.0..=120.0));
@@ -65,6 +83,7 @@ impl SimulationElement for StaticInverter {
 
     fn write(&self, writer: &mut SimulatorWriter) {
         self.writer.write_alternating(self, writer);
+        writer.write(&self.fault_id, self.has_fault());
     }
 
     fn consume_power_in_converters<T: ConsumePower>(
@@ -150,6 +169,10 @@ mod static_inverter_tests {
         fn static_inverter_is_powered(&self) -> bool {
             self.query_elec(|a, elec| a.static_inverter_is_powered(elec))
         }
+
+        fn has_fault(&mut self) -> bool {
+            self.read_by_name("ELEC_STAT_INV_FAULT")
+        }
     }
     impl TestBed for StaticInverterTestBed {
         type Aircraft = TestAircraft;
@@ -169,6 +192,7 @@ mod static_inverter_tests {
         static_inverter: StaticInverter,
         consumer: PowerConsumer,
         static_inverter_consumption: Power,
+        monitoring_is_powered: bool,
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
@@ -181,7 +205,12 @@ mod static_inverter_tests {
                 consumer: PowerConsumer::from(ElectricalBusType::AlternatingCurrentEssential),
                 static_inverter: StaticInverter::new(context),
                 static_inverter_consumption: Power::new::<watt>(0.),
+                monitoring_is_powered: false,
             }
+        }
+
+        fn power_monitoring(&mut self, powered: bool) {
+            self.monitoring_is_powered = powered;
         }
 
         fn with_powered_static_inverter(mut self) -> Self {
@@ -212,6 +241,8 @@ mod static_inverter_tests {
             _: &UpdateContext,
             electricity: &mut Electricity,
         ) {
+            self.static_inverter
+                .update_monitoring(self.monitoring_is_powered);
             electricity.supplied_by(&self.electricity_source);
             electricity.flow(&self.electricity_source, &self.static_inverter);
             electricity.transform_in(&self.static_inverter);
@@ -234,6 +265,37 @@ mod static_inverter_tests {
             self.static_inverter_consumption =
                 report.total_consumption_of(PotentialOrigin::StaticInverter);
         }
+    }
+
+    #[test]
+    fn a_failed_inverter_reports_its_fault_while_its_monitoring_is_powered_even_when_idle() {
+        let mut test_bed = StaticInverterTestBed::with_unpowered_static_inverter();
+        test_bed.command(|a| a.power_monitoring(true));
+        test_bed.fail(FailureType::StaticInverter);
+
+        test_bed.run();
+
+        assert!(test_bed.has_fault());
+    }
+
+    #[test]
+    fn a_failed_inverter_without_monitoring_power_reports_no_fault() {
+        let mut test_bed = StaticInverterTestBed::with_powered_static_inverter();
+        test_bed.fail(FailureType::StaticInverter);
+
+        test_bed.run();
+
+        assert!(!test_bed.has_fault());
+    }
+
+    #[test]
+    fn a_healthy_inverter_reports_no_fault() {
+        let mut test_bed = StaticInverterTestBed::with_powered_static_inverter();
+        test_bed.command(|a| a.power_monitoring(true));
+
+        test_bed.run();
+
+        assert!(!test_bed.has_fault());
     }
 
     #[test]
