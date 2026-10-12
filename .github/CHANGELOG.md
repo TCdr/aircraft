@@ -271,6 +271,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OXY] The cabin oxygen masks drop automatically when the cabin altitude goes above 13 800 ft - @TCdr
 1. [A380X/FWS] SURV GPWS 1(2)(1+2) FAULT alerts; SURV TAWS 1(2)(1+2) FAULT now trigger when the GPWS and the TERR SYS of a system are both failed, instead of the separate GPWS and TERR alerts - @TCdr
 1. [A380X/FWS] AIR ABNORM BLEED CONFIG lines (XBLEED, AIR FLOW, PACK, WING A-ICE) after ENG SHUT DOWN or ENG FIRE - @TCdr
+1. [A380X/FWS] EVAC ACTIVE memo on the EWD while the EVAC COMMAND pb-sw is ON - @TCdr
 
 ## 2024.1.0
 
