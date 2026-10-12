@@ -70,6 +70,20 @@ pub enum FailureType {
     GearActuatorJammed(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
+    /// The normal braking hydraulic equipment of all wheel groups (A380 BCS normal braking)
+    BrakeNormalBraking,
+    /// The alternate braking under brake control system control, all wheel groups (A380 BCS alternate braking)
+    BrakeAlternateBraking,
+    /// The emergency brake control unit (A380 EBCU): no emergency braking
+    BrakeEmergencyBraking,
+    /// The normal mode of the nose wheel steering (A380 normal NWS)
+    NoseWheelSteeringNormal,
+    /// The alternate mode of the nose wheel steering (A380 steering LEHGS)
+    NoseWheelSteeringAlternate,
+    /// The body wheel steering stays centred and locked (A380 BWS)
+    BodyWheelSteering,
+    /// Steering control system n (A380 SCS 1 or 2)
+    SteeringControlSystem(usize),
     // ATA34
     RadioAltimeter(usize),
     RadioAntennaInterrupted(usize),
@@ -77,6 +91,78 @@ pub enum FailureType {
     EnhancedGroundProximityWarningSystemComputer,
     /// The GPS receiver of MMR 1 or 2
     Gps(usize),
+    /// The total pressure (pitot) input of ADR n is erroneous: its airspeed and Mach read low, with a valid status.
+    /// The ADR does not see it; only a comparison with the other air data sources (PRIM monitoring) can detect it.
+    AdrAirspeedErroneous(usize),
+    /// The angle of attack probe of ADR n is erroneous: its angle of attack reads high, with a valid status
+    AdrAngleOfAttackErroneous(usize),
+    // ATA72
+    /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
+    EngineFlameout(usize),
+    /// The core of engine n seizes: no relight while the failure is active (engine::engine_failure)
+    EngineSeizure(usize),
+    // ATA79
+    /// Engine n loses oil overboard: its oil quantity falls, then its oil pressure (engine::oil_failure)
+    EngineOilLeak(usize),
+    /// The oil filter of engine n is clogged: a crew awareness indication (engine::oil_failure)
+    EngineOilFilterClog(usize),
+    /// The oil of engine n is no longer cooled enough: its temperature rises with thrust (engine::oil_failure)
+    EngineOilOverheat(usize),
+    // ATA74
+    /// Igniter A (B) of engine n does not light the engine (engine::engine_start)
+    EngineIgniterA(usize),
+    EngineIgniterB(usize),
+    // ATA80
+    /// The start valve of engine n stays closed (engine::engine_start)
+    EngineStartValveStuckClosed(usize),
+    /// The start valve of engine n stays open (engine::engine_start)
+    EngineStartValveStuckOpen(usize),
+    /// The EGT of engine n overshoots during a start on the ground (engine::engine_start)
+    EngineHotStart(usize),
+    /// The core speed of engine n hangs below idle during a start on the ground (engine::engine_start)
+    EngineHungStart(usize),
+    /// Engine n stalls during a start on the ground (engine::engine_start)
+    EngineStartStall(usize),
+    /// The starter of engine n does not turn the engine (engine::engine_start)
+    EngineStarter(usize),
+    // ATA72 and ATA77: the engine keeps running (engine::engine_malfunction)
+    /// Engine n stalls above a thrust threshold: thrust loss, EGT rise, fluctuating N1 and N2
+    EngineCompressorStall(usize),
+    /// The EGT of engine n is too high, more so at high thrust
+    EngineEgtOvertemperature(usize),
+    /// The N1 and N2 indications of engine n run above their values, more so at high thrust
+    EngineOverspeed(usize),
+    /// The N1 and N2 rotors of engine n vibrate above the advisory at high thrust
+    EngineHighVibration(usize),
+    // ATA73 FADEC and thrust lever (stage A5/B5, see a320_systems / a380_systems engine_control_failure)
+    /// FADEC channel A of engine n is lost
+    FadecChannelA(usize),
+    /// FADEC channel B of engine n is lost
+    FadecChannelB(usize),
+    /// The FADEC of engine n detects a high temperature
+    FadecOverheat(usize),
+    /// The FADEC of engine n cannot communicate via the avionics networks (A380 ENG FADEC FAULT)
+    FadecNetworkLink(usize),
+    /// A FADEC failure of engine n affects the engine control (A380 ENG FADEC SYS FAULT)
+    FadecSystem(usize),
+    /// Both resolvers of thrust lever n are lost (ENG THR LEVER FAULT)
+    ThrustLeverResolvers(usize),
+    /// The two resolvers of thrust lever n disagree (A320 ENG THR LEVER DISAGREE)
+    ThrustLeverResolverDisagree(usize),
+    /// The fuel filter of engine n is clogged: a crew awareness indication (engine::fuel_filter_failure)
+    EngineFuelFilterClog(usize),
+    // ATA78 thrust reversers (engine n)
+    /// The thrust reverser of engine n is failed: it does not deploy
+    ReverserFault(usize),
+    /// The thrust reverser of engine n is unlocked: it leaves its stowed and locked position
+    ReverserUnlocked(usize),
+    /// The thrust reverser of engine n is pressurized (A320) / energized (A380) without a deploy order
+    ReverserPressurized(usize),
+    /// The thrust reverser of engine n is failed locked: it does not unlock (A380 REVERSER LOCKED)
+    ReverserLocked(usize),
+    /// The thrust reverser control system of engine n is failed: the reverser is inoperative (A380
+    /// REVERSER CTL FAULT)
+    ReverserControlFault(usize),
 }
 
 pub struct Failure {

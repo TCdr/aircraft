@@ -74,6 +74,11 @@ use autobrakes::A380AutobrakeController;
 mod gear_secondary_doors;
 mod heading_control_steering;
 use heading_control_steering::HeadingControlFunction;
+mod brake_steer_faults;
+use brake_steer_faults::{
+    A380BrakingControlFaults, A380SteeringControlSystem, NoseWheelSteeringMode,
+    NoseWheelSteeringSupply, PedalBrakingMode,
+};
 
 #[cfg(test)]
 use systems::hydraulic::PressureSwitchState;
@@ -1635,6 +1640,8 @@ impl SimulationElement for A380EhaInhibitPlaceholder {
 pub(super) struct A380Hydraulic {
     eha_backup_inhibit_logic: A380EhaInhibitPlaceholder,
     nose_steering: SteeringActuator,
+    /// GREEN in normal NWS, the steering LEHGS in alternate NWS (A380 FCOM l.80569-80610)
+    nose_wheel_steering_supply: NoseWheelSteeringSupply,
     body_wheel_steering_left: SteeringActuator,
     body_wheel_steering_right: SteeringActuator,
 
@@ -1801,6 +1808,7 @@ impl A380Hydraulic {
                 Pressure::new::<psi>(4000.),
                 true,
             ),
+            nose_wheel_steering_supply: NoseWheelSteeringSupply::new(),
 
             body_wheel_steering_left: SteeringActuator::new(
                 context,
@@ -2155,8 +2163,7 @@ impl A380Hydraulic {
             autobrake_panel,
             lgcius.lgciu1(),
             lgcius.lgciu2(),
-            engines[0],
-            engines[1],
+            engines,
             adirs,
             lgcius,
         );
@@ -2423,8 +2430,7 @@ impl A380Hydraulic {
         autobrake_panel: &A380AutobrakePanel,
         lgciu1: &impl LgciuInterface,
         lgciu2: &impl LgciuInterface,
-        engine1: &impl Engine,
-        engine2: &impl Engine,
+        engines: [&impl Engine; 4],
         adirs: &impl AdirsMeasurementOutputs,
         lgcius: &LandingGearControlInterfaceUnitSet,
     ) {
@@ -2447,9 +2453,15 @@ impl A380Hydraulic {
 
         self.tilting_gears.update(context);
 
+        // A380 FCOM DSC-32-10-40 (a380_fcom.txt l.80569-80572): "In normal NWS: The GREEN system supplies hydraulic
+        // power"; the alternate NWS uses the steering LEHGS. The BWS stays on YELLOW (l.80699).
+        self.nose_wheel_steering_supply.update(
+            self.brake_steer_computer.nose_wheel_steering_mode(),
+            self.green_circuit.system_section(),
+        );
         self.nose_steering.update(
             context,
-            self.yellow_circuit.system_section(),
+            &self.nose_wheel_steering_supply,
             &self.brake_steer_computer,
             &self.pushback_tug,
             &self.bypass_pin,
@@ -2478,8 +2490,7 @@ impl A380Hydraulic {
             lgciu1,
             lgciu2,
             autobrake_panel,
-            engine1,
-            engine2,
+            engines,
             adirs,
             self.left_spoilers.ground_spoilers_are_requested()
                 && self.right_spoilers.ground_spoilers_are_requested(),
@@ -2528,8 +2539,8 @@ impl A380Hydraulic {
             context,
             &self.braking_circuit_norm,
             &self.braking_circuit_altn,
-            engine1,
-            engine2,
+            engines[0],
+            engines[1],
             &self.bypass_pin,
         );
 
@@ -2596,6 +2607,15 @@ impl A380Hydraulic {
     fn update_green_actuators_volume(&mut self) {
         self.green_circuit
             .update_system_actuator_volumes(&mut self.braking_circuit_norm);
+
+        // Normal NWS takes its fluid from GREEN; the steering LEHGS of the alternate NWS has its own reservoir
+        // (A380 FCOM l.80585-80587), not modelled.
+        if self.nose_wheel_steering_supply.is_supplied_by_green() {
+            self.green_circuit
+                .update_system_actuator_volumes(&mut self.nose_steering);
+        } else {
+            self.nose_steering.reset_volumes();
+        }
 
         self.green_circuit
             .update_system_actuator_volumes(self.left_aileron.actuator(
@@ -2751,9 +2771,6 @@ impl A380Hydraulic {
 
         self.yellow_circuit
             .update_system_actuator_volumes(self.flap_system.right_motor());
-
-        self.yellow_circuit
-            .update_system_actuator_volumes(&mut self.nose_steering);
 
         self.yellow_circuit
             .update_system_actuator_volumes(&mut self.body_wheel_steering_left);
@@ -3587,6 +3604,7 @@ impl Display for A380ElectricPumpId {
 struct A380EngineDrivenPumpController {
     low_press_id: VariableIdentifier,
     disconnected_id: VariableIdentifier,
+    windmill_start_id: VariableIdentifier,
 
     is_powered: bool,
     powered_by: Vec<ElectricalBusType>,
@@ -3600,6 +3618,9 @@ struct A380EngineDrivenPumpController {
 
     are_pumps_commanded_disconnected: bool,
 
+    /// The FADEC is starting the engine by windmilling (a380_systems engine_failure.rs)
+    engine_windmill_start: bool,
+
     disconnection_mechanism: EnginePumpDisconnectionClutch,
 }
 impl A380EngineDrivenPumpController {
@@ -3612,6 +3633,8 @@ impl A380EngineDrivenPumpController {
         Self {
             low_press_id: context.get_identifier(format!("HYD_EDPUMP_{}_LOW_PRESS", pump_id)),
             disconnected_id: context.get_identifier(format!("HYD_ENG_{}AB_PUMP_DISC", engine_num)),
+            windmill_start_id: context
+                .get_identifier(format!("ENGINE_{}_WINDMILL_START", engine_num)),
 
             is_powered: false,
             powered_by,
@@ -3626,6 +3649,8 @@ impl A380EngineDrivenPumpController {
             has_overheat_fault: false,
 
             are_pumps_commanded_disconnected: false,
+
+            engine_windmill_start: false,
 
             disconnection_mechanism: EnginePumpDisconnectionClutch::new(match engine_num {
                 1 | 4 => ElectricalBusType::DirectCurrent(2),
@@ -3691,6 +3716,14 @@ impl A380EngineDrivenPumpController {
             should_pressurise_if_powered = false;
         }
 
+        // A380 FCOM DSC-70-80-30-20 (a380_fcom.txt l.112570-112571): "During a windmilling engine
+        // start, the FADEC disconnects both hydraulic pumps in order to increase the relight
+        // envelope." Design choice: both pumps of the engine are depressurised (off-loaded) for the
+        // start; the clutch of the ENG PUMPS DISC pb is not used, it cannot be reconnected in flight.
+        if self.engine_windmill_start {
+            should_pressurise_if_powered = false;
+        }
+
         self.are_pumps_commanded_disconnected = self.are_pumps_commanded_disconnected
             || overhead_panel.engines_edp_disconnected(self.pump_id.into_engine_num());
 
@@ -3734,6 +3767,10 @@ impl SimulationElement for A380EngineDrivenPumpController {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.disconnection_mechanism.accept(visitor);
         visitor.visit(self);
+    }
+
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        self.engine_windmill_start = reader.read(&self.windmill_start_id);
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
@@ -4162,8 +4199,11 @@ impl BodyWheelSteeringController {
         }
     }
 
-    fn update(&mut self, context: &UpdateContext, nose_steering_angle: Angle) {
-        if context.ground_speed().get::<knot>() < Self::MAX_BODY_STEERING_SPEED_ENABLING_KNOT {
+    fn update(&mut self, context: &UpdateContext, nose_steering_angle: Angle, available: bool) {
+        // A failed or uncontrolled BWS stays centred and locked (A380 FCOM l.80696-80698, l.162636)
+        if available
+            && context.ground_speed().get::<knot>() < Self::MAX_BODY_STEERING_SPEED_ENABLING_KNOT
+        {
             self.requested_position = if self.is_left_side {
                 Angle::new::<degree>(interpolation(
                     &Self::NOSE_ANGLE_INPUT_DEGREES,
@@ -4200,10 +4240,11 @@ impl BodyWheelSteeringControl {
         }
     }
 
-    fn update(&mut self, context: &UpdateContext, nose_steering_feedback: Angle) {
-        self.left_controller.update(context, nose_steering_feedback);
+    fn update(&mut self, context: &UpdateContext, nose_steering_feedback: Angle, available: bool) {
+        self.left_controller
+            .update(context, nose_steering_feedback, available);
         self.right_controller
-            .update(context, nose_steering_feedback);
+            .update(context, nose_steering_feedback, available);
     }
 
     fn left_controller(&self) -> &impl SteeringController {
@@ -4301,6 +4342,13 @@ struct A380HydraulicBrakeSteerComputerUnit {
     should_disable_auto_brake_when_retracting: DelayedTrueLogicGate,
     anti_skid_activated: bool,
 
+    /// BCS normal / alternate braking and EBCU faults, and the resulting braking mode of the pedals
+    braking_faults: A380BrakingControlFaults,
+    pedal_braking_mode: PedalBrakingMode,
+    pedal_braking_mode_id: VariableIdentifier,
+    /// SCS 1 and 2: NWS mode and BWS availability
+    steering_control: A380SteeringControlSystem,
+
     tiller_pedal_disconnect: bool,
     tiller_handle_position: Ratio,
     rudder_pedal_position: Ratio,
@@ -4374,6 +4422,11 @@ impl A380HydraulicBrakeSteerComputerUnit {
             ),
             anti_skid_activated: true,
 
+            braking_faults: A380BrakingControlFaults::new(context),
+            pedal_braking_mode: PedalBrakingMode::Normal,
+            pedal_braking_mode_id: context.get_identifier("BRAKES_PEDAL_BRAKING_MODE".to_owned()),
+            steering_control: A380SteeringControlSystem::new(context),
+
             tiller_pedal_disconnect: false,
             tiller_handle_position: Ratio::new::<ratio>(0.),
             rudder_pedal_position: Ratio::new::<ratio>(0.),
@@ -4403,8 +4456,8 @@ impl A380HydraulicBrakeSteerComputerUnit {
     }
 
     fn allow_autobrake_arming(&self, adirs: &impl AdirsMeasurementOutputs) -> bool {
-        self.anti_skid_activated
-            && self.normal_brakes_available
+        // The model applies the autobrake on the normal brakes only: A-SKID on, normal braking available and working
+        self.pedal_braking_mode == PedalBrakingMode::Normal
             && (adirs.is_fully_aligned(1) || adirs.is_fully_aligned(2) || adirs.is_fully_aligned(3))
     }
 
@@ -4440,7 +4493,9 @@ impl A380HydraulicBrakeSteerComputerUnit {
                 // Else manual action limited to a higher max nominal pressure
                 2538.
             }
-        } else if !self.anti_skid_activated {
+        } else if self.pedal_braking_mode == PedalBrakingMode::Emergency {
+            // Emergency braking (EBCU, no A-SKID): A-SKID sw OFF, or the BCS lost normal and alternate braking.
+            // The FCOM limits are 1 000 psi at landing and 1 700 psi for taxi-out and take-off (l.80043-80045).
             1160.
         } else {
             // Else if any manual braking we use standard limit
@@ -4460,25 +4515,29 @@ impl A380HydraulicBrakeSteerComputerUnit {
         lgciu1: &impl LgciuInterface,
         lgciu2: &impl LgciuInterface,
         autobrake_panel: &A380AutobrakePanel,
-        engine1: &impl Engine,
-        engine2: &impl Engine,
+        engines: [&impl Engine; 4],
         adirs: &impl AdirsMeasurementOutputs,
         placeholder_ground_spoilers_out: bool,
         nose_steering_feedback: Angle,
     ) {
-        // TODO split steering part from braking part in two different computers instances
-        self.update_steering_demands(
-            context,
-            adirs,
-            lgciu1,
-            engine1,
-            engine2,
-            nose_steering_feedback,
+        let any_engine_running = engines.iter().any(|engine| !engine.oil_pressure_is_low());
+        self.steering_control.update(
+            current_pressure.is_pressure_switch_pressurised(),
+            any_engine_running,
         );
-        self.body_wheel_steering_control
-            .update(context, nose_steering_feedback);
+
+        // TODO split steering part from braking part in two different computers instances
+        self.update_steering_demands(context, adirs, lgciu1, nose_steering_feedback);
+        self.body_wheel_steering_control.update(
+            context,
+            nose_steering_feedback,
+            self.steering_control.is_body_wheel_steering_available(),
+        );
 
         self.update_normal_braking_availability(current_pressure.pressure());
+        self.pedal_braking_mode = self
+            .braking_faults
+            .pedal_braking_mode(self.normal_brakes_available, self.anti_skid_activated);
         self.update_brake_pressure_limitation();
 
         self.autobrake_controller.update(
@@ -4500,7 +4559,10 @@ impl A380HydraulicBrakeSteerComputerUnit {
             .update(context, is_in_flight_gear_lever_up);
 
         if is_in_flight_gear_lever_up {
-            if self.should_disable_auto_brake_when_retracting.output() {
+            // Retraction braking is a normal braking function (A380 FCOM l.78871-78872)
+            if self.should_disable_auto_brake_when_retracting.output()
+                || self.braking_faults.normal_braking_failed()
+            {
                 self.norm_brake_outputs.set_no_demands();
             } else {
                 // Slight brake pressure to stop the spinning wheels (have no pressure data available yet, 0.2 is random one)
@@ -4510,9 +4572,8 @@ impl A380HydraulicBrakeSteerComputerUnit {
 
             self.alternate_brake_outputs.set_no_demands();
         } else {
-            let green_used_for_brakes = self.normal_brakes_available
-                && self.anti_skid_activated
-                && !self.parking_brake_demand;
+            let green_used_for_brakes =
+                self.pedal_braking_mode == PedalBrakingMode::Normal && !self.parking_brake_demand;
 
             if green_used_for_brakes {
                 // Final output on normal brakes is max(pilot demand , autobrake demand) to allow pilot override autobrake demand
@@ -4528,20 +4589,26 @@ impl A380HydraulicBrakeSteerComputerUnit {
                 self.norm_brake_outputs.set_no_demands();
 
                 if !self.parking_brake_demand {
-                    // Normal braking but using alternate circuit
-                    self.alternate_brake_outputs.set_brake_demands(
-                        self.left_brake_pilot_input,
-                        self.right_brake_pilot_input,
-                    );
+                    if self.pedal_braking_mode == PedalBrakingMode::None {
+                        // BRAKES PEDAL BRAKING FAULT: "Pedal braking is not available" (A380 FCOM l.160552)
+                        self.alternate_brake_outputs.set_no_demands();
+                    } else {
+                        // Alternate or emergency braking on the alternate circuit
+                        self.alternate_brake_outputs.set_brake_demands(
+                            self.left_brake_pilot_input,
+                            self.right_brake_pilot_input,
+                        );
+                    }
                 } else {
                     // Else we just use parking brake
                     self.alternate_brake_outputs.set_max_demands();
 
                     // Special case: parking brake on but yellow can't provide enough brakes: green are allowed to brake for emergency
-                    if alternate_circuit.left_brake_pressure().get::<psi>()
-                        < Self::MIN_PRESSURE_PARK_BRAKE_EMERGENCY
-                        || alternate_circuit.right_brake_pressure().get::<psi>()
+                    if !self.braking_faults.normal_braking_failed()
+                        && (alternate_circuit.left_brake_pressure().get::<psi>()
                             < Self::MIN_PRESSURE_PARK_BRAKE_EMERGENCY
+                            || alternate_circuit.right_brake_pressure().get::<psi>()
+                                < Self::MIN_PRESSURE_PARK_BRAKE_EMERGENCY)
                     {
                         self.norm_brake_outputs.set_brake_demands(
                             self.left_brake_pilot_input,
@@ -4558,8 +4625,6 @@ impl A380HydraulicBrakeSteerComputerUnit {
         context: &UpdateContext,
         adirs: &impl AdirsMeasurementOutputs,
         lgciu1: &impl LgciuInterface,
-        engine1: &impl Engine,
-        engine2: &impl Engine,
         nose_steering_feedback: Angle,
     ) {
         self.pedal_steering_limiter
@@ -4607,10 +4672,11 @@ impl A380HydraulicBrakeSteerComputerUnit {
             nose_steering_feedback,
         );
 
-        let is_both_engine_low_oil_pressure =
-            engine1.oil_pressure_is_low() && engine2.oil_pressure_is_low();
-
-        self.final_steering_position_request = if !is_both_engine_low_oil_pressure
+        // Without NWS (all engines shut down, both NWS modes or both SCS failed) the SCS commands nothing and the nose
+        // wheels caster ("the nose landing gear is free to caster", A380 FCOM l.163025-163027).
+        let nose_wheel_steering_available =
+            self.steering_control.nose_wheel_steering_mode() != NoseWheelSteeringMode::Off;
+        self.final_steering_position_request = if nose_wheel_steering_available
             && self.anti_skid_activated
             && lgciu1.nose_gear_compressed(false)
         {
@@ -4647,11 +4713,24 @@ impl A380HydraulicBrakeSteerComputerUnit {
     fn should_pressurise_for_body_steering(&self) -> bool {
         self.body_wheel_steering_control.is_requesting_steering()
     }
+
+    fn nose_wheel_steering_mode(&self) -> NoseWheelSteeringMode {
+        self.steering_control.nose_wheel_steering_mode()
+    }
 }
 impl SimulationElement for A380HydraulicBrakeSteerComputerUnit {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.autobrake_controller.accept(visitor);
+        self.braking_faults.accept(visitor);
+        self.steering_control.accept(visitor);
         visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(
+            &self.pedal_braking_mode_id,
+            f64::from(self.pedal_braking_mode),
+        );
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {
@@ -7712,7 +7791,7 @@ mod tests {
                 self.read_by_name("HYD_GREEN_AUXILIARY_1_SECTION_PRESSURE")
             }
 
-            fn _get_yellow_reservoir_volume(&mut self) -> Volume {
+            fn get_yellow_reservoir_volume(&mut self) -> Volume {
                 self.read_by_name("HYD_YELLOW_RESERVOIR_LEVEL")
             }
 
@@ -7756,7 +7835,7 @@ mod tests {
                 self.read_by_name("HYD_BRAKE_NORM_RIGHT_PRESS")
             }
 
-            fn _get_brake_yellow_accumulator_pressure(&mut self) -> Pressure {
+            fn get_brake_yellow_accumulator_pressure(&mut self) -> Pressure {
                 self.read_by_name("HYD_BRAKE_ALTN_ACC_PRESS")
             }
 
@@ -8386,6 +8465,28 @@ mod tests {
                 self
             }
 
+            /// A runway and a runway exit selected on the airport map (OANS), in metres
+            fn set_btv_runway_and_exit(mut self) -> Self {
+                self.write_arinc429_by_name("OANS_RWY_LENGTH", 4500., SignStatus::NormalOperation);
+                self.write_arinc429_by_name(
+                    "OANS_BTV_REQ_STOPPING_DISTANCE",
+                    2000.,
+                    SignStatus::NormalOperation,
+                );
+                self.write_arinc429_by_name(
+                    "OANS_BTV_REMAINING_DIST_TO_EXIT",
+                    2000.,
+                    SignStatus::NormalOperation,
+                );
+                self
+            }
+
+            /// An ECAM alert lists BTV in STATUS INOP SYS (FWS, L:A32NX_FWC_1_BTV_INOP)
+            fn set_fws_btv_inop(mut self, inop: bool) -> Self {
+                self.write_by_name("FWC_1_BTV_INOP", inop);
+                self
+            }
+
             fn set_autobrake_low(mut self) -> Self {
                 self.write_by_name("AUTOBRAKES_SELECTED_MODE", 2.);
                 self
@@ -8728,6 +8829,34 @@ mod tests {
                 self.write_by_name("RIGHT_ELEV_BLUE_COMMANDED_POSITION", 17.);
                 self.write_by_name("LEFT_ELEV_GREEN_COMMANDED_POSITION", 17.);
                 self.write_by_name("RIGHT_ELEV_YELLOW_COMMANDED_POSITION", 17.);
+                self
+            }
+
+            /// Charges the yellow brake accumulator with the yellow electric pump A, then stops the
+            /// pump. The accumulator starts empty in 1 % of the test runs (empty after maintenance,
+            /// BrakeAccumulatorCharacteristics): a test that relies on its stored pressure calls this
+            /// first, like the A320 test bed (FBW #7794).
+            fn load_brake_accumulator(mut self) -> Self {
+                // Design choice: "charged" is 90 % of the regulated pressure; the accumulator only
+                // needs to hold enough for the brake applications of the test.
+                let charged_pressure_psi =
+                    0.9 * A380HydraulicCircuitFactory::HYDRAULIC_TARGET_PRESSURE_PSI;
+                let mut number_of_loops = 0;
+                while self.get_brake_yellow_accumulator_pressure().get::<psi>()
+                    <= charged_pressure_psi
+                {
+                    self = self
+                        .set_yellow_e_pump_a(true)
+                        .run_waiting_for(Duration::from_secs(2));
+                    number_of_loops += 1;
+                    assert_lt!(number_of_loops, 50);
+                }
+
+                // Let the yellow electric pump spool down
+                self = self
+                    .set_yellow_e_pump_a(false)
+                    .run_waiting_for(Duration::from_secs(5));
+
                 self
             }
 
@@ -10196,11 +10325,15 @@ mod tests {
         #[test]
         // Testing that green for brakes is only available if park brake is on while altn pressure is at too low level
         fn brake_logic_green_backup_emergency() {
+            // The test starts with the yellow brake accumulator charged: without
+            // load_brake_accumulator it failed in the 1 % of runs where the accumulator starts empty
+            // (green brakes then rightly back up the parking brake from the start).
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
                 .on_the_ground()
                 .set_cold_dark_inputs()
-                .run_one_tick();
+                .run_one_tick()
+                .load_brake_accumulator();
 
             // Setting on ground with yellow side hydraulics off
             // This should prevent yellow accumulator to fill
@@ -10298,6 +10431,48 @@ mod tests {
                 .set_autobrake_high()
                 .run_waiting_for(Duration::from_secs(1));
 
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::HIGH);
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-20-220 BTV ARMING (l.79398-79404) "No ECAM warning affects landing distances"; LIM-32
+        // (l.188646) "BTV cannot be used in the case of ECAM alert that impact the landing performance". The FWS lists
+        // BTV in STATUS INOP SYS for ENG 2(3) SHUT DOWN, TWO ENGS OUT and the ENG 2(3) REVERSER failures.
+        fn btv_does_not_arm_while_an_ecam_alert_lists_btv_inop() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .set_btv_runway_and_exit()
+                .run_waiting_for(Duration::from_secs(12));
+
+            // A runway exit selected, but INOP SYS BTV: BTV does not arm (the next test shows that it arms without it)
+            test_bed = test_bed
+                .set_fws_btv_inop(true)
+                .set_autobrake_btv()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_ne!(test_bed.autobrake_mode(), A380AutobrakeMode::BTV);
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-20-220 BTV DISARMING note (l.79433-79436): "if any arming condition is lost ... The
+        // auto-brake reverts to BRK HI mode"
+        fn armed_btv_reverts_to_brk_hi_when_an_ecam_alert_lists_btv_inop() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .set_btv_runway_and_exit()
+                .run_waiting_for(Duration::from_secs(12));
+
+            test_bed = test_bed
+                .set_autobrake_btv()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::BTV);
+
+            test_bed = test_bed
+                .set_fws_btv_inop(true)
+                .run_waiting_for(Duration::from_secs(1));
             assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::HIGH);
         }
 
@@ -10785,6 +10960,28 @@ mod tests {
             assert!(!test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
 
             test_bed = test_bed.set_green_ed_pump(true).run_one_tick();
+            assert!(test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
+        }
+
+        #[test]
+        fn controller_engine_driven_pumps_depressurise_during_a_windmilling_start_of_their_engine()
+        {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .run_one_tick();
+            assert!(test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
+
+            test_bed.write_by_name("ENGINE_1_WINDMILL_START", true);
+            test_bed = test_bed.run_one_tick();
+            assert!(!test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
+            // the other engines' pumps are not affected
+            assert!(test_bed.query(|a| a.is_edp2a_yellow_pump_controller_pressurising()));
+
+            test_bed.write_by_name("ENGINE_1_WINDMILL_START", false);
+            test_bed = test_bed.run_one_tick();
             assert!(test_bed.query(|a| a.is_edp1a_green_pump_controller_pressurising()));
         }
 
@@ -11495,6 +11692,333 @@ mod tests {
             assert_gt!(
                 test_bed.get_brake_right_green_pressure(),
                 Pressure::new::<psi>(500.)
+            );
+        }
+
+        fn test_bed_on_ground_with_all_engines_running() -> A380HydraulicsTestBed {
+            test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_one_tick()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(30))
+        }
+
+        #[test]
+        fn brakes_norm_circuit_leak_drains_green_fluid_only() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            assert!(test_bed.is_green_pressure_switch_pressurised());
+
+            let green_level_before = test_bed.get_green_reservoir_volume();
+            let yellow_level_before = test_bed.get_yellow_reservoir_volume();
+
+            test_bed.fail(FailureType::BrakeHydraulicLeak(HydraulicColor::Green));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(10));
+
+            // The leak flows 0.1 gal/s out of the pressurised circuit
+            assert_gt!(
+                green_level_before - test_bed.get_green_reservoir_volume(),
+                Volume::new::<gallon>(0.5)
+            );
+            assert_lt!(
+                (yellow_level_before - test_bed.get_yellow_reservoir_volume()).abs(),
+                Volume::new::<gallon>(0.1)
+            );
+        }
+
+        #[test]
+        fn brakes_altn_circuit_leak_drains_yellow_fluid_only() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+
+            let green_level_before = test_bed.get_green_reservoir_volume();
+            let yellow_level_before = test_bed.get_yellow_reservoir_volume();
+
+            test_bed.fail(FailureType::BrakeHydraulicLeak(HydraulicColor::Yellow));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(10));
+
+            assert_gt!(
+                yellow_level_before - test_bed.get_yellow_reservoir_volume(),
+                Volume::new::<gallon>(0.5)
+            );
+            assert_lt!(
+                (green_level_before - test_bed.get_green_reservoir_volume()).abs(),
+                Volume::new::<gallon>(0.1)
+            );
+        }
+
+        #[test]
+        fn brakes_altn_accumulator_gas_leak_drops_the_stored_brake_pressure() {
+            // Charge the ALTN brake accumulator, then stop the engines so that only the accumulator holds pressure
+            let charged_and_isolated = || {
+                test_bed_on_ground_with_all_engines_running()
+                    .engines_off()
+                    .run_waiting_for(Duration::from_secs(30))
+            };
+
+            let mut test_bed_without_failure = charged_and_isolated();
+            let mut test_bed_with_failure = charged_and_isolated();
+            assert!(!test_bed_with_failure.is_yellow_pressure_switch_pressurised());
+            assert_gt!(
+                test_bed_with_failure.get_brake_yellow_accumulator_fluid_volume(),
+                Volume::new::<gallon>(0.01)
+            );
+
+            test_bed_with_failure.fail(FailureType::BrakeAccumulatorGasLeak);
+            test_bed_without_failure =
+                test_bed_without_failure.run_waiting_for(Duration::from_secs(30));
+            test_bed_with_failure = test_bed_with_failure.run_waiting_for(Duration::from_secs(30));
+
+            let stored_pressure = test_bed_without_failure.get_brake_yellow_accumulator_pressure();
+            assert_gt!(stored_pressure, Pressure::new::<psi>(1500.));
+            assert_lt!(
+                test_bed_with_failure.get_brake_yellow_accumulator_pressure(),
+                stored_pressure / 2.
+            );
+        }
+
+        /// Full pedal braking for 2 s, park brake off
+        fn press_both_brake_pedals(test_bed: A380HydraulicsTestBed) -> A380HydraulicsTestBed {
+            test_bed
+                .set_park_brake(false)
+                .set_left_brake(Ratio::new::<percent>(100.))
+                .set_right_brake(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(2))
+        }
+
+        fn pedal_braking_mode(test_bed: &mut A380HydraulicsTestBed) -> f64 {
+            test_bed.read_by_name("BRAKES_PEDAL_BRAKING_MODE")
+        }
+
+        fn nose_wheel_steering_mode(test_bed: &mut A380HydraulicsTestBed) -> f64 {
+            test_bed.read_by_name("STEERING_NWS_MODE")
+        }
+
+        fn read_bool(test_bed: &mut A380HydraulicsTestBed, name: &str) -> bool {
+            test_bed.read_by_name(name)
+        }
+
+        #[test]
+        // A380 FCOM BRAKES NORM BRK FAULT (l.160331-160332) and alternate braking (l.79942-79950): the pedals brake
+        // through the alternate circuit with A-SKID, at full pressure
+        fn normal_braking_fault_brakes_on_the_alternate_circuit() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakeNormalBraking);
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert!(read_bool(&mut test_bed, "BRAKES_NORM_BRK_FAULT"));
+            assert_eq!(pedal_braking_mode(&mut test_bed), 2.);
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(2000.)
+            );
+            assert_gt!(
+                test_bed.get_brake_right_yellow_pressure(),
+                Pressure::new::<psi>(2000.)
+            );
+        }
+
+        #[test]
+        // A380 FCOM l.78886-78887: the EBCU takes over when the normal and the alternate braking modes fail; no
+        // A-SKID, limited pressure (l.80039-80045)
+        fn normal_and_alternate_braking_faults_leave_emergency_braking() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakeNormalBraking);
+            test_bed.fail(FailureType::BrakeAlternateBraking);
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(pedal_braking_mode(&mut test_bed), 3.);
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(800.)
+            );
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1300.)
+            );
+        }
+
+        #[test]
+        // A380 FCOM BRAKES PEDAL BRAKING FAULT (l.160525, l.160550-160559): no pedal braking, the PARK BRK handle
+        // still brakes
+        fn all_braking_modes_failed_leave_only_the_parking_brake() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakeNormalBraking);
+            test_bed.fail(FailureType::BrakeAlternateBraking);
+            test_bed.fail(FailureType::BrakeEmergencyBraking);
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(pedal_braking_mode(&mut test_bed), 0.);
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+
+            test_bed = test_bed
+                .set_park_brake(true)
+                .run_waiting_for(Duration::from_secs(3));
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1500.)
+            );
+        }
+
+        #[test]
+        // A380 FCOM BRAKES ALTN BRK FAULT, BRAKES EMER BRK FAULT: "the normal ... braking remains available"
+        // (l.159848-159850, l.160184-160185)
+        fn alternate_and_emergency_braking_faults_keep_normal_braking() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakeAlternateBraking);
+            test_bed.fail(FailureType::BrakeEmergencyBraking);
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert!(read_bool(&mut test_bed, "BRAKES_ALTN_BRK_FAULT"));
+            assert!(read_bool(&mut test_bed, "BRAKES_EMER_BRK_FAULT"));
+            assert_eq!(pedal_braking_mode(&mut test_bed), 1.);
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(2000.)
+            );
+        }
+
+        #[test]
+        // A380 FCOM l.80571-80572: "In normal NWS: The GREEN system supplies hydraulic power" (B19). With the engines
+        // 1 and 2 only, YELLOW is not pressurised and the nose wheels steer on GREEN.
+        fn nose_steering_steers_on_green_with_engines_1_and_2_only() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_yellow_e_pump_a(false)
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(10));
+            assert!(test_bed.is_green_pressure_switch_pressurised());
+            assert!(!test_bed.is_yellow_pressure_switch_pressurised());
+
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs_f64(5.));
+
+            assert_eq!(nose_wheel_steering_mode(&mut test_bed), 1.);
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
+        }
+
+        #[test]
+        // A380 FCOM l.80589 "If the GREEN hydraulic supply fails, the alternate NWS activates automatically";
+        // l.80610 "The maximum alternate NWS rate is 10 degrees per second"
+        fn nose_steering_reverts_to_alternate_at_10_deg_per_s_without_green() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(10));
+            assert!(!test_bed.is_green_pressure_switch_pressurised());
+
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs_f64(1.));
+            assert_eq!(nose_wheel_steering_mode(&mut test_bed), 2.);
+            let after_one_second = test_bed.nose_steering_position().get::<degree>();
+            assert_gt!(after_one_second, 5.);
+            assert_lt!(after_one_second, 10.5);
+
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(8.));
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
+        }
+
+        #[test]
+        // A380 FCOM STEER NORM N/W STEER FAULT: "Alternate nose wheel steering is still available" (l.163126)
+        fn normal_nws_fault_reverts_to_alternate_nws() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::NoseWheelSteeringNormal);
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs_f64(10.));
+
+            assert!(read_bool(&mut test_bed, "STEERING_NORM_NWS_FAULT"));
+            assert_eq!(nose_wheel_steering_mode(&mut test_bed), 2.);
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
+        }
+
+        #[test]
+        // A380 FCOM STEER N/W STEER FAULT: "The normal and alternate nose wheel steering modes are failed" and "the
+        // nose landing gear is free to caster" (l.163012, l.163025-163027)
+        fn nose_wheels_do_not_steer_with_both_nws_modes_failed() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::NoseWheelSteeringNormal);
+            test_bed.fail(FailureType::NoseWheelSteeringAlternate);
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs_f64(5.));
+
+            assert_eq!(nose_wheel_steering_mode(&mut test_bed), 0.);
+            assert_lt!(test_bed.nose_steering_position().get::<degree>().abs(), 1.);
+        }
+
+        #[test]
+        // A380 FCOM STEER CTL 1(2) FAULT: "The NWS and the BWS are still available" (l.162848); N/W + B/W STEER
+        // FAULT: "SCS 1 and SCS 2 are failed" (l.162869)
+        fn one_steering_control_system_is_enough_both_failed_lose_the_steering() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::SteeringControlSystem(1));
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs_f64(5.));
+            assert!(read_bool(&mut test_bed, "STEERING_SCS_1_FAULT"));
+            assert_eq!(nose_wheel_steering_mode(&mut test_bed), 1.);
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
+
+            test_bed.fail(FailureType::SteeringControlSystem(2));
+            test_bed = test_bed
+                .set_tiller_demand(Ratio::new::<ratio>(0.))
+                .run_waiting_for(Duration::from_secs_f64(1.))
+                .set_tiller_demand(Ratio::new::<ratio>(-1.))
+                .run_waiting_for(Duration::from_secs_f64(5.));
+            assert_eq!(nose_wheel_steering_mode(&mut test_bed), 0.);
+            assert_gt!(test_bed.nose_steering_position().get::<degree>(), 0.);
+        }
+
+        #[test]
+        // A380 FCOM STEER B/W STEER FAULT: "The body wheel steering is failed in the centered and locked position"
+        // (l.162636)
+        fn body_wheel_steering_fault_keeps_the_body_wheels_centred() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BodyWheelSteering);
+            test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(5.))
+                .set_tiller_demand(Ratio::new::<ratio>(1.))
+                .run_waiting_for(Duration::from_secs_f64(10.));
+
+            assert!(read_bool(&mut test_bed, "STEERING_BWS_FAULT"));
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
+            assert_lt!(
+                test_bed
+                    .get_left_body_steering_steering_ratio()
+                    .get::<ratio>()
+                    .abs(),
+                0.01
+            );
+            assert_lt!(
+                test_bed
+                    .get_right_body_steering_steering_ratio()
+                    .get::<ratio>()
+                    .abs(),
+                0.01
             );
         }
 

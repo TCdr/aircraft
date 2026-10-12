@@ -267,14 +267,47 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340800009: {
+    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV AIR DATA DISAGREE (a380_fcom.txt l.163933-163952)
     title: '\x1b<4m\x1b4mNAV\x1bm AIR DATA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [
+      { name: 'ADR 1 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ADR 2 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ADR 3 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'STBY INSTRUMENTS REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'RISK OF UNDUE OVERSPEED WARNING', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'AIR DATA', sensed: false, labelNotCompleted: 'XCHECK' },
+      { name: 'AIR DATA SWTG', sensed: false, labelNotCompleted: 'AS RQRD' },
+    ],
   },
   340800010: {
+    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV ALL AIR DATA DISAGREE (a380_fcom.txt l.164050-164205, PDF page 5559). The
+    // pitch target lines are the FCOM tables: "The ECAM displays only the appropriate pitch" (l.164057, l.164066).
+    // Not shown: the cabin altitude table, the MFP heating (AVOID ICING) lines and the level-off thrust table above FL 250.
     title: '\x1b<2m\x1b4mNAV\x1bm ALL AIR DATA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [
+      { name: 'ALL AIR DATA REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Red },
+      { name: 'SAFE CONDUCT OF FLIGHT IMPACTED', sensed: false, condition: true },
+      { name: 'ALL THR LEVERS', sensed: false, labelNotCompleted: 'TOGA', level: 1 },
+      { name: 'ALL THR LEVERS', sensed: false, labelNotCompleted: 'CLB', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '12.5°', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '10°', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '5°', level: 1 },
+      { name: 'FLAPS & L/G : MAINTAIN CURRENT CONF', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'SPEED BRAKES', sensed: true, labelNotCompleted: 'CHECK RETRACTED' },
+      { name: 'RISK OF UNDUE OVERSPEED WARNING', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'HUD : DO NOT USE', sensed: true, style: ChecklistLineStyle.Cyan },
+      { name: 'FMS POSITION / GPS PAGE', sensed: false, labelNotCompleted: 'SELECT' },
+      { name: 'AIR DATA (ADRs/STBY INSTR)', sensed: false, labelNotCompleted: 'XCHECK' },
+      { name: 'AT LEAST ONE AIR DATA IS RELIABLE', sensed: false, condition: true },
+      { name: 'RELIABLE AIR DATA', sensed: false, labelNotCompleted: 'USE', level: 1 },
+      { name: 'NO AIR DATA RELIABLE', sensed: false, condition: true },
+      { name: 'ADR 1+2+3 P/Bs', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'SPEED', sensed: false, labelNotCompleted: 'FLY THE GREEN', level: 1 },
+      { name: 'SPD BRK : DO NOT USE', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'FLY PITCH AND THRUST', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+    ],
   },
   340800011: {
     title: '\x1b<4m\x1b4mNAV\x1bm AOA 1 FAULT',
@@ -292,9 +325,10 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     items: [], // not implemented
   },
   340800014: {
+    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV AOA DISAGREE (a380_fcom.txt l.164378-164452)
     title: '\x1b<4m\x1b4mNAV\x1bm AOA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [{ name: 'RISK OF UNDUE STALL WARNING', sensed: true, style: ChecklistLineStyle.White }],
   },
   340800015: {
     title: '\x1b<4m\x1b4mNAV\x1bm ARPT NAV FAULT',
@@ -997,9 +1031,15 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340900001: {
-    title: '\x1b<4m\x1b4mNAV\x1bm IR ALIGNMENT IN ATT MODE (WIP)',
+    // A380 FCOM PRO-ABN-ECAM-10-34 NAV IR ALIGNMENT IN ATT MODE
+    title: '\x1b<4m\x1b4mNAV\x1bm IR ALIGNMENT IN ATT MODE',
     sensed: false,
-    items: [], // TODO
+    items: [
+      { name: 'IR MODE SEL (AFFECTED)', sensed: false, labelNotCompleted: 'ATT' },
+      { name: 'SPEED, HDG & FL : KEEP CONST FOR 30 S', sensed: false },
+      { name: 'FMS POSITION / IRS PAGE', sensed: false, labelNotCompleted: 'SELECT', labelCompleted: 'SELECTED' },
+      { name: 'HDG', sensed: false, labelNotCompleted: 'ENTER', labelCompleted: 'ENTERED' },
+    ],
   },
   340900002: {
     title: '\x1b<4m\x1b4mNAV\x1bm FLUCTUATING VERTICAL SPEED (WIP)',

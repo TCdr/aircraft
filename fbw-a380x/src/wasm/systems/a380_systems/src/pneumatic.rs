@@ -4,7 +4,7 @@ use std::{f64::consts::PI, time::Duration};
 use uom::si::{
     f64::*,
     pressure::psi,
-    ratio::ratio,
+    ratio::{percent, ratio},
     thermodynamic_temperature::degree_celsius,
     volume::{cubic_meter, gallon},
 };
@@ -12,6 +12,7 @@ use uom::si::{
 use systems::{
     accept_iterable,
     air_conditioning::PackFlowControllers,
+    engine::engine_start::EngineStartValveSupervision,
     overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
     pneumatic::{
         valve::*, BleedMonitoringComputerIsAliveSignal, CompressionChamber,
@@ -28,12 +29,12 @@ use systems::{
         PneumaticBleed, PneumaticValve, ReservoirAirPressure,
     },
     simulation::{
-        InitContext, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
+        InitContext, Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
         SimulatorWriter, UpdateContext, VariableIdentifier, Write,
     },
 };
 
-use crate::air_conditioning::A380AirConditioning;
+use crate::{air_conditioning::A380AirConditioning, engine_failure::A380RelightEnvelope};
 
 macro_rules! valve_signal_implementation {
     ($signal_type: ty) => {
@@ -154,10 +155,10 @@ impl A380Pneumatic {
             ],
             fadec: FullAuthorityDigitalEngineControl::new(context),
             engine_starter_valve_controllers: [
-                EngineStarterValveController::new(1),
-                EngineStarterValveController::new(2),
-                EngineStarterValveController::new(3),
-                EngineStarterValveController::new(4),
+                EngineStarterValveController::new(context, 1),
+                EngineStarterValveController::new(context, 2),
+                EngineStarterValveController::new(context, 3),
+                EngineStarterValveController::new(context, 4),
             ],
             apu_compression_chamber: CompressionChamber::new(Volume::new::<cubic_meter>(5.)),
             apu_bleed_air_valve: DefaultValve::new_closed(),
@@ -230,12 +231,23 @@ impl A380Pneumatic {
     ) {
         self.apu_compression_chamber.update(apu);
 
+        // The start valve commands come first: the crossbleed AUTO control opens the crossbleed
+        // valves for an engine start in the same step (see CoreProcessingInputOutputModuleAUnit)
+        for controller in self.engine_starter_valve_controllers.iter_mut() {
+            controller.update(context, &self.fadec);
+        }
+        let engine_start_valves_commanded_open = self
+            .engine_starter_valve_controllers
+            .each_ref()
+            .map(|controller| controller.is_commanded_open());
+
         self.core_processing_input_output_module_a.update(
             context,
             &self.engine_systems,
             &self.apu_bleed_air_valve,
             overhead_panel,
             engine_fire_push_buttons,
+            engine_start_valves_commanded_open,
         );
 
         for cross_bleed_valve in self.cross_bleed_valves.iter_mut() {
@@ -243,10 +255,6 @@ impl A380Pneumatic {
             // TLDR: CPIOM-A1+A2 control left xbleed and APU isolation valve, CPIOM-A3+A4 control center and right xbleed valve
             cross_bleed_valve
                 .update_open_amount(&self.core_processing_input_output_module_a.units[0])
-        }
-
-        for controller in self.engine_starter_valve_controllers.iter_mut() {
-            controller.update(&self.fadec);
         }
 
         for (index, (engine_system, cpiom_unit)) in self
@@ -326,6 +334,25 @@ impl A380Pneumatic {
             engine_4_system,
             pack_flow_valve_signals,
         );
+
+        // The bleed duct of an engine that is not running, with no air source connected to it,
+        // empties (see engine_ducts_without_air_source)
+        let engine_running =
+            [1, 2, 3, 4].map(|number| self.fadec.engine_state(number) == EngineState::On);
+        let cross_bleed_valves_open = self
+            .cross_bleed_valves
+            .each_ref()
+            .map(|valve| valve.is_open());
+        let ducts_to_vent = engine_ducts_without_air_source(
+            engine_running,
+            self.apu_bleed_air_valve.is_open(),
+            cross_bleed_valves_open,
+        );
+        for (engine_system, vent) in self.engine_systems.iter_mut().zip(ducts_to_vent) {
+            if vent {
+                engine_system.vent_bleed_duct(context);
+            }
+        }
     }
 
     // TODO: Returning a mutable reference here is not great. I was running into an issue with the update order:
@@ -400,6 +427,7 @@ impl SimulationElement for A380Pneumatic {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.fadec.accept(visitor);
 
+        accept_iterable!(self.engine_starter_valve_controllers, visitor);
         accept_iterable!(self.cross_bleed_valves, visitor);
         accept_iterable!(self.engine_systems, visitor);
         accept_iterable!(self.packs, visitor);
@@ -435,28 +463,114 @@ impl ReservoirAirPressure for A380Pneumatic {
     }
 }
 
+/// The engines whose bleed duct has no air source and empties (vented), engine 1 first.
+///
+/// Design choice, no FCOM value: the bleed duct of an engine that is not running is fed only by
+/// the APU bleed (connected to the engine 1 duct) and, through open crossbleed valves, by the ducts
+/// of running engines (left crossbleed valve: engines 1-2, center: 1-4, right: 3-4, as the model
+/// connects them). Without such a source the air trapped in the duct after the engine stopped (its
+/// bleed valve closes below 15 PSI, FCOM DSC-36 a380_fcom.txt l.93916-93922) leaks away, so that a
+/// starter assisted relight finds no air in the duct: a starter needs a real air source (APU,
+/// crossbleed). Without this the trapped air pressurized the starter for 5 to 15 s and a relight
+/// was granted with no APU or crossbleed air.
+fn engine_ducts_without_air_source(
+    engine_running: [bool; 4],
+    apu_bleed_valve_open: bool,
+    cross_bleed_valves_open: [bool; 3],
+) -> [bool; 4] {
+    // The group of each engine duct: the ducts joined by open crossbleed valves share one group
+    let mut group = [0, 1, 2, 3];
+    let [left_open, center_open, right_open] = cross_bleed_valves_open;
+    let links = [(0, 1, left_open), (0, 3, center_open), (2, 3, right_open)];
+    // Three links: three passes join every connected group
+    for _ in 0..links.len() {
+        for (a, b, open) in links {
+            if open {
+                let joined = group[a].min(group[b]);
+                group[a] = joined;
+                group[b] = joined;
+            }
+        }
+    }
+
+    let group_has_source = |g: usize| {
+        (apu_bleed_valve_open && group[0] == g)
+            || (0..4).any(|engine| engine_running[engine] && group[engine] == g)
+    };
+    [0, 1, 2, 3].map(|engine| !engine_running[engine] && !group_has_source(group[engine]))
+}
+
+/// The FADEC control of the engine start valve. The start sequence on the ground (engine_failure.rs,
+/// systems::engine::engine_start) commands it for the start, the cranks and the abort; the schedule
+/// below covers the in-flight starts. The valve can be stuck (flyPad failures) and the FADEC detects
+/// a valve that does not follow its command (ENG START VLV FAULT).
 struct EngineStarterValveController {
     number: usize,
-    engine_state: EngineState,
+    /// The FADEC commands the start valve open (start, crank, relight), whatever its position
+    commanded_open: bool,
+    should_open: bool,
+    supervision: EngineStartValveSupervision,
 }
 impl ControllerSignal<EngineStarterValveSignal> for EngineStarterValveController {
     fn signal(&self) -> Option<EngineStarterValveSignal> {
-        match self.engine_state {
-            EngineState::Starting => Some(EngineStarterValveSignal::new_open()),
-            _ => Some(EngineStarterValveSignal::new_closed()),
+        if self.should_open {
+            Some(EngineStarterValveSignal::new_open())
+        } else {
+            Some(EngineStarterValveSignal::new_closed())
         }
     }
 }
 impl EngineStarterValveController {
-    fn new(number: usize) -> Self {
+    /// FCOM N2 (the HP spool of the GP7270), read on the Trent N3
+    const START_VALVE_CLOSING_N3_PERCENT: f64 = 58.4;
+
+    fn new(context: &mut InitContext, number: usize) -> Self {
         Self {
             number,
-            engine_state: EngineState::Off,
+            commanded_open: false,
+            should_open: false,
+            supervision: EngineStartValveSupervision::new(context, number),
         }
     }
 
-    fn update(&mut self, fadec: &FullAuthorityDigitalEngineControl) {
-        self.engine_state = fadec.engine_state(self.number);
+    fn is_commanded_open(&self) -> bool {
+        self.commanded_open
+    }
+
+    /// A380 FCOM DSC-70-30 (a380_fcom.txt l.113548-113576), at the ENG MASTER ON of a start
+    /// (STARTING), or of the restart of an engine that has not run down to OFF yet (RESTARTING):
+    /// - on the ground (l.113552): "Engine start valve opens";
+    /// - in flight (l.113567-113570): "Engine start valve opens if N2 is below 11 %, or if the
+    ///   aircraft airspeed (CAS) is below 260 kt. Note: The engine start valve remains closed in the
+    ///   case of a windmilling start sequence";
+    /// - in both cases (l.113558-113559, l.113574-113576): "When N2 above 58.4 %: Engine start valve
+    ///   closes".
+    fn update(&mut self, context: &UpdateContext, fadec: &FullAuthorityDigitalEngineControl) {
+        let core_speed = fadec.engine_core_speed(self.number);
+        let starting = matches!(
+            fadec.engine_state(self.number),
+            EngineState::Starting | EngineState::Restarting
+        );
+        let starter_assisted = context.is_on_ground()
+            || A380RelightEnvelope::in_flight_start_is_starter_assisted(
+                core_speed,
+                context.indicated_airspeed(),
+            );
+
+        let schedule_open = starting
+            && starter_assisted
+            && core_speed.get::<percent>() <= Self::START_VALVE_CLOSING_N3_PERCENT;
+        self.commanded_open = self.supervision.commanded_open(schedule_open);
+        self.should_open = self.supervision.position_open(self.commanded_open);
+        self.supervision
+            .monitor(context.delta(), self.commanded_open, self.should_open);
+    }
+}
+impl SimulationElement for EngineStarterValveController {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.supervision.accept(visitor);
+
+        visitor.visit(self);
     }
 }
 
@@ -489,7 +603,12 @@ impl CoreProcessingInputOutputModuleA {
         apu_bleed_valve: &impl PneumaticValve,
         pneumatic_overhead_panel: &A380PneumaticOverheadPanel,
         engine_fire_push_buttons: &impl EngineFirePushButtons,
+        engine_start_valves_commanded_open: [bool; 4],
     ) {
+        // "On ground, at engine start" (FCOM DSC-36-10-50, see the crossbleed signal): any engine
+        // whose start valve the FADEC commands open
+        let engine_start_on_ground =
+            context.is_on_ground() && engine_start_valves_commanded_open.contains(&true);
         for (unit, sensor) in self.units.iter_mut().zip(sensors) {
             unit.update(
                 context,
@@ -497,6 +616,7 @@ impl CoreProcessingInputOutputModuleA {
                 engine_fire_push_buttons.is_released(unit.engine_number),
                 apu_bleed_valve,
                 pneumatic_overhead_panel,
+                engine_start_on_ground,
             );
         }
     }
@@ -532,6 +652,8 @@ struct CoreProcessingInputOutputModuleAUnit {
     is_apu_bleed_valve_open: bool,
     is_apu_bleed_on: bool,
     is_any_bleed_pushbutton_off: bool,
+    /// On the ground, the FADEC commands the start valve of an engine open
+    is_engine_start_on_ground: bool,
     high_pressure_valve_pid: PidController,
     pressure_regulating_valve_pid: PidController,
     fan_air_valve_pid: PidController,
@@ -553,6 +675,7 @@ impl CoreProcessingInputOutputModuleAUnit {
             is_apu_bleed_valve_open: false,
             is_apu_bleed_on: false,
             is_any_bleed_pushbutton_off: false,
+            is_engine_start_on_ground: false,
             high_pressure_valve_pid: PidController::new(0.05, 0.05, 0., 0., 1., 50., 1.),
             pressure_regulating_valve_pid: PidController::new(
                 0.1,
@@ -575,7 +698,9 @@ impl CoreProcessingInputOutputModuleAUnit {
         is_engine_fire_pushbutton_released: bool,
         apu_bleed_valve: &impl PneumaticValve,
         pneumatic_overhead_panel: &A380PneumaticOverheadPanel,
+        is_engine_start_on_ground: bool,
     ) {
+        self.is_engine_start_on_ground = is_engine_start_on_ground;
         self.intermediate_pressure_compressor_pressure = sensors.intermediate_pressure();
         self.high_pressure_compressor_pressure = sensors.high_pressure();
         self.transfer_pressure = sensors.transfer_pressure();
@@ -657,6 +782,21 @@ impl ControllerSignal<FanAirValveSignal> for CoreProcessingInputOutputModuleAUni
         )))
     }
 }
+/// The X BLEED selector at AUTO. A380 FCOM DSC-36-10-50 (a380_fcom.txt l.94076-94079): the
+/// crossbleed valves "are normally closed. They open automatically, and at the same time: On
+/// ground, at engine start; When the APU bleed valve is selected open; In case any engine bleed
+/// system fails."
+///
+/// - Engine start: the crossbleed engine start of PRO-SUP-70-10 (l.180984-180988, l.181024-181029:
+///   "ALL ENG BLEEDS ... ON, X BLEED ... AUTO, SECOND ENG ... START") gets the starter air of the
+///   running engines through these valves. Design choice, the FCOM gives no opening or closing
+///   point: "at engine start" is while the FADEC commands the start valve of any engine open, from
+///   the ENG MASTER ON (or MAN START ON, crank) to the start valve closing at 58.4 % N2 (DSC-70-30
+///   l.113558) or the end/abort of the start. All three valves together ("at the same time"). The
+///   valves then close again, unless another condition keeps them open; the FCOM APU BLEED OFF
+///   after the start (PRO-NOR-SOP l.119903-119907): "All crossbleed valves close".
+/// - The engine bleed failure is modelled as an ENG BLEED pb OFF (still to do: an engine bleed
+///   that fails with its pb ON).
 impl ControllerSignal<CrossBleedValveSignal> for CoreProcessingInputOutputModuleAUnit {
     fn signal(&self) -> Option<CrossBleedValveSignal> {
         match self.cross_bleed_valve_selector {
@@ -667,7 +807,10 @@ impl ControllerSignal<CrossBleedValveSignal> for CoreProcessingInputOutputModule
                 CrossBleedValveSignalType::Manual,
             )),
             CrossBleedValveSelectorMode::Auto => {
-                if self.is_apu_bleed_valve_open || self.is_any_bleed_pushbutton_off {
+                if self.is_apu_bleed_valve_open
+                    || self.is_any_bleed_pushbutton_off
+                    || self.is_engine_start_on_ground
+                {
                     Some(CrossBleedValveSignal::new_open(
                         CrossBleedValveSignalType::Automatic,
                     ))
@@ -694,6 +837,7 @@ struct EngineBleedAirSystem {
     high_pressure_valve_open_id: VariableIdentifier,
     pressure_regulating_valve_open_id: VariableIdentifier,
     starter_valve_open_id: VariableIdentifier,
+    starter_pressurized_id: VariableIdentifier,
     intermediate_pressure_transducer_pressure_id: VariableIdentifier,
     transfer_pressure_transducer_pressure_id: VariableIdentifier,
     regulated_pressure_transducer_pressure_id: VariableIdentifier,
@@ -715,6 +859,12 @@ struct EngineBleedAirSystem {
     engine_starter_exhaust: PneumaticExhaust,
     engine_starter_container: PneumaticPipe,
     engine_starter_valve: DefaultValve,
+    /// Empty the duct of an engine without an air source (engine_ducts_without_air_source)
+    precooler_inlet_vent: PneumaticExhaust,
+    precooler_outlet_vent: PneumaticExhaust,
+    /// Air pressure turns the pneumatic starter (APU, the other engines or ground air): a starter
+    /// assisted relight can light up (engine_failure.rs)
+    engine_starter_pressurized: bool,
     fan_air_valve: ElectroPneumaticValve,
     precooler: Precooler,
 
@@ -724,6 +874,22 @@ struct EngineBleedAirSystem {
     differential_pressure_transducer: DifferentialPressureTransducer,
 }
 impl EngineBleedAirSystem {
+    const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_HIGH: f64 = 10.;
+    const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_LOW: f64 = 5.;
+    /// How fast the starter turbine vents the starter duct overboard (1/s). Design choice, no FCOM
+    /// value. The A380 FCOM DSC-70-30 (a380_fcom.txt l.113555-113559) only says that the start
+    /// valve is "fully closed after approximately 10 s": the starter gets no more air after that.
+    /// The former 3e-2 kept the duct pressurized for about 45 s after the start valve closed
+    /// (STARTER_PRESSURIZED stayed 1), so a ground relight in that time lit up without APU or
+    /// crossbleed air. The A320 model raised its own value for the same reason when it introduced
+    /// STARTER_PRESSURIZED (#8066: 10 / s, with a 0.3 m3 duct); the A380 start valve cannot keep
+    /// its 0.5 m3 duct above 10 PSIG at that rate. 0.5 / s keeps about 21 PSIG with the APU bleed
+    /// and empties the duct below 5 PSIG within about 3 s of the start valve closing.
+    const ENGINE_STARTER_EXHAUST_SPEED: f64 = 0.5;
+    /// How fast the duct of an engine without an air source empties (1/s, engine_ducts_without_air_source).
+    /// Design choice, no FCOM value: the trapped air is gone within about 3 s.
+    const ISOLATED_DUCT_VENT_SPEED: f64 = 1.;
+
     fn new(context: &mut InitContext, number: usize, powered_by: ElectricalBusType) -> Self {
         Self {
             high_pressure_id: context.get_identifier(format!("PNEU_ENG_{}_HP_PRESSURE", number)),
@@ -749,6 +915,8 @@ impl EngineBleedAirSystem {
                 .get_identifier(format!("PNEU_ENG_{}_PR_VALVE_OPEN", number)),
             starter_valve_open_id: context
                 .get_identifier(format!("PNEU_ENG_{}_STARTER_VALVE_OPEN", number)),
+            starter_pressurized_id: context
+                .get_identifier(format!("PNEU_ENG_{}_STARTER_PRESSURIZED", number)),
             intermediate_pressure_transducer_pressure_id: context.get_identifier(format!(
                 "PNEU_ENG_{}_INTERMEDIATE_TRANSDUCER_PRESSURE",
                 number
@@ -804,8 +972,23 @@ impl EngineBleedAirSystem {
                 Pressure::new::<psi>(14.7),
                 ThermodynamicTemperature::new::<degree_celsius>(15.),
             ),
-            engine_starter_exhaust: PneumaticExhaust::new(3e-2, 3e-2, Pressure::new::<psi>(0.)),
+            engine_starter_exhaust: PneumaticExhaust::new(
+                Self::ENGINE_STARTER_EXHAUST_SPEED,
+                Self::ENGINE_STARTER_EXHAUST_SPEED,
+                Pressure::new::<psi>(0.),
+            ),
             engine_starter_valve: DefaultValve::new_closed(),
+            precooler_inlet_vent: PneumaticExhaust::new(
+                Self::ISOLATED_DUCT_VENT_SPEED,
+                Self::ISOLATED_DUCT_VENT_SPEED,
+                Pressure::new::<psi>(0.),
+            ),
+            precooler_outlet_vent: PneumaticExhaust::new(
+                Self::ISOLATED_DUCT_VENT_SPEED,
+                Self::ISOLATED_DUCT_VENT_SPEED,
+                Pressure::new::<psi>(0.),
+            ),
+            engine_starter_pressurized: false,
             precooler: Precooler::new(180. * 2.),
             intermediate_pressure_transducer: PressureTransducer::new(powered_by),
             transfer_pressure_transducer: PressureTransducer::new(powered_by),
@@ -889,6 +1072,30 @@ impl EngineBleedAirSystem {
             .update(context, &self.precooler_inlet_pipe);
         self.differential_pressure_transducer
             .update(&self.precooler_inlet_pipe, &self.precooler_outlet_pipe);
+
+        self.update_engine_start_pressurization(context);
+    }
+
+    /// The starter container gauge pressure, with a hysteresis. The A380 FCOM gives no value: the
+    /// 10 / 5 PSI (gauge) of the A320 pneumatic model (a320_systems pneumatic.rs) are used.
+    fn update_engine_start_pressurization(&mut self, context: &UpdateContext) {
+        let starter_container_pressure_psig =
+            (self.engine_starter_container.pressure() - context.ambient_pressure()).get::<psi>();
+
+        self.engine_starter_pressurized = if self.engine_starter_pressurized {
+            starter_container_pressure_psig > Self::MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_LOW
+        } else {
+            starter_container_pressure_psig > Self::MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_HIGH
+        };
+    }
+
+    /// The duct of this engine has no air source: its trapped air leaks away
+    /// (engine_ducts_without_air_source).
+    fn vent_bleed_duct(&mut self, context: &UpdateContext) {
+        self.precooler_inlet_vent
+            .update_move_fluid(context, &mut self.precooler_inlet_pipe);
+        self.precooler_outlet_vent
+            .update_move_fluid(context, &mut self.precooler_outlet_pipe);
     }
 
     fn intermediate_pressure(&self) -> Pressure {
@@ -1031,6 +1238,10 @@ impl SimulationElement for EngineBleedAirSystem {
             &self.starter_valve_open_id,
             self.engine_starter_valve.is_open(),
         );
+        writer.write(
+            &self.starter_pressurized_id,
+            self.engine_starter_pressurized,
+        );
     }
 }
 impl PneumaticContainer for EngineBleedAirSystem {
@@ -1143,6 +1354,10 @@ pub struct FullAuthorityDigitalEngineControl {
 
     engine_mode_selector1_id: VariableIdentifier,
     engine_mode_selector1_position: EngineModeSelector,
+
+    /// The core speed of each engine: the FADEC N3 (the GP7270 N2 of the A380 FCOM)
+    engine_core_speed_ids: [VariableIdentifier; 4],
+    engine_core_speeds: [Ratio; 4],
 }
 impl FullAuthorityDigitalEngineControl {
     fn new(context: &mut InitContext) -> Self {
@@ -1158,7 +1373,14 @@ impl FullAuthorityDigitalEngineControl {
             engine_mode_selector1_id: context
                 .get_identifier("TURB ENG IGNITION SWITCH EX1:1".to_owned()),
             engine_mode_selector1_position: EngineModeSelector::Norm,
+            engine_core_speed_ids: [1, 2, 3, 4]
+                .map(|number| context.get_identifier(format!("ENGINE_N3:{}", number))),
+            engine_core_speeds: [Ratio::default(); 4],
         }
+    }
+
+    fn engine_core_speed(&self, number: usize) -> Ratio {
+        self.engine_core_speeds[number - 1]
     }
 
     fn engine_state(&self, number: usize) -> EngineState {
@@ -1202,6 +1424,13 @@ impl SimulationElement for FullAuthorityDigitalEngineControl {
             "EngineModeSelector",
             EngineModeSelector::Norm,
         );
+        for (core_speed, id) in self
+            .engine_core_speeds
+            .iter_mut()
+            .zip(&self.engine_core_speed_ids)
+        {
+            *core_speed = Ratio::new::<percent>(reader.read(id));
+        }
     }
 }
 
@@ -1477,7 +1706,7 @@ mod tests {
             PneumaticBleed, PneumaticValve, PotentialOrigin,
         },
         simulation::{
-            test::{SimulationTestBed, TestBed, WriteByName},
+            test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
             Aircraft, InitContext, SimulationElement, SimulationElementVisitor, UpdateContext,
         },
     };
@@ -1492,6 +1721,7 @@ mod tests {
     use crate::{
         air_conditioning::{A380AirConditioning, A380PressurizationOverheadPanel},
         avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
+        engine_failure::A380EngineFailures,
     };
 
     use super::{A380Pneumatic, A380PneumaticOverheadPanel};
@@ -1737,6 +1967,8 @@ mod tests {
         engine_4: TrentEngine,
         pneumatic_overhead_panel: A380PneumaticOverheadPanel,
         fire_pushbuttons: TestEngineFirePushButtons,
+        /// The relight of a failed engine reads the starter air pressure (engine_failure.rs)
+        engine_failures: A380EngineFailures,
         electrical: A380TestElectrical,
         powered_source: TestElectricitySource,
         dc_1_bus: ElectricalBus,
@@ -1765,6 +1997,7 @@ mod tests {
                 engine_4: TrentEngine::new(context, 4),
                 pneumatic_overhead_panel: A380PneumaticOverheadPanel::new(context),
                 fire_pushbuttons: TestEngineFirePushButtons::new(),
+                engine_failures: A380EngineFailures::new(context),
                 electrical: A380TestElectrical::new(),
                 powered_source: TestElectricitySource::powered(
                     context,
@@ -1839,6 +2072,7 @@ mod tests {
                 &self.apu,
                 &self.air_conditioning,
             );
+            self.engine_failures.update(context, [false; 4]);
             self.air_conditioning.update(
                 context,
                 [
@@ -1864,6 +2098,7 @@ mod tests {
             self.engine_4.accept(visitor);
             self.pneumatic_overhead_panel.accept(visitor);
             self.air_conditioning.accept(visitor);
+            self.engine_failures.accept(visitor);
 
             visitor.visit(self);
         }
@@ -2927,6 +3162,470 @@ mod tests {
         assert!(test_bed.es_valve_is_open(engine_number));
     }
 
+    /// In flight at this airspeed, engine 1 out with its core windmilling at 12 %.
+    fn in_flight_with_engine_1_out(airspeed_knots: f64) -> PneumaticTestBed {
+        let mut test_bed = test_bed_with()
+            .idle_eng2()
+            .idle_eng3()
+            .idle_eng4()
+            .stop_eng1()
+            .and_run();
+        test_bed.set_on_ground(false);
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(airspeed_knots));
+        test_bed.write_by_name("ENGINE_N3:1", 12.);
+        test_bed
+    }
+
+    #[test]
+    fn in_flight_the_start_valve_stays_closed_for_a_windmilling_start() {
+        // A380 FCOM DSC-70-30: in flight the start valve opens below 11 % N2 or 260 kt only
+        let test_bed = in_flight_with_engine_1_out(300.)
+            .set_engine_state(1, EngineState::Starting)
+            .and_run();
+
+        assert!(!test_bed.es_valve_is_open(1));
+    }
+
+    #[rstest]
+    fn in_flight_the_start_valve_opens_for_a_starter_assisted_relight(
+        #[values(EngineState::Starting, EngineState::Restarting)] engine_state: EngineState,
+    ) {
+        let mut test_bed = in_flight_with_engine_1_out(250.)
+            .set_engine_state(1, engine_state)
+            .and_run();
+        assert!(test_bed.es_valve_is_open(1));
+
+        // a stopped core is started with the starter at any airspeed
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(300.));
+        test_bed.write_by_name("ENGINE_N3:1", 5.);
+        test_bed = test_bed.and_run();
+        assert!(test_bed.es_valve_is_open(1));
+    }
+
+    #[test]
+    fn on_the_ground_the_start_valve_opens_for_the_restart_of_a_spinning_down_engine() {
+        // The FADEC restarts (RESTARTING) an engine that has not run down to OFF yet, e.g. after a
+        // flameout with the MSFS starter still turning it at 25 %.
+        let mut test_bed = test_bed_with().stop_eng1().and_run();
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+        test_bed = test_bed
+            .set_engine_state(1, EngineState::Restarting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(1));
+    }
+
+    #[rstest]
+    fn the_start_valve_closes_above_58_4_percent_n3(
+        #[values(true, false)] on_ground: bool,
+        #[values(EngineState::Starting, EngineState::Restarting)] engine_state: EngineState,
+    ) {
+        // A380 FCOM DSC-70-30: "When N2 above 58.4 %: Engine start valve closes"
+        let mut test_bed = test_bed_with().stop_eng1().and_run();
+        test_bed.set_on_ground(on_ground);
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+        test_bed.write_by_name("ENGINE_N3:1", 58.);
+        test_bed = test_bed.set_engine_state(1, engine_state).and_run();
+        assert!(test_bed.es_valve_is_open(1));
+
+        test_bed.write_by_name("ENGINE_N3:1", 59.);
+        test_bed = test_bed.and_run();
+        assert!(!test_bed.es_valve_is_open(1));
+    }
+
+    #[test]
+    fn a_start_valve_stuck_closed_does_not_open_and_is_reported() {
+        let mut test_bed = test_bed_with().stop_eng3().and_run();
+        test_bed.fail(FailureType::EngineStartValveStuckClosed(3));
+        test_bed = test_bed.start_eng3().and_run();
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(6));
+
+        assert!(!test_bed.es_valve_is_open(3));
+        let fault: f64 = test_bed.read_by_name("ENGINE_3_START_VALVE_FAULT");
+        assert_eq!(fault, 1.);
+    }
+
+    #[test]
+    fn a_start_valve_stuck_open_stays_open_and_is_reported() {
+        let mut test_bed = test_bed_with().idle_eng4().and_run();
+        test_bed.fail(FailureType::EngineStartValveStuckOpen(4));
+        test_bed = test_bed.and_run();
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(6));
+
+        assert!(test_bed.es_valve_is_open(4));
+        let fault: f64 = test_bed.read_by_name("ENGINE_4_START_VALVE_FAULT");
+        assert_eq!(fault, 2.);
+    }
+
+    #[test]
+    fn the_start_sequence_opens_the_start_valve_of_an_engine_off_for_a_crank() {
+        let mut test_bed = test_bed_with().stop_eng2().and_run();
+        test_bed.write_by_name("ENGINE_2_START_VALVE_COMMAND", 1.);
+        test_bed = test_bed.and_run();
+
+        assert!(test_bed.es_valve_is_open(2));
+    }
+
+    /// Engine 1 has flamed out with its master ON (FADEC SHUTTING), ENG START selector at IGN START.
+    fn with_engine_1_flamed_out(mut test_bed: PneumaticTestBed) -> PneumaticTestBed {
+        test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+        test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+        test_bed.write_by_name("ENGINE_STATE:1", EngineState::On);
+        test_bed = test_bed.and_run();
+        test_bed.fail(FailureType::EngineFlameout(1));
+        test_bed
+            .set_engine_state(1, EngineState::Shutting)
+            .and_run()
+            .and_run()
+    }
+
+    /// The crew sets the ENG MASTER OFF then ON: the FADEC restarts the engine (RESTARTING).
+    fn with_engine_1_master_off_then_on(mut test_bed: PneumaticTestBed) -> PneumaticTestBed {
+        test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+        test_bed = test_bed.and_run();
+        test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+        test_bed.set_engine_state(1, EngineState::Restarting)
+    }
+
+    fn engine_1_starter_pressurized_within(
+        test_bed: &mut PneumaticTestBed,
+        duration: Duration,
+    ) -> bool {
+        let step = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            test_bed.run_with_delta(step);
+            elapsed += step;
+            let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+            if pressurized {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn engine_1_lights_up_within(test_bed: &mut PneumaticTestBed, duration: Duration) -> bool {
+        let step = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            test_bed.run_with_delta(step);
+            elapsed += step;
+            let fuel_cut: bool = test_bed.read_by_name("ENGINE_1_FUEL_CUT");
+            if !fuel_cut {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn on_the_ground_a_flamed_out_engine_relights_with_apu_bleed_as_soon_as_it_is_restarted() {
+        // Sim test 2026-10-05 (ground): the starter was pressurized only 26 s after the MASTER ON,
+        // when the FADEC went from RESTARTING to STARTING, 4 s before the end of the attempt.
+        let mut test_bed = test_bed_with()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .set_bleed_air_running();
+        test_bed.set_on_ground(true);
+        test_bed.set_indicated_airspeed(Velocity::default());
+        test_bed =
+            with_engine_1_master_off_then_on(with_engine_1_flamed_out(test_bed.and_stabilize()));
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+
+        assert!(engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(2)
+        ));
+    }
+
+    #[test]
+    fn in_flight_a_starter_assisted_relight_lights_up_with_crossbleed_air_from_the_other_engines() {
+        // FCOM ENG RELIGHT IN FLIGHT (a380_fcom.txt l.174908): "XBLEED ... OPEN"; FL150, 210 kt
+        let test_bed = in_flight_with_engine_1_out(210.)
+            .in_isa_atmosphere(Length::new::<foot>(15_000.))
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Open)
+            .and_stabilize();
+        let mut test_bed = with_engine_1_master_off_then_on(with_engine_1_flamed_out(test_bed));
+        test_bed.write_by_name("ENGINE_N3:1", 9.);
+
+        assert!(engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(2)
+        ));
+    }
+
+    #[test]
+    fn in_flight_no_starter_air_reaches_the_failed_engine_with_the_crossbleed_at_auto_and_no_apu_bleed(
+    ) {
+        let test_bed = in_flight_with_engine_1_out(210.)
+            .in_isa_atmosphere(Length::new::<foot>(15_000.))
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .and_stabilize();
+        let mut test_bed = with_engine_1_master_off_then_on(with_engine_1_flamed_out(test_bed));
+        test_bed.write_by_name("ENGINE_N3:1", 9.);
+
+        assert!(!engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(10)
+        ));
+    }
+
+    #[test]
+    fn the_starter_is_pressurized_by_the_apu_bleed_during_an_in_flight_start() {
+        let mut test_bed = in_flight_with_engine_1_out(220.)
+            .in_isa_atmosphere(Length::new::<foot>(15_000.))
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .set_bleed_air_running()
+            .and_stabilize();
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(!pressurized, "the start valve is closed");
+
+        test_bed = test_bed
+            .set_engine_state(1, EngineState::Restarting)
+            .and_stabilize();
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(pressurized);
+    }
+
+    #[test]
+    fn with_all_four_engines_out_the_apu_bleed_relights_two_engines_at_a_time() {
+        // ENG ALL ENG FLAME OUT (a380_fcom.txt l.173859-173872): "WHEN APU AVAIL: ALL ENG MASTERS
+        // ... OFF, APU BLEED ... ON", then "ENG MASTER (2 AT A TIME) ... ON". FL150, 220 kt (zone 2
+        // of the relight envelope: starter assisted), the cores windmilling at 9 %.
+        let mut test_bed = test_bed_with()
+            .stop_eng1()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .and_run();
+        test_bed.set_on_ground(false);
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(220.));
+        test_bed = test_bed
+            .in_isa_atmosphere(Length::new::<foot>(15_000.))
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .set_bleed_air_running()
+            .and_stabilize();
+
+        test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+        for number in 1..=4 {
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", number), true);
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", number), EngineState::On);
+        }
+        test_bed = test_bed.and_run();
+        for number in 1..=4 {
+            test_bed.fail(FailureType::EngineFlameout(number));
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", number), EngineState::Shutting);
+            test_bed.write_by_name(&format!("ENGINE_N3:{}", number), 9.);
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", number), false);
+        }
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(30));
+
+        // the masters of engines 1 and 4 ON, the others stay OFF
+        for number in [1, 4] {
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", number), true);
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", number), EngineState::Restarting);
+        }
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(2));
+
+        for number in [1, 4] {
+            assert!(test_bed.es_valve_is_open(number));
+            let fuel_cut: bool = test_bed.read_by_name(&format!("ENGINE_{}_FUEL_CUT", number));
+            assert!(!fuel_cut, "engine {} lights up with the APU bleed", number);
+        }
+        for number in [2, 3] {
+            let fuel_cut: bool = test_bed.read_by_name(&format!("ENGINE_{}_FUEL_CUT", number));
+            assert!(fuel_cut, "engine {} master OFF", number);
+        }
+    }
+
+    /// On the ground, engine 1 is started with the APU bleed (the other engines stopped). Once
+    /// the start valve has closed above 58.4 % N3, the engine runs at idle, the APU bleed is set OFF
+    /// and the frames run for that many seconds.
+    fn on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(
+        seconds_after_the_start_valve_closed: u64,
+    ) -> PneumaticTestBed {
+        let mut test_bed = test_bed_with()
+            .stop_eng1()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .set_bleed_air_running();
+        test_bed.set_on_ground(true);
+        test_bed.set_indicated_airspeed(Velocity::default());
+        test_bed = test_bed.and_stabilize();
+
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+        test_bed.write_by_name("TURB ENG CORRECTED N2:1", Ratio::new::<ratio>(0.25));
+        test_bed = test_bed.start_eng1();
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(3));
+        assert!(test_bed.es_valve_is_open(1));
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(pressurized, "the APU bleed turns the starter");
+
+        test_bed.write_by_name("ENGINE_N3:1", 70.);
+        test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+        test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+        test_bed = test_bed
+            .idle_eng1()
+            .set_apu_bleed_valve_signal(ApuBleedAirValveSignal::new_closed())
+            .set_apu_bleed_air_pb(false);
+        test_bed.command(|a| a.apu.set_bleed_air_pressure(Pressure::new::<psi>(14.7)));
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(seconds_after_the_start_valve_closed));
+        assert!(!test_bed.es_valve_is_open(1));
+
+        test_bed
+    }
+
+    #[test]
+    fn the_starter_is_no_longer_pressurized_a_few_seconds_after_the_start_valve_closed() {
+        // A380 FCOM DSC-70-30 (l.113557-113559): "When N2 above 58.4 %: Engine start valve closes
+        // (fully closed after approximately 10 s)". Before the fix the starter duct kept about
+        // 20 PSIG for 5 s and above 5 PSIG for about 45 s.
+        let mut test_bed = on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(5);
+
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(!pressurized);
+    }
+
+    #[test]
+    fn a_ground_relight_soon_after_a_start_does_not_light_up_without_apu_or_crossbleed_air() {
+        // Engine 1 flames out 5 s after its APU bleed start, stops, and is restarted 10 s later
+        // (ENG MASTER OFF then ON) with the APU bleed OFF and the crossbleed valves closed: no air
+        // turns the starter. Before the fix the starter duct still held about 13 PSIG from the
+        // first start and the relight lit up.
+        let mut test_bed = with_engine_1_flamed_out(
+            on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(5),
+        );
+        test_bed = test_bed
+            .stop_eng1()
+            .set_engine_state(1, EngineState::Shutting);
+        test_bed.write_by_name("ENGINE_N3:1", 0.);
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(10));
+        test_bed = with_engine_1_master_off_then_on(test_bed);
+
+        assert!(!engine_1_starter_pressurized_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
+        assert!(!engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
+    }
+
+    #[test]
+    fn a_ground_relight_finds_no_air_trapped_in_the_duct_of_the_stopped_engine() {
+        // Engine 1 runs for a minute on its own bleed (APU bleed OFF), flames out, stops and is
+        // restarted about 2 s later (ENG MASTER OFF then ON). Before the duct vent the air trapped
+        // in its own bleed duct (about 28 PSIG) pressurized the starter and the relight lit up with no air source.
+        let mut test_bed = with_engine_1_flamed_out(
+            on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(60),
+        );
+        test_bed = test_bed
+            .stop_eng1()
+            .set_engine_state(1, EngineState::Shutting);
+        test_bed.write_by_name("ENGINE_N3:1", 0.);
+        test_bed = with_engine_1_master_off_then_on(test_bed);
+
+        assert!(!engine_1_starter_pressurized_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
+        assert!(!engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
+    }
+
+    #[test]
+    fn a_ground_relight_of_a_stopped_engine_still_lights_up_with_the_apu_bleed() {
+        let mut test_bed = with_engine_1_flamed_out(
+            on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(60),
+        );
+        test_bed = test_bed
+            .stop_eng1()
+            .set_engine_state(1, EngineState::Shutting);
+        test_bed.write_by_name("ENGINE_N3:1", 0.);
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(30));
+        test_bed = test_bed.set_bleed_air_running();
+        test_bed = with_engine_1_master_off_then_on(test_bed);
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(3));
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(
+            pressurized,
+            "the APU bleed reaches the starter of the stopped engine"
+        );
+
+        // the starter air turns the core (the test bed does not spin it up): the B3 start sequence
+        // lights the fuel from 20 % N3
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+        assert!(engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(5)
+        ));
+    }
+
+    #[test]
+    fn the_duct_of_an_engine_vents_only_without_an_air_source() {
+        use super::engine_ducts_without_air_source;
+
+        let vented = |running: [bool; 4], apu: bool, cross_bleeds: [bool; 3]| {
+            engine_ducts_without_air_source(running, apu, cross_bleeds)
+        };
+        // engine 1 out, crossbleed valves closed, no APU bleed: only its duct vents
+        assert_eq!(
+            vented([false, true, true, true], false, [false; 3]),
+            [true, false, false, false]
+        );
+        // the left crossbleed valve joins it to engine 2, the center one to engine 4
+        assert_eq!(
+            vented([false, true, true, true], false, [true, false, false]),
+            [false; 4]
+        );
+        assert_eq!(
+            vented([false, true, true, true], false, [false, true, false]),
+            [false; 4]
+        );
+        // engines 3 and 4 out: the right valve alone joins them to no running engine
+        assert_eq!(
+            vented([true, true, false, false], false, [false, false, true]),
+            [false, false, true, true]
+        );
+        // through the center and right valves engine 3 reaches engine 1
+        assert_eq!(
+            vented([true, true, false, false], false, [false, true, true]),
+            [false; 4]
+        );
+        // all engines out: the APU bleed (engine 1 duct) feeds the ducts joined to engine 1
+        assert_eq!(
+            vented([false; 4], true, [true, true, false]),
+            [false, false, true, false]
+        );
+        assert_eq!(vented([false; 4], false, [true; 3]), [true; 4]);
+        // a running engine never vents
+        assert_eq!(vented([true; 4], false, [false; 3]), [false; 4]);
+    }
+
     #[test]
     fn cross_bleed_valve_opens_when_apu_bleed_valve_opens() {
         let mut test_bed = test_bed_with()
@@ -2955,6 +3654,119 @@ mod tests {
             .set_apu_bleed_valve_signal(ApuBleedAirValveSignal::new_closed())
             .and_run();
 
+        assert!(!test_bed.cross_bleed_valves_are_open());
+    }
+
+    /// The crossbleed engine start of PRO-SUP-70-10 (a380_fcom.txt l.181024-181029) on the ground:
+    /// engine 1 runs at idle, engines 2 to 4 are stopped, ALL ENG BLEEDS ON, APU bleed OFF, X BLEED
+    /// AUTO.
+    fn on_the_ground_with_engine_1_running_and_no_apu_bleed() -> PneumaticTestBed {
+        let mut test_bed = test_bed_with()
+            .idle_eng1()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto);
+        test_bed.set_on_ground(true);
+        test_bed.set_indicated_airspeed(Velocity::default());
+        test_bed.write_by_name("ENGINE_N3:1", 70.);
+        test_bed.and_stabilize()
+    }
+
+    fn starter_pressurized_within(
+        test_bed: &mut PneumaticTestBed,
+        engine_number: usize,
+        duration: Duration,
+    ) -> bool {
+        let step = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            test_bed.run_with_delta(step);
+            elapsed += step;
+            let pressurized: bool =
+                test_bed.read_by_name(&format!("PNEU_ENG_{}_STARTER_PRESSURIZED", engine_number));
+            if pressurized {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[rstest]
+    fn on_the_ground_the_crossbleed_valves_open_at_auto_for_an_engine_start(
+        #[values(2, 3, 4)] engine_number: usize,
+    ) {
+        // FCOM DSC-36-10-50 (l.94076-94077): "They open automatically ... On ground, at engine
+        // start". Before the fix AUTO opened only for the APU bleed valve or an ENG BLEED pb OFF:
+        // the starter got no air and the start ended in START FAULT (NO STARTER AIR PRESSURE).
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
+        assert!(!test_bed.cross_bleed_valves_are_open());
+
+        test_bed = test_bed
+            .set_engine_state(engine_number, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(engine_number));
+        assert!(test_bed.cross_bleed_valves_are_open());
+        assert!(starter_pressurized_within(
+            &mut test_bed,
+            engine_number,
+            Duration::from_secs(5)
+        ));
+    }
+
+    #[test]
+    fn on_the_ground_the_crossbleed_valves_open_at_auto_for_a_crank() {
+        // ENG MODE CRANK, MAN START ON: the start sequence commands the start valve open
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
+        test_bed.write_by_name("ENGINE_2_START_VALVE_COMMAND", 1.);
+        test_bed = test_bed.and_run();
+
+        assert!(test_bed.cross_bleed_valves_are_open());
+    }
+
+    #[test]
+    fn the_crossbleed_valves_close_again_when_the_start_valve_closes() {
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed()
+            .set_engine_state(2, EngineState::Starting)
+            .and_run();
+        assert!(test_bed.cross_bleed_valves_are_open());
+
+        // DSC-70-30 (l.113558): "When N2 above 58.4 %: Engine start valve closes"
+        test_bed.write_by_name("ENGINE_N3:2", 60.);
+        test_bed = test_bed.and_run();
+        assert!(!test_bed.es_valve_is_open(2));
+        assert!(!test_bed.cross_bleed_valves_are_open());
+
+        test_bed = test_bed.idle_eng2().and_stabilize();
+        assert!(!test_bed.cross_bleed_valves_are_open());
+    }
+
+    #[test]
+    fn the_crossbleed_valves_stay_closed_with_the_selector_shut_during_an_engine_start() {
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed()
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Shut)
+            .set_engine_state(2, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(2));
+        assert!(!test_bed.cross_bleed_valves_are_open());
+        assert!(!starter_pressurized_within(
+            &mut test_bed,
+            2,
+            Duration::from_secs(5)
+        ));
+    }
+
+    #[test]
+    fn in_flight_the_crossbleed_valves_stay_closed_at_auto_for_an_engine_start() {
+        // "On ground" only: in flight the relight procedure sets X BLEED OPEN (l.174908)
+        let test_bed = in_flight_with_engine_1_out(210.)
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .set_engine_state(1, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(1));
         assert!(!test_bed.cross_bleed_valves_are_open());
     }
 

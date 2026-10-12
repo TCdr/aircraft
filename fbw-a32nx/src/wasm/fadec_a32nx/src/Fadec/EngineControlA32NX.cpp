@@ -73,7 +73,12 @@ void EngineControl_A32NX::update() {
     const int    engineIgniter = static_cast<int>(simData.simVarsDataPtr->data().engineIgniter[engineIdx]);  // 0: crank, 1:norm, 2: ign
     bool         engineStarter = static_cast<bool>(simData.simVarsDataPtr->data().engineStarter[engineIdx]);
     const double engineStarterPressurized   = simData.engineStarterPressurized[engineIdx]->get();
-    const double engineFuelValveOpen        = simData.simVarsDataPtr->data().engineFuelValveOpen[engineIdx];
+    // FCOM DSC-28-10-30: the LP fuel valve is closed by the engine master switch or the ENG FIRE PUSH pushbutton.
+    // FCOM PRO-ABN-ENG: "The engine shuts down when the remaining fuel between the LP fuel valve and the nozzles is burned."
+    // The systems WASM tracks that remaining fuel. Once it is burned the engine is starved and is handled as if its fuel valve
+    // were closed: the starter is no longer held, the engine shuts down and it cannot relight while starved.
+    const bool   engineFuelStarved          = simData.engineFuelStarved[engineIdx]->getAsBool();
+    const double engineFuelValveOpen        = engineFuelStarved ? 0.0 : simData.simVarsDataPtr->data().engineFuelValveOpen[engineIdx];
     const bool   engineFuelValveFullyClosed = engineFuelValveOpen == 0;
     const bool   engineFuelValveFullyOpen   = engineFuelValveOpen == 1;
 

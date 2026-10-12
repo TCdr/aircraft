@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useContext } from 'react';
@@ -47,6 +47,7 @@ export const RealismPage = () => {
     'KEEP_PILOT_STORED_ELEMENTS',
     false,
   );
+  const [fireTestExtend, setFireTestExtend] = usePersistentBooleanProperty('FIRE_TEST_EXTEND', true);
 
   const adirsAlignTimeButtons: (ButtonType & SimVarButton)[] = [
     { name: t('Settings.Instant'), setting: 'INSTANT', simVarValue: 1 },
@@ -202,6 +203,12 @@ export const RealismPage = () => {
       {aircraftContext.settingsPages.realism.keepPilotStoredElements && (
         <SettingItem name={t('Settings.Realism.KeepPilotStoredElements')} unrealistic>
           <Toggle value={keepPilotStoredElements} onToggle={(value) => setKeepPilotStoredElements(value)} />
+        </SettingItem>
+      )}
+
+      {aircraftContext.settingsPages.realism.fireTestExtend && (
+        <SettingItem name={t('Settings.Realism.FireTestExtend')} unrealistic>
+          <Toggle value={fireTestExtend} onToggle={(value) => setFireTestExtend(value)} />
         </SettingItem>
       )}
     </SettingsPage>

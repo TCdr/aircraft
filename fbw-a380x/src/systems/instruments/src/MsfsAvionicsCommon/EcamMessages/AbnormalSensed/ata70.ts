@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2024-2025 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { AbnormalProcedure, ChecklistLineStyle } from '..';
+import { AbnormalProcedure, ChecklistLineStyle, DeferredProcedure, DeferredProcedureType } from '..';
 
 // Convention for IDs:
 // First two digits: ATA chapter
@@ -59,44 +59,92 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800009: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 1 EGT OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: false, labelNotCompleted: 'REDUCE BELOW EGT LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800010: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 2 EGT OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: false, labelNotCompleted: 'REDUCE BELOW EGT LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800011: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 3 EGT OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: false, labelNotCompleted: 'REDUCE BELOW EGT LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800012: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) EGT OVER LIMIT (a380_fcom.txt l.171515-171519)
     title: '\x1b<4m\x1b4mENG\x1bm 4 EGT OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: false, labelNotCompleted: 'REDUCE BELOW EGT LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800013: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 1 FADEC FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: false, labelNotCompleted: 'MAN ADJUST' },
+      { name: 'ENG 1 PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'ABNORMAL', sensed: false, condition: true },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800014: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 2 FADEC FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: false, labelNotCompleted: 'MAN ADJUST' },
+      { name: 'ENG 2 PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'ABNORMAL', sensed: false, condition: true },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800015: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 3 FADEC FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: false, labelNotCompleted: 'MAN ADJUST' },
+      { name: 'ENG 3 PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'ABNORMAL', sensed: false, condition: true },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800016: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FADEC FAULT (a380_fcom.txt l.171571-171584)
     title: '\x1b<4m\x1b4mENG\x1bm 4 FADEC FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: false, labelNotCompleted: 'MAN ADJUST' },
+      { name: 'ENG 4 PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'ABNORMAL', sensed: false, condition: true },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE', level: 1 },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800017: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 FADEC IDENT FAULT',
@@ -159,24 +207,128 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800029: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 1\x1bm FAIL',
     sensed: true,
-    items: [], // TODO
+    items: [
+      { name: 'L/G', sensed: true, labelNotCompleted: 'UP' },
+      { name: 'AUTO RELIGHT IN PROGRESS', sensed: false },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'NO ENG RELIGHT AFTER 30S', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 1 DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 1 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'APU BLEED : DO NOT USE', sensed: false, level: 1 },
+      { name: 'AGENT 1 AFTER 10S', sensed: true, labelNotCompleted: 'DISCH', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ENG 1 NOT DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 1 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'ENG 1 RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY', level: 1 },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 1 DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 1 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'APU BLEED : DO NOT USE', sensed: false, level: 1 },
+      { name: 'AGENT 1', sensed: true, labelNotCompleted: 'DISCH', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ENG 1 NOT DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 1 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800030: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 2\x1bm FAIL',
     sensed: true,
-    items: [], // TODO
+    items: [
+      { name: 'L/G', sensed: true, labelNotCompleted: 'UP' },
+      { name: 'AUTO RELIGHT IN PROGRESS', sensed: false },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'NO ENG RELIGHT AFTER 30S', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 2 DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 2 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'APU BLEED : DO NOT USE', sensed: false, level: 1 },
+      { name: 'AGENT 1 AFTER 10S', sensed: true, labelNotCompleted: 'DISCH', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ENG 2 NOT DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 2 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'ENG 2 RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY', level: 1 },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 2 DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 2 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'APU BLEED : DO NOT USE', sensed: false, level: 1 },
+      { name: 'AGENT 1', sensed: true, labelNotCompleted: 'DISCH', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ENG 2 NOT DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 2 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800031: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 3\x1bm FAIL',
     sensed: true,
-    items: [], // TODO
+    items: [
+      { name: 'L/G', sensed: true, labelNotCompleted: 'UP' },
+      { name: 'AUTO RELIGHT IN PROGRESS', sensed: false },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'NO ENG RELIGHT AFTER 30S', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 3 DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 3 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'APU BLEED : DO NOT USE', sensed: false, level: 1 },
+      { name: 'AGENT 1 AFTER 10S', sensed: true, labelNotCompleted: 'DISCH', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ENG 3 NOT DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 3 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'ENG 3 RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY', level: 1 },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 3 DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 3 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'APU BLEED : DO NOT USE', sensed: false, level: 1 },
+      { name: 'AGENT 1', sensed: true, labelNotCompleted: 'DISCH', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ENG 3 NOT DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 3 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800032: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) FAIL
     title: '\x1b<4m\x1b4mENG 4\x1bm FAIL',
     sensed: true,
-    items: [], // TODO
+    items: [
+      { name: 'L/G', sensed: true, labelNotCompleted: 'UP' },
+      { name: 'AUTO RELIGHT IN PROGRESS', sensed: false },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'NO ENG RELIGHT AFTER 30S', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 4 DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 4 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'APU BLEED : DO NOT USE', sensed: false, level: 1 },
+      { name: 'AGENT 1 AFTER 10S', sensed: true, labelNotCompleted: 'DISCH', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ENG 4 NOT DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 4 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      { name: 'ENG 4 RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY', level: 1 },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 4 DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 4 FIRE P/B', sensed: true, labelNotCompleted: 'PUSH', level: 1 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'APU BLEED : DO NOT USE', sensed: false, level: 1 },
+      { name: 'AGENT 1', sensed: true, labelNotCompleted: 'DISCH', level: 1 },
+      { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
+      { name: 'ENG 4 NOT DAMAGED', sensed: false, condition: true },
+      { name: 'ENG 4 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800033: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 FUEL FILTER CLOGGED',
@@ -379,24 +531,44 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800073: {
-    title: '\x1b<4m\x1b4mENG\x1bm 1 N1/N2 OVER LIMIT',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    title: '\x1b<2m\x1b4mENG\x1bm 1 N1/N2 OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: false, labelNotCompleted: 'REDUCE BELOW N1 LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800074: {
-    title: '\x1b<4m\x1b4mENG\x1bm 2 N1/N2 OVER LIMIT',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    title: '\x1b<2m\x1b4mENG\x1bm 2 N1/N2 OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: false, labelNotCompleted: 'REDUCE BELOW N1 LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800075: {
-    title: '\x1b<4m\x1b4mENG\x1bm 3 N1/N2 OVER LIMIT',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    title: '\x1b<2m\x1b4mENG\x1bm 3 N1/N2 OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: false, labelNotCompleted: 'REDUCE BELOW N1 LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800076: {
-    title: '\x1b<4m\x1b4mENG\x1bm 4 N1/N2 OVER LIMIT',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) N1/N2 OVER LIMIT (a380_fcom.txt l.172363-172366): red, CRC
+    title: '\x1b<2m\x1b4mENG\x1bm 4 N1/N2 OVER LIMIT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: false, labelNotCompleted: 'REDUCE BELOW N1 LIMIT' },
+      { name: 'IF OVER LIMIT PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800077: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL CHIP DETECTED',
@@ -439,24 +611,40 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800085: {
-    title: '\x1b<4m\x1b4mENG\x1bm 1 OIL PRESS LO',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
+    title: '\x1b<2m\x1b4mENG\x1bm 1 OIL PRESS LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800086: {
-    title: '\x1b<4m\x1b4mENG\x1bm 2 OIL PRESS LO',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
+    title: '\x1b<2m\x1b4mENG\x1bm 2 OIL PRESS LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800087: {
-    title: '\x1b<4m\x1b4mENG\x1bm 3 OIL PRESS LO',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
+    title: '\x1b<2m\x1b4mENG\x1bm 3 OIL PRESS LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800088: {
-    title: '\x1b<4m\x1b4mENG\x1bm 4 OIL PRESS LO',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL PRESS LO (RED ALERT), a380_fcom.txt l.172478-172515: a red warning
+    title: '\x1b<2m\x1b4mENG\x1bm 4 OIL PRESS LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800089: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL SYS CONTAMINATION',
@@ -479,44 +667,84 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800093: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
+    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL TEMP HI',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: false, labelNotCompleted: 'REDUCE BELOW OIL TEMP LIM' },
+      { name: 'HI TEMP PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800094: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
+    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 2 OIL TEMP HI',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: false, labelNotCompleted: 'REDUCE BELOW OIL TEMP LIM' },
+      { name: 'HI TEMP PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800095: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
+    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 3 OIL TEMP HI',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: false, labelNotCompleted: 'REDUCE BELOW OIL TEMP LIM' },
+      { name: 'HI TEMP PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800096: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP HI, l.172553-172592. Design choice: "REDUCE BELOW OIL TEMP
+    // LIMIT" (l.172585) shortened to fit the 39 characters of the line
     title: '\x1b<4m\x1b4mENG\x1bm 4 OIL TEMP HI',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: false, labelNotCompleted: 'REDUCE BELOW OIL TEMP LIM' },
+      { name: 'HI TEMP PERSISTS', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800097: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 1 OIL TEMP LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'DELAY T.O FOR WARM UP', sensed: false },
+    ],
   },
   701800098: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 2 OIL TEMP LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'DELAY T.O FOR WARM UP', sensed: false },
+    ],
   },
   701800099: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 3 OIL TEMP LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'DELAY T.O FOR WARM UP', sensed: false },
+    ],
   },
   701800100: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) OIL TEMP LO, l.172605-172628
     title: '\x1b<4m\x1b4mENG\x1bm 4 OIL TEMP LO',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'DELAY T.O FOR WARM UP', sensed: false },
+    ],
   },
   701800101: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 OVTHR PROT LOST',
@@ -739,154 +967,422 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800113: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 1 STALL',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 1 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800114: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 2 STALL',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 2 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800115: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 3 STALL',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 3 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800116: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) STALL (a380_fcom.txt l.172842-172847)
     title: '\x1b<4m\x1b4mENG\x1bm 4 STALL',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 PARAMETERS', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 4 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+    ],
   },
   701800117: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 START FAULT',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START FAULT (a380_fcom.txt l.172905-173026), items by EngineStartAlerts
+    items: [
+      { name: 'NO STARTER AIR PRESSURE', sensed: false },
+      { name: 'LOW N2', sensed: false },
+      { name: 'HUNG START', sensed: false },
+      { name: 'EGT OVERLIMIT', sensed: false },
+      { name: 'NO LIGHT UP', sensed: false },
+      { name: 'ENG STALL', sensed: false },
+      { name: 'STARTER TIME EXCEEDED', sensed: false },
+      { name: 'THR LEVERS NOT AT IDLE', sensed: false },
+      { name: 'XBLEED', sensed: false, labelNotCompleted: 'OPEN' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
+      { name: 'NEW START IN PROGRESS', sensed: false },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'CRANK' },
+      { name: 'AFTER 30S', sensed: false, condition: true },
+      { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM' },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800118: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 START FAULT',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START FAULT (a380_fcom.txt l.172905-173026), items by EngineStartAlerts
+    items: [
+      { name: 'NO STARTER AIR PRESSURE', sensed: false },
+      { name: 'LOW N2', sensed: false },
+      { name: 'HUNG START', sensed: false },
+      { name: 'EGT OVERLIMIT', sensed: false },
+      { name: 'NO LIGHT UP', sensed: false },
+      { name: 'ENG STALL', sensed: false },
+      { name: 'STARTER TIME EXCEEDED', sensed: false },
+      { name: 'THR LEVERS NOT AT IDLE', sensed: false },
+      { name: 'XBLEED', sensed: false, labelNotCompleted: 'OPEN' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
+      { name: 'NEW START IN PROGRESS', sensed: false },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'CRANK' },
+      { name: 'AFTER 30S', sensed: false, condition: true },
+      { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM' },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800119: {
     title: '\x1b<4m\x1b4mENG\x1bm 3 START FAULT',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START FAULT (a380_fcom.txt l.172905-173026), items by EngineStartAlerts
+    items: [
+      { name: 'NO STARTER AIR PRESSURE', sensed: false },
+      { name: 'LOW N2', sensed: false },
+      { name: 'HUNG START', sensed: false },
+      { name: 'EGT OVERLIMIT', sensed: false },
+      { name: 'NO LIGHT UP', sensed: false },
+      { name: 'ENG STALL', sensed: false },
+      { name: 'STARTER TIME EXCEEDED', sensed: false },
+      { name: 'THR LEVERS NOT AT IDLE', sensed: false },
+      { name: 'XBLEED', sensed: false, labelNotCompleted: 'OPEN' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
+      { name: 'NEW START IN PROGRESS', sensed: false },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'CRANK' },
+      { name: 'AFTER 30S', sensed: false, condition: true },
+      { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM' },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800120: {
     title: '\x1b<4m\x1b4mENG\x1bm 4 START FAULT',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START FAULT (a380_fcom.txt l.172905-173026), items by EngineStartAlerts
+    items: [
+      { name: 'NO STARTER AIR PRESSURE', sensed: false },
+      { name: 'LOW N2', sensed: false },
+      { name: 'HUNG START', sensed: false },
+      { name: 'EGT OVERLIMIT', sensed: false },
+      { name: 'NO LIGHT UP', sensed: false },
+      { name: 'ENG STALL', sensed: false },
+      { name: 'STARTER TIME EXCEEDED', sensed: false },
+      { name: 'THR LEVERS NOT AT IDLE', sensed: false },
+      { name: 'XBLEED', sensed: false, labelNotCompleted: 'OPEN' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
+      { name: 'NEW START IN PROGRESS', sensed: false },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'CRANK' },
+      { name: 'AFTER 30S', sensed: false, condition: true },
+      { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM' },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800121: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 START VLV FAULT (NOT CLOSED)',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) (l.173080-173105), items by EngineStartAlerts
+    items: [
+      { name: 'ENG 1 BLEED', sensed: false, labelNotCompleted: 'OFF' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'X BLEED', sensed: false, labelNotCompleted: 'CLOSE' },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'WING A-ICE', sensed: false, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false },
+    ],
   },
   701800122: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 START VLV FAULT (NOT CLOSED)',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) (l.173080-173105), items by EngineStartAlerts
+    items: [
+      { name: 'ENG 2 BLEED', sensed: false, labelNotCompleted: 'OFF' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'X BLEED', sensed: false, labelNotCompleted: 'CLOSE' },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'WING A-ICE', sensed: false, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false },
+    ],
   },
   701800123: {
     title: '\x1b<4m\x1b4mENG\x1bm 3 START VLV FAULT (NOT CLOSED)',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) (l.173080-173105), items by EngineStartAlerts
+    items: [
+      { name: 'ENG 3 BLEED', sensed: false, labelNotCompleted: 'OFF' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'X BLEED', sensed: false, labelNotCompleted: 'CLOSE' },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'WING A-ICE', sensed: false, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false },
+    ],
   },
   701800124: {
     title: '\x1b<4m\x1b4mENG\x1bm 4 START VLV FAULT (NOT CLOSED)',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) (l.173080-173105), items by EngineStartAlerts
+    items: [
+      { name: 'ENG 4 BLEED', sensed: false, labelNotCompleted: 'OFF' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'X BLEED', sensed: false, labelNotCompleted: 'CLOSE' },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'WING A-ICE', sensed: false, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false },
+    ],
   },
   701800125: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 START VLV FAULT (NOT OPEN)',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT OPEN) (l.173216-173252), items by EngineStartAlerts
+    items: [
+      { name: 'VLV STUCK CLOSED', sensed: false },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR WITH CARE' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800126: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 START VLV FAULT (NOT OPEN)',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT OPEN) (l.173216-173252), items by EngineStartAlerts
+    items: [
+      { name: 'VLV STUCK CLOSED', sensed: false },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR WITH CARE' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800127: {
     title: '\x1b<4m\x1b4mENG\x1bm 3 START VLV FAULT (NOT OPEN)',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT OPEN) (l.173216-173252), items by EngineStartAlerts
+    items: [
+      { name: 'VLV STUCK CLOSED', sensed: false },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR WITH CARE' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800128: {
     title: '\x1b<4m\x1b4mENG\x1bm 4 START VLV FAULT (NOT OPEN)',
     sensed: true,
-    items: [],
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) START VLV FAULT (NOT OPEN) (l.173216-173252), items by EngineStartAlerts
+    items: [
+      { name: 'VLV STUCK CLOSED', sensed: false },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR WITH CARE' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800129: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 1 THR LEVER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 1 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 CLB ONLY', sensed: false },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'CLB' },
+    ],
   },
   701800130: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 2 THR LEVER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 2 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 CLB ONLY', sensed: false },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'CLB' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800131: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 3 THR LEVER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 3 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 CLB ONLY', sensed: false },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'CLB' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800132: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER FAULT (a380_fcom.txt l.173316-173326)
     title: '\x1b<4m\x1b4mENG\x1bm 4 THR LEVER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 4 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 CLB ONLY', sensed: false },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'CLB' },
+    ],
   },
   701800133: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 1 THRUST LOSS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800134: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 2 THRUST LOSS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800135: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 3 THRUST LOSS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800136: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THRUST LOSS, l.173378-173408
     title: '\x1b<4m\x1b4mENG\x1bm 4 THRUST LOSS',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800137: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER CTL FAULT (a380_fcom.txt l.173459-173462)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER CTL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800138: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER CTL FAULT (a380_fcom.txt l.173459-173462)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER CTL FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800139: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER ENERGIZED (a380_fcom.txt l.173508)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER ENERGIZED',
     sensed: true,
-    items: [],
+    items: [{ name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' }],
   },
   701800140: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER ENERGIZED (a380_fcom.txt l.173508)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER ENERGIZED',
     sensed: true,
-    items: [],
+    items: [{ name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' }],
   },
   701800141: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER FAULT (a380_fcom.txt l.173527-173530)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800142: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER FAULT (a380_fcom.txt l.173527-173530)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800143: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER INHIBITED',
@@ -899,14 +1395,22 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800145: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER LOCKED (a380_fcom.txt l.173606-173609)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REV LOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800146: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER LOCKED (a380_fcom.txt l.173606-173609)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REV LOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800147: {
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER MINOR FAULT',
@@ -919,19 +1423,210 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800149: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER UNLOCKED (a380_fcom.txt l.173678-173692)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER UNLOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 2 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'BUFFET', sensed: false, condition: true },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800150: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER UNLOCKED (a380_fcom.txt l.173678-173692)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER UNLOCKED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ENG 3 IDLE ONLY', sensed: false },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'BUFFET', sensed: false, condition: true },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   701800151: {
-    title: '\x1b<2m\x1b4mENG\x1bm ALL ENGINES FAILURE',
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG ALL ENG FLAME OUT (a380_fcom.txt l.173768-174788)
+    title: '\x1b<2m\x1b4mENG\x1bm ALL ENG FLAME OUT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'RAT MAN ON', sensed: true, labelNotCompleted: 'PRESS' },
+      { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'FUEL QTY', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'FUEL REMAINS', sensed: false, condition: true },
+      { name: 'ENG START SEL', sensed: false, labelNotCompleted: 'IGN START', level: 1 },
+      { name: 'OPTIMUM RELIGHT SPEED : 260 KT', sensed: false, level: 1 },
+      { name: 'USE VHF1', sensed: false, level: 1 },
+      { name: 'GLIDING DIST (NO WIND) : 2.5 NM/1000 FT', sensed: false, level: 1 },
+      { name: 'SPEED BRAKES AVAIL', sensed: false, level: 1 },
+      { name: 'LDG STRATEGY', sensed: false, labelNotCompleted: 'DETERMINE', labelCompleted: 'DETERMINED', level: 1 },
+      { name: 'NO ENG RELIGHT AFTER 30 S', sensed: false, condition: true, level: 1 },
+      { name: 'ALL ENG MASTERS', sensed: false, labelNotCompleted: 'OFF 30S THEN ON', level: 2 },
+      { name: 'ENGs RELIGHT', sensed: false, labelNotCompleted: 'TRY REGULARLY', level: 2 },
+      { name: 'CREW OXY MASKS (FL>100)', sensed: false, labelNotCompleted: 'USE', level: 2 },
+      { name: 'CABIN & CKPT', sensed: false, labelNotCompleted: 'PREPARE', labelCompleted: 'PREPARED', level: 2 },
+      { name: 'WHEN BELOW FL 200', sensed: false, condition: true, level: 2 },
+      { name: 'APU', sensed: false, labelNotCompleted: 'START', labelCompleted: 'STARTED', level: 3 },
+      { name: 'WHEN APU AVAIL', sensed: false, condition: true, level: 2 },
+      { name: 'ALL ENG MASTERS', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'WING A-ICE', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'ON', level: 3 },
+      { name: 'OPTIMUM SPEED : GREEN DOT', sensed: false, level: 3 },
+      { name: 'AFTER 30 S :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'ENG MASTER (2 AT A TIME)', sensed: false, labelNotCompleted: 'ON', level: 3 },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE', labelCompleted: 'ADVISED', level: 2 },
+      { name: 'COMMERCIAL 1+2', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'RAM AIR', sensed: true, labelNotCompleted: 'ON', level: 2 },
+      { name: 'BARO REF (IF AVAIL)', sensed: false, labelNotCompleted: 'SET', level: 2 },
+      { name: 'FORCED LDG ANTICIPATED', sensed: false, condition: true, level: 2 },
+      { name: 'DES SLOPE (LDG CONF/NO WIND):', sensed: false, level: 3 },
+      { name: '1.5 NM/1000 FT (650 FT/NM)', sensed: false, level: 3 },
+      { name: 'FOR APPROACH & LANDING :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'MIN RAT SPEED : 140 KT', sensed: false, level: 3 },
+      { name: '[MFD SURV] GPWS', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      {
+        name: 'FLAP LEVER 3 (EXTN 4 MIN)',
+        sensed: false,
+        labelNotCompleted: 'SELECT',
+        labelCompleted: 'SELECTED',
+        level: 3,
+      },
+      { name: 'FOR L/G GRVTY : MAX SPEED 220 KT', sensed: false, level: 3 },
+      // l.173963, as in the NO FUEL part
+      { name: 'L/G GRVTY (EXTN 2 MIN)', sensed: false, labelNotCompleted: 'DOWN', level: 3 },
+      { name: 'WHEN L/G LOCKED DOWN', sensed: false, condition: true, level: 3 },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 4 },
+      { name: 'APPROACH SPEED : VLS', sensed: false, level: 3 },
+      { name: 'N/W STEER NOT USABLE', sensed: false, level: 3 },
+      { name: 'USE DIFF BRAKING', sensed: false, labelNotCompleted: 'AS RQRD', level: 3 },
+      { name: 'GND SPLRs', sensed: true, labelNotCompleted: 'ARM', level: 3 },
+      { name: 'AT 2000 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE', labelCompleted: 'ADVISED', level: 3 },
+      { name: 'AT 500 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'BRACE FOR IMPACT', sensed: false, labelNotCompleted: 'ORDER', labelCompleted: 'ORDERED', level: 3 },
+      { name: 'AT TOUCHDOWN :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'ALL ENG MASTERS', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'WHEN AIRCRAFT STOPPED :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'PARK BRK', sensed: true, labelNotCompleted: 'ON', level: 3 },
+      { name: 'ATC', sensed: false, labelNotCompleted: 'NOTIFY', labelCompleted: 'NOTIFIED', level: 3 },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ALERT', labelCompleted: 'ALERTED', level: 3 },
+      { name: 'ALL FIRE P/Bs (ENG & APU)', sensed: true, labelNotCompleted: 'PUSH', level: 3 },
+      { name: 'ALL AGENTS (ENG & APU)', sensed: false, labelNotCompleted: 'DISCH', level: 3 },
+      { name: 'EVAC (PA)', sensed: false, labelNotCompleted: 'ANNOUNCE', labelCompleted: 'ANNOUNCED', level: 3 },
+      { name: 'EVAC COMMAND', sensed: true, labelNotCompleted: 'ON', level: 3 },
+      { name: 'ALL 4 BATs', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'DITCHING ANTICIPATED', sensed: false, condition: true, level: 2 },
+      { name: 'MIN RAT SPEED : 140 KT', sensed: false, level: 3 },
+      { name: '[MFD SURV] GPWS', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      {
+        name: 'FLAP LEVER 3 (EXTN 4 MIN)',
+        sensed: false,
+        labelNotCompleted: 'SELECT',
+        labelCompleted: 'SELECTED',
+        level: 3,
+      },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'CHECK UP', level: 3 },
+      { name: 'APPROACH SPEED : VLS UNTIL FLARE', sensed: false, level: 3 },
+      { name: 'FOR FLARE : OPT PITCH ATT 8° & MIN V/S', sensed: false, level: 3 },
+      { name: 'AT 2000 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE', labelCompleted: 'ADVISED', level: 3 },
+      { name: 'DITCHING P/B', sensed: false, labelNotCompleted: 'ON', level: 3 },
+      { name: 'AT 500 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'BRACE FOR IMPACT', sensed: false, labelNotCompleted: 'ORDER', labelCompleted: 'ORDERED', level: 3 },
+      { name: 'START FLARE AT 50 FT', sensed: false, level: 3 },
+      { name: 'JUST BEFORE DITCHING :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'ALL ENG MASTERS', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'AFTER DITCHING :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'ATC', sensed: false, labelNotCompleted: 'NOTIFY', labelCompleted: 'NOTIFIED', level: 3 },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ALERT', labelCompleted: 'ALERTED', level: 3 },
+      { name: 'ALL FIRE P/Bs (ENG & APU)', sensed: true, labelNotCompleted: 'PUSH', level: 3 },
+      { name: 'ALL AGENTS (ENG & APU)', sensed: false, labelNotCompleted: 'DISCH', level: 3 },
+      { name: 'EVAC (PA)', sensed: false, labelNotCompleted: 'ANNOUNCE', labelCompleted: 'ANNOUNCED', level: 3 },
+      { name: 'EVAC COMMAND', sensed: true, labelNotCompleted: 'ON', level: 3 },
+      { name: 'ELT', sensed: false, labelNotCompleted: 'CHECK EMITTING', level: 3 },
+      { name: 'ALL 4 BATs', sensed: true, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'NO FUEL', sensed: false, condition: true },
+      { name: 'OPTIMUM SPEED : GREEN DOT', sensed: false, level: 1 },
+      { name: 'USE VHF1', sensed: false, level: 1 },
+      { name: 'GLIDING DIST (NO WIND) : 2.7 NM/1000 FT', sensed: false, level: 1 },
+      { name: 'SPEED BRAKES AVAIL', sensed: false, level: 1 },
+      { name: 'LDG STRATEGY', sensed: false, labelNotCompleted: 'DETERMINE', labelCompleted: 'DETERMINED', level: 1 },
+      { name: 'CREW OXY MASKS (FL>100)', sensed: false, labelNotCompleted: 'USE', level: 1 },
+      { name: 'CABIN & CKPT', sensed: false, labelNotCompleted: 'PREPARE', labelCompleted: 'PREPARED', level: 1 },
+      { name: 'RAM AIR', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'BARO REF (IF AVAIL)', sensed: false, labelNotCompleted: 'SET', level: 1 },
+      { name: 'FORCED LDG ANTICIPATED', sensed: false, condition: true, level: 1 },
+      { name: 'DES SLOPE (LDG CONF/NO WIND):', sensed: false, level: 2 },
+      { name: '1.5 NM/1000 FT (650 FT/NM)', sensed: false, level: 2 },
+      { name: 'FOR APPROACH & LANDING :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'MIN RAT SPEED : 140 KT', sensed: false, level: 2 },
+      { name: '[MFD SURV] GPWS', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      {
+        name: 'FLAP LEVER 3 (EXTN 4 MIN)',
+        sensed: false,
+        labelNotCompleted: 'SELECT',
+        labelCompleted: 'SELECTED',
+        level: 2,
+      },
+      { name: 'FOR L/G GRVTY : MAX SPEED 220 KT', sensed: false, level: 2 },
+      { name: 'L/G GRVTY (EXTN 2 MIN)', sensed: false, labelNotCompleted: 'DOWN', level: 2 },
+      { name: 'WHEN L/G LOCKED DOWN', sensed: false, condition: true, level: 2 },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 3 },
+      { name: 'APPROACH SPEED : VLS', sensed: false, level: 2 },
+      { name: 'N/W STEER NOT USABLE', sensed: false, level: 2 },
+      { name: 'USE DIFF BRAKING', sensed: false, labelNotCompleted: 'AS RQRD', level: 2 },
+      { name: 'GND SPLRs', sensed: true, labelNotCompleted: 'ARM', level: 2 },
+      { name: 'AT 2000 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE', labelCompleted: 'ADVISED', level: 2 },
+      { name: 'AT 500 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'BRACE FOR IMPACT', sensed: false, labelNotCompleted: 'ORDER', labelCompleted: 'ORDERED', level: 2 },
+      { name: 'AT TOUCHDOWN :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'ALL ENG MASTERS', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'WHEN AIRCRAFT STOPPED :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'PARK BRK', sensed: true, labelNotCompleted: 'ON', level: 2 },
+      { name: 'ATC', sensed: false, labelNotCompleted: 'NOTIFY', labelCompleted: 'NOTIFIED', level: 2 },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ALERT', labelCompleted: 'ALERTED', level: 2 },
+      { name: 'ALL FIRE P/Bs (ENG & APU)', sensed: true, labelNotCompleted: 'PUSH', level: 2 },
+      { name: 'ALL AGENTS (ENG & APU)', sensed: false, labelNotCompleted: 'DISCH', level: 2 },
+      { name: 'EVAC (PA)', sensed: false, labelNotCompleted: 'ANNOUNCE', labelCompleted: 'ANNOUNCED', level: 2 },
+      { name: 'EVAC COMMAND', sensed: true, labelNotCompleted: 'ON', level: 2 },
+      { name: 'ALL 4 BATs', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'DITCHING ANTICIPATED', sensed: false, condition: true, level: 1 },
+      { name: 'MIN RAT SPEED : 140 KT', sensed: false, level: 2 },
+      { name: '[MFD SURV] GPWS', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      {
+        name: 'FLAP LEVER 3 (EXTN 4 MIN)',
+        sensed: false,
+        labelNotCompleted: 'SELECT',
+        labelCompleted: 'SELECTED',
+        level: 2,
+      },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'CHECK UP', level: 2 },
+      { name: 'APPROACH SPEED : VLS UNTIL FLARE', sensed: false, level: 2 },
+      { name: 'FOR FLARE : OPT PITCH ATT 8° & MIN V/S', sensed: false, level: 2 },
+      { name: 'AT 2000 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE', labelCompleted: 'ADVISED', level: 2 },
+      { name: 'DITCHING P/B', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'AT 500 FT AGL :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'BRACE FOR IMPACT', sensed: false, labelNotCompleted: 'ORDER', labelCompleted: 'ORDERED', level: 2 },
+      { name: 'START FLARE AT 50 FT', sensed: false, level: 2 },
+      { name: 'JUST BEFORE DITCHING :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'ALL ENG MASTERS', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'AFTER DITCHING :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline },
+      { name: 'ATC', sensed: false, labelNotCompleted: 'NOTIFY', labelCompleted: 'NOTIFIED', level: 2 },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ALERT', labelCompleted: 'ALERTED', level: 2 },
+      { name: 'ALL FIRE P/Bs (ENG & APU)', sensed: true, labelNotCompleted: 'PUSH', level: 2 },
+      { name: 'ALL AGENTS (ENG & APU)', sensed: false, labelNotCompleted: 'DISCH', level: 2 },
+      { name: 'EVAC (PA)', sensed: false, labelNotCompleted: 'ANNOUNCE', labelCompleted: 'ANNOUNCED', level: 2 },
+      { name: 'EVAC COMMAND', sensed: true, labelNotCompleted: 'ON', level: 2 },
+      { name: 'ELT', sensed: false, labelNotCompleted: 'CHECK EMITTING', level: 2 },
+      { name: 'ALL 4 BATs', sensed: true, labelNotCompleted: 'OFF', level: 2 },
+    ],
     recommendation: 'LAND ASAP',
   },
   701800152: {
@@ -945,11 +1640,17 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800154: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG REVERSER SELECTED (a380_fcom.txt l.175039)
     title: '\x1b<4m\x1b4mENG\x1bm REVERSER SELECTED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'FWD THR' },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'FWD THR' },
+      { name: 'THR LEVERS 2+3', sensed: true, labelNotCompleted: 'FWD THR' },
+    ],
   },
   701800155: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG T.O THRUST DISAGREE, l.175054-175070: crew awareness, no line
     title: '\x1b<4m\x1b4mENG\x1bm T.O THRUST DISAGREE',
     sensed: true,
     items: [],
@@ -960,9 +1661,14 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   701800157: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG THR LEVERS NOT SET, l.175146-175184 (no derated take-off in FBW: its TOGA line is
+    // left out)
     title: '\x1b<4m\x1b4mENG\x1bm THR LEVERS NOT SET',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'TOGA' },
+      { name: 'THR LEVERS', sensed: true, labelNotCompleted: 'MCT/FLEX' },
+    ],
   },
   701800158: {
     title: '\x1b<4m\x1b4mENG\x1bm THRUST LOCKED',
@@ -976,14 +1682,23 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800159: {
-    title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENG OUT ON SAME SIDE\x1bm",
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG TWO ENGS OUT ON SAME SIDE (a380_fcom.txt l.175261-175271)
+    title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENGS OUT ON SAME SIDE\x1bm",
+    recommendation: 'LAND ANSA',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'LDG PERF AFFECTED', sensed: false },
+      { name: 'FOR TAXI : STEER ENDURANCE LIMITED', sensed: false },
+    ],
   },
   701800160: {
-    title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENG OUT ON OPPOSITE SIDE\x1bm",
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG TWO ENGS OUT ON OPPOSITE SIDE (a380_fcom.txt l.175514-175521)
+    title: "\x1b<4m\x1b4mENG\x1bm \x1b'mTWO ENGS OUT ON OPPOSITE SIDE\x1bm",
+    recommendation: 'LAND ANSA',
     sensed: true,
-    items: [],
+    items: [{ name: 'LDG PERF AFFECTED', sensed: false }],
   },
   701800161: {
     title: '\x1b<4m\x1b4mENG\x1bm TYPE DISAGREE',
@@ -994,9 +1709,10 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mENG\x1bm RELIGHT IN FLIGHT',
     sensed: false,
     items: [
+      // A380 FCOM ENG RELIGHT IN FLIGHT, single engine l.174902-174904, multiple engines l.174977-174979
       { name: 'FOR RELIGHT (SINGLE ENGINE)', sensed: false, condition: true },
-      { name: 'MAX GUARANTEED ALTITUDE : 28000 FT', sensed: false, level: 1 },
-      { name: 'MAX SPEED FOR WINDML RELIGHT : 250 KT', sensed: false, level: 1 },
+      { name: 'MAX GUARANTEED ALTITUDE : 30000 FT', sensed: false, level: 1 },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false, level: 1 },
       { name: 'THR LEVER (AFFECTED)', sensed: false, labelNotCompleted: 'IDLE', level: 1 },
       { name: 'ENG (AFFECTED) MASTER', sensed: false, labelNotCompleted: 'OFF', level: 1 },
       { name: 'XBLEED', sensed: true, labelNotCompleted: 'OPEN', level: 1 },
@@ -1015,7 +1731,7 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'THR LEVER (AFFECTED)', sensed: false, labelNotCompleted: 'IDLE', level: 1 },
       { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'IGN START', level: 1 },
       { name: 'MAX GUARANTEED ALTITUDE : 28000 FT', sensed: false, level: 1 },
-      { name: 'MAX SPEED FOR WINDML RELIGHT : 250 KT', sensed: false, level: 1 },
+      { name: 'MIN SPEED FOR WINDML RELIGHT : 250 KT', sensed: false, level: 1 },
       { name: 'XBLEED', sensed: true, labelNotCompleted: 'OPEN', level: 1 },
       { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
       { name: 'ENG (AFFECTED) MASTERS', sensed: false, labelNotCompleted: 'OFF 30S THEN ON', level: 1 },
@@ -1054,6 +1770,121 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'ENG (AFFECTED) MAN START', sensed: false, labelNotCompleted: 'OFF', level: 1 },
       { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM', level: 1 },
       { name: 'XBLEED', sensed: true, labelNotCompleted: 'AUTO', level: 1 },
+    ],
+  },
+  700900003: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG HI VIBRATIONS
+    title: '\x1b<4m\x1b4mENG\x1bm HI VIBRATIONS',
+    sensed: false,
+    items: [
+      { name: 'ICING CONDs', sensed: false, condition: true },
+      { name: 'A/THR', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ALL ENGs (ONE BY ONE)', sensed: false, labelNotCompleted: 'IDLE THEN INCREASE', level: 1 },
+      { name: 'ABOVE VIB ADV', sensed: false, condition: true },
+      { name: 'THRUST (AFFECTED ENG)', sensed: false, labelNotCompleted: 'REDUCE', level: 1 },
+      { name: 'VIB STILL ABOVE VIB ADV', sensed: false, condition: true, level: 1 },
+      { name: 'ENG (AFFECTED) MASTER OFF', sensed: false, labelNotCompleted: 'CONSIDER', level: 2 },
+    ],
+  },
+};
+
+/**
+ * ATA 70 deferred procedures. The FCOM gives no title for them; design choice: the title names the alert they come from
+ * (the STATUS page lists them as "> title" under their FOR APPROACH / ALL PHASES heading).
+ * The items checked are in FwsAbnormalSensed ewdDeferredProcs (EngineFailAlerts.ts for the TWO ENGS OUT lines).
+ */
+export const EcamDeferredProcAta70: { [n: number]: DeferredProcedure } = {
+  700700001: {
+    // A380 FCOM ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) DEFERRED PROC (l.173149-173153): FOR APPROACH, if
+    // engine 1 or 4 affected
+    fromAbnormalProcs: ['701800121', '701800124'],
+    title: 'ENG START VLV FAULT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF SEVERE ICE ACCRETION', sensed: false, condition: true },
+      { name: 'FOR LDG : FLAP LVR 3', sensed: false, level: 1 },
+    ],
+  },
+  700700002: {
+    // A380 FCOM ENG TWO ENGS OUT ON SAME SIDE (l.175333-175337) and ON OPPOSITE SIDE (l.175554-175558) DEFERRED PROC:
+    // ALL PHASES
+    fromAbnormalProcs: ['701800159', '701800160'],
+    title: 'ENG TWO ENGS OUT',
+    type: DeferredProcedureType.ALL_PHASES,
+    items: [
+      { name: 'IF GW DECREASE RQRD', sensed: false, condition: true },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
+  },
+  700700003: {
+    // A380 FCOM ENG TWO ENGS OUT ON SAME SIDE DEFERRED PROC FOR APPROACH (l.175338-175396), items by EngineFailAlerts
+    fromAbnormalProcs: ['701800159'],
+    title: 'TWO ENGS OUT ON SAME SIDE',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF JETTISON ACTIVE', sensed: false, condition: true }, // [0]
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'LDG PERF COMPUTATION', sensed: false, labelNotCompleted: 'CONFIRM' },
+      { name: 'DISREGARD NORM APPR & C/Ls', sensed: false },
+      { name: 'LONG APPROACH', sensed: false, labelNotCompleted: 'PLAN' }, // [5]
+      { name: 'FLAPS SLOW', sensed: false },
+      { name: 'SLATS SLOW', sensed: false }, // if ENG 1+2 are lost
+      { name: 'BARO REF', sensed: false, labelNotCompleted: 'SET' },
+      { name: 'MINIMA', sensed: false, labelNotCompleted: 'SET' },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE' }, // [10]
+      { name: 'SIGNS', sensed: false, labelNotCompleted: 'ON' },
+      { name: 'INITIAL APPROACH', sensed: false, condition: true },
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 1', level: 1 },
+      { name: 'GA PERF MAY NOT BE ACHIEVED WITH L/G DN', sensed: false, level: 1 },
+      { name: 'FOR L/G EXTN', sensed: false, condition: true }, // [15]
+      { name: 'FOR L/G GRVTY EXTN : MAX SPD 220 KT', sensed: false, level: 1 },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'UP', level: 1 },
+      { name: 'L/G GRVTY (EXTN MAX 2 MIN)', sensed: true, labelNotCompleted: 'DOWN', level: 1 },
+      { name: 'WHEN L/G LOCKED DOWN OR AFTER 120S', sensed: false, condition: true, level: 1 },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 2 }, // [20]
+      { name: 'INTERCEPTING G/S', sensed: false, condition: true },
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 2', level: 1 },
+      { name: 'PACK 1+2', sensed: false, labelNotCompleted: 'OFF OR ON APU', level: 1 },
+      { name: 'FOR GO AROUND : FLAP LVR 1', sensed: false, level: 1 },
+      { name: 'FINAL APPROACH', sensed: false, condition: true }, // [25]
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 3', level: 1 },
+      { name: 'A/THR', sensed: true, labelNotCompleted: 'DISCONNECT', level: 1 },
+      { name: 'GND SPLRs', sensed: true, labelNotCompleted: 'ARM', level: 1 },
+      { name: 'AT COMMIT ALTITUDE (500 FT AGL)', sensed: false, condition: true },
+      { name: 'REDUCE SPEED TO VAPP', sensed: false, level: 1 }, // [30]
+      { name: 'DO NOT ATTEMPT GO AROUND', sensed: false },
+    ],
+  },
+  700700004: {
+    // A380 FCOM ENG TWO ENGS OUT ON OPPOSITE SIDE DEFERRED PROC APPR & LDG (l.175559-175612), items by
+    // EngineFailAlerts. Design choice: the FCOM heading "APPR & LDG" is shown as FOR APPROACH (the deferred
+    // procedure types of the FWS).
+    fromAbnormalProcs: ['701800160'],
+    title: 'TWO ENGS OUT ON OPPOSITE SIDE',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF JETTISON ACTIVE', sensed: false, condition: true }, // [0]
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'LDG PERF COMPUTATION', sensed: false, labelNotCompleted: 'CONFIRM' },
+      { name: 'DISREGARD NORM APPR & C/Ls', sensed: false },
+      { name: 'LONG APPROACH', sensed: false, labelNotCompleted: 'PLAN' }, // [5]
+      { name: 'BARO REF', sensed: false, labelNotCompleted: 'SET' },
+      { name: 'MINIMA', sensed: false, labelNotCompleted: 'SET' },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE' },
+      { name: 'SIGNS', sensed: false, labelNotCompleted: 'ON' },
+      { name: 'INITIAL APPROACH', sensed: false, condition: true }, // [10]
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 1', level: 1 },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 1 },
+      { name: 'INTERCEPTING G/S', sensed: false, condition: true },
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 2', level: 1 },
+      { name: 'PACK 1+2', sensed: false, labelNotCompleted: 'OFF OR ON APU', level: 1 }, // [15]
+      { name: 'FINAL APPROACH', sensed: false, condition: true },
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 3', level: 1 },
+      { name: 'GND SPLRs', sensed: true, labelNotCompleted: 'ARM', level: 1 },
+      { name: 'FOR GO AROUND : FLAP LEVER 1', sensed: false, level: 1 },
     ],
   },
 };

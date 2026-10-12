@@ -5,6 +5,7 @@
 import { EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import { MappedSubject, Subscribable, SubscribableMapFunctions, Subscription } from '@microsoft/msfs-sdk';
 import { FwsCore, FwsSuppressableItem } from './FwsCore';
+import { oppositeSideGeneratorPair } from './EngineFailAlerts';
 
 export enum FwsInopSysPhases {
   AllPhases,
@@ -25,10 +26,11 @@ export interface FwsInopSysDict {
 export class FwsInopSys {
   public readonly subscriptions: Subscription[] = [];
 
+  // The G (Y) HYD SYS lost: low pressure, or both engines of its side out (ENG TWO ENGS OUT ON SAME SIDE, FwsCore)
   public readonly partSplrs = MappedSubject.create(
     SubscribableMapFunctions.or(),
-    this.fws.greenAbnormLoPressure,
-    this.fws.yellowAbnormLoPressure,
+    this.fws.greenHydSysInop,
+    this.fws.yellowHydSysInop,
     this.fws.sec1FaultCondition,
     this.fws.sec2FaultCondition,
     this.fws.sec3FaultCondition,
@@ -36,13 +38,31 @@ export class FwsInopSys {
 
   public readonly mostSplrs = MappedSubject.create(
     SubscribableMapFunctions.and(),
-    this.fws.greenAbnormLoPressure,
-    this.fws.yellowAbnormLoPressure,
+    this.fws.greenHydSysInop,
+    this.fws.yellowHydSysInop,
   );
+
+  /** GEN 1+3, 1+4, 2+3, 2+4: ENG TWO ENGS OUT ON OPPOSITE SIDE STATUS (FCOM l.175620-175621, EngineFailAlerts.ts) */
+  private readonly oppositeSideGenPair = MappedSubject.create(
+    ([gen1, gen2, gen3, gen4]) => {
+      const pair = oppositeSideGeneratorPair([gen1, gen2, gen3, gen4]);
+      return pair ? `${pair[0]}+${pair[1]}` : '';
+    },
+    this.fws.gen1Inop,
+    this.fws.gen2Inop,
+    this.fws.gen3Inop,
+    this.fws.gen4Inop,
+  );
+
+  public readonly gen13Inop = this.oppositeSideGenPair.map((pair) => pair === '1+3');
+  public readonly gen14Inop = this.oppositeSideGenPair.map((pair) => pair === '1+4');
+  public readonly gen23Inop = this.oppositeSideGenPair.map((pair) => pair === '2+3');
+  public readonly gen24Inop = this.oppositeSideGenPair.map((pair) => pair === '2+4');
 
   constructor(private fws: FwsCore) {
     this.subscriptions.push(this.partSplrs);
     this.subscriptions.push(this.mostSplrs);
+    this.subscriptions.push(this.oppositeSideGenPair, this.gen13Inop, this.gen14Inop, this.gen23Inop, this.gen24Inop);
   }
 
   /** INOP SYS shown on SD */
@@ -62,6 +82,20 @@ export class FwsInopSys {
   }
 
   inopSys: FwsInopSysDict = {
+    // ENG n IGN A+B FAULT STATUS INOP SYS ALL PHASES: ENG n IGNITION; ENG n IGN A(B) FAULT MORE INFO REDUND LOSS: ENG n IGN
+    // A(B) (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt l.172254-172255, 172289)
+    740300002: { simVarIsActive: this.fws.engineIgnAPlusBFault[0], phase: FwsInopSysPhases.AllPhases },
+    740300003: { simVarIsActive: this.fws.engineIgnAPlusBFault[1], phase: FwsInopSysPhases.AllPhases },
+    740300004: { simVarIsActive: this.fws.engineIgnAPlusBFault[2], phase: FwsInopSysPhases.AllPhases },
+    740300005: { simVarIsActive: this.fws.engineIgnAPlusBFault[3], phase: FwsInopSysPhases.AllPhases },
+    740300006: { simVarIsActive: this.fws.engineIgnAFault[0], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300007: { simVarIsActive: this.fws.engineIgnAFault[1], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300008: { simVarIsActive: this.fws.engineIgnAFault[2], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300009: { simVarIsActive: this.fws.engineIgnAFault[3], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300010: { simVarIsActive: this.fws.engineIgnBFault[0], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300011: { simVarIsActive: this.fws.engineIgnBFault[1], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300012: { simVarIsActive: this.fws.engineIgnBFault[2], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    740300013: { simVarIsActive: this.fws.engineIgnBFault[3], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
     220300026: {
       // AUTOLAND
       simVarIsActive: this.fws.land2Inop,
@@ -180,13 +214,13 @@ export class FwsInopSys {
       // GEN 1
       simVarIsActive: this.fws.gen1Inop,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['240300037'],
+      notActiveWhenItemActive: ['240300037', '240300039', '240300040'],
     },
     240300011: {
       // GEN 2
       simVarIsActive: this.fws.gen2Inop,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['240300037'],
+      notActiveWhenItemActive: ['240300037', '240300041', '240300042'],
     },
 
     240300037: {
@@ -199,17 +233,37 @@ export class FwsInopSys {
       // GEN 3
       simVarIsActive: this.fws.gen3Inop,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['240300038'],
+      notActiveWhenItemActive: ['240300038', '240300039', '240300041'],
     },
     240300013: {
       // GEN 4
       simVarIsActive: this.fws.gen4Inop,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['240300038'],
+      notActiveWhenItemActive: ['240300038', '240300040', '240300042'],
     },
     240300038: {
       // GEN 3+4
       simVarIsActive: MappedSubject.create(SubscribableMapFunctions.and(), this.fws.gen3Inop, this.fws.gen4Inop),
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    240300039: {
+      // GEN 1+3
+      simVarIsActive: this.gen13Inop,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    240300040: {
+      // GEN 1+4
+      simVarIsActive: this.gen14Inop,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    240300041: {
+      // GEN 2+3
+      simVarIsActive: this.gen23Inop,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    240300042: {
+      // GEN 2+4
+      simVarIsActive: this.gen24Inop,
       phase: FwsInopSysPhases.AllPhases,
     },
     260300002: {
@@ -464,12 +518,12 @@ export class FwsInopSys {
     },
     290300021: {
       // G HYD SYS
-      simVarIsActive: this.fws.greenAbnormLoPressure,
+      simVarIsActive: this.fws.greenHydSysInop,
       phase: FwsInopSysPhases.AllPhases,
     },
     290300022: {
       // Y HYD SYS
-      simVarIsActive: this.fws.yellowAbnormLoPressure,
+      simVarIsActive: this.fws.yellowHydSysInop,
       phase: FwsInopSysPhases.AllPhases,
     },
     290300023: {
@@ -503,8 +557,21 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     320300007: {
-      // BTV
-      simVarIsActive: this.fws.btvLost,
+      // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions (A380 FCOM l.172781, 175443, 175620)
+      // and with the reverser of the engine 2 or 3 inoperative (REVERSER CTL FAULT, FAULT, LOCKED, THR LEVER 2(3)
+      // FAULT: STATUS INOP SYS BTV at A380 FCOM l.173359, 173488, 173569, 173613, 173666). The alert part also stops the
+      // BTV arming (FwsCore btvInopByAlert, L:A32NX_FWC_1_BTV_INOP)
+      simVarIsActive: MappedSubject.create(
+        ([btvLost, engineOut, reverserInop]) => btvLost || engineOut || reverserInop,
+        this.fws.btvLost,
+        this.fws.engineOutBtvInop,
+        this.fws.reverserBtvInop,
+      ),
+      phase: FwsInopSysPhases.ApprLdg,
+    },
+    220300028: {
+      // CAT 3 DUAL: ENG 1(2)(3)(4) SHUT DOWN with the APU off (A380 FCOM l.172783)
+      simVarIsActive: this.fws.engineShutDownCat3SingleOnly,
       phase: FwsInopSysPhases.ApprLdg,
     },
     320300022: {
@@ -781,6 +848,41 @@ export class FwsInopSys {
       simVarIsActive: this.fws.reverser3Inop,
       phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['700300003'],
+    },
+
+    // ENG 1(2)(3)(4) THR LEVER FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) THR LEVER (A380 FCOM l.173326)
+    700300050: {
+      simVarIsActive: this.fws.thrLeverFault[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    700300051: {
+      simVarIsActive: this.fws.thrLeverFault[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    700300052: {
+      simVarIsActive: this.fws.thrLeverFault[2],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    700300053: {
+      simVarIsActive: this.fws.thrLeverFault[3],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    // ENG 1(2)(3)(4) FADEC FAULT, INOP SYS ALL PHASES ENG 1(2)(3)(4) A/THR "If A/THR engaged" (A380 FCOM l.171599)
+    220300014: {
+      simVarIsActive: this.fws.fadecAthrInop[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    220300015: {
+      simVarIsActive: this.fws.fadecAthrInop[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    220300016: {
+      simVarIsActive: this.fws.fadecAthrInop[2],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    220300017: {
+      simVarIsActive: this.fws.fadecAthrInop[3],
+      phase: FwsInopSysPhases.AllPhases,
     },
 
     700300003: {

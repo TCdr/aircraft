@@ -27,8 +27,14 @@ set(INCLUDE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/EngineControl_A380X.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/FuelConfiguration_A380X.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/FadecSimData_A380X.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/FeedTankDraw_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/ThrustLimits_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/Polynomials_A380X.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/RelightStart_A380X.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/CoreSpikeGuard_A380X.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/MsfsCoreLimiter_A380X.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/IgniterSelection_A380X.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/EgtFailureOffset_A380X.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Fadec/Table1502_A380X.hpp
 )
 

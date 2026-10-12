@@ -217,6 +217,13 @@
       | 14  | Hot Air 2 position disagrees                         |
       | 15  | Trim Air Pressure Regulating Valve 1 is open         |
       | 16  | Trim Air Pressure Regulating Valve 2 is open         |
+      | 17  | Cockpit duct overheat                                |
+      | 18  | Cabin duct overheat in a zone supplied by HOT AIR 1  |
+      | 19  | Cabin duct overheat in a zone supplied by HOT AIR 2  |
+      | 20  | Forward cargo duct overheat                          |
+      | 21  | Cockpit trim air valve fault (jammed)                |
+      | 22  | Cabin trim air valve fault (jammed, any zone)        |
+      | 23  | Forward cargo trim air valve fault (jammed)          |
 
 - A32NX_COND_CPIOM_B{id}_VCS_DISCRETE_WORD
     - Arinc429<Discrete>
@@ -310,6 +317,23 @@
     - {id}
         - 1 or 2
 
+- A32NX_COND_{id}_DUCT_OVHT
+    - Bool
+    - True if the temperature controller detects a duct overheat in the zone: the duct temperature
+      (A32NX_COND_{id}_DUCT_TEMP) stays above 70 deg C; it stays true until the duct is back below
+      70 deg C with the HOT AIR pb supplying the zone set OFF (HOT AIR 2: CKPT and UPPER_DECK_x,
+      HOT AIR 1: MAIN_DECK_x and CARGO_FWD). Always false for CARGO_BULK (no trim air valve)
+    - {id}
+        - Same as A32NX_COND_{id}_TEMP
+
+- A32NX_COND_{id}_TRIM_AIR_VALVE_FAULT
+    - Bool
+    - True if the temperature controller finds the trim air valve of the zone jammed: its position
+      stays more than 10 % away from the command for more than 10 s. Clears when the valve moves
+      again. Always false for CARGO_BULK
+    - {id}
+        - Same as A32NX_COND_{id}_TEMP
+
 - A32NX_VENT_{id1}_VCM_CHANNEL_{id2}_FAILURE
     - Bool
     - True if the channel is failed
@@ -401,7 +425,8 @@
 
 - A32NX_OVHD_COND_HOT_AIR_{index}_PB_HAS_FAULT
     - Bool
-    - True if the hot air {1 or 2} trim system has a fault
+    - True if the hot air {1 or 2} trim system has a fault: a duct overheat in a zone supplied by
+      that hot-air valve (see A32NX_COND_{id}_DUCT_OVHT)
 
 - A32NX_OVHD_COND_RAM_AIR_PB_IS_ON
     - Bool
@@ -1333,6 +1358,16 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Bool
     - True when the overhead fire test pushbutton is pressed
 
+- A32NX_FIRE_TEST_EXTEND
+    - Bool
+    - True when the fire test goes on for 7 seconds after the fire test pushbutton is released (flyPad Realism
+      setting "Extend Fire Test Warnings After Button Release", not aircraft behaviour)
+
+- A32NX_FIRE_TEST_ACTIVE
+    - Bool
+    - True while the fire test is requested: the fire test pushbutton is pressed, or was released less than 7 seconds
+      ago when A32NX_FIRE_TEST_EXTEND is true
+
 ## Flight Controls (ATA 27)
 
 ### Electronic Flight Control System (EFCS)
@@ -1560,6 +1595,76 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - RIGHT_INNER
     - TRIM
 
+- A32NX_FUEL_ENG_{number}_LP_VALVE_OPEN_PERCENTAGE
+  - Percent
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Position of the engine LP fuel valve, 0 when fully closed. The valve is closed by the ENG MASTER lever or the ENG FIRE pb (FCOM DSC-28-10 ENGINE LP VALVES) and travels in 3 s
+
+- A32NX_FUEL_ENG_{number}_FUEL_DOWNSTREAM_LP_VALVE
+  - Number in kilogram
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Fuel left between the engine LP fuel valve and the engine (1 gallon, the Extra tank of the fuel model). Full while the valve is open, burned at the engine fuel flow once the valve is fully closed
+
+- A32NX_FUEL_ENG_{number}_STARVED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the FADEC shuts the engine down and it cannot relight. Cuts the engine fuel (A32NX_ENGINE_{number}_FUEL_CUT)
+
+- A380X_FUEL_FEED_TK_{number}_{pump}_PMP_LO_PR
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - {pump}
+    - MAIN
+    - STBY
+  - True when the feed tank pump pb-sw is ON and the pump is not running (failed). Drives the pb-sw FAULT light, the amber pump of the SD FUEL page and the FUEL FEED TK {number} MAIN (STBY) PMP FAULT alerts (FCOM DSC-28-20, PRO-ABN-ECAM-10-28). Written by the systems host (CpiomF/FuelPumpsAndValves), which also simulates the ATA 28 feed pump failures by holding the MSFS pump switch (FUELSYSTEM PUMP SWITCH 1-8, ON in the flight files) off while the pb-sw keeps the pump circuit connected
+
+- A380X_FUEL_{pump}_PMP_FAULT
+  - Bool
+  - {pump}
+    - L_OUTR_TK (MSFS pump 9)
+    - R_OUTR_TK (pump 14)
+    - L_MID_TK_FWD (pump 10)
+    - R_MID_TK_FWD (pump 15)
+    - L_INR_TK_FWD (pump 12)
+    - R_INR_TK_FWD (pump 13)
+    - TRIM_TK_L (pump 19)
+    - TRIM_TK_R (pump 20)
+  - True when the transfer pump pb-sw is ON and, for more than 2 s, the pump is failed (its failure 28030-28037 is active, whether or not the FQMS runs it at that time) or runs in an empty tank (below 0.1 gal): an empty tank alone gives no fault. Drives the pb-sw FAULT light, the amber pump of the SD FUEL page and the FUEL ... PMP FAULT alerts with the pb-sw OFF condition (FCOM DSC-28-20, PRO-ABN-ECAM-10-28). Written by the systems host (CpiomF/FuelPumpsAndValves), which also simulates the transfer pump failures by holding the MSFS pump switch off whatever the FQMS (the MSFS triggers of CpiomF/LegacyFuel) commands; while a pump is failed it follows the FQMS start/stop commands from the trigger changes (FUELSYSTEM TRIGGER STATUS), so that the repaired pump returns to what the FQMS wants
+
+- A380X_FUEL_CROSSFEED_VLV_{number}_ABNORMAL
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the crossfeed valve position has disagreed with its CROSSFEED pb-sw for more than 5 s (abnormally closed or open): amber valve on the SD FUEL page and FUEL CROSSFEED VLV {number} FAULT. Written by the systems host (CpiomF/FuelPumpsAndValves)
+
+- A380X_OVHD_FUEL_CROSSFEED_{number}_PB_IS_ON
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the CROSSFEED {number} pb-sw is ON (the flight crew selection, ON light and pb-sw animation). The systems host (CpiomF/FuelPumpsAndValves) commands the MSFS valve 46 (crossfeed 1) to 49 (crossfeed 4) (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the valve is jammed (failures 28020-28023), when the valve stays where it was. A valve switch change from outside (K:FUELSYSTEM_VALVE_* events, the refuel logic closing the valves) is taken as the new selection. The ECAM sensed CROSSFEED ... ON items read it (the crew action, done even if the valve is jammed closed); the green OPEN light of the pb-sw shows the valve fully open (FUELSYSTEM VALVE OPEN)
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL
@@ -1632,6 +1737,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - EMERCANC
         - MORE
         - RCL
+        - RCL_LAST
         - TOCONFIG
         - UP
 
@@ -1727,6 +1833,44 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 ## Landing Gear ATA 32
 
+- A32NX_BRAKES_{mode}_BRK_FAULT
+    - Bool
+    - True when the braking mode is failed on all the wheel groups (flyPad failures 32110-32112, Rust
+      `hydraulic/brake_steer_faults.rs`); read by the FWS for the BRAKES alerts
+    - {mode}
+        - NORM: BCS normal braking (BRAKES NORM BRK FAULT)
+        - ALTN: BCS alternate braking (BRAKES ALTN BRK FAULT)
+        - EMER: EBCU emergency braking (BRAKES EMER BRK FAULT)
+
+- A32NX_BRAKES_PEDAL_BRAKING_MODE
+    - Number
+    - The braking mode the brake pedals command
+    - | Mode                                    | Value |
+      |-----------------------------------------|-------|
+      | None (park brake only)                  | 0     |
+      | Normal (NORM circuit, GREEN)            | 1     |
+      | Alternate (ALTN circuit, A-SKID)        | 2     |
+      | Emergency (ALTN circuit, EBCU, limited) | 3     |
+
+- A32NX_STEERING_{fault}_FAULT
+    - Bool
+    - True when the steering equipment is failed (flyPad failures 32200-32204, Rust `hydraulic/brake_steer_faults.rs`);
+      read by the FWS for the STEER alerts
+    - {fault}
+        - NORM_NWS: normal nose wheel steering (GREEN)
+        - ALTN_NWS: alternate nose wheel steering (steering LEHGS)
+        - BWS: body wheel steering, centred and locked
+        - SCS_1, SCS_2: steering control system 1 or 2
+
+- A32NX_STEERING_NWS_MODE
+    - Number
+    - The hydraulic supply of the nose wheel steering
+    - | Mode                                     | Value |
+      |------------------------------------------|-------|
+      | Off (engines shut down or NWS failed)    | 0     |
+      | Normal (GREEN, 15 deg/s)                 | 1     |
+      | Alternate (steering LEHGS, 10 deg/s)     | 2     |
+
 - A32NX_BTV_STATE
     - Boolean
     - Indicates the current state of the BTV system
@@ -1737,6 +1881,11 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | ROT OPTIMIZATION  | 2     |
       | DECEL             | 3     |
       | END OF BRAKING    | 4     |
+
+- A32NX_FWC_1_BTV_INOP
+    - Bool
+    - Written by the FWS: an active ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT,
+      ENG 2(3) REVERSER failures). Like A32NX_BTV_LOST, BTV then does not arm and an armed BTV reverts to BRK HI
 
 ## Lights ATA 33
 
@@ -1856,6 +2005,30 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 ## Navigation ATA 34
 
+- A32NX_PRIM_ADR_{number}_REJECTED
+    - Bool
+    - number: 1, 2 or 3
+    - ADR {number} is rejected by the PRIM air data monitoring: its CAS, Mach or pressure altitude diverges from the
+      other coherent air data sources (A380 FCOM DSC-34-10-30-10). Latched until the end of the flight (on ground below
+      30 kt). Written by systems.wasm (`a380_systems` air_data_monitoring.rs); fbw.wasm then sends this ADR to the PRIM
+      and SEC models with a failure warning status (two rejected ADRs: alternate law, three: direct law)
+
+- A32NX_PRIM_STBY_AIR_DATA_REJECTED
+    - Bool
+    - The standby instruments (ISIS) air data is rejected by the PRIM air data monitoring (as above)
+
+- A32NX_PRIM_ALL_AIR_DATA_REJECTED
+    - Bool
+    - The PRIMs detect a conflict between the air data sources without being able to tell which one is wrong (two
+      remaining sources that disagree, or two pairs in conflict): all air data rejected, direct law (NAV ALL AIR DATA
+      DISAGREE)
+
+- A32NX_PRIM_AOA_{number}_REJECTED
+    - Bool
+    - number: 1, 2 or 3
+    - The angle of attack of ADR {number} is rejected by the PRIM monitoring (3.6 deg in flight, 8 deg on ground); two
+      or more rejected: NAV AOA DISAGREE and alternate law
+
 - A32NX_GPS_{number}_LATITUDE, A32NX_GPS_{number}_LONGITUDE
     - Arinc429<Degrees>
     - The position of the GPS receiver of MMR {number} (1 or 2): valid in NAV mode, no computed data in INIT and ACQ,
@@ -1959,6 +2132,337 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - L:A32NX_OVHD_FADEC_{ENG}
   - The powered status of the associated engine's FADEC dependant on the button on the OVHD
   - {ENG} = 1, 2, 3, 4
+
+- A32NX_ENGINE_{number}_FUEL_CUT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED), a flameout or seizure failure (flyPad failures 72000-72003 and 72010-72013), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT). Closes the HP fuel valve (A32NX_ENGINE_{number}_HP_FUEL_VALVE_CLOSED); the FADEC handles the engine as one without fuel. Written by the systems WASM (a380_systems engine_failure.rs)
+
+- A32NX_ENGINE_{number}_HP_FUEL_VALVE_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine HP fuel valve is closed: ENG MASTER lever OFF (FCOM DSC-70-30 ENGINE SHUTDOWN: "The FADEC closes the LP and HP fuel valves"), engine fuel cut (A32NX_ENGINE_{number}_FUEL_CUT), and on the ground until the FADEC start sequence reaches its fuel-on point (ENG START selector at IGN START, then ENG MASTER ON) or the quick relight opens it (MASTER OFF then ON within 30 s above 45 % N3; FCOM DSC-70-80-30-20). A MASTER ON at NORM on the ground leaves it closed. Once open it stays open until the MASTER OFF or a fuel cut. Closes the MSFS fuel valve 60 (engine 1), 61, 62 or 63 (engine 4) that feeds the engine after its Extra tank, so MSFS stops the combustion at once. Written by the systems WASM (a380_systems engine_failure.rs)
+
+- A32NX_ENGINE_{number}_FLAMED_OUT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine has no flame and its fuel stays cut until a relight lights it up: set by the flameout failure (latched), the seizure failure, or the ENG MASTER ON of an engine not running in flight; cleared when a relight attempt (ENG MASTER OFF then ON) lights up inside the relight envelope. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_SEIZED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the seizure failure of the engine is active: its core (N3) stops and no relight lights up. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_WINDMILL_N1
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N1 of the engine windmilling without combustion at the current airspeed (1.5 times the windmilling core speed), 0 on the ground. The FADEC keeps a shut down engine at or above it in flight. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_WINDMILL_N2
+  - Number (% N3)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Core speed of the engine windmilling without combustion at the current airspeed (11 % at 260 kt), 0 on the ground. The shared systems module names it N2 (the HP spool of the GP7270 of the FCOM): on the A380X it is the N3 of the Trent. The FADEC keeps a shut down (not seized) engine's N3 at or above it in flight. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_RELIGHT_IGNITION
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True in flight while a relight is lighting up (fuel no longer cut, ENG MASTER ON, engine not running yet): the igniters are supplied whatever the ENG START selector position (FCOM DSC-70-30, DSC-70-80-30-20 quick relight). The FADEC sets the MSFS ignition switch of that engine to IGN meanwhile and gives it back to the selector afterwards. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_RELIGHT_ATTEMPT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True during a relight attempt: from the ENG MASTER ON of a relight until the engine lights up or 30 s have elapsed (FCOM ENG RELIGHT IN FLIGHT: "Engine must relight within 30 s after fuel flow increases"). The FADEC runs its start sequence (start valve, igniters) meanwhile, with the fuel still cut. Written by the systems WASM (a380_systems engine_failure.rs)
+- A32NX_ENGINE_{number}_FADEC_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC of the engine cannot communicate via the avionics networks (flyPad failure 73010-73013): ENG 1(2)(3)(4) FADEC FAULT. The FADEC still controls the engine from its thrust lever, the PRIM (A/THR) orders no longer reach it (INOP SYS ENG n A/THR with the A/THR engaged) and the ENG SD page shows XX for the engine. Written by the systems WASM (a380_systems engine_control_failure.rs)
+
+- A32NX_ENGINE_{number}_FADEC_SYS_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True with the flyPad failure 73020-73023: ENG 1(2)(3)(4) FADEC SYS FAULT (crew awareness). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_HI_TEMP
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True with the flyPad failure 73030-73033: ENG 1(2)(3)(4) FADEC TEMP HI (crew awareness). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_THR_LEVER_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC has lost the thrust lever position (flyPad failure 73040-73043): ENG 1(2)(3)(4) THR LEVER FAULT. The FADEC limits the engine to CLB in flight and to idle on the ground; the reverser of the engine 2 or 3 no longer deploys. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_THR_LEVER_RATING
+  - Number
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The rating the FADEC selects with a failed thrust lever: 0 the lever works, 1 idle (on the ground), 3 CLB (in flight). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE_ACTIVE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC model of the flight computers uses A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE in place of the thrust lever angle A32NX_AUTOTHRUST_TLA:{number}: reverse idle until the reverser of the engine 2 or 3 is deployed (FCOM DSC-70-70), idle with an unlocked reverser, or a thrust lever failure. Written by the systems WASM, read by fbw.wasm (FadecFailureInputs.h)
+
+- A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE
+  - Number (degrees)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The thrust lever angle the FADEC uses while A32NX_ENGINE_{number}_FADEC_TLA_OVERRIDE_ACTIVE is true. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FADEC_AUTO_IDLE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the FADEC automatically sets the engine at idle: an unlocked reverser, or a failed thrust lever on the ground. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_UNLOCKED
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is not fully locked while not commanded deployed (flyPad failure 78011/78012): ENG 2(3) REVERSER UNLOCKED, ENG 2(3) IDLE ONLY. Written by the systems WASM (a380_systems reverser)
+
+- A32NX_REVERSER_{number}_FAULT
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is failed (flyPad failure 78001/78002): it does not deploy, ENG 2(3) REVERSER FAULT. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_CTL_FAULT
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser control system (ETRAC) is failed (flyPad failure 78041/78042): the reverser does not deploy, ENG 2(3) REVERSER CTL FAULT. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_LOCKED
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is failed locked (flyPad failure 78031/78032): its locks do not release, ENG 2(3) REVERSER LOCKED. Written by the systems WASM
+
+- A32NX_REVERSER_{number}_ENERGIZED
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is energized with its tertiary lock released without a deploy order (flyPad failure 78021/78022): ENG 2(3) REVERSER ENERGIZED. Written by the systems WASM
+
+
+- A32NX_ENGINE_{number}_OIL_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the oil leak failure of the engine is active (flyPad failures 79000-79003): the FADEC takes 2 qt/min out of the engine oil system (A32NX_ENGINE_OIL_TOTAL; the tank quantity A32NX_ENGINE_OIL_QTY falls about 1.6 qt/min, the rest being the oil in the circuit) while the core turns, and the oil pressure falls once the whole oil system holds less than 1.3 qt (ENG OIL PRESS LO below 25 PSI; never without the failure, a healthy engine holds 17 to 20 qt). Written by the systems WASM (systems engine/oil_failure.rs)
+
+- A32NX_ENGINE_{number}_OIL_FILTER_CLOGGED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the oil filter clog failure of the engine is active (flyPad failures 79020-79023): CLOGGED on the ENGINE SD page while the engine runs, and ENG OIL FILTER CLOGGED (on the ground: FCOM flight phases 1, 2, 11 and 12). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_FUEL_FILTER_CLOGGED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the fuel filter clog failure of the engine is active (flyPad failures 73100-73103): CLOGGED below the fuel flow on the ENGINE SD page while the engine runs, and ENG FUEL FILTER CLOGGED (on the ground: FCOM flight phases 1, 2, 11 and 12), no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
+
+- A32NX_ENGINE_{number}_OIL_OVERHEAT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the oil overheat failure of the engine is active (flyPad failures 79030-79033): the FADEC drives the oil temperature to 170 °C at idle and 225 °C at 100 % N3 (ENG OIL TEMP HI above 196 °C). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_WINDMILL_START
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC starts the engine in flight by windmilling (start valve closed: N3 at or above 11 % and CAS at or above 260 kt, FCOM DSC-70-30): the engine-driven pumps of that engine are depressurised meanwhile (FCOM DSC-70-80-30-20 "the FADEC disconnects both hydraulic pumps"). Written by the systems WASM
+
+- A32NX_FADEC_IGNITER_A_ACTIVE_ENG{number}
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC energizes igniter A of the engine (SD ENGINE page ignition indication, FCOM DSC-70-90). Automatic start on the ground: one igniter, alternated A then B at each start, from 20 % to 58 % N3 (FCOM DSC-70-30, DSC-70-80-20); both igniters during a start in flight, the continuous ignition (ENG START selector at IGN START with the engine running: in flight, or on the ground after the selector was set to NORM then back to IGN START and above low power, N1 below 53 % for more than 30 s), the quick relight (60 s after the ENG MASTER lever is set back to ON) and the auto relight (until 60 s after the engine relights); none with the ENG MASTER OFF or the ENG FIRE pb released. Both igniters on also show the FWS IGNITION memo and, outside a crew relight (RELIGHT_ATTEMPT, RELIGHT_IGNITION), the ENG FAIL line AUTO RELIGHT IN PROGRESS. Written by the FADEC (fadec_a380x IgniterSelection_A380X)
+
+- A32NX_FADEC_IGNITER_B_ACTIVE_ENG{number}
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC energizes igniter B of the engine; see A32NX_FADEC_IGNITER_A_ACTIVE_ENG{number}. Written by the FADEC
+
+- A32NX_ENGINE_{number}_START_PHASE, _START_ATTEMPT, _START_MANUAL, _START_FAULT, _FAULT_LIGHT, _STARTER_MOTORING, _STARTER_FAILED, _START_N2_HANG, _START_EGT_OVERSHOOT, _IGNITER_A_FAULT, _IGNITER_B_FAULT, _IGNITERS, _CONTINUOUS_IGNITION, _START_VALVE_COMMAND, _START_VALVE_FAULT
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The FADEC start sequence on the ground, the ignition and the start and ignition failures (systems::engine::engine_start), with the A380 numbers (a380_systems engine_failure.rs a380_engine_start_schedule: ignition and fuel at 20 % N3, end of the start at 58.4 % N3, no light up after 20 s (30 s for a relight in flight, with NO STARTER AIR PRESSURE monitored in flight too), start EGT limit 745 °C, three automatic attempts with a 30 s dry crank, starter time limit 5 min). The same variables as the A32NX, see fbw-a32nx/docs/a320-simvars.md; START_N2_HANG holds the N3. ENG START FAULT, START VLV FAULT, IGN FAULT (FwsCore, EngineStartAlerts). FAULT_LIGHT is written but the A380X cockpit has no ENG MASTER FAULT light yet; IGNITERS is the start sequence's own igniter choice (the SD igniter indication is the FADEC's). STARTER_MOTORING also engages the MSFS starter with the ENG MASTER OFF (dry crank, cockpit behaviour pedestal.xml A380X_ENGINE_Switch_Master_Template). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_STALL
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC detects a stall of the running engine: compressor stall failure (flyPad 72100-72103) active and N1 command (A32NX_AUTOTHRUST_N1_COMMANDED) at or above 60 %, until it falls below 57 % (design choice). Gives ENG 1(2)(3)(4) STALL (FCOM PRO-ABN-ECAM-10-70). Written by the systems WASM (a380_systems engine_malfunction.rs)
+
+- A32NX_ENGINE_{number}_STALL_N1_LOSS
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N1 lost by the stalled engine (15 % for a developed stall, design choice). The flight controls computer adds it to the commanded N1 feedback of the thrust control loop of that engine, so the MSFS engine runs that much below the N1 target. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_EGT_OFFSET
+  - Number (degrees Celsius)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Added by the FADEC to the EGT of the running engine: stall EGT rise (150 °C) and EGT overtemperature failure (flyPad 72110-72113, 120 °C at 100 % N1), design choices. The EWD shows the EEC-trimmed EGT of the healthy engine plus this offset. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N1_OFFSET
+  - Number (% N1)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Added by the FADEC to the N1 of the running engine: stall fluctuation (±3 %, design choice). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N3_OFFSET
+  - Number (% N3)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Added by the FADEC to the N3 (and the N2 derived from it) of the running engine: stall fluctuation (±1.5 %, design choice). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N1_VIBRATION
+  - Number (units)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N1 rotor vibration shown on the ENGINE SD page, pulsing above 5 units (FCOM DSC-70-90): the MSFS engine vibration, plus the high vibration failure (flyPad 77000-77003, 7 units at 100 % N1) and the stall. Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N2_VIBRATION
+  - Number (units)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N2 (IP) rotor vibration shown on the ENGINE SD page: the mean of the N1 and N3 vibrations (design choice). Written by the systems WASM
+
+- A32NX_ENGINE_{number}_N3_VIBRATION
+  - Number (units)
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - N3 (HP) rotor vibration shown on the ENGINE SD page: 60 % of the MSFS engine vibration (design choice), plus the high vibration failure (6 units at 100 % N3). Written by the systems WASM
+
+- A32NX_PNEU_ENG_{number}_STARTER_PRESSURIZED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when air pressure in the engine starter duct, downstream of the start valve, turns the pneumatic starter (more than 10 PSI gauge, down to 5 PSI once pressurized): a starter assisted relight can light up. The start valve opens while the FADEC starts or restarts the engine (on the ground; in flight below 11 % N3 or 260 kt) and closes above 58.4 % N3 (FCOM DSC-70-30). Written by the systems WASM (a380_systems pneumatic.rs)
 
 ## Hydraulics
 

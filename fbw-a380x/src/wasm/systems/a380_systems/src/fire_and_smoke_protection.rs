@@ -6,8 +6,8 @@ use systems::{
     overhead::{FirePushButton, MomentaryPushButton},
     shared::{
         arinc429::{Arinc429Word, SignStatus},
-        DelayedTrueLogicGate, ElectricalBusType, ElectricalBuses, EngineFirePushButtons,
-        FireDetectionLoopID, FireDetectionZone, LgciuWeightOnWheels,
+        DelayedFalseLogicGate, DelayedTrueLogicGate, ElectricalBusType, ElectricalBuses,
+        EngineFirePushButtons, FireDetectionLoopID, FireDetectionZone, LgciuWeightOnWheels,
     },
     simulation::{
         InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
@@ -66,10 +66,20 @@ struct FireProtectionSystem {
     fire_test_pushbutton_id: VariableIdentifier,
     fire_test_pushbutton_is_pressed: bool,
     fire_test_pushbutton_signal: DelayedTrueLogicGate,
+
+    // flyPad Realism setting (not aircraft behaviour): the test goes on for a few seconds after the pb is released, so
+    // that the crew can check the warnings and lights without holding the pb
+    fire_test_extend_id: VariableIdentifier,
+    fire_test_extend: bool,
+    fire_test_extension: DelayedFalseLogicGate,
+    // The test pb, extended when the setting is on: for the FWS
+    fire_test_active_id: VariableIdentifier,
+    fire_test_active: bool,
 }
 
 impl FireProtectionSystem {
     const DELAY_FIRE_TEST_MILLIS: Duration = Duration::from_millis(500);
+    const FIRE_TEST_EXTENSION: Duration = Duration::from_secs(7);
 
     fn new(context: &mut InitContext) -> Self {
         Self {
@@ -80,6 +90,12 @@ impl FireProtectionSystem {
                 .get_identifier("OVHD_FIRE_TEST_PB_IS_PRESSED".to_owned()),
             fire_test_pushbutton_is_pressed: false,
             fire_test_pushbutton_signal: DelayedTrueLogicGate::new(Self::DELAY_FIRE_TEST_MILLIS),
+
+            fire_test_extend_id: context.get_identifier("FIRE_TEST_EXTEND".to_owned()),
+            fire_test_extend: false,
+            fire_test_extension: DelayedFalseLogicGate::new(Self::FIRE_TEST_EXTENSION),
+            fire_test_active_id: context.get_identifier("FIRE_TEST_ACTIVE".to_owned()),
+            fire_test_active: false,
         }
     }
 
@@ -89,9 +105,17 @@ impl FireProtectionSystem {
         engine_fire_push_buttons: &impl EngineFirePushButtons,
         lgciu: [&impl LgciuWeightOnWheels; 2],
     ) {
+        self.fire_test_extension
+            .update(context, self.fire_test_pushbutton_is_pressed);
+        self.fire_test_active = if self.fire_test_extend {
+            self.fire_test_extension.output()
+        } else {
+            self.fire_test_pushbutton_is_pressed
+        };
+
         // We add a delay between button press and response based on references
         self.fire_test_pushbutton_signal
-            .update(context, self.fire_test_pushbutton_is_pressed);
+            .update(context, self.fire_test_active);
         self.fire_detection_unit
             .update(context, self.fire_test_pushbutton_signal.output(), lgciu);
         self.fire_extinguishing_system.update(
@@ -114,6 +138,11 @@ impl FireProtectionSystem {
 impl SimulationElement for FireProtectionSystem {
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.fire_test_pushbutton_is_pressed = reader.read(&self.fire_test_pushbutton_id);
+        self.fire_test_extend = reader.read(&self.fire_test_extend_id);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.fire_test_active_id, self.fire_test_active);
     }
 
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -1051,6 +1080,15 @@ mod a380_fire_and_smoke_protection_tests {
             self
         }
 
+        fn set_fire_test_extend(mut self, extend: bool) -> Self {
+            self.write_by_name("FIRE_TEST_EXTEND", extend);
+            self
+        }
+
+        fn fire_test_active(&mut self) -> bool {
+            self.read_by_name("FIRE_TEST_ACTIVE")
+        }
+
         fn set_agent_pb(mut self, engine_number: usize, released: bool) -> Self {
             self.write_by_name(
                 &format!("OVHD_FIRE_AGENT_1_ENG_{}_IS_PRESSED", engine_number),
@@ -1240,6 +1278,41 @@ mod a380_fire_and_smoke_protection_tests {
             assert!(test_bed.engine_on_fire_detected(1));
             assert!(test_bed.apu_on_fire_detected());
             assert!(test_bed.mlg_on_fire_detected());
+        }
+
+        #[test]
+        fn test_stops_when_pushbutton_released_without_extension() {
+            let mut test_bed = test_bed()
+                .with()
+                .set_test_pushbutton(true)
+                .and_run()
+                .then()
+                .set_test_pushbutton(false)
+                .run_with_delta_of(Duration::from_secs(1));
+
+            assert!(!test_bed.fire_test_active());
+            assert!(!test_bed.engine_on_fire_detected(1));
+        }
+
+        #[test]
+        fn extended_test_goes_on_after_pushbutton_released() {
+            let mut test_bed = test_bed()
+                .with()
+                .set_fire_test_extend(true)
+                .set_test_pushbutton(true)
+                .and_run()
+                .then()
+                .set_test_pushbutton(false)
+                .run_with_delta_of(Duration::from_secs(5));
+
+            assert!(test_bed.fire_test_active());
+            assert!(test_bed.engine_on_fire_detected(1));
+            assert!(test_bed.apu_on_fire_detected());
+
+            test_bed = test_bed.run_with_delta_of(Duration::from_secs(3));
+
+            assert!(!test_bed.fire_test_active());
+            assert!(!test_bed.engine_on_fire_detected(1));
         }
 
         #[test]

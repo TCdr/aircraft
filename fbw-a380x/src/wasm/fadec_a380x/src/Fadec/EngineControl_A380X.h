@@ -6,8 +6,14 @@
 
 #include "MsfsHandler.h"
 
+#include "CoreSpikeGuard_A380X.hpp"
+#include "EngineIgnition_A380X.hpp"
+#include "EngineOilFailures.hpp"
 #include "FadecSimData_A380X.hpp"
 #include "FuelConfiguration_A380X.h"
+#include "IgniterSelection_A380X.hpp"
+#include "MsfsCoreLimiter_A380X.hpp"
+#include "StartSequence_A380X.hpp"
 
 #define FILENAME_FADEC_CONF_DIRECTORY "\\work\\AircraftStates\\"
 #define FILENAME_FADEC_CONF_FILE_EXTENSION ".ini"
@@ -48,6 +54,9 @@ class EngineControl_A380X {
   FLOAT64                 lastFuelSaveTime   = 0;
   static constexpr double FUEL_SAVE_INTERVAL = 5.0;  // seconds
 
+  // the burn each engine could not take from its Extra tank yet (pounds), taken once MSFS has refilled it (FeedTankDraw_A380X.hpp)
+  double carriedFeedTankBurnLbs[4] = {0.0, 0.0, 0.0, 0.0};
+
   // thrust limits transition for flex
   bool                    isTransitionActive   = false;
   static constexpr double TRANSITION_WAIT_TIME = 10;
@@ -62,10 +71,37 @@ class EngineControl_A380X {
   double transitionFactor;
 
   // TODO - might not be required - feeds into stateMachine but really relevant
+  // The N3 of the frame before as the FADEC uses it (the MSFS N3 through the core spike guard)
   double prevSimEngineN3[4] = {0.0, 0.0, 0.0, 0.0};
+
+  // filters the jump of the MSFS core speed at the end of an MSFS start, per engine (see CoreSpikeGuard_A380X)
+  CoreSpikeGuard_A380X coreSpikeGuard[4]{};
+  // limits the MSFS core speed itself during that jump in flight, so that MSFS gives no thrust pulse, per engine
+  // (see MsfsCoreLimiter_A380X)
+  MsfsCoreLimiter_A380X msfsCoreLimiter[4]{};
+
+  // the igniter selection of the FADEC per engine: in-flight relight and auto relight (see EngineIgnition_A380X)
+  EngineIgnition_A380X engineIgnition[4]{};
+
+  // the FADEC set the MSFS ignition switch to IGN (in-flight relight or auto relight) and must give it back to the ENG START
+  // selector
+  bool fadecIgnitionSet[4] = {false, false, false, false};
+
+  // The EGT excess of a hot start or a stall (StartSequence_A380X::egtOvershoot), in degrees Celsius
+  double startEgtExcess[4] = {0.0, 0.0, 0.0, 0.0};
+
+  // the core speed the FADEC holds a ground start without starter air at, per engine (see StartSequence_A380X::RestingCore)
+  StartSequence_A380X::RestingCore restingCore[4]{};
+
+  // the igniters (A, B) the FADEC energizes per engine, for the SD ENGINE page (see IgniterSelection_A380X)
+  IgniterSelection_A380X igniterSelection[4]{};
+  // the EGT offset of the engine failures (systems WASM) that updateEGT added to the EGT it wrote last, to take it out of the EGT lag
+  double egtOffsetApplied[4] = {0.0, 0.0, 0.0, 0.0};
 
   // Engine oil state
   double thermalEnergy[4] = {0.0, 0.0, 0.0, 0.0};
+  // The oil temperature of an oil overheat failure, kept by the FADEC (EngineOilFailures.hpp OverheatTracker)
+  EngineOilFailures::OverheatTracker oilOverheatTracker[4];
 
   // additional constants
   static constexpr int    MAX_OIL             = 200;
@@ -73,6 +109,11 @@ class EngineControl_A380X {
   static constexpr int    MAX_OIL_TEMP        = 85;
   static constexpr double FORCE_LB_TO_N       = 4.4482216153;
   static constexpr double FUEL_RATE_THRESHOLD = 661;  // lbs/sec for determining fuel ui tampering
+
+  // Seizure failure: the core stops in about 3 s (design choice, the FCOM gives no rate): N3 decays at 2 /s from the
+  // failure and is 0 below 0.5 %.
+  static constexpr double SEIZED_CORE_DECAY_RATE = 2.0;  // 1/s
+  static constexpr double SEIZED_CORE_STOPPED_N3 = 0.5;  // percent
 
   /**
    * @enum EngineState
@@ -168,6 +209,8 @@ class EngineControl_A380X {
    * @param simN3 The current N2 value from the simulator used as N3 for the A380X in percent.
    * @param idleN3 The idle N3 value in percent.
    * @param ambientTemperature The current ambient temperature in degrees Celsius.
+   * @param startN3Hang The start sequence holds the core below idle (hung start).
+   * @param simCombustion MSFS burns in the engine (GENERAL ENG COMBUSTION), read while the engine is OFF.
    * @return The current state of the engine as an enum of type EngineState (OFF, ON, STARTING, RESTARTING, SHUTTING).
    * @see EngineState
    */
@@ -176,7 +219,9 @@ class EngineControl_A380X {
                                                       bool   engineStarter,
                                                       double simN3,
                                                       double idleN3,
-                                                      double ambientTemperature);
+                                                      double ambientTemperature,
+                                                      bool   startN3Hang,
+                                                      bool   simCombustion);
 
   /**
    * @brief This function manages the engine start procedure.
@@ -187,15 +232,18 @@ class EngineControl_A380X {
    * @param engineTimer A timer used to calculate the elapsed time for various operations.
    * @param simN3 The current N3 value from the simulator in percent (actually reading the sim's N2 as the sim does not have an N3.
    * @param ambientTemperature The current ambient temperature in degrees Celsius.
+   * @param engineFuelCut The systems WASM keeps the engine fuel cut (an in-flight relight that has not lit up yet).
    *
    * @see EngineState
+   * @see RelightStart_A380X for the MSFS core speed during the start
    */
   void engineStartProcedure(int         engine,
                             EngineState engineState,
                             double      deltaTime,
                             double      engineTimer,
                             double      simN3,
-                            double      ambientTemperature);
+                            double      ambientTemperature,
+                            bool        engineFuelCut);
 
   /**
    * @brief This function manages the engine shutdown procedure.
@@ -206,8 +254,27 @@ class EngineControl_A380X {
    * @param simN1 The current N1 value from the simulator.
    * @param deltaTime The time difference since the last update. This is used to calculate the rate of change of various parameters.
    * @param engineTimer A timer used to calculate the elapsed time for various operations.
+   * @param engineSeized The core is seized (seizure failure): N3 stops in about 3 s.
+   * @param simOnGround Whether the aircraft is on the ground: in flight the engine windmills.
+   * @param windmillN1 The N1 of the engine windmilling without combustion, in percent (systems WASM).
+   * @param windmillN3 The N3 (core speed) of the engine windmilling without combustion, in percent (systems WASM).
    */
-  void engineShutdownProcedure(int engine, double deltaTime, double engineTimer, double simN1, double ambientTemperature);
+  void engineShutdownProcedure(int    engine,
+                               double deltaTime,
+                               double engineTimer,
+                               double simN1,
+                               double ambientTemperature,
+                               bool   engineSeized,
+                               bool   simOnGround,
+                               double windmillN1,
+                               double windmillN3);
+
+  /**
+   * @brief Updates the oil pressure of an engine that is shutting down, windmilling or seized: it follows N3 down.
+   *
+   * @param engine The engine number (1-4).
+   */
+  void updateShutdownOilPressure(int engine);
 
   /**
    * @brief Updates the fuel flow of the engine.

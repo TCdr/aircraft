@@ -16,6 +16,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { LegacyGpws } from './Misc/LegacyGpws';
 import { LegacyFuel } from './CpiomF/LegacyFuel';
+import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
 import { VhfRadio } from './Misc/Communications/VhfRadio';
@@ -31,6 +32,7 @@ import {
   SwitchingPanelPublisher,
   RaBusPublisher,
   LgciuBusPublisher,
+  NXDataStore,
 } from '@flybywiresim/fbw-sdk';
 import { AudioManagementUnit } from './Misc/Communications/AudioManagementUnit';
 import { RmpAmuBusPublisher } from './Misc/Communications/RmpAmuBusPublisher';
@@ -190,6 +192,8 @@ class SystemsHost extends BaseInstrument {
   //FIXME add some deltatime functionality to backplane instruments so we dont have to pass SystemHost
   private readonly legacyFuel = new LegacyFuel(this.bus, this);
 
+  private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
+
   /**
    * "mainmenu" = 0
    * "loading" = 1
@@ -210,6 +214,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('SimAudioManager', this.simAudioManager);
     this.backplane.addInstrument('Xpndr', this.xpdr, true);
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
+    this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addPublisher('RmpAmuBusPublisher', this.rmpAmuBusPublisher);
@@ -240,6 +245,13 @@ class SystemsHost extends BaseInstrument {
     this.soundManager = new LegacySoundManager();
     this.gpws = new LegacyGpws(this.bus, this.soundManager);
     this.gpws.init();
+
+    // flyPad Realism setting, for the fire protection system: the FIRE TEST goes on a few seconds after the pb release
+    NXDataStore.getAndSubscribeLegacy(
+      'FIRE_TEST_EXTEND',
+      (_, value) => SimVar.SetSimVarValue('L:A32NX_FIRE_TEST_EXTEND', SimVarValueType.Bool, value === 'ENABLED'),
+      'ENABLED',
+    );
 
     this.backplane.addInstrument('TcasComputer', new LegacyTcasComputer(this.bus, this.soundManager));
 

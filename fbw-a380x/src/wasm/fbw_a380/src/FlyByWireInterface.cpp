@@ -7,6 +7,7 @@
 #include <MathUtils.h>
 
 #include "Arinc429Utils.h"
+#include "FadecLgciu.h"
 #include "FlyByWireInterface.h"
 #include "interface/SimConnectData.h"
 
@@ -396,10 +397,18 @@ void FlyByWireInterface::setupLocalVariables() {
     idThrottlePosition3d[i] = std::make_unique<LocalVariable>("A32NX_3D_THROTTLE_LEVER_POSITION_" + idString);
     thrustLeverAngle[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA:" + idString);
     idAutothrustN1_TLA[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_TLA_N1:" + idString);
+    idEngineFadecTlaOverrideActive[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE_ACTIVE");
+    idEngineFadecTlaOverride[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TLA_OVERRIDE");
+    idEngineFadecFault[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_FAULT");
     idAutothrustReverse[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_REVERSE:" + idString);
     idAutothrustN1_c[i] = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_N1_COMMANDED:" + idString);
+    idEngineState[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_STATE:" + idString);
+    idEngineStallN1Loss[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_STALL_N1_LOSS");
+    idEngineFadecMaxThr[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_MAX_THR");
+    idEngineFadecTakeoffMode[i] = std::make_unique<LocalVariable>("A32NX_ENGINE_" + idString + "_FADEC_TAKEOFF_MODE");
   }
 
+  idEngineIdleN3 = std::make_unique<LocalVariable>("A32NX_ENGINE_IDLE_N3");
   idAutothrustStatus = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_STATUS");
   idAutothrustMode = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_MODE");
   idAutothrustModeMessage = std::make_unique<LocalVariable>("A32NX_AUTOTHRUST_MODE_MESSAGE");
@@ -485,6 +494,8 @@ void FlyByWireInterface::setupLocalVariables() {
     idSfccFlapActualPositionWord[i] = std::make_unique<LocalVariable>("A32NX_SFCC_" + idString + "_FLAP_ACTUAL_POSITION_WORD");
   }
 
+  idPrimAllAirDataRejected = std::make_unique<LocalVariable>("A32NX_PRIM_ALL_AIR_DATA_REJECTED");
+
   for (int i = 0; i < 3; i++) {
     std::string idString = std::to_string(i + 1);
     idAdrAltitudeStandard[i] = std::make_unique<LocalVariable>("A32NX_ADIRS_ADR_" + idString + "_ALTITUDE");
@@ -497,6 +508,8 @@ void FlyByWireInterface::setupLocalVariables() {
     idAdrAoaCorrected[i] = std::make_unique<LocalVariable>("A32NX_ADIRS_ADR_" + idString + "_ANGLE_OF_ATTACK");
     idAdrCorrectedAverageStaticPressure[i] =
         std::make_unique<LocalVariable>("A32NX_ADIRS_ADR_" + idString + "_CORRECTED_AVERAGE_STATIC_PRESSURE");
+    idPrimAdrRejected[i] = std::make_unique<LocalVariable>("A32NX_PRIM_ADR_" + idString + "_REJECTED");
+    idPrimAoaRejected[i] = std::make_unique<LocalVariable>("A32NX_PRIM_AOA_" + idString + "_REJECTED");
 
     idIrMaintWord[i] = std::make_unique<LocalVariable>("A32NX_ADIRS_IR_" + idString + "_MAINT_WORD");
     idIrLatitude[i] = std::make_unique<LocalVariable>("A32NX_ADIRS_IR_" + idString + "_LATITUDE");
@@ -1372,6 +1385,9 @@ bool FlyByWireInterface::updateAdirs(int adirsIndex) {
   adrBusOutputs[adirsIndex].aoa_corrected_deg = Arinc429Utils::fromSimVar(idAdrAoaCorrected[adirsIndex]->get());
   adrBusOutputs[adirsIndex].corrected_average_static_pressure =
       Arinc429Utils::fromSimVar(idAdrCorrectedAverageStaticPressure[adirsIndex]->get());
+  airDataRejections.adrRejected[adirsIndex] = idPrimAdrRejected[adirsIndex]->get() > 0.5;
+  airDataRejections.aoaRejected[adirsIndex] = idPrimAoaRejected[adirsIndex]->get() > 0.5;
+  airDataRejections.allAirDataRejected = idPrimAllAirDataRejected->get() > 0.5;
 
   irBusOutputs[adirsIndex].discrete_word_1 = Arinc429Utils::fromSimVar(idIrMaintWord[adirsIndex]->get());
   irBusOutputs[adirsIndex].latitude_deg = Arinc429Utils::fromSimVar(idIrLatitude[adirsIndex]->get());
@@ -1610,9 +1626,9 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   modelInputs.in.analog_inputs.right_body_wheel_speed = idRightBodyWheelSpeed_rpm->get() * 0.146189;
   modelInputs.in.analog_inputs.right_wing_wheel_speed = idRightWingWheelSpeed_rpm->get() * 0.146189;
 
-  modelInputs.in.bus_inputs.adr_1_bus = adrBusOutputs[0];
-  modelInputs.in.bus_inputs.adr_2_bus = adrBusOutputs[1];
-  modelInputs.in.bus_inputs.adr_3_bus = adrBusOutputs[2];
+  modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[0], 0, airDataRejections);
+  modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[1], 1, airDataRejections);
+  modelInputs.in.bus_inputs.adr_3_bus = AirDataRejection::forFlightControls(adrBusOutputs[2], 2, airDataRejections);
   modelInputs.in.bus_inputs.ir_1_bus = irBusOutputs[0];
   modelInputs.in.bus_inputs.ir_2_bus = irBusOutputs[1];
   modelInputs.in.bus_inputs.ir_3_bus = irBusOutputs[2];
@@ -2136,18 +2152,18 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
   secs[secIndex].modelInputs.in.analog_inputs.rudder_trim_actual_pos_deg = idRudderTrimActualPosition->get();
 
   if (secIndex == 0) {
-    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = adrBusOutputs[0];
-    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = adrBusOutputs[1];
+    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[0], 0, airDataRejections);
+    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[1], 1, airDataRejections);
     secs[secIndex].modelInputs.in.bus_inputs.ir_1_bus = irBusOutputs[0];
     secs[secIndex].modelInputs.in.bus_inputs.ir_2_bus = irBusOutputs[1];
   } else if (secIndex == 1) {
-    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = adrBusOutputs[1];
-    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = adrBusOutputs[2];
+    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[1], 1, airDataRejections);
+    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[2], 2, airDataRejections);
     secs[secIndex].modelInputs.in.bus_inputs.ir_1_bus = irBusOutputs[1];
     secs[secIndex].modelInputs.in.bus_inputs.ir_2_bus = irBusOutputs[2];
   } else if (secIndex == 2) {
-    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = adrBusOutputs[0];
-    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = adrBusOutputs[2];
+    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[0], 0, airDataRejections);
+    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[2], 2, airDataRejections);
     secs[secIndex].modelInputs.in.bus_inputs.ir_1_bus = irBusOutputs[0];
     secs[secIndex].modelInputs.in.bus_inputs.ir_2_bus = irBusOutputs[2];
   }
@@ -2906,8 +2922,9 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   SimData simData = simConnectInterface.getSimData();
 
   // set ground / flight for throttle handling
-  if (idLgciuLeftMainGearCompressed[0]->get() || idLgciuLeftMainGearCompressed[1]->get() || idLgciuRightMainGearCompressed[0]->get() ||
-      idLgciuRightMainGearCompressed[1]->get()) {
+  const bool anyMainGearCompressed = idLgciuLeftMainGearCompressed[0]->get() || idLgciuLeftMainGearCompressed[1]->get() ||
+                                     idLgciuRightMainGearCompressed[0]->get() || idLgciuRightMainGearCompressed[1]->get();
+  if (anyMainGearCompressed) {
     throttleAxis[fadecIndex]->setOnGround();
   } else {
     throttleAxis[fadecIndex]->setInFlight();
@@ -2921,25 +2938,30 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
 
   bool engineRunning = false;
   real_T engine_N1_percent = 0.;
+  real_T engine_N2_percent = 0.;  // the MSFS core speed (the Trent N3)
   real_T commanded_engine_N1_percent = 0.;
   if (fadecIndex == 0) {
     engineRunning = simData.engine_combustion_1;
     engine_N1_percent = simData.engine_N1_1_percent;
+    engine_N2_percent = simData.engine_N2_1_percent;
     commanded_engine_N1_percent =
         simData.commanded_engine_N1_1_percent + simData.engine_N1_1_percent - simData.corrected_engine_N1_1_percent;
   } else if (fadecIndex == 1) {
     engineRunning = simData.engine_combustion_2;
     engine_N1_percent = simData.engine_N1_2_percent;
+    engine_N2_percent = simData.engine_N2_2_percent;
     commanded_engine_N1_percent =
         simData.commanded_engine_N1_2_percent + simData.engine_N1_2_percent - simData.corrected_engine_N1_2_percent;
   } else if (fadecIndex == 2) {
     engineRunning = simData.engine_combustion_3;
     engine_N1_percent = simData.engine_N1_3_percent;
+    engine_N2_percent = simData.engine_N2_3_percent;
     commanded_engine_N1_percent =
         simData.commanded_engine_N1_3_percent + simData.engine_N1_3_percent - simData.corrected_engine_N1_3_percent;
   } else {
     engineRunning = simData.engine_combustion_4;
     engine_N1_percent = simData.engine_N1_4_percent;
+    engine_N2_percent = simData.engine_N2_4_percent;
     commanded_engine_N1_percent =
         simData.commanded_engine_N1_4_percent + simData.engine_N1_4_percent - simData.corrected_engine_N1_4_percent;
   }
@@ -2956,10 +2978,17 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.data.H_ind_ft = simData.H_ind_ft;
   fadecInputs[fadecIndex].in.data.H_radio_ft = simData.H_radio_ft;
   fadecInputs[fadecIndex].in.data.H_dot_fpm = simData.H_dot_fpm;
+  // 4 FADECs, 2 LGCIUs: each FADEC reads the LGCIU of its side (FadecLgciu.h)
+  const int lgciuIndex = lgciuIndexForFadec(fadecIndex);
   fadecInputs[fadecIndex].in.data.on_ground =
-      idLgciuLeftMainGearCompressed[fadecIndex]->get() && idLgciuRightMainGearCompressed[fadecIndex]->get();
+      idLgciuLeftMainGearCompressed[lgciuIndex]->get() && idLgciuRightMainGearCompressed[lgciuIndex]->get();
   fadecInputs[fadecIndex].in.data.flap_handle_index = flapsHandleIndexFlapConf->get();
   fadecInputs[fadecIndex].in.data.is_engine_operative = engineRunning;
+  // A stalled engine loses thrust (systems WASM, a380_systems engine_malfunction.rs; design choice): its thrust control loop is
+  // told that the MSFS engine is commanded that much more N1 than it is, so the loop sets the MSFS throttle lower and the MSFS
+  // engine runs at the N1 target minus the loss. The loss acts on the loop feedback, not on the throttle output, so the loop
+  // does not wind up while the engine is stalled.
+  commanded_engine_N1_percent += idEngineStallN1Loss[fadecIndex]->get();
   fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = commanded_engine_N1_percent;
   fadecInputs[fadecIndex].in.data.engine_N2_percent = 0;
   fadecInputs[fadecIndex].in.data.engine_N1_percent = engine_N1_percent;
@@ -2968,20 +2997,66 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
 
   fadecInputs[fadecIndex].in.input.ATHR_disconnect =
       simConnectInterface.getSimInputThrottles().ATHR_disconnect || idAutothrustDisconnect->get() == 1;
-  fadecInputs[fadecIndex].in.input.TLA_deg = thrustLeverAngle[fadecIndex]->get();
+  // the thrust lever, or the angle of a FADEC protection or a thrust lever failure (systems.wasm)
+  fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::fadecModelThrustLeverAngle(
+      thrustLeverAngle[fadecIndex]->get(), idEngineFadecTlaOverrideActive[fadecIndex]->get(), idEngineFadecTlaOverride[fadecIndex]->get());
   fadecInputs[fadecIndex].in.input.thrust_limit_REV_percent = idAutothrustThrustLimitREV->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent = idAutothrustThrustLimitIDLE->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_CLB_percent = idAutothrustThrustLimitCLB->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_MCT_percent = idAutothrustThrustLimitMCT->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_FLEX_percent = idAutothrustThrustLimitFLX->get();
   fadecInputs[fadecIndex].in.input.thrust_limit_TOGA_percent = idAutothrustThrustLimitTOGA->get();
+  // ENG 1(2)(3)(4) THRUST LOSS: the FADEC of the "max thrust miscalculated" failure computes rating limits that are too low
+  // (FadecThrustFailures.h); its maximum THR goes to the FWS
+  {
+    const Failures maxThrustFailures[4] = {Failures::Eng1MaxThrustMiscalculated, Failures::Eng2MaxThrustMiscalculated,
+                                           Failures::Eng3MaxThrustMiscalculated, Failures::Eng4MaxThrustMiscalculated};
+    const bool maxThrustMiscalculated = failuresConsumer.isActive(maxThrustFailures[fadecIndex]);
+    athr_input& limits = fadecInputs[fadecIndex].in.input;
+    const double idleN1 = limits.thrust_limit_IDLE_percent;
+    limits.thrust_limit_CLB_percent = FadecThrustFailures::ratingLimit(limits.thrust_limit_CLB_percent, idleN1, maxThrustMiscalculated);
+    limits.thrust_limit_MCT_percent = FadecThrustFailures::ratingLimit(limits.thrust_limit_MCT_percent, idleN1, maxThrustMiscalculated);
+    limits.thrust_limit_FLEX_percent = FadecThrustFailures::ratingLimit(limits.thrust_limit_FLEX_percent, idleN1, maxThrustMiscalculated);
+    limits.thrust_limit_TOGA_percent = FadecThrustFailures::ratingLimit(limits.thrust_limit_TOGA_percent, idleN1, maxThrustMiscalculated);
+    idEngineFadecMaxThr[fadecIndex]->set(
+        FadecThrustFailures::maxThrPercent(limits.thrust_limit_TOGA_percent, idAutothrustThrustLimitTOGA->get(), idleN1));
+  }
   fadecInputs[fadecIndex].in.input.is_anti_ice_active = simData.engineAntiIce_1 == 1;
   fadecInputs[fadecIndex].in.input.is_air_conditioning_active = idAirConditioningPack_1->get();
   fadecInputs[fadecIndex].in.input.ATHR_reset_disable = simConnectInterface.getSimInputThrottles().ATHR_reset_disable == 1;
 
-  fadecInputs[fadecIndex].in.prim_1 = primsBusOutputs[0];
-  fadecInputs[fadecIndex].in.prim_2 = primsBusOutputs[1];
-  fadecInputs[fadecIndex].in.prim_3 = primsBusOutputs[2];
+  // In flight, an engine out or (re)starting is held at idle and accelerates from idle once it runs: without this the thrust loop
+  // wound the MSFS throttle up during the start and MSFS took the engine to its N3 limit at the end (see EngineStartThrottleHold.h).
+  // On the ground as soon as any main gear is compressed (ground starts are unchanged). The loop target is its N1 command of the
+  // previous frame.
+  const EngineStartThrottleHold::Output engineStartThrottle = engineStartThrottleHolds[fadecIndex].update(
+      {anyMainGearCompressed, idEngineState[fadecIndex]->get(), fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent,
+       fadecInputs[fadecIndex].in.input.thrust_limit_IDLE_percent, fadecOutputs[fadecIndex].N1_c_percent, sampleTime, engine_N2_percent,
+       idEngineIdleN3->get(), idEngineStallN1Loss[fadecIndex]->get()});
+  fadecInputs[fadecIndex].in.data.commanded_engine_N1_percent = engineStartThrottle.loopCommandedN1;
+
+  // ENG FADEC FAULT: the FADEC cannot communicate via the avionics networks (A380 FCOM l.171549): the PRIM orders do not
+  // reach it, the A/THR loses that engine ("ENG 1(2)(3)(4) A/THR" INOP SYS), which follows its thrust lever
+  const bool fadecNetworkLost = idEngineFadecFault[fadecIndex]->get() > 0.5;
+  fadecInputs[fadecIndex].in.prim_1 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[0], fadecNetworkLost);
+  fadecInputs[fadecIndex].in.prim_2 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[1], fadecNetworkLost);
+  fadecInputs[fadecIndex].in.prim_3 = FadecFailureInputs::autothrustOrdersReceived(primsBusOutputs[2], fadecNetworkLost);
+  // ...and is not thrust locked: the A/THR is not disconnected (see FadecFailureInputs.h). fadecOutputs still holds the
+  // previous frame here.
+  fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::thrustLeverAngleWithoutThrustLock(
+      fadecInputs[fadecIndex].in.input.TLA_deg, fadecNetworkLost, fadecOutputs[fadecIndex].athr_control_active);
+
+  // ENG T.O THRUST DISAGREE: the FADEC of the "FLEX TEMP not received" failure gets no FLEX TEMP from the PRIMs, so its take-off
+  // mode is TOGA (FadecThrustFailures.h)
+  {
+    const Failures flexTempFailures[4] = {Failures::Fadec1FlexTempNotReceived, Failures::Fadec2FlexTempNotReceived,
+                                          Failures::Fadec3FlexTempNotReceived, Failures::Fadec4FlexTempNotReceived};
+    const bool flexTempNotReceived = failuresConsumer.isActive(flexTempFailures[fadecIndex]);
+    athr_in& in = fadecInputs[fadecIndex].in;
+    for (base_prim_out_bus* prim : {&in.prim_1, &in.prim_2, &in.prim_3}) {
+      prim->fg.flx_to_temp_deg_c = FadecThrustFailures::flexTemperatureReceived(prim->fg.flx_to_temp_deg_c, flexTempNotReceived);
+    }
+  }
 
   if (fadecIndex == fadecDisabled) {
     simConnectInterface.setClientDataFadecData(fadecInputs[fadecIndex].in.data);
@@ -2996,7 +3071,13 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
     // get output from model ------------------------------------------------------------------------------------------
     fadecOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.output;
     fadecBusOutputs[fadecIndex] = fadecs[fadecIndex].getExternalOutputs().out.fadec_bus_output;
+    idEngineFadecTakeoffMode[fadecIndex]->set(
+        FadecThrustFailures::takeoffMode(fadecs[fadecIndex].getExternalOutputs().out.data_computed.is_FLX_active));
   }
+
+  // kept in fadecOutputs: the throttles of engines 3 and 4 are written to the sim on the next frame (see below)
+  fadecOutputs[fadecIndex].sim_throttle_lever_pos =
+      EngineStartThrottleHold::simThrottle(engineStartThrottle, fadecOutputs[fadecIndex].sim_throttle_lever_pos);
 
   if (primDisabled != -1 || secDisabled != -1) {
     simConnectInterface.setClientDataFadec(fadecBusOutputs[fadecIndex], fadecIndex);

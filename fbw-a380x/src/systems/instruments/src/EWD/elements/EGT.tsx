@@ -10,6 +10,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
 import { GaugeComponent, GaugeMarkerComponent, GaugeMaxEGTComponent } from '../../MsfsAvionicsCommon/gauges';
+import { EGT_RED_LINE_C, ExceedanceMemory, displayedEgt, egtColour, egtLimitMarkVisible } from './EgtLimits';
 
 interface EGTProps {
   bus: EventBus;
@@ -22,10 +23,8 @@ interface EGTProps {
 export class EGT extends DisplayComponent<EGTProps> {
   private readonly sub = this.props.bus.getSubscriber<EwdSimvars>();
 
-  private readonly throttlePosition = ConsumerSubject.create(
-    this.sub.on(`throttle_position_${this.props.engine}`).whenChanged(),
-    0,
-  );
+  /** FADEC thrust limit type (NONE 0, CLB 1, MCT 2, FLEX 3, TOGA 4, REVERSE 5), see EgtLimits.ts */
+  private readonly thrustLimitType = ConsumerSubject.create(this.sub.on('thrust_limit_type').whenChanged(), 0);
 
   private readonly egt = ConsumerSubject.create(
     this.sub.on(`egt_${this.props.engine}`).withPrecision(1).whenChanged(),
@@ -38,33 +37,52 @@ export class EGT extends DisplayComponent<EGTProps> {
   private min = 0;
   private max = 1000;
 
-  private warningEGTColor = (EGTemperature: number, throttleMode: number) => {
-    if (EGTemperature >= 900) {
-      return 'Red';
-    }
-    if (EGTemperature > 850 && throttleMode < 3) {
-      return 'Amber';
-    }
-    return 'Green';
-  };
-
-  private readonly amberVisible = this.throttlePosition.map((tm) => tm < 33);
+  private readonly amberVisible = this.thrustLimitType.map(egtLimitMarkVisible);
 
   private readonly egtColour = MappedSubject.create(
-    ([egt, tm]) => this.warningEGTColor(egt, tm),
+    ([egt, limitType]) => egtColour(egt, limitType),
     this.egt,
-    this.throttlePosition,
+    this.thrustLimitType,
   );
 
-  // EEC trims EGT to a max value
-  private readonly trimmedEGT = MappedSubject.create(
-    ([egt, throttleMode]) => Math.min([3, 4].includes(throttleMode) ? 900 : 850, egt),
-    this.egt,
-    this.throttlePosition,
+  /** The EGT offset of the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
+  private readonly egtOffset = ConsumerSubject.create(
+    this.sub.on(`egt_offset_${this.props.engine}`).withPrecision(1).whenChanged(),
+    0,
   );
+
+  private readonly engineState = ConsumerSubject.create(
+    this.sub.on(`engine_state_${this.props.engine}`).whenChanged(),
+    0,
+  );
+
+  private readonly onGround = ConsumerSubject.create(this.sub.on('nose_gear_compressed_1').whenChanged(), false);
+
+  // EEC trims EGT to a max value; the failure offset is added on top (EgtLimits displayedEgt)
+  private readonly trimmedEGT = MappedSubject.create(
+    ([egt, egtOffset, limitType]) => displayedEgt(egt, egtOffset, limitType),
+    this.egt,
+    this.egtOffset,
+    this.thrustLimitType,
+  );
+
+  /** The red mark at the highest EGT shown above the red line (FCOM DSC-70-90 EGT EXCEEDANCE) */
+  private readonly egtExceedance = new ExceedanceMemory(EGT_RED_LINE_C);
+
+  private readonly egtExceedanceValue = Subject.create(0);
+
+  private readonly egtExceedanceVisible = Subject.create(false);
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+
+    this.trimmedEGT.sub((egt) => {
+      // An engine start on ground (ENGINE_STATE Starting 2 or Restarting 3) takes the red mark away.
+      const state = this.engineState.get();
+      this.egtExceedance.update(egt, this.onGround.get() && (state === 2 || state === 3));
+      this.egtExceedanceValue.set(this.egtExceedance.highestValue);
+      this.egtExceedanceVisible.set(this.egtExceedance.exceeded);
+    }, true);
   }
 
   render() {
@@ -87,9 +105,7 @@ export class EGT extends DisplayComponent<EGTProps> {
           </g>
           <g visibility={this.props.active.map((it) => (it ? 'inherit' : 'hidden'))}>
             <text class={this.egtColour.map((col) => `Large End ${col}`)} x={this.props.x + 33} y={this.props.y + 11.7}>
-              {this.egt.map((egt) =>
-                Math.min([3, 4].includes(this.throttlePosition.get()) ? 900 : 850, Math.round(egt)),
-              )}
+              {this.trimmedEGT.map((egt) => Math.round(egt))}
             </text>
             <GaugeComponent
               x={this.props.x}
@@ -153,6 +169,19 @@ export class EGT extends DisplayComponent<EGTProps> {
                   startAngle={this.startAngle}
                   endAngle={this.endAngle}
                   class="GaugeThrustLimitIndicatorFill Gauge"
+                />
+              </g>
+              <g visibility={this.egtExceedanceVisible.map((it) => (it ? 'inherit' : 'hidden'))}>
+                <GaugeMarkerComponent
+                  value={this.egtExceedanceValue}
+                  x={this.props.x}
+                  y={this.props.y}
+                  min={this.min}
+                  max={this.max}
+                  radius={this.radius}
+                  startAngle={this.startAngle}
+                  endAngle={this.endAngle}
+                  class="GaugeComponent Gauge RedLine SW3"
                 />
               </g>
               <rect x={this.props.x - 36} y={this.props.y - 11} width={72} height={26} class="DarkGreyBox" />

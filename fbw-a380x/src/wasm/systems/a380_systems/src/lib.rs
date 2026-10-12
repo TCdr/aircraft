@@ -1,10 +1,16 @@
 extern crate systems;
 
 mod air_conditioning;
+mod air_data_monitoring;
 mod airframe;
 mod avionics_data_communication_network;
 mod control_display_system;
 mod electrical;
+mod engine_control_failure;
+mod engine_failure;
+mod engine_malfunction;
+#[cfg(test)]
+mod engine_out_aircraft_tests;
 mod fire_and_smoke_protection;
 mod fuel;
 pub mod hydraulic;
@@ -18,8 +24,12 @@ mod structural_flex;
 
 use self::{
     air_conditioning::{A380AirConditioning, A380PressurizationOverheadPanel},
+    air_data_monitoring::A380PrimAirDataMonitoring,
     avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
     control_display_system::A380ControlDisplaySystem,
+    engine_control_failure::A380EngineControlFailures,
+    engine_failure::A380EngineFailures,
+    engine_malfunction::A380EngineMalfunctions,
     fuel::A380Fuel,
     pneumatic::{A380Pneumatic, A380PneumaticOverheadPanel},
     structural_flex::A380StructuralFlex,
@@ -46,7 +56,10 @@ use systems::{
         AuxiliaryPowerUnitOverheadPanel, Pw980ApuGenerator, Pw980Constants, Pw980StartMotor,
     },
     electrical::{Electricity, ElectricitySource, ExternalPowerSource},
-    engine::{reverser_thrust::ReverserForce, trent_engine::TrentEngine, EngineFireOverheadPanel},
+    engine::{
+        fuel_filter_failure::EngineFuelFilterFailures, oil_failure::EngineOilFailures,
+        reverser_thrust::ReverserForce, trent_engine::TrentEngine, EngineFireOverheadPanel,
+    },
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
     navigation::{
@@ -54,7 +67,7 @@ use systems::{
         gnss::GpsReceiver,
         gpirs::Gpirs,
     },
-    shared::ElectricalBusType,
+    shared::{ElectricalBusType, LgciuWeightOnWheels},
     simulation::{
         Aircraft, InitContext, SimulationElement, SimulationElementVisitor, UpdateContext,
     },
@@ -65,6 +78,8 @@ pub struct A380 {
     adcn_simvar_translation: A380AvionicsDataCommunicationNetworkSimvarTranslator,
     adirs: AirDataInertialReferenceSystem,
     adirs_overhead: AirDataInertialReferenceSystemOverheadPanel,
+    /// PRIM comparison of the ADR and standby air data (NAV AIR DATA / AOA DISAGREE)
+    prim_air_data_monitoring: A380PrimAirDataMonitoring,
     air_conditioning: A380AirConditioning,
     apu: AuxiliaryPowerUnit<Pw980ApuGenerator, Pw980StartMotor, Pw980Constants, 2>,
     apu_fire_overhead: AuxiliaryPowerUnitFireOverheadPanel,
@@ -82,6 +97,13 @@ pub struct A380 {
     engine_3: TrentEngine,
     engine_4: TrentEngine,
     engine_fire_overhead: EngineFireOverheadPanel<4>,
+    engine_failures: A380EngineFailures,
+    /// Oil leak, oil filter clog and oil overheat of each engine, applied by the FADEC
+    engine_oil_failures: EngineOilFailures<4>,
+    /// Fuel filter clog of each engine: SD ENGINE indication and FWS caution only
+    engine_fuel_filter_failures: EngineFuelFilterFailures<4>,
+    engine_malfunctions: A380EngineMalfunctions,
+    engine_control_failures: A380EngineControlFailures,
     electrical: A380Electrical,
     power_consumption: A380PowerConsumption,
     ext_pwrs: [ExternalPowerSource; 4],
@@ -114,6 +136,7 @@ impl A380 {
             adcn_simvar_translation,
             adirs: A380AirDataInertialReferenceSystemBuilder::build(context),
             adirs_overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
+            prim_air_data_monitoring: A380PrimAirDataMonitoring::new(context),
             air_conditioning: A380AirConditioning::new(context),
             apu: AuxiliaryPowerUnitFactory::new_pw980(
                 context,
@@ -136,6 +159,11 @@ impl A380 {
             engine_3: TrentEngine::new(context, 3),
             engine_4: TrentEngine::new(context, 4),
             engine_fire_overhead: EngineFireOverheadPanel::new(context),
+            engine_failures: A380EngineFailures::new(context),
+            engine_oil_failures: EngineOilFailures::new(context),
+            engine_fuel_filter_failures: EngineFuelFilterFailures::new(context),
+            engine_malfunctions: A380EngineMalfunctions::new(context),
+            engine_control_failures: A380EngineControlFailures::new(context),
             electrical: A380Electrical::new(context),
             power_consumption: A380PowerConsumption::new(context),
             ext_pwrs: [1, 2, 3, 4].map(|i| ExternalPowerSource::new(context, i)),
@@ -304,6 +332,7 @@ impl Aircraft for A380 {
 
         self.adirs.update(context, &self.adirs_overhead);
         self.adirs_overhead.update(context, &self.adirs);
+        self.prim_air_data_monitoring.update(context, &self.adirs);
 
         self.power_consumption.update(context);
 
@@ -360,9 +389,30 @@ impl Aircraft for A380 {
         self.icing_simulation.update(context);
 
         self.egpwc.update(&self.adirs, self.lgcius.lgciu1());
-        self.fuel
-            .update(context, &self.adcn, A380Airframe::get_loadsheet());
+        self.fuel.update(
+            context,
+            &self.adcn,
+            A380Airframe::get_loadsheet(),
+            &self.engine_fire_overhead,
+        );
+        // After the fuel system: the LP valve starvation also cuts the engine fuel.
+        self.engine_failures.update(
+            context,
+            [1, 2, 3, 4].map(|engine_number| self.fuel.engine_is_starved(engine_number)),
+        );
+        self.engine_malfunctions.update(context);
 
+        // The FADECs' reverser inhibitions of the previous update (thrust lever fault of engine 2 or 3)
+        let reversers_deployment_inhibited = self
+            .engine_control_failures
+            .reversers_deployment_inhibited();
+        for (controller, inhibited) in self
+            .engine_reverser_control
+            .iter_mut()
+            .zip(reversers_deployment_inhibited)
+        {
+            controller.set_deployment_inhibited(inhibited);
+        }
         self.engine_reverser_control[0].update(
             &self.engine_2,
             self.lgcius.lgciu1(),
@@ -377,6 +427,16 @@ impl Aircraft for A380 {
         self.reversers_assembly
             .update(context, &self.engine_reverser_control);
 
+        // The thrust lever angle the FADECs use, from the reverser state and the FADEC / thrust
+        // lever failures (engine_control_failure.rs). On the ground as the FADEC model of the
+        // flight computers sees it: both main gears compressed.
+        self.engine_control_failures.update(
+            context,
+            self.lgcius.lgciu1().left_and_right_gear_compressed(false)
+                || self.lgcius.lgciu2().left_and_right_gear_compressed(false),
+            self.reversers_assembly.monitoring(),
+        );
+
         self.reverse_thrust.update(
             context,
             [&self.engine_2, &self.engine_3],
@@ -390,6 +450,7 @@ impl SimulationElement for A380 {
         self.adcn_simvar_translation.accept(visitor);
         self.adirs.accept(visitor);
         self.adirs_overhead.accept(visitor);
+        self.prim_air_data_monitoring.accept(visitor);
         self.air_conditioning.accept(visitor);
         self.apu.accept(visitor);
         self.apu_fire_overhead.accept(visitor);
@@ -407,6 +468,11 @@ impl SimulationElement for A380 {
         self.engine_3.accept(visitor);
         self.engine_4.accept(visitor);
         self.engine_fire_overhead.accept(visitor);
+        self.engine_failures.accept(visitor);
+        self.engine_oil_failures.accept(visitor);
+        self.engine_fuel_filter_failures.accept(visitor);
+        self.engine_malfunctions.accept(visitor);
+        self.engine_control_failures.accept(visitor);
         self.electrical.accept(visitor);
         self.power_consumption.accept(visitor);
         accept_iterable!(self.ext_pwrs, visitor);
@@ -430,5 +496,53 @@ impl SimulationElement for A380 {
         self.reverse_thrust.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use systems::failures::FailureType;
+    use systems::simulation::{
+        test::{ReadByName, SimulationTestBed, TestBed},
+        InitContext,
+    };
+
+    /// The flyPad oil failures 79000-79033 (a380_systems_wasm) reach the FADEC through the oil
+    /// failure variables of each engine (systems::engine::oil_failure).
+    #[test]
+    fn the_engine_oil_failures_are_written_for_the_fadec() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.fail(FailureType::EngineOilLeak(4));
+        test_bed.fail(FailureType::EngineOilFilterClog(2));
+        test_bed.fail(FailureType::EngineOilOverheat(3));
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let read = |test_bed: &mut SimulationTestBed<A380>, name: &str| -> bool {
+            test_bed.read_by_name(name)
+        };
+        assert!(read(&mut test_bed, "ENGINE_4_OIL_LEAK"));
+        assert!(!read(&mut test_bed, "ENGINE_1_OIL_LEAK"));
+        assert!(read(&mut test_bed, "ENGINE_2_OIL_FILTER_CLOGGED"));
+        assert!(!read(&mut test_bed, "ENGINE_3_OIL_FILTER_CLOGGED"));
+        assert!(read(&mut test_bed, "ENGINE_3_OIL_OVERHEAT"));
+        assert!(!read(&mut test_bed, "ENGINE_4_OIL_OVERHEAT"));
+    }
+
+    /// The flyPad fuel filter clog failures 73100-73103 (a380_systems_wasm) reach the SD ENGINE page
+    /// and the FWS through the fuel filter variable of each engine (systems::engine::fuel_filter_failure).
+    #[test]
+    fn the_engine_fuel_filter_clog_is_written_for_the_sd_and_the_fws() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.fail(FailureType::EngineFuelFilterClog(4));
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let clogged_4: bool = test_bed.read_by_name("ENGINE_4_FUEL_FILTER_CLOGGED");
+        let clogged_1: bool = test_bed.read_by_name("ENGINE_1_FUEL_FILTER_CLOGGED");
+        assert!(clogged_4);
+        assert!(!clogged_1);
     }
 }

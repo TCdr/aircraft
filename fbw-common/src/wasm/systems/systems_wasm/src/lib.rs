@@ -10,7 +10,7 @@ mod msfs;
 use crate::msfs::legacy::{AircraftVariable, NamedVariable};
 #[cfg(target_arch = "wasm32")]
 use ::msfs::legacy::{AircraftVariable, NamedVariable};
-use fuel::fuel_pumps;
+use fuel::{fuel_pumps, fuel_valves_closed_while};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::msfs::commbus::{CommBus, CommBusBroadcastFlags};
@@ -131,6 +131,15 @@ impl<'a, 'b> MsfsSimulationBuilder<'a, 'b> {
         pump_indexes: impl IntoIterator<Item = u32>,
     ) -> Result<Self, Box<dyn Error>> {
         self.with_aspect(fuel_pumps(pump_indexes))
+    }
+
+    /// Closes each MSFS fuel valve (by its flight_model.cfg index) while the given variable is
+    /// true, and opens it while the variable is false.
+    pub fn with_fuel_valves_closed_while(
+        self,
+        valves: impl IntoIterator<Item = (Variable, u32)>,
+    ) -> Result<Self, Box<dyn Error>> {
+        self.with_aspect(fuel_valves_closed_while(valves))
     }
 
     pub fn with_failures(mut self, failures: impl IntoIterator<Item = (u64, FailureType)>) -> Self {

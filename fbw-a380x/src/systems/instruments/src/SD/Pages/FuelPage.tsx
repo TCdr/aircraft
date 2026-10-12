@@ -4,6 +4,7 @@ import { useSimVar } from '@instruments/common/simVars';
 import { MoreLabel, PageTitle } from './Generic/PageTitle';
 import { useArinc429Var } from '@instruments/common/arinc429';
 import { NXUnits, useInterval } from '@flybywiresim/fbw-sdk-react';
+import { engineLpValveIndication } from './EngineLpValveIndication';
 
 export const FuelPage = () => {
   const CROSS_FEED_VALVE_CLOSED_THRESHOLD = 0.1;
@@ -32,12 +33,6 @@ export const FuelPage = () => {
 
   const allEngFuelFlow = eng1FuelFlowPph + eng2FuelFlowPph + eng3FuelFlowPph + eng4FuelFlowPph;
   const allEngFuelFlowDisplayed = Math.floor(NXUnits.kgToUser(allEngFuelFlow) / 60 / 10) * 10; // kg/min
-
-  // LP valves
-  const [engine1Valve] = useSimVar('FUELSYSTEM VALVE OPEN:1', 'Percent over 100', 1000);
-  const [engine2Valve] = useSimVar('FUELSYSTEM VALVE OPEN:2', 'Percent over 100', 1000);
-  const [engine3Valve] = useSimVar('FUELSYSTEM VALVE OPEN:3', 'Percent over 100', 1000);
-  const [engine4Valve] = useSimVar('FUELSYSTEM VALVE OPEN:4', 'Percent over 100', 1000);
 
   // Fuel pump states
   const fqmsLeftPumpStates = useArinc429Var('L:A32NX_FQMS_LEFT_FUEL_PUMP_RUNNING_WORD', 1000);
@@ -129,6 +124,30 @@ export const FuelPage = () => {
   const [crossFeed2ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:47', 'Percent over 100', 1000);
   const [crossFeed3ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:48', 'Percent over 100', 1000);
   const [crossFeed4ValveOpen] = useSimVar('FUELSYSTEM VALVE OPEN:49', 'Percent over 100', 1000);
+
+  // Feed pumps ON and running at low pressure or failed, and crossfeed valves abnormally closed or open (FCOM DSC-28-20
+  // FUEL SD page FEED TANK MAIN/STBY PUMP and CROSSFEED VALVE), from the CPIOM-F fuel monitoring (FuelPumpsAndValves)
+  const [feed1MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_1_MAIN_PMP_LO_PR', 'bool', 1000);
+  const [feed1StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_1_STBY_PMP_LO_PR', 'bool', 1000);
+  const [feed2MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_2_MAIN_PMP_LO_PR', 'bool', 1000);
+  const [feed2StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_2_STBY_PMP_LO_PR', 'bool', 1000);
+  const [feed3MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_3_MAIN_PMP_LO_PR', 'bool', 1000);
+  const [feed3StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_3_STBY_PMP_LO_PR', 'bool', 1000);
+  const [feed4MainPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_4_MAIN_PMP_LO_PR', 'bool', 1000);
+  const [feed4StbyPumpLowPressure] = useSimVar('L:A380X_FUEL_FEED_TK_4_STBY_PMP_LO_PR', 'bool', 1000);
+  // Transfer pumps failed or running in an empty tank, pb-sw ON (systems host CpiomF/FuelPumpsAndValves)
+  const [leftOuterTankPumpFault] = useSimVar('L:A380X_FUEL_L_OUTR_TK_PMP_FAULT', 'bool', 1000);
+  const [rightOuterTankPumpFault] = useSimVar('L:A380X_FUEL_R_OUTR_TK_PMP_FAULT', 'bool', 1000);
+  const [leftMidTankFwdPumpFault] = useSimVar('L:A380X_FUEL_L_MID_TK_FWD_PMP_FAULT', 'bool', 1000);
+  const [rightMidTankFwdPumpFault] = useSimVar('L:A380X_FUEL_R_MID_TK_FWD_PMP_FAULT', 'bool', 1000);
+  const [leftInnerTankFwdPumpFault] = useSimVar('L:A380X_FUEL_L_INR_TK_FWD_PMP_FAULT', 'bool', 1000);
+  const [rightInnerTankFwdPumpFault] = useSimVar('L:A380X_FUEL_R_INR_TK_FWD_PMP_FAULT', 'bool', 1000);
+  const [leftTrimTankPumpFault] = useSimVar('L:A380X_FUEL_TRIM_TK_L_PMP_FAULT', 'bool', 1000);
+  const [rightTrimTankPumpFault] = useSimVar('L:A380X_FUEL_TRIM_TK_R_PMP_FAULT', 'bool', 1000);
+  const [crossFeed1ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_1_ABNORMAL', 'bool', 1000);
+  const [crossFeed2ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_2_ABNORMAL', 'bool', 1000);
+  const [crossFeed3ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_3_ABNORMAL', 'bool', 1000);
+  const [crossFeed4ValveAbnormal] = useSimVar('L:A380X_FUEL_CROSSFEED_VLV_4_ABNORMAL', 'bool', 1000);
 
   const isSideToSideFuelTransferActive =
     (crossFeed1ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD ||
@@ -278,7 +297,7 @@ export const FuelPage = () => {
       x: 84,
       y: 384,
       running: isLeftOuterTankPumpActive,
-      hasFault: isLeftOuterTankPumpSwitchOff,
+      hasFault: isLeftOuterTankPumpSwitchOff || leftOuterTankPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.10
@@ -286,7 +305,7 @@ export const FuelPage = () => {
       x: 140,
       y: 384,
       running: isLeftMidTankPumpFwdActive,
-      hasFault: isLeftMidTankPumpFwdSwitchOff,
+      hasFault: isLeftMidTankPumpFwdSwitchOff || leftMidTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.12
@@ -294,7 +313,7 @@ export const FuelPage = () => {
       x: 232,
       y: 384,
       running: isLeftInnerTankPumpFwdActive,
-      hasFault: isLeftInnerTankPumpFwdSwitchOff,
+      hasFault: isLeftInnerTankPumpFwdSwitchOff || leftInnerTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.13
@@ -302,7 +321,7 @@ export const FuelPage = () => {
       x: 482,
       y: 384,
       running: isRightInnerTankPumpFwdActive,
-      hasFault: isRightInnerTankPumpFwdSwitchOff,
+      hasFault: isRightInnerTankPumpFwdSwitchOff || rightInnerTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.15
@@ -310,7 +329,7 @@ export const FuelPage = () => {
       x: 584,
       y: 384,
       running: isRightMidTankPumpFwdActive,
-      hasFault: isRightMidTankPumpFwdSwitchOff,
+      hasFault: isRightMidTankPumpFwdSwitchOff || rightMidTankFwdPumpFault > 0,
       displayWhenInactive: showMore,
     },
     // Pump.14
@@ -318,7 +337,7 @@ export const FuelPage = () => {
       x: 680,
       y: 384,
       running: isRightOuterTankPumpActive,
-      hasFault: isRightOuterTankPumpSwitchOff,
+      hasFault: isRightOuterTankPumpSwitchOff || rightOuterTankPumpFault > 0,
       displayWhenInactive: showMore,
     },
   ];
@@ -808,69 +827,25 @@ export const FuelPage = () => {
 
       {/* Engines and LP valves */}
       <Engine x={74} y={105} index={1} />
-      <Valve x={111} y={150} open={engine1Valve >= 0.5} />
-      <FuelLine x1={111} y1={132} x2={111} y2={124} active displayWhenInactive={false} />
-      <FuelLine
-        x1={111}
-        y1={132}
-        x2={111}
-        y2={124}
-        active={engine1Valve >= 0.5}
-        displayWhenInactive={false}
-        endArrow="out"
-        endArrowSize={12}
-      />
+      <EngineLpValve x={111} y={150} engineNumber={1} />
       <text textAnchor="middle" x={111} y={84} className="Green T3">
         {Math.floor(NXUnits.kgToUser(eng1FuelUsed) / 50) * 50}
       </text>
 
       <Engine x={236} y={81} index={2} />
-      <Valve x={273} y={123} open={engine2Valve >= 0.5} />
-      <FuelLine x1={273} y1={105} x2={273} y2={97} active displayWhenInactive={false} />
-      <FuelLine
-        x1={273}
-        y1={105}
-        x2={273}
-        y2={97}
-        active={engine2Valve >= 0.5}
-        displayWhenInactive={false}
-        endArrow="out"
-        endArrowSize={12}
-      />
+      <EngineLpValve x={273} y={123} engineNumber={2} />
       <text textAnchor="middle" x={273} y={68} className="Green T3">
         {Math.floor(NXUnits.kgToUser(eng2FuelUsed) / 50) * 50}
       </text>
 
       <Engine x={456} y={81} index={3} />
-      <Valve x={493} y={123} open={engine3Valve >= 0.5} />
-      <FuelLine x1={493} y1={105} x2={493} y2={97} active displayWhenInactive={false} />
-      <FuelLine
-        x1={493}
-        y1={105}
-        x2={493}
-        y2={97}
-        active={engine3Valve >= 0.5}
-        displayWhenInactive={false}
-        endArrow="out"
-        endArrowSize={12}
-      />
+      <EngineLpValve x={493} y={123} engineNumber={3} />
       <text textAnchor="middle" x={493} y={68} className="Green T3">
         {Math.floor(NXUnits.kgToUser(eng3FuelUsed) / 50) * 50}
       </text>
 
       <Engine x={618} y={105} index={4} />
-      <Valve x={655} y={150} open={engine4Valve >= 0.5} />
-      <FuelLine x1={655} y1={132} x2={655} y2={124} active displayWhenInactive={false} />
-      <FuelLine
-        x1={655}
-        y1={132}
-        x2={655}
-        y2={124}
-        active={engine4Valve >= 0.5}
-        displayWhenInactive={false}
-        endArrow="out"
-        endArrowSize={12}
-      />
+      <EngineLpValve x={655} y={150} engineNumber={4} />
       <text textAnchor="middle" x={655} y={84} className="Green T3">
         {Math.floor(NXUnits.kgToUser(eng4FuelUsed) / 50) * 50}
       </text>
@@ -896,13 +871,18 @@ export const FuelPage = () => {
         <TankQuantity x={138} y={268} smallFont quantity={collectorCell1Weight} hasFault={isCollectorCell1NotFull} />
       )}
       {/* Feed tank 1 main pump */}
-      <Pump x={95} y={227} running={feed1Pump1Active} hasFault={isFeed1Pump1SwitchOff} />
+      <Pump
+        x={95}
+        y={227}
+        running={feed1Pump1Active}
+        hasFault={isFeed1Pump1SwitchOff || feed1MainPumpLowPressure > 0}
+      />
       {/* Feed tank 1 standby pump. TODO actually deactivate the pump when the main one is active  */}
       <Pump
         x={127}
         y={227}
         running={feed1Pump2Active && !feed1Pump1Active}
-        hasFault={isFeed1Pump2SwitchOff}
+        hasFault={isFeed1Pump2SwitchOff || feed1StbyPumpLowPressure > 0}
         displayWhenInactive={showMore}
       />
 
@@ -918,6 +898,7 @@ export const FuelPage = () => {
         horizontal
         open={crossFeed1ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD}
         normallyClosed
+        amber={crossFeed1ValveAbnormal > 0}
       />
 
       {/* LEFT OUTER/MID/INNER */}
@@ -937,13 +918,18 @@ export const FuelPage = () => {
         <TankQuantity x={310} y={252} smallFont quantity={collectorCell2Weight} hasFault={isCollectorCell2NotFull} />
       )}
       {/* Feed tank 2 main pump */}
-      <Pump x={258} y={208} running={feed2Pump1Active} hasFault={isFeed2Pump1SwitchOff} />
+      <Pump
+        x={258}
+        y={208}
+        running={feed2Pump1Active}
+        hasFault={isFeed2Pump1SwitchOff || feed2MainPumpLowPressure > 0}
+      />
       {/* Feed tank 2 standby pump. TODO actually deactivate the pump when the main one is active */}
       <Pump
         x={290}
         y={208}
         running={feed2Pump2Active && !feed2Pump1Active}
-        hasFault={isFeed2Pump2SwitchOff}
+        hasFault={isFeed2Pump2SwitchOff || feed2StbyPumpLowPressure > 0}
         displayWhenInactive={showMore}
       />
 
@@ -959,6 +945,7 @@ export const FuelPage = () => {
         horizontal
         open={crossFeed2ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD}
         normallyClosed
+        amber={crossFeed2ValveAbnormal > 0}
       />
 
       {/* FEED TANK 3 */}
@@ -973,13 +960,18 @@ export const FuelPage = () => {
         <TankQuantity x={518} y={252} smallFont quantity={collectorCell3Weight} hasFault={isCollectorCell3NotFull} />
       )}
       {/* Feed tank 3 main pump */}
-      <Pump x={476} y={208} running={feed3Pump1Active} hasFault={isFeed3Pump1SwitchOff} />
+      <Pump
+        x={476}
+        y={208}
+        running={feed3Pump1Active}
+        hasFault={isFeed3Pump1SwitchOff || feed3MainPumpLowPressure > 0}
+      />
       {/* Feed tank 3 standby pump. TODO actually deactivate the pump when the main one is active */}
       <Pump
         x={508}
         y={208}
         running={feed3Pump2Active && !feed3Pump1Active}
-        hasFault={isFeed3Pump2SwitchOff}
+        hasFault={isFeed3Pump2SwitchOff || feed3StbyPumpLowPressure > 0}
         displayWhenInactive={showMore}
       />
 
@@ -995,6 +987,7 @@ export const FuelPage = () => {
         horizontal
         open={crossFeed3ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD}
         normallyClosed
+        amber={crossFeed3ValveAbnormal > 0}
       />
 
       {/* RIGHT INNER/MID/OUTER */}
@@ -1014,13 +1007,18 @@ export const FuelPage = () => {
         <TankQuantity x={690} y={268} smallFont quantity={collectorCell4Weight} hasFault={isCollectorCell4NotFull} />
       )}
       {/* Feed tank 4 main pump */}
-      <Pump x={639} y={227} running={feed4Pump1Active} hasFault={isFeed4Pump1SwitchOff} />
+      <Pump
+        x={639}
+        y={227}
+        running={feed4Pump1Active}
+        hasFault={isFeed4Pump1SwitchOff || feed4MainPumpLowPressure > 0}
+      />
       {/* Feed tank 4 standby pump. TODO actually deactivate the pump when the main one is active */}
       <Pump
         x={671}
         y={227}
         running={feed4Pump2Active && !feed4Pump1Active}
-        hasFault={isFeed4Pump2SwitchOff}
+        hasFault={isFeed4Pump2SwitchOff || feed4StbyPumpLowPressure > 0}
         displayWhenInactive={showMore}
       />
 
@@ -1036,6 +1034,7 @@ export const FuelPage = () => {
         horizontal
         open={crossFeed4ValveOpen >= CROSS_FEED_VALVE_CLOSED_THRESHOLD}
         normallyClosed
+        amber={crossFeed4ValveAbnormal > 0}
       />
 
       <text x={10} y={620} className="White T2">
@@ -1289,7 +1288,7 @@ export const FuelPage = () => {
           x={298}
           y={610}
           running={isLeftTrimTankPumpActive}
-          hasFault={isLeftTrimTankPumpSwitchOff}
+          hasFault={isLeftTrimTankPumpSwitchOff || leftTrimTankPumpFault > 0}
           displayWhenInactive={showMore}
         />
         <FuelLine x1={468} y1={596} x2={468} y2={568} active={false} displayWhenInactive={showMore} />
@@ -1297,7 +1296,7 @@ export const FuelPage = () => {
           x={468}
           y={610}
           running={isRightTrimTankPumpActive}
-          hasFault={isRightTrimTankPumpSwitchOff}
+          hasFault={isRightTrimTankPumpSwitchOff || rightTrimTankPumpFault > 0}
           displayWhenInactive={showMore}
         />
 
@@ -1558,10 +1557,12 @@ interface ValveProps extends Position {
   open: boolean;
   horizontal?: boolean;
   normallyClosed?: boolean;
+  /** Shows the valve amber whatever its position, e.g. when it is abnormally open */
+  amber?: boolean;
 }
 
-const Valve: FC<ValveProps> = ({ x, y, open, horizontal = false, normallyClosed = false }) => {
-  const color = !open && !normallyClosed ? 'Amber' : 'Green';
+const Valve: FC<ValveProps> = ({ x, y, open, horizontal = false, normallyClosed = false, amber = false }) => {
+  const color = amber || (!open && !normallyClosed) ? 'Amber' : 'Green';
   const rotation = open !== !horizontal ? 90 : 0;
   const radius = 16;
 
@@ -1571,6 +1572,37 @@ const Valve: FC<ValveProps> = ({ x, y, open, horizontal = false, normallyClosed 
 
       <line x1={x} y1={y - radius} x2={x} y2={y + radius} />
     </g>
+  );
+};
+
+interface EngineLpValveProps extends Position {
+  engineNumber: number;
+}
+
+/** An engine LP valve and the fuel line from it to its engine, shown per FCOM DSC-28-20 (engineLpValveIndication) */
+const EngineLpValve: FC<EngineLpValveProps> = ({ x, y, engineNumber }) => {
+  const [openPercentage] = useSimVar(`L:A32NX_FUEL_ENG_${engineNumber}_LP_VALVE_OPEN_PERCENTAGE`, 'percent', 1000);
+  // The ENG MASTER lever drives the MSFS fuel valve switch of the same index
+  const [engineMasterOn] = useSimVar(`FUELSYSTEM VALVE SWITCH:${engineNumber}`, 'bool', 1000);
+  const [firePbReleased] = useSimVar(`L:A32NX_FIRE_BUTTON_ENG${engineNumber}`, 'bool', 1000);
+
+  const { inline, amber } = engineLpValveIndication(openPercentage, engineMasterOn > 0 && !(firePbReleased > 0));
+
+  return (
+    <>
+      <Valve x={x} y={y} open={inline} amber={amber} />
+      <FuelLine x1={x} y1={y - 18} x2={x} y2={y - 26} active displayWhenInactive={false} />
+      <FuelLine
+        x1={x}
+        y1={y - 18}
+        x2={x}
+        y2={y - 26}
+        active={inline}
+        displayWhenInactive={false}
+        endArrow="out"
+        endArrowSize={12}
+      />
+    </>
   );
 };
 
