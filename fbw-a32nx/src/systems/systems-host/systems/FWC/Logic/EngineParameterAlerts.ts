@@ -18,17 +18,24 @@ import {
  * The limits are those of the EWD (@shared/EngineLimits: the CFM56-5B TCDS EGT figures confirmed in the sim by the user),
  * so that the alert comes up with the amber EGT: the FCOM text (l.80420-80423) gives N1 104 %, N2 105 % and an EGT of
  * 725 °C during start, 950 °C at TOGA or FLX/MCT, 915 °C otherwise; the user chose the TCDS EGT values (940 °C at TOGA/FLX,
- * 905 °C at CLB/MCT/MREV, 725 °C without a rated limit or during start). The LEAP-1A limits are an open question.
+ * 905 °C at CLB/MCT/MREV, 725 °C without a rated limit or during start). The N1 and N2 limits are the LEAP-1A red lines
+ * of the EWD (N1 101 %, N2 116.5 %, CFM LEAP-1A General Familiarization, see @shared/EngineLimits) in place of the CFM56
+ * 104 % and 105 % of the FCOM: the LEAP-1A runs above 105 % N2 at TOGA.
  */
 
 /**
  * l.80456-80460, the second "Max pointer indication" band: "EGT above 970 °C or N1 above 105.8 % or N2 above 105.8 %"
  * calls for THR LEVER IDLE and ENG MASTER OFF; below it, THR LEVER BELOW LIMIT. With the TCDS EGT limits the EGT band is
  * the EGT red limit of the EWD (975 °C, design choice in place of the FCOM 970 °C).
+ * Design choice for N1 and N2 (the LEAP-1A document gives no second band): each band keeps the FCOM gap above the limit,
+ * on the LEAP-1A red line. N1: 104.0 % to 105.8 % in the FCOM (l.80448), 1.8 %, so 102.8 %. N2: 105.0 % to 105.8 %,
+ * 0.8 %, so 117.3 %.
  */
 export const EGT_SHUTDOWN_BAND_DEGREES = EGT_RED_LIMIT_DEGREES;
-export const N1_SHUTDOWN_BAND_PERCENT = 105.8;
-export const N2_SHUTDOWN_BAND_PERCENT = 105.8;
+export const N1_SHUTDOWN_BAND_MARGIN_PERCENT = 1.8;
+export const N1_SHUTDOWN_BAND_PERCENT = N1_RED_LIMIT_PERCENT + N1_SHUTDOWN_BAND_MARGIN_PERCENT;
+export const N2_SHUTDOWN_BAND_MARGIN_PERCENT = 0.8;
+export const N2_SHUTDOWN_BAND_PERCENT = N2_RED_LIMIT_PERCENT + N2_SHUTDOWN_BAND_MARGIN_PERCENT;
 
 export { N1_RED_LIMIT_PERCENT, N2_RED_LIMIT_PERCENT };
 
