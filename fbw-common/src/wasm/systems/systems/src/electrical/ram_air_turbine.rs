@@ -39,6 +39,9 @@ impl RamAirTurbine {
     pub const PROPELLER_INERTIA: f64 = 0.2;
     pub const DYNAMIC_FRICTION: f64 = 0.2;
     pub const BEST_EFFICIENCY_TIP_SPEED_RATIO: f64 = 4.;
+    // Efficiency curve shape and start-up wind torque: the values the shared WindTurbine model always used
+    pub const EFFICIENCY_CURVE_SHARPNESS: f64 = 3.;
+    pub const LOW_SPEED_WIND_FORCE_COEFFICIENT: f64 = 0.003;
 
     pub fn new(context: &mut InitContext) -> Self {
         Self {
@@ -51,6 +54,8 @@ impl RamAirTurbine {
                 Self::PROP_ALPHA_MAP,
                 Self::DYNAMIC_FRICTION,
                 Self::BEST_EFFICIENCY_TIP_SPEED_RATIO,
+                Self::EFFICIENCY_CURVE_SHARPNESS,
+                Self::LOW_SPEED_WIND_FORCE_COEFFICIENT,
                 Self::PROPELLER_INERTIA,
             ),
         }

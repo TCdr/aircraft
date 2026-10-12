@@ -361,6 +361,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A32NX/HYD] The RAT propeller has the real 29.5 in (749 mm) diameter instead of 1 m, with its performance retuned to the real RAT: rated output from 135.5 kt, governed between 4800 and 6600 rpm, and the emergency generator kept running down to 125 kt as in the FCOM; below its governed band the RAT pressure fades and the emergency generator is lost (about 110 kt); the RAT holds the blue system at about 2500 psi as in the FCOM, also without the emergency generator (RAT MAN ON), instead of about 2680 psi - @TCdr
 
 ## 2024.1.0
 
