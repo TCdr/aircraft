@@ -14,7 +14,8 @@
  * "SPD BRK (IF L OR R ELEVATOR FAULT) ... DO NOT USE". The procedure has no MANEUVER WITH CARE line (that one belongs to
  * DIRECT LAW) and no MAX FL line.
  * @param dualHydraulicLowPressure two hydraulic systems are at low pressure
- * @param speedBrakeDoNotUse the FCDC "speed brake do not use" discrete (L or R elevator fault)
+ * @param speedBrakeDoNotUse the left or the right elevator is lost (FlightControlSurfaceAlerts leftOrRightElevatorLost),
+ * not the FCDC "SPD BRK 3+4" bit (Fcdc.cpp efcsStatus5 bit 27), which is the SEC 1 / SPLR FAULT condition
  * @returns the line indexes, null for a hidden line
  */
 export function altnLawLines(dualHydraulicLowPressure: boolean, speedBrakeDoNotUse: boolean): (number | null)[] {
