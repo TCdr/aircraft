@@ -1,11 +1,20 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { FC, useEffect, useRef, useState } from 'react';
+import React, { FC, useEffect, useMemo, useRef, useState } from 'react';
 import { Coordinates } from 'msfs-geo';
-import { OansMapProjection, TaxiLineKind, TaxiPoint } from '@flybywiresim/fbw-sdk';
+import { OansMapProjection, TaxiPoint } from '@flybywiresim/fbw-sdk';
 import { useAppSelector } from '../../../Store/store';
 import { loadTaxiAirport, TaxiAirport } from '../Taxi/TaxiAirport';
+import {
+  BoxedPoints,
+  indexAirport,
+  inView,
+  MIN_REDRAW_INTERVAL_MS,
+  pictureChanged,
+  PushbackMapPicture,
+  viewBox,
+} from './pushbackAirportDraw';
 
 /** The aircraft is at the airport within this distance of its reference point, in metres (as the Taxi page) */
 const AT_AIRPORT_DISTANCE = 8000;
@@ -36,7 +45,8 @@ interface PushbackAirportLayerProps {
 /**
  * The airport under the pushback map: the aprons, taxiways, runways, guidance lines and stand names of the Navigraph
  * airport map (as the Taxi page), drawn heading up around the map centre. The airport is the origin or the
- * destination of the SimBrief flight plan the aircraft is at; nothing is drawn away from them.
+ * destination of the SimBrief flight plan the aircraft is at; nothing is drawn away from them. Only the part in the
+ * window is drawn, and only when the picture has moved (see pushbackAirportDraw.ts).
  */
 export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, headingTrue, pxPerMetre }) => {
   const { departingAirport, arrivingAirport } = useAppSelector((state) => state.simbrief.data);
@@ -44,6 +54,7 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
   const canvas = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [airport, setAirport] = useState<TaxiAirport | null>(null);
+  const index = useMemo(() => (airport ? indexAirport(airport) : null), [airport]);
 
   // The canvas follows the size of its container
   useEffect(() => {
@@ -83,73 +94,80 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
     };
   }, [departingAirport, arrivingAirport, centerKey]);
 
-  useEffect(() => {
+  // The picture last drawn, when it was drawn, and a drawing waiting for the end of the minimum interval
+  const drawn = useRef<PushbackMapPicture | null>(null);
+  const drawnAt = useRef(0);
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The latest picture to draw (read by a pending drawing)
+  const latest = useRef<{ picture: PushbackMapPicture; airport: TaxiAirport | null } | null>(null);
+
+  const draw = () => {
+    pending.current = null;
     const ctx = canvas.current?.getContext('2d');
-    if (!ctx) {
+    const next = latest.current;
+    if (!ctx || !next) {
       return;
     }
-    const { width, height } = size;
+    const { picture } = next;
+    const { width, height, cx, cy } = picture;
+    drawn.current = picture;
+    drawnAt.current = Date.now();
     ctx.clearRect(0, 0, width, height);
-    if (!airport || width === 0 || height === 0) {
+    if (!next.airport || !index || width === 0 || height === 0) {
       return;
     }
-    // The map centre in airport coordinates (metres east and north of the reference point), the heading up
-    const [cx, cy] = OansMapProjection.globalToAirportCoordinates(airport.arp, center, [0, 0]) as TaxiPoint;
-    const h = (headingTrue * Math.PI) / 180;
+    const view = viewBox(cx, cy, width, height, picture.pxPerMetre);
+    const h = (picture.headingTrue * Math.PI) / 180;
     const cos = Math.cos(h);
     const sin = Math.sin(h);
-    const sx = (x: number, y: number) => width / 2 + ((x - cx) * cos - (y - cy) * sin) * pxPerMetre;
-    const sy = (x: number, y: number) => height / 2 - ((x - cx) * sin + (y - cy) * cos) * pxPerMetre;
-
-    const polygons = (rings: TaxiPoint[][], fill: string, stroke?: string) => {
+    const scale = picture.pxPerMetre;
+    const sx = (x: number, y: number) => width / 2 + ((x - cx) * cos - (y - cy) * sin) * scale;
+    const sy = (x: number, y: number) => height / 2 - ((x - cx) * sin + (y - cy) * cos) * scale;
+    const trace = (items: BoxedPoints[], close: boolean) => {
       ctx.beginPath();
-      for (const ring of rings) {
-        ring.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(sx(x, y), sy(x, y)) : ctx.lineTo(sx(x, y), sy(x, y))));
-        ctx.closePath();
-      }
-      ctx.fillStyle = fill;
-      ctx.fill();
-      if (stroke) {
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-    };
-    polygons(airport.shapes.aprons, COLOURS.apron);
-    polygons(airport.shapes.taxiways, COLOURS.taxiway);
-    polygons(airport.shapes.runways, COLOURS.runway, COLOURS.runwayEdge);
-
-    ctx.lineWidth = 1;
-    for (const kinds of [[TaxiLineKind.Stand], [TaxiLineKind.Taxiway, TaxiLineKind.Exit]]) {
-      ctx.strokeStyle = kinds[0] === TaxiLineKind.Stand ? COLOURS.standLine : COLOURS.guidance;
-      ctx.beginPath();
-      for (const line of airport.network.lines) {
-        if (kinds.includes(line.kind)) {
-          line.points.forEach(([x, y], i) =>
-            i === 0 ? ctx.moveTo(sx(x, y), sy(x, y)) : ctx.lineTo(sx(x, y), sy(x, y)),
-          );
+      for (const { points } of inView(items, view)) {
+        points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(sx(x, y), sy(x, y)) : ctx.lineTo(sx(x, y), sy(x, y))));
+        if (close) {
+          ctx.closePath();
         }
       }
-      ctx.stroke();
-    }
+    };
+
+    trace(index.aprons, true);
+    ctx.fillStyle = COLOURS.apron;
+    ctx.fill();
+    trace(index.taxiways, true);
+    ctx.fillStyle = COLOURS.taxiway;
+    ctx.fill();
+    trace(index.runways, true);
+    ctx.fillStyle = COLOURS.runway;
+    ctx.fill();
+    ctx.strokeStyle = COLOURS.runwayEdge;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    trace(index.standLines, false);
+    ctx.strokeStyle = COLOURS.standLine;
+    ctx.stroke();
+    trace(index.guidanceLines, false);
+    ctx.strokeStyle = COLOURS.guidance;
+    ctx.stroke();
 
     // The stands: a dot, and the name when zoomed in enough
+    const stands = next.airport.stands.filter(
+      ({ point: [x, y] }) => x >= view.minX && x <= view.maxX && y >= view.minY && y <= view.maxY,
+    );
     ctx.fillStyle = COLOURS.stand;
-    for (const stand of airport.stands) {
-      const x = sx(stand.point[0], stand.point[1]);
-      const y = sy(stand.point[0], stand.point[1]);
-      if (x < -20 || y < -20 || x > width + 20 || y > height + 20) {
-        continue;
-      }
+    for (const stand of stands) {
       ctx.beginPath();
-      ctx.arc(x, y, 3, 0, 2 * Math.PI);
+      ctx.arc(sx(stand.point[0], stand.point[1]), sy(stand.point[0], stand.point[1]), 3, 0, 2 * Math.PI);
       ctx.fill();
     }
-    if (pxPerMetre >= STAND_LABEL_SCALE) {
+    if (scale >= STAND_LABEL_SCALE) {
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      for (const stand of airport.stands) {
+      for (const stand of stands) {
         const x = sx(stand.point[0], stand.point[1]);
         const y = sy(stand.point[0], stand.point[1]) - 12;
         if (x < 0 || y < 0 || x > width || y > height) {
@@ -162,7 +180,41 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
         ctx.fillText(stand.name, x, y + 1);
       }
     }
-  }, [airport, size.width, size.height, center.lat, center.long, headingTrue, pxPerMetre]);
+  };
+
+  useEffect(() => {
+    const [cx, cy] = airport
+      ? (OansMapProjection.globalToAirportCoordinates(airport.arp, center, [0, 0]) as TaxiPoint)
+      : [0, 0];
+    const picture: PushbackMapPicture = {
+      airport: airport ? airport.icao : null,
+      cx,
+      cy,
+      headingTrue,
+      pxPerMetre,
+      width: size.width,
+      height: size.height,
+    };
+    latest.current = { picture, airport };
+    if (!pictureChanged(drawn.current, picture) || pending.current !== null) {
+      return;
+    }
+    const wait = drawnAt.current + MIN_REDRAW_INTERVAL_MS - Date.now();
+    if (wait > 0) {
+      pending.current = setTimeout(draw, wait);
+    } else {
+      draw();
+    }
+  }, [airport, index, size.width, size.height, center.lat, center.long, headingTrue, pxPerMetre]);
+
+  useEffect(
+    () => () => {
+      if (pending.current !== null) {
+        clearTimeout(pending.current);
+      }
+    },
+    [],
+  );
 
   return (
     <div ref={container} className="pointer-events-none absolute inset-0">
