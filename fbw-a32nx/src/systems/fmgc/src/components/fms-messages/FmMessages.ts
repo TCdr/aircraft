@@ -204,4 +204,11 @@ export const FMMessageTypes: Readonly<Record<string, FMMessage>> = {
     color: 'White',
     clearable: true,
   },
+  /** A320 FCOM MCDU messages (a320_fcom.txt l.22524): CHECK APPR SELECTION, type II amber */
+  CheckApproachSelection: {
+    id: 24,
+    text: 'CHECK APPR SELECTION',
+    color: 'Amber',
+    clearable: true,
+  },
 };

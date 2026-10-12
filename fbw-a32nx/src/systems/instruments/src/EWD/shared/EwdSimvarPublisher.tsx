@@ -12,6 +12,9 @@ export type EwdSimvars = {
   autoThrustStatus: number;
   autoThrustTLA1: number;
   autoThrustTLA2: number;
+  /** thrust lever angles in degrees */
+  engine1Tla: number;
+  engine2Tla: number;
   autoThrustWarningToga: boolean;
   packs1Supplying: boolean;
   packs2Supplying: boolean;
@@ -76,6 +79,8 @@ export enum EwdVars {
   autoThrustStatus = 'L:A32NX_AUTOTHRUST_STATUS',
   autoThrustTLA1 = 'L:A32NX_AUTOTHRUST_TLA_N1:1',
   autoThrustTLA2 = 'L:A32NX_AUTOTHRUST_TLA_N1:2',
+  engine1Tla = 'L:A32NX_AUTOTHRUST_TLA:1',
+  engine2Tla = 'L:A32NX_AUTOTHRUST_TLA:2',
   autoThrustWarningToga = 'L:A32NX_AUTOTHRUST_THRUST_LEVER_WARNING_TOGA',
   packs1Supplying = 'L:A32NX_COND_PACK_FLOW_VALVE_1_IS_OPEN',
   packs2Supplying = 'L:A32NX_COND_PACK_FLOW_VALVE_2_IS_OPEN',
@@ -139,6 +144,8 @@ export class EwdSimvarPublisher extends SimVarPublisher<EwdSimvars> {
     ['autoThrustStatus', { name: EwdVars.autoThrustStatus, type: SimVarValueType.Enum }],
     ['autoThrustTLA1', { name: EwdVars.autoThrustTLA1, type: SimVarValueType.Number }],
     ['autoThrustTLA2', { name: EwdVars.autoThrustTLA2, type: SimVarValueType.Number }],
+    ['engine1Tla', { name: EwdVars.engine1Tla, type: SimVarValueType.Number }],
+    ['engine2Tla', { name: EwdVars.engine2Tla, type: SimVarValueType.Number }],
     ['autoThrustWarningToga', { name: EwdVars.autoThrustWarningToga, type: SimVarValueType.Bool }],
     ['packs1Supplying', { name: EwdVars.packs1Supplying, type: SimVarValueType.Bool }],
     ['packs2Supplying', { name: EwdVars.packs2Supplying, type: SimVarValueType.Bool }],

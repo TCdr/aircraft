@@ -425,6 +425,16 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 ||||||| 19910a87e
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
+1. [A32NX/PFD] FMA line 3: FOR GA: SET TOGA, DISCONNECT AP FOR LDG, SET GREEN DOT SPEED and CHECK APPR SELECTION now show as in the FCOM; CHECK APPR SELECTION (non ILS approach with a manually tuned ILS) also on the MCDU - @TCdr
+1. [A32NX/EWD] The AVAIL indication stays steady 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever leaves idle - @TCdr
+1. [A32NX/SD] FUEL page: the inner and outer tank quantities of the heavier wing pulse when the wings differ by more than 1 500 kg in flight phases 2 and 6 - @TCdr
+1. [A32NX/SD] BLEED page: the crossbleed valve is amber when it is not in the position commanded by the X BLEED selector, not only in transit - @TCdr
+1. [A380X/PFD] FMA line 3: CHECK SPD MODE and CHECK EO SPD SETTING now show - @TCdr
+1. [A380X/EWD] The AVAIL indication stays 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever is set above idle - @TCdr
+1. [A380X/EWD] EGT gauge: the amber limit is 745 C during a ground start and 865 C during a relight in flight - @TCdr
+1. [A380X/SD] FUEL page: the tank quantities of an unbalanced pair are underlined amber, with the trigger of FUEL WINGS NOT BALANCED - @TCdr
+1. [A380X/SD] WHEEL page: L/G CTL and L/G GRVTY EXTN IN PROGRESS now show - @TCdr
+1. [A380X/FWS] ENG 2(3) SHUT DOWN: the landing distance line reads LDG DIST IMPACT ON WET/CONTAM RWY ONLY as in the FCOM - @TCdr
 
 ## 2024.1.0
 
