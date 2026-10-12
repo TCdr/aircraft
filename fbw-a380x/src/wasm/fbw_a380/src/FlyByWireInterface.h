@@ -4,6 +4,7 @@
 #include <SimConnect.h>
 
 #include "A380FadecComputer.h"
+#include "AirDataRejection.h"
 #include "Arinc429.h"
 #include "FadecFailureInputs.h"
 #include "FadecThrustFailures.h"
@@ -127,6 +128,8 @@ class FlyByWireInterface {
 
   base_adr_bus adrBusOutputs[3] = {};
   base_ir_bus irBusOutputs[3] = {};
+  /// The ADRs and AOAs the PRIM air data monitoring (systems.wasm) has rejected for the flight control computers
+  AirDataRejection::Rejections airDataRejections = {};
 
   base_fqms fqmsBusOutputs = {};
 
@@ -366,6 +369,10 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idAdrVerticalSpeed[3];
   std::unique_ptr<LocalVariable> idAdrAoaCorrected[3];
   std::unique_ptr<LocalVariable> idAdrCorrectedAverageStaticPressure[3];
+  // PRIM air data monitoring outputs (written by systems.wasm)
+  std::unique_ptr<LocalVariable> idPrimAdrRejected[3];
+  std::unique_ptr<LocalVariable> idPrimAoaRejected[3];
+  std::unique_ptr<LocalVariable> idPrimAllAirDataRejected;
 
   // IR bus inputs
   std::unique_ptr<LocalVariable> idIrMaintWord[3];
