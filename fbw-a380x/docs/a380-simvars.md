@@ -1984,6 +1984,44 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 ## Landing Gear ATA 32
 
+- A32NX_BRAKES_{mode}_BRK_FAULT
+    - Bool
+    - True when the braking mode is failed on all the wheel groups (flyPad failures 32110-32112, Rust
+      `hydraulic/brake_steer_faults.rs`); read by the FWS for the BRAKES alerts
+    - {mode}
+        - NORM: BCS normal braking (BRAKES NORM BRK FAULT)
+        - ALTN: BCS alternate braking (BRAKES ALTN BRK FAULT)
+        - EMER: EBCU emergency braking (BRAKES EMER BRK FAULT)
+
+- A32NX_BRAKES_PEDAL_BRAKING_MODE
+    - Number
+    - The braking mode the brake pedals command
+    - | Mode                                    | Value |
+      |-----------------------------------------|-------|
+      | None (park brake only)                  | 0     |
+      | Normal (NORM circuit, GREEN)            | 1     |
+      | Alternate (ALTN circuit, A-SKID)        | 2     |
+      | Emergency (ALTN circuit, EBCU, limited) | 3     |
+
+- A32NX_STEERING_{fault}_FAULT
+    - Bool
+    - True when the steering equipment is failed (flyPad failures 32200-32204, Rust `hydraulic/brake_steer_faults.rs`);
+      read by the FWS for the STEER alerts
+    - {fault}
+        - NORM_NWS: normal nose wheel steering (GREEN)
+        - ALTN_NWS: alternate nose wheel steering (steering LEHGS)
+        - BWS: body wheel steering, centred and locked
+        - SCS_1, SCS_2: steering control system 1 or 2
+
+- A32NX_STEERING_NWS_MODE
+    - Number
+    - The hydraulic supply of the nose wheel steering
+    - | Mode                                     | Value |
+      |------------------------------------------|-------|
+      | Off (engines shut down or NWS failed)    | 0     |
+      | Normal (GREEN, 15 deg/s)                 | 1     |
+      | Alternate (steering LEHGS, 10 deg/s)     | 2     |
+
 - A32NX_BTV_STATE
     - Boolean
     - Indicates the current state of the BTV system

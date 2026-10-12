@@ -15,6 +15,7 @@ import {
   Subscription,
 } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
+import { accuPressLoItems } from './FwsBrakeAlerts';
 // FIXME should not import from instruments
 import {
   ProcedureLinesGenerator,
@@ -5259,6 +5260,176 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       failure: 2,
       sysPage: SdPages.None,
+    },
+    // BRAKES and STEER alerts from the BCS, EBCU and SCS faults (FwsBrakeAlerts.ts). Levels and phase inhibitions from
+    // the A380 FCOM PRO-ABN-ECAM-10-32 figures (PDF pages in the comments); no audio and no master light = level 1.
+    320800020: {
+      // BRAKES NORM BRK FAULT (a380_fcom.txt l.160325-160392, PDF p.5457)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],
+      simVarIsActive: this.fws.brakeSteerAlerts.normBrkFault,
+      notActiveWhenItemActive: [],
+      // NO LOSS IN BRK EFFICIENCY: only if the alternate braking is failed on another wheel group (not modelled)
+      whichItemsToShow: () => [false],
+      whichItemsChecked: () => [false],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+      inopSysApprLdg: () => ['320300008'],
+      // ALTN BRK WITH A-SKID (l.160392), while the alternate braking works
+      info: () => [this.fws.brakeSteerAlerts.altnBrkFault.get() ? null : '320200001'],
+    },
+    320800011: {
+      // BRAKES ALTN BRK FAULT (l.159842-159906, PDF p.5444)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.brakeSteerAlerts.altnBrkFault,
+      notActiveWhenItemActive: [],
+      // NO LOSS IN BRK EFFICIENCY: only if the normal braking is failed on another wheel group (not modelled)
+      whichItemsToShow: () => [false],
+      whichItemsChecked: () => [false],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+      inopSysApprLdg: () => ['320300005'],
+    },
+    320800017: {
+      // BRAKES EMER BRK FAULT (l.160176-160292, PDF p.5453)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.brakeSteerAlerts.emerBrkFault,
+      notActiveWhenItemActive: [],
+      // NO LOSS IN BRK EFFICIENCY: "In cruise or after landing, if braking is not affected"
+      whichItemsToShow: () => [
+        [8, 11, 12].includes(this.fws.flightPhase.get()) && !this.fws.brakeSteerAlerts.normBrkFault.get(),
+      ],
+      whichItemsChecked: () => [false],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+      inopSysApprLdg: () => ['320300006'],
+    },
+    320800010: {
+      // BRAKES ALTN + EMER BRK FAULT (l.159761-159831, PDF p.5442), the Impacted by TDU version
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.brakeSteerAlerts.altnEmerBrkFault,
+      notActiveWhenItemActive: [],
+      // NO LOSS IN BRK EFFICIENCY: "Only in cruise or after landing" (l.159814-159815)
+      whichItemsToShow: () => [[8, 11, 12].includes(this.fws.flightPhase.get())],
+      whichItemsChecked: () => [false],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+      inopSysAllPhases: () => ['320300005', '320300006'],
+    },
+    320800024: {
+      // BRAKES PEDAL BRAKING FAULT (l.160519-160582, PDF p.5463)
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeSteerAlerts.pedalBrakingFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      // LIMITATIONS APPR & LDG: PARK BRK ONLY (no message id yet), LDG DIST AFFECTED
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300010', '320300002'],
+    },
+    320800009: {
+      // BRAKES ACCU PRESS LO (l.159700-159750, PDF p.5440)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.brakeSteerAlerts.accuPressLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => accuPressLoItems(this.fws.oneEngineRunning.get()),
+      // ACCUS REINFLATE: the pb is not modelled
+      whichItemsChecked: () => [false, false, false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      inopSysAllPhases: () => ['320300004'],
+    },
+    320800023: {
+      // BRAKES PARK BRK PRESS LO (l.160461-160508, PDF p.5461)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: this.fws.brakeSteerAlerts.parkBrkPressLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => accuPressLoItems(this.fws.oneEngineRunning.get()),
+      whichItemsChecked: () => [false, false, false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      inopSysAllPhases: () => ['320300009'],
+    },
+    320800060: {
+      // STEER NORM N/W STEER FAULT (l.163094-163150, PDF p.5534)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 10],
+      simVarIsActive: this.fws.brakeSteerAlerts.normNwSteerFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['320400003'],
+      inopSysApprLdg: () => ['320300020'],
+    },
+    320800047: {
+      // STEER ALTN N/W STEER FAULT (l.162553-162589, PDF p.5517); STATUS: REDUND LOSS ALTN N/W STEER (not shown)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.brakeSteerAlerts.altnNwSteerFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800058: {
+      // STEER N/W STEER FAULT (l.163006-163054, PDF p.5531)
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeSteerAlerts.nwSteerFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      inopSysAllPhases: () => ['320300019', '220300028'],
+      // INFO B/W STEER AVAIL FOR TOW & PUSHBACK (no message id yet), CAT 3 SINGLE ONLY
+      info: () => ['220200016'],
+    },
+    320800049: {
+      // STEER B/W STEER FAULT (l.162628-162685, PDF p.5519)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.brakeSteerAlerts.bwSteerFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+      inopSysApprLdg: () => ['320300014'],
+      // "If at least one engine is running: TAXI WITH CARE" ... (l.162674-162685)
+      info: () => (this.fws.oneEngineRunning.get() ? ['800200003', '800200004', '800200005'] : []),
+    },
+    320800053: {
+      // STEER CTL 1 FAULT (l.162815-162853, PDF p.5524); STATUS: REDUND LOSS STEER CTL 1 (not shown)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.brakeSteerAlerts.steerCtl1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800054: {
+      // STEER CTL 2 FAULT (l.162815-162853, PDF p.5524)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.brakeSteerAlerts.steerCtl2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800055: {
+      // STEER N/W + B/W STEER FAULT (l.162863-162910, PDF p.5526)
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeSteerAlerts.nwBwSteerFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      inopSysApprLdg: () => ['320300017', '220300028'],
+      info: () => ['220200016'],
     },
     320800030: {
       // CONFIG PARK BRK ON
