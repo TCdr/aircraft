@@ -17,6 +17,7 @@ import {
 import { LegacyGpws } from './Misc/LegacyGpws';
 import { LegacyFuel } from './CpiomF/LegacyFuel';
 import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
+import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
 import { VhfRadio } from './Misc/Communications/VhfRadio';
@@ -193,6 +194,8 @@ class SystemsHost extends BaseInstrument {
   //FIXME add some deltatime functionality to backplane instruments so we dont have to pass SystemHost
   private readonly legacyFuel = new LegacyFuel(this.bus, this);
 
+  private readonly cabinOxygenMasks = new CabinOxygenMasks();
+
   private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
 
   /**
@@ -215,6 +218,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('SimAudioManager', this.simAudioManager);
     this.backplane.addInstrument('Xpndr', this.xpdr, true);
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
+    this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
     this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);

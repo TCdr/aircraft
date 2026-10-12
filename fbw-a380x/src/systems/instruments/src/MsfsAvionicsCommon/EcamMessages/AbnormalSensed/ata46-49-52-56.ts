@@ -18,6 +18,23 @@ import { AbnormalProcedure, ChecklistLineStyle } from '..';
 
 /** All abnormal sensed procedures (alerts, via ECL) should be here. */
 export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } = {
+  // ATA 49 APU
+  490800001: {
+    // A380 FCOM PRO-ABN-ECAM-10-49 APU FAULT, Impacted DU 00007683 version (a380_fcom.txt l.170161-170185). The lines
+    // shown are chosen by ApuFaultAlerts.ts apuFaultItemsToShow.
+    title: '\x1b<4m\x1b4mAPU\x1bm FAULT',
+    sensed: true,
+    items: [
+      { name: 'EMER SHUTDOWN', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AUTO SHUTDOWN', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'IF APU START FAILED AND FL > 150', sensed: false, condition: true },
+      { name: 'BELOW FL 150 : TRY A NEW APU START', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'IF APU NOT ABSOLUTELY RQRD', sensed: false, condition: true },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
+  },
   // ATA 52 DOOR
   520800008: {
     title: '\x1b<4m\x1b4mDOOR\x1bm CKPT SLIDING WINDOW NOT CLOSED',

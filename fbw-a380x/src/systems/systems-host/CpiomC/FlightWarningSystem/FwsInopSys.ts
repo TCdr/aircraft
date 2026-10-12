@@ -546,6 +546,56 @@ export class FwsInopSys {
       simVarIsActive: this.fws.eng4HydraulicInop,
       phase: FwsInopSysPhases.AllPhases,
     },
+    // HYD G(Y) ENG 1(2)(3)(4) PMP A(B) PRESS LO STATUS (A380 FCOM l.155077-155091, HydPumpStatus.ts): INOP SYS ALL PHASES
+    // with at least two pumps of the system failed, MORE INFO REDUND LOSS with one
+    290300005: { simVarIsActive: this.fws.enginePumpInopSys[0], phase: FwsInopSysPhases.AllPhases },
+    290300006: { simVarIsActive: this.fws.enginePumpInopSys[1], phase: FwsInopSysPhases.AllPhases },
+    290300007: { simVarIsActive: this.fws.enginePumpInopSys[2], phase: FwsInopSysPhases.AllPhases },
+    290300008: { simVarIsActive: this.fws.enginePumpInopSys[3], phase: FwsInopSysPhases.AllPhases },
+    290300009: { simVarIsActive: this.fws.enginePumpInopSys[4], phase: FwsInopSysPhases.AllPhases },
+    290300010: { simVarIsActive: this.fws.enginePumpInopSys[5], phase: FwsInopSysPhases.AllPhases },
+    290300011: { simVarIsActive: this.fws.enginePumpInopSys[6], phase: FwsInopSysPhases.AllPhases },
+    290300012: { simVarIsActive: this.fws.enginePumpInopSys[7], phase: FwsInopSysPhases.AllPhases },
+    290300027: {
+      simVarIsActive: this.fws.enginePumpRedundLoss[0],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300028: {
+      simVarIsActive: this.fws.enginePumpRedundLoss[1],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300029: {
+      simVarIsActive: this.fws.enginePumpRedundLoss[2],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300030: {
+      simVarIsActive: this.fws.enginePumpRedundLoss[3],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300031: {
+      simVarIsActive: this.fws.enginePumpRedundLoss[4],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300032: {
+      simVarIsActive: this.fws.enginePumpRedundLoss[5],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300033: {
+      simVarIsActive: this.fws.enginePumpRedundLoss[6],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300034: {
+      simVarIsActive: this.fws.enginePumpRedundLoss[7],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
     310300002: {
       // FWS 1
       simVarIsActive: this.fws.fws1Failed,
@@ -585,22 +635,25 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['320300022'],
     },
+    // GPWS and TERR SYS of one SURV system both failed: TAWS SYS 1(2) replaces them (SURV TAWS 1(2) FAULT STATUS,
+    // A380 FCOM l.166837-166842, FwsSurvAlerts tawsFunctionFaults)
     340300001: {
       // GPWS 1
       simVarIsActive: this.notWithAcEssBusFault(this.fws.gpws1Failed),
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['340300003'],
+      notActiveWhenItemActive: ['340300003', '340300046', '340300048'],
     },
     340300002: {
       // GPWS 2
       simVarIsActive: this.fws.gpws2Failed,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['340300003'],
+      notActiveWhenItemActive: ['340300003', '340300047', '340300048'],
     },
     340300003: {
       // GPWS 1+2
       simVarIsActive: this.fws.allGpwsFailed,
       phase: FwsInopSysPhases.AllPhases,
+      notActiveWhenItemActive: ['340300048'],
     },
     340300004: {
       // ADR 1
@@ -776,13 +829,13 @@ export class FwsInopSys {
       // TERR SYS 1
       simVarIsActive: this.notWithAcEssBusFault(this.fws.terrSys1Failed),
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['340300044'],
+      notActiveWhenItemActive: ['340300044', '340300046', '340300048'],
     },
     340300040: {
       // TERR SYS 2
       simVarIsActive: this.fws.terrSys2Failed,
       phase: FwsInopSysPhases.AllPhases,
-      notActiveWhenItemActive: ['340300044'],
+      notActiveWhenItemActive: ['340300044', '340300047', '340300048'],
     },
     340300044: {
       // TERR SYS 1+2
@@ -792,6 +845,7 @@ export class FwsInopSys {
         this.fws.terrSys2Failed,
       ),
       phase: FwsInopSysPhases.AllPhases,
+      notActiveWhenItemActive: ['340300048'],
     },
     340300041: {
       // ADS-B RPTG 1
@@ -815,8 +869,8 @@ export class FwsInopSys {
       phase: FwsInopSysPhases.AllPhases,
     },
     340300046: {
-      // TAWS SYS 1
-      simVarIsActive: this.fws.taws1Failed,
+      // TAWS SYS 1 (AC ESS lost: ELEC AC ESS BUS FAULT lists TAWS 1 itself, 340300055)
+      simVarIsActive: this.notWithAcEssBusFault(this.fws.taws1Failed),
       phase: FwsInopSysPhases.AllPhases,
       notActiveWhenItemActive: ['340300048'],
     },

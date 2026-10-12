@@ -16,6 +16,16 @@ import {
 } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
 import { accuPressLoItems } from './FwsBrakeAlerts';
+import { diffPressHiItemsToShow, ldgElevnFaultItemsToShow } from './CabPressAlerts';
+import { isApproachCapabilityDowngradedByRa } from './AutoFlightAlerts';
+import { antiIceItemsChecked, ICE_DETECTED_PHASE_INHIBITION, isSevereIceDetected } from './AntiIceAlerts';
+import { abnormBleedConfigItems, abnormBleedConfigLimitations } from './AbnormBleedConfig';
+import {
+  APU_FAULT_INOP_SYS,
+  APU_FAULT_PHASE_INHIBITION,
+  apuFaultItemsChecked,
+  apuFaultItemsToShow,
+} from './ApuFaultAlerts';
 // FIXME should not import from instruments
 import {
   ProcedureLinesGenerator,
@@ -35,7 +45,7 @@ import {
   engineGeneratorLostInfo,
   TR_INOP_SYS,
 } from './FwsElecSystemAlerts';
-import { isApFdTcasModeInop } from './FwsSurvAlerts';
+import { gpwsFaultItemsToShow, isApFdTcasModeInop } from './FwsSurvAlerts';
 import {
   ALL_ENG_FLAME_OUT_INHIBITED_PHASES,
   ENG_FAIL_FLIGHT_PHASE_INHIBITION,
@@ -221,6 +231,16 @@ export class FwsAbnormalSensed {
   private readonly pub = this.fws.bus.getPublisher<FwsEvents>();
 
   private readonly subscriptions: Subscription[] = [];
+
+  /** @returns the ENG 1 to 4 A-ICE pb states, for the A-ICE ICE DETECTED lines */
+  private engAntiIceOn(): boolean[] {
+    return [
+      this.fws.eng1AntiIce.get(),
+      this.fws.eng2AntiIce.get(),
+      this.fws.eng3AntiIce.get(),
+      this.fws.eng4AntiIce.get(),
+    ];
+  }
 
   /** Whether the XPDR & TCAS system selected on the SURV panel (L:A32NX_TRANSPONDER_SYSTEM, 0 = SYS 1) is the given one. */
   private xpdrTcasSystemIs(system: 1 | 2): boolean {
@@ -1271,6 +1291,22 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Bleed,
       inopSysAllPhases: () => ['260300005'],
     },
+    211800056: {
+      // AIR ABNORM BLEED CONFIG (A380 FCOM PRO-ABN-ECAM-10-36, a380_fcom.txt l.167558-167674, AbnormBleedConfig.ts). The
+      // FCOM shows no indication nor flight phase inhibition of its own: it follows its trigger (ENG SHUT DOWN, ENG FIRE),
+      // so the ENG SHUT DOWN inhibition and no aural (its trigger has it). Not simulated: the STATUS INOP SYS
+      // "depending on failure cases" and the XBLEED MAN CTL ONLY INFO (no crossbleed auto control failure).
+      flightPhaseInhib: this.fws.phase56Inhibition,
+      simVarIsActive: this.fws.abnormBleedConfig,
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => abnormBleedConfigItems(this.fws.abnormBleedConfigInputs).show,
+      whichItemsChecked: () => abnormBleedConfigItems(this.fws.abnormBleedConfigInputs).checked,
+      failure: 2,
+      sysPage: SdPages.Bleed,
+      limitationsAllPhases: () => abnormBleedConfigLimitations(this.fws.abnormBleedConfigInputs),
+      limitationsPfd: () => abnormBleedConfigLimitations(this.fws.abnormBleedConfigInputs),
+    },
     212800001: {
       // AFT VENT CTL 1 FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
@@ -1472,6 +1508,56 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Press,
       limitationsAllPhases: () => ['210400002', '210400001'],
       limitationsPfd: () => ['210400002', '210400001'],
+    },
+    213800003: {
+      // EXCESS NEGATIVE DIFF PRESS (A380 FCOM PRO-ABN-ECAM-10-21-30, a380_fcom.txt l.135252-135280): CRC, master warning,
+      // active in flight phases 8 and 9 (flight phase inhibition figure, airbus-a380-fcom PDF p.4757)
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12],
+      simVarIsActive: this.fws.excessNegativeDiffPressure,
+      notActiveWhenItemActive: [],
+      // ACFT IMMEDIATE LEVEL OFF; AIR FLOW HI "If at least one pack is operating"; RAM AIR ON "If no pack is operating"
+      whichItemsToShow: () => [
+        true,
+        this.fws.pack1On.get() || this.fws.pack2On.get(),
+        !this.fws.pack1On.get() && !this.fws.pack2On.get(),
+      ],
+      // AIR FLOW selector position 3 = HI (air_conditioning/mod.rs A380AirConditioningSystemOverhead::read)
+      whichItemsChecked: () => [false, this.fws.flowSelectorKnob.get() === 3, this.fws.ramAirOn.get()],
+      failure: 3,
+      sysPage: SdPages.Press,
+    },
+    213800007: {
+      // DIFF PRESS HI (a380_fcom.txt l.134890-134966): SC, master caution, active in flight phase 8 only (PDF p.4748).
+      // There is no MAN CTL FAULT model: the manual pressurization system is always available.
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+      simVarIsActive: this.fws.diffPressHi,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => diffPressHiItemsToShow(true),
+      whichItemsChecked: () => [this.fws.manCabinAltMode.get(), false, false],
+      failure: 2,
+      sysPage: SdPages.Press,
+    },
+    213800008: {
+      // DIFF PRESS LO (a380_fcom.txt l.134991-135018): SC, master caution, active in flight phases 8 and 9 (PDF p.4751)
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12],
+      simVarIsActive: this.fws.diffPressLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Press,
+    },
+    213800043: {
+      // LDG ELEVN FAULT (a380_fcom.txt l.135431-135520): SC, master caution, active in flight phase 8 only (PDF p.4763).
+      // With the manual pressurization system (always available, no MAN CTL FAULT model) the procedure is the LDG
+      // ELEVN deferred procedure (221700001).
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+      simVarIsActive: this.fws.ldgElevnFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => ldgElevnFaultItemsToShow(true),
+      whichItemsChecked: () => [false, false, false],
+      failure: 2,
+      sysPage: SdPages.Press,
     },
     213800004: {
       // EXCESS RESIDUAL DIFF PRESS
@@ -2093,6 +2179,27 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
       monitorConfirmTime: 0.0,
       info: () => [],
+    },
+    220800006: {
+      // APPROACH CAPABILITY DOWNGRADED (A380 FCOM PRO-ABN-ECAM-10-22-FG, a380_fcom.txt l.136343-136416): SC, master
+      // caution, active in flight phases 2, 8 and 9 (airbus-a380-fcom PDF p.4790), crew awareness. Only the RA B trigger
+      // is simulated (AutoFlightAlerts.ts). STATUS: CAT 3 DUAL "depending on failure case" (l.136409), design choice for
+      // the RA B: three RAs are needed for CAT 3 DUAL (NAV RA SYS A+B FAULT leaves CAT 2 ONLY, l.165793-165797); INFO "If
+      // CAT 3 DUAL is inoperative: CAT 3 SINGLE ONLY" (l.136414-136415).
+      flightPhaseInhib: [1, 3, 4, 5, 6, 7, 10, 11, 12],
+      simVarIsActive: MappedSubject.create(
+        ([raAFailed, raBFailed, raCFailed]) => isApproachCapabilityDowngradedByRa(raAFailed, raBFailed, raCFailed),
+        this.fws.height1Failed,
+        this.fws.height2Failed,
+        this.fws.height3Failed,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysApprLdg: () => ['220300028'],
+      info: () => ['220200016'],
     },
     // A/THR OFF memo caution
     220000002: {
@@ -5009,8 +5116,10 @@ export class FwsAbnormalSensed {
         '320400003',
       ],
       info: () => ['340200002', '220200011', '320200001', '800200004', '800200005'],
+      // STATUS INOP SYS (A380 FCOM l.156098-156109): ALL PHASES F/CTL PROT, L(R) OUTR AILERON, MOST SPLRs, L/G RETRACTION,
+      // G (Y) HYD SYS (no STABILIZER); APP & LDG FLAPS, SLAT SYS 2, BTV, NORM BRK, B/W STEER, NORM N/W STEER, CAT 2,
+      // GLS AUTOLAND
       inopSysAllPhases: () => [
-        '290100007',
         '290100008',
         '290100009',
         '290100010',
@@ -5019,7 +5128,16 @@ export class FwsAbnormalSensed {
         '290300021',
         '290300022',
       ],
-      inopSysApprLdg: () => ['290100012', '290100006', '320300008', '320300014', '320300020'],
+      inopSysApprLdg: () => [
+        '290100012',
+        '290100006',
+        '320300007',
+        '320300008',
+        '320300014',
+        '320300020',
+        '220300027',
+        '220300010',
+      ],
       notActiveWhenItemActive: [],
       sysPage: SdPages.Hyd,
     },
@@ -6313,6 +6431,53 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.None,
     },
+    341800026: {
+      // SURV GPWS 1 FAULT (A380 FCOM PRO-ABN-ECAM-10-34-20, a380_fcom.txt l.166421-166462): SC, master caution, flight
+      // phases 3-7, 10 and 11 inhibited (airbus-a380-fcom PDF p.5623). INOP SYS GPWS 1 is in FwsInopSys.
+      flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],
+      simVarIsActive: this.fws.gpws1FaultCond,
+      notActiveWhenItemActive: ['341800028'],
+      whichItemsToShow: () =>
+        gpwsFaultItemsToShow(
+          1,
+          this.fws.tawsWxrSelected.get(),
+          this.fws.wxr2Failed.get(),
+          this.fws.gpws2Failed.get() || this.fws.terrSys2Failed.get(),
+        ),
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 2, false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    341800027: {
+      // SURV GPWS 2 FAULT, as GPWS 1
+      flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],
+      simVarIsActive: this.fws.gpws2FaultCond,
+      notActiveWhenItemActive: ['341800028'],
+      whichItemsToShow: () =>
+        gpwsFaultItemsToShow(
+          2,
+          this.fws.tawsWxrSelected.get(),
+          this.fws.wxr1Failed.get(),
+          this.fws.gpws1Failed.get() || this.fws.terrSys1Failed.get(),
+        ),
+      whichItemsChecked: () => [this.fws.tawsWxrSelected.get() === 1, false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    341800028: {
+      // SURV GPWS 1+2 FAULT (a380_fcom.txt l.166477-166498): [MFD SURV] GPWS ... OFF (l.166493)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],
+      simVarIsActive: MappedSubject.create(
+        ([gpws1Fault, gpws2Fault]) => gpws1Fault && gpws2Fault,
+        this.fws.gpws1FaultCond,
+        this.fws.gpws2FaultCond,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.tawsGpwsOff.get()],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
     341800037: {
       // XPDR STBY
       flightPhaseInhib: [1, 3, 4, 5, 6, 7, 10, 12],
@@ -6322,6 +6487,45 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [],
       failure: 2,
       sysPage: SdPages.None,
+    },
+    // ATA 30 - ICE AND RAIN PROTECTION
+    300800001: {
+      // A-ICE ICE DETECTED (A380 FCOM l.156579-156607, AntiIceAlerts.ts): SC, master caution, "inhibited, when all ENG
+      // A-ICE pb are set to ON" (in FwsCore iceDetectedTimer2Status). Design choice: not with SEVERE ICE DETECTED, whose
+      // procedure has the same lines and WING A-ICE ON.
+      flightPhaseInhib: ICE_DETECTED_PHASE_INHIBITION,
+      simVarIsActive: this.fws.iceDetectedTimer2Status,
+      notActiveWhenItemActive: ['300800002'],
+      whichItemsToShow: () => [true, true, true, true],
+      whichItemsChecked: () => antiIceItemsChecked(this.engAntiIceOn(), null),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    300800002: {
+      // A-ICE SEVERE ICE DETECTED (A380 FCOM l.157282-157300, AntiIceAlerts.ts): SC, master caution
+      flightPhaseInhib: ICE_DETECTED_PHASE_INHIBITION,
+      simVarIsActive: MappedSubject.create(
+        ([severeIcing, wingAntiIceOn]) => isSevereIceDetected(severeIcing, wingAntiIceOn),
+        this.fws.iceSevereDetectedTimerStatus,
+        this.fws.wingAntiIce,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true, true, true],
+      whichItemsChecked: () => antiIceItemsChecked(this.engAntiIceOn(), this.fws.wingAntiIce.get()),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    // ATA 49 - APU
+    490800001: {
+      // APU FAULT (A380 FCOM PRO-ABN-ECAM-10-49, a380_fcom.txt l.170067-170193, ApuFaultAlerts.ts): SC, master caution
+      flightPhaseInhib: APU_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.apuFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => apuFaultItemsToShow(this.fws.apuFaultInputs),
+      whichItemsChecked: () => apuFaultItemsChecked(this.fws.apuMasterSwitch.get() > 0),
+      inopSysAllPhases: () => APU_FAULT_INOP_SYS,
+      failure: 2,
+      sysPage: SdPages.Apu,
     },
     // ATA 52 - DOORS
     520800008: {
@@ -7722,6 +7926,69 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true, true],
       whichItemsChecked: () => [this.fws.manCabinAltMode.get(), false],
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    290700001: {
+      // HYD G RSVR AIR PRESS LO FOR APPROACH (a380_fcom.txt l.155249-155253): G ENG 1(2) PMP A and B ON
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [
+        this.fws.eng1APumpAuto.get() && this.fws.eng1BPumpAuto.get(),
+        this.fws.eng2APumpAuto.get() && this.fws.eng2BPumpAuto.get(),
+      ],
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    290700002: {
+      // HYD Y RSVR AIR PRESS LO FOR APPROACH: Y ENG 3(4) PMP A and B ON
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [
+        this.fws.eng3APumpAuto.get() && this.fws.eng3BPumpAuto.get(),
+        this.fws.eng4APumpAuto.get() && this.fws.eng4BPumpAuto.get(),
+      ],
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    290700003: {
+      // HYD G SYS OVHT APPROACH (a380_fcom.txt l.155480-155487): "The ECAM does not display the following procedure, if
+      // the flight crew disconnected the engine pumps."
+      flightPhaseInhib: [],
+      simVarIsActive: MappedSubject.create(
+        ([eng1PumpDisc, eng2PumpDisc]) => !eng1PumpDisc && !eng2PumpDisc,
+        this.fws.eng1PumpDisc,
+        this.fws.eng2PumpDisc,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [
+        !this.fws.greenRsvOverheat.get(),
+        this.fws.eng1APumpAuto.get() && this.fws.eng1BPumpAuto.get(),
+        this.fws.eng2APumpAuto.get() && this.fws.eng2BPumpAuto.get(),
+      ],
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    290700004: {
+      // HYD Y SYS OVHT APPROACH, as 290700003
+      flightPhaseInhib: [],
+      simVarIsActive: MappedSubject.create(
+        ([eng3PumpDisc, eng4PumpDisc]) => !eng3PumpDisc && !eng4PumpDisc,
+        this.fws.eng3PumpDisc,
+        this.fws.eng4PumpDisc,
+      ),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true, true],
+      whichItemsChecked: () => [
+        !this.fws.yellowRsvOverheat.get(),
+        this.fws.eng3APumpAuto.get() && this.fws.eng3BPumpAuto.get(),
+        this.fws.eng4APumpAuto.get() && this.fws.eng4BPumpAuto.get(),
+      ],
       failure: 0,
       sysPage: SdPages.None,
     },
