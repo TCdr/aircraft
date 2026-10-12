@@ -154,6 +154,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] DOOR ... NOT CLOSED: IF ABNORM CAB V/S is a condition the crew confirms on every door (MAIN 5L/5R and UPPER 2L/2R showed its lines without it and never set the MAX FL 100/MEA limitation) - @TCdr
 1. [A380X/FWS] T.O CONFIG test: every main deck, upper deck and cargo door and the cockpit sliding windows must be closed for T.O CONFIG NORMAL (it checked only MAIN 1L, MAIN 2R and the cargo doors) - @TCdr
 1. [A380X/FWS] New L/G CTL 1(2)(1+2) FAULT, L/G GEAR NOT LOCKED DOWN, L/G GEAR NOT LOCKED UP, L/G DOORS NOT CLOSED, L/G SYSTEM DISAGREE and NAV CAPT AND F/O ALT, ATT, HDG and BARO REF DISAGREE alerts, and the CAT 2, GLS AUTOLAND and LOAD ALLEVIATION STATUS lines of F/CTL ALTN LAW and DIRECT LAW - @TCdr
+1. [A380X/GPWS] Mode 4B: gear up with the flaps in landing configuration gives TOO LOW GEAR below 245 ft and never TOO LOW TERRAIN, and a mode 4 alert stops once the aircraft climbs back above its ceiling - @TCdr
 
 ## 2024.1.0
 

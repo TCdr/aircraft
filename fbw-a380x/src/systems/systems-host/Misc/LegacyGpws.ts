@@ -546,19 +546,30 @@ export class LegacyGpws {
     // does not enable the flight crew to rely on the TAD function" a ceiling rising to 1 000 ft (design choice: at
     // 250 kt, as the A320 one; the figure is not precise enough to read the speed).
     const terrainFunctionOperative = LegacyGpws.isTerrainFunctionOperative();
-    if (!gearExtended && phase === FmgcFlightPhase.Approach) {
-      if (speed < LegacyGpws.MODE_4A_TERRAIN_SPEED_KT && radioAlt < 500) {
-        mode.current = 1;
-      } else if (speed >= LegacyGpws.MODE_4A_TERRAIN_SPEED_KT) {
+    // Each branch sets mode.current in every case: below the ceiling at a low speed (no TOO LOW TERRAIN), the alert
+    // stopped when the aircraft climbed back above the ceiling (it stayed on before).
+    if (!gearExtended && !FlapsInLandingConfig && phase === FmgcFlightPhase.Approach) {
+      // Mode 4A: "landing gear up and the flaps not extended for landing" (l.88328-88337)
+      if (speed < LegacyGpws.MODE_4A_TERRAIN_SPEED_KT) {
+        mode.current = radioAlt < 500 ? 1 : 0;
+      } else {
         const maxWarnAlt = terrainFunctionOperative
           ? 500
           : 500 + ((speed - LegacyGpws.MODE_4A_TERRAIN_SPEED_KT) * (1000 - 500)) / (250 - 200);
         mode.current = radioAlt < maxWarnAlt ? 3 : 0;
       }
+    } else if (!gearExtended && phase === FmgcFlightPhase.Approach) {
+      // Mode 4B "landing gear up and the flaps extended for landing" (l.88360-88366): TOO LOW GEAR only, no TOO LOW
+      // TERRAIN at any speed. The FCOM figure Mode 4B Gear Up and Flaps in Landing Configuration (PDF p.3133) gives a
+      // flat 245 ft ceiling up to 400 kt, and has no TERR-function-not-operative variant. Design choice: FLAP MODE OFF
+      // does not inhibit it, the button is for "a landing with abnormal flaps configuration" (l.88410-88412) and only
+      // the flaps signal changes with it (the gear-up warning stays).
+      mode.current = radioAlt < 245 ? 1 : 0;
     } else if (!FlapsInLandingConfig && !FlapModeOff && phase === FmgcFlightPhase.Approach) {
-      if (speed < LegacyGpws.MODE_4B_TERRAIN_SPEED_KT && radioAlt < 245) {
-        mode.current = 2;
-      } else if (speed >= LegacyGpws.MODE_4B_TERRAIN_SPEED_KT) {
+      // Mode 4B "landing gear down and the flaps not extended for landing" (l.88378-88386)
+      if (speed < LegacyGpws.MODE_4B_TERRAIN_SPEED_KT) {
+        mode.current = radioAlt < 245 ? 2 : 0;
+      } else {
         const maxWarnAlt = terrainFunctionOperative
           ? 245
           : 245 + ((speed - LegacyGpws.MODE_4B_TERRAIN_SPEED_KT) * (1000 - 245)) / (250 - 180);
