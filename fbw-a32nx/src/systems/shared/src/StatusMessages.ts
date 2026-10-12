@@ -32,6 +32,37 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240400101', { part: StatusPart.Limitation, text: 'MAX BRK PR.....1000 PSI' }],
   ['240400105', { part: StatusPart.Limitation, text: 'FUEL GRVTY FEED' }],
   ['240400102', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
+  // 29 HYDRAULIC (FCOM PRO-ABN-HYD STATUS, a320_fcom.txt l.87028-88759), see FWC/Logic/HydraulicAlerts: limitations,
+  // then the APPR PROC block, then the procedures, as on the FCOM STATUS pages
+  ['290400001', { part: StatusPart.Limitation, text: 'MIN RAT SPD......140 KT' }],
+  ['290400002', { part: StatusPart.Limitation, text: 'MAX SPEED.......320/.77' }],
+  ['290400003', { part: StatusPart.Limitation, text: 'MAX BRK PR.....1000 PSI' }],
+  ['290400004', { part: StatusPart.Limitation, text: 'MANEUVER WITH CARE' }],
+  ['290400005', { part: StatusPart.Limitation, text: 'SPD BRK......DO NOT USE' }],
+  ['290400006', { part: StatusPart.Limitation, text: 'FOR GA: MAX PITCH 15 DEG' }],
+  ['290500001', { part: StatusPart.Condition, text: 'APPR PROC: HYD LO PR' }],
+  ['290500002', { part: StatusPart.Condition, text: 'APPR PROC: DUAL HYD LO PR' }],
+  ['290500003', { part: StatusPart.Condition, text: 'IF BLUE OVHT OUT:' }],
+  ['290400007', { part: StatusPart.Limitation, text: 'BLUE ELEC PUMP.....AUTO' }],
+  ['290500004', { part: StatusPart.Condition, text: 'IF GREEN OVHT OUT:' }],
+  ['290400008', { part: StatusPart.Limitation, text: 'GREEN ENG 1 PUMP.....ON' }],
+  ['290500005', { part: StatusPart.Condition, text: 'IF YELLOW OVHT OUT:' }],
+  ['290400009', { part: StatusPart.Limitation, text: 'YELLOW ENG 2 PUMP....ON' }],
+  ['290400010', { part: StatusPart.Limitation, text: 'PTU................AUTO' }],
+  ['290500006', { part: StatusPart.Condition, text: 'IF SYS NOT RECOVERED:' }],
+  ['290500007', { part: StatusPart.Condition, text: 'IF HYD NOT RECOVERED:' }],
+  ['290400011', { part: StatusPart.Limitation, text: 'A/THR...............OFF' }],
+  ['290400012', { part: StatusPart.Limitation, text: 'FOR LDG......USE FLAP 3' }],
+  ['290400013', { part: StatusPart.Limitation, text: 'GPWS LDG FLAP 3......ON' }],
+  ['290400014', { part: StatusPart.Limitation, text: 'GPWS FLAP MODE......OFF' }],
+  // l.88570: "WHEN SPD 200 KT" lost its sign in the FCOM text, "Extend the landing gear at 200 kt" (l.88576)
+  ['290500008', { part: StatusPart.Condition, text: 'WHEN SPD < 200 KT:' }],
+  ['290500009', { part: StatusPart.Condition, text: 'WHEN CONF 3 AND VAPP:' }],
+  ['290400015', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
+  ['290400016', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+25 KT' }],
+  ['290400017', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  ['290400018', { part: StatusPart.Limitation, text: 'FUEL CONSUMPT INCRSD' }],
+  ['290400019', { part: StatusPart.Limitation, text: 'FMS PRED UNRELIABLE' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, a320_fcom.txt l.81168-81264), in the order of the FCOM
   ['700400001', { part: StatusPart.Limitation, text: 'AVOID ICING CONDITIONS' }],
   ['700500001', { part: StatusPart.Condition, text: 'IF SEVERE ICE ACCRETION:' }],
@@ -80,6 +111,12 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210200002', { part: StatusPart.Information, text: 'CAB AT FIXED TEMP' }],
   ['210200003', { part: StatusPart.Information, text: 'CAB TEMP BY PACK ONLY' }],
   ['210200004', { part: StatusPart.Information, text: 'CAB TEMP CKPT CTL ONLY' }],
+  // 29 HYDRAULIC (FCOM PRO-ABN-HYD STATUS), before CAT 3 SINGLE ONLY as in the FCOM
+  ['290200001', { part: StatusPart.Information, text: 'BRK Y ACCU PR ONLY' }],
+  ['290200002', { part: StatusPart.Information, text: 'ALTN Y BRK WITH A/SKID' }],
+  ['290200003', { part: StatusPart.Information, text: 'SLATS/FLAPS SLOW' }],
+  ['290200004', { part: StatusPart.Information, text: 'SLATS SLOW' }],
+  ['290200005', { part: StatusPart.Information, text: 'FLAPS SLOW' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, l.81263)
@@ -111,6 +148,50 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['780300002', { part: StatusPart.InopSys, text: 'REVERSER 2' }],
   ['730300001', { part: StatusPart.InopSys, text: 'ENG 1 THR' }],
   ['730300002', { part: StatusPart.InopSys, text: 'ENG 2 THR' }],
+  // 29 HYDRAULIC (FCOM PRO-ABN-HYD INOP SYS, see FWC/Logic/HydraulicAlerts), the FCOM lists merged in their order;
+  // G ENG 1 PUMP and Y ENG 2 PUMP are the ENG 1(2) SHUT DOWN codes 290300001/2 below
+  ['290300010', { part: StatusPart.InopSys, text: 'GREEN HYD' }],
+  ['290300011', { part: StatusPart.InopSys, text: 'BLUE HYD' }],
+  ['290300012', { part: StatusPart.InopSys, text: 'YELLOW HYD' }],
+  ['290300013', { part: StatusPart.InopSys, text: 'B+Y HYD' }],
+  ['290300014', { part: StatusPart.InopSys, text: 'G+B HYD' }],
+  ['290300015', { part: StatusPart.InopSys, text: 'G+Y HYD' }],
+  ['290300016', { part: StatusPart.InopSys, text: 'F/CTL PROT' }],
+  ['290300017', { part: StatusPart.InopSys, text: 'STABILIZER' }],
+  ['290300018', { part: StatusPart.InopSys, text: 'L ELEV' }],
+  ['290300019', { part: StatusPart.InopSys, text: 'R ELEV' }],
+  ['290300020', { part: StatusPart.InopSys, text: 'L+R AIL' }],
+  ['290300021', { part: StatusPart.InopSys, text: 'SPLR 1+5' }],
+  ['290300022', { part: StatusPart.InopSys, text: 'SPLR 3' }],
+  ['290300023', { part: StatusPart.InopSys, text: 'SPLR 2+4' }],
+  ['290300024', { part: StatusPart.InopSys, text: 'SPLR 2+3+4' }],
+  ['290300025', { part: StatusPart.InopSys, text: 'SPLR 1+3+5' }],
+  ['290300026', { part: StatusPart.InopSys, text: 'SPLR 1+2+4+5' }],
+  ['290300027', { part: StatusPart.InopSys, text: 'SPD BRK' }],
+  ['290300028', { part: StatusPart.InopSys, text: 'SLATS' }],
+  ['290300029', { part: StatusPart.InopSys, text: 'FLAPS' }],
+  ['290300030', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
+  ['290300031', { part: StatusPart.InopSys, text: 'AP 1+2' }],
+  ['290300032', { part: StatusPart.InopSys, text: 'ANTI SKID' }],
+  ['290300033', { part: StatusPart.InopSys, text: 'AUTO BRK' }],
+  ['290300034', { part: StatusPart.InopSys, text: 'NORM BRK' }],
+  ['290300035', { part: StatusPart.InopSys, text: 'N/W STRG' }],
+  ['290300036', { part: StatusPart.InopSys, text: 'L/G RETRACT' }],
+  ['290300037', { part: StatusPart.InopSys, text: 'CARGO DOOR' }],
+  ['290300038', { part: StatusPart.InopSys, text: 'REVERSER 1' }],
+  ['290300039', { part: StatusPart.InopSys, text: 'REVERSER 2' }],
+  ['290300040', { part: StatusPart.InopSys, text: 'REVERSER 1+2' }],
+  ['290300041', { part: StatusPart.InopSys, text: 'EMER GEN' }],
+  ['290300042', { part: StatusPart.InopSys, text: 'PTU' }],
+  ['290300043', { part: StatusPart.InopSys, text: 'B ELEC PUMP' }],
+  ['290300044', { part: StatusPart.InopSys, text: 'Y ELEC PUMP' }],
+  ['290300045', { part: StatusPart.InopSys, text: 'YAW DAMPER' }],
+  ['290300046', { part: StatusPart.InopSys, text: 'YAW DAMPER 1' }],
+  ['290300047', { part: StatusPart.InopSys, text: 'YAW DAMPER 2' }],
+  ['290300048', { part: StatusPart.InopSys, text: 'CAT 2' }],
+  ['290300049', { part: StatusPart.InopSys, text: 'RAT' }],
+  // 49 APU (FCOM PRO-ABN-APU APU AUTO (EMER) SHUT DOWN INOP SYS, l.71110-71114)
+  ['490300001', { part: StatusPart.InopSys, text: 'APU' }],
   // 21 AIR CONDITIONING
   ['210300001', { part: StatusPart.InopSys, text: 'PACK 1' }],
   ['210300002', { part: StatusPart.InopSys, text: 'PACK 2' }],
@@ -277,11 +358,24 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
 
 const StatusMessageOrder = new Map([...StatusMessages.keys()].map((code, index) => [code, index]));
 
-/** The known codes, without duplicates, in the order of the STATUS page */
+/**
+ * The known codes, without duplicates, in the order of the STATUS page. A line that two alerts give with different codes
+ * (the same part and text, e.g. BLUE HYD of AC BUS 1 FAULT and of HYD B SYS LO PR) is shown once, at its first place.
+ */
 export function orderStatusCodes(codes: readonly string[]): string[] {
+  const shownLines = new Set<string>();
   return [...new Set(codes)]
     .filter((code) => StatusMessages.has(code))
-    .sort((a, b) => StatusMessageOrder.get(a)! - StatusMessageOrder.get(b)!);
+    .sort((a, b) => StatusMessageOrder.get(a)! - StatusMessageOrder.get(b)!)
+    .filter((code) => {
+      const message = StatusMessages.get(code)!;
+      const line = `${message.part}:${message.text}`;
+      if (shownLines.has(line)) {
+        return false;
+      }
+      shownLines.add(line);
+      return true;
+    });
 }
 
 /** The colour of the lines of each part, as FWC text control codes */
