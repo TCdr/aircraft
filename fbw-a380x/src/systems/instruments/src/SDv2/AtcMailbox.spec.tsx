@@ -35,6 +35,7 @@ interface MailboxInternals {
   blocks: Subject<{ uid: number }[]>;
   visibleUid: Subject<number | null>;
   onButton(index: number): void;
+  printNotAvail: Subject<boolean>;
 }
 
 /**
@@ -125,9 +126,11 @@ describe('ATC mailbox clients (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU is tu
     // PRINT (fifth button of a clearance) on the SD DU's mailbox while its DU is off: nothing happens
     sdDu.onButton(4);
     expect(printed).toEqual([]);
-    // on the F/O ND DU's mailbox, the active one: the message is printed
+    expect(sdDu.printNotAvail.get()).toBe(false);
+    // on the F/O ND DU's mailbox, the active one: PRINT is handled (this branch has no cockpit printer, core/printer:
+    // PRINT NOT AVAIL instead of the printed message)
     foNd.onButton(4);
-    expect(printed).toEqual([1]);
+    expect(foNd.printNotAvail.get()).toBe(true);
   });
 
   it('asks for the mailbox file when it starts and when it becomes active', () => {
