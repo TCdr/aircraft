@@ -63,6 +63,7 @@ import { NavigraphAuthProvider } from '../react/navigraph';
 import { EventBus } from '@microsoft/msfs-sdk';
 import { Printouts } from './Dispatch/Printouts';
 import { CompanyTakeoffRequests } from './Performance/Widgets/TakeoffFmsLink';
+import { usePushbackControllerInput } from './Ground/Pages/Pushback/pushbackControllerInput';
 import { TroubleshootingContextProvider } from './TroubleshootingContext';
 import { checkFileHashes } from './Utils/fileHashes';
 import { efbEvent, efbSetting, efbSimVar, isCaptainEfb } from './Utils/efbIndex';
@@ -430,6 +431,9 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
       SimVar.SetSimVarValue('K:TUG_DISABLE', 'Bool', 1);
     }
   }, [nwStrgDisc]);
+
+  // The pushback is steered with the rudder pedals and the sidestick from any flyPad page
+  usePushbackControllerInput();
 
   // </Pushback>
   // =========================================================================
