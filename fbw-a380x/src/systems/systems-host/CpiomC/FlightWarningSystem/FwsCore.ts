@@ -126,7 +126,6 @@ import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import { EngineStartFault, EngineStartPhase, isIgnitionMemoShown, StartValveFault } from './EngineStartAlerts';
 import {
   FeedTankLevelLoMonitor,
-  feedTankPumpAlerts,
   readCrossFeedPbSelections,
   readCrossFeedValveFlags,
   readFeedTankPumpFlags,
@@ -150,6 +149,20 @@ import {
   feedTanks1And4BelowEmerOutrXfrThreshold,
   readElecNetworkInputs,
 } from './FwsElecAlerts';
+import {
+  combineElecBusFaults,
+  ElecProcedureInputs,
+  FlightTimeAboveFl300,
+  isStaticInverterFault,
+} from './FwsElecAlertsRound8';
+import {
+  FuelProcedureInputs,
+  feedPumpAlertsWithWings,
+  isInnerTanksQtyLo,
+  SeenAllOffSincePulse,
+  WingsBalanceMonitor,
+  WingsBalanceState,
+} from './FwsFuelAlertsRound8';
 import {
   ALL_DISPLAY_UNITS,
   DisplayUnitFailure,
@@ -1022,6 +1035,86 @@ export class FwsCore {
 
   /** "During taxi-in, one minute after the FLAPS lever is set to 0" (FCOM PRO-ABN-ECAM-10-24, ELEC DC BUS 1(2) FAULT) */
   public readonly taxiInFlapsLever0For1Min = Subject.create(false);
+
+  /* ELEC and FUEL alerts of the FCOM gap backlog round 8 (FwsElecAlertsRound8, FwsFuelAlertsRound8) */
+
+  /** ELEC AC BUS 1+2 & DC BUS 1 FAULT */
+  public readonly elecAc12Dc1Fault = Subject.create(false);
+
+  /** ELEC AC BUS 2+3 & DC BUS 1+2 FAULT */
+  public readonly elecAc23Dc12Fault = Subject.create(false);
+
+  /** ELEC AC BUS 2+4 FAULT */
+  public readonly elecAc24Fault = Subject.create(false);
+
+  /** ELEC AC BUS 3+4 & DC BUS 2 FAULT */
+  public readonly elecAc34Dc2Fault = Subject.create(false);
+
+  /** ELEC DC BUS 1+2 FAULT */
+  public readonly elecDc12Fault = Subject.create(false);
+
+  /** ELEC DC BUS 1+ESS FAULT */
+  public readonly elecDc1EssFault = Subject.create(false);
+
+  /** ELEC STATIC INV FAULT */
+  public readonly elecStaticInvFault = Subject.create(false);
+
+  /** "Flight time above FL 300 since departure" of the gravity feeding procedure lines */
+  private readonly flightTimeAboveFl300 = new FlightTimeAboveFl300();
+
+  /** The cockpit state of the round 8 ELEC procedure lines, refreshed every update */
+  public elecRound8Inputs: ElecProcedureInputs = {
+    onGround: true,
+    moreThan30MinAboveFl300: false,
+    feedTanks1And4Low: false,
+    gearDownLocked: true,
+    crossFeedPbOn: [false, false, false, false],
+    wxrTawsSys: 1,
+    xpdrTcasSys: 1,
+    attHdgFoOn3: false,
+    airDataFoOn3: false,
+    outerTankPumpPbOn: [true, true],
+    emerOutrTkXfrOn: false,
+    autoThrustEngaged: false,
+  };
+
+  /** FUEL L(R) WING FEED PMPs FAULT */
+  public readonly fuelWingFeedPumpsFault = [Subject.create(false), Subject.create(false)];
+
+  /** The first ALL CROSSFEEDS OFF line of FUEL L(R) WING FEED PMPs FAULT, see wingFeedPumpsFaultLines */
+  private readonly wingFeedCrossfeedsOffSensors = [new SeenAllOffSincePulse(), new SeenAllOffSincePulse()];
+
+  public readonly wingFeedCrossfeedsSeenOff = [false, false];
+
+  /** FUEL WINGS NOT BALANCED and FUEL WINGS BALANCED */
+  private readonly wingsBalanceMonitor = new WingsBalanceMonitor();
+
+  public wingsBalanceState: WingsBalanceState = {
+    notBalanced: false,
+    notBalancedPair: [false, false],
+    lighterTank: [null, null],
+    balanced: false,
+    balancedPair: [false, false],
+    pumpsOffRequired: [false, false, false, false],
+  };
+
+  public readonly fuelWingsNotBalanced = Subject.create(false);
+
+  public readonly fuelWingsBalanced = Subject.create(false);
+
+  /** FUEL INR TKs QTY LO */
+  public readonly fuelInnerTanksQtyLo = Subject.create(false);
+
+  /** The cockpit state of the round 8 FUEL procedure lines, refreshed every update */
+  public fuelRound8Inputs: FuelProcedureInputs = {
+    onGround: true,
+    anyEngineRunning: false,
+    moreThan30MinAboveFl300: false,
+    crossFeedPbOn: [false, false, false, false],
+    feedMainPbOn: [true, true, true, true],
+    feedStbyPbOn: [true, true, true, true],
+    engStartSelIgnStart: false,
+  };
 
   private readonly taxiInFlapsLever0ConfirmNode = new NXLogicConfirmNode(60, true);
 
@@ -5252,7 +5345,8 @@ export class FwsCore {
 
     // ELEC alerts (FwsElecAlerts, A380 FCOM PRO-ABN-ECAM-10-24)
     const elecInputs = readElecNetworkInputs((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool));
-    const elecFlags = this.elecAlertLogic.update(elecInputs);
+    // The combined busbar alerts replace the single ones they cover (FwsElecAlertsRound8)
+    const elecFlags = combineElecBusFaults(this.elecAlertLogic.update(elecInputs));
     elecFlags.acBusFault.forEach((fault, i) => this.elecAcBusFault[i].set(fault));
     this.elecAcEssBusFault.set(elecFlags.acEssBusFault);
     this.elecAcEssBusAltn.set(elecFlags.acEssBusAltn);
@@ -5296,6 +5390,36 @@ export class FwsCore {
       elecInputs.engGenPbOn.every((on) => on),
       !elecInputs.busTiePbAuto,
     );
+
+    // ELEC alerts of the FCOM gap backlog round 8 (FwsElecAlertsRound8)
+    this.elecAc12Dc1Fault.set(elecFlags.combined.ac12Dc1);
+    this.elecAc23Dc12Fault.set(elecFlags.combined.ac23Dc12);
+    this.elecAc24Fault.set(elecFlags.combined.ac24);
+    this.elecAc34Dc2Fault.set(elecFlags.combined.ac34Dc2);
+    this.elecDc12Fault.set(elecFlags.combined.dc12);
+    this.elecDc1EssFault.set(elecFlags.combined.dc1Ess);
+    this.elecStaticInvFault.set(
+      isStaticInverterFault(
+        SimVar.GetSimVarValue('L:A32NX_ELEC_CONTACTOR_7XB_IS_CLOSED', SimVarValueType.Bool) > 0,
+        SimVar.GetSimVarValue('L:A32NX_ELEC_STAT_INV_POTENTIAL_NORMAL', SimVarValueType.Bool) > 0,
+      ),
+    );
+    this.flightTimeAboveFl300.update(this.aircraftOnGround.get(), this.adrPressureAltitude.get(), deltaTime);
+    this.elecRound8Inputs = {
+      onGround: this.aircraftOnGround.get(),
+      moreThan30MinAboveFl300: this.flightTimeAboveFl300.moreThan30Min,
+      feedTanks1And4Low: this.feedTanks1And4BelowEmerOutrXfrThreshold.get(),
+      gearDownLocked: this.isAllGearDownlocked,
+      crossFeedPbOn: [0, 1, 2, 3].map((i) => this.crossFeedPbOn[i].get()) as [boolean, boolean, boolean, boolean],
+      wxrTawsSys: this.tawsWxrSelected.get(),
+      // L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1 (as FwsAbnormalSensed.xpdrTcasSystemIs)
+      xpdrTcasSys: SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') + 1,
+      attHdgFoOn3: this.attKnob.get() === 2,
+      airDataFoOn3: this.airKnob.get() === 2,
+      outerTankPumpPbOn: [this.transferPumpFlags.leftOuter.pbOn, this.transferPumpFlags.rightOuter.pbOn],
+      emerOutrTkXfrOn: this.fuelEmerOutrTkXfrOn.get(),
+      autoThrustEngaged: this.autoThrustEngaged.get(),
+    };
 
     /* OTHER STUFF */
 
@@ -5987,20 +6111,77 @@ export class FwsCore {
 
     // Feed tank pumps and crossfeed valves (CpiomF/FuelPumpsAndValves), read as real booleans
     const readBool = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool);
-    readFeedTankPumpFlags(readBool).forEach((pumps, tank) => {
-      const alerts = feedTankPumpAlerts(pumps, this.flightPhase.get());
+    const feedPumps = readFeedTankPumpFlags(readBool);
+    // FUEL WINGS (NOT) BALANCED (FwsFuelAlertsRound8). MSFS tanks: feed 2, 5, 6, 9; inner 4, 7; mid 3, 8; outer 1, 10
+    const tankKg = (tank: number): number => SimVar.GetSimVarValue(`FUELSYSTEM TANK WEIGHT:${tank}`, 'kilogram');
+    const fuelingInProgress = this.refuelPanelOpen.get() || this.refuelInProgress.get() || this.defuelInProgress.get();
+    this.wingsBalanceState = this.wingsBalanceMonitor.update({
+      onGround: this.aircraftOnGround.get(),
+      feedKg: [tankKg(2), tankKg(5), tankKg(6), tankKg(9)],
+      innerKg: [tankKg(4), tankKg(7)],
+      midKg: [tankKg(3), tankKg(8)],
+      outerKg: [tankKg(1), tankKg(10)],
+      fuelingInProgress,
+      crossFeedPbOn: [0, 1, 2, 3].map((i) => this.crossFeedPbOn[i].get()) as [boolean, boolean, boolean, boolean],
+      feedMainPbOn: feedPumps.map((p) => p.mainPbOn) as [boolean, boolean, boolean, boolean],
+      feedStbyPbOn: feedPumps.map((p) => p.stbyPbOn) as [boolean, boolean, boolean, boolean],
+    });
+    this.fuelWingsNotBalanced.set(this.wingsBalanceState.notBalanced);
+    this.fuelWingsBalanced.set(this.wingsBalanceState.balanced);
+    // FEED TK pump alerts, with FUEL L(R) WING FEED PMPs FAULT (FwsFuelAlertsRound8)
+    const feedPumpAlerts = feedPumpAlertsWithWings(
+      feedPumps,
+      this.flightPhase.get(),
+      this.wingsBalanceState.pumpsOffRequired,
+    );
+    feedPumps.forEach((pumps, tank) => {
+      const alerts = feedPumpAlerts.tanks[tank];
       this.feedTankMainPumpFault[tank].set(alerts.mainFault);
       this.feedTankStbyPumpFault[tank].set(alerts.stbyFault);
       this.feedTankMainAndStbyPumpsFault[tank].set(alerts.mainAndStbyFault);
       this.feedTankMainPumpPbOn[tank].set(pumps.mainPbOn);
       this.feedTankStbyPumpPbOn[tank].set(pumps.stbyPbOn);
     });
+    this.fuelWingFeedPumpsFault[0].set(feedPumpAlerts.leftWing);
+    this.fuelWingFeedPumpsFault[1].set(feedPumpAlerts.rightWing);
+    // FUEL INR TKs QTY LO (FwsFuelAlertsRound8). Outer tanks full: 99 % of their capacity (design choice, MSFS level)
+    const fob = this.fuelOnBoard.get();
+    this.fuelInnerTanksQtyLo.set(
+      isInnerTanksQtyLo({
+        onGround: this.aircraftOnGround.get(),
+        zfwAndZfcgEntered: !this.fqmsZfwOrZfwCgNotSet.get(),
+        fobKg: fob.isNormalOperation() ? fob.value : null,
+        innerKg: [tankKg(4), tankKg(7)],
+        outerTanksFull:
+          SimVar.GetSimVarValue('FUELSYSTEM TANK LEVEL:1', 'percent over 100') >= 0.99 &&
+          SimVar.GetSimVarValue('FUELSYSTEM TANK LEVEL:10', 'percent over 100') >= 0.99,
+        refuelPanelOpenOrFueling: fuelingInProgress,
+      }),
+    );
     const crossFeedPbs = readCrossFeedPbSelections(readBool);
     crossFeedPbs.forEach((on, index) => this.crossFeedPbOn[index].set(on));
     this.allCrossFeedPbsOn.set(crossFeedPbs.every((on) => on));
     this.allFeedTankPumpPbsOn.set(
       this.feedTankMainPumpPbOn.every((pb) => pb.get()) && this.feedTankStbyPumpPbOn.every((pb) => pb.get()),
     );
+    // Procedure lines of the round 8 FUEL alerts (FwsFuelAlertsRound8)
+    this.fuelRound8Inputs = {
+      onGround: this.aircraftOnGround.get(),
+      anyEngineRunning:
+        this.engine1Running.get() ||
+        this.engine2Running.get() ||
+        this.engine3Running.get() ||
+        this.engine4Running.get(),
+      moreThan30MinAboveFl300: this.flightTimeAboveFl300.moreThan30Min,
+      crossFeedPbOn: crossFeedPbs as [boolean, boolean, boolean, boolean],
+      feedMainPbOn: feedPumps.map((p) => p.mainPbOn) as [boolean, boolean, boolean, boolean],
+      feedStbyPbOn: feedPumps.map((p) => p.stbyPbOn) as [boolean, boolean, boolean, boolean],
+      engStartSelIgnStart: this.engineStartSelIgnition.get(),
+    };
+    const allCrossFeedPbsOff = crossFeedPbs.every((on) => !on);
+    this.wingFeedCrossfeedsOffSensors.forEach((sensor, side) => {
+      this.wingFeedCrossfeedsSeenOff[side] = sensor.update(this.fuelWingFeedPumpsFault[side].get(), allCrossFeedPbsOff);
+    });
 
     // Transfer pumps (CpiomF/FuelPumpsAndValves), and the transfer tanks holding fuel (Tank.N, gallons)
     this.transferPumpFlags = readTransferPumpFlags(readBool);

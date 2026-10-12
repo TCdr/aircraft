@@ -94,6 +94,29 @@ import {
   fwdCargoTempRegulFaultItemsToShow,
 } from './CondTrimAirFlags';
 import { DisplayUnitID } from '@shared/CdsDisplayUnits';
+import {
+  AC_BUS_12_DC_1_FAULT_STATUS,
+  AC_BUS_23_DC_12_FAULT_STATUS,
+  AC_BUS_24_FAULT_STATUS,
+  AC_BUS_34_DC_2_FAULT_STATUS,
+  acBus12Dc1FaultLines,
+  acBus23Dc12FaultLines,
+  acBus24FaultLines,
+  acBus34Dc2FaultLines,
+  DC_BUS_12_FAULT_STATUS,
+  DC_BUS_1_ESS_FAULT_STATUS,
+  dcBus12FaultLines,
+  dcBus1EssFaultLines,
+  ROUND8_ELEC_PHASE_INHIBITION,
+} from './FwsElecAlertsRound8';
+import {
+  innerTanksQtyLoLines,
+  ROUND8_FUEL_PHASE_INHIBITION,
+  WING_FEED_PUMPS_FAULT_STATUS,
+  wingFeedPumpsFaultLines,
+  wingsBalancedLines,
+  wingsNotBalancedLines,
+} from './FwsFuelAlertsRound8';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -2671,6 +2694,109 @@ export class FwsAbnormalSensed {
     240800081: this.elecTrFaultItem(0),
     240800082: this.elecTrFaultItem(1),
     240800083: this.elecTrFaultItem(2),
+    // Round 8: combined busbar alerts and STATIC INV FAULT. Conditions, lines and STATUS: FwsElecAlertsRound8 (master
+    // caution and SC, PDF p.4834, 4841, 4849, 4858, 4889, 4897; STATIC INV FAULT: no light, no audio, PDF p.4959)
+    240800003: {
+      // AC BUS 1+2 & DC BUS 1 FAULT, FCOM l.137715
+      flightPhaseInhib: ROUND8_ELEC_PHASE_INHIBITION.combinedBusFault,
+      simVarIsActive: this.fws.elecAc12Dc1Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => acBus12Dc1FaultLines().show,
+      whichItemsChecked: () => acBus12Dc1FaultLines().checked,
+      limitationsApprLdg: () => AC_BUS_12_DC_1_FAULT_STATUS.limitationsApprLdg,
+      inopSysAllPhases: () => AC_BUS_12_DC_1_FAULT_STATUS.inopSysAllPhases,
+      inopSysApprLdg: () => AC_BUS_12_DC_1_FAULT_STATUS.inopSysApprLdg,
+      info: () => AC_BUS_12_DC_1_FAULT_STATUS.info,
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800005: {
+      // AC BUS 2+3 & DC BUS 1+2 FAULT, FCOM l.138014
+      flightPhaseInhib: ROUND8_ELEC_PHASE_INHIBITION.combinedBusFault,
+      simVarIsActive: this.fws.elecAc23Dc12Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => acBus23Dc12FaultLines(this.fws.elecRound8Inputs).show,
+      whichItemsChecked: () => acBus23Dc12FaultLines(this.fws.elecRound8Inputs).checked,
+      limitationsAllPhases: () => AC_BUS_23_DC_12_FAULT_STATUS.limitationsAllPhases,
+      limitationsApprLdg: () => AC_BUS_23_DC_12_FAULT_STATUS.limitationsApprLdg,
+      limitationsPfd: () => AC_BUS_23_DC_12_FAULT_STATUS.limitationsPfd,
+      inopSysAllPhases: () => AC_BUS_23_DC_12_FAULT_STATUS.inopSysAllPhases,
+      inopSysApprLdg: () => AC_BUS_23_DC_12_FAULT_STATUS.inopSysApprLdg,
+      info: () => AC_BUS_23_DC_12_FAULT_STATUS.info,
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800006: {
+      // AC BUS 2+4 FAULT, FCOM l.138416
+      flightPhaseInhib: ROUND8_ELEC_PHASE_INHIBITION.combinedBusFault,
+      simVarIsActive: this.fws.elecAc24Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => acBus24FaultLines(this.fws.elecRound8Inputs).show,
+      whichItemsChecked: () => acBus24FaultLines(this.fws.elecRound8Inputs).checked,
+      limitationsAllPhases: () => AC_BUS_24_FAULT_STATUS.limitationsAllPhases,
+      limitationsPfd: () => AC_BUS_24_FAULT_STATUS.limitationsPfd,
+      inopSysAllPhases: () => AC_BUS_24_FAULT_STATUS.inopSysAllPhases,
+      inopSysApprLdg: () => AC_BUS_24_FAULT_STATUS.inopSysApprLdg,
+      info: () => AC_BUS_24_FAULT_STATUS.info,
+      failure: 2,
+      sysPage: SdPages.ElecAc,
+    },
+    240800008: {
+      // AC BUS 3+4 & DC BUS 2 FAULT, FCOM l.138771 (ELEC DC SD page)
+      flightPhaseInhib: ROUND8_ELEC_PHASE_INHIBITION.combinedBusFault,
+      simVarIsActive: this.fws.elecAc34Dc2Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => acBus34Dc2FaultLines(this.fws.elecRound8Inputs).show,
+      whichItemsChecked: () => acBus34Dc2FaultLines(this.fws.elecRound8Inputs).checked,
+      limitationsApprLdg: () => AC_BUS_34_DC_2_FAULT_STATUS.limitationsApprLdg,
+      inopSysAllPhases: () => AC_BUS_34_DC_2_FAULT_STATUS.inopSysAllPhases,
+      inopSysApprLdg: () => AC_BUS_34_DC_2_FAULT_STATUS.inopSysApprLdg,
+      info: () => AC_BUS_34_DC_2_FAULT_STATUS.info,
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800027: {
+      // DC BUS 1+2 FAULT, FCOM l.139924
+      flightPhaseInhib: ROUND8_ELEC_PHASE_INHIBITION.combinedBusFault,
+      simVarIsActive: this.fws.elecDc12Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => dcBus12FaultLines(this.fws.elecRound8Inputs).show,
+      whichItemsChecked: () => dcBus12FaultLines(this.fws.elecRound8Inputs).checked,
+      limitationsAllPhases: () => DC_BUS_12_FAULT_STATUS.limitationsAllPhases,
+      limitationsApprLdg: () => DC_BUS_12_FAULT_STATUS.limitationsApprLdg,
+      limitationsPfd: () => DC_BUS_12_FAULT_STATUS.limitationsPfd,
+      inopSysAllPhases: () => DC_BUS_12_FAULT_STATUS.inopSysAllPhases,
+      inopSysApprLdg: () => DC_BUS_12_FAULT_STATUS.inopSysApprLdg,
+      info: () => DC_BUS_12_FAULT_STATUS.info,
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800028: {
+      // DC BUS 1+ESS FAULT, FCOM l.140296 (LAND ANSA)
+      flightPhaseInhib: ROUND8_ELEC_PHASE_INHIBITION.combinedBusFault,
+      simVarIsActive: this.fws.elecDc1EssFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => dcBus1EssFaultLines(this.fws.elecRound8Inputs).show,
+      whichItemsChecked: () => dcBus1EssFaultLines(this.fws.elecRound8Inputs).checked,
+      limitationsAllPhases: () => DC_BUS_1_ESS_FAULT_STATUS.limitationsAllPhases,
+      limitationsApprLdg: () => DC_BUS_1_ESS_FAULT_STATUS.limitationsApprLdg,
+      limitationsPfd: () => DC_BUS_1_ESS_FAULT_STATUS.limitationsPfd,
+      inopSysAllPhases: () => DC_BUS_1_ESS_FAULT_STATUS.inopSysAllPhases,
+      inopSysApprLdg: () => DC_BUS_1_ESS_FAULT_STATUS.inopSysApprLdg,
+      info: () => DC_BUS_1_ESS_FAULT_STATUS.info,
+      failure: 2,
+      sysPage: SdPages.ElecDc,
+    },
+    240800080: {
+      // STATIC INV FAULT, FCOM l.142773: crew awareness, no STATUS in the FCOM
+      flightPhaseInhib: ROUND8_ELEC_PHASE_INHIBITION.staticInvFault,
+      simVarIsActive: this.fws.elecStaticInvFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.ElecAc,
+    },
     // ATA 26 - FIRE PROTECTION
     260800001: {
       // APU FIRE
@@ -4457,6 +4583,70 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
       notActiveWhenItemActive: [],
       inopSysAllPhases: () => [],
+    },
+    // Round 8 (master caution and SC). Conditions and lines: FwsFuelAlertsRound8
+    281800051: {
+      // INR TKs QTY LO, FCOM l.151118, PDF p.5199
+      flightPhaseInhib: ROUND8_FUEL_PHASE_INHIBITION.innerTanksQtyLo,
+      simVarIsActive: this.fws.fuelInnerTanksQtyLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => innerTanksQtyLoLines().show,
+      whichItemsChecked: () => innerTanksQtyLoLines().checked,
+      info: () => ['280200012'], // EACH INR TK : 5100 KG MIN FOR T.O (l.151160)
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800070: {
+      // L WING FEED PMPs FAULT, FCOM l.151694, PDF p.5216
+      flightPhaseInhib: ROUND8_FUEL_PHASE_INHIBITION.wingFeedPumpsFault,
+      simVarIsActive: this.fws.fuelWingFeedPumpsFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        wingFeedPumpsFaultLines(this.fws.fuelRound8Inputs, 0, this.fws.wingFeedCrossfeedsSeenOff[0]).show,
+      whichItemsChecked: () =>
+        wingFeedPumpsFaultLines(this.fws.fuelRound8Inputs, 0, this.fws.wingFeedCrossfeedsSeenOff[0]).checked,
+      inopSysAllPhases: () => WING_FEED_PUMPS_FAULT_STATUS.inopSysAllPhases[0],
+      info: () => WING_FEED_PUMPS_FAULT_STATUS.info[0],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800071: {
+      // R WING FEED PMPs FAULT, FCOM l.151694, PDF p.5216
+      flightPhaseInhib: ROUND8_FUEL_PHASE_INHIBITION.wingFeedPumpsFault,
+      simVarIsActive: this.fws.fuelWingFeedPumpsFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        wingFeedPumpsFaultLines(this.fws.fuelRound8Inputs, 1, this.fws.wingFeedCrossfeedsSeenOff[1]).show,
+      whichItemsChecked: () =>
+        wingFeedPumpsFaultLines(this.fws.fuelRound8Inputs, 1, this.fws.wingFeedCrossfeedsSeenOff[1]).checked,
+      inopSysAllPhases: () => WING_FEED_PUMPS_FAULT_STATUS.inopSysAllPhases[1],
+      info: () => WING_FEED_PUMPS_FAULT_STATUS.info[1],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800098: {
+      // WINGS BALANCED, FCOM l.154594, PDF p.5289
+      flightPhaseInhib: ROUND8_FUEL_PHASE_INHIBITION.wingsBalanced,
+      simVarIsActive: this.fws.fuelWingsBalanced,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => wingsBalancedLines(this.fws.fuelRound8Inputs, this.fws.wingsBalanceState).show,
+      whichItemsChecked: () => wingsBalancedLines(this.fws.fuelRound8Inputs, this.fws.wingsBalanceState).checked,
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800100: {
+      // WINGS NOT BALANCED, FCOM l.154808, PDF p.5294
+      flightPhaseInhib: ROUND8_FUEL_PHASE_INHIBITION.wingsNotBalanced,
+      simVarIsActive: this.fws.fuelWingsNotBalanced,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => wingsNotBalancedLines(this.fws.fuelRound8Inputs, this.fws.wingsBalanceState).show,
+      whichItemsChecked: () => wingsNotBalancedLines(this.fws.fuelRound8Inputs, this.fws.wingsBalanceState).checked,
+      // LIMITATIONS "On ground: DELAY T.O" (l.154910-154911); STATUS INFO FUEL CONSUMPT INCRSD : FMS PRED DISREGARD
+      // (l.154919)
+      limitationsAllPhases: () => (this.fws.aircraftOnGround.get() ? ['280400002'] : []),
+      info: () => ['280200003'],
+      failure: 2,
+      sysPage: SdPages.Fuel,
     },
     // ATA 29 - HYDRAULICS
     290800001: {

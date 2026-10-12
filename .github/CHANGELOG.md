@@ -406,6 +406,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New ELEC alerts from the FCOM with their procedure and STATUS lines: AC BUS 1(2) FAULT, AC ESS BUS FAULT, AC ESS BUS SHED, AC ESS BUS ALTN, DC BUS 1(2) FAULT, DC BUS 1+2 FAULT, DC ESS BUS FAULT, DC ESS BUS SHED, DC BAT BUS FAULT, DC EMER CONFIG, ESS BUSES ON BAT, TR 1(2) FAULT, GEN 1(2) OFF, BAT 1(2) OFF and EMER GEN 1 LINE OFF - @TCdr
 1. [A32NX/FWC] New AIR bleed cautions: ENG 1(2) and 1+2 BLEED FAULT, ENG 1(2) and 1+2 BLEED LO TEMP, ENG 1(2) BLEED HI TEMP, ENG 1(2) BLEED NOT CLSD, BLEED 1(2) OFF, APU BLEED FAULT and X BLEED FAULT, with their procedures and STATUS - @TCdr
 1. [A32NX/ECAM] EMER CANC pushbutton: stops the aural and MASTER WARN of a warning, cancels a caution for the rest of the flight (CANCELLED CAUTION on the STATUS page); RCL shows NORMAL when there is nothing to recall, and RCL held 3 s restores the cancelled cautions and lifts the flight phase inhibition - @TCdr
+1. [A380X/FWS] New ELEC AC BUS 1+2 & DC BUS 1, AC BUS 2+3 & DC BUS 1+2, AC BUS 2+4, AC BUS 3+4 & DC BUS 2, DC BUS 1+2 and DC BUS 1+ESS FAULT alerts, which replace the single busbar alerts they cover, ELEC STATIC INV FAULT, and FUEL L(R) WING FEED PMPs FAULT (replaces the two FEED TK MAIN + STBY PMPs alerts), FUEL WINGS NOT BALANCED, FUEL WINGS BALANCED and FUEL INR TKs QTY LO, with their FCOM procedures and STATUS - @TCdr
 
 ## 2024.1.0
 
