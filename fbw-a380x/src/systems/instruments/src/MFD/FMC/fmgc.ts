@@ -1,4 +1,3 @@
-// @ts-strict-ignore
 // Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
@@ -80,8 +79,6 @@ export class FmgcData {
     return sub.map((it) => (it !== null ? it.toFixed(0) : '-'.repeat(numberDashes)));
   }
 
-  public readonly cpnyFplnAvailable = Subject.create(false);
-
   private readonly companyRouteIdents = new Map<FlightPlanIndex, Subject<string | null>>();
 
   /** The ident of the company route inserted into a flight plan, null when none (INIT page CPNY RTE field). */
@@ -94,15 +91,13 @@ export class FmgcData {
     return ident;
   }
 
-  public readonly cpnyFplnRequestedForPlan = Subject.create<FlightPlanIndex | null>(null);
-
   /**
    * FUEL PLANNING: the trial BLOCK fuel (tonnes) that the predictions of the active flight plan use as fuel on board
    * while no BLOCK is entered (FlightManagementComputer.updateFuelPlanning).
    */
   public readonly fuelPlanningTrialBlockFuel = Subject.create<number | null>(null);
 
-  public readonly cpnyFplnUplinkInProgress = Subject.create(false);
+  public readonly flightPhase = Subject.create(FmgcFlightPhase.Preflight);
 
   public readonly atcCallsign = Subject.create<string | null>(null);
 
@@ -176,7 +171,7 @@ export class FmgcData {
 
   /** Fuel Penalty Factor in percentage between none and 999. Reset at done phase
    */
-  public readonly fuelPenaltyPercentage = Subject.create<number>(null);
+  public readonly fuelPenaltyPercentage = Subject.create<number | null>(null);
 
   public readonly fuelPenaltyActive = this.fuelPenaltyPercentage.map((v) => v !== null && v > 0);
 
@@ -293,7 +288,7 @@ export class FmgcDataService implements Fmgc {
   }
 
   /** in feet */
-  getTropoPause(): number {
+  getTropoPause(): number | null {
     return this.flightPlanService.active.performanceData.tropopause.get();
   }
 
@@ -347,7 +342,7 @@ export class FmgcDataService implements Fmgc {
   }
 
   getFlightPhase(): FmgcFlightPhase {
-    return SimVar.GetSimVarValue('L:A32NX_FMGC_FLIGHT_PHASE', 'Enum');
+    return this.data.flightPhase.get();
   }
 
   /** in knots */
@@ -375,8 +370,9 @@ export class FmgcDataService implements Fmgc {
     if (!this.flightPlanService.has(fpIndex)) {
       return null;
     }
-    const speedLimitSpeed = this.flightPlanService.get(fpIndex).performanceData.climbSpeedLimitSpeed.get();
-    const speedLimitAltitude = this.flightPlanService.get(fpIndex).performanceData.climbSpeedLimitAltitude.get();
+    const performanceData = this.flightPlanService.get(fpIndex).performanceData;
+    const speedLimitSpeed = performanceData.climbSpeedLimitSpeed.get();
+    const speedLimitAltitude = performanceData.climbSpeedLimitAltitude.get();
     if (speedLimitSpeed && speedLimitAltitude) {
       return {
         speed: speedLimitSpeed,
@@ -390,8 +386,9 @@ export class FmgcDataService implements Fmgc {
     if (!this.flightPlanService.has(fpIndex)) {
       return null;
     }
-    const speedLimitSpeed = this.flightPlanService.get(fpIndex).performanceData.descentSpeedLimitSpeed.get();
-    const speedLimitAltitude = this.flightPlanService.get(fpIndex).performanceData.descentSpeedLimitAltitude.get();
+    const performanceData = this.flightPlanService.get(fpIndex).performanceData;
+    const speedLimitSpeed = performanceData.descentSpeedLimitSpeed.get();
+    const speedLimitAltitude = performanceData.descentSpeedLimitAltitude.get();
     if (speedLimitSpeed && speedLimitAltitude) {
       return {
         speed: speedLimitSpeed,
@@ -414,7 +411,7 @@ export class FmgcDataService implements Fmgc {
   }
 
   getTakeoffFlapsSetting(): FlapConf | undefined {
-    return this.flightPlanService.active.performanceData.takeoffFlaps.get();
+    return this.flightPlanService.active.performanceData.takeoffFlaps.get() ?? undefined;
   }
 
   /** in knots */
@@ -514,7 +511,7 @@ export class FmgcDataService implements Fmgc {
   /** in feet. null if not set */
   getDepartureElevation(): number | null {
     return this.flightPlanService.has(FlightPlanIndex.Active)
-      ? this.flightPlanService?.active?.originRunway?.thresholdLocation?.alt
+      ? this.flightPlanService?.active?.originRunway?.thresholdLocation?.alt ?? null
       : null;
   }
 
@@ -529,7 +526,7 @@ export class FmgcDataService implements Fmgc {
 
   getDestinationRunway(): Runway | null {
     return this.flightPlanService.has(FlightPlanIndex.Active)
-      ? this.flightPlanService?.active?.destinationRunway
+      ? this.flightPlanService?.active?.destinationRunway ?? null
       : null;
   }
 

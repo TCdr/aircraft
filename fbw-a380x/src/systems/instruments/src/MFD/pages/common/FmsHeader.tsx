@@ -1,7 +1,7 @@
 import { FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 import { AbstractHeader } from './AbstractHeader';
 import { PageSelectorDropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/PageSelectorDropdownMenu';
-import { activeFlightPlanPageUri, activeFlightPlanFuelAndLoadUri, dataStatusUri } from '../../shared/utils';
+import { activeFlightPlanFuelAndLoadUri, activeFlightPlanPageUri, dataStatusUri } from '../../shared/utils';
 
 /*
  * Complete header for the FMS system
