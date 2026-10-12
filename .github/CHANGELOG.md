@@ -147,6 +147,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 1. [A380X/EFB] The flyPad cargo door row shows the real forward and aft doors, and says when the open request waits for hydraulic power (engines running) - @TCdr
 1. [Pushback] The pushback goes on when another flyPad page is opened, still steered with the rudder pedals and the sidestick - @TCdr
+1. [A380X/EFB] Ground > Services: the aft right door button is labelled Main 5 R (it opens MAIN 5R, the door the SD DOOR page and the FWS show), and its planform marker sits on door 5 R; a new Main 4 R button opens and closes MAIN 4R (the catering truck still docks at MAIN 5R) - @TCdr
 
 ## 2024.1.0
 
