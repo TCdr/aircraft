@@ -8,11 +8,13 @@
 
 namespace ndwxr {
 
-// The A380X installs 4 gauges (L, R, LV, RV); twice that, so a gauge reinstalled by the
-// sim without a PRE_KILL of the old one (an aircraft switch) still finds a free slot.
+// The A380X installs 4 gauges (L, R, LV, RV); twice that, so the new flight's gauges find a free slot even next to
+// slots of the previous flight (gauge_slots.h frees those as their roles are installed again).
 constexpr int kMaxInstances = 8;
 
-static Instance g_instances[kMaxInstances];
+using InstanceSlots = GaugeSlots<Instance, kMaxInstances>;
+
+static InstanceSlots g_slots;
 
 #ifdef A380X
 // Whether the radar is transmitting (any ND asks for it) and since when: the picture is
@@ -22,23 +24,7 @@ static double g_wxrTransmitSince = 0.0;
 #endif
 
 Instance* findInstance(FsContext ctx) {
-  for (Instance& instance : g_instances) {
-    if (instance.inUse && instance.ctx == ctx) {
-      return &instance;
-    }
-  }
-  return nullptr;
-}
-
-// Instances are recycled (not just appended) so an aircraft reload, which kills
-// and reinstalls the gauges, doesn't run out of slots.
-Instance* allocInstance() {
-  for (Instance& instance : g_instances) {
-    if (!instance.inUse) {
-      return &instance;
-    }
-  }
-  return nullptr;
+  return g_slots.find(ctx);
 }
 
 bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted) {
@@ -109,7 +95,7 @@ static void registerInstanceVars(Instance& instance) {
 }
 
 // The MapViews of one gauge instance (see the note on the module's budget of eight in ndwxr.h).
-static void createViews(FsContext ctx, Instance& instance) {
+static void createInstanceViews(FsContext ctx, Instance& instance) {
 #ifdef A380X
   if (instance.isVdTerrain) {
     instance.mapViewVdTerrain = fsMapViewCreate(ctx, kTextureSize, kTextureSize, 0);
@@ -132,21 +118,89 @@ static void createViews(FsContext ctx, Instance& instance) {
 #endif
 }
 
+// The MapView ids an instance holds (0 = none).
+constexpr int kViewsPerInstance = 6;
+static void instanceViews(const Instance& instance, FsTextureId (&views)[kViewsPerInstance]) {
+  views[0] = instance.mapView;
+  views[1] = instance.mapViewHot;
+  views[2] = instance.mapViewTerrain;
+  views[3] = instance.mapViewWater;
+#ifdef A380X
+  views[4] = instance.mapViewVdTerrain;
+  views[5] = instance.mapViewVdWater;
+#else
+  views[4] = 0;
+  views[5] = 0;
+#endif
+}
+
+// The sim's side of the slot table (gauge_slots.h).
+struct InstanceResources {
+  // The views createViews makes: on the A380X 2 per gauge (the ND's pair, or the VD's terrain and water), on the
+  // A32NX 4 per ND.
+  int viewsNeeded(const Instance& instance) const {
+    (void)instance;
+#ifdef A380X
+    return 2;
+#else
+    return 4;
+#endif
+  }
+
+  void createViews(Instance& instance) const { createInstanceViews(instance.ctx, instance); }
+
+  bool holdsView(const Instance& instance, int id) const {
+    FsTextureId views[kViewsPerInstance];
+    instanceViews(instance, views);
+    for (FsTextureId view : views) {
+      if (view != 0 && view == id) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Releases everything a gauge instance owns (its slot is freed by the table). A view id another instance of the same
+  // context holds is left alone: the sim may already have dropped this instance's views and handed the id on.
+  void destroy(Instance& instance, const InstanceSlots& table) const {
+    simBridgeOnGaugeKill(instance.ctx);
+    FsTextureId views[kViewsPerInstance];
+    instanceViews(instance, views);
+    for (FsTextureId view : views) {
+      if (view != 0 && !table.viewHeldByOther(instance, view, *this)) {
+        fsMapViewDelete(instance.ctx, view);
+      }
+    }
+    if (instance.nvg != nullptr) {
+      if (instance.terrainPatternImage != 0) {
+        nvgDeleteImage(instance.nvg, instance.terrainPatternImage);
+      }
+#ifdef A380X
+      if (instance.vdRampImage != 0) {
+        nvgDeleteImage(instance.nvg, instance.vdRampImage);
+      }
+#endif
+      nvgDeleteInternal(instance.nvg);
+    }
+  }
+};
+
+static InstanceResources g_resources;
+
 static bool installInstance(FsContext ctx, const sGaugeInstallData* installData) {
-  Instance* instance = allocInstance();
+  const char* parameters = installData != nullptr ? installData->strParameters : nullptr;
+  GaugeRole role;
+  role.isRight = parameters != nullptr && (parameters[0] == 'R' || parameters[0] == 'r');
+#ifdef A380X
+  // "LV" / "RV": this instance only draws the terrain profile on the VD.
+  role.isVdTerrain = parameters != nullptr && parameters[0] != '\0' && (parameters[1] == 'V' || parameters[1] == 'v');
+#endif
+
+  // Takes over or supersedes what the previous flight's gauge of this context or role left (see gauge_slots.h).
+  Instance* instance = g_slots.install(ctx, role, g_resources);
   if (instance == nullptr) {
     return false;
   }
-  *instance = Instance{};
-  instance->inUse = true;
-  instance->ctx = ctx;
-
-  const char* parameters = installData != nullptr ? installData->strParameters : nullptr;
-  instance->isRight = parameters != nullptr && (parameters[0] == 'R' || parameters[0] == 'r');
-#ifdef A380X
-  // "LV" / "RV": this instance only draws the terrain profile on the VD.
-  instance->isVdTerrain = parameters != nullptr && parameters[0] != '\0' && (parameters[1] == 'V' || parameters[1] == 'v');
-#endif
 
   registerSimVars();
   registerInstanceVars(*instance);
@@ -155,36 +209,9 @@ static bool installInstance(FsContext ctx, const sGaugeInstallData* installData)
   params.userPtr = ctx;
   params.edgeAntiAlias = false;
   instance->nvg = nvgCreateInternal(&params);
-  createViews(ctx, *instance);
+  // The views, when the module has room for them (otherwise before a later draw, see PANEL_SERVICE_PRE_DRAW).
+  g_slots.ensureViews(*instance, g_resources);
   return true;
-}
-
-// Releases everything a gauge instance owns and frees its slot.
-static void destroyInstance(FsContext ctx, Instance& instance) {
-  simBridgeOnGaugeKill(ctx);
-  const FsTextureId views[] = {
-      instance.mapView,          instance.mapViewHot,     instance.mapViewTerrain, instance.mapViewWater,
-#ifdef A380X
-      instance.mapViewVdTerrain, instance.mapViewVdWater,
-#endif
-  };
-  for (FsTextureId view : views) {
-    if (view != 0) {
-      fsMapViewDelete(ctx, view);
-    }
-  }
-  if (instance.nvg != nullptr) {
-    if (instance.terrainPatternImage != 0) {
-      nvgDeleteImage(instance.nvg, instance.terrainPatternImage);
-    }
-#ifdef A380X
-    if (instance.vdRampImage != 0) {
-      nvgDeleteImage(instance.nvg, instance.vdRampImage);
-    }
-#endif
-    nvgDeleteInternal(instance.nvg);
-  }
-  instance = Instance{};
 }
 
 // ---------------------------------------------------------------------------
@@ -395,8 +422,8 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
 // the same sweep).
 static float radarSweepFraction(double now) {
   bool anyRequested = false;
-  for (const Instance& other : g_instances) {
-    if (other.inUse && !other.isVdTerrain && other.wxrRequested) {
+  for (const Instance& other : g_slots.slots) {
+    if (other.inUse && !other.superseded && !other.isVdTerrain && other.wxrRequested) {
       anyRequested = true;
     }
   }
@@ -757,6 +784,12 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       if (instance == nullptr || instance->nvg == nullptr) {
         return true;
       }
+      // A gauge whose views had to wait for room (see gauge_slots.h) draws nothing until it has them.
+      if (!instance->viewsCreated) {
+        if (!g_slots.ensureViews(*instance, g_resources)) {
+          return true;
+        }
+      }
 #ifdef A380X
       if (instance->isVdTerrain) {
         drawVdTerrainGauge(ctx, *instance, static_cast<const sGaugeDrawData*>(pData));
@@ -766,13 +799,10 @@ MSFS_CALLBACK bool ndwxr_gauge_callback(FsContext ctx, int service_id, void* pDa
       drawNd(ctx, *instance, static_cast<const sGaugeDrawData*>(pData));
       return true;
     }
-    case PANEL_SERVICE_PRE_KILL: {
-      Instance* instance = findInstance(ctx);
-      if (instance != nullptr) {
-        destroyInstance(ctx, *instance);
-      }
+    case PANEL_SERVICE_PRE_KILL:
+      // (a gauge whose slot the next flight's gauge took over has nothing left to release)
+      g_slots.kill(ctx, g_resources);
       return true;
-    }
     default:
       return true;
   }
