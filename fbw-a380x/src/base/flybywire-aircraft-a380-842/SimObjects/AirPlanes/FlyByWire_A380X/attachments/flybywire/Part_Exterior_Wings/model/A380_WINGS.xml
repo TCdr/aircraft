@@ -533,6 +533,60 @@
 			</UseTemplate>
 		</Component>
 		<!--
+			Fuel jettison on the ground: fuel dripping from each jettison outlet, next to the plume below (visual layer only).
+			- A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON (ABN PROC): "It is possible to jettison in any aircraft configuration, and at any
+			  speed. However, the height should be sufficient to avoid contamination on the ground" (a380_fcom.txt
+			  l.151175-151176): a jettison on the ground puts the fuel on the ground. The FQMS (FuelJettison.ts) does not
+			  inhibit it on the ground (JETTISON ARM + ACTIVE pb-sw on the overhead FUEL panel).
+			- Same per-side condition as the plume (L:A380X_FUEL_JETTISON_IN_PROGRESS and that side's jettison valve 57 / 58
+			  open), and SIM ON GROUND. Like the plume, not tied to the flyPad Settings > Sim Options switch "Situation
+			  Visual Effects" (user decision 2026-10-12: the jettison effect is not a situation effect, plume and drip
+			  always show together).
+			- Look (design choice): the stock MSFS fuel leak drip graphs of the SDK templates ASOBO_Fuel_Leak_Slow_Template
+			  (below 40 kt TAS) and ASOBO_Fuel_Leak_Fast_Template (40 kt TAS and above), switched by the true airspeed as
+			  Asobo does (Asobo_EX1 Common/Exterior/Templates/VFX.xml). Those graphs only emit while their graph parameter
+			  FuelLeak_Active is true: it gets the same condition as FX_CODE, as in the stock templates.
+			- Design choice: the drip accompanies the plume on the ground, it does not replace it. The plume (stock water
+			  ballast mist) gives the fuel stream at the outlet, as on a glider draining its ballast on the ground, and the
+			  drip adds the drops falling to the ground. The user-confirmed plume is left unchanged.
+			- No offset, on the outlet nodes FX_JETTISON_LH / FX_JETTISON_RH of the plume.
+			- JettisonDripContrailEffects.spec.ts (src/systems/shared/src) checks these components.
+		-->
+		<Component ID="FUEL_JETTISON_GROUND_DRIP_FX">
+			<Component ID="FUEL_JETTISON_GROUND_DRIP_FX_LEFT_SLOW" Node="FX_JETTISON_LH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{21C38E31-40D2-4477-8118-2E78DC130D17}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_GROUND_DRIP_LEFT_SLOW</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_CODE>
+					<FX_GRAPH_PARAM_0>FuelLeak_Active, (L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_GRAPH_PARAM_0>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_GROUND_DRIP_FX_LEFT_FAST" Node="FX_JETTISON_LH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{65D83A8F-3436-4161-90E4-DD7883247A1D}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_GROUND_DRIP_LEFT_FAST</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_CODE>
+					<FX_GRAPH_PARAM_0>FuelLeak_Active, (L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_GRAPH_PARAM_0>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_GROUND_DRIP_FX_RIGHT_SLOW" Node="FX_JETTISON_RH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{21C38E31-40D2-4477-8118-2E78DC130D17}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_GROUND_DRIP_RIGHT_SLOW</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_CODE>
+					<FX_GRAPH_PARAM_0>FuelLeak_Active, (L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_GRAPH_PARAM_0>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_GROUND_DRIP_FX_RIGHT_FAST" Node="FX_JETTISON_RH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{65D83A8F-3436-4161-90E4-DD7883247A1D}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_GROUND_DRIP_RIGHT_FAST</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_CODE>
+					<FX_GRAPH_PARAM_0>FuelLeak_Active, (L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_GRAPH_PARAM_0>
+				</UseTemplate>
+			</Component>
+		</Component>
+		<!--
 			Fuel jettison plume, one per wing while fuel flows out of that side: the FQMS jettisons
 			(L:A380X_FUEL_JETTISON_IN_PROGRESS, FuelJettison.ts) and that side's jettison valve is open (fuel system
 			valve 57 left, 58 right). FCOM DSC-28-40: "one discharge point on the trailing edge of each wing"; the exit is
