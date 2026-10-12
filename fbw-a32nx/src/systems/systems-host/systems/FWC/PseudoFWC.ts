@@ -210,6 +210,7 @@ import { FWC_1_AND_2_FAULT_EWD, FWC_FAULT_EWD_CODES, FwcAvailability, fwcFaultSt
 import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
 import { fireDetectionFaultAlerts } from './Logic/FireDetectionFaults';
+import { BleedAlerts, readBleedInputs } from './Logic/BleedAlerts';
 import {
   isXpdrStandbyDiscrete,
   isXpdrSwitchLineShown,
@@ -1777,6 +1778,9 @@ export class PseudoFWC {
 
   private crossBleedSelector = CrossBleedSelector.Auto;
 
+  /** The AIR bleed cautions (FCOM PRO-ABN-AIR), see Logic/BleedAlerts */
+  private readonly bleedAlerts = new BleedAlerts();
+
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
 
@@ -3018,7 +3022,7 @@ export class PseudoFWC {
     this.apuMasterSwitch.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'bool'));
 
     this.apuAvail.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool'));
-    this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_BLEED_PB_IS_ON', 'bool'));
+    this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool'));
 
     this.radioAlt.set(SimVar.GetSimVarValue('PLANE ALT ABOVE GROUND MINUS CG', 'feet'));
 
@@ -4839,6 +4843,9 @@ export class PseudoFWC {
     this.engine1ShutDown.set(isEngineShutDown(engine1MasterOn, engine1FirePbPushed, flightPhase) && !allEnginesFailed);
     this.engine2ShutDown.set(isEngineShutDown(engine2MasterOn, engine2FirePbPushed, flightPhase) && !allEnginesFailed);
     this.crossBleedSelector = SimVar.GetSimVarValue('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number');
+
+    /* AIR bleed cautions (FCOM PRO-ABN-AIR), from the Rust pneumatic flags, see Logic/BleedAlerts */
+    this.bleedAlerts.update(readBleedInputs(), deltaTime / 1000);
 
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
@@ -8837,6 +8844,8 @@ export class PseudoFWC {
       side: 'LEFT',
       ...alertStatus(() => packOffStatus(2)),
     },
+    // 36 - PNEUMATIC: the AIR bleed cautions (keys 3611001-3611014), see Logic/BleedAlerts
+    ...this.bleedAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],

@@ -240,6 +240,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New F/CTL cautions from the flight control computers: L(R) ELEV FAULT, L(R) AIL FAULT, SPLR FAULT, ELEV SERVO FAULT, AIL SERVO FAULT and ELAC 1(2) PITCH FAULT, with the FCOM phase inhibitions; a loss caused by a hydraulic system or a failed computer stays with the HYD or ELAC/SEC alert - @TCdr
 1. [A32NX/FWC] F/CTL: both ELACs failed now show one ELAC 1+2 FAULT procedure instead of two ELAC FAULT alerts; ALTN LAW shows SPD BRK DO NOT USE for an L or R elevator fault (as the FCOM) instead of the spoiler 3+4 fault; FCDC 1+2 FAULT is no longer inhibited in phase 3 - @TCdr
 1. [A32NX/FWC] F/CTL STATUS page: ALTN LAW, DIRECT LAW, ELAC, SEC, FCDC, elevator, aileron and spoiler faults now show their FCOM limitations, approach procedure, information and INOP SYS lines - @TCdr
+1. [A32NX/FWC] New AIR bleed cautions: ENG 1(2) and 1+2 BLEED FAULT, ENG 1(2) and 1+2 BLEED LO TEMP, ENG 1(2) BLEED HI TEMP, ENG 1(2) BLEED NOT CLSD, BLEED 1(2) OFF, APU BLEED FAULT and X BLEED FAULT, with their procedures and STATUS - @TCdr
 
 ## 2024.1.0
 

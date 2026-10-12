@@ -153,6 +153,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
   ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
+  // 36 PNEUMATIC (FCOM PRO-ABN-AIR X BLEED FAULT STATUS, a320_fcom.txt l.71070), see FWC/Logic/BleedAlerts
+  ['360200001', { part: StatusPart.Information, text: 'X BLEED MAN CTL' }],
   // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT 1(2) FAULT and BCL 1(2) FAULT STATUS, l.76175, l.76252)
   ['240200201', { part: StatusPart.Information, text: 'APU BAT START NOT AVAIL' }],
   // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL INOP SYS), before CAT 3 DUAL as in ELAC 1(2) FAULT (l.82768-82780)
@@ -188,6 +190,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
   ['360300001', { part: StatusPart.InopSys, text: 'ENG 1 BLEED' }],
   ['360300002', { part: StatusPart.InopSys, text: 'ENG 2 BLEED' }],
+  // FCOM PRO-ABN-AIR ENG 1+2 BLEED FAULT (l.70072-70075: ENG 1 BLEED, ENG 2 BLEED, APU BLEED, PACK 1+2) and X BLEED FAULT
+  ['360300003', { part: StatusPart.InopSys, text: 'APU BLEED' }],
+  ['360300004', { part: StatusPart.InopSys, text: 'X BLEED' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG REVERSER FAULT, THR LEVER FAULT and THR LEVER DISAGREE INOP SYS)
   ['780300001', { part: StatusPart.InopSys, text: 'REVERSER 1' }],
   ['780300002', { part: StatusPart.InopSys, text: 'REVERSER 2' }],
