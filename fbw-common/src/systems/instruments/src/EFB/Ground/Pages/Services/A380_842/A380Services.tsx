@@ -24,6 +24,7 @@ import {
   setBoarding2DoorButtonState,
   setBoarding3DoorButtonState,
   setServiceDoorButtonState,
+  setServiceDoor2ButtonState,
   setBaggageButtonState,
   setCargo1DoorButtonState,
   setCateringButtonState,
@@ -37,6 +38,7 @@ import { GsxServiceId, GsxServiceLook, gsxRequestable, gsxServiceLook, useGsxRem
 import { gsxServiceStatus, triggerGsxService } from '../GsxServicesPanel';
 import { M3Chip, M3Tone } from '../../../../UtilComponents/Material/Material';
 import { PlanformTag } from '../FuselagePlanform';
+import { A380_FWD_CARGO_DOOR, A380_SERVICE_DOORS } from './A380ServiceDoors';
 import { doorRow, equipmentRow, SERVICE_LOOKS, ServiceLook, ServicesLayout } from '../ServicesLayout';
 import { useRatStowRow } from '../RatStowRow';
 
@@ -51,6 +53,7 @@ enum ServiceButton {
   FrontCargoDoor,
   BaggageTruck,
   Main4Right,
+  Main5Right,
   CateringTruck,
 }
 
@@ -94,12 +97,14 @@ export const A380Services: React.FC = () => {
   // Maintenance: RAT stow, on the ground only (the tug does not matter)
   const ratStowRow = useRatStowRow(!!simOnGround && !!aircraftIsStationary);
 
-  // Ground Services
-  const [main1LeftDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:0', 'Percent over 100', 200);
-  const [main2LeftDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:2', 'Percent over 100', 200);
-  const [main4RightDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:9', 'Percent over 100', 200);
-  const [upper1LeftDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:10', 'Percent over 100', 200);
-  const [frontCargoDoorOpen] = useSimVar('A:INTERACTIVE POINT OPEN:16', 'Percent over 100', 200);
+  // Ground Services: the doors' interactive points and exits are in A380ServiceDoors.ts
+  const doorOpenVar = (door: { interactivePoint: number }) => `A:INTERACTIVE POINT OPEN:${door.interactivePoint}`;
+  const [main1LeftDoorOpen] = useSimVar(doorOpenVar(A380_SERVICE_DOORS.main1L), 'Percent over 100', 200);
+  const [main2LeftDoorOpen] = useSimVar(doorOpenVar(A380_SERVICE_DOORS.main2L), 'Percent over 100', 200);
+  const [main4RightDoorOpen] = useSimVar(doorOpenVar(A380_SERVICE_DOORS.main4R), 'Percent over 100', 200);
+  const [main5RightDoorOpen] = useSimVar(doorOpenVar(A380_SERVICE_DOORS.main5R), 'Percent over 100', 200);
+  const [upper1LeftDoorOpen] = useSimVar(doorOpenVar(A380_SERVICE_DOORS.upper1L), 'Percent over 100', 200);
+  const [frontCargoDoorOpen] = useSimVar(doorOpenVar(A380_FWD_CARGO_DOOR), 'Percent over 100', 200);
   const [fuelingActive] = useSimVar('A:INTERACTIVE POINT OPEN:18', 'Percent over 100', 200);
   const [gpu1Avail] = useSimVar('L:A32NX_EXT_PWR_AVAIL:1', 'bool', 200);
   const [gpu2Avail] = useSimVar('L:A32NX_EXT_PWR_AVAIL:2', 'bool', 200);
@@ -168,13 +173,15 @@ export const A380Services: React.FC = () => {
     */
 
   // Service events
-  const toggleMain1LeftDoor = () => SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', 1);
-  const toggleMain2LeftDoor = () => SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', 3);
-  const toggleMain4RightDoor = () => SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', 10);
-  const toggleUpper1LeftDoor = () => SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', 11);
+  const toggleDoor = (door: { exit: number }) => SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', door.exit);
+  const toggleMain1LeftDoor = () => toggleDoor(A380_SERVICE_DOORS.main1L);
+  const toggleMain2LeftDoor = () => toggleDoor(A380_SERVICE_DOORS.main2L);
+  const toggleMain4RightDoor = () => toggleDoor(A380_SERVICE_DOORS.main4R);
+  const toggleMain5RightDoor = () => toggleDoor(A380_SERVICE_DOORS.main5R);
+  const toggleUpper1LeftDoor = () => toggleDoor(A380_SERVICE_DOORS.upper1L);
   const toggleJetBridge = () => SimVar.SetSimVarValue('K:TOGGLE_JETWAY', 'bool', false);
   const toggleStairs = () => SimVar.SetSimVarValue('K:TOGGLE_RAMPTRUCK', 'bool', false);
-  const toggleFrontCargoDoor = () => SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', 17);
+  const toggleFrontCargoDoor = () => toggleDoor(A380_FWD_CARGO_DOOR);
   const toggleBaggageTruck = () => SimVar.SetSimVarValue('K:REQUEST_LUGGAGE', 'bool', true);
   const toggleCateringTruck = () => SimVar.SetSimVarValue('K:REQUEST_CATERING', 'bool', true);
   const toggleFuelTruck = () => SimVar.SetSimVarValue('K:REQUEST_FUEL_KEY', 'bool', true);
@@ -186,6 +193,7 @@ export const A380Services: React.FC = () => {
     boarding2DoorButtonState,
     boarding3DoorButtonState,
     serviceDoorButtonState,
+    serviceDoor2ButtonState,
     cargo1DoorButtonState,
     jetWayButtonState,
     stairsButtonState,
@@ -333,9 +341,14 @@ export const A380Services: React.FC = () => {
         handleDoors(boarding3DoorButtonState, setBoarding3DoorButtonState);
         toggleUpper1LeftDoor();
         break;
+      // MAIN 4R only opens and closes: the catering truck is served at MAIN 5R
       case ServiceButton.Main4Right:
-        handleDoors(serviceDoorButtonState, setServiceDoorButtonState);
+        handleDoors(serviceDoor2ButtonState, setServiceDoor2ButtonState);
         toggleMain4RightDoor();
+        break;
+      case ServiceButton.Main5Right:
+        handleDoors(serviceDoorButtonState, setServiceDoorButtonState);
+        toggleMain5RightDoor();
         break;
       case ServiceButton.FrontCargoDoor:
         handleDoors(cargo1DoorButtonState, setCargo1DoorButtonState);
@@ -389,7 +402,7 @@ export const A380Services: React.FC = () => {
           setCateringButtonState,
           serviceDoorButtonState,
           setServiceDoorButtonState,
-          main4RightDoorOpen,
+          main5RightDoorOpen,
         );
         toggleCateringTruck();
         break;
@@ -475,8 +488,16 @@ export const A380Services: React.FC = () => {
     simpleServiceListenerHandling(boarding2DoorButtonState, setBoarding2DoorButtonState, main2LeftDoorOpen);
     simpleServiceListenerHandling(boarding3DoorButtonState, setBoarding3DoorButtonState, upper1LeftDoorOpen);
     simpleServiceListenerHandling(cargo1DoorButtonState, setCargo1DoorButtonState, frontCargoDoorOpen);
-    simpleServiceListenerHandling(serviceDoorButtonState, setServiceDoorButtonState, main4RightDoorOpen);
-  }, [main1LeftDoorOpen, main2LeftDoorOpen, main4RightDoorOpen, upper1LeftDoorOpen, frontCargoDoorOpen]);
+    simpleServiceListenerHandling(serviceDoor2ButtonState, setServiceDoor2ButtonState, main4RightDoorOpen);
+    simpleServiceListenerHandling(serviceDoorButtonState, setServiceDoorButtonState, main5RightDoorOpen);
+  }, [
+    main1LeftDoorOpen,
+    main2LeftDoorOpen,
+    main4RightDoorOpen,
+    main5RightDoorOpen,
+    upper1LeftDoorOpen,
+    frontCargoDoorOpen,
+  ]);
 
   // Fuel
   useEffect(() => {
@@ -528,9 +549,9 @@ export const A380Services: React.FC = () => {
       setCateringButtonState,
       serviceDoorButtonState,
       setServiceDoorButtonState,
-      main4RightDoorOpen,
+      main5RightDoorOpen,
     );
-  }, [main4RightDoorOpen]);
+  }, [main5RightDoorOpen]);
 
   // Pushback or movement start --> disable buttons and close doors
   // Enable buttons if all have been disabled before
@@ -540,6 +561,7 @@ export const A380Services: React.FC = () => {
       dispatch(setBoarding2DoorButtonState(ServiceButtonState.DISABLED));
       dispatch(setBoarding3DoorButtonState(ServiceButtonState.DISABLED));
       dispatch(setServiceDoorButtonState(ServiceButtonState.DISABLED));
+      dispatch(setServiceDoor2ButtonState(ServiceButtonState.DISABLED));
       dispatch(setCargo1DoorButtonState(ServiceButtonState.DISABLED));
       dispatch(setJetWayButtonState(ServiceButtonState.DISABLED));
       dispatch(setStairsButtonState(ServiceButtonState.DISABLED));
@@ -559,6 +581,9 @@ export const A380Services: React.FC = () => {
       if (main4RightDoorOpen === 1) {
         toggleMain4RightDoor();
       }
+      if (main5RightDoorOpen === 1) {
+        toggleMain5RightDoor();
+      }
       if (frontCargoDoorOpen === 1) {
         toggleFrontCargoDoor();
       }
@@ -568,6 +593,7 @@ export const A380Services: React.FC = () => {
         boarding2DoorButtonState,
         boarding3DoorButtonState,
         serviceDoorButtonState,
+        serviceDoor2ButtonState,
         cargo1DoorButtonState,
         cateringButtonState,
         jetWayButtonState,
@@ -582,6 +608,7 @@ export const A380Services: React.FC = () => {
       dispatch(setBoarding2DoorButtonState(ServiceButtonState.INACTIVE));
       dispatch(setBoarding3DoorButtonState(ServiceButtonState.INACTIVE));
       dispatch(setServiceDoorButtonState(ServiceButtonState.INACTIVE));
+      dispatch(setServiceDoor2ButtonState(ServiceButtonState.INACTIVE));
       dispatch(setCargo1DoorButtonState(ServiceButtonState.INACTIVE));
       dispatch(setJetWayButtonState(ServiceButtonState.INACTIVE));
       dispatch(setStairsButtonState(ServiceButtonState.INACTIVE));
@@ -603,7 +630,7 @@ export const A380Services: React.FC = () => {
   const doors = [
     doorRow(
       'main1L',
-      t('Ground.Services.DoorMain1L'),
+      t(A380_SERVICE_DOORS.main1L.labelKey),
       doorIcon(main1LeftDoorOpen),
       main1LeftDoorOpen,
       look(boarding1DoorButtonState),
@@ -611,7 +638,7 @@ export const A380Services: React.FC = () => {
     ),
     doorRow(
       'main2L',
-      t('Ground.Services.DoorMain2L'),
+      t(A380_SERVICE_DOORS.main2L.labelKey),
       doorIcon(main2LeftDoorOpen),
       main2LeftDoorOpen,
       look(boarding2DoorButtonState),
@@ -619,7 +646,7 @@ export const A380Services: React.FC = () => {
     ),
     doorRow(
       'upper1L',
-      t('Ground.Services.DoorUpper1L'),
+      t(A380_SERVICE_DOORS.upper1L.labelKey),
       doorIcon(upper1LeftDoorOpen),
       upper1LeftDoorOpen,
       look(boarding3DoorButtonState),
@@ -627,11 +654,19 @@ export const A380Services: React.FC = () => {
     ),
     doorRow(
       'main4R',
-      t('Ground.Services.DoorMain4R'),
+      t(A380_SERVICE_DOORS.main4R.labelKey),
       doorIcon(main4RightDoorOpen),
       main4RightDoorOpen,
-      look(serviceDoorButtonState),
+      look(serviceDoor2ButtonState),
       click(ServiceButton.Main4Right),
+    ),
+    doorRow(
+      'main5R',
+      t(A380_SERVICE_DOORS.main5R.labelKey),
+      doorIcon(main5RightDoorOpen),
+      main5RightDoorOpen,
+      look(serviceDoorButtonState),
+      click(ServiceButton.Main5Right),
     ),
     doorRow(
       'cargoFwd',
@@ -753,7 +788,8 @@ export const A380Services: React.FC = () => {
       label: t('Ground.Services.TagCatering'),
       tone: toneOf(ServiceButton.CateringTruck, cateringButtonState),
       side: 'R',
-      at: 440,
+      // just forward of the 5 R marker: the catering truck is served at MAIN 5R (clear of the 4 R marker)
+      at: 545,
     },
   ];
   if (pushBackAttached) {
@@ -787,29 +823,29 @@ export const A380Services: React.FC = () => {
       planformDoors={[
         {
           key: 'main1L',
-          label: '1 L',
+          label: A380_SERVICE_DOORS.main1L.planformLabel,
           side: 'L',
-          at: 70,
-          artId: 'FWD_L_Door',
+          at: A380_SERVICE_DOORS.main1L.planformAt,
+          artId: A380_SERVICE_DOORS.main1L.planformArtId,
           open: main1LeftDoorOpen,
           disabled: boarding1DoorButtonState === ServiceButtonState.DISABLED,
           onClick: click(ServiceButton.Main1Left),
         },
         {
           key: 'main2L',
-          label: '2 L',
+          label: A380_SERVICE_DOORS.main2L.planformLabel,
           side: 'L',
-          at: 176,
-          artId: 'MID-FWD_L_Door',
+          at: A380_SERVICE_DOORS.main2L.planformAt,
+          artId: A380_SERVICE_DOORS.main2L.planformArtId,
           open: main2LeftDoorOpen,
           disabled: boarding2DoorButtonState === ServiceButtonState.DISABLED,
           onClick: click(ServiceButton.Main2Left),
         },
         {
           key: 'upper1L',
-          label: 'U1L',
+          label: A380_SERVICE_DOORS.upper1L.planformLabel,
           side: 'L',
-          at: 125,
+          at: A380_SERVICE_DOORS.upper1L.planformAt,
           open: upper1LeftDoorOpen,
           upperDeck: true,
           disabled: boarding3DoorButtonState === ServiceButtonState.DISABLED,
@@ -817,13 +853,23 @@ export const A380Services: React.FC = () => {
         },
         {
           key: 'main4R',
-          label: '4 R',
+          label: A380_SERVICE_DOORS.main4R.planformLabel,
           side: 'R',
-          at: 472,
-          artId: 'MID-AFT_R_Door',
+          at: A380_SERVICE_DOORS.main4R.planformAt,
+          artId: A380_SERVICE_DOORS.main4R.planformArtId,
           open: main4RightDoorOpen,
-          disabled: serviceDoorButtonState === ServiceButtonState.DISABLED,
+          disabled: serviceDoor2ButtonState === ServiceButtonState.DISABLED,
           onClick: click(ServiceButton.Main4Right),
+        },
+        {
+          key: 'main5R',
+          label: A380_SERVICE_DOORS.main5R.planformLabel,
+          side: 'R',
+          at: A380_SERVICE_DOORS.main5R.planformAt,
+          artId: A380_SERVICE_DOORS.main5R.planformArtId,
+          open: main5RightDoorOpen,
+          disabled: serviceDoorButtonState === ServiceButtonState.DISABLED,
+          onClick: click(ServiceButton.Main5Right),
         },
       ]}
       planformHolds={[
