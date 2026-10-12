@@ -112,6 +112,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OANS] Show the RWY AHEAD advisory without a Navigraph airport map, from the sim's own runways - @TCdr
 1. [A380X/OANS] Display the default airport of the FCOM automatically: the current airport on ground, the origin, destination or alternate airport in flight within 20 NM and 5000 ft of it - @TCdr
 1. [A380X/OANS] The Captain and F/O OANS each display their own airport - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 
 ## 2024.1.0
 
