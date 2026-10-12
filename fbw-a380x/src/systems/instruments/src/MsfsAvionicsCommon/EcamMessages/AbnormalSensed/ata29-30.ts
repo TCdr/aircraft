@@ -1,7 +1,13 @@
 ﻿// Copyright (c) 2024 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { AbnormalProcedure, ChecklistLineStyle, FMS_PRED_UNRELIABLE_CHECKLIST_ITEM } from '..';
+import {
+  AbnormalProcedure,
+  ChecklistLineStyle,
+  DeferredProcedure,
+  DeferredProcedureType,
+  FMS_PRED_UNRELIABLE_CHECKLIST_ITEM,
+} from '..';
 
 // Convention for IDs:
 // First two digits: ATA chapter
@@ -648,7 +654,8 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
       },
       { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM },
       {
-        name: 'LDG DIST AFFECTED',
+        // A380 FCOM l.155898: LDG PERF AFFECTED (loss of 6 pairs of ground spoilers and 2 ailerons, increased VAPP)
+        name: 'LDG PERF AFFECTED',
         sensed: false,
       },
       {
@@ -661,5 +668,81 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mHYD\x1bm Y ELEC PMP A+B OFF',
     sensed: true,
     items: [],
+  },
+  // ATA 30 A-ICE
+  300800001: {
+    // A380 FCOM PRO-ABN-ECAM-10-30 A-ICE ICE DETECTED (a380_fcom.txt l.156579-156607)
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ICE DETECTED',
+    sensed: true,
+    items: [
+      { name: 'ENG 1 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 2 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 3 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 4 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+    ],
+  },
+  300800002: {
+    // A380 FCOM PRO-ABN-ECAM-10-30 A-ICE SEVERE ICE DETECTED (a380_fcom.txt l.157282-157300)
+    title: '\x1b<4m\x1b4mA-ICE\x1bm SEVERE ICE DETECTED',
+    sensed: true,
+    items: [
+      { name: 'ENG 1 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 2 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 3 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 4 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'ON' },
+    ],
+  },
+};
+
+/**
+ * ATA 29 deferred procedures. The FCOM gives no title for them; design choice: the title names the alert they come from.
+ * The items checked are in FwsAbnormalSensed ewdDeferredProcs.
+ */
+export const EcamDeferredProcAta2930: { [n: number]: DeferredProcedure } = {
+  290700001: {
+    // A380 FCOM HYD G(Y) RSVR AIR PRESS LO DEFERRED PROC FOR APPROACH (a380_fcom.txt l.155249-155253): pump cavitation
+    // decreases at a lower altitude, the system may be restored
+    fromAbnormalProcs: ['290800019'],
+    title: 'G RSVR AIR PRESS LO',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'G ENG 1 PMP A AND B', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'G ENG 2 PMP A AND B', sensed: true, labelNotCompleted: 'ON' },
+    ],
+  },
+  290700002: {
+    // Y RSVR AIR PRESS LO, as 290700001
+    fromAbnormalProcs: ['290800020'],
+    title: 'Y RSVR AIR PRESS LO',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'Y ENG 3 PMP A AND B', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'Y ENG 4 PMP A AND B', sensed: true, labelNotCompleted: 'ON' },
+    ],
+  },
+  290700003: {
+    // A380 FCOM HYD G(Y) SYS OVHT DEFERRED PROC APPROACH (a380_fcom.txt l.155480-155487): IF G(Y) SYS OVHT OUT, the
+    // engine pumps ON; "The ECAM does not display the following procedure, if the flight crew disconnected the engine
+    // pumps" (FwsAbnormalSensed ewdDeferredProcs)
+    fromAbnormalProcs: ['290800031'],
+    title: 'G SYS OVHT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF G SYS OVHT OUT', sensed: true, condition: true },
+      { name: 'G ENG 1 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'G ENG 2 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
+  },
+  290700004: {
+    // Y SYS OVHT, as 290700003
+    fromAbnormalProcs: ['290800032'],
+    title: 'Y SYS OVHT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF Y SYS OVHT OUT', sensed: true, condition: true },
+      { name: 'Y ENG 3 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'Y ENG 4 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
   },
 };

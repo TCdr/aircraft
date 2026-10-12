@@ -1,11 +1,15 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isTcasInoperative, SurvSystem } from '../../Misc/Communications/TransponderSystem';
 import {
+  gpwsFaultItemsToShow,
   isApFdTcasModeInop,
   splitSurvFaults,
+  tawsFunctionFaults,
   tcasFaultCondition,
   xpdrFaultCondition,
   XpdrTcasSwitchLine,
@@ -185,5 +189,49 @@ describe('XPDR & TCAS ..... SYS 2(1) line', () => {
     line.update(false, 2, true);
     line.update(true, 2, true);
     expect(line.isShown()).toBe(false);
+  });
+});
+
+describe('SURV TAWS 1(2) and GPWS 1(2) FAULT (A380 FCOM l.166421-166498, l.166800-166880)', () => {
+  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+  /** The source of one alert entry of FwsAbnormalSensed, from its id to the end of its object */
+  const alertBlock = (id: string) => {
+    const start = abnormalSensed.indexOf(`    ${id}: {`);
+    expect(start).toBeGreaterThan(0);
+    return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
+  };
+
+  it('GPWS and TERR SYS both failed is the TAWS fault, which replaces the GPWS and TERR SYS faults', () => {
+    expect(tawsFunctionFaults(true, true, true)).toEqual({ taws: true, gpws: false, terr: false });
+    expect(tawsFunctionFaults(true, false, true)).toEqual({ taws: false, gpws: true, terr: false });
+    expect(tawsFunctionFaults(false, true, true)).toEqual({ taws: false, gpws: false, terr: true });
+    expect(tawsFunctionFaults(true, true, false)).toEqual({ taws: false, gpws: false, terr: false });
+  });
+
+  it('GPWS 1 FAULT lines: SYS 2 if selected on SYS 1 and SYS 2 operative, else CHECK and AS RQRD', () => {
+    expect(gpwsFaultItemsToShow(1, 1, false, false)).toEqual([true, false, false]);
+    expect(gpwsFaultItemsToShow(1, 2, false, false)).toEqual([false, false, false]);
+    expect(gpwsFaultItemsToShow(1, 1, true, false)).toEqual([false, true, true]);
+    expect(gpwsFaultItemsToShow(2, 1, false, true)).toEqual([false, true, true]);
+  });
+
+  it('the TAWS faults are derived from the GPWS and TERR SYS failures, not from never-written L:vars', () => {
+    expect(core).not.toContain('L:A32NX_TAWS_1_FAILED');
+    expect(core).not.toContain('L:A32NX_TAWS_2_FAILED');
+    expect(core).toContain('tawsFunctionFaults(this.gpws1Failed.get(), this.terrSys1Failed.get(), taws1Powered)');
+  });
+
+  it.each([
+    ['341800026', 'this.fws.gpws1FaultCond'],
+    ['341800027', 'this.fws.gpws2FaultCond'],
+  ])('GPWS FAULT %s is wired to %s, phases 3-7, 10, 11 inhibited (PDF p.5623)', (id, condition) => {
+    const block = alertBlock(id);
+    expect(block).toContain(`simVarIsActive: ${condition},`);
+    expect(block).toContain('flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],');
+  });
+
+  it('GPWS 1+2 FAULT: [MFD SURV] GPWS ... OFF (l.166493)', () => {
+    expect(alertBlock('341800028')).toContain('whichItemsChecked: () => [this.fws.tawsGpwsOff.get()],');
   });
 });
