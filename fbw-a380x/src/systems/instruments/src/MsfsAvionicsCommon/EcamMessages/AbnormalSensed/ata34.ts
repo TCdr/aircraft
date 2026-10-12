@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { AbnormalProcedure, ChecklistLineStyle, DeferredProcedure, DeferredProcedureType } from '..';
@@ -304,17 +304,50 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800016: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O ALT DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      // A380 FCOM l.164513
+      {
+        name: 'ALT',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      // A380 FCOM l.164515
+      {
+        name: 'AIR DATA SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800017: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O ATT DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      // A380 FCOM l.164595 (TDU 00023230)
+      {
+        name: 'ATT',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      // A380 FCOM l.164597
+      {
+        name: 'ATT HDG SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800018: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O BARO REF DISAGREE',
     sensed: true,
-    items: [], // no separate baros
+    items: [
+      // A380 FCOM l.164624
+      {
+        name: 'BARO REF',
+        sensed: false,
+        labelNotCompleted: 'XCHECK',
+      },
+    ],
   },
   340800019: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O BARO VALUE DISAGREE',
@@ -324,7 +357,20 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800020: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O HDG DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      // A380 FCOM l.164710 (TDU 00023229), the FCOM text cuts the label
+      {
+        name: 'HDG',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      // A380 FCOM l.164714, the FCOM text cuts the label
+      {
+        name: 'ATT HDG SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800021: {
     title: '\x1b<4m\x1b4mNAV\x1bm EXTREME LATITUDE',

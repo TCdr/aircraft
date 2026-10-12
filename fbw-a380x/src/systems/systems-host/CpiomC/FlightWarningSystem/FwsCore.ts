@@ -144,6 +144,8 @@ import {
 } from '@shared/CdsDisplayUnits';
 import { DcElectricalBus } from '@shared/electrical';
 import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
+import { FwsGearAlerts } from './FwsGearAlerts';
+import { FwsNavAlerts, readSideDisplayData } from './FwsNavAlerts';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -1815,6 +1817,16 @@ export class FwsCore {
   public readonly lgciu1DiscreteWord4 = Arinc429Register.empty();
 
   public readonly lgciu2DiscreteWord4 = Arinc429Register.empty();
+
+  public readonly lgciu1DiscreteWord3 = Arinc429Register.empty();
+
+  public readonly lgciu2DiscreteWord3 = Arinc429Register.empty();
+
+  /** L/G CTL FAULT, GEAR NOT LOCKED DOWN/UP, DOORS NOT CLOSED, SYSTEM DISAGREE (A380 FCOM PRO-ABN-ECAM-10-32) */
+  public readonly gearAlerts = new FwsGearAlerts();
+
+  /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
+  public readonly navAlerts = new FwsNavAlerts();
 
   public isAllGearDownlocked = false;
 
@@ -4203,6 +4215,34 @@ export class FwsCore {
     this.lgciu2DiscreteWord2.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_2');
     this.lgciu1DiscreteWord4.setFromSimVar('L:A32NX_LGCIU_1_DISCRETE_WORD_4');
     this.lgciu2DiscreteWord4.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_4');
+    this.lgciu1DiscreteWord3.setFromSimVar('L:A32NX_LGCIU_1_DISCRETE_WORD_3');
+    this.lgciu2DiscreteWord3.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_3');
+    this.gearAlerts.update(
+      deltaTime,
+      {
+        word1: this.lgciu1DiscreteWord1,
+        word2: this.lgciu1DiscreteWord2,
+        word3: this.lgciu1DiscreteWord3,
+        word4: this.lgciu1DiscreteWord4,
+      },
+      {
+        word1: this.lgciu2DiscreteWord1,
+        word2: this.lgciu2DiscreteWord2,
+        word3: this.lgciu2DiscreteWord3,
+        word4: this.lgciu2DiscreteWord4,
+      },
+      this.aircraftOnGround.get(),
+      SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', 'number') === 2,
+    );
+    const navTrueRef = SimVar.GetSimVarValue('L:A32NX_PUSH_TRUE_REF', 'bool') > 0;
+    const navAirKnob = SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum');
+    const navAttKnob = SimVar.GetSimVarValue('L:A32NX_ATT_HDG_SWITCHING_KNOB', 'enum');
+    this.navAlerts.update(
+      deltaTime,
+      readSideDisplayData(true, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
+      readSideDisplayData(false, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
+      navTrueRef,
+    );
     const parkBrakeSet = SimVar.GetSimVarValue('L:A32NX_PARK_BRAKE_LEVER_POS', 'Number') === 1;
     this.parkBrakeSet.set(parkBrakeSet);
     this.lgParkBrkOn.set(this.parkBrake2sConfNode.write(parkBrakeSet, deltaTime));

@@ -25,6 +25,21 @@ import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionics
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
 import { isApFdTcasModeInop } from './FwsSurvAlerts';
+import {
+  aboveGearDoorSpeed,
+  doorsNotClosedChecked,
+  doorsNotClosedItems,
+  doorsNotClosedLimitations,
+  gearNotLockedDownChecked,
+  gearNotLockedDownItems,
+  gearNotLockedUpChecked,
+  gearNotLockedUpItems,
+  gearNotLockedUpLimitations,
+  lgCtl12Items,
+  lgCtl12Limitations,
+  lgCtl12PfdLimitations,
+} from './FwsGearAlerts';
+import { directLawInfo, directLawInopSysAllPhases, lawInopSysApprLdg } from './FwsFctlAlerts';
 import { ALL_ENG_FLAME_OUT_INHIBITED_PHASES } from './EngineFailAlerts';
 import {
   OIL_FILTER_CLOGGED_PHASE_INHIBITION,
@@ -3272,6 +3287,7 @@ export class FwsAbnormalSensed {
         this.fws.altn2LawConfirm ? '220300007' : '',
         this.fws.altn2LawConfirm ? '220300024' : '',
       ],
+      inopSysApprLdg: () => lawInopSysApprLdg(),
       info: () => ['340200002'],
     },
     271800009: {
@@ -3283,7 +3299,9 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [false, false, false, false],
       failure: 2,
       sysPage: SdPages.None,
-      inopSysAllPhases: () => ['220300007', '220300024'],
+      inopSysAllPhases: () => directLawInopSysAllPhases(),
+      inopSysApprLdg: () => lawInopSysApprLdg(),
+      info: () => directLawInfo(this.fws.allPrimAndSecFailed.get()),
     },
     271800013: {
       // FCDC 1 FAULT
@@ -5008,6 +5026,141 @@ export class FwsAbnormalSensed {
       monitorConfirmTime: 0,
       nonProcedureKey: true,
     },
+    // L/G alerts from the LGCIS (A380 FCOM PRO-ABN-ECAM-10-32, FwsGearAlerts.ts). The FCOM flight phase inhibitions are
+    // figures: design choice, the A32NX FWC phases of the matching A320 alert mapped onto the A380 phases (A320 3 -> 3,
+    // 4 -> 4+5, 5 -> 6+7, 7 -> 9, 8 -> 10, 9 -> 11, 10 -> 12), the A380 F/CTL crew awareness set for the others.
+    320800033: {
+      // L/G CTL 1 FAULT: crew awareness, SD page only (l.160908-160921). Phases: A320 LGCIU 1 FAULT [3, 4, 5, 7, 8].
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.lgCtl1Fault,
+      notActiveWhenItemActive: ['320800035'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800034: {
+      // L/G CTL 2 FAULT: crew awareness, SD page only (l.160908-160921). Phases: A320 LGCIU 2 FAULT [3, 4, 5, 7, 8].
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.lgCtl2Fault,
+      notActiveWhenItemActive: ['320800035'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800035: {
+      // L/G CTL 1+2 FAULT: audio, master light, SD page (l.160933-161049). Phases: A320 LGCIU 1+2 FAULT [4, 5, 7, 8].
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.lgCtl12Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        lgCtl12Items(this.fws.gearAlerts.ctl12WithGearDown.get(), this.fws.oneEngineRunning.get()),
+      whichItemsChecked: () => [this.fws.tawsGpwsOff.get(), false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsAllPhases: () => lgCtl12Limitations(this.fws.gearAlerts.ctl12WithGearDown.get()),
+      limitationsPfd: () => lgCtl12PfdLimitations(this.fws.gearAlerts.ctl12WithGearDown.get()),
+      // STATUS INOP SYS APPR & LDG: L/G CTL 1+2, GPWS 1+2 (l.161040-161045)
+      inopSysApprLdg: () => ['320300011', '340300003'],
+    },
+    320800039: {
+      // L/G GEAR NOT LOCKED DOWN: lever DOWN, a gear not downlocked after about 60 s (l.161239-161344). Red title as
+      // the A320 L/G GEAR NOT DOWNLOCKED warning. Phases: A320 GEAR NOT DOWNLOCKED [3, 4, 5, 8].
+      flightPhaseInhib: [3, 4, 5, 6, 7, 10],
+      simVarIsActive: this.fws.gearAlerts.gearNotLockedDown,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        gearNotLockedDownItems(
+          !this.fws.aircraftOnGround.get(),
+          this.fws.gearAlerts.notLockedDownGravityDue.get(),
+          SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', SimVarValueType.Number) === 2 &&
+            this.fws.gearAlerts.leverDown.get(),
+        ),
+      whichItemsChecked: () =>
+        gearNotLockedDownChecked(
+          this.fws.gearAlerts.notLockedDownRecycled.get(),
+          this.fws.gearAlerts.leverDown.get(),
+          SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', SimVarValueType.Number) === 2,
+        ),
+      failure: 3,
+      sysPage: SdPages.Wheel,
+      // For gravity extension: MAX SPEED : 220KT, on the ECAM and the PFD (l.161335-161344)
+      limitationsAllPhases: () => [this.fws.gearAlerts.notLockedDownGravityDue.get() ? '320400001' : ''],
+      limitationsPfd: () => [this.fws.gearAlerts.notLockedDownGravityDue.get() ? '320400001' : ''],
+    },
+    320800040: {
+      // L/G GEAR NOT LOCKED UP: lever UP, a gear not locked up after about 40 s (l.161354-161477). Phases: A320 GEAR
+      // NOT UPLOCKED [3, 4, 7, 8, 9, 10].
+      flightPhaseInhib: [3, 4, 5, 9, 10, 11, 12],
+      simVarIsActive: this.fws.gearAlerts.gearNotLockedUp,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        gearNotLockedUpItems(
+          !this.fws.aircraftOnGround.get(),
+          this.fws.gearAlerts.anyDoorNotClosed.get(),
+          aboveGearDoorSpeed(this.fws.computedAirSpeedToNearest2.get(), this.fws.machSelectedFromAdr.get()),
+          this.fws.gearAlerts.notLockedUpRecycled.get(),
+        ),
+      whichItemsChecked: () =>
+        gearNotLockedUpChecked(
+          aboveGearDoorSpeed(this.fws.computedAirSpeedToNearest2.get(), this.fws.machSelectedFromAdr.get()),
+          this.fws.gearAlerts.notLockedUpRecycled.get(),
+          this.fws.gearAlerts.leverDown.get(),
+        ),
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsAllPhases: () =>
+        gearNotLockedUpLimitations(
+          this.fws.gearAlerts.allGearsDownlocked.get(),
+          this.fws.gearAlerts.anyDoorNotClosed.get(),
+        ),
+      limitationsPfd: () =>
+        gearNotLockedUpLimitations(
+          this.fws.gearAlerts.allGearsDownlocked.get(),
+          this.fws.gearAlerts.anyDoorNotClosed.get(),
+        ),
+      // STATUS INOP SYS ALL PHASES L/G RETRACTION, APPR & LDG L/G DOORS if a door is open (l.161441-161446), INFO
+      // FUEL CONSUMPT INCRSD : FMS PRED DISREGARD (l.161450)
+      inopSysAllPhases: () => ['320300013'],
+      inopSysApprLdg: () => [this.fws.gearAlerts.anyDoorNotClosed.get() ? '320300012' : ''],
+      info: () => [this.fws.aircraftOnGround.get() ? '' : '280200003'],
+    },
+    320800036: {
+      // L/G DOORS NOT CLOSED: a door not closed with the gear stopped (l.161055-161207). Master light and SD page.
+      // Phases: the A380 crew awareness set (design choice).
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.doorsNotClosed,
+      notActiveWhenItemActive: ['320800039', '320800040'],
+      whichItemsToShow: () =>
+        doorsNotClosedItems(
+          !this.fws.aircraftOnGround.get(),
+          aboveGearDoorSpeed(this.fws.computedAirSpeedToNearest2.get(), this.fws.machSelectedFromAdr.get()),
+          this.fws.oneEngineRunning.get(),
+        ),
+      whichItemsChecked: () =>
+        doorsNotClosedChecked(
+          aboveGearDoorSpeed(this.fws.computedAirSpeedToNearest2.get(), this.fws.machSelectedFromAdr.get()),
+          this.fws.gearAlerts.doorsRecycled.get(),
+        ),
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsAllPhases: () => doorsNotClosedLimitations(!this.fws.aircraftOnGround.get()),
+      limitationsPfd: () => doorsNotClosedLimitations(!this.fws.aircraftOnGround.get()),
+      // STATUS INOP SYS APPR & LDG L/G DOORS (l.161174-161176), INFO FUEL CONSUMPT INCRSD : FMS PRED DISREGARD (l.161180)
+      inopSysApprLdg: () => ['320300012'],
+      info: () => [this.fws.aircraftOnGround.get() ? '' : '280200003'],
+    },
+    320800045: {
+      // L/G SYSTEM DISAGREE: crew awareness, SD page only (l.162498-162516). Phases: as L/G CTL 1(2) FAULT.
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.systemDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
 
     // ATA 34 - NAVIGATION
     340800001: {
@@ -5557,6 +5710,48 @@ export class FwsAbnormalSensed {
       inopSysAllPhases: () => ['340300029', '340300003', '341300003'],
       inopSysApprLdg: () => ['340300028', '310300001', '220300010', '220300021'],
       info: () => ['220200007', '220200008', '220200009'],
+    },
+    // NAV CAPT AND F/O DISAGREE alerts (A380 FCOM PRO-ABN-ECAM-10-34-10, FwsNavAlerts.ts): audio and master light, no SD
+    // page. The FCOM flight phase inhibitions are figures: design choice, the phases of the NAV ADR/IR FAULT alerts.
+    340800016: {
+      // CAPT AND F/O ALT DISAGREE (l.164494-164516)
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.navAlerts.altDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800017: {
+      // CAPT AND F/O ATT DISAGREE (l.164527-164598, lines of TDU 00023230)
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.navAlerts.attDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800018: {
+      // CAPT AND F/O BARO REF DISAGREE (l.164609-164624)
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.navAlerts.baroRefDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800020: {
+      // CAPT AND F/O HDG DISAGREE (l.164635-164716, lines of TDU 00023229)
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.navAlerts.hdgDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
     },
     // ATA 34 - SURVEILLANCE
     341800015: {
