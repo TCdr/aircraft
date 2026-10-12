@@ -470,6 +470,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, 4 s below 100 ft, as in the FCOM - @TCdr
 1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
 1. [A380X/GPWS] TERRAIN aural for the mode 2 alert and GLIDE SLOPE aural (louder when hard) for the mode 5 alert; a windshear warning overrides the GPWS alerts - @TCdr
+1. [A32NX/FWC] New HYD cautions and warnings from the FCOM with their procedure and STATUS lines: B (Y) ELEC PUMP LO PR / OVHT, G ENG 1 (Y ENG 2) PUMP LO PR, B/G/Y RSVR LO AIR PR, RSVR LO LVL and SYS LO PR, PTU FAULT, and the red B+Y, G+B, G+Y SYS LO PR warnings (with red LAND ASAP) that replace the single system alerts; the RSVR OVHT procedures show the "x SYS LO PR" lines and the RSVR OVHT, RAT FAULT and PTU FAULT now have their STATUS (INOP SYS, APPR PROC); no pump caution on ground with the engine stopped - @TCdr
+1. [A32NX/FWC] New APU AUTO SHUT DOWN and APU EMER SHUT DOWN cautions (MASTER SW OFF, STATUS INOP SYS APU); a STATUS line given by two alerts is shown once - @TCdr
 
 ## 2024.1.0
 
@@ -2390,5 +2392,3 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Restructured APIs and made Navigraph Auth a reusable component - @MicahBCode (Mischa Binder)
 1. [ECAM] Added F units to CRZ and COND pages for Cabin temps. Currently tied to kg/lbs option in EFB -Patrick Macken  (@PatM on Discord)
 1. [A32NX/FCU] Fixed bug where the FCU selected altitude would immediately switch to 1000s on selecting the 1000ft inteval knob - @elliot747 (Elliot)
-1. [A32NX/FWC] New HYD cautions and warnings from the FCOM with their procedure and STATUS lines: B (Y) ELEC PUMP LO PR / OVHT, G ENG 1 (Y ENG 2) PUMP LO PR, B/G/Y RSVR LO AIR PR, RSVR LO LVL and SYS LO PR, PTU FAULT, and the red B+Y, G+B, G+Y SYS LO PR warnings (with red LAND ASAP) that replace the single system alerts; the RSVR OVHT procedures show the "x SYS LO PR" lines and the RSVR OVHT, RAT FAULT and PTU FAULT now have their STATUS (INOP SYS, APPR PROC); no pump caution on ground with the engine stopped - @TCdr
-1. [A32NX/FWC] New APU AUTO SHUT DOWN and APU EMER SHUT DOWN cautions (MASTER SW OFF, STATUS INOP SYS APU); a STATUS line given by two alerts is shown once - @TCdr
