@@ -22,6 +22,7 @@
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
   - [Landing Gear ATA 32](#landing-gear-ata-32)
   - [Lights ATA 33](#lights-ata-33)
+  - [Navigation ATA 34](#navigation-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
@@ -1844,6 +1845,32 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - `L:A380X_PED_LIGHTING_AMBIENT_LT_LEVEL`
     - Number
     - Brightness of the ambient lights (0-100)
+
+## Navigation ATA 34
+
+- A32NX_PRIM_ADR_{number}_REJECTED
+    - Bool
+    - number: 1, 2 or 3
+    - ADR {number} is rejected by the PRIM air data monitoring: its CAS, Mach or pressure altitude diverges from the
+      other coherent air data sources (A380 FCOM DSC-34-10-30-10). Latched until the end of the flight (on ground below
+      30 kt). Written by systems.wasm (`a380_systems` air_data_monitoring.rs); fbw.wasm then sends this ADR to the PRIM
+      and SEC models with a failure warning status (two rejected ADRs: alternate law, three: direct law)
+
+- A32NX_PRIM_STBY_AIR_DATA_REJECTED
+    - Bool
+    - The standby instruments (ISIS) air data is rejected by the PRIM air data monitoring (as above)
+
+- A32NX_PRIM_ALL_AIR_DATA_REJECTED
+    - Bool
+    - The PRIMs detect a conflict between the air data sources without being able to tell which one is wrong (two
+      remaining sources that disagree, or two pairs in conflict): all air data rejected, direct law (NAV ALL AIR DATA
+      DISAGREE)
+
+- A32NX_PRIM_AOA_{number}_REJECTED
+    - Bool
+    - number: 1, 2 or 3
+    - The angle of attack of ADR {number} is rejected by the PRIM monitoring (3.6 deg in flight, 8 deg on ground); two
+      or more rejected: NAV AOA DISAGREE and alternate law
 
 ## Bleed Air ATA 36
 

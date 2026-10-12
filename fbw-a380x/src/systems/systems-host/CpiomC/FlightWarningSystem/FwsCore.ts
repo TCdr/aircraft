@@ -81,7 +81,8 @@ import { FmsMessageVars } from '../../../shared/src/publishers/FmsMessagePublish
 import { FwsSystemDisplayLogic } from './FwsSystemDisplayLogic';
 import { FwsInopSys, FwsInopSysPhases } from './FwsInopSys';
 import { FwsInformation } from './FwsInformation';
-import { FwsLimitations, FwsLimitationsPhases } from './FwsLimitations';
+import { FwsLimitations, FwsLimitationsPhases, withoutAllPhasesDuplicates } from './FwsLimitations';
+import { FwsAirDataAlerts, readAirDataAlertInputs } from './FwsAirDataAlerts';
 // FIXME should not import from instruments
 import { FGVars } from '../../../instruments/src/MsfsAvionicsCommon/providers/FGDataPublisher';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
@@ -1849,6 +1850,9 @@ export class FwsCore {
   public readonly adr1Faulty = Subject.create(false);
   public readonly adr2Faulty = Subject.create(false);
   public readonly adr3Faulty = Subject.create(false);
+
+  /** NAV AIR DATA DISAGREE, ALL AIR DATA DISAGREE, AOA DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
+  public readonly airDataAlerts = new FwsAirDataAlerts();
 
   private readonly adr3UsedLeft = Subject.create(false);
   private readonly adr3UsedRight = Subject.create(false);
@@ -3887,6 +3891,7 @@ export class FwsCore {
     this.adr1Faulty.set(!(!this.acESSBusPowered.get() || flightPhase112) && adr1Fault);
     this.adr2Faulty.set(!(!this.ac4BusPowered.get() || flightPhase112) && adr2Fault);
     this.adr3Faulty.set(!(!this.ac2BusPowered.get() || flightPhase112) && adr3Fault);
+    this.airDataAlerts.update(readAirDataAlertInputs((name, unit) => SimVar.GetSimVarValue(name, unit)));
 
     // FIXME use the ARINC bus words
     this.adirsRemainingAlignTime.set(SimVar.GetSimVarValue('L:A32NX_ADIRS_REMAINING_IR_ALIGNMENT_TIME', 'Seconds'));
@@ -6732,9 +6737,10 @@ export class FwsCore {
     const sortedEwdLimitationsAllPhasesKeys = ewdLimitationsAllPhasesKeys.sort(
       (a, b) => this.messagePriority(EcamLimitations[a]) - this.messagePriority(EcamLimitations[b]),
     );
-    const sortedEwdLimitationsApprLdgKeys = ewdLimitationsApprLdgKeys.sort(
-      (a, b) => this.messagePriority(EcamLimitations[a]) - this.messagePriority(EcamLimitations[b]),
-    );
+    const sortedEwdLimitationsApprLdgKeys = withoutAllPhasesDuplicates(
+      ewdLimitationsApprLdgKeys,
+      ewdLimitationsAllPhasesKeys,
+    ).sort((a, b) => this.messagePriority(EcamLimitations[a]) - this.messagePriority(EcamLimitations[b]));
 
     // Check if keys have changed before setting to avoid unnecessary updates
     if (

@@ -1,6 +1,7 @@
 extern crate systems;
 
 mod air_conditioning;
+mod air_data_monitoring;
 mod airframe;
 mod avionics_data_communication_network;
 mod control_display_system;
@@ -23,6 +24,7 @@ mod structural_flex;
 
 use self::{
     air_conditioning::{A380AirConditioning, A380PressurizationOverheadPanel},
+    air_data_monitoring::A380PrimAirDataMonitoring,
     avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
     control_display_system::A380ControlDisplaySystem,
     engine_control_failure::A380EngineControlFailures,
@@ -74,6 +76,8 @@ pub struct A380 {
     adcn_simvar_translation: A380AvionicsDataCommunicationNetworkSimvarTranslator,
     adirs: AirDataInertialReferenceSystem,
     adirs_overhead: AirDataInertialReferenceSystemOverheadPanel,
+    /// PRIM comparison of the ADR and standby air data (NAV AIR DATA / AOA DISAGREE)
+    prim_air_data_monitoring: A380PrimAirDataMonitoring,
     air_conditioning: A380AirConditioning,
     apu: AuxiliaryPowerUnit<Pw980ApuGenerator, Pw980StartMotor, Pw980Constants, 2>,
     apu_fire_overhead: AuxiliaryPowerUnitFireOverheadPanel,
@@ -127,6 +131,7 @@ impl A380 {
             adcn_simvar_translation,
             adirs: A380AirDataInertialReferenceSystemBuilder::build(context),
             adirs_overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
+            prim_air_data_monitoring: A380PrimAirDataMonitoring::new(context),
             air_conditioning: A380AirConditioning::new(context),
             apu: AuxiliaryPowerUnitFactory::new_pw980(
                 context,
@@ -300,6 +305,7 @@ impl Aircraft for A380 {
 
         self.adirs.update(context, &self.adirs_overhead);
         self.adirs_overhead.update(context, &self.adirs);
+        self.prim_air_data_monitoring.update(context, &self.adirs);
 
         self.power_consumption.update(context);
 
@@ -417,6 +423,7 @@ impl SimulationElement for A380 {
         self.adcn_simvar_translation.accept(visitor);
         self.adirs.accept(visitor);
         self.adirs_overhead.accept(visitor);
+        self.prim_air_data_monitoring.accept(visitor);
         self.air_conditioning.accept(visitor);
         self.apu.accept(visitor);
         self.apu_fire_overhead.accept(visitor);
