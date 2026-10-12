@@ -1736,6 +1736,14 @@ The PRIMs perform the flight guidance and flight envelope functions.
   - ArincWord852<>
   - Second CAN bus of the CDS on the first officer's side
 
+- A32NX_FWS_AUDIO_{voice}
+  - Bool
+  - True while the FWS says this synthetic voice, played from a WAV clip (sound/fws_<voice>.wav, tools/fws-voice)
+  - {voice}
+    - PRIORITY_LEFT: the CAPT holds the sidestick pb (CpiomC/FlightWarningSystem/FwsSidestickPriority.ts)
+    - PRIORITY_RIGHT: the F/O holds the sidestick pb
+    - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning (FlightWarningSystem/FwsWindshearAural.ts)
+
 ## ECAM Control Panel ATA 31
 
 - A32NX_BTN_{button_name}

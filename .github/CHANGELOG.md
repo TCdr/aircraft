@@ -275,6 +275,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] New flyPad failure HP fuel valve stuck: the engine does not start with the valve stuck closed, ENG HP FUEL VALVE / HP FUEL VLV FAULT and the ENG FAULT light come on when the valve position disagrees with the FADEC command (FCOM) - @TCdr
 1. [A32NX/A380X] New flyPad FADEC fault failures with their ECAM crew awareness alerts: A32NX ENG FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT; A380X ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT - @TCdr
 1. [A380X/ENG] Auto-idle protection: the outboard engines stay at idle while a thrust reverser operates, as in the FCOM - @TCdr
+1. [A380X/FWS] New PRIORITY LEFT / PRIORITY RIGHT voices when a pilot holds the sidestick pb (1 s, so an autopilot disconnection does not call it) - @TCdr
+1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, 4 s below 100 ft, as in the FCOM - @TCdr
+1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
+1. [A380X/GPWS] TERRAIN aural for the mode 2 alert and GLIDE SLOPE aural (louder when hard) for the mode 5 alert; a windshear warning overrides the GPWS alerts - @TCdr
 
 ## 2024.1.0
 
