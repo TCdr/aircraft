@@ -439,6 +439,18 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
 1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically, as in the FCOM - @TCdr
 1. [A380X/FWS] Smart FIVE HUNDRED callout: the flyPad pin programming "Inhibited When Glideslope Captured" is back and calls FIVE HUNDRED only when more than half a dot off the glideslope - @TCdr
+1. [A32NX/FWC] New memo RAM AIR ON, and new caution CAB PR LDG ELEV FAULT when the LDG ELEV selector is at AUTO without a landing elevation from the FMGS - @TCdr
+1. [A32NX/FWC] The CAB PR alerts now have their STATUS lines: MAX FL, the manual pressurization schedule (MAN CAB PR CTL, target V/S, cabin altitude table) and INOP SYS CAB PR 1, 2 or 1+2 - @TCdr
+1. [A32NX/FWC] New caution ENG THRUST LOCKED (flashing, single chime and MASTER CAUTION every 5 s) when the thrust levers are not moved within 5 s of an A/THR disconnection with thrust lock - @TCdr
+1. [A32NX/FWC] FUEL L+R WING TK LO LVL gives the amber LAND ASAP, asks for CTR TK L(R) XFR ON only when it is off and no longer shows the CTR TK PUMP lines of the other fuel system - @TCdr
+1. [A32NX/FWC] New cautions FUEL AUTO TRANSFER FAULT and FUEL CTR TK XFR OFF - @TCdr
+1. [A32NX/FWC] New cautions WING A.ICE SYS FAULT (with the X BLEED OPEN variant after the loss of one bleed) and WING A.ICE L(R) HI PR, with their STATUS - @TCdr
+1. [A32NX/FWC] New DOOR cautions for the cabin doors, emergency exits and cargo doors, with IF ABN CAB V/S: MAX FL 100/MEA-MORA in flight - @TCdr
+1. [A32NX/FWC] New cautions L/G DOORS NOT CLOSED and L/G SYS DISAGREE, and STATUS lines for GEAR NOT UPLOCKED, LGCIU faults and A/SKID N/WS OFF - @TCdr
+1. [A32NX/FWC] New cautions NAV GPWS FAULT and NAV GPWS TERR DET FAULT on an EGPWC fault, with INOP SYS GPWS (TERR) - @TCdr
+1. [A32NX/FWC] ENG ALL ENGINES FAILURE and the involuntary A/THR OFF now have their STATUS page lines - @TCdr
+1. [A32NX/FWC] FAC 1+2 FAULT says RUD WITH CARE ABV 160 KT, as in the FCOM (it said 140 KT) - @TCdr
+1. [A32NX/OXY] The passenger oxygen masks now drop by themselves when the cabin altitude goes above 14 000 ft - @TCdr
 1. [A32NX/PFD] FMA line 3: FOR GA: SET TOGA, DISCONNECT AP FOR LDG, SET GREEN DOT SPEED and CHECK APPR SELECTION now show as in the FCOM; CHECK APPR SELECTION (non ILS approach with a manually tuned ILS) also on the MCDU - @TCdr
 1. [A32NX/EWD] The AVAIL indication stays steady 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever leaves idle - @TCdr
 1. [A32NX/SD] FUEL page: the inner and outer tank quantities of the heavier wing pulse when the wings differ by more than 1 500 kg in flight phases 2 and 6 - @TCdr

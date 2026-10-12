@@ -48,6 +48,53 @@ export function wingTankLowLevelStatus(
   };
 }
 
+export interface WingTanksLowLevelInputs {
+  /** The FUEL MODE SEL pb is at MAN */
+  readonly modeSelMan: boolean;
+  /** The centre tank is empty */
+  readonly centreTankEmpty: boolean;
+  /** The L TK PUMP 1 and 2, R TK PUMP 1 and 2 pb-sw are ON */
+  readonly leftPump1On: boolean;
+  readonly leftPump2On: boolean;
+  readonly rightPump1On: boolean;
+  readonly rightPump2On: boolean;
+  /** The CTR TK L (R) XFR pb-sw are ON */
+  readonly centreLeftTransferOn: boolean;
+  readonly centreRightTransferOn: boolean;
+}
+
+/**
+ * The lines of FUEL L+R WING TK LO LVL (EwdMessages 28001450x/280014510-14): 0 title, 1 -FUEL MODE SEL MAN, 2-3 -L TK
+ * PUMP 1(2) ON, 4 -CTR TK L XFR ON, 5 -CTR TK PUMP 1 ON, 6-7 -R TK PUMP 1(2) ON, 8 -CTR TK R XFR ON, 9 -CTR TK PUMP 2 ON,
+ * 10 .IF NO FUEL LEAK:, 11 -FUEL X FEED ON, 12 .IF GRVTY FEED:, 13 -FUEL X FEED OFF.
+ * The FBW A32NX is the jet pump variant of the fuel system (centre tank transfer valves, see Fuel/FuelPumpsAndValves).
+ * A320 FCOM PRO-ABN-FUEL FUEL L + R WING TK LO LVL of that variant (a320_fcom.txt l.86536-86569, FCOM PDF page 5316):
+ * "LAND ASAP" (amber), "FUEL MODE SEL (IF CENTER TANK NOT EMPTY) ... MAN", "ALL TK PUMPS ... ON", "CTR TK L+R XFR ...
+ * ON", "IF NO FUEL LEAK: FUEL X FEED ... ON", "IF GRVTY FEED: FUEL X FEED ... OFF". The CTR TK PUMP lines belong to the
+ * centre tank pump variant (l.86516-86517) and are never shown; the MODE SEL line was shown with an empty centre tank and
+ * once at MAN, the transfer lines only with more than 250 kg in the centre tank. A done action line is hidden.
+ * @param inputs the conditions of the conditional lines
+ * @returns the line indexes, null for a hidden line
+ */
+export function wingTanksLowLevelLines(inputs: WingTanksLowLevelInputs): (number | null)[] {
+  return [
+    0,
+    !inputs.modeSelMan && !inputs.centreTankEmpty ? 1 : null,
+    inputs.leftPump1On ? null : 2,
+    inputs.leftPump2On ? null : 3,
+    inputs.centreLeftTransferOn ? null : 4,
+    null,
+    inputs.rightPump1On ? null : 6,
+    inputs.rightPump2On ? null : 7,
+    inputs.centreRightTransferOn ? null : 8,
+    null,
+    10,
+    11,
+    12,
+    13,
+  ];
+}
+
 export function wingTankLowLevelLines(inputs: WingTankLowLevelInputs): (number | null)[] {
   return [
     0,
