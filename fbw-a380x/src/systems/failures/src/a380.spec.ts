@@ -294,4 +294,145 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
       ]),
     ).toEqual(expected);
   });
+
+  // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id
+  // (failure names audit rule): the HP fuel valve sticks, the other faults only raise their FWS alert
+  it('lists the HP fuel valve and FADEC monitoring failures with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string, number][] = [
+      [73200, 'EngineHpFuelValveStuck(1)', 'Engine 1 HP fuel valve stuck', 73],
+      [73201, 'EngineHpFuelValveStuck(2)', 'Engine 2 HP fuel valve stuck', 73],
+      [73202, 'EngineHpFuelValveStuck(3)', 'Engine 3 HP fuel valve stuck', 73],
+      [73203, 'EngineHpFuelValveStuck(4)', 'Engine 4 HP fuel valve stuck', 73],
+      [
+        73110,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::FuelStrainerClog)',
+        'Engine 1 fuel strainer clog',
+        73,
+      ],
+      [
+        73111,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::FuelStrainerClog)',
+        'Engine 2 fuel strainer clog',
+        73,
+      ],
+      [
+        73112,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::FuelStrainerClog)',
+        'Engine 3 fuel strainer clog',
+        73,
+      ],
+      [
+        73113,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::FuelStrainerClog)',
+        'Engine 4 fuel strainer clog',
+        73,
+      ],
+      [
+        73120,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::FuelFilterMonitoring)',
+        'Engine 1 fuel filter monitoring',
+        73,
+      ],
+      [
+        73121,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::FuelFilterMonitoring)',
+        'Engine 2 fuel filter monitoring',
+        73,
+      ],
+      [
+        73122,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::FuelFilterMonitoring)',
+        'Engine 3 fuel filter monitoring',
+        73,
+      ],
+      [
+        73123,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::FuelFilterMonitoring)',
+        'Engine 4 fuel filter monitoring',
+        73,
+      ],
+      [
+        73240,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::Sensors)',
+        'Engine 1 pressure and temperature probes',
+        73,
+      ],
+      [
+        73241,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::Sensors)',
+        'Engine 2 pressure and temperature probes',
+        73,
+      ],
+      [
+        73242,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::Sensors)',
+        'Engine 3 pressure and temperature probes',
+        73,
+      ],
+      [
+        73243,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::Sensors)',
+        'Engine 4 pressure and temperature probes',
+        73,
+      ],
+      [
+        73250,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::OverthrustProtection)',
+        'Engine 1 overthrust protection',
+        73,
+      ],
+      [
+        73251,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::OverthrustProtection)',
+        'Engine 2 overthrust protection',
+        73,
+      ],
+      [
+        73252,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::OverthrustProtection)',
+        'Engine 3 overthrust protection',
+        73,
+      ],
+      [
+        73253,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::OverthrustProtection)',
+        'Engine 4 overthrust protection',
+        73,
+      ],
+      [
+        73260,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::MinorFault)',
+        'Engine 1 FADEC minor fault (internal sensor)',
+        73,
+      ],
+      [
+        73261,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::MinorFault)',
+        'Engine 2 FADEC minor fault (internal sensor)',
+        73,
+      ],
+      [
+        73262,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::MinorFault)',
+        'Engine 3 FADEC minor fault (internal sensor)',
+        73,
+      ],
+      [
+        73263,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::MinorFault)',
+        'Engine 4 FADEC minor fault (internal sensor)',
+        73,
+      ],
+      [79040, 'EngineMonitoringFault(1,EngineMonitoringFaultKind::OilChip)', 'Engine 1 oil chip (metal particles)', 79],
+      [79041, 'EngineMonitoringFault(2,EngineMonitoringFaultKind::OilChip)', 'Engine 2 oil chip (metal particles)', 79],
+      [79042, 'EngineMonitoringFault(3,EngineMonitoringFaultKind::OilChip)', 'Engine 3 oil chip (metal particles)', 79],
+      [79043, 'EngineMonitoringFault(4,EngineMonitoringFaultKind::OilChip)', 'Engine 4 oil chip (metal particles)', 79],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name, chapter]) => [id, failureType, name, chapter]),
+    );
+  });
 });

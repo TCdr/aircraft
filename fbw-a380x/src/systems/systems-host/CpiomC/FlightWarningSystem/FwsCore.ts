@@ -128,6 +128,7 @@ import {
 import { engineOilAlerts } from './EngineOilAlerts';
 import { EngineStartFault, EngineStartPhase, isIgnitionMemoShown, StartValveFault } from './EngineStartAlerts';
 import { engineFuelFilterClogged } from './EngineFuelFilterAlerts';
+import { ENGINE_MONITORING_ALERTS, HpFuelValveFault, isHpFuelVlvFaultActive } from './EngineMonitoringAlerts';
 import { OilTemperatureLowMonitor, isFlexTakeoffMode, isThrustLeversNotSet } from './EngineTakeoffAlerts';
 import { isTakeoffThrustDisagree, isThrustLoss } from './EngineThrustAlerts';
 import {
@@ -2506,6 +2507,16 @@ export class FwsCore {
 
   /** ENG 1(2)(3)(4) FUEL FILTER CLOGGED, by engine (EngineFuelFilterAlerts.ts) */
   public readonly engineFuelFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** ENG 1(2)(3)(4) HP FUEL VLV FAULT, by engine (EngineMonitoringAlerts.ts): the fault the FADEC reports */
+  public readonly engineHpFuelValveFault: HpFuelValveFault[] = [0, 1, 2, 3].map(() => HpFuelValveFault.None);
+
+  public readonly engineHpFuelVlvFaultActive = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** The FADEC fault crew awareness alerts, by alert of ENGINE_MONITORING_ALERTS then engine (EngineMonitoringAlerts.ts) */
+  public readonly engineMonitoringAlertActive = ENGINE_MONITORING_ALERTS.map(() =>
+    [1, 2, 3, 4].map(() => Subject.create(false)),
+  );
 
   /** ENG 1(2)(3)(4) OIL TEMP LO, by engine (EngineTakeoffAlerts.ts) */
   private readonly oilTemperatureLowMonitors = [1, 2, 3, 4].map(() => new OilTemperatureLowMonitor());
@@ -6696,6 +6707,19 @@ export class FwsCore {
       this.engineIgnAFault[index].set(igniterAFault && !igniterBFault);
       this.engineIgnBFault[index].set(igniterBFault && !igniterAFault);
       this.engineIgnAPlusBFault[index].set(igniterAFault && igniterBFault);
+
+      // ENG HP FUEL VLV FAULT and the FADEC fault crew awareness alerts (FCOM PRO-ABN-ECAM-10-70, see
+      // EngineMonitoringAlerts.ts), from engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs
+      this.engineHpFuelValveFault[index] = SimVar.GetSimVarValue(
+        `L:A32NX_ENGINE_${engine}_HP_FUEL_VALVE_FAULT`,
+        'number',
+      );
+      this.engineHpFuelVlvFaultActive[index].set(isHpFuelVlvFaultActive(this.engineHpFuelValveFault[index]));
+      ENGINE_MONITORING_ALERTS.forEach((alert, alertIndex) =>
+        this.engineMonitoringAlertActive[alertIndex][index].set(
+          SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_${alert.variable}`, 'bool') > 0,
+        ),
+      );
     }
 
     // Attnetion getting box
