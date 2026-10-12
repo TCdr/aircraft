@@ -12,6 +12,9 @@ export enum FmNavigationMode {
 /** The estimated position uncertainty after an IRS alignment, in NM (A320 FCOM DSC-22_20-20-20) */
 export const IRS_ALIGNMENT_UNCERTAINTY = 5;
 
+/** The estimated position uncertainty after a position update on ground, in NM (A320 FCOM l.12446, A380 FCOM l.23042) */
+export const POSITION_UPDATE_ON_GROUND_UNCERTAINTY = 0.2;
+
 /**
  * The radio position uncertainty of the FCOM, in NM, nearest and farthest navaids: IRS/DME/DME 0.27 to 0.37 NM,
  * IRS/VOR/DME 0.30 to 0.42 NM, "dependent on the distance between the aircraft and the VOR/DME"
@@ -87,28 +90,35 @@ export class PositionUncertaintyEstimator {
   private irsOnlyMinutes = 0;
 
   /**
+   * The EPU is the greater of the distance between the FMS position and the GPIRS (radio) position and the GPS (radio)
+   * position uncertainty (A380 FCOM DSC-22-FMS-10-30-10, a380_fcom.txt l.23009-23022): after a position update the FM
+   * position is away from the sensor position until it has approached it again.
    * @param deltaTime the time since the last update, in milliseconds
    * @param gpsUncertainty the uncertainty of the GPIRS position in use, null when the GPS is not used
    * @param dmePairDistances the distances to the two DMEs of the DME pair in use, in NM, null without a DME pair
    * @param vorDmeDistance the distance to the VOR/DME in use for navigation, in NM, null without one
+   * @param fmToGpirsDistance the distance between the FM position and the GPIRS position in use, in NM
+   * @param fmToRadioDistance the distance between the FM position and the radio position, in NM
    */
   update(
     deltaTime: number,
     gpsUncertainty: number | null,
     dmePairDistances: readonly [number, number] | null,
     vorDmeDistance: number | null,
+    fmToGpirsDistance = 0,
+    fmToRadioDistance = 0,
   ): PositionUncertaintyState {
     let mode: FmNavigationMode;
     let uncertainty: number;
     if (gpsUncertainty !== null) {
       mode = FmNavigationMode.IrsGps;
-      uncertainty = gpsUncertainty;
+      uncertainty = Math.max(gpsUncertainty, fmToGpirsDistance);
     } else if (dmePairDistances !== null) {
       mode = FmNavigationMode.IrsDmeDme;
-      uncertainty = radioPositionUncertainty(mode, Math.max(...dmePairDistances));
+      uncertainty = Math.max(radioPositionUncertainty(mode, Math.max(...dmePairDistances)), fmToRadioDistance);
     } else if (vorDmeDistance !== null) {
       mode = FmNavigationMode.IrsVorDme;
-      uncertainty = radioPositionUncertainty(mode, vorDmeDistance);
+      uncertainty = Math.max(radioPositionUncertainty(mode, vorDmeDistance), fmToRadioDistance);
     } else {
       mode = FmNavigationMode.IrsOnly;
       if (this.mode !== FmNavigationMode.IrsOnly) {
@@ -122,5 +132,25 @@ export class PositionUncertaintyEstimator {
     this.mode = mode;
     this.uncertainty = uncertainty;
     return { mode, uncertainty };
+  }
+
+  /**
+   * A position update of the FM position (the update at takeoff, or a manual update).
+   * - On ground the EPU is set to 0.2 NM: "At takeoff, the EPU is set at 0.2 NM" (A320 FCOM DSC-22_20-20-20,
+   *   a320_fcom.txt l.12446); "After a manual or automatic position update on ground, the EPU is set to 0.2 nm" (A380 FCOM
+   *   a380_fcom.txt l.23042).
+   * - In flight in IRS only, "The EPU = (distance between the update position and the FMS position) + previous EPU"
+   *   (a380_fcom.txt l.23056-23057). In the GPS and radio modes the distance to the sensor position does it (update()).
+   * The IRS only uncertainty then grows again from the new value.
+   * @param onGround whether the aircraft is on ground
+   * @param updateDistance the distance between the update position and the FM position before the update, in NM
+   */
+  positionUpdate(onGround: boolean, updateDistance: number): void {
+    const updated = onGround
+      ? POSITION_UPDATE_ON_GROUND_UNCERTAINTY
+      : (this.uncertainty ?? IRS_ALIGNMENT_UNCERTAINTY) + updateDistance;
+    this.uncertainty = updated;
+    this.irsOnlyInitial = updated;
+    this.irsOnlyMinutes = 0;
   }
 }
