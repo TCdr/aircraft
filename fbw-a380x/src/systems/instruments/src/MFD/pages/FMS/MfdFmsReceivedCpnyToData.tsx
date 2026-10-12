@@ -5,7 +5,7 @@
 import { ArraySubject, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 
 import { AbstractMfdPageProps } from '../../MFD';
-import { FmsPage } from '../common/FmsPage';
+import { FmsFlightPlanPage } from '../common/FmsFlightPlanPage';
 import { Footer } from '../common/Footer';
 import { fcomAt, fcomLine, fcomRight } from '../common/FcomLayout';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -26,7 +26,7 @@ const maxRunways = 4;
  * No company takeoff data can be received in the simulation (see the COMPANY T.O DATA REQUEST page): the page shows
  * dashes, INSERT and CLEAR are inactive.
  */
-export class MfdFmsReceivedCpnyToData extends FmsPage<AbstractMfdPageProps> {
+export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageProps> {
   private readonly runwayPage = Subject.create(0);
 
   private readonly runwayPageText = this.runwayPage.map((i) => `RWY ${i + 1}/${maxRunways}`);
@@ -75,7 +75,7 @@ export class MfdFmsReceivedCpnyToData extends FmsPage<AbstractMfdPageProps> {
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_receivedCpnyToThrust`}
                 selectedIndex={this.selectedThrust}
                 values={this.thrustLabels}
-                freeTextAllowed={false}
+                freeTextAllowed={false} // FCOM TAKEOFF THRUST LIST: selected in the list only
                 inactive={this.noData}
                 containerStyle="width: 157px;"
                 numberOfDigitsForInputField={7}

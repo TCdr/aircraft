@@ -6,12 +6,14 @@ import { ArraySubject, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 import { isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 
 import { AbstractMfdPageProps } from '../../../MFD';
-import { FmsPage } from '../../common/FmsPage';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { Footer } from '../../common/Footer';
 import { fcomAt } from '../../common/FcomLayout';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { DropdownMenu } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
+import { dropdownEntryIndex } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownEntry';
+import { onEntryNotInList } from '../../../shared/utils';
 import { RadioButtonGroup } from '../../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
 import { InterceptAngleFormat, OffsetDistanceFormat } from '../../common/DataEntryFormats';
 
@@ -30,7 +32,7 @@ const defaultInterceptAngle = 30;
  * to the destination, holds excluded) with the FCOM defaults, but the entry fields are inactive and no offset can be
  * inserted.
  */
-export class MfdFmsFplnOffset extends FmsPage<MfdFmsFplnOffsetProps> {
+export class MfdFmsFplnOffset extends FmsFlightPlanPage<MfdFmsFplnOffsetProps> {
   private readonly startWaypoints = ArraySubject.create<string>([]);
 
   private readonly endWaypoints = ArraySubject.create<string>([]);
@@ -92,7 +94,14 @@ export class MfdFmsFplnOffset extends FmsPage<MfdFmsFplnOffsetProps> {
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_offsetStartWpt`}
                 selectedIndex={this.selectedStart}
                 values={this.startWaypoints}
-                freeTextAllowed={false}
+                keyboardEntryAllowed // FCOM START WAYPOINT LIST: selected in the list or entered with the keyboard
+                errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
+                onModified={(i, text) => {
+                  const index = dropdownEntryIndex(this.startWaypoints, i, text);
+                  if (index !== null) {
+                    this.selectedStart.set(index);
+                  }
+                }}
                 disabled={this.inactive}
                 containerStyle="width: 178px;"
                 numberOfDigitsForInputField={7}
@@ -109,7 +118,14 @@ export class MfdFmsFplnOffset extends FmsPage<MfdFmsFplnOffsetProps> {
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_offsetEndWpt`}
                 selectedIndex={this.selectedEnd}
                 values={this.endWaypoints}
-                freeTextAllowed={false}
+                keyboardEntryAllowed // FCOM END WAYPOINT LIST: selected in the list or entered with the keyboard
+                errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
+                onModified={(i, text) => {
+                  const index = dropdownEntryIndex(this.endWaypoints, i, text);
+                  if (index !== null) {
+                    this.selectedEnd.set(index);
+                  }
+                }}
                 disabled={this.inactive}
                 containerStyle="width: 177px;"
                 numberOfDigitsForInputField={7}

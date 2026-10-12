@@ -6,7 +6,7 @@ import { ArraySubject, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 import { CompanyRoute } from '@flybywiresim/fbw-sdk';
 
 import { AbstractMfdPageProps } from '../../../MFD';
-import { FmsPage } from '../../common/FmsPage';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { Footer } from '../../common/Footer';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { DropdownMenu } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
@@ -34,7 +34,7 @@ const noTokens: RouteSummaryToken[] = [];
  * Not available yet: inserting an alternate company route into the alternate flight plan (the TO/ALTN routes are
  * listed, INSERT stays disabled).
  */
-export class MfdFmsFplnRouteSelection extends FmsPage<MfdFmsFplnRouteSelectionProps> {
+export class MfdFmsFplnRouteSelection extends FmsFlightPlanPage<MfdFmsFplnRouteSelectionProps> {
   private readonly isAlternateSelection =
     this.props.mfd.uiService.activeUri.get().extra?.split('/').includes(alternateRouteSelectionUriExtra) ?? false;
 
@@ -162,7 +162,7 @@ export class MfdFmsFplnRouteSelection extends FmsPage<MfdFmsFplnRouteSelectionPr
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_routeSelectionDropdown`}
                 selectedIndex={this.selectedRoute}
                 values={this.routeIdents}
-                freeTextAllowed={false}
+                freeTextAllowed={false} // FCOM COMPANY ROUTE LIST: chosen in the list or with the scroll buttons
                 containerStyle="width: 249px;"
                 alignLabels="center"
                 numberOfDigitsForInputField={10}

@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { FSComponent, NodeReference, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import { ConsumerSubject, FSComponent, NodeReference, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FmgcFlightPhase } from '@shared/flightphase';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
+import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
+import { watchFlightPlanChanges } from '../../common/FlightPlansChangeWatcher';
 import { Footer } from '../../common/Footer';
 import { fcomAt, fcomCentre, fcomLine } from '../../common/FcomLayout';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -24,6 +26,12 @@ interface MfdFmsDataPrinterProps extends AbstractMfdPageProps {}
  * The A380X cockpit printer has no paper: the pages are sent to the flypad (DISPATCH / PRINTOUTS).
  */
 export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
+  /** The FMS flight phase (this page loads no flight plan, so it is not given by FmsFlightPlanPage) */
+  private readonly activeFlightPhase = ConsumerSubject.create<FmgcFlightPhase>(
+    this.props.bus.getSubscriber<MfdSimvars>().on('flightPhase'),
+    FmgcFlightPhase.Preflight,
+  );
+
   private readonly printer = this.props.fmcService.master.printer;
 
   private readonly noPrinter = Subject.create(this.printer === null);
@@ -77,6 +85,12 @@ export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+
+    this.subs.push(
+      this.activeFlightPhase,
+      watchFlightPlanChanges(this.props.bus, this.props.flightPlanInterface, () => this.onNewData()),
+    );
+    this.onNewData();
 
     for (const { ref, onClick } of this.checkboxes) {
       ref.instance.addEventListener('click', onClick);

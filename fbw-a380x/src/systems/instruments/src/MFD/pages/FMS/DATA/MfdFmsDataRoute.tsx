@@ -2,13 +2,23 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ArraySubject, FSComponent, MappedSubject, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import {
+  ArraySubject,
+  ConsumerSubject,
+  FSComponent,
+  MappedSubject,
+  Subject,
+  Subscribable,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { CompanyRoute } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FmgcFlightPhase } from '@shared/flightphase';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
+import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
+import { watchFlightPlanChanges } from '../../common/FlightPlansChangeWatcher';
 import { Footer } from '../../common/Footer';
 import { TopTabNavigator, TopTabNavigatorPage } from '../../../../MsfsAvionicsCommon/UiWidgets/TopTabNavigator';
 import { Button, ButtonMenuItem } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -50,6 +60,12 @@ const noTokens: RouteSummaryToken[] = [];
  * secondary flight plan as a new route.
  */
 export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
+  /** The FMS flight phase (this page loads no flight plan, so it is not given by FmsFlightPlanPage) */
+  private readonly activeFlightPhase = ConsumerSubject.create<FmgcFlightPhase>(
+    this.props.bus.getSubscriber<MfdSimvars>().on('flightPhase'),
+    FmgcFlightPhase.Preflight,
+  );
+
   private readonly pilotStoredElements = this.props.fmcService.master.pilotStoredElements;
 
   private readonly selectedPageIndex = Subject.create<number>(RoutePanel.Database);
@@ -149,7 +165,9 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
       this.selectedDatabaseRoute.sub((i) => this.showDatabaseRoute(i), true),
       this.pilotStoredElements.routes.sub(() => this.refreshStoredRoutes(), true),
       this.selectedStored.sub((i) => this.showStoredRoute(i), true),
+      this.activeFlightPhase,
       this.activeFlightPhase.sub(() => this.updateNewRouteMenu()),
+      watchFlightPlanChanges(this.props.bus, this.props.flightPlanInterface, () => this.onNewData()),
       this.props.mfd.uiService.activeUri.sub((uri) => this.handleUriExtra(uri.extra ?? ''), true),
     );
     this.updateNewRouteMenu();
@@ -504,7 +522,7 @@ export class MfdFmsDataRoute extends FmsPage<MfdFmsDataRouteProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataRouteStoredDropdown`}
             selectedIndex={this.selectedStored}
             values={this.storedIdents}
-            freeTextAllowed={false}
+            freeTextAllowed={false} // FCOM PILOT STORED RTES COMPANY ROUTE LIST: list only
             containerStyle="width: 249px;"
             alignLabels="center"
             numberOfDigitsForInputField={10}
