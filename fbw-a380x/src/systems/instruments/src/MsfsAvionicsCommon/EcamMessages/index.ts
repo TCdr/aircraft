@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 export const WD_NUM_LINES = 18;
@@ -304,6 +304,8 @@ export const EcamLimitations: { [n: string]: string } = {
   320400003: '\x1b<5mSTEER ENDUR LIMITED',
   320400004: '\x1b<5mAUTO BRK:DO NOT USE',
   320400005: '\x1b<5mMAX LDG WEIGHT',
+  320400006: '\x1b<5mNO L/G RETRACTION', // L/G CTL 1+2 FAULT (A380 FCOM l.160980), L/G DOORS NOT CLOSED (l.161156)
+  320400007: '\x1b<5mAVOID EXCESS G LOAD', // L/G GEAR NOT LOCKED UP (A380 FCOM l.161425)
   340400001: '\x1b<5mALL SPEED : MAX 330 / M .82',
   700400001: '\x1b<5mREV : SYM USE ONLY',
   800400001: '\x1b<5mFUEL CONSUMPT INCRSD',
