@@ -43,7 +43,10 @@ export function findInstrumentUrl(folder: string): string | null {
 }
 
 /**
- * The DU a gauge of an instrument draws on when it is a hosted gauge
+ * The DU a gauge of an instrument draws on when it is a hosted gauge. Only from the gauge's connectedCallback on (or
+ * FsBaseInstrument.constructInstrument, called from there), never in the constructor of a BaseInstrument gauge: the
+ * sim creates the gauge element before it sets its url attribute and puts it into the panel, so the constructor finds
+ * only the gauges listed before it (e.g. the SD's, without hostDu) and a hosted gauge passes for the DU's own one.
  * @param folder the instrument folder in the URL (PFD, ND, EWD)
  * @returns the DU, or null for the DU's own gauge
  */
