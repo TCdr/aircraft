@@ -379,6 +379,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MODEL] The ram air turbine is now visible on the exterior: its doors open under the left belly fairing and it swings out when deployed, the propeller turns in the airflow, and it goes back in when stowed on the ground - @TCdr
 1. [A380X/FMS] TRIP fuel and cruise fuel predictions now match the fuel the engines burn at Mach 0.85 (they were 4 to 7 % low in cruise, about 3 % low on the TRIP) - @TCdr
 1. [A380X/BLEED] With the X BLEED selector at AUTO, the crossbleed valves open on the ground during an engine start, so the running engines supply the starter air of a crossbleed engine start - @TCdr
+1. [A380X/FWS] New DOOR UPPER 1L to 3R NOT CLOSED and DOOR FWD(AFT) CARGO NOT CLOSED cautions, and CAB PRESS INHIBITED BY DOORS now also triggers on door MAIN 1R, the upper deck doors and the cargo doors - @TCdr
+1. [A380X/FWS] DOOR ... NOT CLOSED: IF ABNORM CAB V/S is a condition the crew confirms on every door (MAIN 5L/5R and UPPER 2L/2R showed its lines without it and never set the MAX FL 100/MEA limitation) - @TCdr
+1. [A380X/FWS] T.O CONFIG test: every main deck, upper deck and cargo door and the cockpit sliding windows must be closed for T.O CONFIG NORMAL (it checked only MAIN 1L, MAIN 2R and the cargo doors) - @TCdr
 
 ## 2024.1.0
 
