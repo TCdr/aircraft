@@ -408,6 +408,8 @@ export class FwsAbnormalSensed {
       this.fws.normalChecklists.openIfDeferredApplicable();
     }
     this.fws.presentedFailures.splice(this.fws.presentedFailures.indexOf(activeProcedureId), 1);
+    // The RCL LAST pb cancels the last CLEAR action (FwsRecall.ts)
+    this.fws.clearHistory.onCleared(activeProcedureId);
 
     // Delete procedure completely if not-sensed procedure is de-activated
     if (newState?.procedureActivated === false && EcamAbnormalProcedures[activeProcedureId]?.sensed === false) {

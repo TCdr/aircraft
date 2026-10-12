@@ -144,6 +144,8 @@ import {
 } from '@shared/CdsDisplayUnits';
 import { DcElectricalBus } from '@shared/electrical';
 import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
+import { isToConfigNormal } from './ToConfigNormal';
+import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -376,6 +378,19 @@ export class FwsCore {
   private recallHeldTime = 0;
 
   private recallLongPressDone = false;
+
+  /** The RCL LAST pb (L:A32NX_BTN_RCL_LAST), a pb of its own on the A380 ECP (FwsRecall.ts) */
+  public readonly recallLastButtonInputBuffer = new NXLogicMemoryNode(false);
+
+  public readonly rclLastPulseNode = new NXLogicPulseNode();
+
+  /** The CLEAR pb actions, newest last: the RCL LAST pb cancels the last one (FwsRecall.ts) */
+  public readonly clearHistory = new EcamClearHistory();
+
+  /** FCOM l.73433: RCL pb with no alert to recall, NORMAL appears for 3 seconds */
+  public readonly recallNormalMemo = Subject.create(false);
+
+  private recallNormalMemoTime = 0;
 
   /** FCOM: EMER CANC pb pressed with nothing to cancel, the EWD displays EMERGENCY CANCEL ON */
   public readonly emergencyCancelOnMemo = Subject.create(false);
@@ -1388,6 +1403,12 @@ export class FwsCore {
   );
   public readonly abnProcImpactingLdgDistActive = Subject.create(false);
 
+  /**
+   * An active alert lists BTV in STATUS INOP SYS (btvInopByAlert). The autobrake (systems.wasm autobrakes.rs) then does
+   * not arm BTV, as with the FCDC BTV LOST.
+   */
+  private readonly btvInopByAlertSimvar = RegisteredSimVar.createBoolean(`L:A32NX_FWC_${this.fwsNumber}_BTV_INOP`);
+
   /* FUEL */
 
   public readonly engine1ValueSwitch = ConsumerSubject.create(this.sub.on('fuel_valve_switch_1'), false);
@@ -1770,9 +1791,8 @@ export class FwsCore {
 
   public readonly flightPhase3PulseNode = new NXLogicPulseNode();
 
-  public readonly flightPhaseEndedPulseNode = new NXLogicPulseNode();
-
-  public readonly flightPhaseInhibitOverrideNode = new NXLogicMemoryNode(false);
+  /** RCL pb held for 3 s: the alerts inhibited in the current flight phase are shown (FwsRecall.ts) */
+  public readonly flightPhaseInhibitOverride = new FlightPhaseInhibitOverride();
 
   public readonly manualCheckListReset = Subject.create(false);
 
@@ -2478,6 +2498,16 @@ export class FwsCore {
     this.reverserFailureInop[0],
     this.reverserFailureInop[1],
   );
+  /**
+   * INOP SYS BTV from an alert, besides the FCDC BTV LOST: ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER failures.
+   * A380 FCOM LIM-32 (a380_fcom.txt l.188646): "BTV cannot be used in the case of ECAM alert that impact the landing
+   * performance"; DSC-32-20-220 BTV ARMING (l.79403): "No ECAM warning affects landing distances".
+   */
+  public readonly btvInopByAlert = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.engineOutBtvInop,
+    this.reverserBtvInop,
+  );
   public readonly phase12561112Inhibition = [1, 2, 5, 6, 11, 12];
 
   public readonly phase56Inhibition = [5, 6];
@@ -2913,6 +2943,7 @@ export class FwsCore {
           this.allCurrentFailures.length = 0;
           this.presentedFailures.length = 0;
           this.recallFailures.length = 0;
+          this.clearHistory.reset();
           this.emerCancel.reset();
         } else {
           FwsCore.sendFailureWarning(this.bus);
@@ -2937,6 +2968,7 @@ export class FwsCore {
           this.allCurrentFailures.length = 0;
           this.presentedFailures.length = 0;
           this.recallFailures.length = 0;
+          this.clearHistory.reset();
           this.emerCancel.reset();
         }
       }),
@@ -3053,9 +3085,6 @@ export class FwsCore {
     this.subs.push(
       this.flightPhase.sub((fp) => {
         SimVar.SetSimVarValue('L:A32NX_FWC_FLIGHT_PHASE', 'Enum', fp || 0);
-        if (fp !== null) {
-          this.flightPhaseEndedPulseNode.write(true);
-        }
       }),
     );
 
@@ -3184,6 +3213,8 @@ export class FwsCore {
     this.subs.push(
       this.abnProcImpactingLdgPerfActive.sub((s) => this.abnProcImpactingLdgPerfActiveSimvar.set(s), true),
       this.abnProcImpactingLdgDistActive.sub((s) => this.abnProcImpactingLdgDistActiveSimvar.set(s), true),
+      this.btvInopByAlert,
+      this.btvInopByAlert.sub((inop) => this.btvInopByAlertSimvar.set(inop), true),
     );
 
     this.subs.push(
@@ -3402,6 +3433,11 @@ export class FwsCore {
     }
     this.recallHeldTime = recallButton && !this.fwsEcpFailed.get() ? this.recallHeldTime + deltaTime : 0;
 
+    // RCL LAST button
+    if (SimVar.GetSimVarValue('L:A32NX_BTN_RCL_LAST', 'bool') && !this.fwsEcpFailed.get()) {
+      this.recallLastButtonInputBuffer.write(true, false);
+    }
+
     // EMER CANC button
     if (SimVar.GetSimVarValue('L:A32NX_BTN_EMERCANC', 'bool') && !this.fwsEcpFailed.get()) {
       this.emerCancelInputBuffer.write(true, false);
@@ -3475,6 +3511,7 @@ export class FwsCore {
     this.toConfigPulseNode.write(this.toConfigInputBuffer.read());
     this.clrPulseNode.write(this.clearButtonInputBuffer.read());
     this.rclUpPulseNode.write(this.recallButtonInputBuffer.read());
+    this.rclLastPulseNode.write(this.recallLastButtonInputBuffer.read());
     this.emerCancelPulseNode.write(this.emerCancelInputBuffer.read());
     this.clPulseNode.write(this.clInputBuffer.read());
     this.clCheckPulseNode.write(this.clCheckInputBuffer.read());
@@ -3486,7 +3523,6 @@ export class FwsCore {
 
     // Inputs update
     const flightPhase = this.flightPhase.get();
-    this.flightPhaseEndedPulseNode.write(false);
     const phase3 = flightPhase === 3;
     const phase6 = flightPhase === 6;
     const flightPhase8 = flightPhase === 8;
@@ -3520,13 +3556,17 @@ export class FwsCore {
       this.toConfigTestHeldMin1s5PulseNode.write(this.toConfigTestRaw, deltaTime) || this.toConfigTestRaw,
     );
 
-    this.flightPhaseInhibitOverrideNode.write(this.rclUpPulseNode.read(), this.flightPhaseEndedPulseNode.read());
+    // FCOM l.73429-73431: only the RCL pb "pressed for more than three seconds" shows the alerts "inhibited by the
+    // current aircraft flight phase" (the short press did it before). True in the first update of the long press only:
+    // recallLongPressDone is set below, in CLEAR AND RECALL.
+    const recallLongPressStarted = this.recallHeldTime >= FwsCore.RECALL_LONG_PRESS_MS && !this.recallLongPressDone;
+    const phaseInhibitOverridden = this.flightPhaseInhibitOverride.update(recallLongPressStarted, flightPhase);
 
     this.showTakeoffInhibit.set(
-      this.toInhibitTimer.write(this.flightPhase34567.get() && !this.flightPhaseInhibitOverrideNode.read(), deltaTime),
+      this.toInhibitTimer.write(this.flightPhase34567.get() && !phaseInhibitOverridden, deltaTime),
     );
     this.showLandingInhibit.set(
-      this.ldgInhibitTimer.write(this.flightPhase910.get() && !this.flightPhaseInhibitOverrideNode.read(), deltaTime),
+      this.ldgInhibitTimer.write(this.flightPhase910.get() && !phaseInhibitOverridden, deltaTime),
     );
 
     this.flapsIndex.set(SimVar.GetSimVarValue('L:A32NX_FLAPS_CONF_INDEX', 'number'));
@@ -6414,8 +6454,8 @@ export class FwsCore {
     /* T.O. CONFIG CHECK */
 
     if (this.toMemo.get() && this.toConfigTestRaw) {
-      // TODO Note that fuel tank low pressure and gravity feed warnings are not included
-      const systemStatus = this.engine1Generator.get() && this.engine2Generator.get();
+      // A380 FCOM DSC-31-40-10 T.O CONFIG test (l.72715-72759, ToConfigNormal.ts): the ELEC DRIVE / GEN alerts of the four
+      // engines and ENG OIL TEMP LO replace the A320 GEN 1+2 potential check
 
       const cabin = SimVar.GetSimVarValue('INTERACTIVE POINT OPEN:0', 'percent');
       const catering = SimVar.GetSimVarValue('INTERACTIVE POINT OPEN:3', 'percent');
@@ -6432,8 +6472,18 @@ export class FwsCore {
         this.rudderTrimNotTo.get() ||
         this.pitchTrimNotTo.get();
 
-      const toConfigNormal =
-        systemStatus && speeds && !brakesHot && doors && !this.flapsMcduDisagree.get() && !surfacesNotTo;
+      const toConfigNormal = isToConfigNormal({
+        surfacesNotInToConfig: surfacesNotTo,
+        doorsInTakeoffConfig: doors,
+        brakesHot,
+        elecDriveDisconnected: this.elecDriveDisconnected.map((alert) => alert.get()),
+        elecGenFault: this.elecGenFault.map((alert) => alert.get()),
+        elecGenOff: this.elecGenOff.map((alert) => alert.get()),
+        engineOilTempLo: this.engineOilTempLo.map((alert) => alert.get()),
+        pitchTrimFmsCgDisagree: this.pitchTrimMcduCgDisagree.get(),
+        toFlapsFmsDisagree: this.flapsMcduDisagree.get(),
+        toSpeedsAlert: !speeds,
+      });
 
       this.toConfigNormal.set(this.toConfigNormalConf.write(toConfigNormal, deltaTime));
     }
@@ -6450,18 +6500,20 @@ export class FwsCore {
       }
     }
 
+    // RCL pb: every cleared alert and not-sensed ABN PROC still active comes back at once, or NORMAL for 3 s when there
+    // is none. RCL LAST pb: the alert of the last CLEAR pb action comes back. FCOM l.73420-73433, FwsRecall.ts.
     if (this.rclUpPulseNode.read()) {
-      if (this.recallFailures.length > 0) {
-        const recalledKey = this.recallFailures.shift();
-        if (recalledKey !== undefined) {
-          this.presentedFailures.push(recalledKey);
-          const recalledState = this.clearedAbnormalProceduresList.getValue(recalledKey);
-
-          if (recalledState) {
-            this.presentedAbnormalProceduresList.setValue(recalledKey, recalledState);
-            this.clearedAbnormalProceduresList.delete(recalledKey);
-          }
-        }
+      const { recalled, showNormal } = recallAll(this.recallFailures);
+      recalled.forEach((key) => this.recallClearedAlert(key));
+      if (showNormal) {
+        this.recallNormalMemoTime = RECALL_NORMAL_MEMO_MS;
+        this.recallNormalMemo.set(true);
+      }
+    }
+    if (this.rclLastPulseNode.read()) {
+      const lastCleared = this.clearHistory.lastCleared(this.recallFailures);
+      if (lastCleared !== undefined) {
+        this.recallClearedAlert(lastCleared);
       }
     }
 
@@ -6477,6 +6529,11 @@ export class FwsCore {
         const recalled = this.emerCancel.recall(this.allCurrentFailures);
         this.presentedFailures.push(...recalled.filter((key) => !this.presentedFailures.includes(key)));
         this.recallFailures = this.recallFailures.filter((key) => !recalled.includes(key));
+        if (recalled.length > 0) {
+          // The press first showed NORMAL (nothing cleared to recall), but the EMER CANC cautions come back
+          this.recallNormalMemoTime = 0;
+          this.recallNormalMemo.set(false);
+        }
       }
     } else {
       this.recallLongPressDone = false;
@@ -6485,6 +6542,11 @@ export class FwsCore {
     if (this.emergencyCancelOnMemoTime > 0) {
       this.emergencyCancelOnMemoTime -= deltaTime;
       this.emergencyCancelOnMemo.set(this.emergencyCancelOnMemoTime > 0);
+    }
+
+    if (this.recallNormalMemoTime > 0) {
+      this.recallNormalMemoTime -= deltaTime;
+      this.recallNormalMemo.set(this.recallNormalMemoTime > 0);
     }
 
     // Output logic
@@ -6588,7 +6650,13 @@ export class FwsCore {
         continue;
       }
 
-      if (newWarning && value.flightPhaseInhib.some((e) => e === flightPhase)) {
+      // A long RCL press shows the alerts inhibited by the current flight phase (FCOM l.73429-73431), until the end of
+      // the flight phase (FlightPhaseInhibitOverride)
+      if (
+        newWarning &&
+        value.flightPhaseInhib.some((e) => e === flightPhase) &&
+        !this.flightPhaseInhibitOverride.active
+      ) {
         continue;
       }
 
@@ -7176,6 +7244,7 @@ export class FwsCore {
     this.toConfigInputBuffer.write(false, true);
     this.clearButtonInputBuffer.write(false, true);
     this.recallButtonInputBuffer.write(false, true);
+    this.recallLastButtonInputBuffer.write(false, true);
     this.emerCancelInputBuffer.write(false, true);
     this.clInputBuffer.write(false, true);
     this.clCheckInputBuffer.write(false, true);
@@ -7228,6 +7297,25 @@ export class FwsCore {
 
     this.debugDataToOisSubject.set(this.debugDataToOis);
     this.debugDataToOisSubject.notify();
+  }
+
+  /**
+   * Puts a cleared alert (or not-sensed ABN PROC) back on the EWD, with the state its procedure had when cleared
+   * (RCL and RCL LAST pbs)
+   * @param key the alert key, one of recallFailures
+   */
+  private recallClearedAlert(key: string): void {
+    const index = this.recallFailures.indexOf(key);
+    if (index !== -1) {
+      this.recallFailures.splice(index, 1);
+    }
+    this.clearHistory.forget(key);
+    this.presentedFailures.push(key);
+    const recalledState = this.clearedAbnormalProceduresList.getValue(key);
+    if (recalledState) {
+      this.presentedAbnormalProceduresList.setValue(key, recalledState);
+      this.clearedAbnormalProceduresList.delete(key);
+    }
   }
 
   /**

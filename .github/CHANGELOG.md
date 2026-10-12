@@ -361,6 +361,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A380X/FWS] RCL LAST pb: brings back the alert of the last CLR action; the RCL pb brings back every cleared alert at once (NORMAL for 3 s when there is none), and only a RCL press of more than 3 s shows the alerts inhibited by the flight phase (a short RCL press no longer removed the T.O INHIBIT memo for the rest of the flight), as in the FCOM - @TCdr
+1. [A380X/FWS] T.O CONFIG test: T.O CONFIG NORMAL now follows the A380 checks of the FCOM (generators and drives of the four engines, engine oil temperature) instead of the A320 GEN 1+2 check - @TCdr
+1. [A380X/SD] Automatic SD pages as in the A380 FCOM: CRUISE from 1500 ft after take-off (it came 60 s after the flaps were up), WHEEL at the landing gear extension at any altitude (only below 16000 ft before) - @TCdr
+1. [A380X/GPWS] Mode 4B: gear up with the flaps in landing configuration gives TOO LOW GEAR below 245 ft and never TOO LOW TERRAIN, and a mode 4 alert stops once the aircraft climbs back above its ceiling - @TCdr
+1. [A380X/BTV] BTV does not arm, and an armed BTV reverts to BRK HI, while an ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER faults) - @TCdr
 
 ## 2024.1.0
 
