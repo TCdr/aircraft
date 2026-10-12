@@ -14,8 +14,14 @@ export enum StatusPart {
   InopSys,
 }
 
-/** The STATUS page lines, by code: 34 02 xxxxx information, 34 03 xxxxx inoperative systems (as the A380 codes) */
+/**
+ * The STATUS page lines, by code: ATA chapter, then 04 xxxxx limitations, 02 xxxxx information, 03 xxxxx inoperative
+ * systems (as the A380 codes). Their order here is their order on the page: the limitations come before the information
+ * in the left column.
+ */
 const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
+  // 21 AIR CONDITIONING (FCOM PRO-ABN-AIR, PRO-ABN-COND)
+  ['210400001', { part: StatusPart.Limitation, text: 'MAX FL.....100/MEA-MORA' }],
   // 24 ELECTRICAL (FCOM PRO-ABN-ELEC bus faults STATUS, see FWC/Logic/ElecBusAlerts), before LDG DIST PROC as in the FCOM
   ['240500101', { part: StatusPart.Condition, text: 'IF ABN CAB V/S:' }],
   ['240400106', { part: StatusPart.Limitation, text: 'MAX FL..........100/MEA' }],
@@ -112,23 +118,16 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240200101', { part: StatusPart.Information, text: 'SLATS SLOW' }],
   ['240200107', { part: StatusPart.Information, text: 'SLATS/FLAPS SLOW' }],
   ['240200102', { part: StatusPart.Information, text: 'CAT 2 ONLY' }],
+  ['210200001', { part: StatusPart.Information, text: 'CKPT AT FIXED TEMP' }],
+  ['210200002', { part: StatusPart.Information, text: 'CAB AT FIXED TEMP' }],
+  ['210200003', { part: StatusPart.Information, text: 'CAB TEMP BY PACK ONLY' }],
+  ['210200004', { part: StatusPart.Information, text: 'CAB TEMP CKPT CTL ONLY' }],
   // 29 HYDRAULIC (FCOM PRO-ABN-HYD STATUS), before CAT 3 SINGLE ONLY as in the FCOM
   ['290200001', { part: StatusPart.Information, text: 'BRK Y ACCU PR ONLY' }],
   ['290200002', { part: StatusPart.Information, text: 'ALTN Y BRK WITH A/SKID' }],
   ['290200003', { part: StatusPart.Information, text: 'SLATS/FLAPS SLOW' }],
   ['290200004', { part: StatusPart.Information, text: 'SLATS SLOW' }],
   ['290200005', { part: StatusPart.Information, text: 'FLAPS SLOW' }],
-  ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
-  // 36 PNEUMATIC (FCOM PRO-ABN-AIR ENG 1(2) HP VALVE FAULT STATUS, a320_fcom.txt l.70595), see
-  // FWC/Logic/BleedLeakMonitoringAlerts
-  ['360200101', { part: StatusPart.Information, text: 'AIR PRESS LOW AT IDLE' }],
-  // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
-  ['280200001', { part: StatusPart.Information, text: 'CTR TK USABLE BY GRAVITY' }],
-  ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
-  // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
-  ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
-  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT 1(2) FAULT and BCL 1(2) FAULT STATUS, l.76175, l.76252)
-  ['240200201', { part: StatusPart.Information, text: 'APU BAT START NOT AVAIL' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
   // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL STATUS), after CAT 3 SINGLE ONLY as in ELAC 1(2) FAULT (l.82768-82780)
@@ -144,6 +143,18 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270200009', { part: StatusPart.Information, text: 'FMS PRED UNRELIABLE' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, l.81263)
   ['700200001', { part: StatusPart.Information, text: 'ONE PACK ONLY IF WAI ON' }],
+  // 34 NAVIGATION
+  ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
+  // 36 PNEUMATIC (FCOM PRO-ABN-AIR ENG 1(2) HP VALVE FAULT STATUS, a320_fcom.txt l.70595), see
+  // FWC/Logic/BleedLeakMonitoringAlerts
+  ['360200101', { part: StatusPart.Information, text: 'AIR PRESS LOW AT IDLE' }],
+  // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
+  ['280200001', { part: StatusPart.Information, text: 'CTR TK USABLE BY GRAVITY' }],
+  ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
+  // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
+  ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
+  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT 1(2) FAULT and BCL 1(2) FAULT STATUS, l.76175, l.76252)
+  ['240200201', { part: StatusPart.Information, text: 'APU BAT START NOT AVAIL' }],
   // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL INOP SYS), before CAT 3 DUAL as in ELAC 1(2) FAULT (l.82768-82780)
   ['270300001', { part: StatusPart.InopSys, text: 'F/CTL PROT' }],
   ['270300002', { part: StatusPart.InopSys, text: 'L+R ELEV' }],
@@ -173,7 +184,6 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270300026', { part: StatusPart.InopSys, text: 'FCDC 2' }],
   ['270300027', { part: StatusPart.InopSys, text: 'AP 1+2' }],
   ['270300028', { part: StatusPart.InopSys, text: 'CAT 2' }],
-  // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
   ['360300001', { part: StatusPart.InopSys, text: 'ENG 1 BLEED' }],
@@ -227,9 +237,19 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290300049', { part: StatusPart.InopSys, text: 'RAT' }],
   // 49 APU (FCOM PRO-ABN-APU APU AUTO (EMER) SHUT DOWN INOP SYS, l.71110-71114)
   ['490300001', { part: StatusPart.InopSys, text: 'APU' }],
-  // 21 AIR CONDITIONING (ENG 1(2) SHUT DOWN INOP SYS; the same codes as the PACK 1(2) FAULT lines)
+  // 21 AIR CONDITIONING
   ['210300001', { part: StatusPart.InopSys, text: 'PACK 1' }],
   ['210300002', { part: StatusPart.InopSys, text: 'PACK 2' }],
+  ['210300003', { part: StatusPart.InopSys, text: 'PACK 1+2' }],
+  ['210300004', { part: StatusPart.InopSys, text: 'COND CTL 1' }],
+  ['210300005', { part: StatusPart.InopSys, text: 'COND CTL 2' }],
+  ['210300006', { part: StatusPart.InopSys, text: 'COND CTL 1-A' }],
+  ['210300007', { part: StatusPart.InopSys, text: 'COND CTL 1-B' }],
+  ['210300008', { part: StatusPart.InopSys, text: 'COND CTL 2-A' }],
+  ['210300009', { part: StatusPart.InopSys, text: 'COND CTL 2-B' }],
+  ['210300010', { part: StatusPart.InopSys, text: 'HOT AIR' }],
+  ['210300011', { part: StatusPart.InopSys, text: 'L+R CAB FAN' }],
+  ['210300012', { part: StatusPart.InopSys, text: 'GALLEY FAN' }],
   // ENG 1(2) SHUT DOWN INOP SYS (FCOM PRO-ABN-ENG, l.81170-81181), in its order with 22 CAT 3 DUAL and 21 PACK 1(2)
   ['240300001', { part: StatusPart.InopSys, text: 'MAIN GALLEY' }],
   ['240300002', { part: StatusPart.InopSys, text: 'GEN 1' }],

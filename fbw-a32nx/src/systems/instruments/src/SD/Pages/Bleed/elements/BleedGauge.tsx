@@ -6,6 +6,7 @@ import React, { FC } from 'react';
 import { GaugeComponent, GaugeMarkerComponent } from '@instruments/common/gauges';
 import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import Valve from './Valve';
+import { packOutletTemperatureDisplay } from './PackOutletTemperature';
 
 interface BleedGaugeProps {
   x: number;
@@ -17,7 +18,7 @@ interface BleedGaugeProps {
 
 const BleedGauge: FC<BleedGaugeProps> = ({ x, y, engine, sdacDatum, packFlowValveOpen }) => {
   // TODO
-  // Pack precooler outlet temp, pack inlet flow rate, pack bypass valve and pack outlet temp should be revised once the packs are modelled
+  // Pack compressor outlet temp, pack inlet flow rate and pack bypass valve should be revised once the packs are modelled
   const [precoolerOutletTemp] = useSimVar(
     `L:A32NX_PNEU_ENG_${engine}_BLEED_TEMPERATURE_SENSOR_TEMPERATURE`,
     'celsius',
@@ -31,8 +32,9 @@ const BleedGauge: FC<BleedGaugeProps> = ({ x, y, engine, sdacDatum, packFlowValv
 
   const [fwdCondSelectorKnob] = useSimVar('L:A32NX_OVHD_COND_FWD_SELECTOR_KNOB', 'number', 1000); // 0 to 300
   const packBypassValve = Math.round((fwdCondSelectorKnob / 300) * 100);
-  const [fwdCabinTemp] = useSimVar('L:A32NX_COND_FWD_TEMP', 'celsius', 1000);
-  const packOutletTemp = Math.round(fwdCabinTemp / 5) * 5;
+  // The pack of this side: pack 1 is supplied from engine 1's side, pack 2 from engine 2's
+  const [packOutletTempCelsius] = useSimVar(`L:A32NX_COND_PACK_${engine}_OUTLET_TEMPERATURE`, 'number', 1000);
+  const packOutletTemp = packOutletTemperatureDisplay(packOutletTempCelsius);
 
   const radius = 38;
   const startAngle = -63;
@@ -45,8 +47,12 @@ const BleedGauge: FC<BleedGaugeProps> = ({ x, y, engine, sdacDatum, packFlowValv
   return (
     <g id={`Engine${engine}AirCond`}>
       {/* Pack Outlet Temp */}
-      <text className={`Large End ${sdacDatum ? 'Green' : 'Amber'}`} x={sdacDatum ? x + 15 : x + 12} y={y - 117}>
-        {sdacDatum ? packOutletTemp : 'XX'}
+      <text
+        className={`Large End ${sdacDatum && !packOutletTemp.amber ? 'Green' : 'Amber'}`}
+        x={sdacDatum ? x + 15 : x + 12}
+        y={y - 117}
+      >
+        {sdacDatum ? packOutletTemp.value : 'XX'}
       </text>
       <text x={x + 20} y={y - 117} className="Cyan Standard">
         °C

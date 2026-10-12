@@ -2520,7 +2520,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
       | 18  | Trim valve F/D inop                                  |
       | 19  | Trim valve FWD inop                                  |
       | 20  | Trim valve AFT inop                                  |
-      | 21  | Not used                                             |
+      | 21  | Pack flow control valve position disagree            |
       | 22  | Not used                                             |
       | 23  | *FCV status (Both pakcs off)                         |
       | 24  | *One pack operation                                  |
@@ -2553,6 +2553,10 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_COND_PACK_FLOW_{index}
     - Percent
     - Percentage flow coming out of each pack {1 or 2} into the cabin (LO: 80%, NORM: 100%, HI: 120%)
+
+- A32NX_COND_PACK_{index}_OUTLET_TEMPERATURE
+    - Degree Celsius
+    - Outlet temperature of the respective {1 or 2} pack
 
 - A32NX_COND_{id}_TRIM_AIR_VALVE_POSITION
     - Percentage

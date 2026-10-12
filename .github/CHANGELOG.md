@@ -195,6 +195,14 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BRAKES] The A-SKID switch OFF no longer cuts the nose wheel steering - @TCdr
 1. [A380X/BRAKES] A landing AUTO BRK mode armed on the ground stays armed after take-off; only RTO disarms 10 s after lift-off - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A32NX/COND] Engine 2 FIRE pb now closes pack 2 (it closed pack 1 before); on ground the packs reopen 30 s after an engine start - @TCdr
+1. [A32NX/COND] Hot air valve stays open with one cabin trim air valve failed; it closes for the cockpit valve or both cabin valves - @TCdr
+1. [A32NX/COND] LAV + GALLEY FAN failure: the FWD/AFT CABIN selectors set the cabin duct temperature directly; with ACSC 2 lost the cabin gets the cockpit duct air - @TCdr
+1. [A32NX/FWC] DUCT OVHT also triggers on the fourth duct excursion above 80 °C in a flight; PACK 1(2) FAULT also triggers on a pack valve position disagree - @TCdr
+1. [A32NX/SD] COND page: a failed trim air valve shows amber crosses (XX) in place of its arrow - @TCdr
+1. [A32NX/FWC] HOT AIR FAULT procedure completed (packs off, descent, RAM AIR, MAX FL), CKPT TRIM VALVE text, and the STATUS page lines of the air conditioning alerts - @TCdr
+1. [A32NX/COND] With the hot air valve closed, pack 1 regulates the cockpit and pack 2 the cabin at the mean of the FWD/AFT selections - @TCdr
+1. [A32NX/SD] BLEED page: the pack outlet temperatures show each pack's own outlet temperature (was the FWD cabin temperature), amber above 90 °C - @TCdr
 1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
