@@ -229,6 +229,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/PNEU] New flyPad pneumatic failures (ATA 36): bleed, HP, fan air, crossbleed and APU bleed valves stuck, pylon, wing and APU bleed leaks, leak detection loops and BMC 1(2); the BMCs now detect leaks, HP valve faults and overpressure above 57 PSI, light the ENG BLEED and APU BLEED FAULT lights, and close the affected valves - @TCdr
 1. [A32NX/FWC] New AIR cautions L(R) WING LEAK, ENG 1(2) BLEED LEAK, APU BLEED LEAK, ENG 1(2) / L(R) WNG / APU LEAK DET FAULT, ENG 1(2) HP VALVE FAULT, BLEED MONIT SYS 1(2) FAULT and BLEED MONITORING FAULT - @TCdr
 1. [A32NX/ELEC] New flyPad failures Battery 1(2) (thermal runaway), BCL 1(2), IDG 1(2) oil leak and IDG 1(2) oil overheat, with the ELEC BAT 1(2) FAULT, BCL 1(2) FAULT, IDG 1(2) OIL LO PR / OIL OVHT, GEN 1(2) / APU GEN OVERLOAD and STATIC INV FAULT cautions, the BAT, IDG and GALY & CAB pb FAULT lights, the IDG automatic thermal disconnection at 200 °C and the IDG LO PR and temperature colours on the SD ELEC page - @TCdr
+1. [A32NX/FWC] New F/CTL cautions from the flight control computers: L(R) ELEV FAULT, L(R) AIL FAULT, SPLR FAULT, ELEV SERVO FAULT, AIL SERVO FAULT and ELAC 1(2) PITCH FAULT, with the FCOM phase inhibitions; a loss caused by a hydraulic system or a failed computer stays with the HYD or ELAC/SEC alert - @TCdr
+1. [A32NX/FWC] F/CTL: both ELACs failed now show one ELAC 1+2 FAULT procedure instead of two ELAC FAULT alerts; ALTN LAW shows SPD BRK DO NOT USE for an L or R elevator fault (as the FCOM) instead of the spoiler 3+4 fault; FCDC 1+2 FAULT is no longer inhibited in phase 3 - @TCdr
+1. [A32NX/FWC] F/CTL STATUS page: ALTN LAW, DIRECT LAW, ELAC, SEC, FCDC, elevator, aileron and spoiler faults now show their FCOM limitations, approach procedure, information and INOP SYS lines - @TCdr
 
 ## 2024.1.0
 

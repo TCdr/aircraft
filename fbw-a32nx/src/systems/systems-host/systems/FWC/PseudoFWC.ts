@@ -54,6 +54,17 @@ import { A32NXFacBusEvents } from '@shared/publishers/A32NXFacBusPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
+import {
+  FlightControlSurfaceMonitor,
+  FlightControlSurfacePhaseInhibition as FctlPhases,
+  NO_SURFACE_FAULT,
+  aileronFaultLines,
+  elac12FaultLines,
+  elacFaultAlerts,
+  elevatorFaultLines,
+  spoilerFaultLines,
+} from './Logic/FlightControlSurfaceAlerts';
+import * as FctlStatus from './Logic/FlightControlStatus';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
 import { wingTankLowLevelLines, wingTankLowLevelStatus } from './Logic/WingTankLowLevel';
 import {
@@ -1006,6 +1017,37 @@ export class PseudoFWC {
   private readonly flapsHandle = Subject.create(0);
 
   private readonly lrElevFaultCondition = Subject.create(false);
+
+  /** F/CTL surface cautions and the ELAC 1+2 FAULT combination, see Logic/FlightControlSurfaceAlerts */
+  private readonly fctlSurfaceMonitor = new FlightControlSurfaceMonitor();
+
+  private fctlSurfaces = NO_SURFACE_FAULT;
+
+  private fctlApEngaged = false;
+
+  private readonly elac1FaultAlert = Subject.create(false);
+
+  private readonly elac2FaultAlert = Subject.create(false);
+
+  private readonly elac12FaultAlert = Subject.create(false);
+
+  private readonly elac1PitchFault = Subject.create(false);
+
+  private readonly elac2PitchFault = Subject.create(false);
+
+  private readonly elevServoFault = Subject.create(false);
+
+  private readonly leftElevFault = Subject.create(false);
+
+  private readonly rightElevFault = Subject.create(false);
+
+  private readonly ailServoFault = Subject.create(false);
+
+  private readonly leftAilFault = Subject.create(false);
+
+  private readonly rightAilFault = Subject.create(false);
+
+  private readonly spoilerFault = Subject.create(false);
 
   private readonly sec1FaultCondition = Subject.create(false);
 
@@ -2560,6 +2602,24 @@ export class PseudoFWC {
     this.apDiscInputBuffer.write(false, true);
     this.autoThrustInstinctiveDisconnectPressed = false;
     this.apInstinctiveDisconnectPressed = false;
+  }
+
+  /** F/CTL SEC 1(2)(3) FAULT STATUS for the failed SECs, see Logic/FlightControlStatus */
+  private secFaultStatus() {
+    return FctlStatus.secFaultStatus(
+      this.sec1FaultCondition.get(),
+      this.sec2FaultCondition.get(),
+      this.sec3FaultCondition.get(),
+    );
+  }
+
+  /** F/CTL ALTN LAW STATUS, see Logic/FlightControlStatus */
+  private altnLawStatus() {
+    return FctlStatus.altnLawStatus(
+      this.twoHydraulicsOut.get(),
+      this.fctlSurfaces.leftOrRightElevatorLost,
+      this.fctlApEngaged,
+    );
   }
 
   /**
@@ -4198,6 +4258,34 @@ export class PseudoFWC {
         rhElevGreenFail &&
         ![1, 10].includes(this.fwcFlightPhase.get()),
     );
+
+    // F/CTL surface cautions (FCOM PRO-ABN-F_CTL), ELAC 1+2 FAULT, see Logic/FlightControlSurfaceAlerts
+    this.fctlSurfaces = this.fctlSurfaceMonitor.update(
+      {
+        fcdc1: { word1: fcdc1DiscreteWord1, word3: fcdc1DiscreteWord3, word5: fcdc1DiscreteWord5 },
+        fcdc2: { word1: fcdc2DiscreteWord1, word3: fcdc2DiscreteWord3, word5: fcdc2DiscreteWord5 },
+        bluePressurised: !!blueSysPressurised,
+        greenPressurised: !!greenSysPressurised,
+        yellowPressurised: !!yellowSysPressurised,
+      },
+      deltaTime / 1000,
+    );
+    const elacAlerts = elacFaultAlerts(this.elac1FaultConfirmNodeOutput.get(), this.elac2FaultConfirmNodeOutput.get());
+    this.elac1FaultAlert.set(elacAlerts.elac1Fault);
+    this.elac2FaultAlert.set(elacAlerts.elac2Fault);
+    this.elac12FaultAlert.set(elacAlerts.elac12Fault);
+    this.elac1PitchFault.set(this.fctlSurfaces.elac1PitchFault);
+    this.elac2PitchFault.set(this.fctlSurfaces.elac2PitchFault);
+    this.elevServoFault.set(this.fctlSurfaces.elevServoFault);
+    this.leftElevFault.set(this.fctlSurfaces.leftElevatorFault);
+    this.rightElevFault.set(this.fctlSurfaces.rightElevatorFault);
+    this.ailServoFault.set(this.fctlSurfaces.ailServoFault);
+    this.leftAilFault.set(this.fctlSurfaces.leftAileronFault);
+    this.rightAilFault.set(this.fctlSurfaces.rightAileronFault);
+    this.spoilerFault.set(this.fctlSurfaces.spoilerFault);
+    this.fctlApEngaged =
+      SimVar.GetSimVarValue('L:A32NX_FMGC_1_AP_ENGAGED', SimVarValueType.Bool) > 0 ||
+      SimVar.GetSimVarValue('L:A32NX_FMGC_2_AP_ENGAGED', SimVarValueType.Bool) > 0;
 
     // GND SPLRS FAULT status
     const sec1GroundSpoilerFault = fcdc1DiscreteWord5.bitValue(14) || fcdc2DiscreteWord5.bitValue(14);
@@ -7966,7 +8054,8 @@ export class PseudoFWC {
     2700110: {
       // ELAC 1 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.elac1FaultConfirmNodeOutput,
+      // not with the other ELAC FAULT: ELAC 1+2 FAULT replaces both (Logic/FlightControlSurfaceAlerts elacFaultAlerts)
+      simVarIsActive: this.elac1FaultAlert,
       // FCOM PRO-ABN-F_CTL ELAC 1(2) FAULT, see elacFaultLines
       whichCodeToReturn: () => elacFaultLines(this.elac1FaultLine123Display.get()),
       codesToReturn: ['270011001', '270011002', '270011003', '270011004', '270011005', '270011006'],
@@ -7974,11 +8063,14 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.elacFaultStatus(1).inopSys,
+      statusInfo: () => FctlStatus.elacFaultStatus(1).left,
     },
     2700120: {
       // ELAC 2 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.elac2FaultConfirmNodeOutput,
+      // not with the other ELAC FAULT: ELAC 1+2 FAULT replaces both (Logic/FlightControlSurfaceAlerts elacFaultAlerts)
+      simVarIsActive: this.elac2FaultAlert,
       // FCOM PRO-ABN-F_CTL ELAC 1(2) FAULT, see elacFaultLines
       whichCodeToReturn: () => elacFaultLines(this.elac2FaultLine123Display.get()),
       codesToReturn: ['270012001', '270012002', '270012003', '270012004', '270012005', '270012006'],
@@ -7986,6 +8078,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.elacFaultStatus(2).inopSys,
+      statusInfo: () => FctlStatus.elacFaultStatus(2).left,
     },
     2700210: {
       // SEC 1 FAULT
@@ -8003,6 +8097,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.secFaultStatus().inopSys,
+      statusInfo: () => this.secFaultStatus().left,
     },
     2700220: {
       // SEC 2 FAULT
@@ -8019,6 +8115,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.secFaultStatus().inopSys,
+      statusInfo: () => this.secFaultStatus().left,
     },
     2700230: {
       // SEC 3 FAULT
@@ -8035,6 +8133,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.secFaultStatus().inopSys,
+      statusInfo: () => this.secFaultStatus().left,
     },
     2700240: {
       // PITCH TRIM CONFIG
@@ -8062,7 +8162,7 @@ export class PseudoFWC {
     },
     2700360: {
       // FCDC 1+2 FAULT
-      flightPhaseInhib: [3, 4, 5, 7],
+      flightPhaseInhib: FctlPhases.fcdc12Fault,
       simVarIsActive: this.fcdc12FaultCondition,
       whichCodeToReturn: () => [0, 1],
       codesToReturn: ['270036001', '270036002'],
@@ -8070,6 +8170,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.fcdc12FaultStatus().inopSys,
+      statusInfo: () => FctlStatus.fcdc12FaultStatus().left,
     },
     2700365: {
       // DIRECT LAW (FCOM PRO-ABN-F_CTL, see directLawLines)
@@ -8091,6 +8193,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.directLawStatus().inopSys,
+      statusInfo: () => FctlStatus.directLawStatus().left,
     },
     2700370: {
       // SPD BRK DISAGREE
@@ -8119,23 +8223,168 @@ export class PseudoFWC {
       // ALTN 2 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn2LawConfirmNodeOutput,
-      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.speedBrakeDoNotUse.get()),
+      // SPD BRK DO NOT USE "IF L OR R ELEVATOR FAULT" (FCOM l.82547), not the FCDC SPD BRK 3+4 bit
+      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.fctlSurfaces.leftOrRightElevatorLost),
       codesToReturn: ['270037501', '270037502', '270037503', '270037504', '270037505', '270037506', '270037507'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.altnLawStatus().inopSys,
+      statusInfo: () => this.altnLawStatus().left,
     },
     2700390: {
       // ALTN 1 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn1LawConfirmNodeOutput,
-      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.speedBrakeDoNotUse.get()),
+      // SPD BRK DO NOT USE "IF L OR R ELEVATOR FAULT" (FCOM l.82547), not the FCDC SPD BRK 3+4 bit
+      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.fctlSurfaces.leftOrRightElevatorLost),
       codesToReturn: ['270039001', '270039002', '270039003', '270039004', '270039005', '270039006', '270039007'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.altnLawStatus().inopSys,
+      statusInfo: () => this.altnLawStatus().left,
+    },
+    // F/CTL surface cautions and ELAC 1+2 FAULT (FCOM PRO-ABN-F_CTL), see Logic/FlightControlSurfaceAlerts
+    2701010: {
+      // ELAC 1+2 FAULT (FCOM ELAC 1(2) FAULT, BOTH COMPUTERS FAILED)
+      flightPhaseInhib: FctlPhases.elacFault,
+      simVarIsActive: this.elac12FaultAlert,
+      whichCodeToReturn: () =>
+        elac12FaultLines(this.elac1FaultLine123Display.get(), this.elac2FaultLine123Display.get()),
+      codesToReturn: [
+        '270101001',
+        '270101002',
+        '270101003',
+        '270101004',
+        '270101005',
+        '270101006',
+        '270101007',
+        '270101008',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elac12FaultStatus().inopSys,
+      statusInfo: () => FctlStatus.elac12FaultStatus().left,
+    },
+    2701020: {
+      // ELAC 1 PITCH FAULT, crew awareness (level 1)
+      flightPhaseInhib: FctlPhases.elacPitchFault,
+      simVarIsActive: this.elac1PitchFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270102001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elacPitchFaultStatus(this.elac2PitchFault.get()).inopSys,
+      statusInfo: () => FctlStatus.elacPitchFaultStatus(this.elac2PitchFault.get()).left,
+    },
+    2701030: {
+      // ELAC 2 PITCH FAULT, crew awareness (level 1)
+      flightPhaseInhib: FctlPhases.elacPitchFault,
+      simVarIsActive: this.elac2PitchFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270103001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elacPitchFaultStatus(this.elac1PitchFault.get()).inopSys,
+      statusInfo: () => FctlStatus.elacPitchFaultStatus(this.elac1PitchFault.get()).left,
+    },
+    2701040: {
+      // ELEV SERVO FAULT, crew awareness (level 1)
+      flightPhaseInhib: FctlPhases.elevServoFault,
+      simVarIsActive: this.elevServoFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270104001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elevServoFaultStatus().inopSys,
+      statusInfo: () => FctlStatus.elevServoFaultStatus().left,
+    },
+    2701050: {
+      // L ELEV FAULT
+      flightPhaseInhib: FctlPhases.elevatorFault,
+      simVarIsActive: this.leftElevFault,
+      whichCodeToReturn: () => elevatorFaultLines(),
+      codesToReturn: ['270105001', '270105002', '270105003'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elevatorFaultStatus('L').inopSys,
+      statusInfo: () => FctlStatus.elevatorFaultStatus('L').left,
+    },
+    2701060: {
+      // R ELEV FAULT
+      flightPhaseInhib: FctlPhases.elevatorFault,
+      simVarIsActive: this.rightElevFault,
+      whichCodeToReturn: () => elevatorFaultLines(),
+      codesToReturn: ['270106001', '270106002', '270106003'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elevatorFaultStatus('R').inopSys,
+      statusInfo: () => FctlStatus.elevatorFaultStatus('R').left,
+    },
+    2701070: {
+      // AIL SERVO FAULT, crew awareness (level 1), no STATUS
+      flightPhaseInhib: FctlPhases.ailServoFault,
+      simVarIsActive: this.ailServoFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270107001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2701080: {
+      // L AIL FAULT
+      flightPhaseInhib: FctlPhases.aileronFault,
+      simVarIsActive: this.leftAilFault,
+      whichCodeToReturn: () => aileronFaultLines(),
+      codesToReturn: ['270108001', '270108002', '270108003'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.aileronFaultStatus('L').inopSys,
+      statusInfo: () => FctlStatus.aileronFaultStatus('L').left,
+    },
+    2701090: {
+      // R AIL FAULT
+      flightPhaseInhib: FctlPhases.aileronFault,
+      simVarIsActive: this.rightAilFault,
+      whichCodeToReturn: () => aileronFaultLines(),
+      codesToReturn: ['270109001', '270109002', '270109003'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.aileronFaultStatus('R').inopSys,
+      statusInfo: () => FctlStatus.aileronFaultStatus('R').left,
+    },
+    2701100: {
+      // SPLR FAULT
+      flightPhaseInhib: FctlPhases.spoilerFault,
+      simVarIsActive: this.spoilerFault,
+      whichCodeToReturn: () => spoilerFaultLines(this.fctlSurfaces.spoilerFaults),
+      codesToReturn: ['270110001', '270110002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).inopSys,
+      statusInfo: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).left,
     },
     3100110: {
       // TRIPPED REAR PNL J-M
@@ -8217,6 +8466,8 @@ export class PseudoFWC {
       failure: 3,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.leftAndRightElevatorFaultStatus().inopSys,
+      statusInfo: () => FctlStatus.leftAndRightElevatorFaultStatus().left,
     },
     2700460: {
       // PITCH TRIM/MCDU/CG DISAGREE
@@ -8272,6 +8523,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      inopSys: () => FctlStatus.fcdcFaultStatus(1).inopSys,
     },
     2700557: {
       // FCDC 2 FAULT
@@ -8283,6 +8535,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      inopSys: () => FctlStatus.fcdcFaultStatus(2).inopSys,
     },
     2700870: {
       // GND SPLR NOT ARMED
