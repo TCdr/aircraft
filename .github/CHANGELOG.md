@@ -221,6 +221,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] CAB PRESS page: the CAB ALT value pulses from 8800 ft until back at 8600 ft, the V/S value pulses above 1750 ft/min until back at 1650 ft/min, delta P pulses above 1.5 PSI in approach, and the needles no longer pulse, as in the FCOM - @TCdr
 1. [A32NX/SD] ENGINE page: the oil temperature now turns amber after 15 min between 140 and 155 °C (the timer restarted at every temperature change and never ran out) - @TCdr
 1. [A32NX/COCKPIT] The RAT & EMER GEN MAN ON pushbutton tooltip no longer says "(Inop.)": the pushbutton extends the RAT and couples the emergency generator - @TCdr
+1. [A32NX/ADIRS] A complete IR alignment takes 10 min at any latitude, as in the A320 FCOM (it took 5 to 17 min with the latitude like the A380) - @TCdr
+1. [A32NX/FUEL] Gravity feeding: with the X FEED open and all four wing tank pumps off, each engine burns the fuel of its own wing tank (the burned fuel was taken from no tank) - @TCdr
+1. [A32NX/ENG] In flight, after a flameout the FADEC relights the engine by itself within 30 s once the continuous ignition is on (ENG MODE selector at IGN, or the engine anti-ice, which now selects the continuous ignition automatically), without an ENG MASTER cycle, as in the FCOM - @TCdr
+1. [A32NX/ENG] Engine start faults as in the FCOM: after a stall or an EGT over limit during an automatic start on the ground the FADEC tries a new start first and dry cranks only after that, a manual start lights up from 20 % N2, and a starter that fails during an in-flight relight gives ENG START FAULT STARTER SHAFT SHEAR with WINDMILL START ONLY - @TCdr
 
 ## 2024.1.0
 

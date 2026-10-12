@@ -10,6 +10,7 @@
 #include "SimpleProfiler.hpp"
 #endif
 
+#include "CrossFeedBurn_A32NX.hpp"
 #include "EngineControlA32NX.h"
 #include "EngineRatios.hpp"
 #include "FanBlockedStart_A32NX.hpp"
@@ -931,8 +932,6 @@ void EngineControl_A32NX::updateFuel(double deltaTimeSeconds) {
   const double rightPump2  = simData.simVarsDataPtr->data().fuelPump2[R];
   const double apuNpercent = simData.apuRpmPercent->get();
 
-  int isTankClosed = 0;
-
   /// Delta time for this update in hours
   const double deltaTimeHours = deltaTimeSeconds / 3600;
 
@@ -1023,22 +1022,9 @@ void EngineControl_A32NX::updateFuel(double deltaTimeSeconds) {
       fuelCenterPre   = centerQuantity;    // Pounds
     }
     //-----------------------------------------------------------
-    // Cross-feed Logic
-    // isTankClosed = 0, x-feed valve closed
-    // isTankClosed = 1, left tank does not supply fuel
-    // isTankClosed = 2, right tank does not supply fuel
-    // isTankClosed = 3, left & right tanks do not supply fuel
-    // isTankClosed = 4, both tanks supply fuel
-    if (xFeedValve > 0.0) {
-      if (leftPump1 == 0 && leftPump2 == 0 && rightPump1 == 0 && rightPump2 == 0)
-        isTankClosed = 3;
-      else if (leftPump1 == 0 && leftPump2 == 0)
-        isTankClosed = 1;
-      else if (rightPump1 == 0 && rightPump2 == 0)
-        isTankClosed = 2;
-      else
-        isTankClosed = 4;
-    }
+    // Cross-feed Logic: which wing tank feeds which engine (CrossFeedBurn_A32NX.hpp, also gravity feeding)
+    const CrossFeedBurn_A32NX::WingSupply wingSupply =
+        CrossFeedBurn_A32NX::wingSupply(xFeedValve > 0.0, leftPump1 == 0 && leftPump2 == 0, rightPump1 == 0 && rightPump2 == 0);
 
     double xfrCenterToLeft  = 0;
     double xfrCenterToRight = 0;
@@ -1094,42 +1080,20 @@ void EngineControl_A32NX::updateFuel(double deltaTimeSeconds) {
       apuFuelConsumption = simData.simVarsDataPtr->data().apuFuelConsumption * weightLbsPerGallon * deltaTimeHours;
     }
 
-    apuBurn1 = apuFuelConsumption;
-    apuBurn2 = 0;
-
     //--------------------------------------------
     // Fuel used accumulators
     double fuelUsedLeft  = simData.engineFuelUsed[L]->get() + fuelBurn1;
     double fuelUsedRight = simData.engineFuelUsed[R]->get() + fuelBurn2;
 
     //--------------------------------------------
-    // Cross-feed fuel burn routine
-    // If fuel pumps for a given tank are closed,
-    // all fuel will be burnt on the other tank
-    switch (isTankClosed) {
-      case 1:
-        fuelBurn2 = fuelBurn1 + fuelBurn2;
-        fuelBurn1 = 0;
-        apuBurn1  = 0;
-        apuBurn2  = apuFuelConsumption;
-        break;
-      case 2:
-        fuelBurn1 = fuelBurn1 + fuelBurn2;
-        fuelBurn2 = 0;
-        break;
-      case 3:
-        fuelBurn1 = 0;
-        fuelBurn2 = 0;
-        apuBurn1  = apuFuelConsumption * 0.5;
-        apuBurn2  = apuFuelConsumption * 0.5;
-        break;
-      case 4:
-        apuBurn1 = apuFuelConsumption * 0.5;
-        apuBurn2 = apuFuelConsumption * 0.5;
-        break;
-      default:
-        break;
-    }
+    // Cross-feed fuel burn routine: if the fuel pumps of a tank are off with the X FEED open, all the fuel is burnt from the
+    // other tank; in gravity feeding (all four pumps off) each engine burns its own tank.
+    const CrossFeedBurn_A32NX::Burns burns = CrossFeedBurn_A32NX::routeBurns(wingSupply, fuelBurn1, fuelBurn2, apuFuelConsumption);
+
+    fuelBurn1 = burns.engine1;
+    fuelBurn2 = burns.engine2;
+    apuBurn1  = burns.apuLeft;
+    apuBurn2  = burns.apuRight;
 
     //--------------------------------------------
     // Center Tank transfer routine

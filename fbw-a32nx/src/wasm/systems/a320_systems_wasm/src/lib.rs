@@ -483,6 +483,9 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 2)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 1)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 2)?
+    // The engine anti-ice valves: automatic continuous ignition (a320_systems engine_failure.rs)
+    .provides_aircraft_variable("ENG ANTI ICE", "Bool", 1)?
+    .provides_aircraft_variable("ENG ANTI ICE", "Bool", 2)?
     // The MSFS engine speeds and vibration (a320_systems engine_malfunction.rs)
     .provides_aircraft_variable("TURB ENG N1", "Percent", 1)?
     .provides_aircraft_variable("TURB ENG N1", "Percent", 2)?

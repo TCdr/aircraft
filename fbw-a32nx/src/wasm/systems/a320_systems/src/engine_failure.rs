@@ -33,6 +33,12 @@
 //!   a while turns at 8 % N2 or less in zone 2 and needs IGN (zone 1 or 3).
 //! - On the ground (FCOM ENG 1(2) FAIL, l.79815: "If no damage, a new start sequence may be
 //!   initiated") a failed engine starts again as a normal start, with starter air.
+//! - In flight, the flameout of a running engine starts the FADEC relight attempt at once (FCOM
+//!   ENG 1(2) FAIL, l.79828: "Selection of continuous ignition confirms the immediate relight
+//!   attempt made by the FADEC"; "IF NO ENG RELIGHT AFTER 30 S", l.79849-79851): see
+//!   [`EngineRelightEnvelope::fadec_attempts_relight_after_flameout`]. Design choice: the attempt
+//!   lights up in the envelope above once the continuous ignition is on (ENG MODE IGN, or the
+//!   automatic selection by the engine anti-ice), or at once in zone 2 within 20 s of the flameout.
 //!
 //! The FADEC start sequence and ignition of each engine (`systems::engine::engine_start`: igniters,
 //! light-up, start faults, automatic start abort, ENG MAN START, start and ignition failures) run
@@ -164,6 +170,13 @@ impl EngineRelightEnvelope for A320RelightEnvelope {
                 / Self::WINDMILL_N2_REFERENCE_CAS_KNOTS,
         )
     }
+
+    /// FCOM PRO-ABN-ENG ENG 1(2) FAIL in flight (a320_fcom.txt l.79826-79828): "ENG MODE SEL ...
+    /// IGN. Selection of continuous ignition confirms the immediate relight attempt made by the
+    /// FADEC", then "IF NO ENG RELIGHT AFTER 30 S" (l.79849-79851).
+    fn fadec_attempts_relight_after_flameout(&self) -> bool {
+        true
+    }
 }
 
 /// The A320 start sequence numbers (CFM56-5B FCOM, a320_fcom.txt; FBW models the LEAP-1A, for which
@@ -206,6 +219,19 @@ pub fn a320_engine_start_schedule() -> EngineStartSchedule {
         // DSC-70-80-30 (l.63533): continuous ignition, "Only one igniter is selected. If failed, both
         // igniters are automatically selected."
         continuous_ignition_uses_both_igniters: false,
+        // DSC-70-80-40 (l.63766-63767): manual start, the FADEC "Opens the HP shutoff valve, and
+        // operates both igniters when the flight crew sets the ENG MASTER sw to ON", which the crew
+        // does when "N2 reaches 22 % or the maximum motoring speed (20 % minimum)" (PRO-NOR-SUP-ENG
+        // MANUAL ENGINE START, l.106855). 20 % is also the MSFS min_n2_for_combustion (engines.cfg).
+        manual_start_fuel_on_n2: Ratio::new::<percent>(20.),
+        // PRO-ABN-ENG ENG 1(2) START FAULT, ENG 1(2) STALL / EGT OVERLIMIT on ground (auto start)
+        // (l.81458-81478): reduced fuel schedule and NEW START IN PROGRESS first, the dry crank (AUTO
+        // CRANK IN PROGRESS) only "If restart not possible"; IGNITION FAULT cranks first
+        // (l.81400-81413).
+        stall_or_egt_restart_before_crank: true,
+        // A320neo FCOM ENG 1(2) START FAULT STARTER SHAFT SHEAR (P 323/368): in flight "ENG
+        // (AFFECTED) WINDMILL START ONLY", with the same STATUS line.
+        starter_fault_detected_in_flight: true,
     }
 }
 
@@ -229,6 +255,7 @@ struct A320EngineFailure {
     start_valve_open_id: VariableIdentifier,
     thrust_lever_angle_id: VariableIdentifier,
     preset_quick_mode_id: VariableIdentifier,
+    engine_anti_ice_id: VariableIdentifier,
     igniter_a_active_id: VariableIdentifier,
     igniter_b_active_id: VariableIdentifier,
 
@@ -243,6 +270,7 @@ struct A320EngineFailure {
     start_valve_is_open: bool,
     thrust_lever_angle_degrees: f64,
     preset_quick_mode: bool,
+    engine_anti_ice_valve_open: bool,
 }
 impl A320EngineFailure {
     fn new(context: &mut InitContext, engine_number: usize) -> Self {
@@ -267,6 +295,7 @@ impl A320EngineFailure {
             thrust_lever_angle_id: context
                 .get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
             preset_quick_mode_id: context.get_identifier("AIRCRAFT_PRESET_QUICK_MODE".to_owned()),
+            engine_anti_ice_id: context.get_identifier(format!("ENG ANTI ICE:{}", engine_number)),
             // The SD ENG page shows the igniters (FCOM DSC-70-90-40 l.64587-64591).
             igniter_a_active_id: context
                 .get_identifier(format!("FADEC_IGNITER_A_ACTIVE_ENG{}", engine_number)),
@@ -286,6 +315,7 @@ impl A320EngineFailure {
             start_valve_is_open: false,
             thrust_lever_angle_degrees: 0.,
             preset_quick_mode: false,
+            engine_anti_ice_valve_open: false,
         }
     }
 
@@ -307,7 +337,20 @@ impl A320EngineFailure {
                 <= Self::THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES,
             preset_quick_mode: self.preset_quick_mode,
             relight_pending: self.failure.is_flamed_out() || self.failure.is_seized(),
+            automatic_continuous_ignition: self.automatic_continuous_ignition(),
         }
+    }
+
+    /// The FADEC selects the continuous ignition by itself while the engine anti-ice valve is open.
+    /// A320 FCOM DSC-70-80-30 (a320_fcom.txt l.63527): "Continuous ignition may be selected either
+    /// manually or automatically"; PRO-ABN-ENG ENG 1(2) BLEED STATUS FAULT (l.79342): "When ENG
+    /// anti ice is on, there is no automatic selection of continuous relight since FADEC does not
+    /// know position of engine anti ice valves position": the automatic selection follows the
+    /// engine anti-ice valves. Design choice: the valve is the MSFS ENG ANTI ICE of the engine (FBW
+    /// models no engine anti-ice valve); the other conditions of the FCOM automatic selection (its
+    /// list is a figure, not in the FCOM text) are not modelled.
+    fn automatic_continuous_ignition(&self) -> bool {
+        self.engine_anti_ice_valve_open
     }
 
     fn update(
@@ -333,6 +376,7 @@ impl A320EngineFailure {
                 lp_valve_starved: fuel.engine_is_starved(self.engine_number),
                 start_sequence_fuel_cut: self.start.fuel_is_cut(),
                 ignition_available: self.start.ignition_is_available(),
+                automatic_continuous_ignition: self.automatic_continuous_ignition(),
             },
         );
 
@@ -376,6 +420,7 @@ impl SimulationElement for A320EngineFailure {
         self.start_valve_is_open = reader.read(&self.start_valve_open_id);
         self.thrust_lever_angle_degrees = reader.read(&self.thrust_lever_angle_id);
         self.preset_quick_mode = reader.read(&self.preset_quick_mode_id);
+        self.engine_anti_ice_valve_open = reader.read(&self.engine_anti_ice_id);
     }
 }
 
@@ -836,6 +881,68 @@ mod tests {
             assert_eq!(schedule.automatic_start_attempts, 3);
             assert!(schedule.starter_time_limit.is_none());
             assert!(!schedule.continuous_ignition_uses_both_igniters);
+            assert_eq!(schedule.manual_start_fuel_on_n2.get::<percent>(), 20.);
+            assert!(schedule.stall_or_egt_restart_before_crank);
+            assert!(schedule.starter_fault_detected_in_flight);
+        }
+
+        #[test]
+        fn after_a_flameout_ign_relights_engine_1_without_a_master_cycle() {
+            // 300 kt, FL 100: stabilized windmill relight zone, ENG MODE NORM at the flameout
+            let mut test_bed = flying_test_bed();
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 1.);
+            run(&mut test_bed);
+            test_bed.fail(FailureType::EngineFlameout(1));
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 12.);
+            for _ in 0..10 * 20 {
+                run(&mut test_bed);
+            }
+            assert!(fuel_is_cut(&mut test_bed, 1));
+
+            // ECAM ENG 1 FAIL: ENG MODE SEL IGN, within the 30 s of the FADEC relight attempt
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
+            run(&mut test_bed);
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+            let value: bool = test_bed.read_by_name("ENGINE_1_RELIGHT_IGNITION");
+            assert!(value);
+        }
+
+        #[test]
+        fn the_fadec_relight_attempt_ends_30_s_after_the_flameout() {
+            let mut test_bed = flying_test_bed();
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 1.);
+            run(&mut test_bed);
+            test_bed.fail(FailureType::EngineFlameout(1));
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 12.);
+            for _ in 0..31 * 20 {
+                run(&mut test_bed);
+            }
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
+            run(&mut test_bed);
+
+            assert!(fuel_is_cut(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn the_engine_anti_ice_selects_the_continuous_ignition_at_norm() {
+            let mut test_bed = flying_test_bed();
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 1.);
+            run(&mut test_bed);
+            let value: bool = test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+            assert!(!value);
+
+            test_bed.write_by_name("ENG ANTI ICE:1", true);
+            run(&mut test_bed);
+            let value: bool = test_bed.read_by_name("ENGINE_1_CONTINUOUS_IGNITION");
+            assert!(value);
+            let value: bool = test_bed.read_by_name("FADEC_IGNITER_A_ACTIVE_ENG1");
+            assert!(value);
+            let value: bool = test_bed.read_by_name("ENGINE_2_CONTINUOUS_IGNITION");
+            assert!(!value);
         }
 
         #[test]
