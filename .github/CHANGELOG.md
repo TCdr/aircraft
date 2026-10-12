@@ -361,6 +361,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A380X/NAV] New flyPad failures ADR 1(2)(3) airspeed erroneous (pitot) and ADR 1(2)(3) angle of attack erroneous (ATA 34): the PRIMs compare the ADRs with the standby instruments and reject a wrong source, with the NAV AIR DATA DISAGREE, NAV ALL AIR DATA DISAGREE and NAV AOA DISAGREE alerts and their alternate or direct law - @TCdr
+1. [A380X/FWS] F/CTL DIRECT LAW: MAX SPEED 310/.86 and MANEUVER WITH CARE are now APPR & LDG limitations, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

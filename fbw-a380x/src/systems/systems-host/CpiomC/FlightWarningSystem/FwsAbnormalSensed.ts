@@ -5196,6 +5196,50 @@ export class FwsAbnormalSensed {
       limitationsApprLdg: () => ['240400001'],
       limitationsPfd: () => ['240400002', '240400003', '240400004', '300400001'],
     },
+    // NAV AIR DATA DISAGREE, ALL AIR DATA DISAGREE, AOA DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10): logic in
+    // FwsAirDataAlerts.ts. Flight phase inhibitions from the FCOM figures (PDF pages 5555, 5557, 5565).
+    340800009: {
+      // AIR DATA DISAGREE
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.airDataAlerts.airDataDisagree,
+      notActiveWhenItemActive: ['340800010'],
+      whichItemsToShow: () => this.fws.airDataAlerts.airDataDisagreeItemsToShow(),
+      whichItemsChecked: () => [false, false, false, false, false, false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+      info: () => (this.fws.airDataAlerts.twoSourcesRejected() ? ['220200015'] : []),
+    },
+    340800010: {
+      // ALL AIR DATA DISAGREE
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.airDataAlerts.allAirDataDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => this.fws.airDataAlerts.allAirDataDisagreeItemsToShow(),
+      whichItemsChecked: () => this.fws.airDataAlerts.allAirDataDisagreeItemsChecked(this.fws.speedBrakeCommand.get()),
+      failure: 3,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => this.fws.airDataAlerts.allAirDataDisagreeInopSysAllPhases(),
+      inopSysApprLdg: () => ['220300027', '220300010', '220300021'],
+      info: () => this.fws.airDataAlerts.allAirDataDisagreeInfo(),
+      limitationsAllPhases: () => this.fws.airDataAlerts.allAirDataDisagreeLimitations(),
+      limitationsPfd: () => this.fws.airDataAlerts.allAirDataDisagreeLimitations(),
+    },
+    340800014: {
+      // AOA DISAGREE: F/CTL ALTN LAW (PROT LOST) is associated (two ADRs with a rejected AOA, PRIM model)
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.airDataAlerts.aoaDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.None,
+      // LIMITATIONS and STATUS: a380_fcom.txt l.164427-164451
+      inopSysAllPhases: () => ['290100008', '220300007', '220300001', '220300024'],
+      inopSysApprLdg: () => ['220300027', '220300010', '220300021'],
+      info: () => ['340200002', '340200020'],
+      limitationsAllPhases: () => ['270400002'],
+      limitationsPfd: () => ['270400002'],
+    },
     340800015: {
       // ARPT NAV LOST
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],

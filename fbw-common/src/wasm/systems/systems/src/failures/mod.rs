@@ -69,6 +69,11 @@ pub enum FailureType {
     EnhancedGroundProximityWarningSystemComputer,
     /// The GPS receiver of MMR 1 or 2
     Gps(usize),
+    /// The total pressure (pitot) input of ADR n is erroneous: its airspeed and Mach read low, with a valid status.
+    /// The ADR does not see it; only a comparison with the other air data sources (PRIM monitoring) can detect it.
+    AdrAirspeedErroneous(usize),
+    /// The angle of attack probe of ADR n is erroneous: its angle of attack reads high, with a valid status
+    AdrAngleOfAttackErroneous(usize),
     // ATA72
     /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
     EngineFlameout(usize),

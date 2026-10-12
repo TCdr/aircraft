@@ -22,6 +22,15 @@ export interface FwsLimitationsDict {
   [key: keyof typeof EcamLimitations]: FwsLimitationsItem;
 }
 
+/**
+ * The APPR & LDG column without the limitations the ALL PHASES column already shows: one key can be an APPR & LDG
+ * limitation of one procedure and an ALL PHASES one of another (MAX SPEED 310/.86: F/CTL DIRECT LAW, NAV ALL AIR DATA
+ * DISAGREE).
+ */
+export function withoutAllPhasesDuplicates(apprLdgKeys: string[], allPhasesKeys: string[]): string[] {
+  return apprLdgKeys.filter((key) => !allPhasesKeys.includes(key));
+}
+
 export class FwsLimitations {
   public readonly subscriptions: Subscription[] = [];
 
@@ -38,16 +47,18 @@ export class FwsLimitations {
       simVarIsActive: this.fws.allRmpFault,
       phase: FwsLimitationsPhases.AllPhases,
     },
+    // F/CTL DIRECT LAW: "LIMITATIONS ON ECAM / APPR & LDG: MAX SPEED : 310/.86, MANEUVER WITH CARE", the same on the PFD
+    // (A380 FCOM PRO-ABN-ECAM-10-27-10 F/CTL DIRECT LAW, a380_fcom.txt l.144962-144972, PDF page 5025)
     240400002: {
       // MAX SPEED: 310/.86
       simVarIsActive: this.fws.directLawCondition,
-      phase: FwsLimitationsPhases.AllPhases,
+      phase: FwsLimitationsPhases.ApprLdg,
       pfd: true,
     },
     240400004: {
       // MANEUVER WITH CARE
       simVarIsActive: this.fws.directLawCondition,
-      phase: FwsLimitationsPhases.AllPhases,
+      phase: FwsLimitationsPhases.ApprLdg,
       pfd: true,
     },
     260400001: {
