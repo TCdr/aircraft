@@ -105,6 +105,7 @@ impl A320Electrical {
             ext_pwr,
             overhead,
             &self.emergency_gen,
+            self.direct_current.dc_bus_1_and_2_busbars_lost(),
         );
 
         // Relay 7XB
@@ -1424,6 +1425,103 @@ mod a320_electrical_circuit_tests {
             .run_waiting_until_just_before_ac_ess_feed_transition();
 
         assert!(test_bed.dc_ess_bus_output().is_unpowered());
+    }
+
+    /// A320 FCOM PRO-ABN-ELEC ELEC DC BUS 1+2 FAULT (a320_fcom.txt l.76800-76906): the alert is
+    /// "DC 1 and DC 2 busbars are not supplied", its associated procedure is ELEC DC BAT BUS FAULT,
+    /// and its STATUS lists "BOTH PFD ON SAME FAC" with FAC 2, AP 2, FCDC 2 and CAB PRESS 2 as INOP
+    /// SYS, but not FAC 1, AP 1, FCDC 1 or CAB PR 1 (all on the DC ESS BUS, see ELEC DC ESS BUS
+    /// FAULT l.77357-77367). The DC ESS BUS therefore stays supplied, by the ESS TR, although
+    /// TR 1 and TR 2 themselves are still supplied.
+    #[test]
+    fn when_dc_bus_1_and_2_fail_tr_ess_powers_dc_ess_bus() {
+        let test_bed = test_bed_with()
+            .running_engines()
+            .failed_bus(ElectricalBusType::DirectCurrent(1))
+            .and()
+            .failed_bus(ElectricalBusType::DirectCurrent(2))
+            .run_waiting_for(Duration::from_secs(10));
+
+        assert!(test_bed.dc_bus_output(1).is_unpowered());
+        assert!(test_bed.dc_bus_output(2).is_unpowered());
+        assert!(test_bed.dc_bat_bus_output().is_unpowered());
+        assert!(test_bed
+            .dc_ess_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(3)));
+        assert!(test_bed
+            .dc_ess_shed_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(3)));
+    }
+
+    /// A single DC bus failure keeps the normal DC ESS supply: the remaining DC bus feeds the
+    /// DC BAT BUS (FCOM DSC-24-10-30-30 "DC BUS 2 supplies DC BUS 1 and DC BAT BUS automatically
+    /// after 5 s", l.36727), which feeds the DC ESS BUS; the ESS TR stays disconnected.
+    #[test]
+    fn when_only_dc_bus_1_fails_dc_bat_bus_keeps_powering_dc_ess_bus() {
+        let test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .failed_bus(ElectricalBusType::DirectCurrent(1))
+            .run_waiting_for(Duration::from_secs(10));
+
+        assert!(test_bed.dc_bus_output(1).is_unpowered());
+        assert!(test_bed
+            .dc_ess_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(2)));
+    }
+
+    /// When DC BUS 1 and 2 come back after an ELEC DC BUS 1+2 FAULT, the DC ESS BUS goes back from
+    /// the ESS TR to the DC BAT BUS. FCOM DSC-24-10-30-30 (a320_fcom.txt l.36638): "TR 1 normally
+    /// supplies DC BUS 1, DC BAT BUS, and DC ESS BUS"; nothing in the FCOM describes a loss of the
+    /// DC ESS BUS during that change. The DC ESS BUS and the DC ESS SHED BUS (FMGC 1, FCDC 1, FAC 1,
+    /// FCU channel 1) must stay supplied on every update, otherwise their computers stop (20 ms
+    /// outage limit) and the FCU drops the AP and A/THR. The sim restored DC BUS 1 first, then
+    /// DC BUS 2, one update apart.
+    #[test]
+    fn dc_ess_bus_stays_powered_on_every_update_when_dc_bus_1_and_2_come_back() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .failed_bus(ElectricalBusType::DirectCurrent(1))
+            .and()
+            .failed_bus(ElectricalBusType::DirectCurrent(2))
+            .run_waiting_for(Duration::from_secs(10));
+        assert!(test_bed
+            .dc_ess_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(3)));
+
+        test_bed = test_bed
+            .restored_bus(ElectricalBusType::DirectCurrent(1))
+            .run_once();
+        assert!(test_bed.dc_ess_bus_output().is_powered());
+        assert!(test_bed.dc_ess_shed_bus_output().is_powered());
+
+        test_bed = test_bed
+            .restored_bus(ElectricalBusType::DirectCurrent(2))
+            .run_once();
+        assert!(test_bed.dc_ess_bus_output().is_powered());
+        assert!(test_bed.dc_ess_shed_bus_output().is_powered());
+
+        test_bed = test_bed.run_once();
+        assert!(test_bed
+            .dc_ess_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(1)));
+        assert!(test_bed.dc_ess_shed_bus_output().is_powered());
+    }
+
+    /// Same no-break rule when a single DC bus fails: the other DC bus takes over the DC BAT BUS
+    /// (FCOM DSC-24-10-30-30), and the DC ESS BUS behind it stays supplied on every update.
+    #[test]
+    fn dc_ess_bus_stays_powered_on_every_update_when_dc_bus_1_fails() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .run_waiting_for(Duration::from_secs(10));
+
+        test_bed = test_bed
+            .failed_bus(ElectricalBusType::DirectCurrent(1))
+            .run_once();
+        assert!(test_bed.dc_bat_bus_output().is_powered());
+        assert!(test_bed.dc_ess_bus_output().is_powered());
+        assert!(test_bed.dc_ess_shed_bus_output().is_powered());
     }
 
     #[test]
@@ -2875,6 +2973,18 @@ mod a320_electrical_circuit_tests {
 
         fn failed_tr_2(mut self) -> Self {
             self.test_bed.fail(FailureType::TransformerRectifier(2));
+            self
+        }
+
+        /// Fails the busbar itself (flyPad ATA 24 bus failures), not its source
+        fn failed_bus(mut self, bus_type: ElectricalBusType) -> Self {
+            self.test_bed.fail(FailureType::ElectricalBus(bus_type));
+            self
+        }
+
+        /// Removes a busbar failure set by failed_bus()
+        fn restored_bus(mut self, bus_type: ElectricalBusType) -> Self {
+            self.test_bed.unfail(FailureType::ElectricalBus(bus_type));
             self
         }
 
