@@ -23,13 +23,21 @@ import {
 // FIXME should not import from instruments
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
-import { ALL_ENG_FLAME_OUT_INHIBITED_PHASES } from './EngineFailAlerts';
 import {
+  ALL_ENG_FLAME_OUT_INHIBITED_PHASES,
+  ENG_FAIL_FLIGHT_PHASE_INHIBITION,
+  oppositeSideApproachItems,
+  sameSideApproachItems,
+  TwoEnginesOutDeferredInputs,
+  twoEnginesOutAllPhasesItems,
+} from './EngineFailAlerts';
+import {
+  OIL_FILTER_CLOGGED_LEVEL,
   OIL_FILTER_CLOGGED_PHASE_INHIBITION,
   OIL_PRESS_LO_PHASE_INHIBITION,
   OIL_TEMP_HI_PHASE_INHIBITION,
 } from './EngineOilAlerts';
-import { FUEL_FILTER_CLOGGED_PHASE_INHIBITION } from './EngineFuelFilterAlerts';
+import { FUEL_FILTER_CLOGGED_LEVEL, FUEL_FILTER_CLOGGED_PHASE_INHIBITION } from './EngineFuelFilterAlerts';
 import {
   OIL_TEMP_LO_PHASE_INHIBITION,
   THR_LEVERS_NOT_SET_PHASE_INHIBITION,
@@ -41,10 +49,14 @@ import {
   thrustLossItemsChecked,
 } from './EngineThrustAlerts';
 import {
+  IGN_A_AND_B_FAULT_LEVEL,
+  IGN_A_OR_B_FAULT_LEVEL,
   IGN_FAULT_FLIGHT_PHASE_INHIBITION,
   START_ALERTS_FLIGHT_PHASE_INHIBITION,
+  START_FAULT_LEVEL,
   startFaultItems,
   startValveNotClosedItems,
+  startValveNotClosedStatus,
   startValveNotOpenItems,
 } from './EngineStartAlerts';
 import { ENG_OVER_LIMIT_ITEMS_SHOWN, ENG_STALL_ITEMS_SHOWN } from './EngineParameterAlerts';
@@ -459,15 +471,18 @@ export class FwsAbnormalSensed {
           apuBleedPbOn: this.fws.apuBleedPbOn.get(),
           allThrustLeversIdle: this.fws.allThrottleIdle.get(),
         });
+      // START FAULT: no aural, no MASTER light and no SD page (FCOM PDF p.5810, l.172889 "Indications:" empty)
       alerts[701800117 + index] = {
         flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
         simVarIsActive: this.fws.engineStartFaultActive[index],
         notActiveWhenItemActive: [],
         whichItemsToShow: () => startFault().show,
         whichItemsChecked: () => startFault().checked,
-        failure: 2,
-        sysPage: SdPages.Eng,
+        failure: START_FAULT_LEVEL,
+        sysPage: SdPages.None,
       };
+      // START VLV FAULT (NOT CLOSED) LIMITATIONS and STATUS (l.173136-173158); the deferred procedure is ata70 700700001
+      const valveNotClosedStatus = startValveNotClosedStatus(engineNumber);
       alerts[701800121 + index] = {
         flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
         simVarIsActive: this.fws.engineStartValveNotClosed[index],
@@ -476,6 +491,9 @@ export class FwsAbnormalSensed {
         whichItemsChecked: () => startValveNotClosedItems(valveInputs()).checked,
         failure: 2,
         sysPage: SdPages.Eng,
+        limitationsAllPhases: () => valveNotClosedStatus.limitations,
+        limitationsPfd: () => valveNotClosedStatus.limitations,
+        inopSysAllPhases: () => valveNotClosedStatus.inopSys,
       };
       alerts[701800125 + index] = {
         flightPhaseInhib: START_ALERTS_FLIGHT_PHASE_INHIBITION,
@@ -486,20 +504,30 @@ export class FwsAbnormalSensed {
         failure: 2,
         sysPage: SdPages.Eng,
       };
-      const ignitionFault = (simVarIsActive: Subscribable<boolean>, flightPhaseInhib: number[]) => ({
+      // IGN A(B) FAULT: crew awareness, no aural and no MASTER light (PDF p.5791); IGN A+B FAULT: SC + MASTER CAUT (l.172275)
+      const ignitionFault = (simVarIsActive: Subscribable<boolean>, flightPhaseInhib: number[], level: number) => ({
         flightPhaseInhib,
         simVarIsActive,
         notActiveWhenItemActive: [],
         whichItemsToShow: () => [],
         whichItemsChecked: () => [],
-        failure: 2,
+        failure: level,
         sysPage: SdPages.None,
       });
-      alerts[701800057 + index] = ignitionFault(this.fws.engineIgnAFault[index], IGN_FAULT_FLIGHT_PHASE_INHIBITION);
-      alerts[701800061 + index] = ignitionFault(this.fws.engineIgnBFault[index], IGN_FAULT_FLIGHT_PHASE_INHIBITION);
+      alerts[701800057 + index] = ignitionFault(
+        this.fws.engineIgnAFault[index],
+        IGN_FAULT_FLIGHT_PHASE_INHIBITION,
+        IGN_A_OR_B_FAULT_LEVEL,
+      );
+      alerts[701800061 + index] = ignitionFault(
+        this.fws.engineIgnBFault[index],
+        IGN_FAULT_FLIGHT_PHASE_INHIBITION,
+        IGN_A_OR_B_FAULT_LEVEL,
+      );
       alerts[701800065 + index] = ignitionFault(
         this.fws.engineIgnAPlusBFault[index],
         START_ALERTS_FLIGHT_PHASE_INHIBITION,
+        IGN_A_AND_B_FAULT_LEVEL,
       );
     }
     return alerts;
@@ -5267,13 +5295,14 @@ export class FwsAbnormalSensed {
     701800029: {
       // ENG 1 FAIL
       simVarIsActive: this.fws.eng1Fail,
-      flightPhaseInhib: this.fws.phase56Inhibition,
+      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [
         !this.fws.aircraftOnGround.get() &&
           this.fws.gearLeverPos.get() &&
           [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
-        !this.fws.aircraftOnGround.get(),
+        // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
+        this.fws.engineAutoRelightInProgress[0].get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
@@ -5329,13 +5358,14 @@ export class FwsAbnormalSensed {
     701800030: {
       // ENG 2 FAIL
       simVarIsActive: this.fws.eng2Fail,
-      flightPhaseInhib: this.fws.phase56Inhibition,
+      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [
         !this.fws.aircraftOnGround.get() &&
           this.fws.gearLeverPos.get() &&
           [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
-        !this.fws.aircraftOnGround.get(),
+        // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
+        this.fws.engineAutoRelightInProgress[1].get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
@@ -5391,13 +5421,14 @@ export class FwsAbnormalSensed {
     701800031: {
       // ENG 3 FAIL
       simVarIsActive: this.fws.eng3Fail,
-      flightPhaseInhib: this.fws.phase56Inhibition,
+      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [
         !this.fws.aircraftOnGround.get() &&
           this.fws.gearLeverPos.get() &&
           [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
-        !this.fws.aircraftOnGround.get(),
+        // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
+        this.fws.engineAutoRelightInProgress[2].get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
@@ -5453,13 +5484,14 @@ export class FwsAbnormalSensed {
     701800032: {
       // ENG 4 FAIL
       simVarIsActive: this.fws.eng4Fail,
-      flightPhaseInhib: this.fws.phase56Inhibition,
+      flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION, // none (PDF p.5776)
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [
         !this.fws.aircraftOnGround.get() &&
           this.fws.gearLeverPos.get() &&
           [FwcFlightPhase.LiftOff, FwcFlightPhase.AtOrAbove400Feet].includes(this.fws.flightPhase.get()),
-        !this.fws.aircraftOnGround.get(),
+        // AUTO RELIGHT IN PROGRESS only while the FADEC auto relight runs (EngineFailAlerts.ts)
+        this.fws.engineAutoRelightInProgress[3].get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
         !this.fws.aircraftOnGround.get(),
@@ -5558,7 +5590,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine1Master.get()],
       failure: 2,
-      sysPage: SdPages.Eng,
+      sysPage: SdPages.None, // no SD page (FCOM figure)
     },
     701800073: {
       // ENG 1 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
@@ -5568,7 +5600,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine1Master.get()],
       failure: 3,
-      sysPage: SdPages.Eng,
+      sysPage: SdPages.None, // no SD page (FCOM figure)
     },
     701800114: {
       // ENG 2 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
@@ -5588,7 +5620,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine2Master.get()],
       failure: 2,
-      sysPage: SdPages.Eng,
+      sysPage: SdPages.None, // no SD page (FCOM figure)
     },
     701800074: {
       // ENG 2 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
@@ -5598,7 +5630,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine2Master.get()],
       failure: 3,
-      sysPage: SdPages.Eng,
+      sysPage: SdPages.None, // no SD page (FCOM figure)
     },
     701800115: {
       // ENG 3 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
@@ -5618,7 +5650,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine3Master.get()],
       failure: 2,
-      sysPage: SdPages.Eng,
+      sysPage: SdPages.None, // no SD page (FCOM figure)
     },
     701800075: {
       // ENG 3 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
@@ -5628,7 +5660,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine3Master.get()],
       failure: 3,
-      sysPage: SdPages.Eng,
+      sysPage: SdPages.None, // no SD page (FCOM figure)
     },
     701800116: {
       // ENG 4 STALL (EngineParameterAlerts.ts): amber, inhibited from V1 to 400 ft unless two or more engines stall
@@ -5648,7 +5680,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine4Master.get()],
       failure: 2,
-      sysPage: SdPages.Eng,
+      sysPage: SdPages.None, // no SD page (FCOM figure)
     },
     701800076: {
       // ENG 4 N1/N2 OVER LIMIT (EngineParameterAlerts.ts): red warning, inhibited in phases 5 and 6
@@ -5658,7 +5690,7 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => ENG_OVER_LIMIT_ITEMS_SHOWN,
       whichItemsChecked: () => [false, false, !this.fws.engine4Master.get()],
       failure: 3,
-      sysPage: SdPages.Eng,
+      sysPage: SdPages.None, // no SD page (FCOM figure)
     },
     701800110: {
       // ENG 2 SHUTDOWN
@@ -5755,7 +5787,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
-      failure: 2,
+      failure: FUEL_FILTER_CLOGGED_LEVEL,
       sysPage: SdPages.Eng,
     },
     701800034: {
@@ -5765,7 +5797,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
-      failure: 2,
+      failure: FUEL_FILTER_CLOGGED_LEVEL,
       sysPage: SdPages.Eng,
     },
     701800035: {
@@ -5775,7 +5807,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
-      failure: 2,
+      failure: FUEL_FILTER_CLOGGED_LEVEL,
       sysPage: SdPages.Eng,
     },
     701800036: {
@@ -5785,7 +5817,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
-      failure: 2,
+      failure: FUEL_FILTER_CLOGGED_LEVEL,
       sysPage: SdPages.Eng,
     },
     701800081: {
@@ -5795,7 +5827,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
-      failure: 2,
+      failure: OIL_FILTER_CLOGGED_LEVEL,
       sysPage: SdPages.Eng,
     },
     701800085: {
@@ -5825,7 +5857,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
-      failure: 2,
+      failure: OIL_FILTER_CLOGGED_LEVEL,
       sysPage: SdPages.Eng,
     },
     701800086: {
@@ -5855,7 +5887,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
-      failure: 2,
+      failure: OIL_FILTER_CLOGGED_LEVEL,
       sysPage: SdPages.Eng,
     },
     701800087: {
@@ -5885,7 +5917,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
-      failure: 2,
+      failure: OIL_FILTER_CLOGGED_LEVEL,
       sysPage: SdPages.Eng,
     },
     701800088: {
@@ -6672,5 +6704,59 @@ export class FwsAbnormalSensed {
       failure: 0,
       sysPage: SdPages.None,
     },
+    700700001: {
+      // ENG 1(4) START VLV FAULT (NOT CLOSED) FOR APPROACH: IF SEVERE ICE ACCRETION: FOR LDG : FLAP LVR 3 (l.173149-173153)
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    700700002: {
+      // ENG TWO ENGS OUT ALL PHASES: IF GW DECREASE RQRD: JETTISON ARM ON, JETTISON ACTIVE ON (EngineFailAlerts.ts)
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => twoEnginesOutAllPhasesItems(this.twoEnginesOutDeferredInputs()).show,
+      whichItemsChecked: () => twoEnginesOutAllPhasesItems(this.twoEnginesOutDeferredInputs()).checked,
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    700700003: {
+      // ENG TWO ENGS OUT ON SAME SIDE FOR APPROACH (EngineFailAlerts.ts)
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => sameSideApproachItems(this.twoEnginesOutDeferredInputs()).show,
+      whichItemsChecked: () => sameSideApproachItems(this.twoEnginesOutDeferredInputs()).checked,
+      failure: 0,
+      sysPage: SdPages.None,
+    },
+    700700004: {
+      // ENG TWO ENGS OUT ON OPPOSITE SIDE APPR & LDG (EngineFailAlerts.ts)
+      flightPhaseInhib: [],
+      simVarIsActive: Subject.create(true),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => oppositeSideApproachItems(this.twoEnginesOutDeferredInputs()).show,
+      whichItemsChecked: () => oppositeSideApproachItems(this.twoEnginesOutDeferredInputs()).checked,
+      failure: 0,
+      sysPage: SdPages.None,
+    },
   };
+
+  /** The aircraft state that the ENG TWO ENGS OUT deferred procedures sense */
+  private twoEnginesOutDeferredInputs(): TwoEnginesOutDeferredInputs {
+    return {
+      jettisonArmPbOn: this.fws.fuelJettisonArmPbOn.get(),
+      jettisonActivePbOn: this.fws.fuelJettisonActivePbOn.get(),
+      engines1And2Out: this.fws.twoEnginesOutLeftSide.get(),
+      flapsHandleIndex: this.fws.flapsHandle.get(),
+      gearLeverDown: this.fws.gearLeverPos.get(),
+      gravityExtensionDown: SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', SimVarValueType.Number) === 2,
+      athrEngaged: this.fws.autoThrustStatus.get() !== 0,
+      groundSpoilersArmed: this.fws.spoilersArmed.get(),
+    };
+  }
 }

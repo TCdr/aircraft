@@ -9,9 +9,13 @@ import { FadecEngineState } from './EngineFailAlerts';
  * phase inhibitions are images, read on the FCOM PDF pages 5796-5800:
  * - OIL PRESS LO: red warning (MASTER WARN, CRC), inhibited in phases 1, 5, 6 and 12;
  * - OIL TEMP HI: amber caution (MASTER CAUT, SC), inhibited in phases 1, 4, 5, 6, 7, 9, 10 and 12;
- * - OIL FILTER CLOGGED: amber caution, inhibited in phases 3 to 10 (shown in phases 1, 2, 11 and 12 only).
+ * - OIL FILTER CLOGGED: amber, inhibited in phases 3 to 10 (shown in phases 1, 2, 11 and 12 only). Its only
+ *   indication is the ENGINE SD page (l.172418-172422, PDF p.5796): no aural, no MASTER CAUT.
  * Pure logic, used by FwsCore for the four engines alike.
  */
+
+/** ENG n OIL FILTER CLOGGED: FwsAbnormalSensed level 1, no single chime and no MASTER CAUT (PDF p.5796) */
+export const OIL_FILTER_CLOGGED_LEVEL = 1;
 
 /** l.172486: "This warning is displayed when the oil pressure drops below 25 PSI." */
 export const OIL_PRESS_LO_THRESHOLD_PSI = 25;

@@ -6,6 +6,16 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   allEngFlameOutInhibitsElecEmerConfig,
+  AutoRelightInputs,
+  autoRelightInProgress,
+  ENG_FAIL_FLIGHT_PHASE_INHIBITION,
+  OPPOSITE_SIDE_APPROACH_ITEM_COUNT,
+  oppositeSideApproachItems,
+  SAME_SIDE_APPROACH_ITEM_COUNT,
+  sameSideApproachItems,
+  TWO_ENGS_OUT_ALL_PHASES_ITEM_COUNT,
+  TwoEnginesOutDeferredInputs,
+  twoEnginesOutAllPhasesItems,
   EngineFailInputs,
   EngineFailMonitor,
   EnginesOut,
@@ -283,5 +293,151 @@ describe('ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown (l.1
   it('an ALL ENG FLAME OUT already shown keeps inhibiting it in any phase', () => {
     expect(allEngFlameOutInhibitsElecEmerConfig(true, true, PHASE_6_LIFT_OFF_TO_1500_FT)).toBe(true);
     expect(allEngFlameOutInhibitsElecEmerConfig(true, true, 10)).toBe(true);
+  });
+});
+
+describe('ENG FAIL inhibition and AUTO RELIGHT IN PROGRESS (FCOM l.171712-171811, PDF p.5776)', () => {
+  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+  const engFailEntry = (engine: number) => {
+    const start = abnormalSensed.search(new RegExp(` {6}// ENG ${engine} FAIL\\r?\\n`));
+    expect(start).toBeGreaterThan(0);
+    return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
+  };
+
+  it('ENG FAIL is not inhibited in any flight phase', () => {
+    expect(ENG_FAIL_FLIGHT_PHASE_INHIBITION).toEqual([]);
+    for (let engine = 1; engine <= 4; engine++) {
+      expect(engFailEntry(engine)).toContain('flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION,');
+    }
+  });
+
+  const flameoutInFlight: AutoRelightInputs = {
+    inFlight: true,
+    igniterAActive: false,
+    igniterBActive: false,
+    relightAttempt: false,
+    relightIgnition: false,
+  };
+
+  it('no AUTO RELIGHT IN PROGRESS for a flameout that the FADEC does not relight (fuel cut: igniters off)', () => {
+    expect(autoRelightInProgress(flameoutInFlight)).toBe(false);
+  });
+
+  it('AUTO RELIGHT IN PROGRESS while the FADEC auto relight has both igniters on, in flight', () => {
+    const autoRelight = { ...flameoutInFlight, igniterAActive: true, igniterBActive: true };
+    expect(autoRelightInProgress(autoRelight)).toBe(true);
+    expect(autoRelightInProgress({ ...autoRelight, inFlight: false })).toBe(false);
+    expect(autoRelightInProgress({ ...autoRelight, igniterBActive: false })).toBe(false);
+  });
+
+  it('not for the igniters of a relight the crew started (ENG MASTER OFF then ON)', () => {
+    const crewRelight = { ...flameoutInFlight, igniterAActive: true, igniterBActive: true };
+    expect(autoRelightInProgress({ ...crewRelight, relightAttempt: true })).toBe(false);
+    expect(autoRelightInProgress({ ...crewRelight, relightIgnition: true })).toBe(false);
+  });
+
+  it.each([1, 2, 3, 4])(
+    'ENG %d FAIL shows the line from the FADEC auto relight state, not from "in flight"',
+    (engine) => {
+      const entry = engFailEntry(engine);
+      const shown = entry
+        .slice(entry.indexOf('whichItemsToShow: () => ['), entry.indexOf('whichItemsChecked'))
+        .split('\n')
+        .slice(1)
+        .filter((line) => line.trim().endsWith(','));
+      expect(shown[1]).toContain(`this.fws.engineAutoRelightInProgress[${engine - 1}].get(),`);
+    },
+  );
+});
+
+describe('ENG TWO ENGS OUT deferred procedures (FCOM l.175333-175396, l.175554-175612)', () => {
+  const ata70 = readFileSync(
+    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
+    'utf-8',
+  );
+  const index = readFileSync(
+    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
+    'utf-8',
+  );
+  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+  const deferred = (id: number) => {
+    const start = ata70.indexOf(`  ${id}: {`);
+    expect(start).toBeGreaterThan(0);
+    return ata70.slice(start, ata70.indexOf('\n  },', start));
+  };
+  const itemCount = (id: number) => (deferred(id).match(/\{ name: /g) ?? []).length;
+
+  const cruise: TwoEnginesOutDeferredInputs = {
+    jettisonArmPbOn: false,
+    jettisonActivePbOn: false,
+    engines1And2Out: true,
+    flapsHandleIndex: 0,
+    gearLeverDown: false,
+    gravityExtensionDown: false,
+    athrEngaged: true,
+    groundSpoilersArmed: false,
+  };
+
+  it('the deferred procedures are registered and come from the two alerts', () => {
+    expect(index).toContain('...EcamDeferredProcAta70,');
+    expect(deferred(700700002)).toContain("fromAbnormalProcs: ['701800159', '701800160'],");
+    expect(deferred(700700002)).toContain('type: DeferredProcedureType.ALL_PHASES,');
+    expect(deferred(700700003)).toContain("fromAbnormalProcs: ['701800159'],");
+    expect(deferred(700700004)).toContain("fromAbnormalProcs: ['701800160'],");
+    for (const id of [700700001, 700700002, 700700003, 700700004]) {
+      expect(abnormalSensed).toContain(`    ${id}: {`);
+    }
+  });
+
+  it('one show / checked entry per item', () => {
+    expect(itemCount(700700002)).toBe(TWO_ENGS_OUT_ALL_PHASES_ITEM_COUNT);
+    expect(itemCount(700700003)).toBe(SAME_SIDE_APPROACH_ITEM_COUNT);
+    expect(itemCount(700700004)).toBe(OPPOSITE_SIDE_APPROACH_ITEM_COUNT);
+    for (const items of [
+      twoEnginesOutAllPhasesItems(cruise),
+      sameSideApproachItems(cruise),
+      oppositeSideApproachItems(cruise),
+    ]) {
+      expect(items.show.length).toBe(items.checked.length);
+    }
+    expect(sameSideApproachItems(cruise).show.length).toBe(SAME_SIDE_APPROACH_ITEM_COUNT);
+    expect(oppositeSideApproachItems(cruise).show.length).toBe(OPPOSITE_SIDE_APPROACH_ITEM_COUNT);
+  });
+
+  it('ALL PHASES: IF GW DECREASE RQRD: JETTISON ARM ON, JETTISON ACTIVE ON', () => {
+    expect(twoEnginesOutAllPhasesItems(cruise).checked).toEqual([false, false, false]);
+    expect(twoEnginesOutAllPhasesItems({ ...cruise, jettisonArmPbOn: true, jettisonActivePbOn: true }).checked).toEqual(
+      [false, true, true],
+    );
+  });
+
+  it('SAME SIDE: SLATS SLOW only with ENG 1+2 lost (l.175352)', () => {
+    expect(sameSideApproachItems(cruise).show[7]).toBe(true);
+    expect(sameSideApproachItems({ ...cruise, engines1And2Out: false }).show[7]).toBe(false);
+    expect(deferred(700700003)).toMatch(/'FLAPS SLOW'[^\n]*\n[^\n]*'SLATS SLOW'/);
+  });
+
+  it('SAME SIDE: the sensed lines follow the jettison, the flap lever, the gear, the A/THR and the ground spoilers', () => {
+    const approach = sameSideApproachItems({
+      ...cruise,
+      flapsHandleIndex: 3,
+      gearLeverDown: true,
+      gravityExtensionDown: true,
+      athrEngaged: false,
+      groundSpoilersArmed: true,
+    }).checked;
+    for (const done of [1, 2, 13, 18, 20, 22, 26, 27, 28]) {
+      expect(approach[done], `item ${done}`).toBe(true);
+    }
+    expect(approach[17]).toBe(false); // L/G LEVER UP once the lever is down
+    const conf1 = sameSideApproachItems({ ...cruise, flapsHandleIndex: 1 }).checked;
+    expect([conf1[13], conf1[22], conf1[26]]).toEqual([true, false, false]);
+  });
+
+  it('OPPOSITE SIDE: L/G LEVER DOWN at INITIAL APPROACH, no gravity extension, no A/THR line', () => {
+    expect(deferred(700700004)).not.toContain('GRVTY');
+    expect(deferred(700700004)).not.toContain('A/THR');
+    const done = oppositeSideApproachItems({ ...cruise, flapsHandleIndex: 2, gearLeverDown: true }).checked;
+    expect([done[11], done[12], done[14], done[17]]).toEqual([true, true, true, false]);
   });
 });

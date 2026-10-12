@@ -64,6 +64,12 @@ pub struct EngineStartSchedule {
     pub start_abort_inhibition_n2: Ratio,
     /// The engine must light up within this time after the ignition starts.
     pub no_light_up_time: Duration,
+    /// In flight, an engine relight must light up within this time after the ENG MASTER ON (NO
+    /// LIGHT UP in flight).
+    pub in_flight_no_light_up_time: Duration,
+    /// The FADEC reports a start valve open without starter air (NO STARTER AIR PRESSURE) during a
+    /// start in flight too, not only on the ground.
+    pub monitors_in_flight_start_air: bool,
     /// The EGT limit of a start on the ground.
     pub start_egt_limit: ThermodynamicTemperature,
     /// An automatic start on the ground makes up to this number of attempts.
@@ -711,15 +717,19 @@ impl EngineStartSequence {
         inputs: &EngineStartInputs,
         on_ground: bool,
     ) {
-        if !on_ground
-            && inputs.master_switch_is_on
-            && inputs.relight_pending
-            && inputs.engine_state != EngineState::On
-        {
+        if Self::is_in_flight_start(inputs, on_ground) {
             self.in_flight_no_light_up_time += context.delta();
         } else {
             self.in_flight_no_light_up_time = Duration::ZERO;
         }
+    }
+
+    /// In flight, the FADEC starts an engine that waits for a relight once its ENG MASTER is ON.
+    fn is_in_flight_start(inputs: &EngineStartInputs, on_ground: bool) -> bool {
+        !on_ground
+            && inputs.master_switch_is_on
+            && inputs.relight_pending
+            && inputs.engine_state != EngineState::On
     }
 
     /// The faults of conditions that do not abort the start: they last as long as the condition.
@@ -731,10 +741,18 @@ impl EngineStartSequence {
         on_ground: bool,
     ) {
         let starting = on_ground && self.phase == EngineStartPhase::Starting;
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG START FAULT (l.172917-172928): NO STARTER AIR PRESSURE
+        // has an "In flight:" branch (MIN SPEED FOR WINDML RELIGHT, WINDMILL START INITIATED). The
+        // in-flight start has no start sequence phase (see `update`), so it is the relight start.
+        let starting_in_flight =
+            schedule.monitors_in_flight_start_air && Self::is_in_flight_start(inputs, on_ground);
 
         // The start valve is open, the starter has no air (A320 "LO START AIR PRESS", A380 "NO
         // STARTER AIR PRESSURE").
-        if starting && inputs.start_valve_is_open && !inputs.starter_air_pressurized {
+        if (starting || starting_in_flight)
+            && inputs.start_valve_is_open
+            && !inputs.starter_air_pressurized
+        {
             self.valve_open_without_air_time += context.delta();
         } else {
             self.valve_open_without_air_time = Duration::ZERO;
@@ -756,16 +774,17 @@ impl EngineStartSequence {
             self.start_fault = EngineStartFault::StarterTimeExceeded;
         }
 
-        self.condition_fault = if self.in_flight_no_light_up_time >= schedule.no_light_up_time {
-            EngineStartFault::NoLightUp
-        } else if self.valve_open_without_air_time >= Self::LOW_START_AIR_DETECTION_TIME {
-            EngineStartFault::LowStartAirPressure
-        } else if starting && !inputs.thrust_lever_at_idle {
-            // A320 FCOM PRO-ABN-ENG (l.81369): "Thrust lever not at idle".
-            EngineStartFault::ThrustLeverNotAtIdle
-        } else {
-            EngineStartFault::None
-        };
+        self.condition_fault =
+            if self.in_flight_no_light_up_time >= schedule.in_flight_no_light_up_time {
+                EngineStartFault::NoLightUp
+            } else if self.valve_open_without_air_time >= Self::LOW_START_AIR_DETECTION_TIME {
+                EngineStartFault::LowStartAirPressure
+            } else if starting && !inputs.thrust_lever_at_idle {
+                // A320 FCOM PRO-ABN-ENG (l.81369): "Thrust lever not at idle".
+                EngineStartFault::ThrustLeverNotAtIdle
+            } else {
+                EngineStartFault::None
+            };
     }
 
     /// The igniters of a start attempt on the ground.
@@ -1064,6 +1083,8 @@ mod tests {
             start_valve_close_n2: Ratio::new::<percent>(50.),
             start_abort_inhibition_n2: Ratio::new::<percent>(50.),
             no_light_up_time: Duration::from_secs(18),
+            in_flight_no_light_up_time: Duration::from_secs(18),
+            monitors_in_flight_start_air: false,
             start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(725.),
             automatic_start_attempts: 3,
             automatic_crank_time: Duration::from_secs(30),
@@ -1767,6 +1788,64 @@ mod tests {
         test_bed = test_bed
             .with(|inputs| inputs.relight_pending = false)
             .and_run();
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+    }
+
+    #[test]
+    fn in_flight_the_no_light_up_time_is_the_one_of_the_relight() {
+        // A380 FCOM ENG RELIGHT IN FLIGHT (l.174943): "Engine must relight within 30 s", while the
+        // ground start of the same aircraft has 20 s
+        let mut test_bed = StartTestBed::new()
+            .with_schedule(|schedule| {
+                schedule.no_light_up_time = Duration::from_secs(20);
+                schedule.in_flight_no_light_up_time = Duration::from_secs(30);
+            })
+            .in_flight()
+            .with(|inputs| inputs.relight_pending = true)
+            .engine_state(EngineState::Restarting)
+            .master(true)
+            .and_run_for(Duration::from_secs(29));
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(2));
+        assert_eq!(test_bed.fault(), EngineStartFault::NoLightUp);
+    }
+
+    /// In flight, ENG MASTER ON of an engine that waits for a relight, start valve open, no air.
+    fn in_flight_start_without_air(monitors_in_flight_start_air: bool) -> StartTestBed {
+        StartTestBed::new()
+            .with_schedule(|schedule| {
+                schedule.monitors_in_flight_start_air = monitors_in_flight_start_air;
+                schedule.in_flight_no_light_up_time = Duration::from_secs(30);
+            })
+            .in_flight()
+            .with(|inputs| {
+                inputs.relight_pending = true;
+                inputs.starter_air_pressurized = false;
+            })
+            .engine_state(EngineState::Restarting)
+            .valve_open(true)
+            .master(true)
+            .and_run_for(Duration::from_secs(11))
+    }
+
+    #[test]
+    fn in_flight_a_start_valve_open_without_air_is_reported_when_the_aircraft_monitors_it() {
+        // A380 FCOM ENG START FAULT (l.172917-172928): NO STARTER AIR PRESSURE, "In flight: MIN
+        // SPEED FOR WINDML RELIGHT : 260 KT, WINDMILL START INITIATED"
+        let mut test_bed = in_flight_start_without_air(true);
+        assert_eq!(test_bed.fault(), EngineStartFault::LowStartAirPressure);
+
+        // the crew supplies air: the alert goes away
+        test_bed = test_bed
+            .with(|inputs| inputs.starter_air_pressurized = true)
+            .and_run();
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+    }
+
+    #[test]
+    fn in_flight_a_start_valve_open_without_air_is_not_reported_otherwise() {
+        let test_bed = in_flight_start_without_air(false);
         assert_eq!(test_bed.fault(), EngineStartFault::None);
     }
 

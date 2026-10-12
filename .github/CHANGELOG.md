@@ -159,6 +159,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 1. [A380X/BLEED] With the X BLEED selector at AUTO, the crossbleed valves open on the ground during an engine start, so the running engines supply the starter air of a crossbleed engine start - @TCdr
+1. [A380X/FWS] ENG FAIL is no longer inhibited from V1 to 1500 ft and shows AUTO RELIGHT IN PROGRESS only while the FADEC relights the engine; the IGNITION memo also shows for the automatic continuous ignition of the FADEC (auto relight, quick relight), as in the FCOM - @TCdr
+1. [A380X/FWS] Engine alerts as in the FCOM: START FAULT, IGN A(B) FAULT, OIL FILTER CLOGGED and FUEL FILTER CLOGGED come without chime and MASTER CAUT, EGT and N1/N2 OVER LIMIT without SD page, no EGT OVER LIMIT with a FADEC FAULT; in flight START FAULT NO STARTER AIR PRESSURE comes up with its windmill start lines and NO LIGHT UP after 30 s; new deferred procedures of TWO ENGS OUT ON SAME / OPPOSITE SIDE and LIMITATIONS, deferred procedure and INOP SYS of START VLV FAULT (NOT CLOSED) - @TCdr
 
 ## 2024.1.0
 

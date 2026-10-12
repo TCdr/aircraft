@@ -12,8 +12,8 @@ import {
  * ENG 1(2)(3)(4) STALL, EGT OVER LIMIT and N1/N2 OVER LIMIT (A380 FCOM PRO-ABN-ECAM-10-70, a380_fcom.txt l.172807-172860,
  * l.171481-171525 and l.172335-172375). Indications and flight phase inhibition from the FCOM PDF
  * (airbus-a380-fcom_compress.pdf, figures read on the rendered pages):
- * - EGT OVER LIMIT, page 5769: single chime, MASTER CAUT (amber), inhibited in phases 4, 5 and 6.
- * - N1/N2 OVER LIMIT, page 5794: CRC, MASTER WARN (red), inhibited in phases 5 and 6.
+ * - EGT OVER LIMIT, page 5769: single chime, MASTER CAUT (amber), no SD page (l.171495), inhibited in phases 4, 5 and 6.
+ * - N1/N2 OVER LIMIT, page 5794: CRC, MASTER WARN (red), no SD page (l.172346), inhibited in phases 5 and 6.
  * - STALL, page 5808: single chime, MASTER CAUT, ENGINE SD page, inhibited in phases 5 and 6; l.172820-172821: "ENG STALL
  *   alert is inhibited during the takeoff phase from V1 to 400 ft unless two or more engines are affected".
  * FBW models the Trent 972: the FCOM N2 (GP7270 HP rotor) is the FBW N3, as for ENG FAIL (EngineFailAlerts.ts).
@@ -47,6 +47,15 @@ export interface EngineOverLimitInputs {
  */
 export function isEgtOverLimit(inputs: EngineOverLimitInputs): boolean {
   return egtExceedanceShown(inputs.displayedEgtDegrees, egtAlertLimit(inputs.thrustLimitType, inputs.alphaFloor));
+}
+
+/**
+ * ENG EGT OVER LIMIT with ENG n FADEC FAULT, l.171597-171600: "The EGT is still normally displayed. However, the ENG
+ * 1(2)(3)(4) EGT OVER LIMIT ECAM will not trigger in the case of EGT exceedance." The oil pressure, N1 and N2 alerts still
+ * trigger (l.171579-171580). The EWD gauge and its amber attention box keep the exceedance (FwsCore primary abnormal).
+ */
+export function isEgtOverLimitAlertTriggered(egtOverLimit: boolean, fadecFault: boolean): boolean {
+  return egtOverLimit && !fadecFault;
 }
 
 /** ENG N1/N2 OVER LIMIT, l.172341: "One of the following engine parameter is above red limit" (EgtLimits.ts) */
