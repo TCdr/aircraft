@@ -9,12 +9,14 @@ import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 
 import { AbstractMfdPageProps } from '../../../MFD';
-import { FmsPage } from '../../common/FmsPage';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { Footer } from '../../common/Footer';
 import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../../common/FcomLayout';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { DropdownMenu } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
+import { dropdownEntryIndex } from '../../../../MsfsAvionicsCommon/UiWidgets/DropdownEntry';
+import { onEntryNotInList } from '../../../shared/utils';
 import { RadioButtonGroup } from '../../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
 import { CrossingOriginFormat, TimeHhMmSsFormat, TwoDigitIntegerFormat } from '../../common/DataEntryFormats';
 import { NXSystemMessages } from '../../../shared/NXSystemMessages';
@@ -52,7 +54,7 @@ interface StartWaypoint {
  *
  * Not modelled: the time marker pseudo waypoints on the ND and the aural alert.
  */
-export class MfdFmsFplnLlXingTimeMkr extends FmsPage<MfdFmsFplnLlXingTimeMkrProps> {
+export class MfdFmsFplnLlXingTimeMkr extends FmsFlightPlanPage<MfdFmsFplnLlXingTimeMkrProps> {
   private startWaypoints: StartWaypoint[] = [];
 
   private readonly startWaypointIdents = ArraySubject.create<string>([]);
@@ -362,7 +364,14 @@ export class MfdFmsFplnLlXingTimeMkr extends FmsPage<MfdFmsFplnLlXingTimeMkrProp
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_llXingStartWpt`}
                 selectedIndex={this.selectedStart}
                 values={this.startWaypointIdents}
-                freeTextAllowed={false}
+                keyboardEntryAllowed // FCOM START WAYPOINT ENTRY FIELD AND LIST: selected in the list or entered with the keyboard
+                errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
+                onModified={(i, text) => {
+                  const index = dropdownEntryIndex(this.startWaypointIdents, i, text);
+                  if (index !== null) {
+                    this.selectedStart.set(index);
+                  }
+                }}
                 containerStyle="width: 177px;"
                 numberOfDigitsForInputField={7}
                 alignLabels="flex-start"

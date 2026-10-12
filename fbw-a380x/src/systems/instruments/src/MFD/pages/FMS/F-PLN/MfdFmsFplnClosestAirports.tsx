@@ -13,7 +13,7 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { A380AltitudeUtils } from '@shared/OperatingAltitudes';
 
 import { AbstractMfdPageProps } from '../../../MFD';
-import { FmsPage } from '../../common/FmsPage';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { Footer } from '../../common/Footer';
 import { Button, ButtonMenuItem } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -21,6 +21,7 @@ import { AirportFormat, TripWindFormat } from '../../common/DataEntryFormats';
 
 import { fcomAt } from '../../common/FcomLayout';
 import './MfdFmsFplnClosestAirports.scss';
+import { defaultTropopauseAlt } from '@shared/PerformanceConstants';
 
 interface MfdFmsFplnClosestAirportsProps extends AbstractMfdPageProps {}
 
@@ -73,7 +74,7 @@ class AirportLine {
  * Simplified: the FCOM predictions assume a flight at the CRZ FL down to the ground; here the whole great-circle
  * distance is flown level at the CRZ FL (no descent segment). The default effective wind is the INIT trip wind.
  */
-export class MfdFmsFplnClosestAirports extends FmsPage<MfdFmsFplnClosestAirportsProps> {
+export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClosestAirportsProps> {
   private readonly closestLines = Array.from({ length: NUM_CLOSEST_AIRPORTS }, () => new AirportLine());
 
   private readonly otherLines = Array.from({ length: NUM_OTHER_AIRPORTS }, () => new AirportLine());
@@ -205,7 +206,8 @@ export class MfdFmsFplnClosestAirports extends FmsPage<MfdFmsFplnClosestAirports
       UnitType.POUND.convertFrom(fob, UnitType.TONNE),
       -tailWind,
       isaDev,
-      fmc.fmgc.getTropoPause(),
+      // No tropopause: the ISA one (FL 361)
+      fmc.fmgc.getTropoPause() ?? defaultTropopauseAlt,
     );
     return {
       seconds: step.timeElapsed,

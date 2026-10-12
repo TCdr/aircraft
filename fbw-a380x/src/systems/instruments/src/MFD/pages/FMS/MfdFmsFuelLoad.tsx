@@ -41,9 +41,8 @@ import {
   minZfw,
   minZfwCg,
 } from '@shared/PerformanceConstants';
-import { FmsPage } from '../common/FmsPage';
+import { FmsFlightPlanPage } from '../common/FmsFlightPlanPage';
 import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../common/FcomLayout';
-import { NXSystemMessages } from '../../shared/NXSystemMessages';
 import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { AirlineModifiableInformation } from '@shared/AirlineModifiableInformation';
@@ -61,7 +60,7 @@ function kilogramsToPerfPlanTonnes(kilograms: number | null): number | null {
 
 interface MfdFmsFuelLoadProps extends AbstractMfdPageProps {}
 
-export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
+export class MfdFmsFuelLoad extends FmsFlightPlanPage<MfdFmsFuelLoadProps> {
   private readonly weightUnit = NXDataStore.getSetting('CONFIG_USING_METRIC_UNIT').map((v) =>
     v ? UnitType.KILOGRAM : UnitType.POUND,
   );
@@ -404,7 +403,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
         fmc.fuelPlanningInProgress.get() ||
         (computedBlock === null &&
           (fmc.enginesWereStarted.get() ||
-            !fmc.hasActiveFlightPlan.get() ||
+            !fmc.hasActiveFlightPlanWithCityPair.get() ||
             pd.cruiseFlightLevel.get() === null ||
             pd.zeroFuelWeight.get() === null ||
             pd.zeroFuelWeightCenterOfGravity.get() === null ||
@@ -953,11 +952,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                 <InputField<number, number, false>
                   dataEntryFormat={new WeightFormat(undefined, Subject.create(maxMinDestFuel), this.weightUnit)}
                   dataHandlerDuringValidation={async (v) => {
-                    // FCOM DSC-22-FMS-20-30 FUEL&LOAD page: clearing MIN FUEL AT DEST without a value is NOT ALLOWED
-                    if (v === null) {
-                      this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
-                      return false;
-                    }
+                    // FCOM DSC-22-FMS-20-30 FUEL&LOAD page: clearing MIN FUEL AT DEST is NOT ALLOWED (canBeCleared={false})
                     this.props.flightPlanInterface?.setPerformanceData(
                       'pilotMinimumDestinationFuelOnBoard',
                       kilogramsToPerfPlanTonnes(v),
@@ -965,6 +960,7 @@ export class MfdFmsFuelLoad extends FmsPage<MfdFmsFuelLoadProps> {
                     );
                     return true;
                   }}
+                  canBeCleared={false}
                   enteredByPilot={this.minimumFuelAtDestinationIsPilotEntered}
                   readonlyValue={this.minimumFuelAtDestination}
                   alignText="flex-end"

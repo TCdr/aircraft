@@ -139,6 +139,10 @@
   border: 2px outset $display-cyan;
 }
 
+.mfd-icon-button.disabled:hover {
+  border-color: $display-light-grey;
+}
+
 .mfd-dropdown-container {
   position: relative;
 }
@@ -299,6 +303,7 @@
   flex-direction: column;
   flex: 1 1 auto;
   margin: 2px;
+  margin-left: 9px;
 }
 
 .mfd-navigator-container {
@@ -561,6 +566,10 @@
 .mfd-input-field-text-input.inactive {
   background-color: $display-background !important;
   color: $display-green !important;
+}
+
+.mfd-input-field-text-input.inactive.white {
+  color: $display-white !important;
 }
 
 .mfd-input-field-text-input.tmpy {

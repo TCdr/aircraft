@@ -11,7 +11,7 @@ import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDataba
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
 
 import { AbstractMfdPageProps } from '../../../MFD';
-import { FmsPage } from '../../common/FmsPage';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { Footer } from '../../common/Footer';
 import { Button, ButtonMenuItem } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -62,7 +62,7 @@ class AlternateLine {
  * distance, from the destination EFOB. Simplified: the selection inserts the alternate directly instead of creating a
  * temporary flight plan.
  */
-export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
+export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternateProps> {
   private readonly destinationIdent = Subject.create('----');
 
   private readonly selectedLine = new AlternateLine();
@@ -201,7 +201,7 @@ export class MfdFmsFplnAlternate extends FmsPage<MfdFmsFplnAlternateProps> {
       alternateElevation,
       zeroFuelWeight: UnitType.POUND.convertFrom(zfw, UnitType.TONNE),
       fuelOnBoard: UnitType.POUND.convertFrom(destinationEfob, UnitType.TONNE),
-      tropopause: this.props.fmcService.master.fmgc.getTropoPause(),
+      tropopause: this.props.fmcService.master.fmgc.getTropoPause() ?? undefined,
     });
     return prediction !== null ? UnitType.TONNE.convertFrom(prediction.fuel, UnitType.POUND) : null;
   }
