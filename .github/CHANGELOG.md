@@ -142,6 +142,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (FCOM long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
 1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan, as in the FCOM - @TCdr
+1. [A32NX/MCDU] New CHECK APPR SELECTION message when the F-PLN has a non ILS approach and an ILS is tuned manually on the RAD NAV page (cruise less than 100 NM from the T/D, descent or approach), as in the FCOM; it also sets the PFD FMA line 3 message - @TCdr
 
 ## 2024.1.0
 
