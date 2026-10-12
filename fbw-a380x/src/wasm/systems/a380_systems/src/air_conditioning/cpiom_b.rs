@@ -136,6 +136,7 @@ impl CoreProcessingInputOutputModuleB {
         lgciu: [&impl LgciuWeightOnWheels; 2],
         ocsm_shared: [&impl OcsmShared; 4],
         pressurization_overhead: &impl PressurizationOverheadShared,
+        any_door_not_closed: bool,
     ) {
         let ocsm = match self.cpiom_id {
             CpiomId::B1 => ocsm_shared[1],
@@ -152,6 +153,7 @@ impl CoreProcessingInputOutputModuleB {
             pressurization_overhead,
             ocsm_shared,
             ocsm,
+            any_door_not_closed,
         );
     }
 
@@ -842,6 +844,8 @@ struct CabinPressureControlSystemApplication<C: PressurizationConstants> {
     adirs_data_is_valid: bool,
     is_active: bool,
     is_initialised: bool,
+    /// CAB PRESS INHIBITED BY DOORS: the controllers keep the four outflow valves open, see update_door_inhibition
+    pressurization_inhibited_by_doors: bool,
     failure: Failure,
     constants: PhantomData<C>,
 }
@@ -920,6 +924,7 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
             adirs_data_is_valid: false,
             is_active: false,
             is_initialised: false,
+            pressurization_inhibited_by_doors: false,
             failure: Failure::new(FailureType::CpcsApp(cpiom_id)),
             constants: PhantomData,
         }
@@ -934,7 +939,14 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         press_overhead: &impl PressurizationOverheadShared,
         ocsm_shared: [&impl OcsmShared; 4],
         ocsm: &impl OcsmShared,
+        any_door_not_closed: bool,
     ) {
+        self.update_door_inhibition(
+            lgciu.iter().all(|a| a.left_and_right_gear_compressed(true)),
+            any_door_not_closed,
+            press_overhead,
+        );
+
         self.adirs_data_is_valid = [1, 2, 3]
             .iter()
             .any(|&adr| adirs.ambient_static_pressure(adr).is_normal_operation());
@@ -1365,21 +1377,53 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         self.is_ground() || self.cabin_altitude.get::<foot>() < 15000.
     }
 
+    /// Pressurization inhibited by the doors. A380 FCOM DSC-21-30-30 Automatic Operation (CABIN ALT MODE and
+    /// CABIN V/S MODE pb-sw both in AUTO): "On ground, if at least one door is not closed and locked at takeoff
+    /// power application: The four cabin pressure controllers will prevent cabin pressurization, by maintaining the
+    /// four outflow valves open." The doors closed status is an input of the outflow valve controllers
+    /// (DSC-21-30-10: "The doors - Doors closed status").
+    ///
+    /// Design choices:
+    /// - On ground the inhibition follows the doors at any thrust: before takeoff power the outflow valves are open
+    ///   anyway ("Before takeoff, all outflow valves open"), so this only changes what happens from takeoff power on.
+    /// - In flight it keeps its value from the liftoff: a takeoff with a door not closed keeps the outflow valves open
+    ///   (CAB PRESS INHIBITED BY DOORS, MAX FL 100/MEA) until the next touchdown.
+    /// - Manual mode is not affected: "The manual pressurization system operates independently of the automatic
+    ///   pressurization system" (DSC-21-30-40).
+    fn update_door_inhibition(
+        &mut self,
+        on_ground: bool,
+        any_door_not_closed: bool,
+        press_overhead: &impl PressurizationOverheadShared,
+    ) {
+        let auto_mode = !press_overhead.is_alt_man_sel() && !press_overhead.is_vs_man_sel();
+        if !auto_mode {
+            self.pressurization_inhibited_by_doors = false;
+        } else if on_ground {
+            self.pressurization_inhibited_by_doors = any_door_not_closed;
+        }
+    }
+
     fn should_open_ofv(&self) -> bool {
-        self.is_ground()
+        let ground_schedule_opens = self.is_ground()
             && self
                 .pressure_schedule_manager
                 .as_ref()
-                .is_some_and(|manager| manager.should_open_outflow_valve())
+                .is_some_and(|manager| manager.should_open_outflow_valve());
+
+        ground_schedule_opens || self.pressurization_inhibited_by_doors
     }
 
     fn should_close_aft_ofv(&self) -> bool {
-        matches!(
-            self.pressure_schedule_manager,
-            Some(PressureScheduleManager::TakeOff(_))
-                | Some(PressureScheduleManager::ClimbInternal(_))
-                | Some(PressureScheduleManager::DescentInternal(_))
-        ) && self.get_ext_diff_with_take_off_elev() < Length::new::<foot>(1000.)
+        // The aft valves stay open with the others while the doors inhibit the pressurization
+        !self.pressurization_inhibited_by_doors
+            && matches!(
+                self.pressure_schedule_manager,
+                Some(PressureScheduleManager::TakeOff(_))
+                    | Some(PressureScheduleManager::ClimbInternal(_))
+                    | Some(PressureScheduleManager::DescentInternal(_))
+            )
+            && self.get_ext_diff_with_take_off_elev() < Length::new::<foot>(1000.)
     }
 
     pub fn cabin_vertical_speed(&self) -> Velocity {

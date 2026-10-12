@@ -3622,11 +3622,19 @@ impl A380EngineDrivenPumpController {
 
             are_pumps_commanded_disconnected: false,
 
-            disconnection_mechanism: EnginePumpDisconnectionClutch::new(match engine_num {
-                1 | 4 => ElectricalBusType::DirectCurrent(2),
-                2 | 3 => ElectricalBusType::DirectCurrent(1),
-                _ => panic!("Only 4 engines on A380"),
-            }),
+            disconnection_mechanism: EnginePumpDisconnectionClutch::new(
+                Self::disconnection_power_supply(engine_num),
+            ),
+        }
+    }
+
+    /// Engine pump disconnection supply, A380 FCOM DSC-29-40 ELECTRICAL SUPPLY table:
+    /// engine 1 pumps DC 2, engine 2 pumps DC 1, engine 3 pumps DC 2, engine 4 pumps DC 1.
+    fn disconnection_power_supply(engine_num: usize) -> ElectricalBusType {
+        match engine_num {
+            1 | 3 => ElectricalBusType::DirectCurrent(2),
+            2 | 4 => ElectricalBusType::DirectCurrent(1),
+            _ => panic!("Only 4 engines on A380"),
         }
     }
 
@@ -4605,22 +4613,22 @@ impl A380HydraulicBrakeSteerComputerUnit {
         let is_both_engine_low_oil_pressure =
             engine1.oil_pressure_is_low() && engine2.oil_pressure_is_low();
 
-        self.final_steering_position_request = if !is_both_engine_low_oil_pressure
-            && self.anti_skid_activated
-            && lgciu1.nose_gear_compressed(false)
-        {
-            (final_steer_rudder_plus_autopilot
-                + steer_angle_from_tiller
-                + self.heading_control_function.steering_output())
-            .min(Angle::new::<degree>(
-                Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
-            ))
-            .max(Angle::new::<degree>(
-                -Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
-            ))
-        } else {
-            Angle::new::<degree>(0.)
-        };
+        // A380 FCOM DSC-32-30-10 (a380_fcom.txt l.80959): "A-SKID sw OFF does not cut off NWS" (also l.79122): unlike
+        // the A320 A/SKID & N/W STRG switch, the A380 A-SKID switch does not gate the steering.
+        self.final_steering_position_request =
+            if !is_both_engine_low_oil_pressure && lgciu1.nose_gear_compressed(false) {
+                (final_steer_rudder_plus_autopilot
+                    + steer_angle_from_tiller
+                    + self.heading_control_function.steering_output())
+                .min(Angle::new::<degree>(
+                    Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
+                ))
+                .max(Angle::new::<degree>(
+                    -Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
+                ))
+            } else {
+                Angle::new::<degree>(0.)
+            };
     }
 
     fn norm_controller(&self) -> &impl BrakeCircuitController {
@@ -9838,6 +9846,57 @@ mod tests {
             assert_lt!(test_bed.yellow_pressure(), Pressure::new::<psi>(1500.));
         }
 
+        /// FCOM DSC-29-40: the engine 3 pump disconnection is supplied by DC 2, the engine 4 one by DC 1.
+        #[test]
+        fn yellow_edp_disconnection_engine_3_on_dc_2_engine_4_on_dc_1() {
+            let mut test_bed = test_bed_on_ground_with()
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_waiting_for(Duration::from_secs(5));
+
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+
+            // DC 1 lost: the engine 4 pumps can no longer be disconnected, the engine 3 pumps still can.
+            test_bed = test_bed
+                .dc_bus_1_lost()
+                .set_disconnect_engine_edp(4)
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(test_bed.query(|a| a
+                .hydraulics
+                .engine_driven_pump_4a_controller
+                .is_input_shaft_connected()));
+
+            test_bed = test_bed
+                .set_disconnect_engine_edp(3)
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(!test_bed.query(|a| a
+                .hydraulics
+                .engine_driven_pump_3a_controller
+                .is_input_shaft_connected()));
+        }
+
+        #[test]
+        fn edp_disconnection_power_supply_matches_fcom() {
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(1),
+                ElectricalBusType::DirectCurrent(2)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(2),
+                ElectricalBusType::DirectCurrent(1)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(3),
+                ElectricalBusType::DirectCurrent(2)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(4),
+                ElectricalBusType::DirectCurrent(1)
+            );
+        }
+
         #[test]
         fn green_edp_no_fault_on_ground_eng_off() {
             let mut test_bed = test_bed_on_ground_with()
@@ -10293,6 +10352,29 @@ mod tests {
                 .run_waiting_for(Duration::from_secs(1));
 
             assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::HIGH);
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-10-30: the 10 s in flight disarming is "for RTO mode only"; "A landing AUTO BRK mode can be
+        // armed in flight, and on ground"
+        fn autobrakes_landing_mode_armed_on_ground_stays_armed_after_take_off() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .start_eng1(Ratio::new::<percent>(60.))
+                .start_eng2(Ratio::new::<percent>(60.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .set_autobrake_low()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::LOW);
+
+            test_bed = test_bed
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(15));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::LOW);
         }
 
         #[test]
@@ -11171,7 +11253,8 @@ mod tests {
         }
 
         #[test]
-        fn nose_steering_does_not_move_when_a_skid_off() {
+        // A380 FCOM DSC-32-30-10: "A-SKID sw OFF does not cut off NWS"
+        fn nose_steering_still_steers_when_a_skid_off() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
                 .on_the_ground()
@@ -11188,8 +11271,7 @@ mod tests {
                 .set_tiller_demand(Ratio::new::<ratio>(1.))
                 .run_waiting_for(Duration::from_secs_f64(5.));
 
-            assert_ge!(test_bed.nose_steering_position().get::<degree>(), -0.1);
-            assert_le!(test_bed.nose_steering_position().get::<degree>(), 0.1);
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
         }
 
         #[test]

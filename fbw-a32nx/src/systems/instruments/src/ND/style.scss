@@ -1,4 +1,11 @@
 @import "../MsfsAvionicsCommon/definitions.scss";
+
+// Chronometer: A320 FCOM DSC-31-45 (INDICATIONS ON ND, item 9) "Chronometer Indication (white)".
+// The FCOM gives no box colour: the box is filled with the display background so the white digits stay readable
+// over the map (design choice; the former light grey fill made green digits hard to read).
+$nd-chrono-text: $display-white;
+$nd-chrono-box-fill: $display-background;
+
 @import "../../../../../../fbw-common/src/systems/instruments/src/ND/style.scss";
 
 @font-face {
