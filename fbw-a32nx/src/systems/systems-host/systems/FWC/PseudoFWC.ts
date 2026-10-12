@@ -146,6 +146,7 @@ import {
   wingTankPumpAlerts,
   wingTankPumps1And2Lines,
 } from './Logic/FuelPumpValveFaults';
+import { BleedLeakMonitoringAlerts, readBleedLeakMonitoringInputs } from './Logic/BleedLeakMonitoringAlerts';
 import { EcamStatus } from './EcamStatus';
 import { FWC_1_AND_2_FAULT_EWD, FWC_FAULT_EWD_CODES, FwcAvailability, fwcFaultStatus } from './Logic/FwcAvailability';
 import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
@@ -1666,6 +1667,9 @@ export class PseudoFWC {
 
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
+
+  /** AIR bleed leak, leak detection, HP valve and BMC cautions, see Logic/BleedLeakMonitoringAlerts */
+  private readonly bleedLeakMonitoringAlerts = new BleedLeakMonitoringAlerts();
 
   private readonly engine1OilLoPr = Subject.create(false);
 
@@ -4629,6 +4633,9 @@ export class PseudoFWC {
     this.engine2OilHiTemp.set(this.engineOilMonitors[1].isHighTemperature);
     this.engine1OilFilterClog.set(this.engineOilMonitors[0].isFilterClogged);
     this.engine2OilFilterClog.set(this.engineOilMonitors[1].isFilterClogged);
+
+    /* AIR bleed leak, leak detection, HP valve and BMC cautions (FCOM PRO-ABN-AIR, PRO-ABN-BLEED), from the Rust BMCs */
+    this.bleedLeakMonitoringAlerts.update(readBleedLeakMonitoringInputs());
 
     /* ENG 1(2) FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts) */
     // The clogged filter from the systems (engine/fuel_filter_failure.rs)
@@ -8227,6 +8234,8 @@ export class PseudoFWC {
       sysPage: EcamSysPage.BLEED,
       side: 'LEFT',
     },
+    // 36 - PNEUMATIC: bleed leak, leak detection, HP valve and BMC cautions (keys 3612001-3612015)
+    ...this.bleedLeakMonitoringAlerts.ewdFailures,
     2161207: {
       // PACK 1 ABNORMALLY OFF
       flightPhaseInhib: [1, 2, 3, 4, 5, 7, 8, 9, 10],

@@ -226,6 +226,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ENG] In flight, after a flameout the FADEC relights the engine by itself within 30 s once the continuous ignition is on (ENG MODE selector at IGN, or the engine anti-ice, which now selects the continuous ignition automatically), without an ENG MASTER cycle, as in the FCOM - @TCdr
 1. [A32NX/ENG] Engine start faults as in the FCOM: after a stall or an EGT over limit during an automatic start on the ground the FADEC tries a new start first and dry cranks only after that, a manual start lights up from 20 % N2, and a starter that fails during an in-flight relight gives ENG START FAULT STARTER SHAFT SHEAR with WINDMILL START ONLY - @TCdr
 1. [A32NX/FWC] New ELEC alerts from the FCOM with their procedure and STATUS lines: AC BUS 1(2) FAULT, AC ESS BUS FAULT, AC ESS BUS SHED, AC ESS BUS ALTN, DC BUS 1(2) FAULT, DC BUS 1+2 FAULT, DC ESS BUS FAULT, DC ESS BUS SHED, DC BAT BUS FAULT, DC EMER CONFIG, ESS BUSES ON BAT, TR 1(2) FAULT, GEN 1(2) OFF, BAT 1(2) OFF and EMER GEN 1 LINE OFF - @TCdr
+1. [A32NX/PNEU] New flyPad pneumatic failures (ATA 36): bleed, HP, fan air, crossbleed and APU bleed valves stuck, pylon, wing and APU bleed leaks, leak detection loops and BMC 1(2); the BMCs now detect leaks, HP valve faults and overpressure above 57 PSI, light the ENG BLEED and APU BLEED FAULT lights, and close the affected valves - @TCdr
+1. [A32NX/FWC] New AIR cautions L(R) WING LEAK, ENG 1(2) BLEED LEAK, APU BLEED LEAK, ENG 1(2) / L(R) WNG / APU LEAK DET FAULT, ENG 1(2) HP VALVE FAULT, BLEED MONIT SYS 1(2) FAULT and BLEED MONITORING FAULT - @TCdr
 
 ## 2024.1.0
 

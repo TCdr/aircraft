@@ -2823,6 +2823,9 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_PNEU_ENG_{number}_OVERHEAT:
     - Indicates whether an an engine bleed air overheat is detected
+    - Above 257 °C for 55 s, 270 °C for 15 s or 290 °C for 5 s at the precooler outlet. Held while the ENG BLEED pb-sw is
+      ON (with the FAULT light), cleared once the pb-sw is OFF and the overheat is gone
+    - Written by the BMC of the engine, by the other BMC when it is failed; false when both BMCs are failed
     - Bool
     - {number}
         - 1
@@ -2830,6 +2833,61 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_PNEU_ENG_{number}_OVERPRESSURE:
     - Indicates whether an engine bleed overpressure is detected
+    - Above 57 PSI for 15 s downstream of the bleed valve. Held like the overheat
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_ENG_{number}_HP_VALVE_FAULT:
+    - Indicates whether the BMC detects the HP valve abnormally closed (AIR ENG 1(2) HP VALVE FAULT): closed for 5 s while
+      its solenoid is commanded open and the HP stage pressure should open it
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_ENG_{number}_BLEED_LEAK:
+    - Indicates whether the pylon leak detection loop of the engine detects a leak (above 204 °C). Needs the BMC of the
+      engine; held while the ENG BLEED pb-sw is ON
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_{side}_WING_LEAK:
+    - Indicates whether the wing leak detection loops detect a leak (both loops above 124 °C, or one loop with the other
+      one inoperative). Needs one BMC; held while the ENG BLEED pb-sw of the side is ON
+    - Bool
+    - {side}
+        - LEFT
+        - RIGHT
+
+- A32NX_PNEU_APU_BLEED_LEAK:
+    - Indicates whether the APU leak detection loop detects a leak (above 124 °C). Needs BMC 1; held while the APU BLEED
+      pb-sw is ON
+    - Bool
+
+- A32NX_PNEU_ENG_{number}_LEAK_DET_FAULT:
+    - Indicates whether the pylon leak detection loop of the engine is inoperative (needs the BMC of the engine)
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_{side}_WING_LEAK_DET_FAULT:
+    - Indicates whether both leak detection loops of the wing are inoperative (needs one BMC)
+    - Bool
+    - {side}
+        - LEFT
+        - RIGHT
+
+- A32NX_PNEU_APU_LEAK_DET_FAULT:
+    - Indicates whether the APU leak detection loop is inoperative (needs BMC 1)
+    - Bool
+
+- A32NX_PNEU_BMC_{number}_FAULT:
+    - Indicates whether the bleed monitoring computer is failed or not powered
     - Bool
     - {number}
         - 1
@@ -2837,6 +2895,12 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_OVHD_PNEU_ENG_{number}_BLEED_PB_HAS_FAULT:
     - Indicates whether the fault light is on for the engine bleed push button
+    - Lit by the BMC of the engine: overpressure, overheat, wing or pylon leak of the side, bleed valve not closed for 10 s
+      during the engine start or with APU BLEED ON. Goes out when the pb-sw is OFF and the fault is gone
+    - Bool
+
+- A32NX_OVHD_PNEU_APU_BLEED_PB_HAS_FAULT:
+    - Indicates whether the fault light is on for the APU bleed push button: APU bleed leak
     - Bool
 
 - A32NX_PNEU_WING_ANTI_ICE_SYSTEM_ON:
