@@ -389,6 +389,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] CAB PRESS page: the CAB ALT value pulses from 8800 ft until back at 8600 ft, the V/S value pulses above 1750 ft/min until back at 1650 ft/min, delta P pulses above 1.5 PSI in approach, and the needles no longer pulse, as in the FCOM - @TCdr
 1. [A32NX/SD] ENGINE page: the oil temperature now turns amber after 15 min between 140 and 155 °C (the timer restarted at every temperature change and never ran out) - @TCdr
 1. [A32NX/COCKPIT] The RAT & EMER GEN MAN ON pushbutton tooltip no longer says "(Inop.)": the pushbutton extends the RAT and couples the emergency generator - @TCdr
+1. [A380X/MODEL] The exhaust heat haze of engines 2, 3 and 4 follows its own engine (it followed engine 1 or 2) - @TCdr
 
 ## 2024.1.0
 
