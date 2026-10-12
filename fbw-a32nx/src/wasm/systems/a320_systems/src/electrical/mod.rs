@@ -16,6 +16,7 @@ use systems::electrical::Battery;
 
 use systems::{
     accept_iterable,
+    apu::ApuGenerator,
     electrical::{
         AlternatingCurrentElectricalSystem, BatteryPushButtons, Electricity, EmergencyElectrical,
         EmergencyGenerator, EngineGeneratorPushButtons, ExternalPowerSource, StaticInverter,
@@ -212,6 +213,22 @@ impl A320Electrical {
         self.alternating_current.both_engine_gen_contactors_closed()
     }
 
+    fn battery_charge_limiter_has_fault(&self, number: usize) -> bool {
+        self.direct_current.battery_charge_limiter_has_fault(number)
+    }
+
+    fn idg_has_fault(&self, number: usize) -> bool {
+        self.alternating_current.idg_has_fault(number)
+    }
+
+    /// The load of an engine generator or of the APU generator is above 100 % of its rated
+    /// output: GALY & CAB push button FAULT light (A320 FCOM DSC-24-20 l.37239-37240).
+    fn any_generator_overloaded(&self, apu: &impl AuxiliaryPowerUnitElectrical) -> bool {
+        self.alternating_current.engine_generator_is_overloaded(1)
+            || self.alternating_current.engine_generator_is_overloaded(2)
+            || apu.generator(1).is_overloaded()
+    }
+
     pub fn in_emergency_elec(&self) -> bool {
         self.emergency_elec.is_active()
     }
@@ -302,6 +319,22 @@ impl A320ElectricalOverheadPanel {
             .for_each(|(index, gen)| {
                 gen.set_fault(electrical.gen_contactor_open(index + 1) && gen.is_on());
             });
+
+        // A320 FCOM DSC-24-20 BAT pb FAULT, l.37115-37117
+        self.batteries
+            .iter_mut()
+            .enumerate()
+            .for_each(|(index, bat)| {
+                bat.set_fault(electrical.battery_charge_limiter_has_fault(index + 1));
+            });
+
+        // A320 FCOM DSC-24-20 IDG pb FAULT, l.37132-37135
+        self.idgs.iter_mut().enumerate().for_each(|(index, idg)| {
+            idg.set_fault(electrical.idg_has_fault(index + 1));
+        });
+
+        self.galy_and_cab
+            .set_fault(electrical.any_generator_overloaded(apu));
 
         self.apu_gen.set_fault(
             self.apu_gen.is_on()
@@ -1827,6 +1860,82 @@ mod a320_electrical_circuit_tests {
     #[rstest]
     #[case(1)]
     #[case(2)]
+    fn battery_thermal_runaway_lights_the_bat_push_button_fault(#[case] number: usize) {
+        let mut test_bed = test_bed_with().running_engines().run();
+        assert!(!test_bed.bat_has_fault(number));
+        test_bed.fail(FailureType::Battery(number));
+
+        let mut test_bed = test_bed.run_for_seconds(10);
+
+        assert!(test_bed.bat_has_fault(number));
+        assert!(!test_bed.battery_contactor_is_closed(number));
+        assert!(!test_bed.bat_has_fault(3 - number));
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn failed_battery_charge_limiter_lights_the_bat_push_button_fault(#[case] number: usize) {
+        let mut test_bed = test_bed_with().running_engines().run();
+        test_bed.fail(FailureType::BatteryChargeLimiter(number));
+
+        let mut test_bed = test_bed.run();
+
+        assert!(test_bed.bat_has_fault(number));
+        assert!(!test_bed.battery_contactor_is_closed(number));
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn idg_oil_leak_lights_the_idg_push_button_fault(#[case] number: usize) {
+        let mut test_bed = test_bed_with().running_engines().run();
+        test_bed.fail(FailureType::IntegratedDriveGeneratorOilLeak(number));
+
+        let mut test_bed = test_bed.run_for_seconds(60);
+
+        assert!(test_bed.idg_has_fault(number));
+        assert!(!test_bed.idg_has_fault(3 - number));
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn idg_push_button_fault_goes_off_once_the_idg_is_disconnected(#[case] number: usize) {
+        let mut test_bed = test_bed_with().running_engines().run();
+        test_bed.fail(FailureType::IntegratedDriveGeneratorOilLeak(number));
+        let mut test_bed = test_bed.run_for_seconds(60);
+
+        test_bed.write_by_name(&format!("OVHD_ELEC_IDG_{}_PB_IS_RELEASED", number), true);
+        let mut test_bed = test_bed.run();
+
+        assert!(!test_bed.idg_has_fault(number));
+    }
+
+    #[test]
+    fn overloaded_apu_generator_lights_the_galy_and_cab_push_button_fault() {
+        let mut test_bed = test_bed_with().running_apu().run();
+        assert!(!test_bed.galy_and_cab_has_fault());
+
+        let mut test_bed = test_bed.overloaded_apu_gen().run();
+
+        assert!(test_bed.galy_and_cab_has_fault());
+    }
+
+    #[test]
+    fn failed_static_inverter_reports_its_fault_in_the_normal_configuration() {
+        let mut test_bed = test_bed_with().running_engines().run();
+        assert!(!test_bed.static_inverter_has_fault());
+        test_bed.fail(FailureType::StaticInverter);
+
+        let mut test_bed = test_bed.run();
+
+        assert!(test_bed.static_inverter_has_fault());
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
     fn when_gen_contactor_open_gen_push_button_has_fault(#[case] gen_number: usize) {
         let mut test_bed = test_bed_with().running_apu().run();
 
@@ -2174,6 +2283,10 @@ mod a320_electrical_circuit_tests {
             self.gen.set_fault(true);
         }
 
+        fn overload_generator(&mut self) {
+            self.gen.overloaded = true;
+        }
+
         fn command_closing_of_start_contactors(&mut self) {
             self.should_close_start_contactor = true;
         }
@@ -2219,6 +2332,7 @@ mod a320_electrical_circuit_tests {
         identifier: ElectricalElementIdentifier,
         is_available: bool,
         has_fault: bool,
+        overloaded: bool,
     }
     impl TestApuGenerator {
         fn new(context: &mut InitContext) -> Self {
@@ -2226,6 +2340,7 @@ mod a320_electrical_circuit_tests {
                 identifier: context.next_electrical_identifier(),
                 is_available: false,
                 has_fault: false,
+                overloaded: false,
             }
         }
 
@@ -2242,6 +2357,10 @@ mod a320_electrical_circuit_tests {
 
         fn output_within_normal_parameters(&self) -> bool {
             self.is_available && !self.has_fault
+        }
+
+        fn is_overloaded(&self) -> bool {
+            self.overloaded
         }
     }
     impl ProvidePotential for TestApuGenerator {
@@ -2566,6 +2685,10 @@ mod a320_electrical_circuit_tests {
             self.apu.fail_generator();
         }
 
+        fn overloaded_apu_gen(&mut self) {
+            self.apu.overload_generator();
+        }
+
         fn set_apu_master_sw_pb_on(&mut self) {
             self.apu_overhead.set_apu_master_sw_pb_on();
         }
@@ -2758,6 +2881,38 @@ mod a320_electrical_circuit_tests {
         fn failed_apu_gen(mut self) -> Self {
             self.command(|a| a.failed_apu_gen());
             self
+        }
+
+        fn overloaded_apu_gen(mut self) -> Self {
+            self.command(|a| a.overloaded_apu_gen());
+            self
+        }
+
+        fn run_for_seconds(mut self, seconds: u64) -> Self {
+            for _ in 0..seconds {
+                self = self.run();
+            }
+            self
+        }
+
+        fn bat_has_fault(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("OVHD_ELEC_BAT_{}_PB_HAS_FAULT", number))
+        }
+
+        fn battery_contactor_is_closed(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("ELEC_CONTACTOR_6PB{}_IS_CLOSED", number))
+        }
+
+        fn idg_has_fault(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("OVHD_ELEC_IDG_{}_PB_HAS_FAULT", number))
+        }
+
+        fn galy_and_cab_has_fault(&mut self) -> bool {
+            self.read_by_name("OVHD_ELEC_GALY_AND_CAB_PB_HAS_FAULT")
+        }
+
+        fn static_inverter_has_fault(&mut self) -> bool {
+            self.read_by_name("ELEC_STAT_INV_FAULT")
         }
 
         fn running_emergency_generator(mut self) -> Self {

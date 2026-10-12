@@ -29,10 +29,25 @@ pub type VariableFrequencyGenerator = EngineGenerator<DirectDrive>;
 
 pub trait EngineGeneratorDrive: SimulationElement {
     fn new_drive(context: &mut InitContext, number: usize) -> Self;
-    fn update_drive(&mut self, context: &UpdateContext, engine: &impl Engine);
+    /// `generator_load` is the load of the generator at the previous update.
+    fn update_drive(
+        &mut self,
+        context: &UpdateContext,
+        engine: &impl Engine,
+        generator_load: Ratio,
+    );
     fn output_speed(&self) -> AngularVelocity;
     fn disconnect(&mut self);
     fn is_connected(&self) -> bool;
+    /// The low oil pressure signal of the drive, as its GCU sends it to the FWC and to the IDG
+    /// push button FAULT light. A drive without an oil model never reports it.
+    fn oil_pressure_is_low(&self) -> bool {
+        false
+    }
+    /// The oil outlet temperature of the drive is above its overheat threshold.
+    fn oil_is_overheating(&self) -> bool {
+        false
+    }
 }
 
 pub struct EngineGenerator<Drive: EngineGeneratorDrive> {
@@ -85,7 +100,7 @@ impl<Drive: EngineGeneratorDrive> EngineGenerator<Drive> {
         }
         self.activated = generator_buttons.engine_gen_push_button_is_on(self.number)
             && !fire_buttons.is_released(self.number);
-        self.drive.update_drive(context, engine);
+        self.drive.update_drive(context, engine, self.load);
         self.output_frequency = if self.activated {
             Frequency::new::<hertz>(
                 self.drive.output_speed().get::<revolution_per_minute>() * 4. / 120.,
@@ -138,6 +153,16 @@ impl<Drive: EngineGeneratorDrive> EngineGenerator<Drive> {
 
     pub fn is_drive_connected(&self) -> bool {
         self.drive.is_connected()
+    }
+
+    /// The low oil pressure signal of the drive (IDG LO PR), see `ConstantSpeedDrive`.
+    pub fn drive_oil_pressure_is_low(&self) -> bool {
+        self.drive.oil_pressure_is_low()
+    }
+
+    /// The oil outlet temperature of the drive is above its overheat threshold (IDG OVHT).
+    pub fn drive_oil_is_overheating(&self) -> bool {
+        self.drive.oil_is_overheating()
     }
 }
 impl<Drive: EngineGeneratorDrive> ElectricitySource for EngineGenerator<Drive> {
@@ -226,12 +251,24 @@ impl<Drive: EngineGeneratorDrive> SimulationElement for EngineGenerator<Drive> {
     }
 }
 
+/// The constant speed drive of an integrated drive generator (IDG, A320).
+///
+/// Oil model, A320 FCOM DSC-24-20 IDG pb (a320_fcom.txt l.37132-37138): "ECAM caution comes on, if:
+/// IDG oil outlet overheats (above 180 °C), or IDG oil pressure is low (inhibited at low engine
+/// speed: N2 below 14 %). It extinguishes when the IDG is disconnected." and "An automatic thermal
+/// disconnection of the IDG will occur if the temperature reaches 200 °C."
 pub struct ConstantSpeedDrive {
     oil_outlet_temperature_id: VariableIdentifier,
     oil_outlet_temperature: ThermodynamicTemperature,
     is_connected_id: VariableIdentifier,
     connected: bool,
     output_speed: AngularVelocity,
+    oil_low_pressure_id: VariableIdentifier,
+    /// The share of the normal oil quantity left in the drive (1 = full)
+    oil_quantity: Ratio,
+    oil_low_pressure: bool,
+    oil_leak: Failure,
+    oil_overheat: Failure,
 }
 impl ConstantSpeedDrive {
     // Threshold to reach target output speed = 58% of 16645 RPM
@@ -239,6 +276,41 @@ impl ConstantSpeedDrive {
     const OUTPUT_SPEED_RPM: f64 = 12000.;
 
     const M: f64 = Self::OUTPUT_SPEED_RPM / Self::ENGINE_GEARBOX_POWER_UP_OUTPUT_THRESHOLD;
+
+    /// FCOM DSC-24-20 l.37133: the IDG oil outlet overheat threshold
+    pub const OIL_OVERHEAT_CELSIUS: f64 = 180.;
+    /// FCOM DSC-24-20 l.37137-37138: the automatic thermal disconnection
+    pub const THERMAL_DISCONNECT_CELSIUS: f64 = 200.;
+    /// FCOM DSC-24-20 l.37134: the low oil pressure signal is inhibited below N2 14 %
+    const LOW_PRESSURE_INHIBITION_N2_PERCENT: f64 = 14.;
+
+    /// Design choice (the FCOM gives no normal values): with the engine at idle or above, the oil
+    /// comes back from its coolers at 55 °C plus 0.4 times the outside air temperature (limited to
+    /// -20..50 °C), and gains 8 °C, plus 12 °C at full generator load, in the drive. The outlet
+    /// temperature stays between about 50 °C and 95 °C, well below the 147 °C advisory of the SD
+    /// ELEC page (FCOM DSC-24-20 l.37624-37625).
+    const OIL_INLET_BASE_CELSIUS: f64 = 55.;
+    const OIL_INLET_AMBIENT_FACTOR: f64 = 0.4;
+    const OIL_TEMPERATURE_RISE_NO_LOAD_CELSIUS: f64 = 8.;
+    const OIL_TEMPERATURE_RISE_FULL_LOAD_CELSIUS: f64 = 20.;
+    /// The drive produces its full heat from N2 60 % (about idle).
+    const FULL_HEAT_N2_PERCENT: f64 = 60.;
+    const IDG_HEATING_COEFFICIENT: f64 = 1.4;
+    const IDG_COOLING_COEFFICIENT: f64 = 0.4;
+
+    /// Design choice: a drive losing its oil (`FailureType::IntegratedDriveGeneratorOilLeak`)
+    /// loses 1 % of it each second while it turns. Its charge pump loses pressure (LO PR) below
+    /// half of the oil, 50 s after the leak starts. Below 60 % of the oil the cooling degrades, up
+    /// to 150 °C more at the inlet when the drive is dry.
+    const OIL_LEAK_RATE_PER_SECOND: f64 = 0.01;
+    const OIL_LOW_PRESSURE_QUANTITY: f64 = 0.5;
+    const OIL_COOLING_DEGRADED_QUANTITY: f64 = 0.6;
+    const DRY_DRIVE_EXTRA_INLET_CELSIUS: f64 = 150.;
+    /// Design choice: a lost oil cooling (`FailureType::IntegratedDriveGeneratorOilOverheat`)
+    /// adds 170 °C at the inlet. An abnormal heating goes at 0.5 °C/s, so the overheat comes about
+    /// 3.5 min after the failure and the thermal disconnection 40 s later.
+    const COOLING_LOST_EXTRA_INLET_CELSIUS: f64 = 170.;
+    const ABNORMAL_HEATING_COEFFICIENT: f64 = 0.5;
 
     fn new(context: &mut InitContext, number: usize) -> ConstantSpeedDrive {
         ConstantSpeedDrive {
@@ -251,10 +323,19 @@ impl ConstantSpeedDrive {
                 .get_identifier(format!("ELEC_ENG_GEN_{}_IDG_IS_CONNECTED", number)),
             connected: true,
             output_speed: AngularVelocity::default(),
+            oil_low_pressure_id: context
+                .get_identifier(format!("ELEC_ENG_GEN_{}_IDG_OIL_LOW_PRESSURE", number)),
+            oil_quantity: Ratio::new::<ratio>(1.),
+            oil_low_pressure: false,
+            oil_leak: Failure::new(FailureType::IntegratedDriveGeneratorOilLeak(number)),
+            oil_overheat: Failure::new(FailureType::IntegratedDriveGeneratorOilOverheat(number)),
         }
     }
 
-    pub fn update(&mut self, context: &UpdateContext, engine: &impl Engine) {
+    pub fn update(&mut self, context: &UpdateContext, engine: &impl Engine, generator_load: Ratio) {
+        let corrected_n2 = engine.corrected_n2();
+        let turns = self.connected && corrected_n2 > Ratio::default();
+
         self.output_speed = if self.connected {
             (Self::M * engine.gearbox_speed()).min(AngularVelocity::new::<revolution_per_minute>(
                 Self::OUTPUT_SPEED_RPM,
@@ -262,23 +343,46 @@ impl ConstantSpeedDrive {
         } else {
             AngularVelocity::default()
         };
-        self.update_temperature(
-            context,
-            self.get_target_temperature(context, engine.corrected_n2()),
-        );
+
+        if self.oil_leak.is_active() && turns {
+            self.oil_quantity = (self.oil_quantity
+                - Ratio::new::<ratio>(
+                    Self::OIL_LEAK_RATE_PER_SECOND * context.delta_as_secs_f64(),
+                ))
+            .max(Ratio::default());
+        }
+
+        let target = self.get_target_temperature(context, corrected_n2, generator_load);
+        self.update_temperature(context, target);
+
+        if self.oil_outlet_temperature
+            >= ThermodynamicTemperature::new::<degree_celsius>(Self::THERMAL_DISCONNECT_CELSIUS)
+        {
+            // The fusible device melts: the drive cannot be reconnected in flight.
+            self.connected = false;
+        }
+
+        // The signal the GCU sends: inhibited below N2 14 % and once the drive is disconnected.
+        // Design choice: it uses the corrected N2 the drive model already reads.
+        self.oil_low_pressure = self.connected
+            && corrected_n2.get::<percent>() >= Self::LOW_PRESSURE_INHIBITION_N2_PERCENT
+            && self.oil_quantity < Ratio::new::<ratio>(Self::OIL_LOW_PRESSURE_QUANTITY);
+    }
+
+    fn abnormal_heating(&self) -> bool {
+        self.oil_overheat.is_active() || self.oil_quantity < Ratio::new::<ratio>(1.)
     }
 
     fn update_temperature(&mut self, context: &UpdateContext, target: ThermodynamicTemperature) {
-        const IDG_HEATING_COEFFICIENT: f64 = 1.4;
-        const IDG_COOLING_COEFFICIENT: f64 = 0.4;
-
         self.oil_outlet_temperature = calculate_towards_target_temperature(
             self.oil_outlet_temperature,
             target,
-            if self.oil_outlet_temperature < target {
-                IDG_HEATING_COEFFICIENT
+            if self.oil_outlet_temperature >= target {
+                Self::IDG_COOLING_COEFFICIENT
+            } else if self.abnormal_heating() {
+                Self::ABNORMAL_HEATING_COEFFICIENT
             } else {
-                IDG_COOLING_COEFFICIENT
+                Self::IDG_HEATING_COEFFICIENT
             },
             context.delta(),
         );
@@ -288,20 +392,34 @@ impl ConstantSpeedDrive {
         &self,
         context: &UpdateContext,
         corrected_n2: Ratio,
+        generator_load: Ratio,
     ) -> ThermodynamicTemperature {
-        const TEMPERATURE_TO_RPM_FACTOR: f64 = 1.8;
-
         if !self.connected {
             return context.ambient_temperature();
         }
 
         let ambient_temperature = context.ambient_temperature().get::<degree_celsius>();
-        let target_idg =
-            corrected_n2.get::<percent>() * TEMPERATURE_TO_RPM_FACTOR + ambient_temperature;
+        let mut inlet = Self::OIL_INLET_BASE_CELSIUS
+            + Self::OIL_INLET_AMBIENT_FACTOR * ambient_temperature.clamp(-20., 50.);
+        if self.oil_overheat.is_active() {
+            inlet += Self::COOLING_LOST_EXTRA_INLET_CELSIUS;
+        }
+        let oil_missing = ((Self::OIL_COOLING_DEGRADED_QUANTITY
+            - self.oil_quantity.get::<ratio>())
+            / Self::OIL_COOLING_DEGRADED_QUANTITY)
+            .clamp(0., 1.);
+        inlet += Self::DRY_DRIVE_EXTRA_INLET_CELSIUS * oil_missing;
 
-        // TODO improve this function with feedback @komp provides.
+        let rise = Self::OIL_TEMPERATURE_RISE_NO_LOAD_CELSIUS
+            + (Self::OIL_TEMPERATURE_RISE_FULL_LOAD_CELSIUS
+                - Self::OIL_TEMPERATURE_RISE_NO_LOAD_CELSIUS)
+                * generator_load.get::<ratio>().clamp(0., 1.);
 
-        ThermodynamicTemperature::new::<degree_celsius>(target_idg)
+        let heat = (corrected_n2.get::<percent>() / Self::FULL_HEAT_N2_PERCENT).clamp(0., 1.);
+
+        ThermodynamicTemperature::new::<degree_celsius>(
+            ambient_temperature + (inlet + rise - ambient_temperature) * heat,
+        )
     }
 }
 impl EngineGeneratorDrive for ConstantSpeedDrive {
@@ -309,8 +427,13 @@ impl EngineGeneratorDrive for ConstantSpeedDrive {
         Self::new(context, number)
     }
 
-    fn update_drive(&mut self, context: &UpdateContext, engine: &impl Engine) {
-        self.update(context, engine);
+    fn update_drive(
+        &mut self,
+        context: &UpdateContext,
+        engine: &impl Engine,
+        generator_load: Ratio,
+    ) {
+        self.update(context, engine, generator_load);
     }
 
     fn output_speed(&self) -> AngularVelocity {
@@ -324,11 +447,27 @@ impl EngineGeneratorDrive for ConstantSpeedDrive {
     fn is_connected(&self) -> bool {
         self.connected
     }
+
+    fn oil_pressure_is_low(&self) -> bool {
+        self.oil_low_pressure
+    }
+
+    fn oil_is_overheating(&self) -> bool {
+        self.oil_outlet_temperature
+            > ThermodynamicTemperature::new::<degree_celsius>(Self::OIL_OVERHEAT_CELSIUS)
+    }
 }
 impl SimulationElement for ConstantSpeedDrive {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.oil_leak.accept(visitor);
+        self.oil_overheat.accept(visitor);
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.oil_outlet_temperature_id, self.oil_outlet_temperature);
         writer.write(&self.is_connected_id, self.connected);
+        writer.write(&self.oil_low_pressure_id, self.oil_low_pressure);
     }
 }
 
@@ -397,7 +536,7 @@ impl EngineGeneratorDrive for DirectDrive {
         Self::new(context, number)
     }
 
-    fn update_drive(&mut self, context: &UpdateContext, engine: &impl Engine) {
+    fn update_drive(&mut self, context: &UpdateContext, engine: &impl Engine, _: Ratio) {
         self.output_speed = if self.connected {
             engine.gearbox_speed() * Self::TRANSMISSION_RATIO
         } else {
@@ -533,6 +672,7 @@ mod tests {
                 Aircraft, InitContext,
             },
         };
+        use ntest::assert_about_eq;
         use uom::si::power::{kilowatt, watt};
 
         struct EngineGeneratorTestBed {
@@ -573,6 +713,28 @@ mod tests {
 
             fn generator_provides_stable_power_output(&self) -> bool {
                 self.query(|a| a.generator_output_within_normal_parameters())
+            }
+
+            fn run_for_seconds(&mut self, seconds: u64) {
+                for _ in 0..seconds {
+                    self.run_with_delta(Duration::from_secs(1));
+                }
+            }
+
+            fn idg_oil_outlet_temperature(&mut self) -> ThermodynamicTemperature {
+                self.read_by_name("ELEC_ENG_GEN_1_IDG_OIL_OUTLET_TEMPERATURE")
+            }
+
+            fn idg_oil_low_pressure(&mut self) -> bool {
+                self.read_by_name("ELEC_ENG_GEN_1_IDG_OIL_LOW_PRESSURE")
+            }
+
+            fn idg_is_connected(&mut self) -> bool {
+                self.read_by_name("ELEC_ENG_GEN_1_IDG_IS_CONNECTED")
+            }
+
+            fn idg_oil_is_overheating(&self) -> bool {
+                self.query(|a| a.engine_gen.drive_oil_is_overheating())
             }
         }
         impl TestBed for EngineGeneratorTestBed {
@@ -689,6 +851,117 @@ mod tests {
 
                 visitor.visit(self);
             }
+        }
+
+        #[test]
+        fn idg_oil_stays_below_the_advisory_temperature_at_full_load_on_a_hot_day() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(45.));
+            test_bed.command(|a| a.power_demand(Power::new::<kilowatt>(110.)));
+
+            test_bed.run_for_seconds(600);
+
+            // A320 FCOM DSC-24-20 l.37624-37625: the SD ELEC page flashes from 147 °C
+            assert_lt!(
+                test_bed.idg_oil_outlet_temperature(),
+                ThermodynamicTemperature::new::<degree_celsius>(147.)
+            );
+            assert_gt!(
+                test_bed.idg_oil_outlet_temperature(),
+                ThermodynamicTemperature::new::<degree_celsius>(60.)
+            );
+            assert!(!test_bed.idg_oil_is_overheating());
+            assert!(!test_bed.idg_oil_low_pressure());
+        }
+
+        #[test]
+        fn idg_oil_cools_down_to_ambient_with_the_engine_stopped() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(15.));
+            test_bed.run_for_seconds(300);
+            test_bed.command(|a| a.shutdown_engine());
+
+            test_bed.run_for_seconds(600);
+
+            assert_about_eq!(
+                test_bed
+                    .idg_oil_outlet_temperature()
+                    .get::<degree_celsius>(),
+                15.,
+                0.5
+            );
+        }
+
+        #[test]
+        fn an_idg_oil_leak_gives_a_low_oil_pressure() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.run_for_seconds(60);
+            test_bed.fail(FailureType::IntegratedDriveGeneratorOilLeak(1));
+
+            test_bed.run_for_seconds(40);
+            assert!(!test_bed.idg_oil_low_pressure());
+
+            test_bed.run_for_seconds(15);
+            assert!(test_bed.idg_oil_low_pressure());
+        }
+
+        #[test]
+        fn the_idg_low_oil_pressure_is_inhibited_with_the_engine_stopped() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.fail(FailureType::IntegratedDriveGeneratorOilLeak(1));
+            test_bed.run_for_seconds(60);
+            assert!(test_bed.idg_oil_low_pressure());
+
+            test_bed.command(|a| a.shutdown_engine());
+            test_bed.run_for_seconds(1);
+
+            assert!(!test_bed.idg_oil_low_pressure());
+        }
+
+        #[test]
+        fn the_idg_low_oil_pressure_goes_off_once_the_idg_is_disconnected() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.fail(FailureType::IntegratedDriveGeneratorOilLeak(1));
+            test_bed.run_for_seconds(60);
+
+            test_bed.command(|a| a.disconnect_idg());
+            test_bed.run_for_seconds(1);
+
+            assert!(!test_bed.idg_oil_low_pressure());
+        }
+
+        #[test]
+        fn an_idg_oil_leak_ends_in_an_overheat_then_a_thermal_disconnection() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.run_for_seconds(300);
+            test_bed.fail(FailureType::IntegratedDriveGeneratorOilLeak(1));
+
+            test_bed.run_for_seconds(280);
+            assert!(test_bed.idg_oil_is_overheating());
+            assert!(test_bed.idg_is_connected());
+
+            test_bed.run_for_seconds(120);
+            assert!(!test_bed.idg_is_connected());
+            assert!(!test_bed.generator_provides_stable_power_output());
+        }
+
+        #[test]
+        fn a_lost_idg_oil_cooling_overheats_the_oil_then_disconnects_the_idg_at_200_c() {
+            let mut test_bed = EngineGeneratorTestBed::with_running_engine();
+            test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(15.));
+            test_bed.run_for_seconds(300);
+            test_bed.fail(FailureType::IntegratedDriveGeneratorOilOverheat(1));
+
+            test_bed.run_for_seconds(180);
+            assert!(!test_bed.idg_oil_is_overheating());
+
+            test_bed.run_for_seconds(60);
+            assert!(test_bed.idg_oil_is_overheating());
+            assert!(test_bed.idg_is_connected());
+            assert!(!test_bed.idg_oil_low_pressure());
+
+            test_bed.run_for_seconds(60);
+            assert!(!test_bed.idg_is_connected());
         }
 
         #[test]
@@ -1129,7 +1402,11 @@ mod tests {
         }
 
         fn engine_not_running(drive: &mut impl EngineGeneratorDrive, context: &UpdateContext) {
-            drive.update_drive(context, &TestEngine::new(Ratio::new::<percent>(0.)))
+            drive.update_drive(
+                context,
+                &TestEngine::new(Ratio::new::<percent>(0.)),
+                Ratio::default(),
+            )
         }
 
         fn engine_running_above_threshold<T: EngineGeneratorDrive>(
@@ -1139,7 +1416,11 @@ mod tests {
                 if idg_push_button_is_released {
                     drive.disconnect()
                 }
-                drive.update_drive(context, &TestEngine::new(Ratio::new::<percent>(80.)))
+                drive.update_drive(
+                    context,
+                    &TestEngine::new(Ratio::new::<percent>(80.)),
+                    Ratio::default(),
+                )
             }
         }
     }

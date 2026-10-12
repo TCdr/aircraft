@@ -73,5 +73,19 @@
     &.Cyan {
       fill: $display-cyan;
     }
+
+    // FCOM DSC-24-20 IDG oil outlet temperature advisory: flashing green
+    &.Pulse {
+      animation: elec-fill-pulse 1s step-end infinite;
+
+      @keyframes elec-fill-pulse {
+        0%, 100% {
+          fill: $display-green;
+        }
+        50% {
+          fill: hsl(120, 100%, 20%);
+        }
+      }
+    }
   }
 }

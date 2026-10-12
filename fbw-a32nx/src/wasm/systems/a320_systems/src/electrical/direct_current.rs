@@ -181,6 +181,12 @@ impl A320DirectCurrentElectrical {
         electricity.flow(&self.dc_bat_bus, &self.battery_1_contactor);
         electricity.flow(&self.battery_1_contactor, &self.hot_bus_1);
         electricity.flow(&self.hot_bus_1, &self.battery_1);
+        // Design choice: the monitoring of the static inverter is supplied by the DC HOT BUS 1,
+        // which BAT 1 always supplies. The inverter then reports its failure also while it does
+        // not convert (ELEC STAT INV FAULT, A320 FCOM PRO-ABN-ELEC l.78211: "The alert triggers
+        // when the static inverter is failed.").
+        self.static_inverter
+            .update_monitoring(electricity.is_powered(&self.hot_bus_1));
 
         electricity.supplied_by(&self.battery_2);
         self.battery_2_charge_limiter.update(
@@ -286,6 +292,15 @@ impl A320DirectCurrentElectrical {
     ) -> bool {
         self.hot_bus_1_to_static_inv_contactor.is_closed()
             == self.hot_bus_2_to_dc_ess_bus_contactor.is_closed()
+    }
+
+    /// The BAT push button FAULT light: the BCL saw an abnormal charge or has failed.
+    pub fn battery_charge_limiter_has_fault(&self, number: usize) -> bool {
+        if number == 1 {
+            self.battery_1_charge_limiter.has_fault()
+        } else {
+            self.battery_2_charge_limiter.has_fault()
+        }
     }
 
     #[cfg(test)]

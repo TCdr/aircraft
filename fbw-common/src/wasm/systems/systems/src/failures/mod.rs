@@ -44,6 +44,18 @@ pub enum FailureType {
     TransformerRectifier(usize),
     StaticInverter,
     ElectricalBus(ElectricalBusType),
+    /// Battery n has an internal cell short: its voltage drops and, once on charge, its charging
+    /// current keeps rising (thermal runaway, see electrical::battery)
+    Battery(usize),
+    /// The battery charge limiter (BCL) of battery n has failed: it keeps the battery contactor
+    /// open (electrical::battery_charge_limiter)
+    BatteryChargeLimiter(usize),
+    /// The integrated drive generator (IDG) of engine n loses its oil: low oil pressure, then an
+    /// oil overheat (electrical::engine_generator)
+    IntegratedDriveGeneratorOilLeak(usize),
+    /// The oil cooling of the IDG of engine n is lost: its oil outlet temperature rises
+    /// (electrical::engine_generator)
+    IntegratedDriveGeneratorOilOverheat(usize),
     // ATA26
     SetOnFire(FireDetectionZone),
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
