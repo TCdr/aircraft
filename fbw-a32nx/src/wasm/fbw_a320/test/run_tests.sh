@@ -15,3 +15,10 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-c
   reverse_throttle_test.cpp ../src/model/FadecComputer.cpp ../src/model/FadecComputer_data.cpp \
   -o ../obj/reverse_throttle_test
 ../obj/reverse_throttle_test
+# Power-up self-test of the FMGC, ELAC and SEC after a power outage (PowerSupplyMonitor recovery order)
+clang++ -std=c++20 -Wall -Wextra -I ../src/model \
+  power_recovery_self_test_test.cpp ../src/fmgc/Fmgc.cpp ../src/elac/Elac.cpp ../src/sec/Sec.cpp \
+  ../src/model/*.cpp ../src/Arinc429Utils.cpp ../src/utils/PowerSupplyMonitor.cpp ../src/utils/ConfirmNode.cpp \
+  ../src/utils/HysteresisNode.cpp ../src/utils/PulseNode.cpp ../src/utils/SRFlipFLop.cpp \
+  -o ../obj/power_recovery_self_test_test
+../obj/power_recovery_self_test_test

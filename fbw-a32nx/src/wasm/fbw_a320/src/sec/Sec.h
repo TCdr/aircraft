@@ -32,6 +32,8 @@ class Sec {
 
   void monitorPowerSupply(double deltaTime, bool isPowered);
 
+  bool isInFlight();
+
   void monitorSelf(bool faultActive);
 
   void updateSelfTest(double deltaTime);
