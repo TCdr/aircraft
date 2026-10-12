@@ -707,7 +707,7 @@ export class MfdFmsDataAirport extends FmsPage<MfdFmsDataAirportProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataAirportStoredDropdown`}
             selectedIndex={this.selectedStoredAirport}
             values={this.storedAirports}
-            freeTextAllowed={false}
+            freeTextAllowed={false} // FCOM PILOT STORED RWYS AIRPORT IDENT LIST: list only (typed idents go in the AIRPORT field)
             containerStyle="width: 119px;"
             alignLabels="center"
             numberOfDigitsForInputField={4}

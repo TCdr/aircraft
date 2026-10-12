@@ -37,6 +37,7 @@ import {
   NXFictionalMessages,
   NXSystemMessages,
 } from '../shared/NXSystemMessages';
+import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/A380XFmsAtcBusPublisher';
 
 /**
  * The indications of the message status / FSM button of an ATIS request area (FCOM DSC-46-10-20-30 P 32): '' when
@@ -91,11 +92,14 @@ export interface AtcErrorMessage {
 }
 
 export class AtcDatalinkSystem implements Instrument {
+  // TODO this should be hosted in the CPIOM-D.
   private readonly messageStorage: MessageStorage;
 
   private readonly publisher = this.bus.getPublisher<FmsAtcMessages & FmsRouterMessages>();
 
-  private readonly sub = this.bus.getSubscriber<AtcFmsMessages & FmsData & RouterFmsMessages & FmsRouterMessages>();
+  private readonly sub = this.bus.getSubscriber<AtcFmsMessages & FmsData & RouterFmsMessages>();
+
+  private readonly fmsBusSub = this.bus.getSubscriber<FmsToDatalinkSubsystemEvents>();
 
   private requestId: number = 0;
 
@@ -319,6 +323,10 @@ export class AtcDatalinkSystem implements Instrument {
       .on('fmsAlternate')
       .whenChanged()
       .handle((icao) => this.initAtisArea(2, icao));
+
+    this.fmsBusSub.on('reset_auto_update').handle(() => {
+      this.resetAtisAutoUpdate();
+    });
   }
 
   init(): void {}
@@ -939,5 +947,9 @@ export class AtcDatalinkSystem implements Instrument {
       default:
         return DatalinkModeCode.None;
     }
+  }
+
+  private resetAtisAutoUpdate(): void {
+    this.publisher.pub('atcResetAtisAutoUpdate', true, true, false);
   }
 }
