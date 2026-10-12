@@ -120,6 +120,28 @@ void EngineControl_A380X::update() {
         {msfsN3, msfsN1, engineState == STARTING || engineState == RESTARTING, idleN3, simData.engineIdleN1->get(), deltaTime});
     const double simN1 = guardedSpeeds.n1;
     const double simN3 = guardedSpeeds.n3;
+    // The guard only hides the jump from the FADEC: MSFS still takes its fan along and gives a real thrust pulse (blip2.log, sim
+    // test 2026-10-08: engine 4 thrust -2 100 -> +11 800 lb for 10 s after an in-flight relight). In flight the FADEC therefore also
+    // writes the MSFS core back to a ceiling near idle while the MSFS fuel flow controller, wound up during the start, unwinds (see
+    // MsfsCoreLimiter_A380X). The ceiling is an uncorrected speed: it is written as TURB ENG CORRECTED N2 with the corrected /
+    // uncorrected ratio MSFS uses this frame.
+    // the aircraft preset quick start and shutdown set the MSFS core themselves
+    const bool engineRunningOrStarting = (engineState == ON || engineState == STARTING || engineState == RESTARTING) && !engineFuelCut &&
+                                         !engineSeized && !simData.fadecQuickMode->getAsBool();
+    const std::optional<double> msfsCoreCeiling = msfsCoreLimiter[engineIdx].update({
+        !simOnGround,                                              //
+        engineRunningOrStarting,                                   //
+        msfsN3,                                                    //
+        msfsCN1,                                                   //
+        simData.simVarsDataPtr->data().simCommandedN1[engineIdx],  //
+        idleN3,                                                    //
+        deltaTime,                                                 //
+    });
+    if (msfsCoreCeiling && msfsN3 > 0.0) {
+      const double correctedPerActual = simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 / msfsN3;
+      simData.engineCorrectedN3DataPtr[engineIdx]->data().correctedN3 = *msfsCoreCeiling * correctedPerActual;
+      simData.engineCorrectedN3DataPtr[engineIdx]->writeDataToSim();
+    }
     // the corrected N1 (fuel flow, EGT) is scaled with the N1: the ratio of the two is the same at the same instant
     const double simCN1        = msfsN1 > 0.0 ? msfsCN1 * (simN1 / msfsN1) : msfsCN1;
     const double deltaN3       = simN3 - prevSimEngineN3[engineIdx];
