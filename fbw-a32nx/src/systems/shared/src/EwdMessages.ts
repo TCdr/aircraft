@@ -64,6 +64,7 @@ const EwdGroups: Record<string, string> = {
   'ENG$4': '\x1b<4m\x1b4mENG\x1bm',
   'APU$1': '\x1b<4m\x1b4mAPU\x1bm',
   'ENG$5': '\x1b<4m\x1b4mENG\x1bm',
+  'BLEED$1': '\x1b<4m\x1b4mBLEED\x1bm',
 };
 /* eslint-enable prettier/prettier */
 
@@ -832,6 +833,48 @@ const EwdMessages = new Map<
   ['216120202', { text: '\x1b<5m -PACK 1.............OFF' }],
   ['216120301', { group: 'AIR$4', text: ' PACK 2 FAULT' }],
   ['216120302', { text: '\x1b<5m -PACK 2.............OFF' }],
+  // 36 PNEUMATIC leak, leak detection, HP valve and BMC cautions (FCOM PRO-ABN-AIR, PRO-ABN-BLEED), lines by
+  // FWC/Logic/BleedLeakMonitoringAlerts; codes = alert key (3612xxx) + line number
+  // L(R) WING LEAK and ENG 1(2) BLEED LEAK, l.70700-70710 (the APU BLEED line is shown for the left side only)
+  ['361200101', { group: 'AIR$4', text: ' L WING LEAK' }],
+  ['361200102', { text: '\x1b<5m -ENG 1 BLEED........OFF' }],
+  ['361200103', { text: '\x1b<5m -APU BLEED..........OFF' }],
+  ['361200104', { text: '\x1b<5m -X BLEED...........SHUT' }],
+  ['361200105', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
+  ['361200106', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
+  ['361200201', { group: 'AIR$4', text: ' R WING LEAK' }],
+  ['361200202', { text: '\x1b<5m -ENG 2 BLEED........OFF' }],
+  ['361200203', { text: '\x1b<5m -APU BLEED..........OFF' }],
+  ['361200204', { text: '\x1b<5m -X BLEED...........SHUT' }],
+  ['361200205', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
+  ['361200206', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
+  ['361200301', { group: 'AIR$4', text: ' ENG 1 BLEED LEAK' }],
+  ['361200302', { text: '\x1b<5m -ENG 1 BLEED........OFF' }],
+  ['361200303', { text: '\x1b<5m -APU BLEED..........OFF' }],
+  ['361200304', { text: '\x1b<5m -X BLEED...........SHUT' }],
+  ['361200305', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
+  ['361200306', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
+  ['361200401', { group: 'AIR$4', text: ' ENG 2 BLEED LEAK' }],
+  ['361200402', { text: '\x1b<5m -ENG 2 BLEED........OFF' }],
+  ['361200403', { text: '\x1b<5m -APU BLEED..........OFF' }],
+  ['361200404', { text: '\x1b<5m -X BLEED...........SHUT' }],
+  ['361200405', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
+  ['361200406', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
+  // APU BLEED LEAK, l.69563
+  ['361200501', { group: 'AIR$4', text: ' APU BLEED LEAK' }],
+  ['361200502', { text: '\x1b<5m -APU BLEED..........OFF' }],
+  // LEAK DET FAULT (l.70617, l.70748, l.69647) and HP VALVE FAULT (l.70585): title only
+  ['361200601', { group: 'AIR$4', text: ' ENG 1 LEAK DET FAULT' }],
+  ['361200701', { group: 'AIR$4', text: ' ENG 2 LEAK DET FAULT' }],
+  ['361200801', { group: 'AIR$4', text: ' L WNG LEAK DET FAULT' }],
+  ['361200901', { group: 'AIR$4', text: ' R WNG LEAK DET FAULT' }],
+  ['361201001', { group: 'AIR$4', text: ' APU LEAK DET FAULT' }],
+  ['361201101', { group: 'AIR$4', text: ' ENG 1 HP VALVE FAULT' }],
+  ['361201201', { group: 'AIR$4', text: ' ENG 2 HP VALVE FAULT' }],
+  // BLEED MONIT SYS 1(2) FAULT (l.72190) and BLEED MONITORING FAULT (l.72154), PRO-ABN-BLEED
+  ['361201301', { group: 'BLEED$1', text: ' MONIT SYS 1 FAULT' }],
+  ['361201401', { group: 'BLEED$1', text: ' MONIT SYS 2 FAULT' }],
+  ['361201501', { group: 'BLEED$1', text: ' MONITORING FAULT' }],
   ['216120701', { group: 'AIR$4', text: ' PACK 1 OFF' }],
   ['216120801', { group: 'AIR$4', text: ' PACK 2 OFF' }],
   // 36 PNEUMATIC bleed cautions (FCOM PRO-ABN-AIR), lines by FWC/Logic/BleedAlerts. Design choice: under the AIR title of
