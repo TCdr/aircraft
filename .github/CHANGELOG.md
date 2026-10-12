@@ -111,6 +111,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [LIGHTS] Strobe and beacon flash timing follows the real lights: 60 ms gap in the strobe double flash, A380X beacons flash halfway between the strobes - @TCdr
 1. [EFB] Loading an interior lighting preset that was never saved (or auto-loading one) sets the lights to 50 % as the flyPad says, instead of fading every light, displays and MCDUs included, to off - @TCdr
 1. [EFB] Saving an interior lighting preset works again: the presets file was never written (the ini library refused the existing work folder), so no preset could be saved or loaded - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 
 ## 2024.1.0
 
