@@ -601,6 +601,10 @@ void FlyByWireInterface::setupLocalVariables() {
 
     idFacPushbuttonPressed[i] = std::make_unique<LocalVariable>("A32NX_FAC_" + idString + "_PUSHBUTTON_PRESSED");
     idFacHealthy[i] = std::make_unique<LocalVariable>("A32NX_FAC_" + idString + "_HEALTHY");
+    idFacYawDamperActuatorFault[i] = std::make_unique<LocalVariable>("A32NX_FAC_" + idString + "_YAW_DAMPER_ACTUATOR_FAULT");
+    idFacRudderTrimActuatorFault[i] = std::make_unique<LocalVariable>("A32NX_FAC_" + idString + "_RUDDER_TRIM_ACTUATOR_FAULT");
+    idFacRudderTravelLimActuatorFault[i] =
+        std::make_unique<LocalVariable>("A32NX_FAC_" + idString + "_RUDDER_TRAVEL_LIM_ACTUATOR_FAULT");
 
     idFacDiscreteWord1[i] = std::make_unique<LocalVariable>("A32NX_FAC_" + idString + "_DISCRETE_WORD_1");
     idFacGammaA[i] = std::make_unique<LocalVariable>("A32NX_FAC_" + idString + "_GAMMA_A");
@@ -2424,6 +2428,14 @@ bool FlyByWireInterface::updateFcuShim() {
   return true;
 }
 
+FacActuatorMonitor::ActuatorFailures FlyByWireInterface::facActuatorFailuresOf(int facIndex) {
+  const bool isFac1 = facIndex == 0;
+  return FacActuatorMonitor::ActuatorFailures{
+      failuresConsumer.isActive(isFac1 ? Failures::YawDamperActuator1 : Failures::YawDamperActuator2),
+      failuresConsumer.isActive(isFac1 ? Failures::RudderTrimActuator1 : Failures::RudderTrimActuator2),
+      failuresConsumer.isActive(isFac1 ? Failures::RudderTravelLimiterActuator1 : Failures::RudderTravelLimiterActuator2)};
+}
+
 bool FlyByWireInterface::updateFac(double sampleTime, int facIndex) {
   // do not further process when active pause is on
   if (simConnectInterface.isSimInActivePause()) {
@@ -2458,16 +2470,19 @@ bool FlyByWireInterface::updateFac(double sampleTime, int facIndex) {
   facs[facIndex].modelInputs.in.discrete_inputs.fac_engaged_from_switch = idFacPushbuttonPressed[facIndex]->get();
   facs[facIndex].modelInputs.in.discrete_inputs.fac_opp_healthy = facsDiscreteOutputs[oppFacIndex].fac_healthy;
   facs[facIndex].modelInputs.in.discrete_inputs.is_unit_1 = facIndex == 0;
-  facs[facIndex].modelInputs.in.discrete_inputs.rudder_trim_actuator_healthy = true;
-  facs[facIndex].modelInputs.in.discrete_inputs.rudder_travel_lim_actuator_healthy = true;
+  // The rudder actuators of this FAC under the flyPad failures (fac/FacActuatorMonitor.h)
+  const FacActuatorMonitor::ActuatorFailures facActuatorFailures = facActuatorFailuresOf(facIndex);
+  const FacActuatorMonitor::ActuatorInputs facActuatorInputs = FacActuatorMonitor::actuatorInputs(
+      facIndex == 0 ? idHydGreenPressurised->get() : idHydYellowPressurised->get(), facActuatorFailures);
+  facs[facIndex].modelInputs.in.discrete_inputs.rudder_trim_actuator_healthy = facActuatorInputs.rudderTrimActuatorHealthy;
+  facs[facIndex].modelInputs.in.discrete_inputs.rudder_travel_lim_actuator_healthy = facActuatorInputs.rudderTravelLimActuatorHealthy;
   // This should come from a dedicated discrete from the SFCC
   facs[facIndex].modelInputs.in.discrete_inputs.slats_extended =
       !reinterpret_cast<Arinc429DiscreteWord*>(&sfccBusOutputs[facIndex].slat_flap_actual_position_word)->bitFromValueOr(12, false);
   facs[facIndex].modelInputs.in.discrete_inputs.nose_gear_pressed = idLgciuNoseGearCompressed[facIndex]->get();
   facs[facIndex].modelInputs.in.discrete_inputs.ir_3_switch = false;
   facs[facIndex].modelInputs.in.discrete_inputs.adr_3_switch = false;
-  facs[facIndex].modelInputs.in.discrete_inputs.yaw_damper_has_hyd_press =
-      facIndex == 0 ? idHydGreenPressurised->get() : idHydYellowPressurised->get();
+  facs[facIndex].modelInputs.in.discrete_inputs.yaw_damper_has_hyd_press = facActuatorInputs.yawDamperAvailable;
 
   facs[facIndex].modelInputs.in.analog_inputs.yaw_damper_position_deg = 0;
   facs[facIndex].modelInputs.in.analog_inputs.rudder_trim_position_deg = -idRudderTrimPosition->get();
@@ -2508,6 +2523,11 @@ bool FlyByWireInterface::updateFac(double sampleTime, int facIndex) {
   }
 
   idFacHealthy[facIndex]->set(facsDiscreteOutputs[facIndex].fac_healthy);
+  const FacActuatorMonitor::ActuatorFailures reportedActuatorFaults =
+      FacActuatorMonitor::reportedActuatorFaults(facsDiscreteOutputs[facIndex].fac_healthy, facActuatorFailuresOf(facIndex));
+  idFacYawDamperActuatorFault[facIndex]->set(reportedActuatorFaults.yawDamper);
+  idFacRudderTrimActuatorFault[facIndex]->set(reportedActuatorFaults.rudderTrim);
+  idFacRudderTravelLimActuatorFault[facIndex]->set(reportedActuatorFaults.rudderTravelLimiter);
 
   idFacDiscreteWord1[facIndex]->set(Arinc429Utils::toSimVar(facsBusOutputs[facIndex].discrete_word_1));
   idFacGammaA[facIndex]->set(Arinc429Utils::toSimVar(facsBusOutputs[facIndex].gamma_a_deg));
