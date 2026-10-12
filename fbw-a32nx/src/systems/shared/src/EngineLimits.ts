@@ -103,10 +103,20 @@ export class ExceedanceMemory {
 
   constructor(private readonly redLimit: number) {}
 
-  update(value: number, groundStartSequence: boolean): void {
+  /**
+   * @param value the value of the parameter
+   * @param groundStartSequence an engine start sequence on ground is in progress: clears the memory
+   * @param valueValid the FADEC sends the parameter (L:A32NX_FADEC_POWERED_ENGn). A parameter that is not available is shown
+   *   as amber XX instead of its value (FCOM DSC-31-20, a320_fcom.txt l.46305-46306): a stale or not yet initialised value
+   *   is no exceedance. A value that is not a finite number is not one either, and leaves the highest value as it is.
+   */
+  update(value: number, groundStartSequence: boolean, valueValid: boolean): void {
     if (groundStartSequence) {
       this.highest = 0;
       this.exceededLimit = false;
+    }
+    if (!valueValid || !Number.isFinite(value)) {
+      return;
     }
     if (value > this.redLimit) {
       this.exceededLimit = true;
