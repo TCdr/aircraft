@@ -112,6 +112,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ISIS] The SND shows INIT during its power-up self-test, like the SFD - @TCdr
 1. [A380X/ISIS] SFD/SND reconfiguration with the MODE pb: each ISIS displays the SFD or the SND - @TCdr
 1. [A380X/ISIS] The ISIS go back to their normal configuration (SFD on the upper ISIS, SND on the lower one) at each power-up - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 
 ## 2024.1.0
 
