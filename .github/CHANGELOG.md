@@ -445,6 +445,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] FUEL page: the tank quantities of an unbalanced pair are underlined amber, with the trigger of FUEL WINGS NOT BALANCED - @TCdr
 1. [A380X/SD] WHEEL page: L/G CTL and L/G GRVTY EXTN IN PROGRESS now show - @TCdr
 1. [A380X/FWS] ENG 2(3) SHUT DOWN: the landing distance line reads LDG DIST IMPACT ON WET/CONTAM RWY ONLY as in the FCOM - @TCdr
+1. [EFB] Taxi page on the A380: taxiways narrower than 25 m (code F) or limited to a smaller wingspan in the airport map are avoided by the suggested route, marked on the map and flagged in a cleared route; widths without data show as not verified - @TCdr
 
 ## 2024.1.0
 
