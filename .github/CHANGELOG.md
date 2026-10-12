@@ -361,6 +361,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A380X/HYD] New flyPad failures of the braking and steering control (ATA 32): BCS normal braking, BCS alternate braking, EBCU emergency braking, normal and alternate nose wheel steering, body wheel steering and STEER CTL 1(2); the pedals then brake through the alternate or emergency mode with its pressure limits, the nose wheel steers on the alternate system (10 deg/s) or casters, with the BRAKES NORM, ALTN, EMER, ALTN + EMER and PEDAL BRAKING FAULT, BRAKES ACCU PRESS LO, PARK BRK PRESS LO and STEER NORM, ALTN, N/W, B/W, N/W + B/W STEER FAULT, STEER CTL 1(2) FAULT and B/W STEER NOT LOCKED alerts; with only engines 3 and 4 running the nose wheel now steers on the alternate system instead of not at all - @TCdr
 
 ## 2024.1.0
 

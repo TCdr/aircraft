@@ -108,6 +108,25 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  it('lists the braking and steering control failures under the ids and Rust failures of brake_steer_faults.rs', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [32110, 'BrakeNormalBraking', 'Brakes normal braking (BCS NORM BRK)'],
+      [32111, 'BrakeAlternateBraking', 'Brakes alternate braking (BCS ALTN BRK)'],
+      [32112, 'BrakeEmergencyBraking', 'Brakes emergency braking (EBCU)'],
+      [32200, 'NoseWheelSteeringNormal', 'Steering normal nose wheel steering (NORM N/W STEER)'],
+      [32201, 'NoseWheelSteeringAlternate', 'Steering alternate nose wheel steering (steering LEHGS)'],
+      [32202, 'BodyWheelSteering', 'Steering body wheel steering (B/W STEER)'],
+      [32203, 'SteeringControlSystem(1)', 'Steering control system 1 (STEER CTL 1)'],
+      [32204, 'SteeringControlSystem(2)', 'Steering control system 2 (STEER CTL 2)'],
+    ];
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), nameOf(id)?.[2], nameOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 32]),
+    );
+  });
+
   // The labels say what a380_systems engine_failure.rs does with ids 72000-72013 (failure names audit rule)
   it('lists the engine flameout and seizure failures of the four engines in ATA 72 Engine', () => {
     const rustMap = readRustFailureMap();

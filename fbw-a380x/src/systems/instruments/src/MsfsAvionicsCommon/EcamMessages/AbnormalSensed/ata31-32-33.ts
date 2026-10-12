@@ -1331,18 +1331,14 @@ export const EcamAbnormalSensedAta313233: { [n: number]: AbnormalProcedure } = {
     ],
   },
   320800049: {
+    // Crew awareness, no action line (A380 FCOM STEER B/W STEER FAULT, a380_fcom.txt l.162658-162660)
     title: '\x1b<4m\x1b4mSTEER\x1bm B/W STEER FAULT',
     sensed: true,
-    items: [
-      {
-        name: 'EXPECT N/W STEER LOSS',
-        sensed: false,
-        style: ChecklistLineStyle.Green,
-      },
-    ],
+    items: [],
   },
   320800050: {
-    title: '\x1b<4m\x1b4mSTEER\x1bm B/W STEER FAULT',
+    // A380 FCOM STEER B/W STEER NOT LOCKED (a380_fcom.txt l.162695-162736)
+    title: '\x1b<4m\x1b4mSTEER\x1bm B/W STEER NOT LOCKED',
     sensed: true,
     items: [
       {

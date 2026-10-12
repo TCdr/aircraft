@@ -62,6 +62,20 @@ pub enum FailureType {
     GearActuatorJammed(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
+    /// The normal braking hydraulic equipment of all wheel groups (A380 BCS normal braking)
+    BrakeNormalBraking,
+    /// The alternate braking under brake control system control, all wheel groups (A380 BCS alternate braking)
+    BrakeAlternateBraking,
+    /// The emergency brake control unit (A380 EBCU): no emergency braking
+    BrakeEmergencyBraking,
+    /// The normal mode of the nose wheel steering (A380 normal NWS)
+    NoseWheelSteeringNormal,
+    /// The alternate mode of the nose wheel steering (A380 steering LEHGS)
+    NoseWheelSteeringAlternate,
+    /// The body wheel steering stays centred and locked (A380 BWS)
+    BodyWheelSteering,
+    /// Steering control system n (A380 SCS 1 or 2)
+    SteeringControlSystem(usize),
     // ATA34
     RadioAltimeter(usize),
     RadioAntennaInterrupted(usize),
