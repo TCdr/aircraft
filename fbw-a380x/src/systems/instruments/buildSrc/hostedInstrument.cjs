@@ -96,6 +96,34 @@ function hostedHtml({ templateId, mountElementId, imports, cssPath, jsPath }) {
 }
 
 /**
+ * The rule that makes a hosted gauge element and everything in it transparent to the mouse, matched by its panel.cfg
+ * URL. Unscoped, it reaches the gauge element itself, which covers the whole DU even while the gauge draws nothing:
+ * the hidden hosted EWD over the SD took every mouse event of the SD's ATC mailbox (2026-10-10 sim diagnostic:
+ * a380x-ewd under the mouse with pointer-events auto). For the displays that take no mouse input (EWD, PFD).
+ * @param {string} fileName the instrument's file name (e.g. ewd)
+ * @returns {string} the rule
+ */
+function mouseTransparentRule(fileName) {
+    const gauge = `vcockpit-panel > [url*="/${fileName}-hosted.html"]`;
+    return `${gauge}, ${gauge} * { pointer-events: none !important; }\n`;
+}
+
+/**
+ * The rules that make a hosted gauge element transparent to the mouse but not its content (the mount element and what
+ * is in it), matched by its panel.cfg URL: hidden, the gauge has no content to click (its mount element is empty or
+ * not displayed), so the mouse goes through to the DU's own display (the ND and its OANS); shown, its content takes the
+ * mouse. For the SD: drawn on an ND DU (DU RECONF), its ATC mailbox is used with the mouse (2026-10-11: the rule of
+ * mouseTransparentRule left the mailbox on the F/O ND dead).
+ * @param {string} fileName the instrument's file name (e.g. sdv2)
+ * @param {string} mountElementId the id of its mount element (e.g. SDv2_CONTENT)
+ * @returns {string} the rules
+ */
+function mouseOnlyWhenShownRule(fileName, mountElementId) {
+    const gauge = `vcockpit-panel > [url*="/${fileName}-hosted.html"]`;
+    return `${gauge} { pointer-events: none !important; }\n${gauge} #${mountElementId} { pointer-events: auto; }\n`;
+}
+
+/**
  * The template and mount element ids of an instrument's package, as Mach writes them: a React instrument (legacy SD)
  * has Mach's `MSFS_REACT_MOUNT` element and its name as template id unless set; its script (`<file>.js`) is Mach's
  * BaseInstrument harness with the bundle inside, which the hosted HTML loads the same way.
@@ -115,9 +143,12 @@ function packageIds(name, simulatorPackage) {
  * `<file>-hosted.html` next to the instrument's package files
  * @param {string} name the instrument name (folder)
  * @param {{ type?: string, templateId?: string, mountElementId?: string, fileName: string, imports?: string[] }} simulatorPackage
+ * @param {{ mouseTransparent?: boolean, mouseOnlyWhenShown?: boolean }} [options] mouseTransparent: the hosted gauge
+ * never takes the mouse (mouseTransparentRule); mouseOnlyWhenShown: only its content takes the mouse
+ * (mouseOnlyWhenShownRule)
  * @returns {import('esbuild').Plugin} the plugin
  */
-function hostedInstrumentPlugin(name, simulatorPackage) {
+function hostedInstrumentPlugin(name, simulatorPackage, options = {}) {
     return {
         name: 'hostedInstrument',
         setup(build) {
@@ -144,7 +175,9 @@ function hostedInstrumentPlugin(name, simulatorPackage) {
                 await fs.promises.mkdir(packageTarget, { recursive: true });
                 await fs.promises.writeFile(
                     path.join(packageTarget, `${fileName}-hosted.css`),
-                    scopeCss(css, `#${mountElementId}`),
+                    scopeCss(css, `#${mountElementId}`) +
+                        (options.mouseTransparent ? `\n${mouseTransparentRule(fileName)}` : '') +
+                        (options.mouseOnlyWhenShown ? `\n${mouseOnlyWhenShownRule(fileName, mountElementId)}` : ''),
                 );
                 await fs.promises.writeFile(
                     path.join(packageTarget, `${fileName}-hosted.html`),
@@ -161,4 +194,12 @@ function hostedInstrumentPlugin(name, simulatorPackage) {
     };
 }
 
-module.exports = { hostedInstrumentPlugin, packageIds, scopeCss, scopeSelector, hostedHtml };
+module.exports = {
+    hostedInstrumentPlugin,
+    packageIds,
+    scopeCss,
+    scopeSelector,
+    hostedHtml,
+    mouseTransparentRule,
+    mouseOnlyWhenShownRule,
+};
