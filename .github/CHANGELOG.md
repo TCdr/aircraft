@@ -113,6 +113,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] The angle of attack vanes of the three multifunction probes on the nose (one left, two right) follow the angle of attack - @TCdr
 1. [A380X] All 52 overhead RESET panel buttons are clickable with their label as tooltip, and the three side slip probe vanes on the nose follow the side slip angle - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 
 ## 2024.1.0
 
