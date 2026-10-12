@@ -377,6 +377,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MODEL] An engine fire shows flames at the exhaust of the engine on fire (engines 1 to 4) and an APU fire shows smoke at the APU exhaust, until the fire is out (nothing during a FIRE TEST); an engine failed from the MSFS failures menu shows smoke; an engine oil leak (flyPad failure) shows smoke while the oil flows out; the stock MSFS engine fire, engine damage and oil leak effects are turned off so they do not show twice; the engine 2 effects (heat haze, contrails, fire) no longer vanish at the medium model detail (LOD01) - @TCdr
 1. [EFB] Settings > Sim Options: new "Situation Visual Effects (Engine and APU Fire, Engine Damage, Oil Leak)" switch, on by default, to turn the fire, smoke, engine damage and oil leak effects off - @TCdr
 1. [A32NX/MODEL] The ram air turbine is now visible on the exterior: its doors open under the left belly fairing and it swings out when deployed, the propeller turns in the airflow, and it goes back in when stowed on the ground - @TCdr
+1. [A380X/FMS] TRIP fuel and cruise fuel predictions now match the fuel the engines burn at Mach 0.85 (they were 4 to 7 % low in cruise, about 3 % low on the TRIP) - @TCdr
 
 ## 2024.1.0
 
