@@ -4,7 +4,7 @@
 set -e
 cd "$(dirname "$0")"
 mkdir -p ../obj
-clang++ -std=c++17 -Wall -Wextra -Werror vd_runways_test.cpp -o ../obj/vd_runways_test
-../obj/vd_runways_test
+clang++ -std=c++17 -Wall -Wextra -Werror vd_airports_test.cpp -o ../obj/vd_airports_test
+../obj/vd_airports_test
 clang++ -std=c++17 -Wall -Wextra -Werror view_park_test.cpp -o ../obj/view_park_test
 ../obj/view_park_test

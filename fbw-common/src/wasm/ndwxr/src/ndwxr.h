@@ -149,7 +149,7 @@
 #include "../../terronnd/src/types/arinc429.hpp"
 
 #include "constants.h"
-#include "vd_runways.h"  // VdCutSegment, the runway stretches of the A380X VD (pure geometry)
+#include "vd_airports.h"  // VdCutSegment, the airport stretches of the A380X VD (pure geometry)
 #include "view_park.h"  // ViewPark, the parking of the MapViews and the re-sending of their settings (pure logic)
 
 namespace ndwxr {
@@ -333,13 +333,11 @@ extern NamedVar g_vdCutCount;
 extern NamedVar g_vdCutTrackChangeNm;
 extern ID g_vdCutLatVars[kVdCutMaxVertices];
 extern ID g_vdCutLonVars[kVdCutMaxVertices];
-extern NamedVar g_vdRunwayCount;
-extern ID g_vdRunwayLatVars[kVdRunwayMax];
-extern ID g_vdRunwayLonVars[kVdRunwayMax];
-extern ID g_vdRunwayCourseVars[kVdRunwayMax];
-extern ID g_vdRunwayHalfLengthVars[kVdRunwayMax];
-extern ID g_vdRunwayHalfWidthVars[kVdRunwayMax];
-extern ID g_vdRunwayElevationVars[kVdRunwayMax];
+extern NamedVar g_vdAirportCount;
+extern ID g_vdAirportLatVars[kVdAirportMax];
+extern ID g_vdAirportLonVars[kVdAirportMax];
+extern ID g_vdAirportRadiusVars[kVdAirportMax];
+extern ID g_vdAirportElevationVars[kVdAirportMax];
 extern NamedVar g_adirsTrueTrack[3];
 #endif
 #ifndef A380X
