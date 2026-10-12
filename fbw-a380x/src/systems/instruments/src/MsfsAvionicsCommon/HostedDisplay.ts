@@ -13,7 +13,7 @@
  */
 
 import { DisplayUnitID, displayUnitDisplayVar } from '@shared/CdsDisplayUnits';
-import { CdsDisplay, resolveDisplay } from '@shared/CdsReconfiguration';
+import { CdsDisplay, normalDisplayOf, resolveDisplay } from '@shared/CdsReconfiguration';
 
 /**
  * The DU a hosted gauge draws on, from its panel.cfg URL
@@ -62,9 +62,54 @@ export function isDisplayShownOn(du: DisplayUnitID, display: CdsDisplay): boolea
 }
 
 /**
+ * The gauge elements of the hosted gauges of a display on a DU: the children of the panel element (vcockpit-panel) whose
+ * panel.cfg URL has that hostDu and a duID whose normal display is that display, e.g. a380x-ewd for
+ * A380X/EWD/ewd-hosted.html?hostDu=7&duID=6. Found by URL, as the gauge finds its own URL (findInstrumentUrl): in the sim
+ * the mount element is not inside the gauge element, so walking up from it missed the hidden EWD over the SD's mailbox.
+ * For the SD on an ND DU both the legacy SD and the SDv2 gauge are found.
+ * @param hostDisplayUnit the DU the gauges draw on
+ * @param display the display of the gauges
+ * @returns the gauge elements
+ */
+export function hostedGaugeElements(hostDisplayUnit: DisplayUnitID, display: CdsDisplay): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('vcockpit-panel > *')).filter((gauge) => {
+    const url = gauge.getAttribute('url');
+    if (parseHostDisplayUnit(url) !== hostDisplayUnit) {
+      return false;
+    }
+    const duId = /[?&]duID=(\d)/.exec(url ?? '');
+    return duId !== null && normalDisplayOf(parseInt(duId[1], 10)) === display;
+  });
+}
+
+/** The class of the gauge element of a hidden hosted gauge */
+export const HIDDEN_HOSTED_GAUGE_CLASS = 'cds-hosted-hidden';
+
+/** The id of the style element with the rule of HIDDEN_HOSTED_GAUGE_CLASS */
+const HIDDEN_HOSTED_GAUGE_STYLE_ID = 'cds-hosted-hidden-style';
+
+/**
+ * Adds, once per document, the rule that lets the mouse through a hidden hosted gauge: on its gauge element and on every
+ * element inside it, with !important, as the ND's rule for the WASM gauges over it (ND style.scss, wasm-instrument):
+ * a pointer-events value on the gauge element alone did not reach the SD's mailbox under the hidden EWD in the sim
+ */
+function addHiddenHostedGaugeStyle(): void {
+  if (document.getElementById(HIDDEN_HOSTED_GAUGE_STYLE_ID)) {
+    return;
+  }
+  const style = document.createElement('style');
+  style.id = HIDDEN_HOSTED_GAUGE_STYLE_ID;
+  style.textContent = `.${HIDDEN_HOSTED_GAUGE_CLASS}, .${HIDDEN_HOSTED_GAUGE_CLASS} * { pointer-events: none !important; }`;
+  (document.head ?? document.body).appendChild(style);
+}
+
+/**
  * The run gate of a hosted gauge: started on the first frame its display is shown on its DU, then running only while
- * shown. While it is not shown its mount element is hidden (display: none), so it neither draws nor takes mouse events
- * from the DU's own gauge under it.
+ * shown. While it is not shown its mount element is hidden (display: none), so it does not draw, and its gauge element
+ * lets the mouse through (pointer-events: none): all gauges of a panel.cfg block share one document, and the gauge
+ * element of a gauge listed later covers the whole DU even with nothing drawn, so it would take the clicks of the DU's
+ * own gauge under it (e.g. the hidden hosted EWD over the SD's ATC mailbox). The same as upstream's OIT legacy overlay
+ * (OitLegacy.tsx, class nopointer).
  */
 export class HostedDisplayGate {
   private started = false;
@@ -104,10 +149,22 @@ export class HostedDisplayGate {
       this.stop();
     }
     if (shown !== this.shown) {
-      this.shown = shown;
       const mount = document.getElementById(this.mountElementId);
+      // Without its mount element yet (the gauge's template not in the document yet), tried again on the next frame
       if (mount) {
+        this.shown = shown;
         mount.style.display = shown ? 'block' : 'none';
+        if (!shown) {
+          addHiddenHostedGaugeStyle();
+        }
+        for (const gauge of hostedGaugeElements(this.hostDisplayUnit, this.display)) {
+          gauge.style.pointerEvents = shown ? '' : 'none';
+          if (shown) {
+            gauge.classList.remove(HIDDEN_HOSTED_GAUGE_CLASS);
+          } else {
+            gauge.classList.add(HIDDEN_HOSTED_GAUGE_CLASS);
+          }
+        }
       }
     }
     return shown;

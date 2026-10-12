@@ -32,14 +32,16 @@ module.exports = {
     msfsAvionicsInstrument('Clock'),
     // EWD, ND, PFD and the SD (SDv2 + legacy SD): also drawn on another DU (CDS reconfiguration), with a scoped
     // stylesheet (*-hosted.html/css)
-    msfsAvionicsInstrument('EWD', 'instrument.tsx', true),
+    // The hosted EWD and PFD never take the mouse (hostedInstrument.cjs mouseTransparentRule), the hosted SD only while
+    // shown (mouseOnlyWhenShownRule: its ATC mailbox on an ND DU); the ND does (OANS)
+    msfsAvionicsInstrument('EWD', 'instrument.tsx', true, { mouseTransparent: true }),
     msfsAvionicsInstrument('FCU'),
     msfsAvionicsInstrument('MFD'),
     msfsAvionicsInstrument('ND', 'instrument.tsx', true),
     msfsAvionicsInstrument('OIT'),
-    msfsAvionicsInstrument('PFD', 'instrument.tsx', true),
+    msfsAvionicsInstrument('PFD', 'instrument.tsx', true, { mouseTransparent: true }),
     msfsAvionicsInstrument('RMP'),
-    msfsAvionicsInstrument('SDv2', 'instrument.tsx', true),
+    msfsAvionicsInstrument('SDv2', 'instrument.tsx', true, { mouseOnlyWhenShown: true }),
     msfsAvionicsInstrument('popup'),
 
     reactInstrument('BAT'),
@@ -47,11 +49,11 @@ module.exports = {
     reactInstrument('ISISlegacy'),
     reactInstrument('OITlegacy'),
     reactInstrument('RTPI'),
-    reactInstrument('SD', undefined, true),
+    reactInstrument('SD', undefined, true, { mouseOnlyWhenShown: true }),
   ],
 };
 
-function msfsAvionicsInstrument(name, index = 'instrument.tsx', hosted = false) {
+function msfsAvionicsInstrument(name, index = 'instrument.tsx', hosted = false, hostedOptions = {}) {
   const simulatorPackage = {
     type: 'baseInstrument',
     templateId: `A380X_${name}`,
@@ -63,11 +65,11 @@ function msfsAvionicsInstrument(name, index = 'instrument.tsx', hosted = false) 
     name,
     index: `src/systems/instruments/src/${name}/${index}`,
     simulatorPackage,
-    plugins: hosted ? [hostedInstrumentPlugin(name, simulatorPackage)] : undefined,
+    plugins: hosted ? [hostedInstrumentPlugin(name, simulatorPackage, hostedOptions)] : undefined,
   };
 }
 
-function reactInstrument(name, additionalImports, hosted = false) {
+function reactInstrument(name, additionalImports, hosted = false, hostedOptions = {}) {
   const simulatorPackage = {
     type: 'react',
     isInteractive: false,
@@ -78,6 +80,6 @@ function reactInstrument(name, additionalImports, hosted = false) {
     name,
     index: `src/systems/instruments/src/${name}/index.tsx`,
     simulatorPackage,
-    plugins: hosted ? [hostedInstrumentPlugin(name, simulatorPackage)] : undefined,
+    plugins: hosted ? [hostedInstrumentPlugin(name, simulatorPackage, hostedOptions)] : undefined,
   };
 }
