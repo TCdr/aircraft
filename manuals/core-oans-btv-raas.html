@@ -46,15 +46,15 @@ table.test td:nth-child(2) { width: 50%; }
 .toc div { break-inside: avoid; }
 </style></head><body>
 <h1>Runway awareness: RAAS and OANS</h1>
-<div class="subtitle">The A32NX gets the Honeywell RAAS runway callouts, and the A380X OANS gives RWY AHEAD without a Navigraph map, loads the FCOM default airport by itself and shows one airport per side</div>
+<div class="subtitle">The A32NX gets the Honeywell RAAS runway callouts, and the A380X OANS gives RWY AHEAD without a Navigraph map, loads the FCOM default airport by itself and shows one airport per side; the runway search keeps only the airports with a runway</div>
 <div class="meta">
 <b>Aircraft</b><span>A32NX (RAAS) and A380X (OANS)</span>
 <b>Where to find it</b><span>A32NX: flyPad &gt; Settings &gt; Aircraft Options / Pin Programs &gt; RAAS. A380X: ND at the ZOOM range or in PLAN (OANS), ARPT SEL panel; RWY AHEAD on the PFD and ND</span>
-<b>Branch</b><span><code>core/oans-btv-raas</code>, based on <code>master</code> (FlyByWire master 255546cb0 merged in); independent.</span>
-<b>Status</b><span>RAAS and RWY AHEAD without a map tested in the sim by the user: OK (2026-10-02). OANS default airport tested by the user: OK (2026-09-27). One airport per side: not sim-tested.</span>
+<b>Branch</b><span><code>core/oans-btv-raas</code>, based on <code>master</code> (FlyByWire master 76db0aef1 merged in); independent. <code>core/a380x-vd-runways</code> merges it (the VD uses its runway search).</span>
+<b>Status</b><span>RAAS and RWY AHEAD without a map tested in the sim by the user: OK (2026-10-02). OANS default airport tested by the user: OK (2026-09-27). One airport per side: not sim-tested. Runway search with airports with a runway only: OK in the sim on develop through the A380X VD (2026-10-12), not sim-tested with the RAAS or the OANS.</span>
 <b>Pictures</b><span>flyPad setting and the Captain ND from the local browser harness, running the build installed in the sim (RAAS callouts drawn as diagrams from the code; the RWY AHEAD advisory and the test airport XTST set up by the harness). No pictures for the airport per side.</span>
 </div>
-<div class="toc"><div>1. A32NX RAAS runway awareness callouts</div><div>2. A380X RWY AHEAD without an airport map</div><div>3. A380X OANS default airport</div><div>4. A380X one OANS airport per side</div></div>
+<div class="toc"><div>1. A32NX RAAS runway awareness callouts</div><div>2. A380X RWY AHEAD without an airport map</div><div>3. A380X OANS default airport</div><div>4. A380X one OANS airport per side</div><div>5. Runways around the aircraft: airports with a runway only</div></div>
 <h2>1. A32NX RAAS runway awareness callouts</h2>
 <div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Settings &gt; Aircraft Options / Pin Programs &gt; RAAS &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user: first callout heard 2026-09-26; "RAAS is working well" on 2026-10-02 (approaching on the ground and in the air, extended holding, distance remaining, volume).</div>
 <h3>What it is for</h3>
@@ -123,4 +123,15 @@ table.test td:nth-child(2) { width: 50%; }
 <ol><li>Use each ND's OANS as usual: ZOOM range for the default airport, PLAN + ARPT SEL for another one.</li><li>Each pilot can look at a different airport without changing the other's map.</li></ol>
 <h3>How to test</h3>
 <table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X on the ground at an airport with a Navigraph airport map. Both NDs ARC, range ZOOM.</td><td>Both NDs show the current airport.</td></tr><tr><td>2</td><td>Set the F/O ND to PLAN and choose another airport with the F/O OANS ARPT SEL.</td><td>The F/O ND shows the chosen airport; the Captain ND still shows the current airport.</td></tr><tr><td>3</td><td>Set the Captain ND to PLAN and choose a third airport.</td><td>Each ND shows its own choice.</td></tr><tr><td>4</td><td>Set both NDs back to ARC ZOOM.</td><td>Both go back to the current airport.</td></tr><tr><td>5</td><td>Select a BTV runway and exit on the Captain OANS, then unload the airport on the F/O side.</td><td>The Captain BTV selection stays.</td></tr></table>
+<h2>5. Runways around the aircraft: airports with a runway only</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> Used by the A32NX RAAS and the A380X OANS (RWY AHEAD without an airport map) &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on develop through the A380X VD airport list: OK (2026-10-12, group 2 test G2-6: 10 airports on the ground, 11 to 12 in the climb). Not sim-tested with the RAAS or the OANS. Unit test: NearbyRunwayProvider.spec.</div>
+<h3>What it is for</h3>
+<p>The RAAS callouts and the A380X RWY AHEAD without an airport map take their runways from one search of the sim airports around the aircraft (the closest 20 airports within 8 NM). That search took every airport class, so near a city the heliports filled the list: in a sim test at RJTT (2026-10-11, 25 NM / 24 airports for the VD) only RJTT itself had runways, though three other airports are within 25 NM, and RJTT dropped out of the list a few miles after take-off.</p>
+<p>The search now keeps only the airports with a land runway (hard, soft or private) whose longest runway is at least 100 m long: no heliports, no water-only seaplane bases. The same search feeds the A380X VD airports on <code>core/a380x-vd-runways</code>.</p>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Airports with only runways shorter than 100 m are left out.</td><td>Design choice: it removes the private heliports the class filter keeps; no runway that matters to RAAS, RWY AHEAD or the VD is that short.</td><td>-</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Nothing to set: the RAAS callouts and RWY AHEAD use the new list by themselves.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX at a large airport in a city with heliports around (for example RJTT), RAAS set to Feet, GPWS SYS not OFF. Taxi towards a runway below 40 kt.</td><td>"Approaching" and the runway name before the holding point (the airport is found even with many heliports around).</td></tr><tr><td>2</td><td>A380X at the same airport without a Navigraph airport map. Taxi towards a runway between 1 and 40 kt.</td><td>RWY AHEAD on the PFD and the runway name at the top of the ND before the runway.</td></tr><tr><td>3</td><td>With <code>core/a380x-vd-runways</code> merged: take off and climb out; watch the VD.</td><td>The departure airport stays in the VD airport list after take-off (see that manual).</td></tr></table>
 </body></html>

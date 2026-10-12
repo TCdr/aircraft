@@ -1,0 +1,71 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>A380X ATC mailbox with the SD on an ND display unit - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>A380X ATC mailbox with the SD on an ND display unit</h1>
+<div class="subtitle">When the SD is shown on an ND display unit (DU RECONF pushbutton, e.g. with the SD DU off), the ATC mailbox comes with it and works there, as the A380 FCOM asks</div>
+<div class="meta">
+<b>Aircraft</b><span>A380X</span>
+<b>Where to find it</b><span>F/O (or CAPT) DU RECONF pushbutton on the glareshield; the ATC mailbox at the bottom of the SD, on the SD DU or on an ND DU; ECAM CDS SD DU FAULT procedure</span>
+<b>Branch</b><span><code>core/a380x-mailbox-du-reconf</code>, based on <code>core/display-unit-failures</code> with <code>core/a380x-atccom-datalink</code> merged in (stacked: needs both, and their bases, merged first). <code>core/display-unit-failures</code> brings the DU reconfiguration (the SD on an ND DU) and the mouse fix for DUs holding hidden displays; <code>core/a380x-atccom-datalink</code> brings the ATC mailbox. Merge both into this branch again when they change. There is no cockpit printer here (<code>core/printer</code>): PRINT in the mailbox says PRINT NOT AVAIL.</span>
+<b>Status</b><span>Tested in the sim by the user on the integration build (with the mouse fix of <code>core/display-unit-failures</code>): mailbox on the F/O ND with the SD off, test M1: OK (2026-10-11, session A). Not sim-tested on this core branch itself. Unit tests: AtcMailbox.spec.tsx, MailboxLogic.spec.ts, MailboxBus.spec.ts, the CdsReconfiguration specs and HostedDisplay.spec.ts.</span>
+<b>Pictures</b><span>No pictures: the mailbox on the ND DU looks like the mailbox at the bottom of the SD.</span>
+</div>
+<h2>1. ATC mailbox follows the SD to the ND display unit</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> F/O DU RECONF pb; ATC mailbox on the F/O (or CAPT) ND DU &nbsp;|&nbsp; <b>Status:</b> Tested in the sim by the user on the integration build: OK (2026-10-11, session A, test M1: SD off, F/O DU RECONF twice, mailbox on the F/O ND with its buttons, back on the SD with the same queue). Not sim-tested on this core branch. Unit tests: AtcMailbox.spec.tsx, MailboxLogic.spec.ts, MailboxBus.spec.ts, CdsReconfiguration specs, HostedDisplay.spec.ts.</div>
+<h3>What it is for</h3>
+<p>The ATC mailbox is the bottom section of the SD. The CDS SD DU FAULT procedure says "If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox" (A380 FCOM PRO-ABN-ECAM-10-31, a380_fcom.txt l.157950 and l.158167). On <code>core/display-unit-failures</code> the F/O DU RECONF pb brings the SD to the F/O ND DU, but without the mailbox, so the ATC messages could not be read or answered with the SD DU off. Now the mailbox comes with the SD.</p>
+<h3>What you should see</h3>
+<table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>Normal operation (SD DU on)</td><td>The mailbox at the bottom of the SD DU, as before.</td></tr><tr><td>SD DU off or failed, F/O DU RECONF pressed until the SD shows on the F/O ND DU</td><td>The SD with the mailbox on the F/O ND DU: the same queue and the same message; its buttons and the page arrows work with the F/O cursor.</td></tr><tr><td>SD DU on again</td><td>The mailbox is active on the SD DU again, with the same queue.</td></tr><tr><td>The SD shown both on the SD DU and on an ND DU (DU RECONF used because of another failed DU)</td><td>The SD DU's mailbox is the active one; the mailbox on the ND DU shows the same message and takes no input (design choice).</td></tr><tr><td>The SD shown nowhere</td><td>No mailbox marks a new message as displayed or read: the ATC MSG lights stay on until a DU shows the mailbox again (design choice).</td></tr><tr><td>PRINT in the mailbox</td><td>PRINT NOT AVAIL (no cockpit printer on this branch; printing is on <code>core/printer</code>).</td></tr></table>
+<h3>How it works</h3>
+<ul><li>The systems host decides which DU has the active mailbox (<code>L:A380X_CDS_MAILBOX_DU</code>): the SD DU while it is working and shows the SD, else the ND DU that shows the SD (the SD is never on both sides at once, FCOM DSC-31-15-20), else none.</li><li>Only the active mailbox answers the crew and sends to the ATC function; another mailbox on screen mirrors the displayed message.</li><li>The A380X README and the simvar documentation describe the variable and the rule.</li></ul>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>Needs an ATC connection with a message to see anything in the mailbox.</td><td>The mailbox shows the messages of the FBW ATSU (<code>core/a380x-atccom-datalink</code>).</td><td>Log on to an ATC center (Hoppie or BeyondATC) or prepare a request with XFR TO MAILBOX.</td></tr><tr><td>No printing.</td><td>The cockpit printer is <code>core/printer</code>, not merged here.</td><td>Merge it for PRINT.</td></tr><tr><td>A full MSFS restart is needed after an update.</td><td>It comes with the panel.cfg and cockpit changes of <code>core/display-unit-failures</code>.</td><td>Restart the sim after installing.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>With the SD DU off or failed (CDS SD DU FAULT), press the <b>F/O DU RECONF</b> pushbutton (glareshield, F/O side) until the F/O ND DU shows the SD: first the E/WD, then the SD with the mailbox.</li><li>Read and answer the ATC messages in the mailbox on the F/O ND with the F/O cursor, as on the SD.</li><li>Press F/O DU RECONF once more to get the ND back, or switch the SD DU back on.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X powered, logged on to an ATC center (MFD ATC COM &gt; CONNECT) with at least one message in the mailbox (e.g. a request prepared with REQUEST, XFR TO MAILBOX).</td><td>The message in the mailbox at the bottom of the SD.</td></tr><tr><td>2</td><td>Turn the SD DU off (ECAM control panel on the pedestal: SD knob fully left, OFF), or flyPad &gt; Failures &gt; ATA 31: <b>SD display unit</b>.</td><td>The SD DU goes blank (with the failure: CDS SD DU FAULT with IF SD DU OFF : F/O DU RECONF P/B FOR ATC MAILBOX).</td></tr><tr><td>3</td><td>Press the F/O <b>DU RECONF</b> pushbutton twice.</td><td>The F/O ND DU shows the E/WD, then the SD with the mailbox: the same queue and the same message.</td></tr><tr><td>4</td><td>Move the F/O cursor to the mailbox and click the previous-message arrow (or a message button).</td><td>The mailbox reacts on the F/O ND.</td></tr><tr><td>5</td><td>Press <b>PRINT</b> in the mailbox.</td><td>PRINT NOT AVAIL.</td></tr><tr><td>6</td><td>Turn the SD DU back on (or remove the failure) and wait for its self-test.</td><td>The SD mailbox shows the same queue and its buttons work.</td></tr></table>
+</body></html>
