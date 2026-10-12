@@ -372,6 +372,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Company wind messages use the FCOM wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 1. [A380X/HYD] The cargo doors no longer unlock when asked to open with an engine running (their electric pumps are inhibited): the request is carried out once the engines are stopped, and the flyPad cargo door row shows the real doors, both forward and aft - @TCdr
+1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
 
 ## 2024.1.0
 
