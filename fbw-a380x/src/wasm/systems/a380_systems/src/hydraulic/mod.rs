@@ -11593,10 +11593,13 @@ mod tests {
 
             assert!(test_bed.is_cargo_fwd_door_locked_down());
 
+            // The inhibition ends only once the engine has spooled down, then the crew delay before hydraulic
+            // control is random (normal, 5 s mean, HydraulicDoorController): 60 s covers the slowest draws
+            // (with 40 s the door was at 75-84 % in 5 of 20 runs).
             test_bed = test_bed
                 .stop_eng1()
                 .open_fwd_cargo_door()
-                .run_waiting_for(Duration::from_secs(40));
+                .run_waiting_for(Duration::from_secs(60));
 
             assert!(!test_bed.is_cargo_door_operation_inhibited());
             // FWD_DOOR_CARGO_POSITION is in percent
