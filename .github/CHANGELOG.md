@@ -425,6 +425,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 ||||||| 19910a87e
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
+1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as in the FCOM (before only the TA/RA intruders were shown) - @TCdr
+1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
+1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
+1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically, as in the FCOM - @TCdr
+1. [A380X/FWS] Smart FIVE HUNDRED callout: the flyPad pin programming "Inhibited When Glideslope Captured" is back and calls FIVE HUNDRED only when more than half a dot off the glideslope - @TCdr
 
 ## 2024.1.0
 

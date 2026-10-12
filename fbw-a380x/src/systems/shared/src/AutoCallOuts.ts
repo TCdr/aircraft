@@ -37,3 +37,26 @@ export const A380X_DEFAULT_RADIO_AUTO_CALL_OUTS =
   A380XRadioAutoCallOutFlags.Twenty |
   A380XRadioAutoCallOutFlags.Ten |
   A380XRadioAutoCallOutFlags.Five;
+
+/** Glide deviation, in dots, above which the smart FIVE HUNDRED is called out. */
+const SMART_FIVE_HUNDRED_GLIDE_DEVIATION_DOTS = 0.5;
+
+/**
+ * Whether the FIVE HUNDRED callout is due when the aircraft descends through 500 ft.
+ * A380 FCOM DSC-34-10-50 AUTOMATIC CALLOUTS (a380_fcom.txt 86490-86491, 86528): "FIVE HUNDRED or Smart FIVE HUNDRED";
+ * the smart one "is triggered only if the glide deviation exceeds a half dot". Without a valid glide (no G/S, e.g. a
+ * non-precision approach) the smart FIVE HUNDRED is called out like the normal one, as the A32NX FWC does.
+ * @param pins the radio auto callout pin programming (A380XRadioAutoCallOutFlags)
+ * @param glideValid the glide deviation is valid
+ * @param glideDeviationDots glide deviation in dots (either sign)
+ * @returns true when FIVE HUNDRED is to be called out
+ */
+export function isFiveHundredCalloutDue(pins: number, glideValid: boolean, glideDeviationDots: number): boolean {
+  if ((pins & A380XRadioAutoCallOutFlags.FiveHundred) === 0) {
+    return false;
+  }
+  if ((pins & A380XRadioAutoCallOutFlags.FiveHundredGlide) === 0) {
+    return true;
+  }
+  return !glideValid || Math.abs(glideDeviationDots) > SMART_FIVE_HUNDRED_GLIDE_DEVIATION_DOTS;
+}
