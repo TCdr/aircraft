@@ -62,6 +62,39 @@ pub enum FailureType {
     GearActuatorJammed(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
+    // ATA36 (A320: a320_systems pneumatic.rs)
+    /// The bleed (pressure regulating) valve of engine n stays closed
+    EngineBleedValveStuckClosed(usize),
+    /// The bleed (pressure regulating) valve of engine n stays fully open: no pressure regulation
+    EngineBleedValveStuckOpen(usize),
+    /// The HP valve of engine n stays closed
+    EngineHpValveStuckClosed(usize),
+    /// The fan air valve of the precooler of engine n stays closed: the bleed air is not cooled
+    EngineFanAirValveStuckClosed(usize),
+    /// The fan air valve of the precooler of engine n stays fully open: the bleed air is overcooled
+    EngineFanAirValveStuckOpen(usize),
+    /// The crossbleed valve stays closed
+    CrossBleedValveStuckClosed,
+    /// The crossbleed valve stays open
+    CrossBleedValveStuckOpen,
+    /// The APU bleed valve stays closed
+    ApuBleedValveStuckClosed,
+    /// The APU bleed valve stays open
+    ApuBleedValveStuckOpen,
+    /// Hot air leaks from the bleed duct of engine n in its pylon
+    EngineBleedLeak(usize),
+    /// Hot air leaks from the bleed duct of wing n (1 left, 2 right)
+    WingBleedLeak(usize),
+    /// Hot air leaks from the APU bleed duct
+    ApuBleedLeak,
+    /// The pylon leak detection loop of engine n is inoperative
+    EngineLeakDetectionLoop(usize),
+    /// Leak detection loop A (1) or B (2) of wing n (1 left, 2 right) is inoperative
+    WingLeakDetectionLoop(usize, usize),
+    /// The APU leak detection loop is inoperative
+    ApuLeakDetectionLoop,
+    /// The bleed monitoring computer n is failed
+    BleedMonitoringComputer(usize),
     // ATA34
     RadioAltimeter(usize),
     RadioAntennaInterrupted(usize),
