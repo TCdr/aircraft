@@ -18,8 +18,6 @@ const { pedestalPrint, pedestalAvailable, pedestalUpdate } = vi.hoisted(() => ({
   pedestalUpdate: vi.fn(),
 }));
 
-// The FMC module is not loaded: the printer only needs its company wind request states
-vi.mock('./FlightManagementComputer', () => ({ CompanyWindRequestState: { None: 0, Pending: 1, Received: 2 } }));
 vi.mock('./PedestalPrinter', () => ({
   PedestalPrinter: class {
     print = pedestalPrint;
@@ -29,8 +27,6 @@ vi.mock('./PedestalPrinter', () => ({
     update = pedestalUpdate;
   },
 }));
-
-const WIND_RECEIVED = 2;
 
 /**
  * The sim variables of a test. The SDK modules install the sim's own SimVar functions, which read through the mocked
@@ -80,7 +76,7 @@ let flightPhase: FmgcFlightPhase;
 let onGround: boolean;
 let plans: Map<FlightPlanIndex, ReturnType<typeof flightPlan>>;
 let cpnyFplnAvailable: Subject<boolean>;
-let windRequestState: Subject<number>;
+let windUplinkReceived: Subject<boolean>;
 let pages: FmsPrintPage[];
 let printer: FmsPrinter;
 const addMessageToQueue = vi.fn();
@@ -117,7 +113,7 @@ beforeEach(() => {
   onGround = true;
   plans = new Map([[FlightPlanIndex.Active, flightPlan()]]);
   cpnyFplnAvailable = Subject.create(false);
-  windRequestState = Subject.create(0);
+  windUplinkReceived = Subject.create(false);
   pedestalPrint.mockClear();
   pedestalAvailable.mockReset();
   pedestalAvailable.mockReturnValue(true);
@@ -126,14 +122,15 @@ beforeEach(() => {
 
   const fmc = {
     fmgc: {
-      data: { cpnyFplnAvailable, companyRouteIdent: () => Subject.create(null) },
+      data: { companyRouteIdent: () => Subject.create(null) },
       getFlightPhase: () => flightPhase,
       isOnGround: () => onGround,
       getGrossWeightCg: () => 30.5,
       getFOB: () => 118,
       getGrossWeightKg: () => 498_000,
     },
-    companyWindRequestState: () => windRequestState,
+    getCpnyFplnAvailable: () => cpnyFplnAvailable,
+    getWindUplinkAvailableForPlan: () => windUplinkReceived,
     flightPlanInterface: { has: (i: FlightPlanIndex) => plans.has(i), get: (i: FlightPlanIndex) => plans.get(i) },
     guidanceController: { vnavDriver: { getDestinationPrediction: () => null, mcduProfile: undefined } },
     lastSequencedWaypoint: null,
@@ -212,7 +209,7 @@ describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
       setEnginesRunning(false);
       printer.update();
       cpnyFplnAvailable.set(true);
-      windRequestState.set(WIND_RECEIVED);
+      windUplinkReceived.set(true);
       expect(pages).toEqual([]);
     });
 
@@ -239,7 +236,7 @@ describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
       printer.autoPrint.cpnyInit.set(true);
       printer.autoPrint.cpnyWind.set(true);
       cpnyFplnAvailable.set(true);
-      windRequestState.set(WIND_RECEIVED);
+      windUplinkReceived.set(true);
       expect(titles()).toEqual(['FM COMPANY FLIGHT PLAN INITIALIZATION DATA', 'FM ACTIVE WIND DATA']);
       expect(pages[0].lines.some((l) => l.includes('CPNY01'))).toBe(true);
     });
@@ -310,6 +307,42 @@ describe('FmsPrinter (A380 FCOM DSC-22-FMS-10-70, DATA / PRINTER page)', () => {
       expect(lines).toMatch(/TO SHIFT {3}: ---- M/);
       printer.printInitData();
       expect(lastPage().lines.join('\n')).toMatch(/FLT NUMBER : ----------/);
+    });
+
+    it('prints a wind vector as its true direction in degrees and its speed (WIND DATA)', () => {
+      plans.set(
+        FlightPlanIndex.Active,
+        flightPlan({
+          performanceData: performanceData({
+            // 270 degrees (from the west) at 25 kt, 30 degrees at 5 kt
+            climbWindEntries: [{ altitude: 5_000, vector: { direction: (3 * Math.PI) / 2, magnitude: 25 }, flags: 0 }],
+            descentWindEntries: [{ altitude: 10_000, vector: { direction: Math.PI / 6, magnitude: 5 }, flags: 0 }],
+          }),
+        }),
+      );
+      printer.printWindData();
+      const lines = lastPage().lines.join('\n');
+      expect(lines).toContain("270'/025");
+      expect(lines).toContain("030'/005");
+    });
+
+    it('prints dashes for a half-filled wind vector (WIND DATA)', () => {
+      plans.set(
+        FlightPlanIndex.Active,
+        flightPlan({
+          performanceData: performanceData({
+            climbWindEntries: [{ altitude: 5_000, vector: { direction: Math.PI / 2, magnitude: undefined }, flags: 0 }],
+            descentWindEntries: [],
+            alternateWind: { direction: undefined, magnitude: 30 },
+          }),
+        }),
+      );
+      printer.printWindData();
+      const lines = lastPage().lines;
+      const climbLine = lines[lines.indexOf('  CLIMB WINDS') + 2];
+      expect(climbLine).toMatch(/---'\/---$/);
+      const alternateLine = lines[lines.indexOf('  ALTERNATE WIND') + 2];
+      expect(alternateLine).toBe("    ---'/---");
     });
 
     it('prints the weights in the selected unit (T or KLB, as on the FUEL&LOAD page)', () => {
