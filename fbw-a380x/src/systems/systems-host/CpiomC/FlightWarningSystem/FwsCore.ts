@@ -93,6 +93,15 @@ import {
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
+import {
+  areDoorsInTakeoffConfig,
+  CABIN_DOORS,
+  CARGO_DOORS,
+  cargoDoorLockedVariable,
+  isAnyDoorNotClosed,
+  isCabinDoorNotClosed,
+  isCargoDoorNotClosed,
+} from './DoorAlerts';
 import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
 
 export function xor(a: boolean, b: boolean): boolean {
@@ -562,27 +571,18 @@ export class FwsCore {
 
   public readonly inhibitedByDoors = Subject.create(false);
 
-  public readonly cabinDoorOpen = Subject.create(false);
+  /** At least one passenger (main or upper deck) or cargo door is not closed and locked, see DoorAlerts.ts */
+  public readonly anyDoorNotClosed = Subject.create(false);
 
-  private readonly interactivePointZeroOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:0');
+  /** INTERACTIVE POINT OPEN of each passenger door, in percent over 100, in CABIN_DOORS order (index = point) */
+  private readonly cabinDoorOpenRatios = CABIN_DOORS.map((_, point) =>
+    RegisteredSimVar.create<number>(`INTERACTIVE POINT OPEN:${point}`, SimVarValueType.PercentOver100),
+  );
 
-  private readonly interactivePointOneOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:1');
-
-  private readonly interactivePointTwoOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:2');
-
-  private readonly interactivePointThreeOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:3');
-
-  private readonly interactivePointFourOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:4');
-
-  private readonly interactivePointFiveOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:5');
-
-  private readonly interactivePointSixOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:6');
-
-  private readonly interactivePointSevenOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:7');
-
-  private readonly interactivePointEightOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:8');
-
-  private readonly interactivePointNineOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:9');
+  /** The Rust hydraulic cargo doors' locked L:vars (1 = closed and locked), in CARGO_DOORS order */
+  private readonly cargoDoorLockedVars = CARGO_DOORS.map((door) =>
+    RegisteredSimVar.create<number>(cargoDoorLockedVariable(door), SimVarValueType.Number),
+  );
 
   public readonly allOutflowValvesOpen = Subject.create(false);
 
@@ -2240,16 +2240,11 @@ export class FwsCore {
 
   public readonly cockpitWindowOpen = Subject.create(false);
 
-  public readonly main1LOpen = Subject.create(false);
-  public readonly main1ROpen = Subject.create(false);
-  public readonly main2LOpen = Subject.create(false);
-  public readonly main2ROpen = Subject.create(false);
-  public readonly main3LOpen = Subject.create(false);
-  public readonly main3ROpen = Subject.create(false);
-  public readonly main4LOpen = Subject.create(false);
-  public readonly main4ROpen = Subject.create(false);
-  public readonly main5LOpen = Subject.create(false);
-  public readonly main5ROpen = Subject.create(false);
+  /** DOOR MAIN 1L ... UPPER 3R NOT CLOSED triggers, in CABIN_DOORS order (index = interactive point) */
+  public readonly cabinDoorNotClosed = CABIN_DOORS.map(() => Subject.create(false));
+
+  /** DOOR FWD(AFT) CARGO NOT CLOSED triggers, in CARGO_DOORS order */
+  public readonly cargoDoorNotClosed = CARGO_DOORS.map(() => Subject.create(false));
 
   public readonly fmsPredUnreliablePreCondition = this.aircraftOnGround.map(SubscribableMapFunctions.not());
 
@@ -4426,20 +4421,16 @@ export class FwsCore {
       diffPressureAbovePoint072 && ((this.aircraftOnGround.get() && engNotRunning) || this.phase10For90sConfirm.read()),
     );
 
-    this.cabinDoorOpen.set(
-      this.main1LOpen.get() ||
-        this.main2LOpen.get() ||
-        this.main2ROpen.get() ||
-        this.main3LOpen.get() ||
-        this.main3ROpen.get() ||
-        this.main4LOpen.get() ||
-        this.main4ROpen.get() ||
-        this.main5LOpen.get() ||
-        this.main5ROpen.get(),
+    // CAB PRESS INHIBITED BY DOORS: every passenger door (main and upper deck) and the cargo doors, set in DOOR below
+    this.anyDoorNotClosed.set(
+      isAnyDoorNotClosed(
+        this.cabinDoorNotClosed.map((door) => door.get()),
+        this.cargoDoorNotClosed.map((door) => door.get()),
+      ),
     );
 
     this.inhibitedByDoors.set(
-      this.cabinDoorOpen.get() &&
+      this.anyDoorNotClosed.get() &&
         (this.throttle2Position.get() >= 45 || (this.throttle2Position.get() >= 35 && flexThrustLimit)),
     );
 
@@ -5369,16 +5360,13 @@ export class FwsCore {
         SimVar.GetSimVarValue('L:FO_SLIDING_WINDOW', 'number') === 1,
     );
 
-    this.main1LOpen.set(this.interactivePointZeroOpen.get());
-    this.main1ROpen.set(this.interactivePointOneOpen.get());
-    this.main2LOpen.set(this.interactivePointTwoOpen.get());
-    this.main2ROpen.set(this.interactivePointThreeOpen.get());
-    this.main3LOpen.set(this.interactivePointFourOpen.get());
-    this.main3ROpen.set(this.interactivePointFiveOpen.get());
-    this.main4LOpen.set(this.interactivePointSixOpen.get());
-    this.main4ROpen.set(this.interactivePointSevenOpen.get());
-    this.main5LOpen.set(this.interactivePointEightOpen.get());
-    this.main5ROpen.set(this.interactivePointNineOpen.get());
+    // Main deck (points 0-9) and upper deck (points 10-15) passenger doors, then the FWD and AFT cargo doors
+    this.cabinDoorOpenRatios.forEach((openRatio, point) =>
+      this.cabinDoorNotClosed[point].set(isCabinDoorNotClosed(openRatio.get())),
+    );
+    this.cargoDoorLockedVars.forEach((locked, index) =>
+      this.cargoDoorNotClosed[index].set(isCargoDoorNotClosed(locked.get())),
+    );
 
     /* CABIN READY */
 
@@ -5535,14 +5523,15 @@ export class FwsCore {
       // TODO Note that fuel tank low pressure and gravity feed warnings are not included
       const systemStatus = this.engine1Generator.get() && this.engine2Generator.get();
 
-      const cabin = SimVar.GetSimVarValue('INTERACTIVE POINT OPEN:0', 'percent');
-      const catering = SimVar.GetSimVarValue('INTERACTIVE POINT OPEN:3', 'percent');
-      const cargofwdLocked = SimVar.GetSimVarValue('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'bool');
-      const cargoaftLocked = SimVar.GetSimVarValue('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'bool');
       const brakesHot = this.anyBrakeHot;
 
       const speeds = !toSpeedsTooLow && !toV2VRV2Disagree && !fmToSpeedsNotInserted;
-      const doors = !!(cabin === 0 && catering === 0 && cargoaftLocked && cargofwdLocked);
+      // Every main and upper deck passenger door, both cargo doors and the cockpit sliding windows (set in DOOR above)
+      const doors = areDoorsInTakeoffConfig(
+        this.cabinDoorNotClosed.map((door) => door.get()),
+        this.cargoDoorNotClosed.map((door) => door.get()),
+        this.cockpitWindowOpen.get(),
+      );
       const surfacesNotTo =
         flapsNotInToPos ||
         slatsNotInToPos ||
