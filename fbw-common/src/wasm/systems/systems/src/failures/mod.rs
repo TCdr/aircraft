@@ -204,6 +204,9 @@ pub enum FailureType {
     /// A fault the FADEC of engine n detects and reports, with no effect on the engine model
     /// (engine::engine_monitoring_fault)
     EngineMonitoringFault(usize, EngineMonitoringFaultKind),
+    /// The LP fuel valve of engine n is jammed in its position: it no longer follows the ENG MASTER
+    /// and the ENG FIRE pushbutton (fuel::engine_lp_valve)
+    EngineLpValveJammed(usize),
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),

@@ -107,6 +107,13 @@ export const A320Failure = Object.freeze({
   // A centre tank transfer valve jam holds the valve open or closed (both MSFS valves of the CTR TK L(R) XFR valve)
   CentreTankLeftTransferValveJammed: 28005,
   CentreTankRightTransferValveJammed: 28006,
+  // An engine LP fuel valve jam holds the valve where it is (systems fuel/engine_lp_valve.rs, FailureType
+  // EngineLpValveJammed): jammed open the engine still shuts down with its ENG MASTER, jammed closed it is starved
+  Eng1LpValveJammed: 28007,
+  Eng2LpValveJammed: 28008,
+  // A failed channel of the fuel quantity indicating computer (systems-host Fuel/FuelPumpsAndValves): FQI CH 1(2) FAULT
+  FqiChannel1: 28009,
+  FqiChannel2: 28010,
 
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
@@ -373,6 +380,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [28, A320Failure.CrossFeedValveJammed, 'X FEED valve jammed in place'],
   [28, A320Failure.CentreTankLeftTransferValveJammed, 'CTR TK L XFR valve jammed in place'],
   [28, A320Failure.CentreTankRightTransferValveJammed, 'CTR TK R XFR valve jammed in place'],
+  [28, A320Failure.Eng1LpValveJammed, 'ENG 1 LP fuel valve jammed in place'],
+  [28, A320Failure.Eng2LpValveJammed, 'ENG 2 LP fuel valve jammed in place'],
+  [28, A320Failure.FqiChannel1, 'FQI channel 1'],
+  [28, A320Failure.FqiChannel2, 'FQI channel 2'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],

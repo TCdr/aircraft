@@ -4243,12 +4243,44 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Cuts the engine fuel (A32NX_ENGINE_{number}_FUEL_CUT)
 
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_OPEN
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine LP fuel valve remains (partly) open while the ENG MASTER or the ENG FIRE pushbutton commands it closed, once its travel time plus 1 s is over: the valve is jammed (flyPad failure 28007/28008 "ENG n LP fuel valve jammed in place"). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine LP fuel valve remains (partly) closed while it is commanded open, once its travel time plus 1 s is over (jammed valve). The engine is then starved (A32NX_FUEL_ENG_{number}_STARVED). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A32NX_FUEL_GRAVITY_FEED_CEILING
+  - Feet
+  - The gravity feed ceiling (pressure altitude) of this flight, FCOM PRO-ABN-FUEL [QRH] GRAVITY FUEL FEEDING: FL 360 after more than 30 min above FL 300, FL 260 after less, else the highest of FL 150 and 7 000 ft above the takeoff airport. Written by the systems WASM (fuel/gravity_feed.rs)
+
+- A32NX_FUEL_ENG_{number}_GRAVITY_FEED_STARVED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine has been fed by gravity (no wing tank pump pushes fuel to it) above the gravity feed ceiling for 3 min: the engine fuel is cut (A32NX_ENGINE_{number}_FUEL_CUT) until the ENG MASTER is set OFF with the engine no longer fed by gravity above the ceiling (relight procedure). Written by the systems WASM (fuel/gravity_feed.rs)
+
+- A32NX_FUEL_FQI_CHANNEL_{number}_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the channel of the fuel quantity indicating computer is failed (flyPad failures 28009/28010): FUEL FQI CH 1(2) FAULT. Written by systems-host Fuel/FuelPumpsAndValves
+
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
   - {number}
     - 1
     - 2
-  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED), a flameout or seizure failure (flyPad failures 72000/72001 and 72010/72011), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2); the FADEC handles the engine as one without fuel. Written by the systems WASM (a320_systems engine_failure.rs)
+  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED) or its gravity feeding above the ceiling (A32NX_FUEL_ENG_{number}_GRAVITY_FEED_STARVED), a flameout or seizure failure (flyPad failures 72000/72001 and 72010/72011), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2); the FADEC handles the engine as one without fuel. Written by the systems WASM (a320_systems engine_failure.rs)
 
 - A32NX_ENGINE_{number}_FLAMED_OUT
   - Bool
