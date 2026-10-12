@@ -2,7 +2,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ArraySubject, FSComponent, MappedSubject, Subject, Subscribable, UnitType, VNode } from '@microsoft/msfs-sdk';
+import {
+  ArraySubject,
+  ClockEvents,
+  FSComponent,
+  MappedSubject,
+  Subject,
+  Subscribable,
+  UnitType,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { CompanyTakeoffDataUplink, NXDataStore } from '@flybywiresim/fbw-sdk';
 
 import { AbstractMfdPageProps } from '../../MFD';
@@ -111,6 +120,12 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
         this.selectedThrust.set(uplinks.length > 0 ? 0 : null);
       }, true),
       this.current.sub(() => this.onNewData(), true),
+      // The FMS TOW and active runway can change while the page is shown: the checks run again every second
+      this.props.bus
+        .getSubscriber<ClockEvents>()
+        .on('realTime')
+        .atFrequency(1)
+        .handle(() => this.onNewData()),
     );
   }
 
@@ -120,12 +135,6 @@ export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageP
     this.insertDisabled.set(!check?.insertable);
     this.runwayDisagree.set(check?.runwayDisagree ?? false);
     this.towDisagree.set(check?.towDisagree ?? false);
-  }
-
-  /** The FMS TOW and active runway can change while the page is shown: the checks run again at each data check */
-  protected checkIfNewData(): void {
-    super.checkIfNewData();
-    this.onNewData();
   }
 
   /** An altitude in feet, with the flight level format above the transition altitude left to the PERF page */
