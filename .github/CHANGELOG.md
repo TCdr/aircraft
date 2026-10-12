@@ -280,6 +280,18 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
 1. [A32NX/FWC] New HYD cautions and warnings from the FCOM with their procedure and STATUS lines: B (Y) ELEC PUMP LO PR / OVHT, G ENG 1 (Y ENG 2) PUMP LO PR, B/G/Y RSVR LO AIR PR, RSVR LO LVL and SYS LO PR, PTU FAULT, and the red B+Y, G+B, G+Y SYS LO PR warnings (with red LAND ASAP) that replace the single system alerts; the RSVR OVHT procedures show the "x SYS LO PR" lines and the RSVR OVHT, RAT FAULT and PTU FAULT now have their STATUS (INOP SYS, APPR PROC); no pump caution on ground with the engine stopped - @TCdr
 1. [A32NX/FWC] New APU AUTO SHUT DOWN and APU EMER SHUT DOWN cautions (MASTER SW OFF, STATUS INOP SYS APU); a STATUS line given by two alerts is shown once - @TCdr
+1. [A32NX/FWC] New memo RAM AIR ON, and new caution CAB PR LDG ELEV FAULT when the LDG ELEV selector is at AUTO without a landing elevation from the FMGS - @TCdr
+1. [A32NX/FWC] The CAB PR alerts now have their STATUS lines: MAX FL, the manual pressurization schedule (MAN CAB PR CTL, target V/S, cabin altitude table) and INOP SYS CAB PR 1, 2 or 1+2 - @TCdr
+1. [A32NX/FWC] New caution ENG THRUST LOCKED (flashing, single chime and MASTER CAUTION every 5 s) when the thrust levers are not moved within 5 s of an A/THR disconnection with thrust lock - @TCdr
+1. [A32NX/FWC] FUEL L+R WING TK LO LVL gives the amber LAND ASAP, asks for CTR TK L(R) XFR ON only when it is off and no longer shows the CTR TK PUMP lines of the other fuel system - @TCdr
+1. [A32NX/FWC] New cautions FUEL AUTO TRANSFER FAULT and FUEL CTR TK XFR OFF - @TCdr
+1. [A32NX/FWC] New cautions WING A.ICE SYS FAULT (with the X BLEED OPEN variant after the loss of one bleed) and WING A.ICE L(R) HI PR, with their STATUS - @TCdr
+1. [A32NX/FWC] New DOOR cautions for the cabin doors, emergency exits and cargo doors, with IF ABN CAB V/S: MAX FL 100/MEA-MORA in flight - @TCdr
+1. [A32NX/FWC] New cautions L/G DOORS NOT CLOSED and L/G SYS DISAGREE, and STATUS lines for GEAR NOT UPLOCKED, LGCIU faults and A/SKID N/WS OFF - @TCdr
+1. [A32NX/FWC] New cautions NAV GPWS FAULT and NAV GPWS TERR DET FAULT on an EGPWC fault, with INOP SYS GPWS (TERR) - @TCdr
+1. [A32NX/FWC] ENG ALL ENGINES FAILURE and the involuntary A/THR OFF now have their STATUS page lines - @TCdr
+1. [A32NX/FWC] FAC 1+2 FAULT says RUD WITH CARE ABV 160 KT, as in the FCOM (it said 140 KT) - @TCdr
+1. [A32NX/OXY] The passenger oxygen masks now drop by themselves when the cabin altitude goes above 14 000 ft - @TCdr
 
 ## 2024.1.0
 

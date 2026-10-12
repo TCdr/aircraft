@@ -32,6 +32,7 @@ import { RadioCommunicationFailures } from './systems/Communications/RadioCommun
 import { FuelPumpsAndValves } from './systems/Fuel/FuelPumpsAndValves';
 import { FacReactiveWindshear } from './systems/Fac/FacReactiveWindshear';
 import { CockpitVoiceRecorder } from './systems/Recorders/CockpitVoiceRecorder';
+import { PaxOxygenMasks } from './systems/Oxygen/PaxOxygenMasks';
 
 class SystemsHost extends BaseInstrument {
   private readonly bus = new EventBus();
@@ -76,6 +77,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('FuelPumpsAndValves', new FuelPumpsAndValves());
     this.backplane.addInstrument('FacReactiveWindshear', new FacReactiveWindshear());
     this.backplane.addInstrument('CockpitVoiceRecorder', new CockpitVoiceRecorder());
+    this.backplane.addInstrument('PaxOxygenMasks', new PaxOxygenMasks());
 
     this.backplane.addPublisher('HEvent', this.hEventPublisher);
     this.backplane.addPublisher('FuelSystem', this.fuelSystemPublisher);

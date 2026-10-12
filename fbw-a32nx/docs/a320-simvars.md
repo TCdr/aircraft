@@ -540,7 +540,8 @@
 
 - A32NX_OXYGEN_MASKS_DEPLOYED
     - Bool
-    - True if cabin oxygen masks have been deployed.
+    - True if cabin oxygen masks have been deployed: MASK MAN ON pb, or automatically when the cabin altitude
+      (A32NX_PRESS_MAN_CABIN_ALTITUDE) goes above 14 000 ft (systems host, Oxygen/PaxOxygenMasks).
 
 - A32NX_RCDR_GROUND_CONTROL_ON
     - Bool
