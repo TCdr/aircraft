@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { formatEwdMessages } from './EwdMessages';
+
 /**
  * The parts of the A320 ECAM STATUS page (FCOM DSC-31-20): limitations (blue), approach procedures (white), procedures
  * (blue) and information (green) on the left; inoperative systems (amber) on the right. Only the parts used by the
@@ -89,11 +91,16 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
   ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
+  // 36 PNEUMATIC (FCOM PRO-ABN-AIR X BLEED FAULT STATUS, a320_fcom.txt l.71070), see FWC/Logic/BleedAlerts
+  ['360200001', { part: StatusPart.Information, text: 'X BLEED MAN CTL' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
   ['360300001', { part: StatusPart.InopSys, text: 'ENG 1 BLEED' }],
   ['360300002', { part: StatusPart.InopSys, text: 'ENG 2 BLEED' }],
+  // FCOM PRO-ABN-AIR ENG 1+2 BLEED FAULT (l.70072-70075: ENG 1 BLEED, ENG 2 BLEED, APU BLEED, PACK 1+2) and X BLEED FAULT
+  ['360300003', { part: StatusPart.InopSys, text: 'APU BLEED' }],
+  ['360300004', { part: StatusPart.InopSys, text: 'X BLEED' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG REVERSER FAULT, THR LEVER FAULT and THR LEVER DISAGREE INOP SYS)
   ['780300001', { part: StatusPart.InopSys, text: 'REVERSER 1' }],
   ['780300002', { part: StatusPart.InopSys, text: 'REVERSER 2' }],
@@ -276,8 +283,23 @@ export interface StatusPageTexts {
 }
 
 /**
+ * The CANCELLED CAUTION part of the left column (FCOM DSC-31-20 l.46193 "(5) Cancelled caution: White"): the FWC sends
+ * this code, then the E/WD title codes (EwdMessages) of the cautions cancelled with the EMER CANC pb.
+ */
+export const CANCELLED_CAUTION_STATUS_CODE = '310600001';
+
+/** The E/WD title of a cancelled caution, in white and not underlined, or '' for an unknown code */
+function cancelledCautionTitle(ewdTitleCode: string): string {
+  const title = formatEwdMessages([ewdTitleCode])[0] ?? '';
+  // eslint-disable-next-line no-control-regex
+  const plain = title.replace(/\x1b4m|\x1bm/g, '').replace(/\x1b<\dm/g, '');
+  return plain.trim().length > 0 ? `\x1b<7m${plain}` : '';
+}
+
+/**
  * The texts of the STATUS page from the codes of its left and right columns. The titles are white and underlined; an
- * empty page shows NORMAL in green.
+ * empty page shows NORMAL in green. The CANCELLED CAUTION part comes last in the left column, after a blank line (FCOM
+ * l.46221-46222: "Each block ... is separated by a blank line").
  */
 export function formatStatusPage(leftCodes: readonly string[], rightCodes: readonly string[]): StatusPageTexts {
   const lines = (codes: readonly string[]) =>
@@ -285,15 +307,28 @@ export function formatStatusPage(leftCodes: readonly string[], rightCodes: reado
       const message = StatusMessages.get(code)!;
       return `${PART_COLOURS[message.part]}${message.text}`;
     });
-  const left = lines(leftCodes);
+  const cancelledCautionIndex = leftCodes.indexOf(CANCELLED_CAUTION_STATUS_CODE);
+  const statusLeftCodes = cancelledCautionIndex === -1 ? leftCodes : leftCodes.slice(0, cancelledCautionIndex);
+  const cancelledCautions =
+    cancelledCautionIndex === -1
+      ? []
+      : leftCodes
+          .slice(cancelledCautionIndex + 1)
+          .map(cancelledCautionTitle)
+          .filter((title) => title !== '');
+  const left = lines(statusLeftCodes);
   const inopSys = lines(rightCodes);
 
-  if (left.length === 0 && inopSys.length === 0) {
+  if (left.length === 0 && inopSys.length === 0 && cancelledCautions.length === 0) {
     return { normal: true, left: '\r\r              \x1b<3mNORMAL', right: '' };
   }
+  const cancelledCautionPart =
+    cancelledCautions.length > 0
+      ? [...(left.length > 0 ? [''] : []), '\x1b<7m\x1b4mCANCELLED CAUTION\x1bm', ...cancelledCautions]
+      : [];
   return {
     normal: false,
-    left: left.join('\r'),
+    left: [...left, ...cancelledCautionPart].join('\r'),
     right: inopSys.length > 0 ? ['\x1b<7m\x1b4mINOP SYS\x1bm', ...inopSys].join('\r') : '',
   };
 }
