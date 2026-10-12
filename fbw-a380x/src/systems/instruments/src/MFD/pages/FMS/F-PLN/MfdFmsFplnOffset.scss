@@ -1,0 +1,11 @@
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// FCOM DSC-22-FMS-20-30 P 215 (page container coordinates)
+.mfd-offset-separator {
+  position: absolute;
+  top: 20px;
+  left: 430px;
+  height: 348px;
+  width: 0;
+  border-left: 1px solid $display-light-grey;
+}

@@ -17,6 +17,8 @@ export type MfdSimvars = {
   rightMfdInView: boolean;
   kccuOnL: boolean;
   kccuOnR: boolean;
+  kccuCcdOnL: boolean;
+  kccuCcdOnR: boolean;
   xpdrAvail: boolean;
   xpdrCode: number;
   xpdrState: number;
@@ -38,6 +40,21 @@ export type MfdSimvars = {
   terr2Failed: boolean;
   gpws1Failed: boolean;
   gpws2Failed: boolean;
+  wxr1Failed: boolean;
+  wxr2Failed: boolean;
+  wxrOff: boolean;
+  wxrTurbOff: boolean;
+  wxrModeMap: boolean;
+  wxrPredWsOff: boolean;
+  wxrGainMan: boolean;
+  wxrVdOff: boolean;
+  wxrElevnTiltMode: number;
+  wxrElevn: number;
+  wxrTilt: number;
+  wxrGain: number;
+  baroStdL: boolean;
+  baroStdR: boolean;
+  xpdrSystem: number;
 };
 
 export type InternalKccuKeyEvent = {
@@ -61,6 +78,8 @@ export enum MfdVars {
   rightMfdInView = 'IS CAMERA RAY INTERSECT WITH NODE:2',
   kccuOnL = 'L:A32NX_KCCU_L_KBD_ON_OFF',
   kccuOnR = 'L:A32NX_KCCU_R_KBD_ON_OFF',
+  kccuCcdOnL = 'L:A32NX_KCCU_L_CCD_ON_OFF',
+  kccuCcdOnR = 'L:A32NX_KCCU_R_CCD_ON_OFF',
   xpdrAvail = 'TRANSPONDER AVAILABLE',
   xpdrCode = 'TRANSPONDER CODE:1',
   xpdrState = 'TRANSPONDER STATE:1',
@@ -82,6 +101,21 @@ export enum MfdVars {
   terr2Failed = 'L:A32NX_TERR_2_FAILED',
   gpws1Failed = 'L:A32NX_GPWS_1_FAILED',
   gpws2Failed = 'L:A32NX_GPWS_2_FAILED',
+  wxr1Failed = 'L:A32NX_WXR_1_FAILED',
+  wxr2Failed = 'L:A32NX_WXR_2_FAILED',
+  wxrOff = 'L:A380X_WXR_OFF',
+  wxrTurbOff = 'L:A380X_WXR_TURB_OFF',
+  wxrModeMap = 'L:A380X_WXR_MODE_MAP',
+  wxrPredWsOff = 'L:A380X_WXR_PRED_WS_OFF',
+  wxrGainMan = 'L:A380X_WXR_GAIN_MAN',
+  wxrVdOff = 'L:A380X_WXR_VD_OFF',
+  wxrElevnTiltMode = 'L:A380X_WXR_ELEVN_TILT_MODE',
+  wxrElevn = 'L:A380X_WXR_ELEVN',
+  wxrTilt = 'L:A380X_WXR_TILT',
+  wxrGain = 'L:A380X_WXR_GAIN',
+  baroStdL = 'L:A32NX_FCU_EFIS_L_DISPLAY_BARO_IS_STD',
+  baroStdR = 'L:A32NX_FCU_EFIS_R_DISPLAY_BARO_IS_STD',
+  xpdrSystem = 'L:A32NX_TRANSPONDER_SYSTEM',
 }
 
 /** A publisher to poll and publish nav/com simvars. */
@@ -101,6 +135,8 @@ export class MfdSimvarPublisher extends SimVarPublisher<MfdSimvars> {
     ['rightMfdInView', { name: MfdVars.rightMfdInView, type: SimVarValueType.Bool }],
     ['kccuOnL', { name: MfdVars.kccuOnL, type: SimVarValueType.Bool }],
     ['kccuOnR', { name: MfdVars.kccuOnR, type: SimVarValueType.Bool }],
+    ['kccuCcdOnL', { name: MfdVars.kccuCcdOnL, type: SimVarValueType.Bool }],
+    ['kccuCcdOnR', { name: MfdVars.kccuCcdOnR, type: SimVarValueType.Bool }],
     ['xpdrAvail', { name: MfdVars.xpdrAvail, type: SimVarValueType.Bool }],
     ['xpdrCode', { name: MfdVars.xpdrCode, type: SimVarValueType.Number }],
     ['xpdrState', { name: MfdVars.xpdrState, type: SimVarValueType.Enum }],
@@ -122,6 +158,21 @@ export class MfdSimvarPublisher extends SimVarPublisher<MfdSimvars> {
     ['terr2Failed', { name: MfdVars.terr2Failed, type: SimVarValueType.Bool }],
     ['gpws1Failed', { name: MfdVars.gpws1Failed, type: SimVarValueType.Bool }],
     ['gpws2Failed', { name: MfdVars.gpws2Failed, type: SimVarValueType.Bool }],
+    ['wxr1Failed', { name: MfdVars.wxr1Failed, type: SimVarValueType.Bool }],
+    ['wxr2Failed', { name: MfdVars.wxr2Failed, type: SimVarValueType.Bool }],
+    ['wxrOff', { name: MfdVars.wxrOff, type: SimVarValueType.Bool }],
+    ['wxrTurbOff', { name: MfdVars.wxrTurbOff, type: SimVarValueType.Bool }],
+    ['wxrModeMap', { name: MfdVars.wxrModeMap, type: SimVarValueType.Bool }],
+    ['wxrPredWsOff', { name: MfdVars.wxrPredWsOff, type: SimVarValueType.Bool }],
+    ['wxrGainMan', { name: MfdVars.wxrGainMan, type: SimVarValueType.Bool }],
+    ['wxrVdOff', { name: MfdVars.wxrVdOff, type: SimVarValueType.Bool }],
+    ['wxrElevnTiltMode', { name: MfdVars.wxrElevnTiltMode, type: SimVarValueType.Enum }],
+    ['wxrElevn', { name: MfdVars.wxrElevn, type: SimVarValueType.Number }],
+    ['wxrTilt', { name: MfdVars.wxrTilt, type: SimVarValueType.Number }],
+    ['wxrGain', { name: MfdVars.wxrGain, type: SimVarValueType.Number }],
+    ['baroStdL', { name: MfdVars.baroStdL, type: SimVarValueType.Bool }],
+    ['baroStdR', { name: MfdVars.baroStdR, type: SimVarValueType.Bool }],
+    ['xpdrSystem', { name: MfdVars.xpdrSystem, type: SimVarValueType.Number }],
   ]);
 
   public constructor(bus: EventBus) {

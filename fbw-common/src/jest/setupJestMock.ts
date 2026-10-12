@@ -8,6 +8,23 @@ beforeEach(() => {
   values = {};
 });
 
+// Node 22+ defines its own localStorage global, undefined without --localstorage-file, which hides the jsdom one
+// (vitest keeps the existing global): use the jsdom storage, or an in-memory one
+if (typeof globalThis.localStorage === 'undefined') {
+  const memory = new Map<string, string>();
+  const storage: Storage = globalThis.jsdom?.window.localStorage ?? {
+    get length() {
+      return memory.size;
+    },
+    clear: () => memory.clear(),
+    getItem: (key: string) => memory.get(key) ?? null,
+    key: (index: number) => [...memory.keys()][index] ?? null,
+    removeItem: (key: string) => void memory.delete(key),
+    setItem: (key: string, value: string) => void memory.set(key, String(value)),
+  };
+  Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true, writable: true });
+}
+
 global.Coherent = {
   on: () => ({
     clear() {},

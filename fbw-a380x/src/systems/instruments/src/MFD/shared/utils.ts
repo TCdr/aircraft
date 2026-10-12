@@ -66,13 +66,16 @@ export const dataStatusUri = 'fms/data/status';
 export const fuelAndLoadPage = 'fuel-load';
 export const performancePage = 'perf';
 export const initPage = 'init';
+export const windPage = 'wind';
+export const routeSelectionPage = 'f-pln-rte-sel';
+
+export const cpnyFplnRequestPage = 'f-pln-cpny-f-pln-req';
 export const verticalRevisionPage = 'f-pln-vert-rev';
 export const lateralRevisionPage = 'f-pln-lat-rev';
 export const departurePage = 'f-pln-departure';
 export const arrivalPage = 'f-pln-arrival';
 export const airwaysPage = 'f-pln-airways';
 export const secIndexPageUri = 'fms/sec/index';
-export const windPage = 'wind';
 export const activeFlightPlanPageUri = fmsActivePagePrefix + flightPlanUriPage;
 export const activeFlightPlanFuelAndLoadUri = fmsActivePagePrefix + fuelAndLoadPage;
 export const activeFlightPlanHoldUri = fmsActivePagePrefix + lateralRevisionHoldPage;

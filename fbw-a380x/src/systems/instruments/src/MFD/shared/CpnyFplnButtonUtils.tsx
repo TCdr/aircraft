@@ -3,19 +3,21 @@
 
 import { FSComponent, MappedSubject } from '@microsoft/msfs-sdk';
 import { FmcInterface } from '../FMC/FmcInterface';
-import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
+import { isCpnyFplnButtonDisabled } from './CpnyFplnButtonRule';
 
 export class CpnyFplnButtonUtils {
   public static cpnyFplnButtonDisabled(fmc: FmcInterface | null, flightPlanIndex: number) {
     return fmc
       ? MappedSubject.create(
-          ([uplinkInProgress, forPlan, enginesStarted, hasActiveFlightPlan]) =>
-            uplinkInProgress ||
-            (flightPlanIndex === FlightPlanIndex.Active &&
-              (enginesStarted ||
-                hasActiveFlightPlan ||
-                (forPlan !== null && forPlan >= FlightPlanIndex.FirstSecondary))),
-          fmc.getUplinkInProgress(),
+          ([windUplinkInProgress, forPlan, enginesStarted, hasActiveFlightPlan]) =>
+            isCpnyFplnButtonDisabled(
+              windUplinkInProgress,
+              forPlan,
+              enginesStarted,
+              hasActiveFlightPlan,
+              flightPlanIndex,
+            ),
+          fmc.getCpnyWindUplinkInProgress(),
           fmc.getCpnyFplnRequestedForPlan(),
           fmc.enginesWereStarted,
           fmc.hasActiveFlightPlanWithCityPair,

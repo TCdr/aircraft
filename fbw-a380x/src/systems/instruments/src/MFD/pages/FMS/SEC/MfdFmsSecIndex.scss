@@ -1,89 +1,41 @@
-﻿@import "../../../../MsfsAvionicsCommon/definitions";
+@import "../../../../MsfsAvionicsCommon/definitions";
 
-.mfd-sec-index-title-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 75px;
-}
-
+// FCOM DSC-22-FMS-20-30 P 322 / P 329 (positions in MfdFmsSecIndex.tsx, tab panel coordinates)
 .mfd-sec-index-title-line1 {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 28px;
+  font-size: 30px;
 }
 
 .mfd-sec-index-title-line2 {
-  flex: 1;
-  display: flex;
-  align-self: flex-start;
-  font-size: 20px;
+  font-size: 22.5px;
 }
 
-.mfd-sec-index-table {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-}
-
-.mfd-sec-index-table.upper {
-  height: 500px;
-}
-
-.mfd-sec-index-table.lower {
-  flex-grow: 1;
-}
-
-.mfd-sec-index-table-left {
-  flex: 3;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.mfd-sec-index-table-left.route {
-  padding: 20px 5px 20px 5px;
-  border: 1px solid $display-light-grey;
-  width: 100%;
-  height: 100%;
+// Route summary: 11 lines of 42 px below a 24 px margin, VIA / TO columns at 6, 134, 283 and 411 px
+.mfd-sec-index-route-box {
+  position: absolute;
+  left: -2px;
+  top: 94px;
+  width: 536px;
+  height: 514px;
+  box-sizing: border-box;
+  border: 2px solid #505050;
+  padding: 22px 6px 0 4px;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  justify-content: center;
-  align-items: center;
-}
-
-.mfd-sec-index-table-right {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.mfd-sec-index-table-lower-button-grid {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  justify-content: center;
+  grid-template-columns: 128px 149px 128px 1fr;
+  grid-auto-rows: 42px;
   align-items: center;
 }
 
 .mfd-sec-index-table-lower-button-grid-cell {
-  border-bottom: 1px solid $display-light-grey;
-  height: 28px;
+  height: 40px;
+  line-height: 38px;
+  border-bottom: 2px solid #505050;
+  white-space: nowrap;
 }
 
 .mfd-sec-index-table-lower-button-grid-cell.leg-ident {
-  font-size: 22px;
+  font-size: 22.5px;
 }
 
 .mfd-sec-index-table-lower-button-grid-cell.fix-ident {
-  font-size: 26px;
+  font-size: 30px;
 }

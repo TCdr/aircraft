@@ -22,6 +22,7 @@ import { FlightPlanFlags } from './plans/FlightPlanFlags';
 import { FlightPlanBatch } from '@fmgc/flightplanning/plans/FlightPlanBatch';
 import {
   WindEntry,
+  HistoryWindEntry,
   PropagatedWindEntry,
   WindVector,
   FlightPlanWindEntry,
@@ -31,6 +32,7 @@ import {
   createVectorFromMagnitudeAndDirection,
 } from './data/wind';
 import { FlightPlan } from './plans/FlightPlan';
+import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 import { FlightPhaseManagerEvents } from '../flightphase';
 import { HistoryWind } from '../wind/HistoryWind';
 import { FmgcFlightPhase } from '../../../shared/src/flightphase';
@@ -41,7 +43,7 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
 {
   private readonly flightPlanManager: FlightPlanManager<P>;
 
-  private readonly historyWinds = new HistoryWind(this.bus);
+  private readonly historyWinds = new HistoryWind(this.bus, this.config.HISTORY_WIND_ROWS_RULE);
 
   private readonly flightPhase = ConsumerValue.create(
     this.bus.getSubscriber<FlightPhaseManagerEvents>().on('fmgc_flight_phase'),
@@ -289,6 +291,13 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
         } as Waypoint, // Needed to avoid type error with ElevatedCoordinates on Airport.
       });
     }
+
+    // DIRECT WITH ABEAM: the abeam points appear once the direct to is inserted (A380 FCOM DSC-22-FMS, ABEAM PTS)
+    temporaryPlan.allLegs.forEach((leg, index) => {
+      if (leg.isDiscontinuity === false && BitFlags.isAny(leg.flags, FlightPlanLegFlags.PendingDirectToAbeamPoint)) {
+        temporaryPlan.editLegFlags(index, leg.flags & ~FlightPlanLegFlags.PendingDirectToAbeamPoint);
+      }
+    });
 
     temporaryPlan.wasModified = true;
 
@@ -601,12 +610,13 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     waypoint: Fix,
     withAbeam = false,
     planIndex = FlightPlanIndex.Active,
+    interceptCourse?: DirectToInterceptCourse,
   ) {
     const finalIndex = this.prepareDestructiveModification(planIndex);
 
     const plan = this.flightPlanManager.get(finalIndex);
 
-    plan.directToWaypoint(ppos, trueTrack, waypoint, withAbeam);
+    plan.directToWaypoint(ppos, trueTrack, waypoint, withAbeam, interceptCourse);
   }
 
   async directToLeg(
@@ -615,12 +625,13 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     targetLegIndex: number,
     withAbeam = false,
     planIndex = FlightPlanIndex.Active,
+    interceptCourse?: DirectToInterceptCourse,
   ) {
     const finalIndex = this.prepareDestructiveModification(planIndex);
 
     const plan = this.flightPlanManager.get(finalIndex);
 
-    plan.directToLeg(ppos, trueTrack, targetLegIndex, withAbeam);
+    plan.directToLeg(ppos, trueTrack, targetLegIndex, withAbeam, interceptCourse);
   }
 
   async addOrEditManualHold(
@@ -1108,7 +1119,7 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     return Promise.resolve(false);
   }
 
-  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<WindEntry>[]> {
+  getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<HistoryWindEntry>[]> {
     return Promise.resolve(
       this.historyWinds.getRecordedWinds(this.active.performanceData.cruiseFlightLevel.get(), sortByAltitudeAscending),
     );
@@ -1120,7 +1131,7 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       await this.deleteAllClimbWindEntries();
       const historyWinds = this.historyWinds
         .getRecordedWinds(fp.performanceData.cruiseFlightLevel.get(), !this.config.SORT_CLIMB_WIND_DESCENDING)
-        .filter((entry) => entry.vector.direction !== undefined && entry.vector.magnitude !== undefined);
+        .filter(FlightPlanService.isInsertableHistoryWind);
       if (historyWinds.length > 0) {
         const entries: FlightPlanWindEntry[] = historyWinds.map((entry) => {
           return {
@@ -1137,15 +1148,21 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
   }
 
   async historyWindInsertionAllowed(): Promise<boolean> {
-    return Promise.resolve(
-      !this.hasTemporary &&
-        this.hasActive &&
-        !this.active.hasDraftWindEntries() &&
-        this.historyWinds.areWindsValidForInsertion() &&
-        !this.active.pendingWindUplink.isWindUplinkInProgress() &&
-        !this.active.pendingWindUplink.isWindUplinkReadyToInsert() &&
-        !this.haveHistoryWindsBeenInserted(await this.getHistoryWindsEntries()),
-    );
+    if (
+      this.hasTemporary ||
+      !this.hasActive ||
+      this.active.hasDraftWindEntries() ||
+      !this.historyWinds.areWindsValidForInsertion() ||
+      this.active.pendingWindUplink.isWindUplinkInProgress() ||
+      this.active.pendingWindUplink.isWindUplinkReadyToInsert()
+    ) {
+      return false;
+    }
+
+    // Compared in the order the history winds are inserted in (an await as its own statement: Coherent GT rule)
+    const listedWinds = await this.getHistoryWindsEntries(!this.config.SORT_CLIMB_WIND_DESCENDING);
+    // Only the levels with a wind are inserted, so only they are compared
+    return !this.haveHistoryWindsBeenInserted(listedWinds.filter(FlightPlanService.isInsertableHistoryWind));
   }
 
   async setApproachWind(direction: number | null, magnitude: number | null, planIndex: number): Promise<boolean> {
@@ -1186,6 +1203,11 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       }
     }
     return false;
+  }
+
+  /** A listed history wind with a wind (a level without one is listed with dashes and not inserted) */
+  private static isInsertableHistoryWind(entry: Readonly<WindEntry>): boolean {
+    return entry.vector.direction !== undefined && entry.vector.magnitude !== undefined;
   }
 
   private haveHistoryWindsBeenInserted(historyWinds: WindEntry[]) {

@@ -43,6 +43,10 @@ export const RealismPage = () => {
     0,
   );
   const [eclSoftKeys, setEclSoftKeys] = usePersistentNumberProperty('CONFIG_A380X_SHOW_ECL_SOFTKEYS', 0);
+  const [keepPilotStoredElements, setKeepPilotStoredElements] = usePersistentBooleanProperty(
+    'KEEP_PILOT_STORED_ELEMENTS',
+    false,
+  );
 
   const adirsAlignTimeButtons: (ButtonType & SimVarButton)[] = [
     { name: t('Settings.Instant'), setting: 'INSTANT', simVarValue: 1 },
@@ -191,6 +195,13 @@ export const RealismPage = () => {
       {aircraftContext.settingsPages.realism.eclSoftKeys && (
         <SettingItem name={t('Settings.Realism.EclSoftKeys')} unrealistic>
           <Toggle value={!!eclSoftKeys} onToggle={(value) => setEclSoftKeys(value ? 1 : 0)} />
+        </SettingItem>
+      )}
+
+      {/* The A380 FCOM deletes the pilot-stored elements when all the FMCs are shut down: keeping them is not realistic */}
+      {aircraftContext.settingsPages.realism.keepPilotStoredElements && (
+        <SettingItem name={t('Settings.Realism.KeepPilotStoredElements')} unrealistic>
+          <Toggle value={keepPilotStoredElements} onToggle={(value) => setKeepPilotStoredElements(value)} />
         </SettingItem>
       )}
     </SettingsPage>

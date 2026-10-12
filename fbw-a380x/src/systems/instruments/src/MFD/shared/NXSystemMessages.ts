@@ -89,24 +89,25 @@ export const NXSystemMessages = {
   checkZfw: new TypeIIMessage('CHECK ZFW', true),
   comFplnReceivedPendingInsertion: new TypeIIMessage('COMPANY F-PLN RECEIVED\nWAITING FOR INSERTION', false),
   comWindRecievedPendingInsertionActive: new TypeIIMessage(
-    'COMPANY WIND RECIEVED\nWAITING FOR INSERTION IN ACTIVE',
+    'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN ACTIVE',
     false,
   ),
   comWindRecievedPendingInsertionInSecondary: new TypeIIMessage(
-    'COMPANY WIND RECIEVED\nWAITING FOR INSERTION IN SEC X',
+    'COMPANY WIND DATA RECEIVED\nWAITING FOR INSERTION IN SEC X',
     false,
     'X',
   ),
   comWindUplinkPending: new TypeIIMessage('COMPANY WIND UPLINK PENDING', true),
-  comDatalinkNotAvail: new TypeIMessage('COM DATALINK NOT AVAIL'), // TODO
+  comDatalinkNotAvail: new TypeIMessage('COM DATALINK NOT AVAIL'),
   cstrDelUpToWpt: new TypeIIMessage('CONSTRAINTS BEFORE WWWWW : DELETED', false, 'WWWWW'),
   destEfobBelowMin: new TypeIIMessage('DEST EFOB BELOW MIN', true),
-  draftWindsInserted: new TypeIMessage('DRAFT WINDS INSERTED'),
+  draftWindsInserted: new TypeIMessage('DRAFT WIND INSERTED'),
   enterDestData: new TypeIIMessage('ENTER DEST DATA', true),
+  // FCOM DSC-22-FMS-20-110: the data communication between the FMS and the Avionics Communication Router is not available
+  fmsDatalinkNotAvail: new TypeIIMessage('FMS DATALINK NOT AVAIL'),
   EntryNotInList: new TypeIMessage('ENTRY NOT IN LIST'),
   entryOutOfRange: new TypeIMessage('ENTRY OUT OF RANGE'),
   formatError: new TypeIMessage('FORMAT ERROR'),
-  fmsDatalinkNotAvail: new TypeIIMessage('FMS DATALINK NOT AVAIL'), // TODO
   fplnElementRetained: new TypeIMessage('F-PLN ELEMENT RETAINED'), // TODO
   initializeZfwOrZfwCg: new TypeIIMessage('INITIALIZE ZFW / ZFWCG', true),
   newAccAlt: new TypeIIMessage('NEW ACCEL ALT: HHHHH', false, 'HHHHH'),
@@ -118,8 +119,12 @@ export const NXSystemMessages = {
   notInDatabase: new TypeIMessage('NOT IN DATABASE'),
   notTransmittedToAcr: new TypeIIMessage('NOT TRANSMITTED TO ACR', false),
   receivedCpnyFplnNotValid: new TypeIIMessage('RECEIVED COMPANY F-PLN NOT VALID', false),
-  receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND NOT VALID', false),
-  rwyLsDisagree: new TypeIIMessage('RUNWAY / LS DISAGREE', true), // TODO
+  // FCOM DSC-22-FMS-20-110: the received ATC F-PLN (LOAD-SEC3 of the mailbox) loaded, partially loaded, or rejected
+  atcFplnInsertedSec3: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3', false),
+  atcFplnInsertedSec3Rejected: new TypeIIMessage('ATC F-PLN INSERTED IN SEC 3\nREJECTED INFO SEE SEC / INDEX', false),
+  receivedAtcMsgNotValid: new TypeIIMessage('RECEIVED ATC MSG NOT VALID', false),
+  receivedCpnyWindNotValid: new TypeIIMessage('RECEIVED COMPANY WIND DATA NOT VALID', false),
+  rwyLsDisagree: new TypeIIMessage('RUNWAY / LS DISAGREE', true),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPD'),
   tdReached: new TypeIIMessage('T/D REACHED'),
   spdLimExceeded: new TypeIIMessage('SPD LIMIT EXCEEDED', true),
@@ -135,6 +140,12 @@ export const NXSystemMessages = {
   sqwkCodeNotValid: new TypeIMessage('SQWK CODE NOT VALID'),
   lrcInUse: new TypeIMessage('LRC MODE IN USE'),
   lateralDiscontinuityAhead: new TypeIIMessage('LATERAL DISCONTINUITY AHEAD', true),
+  listOf99InUse: new TypeIMessage('LIST OF 99 IN USE'),
+  // FCOM DSC-22-FMS-20-110: a new pilot-stored waypoint rejected, the 50 of the database are used
+  wptsMaxAllInUse: new TypeIMessage('50 WPTS MAX : ALL IN USE'),
+  pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
+  rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
+  someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
 };
 
 export const NXFictionalMessages = {
@@ -170,32 +181,28 @@ export function isTypeIIMessage(message: McduMessage): message is TypeIIMessage 
   return message instanceof TypeIIMessage;
 }
 
+/**
+ * The ATC COM messages (A380 FCOM DSC-46-10-20-40): two lines of 33 characters, the line break as "
+"
+ */
 export const ATCCOMMessages = {
-  cancelAutoUpdateFirst: new ATCCOMMessage('CANCEL AUTO UPDATE FIRST'),
-  comDatalinkNotAvail: new ATCCOMMessage('COM DATALINK NOT AVAIL'),
-  datisGroundMsg: new ATCCOMMessage('D-ATIS GROUND MSG'),
-  datisNoReply: new ATCCOMMessage('D-ATIS NO REPLY'),
-  datisReceived: new ATCCOMMessage('D-ATIS RECEIVED'),
-  datisSendFailed: new ATCCOMMessage('D-ATIS SEND FAILED'),
-  datisUpdated: new ATCCOMMessage('D-ATIS UPDATED - READ AGAIN'),
-  datisUsedOffside: new ATCCOMMessage('D-ATIS USED OFFSIDE'),
+  atcComNotAvail: new ATCCOMMessage('ATC COM NOT AVAIL'),
+  atisUsedOffside: new ATCCOMMessage('ATIS USED OFFSIDE'),
+  comDatalinkNotAvail: new ATCCOMMessage('COM DATALINK NOT AVAIL\nCHECK RMP COM STATUS PAGE'),
+  deselectAutoUpdate: new ATCCOMMessage('DESELECT AUTO UPDATE'),
+  enterOrCheckFltNumber: new ATCCOMMessage('ENTER OR CHECK FLT NUMBER\nIN FMS INIT PAGE'),
   entryOutOfRange: new ATCCOMMessage('ENTRY OUT OF RANGE'),
+  fmsAcftPositionNotAvail: new ATCCOMMessage('FMS ACFT POSITION NOT AVAIL\nNOTIFICATION NOT AVAIL'),
   formatError: new ATCCOMMessage('FORMAT ERROR'),
-  identicalDatisRequest: new ATCCOMMessage('IDENTICAL D-ATIS REQUEST'),
+  identicalAtisRequest: new ATCCOMMessage('IDENTICAL ATIS REQUEST'),
   lastMsgElement: new ATCCOMMessage('LAST MSG ELEMENT'),
-  mailboxFull: new ATCCOMMessage('MAILBOX FULL - SEND OR CANCEL SOME MSG'),
-  msgAbortedActiveAtcDisconnected: new ATCCOMMessage('MSG ABORTED - ACTIVE ATC DISCONNECTED'),
-  msgAbortedNotSupportedByCurrentATC: new ATCCOMMessage('MSG ABORTED - NOT SUPPORTED BY CURRENT ATC'),
-  msgRecordLost: new ATCCOMMessage('MSG RECORD LOST'),
+  mailboxFull: new ATCCOMMessage('MAILBOX FULL\nSEND, CANCEL OR CLOSE SOME MSG'),
+  msgRecordPartlyLost: new ATCCOMMessage('MSG RECORD PARTLY LOST'),
   msgRecordUsedOffside: new ATCCOMMessage('MSG RECORD USED OFFSIDE'),
-  newDatisGroundMsg: new ATCCOMMessage('NEW D-ATIS GROUND MSG - READ AGAIN'),
-  noSysData: new ATCCOMMessage('NO SYS DATA'),
-  notifNotAvailAcftPosNotAvail: new ATCCOMMessage('NOTIFICATION NOT AVAIL - ACFT POSITION NOT AVAIL'),
-  notifNotAvailChckFltNbr: new ATCCOMMessage('NOTIFICATION NOT AVAIL - CHECK FLT NBR IN FMS INIT PAGE'),
-  notifNotAvailChckFromTo: new ATCCOMMessage('NOTIFICATION NOT AVAIL - CHECK FROM/TO IN FMS INIT PAGE'),
-  notifNotAvailWithThisAtcCtr: new ATCCOMMessage('NOTIFICATION NOT AVAIL - WITH THIS ATC CENTER'),
-  pleaseWaitUpdateInProgress: new ATCCOMMessage('PLEASE WAIT: UPDATE IN PROGRESS'),
+  newAtisReceived: new ATCCOMMessage('NEW ATIS RECEIVED'),
+  noFmsData: new ATCCOMMessage('NO FMS DATA'),
+  pleaseCheckNotification: new ATCCOMMessage('PLEASE CHECK NOTIFICATION THEN\nWAIT FOR ATC CONNECTION'),
+  pleaseWaitInProgress: new ATCCOMMessage('PLEASE WAIT : IN PROGRESS'),
   printerNotAvail: new ATCCOMMessage('PRINTER NOT AVAIL'),
-  printing: new ATCCOMMessage('PRINTING'),
-  sendingMaydayWillSwitchAdscToEmergency: new ATCCOMMessage('SENDING MAYDAY WILL SWITCH ADS-C TO EMERGENCY'),
+  sendingMaydayWillSwitchAdsToEmergency: new ATCCOMMessage('SENDING MAYDAY WILL SWITCH ADS\nTO EMERGENCY'),
 };

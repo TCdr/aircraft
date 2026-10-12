@@ -1,78 +1,85 @@
-﻿@import "../../../MsfsAvionicsCommon/definitions";
+@import "../../../MsfsAvionicsCommon/definitions";
 
-.mfd-atccom-connect-row {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  margin-top: 30px;
-  width: 100%;
+// CONNECT pages (NOTIFICATION, CONNECTION STATUS, MAX UPLINK DELAY), laid out on the FCOM figures (FcomLayout)
+
+.mfd-atccom-connect {
+  .green {
+    color: $display-green;
+  }
+
+  .mfd-value {
+    font-size: 26px;
+  }
 }
 
-.mfd-atccom-connect-row.adsc {
-  justify-content: center;
-}
-
-.mfd-atccom-connect-col-1 {
-  align-items: flex-end;
-  width: 305px;
-  text-align: right;
-  padding-right: 20px;
-}
-
-.mfd-atccom-connect-col-2 {
-  align-items: flex-start;
-  width: 167px;
-}
-
-.mfd-atccom-connect-col-3 {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 296px;
-}
-
-.mfd-atccom-connect-atc-row {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 30px;
-}
-
-.mfd-atccom-connect-section-1 {
-  margin-top: 60px;
-  padding-bottom: 20px;
-  align-items: flex-start;
-  border-bottom: 2px solid $display-light-grey;
-}
-
-.mfd-atccom-connect-adsc-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 300px;
-}
-
-.mfd-atccom-connect-connected-centers-list {
-  height: 265px;
-  border: 2px solid $display-light-grey;
-  width: 360px;
-  margin-top: 0px;
-  margin-left: 26px;
-}
-
-.mfd-atccom-connect.mfd-label {
+// NOTIFYING (white) / NOTIFICATION FAILED (amber) under the ATC CENTER field
+.mfd-atccom-indication {
   font-size: 22px;
+  color: $display-white;
+
+  &.amber {
+    color: $display-amber;
+  }
 }
 
-.mfd-atccom-connect-adscbutton .mfd-adsc-button {
-  width: 200px;
-  height: 70px;
-  margin-top: 10px;
+// Grey framed list (NOTIFIED TO CENTERS, ADS CONNECTED GROUND STATIONS)
+.mfd-atccom-list-box {
+  position: absolute;
+  border: 2px solid $display-dark-grey;
 }
 
-.mfd-atccom-connect-adscEmerbutton .mfd-adsc-button {
-  width: 110px;
-  height: 70px;
-  margin-top: 10px;
+.mfd-atccom-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+}
+
+.mfd-atccom-list-row {
+  font-size: 26px;
+  height: 44px;
+  line-height: 44px;
+  white-space: pre;
+}
+
+// ADS / ADS EMERGENCY buttons: the active state large, the other one small and grey (FCOM DSC-46-10-20-30 P 7)
+.mfd-atccom-ads-slot {
+  position: absolute;
+}
+
+.mfd-atccom-ads-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 77px;
+  border: 3px outset $display-light-grey;
+  background-color: $display-background;
+
+  .ads-upper,
+  .ads-lower {
+    font-size: 20px;
+    color: $display-dark-grey;
+    line-height: 30px;
+  }
+
+  .ads-upper.active {
+    font-size: 26px;
+    color: $display-green;
+  }
+
+  .ads-lower.active {
+    font-size: 26px;
+    color: $display-white;
+  }
+}
+
+.mfd-atccom-radio {
+  position: absolute;
+}
+
+.mfd-atccom-dialogs {
+  position: absolute;
+  left: 384px;
+  top: 250px;
 }

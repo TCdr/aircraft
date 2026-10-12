@@ -40,7 +40,7 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
 
   return [
     {
-      name: planIndex >= FlightPlanIndex.FirstSecondary ? '\xa0' : 'FROM P.POS DIR TO',
+      name: planIndex >= FlightPlanIndex.FirstSecondary ? '\xa0' : 'FROM P.POS DIR TO *',
       disabled:
         altnFlightPlan ||
         legIndex >= (fpln.loadedFlightPlan?.firstMissedApproachLegIndex ?? Infinity) ||
@@ -96,8 +96,9 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         fpln.props.mfd.uiService.navigateTo(`fms/${fpln.props.mfd.uiService.activeUri.get().category}/f-pln-arrival`),
     },
     {
-      name: '(N/A) OFFSET',
-      disabled: true,
+      name: 'OFFSET',
+      // FCOM DSC-22-FMS-20-30 P 216: OFFSET page (entries inactive, no lateral offset guidance yet)
+      disabled: false,
       onPressed: () =>
         fpln.props.mfd.uiService.navigateTo(`fms/${fpln.props.mfd.uiService.activeUri.get().category}/f-pln-offset`),
     },
@@ -110,9 +111,19 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         !isLegTerminatingAtDatabaseFix,
       onPressed: async () => {
         if (revisedLeg && revisedLeg.isDiscontinuity === false && !revisedLeg.isHX()) {
-          const alt = revisedLeg.definition.altitude1
-            ? revisedLeg.definition.altitude1
-            : SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
+          // FCOM DSC-22-FMS-20-30 HOLD page, COMPUTED HOLD: 1 min leg below 14 000 ft, 1.5 min above, at the
+          // predicted altitude at the hold
+          const predictedAltitude =
+            planIndex === FlightPlanIndex.Active
+              ? fpln.props.fmcService.master?.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(
+                  legIndex,
+                )?.altitude
+              : undefined;
+          const alt =
+            predictedAltitude ??
+            (revisedLeg.definition.altitude1
+              ? revisedLeg.definition.altitude1
+              : SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'));
 
           const previousLeg = fpln.props.fmcService.master?.flightPlanInterface.active.maybeElementAt(legIndex - 1);
 
@@ -186,7 +197,11 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         revisedLeg.isDiscontinuity ||
         fpln.props.fmcService.master.flightPlanInterface.get(planIndex).alternateDestinationAirport === undefined,
       onPressed: () => {
-        const cruiseLevel = fpln.props.fmcService.master?.computeAlternateCruiseLevel(planIndex) ?? 100;
+        const cruiseLevel = fpln.props.fmcService.master?.computeAlternateCruiseLevel(planIndex);
+        if (cruiseLevel === undefined) {
+          // No destination or alternate airport: ENABLE ALTN is disabled then, nothing to enable
+          return;
+        }
         fpln.props.fmcService.master?.flightPlanInterface.enableAltn(legIndex, cruiseLevel, planIndex);
         fpln.props.fmcService.master?.acInterface.updateFmsData();
         fpln.props.fmcService.master?.acInterface.calculateFinalAndAlternateFuel(planIndex);
@@ -210,7 +225,7 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
         ),
     },
     {
-      name: '(N/A) CMS',
+      name: 'CMS',
       disabled:
         true ||
         altnFlightPlan ||

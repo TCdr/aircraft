@@ -2,7 +2,7 @@
 //  Copyright (c) 2021 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { ConfigWeatherMap, NXDataStore } from '@flybywiresim/fbw-sdk';
+import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import {
   AtsuStatusCodes,
   CpdlcMessage,
@@ -28,9 +28,25 @@ export class AcarsConnector {
 
   private static connectionAttemptCounter = 0;
 
-  private static readonly MAX_CONNECTION_ATTEMPTS = 60; // 60 * 5s = 5 min
+  /** Attempts every 5 s during the first 5 minutes after the activation request */
+  private static readonly FAST_CONNECTION_ATTEMPTS = 60;
 
   private static readonly RETRY_DELAY_MS = 5_000;
+
+  /**
+   * Then one attempt a minute, without end: the provider (e.g. BeyondATC) can be started at any time, and the flight crew
+   * settings are never changed. Within the Hoppie rate limits (a poll every 45 to 75 s).
+   */
+  private static readonly SLOW_RETRY_DELAY_MS = 60_000;
+
+  /**
+   * Once active, the provider is checked once a minute while no flight number is connected. With a flight number, the
+   * polls (every 45 to 75 s) check it.
+   */
+  private static readonly SUPERVISION_INTERVAL_MS = 60_000;
+
+  /** Ends the current wait of the activation loop */
+  private static wakeUpLoop: (() => void) | null = null;
 
   private static connected = false;
 
@@ -62,19 +78,59 @@ export class AcarsConnector {
         SimVar.SetSimVarValue('L:A32NX_ACARS_ACTIVE', 'number', 1);
         console.log('Activated ACARS-ID');
         AcarsConnector.connected = true;
+        // A flight number received before the provider answered is connected now
+        if (AcarsConnector.flightNumber !== '') {
+          void AcarsConnector.connect(AcarsConnector.flightNumber);
+        }
         return;
       }
 
       console.log('Invalid ACARS-ID set');
       AcarsConnector.activationRequested = false;
     } catch (e) {
-      console.log(
-        `Could not connect to ACARS, retrying... (${AcarsConnector.connectionAttemptCounter}/${AcarsConnector.MAX_CONNECTION_ATTEMPTS})`,
-        e,
-      );
+      console.log(`Could not connect to ACARS, retrying... (attempt ${AcarsConnector.connectionAttemptCounter})`, e);
     }
   }
 
+  private static wait(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        AcarsConnector.wakeUpLoop = null;
+        resolve();
+      }, ms);
+      AcarsConnector.wakeUpLoop = () => {
+        clearTimeout(timer);
+        AcarsConnector.wakeUpLoop = null;
+        resolve();
+      };
+    });
+  }
+
+  /**
+   * The provider does not answer any more (e.g. BeyondATC closed): the ACARS is not active any more, and the activation
+   * starts again, so that it is active again, with the flight number, as soon as the provider answers.
+   */
+  private static onConnectionLost(): void {
+    if (!AcarsConnector.connected) {
+      return;
+    }
+    console.log('ACARS provider not answering, reconnecting...');
+    AcarsConnector.connected = false;
+    AcarsConnector.connectionAttemptCounter = 0;
+    SimVar.SetSimVarValue('L:A32NX_ACARS_ACTIVE', 'number', 0);
+    AcarsConnector.wakeUpLoop?.();
+  }
+
+  /** Checks that the provider still answers */
+  private static async checkConnection(): Promise<void> {
+    try {
+      await AcarsClient.getData({ from: 'FBWA32NX', to: 'SERVER', type: 'ping', packet: '' });
+    } catch (_e) {
+      AcarsConnector.onConnectionLost();
+    }
+  }
+
+  /** Activates the ACARS as soon as the provider answers, then checks that it still answers */
   private static async runActivationLoop(): Promise<void> {
     if (AcarsConnector.activationLoopRunning) {
       return;
@@ -83,31 +139,26 @@ export class AcarsConnector {
     AcarsConnector.activationLoopRunning = true;
 
     try {
-      while (
-        AcarsConnector.activationRequested &&
-        !AcarsConnector.connected &&
-        AcarsConnector.connectionAttemptCounter < AcarsConnector.MAX_CONNECTION_ATTEMPTS
-      ) {
-        await AcarsConnector.attemptActivation();
-
-        if (!AcarsConnector.activationRequested || AcarsConnector.connected) {
-          break;
+      while (AcarsConnector.activationRequested) {
+        if (!AcarsConnector.connected) {
+          await AcarsConnector.attemptActivation();
+          if (!AcarsConnector.activationRequested) {
+            break;
+          }
+          if (!AcarsConnector.connected) {
+            await AcarsConnector.wait(
+              AcarsConnector.connectionAttemptCounter < AcarsConnector.FAST_CONNECTION_ATTEMPTS
+                ? AcarsConnector.RETRY_DELAY_MS
+                : AcarsConnector.SLOW_RETRY_DELAY_MS,
+            );
+            continue;
+          }
         }
 
-        await new Promise((resolve) => setTimeout(resolve, AcarsConnector.RETRY_DELAY_MS));
-      }
-
-      if (
-        AcarsConnector.activationRequested &&
-        !AcarsConnector.connected &&
-        AcarsConnector.connectionAttemptCounter >= AcarsConnector.MAX_CONNECTION_ATTEMPTS
-      ) {
-        console.log('Could not connect to ACARS after 5 minutes, giving up');
-        NXDataStore.getSetting('ACARS_PROVIDER').set('NONE');
-        NXDataStore.getSetting('CONFIG_ATIS_SRC').set(ConfigWeatherMap.VATSIM);
-        NXDataStore.getSetting('CONFIG_METAR_SRC').set(ConfigWeatherMap.MSFS);
-
-        AcarsConnector.stopActivation();
+        await AcarsConnector.wait(AcarsConnector.SUPERVISION_INTERVAL_MS);
+        if (AcarsConnector.activationRequested && AcarsConnector.connected && AcarsConnector.flightNumber === '') {
+          await AcarsConnector.checkConnection();
+        }
       }
     } finally {
       AcarsConnector.activationLoopRunning = false;
@@ -123,12 +174,15 @@ export class AcarsConnector {
     }
 
     AcarsConnector.activationRequested = true;
+    // A running loop goes on with the new activation at once, otherwise a new one starts
+    AcarsConnector.wakeUpLoop?.();
     void AcarsConnector.runActivationLoop();
   }
 
   public static deactivateAcars(): void {
     AcarsConnector.stopActivation();
     SimVar.SetSimVarValue('L:A32NX_ACARS_ACTIVE', 'number', 0);
+    AcarsConnector.wakeUpLoop?.();
   }
 
   public static async connect(flightNo: string): Promise<AtsuStatusCodes> {
@@ -146,10 +200,11 @@ export class AcarsConnector {
     });
   }
 
+  /**
+   * Disconnects the flight number. The activation with the provider goes on: it does not depend on the flight number.
+   */
   public static disconnect(): AtsuStatusCodes {
     AcarsConnector.flightNumber = '';
-    AcarsConnector.activationRequested = false;
-    AcarsConnector.connected = false;
     return AtsuStatusCodes.Ok;
   }
 
@@ -237,6 +292,7 @@ export class AcarsConnector {
     }
 
     if (text === 'proxy') {
+      AcarsConnector.onConnectionLost();
       return AtsuStatusCodes.ProxyError;
     }
 
@@ -405,8 +461,9 @@ export class AcarsConnector {
         return [AtsuStatusCodes.CallsignInUse, retval];
       }
 
-      // proxy error during request
+      // proxy error during request: the provider does not answer any more
       if (text === 'proxy') {
+        AcarsConnector.onConnectionLost();
         return [AtsuStatusCodes.ProxyError, retval];
       }
 
