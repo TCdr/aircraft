@@ -120,6 +120,35 @@ import {
   thrustLeverStatus,
 } from './Logic/FadecReverserAlerts';
 import { fireDetectionFaultAlerts } from './Logic/FireDetectionFaults';
+import { ElecNetworkAcquisition } from './Acquisition/ElecNetworkAcquisition';
+import {
+  ElecBusAlertMonitor,
+  acBus1FaultLines,
+  acBus1FaultStatus,
+  acBus2FaultLines,
+  acBus2FaultStatus,
+  acEssBusFaultLines,
+  acEssBusFaultStatus,
+  acEssBusShedLines,
+  acEssBusShedStatus,
+  apuGenFaultStatus,
+  dcBatBusFaultStatus,
+  dcBus1And2FaultLines,
+  dcBus1And2FaultStatus,
+  dcBus1FaultLines,
+  dcBus1FaultStatus,
+  dcBus2FaultLines,
+  dcBus2FaultStatus,
+  dcEmerConfigLines,
+  dcEmerConfigStatus,
+  dcEssBusFaultLines,
+  dcEssBusFaultStatus,
+  dcEssBusShedLines,
+  dcEssBusShedStatus,
+  engineGeneratorLostStatus,
+  essBusesOnBatLines,
+  trFaultStatus,
+} from './Logic/ElecBusAlerts';
 import {
   centreTransferNotClosedLines,
   centreTransferNotOpenLines,
@@ -913,6 +942,14 @@ export class PseudoFWC {
   private readonly ratFaultWarning = Subject.create(false);
 
   private readonly elecEmergency = Subject.create(false);
+
+  /** ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC), see Logic/ElecBusAlerts */
+  private readonly elecNetwork = new ElecNetworkAcquisition();
+
+  private readonly elecBusAlerts = new ElecBusAlertMonitor();
+
+  /** LAND ASAP (amber) of DC EMER CONFIG and ESS BUSES ON BAT */
+  private readonly elecBusLandAsap = Subject.create(false);
 
   private readonly elecEmerConfigWarning = Subject.create(false);
 
@@ -4145,6 +4182,10 @@ export class PseudoFWC {
         (this.sdac00201Word.bitValue(20) && this.sdac00210Word.bitValue(20)),
     );
 
+    // ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC, see Logic/ElecBusAlerts)
+    this.elecBusAlerts.update(this.elecNetwork.readNetwork(), this.elecEmergency.get(), deltaTime / 1000);
+    this.elecBusLandAsap.set(this.elecBusAlerts.landAsap);
+
     /* OTHER STUFF */
 
     this.airKnob.set(SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum'));
@@ -6537,6 +6578,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).left,
     },
     2400002: {
       // GEN 2 FAULT
@@ -6553,6 +6596,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).left,
     },
     2400004: {
       // APU GEN FAULT
@@ -6569,6 +6614,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => apuGenFaultStatus(this.elecNetwork.onlyOneGenOperating).inopSys,
+      statusInfo: () => apuGenFaultStatus(this.elecNetwork.onlyOneGenOperating).left,
     },
     2400060: {
       // GEN 1 OFF
@@ -6580,6 +6627,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).left,
     },
     2400070: {
       // GEN 2 OFF
@@ -6591,6 +6640,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).left,
     },
     2400400: {
       // IDG 1 DISCONNECTED
@@ -6602,6 +6653,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).left,
     },
     2400405: {
       // IDG 2 DISCONNECTED
@@ -6611,6 +6664,217 @@ export class PseudoFWC {
       codesToReturn: ['240040501'],
       memoInhibit: () => false,
       failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).left,
+    },
+    /*
+     * ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC, see Logic/ElecBusAlerts). Design choices [GK], the FCOM figures
+     * are not in the text: all amber on the ELEC page; the alerts with a procedure are cautions (single chime, MASTER
+     * CAUT) inhibited in phases 4, 5, 7 and 8, the crew awareness ones in phases 3, 4, 5, 7 and 8 too (AC ESS BUS ALTN
+     * without chime or MASTER CAUT); DC EMER CONFIG and ESS BUSES ON BAT inhibited in phases 4 and 8, as ELEC EMER CONFIG.
+     */
+    2400110: {
+      // DC EMER CONFIG
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcEmerConfig,
+      whichCodeToReturn: () =>
+        dcEmerConfigLines(this.sdac00410Word.bitValue(27), this.elecNetwork.blowerAuto, this.elecNetwork.extractAuto),
+      codesToReturn: ['240011001', '240011002', '240011003', '240011004', '240011005', '240011006'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcEmerConfigStatus().inopSys,
+      statusInfo: () => dcEmerConfigStatus().left,
+    },
+    2400113: {
+      // ESS BUSES ON BAT
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.essBusesOnBat,
+      whichCodeToReturn: () => essBusesOnBatLines(this.sdac00101Word.bitValue(28), this.sdac00410Word.bitValue(27)),
+      codesToReturn: ['240011301', '240011302', '240011303'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+    },
+    2400101: {
+      // AC BUS 1 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acBus1Fault,
+      whichCodeToReturn: () => acBus1FaultLines(this.elecNetwork.blowerAuto),
+      codesToReturn: ['240010101', '240010102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => acBus1FaultStatus().inopSys,
+      statusInfo: () => acBus1FaultStatus().left,
+    },
+    2400102: {
+      // AC BUS 2 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acBus2Fault,
+      whichCodeToReturn: () => acBus2FaultLines(this.elecNetwork.extractAuto, this.selectedXpdr.get() === 2),
+      codesToReturn: ['240010201', '240010202', '240010203'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => acBus2FaultStatus().inopSys,
+      statusInfo: () => acBus2FaultStatus().left,
+    },
+    2400104: {
+      // AC ESS BUS FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acEssBusFault,
+      whichCodeToReturn: () =>
+        acEssBusFaultLines(this.elecBusAlerts.state.acEssFeedPbNormal, this.selectedXpdr.get() === 1),
+      codesToReturn: ['240010401', '240010402', '240010403'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => acEssBusFaultStatus().inopSys,
+      statusInfo: () => acEssBusFaultStatus().left,
+    },
+    2400105: {
+      // AC ESS BUS SHED
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acEssBusShed,
+      whichCodeToReturn: () => acEssBusShedLines(this.selectedXpdr.get() === 1),
+      codesToReturn: ['240010501', '240010502'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => acEssBusShedStatus().inopSys,
+      statusInfo: () => acEssBusShedStatus().left,
+    },
+    2400109: {
+      // DC BUS 1+2 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcBus1And2Fault,
+      whichCodeToReturn: () => dcBus1And2FaultLines(this.elecNetwork.blowerAuto, this.elecNetwork.extractAuto),
+      codesToReturn: ['240010901', '240010902', '240010903', '240010904', '240010905'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcBus1And2FaultStatus().inopSys,
+      statusInfo: () => dcBus1And2FaultStatus().left,
+    },
+    2400111: {
+      // DC ESS BUS FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcEssBusFault,
+      whichCodeToReturn: () =>
+        dcEssBusFaultLines(
+          this.elecNetwork.gpwsSysOff,
+          !this.elecBusAlerts.state.dcBus2Powered,
+          this.lgDownlocked.get(),
+        ),
+      codesToReturn: ['240011101', '240011102', '240011103', '240011104', '240011105', '240011106', '240011107'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcEssBusFaultStatus(!this.elecBusAlerts.state.dcBus2Powered).inopSys,
+      statusInfo: () => dcEssBusFaultStatus(!this.elecBusAlerts.state.dcBus2Powered).left,
+    },
+    2400107: {
+      // DC BUS 1 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcBus1Fault,
+      whichCodeToReturn: () => dcBus1FaultLines(this.elecNetwork.blowerAuto, this.elecNetwork.extractAuto),
+      codesToReturn: ['240010701', '240010702', '240010703'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcBus1FaultStatus().inopSys,
+      statusInfo: () => dcBus1FaultStatus().left,
+    },
+    2400108: {
+      // DC BUS 2 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcBus2Fault,
+      whichCodeToReturn: () =>
+        dcBus2FaultLines(
+          this.airKnob.get() === AirDataSwitchingKnob.Fo,
+          !this.elecBusAlerts.state.dcEssBusPowered,
+          this.lgDownlocked.get(),
+        ),
+      codesToReturn: ['240010801', '240010802', '240010803', '240010804'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcBus2FaultStatus(!this.elecBusAlerts.state.dcEssBusPowered).inopSys,
+      statusInfo: () => dcBus2FaultStatus(!this.elecBusAlerts.state.dcEssBusPowered).left,
+    },
+    2400112: {
+      // DC ESS BUS SHED
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcEssBusShed,
+      whichCodeToReturn: () => dcEssBusShedLines(this.elecNetwork.extractAuto),
+      codesToReturn: ['240011201', '240011202', '240011203'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcEssBusShedStatus().inopSys,
+      statusInfo: () => dcEssBusShedStatus().left,
+    },
+    2400106: {
+      // DC BAT BUS FAULT (crew awareness)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcBatBusFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240010601'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcBatBusFaultStatus().inopSys,
+      statusInfo: () => dcBatBusFaultStatus().left,
+    },
+    2400114: {
+      // TR 1 FAULT (crew awareness)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.tr1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240011401'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => trFaultStatus(1).inopSys,
+      statusInfo: () => trFaultStatus(1).left,
+    },
+    2400115: {
+      // TR 2 FAULT (crew awareness)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.tr2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240011501'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => trFaultStatus(2).inopSys,
+      statusInfo: () => trFaultStatus(2).left,
+    },
+    2400103: {
+      // AC ESS BUS ALTN (crew awareness)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acEssBusAltn,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240010301'],
+      memoInhibit: () => false,
+      failure: 1,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
     },
@@ -9677,7 +9941,8 @@ export class PseudoFWC {
       // LAND ASAP AMBER
       flightPhaseInhib: [],
       // also with ENG 1(2) FAIL and ENG 1(2) SHUT DOWN: "LAND ASAP" (FCOM PRO-ABN-ENG, l.79797 and l.81087), and with
-      // ENG 1(2) THR LEVER FAULT (l.81826) and ENG 1(2) REVERSE UNLOCKED in flight (l.80895)
+      // ENG 1(2) THR LEVER FAULT (l.81826) and ENG 1(2) REVERSE UNLOCKED in flight (l.80895), and with ELEC DC EMER CONFIG
+      // (FCOM PRO-ABN-ELEC l.77163) and ESS BUSES ON BAT (l.77947)
       simVarIsActive: MappedSubject.create(
         ([
           landAsapRed,
@@ -9692,6 +9957,7 @@ export class PseudoFWC {
           thrLever2Fault,
           reverse1Unlocked,
           reverse2Unlocked,
+          elecBusLandAsap,
         ]) =>
           !landAsapRed &&
           !aircraftOnGround &&
@@ -9704,7 +9970,8 @@ export class PseudoFWC {
             thrLever1Fault ||
             thrLever2Fault ||
             reverse1Unlocked ||
-            reverse2Unlocked),
+            reverse2Unlocked ||
+            elecBusLandAsap),
         this.landAsapRed,
         this.aircraftOnGround,
         this.engine1State,
@@ -9717,6 +9984,7 @@ export class PseudoFWC {
         this.thrLeverFaultShown[1],
         this.reverseUnlockedShown[0],
         this.reverseUnlockedShown[1],
+        this.elecBusLandAsap,
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000036001'],

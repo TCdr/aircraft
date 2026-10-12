@@ -361,6 +361,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A32NX/FWC] New ELEC alerts from the FCOM with their procedure and STATUS lines: AC BUS 1(2) FAULT, AC ESS BUS FAULT, AC ESS BUS SHED, AC ESS BUS ALTN, DC BUS 1(2) FAULT, DC BUS 1+2 FAULT, DC ESS BUS FAULT, DC ESS BUS SHED, DC BAT BUS FAULT, DC EMER CONFIG, ESS BUSES ON BAT, TR 1(2) FAULT, GEN 1(2) OFF, BAT 1(2) OFF and EMER GEN 1 LINE OFF - @TCdr
 
 ## 2024.1.0
 
