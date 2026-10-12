@@ -12,3 +12,5 @@ clang++ -std=c++17 -Wall -Wextra -Werror wxr_controls_test.cpp -o ../obj/wxr_con
 ../obj/wxr_controls_test
 clang++ -std=c++17 -Wall -Wextra -Werror view_park_test.cpp -o ../obj/view_park_test
 ../obj/view_park_test
+clang++ -std=c++17 -Wall -Wextra -Werror gauge_slots_test.cpp -o ../obj/gauge_slots_test
+../obj/gauge_slots_test
