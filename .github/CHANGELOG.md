@@ -361,6 +361,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A32NX/MODEL] An engine fire shows flames at the exhaust of the engine on fire and an APU fire shows smoke at the APU exhaust, until the fire is out (nothing during a FIRE TEST); an engine failed from the MSFS failures menu shows smoke; an engine oil leak (flyPad failure) shows smoke while the oil flows out - @TCdr
+1. [A32NX/FIRE] An AGENT discharge (or the automatic APU discharge) can also put out a fire set from the MSFS failures menu, which then ends the ENG/APU FIRE warning - @TCdr
+1. [A380X/MODEL] An engine fire shows flames at the exhaust of the engine on fire (engines 1 to 4) and an APU fire shows smoke at the APU exhaust, until the fire is out (nothing during a FIRE TEST); an engine failed from the MSFS failures menu shows smoke; an engine oil leak (flyPad failure) shows smoke while the oil flows out; the stock MSFS engine fire, engine damage and oil leak effects are turned off so they do not show twice; the engine 2 effects (heat haze, contrails, fire) no longer vanish at the medium model detail (LOD01) - @TCdr
+1. [EFB] Settings > Sim Options: new "Situation Visual Effects (Engine and APU Fire, Engine Damage, Oil Leak)" switch, on by default, to turn the fire, smoke, engine damage and oil leak effects off - @TCdr
 
 ## 2024.1.0
 

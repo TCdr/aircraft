@@ -449,5 +449,23 @@
 				<FX_NODE>fx_tire_contactPoint_right_out</FX_NODE>
 			</UseTemplate>
 		</Component>
+		<!--
+			APU fire visual (visual layer only, nothing here feeds back into the systems): smoke at the APU exhaust while
+			the APU is on fire, L:A32NX_APU_ON_FIRE alone (flyPad fire failure, cleared by the failure removal or when the
+			AGENT discharge puts the fire out, 1/2 chance, see fire_and_smoke_protection.rs), ANDed with the flyPad Situation Visual Effects switch
+			L:A32NX_CONFIG_SITUATION_FX. A FIRE TEST shows nothing (warnings only, FCOM DSC-26-20-20).
+			Look (design choice): the stock MSFS 2024 visual effect graph FX_Smoke_Fire (EngineSmoke spread as a general haze around the aircraft in the sim on 2026-10-09) of the package fs-base-effects
+			(VisualEffectLibs/Asobo/Base), its GUID being the one stored in the .spb file. No offset. See ENGINE_FIRE_FX in
+			Part_Exterior_Wings/model/A380_WINGS.xml for the engines and the reasons; EngineFireEffects.spec.ts checks it.
+		-->
+		<Component ID="APU_FIRE_FX">
+			<Component ID="APU_FIRE_FX_SMOKE" Node="FX_EXHAUST_APU">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{15B35478-6321-4480-8642-EB44248318E2}</FX_GUID>
+					<FX_NAME>FX_APU_FIRE_SMOKE</FX_NAME>
+					<FX_CODE>(L:A32NX_APU_ON_FIRE, bool) (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+				</UseTemplate>
+			</Component>
+		</Component>
 	</Behaviors>
 </ModelInfo>

@@ -14,7 +14,10 @@
 //! FDU that processes the loop signals), whatever its loops detect. The aircraft that model it map the failure.
 //!
 //! The aircraft give the zones, the electrical supply of each loop and the extinguishing bottles; this module also
-//! holds the [`SetOnFireModule`], which sets a zone on fire from a flyPad failure.
+//! holds the [`SetOnFireModule`], which sets a zone on fire from a flyPad failure (and, on the aircraft that give it,
+//! from the simulator's own fire) and puts it out again. The loops sense that fire alone, so the fire warning goes out
+//! when the fire is out (A320 FCOM DSC-26-20-20 APU FIRE LIGHT: "The light goes out when the fire has been
+//! extinguished"; A380 FCOM DSC-26-20-20 ENG MASTER FIRE light: "The light remains on, until the fire is extinguished").
 
 use std::time::Duration;
 
@@ -45,13 +48,10 @@ pub enum FireLoopPowerLoss {
 }
 
 /// One protected zone of a [`FireDetectionUnit`].
-pub struct FireDetectionZoneConfig<'a> {
+pub struct FireDetectionZoneConfig {
     pub zone: FireDetectionZone,
     pub loop_a_powered_by: ElectricalBusType,
     pub loop_b_powered_by: ElectricalBusType,
-    /// A second variable that, when true, also heats the sensing elements of the zone (for example the simulator's own
-    /// fire of that zone, next to the flyPad failure variable).
-    pub additional_fire_source: Option<&'a str>,
 }
 
 /// The fire detection unit of the zones, with their two detection loops.
@@ -286,9 +286,9 @@ impl<const N: usize> FireDetectionLoop<N> {
                 .each_ref()
                 .map(|config| Failure::new(FailureType::FireDetectionLoop(loop_id, config.zone))),
 
-            fire_detectors: zones.each_ref().map(|config| {
-                FireDetector::new(context, config.zone, config.additional_fire_source)
-            }),
+            fire_detectors: zones
+                .each_ref()
+                .map(|config| FireDetector::new(context, config.zone)),
         }
     }
 
@@ -348,39 +348,34 @@ impl<const N: usize> SimulationElement for FireDetectionLoop<N> {
     }
 }
 
+/// The "zone burning" variable of a zone, written by the [`SetOnFireModule`] and sensed by the [`FireDetector`]s:
+/// ENG_<n>_ON_FIRE for an engine, <zone>_ON_FIRE otherwise (APU_ON_FIRE, MLG_ON_FIRE).
+fn zone_burning_variable_name(zone: FireDetectionZone) -> String {
+    match zone {
+        FireDetectionZone::Engine(number) => format!("ENG_{}_ON_FIRE", number),
+        _ => format!("{}_ON_FIRE", zone),
+    }
+}
+
 /// Fire sensing elements. There are multiple sensing elements in each engine (pylon nacelle, engine core, fan section)
 /// and one in the APU compartment. For simplicity here we simulate just one detection zone per engine, when we have
 /// deep engine simulation we can modify this accordingly.
+///
+/// The sensing elements feel the fire that burns in the zone: the "zone burning" variable of the [`SetOnFireModule`]
+/// (L:A32NX_ENG_<n>_ON_FIRE, L:A32NX_<zone>_ON_FIRE), and nothing else. That variable already includes the simulator's
+/// own fire on the aircraft that give it, and goes off when an agent puts the fire out. Reading a simulator fire
+/// variable here as well (ENG ON FIRE:n, which MSFS keeps on after its failure-menu fire, or the A380X copy of the
+/// L:var in it) would keep the fire warning after the fire is out.
 struct FireDetector {
-    fire_detection_id: VariableIdentifier,
-    additional_fire_detection_id: Option<VariableIdentifier>,
+    zone_burning_id: VariableIdentifier,
     fire_detected: bool,
 }
 
 impl FireDetector {
-    const ENGINE_ON_FIRE: &'static str = "ENG ON FIRE:";
-
-    fn new(
-        context: &mut InitContext,
-        fire_zone_id: FireDetectionZone,
-        additional_fire_source: Option<&str>,
-    ) -> Self {
+    fn new(context: &mut InitContext, zone: FireDetectionZone) -> Self {
         Self {
-            fire_detection_id: Self::init_identifier(context, fire_zone_id),
-            additional_fire_detection_id: additional_fire_source
-                .map(|name| context.get_identifier(name.to_owned())),
+            zone_burning_id: context.get_identifier(zone_burning_variable_name(zone)),
             fire_detected: false,
-        }
-    }
-
-    fn init_identifier(
-        context: &mut InitContext,
-        zone_id: FireDetectionZone,
-    ) -> VariableIdentifier {
-        if matches!(zone_id, FireDetectionZone::Engine(_)) {
-            context.get_identifier(format!("{}{}", Self::ENGINE_ON_FIRE, zone_id))
-        } else {
-            context.get_identifier(format!("{}_ON_FIRE", zone_id))
         }
     }
 
@@ -391,28 +386,42 @@ impl FireDetector {
 
 impl SimulationElement for FireDetector {
     fn read(&mut self, reader: &mut SimulatorReader) {
-        let additional_fire = match &self.additional_fire_detection_id {
-            Some(id) => reader.read(id),
-            None => false,
-        };
-        self.fire_detected = reader.read(&self.fire_detection_id) || additional_fire;
+        self.fire_detected = reader.read(&self.zone_burning_id);
     }
 }
 
-/// Small module that sets each zone on fire when the failure is triggered. This is independent to the system
-/// implementation. A discharged fire extinguisher bottle of the zone has the chance to put the fire out.
+/// Sets each zone on fire and puts it out again: the fire that burns in the zone, as opposed to its detection (the
+/// [`FireDetectionUnit`] sees the fire through the detection loops). The zone is on fire (L:A32NX_ENG_<n>_ON_FIRE,
+/// L:A32NX_<zone>_ON_FIRE) from the moment one of its ignition sources comes on:
+/// - the flyPad fire failure of the zone, or
+/// - the simulator's own fire of the zone (MSFS failures menu), for the aircraft that give it with
+///   [`SetOnFireModule::with_simulator_fire_sources`].
+///
+/// The fire is out again when all its ignition sources are off, or when a new discharge of a fire extinguisher bottle
+/// of the zone puts it out, with a chance of 1/2 per bottle (the procedures discharge AGENT 2 when the fire is still
+/// there 30 s after AGENT 1: A320 FCOM PRO-ABN-ENG ENG 1(2) FIRE, A380 FCOM PRO-ABN-ECAM-10-26 ENG FIRE). A fire put out
+/// by an agent stays out while its sources stay on: only a new rising edge of a source sets the zone on fire again, so
+/// a simulator variable stuck on cannot relight it.
+///
+/// This is the one "the zone is burning" signal: the fire detection loops (their fire detectors) and the fire visual
+/// effects of the exterior models read it alone. The variable is only written when it changes, so a test or a tool
+/// that writes it directly still sets a zone on fire.
 pub struct SetOnFireModule<const N: usize, const B: usize> {
     fire_id: [VariableIdentifier; N],
 
     fire: [Failure; N],
+    /// The simulator's own fire variable of each zone, for the zones that take it as a second ignition source
+    simulator_fire_id: [Option<VariableIdentifier>; N],
+    simulator_fire: [bool; N],
     /// The index of the zone of each fire extinguisher bottle
     zone_of_bottle: [usize; B],
     should_set_zone_on_fire: [bool; N],
     should_extinguish_zone: [bool; N],
     // We use this to avoid having a previously discharged bottle extinguish a fire
     bottle_already_discharged: [bool; B],
-    // We use this to know when to cancel the fire command when the failure is resolved
-    was_on_fire: [bool; N],
+    /// Whether an ignition source of each zone was on in the previous update: the zone is set on fire on the rising
+    /// edge and put out on the falling edge
+    ignition_was_on: [bool; N],
 }
 
 impl<const N: usize, const B: usize> SetOnFireModule<N, B> {
@@ -423,38 +432,55 @@ impl<const N: usize, const B: usize> SetOnFireModule<N, B> {
         zone_of_bottle: [usize; B],
     ) -> Self {
         Self {
-            fire_id: zones.map(|zone| match zone {
-                FireDetectionZone::Engine(number) => {
-                    context.get_identifier(format!("ENG_{}_ON_FIRE", number))
-                }
-                _ => context.get_identifier(format!("{}_ON_FIRE", zone)),
-            }),
+            fire_id: zones.map(|zone| context.get_identifier(zone_burning_variable_name(zone))),
 
             fire: zones.map(|zone| Failure::new(FailureType::SetOnFire(zone))),
+            simulator_fire_id: [None; N],
+            simulator_fire: [false; N],
             zone_of_bottle,
             should_set_zone_on_fire: [false; N],
             should_extinguish_zone: [false; N],
             bottle_already_discharged: [false; B],
-            was_on_fire: [false; N],
+            ignition_was_on: [false; N],
         }
+    }
+
+    /// Adds the simulator's own fire of each zone as a second ignition source, by variable name (`None`: none for that
+    /// zone). Only for a variable that the aircraft does not write itself: a copy of this module's fire in a simulator
+    /// variable, read back here, would keep the zone burning after the failure is removed.
+    pub fn with_simulator_fire_sources(
+        mut self,
+        context: &mut InitContext,
+        names: [Option<&str>; N],
+    ) -> Self {
+        self.simulator_fire_id =
+            names.map(|name| name.map(|name| context.get_identifier(name.to_owned())));
+        self
     }
 
     /// `bottle_discharge`: whether each fire extinguisher bottle is discharged
     pub fn update(&mut self, bottle_discharge: [bool; B]) {
-        for id in 0..N {
-            self.should_set_zone_on_fire[id] = self.fire[id].is_active()
-                && !self.should_set_zone_on_fire[id]
-                && !self.was_on_fire[id]
+        let ignition_is_on: [bool; N] =
+            std::array::from_fn(|id| self.fire[id].is_active() || self.simulator_fire[id]);
+
+        for (id, should_set_zone_on_fire) in self.should_set_zone_on_fire.iter_mut().enumerate() {
+            *should_set_zone_on_fire = ignition_is_on[id] && !self.ignition_was_on[id];
         }
 
-        self.should_extinguish_zone = self.zone_extinguishing_determination(bottle_discharge);
+        self.should_extinguish_zone =
+            self.zone_extinguishing_determination(bottle_discharge, ignition_is_on);
         self.bottle_already_discharged = bottle_discharge;
-        self.was_on_fire = self.fire.each_ref().map(|f| f.is_active());
+        self.ignition_was_on = ignition_is_on;
     }
 
     /// We check any "new" bottle discharges and then add a random factor on whether it should extinguish a fire
-    /// We also use this function to "extinguish" a fire if the user deselects the failure
-    fn zone_extinguishing_determination(&self, bottle_discharge: [bool; B]) -> [bool; N] {
+    /// We also use this function to "extinguish" a fire when all its ignition sources go off (failure deselected by the
+    /// user, simulator fire cleared)
+    fn zone_extinguishing_determination(
+        &self,
+        bottle_discharge: [bool; B],
+        ignition_is_on: [bool; N],
+    ) -> [bool; N] {
         let mut should_extinguish_zone = [false; N];
         for (zone, should_extinguish) in should_extinguish_zone.iter_mut().enumerate() {
             let new_discharge_in_zone = self
@@ -466,7 +492,7 @@ impl<const N: usize, const B: usize> SetOnFireModule<N, B> {
                 });
 
             *should_extinguish = (new_discharge_in_zone && rand::random())
-                || (self.was_on_fire[zone] && !self.fire[zone].is_active());
+                || (self.ignition_was_on[zone] && !ignition_is_on[zone]);
         }
         should_extinguish_zone
     }
@@ -477,6 +503,15 @@ impl<const N: usize, const B: usize> SimulationElement for SetOnFireModule<N, B>
         accept_iterable!(self.fire, visitor);
 
         visitor.visit(self);
+    }
+
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        for (simulator_fire, id) in self.simulator_fire.iter_mut().zip(&self.simulator_fire_id) {
+            *simulator_fire = match id {
+                Some(id) => reader.read(id),
+                None => false,
+            };
+        }
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
