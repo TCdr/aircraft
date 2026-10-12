@@ -2251,6 +2251,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 ## Navigation ATA 34
 
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM / GPS POS DISAGREE alert: an FMS position more than the
+      FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM PRO-ABN-ECAM-10-34-10). Written by the
+      FMS (fmgc navigation/FmPosition.ts), read by the FWS
+
 - A32NX_PRIM_ADR_{number}_REJECTED
     - Bool
     - number: 1, 2 or 3
