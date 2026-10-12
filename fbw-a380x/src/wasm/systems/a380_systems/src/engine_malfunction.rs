@@ -58,6 +58,8 @@ pub const A380_ENGINE_MALFUNCTION_PARAMETERS: EngineMalfunctionParameters =
         // No overspeed failure on the A380 (see the module comment).
         overspeed_n1_fraction: 0.,
         overspeed_core_fraction: 0.,
+        overspeed_n1_ceiling_percent: None,
+        overspeed_core_ceiling_percent: None,
         high_vibration_n1_units_at_full_speed: 7.,
         high_vibration_core_units_at_full_speed: 6.,
         // MSFS gives one vibration per engine; the HP rotor is shown at 60 % of it.
