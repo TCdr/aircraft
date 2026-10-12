@@ -523,7 +523,20 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800051: {
     title: '\x1b<4m\x1b4mFUEL\x1bm INR TKs QTY LO',
     sensed: true,
-    items: [],
+    items: [
+      // A380 FCOM l.151138-151139 (the AUTO GND XFR pb-sw is INOP in the simulation: a crew check box)
+      {
+        name: 'REFUEL NOT PLANNED',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'AUTO GND XFR',
+        sensed: false,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+    ],
   },
   281800052: {
     title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON',
@@ -650,12 +663,278 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800070: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L WING FEED PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      // Before takeoff (A380 FCOM l.151757-151769)
+      {
+        name: 'FEED TK 1 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 1 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 2 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 2 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 1 : 1300 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      {
+        name: 'FEED TK 2 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      // After takeoff (l.151775-151873)
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'NO FUEL LEAK',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 1 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 1 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 2 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 2 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 1 : 1300 KG MAX NOT USABLE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'FEED TK 2 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'WHEN INR & MID TKs EMPTY :',
+        sensed: false,
+        level: 1,
+      },
+      // If flight time above FL 300 since departure is greater than 30 min
+      {
+        name: 'DESCENT TO FL 280',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+        level: 2,
+      },
+      {
+        name: 'MAX FL : 280',
+        sensed: false,
+        level: 2,
+      },
+      // If flight time above FL 300 since departure is less than 30 min
+      {
+        name: 'DESCENT TO FL 50/MEA',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+        level: 2,
+      },
+      {
+        name: 'MAX FL : 50/MEA',
+        sensed: false,
+        level: 2,
+      },
+      {
+        name: 'ENG START SEL',
+        sensed: true,
+        labelNotCompleted: 'IGN START',
+        level: 2,
+      },
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 2,
+      },
+      {
+        name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+        level: 2,
+      },
+      {
+        name: 'AVOID NEG G LOAD',
+        sensed: false,
+        level: 2,
+      },
+    ],
   },
   281800071: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R WING FEED PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      // Before takeoff (A380 FCOM l.151757-151769)
+      {
+        name: 'FEED TK 3 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 3 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 4 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 4 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 4 : 1300 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      {
+        name: 'FEED TK 3 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      // After takeoff (l.151775-151873)
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'NO FUEL LEAK',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 3 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 3 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 4 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 4 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 4 : 1300 KG MAX NOT USABLE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'FEED TK 3 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'WHEN INR & MID TKs EMPTY :',
+        sensed: false,
+        level: 1,
+      },
+      // If flight time above FL 300 since departure is greater than 30 min
+      {
+        name: 'DESCENT TO FL 280',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+        level: 2,
+      },
+      {
+        name: 'MAX FL : 280',
+        sensed: false,
+        level: 2,
+      },
+      // If flight time above FL 300 since departure is less than 30 min
+      {
+        name: 'DESCENT TO FL 50/MEA',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+        level: 2,
+      },
+      {
+        name: 'MAX FL : 50/MEA',
+        sensed: false,
+        level: 2,
+      },
+      {
+        name: 'ENG START SEL',
+        sensed: true,
+        labelNotCompleted: 'IGN START',
+        level: 2,
+      },
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 2,
+      },
+      {
+        name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+        level: 2,
+      },
+      {
+        name: 'AVOID NEG G LOAD',
+        sensed: false,
+        level: 2,
+      },
+    ],
   },
   281800072: {
     title: '\x1b<4m\x1b4mFUEL\x1bm LEAK DET FAULT',
@@ -803,7 +1082,80 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800098: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS BALANCED',
     sensed: true,
-    items: [],
+    items: [
+      // Feed tanks 1 and 4 (A380 FCOM l.154610-154616)
+      {
+        name: 'FEED TK 1 & 4 BALANCED',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'FEED TK 1 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 1 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 4 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 4 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'CROSSFEED 1',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'CROSSFEED 4',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      // Feed tanks 2 and 3 (A380 FCOM l.154610-154616)
+      {
+        name: 'FEED TK 2 & 3 BALANCED',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'FEED TK 2 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 2 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 3 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 3 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'CROSSFEED 2',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'CROSSFEED 3',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+    ],
   },
   281800099: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS MAN BALANCING PROCEDURE',
@@ -813,7 +1165,132 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800100: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS NOT BALANCED',
     sensed: true,
-    items: [],
+    items: [
+      // On ground (A380 FCOM l.154852-154867)
+      {
+        name: 'T.O PLANNED',
+        sensed: false,
+        condition: true,
+      },
+      // Before the first engine start
+      {
+        name: 'AUTO GND XFR',
+        sensed: false,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      // After the first engine start
+      {
+        name: 'WINGS IMBALANCE',
+        sensed: false,
+        labelNotCompleted: 'COMPENSATE',
+        level: 1,
+      },
+      {
+        name: 'DELAY T.O',
+        sensed: false,
+        style: ChecklistLineStyle.Cyan,
+        level: 1,
+      },
+      // In flight, imbalance between feed tanks 1 and 4 (l.154869-154887)
+      {
+        name: 'FEED TK 1 & 4 NOT BALANCED',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'NO FUEL LEAK',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'CROSSFEED 1',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      {
+        name: 'CROSSFEED 4',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      // If feed tank 1 is the lighter side
+      {
+        name: 'FEED TK 1 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 1 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      // If feed tank 4 is the lighter side
+      {
+        name: 'FEED TK 4 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 4 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      // In flight, imbalance between feed tanks 2 and 3 (l.154869-154887)
+      {
+        name: 'FEED TK 2 & 3 NOT BALANCED',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'NO FUEL LEAK',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'CROSSFEED 2',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      {
+        name: 'CROSSFEED 3',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      // If feed tank 2 is the lighter side
+      {
+        name: 'FEED TK 2 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 2 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      // If feed tank 3 is the lighter side
+      {
+        name: 'FEED TK 3 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 3 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+    ],
   },
   281800101: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ZFW OR ZFWCG FMS DISAGREE',
