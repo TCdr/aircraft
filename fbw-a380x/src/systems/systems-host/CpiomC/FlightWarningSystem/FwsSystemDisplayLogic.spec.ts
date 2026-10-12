@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus, MappedSubject, Subject } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
 import {
@@ -80,7 +80,7 @@ function setUp() {
   const pressMore = () => bus.getPublisher<{ hEvent: string }>().pub('hEvent', 'A32NX_SD_REQUEST_MORE');
   const moreShown = () => simvars.get('L:A32NX_ECAM_SD_MORE_SHOWN') ?? 0;
 
-  return { logic, redundancyLoss, cancelledCaution, showPage, pressMore, moreShown };
+  return { logic, fws, redundancyLoss, cancelledCaution, showPage, pressMore, moreShown };
 }
 
 describe('FwsSystemDisplayLogic ECP MORE pb on the STATUS page', () => {

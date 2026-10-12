@@ -6134,9 +6134,11 @@ export class FwsCore {
         surfacesNotInToConfig: surfacesNotTo,
         doorsInTakeoffConfig: doors,
         brakesHot,
-        elecDriveDisconnected: this.elecDriveDisconnected.map((alert) => alert.get()),
-        elecGenFault: this.elecGenFault.map((alert) => alert.get()),
-        elecGenOff: this.elecGenOff.map((alert) => alert.get()),
+        // The ELEC GEN and DRIVE alerts are on core/a380x-elec: none of them is active on this branch (merging
+        // core/a380x-elec: read elecDriveDisconnected, elecGenFault and elecGenOff as develop does)
+        elecDriveDisconnected: [false, false, false, false],
+        elecGenFault: [false, false, false, false],
+        elecGenOff: [false, false, false, false],
         engineOilTempLo: this.engineOilTempLo.map((alert) => alert.get()),
         pitchTrimFmsCgDisagree: this.pitchTrimMcduCgDisagree.get(),
         toFlapsFmsDisagree: this.flapsMcduDisagree.get(),

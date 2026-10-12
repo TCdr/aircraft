@@ -6966,8 +6966,10 @@ export class FwsAbnormalSensed {
   /** The aircraft state that the ENG TWO ENGS OUT deferred procedures sense */
   private twoEnginesOutDeferredInputs(): TwoEnginesOutDeferredInputs {
     return {
-      jettisonArmPbOn: this.fws.fuelJettisonArmPbOn.get(),
-      jettisonActivePbOn: this.fws.fuelJettisonActivePbOn.get(),
+      // The fuel jettison FWS (FwsCore fuelJettisonArmPbOn / fuelJettisonActivePbOn) is on core/fuel: the pbs are read
+      // here directly (merging core/fuel: read the FwsCore subjects as develop does)
+      jettisonArmPbOn: SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ARM_PB_IS_ON', SimVarValueType.Bool) > 0,
+      jettisonActivePbOn: SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_JETTISON_ACTIVE_PB_IS_ON', SimVarValueType.Bool) > 0,
       engines1And2Out: this.fws.twoEnginesOutLeftSide.get(),
       flapsHandleIndex: this.fws.flapsHandle.get(),
       gearLeverDown: this.fws.gearLeverPos.get(),
