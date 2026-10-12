@@ -3,9 +3,10 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@microsoft/msfs-sdk';
+import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { LegacyGpws } from './LegacyGpws';
-import { LegacySoundManager } from './LegacySoundManager';
+import { LegacySoundManager, soundList } from './LegacySoundManager';
 import { A380XRadioAutoCallOutFlags } from '../../shared/src/AutoCallOuts';
 
 /*
@@ -222,5 +223,139 @@ describe('Smart FIVE HUNDRED callout', () => {
 
   it('no FIVE HUNDRED pin: never called out', () => {
     expect(descendThrough500(A380XRadioAutoCallOutFlags.FourHundred, false, 1)).toEqual([]);
+  });
+});
+
+/*
+ * A380 FCOM DSC-34-10-50 INTERMEDIATE CALLOUT (a380_fcom.txt l.86537-86547): below 400 ft, the current height 11 s
+ * after the previous predetermined callout (4 s below 100 ft), rounded to the lower 10 ft.
+ */
+describe('Intermediate callout', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Flies the GPWS updates (125 ms) through the heights, returns the queued sounds with their time */
+  const fly = (heights: (t: number) => number, seconds: number, initialState = 'over400') => {
+    let radioAlt = 0;
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) =>
+      name === 'L:A32NX_RA_1_RADIO_ALTITUDE'
+        ? Arinc429Word.getRawWord(radioAlt, Arinc429SignStatusMatrix.NormalOperation)
+        : 0,
+    );
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
+    const bus = new EventBus();
+    const sounds: { sound: string; at: number }[] = [];
+    let time = 0;
+    bus
+      .getSubscriber<{ enqueueSound: string }>()
+      .on('enqueueSound')
+      .handle((sound) => sounds.push({ sound, at: time }));
+    const gpws = new LegacyGpws(bus, {} as LegacySoundManager);
+    gpws.AltCallState.setState(initialState);
+    for (let step = 1; step <= seconds * 8; step++) {
+      time = step * 0.125;
+      radioAlt = heights(time);
+      gpws.gpws(125);
+    }
+    return sounds;
+  };
+
+  it('holding 395 ft after FOUR HUNDRED: THREE HUNDRED NINETY 11 s later, then every 11 s', () => {
+    expect(fly(() => 395, 24)).toEqual([
+      { sound: 'alt_400', at: 0.125 },
+      { sound: 'intermediate_300', at: 11.125 },
+      { sound: 'intermediate_90', at: 11.125 },
+      { sound: 'intermediate_300', at: 22.125 },
+      { sound: 'intermediate_90', at: 22.125 },
+    ]);
+  });
+
+  it('fills the gaps of the default pins in a 700 ft/min descent from 420 ft', () => {
+    const sounds = fly((t) => 420 - (700 / 60) * t, 33);
+    // default pins: FOUR HUNDRED, then nothing down to FIFTY
+    expect(sounds.filter((s) => s.sound.startsWith('alt_'))).toEqual([
+      { sound: 'alt_400', at: 0.875 }, // 409.8 ft
+      { sound: 'alt_50', at: 31.5 }, // 52.5 ft
+      { sound: 'alt_40', at: 32.5 }, // 40.8 ft
+    ]);
+    // 11 s after the descent below 400 ft (1.75 s), then 11 s later, then 4 s later below 100 ft; FIFTY restarts the time
+    expect(sounds.filter((s) => s.sound.startsWith('intermediate_'))).toEqual([
+      { sound: 'intermediate_200', at: 12.625 }, // 272.7 ft
+      { sound: 'intermediate_70', at: 12.625 },
+      { sound: 'intermediate_100', at: 23.625 }, // 144.4 ft
+      { sound: 'intermediate_40', at: 23.625 },
+      { sound: 'intermediate_90', at: 27.625 }, // 97.7 ft
+    ]);
+  });
+
+  it('none while climbing', () => {
+    expect(fly((t) => 150 + 10 * t, 20, 'over100')).toEqual([]);
+  });
+});
+
+/*
+ * The TERRAIN (mode 2, a380_fcom.txt l.88225, 88292-88294) and GLIDE SLOPE (mode 5, l.88434-88440) aurals, and the
+ * windshear priority over the GPWS ("Stall or windshear alerts override GPWS visual and aural alerts", l.88167).
+ */
+describe('GPWS mode 2 and mode 5 aurals', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  /** The periodic sounds the GPWS starts for that mode state */
+  const soundsFor = (modeIndex: number, state: number) => {
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
+    const started: string[] = [];
+    const soundManager = {
+      addPeriodicSound: (sound: { name: string } | undefined) => sound && started.push(sound.name),
+      removePeriodicSound: () => {},
+    } as unknown as LegacySoundManager;
+    const gpws = new LegacyGpws(new EventBus(), soundManager);
+    gpws.modes[modeIndex].current = state;
+    gpws.GPWSComputeLightsAndCallouts();
+    return started;
+  };
+
+  it('mode 2: TERRAIN, then PULL UP', () => {
+    expect(soundsFor(1, 1)).toEqual([soundList.terrain.name]);
+    expect(soundsFor(1, 2)).toEqual([soundList.pull_up.name]);
+  });
+
+  it('mode 5: GLIDE SLOPE, louder when hard', () => {
+    expect(soundsFor(4, 1)).toEqual([soundList.glideslope_quiet.name]);
+    expect(soundsFor(4, 2)).toEqual([soundList.glideslope_loud.name]);
+  });
+
+  it('a reactive windshear warning removes the GPWS alerts', () => {
+    const run = (windshear: boolean) => {
+      vi.stubGlobal('Simplane', { getVerticalSpeed: () => -800 });
+      vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
+      vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => {
+        switch (name) {
+          case 'L:A32NX_RA_1_RADIO_ALTITUDE':
+            return Arinc429Word.getRawWord(500, Arinc429SignStatusMatrix.NormalOperation);
+          case 'L:A32NX_WXR_TAWS_SYS_SELECTED':
+            return 1;
+          case 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID':
+            return 1;
+          case 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION':
+            return -1; // 2.5 dots below the glide slope
+          case 'L:A32NX_REACTIVE_WINDSHEAR_WARNING':
+            return windshear ? 1 : 0;
+          default:
+            return 0;
+        }
+      });
+      const gpws = new LegacyGpws(new EventBus(), {
+        addPeriodicSound: () => {},
+        removePeriodicSound: () => {},
+      } as unknown as LegacySoundManager);
+      gpws.gpws(125);
+      return gpws.modes[4].current;
+    };
+    expect(run(false)).toBeGreaterThan(0);
+    expect(run(true)).toBe(0);
   });
 });

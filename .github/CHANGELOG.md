@@ -445,6 +445,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] FUEL page: the tank quantities of an unbalanced pair are underlined amber, with the trigger of FUEL WINGS NOT BALANCED - @TCdr
 1. [A380X/SD] WHEEL page: L/G CTL and L/G GRVTY EXTN IN PROGRESS now show - @TCdr
 1. [A380X/FWS] ENG 2(3) SHUT DOWN: the landing distance line reads LDG DIST IMPACT ON WET/CONTAM RWY ONLY as in the FCOM - @TCdr
+1. [A32NX/FWC] New DUAL INPUT voice every 5 s while both sidesticks are moved, and PRIORITY LEFT / PRIORITY RIGHT voices when a pilot takes the sidestick priority (held 1 s, so an autopilot disconnection does not call it), from the FCDC as in the FCOM - @TCdr
+1. [A32NX/FWC] Intermediate radio height callout: below 410 ft, when no height callout came for 11 s (4 s below 50 ft), the FWC says the present height (FOUR HUNDRED down to FIVE, rounded down), then every 4 s - @TCdr
+1. [A380X/FWS] New PRIORITY LEFT / PRIORITY RIGHT voices when a pilot holds the sidestick pb (1 s, so an autopilot disconnection does not call it) - @TCdr
+1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, 4 s below 100 ft, as in the FCOM - @TCdr
+1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
+1. [A380X/GPWS] TERRAIN aural for the mode 2 alert and GLIDE SLOPE aural (louder when hard) for the mode 5 alert; a windshear warning overrides the GPWS alerts - @TCdr
 
 ## 2024.1.0
 
