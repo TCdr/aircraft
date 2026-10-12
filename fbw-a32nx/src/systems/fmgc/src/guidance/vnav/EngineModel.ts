@@ -50,15 +50,28 @@ export class EngineModel {
   }
 
   /**
-   * Retrieve a bilinear interpolated row value from a table
-   * @param table
-   * @param j Value on column axis
-   * @param result Value normally returned as result
+   * The exact inverse of {@link tableInterpolation} along the rows: the row value i for which
+   * `tableInterpolation(table, i, j)` gives `result`. Used to find the corrected N1 that gives a thrust (table 1506).
+   *
+   * The sim engine reads the table forwards (MSFS n1_and_mach_on_thrust_table: bilinear in N1 and Mach), so the N1 the
+   * engine settles on is the one where the Mach-interpolated thrust equals the drag. This function therefore first
+   * interpolates every row at the column value j, then inverts that single curve. (Inverting each Mach column on its
+   * own and interpolating the two N1 between the columns, as before, is not the inverse: between table columns it gave
+   * up to 2 % N1 less than the engine at M.85, so 4 to 7 % less cruise fuel flow than the FADEC burns.)
+   *
+   * Where the curve is not monotonic, the first crossing from below is taken (the lowest row value giving the result):
+   * the stable point the autothrust reaches when it increases the thrust. Results beyond the table are clamped to the
+   * first or last row, as tableInterpolation does.
+   * @param table the table, with the row values in column 0 and the column values in row 0
+   * @param j Value on column axis (Mach for table 1506)
+   * @param result the table value to invert (corrected thrust / max thrust for table 1506)
+   * @returns the row value (corrected N1 for table 1506)
    */
   static reverseTableInterpolation(table: readonly (readonly number[])[], j: number, result: number): number {
     const numRows = table.length;
     const numCols = table[0].length;
 
+    // Same column bounds as tableInterpolation
     let c: number;
     for (c = 1; c < numCols; c++) {
       if (table[0][c] > j) {
@@ -68,28 +81,25 @@ export class EngineModel {
     const c1 = Math.max(1, c - 1);
     const c2 = Math.min(numCols - 1, c);
 
-    let r: number;
-    for (r = 1; r < numRows; r++) {
-      if (table[r][c1] > result) {
-        break;
-      }
-    }
-    const r1 = Math.max(1, r - 1);
-    const r2 = Math.min(numRows - 1, r);
-    for (r = 1; r < numRows; r++) {
-      if (table[r][c2] > result) {
-        break;
-      }
-    }
-    const r3 = Math.max(1, r - 1);
-    const r4 = Math.min(numRows - 1, r);
+    // The table value of a row, interpolated at the column value j as tableInterpolation does
+    const valueAtRow = (row: number): number =>
+      c1 === c2 ? table[row][c1] : Common.interpolate(j, table[0][c1], table[0][c2], table[row][c1], table[row][c2]);
 
-    const interpolatedRowAtC1 =
-      r1 === r2 ? table[r1][0] : Common.interpolate(result, table[r1][c1], table[r2][c1], table[r1][0], table[r2][0]);
-    const interpolatedRowAtC2 =
-      r3 === r4 ? table[r3][0] : Common.interpolate(result, table[r3][c2], table[r4][c2], table[r3][0], table[r4][0]);
+    let previousValue = valueAtRow(1);
+    if (previousValue > result) {
+      return table[1][0];
+    }
 
-    return Common.interpolate(j, table[0][c1], table[0][c2], interpolatedRowAtC1, interpolatedRowAtC2);
+    for (let r = 2; r < numRows; r++) {
+      const value = valueAtRow(r);
+      if (value > result) {
+        // previousValue <= result < value: the curve crosses the result between rows r - 1 and r
+        return Common.interpolate(result, previousValue, value, table[r - 1][0], table[r][0]);
+      }
+      previousValue = value;
+    }
+
+    return table[numRows - 1][0];
   }
 
   /**
