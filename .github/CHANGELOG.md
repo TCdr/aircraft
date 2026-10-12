@@ -143,6 +143,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BRAKES] The A-SKID switch OFF no longer cuts the nose wheel steering - @TCdr
 1. [A380X/BRAKES] A landing AUTO BRK mode armed on the ground stays armed after take-off; only RTO disarms 10 s after lift-off - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 
 ## 2024.1.0
 
