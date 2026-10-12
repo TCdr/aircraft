@@ -92,7 +92,8 @@
 
 - A32NX_OVHD_{name}_PB_HAS_FAULT
     - Bool
-    - Indicates if the push button's FAULT light should illuminate
+    - Indicates if the push button's FAULT light should illuminate. ELEC_BAT_n: the battery is failed (flyPad failures
+      BAT 1, BAT 2, BAT ESS, APU BAT) and disconnected from its DC busbar; triggers ELEC BAT n FAULT (APU BAT FAULT)
     - {name}
         - APU_MASTER_SW
         - ELEC_BAT_1
@@ -1281,6 +1282,35 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 2
         - 3
         - 4
+
+- A32NX_ELEC_EXT_PWR_{number}_FAULT
+    - Bool
+    - Read only
+    - True when the GGPCU of external power {number} reports its external power unit (or itself) failed (flyPad
+      failure EXT PWR {number}), while the ground power unit is connected. The failed unit cannot supply the network.
+      Triggers ELEC EXT PWR {number} FAULT
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_ENG_GEN_{number}_DRIVE_DISC_FAULT
+    - Bool
+    - Read only
+    - True when the disconnection function of generator drive {number} is failed (flyPad failure DRIVE {number}
+      Disconnect Function): its DRIVE pb no longer disconnects the generator. Triggers ELEC DRIVE {number} DISC FAULT
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_RAT_FAULT
+    - Bool
+    - Read only
+    - True when the RAT generator is failed (flyPad failure RAT Generator), RAT stowed or deployed: it gives no output
+      to the AC ESS busbar. Triggers ELEC RAT FAULT
 
 ## Fire and Smoke Protection ATA 26
 

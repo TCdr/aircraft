@@ -361,6 +361,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A380X/ELEC] New flyPad failures BAT 1, BAT 2, BAT ESS, APU BAT, EXT PWR 1-4, RAT Generator, TR 1/TR 2/ESS TR Monitoring and DRIVE 1-4 Disconnect Function (ATA 24), with the BAT pb-sw FAULT light and the ECAM alerts ELEC BAT 1(2)(ESS) FAULT, APU BAT FAULT, BAT 1(2)(ESS)(APU) OFF, EXT PWR 1(2)(3)(4) FAULT, RAT FAULT, TR 1(2)(ESS) MONITORING FAULT and DRIVE 1(2)(3)(4) DISC FAULT; the GEN, DRIVE, APU GEN and TR alerts now list their INOP SYS on the STATUS page - @TCdr
 
 ## 2024.1.0
 

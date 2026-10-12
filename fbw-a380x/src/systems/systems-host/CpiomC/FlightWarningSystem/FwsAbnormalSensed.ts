@@ -24,6 +24,16 @@ import {
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
+import {
+  APU_GEN_INOP_SYS,
+  APU_TR_INOP_SYS,
+  apuTrFaultInfo,
+  ENG_GEN_INOP_SYS,
+  elecSystemAbnormalItems,
+  engineGeneratorLostApprLdg,
+  engineGeneratorLostInfo,
+  TR_INOP_SYS,
+} from './FwsElecSystemAlerts';
 import { isApFdTcasModeInop } from './FwsSurvAlerts';
 import { ALL_ENG_FLAME_OUT_INHIBITED_PHASES } from './EngineFailAlerts';
 import {
@@ -179,6 +189,9 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: ['240800055'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.elecGenPbOn[gen].get()],
+      inopSysAllPhases: () => [ENG_GEN_INOP_SYS[gen]],
+      inopSysApprLdg: () => engineGeneratorLostApprLdg(this.fws.apuAvail.get()),
+      info: () => engineGeneratorLostInfo(this.fws.apuAvail.get()),
       failure: 2,
       sysPage: SdPages.ElecAc,
     };
@@ -198,6 +211,9 @@ export class FwsAbnormalSensed {
       monitorConfirmTime: 5,
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
+      inopSysAllPhases: () => [ENG_GEN_INOP_SYS[gen]],
+      inopSysApprLdg: () => engineGeneratorLostApprLdg(this.fws.apuAvail.get()),
+      info: () => engineGeneratorLostInfo(this.fws.apuAvail.get()),
       failure: 2,
       sysPage: SdPages.ElecAc,
     };
@@ -215,6 +231,9 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: ['240800055'],
       whichItemsToShow: () => [false],
       whichItemsChecked: () => [!this.fws.elecGenPbOn[drive].get()],
+      inopSysAllPhases: () => [ENG_GEN_INOP_SYS[drive]],
+      inopSysApprLdg: () => engineGeneratorLostApprLdg(this.fws.apuAvail.get()),
+      info: () => engineGeneratorLostInfo(this.fws.apuAvail.get()),
       failure: 2,
       sysPage: SdPages.ElecAc,
     };
@@ -231,6 +250,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.elecApuGenPbOn[gen].get()],
+      inopSysAllPhases: () => [APU_GEN_INOP_SYS[gen]],
       failure: 2,
       sysPage: SdPages.ElecAc,
     };
@@ -247,6 +267,7 @@ export class FwsAbnormalSensed {
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
+      inopSysAllPhases: () => [TR_INOP_SYS[tr]],
       failure: 1,
       sysPage: SdPages.ElecDc,
     };
@@ -2396,6 +2417,8 @@ export class FwsAbnormalSensed {
         return [apuOff, apuOff];
       },
       whichItemsChecked: () => [false, !this.fws.elecApuBatAuto.get()],
+      inopSysAllPhases: () => [APU_TR_INOP_SYS],
+      info: () => apuTrFaultInfo(this.fws.elecSystemAlerts.batFault[3].get()),
       failure: 1,
       sysPage: SdPages.ElecDc,
     },
@@ -2604,6 +2627,8 @@ export class FwsAbnormalSensed {
     240800081: this.elecTrFaultItem(0),
     240800082: this.elecTrFaultItem(1),
     240800083: this.elecTrFaultItem(2),
+    // BAT, APU BAT, EXT PWR, RAT, TR MONITORING, DRIVE DISC alerts of the electrical failures (FwsElecSystemAlerts)
+    ...elecSystemAbnormalItems(this.fws.elecSystemAlerts),
     // ATA 26 - FIRE PROTECTION
     260800001: {
       // APU FIRE
