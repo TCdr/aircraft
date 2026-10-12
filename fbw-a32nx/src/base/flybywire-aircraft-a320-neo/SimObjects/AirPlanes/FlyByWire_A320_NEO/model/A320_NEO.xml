@@ -260,6 +260,82 @@
                 <ANIM_LENGTH>100</ANIM_LENGTH>
             </UseTemplate>
         </Component>
+        <!-- RAM AIR TURBINE: the model is src/model/rat (generate-rat.js), driven by the hydraulic systems L:vars -->
+        <Component ID="RAT">
+            <!-- A32NX_RAT_STOW_POSITION: 0 stowed .. 1 deployed. Doors open over the first 20 %, the strut swings down -->
+            <UseTemplate Name="ASOBO_GT_Anim">
+                <ANIM_NAME>A32NX_HYD_RAT_STOW_POSITION</ANIM_NAME>
+                <ANIM_CODE>(L:A32NX_RAT_STOW_POSITION) 100 *</ANIM_CODE>
+                <ANIM_LENGTH>100</ANIM_LENGTH>
+            </UseTemplate>
+            <!-- Propeller turn (one turn = the whole animation). dnor wraps the angle into 0..360 degrees. Until the
+                 RAT is 80 % out, the stow pin holds the blades indexed along the strut, so they pass through the slot
+                 (the systems do not turn the propeller before that point either: WindTurbine pin position 0.8). -->
+            <UseTemplate Name="ASOBO_GT_Anim">
+                <ANIM_NAME>A32NX_HYD_RAT_RPM</ANIM_NAME>
+                <ANIM_CODE>(L:A32NX_RAT_STOW_POSITION) 0.8 &gt; (L:A32NX_RAT_ANGULAR_POSITION) dnor * 100 * 360 /</ANIM_CODE>
+                <ANIM_LENGTH>100</ANIM_LENGTH>
+            </UseTemplate>
+            <!-- Blade pitch: A32NX_RAT_PROPELLER_ANGLE 1 = fine (low speed) .. 0 = coarsened by the governor -->
+            <UseTemplate Name="ASOBO_GT_Anim">
+                <ANIM_NAME>A32NX_HYD_RAT_PROPELLER_ANGLE</ANIM_NAME>
+                <ANIM_CODE>(L:A32NX_RAT_PROPELLER_ANGLE) 100 *</ANIM_CODE>
+                <ANIM_LENGTH>100</ANIM_LENGTH>
+            </UseTemplate>
+            <!-- Stowed, the fuselage skin closes the bay: the doors, the dark bay and the turbine are hidden -->
+            <Component ID="RAT_CAVITY" Node="RAT_CAVITY">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt;</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="RAT_DOOR_INBOARD" Node="RAT_DOOR_INBOARD">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt;</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="RAT_DOOR_INBOARD_INNER" Node="RAT_DOOR_INBOARD_INNER">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt;</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="RAT_DOOR_OUTBOARD" Node="RAT_DOOR_OUTBOARD">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt;</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="RAT_DOOR_OUTBOARD_INNER" Node="RAT_DOOR_OUTBOARD_INNER">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt;</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="RAT_STRUT" Node="RAT_STRUT">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt;</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="RAT_HUB" Node="RAT_HUB">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt;</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <!-- Above 500 rpm (about 8 turns a second) a turning blade only strobes on screen: the blur disc replaces
+                 the blades (design choice) -->
+            <Component ID="RAT_BLADE_1" Node="RAT_BLADE_1">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt; (L:A32NX_RAT_RPM) 500 &lt; and</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="RAT_BLADE_2" Node="RAT_BLADE_2">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt; (L:A32NX_RAT_RPM) 500 &lt; and</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="RAT_BLUR" Node="RAT_BLUR">
+                <UseTemplate Name="ASOBO_GT_Visibility">
+                    <VISIBILITY_CODE>(L:A32NX_RAT_STOW_POSITION) 0 &gt; (L:A32NX_RAT_RPM) 500 &gt;= and</VISIBILITY_CODE>
+                </UseTemplate>
+            </Component>
+        </Component>
         <Component ID="INTERACTIVE_POINTS">
             <!-- CARGO DOOR -->
             <UseTemplate Name="ASOBO_GT_Anim">

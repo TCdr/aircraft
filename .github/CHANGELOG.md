@@ -390,6 +390,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [GPU] External power becomes available as soon as the sim's ground power does (GSX GPU, sim GPU or jetway power connected after the flight is loaded), without waiting for the GPU door animation - @TCdr
 1. [A32NX/ELEC] When TR 1 is lost (e.g. AC BUS 1 failure), DC BUS 2 now takes over DC BUS 1 and the DC BAT BUS after 5 s, as in the FCOM, instead of at once - @TCdr
 1. [A32NX/ECAM] STATUS page: a STATUS too long for one page is no longer cut after 16 lines per column; a green arrow shows that more follows and CLR shows the next page (with one ECAM display, the STS pb pressed again within 2 s), as in the FCOM - @TCdr
+1. [A32NX/MODEL] The ram air turbine is now visible on the exterior: its doors open under the left belly fairing and it swings out when deployed, the propeller turns in the airflow, and it goes back in when stowed on the ground - @TCdr
 
 ## 2024.1.0
 
