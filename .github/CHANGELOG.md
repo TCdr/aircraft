@@ -361,6 +361,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A32NX/ECAM] F/CTL DIRECT LAW no longer asks for MAN PITCH TRIM USE when the green and yellow hydraulic systems are both at low pressure (the trim cannot move), as in the FCOM - @TCdr
+1. [A32NX/GPWS] After a mode 2 PULL UP, leaving the warning envelope keeps the TERRAIN aural and the red PULL UP lights on until the aircraft has climbed 300 ft (45 s at most), as in the FCOM - @TCdr
+1. [A32NX/SD] CAB PRESS page: the CAB ALT value pulses from 8800 ft until back at 8600 ft, the V/S value pulses above 1750 ft/min until back at 1650 ft/min, delta P pulses above 1.5 PSI in approach, and the needles no longer pulse, as in the FCOM - @TCdr
+1. [A32NX/SD] ENGINE page: the oil temperature now turns amber after 15 min between 140 and 155 °C (the timer restarted at every temperature change and never ran out) - @TCdr
+1. [A32NX/COCKPIT] The RAT & EMER GEN MAN ON pushbutton tooltip no longer says "(Inop.)": the pushbutton extends the RAT and couples the emergency generator - @TCdr
 
 ## 2024.1.0
 

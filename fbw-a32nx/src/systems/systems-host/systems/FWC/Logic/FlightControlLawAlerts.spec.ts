@@ -42,12 +42,21 @@ describe('F/CTL ALTN LAW lines', () => {
 /* A320 FCOM PRO-ABN-F_CTL F/CTL DIRECT LAW: USE SPD BRK WITH CARE, no SPD BRK DO NOT USE. */
 describe('F/CTL DIRECT LAW lines', () => {
   it('shows the FCOM lines and no contradicting SPD BRK DO NOT USE', () => {
-    const text = shownText('2700365', 8, directLawLines());
+    const text = shownText('2700365', 8, directLawLines(false));
     expect(text).toContain('MAX SPEED.......320/.77');
     expect(text).toContain('-MAN PITCH TRIM.....USE');
     expect(text).toContain('MANEUVER WITH CARE');
     expect(text).toContain('USE SPD BRK WITH CARE');
     expect(text).not.toContain('DO NOT USE');
+  });
+
+  /* FCOM l.82662: "MAN PITCH TRIM (EXCEPT IF HYD Y + G SYS LO PR) ... USE" (the THS has no hydraulic power). */
+  it('drops MAN PITCH TRIM USE when the green and yellow hydraulic systems are both at low pressure', () => {
+    const text = shownText('2700365', 8, directLawLines(true));
+    expect(text).not.toContain('MAN PITCH TRIM');
+    expect(text).toContain('MAX SPEED.......320/.77');
+    expect(text).toContain('MANEUVER WITH CARE');
+    expect(text).toContain('USE SPD BRK WITH CARE');
   });
 });
 
@@ -68,6 +77,8 @@ describe('F/CTL ELAC 1(2) FAULT lines', () => {
     const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
     expect(fwc.match(/whichCodeToReturn: \(\) => elacFaultLines\(/g)).toHaveLength(2);
     expect(fwc.match(/whichCodeToReturn: \(\) => altnLawLines\(/g)).toHaveLength(2);
-    expect(fwc).toContain('whichCodeToReturn: () => directLawLines()');
+    expect(fwc).toMatch(
+      /whichCodeToReturn: \(\) =>\s+directLawLines\(\s*this\.greenSysAbnormalLowPressure\.get\(\) && this\.yellowSysAbnormalLowPressure\.get\(\),?\s*\)/,
+    );
   });
 });
