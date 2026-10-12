@@ -19,19 +19,28 @@ describe('A380X SD ENGINE page vibrations and N3', () => {
 
   // FCOM DSC-70-90 N2 (l.113300-113302): red cross with the exceedance, gone after a subsequent engine start on ground
   it('shows the N3 red cross above 118.7 % and keeps it once the N3 is back below the limit', () => {
-    expect(n3RedCrossShown(false, 118.7, false)).toBe(false);
-    expect(n3RedCrossShown(false, 118.8, false)).toBe(true);
-    expect(n3RedCrossShown(true, 95, false)).toBe(true);
+    expect(n3RedCrossShown(false, 118.7, false, true)).toBe(false);
+    expect(n3RedCrossShown(false, 118.8, false, true)).toBe(true);
+    expect(n3RedCrossShown(true, 95, false, true)).toBe(true);
+  });
+
+  // a380_fcom.txt l.73512-73516: "If a parameter value on any SD page is not available for display, XX appears"
+  it('latches no N3 red cross on an N3 the FADEC does not send (XX) or that is not a finite number', () => {
+    expect(n3RedCrossShown(false, 125, false, false)).toBe(false);
+    expect(n3RedCrossShown(false, Infinity, false, true)).toBe(false);
+    expect(n3RedCrossShown(false, NaN, false, true)).toBe(false);
+    // a cross latched while the data was valid stays while the data is lost
+    expect(n3RedCrossShown(true, 0, false, false)).toBe(true);
   });
 
   it('removes the N3 red cross at the next engine start on the ground only', () => {
-    expect(n3RedCrossShown(true, 20, true)).toBe(false);
-    expect(n3RedCrossShown(true, 119, true)).toBe(true);
+    expect(n3RedCrossShown(true, 20, true, true)).toBe(false);
+    expect(n3RedCrossShown(true, 119, true, true)).toBe(true);
   });
 
   it('draws the red cross next to the N3 value', () => {
     const column = readFileSync(resolve(__dirname, 'EngineColumn.tsx'), 'utf-8');
-    expect(column).toContain('n3RedCrossShown(shownBefore, N3, groundStart)');
+    expect(column).toContain('n3RedCrossShown(shownBefore, N3, groundStart, fadecPowered)');
     expect(column).toMatch(/n3RedCross && \(\s*<text[^>]*className="Red F25 MiddleAlign">\s*\+\s*<\/text>/);
   });
 
