@@ -12,6 +12,7 @@
 #include "FadecSimData_A380X.hpp"
 #include "FuelConfiguration_A380X.h"
 #include "IgniterSelection_A380X.hpp"
+#include "MsfsCoreLimiter_A380X.hpp"
 #include "StartSequence_A380X.hpp"
 
 #define FILENAME_FADEC_CONF_DIRECTORY "\\work\\AircraftStates\\"
@@ -75,6 +76,9 @@ class EngineControl_A380X {
 
   // filters the jump of the MSFS core speed at the end of an MSFS start, per engine (see CoreSpikeGuard_A380X)
   CoreSpikeGuard_A380X coreSpikeGuard[4]{};
+  // limits the MSFS core speed itself during that jump in flight, so that MSFS gives no thrust pulse, per engine
+  // (see MsfsCoreLimiter_A380X)
+  MsfsCoreLimiter_A380X msfsCoreLimiter[4]{};
 
   // the igniter selection of the FADEC per engine: in-flight relight and auto relight (see EngineIgnition_A380X)
   EngineIgnition_A380X engineIgnition[4]{};
