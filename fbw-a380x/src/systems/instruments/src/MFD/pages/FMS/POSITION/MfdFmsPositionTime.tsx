@@ -131,7 +131,7 @@ export class MfdFmsPositionTime extends FmsPage<MfdFmsPositionTimeProps> {
               idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_positionTimePermDataSetup`}
               selectedIndex={this.selectedTimeReference}
               values={this.timeReferenceLabels}
-              freeTextAllowed={false}
+              freeTextAllowed={false} // FCOM POSITION/TIME time reference: list only
               containerStyle="width: 200px;"
               alignLabels="center"
               numberOfDigitsForInputField={8}
