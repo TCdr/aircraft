@@ -266,6 +266,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EWD] The AVAIL indication stays steady 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever leaves idle - @TCdr
 1. [A32NX/SD] FUEL page: the inner and outer tank quantities of the heavier wing pulse when the wings differ by more than 1 500 kg in flight phases 2 and 6 - @TCdr
 1. [A32NX/SD] BLEED page: the crossbleed valve is amber when it is not in the position commanded by the X BLEED selector, not only in transit - @TCdr
+1. [A32NX/GPWS] The GPWS can be tested on the ground with the PULL UP-GPWS pushbutton: GLIDESLOPE with the GPWS light, then PULL UP and TERRAIN TERRAIN PULL UP with the PULL UP light - @TCdr
+1. [A32NX/TCAS] New flyPad failure TCAS computer (ATA 34): amber TCAS on the PFD and ND, NAV TCAS FAULT on the ECAM, no traffic and no advisories - @TCdr
+1. [A32NX/A380X] Reactive windshear detection (A32NX FACs, A380X PRIMs): red WINDSHEAR on both PFDs in a decreasing performance windshear at takeoff and landing below 1300 ft, CONF 1 or more (no aural yet) - @TCdr
 
 ## 2024.1.0
 

@@ -167,6 +167,8 @@ export const A320Failure = Object.freeze({
   Egpwc: 34030,
   Transponder1: 34050,
   Transponder2: 34051,
+  // TS only: the TCAS computer (tcas/src/components/TcasComputer.ts)
+  TcasComputer: 34060,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -407,6 +409,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Egpwc, 'EGPWC'],
   [34, A320Failure.Transponder1, 'ATC/XPDR 1'],
   [34, A320Failure.Transponder2, 'ATC/XPDR 2'],
+  [34, A320Failure.TcasComputer, 'TCAS computer'],
 
   // The valve stays closed / fully open whatever the BMC commands (a stuck open bleed valve no longer regulates: ENG
   // BLEED FAULT by overpressure at climb power, ENG BLEED NOT CLSD at engine start, with APU BLEED ON or engine stopped)

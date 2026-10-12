@@ -1441,3 +1441,106 @@ fn mode_5_gs_inhibit_button_cancels() {
     );
     assert!(test_bed.is_alert_light_on());
 }
+
+impl EgpwcTestBed {
+    /// Runs the computer for the given time in 50 ms steps.
+    fn run_for(&mut self, duration: Duration) {
+        let step = Duration::from_millis(50);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            self.run_with_delta(step);
+            elapsed += step;
+        }
+    }
+
+    /// One short press of the GPWS test pushbutton (the same pushbutton as the mode 5 G/S cancel).
+    fn press_gpws_test_pushbutton(mut self) -> Self {
+        self = self.gpws_gs_cancel_self_test_pressed(true);
+        self.run_with_delta(Duration::from_millis(50));
+        self = self.gpws_gs_cancel_self_test_pressed(false);
+        self
+    }
+
+    fn is_terrain_test_pattern_shown(&mut self) -> bool {
+        ReadByName::<EgpwcTestBed, bool>::read_by_name(
+            self,
+            EnhancedGroundProximityWarningComputer::TERRAIN_TEST_PATTERN_KEY,
+        )
+    }
+}
+
+/// A320 FCOM DSC-34-SURV-40-40 (a320_fcom.txt:55491): the GPWS can be tested by pressing the GPWS pushbutton on the
+/// ground. The sequence (GLIDESLOPE, PULL UP, terrain test pattern with TERRAIN TERRAIN PULL UP) is the Honeywell EGPWS
+/// short self-test.
+#[test]
+fn self_test_on_ground_runs_glideslope_pull_up_and_terrain_steps() {
+    let mut test_bed = test_bed_with().on_ground().and().powered();
+    test_bed.run_for(Duration::from_millis(1_000));
+    test_bed.assert_no_warning_active();
+    assert!(!test_bed.is_terrain_test_pattern_shown());
+
+    test_bed = test_bed.press_gpws_test_pushbutton();
+    test_bed.run_with_delta(Duration::from_millis(50));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::GlideslopeSoft as u8
+    );
+    assert!(test_bed.is_alert_light_on());
+    assert!(!test_bed.is_warning_light_on());
+
+    // GLIDESLOPE lasts 1.6 s
+    test_bed.run_for(Duration::from_millis(1_600));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
+    assert!(!test_bed.is_alert_light_on());
+    assert!(!test_bed.is_terrain_test_pattern_shown());
+
+    // PULL UP lasts 1.1 s, then the terrain test pattern with TERRAIN TERRAIN (2 x 0.7 s)
+    test_bed.run_for(Duration::from_millis(1_100));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
+    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_terrain_test_pattern_shown());
+
+    test_bed.run_for(Duration::from_millis(1_400));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_terrain_test_pattern_shown());
+
+    // End of the test after the last PULL UP
+    test_bed.run_for(Duration::from_millis(1_200));
+    test_bed.assert_no_warning_active();
+    assert!(!test_bed.is_terrain_test_pattern_shown());
+}
+
+#[test]
+fn self_test_does_not_start_in_flight() {
+    let mut test_bed = test_bed_with()
+        .altitude_of(Length::new::<foot>(3_000.0))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
+        .cas_of(Velocity::new::<knot>(250.0))
+        .gear_extended(false)
+        .and()
+        .powered();
+    test_bed.run_for(Duration::from_millis(1_000));
+    test_bed.assert_no_warning_active();
+
+    test_bed = test_bed.press_gpws_test_pushbutton();
+    test_bed.run_for(Duration::from_millis(500));
+    test_bed.assert_no_warning_active();
+    assert!(!test_bed.is_terrain_test_pattern_shown());
+}
+
+#[test]
+fn self_test_does_not_start_with_gpws_sys_off() {
+    let mut test_bed = test_bed_with()
+        .on_ground()
+        .gpws_sys_button_pressed(true)
+        .and()
+        .powered();
+    test_bed.run_for(Duration::from_millis(1_000));
+
+    test_bed = test_bed.press_gpws_test_pushbutton();
+    test_bed.run_for(Duration::from_millis(500));
+    test_bed.assert_no_warning_active();
+}
