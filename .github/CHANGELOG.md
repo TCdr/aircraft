@@ -242,6 +242,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] F/CTL STATUS page: ALTN LAW, DIRECT LAW, ELAC, SEC, FCDC, elevator, aileron and spoiler faults now show their FCOM limitations, approach procedure, information and INOP SYS lines - @TCdr
 1. [A32NX/FWC] New AIR bleed cautions: ENG 1(2) and 1+2 BLEED FAULT, ENG 1(2) and 1+2 BLEED LO TEMP, ENG 1(2) BLEED HI TEMP, ENG 1(2) BLEED NOT CLSD, BLEED 1(2) OFF, APU BLEED FAULT and X BLEED FAULT, with their procedures and STATUS - @TCdr
 1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
+1. [A380X] The contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
 
 ## 2024.1.0
 
