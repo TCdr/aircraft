@@ -148,6 +148,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EFB] The flyPad cargo door row shows the real forward and aft doors, and says when the open request waits for hydraulic power (engines running) - @TCdr
 1. [Pushback] The pushback goes on when another flyPad page is opened, still steered with the rudder pedals and the sidestick - @TCdr
 1. [A380X/EFB] Ground > Services: the aft right door button is labelled Main 5 R (it opens MAIN 5R, the door the SD DOOR page and the FWS show), and its planform marker sits on door 5 R; a new Main 4 R button opens and closes MAIN 4R (the catering truck still docks at MAIN 5R) - @TCdr
+1. [A32NX/MCDU] PROG page: with one engine out, REC MAX shows the engine-out recommended maximum altitude (long-range cruise ceiling), as in the FCOM; the flyPad Buffet page gets the same value - @TCdr
 
 ## 2024.1.0
 

@@ -75,7 +75,7 @@ import {
 import { AdfRadioTuningStatus, MmrRadioTuningStatus, VorRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from './FmsFormatters';
-import { maxFlightLevel, REC_MAX_FL_LVAR, recMaxFlightLevelLVarValue } from './RecMaxFlightLevel';
+import { progRecMaxFlightLevel, REC_MAX_FL_LVAR, recMaxFlightLevelLVarValue } from './RecMaxFlightLevel';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
 import { FlightPhaseManager } from '@fmgc/flightphase';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
@@ -4424,25 +4424,17 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     );
   }
   /**
-   * Returns the maximum cruise FL for ISA temp and GW
-   * @param temp {number} ISA in C°
-   * @param gw {number} GW in t
-   * @returns {number} MAX FL
-   */
-  //TODO: can this be an util?
-  private getMaxFL(temp = A32NX_Util.getIsaTempDeviation(), gw = this.getGrossWeight()): number | null {
-    return maxFlightLevel(temp, gw);
-  }
-
-  /**
-   * Returns the maximum allowed cruise FL considering max service FL
-   * @param fl FL to check
-   * @returns maximum allowed cruise FL or null if no grossweight available
+   * Returns the REC MAX of the PROG page: the maximum allowed cruise FL considering max service FL, or the engine-out
+   * REC MAX when one engine is out (FCOM PROG page, see RecMaxFlightLevel.ts)
+   * @returns the REC MAX FL or null if no grossweight available
    */
   //TODO: can this be an util? no
   public getMaxFlCorrected(): number | null {
-    const maxFl = this.getMaxFL();
-    return maxFl !== null ? Math.min(maxFl, MAXIMUM_CERTIFIED_FLIGHT_LEVEL) : null;
+    return progRecMaxFlightLevel(
+      A32NX_Util.getIsaTempDeviation(),
+      this.getGrossWeight(),
+      this.isEngineOutCondition.get(),
+    );
   }
 
   /**
