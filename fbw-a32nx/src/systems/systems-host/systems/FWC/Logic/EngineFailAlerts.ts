@@ -125,7 +125,8 @@ export enum CrossBleedSelector {
 /**
  * The lines of ENG 1(2) SHUT DOWN, by index in its codes (EwdMessages 7700111/7700112):
  * 0 title, 1 -PACK 1 OFF, 2 -PACK 2 OFF, 3 -X BLEED OPEN, 4 -ENG MODE SEL IGN, 5 .IF NO FUEL LEAK:, 6 -IMBALANCE MONITOR,
- * 7 -TCAS MODE SEL TA, 8 -X BLEED SHUT, 9 -WING ANTI ICE OFF, 10 AVOID ICING CONDITIONS.
+ * 7 -TCAS MODE SEL TA, 8 -X BLEED SHUT, 9 -WING ANTI ICE OFF, 10 AVOID ICING CONDITIONS, 11 .IF BUFFET:,
+ * 12 -MAX SPEED 240 KT.
  */
 export interface EngineShutDownLineInputs {
   engineNumber: 1 | 2;
@@ -137,13 +138,15 @@ export interface EngineShutDownLineInputs {
   crossBleedSelector: CrossBleedSelector;
   engModeSelIgn: boolean;
   tcasModeTa: boolean;
+  /** The reverser of the engine is unlocked (L:A32NX_REVERSER_n_UNLOCKED) */
+  reverserUnlocked: boolean;
 }
 
 /**
  * l.81087-81123: (wing anti-ice ON) in Elec Emer config PACK 1 OFF, otherwise PACK (AFFECTED SIDE) OFF, and if the ENG
- * FIRE pb is not pushed X BLEED OPEN; ENG MODE SEL IGN; IF NO FUEL LEAK: IMBALANCE MONITOR; TCAS MODE SEL TA; (ENG FIRE pb
- * pushed) X BLEED SHUT, WING ANTI ICE OFF, AVOID ICING CONDITIONS. The lowercase conditions are computed (not shown), the
- * uppercase one is shown. The "If REV unlocked" lines are not modelled (no reverser failure). The lines of actions done go.
+ * FIRE pb is not pushed X BLEED OPEN; ENG MODE SEL IGN; IF NO FUEL LEAK: IMBALANCE MONITOR; TCAS MODE SEL TA; (REV
+ * unlocked, l.81114-81116) IF BUFFET: MAX SPEED 240 KT; (ENG FIRE pb pushed) X BLEED SHUT, WING ANTI ICE OFF, AVOID ICING
+ * CONDITIONS. The lowercase conditions are computed (not shown), the uppercase ones are shown. The lines of actions done go.
  */
 export function engineShutDownLines(inputs: EngineShutDownLineInputs): number[] {
   const lines = [0];
@@ -163,6 +166,9 @@ export function engineShutDownLines(inputs: EngineShutDownLineInputs): number[] 
   lines.push(5, 6);
   if (!inputs.tcasModeTa) {
     lines.push(7);
+  }
+  if (inputs.reverserUnlocked) {
+    lines.push(11, 12);
   }
   if (inputs.firePbPushed) {
     if (inputs.crossBleedSelector !== CrossBleedSelector.Shut) {
@@ -186,22 +192,32 @@ export interface EngineShutDownStatus {
  * The STATUS of ENG 1(2) SHUT DOWN, l.81168-81264 (2019 FCOM PDF pages 2300-2301):
  * - If the ENG FIRE pb is pushed: AVOID ICING CONDITIONS; IF SEVERE ICE ACCRETION: MIN SPD VLS + 10/G DOT, MANEUVER WITH
  *   CARE, LDG DIST PROC APPLY.
+ * - If REV unlocked: MAX SPEED 300/0.78, and the APPR PROC of the "1, 2, or 3 doors not stowed (CFM), or reverse
+ *   detected unlocked (IAE/PW)" case: IF BUFFET: FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD VREF + 10 KT, LDG DIST
+ *   PROC APPLY. Design choice: the FBW reverser unlocked failure keeps the reverser stowed (it is detected unlocked, not
+ *   deployed), so the "4 doors not stowed or reverser deployed" case (FLAP 1, VREF + 55 KT, RUD TRIM...) does not apply.
  * - If the wing anti-ice is off and the ENG FIRE pb is not pushed: IF PERF PERMITS: X BLEED OPEN.
  * - IF NO ENG 1(2) DAMAGE: CONSIDER ENG 1(2) RELIGHT; CAT 3 SINGLE ONLY; ONE PACK ONLY IF WAI ON.
  * - INOP SYS: CAT 3 DUAL, ENG 1(2) BLEED, PACK 1(2), MAIN GALLEY, GEN 1(2), G ENG 1 PUMP or Y ENG 2 PUMP, WING A. ICE (if
  *   the ENG FIRE pb is pushed).
- * Not modelled: the "If REV unlocked" lines (no reverser failure), the A321 lines, and AFT CRG HEAT and STEEP APPR, which
- * the FCOM marks as options.
+ * Not modelled: the A321 lines, AFT CRG HEAT and STEEP APPR, which the FCOM marks as options, and the "FOR LDG : USE
+ * FLAP 3" reminder form of the flap line once CONF 3 is selected.
  */
 export function engineShutDownStatus(
   engineNumber: 1 | 2,
   firePbPushed: boolean,
   wingAntiIceOn: boolean,
+  reverserUnlocked: boolean,
 ): EngineShutDownStatus {
   const left: string[] = [];
   if (firePbPushed) {
     left.push('700400001', '700500001', '700400002', '700400003', '700400004');
-  } else if (!wingAntiIceOn) {
+  }
+  if (reverserUnlocked) {
+    // MAX SPEED 300/.78, APPR PROC:, IF BUFFET:, FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10 KT, LDG DIST PROC
+    left.push('700400058', '700500051', '700500052', '700400059', '700400060', '700400061', '700400062');
+  }
+  if (!firePbPushed && !wingAntiIceOn) {
     left.push('700500002', '700400005');
   }
   left.push(engineNumber === 1 ? '700500003' : '700500004', engineNumber === 1 ? '700400006' : '700400007');

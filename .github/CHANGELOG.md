@@ -384,6 +384,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] T.O CONFIG test: every main deck, upper deck and cargo door and the cockpit sliding windows must be closed for T.O CONFIG NORMAL (it checked only MAIN 1L, MAIN 2R and the cargo doors) - @TCdr
 1. [A380X/FWS] ENG FAIL is no longer inhibited from V1 to 1500 ft and shows AUTO RELIGHT IN PROGRESS only while the FADEC relights the engine; the IGNITION memo also shows for the automatic continuous ignition of the FADEC (auto relight, quick relight), as in the FCOM - @TCdr
 1. [A380X/FWS] Engine alerts as in the FCOM: START FAULT, IGN A(B) FAULT, OIL FILTER CLOGGED and FUEL FILTER CLOGGED come without chime and MASTER CAUT, EGT and N1/N2 OVER LIMIT without SD page, no EGT OVER LIMIT with a FADEC FAULT; in flight START FAULT NO STARTER AIR PRESSURE comes up with its windmill start lines and NO LIGHT UP after 30 s; new deferred procedures of TWO ENGS OUT ON SAME / OPPOSITE SIDE and LIMITATIONS, deferred procedure and INOP SYS of START VLV FAULT (NOT CLOSED) - @TCdr
+1. [A32NX/ECAM] F/CTL DIRECT LAW no longer asks for MAN PITCH TRIM USE when the green and yellow hydraulic systems are both at low pressure (the trim cannot move), as in the FCOM - @TCdr
+1. [A32NX/GPWS] After a mode 2 PULL UP, leaving the warning envelope keeps the TERRAIN aural and the red PULL UP lights on until the aircraft has climbed 300 ft (45 s at most), as in the FCOM - @TCdr
+1. [A32NX/SD] CAB PRESS page: the CAB ALT value pulses from 8800 ft until back at 8600 ft, the V/S value pulses above 1750 ft/min until back at 1650 ft/min, delta P pulses above 1.5 PSI in approach, and the needles no longer pulse, as in the FCOM - @TCdr
+1. [A32NX/SD] ENGINE page: the oil temperature now turns amber after 15 min between 140 and 155 °C (the timer restarted at every temperature change and never ran out) - @TCdr
+1. [A32NX/COCKPIT] The RAT & EMER GEN MAN ON pushbutton tooltip no longer says "(Inop.)": the pushbutton extends the RAT and couples the emergency generator - @TCdr
 
 ## 2024.1.0
 

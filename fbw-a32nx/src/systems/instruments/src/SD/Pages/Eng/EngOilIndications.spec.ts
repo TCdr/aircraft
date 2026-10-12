@@ -4,7 +4,15 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { oilFilterClogShown, oilPressureIsRed, oilPressurePulses, oilQuantityPulses } from './EngOilIndications';
+import {
+  oilFilterClogShown,
+  oilPressureIsRed,
+  oilPressurePulses,
+  oilQuantityPulses,
+  oilTemperatureAdvisorySeconds,
+  oilTemperatureAdvisoryTimeExceeded,
+  oilTemperatureClassName,
+} from './EngOilIndications';
 
 /* A320 FCOM DSC-70-90-40 OIL QUANTITY, a320_fcom.txt l.64508-64514 */
 describe('SD ENGINE oil quantity', () => {
@@ -83,5 +91,54 @@ describe('SD ENGINE oil filter CLOG', () => {
     // the oil pressure the FADEC writes, which the FWC also reads
     expect(page).toContain("useSimVar(`GENERAL ENG OIL PRESSURE:${engineNumber}`, 'psi', 100)");
     expect(page).toMatch(/oilFilterClogShown\(!!oilFilterClogged, engineState\)[^]*CLOG/);
+  });
+});
+
+/* A320 FCOM DSC-70-90-40 OIL TEMPERATURE, l.64555-64566: pulses green between 140 °C and 155 °C for less than 15 min;
+   amber between 140 °C and 155 °C for more than 15 min, or above 155 °C. */
+describe('SD ENGINE oil temperature', () => {
+  /** Runs the advisory timer at a steady temperature for the given time, in 1 s updates as the SD does */
+  const secondsAt = (temperature: number, seconds: number, startSeconds = 0): number => {
+    let advisorySeconds = startSeconds;
+    for (let i = 0; i < seconds; i++) {
+      advisorySeconds = oilTemperatureAdvisorySeconds(advisorySeconds, temperature, 1);
+    }
+    return advisorySeconds;
+  };
+
+  it('is green in the normal range', () => {
+    expect(oilTemperatureClassName(100, 100, oilTemperatureAdvisoryTimeExceeded(secondsAt(100, 3600)))).toBe(
+      'FillGreen',
+    );
+  });
+
+  it('pulses green between 140 and 155 °C for less than 15 min', () => {
+    expect(oilTemperatureClassName(145, 145, oilTemperatureAdvisoryTimeExceeded(secondsAt(145, 14 * 60)))).toBe(
+      'FillPulse',
+    );
+  });
+
+  it('turns amber after more than 15 min at a STEADY 145 °C', () => {
+    expect(oilTemperatureClassName(145, 145, oilTemperatureAdvisoryTimeExceeded(secondsAt(145, 15 * 60 + 1)))).toBe(
+      'FillAmber',
+    );
+  });
+
+  it('restarts the 15 min when the temperature goes back below 140 °C', () => {
+    const afterDip = secondsAt(135, 1, secondsAt(145, 14 * 60));
+    expect(afterDip).toBe(0);
+    expect(
+      oilTemperatureClassName(145, 145, oilTemperatureAdvisoryTimeExceeded(secondsAt(145, 2 * 60, afterDip))),
+    ).toBe('FillPulse');
+  });
+
+  it('is amber above 155 °C at once', () => {
+    expect(oilTemperatureClassName(155, 156, oilTemperatureAdvisoryTimeExceeded(0))).toBe('FillAmber');
+  });
+
+  it('times the advisory on every SD update, not only when the temperature changes', () => {
+    const page = readFileSync(resolve(__dirname, 'Eng.tsx'), 'utf-8');
+    expect(page).toMatch(/useUpdate\([^]*oilTemperatureAdvisorySeconds\(/);
+    expect(page).not.toContain('900_000');
   });
 });

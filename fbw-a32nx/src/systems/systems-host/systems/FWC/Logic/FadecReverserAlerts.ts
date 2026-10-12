@@ -103,16 +103,22 @@ export interface ThrustLeverLineInputs {
 /**
  * ENG 1(2) THR LEVER FAULT, l.81826-81865, by index in its codes:
  * 0 title, 1 ENG n AT IDLE, 2 -THR LEVER n IDLE, 3 -A/THR KEEP ON, 4 ENG n HI PWR IN MAN THR, 5 .BEFORE SLATS IN:,
- * 6 -A/THR ON, 7 HI PWR ONLY.
- * - FADEC at idle (ground, or approach with slats extended): ENG AT IDLE, THR LEVER IDLE.
+ * 6 -A/THR ON, 7 HI PWR ONLY, 8 ENG n IDLE POWER ONLY.
+ * - On the ground (l.81826-81829): ENG (AFFECTED) IDLE POWER ONLY ("Idle power is automatically selected by FADEC"),
+ *   THR LEVER IDLE.
+ * - In flight, FADEC at idle (approach with slats extended): ENG AT IDLE, THR LEVER IDLE.
  * - In flight at CLB or TO/FLX: A/THR engaged: A/THR KEEP ON; A/THR not engaged: ENG HI PWR IN MAN THR ("Inhibited when
  *   the FADEC commands the affected engine at IDLE"); frozen TO/FLX ("If thrust lever angle failed in TO or flex
  *   position"): BEFORE SLATS IN: A/THR ON, HI PWR ONLY.
  * LAND ASAP is the separate LAND ASAP memo.
  */
 export function thrustLeverFaultLines(inputs: ThrustLeverLineInputs): number[] {
-  if (inputs.rating === ThrustLeverRating.Idle || isGroundProcedure(inputs.flightPhase)) {
-    return [0, ...(inputs.rating === ThrustLeverRating.Idle ? [1] : []), ...(inputs.thrLeverIdle ? [] : [2])];
+  const thrLeverLine = inputs.thrLeverIdle ? [] : [2];
+  if (isGroundProcedure(inputs.flightPhase)) {
+    return [0, 8, ...thrLeverLine];
+  }
+  if (inputs.rating === ThrustLeverRating.Idle) {
+    return [0, 1, ...thrLeverLine];
   }
   if (inputs.athrEngaged) {
     return [0, 3];

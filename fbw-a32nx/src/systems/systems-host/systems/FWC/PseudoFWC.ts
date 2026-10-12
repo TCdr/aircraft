@@ -1871,6 +1871,9 @@ export class PseudoFWC {
 
   private readonly reverseUnlockedShown = [Subject.create(false), Subject.create(false)];
 
+  /** The reverser is unlocked (no phase inhibition), for the "If REV unlocked" lines of ENG 1(2) SHUT DOWN */
+  private readonly reverserUnlocked = [Subject.create(false), Subject.create(false)];
+
   private readonly reverserFaultShown = [Subject.create(false), Subject.create(false)];
 
   private readonly revPressurized = [Subject.create(false), Subject.create(false)];
@@ -5118,12 +5121,9 @@ export class PseudoFWC {
           autoIdle,
         ),
       );
+      this.reverserUnlocked[engineIndex].set(SimVar.GetSimVarValue(`L:A32NX_REVERSER_${engine}_UNLOCKED`, 'bool') > 0);
       this.reverseUnlockedShown[engineIndex].set(
-        isShownInTakeoffUnlessAutoIdle(
-          SimVar.GetSimVarValue(`L:A32NX_REVERSER_${engine}_UNLOCKED`, 'bool') > 0,
-          flightPhase,
-          autoIdle,
-        ),
+        isShownInTakeoffUnlessAutoIdle(this.reverserUnlocked[engineIndex].get(), flightPhase, autoIdle),
       );
       this.reverserFaultShown[engineIndex].set(
         isReverserFaultShown(
@@ -6909,6 +6909,7 @@ export class PseudoFWC {
           crossBleedSelector: this.crossBleedSelector,
           engModeSelIgn: this.engSelectorPosition.get() === 2,
           tcasModeTa: this.tcasControlPanelPosition.get() === 1,
+          reverserUnlocked: this.reverserUnlocked[0].get(),
         }),
       codesToReturn: [
         '770011101',
@@ -6922,13 +6923,19 @@ export class PseudoFWC {
         '770011109',
         '770011110',
         '770011111',
+        '770011112',
+        '770011113',
       ],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
-      inopSys: () => engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get()).inopSys,
-      statusInfo: () => engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get()).left,
+      inopSys: () =>
+        engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get(), this.reverserUnlocked[0].get())
+          .inopSys,
+      statusInfo: () =>
+        engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get(), this.reverserUnlocked[0].get())
+          .left,
     },
     7700112: {
       // ENG 2 SHUT DOWN (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
@@ -6945,6 +6952,7 @@ export class PseudoFWC {
           crossBleedSelector: this.crossBleedSelector,
           engModeSelIgn: this.engSelectorPosition.get() === 2,
           tcasModeTa: this.tcasControlPanelPosition.get() === 1,
+          reverserUnlocked: this.reverserUnlocked[1].get(),
         }),
       codesToReturn: [
         '770011201',
@@ -6958,13 +6966,19 @@ export class PseudoFWC {
         '770011209',
         '770011210',
         '770011211',
+        '770011212',
+        '770011213',
       ],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
-      inopSys: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).inopSys,
-      statusInfo: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).left,
+      inopSys: () =>
+        engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get(), this.reverserUnlocked[1].get())
+          .inopSys,
+      statusInfo: () =>
+        engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get(), this.reverserUnlocked[1].get())
+          .left,
     },
     7700501: {
       // ENG 1 FADEC A FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
@@ -7041,6 +7055,7 @@ export class PseudoFWC {
         '770053106',
         '770053107',
         '770053108',
+        '770053109',
       ],
       memoInhibit: () => false,
       failure: 2,
@@ -7189,6 +7204,7 @@ export class PseudoFWC {
         '770053206',
         '770053207',
         '770053208',
+        '770053209',
       ],
       memoInhibit: () => false,
       failure: 2,
@@ -7872,7 +7888,8 @@ export class PseudoFWC {
       // DIRECT LAW (FCOM PRO-ABN-F_CTL, see directLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.directLawCondition,
-      whichCodeToReturn: () => directLawLines(),
+      whichCodeToReturn: () =>
+        directLawLines(this.greenSysAbnormalLowPressure.get() && this.yellowSysAbnormalLowPressure.get()),
       codesToReturn: [
         '270036501',
         '270036502',

@@ -135,6 +135,7 @@ const shutDownInputs: EngineShutDownLineInputs = {
   crossBleedSelector: CrossBleedSelector.Auto,
   engModeSelIgn: false,
   tcasModeTa: false,
+  reverserUnlocked: false,
 };
 
 /* l.81087-81123 */
@@ -173,12 +174,20 @@ describe('ENG 1(2) SHUT DOWN procedure lines', () => {
       }),
     ).toEqual([0, 5, 6]);
   });
+
+  /* l.81114-81116: "If REV unlocked: IF BUFFET: MAX SPEED ... 240 KT", after TCAS MODE SEL TA */
+  it('with a reverser unlocked: IF BUFFET: MAX SPEED 240 KT', () => {
+    expect(engineShutDownLines({ ...shutDownInputs, reverserUnlocked: true })).toEqual([0, 4, 5, 6, 7, 11, 12]);
+    expect(engineShutDownLines({ ...shutDownInputs, reverserUnlocked: true, firePbPushed: true })).toEqual([
+      0, 4, 5, 6, 7, 11, 12, 8, 10,
+    ]);
+  });
 });
 
 /* l.81168-81264 */
 describe('ENG 1(2) SHUT DOWN STATUS', () => {
   it('engine 1 without fire: IF PERF PERMITS X BLEED OPEN, CONSIDER ENG 1 RELIGHT, CAT 3 SINGLE ONLY; INOP SYS', () => {
-    const status = engineShutDownStatus(1, false, false);
+    const status = engineShutDownStatus(1, false, false, false);
     const page = formatStatusPage(status.left, status.inopSys);
     expect(page.left.split('\r')).toEqual([
       '\x1b<7mIF PERF PERMITS:',
@@ -199,7 +208,7 @@ describe('ENG 1(2) SHUT DOWN STATUS', () => {
   });
 
   it('engine 2 with the ENG FIRE pb pushed: AVOID ICING CONDITIONS and the severe ice lines, WING A. ICE inop', () => {
-    const status = engineShutDownStatus(2, true, true);
+    const status = engineShutDownStatus(2, true, true, false);
     const page = formatStatusPage(status.left, status.inopSys);
     expect(page.left.split('\r').slice(0, 5)).toEqual([
       '\x1b<5mAVOID ICING CONDITIONS',
@@ -214,8 +223,35 @@ describe('ENG 1(2) SHUT DOWN STATUS', () => {
     expect(page.right).toContain('WING A. ICE');
   });
 
+  /* l.81172-81173 and the APPR PROC l.81177-81236, "1, 2, or 3 doors not stowed (CFM), or reverse detected unlocked
+     (IAE/PW)" branch: the reverser of the FBW failure is unlocked, not deployed */
+  it('with a reverser unlocked: MAX SPEED 300/.78 and the APPR PROC IF BUFFET lines', () => {
+    const status = engineShutDownStatus(1, false, false, true);
+    const left = formatStatusPage(status.left, status.inopSys).left.split('\r');
+    expect(left).toEqual([
+      '\x1b<5mMAX SPEED.......300/.78',
+      '\x1b<7mAPPR PROC:',
+      '\x1b<7mIF BUFFET:',
+      '\x1b<5mFOR LDG......USE FLAP 3',
+      '\x1b<5mGPWS LDG FLAP 3......ON',
+      '\x1b<5mAPPR SPD.....VREF+10 KT',
+      '\x1b<5mLDG DIST PROC....APPLY',
+      '\x1b<7mIF PERF PERMITS:',
+      '\x1b<5mX BLEED...........OPEN',
+      '\x1b<7mIF NO ENG 1 DAMAGE:',
+      '\x1b<5mCONSIDER ENG 1 RELIGHT',
+      '\x1b<3mCAT 3 SINGLE ONLY',
+      '\x1b<3mONE PACK ONLY IF WAI ON',
+    ]);
+  });
+
+  it('without a reverser unlocked: no MAX SPEED nor APPR PROC line', () => {
+    const status = engineShutDownStatus(1, false, false, false);
+    expect(formatStatusPage(status.left, status.inopSys).left).not.toMatch(/MAX SPEED|APPR PROC|IF BUFFET/);
+  });
+
   it('with the wing anti-ice on and no fire: no X BLEED line', () => {
-    const status = engineShutDownStatus(1, false, true);
+    const status = engineShutDownStatus(1, false, true, false);
     expect(formatStatusPage(status.left, status.inopSys).left).not.toContain('X BLEED');
   });
 });
@@ -233,8 +269,14 @@ describe('PseudoFWC wiring of ENG 1(2) FAIL / SHUT DOWN', () => {
       expect(block(key)).toContain('sysPage: EcamSysPage.ENG,');
       expect(block(key)).toContain('flightPhaseInhib: [],');
     }
-    expect(block('7700111')).toContain('engineShutDownStatus(1,');
-    expect(block('7700112')).toContain('engineShutDownStatus(2,');
+    // the procedure and the STATUS get the reverser unlocked condition (whitespace-free, whatever the formatting)
+    const compact = (key: string) => block(key).replace(/\s/g, '');
+    expect(compact('7700111')).toContain('reverserUnlocked:this.reverserUnlocked[0].get()');
+    expect(compact('7700112')).toContain('reverserUnlocked:this.reverserUnlocked[1].get()');
+    const statusCall = (engine: 1 | 2) =>
+      `engineShutDownStatus(${engine},!!this.fireButton${engine}.get(),!!this.wingAntiIce.get(),this.reverserUnlocked[${engine - 1}].get()`;
+    expect(compact('7700111').split(statusCall(1))).toHaveLength(3);
+    expect(compact('7700112').split(statusCall(2))).toHaveLength(3);
   });
 
   it('calls LAND ASAP (amber) with ENG FAIL and SHUT DOWN', () => {
