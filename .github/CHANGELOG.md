@@ -292,6 +292,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] ENG ALL ENGINES FAILURE and the involuntary A/THR OFF now have their STATUS page lines - @TCdr
 1. [A32NX/FWC] FAC 1+2 FAULT says RUD WITH CARE ABV 160 KT, as in the FCOM (it said 140 KT) - @TCdr
 1. [A32NX/OXY] The passenger oxygen masks now drop by themselves when the cabin altitude goes above 14 000 ft - @TCdr
+1. [A32NX/FUEL] Gravity fuel feeding has the FCOM gravity feed ceiling: an engine fed by gravity (no wing tank pump running) above FL 150 to FL 360, depending on the time flown above FL 300 and the takeoff airport, flames out after 3 min and needs a relight - @TCdr
+1. [A32NX/A380X] New flyPad failures: engine LP fuel valve jammed in place, with FUEL ENG 1(2) LP VALVE OPEN (A32NX) and FUEL ENG 1(2)(3)(4) LP VLV FAULT (A380X); jammed closed, the engine cannot start - @TCdr
+1. [A32NX/FWC] New flyPad failures FQI channel 1 and 2, with the FUEL FQI CH 1(2) FAULT cautions - @TCdr
 
 ## 2024.1.0
 

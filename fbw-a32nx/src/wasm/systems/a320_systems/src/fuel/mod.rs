@@ -1,6 +1,7 @@
 // Note: Fuel system for now is still handled in MSFS. This is used for calculating fuel-related factors.
 
 use engine_lp_valve::EngineLpFuelValve;
+use gravity_feed::{GravityFeed, WingPumpsRunning};
 use nalgebra::Vector3;
 use systems::{
     fuel::{FuelCG, FuelInfo, FuelPayload, FuelPump, FuelPumpProperties, FuelSystem},
@@ -10,6 +11,7 @@ use systems::{
 use uom::si::f64::*;
 
 mod engine_lp_valve;
+mod gravity_feed;
 #[cfg(test)]
 mod test;
 
@@ -51,8 +53,13 @@ impl From<usize> for A320FuelTankType {
 pub struct A320Fuel {
     fuel_system: FuelSystem<5, 5>,
     engine_lp_valves: [EngineLpFuelValve; 2],
+    gravity_feed: GravityFeed,
 }
 impl A320Fuel {
+    /// The wing tank pumps in FUEL_PUMPS: left pumps 1 and 2, right pumps 1 and 2.
+    const LEFT_WING_PUMPS: [usize; 2] = [0, 1];
+    const RIGHT_WING_PUMPS: [usize; 2] = [2, 3];
+
     pub const A320_FUEL: [FuelInfo<'static>; 5] = [
         FuelInfo {
             fuel_tank_id: "FUEL TANK CENTER QUANTITY",
@@ -132,6 +139,7 @@ impl A320Fuel {
         A320Fuel {
             fuel_system: FuelSystem::new(context, fuel_tanks, fuel_pumps),
             engine_lp_valves: [1, 2].map(|number| EngineLpFuelValve::new(context, number)),
+            gravity_feed: GravityFeed::new(context),
         }
     }
 
@@ -143,11 +151,19 @@ impl A320Fuel {
         for lp_valve in &mut self.engine_lp_valves {
             lp_valve.update(context, engine_fire_push_buttons);
         }
+
+        let pumps = WingPumpsRunning {
+            left: Self::LEFT_WING_PUMPS.map(|pump| self.fuel_system.is_fuel_pump_running(pump)),
+            right: Self::RIGHT_WING_PUMPS.map(|pump| self.fuel_system.is_fuel_pump_running(pump)),
+        };
+        self.gravity_feed.update(context, pumps);
     }
 
-    /// The LP fuel valve of the engine is closed and the fuel downstream of it is burned.
+    /// The engine has no fuel: its LP fuel valve is closed and the fuel downstream of it is burned,
+    /// or it was fed by gravity above the gravity feed ceiling (gravity_feed.rs).
     pub fn engine_is_starved(&self, engine_number: usize) -> bool {
         self.engine_lp_valves[engine_number - 1].engine_is_starved()
+            || self.gravity_feed.engine_is_starved(engine_number)
     }
 
     pub fn left_inner_tank_has_fuel_remaining(&self) -> bool {
@@ -233,6 +249,7 @@ impl SimulationElement for A320Fuel {
         for lp_valve in &mut self.engine_lp_valves {
             lp_valve.accept(visitor);
         }
+        self.gravity_feed.accept(visitor);
         visitor.visit(self);
     }
 }
