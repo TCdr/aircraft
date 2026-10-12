@@ -17,6 +17,8 @@ interface ButtonSelectionState {
   boarding2DoorButtonState: ServiceButtonState;
   boarding3DoorButtonState: ServiceButtonState;
   serviceDoorButtonState: ServiceButtonState;
+  /** A second service door switch: the A380X MAIN 4R (the A32NX has none) */
+  serviceDoor2ButtonState: ServiceButtonState;
   cargo1DoorButtonState: ServiceButtonState;
   jetWayButtonState: ServiceButtonState;
   stairsButtonState: ServiceButtonState;
@@ -33,6 +35,7 @@ let initialState: ButtonSelectionState = {
   boarding2DoorButtonState: ServiceButtonState.DISABLED,
   boarding3DoorButtonState: ServiceButtonState.DISABLED,
   serviceDoorButtonState: ServiceButtonState.DISABLED,
+  serviceDoor2ButtonState: ServiceButtonState.DISABLED,
   cargo1DoorButtonState: ServiceButtonState.DISABLED,
   fuelTruckButtonState: ServiceButtonState.DISABLED,
   gpuButtonState: ServiceButtonState.DISABLED,
@@ -65,6 +68,8 @@ const setInitialState = () => {
       SimVar.GetSimVarValue('A:INTERACTIVE POINT OPEN:3', 'Percent over 100') === 1.0
         ? ServiceButtonState.ACTIVE
         : ServiceButtonState.INACTIVE,
+    // the Services page sets it from its door (A380X interactive point 7) when it opens
+    serviceDoor2ButtonState: ServiceButtonState.INACTIVE,
     fuelTruckButtonState:
       SimVar.GetSimVarValue('A:INTERACTIVE POINT OPEN:9', 'Percent over 100') === 1.0
         ? ServiceButtonState.ACTIVE
@@ -107,6 +112,9 @@ export const buttonsSlice = createSlice({
     setServiceDoorButtonState: (state, action: PayloadAction<ServiceButtonState>) => {
       state.serviceDoorButtonState = action.payload;
     },
+    setServiceDoor2ButtonState: (state, action: PayloadAction<ServiceButtonState>) => {
+      state.serviceDoor2ButtonState = action.payload;
+    },
     setCargo1DoorButtonState: (state, action: PayloadAction<ServiceButtonState>) => {
       state.cargo1DoorButtonState = action.payload;
     },
@@ -139,6 +147,7 @@ export const {
   setBoarding2DoorButtonState,
   setBoarding3DoorButtonState,
   setServiceDoorButtonState,
+  setServiceDoor2ButtonState,
   setCargo1DoorButtonState,
   setJetWayButtonState,
   setStairsButtonState,

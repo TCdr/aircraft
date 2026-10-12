@@ -390,6 +390,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] ENGINE page: the oil temperature now turns amber after 15 min between 140 and 155 °C (the timer restarted at every temperature change and never ran out) - @TCdr
 1. [A32NX/COCKPIT] The RAT & EMER GEN MAN ON pushbutton tooltip no longer says "(Inop.)": the pushbutton extends the RAT and couples the emergency generator - @TCdr
 1. [A380X/MODEL] The exhaust heat haze of engines 2, 3 and 4 follows its own engine (it followed engine 1 or 2) - @TCdr
+1. [A380X/EFB] Ground > Services: the aft right door button is labelled Main 5 R (it opens MAIN 5R, the door the SD DOOR page and the FWS show), and its planform marker sits on door 5 R; a new Main 4 R button opens and closes MAIN 4R (the catering truck still docks at MAIN 5R) - @TCdr
 
 ## 2024.1.0
 
