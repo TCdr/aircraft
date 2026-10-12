@@ -701,6 +701,7 @@
       "Side": "Side",
       "SimBridgeIp": "External SimBridge Host Address",
       "SimBridgePort": "External SimBridge Port",
+      "SituationFxEnabled": "Situation Visual Effects (Engine and APU Fire, Engine Damage, Oil Leak)",
       "SyncMsfsFlightPlan": "Sync MSFS Flight Plan",
       "AutoLoadMsfsRoute": "Automatically Load MSFS Route",
       "ThrottleDetents": "Throttle Detents",

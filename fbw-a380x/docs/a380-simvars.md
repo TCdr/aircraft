@@ -1230,8 +1230,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 - A32NX_{zone}_ON_FIRE
     - Bool
-    - True when a fire is present in the APU or MLG
+    - True when a fire is present (burning) in the zone: set by the flyPad fire failure, cleared when the failure is
+      removed or, for the engines and the APU, with a chance of 1/2 by each new AGENT discharge into the zone
+    - The only fire input of the fire visual effects (A380_WINGS.xml ENGINE_FIRE_FX, A380_Fuselage_Behavior.xml
+      APU_FIRE_FX). systems.wasm copies the ENG ones into the sim's `ENG ON FIRE:{number}`, which the fire detection
+      reads; that copy is never read back as a fire source
     - {zone}
+        - ENG_{number}, number 1 to 4
         - APU
         - MLG
 
@@ -1307,6 +1312,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_OVHD_FIRE_TEST_PB_IS_PRESSED
     - Bool
     - True when the overhead fire test pushbutton is pressed
+
+- A32NX_CONFIG_SITUATION_FX
+    - Bool
+    - flyPad Settings > Sim Options "Situation Visual Effects" switch (persistent setting CONFIG_SITUATION_FX, default
+      on), written by the flyPad. The engine and APU fire effects, the engine damage smoke and the engine oil leak
+      smoke of the exterior model (ASOBO_GT_FX components ENGINE_FIRE_FX, ENGINE_DAMAGE_FX and ENGINE_OIL_LEAK_FX of
+      A380_WINGS.xml, APU_FIRE_FX of A380_Fuselage_Behavior.xml) show only while it is true
 
 ## Flight Controls (ATA 27)
 

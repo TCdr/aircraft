@@ -212,6 +212,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] T.O CONFIG test: every main deck, upper deck and cargo door and the cockpit sliding windows must be closed for T.O CONFIG NORMAL (it checked only MAIN 1L, MAIN 2R and the cargo doors) - @TCdr
 1. [A380X/FWS] New L/G CTL 1(2)(1+2) FAULT, L/G GEAR NOT LOCKED DOWN, L/G GEAR NOT LOCKED UP, L/G DOORS NOT CLOSED, L/G SYSTEM DISAGREE and NAV CAPT AND F/O ALT, ATT, HDG and BARO REF DISAGREE alerts, and the CAT 2, GLS AUTOLAND and LOAD ALLEVIATION STATUS lines of F/CTL ALTN LAW and DIRECT LAW - @TCdr
 1. [A380X/GPWS] Mode 4B: gear up with the flaps in landing configuration gives TOO LOW GEAR below 245 ft and never TOO LOW TERRAIN, and a mode 4 alert stops once the aircraft climbs back above its ceiling - @TCdr
+1. [A32NX/MODEL] An engine fire shows flames at the exhaust of the engine on fire and an APU fire shows smoke at the APU exhaust, until the fire is out (nothing during a FIRE TEST); an engine failed from the MSFS failures menu shows smoke; an engine oil leak (flyPad failure) shows smoke while the oil flows out - @TCdr
+1. [A32NX/FIRE] An AGENT discharge (or the automatic APU discharge) can also put out a fire set from the MSFS failures menu, which then ends the ENG/APU FIRE warning - @TCdr
+1. [A380X/MODEL] An engine fire shows flames at the exhaust of the engine on fire (engines 1 to 4) and an APU fire shows smoke at the APU exhaust, until the fire is out (nothing during a FIRE TEST); an engine failed from the MSFS failures menu shows smoke; an engine oil leak (flyPad failure) shows smoke while the oil flows out; the stock MSFS engine fire, engine damage and oil leak effects are turned off so they do not show twice; the engine 2 effects (heat haze, contrails, fire) no longer vanish at the medium model detail (LOD01) - @TCdr
+1. [EFB] Settings > Sim Options: new "Situation Visual Effects (Engine and APU Fire, Engine Damage, Oil Leak)" switch, on by default, to turn the fire, smoke, engine damage and oil leak effects off - @TCdr
 
 ## 2024.1.0
 

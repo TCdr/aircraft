@@ -408,13 +408,17 @@
 
 - A32NX_ENG_{1 | 2}_ON_FIRE
     - Bool
-    - The engine is on fire (flyPad failure "Engine 1(2) fire"). Set by the failure, cleared when the failure is
-      removed or, with a chance of 1/2, by each new AGENT discharge of that engine
+    - The engine is on fire, burning (flyPad failure "Engine 1(2) fire", or the sim's own `ENG ON FIRE:{1 | 2}` of the
+      MSFS failures menu). Set when the failure or the sim fire comes on, cleared when both are off or, with a chance of
+      1/2, by each new AGENT discharge of that engine; a fire put out by an agent stays out while `ENG ON FIRE` stays on
+    - The only fire input of the engine fire visual effects (model/A320_NEO.xml ENGINE_FIRE_FX)
 
 - A32NX_APU_ON_FIRE
     - Bool
-    - The APU is on fire (flyPad failure "APU fire"). Set by the failure, cleared when the failure is removed or, with a
-      chance of 1/2, by the APU AGENT discharge
+    - The APU is on fire, burning (flyPad failure "APU fire", or the sim's own `APU ON FIRE DETECTED`). Set when the
+      failure or the sim fire comes on, cleared when both are off or, with a chance of 1/2, by the APU AGENT discharge
+      (also the automatic one on the ground); a fire put out by the agent stays out while `APU ON FIRE DETECTED` stays on
+    - The only fire input of the APU fire visual effect (model/A320_NEO.xml APU_FIRE_FX)
 
 - A32NX_FIRE_{ENG1 | ENG2 | APU}_AGENT{1 | 2}_Discharge
     - Bool
@@ -1398,6 +1402,13 @@
 ## Model/XML Interface
 
 These variables are the interface between the 3D model and the systems/code.
+
+- A32NX_CONFIG_SITUATION_FX
+    - Bool
+    - flyPad Settings > Sim Options "Situation Visual Effects" switch (persistent setting CONFIG_SITUATION_FX, default
+      on), written by the flyPad. The engine and APU fire effects, the engine damage smoke and the engine oil leak
+      smoke of the exterior model (ASOBO_GT_FX components ENGINE_FIRE_FX, APU_FIRE_FX, ENGINE_DAMAGE_FX and
+      ENGINE_OIL_LEAK_FX of model/A320_NEO.xml) show only while it is true
 
 - A32NX_OVHD_INTLT_ANN
     - Enum
@@ -4110,6 +4121,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 1
     - 2
   - True while the oil leak failure of the engine is active (flyPad failures 79000/79001): the FADEC takes 2 qt/min out of the engine oil system (A32NX_ENGINE_OIL_TOTAL; the tank quantity A32NX_ENGINE_OIL_QTY falls about 1.6 qt/min, the rest being the oil in the circuit) while the core turns, and the oil pressure falls once the whole oil system holds less than 2.5 qt (ENG OIL LO PR below 13 PSI; never without the failure, a healthy engine holds 14 to 20 qt). Written by the systems WASM (systems engine/oil_failure.rs)
+  - Also shows the oil leak smoke at the engine exhaust while the oil flows out (model/A320_NEO.xml ENGINE_OIL_LEAK_FX, with A32NX_CONFIG_SITUATION_FX)
 
 - A32NX_ENGINE_{number}_OIL_FILTER_CLOGGED
   - Bool
