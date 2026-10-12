@@ -295,6 +295,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FUEL] Gravity fuel feeding has the FCOM gravity feed ceiling: an engine fed by gravity (no wing tank pump running) above FL 150 to FL 360, depending on the time flown above FL 300 and the takeoff airport, flames out after 3 min and needs a relight - @TCdr
 1. [A32NX/A380X] New flyPad failures: engine LP fuel valve jammed in place, with FUEL ENG 1(2) LP VALVE OPEN (A32NX) and FUEL ENG 1(2)(3)(4) LP VLV FAULT (A380X); jammed closed, the engine cannot start - @TCdr
 1. [A32NX/FWC] New flyPad failures FQI channel 1 and 2, with the FUEL FQI CH 1(2) FAULT cautions - @TCdr
+1. [A32NX/FWC] New NAV FM/GPS POS DISAGREE and NAV LS TUNING DISAGREE cautions - @TCdr
 
 ## 2024.1.0
 
