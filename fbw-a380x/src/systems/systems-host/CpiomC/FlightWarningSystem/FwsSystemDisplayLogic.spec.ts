@@ -12,7 +12,7 @@ import {
   sdMoreShownAfterMorePb,
   sdMoreShownToKeep,
 } from '@shared/EcamSdMore';
-import { FwsSystemDisplayLogic } from './FwsSystemDisplayLogic';
+import { automaticPageInFlight, FwsSystemDisplayLogic } from './FwsSystemDisplayLogic';
 import { FwsCore } from './FwsCore';
 
 /*
@@ -206,5 +206,58 @@ describe('ECP MORE pb light (ecam-cp.xml)', () => {
     );
     const emissive = template.match(/<SEQ2_EMISSIVE_CODE>([^<]*)<\/SEQ2_EMISSIVE_CODE>/);
     expect(emissive?.[1]).toContain('(L:A32NX_ECAM_SD_MORE_SHOWN, Bool)');
+  });
+});
+
+/*
+ * A380 FCOM DSC-31-40-30 (a380_fcom.txt l.73745-73751): CRUISE "At 1 500 ft AGL or at the thrust reduction, whichever
+ * occurs the first until landing gear extension in approach"; WHEEL "After landing gear extension, until last engine
+ * shutdown". The A320 rules (CRUISE 60 s after T.O power / flaps / spoilers, WHEEL below 16 000 ft only) were used.
+ */
+describe('FwsSystemDisplayLogic automatic page in flight (phases 8-11)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Phase 8, all engines running with the ENG START selector on NORM, no APU */
+  const inFlight = (values: Record<string, number>, pressureAltitude = 20000) => {
+    const all: Record<string, number> = {
+      'L:XMLVAR_ENG_MODE_SEL': 1,
+      'L:A32NX_ENGINE_STATE:1': 1,
+      'L:A32NX_ENGINE_STATE:2': 1,
+      'L:A32NX_ENGINE_STATE:3': 1,
+      'L:A32NX_ENGINE_STATE:4': 1,
+      ...values,
+    };
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => all[name] ?? 0);
+    const { logic, fws } = setUp();
+    fws.adrPressureAltitude.set(pressureAltitude);
+    const pageWhenUnselected = (logic as unknown as { pageWhenUnselected: Subject<SdPages> }).pageWhenUnselected;
+    pageWhenUnselected.set(SdPages.Eng);
+    fws.flightPhase.set(8);
+    logic.update(100);
+    return pageWhenUnselected.get();
+  };
+
+  it('CRUISE at once from 1 500 ft with the T.O thrust still set (no 60 s delay)', () => {
+    expect(
+      inFlight({
+        'L:A32NX_AUTOTHRUST_TLA:4': 40,
+        'ENG N1 RPM:1': 80,
+        'ENG N1 RPM:2': 80,
+        'ENG N1 RPM:3': 80,
+        'ENG N1 RPM:4': 80,
+        'L:A32NX_FLAPS_HANDLE_INDEX': 2,
+      }),
+    ).toBe(SdPages.Crz);
+  });
+
+  it('WHEEL after the landing gear extension, also above 16 000 ft', () => {
+    expect(inFlight({ 'GEAR TOTAL PCT EXTENDED': 100 }, 20000)).toBe(SdPages.Wheel);
+  });
+
+  it('WHEEL with the gear down, CRUISE with the gear up', () => {
+    expect(automaticPageInFlight(true)).toBe(SdPages.Wheel);
+    expect(automaticPageInFlight(false)).toBe(SdPages.Crz);
   });
 });

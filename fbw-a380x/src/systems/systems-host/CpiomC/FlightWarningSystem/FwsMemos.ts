@@ -129,6 +129,14 @@ export class FwsMemos {
       codesToReturn: ['310000002'],
       memoInhibit: () => false,
     },
+    '000000001': {
+      // NORMAL: RCL pb pressed with no alert to recall, for 3 s (FCOM DSC-31-40-20 l.73433, FwsRecall.ts)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.recallNormalMemo,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['000000001'],
+      memoInhibit: () => false,
+    },
     '0000170': {
       // APU AVAIL
       flightPhaseInhib: [],
