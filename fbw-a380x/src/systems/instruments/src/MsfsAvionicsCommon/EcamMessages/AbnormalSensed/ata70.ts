@@ -867,7 +867,8 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
-        name: 'LDG DIST AFFECTED',
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN, inner engine (a380_fcom.txt l.172738-172741)
+        name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY',
         sensed: false,
       },
       {
@@ -914,7 +915,8 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
-        name: 'LDG DIST AFFECTED',
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN, inner engine (a380_fcom.txt l.172738-172741)
+        name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY',
         sensed: false,
       },
       {

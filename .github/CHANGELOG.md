@@ -252,6 +252,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] The contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
 1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as in the FCOM (it also showed in ROSE NAV) - @TCdr
 1. [A380X/FWS] Smart FIVE HUNDRED callout: the flyPad pin programming "Inhibited When Glideslope Captured" is back and calls FIVE HUNDRED only when more than half a dot off the glideslope - @TCdr
+1. [A380X/PFD] FMA line 3: CHECK SPD MODE and CHECK EO SPD SETTING now show - @TCdr
+1. [A380X/EWD] The AVAIL indication stays 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever is set above idle - @TCdr
+1. [A380X/EWD] EGT gauge: the amber limit is 745 C during a ground start and 865 C during a relight in flight - @TCdr
+1. [A380X/SD] FUEL page: the tank quantities of an unbalanced pair are underlined amber, with the trigger of FUEL WINGS NOT BALANCED - @TCdr
+1. [A380X/SD] WHEEL page: L/G CTL and L/G GRVTY EXTN IN PROGRESS now show - @TCdr
+1. [A380X/FWS] ENG 2(3) SHUT DOWN: the landing distance line reads LDG DIST IMPACT ON WET/CONTAM RWY ONLY as in the FCOM - @TCdr
 
 ## 2024.1.0
 

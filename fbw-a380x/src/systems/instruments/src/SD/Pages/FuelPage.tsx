@@ -1,10 +1,11 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useEffect, useRef, useState } from 'react';
 import { Position } from '@instruments/common/types';
 import { useSimVar } from '@instruments/common/simVars';
 import { MoreLabel, PageTitle } from './Generic/PageTitle';
 import { useArinc429Var } from '@instruments/common/arinc429';
 import { NXUnits, useInterval } from '@flybywiresim/fbw-sdk-react';
 import { engineLpValveIndication } from './EngineLpValveIndication';
+import { WingImbalanceIndication } from './FuelImbalanceIndication';
 
 export const FuelPage = () => {
   const CROSS_FEED_VALVE_CLOSED_THRESHOLD = 0.1;
@@ -803,6 +804,20 @@ export const FuelPage = () => {
   );
   const trimTankWeight = fqmsTrimTankWeight.valueOr(fqdc1TrimTankWeight.valueOr(fqdc2TrimTankWeight.valueOr(null)));
 
+  // Wing imbalance underlines (FCOM DSC-28-20, FuelImbalanceIndication.ts), with the trigger of FUEL WINGS NOT BALANCED
+  const [onGround] = useSimVar('SIM ON GROUND', 'bool', 1000);
+  const [refuelStarted] = useSimVar('L:A32NX_REFUEL_STARTED_BY_USR', 'bool', 1000);
+  const [refuelPanelOpen] = useSimVar('INTERACTIVE POINT OPEN:18', 'percent over 100', 1000);
+  const wingImbalanceIndication = useRef(new WingImbalanceIndication());
+  const imbalance = wingImbalanceIndication.current.update({
+    onGround: onGround > 0,
+    fuelingInProgress: refuelStarted > 0 || refuelPanelOpen > 0,
+    feedKg: [feed1TankWeight, feed2TankWeight, feed3TankWeight, feed4TankWeight],
+    innerKg: [leftInnerTankWeight, rightInnerTankWeight],
+    midKg: [leftMidTankWeight, rightMidTankWeight],
+    outerKg: [leftOuterTankWeight, rightOuterTankWeight],
+  });
+
   return (
     <>
       <PageTitle x={6} y={29}>
@@ -865,6 +880,7 @@ export const FuelPage = () => {
         y={300}
         quantity={feed1TankWeight}
         hasFault={feed1TankWeight === null || feed1TankWeight < FEED_TANK_LOW_LEVEL_THRESHOLD_KG}
+        underline={imbalance.feed[0]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
         // FEED TANK 1 collector cell (inop.)
@@ -902,9 +918,9 @@ export const FuelPage = () => {
       />
 
       {/* LEFT OUTER/MID/INNER */}
-      <TankQuantity x={102} y={434} quantity={leftOuterTankWeight} />
-      <TankQuantity x={202} y={430} quantity={leftMidTankWeight} />
-      <TankQuantity x={302} y={430} quantity={leftInnerTankWeight} />
+      <TankQuantity x={102} y={434} quantity={leftOuterTankWeight} underline={imbalance.outer[0]} />
+      <TankQuantity x={202} y={430} quantity={leftMidTankWeight} underline={imbalance.mid[0]} />
+      <TankQuantity x={302} y={430} quantity={leftInnerTankWeight} underline={imbalance.inner[0]} />
 
       {/* FEED TANK 2 */}
       <TankQuantity
@@ -912,6 +928,7 @@ export const FuelPage = () => {
         y={288}
         quantity={feed2TankWeight}
         hasFault={feed2TankWeight === null || feed2TankWeight < FEED_TANK_LOW_LEVEL_THRESHOLD_KG}
+        underline={imbalance.feed[1]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
         // FEED TANK 2 collector cell (inop.)
@@ -954,6 +971,7 @@ export const FuelPage = () => {
         y={288}
         quantity={feed3TankWeight}
         hasFault={feed3TankWeight === null || feed3TankWeight < FEED_TANK_LOW_LEVEL_THRESHOLD_KG}
+        underline={imbalance.feed[2]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
         // FEED TANK 3 collector cell (inop.)
@@ -991,9 +1009,9 @@ export const FuelPage = () => {
       />
 
       {/* RIGHT INNER/MID/OUTER */}
-      <TankQuantity x={548} y={430} quantity={rightInnerTankWeight} />
-      <TankQuantity x={648} y={430} quantity={rightMidTankWeight} />
-      <TankQuantity x={748} y={434} quantity={rightOuterTankWeight} />
+      <TankQuantity x={548} y={430} quantity={rightInnerTankWeight} underline={imbalance.inner[1]} />
+      <TankQuantity x={648} y={430} quantity={rightMidTankWeight} underline={imbalance.mid[1]} />
+      <TankQuantity x={748} y={434} quantity={rightOuterTankWeight} underline={imbalance.outer[1]} />
 
       {/* FEED TANK 4 */}
       <TankQuantity
@@ -1001,6 +1019,7 @@ export const FuelPage = () => {
         y={300}
         quantity={feed4TankWeight}
         hasFault={feed4TankWeight === null || feed4TankWeight < FEED_TANK_LOW_LEVEL_THRESHOLD_KG}
+        underline={imbalance.feed[3]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
         // FEED TANK 4 collector cell (inop.)
@@ -1667,20 +1686,36 @@ interface TankQuantityProps extends Position {
   smallFont?: boolean;
   quantity: number | null;
   hasFault?: boolean;
+  /** Amber underline of the wing imbalance (FuelImbalanceIndication.ts) */
+  underline?: boolean;
 }
 
-const TankQuantity: FC<TankQuantityProps> = ({ x, y, smallFont = false, quantity, hasFault }) => {
+/** Approximate width of one character of the T4 (26 px) ECAM font, for the underline */
+const T4_CHARACTER_WIDTH = 15;
+
+const TankQuantity: FC<TankQuantityProps> = ({ x, y, smallFont = false, quantity, hasFault, underline = false }) => {
   const displayText = quantity !== null ? Math.floor(NXUnits.kgToUser(quantity) / 20) * 20 : 'XX\xa0';
 
   return (
-    <text
-      x={x}
-      y={y}
-      className={`${hasFault || quantity === null ? 'Amber' : 'Green'} ${smallFont ? 'T3' : 'T4'}`}
-      textAnchor="end"
-    >
-      {displayText}
-    </text>
+    <>
+      <text
+        x={x}
+        y={y}
+        className={`${hasFault || quantity === null ? 'Amber' : 'Green'} ${smallFont ? 'T3' : 'T4'}`}
+        textAnchor="end"
+      >
+        {displayText}
+      </text>
+      {underline && (
+        <line
+          x1={x - String(displayText).length * T4_CHARACTER_WIDTH}
+          y1={y + 4}
+          x2={x}
+          y2={y + 4}
+          className="Amber SW2"
+        />
+      )}
+    </>
   );
 };
 

@@ -10,7 +10,15 @@ import {
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
 import { GaugeComponent, GaugeMarkerComponent, GaugeMaxEGTComponent } from '../../MsfsAvionicsCommon/gauges';
-import { EGT_RED_LINE_C, ExceedanceMemory, displayedEgt, egtColour, egtLimitMarkVisible } from './EgtLimits';
+import {
+  EGT_RED_LINE_C,
+  ExceedanceMemory,
+  displayedEgt,
+  egtColour,
+  egtLimit,
+  egtLimitMarkVisible,
+  isStartSequence,
+} from './EgtLimits';
 
 interface EGTProps {
   bus: EventBus;
@@ -39,12 +47,6 @@ export class EGT extends DisplayComponent<EGTProps> {
 
   private readonly amberVisible = this.thrustLimitType.map(egtLimitMarkVisible);
 
-  private readonly egtColour = MappedSubject.create(
-    ([egt, limitType]) => egtColour(egt, limitType),
-    this.egt,
-    this.thrustLimitType,
-  );
-
   /** The EGT offset of the stall and EGT overtemperature failures (EgtLimits displayedEgt) */
   private readonly egtOffset = ConsumerSubject.create(
     this.sub.on(`egt_offset_${this.props.engine}`).withPrecision(1).whenChanged(),
@@ -58,12 +60,27 @@ export class EGT extends DisplayComponent<EGTProps> {
 
   private readonly onGround = ConsumerSubject.create(this.sub.on('nose_gear_compressed_1').whenChanged(), false);
 
+  /** The amber EGT limit: start limit on ground, relight limit in flight, normal limit otherwise (EgtLimits egtLimit) */
+  private readonly egtLimit = MappedSubject.create(
+    ([state, onGround]) => egtLimit(state, onGround),
+    this.engineState,
+    this.onGround,
+  );
+
+  private readonly egtColour = MappedSubject.create(
+    ([egt, limitType, limit]) => egtColour(egt, limitType, limit),
+    this.egt,
+    this.thrustLimitType,
+    this.egtLimit,
+  );
+
   // EEC trims EGT to a max value; the failure offset is added on top (EgtLimits displayedEgt)
   private readonly trimmedEGT = MappedSubject.create(
-    ([egt, egtOffset, limitType]) => displayedEgt(egt, egtOffset, limitType),
+    ([egt, egtOffset, limitType, state]) => displayedEgt(egt, egtOffset, limitType, isStartSequence(state)),
     this.egt,
     this.egtOffset,
     this.thrustLimitType,
+    this.engineState,
   );
 
   /** The red mark at the highest EGT shown above the red line (FCOM DSC-70-90 EGT EXCEEDANCE) */
@@ -160,7 +177,7 @@ export class EGT extends DisplayComponent<EGTProps> {
               />
               <g visibility={this.amberVisible.map((it) => (it ? 'inherit' : 'hidden'))}>
                 <GaugeMaxEGTComponent
-                  value={Subject.create(850)}
+                  value={this.egtLimit}
                   x={this.props.x}
                   y={this.props.y}
                   min={this.min}
