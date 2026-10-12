@@ -6,8 +6,8 @@ use systems::shared::AdirsDiscreteOutputs;
 use systems::simulation::InitContext;
 use systems::{
     electrical::{
-        Battery, BatteryChargeLimiter, Contactor, ElectricalBus, Electricity, EmergencyElectrical,
-        EmergencyGenerator, StaticInverter,
+        Battery, BatteryChargeLimiter, Contactor, ElectricalBus, ElectricalElement, Electricity,
+        EmergencyElectrical, EmergencyGenerator, StaticInverter,
     },
     shared::{
         ApuMaster, ApuStart, AuxiliaryPowerUnitElectrical, ContactorSignal, ElectricalBusType,
@@ -119,12 +119,6 @@ impl A320DirectCurrentElectrical {
             &self.tr_2_to_dc_gnd_flt_service_bus_contactor,
         );
 
-        self.tr_ess_contactor.close_when(
-            !ac_state.tr_1_and_2_available(electricity)
-                && electricity.is_powered(ac_state.tr_ess()),
-        );
-        electricity.flow(ac_state.tr_ess(), &self.tr_ess_contactor);
-
         electricity.flow(&self.tr_1_contactor, &self.dc_bus_1);
         electricity.flow(&self.tr_2_contactor, &self.dc_bus_2);
 
@@ -146,9 +140,6 @@ impl A320DirectCurrentElectrical {
             &self.dc_gnd_flt_service_bus,
         );
 
-        electricity.flow(&self.dc_bus_1, &self.dc_bus_1_tie_contactor);
-        electricity.flow(&self.dc_bus_2, &self.dc_bus_2_tie_contactor);
-
         let dc_bus_1_is_powered = electricity.is_powered(&self.dc_bus_1);
         let dc_bus_2_is_powered = electricity.is_powered(&self.dc_bus_2);
         self.dc_bus_1_tie_contactor
@@ -157,6 +148,22 @@ impl A320DirectCurrentElectrical {
             (!dc_bus_1_is_powered && dc_bus_2_is_powered)
                 || (!dc_bus_2_is_powered && dc_bus_1_is_powered),
         );
+        // The DC buses flow into their tie contactors only once these are set for this update: a
+        // flow through a contactor still open from the previous update left the DC BAT BUS, and the
+        // DC ESS BUS behind it, unpowered for one update each time a DC bus was lost or came back
+        // (the computers on the DC ESS / DC ESS SHED BUS restarted, the FCU dropped the AP).
+        electricity.flow(&self.dc_bus_1, &self.dc_bus_1_tie_contactor);
+        electricity.flow(&self.dc_bus_2, &self.dc_bus_2_tie_contactor);
+
+        // The ESS TR takes over the DC ESS BUS when its normal supply (DC BAT BUS, from DC BUS 1 or 2)
+        // is lost, see normal_dc_ess_supply_lost()
+        let normal_dc_ess_supply_lost = Self::normal_dc_ess_supply_lost(
+            ac_state.tr_1_and_2_available(electricity),
+            self.dc_bus_1_and_2_busbars_lost(),
+        );
+        self.tr_ess_contactor
+            .close_when(normal_dc_ess_supply_lost && electricity.is_powered(ac_state.tr_ess()));
+        electricity.flow(ac_state.tr_ess(), &self.tr_ess_contactor);
 
         electricity.flow(&self.dc_bus_1_tie_contactor, &self.dc_bat_bus);
         electricity.flow(&self.dc_bus_2_tie_contactor, &self.dc_bat_bus);
@@ -232,8 +239,9 @@ impl A320DirectCurrentElectrical {
             .close_when(should_close_2xb_contactor);
         electricity.flow(&self.hot_bus_2, &self.hot_bus_2_to_dc_ess_bus_contactor);
 
+        // Opens whenever the ESS TR supplies the DC ESS BUS (never two sources on one bus)
         self.dc_bat_bus_to_dc_ess_bus_contactor
-            .close_when(ac_state.tr_1_and_2_available(electricity));
+            .close_when(!normal_dc_ess_supply_lost);
         electricity.flow(&self.dc_bat_bus, &self.dc_bat_bus_to_dc_ess_bus_contactor);
 
         electricity.flow(&self.dc_bat_bus_to_dc_ess_bus_contactor, &self.dc_ess_bus);
@@ -245,6 +253,28 @@ impl A320DirectCurrentElectrical {
         electricity.flow(&self.dc_ess_bus, &self.dc_ess_shed_contactor);
 
         electricity.flow(&self.dc_ess_shed_contactor, &self.dc_ess_shed_bus);
+    }
+
+    /// The DC ESS BUS normally comes from the DC BAT BUS, which DC BUS 1 or DC BUS 2 feeds. The ESS TR
+    /// takes over when:
+    /// - TR 1 and TR 2 are lost (FCOM DSC-24-10-30-30, a320_fcom.txt l.36766: "If TR 1 and TR 2 are
+    ///   lost, DC BUS 1, DC BUS 2, and DC BAT BUS are lost. The DC ESS BUS is supplied by the ESS TR."),
+    /// - or the DC BUS 1 and DC BUS 2 busbars themselves are lost while their TRs still work. ELEC DC
+    ///   BUS 1+2 FAULT (FCOM PRO-ABN-ELEC, l.76800-76906) loses the DC BAT BUS (associated procedure
+    ///   ELEC DC BAT BUS FAULT) but keeps FAC 1, AP 1, FCDC 1 and CAB PR 1, all DC ESS BUS users, out
+    ///   of its INOP SYS, and its STATUS shows "BOTH PFD ON SAME FAC": the DC ESS BUS stays supplied.
+    ///   Design choice: the FCOM does not say how this loss is detected; it is modelled on the busbar
+    ///   failures, the only way to lose both DC buses while TR 1 and TR 2 are available.
+    pub fn normal_dc_ess_supply_lost(
+        tr_1_and_2_available: bool,
+        dc_bus_1_and_2_busbars_lost: bool,
+    ) -> bool {
+        !tr_1_and_2_available || dc_bus_1_and_2_busbars_lost
+    }
+
+    /// True when both the DC BUS 1 and DC BUS 2 busbars have failed (they no longer conduct)
+    pub fn dc_bus_1_and_2_busbars_lost(&self) -> bool {
+        !self.dc_bus_1.is_conductive() && !self.dc_bus_2.is_conductive()
     }
 
     /// Determines if the 2XB contactors should be closed. 2XB are the two contactors

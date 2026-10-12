@@ -1,6 +1,7 @@
 use super::{
-    A320AlternatingCurrentElectricalSystem, A320DirectCurrentElectricalSystem,
-    A320ElectricalOverheadPanel, A320EmergencyElectricalOverheadPanel,
+    direct_current::A320DirectCurrentElectrical, A320AlternatingCurrentElectricalSystem,
+    A320DirectCurrentElectricalSystem, A320ElectricalOverheadPanel,
+    A320EmergencyElectricalOverheadPanel,
 };
 use std::time::Duration;
 use systems::{
@@ -107,6 +108,7 @@ impl A320AlternatingCurrentElectrical {
         ext_pwr: &ExternalPowerSource,
         overhead: &A320ElectricalOverheadPanel,
         emergency_generator: &EmergencyGenerator,
+        dc_bus_1_and_2_busbars_lost: bool,
     ) {
         self.ac_bus_2_to_tr_2_contactor
             .close_when(electricity.is_powered(&self.ac_bus_2) && !self.tr_2.has_failed());
@@ -163,9 +165,14 @@ impl A320AlternatingCurrentElectrical {
         electricity.supplied_by(emergency_generator);
         electricity.flow(emergency_generator, &self.emergency_gen_contactor);
 
+        // The ESS TR is fed when it must take over the DC ESS BUS, see
+        // A320DirectCurrentElectrical::normal_dc_ess_supply_lost()
+        let normal_dc_ess_supply_lost = A320DirectCurrentElectrical::normal_dc_ess_supply_lost(
+            self.tr_1_and_2_available(electricity),
+            dc_bus_1_and_2_busbars_lost,
+        );
         self.ac_ess_to_tr_ess_contactor.close_when(
-            (!self.tr_1_and_2_available(electricity)
-                && self.ac_ess_feed_contactors.provides_power(electricity))
+            (normal_dc_ess_supply_lost && self.ac_ess_feed_contactors.provides_power(electricity))
                 || electricity.is_powered(&self.emergency_gen_contactor),
         );
         electricity.flow(&self.ac_ess_bus, &self.ac_ess_to_tr_ess_contactor);

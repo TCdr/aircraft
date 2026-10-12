@@ -421,6 +421,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] F/CTL STATUS page: ALTN LAW, DIRECT LAW, ELAC, SEC, FCDC, elevator, aileron and spoiler faults now show their FCOM limitations, approach procedure, information and INOP SYS lines - @TCdr
 1. [Pushback] The pushback goes on when another flyPad page is opened, still steered with the rudder pedals and the sidestick - @TCdr
 1. [A32NX/HYD] The RAT propeller has the real 29.5 in (749 mm) diameter instead of 1 m, with its performance retuned to the real RAT: rated output from 135.5 kt, governed between 4800 and 6600 rpm, and the emergency generator kept running down to 125 kt as in the FCOM; below its governed band the RAT pressure fades and the emergency generator is lost (about 110 kt); the RAT holds the blue system at about 2500 psi as in the FCOM, also without the emergency generator (RAT MAN ON), instead of about 2680 psi - @TCdr
+1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
 
 ## 2024.1.0
 
