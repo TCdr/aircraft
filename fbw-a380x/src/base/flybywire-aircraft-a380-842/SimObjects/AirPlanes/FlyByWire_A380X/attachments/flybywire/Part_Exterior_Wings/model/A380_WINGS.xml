@@ -263,42 +263,70 @@
 				<ANIM_CODE>(L:A32NX_RAT_PROPELLER_ANGLE) 100 *</ANIM_CODE>
 			</UseTemplate>
 		</Component>
+		<!--
+			Contrails, one per engine exhaust, only while that engine burns fuel: the sim's contrail conditions
+			(CONTRAILS CONDITIONS MET), ANDed with an engine running term of the same engine, so that a flamed out, shut
+			down or seized engine leaves no contrail (water vapour comes from the fuel burnt).
+			- Engine running term (design choice): the MSFS engine burns (GENERAL ENG COMBUSTION:n, the term of the stock
+			  ASOBO_CONTRAIL_QUAD_FX / RIBBON_FX templates of the SDK Generic/FX.xml) and the FADEC fuel flow is above 0
+			  (L:A32NX_ENGINE_FF:n, fadec_a380x EngineControl_A380X.cpp: 0 as soon as the fuel is cut by a flameout or a
+			  seizure, by the ENG MASTER OFF or by an unlit relight). The fuel flow covers the times MSFS kept its
+			  combustion flag with no fuel (20 to 60 s after a shutdown, 27 s after a FIRE pb push-in, sim recordings
+			  2026-10-05/06); the combustion covers an engine MSFS no longer burns while the FADEC still runs it. No N3
+			  threshold: an A380 core speed limit for "running" has no source (the A32NX N2 > 25 % is A32NX-specific).
+			- Exhaust node of each engine in A380_WINGS.gltf, from the node positions: LEFT1 = engine 1 (left outer), RIGHT2 =
+			  engine 2 (left inner), RIGHT3 = engine 3 (right inner), RIGHT4 = engine 4 (right outer). The ribbon contrails
+			  are on engines 2 and 4 only, as before.
+			- This part owns these nodes: the fuselage part (A380_FUSELAGE.gltf) has none of them, and its old copy of these
+			  contrails was removed.
+			- JettisonDripContrailEffects.spec.ts (src/systems/shared/src) checks these components.
+		-->
 		<Component ID="FX_CONTRAIL_QUAD">
 			<OverrideTemplateParameters>
-				<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt;</FX_CODE>
 				<FX_OFFSET_X>0</FX_OFFSET_X>
 				<FX_OFFSET_Y>0</FX_OFFSET_Y>
 				<FX_OFFSET_Z>0</FX_OFFSET_Z>
 				<FX_GUID>{F42CE638-11EB-4FC8-B9B0-111A220D681F}</FX_GUID>
 				<FX_NAME>FX_CONTRAILS</FX_NAME>
 			</OverrideTemplateParameters>
-			<Component ID="FX_CONTRAIL_QUAD_LEFT_IN" Node="FX_EXHAUST_LEFT1">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_QUAD_ENG_1" Node="FX_EXHAUST_LEFT1">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:1, Bool) and (L:A32NX_ENGINE_FF:1, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_LEFT_OUT" Node="FX_EXHAUST_RIGHT2">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_QUAD_ENG_2" Node="FX_EXHAUST_RIGHT2">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:2, Bool) and (L:A32NX_ENGINE_FF:2, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_RIGHT_IN" Node="FX_EXHAUST_RIGHT3">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_QUAD_ENG_3" Node="FX_EXHAUST_RIGHT3">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:3, Bool) and (L:A32NX_ENGINE_FF:3, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_RIGHT_OUT" Node="FX_EXHAUST_RIGHT4">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_QUAD_ENG_4" Node="FX_EXHAUST_RIGHT4">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:4, Bool) and (L:A32NX_ENGINE_FF:4, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
 		</Component>
 		<Component ID="FX_CONTRAIL_RIBBON">
 			<OverrideTemplateParameters>
-				<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt;</FX_CODE>
 				<FX_OFFSET_X>0</FX_OFFSET_X>
 				<FX_OFFSET_Y>0</FX_OFFSET_Y>
 				<FX_OFFSET_Z>0</FX_OFFSET_Z>
 				<FX_GUID>{904EC2CE-F8DD-4480-99E7-B33F7CF6E114}</FX_GUID>
 				<FX_NAME>FX_CONTRAILS_RIBBON</FX_NAME>
 			</OverrideTemplateParameters>
-			<Component ID="FX_CONTRAIL_RIBBON_LEFT_OUT" Node="FX_EXHAUST_RIGHT2">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_RIBBON_ENG_2" Node="FX_EXHAUST_RIGHT2">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:2, Bool) and (L:A32NX_ENGINE_FF:2, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
-			<Component ID="FX_CONTRAIL_RIBBON_RIGHT_OUT" Node="FX_EXHAUST_RIGHT4">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_RIBBON_ENG_4" Node="FX_EXHAUST_RIGHT4">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:4, Bool) and (L:A32NX_ENGINE_FF:4, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
 		</Component>
 		<Component ID="GND_EQUIPMENT">
@@ -531,6 +559,60 @@
 				<FX_CONTACT_POINT_ID>2</FX_CONTACT_POINT_ID>
 				<FX_NODE>fx_tire_contactPoint_right_out</FX_NODE>
 			</UseTemplate>
+		</Component>
+		<!--
+			Fuel jettison on the ground: fuel dripping from each jettison outlet, next to the plume below (visual layer only).
+			- A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON (ABN PROC): "It is possible to jettison in any aircraft configuration, and at any
+			  speed. However, the height should be sufficient to avoid contamination on the ground" (a380_fcom.txt
+			  l.151175-151176): a jettison on the ground puts the fuel on the ground. The FQMS (FuelJettison.ts) does not
+			  inhibit it on the ground (JETTISON ARM + ACTIVE pb-sw on the overhead FUEL panel).
+			- Same per-side condition as the plume (L:A380X_FUEL_JETTISON_IN_PROGRESS and that side's jettison valve 57 / 58
+			  open), and SIM ON GROUND. Like the plume, not tied to the flyPad Settings > Sim Options switch "Situation
+			  Visual Effects" (user decision 2026-10-12: the jettison effect is not a situation effect, plume and drip
+			  always show together).
+			- Look (design choice): the stock MSFS fuel leak drip graphs of the SDK templates ASOBO_Fuel_Leak_Slow_Template
+			  (below 40 kt TAS) and ASOBO_Fuel_Leak_Fast_Template (40 kt TAS and above), switched by the true airspeed as
+			  Asobo does (Asobo_EX1 Common/Exterior/Templates/VFX.xml). Those graphs only emit while their graph parameter
+			  FuelLeak_Active is true: it gets the same condition as FX_CODE, as in the stock templates.
+			- Design choice: the drip accompanies the plume on the ground, it does not replace it. The plume (stock water
+			  ballast mist) gives the fuel stream at the outlet, as on a glider draining its ballast on the ground, and the
+			  drip adds the drops falling to the ground. The user-confirmed plume is left unchanged.
+			- No offset, on the outlet nodes FX_JETTISON_LH / FX_JETTISON_RH of the plume.
+			- JettisonDripContrailEffects.spec.ts (src/systems/shared/src) checks these components.
+		-->
+		<Component ID="FUEL_JETTISON_GROUND_DRIP_FX">
+			<Component ID="FUEL_JETTISON_GROUND_DRIP_FX_LEFT_SLOW" Node="FX_JETTISON_LH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{21C38E31-40D2-4477-8118-2E78DC130D17}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_GROUND_DRIP_LEFT_SLOW</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_CODE>
+					<FX_GRAPH_PARAM_0>FuelLeak_Active, (L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_GRAPH_PARAM_0>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_GROUND_DRIP_FX_LEFT_FAST" Node="FX_JETTISON_LH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{65D83A8F-3436-4161-90E4-DD7883247A1D}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_GROUND_DRIP_LEFT_FAST</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_CODE>
+					<FX_GRAPH_PARAM_0>FuelLeak_Active, (L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:57, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_GRAPH_PARAM_0>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_GROUND_DRIP_FX_RIGHT_SLOW" Node="FX_JETTISON_RH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{21C38E31-40D2-4477-8118-2E78DC130D17}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_GROUND_DRIP_RIGHT_SLOW</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_CODE>
+					<FX_GRAPH_PARAM_0>FuelLeak_Active, (L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &lt; and</FX_GRAPH_PARAM_0>
+				</UseTemplate>
+			</Component>
+			<Component ID="FUEL_JETTISON_GROUND_DRIP_FX_RIGHT_FAST" Node="FX_JETTISON_RH">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_GUID>{65D83A8F-3436-4161-90E4-DD7883247A1D}</FX_GUID>
+					<FX_NAME>FX_FUEL_JETTISON_GROUND_DRIP_RIGHT_FAST</FX_NAME>
+					<FX_CODE>(L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_CODE>
+					<FX_GRAPH_PARAM_0>FuelLeak_Active, (L:A380X_FUEL_JETTISON_IN_PROGRESS, bool) (A:FUELSYSTEM VALVE OPEN:58, percent over 100) 0.5 &gt; and (A:SIM ON GROUND, bool) and (A:AIRSPEED TRUE, knots) 40 &gt;= and</FX_GRAPH_PARAM_0>
+				</UseTemplate>
+			</Component>
 		</Component>
 		<!--
 			Fuel jettison plume, one per wing while fuel flows out of that side: the FQMS jettisons
