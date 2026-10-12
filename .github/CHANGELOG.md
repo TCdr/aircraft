@@ -423,6 +423,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/HYD] The RAT propeller has the real 29.5 in (749 mm) diameter instead of 1 m, with its performance retuned to the real RAT: rated output from 135.5 kt, governed between 4800 and 6600 rpm, and the emergency generator kept running down to 125 kt as in the FCOM; below its governed band the RAT pressure fades and the emergency generator is lost (about 110 kt); the RAT holds the blue system at about 2500 psi as in the FCOM, also without the emergency generator (RAT MAN ON), instead of about 2680 psi - @TCdr
 1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
+||||||| 19910a87e
+1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
 
 ## 2024.1.0
 
