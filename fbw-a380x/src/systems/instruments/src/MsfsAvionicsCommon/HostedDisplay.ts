@@ -12,8 +12,8 @@
  * (L:A380X_CDS_{DU}_DU_DISPLAY), then only runs while it is shown, so it costs next to nothing in normal operation.
  */
 
-import { DisplayUnitID, displayUnitDisplayVar } from '@shared/CdsDisplayUnits';
-import { CdsDisplay, normalDisplayOf, resolveDisplay } from '@shared/CdsReconfiguration';
+import { DisplayUnitID, displayUnitDisplayVar, MAILBOX_DISPLAY_UNIT_VAR } from '@shared/CdsDisplayUnits';
+import { CdsDisplay, decodeMailboxDisplayUnit, normalDisplayOf, resolveDisplay } from '@shared/CdsReconfiguration';
 
 /**
  * The DU a hosted gauge draws on, from its panel.cfg URL
@@ -59,6 +59,17 @@ export function hostDisplayUnitOf(folder: string): DisplayUnitID | null {
  */
 export function isDisplayShownOn(du: DisplayUnitID, display: CdsDisplay): boolean {
   return resolveDisplay(du, SimVar.GetSimVarValue(displayUnitDisplayVar(du), 'number')) === display;
+}
+
+/**
+ * Whether the ATC mailbox drawn on a DU is the active mailbox client, the only one that answers the flight crew and
+ * publishes to the ATC function (L:A380X_CDS_MAILBOX_DU, written by the systems host; see mailboxDisplayUnit in
+ * shared/src/CdsReconfiguration.ts)
+ * @param du the DU the mailbox is drawn on
+ * @returns true while the systems host gives the mailbox to that DU
+ */
+export function isMailboxActiveOn(du: DisplayUnitID): boolean {
+  return decodeMailboxDisplayUnit(SimVar.GetSimVarValue(MAILBOX_DISPLAY_UNIT_VAR, 'number')) === du;
 }
 
 /**

@@ -2,12 +2,14 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import {
+  ComponentProps,
   DisplayComponent,
   EventBus,
   FSComponent,
   MappedSubject,
   NodeReference,
   Subject,
+  Subscribable,
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
@@ -20,6 +22,7 @@ import {
   Conversion,
   CpdlcMessage,
   CpdlcMessageMonitoringState,
+  MailboxSnapshot,
   MailboxStatusMessage,
   UplinkMonitor,
 } from '@datalink/common';
@@ -32,6 +35,7 @@ import {
   isPreparedResponse,
   MAILBOX_PAGE_LINES,
   MailboxAction,
+  MAILBOX_TOP_ON_DU,
   MailboxBlock,
   mailboxButtons,
   MailboxLine,
@@ -39,13 +43,28 @@ import {
   mailboxMessageStyle,
   mailboxStatus,
   pageCount,
+  queueFromMailboxFile,
   responseOf,
+  resyncedVisibleUid,
 } from './Mailbox/MailboxLogic';
 
 import './style.scss';
 
-export interface AtcMailboxProps {
+export interface AtcMailboxProps extends ComponentProps {
   readonly bus: EventBus;
+  /**
+   * Whether this mailbox is the active mailbox client: the only one that answers the flight crew and publishes to the
+   * ATC function (displayed / read messages, responses...). Every SD gauge draws a mailbox: the SD DU's own and the SD
+   * drawn on an ND DU (CDS reconfiguration), and the systems host gives the mailbox to one DU at a time
+   * (L:A380X_CDS_MAILBOX_DU, shared/src/CdsReconfiguration.ts mailboxDisplayUnit). An inactive mailbox follows the ATC
+   * function and the message the active one displays; it takes no input.
+   */
+  readonly active: Subscribable<boolean>;
+  /**
+   * The KCCU cursor of the mailbox: the F/O's on the F/O ND DU (design choice, the F/O works the mailbox there), else
+   * the CAPT's as before
+   */
+  readonly cursorSide?: 'CAPT' | 'FO';
 }
 
 /** The ADS status that the MFD CONNECTION STATUS page sets: 0 ARMED, 1 CONNECTED, 2 OFF */
@@ -74,7 +93,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
 
   private readonly mouseCursorRef = FSComponent.createRef<MouseCursor>();
 
-  private readonly publisher = this.props.bus.getPublisher<AtsuMailboxMessages & FmsAtcMessages>();
+  private readonly atcPublisher = this.props.bus.getPublisher<AtsuMailboxMessages & FmsAtcMessages>();
 
   /** The requests of the flight crew by transmission id: their time, and whether they are clearance requests */
   private readonly requests = new Map<number, { time: string; clearance: boolean }>();
@@ -118,7 +137,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
   private readonly buttons = this.visibleBlock.map((block) => (block ? mailboxButtons(block) : null));
 
   private onMouseMove(ev: MouseEvent) {
-    this.mouseCursorRef.getOrDefault()?.updatePosition(ev.clientX, ev.clientY - 768);
+    this.mouseCursorRef.getOrDefault()?.updatePosition(ev.clientX, ev.clientY - MAILBOX_TOP_ON_DU);
   }
 
   private onMouseMoveHandler = this.onMouseMove.bind(this);
@@ -129,10 +148,98 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
   /** The clickable elements and their handlers, attached after rendering */
   private readonly listeners: [NodeReference<HTMLElement>, () => void][] = [];
 
+  /**
+   * A clickable element: its handler only runs while this mailbox is the active one
+   * @param handler the click handler
+   * @returns the reference of the element
+   */
   private clickable(handler: () => void): NodeReference<HTMLDivElement> {
     const ref = FSComponent.createRef<HTMLDivElement>();
-    this.listeners.push([ref, handler]);
+    this.listeners.push([
+      ref,
+      () => {
+        if (this.props.active.get()) {
+          handler();
+        }
+      },
+    ]);
     return ref;
+  }
+
+  /**
+   * Publishes to the ATC function, only from the active mailbox: an inactive one (the SD DU's while its DU is off, or
+   * the SD on an ND DU while the SD DU shows the SD) would otherwise publish its own displayed / read messages over
+   * those of the active one
+   * @param topic the topic
+   * @param data the data
+   */
+  private publishToAtc<K extends keyof (AtsuMailboxMessages & FmsAtcMessages)>(
+    topic: K,
+    data: (AtsuMailboxMessages & FmsAtcMessages)[K],
+  ): void {
+    if (this.props.active.get()) {
+      this.atcPublisher.pub(topic, data, true, false);
+    }
+  }
+
+  /**
+   * Asks the ATC function for the whole mailbox file (mailboxSnapshot). The one publish of an inactive mailbox: it
+   * changes nothing in the ATC function, and every mailbox rebuilds its queue from the answer.
+   */
+  private requestResync(): void {
+    this.atcPublisher.pub('mailboxResyncRequest', true, true, false);
+  }
+
+  /**
+   * The whole mailbox file of the ATC function: the queue rebuilt from it, and the message to display
+   * @param snapshot the mailbox file
+   */
+  private onSnapshot(snapshot: MailboxSnapshot): void {
+    const file = snapshot.blocks.map((block) => ({
+      messages: block.messages.map((message) => Conversion.messageDataToMessage(message) as CpdlcMessage),
+      status: block.status,
+    }));
+    file.forEach((block) => this.rememberRequests(block.messages));
+    const { blocks, nextArrival } = queueFromMailboxFile(this.blocks.get(), file, this.arrivals, (message) =>
+      this.replyToOf(message),
+    );
+    this.arrivals = nextArrival;
+    this.blocks.set(blocks);
+    this.activeAtc.set(snapshot.activeAtc);
+
+    const visible = resyncedVisibleUid(blocks, snapshot.visibleUid, this.visibleUid.get());
+    if (visible !== (snapshot.visibleUid === -1 ? null : snapshot.visibleUid)) {
+      // another message than the one the ATC function knows as displayed: displayed and read (active mailbox only)
+      this.show(visible);
+    } else {
+      this.visibleUid.set(visible);
+    }
+  }
+
+  /**
+   * The requests of the flight crew, for the "(REPLY TO hhmmZ REQ:)" line of their replies
+   * @param messages the messages of a block
+   */
+  private rememberRequests(messages: CpdlcMessage[]): void {
+    for (const message of messages) {
+      if (message.Direction === AtsuMessageDirection.Downlink && message.CurrentTransmissionId >= 0) {
+        this.requests.set(message.CurrentTransmissionId, {
+          time: message.Timestamp.mailboxTimestamp(),
+          clearance: message.Type === AtsuMessageType.DCL || message.Type === AtsuMessageType.OCL,
+        });
+      }
+    }
+  }
+
+  /**
+   * The request of the flight crew an uplink message replies to
+   * @param message the first message of a block
+   * @returns the request, or null
+   */
+  private replyToOf(message: CpdlcMessage): MailboxBlock['replyTo'] {
+    return message.Direction === AtsuMessageDirection.Uplink
+      ? this.requests.get(message.PreviousTransmissionId) ?? null
+      : null;
   }
 
   public onAfterRender(node: VNode): void {
@@ -161,7 +268,30 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         .on('messageStatus')
         .handle((data) => this.updateBlock(data.uid, (block) => (block.status = data.status))),
       this.sub.on('atcStationStatus').handle((status) => this.activeAtc.set(status.current)),
+      this.sub.on('mailboxSnapshot').handle((snapshot) => this.onSnapshot(snapshot)),
+      // an inactive mailbox displays the message the active one displays
+      this.sub.on('visibleMessage').handle((uid) => {
+        if (!this.props.active.get()) {
+          this.visibleUid.set(uid === -1 ? null : uid);
+        }
+      }),
+      // ... and loses the message the active one closes (CLOSE removes it there, and the ATC function sends no delete)
+      this.sub.on('closeMessage').handle((uid) => {
+        if (!this.props.active.get()) {
+          this.removeBlock(uid);
+        }
+      }),
+      // the mailbox taken over (e.g. the SD on the F/O ND DU with the SD DU off): its queue rebuilt from the ATC function
+      this.props.active.sub((active) => {
+        this.dueToMenuOpen.set(false);
+        if (active) {
+          this.requestResync();
+        }
+      }),
     );
+
+    // a mailbox that starts late (the SD drawn on an ND DU starts when first shown) missed the earlier messages
+    this.requestResync();
 
     this.adsPoll = window.setInterval(
       () => this.adsStatus.set(SimVar.GetSimVarValue(ADS_STATUS_VAR, 'number') ?? 0),
@@ -212,9 +342,9 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
 
   private show(uid: number | null): void {
     this.visibleUid.set(uid);
-    this.publisher.pub('visibleMessage', uid ?? -1, true, false);
+    this.publishToAtc('visibleMessage', uid ?? -1);
     if (uid !== null) {
-      this.publisher.pub('readMessage', uid, true, false);
+      this.publishToAtc('readMessage', uid);
     }
   }
 
@@ -229,15 +359,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
     }
     const uid = messages[0].UniqueMessageID;
     const monitoring = messages[0].MessageMonitoring;
-    // The requests of the flight crew, for the "(REPLY TO hhmmZ REQ:)" line of their replies
-    for (const message of messages) {
-      if (message.Direction === AtsuMessageDirection.Downlink && message.CurrentTransmissionId >= 0) {
-        this.requests.set(message.CurrentTransmissionId, {
-          time: message.Timestamp.mailboxTimestamp(),
-          clearance: message.Type === AtsuMessageType.DCL || message.Type === AtsuMessageType.OCL,
-        });
-      }
-    }
+    this.rememberRequests(messages);
     const existing = this.blocks.get().find((block) => block.uid === uid);
     if (existing) {
       this.updateBlock(uid, (block) => {
@@ -273,10 +395,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         page: 0,
         lastPageSeen: 0,
         dueTo: null,
-        replyTo:
-          messages[0].Direction === AtsuMessageDirection.Uplink
-            ? this.requests.get(messages[0].PreviousTransmissionId) ?? null
-            : null,
+        replyTo: this.replyToOf(messages[0]),
       };
       this.blocks.set([...this.blocks.get(), block]);
       // A new message appears when the mailbox shows no message, or when it is urgent (FCOM PRO How to read)
@@ -305,6 +424,9 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
   }
 
   private showRelative(offset: number): void {
+    if (!this.props.active.get()) {
+      return;
+    }
     const blocks = this.blocks.get();
     const index = this.visibleIndex.get() + offset;
     if (index >= 0 && index < blocks.length) {
@@ -314,7 +436,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
 
   private turnPage(offset: number): void {
     const block = this.visibleBlock.get();
-    if (!block) {
+    if (!block || !this.props.active.get()) {
       return;
     }
     const page = Math.max(0, Math.min(pageCount(block) - 1, block.page + offset));
@@ -327,7 +449,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
   private onButton(index: number): void {
     const block = this.visibleBlock.get();
     const button = this.buttons.get()?.[index];
-    if (!block || !button || !button.enabled) {
+    if (!block || !button || !button.enabled || !this.props.active.get()) {
       return;
     }
     const message = block.messages[0];
@@ -343,37 +465,37 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         b.dueTo = null;
       });
       if (monitored && (responseId === 0 || responseId === 3 || responseId === 4)) {
-        this.publisher.pub('updateMessageMonitoring', uid, true, false);
+        this.publishToAtc('updateMessageMonitoring', uid);
       }
       return;
     }
     switch (action) {
       case 'SEND':
         if (message.Direction === AtsuMessageDirection.Downlink || message.SemanticResponseRequired) {
-          this.publisher.pub('downlinkTransmit', uid, true, false);
+          this.publishToAtc('downlinkTransmit', uid);
         } else if (block.dueTo !== null && block.response !== -1) {
           // The response with its justification: in the message, then sent as it is
           this.updateMessage(message, buildResponse(message, block.response, block.dueTo));
-          this.publisher.pub('downlinkTransmit', uid, true, false);
+          this.publishToAtc('downlinkTransmit', uid);
           this.updateBlock(uid, (b) => {
             b.response = -1;
             b.dueTo = null;
           });
         } else if (block.response === -1 && isPreparedResponse(message)) {
           // The response prepared on the MFD (FREETEXT)
-          this.publisher.pub('downlinkTransmit', uid, true, false);
+          this.publishToAtc('downlinkTransmit', uid);
         } else {
-          this.publisher.pub('uplinkResponse', { uid, responseId: block.response }, true, false);
+          this.publishToAtc('uplinkResponse', { uid, responseId: block.response });
         }
         break;
       case 'CANCEL':
         if (message.Direction === AtsuMessageDirection.Downlink) {
           // Removes the prepared downlink message from the mailbox
-          this.publisher.pub('deleteMessage', uid, true, false);
+          this.publishToAtc('deleteMessage', uid);
           this.removeBlock(uid);
         } else {
           if (monitored) {
-            this.publisher.pub('stopMessageMonitoring', uid, true, false);
+            this.publishToAtc('stopMessageMonitoring', uid);
           }
           // Cancels the selected reply, or the reply prepared in the message
           if (isPreparedResponse(message)) {
@@ -394,7 +516,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
           block.response !== -1 ? buildResponse(message, block.response, block.dueTo) : message.Response ?? null;
         if (response) {
           this.updateMessage(message, response);
-          this.publisher.pub('modifyMessage', uid, true, false);
+          this.publishToAtc('modifyMessage', uid);
           this.updateBlock(uid, (b) => {
             b.response = -1;
             b.dueTo = null;
@@ -405,21 +527,21 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
       }
       case 'REFRESH':
         // The ATC function updates the FMS data of the response
-        this.publisher.pub('updateMessageMonitoring', uid, true, false);
+        this.publishToAtc('updateMessageMonitoring', uid);
         break;
       case 'MODIFY':
         // The REPORT/MODIFY page of the MFD (MFD FOR MODIF until the modified message comes back)
-        this.publisher.pub('modifyMessage', uid, true, false);
+        this.publishToAtc('modifyMessage', uid);
         this.updateBlock(uid, (b) => (b.status = MailboxStatusMessage.FmsDisplayForModification));
         break;
       case 'CLOSE':
         // The message goes to the MSG RECORD page
-        this.publisher.pub('closeMessage', uid, true, false);
+        this.publishToAtc('closeMessage', uid);
         this.removeBlock(uid);
         break;
       case 'LOAD-SEC3':
         // The FMS loads the route clearance in SEC 3: LOADING, then the result in the information messages area
-        this.publisher.pub('loadMessage', uid, true, false);
+        this.publishToAtc('loadMessage', uid);
         break;
       case 'PRINT':
         // No cockpit printer
@@ -440,10 +562,13 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
     const updated = Conversion.messageDataToMessage(message) as CpdlcMessage;
     // CpdlcMessage.Response is null without a response (its class is not strict and types it without null)
     updated.Response = response as CpdlcMessage;
-    this.publisher.pub('atcUpdateMessage', updated, true, false);
+    this.publishToAtc('atcUpdateMessage', updated);
   }
 
   private selectDueTo(reason: string): void {
+    if (!this.props.active.get()) {
+      return;
+    }
     this.dueToMenuOpen.set(false);
     const block = this.visibleBlock.get();
     if (block) {
@@ -637,7 +762,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         <div class="atc-mailbox-recall">
           <Button
             label="RECALL"
-            onClick={() => this.publisher.pub('recallMessage', true, true, false)}
+            onClick={() => this.publishToAtc('recallMessage', true)}
             buttonStyle="width: 92px; height: 49.5px; padding: 0 4px;"
           />
         </div>
@@ -665,7 +790,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
           {systemInformation}
         </div>
 
-        <MouseCursor side={Subject.create('CAPT')} ref={this.mouseCursorRef} />
+        <MouseCursor side={Subject.create(this.props.cursorSide ?? 'CAPT')} ref={this.mouseCursorRef} />
       </div>
     );
   }

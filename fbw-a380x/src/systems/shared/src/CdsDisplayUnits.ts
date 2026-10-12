@@ -100,6 +100,14 @@ export function displayUnitDisplayVar(du: DisplayUnitID): string {
 }
 
 /**
+ * The L:var with the DU that shows the ATC mailbox (the bottom section of the SD) and the mailbox client that is active
+ * (written by the systems host, CdsReconfiguration.ts, value from encodeMailboxDisplayUnit in CdsReconfiguration.ts).
+ * Each gauge that draws the SD reads it: only the mailbox on that DU answers the flight crew and publishes to the ATC
+ * function.
+ */
+export const MAILBOX_DISPLAY_UNIT_VAR = 'L:A380X_CDS_MAILBOX_DU';
+
+/**
  * Whether a DU is powered: either of its DC busbars is.
  * @param du the DU
  * @param isBusPowered whether a DC busbar is powered

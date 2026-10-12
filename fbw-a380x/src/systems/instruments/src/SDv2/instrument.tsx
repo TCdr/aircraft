@@ -5,6 +5,7 @@ import {
   FsInstrument,
   FsBaseInstrument,
   ClockPublisher,
+  Subject,
 } from '@microsoft/msfs-sdk';
 import { ArincEventBus, FailuresConsumer, FmsDataPublisher } from '@flybywiresim/fbw-sdk';
 import { SD } from './SD';
@@ -13,7 +14,8 @@ import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
 import { FcuEfisCpBusPublisher } from '@shared/publishers/EfisCpBusPublisher';
 import { FqmsBusPublisher } from '@shared/publishers/FqmsBusPublisher';
 import { CdsDisplay } from '@shared/CdsReconfiguration';
-import { HostedDisplayGate, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
+import { HostedDisplayGate, hostDisplayUnitOf, isMailboxActiveOn } from '../MsfsAvionicsCommon/HostedDisplay';
+import { DisplayUnitID } from '@shared/CdsDisplayUnits';
 
 class SdInstrument implements FsInstrument {
   private readonly bus = new ArincEventBus();
@@ -44,6 +46,13 @@ class SdInstrument implements FsInstrument {
    * for the SD DU's own gauge.
    */
   private readonly hostedGate: HostedDisplayGate | null;
+
+  /**
+   * Whether the ATC mailbox of this gauge is the active one (L:A380X_CDS_MAILBOX_DU is the DU this gauge draws on).
+   * Read on every frame, also while a hosted gauge is not shown (its update loop is skipped then), so that a mailbox
+   * that lost the SD stops answering at once and two mailboxes never publish together.
+   */
+  private readonly mailboxActive = Subject.create(false);
 
   constructor(public readonly instrument: BaseInstrument) {
     this.hEventPublisher = new HEventPublisher(this.bus);
@@ -76,7 +85,7 @@ class SdInstrument implements FsInstrument {
     const sdv2 = document.getElementById('SDv2_CONTENT');
 
     FSComponent.render(
-      <SD bus={this.bus} hostDisplayUnitId={this.hostDisplayUnit ?? undefined} />,
+      <SD bus={this.bus} hostDisplayUnitId={this.hostDisplayUnit ?? undefined} mailboxActive={this.mailboxActive} />,
       document.getElementById('SDv2_CONTENT'),
     );
 
@@ -88,6 +97,8 @@ class SdInstrument implements FsInstrument {
    * A callback called when the instrument gets a frame update.
    */
   public Update(): void {
+    this.mailboxActive.set(isMailboxActiveOn(this.hostDisplayUnit ?? DisplayUnitID.Sd));
+
     if (this.hostedGate && !this.hostedGate.update()) {
       return;
     }

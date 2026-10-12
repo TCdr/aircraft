@@ -1603,7 +1603,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 2: ND (on the PFD DU: PFD/ND pb, or DU RECONF pb)
     - 3: MFD (not drawn on another DU)
     - 4: EWD (on the SD DU: EWD DU lost; on the ND DU: DU RECONF pb)
-    - 5: SD (on the ND DU: DU RECONF pb; without the ATC mailbox)
+    - 5: SD (on the ND DU: DU RECONF pb; with the ATC mailbox, see A380X_CDS_MAILBOX_DU)
   - {DU}
     - CAPT_PFD
     - CAPT_ND
@@ -1617,6 +1617,18 @@ The PRIMs perform the flight guidance and flight envelope functions.
     The PFD/ND pbs send `H:A380X_EFIS_L_PFD_ND_PUSHED` / `H:A380X_EFIS_R_PFD_ND_PUSHED` and the DU RECONF pbs
     `H:A380X_EFIS_L_DU_RECONF_PUSHED` / `H:A380X_EFIS_R_DU_RECONF_PUSHED` (cockpit behaviour); the systems host keeps
     their state.
+
+- A380X_CDS_MAILBOX_DU
+  - Number
+  - The display unit whose ATC mailbox (the bottom section of the SD) is the active mailbox client, the only one that
+    answers the flight crew and publishes to the ATC function (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU is turned
+    OFF, use the F/O DU RECONF P/B for ATC mailbox"). Written by the systems host (Misc/CdsReconfiguration.ts); read
+    by every SDv2 gauge (the SD DU's own and the SD drawn on the ND DUs). The SD DU wins while it is operative and shows
+    the SD; else the ND DU that shows the SD; else none (no mailbox marks a new message as displayed or read).
+    - 0: the SD DU (normal operation, also before the systems host writes it)
+    - 1: the CAPT ND DU
+    - 4: the F/O ND DU
+    - -1: none (the SD is shown on no operative display unit)
 
 ## ECAM Control Panel ATA 31
 
