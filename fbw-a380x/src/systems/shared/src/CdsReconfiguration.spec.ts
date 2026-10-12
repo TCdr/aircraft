@@ -7,11 +7,14 @@ import {
   CdsDisplay,
   CdsReconfigurationState,
   computeCdsDisplays,
+  decodeMailboxDisplayUnit,
   DisplayUnitMap,
   DU_RECONF_SEQUENCE,
   duReconfCycle,
   duReconfTarget,
   encodeDisplay,
+  encodeMailboxDisplayUnit,
+  mailboxDisplayUnit,
   nextDuReconfDisplay,
   normalDisplayOf,
   resolveDisplay,
@@ -292,5 +295,67 @@ describe('CDS reconfiguration (A380 FCOM DSC-31-15-20)', () => {
       expect(changes(state.update(ALL_OPERATIVE))).toEqual({});
       expect(changes(state.update(operative))).toEqual({});
     });
+  });
+});
+
+describe('ATC mailbox display unit (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox")', () => {
+  /** The DU of the active mailbox after the given F/O DU RECONF presses */
+  const mailboxAfter = (operative: DisplayUnitMap<boolean>, foPresses: number, captPresses = 0) => {
+    const state = new CdsReconfigurationState(operative);
+    for (let i = 0; i < foPresses; i++) {
+      state.pressDuReconf('FO');
+    }
+    for (let i = 0; i < captPresses; i++) {
+      state.pressDuReconf('CAPT');
+    }
+    return mailboxDisplayUnit(state.update(operative), operative);
+  };
+
+  it('is the SD DU in normal operation', () => {
+    expect(mailboxAfter(ALL_OPERATIVE, 0)).toBe(DisplayUnitID.Sd);
+  });
+
+  it('is none while the SD DU is off and the SD is shown nowhere (no mailbox marks a message as read)', () => {
+    expect(mailboxAfter(lost(DisplayUnitID.Sd), 0)).toBeNull();
+    // first F/O DU RECONF press: the EWD on the F/O ND DU
+    expect(mailboxAfter(lost(DisplayUnitID.Sd), 1)).toBeNull();
+  });
+
+  it('is the F/O ND DU once the F/O DU RECONF pb shows the SD there', () => {
+    expect(mailboxAfter(lost(DisplayUnitID.Sd), 2)).toBe(DisplayUnitID.FoNd);
+  });
+
+  it('is the CAPT ND DU when the SD is shown there', () => {
+    // CAPT pb acts on the CAPT ND DU when the CAPT MFD DU is failed: ND, EWD, SD
+    expect(mailboxAfter(lost(DisplayUnitID.Sd, DisplayUnitID.CaptMfd), 0, 2)).toBe(DisplayUnitID.CaptNd);
+  });
+
+  it('stays on the SD DU when an ND DU shows the SD as well (the SD DU wins, the ND DU mirrors it)', () => {
+    expect(mailboxAfter(lost(DisplayUnitID.CaptMfd), 0, 2)).toBe(DisplayUnitID.Sd);
+  });
+
+  it('is none while the SD DU shows the EWD (EWD DU lost) and no ND DU shows the SD', () => {
+    expect(mailboxAfter(lost(DisplayUnitID.Ewd), 0)).toBeNull();
+  });
+
+  it('is none when the failed SD DU keeps the SD as its (blank) normal display', () => {
+    const operative = lost(DisplayUnitID.Sd);
+    const displays = computeCdsDisplays({ operative, pfdNdSwapped: NOT_SWAPPED, manual: {} });
+    expect(displays[DisplayUnitID.Sd]).toBe(CdsDisplay.Sd);
+    expect(mailboxDisplayUnit(displays, operative)).toBeNull();
+  });
+
+  it('writes 0 for the SD DU, the duID for an ND DU and -1 for none, and reads them back', () => {
+    expect(encodeMailboxDisplayUnit(DisplayUnitID.Sd)).toBe(0);
+    expect(encodeMailboxDisplayUnit(DisplayUnitID.FoNd)).toBe(4);
+    expect(encodeMailboxDisplayUnit(DisplayUnitID.CaptNd)).toBe(1);
+    expect(encodeMailboxDisplayUnit(null)).toBe(-1);
+    for (const du of [DisplayUnitID.Sd, DisplayUnitID.FoNd, DisplayUnitID.CaptNd, null]) {
+      expect(decodeMailboxDisplayUnit(encodeMailboxDisplayUnit(du))).toBe(du);
+    }
+    // an unwritten variable (0): the SD DU, as before the CDS reconfiguration
+    expect(decodeMailboxDisplayUnit(0)).toBe(DisplayUnitID.Sd);
+    expect(decodeMailboxDisplayUnit(7)).toBeNull();
+    expect(decodeMailboxDisplayUnit(12)).toBeNull();
   });
 });

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus, HEvent } from '@microsoft/msfs-sdk';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
-import { DisplayUnitID, displayUnitDisplayVar } from '@shared/CdsDisplayUnits';
+import { DisplayUnitID, displayUnitDisplayVar, MAILBOX_DISPLAY_UNIT_VAR } from '@shared/CdsDisplayUnits';
 import { CdsDisplay } from '@shared/CdsReconfiguration';
 import { CdsReconfiguration, DU_RECONF_PB_EVENT, PFD_ND_PB_EVENT } from './CdsReconfiguration';
 
@@ -107,5 +107,31 @@ describe('CDS reconfiguration in the systems host (A380 FCOM DSC-31-15-20)', () 
     // no periodic update since the failures: the press comes in the same frame
     press(DU_RECONF_PB_EVENT.CAPT);
     expect(captPfdDuDisplay()).toBe(CdsDisplay.Nd);
+  });
+
+  it('moves the ATC mailbox to the F/O ND DU with the F/O DU RECONF pb when the SD DU is turned OFF (PRO-ABN-ECAM-10-31)', () => {
+    const mailboxDu = () => simVars.get(MAILBOX_DISPLAY_UNIT_VAR);
+    const foNdDuDisplay = () => simVars.get(displayUnitDisplayVar(DisplayUnitID.FoNd));
+    // normal operation: the SD DU (0)
+    expect(mailboxDu()).toBe(0);
+
+    // SD DU brightness knob OFF: the SD is shown nowhere, no mailbox is active
+    simVars.set('LIGHT POTENTIOMETER:93', 0);
+    update();
+    expect(mailboxDu()).toBe(-1);
+
+    // F/O DU RECONF pb: EWD, then SD on the F/O ND DU, which takes the mailbox
+    press(DU_RECONF_PB_EVENT.FO);
+    expect(foNdDuDisplay()).toBe(CdsDisplay.Ewd);
+    expect(mailboxDu()).toBe(-1);
+    press(DU_RECONF_PB_EVENT.FO);
+    expect(foNdDuDisplay()).toBe(CdsDisplay.Sd);
+    expect(mailboxDu()).toBe(DisplayUnitID.FoNd);
+
+    // SD DU on again: the DU RECONF selection ends (no failed DU), the mailbox goes back to the SD DU
+    simVars.set('LIGHT POTENTIOMETER:93', 1);
+    update();
+    expect(foNdDuDisplay()).toBe(0);
+    expect(mailboxDu()).toBe(0);
   });
 });

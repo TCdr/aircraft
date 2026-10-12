@@ -4,9 +4,9 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ALL_DISPLAY_UNITS, DisplayUnitID } from '@shared/CdsDisplayUnits';
+import { ALL_DISPLAY_UNITS, DisplayUnitID, MAILBOX_DISPLAY_UNIT_VAR } from '@shared/CdsDisplayUnits';
 import { CdsDisplay, DRAWN_DISPLAYS, normalDisplayOf } from '@shared/CdsReconfiguration';
-import { findInstrumentUrl, HostedDisplayGate, parseHostDisplayUnit } from './HostedDisplay';
+import { findInstrumentUrl, HostedDisplayGate, isMailboxActiveOn, parseHostDisplayUnit } from './HostedDisplay';
 
 /** The cockpit panel.cfg with the gauges of each DU */
 const PANEL_CFG = join(
@@ -143,5 +143,18 @@ describe('hosted display gauges (CDS reconfiguration)', () => {
     for (const du of [DisplayUnitID.CaptNd, DisplayUnitID.FoNd]) {
       expect(hostedFolders.get(du)).toEqual(expect.arrayContaining(['SD', 'SDv2']));
     }
+  });
+
+  it('makes only the mailbox of the DU written by the systems host active (FCOM: F/O DU RECONF P/B for ATC mailbox)', () => {
+    const activeDus = () =>
+      [DisplayUnitID.Sd, DisplayUnitID.CaptNd, DisplayUnitID.FoNd].filter((du) => isMailboxActiveOn(du));
+    // unwritten (0): the SD DU, as before the CDS reconfiguration
+    SimVar.SetSimVarValue(MAILBOX_DISPLAY_UNIT_VAR, 'number', 0);
+    expect(activeDus()).toEqual([DisplayUnitID.Sd]);
+    SimVar.SetSimVarValue(MAILBOX_DISPLAY_UNIT_VAR, 'number', DisplayUnitID.FoNd);
+    expect(activeDus()).toEqual([DisplayUnitID.FoNd]);
+    SimVar.SetSimVarValue(MAILBOX_DISPLAY_UNIT_VAR, 'number', -1);
+    expect(activeDus()).toEqual([]);
+    SimVar.SetSimVarValue(MAILBOX_DISPLAY_UNIT_VAR, 'number', 0);
   });
 });
