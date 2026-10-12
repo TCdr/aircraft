@@ -126,6 +126,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as in the FCOM, and the stored history winds are kept when the storage key changes - @TCdr
 1. [A380X/MFD] Company wind messages use the FCOM wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
+1. [A380X/FMS] TRIP fuel and cruise fuel predictions now match the fuel the engines burn at Mach 0.85 (they were 4 to 7 % low in cruise, about 3 % low on the TRIP) - @TCdr
 
 ## 2024.1.0
 
