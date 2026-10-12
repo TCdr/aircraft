@@ -188,6 +188,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] T.O CONFIG test: T.O CONFIG NORMAL now follows the A380 checks of the FCOM (generators and drives of the four engines, engine oil temperature) instead of the A320 GEN 1+2 check - @TCdr
 1. [A380X/SD] Automatic SD pages as in the A380 FCOM: CRUISE from 1500 ft after take-off (it came 60 s after the flaps were up), WHEEL at the landing gear extension at any altitude (only below 16000 ft before) - @TCdr
 1. [A380X/BTV] BTV does not arm, and an armed BTV reverts to BRK HI, while an ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER faults) - @TCdr
+1. [A380X/FWS] New ELEC AC BUS 1+2 & DC BUS 1, AC BUS 2+3 & DC BUS 1+2, AC BUS 2+4, AC BUS 3+4 & DC BUS 2, DC BUS 1+2 and DC BUS 1+ESS FAULT alerts, which replace the single busbar alerts they cover, ELEC STATIC INV FAULT, and FUEL L(R) WING FEED PMPs FAULT (replaces the two FEED TK MAIN + STBY PMPs alerts), FUEL WINGS NOT BALANCED, FUEL WINGS BALANCED and FUEL INR TKs QTY LO, with their FCOM procedures and STATUS - @TCdr
 
 ## 2024.1.0
 
