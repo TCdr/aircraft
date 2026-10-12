@@ -37,4 +37,17 @@ describe('A320 ECAM STATUS page texts (FCOM DSC-31-20)', () => {
   it('orders the codes and removes the duplicates', () => {
     expect(orderStatusCodes([GPS_1_AND_2, GPS_1, GPS_1_AND_2])).toEqual([GPS_1, GPS_1_AND_2]);
   });
+
+  it('shows a line that two alerts give with different codes once, at its first place', () => {
+    const ENG_SHUT_DOWN_LDG_DIST_PROC = '700400004';
+    const HYD_LDG_DIST_PROC = '290400017';
+    const HYD_CAT_3_DUAL = '290300030';
+    const FWC_CAT_3_DUAL = '220300001';
+    expect(orderStatusCodes([HYD_LDG_DIST_PROC])).toEqual([HYD_LDG_DIST_PROC]);
+    expect(orderStatusCodes([HYD_CAT_3_DUAL])).toEqual([HYD_CAT_3_DUAL]);
+    expect(orderStatusCodes([HYD_LDG_DIST_PROC, ENG_SHUT_DOWN_LDG_DIST_PROC])).toHaveLength(1);
+    const page = formatStatusPage([HYD_LDG_DIST_PROC, ENG_SHUT_DOWN_LDG_DIST_PROC], [HYD_CAT_3_DUAL, FWC_CAT_3_DUAL]);
+    expect(page.left).toBe('\x1b<5mLDG DIST PROC....APPLY');
+    expect(page.right).toBe('\x1b<7m\x1b4mINOP SYS\x1bm\r\x1b<4mCAT 3 DUAL');
+  });
 });

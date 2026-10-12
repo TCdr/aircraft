@@ -153,6 +153,26 @@ import {
   trFaultStatus,
 } from './Logic/ElecBusAlerts';
 import {
+  HydraulicAlertMonitor,
+  blueElecPumpLines,
+  blueReservoirLowAirPressureLines,
+  blueReservoirLowLevelLines,
+  blueReservoirOverheatLines,
+  blueYellowSysLoPrLines,
+  greenBlueSysLoPrLines,
+  greenEnginePumpLines,
+  greenReservoirLines,
+  greenReservoirLowAirPressureLines,
+  greenYellowSysLoPrLines,
+  hydraulicStatus,
+  ptuFaultLines,
+  yellowElecPumpLines,
+  yellowEnginePumpLines,
+  yellowReservoirLines,
+  yellowReservoirLowAirPressureLines,
+} from './Logic/HydraulicAlerts';
+import { APU_SHUTDOWN_INOP_SYS, apuShutdownAlerts, apuShutdownLines } from './Logic/ApuShutdownAlerts';
+import {
   centreTransferNotClosedLines,
   centreTransferNotOpenLines,
   centreTransferValveAlerts,
@@ -1255,6 +1275,17 @@ export class PseudoFWC {
   private readonly greenSysAbnormalLowPressure = Subject.create(false);
 
   private readonly twoHydraulicsOut = Subject.create(false);
+
+  /** The HYD cautions and warnings (FCOM PRO-ABN-HYD), see Logic/HydraulicAlerts */
+  private readonly hydraulicAlerts = new HydraulicAlertMonitor();
+
+  /* 49 - APU */
+
+  /** APU AUTO SHUT DOWN (FCOM PRO-ABN-APU), see Logic/ApuShutdownAlerts */
+  private readonly apuAutoShutDown = Subject.create(false);
+
+  /** APU EMER SHUT DOWN (FCOM PRO-ABN-APU), see Logic/ApuShutdownAlerts */
+  private readonly apuEmerShutDown = Subject.create(false);
 
   /* 31 - FWS */
 
@@ -2955,7 +2986,8 @@ export class PseudoFWC {
 
     /* HYDRAULICS acquisition */
     this.blueElecPumpPBAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_EPUMPB_PB_IS_AUTO', 'bool'));
-    this.blueLP.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_EDPUMP_LOW_PRESS', 'bool'));
+    // the blue pump is an electric pump: EPUMP, not EDPUMP (a320_systems hydraulic/mod.rs A320BlueElectricPumpController)
+    this.blueLP.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_EPUMP_LOW_PRESS', 'bool'));
     this.blueRvrLow.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_RESERVOIR_LEVEL_IS_LOW', 'bool'));
     this.blueRvrOvht.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_RESERVOIR_OVHT', 'bool'));
     this.eng1pumpPBisAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_1_PUMP_PB_IS_AUTO', 'bool'));
@@ -3473,6 +3505,58 @@ export class PseudoFWC {
       this.engine2CoreAtOrAboveMinIdle.get() || !this.flightPhase12910.get(),
       deltaTime,
     );
+
+    // HYD cautions and warnings (Logic/HydraulicAlerts), on the system low pressures of twoHydraulicsOut
+    const hydSystem = (color: string, lowPressure: boolean) => ({
+      lowPressure,
+      reservoirLowLevel: SimVar.GetSimVarValue(`L:A32NX_HYD_${color}_RESERVOIR_LEVEL_IS_LOW`, 'bool') > 0,
+      reservoirLowAirPressure: SimVar.GetSimVarValue(`L:A32NX_HYD_${color}_RESERVOIR_AIR_PRESSURE_IS_LOW`, 'bool') > 0,
+      reservoirOverheat: SimVar.GetSimVarValue(`L:A32NX_HYD_${color}_RESERVOIR_OVHT`, 'bool') > 0,
+    });
+    this.hydraulicAlerts.update(
+      {
+        green: hydSystem('GREEN', this.greenSysAbnormalLowPressure.get()),
+        blue: hydSystem('BLUE', this.blueSysAbnormalLowPressure.get()),
+        yellow: hydSystem('YELLOW', this.yellowSysAbnormalLowPressure.get()),
+        greenEnginePumpLowPressure: !!this.greenLP.get(),
+        yellowEnginePumpLowPressure: !!this.yellowLP.get(),
+        blueElecPumpLowPressure: !!this.blueLP.get(),
+        yellowElecPumpLowPressure: SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_EPUMP_LOW_PRESS', 'bool') > 0,
+        blueElecPumpOverheat: SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_EPUMP_OVHT', 'bool') > 0,
+        yellowElecPumpOverheat: SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_EPUMP_OVHT', 'bool') > 0,
+        greenEnginePumpSectionLow: !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_1_SECTION_PRESSURE_SWITCH', 'bool'),
+        yellowEnginePumpSectionLow: !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_1_SECTION_PRESSURE_SWITCH', 'bool'),
+        greenEnginePumpPbAuto: !!this.eng1pumpPBisAuto.get(),
+        yellowEnginePumpPbAuto: !!this.eng2pumpPBisAuto.get(),
+        blueElecPumpPbAuto: !!this.blueElecPumpPBAuto.get(),
+        // the YELLOW ELEC PUMP pb is an AUTO (off) / ON pb
+        yellowElecPumpPbOn: !this.yepumpPBisAuto.get(),
+        ptuPbAuto: !!this.ptuAuto.get(),
+        ptuShaftRpm: SimVar.GetSimVarValue('L:A32NX_HYD_PTU_SHAFT_RPM', 'number'),
+        greenPressurePsi: SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE', 'number'),
+        yellowPressurePsi: SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE', 'number'),
+        engine1Running: this.engine1CoreAtOrAboveMinIdle.get(),
+        engine2Running: this.engine2CoreAtOrAboveMinIdle.get(),
+        engine1MasterOn: !!this.engine1ValueSwitch.get(),
+        engine2MasterOn: !!this.engine2ValueSwitch.get(),
+        onGround: this.aircraftOnGround.get(),
+        ratStowed: this.ratDeployedVar.get() <= 0,
+      },
+      this.fwcFlightPhase.get(),
+      deltaTime / 1000,
+    );
+
+    // APU AUTO (EMER) SHUT DOWN (Logic/ApuShutdownAlerts), from the APU ECB
+    const apuShutdown = apuShutdownAlerts({
+      autoShutdown: SimVar.GetSimVarValue('L:A32NX_APU_IS_AUTO_SHUTDOWN', 'bool') > 0,
+      emergencyShutdown: SimVar.GetSimVarValue('L:A32NX_APU_IS_EMERGENCY_SHUTDOWN', 'bool') > 0,
+      apuFireWarning: isFireWarningActive({
+        fireTest: this.apuFireTest.get(),
+        fireDetected: this.apuFireDetected.get(),
+      }),
+    });
+    this.apuAutoShutDown.set(apuShutdown.autoShutdown);
+    this.apuEmerShutDown.set(apuShutdown.emergencyShutdown);
 
     // Memo
     this.toMemoFlipFlop.write(
@@ -5466,9 +5550,10 @@ export class PseudoFWC {
           this.apuFireTest.get() ||
           this.elecEmergency.get() ||
           (this.engine1State.get() === EngineState.Off && this.engine2State.get() === EngineState.Off) ||
-          (this.greenLP.get() && this.yellowLP.get()) ||
-          (this.yellowLP.get() && this.blueLP.get()) ||
-          (this.greenLP.get() && this.blueLP.get())),
+          // HYD B+Y, G+B, G+Y SYS LO PR (FCOM l.88281, l.88462, l.88646), on the system pressures instead of two pump
+          // low pressure discretes (a pump LO PR with the PTU or the other pump still pressurising its system is no dual
+          // hydraulic failure)
+          this.hydraulicAlerts.landAsapRed),
     );
 
     // fire always forces the master warning and SC aural on
@@ -7817,6 +7902,31 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => ['260300006'],
     },
+    4900101: {
+      // APU AUTO SHUT DOWN (FCOM PRO-ABN-APU, see Logic/ApuShutdownAlerts). Design choice: the flight phase inhibition
+      // of the other APU cautions (the FCOM figure is not in its text)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.apuAutoShutDown,
+      whichCodeToReturn: () => apuShutdownLines(this.apuMasterSwitch.get() === 1),
+      codesToReturn: ['490010101', '490010102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.APU,
+      side: 'LEFT',
+      inopSys: () => APU_SHUTDOWN_INOP_SYS,
+    },
+    4900102: {
+      // APU EMER SHUT DOWN (FCOM PRO-ABN-APU, see Logic/ApuShutdownAlerts)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.apuEmerShutDown,
+      whichCodeToReturn: () => apuShutdownLines(this.apuMasterSwitch.get() === 1),
+      codesToReturn: ['490010201', '490010202'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.APU,
+      side: 'LEFT',
+      inopSys: () => APU_SHUTDOWN_INOP_SYS,
+    },
     2700052: {
       // FLAP LVR NOT ZERO
       flightPhaseInhib: [1, 2, 3, 4, 5, 7, 8, 9, 10],
@@ -8996,43 +9106,58 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
+    // HYD alerts (FCOM PRO-ABN-HYD), see Logic/HydraulicAlerts for the triggers, priorities, lines and STATUS. Flight
+    // phase inhibition: the FCOM figures are not in its text, design choice [3, 4, 5, 7, 8] as the RSVR OVHT alerts had
+    // [GK], with the notes the text keeps (ELEC PUMP LO PR: phase 3 only for the OVHT, l.86992, l.87703; G(Y) RSVR LO LVL:
+    // only the first 15 s of phase 5, l.87528, l.88044, applied by the monitor) and [4, 5, 7, 8] for the red dual failures
     2900126: {
       // *HYD  - Blue reservoir overheat
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.blueRvrOvht,
-      whichCodeToReturn: () => [0, this.blueElecPumpPBAuto.get() ? 1 : null],
-      codesToReturn: ['290012601', '290012602'],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueRsvrOvht,
+      whichCodeToReturn: () => blueReservoirOverheatLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290012601', '290012602', '290012603', '290012604', '290012605'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.HYD,
       side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueRsvrOvht().inopSys,
+      statusInfo: () => hydraulicStatus.blueRsvrOvht().left,
     },
     2900127: {
       // *HYD  - Yellow reservoir overheat
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.yellowRvrOvht,
-      whichCodeToReturn: () => [
-        0,
-        this.ptuAuto.get() ? 1 : null,
-        this.eng2pumpPBisAuto.get() ? 2 : null,
-        !this.yepumpPBisAuto.get() ? 3 : null,
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowRsvrOvht,
+      whichCodeToReturn: () => yellowReservoirLines(this.hydraulicAlerts.inputs),
+      codesToReturn: [
+        '290012701',
+        '290012702',
+        '290012703',
+        '290012704',
+        '290012705',
+        '290012706',
+        '290012707',
+        '290012708',
+        '290012709',
       ],
-      codesToReturn: ['290012701', '290012702', '290012703', '290012704'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.HYD,
       side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowRsvrOvht().inopSys,
+      statusInfo: () => hydraulicStatus.yellowRsvrOvht().left,
     },
     2900128: {
       // *HYD  - Green reservoir overheat
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.greenRvrOvht,
-      whichCodeToReturn: () => [0, this.ptuAuto.get() ? 1 : null, this.eng1pumpPBisAuto.get() ? 2 : null],
-      codesToReturn: ['290012801', '290012802', '290012803'],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenRsvrOvht,
+      whichCodeToReturn: () => greenReservoirLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290012801', '290012802', '290012803', '290012804', '290012805', '290012806', '290012807'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.HYD,
       side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenRsvrOvht().inopSys,
+      statusInfo: () => hydraulicStatus.greenRsvrOvht().left,
     },
     2900143: {
       // RAT FAULT
@@ -9044,6 +9169,309 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.HYD,
       side: 'LEFT',
+      inopSys: () => hydraulicStatus.ratFault().inopSys,
+    },
+    2900120: {
+      // HYD B+Y SYS LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueYellowSysLoPr,
+      whichCodeToReturn: () =>
+        blueYellowSysLoPrLines(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure),
+      codesToReturn: [
+        '290012001',
+        '290012002',
+        '290012003',
+        '290012004',
+        '290012005',
+        '290012006',
+        '290012007',
+        '290012008',
+        '290012009',
+        '290012010',
+      ],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () =>
+        hydraulicStatus.blueYellowSysLoPr(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure).inopSys,
+      statusInfo: () =>
+        hydraulicStatus.blueYellowSysLoPr(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure).left,
+    },
+    2900121: {
+      // HYD G+B SYS LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenBlueSysLoPr,
+      whichCodeToReturn: () => greenBlueSysLoPrLines(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure),
+      codesToReturn: [
+        '290012101',
+        '290012102',
+        '290012103',
+        '290012104',
+        '290012105',
+        '290012106',
+        '290012107',
+        '290012108',
+      ],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () =>
+        hydraulicStatus.greenBlueSysLoPr(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure).inopSys,
+      statusInfo: () =>
+        hydraulicStatus.greenBlueSysLoPr(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure).left,
+    },
+    2900122: {
+      // HYD G+Y SYS LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenYellowSysLoPr,
+      whichCodeToReturn: () =>
+        greenYellowSysLoPrLines(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure),
+      codesToReturn: ['290012201', '290012202', '290012203', '290012204', '290012205', '290012206', '290012207'],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenYellowSysLoPr(this.hydraulicAlerts.inputs).inopSys,
+      statusInfo: () => hydraulicStatus.greenYellowSysLoPr(this.hydraulicAlerts.inputs).left,
+    },
+    2900101: {
+      // HYD B ELEC PUMP LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueElecPumpLoPr,
+      whichCodeToReturn: () => blueElecPumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010101', '290010102', '290010103', '290010104', '290010105'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueElecPumpLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.blueElecPumpLoPr().left,
+    },
+    2900102: {
+      // HYD B ELEC PUMP OVHT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueElecPumpOvht,
+      whichCodeToReturn: () => blueElecPumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010201', '290010202', '290010203', '290010204', '290010205'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueElecPumpOvht().inopSys,
+      statusInfo: () => hydraulicStatus.blueElecPumpOvht().left,
+    },
+    2900107: {
+      // HYD B RSVR LO AIR PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueRsvrLoAirPr,
+      whichCodeToReturn: () => blueReservoirLowAirPressureLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010701', '290010702', '290010703', '290010704', '290010705', '290010706'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueRsvrLoAirPr().inopSys,
+      statusInfo: () => hydraulicStatus.blueRsvrLoAirPr().left,
+    },
+    2900110: {
+      // HYD B RSVR LO LVL
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueRsvrLoLvl,
+      whichCodeToReturn: () => blueReservoirLowLevelLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290011001', '290011002', '290011003', '290011004', '290011005'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueRsvrLoLvl().inopSys,
+      statusInfo: () => hydraulicStatus.blueRsvrLoLvl().left,
+    },
+    2900105: {
+      // HYD G ENG 1 PUMP LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenEngPumpLoPr,
+      whichCodeToReturn: () => greenEnginePumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010501', '290010502', '290010503'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenEngPumpLoPr(this.hydraulicAlerts.inputs.green.lowPressure).inopSys,
+      statusInfo: () => hydraulicStatus.greenEngPumpLoPr(this.hydraulicAlerts.inputs.green.lowPressure).left,
+    },
+    2900108: {
+      // HYD G RSVR LO AIR PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenRsvrLoAirPr,
+      whichCodeToReturn: () => greenReservoirLowAirPressureLines(this.hydraulicAlerts.inputs),
+      codesToReturn: [
+        '290010801',
+        '290010802',
+        '290010803',
+        '290010804',
+        '290010805',
+        '290010806',
+        '290010807',
+        '290010808',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenRsvrLoAirPr().inopSys,
+      statusInfo: () => hydraulicStatus.greenRsvrLoAirPr().left,
+    },
+    2900111: {
+      // HYD G RSVR LO LVL (also inhibited for the first 15 s of phase 5, by the monitor)
+      flightPhaseInhib: [3, 4, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenRsvrLoLvl,
+      whichCodeToReturn: () => greenReservoirLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290011101', '290011102', '290011103', '290011104', '290011105', '290011106', '290011107'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenRsvrLoLvl().inopSys,
+      statusInfo: () => hydraulicStatus.greenRsvrLoLvl().left,
+    },
+    2900103: {
+      // HYD Y ELEC PUMP LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowElecPumpLoPr,
+      whichCodeToReturn: () => yellowElecPumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010301', '290010302', '290010303', '290010304', '290010305', '290010306'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowElecPumpLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.yellowElecPumpLoPr().left,
+    },
+    2900104: {
+      // HYD Y ELEC PUMP OVHT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowElecPumpOvht,
+      whichCodeToReturn: () => yellowElecPumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010401', '290010402', '290010403', '290010404', '290010405', '290010406'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowElecPumpOvht().inopSys,
+      statusInfo: () => hydraulicStatus.yellowElecPumpOvht().left,
+    },
+    2900106: {
+      // HYD Y ENG 2 PUMP LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowEngPumpLoPr,
+      whichCodeToReturn: () => yellowEnginePumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010601', '290010602', '290010603'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowEngPumpLoPr(this.hydraulicAlerts.inputs.yellow.lowPressure).inopSys,
+      statusInfo: () => hydraulicStatus.yellowEngPumpLoPr(this.hydraulicAlerts.inputs.yellow.lowPressure).left,
+    },
+    2900109: {
+      // HYD Y RSVR LO AIR PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowRsvrLoAirPr,
+      whichCodeToReturn: () => yellowReservoirLowAirPressureLines(this.hydraulicAlerts.inputs),
+      codesToReturn: [
+        '290010901',
+        '290010902',
+        '290010903',
+        '290010904',
+        '290010905',
+        '290010906',
+        '290010907',
+        '290010908',
+        '290010909',
+        '290010910',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowRsvrLoAirPr().inopSys,
+      statusInfo: () => hydraulicStatus.yellowRsvrLoAirPr().left,
+    },
+    2900112: {
+      // HYD Y RSVR LO LVL (also inhibited for the first 15 s of phase 5, by the monitor)
+      flightPhaseInhib: [3, 4, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowRsvrLoLvl,
+      whichCodeToReturn: () => yellowReservoirLines(this.hydraulicAlerts.inputs),
+      codesToReturn: [
+        '290011201',
+        '290011202',
+        '290011203',
+        '290011204',
+        '290011205',
+        '290011206',
+        '290011207',
+        '290011208',
+        '290011209',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowRsvrLoLvl().inopSys,
+      statusInfo: () => hydraulicStatus.yellowRsvrLoLvl().left,
+    },
+    2900113: {
+      // HYD B SYS LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueSysLoPr,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290011301'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueSysLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.blueSysLoPr().left,
+    },
+    2900114: {
+      // HYD G SYS LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenSysLoPr,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290011401'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenSysLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.greenSysLoPr().left,
+    },
+    2900115: {
+      // HYD Y SYS LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowSysLoPr,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290011501'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowSysLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.yellowSysLoPr().left,
+    },
+    2900116: {
+      // HYD PTU FAULT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.ptuFault,
+      whichCodeToReturn: () => ptuFaultLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290011601', '290011602'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.ptuFault().inopSys,
     },
     2800145: {
       // L+R WING TK LO LVL
