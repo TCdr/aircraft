@@ -153,6 +153,7 @@
 #include "cds_display.h"  // the A380X CDS reconfiguration check (pure logic)
 #include "wxr_controls.h"  // the A380X WXR GAIN and ELEVN/TILT selections (pure logic)
 #include "view_park.h"  // ViewPark, the parking of the MapViews and the re-sending of their settings (pure logic)
+#include "gauge_slots.h"  // GaugeSlots, the gauge instances' slots and the module's MapView budget (pure logic)
 
 namespace ndwxr {
 
@@ -190,6 +191,18 @@ struct Instance {
   bool inUse = false;
   FsContext ctx = 0;
   bool isRight = false;
+  // The A380X's third gauge per ND (the "V" parameter) draws the terrain profile on the VD, see
+  // drawVdTerrainGauge (always false on the A32NX).
+  bool isVdTerrain = false;
+  // The slot table's state (gauge_slots.h): the slot belongs to the previous flight's gauge of this role (superseded,
+  // and abandoned when its PRE_KILL did not come in time); the views are created, how many count against the module's
+  // budget, and whether (and for how many frames) the gauge has been waiting for room for them.
+  bool superseded = false;
+  bool abandoned = false;
+  bool viewsCreated = false;
+  int viewsReserved = 0;
+  bool waitingForViews = false;
+  int waitFrames = 0;
   NVGcontext* nvg = nullptr;
 
   ID ndModeVar = -1;
@@ -244,9 +257,6 @@ struct Instance {
   ID peaksMinVar = -1;
   ID peaksMaxVar = -1;
 #ifdef A380X
-  // The A380X's third gauge per ND (the "V" parameter) draws the terrain profile on the VD, see
-  // drawVdTerrainGauge.
-  bool isVdTerrain = false;
   FsTextureId mapViewVdTerrain = 0;
   bool mapViewVdTerrainReady = false;
   // Tells water from land along the cut (configureWaterMaskView), drawn in the ND's water colour.
@@ -387,7 +397,6 @@ void registerSimVars();
 
 // gauge.cpp: the gauge instances.
 Instance* findInstance(FsContext ctx);
-Instance* allocInstance();
 // Parks a view nothing has wanted for kParkAfterFrames and takes it back when it is wanted again; true when
 // the view can be drawn this frame (wanted, visible and past its warm-up). A view woken up has park.setupDue set:
 // its owner sends its whole setup again (see view_park.h).
