@@ -25,8 +25,9 @@
 //! - EGT overtemperature: the EGT is higher by an amount proportional to the N1, so that reducing
 //!   the thrust reduces the EGT (ENG N1/N2/EGT OVER LIMIT: "THR LEVER ... BELOW LIMIT").
 //! - Overspeed: the N1 and core speed indications are higher by a fraction of their value, so that
-//!   they exceed their limits at high thrust only. The thrust follows the MSFS engine and does
-//!   not change.
+//!   they exceed their limits at high thrust only, up to an optional ceiling of the indication
+//!   (so that the A320 stays in the first band of ENG N1/N2/EGT OVER LIMIT). The thrust follows
+//!   the MSFS engine and does not change.
 //! - High vibration: the N1 and core vibrations are higher by an amount that grows with the
 //!   square of the rotor speed, like the force of a rotor unbalance, so that reducing the thrust
 //!   brings them below the advisory (QRH HIGH ENGINE VIBRATION, a320_fcom.txt l.78975: "THRUST
@@ -71,6 +72,10 @@ pub struct EngineMalfunctionParameters {
     /// The fractions of the N1 and of the core speed that the overspeed failure adds to them.
     pub overspeed_n1_fraction: f64,
     pub overspeed_core_fraction: f64,
+    /// The highest N1 and core speed indications that the overspeed failure gives, if any: the
+    /// added fraction stops growing there (it never lowers an indication already above it).
+    pub overspeed_n1_ceiling_percent: Option<f64>,
+    pub overspeed_core_ceiling_percent: Option<f64>,
     /// The vibrations added by the high vibration failure at 100 % N1 (core speed), with the
     /// square of the rotor speed below it.
     pub high_vibration_n1_units_at_full_speed: f64,
@@ -202,8 +207,16 @@ impl EngineMalfunction {
         let (overspeed_n1_target, overspeed_core_target) = if running && self.overspeed.is_active()
         {
             (
-                parameters.overspeed_n1_fraction * n1_percent,
-                parameters.overspeed_core_fraction * core_percent,
+                Self::overspeed_offset(
+                    parameters.overspeed_n1_fraction,
+                    parameters.overspeed_n1_ceiling_percent,
+                    n1_percent,
+                ),
+                Self::overspeed_offset(
+                    parameters.overspeed_core_fraction,
+                    parameters.overspeed_core_ceiling_percent,
+                    core_percent,
+                ),
             )
         } else {
             (0., 0.)
@@ -258,6 +271,16 @@ impl EngineMalfunction {
             + self.stall_intensity * parameters.stall_n1_vibration_units;
         self.core_vibration = normal_vibration * parameters.normal_core_to_n1_vibration_ratio
             + self.high_vibration_core_units;
+    }
+
+    /// The overspeed added to a rotor speed: a fraction of it, up to the ceiling of the
+    /// indication when there is one.
+    fn overspeed_offset(fraction: f64, ceiling_percent: Option<f64>, speed_percent: f64) -> f64 {
+        let offset = fraction * speed_percent;
+        match ceiling_percent {
+            Some(ceiling) => offset.min((ceiling - speed_percent).max(0.)),
+            None => offset,
+        }
     }
 
     fn update_stall(&mut self, inputs: EngineMalfunctionInputs, delta: f64) {
@@ -377,6 +400,8 @@ mod tests {
         overtemperature_egt_rise_at_full_n1_degrees_celsius: 120.,
         overspeed_n1_fraction: 0.07,
         overspeed_core_fraction: 0.06,
+        overspeed_n1_ceiling_percent: None,
+        overspeed_core_ceiling_percent: None,
         high_vibration_n1_units_at_full_speed: 8.,
         high_vibration_core_units_at_full_speed: 5.,
         normal_core_to_n1_vibration_ratio: 0.6,
@@ -623,6 +648,23 @@ mod tests {
         assert!((test_bed.n2_offset() - 0.06 * 95.).abs() < 0.05);
         // The thrust does not change
         assert_about_eq!(test_bed.stall_n1_loss(), 0.);
+    }
+
+    #[test]
+    fn the_overspeed_stops_at_the_ceiling_of_the_indication() {
+        // A fraction that would take 85 % N1 to 102 % and 95 % N2 to 114 %, below ceilings
+        // of 100 % and 110 %
+        let offset = EngineMalfunction::overspeed_offset(0.2, Some(100.), 85.);
+        assert!((offset - 15.).abs() < 1e-9);
+        let offset = EngineMalfunction::overspeed_offset(0.2, Some(110.), 95.);
+        assert!((offset - 15.).abs() < 1e-9);
+        // Below the ceiling the fraction applies, and an indication above it is not lowered
+        assert!((EngineMalfunction::overspeed_offset(0.2, Some(100.), 50.) - 10.).abs() < 1e-9);
+        assert_about_eq!(
+            EngineMalfunction::overspeed_offset(0.2, Some(100.), 105.),
+            0.
+        );
+        assert!((EngineMalfunction::overspeed_offset(0.2, None, 85.) - 17.).abs() < 1e-9);
     }
 
     #[test]
