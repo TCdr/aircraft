@@ -379,6 +379,7 @@ impl A380Reversers {
                 !controller.deploy_is_commanded() && !controller.stow_is_commanded();
 
             self.monitoring[idx] = A380ReverserMonitoring {
+                in_operation: !no_deploy_order,
                 fully_deployed: self.reversers_deployed[idx],
                 unlocked: !self.stowed_and_locked(idx) && no_deploy_order,
                 fault: controller.has_fault(),
@@ -448,6 +449,9 @@ impl SimulationElement for A380Reversers {
 /// The status of one thrust reverser (engine 2 or 3), as its FADEC monitors it.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct A380ReverserMonitoring {
+    /// The thrust reverser operates: a deployment or stowage the crew commands, or a deployed
+    /// reverser (the auto-idle protection of the outboard engines, engine_control_failure.rs).
+    pub in_operation: bool,
     /// The cowls are deployed: the deployment is completed (reverse thrust above reverse idle).
     pub fully_deployed: bool,
     /// ENG 2(3) REVERSER UNLOCKED
@@ -722,5 +726,33 @@ mod tests {
         assert!(test_bed.flag("REVERSER_2_DEPLOYING"));
         assert!(!test_bed.flag("REVERSER_3_UNLOCKED"));
         assert!(test_bed.position(0) < 0.01);
+        // an unlocked reverser is no reverser operation (auto-idle of the outboard engines)
+        assert!(!test_bed
+            .test_bed
+            .query(|a| a.reversers.monitoring()[0].in_operation));
+    }
+
+    /// FCOM DSC-70-70 AUTO-IDLE PROTECTION (l.112250-112256): the FADECs of the outboard engines
+    /// read the reverser operation.
+    #[test]
+    fn the_reverser_operation_lasts_from_the_deploy_order_to_the_end_of_the_stowage() {
+        let test_bed = ReverserTestBed::new().run_for(1.);
+        assert!(!test_bed
+            .test_bed
+            .query(|a| a.reversers.monitoring()[0].in_operation));
+
+        let test_bed = test_bed.levers(-20.).run_for(4.);
+        assert!(test_bed.test_bed.query(|a| a
+            .reversers
+            .monitoring()
+            .iter()
+            .all(|r| r.in_operation)));
+
+        let test_bed = test_bed.levers(0.).run_for(5.);
+        assert!(!test_bed.test_bed.query(|a| a
+            .reversers
+            .monitoring()
+            .iter()
+            .any(|r| r.in_operation)));
     }
 }

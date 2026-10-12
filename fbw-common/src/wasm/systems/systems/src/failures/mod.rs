@@ -2,6 +2,7 @@ use crate::air_conditioning::{
     acs_controller::AcscId, cabin_pressure_controller::CpcId, Channel, VcmId, ZoneType,
 };
 use crate::air_conditioning::{FdacId, OcsmId};
+use crate::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use crate::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use crate::shared::{
     AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType, FireDetectionLoopID,
@@ -198,6 +199,11 @@ pub enum FailureType {
     ThrustLeverResolverDisagree(usize),
     /// The fuel filter of engine n is clogged: a crew awareness indication (engine::fuel_filter_failure)
     EngineFuelFilterClog(usize),
+    /// The HP fuel shutoff valve of engine n sticks in its position (engine::hp_fuel_valve_failure)
+    EngineHpFuelValveStuck(usize),
+    /// A fault the FADEC of engine n detects and reports, with no effect on the engine model
+    /// (engine::engine_monitoring_fault)
+    EngineMonitoringFault(usize, EngineMonitoringFaultKind),
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),
