@@ -9,6 +9,7 @@ import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
+import { idgLegendAmber, idgStatusLegend, idgTemperatureClass } from './IdgIndications';
 
 import './Elec.scss';
 
@@ -44,9 +45,6 @@ export const ElecPage = () => {
   const [generatorLineContactor2Closed] = useSimVar('L:A32NX_ELEC_CONTACTOR_9XU2_IS_CLOSED', 'Bool', maxStaleness);
   const [busTieContactor1Closed] = useSimVar('L:A32NX_ELEC_CONTACTOR_11XU1_IS_CLOSED', 'Bool', maxStaleness);
   const [busTieContactor2Closed] = useSimVar('L:A32NX_ELEC_CONTACTOR_11XU2_IS_CLOSED', 'Bool', maxStaleness);
-
-  const [idg1Connected] = useSimVar('L:A32NX_ELEC_ENG_GEN_1_IDG_IS_CONNECTED', 'Bool', maxStaleness);
-  const [idg2Connected] = useSimVar('L:A32NX_ELEC_ENG_GEN_2_IDG_IS_CONNECTED', 'Bool', maxStaleness);
 
   return (
     <EcamPage name="main-elec">
@@ -178,10 +176,10 @@ export const ElecPage = () => {
 
       <IntegratedDriveGeneratorTitle x={28.13} y={476.25} number={1} />
       <IntegratedDriveGeneratorTemperature x={135} y={476.25} number={1} />
-      {!idg1Connected ? <IntegratedDriveGeneratorDisconnected x={29.13} y={495} /> : null}
+      <IntegratedDriveGeneratorStatus x={29.13} y={495} number={1} />
       <IntegratedDriveGeneratorTitle x={513.75} y={476.25} number={2} />
       <IntegratedDriveGeneratorTemperature x={480} y={476.25} number={2} />
-      {!idg2Connected ? <IntegratedDriveGeneratorDisconnected x={518.75} y={495} /> : null}
+      <IntegratedDriveGeneratorStatus x={518.75} y={495} number={2} />
     </EcamPage>
   );
 };
@@ -669,12 +667,22 @@ const GalleyShed = ({ x, y }) => (
   </SvgGroup>
 );
 
-const IntegratedDriveGeneratorTitle = ({ x, y, number }) => {
+/** The IDG state the SD ELEC page shows (FCOM DSC-24-20, see IdgIndications) */
+const useIntegratedDriveGenerator = (number: number) => {
   const [connected] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_IS_CONNECTED`, 'Bool', maxStaleness);
+  const [temperature] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_OUTLET_TEMPERATURE`, 'Celsius', maxStaleness);
+  // The GCU low oil pressure signal, inhibited below N2 14 % (systems electrical/engine_generator.rs)
+  const [lowPressure] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_LOW_PRESSURE`, 'Bool', maxStaleness);
+  return { connected, temperature, lowPressure };
+};
+
+const IntegratedDriveGeneratorTitle = ({ x, y, number }) => {
+  const { connected, temperature, lowPressure } = useIntegratedDriveGenerator(number);
+  const amber = idgLegendAmber(!!connected, temperature, !!lowPressure);
   return (
     <SvgGroup x={x} y={y}>
-      <text className={!connected ? 'Amber' : ''}>IDG</text>
-      <text x={39.38} className={`Large ${!connected ? 'Amber' : ''}`}>
+      <text className={amber ? 'Amber' : ''}>IDG</text>
+      <text x={39.38} className={`Large ${amber ? 'Amber' : ''}`}>
         {number}
       </text>
     </SvgGroup>
@@ -682,10 +690,10 @@ const IntegratedDriveGeneratorTitle = ({ x, y, number }) => {
 };
 
 const IntegratedDriveGeneratorTemperature = ({ x, y, number }) => {
-  const [temperature] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_OUTLET_TEMPERATURE`, 'Celsius', maxStaleness);
+  const { temperature } = useIntegratedDriveGenerator(number);
   return (
     <SvgGroup x={x} y={y}>
-      <text className="Green Right">{Math.round(temperature)}</text>
+      <text className={`${idgTemperatureClass(temperature)} Right`}>{Math.round(temperature)}</text>
       <text x={3.75} className="Cyan">
         °C
       </text>
@@ -693,11 +701,16 @@ const IntegratedDriveGeneratorTemperature = ({ x, y, number }) => {
   );
 };
 
-const IntegratedDriveGeneratorDisconnected = ({ x, y }) => (
-  <text className="Amber" x={x} y={y}>
-    DISC
-  </text>
-);
+/** DISC or LO PR in amber below the IDG legend */
+const IntegratedDriveGeneratorStatus = ({ x, y, number }) => {
+  const { connected, lowPressure } = useIntegratedDriveGenerator(number);
+  const legend = idgStatusLegend(!!connected, !!lowPressure);
+  return legend ? (
+    <text className="Amber" x={x} y={y}>
+      {legend}
+    </text>
+  ) : null;
+};
 
 interface ArrowProps {
   x: number;

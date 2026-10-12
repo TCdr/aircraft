@@ -77,6 +77,21 @@ import {
 } from './Logic/EngineFailAlerts';
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
 import { FUEL_FILTER_CLOG_PHASE_INHIBITION, engineFuelFilterClog } from './Logic/EngineFuelFilterAlerts';
+import { ElecSystemAcquisition } from './Acquisition/ElecSystemAcquisition';
+import {
+  BAT_FAULT_PHASE_INHIBITION,
+  BCL_FAULT_PHASE_INHIBITION,
+  ElecSystemAlertMonitor,
+  GEN_OVERLOAD_PHASE_INHIBITION,
+  IDG_OIL_PHASE_INHIBITION,
+  STATIC_INV_FAULT_PHASE_INHIBITION,
+  batFaultStatus,
+  bclFaultStatus,
+  genOverloadLines,
+  genOverloadStatus,
+  idgOilLines,
+  idgOilStatus,
+} from './Logic/ElecSystemAlerts';
 import {
   SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION,
   THR_LEVER_ABV_IDLE_PHASE_INHIBITION,
@@ -1858,6 +1873,13 @@ export class PseudoFWC {
   private readonly engine1FuelFilterClog = Subject.create(false);
 
   private readonly engine2FuelFilterClog = Subject.create(false);
+
+  /** ELEC BAT/BCL FAULT, IDG OIL LO PR/OVHT, GEN/APU GEN OVERLOAD, STATIC INV FAULT, see Logic/ElecSystemAlerts */
+  private readonly elecSystem = new ElecSystemAcquisition();
+
+  private readonly elecSystemAlerts = new ElecSystemAlertMonitor();
+
+  private readonly galyAndCabAuto = RegisteredSimVar.createBoolean('L:A32NX_OVHD_ELEC_GALY_AND_CAB_PB_IS_AUTO');
 
   /** ENG 1(2) THR LEVER ABV IDLE, see Logic/EngineThrustSettingAlerts */
   private readonly thrustLeverAboveIdleMonitor = new ThrustLeverAboveIdleMonitor();
@@ -5173,6 +5195,9 @@ export class PseudoFWC {
       );
     });
 
+    /* ELEC system failures (FCOM PRO-ABN-ELEC, see Logic/ElecSystemAlerts) */
+    this.elecSystemAlerts.update(this.elecSystem.read());
+
     /* ENG 1(2) THR LEVER ABV IDLE, ENG SAT ABOVE FLEX TEMP (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts) */
     this.thrustLeverAboveIdleMonitor.update({
       onGround,
@@ -6741,6 +6766,158 @@ export class PseudoFWC {
       memoInhibit: () => false,
       failure: 1,
       sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    // ELEC system failures (FCOM PRO-ABN-ELEC, see Logic/ElecSystemAlerts): amber cautions on the ELEC page
+    2400201: {
+      // BAT 1 FAULT
+      flightPhaseInhib: BAT_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.batFault[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240020101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => batFaultStatus(1).inopSys,
+      statusInfo: () => batFaultStatus(1).left,
+    },
+    2400202: {
+      // BAT 2 FAULT
+      flightPhaseInhib: BAT_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.batFault[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240020201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => batFaultStatus(2).inopSys,
+      statusInfo: () => batFaultStatus(2).left,
+    },
+    2400203: {
+      // BCL 1 FAULT
+      flightPhaseInhib: BCL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.bclFault[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240020301'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => bclFaultStatus(1).inopSys,
+      statusInfo: () => bclFaultStatus(1).left,
+    },
+    2400204: {
+      // BCL 2 FAULT
+      flightPhaseInhib: BCL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.bclFault[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240020401'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => bclFaultStatus(2).inopSys,
+      statusInfo: () => bclFaultStatus(2).left,
+    },
+    2400205: {
+      // IDG 1 OIL LO PR
+      flightPhaseInhib: IDG_OIL_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.idgOilLowPressure[0],
+      whichCodeToReturn: () => idgOilLines(),
+      codesToReturn: ['240020501', '240020502'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => idgOilStatus(1, this.elecSystem.apuGenOnline).inopSys,
+      statusInfo: () => idgOilStatus(1, this.elecSystem.apuGenOnline).left,
+    },
+    2400206: {
+      // IDG 2 OIL LO PR
+      flightPhaseInhib: IDG_OIL_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.idgOilLowPressure[1],
+      whichCodeToReturn: () => idgOilLines(),
+      codesToReturn: ['240020601', '240020602'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => idgOilStatus(2, this.elecSystem.apuGenOnline).inopSys,
+      statusInfo: () => idgOilStatus(2, this.elecSystem.apuGenOnline).left,
+    },
+    2400207: {
+      // IDG 1 OIL OVHT
+      flightPhaseInhib: IDG_OIL_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.idgOilOverheat[0],
+      whichCodeToReturn: () => idgOilLines(),
+      codesToReturn: ['240020701', '240020702'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => idgOilStatus(1, this.elecSystem.apuGenOnline).inopSys,
+      statusInfo: () => idgOilStatus(1, this.elecSystem.apuGenOnline).left,
+    },
+    2400208: {
+      // IDG 2 OIL OVHT
+      flightPhaseInhib: IDG_OIL_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.idgOilOverheat[1],
+      whichCodeToReturn: () => idgOilLines(),
+      codesToReturn: ['240020801', '240020802'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => idgOilStatus(2, this.elecSystem.apuGenOnline).inopSys,
+      statusInfo: () => idgOilStatus(2, this.elecSystem.apuGenOnline).left,
+    },
+    2400209: {
+      // GEN 1 OVERLOAD
+      flightPhaseInhib: GEN_OVERLOAD_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.genOverload[0],
+      whichCodeToReturn: () => genOverloadLines(!this.galyAndCabAuto.get()),
+      codesToReturn: ['240020901', '240020902'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => genOverloadStatus().inopSys,
+    },
+    2400210: {
+      // GEN 2 OVERLOAD
+      flightPhaseInhib: GEN_OVERLOAD_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.genOverload[1],
+      whichCodeToReturn: () => genOverloadLines(!this.galyAndCabAuto.get()),
+      codesToReturn: ['240021001', '240021002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => genOverloadStatus().inopSys,
+    },
+    2400211: {
+      // APU GEN OVERLOAD
+      flightPhaseInhib: GEN_OVERLOAD_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.apuGenOverload,
+      whichCodeToReturn: () => genOverloadLines(!this.galyAndCabAuto.get()),
+      codesToReturn: ['240021101', '240021102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => genOverloadStatus().inopSys,
+    },
+    2400212: {
+      // STATIC INV FAULT
+      flightPhaseInhib: STATIC_INV_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.staticInverterFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240021201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
     },
     2400001: {

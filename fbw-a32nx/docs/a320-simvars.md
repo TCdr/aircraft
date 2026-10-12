@@ -864,6 +864,37 @@
         - 1
         - 2
 
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_LOW_PRESSURE
+    - Bool
+    - The low oil pressure signal of the given integrated drive generator, as its GCU sends it to the FWC
+      (ELEC IDG 1(2) OIL LO PR), to the IDG pb FAULT light and to the SD ELEC page (LO PR).
+      Inhibited below N2 14 % and once the IDG is disconnected (FCOM DSC-24-20)
+    - {number}
+        - 1
+        - 2
+
+- A32NX_ELEC_BCL_{number}_BAT_FAULT
+    - Bool
+    - True when the battery charge limiter saw an abnormal charging current of its battery (thermal runaway)
+      and opened the battery contactor (ELEC BAT 1(2) FAULT, BAT pb FAULT light). Latched until the BAT pb is
+      set to OFF
+    - {number}
+        - 1
+        - 2
+
+- A32NX_ELEC_BCL_{number}_FAULT
+    - Bool
+    - True when the battery charge limiter has failed: the battery contactor stays open
+      (ELEC BCL 1(2) FAULT, BAT pb FAULT light)
+    - {number}
+        - 1
+        - 2
+
+- A32NX_ELEC_STAT_INV_FAULT
+    - Bool
+    - True when the static inverter is failed, also while it does not convert: its monitoring is supplied by
+      the DC HOT BUS 1 (ELEC STAT INV FAULT)
+
 - A32NX_HYD_{loop_name}_SYSTEM_1_SECTION_PRESSURE
     - Psi
     - Current pressure in the system section of the {loop_name} hydraulic circuit
