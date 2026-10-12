@@ -120,6 +120,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/EFB] New flyPad failures for the 8 display units (CAPT/F/O PFD, ND, MFD, EWD, SD): the failed display unit goes blank and the ECAM shows CDS ... DU FAULT with its procedure and INOP SYS - @TCdr
 1. [A32NX/EFB] flyPad failures: the CAPT and F/O ND and the upper and lower ECAM display units can be failed (ATA 31); a failed display unit goes blank like a failed PFD, with no weather or terrain drawn on a failed ND - @TCdr
 1. [A32NX/ND] The weather radar returns and the terrain are no longer drawn on an ND that is switched off or in its self-test - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 
 ## 2024.1.0
 
