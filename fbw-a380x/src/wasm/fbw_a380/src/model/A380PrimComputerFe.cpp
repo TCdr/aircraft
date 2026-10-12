@@ -208,7 +208,9 @@ void A380PrimComputerFe::step()
 
     rtb_Equal = (A380PrimComputerFe_U.in.fctl_logic.active_pitch_law == A380PrimComputerFe_P.EnumeratedConstant_Value);
     guard1 = false;
-    if ((rtb_alpha_floor_inhib == 0) && (A380PrimComputerFe_U.in.general_logic.adr_computation_data.mach < 0.6)) {
+    // FBW fork (not in the Simulink model): alpha floor inhibited above M 0.5, A380 FCOM DSC-22-27 Alpha floor
+    // (a380_fcom.txt:9223-9226) "alpha-floor is inhibited if ... The Mach is above 0.5"; the model had M 0.6.
+    if ((rtb_alpha_floor_inhib == 0) && (A380PrimComputerFe_U.in.general_logic.adr_computation_data.mach <= 0.5)) {
       if (A380PrimComputerFe_U.in.general_logic.flap_handle_index >= 4.0F) {
         tmp = -3;
       } else {

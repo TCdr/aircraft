@@ -566,6 +566,12 @@
 
 ### Flight Guidance and Flight Envelope (FG/FE)
 
+- A32NX_REACTIVE_WINDSHEAR_WARNING
+    - Boolean
+    - True while the reactive windshear detection of the PRIMs gives the WINDSHEAR warning (red WINDSHEAR on the
+      PFDs), written by the systems host (PseudoPRIM/PrimReactiveWindshear)
+    - Read-Only
+
 #### Flight Control Data Concentrators (FCDCs)
 
 The FCDCs receive FG and FE data from the PRIMs and from these compute warning data for the FWC
@@ -1960,6 +1966,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Boolean
     - Whether the TRAF button is activated
     - {side} = L or R
+    - Not written by any system; the TRAF pb state is A32NX_FCU_EFIS_{side}_TRAF_LIGHT_ON (FCU), read by the TCAS,
+      which also pushes the TRAF pbs on (A32NX.FCU_EFIS_{side}_TRAF_PUSH) when a TA or RA starts
 
 - A380X_EFIS_{side}_BARO_PRESELECTED
     - Number (hPa or inHg)

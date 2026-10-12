@@ -423,12 +423,42 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/HYD] The RAT propeller has the real 29.5 in (749 mm) diameter instead of 1 m, with its performance retuned to the real RAT: rated output from 135.5 kt, governed between 4800 and 6600 rpm, and the emergency generator kept running down to 125 kt as in the FCOM; below its governed band the RAT pressure fades and the emergency generator is lost (about 110 kt); the RAT holds the blue system at about 2500 psi as in the FCOM, also without the emergency generator (RAT MAN ON), instead of about 2680 psi - @TCdr
 1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
-||||||| 19910a87e
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
 1. [A32NX/RCDR] The CVR now runs by itself as in the FCOM (first 5 min after power-up, with an engine running, in flight, and 5 min after the last engine shutdown); the CVR TEST gives its signal in the first 5 min without GND CTL, and only with the parking brake on - @TCdr
 1. [A380X/FWS] EVAC ACTIVE memo on the EWD while the EVAC COMMAND pb-sw is ON - @TCdr
 1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as in the FCOM (it also showed in ROSE NAV) - @TCdr
 1. [A380X/OIT] The COMPANY COM inbox lists the company messages received by the AOC instead of two test messages; displaying a message marks it read, and the COMPANY MSG memo goes once every message is read - @TCdr
+1. [A32NX/GPWS] The GPWS can be tested on the ground with the PULL UP-GPWS pushbutton: GLIDESLOPE with the GPWS light, then PULL UP and TERRAIN TERRAIN PULL UP with the PULL UP light - @TCdr
+1. [A32NX/TCAS] New flyPad failure TCAS computer (ATA 34): amber TCAS on the PFD and ND, NAV TCAS FAULT on the ECAM, no traffic and no advisories - @TCdr
+1. [A32NX/A380X] Reactive windshear detection (A32NX FACs, A380X PRIMs): red WINDSHEAR on both PFDs in a decreasing performance windshear at takeoff and landing below 1300 ft, CONF 1 or more (no aural yet) - @TCdr
+1. [A380X/PRIM] Alpha floor is inhibited above M 0.5, as in the FCOM (was M 0.6) - @TCdr
+1. [A380X/GPWS] GPWS mode 2 (excessive terrain closure rate) works again with a filtered radio altitude rate: TERRAIN then PULL UP on the PFD with the PULL UP aural, TERRAIN only in landing configuration - @TCdr
+1. [A380X/GPWS] The PFD shows the PULL UP of GPWS mode 1 (excessive rate of descent) - @TCdr
+1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as in the FCOM (before only the TA/RA intruders were shown) - @TCdr
+1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
+1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
+1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically, as in the FCOM - @TCdr
+1. [A380X/FWS] Smart FIVE HUNDRED callout: the flyPad pin programming "Inhibited When Glideslope Captured" is back and calls FIVE HUNDRED only when more than half a dot off the glideslope - @TCdr
+1. [A32NX/PFD] FMA line 3: FOR GA: SET TOGA, DISCONNECT AP FOR LDG, SET GREEN DOT SPEED and CHECK APPR SELECTION now show as in the FCOM; CHECK APPR SELECTION (non ILS approach with a manually tuned ILS) also on the MCDU - @TCdr
+1. [A32NX/EWD] The AVAIL indication stays steady 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever leaves idle - @TCdr
+1. [A32NX/SD] FUEL page: the inner and outer tank quantities of the heavier wing pulse when the wings differ by more than 1 500 kg in flight phases 2 and 6 - @TCdr
+1. [A32NX/SD] BLEED page: the crossbleed valve is amber when it is not in the position commanded by the X BLEED selector, not only in transit - @TCdr
+1. [A380X/PFD] FMA line 3: CHECK SPD MODE and CHECK EO SPD SETTING now show - @TCdr
+1. [A380X/EWD] The AVAIL indication stays 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever is set above idle - @TCdr
+1. [A380X/EWD] EGT gauge: the amber limit is 745 C during a ground start and 865 C during a relight in flight - @TCdr
+1. [A380X/SD] FUEL page: the tank quantities of an unbalanced pair are underlined amber, with the trigger of FUEL WINGS NOT BALANCED - @TCdr
+1. [A380X/SD] WHEEL page: L/G CTL and L/G GRVTY EXTN IN PROGRESS now show - @TCdr
+1. [A380X/FWS] ENG 2(3) SHUT DOWN: the landing distance line reads LDG DIST IMPACT ON WET/CONTAM RWY ONLY as in the FCOM - @TCdr
+1. [A380X/FWS] New CAB PRESS alerts: EXCESS NEGATIVE DIFF PRESS (red warning, held until -0.32 PSI), DIFF PRESS HI, DIFF PRESS LO and LDG ELEVN FAULT (no landing elevation from the FMS), and the RAM AIR memo (green on ground with no engine running, amber otherwise) - @TCdr
+1. [A380X/FWS] AUTO FLT APPROACH CAPABILITY DOWNGRADED triggers with RA SYS B failed, with CAT 3 DUAL inoperative and CAT 3 SINGLE ONLY on the STATUS page - @TCdr
+1. [A380X/FWS] APU FAULT alert after an APU automatic or emergency shutdown, with APU MASTER SW OFF and INOP SYS APU - @TCdr
+1. [A380X/FWS] Fuel memos FWD XFR IN PROGRESS, OUTR TK XFR IN PROG (fuel leaving the trim or outer tanks), OUTR TKs XFRD and TRIM TK XFRD (cruise) - @TCdr
+1. [A380X/FWS] HYD: the ENG PMP PRESS LO alerts list the pumps under INOP SYS (two or more failed) or REDUND LOSS (one failed); RSVR AIR PRESS LO and SYS OVHT get their FOR APPROACH procedures; G+Y SYS PRESS LO shows LDG PERF AFFECTED and the FCOM INOP SYS list (BTV, CAT 2, GLS AUTOLAND, no STABILIZER) - @TCdr
+1. [A380X/FWS] A-ICE ICE DETECTED and A-ICE SEVERE ICE DETECTED alerts in cruise (ENG and WING A-ICE ON) - @TCdr
+1. [A380X/OXY] The cabin oxygen masks drop automatically when the cabin altitude goes above 13 800 ft - @TCdr
+1. [A380X/FWS] SURV GPWS 1(2)(1+2) FAULT alerts; SURV TAWS 1(2)(1+2) FAULT now trigger when the GPWS and the TERR SYS of a system are both failed, instead of the separate GPWS and TERR alerts - @TCdr
+1. [A380X/FWS] AIR ABNORM BLEED CONFIG lines (XBLEED, AIR FLOW, PACK, WING A-ICE) after ENG SHUT DOWN or ENG FIRE - @TCdr
+1. [A32NX/FWC] New AUTO FLT YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS and RUD TRV LIM 1(2) / SYS cautions with their FCOM procedures and STATUS, and six new flyPad failures (ATA 22) for the yaw damper, rudder trim and rudder travel limiter actuators of each FAC: the other FAC takes the function over - @TCdr
 
 ## 2024.1.0
 

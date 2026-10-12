@@ -1658,6 +1658,11 @@ These variables are the interface between the 3D model and the systems/code.
     - Bool
     - Indicates if the CHECK SPEED MODE message is shown on the PFD
 
+- A32NX_PFD_MSG_CHECK_APPR_SELECTION
+    - Bool
+    - Indicates if the CHECK APPR SELECTION message is shown on the PFD (FMGC: a non ILS approach in the F-PLN with an
+      ILS manually tuned on the RAD NAV page, in cruise less than 100 NM from the T/D, in descent or in approach)
+
 - A32NX_PFD_LINEAR_DEVIATION_ACTIVE
     - Bool
     - Indicates if the linear deviation is shown on the PFD
@@ -3686,6 +3691,18 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - If the FAC {number} is healthy.
     - Boolean
 
+- A32NX_FAC_{number}_YAW_DAMPER_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its yaw damper actuator failed (flyPad failure "Yaw damper actuator {number}"). Read by the FWC for AUTO FLT YAW DAMPER 1(2) / SYS.
+    - Boolean
+
+- A32NX_FAC_{number}_RUDDER_TRIM_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its rudder trim actuator motor failed (flyPad failure "Rudder trim actuator motor {number}"). Read by the FWC for AUTO FLT RUD TRIM 1(2) FAULT / SYS.
+    - Boolean
+
+- A32NX_FAC_{number}_RUDDER_TRAVEL_LIM_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its rudder travel limiter actuator motor failed (flyPad failure "Rudder travel limiter actuator motor {number}"). Read by the FWC for AUTO FLT RUD TRV LIM 1(2) / SYS.
+    - Boolean
+
 - A32NX_FAC_{number}_SIDESLIP_TARGET
     - The sideslip target in case of engine out.
     - Arinc429<Degrees>
@@ -5247,6 +5264,18 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GPWS_FLAPS3
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
+
+- A32NX_GPWS_TERR_TEST_PATTERN
+    - Boolean
+    - True while the GPWS self-test (GPWS pushbutton pressed on the ground) shows the terrain test pattern, for the
+      TERR TST message of the ND (not displayed yet)
+    - Read-Only
+
+- A32NX_REACTIVE_WINDSHEAR_WARNING
+    - Boolean
+    - True while the reactive windshear detection of the FACs gives the WINDSHEAR warning (red WINDSHEAR on the PFDs),
+      written by the systems host (FacReactiveWindshear)
+    - Read-Only
 
 - A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION
     - Feet

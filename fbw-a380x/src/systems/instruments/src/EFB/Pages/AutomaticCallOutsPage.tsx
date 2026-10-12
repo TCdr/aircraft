@@ -4,7 +4,7 @@
 import React from 'react';
 
 import { usePersistentNumberProperty } from '@flybywiresim/fbw-sdk-react';
-import { M3Button, pathify, SettingItem, SettingsPage, t, Toggle } from '@flybywiresim/flypad';
+import { M3Button, pathify, SettingGroup, SettingItem, SettingsPage, t, Toggle } from '@flybywiresim/flypad';
 import { A380X_DEFAULT_RADIO_AUTO_CALL_OUTS, A380XRadioAutoCallOutFlags } from '../../../../shared/src/AutoCallOuts';
 
 export const AutomaticCallOutsPage: React.FC = () => {
@@ -81,23 +81,22 @@ export const AutomaticCallOutsPage: React.FC = () => {
               onToggle={() => toggleRadioAcoFlag(A380XRadioAutoCallOutFlags.OneThousand)}
             />
           </SettingItem>
-          {/* TODO enable this when the new rust FWC is merged with the 500 hundred GS inhibit logic */}
-          {/* <SettingGroup> */}
-          {/* groupType="parent" */}
-          <SettingItem name="Five Hundred">
-            <Toggle
-              value={(autoCallOuts & A380XRadioAutoCallOutFlags.FiveHundred) > 0}
-              onToggle={() => toggleRadioAcoFlag(A380XRadioAutoCallOutFlags.FiveHundred)}
-            />
-          </SettingItem>
-          {/* <SettingItem name={t('Settings.AutomaticCallOuts.FiveHundredGlide')} groupType="sub">
-                            <Toggle
-                                value={(autoCallOuts & RadioAutoCallOutFlags.FiveHundredGlide) > 0}
-                                disabled={(autoCallOuts & RadioAutoCallOutFlags.FiveHundred) === 0}
-                                onToggle={() => toggleRadioAcoFlag(RadioAutoCallOutFlags.FiveHundredGlide)}
-                            />
-                        </SettingItem> */}
-          {/* </SettingGroup> */}
+          {/* Smart FIVE HUNDRED pin: A380 FCOM DSC-34-10-50 AUTOMATIC CALLOUTS (a380_fcom.txt 86490-86491, 86528) */}
+          <SettingGroup>
+            <SettingItem name="Five Hundred" groupType="parent">
+              <Toggle
+                value={(autoCallOuts & A380XRadioAutoCallOutFlags.FiveHundred) > 0}
+                onToggle={() => toggleRadioAcoFlag(A380XRadioAutoCallOutFlags.FiveHundred)}
+              />
+            </SettingItem>
+            <SettingItem name={t('Settings.AutomaticCallOuts.FiveHundredGlide')} groupType="sub">
+              <Toggle
+                value={(autoCallOuts & A380XRadioAutoCallOutFlags.FiveHundredGlide) > 0}
+                disabled={(autoCallOuts & A380XRadioAutoCallOutFlags.FiveHundred) === 0}
+                onToggle={() => toggleRadioAcoFlag(A380XRadioAutoCallOutFlags.FiveHundredGlide)}
+              />
+            </SettingItem>
+          </SettingGroup>
           <SettingItem name="Four Hundred">
             <Toggle
               value={(autoCallOuts & A380XRadioAutoCallOutFlags.FourHundred) > 0}
