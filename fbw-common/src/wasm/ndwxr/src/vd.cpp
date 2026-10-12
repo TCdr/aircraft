@@ -309,8 +309,8 @@ int buildVdPlanCut(float aircraftLat, float aircraftLon, float rangeNm, VdCutSeg
   return n;
 }
 
-// The runways published by the systems host, relative to the aircraft (flat earth, as buildVdPlanCut), then the
-// stretches of the cut whose band reaches them (see vd_runways.h).
+// The airports published by the systems host, relative to the aircraft (flat earth, as buildVdPlanCut), then the
+// stretches of the cut whose band reaches them (see vd_airports.h).
 static int buildVdFlatStretches(float aircraftLat,
                                 float aircraftLon,
                                 const VdCutSegment* cut,
@@ -318,32 +318,30 @@ static int buildVdFlatStretches(float aircraftLat,
                                 float halfWidthNm,
                                 float rangeNm,
                                 VdFlatStretch* out) {
-  int count = static_cast<int>(g_vdRunwayCount.read());
-  if (count > kVdRunwayMax) {
-    count = kVdRunwayMax;
+  int count = static_cast<int>(g_vdAirportCount.read());
+  if (count > kVdAirportMax) {
+    count = kVdAirportMax;
   }
   if (count <= 0) {
     return 0;
   }
   const float nmPerDegreeLon = 60.0f * std::cos(aircraftLat * kDegToRadF);
-  VdRunwayArea runways[kVdRunwayMax];
+  VdAirportArea airports[kVdAirportMax];
   for (int i = 0; i < count; ++i) {
-    float dLon = static_cast<float>(get_named_variable_value(g_vdRunwayLonVars[i])) - aircraftLon;
+    float dLon = static_cast<float>(get_named_variable_value(g_vdAirportLonVars[i])) - aircraftLon;
     if (dLon > 180.0f) {
       dLon -= 360.0f;
     } else if (dLon < -180.0f) {
       dLon += 360.0f;
     }
-    runways[i] = VdRunwayArea{
+    airports[i] = VdAirportArea{
         dLon * nmPerDegreeLon,
-        (static_cast<float>(get_named_variable_value(g_vdRunwayLatVars[i])) - aircraftLat) * 60.0f,
-        static_cast<float>(get_named_variable_value(g_vdRunwayCourseVars[i])),
-        static_cast<float>(get_named_variable_value(g_vdRunwayHalfLengthVars[i])),
-        static_cast<float>(get_named_variable_value(g_vdRunwayHalfWidthVars[i])),
-        static_cast<float>(get_named_variable_value(g_vdRunwayElevationVars[i])),
+        (static_cast<float>(get_named_variable_value(g_vdAirportLatVars[i])) - aircraftLat) * 60.0f,
+        static_cast<float>(get_named_variable_value(g_vdAirportRadiusVars[i])),
+        static_cast<float>(get_named_variable_value(g_vdAirportElevationVars[i])),
     };
   }
-  return vdRunwayStretches(cut, cutCount, halfWidthNm, rangeNm, runways, count, out, kVdFlatStretchMax);
+  return vdAirportStretches(cut, cutCount, halfWidthNm, rangeNm, airports, count, out, kVdFlatStretchMax);
 }
 
 // The color list of the VD terrain view: entry 0 is the water (B channel only, which takes
@@ -531,9 +529,9 @@ static void drawVdTerrain(NVGcontext* vg,
     }
   }
 
-  // 7. the runways: the terrain view draws the airport diagram over the terrain (see vd_runways.h), so the stretches of
-  // the cut whose band reaches a runway are cleared and drawn as flat ground at its elevation, placed on the scale as
-  // the terrain is (its elevation plus the baro - true offset, see drawVdTerrainGauge), in the terrain's brown.
+  // 7. the airports: the terrain view draws the airport diagram over the terrain (see vd_airports.h), so the stretches
+  // of the cut whose band reaches an airport are cleared and drawn as flat ground at its elevation, placed on the scale
+  // as the terrain is (its elevation plus the baro - true offset, see drawVdTerrainGauge), in the terrain's brown.
   if (flatCount > 0) {
     const float feetPerPx = static_cast<float>(upperFeet - lowerFeet) / kVdHeight;
     nvgGlobalCompositeOperation(vg, NVG_SOURCE_OVER);

@@ -228,7 +228,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/Failures] flyPad failures: all landing gear proximity sensor and jammed actuator failures listed (32004-32025, named after the gear, door or sensor they fail), the uplock sensor failure that said nose gear but failed the right main gear relabelled, and the inactive ROLLOUT failure removed - @TCdr
 1. [A380X/PRINTER] The pedestal printer control panel buttons are clickable: ON/OFF (green when on and AC 1 powered; switched off, the FMS and ATC COM prints show PRINTER NOT AVAIL), SLEW feeds paper, TEST prints a test page, ABORT cancels the waiting printouts - @TCdr
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
-1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
+1. [A380X/ND] The VD terrain profile shows the airports as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
 1. [A32NX/EFB] New flyPad failures Engine 1(2) flameout (crew relight possible) and Engine 1(2) seizure (no relight): the engine fuel is cut; a flamed out engine relights with ENG MASTER OFF then ON inside the FCOM relight envelope, a seized one does not relight - @TCdr
 1. [EFB] The flyPad failures page describes the ATA 28 Fuel and ATA 72 Engine chapters like the others - @TCdr
@@ -361,6 +361,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 
 ## 2024.1.0
 
