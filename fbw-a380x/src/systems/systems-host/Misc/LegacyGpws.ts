@@ -1,10 +1,11 @@
 // @ts-strict-ignore
-import { Arinc429SignStatusMatrix, Arinc429Word, NXDataStore, UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { Arinc429SignStatusMatrix, Arinc429Word, MathUtils, NXDataStore, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { LegacySoundManager, soundList } from './LegacySoundManager';
 import { A380X_DEFAULT_RADIO_AUTO_CALL_OUTS, A380XRadioAutoCallOutFlags } from '../../shared/src/AutoCallOuts';
 import { EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FwsSoundManagerControlEvents } from '../CpiomC/FlightWarningSystem/FwsSoundManager';
+import { GpwsMode2 } from './GpwsMode2';
 
 type ModesType = {
   current: number;
@@ -37,6 +38,27 @@ export class LegacyGpws {
     return !(SimVar.GetSimVarValue('L:A32NX_GPWS_TERR_OFF', 'Bool') > 0) && !terrFailed;
   }
 
+  /**
+   * Mode 2B condition "the aircraft is flying an ILS(GLS) approach, and both glide slope and LOC deviations are below 2
+   * dots" (A380 FCOM DSC-34-20-20-10, a380_fcom.txt:88281-88282). One dot: 0.4 degree of glide slope (as mode 5),
+   * 0.8 degree of localizer.
+   * @returns true when both the glide slope and the localizer are received with less than 2 dots of deviation
+   */
+  static areIlsDeviationsBelowTwoDots(): boolean {
+    if (
+      !(SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number') > 0) ||
+      !(SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_LOC_IS_VALID', 'number') > 0)
+    ) {
+      return false;
+    }
+    const glideSlopeDots = Math.abs(SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number')) / 0.4;
+    const localizerDots =
+      Math.abs(
+        MathUtils.correctMsfsLocaliserError(SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_LOC_DEVIATION', 'number')),
+      ) / 0.8;
+    return glideSlopeDots < 2 && localizerDots < 2;
+  }
+
   private updateThrottler = new UpdateThrottler(125); // has to be > 100 due to pulse nodes
 
   private pub = this.bus.getPublisher<FwsSoundManagerControlEvents>();
@@ -49,17 +71,8 @@ export class LegacyGpws {
 
   Mode4MaxRAAlt: number;
 
-  Mode2BoundaryLeaveAlt: number;
-
-  Mode2NumTerrain: number;
-
-  Mode2NumFramesInBoundary: number;
-
-  RadioAltRate: number;
-
-  prevRadioAlt: number;
-
-  prevRadioAlt2: number;
+  /** Mode 2, excessive terrain closure rate (GpwsMode2) */
+  private readonly mode2 = new GpwsMode2();
 
   modes: ModesType[];
 
@@ -86,14 +99,6 @@ export class LegacyGpws {
 
     this.Mode4MaxRAAlt = NaN;
 
-    this.Mode2BoundaryLeaveAlt = NaN;
-    this.Mode2NumTerrain = 0;
-    this.Mode2NumFramesInBoundary = 0;
-
-    this.RadioAltRate = NaN;
-    this.prevRadioAlt = NaN;
-    this.prevRadioAlt2 = NaN;
-
     this.modes = [
       // Mode 1
       {
@@ -106,9 +111,9 @@ export class LegacyGpws {
           { gpwsLight: true, pullUp: true },
         ],
       },
-      // Mode 2 is currently inactive.
+      // Mode 2 (GpwsMode2)
       {
-        // 0: no warning, 1: "terrain", 2: "pull up"
+        // 0: no warning, 1: "terrain", 2: "pull up". No TERRAIN aural yet: the A380X sound bank has no "terrain" call.
         current: 0,
         previous: 0,
         type: [{}, { gpwsLight: true }, { gpwsLight: true, pullUp: true }],
@@ -155,9 +160,9 @@ export class LegacyGpws {
   gpwsUpdateDiscreteWords() {
     this.egpwsAlertDiscreteWord1.ssm = Arinc429SignStatusMatrix.NormalOperation;
     this.egpwsAlertDiscreteWord1.setBitValue(11, this.modes[0].current === 1);
-    this.egpwsAlertDiscreteWord1.setBitValue(12, this.modes[0].current === 2);
+    // PULL UP: mode 1 or mode 2 (the mode 2 bit used to overwrite the mode 1 one, so the PFD never showed a mode 1 PULL UP)
+    this.egpwsAlertDiscreteWord1.setBitValue(12, this.modes[0].current === 2 || this.modes[1].current === 2);
     this.egpwsAlertDiscreteWord1.setBitValue(13, this.modes[1].current === 1);
-    this.egpwsAlertDiscreteWord1.setBitValue(12, this.modes[1].current === 2);
     this.egpwsAlertDiscreteWord1.setBitValue(14, this.modes[2].current === 1);
     this.egpwsAlertDiscreteWord1.setBitValue(15, this.modes[3].current === 1);
     this.egpwsAlertDiscreteWord1.setBitValue(16, this.modes[3].current === 2);
@@ -253,7 +258,7 @@ export class LegacyGpws {
     const onGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
 
     this.UpdateAltState(radioAltValid ? radioAlt.value : NaN);
-    this.differentiateRadioalt(radioAltValid ? radioAlt.value : NaN, deltaTime);
+    this.mode2.updateAirGroundState(!!onGround, deltaTime / 1000);
 
     const mda = SimVar.GetSimVarValue('L:AIRLINER_MINIMUM_DESCENT_ALTITUDE', 'feet');
     const dh = SimVar.GetSimVarValue('L:AIRLINER_DECISION_HEIGHT', 'feet');
@@ -298,8 +303,16 @@ export class LegacyGpws {
       this.updateMaxRA(radioAlt.value, onGround, phase);
 
       this.GPWSMode1(this.modes[0], radioAlt.value, vSpeed);
-      // Mode 2 is disabled because of an issue with the terrain height simvar which causes false warnings very frequently. See PR#1742 for more info
-      // this.GPWSMode2(this.modes[1], radioAlt, Airspeed, FlapsInLandingConfig, gearExtended);
+      this.modes[1].current = this.mode2.update({
+        deltaTimeS: deltaTime / 1000,
+        radioAltitudeFt: radioAlt.value,
+        computedAirspeedKt: Airspeed,
+        verticalSpeedFtMin: vSpeed,
+        altitudeFt: baroAlt.isNormalOperation() ? baroAlt.value : SimVar.GetSimVarValue('PLANE ALTITUDE', 'feet'),
+        landingFlaps: FlapsInLandingConfig,
+        gearDown: gearExtended,
+        ilsDeviationsBelowTwoDots: LegacyGpws.areIlsDeviationsBelowTwoDots(),
+      });
       this.GPWSMode3(this.modes[2], radioAlt.value, phase);
       this.GPWSMode4(this.modes[3], radioAlt.value, Airspeed, FlapsInLandingConfig, gearExtended, phase);
       this.GPWSMode5(this.modes[4], radioAlt.value);
@@ -307,6 +320,7 @@ export class LegacyGpws {
       this.modes.forEach((mode) => {
         mode.current = 0;
       });
+      this.mode2.reset();
 
       this.Mode3MaxBaroAlt = NaN;
       if (onGround || (radioAltValid && radioAlt.value < 10)) {
@@ -319,24 +333,6 @@ export class LegacyGpws {
 
     this.GPWSComputeLightsAndCallouts();
     this.gpwsUpdateDiscreteWords();
-  }
-
-  /**
-   * Takes the derivative of the radio altimeter. Using central difference, to prevent high frequency noise
-   * @param radioAlt - in feet
-   * @param deltaTime - in milliseconds
-   */
-  differentiateRadioalt(radioAlt, deltaTime) {
-    if (!Number.isNaN(this.prevRadioAlt2) && !Number.isNaN(radioAlt)) {
-      this.RadioAltRate = (radioAlt - this.prevRadioAlt2) / (deltaTime / 1000 / 60) / 2;
-      this.prevRadioAlt2 = this.prevRadioAlt;
-      this.prevRadioAlt = radioAlt;
-    } else if (!Number.isNaN(this.prevRadioAlt) && !Number.isNaN(radioAlt)) {
-      this.prevRadioAlt2 = this.prevRadioAlt;
-      this.prevRadioAlt = radioAlt;
-    } else {
-      this.prevRadioAlt2 = radioAlt;
-    }
   }
 
   updateMaxRA(radioAlt, onGround, phase) {
@@ -430,61 +426,6 @@ export class LegacyGpws {
       mode.current = 1;
     } else {
       mode.current = 0;
-    }
-  }
-
-  /**
-   * Compute the GPWS Mode 2 state.
-   * @param mode - The mode object which stores the state.
-   * @param radioAlt - Radio altitude in feet
-   * @param speed - Airspeed in knots.
-   * @param FlapsInLandingConfig - If flaps is in landing config
-   * @param gearExtended - If the gear is deployed
-   */
-  GPWSMode2(mode, radioAlt, speed, FlapsInLandingConfig, gearExtended) {
-    let IsInBoundary = false;
-    const UpperBoundaryRate =
-      -this.RadioAltRate < 3500 ? 0.7937 * -this.RadioAltRate - 1557.5 : 0.19166 * -this.RadioAltRate + 610;
-    const UpperBoundarySpeed = Math.max(1650, Math.min(2450, 8.8888 * speed - 305.555));
-
-    if (!FlapsInLandingConfig && -this.RadioAltRate > 2000) {
-      if (radioAlt < UpperBoundarySpeed && radioAlt < UpperBoundaryRate) {
-        this.Mode2NumFramesInBoundary += 1;
-      } else {
-        this.Mode2NumFramesInBoundary = 0;
-      }
-    } else if (FlapsInLandingConfig && -this.RadioAltRate > 2000) {
-      if (radioAlt < 775 && radioAlt < UpperBoundaryRate && -this.RadioAltRate < 10000) {
-        this.Mode2NumFramesInBoundary += 1;
-      } else {
-        this.Mode2NumFramesInBoundary = 0;
-      }
-    }
-    // This is to prevent very quick changes in radio alt rate triggering the alarm. The derivative is sadly pretty jittery.
-    if (this.Mode2NumFramesInBoundary > 5) {
-      IsInBoundary = true;
-    }
-
-    if (IsInBoundary) {
-      this.Mode2BoundaryLeaveAlt = -1;
-      if (this.Mode2NumTerrain < 2 || gearExtended) {
-        if (this.soundManager.tryPlaySound(soundList.too_low_terrain)) {
-          // too low terrain is not correct, but no "terrain" call yet
-          this.Mode2NumTerrain += 1;
-        }
-        mode.current = 1;
-      } else if (!gearExtended) {
-        mode.current = 2;
-      }
-    } else if (this.Mode2BoundaryLeaveAlt === -1) {
-      this.Mode2BoundaryLeaveAlt = radioAlt;
-    } else if (this.Mode2BoundaryLeaveAlt + 300 > radioAlt) {
-      mode.current = 1;
-      this.soundManager.tryPlaySound(soundList.too_low_terrain);
-    } else if (this.Mode2BoundaryLeaveAlt + 300 <= radioAlt) {
-      mode.current = 0;
-      this.Mode2NumTerrain = 0;
-      this.Mode2BoundaryLeaveAlt = NaN;
     }
   }
 

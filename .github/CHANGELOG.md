@@ -425,6 +425,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 ||||||| 19910a87e
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
+1. [A32NX/GPWS] The GPWS can be tested on the ground with the PULL UP-GPWS pushbutton: GLIDESLOPE with the GPWS light, then PULL UP and TERRAIN TERRAIN PULL UP with the PULL UP light - @TCdr
+1. [A32NX/TCAS] New flyPad failure TCAS computer (ATA 34): amber TCAS on the PFD and ND, NAV TCAS FAULT on the ECAM, no traffic and no advisories - @TCdr
+1. [A32NX/A380X] Reactive windshear detection (A32NX FACs, A380X PRIMs): red WINDSHEAR on both PFDs in a decreasing performance windshear at takeoff and landing below 1300 ft, CONF 1 or more (no aural yet) - @TCdr
+1. [A380X/PRIM] Alpha floor is inhibited above M 0.5, as in the FCOM (was M 0.6) - @TCdr
+1. [A380X/GPWS] GPWS mode 2 (excessive terrain closure rate) works again with a filtered radio altitude rate: TERRAIN then PULL UP on the PFD with the PULL UP aural, TERRAIN only in landing configuration - @TCdr
+1. [A380X/GPWS] The PFD shows the PULL UP of GPWS mode 1 (excessive rate of descent) - @TCdr
 
 ## 2024.1.0
 

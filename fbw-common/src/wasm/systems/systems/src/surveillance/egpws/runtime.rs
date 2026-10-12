@@ -75,6 +75,59 @@ impl AuralWarning {
     }
 }
 
+/// One step of the GPWS self-test, started by the GPWS test pushbutton on the ground.
+///
+/// A320 FCOM DSC-34-SURV-40-40 (a320_fcom.txt:55491): "The GPWS can be tested by pressing this pushbutton (on ground
+/// only)", and DSC-31-45 (a320_fcom.txt:48990): "TERR TST ... Appears during the GPWS test, when the terrain pattern is
+/// displayed". The FCOM gives no sequence. Design choice: the Honeywell EGPWS short (level 1) self-test, each step
+/// lasting one aural emission: GLIDESLOPE with the alert lamp, PULL UP with the warning lamp, then the terrain test
+/// pattern with TERRAIN TERRAIN PULL UP and the warning lamp.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum SelfTestStep {
+    Glideslope,
+    PullUp,
+    TerrainPatternTerrain,
+    TerrainPatternPullUp,
+}
+impl SelfTestStep {
+    fn aural(&self) -> AuralWarning {
+        match self {
+            SelfTestStep::Glideslope => AuralWarning::GlideslopeSoft,
+            SelfTestStep::PullUp | SelfTestStep::TerrainPatternPullUp => AuralWarning::PullUp,
+            SelfTestStep::TerrainPatternTerrain => AuralWarning::Terrain,
+        }
+    }
+
+    fn duration(&self) -> Duration {
+        match self {
+            // "TERRAIN TERRAIN": two emissions of the TERRAIN aural
+            SelfTestStep::TerrainPatternTerrain => self.aural().get_duration() * 2,
+            _ => self.aural().get_duration(),
+        }
+    }
+
+    fn next(&self) -> Option<SelfTestStep> {
+        match self {
+            SelfTestStep::Glideslope => Some(SelfTestStep::PullUp),
+            SelfTestStep::PullUp => Some(SelfTestStep::TerrainPatternTerrain),
+            SelfTestStep::TerrainPatternTerrain => Some(SelfTestStep::TerrainPatternPullUp),
+            SelfTestStep::TerrainPatternPullUp => None,
+        }
+    }
+
+    /// The glideslope step lights the alert lamp (as a mode 5 alert does), every other step the warning lamp.
+    fn lights_warning_lamp(&self) -> bool {
+        *self != SelfTestStep::Glideslope
+    }
+
+    fn shows_terrain_test_pattern(&self) -> bool {
+        matches!(
+            self,
+            SelfTestStep::TerrainPatternTerrain | SelfTestStep::TerrainPatternPullUp
+        )
+    }
+}
+
 pub(super) struct EnhancedGroundProximityWarningComputerRuntime {
     /// Pin programming settings. Read only once at computer startup.
     pin_programs: EnhancedGroundProximityWarningComputerPinProgramming,
@@ -168,6 +221,12 @@ pub(super) struct EnhancedGroundProximityWarningComputerRuntime {
     mode_5_glideslope_soft_voice_active: bool,
     mode_5_glideslope_hard_voice_active: bool,
     mode_5_glideslope_lamp_active: bool,
+
+    // GPWS self-test (on ground, GPWS test pushbutton)
+    self_test_pushbutton_pulse_node: PulseNode,
+    /// The running self-test step, None when no test is running
+    self_test_step: Option<SelfTestStep>,
+    self_test_step_elapsed: Duration,
 
     // Aural output management
     number_of_aural_warning_emissions: u32,
@@ -307,6 +366,10 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             mode_5_glideslope_hard_voice_active: false,
             mode_5_glideslope_lamp_active: false,
 
+            self_test_pushbutton_pulse_node: PulseNode::new_rising(),
+            self_test_step: None,
+            self_test_step_elapsed: Duration::ZERO,
+
             number_of_aural_warning_emissions: 0,
             time_since_first_emission: Duration::ZERO,
 
@@ -348,6 +411,8 @@ impl EnhancedGroundProximityWarningComputerRuntime {
         self.update_mode_3_logic(discrete_inputs);
         self.update_mode_4_logic(context, adr, discrete_inputs);
         self.update_mode_5_logic(context, ils, ir, discrete_inputs);
+
+        self.update_self_test(context, discrete_inputs);
 
         self.compute_lamp_output(discrete_inputs);
         self.compute_aural_output(context, discrete_inputs);
@@ -1076,10 +1141,57 @@ impl EnhancedGroundProximityWarningComputerRuntime {
         }
     }
 
+    /// Starts the self-test on a press of the GPWS test pushbutton on the ground and steps through it (see
+    /// SelfTestStep). The test stops at once when the aircraft is no longer on the ground; a press during a test does
+    /// not restart it. In flight the same pushbutton is the mode 5 G/S cancel (update_mode_5_logic).
+    fn update_self_test(
+        &mut self,
+        context: &UpdateContext,
+        discrete_inputs: &TerrainAwarenessWarningSystemDiscreteInputs,
+    ) {
+        let pushbutton_pressed = self
+            .self_test_pushbutton_pulse_node
+            .update(discrete_inputs.self_test);
+
+        if !self.on_ground {
+            self.self_test_step = None;
+            return;
+        }
+
+        match self.self_test_step {
+            None => {
+                if pushbutton_pressed && !discrete_inputs.gpws_inhibit {
+                    self.self_test_step = Some(SelfTestStep::Glideslope);
+                    self.self_test_step_elapsed = Duration::ZERO;
+                }
+            }
+            Some(step) => {
+                self.self_test_step_elapsed += context.delta();
+                if self.self_test_step_elapsed >= step.duration() {
+                    self.self_test_step = step.next();
+                    self.self_test_step_elapsed = Duration::ZERO;
+                }
+            }
+        }
+    }
+
+    /// Whether the self-test shows the terrain test pattern (TERR TST on the ND, a320_fcom.txt:48990).
+    pub fn is_terrain_test_pattern_active(&self) -> bool {
+        self.self_test_step
+            .is_some_and(|step| step.shows_terrain_test_pattern())
+    }
+
     fn compute_lamp_output(
         &mut self,
         discrete_inputs: &TerrainAwarenessWarningSystemDiscreteInputs,
     ) {
+        if let Some(step) = self.self_test_step {
+            let lamps_enabled = !discrete_inputs.gpws_inhibit;
+            self.warning_lamp_activated = lamps_enabled && step.lights_warning_lamp();
+            self.alert_lamp_activated = lamps_enabled && !step.lights_warning_lamp();
+            return;
+        }
+
         if self.pin_programs.alternate_lamp_format {
             // Warning lamp: mode 1 second boundary and mode 2 PULL UP; alert lamp: every other mode (sink rate,
             // TERRAIN TERRAIN, don't sink, too low gear/flaps/terrain, glideslope).
@@ -1122,7 +1234,13 @@ impl EnhancedGroundProximityWarningComputerRuntime {
 
         let basic_gpws_inhibit = discrete_inputs.gpws_inhibit || discrete_inputs.audio_inhibit;
 
-        self.aural_output = if self.gpws_general_fault {
+        self.aural_output = if let Some(step) = self.self_test_step {
+            if basic_gpws_inhibit {
+                AuralWarning::None
+            } else {
+                step.aural()
+            }
+        } else if self.gpws_general_fault {
             AuralWarning::None
         } else if self.mode_1_pull_up_active && !basic_gpws_inhibit {
             AuralWarning::PullUp

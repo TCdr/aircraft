@@ -33,3 +33,9 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model air_da
   ../src/model/A380PrimComputerGeneralLogic.cpp ../src/model/A380PrimComputerGeneralLogic_data.cpp \
   ../src/model/look1_iflf_binlxpw.cpp -o ../obj/air_data_rejection_test
 ../obj/air_data_rejection_test
+# Alpha floor inhibited above M 0.5 (A380 FCOM DSC-22-27): the generated A380PrimComputerFe model, as it is
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model alpha_floor_mach_inhibit_test.cpp \
+  ../src/model/A380PrimComputerFe.cpp ../src/model/A380PrimComputerFe_data.cpp ../src/model/look1_binlxpw.cpp \
+  ../src/model/look2_binlxpw.cpp ../src/model/plook_binx.cpp ../src/model/binsearch_u32d.cpp \
+  ../src/model/intrp3d_l_pw.cpp ../src/model/look2_iflf_binlxpw.cpp -o ../obj/alpha_floor_mach_inhibit_test
+../obj/alpha_floor_mach_inhibit_test

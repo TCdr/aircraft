@@ -5,7 +5,7 @@
 
 import { Clock, FSComponent, HEventPublisher, InstrumentBackplane, Subject } from '@microsoft/msfs-sdk';
 import { ArincEventBus, IrBusPublisher } from '@flybywiresim/fbw-sdk';
-import { FwcPublisher, RopRowOansPublisher } from '@flybywiresim/msfs-avionics-common';
+import { FwcPublisher, ReactiveWindshearPublisher, RopRowOansPublisher } from '@flybywiresim/msfs-avionics-common';
 
 import { FmsDataPublisher } from '../MsfsAvionicsCommon/providers/FmsDataPublisher';
 import { DmcPublisher } from '../MsfsAvionicsCommon/providers/DmcPublisher';
@@ -53,6 +53,8 @@ class A32NX_PFD extends BaseInstrument {
 
   private readonly ropRowOansPublisher = new RopRowOansPublisher(this.bus);
 
+  private readonly reactiveWindshearPublisher = new ReactiveWindshearPublisher(this.bus);
+
   private readonly fwcPublisher = new FwcPublisher(this.bus);
 
   private readonly fcuBusPublisher = new A32NXFcuBusPublisher(this.bus);
@@ -84,6 +86,7 @@ class A32NX_PFD extends BaseInstrument {
     this.backplane.addInstrument('Clock', this.clock);
     this.backplane.addPublisher('Dmc', this.dmcPublisher);
     this.backplane.addPublisher('RopRowOans', this.ropRowOansPublisher);
+    this.backplane.addPublisher('ReactiveWindshear', this.reactiveWindshearPublisher);
     this.backplane.addPublisher('Fwc', this.fwcPublisher);
     this.backplane.addPublisher('FcuBus', this.fcuBusPublisher);
     this.backplane.addPublisher('ElectricalSystem', this.elecSystemPublisher);
