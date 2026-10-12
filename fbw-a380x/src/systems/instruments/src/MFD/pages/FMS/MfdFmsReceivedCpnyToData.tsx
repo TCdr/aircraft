@@ -6,7 +6,7 @@ import { ArraySubject, FSComponent, MappedSubject, Subject, Subscribable, UnitTy
 import { CompanyTakeoffDataUplink, NXDataStore } from '@flybywiresim/fbw-sdk';
 
 import { AbstractMfdPageProps } from '../../MFD';
-import { FmsPage } from '../common/FmsPage';
+import { FmsFlightPlanPage } from '../common/FmsFlightPlanPage';
 import { Footer } from '../common/Footer';
 import { fcomAt, fcomLine, fcomRight } from '../common/FcomLayout';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -27,7 +27,7 @@ import './MfdFmsReceivedCpnyToData.scss';
  * (FCOM P 316-319). A runway that is not the active one is amber; a TOW outside the margin is amber, with
  * UPLINK/ACTIVE TOW DISAGREE when the runway is the active one.
  */
-export class MfdFmsReceivedCpnyToData extends FmsPage<AbstractMfdPageProps> {
+export class MfdFmsReceivedCpnyToData extends FmsFlightPlanPage<AbstractMfdPageProps> {
   private readonly uplinks = Subject.create<readonly CompanyTakeoffDataUplink[]>([]);
 
   private readonly runwayPage = Subject.create(0);
@@ -172,7 +172,7 @@ export class MfdFmsReceivedCpnyToData extends FmsPage<AbstractMfdPageProps> {
                 idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_receivedCpnyToThrust`}
                 selectedIndex={this.selectedThrust}
                 values={this.thrustLabels}
-                freeTextAllowed={false}
+                freeTextAllowed={false} // FCOM TAKEOFF THRUST LIST: selected in the list only
                 inactive={this.noData}
                 containerStyle="width: 157px;"
                 numberOfDigitsForInputField={7}

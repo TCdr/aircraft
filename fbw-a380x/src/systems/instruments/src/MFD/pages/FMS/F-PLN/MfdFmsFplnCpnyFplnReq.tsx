@@ -6,13 +6,14 @@ import { FSComponent, MappedSubject, Subject, VNode } from '@microsoft/msfs-sdk'
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 
 import { AbstractMfdPageProps } from '../../../MFD';
-import { FmsPage } from '../../common/FmsPage';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { Footer } from '../../common/Footer';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { CompanyRouteFormat, FreeTextFormat, LongAlphanumericFormat } from '../../common/DataEntryFormats';
 
 import { fcomAt, fcomCentre, fcomRight } from '../../common/FcomLayout';
+import { isCpnyFplnSendDisabled } from '../../../shared/CpnyFplnButtonRule';
 
 interface MfdFmsFplnCpnyFplnReqProps extends AbstractMfdPageProps {}
 
@@ -22,21 +23,23 @@ interface MfdFmsFplnCpnyFplnReqProps extends AbstractMfdPageProps {}
  *
  * The company ground station is SimBrief: the request downloads the SimBrief OFP, whatever the entered data.
  */
-export class MfdFmsFplnCpnyFplnReq extends FmsPage<MfdFmsFplnCpnyFplnReqProps> {
+export class MfdFmsFplnCpnyFplnReq extends FmsFlightPlanPage<MfdFmsFplnCpnyFplnReqProps> {
   private readonly flightNumber = Subject.create<string | null>(null);
 
   private readonly companyRoute = Subject.create<string | null>(null);
 
   private readonly freeText = Subject.create<string | null>(null);
 
-  private readonly sendButtonLabel = this.props.fmcService.master.fmgc.data.cpnyFplnUplinkInProgress.map((pending) =>
-    pending ? 'REQUEST\nPENDING...' : 'SEND F-PLN\nREQUEST',
-  );
+  private readonly sendButtonLabel = this.props.fmcService.master
+    .getCpnyFplnUplinkInProgress()
+    .map((pending) => (pending ? 'REQUEST\nPENDING...' : 'SEND F-PLN\nREQUEST'));
 
-  /** FCOM: after engine start, a flight plan request can only be sent from a secondary flight plan */
+  /** One company request at a time; FCOM: after engine start, only from a secondary flight plan */
   private readonly sendButtonDisabled = MappedSubject.create(
-    ([pending, enginesStarted, planIndex]) => pending || (enginesStarted && planIndex < FlightPlanIndex.FirstSecondary),
-    this.props.fmcService.master.fmgc.data.cpnyFplnUplinkInProgress,
+    ([pending, windPending, enginesStarted, planIndex]) =>
+      isCpnyFplnSendDisabled(pending, windPending, enginesStarted, planIndex),
+    this.props.fmcService.master.getCpnyFplnUplinkInProgress(),
+    this.props.fmcService.master.getCpnyWindUplinkInProgress(),
     this.props.fmcService.master.enginesWereStarted,
     this.loadedFlightPlanIndex,
   );
@@ -122,9 +125,9 @@ export class MfdFmsFplnCpnyFplnReq extends FmsPage<MfdFmsFplnCpnyFplnReqProps> {
                     <span
                       style={{
                         'margin-left': '18px',
-                        visibility: this.props.fmcService.master.fmgc.data.cpnyFplnUplinkInProgress.map((p) =>
-                          p ? 'hidden' : 'visible',
-                        ),
+                        visibility: this.props.fmcService.master
+                          .getCpnyFplnUplinkInProgress()
+                          .map((p) => (p ? 'hidden' : 'visible')),
                       }}
                     >
                       *
