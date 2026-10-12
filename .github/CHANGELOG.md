@@ -128,6 +128,16 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] HOT AIR FAULT procedure completed (packs off, descent, RAM AIR, MAX FL), CKPT TRIM VALVE text, and the STATUS page lines of the air conditioning alerts - @TCdr
 1. [A32NX/COND] With the hot air valve closed, pack 1 regulates the cockpit and pack 2 the cabin at the mean of the FWD/AFT selections - @TCdr
 1. [A32NX/SD] BLEED page: the pack outlet temperatures show each pack's own outlet temperature (was the FWD cabin temperature), amber above 90 °C - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
+1. [A380X/MFD] The default alternate cruise level now follows the A380 FCOM (FL 220 below 200 NM, FL 310 from 200 NM) instead of the A320 rule - @TCdr
+1. [A380X/MFD] The WIND page CRZ tab now has a working SAT entry at the cruise flight level - @TCdr
+1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as in the FCOM, and the stored history winds are kept when the storage key changes - @TCdr
+1. [A380X/MFD] Company wind messages use the FCOM wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
+1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 
 ## 2024.1.0
 
