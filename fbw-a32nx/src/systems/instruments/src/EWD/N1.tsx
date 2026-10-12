@@ -355,7 +355,16 @@ export class N1 extends DisplayComponent<N1Props> {
 
   private readonly gaugeStartAngle = Subject.create(220);
 
-  private readonly gaugeStartAngleRed = Subject.create(50);
+  /** The gauge scale in N1 % / 10 (see render) */
+  private static readonly GAUGE_MIN = 1.6;
+
+  private static readonly GAUGE_MAX = 11;
+
+  // Angle at which the red arc begins: the N1 red limit (the LEAP-1A 101 %, see @shared/EngineLimits). The gauge sweeps
+  // 210 degrees clockwise from 220 to 70 (through 360) over its scale, so 101 % N1 is at about 49.9 degrees.
+  private readonly gaugeStartAngleRed = Subject.create(
+    220 + ((N1_RED_LIMIT_PERCENT / 10 - N1.GAUGE_MIN) / (N1.GAUGE_MAX - N1.GAUGE_MIN)) * 210 - 360,
+  );
 
   private readonly gaugeEndAngle = Subject.create(70);
 
@@ -455,8 +464,8 @@ export class N1 extends DisplayComponent<N1Props> {
   }
 
   render(): VNode {
-    const gaugeMin = 1.6;
-    const gaugeMax = 11;
+    const gaugeMin = N1.GAUGE_MIN;
+    const gaugeMax = N1.GAUGE_MAX;
     const gaugeRadius = 66;
 
     return (

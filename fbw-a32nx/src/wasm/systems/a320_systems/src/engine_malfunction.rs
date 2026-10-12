@@ -10,11 +10,20 @@
 //! Every value below is a design choice: the FCOM gives the symptoms and the limits, not how a
 //! failed engine behaves. The values are chosen against the FCOM limits (A320 FCOM PRO-ABN-ENG,
 //! a320_fcom.txt):
-//! - ENG 1(2) N1/N2/EGT OVER LIMIT (l.80420-80423): N1 104 %, N2 105 %. The EGT limits are those
+//! - ENG 1(2) N1/N2/EGT OVER LIMIT (l.80420-80423): N1 101 %, N2 116.5 %, the LEAP-1A red lines
+//!   in place of the CFM56 104 % and 105 % of the FCOM (EngineLimits.ts). The EGT limits are those
 //!   of the EWD (CFM56-5B TCDS, 905 degC at CLB/MCT, 940 degC at TOGA/FLX, red above 975 degC;
 //!   systems/shared/src/EngineLimits.ts). The EGT overtemperature (120 degC at 100 % N1) takes
 //!   a climb EGT above its limit, which the crew brings back below the limit by reducing the
-//!   thrust; the overspeed (+7 % N1, +6 % N2) takes the N1 above 104 % at takeoff thrust only.
+//!   thrust. The overspeed is tuned on the LEAP-1A red lines (design choice, 2026-10-12): +20 %
+//!   of the N1 up to an N1 indication of 101.9 %, +6 % of the N2 up to 116.9 %. The take-off and
+//!   climb N1 of the sim (85.4-88.2 % in the recording of 2026-10-11) gives an N1 of 101.9 %: above
+//!   the 101 % red line, below the 102.8 % second band of the procedure (THR LEVER BELOW LIMIT, not
+//!   ENG MASTER OFF). Reducing the thrust below about 84.2 % N1 ends the alert. Each ceiling sits
+//!   in the middle of the first band (101-102.8 % N1, 116.5-117.3 % N2). A pure fraction cannot do
+//!   this: the first band is less than 1.8 % wide in engine N1, narrower than the take-off N1
+//!   spread (2.5 %). The previous +7 % N1 reached 101 % only from 94.4 % N1, above any take-off N1
+//!   of the sim. Side effect: at idle the N1 indication is about a fifth higher (24 % for 20 %).
 //! - [QRH] HIGH ENGINE VIBRATION (l.78936): the VIB advisory is N1 6 units, N2 4.3 units. The
 //!   high vibration failure (N1 8 units at 100 % N1, N2 5 units at 100 % N2, with the square of
 //!   the rotor speed) is above the advisory at climb and cruise thrust, below it once the thrust
@@ -48,8 +57,12 @@ pub const A320_ENGINE_MALFUNCTION_PARAMETERS: EngineMalfunctionParameters =
         stall_core_fluctuation_percent: 1.5,
         stall_n1_vibration_units: 2.,
         overtemperature_egt_rise_at_full_n1_degrees_celsius: 120.,
-        overspeed_n1_fraction: 0.07,
+        // LEAP-1A red lines N1 101 %, N2 116.5 % (see the module comment): the ceilings are in
+        // the middle of the first band of ENG N1/N2/EGT OVER LIMIT.
+        overspeed_n1_fraction: 0.2,
         overspeed_core_fraction: 0.06,
+        overspeed_n1_ceiling_percent: Some(101.9),
+        overspeed_core_ceiling_percent: Some(116.9),
         high_vibration_n1_units_at_full_speed: 8.,
         high_vibration_core_units_at_full_speed: 5.,
         // MSFS gives one vibration per engine; the HP rotor is shown at 60 % of it.
@@ -202,6 +215,68 @@ mod tests {
         let (n1_vibration, n2_vibration) = vibrations_with_the_failure_at(30., 69., 2.);
         assert!(n1_vibration < 6. - 2., "N1 {}", n1_vibration);
         assert!(n2_vibration < 4.3 - 0.5, "N2 {}", n2_vibration);
+    }
+
+    /// Engine 1 with the overspeed failure at an N1 and N2, after 40 s: the N1 and N2 indications
+    /// of the FADEC (MSFS engine + offset).
+    fn indications_with_the_overspeed_at(n1: f64, n2: f64) -> (f64, f64) {
+        let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+        test_bed.set_on_ground(false);
+        test_bed.write_by_name("ENGINE_STATE:1", 1.);
+        test_bed.write_by_name("TURB ENG N1:1", n1);
+        test_bed.write_by_name("TURB ENG N2:1", n2);
+        test_bed.write_by_name("AUTOTHRUST_N1_COMMANDED:1", n1);
+        test_bed.write_by_name("TURB ENG VIBRATION:1", 2.);
+        test_bed.fail(FailureType::EngineOverspeed(1));
+        for _ in 0..(40 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+        let n1_offset: f64 = test_bed.read_by_name("ENGINE_1_N1_OFFSET");
+        let n2_offset: f64 = test_bed.read_by_name("ENGINE_1_N2_OFFSET");
+        (n1 + n1_offset, n2 + n2_offset)
+    }
+
+    /// LEAP-1A red lines (EngineLimits.ts) and second bands (EngineParameterAlerts.ts) of
+    /// ENG 1(2) N1/N2/EGT OVER LIMIT.
+    const N1_RED_LIMIT: f64 = 101.;
+    const N1_SHUTDOWN_BAND: f64 = 102.8;
+    const N2_RED_LIMIT: f64 = 116.5;
+    const N2_SHUTDOWN_BAND: f64 = 117.3;
+
+    /// The take-off and climb N1 and N2 of the recording of 2026-10-11 (TOGA 85.7-88.2 % N1,
+    /// 104.6-105.8 % N2; climb 85.4 % N1).
+    #[test]
+    fn at_take_off_and_climb_thrust_the_overspeed_is_above_the_red_line_in_the_first_band() {
+        for (n1, n2) in [(85.4, 103.), (85.7, 104.6), (88., 105.), (88.2, 105.8)] {
+            let (n1_indication, n2_indication) = indications_with_the_overspeed_at(n1, n2);
+            assert!(
+                n1_indication > N1_RED_LIMIT + 0.5 || n2_indication > N2_RED_LIMIT + 0.2,
+                "N1 {} N2 {} at {} % N1",
+                n1_indication,
+                n2_indication,
+                n1
+            );
+            assert!(
+                n1_indication < N1_SHUTDOWN_BAND,
+                "N1 {} at {} % N1",
+                n1_indication,
+                n1
+            );
+            assert!(
+                n2_indication < N2_SHUTDOWN_BAND,
+                "N2 {} at {} % N2",
+                n2_indication,
+                n2
+            );
+        }
+    }
+
+    /// THR LEVER BELOW LIMIT ends the alert.
+    #[test]
+    fn with_the_thrust_reduced_the_overspeed_is_below_the_red_lines() {
+        let (n1_indication, n2_indication) = indications_with_the_overspeed_at(80., 100.);
+        assert!(n1_indication < N1_RED_LIMIT, "N1 {}", n1_indication);
+        assert!(n2_indication < N2_RED_LIMIT, "N2 {}", n2_indication);
     }
 
     #[test]
