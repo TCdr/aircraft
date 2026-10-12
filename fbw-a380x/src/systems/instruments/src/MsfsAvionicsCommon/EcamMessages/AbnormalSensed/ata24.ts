@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2024 FlyByWire Simulations
+﻿// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { AbnormalProcedure, ChecklistLineStyle, FMS_PRED_UNRELIABLE_CHECKLIST_ITEM } from '..';
@@ -788,24 +788,22 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800017: {
-    title: '\x1b<4m\x1b4mELEC\x1bm BAT 1 (ESS) FAULT',
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT 1 FAULT',
     sensed: true,
     items: [
-      // If the temperature of the battery is excessive
       {
-        name: 'BAT 1(ESS)',
+        name: 'BAT 1', // A380 FCOM l.139541
         sensed: true,
         labelNotCompleted: 'OFF',
       },
     ],
   },
   240800018: {
-    title: '\x1b<4m\x1b4mELEC\x1bm BAT 2 (ESS) FAULT',
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT 2 FAULT',
     sensed: true,
     items: [
-      // If the temperature of the battery is excessive
       {
-        name: 'BAT 2(ESS)',
+        name: 'BAT 2', // A380 FCOM l.139541
         sensed: true,
         labelNotCompleted: 'OFF',
       },
@@ -2083,5 +2081,62 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mELEC\x1bm TR ESS MONITORING FAULT',
     sensed: true,
     items: [],
+  },
+  // ELEC BAT ESS FAULT, the third alert of ELEC BAT 1 (2)(ESS) FAULT (A380 FCOM l.139497)
+  240800087: {
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT ESS FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'BAT ESS', // A380 FCOM l.139541
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+    ],
+  },
+  // ELEC BAT 1(2)(ESS)(APU) OFF, A380 FCOM l.139560, item l.139575: "BAT 1(2)(ESS)(APU) ... ON"
+  240800088: {
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT 1 OFF',
+    sensed: true,
+    items: [
+      {
+        name: 'BAT 1',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+    ],
+  },
+  240800089: {
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT 2 OFF',
+    sensed: true,
+    items: [
+      {
+        name: 'BAT 2',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+    ],
+  },
+  240800090: {
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT ESS OFF',
+    sensed: true,
+    items: [
+      {
+        name: 'BAT ESS',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+    ],
+  },
+  240800091: {
+    title: '\x1b<4m\x1b4mELEC\x1bm APU BAT OFF',
+    sensed: true,
+    items: [
+      {
+        name: 'APU BAT',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+    ],
   },
 };
