@@ -80,6 +80,16 @@ pub struct EngineStartSchedule {
     pub starter_time_limit: Option<Duration>,
     /// The continuous ignition uses both igniters; otherwise one igniter, and both if it has failed.
     pub continuous_ignition_uses_both_igniters: bool,
+    /// Manual start: the HP fuel valve opens with the ENG MASTER ON, and the engine lights up once
+    /// its core turns at least at this N2 (instead of [`Self::fuel_on_n2`] of the automatic start).
+    pub manual_start_fuel_on_n2: Ratio,
+    /// Automatic start on the ground: after a stall or an EGT over limit the FADEC runs a new start
+    /// at once (reduced fuel schedule), and the dry crank comes only once no new start is left.
+    /// Otherwise these faults are handled as a no light up: dry crank first, then a new start.
+    pub stall_or_egt_restart_before_crank: bool,
+    /// In flight, the FADEC reports a starter that does not turn the core during a relight
+    /// (starter fault), and keeps the fault for the rest of the flight.
+    pub starter_fault_detected_in_flight: bool,
 }
 
 /// The phase of the start sequence, written as ENGINE_n_START_PHASE.
@@ -206,6 +216,9 @@ pub struct EngineStartInputs {
     pub preset_quick_mode: bool,
     /// In flight, the engine waits for a relight (flamed out or seized, see `engine_failure`).
     pub relight_pending: bool,
+    /// The aircraft conditions for which the FADEC selects the continuous ignition by itself, in
+    /// flight and on the ground (e.g. the A320 engine anti-ice valve open).
+    pub automatic_continuous_ignition: bool,
 }
 
 pub struct EngineStartSequence {
@@ -250,7 +263,11 @@ pub struct EngineStartSequence {
     valve_open_without_air_time: Duration,
     starter_time: Duration,
     in_flight_no_light_up_time: Duration,
+    /// In flight: how long a relight has had starter air while the starter has failed.
+    in_flight_starter_fault_time: Duration,
     automatic_crank_time: Duration,
+    /// None until the first update.
+    previous_on_ground: Option<bool>,
 
     /// The fault of the current start, kept until the ENG MASTER OFF or a successful start.
     start_fault: EngineStartFault,
@@ -328,7 +345,9 @@ impl EngineStartSequence {
             valve_open_without_air_time: Duration::ZERO,
             starter_time: Duration::ZERO,
             in_flight_no_light_up_time: Duration::ZERO,
+            in_flight_starter_fault_time: Duration::ZERO,
             automatic_crank_time: Duration::ZERO,
+            previous_on_ground: None,
             start_fault: EngineStartFault::None,
             condition_fault: EngineStartFault::None,
             fault_light: false,
@@ -359,12 +378,21 @@ impl EngineStartSequence {
         let master_turned_off =
             !inputs.master_switch_is_on && self.previous_master_switch_is_on == Some(true);
         self.previous_master_switch_is_on = Some(inputs.master_switch_is_on);
+        let touched_down = on_ground && self.previous_on_ground == Some(false);
+        self.previous_on_ground = Some(on_ground);
+
+        if touched_down && self.start_fault == EngineStartFault::StarterFault {
+            // Design choice: the starter fault found in flight ends with the flight; on the ground
+            // the start sequence monitors the starter again at the next start.
+            self.start_fault = EngineStartFault::None;
+        }
 
         if !on_ground {
             // The start sequence, its automatic abort and the cranks are ground functions. In flight
             // the FADEC "always commands a starter-assisted air start" (A320 FCOM l.63782) and "the
             // automatic start is not aborted" (A380 FCOM l.112512): see engine_failure for the relight.
-            self.end_start(false);
+            // A starter fault found in flight stays (see update_in_flight_starter_fault).
+            self.end_start(self.start_fault == EngineStartFault::StarterFault);
             self.phase = EngineStartPhase::None;
         } else if master_turned_off {
             // A320 FCOM DSC-70-80-40 (l.63740-63744): with the ENG MASTER OFF the FADEC "Closes the LP
@@ -380,6 +408,7 @@ impl EngineStartSequence {
         }
 
         self.update_in_flight_light_up(context, inputs, on_ground);
+        self.update_in_flight_starter_fault(context, schedule, inputs, on_ground);
         self.update_condition_faults(context, schedule, inputs, on_ground);
         self.igniters = self.energized_igniters(schedule, inputs, on_ground);
         self.continuous_ignition = self.continuous_ignition_is_on(inputs, on_ground);
@@ -590,8 +619,17 @@ impl EngineStartSequence {
             }
         }
 
-        // The engine lights up once fuel (HP valve) and a working igniter are there.
-        if !self.lit && sparking.any() && inputs.core_speed >= schedule.fuel_on_n2 {
+        // The engine lights up once fuel (HP valve) and a working igniter are there. A320 FCOM
+        // DSC-70-80-40 (l.63766-63767), manual start: the FADEC "Opens the HP shutoff valve, and
+        // operates both igniters when the flight crew sets the ENG MASTER sw to ON", which the crew
+        // does when "N2 reaches 22 % or the maximum motoring speed (20 % minimum)" (PRO-NOR-SUP-ENG
+        // l.106855): the manual start has its own light-up speed.
+        let light_up_n2 = if self.manual_start {
+            schedule.manual_start_fuel_on_n2
+        } else {
+            schedule.fuel_on_n2
+        };
+        if !self.lit && sparking.any() && inputs.core_speed >= light_up_n2 {
             self.lit = true;
             self.since_light_up = Duration::ZERO;
             self.hung_window_start_speed = inputs.core_speed;
@@ -625,6 +663,26 @@ impl EngineStartSequence {
             // A380 FCOM l.112492-112493: "In the case of a starter failure ... the FADEC automatically
             // aborts the engine start without further attempt of automatic start sequence."
             self.abort_start();
+        } else if schedule.stall_or_egt_restart_before_crank
+            && matches!(
+                fault,
+                EngineStartFault::Stall | EngineStartFault::EgtOverlimit
+            )
+        {
+            // A320 FCOM PRO-ABN-ENG ENG 1(2) STALL, ENG 1(2) EGT OVERLIMIT, on ground (auto start)
+            // (l.81458-81478): "If the FADEC detects a stall or a potential EGT overheat, the FADEC
+            // will reduce the fuel schedule in stages" with NEW START IN PROGRESS; "If restart not
+            // possible: ... the FADEC shuts off fuel and turn off ignition. Then a dry crank phase
+            // automatically occurs" (AUTO CRANK IN PROGRESS), then ENG MASTER OFF. Design choice:
+            // each stage is a new attempt (one frame without fuel, then the light-up again with both
+            // igniters), up to the attempts of the automatic start; the last one ends in the dry
+            // crank and the abort.
+            if self.attempt < schedule.automatic_start_attempts {
+                self.begin_attempt(self.attempt + 1);
+            } else {
+                self.phase = EngineStartPhase::AutomaticCrank;
+                self.automatic_crank_time = Duration::ZERO;
+            }
         } else if fault.aborts_an_automatic_start() {
             // A320 FCOM PRO-ABN-ENG (l.81403-81404): "After any start attempt that is not
             // successful, a dry crank phase automatically occurs"; A380 FCOM l.112489: "initiates two
@@ -730,6 +788,38 @@ impl EngineStartSequence {
             && inputs.master_switch_is_on
             && inputs.relight_pending
             && inputs.engine_state != EngineState::On
+    }
+
+    /// In flight the starter fault is detected during a relight: the ENG MASTER is ON, the engine
+    /// waits for its relight, the starter has its air, but it does not turn the core. A320neo FCOM
+    /// PRO-ABN-ENG ENG 1(2) START FAULT (IGO FCOM 21 JAN 19, P 323/368, not in a320_fcom.txt):
+    /// "STARTER SHAFT SHEAR", with the in-flight line and STATUS "ENG (AFFECTED) WINDMILL START
+    /// ONLY". Design choice: in flight the FBW engine model does not motor the core with the
+    /// starter, so the FADEC detection is the starter failure itself once the starter has had its
+    /// air for [`Self::STARTER_FAULT_DETECTION_TIME`] (the ground detection time). The fault then
+    /// stays for the rest of the flight.
+    fn update_in_flight_starter_fault(
+        &mut self,
+        context: &UpdateContext,
+        schedule: &EngineStartSchedule,
+        inputs: &EngineStartInputs,
+        on_ground: bool,
+    ) {
+        let starter_fails_in_relight = schedule.starter_fault_detected_in_flight
+            && !on_ground
+            && inputs.master_switch_is_on
+            && inputs.relight_pending
+            && inputs.engine_state != EngineState::On
+            && inputs.starter_air_pressurized
+            && self.starter_failure.is_active();
+        if starter_fails_in_relight {
+            self.in_flight_starter_fault_time += context.delta();
+        } else {
+            self.in_flight_starter_fault_time = Duration::ZERO;
+        }
+        if self.in_flight_starter_fault_time >= Self::STARTER_FAULT_DETECTION_TIME {
+            self.start_fault = EngineStartFault::StarterFault;
+        }
     }
 
     /// The faults of conditions that do not abort the start: they last as long as the condition.
@@ -855,12 +945,18 @@ impl EngineStartSequence {
     /// ground after the engine is started, because ignition cuts off automatically, the flight crew
     /// must switch the ENG MODE selector to NORM then back to IGN/START to turn on continuous
     /// ignition." A380 FCOM DSC-70-80-20 (l.112361-112365) likewise.
+    ///
+    /// A320 FCOM DSC-70-80-30 (l.63527): "Continuous ignition may be selected either manually or
+    /// automatically to maintain engine combustion"; the conditions of the automatic selection come
+    /// from the aircraft ([`EngineStartInputs::automatic_continuous_ignition`]). They need no
+    /// NORM then IGN/START on the ground.
     fn continuous_ignition_is_on(&self, inputs: &EngineStartInputs, on_ground: bool) -> bool {
+        let manual_selection = inputs.mode_selector == EngineModeSelector::Ignition
+            && (!on_ground || self.continuous_ignition_armed);
         inputs.master_switch_is_on
             && !inputs.fire_push_button_is_released
             && inputs.engine_state == EngineState::On
-            && inputs.mode_selector == EngineModeSelector::Ignition
-            && (!on_ground || self.continuous_ignition_armed)
+            && (manual_selection || inputs.automatic_continuous_ignition)
     }
 
     /// A320 FCOM l.63533: "Only one igniter is selected. If failed, both igniters are automatically
@@ -1090,6 +1186,9 @@ mod tests {
             automatic_crank_time: Duration::from_secs(30),
             starter_time_limit: None,
             continuous_ignition_uses_both_igniters: false,
+            manual_start_fuel_on_n2: Ratio::new::<percent>(22.),
+            stall_or_egt_restart_before_crank: false,
+            starter_fault_detected_in_flight: false,
         }
     }
 
@@ -1116,6 +1215,7 @@ mod tests {
                     thrust_lever_at_idle: true,
                     preset_quick_mode: false,
                     relight_pending: false,
+                    automatic_continuous_ignition: false,
                 },
             }
         }
@@ -1919,6 +2019,202 @@ mod tests {
             .and_run();
 
         assert_eq!(test_bed.igniters(), Igniters::NONE);
+    }
+
+    #[test]
+    fn a_stall_gives_a_new_start_at_once_then_the_dry_crank_after_the_last_attempt() {
+        let mut test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.stall_or_egt_restart_before_crank = true)
+            .failing(FailureType::EngineStartStall(1))
+            .automatic_start()
+            .core_at_light_up_speed()
+            .n2(35.)
+            .and_run_for(Duration::from_secs(4));
+
+        // NEW START IN PROGRESS first: no dry crank, the second attempt runs with both igniters
+        assert_eq!(test_bed.fault(), EngineStartFault::Stall);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+        assert_eq!(test_bed.attempt(), 2);
+        assert_eq!(test_bed.igniters(), Igniters::BOTH);
+        assert!(!test_bed.fuel_is_cut());
+
+        // the third attempt stalls too: restart not possible, AUTO CRANK IN PROGRESS
+        test_bed = test_bed.and_run_for(Duration::from_secs(8));
+        assert_eq!(test_bed.attempt(), 3);
+        assert_eq!(test_bed.phase(), EngineStartPhase::AutomaticCrank);
+        assert!(test_bed.fuel_is_cut());
+
+        // then the abort: ENG MASTER OFF
+        test_bed = test_bed.and_run_for(Duration::from_secs(31));
+        assert_eq!(test_bed.phase(), EngineStartPhase::Aborted);
+        assert!(test_bed.fault_light());
+    }
+
+    #[test]
+    fn an_egt_over_limit_gives_a_new_start_at_once() {
+        let test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.stall_or_egt_restart_before_crank = true)
+            .failing(FailureType::EngineHotStart(1))
+            .automatic_start()
+            .core_at_light_up_speed()
+            .n2(35.)
+            .egt(730.)
+            .and_run()
+            .egt(600.)
+            .and_run();
+
+        assert_eq!(test_bed.fault(), EngineStartFault::EgtOverlimit);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+        assert_eq!(test_bed.attempt(), 2);
+        assert!(!test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn a_no_light_up_still_cranks_before_the_new_start() {
+        let test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.stall_or_egt_restart_before_crank = true)
+            .failing(FailureType::EngineIgniterA(1))
+            .failing(FailureType::EngineIgniterB(1))
+            .automatic_start()
+            .core_at_light_up_speed()
+            .and_run_for(Duration::from_secs(19));
+
+        assert_eq!(test_bed.fault(), EngineStartFault::NoLightUp);
+        assert_eq!(test_bed.phase(), EngineStartPhase::AutomaticCrank);
+    }
+
+    #[test]
+    fn a_manual_start_lights_up_at_the_maximum_motoring_speed_of_its_schedule() {
+        // ENG MASTER ON at 21 % (maximum motoring speed, 20 % minimum)
+        let test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.manual_start_fuel_on_n2 = Ratio::new::<percent>(20.))
+            .selector(EngineModeSelector::Ignition)
+            .manual_start(true)
+            .valve_open(true)
+            .n2(21.)
+            .master(true)
+            .and_run();
+
+        assert_eq!(test_bed.igniters(), Igniters::BOTH);
+        assert!(!test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn a_manual_start_does_not_light_up_below_its_light_up_speed() {
+        let test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.manual_start_fuel_on_n2 = Ratio::new::<percent>(20.))
+            .selector(EngineModeSelector::Ignition)
+            .manual_start(true)
+            .valve_open(true)
+            .n2(18.)
+            .master(true)
+            .and_run();
+
+        assert!(test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn an_automatic_start_keeps_the_automatic_light_up_speed() {
+        let test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.manual_start_fuel_on_n2 = Ratio::new::<percent>(20.))
+            .automatic_start()
+            .n2(21.)
+            .and_run();
+
+        assert!(test_bed.fuel_is_cut());
+    }
+
+    /// In flight, engine 1 flamed out, IGN, ENG MASTER ON for a relight, starter air available.
+    fn in_flight_relight_with_starter_air(detected_in_flight: bool) -> StartTestBed {
+        StartTestBed::new()
+            .with_schedule(|schedule| {
+                schedule.starter_fault_detected_in_flight = detected_in_flight
+            })
+            .in_flight()
+            .selector(EngineModeSelector::Ignition)
+            .with(|inputs| inputs.relight_pending = true)
+            .engine_state(EngineState::Restarting)
+            .valve_open(true)
+            .n2(8.)
+            .master(true)
+    }
+
+    #[test]
+    fn in_flight_a_failed_starter_is_reported_during_a_relight_until_the_touchdown() {
+        let mut test_bed = in_flight_relight_with_starter_air(true)
+            .failing(FailureType::EngineStarter(1))
+            .and_run_for(Duration::from_secs(9));
+        assert_ne!(test_bed.fault(), EngineStartFault::StarterFault);
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(2));
+        assert_eq!(test_bed.fault(), EngineStartFault::StarterFault);
+
+        // the crew ends the relight: the fault (WINDMILL START ONLY) stays for the flight
+        test_bed = test_bed.master(false).and_run_for(Duration::from_secs(60));
+        assert_eq!(test_bed.fault(), EngineStartFault::StarterFault);
+
+        test_bed.set_on_ground(true);
+        test_bed = test_bed.and_run();
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+    }
+
+    #[test]
+    fn in_flight_a_working_starter_is_no_starter_fault() {
+        let test_bed =
+            in_flight_relight_with_starter_air(true).and_run_for(Duration::from_secs(15));
+
+        assert_ne!(test_bed.fault(), EngineStartFault::StarterFault);
+    }
+
+    #[test]
+    fn in_flight_no_starter_fault_without_the_in_flight_detection() {
+        let test_bed = in_flight_relight_with_starter_air(false)
+            .failing(FailureType::EngineStarter(1))
+            .and_run_for(Duration::from_secs(15));
+
+        assert_ne!(test_bed.fault(), EngineStartFault::StarterFault);
+    }
+
+    #[test]
+    fn the_automatic_continuous_ignition_works_at_norm_in_flight_and_on_the_ground() {
+        let mut test_bed = StartTestBed::new()
+            .in_flight()
+            .master(true)
+            .engine_state(EngineState::On)
+            .n2(80.)
+            .selector(EngineModeSelector::Norm)
+            .and_run();
+        assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
+
+        test_bed = test_bed
+            .with(|inputs| inputs.automatic_continuous_ignition = true)
+            .and_run();
+        assert!(test_bed.flag("CONTINUOUS_IGNITION"));
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+
+        // on the ground no NORM then IGN/START is needed for the automatic selection
+        test_bed.set_on_ground(true);
+        test_bed = test_bed.and_run();
+        assert!(test_bed.flag("CONTINUOUS_IGNITION"));
+
+        test_bed = test_bed
+            .with(|inputs| inputs.automatic_continuous_ignition = false)
+            .and_run();
+        assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
+        assert_eq!(test_bed.igniters(), Igniters::NONE);
+    }
+
+    #[test]
+    fn the_automatic_continuous_ignition_needs_a_running_engine() {
+        let mut test_bed = StartTestBed::new()
+            .in_flight()
+            .master(true)
+            .engine_state(EngineState::Shutting)
+            .n2(10.)
+            .with(|inputs| inputs.automatic_continuous_ignition = true)
+            .and_run();
+
+        assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
     }
 
     mod start_valve {
