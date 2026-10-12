@@ -32,6 +32,9 @@ export class N2 extends DisplayComponent<N2Props> {
 
   private onGround = false;
 
+  /** The FADEC sends the engine parameters (L:A32NX_FADEC_POWERED_ENGn): the exceedance memory only latches valid values */
+  private fadecPowered = false;
+
   /**
    * FCOM DSC-70-90-40 (see shared/EngineLimits): red above the N2 red limit (the LEAP-1A 116.5 %), with a red cross that
    * stays
@@ -51,6 +54,7 @@ export class N2 extends DisplayComponent<N2Props> {
       .on(`engine${this.props.engine}Fadec`)
       .whenChanged()
       .handle((f) => {
+        this.fadecPowered = !!f;
         this.inactiveVisibility.set(f ? 'hidden' : 'visible');
         this.activeVisibility.set(f ? 'visible' : 'hidden');
       });
@@ -85,7 +89,7 @@ export class N2 extends DisplayComponent<N2Props> {
       .handle((_t) => {
         this.starting.set(this.n2 < 58.5 && (this.state === 2 || this.state === 3) ? 'visible' : 'hidden');
         this.n2Color.set(n2Color(this.n2));
-        this.n2Exceedance.update(this.n2, isGroundStartSequence(this.state, this.onGround));
+        this.n2Exceedance.update(this.n2, isGroundStartSequence(this.state, this.onGround), this.fadecPowered);
         this.redCrossVisibility.set(this.n2Exceedance.exceeded ? 'visible' : 'hidden');
       });
   }

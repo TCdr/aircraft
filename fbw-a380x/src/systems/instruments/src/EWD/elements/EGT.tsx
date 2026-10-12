@@ -96,7 +96,8 @@ export class EGT extends DisplayComponent<EGTProps> {
     this.trimmedEGT.sub((egt) => {
       // An engine start on ground (ENGINE_STATE Starting 2 or Restarting 3) takes the red mark away.
       const state = this.engineState.get();
-      this.egtExceedance.update(egt, this.onGround.get() && (state === 2 || state === 3));
+      // Only an EGT shown (not XX: the engine parameters are available) can latch the red mark.
+      this.egtExceedance.update(egt, this.onGround.get() && (state === 2 || state === 3), this.props.active.get());
       this.egtExceedanceValue.set(this.egtExceedance.highestValue);
       this.egtExceedanceVisible.set(this.egtExceedance.exceeded);
     }, true);
