@@ -51,7 +51,6 @@ import { ConditionalComponent } from '../../../MsfsAvionicsCommon/UiWidgets/Cond
 import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { NXSystemMessages } from '../../shared/NXSystemMessages';
-import { qnhToMillibar } from '../../shared/QnhUtils';
 import { CompanyTakeoffDataButton } from './MfdFmsCpnyToRequest';
 import {
   getEtaFromUtcOrPresent as getEtaUtcOrFromPresent,
