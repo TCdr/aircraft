@@ -83,6 +83,7 @@ export const EcamMemos: { [n: string]: string } = {
   '230000013': '\x1b<3mSATCOM ALERT',
   '230000014': '\x1b<3mVHF DTLNK MAN SCAN',
   '230000015': '\x1b<3mVHF VOICE',
+  '230000016': '\x1b<3mEVAC ACTIVE',
   '271000001': '\x1b<3mGND SPLRs ARMED',
   '280000001': '\x1b<3mCROSSFEED OPEN',
   '280000013': '\x1b<4mCROSSFEED OPEN',
