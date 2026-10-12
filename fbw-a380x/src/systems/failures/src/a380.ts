@@ -225,6 +225,16 @@ export const A380Failure = Object.freeze({
   BrakesNormCircuitLeak: 32100,
   BrakesAltnCircuitLeak: 32101,
   BrakesAltnAccumulatorGasLeak: 32150,
+  // Braking and steering control faults (a380_systems hydraulic/brake_steer_faults.rs): BCS normal braking, BCS
+  // alternate braking and EBCU (A380 FCOM DSC-32-10-30), normal/alternate NWS, BWS, SCS 1/2 (DSC-32-10-40).
+  BrakesNormalBraking: 32110,
+  BrakesAlternateBraking: 32111,
+  BrakesEmergencyBraking: 32112,
+  SteeringNormalNoseWheel: 32200,
+  SteeringAlternateNoseWheel: 32201,
+  SteeringBodyWheel: 32202,
+  SteeringControlSystem1: 32203,
+  SteeringControlSystem2: 32204,
 
   RadioAltimeter1: 34000,
   RadioAltimeter2: 34001,
@@ -563,6 +573,14 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [32, A380Failure.BrakesNormCircuitLeak, 'Brakes NORM circuit leak (green hydraulic)'],
   [32, A380Failure.BrakesAltnCircuitLeak, 'Brakes ALTN circuit leak (yellow hydraulic)'],
   [32, A380Failure.BrakesAltnAccumulatorGasLeak, 'Brakes ALTN accumulator gas leak'],
+  [32, A380Failure.BrakesNormalBraking, 'Brakes normal braking (BCS NORM BRK)'],
+  [32, A380Failure.BrakesAlternateBraking, 'Brakes alternate braking (BCS ALTN BRK)'],
+  [32, A380Failure.BrakesEmergencyBraking, 'Brakes emergency braking (EBCU)'],
+  [32, A380Failure.SteeringNormalNoseWheel, 'Steering normal nose wheel steering (NORM N/W STEER)'],
+  [32, A380Failure.SteeringAlternateNoseWheel, 'Steering alternate nose wheel steering (steering LEHGS)'],
+  [32, A380Failure.SteeringBodyWheel, 'Steering body wheel steering (B/W STEER)'],
+  [32, A380Failure.SteeringControlSystem1, 'Steering control system 1 (STEER CTL 1)'],
+  [32, A380Failure.SteeringControlSystem2, 'Steering control system 2 (STEER CTL 2)'],
 
   [34, A380Failure.RadioAltimeter1, 'RA SYS A'],
   [34, A380Failure.RadioAltimeter2, 'RA SYS B'],
