@@ -22,6 +22,7 @@ import {
 } from '@flybywiresim/fbw-sdk';
 import { DmcLogicEvents } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
+import { PrimFeBusBaseEvents } from '@shared/publishers/PrimFePublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
 import {
   A1A2Messages,
@@ -36,6 +37,7 @@ import {
   computeC1Message,
   computeD1D2Message,
   D1D2Messages,
+  isCheckEoSpeedSetting,
 } from './FMADefinitions';
 import { FcdcBusBaseEvents } from '@shared/publishers/FcdcPublisher';
 import { FcuEfisCpBusEvents } from '../../../shared/src/publishers/EfisCpBusPublisher';
@@ -74,7 +76,7 @@ export class FMA extends DisplayComponent<{
   readonly isAttExcessive: Subscribable<boolean>;
 }> {
   private sub = this.props.bus.getSubscriber<
-    PFDSimvars & Arinc429Values & DmcLogicEvents & PrimFgBusBaseEvents & FcdcBusBaseEvents
+    PFDSimvars & Arinc429Values & DmcLogicEvents & PrimFgBusBaseEvents & PrimFeBusBaseEvents & FcdcBusBaseEvents
   >();
 
   private primFgDiscreteWord1 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_1'));
@@ -110,6 +112,27 @@ export class FMA extends DisplayComponent<{
   private setHoldSpeed = ConsumerSubject.create(this.sub.on('setHoldSpeed'), false);
 
   private tdReached = ConsumerSubject.create(this.sub.on('tdReached'), false);
+
+  /** CHECK SPD MODE, set by the FMS (FlightManagementComputer triggerCheckSpeedModeMessage) */
+  private readonly checkSpeedMode = ConsumerSubject.create(this.sub.on('checkSpeedMode'), false).map((it) => !!it);
+
+  /* Inputs of CHECK EO SPD SETTING (FMADefinitions isCheckEoSpeedSetting) */
+  private readonly primFgDiscreteWord5 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_5'));
+
+  private readonly pfdSpeedTarget = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_pfd_speed_target'));
+
+  private readonly greenDotSpeed = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_v_man'));
+
+  private readonly fmgcFlightPhase = ConsumerSubject.create(this.sub.on('fmgcFlightPhase'), 0);
+
+  /** The FMS engine-out mode: an engine not running (FmcAircraftInterface checkEngineOut) */
+  private readonly engineOut = MappedSubject.create(
+    ([eng1, eng2, eng3, eng4]) => !eng1 || !eng2 || !eng3 || !eng4,
+    ConsumerSubject.create(this.sub.on('engOneRunning'), true),
+    ConsumerSubject.create(this.sub.on('engTwoRunning'), true),
+    ConsumerSubject.create(this.sub.on('engThreeRunning'), true),
+    ConsumerSubject.create(this.sub.on('engFourRunning'), true),
+  );
 
   private firstBorderRef = FSComponent.createRef<SVGPathElement>();
 
@@ -155,6 +178,30 @@ export class FMA extends DisplayComponent<{
     this.B1Message,
   );
 
+  private readonly checkEoSpeedSetting = MappedSubject.create(
+    ([engineOut, flightPhase, B1Message, word5, speedTarget, greenDot]) =>
+      isCheckEoSpeedSetting(
+        engineOut,
+        flightPhase,
+        B1Message === B1Messages.ALT ||
+          B1Message === B1Messages.ALT_STAR ||
+          B1Message === B1Messages.ALT_CST ||
+          B1Message === B1Messages.ALT_CST_STAR ||
+          B1Message === B1Messages.ALT_CRZ ||
+          B1Message === B1Messages.ALT_CRZ_STAR,
+        // selected speed: PRIM FG discrete word 5 bit 18 (as the speed tape, SpeedIndicator selectedSpeedActive)
+        !word5.isInvalid() && word5.bitValue(18),
+        speedTarget.isNormalOperation() ? speedTarget.value : null,
+        greenDot.isNormalOperation() ? greenDot.value : null,
+      ),
+    this.engineOut,
+    this.fmgcFlightPhase,
+    this.B1Message,
+    this.primFgDiscreteWord5,
+    this.pfdSpeedTarget,
+    this.greenDotSpeed,
+  );
+
   private readonly BC3Message = MappedSubject.create(
     ([
       isAttExcessive,
@@ -166,6 +213,8 @@ export class FMA extends DisplayComponent<{
       tdReached,
       disconnectApForLdg,
       btvExitMissed,
+      checkSpeedMode,
+      checkEoSpeedSetting,
     ]) => {
       return computeBC3Message(
         isAttExcessive,
@@ -177,6 +226,8 @@ export class FMA extends DisplayComponent<{
         btvExitMissed,
         primFgDiscreteWord2,
         primFgDiscreteWord6,
+        checkSpeedMode,
+        checkEoSpeedSetting,
       );
     },
     this.props.isAttExcessive,
@@ -188,6 +239,8 @@ export class FMA extends DisplayComponent<{
     this.tdReached,
     this.disconnectApForLdg,
     this.btvExitMissed,
+    this.checkSpeedMode,
+    this.checkEoSpeedSetting,
   );
 
   private readonly A1A2Message = MappedSubject.create(
@@ -1288,6 +1341,14 @@ class BC3Cell extends DisplayComponent<{
         break;
       case BC3Messages.FCU_ALT_ABOVE_AC:
         text = 'FCU ALT ABOVE A/C';
+        className = 'FontMediumSmaller White';
+        break;
+      case BC3Messages.CHECK_SPD_MODE:
+        text = 'CHECK SPD MODE';
+        className = 'FontMediumSmaller White';
+        break;
+      case BC3Messages.CHECK_EO_SPD_SETTING:
+        text = 'CHECK EO SPD SETTING';
         className = 'FontMediumSmaller White';
         break;
       default:

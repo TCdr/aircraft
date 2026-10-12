@@ -31,6 +31,7 @@ import { FMMessageTriggers } from './FmMessages';
 import { ClockIsTakeoffTime } from './ClockIsTakeoffTime';
 import { LateralDiscontinuityAhead } from './LateralDiscontinuityAhead';
 import { GpsIsDeselected } from './GpsIsDeselected';
+import { CheckApproachSelection } from './CheckApproachSelection';
 
 /**
  * This class manages Type II messages sent from the FMGC.
@@ -74,6 +75,7 @@ export class FmsMessages implements FmgcComponent {
     new TooSteepPathAhead(),
     new LateralDiscontinuityAhead(),
     new GpsIsDeselected(),
+    new CheckApproachSelection(),
   ];
 
   constructor(private readonly bus: EventBus) {}

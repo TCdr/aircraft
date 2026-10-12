@@ -26,6 +26,7 @@ import { FcuBus } from './shared/FcuBusProvider';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
+import { isDisconnectApForLdg, isForGaSetToga, isSetGreenDotSpeed } from './FmaLine3Messages';
 
 /* eslint-disable no-constant-condition,no-dupe-else-if -- for keeping the FMA code while it's not active yet */
 
@@ -80,6 +81,41 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
 
   private fwcFlightPhase = Subject.create(0);
 
+  /*
+   * Inputs of the FMA line 3 messages that the PFD computes itself (FmaLine3Messages.ts): FOR GA: SET TOGA,
+   * DISCONNECT AP FOR LDG and SET GREEN DOT SPEED.
+   */
+  private fmgcDiscreteWord5 = new Arinc429Word(0);
+
+  private radioAltitude = new Arinc429Word(0);
+
+  private baroAltitude = new Arinc429Word(0);
+
+  private mda = new Arinc429Word(0);
+
+  private dh = new Arinc429Word(0);
+
+  private fmEisDiscreteWord2 = new Arinc429Word(0);
+
+  private greenDotSpeed = new Arinc429Word(0);
+
+  private fcuSelectedSpeed = new Arinc429Word(0);
+
+  private readonly tla = [0, 0];
+
+  private readonly engineRunning = [true, true];
+
+  private fmgcFlightPhase = 0;
+
+  private readonly forGaSetToga = Subject.create(false);
+
+  private readonly disconnectApForLdg = Subject.create(false);
+
+  private readonly setGreenDotSpeed = Subject.create(false);
+
+  /** CHECK APPR SELECTION, computed by the FMGC (fms-messages CheckApproachSelection.ts) */
+  private readonly checkApprSelection = Subject.create(false);
+
   private firstBorderSub = Subject.create('');
 
   private secondBorderSub = Subject.create('');
@@ -95,7 +131,19 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
   private readonly autobrakeActive = Subject.create(false);
 
   private BC3Message = MappedSubject.create(
-    ([isAttExcessive, fmgcDiscreteWord7, setHoldSpeed, fcdcDiscreteWord1, fwcFlightPhase, tdReached, checkSpeedMode]) =>
+    ([
+      isAttExcessive,
+      fmgcDiscreteWord7,
+      setHoldSpeed,
+      fcdcDiscreteWord1,
+      fwcFlightPhase,
+      tdReached,
+      checkSpeedMode,
+      forGaSetToga,
+      disconnectApForLdg,
+      setGreenDotSpeed,
+      checkApprSelection,
+    ]) =>
       getBC3Message(
         isAttExcessive,
         fmgcDiscreteWord7,
@@ -104,6 +152,10 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
         fwcFlightPhase,
         tdReached,
         checkSpeedMode,
+        forGaSetToga,
+        disconnectApForLdg,
+        setGreenDotSpeed,
+        checkApprSelection,
       ),
     this.props.isAttExcessive,
     this.fmgcDiscreteWord7,
@@ -112,6 +164,10 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
     this.fwcFlightPhase,
     this.tdReached,
     this.checkSpeedMode,
+    this.forGaSetToga,
+    this.disconnectApForLdg,
+    this.setGreenDotSpeed,
+    this.checkApprSelection,
   );
 
   private BC3MessageActive = MappedSubject.create(([BC3Message]) => BC3Message[0] !== null, this.BC3Message);
@@ -174,6 +230,66 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
     this.secondBorderSub.set(secondBorder);
   }
 
+  /** Computes the FMA line 3 messages of FmaLine3Messages.ts from the latest inputs */
+  private updateLine3Messages(): void {
+    const word1 = this.fmgcDiscreteWord1;
+    const word4 = this.fmgcDiscreteWord4;
+    const word5 = this.fmgcDiscreteWord5;
+
+    const apEngaged = word4.bitValueOr(12, false);
+    const fdEngaged = word4.bitValueOr(13, false);
+    // Approach vertical modes: G/S (word 1 bit 22), FINAL (bit 23), FLARE (bit 25), LAND (word 4 bit 14)
+    const approachVerticalModeActive =
+      word1.bitValueOr(22, false) ||
+      word1.bitValueOr(23, false) ||
+      word1.bitValueOr(25, false) ||
+      word4.bitValueOr(14, false);
+    // Non precision approach: FMGC approach phase (5) with FINAL (bit 23), FPA (bit 18) or V/S (bit 17)
+    const nonPrecisionApproach =
+      this.fmgcFlightPhase === 5 &&
+      (word1.bitValueOr(23, false) || word1.bitValueOr(18, false) || word1.bitValueOr(17, false));
+    // ALT (bits 19 + 20) or ALT* (bits 19 + 21)
+    const altOrAltStarActive =
+      word1.bitValueOr(19, false) && (word1.bitValueOr(20, false) || word1.bitValueOr(21, false));
+    // Managed speed: word 5 bit 19 without bit 20 (as the speed tape target colour, SpeedIndicator.tsx)
+    const speedSelected = word5.isNormalOperation() && !(word5.bitValueOr(19, false) && !word5.bitValueOr(20, false));
+    // Engine-out: an engine not running in flight (FWC flight phases 5 to 7)
+    const fwcPhase = this.fwcFlightPhase.get();
+    const engineOut = fwcPhase >= 5 && fwcPhase <= 7 && this.engineRunning.some((running) => !running);
+
+    const radioAltitudeFt = this.radioAltitude.isNormalOperation() ? this.radioAltitude.value : null;
+    // bit 29 of the FM EIS discrete word 2 is NO DH: no minimum entered
+    const noDh = this.fmEisDiscreteWord2.bitValueOr(29, false);
+
+    this.forGaSetToga.set(
+      isForGaSetToga({
+        apOrFdEngaged: apEngaged || fdEngaged,
+        approachVerticalModeActive,
+        radioAltitudeFt,
+        tlaDegrees: this.tla,
+      }),
+    );
+    this.disconnectApForLdg.set(
+      isDisconnectApForLdg({
+        apEngaged,
+        nonPrecisionApproach,
+        baroAltitudeFt: this.baroAltitude.isNormalOperation() ? this.baroAltitude.value : null,
+        mdaFt: !noDh && this.mda.isNormalOperation() ? this.mda.value : null,
+        dhFt: !noDh && this.dh.isNormalOperation() ? this.dh.value : null,
+        radioAltitudeFt,
+      }),
+    );
+    this.setGreenDotSpeed.set(
+      isSetGreenDotSpeed({
+        engineOut,
+        speedSelected,
+        fcuSelectedSpeedKt: this.fcuSelectedSpeed.isNormalOperation() ? this.fcuSelectedSpeed.value : null,
+        greenDotKt: this.greenDotSpeed.isNormalOperation() ? this.greenDotSpeed.value : null,
+        altOrAltStarActive,
+      }),
+    );
+  }
+
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
@@ -191,6 +307,7 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
       .handle((word) => {
         this.fmgcDiscreteWord1 = word;
         this.handleFMABorders();
+        this.updateLine3Messages();
       });
 
     sub
@@ -199,6 +316,7 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
       .handle((word) => {
         this.fmgcDiscreteWord2 = word;
         this.handleFMABorders();
+        this.updateLine3Messages();
       });
 
     sub
@@ -207,6 +325,7 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
       .handle((word) => {
         this.fmgcDiscreteWord4 = word;
         this.handleFMABorders();
+        this.updateLine3Messages();
       });
 
     sub.on('fmgcDiscreteWord7').handle((word) => {
@@ -233,6 +352,8 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
 
     sub.on('checkSpeedMode').handle(this.checkSpeedMode.set.bind(this.checkSpeedMode));
 
+    sub.on('checkApprSelection').handle((active) => this.checkApprSelection.set(!!active));
+
     sub.on('autoBrakeMode').handle(this.autobrakeMode.set.bind(this.autobrakeMode));
     sub.on('autoBrakeActive').handle(this.autobrakeActive.set.bind(this.autobrakeActive));
 
@@ -247,6 +368,61 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
     sub.on('ecu2MaintenanceWord6').handle((word) => {
       this.ecu2MaintenanceWord6.setWord(word.rawWord);
     });
+
+    // Inputs of the FMA line 3 messages computed on the PFD (updateLine3Messages)
+    sub.on('fmgcDiscreteWord5').handle((word) => {
+      this.fmgcDiscreteWord5 = word;
+      this.updateLine3Messages();
+    });
+    sub.on('chosenRa').handle((word) => {
+      this.radioAltitude = word;
+      this.updateLine3Messages();
+    });
+    sub.on('altitudeAr').handle((word) => {
+      this.baroAltitude = word;
+      this.updateLine3Messages();
+    });
+    sub.on('fmMdaRaw').handle((raw) => {
+      this.mda = new Arinc429Word(raw);
+      this.updateLine3Messages();
+    });
+    sub.on('fmDhRaw').handle((raw) => {
+      this.dh = new Arinc429Word(raw);
+      this.updateLine3Messages();
+    });
+    sub.on('fmEisDiscreteWord2Raw').handle((raw) => {
+      this.fmEisDiscreteWord2 = new Arinc429Word(raw);
+      this.updateLine3Messages();
+    });
+    sub.on('vMan').handle((word) => {
+      this.greenDotSpeed = word;
+      this.updateLine3Messages();
+    });
+    sub.on('fcuSelectedAirspeed').handle((word) => {
+      this.fcuSelectedSpeed = word;
+      this.updateLine3Messages();
+    });
+    sub.on('tla1').handle((tla) => {
+      this.tla[0] = tla;
+      this.updateLine3Messages();
+    });
+    sub.on('tla2').handle((tla) => {
+      this.tla[1] = tla;
+      this.updateLine3Messages();
+    });
+    sub.on('engOneRunning').handle((running) => {
+      this.engineRunning[0] = running;
+      this.updateLine3Messages();
+    });
+    sub.on('engTwoRunning').handle((running) => {
+      this.engineRunning[1] = running;
+      this.updateLine3Messages();
+    });
+    sub.on('fmgcFlightPhase').handle((phase) => {
+      this.fmgcFlightPhase = phase;
+      this.updateLine3Messages();
+    });
+    this.fwcFlightPhase.sub(() => this.updateLine3Messages());
   }
 
   render(): VNode {
@@ -1476,6 +1652,10 @@ const getBC3Message = (
   fwcFlightPhase: number,
   tdReached: boolean,
   checkSpeedMode: boolean,
+  forGaSetToga: boolean,
+  disconnectApForLdg: boolean,
+  setGreenDotSpeed: boolean,
+  checkApprSelection: boolean,
 ) => {
   const flightPhaseForWarning =
     fwcFlightPhase >= 2 && fwcFlightPhase <= 9 && fwcFlightPhase !== 4 && fwcFlightPhase !== 5;
@@ -1506,7 +1686,7 @@ const getBC3Message = (
     className = 'FontSmall';
     flashingClassName1 = 'Amber Fill';
     flashingClassName2 = 'DimmedAmber Fill';
-  } else if (false) {
+  } else if (forGaSetToga) {
     text = 'FOR GA: SET TOGA';
     className = 'FontMedium';
     flashingClassName1 = 'Amber Fill';
@@ -1514,7 +1694,7 @@ const getBC3Message = (
   } else if (TCASArmed && !isAttExcessive) {
     text = 'TCAS           ';
     className = 'FontMediumSmaller Cyan';
-  } else if (false) {
+  } else if (disconnectApForLdg) {
     text = 'DISCONNECT AP FOR LDG';
     className = 'FontMedium';
     flashingClassName1 = 'Amber Fill';
@@ -1525,7 +1705,7 @@ const getBC3Message = (
   } else if (trkFpaDeselectedTCAS && !isAttExcessive) {
     text = 'TRK FPA DESELECTED';
     className = 'FontMediumSmaller White Fill';
-  } else if (false) {
+  } else if (setGreenDotSpeed) {
     text = 'SET GREEN DOT SPEED';
     className = 'FontMediumSmaller White Fill';
   } else if (tdReached) {
@@ -1537,7 +1717,7 @@ const getBC3Message = (
   } else if (checkSpeedMode && !isAttExcessive) {
     text = 'CHECK SPEED MODE';
     className = 'FontMediumSmaller White Fill';
-  } else if (false) {
+  } else if (checkApprSelection) {
     text = 'CHECK APPR SELECTION';
     className = 'FontMediumSmaller White Fill';
   } else if (false) {
