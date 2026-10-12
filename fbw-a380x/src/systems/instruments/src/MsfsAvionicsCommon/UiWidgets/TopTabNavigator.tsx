@@ -1,3 +1,5 @@
+// Copyright (c) 2024-2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
 import {
   ComponentProps,
   DisplayComponent,
@@ -190,6 +192,12 @@ export class TopTabNavigator extends DisplayComponent<TopTabNavigatorProps> {
   }
 
   onPageChange(newIndex: number): void {
+    const pageTitle = this.pageTitles.get()[newIndex];
+    // Skip empty page titles;
+    if (!pageTitle || pageTitle.length === 0) {
+      return;
+    }
+
     if (this.props.pageChangeCallback) {
       this.props.pageChangeCallback(newIndex);
     } else {
@@ -213,21 +221,24 @@ export class TopTabNavigator extends DisplayComponent<TopTabNavigatorProps> {
 
     // Re-populate top navigation bar
     this.pageTitles.get().forEach((pageTitle, index) => {
-      FSComponent.render(
-        <TopTabElement
-          title={pageTitle}
-          isSelected={selectedTab === index}
-          isLast={index === this.pageTitles.get().length - 1}
-          height={this.props.tabBarHeight || 36}
-          slantedEdgeAngle={this.props.tabBarSlantedEdgeAngle || 30}
-          selectedTextColor={this.props.selectedTabTextColor || 'white'}
-          onClick={() => this.onPageChange(index)}
-          isHighlighted={this.props.highlightedTab ? this.props.highlightedTab?.get() === index : false}
-          smallFont={this.pageTitles.get().length > 2}
-          fontSize={this.props.tabFontSize}
-        />,
-        this.navigatorBarRef.instance,
-      );
+      if (pageTitle.length > 0) {
+        // Skip empty titles. Used to hide pages
+        FSComponent.render(
+          <TopTabElement
+            title={pageTitle}
+            isSelected={selectedTab === index}
+            isLast={index === this.pageTitles.get().length - 1}
+            height={this.props.tabBarHeight || 36}
+            slantedEdgeAngle={this.props.tabBarSlantedEdgeAngle || 30}
+            selectedTextColor={this.props.selectedTabTextColor || 'white'}
+            onClick={() => this.onPageChange(index)}
+            isHighlighted={this.props.highlightedTab ? this.props.highlightedTab?.get() === index : false}
+            smallFont={this.pageTitles.get().filter((title) => title.length > 0).length > 2}
+            fontSize={this.props.tabFontSize}
+          />,
+          this.navigatorBarRef.instance,
+        );
+      }
     });
 
     // Add space at end, if any
@@ -246,6 +257,10 @@ export class TopTabNavigator extends DisplayComponent<TopTabNavigatorProps> {
       this.props.selectedPageIndex.sub((value) => {
         this.populateElements(node, value);
       }, true),
+
+      this.pageTitles.sub(() => {
+        this.populateElements(node, this.props.selectedPageIndex.get());
+      }),
     );
 
     if (this.props.highlightedTab) {
@@ -263,20 +278,25 @@ export class TopTabNavigator extends DisplayComponent<TopTabNavigatorProps> {
           ref={this.navigatorBarRef}
           style={`height: ${this.props.tabBarHeight || 36}px`}
         >
-          {this.pageTitles.get().map((pageTitle, index) => (
-            <TopTabElement
-              title={pageTitle}
-              isSelected={this.props.selectedPageIndex.get() === index}
-              isLast={index === this.pageTitles.get().length - 1}
-              height={this.props.tabBarHeight || 36}
-              slantedEdgeAngle={this.props.tabBarSlantedEdgeAngle || 30}
-              selectedTextColor={this.props.selectedTabTextColor || 'white'}
-              onClick={() => this.onPageChange(index)}
-              isHighlighted={false}
-              smallFont={this.pageTitles.get().length > 2}
-              fontSize={this.props.tabFontSize}
-            />
-          ))}
+          {this.pageTitles
+            .get()
+            .map(
+              (pageTitle, index) =>
+                pageTitle.length > 0 && (
+                  <TopTabElement
+                    title={pageTitle}
+                    isSelected={this.props.selectedPageIndex.get() === index}
+                    isLast={index === this.pageTitles.get().length - 1}
+                    height={this.props.tabBarHeight || 36}
+                    slantedEdgeAngle={this.props.tabBarSlantedEdgeAngle || 30}
+                    selectedTextColor={this.props.selectedTabTextColor || 'white'}
+                    onClick={() => this.onPageChange(index)}
+                    isHighlighted={false}
+                    smallFont={this.pageTitles.get().filter((title) => title.length > 0).length > 2}
+                    fontSize={this.props.tabFontSize}
+                  />
+                ),
+            )}
           <div
             style={`width: ${this.props.additionalRightSpace ? this.props.additionalRightSpace : '0'}px; border-bottom: 2px solid lightgray`}
           />

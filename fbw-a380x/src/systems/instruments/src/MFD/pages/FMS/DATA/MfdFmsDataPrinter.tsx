@@ -8,12 +8,14 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 
 import { AbstractMfdPageProps } from '../../../MFD';
 import { FmsPage } from '../../common/FmsPage';
+import { watchFlightPlanChanges } from '../../common/FlightPlansChangeWatcher';
 import { Footer } from '../../common/Footer';
 import { fcomAt, fcomCentre, fcomLine } from '../../common/FcomLayout';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { FlightPlanReport } from '../../../FMC/FmsPrinter';
 
 import './MfdFmsDataPrinter.scss';
+import { activeFlightPhaseSubject } from '../../common/activeFlightPhase';
 
 interface MfdFmsDataPrinterProps extends AbstractMfdPageProps {}
 
@@ -24,6 +26,9 @@ interface MfdFmsDataPrinterProps extends AbstractMfdPageProps {}
  * The A380X cockpit printer has no paper: the pages are sent to the flypad (DISPATCH / PRINTOUTS).
  */
 export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
+  /** The FMS flight phase (this page loads no flight plan, so it is not given by FmsFlightPlanPage) */
+  private readonly activeFlightPhase = activeFlightPhaseSubject(this.props.bus);
+
   private readonly printer = this.props.fmcService.master.printer;
 
   private readonly noPrinter = Subject.create(this.printer === null);
@@ -77,6 +82,12 @@ export class MfdFmsDataPrinter extends FmsPage<MfdFmsDataPrinterProps> {
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+
+    this.subs.push(
+      this.activeFlightPhase,
+      watchFlightPlanChanges(this.props.bus, this.props.flightPlanInterface, () => this.onNewData()),
+    );
+    this.onNewData();
 
     for (const { ref, onClick } of this.checkboxes) {
       ref.instance.addEventListener('click', onClick);

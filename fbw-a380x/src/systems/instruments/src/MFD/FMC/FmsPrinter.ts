@@ -2,17 +2,22 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { EventBus, MappedSubject, Subject, Subscribable, Subscription, UnitType, Vec2Math } from '@microsoft/msfs-sdk';
-import { MathUtils, NXDataStore } from '@flybywiresim/fbw-sdk';
+import { EventBus, MappedSubject, Subject, Subscribable, Subscription, UnitType } from '@microsoft/msfs-sdk';
+import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
-import { FlightPlanWindEntry, WindVector } from '@fmgc/flightplanning/data/wind';
+import {
+  extractWindDirectionFromVector,
+  extractWindSpeedFromVector,
+  FlightPlanWindEntry,
+  isWindVectorComplete,
+  WindVector,
+} from '@fmgc/flightplanning/data/wind';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { AirlineModifiableInformation } from '@shared/AirlineModifiableInformation';
 
 import type { FlightManagementComputer } from './FlightManagementComputer';
-import { CompanyWindRequestState } from './FlightManagementComputer';
 
 /** One printed page, sent to the flypad (the A380X cockpit printer has no paper to print on). */
 export interface FmsPrintPage {
@@ -67,11 +72,13 @@ const flightLevel = (feet: number | null | undefined) =>
         .toFixed(0)
         .padStart(3, '0')}`;
 const windText = (vector: WindVector | null | undefined) => {
-  if (!vector) {
+  if (!vector || !isWindVectorComplete(vector)) {
     return "---'/---";
   }
-  const direction = Math.round(MathUtils.normalise360(Vec2Math.theta(vector) * MathUtils.RADIANS_TO_DEGREES)) % 360;
-  return `${direction.toFixed(0).padStart(3, '0')}'/${Math.round(Vec2Math.abs(vector)).toFixed(0).padStart(3, '0')}`;
+  // The wind vector holds the true direction (radians) the wind comes from and its speed (kt)
+  const direction = Math.round(extractWindDirectionFromVector(vector, true) ?? 0) % 360;
+  const speed = Math.round(extractWindSpeedFromVector(vector, true) ?? 0);
+  return `${direction.toFixed(0).padStart(3, '0')}'/${speed.toFixed(0).padStart(3, '0')}`;
 };
 
 /**
@@ -173,13 +180,13 @@ export class FmsPrinter {
         }
       }),
       // FCOM DSC-22-FMS-10-70 P 9: the received company data are printed at reception
-      this.fmc.fmgc.data.cpnyFplnAvailable.sub((available) => {
+      this.fmc.getCpnyFplnAvailable().sub((available) => {
         if (available && this.autoPrint.cpnyInit.get()) {
           this.printInitData(FlightPlanIndex.Uplink, 'FM COMPANY FLIGHT PLAN INITIALIZATION DATA');
         }
       }),
-      this.fmc.companyWindRequestState(FlightPlanIndex.Active).sub((state) => {
-        if (state === CompanyWindRequestState.Received && this.autoPrint.cpnyWind.get()) {
+      this.fmc.getWindUplinkAvailableForPlan(FlightPlanIndex.Active).sub((received) => {
+        if (received && this.autoPrint.cpnyWind.get()) {
           this.printWindData();
         }
       }),
@@ -332,6 +339,10 @@ export class FmsPrinter {
       if (isLeg(leg) && leg.cruiseWindEntries && leg.cruiseWindEntries.length > 0) {
         const winds = new Map<number, WindVector>();
         for (const entry of leg.cruiseWindEntries) {
+          // An entry without an altitude cannot be printed in a level column
+          if (entry.altitude === undefined) {
+            continue;
+          }
           cruiseLevels.add(entry.altitude);
           winds.set(entry.altitude, entry.vector);
         }
@@ -371,7 +382,7 @@ export class FmsPrinter {
       '',
       '  ALTERNATE WIND',
       '  --------------',
-      `    ${pd.alternateWind.get() ? windText(pd.alternateWind.get()) : "---'/---"}`,
+      `    ${windText(pd.alternateWind.get())}`,
       '',
       RULE,
     ];

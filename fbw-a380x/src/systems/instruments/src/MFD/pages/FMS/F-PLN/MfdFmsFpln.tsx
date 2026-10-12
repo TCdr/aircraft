@@ -35,7 +35,7 @@ import { ContextMenu, ContextMenuElement } from '../../../../MsfsAvionicsCommon/
 import { FplnRevisionsMenuType, getRevisionsMenu } from './FplnRevisionsMenu';
 import { DestinationWindow } from './DestinationWindow';
 import { InsertNextWptFromWindow, NextWptInfo } from './InsertNextWptFrom';
-import { FmsPage } from '../../common/FmsPage';
+import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { FlightPlanLeg, FlightPlanLegFlags } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 import { PseudoWaypoint } from '@fmgc/guidance/PseudoWaypoint';
@@ -60,9 +60,9 @@ import {
   TailwindComponent,
   WindVector,
 } from '@fmgc/flightplanning/data/wind';
-import { dirToUri, fixInfoUri } from '../../../shared/utils';
 import { ReadonlyFlightPlanElement } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
+import { dirToUri, fixInfoUri, showReturnButtonUriExtra } from '../../../shared/utils';
 
 interface MfdFmsFplnProps extends AbstractMfdPageProps {}
 
@@ -71,7 +71,7 @@ export interface DerivedFplnLegData {
   distanceFromLastWpt: number | null;
 }
 
-export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
+export class MfdFmsFpln extends FmsFlightPlanPage<MfdFmsFplnProps> {
   private readonly weightUnit = NXDataStore.getSetting('CONFIG_USING_METRIC_UNIT').map((v) =>
     v ? UnitType.KILOGRAM : UnitType.POUND,
   );
@@ -670,7 +670,9 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
                 speed: () => this.goToSpeedConstraint(drawIndex),
                 altitude: () => this.goToAltitudeConstraint(drawIndex),
                 rta: () => this.goToTimeConstraint(drawIndex),
-                wind: () => {},
+                wind: () => {
+                  this.gotoWindPage(drawIndex);
+                },
                 onImmediateExitHold: () => {
                   this.onImmediateExit(drawIndex);
                 },
@@ -925,6 +927,18 @@ export class MfdFmsFpln extends FmsPage<MfdFmsFplnProps> {
         );
         this.props.mfd.uiService.navigateTo(
           `fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln-vert-rev/alt`,
+        );
+      }
+    }
+  }
+
+  private gotoWindPage(lineDataIndex: number) {
+    const data = this.lineData[lineDataIndex];
+    if (isWaypoint(data) && !data.isAltnWaypoint && data.originalLegIndex !== null) {
+      const wpt = this.loadedFlightPlan?.maybeElementAt(data.originalLegIndex);
+      if (wpt) {
+        this.props.mfd.uiService.navigateTo(
+          `fms/${this.props.mfd.uiService.activeUri.get().category}/wind/${showReturnButtonUriExtra}/${data.originalLegIndex}`,
         );
       }
     }
@@ -1767,6 +1781,9 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
   private formatWind(data: FplnLineWaypointDisplayData): VNode {
     let directionStr = '---';
     const previousRow = this.props.previousRow.get();
+    const forceFullWindInfo =
+      FplnLineFlags.AfterSpecial === (this.props.flags.get() & FplnLineFlags.AfterSpecial) ||
+      FplnLineFlags.FirstLine === (this.props.flags.get() & FplnLineFlags.FirstLine);
     if (
       previousRow &&
       isWaypoint(previousRow) &&
@@ -1774,14 +1791,11 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
       data.windPrediction !== null &&
       formatWindPredictionDirection(previousRow.windPrediction) ===
         formatWindPredictionDirection(data.windPrediction) &&
-      !(
-        FplnLineFlags.AfterSpecial === (this.props.flags.get() & FplnLineFlags.AfterSpecial) ||
-        FplnLineFlags.FirstLine === (this.props.flags.get() & FplnLineFlags.FirstLine)
-      )
+      !forceFullWindInfo
     ) {
-      directionStr = <span style="font-family: HoneywellMCDU, monospace;">"</span>;
+      directionStr = ' " ';
     } else if (data.windPrediction !== null) {
-      directionStr = <span>{formatWindPredictionDirection(data.windPrediction)}</span>;
+      directionStr = formatWindPredictionDirection(data.windPrediction, true);
     }
 
     let speedStr = '--';
@@ -1790,16 +1804,18 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
       isWaypoint(previousRow) &&
       previousRow.windPrediction !== null &&
       data.windPrediction !== null &&
-      formatWindPredictionMagnitude(previousRow.windPrediction) === formatWindPredictionMagnitude(data.windPrediction)
+      formatWindPredictionMagnitude(previousRow.windPrediction) ===
+        formatWindPredictionMagnitude(data.windPrediction) &&
+      !forceFullWindInfo
     ) {
-      speedStr = <span style="font-family: HoneywellMCDU, monospace;">"</span>;
+      speedStr = ' " ';
     } else if (data.windPrediction !== null) {
-      speedStr = <span>{formatWindPredictionMagnitude(data.windPrediction)}</span>;
+      speedStr = formatWindPredictionMagnitude(data.windPrediction);
     }
 
     return (
       // Each cell holds three digits of the value font (18 px each) and a margin: narrower, they run over the slash
-      <div style="display: flex; flex-direction: row; justify-self: flex-end">
+      <div style="display: flex; flex-direction: row; justify-self: flex-end; font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">
         <div style="width: 56px; text-align: center;">{directionStr}</div>
         <span>/</span>
         <div style="width: 56px; text-align: center;">{speedStr}</div>
@@ -1808,7 +1824,7 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
   }
 
   private formatAltitude(data: FplnLineWaypointDisplayData): VNode {
-    let altStr: VNode = <span>---</span>;
+    let altStr: VNode = <span style="font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">---</span>;
     const previousRow = this.props.previousRow.get();
     if (data.altitudePrediction) {
       const isBelowTransAlt =
@@ -1824,16 +1840,18 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
           FplnLineFlags.FirstLine === (this.props.flags.get() & FplnLineFlags.FirstLine)
         )
       ) {
-        altStr = <span style="font-family: HoneywellMCDU, monospace;">"</span>;
+        altStr = <span style="font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">"</span>;
       } else if (!isBelowTransAlt) {
         altStr = (
-          <span>{`FL${Math.round(data.altitudePrediction / 100)
+          <span style="font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">{`FL${Math.round(
+            data.altitudePrediction / 100,
+          )
             .toString()
             .padStart(3, '0')}`}</span>
         );
       } else {
         const roundedAltitude = MathUtils.round(data.altitudePrediction, 10).toFixed(0);
-        altStr = <span>{roundedAltitude}</span>;
+        altStr = <span style="font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">{roundedAltitude}</span>;
       }
     }
     if (data.hasAltitudeConstraint && data.altitudePrediction) {
@@ -1884,11 +1902,11 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
         </span>
       );
     }
-    return <span style="margin-left: 20px;">{altStr}</span>;
+    return <span style="margin-left: 20px; font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">{altStr}</span>;
   }
 
   private formatSpeed(data: FplnLineWaypointDisplayData): VNode {
-    let speedStr: VNode = <span>---</span>;
+    let speedStr: VNode = <span style="font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">---</span>;
     const previousRow = this.props.previousRow.get();
     if (
       previousRow &&
@@ -1903,10 +1921,14 @@ class FplnLegLine extends DisplayComponent<FplnLegLineProps> {
         FplnLineFlags.FirstLine === (this.props.flags.get() & FplnLineFlags.FirstLine)
       )
     ) {
-      speedStr = <span style="font-family: HoneywellMCDU, monospace; padding-left: 3px; padding-right: 3px;">"</span>;
+      speedStr = (
+        <span style="padding-left: 3px; padding-right: 3px; font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">
+          "
+        </span>
+      );
     } else if (data.speedPrediction && Number.isFinite(data.speedPrediction) && data.speedPrediction > 0) {
       speedStr = (
-        <span>
+        <span style="font-family: FBW-Display-EIS-A380-SlashedZero, monospace;">
           {data.speedPrediction > 2
             ? data.speedPrediction.toFixed(0)
             : `.${data.speedPrediction.toFixed(2).split('.')[1]}`}

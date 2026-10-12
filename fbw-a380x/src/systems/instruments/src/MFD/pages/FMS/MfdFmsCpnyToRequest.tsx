@@ -7,13 +7,15 @@ import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 
 import { AbstractMfdPageProps } from '../../MFD';
-import { FmsPage } from '../common/FmsPage';
+import { FmsFlightPlanPage } from '../common/FmsFlightPlanPage';
 import { Footer } from '../common/Footer';
 import { fcomAt, fcomCentre, fcomLine, fcomRight } from '../common/FcomLayout';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { IconButton } from '../../../MsfsAvionicsCommon/UiWidgets/IconButton';
 import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { DropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
+import { dropdownEntryIndex } from '../../../MsfsAvionicsCommon/UiWidgets/DropdownEntry';
+import { onEntryNotInList } from '../../shared/utils';
 import { RadioButtonGroup } from '../../../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
 import {
   FreeTextFormat,
@@ -61,7 +63,7 @@ class RunwayRequest {
  * No company ground station computes takeoff data in the simulation: the page shows and keeps the request parameters,
  * but SEND T.O REQUEST is inactive.
  */
-export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
+export class MfdFmsCpnyToRequest extends FmsFlightPlanPage<AbstractMfdPageProps> {
   private readonly runways = [new RunwayRequest(), new RunwayRequest()];
 
   private readonly runwayPage = Subject.create(0);
@@ -215,7 +217,7 @@ export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_cpnyToRwyCond${index}`}
             selectedIndex={rwy.condition}
             values={this.runwayConditionLabels}
-            freeTextAllowed={false}
+            freeTextAllowed={false} // FCOM RUNWAY CONDITION LIST: selected in the list only
             containerStyle="width: 218px;"
             numberOfDigitsForInputField={9}
             alignLabels="center"
@@ -253,7 +255,14 @@ export class MfdFmsCpnyToRequest extends FmsPage<AbstractMfdPageProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_cpnyToFlaps${index}`}
             selectedIndex={rwy.flaps}
             values={this.flapsLabels}
-            freeTextAllowed={false}
+            keyboardEntryAllowed // FCOM FLAPS SETTING LIST: selected in the list or entered with the keyboard
+            errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
+            onModified={(i, text) => {
+              const index = dropdownEntryIndex(this.flapsLabels, i, text);
+              if (index !== null) {
+                rwy.flaps.set(index);
+              }
+            }}
             containerStyle="width: 69px;"
             numberOfDigitsForInputField={1}
             alignLabels="center"

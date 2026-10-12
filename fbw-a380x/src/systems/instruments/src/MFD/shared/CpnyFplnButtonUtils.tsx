@@ -3,22 +3,24 @@
 
 import { FSComponent, MappedSubject } from '@microsoft/msfs-sdk';
 import { FmcInterface } from '../FMC/FmcInterface';
-import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
+import { isCpnyFplnButtonDisabled } from './CpnyFplnButtonRule';
 
 export class CpnyFplnButtonUtils {
   public static cpnyFplnButtonDisabled(fmc: FmcInterface | null, flightPlanIndex: number) {
     return fmc
       ? MappedSubject.create(
-          // FCOM DSC-22-FMS-20-30 INIT page: selectable before engine start, with no active flight plan and no
-          // secondary flight plan request pending. A pending active request still gives access to the page.
-          // FCOM SEC INDEX page: a secondary flight plan request needs no other flight plan request pending.
-          ([forPlan, enginesStarted, hasActiveFlightPlan]) =>
-            flightPlanIndex === FlightPlanIndex.Active
-              ? enginesStarted || hasActiveFlightPlan || (forPlan !== null && forPlan >= FlightPlanIndex.FirstSecondary)
-              : forPlan !== null && forPlan !== flightPlanIndex,
-          fmc.fmgc.data.cpnyFplnRequestedForPlan,
+          ([windUplinkInProgress, forPlan, enginesStarted, hasActiveFlightPlan]) =>
+            isCpnyFplnButtonDisabled(
+              windUplinkInProgress,
+              forPlan,
+              enginesStarted,
+              hasActiveFlightPlan,
+              flightPlanIndex,
+            ),
+          fmc.getCpnyWindUplinkInProgress(),
+          fmc.getCpnyFplnRequestedForPlan(),
           fmc.enginesWereStarted,
-          fmc.hasActiveFlightPlan,
+          fmc.hasActiveFlightPlanWithCityPair,
         )
       : MappedSubject.create(() => true);
   }
@@ -35,8 +37,8 @@ export class CpnyFplnButtonUtils {
               return 'RECEIVED\nCPNY F-PLN';
             }
           },
-          fmc.fmgc.data.cpnyFplnAvailable,
-          fmc.fmgc.data.cpnyFplnUplinkInProgress,
+          fmc.getCpnyFplnAvailable(),
+          fmc.getCpnyFplnUplinkInProgress(),
         )
       : MappedSubject.create(() => <></>);
   }
@@ -54,14 +56,12 @@ export class CpnyFplnButtonUtils {
                   {
                     label: 'CLEAR*',
                     action: () => {
-                      fmc.flightPlanInterface.uplinkDelete();
-                      fmc.fmgc.data.cpnyFplnAvailable.set(false);
-                      fmc.fmgc.data.cpnyFplnRequestedForPlan.set(null);
+                      fmc.deleteCpnyFpln();
                     },
                   },
                 ]
               : [],
-          fmc.fmgc.data.cpnyFplnAvailable,
+          fmc.getCpnyFplnAvailable(),
         )
       : MappedSubject.create(() => []);
   }
