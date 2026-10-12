@@ -89,6 +89,23 @@ import {
 } from './Logic/EngineFailAlerts';
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
 import { FUEL_FILTER_CLOG_PHASE_INHIBITION, engineFuelFilterClog } from './Logic/EngineFuelFilterAlerts';
+import {
+  EngineMonitoringAlertDefinition,
+  FADEC_ALTERNATOR,
+  HP_FUEL_VALVE_PHASE_INHIBITION,
+  HpFuelValveFault,
+  ONE_TLA_FAULT,
+  OVSPD_PROT_FAULT,
+  PROBES_FAULT,
+  REV_SWITCH_FAULT,
+  SENSOR_FAULT,
+  SENSOR_FAULT_STATUS,
+  hpFuelValveLines,
+  isFadecAlternatorAlertActive,
+  isHpFuelValveAlertActive,
+  probesFaultInhibitedInPhase9,
+  sensorFaultLines,
+} from './Logic/EngineMonitoringAlerts';
 import { ElecSystemAcquisition } from './Acquisition/ElecSystemAcquisition';
 import {
   BAT_FAULT_PHASE_INHIBITION,
@@ -1947,6 +1964,29 @@ export class PseudoFWC {
   private readonly engine1FuelFilterClog = Subject.create(false);
 
   private readonly engine2FuelFilterClog = Subject.create(false);
+
+  /** ENG 1(2) HP FUEL VALVE, see Logic/EngineMonitoringAlerts: the fault the FADEC reports, per engine */
+  private readonly engineHpFuelValveFault = [HpFuelValveFault.None, HpFuelValveFault.None];
+
+  private readonly engineHpFuelValveAlert = [Subject.create(false), Subject.create(false)];
+
+  /** ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT */
+  private readonly engineFadecAlternator = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineOvspdProtFault = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineProbesFault = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineSensorFault = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineOneTlaFault = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineRevSwitchFault = [Subject.create(false), Subject.create(false)];
+
+  /** The FWC flight phase of the previous update and the time spent in it (ENG PROBES FAULT phase 9 inhibition) */
+  private engineMonitoringFlightPhase = 0;
+
+  private engineMonitoringSecondsInFlightPhase = 0;
 
   /** ELEC BAT/BCL FAULT, IDG OIL LO PR/OVHT, GEN/APU GEN OVERLOAD, STATIC INV FAULT, see Logic/ElecSystemAlerts */
   private readonly elecSystem = new ElecSystemAcquisition();
@@ -5443,6 +5483,33 @@ export class PseudoFWC {
     this.continuousIgnition.set(continuousIgnition);
     this.crossBleedValveOpen = !SimVar.GetSimVarValue('L:A32NX_PNEU_XBLEED_VALVE_FULLY_CLOSED', 'bool');
 
+    /* ENG 1(2) HP FUEL VALVE and the FADEC fault crew awareness alerts (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts) */
+    if (flightPhase !== this.engineMonitoringFlightPhase) {
+      this.engineMonitoringFlightPhase = flightPhase;
+      this.engineMonitoringSecondsInFlightPhase = 0;
+    } else {
+      this.engineMonitoringSecondsInFlightPhase += deltaTime / 1000;
+    }
+    const probesFaultInhibited = probesFaultInhibitedInPhase9(flightPhase, this.engineMonitoringSecondsInFlightPhase);
+    for (const index of [0, 1]) {
+      const engine = index + 1;
+      const fault = (variable: string) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_${variable}`, 'bool') > 0;
+      const engineRunning = (engine === 1 ? this.engine1State : this.engine2State).get() === EngineState.On;
+      this.engineHpFuelValveFault[index] = SimVar.GetSimVarValue(
+        `L:A32NX_ENGINE_${engine}_HP_FUEL_VALVE_FAULT`,
+        'number',
+      );
+      this.engineHpFuelValveAlert[index].set(isHpFuelValveAlertActive(this.engineHpFuelValveFault[index]));
+      this.engineFadecAlternator[index].set(
+        isFadecAlternatorAlertActive(fault(FADEC_ALTERNATOR.variable), engineRunning),
+      );
+      this.engineOvspdProtFault[index].set(fault(OVSPD_PROT_FAULT.variable));
+      this.engineProbesFault[index].set(fault(PROBES_FAULT.variable) && !probesFaultInhibited);
+      this.engineSensorFault[index].set(fault(SENSOR_FAULT.variable));
+      this.engineOneTlaFault[index].set(fault(ONE_TLA_FAULT.variable));
+      this.engineRevSwitchFault[index].set(fault(REV_SWITCH_FAULT.variable));
+    }
+
     /* ENG 1(2) STALL, ENG 1(2) N1/N2/EGT OVER LIMIT (FCOM PRO-ABN-ENG, see Logic/EngineParameterAlerts) */
 
     // The FADEC detects the stall (systems.wasm, a320_systems engine_malfunction.rs)
@@ -6525,6 +6592,66 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
+    };
+  }
+
+  /** ENG 1(2) HP FUEL VALVE (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts): amber, phases 3, 4, 5, 7, 8 inhibited */
+  private engineHpFuelValveAlertItem(engine: 1 | 2): EWDFailureItem {
+    const index = engine - 1;
+    const code = (line: number) => `770731${engine}${String(line).padStart(2, '0')}`;
+    return {
+      flightPhaseInhib: HP_FUEL_VALVE_PHASE_INHIBITION,
+      simVarIsActive: this.engineHpFuelValveAlert[index],
+      whichCodeToReturn: () =>
+        hpFuelValveLines({
+          fault: this.engineHpFuelValveFault[index],
+          engineAtOrAboveIdle: (engine === 1 ? this.engine1State : this.engine2State).get() === EngineState.On,
+          onGround: !!this.aircraftOnGround.get(),
+          manualStartPbOn: this.engineManualStartPbOn[index],
+        }),
+      codesToReturn: Array.from({ length: 5 }, (_, line) => code(line + 1)),
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    };
+  }
+
+  /**
+   * A crew awareness alert of a FADEC fault (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts): amber, title only.
+   * @param key the alert key, whose title code is the key followed by 01
+   */
+  private engineMonitoringAlertItem(
+    key: string,
+    definition: EngineMonitoringAlertDefinition,
+    active: Subject<boolean>,
+  ): EWDFailureItem {
+    return {
+      flightPhaseInhib: definition.flightPhaseInhibition,
+      simVarIsActive: active,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [`${key}01`],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+    };
+  }
+
+  /** ENG 1(2) SENSOR FAULT (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts): amber, phases 4, 5, 7, 8 inhibited */
+  private engineSensorFaultAlertItem(engine: 1 | 2): EWDFailureItem {
+    const index = engine - 1;
+    const code = (line: number) => `770735${engine}${String(line).padStart(2, '0')}`;
+    return {
+      flightPhaseInhib: SENSOR_FAULT.flightPhaseInhibition,
+      simVarIsActive: this.engineSensorFault[index],
+      whichCodeToReturn: () => sensorFaultLines(!!this.aircraftOnGround.get()),
+      codesToReturn: Array.from({ length: 4 }, (_, line) => code(line + 1)),
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ENG,
+      side: 'LEFT',
+      statusInfo: () => SENSOR_FAULT_STATUS,
     };
   }
 
@@ -8202,6 +8329,22 @@ export class PseudoFWC {
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
     },
+    // ENG 1(2) HP FUEL VALVE, FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
+    // FAULT (FCOM PRO-ABN-ENG, see Logic/EngineMonitoringAlerts)
+    7707311: this.engineHpFuelValveAlertItem(1),
+    7707312: this.engineHpFuelValveAlertItem(2),
+    7707321: this.engineMonitoringAlertItem('7707321', FADEC_ALTERNATOR, this.engineFadecAlternator[0]),
+    7707322: this.engineMonitoringAlertItem('7707322', FADEC_ALTERNATOR, this.engineFadecAlternator[1]),
+    7707331: this.engineMonitoringAlertItem('7707331', OVSPD_PROT_FAULT, this.engineOvspdProtFault[0]),
+    7707332: this.engineMonitoringAlertItem('7707332', OVSPD_PROT_FAULT, this.engineOvspdProtFault[1]),
+    7707341: this.engineMonitoringAlertItem('7707341', PROBES_FAULT, this.engineProbesFault[0]),
+    7707342: this.engineMonitoringAlertItem('7707342', PROBES_FAULT, this.engineProbesFault[1]),
+    7707351: this.engineSensorFaultAlertItem(1),
+    7707352: this.engineSensorFaultAlertItem(2),
+    7707361: this.engineMonitoringAlertItem('7707361', ONE_TLA_FAULT, this.engineOneTlaFault[0]),
+    7707362: this.engineMonitoringAlertItem('7707362', ONE_TLA_FAULT, this.engineOneTlaFault[1]),
+    7707811: this.engineMonitoringAlertItem('7707811', REV_SWITCH_FAULT, this.engineRevSwitchFault[0]),
+    7707812: this.engineMonitoringAlertItem('7707812', REV_SWITCH_FAULT, this.engineRevSwitchFault[1]),
     7707301: {
       // ENG 1 FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts): amber, crew awareness
       flightPhaseInhib: FUEL_FILTER_CLOG_PHASE_INHIBITION,

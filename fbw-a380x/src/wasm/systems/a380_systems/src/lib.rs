@@ -57,8 +57,12 @@ use systems::{
     },
     electrical::{Electricity, ElectricitySource, ExternalPowerSource},
     engine::{
-        fuel_filter_failure::EngineFuelFilterFailures, oil_failure::EngineOilFailures,
-        reverser_thrust::ReverserForce, trent_engine::TrentEngine, EngineFireOverheadPanel,
+        engine_monitoring_fault::{EngineMonitoringFaultKind, EngineMonitoringFaults},
+        fuel_filter_failure::EngineFuelFilterFailures,
+        oil_failure::EngineOilFailures,
+        reverser_thrust::ReverserForce,
+        trent_engine::TrentEngine,
+        EngineFireOverheadPanel,
     },
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
@@ -72,6 +76,19 @@ use systems::{
         Aircraft, InitContext, SimulationElement, SimulationElementVisitor, UpdateContext,
     },
 };
+
+/// The FADEC faults of the A380 FCOM that have no engine model effect (PRO-ABN-ECAM-10-70,
+/// a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP
+/// DETECTED, MINOR FAULT, OVERTHRUST PROT LOST, SENSOR FAULT (see
+/// systems::engine::engine_monitoring_fault and the FWS EngineMonitoringAlerts.ts).
+const A380_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 6] = [
+    EngineMonitoringFaultKind::FuelStrainerClog,
+    EngineMonitoringFaultKind::FuelFilterMonitoring,
+    EngineMonitoringFaultKind::OilChip,
+    EngineMonitoringFaultKind::MinorFault,
+    EngineMonitoringFaultKind::OverthrustProtection,
+    EngineMonitoringFaultKind::Sensors,
+];
 
 pub struct A380 {
     adcn: A380AvionicsDataCommunicationNetwork,
@@ -102,6 +119,8 @@ pub struct A380 {
     engine_oil_failures: EngineOilFailures<4>,
     /// Fuel filter clog of each engine: SD ENGINE indication and FWS caution only
     engine_fuel_filter_failures: EngineFuelFilterFailures<4>,
+    /// The FADEC faults without engine model effect of each engine: FWS alerts only
+    engine_monitoring_faults: EngineMonitoringFaults<4>,
     engine_malfunctions: A380EngineMalfunctions,
     engine_control_failures: A380EngineControlFailures,
     electrical: A380Electrical,
@@ -162,6 +181,10 @@ impl A380 {
             engine_failures: A380EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
             engine_fuel_filter_failures: EngineFuelFilterFailures::new(context),
+            engine_monitoring_faults: EngineMonitoringFaults::new(
+                context,
+                &A380_ENGINE_MONITORING_FAULTS,
+            ),
             engine_malfunctions: A380EngineMalfunctions::new(context),
             engine_control_failures: A380EngineControlFailures::new(context),
             electrical: A380Electrical::new(context),
@@ -471,6 +494,7 @@ impl SimulationElement for A380 {
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
         self.engine_fuel_filter_failures.accept(visitor);
+        self.engine_monitoring_faults.accept(visitor);
         self.engine_malfunctions.accept(visitor);
         self.engine_control_failures.accept(visitor);
         self.electrical.accept(visitor);

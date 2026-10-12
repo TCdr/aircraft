@@ -425,6 +425,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 ||||||| 19910a87e
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
+1. [A32NX/A380X] New flyPad failure HP fuel valve stuck: the engine does not start with the valve stuck closed, ENG HP FUEL VALVE / HP FUEL VLV FAULT and the ENG FAULT light come on when the valve position disagrees with the FADEC command (FCOM) - @TCdr
+1. [A32NX/A380X] New flyPad FADEC fault failures with their ECAM crew awareness alerts: A32NX ENG FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT; A380X ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT - @TCdr
+1. [A32NX/ENG] The ENG FAULT light also comes on for a thrust control malfunction (both FADEC channels or both thrust lever resolvers lost), as in the FCOM - @TCdr
+1. [A32NX/ENG] A hot engine gets a pre-start motoring (dry crank up to 60 s, by its residual heat) before the ignition of an automatic start, as the FCOM bow rotor protection - @TCdr
+1. [A380X/ENG] Auto-idle protection: the outboard engines stay at idle while a thrust reverser operates, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

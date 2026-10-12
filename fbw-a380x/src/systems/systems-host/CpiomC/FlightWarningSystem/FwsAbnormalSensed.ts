@@ -68,6 +68,13 @@ import {
 } from './EngineOilAlerts';
 import { FUEL_FILTER_CLOGGED_LEVEL, FUEL_FILTER_CLOGGED_PHASE_INHIBITION } from './EngineFuelFilterAlerts';
 import {
+  ENGINE_MONITORING_ALERTS,
+  ENGINE_MONITORING_ALERT_LEVEL,
+  HP_FUEL_VLV_FAULT_LEVEL,
+  HP_FUEL_VLV_FAULT_PHASE_INHIBITION,
+  hpFuelVlvFaultItems,
+} from './EngineMonitoringAlerts';
+import {
   OIL_TEMP_LO_PHASE_INHIBITION,
   THR_LEVERS_NOT_SET_PHASE_INHIBITION,
   thrLeversNotSetItemsShown,
@@ -726,8 +733,56 @@ export class FwsAbnormalSensed {
     return alerts;
   }
 
+  /**
+   * ENG n HP FUEL VLV FAULT (701800053-056) and the FADEC fault crew awareness alerts FUEL STRAINER CLOGGED, FUEL FILTER
+   * MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT: A380 FCOM PRO-ABN-ECAM-10-70, see
+   * EngineMonitoringAlerts.ts.
+   */
+  private engineMonitoringAlerts(): EwdAbnormalDict {
+    const alerts: EwdAbnormalDict = {};
+    const masters = [this.fws.engine1Master, this.fws.engine2Master, this.fws.engine3Master, this.fws.engine4Master];
+    const fireButtons = [
+      this.fws.fireButtonEng1,
+      this.fws.fireButtonEng2,
+      this.fws.fireButtonEng3,
+      this.fws.fireButtonEng4,
+    ];
+    for (let index = 0; index < 4; index++) {
+      const items = () =>
+        hpFuelVlvFaultItems({
+          fault: this.fws.engineHpFuelValveFault[index],
+          onGround: this.fws.aircraftOnGround.get(),
+          masterOn: masters[index].get(),
+          manualStartPbOn: this.fws.engineManualStartPbOn[index],
+          firePbReleased: fireButtons[index].get(),
+        });
+      alerts[701800053 + index] = {
+        flightPhaseInhib: HP_FUEL_VLV_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.engineHpFuelVlvFaultActive[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => items().show,
+        whichItemsChecked: () => items().checked,
+        failure: HP_FUEL_VLV_FAULT_LEVEL,
+        sysPage: SdPages.Eng,
+      };
+      ENGINE_MONITORING_ALERTS.forEach((alert, alertIndex) => {
+        alerts[alert.engine1Key + index] = {
+          flightPhaseInhib: alert.flightPhaseInhibition,
+          simVarIsActive: this.fws.engineMonitoringAlertActive[alertIndex][index],
+          notActiveWhenItemActive: [],
+          whichItemsToShow: () => [],
+          whichItemsChecked: () => [],
+          failure: ENGINE_MONITORING_ALERT_LEVEL,
+          sysPage: SdPages.None,
+        };
+      });
+    }
+    return alerts;
+  }
+
   public ewdAbnormalSensed: EwdAbnormalDict = {
     ...this.engineStartAlerts(),
+    ...this.engineMonitoringAlerts(),
     // ATA 21 - AIR CONDITIONING AND PRESSURIZATION
     211800001: {
       // PACK 1 CTL 1 FAULT

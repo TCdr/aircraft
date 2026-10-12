@@ -4280,6 +4280,20 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True while the fuel filter clog failure of the engine is active (flyPad failures 73100/73101): CLOG below the fuel used on the ENGINE SD page and ENG FUEL FILTER CLOG while the engine runs, no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
 
+- A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The abnormal HP fuel valve position the FADEC detects (2 s) with the HP fuel valve stuck failure (flyPad failures 73200/73201): 0 none, 1 not open (closed while commanded open: no fuel, no start), 2 not closed (open while commanded closed). ENG 1(2) HP FUEL VALVE and the ENG FAULT light. Written by the systems WASM (systems engine/hp_fuel_valve_failure.rs)
+
+- A32NX_ENGINE_{number}_FADEC_ALTERNATOR_FAULT, _OVERSPEED_PROTECTION_FAULT, _PROBES_FAULT, _SENSOR_FAULT, _ONE_TLA_FAULT, _REVERSER_SWITCH_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors, 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
   - {number}
@@ -4320,7 +4334,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the ENG MASTER panel FAULT light is on: the automatic start of the engine aborted (FCOM DSC-70-90-20), until the ENG MASTER OFF. Written by the systems WASM
+  - True when the ENG MASTER panel FAULT light is on (FCOM DSC-70-90-20): the automatic start of the engine aborted (until the ENG MASTER OFF), the HP fuel valve position is abnormal (A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT), or the thrust control has a malfunction (both FADEC channels or both thrust lever resolvers lost). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_STARTER_MOTORING
   - Bool
