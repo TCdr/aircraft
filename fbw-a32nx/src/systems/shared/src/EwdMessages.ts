@@ -985,6 +985,11 @@ const EwdMessages = new Map<
   ['280021603', { text: '\x1b<7m   .IF UNSUCCESSFUL:' }],
   ['280021604', { text: '\x1b<5m CTR AVAIL BY GRAVITY' }],
   ['280021605', { text: '\x1b<5m 2T (4400LBS) UNUSABLE' }],
+  // FUEL ENG 1(2) LP VALVE OPEN, FUEL FQI CH 1(2) FAULT (FCOM PRO-ABN-FUEL, a320_fcom.txt l.85829-85897): crew awareness
+  ['280023001', { group: 'FUEL$3', text: ' ENG 1 LP VALVE OPEN' }],
+  ['280023101', { group: 'FUEL$3', text: ' ENG 2 LP VALVE OPEN' }],
+  ['280023201', { group: 'FUEL$3', text: ' FQI CH 1 FAULT' }],
+  ['280023301', { group: 'FUEL$3', text: ' FQI CH 2 FAULT' }],
   ['216120601', { group: 'AIR$4', text: ' PACK 1+2 FAULT' }],
   ['216120602', { text: '\x1b<5m -PACK 1.............OFF' }],
   ['216120603', { text: '\x1b<5m -PACK 2.............OFF' }],

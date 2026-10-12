@@ -1721,6 +1721,32 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the FADEC shuts the engine down and it cannot relight. Cuts the engine fuel (A32NX_ENGINE_{number}_FUEL_CUT)
 
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_OPEN
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine LP fuel valve remains (partly) open while the ENG MASTER or the ENG FIRE pushbutton commands it closed, once its travel time plus 1 s is over: the valve is jammed (flyPad failure 28040-28043 "ENG n LP fuel valve jammed in place"). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine LP fuel valve remains (partly) closed while it is commanded open, once its travel time plus 1 s is over (jammed valve). The engine is then starved (A32NX_FUEL_ENG_{number}_STARVED). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A380X_FUEL_LEAK_DETECTED
+  - Bool
+  - True when the FQMS fuel system leak detection has found a leak (FCOM DSC-28-40 FUEL LEAK DETECTION): the BLOCK fuel (FOB + fuel used when the four engines first run) exceeds the FOB + fuel used by more than 15 450 lb (slow leak), or the FOB decrease exceeds the fuel used by more than 4 400 lb within the last 30 min (fast leak). Stays until the end of the flight. Gives FUEL LEAK DETECTED. Written by systems-host CpiomF/FuelLeak
+
+- A380X_FUEL_LEAK_DET_FAULT
+  - Bool
+  - True while the FQMS fuel system leak detection is inhibited (an engine not running in flight, fuel jettison in progress): FUEL LEAK DET FAULT. The slow leak detection is then lost until the end of the flight. Written by systems-host CpiomF/FuelLeak
+
 - A380X_FUEL_FEED_TK_{number}_{pump}_PMP_LO_PR
   - Bool
   - {number}

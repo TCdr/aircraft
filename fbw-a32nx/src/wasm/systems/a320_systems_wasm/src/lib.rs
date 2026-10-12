@@ -453,6 +453,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_041, FailureType::ThrustLeverResolvers(2)),
         (73_050, FailureType::ThrustLeverResolverDisagree(1)),
         (73_051, FailureType::ThrustLeverResolverDisagree(2)),
+        (28_007, FailureType::EngineLpValveJammed(1)),
+        (28_008, FailureType::EngineLpValveJammed(2)),
         (73_100, FailureType::EngineFuelFilterClog(1)),
         (73_101, FailureType::EngineFuelFilterClog(2)),
         (78_000, FailureType::ReverserFault(1)),
@@ -498,6 +500,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable_range("FUELSYSTEM PUMP ACTIVE", "Bool", 1..=7)?
     .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 1)?
     .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 2)?
+    // The fuel X FEED valve (gravity feed ceiling, a320_systems fuel/gravity_feed.rs)
+    .provides_aircraft_variable("FUELSYSTEM VALVE OPEN", "Percent over 100", 3)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 0)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 1)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 2)?

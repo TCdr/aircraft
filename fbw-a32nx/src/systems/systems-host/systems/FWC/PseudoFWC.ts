@@ -89,6 +89,12 @@ import {
 } from './Logic/EngineFailAlerts';
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
 import { FUEL_FILTER_CLOG_PHASE_INHIBITION, engineFuelFilterClog } from './Logic/EngineFuelFilterAlerts';
+import {
+  ENG_LP_VALVE_OPEN_PHASE_INHIBITION,
+  FQI_CHANNEL_FAULT_PHASE_INHIBITION,
+  fuelLpValveFqiAlerts,
+  readFuelLpValveFqiInputs,
+} from './Logic/FuelLpValveFqiAlerts';
 import { ElecSystemAcquisition } from './Acquisition/ElecSystemAcquisition';
 import {
   BAT_FAULT_PHASE_INHIBITION,
@@ -1947,6 +1953,12 @@ export class PseudoFWC {
   private readonly engine1FuelFilterClog = Subject.create(false);
 
   private readonly engine2FuelFilterClog = Subject.create(false);
+
+  /** FUEL ENG 1(2) LP VALVE OPEN, see Logic/FuelLpValveFqiAlerts */
+  private readonly fuelEngLpValveOpen = [Subject.create(false), Subject.create(false)];
+
+  /** FUEL FQI CH 1(2) FAULT, see Logic/FuelLpValveFqiAlerts */
+  private readonly fuelFqiChannelFault = [Subject.create(false), Subject.create(false)];
 
   /** ELEC BAT/BCL FAULT, IDG OIL LO PR/OVHT, GEN/APU GEN OVERLOAD, STATIC INV FAULT, see Logic/ElecSystemAlerts */
   private readonly elecSystem = new ElecSystemAcquisition();
@@ -5372,6 +5384,13 @@ export class PseudoFWC {
         }),
       );
     });
+
+    /* FUEL ENG 1(2) LP VALVE OPEN, FUEL FQI CH 1(2) FAULT (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts) */
+    const fuelLpValveFqi = fuelLpValveFqiAlerts(
+      readFuelLpValveFqiInputs((name) => SimVar.GetSimVarValue(name, 'bool')),
+    );
+    this.fuelEngLpValveOpen.forEach((alert, index) => alert.set(fuelLpValveFqi.engLpValveOpen[index]));
+    this.fuelFqiChannelFault.forEach((alert, index) => alert.set(fuelLpValveFqi.fqiChannelFault[index]));
 
     /* ELEC system failures (FCOM PRO-ABN-ELEC, see Logic/ElecSystemAlerts) */
     this.elecSystemAlerts.update(this.elecSystem.read());
@@ -10685,6 +10704,50 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => ['280300010'],
       statusInfo: () => ['280200001', '280200002'],
+    },
+    2800230: {
+      // FUEL ENG 1 LP VALVE OPEN (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts): amber, crew awareness
+      flightPhaseInhib: ENG_LP_VALVE_OPEN_PHASE_INHIBITION,
+      simVarIsActive: this.fuelEngLpValveOpen[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280023001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+    },
+    2800231: {
+      // FUEL ENG 2 LP VALVE OPEN (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts): amber, crew awareness
+      flightPhaseInhib: ENG_LP_VALVE_OPEN_PHASE_INHIBITION,
+      simVarIsActive: this.fuelEngLpValveOpen[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280023101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+    },
+    2800232: {
+      // FUEL FQI CH 1 FAULT (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts): amber, crew awareness
+      flightPhaseInhib: FQI_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fuelFqiChannelFault[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280023201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
+    },
+    2800233: {
+      // FUEL FQI CH 2 FAULT (FCOM PRO-ABN-FUEL, see Logic/FuelLpValveFqiAlerts): amber, crew awareness
+      flightPhaseInhib: FQI_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fuelFqiChannelFault[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280023301'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FUEL,
+      side: 'LEFT',
     },
   };
 

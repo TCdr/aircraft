@@ -198,6 +198,9 @@ pub enum FailureType {
     ThrustLeverResolverDisagree(usize),
     /// The fuel filter of engine n is clogged: a crew awareness indication (engine::fuel_filter_failure)
     EngineFuelFilterClog(usize),
+    /// The LP fuel valve of engine n is jammed in its position: it no longer follows the ENG MASTER
+    /// and the ENG FIRE pushbutton (fuel::engine_lp_valve)
+    EngineLpValveJammed(usize),
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),

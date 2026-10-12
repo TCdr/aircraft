@@ -180,6 +180,22 @@ export function ctrTkXfrValveNotFullyOpenVar(side: 'L' | 'R'): string {
   return `L:A32NX_FUEL_CTR_TK_${side}_XFR_VALVE_NOT_FULLY_OPEN`;
 }
 
+/**
+ * The two channels of the fuel quantity indicating computer (FQI). A failed channel gives FUEL FQI CH 1(2) FAULT, "This
+ * alert triggers when a FQI channel is failed" (A320 FCOM PRO-ABN-FUEL, a320_fcom.txt l.85886-85896): crew awareness.
+ * The other channel keeps the fuel quantity indications. Not simulated: the loss of the fuel quantities when both
+ * channels are failed.
+ */
+export const A320_FQI_CHANNELS: readonly { channel: number; failure: number }[] = [
+  { channel: 1, failure: A320Failure.FqiChannel1 },
+  { channel: 2, failure: A320Failure.FqiChannel2 },
+];
+
+/** The L:var that tells the FWC that a channel of the FQI is failed */
+export function fqiChannelFaultVar(channel: number): string {
+  return `L:A32NX_FUEL_FQI_CHANNEL_${channel}_FAULT`;
+}
+
 /** The failures this module reads */
 export type FailureStates = Pick<FailuresConsumer, 'update' | 'isActive'>;
 
@@ -323,6 +339,10 @@ export class FuelPumpsAndValves implements Instrument {
         SimVar.GetSimVarValue(`A:FUELSYSTEM LINE FUEL PRESSURE:${outletLine}`, SimVarValueType.PSI),
       );
       SimVar.SetSimVarValue(tankPumpLowPressureVar(pump), SimVarValueType.Bool, lowPressure);
+    }
+
+    for (const { channel, failure } of A320_FQI_CHANNELS) {
+      SimVar.SetSimVarValue(fqiChannelFaultVar(channel), SimVarValueType.Bool, this.failures.isActive(failure));
     }
   }
   /** How far a centre tank transfer valve is open now, 0 to 1 */
