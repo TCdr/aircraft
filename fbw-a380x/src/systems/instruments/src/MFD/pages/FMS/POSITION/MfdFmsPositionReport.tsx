@@ -25,6 +25,7 @@ import { FreeTextFormat } from '../../common/DataEntryFormats';
 import { FmsTimeReference } from '../../../FMC/FmsTimeKeeper';
 
 import './MfdFmsPositionReport.scss';
+import { activeFlightPhaseSubject } from '../../common/activeFlightPhase';
 
 interface MfdFmsPositionReportProps extends AbstractMfdPageProps {}
 
@@ -60,6 +61,9 @@ const cruiseProfileChangeTypes: ReadonlyMap<string, string> = new Map([
  * Not modelled: sending the report to the airline via ACARS (SEND REPORT).
  */
 export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
+  /** The FMS flight phase (this page loads no flight plan, so it is not given by FmsFlightPlanPage) */
+  private readonly activeFlightPhase = activeFlightPhaseSubject(this.props.bus);
+
   private readonly timeKeeper = this.props.fmcService.master.timeKeeper;
 
   private readonly lastSequenced = new WaypointLine();
@@ -121,7 +125,9 @@ export class MfdFmsPositionReport extends FmsPage<MfdFmsPositionReportProps> {
         .on('realTime')
         .atFrequency(1)
         .handle(() => this.updateReport()),
+      this.activeFlightPhase,
     );
+    this.onNewData();
   }
 
   protected onNewData(): void {

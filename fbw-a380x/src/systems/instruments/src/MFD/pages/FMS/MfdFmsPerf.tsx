@@ -1,6 +1,7 @@
 // Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 import { DropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
+import { dropdownEntryIndex } from '../../../MsfsAvionicsCommon/UiWidgets/DropdownEntry';
 import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { TopTabNavigator, TopTabNavigatorPage } from '../../../MsfsAvionicsCommon/UiWidgets/TopTabNavigator';
 
@@ -43,7 +44,7 @@ import {
 } from '../common/DataEntryFormats';
 import { maxCertifiedAlt, Mmo, Vmo } from '@shared/PerformanceConstants';
 import { ConfirmationDialog } from '../../../MsfsAvionicsCommon/UiWidgets/ConfirmationDialog';
-import { FmsPage } from '../common/FmsPage';
+import { FmsFlightPlanPage } from '../common/FmsFlightPlanPage';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FmgcData } from '../../FMC/fmgc';
 import { ConditionalComponent } from '../../../MsfsAvionicsCommon/UiWidgets/ConditionalComponent';
@@ -55,6 +56,7 @@ import { CompanyTakeoffDataButton } from './MfdFmsCpnyToRequest';
 import {
   getEtaFromUtcOrPresent as getEtaUtcOrFromPresent,
   getApproachName,
+  onEntryNotInList,
   showReturnButtonUriExtra,
 } from '../../shared/utils';
 import { ApproachType, NXDataStore } from '@flybywiresim/fbw-sdk';
@@ -83,7 +85,7 @@ enum FlightPhaseTabIndex {
   GoAround = 5,
 }
 
-export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
+export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   /** FCOM DSC-22-FMS-20-30 P 34 / P 231: the tab panels span y = 266 to 890 of the display */
   private static readonly panelFrameStyle = 'flex: 0 0 auto; box-sizing: border-box; height: 624px;';
 
@@ -370,6 +372,12 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
   private readonly toDeratedInputRef = FSComponent.createRef<HTMLDivElement>();
 
   private readonly toDeratedThrustOptions = ArraySubject.create(['D01', 'D02', 'D03', 'D04', 'D05']);
+
+  /** T.O FLAPS lever positions (FCOM: 1, 2 or 3) */
+  private readonly toFlapsLabels = ArraySubject.create(['1', '2', '3']);
+
+  /** DERATED CLB levels (FCOM: NONE and up to five derated climb levels) */
+  private readonly climbDeratedLabels = ArraySubject.create(['NONE', '01', '02', '03', '04', '05']);
 
   private toThrustSettingChanged(newIndex: TakeoffPowerSetting) {
     const fpIndex = this.loadedFlightPlanIndex.get();
@@ -1400,7 +1408,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
               </div>
             </div>
             <TopTabNavigator
-              pageTitles={Subject.create(['T.O', 'CLB', 'CRZ', 'DES', 'APPR', 'GA'])}
+              pageTitles={['T.O', 'CLB', 'CRZ', 'DES', 'APPR', 'GA']}
               selectedPageIndex={this.flightPhasesSelectedPageIndex}
               pageChangeCallback={(val) => {
                 this.flightPhasesSelectedPageIndex.set(val);
@@ -1448,8 +1456,9 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                     <InputField<number>
                       dataEntryFormat={new SpeedKnotsFormat(Subject.create(90), Subject.create(Vmo))}
                       dataHandlerDuringValidation={async (v) => {
-                        this.props.flightPlanInterface.setPerformanceData('v1', v, this.loadedFlightPlanIndex.get());
-                        SimVar.SetSimVarValue('L:AIRLINER_V1_SPEED', 'Knots', v);
+                        // The V speed LVars of the active flight plan are written by the FmcAircraftInterface
+                        const fpIndex = this.loadedFlightPlanIndex.get();
+                        this.props.flightPlanInterface.setPerformanceData('v1', v, fpIndex);
                       }}
                       mandatory={this.mandatoryAndActiveFpln}
                       inactive={this.toPageInactive}
@@ -1468,8 +1477,8 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                     <InputField<number>
                       dataEntryFormat={new SpeedKnotsFormat(Subject.create(90), Subject.create(Vmo))}
                       dataHandlerDuringValidation={async (v) => {
-                        SimVar.SetSimVarValue('L:AIRLINER_VR_SPEED', 'Knots', v);
-                        this.props.flightPlanInterface.setPerformanceData('vr', v, this.loadedFlightPlanIndex.get());
+                        const fpIndex = this.loadedFlightPlanIndex.get();
+                        this.props.flightPlanInterface.setPerformanceData('vr', v, fpIndex);
                       }}
                       mandatory={this.mandatoryAndActiveFpln}
                       inactive={this.toPageInactive}
@@ -1488,8 +1497,8 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                     <InputField<number>
                       dataEntryFormat={new SpeedKnotsFormat(Subject.create(90), Subject.create(Vmo))}
                       dataHandlerDuringValidation={async (v) => {
-                        SimVar.SetSimVarValue('L:AIRLINER_V2_SPEED', 'Knots', v);
-                        this.props.flightPlanInterface.setPerformanceData('v2', v, this.loadedFlightPlanIndex.get());
+                        const fpIndex = this.loadedFlightPlanIndex.get();
+                        this.props.flightPlanInterface.setPerformanceData('v2', v, fpIndex);
                       }}
                       mandatory={this.mandatoryAndActiveFpln}
                       inactive={this.toPageInactive}
@@ -1540,27 +1549,13 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                         }
                         onClick={() => {
                           const fm = this.props.fmcService.master.fmgc.data;
+                          const fpIndex = this.loadedFlightPlanIndex.get();
                           if (fm && this.loadedFlightPlan) {
-                            SimVar.SetSimVarValue('L:AIRLINER_V1_SPEED', 'Knots', fm.v1ToBeConfirmed.get());
-                            this.props.flightPlanInterface.setPerformanceData(
-                              'v1',
-                              fm.v1ToBeConfirmed.get(),
-                              this.loadedFlightPlanIndex.get(),
-                            );
+                            this.props.flightPlanInterface.setPerformanceData('v1', fm.v1ToBeConfirmed.get(), fpIndex);
                             fm.v1ToBeConfirmed.set(null);
-                            SimVar.SetSimVarValue('L:AIRLINER_VR_SPEED', 'Knots', fm.vrToBeConfirmed.get());
-                            this.props.flightPlanInterface.setPerformanceData(
-                              'vr',
-                              fm.vrToBeConfirmed.get(),
-                              this.loadedFlightPlanIndex.get(),
-                            );
+                            this.props.flightPlanInterface.setPerformanceData('vr', fm.vrToBeConfirmed.get(), fpIndex);
                             fm.vrToBeConfirmed.set(null);
-                            SimVar.SetSimVarValue('L:AIRLINER_V2_SPEED', 'Knots', fm.v2ToBeConfirmed.get());
-                            this.props.flightPlanInterface.setPerformanceData(
-                              'v2',
-                              fm.v2ToBeConfirmed.get(),
-                              this.loadedFlightPlanIndex.get(),
-                            );
+                            this.props.flightPlanInterface.setPerformanceData('v2', fm.v2ToBeConfirmed.get(), fpIndex);
                             fm.v2ToBeConfirmed.set(null);
                           }
                         }}
@@ -1657,7 +1652,11 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                       <DropdownMenu
                         values={this.toDeratedThrustOptions}
                         selectedIndex={this.takeoffDerated}
-                        onModified={(val) => {
+                        onModified={(i, text) => {
+                          const val = dropdownEntryIndex(this.toDeratedThrustOptions, i, text);
+                          if (val === null) {
+                            return;
+                          }
                           this.toDeratedThrustPrevious = this.takeoffDerated.get();
                           this.toDeratedThrustNext = val;
                           this.toDeratedDialogTitle.set(`DERATED ${this.toDeratedThrustOptions.get(val ?? 0)}`);
@@ -1665,7 +1664,8 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                         }}
                         inactive={this.toPageInactive}
                         idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_deratedDropdown`}
-                        freeTextAllowed={false}
+                        keyboardEntryAllowed // FCOM T.O DERATED: selected in the list or entered with the keyboard
+                        errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                         containerStyle="width: 90px;"
                         numberOfDigitsForInputField={3}
                         alignLabels="flex-start"
@@ -1709,10 +1709,11 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                     323,
                     12,
                     <DropdownMenu
-                      values={ArraySubject.create(['1', '2', '3'])}
+                      values={this.toFlapsLabels}
                       inactive={this.toPageInactive}
                       selectedIndex={this.toSelectedFlapsIndex}
-                      onModified={(newIndex) => {
+                      onModified={(i, text) => {
+                        const newIndex = dropdownEntryIndex(this.toFlapsLabels, i, text);
                         // Convert to FlapConf
                         if (newIndex != null) {
                           const flapConf = newIndex + 1;
@@ -1728,7 +1729,8 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                         }
                       }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_flapDropdown`}
-                      freeTextAllowed={false}
+                      keyboardEntryAllowed // FCOM T.O FLAPS SETTING: selected in the list or entered with the keyboard
+                      errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                       containerStyle="width: 60px;"
                       numberOfDigitsForInputField={1}
                       alignLabels="center"
@@ -1783,7 +1785,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                         );
                       }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_packsDropdown`}
-                      freeTextAllowed={false}
+                      freeTextAllowed={false} // FCOM T.O PACKS: selected in the list only
                       numberOfDigitsForInputField={8}
                       alignLabels="center"
                       containerStyle="width: 200px;"
@@ -1813,7 +1815,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                         );
                       }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_antiIceDropdown`}
-                      freeTextAllowed={false}
+                      freeTextAllowed={false} // FCOM T.O ANTI ICE: selected in the list only
                       numberOfDigitsForInputField={10}
                       alignLabels="center"
                       containerStyle="width: 200px;"
@@ -2101,18 +2103,22 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                   <div class="mfd-label-value-container">
                     <span class="mfd-label mfd-spacing-right">DERATED CLB</span>
                     <DropdownMenu
-                      values={ArraySubject.create(['NONE', '01', '02', '03', '04', '05'])}
+                      values={this.climbDeratedLabels}
                       inactive={Subject.create(true)}
                       selectedIndex={this.climbDerated as Subscribable<ClimbDerated>}
-                      onModified={(v) =>
-                        this.props.flightPlanInterface.setPerformanceData(
-                          'climbDerated',
-                          v,
-                          this.loadedFlightPlanIndex.get(),
-                        )
-                      }
+                      onModified={(i, text) => {
+                        const v = dropdownEntryIndex(this.climbDeratedLabels, i, text);
+                        if (v !== null) {
+                          this.props.flightPlanInterface.setPerformanceData(
+                            'climbDerated',
+                            v,
+                            this.loadedFlightPlanIndex.get(),
+                          );
+                        }
+                      }}
                       idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_deratedClbDropdown`}
-                      freeTextAllowed={false}
+                      keyboardEntryAllowed // FCOM DERATED CLIMB THRUST LIST: selected in the list or entered with the keyboard
+                      errorOnNotInList={() => onEntryNotInList(this.props.fmcService)}
                       containerStyle="width: 125px;"
                       numberOfDigitsForInputField={4}
                       alignLabels="center"
@@ -2820,8 +2826,7 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                           <InputField<number, number, false>
                             dataEntryFormat={new WindDirectionFormat()}
                             dataHandlerDuringValidation={async (v) => {
-                              this.props.flightPlanInterface.setPerformanceData(
-                                'approachWindDirection',
+                              this.props.fmcService.master.setApproachWindDirection(
                                 v,
                                 this.loadedFlightPlanIndex.get(),
                               );
@@ -2836,19 +2841,15 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                           <InputField<number, number, false>
                             dataEntryFormat={new WindSpeedFormat()}
                             dataHandlerDuringValidation={async (v) => {
-                              this.props.flightPlanInterface.setPerformanceData(
-                                'approachWindMagnitude',
-                                v,
-                                this.loadedFlightPlanIndex.get(),
-                              );
+                              this.props.fmcService.master.setApproachWindSpeed(v, this.loadedFlightPlanIndex.get());
                             }}
                             readonlyValue={this.approachWindMagnitude}
+                            disabled={this.isDestAirportMissing}
                             containerStyle="margin-left: 10px;"
                             alignText="center"
                             errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}
                             hEventConsumer={this.props.mfd.hEventConsumer}
                             interactionMode={this.props.mfd.interactionMode}
-                            disabled={this.isDestAirportMissing}
                           />
                         </div>
                       </div>
@@ -2899,7 +2900,6 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                               v,
                               this.loadedFlightPlanIndex.get(),
                             );
-                            SimVar.SetSimVarValue('L:A32NX_DESTINATION_QNH', 'Millibar', qnhToMillibar(v));
                           }}
                           mandatory={this.approachParametersMandatory}
                           readonlyValue={this.approachQnh}
@@ -2919,12 +2919,8 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                         <InputField<number, number, false>
                           dataEntryFormat={new AltitudeFormat(Subject.create(0), Subject.create(maxCertifiedAlt))}
                           dataHandlerDuringValidation={async (v) => {
-                            this.props.flightPlanInterface.setPerformanceData(
-                              'approachBaroMinimum',
-                              v,
-                              this.loadedFlightPlanIndex.get(),
-                            );
-                            SimVar.SetSimVarValue('L:AIRLINER_MINIMUM_DESCENT_ALTITUDE', 'feet', v);
+                            const fpIndex = this.loadedFlightPlanIndex.get();
+                            this.props.flightPlanInterface.setPerformanceData('approachBaroMinimum', v, fpIndex);
                           }}
                           readonlyValue={this.approachBaroMinimum}
                           containerStyle="width: 150px;"
@@ -2942,12 +2938,8 @@ export class MfdFmsPerf extends FmsPage<MfdFmsPerfProps> {
                             <InputField<number, number, false>
                               dataEntryFormat={new RadioAltitudeFormat()}
                               dataHandlerDuringValidation={async (v) => {
-                                this.props.flightPlanInterface.setPerformanceData(
-                                  'approachRadioMinimum',
-                                  v,
-                                  this.loadedFlightPlanIndex.get(),
-                                );
-                                SimVar.SetSimVarValue('L:AIRLINER_DECISION_HEIGHT', 'feet', v === null ? -1 : v);
+                                const fpIndex = this.loadedFlightPlanIndex.get();
+                                this.props.flightPlanInterface.setPerformanceData('approachRadioMinimum', v, fpIndex);
                               }}
                               readonlyValue={this.approachRadioMinimum}
                               containerStyle="width: 150px;"

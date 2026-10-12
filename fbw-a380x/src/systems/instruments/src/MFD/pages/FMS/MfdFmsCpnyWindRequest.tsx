@@ -5,31 +5,40 @@
 import { FSComponent, MappedSubject, Subject, VNode } from '@microsoft/msfs-sdk';
 
 import { AbstractMfdPageProps } from '../../MFD';
-import { FmsPage } from '../common/FmsPage';
+import { FmsFlightPlanPage } from '../common/FmsFlightPlanPage';
 import { Footer } from '../common/Footer';
 import { freeTextSendControls } from '../common/FreeTextSendControls';
-import { CpnyWindButton } from '../../shared/CpnyWindButtonUtils';
+import { CpnyWindButtonStateTracker } from './CpnyWindButtonUtils';
+import { isCpnyWindButtonDisabled } from './CpnyWindButtonRule';
 
 interface MfdFmsCpnyWindRequestProps extends AbstractMfdPageProps {}
 
 /**
- * COMPANY WIND DATA REQUEST page (A380 FCOM DSC-22-FMS-20-30 P 42-44): free text sent with the company wind request
- * of the flight plan the page was opened from, and the SEND WIND REQUEST button (REQUEST PENDING ... during the
- * request). The company ground station is SimBrief, through the AOC datalink; the free text is not sent.
+ * COMPANY WIND DATA REQUEST page (A380 FCOM a380_fcom.txt l.42121-42128, free text option): free text sent with the
+ * company wind request of the flight plan the page was opened from, and the SEND WIND REQUEST button (REQUEST
+ * PENDING ... while the request is pending). The company ground station is SimBrief, through the AOC datalink: the
+ * free text is kept on the page and not sent (SimBrief has no use for it).
  */
-export class MfdFmsCpnyWindRequest extends FmsPage<MfdFmsCpnyWindRequestProps> {
+export class MfdFmsCpnyWindRequest extends FmsFlightPlanPage<MfdFmsCpnyWindRequestProps> {
   private readonly freeText = Subject.create<string | null>(null);
 
-  private readonly button = new CpnyWindButton(this.props.fmcService.master, this.loadedFlightPlanIndex);
+  private readonly fpIsActiveOrCopyOfActive = Subject.create(false);
 
-  private readonly pending = this.button.label.map((l) => l.startsWith('REQUEST'));
+  private readonly tracker = new CpnyWindButtonStateTracker(
+    this.props.fmcService.master,
+    this.loadedFlightPlanIndex,
+    this.tmpyActive,
+    this.fpIsActiveOrCopyOfActive,
+  );
+
+  private readonly pending = this.tracker.state.map((s) => s.cpnyWindUplinkInProgress);
 
   private readonly sendLabel = this.pending.map((p) => (p ? 'REQUEST<br />PENDING...' : 'SEND WIND<br />REQUEST *'));
 
+  /** No second request while one is pending, nor once winds were received for this plan (INSERT/CLEAR first) */
   private readonly sendDisabled = MappedSubject.create(
-    ([pending, index]) => pending || !this.props.fmcService.master.isCompanyWindRequestAllowed(index),
-    this.pending,
-    this.loadedFlightPlanIndex,
+    ([state]) => state.cpnyWindUplinkInProgress || state.availableForPlan || isCpnyWindButtonDisabled(state),
+    this.tracker.state,
   );
 
   public onAfterRender(node: VNode): void {
@@ -45,11 +54,13 @@ export class MfdFmsCpnyWindRequest extends FmsPage<MfdFmsCpnyWindRequestProps> {
   }
 
   protected onNewData(): void {
-    // The request state is followed through the FMC subscribables
+    const plans = this.props.fmcService.master.flightPlanInterface;
+    const index = this.loadedFlightPlanIndex.get();
+    this.fpIsActiveOrCopyOfActive.set(plans.has(index) ? plans.get(index).isActiveOrCopiedFromActive() : false);
   }
 
   destroy(): void {
-    this.button.destroy();
+    this.tracker.destroy();
     super.destroy();
   }
 
@@ -64,7 +75,7 @@ export class MfdFmsCpnyWindRequest extends FmsPage<MfdFmsCpnyWindRequestProps> {
               freeText: this.freeText,
               sendLabel: this.sendLabel,
               sendDisabled: this.sendDisabled,
-              onSend: () => this.props.fmcService.master.requestCompanyWinds(this.loadedFlightPlanIndex.get()),
+              onSend: () => this.props.fmcService.master.requestCpnyWind(this.loadedFlightPlanIndex.get()),
               onReturn: () => this.props.mfd.uiService.navigateTo('back'),
               mfd: this.props.mfd,
               fmcService: this.props.fmcService,

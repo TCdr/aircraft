@@ -788,7 +788,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidClassDropdown`}
             selectedIndex={this.newClass}
             values={this.newClassLabels}
-            freeTextAllowed={false}
+            freeTextAllowed={false} // FCOM NEW NAVAID: the class is entered by using the selection list
             containerStyle="width: 172px;"
             alignLabels="flex-start"
             numberOfDigitsForInputField={7}
@@ -859,7 +859,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidCatDropdown`}
             selectedIndex={this.newCategory}
             values={ArraySubject.create(['1', '2', '3'])}
-            freeTextAllowed={false}
+            freeTextAllowed={false} // FCOM NEW NAVAID: CAT 1, 2 or 3, list only (no entry format)
             containerStyle="width: 55px;"
             alignLabels="flex-start"
             numberOfDigitsForInputField={1}
@@ -888,7 +888,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
               idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidFomDropdown`}
               selectedIndex={this.newFigureOfMerit}
               values={ArraySubject.create(figureOfMeritLabels)}
-              freeTextAllowed={false}
+              freeTextAllowed={false} // FCOM NEW NAVAID: FIG OF MERIT 0-3, list only (no entry format)
               containerStyle="width: 174px;"
               alignLabels="flex-start"
               numberOfDigitsForInputField={8}
@@ -906,7 +906,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
               idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidFomDropdown`}
               selectedIndex={this.newFigureOfMerit}
               values={ArraySubject.create(figureOfMeritLabels)}
-              freeTextAllowed={false}
+              freeTextAllowed={false} // FCOM NEW NAVAID: FIG OF MERIT 0-3, list only (no entry format)
               containerStyle="width: 174px;"
               alignLabels="flex-start"
               numberOfDigitsForInputField={8}
@@ -1023,7 +1023,7 @@ export class MfdFmsDataNavaid extends FmsPage<MfdFmsDataNavaidProps> {
                     idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_dataNavaidStoredDropdown`}
                     selectedIndex={this.selectedStored}
                     values={this.storedIdents}
-                    freeTextAllowed={false}
+                    freeTextAllowed={false} // FCOM PILOT STORED NAVAIDS NAVAID IDENT LIST: list only
                     containerStyle="width: 178px;"
                     alignLabels="center"
                     numberOfDigitsForInputField={4}

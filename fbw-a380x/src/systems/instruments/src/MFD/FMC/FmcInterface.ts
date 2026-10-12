@@ -5,7 +5,7 @@ import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayIn
 import { NavaidTuner } from '@fmgc/navigation/NavaidTuner';
 import { NavigationProvider } from '@fmgc/navigation/NavigationProvider';
 import { ArraySubject, Subject, Subscribable } from '@microsoft/msfs-sdk';
-import { CompanyWindRequestState, FmsErrorMessage } from './FlightManagementComputer';
+import { FmsErrorMessage } from './FlightManagementComputer';
 import { FmcAircraftInterface } from './FmcAircraftInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmgcDataService } from './fmgc';
@@ -24,7 +24,6 @@ import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
-import { WindEntry } from '@fmgc/flightplanning/data/wind';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { SequencedWaypointRecord } from './SequencedWaypointRecorder';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
@@ -130,9 +129,9 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
   get enginesWereStarted(): Subject<boolean>;
 
   /**
-   * Returns whether active flight plan exists
+   * Returns whether active flight plan exists with a city pair
    */
-  get hasActiveFlightPlan(): Subject<boolean>;
+  get hasActiveFlightPlanWithCityPair(): Subject<boolean>;
 
   /** FUEL PLANNING: the computed minimum BLOCK fuel in tonnes, until confirmed (A380 FCOM DSC-22-FMS-20-30 P 179) */
   readonly fuelPlanningBlockFuel: Subscribable<number | null>;
@@ -298,10 +297,53 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
   cpnyFplnRequest(forPlan: FlightPlanIndex): void;
 
   /**
+   * Request CPNY WIND from ACARS
+   * @param forPlan flight plan to request CPNY WIND for
+   */
+  requestCpnyWind(forPlan: FlightPlanIndex): void;
+
+  /**
+   * Get a subscribable which indicates whether a CPNY FPLN uplink request is in progress.
+   */
+  getCpnyFplnUplinkInProgress(): Subscribable<boolean>;
+
+  /**
    * Insert CPNY FPLN into flight plan where request has been made from
    * @param intoPlan Flight plan to insert CPNY FPLN into
    */
   insertCpnyFpln(intoPlan: FlightPlanIndex): void;
+
+  /**
+   * Deletes the CPNY FPLN Uplink.
+   */
+  deleteCpnyFpln(): void;
+
+  /**
+   * Get a subscribable which indicates whether the CPNY FPLN is available for insertion for a given flight plan.
+   */
+  getCpnyFplnAvailable(): Subscribable<boolean>;
+
+  /**
+   * Get a subscribable which indicates whether an uplink request is in progress.
+   */
+  getUplinkInProgress(): Subscribable<boolean>;
+
+  /**
+   * Get a subscribable which indicates for which flight plan the CPNY FPLN has been requested, or null if no request has been made.
+   */
+  getCpnyFplnRequestedForPlan(): Subscribable<FlightPlanIndex | null>;
+
+  /**
+   * Inserts the CPNY WIND into the flight plan where the request has been made from.
+   * @param flightPlanIndex flight plan to insert
+   */
+  insertCpnyWind(flightPlanIndex: number): void;
+
+  /**
+   * Deletes the CPNY WIND Uplink from the flight plan where the request has been made from.
+   * @param flightPlanIndex flight plan to delete CPNY WIND Uplink from
+   */
+  deleteCpnyWind(flightPlanIndex: number): void;
 
   /**
    * Whether the secondary flight plan can be activated or swapped with the active flight plan
@@ -331,28 +373,6 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /** The time constraint (RTA) of the active flight plan (FCOM: only one time constraint in the flight plan) */
   readonly timeConstraint: Subject<TimeConstraint | null>;
-
-  /** State of the company wind request of a flight plan */
-  companyWindRequestState(planIndex: FlightPlanIndex): Subscribable<CompanyWindRequestState>;
-
-  /** Whether a company wind request is possible for a flight plan (not in DES, APPR, GA) */
-  isCompanyWindRequestAllowed(planIndex: FlightPlanIndex): boolean;
-
-  /** Sends a company wind request (the answer stays pending until inserted or cleared) */
-  requestCompanyWinds(planIndex: FlightPlanIndex): Promise<void>;
-
-  /** Inserts the received company winds */
-  insertCompanyWinds(planIndex: FlightPlanIndex): Promise<void>;
-
-  /** Clears the received company winds */
-  clearCompanyWinds(planIndex: FlightPlanIndex): void;
-
-  /**
-   * The history winds: the descent winds recorded during the previous flight at FL 050, FL 150, FL 250 and the cruise
-   * level (A380 FCOM DSC-22-FMS-20-30, WIND page, HISTORY WINDS), for the WIND page's HISTORY panel.
-   * @param cruiseLevel the cruise flight level of the active flight plan, to interpolate a wind for it
-   */
-  getHistoryWinds(cruiseLevel: number | null): Readonly<WindEntry>[];
 
   /** UTC, block / flight times and the PERM DATA SETUP time reference (POSITION / TIME page). */
   get timeKeeper(): FmsTimeKeeper;
@@ -419,4 +439,21 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
 
   /** Clean up all subscriptions */
   destroy(): void;
+
+  /** Sends a request to the AOC to reset the ATIS auto update airports */
+  resetAtisAutoUpdate(): void;
+
+  /**
+   * Get a subscribable which indicates whether the wind uplink is available to insert for a given flight plan.
+   * @param planIndex the flightplan to get the uplink status for. If undefined, will return whether the uplink is available for any flight plan.
+   */
+  getWindUplinkAvailableForPlan(planIndex?: FlightPlanIndex): Subscribable<boolean>;
+
+  /**
+   * Get a subscribable which indicates whether a wind uplink request is in progress.
+   */
+  getCpnyWindUplinkInProgress(): Subscribable<boolean>;
+
+  setApproachWindDirection(value: number | null, forPlan: number): void;
+  setApproachWindSpeed(value: number | null, forPlan: number): void;
 }
