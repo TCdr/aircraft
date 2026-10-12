@@ -22,6 +22,14 @@ import {
  * communication buttons, status, colors and pages.
  */
 
+/**
+ * The top of the mailbox on the DU, in pixels: the bottom 256 px of the 768 x 1024 SD (FCOM DSC-31-40-10, a380_fcom.txt:72777:
+ * "The bottom section displays the mailbox"). The same on every DU that draws the SD, the SD DU and the ND DUs (CDS reconfiguration):
+ * their textures and the SDv2 gauges on them are all 768 x 1024 at 0,0 (panel.cfg), so the KCCU cursor needs no other
+ * offset there.
+ */
+export const MAILBOX_TOP_ON_DU = 768;
+
 /** A message of the mailbox queue: the messages of the ATC function shown together, and the crew selections */
 export interface MailboxBlock {
   uid: number;
@@ -597,4 +605,103 @@ const INFORMATION: Partial<Record<MailboxStatusMessage, string>> = {
  */
 export function informationText(status: MailboxStatusMessage): string {
   return INFORMATION[status] ?? '';
+}
+
+/** A block of the mailbox file of the ATC function (mailboxSnapshot), its messages converted */
+export interface MailboxFileBlock {
+  messages: CpdlcMessage[];
+  status: MailboxStatusMessage;
+}
+
+/**
+ * The information of a block rebuilt from the mailbox file: the information the ATC function keeps for the block
+ * (e.g. SENDING, LOAD OK); else the monitoring of the message, as a new message shows it (MONITORING, MONITORING
+ * CANCELLED); else MFD FOR MODIF, which only this client knows (the message is on the MFD for modification); else none.
+ * @param fileStatus the status in the mailbox file
+ * @param message the first message of the block
+ * @param localStatus the status this client had for the block, or null for a block it did not have
+ * @returns the status
+ */
+export function resyncedStatus(
+  fileStatus: MailboxStatusMessage,
+  message: CpdlcMessage,
+  localStatus: MailboxStatusMessage | null,
+): MailboxStatusMessage {
+  if (fileStatus !== MailboxStatusMessage.NoMessage) {
+    return fileStatus;
+  }
+  if (message.MessageMonitoring === CpdlcMessageMonitoringState.Monitoring) {
+    return MailboxStatusMessage.Monitoring;
+  }
+  if (message.MessageMonitoring === CpdlcMessageMonitoringState.Cancelled) {
+    return MailboxStatusMessage.MonitoringCancelled;
+  }
+  return localStatus === MailboxStatusMessage.FmsDisplayForModification ? localStatus : MailboxStatusMessage.NoMessage;
+}
+
+/**
+ * The mailbox queue rebuilt from the mailbox file of the ATC function (mailboxSnapshot): the blocks of the file, in its
+ * order. A block this client already had keeps the selections of the flight crew (prepared response, DUE TO, page);
+ * a block it did not have starts like a new message. The blocks of this client that are no longer in the file go.
+ * @param local the queue of this client
+ * @param file the blocks of the mailbox file, in the order they entered the mailbox
+ * @param nextArrival the arrival number of the next new block
+ * @param replyToOf the request an uplink message replies to (onMessages), for a new block
+ * @returns the queue, and the arrival number of the next new block
+ */
+export function queueFromMailboxFile(
+  local: readonly MailboxBlock[],
+  file: readonly MailboxFileBlock[],
+  nextArrival: number,
+  replyToOf: (message: CpdlcMessage) => MailboxBlock['replyTo'],
+): { blocks: MailboxBlock[]; nextArrival: number } {
+  let arrival = nextArrival;
+  const blocks = file
+    .filter((fileBlock) => fileBlock.messages.length !== 0)
+    .map((fileBlock): MailboxBlock => {
+      const first = fileBlock.messages[0];
+      const uid = first.UniqueMessageID;
+      const existing = local.find((block) => block.uid === uid);
+      if (existing) {
+        return {
+          ...existing,
+          messages: fileBlock.messages,
+          status: resyncedStatus(fileBlock.status, first, existing.status),
+        };
+      }
+      return {
+        uid,
+        messages: fileBlock.messages,
+        arrival: arrival++,
+        response: -1,
+        status: resyncedStatus(fileBlock.status, first, null),
+        page: 0,
+        lastPageSeen: 0,
+        dueTo: null,
+        replyTo: replyToOf(first),
+      };
+    });
+  return { blocks, nextArrival: arrival };
+}
+
+/**
+ * The message a mailbox client displays after rebuilding its queue from the mailbox file: the message the active client
+ * displayed (the crew finds the same message on the other DU), else the one this client displayed, else the first
+ * message of the queue, else none.
+ * @param blocks the rebuilt queue
+ * @param fileVisibleUid the displayed message in the mailbox file, -1 for none
+ * @param localVisibleUid the message this client displayed, or null
+ * @returns the message to display, or null
+ */
+export function resyncedVisibleUid(
+  blocks: readonly MailboxBlock[],
+  fileVisibleUid: number,
+  localVisibleUid: number | null,
+): number | null {
+  for (const uid of [fileVisibleUid, localVisibleUid]) {
+    if (uid !== null && blocks.some((block) => block.uid === uid)) {
+      return uid;
+    }
+  }
+  return blocks.length !== 0 ? blocks[0].uid : null;
 }

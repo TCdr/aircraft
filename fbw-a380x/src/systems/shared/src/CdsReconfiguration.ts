@@ -224,6 +224,63 @@ export function computeCdsDisplays(inputs: CdsReconfigurationInputs): DisplayUni
 }
 
 /**
+ * The DU that shows the ATC mailbox, the bottom section of the SD ("The lower section of the SD permanently displays the
+ * mailbox", a380_fcom.txt:95677; "The bottom section displays the mailbox", a380_fcom.txt:72777): the operative DU that
+ * shows the SD. "If the SD DU is turned OFF, use the F/O DU RECONF P/B for ATC mailbox" (PRO-ABN-ECAM-10-31,
+ * a380_fcom.txt:157950 and 158167): the SD on the F/O ND DU (or on the CAPT ND DU) brings the mailbox with it.
+ *
+ * Only one mailbox client may answer the flight crew and publish to the ATC function (displayed and read messages):
+ * - the SD DU, while it is operative and shows the SD (normal operation);
+ * - else the DU that shows the SD after the DU RECONF pb ("The EWD (SD) cannot be displayed on both sides at the same
+ *   time", a380_fcom.txt:63186-63187: one ND DU at most).
+ * - else none: the SD is shown nowhere, so no mailbox marks a new message as displayed / read (design choice: the ATC
+ *   ring and the ATC MSG lights go on until a DU shows the mailbox again).
+ * Design choice: the SD DU wins when it shows the SD too (an ND DU may also show the SD while the SD DU works, after a
+ * DU RECONF selection because of another failed DU): the mailbox on the ND DU then mirrors the SD DU's one.
+ * @param displays the display of each DU
+ * @param operative the DU states (powered, not failed, not switched off)
+ * @returns the DU, or null when no operative DU shows the SD
+ */
+export function mailboxDisplayUnit(
+  displays: Readonly<DisplayUnitMap<CdsDisplay>>,
+  operative: Readonly<DisplayUnitMap<boolean>>,
+): DisplayUnitID | null {
+  if (operative[DisplayUnitID.Sd] && displays[DisplayUnitID.Sd] === CdsDisplay.Sd) {
+    return DisplayUnitID.Sd;
+  }
+  return DISPLAY_UNITS.find((du) => du !== DisplayUnitID.Sd && operative[du] && displays[du] === CdsDisplay.Sd) ?? null;
+}
+
+/** The value of L:A380X_CDS_MAILBOX_DU when no DU shows the mailbox */
+export const NO_MAILBOX_DISPLAY_UNIT = -1;
+
+/**
+ * The L:A380X_CDS_MAILBOX_DU value for the DU that shows the mailbox: 0 for the SD DU, so the variable stays 0 in normal
+ * operation and before the systems host first writes it (the SD DU's mailbox is the active one then, as before the CDS
+ * reconfiguration); else the duID of that DU (never 0: the CAPT PFD DU cannot draw the SD), or -1 for none.
+ * @param du the DU, or null
+ * @returns the value
+ */
+export function encodeMailboxDisplayUnit(du: DisplayUnitID | null): number {
+  if (du === null) {
+    return NO_MAILBOX_DISPLAY_UNIT;
+  }
+  return du === DisplayUnitID.Sd ? 0 : du;
+}
+
+/**
+ * The DU that shows the mailbox, from the value of L:A380X_CDS_MAILBOX_DU (see encodeMailboxDisplayUnit)
+ * @param value the L:var value
+ * @returns the DU, or null for none (-1 or an unknown value)
+ */
+export function decodeMailboxDisplayUnit(value: number): DisplayUnitID | null {
+  if (value === 0) {
+    return DisplayUnitID.Sd;
+  }
+  return DISPLAY_UNITS.includes(value) && value !== DisplayUnitID.Sd ? value : null;
+}
+
+/**
  * The DU the DU RECONF pb of a side acts on (a380_fcom.txt:63160-63175): "active only if there is a failed on-side
  * display unit. The EWD DU and SD DU can be reconfigured from both sides."
  * CAPT: the MFD DU; the ND DU if the MFD DU is failed; the PFD DU if both the ND DU and MFD DU are failed.

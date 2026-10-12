@@ -41,6 +41,25 @@ export enum MailboxStatusMessage {
   WaitFmData,
 }
 
+/** A message block of the mailbox file: the messages shown together, and the information of the block */
+export interface MailboxSnapshotBlock {
+  messages: CpdlcMessage[];
+  status: MailboxStatusMessage;
+}
+
+/**
+ * The whole mailbox file of the ATC function, for a mailbox client that rebuilds its queue (e.g. the A380X SD drawn on
+ * another display unit, which starts late or takes the mailbox over from another client)
+ */
+export interface MailboxSnapshot {
+  /** The blocks in the order they entered the mailbox */
+  blocks: MailboxSnapshotBlock[];
+  /** The message the active mailbox client displays (its last visibleMessage), -1 when none */
+  visibleUid: number;
+  /** The current ATC center, '' when none */
+  activeAtc: string;
+}
+
 export interface AtsuMailboxMessages {
   resetSystem: boolean;
   deleteMessage: number;
@@ -63,4 +82,8 @@ export interface AtsuMailboxMessages {
   logonMessage: string;
   systemStatus: MailboxStatusMessage;
   messageStatus: { uid: number; status: MailboxStatusMessage };
+  /** A mailbox client asks for the whole mailbox file: the ATC function answers with mailboxSnapshot */
+  mailboxResyncRequest: boolean;
+  /** The whole mailbox file, the answer to mailboxResyncRequest (every client receives it) */
+  mailboxSnapshot: MailboxSnapshot;
 }
