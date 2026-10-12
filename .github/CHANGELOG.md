@@ -361,6 +361,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A32NX/FWC] New F/CTL cautions from the flight control computers: L(R) ELEV FAULT, L(R) AIL FAULT, SPLR FAULT, ELEV SERVO FAULT, AIL SERVO FAULT and ELAC 1(2) PITCH FAULT, with the FCOM phase inhibitions; a loss caused by a hydraulic system or a failed computer stays with the HYD or ELAC/SEC alert - @TCdr
+1. [A32NX/FWC] F/CTL: both ELACs failed now show one ELAC 1+2 FAULT procedure instead of two ELAC FAULT alerts; ALTN LAW shows SPD BRK DO NOT USE for an L or R elevator fault (as the FCOM) instead of the spoiler 3+4 fault; FCDC 1+2 FAULT is no longer inhibited in phase 3 - @TCdr
+1. [A32NX/FWC] F/CTL STATUS page: ALTN LAW, DIRECT LAW, ELAC, SEC, FCDC, elevator, aileron and spoiler faults now show their FCOM limitations, approach procedure, information and INOP SYS lines - @TCdr
 
 ## 2024.1.0
 

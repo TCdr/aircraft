@@ -34,6 +34,19 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400006', { part: StatusPart.Limitation, text: 'CONSIDER ENG 1 RELIGHT' }],
   ['700500004', { part: StatusPart.Condition, text: 'IF NO ENG 2 DAMAGE:' }],
   ['700400007', { part: StatusPart.Limitation, text: 'CONSIDER ENG 2 RELIGHT' }],
+  // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL STATUS, a320_fcom.txt l.82568-83853), see FWC/Logic/FlightControlStatus
+  ['270400001', { part: StatusPart.Limitation, text: 'MAX SPEED........320 KT' }],
+  ['270400002', { part: StatusPart.Limitation, text: 'MAX SPEED.......320/.77' }],
+  ['270400003', { part: StatusPart.Limitation, text: 'MANEUVER WITH CARE' }],
+  ['270400004', { part: StatusPart.Limitation, text: 'SPD BRK......DO NOT USE' }],
+  ['270400005', { part: StatusPart.Limitation, text: 'USE SPD BRK WITH CARE' }],
+  ['270400006', { part: StatusPart.Limitation, text: 'FOR GA: MAX PITCH 15 DEG' }],
+  ['270500001', { part: StatusPart.Condition, text: 'APPR PROC:' }],
+  ['270400007', { part: StatusPart.Limitation, text: 'FOR LDG......USE FLAP 3' }],
+  ['270400008', { part: StatusPart.Limitation, text: 'GPWS LDG FLAP 3......ON' }],
+  ['270400009', { part: StatusPart.Limitation, text: 'MAN PITCH TRIM......USE' }],
+  ['270400010', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
+  ['270400011', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
   // 80 STARTING (A320neo FCOM PRO-ABN-ENG ENG 1(2) START FAULT STATUS, STARTER SHAFT SHEAR)
   ['800400001', { part: StatusPart.Limitation, text: 'ENG 1 WINDMILL START ONLY' }],
   ['800400002', { part: StatusPart.Limitation, text: 'ENG 2 WINDMILL START ONLY' }],
@@ -55,6 +68,17 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['210200004', { part: StatusPart.Information, text: 'CAB TEMP CKPT CTL ONLY' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220200001', { part: StatusPart.Information, text: 'CAT 3 SINGLE ONLY' }],
+  // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL STATUS), after CAT 3 SINGLE ONLY as in ELAC 1(2) FAULT (l.82768-82780)
+  ['270200001', { part: StatusPart.Information, text: 'ALTN LAW: PROT LOST' }],
+  ['270200002', { part: StatusPart.Information, text: 'WHEN L/G DN: DIRECT LAW' }],
+  // "WHEN L/G DN AND AP OFF: DIRECT LAW" (l.82596) in two lines, the second is the DIRECT LAW line
+  ['270200003', { part: StatusPart.Information, text: 'WHEN L/G DN AND AP OFF:' }],
+  ['270200004', { part: StatusPart.Information, text: 'DIRECT LAW' }],
+  ['270200005', { part: StatusPart.Information, text: 'PITCH MECH BACK UP' }],
+  ['270200006', { part: StatusPart.Information, text: 'ROLL DIRECT LAW' }],
+  ['270200007', { part: StatusPart.Information, text: 'F/CTL INDICATIONS LOST' }],
+  ['270200008', { part: StatusPart.Information, text: 'FUEL CONSUMPT INCRSD' }],
+  ['270200009', { part: StatusPart.Information, text: 'FMS PRED UNRELIABLE' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, l.81263)
   ['700200001', { part: StatusPart.Information, text: 'ONE PACK ONLY IF WAI ON' }],
   // 34 NAVIGATION
@@ -64,6 +88,35 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
   ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
+  // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL INOP SYS), before CAT 3 DUAL as in ELAC 1(2) FAULT (l.82768-82780)
+  ['270300001', { part: StatusPart.InopSys, text: 'F/CTL PROT' }],
+  ['270300002', { part: StatusPart.InopSys, text: 'L+R ELEV' }],
+  ['270300003', { part: StatusPart.InopSys, text: 'L ELEV' }],
+  ['270300004', { part: StatusPart.InopSys, text: 'R ELEV' }],
+  ['270300005', { part: StatusPart.InopSys, text: 'L+R AIL' }],
+  ['270300006', { part: StatusPart.InopSys, text: 'L AIL' }],
+  ['270300007', { part: StatusPart.InopSys, text: 'R AIL' }],
+  ['270300008', { part: StatusPart.InopSys, text: 'ELAC 1+2' }],
+  ['270300009', { part: StatusPart.InopSys, text: 'ELAC 1' }],
+  ['270300010', { part: StatusPart.InopSys, text: 'ELAC 2' }],
+  ['270300011', { part: StatusPart.InopSys, text: 'ELAC PITCH' }],
+  ['270300015', { part: StatusPart.InopSys, text: 'SPLR 1+2' }],
+  ['270300016', { part: StatusPart.InopSys, text: 'SPLR 1' }],
+  ['270300017', { part: StatusPart.InopSys, text: 'SPLR 2' }],
+  ['270300018', { part: StatusPart.InopSys, text: 'SPLR 3+4' }],
+  ['270300019', { part: StatusPart.InopSys, text: 'SPLR 3' }],
+  ['270300020', { part: StatusPart.InopSys, text: 'SPLR 4' }],
+  ['270300021', { part: StatusPart.InopSys, text: 'SPLR 5' }],
+  ['270300012', { part: StatusPart.InopSys, text: 'SEC 1' }],
+  ['270300013', { part: StatusPart.InopSys, text: 'SEC 2' }],
+  ['270300014', { part: StatusPart.InopSys, text: 'SEC 3' }],
+  ['270300022', { part: StatusPart.InopSys, text: 'SPD BRK' }],
+  ['270300023', { part: StatusPart.InopSys, text: 'AUTO BRK' }],
+  ['270300024', { part: StatusPart.InopSys, text: 'FCDC 1+2' }],
+  ['270300025', { part: StatusPart.InopSys, text: 'FCDC 1' }],
+  ['270300026', { part: StatusPart.InopSys, text: 'FCDC 2' }],
+  ['270300027', { part: StatusPart.InopSys, text: 'AP 1+2' }],
+  ['270300028', { part: StatusPart.InopSys, text: 'CAT 2' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
