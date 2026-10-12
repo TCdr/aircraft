@@ -9,12 +9,14 @@ import {
   displayUnitPictureVar,
   DisplayUnitId,
   ECAM_ND_XFR_KNOB_VAR,
+  ECAM_SINGLE_DISPLAY_VAR,
   EIS_PICTURES,
   EfisSideLetter,
   encodeDisplayUnitPicture,
   isDisplayUnitAvailable,
   isEcamPagePbHoldActive,
   isEcamPagePbHoldConfirmed,
+  isEcamSingleDisplay,
   nextEcamPagePbHeldSeconds,
   nextPfdNdXfr,
   pfdNdXfrPushedEvent,
@@ -159,6 +161,8 @@ export class DmcDisplayReconfiguration {
       pfdNdXfrL: this.pfdNdXfr.L,
       pfdNdXfrR: this.pfdNdXfr.R,
     };
+    // one ECAM display: the STS pb pages the STATUS page (read by the FWC and DmcSdPageLogic)
+    this.write(ECAM_SINGLE_DISPLAY_VAR, isEcamSingleDisplay(inputs) ? 1 : 0);
     // the SD is displayed once the page pb hold is confirmed ...
     const pictures = computeDisplayPictures({
       ...inputs,

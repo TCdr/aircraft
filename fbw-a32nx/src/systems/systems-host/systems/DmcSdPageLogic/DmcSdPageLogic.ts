@@ -14,6 +14,9 @@ import {
 } from '@flybywiresim/fbw-sdk';
 import { SdPages } from '../../../shared/src/SdPages';
 import { A32NXEcpBusEvents } from '@shared/publishers/A32NXEcpBusPublisher';
+import { STATUS_CLR_SCROLLS_VAR } from '../../../shared/src/StatusPaging';
+import { ECAM_SINGLE_DISPLAY_VAR } from '../../../shared/src/DisplayReconfiguration';
+import { isShownPageDeselectedByItsPb, isStatusPageClearedByClr } from './StatusPageSelection';
 
 enum SdMode {
   Manual,
@@ -71,6 +74,9 @@ export class DmcSdPageLogic {
   private readonly sdManualSelectionPulseNode = new NXLogicPulseNode(true);
 
   private readonly clearPulseNode = new NXLogicPulseNode(true);
+
+  /** L:A32NX_ECAM_STATUS_CLR_SCROLLS read at the previous update (see isStatusPageClearedByClr) */
+  private statusClearScrollsBeforeUpdate = false;
 
   private selectedPage = Subject.create(SdPages.NONE);
 
@@ -225,11 +231,15 @@ export class DmcSdPageLogic {
     const clearPressed =
       this.ecpWarningSwitchWord.get().bitValueOr(11, false) || this.ecpWarningSwitchWord.get().bitValueOr(16, false);
     this.clearPulseNode.write(clearPressed);
-    const statusPageCleared =
-      this.clearPulseNode.read() &&
-      this.sdMode === SdMode.Manual &&
-      this.selectedPage.get() === SdPages.STS &&
-      !SimVar.GetSimVarValue('L:A32NX_EWD_LEFT_FAILURE_ACTIVE', 'Bool');
+    // ... unless the push shows the next page of an overflowing STATUS page (FWC, see StatusPageSelection)
+    const statusPageCleared = isStatusPageClearedByClr(
+      this.clearPulseNode.read(),
+      this.sdMode === SdMode.Manual && this.selectedPage.get() === SdPages.STS,
+      !!SimVar.GetSimVarValue('L:A32NX_EWD_LEFT_FAILURE_ACTIVE', 'Bool'),
+      this.statusClearScrollsBeforeUpdate,
+    );
+    this.statusClearScrollsBeforeUpdate = SimVar.GetSimVarValue(STATUS_CLR_SCROLLS_VAR, 'Bool') > 0;
+    const singleDisplay = SimVar.GetSimVarValue(ECAM_SINGLE_DISPLAY_VAR, 'Bool') > 0;
 
     if (this.sdManualSelectionPulseNode.read() && this.selectedPage.get() !== systemPageButtonPressed) {
       this.selectedPage.set(systemPageButtonPressed);
@@ -251,7 +261,8 @@ export class DmcSdPageLogic {
       (this.sdWarningOverridePulseNode.read() && fwcSdPageRequest === SdPages.NONE && this.sdMode === SdMode.Warning) ||
       (this.sdManualSelectionPulseNode.read() &&
         this.sdMode === SdMode.Manual &&
-        this.selectedPage.get() === systemPageButtonPressed) ||
+        this.selectedPage.get() === systemPageButtonPressed &&
+        isShownPageDeselectedByItsPb(systemPageButtonPressed, singleDisplay)) ||
       (this.stsPageNormalPulse.read() && this.selectedPage.get() === SdPages.STS) ||
       statusPageCleared
     ) {
