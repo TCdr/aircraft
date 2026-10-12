@@ -7,13 +7,22 @@ import { SdPages } from '@shared/EcamSystemPages';
 import { sdMoreShownAfterMorePb, sdMoreShownToKeep } from '@shared/EcamSdMore';
 import { FwsCore } from './FwsCore';
 
-const CRZ_CONDITION_TIMER_DURATION = 60;
 const ENG_CONDITION_TIMER_DURATION = 10;
 const APU_CONDITION_TIMER_DURATION = 10;
 const FCTL_CONDITION_TIMER_DURATION = 20;
 const STS_DISPLAY_TIMER_DURATION = 3;
 const ECAM_LIGHT_DELAY_ALL = 200;
 const ECAM_ALL_CYCLE_DELAY = 3000;
+
+/**
+ * The automatic SD page in flight phases 8 to 11 (from 1 500 ft to the engine shutdown), A380 FCOM DSC-31-40-30
+ * (a380_fcom.txt l.73745-73751)
+ * @param gearExtended the landing gear is extended
+ * @returns WHEEL after the landing gear extension, else CRUISE
+ */
+export function automaticPageInFlight(gearExtended: boolean): SdPages {
+  return gearExtended ? SdPages.Wheel : SdPages.Crz;
+}
 
 export class FwsSystemDisplayLogic {
   private readonly subscriptions: Subscription[] = [];
@@ -40,8 +49,6 @@ export class FwsSystemDisplayLogic {
   private readonly ecamButtonLightDelayTimer = Subject.create(Number.MIN_SAFE_INTEGER);
 
   private readonly prevEcamAllButtonState = Subject.create(false);
-
-  private readonly crzCondTimer = Subject.create(CRZ_CONDITION_TIMER_DURATION);
 
   private readonly ecamFCTLTimer = Subject.create(FCTL_CONDITION_TIMER_DURATION);
 
@@ -162,7 +169,6 @@ export class FwsSystemDisplayLogic {
       switch (this.fws.flightPhase.get()) {
         case 12:
         case 1:
-          this.crzCondTimer.set(CRZ_CONDITION_TIMER_DURATION);
           this.pageWhenUnselected.set(SdPages.Door);
           // TODO: Emergency Generator Test displays ELEC
           // Needs system implementation (see A320_NEO_INTERIOR Component ID EMER_ELEC_PWR [LVar: L:A32NX_EMERELECPWR_GEN_TEST])
@@ -201,45 +207,15 @@ export class FwsSystemDisplayLogic {
         case 9:
         case 10:
         case 11: {
+          // A380 FCOM DSC-31-40-30 (a380_fcom.txt l.73745-73751): CRUISE "At 1 500 ft AGL or at the thrust reduction,
+          // whichever occurs the first until landing gear extension in approach"; WHEEL "After landing gear extension,
+          // until last engine shutdown". The A320 rules were used: WHEEL only below 16 000 ft, and the CRUISE page 60 s
+          // after T.O power, flaps and spoilers were back. Phase 8 starts at 1 500 ft (FwsFlightPhases.ts); the thrust
+          // reduction below 1 500 ft is not a phase of its own (design choice: the 1 500 ft phase change only).
           const isGearExtended = SimVar.GetSimVarValue('GEAR TOTAL PCT EXTENDED', 'percent') > 0.95;
-          const ToPowerSet =
-            Math.max(
-              SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number'),
-              SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:2', 'number'),
-              SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:3', 'number'),
-              SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:4', 'number'),
-            ) >= 35 &&
-            SimVar.GetSimVarValue('ENG N1 RPM:1', 'Percent') > 15 &&
-            SimVar.GetSimVarValue('ENG N1 RPM:2', 'Percent') > 15 &&
-            SimVar.GetSimVarValue('ENG N1 RPM:3', 'Percent') > 15 &&
-            SimVar.GetSimVarValue('ENG N1 RPM:4', 'Percent') > 15;
-          const spoilerOrFlapsDeployed =
-            SimVar.GetSimVarValue('L:A32NX_FLAPS_HANDLE_INDEX', 'number') !== 0 ||
-            SimVar.GetSimVarValue('L:A32NX_SPOILERS_HANDLE_POSITION', 'percent') !== 0;
-
-          const pressureAlt = this.fws.adrPressureAltitude.get() ?? 0;
-          if (isGearExtended && pressureAlt < 16000) {
-            this.pageWhenUnselected.set(SdPages.Wheel);
-            this.checkApuPage(deltaTime);
-            this.checkEnginePage(deltaTime);
-            break;
-            // Else check for CRZ
-          }
-
-          if (spoilerOrFlapsDeployed || ToPowerSet) {
-            if (this.crzCondTimer.get() <= 0) {
-              this.pageWhenUnselected.set(SdPages.Crz);
-              this.checkApuPage(deltaTime);
-              this.checkEnginePage(deltaTime);
-            } else {
-              const prev = this.crzCondTimer.get();
-              this.crzCondTimer.set(prev - deltaTime / 1000);
-            }
-          } else if (!spoilerOrFlapsDeployed && !ToPowerSet) {
-            this.pageWhenUnselected.set(SdPages.Crz);
-            this.checkApuPage(deltaTime);
-            this.checkEnginePage(deltaTime);
-          }
+          this.pageWhenUnselected.set(automaticPageInFlight(isGearExtended));
+          this.checkApuPage(deltaTime);
+          this.checkEnginePage(deltaTime);
           break;
         }
         default:

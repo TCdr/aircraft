@@ -1846,6 +1846,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - EMERCANC
         - MORE
         - RCL
+        - RCL_LAST
         - TOCONFIG
         - UP
 
@@ -1951,6 +1952,11 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | ROT OPTIMIZATION  | 2     |
       | DECEL             | 3     |
       | END OF BRAKING    | 4     |
+
+- A32NX_FWC_1_BTV_INOP
+    - Bool
+    - Written by the FWS: an active ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT,
+      ENG 2(3) REVERSER failures). Like A32NX_BTV_LOST, BTV then does not arm and an armed BTV reverts to BRK HI
 
 ## Lights ATA 33
 

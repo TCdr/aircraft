@@ -1007,6 +1007,7 @@ struct BtvDecelScheduler {
     exit_missed_id: VariableIdentifier,
     state_id: VariableIdentifier,
     btv_lost_id: VariableIdentifier,
+    fws_btv_inop_id: VariableIdentifier,
 
     runway_length: Arinc429Word<Length>,
 
@@ -1018,6 +1019,7 @@ struct BtvDecelScheduler {
 
     state: BTVState,
 
+    /// BTV cannot be used: BTV LOST from the FCDC, or an ECAM alert that lists BTV in STATUS INOP SYS
     btv_lost: bool,
 
     deceleration_request: Acceleration,
@@ -1079,6 +1081,7 @@ impl BtvDecelScheduler {
             exit_missed_id: context.get_identifier("BTV_EXIT_MISSED".to_owned()),
             state_id: context.get_identifier("BTV_STATE".to_owned()),
             btv_lost_id: context.get_identifier("BTV_LOST".to_owned()),
+            fws_btv_inop_id: context.get_identifier("FWC_1_BTV_INOP".to_owned()),
 
             runway_length: Arinc429Word::new(Length::default(), SignStatus::NoComputedData),
             rolling_distance: Length::default(),
@@ -1451,7 +1454,15 @@ impl SimulationElement for BtvDecelScheduler {
             raw_feet_exit_length_arinc.ssm(),
         );
 
-        self.btv_lost = reader.read(&self.btv_lost_id);
+        // A380 FCOM DSC-32-20-220 BTV ARMING (a380_fcom.txt l.79398-79404): "No ECAM warning affects landing distances",
+        // and LIM-32 (l.188646): "BTV cannot be used in the case of ECAM alert that impact the landing performance".
+        // The FCDC BTV LOST covers the flight control, hydraulic, electrical, ADIRU and OANS losses; the FWS adds the
+        // alerts that list BTV in STATUS INOP SYS on their own (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER
+        // failures, FwsCore engineOutBtvInop / reverserBtvInop). Design choice: both act the same way, BTV does not arm
+        // and an armed BTV reverts to BRK HI (l.79434-79436: "if any arming condition is lost ... reverts to BRK HI").
+        let fcdc_btv_lost: bool = reader.read(&self.btv_lost_id);
+        let fws_btv_inop: bool = reader.read(&self.fws_btv_inop_id);
+        self.btv_lost = fcdc_btv_lost || fws_btv_inop;
     }
 }
 

@@ -398,6 +398,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FUEL] Gravity feeding: with the X FEED open and all four wing tank pumps off, each engine burns the fuel of its own wing tank (the burned fuel was taken from no tank) - @TCdr
 1. [A32NX/ENG] In flight, after a flameout the FADEC relights the engine by itself within 30 s once the continuous ignition is on (ENG MODE selector at IGN, or the engine anti-ice, which now selects the continuous ignition automatically), without an ENG MASTER cycle, as in the FCOM - @TCdr
 1. [A32NX/ENG] Engine start faults as in the FCOM: after a stall or an EGT over limit during an automatic start on the ground the FADEC tries a new start first and dry cranks only after that, a manual start lights up from 20 % N2, and a starter that fails during an in-flight relight gives ENG START FAULT STARTER SHAFT SHEAR with WINDMILL START ONLY - @TCdr
+1. [A380X/FWS] RCL LAST pb: brings back the alert of the last CLR action; the RCL pb brings back every cleared alert at once (NORMAL for 3 s when there is none), and only a RCL press of more than 3 s shows the alerts inhibited by the flight phase (a short RCL press no longer removed the T.O INHIBIT memo for the rest of the flight), as in the FCOM - @TCdr
+1. [A380X/FWS] T.O CONFIG test: T.O CONFIG NORMAL now follows the A380 checks of the FCOM (generators and drives of the four engines, engine oil temperature) instead of the A320 GEN 1+2 check - @TCdr
+1. [A380X/SD] Automatic SD pages as in the A380 FCOM: CRUISE from 1500 ft after take-off (it came 60 s after the flaps were up), WHEEL at the landing gear extension at any altitude (only below 16000 ft before) - @TCdr
+1. [A380X/GPWS] Mode 4B: gear up with the flaps in landing configuration gives TOO LOW GEAR below 245 ft and never TOO LOW TERRAIN, and a mode 4 alert stops once the aircraft climbs back above its ceiling - @TCdr
+1. [A380X/BTV] BTV does not arm, and an armed BTV reverts to BRK HI, while an ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER faults) - @TCdr
 
 ## 2024.1.0
 

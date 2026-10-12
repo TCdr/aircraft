@@ -8463,6 +8463,28 @@ mod tests {
                 self
             }
 
+            /// A runway and a runway exit selected on the airport map (OANS), in metres
+            fn set_btv_runway_and_exit(mut self) -> Self {
+                self.write_arinc429_by_name("OANS_RWY_LENGTH", 4500., SignStatus::NormalOperation);
+                self.write_arinc429_by_name(
+                    "OANS_BTV_REQ_STOPPING_DISTANCE",
+                    2000.,
+                    SignStatus::NormalOperation,
+                );
+                self.write_arinc429_by_name(
+                    "OANS_BTV_REMAINING_DIST_TO_EXIT",
+                    2000.,
+                    SignStatus::NormalOperation,
+                );
+                self
+            }
+
+            /// An ECAM alert lists BTV in STATUS INOP SYS (FWS, L:A32NX_FWC_1_BTV_INOP)
+            fn set_fws_btv_inop(mut self, inop: bool) -> Self {
+                self.write_by_name("FWC_1_BTV_INOP", inop);
+                self
+            }
+
             fn set_autobrake_low(mut self) -> Self {
                 self.write_by_name("AUTOBRAKES_SELECTED_MODE", 2.);
                 self
@@ -10458,6 +10480,48 @@ mod tests {
                 .set_autobrake_high()
                 .run_waiting_for(Duration::from_secs(1));
 
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::HIGH);
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-20-220 BTV ARMING (l.79398-79404) "No ECAM warning affects landing distances"; LIM-32
+        // (l.188646) "BTV cannot be used in the case of ECAM alert that impact the landing performance". The FWS lists
+        // BTV in STATUS INOP SYS for ENG 2(3) SHUT DOWN, TWO ENGS OUT and the ENG 2(3) REVERSER failures.
+        fn btv_does_not_arm_while_an_ecam_alert_lists_btv_inop() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .set_btv_runway_and_exit()
+                .run_waiting_for(Duration::from_secs(12));
+
+            // A runway exit selected, but INOP SYS BTV: BTV does not arm (the next test shows that it arms without it)
+            test_bed = test_bed
+                .set_fws_btv_inop(true)
+                .set_autobrake_btv()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_ne!(test_bed.autobrake_mode(), A380AutobrakeMode::BTV);
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-20-220 BTV DISARMING note (l.79433-79436): "if any arming condition is lost ... The
+        // auto-brake reverts to BRK HI mode"
+        fn armed_btv_reverts_to_brk_hi_when_an_ecam_alert_lists_btv_inop() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .set_btv_runway_and_exit()
+                .run_waiting_for(Duration::from_secs(12));
+
+            test_bed = test_bed
+                .set_autobrake_btv()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::BTV);
+
+            test_bed = test_bed
+                .set_fws_btv_inop(true)
+                .run_waiting_for(Duration::from_secs(1));
             assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::HIGH);
         }
 
