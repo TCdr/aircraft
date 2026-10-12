@@ -182,7 +182,7 @@ export class AtisRequestArea extends DisplayComponent<AtisRequestAreaProps> {
             idPrefix={`${captOrFo}_MFD_atisTypeList_${this.props.index}`}
             selectedIndex={this.typeIndex}
             values={ArraySubject.create(['DEP', 'ARR'])}
-            freeTextAllowed={false}
+            freeTextAllowed={false} // FCOM DSC-46 ATIS TYPE LIST: selected in the list only
             onModified={(index) => {
               if (index === null || !this.props.atcService.setAtisType(this.props.index, index)) {
                 this.typeIndex.set(this.area.get().type);

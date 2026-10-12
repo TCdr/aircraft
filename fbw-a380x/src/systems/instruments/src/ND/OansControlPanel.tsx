@@ -11,6 +11,7 @@ import { ResetPanelSimvars } from '../MsfsAvionicsCommon/providers/ResetPanelPub
 import { AdirsSimVars } from '../MsfsAvionicsCommon/SimVarTypes';
 import { Button } from '../MsfsAvionicsCommon/UiWidgets/Button';
 import { DropdownMenu } from '../MsfsAvionicsCommon/UiWidgets/DropdownMenu';
+import { dropdownEntryIndex } from '../MsfsAvionicsCommon/UiWidgets/DropdownEntry';
 import { IconButton } from '../MsfsAvionicsCommon/UiWidgets/IconButton';
 import { InputField, InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/InputField';
 import { RadioButtonGroup } from '../MsfsAvionicsCommon/UiWidgets/RadioButtonGroup';
@@ -784,8 +785,14 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
                       values={this.availableEntityList}
                       selectedIndex={this.selectedEntityIndex}
                       idPrefix="oanc-search-letter"
-                      freeTextAllowed={false}
-                      onModified={(i) => this.selectedEntityIndex.set(i)}
+                      // FCOM MAP DATA panel: a map item is selected in the list, or its IDENT entered with the keyboard
+                      keyboardEntryAllowed
+                      onModified={(i, text) => {
+                        const index = dropdownEntryIndex(this.availableEntityList, i, text);
+                        if (index !== null) {
+                          this.selectedEntityIndex.set(index);
+                        }
+                      }}
                       inactive={this.fmsLandingRunwayNotSelectedInFallback}
                       hEventConsumer={this.hEventConsumer}
                       interactionMode={this.interactionMode}
@@ -951,13 +958,19 @@ export class OansControlPanel extends DisplayComponent<OansProps> {
                         ref={this.airportSearchAirportDropdownRef}
                         values={this.store.airportSearchData}
                         selectedIndex={this.store.airportSearchSelectedAirportIndex}
-                        onModified={(newSelectedIndex) => {
+                        onModified={(i, text) => {
+                          // An entry that is no airport of the list (ICAO, IATA or city name per search mode) is ignored
+                          const newSelectedIndex = dropdownEntryIndex(this.store.airportSearchData, i, text);
+                          if (newSelectedIndex === null) {
+                            return;
+                          }
                           this.handleSelectAirport(
-                            this.store.sortedAirports.get(newSelectedIndex ?? 0).idarpt,
-                            newSelectedIndex ?? undefined,
+                            this.store.sortedAirports.get(newSelectedIndex).idarpt,
+                            newSelectedIndex,
                           );
                         }}
-                        freeTextAllowed={false}
+                        // FCOM ARPT SEL panel: an airport is selected in the list, or its ICAO / IATA code entered
+                        keyboardEntryAllowed
                         numberOfDigitsForInputField={7}
                         alignLabels={this.store.airportSearchMode.map((it) =>
                           it === ControlPanelAirportSearchMode.City ? 'flex-start' : 'center',

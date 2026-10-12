@@ -1,7 +1,10 @@
-// Copyright (c) 2021-2022 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 // Copyright (c) 2021-2022 Synaptic Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
+
+import { AlternateCruiseLevelRule } from './plans/AlternateCruiseLevel';
+import { HistoryWindRowsRule } from '../wind/historyWindRows';
 
 export interface FpmConfig {
   /** Whether deleting a waypoint or a discontinuity creates a temporary flight plan */
@@ -14,7 +17,7 @@ export interface FpmConfig {
   TMPY_ON_CONSTRAINT_EDIT: boolean;
 
   /**
-   * Whether inserting a waypoint directly in the fligh plan creates a temporary flight plan
+   * Whether inserting a waypoint directly in the flight plan creates a temporary flight plan
    * Note that NEXT WPT will always create a temporary flight plan
    */
   TMPY_ON_INSERT_WAYPOINT: boolean;
@@ -45,18 +48,30 @@ export interface FpmConfig {
    */
   NUM_SECONDARY_FLIGHT_PLANS: number;
 
+  /** Whether to create draft wind entries upon editing a wind entry on the flightplan */
+  DRAFT_ON_WIND_EDIT: boolean;
+
   /** The number of different flight levels for which cruise wind entries may be made */
   NUM_CRUISE_WIND_LEVELS: number;
+
+  /** Whether to sort climb wind entries in descending order (highest FL to lowest FL) */
+  SORT_CLIMB_WIND_DESCENDING: boolean;
 
   /** The number of different flight levels for which climb wind entries may be made */
   NUM_CLIMB_WIND_LEVELS: number;
 
   /** The number of different flight levels for which descent wind entries may be made */
   NUM_DESCENT_WIND_LEVELS: number;
+
+  /** Which FCOM rule sets the default alternate cruise flight level (A320: FL100/220/310, A380: FL220/310) */
+  ALTERNATE_CRUISE_LEVEL_RULE: AlternateCruiseLevelRule;
+
+  /** Which history winds are listed and inserted (A320: the fixed levels, the recorded cruise level and the planned CRZ FL; A380: the CRZ FL and FL 250, 150, 050) */
+  HISTORY_WIND_ROWS_RULE: HistoryWindRowsRule;
 }
 
 export class FpmConfigs {
-  static A380: FpmConfig = {
+  static readonly A380: FpmConfig = {
     TMPY_ON_DELETE_WAYPOINT: true,
     TMPY_ON_OVERFLY: true,
     TMPY_ON_CONSTRAINT_EDIT: true,
@@ -64,16 +79,20 @@ export class FpmConfigs {
     ALLOW_REVISIONS_ON_TMPY: true,
     ALLOW_NON_ACTIVE_FIX_INFOS: false,
     MAX_NUM_LEGS: 200,
-    CHECK_VIA_COMPATIBILITY: true,
+    CHECK_VIA_COMPATIBILITY: false,
     DIR_TO_ABEAM_POINT_IS_TO_WPT: true,
     PERSIST_TAXI_FUEL_ON_SEC_SWAP: true,
     NUM_SECONDARY_FLIGHT_PLANS: 3,
     NUM_CRUISE_WIND_LEVELS: 4,
     NUM_CLIMB_WIND_LEVELS: 5,
+    SORT_CLIMB_WIND_DESCENDING: true,
     NUM_DESCENT_WIND_LEVELS: 5,
+    DRAFT_ON_WIND_EDIT: true,
+    ALTERNATE_CRUISE_LEVEL_RULE: 'A380',
+    HISTORY_WIND_ROWS_RULE: 'A380',
   };
 
-  static A320_HONEYWELL_H3: FpmConfig = {
+  static readonly A320_HONEYWELL_H4: FpmConfig = {
     TMPY_ON_DELETE_WAYPOINT: false,
     TMPY_ON_OVERFLY: false,
     TMPY_ON_CONSTRAINT_EDIT: false,
@@ -87,7 +106,11 @@ export class FpmConfigs {
     NUM_SECONDARY_FLIGHT_PLANS: 1,
     NUM_CRUISE_WIND_LEVELS: 4,
     NUM_CLIMB_WIND_LEVELS: 5,
+    SORT_CLIMB_WIND_DESCENDING: false,
     // Normally 5, 10 with the 4D RTA option
     NUM_DESCENT_WIND_LEVELS: 10,
+    DRAFT_ON_WIND_EDIT: false,
+    ALTERNATE_CRUISE_LEVEL_RULE: 'A320',
+    HISTORY_WIND_ROWS_RULE: 'A320',
   };
 }
