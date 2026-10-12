@@ -148,6 +148,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
+1. [A380X/PRESS] With a door not closed and locked at takeoff power, the outflow valve controllers keep the four outflow valves open in AUTO (CAB PRESS INHIBITED BY DOORS), the controllers read every passenger door and both cargo doors, and the cabin air and pack door inputs read all 16 passenger doors (only MAIN 1L and 2R before) - @TCdr
 
 ## 2024.1.0
 
