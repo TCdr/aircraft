@@ -10,6 +10,7 @@ import {
   DisplayPicture,
   displayUnitPictureVar,
   ECAM_ND_XFR_KNOB_VAR,
+  ECAM_SINGLE_DISPLAY_VAR,
   EcamNdXfrKnob,
   pfdNdXfrPushedEvent,
   pfdNdXfrVar,
@@ -170,5 +171,17 @@ describe('DMC DU reconfiguration (A320 FCOM DSC-31-05-60)', () => {
     dmc.update(20);
     expect(picture('UPPER_ECAM')).toBe(DisplayPicture.Own);
     expect(onOtherDu('SD')).toBe(0);
+  });
+
+  it('writes whether only one ECAM display is on (the STS pb then pages the STATUS page)', () => {
+    dmc.update(20);
+    expect(simVars.get(ECAM_SINGLE_DISPLAY_VAR)).toBe(0);
+    activeFailures.add(A320Failure.LowerEcamDisplay);
+    dmc.update(20);
+    expect(simVars.get(ECAM_SINGLE_DISPLAY_VAR)).toBe(1);
+    // the SD on the F/O ND: two displays again
+    simVars.set(ECAM_ND_XFR_KNOB_VAR, EcamNdXfrKnob.Fo);
+    dmc.update(20);
+    expect(simVars.get(ECAM_SINGLE_DISPLAY_VAR)).toBe(0);
   });
 });
