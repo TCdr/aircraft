@@ -208,3 +208,131 @@ export function allEngFlameOutInhibitsElecEmerConfig(
 ): boolean {
   return allEnginesFailure && (allEngFlameOutPresented || !ALL_ENG_FLAME_OUT_INHIBITED_PHASES.includes(flightPhase));
 }
+
+/**
+ * ENG 1(2)(3)(4) FAIL flight phase inhibition (FCOM PRO-ABN-ECAM-10-70 P 12/110, PDF p.5776): no phase is shaded,
+ * the alert is never inhibited. Before 2026-10-09 it used the phases 5 and 6 of the FBW code.
+ */
+export const ENG_FAIL_FLIGHT_PHASE_INHIBITION: number[] = [];
+
+export interface AutoRelightInputs {
+  inFlight: boolean;
+  /** L:A32NX_FADEC_IGNITER_A_ACTIVE_ENGn (fadec_a380x IgniterSelection_A380X) */
+  igniterAActive: boolean;
+  /** L:A32NX_FADEC_IGNITER_B_ACTIVE_ENGn */
+  igniterBActive: boolean;
+  /** L:A32NX_ENGINE_n_RELIGHT_ATTEMPT: the crew relight (ENG MASTER OFF then ON), up to 30 s */
+  relightAttempt: boolean;
+  /** L:A32NX_ENGINE_n_RELIGHT_IGNITION: a relight lighting up (crew relight or quick relight) */
+  relightIgnition: boolean;
+}
+
+/**
+ * ENG FAIL "In flight and the FADEC does not identify the failure: AUTO RELIGHT IN PROGRESS" (l.171719-171721,
+ * l.171810-171811: "In all other cases, in flight, the FADEC automatically attempts an engine restart").
+ * The line is shown only while the FADEC really does it: both FADEC igniters on (the auto relight of fadec_a380x
+ * EngineIgnition_A380X selects A + B) outside a relight the crew started with the ENG MASTER lever (the systems WASM
+ * selects the igniters of that relight itself).
+ * Design choice: the FBW flyPad flameout and seizure failures and the LP valve starvation cut the fuel, and the FADEC
+ * makes no auto relight on a cut engine (the engine relights only through the crew ENG RELIGHT procedure), so the line
+ * stays hidden for them. Before 2026-10-09 the line was shown whenever the aircraft was in flight, announcing a relight
+ * that never came.
+ */
+export function autoRelightInProgress(inputs: AutoRelightInputs): boolean {
+  return (
+    inputs.inFlight &&
+    inputs.igniterAActive &&
+    inputs.igniterBActive &&
+    !inputs.relightAttempt &&
+    !inputs.relightIgnition
+  );
+}
+
+/** The aircraft state that the TWO ENGS OUT deferred procedures sense */
+export interface TwoEnginesOutDeferredInputs {
+  jettisonArmPbOn: boolean;
+  jettisonActivePbOn: boolean;
+  /** ENG 1+2 lost (the left side; ENG TWO ENGS OUT ON SAME SIDE only) */
+  engines1And2Out: boolean;
+  /** L:A32NX_FLAPS_HANDLE_INDEX: 0 (0), 1, 2, 3, 4 (FULL) */
+  flapsHandleIndex: number;
+  gearLeverDown: boolean;
+  /** L:A32NX_LG_GRVTY_SWITCH_POS at 2 (DOWN) */
+  gravityExtensionDown: boolean;
+  athrEngaged: boolean;
+  groundSpoilersArmed: boolean;
+}
+
+/**
+ * The items of the ENG TWO ENGS OUT deferred procedure ALL PHASES (ata70 700700002, l.175333-175337 and
+ * l.175554-175558): IF GW DECREASE RQRD: JETTISON ARM ON, JETTISON ACTIVE ON.
+ */
+export const TWO_ENGS_OUT_ALL_PHASES_ITEM_COUNT = 3;
+
+/** The lines shown and the lines done of a deferred procedure */
+export interface DeferredProcedureItems {
+  show: boolean[];
+  checked: boolean[];
+}
+
+export function twoEnginesOutAllPhasesItems(inputs: TwoEnginesOutDeferredInputs): DeferredProcedureItems {
+  return {
+    show: [true, true, true],
+    checked: [false, inputs.jettisonArmPbOn, inputs.jettisonActivePbOn],
+  };
+}
+
+/** A FLAP LVR CONF n line is done once the lever is at CONF n or further (the next line asks for the next position) */
+const flapLeverAtOrBeyond = (inputs: TwoEnginesOutDeferredInputs, conf: number) => inputs.flapsHandleIndex >= conf;
+
+/**
+ * The items of ENG TWO ENGS OUT ON SAME SIDE DEFERRED PROC FOR APPROACH (ata70 700700003, l.175338-175396), by
+ * index: 0 IF JETTISON ACTIVE, 1 JETTISON ACTIVE OFF, 2 JETTISON ARM OFF, 3 LDG PERF COMPUTATION CONFIRM,
+ * 4 DISREGARD NORM APPR & C/Ls, 5 LONG APPROACH PLAN, 6 FLAPS SLOW, 7 SLATS SLOW (if ENG 1+2 are lost), 8 BARO REF SET,
+ * 9 MINIMA SET, 10 CABIN CREW ADVISE, 11 SIGNS ON, 12 INITIAL APPROACH, 13 FLAP LVR CONF 1, 14 GA PERF MAY NOT BE
+ * ACHIEVED WITH L/G DN, 15 FOR L/G EXTN, 16 FOR L/G GRVTY EXTN : MAX SPD 220 KT, 17 L/G LEVER UP, 18 L/G GRVTY DOWN,
+ * 19 WHEN L/G LOCKED DOWN OR AFTER 120S, 20 L/G LEVER DOWN, 21 INTERCEPTING G/S, 22 FLAP LVR CONF 2, 23 PACK 1+2 OFF OR
+ * ON APU, 24 FOR GO AROUND : FLAP LVR 1, 25 FINAL APPROACH, 26 FLAP LVR CONF 3, 27 A/THR DISCONNECT, 28 GND SPLRs ARM,
+ * 29 AT COMMIT ALTITUDE (500 FT AGL), 30 REDUCE SPEED TO VAPP, 31 DO NOT ATTEMPT GO AROUND.
+ * The L/G lines are those of the L/G GRVTY EXTN deferred procedure (ata31-32-33 320700001).
+ */
+export const SAME_SIDE_APPROACH_ITEM_COUNT = 32;
+
+export function sameSideApproachItems(inputs: TwoEnginesOutDeferredInputs): DeferredProcedureItems {
+  const show = new Array<boolean>(SAME_SIDE_APPROACH_ITEM_COUNT).fill(true);
+  show[7] = inputs.engines1And2Out;
+  const checked = new Array<boolean>(SAME_SIDE_APPROACH_ITEM_COUNT).fill(false);
+  checked[1] = !inputs.jettisonActivePbOn;
+  checked[2] = !inputs.jettisonArmPbOn;
+  checked[13] = flapLeverAtOrBeyond(inputs, 1);
+  checked[17] = !inputs.gearLeverDown;
+  checked[18] = inputs.gravityExtensionDown;
+  checked[20] = inputs.gearLeverDown;
+  checked[22] = flapLeverAtOrBeyond(inputs, 2);
+  checked[26] = flapLeverAtOrBeyond(inputs, 3);
+  checked[27] = !inputs.athrEngaged;
+  checked[28] = inputs.groundSpoilersArmed;
+  return { show, checked };
+}
+
+/**
+ * The items of ENG TWO ENGS OUT ON OPPOSITE SIDE DEFERRED PROC APPR & LDG (ata70 700700004, l.175559-175612), by
+ * index: 0 IF JETTISON ACTIVE, 1 JETTISON ACTIVE OFF, 2 JETTISON ARM OFF, 3 LDG PERF COMPUTATION CONFIRM,
+ * 4 DISREGARD NORM APPR & C/Ls, 5 LONG APPROACH PLAN, 6 BARO REF SET, 7 MINIMA SET, 8 CABIN CREW ADVISE, 9 SIGNS ON,
+ * 10 INITIAL APPROACH, 11 FLAP LVR CONF 1, 12 L/G LEVER DOWN, 13 INTERCEPTING G/S, 14 FLAP LVR CONF 2, 15 PACK 1+2 OFF
+ * OR ON APU, 16 FINAL APPROACH, 17 FLAP LVR CONF 3, 18 GND SPLRs ARM, 19 FOR GO AROUND : FLAP LEVER 1.
+ */
+export const OPPOSITE_SIDE_APPROACH_ITEM_COUNT = 20;
+
+export function oppositeSideApproachItems(inputs: TwoEnginesOutDeferredInputs): DeferredProcedureItems {
+  const show = new Array<boolean>(OPPOSITE_SIDE_APPROACH_ITEM_COUNT).fill(true);
+  const checked = new Array<boolean>(OPPOSITE_SIDE_APPROACH_ITEM_COUNT).fill(false);
+  checked[1] = !inputs.jettisonActivePbOn;
+  checked[2] = !inputs.jettisonArmPbOn;
+  checked[11] = flapLeverAtOrBeyond(inputs, 1);
+  checked[12] = inputs.gearLeverDown;
+  checked[14] = flapLeverAtOrBeyond(inputs, 2);
+  checked[17] = flapLeverAtOrBeyond(inputs, 3);
+  checked[18] = inputs.groundSpoilersArmed;
+  return { show, checked };
+}

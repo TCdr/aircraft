@@ -382,6 +382,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New DOOR UPPER 1L to 3R NOT CLOSED and DOOR FWD(AFT) CARGO NOT CLOSED cautions, and CAB PRESS INHIBITED BY DOORS now also triggers on door MAIN 1R, the upper deck doors and the cargo doors - @TCdr
 1. [A380X/FWS] DOOR ... NOT CLOSED: IF ABNORM CAB V/S is a condition the crew confirms on every door (MAIN 5L/5R and UPPER 2L/2R showed its lines without it and never set the MAX FL 100/MEA limitation) - @TCdr
 1. [A380X/FWS] T.O CONFIG test: every main deck, upper deck and cargo door and the cockpit sliding windows must be closed for T.O CONFIG NORMAL (it checked only MAIN 1L, MAIN 2R and the cargo doors) - @TCdr
+1. [A380X/FWS] ENG FAIL is no longer inhibited from V1 to 1500 ft and shows AUTO RELIGHT IN PROGRESS only while the FADEC relights the engine; the IGNITION memo also shows for the automatic continuous ignition of the FADEC (auto relight, quick relight), as in the FCOM - @TCdr
+1. [A380X/FWS] Engine alerts as in the FCOM: START FAULT, IGN A(B) FAULT, OIL FILTER CLOGGED and FUEL FILTER CLOGGED come without chime and MASTER CAUT, EGT and N1/N2 OVER LIMIT without SD page, no EGT OVER LIMIT with a FADEC FAULT; in flight START FAULT NO STARTER AIR PRESSURE comes up with its windmill start lines and NO LIGHT UP after 30 s; new deferred procedures of TWO ENGS OUT ON SAME / OPPOSITE SIDE and LIMITATIONS, deferred procedure and INOP SYS of START VLV FAULT (NOT CLOSED) - @TCdr
 
 ## 2024.1.0
 
