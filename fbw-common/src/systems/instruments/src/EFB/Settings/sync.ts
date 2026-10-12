@@ -130,6 +130,15 @@ export const globalSyncedSettings: SyncedSettingDefinition[] = [
     defaultValue: '1',
   },
   {
+    // Situation visual effects (engine and APU fire...): every FX_CODE condition of the exterior model behaviour XML
+    // that shows a failure or situation effect is ANDed with this local var. Default on.
+    type: 'legacy',
+    configKey: 'CONFIG_SITUATION_FX',
+    localVarName: 'L:A32NX_CONFIG_SITUATION_FX',
+    localVarUnit: 'bool',
+    defaultValue: '1',
+  },
+  {
     type: 'legacy',
     configKey: 'FO_SYNC_EFIS_ENABLED',
     localVarName: 'L:A32NX_FO_SYNC_EFIS_ENABLED',

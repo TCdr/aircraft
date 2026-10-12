@@ -44,6 +44,11 @@ impl A380FireAndSmokeProtection {
 
             // The 9 bottles of the FireExtinguishingSystem: two for each engine and one for the APU (zone 4). The MLG
             // bay (zone 5) does not have a fire extinguishing system.
+            // L:A32NX_ENG_<n>_ON_FIRE / L:A32NX_APU_ON_FIRE is the one "zone burning" signal of the fire detection loops
+            // and of the fire visual effects (A380_WINGS.xml ENGINE_FIRE_FX, A380_Fuselage_Behavior.xml APU_FIRE_FX).
+            // No simulator fire source here (unlike the A32NX): systems.wasm writes the sim's ENG ON FIRE:n from these
+            // L:vars (a380_systems_wasm fire.rs), so reading it back, here or in the fire detection, would keep a zone
+            // burning (and its FIRE warning on) after its failure is removed or an AGENT put it out.
             set_zone_on_fire: SetOnFireModule::new(
                 context,
                 A380_FIRE_ZONES,
@@ -113,7 +118,6 @@ impl FireProtectionSystem {
             zone,
             loop_a_powered_by: ElectricalBusType::DirectCurrentEssential,
             loop_b_powered_by: ElectricalBusType::DirectCurrent(2),
-            additional_fire_source: None,
         });
 
         Self {
@@ -614,8 +618,9 @@ mod a380_fire_and_smoke_protection_tests {
             self
         }
 
+        /// The engine zone burns: its "zone burning" variable, as a tool would write it (no failure)
         fn set_engine_on_fire(mut self, engine_number: usize) -> Self {
-            self.write_by_name(&format!("ENG ON FIRE:{}", engine_number), true);
+            self.write_by_name(&format!("ENG_{}_ON_FIRE", engine_number), true);
             self
         }
 
@@ -623,7 +628,9 @@ mod a380_fire_and_smoke_protection_tests {
             self.fail(FailureType::SetOnFire(FireDetectionZone::Engine(
                 engine_number,
             )));
-            // Because tests don't write to the Aircraft Vars we write this manually here
+            // systems.wasm copies the fire into the sim's ENG ON FIRE:n (a380_systems_wasm fire.rs). The tests have no
+            // wasm: the copy is written here, and stays on until the failure is resolved, even when an agent put the
+            // fire out (the fire detection must not read it)
             self.write_by_name(&format!("ENG ON FIRE:{}", engine_number), true);
             self
         }
@@ -632,13 +639,39 @@ mod a380_fire_and_smoke_protection_tests {
             self.unfail(FailureType::SetOnFire(FireDetectionZone::Engine(
                 engine_number,
             )));
-            // Because tests don't write to the Aircraft Vars we write this manually here
+            // The copy of the fire in the sim variable, see set_engine_on_fire_through_failure
             self.write_by_name(&format!("ENG ON FIRE:{}", engine_number), false);
             self
         }
 
+        /// The failure is removed, but the sim's ENG ON FIRE:n copy of the fire stays on (as if the sim kept it)
+        fn resolve_engine_fire_failure_with_sim_variable_stuck(
+            mut self,
+            engine_number: usize,
+        ) -> Self {
+            self.unfail(FailureType::SetOnFire(FireDetectionZone::Engine(
+                engine_number,
+            )));
+            self.write_by_name(&format!("ENG ON FIRE:{}", engine_number), true);
+            self
+        }
+
+        fn set_apu_on_fire_through_failure(mut self, on_fire: bool) -> Self {
+            if on_fire {
+                self.fail(FailureType::SetOnFire(FireDetectionZone::Apu));
+            } else {
+                self.unfail(FailureType::SetOnFire(FireDetectionZone::Apu));
+            }
+            self
+        }
+
+        /// The "zone burning" signal, e.g. ENG_1_ON_FIRE (the fire visual effects read it)
+        fn zone_burning(&mut self, name: &str) -> bool {
+            self.read_by_name(name)
+        }
+
         fn set_engine_fire_extinguished(mut self, engine_number: usize) -> Self {
-            self.write_by_name(&format!("ENG ON FIRE:{}", engine_number), false);
+            self.write_by_name(&format!("ENG_{}_ON_FIRE", engine_number), false);
             self
         }
 
@@ -1213,6 +1246,130 @@ mod a380_fire_and_smoke_protection_tests {
                 "Engine fire was put out: {}",
                 !test_bed.engine_on_fire_detected(1)
             );
+        }
+    }
+
+    // The "zone burning" signal L:A32NX_ENG_<n>_ON_FIRE / L:A32NX_APU_ON_FIRE, which the fire visual effects read
+    // alone. systems.wasm copies the engine one into the sim's ENG ON FIRE:n (a380_systems_wasm fire.rs): that copy is
+    // an output, it must never keep the zone burning.
+    mod a380_zone_burning_tests {
+        use super::*;
+
+        #[test]
+        fn the_engine_fire_failure_burns_until_it_is_removed_even_if_the_sim_variable_stays_on() {
+            let mut test_bed = test_bed()
+                .with()
+                .set_engine_on_fire_through_failure(3)
+                .and_double_run();
+
+            assert!(test_bed.zone_burning("ENG_3_ON_FIRE"));
+            assert!(!test_bed.zone_burning("ENG_1_ON_FIRE"));
+
+            test_bed = test_bed
+                .resolve_engine_fire_failure_with_sim_variable_stuck(3)
+                .and_double_run();
+
+            assert!(!test_bed.zone_burning("ENG_3_ON_FIRE"));
+        }
+
+        #[test]
+        fn an_agent_that_puts_the_engine_fire_out_stops_the_burning_even_if_the_sim_variable_stays_on(
+        ) {
+            let mut put_out = 0;
+            for _ in 0..64 {
+                // The failure stays active and ENG ON FIRE:1 stays on for the rest of the test
+                let mut test_bed = test_bed()
+                    .with()
+                    .set_engine_on_fire_through_failure(1)
+                    .and_double_run();
+                assert!(test_bed.zone_burning("ENG_1_ON_FIRE"));
+
+                test_bed = test_bed
+                    .set_engine_fire_pb_released(1, true)
+                    .and_run()
+                    .then()
+                    .set_agent_pb(1, true)
+                    .and_double_run()
+                    .and_double_run();
+                assert!(test_bed.squib_engine_is_discharged(1));
+
+                if !test_bed.zone_burning("ENG_1_ON_FIRE") {
+                    put_out += 1;
+                    test_bed = test_bed.and_double_run();
+                    assert!(!test_bed.zone_burning("ENG_1_ON_FIRE"));
+                }
+            }
+
+            assert!(put_out > 0 && put_out < 64);
+        }
+
+        #[test]
+        fn the_apu_fire_failure_burns_until_it_is_removed() {
+            let mut test_bed = test_bed()
+                .with()
+                .set_apu_on_fire_through_failure(true)
+                .and_double_run();
+
+            assert!(test_bed.zone_burning("APU_ON_FIRE"));
+            assert!(!test_bed.zone_burning("ENG_1_ON_FIRE"));
+
+            test_bed = test_bed
+                .set_apu_on_fire_through_failure(false)
+                .and_double_run();
+
+            assert!(!test_bed.zone_burning("APU_ON_FIRE"));
+        }
+
+        // The fire detection senses the zone burning signal alone: FCOM DSC-26-20-20 ENG MASTER FIRE light "The light
+        // remains on, until the fire is extinguished"
+
+        #[test]
+        fn the_fire_warning_ends_when_the_engine_fire_failure_is_removed_even_if_the_sim_variable_stays_on(
+        ) {
+            let mut test_bed = test_bed()
+                .with()
+                .set_engine_on_fire_through_failure(2)
+                .and_double_run();
+            assert!(test_bed.engine_on_fire_detected(2));
+
+            test_bed = test_bed
+                .resolve_engine_fire_failure_with_sim_variable_stuck(2)
+                .and_double_run();
+
+            assert!(!test_bed.engine_on_fire_detected(2));
+        }
+
+        #[test]
+        fn the_fire_warning_ends_when_an_agent_puts_the_engine_fire_out_even_if_the_sim_variable_stays_on(
+        ) {
+            let mut put_out = 0;
+            for _ in 0..64 {
+                // The failure stays active and ENG ON FIRE:1 stays on for the rest of the test
+                let mut test_bed = test_bed()
+                    .with()
+                    .set_engine_on_fire_through_failure(1)
+                    .and_double_run();
+                assert!(test_bed.engine_on_fire_detected(1));
+
+                test_bed = test_bed
+                    .set_engine_fire_pb_released(1, true)
+                    .and_run()
+                    .then()
+                    .set_agent_pb(1, true)
+                    .and_double_run()
+                    .and_double_run();
+
+                if !test_bed.zone_burning("ENG_1_ON_FIRE") {
+                    put_out += 1;
+                    test_bed = test_bed.and_double_run();
+                    assert!(!test_bed.engine_on_fire_detected(1));
+                } else {
+                    // Not put out (1/2 chance): the warning stays
+                    assert!(test_bed.engine_on_fire_detected(1));
+                }
+            }
+
+            assert!(put_out > 0);
         }
     }
 }
