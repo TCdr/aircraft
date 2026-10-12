@@ -34,6 +34,7 @@ import {
 } from '../lib/TcasConstants';
 import { TcasSoundManager } from './TcasSoundManager';
 import { isGpwsAlertActive } from '../lib/TcasGpwsInhibit';
+import { isIntruderShownForTrafficSelector } from '../lib/TcasTrafficSelector';
 import { isTcasStandbyWithoutXpdr } from '@shared/TransponderSystem';
 
 export class NDTcasTraffic {
@@ -624,24 +625,16 @@ export class TcasComputer {
       const onGround = traffic.alt < groundAlt + 360 || traffic.groundSpeed < 30;
       let isDisplayed = false;
       if (!onGround) {
-        if (traffic.groundSpeed >= 30) {
-          // Workaround for MSFS live traffic, TODO: add option to disable
-          if (this.tcasThreat === TcasThreat.THREAT) {
-            if (
-              traffic.intrusionLevel >= TaRaIntrusion.TA &&
-              traffic.relativeAlt >= TCAS.THREAT[TcasThreat.THREAT][Limits.MIN] &&
-              traffic.relativeAlt <= TCAS.THREAT[TcasThreat.THREAT][Limits.MAX]
-            ) {
-              isDisplayed = true;
-            }
-          } else if (this.tcasThreat) {
-            if (
-              traffic.relativeAlt >= TCAS.THREAT[this.tcasThreat][Limits.MIN] &&
-              traffic.relativeAlt <= TCAS.THREAT[this.tcasThreat][Limits.MAX]
-            ) {
-              isDisplayed = true;
-            }
-          }
+        // Workaround for MSFS live traffic, TODO: add option to disable
+        if (traffic.groundSpeed >= 30 && TCAS.THREAT[this.tcasThreat] !== undefined) {
+          // THRT: the proximate and other intruders only while a TA or RA is present (FCOM DSC-34-SURV-60-20)
+          isDisplayed = isIntruderShownForTrafficSelector(
+            this.tcasThreat === TcasThreat.THREAT,
+            traffic.relativeAlt,
+            TCAS.THREAT[this.tcasThreat],
+            traffic.intrusionLevel >= TaRaIntrusion.TA,
+            this.advisoryState !== TcasState.NONE,
+          );
         }
       } else if (this.debug) {
         console.log(`traffic ${traffic.ID} on ground, not displayed`);

@@ -2,7 +2,11 @@
 import { Arinc429SignStatusMatrix, Arinc429Word, NXDataStore, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { LegacySoundManager, soundList } from './LegacySoundManager';
-import { A380X_DEFAULT_RADIO_AUTO_CALL_OUTS, A380XRadioAutoCallOutFlags } from '../../shared/src/AutoCallOuts';
+import {
+  A380X_DEFAULT_RADIO_AUTO_CALL_OUTS,
+  A380XRadioAutoCallOutFlags,
+  isFiveHundredCalloutDue,
+} from '../../shared/src/AutoCallOuts';
 import { EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FwsSoundManagerControlEvents } from '../CpiomC/FlightWarningSystem/FwsSoundManager';
 
@@ -772,7 +776,11 @@ export class LegacyGpws {
         if (radioAlt > 1020) {
           this.AltCallState.action('up');
         } else if (radioAlt <= 513) {
-          if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.FiveHundred) {
+          // FIVE HUNDRED, or smart FIVE HUNDRED: only when off the glide by more than half a dot (FCOM DSC-34-10-50)
+          const glideValid = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number') > 0;
+          // one dot is approx. 0.4 degrees, as in GPWSMode5
+          const glideDots = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number') * 2.5;
+          if (isFiveHundredCalloutDue(this.autoCallOutPins, glideValid, glideDots)) {
             this.pub.pub('enqueueSound', 'alt_500');
           }
           this.AltCallState.action('down');
