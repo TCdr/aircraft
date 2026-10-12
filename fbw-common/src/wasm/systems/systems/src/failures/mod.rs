@@ -55,6 +55,12 @@ pub enum FailureType {
     /// The disconnection function of engine generator drive n failed: its DRIVE pb no longer
     /// disconnects the generator from the engine
     GeneratorDriveDisconnect(usize),
+    /// The integrated drive generator (IDG) of engine n loses its oil: low oil pressure, then an
+    /// oil overheat (electrical::engine_generator)
+    IntegratedDriveGeneratorOilLeak(usize),
+    /// The oil cooling of the IDG of engine n is lost: its oil outlet temperature rises
+    /// (electrical::engine_generator)
+    IntegratedDriveGeneratorOilOverheat(usize),
     // ATA26
     SetOnFire(FireDetectionZone),
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
