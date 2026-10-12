@@ -382,6 +382,9 @@ export class N1 extends DisplayComponent<N1Props> {
 
   private onGround = false;
 
+  /** The FADEC sends the engine parameters (L:A32NX_FADEC_POWERED_ENGn): the exceedance memory only latches valid values */
+  private fadecPowered = false;
+
   /** FCOM DSC-70-90-40 (see shared/EngineLimits): amber above the N1 limit, red above the red limit */
   private readonly n1Color = Subject.create('Green');
 
@@ -398,7 +401,7 @@ export class N1 extends DisplayComponent<N1Props> {
     const color = n1Color(this.n1, this.n1LimitPercent);
     this.n1Color.set(color);
     this.n1IndicatorClass.set(color === 'Green' ? 'GaugeIndicator Gauge' : `GaugeIndicator Gauge ${color}`);
-    this.n1Exceedance.update(this.n1, isGroundStartSequence(this.engineState, this.onGround));
+    this.n1Exceedance.update(this.n1, isGroundStartSequence(this.engineState, this.onGround), this.fadecPowered);
     this.n1ExceedanceValue.set(Math.max(Math.min(this.n1Exceedance.highestValue, 110), 20) / 10);
     this.n1ExceedanceClass.set(this.n1Exceedance.exceeded ? 'GaugeExceedanceMark' : 'Hide');
   }
@@ -428,6 +431,8 @@ export class N1 extends DisplayComponent<N1Props> {
       .on(`engine${this.props.engine}Fadec`)
       .whenChanged()
       .handle((f) => {
+        this.fadecPowered = !!f;
+        this.updateN1Limits();
         this.inactiveVisibility.set(f ? 'hidden' : 'visible');
         this.activeVisibility.set(f ? 'visible' : 'hidden');
       });

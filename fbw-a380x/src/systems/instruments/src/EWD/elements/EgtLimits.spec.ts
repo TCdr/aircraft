@@ -81,14 +81,32 @@ describe('EWD EGT with the engine failures (stage B4)', () => {
 
   it('keeps the red mark at the highest EGT until the next engine start on ground', () => {
     const memory = new ExceedanceMemory(900);
-    memory.update(890, false);
+    memory.update(890, false, true);
     expect(memory.exceeded).toBe(false);
-    memory.update(950, false);
-    memory.update(920, false);
+    memory.update(950, false, true);
+    memory.update(920, false, true);
     expect(memory.exceeded).toBe(true);
     expect(memory.highestValue).toBe(950);
-    memory.update(400, true);
+    memory.update(400, true, true);
     expect(memory.exceeded).toBe(false);
+  });
+
+  // a380_fcom.txt l.73512-73516: a parameter that is not available shows XX instead of its value
+  it('latches no red mark on an EGT the FADEC does not send (XX)', () => {
+    const memory = new ExceedanceMemory(900);
+    memory.update(1200, false, false);
+    expect(memory.exceeded).toBe(false);
+    expect(memory.highestValue).toBe(0);
+  });
+
+  it('ignores a value that is not a finite number and keeps the highest value through a NaN', () => {
+    const memory = new ExceedanceMemory(900);
+    memory.update(Infinity, false, true);
+    expect(memory.exceeded).toBe(false);
+    memory.update(950, false, true);
+    memory.update(NaN, false, true);
+    expect(memory.exceeded).toBe(true);
+    expect(memory.highestValue).toBe(950);
   });
 
   it('has the FCOM N1 and N2 (FBW N3) red limits of 111 % and 118.7 %', () => {

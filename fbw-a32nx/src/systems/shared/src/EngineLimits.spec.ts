@@ -43,9 +43,9 @@ describe('EWD engine limits (EGT: CFM56-5B TCDS values confirmed in the sim; N1,
 
   it('keeps the N1 red mark once the LEAP-1A red line is exceeded', () => {
     const memory = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
-    memory.update(100.9, false);
+    memory.update(100.9, false, true);
     expect(memory.exceeded).toBe(false);
-    memory.update(101.5, false);
+    memory.update(101.5, false, true);
     expect(memory.exceeded).toBe(true);
   });
 
@@ -59,28 +59,56 @@ describe('EWD engine limits (EGT: CFM56-5B TCDS values confirmed in the sim; N1,
 
   it('keeps the N2 red cross only once the LEAP-1A red line is exceeded', () => {
     const memory = new ExceedanceMemory(N2_RED_LIMIT_PERCENT);
-    memory.update(106, false);
+    memory.update(106, false, true);
     expect(memory.exceeded).toBe(false);
-    memory.update(117, false);
+    memory.update(117, false, true);
     expect(memory.exceeded).toBe(true);
   });
 
   it('keeps the highest value once the red limit is exceeded, until the next ground start sequence', () => {
     const memory = new ExceedanceMemory(975);
-    memory.update(940, false);
+    memory.update(940, false, true);
     expect(memory.exceeded).toBe(false);
 
-    memory.update(980, false);
-    memory.update(960, false);
-    memory.update(900, false);
+    memory.update(980, false, true);
+    memory.update(960, false, true);
+    memory.update(900, false, true);
     expect(memory.exceeded).toBe(true);
     expect(memory.highestValue).toBe(980);
 
     // an in-flight relight does not reset it
-    memory.update(500, isGroundStartSequence(3, false));
+    memory.update(500, isGroundStartSequence(3, false), true);
     expect(memory.exceeded).toBe(true);
 
-    memory.update(400, isGroundStartSequence(2, true));
+    memory.update(400, isGroundStartSequence(2, true), true);
     expect(memory.exceeded).toBe(false);
+  });
+  it('keeps no N2 red cross on the N2 of the recorded LEAP-1A take-offs and climbs (the CFM56 105 % latched it)', () => {
+    // L:A32NX_ENGINE_N2 of recorded flights (2026-10-11/12): TOGA lift-off 105.3-105.7 %, CLB 101-103.6 %
+    const recordedN2 = [104.7, 105.0, 105.3, 105.7, 104.5, 103.6, 101.0];
+    const memory = new ExceedanceMemory(N2_RED_LIMIT_PERCENT);
+    recordedN2.forEach((n2) => memory.update(n2, false, true));
+    expect(memory.exceeded).toBe(false);
+  });
+
+  it('latches no red cross on an N2 the FADEC does not send (not powered: amber XX, FCOM l.46305-46306)', () => {
+    const memory = new ExceedanceMemory(N2_RED_LIMIT_PERCENT);
+    // a stale or not yet initialised L:A32NX_ENGINE_N2 while the FADEC is not powered
+    memory.update(120, false, false);
+    expect(memory.exceeded).toBe(false);
+    // the FADEC is powered with a normal N2: still no red cross
+    memory.update(103.6, false, true);
+    expect(memory.exceeded).toBe(false);
+  });
+
+  it('latches nothing on a value that is not a finite number, and keeps the highest value through one', () => {
+    const memory = new ExceedanceMemory(N2_RED_LIMIT_PERCENT);
+    memory.update(Infinity, false, true);
+    expect(memory.exceeded).toBe(false);
+
+    memory.update(117, false, true);
+    memory.update(NaN, false, true);
+    expect(memory.exceeded).toBe(true);
+    expect(memory.highestValue).toBe(117);
   });
 });
