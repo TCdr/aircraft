@@ -82,7 +82,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 - CDS / display unit reconfiguration: partly implemented. Automatic (PFD to the ND DU, EWD to the SD DU), the PFD/ND
   pb and the DU RECONF pb work (the EWD and the SD can be selected on the ND DUs), but the MFD is not drawn on another
   DU and nothing is drawn on the MFD DUs (the DU RECONF pb skips them, so it does nothing when it acts on an MFD DU),
-  the SD on an ND DU has no ATC mailbox (the mailbox stays on the SD DU), the ND on the PFD DU has no weather radar or
+  the SD on an ND DU has the ATC mailbox only while the SD DU is off or shows another display (with both, the ND DU's
+  mailbox mirrors the SD DU's displayed message and takes no input), the ND on the PFD DU has no weather radar or
   terrain image (the native ndwxr gauges stay on the ND DUs), and the KCCU keys do not reconfigure the DUs
 - PFD backup scales
 - Interactive ND: the revision lists (waypoints, NAVAIDs, airports, aircraft), the DIRECT TO, INSERT NEXT WPT and
