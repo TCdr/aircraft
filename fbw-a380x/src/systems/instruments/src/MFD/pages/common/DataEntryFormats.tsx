@@ -1,6 +1,15 @@
 //  Copyright (c) 2024-2025-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
-import { MappedSubject, Subject, Subscribable, Subscription, Unit, UnitFamily, UnitType } from '@microsoft/msfs-sdk';
+import {
+  MappedSubject,
+  Subject,
+  Subscribable,
+  SubscribableUtils,
+  Subscription,
+  Unit,
+  UnitFamily,
+  UnitType,
+} from '@microsoft/msfs-sdk';
 import { Fix } from '@flybywiresim/fbw-sdk';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
 import { Mmo, maxCertifiedAlt } from '@shared/PerformanceConstants';
@@ -30,8 +39,40 @@ function getFormattedFormatError(format: string, unit?: string): A380FmsError {
     FORMAT_ERROR_DETAILS_MESSAGE.replace(FORMAT, format).replace(ERROR_UNIT, unit ? ` ${unit}` : ''),
   );
 }
+
+function parseFlightLevel(input: string, minValue: number, maxValue: number): number | null {
+  if (input === '') {
+    return null;
+  }
+
+  // Accept "FL" followed by 1 to 3 digits, e.g. "FL30" or "FL300"
+  let nbr: number = Number(input);
+  if (Number.isNaN(nbr)) {
+    const flMatch = input.match(/^FL(\d{1,3})$/i);
+    if (flMatch) {
+      nbr = Number(flMatch[1]);
+    }
+  }
+
+  if (nbr > maxValue || nbr < minValue) {
+    throw new A380FmsError(FmsErrorType.EntryOutOfRange);
+  } else if (Number.isNaN(nbr)) {
+    throw getFormattedFormatError('FL XXX');
+  }
+
+  return nbr;
+}
+
+function formatFlightLevel(value: number | null): FieldFormatTuple {
+  if (value === null || value === undefined) {
+    return ['---', 'FL', null] as FieldFormatTuple;
+  }
+  const fl = Math.round(value);
+  return [fl.toFixed(0).toString().padStart(3, '0'), 'FL', null] as FieldFormatTuple;
+}
+
 export interface DataEntryFormat<T, U = T> {
-  placeholder: string;
+  placeholder?: string;
   maxDigits: number;
   maxOverflowDigits?: number;
   unit?: string;
@@ -309,15 +350,9 @@ export class AltitudeFormat extends SubscriptionCollector implements DataEntryFo
  * Unit of value: Feet (i.e. FL * 100)
  */
 export class FlightLevelFormat extends SubscriptionCollector implements DataEntryFormat<number> {
-  public readonly placeholder = '---';
-
   public readonly maxDigits = 3;
 
   public readonly maxOverflowDigits = 2;
-
-  public readonly unit = 'FL';
-
-  private readonly requiredFormat = `FL XXX`;
 
   private minValue = 0;
 
@@ -333,11 +368,75 @@ export class FlightLevelFormat extends SubscriptionCollector implements DataEntr
   }
 
   public format(value: number) {
-    if (value === null || value === undefined) {
-      return [this.placeholder, this.unit, null] as FieldFormatTuple;
+    return formatFlightLevel(value);
+  }
+
+  public async parse(input: string) {
+    return parseFlightLevel(input, this.minValue, this.maxValue);
+  }
+
+  destroy(): void {
+    super.destroy();
+  }
+}
+
+export class WindAltitudeFormat extends SubscriptionCollector implements DataEntryFormat<number> {
+  public readonly placeholder = '-----';
+
+  public readonly maxDigits = 5;
+
+  private readonly minValue = 0;
+
+  private readonly requiredFormat = 'FOR ALT XXXXX FOR FL XXX';
+
+  private readonly maxValue = maxCertifiedAlt;
+
+  private transAlt: number | null = null;
+
+  reFormatTrigger = Subject.create(false);
+
+  private readonly isTransAltFlightLevel: Subscribable<boolean>;
+
+  constructor(
+    transAlt: Subscribable<number | null> | null = null,
+    isTransAltFlightLevel: Subscribable<boolean> | boolean = Subject.create(false),
+    private readonly groundAltitude: Subscribable<number | null>,
+  ) {
+    super();
+    this.isTransAltFlightLevel = SubscribableUtils.toSubscribable(isTransAltFlightLevel, true);
+    if (transAlt !== null) {
+      this.subscriptions.push(
+        MappedSubject.create(
+          ([val, isFl]) => (val !== null ? (isFl ? val * 100 : val) : null),
+          transAlt,
+          this.isTransAltFlightLevel,
+        ).sub((val) => {
+          this.transAlt = val;
+          this.reFormatTrigger.notify();
+        }),
+      );
     }
-    const fl = Math.round(value);
-    return [fl.toFixed(0).toString().padStart(3, '0'), this.unit, null] as FieldFormatTuple;
+  }
+
+  public format(value: number) {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, '\xa0\xa0'] as FieldFormatTuple;
+    }
+
+    if (value <= this.groundAltitude.get()!) {
+      // We should never enter here if ground altitude is null
+      return ['GND', null, null] as FieldFormatTuple;
+    }
+
+    if (this.transAlt !== null) {
+      if (
+        (!this.isTransAltFlightLevel.get() && value > this.transAlt) ||
+        (this.isTransAltFlightLevel.get() && value >= this.transAlt)
+      ) {
+        return [(value / 100).toFixed(0).toString().padStart(3, '0'), 'FL', null] as FieldFormatTuple; // Add some whitespaces so it fits to input.
+      }
+    }
+    return [value.toFixed(0).toString(), null, 'FT'] as FieldFormatTuple;
   }
 
   public async parse(input: string) {
@@ -345,22 +444,63 @@ export class FlightLevelFormat extends SubscriptionCollector implements DataEntr
       return null;
     }
 
-    // Accept "FL" followed by 1 to 3 digits, e.g. "FL30" or "FL300"
-    let nbr: number = Number(input);
-    if (Number.isNaN(nbr)) {
-      const flMatch = input.match(/^FL(\d{1,3})$/i);
-      if (flMatch) {
-        nbr = Number(flMatch[1]);
+    let nbr = Number(input);
+    if (input.length <= 3) {
+      nbr = Number(input) * 100;
+    }
+    const groundAlt = this.groundAltitude.get();
+    if (input.toUpperCase() === 'GND') {
+      if (groundAlt !== null) {
+        nbr = groundAlt;
+      } else {
+        // Throw entry out of range if we don't know the ground altitude.
+        throw new A380FmsError(FmsErrorType.EntryOutOfRange);
       }
     }
 
-    if (nbr > this.maxValue || nbr < this.minValue) {
-      throw new A380FmsError(FmsErrorType.EntryOutOfRange);
-    } else if (Number.isNaN(nbr)) {
+    if (Number.isNaN(nbr)) {
       throw getFormattedFormatError(this.requiredFormat);
+    } else if (nbr > this.maxValue || nbr < this.minValue || (groundAlt === null && nbr <= 400)) {
+      throw new A380FmsError(FmsErrorType.EntryOutOfRange);
     }
 
-    return nbr;
+    // A380 FCOM a380_fcom.txt l.42211-42212: an altitude below 400 ft is a ground wind
+    if (groundAlt !== null && nbr < 400) {
+      return groundAlt;
+    }
+
+    return Math.max(nbr, groundAlt ?? 0);
+  }
+
+  destroy(): void {
+    super.destroy();
+  }
+}
+
+export class WindFlightLevelFormat extends SubscriptionCollector implements DataEntryFormat<number> {
+  public readonly placeholder = '---';
+
+  public readonly maxDigits = 5;
+
+  private minValue = 0;
+
+  private maxValue = maxCertifiedAlt;
+
+  constructor(
+    minValue: Subscribable<number> = Subject.create(0),
+    maxValue: Subscribable<number> = Subject.create(maxCertifiedAlt / 100),
+  ) {
+    super();
+    this.subscriptions.push(minValue.sub((val) => (this.minValue = val), true));
+    this.subscriptions.push(maxValue.sub((val) => (this.maxValue = val), true));
+  }
+
+  public format(value: number) {
+    return formatFlightLevel(value);
+  }
+
+  public async parse(input: string) {
+    return parseFlightLevel(input, this.minValue, this.maxValue);
   }
 
   destroy(): void {
@@ -738,108 +878,6 @@ export class CrzTempFormat implements DataEntryFormat<number> {
   }
 }
 
-/**
- * Altitude of a climb or descent wind entry (A380 FCOM DSC-22-FMS-20-100 p. 30 "WIND ALTITUDE": NNN = flight level,
- * NNNNN = feet, from FL 1 / 1 ft to the maximum certified altitude). The WIND page shows it in feet below the transition
- * altitude and as a flight level above it, and "GND" for a ground wind, which the crew enters as "GND" or as an altitude
- * within 400 ft of the airport (A380 FCOM DSC-22-FMS-20-30, CLIMB / DESCENT WIND ENTRY FIELDS).
- */
-export class WindAltitudeFormat extends SubscriptionCollector implements DataEntryFormat<number> {
-  /** A wind at or below the airport elevation plus this height is a ground wind (FCOM: "less than 400 ft"). */
-  private static readonly GroundWindBandFeet = 400;
-
-  public readonly placeholder = '-----';
-
-  public readonly maxDigits = 5;
-
-  private readonly requiredFormat = 'FOR ALT XXXXX FOR FL XXX OR GND';
-
-  private transitionAltitudeFeet: number | null = null;
-
-  private groundAltitude: number | null = null;
-
-  /**
-   * Altitudes entered (or uplinked) as flight levels: without a transition altitude (none in the navigation database)
-   * they keep the unit of their entry, FL for NNN (FCOM DSC-22-FMS-20-100 "WIND ALTITUDE": NNN = FL, NNNNN = FT).
-   */
-  private readonly flightLevelAltitudes = new Set<number>();
-
-  public readonly reFormatTrigger = Subject.create(false);
-
-  /** The altitudes of the shown winds that were entered or uplinked as flight levels */
-  public setFlightLevelAltitudes(altitudes: Iterable<number>): void {
-    this.flightLevelAltitudes.clear();
-    for (const altitude of altitudes) {
-      this.flightLevelAltitudes.add(altitude);
-    }
-    this.reFormatTrigger.notify();
-  }
-
-  /** Whether the altitude was last entered as a flight level */
-  public isFlightLevelEntry(altitude: number): boolean {
-    return this.flightLevelAltitudes.has(altitude);
-  }
-
-  /**
-   * @param transitionAltitudeFeet transition altitude (climb) or transition level in feet (descent)
-   * @param groundAltitude elevation of the airport the winds refer to, in feet
-   */
-  constructor(transitionAltitudeFeet: Subscribable<number | null>, groundAltitude: Subscribable<number | null>) {
-    super();
-    this.subscriptions.push(
-      transitionAltitudeFeet.sub((v) => {
-        this.transitionAltitudeFeet = v;
-        this.reFormatTrigger.notify();
-      }, true),
-      groundAltitude.sub((v) => {
-        this.groundAltitude = v;
-        this.reFormatTrigger.notify();
-      }, true),
-    );
-  }
-
-  public format(value: number | null): FieldFormatTuple {
-    if (value === null || value === undefined) {
-      return [this.placeholder, null, 'FT'];
-    }
-    // Without the airport elevation, GND is stored as 0 ft
-    if (value <= (this.groundAltitude ?? 0) + WindAltitudeFormat.GroundWindBandFeet) {
-      return ['GND', null, null];
-    }
-    const isFlightLevel =
-      this.transitionAltitudeFeet !== null ? value > this.transitionAltitudeFeet : this.flightLevelAltitudes.has(value);
-    if (isFlightLevel) {
-      return [(value / 100).toFixed(0).padStart(3, '0'), 'FL', null];
-    }
-    return [value.toFixed(0), null, 'FT'];
-  }
-
-  public async parse(input: string): Promise<number | null> {
-    if (input === '') {
-      return null;
-    }
-    if (input === 'GND') {
-      return this.groundAltitude ?? 0;
-    }
-
-    const match = input.match(/^(?:FL)?(\d{1,3})$|^(\d{4,5})$/);
-    if (!match) {
-      throw getFormattedFormatError(this.requiredFormat);
-    }
-
-    const altitude = match[2] !== undefined ? Number(match[2]) : Number(match[1]) * 100;
-    if (altitude < 1 || altitude > maxCertifiedAlt) {
-      throw new A380FmsError(FmsErrorType.EntryOutOfRange);
-    }
-    if (match[2] === undefined) {
-      this.flightLevelAltitudes.add(altitude);
-    } else {
-      this.flightLevelAltitudes.delete(altitude);
-    }
-    return altitude;
-  }
-}
-
 export class WindDirectionFormat implements DataEntryFormat<number> {
   public readonly placeholder = '---';
 
@@ -994,9 +1032,9 @@ export class QnhFormat extends SubscriptionCollector implements DataEntryFormat<
 
   private readonly requiredFormat = 'XXXX';
 
-  private readonly minHpaValue = 745;
+  public static readonly minHpaValue = 745;
 
-  private readonly maxHpaValue = 1100;
+  public static readonly maxHpaValue = 1100;
 
   private readonly minInHgValue = 22.0;
 
@@ -1018,7 +1056,7 @@ export class QnhFormat extends SubscriptionCollector implements DataEntryFormat<
     if (value === null || value === undefined) {
       return [this.placeholder, null, null] as FieldFormatTuple;
     }
-    return [value < this.minHpaValue ? value.toFixed(2) : value.toFixed(0), null, null] as FieldFormatTuple;
+    return [value < QnhFormat.minHpaValue ? value.toFixed(2) : value.toFixed(0), null, null] as FieldFormatTuple;
   }
 
   public async parse(input: string) {
@@ -1047,8 +1085,8 @@ export class QnhFormat extends SubscriptionCollector implements DataEntryFormat<
 
     // N, NN, NNN or NNNN
     if (QnhFormat.QNH_REGEX_HPA.test(input)) {
-      if (parsedInput > this.maxHpaValue || parsedInput < this.minHpaValue) {
-        throw getFormattedEntryOutOfRangeError(this.minHpaValue.toString(), this.maxHpaValue.toString());
+      if (parsedInput > QnhFormat.maxHpaValue || parsedInput < QnhFormat.minHpaValue) {
+        throw getFormattedEntryOutOfRangeError(QnhFormat.minHpaValue.toString(), QnhFormat.maxHpaValue.toString());
       }
       return parsedInput;
     }

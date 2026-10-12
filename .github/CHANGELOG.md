@@ -160,6 +160,16 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWS] New ENG 1(2) THR LEVER ABV IDLE warning with the repetitive RETARD callout when a thrust lever is above idle while the other one is in reverse, or comes out of reverse, during the landing roll - @TCdr
 1. [A32NX/FWS] New ENG SAT ABOVE FLEX TEMP caution before take-off when the outside air temperature is above the FLEX TEMP entered in the MCDU - @TCdr
 1. [A32NX/ENG] New flyPad failures Engine 1(2) fan blocked (no N1 rotation at start) (ATA 72) and the ENG 1(2) LOW N1 caution: during a start on the ground the N1 stays at 0 and the core hangs below idle - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
+1. [A380X/MFD] The default alternate cruise level now follows the A380 FCOM (FL 220 below 200 NM, FL 310 from 200 NM) instead of the A320 rule - @TCdr
+1. [A380X/MFD] The WIND page CRZ tab now has a working SAT entry at the cruise flight level - @TCdr
+1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as in the FCOM, and the stored history winds are kept when the storage key changes - @TCdr
+1. [A380X/MFD] Company wind messages use the FCOM wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
+1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 
 ## 2024.1.0
 
