@@ -273,3 +273,67 @@ fn with_all_four_engines_out_no_relight_at_norm() {
     master_off_then_on(&mut test_bed, 1);
     assert!(!lights_up_within(&mut test_bed, 1, Duration::from_secs(30)));
 }
+
+/// L:A32NX_ENGINE_STATE of the FADEC
+const ENGINE_STATE_OFF: f64 = 0.;
+const ENGINE_STATE_STARTING: f64 = 2.;
+
+/// The crossbleed engine start on the ground, PRO-SUP-70-10 (a380_fcom.txt l.181024-181029):
+/// "ALL ENG BLEEDS ... ON, X BLEED ... AUTO, SECOND ENG ... START". Engine 1 runs at idle, the APU
+/// bleed is OFF, engines 2 to 4 are stopped with their ENG MASTER OFF, ENG START selector IGN START.
+fn on_the_ground_with_engine_1_running_and_no_apu_bleed() -> SimulationTestBed<A380> {
+    let mut test_bed = SimulationTestBed::new(A380::new);
+    test_bed.set_on_ground(true);
+    set_flight_conditions(&mut test_bed, 0., 0.);
+    test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", ENG_START_SEL_IGN_START);
+    test_bed.write_by_name("KNOB_OVHD_AIRCOND_XBLEED_Position", CROSS_BLEED_AUTO);
+    test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+    set_engine(&mut test_bed, 1, ENGINE_STATE_ON, 70.);
+    for engine_number in 2..=4 {
+        test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", engine_number), false);
+        set_engine(&mut test_bed, engine_number, ENGINE_STATE_OFF, 0.);
+    }
+    test_bed.run_multiple_frames(Duration::from_secs(10));
+    test_bed
+}
+
+fn cross_bleed_valves_are_open(test_bed: &mut SimulationTestBed<A380>) -> [bool; 3] {
+    ["L", "C", "R"].map(|valve| test_bed.read_by_name(&format!("PNEU_XBLEED_VALVE_{}_OPEN", valve)))
+}
+
+#[test]
+fn on_the_ground_a_crossbleed_engine_start_gets_starter_air_from_the_running_engine() {
+    // FCOM DSC-36-10-50 (l.94076-94077): the crossbleed valves open automatically "On ground, at
+    // engine start". Before the fix they stayed closed at AUTO (no APU bleed, all ENG BLEED pbs ON):
+    // the starter of engine 2 got no air and the FADEC reported START FAULT (NO STARTER AIR PRESSURE).
+    let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
+    assert_eq!(cross_bleed_valves_are_open(&mut test_bed), [false; 3]);
+
+    // ENG 2 MASTER ON: the FADEC starts the engine; the starter turns the core to 10 % N3
+    test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
+    set_engine(&mut test_bed, 2, ENGINE_STATE_STARTING, 10.);
+    test_bed.run_multiple_frames(Duration::from_secs(15));
+
+    let start_fault: f64 = test_bed.read_by_name("ENGINE_2_START_FAULT");
+    assert_eq!(
+        start_fault, 0.,
+        "no START FAULT (6: NO STARTER AIR PRESSURE)"
+    );
+    let start_valve_open: bool = test_bed.read_by_name("PNEU_ENG_2_STARTER_VALVE_OPEN");
+    assert!(start_valve_open);
+    let starter_pressurized: bool = test_bed.read_by_name("PNEU_ENG_2_STARTER_PRESSURIZED");
+    assert!(starter_pressurized, "the engine 1 bleed turns the starter");
+    assert_eq!(cross_bleed_valves_are_open(&mut test_bed), [true; 3]);
+
+    // the fuel lights up from 20 % N3, then the start valve closes above 58.4 % N3 and the
+    // crossbleed valves close again
+    set_engine(&mut test_bed, 2, ENGINE_STATE_STARTING, 25.);
+    assert!(lights_up_within(&mut test_bed, 2, Duration::from_secs(5)));
+    set_engine(&mut test_bed, 2, ENGINE_STATE_STARTING, 60.);
+    test_bed.run_multiple_frames(Duration::from_secs(2));
+    set_engine(&mut test_bed, 2, ENGINE_STATE_ON, 70.);
+    test_bed.run_multiple_frames(Duration::from_secs(2));
+    assert_eq!(cross_bleed_valves_are_open(&mut test_bed), [false; 3]);
+    let start_fault: f64 = test_bed.read_by_name("ENGINE_2_START_FAULT");
+    assert_eq!(start_fault, 0.);
+}
