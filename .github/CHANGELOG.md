@@ -361,6 +361,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A32NX/MCDU] PROG page: with one engine out, REC MAX shows the engine-out recommended maximum altitude (long-range cruise ceiling), as in the FCOM; the flyPad Buffet page gets the same value - @TCdr
+1. [A32NX/ADIRS] A complete IR alignment takes 10 min at any latitude, as in the A320 FCOM (it took 5 to 17 min with the latitude like the A380) - @TCdr
+1. [A32NX/FUEL] Gravity feeding: with the X FEED open and all four wing tank pumps off, each engine burns the fuel of its own wing tank (the burned fuel was taken from no tank) - @TCdr
+1. [A32NX/ENG] In flight, after a flameout the FADEC relights the engine by itself within 30 s once the continuous ignition is on (ENG MODE selector at IGN, or the engine anti-ice, which now selects the continuous ignition automatically), without an ENG MASTER cycle, as in the FCOM - @TCdr
+1. [A32NX/ENG] Engine start faults as in the FCOM: after a stall or an EGT over limit during an automatic start on the ground the FADEC tries a new start first and dry cranks only after that, a manual start lights up from 20 % N2, and a starter that fails during an in-flight relight gives ENG START FAULT STARTER SHAFT SHEAR with WINDMILL START ONLY - @TCdr
 
 ## 2024.1.0
 

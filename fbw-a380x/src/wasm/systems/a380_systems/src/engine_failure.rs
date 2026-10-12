@@ -258,6 +258,13 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         // DSC-70-80-20 (l.112367): "The FADEC uses both igniters, when the continuous ignition
         // operates."
         continuous_ignition_uses_both_igniters: true,
+        // Unchanged A380X behaviour (A32NX FCOM batch 7 kept the A380X as it was): the manual start
+        // lights up at the automatic light-up speed, every start fault cranks before the new start
+        // (DSC-70-80-30-20 l.112489: "initiates two further attempts of automatic start sequence
+        // after cranking"), and no starter fault is detected in flight.
+        manual_start_fuel_on_n2: Ratio::new::<percent>(20.),
+        stall_or_egt_restart_before_crank: false,
+        starter_fault_detected_in_flight: false,
     }
 }
 
@@ -469,6 +476,9 @@ impl A380EngineFailure {
                 <= Self::THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES,
             preset_quick_mode: self.preset_quick_mode,
             relight_pending: self.failure.is_flamed_out() || self.failure.is_seized(),
+            // Not modelled on the A380X (its continuous ignition of the FADEC AUTO RELIGHT is in
+            // the FADEC, EngineIgnition_A380X.hpp).
+            automatic_continuous_ignition: false,
         }
     }
 
@@ -497,6 +507,7 @@ impl A380EngineFailure {
                 lp_valve_starved,
                 start_sequence_fuel_cut: self.start.fuel_is_cut(),
                 ignition_available: self.start.ignition_is_available(),
+                automatic_continuous_ignition: false,
             },
         );
 

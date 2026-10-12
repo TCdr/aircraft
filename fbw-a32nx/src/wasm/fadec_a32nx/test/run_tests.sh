@@ -19,3 +19,7 @@ clang++ -std=c++20 -Wall -Wextra -Werror -Wno-unused-lambda-capture $FLAGS fan_b
 # Polynomials_A32NX.hpp has a pre-existing unused lambda capture (also a warning of the WASM build)
 clang++ -std=c++20 -Wall -Wextra -Werror -Wno-unused-lambda-capture -I../../../../../fbw-common/src/wasm/fadec_common/src oil_system_test.cpp -o ../obj/oil_system_test
 ../obj/oil_system_test
+# The wing tank each engine burns from (gravity feeding): with WITHOUT_THE_FIX=1 gravity feeding burns no tank fuel and the
+# test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS cross_feed_burn_test.cpp -o ../obj/cross_feed_burn_test
+../obj/cross_feed_burn_test
