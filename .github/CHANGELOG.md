@@ -378,6 +378,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Settings > Sim Options: new "Situation Visual Effects (Engine and APU Fire, Engine Damage, Oil Leak)" switch, on by default, to turn the fire, smoke, engine damage and oil leak effects off - @TCdr
 1. [A32NX/MODEL] The ram air turbine is now visible on the exterior: its doors open under the left belly fairing and it swings out when deployed, the propeller turns in the airflow, and it goes back in when stowed on the ground - @TCdr
 1. [A380X/FMS] TRIP fuel and cruise fuel predictions now match the fuel the engines burn at Mach 0.85 (they were 4 to 7 % low in cruise, about 3 % low on the TRIP) - @TCdr
+1. [A380X/BLEED] With the X BLEED selector at AUTO, the crossbleed valves open on the ground during an engine start, so the running engines supply the starter air of a crossbleed engine start - @TCdr
 
 ## 2024.1.0
 

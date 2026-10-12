@@ -231,12 +231,23 @@ impl A380Pneumatic {
     ) {
         self.apu_compression_chamber.update(apu);
 
+        // The start valve commands come first: the crossbleed AUTO control opens the crossbleed
+        // valves for an engine start in the same step (see CoreProcessingInputOutputModuleAUnit)
+        for controller in self.engine_starter_valve_controllers.iter_mut() {
+            controller.update(context, &self.fadec);
+        }
+        let engine_start_valves_commanded_open = self
+            .engine_starter_valve_controllers
+            .each_ref()
+            .map(|controller| controller.is_commanded_open());
+
         self.core_processing_input_output_module_a.update(
             context,
             &self.engine_systems,
             &self.apu_bleed_air_valve,
             overhead_panel,
             engine_fire_push_buttons,
+            engine_start_valves_commanded_open,
         );
 
         for cross_bleed_valve in self.cross_bleed_valves.iter_mut() {
@@ -244,10 +255,6 @@ impl A380Pneumatic {
             // TLDR: CPIOM-A1+A2 control left xbleed and APU isolation valve, CPIOM-A3+A4 control center and right xbleed valve
             cross_bleed_valve
                 .update_open_amount(&self.core_processing_input_output_module_a.units[0])
-        }
-
-        for controller in self.engine_starter_valve_controllers.iter_mut() {
-            controller.update(context, &self.fadec);
         }
 
         for (index, (engine_system, cpiom_unit)) in self
@@ -499,6 +506,8 @@ fn engine_ducts_without_air_source(
 /// a valve that does not follow its command (ENG START VLV FAULT).
 struct EngineStarterValveController {
     number: usize,
+    /// The FADEC commands the start valve open (start, crank, relight), whatever its position
+    commanded_open: bool,
     should_open: bool,
     supervision: EngineStartValveSupervision,
 }
@@ -518,9 +527,14 @@ impl EngineStarterValveController {
     fn new(context: &mut InitContext, number: usize) -> Self {
         Self {
             number,
+            commanded_open: false,
             should_open: false,
             supervision: EngineStartValveSupervision::new(context, number),
         }
+    }
+
+    fn is_commanded_open(&self) -> bool {
+        self.commanded_open
     }
 
     /// A380 FCOM DSC-70-30 (a380_fcom.txt l.113548-113576), at the ENG MASTER ON of a start
@@ -546,10 +560,10 @@ impl EngineStarterValveController {
         let schedule_open = starting
             && starter_assisted
             && core_speed.get::<percent>() <= Self::START_VALVE_CLOSING_N3_PERCENT;
-        let commanded_open = self.supervision.commanded_open(schedule_open);
-        self.should_open = self.supervision.position_open(commanded_open);
+        self.commanded_open = self.supervision.commanded_open(schedule_open);
+        self.should_open = self.supervision.position_open(self.commanded_open);
         self.supervision
-            .monitor(context.delta(), commanded_open, self.should_open);
+            .monitor(context.delta(), self.commanded_open, self.should_open);
     }
 }
 impl SimulationElement for EngineStarterValveController {
@@ -589,7 +603,12 @@ impl CoreProcessingInputOutputModuleA {
         apu_bleed_valve: &impl PneumaticValve,
         pneumatic_overhead_panel: &A380PneumaticOverheadPanel,
         engine_fire_push_buttons: &impl EngineFirePushButtons,
+        engine_start_valves_commanded_open: [bool; 4],
     ) {
+        // "On ground, at engine start" (FCOM DSC-36-10-50, see the crossbleed signal): any engine
+        // whose start valve the FADEC commands open
+        let engine_start_on_ground =
+            context.is_on_ground() && engine_start_valves_commanded_open.contains(&true);
         for (unit, sensor) in self.units.iter_mut().zip(sensors) {
             unit.update(
                 context,
@@ -597,6 +616,7 @@ impl CoreProcessingInputOutputModuleA {
                 engine_fire_push_buttons.is_released(unit.engine_number),
                 apu_bleed_valve,
                 pneumatic_overhead_panel,
+                engine_start_on_ground,
             );
         }
     }
@@ -632,6 +652,8 @@ struct CoreProcessingInputOutputModuleAUnit {
     is_apu_bleed_valve_open: bool,
     is_apu_bleed_on: bool,
     is_any_bleed_pushbutton_off: bool,
+    /// On the ground, the FADEC commands the start valve of an engine open
+    is_engine_start_on_ground: bool,
     high_pressure_valve_pid: PidController,
     pressure_regulating_valve_pid: PidController,
     fan_air_valve_pid: PidController,
@@ -653,6 +675,7 @@ impl CoreProcessingInputOutputModuleAUnit {
             is_apu_bleed_valve_open: false,
             is_apu_bleed_on: false,
             is_any_bleed_pushbutton_off: false,
+            is_engine_start_on_ground: false,
             high_pressure_valve_pid: PidController::new(0.05, 0.05, 0., 0., 1., 50., 1.),
             pressure_regulating_valve_pid: PidController::new(
                 0.1,
@@ -675,7 +698,9 @@ impl CoreProcessingInputOutputModuleAUnit {
         is_engine_fire_pushbutton_released: bool,
         apu_bleed_valve: &impl PneumaticValve,
         pneumatic_overhead_panel: &A380PneumaticOverheadPanel,
+        is_engine_start_on_ground: bool,
     ) {
+        self.is_engine_start_on_ground = is_engine_start_on_ground;
         self.intermediate_pressure_compressor_pressure = sensors.intermediate_pressure();
         self.high_pressure_compressor_pressure = sensors.high_pressure();
         self.transfer_pressure = sensors.transfer_pressure();
@@ -757,6 +782,21 @@ impl ControllerSignal<FanAirValveSignal> for CoreProcessingInputOutputModuleAUni
         )))
     }
 }
+/// The X BLEED selector at AUTO. A380 FCOM DSC-36-10-50 (a380_fcom.txt l.94076-94079): the
+/// crossbleed valves "are normally closed. They open automatically, and at the same time: On
+/// ground, at engine start; When the APU bleed valve is selected open; In case any engine bleed
+/// system fails."
+///
+/// - Engine start: the crossbleed engine start of PRO-SUP-70-10 (l.180984-180988, l.181024-181029:
+///   "ALL ENG BLEEDS ... ON, X BLEED ... AUTO, SECOND ENG ... START") gets the starter air of the
+///   running engines through these valves. Design choice, the FCOM gives no opening or closing
+///   point: "at engine start" is while the FADEC commands the start valve of any engine open, from
+///   the ENG MASTER ON (or MAN START ON, crank) to the start valve closing at 58.4 % N2 (DSC-70-30
+///   l.113558) or the end/abort of the start. All three valves together ("at the same time"). The
+///   valves then close again, unless another condition keeps them open; the FCOM APU BLEED OFF
+///   after the start (PRO-NOR-SOP l.119903-119907): "All crossbleed valves close".
+/// - The engine bleed failure is modelled as an ENG BLEED pb OFF (still to do: an engine bleed
+///   that fails with its pb ON).
 impl ControllerSignal<CrossBleedValveSignal> for CoreProcessingInputOutputModuleAUnit {
     fn signal(&self) -> Option<CrossBleedValveSignal> {
         match self.cross_bleed_valve_selector {
@@ -767,7 +807,10 @@ impl ControllerSignal<CrossBleedValveSignal> for CoreProcessingInputOutputModule
                 CrossBleedValveSignalType::Manual,
             )),
             CrossBleedValveSelectorMode::Auto => {
-                if self.is_apu_bleed_valve_open || self.is_any_bleed_pushbutton_off {
+                if self.is_apu_bleed_valve_open
+                    || self.is_any_bleed_pushbutton_off
+                    || self.is_engine_start_on_ground
+                {
                     Some(CrossBleedValveSignal::new_open(
                         CrossBleedValveSignalType::Automatic,
                     ))
@@ -3611,6 +3654,119 @@ mod tests {
             .set_apu_bleed_valve_signal(ApuBleedAirValveSignal::new_closed())
             .and_run();
 
+        assert!(!test_bed.cross_bleed_valves_are_open());
+    }
+
+    /// The crossbleed engine start of PRO-SUP-70-10 (a380_fcom.txt l.181024-181029) on the ground:
+    /// engine 1 runs at idle, engines 2 to 4 are stopped, ALL ENG BLEEDS ON, APU bleed OFF, X BLEED
+    /// AUTO.
+    fn on_the_ground_with_engine_1_running_and_no_apu_bleed() -> PneumaticTestBed {
+        let mut test_bed = test_bed_with()
+            .idle_eng1()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto);
+        test_bed.set_on_ground(true);
+        test_bed.set_indicated_airspeed(Velocity::default());
+        test_bed.write_by_name("ENGINE_N3:1", 70.);
+        test_bed.and_stabilize()
+    }
+
+    fn starter_pressurized_within(
+        test_bed: &mut PneumaticTestBed,
+        engine_number: usize,
+        duration: Duration,
+    ) -> bool {
+        let step = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            test_bed.run_with_delta(step);
+            elapsed += step;
+            let pressurized: bool =
+                test_bed.read_by_name(&format!("PNEU_ENG_{}_STARTER_PRESSURIZED", engine_number));
+            if pressurized {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[rstest]
+    fn on_the_ground_the_crossbleed_valves_open_at_auto_for_an_engine_start(
+        #[values(2, 3, 4)] engine_number: usize,
+    ) {
+        // FCOM DSC-36-10-50 (l.94076-94077): "They open automatically ... On ground, at engine
+        // start". Before the fix AUTO opened only for the APU bleed valve or an ENG BLEED pb OFF:
+        // the starter got no air and the start ended in START FAULT (NO STARTER AIR PRESSURE).
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
+        assert!(!test_bed.cross_bleed_valves_are_open());
+
+        test_bed = test_bed
+            .set_engine_state(engine_number, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(engine_number));
+        assert!(test_bed.cross_bleed_valves_are_open());
+        assert!(starter_pressurized_within(
+            &mut test_bed,
+            engine_number,
+            Duration::from_secs(5)
+        ));
+    }
+
+    #[test]
+    fn on_the_ground_the_crossbleed_valves_open_at_auto_for_a_crank() {
+        // ENG MODE CRANK, MAN START ON: the start sequence commands the start valve open
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
+        test_bed.write_by_name("ENGINE_2_START_VALVE_COMMAND", 1.);
+        test_bed = test_bed.and_run();
+
+        assert!(test_bed.cross_bleed_valves_are_open());
+    }
+
+    #[test]
+    fn the_crossbleed_valves_close_again_when_the_start_valve_closes() {
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed()
+            .set_engine_state(2, EngineState::Starting)
+            .and_run();
+        assert!(test_bed.cross_bleed_valves_are_open());
+
+        // DSC-70-30 (l.113558): "When N2 above 58.4 %: Engine start valve closes"
+        test_bed.write_by_name("ENGINE_N3:2", 60.);
+        test_bed = test_bed.and_run();
+        assert!(!test_bed.es_valve_is_open(2));
+        assert!(!test_bed.cross_bleed_valves_are_open());
+
+        test_bed = test_bed.idle_eng2().and_stabilize();
+        assert!(!test_bed.cross_bleed_valves_are_open());
+    }
+
+    #[test]
+    fn the_crossbleed_valves_stay_closed_with_the_selector_shut_during_an_engine_start() {
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed()
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Shut)
+            .set_engine_state(2, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(2));
+        assert!(!test_bed.cross_bleed_valves_are_open());
+        assert!(!starter_pressurized_within(
+            &mut test_bed,
+            2,
+            Duration::from_secs(5)
+        ));
+    }
+
+    #[test]
+    fn in_flight_the_crossbleed_valves_stay_closed_at_auto_for_an_engine_start() {
+        // "On ground" only: in flight the relight procedure sets X BLEED OPEN (l.174908)
+        let test_bed = in_flight_with_engine_1_out(210.)
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .set_engine_state(1, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(1));
         assert!(!test_bed.cross_bleed_valves_are_open());
     }
 
