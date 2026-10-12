@@ -41,6 +41,7 @@ import { ClockEvents, ConsumerSubject, EventBus, GameStateProvider, Instrument, 
 // FIXME should not import from instruments
 import { MfdSurvEvents } from '../../../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { isXpdrTcasPowered, selectedSurvSystem } from '../../Communications/TransponderSystem';
+import { trafPbLightVar, trafPbPushEvent, trafPbsToAutoSelect } from '../lib/TcasTrafAutoSelect';
 
 export class NDTcasTraffic {
   ID: string;
@@ -371,8 +372,9 @@ export class LegacyTcasComputer implements Instrument {
     this.simRate = SimVar.GetGlobalVarValue('SIMULATION RATE', 'number');
     this.gpwsWarning = !!SimVar.GetSimVarValue('L:A32NX_GPWS_Warning_Active', 'boolean');
 
-    this.trafficLeftEfisFilter = SimVar.GetSimVarValue('L:A380X_EFIS_L_TRAF_BUTTON_IS_ON', 'boolean');
-    this.trafficRightEfisFilter = SimVar.GetSimVarValue('L:A380X_EFIS_R_TRAF_BUTTON_IS_ON', 'boolean');
+    // TRAF pb of each EFIS CP, written by the FCU (A380 FCOM DSC-34-20-40-20 ND)
+    this.trafficLeftEfisFilter = SimVar.GetSimVarValue(trafPbLightVar('L'), 'bool') > 0;
+    this.trafficRightEfisFilter = SimVar.GetSimVarValue(trafPbLightVar('R'), 'bool') > 0;
 
     // With ALT RPTG OFF the TCAS is in standby too (A380 FCOM DSC-34-20-50-20 P 7: TCAS STBY message on the ND, TCAS
     // STBY memo).
@@ -1240,6 +1242,7 @@ export class LegacyTcasComputer implements Instrument {
       console.log(`TA THREAT COUNT IS ${taThreatCount}`);
     }
     const raThreatCount = this.raTraffic.length;
+    const previousAdvisoryState = this.advisoryState;
 
     switch (this.advisoryState) {
       case TcasState.TA:
@@ -1282,6 +1285,16 @@ export class LegacyTcasComputer implements Instrument {
           }
         }
         break;
+    }
+
+    // A TCAS alert selects the TRAF pb of both EFIS CPs, so that the NDs show the intruders (FCOM DSC-34-20-40-20 ND)
+    for (const side of trafPbsToAutoSelect(
+      previousAdvisoryState,
+      this.advisoryState,
+      this.trafficLeftEfisFilter,
+      this.trafficRightEfisFilter,
+    )) {
+      SimVar.SetSimVarValue(trafPbPushEvent(side), 'number', 0);
     }
 
     if (this._newRa.info !== null && this.advisoryState === TcasState.RA) {
