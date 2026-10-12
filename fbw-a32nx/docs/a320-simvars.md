@@ -5243,6 +5243,18 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Boolean
     - Indicates whether the GPWS LDG FLAP 3 pushbutton is ON
 
+- A32NX_GPWS_TERR_TEST_PATTERN
+    - Boolean
+    - True while the GPWS self-test (GPWS pushbutton pressed on the ground) shows the terrain test pattern, for the
+      TERR TST message of the ND (not displayed yet)
+    - Read-Only
+
+- A32NX_REACTIVE_WINDSHEAR_WARNING
+    - Boolean
+    - True while the reactive windshear detection of the FACs gives the WINDSHEAR warning (red WINDSHEAR on the PFDs),
+      written by the systems host (FacReactiveWindshear)
+    - Read-Only
+
 - A32NX_EGPWC_ND_{side}_TERRAIN_MIN_ELEVATION / A32NX_EGPWC_ND_{side}_TERRAIN_MAX_ELEVATION
     - Feet
     - The lower and upper figures of the TERR ON ND peaks box of each ND, written by the ndwxr gauge from the SimBridge

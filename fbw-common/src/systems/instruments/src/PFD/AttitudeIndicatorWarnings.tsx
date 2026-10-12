@@ -3,7 +3,12 @@
 import { FSComponent, LifecycleComponent, MappedSubject, Subject, VNode } from '@microsoft/msfs-sdk';
 
 import { Arinc429RegisterSubject, ArincEventBus } from '@flybywiresim/fbw-sdk';
-import { RopRowOansSimVars, FwcDataEvents, TawsDataEvents } from '../MsfsAvionicsCommon/providers';
+import {
+  RopRowOansSimVars,
+  FwcDataEvents,
+  TawsDataEvents,
+  ReactiveWindshearSimVars,
+} from '../MsfsAvionicsCommon/providers';
 
 interface AttitudeIndicatorWarningsProps {
   bus: ArincEventBus;
@@ -35,7 +40,16 @@ export class AttitudeIndicatorWarnings extends LifecycleComponent<AttitudeIndica
   // FIXME no source yet
   private readonly stopRudderInputActive = Subject.create(false);
 
-  private readonly windshearActive = this.gpwsWord2.map((w) => w.bitValueOr(15, false));
+  private readonly gpwsWindshearWarning = this.gpwsWord2.map((w) => w.bitValueOr(15, false));
+
+  /** Reactive windshear warning of the A320 FACs / A380 PRIMs (ReactiveWindshearDetection in the systems hosts) */
+  private readonly reactiveWindshearWarning = Subject.create(false);
+
+  private readonly windshearActive = MappedSubject.create(
+    ([gpws, reactive]) => gpws || reactive,
+    this.gpwsWindshearWarning,
+    this.reactiveWindshearWarning,
+  ).withLifecycle(this.defaultLifecycle);
 
   // FIXME no source yet
   private readonly wsAheadCaution = Subject.create(false);
@@ -65,7 +79,14 @@ export class AttitudeIndicatorWarnings extends LifecycleComponent<AttitudeIndica
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    const sub = this.props.bus.getSubscriber<FwcDataEvents & RopRowOansSimVars & TawsDataEvents>();
+    const sub = this.props.bus.getSubscriber<
+      FwcDataEvents & RopRowOansSimVars & TawsDataEvents & ReactiveWindshearSimVars
+    >();
+
+    sub
+      .on('reactiveWindshearWarning')
+      .whenChanged()
+      .handle((v) => this.reactiveWindshearWarning.set(v));
 
     sub
       .on('rowRopWord1Raw')
