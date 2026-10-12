@@ -963,6 +963,11 @@
         "gltf": "./satcom/HoneywellJetwave.gltf",
         "bin": "./satcom/HoneywellJetwave.bin",
         "lods": [1]
+      },
+      {
+        "gltf": "./rat/rat.gltf",
+        "bin": "./rat/rat.bin",
+        "lods": [0, 1]
       }
     ],
     "modifications": [

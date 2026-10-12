@@ -114,6 +114,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
+1. [A32NX/MODEL] The ram air turbine is now visible on the exterior: its doors open under the left belly fairing and it swings out when deployed, the propeller turns in the airflow, and it goes back in when stowed on the ground - @TCdr
 
 ## 2024.1.0
 
