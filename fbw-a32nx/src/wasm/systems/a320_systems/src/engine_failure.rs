@@ -49,6 +49,19 @@
 //! alert triggers when N1 rotation is failed during start"): the fan (N1 rotor) of the engine does
 //! not turn. This module writes `ENGINE_n_FAN_BLOCKED`; the FADEC (C++, FanBlockedStart_A32NX.hpp)
 //! keeps the N1 of a start on the ground at 0 and the core below idle.
+//!
+//! HP fuel valve stuck failure (`systems::engine::hp_fuel_valve_failure`, FCOM ENG 1(2) HP FUEL
+//! VALVE, l.80233-80259): the command of the valve is the A320 rule of
+//! [`A320EngineFailure::hp_fuel_valve_commanded_open`]; a valve stuck closed cuts the engine fuel.
+//!
+//! ENG FAULT light (FCOM DSC-70-90-20, l.63941-63950): "This amber light comes on ... if there is: -
+//! The position of the HP fuel shutoff valve is abnormal, or - The automatic start sequence of the
+//! associated engine aborts, or - There is a malfunction of the thrust control." Design choice: the
+//! thrust control malfunction is the loss of both FADEC channels (ENG 1(2) FADEC FAULT) or of both
+//! thrust lever resolvers (ENG 1(2) THR LEVER FAULT), see `engine_control_failure`.
+//!
+//! Pre-start motoring (FCOM DSC-70-80-40 DRY CRANKING, l.63612-63630): the engine thermal state of
+//! [`A320EngineFailure::thermal_state`] sets the motoring time of the start sequence.
 
 use std::time::Duration;
 use systems::{
@@ -56,7 +69,10 @@ use systems::{
         engine_failure::{
             EngineFailure, EngineFailureInputs, EngineRelightEnvelope, RelightConditions,
         },
-        engine_start::{EngineStartInputs, EngineStartSchedule, EngineStartSequence},
+        engine_start::{
+            EngineStartInputs, EngineStartPhase, EngineStartSchedule, EngineStartSequence,
+        },
+        hp_fuel_valve_failure::HpFuelValveFailure,
     },
     failures::{Failure, FailureType},
     pneumatic::{EngineModeSelector, EngineState},
@@ -232,6 +248,9 @@ pub fn a320_engine_start_schedule() -> EngineStartSchedule {
         // A320neo FCOM ENG 1(2) START FAULT STARTER SHAFT SHEAR (P 323/368): in flight "ENG
         // (AFFECTED) WINDMILL START ONLY", with the same STATUS line.
         starter_fault_detected_in_flight: true,
+        // DSC-70-80-40 DRY CRANKING (l.63612-63613): "Depending on the engine thermal state, the
+        // FADEC can initiate a pre-start motoring (dry cranking) up to 60 s."
+        max_pre_start_motoring_time: Duration::from_secs(60),
     }
 }
 
@@ -243,6 +262,12 @@ struct A320EngineFailure {
     /// The fan of the engine is blocked: no N1 rotation during a start (ENG 1(2) LOW N1)
     fan_blocked: Failure,
     fan_blocked_id: VariableIdentifier,
+    /// The HP fuel shutoff valve and its stuck failure (ENG 1(2) HP FUEL VALVE)
+    hp_fuel_valve: HpFuelValveFailure,
+    /// A malfunction of the thrust control (see the module comment), for the ENG FAULT light
+    thrust_control_malfunction: bool,
+    /// The residual heat of the engine core, 0 to 1 (see `thermal_state`)
+    thermal_state: f64,
 
     master_switch_id: VariableIdentifier,
     ignition_selector_id: VariableIdentifier,
@@ -304,6 +329,9 @@ impl A320EngineFailure {
             start: EngineStartSequence::new(context, engine_number),
             fan_blocked: Failure::new(FailureType::EngineFanBlocked(engine_number)),
             fan_blocked_id: context.get_identifier(format!("ENGINE_{}_FAN_BLOCKED", engine_number)),
+            hp_fuel_valve: HpFuelValveFailure::new(context, engine_number),
+            thrust_control_malfunction: false,
+            thermal_state: 0.,
             master_switch_is_on: false,
             ignition_selector: EngineModeSelector::Norm,
             starter_air_pressurized: false,
@@ -338,6 +366,50 @@ impl A320EngineFailure {
             preset_quick_mode: self.preset_quick_mode,
             relight_pending: self.failure.is_flamed_out() || self.failure.is_seized(),
             automatic_continuous_ignition: self.automatic_continuous_ignition(),
+            hp_fuel_valve_stuck_closed: self.hp_fuel_valve.is_stuck_closed(),
+            other_fault_light_conditions: self.hp_fuel_valve.position_is_abnormal()
+                || self.thrust_control_malfunction,
+            engine_thermal_state: self.thermal_state,
+        }
+    }
+
+    /// The residual heat of the engine core for the pre-start motoring (FCOM DSC-70-80-40 l.63612-63616:
+    /// "Depending on the engine thermal state"), from 0 (cold) to 1 (just shut down).
+    ///
+    /// Design choice: the FADEC EGT is the thermal state. After a shutdown the FBW FADEC model cools
+    /// it down quickly to the ambient temperature + 135 °C, then slowly (time constant about 23 min)
+    /// to the ambient temperature + 30 °C (fadec_a32nx Polynomials_A32NX.hpp `shutdownEGT`); an engine
+    /// of a cold and dark aircraft is at the ambient temperature. 1 at + 135 °C and above, 0 at + 30 °C
+    /// and below, linear in between: the full 60 s just after a shutdown, about 30 s after 16 min.
+    fn thermal_state(egt: ThermodynamicTemperature, ambient: ThermodynamicTemperature) -> f64 {
+        const COLD_EGT_ABOVE_AMBIENT: f64 = 30.;
+        const HOT_EGT_ABOVE_AMBIENT: f64 = 135.;
+        let above_ambient = egt.get::<degree_celsius>() - ambient.get::<degree_celsius>();
+        ((above_ambient - COLD_EGT_ABOVE_AMBIENT)
+            / (HOT_EGT_ABOVE_AMBIENT - COLD_EGT_ABOVE_AMBIENT))
+            .clamp(0., 1.)
+    }
+
+    /// The FADEC command of the HP fuel shutoff valve. A320 FCOM DSC-70-80-40 (l.63707-63708): "The
+    /// HP fuel valve opens: On ground: when N2 > 22 %"; with the ENG MASTER OFF the FADEC "Closes the
+    /// LP and the HP fuel shutoff valves" (l.63740-63744); the abort of a start closes it (PROTECTION,
+    /// l.63600: "Closes the HP valve"). On the ground outside a start sequence it is open for an
+    /// engine that runs (or starts by the aircraft presets); in flight with the ENG MASTER ON.
+    fn hp_fuel_valve_commanded_open(&self, on_ground: bool) -> bool {
+        if !self.master_switch_is_on {
+            return false;
+        }
+        if !on_ground {
+            return true;
+        }
+        match self.start.phase() {
+            EngineStartPhase::Starting | EngineStartPhase::WetCrank => {
+                self.start.fuel_is_commanded()
+            }
+            EngineStartPhase::AutomaticCrank | EngineStartPhase::Aborted => false,
+            EngineStartPhase::None | EngineStartPhase::Motoring => {
+                self.engine_state != EngineState::Off
+            }
         }
     }
 
@@ -358,9 +430,16 @@ impl A320EngineFailure {
         context: &UpdateContext,
         fuel: &A320Fuel,
         start_schedule: &EngineStartSchedule,
+        thrust_control_malfunction: bool,
     ) {
+        self.thrust_control_malfunction = thrust_control_malfunction;
+        self.thermal_state = Self::thermal_state(self.egt, context.ambient_temperature());
         let start_inputs = self.start_inputs();
         self.start.update(context, start_schedule, &start_inputs);
+        self.hp_fuel_valve.update(
+            context.delta(),
+            self.hp_fuel_valve_commanded_open(context.is_on_ground()),
+        );
 
         self.failure.update(
             context,
@@ -374,7 +453,9 @@ impl A320EngineFailure {
                 engine_is_running: self.engine_state == EngineState::On,
                 core_speed: self.n2,
                 lp_valve_starved: fuel.engine_is_starved(self.engine_number),
-                start_sequence_fuel_cut: self.start.fuel_is_cut(),
+                // A valve stuck closed gives the engine no fuel, also for a relight in flight.
+                start_sequence_fuel_cut: self.start.fuel_is_cut()
+                    || self.hp_fuel_valve.is_stuck_closed(),
                 ignition_available: self.start.ignition_is_available(),
                 automatic_continuous_ignition: self.automatic_continuous_ignition(),
             },
@@ -389,6 +470,7 @@ impl SimulationElement for A320EngineFailure {
         self.failure.accept(visitor);
         self.start.accept(visitor);
         self.fan_blocked.accept(visitor);
+        self.hp_fuel_valve.accept(visitor);
 
         visitor.visit(self);
     }
@@ -438,9 +520,16 @@ impl A320EngineFailures {
     }
 
     /// After the fuel system, whose LP valve starvation also cuts the fuel.
-    pub fn update(&mut self, context: &UpdateContext, fuel: &A320Fuel) {
-        for engine in &mut self.engines {
-            engine.update(context, fuel, &self.start_schedule);
+    /// `thrust_control_malfunctions`: per engine, a malfunction of the thrust control
+    /// (`A320EngineControlFailures::thrust_control_malfunctions`), for the ENG FAULT light.
+    pub fn update(
+        &mut self,
+        context: &UpdateContext,
+        fuel: &A320Fuel,
+        thrust_control_malfunctions: [bool; 2],
+    ) {
+        for (engine, malfunction) in self.engines.iter_mut().zip(thrust_control_malfunctions) {
+            engine.update(context, fuel, &self.start_schedule, malfunction);
         }
     }
 }
@@ -605,6 +694,7 @@ mod tests {
             engine_fire_overhead: EngineFireOverheadPanel<2>,
             fuel: A320Fuel,
             engine_failures: A320EngineFailures,
+            thrust_control_malfunctions: [bool; 2],
         }
         impl TestAircraft {
             fn new(context: &mut InitContext) -> Self {
@@ -612,13 +702,15 @@ mod tests {
                     engine_fire_overhead: EngineFireOverheadPanel::new(context),
                     fuel: A320Fuel::new(context),
                     engine_failures: A320EngineFailures::new(context),
+                    thrust_control_malfunctions: [false; 2],
                 }
             }
         }
         impl Aircraft for TestAircraft {
             fn update_after_power_distribution(&mut self, context: &UpdateContext) {
                 self.fuel.update(context, &self.engine_fire_overhead);
-                self.engine_failures.update(context, &self.fuel);
+                self.engine_failures
+                    .update(context, &self.fuel, self.thrust_control_malfunctions);
             }
         }
         impl SimulationElement for TestAircraft {
@@ -956,6 +1048,91 @@ mod tests {
 
             assert!(fuel_is_cut(&mut test_bed, 1));
         }
+
+        /// On the ground, both engines running at idle.
+        fn running_on_ground_test_bed() -> SimulationTestBed<TestAircraft> {
+            let mut test_bed = flying_test_bed();
+            test_bed.set_on_ground(true);
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(0.));
+            for engine_number in 1..=2 {
+                test_bed.write_by_name(&format!("ENGINE_N2:{}", engine_number), 68.);
+            }
+            run(&mut test_bed);
+            test_bed
+        }
+
+        fn hp_fuel_valve_fault(test_bed: &mut SimulationTestBed<TestAircraft>) -> f64 {
+            test_bed.read_by_name("ENGINE_1_HP_FUEL_VALVE_FAULT")
+        }
+
+        fn fault_light(test_bed: &mut SimulationTestBed<TestAircraft>) -> bool {
+            test_bed.read_by_name("ENGINE_1_FAULT_LIGHT")
+        }
+
+        /// FCOM ENG 1(2) HP FUEL VALVE (l.80256-80259): "HP fuel valve failed open, and associated
+        /// engine below idle": the valve sticks open on the running engine and stays open at the
+        /// shutdown; DSC-70-90-20 (l.63947): the FAULT light comes on.
+        #[test]
+        fn an_hp_fuel_valve_stuck_on_a_running_engine_is_not_closed_at_the_shutdown() {
+            let mut test_bed = running_on_ground_test_bed();
+            test_bed.fail(FailureType::EngineHpFuelValveStuck(1));
+            run_for_seconds(&mut test_bed, 5);
+            assert_eq!(hp_fuel_valve_fault(&mut test_bed), 0.);
+            assert!(!fault_light(&mut test_bed));
+
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+            run_for_seconds(&mut test_bed, 3);
+            // HpFuelValveFault::NotClosed
+            assert_eq!(hp_fuel_valve_fault(&mut test_bed), 2.);
+            assert!(fault_light(&mut test_bed));
+        }
+
+        /// FCOM ENG 1(2) HP FUEL VALVE (l.80249-80254): "HP fuel valve failed closed, and associated
+        /// engine below idle: HP FUEL VALVE NOT OPEN": no fuel, no light up.
+        #[test]
+        fn an_hp_fuel_valve_stuck_closed_is_not_open_at_the_start_and_cuts_the_fuel() {
+            let mut test_bed = ground_test_bed();
+            test_bed.fail(FailureType::EngineHpFuelValveStuck(1));
+            run(&mut test_bed);
+            engine_1_automatic_start(&mut test_bed);
+            run_for_seconds(&mut test_bed, 3);
+
+            // HpFuelValveFault::NotOpen
+            assert_eq!(hp_fuel_valve_fault(&mut test_bed), 1.);
+            assert!(fault_light(&mut test_bed));
+            assert!(fuel_is_cut(&mut test_bed, 1));
+        }
+
+        /// FCOM DSC-70-90-20 (l.63950): the FAULT light comes on for "a malfunction of the thrust
+        /// control" (see the module comment).
+        #[test]
+        fn a_thrust_control_malfunction_lights_the_fault_light_of_its_engine() {
+            let mut test_bed = running_on_ground_test_bed();
+            test_bed.command(|a: &mut TestAircraft| a.thrust_control_malfunctions = [true, false]);
+            run(&mut test_bed);
+
+            assert!(fault_light(&mut test_bed));
+            let fault_light_2: bool = test_bed.read_by_name("ENGINE_2_FAULT_LIGHT");
+            assert!(!fault_light_2);
+        }
+    }
+
+    fn thermal_state(egt_above_ambient: f64) -> f64 {
+        A320EngineFailure::thermal_state(
+            ThermodynamicTemperature::new::<degree_celsius>(15. + egt_above_ambient),
+            ThermodynamicTemperature::new::<degree_celsius>(15.),
+        )
+    }
+
+    #[test]
+    fn the_thermal_state_is_the_residual_egt_of_the_fadec_model() {
+        // cold and dark, or long after the shutdown (the FADEC model settles at + 30 °C)
+        assert_eq!(thermal_state(0.), 0.);
+        assert_eq!(thermal_state(30.), 0.);
+        // just after a shutdown (the FADEC model holds + 135 °C) and while running
+        assert_eq!(thermal_state(135.), 1.);
+        assert_eq!(thermal_state(500.), 1.);
+        assert!((thermal_state(82.5) - 0.5).abs() < 1e-9);
     }
 
     fn windmill_n2_percent(cas_knots: f64, altitude_feet: f64) -> f64 {

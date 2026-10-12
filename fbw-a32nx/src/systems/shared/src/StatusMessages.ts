@@ -76,6 +76,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400060', { part: StatusPart.Limitation, text: 'GPWS LDG FLAP 3......ON' }],
   ['700400061', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
   ['700400062', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  // ENG 1(2) SENSOR FAULT STATUS (FCOM PRO-ABN-ENG l.81042-81044), FWC/Logic/EngineMonitoringAlerts
+  ['700400063', { part: StatusPart.Limitation, text: 'AVOID RAPID THR CHANGES' }],
   ['700500002', { part: StatusPart.Condition, text: 'IF PERF PERMITS:' }],
   ['700400005', { part: StatusPart.Limitation, text: 'X BLEED...........OPEN' }],
   ['700500003', { part: StatusPart.Condition, text: 'IF NO ENG 1 DAMAGE:' }],

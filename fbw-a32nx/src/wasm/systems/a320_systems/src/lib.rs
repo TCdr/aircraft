@@ -56,8 +56,12 @@ use systems::{
     },
     electrical::{Electricity, ElectricitySource, ExternalPowerSource},
     engine::{
-        fuel_filter_failure::EngineFuelFilterFailures, leap_engine::LeapEngine,
-        oil_failure::EngineOilFailures, reverser_thrust::ReverserForce, EngineFireOverheadPanel,
+        engine_monitoring_fault::{EngineMonitoringFaultKind, EngineMonitoringFaults},
+        fuel_filter_failure::EngineFuelFilterFailures,
+        leap_engine::LeapEngine,
+        oil_failure::EngineOilFailures,
+        reverser_thrust::ReverserForce,
+        EngineFireOverheadPanel,
     },
     hydraulic::brake_circuit::AutobrakePanel,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
@@ -67,6 +71,18 @@ use systems::{
     shared::{ElectricalBusType, LgciuWeightOnWheels},
     simulation::{Aircraft, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
+
+/// The FADEC faults of the A320 FCOM that have no engine model effect (PRO-ABN-ENG, a320_fcom.txt):
+/// ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
+/// FAULT (see systems::engine::engine_monitoring_fault and the FWC Logic/EngineMonitoringAlerts.ts).
+const A320_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 6] = [
+    EngineMonitoringFaultKind::FadecAlternator,
+    EngineMonitoringFaultKind::OverspeedProtection,
+    EngineMonitoringFaultKind::InletProbes,
+    EngineMonitoringFaultKind::Sensors,
+    EngineMonitoringFaultKind::OneThrustLeverResolver,
+    EngineMonitoringFaultKind::ReverserPermissionSwitch,
+];
 
 pub struct A320 {
     adirs: AirDataInertialReferenceSystem,
@@ -90,6 +106,8 @@ pub struct A320 {
     engine_oil_failures: EngineOilFailures<2>,
     /// Fuel filter clog of each engine: SD ENGINE indication and FWC caution only
     engine_fuel_filter_failures: EngineFuelFilterFailures<2>,
+    /// The FADEC faults without engine model effect of each engine: FWC alerts only
+    engine_monitoring_faults: EngineMonitoringFaults<2>,
     engine_malfunctions: A320EngineMalfunctions,
     engine_control_failures: A320EngineControlFailures,
     fire_protection: A320FireProtection,
@@ -141,6 +159,10 @@ impl A320 {
             engine_failures: A320EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
             engine_fuel_filter_failures: EngineFuelFilterFailures::new(context),
+            engine_monitoring_faults: EngineMonitoringFaults::new(
+                context,
+                &A320_ENGINE_MONITORING_FAULTS,
+            ),
             engine_malfunctions: A320EngineMalfunctions::new(context),
             engine_control_failures: A320EngineControlFailures::new(context),
             fire_protection: A320FireProtection::new(context),
@@ -250,7 +272,13 @@ impl Aircraft for A320 {
         self.asu.update();
 
         self.fuel.update(context, &self.engine_fire_overhead);
-        self.engine_failures.update(context, &self.fuel);
+        // The thrust control malfunctions of the previous update (the engine control failures
+        // update after the reversers, below), for the ENG FAULT light.
+        self.engine_failures.update(
+            context,
+            &self.fuel,
+            self.engine_control_failures.thrust_control_malfunctions(),
+        );
         self.engine_malfunctions.update(context);
 
         self.lgcius.update(
@@ -375,6 +403,7 @@ impl SimulationElement for A320 {
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
         self.engine_fuel_filter_failures.accept(visitor);
+        self.engine_monitoring_faults.accept(visitor);
         self.engine_malfunctions.accept(visitor);
         self.engine_control_failures.accept(visitor);
         self.fire_protection.accept(visitor);

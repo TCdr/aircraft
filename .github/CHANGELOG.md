@@ -271,6 +271,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] Reactive windshear detection (A32NX FACs, A380X PRIMs): red WINDSHEAR on both PFDs in a decreasing performance windshear at takeoff and landing below 1300 ft, CONF 1 or more (no aural yet) - @TCdr
 1. [A32NX/FWC] New AUTO FLT YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS and RUD TRV LIM 1(2) / SYS cautions with their FCOM procedures and STATUS, and six new flyPad failures (ATA 22) for the yaw damper, rudder trim and rudder travel limiter actuators of each FAC: the other FAC takes the function over - @TCdr
 1. [A32NX/RCDR] The CVR now runs by itself as in the FCOM (first 5 min after power-up, with an engine running, in flight, and 5 min after the last engine shutdown); the CVR TEST gives its signal in the first 5 min without GND CTL, and only with the parking brake on - @TCdr
+1. [A32NX/A380X] New flyPad failure HP fuel valve stuck: the engine does not start with the valve stuck closed, ENG HP FUEL VALVE / HP FUEL VLV FAULT and the ENG FAULT light come on when the valve position disagrees with the FADEC command (FCOM) - @TCdr
+1. [A32NX/A380X] New flyPad FADEC fault failures with their ECAM crew awareness alerts: A32NX ENG FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT; A380X ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT - @TCdr
+1. [A32NX/ENG] The ENG FAULT light also comes on for a thrust control malfunction (both FADEC channels or both thrust lever resolvers lost), as in the FCOM - @TCdr
+1. [A32NX/ENG] A hot engine gets a pre-start motoring (dry crank up to 60 s, by its residual heat) before the ignition of an automatic start, as the FCOM bow rotor protection - @TCdr
 
 ## 2024.1.0
 
