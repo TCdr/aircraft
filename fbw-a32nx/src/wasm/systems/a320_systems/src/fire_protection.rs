@@ -71,26 +71,25 @@ impl A320FireProtection {
         // The electrical supply of the loops, from the INOP SYS of the A320 FCOM PRO-ABN-ELEC procedures:
         // DC BUS 2 FAULT: ENG 1 LOOP B + ENG 2 LOOP A; DC ESS BUS FAULT: ENG 1 LOOP A + ENG 2 LOOP B;
         // DC BAT BUS FAULT: APU FIRE DET (both APU loops).
-        // The flyPad fire failures set L:A32NX_ENG_<n>_ON_FIRE / L:A32NX_APU_ON_FIRE; the simulator's own fire
-        // ("ENG ON FIRE:<n>", "APU ON FIRE DETECTED", set from the MSFS failures menu) also heats the loops.
+        // The loops sense L:A32NX_ENG_<n>_ON_FIRE / L:A32NX_APU_ON_FIRE alone: set_zone_on_fire below sets it from the
+        // flyPad fire failure or from the simulator's own fire ("ENG ON FIRE:<n>", "APU ON FIRE DETECTED", set from the
+        // MSFS failures menu), and clears it when an AGENT puts the fire out. The simulator variables are not sensed
+        // directly: MSFS keeps them on after the agent, which kept the ENG/APU FIRE warning on.
         let zones = [
             FireDetectionZoneConfig {
                 zone: FireDetectionZone::Engine(1),
                 loop_a_powered_by: ElectricalBusType::DirectCurrentEssential,
                 loop_b_powered_by: ElectricalBusType::DirectCurrent(2),
-                additional_fire_source: Some("ENG_1_ON_FIRE"),
             },
             FireDetectionZoneConfig {
                 zone: FireDetectionZone::Engine(2),
                 loop_a_powered_by: ElectricalBusType::DirectCurrent(2),
                 loop_b_powered_by: ElectricalBusType::DirectCurrentEssential,
-                additional_fire_source: Some("ENG_2_ON_FIRE"),
             },
             FireDetectionZoneConfig {
                 zone: FireDetectionZone::Apu,
                 loop_a_powered_by: ElectricalBusType::DirectCurrentBattery,
                 loop_b_powered_by: ElectricalBusType::DirectCurrentBattery,
-                additional_fire_source: Some("APU ON FIRE DETECTED"),
             },
         ];
 
@@ -101,10 +100,22 @@ impl A320FireProtection {
                 FireLoopPowerLoss::LoopFault,
                 Self::DELAY_APU_FIRE_EXTINGUISHING,
             ),
+            // The zone burns from the flyPad failure or from the simulator's own fire (only read here, the A32NX never
+            // writes these sim variables), until the fire is out: all sources off, or put out by an AGENT discharge
+            // even while the simulator variable stays on. L:A32NX_ENG_<n>_ON_FIRE / L:A32NX_APU_ON_FIRE is the one
+            // "zone burning" signal of the fire visual effects (model/A320_NEO.xml ENGINE_FIRE_FX, APU_FIRE_FX).
             set_zone_on_fire: SetOnFireModule::new(
                 context,
                 A320_FIRE_ZONES,
                 A320_FIRE_BOTTLES.map(|(_, zone)| zone),
+            )
+            .with_simulator_fire_sources(
+                context,
+                [
+                    Some("ENG ON FIRE:1"),
+                    Some("ENG ON FIRE:2"),
+                    Some("APU ON FIRE DETECTED"),
+                ],
             ),
 
             agent_discharged_id: A320_FIRE_BOTTLES
@@ -385,6 +396,16 @@ mod tests {
             self
         }
 
+        fn simulator_fire_cleared(mut self, name: &str) -> Self {
+            self.write_by_name(name, false);
+            self
+        }
+
+        /// The "zone burning" signal, e.g. ENG_1_ON_FIRE (the fire visual effects read it)
+        fn zone_burning(&mut self, name: &str) -> bool {
+            self.read_by_name(name)
+        }
+
         fn dc_ess_lost(mut self) -> Self {
             self.command(|a| a.dc_ess_source.unpower());
             self
@@ -488,9 +509,11 @@ mod tests {
 
     #[test]
     fn simulator_engine_and_apu_fires_are_detected_too() {
+        // The simulator fire sets the zone burning, which the loops sense one update later
         let mut test_bed = test_bed()
             .simulator_fire("ENG ON FIRE:1")
             .simulator_fire("APU ON FIRE DETECTED")
+            .and_run()
             .and_run();
 
         assert!(test_bed.fire_detected("ENG1"));
@@ -509,7 +532,7 @@ mod tests {
         assert!(!test_bed.loop_fault("ENG2", "A"));
         assert!(!test_bed.fire_detected("ENG1"));
 
-        test_bed = test_bed.simulator_fire("ENG ON FIRE:1").and_run();
+        test_bed = test_bed.simulator_fire("ENG ON FIRE:1").and_run().and_run();
 
         assert!(test_bed.fire_detected("ENG1"));
     }
@@ -526,7 +549,10 @@ mod tests {
         assert!(test_bed.loop_fault("APU", "B"));
         assert!(!test_bed.fire_detected("APU"));
 
-        test_bed = test_bed.simulator_fire("APU ON FIRE DETECTED").and_run();
+        test_bed = test_bed
+            .simulator_fire("APU ON FIRE DETECTED")
+            .and_run()
+            .and_run();
 
         assert!(!test_bed.fire_detected("APU"));
     }
@@ -556,7 +582,7 @@ mod tests {
         assert!(!test_bed.loop_fault("APU", "A"));
 
         // The powered loop still protects the engine
-        test_bed = test_bed.simulator_fire("ENG ON FIRE:1").and_run();
+        test_bed = test_bed.simulator_fire("ENG ON FIRE:1").and_run().and_run();
 
         assert!(test_bed.fire_detected("ENG1"));
     }
@@ -597,6 +623,7 @@ mod tests {
             .unit_failure(FireDetectionZone::Engine(1))
             .simulator_fire("ENG ON FIRE:1")
             .simulator_fire("ENG ON FIRE:2")
+            .and_run()
             .and_run();
 
         assert!(test_bed.unit_fault("ENG1"));
@@ -762,5 +789,180 @@ mod tests {
 
             assert!(test_bed.fire_detected("ENG1"));
         }
+    }
+
+    // The "zone burning" signal L:A32NX_ENG_<n>_ON_FIRE / L:A32NX_APU_ON_FIRE, which the fire visual effects read alone
+
+    #[test]
+    fn the_fire_failure_burns_until_it_is_removed() {
+        let mut test_bed = test_bed()
+            .fire_failure(FireDetectionZone::Engine(1))
+            .and_run()
+            .and_run();
+
+        assert!(test_bed.zone_burning("ENG_1_ON_FIRE"));
+        assert!(!test_bed.zone_burning("ENG_2_ON_FIRE"));
+        assert!(!test_bed.zone_burning("APU_ON_FIRE"));
+
+        test_bed = test_bed
+            .resolve_fire_failure(FireDetectionZone::Engine(1))
+            .and_run()
+            .and_run();
+
+        assert!(!test_bed.zone_burning("ENG_1_ON_FIRE"));
+    }
+
+    #[test]
+    fn an_agent_that_puts_the_failure_fire_out_stops_the_burning_while_the_failure_stays() {
+        let mut put_out = 0;
+        for _ in 0..64 {
+            let mut test_bed = test_bed()
+                .fire_failure(FireDetectionZone::Engine(2))
+                .and_run()
+                .and_run();
+            assert!(test_bed.zone_burning("ENG_2_ON_FIRE"));
+
+            test_bed = test_bed
+                .agent_discharged("FIRE_ENG2_AGENT1_Discharge")
+                .and_run()
+                .and_run();
+            if !test_bed.zone_burning("ENG_2_ON_FIRE") {
+                put_out += 1;
+                // The failure is still active: the fire stays out
+                test_bed = test_bed.and_run().and_run();
+                assert!(!test_bed.zone_burning("ENG_2_ON_FIRE"));
+                assert!(!test_bed.fire_detected("ENG2"));
+            }
+        }
+
+        assert!(put_out > 0 && put_out < 64);
+    }
+
+    #[test]
+    fn a_simulator_fire_burns_until_it_is_cleared() {
+        let mut test_bed = test_bed()
+            .simulator_fire("ENG ON FIRE:1")
+            .simulator_fire("APU ON FIRE DETECTED")
+            .and_run()
+            .and_run();
+
+        assert!(test_bed.zone_burning("ENG_1_ON_FIRE"));
+        assert!(!test_bed.zone_burning("ENG_2_ON_FIRE"));
+        assert!(test_bed.zone_burning("APU_ON_FIRE"));
+
+        test_bed = test_bed
+            .simulator_fire_cleared("ENG ON FIRE:1")
+            .simulator_fire_cleared("APU ON FIRE DETECTED")
+            .and_run()
+            .and_run();
+
+        assert!(!test_bed.zone_burning("ENG_1_ON_FIRE"));
+        assert!(!test_bed.zone_burning("APU_ON_FIRE"));
+    }
+
+    #[test]
+    fn an_agent_that_puts_a_simulator_fire_out_stops_the_burning_although_the_sim_variable_stays_on(
+    ) {
+        let mut put_out = 0;
+        for _ in 0..64 {
+            let mut test_bed = test_bed()
+                .simulator_fire("ENG ON FIRE:1")
+                .and_run()
+                .and_run();
+            assert!(test_bed.zone_burning("ENG_1_ON_FIRE"));
+
+            // ENG ON FIRE:1 stays on for the rest of the test
+            test_bed = test_bed
+                .agent_discharged("FIRE_ENG1_AGENT1_Discharge")
+                .and_run()
+                .and_run();
+            if !test_bed.zone_burning("ENG_1_ON_FIRE") {
+                put_out += 1;
+                test_bed = test_bed.and_run().and_run();
+                assert!(!test_bed.zone_burning("ENG_1_ON_FIRE"));
+            }
+        }
+
+        assert!(put_out > 0 && put_out < 64);
+    }
+
+    #[test]
+    fn the_apu_auto_discharge_can_put_a_simulator_apu_fire_out_although_the_sim_variable_stays_on()
+    {
+        let mut put_out = 0;
+        for _ in 0..64 {
+            let mut test_bed = test_bed()
+                .on_ground()
+                .simulator_fire("APU ON FIRE DETECTED")
+                .and_run()
+                .and_run();
+            assert!(test_bed.zone_burning("APU_ON_FIRE"));
+
+            // Automatic discharge 3 s after the detection, on the ground
+            test_bed = test_bed.run_for(Duration::from_secs(4)).and_run().and_run();
+            assert!(test_bed.apu_agent_discharged());
+            if !test_bed.zone_burning("APU_ON_FIRE") {
+                put_out += 1;
+            }
+        }
+
+        assert!(put_out > 0 && put_out < 64);
+    }
+
+    // The fire warning follows the zone burning signal: FCOM DSC-26-20-20 APU FIRE LIGHT "The light goes out when the
+    // fire has been extinguished", ENG 1(2) FIRE PB "The red lights come on [...] whenever the fire warning for the
+    // corresponding engine is activated". MSFS keeps ENG ON FIRE:n / APU ON FIRE DETECTED on after the agent.
+
+    #[test]
+    fn the_eng_fire_warning_ends_when_an_agent_puts_a_simulator_fire_out_although_the_sim_variable_stays_on(
+    ) {
+        let mut put_out = 0;
+        for _ in 0..64 {
+            let mut test_bed = test_bed()
+                .simulator_fire("ENG ON FIRE:1")
+                .and_run()
+                .and_run();
+            assert!(test_bed.fire_detected("ENG1"));
+
+            // ENG ON FIRE:1 stays on for the rest of the test
+            test_bed = test_bed
+                .agent_discharged("FIRE_ENG1_AGENT1_Discharge")
+                .and_run()
+                .and_run();
+            if !test_bed.zone_burning("ENG_1_ON_FIRE") {
+                put_out += 1;
+                test_bed = test_bed.and_run();
+                assert!(!test_bed.fire_detected("ENG1"));
+            } else {
+                // Not put out (1/2 chance): the warning stays
+                assert!(test_bed.fire_detected("ENG1"));
+            }
+        }
+
+        assert!(put_out > 0);
+    }
+
+    #[test]
+    fn the_apu_fire_warning_ends_when_the_auto_discharge_puts_a_simulator_fire_out_although_the_sim_variable_stays_on(
+    ) {
+        let mut put_out = 0;
+        for _ in 0..64 {
+            let mut test_bed = test_bed()
+                .on_ground()
+                .simulator_fire("APU ON FIRE DETECTED")
+                .and_run()
+                .and_run();
+            assert!(test_bed.fire_detected("APU"));
+
+            // Automatic discharge 3 s after the detection, on the ground; APU ON FIRE DETECTED stays on
+            test_bed = test_bed.run_for(Duration::from_secs(4)).and_run().and_run();
+            if !test_bed.zone_burning("APU_ON_FIRE") {
+                put_out += 1;
+                test_bed = test_bed.and_run();
+                assert!(!test_bed.fire_detected("APU"));
+            }
+        }
+
+        assert!(put_out > 0);
     }
 }

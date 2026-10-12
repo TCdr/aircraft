@@ -145,7 +145,7 @@
     ],
     "nodes": [
         {
-            "translation": [0, 2.6, -21.5],
+            "translation": [0, 2.55, -24.0],
             "mesh": 0,
             "name": "FX_EXHAUST_APU"
         }

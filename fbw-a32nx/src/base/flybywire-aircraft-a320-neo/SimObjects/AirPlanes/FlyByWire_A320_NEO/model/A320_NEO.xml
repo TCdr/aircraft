@@ -507,6 +507,133 @@
                 </UseTemplate>
             </Component>
         </Component>
+        <!--
+            Engine and APU fire visuals (visual layer only, nothing here feeds back into the systems).
+            - Driven by the fire itself, not by the detection, and by one signal only: L:A32NX_ENG_1(2)_ON_FIRE /
+              L:A32NX_APU_ON_FIRE, "the zone is burning", written by systems.wasm (SetOnFireModule, fire_protection.rs):
+              set by the flyPad fire failure or by the sim's own fire of the MSFS failures menu (ENG ON FIRE:1(2), APU ON
+              FIRE DETECTED), cleared when the failure is removed / the sim fire is cleared, or when an AGENT discharge
+              puts the fire out (1/2 chance per bottle). The sim variables are not read here: they do not go off when an
+              agent puts the fire out, and kept the effects on. A FIRE TEST shows nothing: it lights the warnings only,
+              there is no fire (FCOM DSC-26-20-20 ENG 1(2) FIRE TEST pb: chime, MASTER WARNING, ECAM, FIRE panel and ENG
+              MASTER panel lights).
+            - The effect stays on after the engine shutdown, until the fire is out (the FIRE pb does not put a fire out).
+            - Every effect is ANDed with L:A32NX_CONFIG_SITUATION_FX, the flyPad Settings > Sim Options switch "Situation
+              Visual Effects" (default on), written by the flyPad from its persistent setting CONFIG_SITUATION_FX.
+            - Looks (design choice, the FCOM gives no visual description of a fire): two stock MSFS 2024 visual effect
+              graphs of the package fs-base-effects (VisualEffectLibs/Asobo/Base), FX_Fire_1_Small (flames) and FX_Smoke_Fire (smoke,
+              user request 2026-10-09: flames alone looked bare) at each
+              engine exhaust node and FX_Smoke_Fire (smoke) at the APU exhaust node (EngineSmoke spread as a general haze around the aircraft in the sim on 2026-10-09). Their GUIDs are the ones stored in
+              the .spb files, where the SDK template GUIDs (contrails, heat, ballast) are found too. No offset: FX
+              offsets proved unreliable on the A380X jettison plume.
+            - aircraft.cfg [EFFECTS] lines with the legacy fire effects (fx_engfire, FX_ASOBO_ENGINEFIRE_SMALL) showed
+              nothing in MSFS 2024 (sim test 2026-10-09); there, EngineFire = fx_dummy turns the sim's own fire effect
+              off so that a fire does not show twice.
+            - The engine effects hang on FX_ENGINE_FIRE_LEFT/RIGHT, full-scale markers (model fx_engine_fire) at the
+              position of fx_exhaust_left/right: those are scaled 0.5 by models.json, which drew the fire at half the size
+              of the A380X one (sim 2026-10-09).
+            - EngineFireEffects.spec.ts (src/behavior) checks these components.
+        -->
+        <Component ID="ENGINE_FIRE_FX">
+            <Component ID="ENGINE_FIRE_FX_1" Node="FX_ENGINE_FIRE_LEFT">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{75A93861-D48A-456B-BCA5-7C3AFF31C0F6}</FX_GUID>
+                    <FX_NAME>FX_ENGINE_FIRE_1</FX_NAME>
+                    <FX_CODE>(L:A32NX_ENG_1_ON_FIRE, bool) (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="ENGINE_FIRE_SMOKE_FX_1" Node="FX_ENGINE_FIRE_LEFT">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{15B35478-6321-4480-8642-EB44248318E2}</FX_GUID>
+                    <FX_NAME>FX_ENGINE_FIRE_SMOKE_1</FX_NAME>
+                    <FX_CODE>(L:A32NX_ENG_1_ON_FIRE, bool) (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="ENGINE_FIRE_FX_2" Node="FX_ENGINE_FIRE_RIGHT">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{75A93861-D48A-456B-BCA5-7C3AFF31C0F6}</FX_GUID>
+                    <FX_NAME>FX_ENGINE_FIRE_2</FX_NAME>
+                    <FX_CODE>(L:A32NX_ENG_2_ON_FIRE, bool) (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="ENGINE_FIRE_SMOKE_FX_2" Node="FX_ENGINE_FIRE_RIGHT">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{15B35478-6321-4480-8642-EB44248318E2}</FX_GUID>
+                    <FX_NAME>FX_ENGINE_FIRE_SMOKE_2</FX_NAME>
+                    <FX_CODE>(L:A32NX_ENG_2_ON_FIRE, bool) (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+        </Component>
+        <Component ID="APU_FIRE_FX">
+            <Component ID="APU_FIRE_FX_SMOKE" Node="FX_EXHAUST_APU">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{15B35478-6321-4480-8642-EB44248318E2}</FX_GUID>
+                    <FX_NAME>FX_APU_FIRE_SMOKE</FX_NAME>
+                    <FX_CODE>(L:A32NX_APU_ON_FIRE, bool) (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+        </Component>
+        <!--
+            Engine damage smoke: the model replacement of the sim-driven stock EngineDamage effect (fx_engsmoke, the
+            default when aircraft.cfg has no EngineDamage key), which aircraft.cfg turns off (EngineDamage = fx_dummy)
+            because the flyPad "Situation Visual Effects" switch cannot reach a sim-driven effect.
+            - Trigger (design choice): the SDK documents EngineDamage only as "Engine damage. Default would be
+              fx_engsmoke" (aircraft.cfg [EFFECTS]), with no variable. ENG FAILED:n, the SDK's "failure flag for the
+              indexed engine that has failed" (set by the engine failure of the MSFS failures menu; FBW code never writes
+              it), is the engine damage state the user can reach. GENERAL ENG DAMAGE PERCENT:n is not used: any
+              threshold on that percentage would be invented.
+            - Not while the engine burns: the fire smoke (ENGINE_FIRE_FX above) is already there, one smoke per engine.
+            - Look (design choice): the stock FX_Smoke_Fire graph of the fire smoke, same full-scale engine node, no
+              offset.
+            - ANDed with L:A32NX_CONFIG_SITUATION_FX like every situation effect. EngineFireEffects.spec.ts checks it.
+        -->
+        <Component ID="ENGINE_DAMAGE_FX">
+            <Component ID="ENGINE_DAMAGE_SMOKE_FX_1" Node="FX_ENGINE_FIRE_LEFT">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{15B35478-6321-4480-8642-EB44248318E2}</FX_GUID>
+                    <FX_NAME>FX_ENGINE_DAMAGE_SMOKE_1</FX_NAME>
+                    <FX_CODE>(A:ENG FAILED:1, bool) (L:A32NX_ENG_1_ON_FIRE, bool) ! and (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="ENGINE_DAMAGE_SMOKE_FX_2" Node="FX_ENGINE_FIRE_RIGHT">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{15B35478-6321-4480-8642-EB44248318E2}</FX_GUID>
+                    <FX_NAME>FX_ENGINE_DAMAGE_SMOKE_2</FX_NAME>
+                    <FX_CODE>(A:ENG FAILED:2, bool) (L:A32NX_ENG_2_ON_FIRE, bool) ! and (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+        </Component>
+        <!--
+            Engine oil leak smoke: the model replacement of the sim-driven stock EngineOilLeak effect (fx_OilLeak), which
+            aircraft.cfg turns off (EngineOilLeak = fx_dummy) because the flyPad "Situation Visual Effects" switch cannot
+            reach a sim-driven effect.
+            - Trigger (design choice): the FBW oil leak itself, the condition under which the FADEC takes the oil out of
+              the engine (fadec_common EngineOilFailures.hpp leakedQuantity): the flyPad oil leak failure
+              (L:A32NX_ENGINE_n_OIL_LEAK, failures 79000/79001), the core turning the oil pump (L:A32NX_ENGINE_N2:n at
+              10 % or more) and oil left in the oil system (L:A32NX_ENGINE_OIL_TOTAL:n above 0). No oil flows out of a
+              stopped or emptied engine, so no smoke then. The FCOM describes no exterior sign of an oil leak.
+            - Look (design choice): smoke, as the stock fx_OilLeak (fs-base-effects-legacy effects/fx_OilLeak.fx: grey-blue
+              and black smoke particles; no MSFS 2024 visual effect graph or SDK template exists for an oil leak). The
+              graph is the stock FX_Smoke_Fire of the fire and damage smoke, same full-scale engine node, no offset.
+            - One smoke per engine: not while the engine burns (ENGINE_FIRE_FX smoke) or is failed (ENGINE_DAMAGE_FX).
+            - ANDed with L:A32NX_CONFIG_SITUATION_FX like every situation effect. EngineFireEffects.spec.ts checks it.
+        -->
+        <Component ID="ENGINE_OIL_LEAK_FX">
+            <Component ID="ENGINE_OIL_LEAK_SMOKE_FX_1" Node="FX_ENGINE_FIRE_LEFT">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{15B35478-6321-4480-8642-EB44248318E2}</FX_GUID>
+                    <FX_NAME>FX_ENGINE_OIL_LEAK_SMOKE_1</FX_NAME>
+                    <FX_CODE>(L:A32NX_ENGINE_1_OIL_LEAK, bool) (L:A32NX_ENGINE_N2:1, number) 10 &gt;= and (L:A32NX_ENGINE_OIL_TOTAL:1, number) 0 &gt; and (A:ENG FAILED:1, bool) ! and (L:A32NX_ENG_1_ON_FIRE, bool) ! and (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+            <Component ID="ENGINE_OIL_LEAK_SMOKE_FX_2" Node="FX_ENGINE_FIRE_RIGHT">
+                <UseTemplate Name="ASOBO_GT_FX">
+                    <FX_GUID>{15B35478-6321-4480-8642-EB44248318E2}</FX_GUID>
+                    <FX_NAME>FX_ENGINE_OIL_LEAK_SMOKE_2</FX_NAME>
+                    <FX_CODE>(L:A32NX_ENGINE_2_OIL_LEAK, bool) (L:A32NX_ENGINE_N2:2, number) 10 &gt;= and (L:A32NX_ENGINE_OIL_TOTAL:2, number) 0 &gt; and (A:ENG FAILED:2, bool) ! and (L:A32NX_ENG_2_ON_FIRE, bool) ! and (L:A32NX_CONFIG_SITUATION_FX, bool) and</FX_CODE>
+                </UseTemplate>
+            </Component>
+        </Component>
 
         <Component ID="GND_EQUIPMENT">
 

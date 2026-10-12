@@ -44,6 +44,7 @@ export const SimOptionsPage = () => {
   const [, setFdrEnabledSimVar] = useSimVar('L:A32NX_FDR_ENABLED', 'number', 1);
   const [wheelChocksEnabled, setWheelChocksEnabled] = usePersistentNumberProperty('MODEL_WHEELCHOCKS_ENABLED', 1);
   const [conesEnabled, setConesEnabled] = usePersistentNumberProperty('MODEL_CONES_ENABLED', 1);
+  const [situationFxEnabled, setSituationFxEnabled] = usePersistentNumberProperty('CONFIG_SITUATION_FX', 1);
   const [usingCabinAutobrightness, setUsingCabinAutobrightness] = usePersistentNumberProperty(
     'CABIN_USING_AUTOBRIGHTNESS',
     1,
@@ -214,6 +215,15 @@ export const SimOptionsPage = () => {
               />
             </SettingItem>
           )}
+
+          <SettingItem name={t('Settings.SimOptions.SituationFxEnabled')}>
+            <Toggle
+              value={situationFxEnabled === 1}
+              onToggle={(value) => {
+                setSituationFxEnabled(value ? 1 : 0);
+              }}
+            />
+          </SettingItem>
 
           <SettingItem name={t('Settings.SimOptions.ThrottleDetents')}>
             <M3ActionChip primary className="!h-10 !px-5" onClick={() => setShowThrottleSettings(true)}>
