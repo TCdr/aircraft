@@ -8,7 +8,19 @@ import { TaxiRunwayAxis } from './taxiDeparture';
 
 /** A feature of the airport mapping database (GeoJSON, in the airport projection: metres, x east, y north) */
 export interface TaxiAmdbFeature {
-  properties: { feattype?: number; idlin?: string; idstd?: string; idrwy?: string; idthr?: string; termref?: string };
+  properties: {
+    feattype?: number;
+    idlin?: string;
+    idstd?: string;
+    idrwy?: string;
+    idthr?: string;
+    termref?: string;
+    /**
+     * The largest wingspan a guidance line is for, metres: an attribute of the ED-99 taxiway and stand guidance lines.
+     * Not seen in the Navigraph data so far (not in the FBW AmdbProperties): read only when present.
+     */
+    wingspan?: unknown;
+  };
   geometry: { type: string; coordinates: unknown };
 }
 
@@ -78,9 +90,12 @@ export function taxiLinesFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiLin
       default:
         continue;
     }
+    const wingspan = f.properties.wingspan;
     for (const points of lineStrings(f)) {
       if (points.length >= 2) {
-        lines.push({ kind, name, points });
+        lines.push(
+          typeof wingspan === 'number' && wingspan > 0 ? { kind, name, points, wingspan } : { kind, name, points },
+        );
       }
     }
   }
@@ -215,6 +230,31 @@ export function taxiRunwayAxesFromAmdb(features: readonly TaxiAmdbFeature[]): Ta
     }
   }
   return axes.sort((a, b) => a.ident.localeCompare(b.ident));
+}
+
+/**
+ * The pavement of the airport map, to measure the taxiway widths: the taxiway, apron and runway elements (and the
+ * runway intersections), each polygon with its rings (the outer ring, then its holes)
+ */
+export function taxiPavementFromAmdb(features: readonly TaxiAmdbFeature[]): TaxiPoint[][][] {
+  const polygons: TaxiPoint[][][] = [];
+  for (const f of features) {
+    switch (f.properties.feattype) {
+      case FeatureType.TaxiwayElement:
+      case FeatureType.ApronElement:
+      case FeatureType.RunwayElement:
+      case FeatureType.RunwayIntersection:
+        if (f.geometry.type === 'Polygon') {
+          polygons.push(f.geometry.coordinates as TaxiPoint[][]);
+        } else if (f.geometry.type === 'MultiPolygon') {
+          polygons.push(...(f.geometry.coordinates as TaxiPoint[][][]));
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  return polygons;
 }
 
 /** The runway holding position lines of the airport map */
