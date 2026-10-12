@@ -251,6 +251,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/GPWS] Mode 4B: gear up with the flaps in landing configuration gives TOO LOW GEAR below 245 ft and never TOO LOW TERRAIN, and a mode 4 alert stops once the aircraft climbs back above its ceiling - @TCdr
 1. [A380X] The contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
 1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as in the FCOM (it also showed in ROSE NAV) - @TCdr
+1. [A380X/FWS] Smart FIVE HUNDRED callout: the flyPad pin programming "Inhibited When Glideslope Captured" is back and calls FIVE HUNDRED only when more than half a dot off the glideslope - @TCdr
 
 ## 2024.1.0
 
