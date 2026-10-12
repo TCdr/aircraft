@@ -183,6 +183,17 @@ export const A380Failure = Object.freeze({
   FuelRightInnerTankFwdPump: 28035,
   FuelTrimTankLeftPump: 28036,
   FuelTrimTankRightPump: 28037,
+  // An engine LP fuel valve jam holds the valve where it is (systems fuel/engine_lp_valve.rs, FailureType
+  // EngineLpValveJammed): FUEL ENG 1(2)(3)(4) LP VLV FAULT
+  FuelEng1LpValveJammed: 28040,
+  FuelEng2LpValveJammed: 28041,
+  FuelEng3LpValveJammed: 28042,
+  FuelEng4LpValveJammed: 28043,
+  // CpiomF/FuelLeak: a leaking feed tank loses fuel; the FQMS leak detection gives FUEL LEAK DETECTED
+  FuelFeedTank1Leak: 28050,
+  FuelFeedTank2Leak: 28051,
+  FuelFeedTank3Leak: 28052,
+  FuelFeedTank4Leak: 28053,
 
   GreenReservoirLeak: 29000,
   YellowReservoirLeak: 29001,
@@ -588,6 +599,14 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [28, A380Failure.FuelRightInnerTankFwdPump, 'R inner tank fwd pump'],
   [28, A380Failure.FuelTrimTankLeftPump, 'Trim tank L pump'],
   [28, A380Failure.FuelTrimTankRightPump, 'Trim tank R pump'],
+  [28, A380Failure.FuelEng1LpValveJammed, 'ENG 1 LP fuel valve jammed in place'],
+  [28, A380Failure.FuelEng2LpValveJammed, 'ENG 2 LP fuel valve jammed in place'],
+  [28, A380Failure.FuelEng3LpValveJammed, 'ENG 3 LP fuel valve jammed in place'],
+  [28, A380Failure.FuelEng4LpValveJammed, 'ENG 4 LP fuel valve jammed in place'],
+  [28, A380Failure.FuelFeedTank1Leak, 'Feed tank 1 leak'],
+  [28, A380Failure.FuelFeedTank2Leak, 'Feed tank 2 leak'],
+  [28, A380Failure.FuelFeedTank3Leak, 'Feed tank 3 leak'],
+  [28, A380Failure.FuelFeedTank4Leak, 'Feed tank 4 leak'],
 
   [29, A380Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A380Failure.YellowReservoirLeak, 'Yellow reservoir leak'],

@@ -279,6 +279,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, 4 s below 100 ft, as in the FCOM - @TCdr
 1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
 1. [A380X/GPWS] TERRAIN aural for the mode 2 alert and GLIDE SLOPE aural (louder when hard) for the mode 5 alert; a windshear warning overrides the GPWS alerts - @TCdr
+1. [A32NX/A380X] New flyPad failures: engine LP fuel valve jammed in place, with FUEL ENG 1(2) LP VALVE OPEN (A32NX) and FUEL ENG 1(2)(3)(4) LP VLV FAULT (A380X); jammed closed, the engine cannot start - @TCdr
+1. [A380X/FUEL] The EMER OUTR TK XFR pb-sw now opens the emergency outer tank transfer valves: the outer tank fuel flows by gravity into feed tanks 1 and 4 - @TCdr
+1. [A380X/FWS] FQMS fuel leak detection with the FCOM slow and fast leak thresholds, FUEL LEAK DETECTED with its procedure and FUEL LEAK DET FAULT, and new flyPad failures feed tank 1 to 4 leak - @TCdr
 
 ## 2024.1.0
 
