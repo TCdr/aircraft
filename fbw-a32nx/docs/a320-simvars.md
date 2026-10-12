@@ -3676,6 +3676,18 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - If the FAC {number} is healthy.
     - Boolean
 
+- A32NX_FAC_{number}_YAW_DAMPER_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its yaw damper actuator failed (flyPad failure "Yaw damper actuator {number}"). Read by the FWC for AUTO FLT YAW DAMPER 1(2) / SYS.
+    - Boolean
+
+- A32NX_FAC_{number}_RUDDER_TRIM_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its rudder trim actuator motor failed (flyPad failure "Rudder trim actuator motor {number}"). Read by the FWC for AUTO FLT RUD TRIM 1(2) FAULT / SYS.
+    - Boolean
+
+- A32NX_FAC_{number}_RUDDER_TRAVEL_LIM_ACTUATOR_FAULT
+    - The healthy FAC {number} reports its rudder travel limiter actuator motor failed (flyPad failure "Rudder travel limiter actuator motor {number}"). Read by the FWC for AUTO FLT RUD TRV LIM 1(2) / SYS.
+    - Boolean
+
 - A32NX_FAC_{number}_SIDESLIP_TARGET
     - The sideslip target in case of engine out.
     - Arinc429<Degrees>
