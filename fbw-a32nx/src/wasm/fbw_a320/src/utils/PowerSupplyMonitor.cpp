@@ -9,11 +9,17 @@ bool PowerSupplyMonitor::update(double deltaTime, bool isPowered) {
   if (outageTime > minimumOutageTimeForFailure) {
     fault = true;
   }
-  return isPowered && fault;
+  if (isPowered && fault) {
+    // Power is back: the fault is cleared at once, so that the caller's startup sequence (which runs
+    // only without a power supply fault) is not skipped. The outage time is kept for that sequence
+    // (the ELAC chooses its long self-test after an outage longer than 3 s) until acknowledgeRecovery().
+    fault = false;
+    return true;
+  }
+  return false;
 }
 
 void PowerSupplyMonitor::acknowledgeRecovery() {
-  fault = false;
   outageTime = 0;
 }
 

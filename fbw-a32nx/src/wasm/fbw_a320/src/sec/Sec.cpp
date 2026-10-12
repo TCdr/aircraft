@@ -1,5 +1,6 @@
 #include "Sec.h"
 #include <iostream>
+#include "../Arinc429Utils.h"
 
 Sec::Sec(bool isUnit1, bool isUnit3) : isUnit1(isUnit1), isUnit3(isUnit3) {
   secComputer.initialize();
@@ -58,11 +59,35 @@ void Sec::monitorSelf(bool faultActive) {
 // If an outage lasts more than 10ms, stop the program execution.
 // If the power has been restored after an outage that lasted longer than 10ms, reset the RAM and
 // perform the startup sequence.
+// In flight the SEC comes back at once, without its power-up test: the FCOM gives an in-flight power-up test "after
+// the occurrence of an electrical transient lasting longer than 25 ms" (with FAULT light and ECAM caution) to the ELAC
+// only (DSC-27-20-30, ELAC pb). The SEC FAULT light comes on, with an ECAM caution, "when a failure is detected"
+// (DSC-27-20-30, SEC pb; F/CTL SEC 1(2)(3) FAULT: "a failure of one SEC").
 void Sec::monitorPowerSupply(double deltaTime, bool isPowered) {
   if (powerSupplyMonitor.update(deltaTime, isPowered)) {
-    initSelfTests();
+    if (!isInFlight()) {
+      initSelfTests();
+    }
     powerSupplyMonitor.acknowledgeRecovery();
   }
+}
+
+// In flight when a valid LGCIU discrete word 2 reports the main gear shock absorbers not compressed (bit 11 clear)
+// and no valid one reports them compressed. Without a valid LGCIU word (aircraft power-up) the SEC assumes the ground.
+bool Sec::isInFlight() {
+  const base_arinc_429 lgciuDiscreteWords2[] = {modelInputs.in.bus_inputs.lgciu_1_bus.discrete_word_2,
+                                                modelInputs.in.bus_inputs.lgciu_2_bus.discrete_word_2};
+  bool mainGearNotCompressedReported = false;
+  for (const auto& discreteWord2 : lgciuDiscreteWords2) {
+    if (!Arinc429Utils::isNo(discreteWord2)) {
+      continue;
+    }
+    if (Arinc429Utils::bitFromValue(discreteWord2, 11)) {
+      return false;
+    }
+    mainGearNotCompressedReported = true;
+  }
+  return mainGearNotCompressedReported;
 }
 
 // Update the Self-test-Sequence
