@@ -64,6 +64,7 @@ export interface PFDSimvars {
   engFourRunning: boolean;
   setHoldSpeed: boolean;
   tdReached: boolean;
+  checkSpeedMode: boolean;
   groundSpeed: number;
   radioAltitude1: number;
   radioAltitude2: number;
@@ -170,6 +171,7 @@ export enum PFDVars {
   engFourRunning = 'GENERAL ENG COMBUSTION:4',
   setHoldSpeed = 'L:A32NX_PFD_MSG_SET_HOLD_SPEED',
   tdReached = 'L:A32NX_PFD_MSG_TD_REACHED',
+  checkSpeedMode = 'L:A32NX_PFD_MSG_CHECK_SPEED_MODE',
   groundSpeed = 'L:A32NX_ADIRS_IR_1_GROUND_SPEED',
   radioAltitude1 = 'L:A32NX_RA_1_RADIO_ALTITUDE',
   radioAltitude2 = 'L:A32NX_RA_2_RADIO_ALTITUDE',
@@ -275,6 +277,7 @@ export class PFDSimvarPublisher extends UpdatableSimVarPublisher<PFDSimvars> {
     ['engFourRunning', { name: PFDVars.engFourRunning, type: SimVarValueType.Bool }],
     ['setHoldSpeed', { name: PFDVars.setHoldSpeed, type: SimVarValueType.Bool }],
     ['tdReached', { name: PFDVars.tdReached, type: SimVarValueType.Bool }],
+    ['checkSpeedMode', { name: PFDVars.checkSpeedMode, type: SimVarValueType.Bool }],
     ['groundSpeed', { name: PFDVars.groundSpeed, type: SimVarValueType.Number }],
     ['radioAltitude1', { name: PFDVars.radioAltitude1, type: SimVarValueType.Number }],
     ['radioAltitude2', { name: PFDVars.radioAltitude2, type: SimVarValueType.Number }],

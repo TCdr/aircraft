@@ -90,6 +90,10 @@ pub struct EngineStartSchedule {
     /// In flight, the FADEC reports a starter that does not turn the core during a relight
     /// (starter fault), and keeps the fault for the rest of the flight.
     pub starter_fault_detected_in_flight: bool,
+    /// Automatic start on the ground: the longest pre-start motoring (dry crank before the
+    /// ignition) of a hot engine (bow rotor protection), for
+    /// [`EngineStartInputs::engine_thermal_state`] 1. Zero: no pre-start motoring.
+    pub max_pre_start_motoring_time: Duration,
 }
 
 /// The phase of the start sequence, written as ENGINE_n_START_PHASE.
@@ -219,6 +223,16 @@ pub struct EngineStartInputs {
     /// The aircraft conditions for which the FADEC selects the continuous ignition by itself, in
     /// flight and on the ground (e.g. the A320 engine anti-ice valve open).
     pub automatic_continuous_ignition: bool,
+    /// The HP fuel valve is stuck closed (`hp_fuel_valve_failure`): the fuel does not reach the
+    /// engine, which does not light up.
+    pub hp_fuel_valve_stuck_closed: bool,
+    /// The other conditions of the ENG FAULT light, from the aircraft (HP fuel valve position
+    /// abnormal, thrust control malfunction). The start sequence adds the abort of an automatic
+    /// start.
+    pub other_fault_light_conditions: bool,
+    /// The residual heat of the engine core, from 0 (cold) to 1 (just shut down): it sets the
+    /// pre-start motoring time ([`EngineStartSchedule::max_pre_start_motoring_time`]).
+    pub engine_thermal_state: f64,
 }
 
 pub struct EngineStartSequence {
@@ -274,6 +288,14 @@ pub struct EngineStartSequence {
     /// The fault of a condition that does not abort the start, while the condition lasts.
     condition_fault: EngineStartFault,
     fault_light: bool,
+    /// The ENG FAULT light conditions of the aircraft
+    /// ([`EngineStartInputs::other_fault_light_conditions`]).
+    other_fault_light: bool,
+    /// The pre-start motoring of the current automatic start still to run before the ignition.
+    pre_start_motoring_remaining: Duration,
+    /// The current attempt has reached the point where the FADEC opens the HP fuel valve (ignition
+    /// on and light-up speed), lit or not.
+    attempt_fuel_on: bool,
 
     /// The FADEC alternates the igniter of the first automatic start attempt on the ground.
     ground_start_uses_igniter_b: bool,
@@ -351,6 +373,9 @@ impl EngineStartSequence {
             start_fault: EngineStartFault::None,
             condition_fault: EngineStartFault::None,
             fault_light: false,
+            other_fault_light: false,
+            pre_start_motoring_remaining: Duration::ZERO,
+            attempt_fuel_on: false,
             ground_start_uses_igniter_b: false,
             single_igniter_used: false,
             continuous_ignition_armed: false,
@@ -407,6 +432,7 @@ impl EngineStartSequence {
             self.continue_phase(context, schedule, inputs);
         }
 
+        self.other_fault_light = inputs.other_fault_light_conditions;
         self.update_in_flight_light_up(context, inputs, on_ground);
         self.update_in_flight_starter_fault(context, schedule, inputs, on_ground);
         self.update_condition_faults(context, schedule, inputs, on_ground);
@@ -513,6 +539,11 @@ impl EngineStartSequence {
                 EngineModeSelector::Ignition => {
                     self.manual_start = inputs.manual_start_is_on;
                     self.begin_attempt(1);
+                    self.pre_start_motoring_remaining = if self.manual_start {
+                        Duration::ZERO
+                    } else {
+                        Self::pre_start_motoring_time(schedule, inputs)
+                    };
                     EngineStartPhase::Starting
                 }
                 // A380 FCOM l.112662-112664: "A wet cranking can be also performed by setting the ENG
@@ -526,8 +557,26 @@ impl EngineStartSequence {
         };
     }
 
+    /// The pre-start motoring (dry crank) of an automatic start on the ground, from the residual
+    /// heat of the engine. A320 FCOM DSC-70-80-40 DRY CRANKING (a320_fcom.txt l.63612-63615,
+    /// 63629-63630): "Depending on the engine thermal state, the FADEC can initiate a pre-start
+    /// motoring (dry cranking) up to 60 s. Pre-start motoring is active during all ground starts ...
+    /// to limit the engine core speed below the bow rotor critical speed (bow rotor protection). The
+    /// motoring time will vary depending on the residual thermal condition of the engine". Design
+    /// choice: the time is proportional to the thermal state (the FCOM gives no schedule), and the
+    /// manual start has none (the crew sets the ENG MASTER ON at the light-up speed).
+    fn pre_start_motoring_time(
+        schedule: &EngineStartSchedule,
+        inputs: &EngineStartInputs,
+    ) -> Duration {
+        schedule
+            .max_pre_start_motoring_time
+            .mul_f64(inputs.engine_thermal_state.clamp(0., 1.))
+    }
+
     fn begin_attempt(&mut self, attempt: u8) {
         self.attempt = attempt;
+        self.attempt_fuel_on = false;
         self.lit = false;
         self.since_light_up = Duration::ZERO;
         self.since_ignition = None;
@@ -544,6 +593,8 @@ impl EngineStartSequence {
         }
         self.attempt = 0;
         self.manual_start = false;
+        self.pre_start_motoring_remaining = Duration::ZERO;
+        self.attempt_fuel_on = false;
         self.lit = false;
         self.since_ignition = None;
         self.automatic_crank_time = Duration::ZERO;
@@ -610,6 +661,11 @@ impl EngineStartSequence {
         inputs: &EngineStartInputs,
     ) {
         let delta = context.delta();
+        // The pre-start motoring runs while the starter turns the core (start valve open with air).
+        if inputs.start_valve_is_open && inputs.starter_air_pressurized {
+            self.pre_start_motoring_remaining =
+                self.pre_start_motoring_remaining.saturating_sub(delta);
+        }
         let energized = self.ground_start_igniters(schedule, inputs);
         let sparking = self.working(energized);
         if energized.any() {
@@ -629,7 +685,11 @@ impl EngineStartSequence {
         } else {
             schedule.fuel_on_n2
         };
-        if !self.lit && sparking.any() && inputs.core_speed >= light_up_n2 {
+        // The FADEC opens the HP fuel valve with the ignition at the light-up speed; a valve stuck
+        // closed gives the engine no fuel (hp_fuel_valve_failure).
+        let fuel_on = energized.any() && inputs.core_speed >= light_up_n2;
+        self.attempt_fuel_on = self.attempt_fuel_on || fuel_on;
+        if !self.lit && fuel_on && sparking.any() && !inputs.hp_fuel_valve_stuck_closed {
             self.lit = true;
             self.since_light_up = Duration::ZERO;
             self.hung_window_start_speed = inputs.core_speed;
@@ -886,6 +946,10 @@ impl EngineStartSequence {
         if self.phase != EngineStartPhase::Starting || inputs.fire_push_button_is_released {
             return Igniters::NONE;
         }
+        if self.pre_start_motoring_remaining > Duration::ZERO {
+            // The pre-start motoring is a dry crank: no ignition, no fuel.
+            return Igniters::NONE;
+        }
         if self.manual_start {
             // A320 FCOM DSC-70-80-30 (l.63503-63504): "During a manual start both igniters are
             // supplied, when the ENG MASTER sw is ON. Both igniters are cut off when N2 reaches
@@ -982,6 +1046,25 @@ impl EngineStartSequence {
         self.fuel_cut
     }
 
+    /// On the ground, the start sequence commands the HP fuel valve open: a start attempt from its
+    /// light-up point (lit or not), or a wet crank. False outside a start sequence.
+    pub fn fuel_is_commanded(&self) -> bool {
+        match self.phase {
+            EngineStartPhase::Starting => self.attempt_fuel_on,
+            EngineStartPhase::WetCrank => true,
+            EngineStartPhase::None
+            | EngineStartPhase::Motoring
+            | EngineStartPhase::AutomaticCrank
+            | EngineStartPhase::Aborted => false,
+        }
+    }
+
+    /// The pre-start motoring of the current automatic start still runs.
+    pub fn pre_start_motoring_in_progress(&self) -> bool {
+        self.phase == EngineStartPhase::Starting
+            && self.pre_start_motoring_remaining > Duration::ZERO
+    }
+
     /// At least one igniter works: an in-flight relight can light up.
     pub fn ignition_is_available(&self) -> bool {
         !(self.igniter_a_failure.is_active() && self.igniter_b_failure.is_active())
@@ -1009,8 +1092,10 @@ impl EngineStartSequence {
         }
     }
 
+    /// The ENG FAULT light: the abort of an automatic start, or the other conditions of the
+    /// aircraft.
     pub fn fault_light_is_on(&self) -> bool {
-        self.fault_light
+        self.fault_light || self.other_fault_light
     }
 
     pub fn starter_is_motoring(&self) -> bool {
@@ -1042,7 +1127,7 @@ impl SimulationElement for EngineStartSequence {
         writer.write(&self.attempt_id, self.attempt as f64);
         writer.write(&self.manual_id, self.manual_start);
         writer.write(&self.fault_id, self.fault() as u8 as f64);
-        writer.write(&self.fault_light_id, self.fault_light);
+        writer.write(&self.fault_light_id, self.fault_light_is_on());
         writer.write(&self.starter_motoring_id, self.starter_motoring);
         writer.write(&self.starter_failed_id, self.starter_failure.is_active());
         writer.write(&self.n2_hang_id, self.n2_hang);
@@ -1189,6 +1274,7 @@ mod tests {
             manual_start_fuel_on_n2: Ratio::new::<percent>(22.),
             stall_or_egt_restart_before_crank: false,
             starter_fault_detected_in_flight: false,
+            max_pre_start_motoring_time: Duration::from_secs(60),
         }
     }
 
@@ -1216,6 +1302,9 @@ mod tests {
                     preset_quick_mode: false,
                     relight_pending: false,
                     automatic_continuous_ignition: false,
+                    hp_fuel_valve_stuck_closed: false,
+                    other_fault_light_conditions: false,
+                    engine_thermal_state: 0.,
                 },
             }
         }
@@ -2215,6 +2304,114 @@ mod tests {
             .and_run();
 
         assert!(!test_bed.flag("CONTINUOUS_IGNITION"));
+    }
+
+    /// A320 FCOM ENG 1(2) HP FUEL VALVE (l.80249-80254): a valve failed closed gives no fuel to the
+    /// engine, which does not light up.
+    #[test]
+    fn an_hp_fuel_valve_stuck_closed_gives_no_light_up_although_the_fadec_commands_the_fuel() {
+        let mut test_bed = StartTestBed::new()
+            .with(|inputs| inputs.hp_fuel_valve_stuck_closed = true)
+            .automatic_start();
+        assert!(!test_bed.query(|a| a.sequence.fuel_is_commanded()));
+
+        test_bed = test_bed.core_at_light_up_speed();
+        // the FADEC commands the HP fuel valve open (ignition on, light-up speed), the engine stays dry
+        assert!(test_bed.query(|a| a.sequence.fuel_is_commanded()));
+        assert!(test_bed.fuel_is_cut());
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(19));
+        assert_eq!(test_bed.fault(), EngineStartFault::NoLightUp);
+        // the dry crank commands no fuel
+        assert_eq!(test_bed.phase(), EngineStartPhase::AutomaticCrank);
+        assert!(!test_bed.query(|a| a.sequence.fuel_is_commanded()));
+    }
+
+    /// A320 FCOM DSC-70-90-20 (l.63941-63950): the FAULT light also comes on for an abnormal HP fuel
+    /// valve position or a thrust control malfunction, which the aircraft gives the start sequence.
+    #[test]
+    fn the_fault_light_also_follows_the_other_conditions_of_the_aircraft() {
+        let mut test_bed = StartTestBed::new()
+            .with(|inputs| inputs.other_fault_light_conditions = true)
+            .and_run();
+        assert!(test_bed.fault_light());
+        assert!(test_bed.query(|a| a.sequence.fault_light_is_on()));
+
+        test_bed = test_bed
+            .with(|inputs| inputs.other_fault_light_conditions = false)
+            .and_run();
+        assert!(!test_bed.fault_light());
+    }
+
+    /// A320 FCOM DSC-70-80-40 DRY CRANKING (l.63612-63615): a hot engine gets up to 60 s of pre-start
+    /// motoring before the ignition.
+    #[test]
+    fn a_hot_engine_gets_a_pre_start_motoring_before_the_ignition() {
+        let mut test_bed = StartTestBed::new()
+            .with(|inputs| inputs.engine_thermal_state = 1.)
+            .automatic_start()
+            .core_at_light_up_speed();
+        assert!(test_bed.query(|a| a.sequence.pre_start_motoring_in_progress()));
+        assert_eq!(test_bed.igniters(), Igniters::NONE);
+        assert!(test_bed.fuel_is_cut());
+        assert!(test_bed.motoring());
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(58));
+        assert_eq!(test_bed.igniters(), Igniters::NONE);
+        // no NO LIGHT UP while the motoring runs: the ignition has not started
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(2));
+        assert!(!test_bed.query(|a| a.sequence.pre_start_motoring_in_progress()));
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+        assert!(!test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn the_pre_start_motoring_time_follows_the_thermal_state() {
+        let test_bed = StartTestBed::new()
+            .with(|inputs| inputs.engine_thermal_state = 0.5)
+            .automatic_start()
+            .core_at_light_up_speed()
+            .and_run_for(Duration::from_secs(29));
+        assert!(test_bed.query(|a| a.sequence.pre_start_motoring_in_progress()));
+
+        let test_bed = test_bed.and_run_for(Duration::from_secs(2));
+        assert!(!test_bed.query(|a| a.sequence.pre_start_motoring_in_progress()));
+        assert_eq!(test_bed.igniters(), IGNITER_A);
+    }
+
+    #[test]
+    fn a_cold_engine_or_a_manual_start_has_no_pre_start_motoring() {
+        let cold = StartTestBed::new()
+            .with(|inputs| inputs.engine_thermal_state = 0.)
+            .automatic_start()
+            .core_at_light_up_speed();
+        assert!(!cold.query(|a| a.sequence.pre_start_motoring_in_progress()));
+        assert!(!cold.fuel_is_cut());
+
+        let manual = StartTestBed::new()
+            .with(|inputs| inputs.engine_thermal_state = 1.)
+            .selector(EngineModeSelector::Ignition)
+            .manual_start(true)
+            .valve_open(true)
+            .n2(22.)
+            .master(true)
+            .engine_state(EngineState::Starting)
+            .and_run();
+        assert!(!manual.query(|a| a.sequence.pre_start_motoring_in_progress()));
+        assert_eq!(manual.igniters(), Igniters::BOTH);
+    }
+
+    #[test]
+    fn an_aircraft_without_pre_start_motoring_starts_a_hot_engine_at_once() {
+        let test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.max_pre_start_motoring_time = Duration::ZERO)
+            .with(|inputs| inputs.engine_thermal_state = 1.)
+            .automatic_start()
+            .core_at_light_up_speed();
+        assert!(!test_bed.query(|a| a.sequence.pre_start_motoring_in_progress()));
+        assert!(!test_bed.fuel_is_cut());
     }
 
     mod start_valve {

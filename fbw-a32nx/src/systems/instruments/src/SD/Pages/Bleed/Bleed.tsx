@@ -10,6 +10,7 @@ import EngineBleed from './elements/EngineBleed';
 import Valve from './elements/Valve';
 import APUValve from './elements/APUValve';
 import { Triangle } from '../../Common/Shapes';
+import { isCrossBleedValveAmber, isCrossBleedValveCommandedOpen } from './elements/CrossBleedValveIndication';
 
 import './Bleed.scss';
 
@@ -36,7 +37,6 @@ export const BleedPage: FC = () => {
   const sdacDatum = true;
   const [xbleedAirValveFullyOpen] = useSimVar('L:A32NX_PNEU_XBLEED_VALVE_FULLY_OPEN', 'bool', 500);
   const [xbleedAirValveFullyClosed] = useSimVar('L:A32NX_PNEU_XBLEED_VALVE_FULLY_CLOSED', 'bool', 500);
-  const xbleedAirValveInTransit = !xbleedAirValveFullyOpen && !xbleedAirValveFullyClosed;
   const xbleedAirValveFullyOpenAndClosed = xbleedAirValveFullyOpen && xbleedAirValveFullyClosed;
   let xbleedAirValvePosition: 'V' | 'H' | 'D' = 'D';
   if (xbleedAirValveFullyOpen) {
@@ -50,6 +50,13 @@ export const BleedPage: FC = () => {
   const [engine2PRValveOpen] = useSimVar('L:A32NX_PNEU_ENG_2_PR_VALVE_OPEN', 'bool', 500);
   const engine2PRValveFullyClosed5s = useConfirmedState(!engine2PRValveOpen, 5_000, !engine2PRValveOpen);
   const [apuBleedAirValveOpen] = useSimVar('L:A32NX_APU_BLEED_AIR_VALVE_OPEN', 'bool', 500);
+  const [crossBleedSelector] = useSimVar('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number', 500);
+  // Amber when in transit or not in the commanded position (FCOM DSC-36-20, CrossBleedValveIndication.ts)
+  const xbleedAirValveAmber = isCrossBleedValveAmber(
+    isCrossBleedValveCommandedOpen(crossBleedSelector, !!apuBleedAirValveOpen),
+    !!xbleedAirValveFullyOpen,
+    !!xbleedAirValveFullyClosed,
+  );
   const [apuMasterSwitchOn] = useSimVar('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'bool', 500);
   const [apuIsAvailable] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool', 500);
   const [packFlowValve1Open] = useSimVar('L:A32NX_COND_PACK_FLOW_VALVE_1_IS_OPEN', 'bool', 500);
@@ -119,7 +126,7 @@ export const BleedPage: FC = () => {
           x={355}
           y={267}
           radius={15}
-          css={xbleedAirValveInTransit ? 'AmberLine' : 'GreenLine'}
+          css={xbleedAirValveAmber ? 'AmberLine' : 'GreenLine'}
           position={xbleedAirValvePosition}
           sdacDatum={sdacDatum || xbleedAirValveFullyOpenAndClosed}
         />

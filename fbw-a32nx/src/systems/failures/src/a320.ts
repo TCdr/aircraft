@@ -32,6 +32,12 @@ export const A320Failure = Object.freeze({
   Fmgc2Failure: 22003,
   Fcu1Failure: 22004,
   Fcu2Failure: 22005,
+  YawDamperActuator1Failure: 22006,
+  YawDamperActuator2Failure: 22007,
+  RudderTrimActuator1Failure: 22008,
+  RudderTrimActuator2Failure: 22009,
+  RudderTravelLimiterActuator1Failure: 22010,
+  RudderTravelLimiterActuator2Failure: 22011,
 
   // Same ids as the A380X ATA 23 failures; 23000/23001 (AMU) and 23004 (RMP 3) are not simulated on the A32NX
   RadioManagementPanel1: 23002,
@@ -101,6 +107,13 @@ export const A320Failure = Object.freeze({
   // A centre tank transfer valve jam holds the valve open or closed (both MSFS valves of the CTR TK L(R) XFR valve)
   CentreTankLeftTransferValveJammed: 28005,
   CentreTankRightTransferValveJammed: 28006,
+  // An engine LP fuel valve jam holds the valve where it is (systems fuel/engine_lp_valve.rs, FailureType
+  // EngineLpValveJammed): jammed open the engine still shuts down with its ENG MASTER, jammed closed it is starved
+  Eng1LpValveJammed: 28007,
+  Eng2LpValveJammed: 28008,
+  // A failed channel of the fuel quantity indicating computer (systems-host Fuel/FuelPumpsAndValves): FQI CH 1(2) FAULT
+  FqiChannel1: 28009,
+  FqiChannel2: 28010,
 
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
@@ -167,6 +180,8 @@ export const A320Failure = Object.freeze({
   Egpwc: 34030,
   Transponder1: 34050,
   Transponder2: 34051,
+  // TS only: the TCAS computer (tcas/src/components/TcasComputer.ts)
+  TcasComputer: 34060,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -244,6 +259,20 @@ export const A320Failure = Object.freeze({
   ThrustLever2ResolverDisagree: 73051,
   Eng1FuelFilterClog: 73100,
   Eng2FuelFilterClog: 73101,
+  ThrustLever1OneResolver: 73060,
+  ThrustLever2OneResolver: 73061,
+  Eng1HpFuelValveStuck: 73200,
+  Eng2HpFuelValveStuck: 73201,
+  Eng1FadecAlternator: 73210,
+  Eng2FadecAlternator: 73211,
+  Eng1OverspeedProtection: 73220,
+  Eng2OverspeedProtection: 73221,
+  Eng1InletProbes: 73230,
+  Eng2InletProbes: 73231,
+  Eng1Sensors: 73240,
+  Eng2Sensors: 73241,
+  Reverser1PermissionSwitch: 78030,
+  Reverser2PermissionSwitch: 78031,
   Reverser1Fault: 78000,
   Reverser2Fault: 78001,
   Reverser1Unlocked: 78010,
@@ -280,6 +309,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [22, A320Failure.Fmgc2Failure, 'FMGC 2 (flight guidance)'],
   [22, A320Failure.Fcu1Failure, 'FCU 1'],
   [22, A320Failure.Fcu2Failure, 'FCU 2'],
+  [22, A320Failure.YawDamperActuator1Failure, 'Yaw damper actuator 1 (FAC 1, green)'],
+  [22, A320Failure.YawDamperActuator2Failure, 'Yaw damper actuator 2 (FAC 2, yellow)'],
+  [22, A320Failure.RudderTrimActuator1Failure, 'Rudder trim actuator motor 1 (FAC 1)'],
+  [22, A320Failure.RudderTrimActuator2Failure, 'Rudder trim actuator motor 2 (FAC 2)'],
+  [22, A320Failure.RudderTravelLimiterActuator1Failure, 'Rudder travel limiter actuator motor 1 (FAC 1)'],
+  [22, A320Failure.RudderTravelLimiterActuator2Failure, 'Rudder travel limiter actuator motor 2 (FAC 2)'],
 
   [23, A320Failure.RadioManagementPanel1, 'RMP 1'],
   [23, A320Failure.RadioManagementPanel2, 'RMP 2'],
@@ -345,6 +380,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [28, A320Failure.CrossFeedValveJammed, 'X FEED valve jammed in place'],
   [28, A320Failure.CentreTankLeftTransferValveJammed, 'CTR TK L XFR valve jammed in place'],
   [28, A320Failure.CentreTankRightTransferValveJammed, 'CTR TK R XFR valve jammed in place'],
+  [28, A320Failure.Eng1LpValveJammed, 'ENG 1 LP fuel valve jammed in place'],
+  [28, A320Failure.Eng2LpValveJammed, 'ENG 2 LP fuel valve jammed in place'],
+  [28, A320Failure.FqiChannel1, 'FQI channel 1'],
+  [28, A320Failure.FqiChannel2, 'FQI channel 2'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],
@@ -411,6 +450,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Egpwc, 'EGPWC'],
   [34, A320Failure.Transponder1, 'ATC/XPDR 1'],
   [34, A320Failure.Transponder2, 'ATC/XPDR 2'],
+  [34, A320Failure.TcasComputer, 'TCAS computer'],
 
   // The valve stays closed / fully open whatever the BMC commands (a stuck open bleed valve no longer regulates: ENG
   // BLEED FAULT by overpressure at climb power, ENG BLEED NOT CLSD at engine start, with APU BLEED ON or engine stopped)
@@ -520,6 +560,22 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // CLOG on the ENGINE SD page and ENG FUEL FILTER CLOG, no other effect (systems engine/fuel_filter_failure.rs)
   [73, A320Failure.Eng1FuelFilterClog, 'Engine 1 fuel filter clog'],
   [73, A320Failure.Eng2FuelFilterClog, 'Engine 2 fuel filter clog'],
+  // The valve sticks where it is: closed on a shut down engine (no start, HP FUEL VALVE NOT OPEN), open on a running
+  // engine (HP FUEL POS SWT FAULT at the shutdown); ENG FAULT light (systems engine/hp_fuel_valve_failure.rs)
+  [73, A320Failure.Eng1HpFuelValveStuck, 'Engine 1 HP fuel valve stuck'],
+  [73, A320Failure.Eng2HpFuelValveStuck, 'Engine 2 HP fuel valve stuck'],
+  // FWC crew awareness alerts only (systems engine/engine_monitoring_fault.rs): ENG FADEC ALTERNATOR, OVSPD PROT FAULT,
+  // PROBES FAULT, SENSOR FAULT, ONE TLA FAULT
+  [73, A320Failure.Eng1FadecAlternator, 'Engine 1 FADEC alternator'],
+  [73, A320Failure.Eng2FadecAlternator, 'Engine 2 FADEC alternator'],
+  [73, A320Failure.Eng1OverspeedProtection, 'Engine 1 overspeed protection'],
+  [73, A320Failure.Eng2OverspeedProtection, 'Engine 2 overspeed protection'],
+  [73, A320Failure.Eng1InletProbes, 'Engine 1 inlet probes (T12, P0, PT2)'],
+  [73, A320Failure.Eng2InletProbes, 'Engine 2 inlet probes (T12, P0, PT2)'],
+  [73, A320Failure.Eng1Sensors, 'Engine 1 core sensors (PS3, T25, T3)'],
+  [73, A320Failure.Eng2Sensors, 'Engine 2 core sensors (PS3, T25, T3)'],
+  [73, A320Failure.ThrustLever1OneResolver, 'Thrust lever 1 one resolver'],
+  [73, A320Failure.ThrustLever2OneResolver, 'Thrust lever 2 one resolver'],
 
   // Thrust reversers (a320_systems hydraulic A320ReverserController / A320Reversers)
   [78, A320Failure.Reverser1Fault, 'Reverser 1 fault (does not deploy)'],
@@ -529,4 +585,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [78, A320Failure.Reverser2Unlocked, 'Reverser 2 unlocked (engine at idle)'],
   [78, A320Failure.Reverser1Pressurized, 'Reverser 1 pressurized (shutoff valve open)'],
   [78, A320Failure.Reverser2Pressurized, 'Reverser 2 pressurized (shutoff valve open)'],
+  // ENG REV SWITCH FAULT only, the reverser still works (systems engine/engine_monitoring_fault.rs)
+  [78, A320Failure.Reverser1PermissionSwitch, 'Reverser 1 permission switch'],
+  [78, A320Failure.Reverser2PermissionSwitch, 'Reverser 2 permission switch'],
 ];

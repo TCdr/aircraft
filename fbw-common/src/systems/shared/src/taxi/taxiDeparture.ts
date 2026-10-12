@@ -186,6 +186,7 @@ export function taxiRouteToHoldingPoint(
  * chooses the entry.
  * @param runwayIdent the departure runway, e.g. 24L
  * @param entries the entries of the runway, from its threshold
+ * @param tooNarrow the lines too narrow for the aircraft, avoided by the route when it can
  */
 export function taxiDefaultEntry(
   network: TaxiNetwork,
@@ -194,11 +195,13 @@ export function taxiDefaultEntry(
   start: TaxiRouteStart,
   runwayIdent: string,
   entries: readonly TaxiRunwayEntry[],
+  tooNarrow?: ReadonlySet<number>,
 ): TaxiRunwayEntry | undefined {
   for (const entry of entries) {
     const route = taxiRoute(network, {
       start,
       to: { kind: 'runway', runway: runwayIdent, entry: entry.name, point: entry.point },
+      tooNarrow,
     });
     if (route.error !== TaxiRouteError.None) {
       continue;

@@ -18,6 +18,17 @@
 //! and 4): the reverse idle of a deployment ("During the thrust reverser deployment, the engine
 //! reverse thrust is limited to reverse idle", l.112117) and the idle protection of an unlocked
 //! reverser ("ENG 2(3) IDLE ONLY", l.173678).
+//!
+//! Auto-idle protection of the outboard engines (engines 1 and 4), DSC-70-70 THIRD LINE OF DEFENSE
+//! (a380_fcom.txt l.112250-112256): "The auto-idle protection ensures that the outboard engines are
+//! at idle during the thrust reversers operation. The auto-idle protection activates if at least one
+//! outboard engine thrust lever is above idle detent during thrust reverser operation."
+//!
+//! The idle protection of an inadvertent deployment (l.112243-112249: "The reverse thrust is not
+//! selected - At least one thrust reverser translating cowl is deployed by more than 5 %") stays on
+//! the unlocked reverser without a deploy order: the 5 % cowl travel is a detection threshold, and
+//! an unlocked reverser (ENG 2(3) REVERSER UNLOCKED, "IDLE ONLY", l.173678) is already detected at
+//! the unlock, before any cowl travel.
 
 use systems::{
     engine::engine_control_failure::{
@@ -113,7 +124,14 @@ impl A380EngineControl {
     }
 
     /// `reverser`: the reverser of this engine (engines 2 and 3), None for engines 1 and 4.
-    fn update(&mut self, on_ground: bool, reverser: Option<&A380ReverserMonitoring>) {
+    /// `outboard_auto_idle`: the auto-idle protection of an outboard engine (see the module
+    /// comment) holds this engine at idle.
+    fn update(
+        &mut self,
+        on_ground: bool,
+        reverser: Option<&A380ReverserMonitoring>,
+        outboard_auto_idle: bool,
+    ) {
         self.rating = A380ThrustLeverRating::of(self.thrust_lever_resolvers.is_active(), on_ground);
         let lever_rule_tla = self.rating.fadec_tla_deg(self.lever_tla_deg);
 
@@ -129,7 +147,10 @@ impl A380EngineControl {
                 ),
                 reverser.unlocked,
             ),
-            None => (lever_rule_tla, false),
+            None => (
+                apply_auto_idle(lever_rule_tla, outboard_auto_idle),
+                outboard_auto_idle && lever_rule_tla > IDLE_TLA_DEG,
+            ),
         };
         let auto_idle = reverser_idle || self.rating == A380ThrustLeverRating::Idle;
 
@@ -182,13 +203,16 @@ impl A380EngineControlFailures {
         on_ground: bool,
         reversers: [A380ReverserMonitoring; 2],
     ) {
+        let reverser_operation = reversers.iter().any(|reverser| reverser.in_operation);
         for (index, engine) in self.engines.iter_mut().enumerate() {
             let reverser = match index {
                 1 => Some(&reversers[0]),
                 2 => Some(&reversers[1]),
                 _ => None,
             };
-            engine.update(on_ground, reverser);
+            // Engines 1 and 4 are the outboard engines.
+            let outboard_auto_idle = reverser.is_none() && reverser_operation;
+            engine.update(on_ground, reverser, outboard_auto_idle);
         }
     }
 
@@ -338,6 +362,38 @@ mod tests {
         assert!(read_bool(&mut test_bed, "ENGINE_2_FADEC_AUTO_IDLE"));
         assert_eq!(override_tla(&mut test_bed, 3), None);
         assert!(!read_bool(&mut test_bed, "ENGINE_3_FADEC_AUTO_IDLE"));
+    }
+
+    /// FCOM DSC-70-70 AUTO-IDLE PROTECTION (l.112250-112256)
+    #[test]
+    fn the_outboard_engines_are_at_idle_during_the_reverser_operation() {
+        let mut test_bed = test_bed(true, 25.);
+        test_bed.command(|a| a.reversers[1].in_operation = true);
+        test_bed.run();
+        for engine in [1, 4] {
+            assert_eq!(override_tla(&mut test_bed, engine), Some(IDLE_TLA_DEG));
+            assert!(read_bool(
+                &mut test_bed,
+                &format!("ENGINE_{}_FADEC_AUTO_IDLE", engine)
+            ));
+        }
+        // the inboard engines keep their own reverser rules
+        assert_eq!(override_tla(&mut test_bed, 2), None);
+        assert_eq!(override_tla(&mut test_bed, 3), None);
+
+        test_bed.command(|a| a.reversers[1].in_operation = false);
+        test_bed.run();
+        assert_eq!(override_tla(&mut test_bed, 1), None);
+        assert!(!read_bool(&mut test_bed, "ENGINE_1_FADEC_AUTO_IDLE"));
+    }
+
+    #[test]
+    fn the_outboard_auto_idle_leaves_an_outboard_lever_at_idle_alone() {
+        let mut test_bed = test_bed(true, 0.);
+        test_bed.command(|a| a.reversers[0].in_operation = true);
+        test_bed.run();
+        assert_eq!(override_tla(&mut test_bed, 1), None);
+        assert!(!read_bool(&mut test_bed, "ENGINE_1_FADEC_AUTO_IDLE"));
     }
 
     #[test]

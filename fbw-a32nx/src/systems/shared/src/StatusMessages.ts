@@ -78,6 +78,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400060', { part: StatusPart.Limitation, text: 'GPWS LDG FLAP 3......ON' }],
   ['700400061', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
   ['700400062', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  // ENG 1(2) SENSOR FAULT STATUS (FCOM PRO-ABN-ENG l.81042-81044), FWC/Logic/EngineMonitoringAlerts
+  ['700400063', { part: StatusPart.Limitation, text: 'AVOID RAPID THR CHANGES' }],
   ['700500002', { part: StatusPart.Condition, text: 'IF PERF PERMITS:' }],
   ['700400005', { part: StatusPart.Limitation, text: 'X BLEED...........OPEN' }],
   ['700500003', { part: StatusPart.Condition, text: 'IF NO ENG 1 DAMAGE:' }],
@@ -97,6 +99,13 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270400009', { part: StatusPart.Limitation, text: 'MAN PITCH TRIM......USE' }],
   ['270400010', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
   ['270400011', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  // 22 AUTO FLIGHT (FCOM PRO-ABN-AUTO_FLT RUD TRV LIM SYS STATUS, a320_fcom.txt l.71916-71930), see
+  // FWC/Logic/FacActuatorAlerts
+  ['220400001', { part: StatusPart.Limitation, text: 'RUD WITH CARE ABV 160 KT' }],
+  ['220400002', { part: StatusPart.Limitation, text: 'MAX X WIND FOR LDG 15 KT' }],
+  ['220400003', { part: StatusPart.Limitation, text: 'AUTO BRK.....DO NOT USE' }],
+  ['220500001', { part: StatusPart.Condition, text: 'AT LDG ROLL:' }],
+  ['220400004', { part: StatusPart.Limitation, text: 'DIFF BRAKING.....AS RQRD' }],
   // 80 STARTING (A320neo FCOM PRO-ABN-ENG ENG 1(2) START FAULT STATUS, STARTER SHAFT SHEAR)
   ['800400001', { part: StatusPart.Limitation, text: 'ENG 1 WINDMILL START ONLY' }],
   ['800400002', { part: StatusPart.Limitation, text: 'ENG 2 WINDMILL START ONLY' }],
@@ -186,10 +195,23 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270300024', { part: StatusPart.InopSys, text: 'FCDC 1+2' }],
   ['270300025', { part: StatusPart.InopSys, text: 'FCDC 1' }],
   ['270300026', { part: StatusPart.InopSys, text: 'FCDC 2' }],
+  // 22 AUTO FLIGHT (FCOM PRO-ABN-AUTO_FLT YAW DAMPER / RUD TRIM / RUD TRV LIM SYS, before AP 1+2 as in the FCOM, see
+  // FWC/Logic/FacActuatorAlerts)
+  ['220300004', { part: StatusPart.InopSys, text: 'YAW DAMPER' }],
+  ['220300007', { part: StatusPart.InopSys, text: 'RUD TRIM' }],
+  ['220300010', { part: StatusPart.InopSys, text: 'RUD TRV LIM' }],
   ['270300027', { part: StatusPart.InopSys, text: 'AP 1+2' }],
   ['270300028', { part: StatusPart.InopSys, text: 'CAT 2' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
+  // 22 AUTO FLIGHT (FCOM PRO-ABN-AUTO_FLT YAW DAMPER 1(2), RUD TRIM 1(2) FAULT, RUD TRV LIM 1(2), after CAT 3 DUAL as in
+  // the FCOM, see FWC/Logic/FacActuatorAlerts)
+  ['220300002', { part: StatusPart.InopSys, text: 'YAW DAMPER 1' }],
+  ['220300003', { part: StatusPart.InopSys, text: 'YAW DAMPER 2' }],
+  ['220300005', { part: StatusPart.InopSys, text: 'RUD TRIM 1' }],
+  ['220300006', { part: StatusPart.InopSys, text: 'RUD TRIM 2' }],
+  ['220300008', { part: StatusPart.InopSys, text: 'RUD TRV LIM 1' }],
+  ['220300009', { part: StatusPart.InopSys, text: 'RUD TRV LIM 2' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
   ['360300001', { part: StatusPart.InopSys, text: 'ENG 1 BLEED' }],
   ['360300002', { part: StatusPart.InopSys, text: 'ENG 2 BLEED' }],
