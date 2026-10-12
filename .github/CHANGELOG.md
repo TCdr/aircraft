@@ -379,6 +379,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
 1. [A380X/ND] The VD terrain profile shows the airports as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
+1. [A380X/FWS] New DOOR UPPER 1L to 3R NOT CLOSED and DOOR FWD(AFT) CARGO NOT CLOSED cautions, and CAB PRESS INHIBITED BY DOORS now also triggers on door MAIN 1R, the upper deck doors and the cargo doors - @TCdr
+1. [A380X/FWS] DOOR ... NOT CLOSED: IF ABNORM CAB V/S is a condition the crew confirms on every door (MAIN 5L/5R and UPPER 2L/2R showed its lines without it and never set the MAX FL 100/MEA limitation) - @TCdr
+1. [A380X/FWS] T.O CONFIG test: every main deck, upper deck and cargo door and the cockpit sliding windows must be closed for T.O CONFIG NORMAL (it checked only MAIN 1L, MAIN 2R and the cargo doors) - @TCdr
 
 ## 2024.1.0
 
