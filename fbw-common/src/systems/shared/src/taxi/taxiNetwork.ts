@@ -24,6 +24,8 @@ export interface TaxiLine {
   /** The taxiway or exit name (upper case), null when the line has none */
   name: string | null;
   points: TaxiPoint[];
+  /** The largest wingspan the airport map clears the line for, metres, when it says (ED-99 attribute "wingspan") */
+  wingspan?: number;
 }
 
 export interface TaxiEdge {

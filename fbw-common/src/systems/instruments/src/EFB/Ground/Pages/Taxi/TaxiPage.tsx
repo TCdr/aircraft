@@ -23,6 +23,11 @@ import {
   TaxiRunwayEntry,
   taxiFindStand,
   taxiStandMatches,
+  TAXI_A380,
+  TaxiLineFit,
+  TaxiLineFitInfo,
+  taxiLineFits,
+  taxiTooNarrowLines,
 } from '@flybywiresim/fbw-sdk';
 import { ArrowClockwise, CheckLg, ExclamationTriangleFill, GeoAltFill, Lightbulb, Trash } from 'react-bootstrap-icons';
 import { t } from '../../../Localization/translation';
@@ -102,8 +107,22 @@ const Row: FC<{ label: string; missing?: boolean }> = ({ label, missing, childre
   </div>
 );
 
-/** The route as a clearance reads: EXIT B3, A, K, GATE 42 (or GATE 42, A, S1, HOLDING POINT RWY 09) */
-function routeText(route: TaxiRoute, end: string | null): string {
+/** How a leg of the route suits the aircraft: the worst fit of its lines (null when the fits are not known) */
+function legFit(lines: readonly number[], fits: readonly TaxiLineFitInfo[] | null): TaxiLineFit | null {
+  if (!fits) {
+    return null;
+  }
+  if (lines.some((l) => fits[l]?.fit === TaxiLineFit.TooNarrow)) {
+    return TaxiLineFit.TooNarrow;
+  }
+  return lines.some((l) => fits[l]?.fit === TaxiLineFit.Unverified) ? TaxiLineFit.Unverified : TaxiLineFit.Suitable;
+}
+
+/**
+ * The route as a clearance reads: EXIT B3, A, K, GATE 42 (or GATE 42, A, S1, HOLDING POINT RWY 09); on the A380, a
+ * taxiway too narrow or not verified is marked
+ */
+function routeText(route: TaxiRoute, end: string | null, fits: readonly TaxiLineFitInfo[] | null): string {
   const parts: string[] = [];
   for (const leg of route.legs) {
     if (leg.name === null) {
@@ -114,6 +133,12 @@ function routeText(route: TaxiRoute, end: string | null): string {
       text = `${t('Ground.Taxi.Exit')} ${leg.name}`;
     } else if (leg.kind === TaxiLineKind.Stand) {
       text = `${t('Ground.Taxi.StandShort')} ${leg.name}`;
+    }
+    const fit = legFit(leg.lines, fits);
+    if (fit === TaxiLineFit.TooNarrow) {
+      text = `${text} (${t('Ground.Taxi.Width.TooNarrowMark')})`;
+    } else if (fit === TaxiLineFit.Unverified && leg.kind !== TaxiLineKind.Stand) {
+      text = `${text} (${t('Ground.Taxi.Width.UnverifiedMark')})`;
     }
     if (parts[parts.length - 1] !== text) {
       parts.push(text);
@@ -141,6 +166,8 @@ export const TaxiPage = () => {
   const eventBus = useEventBus();
   /** The A380 shows the accepted route on its OANS */
   const hasOans = useAppSelector((state) => state.config.airframeInfo.variant) === AirframeType.A380_842;
+  /** The A380 (code F) checks the taxiway widths */
+  const checksWidth = hasOans;
 
   const [latitude] = useSimVar('PLANE LATITUDE', 'degrees', 500);
   const [longitude] = useSimVar('PLANE LONGITUDE', 'degrees', 500);
@@ -164,6 +191,14 @@ export const TaxiPage = () => {
   }, [icao]);
 
   const airport = airportState?.state === 'loaded' ? airportState.airport : null;
+
+  // A380: how each taxi line of the airport suits it (wingspan limit of the map, else pavement width against the 25 m of
+  // code F); the routes keep off the lines too narrow when they can
+  const lineFits = useMemo(
+    () => (airport && checksWidth ? taxiLineFits(airport.network.lines, airport.pavement, TAXI_A380) : null),
+    [airport, checksWidth],
+  );
+  const tooNarrow = useMemo(() => (lineFits ? taxiTooNarrowLines(lineFits) : undefined), [lineFits]);
 
   // The aircraft on the airport map, when it is at this airport
   const aircraft = useMemo(() => {
@@ -200,9 +235,9 @@ export const TaxiPage = () => {
   const defaultEntry = useMemo(
     () =>
       airport && start && runway
-        ? taxiDefaultEntry(airport.network, airport.runways, airport.holdingLines, start, runway, entries)
+        ? taxiDefaultEntry(airport.network, airport.runways, airport.holdingLines, start, runway, entries, tooNarrow)
         : entries[0],
-    [airport, start, runway, entries],
+    [airport, start, runway, entries, tooNarrow],
   );
   const entryInfo = entries.find((e) => e.name === entry) ?? defaultEntry;
 
@@ -215,8 +250,8 @@ export const TaxiPage = () => {
 
   // The shortest route (suggestion), and the route along the typed clearance
   const suggestion = useMemo(
-    () => (airport && start && to ? taxiRoute(airport.network, { start, to }) : null),
-    [airport, start, to],
+    () => (airport && start && to ? taxiRoute(airport.network, { start, to, tooNarrow }) : null),
+    [airport, start, to, tooNarrow],
   );
   // The taxiway names of the airport, to read the names of several words in the clearance (e.g. SOUTH RAMP)
   const airportNames = useMemo(
@@ -228,9 +263,11 @@ export const TaxiPage = () => {
   const viaKey = `${via.join(' ')}/${crossRunways.join(' ')}`;
   const cleared = useMemo(
     () =>
-      airport && start && to && via.length > 0 ? taxiRoute(airport.network, { start, to, via, crossRunways }) : null,
+      airport && start && to && via.length > 0
+        ? taxiRoute(airport.network, { start, to, via, crossRunways, tooNarrow })
+        : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [airport, start, to, viaKey],
+    [airport, start, to, viaKey, tooNarrow],
   );
   // The cleared names that are no taxiway of the airport map (a typing error, or a name the map does not have)
   const unknownTaxiways = airport ? via.filter((name) => !airportNames.has(name)) : [];
@@ -246,6 +283,15 @@ export const TaxiPage = () => {
     const held = taxiRouteToHoldingPoint(route, airport.holdingLines);
     return { shownRoute: held.route, holdingPoint: held.holdingPoint };
   }, [route, departure, airport]);
+  // A380: the taxiways of the route too narrow (a clearance that needs one is followed: the crew decides) or not verified
+  const widthNames = (fit: TaxiLineFit) =>
+    (shownRoute?.legs ?? [])
+      .filter((leg) => leg.kind !== TaxiLineKind.Stand && legFit(leg.lines, lineFits) === fit)
+      .map((leg) => leg.name ?? t('Ground.Taxi.Width.Unnamed'))
+      .filter((name, i, all) => all.indexOf(name) === i);
+  const routeTooNarrow = widthNames(TaxiLineFit.TooNarrow);
+  const routeUnverified = widthNames(TaxiLineFit.Unverified);
+
   const crossings = useMemo(
     () => (shownRoute && airport ? taxiRouteRunwayCrossings(shownRoute.points, airport.runways) : []),
     [shownRoute, airport],
@@ -413,6 +459,11 @@ export const TaxiPage = () => {
               {`${routeStatus} · ${(shownRoute.length / 1000).toFixed(1)} km`}
             </M3Chip>
           )}
+          {shownRoute && routeTooNarrow.length > 0 && (
+            <M3Chip tone="warn" icon={<ExclamationTriangleFill size={16} />}>
+              {t('Ground.Taxi.Width.TooNarrowChip')}
+            </M3Chip>
+          )}
           {shownRoute && crossings.length > 0 && (
             <M3Chip tone="warn" icon={<ExclamationTriangleFill size={16} />}>
               {`${t('Ground.Taxi.CrossRunway')} ${crossings.map((c) => c.runway).join(', ')}`}
@@ -574,11 +625,23 @@ export const TaxiPage = () => {
                   {routeStatus}
                   {hasOans && flagRoute && ` · ${t('Ground.Taxi.FlagsOnOans')}`}
                 </span>
-                <span className="mt-1 shrink-0 text-base leading-snug">{routeText(shownRoute, routeEnd)}</span>
+                <span className="mt-1 shrink-0 text-base leading-snug">
+                  {routeText(shownRoute, routeEnd, lineFits)}
+                </span>
                 <span className="mt-1 shrink-0 text-xs text-m3-muted">
                   {(shownRoute.length / 1000).toFixed(1)} km
                   {shownRoute.taxiways.length > 0 && ` · ${shownRoute.taxiways.join(' ')}`}
                 </span>
+                {routeTooNarrow.length > 0 && (
+                  <M3Banner tone="warn" className="mt-2 shrink-0" icon={<ExclamationTriangleFill size={16} />}>
+                    {`${t('Ground.Taxi.Width.RouteTooNarrow')} ${routeTooNarrow.join(', ')}`}
+                  </M3Banner>
+                )}
+                {routeUnverified.length > 0 && (
+                  <span className="mt-2 shrink-0 text-xs text-m3-muted">
+                    {`${t('Ground.Taxi.Width.RouteUnverified')} ${routeUnverified.join(', ')}`}
+                  </span>
+                )}
                 {crossings.map((c, i) => (
                   <M3Banner
                     // eslint-disable-next-line react/no-array-index-key
@@ -610,6 +673,7 @@ export const TaxiPage = () => {
               hold={hold}
               entries={entries}
               aircraft={aircraft}
+              lineFits={lineFits}
               onStandPick={
                 !departure || startMode === TaxiRouteStartMode.Stand
                   ? (name) => set({ stand: name, accepted: false })
