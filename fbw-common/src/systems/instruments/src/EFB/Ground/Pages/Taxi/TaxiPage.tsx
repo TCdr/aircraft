@@ -8,7 +8,7 @@ import {
   BtvExit,
   OansControlEvents,
   OansMapProjection,
-  parseTaxiClearance,
+  readTaxiClearance,
   taxiDefaultEntry,
   TaxiLineKind,
   TaxiPoint,
@@ -188,13 +188,17 @@ export const TaxiPage = () => {
     () => new Set(airport?.network.lines.map((l) => l.name).filter((n): n is string => n !== null)),
     [airport],
   );
-  const via = parseTaxiClearance(clearance, airportNames);
-  const viaKey = via.join(' ');
+  // The clearance as typed, or pasted as ATC said it (phraseology, runway crossings and the holding point read out)
+  const { taxiways: via, crossings: crossRunways } = readTaxiClearance(clearance, airportNames);
+  const viaKey = `${via.join(' ')}/${crossRunways.join(' ')}`;
   const cleared = useMemo(
-    () => (airport && start && to && via.length > 0 ? taxiRoute(airport.network, { start, to, via }) : null),
+    () =>
+      airport && start && to && via.length > 0 ? taxiRoute(airport.network, { start, to, via, crossRunways }) : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [airport, start, to, viaKey],
   );
+  // The cleared names that are no taxiway of the airport map (a typing error, or a name the map does not have)
+  const unknownTaxiways = airport ? via.filter((name) => !airportNames.has(name)) : [];
   const route = cleared ?? suggestion;
   // Departure: the route stops at the holding point of the runway
   const { shownRoute, holdingPoint } = useMemo(() => {
@@ -474,6 +478,9 @@ export const TaxiPage = () => {
               onChange={(v) => set({ clearance: v.toUpperCase(), accepted: false })}
             />
           </div>
+          {unknownTaxiways.length > 0 && (
+            <span className="text-utility-amber">{`${t('Ground.Taxi.UnknownTaxiways')} ${unknownTaxiways.join(', ')}`}</span>
+          )}
           <div className="flex flex-row space-x-2">
             <button
               type="button"
