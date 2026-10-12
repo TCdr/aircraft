@@ -186,6 +186,12 @@ pub fn a320_engine_start_schedule() -> EngineStartSchedule {
         // PRO-ABN-ENG ENG 1(2) START FAULT (l.81393): "The engine does not start within the 18 s that
         // follow the ignition start."
         no_light_up_time: Duration::from_secs(18),
+        // Design choice: the same 18 s in flight (unchanged); the A320 numbers of the in-flight
+        // relight are left as they were.
+        in_flight_no_light_up_time: Duration::from_secs(18),
+        // The A320 FCOM START FAULT LO START AIR PRESS (l.81510-81511) has no in-flight branch: the
+        // fault stays a ground start fault.
+        monitors_in_flight_start_air: false,
         // l.81366: "Engine overtemperature (above 725 °C)".
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(725.),
         // LIM-ENG STARTER (l.115972): "A standard automatic start that includes up to three start

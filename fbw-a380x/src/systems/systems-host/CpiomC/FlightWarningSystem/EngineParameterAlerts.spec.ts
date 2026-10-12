@@ -9,6 +9,7 @@ import {
   ENG_STALL_ITEMS_SHOWN,
   EngineOverLimitInputs,
   isEgtOverLimit,
+  isEgtOverLimitAlertTriggered,
   isN1N2OverLimit,
   isStallAlertShown,
 } from './EngineParameterAlerts';
@@ -49,6 +50,28 @@ describe('ENG EGT OVER LIMIT', () => {
   });
 });
 
+/* FCOM ENG FADEC FAULT l.171597-171600: "the ENG 1(2)(3)(4) EGT OVER LIMIT ECAM will not trigger in the case of EGT
+ * exceedance" */
+describe('ENG EGT OVER LIMIT with ENG FADEC FAULT', () => {
+  it('does not trigger with the FADEC FAULT of the engine', () => {
+    expect(isEgtOverLimitAlertTriggered(true, false)).toBe(true);
+    expect(isEgtOverLimitAlertTriggered(true, true)).toBe(false);
+    expect(isEgtOverLimitAlertTriggered(false, false)).toBe(false);
+  });
+
+  it('FwsCore gates the alert with the FADEC FAULT of the same engine, the EWD attention box keeps the exceedance', () => {
+    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+    expect(core).toContain(
+      'this.engEgtOverLimit[index].set(isEgtOverLimitAlertTriggered(egtExceeded[index], this.fadecFault[index].get()));',
+    );
+    expect(core).toContain('primaryAbnormal.get() || egtExceeded[index] ||');
+    // the FADEC FAULT is read before the EGT alert in the same update
+    expect(core.indexOf('this.fadecFault[engineIndex].set(fadecFault);')).toBeLessThan(
+      core.indexOf('isEgtOverLimitAlertTriggered(egtExceeded'),
+    );
+  });
+});
+
 describe('ENG N1/N2 OVER LIMIT', () => {
   it('triggers above the N1 red limit of 111 % or the N2 (FBW N3) red limit of 118.7 %', () => {
     expect(isN1N2OverLimit(climb)).toBe(false);
@@ -86,6 +109,10 @@ describe('the ENG STALL, EGT OVER LIMIT and N1/N2 OVER LIMIT alerts of the four 
     expect(n1n2).toContain(`this.fws.engN1N2OverLimit[${index}]`);
     expect(n1n2).toContain('flightPhaseInhib: [5, 6],');
     expect(n1n2).toContain('failure: 3,');
+    // Audio and Master Light only, no SD page (FCOM l.171495 and l.172346, PDF p.5769 and p.5794); STALL has the ENGINE page
+    expect(egt).toContain('sysPage: SdPages.None');
+    expect(n1n2).toContain('sysPage: SdPages.None');
+    expect(stall).toContain('sysPage: SdPages.Eng');
 
     const itemCount = (id: number) => (block(ata70, id).match(/\{ name:/g) ?? []).length;
     expect(itemCount(701800113 + index)).toBe(ENG_STALL_ITEMS_SHOWN.length);

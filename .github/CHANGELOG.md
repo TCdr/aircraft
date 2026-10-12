@@ -361,6 +361,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
 1. [A380X/FWS] Flight phases: the take-off power of engine 4 is read from thrust lever 4 (it read lever 3, so lever 3 alone at TOGA counted as two engines) - @TCdr
+1. [A380X/FWS] ENG FAIL is no longer inhibited from V1 to 1500 ft and shows AUTO RELIGHT IN PROGRESS only while the FADEC relights the engine; the IGNITION memo also shows for the automatic continuous ignition of the FADEC (auto relight, quick relight), as in the FCOM - @TCdr
+1. [A380X/FWS] Engine alerts as in the FCOM: START FAULT, IGN A(B) FAULT, OIL FILTER CLOGGED and FUEL FILTER CLOGGED come without chime and MASTER CAUT, EGT and N1/N2 OVER LIMIT without SD page, no EGT OVER LIMIT with a FADEC FAULT; in flight START FAULT NO STARTER AIR PRESSURE comes up with its windmill start lines and NO LIGHT UP after 30 s; new deferred procedures of TWO ENGS OUT ON SAME / OPPOSITE SIDE and LIMITATIONS, deferred procedure and INOP SYS of START VLV FAULT (NOT CLOSED) - @TCdr
 
 ## 2024.1.0
 

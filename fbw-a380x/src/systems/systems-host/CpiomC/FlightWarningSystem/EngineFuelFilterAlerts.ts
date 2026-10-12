@@ -8,9 +8,13 @@ import { FadecEngineState } from './EngineFailAlerts';
  * "The fuel filter is clogged. The pressure drop across the fuel filter is higher than 35 PSI. When the pressure drop is
  * higher than 60 PSI, the bypass valve opens and the ENG FUEL SYS CONTAMINATION alert is triggered." Indication: ENGINE
  * SD page; crew awareness, no procedure line. The level and flight phase inhibition figure are images, read on the FCOM
- * PDF page 5783: an amber caution inhibited in phases 3 to 10 (shown in phases 1, 2, 11 and 12 only).
+ * PDF page 5783: amber, inhibited in phases 3 to 10 (shown in phases 1, 2, 11 and 12 only), with the ENGINE SD page as
+ * its only indication (no aural, no MASTER CAUT).
  * ENG FUEL SYS CONTAMINATION (above 60 PSI) is not modelled: the flyPad failure is a clogged filter only.
  */
+
+/** ENG n FUEL FILTER CLOGGED: FwsAbnormalSensed level 1, no single chime and no MASTER CAUT (PDF p.5783) */
+export const FUEL_FILTER_CLOGGED_LEVEL = 1;
 
 export const FUEL_FILTER_CLOGGED_PHASE_INHIBITION = [3, 4, 5, 6, 7, 8, 9, 10];
 

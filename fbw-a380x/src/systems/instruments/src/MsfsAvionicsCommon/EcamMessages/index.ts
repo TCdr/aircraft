@@ -14,7 +14,7 @@ import { EcamAbnormalSensedAta313233, EcamDeferredProcAta313233 } from './Abnorm
 import { EcamAbnormalSensedAta34, EcamDeferredProcAta34 } from './AbnormalSensed/ata34';
 import { EcamAbnormalSensedAta353642 } from './AbnormalSensed/ata35-36-42';
 import { EcamAbnormalSensedAta46495256 } from './AbnormalSensed/ata46-49-52-56';
-import { EcamAbnormalSensedAta70 } from './AbnormalSensed/ata70';
+import { EcamAbnormalSensedAta70, EcamDeferredProcAta70 } from './AbnormalSensed/ata70';
 import { EcamAbnormalSensedAta80Rest, EcamDeferredProcAta80Rest } from './AbnormalSensed/ata80-rest';
 import { EcamAbnormalSecondaryFailures } from './AbnormalSensed/secondary-failures';
 import { AbnormalNonSensedCategory } from '../providers/FwsPublisher';
@@ -934,6 +934,7 @@ export const EcamDeferredProcedures: { [n: string]: DeferredProcedure } = {
   ...EcamDeferredProcAta27,
   ...EcamDeferredProcAta313233,
   ...EcamDeferredProcAta34,
+  ...EcamDeferredProcAta70,
   ...EcamDeferredProcAta80Rest,
 };
 

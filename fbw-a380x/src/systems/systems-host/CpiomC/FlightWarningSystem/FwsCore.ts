@@ -101,6 +101,7 @@ import {
   EngineFailMonitor,
   EnginesOut,
   allEngFlameOutInhibitsElecEmerConfig,
+  autoRelightInProgress,
   FadecEngineState,
   hydraulicSystemsLostByEnginesOut,
   relightProcMustBeApplied,
@@ -113,11 +114,16 @@ import { engineOilAlerts } from './EngineOilAlerts';
 import { engineFuelFilterClogged } from './EngineFuelFilterAlerts';
 import { OilTemperatureLowMonitor, isFlexTakeoffMode, isThrustLeversNotSet } from './EngineTakeoffAlerts';
 import { isTakeoffThrustDisagree, isThrustLoss } from './EngineThrustAlerts';
-import { isEgtOverLimit, isN1N2OverLimit, isStallAlertShown } from './EngineParameterAlerts';
+import {
+  isEgtOverLimit,
+  isEgtOverLimitAlertTriggered,
+  isN1N2OverLimit,
+  isStallAlertShown,
+} from './EngineParameterAlerts';
 import { displayedEgt } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
-import { EngineStartFault, EngineStartPhase, StartValveFault } from './EngineStartAlerts';
+import { EngineStartFault, EngineStartPhase, isIgnitionMemoShown, StartValveFault } from './EngineStartAlerts';
 import {
   FeedTankLevelLoMonitor,
   feedTankPumpAlerts,
@@ -2317,6 +2323,12 @@ export class FwsCore {
   public readonly engStall = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly engEgtOverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly engN1N2OverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** ENG FAIL AUTO RELIGHT IN PROGRESS: the FADEC auto relight of the engines 1 to 4 is running (EngineFailAlerts.ts) */
+  public readonly engineAutoRelightInProgress = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** IGNITION memo: manual or automatic continuous ignition (EngineStartAlerts.ts isIgnitionMemoShown) */
+  public readonly ignitionMemo = Subject.create(false);
 
   /** The ENG FAIL memory of the engines 1 to 4, the same logic for the four engines (EngineFailAlerts.ts) */
   private readonly engineFailMonitors = [1, 2, 3, 4].map(() => new EngineFailMonitor());
@@ -6333,6 +6345,8 @@ export class FwsCore {
     const engineRunning = [this.engine1State, this.engine2State, this.engine3State, this.engine4State].map(
       (state) => state.get() === engineState.ON,
     );
+    // The EGT above its limit as the EWD shows it (amber attention box), with or without the ECAM alert
+    const egtExceeded = [false, false, false, false];
     for (let index = 0; index < 4; index++) {
       const engineNumber = index + 1;
       const egt = SimVar.GetSimVarValue(`L:A32NX_ENGINE_EGT:${engineNumber}`, 'number');
@@ -6345,7 +6359,9 @@ export class FwsCore {
         alphaFloor,
       };
       this.engStall[index].set(isStallAlertShown(engineStalls[index], stalledEngineCount, this.flightPhase.get()));
-      this.engEgtOverLimit[index].set(engineRunning[index] && isEgtOverLimit(overLimitInputs));
+      egtExceeded[index] = engineRunning[index] && isEgtOverLimit(overLimitInputs);
+      // No ENG EGT OVER LIMIT with ENG n FADEC FAULT (FCOM l.171597-171600). fadecFault is read earlier in this update.
+      this.engEgtOverLimit[index].set(isEgtOverLimitAlertTriggered(egtExceeded[index], this.fadecFault[index].get()));
       this.engN1N2OverLimit[index].set(engineRunning[index] && isN1N2OverLimit(overLimitInputs));
     }
     // The amber attention getting box also comes up with an EGT, N1 or N2 above its limit: "as soon as any amber or
@@ -6356,10 +6372,31 @@ export class FwsCore {
       this.eng3PrimaryAbnormalParams,
       this.eng4PrimaryAbnormalParams,
     ].forEach((primaryAbnormal, index) =>
-      primaryAbnormal.set(
-        primaryAbnormal.get() || this.engEgtOverLimit[index].get() || this.engN1N2OverLimit[index].get(),
-      ),
+      primaryAbnormal.set(primaryAbnormal.get() || egtExceeded[index] || this.engN1N2OverLimit[index].get()),
     );
+
+    // ENG FAIL AUTO RELIGHT IN PROGRESS and the IGNITION memo read the FADEC igniters (EngineFailAlerts.ts,
+    // EngineStartAlerts.ts)
+    const igniterAActive = [1, 2, 3, 4].map(
+      (engineNumber) => SimVar.GetSimVarValue(`L:A32NX_FADEC_IGNITER_A_ACTIVE_ENG${engineNumber}`, 'bool') > 0,
+    );
+    const igniterBActive = [1, 2, 3, 4].map(
+      (engineNumber) => SimVar.GetSimVarValue(`L:A32NX_FADEC_IGNITER_B_ACTIVE_ENG${engineNumber}`, 'bool') > 0,
+    );
+    const bothIgnitersActive = igniterAActive.map((active, index) => active && igniterBActive[index]);
+    for (let index = 0; index < 4; index++) {
+      const engineNumber = index + 1;
+      this.engineAutoRelightInProgress[index].set(
+        autoRelightInProgress({
+          inFlight: !this.aircraftOnGround.get(),
+          igniterAActive: igniterAActive[index],
+          igniterBActive: igniterBActive[index],
+          relightAttempt: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_RELIGHT_ATTEMPT`, 'bool') > 0,
+          relightIgnition: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_RELIGHT_IGNITION`, 'bool') > 0,
+        }),
+      );
+    }
+    this.ignitionMemo.set(isIgnitionMemoShown(this.engSelectorPosition.get(), bothIgnitersActive));
 
     this.eng1Out.set(this.eng1ShutDown.get() || this.engineFailMonitors[0].failed);
     this.eng2Out.set(this.eng2ShutDown.get() || this.engineFailMonitors[1].failed);

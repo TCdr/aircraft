@@ -650,9 +650,9 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '709000001': {
-      // IGNITION
+      // IGNITION: manual (ENG START selector IGN START) or automatic (FADEC A + B) continuous ignition, FCOM l.113497-113498
       flightPhaseInhib: [],
-      simVarIsActive: this.fws.engSelectorPosition.map((v) => v === 2),
+      simVarIsActive: this.fws.ignitionMemo,
       whichCodeToReturn: () => [0],
       codesToReturn: ['709000001'],
       memoInhibit: () => false,

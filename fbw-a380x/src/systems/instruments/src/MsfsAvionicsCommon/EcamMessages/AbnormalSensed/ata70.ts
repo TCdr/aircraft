@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2024-2025 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { AbnormalProcedure, ChecklistLineStyle } from '..';
+import { AbnormalProcedure, ChecklistLineStyle, DeferredProcedure, DeferredProcedureType } from '..';
 
 // Convention for IDs:
 // First two digits: ATA chapter
@@ -1037,6 +1037,11 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM' },
       { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800118: {
@@ -1062,6 +1067,11 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM' },
       { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800119: {
@@ -1087,6 +1097,11 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM' },
       { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800120: {
@@ -1112,6 +1127,11 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'ENG START SEL', sensed: true, labelNotCompleted: 'NORM' },
       { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF' },
       { name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'WINDMILL START INITIATED', sensed: false },
+      { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800121: {
@@ -1181,6 +1201,9 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
       { name: 'WINDMILL START INITIATED', sensed: false },
       { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR WITH CARE' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800126: {
@@ -1194,6 +1217,9 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
       { name: 'WINDMILL START INITIATED', sensed: false },
       { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR WITH CARE' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800127: {
@@ -1207,6 +1233,9 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
       { name: 'WINDMILL START INITIATED', sensed: false },
       { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR WITH CARE' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800128: {
@@ -1220,6 +1249,9 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'MIN SPEED FOR WINDML RELIGHT : 260 KT', sensed: false },
       { name: 'WINDMILL START INITIATED', sensed: false },
       { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR WITH CARE' },
+      { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800129: {
@@ -1752,6 +1784,107 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'THRUST (AFFECTED ENG)', sensed: false, labelNotCompleted: 'REDUCE', level: 1 },
       { name: 'VIB STILL ABOVE VIB ADV', sensed: false, condition: true, level: 1 },
       { name: 'ENG (AFFECTED) MASTER OFF', sensed: false, labelNotCompleted: 'CONSIDER', level: 2 },
+    ],
+  },
+};
+
+/**
+ * ATA 70 deferred procedures. The FCOM gives no title for them; design choice: the title names the alert they come from
+ * (the STATUS page lists them as "> title" under their FOR APPROACH / ALL PHASES heading).
+ * The items checked are in FwsAbnormalSensed ewdDeferredProcs (EngineFailAlerts.ts for the TWO ENGS OUT lines).
+ */
+export const EcamDeferredProcAta70: { [n: number]: DeferredProcedure } = {
+  700700001: {
+    // A380 FCOM ENG 1(2)(3)(4) START VLV FAULT (NOT CLOSED) DEFERRED PROC (l.173149-173153): FOR APPROACH, if
+    // engine 1 or 4 affected
+    fromAbnormalProcs: ['701800121', '701800124'],
+    title: 'ENG START VLV FAULT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF SEVERE ICE ACCRETION', sensed: false, condition: true },
+      { name: 'FOR LDG : FLAP LVR 3', sensed: false, level: 1 },
+    ],
+  },
+  700700002: {
+    // A380 FCOM ENG TWO ENGS OUT ON SAME SIDE (l.175333-175337) and ON OPPOSITE SIDE (l.175554-175558) DEFERRED PROC:
+    // ALL PHASES
+    fromAbnormalProcs: ['701800159', '701800160'],
+    title: 'ENG TWO ENGS OUT',
+    type: DeferredProcedureType.ALL_PHASES,
+    items: [
+      { name: 'IF GW DECREASE RQRD', sensed: false, condition: true },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
+  },
+  700700003: {
+    // A380 FCOM ENG TWO ENGS OUT ON SAME SIDE DEFERRED PROC FOR APPROACH (l.175338-175396), items by EngineFailAlerts
+    fromAbnormalProcs: ['701800159'],
+    title: 'TWO ENGS OUT ON SAME SIDE',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF JETTISON ACTIVE', sensed: false, condition: true }, // [0]
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'LDG PERF COMPUTATION', sensed: false, labelNotCompleted: 'CONFIRM' },
+      { name: 'DISREGARD NORM APPR & C/Ls', sensed: false },
+      { name: 'LONG APPROACH', sensed: false, labelNotCompleted: 'PLAN' }, // [5]
+      { name: 'FLAPS SLOW', sensed: false },
+      { name: 'SLATS SLOW', sensed: false }, // if ENG 1+2 are lost
+      { name: 'BARO REF', sensed: false, labelNotCompleted: 'SET' },
+      { name: 'MINIMA', sensed: false, labelNotCompleted: 'SET' },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE' }, // [10]
+      { name: 'SIGNS', sensed: false, labelNotCompleted: 'ON' },
+      { name: 'INITIAL APPROACH', sensed: false, condition: true },
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 1', level: 1 },
+      { name: 'GA PERF MAY NOT BE ACHIEVED WITH L/G DN', sensed: false, level: 1 },
+      { name: 'FOR L/G EXTN', sensed: false, condition: true }, // [15]
+      { name: 'FOR L/G GRVTY EXTN : MAX SPD 220 KT', sensed: false, level: 1 },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'UP', level: 1 },
+      { name: 'L/G GRVTY (EXTN MAX 2 MIN)', sensed: true, labelNotCompleted: 'DOWN', level: 1 },
+      { name: 'WHEN L/G LOCKED DOWN OR AFTER 120S', sensed: false, condition: true, level: 1 },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 2 }, // [20]
+      { name: 'INTERCEPTING G/S', sensed: false, condition: true },
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 2', level: 1 },
+      { name: 'PACK 1+2', sensed: false, labelNotCompleted: 'OFF OR ON APU', level: 1 },
+      { name: 'FOR GO AROUND : FLAP LVR 1', sensed: false, level: 1 },
+      { name: 'FINAL APPROACH', sensed: false, condition: true }, // [25]
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 3', level: 1 },
+      { name: 'A/THR', sensed: true, labelNotCompleted: 'DISCONNECT', level: 1 },
+      { name: 'GND SPLRs', sensed: true, labelNotCompleted: 'ARM', level: 1 },
+      { name: 'AT COMMIT ALTITUDE (500 FT AGL)', sensed: false, condition: true },
+      { name: 'REDUCE SPEED TO VAPP', sensed: false, level: 1 }, // [30]
+      { name: 'DO NOT ATTEMPT GO AROUND', sensed: false },
+    ],
+  },
+  700700004: {
+    // A380 FCOM ENG TWO ENGS OUT ON OPPOSITE SIDE DEFERRED PROC APPR & LDG (l.175559-175612), items by
+    // EngineFailAlerts. Design choice: the FCOM heading "APPR & LDG" is shown as FOR APPROACH (the deferred
+    // procedure types of the FWS).
+    fromAbnormalProcs: ['701800160'],
+    title: 'TWO ENGS OUT ON OPPOSITE SIDE',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF JETTISON ACTIVE', sensed: false, condition: true }, // [0]
+      { name: 'JETTISON ACTIVE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'JETTISON ARM', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'LDG PERF COMPUTATION', sensed: false, labelNotCompleted: 'CONFIRM' },
+      { name: 'DISREGARD NORM APPR & C/Ls', sensed: false },
+      { name: 'LONG APPROACH', sensed: false, labelNotCompleted: 'PLAN' }, // [5]
+      { name: 'BARO REF', sensed: false, labelNotCompleted: 'SET' },
+      { name: 'MINIMA', sensed: false, labelNotCompleted: 'SET' },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE' },
+      { name: 'SIGNS', sensed: false, labelNotCompleted: 'ON' },
+      { name: 'INITIAL APPROACH', sensed: false, condition: true }, // [10]
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 1', level: 1 },
+      { name: 'L/G LEVER', sensed: true, labelNotCompleted: 'DOWN', level: 1 },
+      { name: 'INTERCEPTING G/S', sensed: false, condition: true },
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 2', level: 1 },
+      { name: 'PACK 1+2', sensed: false, labelNotCompleted: 'OFF OR ON APU', level: 1 }, // [15]
+      { name: 'FINAL APPROACH', sensed: false, condition: true },
+      { name: 'FLAP LVR', sensed: true, labelNotCompleted: 'CONF 3', level: 1 },
+      { name: 'GND SPLRs', sensed: true, labelNotCompleted: 'ARM', level: 1 },
+      { name: 'FOR GO AROUND : FLAP LEVER 1', sensed: false, level: 1 },
     ],
   },
 };
