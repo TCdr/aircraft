@@ -228,7 +228,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/Failures] flyPad failures: all landing gear proximity sensor and jammed actuator failures listed (32004-32025, named after the gear, door or sensor they fail), the uplock sensor failure that said nose gear but failed the right main gear relabelled, and the inactive ROLLOUT failure removed - @TCdr
 1. [A380X/PRINTER] The pedestal printer control panel buttons are clickable: ON/OFF (green when on and AC 1 powered; switched off, the FMS and ATC COM prints show PRINTER NOT AVAIL), SLEW feeds paper, TEST prints a test page, ABORT cancels the waiting printouts - @TCdr
 1. [A380X/ND] The VD shows the white line of the weather radar manual ELEVN (selected altitude) or TILT (selected tilt angle) mode selected on the MFD SURV CONTROLS page - @TCdr
-1. [A380X/ND] The VD terrain profile shows the runways as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
+1. [A380X/ND] The VD terrain profile shows the airports as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A380X/FMS] Pulling the FMC-A and FMC-B reset buttons no longer resets the FMS while FMC-C is still in (the reset check read FMC-B twice instead of FMC-C) - @TCdr
 1. [A32NX/EFB] New flyPad failures Engine 1(2) flameout (crew relight possible) and Engine 1(2) seizure (no relight): the engine fuel is cut; a flamed out engine relights with ENG MASTER OFF then ON inside the FCOM relight envelope, a seized one does not relight - @TCdr
 1. [EFB] The flyPad failures page describes the ATA 28 Fuel and ATA 72 Engine chapters like the others - @TCdr
@@ -422,6 +422,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [Pushback] The pushback goes on when another flyPad page is opened, still steered with the rudder pedals and the sidestick - @TCdr
 1. [A32NX/HYD] The RAT propeller has the real 29.5 in (749 mm) diameter instead of 1 m, with its performance retuned to the real RAT: rated output from 135.5 kt, governed between 4800 and 6600 rpm, and the emergency generator kept running down to 125 kt as in the FCOM; below its governed band the RAT pressure fades and the emergency generator is lost (about 110 kt); the RAT holds the blue system at about 2500 psi as in the FCOM, also without the emergency generator (RAT MAN ON), instead of about 2680 psi - @TCdr
 1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
+1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 
 ## 2024.1.0
 

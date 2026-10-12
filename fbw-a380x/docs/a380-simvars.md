@@ -2168,27 +2168,23 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Number (NM)
     - Distance along the cut at which the next track change is more than 3 degrees (the grey area of the VD), -1 when none
 
-- A380X_VD_RUNWAY_COUNT
+- A380X_VD_AIRPORT_COUNT
     - Number
-    - Number of runways (0 to 40) the ndwxr gauge draws as flat ground on the VD, published by EfisTawsBridge: the runways
-      of the airports within 25 NM of the aircraft, closest first (the terrain MapView draws the airport diagram over the
+    - Number of airports (0 to 24) the ndwxr gauge draws as flat ground on the VD, published by EfisTawsBridge: the
+      airports within 25 NM of the aircraft, closest first (the terrain MapView draws the airport diagram over the
       terrain, which the VD would otherwise read as high terrain)
 
-- A380X_VD_RUNWAY_{index}_LAT / A380X_VD_RUNWAY_{index}_LON
+- A380X_VD_AIRPORT_{index}_LAT / A380X_VD_AIRPORT_{index}_LON
     - Degrees
-    - The centre of runway {index} (0 to 39)
+    - The centre of the circle of airport {index} (0 to 23): the smallest circle holding the corners of all its runways
 
-- A380X_VD_RUNWAY_{index}_COURSE
-    - Degrees (true)
-    - The true course of the primary direction of runway {index}
-
-- A380X_VD_RUNWAY_{index}_HALF_LENGTH_NM / A380X_VD_RUNWAY_{index}_HALF_WIDTH_NM
+- A380X_VD_AIRPORT_{index}_RADIUS_NM
     - Number (NM)
-    - Half the length and half the width of runway {index}, each plus 0.15 NM for its edges and the start of its taxiways
+    - The radius of that circle plus 0.3 NM for the taxiways and aprons beside and beyond the outer runways
 
-- A380X_VD_RUNWAY_{index}_ELEVATION_FT
+- A380X_VD_AIRPORT_{index}_ELEVATION_FT
     - Number (feet)
-    - The higher threshold of runway {index}: the elevation of its flat ground on the VD
+    - The highest runway threshold of airport {index}: the elevation of its flat ground on the VD
 
 - `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
     - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
