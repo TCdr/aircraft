@@ -1,5 +1,6 @@
+use std::time::Duration;
 use systems::navigation::adirs::{
-    AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming,
+    AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming, CompleteAlignmentTime,
     LowSpeedWarningThreshold,
 };
 use systems::navigation::ala52b::{
@@ -16,6 +17,13 @@ use uom::si::velocity::knot;
 
 pub(crate) struct A320AirDataInertialReferenceSystemBuilder;
 impl A320AirDataInertialReferenceSystemBuilder {
+    /// A320 FCOM DSC-22_20-20-40 ALIGNMENT OF INERTIAL REFERENCE SYSTEM (a320_fcom.txt
+    /// l.12797-12798): "A normal alignment takes 10 min and a fast alignment takes 30 s", with the
+    /// memo "IRS IN ALIGN X MN" counting the minutes left, 1 < X < 10 (l.52686-52688). Unlike the
+    /// A380 FCOM, the A320 FCOM gives no latitude dependency (ground alignment only up to 73 deg,
+    /// l.116718).
+    const COMPLETE_ALIGNMENT_TIME: Duration = Duration::from_secs(10 * 60);
+
     pub(crate) fn build(context: &mut InitContext) -> AirDataInertialReferenceSystem {
         let adirs_programming = AirDataInertialReferenceUnitProgramming::new(
             Velocity::new::<knot>(350.),
@@ -38,7 +46,8 @@ impl A320AirDataInertialReferenceSystemBuilder {
                     Velocity::new::<knot>(264.),
                 ),
             ],
-        );
+        )
+        .with_complete_alignment_time(CompleteAlignmentTime::Fixed(Self::COMPLETE_ALIGNMENT_TIME));
         AirDataInertialReferenceSystem::new(context, adirs_programming)
     }
 }
@@ -145,5 +154,68 @@ impl SimulationElement for A320RadioAltimeter {
         self.radio_altimeter.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use systems::navigation::adirs::AirDataInertialReferenceSystemOverheadPanel;
+    use systems::simulation::{
+        test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
+        Aircraft,
+    };
+    use uom::si::angle::degree;
+
+    struct TestAircraft {
+        adirs: AirDataInertialReferenceSystem,
+        overhead: AirDataInertialReferenceSystemOverheadPanel,
+    }
+    impl TestAircraft {
+        fn new(context: &mut InitContext) -> Self {
+            Self {
+                adirs: A320AirDataInertialReferenceSystemBuilder::build(context),
+                overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
+            }
+        }
+    }
+    impl Aircraft for TestAircraft {
+        fn update_after_power_distribution(&mut self, context: &UpdateContext) {
+            self.adirs.update(context, &self.overhead);
+            self.overhead.update(context, &self.adirs);
+        }
+    }
+    impl SimulationElement for TestAircraft {
+        fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+            self.adirs.accept(visitor);
+            self.overhead.accept(visitor);
+            visitor.visit(self);
+        }
+    }
+
+    fn set_all_ir_mode_selectors(test_bed: &mut SimulationTestBed<TestAircraft>, mode: f64) {
+        for number in 1..=3 {
+            test_bed.write_by_name(
+                &format!("OVHD_ADIRS_IR_{}_MODE_SELECTOR_KNOB", number),
+                mode,
+            );
+        }
+    }
+
+    #[test]
+    fn a_complete_ir_alignment_takes_10_minutes_at_the_equator() {
+        let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("PLANE LATITUDE", Angle::new::<degree>(0.));
+        // OFF long enough to need a complete alignment, then NAV
+        // (the first frame OFF arms the 5 s quick re-alignment, the next one lets it run out)
+        set_all_ir_mode_selectors(&mut test_bed, 0.);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.run_with_delta(Duration::from_secs(30));
+        set_all_ir_mode_selectors(&mut test_bed, 1.);
+        test_bed.run_with_delta(Duration::ZERO);
+
+        let remaining: Duration = test_bed.read_by_name("ADIRS_REMAINING_IR_ALIGNMENT_TIME");
+        assert_eq!(remaining, Duration::from_secs(600));
     }
 }

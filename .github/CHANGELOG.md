@@ -393,6 +393,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MODEL] The exhaust heat haze of engines 2, 3 and 4 follows its own engine (it followed engine 1 or 2) - @TCdr
 1. [A380X/EFB] Ground > Services: the aft right door button is labelled Main 5 R (it opens MAIN 5R, the door the SD DOOR page and the FWS show), and its planform marker sits on door 5 R; a new Main 4 R button opens and closes MAIN 4R (the catering truck still docks at MAIN 5R) - @TCdr
 1. [A380X/PRESS] With a door not closed and locked at takeoff power, the outflow valve controllers keep the four outflow valves open in AUTO (CAB PRESS INHIBITED BY DOORS), the controllers read every passenger door and both cargo doors, and the cabin air and pack door inputs read all 16 passenger doors (only MAIN 1L and 2R before) - @TCdr
+1. [A32NX/MCDU] PROG page: with one engine out, REC MAX shows the engine-out recommended maximum altitude (long-range cruise ceiling), as in the FCOM; the flyPad Buffet page gets the same value - @TCdr
+1. [A32NX/ADIRS] A complete IR alignment takes 10 min at any latitude, as in the A320 FCOM (it took 5 to 17 min with the latitude like the A380) - @TCdr
+1. [A32NX/FUEL] Gravity feeding: with the X FEED open and all four wing tank pumps off, each engine burns the fuel of its own wing tank (the burned fuel was taken from no tank) - @TCdr
+1. [A32NX/ENG] In flight, after a flameout the FADEC relights the engine by itself within 30 s once the continuous ignition is on (ENG MODE selector at IGN, or the engine anti-ice, which now selects the continuous ignition automatically), without an ENG MASTER cycle, as in the FCOM - @TCdr
+1. [A32NX/ENG] Engine start faults as in the FCOM: after a stall or an EGT over limit during an automatic start on the ground the FADEC tries a new start first and dry cranks only after that, a manual start lights up from 20 % N2, and a starter that fails during an in-flight relight gives ENG START FAULT STARTER SHAFT SHEAR with WINDMILL START ONLY - @TCdr
 
 ## 2024.1.0
 
