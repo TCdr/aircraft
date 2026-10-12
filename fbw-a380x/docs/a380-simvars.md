@@ -22,7 +22,6 @@
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
   - [KCCU ATA 31](#kccu-ata-31)
   - [Landing Gear ATA 32](#landing-gear-ata-32)
-  - [Surveillance ATA 34](#surveillance-ata-34)
   - [Lights ATA 33](#lights-ata-33)
   - [Surveillance ATA 34](#surveillance-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
