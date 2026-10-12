@@ -62,7 +62,12 @@ import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { acscPackFaults } from './Logic/AcscPackFaults';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
-import { ALL_ENGINES_FAILURE_CODES, allEnginesFailureLines, isApuStartLineShown } from './Logic/AllEnginesFailure';
+import {
+  ALL_ENGINES_FAILURE_CODES,
+  allEnginesFailureLines,
+  allEnginesFailureStatus,
+  isApuStartLineShown,
+} from './Logic/AllEnginesFailure';
 import { altnLawLines, directLawLines, elacFaultLines } from './Logic/FlightControlLawAlerts';
 import {
   FlightControlSurfaceMonitor,
@@ -78,7 +83,7 @@ import * as FctlStatus from './Logic/FlightControlStatus';
 import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
 import { isGearNotUplockedForVle } from './Logic/LandingGearOverspeed';
-import { wingTankLowLevelLines, wingTankLowLevelStatus } from './Logic/WingTankLowLevel';
+import { wingTankLowLevelLines, wingTankLowLevelStatus, wingTanksLowLevelLines } from './Logic/WingTankLowLevel';
 import {
   CrossBleedSelector,
   EngineFailMonitor,
@@ -219,6 +224,30 @@ import {
   wingTankPumps1And2Lines,
 } from './Logic/FuelPumpValveFaults';
 import { BleedLeakMonitoringAlerts, readBleedLeakMonitoringInputs } from './Logic/BleedLeakMonitoringAlerts';
+import {
+  CabinPressureAlerts,
+  cpc1And2FaultStatus,
+  cpcFaultStatus,
+  excessCabinAltitudeStatus,
+  isRamAirOnMemoShown,
+  readFmLandingElevationAvailable,
+  safetyValveOpenStatus,
+} from './Logic/AirConditioningAlerts';
+import { THRUST_LOCKED_KEY, ThrustLockedAlert } from './Logic/ThrustLockedAlert';
+import { FuelTransferAlerts, readFuelTransferInputs } from './Logic/FuelTransferAlerts';
+import { WingAntiIceAlerts, readWingAntiIceInputs } from './Logic/WingAntiIceAlerts';
+import { DoorAlerts, readDoorsNotClosed } from './Logic/DoorAlerts';
+import {
+  LandingGearAlerts,
+  antiSkidOffStatus,
+  gearNotUplockedStatus,
+  lgciu1And2FaultStatus,
+  lgciuFaultStatus,
+  readLandingGearInputs,
+  readYellowSystemLowPressure,
+} from './Logic/LandingGearAlerts';
+import { GpwsAlerts, readGpwsInputs } from './Logic/GpwsAlerts';
+import { autoThrustOffInvoluntaryStatus } from './Logic/AutoFlightStatus';
 import {
   alertStatus,
   cabFansFaultStatus,
@@ -1924,6 +1953,24 @@ export class PseudoFWC {
 
   /** The AIR bleed cautions (FCOM PRO-ABN-AIR), see Logic/BleedAlerts */
   private readonly bleedAlerts = new BleedAlerts();
+
+  /*
+   * Alerts of the FCOM gap batch P4, each in its Logic module: CAB PR LDG ELEV FAULT, ENG THRUST LOCKED, FUEL AUTO
+   * TRANSFER FAULT and CTR TK XFR OFF, WING A.ICE, DOOR, L/G DOORS NOT CLOSED and SYS DISAGREE, NAV GPWS
+   */
+  private readonly cabinPressureAlerts = new CabinPressureAlerts();
+
+  private readonly thrustLockedAlert = new ThrustLockedAlert();
+
+  private readonly fuelTransferAlerts = new FuelTransferAlerts();
+
+  private readonly wingAntiIceAlerts = new WingAntiIceAlerts();
+
+  private readonly doorAlerts = new DoorAlerts();
+
+  private readonly landingGearAlerts = new LandingGearAlerts();
+
+  private readonly gpwsAlerts = new GpwsAlerts();
 
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
@@ -5335,6 +5382,19 @@ export class PseudoFWC {
     /* AIR bleed cautions (FCOM PRO-ABN-AIR), from the Rust pneumatic flags, see Logic/BleedAlerts */
     this.bleedAlerts.update(readBleedInputs(), deltaTime / 1000);
 
+    /* The alerts of the FCOM gap batch P4 (see their Logic modules) */
+    this.cabinPressureAlerts.update({
+      ldgElevSelectorAuto: !this.manLandingElevation.get(),
+      cpcOperative: !this.bothCpcFaultOutput.get(),
+      fmLandingElevationAvailable: readFmLandingElevationAvailable(),
+    });
+    this.thrustLockedAlert.update(this.thrLocked.get(), deltaTime / 1000);
+    this.fuelTransferAlerts.update(readFuelTransferInputs(this.fuelCtrTankModeSelMan.get()));
+    this.wingAntiIceAlerts.update(readWingAntiIceInputs(), deltaTime / 1000);
+    this.doorAlerts.update(readDoorsNotClosed(), this.aircraftOnGround.get());
+    this.landingGearAlerts.update(readLandingGearInputs(this.gearNotUplockedWarning.get()), deltaTime / 1000);
+    this.gpwsAlerts.update(readGpwsInputs());
+
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
     this.engineOilMonitors.forEach((monitor, index) => {
@@ -6419,6 +6479,12 @@ export class PseudoFWC {
       this.requestMasterWarningFromFaults = false;
     }
 
+    // ENG THRUST LOCKED: the single chime and the MASTER CAUTION light again every 5 s (see Logic/ThrustLockedAlert)
+    if (this.thrustLockedAlert.repeatAttentionGetters && this.failuresLeft.includes(THRUST_LOCKED_KEY)) {
+      this.requestMasterCautionFromFaults = true;
+      this.auralSingleChimePending = true;
+    }
+
     this.masterCaution.set(this.requestMasterCautionFromFaults || this.requestMasterCautionFromABrkOff);
 
     this.masterWarning.set(this.requestMasterWarningFromFaults);
@@ -6707,6 +6773,7 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
       monitorConfirmTime: 0,
+      ...alertStatus(autoThrustOffInvoluntaryStatus),
     },
     2200024: {
       // A/THR LIMITED
@@ -7635,6 +7702,7 @@ export class PseudoFWC {
       failure: 3,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
+      ...alertStatus(allEnginesFailureStatus),
     },
     7700101: {
       // ENG 1 FAIL (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
@@ -9159,6 +9227,7 @@ export class PseudoFWC {
       failure: 3,
       sysPage: EcamSysPage.PRESS,
       side: 'LEFT',
+      ...alertStatus(() => excessCabinAltitudeStatus()),
     },
     2131222: {
       // SYS 1 FAULT
@@ -9174,6 +9243,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.PRESS,
       side: 'LEFT',
+      ...alertStatus(() => cpcFaultStatus(1)),
     },
     2131223: {
       // SYS 2 FAULT
@@ -9189,6 +9259,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.PRESS,
       side: 'LEFT',
+      ...alertStatus(() => cpcFaultStatus(2)),
     },
     2131224: {
       // SYS 1+2 FAULT
@@ -9200,6 +9271,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.PRESS,
       side: 'LEFT',
+      ...alertStatus(() => cpc1And2FaultStatus()),
     },
     2131231: {
       // LO DIFF PR
@@ -9260,6 +9332,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.PRESS,
       side: 'LEFT',
+      ...alertStatus(() => safetyValveOpenStatus()),
     },
     2131235: {
       // EXCES RESIDUAL PR
@@ -9354,6 +9427,14 @@ export class PseudoFWC {
     },
     // 36 - PNEUMATIC: the AIR bleed cautions (keys 3611001-3611014), see Logic/BleedAlerts
     ...this.bleedAlerts.ewdFailures,
+    // The alerts of the FCOM gap batch P4, see their Logic modules
+    ...this.cabinPressureAlerts.ewdFailures,
+    ...this.thrustLockedAlert.ewdFailures,
+    ...this.fuelTransferAlerts.ewdFailures,
+    ...this.wingAntiIceAlerts.ewdFailures,
+    ...this.doorAlerts.ewdFailures,
+    ...this.landingGearAlerts.ewdFailures,
+    ...this.gpwsAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],
@@ -9602,6 +9683,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.WHEEL,
       side: 'LEFT',
+      ...alertStatus(() => antiSkidOffStatus(readYellowSystemLowPressure())),
     },
     3200081: {
       // BRAKES PARK BRK ON
@@ -9708,6 +9790,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.WHEEL,
       side: 'LEFT',
+      ...alertStatus(() => gearNotUplockedStatus(this.lgDownlocked.get())),
     },
     3200180: {
       // LGCIU 1 FAULT
@@ -9719,6 +9802,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      ...alertStatus(() => lgciuFaultStatus(1)),
     },
     3200190: {
       // LGCIU 2 FAULT
@@ -9730,6 +9814,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      ...alertStatus(() => lgciuFaultStatus(2)),
     },
     3200195: {
       // LGCIU 1+2 FAULT
@@ -9741,6 +9826,7 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.WHEEL,
       side: 'LEFT',
+      ...alertStatus(() => lgciu1And2FaultStatus()),
     },
     3243085: {
       // BRAKES Y ACCU LO PR
@@ -10320,22 +10406,18 @@ export class PseudoFWC {
       // L+R WING TK LO LVL
       flightPhaseInhib: [3, 4, 5, 7, 8, 9],
       simVarIsActive: this.lrTankLow,
-      whichCodeToReturn: () => [
-        0,
-        1,
-        !this.leftFuelPump1Auto.get() ? 2 : null,
-        !this.leftFuelPump2Auto.get() ? 3 : null,
-        this.centerFuelQuantity.get() > 250 && !this.centerFuelPump1Auto.get() ? 4 : null,
-        this.centerFuelQuantity.get() > 250 && !this.centerFuelPump1Auto.get() ? 5 : null,
-        this.rightFuelPump1Auto.get() ? null : 6,
-        this.rightFuelPump2Auto.get() ? null : 7,
-        this.centerFuelQuantity.get() > 250 && !this.centerFuelPump2Auto.get() ? 8 : null,
-        this.centerFuelQuantity.get() > 250 && !this.centerFuelPump2Auto.get() ? 9 : null,
-        10,
-        11,
-        12,
-        13,
-      ],
+      // FCOM PRO-ABN-FUEL, jet pump variant, see wingTanksLowLevelLines
+      whichCodeToReturn: () =>
+        wingTanksLowLevelLines({
+          modeSelMan: this.fuelCtrTankModeSelMan.get(),
+          centreTankEmpty: this.centerTankEmpty.get(),
+          leftPump1On: this.leftFuelPump1Auto.get(),
+          leftPump2On: this.leftFuelPump2Auto.get(),
+          rightPump1On: this.rightFuelPump1Auto.get(),
+          rightPump2On: this.rightFuelPump2Auto.get(),
+          centreLeftTransferOn: this.centerFuelPump1Auto.get(),
+          centreRightTransferOn: this.centerFuelPump2Auto.get(),
+        }),
       codesToReturn: [
         '280014501',
         '280014502',
@@ -11007,7 +11089,8 @@ export class PseudoFWC {
       flightPhaseInhib: [],
       // also with ENG 1(2) FAIL and ENG 1(2) SHUT DOWN: "LAND ASAP" (FCOM PRO-ABN-ENG, l.79797 and l.81087), and with
       // ENG 1(2) THR LEVER FAULT (l.81826) and ENG 1(2) REVERSE UNLOCKED in flight (l.80895), and with ELEC DC EMER CONFIG
-      // (FCOM PRO-ABN-ELEC l.77163) and ESS BUSES ON BAT (l.77947)
+      // (FCOM PRO-ABN-ELEC l.77163) and ESS BUSES ON BAT (l.77947), and with FUEL L+R WING TK LO LVL (FCOM PRO-ABN-FUEL
+      // l.86557)
       simVarIsActive: MappedSubject.create(
         ([
           landAsapRed,
@@ -11023,6 +11106,7 @@ export class PseudoFWC {
           reverse1Unlocked,
           reverse2Unlocked,
           elecBusLandAsap,
+          wingTanksLowLevel,
         ]) =>
           !landAsapRed &&
           !aircraftOnGround &&
@@ -11036,7 +11120,8 @@ export class PseudoFWC {
             thrLever2Fault ||
             reverse1Unlocked ||
             reverse2Unlocked ||
-            elecBusLandAsap),
+            elecBusLandAsap ||
+            wingTanksLowLevel),
         this.landAsapRed,
         this.aircraftOnGround,
         this.engine1State,
@@ -11050,6 +11135,7 @@ export class PseudoFWC {
         this.reverseUnlockedShown[0],
         this.reverseUnlockedShown[1],
         this.elecBusLandAsap,
+        this.lrTankLow,
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000036001'],
@@ -11312,6 +11398,15 @@ export class PseudoFWC {
       simVarIsActive: this.manLandingElevation,
       whichCodeToReturn: () => [0],
       codesToReturn: ['000023001'],
+      memoInhibit: () => false,
+      side: 'RIGHT',
+    },
+    '0000240': {
+      // RAM AIR ON (FCOM DSC-21-10-50 l.8642), see Logic/AirConditioningAlerts
+      flightPhaseInhib: [],
+      simVarIsActive: this.ramAirOn.map(isRamAirOnMemoShown),
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['000024001'],
       memoInhibit: () => false,
       side: 'RIGHT',
     },
