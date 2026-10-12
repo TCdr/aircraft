@@ -6898,7 +6898,7 @@ mod tests {
             }
 
             fn get_rat_rpm(&mut self) -> f64 {
-                self.read_by_name("A32NX_RAT_RPM")
+                self.read_by_name("RAT_RPM")
             }
 
             fn get_left_aileron_position(&mut self) -> Ratio {
@@ -10686,6 +10686,92 @@ mod tests {
             assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
 
             test_bed
+        }
+
+        /// RAT out after a loss of AC BUS 1 + 2 in flight, then stabilised for 30 s at the given airspeed
+        fn test_bed_with_rat_deployed_in_flight_at(airspeed: Velocity) -> A320HydraulicsTestBed {
+            let mut test_bed = test_bed_with_rat_deployed_in_flight();
+            test_bed.set_indicated_airspeed(airspeed);
+            test_bed.set_true_airspeed(airspeed);
+
+            test_bed.run_waiting_for(Duration::from_secs(30))
+        }
+
+        #[test]
+        fn blue_pressure_is_about_2500_psi_on_the_rat_at_min_rat_speed() {
+            // A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG: MIN RAT SPEED 140 kt
+            let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(140.));
+
+            // A320 FCOM DSC-29-10-10: "3 000 PSI (2 500 PSI when powered by the RAT)"
+            let blue_pressure_psi = test_bed.blue_pressure().get::<psi>();
+            assert_ge!(blue_pressure_psi, 2400.);
+            assert_le!(blue_pressure_psi, 2600.);
+        }
+
+        #[test]
+        fn rat_is_in_its_governed_band_at_min_rat_speed() {
+            let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(140.));
+
+            // Hamilton Sundstrand ERPS06M CMM (A320 RAT): governed speed 4800 / 6600 rpm
+            assert_ge!(test_bed.get_rat_rpm(), 4800.);
+            assert_le!(test_bed.get_rat_rpm(), 6600.);
+        }
+
+        #[test]
+        fn emergency_gen_runs_on_the_rat_down_to_125_kt() {
+            // A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG:
+            // "The RAT is capable of supplying the EMER GEN down to 125 kt, except during flare"
+            let test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(125.));
+
+            assert!(test_bed.is_emergency_gen_at_nominal_speed());
+        }
+
+        #[test]
+        fn emergency_gen_is_lost_when_the_rat_slows_well_below_125_kt() {
+            // Below its governed band (4800 rpm, Hamilton Sundstrand ERPS06M CMM) the RAT pump unloads:
+            // the blue pressure fades and the EMER GEN stops (FCOM: EMER GEN supplied "down to 125 kt")
+            let mut test_bed = test_bed_with_rat_deployed_in_flight_at(Velocity::new::<knot>(110.));
+
+            assert!(!test_bed.is_emergency_gen_at_nominal_speed());
+            assert_lt!(test_bed.blue_pressure().get::<psi>(), 2000.);
+        }
+
+        /// RAT out from the HYD RAT MAN ON pushbutton in flight with normal electrics and the BLUE ELEC PUMP
+        /// off: the RAT alone pressurises the blue system, without the emergency generator load
+        fn test_bed_with_rat_deployed_manually_in_flight_at(
+            airspeed: Velocity,
+        ) -> A320HydraulicsTestBed {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_blue_e_pump(false)
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed.write_by_name("OVHD_HYD_RAT_MAN_ON_IS_PRESSED", true);
+            test_bed.set_indicated_airspeed(airspeed);
+            test_bed.set_true_airspeed(airspeed);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(30));
+
+            assert!((test_bed.get_rat_position() - 1.).abs() < f64::EPSILON);
+            assert!(!test_bed.is_emergency_gen_at_nominal_speed());
+
+            test_bed
+        }
+
+        #[test]
+        fn blue_pressure_is_about_2500_psi_on_the_rat_alone_without_the_emergency_generator() {
+            // A320 FCOM PRO-ABN-29 HYD G + Y SYS LO PR: "If blue sys lost by ELEC PUMP LO PR: RAT ... MAN ON",
+            // so the RAT can pressurise the blue system with normal electrics (EMER GEN not coupled).
+            // A320 FCOM DSC-29-10-10: "3 000 PSI (2 500 PSI when powered by the RAT)"
+            for airspeed_kt in [200., 140.] {
+                let mut test_bed = test_bed_with_rat_deployed_manually_in_flight_at(
+                    Velocity::new::<knot>(airspeed_kt),
+                );
+
+                let blue_pressure_psi = test_bed.blue_pressure().get::<psi>();
+                assert_ge!(blue_pressure_psi, 2400.);
+                assert_le!(blue_pressure_psi, 2600.);
+            }
         }
 
         #[test]

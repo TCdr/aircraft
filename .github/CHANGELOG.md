@@ -114,6 +114,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
 1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
+1. [A32NX/HYD] The RAT propeller has the real 29.5 in (749 mm) diameter instead of 1 m, with its performance retuned to the real RAT: rated output from 135.5 kt, governed between 4800 and 6600 rpm, and the emergency generator kept running down to 125 kt as in the FCOM; below its governed band the RAT pressure fades and the emergency generator is lost (about 110 kt); the RAT holds the blue system at about 2500 psi as in the FCOM, also without the emergency generator (RAT MAN ON), instead of about 2680 psi - @TCdr
 
 ## 2024.1.0
 
