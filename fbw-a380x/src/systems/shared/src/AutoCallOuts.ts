@@ -60,3 +60,109 @@ export function isFiveHundredCalloutDue(pins: number, glideValid: boolean, glide
   }
   return !glideValid || Math.abs(glideDeviationDots) > SMART_FIVE_HUNDRED_GLIDE_DEVIATION_DOTS;
 }
+
+/*
+ * The intermediate callout, a380_fcom.txt l.86537-86547 (DSC-34-10-50 INTERMEDIATE CALLOUT): "Below 400 ft, if the
+ * time between two consecutive predetermined callouts exceeds a certain threshold, an intermediate callout is
+ * triggered at regular time intervals. Between 400 ft and 100 ft, the intermediate callout is triggered 11 s after the
+ * previous predetermined callout. Below 100 ft, the intermediate callout is triggered 4 s after the previous
+ * predetermined callout. The intermediate callout calls out the current aircraft height. Between 400 ft and 100 ft,
+ * the height is rounded to the lower 10 ft (e.g. TWO HUNDRED AND TWENTY). Below 100 ft, the height is rounded to the
+ * lower feet."
+ *
+ * Design choices:
+ * - The height is said with the voices of the aircraft sound bank, one hundreds word and one tens word (TWO HUNDRED,
+ *   TWENTY): the bank has no AND and no unit words. Below 100 ft the height is therefore rounded to the lower 10 ft
+ *   too (FIFTY for 57 ft), and FIVE from 5 to 9 ft: the unit feet of the FCOM would need nine more words in another
+ *   voice.
+ * - "At regular time intervals": the next intermediate callout comes after the same time (11 s, 4 s below 100 ft).
+ * - The time is counted from the last callout, or from the descent below 400 ft.
+ * - The callout waits while the height callouts would not be made (radio height invalid, on ground, climbing, GPWS
+ *   alert, RETARD), see LegacyGpws.
+ */
+
+/** The intermediate callout is made below this radio height, in feet (a380_fcom.txt l.86539) */
+export const INTERMEDIATE_CALLOUT_CEILING_FT = 400;
+
+/** Below this height the intermediate callout comes after 4 s instead of 11 s (a380_fcom.txt l.86541-86543) */
+export const INTERMEDIATE_CALLOUT_LOW_BAND_FT = 100;
+
+export const INTERMEDIATE_CALLOUT_HIGH_BAND_SECONDS = 11;
+
+export const INTERMEDIATE_CALLOUT_LOW_BAND_SECONDS = 4;
+
+/** The words of an intermediate callout, as FwsSoundManager aurals: hundreds first, then tens */
+export type IntermediateCalloutAural =
+  | 'intermediate_100'
+  | 'intermediate_200'
+  | 'intermediate_300'
+  | 'intermediate_90'
+  | 'intermediate_80'
+  | 'intermediate_70'
+  | 'intermediate_60'
+  | 'intermediate_50'
+  | 'intermediate_40'
+  | 'intermediate_30'
+  | 'intermediate_20'
+  | 'intermediate_10'
+  | 'intermediate_5';
+
+/**
+ * The words that say a height, rounded down to 10 ft (to 5 ft below 10 ft).
+ * @param height the radio height in feet, below 400 ft
+ * @returns the words in the order they are said, empty below 5 ft
+ */
+export function intermediateCalloutWords(height: number): IntermediateCalloutAural[] {
+  const words: IntermediateCalloutAural[] = [];
+  const hundreds = Math.floor(height / 100);
+  const tens = Math.floor((height % 100) / 10);
+  if (hundreds >= 1 && hundreds <= 3) {
+    words.push(`intermediate_${hundreds * 100}` as IntermediateCalloutAural);
+  }
+  if (tens >= 1) {
+    words.push(`intermediate_${tens * 10}` as IntermediateCalloutAural);
+  } else if (hundreds === 0 && height >= 5) {
+    words.push('intermediate_5');
+  }
+  return words;
+}
+
+export class IntermediateCallout {
+  /** Seconds since the last callout (predetermined or intermediate), or since the descent below 400 ft */
+  private secondsSinceLastCallout = 0;
+
+  /**
+   * @param height the radio height in feet, null when invalid
+   * @param predeterminedCalloutNow a predetermined callout (a height, MINIMUM, HUNDRED ABOVE or RETARD) is made now
+   * @param inhibited the height callouts are not made now
+   * @param deltaTimeSeconds the time since the last update
+   * @returns the words to say now, empty when there is no callout
+   */
+  public update(
+    height: number | null,
+    predeterminedCalloutNow: boolean,
+    inhibited: boolean,
+    deltaTimeSeconds: number,
+  ): IntermediateCalloutAural[] {
+    if (height === null || height >= INTERMEDIATE_CALLOUT_CEILING_FT || predeterminedCalloutNow) {
+      this.secondsSinceLastCallout = 0;
+      return [];
+    }
+    const words = intermediateCalloutWords(height);
+    if (words.length === 0) {
+      this.secondsSinceLastCallout = 0;
+      return [];
+    }
+
+    this.secondsSinceLastCallout += deltaTimeSeconds;
+    const threshold =
+      height < INTERMEDIATE_CALLOUT_LOW_BAND_FT
+        ? INTERMEDIATE_CALLOUT_LOW_BAND_SECONDS
+        : INTERMEDIATE_CALLOUT_HIGH_BAND_SECONDS;
+    if (this.secondsSinceLastCallout >= threshold && !inhibited) {
+      this.secondsSinceLastCallout = 0;
+      return words;
+    }
+    return [];
+  }
+}

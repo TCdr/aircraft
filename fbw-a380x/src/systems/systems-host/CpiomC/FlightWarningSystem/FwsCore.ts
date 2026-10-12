@@ -72,6 +72,8 @@ import { FwsAbnormalNonSensed } from './FwsAbnormalNonSensed';
 import { MfdSurvEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { Mle, Mmo, VfeF1, VfeF1F, VfeF2, VfeF3, VfeFF, Vle, Vmo } from '@shared/PerformanceConstants';
 import { FwsAuralVolume, FwsSoundManager } from './FwsSoundManager';
+import { FwsSidestickPriority } from './FwsSidestickPriority';
+import { FwsWindshearAural } from './FwsWindshearAural';
 import { FwcFlightPhase, FwsFlightPhases } from './FwsFlightPhases';
 import { A380Failure } from '@failures';
 // FIXME should not import from instruments
@@ -3118,6 +3120,10 @@ export class FwsCore {
   public readonly limitations = new FwsLimitations(this);
   public readonly systemDisplayLogic = new FwsSystemDisplayLogic(this);
   private readonly autoCallouts = new FwsAutoCallouts(this);
+  /** PRIORITY LEFT / PRIORITY RIGHT voices, see FwsSidestickPriority */
+  private readonly sidestickPriority = new FwsSidestickPriority();
+  /** WINDSHEAR voice, see FwsWindshearAural */
+  private readonly windshearAural = new FwsWindshearAural();
   public ewdAbnormal: EwdAbnormalDict;
   public allEwdDeferredProcs: EwdAbnormalDict;
   public allSuppressableItems: FwsSuppressableItemDict;
@@ -4475,6 +4481,27 @@ export class FwsCore {
       this.v1SpeedConfirmNode.read()
     ) {
       this.soundManager.enqueueSound('v1');
+    }
+
+    /* PRIORITY LEFT / PRIORITY RIGHT (a380_fcom.txt l.55350, 55363, 73621-73623) */
+    const gpwsAlertActive =
+      SimVar.GetSimVarValue('L:A32NX_GPWS_Warning_Active', SimVarValueType.Bool) > 0 ||
+      SimVar.GetSimVarValue('L:A32NX_GPWS_GS_Warning_Active', SimVarValueType.Bool) > 0;
+    const sidestickPriorityAural = this.sidestickPriority.update(
+      SimVar.GetSimVarValue('L:A32NX_PRIORITY_TAKEOVER:1', SimVarValueType.Bool) > 0,
+      SimVar.GetSimVarValue('L:A32NX_PRIORITY_TAKEOVER:2', SimVarValueType.Bool) > 0,
+      gpwsAlertActive,
+      deltaTime / 1000,
+    );
+    if (sidestickPriorityAural !== null) {
+      this.soundManager.enqueueSound(sidestickPriorityAural);
+    }
+
+    /* WINDSHEAR (a380_fcom.txt l.9274-9276, 73643) */
+    if (
+      this.windshearAural.update(SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', SimVarValueType.Bool) > 0)
+    ) {
+      this.soundManager.enqueueSound('windshear');
     }
 
     /* LANDING GEAR AND LIGHTS acquisition */
