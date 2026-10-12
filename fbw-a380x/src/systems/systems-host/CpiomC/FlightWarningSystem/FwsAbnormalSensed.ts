@@ -36,6 +36,12 @@ import {
   TR_INOP_SYS,
 } from './FwsElecSystemAlerts';
 import { isApFdTcasModeInop } from './FwsSurvAlerts';
+import {
+  FM_GPS_POS_DISAGREE_INFO,
+  FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
+  LS_TUNING_DISAGREE_INOP_SYS_APPR_LDG,
+  LS_TUNING_DISAGREE_PHASE_INHIBITION,
+} from './FwsNavPositionAlerts';
 import { cabinDoorNotClosedAlertId, cargoDoorNotClosedAlertId } from './DoorAlerts';
 import {
   aboveGearDoorSpeed,
@@ -5914,6 +5920,34 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['320300007', '320300022'],
       redundLoss: () => [''],
       info: () => [''],
+    },
+    340800025: {
+      // NAV FM / GPS POS DISAGREE (see FwsNavPositionAlerts): ACFT POS ... CHECK, INFO FLS : RAW ONLY
+      flightPhaseInhib: FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navPositionAlerts.fmGpsPosDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [],
+      inopSysApprLdg: () => [],
+      redundLoss: () => [],
+      info: () => [FM_GPS_POS_DISAGREE_INFO],
+    },
+    340800049: {
+      // NAV LS TUNING DISAGREE (see FwsNavPositionAlerts): crew awareness, INOP SYS APPR & LDG CAT 2, GLS AUTOLAND
+      flightPhaseInhib: LS_TUNING_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navPositionAlerts.lsTuningDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [],
+      inopSysApprLdg: () => LS_TUNING_DISAGREE_INOP_SYS_APPR_LDG,
+      redundLoss: () => [],
+      info: () => [],
     },
     340800040: {
       // IR 1 FAULT

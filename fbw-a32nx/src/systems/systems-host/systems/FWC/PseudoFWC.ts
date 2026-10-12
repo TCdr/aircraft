@@ -232,6 +232,13 @@ import {
 } from './Logic/CondStatus';
 import { EcamStatus } from './EcamStatus';
 import { FWC_1_AND_2_FAULT_EWD, FWC_FAULT_EWD_CODES, FwcAvailability, fwcFaultStatus } from './Logic/FwcAvailability';
+import {
+  FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
+  FmGpsPositionDisagreeAlert,
+  LS_TUNING_DISAGREE_INOP_SYS,
+  LS_TUNING_DISAGREE_PHASE_INHIBITION,
+  LsTuningDisagreeMonitor,
+} from './Logic/NavPositionAlerts';
 import { orderStatusCodes } from '@shared/StatusMessages';
 import {
   STATUS_CLR_SCROLLS_VAR,
@@ -2369,6 +2376,16 @@ export class PseudoFWC {
   private readonly gps1Fault = Subject.create(false);
 
   private readonly gps2Fault = Subject.create(false);
+
+  /** NAV FM/GPS POS DISAGREE from the FMS condition (see Logic/NavPositionAlerts) */
+  private readonly fmGpsPosDisagreeAlert = new FmGpsPositionDisagreeAlert();
+
+  private readonly fmGpsPosDisagree = Subject.create(false);
+
+  /** NAV LS TUNING DISAGREE: MMR 1 and MMR 2 tuned differently (see Logic/NavPositionAlerts) */
+  private readonly lsTuningDisagreeMonitor = new LsTuningDisagreeMonitor();
+
+  private readonly lsTuningDisagree = Subject.create(false);
 
   /** FWS FWC 1 FAULT, shown by FWC 2 (see Logic/FwcAvailability) */
   private readonly fwc1FaultAlert = this.fwcAvailability.map((a) => a.fwc1FaultAlert);
@@ -4512,6 +4529,28 @@ export class PseudoFWC {
     // GPS receivers: GPS_n_MODE 4 is FAULT (A320 FCOM PRO-ABN-NAV: the alert triggers when the GPS 1(2) is failed)
     this.gps1Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_1_MODE', 'number') === 4);
     this.gps2Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_2_MODE', 'number') === 4);
+    // NAV FM/GPS POS DISAGREE: the FMS compares the FM and GPS positions (fmgc navigation/FmPosition.ts)
+    this.fmGpsPosDisagree.set(
+      this.fmGpsPosDisagreeAlert.update(
+        SimVar.GetSimVarValue('L:A32NX_FM_GPS_POS_DISAGREE', 'bool') > 0,
+        this.fwcFlightPhase.get(),
+        deltaTime / 1000,
+      ),
+    );
+    // NAV LS TUNING DISAGREE: MMR 1 and 2 are the sim NAV 3 and NAV 4 receivers (fmgc navigation/NavaidTuner.ts)
+    this.lsTuningDisagree.set(
+      this.lsTuningDisagreeMonitor.update(
+        {
+          frequency: SimVar.GetSimVarValue('NAV ACTIVE FREQUENCY:3', 'MHz'),
+          course: SimVar.GetSimVarValue('NAV OBS:3', 'degrees'),
+        },
+        {
+          frequency: SimVar.GetSimVarValue('NAV ACTIVE FREQUENCY:4', 'MHz'),
+          course: SimVar.GetSimVarValue('NAV OBS:4', 'degrees'),
+        },
+        deltaTime / 1000,
+      ),
+    );
     this.ra2Fault.set(this.height2Failed.get() && !this.sdac00210Word.bitValue(20));
     this.tcasFault.set(SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', 'bool'));
     // ATC/XPDR 1(2) FAULT: the transponder failed with its bus powered (a bus loss is an ELEC alert)
@@ -9794,6 +9833,31 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => [this.gps1Fault.get() ? '340300003' : '340300002'],
       statusInfo: () => (this.gps1Fault.get() ? ['340200001'] : []),
+    },
+    3400190: {
+      // NAV FM/GPS POS DISAGREE (A320 FCOM PRO-ABN-NAV, see Logic/NavPositionAlerts): MASTER CAUT and single chime
+      // (DSC-22_20-20-20), A/C POS ... CHECK; phase 5 inhibited for its first 15 s by the logic
+      flightPhaseInhib: FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.fmGpsPosDisagree,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['340019001', '340019002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    3400195: {
+      // NAV LS TUNING DISAGREE (A320 FCOM PRO-ABN-NAV, see Logic/NavPositionAlerts): crew awareness, level 1 (no aural
+      // symbol on the FCOM page), STATUS INOP SYS CAT 2
+      flightPhaseInhib: LS_TUNING_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.lsTuningDisagree,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['340019501'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => [LS_TUNING_DISAGREE_INOP_SYS],
     },
     3100500: {
       // FWS FWC 1 FAULT (A320 FCOM PRO-ABN-FWS, line 86821): crew awareness, shown by FWC 2. Level 1 (no MASTER CAUT,

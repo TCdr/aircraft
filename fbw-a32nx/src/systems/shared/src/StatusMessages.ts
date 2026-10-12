@@ -316,6 +316,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['340300006', { part: StatusPart.InopSys, text: 'ATC/XPDR 2' }],
   ['340300007', { part: StatusPart.InopSys, text: 'ADS-B RPTG 1' }],
   ['340300008', { part: StatusPart.InopSys, text: 'ADS-B RPTG 2' }],
+  // NAV LS TUNING DISAGREE INOP SYS (A320 FCOM PRO-ABN-NAV, a320_fcom.txt l.93700-93704)
+  ['340300009', { part: StatusPart.InopSys, text: 'CAT 2' }],
   // 74 IGNITION (FCOM PRO-ABN-ENG ENG 1(2) IGN FAULT INOP SYS, a320_fcom.txt l.80295, 80331)
   ['740300001', { part: StatusPart.InopSys, text: 'ENG 1 IGN A' }],
   ['740300002', { part: StatusPart.InopSys, text: 'ENG 1 IGN B' }],

@@ -425,6 +425,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 ||||||| 19910a87e
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
+1. [A32NX/A380X/FMS] The FM position is now the IRS position plus a bias that follows the GPIRS or the radio position and is kept in IRS only; without GPS PRIMARY the position is updated at takeoff to the runway plus the TO SHIFT, and the EPU follows the position updates - @TCdr
+1. [A32NX/MCDU] POSITION MONITOR shows the real FMGC 1 and 2, GPIRS or radio, MIX IRS and IRS positions with the navigation mode, PROG POSITION UPDATE AT works, and the IRS page shows the GPIRS position and accuracy of its ADIRU - @TCdr
+1. [A32NX/FWC] New NAV FM/GPS POS DISAGREE and NAV LS TUNING DISAGREE cautions - @TCdr
+1. [A380X/FWS] NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE now trigger, with their ECAM line and STATUS - @TCdr
+1. [A380X/MFD] POSITION/MONITOR shows the FMS 2, radio, GPIRS, GPS 1 and GPS 2 positions and the real navigation mode - @TCdr
 
 ## 2024.1.0
 

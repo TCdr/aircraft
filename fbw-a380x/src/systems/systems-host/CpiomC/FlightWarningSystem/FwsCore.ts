@@ -179,6 +179,7 @@ import { isToConfigNormal } from './ToConfigNormal';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
 import { FwsGearAlerts } from './FwsGearAlerts';
 import { FwsNavAlerts, readSideDisplayData } from './FwsNavAlerts';
+import { FwsNavPositionAlerts } from './FwsNavPositionAlerts';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -1952,6 +1953,9 @@ export class FwsCore {
 
   /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
   public readonly navAlerts = new FwsNavAlerts();
+
+  /** NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE (see FwsNavPositionAlerts) */
+  public readonly navPositionAlerts = new FwsNavPositionAlerts();
 
   public isAllGearDownlocked = false;
 
@@ -4395,6 +4399,19 @@ export class FwsCore {
       readSideDisplayData(true, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
       readSideDisplayData(false, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
       navTrueRef,
+    );
+    // The FMS sends the FM/GPS position disagree condition; MMR 1 and 2 are the sim NAV 3 and NAV 4 receivers
+    this.navPositionAlerts.update(
+      deltaTime / 1000,
+      SimVar.GetSimVarValue('L:A32NX_FM_GPS_POS_DISAGREE', 'bool') > 0,
+      {
+        frequency: SimVar.GetSimVarValue('NAV ACTIVE FREQUENCY:3', 'MHz'),
+        course: SimVar.GetSimVarValue('NAV OBS:3', 'degrees'),
+      },
+      {
+        frequency: SimVar.GetSimVarValue('NAV ACTIVE FREQUENCY:4', 'MHz'),
+        course: SimVar.GetSimVarValue('NAV OBS:4', 'degrees'),
+      },
     );
     const parkBrakeSet = SimVar.GetSimVarValue('L:A32NX_PARK_BRAKE_LEVER_POS', 'Number') === 1;
     this.parkBrakeSet.set(parkBrakeSet);

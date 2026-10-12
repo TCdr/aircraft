@@ -2129,6 +2129,12 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - The GPS receiver the IR uses (1 or 2, 0 for none): GPS 1 for IR 1, GPS 2 for IR 2, IR 3 by the ATT HDG selector
       (GPS 2 on F/O 3); when one receiver is rejected, every IR uses the other
 
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM/GPS POS DISAGREE caution: GPS PRIMARY active and an FM
+      position more than the FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM
+      DSC-22_20-20-20). Written by the FMS (fmgc navigation/FmPosition.ts), read by the FWC
+
 - A32NX_GNSS_UTC_UNIX_SECONDS
     - Number (seconds)
     - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
