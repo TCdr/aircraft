@@ -262,6 +262,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
 1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
 1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as in the FCOM (it also showed in ROSE NAV) - @TCdr
+1. [A32NX/PFD] FMA line 3: FOR GA: SET TOGA, DISCONNECT AP FOR LDG, SET GREEN DOT SPEED and CHECK APPR SELECTION now show as in the FCOM; CHECK APPR SELECTION (non ILS approach with a manually tuned ILS) also on the MCDU - @TCdr
+1. [A32NX/EWD] The AVAIL indication stays steady 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever leaves idle - @TCdr
+1. [A32NX/SD] FUEL page: the inner and outer tank quantities of the heavier wing pulse when the wings differ by more than 1 500 kg in flight phases 2 and 6 - @TCdr
+1. [A32NX/SD] BLEED page: the crossbleed valve is amber when it is not in the position commanded by the X BLEED selector, not only in transit - @TCdr
 
 ## 2024.1.0
 
