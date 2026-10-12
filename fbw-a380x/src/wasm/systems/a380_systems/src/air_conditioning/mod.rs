@@ -165,6 +165,11 @@ impl A380AirConditioning {
         // This is here due to the ADIRS updating at a different rate than the pressurization system
         self.update_pressurization_ambient_conditions(context, adirs);
 
+        // Doors closed status of the outflow valve controllers: every passenger door and both cargo doors
+        let any_door_not_closed = self.a380_cabin.number_of_open_doors() > 0
+            || !cargo_door_open.fwd_cargo_door_locked()
+            || !cargo_door_open.aft_cargo_door_locked();
+
         for cur_time_step in self.pressurization_updater {
             self.a380_cabin.update(
                 &context.with_delta(cur_time_step),
@@ -182,6 +187,7 @@ impl A380AirConditioning {
                     self.a380_pressurization_system
                         .outflow_valve_control_module(),
                     pressurization_overhead,
+                    any_door_not_closed,
                 )
             });
             self.a380_pressurization_system.update(
@@ -244,29 +250,26 @@ impl SimulationElement for A380AirConditioning {
 }
 
 struct A380Cabin {
-    fwd_door_id: VariableIdentifier,
-    rear_door_id: VariableIdentifier,
-
-    fwd_door_is_open: bool,
-    rear_door_is_open: bool,
+    passenger_door_ids: [VariableIdentifier; A380Cabin::PASSENGER_DOORS],
+    passenger_door_is_open: [bool; A380Cabin::PASSENGER_DOORS],
     number_of_passengers: [u8; 18],
     cabin_air_simulation: CabinAirSimulation<A380PressurizationConstants, 18>,
 }
 
 impl A380Cabin {
-    const FWD_DOOR: &'static str = "INTERACTIVE POINT OPEN:0";
-    const REAR_DOOR: &'static str = "INTERACTIVE POINT OPEN:3";
+    /// The passenger doors are the sim interactive points 0 to 15 (flight_model.cfg [INTERACTIVE POINTS]): 0-9 main
+    /// deck M1L, M1R ... M5L, M5R and 10-15 upper deck U1L, U1R ... U3L, U3R, as on the DOOR/OXY SD page
+    const PASSENGER_DOORS: usize = 16;
 
     fn new(context: &mut InitContext, cabin_zones: &[ZoneType; 18]) -> Self {
         let mut number_of_passengers: [u8; 18] = [0; 18];
         number_of_passengers[0] = 2;
 
         Self {
-            fwd_door_id: context.get_identifier(Self::FWD_DOOR.to_owned()),
-            rear_door_id: context.get_identifier(Self::REAR_DOOR.to_owned()),
-
-            fwd_door_is_open: false,
-            rear_door_is_open: false,
+            passenger_door_ids: std::array::from_fn(|point| {
+                context.get_identifier(format!("INTERACTIVE POINT OPEN:{}", point))
+            }),
+            passenger_door_is_open: [false; Self::PASSENGER_DOORS],
             number_of_passengers,
             cabin_air_simulation: CabinAirSimulation::new(context, cabin_zones),
         }
@@ -299,7 +302,10 @@ impl A380Cabin {
     }
 
     fn number_of_open_doors(&self) -> u8 {
-        self.fwd_door_is_open as u8 + self.rear_door_is_open as u8
+        self.passenger_door_is_open
+            .iter()
+            .filter(|&&is_open| is_open)
+            .count() as u8
     }
 
     fn update_number_of_passengers(&mut self, number_of_passengers: &impl NumberOfPassengers) {
@@ -355,10 +361,14 @@ impl CabinSimulation for A380Cabin {
 
 impl SimulationElement for A380Cabin {
     fn read(&mut self, reader: &mut SimulatorReader) {
-        let rear_door_read: Ratio = reader.read(&self.rear_door_id);
-        self.rear_door_is_open = rear_door_read > Ratio::default();
-        let fwd_door_read: Ratio = reader.read(&self.fwd_door_id);
-        self.fwd_door_is_open = fwd_door_read > Ratio::default();
+        for (is_open, id) in self
+            .passenger_door_is_open
+            .iter_mut()
+            .zip(&self.passenger_door_ids)
+        {
+            let open_amount: Ratio = reader.read(id);
+            *is_open = open_amount > Ratio::default();
+        }
     }
 
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -2615,6 +2625,15 @@ mod tests {
             self
         }
 
+        /// Opens or closes the passenger door of a sim interactive point (0-9 main deck, 10-15 upper deck)
+        fn command_door_at_point(mut self, point: usize, open: bool) -> Self {
+            self.write_by_name(
+                &format!("INTERACTIVE POINT OPEN:{}", point),
+                Ratio::new::<percent>(if open { 100. } else { 0. }),
+            );
+            self
+        }
+
         fn command_nav_cruise_altitude(mut self, target_altitude: Length) -> Self {
             self.write_by_name("FMA_LATERAL_MODE", 20);
             self.write_by_name("AIRLINER_CRUISE_ALTITUDE", target_altitude.get::<foot>());
@@ -3454,6 +3473,104 @@ mod tests {
                 .iterate(10);
 
             assert_gt!(test_bed.aft_outflow_valve_open_amount(), Ratio::default());
+        }
+
+        /// A380 FCOM DSC-21-30-30: "On ground, if at least one door is not closed and locked at takeoff power
+        /// application: The four cabin pressure controllers will prevent cabin pressurization, by maintaining the
+        /// four outflow valves open."
+        fn assert_all_outflow_valves_open(test_bed: &CabinAirTestBed) {
+            for ofv in 1..=4 {
+                assert_gt!(
+                    test_bed.outflow_valve_open_amount(ofv),
+                    Ratio::new::<percent>(99.)
+                );
+            }
+        }
+
+        #[test]
+        fn all_ofv_held_open_at_takeoff_power_with_a_passenger_door_open() {
+            // MAIN 5R (point 9) and UPPER 3R (point 15): every passenger door counts, not only MAIN 1L and 2R
+            for point in [9, 15] {
+                let test_bed = test_bed()
+                    .set_on_ground()
+                    .command_door_at_point(point, true)
+                    .iterate(50)
+                    .set_takeoff_power()
+                    .iterate_with_delta(400, Duration::from_millis(50));
+
+                assert_all_outflow_valves_open(&test_bed);
+            }
+        }
+
+        #[test]
+        fn all_ofv_held_open_at_takeoff_power_with_a_cargo_door_not_locked() {
+            let test_bed = test_bed()
+                .set_on_ground()
+                .command_open_aft_cargo_door(true)
+                .iterate(50)
+                .set_takeoff_power()
+                .iterate_with_delta(400, Duration::from_millis(50));
+
+            assert_all_outflow_valves_open(&test_bed);
+        }
+
+        #[test]
+        fn ofv_stay_open_after_a_takeoff_with_a_door_not_closed() {
+            let test_bed = test_bed()
+                .set_on_ground()
+                .command_door_at_point(12, true)
+                .iterate(50)
+                .set_takeoff_power()
+                .iterate_with_delta(400, Duration::from_millis(50))
+                .command_door_at_point(12, false)
+                .vertical_speed_of(Velocity::new::<foot_per_minute>(1000.))
+                .then()
+                .command_aircraft_climb(Length::new::<foot>(0.), Length::new::<foot>(5000.))
+                .and()
+                .iterate(10);
+
+            assert_all_outflow_valves_open(&test_bed);
+        }
+
+        #[test]
+        fn doors_closed_do_not_hold_ofv_open_at_takeoff_power() {
+            let test_bed = test_bed()
+                .set_on_ground()
+                .command_door_at_point(9, true)
+                .iterate(50)
+                .command_door_at_point(9, false)
+                .iterate(5)
+                .set_takeoff_power()
+                .iterate_with_delta(400, Duration::from_millis(50));
+
+            assert_eq!(test_bed.aft_outflow_valve_open_amount(), Ratio::default());
+        }
+
+        #[test]
+        fn doors_do_not_hold_ofv_open_in_manual_mode() {
+            // DSC-21-30-40: "The manual pressurization system operates independently of the automatic
+            // pressurization system."
+            let test_bed = test_bed()
+                .set_on_ground()
+                .command_vs_mode_sel_pb_man()
+                .command_door_at_point(9, true)
+                .iterate(50)
+                .set_takeoff_power()
+                .iterate_with_delta(400, Duration::from_millis(50));
+
+            assert_eq!(test_bed.aft_outflow_valve_open_amount(), Ratio::default());
+        }
+
+        #[test]
+        fn cabin_pressure_stays_at_ambient_with_every_passenger_door_open() {
+            let mut test_bed = test_bed().on_ground();
+            for point in 0..16 {
+                test_bed = test_bed.command_door_at_point(point, true);
+            }
+            test_bed = test_bed.iterate(100);
+
+            assert!(test_bed.cabin_pressure().get::<psi>().is_finite());
+            assert_about_eq!(test_bed.cabin_pressure().get::<hectopascal>(), 1013.25, 1.);
         }
 
         #[test]
