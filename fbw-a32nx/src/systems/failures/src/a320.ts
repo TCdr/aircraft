@@ -32,6 +32,12 @@ export const A320Failure = Object.freeze({
   Fmgc2Failure: 22003,
   Fcu1Failure: 22004,
   Fcu2Failure: 22005,
+  YawDamperActuator1Failure: 22006,
+  YawDamperActuator2Failure: 22007,
+  RudderTrimActuator1Failure: 22008,
+  RudderTrimActuator2Failure: 22009,
+  RudderTravelLimiterActuator1Failure: 22010,
+  RudderTravelLimiterActuator2Failure: 22011,
 
   // Same ids as the A380X ATA 23 failures; 23000/23001 (AMU) and 23004 (RMP 3) are not simulated on the A32NX
   RadioManagementPanel1: 23002,
@@ -282,6 +288,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [22, A320Failure.Fmgc2Failure, 'FMGC 2 (flight guidance)'],
   [22, A320Failure.Fcu1Failure, 'FCU 1'],
   [22, A320Failure.Fcu2Failure, 'FCU 2'],
+  [22, A320Failure.YawDamperActuator1Failure, 'Yaw damper actuator 1 (FAC 1, green)'],
+  [22, A320Failure.YawDamperActuator2Failure, 'Yaw damper actuator 2 (FAC 2, yellow)'],
+  [22, A320Failure.RudderTrimActuator1Failure, 'Rudder trim actuator motor 1 (FAC 1)'],
+  [22, A320Failure.RudderTrimActuator2Failure, 'Rudder trim actuator motor 2 (FAC 2)'],
+  [22, A320Failure.RudderTravelLimiterActuator1Failure, 'Rudder travel limiter actuator motor 1 (FAC 1)'],
+  [22, A320Failure.RudderTravelLimiterActuator2Failure, 'Rudder travel limiter actuator motor 2 (FAC 2)'],
 
   [23, A320Failure.RadioManagementPanel1, 'RMP 1'],
   [23, A320Failure.RadioManagementPanel2, 'RMP 2'],

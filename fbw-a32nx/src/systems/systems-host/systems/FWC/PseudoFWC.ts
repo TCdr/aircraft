@@ -184,6 +184,17 @@ import {
 } from './Logic/HydraulicAlerts';
 import { APU_SHUTDOWN_INOP_SYS, apuShutdownAlerts, apuShutdownLines } from './Logic/ApuShutdownAlerts';
 import {
+  FAC_SYSTEM_ALERT_CONFIRM_SECONDS,
+  FacActuatorPhaseInhibition as FacPhases,
+  FacDiscreteWord2Bits,
+  facActuatorStatus,
+  facFunctionTriggers,
+  rudderTrimSystemLines,
+  rudderTravelLimiterSystemLines,
+  tluLockedAtHighSpeed,
+  yawDamperSystemLines,
+} from './Logic/FacActuatorAlerts';
+import {
   centreTransferNotClosedLines,
   centreTransferNotOpenLines,
   centreTransferValveAlerts,
@@ -866,6 +877,28 @@ export class PseudoFWC {
   private readonly fac1FaultWarning = Subject.create(false);
 
   private readonly fac2FaultWarning = Subject.create(false);
+
+  /** AUTO FLT YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS, RUD TRV LIM 1(2) / SYS, see Logic/FacActuatorAlerts */
+  private readonly yawDamper1Fault = Subject.create(false);
+
+  private readonly yawDamper2Fault = Subject.create(false);
+
+  private readonly yawDamperSystemFault = Subject.create(false);
+
+  private readonly rudderTrim1Fault = Subject.create(false);
+
+  private readonly rudderTrim2Fault = Subject.create(false);
+
+  private readonly rudderTrimSystemFault = Subject.create(false);
+
+  private readonly rudderTravelLimiter1Fault = Subject.create(false);
+
+  private readonly rudderTravelLimiter2Fault = Subject.create(false);
+
+  private readonly rudderTravelLimiterSystemFault = Subject.create(false);
+
+  /** The TLU stays locked at high speed after slat extension (RUD TRV LIM SYS lines) */
+  private tluLocked = false;
 
   private readonly fcu12Fault = Subject.create(false);
 
@@ -4505,6 +4538,45 @@ export class PseudoFWC {
     this.rudderTrimNotToAudio.set(rudderTrimConfigTestInPhase129 || rudderTrimConfigInPhase3or4);
     this.rudderTrimNotToWarning.set(rudderTrimConfigTestInPhase129 || this.rudderTrimConfigInPhase3or4Sr.read());
 
+    // AUTO FLT yaw damper, rudder trim and rudder travel limiter cautions (FCOM PRO-ABN-AUTO_FLT), see
+    // Logic/FacActuatorAlerts: the actuator faults the FACs report, and the functions each FAC has engaged
+    const fac1DiscreteWord2 = Arinc429Word.fromSimVarValue('L:A32NX_FAC_1_DISCRETE_WORD_2');
+    const fac2DiscreteWord2 = Arinc429Word.fromSimVarValue('L:A32NX_FAC_2_DISCRETE_WORD_2');
+    const facActuatorFault = (fac: 1 | 2, actuator: string) =>
+      SimVar.GetSimVarValue(`L:A32NX_FAC_${fac}_${actuator}_ACTUATOR_FAULT`, SimVarValueType.Bool) > 0;
+    const yawDamper = facFunctionTriggers({
+      actuator1Fault: facActuatorFault(1, 'YAW_DAMPER'),
+      actuator2Fault: facActuatorFault(2, 'YAW_DAMPER'),
+      fac1Engaged: fac1DiscreteWord2.bitValueOr(FacDiscreteWord2Bits.yawDamperOwnEngaged, false),
+      fac2Engaged: fac2DiscreteWord2.bitValueOr(FacDiscreteWord2Bits.yawDamperOwnEngaged, false),
+    });
+    const rudderTrim = facFunctionTriggers({
+      actuator1Fault: facActuatorFault(1, 'RUDDER_TRIM'),
+      actuator2Fault: facActuatorFault(2, 'RUDDER_TRIM'),
+      fac1Engaged: fac1DiscreteWord2.bitValueOr(FacDiscreteWord2Bits.rudderTrimOwnEngaged, false),
+      fac2Engaged: fac2DiscreteWord2.bitValueOr(FacDiscreteWord2Bits.rudderTrimOwnEngaged, false),
+    });
+    const rudderTravelLimiter = facFunctionTriggers({
+      actuator1Fault: facActuatorFault(1, 'RUDDER_TRAVEL_LIM'),
+      actuator2Fault: facActuatorFault(2, 'RUDDER_TRAVEL_LIM'),
+      fac1Engaged: fac1DiscreteWord2.bitValueOr(FacDiscreteWord2Bits.rudderTravelLimiterOwnEngaged, false),
+      fac2Engaged: fac2DiscreteWord2.bitValueOr(FacDiscreteWord2Bits.rudderTravelLimiterOwnEngaged, false),
+    });
+    this.yawDamper1Fault.set(yawDamper.unit1);
+    this.yawDamper2Fault.set(yawDamper.unit2);
+    this.yawDamperSystemFault.set(yawDamper.system);
+    this.rudderTrim1Fault.set(rudderTrim.unit1);
+    this.rudderTrim2Fault.set(rudderTrim.unit2);
+    this.rudderTrimSystemFault.set(rudderTrim.system);
+    this.rudderTravelLimiter1Fault.set(rudderTravelLimiter.unit1);
+    this.rudderTravelLimiter2Fault.set(rudderTravelLimiter.unit2);
+    this.rudderTravelLimiterSystemFault.set(rudderTravelLimiter.system);
+    // Design choice: the slats count as extended above 1 deg (IPPU angle)
+    this.tluLocked = tluLockedAtHighSpeed(
+      this.slatsAngle.get() > 1,
+      SimVar.GetSimVarValue('L:A32NX_HYD_RUDDER_LIMITER_FEEDBACK_ANGLE', 'number'),
+    );
+
     // flaps lvr not zero
     this.flapsLeverNotZeroWarning.set(
       (adr1PressureAltitude.valueOr(0) >= 22000 ||
@@ -6302,6 +6374,57 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
+    2200238: {
+      // YAW DAMPER SYS (FCOM PRO-ABN-AUTO_FLT, see Logic/FacActuatorAlerts)
+      flightPhaseInhib: FacPhases.yawDamperSystem,
+      simVarIsActive: this.yawDamperSystemFault,
+      whichCodeToReturn: () => yawDamperSystemLines(),
+      codesToReturn: ['220023801', '220023802', '220023803'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      monitorConfirmTime: FAC_SYSTEM_ALERT_CONFIRM_SECONDS,
+      inopSys: () => facActuatorStatus.yawDamperSystem().inopSys,
+      statusInfo: () => facActuatorStatus.yawDamperSystem().left,
+    },
+    2200232: {
+      // RUD TRIM SYS (FCOM PRO-ABN-AUTO_FLT, see Logic/FacActuatorAlerts)
+      flightPhaseInhib: FacPhases.rudderTrimSystem,
+      simVarIsActive: this.rudderTrimSystemFault,
+      whichCodeToReturn: () => rudderTrimSystemLines(),
+      codesToReturn: ['220023201', '220023202', '220023203'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      monitorConfirmTime: FAC_SYSTEM_ALERT_CONFIRM_SECONDS,
+      inopSys: () => facActuatorStatus.rudderTrimSystem().inopSys,
+      statusInfo: () => facActuatorStatus.rudderTrimSystem().left,
+    },
+    2200235: {
+      // RUD TRV LIM SYS (FCOM PRO-ABN-AUTO_FLT, see Logic/FacActuatorAlerts)
+      flightPhaseInhib: FacPhases.rudderTravelLimiterSystem,
+      simVarIsActive: this.rudderTravelLimiterSystemFault,
+      whichCodeToReturn: () => rudderTravelLimiterSystemLines(this.tluLocked),
+      codesToReturn: [
+        '220023501',
+        '220023502',
+        '220023503',
+        '220023504',
+        '220023505',
+        '220023506',
+        '220023507',
+        '220023508',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      monitorConfirmTime: FAC_SYSTEM_ALERT_CONFIRM_SECONDS,
+      inopSys: () => facActuatorStatus.rudderTravelLimiterSystem(this.tluLocked).inopSys,
+      statusInfo: () => facActuatorStatus.rudderTravelLimiterSystem(this.tluLocked).left,
+    },
     2200202: {
       // FCU 1+2 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
@@ -6323,6 +6446,84 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+    },
+    2200236: {
+      // YAW DAMPER 1, crew awareness (level 1), see Logic/FacActuatorAlerts
+      flightPhaseInhib: FacPhases.yawDamperFault,
+      simVarIsActive: this.yawDamper1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['220023601'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => facActuatorStatus.yawDamperFault(1).inopSys,
+      statusInfo: () => facActuatorStatus.yawDamperFault(1).left,
+    },
+    2200237: {
+      // YAW DAMPER 2, crew awareness (level 1)
+      flightPhaseInhib: FacPhases.yawDamperFault,
+      simVarIsActive: this.yawDamper2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['220023701'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => facActuatorStatus.yawDamperFault(2).inopSys,
+      statusInfo: () => facActuatorStatus.yawDamperFault(2).left,
+    },
+    2200230: {
+      // RUD TRIM 1 FAULT, crew awareness (level 1)
+      flightPhaseInhib: FacPhases.rudderTrimFault,
+      simVarIsActive: this.rudderTrim1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['220023001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => facActuatorStatus.rudderTrimFault(1).inopSys,
+      statusInfo: () => facActuatorStatus.rudderTrimFault(1).left,
+    },
+    2200231: {
+      // RUD TRIM 2 FAULT, crew awareness (level 1)
+      flightPhaseInhib: FacPhases.rudderTrimFault,
+      simVarIsActive: this.rudderTrim2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['220023101'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => facActuatorStatus.rudderTrimFault(2).inopSys,
+      statusInfo: () => facActuatorStatus.rudderTrimFault(2).left,
+    },
+    2200233: {
+      // RUD TRV LIM 1, crew awareness (level 1)
+      flightPhaseInhib: FacPhases.rudderTravelLimiterFault,
+      simVarIsActive: this.rudderTravelLimiter1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['220023301'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => facActuatorStatus.rudderTravelLimiterFault(1).inopSys,
+      statusInfo: () => facActuatorStatus.rudderTravelLimiterFault(1).left,
+    },
+    2200234: {
+      // RUD TRV LIM 2, crew awareness (level 1)
+      flightPhaseInhib: FacPhases.rudderTravelLimiterFault,
+      simVarIsActive: this.rudderTravelLimiter2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['220023401'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => facActuatorStatus.rudderTravelLimiterFault(2).inopSys,
+      statusInfo: () => facActuatorStatus.rudderTravelLimiterFault(2).left,
     },
     2200215: {
       // FCU 2 FAULT
@@ -8032,8 +8233,8 @@ export class PseudoFWC {
       inopSys: () => ['260300006'],
     },
     4900101: {
-      // APU AUTO SHUT DOWN (FCOM PRO-ABN-APU, see Logic/ApuShutdownAlerts). Design choice: the flight phase inhibition
-      // of the other APU cautions (the FCOM figure is not in its text)
+      // APU AUTO SHUT DOWN (FCOM PRO-ABN-APU, see Logic/ApuShutdownAlerts). Flight phase inhibition 3, 4, 5, 7, 8: the
+      // figure of the FCOM PDF ("A320 Neo FCOM_1.pdf" page 4393, APU AUTO (EMER) SHUT DOWN), not in the FCOM text
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.apuAutoShutDown,
       whichCodeToReturn: () => apuShutdownLines(this.apuMasterSwitch.get() === 1),
