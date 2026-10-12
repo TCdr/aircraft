@@ -132,6 +132,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] The history winds of the WIND page now show the CRZ FL and FL 250, 150 and 050 as in the FCOM, and the stored history winds are kept when the storage key changes - @TCdr
 1. [A380X/MFD] Company wind messages use the FCOM wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
+1. [A380X/ELEC] New flyPad failures BAT 1, BAT 2, BAT ESS, APU BAT, EXT PWR 1-4, RAT Generator, TR 1/TR 2/ESS TR Monitoring and DRIVE 1-4 Disconnect Function (ATA 24), with the BAT pb-sw FAULT light and the ECAM alerts ELEC BAT 1(2)(ESS) FAULT, APU BAT FAULT, BAT 1(2)(ESS)(APU) OFF, EXT PWR 1(2)(3)(4) FAULT, RAT FAULT, TR 1(2)(ESS) MONITORING FAULT and DRIVE 1(2)(3)(4) DISC FAULT; the GEN, DRIVE, APU GEN and TR alerts now list their INOP SYS on the STATUS page - @TCdr
 
 ## 2024.1.0
 
