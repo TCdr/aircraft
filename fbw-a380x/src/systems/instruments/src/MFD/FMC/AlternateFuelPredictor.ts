@@ -5,6 +5,7 @@ import { AircraftConfig } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { Common } from '@fmgc/guidance/vnav/common';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { Predictions } from '@fmgc/guidance/vnav/Predictions';
+import { defaultTropopauseAlt } from '@shared/PerformanceConstants';
 
 export interface AlternateFuelInputs {
   /** The alternate flight plan distance, from the primary destination to the alternate, in NM */
@@ -112,7 +113,7 @@ export class AlternateFuelPredictor {
 
   /** Static air temperature at an altitude, in °C */
   private static staticAirTemperature(altitude: number, inputs: AlternateFuelInputs): number {
-    const tropopause = inputs.tropopause ?? 36_090;
+    const tropopause = inputs.tropopause ?? defaultTropopauseAlt;
     return 15 - 0.0019812 * Math.min(altitude, tropopause) + (inputs.isaDeviation ?? 0);
   }
 
@@ -139,7 +140,7 @@ export class AlternateFuelPredictor {
         fuel,
         inputs.headwind ?? 0,
         inputs.isaDeviation ?? 0,
-        inputs.tropopause ?? 36_090,
+        inputs.tropopause ?? defaultTropopauseAlt,
         inputs.perfFactor ?? 0,
       );
       result.distance += step.distanceTraveled;
@@ -161,7 +162,7 @@ export class AlternateFuelPredictor {
       const next = Math.min(altitude + AlternateFuelPredictor.ALTITUDE_STEP, fromAltitude);
       const midAltitude = (altitude + next) / 2;
       const speed = AlternateFuelPredictor.speedAt(midAltitude, AlternateFuelPredictor.DESCENT_CAS);
-      const tropopause = inputs.tropopause ?? 36_090;
+      const tropopause = inputs.tropopause ?? defaultTropopauseAlt;
       // The idle N1 at the Mach of the descent speed (as the VNAV descent strategy)
       const mach = Math.min(
         Common.CAStoMach(speed, Common.getDelta(midAltitude, midAltitude > tropopause)),
@@ -181,7 +182,7 @@ export class AlternateFuelPredictor {
         fuel,
         inputs.headwind ?? 0,
         inputs.isaDeviation ?? 0,
-        inputs.tropopause ?? 36_090,
+        inputs.tropopause ?? defaultTropopauseAlt,
         inputs.perfFactor ?? 0,
       );
       result.distance += Math.abs(step.distanceTraveled);
@@ -214,7 +215,7 @@ export class AlternateFuelPredictor {
         fuel,
         inputs.headwind ?? 0,
         inputs.isaDeviation ?? 0,
-        inputs.tropopause ?? 36_090,
+        inputs.tropopause ?? defaultTropopauseAlt,
         inputs.perfFactor ?? 0,
       );
       result.fuel += step.fuelBurned;
