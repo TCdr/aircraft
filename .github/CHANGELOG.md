@@ -270,6 +270,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/TCAS] New flyPad failure TCAS computer (ATA 34): amber TCAS on the PFD and ND, NAV TCAS FAULT on the ECAM, no traffic and no advisories - @TCdr
 1. [A32NX/A380X] Reactive windshear detection (A32NX FACs, A380X PRIMs): red WINDSHEAR on both PFDs in a decreasing performance windshear at takeoff and landing below 1300 ft, CONF 1 or more (no aural yet) - @TCdr
 1. [A32NX/FWC] New AUTO FLT YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS and RUD TRV LIM 1(2) / SYS cautions with their FCOM procedures and STATUS, and six new flyPad failures (ATA 22) for the yaw damper, rudder trim and rudder travel limiter actuators of each FAC: the other FAC takes the function over - @TCdr
+1. [A32NX/RCDR] The CVR now runs by itself as in the FCOM (first 5 min after power-up, with an engine running, in flight, and 5 min after the last engine shutdown); the CVR TEST gives its signal in the first 5 min without GND CTL, and only with the parking brake on - @TCdr
 
 ## 2024.1.0
 
