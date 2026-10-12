@@ -65,7 +65,7 @@ import { OancPositionComputer } from './OancPositionComputer';
 import { OancMarkerManager } from './OancMarkerManager';
 import { ResetPanelSimvars } from './ResetPanelPublisher';
 import { NavigraphAmdbClient } from './api/NavigraphAmdbClient';
-import { isFmsSelectedRunway, pointAngle } from './OancMapUtils';
+import { isAirportNotInActiveFpln, isFmsSelectedRunway, pointAngle } from './OancMapUtils';
 import { LubberLine } from '../ND/pages/arc/LubberLine';
 
 export const OANC_RENDER_WIDTH = 768;
@@ -347,7 +347,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
   private readonly markerManager = new OancMarkerManager<T>(this, this.labelManager, this.props.bus);
 
   private readonly airportNotInActiveFpln = MappedSubject.create(
-    ([ndMode, arpt, origin, dest, altn]) => ndMode !== EfisNdMode.ARC && ![origin, dest, altn].includes(arpt),
+    ([ndMode, arpt, origin, dest, altn]) => isAirportNotInActiveFpln(ndMode, arpt, origin, dest, altn),
     this.overlayNDModeSub,
     this.dataAirportIcao,
     this.fmsDataStore.origin,

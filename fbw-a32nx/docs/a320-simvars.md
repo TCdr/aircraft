@@ -559,6 +559,16 @@
     - Bool
     - True if ground control is on.
 
+- A32NX_RCDR_CVR_ENERGIZED
+    - Bool
+    - True if the CVR runs: GND CTL ON, the first 5 min after the electrical network power-up, an engine running, in
+      flight, and the 5 min after the last engine shutdown (written by the systems host).
+
+- A32NX_RCDR_CVR_TEST_TONE
+    - Bool
+    - True while the CVR TEST pb gives the test signal: pb held, CVR running and parking brake on (plays the cvr_test
+      sound).
+
 - A32NX_EMERELECPWR_GEN_TEST
     - Bool
     - True if emergency generator is being tested.
