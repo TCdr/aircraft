@@ -42,6 +42,10 @@ pub struct HydraulicDoorController {
     should_close_valves: bool,
     control_position_request: Ratio,
     should_unlock: bool,
+
+    // The door actuation has no hydraulic power (e.g. its pumps are inhibited): the ground crew does not start an
+    // operation and the actuator is isolated, the door holds where it is. The request is kept for later.
+    operation_inhibited: bool,
 }
 impl HydraulicDoorController {
     // Duration which the hydraulic valves sends a open request when request is closing (this is done on real aircraft so uplock can be easily unlocked without friction)
@@ -65,7 +69,15 @@ impl HydraulicDoorController {
             should_close_valves: true,
             control_position_request: Ratio::new::<ratio>(0.),
             should_unlock: false,
+
+            operation_inhibited: false,
         }
+    }
+
+    /// Sets whether the door actuation has no hydraulic power. While inhibited, a closed door stays locked and a
+    /// moving door holds its position; the pending request is carried out once the inhibition ends.
+    pub fn set_operation_inhibited(&mut self, inhibited: bool) {
+        self.operation_inhibited = inhibited;
     }
 
     fn random_hyd_control_time() -> Duration {
@@ -108,7 +120,7 @@ impl HydraulicDoorController {
                 self.should_close_valves = true;
             }
             DoorControlState::HydControl => {
-                self.should_close_valves = false;
+                self.should_close_valves = self.operation_inhibited;
                 self.control_position_request = if self.position_requested > Ratio::new::<ratio>(0.)
                     || self.duration_in_hyd_control < Self::UP_CONTROL_TIME_BEFORE_DOWN_CONTROL
                 {
@@ -129,12 +141,16 @@ impl HydraulicDoorController {
         current_pressure: Pressure,
     ) -> DoorControlState {
         match self.control_state {
-            DoorControlState::DownLocked if self.position_requested > Ratio::new::<ratio>(0.) => {
+            DoorControlState::DownLocked
+                if self.position_requested > Ratio::new::<ratio>(0.)
+                    && !self.operation_inhibited =>
+            {
                 self.should_unlock = true;
                 DoorControlState::NoControl
             }
             DoorControlState::NoControl
-                if self.duration_in_no_control > self.time_for_crew_to_activate_hydraulics =>
+                if self.duration_in_no_control > self.time_for_crew_to_activate_hydraulics
+                    && !self.operation_inhibited =>
             {
                 self.should_unlock = false;
                 self.time_for_crew_to_activate_hydraulics = Self::random_hyd_control_time();
