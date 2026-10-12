@@ -31,6 +31,16 @@ describe('APU BLEED and APU AVAIL memos', () => {
       expect(memo(id)).toContain('this.apuBleedPbOn');
       expect(memo(id)).not.toContain('apuBleedValveOpen');
     }
-    expect(fwc).toContain("SimVar.GetSimVarValue('L:A32NX_OVHD_APU_BLEED_PB_IS_ON', 'bool')");
+    expect(fwc).toContain("SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool')");
+  });
+
+  // The cockpit APU BLEED pb-sw writes L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON (A32NX_Interior_Misc.xml);
+  // L:A32NX_OVHD_APU_BLEED_PB_IS_ON is never written in the aircraft and always reads 0.
+  it('the FWC and the bleed alerts read the APU BLEED pb-sw variable the cockpit writes', () => {
+    for (const file of ['../PseudoFWC.ts', './BleedAlerts.ts']) {
+      const source = readFileSync(resolve(__dirname, file), 'utf-8');
+      expect(source).toContain('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON');
+      expect(source).not.toContain('L:A32NX_OVHD_APU_BLEED_PB_IS_ON');
+    }
   });
 });

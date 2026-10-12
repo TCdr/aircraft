@@ -120,6 +120,19 @@ import {
   thrustLeverStatus,
 } from './Logic/FadecReverserAlerts';
 import { fireDetectionFaultAlerts } from './Logic/FireDetectionFaults';
+import { BleedAlerts, readBleedInputs } from './Logic/BleedAlerts';
+import {
+  EmerCancelMemory,
+  IrAlignmentRestore,
+  RECALL_NORMAL_MEMO_CODE,
+  RECALL_NORMAL_SECONDS,
+  RecallPushbutton,
+  TimedMessage,
+  cancelledCautionStatusCodes,
+  emerCancelAction,
+  isIrAligned,
+  isNothingToRecall,
+} from './Logic/EmerCancelRecall';
 import {
   centreTransferNotClosedLines,
   centreTransferNotOpenLines,
@@ -1767,6 +1780,9 @@ export class PseudoFWC {
 
   private crossBleedSelector = CrossBleedSelector.Auto;
 
+  /** The AIR bleed cautions (FCOM PRO-ABN-AIR), see Logic/BleedAlerts */
+  private readonly bleedAlerts = new BleedAlerts();
+
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
 
@@ -2648,6 +2664,7 @@ export class PseudoFWC {
     this.allCurrentFailures.length = 0;
     this.ewdPrimaryFailuresClearedLines.clear();
     this.ewdSecondaryFailuresCleared.clear();
+    this.emerCancel.reset();
     this.currentEwdLeftLayout = EMPTY_EWD_LAYOUT;
     this.currentEwdSecondaryFailureKey = undefined;
 
@@ -2704,10 +2721,16 @@ export class PseudoFWC {
     }
     const left = orderStatusCodes(info);
     const right = orderStatusCodes(inopSys);
-    this.statusLinesLeft.forEach((line, i) => line.set(left[i] ?? ''));
+    // CANCELLED CAUTION last in the left column (DSC-31-20 l.46193): the E/WD titles of the EMER CANC cautions
+    const cancelledCautions = cancelledCautionStatusCodes(
+      this.emerCancel.cancelledCautions.map((key) => this.ewdMessageFailures[key]?.codesToReturn[0]),
+    );
+    const leftLines = [...left, ...cancelledCautions];
+    this.statusLinesLeft.forEach((line, i) => line.set(leftLines[i] ?? ''));
     this.statusLinesRight.forEach((line, i) => line.set(right[i] ?? ''));
+    // A page with only CANCELLED CAUTION is not NORMAL, but gives no STS reminder (DSC-31-20 l.46233-46235)
     const statusEmpty = left.length === 0 && right.length === 0;
-    this.statusNormal.set(statusEmpty);
+    this.statusNormal.set(statusEmpty && cancelledCautions.length === 0);
 
     // CONF 1 for the approach: the flaps lever from 0 to 1 in flight (FWC phases 5 to 7)
     const flapsHandle = this.flapsHandle.get();
@@ -2854,6 +2877,57 @@ export class PseudoFWC {
     }
   }
 
+  /**
+   * EMER CANC pb (FCOM DSC-31-30 l.46809-46818), see Logic/EmerCancelRecall emerCancelAction: stops the aurals and the
+   * MASTER WARN light of the active warnings (their messages stay), or cancels the first caution of the E/WD for the rest
+   * of the flight (message, single chime and MASTER CAUT light; STATUS CANCELLED CAUTION).
+   */
+  private emergencyCancel(): void {
+    const displayedAlerts: { key: string; level: number }[] = [];
+    for (const entry of this.currentEwdLeftLayout.orderedEntries) {
+      if (!displayedAlerts.some((alert) => alert.key === entry.failureKey)) {
+        displayedAlerts.push({ key: entry.failureKey, level: this.ewdMessageFailures[entry.failureKey]?.failure ?? 0 });
+      }
+    }
+    const action = emerCancelAction(
+      this.requestMasterWarningFromFaults ||
+        this.auralCrcActive.get() ||
+        this.cChordActive.get() ||
+        this.cavalryChargeActive.get(),
+      displayedAlerts,
+    );
+
+    if (action.kind === 'silenceWarnings') {
+      this.emerCancel.silenceWarnings(
+        this.allCurrentFailures.filter((key) => this.ewdMessageFailures[key]?.failure === 3),
+      );
+      this.requestMasterWarningFromFaults = false;
+      this.auralCrcActive.set(false);
+      this.cChordActive.set(false);
+      this.cavalryChargeActive.set(false);
+    } else if (action.kind === 'cancelCaution') {
+      const key = action.key;
+      this.emerCancel.cancelCaution(key);
+      this.failuresLeft.splice(0, this.failuresLeft.length, ...this.failuresLeft.filter((k) => k !== key));
+      this.recallFailures = this.recallFailures.filter((k) => k !== key);
+      this.ewdPrimaryFailuresClearedLines.delete(key);
+      this.requestMasterCautionFromFaults = false;
+      this.auralSingleChimePending = false;
+    }
+  }
+
+  /** The cautions cancelled with EMER CANC are no longer cancelled; the active ones are shown again on the E/WD */
+  private restoreCancelledCautions(): void {
+    const restored = this.emerCancel.restoreCancelledCautions(
+      (key) => this.ewdMessageFailures[key]?.simVarIsActive.get() ?? false,
+    );
+    if (restored.length > 0) {
+      // Shown again as they were, without new attention getters; a long RCL press first showed NORMAL, not true then
+      this.failuresLeft.push(...restored.filter((key) => !this.failuresLeft.includes(key)));
+      this.recallNormalMessage.hide();
+    }
+  }
+
   private readonly ecpClear1Pulse = new NXLogicPulseNode(true);
   private readonly ecpClear2Pulse = new NXLogicPulseNode(true);
   private readonly ecpClearWirePulse = new NXLogicPulseNode(true);
@@ -2888,6 +2962,14 @@ export class PseudoFWC {
   private ecpEmergencyCancelPulseUp = false;
   private ecpEmergencyCancelPulseDown = false;
   private ecpEmergencyCancelLevel = false;
+  private ecpEmergencyCancelPulseUpHandled = false;
+  /** EMER CANC and RCL (FCOM DSC-31-30), see Logic/EmerCancelRecall */
+  private readonly emerCancel = new EmerCancelMemory();
+  private readonly recallPushbutton = new RecallPushbutton();
+  /** The RCL pb has just been held for 3 s (true in one update) */
+  private ecpRecallLongPress = false;
+  private readonly recallNormalMessage = new TimedMessage(RECALL_NORMAL_SECONDS);
+  private readonly cancelledCautionIrRestore = new IrAlignmentRestore();
 
   private processEcpButtons(deltaTime: number): void {
     const warningButtons = this.ecpWarningButtonStatus.get();
@@ -2937,6 +3019,8 @@ export class PseudoFWC {
         deltaTime,
       ) && !warningButtons.isFailureWarning();
     this.ecpEmergencyCancelLevel = warningButtons.bitValue(17) || this.ecpEmergencyCancelButtonHardwired.get();
+
+    this.ecpRecallLongPress = this.recallPushbutton.update(this.ecpRecallLevel, deltaTime / 1000);
   }
 
   private readonly fac1HealthyVar = RegisteredSimVar.createBoolean('L:A32NX_FAC_1_HEALTHY');
@@ -3136,7 +3220,8 @@ export class PseudoFWC {
     );
     this.toConfigHalfSecondTriggeredNode.write(this.toConfigPulseNode.read(), deltaTime);
 
-    this.flightPhaseInhibitOverrideNode.write(this.ecpRecallPulseUp, this.flightPhaseEndedPulseNode.read());
+    // RCL pb held for more than 3 s: no flight phase inhibition until the next flight phase (FCOM DSC-31-30 l.46764-46765)
+    this.flightPhaseInhibitOverrideNode.write(this.ecpRecallLongPress, this.flightPhaseEndedPulseNode.read());
 
     this.showTakeoffInhibit.set(
       this.toInhibitTimer.write(this.flightPhase345.get() && !this.flightPhaseInhibitOverrideNode.read(), deltaTime),
@@ -3184,7 +3269,7 @@ export class PseudoFWC {
     this.apuMasterSwitch.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'bool'));
 
     this.apuAvail.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool'));
-    this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_BLEED_PB_IS_ON', 'bool'));
+    this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool'));
 
     this.radioAlt.set(SimVar.GetSimVarValue('PLANE ALT ABOVE GROUND MINUS CG', 'feet'));
 
@@ -4958,6 +5043,9 @@ export class PseudoFWC {
     this.engine2ShutDown.set(isEngineShutDown(engine2MasterOn, engine2FirePbPushed, flightPhase) && !allEnginesFailed);
     this.crossBleedSelector = SimVar.GetSimVarValue('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number');
 
+    /* AIR bleed cautions (FCOM PRO-ABN-AIR), from the Rust pneumatic flags, see Logic/BleedAlerts */
+    this.bleedAlerts.update(readBleedInputs(), deltaTime / 1000);
+
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
     this.engineOilMonitors.forEach((monitor, index) => {
@@ -5730,7 +5818,17 @@ export class PseudoFWC {
       this.ecpRecallPulseUpHandled = false;
     }
 
+    this.recallNormalMessage.update(deltaTime / 1000);
     if (this.ecpRecallPulseUp && !this.ecpRecallPulseUpHandled) {
+      // Nothing to recall: NORMAL for 3 s on the E/WD (FCOM DSC-31-30 l.46763)
+      if (
+        isNothingToRecall(
+          this.recallFailures.length,
+          this.ewdPrimaryFailuresClearedLines.size + this.ewdSecondaryFailuresCleared.size,
+        )
+      ) {
+        this.recallNormalMessage.show();
+      }
       if (this.recallFailures.length > 0) {
         this.failuresLeft.push(...this.recallFailures.splice(0));
       }
@@ -5738,6 +5836,27 @@ export class PseudoFWC {
       this.ewdPrimaryFailuresClearedLines.clear();
       this.ewdSecondaryFailuresCleared.clear();
       this.ecpRecallPulseUpHandled = true;
+    }
+
+    // RCL pb held for more than 3 s: the cautions cancelled with EMER CANC come back (FCOM DSC-31-30 l.46759-46761, l.46820)
+    if (this.ecpRecallLongPress) {
+      this.restoreCancelledCautions();
+    }
+    // ... and automatically in phase 1 or 2 when IRs 1 and 2 are aligned (l.46821-46823)
+    const irAligned = (number: 1 | 2) => {
+      const maintWord = Arinc429Word.fromSimVarValue(`L:A32NX_ADIRS_IR_${number}_MAINT_WORD`);
+      return isIrAligned(maintWord.isNormalOperation(), maintWord.bitValueOr(1, false), maintWord.bitValueOr(3, false));
+    };
+    if (this.cancelledCautionIrRestore.update(this.fwcFlightPhase.get(), irAligned(1), irAligned(2))) {
+      this.restoreCancelledCautions();
+    }
+
+    if (!this.ecpEmergencyCancelPulseUp) {
+      this.ecpEmergencyCancelPulseUpHandled = false;
+    }
+    if (this.ecpEmergencyCancelPulseUp && !this.ecpEmergencyCancelPulseUpHandled) {
+      this.emergencyCancel();
+      this.ecpEmergencyCancelPulseUpHandled = true;
     }
 
     // Output logic
@@ -5804,13 +5923,22 @@ export class PseudoFWC {
 
     // Failures first
     for (const [key, value] of failureEntries) {
+      // A caution cancelled with EMER CANC: no message, attention getter nor STATUS for the rest of the flight
+      if (this.emerCancel.isCancelledCaution(key)) {
+        continue;
+      }
       // new warning?
       const newWarning =
         (value.side === undefined && !this.specialCodes.includes(key)) ||
         (value.side === 'LEFT' && !this.failuresLeft.includes(key) && !recallFailureKeys.includes(key)) ||
         (value.side === 'RIGHT' && !this.failuresRight.includes(key) && !this.ewdSecondaryFailuresCleared.has(key));
 
-      if (newWarning && value.flightPhaseInhib.some((e) => e === flightPhase)) {
+      // A RCL pb held for more than 3 s suppresses the flight phase inhibition until the next phase (DSC-31-30 l.46764)
+      if (
+        newWarning &&
+        !this.flightPhaseInhibitOverrideNode.read() &&
+        value.flightPhaseInhib.some((e) => e === flightPhase)
+      ) {
         continue;
       }
       const auralWarning = value.auralWarning?.get();
@@ -5899,7 +6027,7 @@ export class PseudoFWC {
         auralScKeys.push(key);
       }
 
-      if (auralWarning === FwcAuralWarning.CavalryCharge) {
+      if (auralWarning === FwcAuralWarning.CavalryCharge && !this.emerCancel.isSilencedWarning(key)) {
         auralCavchargeKeys.push(key);
       }
 
@@ -5915,6 +6043,8 @@ export class PseudoFWC {
 
     this.auralCrcKeys = auralCrcKeys;
     this.auralScKeys = auralScKeys;
+    // A warning silenced with EMER CANC has its aural again when it is triggered a second time
+    this.emerCancel.forgetInactiveWarnings(allFailureKeys);
 
     if (this.auralCrcKeys.length === 0) {
       this.auralCrcActive.set(false);
@@ -5984,7 +6114,9 @@ export class PseudoFWC {
     let orderedMemoArrayRight: string[] = tempMemoArrayRight.sort(compareEwdMessageCodes);
 
     if (!failLeft) {
-      this.ewdMessageLinesLeft.forEach((l, i) => l.set(orderedMemoArrayLeft[i]));
+      // RCL with nothing to recall: NORMAL replaces the memos for 3 s (design choice, FCOM DSC-31-30 l.46763)
+      const memoLinesLeft = this.recallNormalMessage.isShown ? [RECALL_NORMAL_MEMO_CODE] : orderedMemoArrayLeft;
+      this.ewdMessageLinesLeft.forEach((l, i) => l.set(memoLinesLeft[i]));
     }
 
     if (activeMasterCautionFailureCount === 0) {
@@ -8343,6 +8475,8 @@ export class PseudoFWC {
       side: 'LEFT',
       ...alertStatus(() => packOffStatus(2)),
     },
+    // 36 - PNEUMATIC: the AIR bleed cautions (keys 3611001-3611014), see Logic/BleedAlerts
+    ...this.bleedAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],
