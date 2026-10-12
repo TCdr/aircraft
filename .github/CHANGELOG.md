@@ -113,6 +113,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
 1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ROSE and ARC pages - @TCdr
 1. [ND] Fewer stutters with the weather radar and TERR ON ND: the map views nothing shows are paused - @TCdr
+1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
+1. [A380X/FMS] Added wind uplink request - @BravoMike99 (bruno_pt99)
+1. [A32NX/FMS] Disable approach wind modification if no airport is present - @BravoMike99 (bruno_pt99)
 
 ## 2024.1.0
 
