@@ -77,6 +77,7 @@ import {
 import * as FctlStatus from './Logic/FlightControlStatus';
 import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
+import { isGearNotUplockedForVle } from './Logic/LandingGearOverspeed';
 import { wingTankLowLevelLines, wingTankLowLevelStatus } from './Logic/WingTankLowLevel';
 import {
   CrossBleedSelector,
@@ -5190,7 +5191,12 @@ export class PseudoFWC {
         lgciu2NoseDoorNotClosed,
     );
 
-    const gearNotUplocked = !this.gearLockedUp.get() || this.gearDoorNotClosed.get();
+    // Both LGCIUs lost (e.g. DC EMER CONFIG): no uplock position, so not "not uplocked" (see Logic/LandingGearOverspeed)
+    const gearNotUplocked = isGearNotUplockedForVle({
+      gearLockedUp: this.gearLockedUp.get(),
+      uplockPositionAvailable: !lgciu1DiscreteWord3Invalid || !lgciu2DiscreteWord3Invalid,
+      gearDoorNotClosed: this.gearDoorNotClosed.get(),
+    });
 
     const casAboveVleSetThreshold = PseudoFWC.VLE_KNOTS + PseudoFWC.VLE_OVERSPEED_SET_MARGIN;
     const casAboveVleResetThreshold = PseudoFWC.VLE_KNOTS + PseudoFWC.VLE_OVERSPEED_RESET_MARGIN;
