@@ -1859,6 +1859,10 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - PRIORITY_LEFT: the CAPT holds the sidestick pb (CpiomC/FlightWarningSystem/FwsSidestickPriority.ts)
     - PRIORITY_RIGHT: the F/O holds the sidestick pb
     - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning (FlightWarningSystem/FwsWindshearAural.ts)
+    - PITCH: PITCH PITCH, at the pitch attitude alert of a manual landing (FlightWarningSystem/FwsPitchAural.ts)
+    - COMPANY_MESSAGE: COMPANY MESSAGE, when a company message is received (FlightWarningSystem/FwsCompanyMessageAural.ts)
+    - HEIGHT_{feet}: one word of the intermediate radio height callout below 100 ft (shared/src/AutoCallOuts.ts):
+      {feet} 1 to 9 (but 5) and 11 to 19, e.g. HEIGHT_7 for the SEVEN of FORTY SEVEN
 
 ## ECAM Control Panel ATA 31
 

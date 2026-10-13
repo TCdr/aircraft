@@ -276,7 +276,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] New flyPad FADEC fault failures with their ECAM crew awareness alerts: A32NX ENG FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT; A380X ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT - @TCdr
 1. [A380X/ENG] Auto-idle protection: the outboard engines stay at idle while a thrust reverser operates, as in the FCOM - @TCdr
 1. [A380X/FWS] New PRIORITY LEFT / PRIORITY RIGHT voices when a pilot holds the sidestick pb (1 s, so an autopilot disconnection does not call it) - @TCdr
-1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, 4 s below 100 ft, as in the FCOM - @TCdr
+1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, and below 100 ft the height to the foot (e.g. FORTY SEVEN) 4 s after it, as in the FCOM - @TCdr
 1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
 1. [A380X/GPWS] TERRAIN aural for the mode 2 alert and GLIDE SLOPE aural (louder when hard) for the mode 5 alert; a windshear warning overrides the GPWS alerts - @TCdr
 1. [A32NX/A380X] New flyPad failures: engine LP fuel valve jammed in place, with FUEL ENG 1(2) LP VALVE OPEN (A32NX) and FUEL ENG 1(2)(3)(4) LP VLV FAULT (A380X); jammed closed, the engine cannot start - @TCdr
@@ -307,6 +307,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BRAKES] Emergency braking (A-SKID off or normal and alternate braking lost) is limited to 1 700 psi for taxi-out and take-off and to 1 000 psi after a flight until the PARK BRK handle is set ON, as in the FCOM, instead of 1 160 psi - @TCdr
 1. [A380X/BRAKES] The RTO autobrake no longer activates below 40 kt, as in the FCOM - @TCdr
 1. [A380X/FWS] New BRAKES A-SKID FAULT ON ALL L/G alert in emergency braking with the A-SKID switch on, and new flyPad failure of the autobrake (ATA 32) with its BRAKES AUTO BRK FAULT alert - @TCdr
+1. [A380X/FWS] New PITCH PITCH voice when the pitch attitude goes above 12 degrees below 400 ft RA in a manual landing, as in the FCOM - @TCdr
+1. [A380X/FWS] New COMPANY MESSAGE voice when a company (AOC) message is received, except in takeoff and landing and below 10 000 ft in flight phase 8, as in the FCOM - @TCdr
 
 ## 2024.1.0
 
