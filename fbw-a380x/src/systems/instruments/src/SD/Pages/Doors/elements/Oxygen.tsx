@@ -5,7 +5,9 @@ import { oxygenIndication } from './OxygenIndication';
 
 const Oxygen: React.FC<Position & SdacActive & OnGround> = ({ x, y, active, onGround }) => {
   const minCrewOxygenPressureForFlight = 1000; // TODO Find out what this is for a crew of 5
-  const crewOxygenPressure = 1829;
+  // The bottle pressures of the oxygen model (a380_systems oxygen.rs)
+  const [crewBottlePressure] = useSimVar('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 'number', 1000);
+  const crewOxygenPressure = Math.round(crewBottlePressure);
   const ckptPressureAmber = !!(
     crewOxygenPressure < 350 ||
     !active ||
@@ -15,7 +17,8 @@ const Oxygen: React.FC<Position & SdacActive & OnGround> = ({ x, y, active, onGr
   const [crewSupplyOffVar] = useSimVar('L:PUSH_OVHD_OXYGEN_CREW', 'boolean', 500);
   const indication = oxygenIndication(active, onGround, crewSupplyOffVar > 0);
 
-  const cabinOxygenPressure = 1854;
+  const [cabinBottlePressure] = useSimVar('L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE', 'number', 1000);
+  const cabinOxygenPressure = Math.round(cabinBottlePressure);
   const cabinPressureAmber = !!(cabinOxygenPressure < 350 || !active);
 
   return (

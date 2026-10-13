@@ -17,6 +17,7 @@
     - [Flaps and Slats](#flaps-and-slats)
     - [Electronic Flight Control System EFCS](#electronic-flight-control-system-efcs)
   - [Fuel (ATA 28)](#fuel-ata-28)
+  - [Ice and Rain Protection ATA 30](#ice-and-rain-protection-ata-30)
   - [Indicating-Recording ATA 31](#indicating-recording-ata-31)
   - [ECAM Control Panel ATA 31](#ecam-control-panel-ata-31)
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
@@ -25,6 +26,7 @@
   - [Lights ATA 33](#lights-ata-33)
   - [Surveillance ATA 34](#surveillance-ata-34)
   - [Navigation ATA 34](#navigation-ata-34)
+  - [Oxygen ATA 35](#oxygen-ata-35)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
@@ -1708,6 +1710,48 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True when the CROSSFEED {number} pb-sw is ON (the flight crew selection, ON light and pb-sw animation). The systems host (CpiomF/FuelPumpsAndValves) commands the MSFS valve 46 (crossfeed 1) to 49 (crossfeed 4) (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the valve is jammed (failures 28020-28023), when the valve stays where it was. A valve switch change from outside (K:FUELSYSTEM_VALVE_* events, the refuel logic closing the valves) is taken as the new selection. The ECAM sensed CROSSFEED ... ON items read it (the crew action, done even if the valve is jammed closed); the green OPEN light of the pb-sw shows the valve fully open (FUELSYSTEM VALVE OPEN)
 
+## Ice and Rain Protection ATA 30
+
+The wing and engine anti-ice of the systems model (a380_systems ice_rain_protection.rs).
+
+- A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION
+    - Bool
+    - The WING ANTI ICE pb (ON light). Its valves drive the MSFS STRUCTURAL DEICE
+
+- A32NX_BUTTON_OVHD_ANTI_ICE_ENG_{number}_POSITION
+    - Bool
+    - The ENG {number} ANTI ICE pb (ON light), {number} 1 to 4. Its valve drives the MSFS ENG ANTI ICE
+
+- A32NX_PNEU_WING_ANTI_ICE_SYSTEM_SELECTED
+    - Bool
+    - The WING ANTI ICE pb is ON
+
+- A32NX_PNEU_WING_ANTI_ICE_SYSTEM_ON
+    - Bool
+    - At least one wing anti-ice valve is open: hot air on slat 4 (read by the flight controls and, through STRUCTURAL
+      DEICE, the FADEC). Closed for the ground test after 30 s, during the 10 min ground inhibition and during the
+      takeoff until the takeoff thrust reduction
+
+- A32NX_PNEU_WING_ANTI_ICE_FAULT
+    - Bool
+    - The FAULT light of the WING ANTI ICE pb: a valve position disagreement or a low pressure
+
+- A32NX_PNEU_WING_ANTI_ICE_{wing}_VALVE_CLOSED
+    - Bool
+    - Both wing anti-ice valves of the wing are closed, {wing} 1 left, 2 right
+
+- A32NX_PNEU_WING_ANTI_ICE_{wing}_ABNORMALLY_CLOSED / _ABNORMALLY_OPEN / _LOW_PRESSURE / _HIGH_PRESSURE
+    - Bool
+    - The AICU monitoring of the wing, {wing} 1 left, 2 right: A-ICE L(R) WING VLV CLOSED / OPEN / PRESS LO / PRESS HI
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_VALVE_OPEN
+    - Bool
+    - The engine anti-ice valve is not fully closed, {number} 1 to 4
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_FAULT
+    - Bool
+    - The FAULT light of the ENG ANTI ICE pb: the valve position disagrees with the pb
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL
@@ -2140,6 +2184,22 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_GNSS_UTC_UNIX_SECONDS
     - Number (seconds)
     - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
+
+## Oxygen ATA 35
+
+The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs).
+
+- A32NX_OXYGEN_CREW_BOTTLE_PRESSURE
+    - PSI
+    - The pressure of the cockpit oxygen bottle (DOOR/OXY SD, OXY CKPT BOTTLE PRESS LO)
+
+- A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE
+    - PSI
+    - The pressure of the cabin oxygen bottles (DOOR/OXY SD, OXY CABIN BOTTLE PRESS LO)
+
+- A32NX_OXYGEN_CABIN_VALVE_CLOSED
+    - Bool
+    - A cabin oxygen regulator supply valve is closed (OXY CABIN VLV CLOSED)
 
 ## Bleed Air ATA 36
 

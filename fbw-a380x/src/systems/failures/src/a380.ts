@@ -264,6 +264,25 @@ export const A380Failure = Object.freeze({
   SteeringControlSystem1: 32203,
   SteeringControlSystem2: 32204,
 
+  // ATA 30 (a380_systems ice_rain_protection.rs)
+  LeftWingAntiIceValvesStuckClosed: 30000,
+  RightWingAntiIceValvesStuckClosed: 30001,
+  LeftWingAntiIceOuterValveStuckOpen: 30010,
+  RightWingAntiIceOuterValveStuckOpen: 30011,
+  Eng1AntiIceValveStuckClosed: 30100,
+  Eng2AntiIceValveStuckClosed: 30101,
+  Eng3AntiIceValveStuckClosed: 30102,
+  Eng4AntiIceValveStuckClosed: 30103,
+  Eng1AntiIceValveStuckOpen: 30110,
+  Eng2AntiIceValveStuckOpen: 30111,
+  Eng3AntiIceValveStuckOpen: 30112,
+  Eng4AntiIceValveStuckOpen: 30113,
+
+  // ATA 35 (a380_systems oxygen.rs)
+  CockpitOxygenBottleLeak: 35000,
+  CabinOxygenBottleLeak: 35001,
+  CabinOxygenValveStuckClosed: 35010,
+
   RadioAltimeter1: 34000,
   RadioAltimeter2: 34001,
   RadioAltimeter3: 34002,
@@ -669,6 +688,25 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [32, A380Failure.SteeringBodyWheel, 'Steering body wheel steering (B/W STEER)'],
   [32, A380Failure.SteeringControlSystem1, 'Steering control system 1 (STEER CTL 1)'],
   [32, A380Failure.SteeringControlSystem2, 'Steering control system 2 (STEER CTL 2)'],
+
+  // A-ICE L(R) WING VLV CLOSED, A-ICE L(R) WING VLV OPEN (pb OFF) or PRESS HI (pb ON), A-ICE ENG n VLV CLOSED / OPEN
+  [30, A380Failure.LeftWingAntiIceValvesStuckClosed, 'Left wing anti-ice valves stuck closed'],
+  [30, A380Failure.RightWingAntiIceValvesStuckClosed, 'Right wing anti-ice valves stuck closed'],
+  [30, A380Failure.LeftWingAntiIceOuterValveStuckOpen, 'Left wing outer anti-ice valve stuck open'],
+  [30, A380Failure.RightWingAntiIceOuterValveStuckOpen, 'Right wing outer anti-ice valve stuck open'],
+  [30, A380Failure.Eng1AntiIceValveStuckClosed, 'Engine 1 anti-ice valve stuck closed'],
+  [30, A380Failure.Eng2AntiIceValveStuckClosed, 'Engine 2 anti-ice valve stuck closed'],
+  [30, A380Failure.Eng3AntiIceValveStuckClosed, 'Engine 3 anti-ice valve stuck closed'],
+  [30, A380Failure.Eng4AntiIceValveStuckClosed, 'Engine 4 anti-ice valve stuck closed'],
+  [30, A380Failure.Eng1AntiIceValveStuckOpen, 'Engine 1 anti-ice valve stuck open'],
+  [30, A380Failure.Eng2AntiIceValveStuckOpen, 'Engine 2 anti-ice valve stuck open'],
+  [30, A380Failure.Eng3AntiIceValveStuckOpen, 'Engine 3 anti-ice valve stuck open'],
+  [30, A380Failure.Eng4AntiIceValveStuckOpen, 'Engine 4 anti-ice valve stuck open'],
+
+  // OXY CKPT BOTTLE PRESS LO, OXY CABIN BOTTLE PRESS LO, OXY CABIN VLV CLOSED
+  [35, A380Failure.CockpitOxygenBottleLeak, 'Cockpit oxygen bottle leak'],
+  [35, A380Failure.CabinOxygenBottleLeak, 'Cabin oxygen bottles leak'],
+  [35, A380Failure.CabinOxygenValveStuckClosed, 'Cabin oxygen regulator supply valve stuck closed'],
 
   [34, A380Failure.RadioAltimeter1, 'RA SYS A'],
   [34, A380Failure.RadioAltimeter2, 'RA SYS B'],

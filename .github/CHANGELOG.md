@@ -284,6 +284,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] FQMS fuel leak detection with the FCOM slow and fast leak thresholds, FUEL LEAK DETECTED with its procedure and FUEL LEAK DET FAULT, and new flyPad failures feed tank 1 to 4 leak - @TCdr
 1. [A380X/FWS] NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE now trigger, with their ECAM line and STATUS - @TCdr
 1. [A380X/FWS] BRAKES BTV FAULT no longer shows (with a single chime and MASTER CAUT) while engine 2 or 3 is not running, e.g. during the engine start on the ground: an inner engine out makes BTV inoperative through the ENG SHUT DOWN STATUS - @TCdr
+1. [A380X/ICE] The WING ANTI ICE pb now commands a wing anti-ice system (two valves per wing on the bleed air): 30 s ground test then 10 min inhibition, inhibited during the takeoff until the thrust reduction, FAULT light, flyPad failures and the A-ICE L(R) WING VLV CLOSED, OPEN, PRESS HI and PRESS LO alerts; the flight controls and the FADEC now get the real wing anti-ice state - @TCdr
+1. [A380X/ICE] The engine anti-ice valves are modelled (opened by the ENG ANTI ICE pb on engine air, open without power, FAULT light), with flyPad failures and the A-ICE ENG 1(2)(3)(4) VLV CLOSED and VLV OPEN alerts - @TCdr
+1. [A32NX/A380X] Key bindings and hardware panels that send the MSFS anti-ice events (ANTI_ICE_TOGGLE_ENGn, ANTI_ICE_SET_ENGn, ANTI_ICE_ON/OFF/SET/TOGGLE, TOGGLE_STRUCTURAL_DEICE) now move the ENG and WING ANTI ICE pb-sw, and the sim anti-ice follows the valves - @TCdr
+1. [A380X/OXY] The cockpit and cabin oxygen bottle pressures are modelled and shown on the DOOR/OXY page, with flyPad failures (bottle leaks, cabin valve closed) and the OXY CKPT BOTTLE PRESS LO, OXY CABIN BOTTLE PRESS LO and OXY CABIN VLV CLOSED alerts - @TCdr
 
 ## 2024.1.0
 

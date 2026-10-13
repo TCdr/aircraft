@@ -13,6 +13,7 @@ use uom::si::{
 use systems::{
     accept_iterable,
     air_conditioning::PackFlowControllers,
+    ice_rain_protection::engine_anti_ice::EngineAntiIceValve,
     overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
     pneumatic::{
         valve::*, BleedMonitoringComputerChannelOperationMode,
@@ -110,6 +111,7 @@ pub struct A320Pneumatic {
     air_starter_unit_bleed_air_valve: PurelyPneumaticValve,
 
     wing_anti_ice: WingAntiIceComplex,
+    engine_anti_ice_valves: [EngineAntiIceValve; 2],
 
     hydraulic_reservoir_bleed_air_valves: [PurelyPneumaticValve; 2],
     hydraulic_reservoir_bleed_air_pipe: PneumaticPipe,
@@ -167,6 +169,11 @@ impl A320Pneumatic {
             ),
             air_starter_unit_bleed_air_valve: PurelyPneumaticValve::default(),
             wing_anti_ice: WingAntiIceComplex::new(context),
+            // Design choice (the FCOM gives no bus): the solenoids take the buses of the bleed valves of their engine
+            engine_anti_ice_valves: [
+                EngineAntiIceValve::new(context, 1, ElectricalBusType::DirectCurrentEssentialShed),
+                EngineAntiIceValve::new(context, 2, ElectricalBusType::DirectCurrent(2)),
+            ],
             hydraulic_reservoir_bleed_air_valves: [
                 PurelyPneumaticValve::new(),
                 PurelyPneumaticValve::new(),
@@ -241,6 +248,16 @@ impl A320Pneumatic {
                 pack_flow_valve_signals,
                 lgciu,
             );
+        }
+
+        // The engine anti-ice air comes from the HP compressor, independently of the bleed system (FCOM
+        // DSC-30-30-10 l.44351)
+        for (valve, engine_system) in self
+            .engine_anti_ice_valves
+            .iter_mut()
+            .zip(self.engine_systems.iter())
+        {
+            valve.update(context, engine_system.high_pressure());
         }
     }
 
@@ -410,6 +427,7 @@ impl SimulationElement for A320Pneumatic {
         self.cross_bleed_valve.accept(visitor);
         self.fadec.accept(visitor);
         self.wing_anti_ice.accept(visitor);
+        accept_iterable!(self.engine_anti_ice_valves, visitor);
 
         accept_iterable!(self.bleed_monitoring_computers, visitor);
         accept_iterable!(self.engine_systems, visitor);
@@ -5459,5 +5477,54 @@ pub mod tests {
         assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
             140., true, false, false
         ));
+    }
+
+    /// The engine anti-ice valves on the engine HP compressor air (FCOM DSC-30-30-10 l.44351-44358)
+    mod engine_anti_ice {
+        use super::*;
+
+        fn engine_anti_ice_push_buttons_on(mut test_bed: PneumaticTestBed) -> PneumaticTestBed {
+            test_bed.write_by_name("BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION", true);
+            test_bed.write_by_name("BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION", true);
+            test_bed
+        }
+
+        fn flag(test_bed: &mut PneumaticTestBed, name: &str) -> bool {
+            test_bed.read_by_name(name)
+        }
+
+        #[test]
+        fn the_valve_of_a_running_engine_opens_and_the_one_of_a_stopped_engine_stays_closed() {
+            let mut test_bed = engine_anti_ice_push_buttons_on(
+                test_bed_with()
+                    .in_isa_atmosphere(Length::new::<foot>(0.))
+                    .idle_eng1()
+                    .stop_eng2(),
+            )
+            .and_stabilize();
+
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_VALVE_OPEN"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_FAULT"));
+            // "The valve automatically closes, if air is unavailable (engine not running)": the FAULT light shows
+            // the disagreement with the pb-sw ON
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_VALVE_OPEN"));
+            assert!(flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_FAULT"));
+        }
+
+        #[test]
+        fn the_valve_opens_without_electrical_power() {
+            let mut test_bed = test_bed_with()
+                .in_isa_atmosphere(Length::new::<foot>(0.))
+                .idle_eng1()
+                .idle_eng2();
+            test_bed.command(|a| {
+                a.is_dc_ess_shed_powered = false;
+            });
+            let mut test_bed = test_bed.and_stabilize();
+
+            // pb-sw OFF: "If electrical power fails, the valves open"
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_VALVE_OPEN"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_VALVE_OPEN"));
+        }
     }
 }

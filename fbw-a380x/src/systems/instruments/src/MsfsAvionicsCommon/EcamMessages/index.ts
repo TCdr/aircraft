@@ -659,6 +659,11 @@ export const EcamInopSys: { [n: string]: string } = {
   300300005: '\x1b<4mR WINDSHIELD HEATG',
   300300006: '\x1b<4mR SLIDG WINDOW HEATG',
   300300007: '\x1b<4mR FIXED WINDOW HEATG',
+  // A-ICE ENG 1(2)(3)(4) VLV CLOSED STATUS (A380 FCOM l.156426), see FWS AntiIceValveAlerts
+  300300010: '\x1b<4mENG 1 A-ICE',
+  300300011: '\x1b<4mENG 2 A-ICE',
+  300300012: '\x1b<4mENG 3 A-ICE',
+  300300013: '\x1b<4mENG 4 A-ICE',
   320300001: '\x1b<4mA-SKID',
   320300002: '\x1b<4mAUTO BRK',
   320300003: '\x1b<4mPART A-SKID',

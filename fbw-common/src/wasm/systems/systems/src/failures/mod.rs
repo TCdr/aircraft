@@ -71,6 +71,30 @@ pub enum FailureType {
     GearActuatorJammed(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
+    // ATA30 (ice_rain_protection)
+    /// The engine anti-ice valve of engine n stays closed
+    EngineAntiIceValveStuckClosed(usize),
+    /// The engine anti-ice valve of engine n stays open
+    EngineAntiIceValveStuckOpen(usize),
+    /// Both wing anti-ice valves of wing n (1 left, 2 right) stay closed (A380: a380_systems ice_rain_protection.rs)
+    WingAntiIceValvesStuckClosed(usize),
+    /// The outer wing anti-ice valve of wing n (1 left, 2 right) stays open and no longer regulates (A380)
+    WingAntiIceOuterValveStuckOpen(usize),
+    /// Probe heat computer n (1 CAPT, 2 F/O, 3 STBY) is failed (A320: a320_systems probe_window_heat.rs)
+    ProbeHeatComputer(usize),
+    /// The heater of probe p (1 pitot, 2 L static, 3 R static, 4 AOA, 5 TAT) of probe heat computer n is failed
+    ProbeHeater(usize, usize),
+    /// The heating of windshield n (1 left, 2 right) is failed
+    WindshieldHeat(usize),
+    /// The heating of cockpit side window n (1 left, 2 right) is failed
+    WindowHeat(usize),
+    // ATA35 (A380: a380_systems oxygen.rs)
+    /// The cockpit oxygen bottle leaks: its pressure falls
+    CockpitOxygenBottleLeak,
+    /// The cabin oxygen bottles leak: their pressure falls
+    CabinOxygenBottleLeak,
+    /// A cabin oxygen regulator supply valve stays closed
+    CabinOxygenValveStuckClosed,
     /// The normal braking hydraulic equipment of all wheel groups (A380 BCS normal braking)
     BrakeNormalBraking,
     /// The alternate braking under brake control system control, all wheel groups (A380 BCS alternate braking)
