@@ -299,6 +299,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ICE] The engine anti-ice valves are modelled: a valve opens with its ENG ANTI ICE pb-sw ON (or without electrical power) once the engine supplies air, the pb-sw FAULT light shows a disagreement and the MSFS engine anti-ice follows the valve; new flyPad failures (ATA 30) engine 1(2) anti-ice valve stuck closed/open with the ANTI ICE ENG 1(2) VALVE CLSD and VALVE OPEN cautions and their STATUS - @TCdr
 1. [A32NX/ICE] New probe and window heat computers with flyPad failures (ATA 30) of the probe heat computers, the pitot, static, AOA and TAT heaters and the windshield and side window heating, and the ANTI ICE probe and window cautions of the FCOM (ALL PITOT, pitot pairs, PROBES, PITOT/STAT/AOA, TAT, WINDSHIELD, WINDOW) with their procedure lines and STATUS - @TCdr
 1. [A32NX/A380X] Key bindings and hardware panels that send the MSFS anti-ice events (ANTI_ICE_TOGGLE_ENGn, ANTI_ICE_SET_ENGn, ANTI_ICE_ON/OFF/SET/TOGGLE, TOGGLE_STRUCTURAL_DEICE) now move the ENG and WING ANTI ICE pb-sw, and the sim anti-ice follows the valves - @TCdr
+1. [ADIRS] New ADR 1-3 and IR 1-3 fault failures in the flyPad (ATA 34): the air or inertial data of that ADIRU part are lost and its FAULT light comes on (A32NX also gets the ADR airspeed / angle of attack and IR heading erroneous failures) - @TCdr
+1. [ADIRS] The ADIRUs are now supplied by their buses: without its AC bus an ADR is lost and its IR runs on the batteries (A32NX: ON BAT light, external horn on the ground, IR 2 and 3 for 5 min) or on its DC busbar (A380X) - @TCdr
+1. [A32NX/ADIRS] The ON BAT light no longer comes on at the start of a fast alignment, as in the FCOM - @TCdr
+1. [A32NX/FWC] New NAV ADR 1(2)(3) FAULT, ADR 1+2(1+3)(2+3) FAULT, ADR 1+2+3 FAULT, ADR DISAGREE, IR 1(2)(3) FAULT, IR 1+2(1+3)(2+3) FAULT and IR DISAGREE alerts with their procedures and STATUS - @TCdr
+1. [A32NX/FWC] New NAV RA 1 AND 2 FAULT (instead of the two RA FAULT alerts) and NAV RA DEGRADED alerts; NAV RA 1(2) FAULT now has its STATUS (CAT 2 ONLY, INOP SYS RA 1(2) and CAT 3) - @TCdr
 
 ## 2024.1.0
 
