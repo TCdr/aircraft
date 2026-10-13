@@ -325,6 +325,9 @@ pub trait ApuConstants {
     const FUEL_LINE_ID: u8;
     /// The ECB shuts the APU down on a high oil temperature in flight too, not only on the ground
     const HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT: bool;
+    /// During the start, the APU is available once N has been above 95 % for this time (or N is above 99.5 %).
+    /// Zero: available as soon as N is above 95 %.
+    const START_AVAILABLE_CONFIRMATION_TIME: Duration;
 }
 
 pub struct AuxiliaryPowerUnitFireOverheadPanel {
@@ -2297,9 +2300,9 @@ mod tests {
             }
         }
 
+        /// APS3200 (A320) only: the PW980 is available at 95 %, see pw980_available_as_soon_as_n_is_above_95_percent
         #[rstest]
         #[case::aps3200(test_bed_aps3200())]
-        #[case::pw980(test_bed_pw980())]
         fn available_when_n_above_99_5_percent_or_2_secs_above_95_percent<
             T: ApuGenerator,
             U: ApuStartMotor,
@@ -2333,9 +2336,9 @@ mod tests {
             }
         }
 
+        /// APS3200 (A320) only: the PW980 is available at 95 %, see pw980_available_as_soon_as_n_is_above_95_percent
         #[rstest]
         #[case::aps3200(test_bed_aps3200())]
-        #[case::pw980(test_bed_pw980())]
         fn available_when_n_above_95_percent_for_2_seconds<
             T: ApuGenerator,
             U: ApuStartMotor,
@@ -2353,6 +2356,25 @@ mod tests {
             assert!(!test_bed.apu_is_available());
 
             test_bed = test_bed.run(Duration::from_millis(1));
+            assert!(test_bed.apu_is_available());
+        }
+
+        /// A380 FCOM DSC-49-20 START pb (a380_fcom.txt l.108468-108469): "When the APU reaches 95 % speed, the ON light
+        /// goes off and the AVAIL light comes on"
+        #[test]
+        fn pw980_available_as_soon_as_n_is_above_95_percent() {
+            let mut test_bed = test_bed_pw980()
+                .starting_apu()
+                .and()
+                .turbine_infinitely_running_at(Ratio::new::<percent>(94.))
+                .run(Duration::from_millis(50));
+
+            assert!(!test_bed.apu_is_available());
+
+            test_bed = test_bed
+                .turbine_infinitely_running_at(Ratio::new::<percent>(96.))
+                .run(Duration::from_millis(50));
+
             assert!(test_bed.apu_is_available());
         }
 

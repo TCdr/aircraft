@@ -567,6 +567,14 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] SIGNS memos as in the FCOM: SEAT BELTS and NO SMOKING memos with the switch ON (the NO MOBILE memo is gone), replaced by a SIGNS ON memo during take-off and landing; the cabin NO SMOKING signs now follow the AUTO position (slats or main gear extended, excessive cabin altitude) - @TCdr
 1. [A380X/FWS] New ENG 1(2)(3)(4) THR LEVER ABOVE IDLE warning (a thrust lever above idle with a reverser selected, during the reversers de-selection, or with the auto-idle protection) with its dual RETARD callout - @TCdr
 1. [A380X/FWS] ENG SHUT DOWN asks for the ABNORM BLEED CONFIG procedure instead of FOR GA: TOGA ONLY, HYD SYS TEMP EXCESS HI has the FCOM title and pump lines, ELEC PMP FAULT gives a REDUND LOSS instead of an INOP SYS, and the flap/slat CONFIG logic reads SFCC 2 when SFCC 1 cannot give the position - @TCdr
+1. [A380X/FIRE] The ENG FIRE panel TEST pb must be held for 3 s before the fire test starts, as in the FCOM (was 0.5 s) - @TCdr
+1. [A380X/FIRE] The SQUIB light of an AGENT pb goes off once its bottle is discharged - @TCdr
+1. [A380X/APU] The APU AVAIL light comes on as soon as the APU reaches 95 % (the 2 s delay is A320 only) - @TCdr
+1. [A380X/LIGHTS] SEAT BELTS sw AUTO: the cabin signs come on with the slats or the main gear extended (no engine N1 condition), and come on regardless of the switch at an excessive cabin altitude - @TCdr
+1. [A380X/COMMS] The glareshield loudspeaker volume knobs turn and set the radio receive volume (fully anticlockwise = OFF); the warning sounds are not affected - @TCdr
+1. [A380X/BTV] ROW protected runway as in the FCOM: the detected runway replaces the selected one from 500 ft except in BTV mode, where the selected runway is kept down to 300 ft - @TCdr
+1. [A380X/SD] DOOR/OXY page: amber half-frame on ground below the dispatch pressure (cabin 1 600 PSI), cabin pressure amber below the emergency descent minimum of the passengers or 800 PSI before engine start - @TCdr
+1. [A380X/SD] BLEED page: the APU bleed valve shows amber when it is abnormally open or closed with the APU BLEED pb-sw ON - @TCdr
 
 ## 2024.1.0
 

@@ -15,6 +15,7 @@ import {
 } from '@microsoft/msfs-sdk';
 
 import { AudioManagementUnit, ComIndex } from './AudioManagementUnit';
+import { LOUDSPEAKER_INITIAL_VOLUME_PERCENT, loudspeakerComVolume, loudspeakerVolumeVar } from './LoudspeakerVolume';
 import { RadioNavSelectedNavaid, RmpAmuBusEvents } from './RmpAmuBusPublisher';
 
 interface NavaidDefinition {
@@ -206,6 +207,9 @@ export class SimAudioManager implements Instrument {
   }
 
   init(): void {
+    for (const side of [1, 2]) {
+      SimVar.SetSimVarValue(loudspeakerVolumeVar(side), SimVarValueType.Percent, LOUDSPEAKER_INITIAL_VOLUME_PERCENT);
+    }
     if (this.keyEventManager) {
       this.resume();
     }
@@ -232,6 +236,7 @@ export class SimAudioManager implements Instrument {
     const isAmuHealthy = activeAmu.isHealthy.get();
 
     const activeNavOutput = isAmuHealthy ? activeAmu.getActiveNavAudio() : null;
+    const loudspeakerVolume = SimVar.GetSimVarValue(loudspeakerVolumeVar(this.activeAmuIndex), SimVarValueType.Percent);
 
     for (const [navaid, state] of this.navaidStates.entries()) {
       if (navaid === activeNavOutput) {
@@ -250,7 +255,8 @@ export class SimAudioManager implements Instrument {
       if (!isAmuHealthy || activeAmu.getSelectedComTransmitter() !== index) {
         state.isTransmitOn.set(false);
       }
-      state.volume.set(isAmuHealthy ? activeAmu.getComVolume(index) : 0);
+      // the onside loudspeaker volume knob scales the voice communications (see LoudspeakerVolume.ts)
+      state.volume.set(isAmuHealthy ? loudspeakerComVolume(activeAmu.getComVolume(index), loudspeakerVolume) : 0);
     }
 
     // need to set on states after to ensure correct event ordering

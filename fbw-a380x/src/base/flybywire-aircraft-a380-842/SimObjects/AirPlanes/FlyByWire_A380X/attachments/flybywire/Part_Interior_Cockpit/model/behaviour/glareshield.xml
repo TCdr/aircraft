@@ -168,5 +168,31 @@
             <CODE_POS_1></CODE_POS_1>
             <INVERT_ANIM>1</INVERT_ANIM>
         </UseTemplate>
+
+        <!-- CAPT LOUDSPEAKER volume knob: fully anticlockwise = OFF. Scales the COM receive volumes, not the FWS and SURV
+             sounds (A380 FCOM DSC-23-20 LOUDSPEAKER VOLUME CONTROL PANEL), see systems-host Misc/Communications/LoudspeakerVolume.ts -->
+        <Component ID="KNOB_GLARESHIELD_CS_SPEAKER_VOLUME" Node="KNOB_GLARESHIELD_CS_SPEAKER">
+            <UseTemplate Name="FBW_Continuous_Knob_Finite_From_Simvar">
+                <NODE_ID>KNOB_GLARESHIELD_CS_SPEAKER</NODE_ID>
+                <ANIM_SIMVAR>L:A380X_LOUDSPEAKER_1_VOLUME</ANIM_SIMVAR>
+                <INCREMENT>2</INCREMENT>
+                <WHEEL_INCREMENT>5</WHEEL_INCREMENT>
+                <ANIMTIP_0>CAPT loudspeaker volume: decrease (%((L:A380X_LOUDSPEAKER_1_VOLUME, percent))%!d!%%)</ANIMTIP_0>
+                <ANIMTIP_1>CAPT loudspeaker volume: increase (%((L:A380X_LOUDSPEAKER_1_VOLUME, percent))%!d!%%)</ANIMTIP_1>
+            </UseTemplate>
+        </Component>
+
+        <!-- F/O LOUDSPEAKER volume knob: fully anticlockwise = OFF. Scales the COM receive volumes, not the FWS and SURV
+             sounds (A380 FCOM DSC-23-20 LOUDSPEAKER VOLUME CONTROL PANEL), see systems-host Misc/Communications/LoudspeakerVolume.ts -->
+        <Component ID="KNOB_GLARESHIELD_FO_SPEAKER_VOLUME" Node="KNOB_GLARESHIELD_FO_SPEAKER">
+            <UseTemplate Name="FBW_Continuous_Knob_Finite_From_Simvar">
+                <NODE_ID>KNOB_GLARESHIELD_FO_SPEAKER</NODE_ID>
+                <ANIM_SIMVAR>L:A380X_LOUDSPEAKER_2_VOLUME</ANIM_SIMVAR>
+                <INCREMENT>2</INCREMENT>
+                <WHEEL_INCREMENT>5</WHEEL_INCREMENT>
+                <ANIMTIP_0>F/O loudspeaker volume: decrease (%((L:A380X_LOUDSPEAKER_2_VOLUME, percent))%!d!%%)</ANIMTIP_0>
+                <ANIMTIP_1>F/O loudspeaker volume: increase (%((L:A380X_LOUDSPEAKER_2_VOLUME, percent))%!d!%%)</ANIMTIP_1>
+            </UseTemplate>
+        </Component>
     </Template>
 </ModelBehaviors>

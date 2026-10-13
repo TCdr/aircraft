@@ -1085,6 +1085,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
         | Data       | 1      |
         | Emergency  | 2      |
 
+- `L:A380X_LOUDSPEAKER_{side}_VOLUME`
+    - Percent
+    - The glareshield loudspeaker volume control knob, `{side}` 1 = CAPT, 2 = F/O: 0 = OFF (fully anticlockwise), 100 =
+      fully clockwise. The knob of the active AMU side scales the COM receive volumes set by the RMP (not the FWS and
+      SURV sounds). Set to 100 at each flight load by the systems host.
+
 ## Electrical ATA 24
 
 - A32NX_ELEC_CONTACTOR_{name}_IS_CLOSED
@@ -1433,9 +1439,10 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 3
         - 4
 
-- A32NX_OVHD_FIRE_SQUIB_{bottle}_{zone}_{number}_IS_ARMED
+- A32NX_FIRE_SQUIB_{bottle}_{zone}_{number}_IS_ARMED
     - Bool
-    - True when the the corresponding fire extinguishing bottle squibs are armed.
+    - The SQUIB light of the AGENT pb: true when the corresponding fire extinguishing bottle squibs are armed and the
+      bottle is not discharged yet, or during the fire test.
     - {bottle}
         - 1
         - 2
@@ -1448,7 +1455,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 3
         - 4
 
-- A32NX_OVHD_FIRE_SQUIB_{bottle}_{zone}_{number}_IS_DISCHARGED
+- A32NX_FIRE_SQUIB_{bottle}_{zone}_{number}_IS_DISCHARGED
     - Bool
     - True when the the corresponding fire extinguishing bottle has been discharged into the engine.
     - {bottle}
@@ -1483,7 +1490,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_FIRE_TEST_ACTIVE
     - Bool
     - True while the fire test is requested: the fire test pushbutton is pressed, or was released less than 7 seconds
-      ago when A32NX_FIRE_TEST_EXTEND is true
+      ago when A32NX_FIRE_TEST_EXTEND is true. The test itself starts once the request has lasted 3 seconds.
 
 - A32NX_CONFIG_SITUATION_FX
     - Bool
