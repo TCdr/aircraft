@@ -90,14 +90,43 @@ describe('A380X ENG START FAULT', () => {
    * INITIATED, ENG PARAMETERS MONITOR, IF ABNORMAL: ENG MAN START OFF, ENG MASTER OFF */
   it('asks for air for NO STARTER AIR PRESSURE, with the windmill start lines in flight', () => {
     expect(shown(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.LowStartAirPressure }).show)).toEqual([
-      0, 8, 9,
+      0, 8, 9, 23, 24, 25,
     ]);
     const inFlight = { ...groundAutoStart, fault: EngineStartFault.LowStartAirPressure, onGround: false };
-    expect(shown(startFaultItems(inFlight).show)).toEqual([0, 8, 9, 10, 18, 19, 20, 21, 22]);
+    expect(shown(startFaultItems(inFlight).show)).toEqual([0, 8, 9, 10, 18, 19, 20, 21, 22, 23, 24, 25]);
     const done = startFaultItems({ ...inFlight, masterOn: false, manualStartPbOn: false }).checked;
     expect(done[21]).toBe(true);
     expect(done[22]).toBe(true);
     expect(startFaultItems({ ...inFlight, manualStartPbOn: true }).checked[21]).toBe(false);
+  });
+
+  /* l.172931-172933 (FCOM PDF page 5811): IF NOT SUCCESSFUL: ENG MAN START OFF, ENG MASTER OFF, after the XBLEED / APU
+   * BLEED lines on ground, and after the windmill start lines in flight */
+  it('closes NO STARTER AIR PRESSURE with IF NOT SUCCESSFUL: ENG MAN START OFF, ENG MASTER OFF', () => {
+    const ground = { ...groundAutoStart, fault: EngineStartFault.LowStartAirPressure, manualStartPbOn: true };
+    const notDone = startFaultItems(ground).checked;
+    expect(notDone[24]).toBe(false);
+    expect(notDone[25]).toBe(false);
+    const done = startFaultItems({ ...ground, masterOn: false, manualStartPbOn: false }).checked;
+    expect(done[24]).toBe(true);
+    expect(done[25]).toBe(true);
+    // only for NO STARTER AIR PRESSURE
+    expect(startFaultItems({ ...groundAutoStart, fault: EngineStartFault.StarterFault }).show.slice(23)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+    const ata70 = readFileSync(
+      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
+      'utf-8',
+    );
+    for (let engine = 1; engine <= 4; engine++) {
+      const start = ata70.indexOf(`  ${701800116 + engine}: {`);
+      const names = [...ata70.slice(start, ata70.indexOf('\n  },', start)).matchAll(/name: '([^']*)'/g)].map(
+        (match) => match[1],
+      );
+      expect(names.slice(23)).toEqual(['IF NOT SUCCESSFUL', `ENG ${engine} MAN START`, `ENG ${engine} MASTER`]);
+    }
   });
 
   /* FCOM PDF p.5810 (l.172889): no aural, no MASTER light, no SD page. IGN A(B) FAULT p.5791: crew awareness; IGN A+B

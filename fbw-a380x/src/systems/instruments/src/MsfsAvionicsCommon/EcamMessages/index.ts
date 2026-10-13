@@ -121,7 +121,8 @@ export const EcamMemos: { [n: string]: string } = {
   '333000001': '\x1b<3mSTROBE LT OFF',
   '335000001': '\x1b<3mSEAT BELTS',
   '335000002': '\x1b<3mNO SMOKING',
-  '335000003': '\x1b<3mNO MOBILE',
+  // SIGNS ON replaces SEAT BELTS / NO SMOKING in the flight phases 2, 9 and 10 (A380 FCOM l.84112-84118)
+  '335000004': '\x1b<3mSIGNS ON',
   '340000001': '\x1b<3mTRUE NORTH REF',
   '340002701': '\x1b<3mIR 1 IN ATT ALIGN',
   '340002702': '\x1b<3mIR 2 IN ATT ALIGN',

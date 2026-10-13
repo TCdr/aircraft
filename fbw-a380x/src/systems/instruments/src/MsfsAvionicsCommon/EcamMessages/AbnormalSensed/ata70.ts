@@ -852,6 +852,13 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN (a380_fcom.txt l.172733-172735): "In the case of an abnormal bleed
+        // configuration: ABNORM BLEED CONFIG procedure ... APPLY", shown while AIR ABNORM BLEED CONFIG is active
+        name: 'ABNORM BLEED CONFIG PROC',
+        sensed: false,
+        labelNotCompleted: 'APPLY',
+      },
+      {
         name: 'MAX THR RQRD',
         condition: true,
         sensed: false,
@@ -862,10 +869,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         sensed: true,
         labelNotCompleted: 'OFF',
         level: 1,
-      },
-      {
-        name: 'FOR GA: TOGA ONLY',
-        sensed: false,
       },
     ],
   },
@@ -895,6 +898,13 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN (a380_fcom.txt l.172733-172735): "In the case of an abnormal bleed
+        // configuration: ABNORM BLEED CONFIG procedure ... APPLY", shown while AIR ABNORM BLEED CONFIG is active
+        name: 'ABNORM BLEED CONFIG PROC',
+        sensed: false,
+        labelNotCompleted: 'APPLY',
+      },
+      {
         name: 'MAX THR RQRD',
         condition: true,
         sensed: false,
@@ -909,10 +919,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       {
         // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN, inner engine (a380_fcom.txt l.172738-172741)
         name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY',
-        sensed: false,
-      },
-      {
-        name: 'FOR GA: TOGA ONLY',
         sensed: false,
       },
     ],
@@ -943,6 +949,13 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN (a380_fcom.txt l.172733-172735): "In the case of an abnormal bleed
+        // configuration: ABNORM BLEED CONFIG procedure ... APPLY", shown while AIR ABNORM BLEED CONFIG is active
+        name: 'ABNORM BLEED CONFIG PROC',
+        sensed: false,
+        labelNotCompleted: 'APPLY',
+      },
+      {
         name: 'MAX THR RQRD',
         condition: true,
         sensed: false,
@@ -957,10 +970,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       {
         // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN, inner engine (a380_fcom.txt l.172738-172741)
         name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY',
-        sensed: false,
-      },
-      {
-        name: 'FOR GA: TOGA ONLY',
         sensed: false,
       },
     ],
@@ -991,6 +1000,13 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         level: 1,
       },
       {
+        // A380 FCOM PRO-ABN-ECAM-10-70 ENG SHUT DOWN (a380_fcom.txt l.172733-172735): "In the case of an abnormal bleed
+        // configuration: ABNORM BLEED CONFIG procedure ... APPLY", shown while AIR ABNORM BLEED CONFIG is active
+        name: 'ABNORM BLEED CONFIG PROC',
+        sensed: false,
+        labelNotCompleted: 'APPLY',
+      },
+      {
         name: 'MAX THR RQRD',
         condition: true,
         sensed: false,
@@ -1001,10 +1017,6 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
         sensed: true,
         labelNotCompleted: 'OFF',
         level: 1,
-      },
-      {
-        name: 'FOR GA: TOGA ONLY',
-        sensed: false,
       },
     ],
   },
@@ -1084,6 +1096,10 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'IF ABNORMAL', sensed: false, condition: true },
       { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
       { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      // NO STARTER AIR PRESSURE, IF NOT SUCCESSFUL (a380_fcom.txt l.172931-172933)
+      { name: 'IF NOT SUCCESSFUL', sensed: false, condition: true },
+      { name: 'ENG 1 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800118: {
@@ -1112,6 +1128,9 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'WINDMILL START INITIATED', sensed: false },
       { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
       { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'IF NOT SUCCESSFUL', sensed: false, condition: true },
       { name: 'ENG 2 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
       { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
@@ -1144,6 +1163,9 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'IF ABNORMAL', sensed: false, condition: true },
       { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
       { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'IF NOT SUCCESSFUL', sensed: false, condition: true },
+      { name: 'ENG 3 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
   701800120: {
@@ -1172,6 +1194,9 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'WINDMILL START INITIATED', sensed: false },
       { name: 'ENG PARAMETERS', sensed: false, labelNotCompleted: 'MONITOR' },
       { name: 'IF ABNORMAL', sensed: false, condition: true },
+      { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'IF NOT SUCCESSFUL', sensed: false, condition: true },
       { name: 'ENG 4 MAN START', sensed: true, labelNotCompleted: 'OFF', level: 1 },
       { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
@@ -1746,6 +1771,27 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mENG\x1bm TYPE DISAGREE',
     sensed: true,
     items: [],
+  },
+  701800162: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) THR LEVER ABOVE IDLE (a380_fcom.txt l.173271-173292): red
+    title: '\x1b<2m\x1b4mENG\x1bm 1 THR LEVER ABOVE IDLE',
+    sensed: true,
+    items: [{ name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' }],
+  },
+  701800163: {
+    title: '\x1b<2m\x1b4mENG\x1bm 2 THR LEVER ABOVE IDLE',
+    sensed: true,
+    items: [{ name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' }],
+  },
+  701800164: {
+    title: '\x1b<2m\x1b4mENG\x1bm 3 THR LEVER ABOVE IDLE',
+    sensed: true,
+    items: [{ name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' }],
+  },
+  701800165: {
+    title: '\x1b<2m\x1b4mENG\x1bm 4 THR LEVER ABOVE IDLE',
+    sensed: true,
+    items: [{ name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' }],
   },
   700900001: {
     title: '\x1b<4m\x1b4mENG\x1bm RELIGHT IN FLIGHT',
