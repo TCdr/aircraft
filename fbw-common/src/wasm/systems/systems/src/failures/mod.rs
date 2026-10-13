@@ -106,6 +106,13 @@ pub enum FailureType {
     CabinOxygenBottleLeak,
     /// A cabin oxygen regulator supply valve stays closed
     CabinOxygenValveStuckClosed,
+    /// Channel n (1 or 2) of the A320 brake and steering control unit (BSCU). The A320 brake model also uses
+    /// BrakeNormalBraking (normal braking equipment) and NoseWheelSteeringNormal (nose wheel steering system).
+    BrakeSteeringControlUnitChannel(usize),
+    /// The A320 alternate braking control unit (ABCU): no alternate braking, parking brake only as back-up
+    AlternateBrakingControlUnit,
+    /// The autobrake function of the A320 BSCU
+    Autobrake,
     // ATA36 (A320: a320_systems pneumatic.rs)
     /// The bleed (pressure regulating) valve of engine n stays closed
     EngineBleedValveStuckClosed(usize),

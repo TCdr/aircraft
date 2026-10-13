@@ -5085,6 +5085,34 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Indicates that gear lever just hit the baulk lock mechanism
     - Boolean
 
+- A32NX_BRAKES_BSCU_{number}_FAULT
+    - Bool
+    - BSCU channel {number} is lost (failed, or its AC BUS / DC BUS {number} unpowered)
+    - {number}
+        - 1
+        - 2
+
+- A32NX_BRAKES_BSCU_ACTIVE_CHANNEL
+    - Number
+    - The BSCU channel in control: 1 or 2, 0 with both channels lost. It changes over at each gear lever DOWN selection
+      and when the active channel fails
+
+- A32NX_BRAKES_ALTN_BRK_FAULT
+    - Bool
+    - The ABCU is lost (failed or DC ESS BUS unpowered): no alternate braking, the parking brake still works
+
+- A32NX_BRAKES_NORM_BRK_FAULT
+    - Bool
+    - The normal braking equipment is failed (flyPad failure): braking on the alternate (yellow) system with antiskid
+
+- A32NX_BRAKES_NW_STRG_FAULT
+    - Bool
+    - The nose wheel steering system is failed (flyPad failure)
+
+- A32NX_BRAKES_AUTO_BRK_FAULT
+    - Bool
+    - The autobrake failed (flyPad failure or no ADIRU) after being armed; resets when the autobrake function is back
+
 ## Lighting (ATA 33)
 
 - `L:A32NX_LIGHTS_NAV_LOGO`

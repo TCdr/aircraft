@@ -13,7 +13,7 @@ use uom::si::{
     pressure::psi,
     ratio::{percent, ratio},
     thermodynamic_temperature::degree_celsius,
-    velocity::knot,
+    velocity::{knot, meter_per_second},
     volume::{cubic_inch, gallon, liter},
     volume_rate::gallon_per_second,
 };
@@ -79,7 +79,9 @@ use systems::{
     },
 };
 
+mod brake_control_units;
 mod sfcc;
+use brake_control_units::A320BrakeControlUnits;
 use sfcc::SlatFlapComplex;
 
 #[cfg(test)]
@@ -2193,6 +2195,7 @@ impl A320Hydraulic {
             engine2,
             self.left_brake_assembly.brake_temperature_sensors(),
             self.right_brake_assembly.brake_temperature_sensors(),
+            adirs,
         );
 
         // Updating rat stowed pos on all frames in case it's used for graphics
@@ -3705,6 +3708,13 @@ struct A320HydraulicBrakeSteerComputerUnit {
     autobrake_controller: A320AutobrakeController,
     parking_brake_demand: bool,
 
+    /// BSCU channels 1 and 2, ABCU and their failures
+    control_units: A320BrakeControlUnits,
+
+    main_wheel_rpm_ids: [VariableIdentifier; 2],
+    /// Speed of the fastest main gear wheel (BSCU wheel tachometers)
+    main_wheel_speed: Velocity,
+
     left_brake_pilot_input: Ratio,
     right_brake_pilot_input: Ratio,
 
@@ -3714,8 +3724,10 @@ struct A320HydraulicBrakeSteerComputerUnit {
     brake_temperature_ids: [VariableIdentifier; 4],
     brake_temperatures: [Option<ThermodynamicTemperature>; 4],
 
-    normal_brakes_available: bool,
+    /// The green pressure is high enough for the normal brakes (pressure hysteresis below)
+    green_pressure_available_for_brakes: bool,
     should_disable_auto_brake_when_retracting: DelayedTrueLogicGate,
+    /// The A/SKID & N/W STRG sw is ON
     anti_skid_activated: bool,
 
     tiller_pedal_disconnect: bool,
@@ -3767,6 +3779,9 @@ impl A320HydraulicBrakeSteerComputerUnit {
 
     const BRAKES_HOT_THRESHOLD_CELSIUS: f64 = 300.;
 
+    /// Main wheel radius of the flight model (flight_model.cfg contact points 1 and 2: 1.9167 ft)
+    const MAIN_WHEEL_RADIUS_METER: f64 = 1.9167 * 0.3048;
+
     fn new(context: &mut InitContext) -> Self {
         Self {
             park_brake_lever_pos_id: context.get_identifier("PARK_BRAKE_LEVER_POS".to_owned()),
@@ -3787,6 +3802,12 @@ impl A320HydraulicBrakeSteerComputerUnit {
 
             autobrake_controller: A320AutobrakeController::new(context),
 
+            control_units: A320BrakeControlUnits::new(context),
+
+            main_wheel_rpm_ids: [1, 2]
+                .map(|index| context.get_identifier(format!("WHEEL RPM:{index}"))),
+            main_wheel_speed: Velocity::default(),
+
             parking_brake_demand: true,
             left_brake_pilot_input: Ratio::new::<ratio>(0.0),
             right_brake_pilot_input: Ratio::new::<ratio>(0.0),
@@ -3795,7 +3816,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
             brake_temperature_ids: [1, 2, 3, 4]
                 .map(|index| context.get_identifier(format!("REPORTED_BRAKE_TEMPERATURE_{index}"))),
             brake_temperatures: [None; 4],
-            normal_brakes_available: false,
+            green_pressure_available_for_brakes: false,
             should_disable_auto_brake_when_retracting: DelayedTrueLogicGate::new(
                 Duration::from_secs_f64(Self::AUTOBRAKE_GEAR_RETRACTION_DURATION_S),
             ),
@@ -3828,8 +3849,27 @@ impl A320HydraulicBrakeSteerComputerUnit {
         }
     }
 
+    /// Autobrake arming conditions (A320 FCOM DSC-32-30-10, a320_fcom.txt l.51164-51169): "Green pressure
+    /// available", "Anti-skid electrically-powered", "No failure in the braking system", "At least one ADIRU is
+    /// available"
     fn allow_autobrake_arming(&self) -> bool {
-        self.anti_skid_activated && self.normal_brakes_available
+        self.green_pressure_available_for_brakes
+            && self.anti_skid_available()
+            && self.control_units.autobrake_arming_allowed()
+    }
+
+    /// The antiskid works: A/SKID & N/W STRG sw ON and a BSCU channel working (FCOM l.51309-51310)
+    fn anti_skid_available(&self) -> bool {
+        self.control_units
+            .anti_skid_available(self.anti_skid_activated)
+    }
+
+    /// Normal braking (FCOM l.51251-51259): green pressure, A/SKID & N/W STRG sw ON, braking electrically
+    /// controlled through the BSCU, normal braking equipment working
+    fn normal_braking_operative(&self) -> bool {
+        self.green_pressure_available_for_brakes
+            && self.anti_skid_available()
+            && self.control_units.normal_braking_available()
     }
 
     fn update_normal_braking_availability(&mut self, normal_braking_circuit_pressure: Pressure) {
@@ -3838,11 +3878,11 @@ impl A320HydraulicBrakeSteerComputerUnit {
                 && self.right_brake_pilot_input.get::<ratio>()
                     < Self::PILOT_INPUT_DETECTION_TRESHOLD)
         {
-            self.normal_brakes_available = true;
+            self.green_pressure_available_for_brakes = true;
         } else if normal_braking_circuit_pressure.get::<psi>()
             < Self::MIN_PRESSURE_BRAKE_ALTN_HYST_LO
         {
-            self.normal_brakes_available = false;
+            self.green_pressure_available_for_brakes = false;
         }
     }
 
@@ -3864,7 +3904,8 @@ impl A320HydraulicBrakeSteerComputerUnit {
                 // Else manual action limited to a higher max nominal pressure
                 2538.
             }
-        } else if !self.anti_skid_activated {
+        } else if !self.anti_skid_available() {
+            // Antiskid lost by the switch or by the BSCU (FCOM l.51309-51310).
             // A320 FCOM DSC-32-30-10 ALTERNATE BRAKING (a320_fcom.txt l.51316-51318): "To avoid wheel locking and
             // limit the risk of tire burst, brake pressure is automatically limited to 1 000 PSI." QRH LOSS OF
             // BRAKING: "MAX BRK PR ... 1000 PSI" (l.72241).
@@ -3892,7 +3933,15 @@ impl A320HydraulicBrakeSteerComputerUnit {
         engine2: &impl Engine,
         left_brake_temperature_sensors: &[TemperatureSensor; 2],
         right_brake_temperature_sensors: &[TemperatureSensor; 2],
+        adirs: &impl AdirsMeasurementOutputs,
     ) {
+        self.control_units.update(
+            lgciu1.gear_handle_is_down(),
+            adirs,
+            self.autobrake_controller.is_armed(),
+            context.is_sim_ready(),
+        );
+
         for (brake_temperature, sensor) in self.brake_temperatures.iter_mut().zip(
             left_brake_temperature_sensors
                 .iter()
@@ -3914,6 +3963,7 @@ impl A320HydraulicBrakeSteerComputerUnit {
             self.allow_autobrake_arming(),
             self.left_brake_pilot_input,
             self.right_brake_pilot_input,
+            self.main_wheel_speed,
             lgciu1,
             lgciu2,
         );
@@ -3926,7 +3976,10 @@ impl A320HydraulicBrakeSteerComputerUnit {
             .update(context, is_in_flight_gear_lever_up);
 
         if is_in_flight_gear_lever_up {
-            if self.should_disable_auto_brake_when_retracting.output() {
+            // The BSCU brakes the wheels in flight with the gear lever up (FCOM l.51259-51264)
+            if self.should_disable_auto_brake_when_retracting.output()
+                || !self.control_units.bscu_operative()
+            {
                 self.norm_brake_outputs.set_no_demands();
             } else {
                 // Slight brake pressure to stop the spinning wheels (have no pressure data available yet, 0.2 is random one)
@@ -3936,9 +3989,8 @@ impl A320HydraulicBrakeSteerComputerUnit {
 
             self.alternate_brake_outputs.set_no_demands();
         } else {
-            let green_used_for_brakes = self.normal_brakes_available
-                && self.anti_skid_activated
-                && !self.parking_brake_demand;
+            let green_used_for_brakes =
+                self.normal_braking_operative() && !self.parking_brake_demand;
 
             if green_used_for_brakes {
                 // Final output on normal brakes is max(pilot demand , autobrake demand) to allow pilot override autobrake demand
@@ -3954,11 +4006,17 @@ impl A320HydraulicBrakeSteerComputerUnit {
                 self.norm_brake_outputs.set_no_demands();
 
                 if !self.parking_brake_demand {
-                    // Normal braking but using alternate circuit
-                    self.alternate_brake_outputs.set_brake_demands(
-                        self.left_brake_pilot_input,
-                        self.right_brake_pilot_input,
-                    );
+                    if self.control_units.alternate_braking_available() {
+                        // Alternate braking: the ABCU controls the alternate servovalves from the pedals
+                        // (FCOM l.51280-51284)
+                        self.alternate_brake_outputs.set_brake_demands(
+                            self.left_brake_pilot_input,
+                            self.right_brake_pilot_input,
+                        );
+                    } else {
+                        // ABCU lost: no alternate braking, the parking brake only (FCOM l.72640-72641)
+                        self.alternate_brake_outputs.set_no_demands();
+                    }
                 } else {
                     // Else we just use parking brake
                     self.alternate_brake_outputs.set_max_demands();
@@ -4018,8 +4076,10 @@ impl A320HydraulicBrakeSteerComputerUnit {
         let is_both_engine_low_oil_pressure =
             engine1.oil_pressure_is_low() && engine2.oil_pressure_is_low();
 
+        // The BSCU commands the steering, lost with the N/W STRG system or both BSCU channels (FCOM l.51038-51041)
         self.final_steering_position_request = if !is_both_engine_low_oil_pressure
             && self.anti_skid_activated
+            && self.control_units.nose_wheel_steering_available()
             && lgciu1.nose_gear_compressed(false)
         {
             (final_steer_rudder_plus_autopilot + steer_angle_from_tiller)
@@ -4051,11 +4111,24 @@ impl A320HydraulicBrakeSteerComputerUnit {
 impl SimulationElement for A320HydraulicBrakeSteerComputerUnit {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.autobrake_controller.accept(visitor);
+        self.control_units.accept(visitor);
         visitor.visit(self);
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.parking_brake_demand = reader.read(&self.park_brake_lever_pos_id);
+
+        let main_wheel_rpm = self
+            .main_wheel_rpm_ids
+            .iter()
+            .map(|id| {
+                let rpm: AngularVelocity = reader.read(id);
+                rpm.get::<revolution_per_minute>().abs()
+            })
+            .fold(0., f64::max);
+        self.main_wheel_speed = Velocity::new::<meter_per_second>(
+            main_wheel_rpm * 2. * std::f64::consts::PI * Self::MAIN_WHEEL_RADIUS_METER / 60.,
+        );
 
         self.anti_skid_activated = reader.read(&self.antiskid_brakes_active_id);
         self.left_brake_pilot_input =
@@ -4257,6 +4330,7 @@ pub struct A320AutobrakeController {
     arming_is_allowed_by_bcu: bool,
     left_brake_pedal_input: Ratio,
     right_brake_pedal_input: Ratio,
+    main_wheel_speed: Velocity,
 
     ground_spoilers_are_deployed: bool,
     last_ground_spoilers_are_deployed: bool,
@@ -4277,6 +4351,8 @@ impl A320AutobrakeController {
     const MED_MODE_DECEL_PROFILE_TIME_S: [f64; 5] = [0., 1.99, 2., 2.5, 3.];
 
     const MAX_MODE_DECEL_TARGET_MS2: f64 = -6.;
+    /// MAX mode activates above this wheel speed (A320 FCOM DSC-32-30-10 l.51193-51196)
+    const MAX_MODE_MIN_ACTIVATION_WHEEL_SPEED_KNOT: f64 = 40.;
     const OFF_MODE_DECEL_TARGET_MS2: f64 = 5.;
 
     const MARGIN_PERCENT_TO_TARGET_TO_SHOW_DECEL_IN_LO_MED: f64 = 80.;
@@ -4302,6 +4378,7 @@ impl A320AutobrakeController {
             arming_is_allowed_by_bcu: context.is_in_flight(),
             left_brake_pedal_input: Ratio::new::<percent>(0.),
             right_brake_pedal_input: Ratio::new::<percent>(0.),
+            main_wheel_speed: Velocity::default(),
             ground_spoilers_are_deployed: false,
             last_ground_spoilers_are_deployed: false,
             should_disarm_after_time_in_flight: DelayedPulseTrueLogicGate::new(
@@ -4345,8 +4422,18 @@ impl A320AutobrakeController {
         }
     }
 
+    /// Activation (FCOM l.51190-51196): the ground spoiler extension command for LO and MED, "and the wheel speed is
+    /// above 40 kt, for MAX mode". Once active, MAX keeps braking below 40 kt.
     fn should_engage_deceleration_governor(&self, context: &UpdateContext) -> bool {
-        self.is_armed() && self.ground_spoilers_are_deployed && !self.should_disarm(context)
+        let max_mode_wheel_speed_condition = self.mode != AutobrakeMode::MAX
+            || self.deceleration_governor.is_engaged()
+            || self.main_wheel_speed
+                > Velocity::new::<knot>(Self::MAX_MODE_MIN_ACTIVATION_WHEEL_SPEED_KNOT);
+
+        self.is_armed()
+            && self.ground_spoilers_are_deployed
+            && !self.should_disarm(context)
+            && max_mode_wheel_speed_condition
     }
 
     fn is_armed(&self) -> bool {
@@ -4433,6 +4520,7 @@ impl A320AutobrakeController {
         allow_arming: bool,
         pedal_input_left: Ratio,
         pedal_input_right: Ratio,
+        main_wheel_speed: Velocity,
         lgciu1: &impl LgciuInterface,
         lgciu2: &impl LgciuInterface,
     ) {
@@ -4449,6 +4537,7 @@ impl A320AutobrakeController {
         self.arming_is_allowed_by_bcu = allow_arming;
         self.left_brake_pedal_input = pedal_input_left;
         self.right_brake_pedal_input = pedal_input_right;
+        self.main_wheel_speed = main_wheel_speed;
     }
 
     fn update(
@@ -4458,6 +4547,7 @@ impl A320AutobrakeController {
         allow_arming: bool,
         pedal_input_left: Ratio,
         pedal_input_right: Ratio,
+        main_wheel_speed: Velocity,
         lgciu1: &impl LgciuInterface,
         lgciu2: &impl LgciuInterface,
     ) {
@@ -4466,6 +4556,7 @@ impl A320AutobrakeController {
             allow_arming,
             pedal_input_left,
             pedal_input_right,
+            main_wheel_speed,
             lgciu1,
             lgciu2,
         );
@@ -6389,6 +6480,8 @@ mod tests {
         struct A320TestAdirus {
             airspeed: Velocity,
             computed_airspeed: Arinc429Word<Velocity>,
+            /// All three IRs failed: their outputs have a failure warning status
+            inertial_references_failed: bool,
         }
         impl A320TestAdirus {
             const MINIMUM_CAS: f64 = 30.;
@@ -6438,7 +6531,11 @@ mod tests {
             }
 
             fn heading(&self, _adiru_number: usize) -> Arinc429Word<Angle> {
-                Arinc429Word::new(Angle::default(), SignStatus::NormalOperation)
+                if self.inertial_references_failed {
+                    Arinc429Word::new(Angle::default(), SignStatus::FailureWarning)
+                } else {
+                    Arinc429Word::new(Angle::default(), SignStatus::NormalOperation)
+                }
             }
 
             fn true_heading(&self, _adiru_number: usize) -> Arinc429Word<Angle> {
@@ -6760,8 +6857,16 @@ mod tests {
                 self.is_ac_ground_service_powered = bus_is_alive;
             }
 
+            fn set_dc_bus_1_is_powered(&mut self, bus_is_alive: bool) {
+                self.is_dc_1_powered = bus_is_alive;
+            }
+
             fn set_dc_bus_2_is_powered(&mut self, bus_is_alive: bool) {
                 self.is_dc_2_powered = bus_is_alive;
+            }
+
+            fn set_inertial_references_failed(&mut self, failed: bool) {
+                self.adirus.inertial_references_failed = failed;
             }
 
             fn set_dc_ess_is_powered(&mut self, bus_is_alive: bool) {
@@ -7561,8 +7666,29 @@ mod tests {
                 self
             }
 
+            fn dc_bus_1_lost(mut self) -> Self {
+                self.command(|a| a.set_dc_bus_1_is_powered(false));
+                self
+            }
+
             fn dc_bus_2_lost(mut self) -> Self {
                 self.command(|a| a.set_dc_bus_2_is_powered(false));
+                self
+            }
+
+            fn all_inertial_references_lost(mut self) -> Self {
+                self.command(|a| a.set_inertial_references_failed(true));
+                self
+            }
+
+            /// Sets the speed of both main gear wheels (WHEEL RPM:1 and :2) from a speed in knots, with the
+            /// main wheel radius of the flight model (1.9167 ft)
+            fn set_main_wheel_speed_knots(mut self, speed_knots: f64) -> Self {
+                let wheel_radius_m = 1.9167 * 0.3048;
+                let rpm =
+                    speed_knots * 0.514444 * 60. / (2. * std::f64::consts::PI * wheel_radius_m);
+                self.write_by_name("WHEEL RPM:1", rpm);
+                self.write_by_name("WHEEL RPM:2", rpm);
                 self
             }
 
@@ -10183,8 +10309,10 @@ mod tests {
                 .start_eng2(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(3));
 
+            // MAX mode activates above 40 kt wheel speed (FCOM l.51193-51196)
             test_bed = test_bed
                 .set_autobrake_max()
+                .set_main_wheel_speed_knots(100.)
                 .set_deploy_ground_spoilers()
                 .run_waiting_for(Duration::from_secs(6));
 
@@ -10218,8 +10346,10 @@ mod tests {
                 .start_eng2(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(3));
 
+            // MAX mode activates above 40 kt wheel speed (FCOM l.51193-51196)
             test_bed = test_bed
                 .set_autobrake_max()
+                .set_main_wheel_speed_knots(100.)
                 .set_deploy_ground_spoilers()
                 .run_waiting_for(Duration::from_secs(6));
 
@@ -10251,8 +10381,10 @@ mod tests {
                 .start_eng2(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(3));
 
+            // MAX mode activates above 40 kt wheel speed (FCOM l.51193-51196)
             test_bed = test_bed
                 .set_autobrake_max()
+                .set_main_wheel_speed_knots(100.)
                 .set_deploy_ground_spoilers()
                 .run_waiting_for(Duration::from_secs(6));
 
@@ -10309,8 +10441,10 @@ mod tests {
                 .start_eng2(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(1));
 
+            // MAX mode activates above 40 kt wheel speed (FCOM l.51193-51196)
             test_bed = test_bed
                 .set_autobrake_max()
+                .set_main_wheel_speed_knots(100.)
                 .set_deploy_ground_spoilers()
                 .run_waiting_for(Duration::from_secs(6));
 
@@ -10523,6 +10657,374 @@ mod tests {
             test_bed = test_bed.in_flight().run_waiting_for(Duration::from_secs(6));
 
             assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::MED);
+        }
+
+        // A320 brake control units: BSCU channels 1 and 2, ABCU (brake_control_units.rs, A320 FCOM DSC-32-30-10)
+
+        fn brake_flag(test_bed: &mut A320HydraulicsTestBed, name: &str) -> bool {
+            test_bed.read_by_name(name)
+        }
+
+        /// In flight, gear lever down, both pedals fully pressed (normal braking in flight with the gear down). The
+        /// pedals are pressed once the green pressure is up: the BSCU only selects the normal brakes with the pedals
+        /// released (pressure hysteresis).
+        fn test_bed_in_flight_gear_down_full_pedals() -> A320HydraulicsTestBed {
+            test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_park_brake(false)
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs(5))
+                .set_left_brake(Ratio::new::<percent>(100.))
+                .set_right_brake(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(5))
+        }
+
+        #[test]
+        // FCOM l.51081-51082 + BRAKES SYS 1(2) FAULT (l.72884): one BSCU channel failed, the other keeps normal braking
+        fn bscu_one_channel_failed_keeps_normal_braking() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(1));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(5));
+
+            assert!(brake_flag(&mut test_bed, "BRAKES_BSCU_1_FAULT"));
+            assert!(!brake_flag(&mut test_bed, "BRAKES_BSCU_2_FAULT"));
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(1000.)
+            );
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+        }
+
+        #[test]
+        // FCOM l.51309-51318: with a BSCU failure the antiskid is lost, the ABCU brakes on yellow limited to 1000 PSI
+        fn bscu_both_channels_failed_brakes_on_alternate_without_anti_skid() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(1));
+            test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(2));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(5));
+
+            assert!(brake_flag(&mut test_bed, "BRAKES_BSCU_1_FAULT"));
+            assert!(brake_flag(&mut test_bed, "BRAKES_BSCU_2_FAULT"));
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(900.)
+            );
+            assert_lt!(
+                test_bed.get_brake_right_yellow_pressure(),
+                Pressure::new::<psi>(1050.)
+            );
+        }
+
+        #[test]
+        // BSCU channel 1 on AC BUS 1 + DC BUS 1, channel 2 on AC BUS 2 + DC BUS 2 (FCOM ELEC bus fault STATUS BRK SYS 1(2))
+        fn bscu_channels_are_lost_with_their_buses() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            assert!(!brake_flag(&mut test_bed, "BRAKES_BSCU_1_FAULT"));
+            assert!(!brake_flag(&mut test_bed, "BRAKES_BSCU_2_FAULT"));
+
+            test_bed = test_bed.dc_bus_1_lost().run_one_tick();
+            assert!(brake_flag(&mut test_bed, "BRAKES_BSCU_1_FAULT"));
+            assert!(!brake_flag(&mut test_bed, "BRAKES_BSCU_2_FAULT"));
+
+            test_bed = test_bed.ac_bus_2_lost().run_one_tick();
+            assert!(brake_flag(&mut test_bed, "BRAKES_BSCU_2_FAULT"));
+        }
+
+        #[test]
+        // FCOM l.51101-51102: "A changeover between the two BSCU channels takes place at each DOWN landing gear lever
+        // selection, or in case one channel fails."
+        fn bscu_channel_changeover_at_gear_down_selection_and_on_failure() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .run_waiting_for(Duration::from_secs(2));
+            let active_channel = |test_bed: &mut A320HydraulicsTestBed| -> f64 {
+                test_bed.read_by_name("BRAKES_BSCU_ACTIVE_CHANNEL")
+            };
+            assert_eq!(active_channel(&mut test_bed), 1.);
+
+            test_bed = test_bed
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(active_channel(&mut test_bed), 2.);
+
+            test_bed = test_bed
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(1))
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(active_channel(&mut test_bed), 1.);
+
+            test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(1));
+            test_bed = test_bed.run_one_tick();
+            assert_eq!(active_channel(&mut test_bed), 2.);
+
+            test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(2));
+            test_bed = test_bed.run_one_tick();
+            assert_eq!(active_channel(&mut test_bed), 0.);
+        }
+
+        #[test]
+        // BRAKES NORM BRK FAULT (FCOM l.72686) STATUS "ALTN Y BRK WITH A/SKID" (l.72713): the ABCU brakes on yellow,
+        // the BSCU keeps the antiskid, so no 1000 PSI limit
+        fn normal_braking_failure_brakes_on_alternate_with_anti_skid() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            test_bed.fail(FailureType::BrakeNormalBraking);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(5));
+
+            assert!(brake_flag(&mut test_bed, "BRAKES_NORM_BRK_FAULT"));
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(2000.)
+            );
+        }
+
+        #[test]
+        // BRAKES ALTN BRK FAULT (FCOM l.72395) and NORM + ALTN FAULT (l.72640-72641): no alternate braking, the
+        // parking brake is still available
+        fn abcu_failure_leaves_only_the_parking_brake() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals().set_anti_skid(false);
+            test_bed.fail(FailureType::AlternateBrakingControlUnit);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(5));
+
+            assert!(brake_flag(&mut test_bed, "BRAKES_ALTN_BRK_FAULT"));
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+
+            test_bed = test_bed
+                .set_park_brake(true)
+                .run_waiting_for(Duration::from_secs(5));
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1500.)
+            );
+        }
+
+        #[test]
+        // ABCU on the DC ESS BUS (FCOM DC ESS BUS FAULT STATUS: ALTN BRK)
+        fn abcu_is_lost_with_dc_ess_bus() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            assert!(!brake_flag(&mut test_bed, "BRAKES_ALTN_BRK_FAULT"));
+
+            test_bed = test_bed.dc_ess_lost().run_one_tick();
+            assert!(brake_flag(&mut test_bed, "BRAKES_ALTN_BRK_FAULT"));
+        }
+
+        #[test]
+        // FCOM l.51164-51169 autobrake arming: "At least one ADIRU is available"
+        fn autobrakes_does_not_arm_without_adiru() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .all_inertial_references_lost()
+                .run_waiting_for(Duration::from_secs(12));
+
+            test_bed = test_bed
+                .set_autobrake_low()
+                .run_waiting_for(Duration::from_secs(1));
+
+            assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::NONE);
+        }
+
+        #[test]
+        // FCOM l.51164-51168 autobrake arming: "Anti-skid electrically-powered", "No failure in the braking system"
+        fn autobrakes_does_not_arm_with_bscu_or_normal_braking_failed() {
+            for failures in [
+                vec![FailureType::BrakeNormalBraking],
+                vec![FailureType::Autobrake],
+                vec![
+                    FailureType::BrakeSteeringControlUnitChannel(1),
+                    FailureType::BrakeSteeringControlUnitChannel(2),
+                ],
+            ] {
+                let mut test_bed = test_bed_on_ground_with()
+                    .set_cold_dark_inputs()
+                    .in_flight()
+                    .set_gear_lever_up()
+                    .run_waiting_for(Duration::from_secs(12));
+                for failure in failures {
+                    test_bed.fail(failure);
+                }
+
+                test_bed = test_bed
+                    .set_autobrake_low()
+                    .run_waiting_for(Duration::from_secs(1));
+
+                assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::NONE);
+            }
+        }
+
+        #[test]
+        // One BSCU channel failed: BRAKES SYS 1(2) FAULT STATUS lists only BRK SYS 1(2) (FCOM l.72894-72898)
+        fn autobrakes_arms_with_one_bscu_channel_failed() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(12));
+            test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(2));
+
+            test_bed = test_bed
+                .set_autobrake_low()
+                .run_waiting_for(Duration::from_secs(1));
+
+            assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::LOW);
+        }
+
+        #[test]
+        // BRAKES AUTO BRK FAULT "triggers when the autobrake is failed, after being armed" (FCOM l.72473)
+        fn auto_brk_fault_when_autobrake_fails_after_being_armed() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(12));
+            test_bed.fail(FailureType::Autobrake);
+            test_bed = test_bed.run_one_tick();
+            assert!(!brake_flag(&mut test_bed, "BRAKES_AUTO_BRK_FAULT"));
+
+            test_bed.unfail(FailureType::Autobrake);
+            test_bed = test_bed
+                .set_autobrake_med()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::MED);
+
+            test_bed.fail(FailureType::Autobrake);
+            test_bed = test_bed.run_one_tick();
+            assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::NONE);
+            assert!(brake_flag(&mut test_bed, "BRAKES_AUTO_BRK_FAULT"));
+
+            test_bed.unfail(FailureType::Autobrake);
+            test_bed = test_bed.run_one_tick();
+            assert!(!brake_flag(&mut test_bed, "BRAKES_AUTO_BRK_FAULT"));
+        }
+
+        #[test]
+        // FCOM l.51193-51196: MAX mode activates on the ground spoiler extension command "and the wheel speed is above
+        // 40 kt"; once braking it keeps braking down to the stop
+        fn autobrakes_max_activates_only_above_40_kt_wheel_speed() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .set_park_brake(false)
+                .start_eng1(Ratio::new::<percent>(100.))
+                .start_eng2(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(3));
+
+            test_bed = test_bed
+                .set_autobrake_max()
+                .set_main_wheel_speed_knots(30.)
+                .set_deploy_ground_spoilers()
+                .run_waiting_for(Duration::from_secs(4));
+
+            assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::MAX);
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+
+            test_bed = test_bed
+                .set_main_wheel_speed_knots(50.)
+                .run_waiting_for(Duration::from_secs(4));
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(1000.)
+            );
+
+            test_bed = test_bed
+                .set_main_wheel_speed_knots(10.)
+                .run_waiting_for(Duration::from_secs(2));
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(1000.)
+            );
+        }
+
+        #[test]
+        // FCOM l.51190-51192: LO and MED activate on the ground spoiler extension command alone
+        fn autobrakes_lo_activates_at_low_wheel_speed() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .set_park_brake(false)
+                .start_eng1(Ratio::new::<percent>(100.))
+                .start_eng2(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(3));
+
+            test_bed = test_bed
+                .set_autobrake_low()
+                .set_main_wheel_speed_knots(30.)
+                .set_deploy_ground_spoilers()
+                .run_waiting_for(Duration::from_secs(4));
+
+            assert_eq!(test_bed.autobrake_mode(), AutobrakeMode::LOW);
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+        }
+
+        #[test]
+        // WHEEL N/W STRG FAULT (FCOM l.96350); the BSCU commands the steering (DSC-32-20-10 l.50930-50937)
+        fn nose_steering_does_not_move_with_steering_or_both_bscu_failed() {
+            for failures in [
+                vec![FailureType::NoseWheelSteeringNormal],
+                vec![
+                    FailureType::BrakeSteeringControlUnitChannel(1),
+                    FailureType::BrakeSteeringControlUnitChannel(2),
+                ],
+            ] {
+                let mut test_bed = test_bed_on_ground_with()
+                    .engines_off()
+                    .on_the_ground()
+                    .set_cold_dark_inputs()
+                    .set_yellow_e_pump(false)
+                    .start_eng1(Ratio::new::<percent>(80.))
+                    .start_eng2(Ratio::new::<percent>(80.))
+                    .run_one_tick();
+                for failure in failures {
+                    test_bed.fail(failure);
+                }
+
+                test_bed = test_bed
+                    .set_tiller_demand(Ratio::new::<ratio>(1.))
+                    .run_waiting_for(Duration::from_secs_f64(5.));
+
+                assert_ge!(test_bed.nose_steering_position().get::<degree>(), -0.1);
+                assert_le!(test_bed.nose_steering_position().get::<degree>(), 0.1);
+            }
+        }
+
+        #[test]
+        fn nose_steering_failure_is_reported() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .run_one_tick();
+            assert!(!brake_flag(&mut test_bed, "BRAKES_NW_STRG_FAULT"));
+
+            test_bed.fail(FailureType::NoseWheelSteeringNormal);
+            test_bed = test_bed.run_one_tick();
+            assert!(brake_flag(&mut test_bed, "BRAKES_NW_STRG_FAULT"));
         }
 
         #[test]

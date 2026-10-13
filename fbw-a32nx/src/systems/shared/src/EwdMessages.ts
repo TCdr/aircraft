@@ -69,6 +69,7 @@ const EwdGroups: Record<string, string> = {
   'ENG$6': '\x1b<4m\x1b)m\x1b4mENG\x1bm',
   'WING A.ICE$2': '\x1b<4m\x1b4mWING A.ICE\x1bm',
   'DOOR$2': '\x1b<4m\x1b4mDOOR\x1bm',
+  'WHEEL$1': '\x1b<4m\x1b4mWHEEL\x1bm',
 };
 /* eslint-enable prettier/prettier */
 
@@ -977,6 +978,16 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['320001009', { text: '\x1b<5m MAX SPEED.......220/.54' }],
   ['320007001', { group: 'BRAKES$1', text: ' A/SKID N/WS OFF' }],
   ['320007002', { text: '\x1b<5m MAX BRK PR......1000PSI' }],
+  // Brake control unit cautions (FCOM PRO-ABN-BRAKES, see FWC/Logic/BrakeSystemAlerts)
+  ['320041001', { group: 'BRAKES$1', text: ' NORM + ALTN FAULT' }],
+  ['320041002', { text: '\x1b<5m PARK BRK ONLY' }],
+  ['320040001', { group: 'BRAKES$1', text: ' A/SKID N/WS FAULT' }],
+  ['320040002', { text: '\x1b<5m MAX BRK PR......1000PSI' }],
+  ['320042001', { group: 'BRAKES$1', text: ' NORM BRK FAULT' }],
+  ['320043001', { group: 'BRAKES$1', text: ' ALTN BRK FAULT' }],
+  ['320044001', { group: 'BRAKES$1', text: ' AUTO BRK FAULT' }],
+  ['320045001', { group: 'BRAKES$1', text: ' SYS 1 FAULT' }],
+  ['320046001', { group: 'BRAKES$1', text: ' SYS 2 FAULT' }],
   ['324308501', { group: 'BRAKES$1', text: ' BRK Y ACCU LO PR' }],
   ['324308502', { text: '\x1b<7m .BEFORE ENG SHUT DOWN:' }],
   ['324308503', { text: '\x1b<5m -CHOCKS CONSIDER' }],
@@ -985,6 +996,8 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['320008703', { text: '\x1b<5m -CHOCKS CONSIDER' }],
   ['320008101', { group: 'BRAKES$1', text: ' PARK BRK ON' }],
   ['320008102', { text: '\x1b<5m -PARK BRK...........OFF' }],
+  // FCOM PRO-ABN-WHEEL WHEEL N/W STRG FAULT (a320_fcom.txt l.96340-96380), see FWC/Logic/BrakeSystemAlerts
+  ['320047001', { group: 'WHEEL$1', text: ' N/W STRG FAULT' }],
   ['280014501', { group: 'FUEL$1', text: ' L+R WING TK LO LVL' }],
   ['280014502', { text: '\x1b<5m -FUEL MODE SEL......MAN' }],
   ['280014503', { text: '\x1b<5m -L TK PUMP 1.........ON' }],

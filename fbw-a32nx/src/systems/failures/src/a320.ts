@@ -174,6 +174,13 @@ export const A320Failure = Object.freeze({
   GreenBrakeHydraulicLeak: 32100,
   YellowBrakeHydraulicLeak: 32101,
   YellowBrakeAccumulatorGasLeak: 32150,
+  // a320_systems hydraulic/brake_control_units.rs
+  BscuChannel1: 32200,
+  BscuChannel2: 32201,
+  AlternateBrakingControlUnit: 32202,
+  NormalBraking: 32203,
+  Autobrake: 32204,
+  NoseWheelSteering: 32205,
 
   // ATA 30 (systems ice_rain_protection, in a320_systems pneumatic.rs)
   Eng1AntiIceValveStuckClosed: 30000,
@@ -487,6 +494,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.GreenBrakeHydraulicLeak, 'Green brakes circuit leak'],
   [32, A320Failure.YellowBrakeHydraulicLeak, 'Yellow brakes circuit leak'],
   [32, A320Failure.YellowBrakeAccumulatorGasLeak, 'Yellow brake accumulator gas leak'],
+  [32, A320Failure.BscuChannel1, 'BSCU channel 1'],
+  [32, A320Failure.BscuChannel2, 'BSCU channel 2'],
+  [32, A320Failure.AlternateBrakingControlUnit, 'ABCU (alternate braking)'],
+  [32, A320Failure.NormalBraking, 'Normal braking (servo valves)'],
+  [32, A320Failure.Autobrake, 'Autobrake'],
+  [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
 
   // The engine anti-ice valve stays closed (ANTI ICE ENG 1(2) VALVE CLSD) / open (ANTI ICE ENG 1(2) VALVE OPEN)
   [30, A320Failure.Eng1AntiIceValveStuckClosed, 'Engine 1 anti-ice valve stuck closed'],
