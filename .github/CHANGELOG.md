@@ -567,6 +567,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] SIGNS memos as in the FCOM: SEAT BELTS and NO SMOKING memos with the switch ON (the NO MOBILE memo is gone), replaced by a SIGNS ON memo during take-off and landing; the cabin NO SMOKING signs now follow the AUTO position (slats or main gear extended, excessive cabin altitude) - @TCdr
 1. [A380X/FWS] New ENG 1(2)(3)(4) THR LEVER ABOVE IDLE warning (a thrust lever above idle with a reverser selected, during the reversers de-selection, or with the auto-idle protection) with its dual RETARD callout - @TCdr
 1. [A380X/FWS] ENG SHUT DOWN asks for the ABNORM BLEED CONFIG procedure instead of FOR GA: TOGA ONLY, HYD SYS TEMP EXCESS HI has the FCOM title and pump lines, ELEC PMP FAULT gives a REDUND LOSS instead of an INOP SYS, and the flap/slat CONFIG logic reads SFCC 2 when SFCC 1 cannot give the position - @TCdr
+1. [A32NX/SD] WHEEL page: N/W STEERING, ANTI SKID (with the failed BSCU channel numbers), NORM BRK and ALTN BRK legends shown and coloured as in the FCOM from the brake system failures and hydraulic pressures, AUTO BRK amber on an autobrake failure - @TCdr
+1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
+1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
+1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
 
 ## 2024.1.0
 

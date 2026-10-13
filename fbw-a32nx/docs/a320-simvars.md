@@ -74,6 +74,8 @@
 
 - A32NX_NO_SMOKING_MEMO
     - Boolean that determines whether the NO SMOKING memo should be visible on the upper ECAM
+    - The NO SMOKING (NO PED) signs are on: switch ON, or AUTO with a landing gear extended or the flaps/slats lever out
+      of 0, or (NO SMOKING signs only) cabin altitude above 11 300 ft
     - Also is used for knowing when to play the no smoking chime sound
 
 - A32NX_BRAKE_TEMPERATURE_{1,2,3,4}
@@ -106,7 +108,7 @@
 
 - A32NX_BRAKES_HOT
     - boolean
-    - whether one of the brakes are hot (>300°C)
+    - whether one of the brakes is hot: on above 300°C, off when the hottest brake is below 290°C
 
 - A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position
     - Position (0-2)
