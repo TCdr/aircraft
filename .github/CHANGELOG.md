@@ -589,6 +589,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] DOOR/OXY page: amber half-frame on ground below the dispatch pressure (cabin 1 600 PSI), cabin pressure amber below the emergency descent minimum of the passengers or 800 PSI before engine start - @TCdr
 1. [A380X/SD] BLEED page: the APU bleed valve shows amber when it is abnormally open or closed with the APU BLEED pb-sw ON - @TCdr
 1. [A380X/ENG] EWD EGT limits from the FCOM: amber above 970 °C, red line 1 002 °C (red at takeoff from 1 022 °C or after 20 s at or above 1 002 °C), with the ENG EGT OVER LIMIT alert and the EGT overtemperature failure retuned to them - @TCdr
+1. [A380X/FWS] AIR PACK 1(2) VLV 1(2) FAULT, PACK 1(2) OVHT and PACK 1(2) REGUL FAULT from the pack controllers, with pack valve jam, pack overheat and pack bypass mode flyPad failures - @TCdr
+1. [A380X/FWS] COND BULK CARGO DUCT OVHT, COND CABIN AIR EXTRACT VLV FAULT and CAB PRESS MAN CTL FAULT, with their flyPad failures; the bulk cargo HEATER pb FAULT light comes on with the duct overheat - @TCdr
+1. [A380X/FWS] CAB PRESS INHIBITED BY DOORS is no longer inhibited in flight phase 12, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

@@ -1,4 +1,5 @@
 use super::outflow_valve_control_module::OcsmShared;
+use std::time::Duration;
 use systems::{
     air_conditioning::{
         AirConditioningOverheadShared, CabinFansSignal, Channel, OperatingChannel,
@@ -7,11 +8,11 @@ use systems::{
     failures::{Failure, FailureType},
     shared::{ControllerSignal, ElectricalBusType, ElectricalBuses},
     simulation::{
-        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter,
+        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
         VariableIdentifier, Write,
     },
 };
-use uom::si::{f64::*, pressure::psi, ratio::percent};
+use uom::si::{f64::*, pressure::psi, ratio::percent, thermodynamic_temperature::degree_celsius};
 
 #[derive(Debug)]
 enum VcmFault {
@@ -74,7 +75,9 @@ impl VentilationControlModule {
 
     pub fn update(
         &mut self,
+        context: &UpdateContext,
         acs_overhead: &impl AirConditioningOverheadShared,
+        bulk_cargo_duct_temperature: ThermodynamicTemperature,
         ocsm: [&impl OcsmShared; 4],
         pressurization_overhead: &impl PressurizationOverheadShared,
     ) {
@@ -87,8 +90,10 @@ impl VentilationControlModule {
         if !self.active_channel.has_fault() {
             if matches!(self.id, VcmId::Aft) {
                 self.bvcs.update(
+                    context,
                     self.active_channel.has_fault(),
                     acs_overhead,
+                    bulk_cargo_duct_temperature,
                     pressurization_overhead,
                 );
                 self.orvp.update(ocsm, pressurization_overhead);
@@ -135,6 +140,14 @@ impl VentilationControlModule {
 
     pub fn bulk_isolation_valve_has_failed(&self) -> bool {
         self.bvcs.bulk_isolation_valve_has_failed()
+    }
+
+    pub fn bulk_cargo_duct_overheat(&self) -> bool {
+        self.bvcs.duct_overheat()
+    }
+
+    pub fn cabin_air_extract_valve_has_failed(&self) -> bool {
+        self.orvp.has_failed()
     }
 
     pub fn id(&self) -> VcmId {
@@ -202,6 +215,7 @@ impl SimulationElement for VentilationControlModule {
         self.stand_by_channel.accept(visitor);
         self.fcvcs.accept(visitor);
         self.bvcs.accept(visitor);
+        self.orvp.accept(visitor);
 
         visitor.visit(self);
     }
@@ -278,6 +292,8 @@ struct BulkVentilationControlSystem {
     duct_heater_on_allowed: bool,
     extraction_fan_is_on: bool,
     isolation_valves_open_allowed: bool,
+    duct_overheat: bool,
+    duct_overheat_timer: Duration,
 
     bulk_isol_valve_failure: Failure,
     bulk_extract_fan_failure: Failure,
@@ -288,11 +304,19 @@ struct BulkVentilationControlSystem {
 }
 
 impl BulkVentilationControlSystem {
+    /// A380 FCOM PRO-ABN-ECAM-10-21-10 COND BULK CARGO DUCT OVHT (a380_fcom.txt l.132368): "There is a bulk cargo duct
+    /// overheat when the air temperature inside the duct exceeds 70 deg C."
+    const DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
+    // Design choice: the confirmation time of the trim air duct overheat monitor (trim_air_drive_device.rs)
+    const DUCT_OVERHEAT_CONFIRMATION_TIME: Duration = Duration::from_millis(1200);
+
     fn new(bulk_extract_fan_powered_by: ElectricalBusType) -> Self {
         Self {
             duct_heater_on_allowed: false,
             isolation_valves_open_allowed: false,
             extraction_fan_is_on: false,
+            duct_overheat: false,
+            duct_overheat_timer: Duration::ZERO,
 
             bulk_isol_valve_failure: Failure::new(FailureType::BulkIsolValve),
             bulk_extract_fan_failure: Failure::new(FailureType::BulkExtractFan),
@@ -305,10 +329,23 @@ impl BulkVentilationControlSystem {
 
     fn update(
         &mut self,
+        context: &UpdateContext,
         active_channel_has_fault: bool,
         acs_overhead: &impl AirConditioningOverheadShared,
+        duct_temperature: ThermodynamicTemperature,
         pressurization_overhead: &impl PressurizationOverheadShared,
     ) {
+        // Bulk cargo duct overheat: above 70 deg C for the confirmation time, over once back below 70 deg C ("WHEN
+        // BULK CARGO DUCT OVHT OUT : BULK HEATER ... ON", a380_fcom.txt l.132401-132402)
+        if duct_temperature
+            > ThermodynamicTemperature::new::<degree_celsius>(Self::DUCT_OVERHEAT_LIMIT_DEG_C)
+        {
+            self.duct_overheat_timer += context.delta();
+        } else {
+            self.duct_overheat_timer = Duration::ZERO;
+        }
+        self.duct_overheat = self.duct_overheat_timer > Self::DUCT_OVERHEAT_CONFIRMATION_TIME;
+
         self.isolation_valves_open_allowed = acs_overhead.bulk_isolation_valve_is_on()
             && !pressurization_overhead.ditching_is_on()
             && !active_channel_has_fault
@@ -341,6 +378,10 @@ impl BulkVentilationControlSystem {
     fn heater_has_failed(&self) -> bool {
         self.bulk_heater_failure.is_active()
     }
+
+    fn duct_overheat(&self) -> bool {
+        self.duct_overheat
+    }
 }
 
 impl SimulationElement for BulkVentilationControlSystem {
@@ -357,8 +398,11 @@ impl SimulationElement for BulkVentilationControlSystem {
     // TODO: Add power consumtion of bulk extraction fan
 }
 
+/// The cabin air extract valve (CABIN AIR EXTRACT pb)
 struct OverpressureReliefValveDump {
     should_open_orvp: bool,
+    // flyPad failure: the valve is failed and stays where it is (COND CABIN AIR EXTRACT VLV FAULT)
+    failure: Failure,
 }
 
 impl OverpressureReliefValveDump {
@@ -367,6 +411,7 @@ impl OverpressureReliefValveDump {
     fn new() -> Self {
         Self {
             should_open_orvp: false,
+            failure: Failure::new(FailureType::CabinAirExtractValve),
         }
     }
 
@@ -375,6 +420,10 @@ impl OverpressureReliefValveDump {
         ocsm: [&impl OcsmShared; 4],
         press_overhead: &impl PressurizationOverheadShared,
     ) {
+        // A failed valve no longer moves
+        if self.failure.is_active() {
+            return;
+        }
         // Only OCSM 2 and 3 send information to the VCM
         let orvp_open_allowed =
             !press_overhead.ditching_is_on() && !ocsm[1].overpressure_relief_valve_inhibit();
@@ -393,5 +442,18 @@ impl OverpressureReliefValveDump {
         } else {
             Ratio::default()
         }
+    }
+
+    /// The VCM reports the failed valve (COND CABIN AIR EXTRACT VLV FAULT, a380_fcom.txt l.136032-136040)
+    fn has_failed(&self) -> bool {
+        self.failure.is_active()
+    }
+}
+
+impl SimulationElement for OverpressureReliefValveDump {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.failure.accept(visitor);
+
+        visitor.visit(self);
     }
 }

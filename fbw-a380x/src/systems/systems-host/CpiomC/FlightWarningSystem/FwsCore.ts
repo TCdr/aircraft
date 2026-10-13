@@ -158,6 +158,13 @@ import {
   TransferPumpsFlags,
 } from './FuelPumpValveFlags';
 import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
+import {
+  isCabPressManCtlFault,
+  packValveFaults,
+  readPackMonitoringFlags,
+  VCS_BULK_DUCT_OVHT_BIT,
+  VCS_CABIN_AIR_EXTRACT_VLV_FAULT_BIT,
+} from './FwsAirCondAlerts';
 import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
 import { ElecDriveOilAlerts, readDriveOilInputs } from './FwsElecDriveOilAlerts';
 import {
@@ -680,6 +687,31 @@ export class FwsCore {
   public readonly allCabinFansFault = Subject.create(false);
 
   public readonly bulkCargoHeaterFault = Subject.create(false);
+
+  /** AIR PACK 1 VLV 1, PACK 1 VLV 2, PACK 2 VLV 1, PACK 2 VLV 2 FAULT conditions (FwsAirCondAlerts packValveFaults) */
+  public readonly packVlvFault = [
+    Subject.create(false),
+    Subject.create(false),
+    Subject.create(false),
+    Subject.create(false),
+  ];
+
+  /** AIR PACK 1(2) OVHT conditions */
+  public readonly packOvht = [Subject.create(false), Subject.create(false)];
+
+  /** AIR PACK 1(2) REGUL FAULT conditions (the pack in bypass mode) */
+  public readonly packRegulFault = [Subject.create(false), Subject.create(false)];
+
+  /** COND BULK CARGO DUCT OVHT condition (VCS discrete word bit 25) */
+  public readonly bulkCargoDuctOvht = Subject.create(false);
+
+  public readonly bulkCargoHeaterPbOn = Subject.create(false);
+
+  /** COND CABIN AIR EXTRACT VLV FAULT condition (VCS discrete word bit 26) */
+  public readonly cabinAirExtractVlvFault = Subject.create(false);
+
+  /** CAB PRESS MAN CTL FAULT condition: the manual pressurization mode is failed */
+  public readonly cabPressManCtlFault = Subject.create(false);
 
   public readonly fwdIsolValveOpen = Subject.create(false);
 
@@ -5481,6 +5513,33 @@ export class FwsCore {
         this.fdac2Channel2Failure.get()) ||
         (!this.pack1On.get() && !this.pack2On.get())) &&
         this.phase8ConfirmationNode180.read(),
+    );
+
+    // Pack and pack valve monitoring of the FDACs, from the AGS word of the CPIOM B pair of each pack (B1/B3 pack 1,
+    // B2/B4 pack 2), FwsAirCondAlerts
+    const packMonitoring = readPackMonitoringFlags(
+      this.cpiomBAgsAppDiscreteWord1.isNormalOperation()
+        ? this.cpiomBAgsAppDiscreteWord1
+        : this.cpiomBAgsAppDiscreteWord3,
+      this.cpiomBAgsAppDiscreteWord2.isNormalOperation()
+        ? this.cpiomBAgsAppDiscreteWord2
+        : this.cpiomBAgsAppDiscreteWord4,
+    );
+    const packValveFaultConditions = packValveFaults(packMonitoring, [
+      this.fdac1Channel1Failure.get() && this.fdac1Channel2Failure.get(),
+      this.fdac2Channel1Failure.get() && this.fdac2Channel2Failure.get(),
+    ]);
+    this.packVlvFault.forEach((fault, valveIndex) => fault.set(packValveFaultConditions[valveIndex]));
+    this.packOvht.forEach((ovht, packIndex) => ovht.set(packMonitoring.overheat[packIndex]));
+    this.packRegulFault.forEach((regulFault, packIndex) => regulFault.set(packMonitoring.bypassMode[packIndex]));
+
+    this.bulkCargoDuctOvht.set(vcsDiscreteWordToUse.bitValueOr(VCS_BULK_DUCT_OVHT_BIT, false));
+    this.bulkCargoHeaterPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_CARGO_AIR_HEATER_PB_IS_ON', 'bool') > 0);
+    this.cabinAirExtractVlvFault.set(vcsDiscreteWordToUse.bitValueOr(VCS_CABIN_AIR_EXTRACT_VLV_FAULT_BIT, false));
+    this.cabPressManCtlFault.set(
+      isCabPressManCtlFault(
+        [1, 2, 3, 4].map((ocsm) => SimVar.GetSimVarValue(`L:A32NX_PRESS_OCSM_${ocsm}_MAN_CTL_FAILURE`, 'bool') > 0),
+      ),
     );
 
     this.ramAirOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_COND_RAM_AIR_PB_IS_ON', 'bool'));

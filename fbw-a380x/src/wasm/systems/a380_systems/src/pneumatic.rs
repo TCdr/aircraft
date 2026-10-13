@@ -1987,6 +1987,9 @@ pub struct PackComplex {
     right_pack_flow_valve: ElectroPneumaticValve,
     left_inlet_pressure_sensor: PressureTransducer,
     right_inlet_pressure_sensor: PressureTransducer,
+    // flyPad failures: a jammed pack flow valve no longer follows its controller (left = valve 1, right = valve 2)
+    left_pack_flow_valve_jam: Failure,
+    right_pack_flow_valve_jam: Failure,
 }
 impl PackComplex {
     fn new(context: &mut InitContext, pack_number: usize) -> Self {
@@ -2020,6 +2023,13 @@ impl PackComplex {
             right_inlet_pressure_sensor: PressureTransducer::new(
                 ElectricalBusType::DirectCurrentEssential, // TODO: This is almost definitely not correct, just copied from the A320
             ),
+            // Pack flow valves 1 and 2 are on pack 1, valves 3 and 4 on pack 2 (fcv ids of the FDACs)
+            left_pack_flow_valve_jam: Failure::new(FailureType::PackFlowValveJammed(
+                1 + ((pack_number == 2) as usize * 2),
+            )),
+            right_pack_flow_valve_jam: Failure::new(FailureType::PackFlowValveJammed(
+                2 + ((pack_number == 2) as usize * 2),
+            )),
         }
     }
 
@@ -2030,15 +2040,21 @@ impl PackComplex {
         right_input: &mut impl PneumaticContainer,
         pack_flow_valve_signals: &impl PackFlowControllers,
     ) {
-        self.left_pack_flow_valve.update_open_amount(
-            pack_flow_valve_signals
-                .pack_flow_controller(1 + ((self.pack_number == 2) as usize * 2)),
-        );
+        // A jammed valve keeps the open amount it had when it jammed (simplification: a jammed, unpowered valve
+        // still moves with the pressure difference, as the healthy valves)
+        if !self.left_pack_flow_valve_jam.is_active() {
+            self.left_pack_flow_valve.update_open_amount(
+                pack_flow_valve_signals
+                    .pack_flow_controller(1 + ((self.pack_number == 2) as usize * 2)),
+            );
+        }
 
-        self.right_pack_flow_valve.update_open_amount(
-            pack_flow_valve_signals
-                .pack_flow_controller(2 + ((self.pack_number == 2) as usize * 2)),
-        );
+        if !self.right_pack_flow_valve_jam.is_active() {
+            self.right_pack_flow_valve.update_open_amount(
+                pack_flow_valve_signals
+                    .pack_flow_controller(2 + ((self.pack_number == 2) as usize * 2)),
+            );
+        }
 
         self.left_pack_flow_valve
             .update_move_fluid(context, left_input, &mut self.pack_container);
@@ -2118,6 +2134,9 @@ impl SimulationElement for PackComplex {
 
         self.left_inlet_pressure_sensor.accept(visitor);
         self.right_inlet_pressure_sensor.accept(visitor);
+
+        self.left_pack_flow_valve_jam.accept(visitor);
+        self.right_pack_flow_valve_jam.accept(visitor);
 
         visitor.visit(self);
     }
@@ -4953,6 +4972,51 @@ mod tests {
             assert!(!test_bed.left_pack_flow_valve_is_open(1));
             assert!(!test_bed.right_pack_flow_valve_is_open(1));
             assert!(!test_bed.left_pack_flow_valve_is_open(2));
+            assert!(!test_bed.right_pack_flow_valve_is_open(2));
+        }
+
+        #[test]
+        fn jammed_pack_flow_valve_stays_open_when_its_pack_pb_is_set_off() {
+            let mut test_bed = test_bed_with()
+                .idle_eng1()
+                .idle_eng2()
+                .idle_eng3()
+                .idle_eng4()
+                .set_pack_flow_pb_is_auto(1, true)
+                .set_pack_flow_pb_is_auto(2, true)
+                .and_stabilize();
+            assert!(test_bed.left_pack_flow_valve_is_open(1));
+            assert!(test_bed.left_pack_flow_valve_is_open(2));
+
+            // Pack flow valve 1 is the left valve of pack 1
+            test_bed.fail(FailureType::PackFlowValveJammed(1));
+            test_bed = test_bed
+                .set_pack_flow_pb_is_auto(1, false)
+                .and_run()
+                .and_run();
+
+            assert!(test_bed.left_pack_flow_valve_is_open(1));
+            assert!(!test_bed.right_pack_flow_valve_is_open(1));
+            assert!(test_bed.left_pack_flow_valve_is_open(2));
+        }
+
+        #[test]
+        fn jammed_pack_flow_valve_stays_closed_when_its_pack_pb_is_set_on() {
+            let mut test_bed = test_bed_with()
+                .idle_eng1()
+                .idle_eng2()
+                .idle_eng3()
+                .idle_eng4()
+                .set_pack_flow_pb_is_auto(1, true)
+                .set_pack_flow_pb_is_auto(2, false)
+                .and_stabilize();
+            assert!(!test_bed.right_pack_flow_valve_is_open(2));
+
+            // Pack flow valve 4 is the right valve of pack 2
+            test_bed.fail(FailureType::PackFlowValveJammed(4));
+            test_bed = test_bed.set_pack_flow_pb_is_auto(2, true).and_stabilize();
+
+            assert!(test_bed.left_pack_flow_valve_is_open(2));
             assert!(!test_bed.right_pack_flow_valve_is_open(2));
         }
 
