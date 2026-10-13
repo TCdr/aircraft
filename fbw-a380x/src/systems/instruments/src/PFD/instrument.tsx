@@ -1,13 +1,13 @@
 // @ts-strict-ignore
 import { Clock, FSComponent, HEventPublisher, InstrumentBackplane, Subject } from '@microsoft/msfs-sdk';
 import { ArincEventBus, EfisSide } from '@flybywiresim/fbw-sdk';
-import { getDisplayIndex } from '../MsfsAvionicsCommon/CdsDisplayUnit';
 import { HostedDisplayGate, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
 import { CdsDisplay } from '@shared/CdsReconfiguration';
 import { DmcPublisher } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { ExtendedClockEventProvider } from '../MsfsAvionicsCommon/providers/ExtendedClockProvider';
 import { FmsDataPublisher } from '../MsfsAvionicsCommon/providers/FmsDataPublisher';
 import { PFDComponent } from './PFD';
+import { getDisplayIndex } from './shared/PfdDisplayIndex';
 import { AdirsValueProvider } from './shared/AdirsValueProvider';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { PFDSimvarPublisher } from './shared/PFDSimvarPublisher';
@@ -52,7 +52,13 @@ class A380X_PFD extends BaseInstrument {
 
   private readonly dmcPublisher = new DmcPublisher(this.bus);
 
-  private readonly fmsDataPublisher: FmsDataPublisher;
+  /**
+   * The EFIS side whose FMS data this PFD reads (L:A32NX_EFIS_<side>_..., L:A32NX_FMGC_<side>_RNP): set in
+   * connectedCallback, from the gauge's panel.cfg URL
+   */
+  private readonly fmsDataSide = Subject.create<EfisSide>('L');
+
+  private readonly fmsDataPublisher = new FmsDataPublisher(this.bus, this.fmsDataSide);
 
   private readonly fwsPublisher = new FwcPublisher(this.bus);
 
@@ -97,10 +103,6 @@ class A380X_PFD extends BaseInstrument {
   constructor() {
     super();
 
-    const side: EfisSide = getDisplayIndex('PFD') === 1 ? 'L' : 'R';
-    const stateSubject = Subject.create<'L' | 'R'>(side);
-    this.fmsDataPublisher = new FmsDataPublisher(this.bus, stateSubject);
-
     this.backplane.addInstrument('Clock', this.clock);
     this.backplane.addInstrument('ExtendedClock', this.extendedClockProvider);
     this.backplane.addPublisher('HEvent', this.hEventPublisher);
@@ -142,6 +144,11 @@ class A380X_PFD extends BaseInstrument {
 
   public connectedCallback(): void {
     super.connectedCallback();
+
+    // The side of the PFD: 1 for the CAPT PFD (duID 0), 2 for the F/O PFD (duID 3), also when drawn on an ND DU. Known
+    // only from here on (see below). The constructor read the duID digit itself (0 or 3, never 1) before the gauge had
+    // its URL: both PFDs read the F/O side's FMS data.
+    this.fmsDataSide.set(getDisplayIndex() === 1 ? 'L' : 'R');
 
     // Whether this gauge is a hosted one comes from its panel.cfg URL, known only from here on: the sim creates the
     // gauge element (this constructor) before it gives it its url attribute and puts it into the panel. Read in the

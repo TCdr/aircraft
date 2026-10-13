@@ -530,6 +530,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ELEC] The APU GEN A(B) pb-sw FAULT light comes on when the GGPCU disconnects the APU generator - @TCdr
 1. [A380X/SD] ELEC AC and DC pages: the GEN, TR, STAT INV and RAT indications turn amber when they are failed - @TCdr
 1. [A380X/HYD] The green (yellow) electric pumps are inhibited only by engine 1 or 2 (3 or 4) running, and in flight, as in the FCOM - @TCdr
+1. [A380X/PFD] The CAPT PFD now reads the CAPT side FMS data (FM messages, RNP, TO waypoint) instead of the F/O side's - @TCdr
 
 ## 2024.1.0
 
