@@ -942,10 +942,16 @@ mod a320_electrical_circuit_tests {
     }
 
     /// # Source
-    /// A320 manual electrical distribution table
+    /// A320 manual electrical distribution table, once DC BUS 2 has taken over DC BUS 1 and the
+    /// DC BAT BUS (after 5 s, FCOM DSC-24-10-30-30 l.36727)
     #[test]
     fn distribution_table_tr_1_fault() {
-        let test_bed = test_bed_with().running_engines().and().failed_tr_1().run();
+        let test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .failed_tr_1()
+            .run()
+            .run_waiting_for(FCOM_DC_BUS_2_TO_DC_BUS_1_DELAY);
 
         assert!(test_bed
             .ac_bus_output(1)
@@ -1522,6 +1528,89 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.dc_bat_bus_output().is_powered());
         assert!(test_bed.dc_ess_bus_output().is_powered());
         assert!(test_bed.dc_ess_shed_bus_output().is_powered());
+    }
+
+    /// The 5 s of FCOM DSC-24-10-30-30 "FAILURE OF AC BUS 1" (a320_fcom.txt l.36727): "DC BUS 2
+    /// supplies DC BUS 1 and DC BAT BUS automatically after 5 s."
+    const FCOM_DC_BUS_2_TO_DC_BUS_1_DELAY: Duration = Duration::from_secs(5);
+
+    /// FCOM DSC-24-10-30-30 l.36727: once TR 1 is lost, DC BUS 1 and the DC BAT BUS stay
+    /// unsupplied for 5 s before DC BUS 2 takes them over. The DC ESS BUS does not wait: the ESS TR
+    /// supplies it ("FAILURE OF ONE TR", l.36739-36749: "The ESS TR supplies the DC ESS BUS.").
+    #[test]
+    fn when_tr_1_fails_dc_bus_2_supplies_dc_bus_1_and_dc_bat_bus_only_after_5_s() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .run_waiting_for(Duration::from_secs(10));
+
+        test_bed = test_bed
+            .failed_tr_1()
+            .run_waiting_for(FCOM_DC_BUS_2_TO_DC_BUS_1_DELAY - Duration::from_millis(1));
+        assert!(test_bed.dc_bus_output(1).is_unpowered());
+        assert!(test_bed.dc_bat_bus_output().is_unpowered());
+        assert!(test_bed.dc_bus_2_tie_contactor_is_open());
+        assert!(test_bed
+            .dc_ess_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(3)));
+
+        test_bed = test_bed.run_waiting_for(Duration::from_millis(2));
+        assert!(test_bed
+            .dc_bus_output(1)
+            .is_single(PotentialOrigin::TransformerRectifier(2)));
+        assert!(test_bed
+            .dc_bat_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(2)));
+    }
+
+    /// The case the FCOM describes (DSC-24-10-30-30 "FAILURE OF AC BUS 1", l.36719-36727): AC BUS 1
+    /// is lost, which takes TR 1 with it; DC BUS 2 supplies DC BUS 1 and the DC BAT BUS after 5 s.
+    #[test]
+    fn when_ac_bus_1_fails_dc_bus_2_supplies_dc_bus_1_and_dc_bat_bus_only_after_5_s() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .run_waiting_for(Duration::from_secs(10));
+
+        test_bed = test_bed
+            .failed_bus(ElectricalBusType::AlternatingCurrent(1))
+            .run_waiting_for(FCOM_DC_BUS_2_TO_DC_BUS_1_DELAY - Duration::from_millis(1));
+        assert!(test_bed.dc_bus_output(1).is_unpowered());
+        assert!(test_bed.dc_bat_bus_output().is_unpowered());
+
+        test_bed = test_bed.run_waiting_for(Duration::from_millis(2));
+        assert!(test_bed
+            .dc_bus_output(1)
+            .is_single(PotentialOrigin::TransformerRectifier(2)));
+        assert!(test_bed
+            .dc_bat_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(2)));
+    }
+
+    /// When TR 1 comes back, it takes DC BUS 1 back at once (1PC2 opens on the same update), and a
+    /// second loss of TR 1 waits the full 5 s again (FCOM DSC-24-10-30-30 l.36727).
+    #[test]
+    fn when_tr_1_comes_back_it_supplies_dc_bus_1_at_once_and_a_new_loss_waits_5_s_again() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .failed_tr_1()
+            .run_waiting_for(Duration::from_secs(10));
+        assert!(test_bed
+            .dc_bus_output(1)
+            .is_single(PotentialOrigin::TransformerRectifier(2)));
+
+        test_bed
+            .test_bed
+            .unfail(FailureType::TransformerRectifier(1));
+        test_bed = test_bed.run_once();
+        assert!(test_bed
+            .dc_bus_output(1)
+            .is_single(PotentialOrigin::TransformerRectifier(1)));
+        assert!(test_bed.dc_bus_2_tie_contactor_is_open());
+
+        test_bed = test_bed
+            .failed_tr_1()
+            .run_waiting_for(FCOM_DC_BUS_2_TO_DC_BUS_1_DELAY - Duration::from_millis(1));
+        assert!(test_bed.dc_bus_output(1).is_unpowered());
     }
 
     #[test]
