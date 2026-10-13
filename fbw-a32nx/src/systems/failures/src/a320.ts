@@ -161,6 +161,13 @@ export const A320Failure = Object.freeze({
   GreenBrakeHydraulicLeak: 32100,
   YellowBrakeHydraulicLeak: 32101,
   YellowBrakeAccumulatorGasLeak: 32150,
+  // a320_systems hydraulic/brake_control_units.rs
+  BscuChannel1: 32200,
+  BscuChannel2: 32201,
+  AlternateBrakingControlUnit: 32202,
+  NormalBraking: 32203,
+  Autobrake: 32204,
+  NoseWheelSteering: 32205,
 
   RadioAltimeter1: 34000,
   RadioAltimeter2: 34001,
@@ -412,6 +419,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.GreenBrakeHydraulicLeak, 'Green brakes circuit leak'],
   [32, A320Failure.YellowBrakeHydraulicLeak, 'Yellow brakes circuit leak'],
   [32, A320Failure.YellowBrakeAccumulatorGasLeak, 'Yellow brake accumulator gas leak'],
+  [32, A320Failure.BscuChannel1, 'BSCU channel 1'],
+  [32, A320Failure.BscuChannel2, 'BSCU channel 2'],
+  [32, A320Failure.AlternateBrakingControlUnit, 'ABCU (alternate braking)'],
+  [32, A320Failure.NormalBraking, 'Normal braking (servo valves)'],
+  [32, A320Failure.Autobrake, 'Autobrake'],
+  [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
 
   [34, A320Failure.RadioAltimeter1, 'RA 1'],
   [34, A320Failure.RadioAltimeter2, 'RA 2'],

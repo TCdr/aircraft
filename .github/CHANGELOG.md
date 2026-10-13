@@ -455,6 +455,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] SURV GPWS 1(2)(1+2) FAULT alerts; SURV TAWS 1(2)(1+2) FAULT now trigger when the GPWS and the TERR SYS of a system are both failed, instead of the separate GPWS and TERR alerts - @TCdr
 1. [A380X/FWS] AIR ABNORM BLEED CONFIG lines (XBLEED, AIR FLOW, PACK, WING A-ICE) after ENG SHUT DOWN or ENG FIRE - @TCdr
 1. [A32NX/FWC] New AUTO FLT YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS and RUD TRV LIM 1(2) / SYS cautions with their FCOM procedures and STATUS, and six new flyPad failures (ATA 22) for the yaw damper, rudder trim and rudder travel limiter actuators of each FAC: the other FAC takes the function over - @TCdr
+1. [A32NX/BRAKES] Brake and steering control units modelled: two BSCU channels (changeover at each gear down selection) and the ABCU, on their electrical buses, with six new flyPad failures (ATA 32: BSCU channel 1 and 2, ABCU, normal braking, autobrake, nose wheel steering). A lost BSCU means alternate braking without antiskid (1000 PSI) and no nose wheel steering; autobrake arming needs a working BSCU, no brake failure and one ADIRU; MAX autobrake only starts above 40 kt wheel speed - @TCdr
+1. [A32NX/FWC] New BRAKES A/SKID N/WS FAULT, NORM + ALTN FAULT, NORM BRK FAULT, ALTN BRK FAULT, AUTO BRK FAULT, SYS 1(2) FAULT and WHEEL N/W STRG FAULT cautions with their FCOM procedures and STATUS - @TCdr
 
 ## 2024.1.0
 

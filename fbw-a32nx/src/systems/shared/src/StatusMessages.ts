@@ -32,6 +32,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240400101', { part: StatusPart.Limitation, text: 'MAX BRK PR.....1000 PSI' }],
   ['240400105', { part: StatusPart.Limitation, text: 'FUEL GRVTY FEED' }],
   ['240400102', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
+  // 32 LANDING GEAR (FCOM PRO-ABN-BRAKES NORM + ALTN FAULT STATUS, a320_fcom.txt l.72667), see FWC/Logic/BrakeSystemAlerts
+  ['320400090', { part: StatusPart.Limitation, text: 'PARK BRK ONLY' }],
   // 29 HYDRAULIC (FCOM PRO-ABN-HYD STATUS, a320_fcom.txt l.87028-88759), see FWC/Logic/HydraulicAlerts: limitations,
   // then the APPR PROC block, then the procedures, as on the FCOM STATUS pages
   ['290400001', { part: StatusPart.Limitation, text: 'MIN RAT SPD......140 KT' }],

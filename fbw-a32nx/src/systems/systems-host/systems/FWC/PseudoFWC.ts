@@ -79,6 +79,7 @@ import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
 import { isGearNotUplockedForVle } from './Logic/LandingGearOverspeed';
 import { wingTankLowLevelLines, wingTankLowLevelStatus } from './Logic/WingTankLowLevel';
+import * as Brakes from './Logic/BrakeSystemAlerts';
 import {
   CrossBleedSelector,
   EngineFailMonitor,
@@ -1691,6 +1692,22 @@ export class PseudoFWC {
   private readonly antiSkidOffPhase2Pulse = new NXLogicPulseNode(true);
 
   private readonly antiSkidOffWarning = Subject.create(false);
+
+  /** The BRAKES and WHEEL cautions of the BSCU and ABCU, see Logic/BrakeSystemAlerts */
+  private readonly brakeSystemAlerts: Record<keyof Brakes.BrakeSystemAlerts, Subject<boolean>> = {
+    antiSkidNwsFault: Subject.create(false),
+    antiSkidNwsOff: Subject.create(false),
+    normAndAltnFault: Subject.create(false),
+    normBrkFault: Subject.create(false),
+    altnBrkFault: Subject.create(false),
+    autoBrkFault: Subject.create(false),
+    sys1Fault: Subject.create(false),
+    sys2Fault: Subject.create(false),
+    nwStrgFault: Subject.create(false),
+  };
+
+  /** The yellow hydraulic system is in low pressure (BRAKES A/SKID N/WS STATUS "If Y SYS LO PR") */
+  private brakeYellowLowPressure = false;
 
   private readonly parkBrakeMemo = Subject.create(false);
 
@@ -3624,11 +3641,31 @@ export class PseudoFWC {
     this.lgciu2DiscreteWord4.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_4');
     this.nwSteeringDisc.set(SimVar.GetSimVarValue('L:A32NX_HYD_NW_STRG_DISC_ECAM_MEMO', 'Bool'));
 
-    // TODO: Check !NORM+ALTN BRK FAULT when implemented
+    // BRAKES and WHEEL cautions of the brake control units (a320_systems hydraulic/brake_control_units.rs)
+    const isSet = (name: string) => SimVar.GetSimVarValue(name, 'bool') > 0;
+    this.brakeYellowLowPressure = !yellowSysPressurised;
+    const brakeAlerts = Brakes.brakeSystemAlerts({
+      bscu1Lost: isSet('L:A32NX_BRAKES_BSCU_1_FAULT'),
+      bscu2Lost: isSet('L:A32NX_BRAKES_BSCU_2_FAULT'),
+      bscu1PowerLost: !isSet('L:A32NX_ELEC_AC_1_BUS_IS_POWERED') || !isSet('L:A32NX_ELEC_DC_1_BUS_IS_POWERED'),
+      bscu2PowerLost: !isSet('L:A32NX_ELEC_AC_2_BUS_IS_POWERED') || !isSet('L:A32NX_ELEC_DC_2_BUS_IS_POWERED'),
+      abcuLost: isSet('L:A32NX_BRAKES_ALTN_BRK_FAULT'),
+      abcuPowerLost: !isSet('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED'),
+      normalBrakingFailed: isSet('L:A32NX_BRAKES_NORM_BRK_FAULT'),
+      autobrakeFailedAfterArmed: isSet('L:A32NX_BRAKES_AUTO_BRK_FAULT'),
+      noseWheelSteeringFailed: isSet('L:A32NX_BRAKES_NW_STRG_FAULT'),
+      antiSkidSwitchOff: this.sdac00200Word.bitValue(23),
+      yellowLowPressure: this.brakeYellowLowPressure,
+    });
+    for (const key of Object.keys(this.brakeSystemAlerts) as (keyof Brakes.BrakeSystemAlerts)[]) {
+      this.brakeSystemAlerts[key].set(brakeAlerts[key]);
+    }
+
+    // A/SKID N/WS OFF: not with A/SKID N/WS FAULT or BRAKES NORM + ALTN FAULT (brakeAlerts.antiSkidNwsOff)
     const phase2For60Seconds = this.antiSkidOffPhase2Confirm.write(this.fwcFlightPhase.get() === 2, deltaTime);
     const phase2For60SecondsPulse = this.antiSkidOffPhase2Pulse.write(phase2For60Seconds);
     this.antiSkidOffWarning.set(
-      this.sdac00200Word.bitValue(23) &&
+      brakeAlerts.antiSkidNwsOff &&
         !(this.sdac00201Word.bitValue(20) || this.sdac00210Word.bitValue(20)) &&
         !phase2For60SecondsPulse,
     );
@@ -9803,6 +9840,110 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.WHEEL,
       side: 'LEFT',
+    },
+    // Brake control unit cautions, see Logic/BrakeSystemAlerts (A320 FCOM PRO-ABN-BRAKES, PRO-ABN-WHEEL). The FCOM
+    // phase inhibition figures are not in the text: design choice, the alerts with a procedure line use the phases of
+    // A/SKID N/WS OFF, the crew awareness ones those of BRK Y ACCU LO PR.
+    3200410: {
+      // BRAKES NORM + ALTN FAULT (l.72630-72674)
+      flightPhaseInhib: [4, 5],
+      simVarIsActive: this.brakeSystemAlerts.normAndAltnFault,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['320041001', '320041002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.NORM_AND_ALTN_FAULT_STATUS.left,
+      inopSys: () => Brakes.NORM_AND_ALTN_FAULT_STATUS.inopSys,
+    },
+    3200400: {
+      // BRAKES A/SKID N/WS FAULT (l.72313-72375)
+      flightPhaseInhib: [4, 5],
+      simVarIsActive: this.brakeSystemAlerts.antiSkidNwsFault,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['320040001', '320040002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.antiSkidNwsStatus(this.brakeYellowLowPressure).left,
+      inopSys: () => Brakes.antiSkidNwsStatus(this.brakeYellowLowPressure).inopSys,
+    },
+    3200420: {
+      // BRAKES NORM BRK FAULT (l.72676-72715)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.normBrkFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320042001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.NORM_BRK_FAULT_STATUS.left,
+      inopSys: () => Brakes.NORM_BRK_FAULT_STATUS.inopSys,
+    },
+    3200430: {
+      // BRAKES ALTN BRK FAULT (l.72385-72409)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.altnBrkFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320043001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => Brakes.ALTN_BRK_FAULT_STATUS.inopSys,
+    },
+    3200440: {
+      // BRAKES AUTO BRK FAULT (l.72463-72483)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.autoBrkFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320044001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.AUTO_BRK_FAULT_STATUS.left,
+      inopSys: () => Brakes.AUTO_BRK_FAULT_STATUS.inopSys,
+    },
+    3200450: {
+      // BRAKES SYS 1 FAULT (l.72874-72898)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.sys1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320045001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => Brakes.SYS_1_FAULT_STATUS.inopSys,
+    },
+    3200460: {
+      // BRAKES SYS 2 FAULT (l.72874-72898)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.sys2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320046001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      inopSys: () => Brakes.SYS_2_FAULT_STATUS.inopSys,
+    },
+    3200470: {
+      // WHEEL N/W STRG FAULT (PRO-ABN-WHEEL l.96340-96380)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.brakeSystemAlerts.nwStrgFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['320047001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.WHEEL,
+      side: 'LEFT',
+      statusInfo: () => Brakes.NW_STRG_FAULT_STATUS.left,
+      inopSys: () => Brakes.NW_STRG_FAULT_STATUS.inopSys,
     },
     3200081: {
       // BRAKES PARK BRK ON
