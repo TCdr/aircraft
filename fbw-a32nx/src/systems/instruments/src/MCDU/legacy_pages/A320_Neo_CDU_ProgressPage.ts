@@ -8,6 +8,7 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { Column, FormatLine } from '../legacy/A320_Neo_CDU_Format';
+import { progOptimumFlightLevel } from '../legacy/OptimumFlightLevel';
 
 export class CDUProgressPage {
   static ShowPage(mcdu: LegacyFmsPageInterface) {
@@ -24,13 +25,12 @@ export class CDUProgressPage {
     const cruiseLevel = plan.performanceData.cruiseFlightLevel.get();
     const recMaxFl = mcdu.getMaxFlCorrected();
     const flMaxText = recMaxFl !== null ? `{magenta}FL${recMaxFl.toString()}{end}` : `-----`;
-    const flOpt =
-      recMaxFl !== null &&
-      plan.performanceData.zeroFuelWeightCenterOfGravity.get() !== null &&
-      plan.performanceData.blockFuel.get() !== null &&
-      (mcdu.isAllEngineOn() || mcdu.isOnGround())
-        ? '{green}FL' + (Math.floor(recMaxFl / 5) * 5).toString() + '{end}'
-        : '-----';
+    // OPT FL: the best specific range level for the gross weight, dashes with an engine out (OptimumFlightLevel.ts)
+    const optFl =
+      plan.performanceData.zeroFuelWeightCenterOfGravity.get() !== null && plan.performanceData.blockFuel.get() !== null
+        ? progOptimumFlightLevel(mcdu.getGrossWeight(), recMaxFl, !(mcdu.isAllEngineOn() || mcdu.isOnGround()))
+        : null;
+    const flOpt = optFl !== null ? `{green}FL${optFl.toFixed(0)}{end}` : '-----';
     const gpsPrimary = mcdu.navigation.getGpsPrimary();
     const gpsPrimaryStatus = mcdu.navigation.getGpsPrimary() ? '{green}GPS PRIMARY{end}' : '';
     let flCrz = '-----';
