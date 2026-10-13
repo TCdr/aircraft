@@ -6,6 +6,7 @@ import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import React, { FC } from 'react';
 import { Triangle } from '../../../Common/Shapes';
 import BleedGauge from './BleedGauge';
+import { engineBleedValveCss, hpValveCss } from './EngineBleedValveIndication';
 import Valve from './Valve';
 
 interface EngineBleedProps {
@@ -38,6 +39,9 @@ const EngineBleed: FC<EngineBleedProps> = ({
   const [engineN1BelowIdleValid] = useSimVar(`L:A32NX_FADEC_POWERED_ENG${engine}`, 'bool', 500);
 
   const [engineHPValveOpen] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_HP_VALVE_OPEN`, 'bool', 500);
+  // Amber when not in the commanded position (FCOM DSC-36-20 l.57754-57768, EngineBleedValveIndication.ts)
+  const [engineHPValveFault] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_HP_VALVE_FAULT`, 'bool', 500);
+  const [enginePRValveDisagree] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_PR_VALVE_DISAGREE`, 'bool', 500);
   const [precoolerOutletTemp] = useSimVar(
     `L:A32NX_PNEU_ENG_${engine}_BLEED_TEMPERATURE_SENSOR_TEMPERATURE`,
     'celsius',
@@ -159,7 +163,7 @@ const EngineBleed: FC<EngineBleedProps> = ({
         x={x}
         y={y + 355}
         radius={15}
-        css="GreenLine"
+        css={engineBleedValveCss(enginePRValveDisagree > 0)}
         position={enginePRValveOpen ? 'V' : 'H'}
         sdacDatum={sdacDatum}
       />
@@ -173,7 +177,7 @@ const EngineBleed: FC<EngineBleedProps> = ({
         x={engine === 1 ? x + 47 : x - 47}
         y={y + 398}
         radius={15}
-        css="GreenLine"
+        css={hpValveCss(engineHPValveOpen > 0, engineHPValveFault > 0)}
         position={engineHPValveOpen === 1 ? 'H' : 'V'}
         sdacDatum={sdacDatum}
       />

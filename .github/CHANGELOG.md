@@ -304,6 +304,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ADIRS] The ON BAT light no longer comes on at the start of a fast alignment, as in the FCOM - @TCdr
 1. [A32NX/FWC] New NAV ADR 1(2)(3) FAULT, ADR 1+2(1+3)(2+3) FAULT, ADR 1+2+3 FAULT, ADR DISAGREE, IR 1(2)(3) FAULT, IR 1+2(1+3)(2+3) FAULT and IR DISAGREE alerts with their procedures and STATUS - @TCdr
 1. [A32NX/FWC] New NAV RA 1 AND 2 FAULT (instead of the two RA FAULT alerts) and NAV RA DEGRADED alerts; NAV RA 1(2) FAULT now has its STATUS (CAT 2 ONLY, INOP SYS RA 1(2) and CAT 3) - @TCdr
+1. [A32NX/SD] BLEED page: the HP valve and the engine bleed valve are amber when they are not in their commanded position - @TCdr
 
 ## 2024.1.0
 
