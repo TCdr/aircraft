@@ -143,6 +143,16 @@ import {
   wingsBalancedLines,
   wingsNotBalancedLines,
 } from './FwsFuelAlertsRound8';
+import {
+  ANTI_ICE_VALVE_ALERT_IDS,
+  AVOID_ICING_LIMITATION,
+  ENGINE_ANTI_ICE_INOP_SYS,
+  isWingAntiIceFailedAfterPressLo,
+  WING_ANTI_ICE_INOP_SYS,
+  wingPressLoLines,
+  wingValveOpenLines,
+} from './AntiIceValveAlerts';
+import { OXYGEN_ALERT_IDS } from './OxygenAlerts';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -357,6 +367,102 @@ export class FwsAbnormalSensed {
     });
     this.fws.cargoDoorNotClosed.forEach((doorNotClosed, index) => {
       alerts[cargoDoorNotClosedAlertId(index)] = doorNotClosedItem(doorNotClosed);
+    });
+    return alerts;
+  }
+
+  /**
+   * A-ICE ENG 1(2)(3)(4) VLV CLOSED / VLV OPEN and A-ICE L(R) WING VLV CLOSED / VLV OPEN / VLV PRESS HI / VLV PRESS LO
+   * (300800010-025), A380 FCOM PRO-ABN-ECAM-10-30 (a380_fcom.txt l.156370-157060). Flight phase inhibitions, audio and
+   * master lights from the FCOM figures (2019 FCOM PDF pages 5338-5355): PRESS HI has no audio and no master light.
+   * See AntiIceValveAlerts.ts for the triggers and the procedure lines.
+   */
+  private antiIceValveAlerts(): EwdAbnormalDict {
+    const alerts: EwdAbnormalDict = {};
+    const valves = this.fws.antiIceValveAlerts;
+    const avoidIcing = () => [AVOID_ICING_LIMITATION];
+    [0, 1, 2, 3].forEach((engine) => {
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.engineValveClosed[engine]] = {
+        flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+        simVarIsActive: valves.engineValveClosed[engine],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true],
+        whichItemsChecked: () => [false],
+        failure: 2,
+        sysPage: SdPages.None,
+        limitationsAllPhases: avoidIcing,
+        limitationsPfd: avoidIcing,
+        inopSysAllPhases: () => [ENGINE_ANTI_ICE_INOP_SYS[engine]],
+      };
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.engineValveOpen[engine]] = {
+        flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+        simVarIsActive: valves.engineValveOpen[engine],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 2,
+        sysPage: SdPages.None,
+      };
+    });
+    [0, 1].forEach((wing) => {
+      const leftWing = wing === 0;
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.wingValveClosed[wing]] = {
+        flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11, 12],
+        simVarIsActive: valves.wingValveClosed[wing],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true, true],
+        whichItemsChecked: () => [!this.fws.wingAntiIce.get(), false],
+        failure: 2,
+        sysPage: SdPages.Bleed,
+        limitationsAllPhases: avoidIcing,
+        limitationsPfd: avoidIcing,
+        inopSysAllPhases: () => [WING_ANTI_ICE_INOP_SYS],
+      };
+      const bleedControls = () => {
+        const firstEngine = leftWing ? 0 : 2;
+        return {
+          onGround: this.fws.aircraftOnGround.get(),
+          beforeTakeoff: this.fws.flightPhase.get() <= 2,
+          crossBleedShut: this.fws.xBleedSelectorShut.get(),
+          crossBleedAuto: this.fws.xBleedSelectorAuto.get(),
+          packOn: !!(leftWing ? this.fws.pack1On : this.fws.pack2On).get(),
+          firstEngineBleedOn: valves.engineBleedPbAuto[firstEngine],
+          secondEngineBleedOn: valves.engineBleedPbAuto[firstEngine + 1],
+          apuBleedOn: !!this.fws.apuBleedPbOn.get(),
+        };
+      };
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.wingValveOpen[wing]] = {
+        flightPhaseInhib: [3, 4, 5, 6, 7, 10],
+        simVarIsActive: valves.wingValveOpen[wing],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => wingValveOpenLines(bleedControls(), leftWing).show,
+        whichItemsChecked: () => wingValveOpenLines(bleedControls(), leftWing).checked,
+        failure: 2,
+        sysPage: SdPages.Bleed,
+      };
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.wingPressHi[wing]] = {
+        flightPhaseInhib: [4, 5, 6, 7],
+        simVarIsActive: valves.wingValvePressHi[wing],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 1,
+        sysPage: SdPages.None,
+      };
+      const failedAfterPressLo = (checked: boolean[]) =>
+        isWingAntiIceFailedAfterPressLo(this.fws.aircraftOnGround.get(), checked);
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.wingPressLo[wing]] = {
+        flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
+        simVarIsActive: valves.wingValvePressLo[wing],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => wingPressLoLines(this.fws.aircraftOnGround.get(), this.fws.wingAntiIce.get()).show,
+        whichItemsChecked: () => wingPressLoLines(this.fws.aircraftOnGround.get(), this.fws.wingAntiIce.get()).checked,
+        failure: 2,
+        sysPage: SdPages.Bleed,
+        limitationsAllPhases: (checked) => (failedAfterPressLo(checked) ? [AVOID_ICING_LIMITATION] : []),
+        limitationsPfd: (checked) => (failedAfterPressLo(checked) ? [AVOID_ICING_LIMITATION] : []),
+        inopSysAllPhases: (checked) => (failedAfterPressLo(checked) ? [WING_ANTI_ICE_INOP_SYS] : []),
+      };
     });
     return alerts;
   }
@@ -6465,6 +6571,38 @@ export class FwsAbnormalSensed {
     },
     // DOOR MAIN 1L ... 5R, UPPER 1L ... 3R and FWD/AFT CARGO NOT CLOSED (520800017-034), see doorNotClosedAlerts()
     ...this.doorNotClosedAlerts(),
+    // A-ICE ENG and WING valve alerts (300800010-025), see antiIceValveAlerts()
+    ...this.antiIceValveAlerts(),
+    // ATA 35 OXYGEN (A380 FCOM PRO-ABN-ECAM-10-35, a380_fcom.txt l.167419-167530), see OxygenAlerts.ts. Flight phase
+    // inhibitions, audio and master lights from the FCOM figures (2019 FCOM PDF pages 5656-5659): CABIN VLV CLOSED has
+    // no audio and no master light
+    [OXYGEN_ALERT_IDS.cabinBottlePressLo]: {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.oxyCabinBottlePressLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Door,
+    },
+    [OXYGEN_ALERT_IDS.cabinValveClosed]: {
+      flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      simVarIsActive: this.fws.oxyCabinValveClosed,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Door,
+    },
+    [OXYGEN_ALERT_IDS.ckptBottlePressLo]: {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.oxyCkptBottlePressLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Door,
+    },
     // ATA 70 - ENGINES
     701800029: {
       // ENG 1 FAIL

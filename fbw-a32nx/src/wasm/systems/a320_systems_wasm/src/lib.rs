@@ -92,7 +92,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (ElectricalBusType::DirectCurrentGndFltService, 15),
     ])?
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 7)?
-    .with_engine_anti_ice(2)?
+    // The MSFS engine anti-ice follows the engine anti-ice valves (a320_systems pneumatic.rs)
+    .with_engine_anti_ice_valves(2)?
     .with_wing_anti_ice()?
     // The engine fuel is cut when the engine starves (its LP fuel valve is closed and the fuel left
     // downstream of it is burned, FCOM PRO-ABN-ENG, see a320_systems fuel/engine_lp_valve.rs), and
@@ -392,6 +393,33 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (74_001, FailureType::EngineIgniterA(2)),
         (74_010, FailureType::EngineIgniterB(1)),
         (74_011, FailureType::EngineIgniterB(2)),
+        // ATA 30 engine anti-ice valves (systems ice_rain_protection, in a320_systems pneumatic.rs)
+        (30_000, FailureType::EngineAntiIceValveStuckClosed(1)),
+        (30_001, FailureType::EngineAntiIceValveStuckClosed(2)),
+        (30_010, FailureType::EngineAntiIceValveStuckOpen(1)),
+        (30_011, FailureType::EngineAntiIceValveStuckOpen(2)),
+        // ATA 30 probe and window heat (a320_systems probe_window_heat.rs)
+        (30_100, FailureType::ProbeHeatComputer(1)),
+        (30_101, FailureType::ProbeHeatComputer(2)),
+        (30_102, FailureType::ProbeHeatComputer(3)),
+        (30_110, FailureType::ProbeHeater(1, 1)),
+        (30_111, FailureType::ProbeHeater(1, 2)),
+        (30_112, FailureType::ProbeHeater(1, 3)),
+        (30_113, FailureType::ProbeHeater(1, 4)),
+        (30_114, FailureType::ProbeHeater(1, 5)),
+        (30_120, FailureType::ProbeHeater(2, 1)),
+        (30_121, FailureType::ProbeHeater(2, 2)),
+        (30_122, FailureType::ProbeHeater(2, 3)),
+        (30_123, FailureType::ProbeHeater(2, 4)),
+        (30_124, FailureType::ProbeHeater(2, 5)),
+        (30_130, FailureType::ProbeHeater(3, 1)),
+        (30_131, FailureType::ProbeHeater(3, 2)),
+        (30_132, FailureType::ProbeHeater(3, 3)),
+        (30_133, FailureType::ProbeHeater(3, 4)),
+        (30_200, FailureType::WindshieldHeat(1)),
+        (30_201, FailureType::WindshieldHeat(2)),
+        (30_210, FailureType::WindowHeat(1)),
+        (30_211, FailureType::WindowHeat(2)),
         // ATA 36 pneumatic (a320_systems pneumatic.rs)
         (36_000, FailureType::EngineBleedValveStuckClosed(1)),
         (36_001, FailureType::EngineBleedValveStuckClosed(2)),

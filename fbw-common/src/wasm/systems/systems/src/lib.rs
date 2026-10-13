@@ -18,6 +18,7 @@ pub mod failures;
 pub mod fire_protection;
 pub mod fuel;
 pub mod hydraulic;
+pub mod ice_rain_protection;
 pub mod icing_state;
 pub mod indicating_recording;
 pub mod integrated_modular_avionics;
