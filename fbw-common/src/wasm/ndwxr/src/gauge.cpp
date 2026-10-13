@@ -64,6 +64,7 @@ static void registerInstanceVars(Instance& instance) {
 #ifdef A380X
   instance.vdRangeLowerVar = register_named_variable(instance.isRight ? "A32NX_VD_2_RANGE_LOWER" : "A32NX_VD_1_RANGE_LOWER");
   instance.vdRangeUpperVar = register_named_variable(instance.isRight ? "A32NX_VD_2_RANGE_UPPER" : "A32NX_VD_1_RANGE_UPPER");
+  instance.vdRaZoneShownVar = register_named_variable(instance.isRight ? "A380X_VD_2_RA_ZONE_SHOWN" : "A380X_VD_1_RA_ZONE_SHOWN");
   instance.overlayVar = register_named_variable(instance.isRight ? "A380X_EFIS_R_ACTIVE_OVERLAY" : "A380X_EFIS_L_ACTIVE_OVERLAY");
   instance.displayUnitFailedVar =
       register_named_variable(instance.isRight ? "A380X_CDS_FO_ND_DU_FAILED" : "A380X_CDS_CAPT_ND_DU_FAILED");
@@ -691,6 +692,11 @@ static void drawVdWeatherLayer(NVGcontext* vg, const Instance& instance, const N
     drawVdWeather(vg, instance.mapView, instance.mapViewHot, instance.mapViewHotReady && ready.hot, frame.rangeNmForMode, frame.vdRangeNm,
                   cut, cutCount, frame.vdHeadingDeg, frame.vdBaroAltFeet, frame.vdLowerFeet, frame.vdUpperFeet);
   }
+  // The column under the amber radio altitude zone of nd.html stays clear (see vd_ra_zone.h).
+  VdWipeRect wipe{};
+  if (vdRadioAltitudeZoneWipe(get_named_variable_value(instance.vdRaZoneShownVar), kVdLeft, kVdTop, kVdHeight, &wipe)) {
+    clearRect(vg, wipe.x, wipe.y, wipe.width, wipe.height);
+  }
 }
 #endif
 
@@ -721,6 +727,7 @@ static unsigned long long ndPictureKey(const Instance& instance, const NdFrame& 
   key = mixKey(key, std::lround(frame.vdRangeNm * 10.0f));
   key = mixKey(key, std::llround(frame.vdLowerFeet));
   key = mixKey(key, std::llround(frame.vdUpperFeet));
+  key = mixKey(key, get_named_variable_value(instance.vdRaZoneShownVar) > 0.5);
 #endif
   return key;
 }

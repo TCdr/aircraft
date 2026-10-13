@@ -2,8 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Arinc429WordData, MathUtils } from '@flybywiresim/fbw-sdk';
-import { FSComponent, DisplayComponent, ComponentProps, Subscribable, VNode, EventBus } from '@microsoft/msfs-sdk';
+import {
+  FSComponent,
+  DisplayComponent,
+  ComponentProps,
+  MappedSubject,
+  Subscribable,
+  VNode,
+  EventBus,
+} from '@microsoft/msfs-sdk';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
+import { OancDestinationArrow } from './OancDestinationArrow';
 
 export interface RoseModeOverlayProps {
   bus: EventBus;
@@ -12,6 +21,11 @@ export interface RoseModeOverlayProps {
   oansRange: Subscribable<number>;
 
   doClip: boolean;
+
+  /** The destination arrow is shown (see OancDestinationArrow) */
+  destinationArrowVisible: Subscribable<boolean>;
+  airportBearing: Subscribable<number>;
+  airportIcao: Subscribable<string>;
 }
 
 export class RoseModeUnderlay extends DisplayComponent<RoseModeOverlayProps> {
@@ -24,6 +38,12 @@ export class RoseModeUnderlay extends DisplayComponent<RoseModeOverlayProps> {
 
     return 'Red';
   });
+
+  private readonly rotationToAirport = MappedSubject.create(
+    ([bearing, rot]) => MathUtils.diffAngle(rot.value, bearing),
+    this.props.airportBearing,
+    this.props.rotation,
+  );
 
   private readonly headingRingTransform = this.props.rotation.map((heading) => {
     if (heading.isNormalOperation()) {
@@ -79,6 +99,17 @@ export class RoseModeUnderlay extends DisplayComponent<RoseModeOverlayProps> {
             {this.props.oansRange.map((range) => range / 2)}
           </text>
         </g>
+
+        {/* between the dashed middle ring (R = 125) and the compass rose (R = 250), as in the FCOM figure */}
+        <OancDestinationArrow
+          centerX={384}
+          centerY={384}
+          radius={165}
+          scale={0.75}
+          rotationToAirport={this.rotationToAirport}
+          visible={this.props.destinationArrowVisible}
+          airportIcao={this.props.airportIcao}
+        />
       </Layer>
     );
   }

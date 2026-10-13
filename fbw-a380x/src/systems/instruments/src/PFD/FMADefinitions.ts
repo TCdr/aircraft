@@ -426,3 +426,33 @@ export function computeD1D2Message(
     return D1D2Messages.NONE;
   }
 }
+
+/**
+ * The two lines of the approach capability (FMA column 4, first and second lines), in the FCOM words
+ * (a380_fcom.txt l.19153-19184, DSC-22-FG FMA APPROACH CAPABILITY): RAW ONLY, F-APP +RAW, F-APP, CAT1, CAT2,
+ * CAT3 SINGLE, CAT3 DUAL. The newer-standard words APPR1 / LAND2 / LAND3 are not in this FCOM.
+ * @param message the capability message
+ * @returns the first and the second line, empty strings when nothing is shown
+ */
+export function getD1D2Lines(message: D1D2Messages): [string, string] {
+  switch (message) {
+    case D1D2Messages.APPR_1:
+      return ['CAT1', ''];
+    case D1D2Messages.LAND_2:
+      return ['CAT2', ''];
+    case D1D2Messages.LAND_3_SINGLE:
+      return ['CAT3', 'SINGLE'];
+    case D1D2Messages.LAND_3_DUAL:
+      return ['CAT3', 'DUAL'];
+    case D1D2Messages.F_APP:
+      return ['F-APP', ''];
+    case D1D2Messages.F_APP_RAW:
+      return ['F-APP', '+RAW'];
+    case D1D2Messages.RAW_ONLY:
+      return ['RAW', 'ONLY'];
+    case D1D2Messages.LAND_1:
+      return ['LAND1', ''];
+    default:
+      return ['', ''];
+  }
+}

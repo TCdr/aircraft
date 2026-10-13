@@ -631,6 +631,8 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
   key = mixKey(key, std::llround(upperFeet));
   key = mixKey(key, waterUsable);
   key = mixKey(key, instance.layerDirty);
+  const double raZoneShown = get_named_variable_value(instance.vdRaZoneShownVar);
+  key = mixKey(key, raZoneShown > 0.5);
   const bool redraw = (draw || instance.layerDirty) && redrawDue(instance.pacer, drawData->t, kVdRedrawPeriodSeconds, key);
 
   // During the warm-up the views' settings follow the aircraft every frame; once drawn, at the redraws only.
@@ -692,6 +694,11 @@ void drawVdTerrainGauge(FsContext ctx, Instance& instance, const sGaugeDrawData*
       const int flatCount = buildVdFlatStretches(aircraftLat, aircraftLon, cut, cutCount, cutHalfWidthNm, vdRangeNm, flats);
       drawVdTerrain(vg, instance.mapViewVdTerrain, waterView, instance.vdRampImage, vdRangeNm, cut, cutCount, cutHalfWidthNm, greyFromNm,
                     lowerFeet, upperFeet, flats, flatCount, terrainOffsetFeet);
+      // The column under the amber radio altitude zone of nd.html stays clear (see vd_ra_zone.h).
+      VdWipeRect wipe{};
+      if (vdRadioAltitudeZoneWipe(raZoneShown, kVdLeft, kVdTop, kVdHeight, &wipe)) {
+        clearRect(vg, wipe.x, wipe.y, wipe.width, wipe.height);
+      }
     }
   }
   instance.layerDirty = draw;

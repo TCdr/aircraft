@@ -39,6 +39,9 @@ import { FGVars } from '../../MsfsAvionicsCommon/providers/FGDataPublisher';
 import { MfdSurvEvents } from '../../MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { VD_PLOT_AREA, VdWxrElevnTiltMode, WXR_SETTING_NO_ENTRY, vdWxrElevnTiltLine } from './VdWxrElevnTiltLine';
+import { computeVdSurvMessages } from './VdSurvMessages';
+import { vdRadioAltitudeZone } from './VdRadioAltitudeZone';
+import { voteRadioAltitude } from '@shared/RadioAltimeterVoting';
 
 export interface VerticalDisplayProps extends ComponentProps {
   bus: ArincEventBus;
@@ -166,6 +169,43 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
     this.baroCorrectedAltitude,
     this.displayedFmsPathForVerticalRangeEstimation,
   );
+
+  private readonly radioAltitude1 = Arinc429LocalVarConsumerSubject.create(this.sub.on('radioAltitude1'));
+  private readonly radioAltitude2 = Arinc429LocalVarConsumerSubject.create(this.sub.on('radioAltitude2'));
+  private readonly radioAltitude3 = Arinc429LocalVarConsumerSubject.create(this.sub.on('radioAltitude3'));
+
+  /**
+   * The amber radio altitude zone under the aircraft symbol, below 5 000 ft RA (A380 FCOM DSC-31-20-40-10,
+   * a380_fcom.txt l.69544-69548, see VdRadioAltitudeZone), from the radio height of the PFDs (voted from the three RAs,
+   * l.86462-86466), as an SVG path ('' when not shown).
+   */
+  private readonly radioAltitudeZonePath = MappedSubject.create(
+    ([ra1, ra2, ra3, alt, verticalRange, vdAvailable]) => {
+      if (!vdAvailable) {
+        return '';
+      }
+      const radioHeight = voteRadioAltitude([ra1, ra2, ra3]);
+      const zone = vdRadioAltitudeZone({
+        aircraftAltitudeFeet: alt.isNormalOperation() ? alt.value : null,
+        radioHeightFeet: radioHeight.isNormalOperation() ? radioHeight.value : null,
+        verticalRange,
+        plot: VD_PLOT_AREA,
+      });
+      if (!zone) {
+        return '';
+      }
+      const bottom = zone.y + zone.height;
+      return `M ${zone.x.toFixed(1)} ${zone.y.toFixed(1)} h ${zone.width} V ${bottom.toFixed(1)} h ${-zone.width} z`;
+    },
+    this.radioAltitude1,
+    this.radioAltitude2,
+    this.radioAltitude3,
+    this.baroCorrectedAltitude,
+    this.verticalRange,
+    this.vdAvailable,
+  );
+
+  private readonly radioAltitudeZoneVisibility = this.radioAltitudeZonePath.map((d) => (d ? 'inherit' : 'hidden'));
 
   private readonly planeSymbolY = MappedSubject.create(
     ([alt, range]) => VerticalDisplay.altToY(alt.valueOr(0), range),
@@ -340,7 +380,8 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   private readonly terr2Failed = ConsumerSubject.create(this.sub.on('a32nx_aesu_terr_failed_2'), false);
   private readonly wxr1Failed = ConsumerSubject.create(this.sub.on('a32nx_aesu_wxr_failed_1'), false);
   private readonly wxr2Failed = ConsumerSubject.create(this.sub.on('a32nx_aesu_wxr_failed_2'), false);
-  private readonly terrInop = MappedSubject.create(
+  /** The TERR function of the selected AESU is failed, or no AESU system is selected (TAWS SYS OFF) */
+  private readonly terrFailed = MappedSubject.create(
     ([sel, t1, t2]) => (sel === 1 ? t1 : sel === 2 ? t2 : true),
     this.wxrTawsSysSelected,
     this.terr1Failed,
@@ -353,24 +394,31 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
     this.wxr2Failed,
   );
 
-  private readonly wxrInop = MappedSubject.create(
-    ([activeFailed, activeOverlay]) => activeOverlay === 1 && activeFailed,
-    this.activeWxrFailed,
-    this.activeOverlay,
-  );
-
   private readonly wxrOff = ConsumerSubject.create(this.sub.on('a380x_wxr_off'), false);
   private readonly wxrVdOff = ConsumerSubject.create(this.sub.on('a380x_wxr_vd_off'), false);
 
-  /** Weather stays available on the VD as long as the selected WXR is up and the WXR and WX ON VD buttons are on. */
-  private readonly weatherOnVdAvailable = MappedSubject.create(
-    ([activeFailed, wxrOff, wxrVdOff]) => !activeFailed && !wxrOff && !wxrVdOff,
+  /** The FCOM SURV messages of the VD (NO TERR AND WX DATA AVAILABLE, TERR INOP, WXR INOP, WX NOT SEL) */
+  private readonly survMessages = MappedSubject.create(
+    ([terrSysOff, terrFailed, activeOverlay, wxrFailed, wxOnVdOff, wxrOff]) =>
+      computeVdSurvMessages({
+        terrSysOff,
+        terrFailed,
+        wxPbSelected: activeOverlay === 1,
+        wxrFailed,
+        wxOnVdOff,
+        wxrOff,
+      }),
+    this.terrSysOff,
+    this.terrFailed,
+    this.activeOverlay,
     this.activeWxrFailed,
-    this.wxrOff,
     this.wxrVdOff,
+    this.wxrOff,
   );
 
-  private readonly wxDataMissing = this.weatherOnVdAvailable.map((available) => !available);
+  private readonly terrInop = this.survMessages.map((m) => m.terrInop);
+
+  private readonly wxrInop = this.survMessages.map((m) => m.wxrInop);
 
   /** The radar indication of this side's ND (A32NX_WXR_ND_{L,R}_MODE): 1 = the WX display function, see WxrModeLabel */
   private readonly wxrNdMode = ConsumerSubject.create(
@@ -414,25 +462,8 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
   );
   private readonly wxrElevnTiltLineVisibility = this.wxrElevnTiltLinePath.map((d) => (d ? 'inherit' : 'hidden'));
 
-  /**
-   * TERR SYS OFF only takes the terrain away, WX ON VD OFF (or a failed WXR) only the weather: each has its own
-   * message, and both together get the combined one.
-   */
-  private readonly noTerrAndWxDataAvailFlagCondition = MappedSubject.create(
-    ([terrOff, wxMissing]) => terrOff && wxMissing,
-    this.terrSysOff,
-    this.wxDataMissing,
-  );
-  private readonly noTerrDataAvailFlagCondition = MappedSubject.create(
-    ([terrOff, wxMissing]) => terrOff && !wxMissing,
-    this.terrSysOff,
-    this.wxDataMissing,
-  );
-  private readonly noWxDataAvailFlagCondition = MappedSubject.create(
-    ([terrOff, wxMissing]) => !terrOff && wxMissing,
-    this.terrSysOff,
-    this.wxDataMissing,
-  );
+  /** TERR SYS OFF takes the terrain and the weather away (the weather cannot be located without the terrain) */
+  private readonly noTerrAndWxDataAvailFlagCondition = this.survMessages.map((m) => m.noTerrAndWxDataAvailable);
 
   private readonly rangeChangeFlagVisibility = MappedSubject.create(
     ([rangeChange, _modeChange, trajNotAvail, noTerrAndWx, terrInop, wxrInop]) =>
@@ -478,19 +509,7 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
     this.wxrInop,
   );
 
-  private readonly noTerrDataAvailFlagVisibility = MappedSubject.create(
-    ([noTerr, terrInop, wxrInop]) => (noTerr && !terrInop && !wxrInop ? 'inherit' : 'hidden'),
-    this.noTerrDataAvailFlagCondition,
-    this.terrInop,
-    this.wxrInop,
-  );
-
-  private readonly noWxDataAvailFlagVisibility = MappedSubject.create(
-    ([noWx, terrInop, wxrInop]) => (noWx && !terrInop && !wxrInop ? 'inherit' : 'hidden'),
-    this.noWxDataAvailFlagCondition,
-    this.terrInop,
-    this.wxrInop,
-  );
+  private readonly wxNotSelFlagVisibility = this.survMessages.map((m) => (m.wxNotSel ? 'inherit' : 'hidden'));
 
   private readonly terrInopFlagVisibility = MappedSubject.create(
     ([_rangeChange, _modeChange, _trajNotAvail, _noTerrAndWx, terrInop, _wxrInop]) => (terrInop ? 'inherit' : 'hidden'),
@@ -532,6 +551,11 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
       this.fcuEisDiscreteWord2,
       this.baroCorrectedAltitude,
       this.verticalRange,
+      this.radioAltitude1,
+      this.radioAltitude2,
+      this.radioAltitude3,
+      this.radioAltitudeZonePath,
+      this.radioAltitudeZoneVisibility,
       this.planeSymbolY,
       this.fpa,
       this.planeSymbolTransform,
@@ -562,23 +586,20 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
       this.noTerrAndWxDataAvailFlagCondition,
       this.terr1Failed,
       this.terr2Failed,
+      this.terrFailed,
       this.wxr1Failed,
       this.wxr2Failed,
       this.activeWxrFailed,
       this.wxrOff,
       this.wxrVdOff,
-      this.weatherOnVdAvailable,
-      this.wxDataMissing,
+      this.survMessages,
       this.wxrNdMode,
       this.wxrElevnTiltMode,
       this.wxrElevn,
       this.wxrTilt,
       this.wxrElevnTiltLinePath,
       this.wxrElevnTiltLineVisibility,
-      this.noTerrDataAvailFlagCondition,
-      this.noWxDataAvailFlagCondition,
-      this.noTerrDataAvailFlagVisibility,
-      this.noWxDataAvailFlagVisibility,
+      this.wxNotSelFlagVisibility,
       this.terrInop,
       this.wxrInop,
       this.rangeChangeFlagVisibility,
@@ -588,6 +609,20 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
       this.terrInopFlagVisibility,
       this.wxrInopFlagVisibility,
       this.targetAltitudeFormatted,
+    );
+
+    // the native VD terrain and weather (ndwxr, vd_ra_zone.h) leave the column under the amber zone clear, as their
+    // picture is added onto this one and would turn the amber into a lighter orange
+    this.subscriptions.push(
+      this.radioAltitudeZoneVisibility.sub(
+        (visibility) =>
+          SimVar.SetSimVarValue(
+            `L:A380X_VD_${this.props.side === 'L' ? 1 : 2}_RA_ZONE_SHOWN`,
+            SimVarValueType.Bool,
+            visibility === 'inherit',
+          ),
+        true,
+      ),
     );
 
     for (const rm of this.rangeMarkerText) {
@@ -767,6 +802,13 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
           >
             {this.targetAltitudeFormatted}
           </text>
+          {/* amber radio altitude zone ($display-amber), under the aircraft symbol as in the FCOM figure */}
+          <path
+            d={this.radioAltitudeZonePath}
+            fill="#e68000"
+            stroke="none"
+            visibility={this.radioAltitudeZoneVisibility}
+          />
           {/* WXR ELEVN/TILT line, under the aircraft symbol so it leaves from the symbol's nose as in the FCOM figures */}
           <path
             d={this.wxrElevnTiltLinePath}
@@ -858,22 +900,6 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
             NO TERR AND WX DATA AVAILABLE
           </text>
           <text
-            x={422}
-            y={890}
-            class="White FontSmall MiddleAlign shadow"
-            style={{ visibility: this.noTerrDataAvailFlagVisibility }}
-          >
-            NO TERR DATA AVAILABLE
-          </text>
-          <text
-            x={422}
-            y={890}
-            class="White FontSmall MiddleAlign shadow"
-            style={{ visibility: this.noWxDataAvailFlagVisibility }}
-          >
-            NO WX DATA AVAILABLE
-          </text>
-          <text
             x={285}
             y={960}
             class="Amber FontSmall MiddleAlign shadow"
@@ -888,6 +914,14 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
             style={{ visibility: this.wxrInopFlagVisibility }}
           >
             WXR INOP
+          </text>
+          <text
+            x={565}
+            y={960}
+            class="White FontSmall MiddleAlign shadow"
+            style={{ visibility: this.wxNotSelFlagVisibility }}
+          >
+            WX NOT SEL
           </text>
           <text
             x={422}

@@ -1,6 +1,7 @@
 // @ts-strict-ignore
 import { Arinc429SignStatusMatrix, Arinc429Word, MathUtils, NXDataStore, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { voteRadioAltitude } from '@shared/RadioAltimeterVoting';
 import { LegacySoundManager, soundList } from './LegacySoundManager';
 import {
   A380X_DEFAULT_RADIO_AUTO_CALL_OUTS,
@@ -275,9 +276,13 @@ export class LegacyGpws {
   gpws(deltaTime) {
     // EGPWS receives ADR1 only
     const baroAlt = Arinc429Word.fromSimVarValue('L:A32NX_ADIRS_ADR_1_BARO_CORRECTED_ALTITUDE_1');
-    const radioAlt1 = Arinc429Word.fromSimVarValue('L:A32NX_RA_1_RADIO_ALTITUDE');
-    const radioAlt2 = Arinc429Word.fromSimVarValue('L:A32NX_RA_2_RADIO_ALTITUDE');
-    const radioAlt = radioAlt1.isFailureWarning() || radioAlt1.isNoComputedData() ? radioAlt2 : radioAlt1;
+    // the callouts and the GPWS modes use the radio height of the PFDs, voted from the three RAs: median of three,
+    // average of two, else the remaining one (a380_fcom.txt l.86462-86466, l.86475-86477)
+    const radioAlt = voteRadioAltitude([
+      Arinc429Word.fromSimVarValue('L:A32NX_RA_1_RADIO_ALTITUDE'),
+      Arinc429Word.fromSimVarValue('L:A32NX_RA_2_RADIO_ALTITUDE'),
+      Arinc429Word.fromSimVarValue('L:A32NX_RA_3_RADIO_ALTITUDE'),
+    ]);
     const radioAltValid = radioAlt.isNormalOperation();
     const onGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
 
@@ -340,7 +345,7 @@ export class LegacyGpws {
       });
       this.GPWSMode3(this.modes[2], radioAlt.value, phase);
       this.GPWSMode4(this.modes[3], radioAlt.value, Airspeed, FlapsInLandingConfig, gearExtended, phase);
-      this.GPWSMode5(this.modes[4], radioAlt.value);
+      this.GPWSMode5(this.modes[4], radioAlt.value, gearExtended);
       // "Stall or windshear alerts override GPWS visual and aural alerts" (a380_fcom.txt l.88167): the windshear part
       if (SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', 'Bool') > 0) {
         this.modes.forEach((mode) => {
@@ -598,8 +603,16 @@ export class LegacyGpws {
    * @param - radioAlt Radio altitude in feet
    * @constructor
    */
-  GPWSMode5(mode, radioAlt) {
-    if (radioAlt > 1000 || radioAlt < 30 || SimVar.GetSimVarValue('L:A32NX_GPWS_GS_OFF', 'Bool')) {
+  /**
+   * Mode 5, excessive glide slope deviation.
+   * "Mode 5 is active during approach, if the landing gear is down, and the aircraft is below 1 000 ft and above
+   * 30 ft AGL" (a380_fcom.txt l.88445-88446).
+   * @param mode the mode 5 state
+   * @param radioAlt the radio height in feet
+   * @param gearExtended true when the landing gear is down
+   */
+  GPWSMode5(mode, radioAlt: number, gearExtended: boolean) {
+    if (!gearExtended || radioAlt > 1000 || radioAlt < 30 || SimVar.GetSimVarValue('L:A32NX_GPWS_GS_OFF', 'Bool')) {
       mode.current = 0;
       return;
     }

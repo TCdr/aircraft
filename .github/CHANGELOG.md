@@ -557,6 +557,13 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X/APU] The APU shuts down automatically with a FAULT on an ECB failure, an overspeed, a low oil pressure or a high oil temperature (four new ATA 49 flyPad failures; A380X high oil temperature on the ground only), and when its DC supply is lost while it runs (BAT OFF on batteries only) - @TCdr
 1. [A32NX/FIRE] Cargo and avionics smoke detection with new flyPad failures: SMOKE FWD and AFT CARGO SMOKE, FWD and AFT CRG DET FAULT, FWD and AFT CRG BTL 1 FAULT and AVIONICS SMOKE alerts, the SMOKE, GEN 1 LINE SMOKE and BLOWER/EXTRACT FAULT lights; the cargo DISCH pbs now discharge the cargo fire bottle and light the DISCH lights - @TCdr
 1. [A380X/FIRE] Smoke Detection Function for the cargo compartments, the avionics bays and the IFE bay with new flyPad failures: their SMOKE warnings and SMOKE DET FAULT cautions, and the FWD+AFT CARGO BTL 1(2) FAULT cautions; the AGENT TO FWD/AFT pbs now discharge the two cargo fire bottles (SMOKE, DISCH and BTL lights) - @TCdr
+1. [A380X/PFD] The radio height is the same on both PFDs: median of the three RAs, the average of two, the remaining one; the height callouts and the GPWS use it too (RA 3 was ignored) - @TCdr
+1. [A380X/GPWS] Mode 5 (GLIDE SLOPE) is active only with the landing gear down - @TCdr
+1. [A380X/PFD] FMA approach capability in the FCOM words: CAT1, CAT2, CAT3 SINGLE and CAT3 DUAL instead of APPR1, LAND2 and LAND3 - @TCdr
+1. [A380X/VD] Amber radio altitude zone under the aircraft symbol below 5 000 ft RA - @TCdr
+1. [A380X/VD] VD messages as in the FCOM: NO TERR AND WX DATA AVAILABLE with TERR SYS OFF, new WX NOT SEL (WX ON VD or WXR OFF), the invented NO TERR DATA AVAILABLE and NO WX DATA AVAILABLE are gone - @TCdr
+1. [A380X/EFIS] The WX pbs are deselected automatically 60 s after touchdown (the weather radar turns off) - @TCdr
+1. [A380X/OANS] The destination arrow also shows in ROSE NAV mode, and only at the 5 NM range - @TCdr
 
 ## 2024.1.0
 
