@@ -8,6 +8,7 @@ import { Triangle } from '../../../Common/Shapes';
 import BleedGauge from './BleedGauge';
 import { engineBleedValveCss, hpValveCss } from './EngineBleedValveIndication';
 import Valve from './Valve';
+import { isEngineN2BelowIdle } from '../../../Common/EngineRunning';
 
 interface EngineBleedProps {
   x: number;
@@ -36,7 +37,11 @@ const EngineBleed: FC<EngineBleedProps> = ({
   const [engineN1] = useSimVar(`L:A32NX_ENGINE_N1:${engine}`, 'percent', 100);
   const [engineN1Idle] = useSimVar('L:A32NX_ENGINE_IDLE_N1', 'percent', 500);
   const engineN1BelowIdle = engineN1 + 2 < engineN1Idle;
-  const [engineN1BelowIdleValid] = useSimVar(`L:A32NX_FADEC_POWERED_ENG${engine}`, 'bool', 500);
+  const [engineFadecPowered] = useSimVar(`L:A32NX_FADEC_POWERED_ENG${engine}`, 'bool', 500);
+  // The engine identification is amber with the engine N2 below idle (FCOM l.57846-57848, EngineRunning.ts)
+  const [engineN2] = useSimVar(`L:A32NX_ENGINE_N2:${engine}`, 'percent', 100);
+  const [engineN2Idle] = useSimVar('L:A32NX_ENGINE_IDLE_N2', 'percent', 500);
+  const engineN2BelowIdle = isEngineN2BelowIdle(engineN2, engineN2Idle);
 
   const [engineHPValveOpen] = useSimVar(`L:A32NX_PNEU_ENG_${engine}_HP_VALVE_OPEN`, 'bool', 500);
   // Amber when not in the commanded position (FCOM DSC-36-20 l.57754-57768, EngineBleedValveIndication.ts)
@@ -196,7 +201,7 @@ const EngineBleed: FC<EngineBleedProps> = ({
       <text
         x={engine === 1 ? x - 61 : x + 58}
         y={423}
-        className={`Huge ${engineN1BelowIdle && engineN1BelowIdleValid ? 'Amber' : 'White'}`}
+        className={`Huge ${engineN2BelowIdle && engineFadecPowered ? 'Amber' : 'White'}`}
       >
         {engine}
       </text>

@@ -8,11 +8,14 @@ import { GaugeComponent, GaugeMarkerComponent } from '@instruments/common/gauges
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
+import { apuBleedValveDisplay, isApuPageAvailVisible } from './ApuIndications';
 
 import './Apu.scss';
 
 export const ApuPage = () => {
-  const [apuAvail] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'Bool', 1000);
+  // AVAIL from APU N above 95 % (FCOM l.60758-60759, ApuIndications.ts)
+  const apuN = useArinc429Var('L:A32NX_APU_N', 100);
+  const apuAvail = isApuPageAvailVisible(apuN.isNormalOperation(), apuN.value);
 
   return (
     <EcamPage name="main-apu">
@@ -170,6 +173,9 @@ const ApuBleed = ({ x, y }: ComponentPositionProps) => {
 
   // FIXME should be APU bleed absolute pressure label from SDAC
   const apuBleedPressAvailable = apuN.isNormalOperation() && correctedAverageStaticPressure.isNormalOperation();
+  // The valve status comes from the ECB: amber XX when its data are not available (FCOM l.60763-60770, ApuIndications.ts)
+  const valveDisplay = apuBleedValveDisplay(apuN.isNormalOperation(), !!apuBleedOpen, apuBleedPbOnConfirmed);
+  const valveColour = valveDisplay === 'crossline-amber' || valveDisplay === 'xx-amber' ? 'Amber' : 'Green';
   return (
     <>
       {/* FBW-31-08 */}
@@ -188,21 +194,22 @@ const ApuBleed = ({ x, y }: ComponentPositionProps) => {
         </text>
 
         <line className="Line Green" x1={50} y1={-1} x2={50} y2={-22} />
-        <circle
-          className={`Circle ${!apuBleedOpen && apuBleedPbOnConfirmed ? 'Amber' : 'Green'}`}
-          cx={50}
-          r={18}
-          cy={-40}
-        />
+        <circle className={`Circle ${valveColour}`} cx={50} r={18} cy={-40} />
 
-        <line
-          className={`Line ${!apuBleedOpen && apuBleedPbOnConfirmed ? 'Amber' : 'Green'}`}
-          x1={apuBleedOpen ? 50 : 32}
-          y1={apuBleedOpen ? -58 : -40}
-          x2={apuBleedOpen ? 50 : 68}
-          y2={apuBleedOpen ? -22 : -40}
-        />
-        {apuBleedOpen && (
+        {valveDisplay === 'xx-amber' ? (
+          <text x={51} y={-33} className="FontNormal Center Amber">
+            XX
+          </text>
+        ) : (
+          <line
+            className={`Line ${valveColour}`}
+            x1={apuBleedOpen ? 50 : 32}
+            y1={apuBleedOpen ? -58 : -40}
+            x2={apuBleedOpen ? 50 : 68}
+            y2={apuBleedOpen ? -22 : -40}
+          />
+        )}
+        {valveDisplay === 'inline-green' && (
           <>
             <line className="Line Green" x1={50} y1={-57} x2={50} y2={-72} />
             <polygon className="Circle Green" points="40,-72 50,-92 60,-72" />

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { ClockEvents, EventBus, DisplayComponent, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { AutoThrustMode } from '@shared/autopilot';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
+import { isEgtLimitLineVisible } from './EngineIndications';
 import { GaugeComponent, GaugeMarkerComponent, GaugeMaxComponent } from '../MsfsAvionicsCommon/gauges';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
 import {
@@ -42,6 +44,14 @@ export class Egt extends DisplayComponent<EgtProps> {
   private activeVisibility = Subject.create('hidden');
 
   private thrustLimitType: number = 0;
+
+  /** The alpha floor protection is active (L:A32NX_AUTOTHRUST_MODE A.FLOOR) */
+  private alphaFloorActive = false;
+
+  /** The amber EGT limit line and its fill, hidden in TO/GA modes, reverse and alpha floor (EngineIndications.ts) */
+  private readonly egtLimitClass = Subject.create('GaugeThrustLimitIndicator Gauge');
+
+  private readonly egtLimitFillClass = Subject.create('GaugeThrustLimitIndicatorFill Gauge');
 
   private egt: number = 0;
 
@@ -91,6 +101,13 @@ export class Egt extends DisplayComponent<EgtProps> {
       });
 
     sub
+      .on('autoThrustMode')
+      .whenChanged()
+      .handle((mode) => {
+        this.alphaFloorActive = mode === AutoThrustMode.A_FLOOR;
+      });
+
+    sub
       .on(`engine${this.props.engine}EGT`)
       .whenChanged()
       .handle((egt) => {
@@ -117,6 +134,9 @@ export class Egt extends DisplayComponent<EgtProps> {
       .atFrequency(10)
       .handle((_t) => {
         this.egtMaxValue.set(this.egtMax);
+        const limitLineVisible = isEgtLimitLineVisible(this.thrustLimitType, this.alphaFloorActive);
+        this.egtLimitClass.set(limitLineVisible ? 'GaugeThrustLimitIndicator Gauge' : 'Hide');
+        this.egtLimitFillClass.set(limitLineVisible ? 'GaugeThrustLimitIndicatorFill Gauge' : 'Hide');
         this.egtExceedance.update(this.egt, isGroundStartSequence(this.engineState, this.onGround), this.fadecPowered);
         this.egtExceedanceValue.set(this.egtExceedance.highestValue);
         this.egtExceedanceClass.set(this.egtExceedance.exceeded ? 'GaugeExceedanceMark' : 'Hide');
@@ -219,7 +239,7 @@ export class Egt extends DisplayComponent<EgtProps> {
               radius={radius}
               startAngle={this.gaugeStartAngle}
               endAngle={this.gaugeEndAngle}
-              class="GaugeThrustLimitIndicator Gauge"
+              class={this.egtLimitClass}
             />
             <GaugeMaxComponent
               value={this.egtMaxValue}
@@ -230,7 +250,7 @@ export class Egt extends DisplayComponent<EgtProps> {
               radius={radius}
               startAngle={this.gaugeStartAngle}
               endAngle={this.gaugeEndAngle}
-              class="GaugeThrustLimitIndicatorFill Gauge"
+              class={this.egtLimitFillClass}
             />
             <GaugeMarkerComponent
               value={this.egtExceedanceValue}
