@@ -589,6 +589,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] DOOR/OXY page: amber half-frame on ground below the dispatch pressure (cabin 1 600 PSI), cabin pressure amber below the emergency descent minimum of the passengers or 800 PSI before engine start - @TCdr
 1. [A380X/SD] BLEED page: the APU bleed valve shows amber when it is abnormally open or closed with the APU BLEED pb-sw ON - @TCdr
 1. [A380X/ENG] EWD EGT limits from the FCOM: amber above 970 °C, red line 1 002 °C (red at takeoff from 1 022 °C or after 20 s at or above 1 002 °C), with the ENG EGT OVER LIMIT alert and the EGT overtemperature failure retuned to them - @TCdr
+1. [A32NX/MCDU] HOLD page: LAST EXIT UTC and FUEL predicted (the EXTRA fuel burnt in the hold), and a database hold of the waypoint is used again (its inbound course was lost) - @TCdr
+1. [A32NX/MCDU] ATSU DATALINK page: AOC MENU on 1R as in the FCOM - @TCdr
+1. [A32NX/MCDU] New messages CHECK FLT NBR (the uplinked flight number differs from the INIT REQUEST one) and CSTR DEL ABOVE CRZ FL (a new CRZ FL deletes the altitude constraints at or above it, a window keeps its lower limit) - @TCdr
+1. [A380X/MFD] HOLD page: the DATABASE button selects the database hold of the waypoint, LAST EXIT time and EFOB are predicted, and the hold stays COMPUTED or DATABASE until the flight crew changes a parameter - @TCdr
+1. [A380X/MFD] CLOSEST AIRPORTS: time and EFOB with a cruise at the CRZ FL then an idle descent to the airport elevation - @TCdr
+1. [A380X/MFD] New FMS messages CONSTRAINTS ABOVE CRZ FL: DELETED (a new CRZ FL deletes the constraints at or above it), CHECK EO SPD SETTING, NO NAV INTERCEPTION, INSERT OR ERASE TMPY F-PLN FIRST (KCCU DIR key with a pending temporary flight plan) and RECEIVED FLT NUMBER NOT VALID - @TCdr
 
 ## 2024.1.0
 

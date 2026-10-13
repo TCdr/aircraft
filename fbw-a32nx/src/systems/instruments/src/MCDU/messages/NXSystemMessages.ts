@@ -72,12 +72,18 @@ export const NXSystemMessages = {
   checkDataBaseCycle: new TypeIIMessage('CHECK DATA BASE CYCLE'),
   // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22534, l.22543-22547): II/A
   checkDestData: new TypeIIMessage('CHECK DEST DATA', true),
+  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22537, l.22549-22550): II/A, the uplinked flight number
+  // differs from the one of the request
+  checkFltNbr: new TypeIIMessage('CHECK FLT NBR', true),
   checkMinDestFob: new TypeIIMessage('CHECK MIN DEST FOB'),
   checkToData: new TypeIIMessage('CHECK TAKE OFF DATA', true),
   checkWeight: new TypeIIMessage('CHECK WEIGHT', true),
   comUnavailable: new TypeIMessage('COM UNAVAILABLE'), // FIXME move out of FMS
   // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22601, l.22620-22621): II/W
   crzFlAboveMaxFl: new TypeIIMessage('CRZ FL ABOVE MAX FL'),
+  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.22602, l.22623-22625): II/W, altitude constraints at or
+  // above a new CRZ FL deleted (l.15144-15162)
+  cstrDelAboveCrzFl: new TypeIIMessage('CSTR DEL ABOVE CRZ FL'),
   cstrDelUpToWpt: new TypeIIMessage('CSTR DEL UP TO WWWWW', false, 'WWWWW'),
   databaseCodingError: new TypeIIMessage('DATABASE CODING ERROR'),
   dcduFileFull: new TypeIMessage('DCDU FILE FULL'), // FIXME move out of FMS

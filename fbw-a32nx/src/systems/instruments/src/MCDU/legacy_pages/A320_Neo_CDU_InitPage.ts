@@ -16,6 +16,7 @@ import { SimBriefUplinkAdapter } from '@fmgc/flightplanning/uplink/SimBriefUplin
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { AeroMath, Wait } from '@microsoft/msfs-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { isUplinkedFlightNumberDifferent } from '@fmgc/components/fms-messages/FmsMessageConditions';
 
 export class CDUInitPage {
   static ShowPage1(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex = FlightPlanIndex.Active) {
@@ -303,6 +304,8 @@ export class CDUInitPage {
     };
     mcdu.onRightInput[1] = () => {
       if (requestEnable) {
+        // The flight number of the request, for CHECK FLT NBR (A320 FCOM l.22537, l.22549-22550)
+        const requestedFlightNumber = plan.flightNumber.get();
         getSimBriefOfp(mcdu, () => {
           if (mcdu.page.Current === mcdu.page.InitPageA) {
             CDUInitPage.ShowPage1(mcdu, forPlan);
@@ -316,6 +319,10 @@ export class CDUInitPage {
                 console.log('SimBrief data uplinked.');
 
                 mcdu.flightPlanService.uplinkInsert(forPlan);
+
+                if (isUplinkedFlightNumberDifferent(requestedFlightNumber, data.callsign)) {
+                  mcdu.addMessageToQueue(NXSystemMessages.checkFltNbr);
+                }
 
                 if (mcdu.page.Current === mcdu.page.InitPageA) {
                   CDUInitPage.ShowPage1(mcdu, forPlan);
