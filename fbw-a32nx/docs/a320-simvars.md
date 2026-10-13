@@ -1604,6 +1604,11 @@ These variables are the interface between the 3D model and the systems/code.
     - Bool
     - Indicates if the CHECK SPEED MODE message is shown on the PFD
 
+- A32NX_PFD_MSG_CHECK_APPR_SELECTION
+    - Bool
+    - Indicates if the CHECK APPR SELECTION message is shown on the PFD (FMGC: a non ILS approach in the F-PLN with an
+      ILS manually tuned on the RAD NAV page, in cruise less than 100 NM from the T/D, in descent or in approach)
+
 - A32NX_PFD_LINEAR_DEVIATION_ACTIVE
     - Bool
     - Indicates if the linear deviation is shown on the PFD
@@ -2084,6 +2089,12 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Number
     - The GPS receiver the IR uses (1 or 2, 0 for none): GPS 1 for IR 1, GPS 2 for IR 2, IR 3 by the ATT HDG selector
       (GPS 2 on F/O 3); when one receiver is rejected, every IR uses the other
+
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM/GPS POS DISAGREE caution: GPS PRIMARY active and an FM
+      position more than the FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM
+      DSC-22_20-20-20). Written by the FMS (fmgc navigation/FmPosition.ts), read by the FWC
 
 - A32NX_GNSS_UTC_UNIX_SECONDS
     - Number (seconds)
