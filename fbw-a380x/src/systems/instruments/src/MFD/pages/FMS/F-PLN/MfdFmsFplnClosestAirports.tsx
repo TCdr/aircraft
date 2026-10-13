@@ -7,7 +7,7 @@ import { isNearbyAirportFacility, MagVar, NXDataStore } from '@flybywiresim/fbw-
 import { bearingTo, Coordinates, distanceTo } from 'msfs-geo';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
-import { Predictions } from '@fmgc/guidance/vnav/Predictions';
+import { closestAirportPrediction } from '../../../FMC/ClosestAirportPrediction';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { A380AltitudeUtils } from '@shared/OperatingAltitudes';
@@ -34,7 +34,8 @@ const NUM_OTHER_AIRPORTS = 3;
 class AirportLine {
   readonly ident = Subject.create<string | null>(null);
 
-  location: Coordinates | null = null;
+  /** The airport reference point, with the airport elevation when the database gives it */
+  location: (Coordinates & { alt?: number }) | null = null;
 
   readonly distance = Subject.create('');
 
@@ -71,8 +72,8 @@ class AirportLine {
  * distance from the aircraft present position, and up to three airports entered by the flight crew, with the direct
  * distance, bearing, time and EFOB. Time and EFOB are only computed in the cruise phase.
  *
- * Simplified: the FCOM predictions assume a flight at the CRZ FL down to the ground; here the whole great-circle
- * distance is flown level at the CRZ FL (no descent segment). The default effective wind is the INIT trip wind.
+ * The predictions are a cruise at the CRZ FL then a continuous descent to the airport elevation (FCOM l.27701-27713, see
+ * ClosestAirportPrediction.ts). The default effective wind is the INIT trip wind.
  */
 export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClosestAirportsProps> {
   private readonly closestLines = Array.from({ length: NUM_CLOSEST_AIRPORTS }, () => new AirportLine());
@@ -156,7 +157,8 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
     line.distance.set(Math.min(distance, 9999).toFixed(0));
     line.bearing.set(bearing.toFixed(0).padStart(3, '0'));
 
-    const prediction = this.cruisePrediction(distance, this.effectiveWind(line));
+    // Design choice: an airport without an elevation in the nearby airports data is taken at sea level
+    const prediction = this.cruisePrediction(distance, this.effectiveWind(line), line.location.alt ?? 0);
     if (prediction) {
       line.time.set(this.props.fmcService.master.timeKeeper.formatEta(prediction.seconds));
       const efob =
@@ -177,8 +179,17 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
     );
   }
 
-  /** FCOM: time and EFOB are only computed in the CRZ phase */
-  private cruisePrediction(distance: number, tailWind: number): { seconds: number; efobTonnes: number } | null {
+  /**
+   * FCOM: time and EFOB are only computed in the CRZ phase
+   * @param distance the great circle distance to the airport, NM
+   * @param tailWind the effective wind, kt, positive = tail wind
+   * @param airportElevation the airport elevation, ft
+   */
+  private cruisePrediction(
+    distance: number,
+    tailWind: number,
+    airportElevation: number,
+  ): { seconds: number; efobTonnes: number } | null {
     const fmc = this.props.fmcService.master;
     const plan = this.props.flightPlanInterface.active;
     const cruiseLevel = plan?.performanceData.cruiseFlightLevel.get() ?? null;
@@ -196,22 +207,25 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
     }
 
     const isaDev = sat - A380AltitudeUtils.getIsaTemp(cruiseLevel * 100);
-    const step = Predictions.levelFlightStep(
-      A380AircraftConfig,
-      cruiseLevel * 100,
+    // Cruise at the CRZ FL, then a continuous descent to the airport elevation (ClosestAirportPrediction.ts)
+    const prediction = closestAirportPrediction(A380AircraftConfig, {
+      cruiseAltitude: cruiseLevel * 100,
+      airportElevation,
       distance,
-      fmc.fmgc.getManagedCruiseSpeed(),
-      fmc.fmgc.getManagedCruiseSpeedMach(),
-      UnitType.POUND.convertFrom(zfw, UnitType.TONNE),
-      UnitType.POUND.convertFrom(fob, UnitType.TONNE),
-      -tailWind,
-      isaDev,
+      cruiseCas: fmc.fmgc.getManagedCruiseSpeed(),
+      cruiseMach: fmc.fmgc.getManagedCruiseSpeedMach(),
+      descentCas: fmc.fmgc.getManagedDescentSpeed(),
+      descentMach: fmc.fmgc.getManagedDescentSpeedMach(),
+      zeroFuelWeight: UnitType.POUND.convertFrom(zfw, UnitType.TONNE),
+      fuelOnBoard: UnitType.POUND.convertFrom(fob, UnitType.TONNE),
+      headwind: -tailWind,
+      isaDeviation: isaDev,
       // No tropopause: the ISA one (FL 361)
-      fmc.fmgc.getTropoPause() ?? defaultTropopauseAlt,
-    );
+      tropopause: fmc.fmgc.getTropoPause() ?? defaultTropopauseAlt,
+    });
     return {
-      seconds: step.timeElapsed,
-      efobTonnes: Math.max(0, fob - UnitType.TONNE.convertFrom(step.fuelBurned, UnitType.POUND)),
+      seconds: prediction.seconds,
+      efobTonnes: Math.max(0, fob - UnitType.TONNE.convertFrom(prediction.fuelBurned, UnitType.POUND)),
     };
   }
 

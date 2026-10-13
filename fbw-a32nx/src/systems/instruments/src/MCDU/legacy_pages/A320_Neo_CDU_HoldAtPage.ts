@@ -6,14 +6,18 @@
 import { CDUFlightPlanPage } from './A320_Neo_CDU_FlightPlanPage';
 import { CDULateralRevisionPage } from './A320_Neo_CDU_LateralRevisionPage';
 import { NXSystemMessages } from '../messages/NXSystemMessages';
-import { MagVar, TurnDirection, WaypointArea } from '@flybywiresim/fbw-sdk';
+import { MagVar, NXUnits, TurnDirection } from '@flybywiresim/fbw-sdk';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
-import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanLeg, isDiscontinuity } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { HoldData } from '@fmgc/flightplanning/data/flightplan';
 import { presentPositionComputedHold } from '@fmgc/flightplanning/plans/PresentPositionHold';
+import { findDatabaseHold } from '@fmgc/flightplanning/plans/DatabaseHold';
+import { holdEntryPrediction, holdLastExit } from '@fmgc/flightplanning/fuel/HoldLastExit';
 import { ADIRS } from '../legacy/A32NX_Core/Adirs';
+
+/** Pounds per tonne (the VNAV predictions give the EFOB in pounds) */
+const POUNDS_PER_TONNE = 2204.625;
 
 const HoldType = Object.freeze({
   Computed: 0,
@@ -64,48 +68,18 @@ export class CDUHoldAtPage {
         };
 
         const fix = waypoint.terminationWaypoint();
-        const promises = [];
-        // Due to the way MSFS stores holds, we have to try all these possibilities.
-        if (targetPlan.originAirport) {
-          promises.push(NavigationDatabaseService.activeDatabase.getHolds(fix.ident, targetPlan.originAirport.ident));
-        }
-        if (targetPlan.destinationAirport) {
-          promises.push(
-            NavigationDatabaseService.activeDatabase.getHolds(fix.ident, targetPlan.destinationAirport.ident),
-          );
-        }
-        if (fix && fix.area === WaypointArea.Terminal && 'airportIdent' in fix && fix.airportIdent.length > 0) {
-          promises.push(NavigationDatabaseService.activeDatabase.getHolds(fix.ident, fix.airportIdent));
-        }
-        Promise.all(promises)
-          .then((resolvedPromises) => {
-            // Pick a hold based on altitude suitability and inbound course
-            // Missing in the navdata is the duplicate indicator that would help us pick the right area/airspace type.
-            const holds = resolvedPromises
-              .reduce((allHolds, holds) => {
-                allHolds.push(...holds);
-                return allHolds;
-              })
-              .filter((v) => v.waypoint.databaseId === fix.databaseId)
-              .sort((a, b) => {
-                let ret =
-                  CDUHoldAtPage.holdVerticalDistanceFromAlt(alt, a) - CDUHoldAtPage.holdVerticalDistanceFromAlt(alt, b);
-                if (ret === 0) {
-                  ret =
-                    Math.abs(a.magneticCourse - inboundMagneticCourse) -
-                    Math.abs(b.magneticCourse - inboundMagneticCourse);
-                }
-                return ret;
-              });
-
-            if (holds[0]) {
-              defaultHold = {
-                inboundMagneticCourse: holds[0].magneticCourse,
-                turnDirection: holds[0].turnDirection,
-                time: holds[0].lengthTime ? holds[0].lengthTime : undefined,
-                distance: holds[0].length ? holds[0].length : undefined,
-                type: HoldType.Database,
-              };
+        // The database hold of the fix (see DatabaseHold.ts), else the computed hold. The database holds carry their
+        // inbound course in `course` (the former lookup read a `magneticCourse` field the database does not have).
+        findDatabaseHold(
+          fix,
+          targetPlan.originAirport?.ident,
+          targetPlan.destinationAirport?.ident,
+          alt,
+          inboundMagneticCourse,
+        )
+          .then((databaseHold) => {
+            if (databaseHold) {
+              defaultHold = databaseHold;
             }
 
             CDUHoldAtPage.addOrEditManualHold(
@@ -180,26 +154,6 @@ export class CDUHoldAtPage {
       });
   }
 
-  static holdVerticalDistanceFromAlt(altitude, hold) {
-    switch (hold.altitudeDescriptor) {
-      case 'B':
-        if (altitude <= hold.altitude1 && altitude >= hold.altitude2) {
-          return 0;
-        }
-        if (altitude > hold.altitude1) {
-          return altitude - hold.altitude1;
-        }
-        return hold.altitude2 - altitude;
-      case '+':
-        return Math.max(0, hold.altitude1 - altitude);
-      case '-':
-        return Math.max(0, altitude - hold.altitude1);
-      default:
-        // no restriction, so always suitable
-        return 0;
-    }
-  }
-
   static addOrEditManualHold(
     mcdu: LegacyFmsPageInterface,
     atIndex,
@@ -259,7 +213,7 @@ export class CDUHoldAtPage {
     ]);
     rows.push(['', '', '\xa0LAST EXIT']);
     rows.push(['', '', '{small}UTC\xa0\xa0\xa0FUEL{end}']);
-    rows.push(['', '', '----\xa0\xa0----']);
+    rows.push(['', '', CDUHoldAtPage.lastExitCell(mcdu, targetPlan, waypointIndexFP, forPlan, tmpy, inAlternate)]);
     rows.push(['']);
     rows.push(['']);
     rows.push([tmpy ? '{amber}{ERASE{end}' : '{RETURN', tmpy ? '{amber}INSERT*{end}' : '', '']);
@@ -370,6 +324,50 @@ export class CDUHoldAtPage {
         });
       }
     };
+  }
+
+  /**
+   * The LAST EXIT UTC / FUEL cell (A320 FCOM l.18272-18275, see HoldLastExit.ts): the time and the fuel on board when the
+   * EXTRA fuel of the FUEL PRED page is burnt in the hold, from the arrival at the hold fix (or now, in the hold).
+   * Design choice: dashes for a hold of the temporary, secondary or alternate flight plan, whose fuel predictions the FMS
+   * does not compute.
+   */
+  static lastExitCell(
+    mcdu: LegacyFmsPageInterface,
+    targetPlan,
+    holdLegIndex: number,
+    forPlan: number,
+    tmpy: boolean,
+    inAlternate: boolean,
+  ): string {
+    const dashes = '----\xa0\xa0----';
+    if (forPlan !== FlightPlanIndex.Active || tmpy || inAlternate) {
+      return dashes;
+    }
+
+    const profile = mcdu.guidanceController?.vnavDriver?.mcduProfile;
+    const holdFix = profile?.isReadyToDisplay ? profile.waypointPredictions.get(holdLegIndex - 1) : undefined;
+    const fob = mcdu.getFOB(FlightPlanIndex.Active);
+    const entry = holdEntryPrediction(
+      holdLegIndex,
+      targetPlan.activeLegIndex,
+      fob ?? null,
+      holdFix
+        ? {
+            secondsFromPresent: holdFix.secondsFromPresent,
+            fuelOnBoard: holdFix.estimatedFuelOnBoard / POUNDS_PER_TONNE,
+          }
+        : undefined,
+    );
+    const predictions = mcdu.getFuelPredComputation(FlightPlanIndex.Active);
+    const lastExit = holdLastExit(entry, predictions.extraFuel, predictions.extraTime);
+    if (lastExit === null) {
+      return dashes;
+    }
+
+    const time = mcdu.getTimePrediction(lastExit.secondsFromPresent, FlightPlanIndex.Active);
+    const fuel = NXUnits.kgToUser(lastExit.fuelOnBoard).toFixed(1).padStart(4, '\xa0');
+    return `{green}${time}\xa0\xa0${fuel}{end}`;
   }
 
   static computeDesiredHold(/** @type {FlightPlanLeg} */ leg) {

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { AltitudeConstraint, AltitudeDescriptor, WaypointConstraintType } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { Coordinates, distanceTo } from 'msfs-geo';
 
@@ -208,4 +209,268 @@ export function destinationDataMessages(
 ): { enterDestData: boolean; checkDestData: boolean } {
   const missing = [qnh, temperature, windDirection, windSpeed].some((v) => v === null || !Number.isFinite(v));
   return { enterDestData: missing, checkDestData: !missing && !windPilotEntered };
+}
+
+/** What the FMS does with an altitude constraint when the CRZ FL changes */
+export type CruiseLevelConstraintAction =
+  | { kind: 'delete' }
+  /** an altitude window above the CRZ FL: its upper limit is deleted, its lower limit kept (at or above) */
+  | { kind: 'keepLower'; lowerAltitude: number };
+
+/**
+ * The automatic deletion of the altitude constraints at or above the CRZ FL.
+ *
+ * A320 FCOM DSC-22_20-30-20-05 ALTITUDE CONSTRAINT (a320_fcom.txt l.15144-15160): "The FMS automatically deletes from the
+ * F-PLN: - The altitude constraints ("AT", "AT OR ABOVE", or "AT OR BELOW") with values equal to the CRZ FL, or greater
+ * than the CRZ FL - The altitude constraint windows with lower constraints equal to the CRZ FL, or greater than the CRZ
+ * FL - The upper constraint of altitude constraint windows with upper constraints equal to the CRZ FL, or greater than
+ * the CRZ FL. If the lower constraint of the altitude constraint window is below the CRZ FL, the FMS deletes only the
+ * upper constraint [...] and keeps the lower constraint". Message CSTR DEL ABOVE CRZ FL (l.22602, l.22623-22625).
+ * A380 FCOM DSC-22-FMS-10-40-60 (a380_fcom.txt l.27100-27104): "When the CRZ FL or step altitudes are changed, the
+ * following constraints are deleted: The climb and descent constraints, that are at or above the new CRZ FL [...]".
+ * Message CONSTRAINTS ABOVE CRZ FL: DELETED (l.45252, l.45260-45262). Design choice: the A380 FCOM does not detail the
+ * windows, the A320 rule is used for them.
+ * @param constraint the altitude constraint of the leg
+ * @param cruiseAltitude the CRZ FL as an altitude, ft
+ * @returns the action, or null when the constraint stays
+ */
+export function cruiseLevelConstraintAction(
+  constraint: AltitudeConstraint | undefined,
+  cruiseAltitude: number,
+): CruiseLevelConstraintAction | null {
+  if (!constraint || constraint.altitudeDescriptor === undefined) {
+    return null;
+  }
+  const altitude1 = constraint.altitude1 ?? null;
+  const altitude2 = constraint.altitude2 ?? null;
+  switch (constraint.altitudeDescriptor) {
+    // no constraint, or a glide slope constraint (not considered by the FMS)
+    case AltitudeDescriptor.None:
+    case AltitudeDescriptor.AtAlt1GsMslAlt2:
+    case AltitudeDescriptor.AtOrAboveAlt1GsMslAlt2:
+      return null;
+    case AltitudeDescriptor.BetweenAlt1Alt2:
+      // altitude1 is the upper limit, altitude2 the lower one
+      if (altitude2 !== null && altitude2 >= cruiseAltitude) {
+        return { kind: 'delete' };
+      }
+      if (altitude1 !== null && altitude1 >= cruiseAltitude && altitude2 !== null) {
+        return { kind: 'keepLower', lowerAltitude: altitude2 };
+      }
+      return null;
+    case AltitudeDescriptor.AtOrAboveAlt2:
+      return altitude2 !== null && altitude2 >= cruiseAltitude ? { kind: 'delete' } : null;
+    default:
+      return altitude1 !== null && altitude1 >= cruiseAltitude ? { kind: 'delete' } : null;
+  }
+}
+
+/** A leg of the flight plan, as far as the CRZ FL constraint deletion needs it */
+export interface ConstraintLegLike {
+  isDiscontinuity: boolean;
+  altitudeConstraint?: AltitudeConstraint;
+  constraintType?: WaypointConstraintType;
+}
+
+/** A constraint to delete (or to cut to its lower limit) after a CRZ FL change */
+export interface CruiseLevelConstraintChange {
+  /** The index of the leg in the flight plan */
+  index: number;
+  /** The constraint is a descent constraint */
+  isDescent: boolean;
+  action: CruiseLevelConstraintAction;
+}
+
+/**
+ * The altitude constraints of a flight plan to delete after a CRZ FL change (cruiseLevelConstraintAction), on the legs
+ * not flown yet (from the active leg) up to the missed approach (excluded).
+ * @param legs the legs of the flight plan
+ * @param fromIndex the first leg to check (the active leg)
+ * @param toIndex the first leg not to check (the first missed approach leg)
+ * @param cruiseAltitude the CRZ FL as an altitude, ft
+ */
+export function constraintsAboveCruiseLevel(
+  legs: readonly ConstraintLegLike[],
+  fromIndex: number,
+  toIndex: number,
+  cruiseAltitude: number,
+): CruiseLevelConstraintChange[] {
+  const changes: CruiseLevelConstraintChange[] = [];
+  for (let i = Math.max(0, fromIndex); i < Math.min(toIndex, legs.length); i++) {
+    const leg = legs[i];
+    if (leg.isDiscontinuity) {
+      continue;
+    }
+    const action = cruiseLevelConstraintAction(leg.altitudeConstraint, cruiseAltitude);
+    if (action !== null) {
+      changes.push({ index: i, isDescent: leg.constraintType === WaypointConstraintType.DES, action });
+    }
+  }
+  return changes;
+}
+
+/**
+ * CHECK FLT NBR (A320 FCOM l.22537, l.22549-22550): "The uplinked flight number differs from the flight number specified
+ * in the request." The INIT REQUEST is sent with the flight number of the INIT A page (none: nothing to compare).
+ * @param requested the flight number when the request was sent, null if none
+ * @param uplinked the flight number of the uplinked flight plan
+ */
+export function isUplinkedFlightNumberDifferent(
+  requested: string | null | undefined,
+  uplinked: string | null | undefined,
+): boolean {
+  const normalise = (n: string | null | undefined) => (n ?? '').trim().toUpperCase();
+  return normalise(requested) !== '' && normalise(uplinked) !== '' && normalise(requested) !== normalise(uplinked);
+}
+
+/**
+ * The A380 FLT NBR entry format (a380_fcom.txt l.43411-43417): "Maximum 10 alphanumeric characters". RECEIVED FLT
+ * NUMBER NOT VALID (l.45976-45982): "The received flight number, that is part of the up linked flight plan data, is not
+ * valid."
+ * @param flightNumber the received flight number
+ */
+export function isValidA380FlightNumber(flightNumber: string | null | undefined): boolean {
+  return flightNumber !== null && flightNumber !== undefined && /^[A-Z0-9]{1,10}$/.test(flightNumber.toUpperCase());
+}
+
+/** CHECK EO SPD SETTING (A380 FCOM l.45024-45026): "(GREENDOT - 10 kt, GREENDOT + 10 kt)" */
+export const ENGINE_OUT_SPEED_MARGIN = 10;
+
+/**
+ * CHECK EO SPD SETTING (A380 FCOM l.45016, l.45020-45026): "In CLIMB, or CRUISE (and the guidance mode is not ALT* or
+ * ALT): the engine-out (EO) mode is active, and the selected speed target is not within the range (GREENDOT - 10 kt,
+ * GREENDOT + 10 kt)."
+ * @param engineOut the FMS engine-out mode is active
+ * @param phase the flight phase
+ * @param verticalModeIsAlt the vertical mode is ALT or ALT* (ALT CPT)
+ * @param selectedSpeed the selected speed target (CAS, kt), null in managed speed
+ * @param greenDot the green dot speed, kt, null if unknown
+ */
+export function isEngineOutSpeedSettingWrong(
+  engineOut: boolean,
+  phase: FmgcFlightPhase,
+  verticalModeIsAlt: boolean,
+  selectedSpeed: number | null,
+  greenDot: number | null,
+): boolean {
+  if (!engineOut || verticalModeIsAlt || selectedSpeed === null || greenDot === null) {
+    return false;
+  }
+  if (phase !== FmgcFlightPhase.Climb && phase !== FmgcFlightPhase.Cruise) {
+    return false;
+  }
+  return Math.abs(selectedSpeed - greenDot) > ENGINE_OUT_SPEED_MARGIN;
+}
+
+/**
+ * The selected speed target as a CAS, for the green dot comparison of CHECK EO SPD SETTING: a selected Mach is turned
+ * into the CAS it gives at the present altitude and temperature (the ratio of the present CAS and Mach).
+ * @param selectedValue the selected speed (kt) or Mach
+ * @param isMach the selected target is a Mach
+ * @param currentCas the present CAS, kt
+ * @param currentMach the present Mach
+ * @returns the CAS, kt, or null when it cannot be computed
+ */
+export function selectedSpeedAsCas(
+  selectedValue: number,
+  isMach: boolean,
+  currentCas: number,
+  currentMach: number,
+): number | null {
+  if (!Number.isFinite(selectedValue) || selectedValue <= 0) {
+    return null;
+  }
+  if (!isMach) {
+    return selectedValue;
+  }
+  return currentMach > 0.1 && Number.isFinite(currentCas) ? (selectedValue * currentCas) / currentMach : null;
+}
+
+/** NM per degree of latitude */
+const NM_PER_DEGREE = 60;
+
+/** An aircraft closer to the leg than this is on the leg, NM */
+const ON_LEG_DISTANCE = 0.1;
+
+/**
+ * Whether the aircraft track intercepts a straight leg before its end (the TO waypoint), for NO NAV INTERCEPTION (A380
+ * FCOM l.45787, l.45791-45794): "The selected HDG/TRACK does not intercept the flight plan before the TO waypoint. No
+ * interception path is displayed on the ND."
+ * Design choice: a flat earth around the aircraft (a leg of a few hundred NM at most), the track as a ray from the
+ * aircraft, and the leg as the segment from its start to the TO waypoint. An aircraft on the leg intercepts it.
+ * @param aircraft the aircraft position
+ * @param trueTrack the aircraft true track, degrees
+ * @param legStart the start of the leg (the FROM waypoint)
+ * @param legEnd the end of the leg (the TO waypoint)
+ */
+export function doesTrackInterceptLeg(
+  aircraft: Coordinates,
+  trueTrack: number,
+  legStart: Coordinates,
+  legEnd: Coordinates,
+): boolean {
+  const cosLat = Math.cos((aircraft.lat * Math.PI) / 180);
+  const toLocal = (p: Coordinates) => {
+    let dLong = p.long - aircraft.long;
+    if (dLong > 180) {
+      dLong -= 360;
+    } else if (dLong < -180) {
+      dLong += 360;
+    }
+    return { x: dLong * cosLat * NM_PER_DEGREE, y: (p.lat - aircraft.lat) * NM_PER_DEGREE };
+  };
+  const a = toLocal(legStart);
+  const b = toLocal(legEnd);
+  const segment = { x: b.x - a.x, y: b.y - a.y };
+  const segmentLengthSquared = segment.x * segment.x + segment.y * segment.y;
+  if (segmentLengthSquared === 0) {
+    return false;
+  }
+
+  // the aircraft already on the leg
+  const along = Math.max(0, Math.min(1, -(a.x * segment.x + a.y * segment.y) / segmentLengthSquared));
+  if (Math.hypot(a.x + along * segment.x, a.y + along * segment.y) < ON_LEG_DISTANCE) {
+    return true;
+  }
+
+  // the ray (t >= 0) against the segment (0 <= u <= 1): t * direction = a + u * segment
+  const track = (trueTrack * Math.PI) / 180;
+  const direction = { x: Math.sin(track), y: Math.cos(track) };
+  const denominator = direction.x * segment.y - direction.y * segment.x;
+  if (Math.abs(denominator) < 1e-9) {
+    // parallel to the leg: no interception
+    return false;
+  }
+  const t = (a.x * segment.y - a.y * segment.x) / denominator;
+  const u = (a.x * direction.y - a.y * direction.x) / denominator;
+  return t >= 0 && u >= 0 && u <= 1;
+}
+
+/**
+ * NO NAV INTERCEPTION (A380 FCOM l.45787, l.45791-45794): in HDG or TRK with NAV armed, in flight, the track does not
+ * intercept the active leg before the TO waypoint. Design choices: only with NAV armed (the ND shows the interception
+ * path for the armed NAV mode), and only for an active TF leg (a leg from the FROM waypoint to the TO waypoint), the
+ * other legs have no fixed start.
+ * @param headingOrTrackEngaged the lateral mode is HDG or TRACK
+ * @param navArmed NAV is armed
+ * @param inFlight the aircraft is in flight (climb to go around phases)
+ * @param activeLeg the start and end of the active TF leg, null for another leg
+ * @param aircraft the aircraft position, null if invalid
+ * @param trueTrack the aircraft true track, degrees
+ */
+export function isNoNavInterception(
+  headingOrTrackEngaged: boolean,
+  navArmed: boolean,
+  inFlight: boolean,
+  activeLeg: { start: Coordinates; end: Coordinates } | null,
+  aircraft: Coordinates | null,
+  trueTrack: number,
+): boolean {
+  if (!headingOrTrackEngaged || !navArmed || !inFlight || activeLeg === null || aircraft === null) {
+    return false;
+  }
+  if (!Number.isFinite(trueTrack)) {
+    return false;
+  }
+  return !doesTrackInterceptLeg(aircraft, trueTrack, activeLeg.start, activeLeg.end);
 }

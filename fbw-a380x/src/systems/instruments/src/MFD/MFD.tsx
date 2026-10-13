@@ -40,6 +40,8 @@ import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
 import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
 import { NdInteractiveEvents } from '@shared/NdInteractive';
 import { MfdSystemMessageArea } from './shared/MfdSystemMessageArea';
+import { NXSystemMessages } from './shared/NXSystemMessages';
+import { isDirectToKeyBlockedByTemporary } from './FMC/DirectToAccess';
 
 export const getDisplayIndex = () => {
   const url = document.getElementsByTagName('a380x-mfd')[0].getAttribute('url');
@@ -278,9 +280,25 @@ export class MfdComponent
               .pub('kccuKeyEvent', [this.props.captOrFo === 'CAPT' ? 'L' : 'R', key]);
 
             switch (key) {
-              case 'DIR':
+              case 'DIR': {
+                // INSERT OR ERASE TMPY F-PLN FIRST (FCOM l.45663, l.45667-45670): not with a pending temporary flight
+                // plan of a revision (DirectToAccess.ts)
+                const fmc = this.props.fmcService.master;
+                const flightPlans = fmc?.flightPlanInterface;
+                const temporary = flightPlans?.hasTemporary ? flightPlans.temporary : undefined;
+                if (
+                  fmc &&
+                  isDirectToKeyBlockedByTemporary(
+                    temporary !== undefined,
+                    temporary?.maybeElementAt(temporary.activeLegIndex - 1),
+                  )
+                ) {
+                  fmc.addMessageToQueue(NXSystemMessages.insertOrEraseTmpyFirst, undefined, undefined);
+                  break;
+                }
                 this.uiService.navigateTo('fms/active/f-pln-direct-to');
                 break;
+              }
               case 'PERF':
                 this.uiService.navigateTo('fms/active/perf');
                 break;

@@ -109,6 +109,7 @@ import {
   MessageTextLatch,
   utcCalendarDate,
 } from '@fmgc/components/fms-messages/FmsMessageConditions';
+import { deleteConstraintsAboveCruiseLevel } from '@fmgc/flightplanning/plans/CruiseLevelConstraints';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { A32NXFcuBusEvents } from '@shared/publishers/A32NXFcuBusPublisher';
 import { A32NXFgBusEvents } from '@shared/publishers/A32NXFGBusPublisher';
@@ -3484,6 +3485,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     const maxFl = this.getMaxFlCorrected();
     if (maxFl !== null && flightLevelToInsert > maxFl) {
       this.addMessageToQueue(NXSystemMessages.crzFlAboveMaxFl);
+    }
+    // CSTR DEL ABOVE CRZ FL (A320 FCOM l.15144-15162, l.22602, l.22623-22625): the altitude constraints at or above the
+    // new CRZ FL are deleted (see CruiseLevelConstraints.ts)
+    if (deleteConstraintsAboveCruiseLevel(plan, flightLevelToInsert) > 0) {
+      this.addMessageToQueue(NXSystemMessages.cstrDelAboveCrzFl);
     }
     if (newCrzAltMessage) {
       this.addMessageToQueue(
