@@ -440,7 +440,7 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
       at,
       desiredHold,
       modifiedHold,
-      desiredHold,
+      defaultHold,
       planIndex,
       alternate,
     );
@@ -651,7 +651,7 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
 
   /** @inheritdoc */
   public tryEraseEngineOutSid(): Promise<boolean> {
-    return this.callFunctionViaRpc('tryActivateEngineOutSid');
+    return this.callFunctionViaRpc('tryEraseEngineOutSid');
   }
 
   getHistoryWindsEntries(sortByAltitudeAscending?: boolean): Promise<Readonly<HistoryWindEntry>[]> {
