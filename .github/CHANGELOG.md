@@ -574,6 +574,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/VD] VD messages as in the FCOM: NO TERR AND WX DATA AVAILABLE with TERR SYS OFF, new WX NOT SEL (WX ON VD or WXR OFF), the invented NO TERR DATA AVAILABLE and NO WX DATA AVAILABLE are gone - @TCdr
 1. [A380X/EFIS] The WX pbs are deselected automatically 60 s after touchdown (the weather radar turns off) - @TCdr
 1. [A380X/OANS] The destination arrow also shows in ROSE NAV mode, and only at the 5 NM range - @TCdr
+1. [A32NX/FWC] AUTO BRK memo as in the FCOM: green AUTO BRK OFF when the autobrake has failed; no more amber AUTO BRK OFF memo, voice and MASTER CAUT at a normal autobrake disarm - @TCdr
+1. [A32NX/FWC] FCOM titles IRS IN ALIGN X MN (was IR IN ALIGN) and NAV ALTI DISCREPANCY (was ALT DISCREPANCY) - @TCdr
+1. [A32NX/FWC] New AUTO FLT REAC W/S DET FAULT caution (STATUS INOP SYS REAC W/S DET) when the reactive windshear detection is lost - @TCdr
+1. [A32NX/FWC] New red CONFIG L(R) SIDESTICK FAULT warning at the TO CONFIG test or at takeoff power when a sidestick was deactivated by the takeover pb - @TCdr
+1. [A32NX/FWC] STATUS after an involuntary AP OFF (INOP SYS of the lost AP, CAT 2 when both are lost) and ELEC EMER CONFIG STATUS; ELEC EMER CONFIG shows FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE in flight - @TCdr
+1. [A32NX/FWC] CAB PR SAFETY VALVE OPEN branches at the FCOM values (DIFF PR above 8 PSI, below 0 PSI); the flap and slat configuration warnings use SFCC 2 when SFCC 1 sends no position - @TCdr
 
 ## 2024.1.0
 

@@ -80,13 +80,6 @@ export const FwsAuralsList: Record<string, FwsAural> = {
     type: FwsAuralWarningType.AuralWarning,
     continuous: false,
   },
-  autoBrakeOff: {
-    localVarName: 'A32NX_AUDIO_AUTOBRAKE_OFF',
-    length: 1.5,
-    priority: 17,
-    type: FwsAuralWarningType.SyntheticVoice,
-    continuous: false,
-  },
   runwayTooShort: {
     localVarName: 'A32NX_AUDIO_ROW_RWY_TOO_SHORT',
     length: 1.6,

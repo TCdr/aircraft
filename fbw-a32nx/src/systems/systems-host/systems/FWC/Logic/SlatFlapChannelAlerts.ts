@@ -99,3 +99,22 @@ export function flapSysFaultStatus(sfcc: 1 | 2): StatusLines {
 export function slatSysFaultStatus(): StatusLines {
   return { left: [SlatFlapChannelStatusCodes.slatsSlow], inopSys: [] };
 }
+
+/** One SFCC position word as the FWC reads it (Arinc429Word) */
+export interface SfccPositionWord {
+  isNormalOperation(): boolean;
+}
+
+/**
+ * The SFCC whose flap (or slat) actual position word the FWC uses. "The slat and flap systems are similar,
+ * comprising: Two slat flap control computers (SFCCs), each containing one slat channel and one flap channel"
+ * (A320 FCOM DSC-27-30-10, a320_fcom.txt l.41397-41398): each word has two sources. Design choice (the FCOM gives no
+ * FWC source selection): the word of SFCC 1, else the word of SFCC 2 when only that one is valid (SFCC 1 channel
+ * unpowered), else SFCC 1 (no valid position: the position conditions stay false, as before).
+ * @param sfcc1 the word of SFCC 1 (L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD or _SLAT_ACTUAL_POSITION_WORD)
+ * @param sfcc2 the same word of SFCC 2
+ * @returns the word to use
+ */
+export function selectSfccPositionWord<T extends SfccPositionWord>(sfcc1: T, sfcc2: T): T {
+  return !sfcc1.isNormalOperation() && sfcc2.isNormalOperation() ? sfcc2 : sfcc1;
+}
