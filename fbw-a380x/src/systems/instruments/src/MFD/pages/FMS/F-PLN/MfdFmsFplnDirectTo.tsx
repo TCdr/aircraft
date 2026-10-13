@@ -16,6 +16,7 @@ import { Fix, MagVar } from '@flybywiresim/fbw-sdk';
 import { bearingTo } from 'msfs-geo';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { DirectToCourseFormat } from '../../common/DataEntryFormats';
+import { NXSystemMessages } from '../../../shared/NXSystemMessages';
 
 interface MfdFmsFplnDirectToProps extends AbstractMfdPageProps {}
 
@@ -384,6 +385,16 @@ export class MfdFmsFplnDirectTo extends FmsFlightPlanPage<MfdFmsFplnDirectToProp
               onClick={async () => {
                 SimVar.SetSimVarValue('K:A32NX.FMGC_DIR_TO_TRIGGER', 'number', 0);
                 this.props.flightPlanInterface.temporaryInsert();
+                // A380 FCOM l.44814-44821: ADJUST DESIRED TRK OR HDG when a DIR TO with interception of an
+                // inbound/outbound radial is inserted
+                const option = this.directToOption.get();
+                if (option === DirectToOption.CRS_IN || option === DirectToOption.CRS_OUT) {
+                  this.props.fmcService.master.addMessageToQueue(
+                    NXSystemMessages.adjustDesiredTrkOrHdg,
+                    undefined,
+                    undefined,
+                  );
+                }
                 this.props.fmcService.master.guidanceController?.vnavDriver?.invalidateFlightPlanProfile();
                 this.props.mfd.uiService.navigateTo(`fms/${this.props.mfd.uiService.activeUri.get().category}/f-pln`);
               }}

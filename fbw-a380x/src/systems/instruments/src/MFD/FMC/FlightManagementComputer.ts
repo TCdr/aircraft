@@ -79,6 +79,7 @@ import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { clampFmcUpdateStep } from './FmcUpdateStep';
 import { FmsPrinter } from './FmsPrinter';
+import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
@@ -233,6 +234,9 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** The FMS print functions (FMC-A, created with the first update, once the FMC is initialized) */
   #printer: FmsPrinter | null = null;
+
+  /** The type II FMS messages raised from the FMS data each cycle (FMC-A only, it has the navigation) */
+  #advisoryMessages: FmsAdvisoryMessages | null = null;
 
   get printer(): FmsPrinter | null {
     return this.#printer;
@@ -2027,6 +2031,8 @@ export class FlightManagementComputer implements FmcInterface {
       if (this.instance === FmcIndex.FmcA) {
         this.#printer ??= new FmsPrinter(this, this.bus);
         this.#printer.update();
+        this.#advisoryMessages ??= new FmsAdvisoryMessages(this);
+        this.#advisoryMessages.update();
       }
       this.updateFuelPlanning();
       this.loadActiveFlightPlanFuelAndApproachData();

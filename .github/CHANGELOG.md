@@ -146,6 +146,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X/FMS] The FM position is now the IRS position plus a bias that follows the GPIRS or the radio position and is kept in IRS only; without GPS PRIMARY the position is updated at takeoff to the runway plus the TO SHIFT, and the EPU follows the position updates - @TCdr
 1. [A32NX/MCDU] POSITION MONITOR shows the real FMGC 1 and 2, GPIRS or radio, MIX IRS and IRS positions with the navigation mode, PROG POSITION UPDATE AT works, and the IRS page shows the GPIRS position and accuracy of its ADIRU - @TCdr
 1. [A380X/MFD] POSITION/MONITOR shows the FMS 2, radio, GPIRS, GPS 1 and GPS 2 positions and the real navigation mode - @TCdr
+1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
+1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
 
 ## 2024.1.0
 
