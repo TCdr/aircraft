@@ -2115,16 +2115,23 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
   230800007: {
     title: '\x1b<4m\x1b4mCOM\x1bm DATALINK FAULT',
     sensed: true,
+    // A380 FCOM PRO-ABN-ECAM-10-23 COM DATALINK FAULT (a380_fcom.txt l.137232-137240); the lines shown are chosen by
+    // CommunicationAlerts.ts DATALINK_FAULT_ITEMS_TO_SHOW
     items: [
+      {
+        name: 'DATALINK INIT FAULT',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
       {
         name: 'ATC COM VOICE ONLY',
         sensed: false,
         style: ChecklistLineStyle.Cyan,
       },
       {
-        name: 'CPNY COM VOICE ONLY',
+        name: 'VHF & HF & SATCOM DATA NOT AVAIL',
         sensed: true,
-        style: ChecklistLineStyle.Cyan,
+        style: ChecklistLineStyle.Amber,
       },
     ],
   },
