@@ -2947,7 +2947,7 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 2
     - 3
     - 4
-  - Added by the FADEC to the EGT of the running engine: stall EGT rise (150 °C) and EGT overtemperature failure (flyPad 72110-72113, 120 °C at 100 % N1), design choices. The EWD shows the EEC-trimmed EGT of the healthy engine plus this offset. Written by the systems WASM
+  - Added by the FADEC to the EGT of the running engine: stall EGT rise (150 °C) and EGT overtemperature failure (flyPad 72110-72113, 350 °C at 100 % N1: amber in climb, red at takeoff thrust against the FCOM 970 °C limit and 1 002 °C red line), design choices. The EWD shows the EEC-trimmed EGT of the healthy engine plus this offset. Written by the systems WASM
 
 - A32NX_ENGINE_{number}_N1_OFFSET
   - Number (% N1)

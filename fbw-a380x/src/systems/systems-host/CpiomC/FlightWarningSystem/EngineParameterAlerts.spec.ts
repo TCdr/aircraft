@@ -20,6 +20,7 @@ const climb: EngineOverLimitInputs = {
   n3Percent: 95,
   thrustLimitType: 1,
   alphaFloor: false,
+  secondsAtOrAboveRedLine: 0,
 };
 
 describe('ENG STALL', () => {
@@ -37,16 +38,42 @@ describe('ENG STALL', () => {
   });
 });
 
+/*
+ * ENG EGT OVER LIMIT (a380_fcom.txt l.171488-171494): above the red line (1 002 °C) during takeoff and go-around, with
+ * the thrust reversers selected or in alpha floor, above the EGT limit (970 °C) at or below MCT. During takeoff the red
+ * indication it goes with is at or above 1 022 °C, or at or above 1 002 °C for more than 20 s (l.113170-113177).
+ */
 describe('ENG EGT OVER LIMIT', () => {
-  it('triggers above the EGT limit at or below MCT', () => {
-    expect(isEgtOverLimit({ ...climb, displayedEgtDegrees: 850 })).toBe(false);
-    expect(isEgtOverLimit({ ...climb, displayedEgtDegrees: 860 })).toBe(true);
+  it('triggers above the 970 °C EGT limit at or below MCT', () => {
+    expect(isEgtOverLimit({ ...climb, displayedEgtDegrees: 970 })).toBe(false);
+    expect(isEgtOverLimit({ ...climb, displayedEgtDegrees: 971 })).toBe(true);
+    expect(isEgtOverLimit({ ...climb, thrustLimitType: 2, displayedEgtDegrees: 971 })).toBe(true);
   });
 
-  it('triggers above the red line at TOGA and in alpha floor only', () => {
-    expect(isEgtOverLimit({ ...climb, thrustLimitType: 4, displayedEgtDegrees: 880 })).toBe(false);
-    expect(isEgtOverLimit({ ...climb, thrustLimitType: 4, displayedEgtDegrees: 910 })).toBe(true);
-    expect(isEgtOverLimit({ ...climb, alphaFloor: true, displayedEgtDegrees: 880 })).toBe(false);
+  it('at TOGA and FLEX triggers from 1 022 °C, or from 1 002 °C held for more than 20 s', () => {
+    const toga = { ...climb, thrustLimitType: 4 };
+    expect(isEgtOverLimit({ ...toga, displayedEgtDegrees: 990 })).toBe(false);
+    expect(isEgtOverLimit({ ...toga, displayedEgtDegrees: 1021 })).toBe(false);
+    expect(isEgtOverLimit({ ...toga, displayedEgtDegrees: 1022 })).toBe(true);
+    expect(isEgtOverLimit({ ...toga, displayedEgtDegrees: 1010, secondsAtOrAboveRedLine: 15 })).toBe(false);
+    expect(isEgtOverLimit({ ...toga, displayedEgtDegrees: 1010, secondsAtOrAboveRedLine: 21 })).toBe(true);
+    expect(
+      isEgtOverLimit({ ...climb, thrustLimitType: 3, displayedEgtDegrees: 1010, secondsAtOrAboveRedLine: 21 }),
+    ).toBe(true);
+  });
+
+  it('with the reversers selected or in alpha floor triggers at the red line, without the takeoff tolerance', () => {
+    expect(isEgtOverLimit({ ...climb, thrustLimitType: 5, displayedEgtDegrees: 990 })).toBe(false);
+    expect(isEgtOverLimit({ ...climb, thrustLimitType: 5, displayedEgtDegrees: 1002 })).toBe(true);
+    expect(isEgtOverLimit({ ...climb, alphaFloor: true, displayedEgtDegrees: 990 })).toBe(false);
+    expect(isEgtOverLimit({ ...climb, alphaFloor: true, displayedEgtDegrees: 1002 })).toBe(true);
+    expect(isEgtOverLimit({ ...climb, thrustLimitType: 4, alphaFloor: true, displayedEgtDegrees: 1002 })).toBe(true);
+  });
+
+  it('FwsCore counts the time at or above the red line of each engine on the EGT the EWD shows', () => {
+    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+    expect(core).toContain('this.egtRedLineTimers[index].update(displayedEgtDegrees, deltaTime / 1000);');
+    expect(core).toContain('secondsAtOrAboveRedLine: this.egtRedLineTimers[index].secondsAtOrAboveRedLine,');
   });
 });
 
