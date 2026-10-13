@@ -4,7 +4,7 @@
 /**
  * The BRAKES and WHEEL cautions of the brake and steering control units (BSCU channels 1 and 2, ABCU), from the
  * a320_systems brake model (hydraulic/brake_control_units.rs). A320 FCOM PRO-ABN-BRAKES (a320_fcom.txt l.72313-72898)
- * and PRO-ABN-WHEEL (l.96340-96380).
+ * and PRO-ABN-WHEEL (l.96294-96380).
  *
  * Power supplies (FCOM PRO-ABN-ELEC bus fault STATUS, see ElecBusAlerts): BSCU channel 1 on AC BUS 1 and DC BUS 1
  * (BRK SYS 1), channel 2 on AC BUS 2 and DC BUS 2 (BRK SYS 2), ABCU on DC ESS BUS (ALTN BRK). Design choice: a unit
@@ -30,6 +30,8 @@ export interface BrakeSystemAlertInputs {
   readonly autobrakeFailedAfterArmed: boolean;
   /** The nose wheel steering system is failed, L:A32NX_BRAKES_NW_STRG_FAULT */
   readonly noseWheelSteeringFailed: boolean;
+  /** The BSCU reports the brake normal selector valve failed, L:A32NX_BRAKES_HYD_SEL_FAULT */
+  readonly normalSelectorValveFailed: boolean;
   /** The A/SKID & N/W STRG sw is OFF */
   readonly antiSkidSwitchOff: boolean;
   /** The yellow hydraulic system is in low pressure */
@@ -55,6 +57,8 @@ export interface BrakeSystemAlerts {
   readonly sys2Fault: boolean;
   /** WHEEL N/W STRG FAULT */
   readonly nwStrgFault: boolean;
+  /** WHEEL HYD SEL FAULT */
+  readonly hydSelFault: boolean;
 }
 
 /**
@@ -108,6 +112,11 @@ export function brakeSystemAlerts(inputs: BrakeSystemAlertInputs): BrakeSystemAl
   // NORM + ALTN FAULT already lists N/W STRG in its STATUS.
   const nwStrgFault = inputs.noseWheelSteeringFailed && !normAndAltnFault && !antiSkidNwsFault && !antiSkidNwsOff;
 
+  // WHEEL HYD SEL FAULT (l.96304-96305): "the brake normal selector valve is failed, or the NWS selector valve is at
+  // open position". The model has no NWS selector valve: the brake normal selector valve failure only (the BSCU
+  // reports it while one of its channels works, brake_control_units.rs).
+  const hydSelFault = inputs.normalSelectorValveFailed;
+
   return {
     antiSkidNwsFault,
     antiSkidNwsOff,
@@ -118,6 +127,7 @@ export function brakeSystemAlerts(inputs: BrakeSystemAlertInputs): BrakeSystemAl
     sys1Fault,
     sys2Fault,
     nwStrgFault,
+    hydSelFault,
   };
 }
 
@@ -189,6 +199,25 @@ export const SYS_2_FAULT_STATUS: BrakeSystemStatus = { left: [], inopSys: [S.brk
 
 /** WHEEL N/W STRG FAULT STATUS (l.96373-96378): CAT 3 SINGLE ONLY; INOP SYS CAT 3 DUAL, N/W STRG */
 export const NW_STRG_FAULT_STATUS: BrakeSystemStatus = { left: [S.cat3SingleOnly], inopSys: [S.cat3Dual, S.nwStrg] };
+
+/**
+ * WHEEL HYD SEL FAULT (A320 FCOM PRO-ABN-WHEEL, a320_fcom.txt l.96294-96338): amber caution, no STATUS. Its flight phase
+ * inhibition is the figure of the FCOM PDF ("A320 Neo FCOM_1.pdf", PRO-ABN-WHEEL P 2/6, page 5834): 3, 4, 5, 7, 8.
+ */
+export const HYD_SEL_FAULT_PHASE_INHIBITION = [3, 4, 5, 7, 8];
+
+/** The E/WD codes of WHEEL HYD SEL FAULT (EwdMessages): 0 title, 1 -A/SKID N/WS KEEP ON */
+export const HYD_SEL_FAULT_CODES = ['320048001', '320048002'];
+
+/**
+ * The lines of WHEEL HYD SEL FAULT: the title and "A/SKID & N/W STRG ... KEEP ON" (l.96336), always shown: "If the
+ * steering selector valve is failed open, setting A/SKID & N/W STRG sw to OFF will cause the nosewheel to go to maximum
+ * deflection" (l.96333-96334), and "As long as antiskid is operative, brake pressure is regulated by normal
+ * servovalves" (l.96338).
+ */
+export function hydSelFaultLines(): number[] {
+  return [0, 1];
+}
 
 /** The E/WD codes of the green AUTO BRK memo (EwdMessages), in the order of autoBrakeMemoLine: LO, MED, MAX, OFF */
 export const AUTO_BRK_MEMO_CODES = ['000002201', '000002202', '000002203', '000002204'];

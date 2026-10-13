@@ -17,6 +17,9 @@ import {
   NORM_AND_ALTN_FAULT_STATUS,
   NORM_BRK_FAULT_STATUS,
   NW_STRG_FAULT_STATUS,
+  HYD_SEL_FAULT_CODES,
+  HYD_SEL_FAULT_PHASE_INHIBITION,
+  hydSelFaultLines,
   SYS_1_FAULT_STATUS,
   SYS_2_FAULT_STATUS,
 } from './BrakeSystemAlerts';
@@ -31,6 +34,7 @@ const healthy: BrakeSystemAlertInputs = {
   normalBrakingFailed: false,
   autobrakeFailedAfterArmed: false,
   noseWheelSteeringFailed: false,
+  normalSelectorValveFailed: false,
   antiSkidSwitchOff: false,
   yellowLowPressure: false,
 };
@@ -108,6 +112,13 @@ describe('BRAKES and WHEEL cautions of the brake control units (A320 FCOM PRO-AB
     expect(active({ noseWheelSteeringFailed: true })).toEqual(['nwStrgFault']);
     expect(active({ noseWheelSteeringFailed: true, antiSkidSwitchOff: true })).toEqual(['antiSkidNwsOff']);
   });
+
+  it('WHEEL HYD SEL FAULT when the BSCU reports the brake normal selector valve failed (l.96304-96305)', () => {
+    expect(active({ normalSelectorValveFailed: true })).toEqual(['hydSelFault']);
+    // A/SKID & N/W STRG KEEP ON stays (l.96336), phases of the FCOM PDF figure (page 5834)
+    expect(hydSelFaultLines()).toEqual([0, 1]);
+    expect(HYD_SEL_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
+  });
 });
 
 /** The visible texts of formatted lines, without the colour codes */
@@ -159,6 +170,7 @@ describe('BRAKES and WHEEL wiring', () => {
     expect(lines(['320045001'])).toEqual(['BRAKES SYS 1 FAULT']);
     expect(lines(['320046001'])).toEqual(['BRAKES SYS 2 FAULT']);
     expect(lines(['320047001'])).toEqual(['WHEEL N/W STRG FAULT']);
+    expect(lines(HYD_SEL_FAULT_CODES)).toEqual(['WHEEL HYD SEL FAULT', '-A/SKID N/WS....KEEP ON']);
   });
 
   it('PseudoFWC reads the brake model outputs and raises the alerts', () => {
@@ -170,6 +182,7 @@ describe('BRAKES and WHEEL wiring', () => {
       'NORM_BRK_FAULT',
       'AUTO_BRK_FAULT',
       'NW_STRG_FAULT',
+      'HYD_SEL_FAULT',
     ]) {
       expect(fwc).toContain(`'L:A32NX_BRAKES_${simvar}'`);
     }
@@ -183,6 +196,7 @@ describe('BRAKES and WHEEL wiring', () => {
       '3200450:',
       '3200460:',
       '3200470:',
+      '3200480:',
     ]) {
       expect(fwc).toContain(code);
     }
@@ -194,7 +208,7 @@ describe('BRAKES and WHEEL wiring', () => {
       'utf-8',
     );
     expect(model).toContain('format!("BRAKES_BSCU_{channel}_FAULT")');
-    for (const simvar of ['ALTN_BRK_FAULT', 'NORM_BRK_FAULT', 'AUTO_BRK_FAULT', 'NW_STRG_FAULT']) {
+    for (const simvar of ['ALTN_BRK_FAULT', 'NORM_BRK_FAULT', 'AUTO_BRK_FAULT', 'NW_STRG_FAULT', 'HYD_SEL_FAULT']) {
       expect(model).toContain(`"BRAKES_${simvar}"`);
     }
   });

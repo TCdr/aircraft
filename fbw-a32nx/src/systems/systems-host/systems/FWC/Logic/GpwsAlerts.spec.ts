@@ -2,10 +2,25 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { GPWS_PHASE_INHIBITION, GpwsAlertKeys, GpwsAlerts, GpwsInputs, gpwsFaultMemory } from './GpwsAlerts';
+import { formatEwdMessages } from '@shared/EwdMessages';
+import {
+  GPWS_PHASE_INHIBITION,
+  GpwsAlertKeys,
+  GpwsAlerts,
+  GpwsInputs,
+  TERR_STBY_MEMO_CODE,
+  gpwsFaultMemory,
+  terrStbyMemo,
+} from './GpwsAlerts';
 import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
 
-const normal: GpwsInputs = { sysFault: false, sysOff: false, terrainFault: false, terrainOff: false };
+const normal: GpwsInputs = {
+  sysFault: false,
+  sysOff: false,
+  terrainFault: false,
+  terrainOff: false,
+  terrainStandby: false,
+};
 
 const active = (alerts: GpwsAlerts, key: string) => alerts.ewdFailures[key].simVarIsActive.get();
 
@@ -57,5 +72,35 @@ describe('NAV GPWS TERR DET FAULT', () => {
     const fwc = pseudoFwcSource();
     expect(fwc).toContain('...this.gpwsAlerts.ewdFailures');
     expect(fwc).toContain('this.gpwsAlerts.update(readGpwsInputs())');
+  });
+});
+
+/* A320 FCOM DSC-34-SURV-40-40 (l.55563-55566): "TERR STBY : This memo appears in green when any required predictive
+   function input is missing or considered invalid." */
+describe('TERR STBY memo', () => {
+  it('shows while the EGPWC is in terrain standby', () => {
+    expect(terrStbyMemo({ ...normal, terrainStandby: true })).toBe(true);
+    expect(terrStbyMemo(normal)).toBe(false);
+  });
+
+  it('not with the TERR pb-sw OFF (TERR OFF memo) or a terrain fault (GPWS TERR DET FAULT)', () => {
+    expect(terrStbyMemo({ ...normal, terrainStandby: true, terrainOff: true })).toBe(false);
+    expect(terrStbyMemo({ ...normal, terrainStandby: true, terrainFault: true })).toBe(false);
+  });
+
+  it('follows the inputs of each update', () => {
+    const alerts = new GpwsAlerts();
+    alerts.update({ ...normal, terrainStandby: true });
+    expect(alerts.terrStbyMemo.get()).toBe(true);
+    alerts.update(normal);
+    expect(alerts.terrStbyMemo.get()).toBe(false);
+  });
+
+  it('is a green memo, read from the EGPWC and wired in the PseudoFWC memo list', () => {
+    // eslint-disable-next-line no-control-regex
+    expect(formatEwdMessages([TERR_STBY_MEMO_CODE])[0]).toMatch(/^\x1b<3m.*TERR STBY/);
+    const fwc = pseudoFwcSource();
+    expect(fwc).toContain('simVarIsActive: this.gpwsAlerts.terrStbyMemo,');
+    expect(fwc).toContain('codesToReturn: [TERR_STBY_MEMO_CODE],');
   });
 });

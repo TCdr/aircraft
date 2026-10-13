@@ -597,6 +597,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
 1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
 1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
+1. [A32NX/FWC] New AIR ENG 1(2) BLEED FAULT / BLEED NOT CLOSED caution when a failed bleed valve stays open, and LEFT LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK versions of AIR ENG 1+2 BLEED FAULT when a wing or pylon leak is one of the losses - @TCdr
+1. [A32NX/FWC] New WHEEL HYD SEL FAULT caution with a new flyPad failure of the brake normal selector valve - @TCdr
+1. [A32NX/FWC] New NAV PRED W/S DET FAULT alert and STATUS INOP SYS PRED W/S DET with a new flyPad failure of the weather radar predictive windshear function - @TCdr
+1. [A32NX/EGPWS] New green TERR STBY memo when an input of the predictive terrain functions is missing or invalid; the terrain leaves the NDs and the TERR ON ND pushbuttons go off meanwhile - @TCdr
 
 ## 2024.1.0
 

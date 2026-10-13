@@ -203,6 +203,7 @@ export const A320Failure = Object.freeze({
   NormalBraking: 32203,
   Autobrake: 32204,
   NoseWheelSteering: 32205,
+  BrakeNormalSelectorValve: 32210,
 
   // ATA 30 (systems ice_rain_protection, in a320_systems pneumatic.rs)
   Eng1AntiIceValveStuckClosed: 30000,
@@ -261,6 +262,8 @@ export const A320Failure = Object.freeze({
   Ir1HeadingErroneous: 34110,
   Ir2HeadingErroneous: 34111,
   Ir3HeadingErroneous: 34112,
+  // TS only: the predictive windshear function of the weather radar (FWC/Logic/PredictiveWindshearAlerts.ts)
+  WxrPredictiveWindshear: 34120,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -550,6 +553,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.NormalBraking, 'Normal braking (servo valves)'],
   [32, A320Failure.Autobrake, 'Autobrake'],
   [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
+  [32, A320Failure.BrakeNormalSelectorValve, 'Brake normal selector valve failed open'],
 
   // The engine anti-ice valve stays closed (ANTI ICE ENG 1(2) VALVE CLSD) / open (ANTI ICE ENG 1(2) VALVE OPEN)
   [30, A320Failure.Eng1AntiIceValveStuckClosed, 'Engine 1 anti-ice valve stuck closed'],
@@ -608,6 +612,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Ir1HeadingErroneous, 'IR 1 heading erroneous'],
   [34, A320Failure.Ir2HeadingErroneous, 'IR 2 heading erroneous'],
   [34, A320Failure.Ir3HeadingErroneous, 'IR 3 heading erroneous'],
+  [34, A320Failure.WxrPredictiveWindshear, 'Weather radar predictive windshear (PWS)'],
 
   // The valve stays closed / fully open whatever the BMC commands (a stuck open bleed valve no longer regulates: ENG
   // BLEED FAULT by overpressure at climb power, ENG BLEED NOT CLSD at engine start, with APU BLEED ON or engine stopped)

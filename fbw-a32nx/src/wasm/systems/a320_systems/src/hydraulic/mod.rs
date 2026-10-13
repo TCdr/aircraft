@@ -9862,6 +9862,38 @@ mod tests {
         }
 
         #[test]
+        // WHEEL HYD SEL FAULT "triggers when the brake normal selector valve is failed" (FCOM l.96304-96305)
+        fn brake_normal_selector_valve_failure_is_reported_by_the_bscu() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            assert!(!brake_flag(&mut test_bed, "BRAKES_HYD_SEL_FAULT"));
+
+            test_bed.fail(FailureType::BrakeNormalSelectorValve);
+            test_bed = test_bed.run_one_tick();
+            assert!(brake_flag(&mut test_bed, "BRAKES_HYD_SEL_FAULT"));
+
+            // without a BSCU channel, nothing monitors the valve (A/SKID N/WS FAULT instead)
+            test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(1));
+            test_bed.fail(FailureType::BrakeSteeringControlUnitChannel(2));
+            test_bed = test_bed.run_one_tick();
+            assert!(!brake_flag(&mut test_bed, "BRAKES_HYD_SEL_FAULT"));
+        }
+
+        #[test]
+        // "If the normal brake selector valve is failed open, full green hydraulic pressure is present at normal
+        // servovalves' entry. Nosewheel steering remains available." (FCOM l.96325-96327): normal braking stays
+        fn brake_normal_selector_valve_failure_keeps_normal_braking() {
+            let mut test_bed = test_bed_in_flight_gear_down_full_pedals();
+            test_bed.fail(FailureType::BrakeNormalSelectorValve);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(5));
+
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(1000.)
+            );
+            assert!(!brake_flag(&mut test_bed, "BRAKES_NORM_BRK_FAULT"));
+        }
+
+        #[test]
         fn controller_blue_epump_activates_when_no_weight_on_nose_wheel() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
