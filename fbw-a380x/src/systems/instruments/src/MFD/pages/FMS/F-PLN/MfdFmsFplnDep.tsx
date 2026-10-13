@@ -19,6 +19,7 @@ import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPla
 
 import { fcomAt, fcomRight } from '../../common/FcomLayout';
 import './MfdFmsFpln.scss';
+import { engineOutSidIdent } from '../../../FMC/EngineOutSid';
 
 interface MfdFmsFplnDepProps extends AbstractMfdPageProps {}
 
@@ -72,7 +73,7 @@ export class MfdFmsFplnDep extends FmsFlightPlanPage<MfdFmsFplnDepProps> {
         this.rwyIdent.set(flightPlan.originRunway.ident.substring(4));
         this.rwyLength.set(Number(flightPlan.originRunway.length.toFixed(0)), UnitType.METER);
         this.rwyCrs.set(flightPlan.originRunway.bearing.toFixed(0).padStart(3, '0') ?? '---');
-        this.rwyEoSid.set('NONE');
+        this.rwyEoSid.set(engineOutSidIdent(flightPlan));
         this.rwyFreq.set(flightPlan.originRunway.lsFrequencyChannel?.toFixed(2) ?? '---.--');
         this.rwyLs.set(MfdFmsFplnDep.landingSystemLabel(flightPlan.originRunway));
 

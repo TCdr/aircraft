@@ -1,6 +1,7 @@
 // Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { TurnDirection, WaypointDescriptor } from '@flybywiresim/fbw-sdk';
+import { MagVar, TurnDirection, WaypointDescriptor } from '@flybywiresim/fbw-sdk';
+import { presentPositionComputedHold } from '@fmgc/flightplanning/plans/PresentPositionHold';
 import { HoldType } from '@fmgc/flightplanning/data/flightplan';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { MfdFmsFpln } from './MfdFmsFpln';
@@ -37,6 +38,15 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
     revisedLeg.isDiscontinuity === false &&
     revisedLeg.isXF() &&
     !BitFlags.isAny(revisedLeg.flags, FlightPlanLegFlags.DirectToTurningPoint);
+
+  // A380 FCOM l.25351-25352: "To insert an HM at P.POS, the flight crew performs the lateral revision on the flight plan
+  // FROM waypoint." (the active flight plan, in flight: on the ground the FROM waypoint is the departure)
+  const isPresentPositionHold =
+    isFromLeg &&
+    planIndex === FlightPlanIndex.Active &&
+    !altnFlightPlan &&
+    type !== FplnRevisionsMenuType.Departure &&
+    type !== FplnRevisionsMenuType.Runway;
 
   return [
     {
@@ -107,9 +117,33 @@ export function getRevisionsMenu(fpln: MfdFmsFpln, type: FplnRevisionsMenuType):
       disabled:
         type === FplnRevisionsMenuType.Discontinuity ||
         type === FplnRevisionsMenuType.TooSteepPath ||
-        isFromLeg || // TODO should be allowed at FROM but we don't support PPOS holds yet.
-        !isLegTerminatingAtDatabaseFix,
+        (isFromLeg ? !isPresentPositionHold : !isLegTerminatingAtDatabaseFix),
       onPressed: async () => {
+        const fmc = fpln.props.fmcService.master;
+        if (isPresentPositionHold && fmc) {
+          // HOLD at P.POS: the computed hold on the aircraft track (FCOM l.25374-25380, see PresentPositionHold.ts)
+          const ppos = fmc.navigation.getPpos();
+          if (!ppos) {
+            return;
+          }
+          const trueTrack: number = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
+          const magVar = MagVar.get(ppos.lat, ppos.long);
+          const computedHold = presentPositionComputedHold(
+            magVar === null ? trueTrack : MagVar.trueToMagnetic(trueTrack, magVar),
+            SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+          );
+          const holdIndex = await fmc.flightPlanInterface.holdAtPresentPosition(
+            ppos,
+            trueTrack,
+            { ...computedHold },
+            computedHold,
+          );
+          fmc.revisedLegIndex.set(holdIndex);
+          fpln.props.mfd.uiService.navigateTo(
+            `fms/${fpln.props.mfd.uiService.activeUri.get().category}/${lateralRevisionHoldPage}`,
+          );
+          return;
+        }
         if (revisedLeg && revisedLeg.isDiscontinuity === false && !revisedLeg.isHX()) {
           // FCOM DSC-22-FMS-20-30 HOLD page, COMPUTED HOLD: 1 min leg below 14 000 ft, 1.5 min above, at the
           // predicted altitude at the hold

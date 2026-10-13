@@ -15,13 +15,39 @@ import {
 import { EfisNdMode, TcasWxrMessage } from '@flybywiresim/fbw-sdk';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
 import { GenericTcasEvents } from './types/GenericTcasEvents';
+import { GenericFcuEvents } from './types/GenericFcuEvents';
+import { tcasSettingMessage } from './TcasSettingMessage';
 
 export interface TcasWXMessagesProps {
   bus: EventBus;
   mode: Subscribable<EfisNdMode>;
+  /** ND range in NM of each range selector position (-1 for ZOOM) */
+  rangeValues: readonly number[];
 }
 
 export class TcasWxrMessages extends DisplayComponent<TcasWXMessagesProps> {
+  private readonly tcasStateSub = Subject.create(0);
+
+  private readonly onGroundSub = Subject.create(false);
+
+  private readonly rangeSettingSub = Subject.create(0);
+
+  /** TCAS: CHANGE MODE / REDUCE RANGE / INCREASE RANGE, while a TA or RA cannot be seen on this ND */
+  private readonly settingMessage = MappedSubject.create(
+    ([tcasState, mode, rangeSetting, onGround]) =>
+      tcasSettingMessage(
+        tcasState,
+        mode === EfisNdMode.PLAN,
+        mode === EfisNdMode.ROSE_VOR || mode === EfisNdMode.ROSE_ILS,
+        this.props.rangeValues[rangeSetting] ?? 0,
+        onGround,
+      ),
+    this.tcasStateSub,
+    this.props.mode,
+    this.rangeSettingSub,
+    this.onGroundSub,
+  );
+
   private readonly taOnlySub = Subject.create(false);
 
   private readonly tcasModeSub = Subject.create(-1);
@@ -82,7 +108,20 @@ export class TcasWxrMessages extends DisplayComponent<TcasWXMessagesProps> {
   onAfterRender(node: VNode) {
     super.onAfterRender(node);
 
-    const sub = this.props.bus.getSubscriber<GenericTcasEvents>();
+    const sub = this.props.bus.getSubscriber<GenericTcasEvents & GenericFcuEvents>();
+
+    sub
+      .on('tcasState')
+      .whenChanged()
+      .handle((value) => this.tcasStateSub.set(value));
+    sub
+      .on('tcasAircraftOnGround')
+      .whenChanged()
+      .handle((value) => this.onGroundSub.set(!!value));
+    sub
+      .on('ndRangeSetting')
+      .whenChanged()
+      .handle((value) => this.rangeSettingSub.set(value));
 
     sub
       .on('tcasTaOnly')
@@ -125,6 +164,25 @@ export class TcasWxrMessages extends DisplayComponent<TcasWXMessagesProps> {
   }
 
   render(): VNode | null {
+    return (
+      <>
+        {/* TCAS setting message in the ND centre, above the ND MODE/RANGE CHANGE line: red for an RA, amber for a TA */}
+        <text
+          x={384}
+          y={285}
+          class={this.settingMessage.map(
+            (it) => `${it?.isRa ? 'Red' : 'Amber'} FontIntermediate MiddleAlign TextOutline`,
+          )}
+          visibility={this.settingMessage.map((it) => (it ? 'inherit' : 'hidden'))}
+        >
+          {this.settingMessage.map((it) => it?.text ?? '')}
+        </text>
+        {this.renderTcasWxrBox()}
+      </>
+    );
+  }
+
+  private renderTcasWxrBox(): VNode {
     return (
       <Layer x={Subject.create(164)} y={this.y} visible={this.shown}>
         <rect
