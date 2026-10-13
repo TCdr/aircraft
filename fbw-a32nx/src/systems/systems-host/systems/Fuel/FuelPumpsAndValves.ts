@@ -12,6 +12,21 @@ import {
   NXLogicConfirmNode,
 } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
+import {
+  A320_OUTER_TRANSFER_VALVES,
+  A320_WING_LOW_LEVEL_SENSORS,
+  A320_WING_TANK_LEAKS,
+  FuelSide,
+  isWingTankOverflowing,
+  OUTER_XFR_DISAGREE_CONFIRM_S,
+  outerTransferDisagreement,
+  outerXfrClosedVar,
+  outerXfrOpenVar,
+  WING_OVERFLOW_CONFIRM_S,
+  wingLowLevelSensorFaultVar,
+  wingTankLeakVar,
+  wingTankOverflowVar,
+} from './FuelLevelSensing';
 
 /** A wing tank pump of the MSFS fuel system (flight_model.cfg [FUEL_SYSTEM]) */
 export interface A320TankPump {
@@ -211,6 +226,10 @@ export type FailureStates = Pick<FailuresConsumer, 'update' | 'isActive'>;
  * - A jammed CTR TK L(R) XFR valve stays open or closed whatever its pb-sw, the MODE SEL pb-sw and the FLSCU command:
  *   jammed open, both its MSFS valves are held open; jammed closed, its inhibit valve is held closed. A valve that
  *   disagrees with its command longer than CTR_TK_XFR_DISAGREE_CONFIRM_S gives the FWC its FUEL CTR L(R) XFR FAULT.
+ * - The outer tank transfer valves of a jammed wing stay where they are whatever the low level command (the MSFS
+ *   triggers): FUEL L(R) OUTER XFR CLOSED / OPEN (Fuel/FuelLevelSensing).
+ * It also gives the FWC the fuel level sensing (Fuel/FuelLevelSensing): the failed low level sensors, the wing tank
+ * overflows, and the FADEC the wing tank leaks.
  */
 export class FuelPumpsAndValves implements Instrument {
   /** How often the pump states are computed, in milliseconds */
@@ -239,6 +258,19 @@ export class FuelPumpsAndValves implements Instrument {
     notFullyClosed: new NXLogicConfirmNode(FuelPumpsAndValves.CTR_TK_XFR_DISAGREE_CONFIRM_S, true),
     notFullyOpen: new NXLogicConfirmNode(FuelPumpsAndValves.CTR_TK_XFR_DISAGREE_CONFIRM_S, true),
   }));
+
+  /** The outer tank transfer valves: transfer valves 1 and 2 of the left wing, then of the right wing */
+  private readonly outerTransferValves: FailableFuelSwitchesDriver;
+
+  private readonly outerTransferConfirms = A320_OUTER_TRANSFER_VALVES.map(() => ({
+    closed: new NXLogicConfirmNode(OUTER_XFR_DISAGREE_CONFIRM_S, true),
+    open: new NXLogicConfirmNode(OUTER_XFR_DISAGREE_CONFIRM_S, true),
+  }));
+
+  /** Per side L, R: the wing tank overflow confirmation */
+  private readonly overflowConfirms = A320_CTR_TK_XFR_VALVES.map(
+    () => new NXLogicConfirmNode(WING_OVERFLOW_CONFIRM_S, true),
+  );
 
   private lastUpdateTime: number | null = null;
 
@@ -302,6 +334,14 @@ export class FuelPumpsAndValves implements Instrument {
       isFailureActive,
       fuelValves,
     );
+    // The low level triggers drive the outer transfer valves (no pb-sw): a jammed valve stays where it is
+    const outerTransferSwitches: FailableFuelSwitch[] = [];
+    for (const { failure, valves } of A320_OUTER_TRANSFER_VALVES) {
+      for (const valve of valves) {
+        outerTransferSwitches.push({ failure, index: valve, effect: 'jam' });
+      }
+    }
+    this.outerTransferValves = new FailableFuelSwitchesDriver(outerTransferSwitches, isFailureActive, fuelValves);
   }
 
   public init(): void {
@@ -331,6 +371,9 @@ export class FuelPumpsAndValves implements Instrument {
     this.updateCentreTransferJams();
     this.centreTransferValves.update(elapsed);
     this.updateCentreTransferFaults(elapsed);
+    this.outerTransferValves.update(elapsed);
+    this.updateOuterTransferFaults(elapsed);
+    this.updateWingOverflows(elapsed);
 
     for (const { pump, outletLine } of A320_TANK_PUMPS) {
       const lowPressure = isTankPumpLowPressure(
@@ -344,6 +387,67 @@ export class FuelPumpsAndValves implements Instrument {
     for (const { channel, failure } of A320_FQI_CHANNELS) {
       SimVar.SetSimVarValue(fqiChannelFaultVar(channel), SimVarValueType.Bool, this.failures.isActive(failure));
     }
+    for (const { side, failure } of A320_WING_LOW_LEVEL_SENSORS) {
+      SimVar.SetSimVarValue(wingLowLevelSensorFaultVar(side), SimVarValueType.Bool, this.failures.isActive(failure));
+    }
+    for (const { side, failure } of A320_WING_TANK_LEAKS) {
+      SimVar.SetSimVarValue(wingTankLeakVar(side), SimVarValueType.Bool, this.failures.isActive(failure));
+    }
+  }
+
+  /**
+   * Compares the outer tank transfer valves of each wing with the low level command and tells the FWC the confirmed
+   * disagreements (FUEL L(R) OUTER XFR CLOSED / OPEN).
+   * @param deltaTime the time since the last update, in milliseconds
+   */
+  private updateOuterTransferFaults(deltaTime: number): void {
+    A320_OUTER_TRANSFER_VALVES.forEach(({ side, valves }, wing) => {
+      // the switches of a wing follow each other in the driver; both get the same trigger commands
+      const switchNumbers = valves.map((_, valve) => wing * valves.length + valve);
+      const commandedOpen = switchNumbers.some((switchNumber) => this.outerTransferValves.getSelection(switchNumber));
+      const disagreement = outerTransferDisagreement(
+        commandedOpen,
+        valves.map((valve) => this.fuelValves.position(valve)),
+      );
+      const confirms = this.outerTransferConfirms[wing];
+      SimVar.SetSimVarValue(
+        outerXfrClosedVar(side),
+        SimVarValueType.Bool,
+        confirms.closed.write(disagreement.closed, deltaTime),
+      );
+      SimVar.SetSimVarValue(
+        outerXfrOpenVar(side),
+        SimVarValueType.Bool,
+        confirms.open.write(disagreement.open, deltaTime),
+      );
+    });
+  }
+
+  /**
+   * Detects the overflow of each wing tank (Fuel/FuelLevelSensing isWingTankOverflowing).
+   * @param deltaTime the time since the last update, in milliseconds
+   */
+  private updateWingOverflows(deltaTime: number): void {
+    const tankGallons = (tank: string) => SimVar.GetSimVarValue(`A:FUEL TANK ${tank} QUANTITY`, SimVarValueType.GAL);
+    const pumpActive = (pump: number) =>
+      SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP ACTIVE:${pump}`, SimVarValueType.Bool) > 0;
+    const centreTankGallons = tankGallons('CENTER');
+    A320_CTR_TK_XFR_VALVES.forEach((valve, index) => {
+      const side: FuelSide = valve.side;
+      // L TK PUMP 1 and 2 (MSFS pumps 2 and 5), R TK PUMP 1 and 2 (3 and 6), see A320_TANK_PUMPS
+      const wingPumps = A320_TANK_PUMPS.filter((_, pumpIndex) => (side === 'L' ? pumpIndex < 2 : pumpIndex >= 2));
+      const overflowing = isWingTankOverflowing({
+        innerTankGallons: tankGallons(side === 'L' ? 'LEFT MAIN' : 'RIGHT MAIN'),
+        centreTankGallons,
+        centreTransferValveOpenRatio: this.centreTransferValveOpenRatio(valve),
+        wingTankPumpRunning: wingPumps.some(({ pump }) => pumpActive(pump)),
+      });
+      SimVar.SetSimVarValue(
+        wingTankOverflowVar(side),
+        SimVarValueType.Bool,
+        this.overflowConfirms[index].write(overflowing, deltaTime),
+      );
+    });
   }
   /** How far a centre tank transfer valve is open now, 0 to 1 */
   private centreTransferValveOpenRatio({ inhibitValve, autoValve, junction }: A320CentreTankTransferValve): number {

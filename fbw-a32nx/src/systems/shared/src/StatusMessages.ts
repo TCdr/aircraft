@@ -286,6 +286,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) WING TK LO LVL STATUS, a320_fcom.txt l.86477-86484, if center tank not empty)
   ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
+  // 28 FUEL (FCOM PRO-ABN-FUEL FUEL L (R) OUTER XFR CLOSED STATUS, a320_fcom.txt l.86118-86120), see
+  // FWC/Logic/FuelSystemFaultAlerts
+  ['280200004', { part: StatusPart.Information, text: 'L OUTER TK UNUSABLE' }],
+  ['280200005', { part: StatusPart.Information, text: 'R OUTER TK UNUSABLE' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-AIR X BLEED FAULT STATUS, a320_fcom.txt l.71070), see FWC/Logic/BleedAlerts
   ['360200001', { part: StatusPart.Information, text: 'X BLEED MAN CTL' }],
   // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT 1(2) FAULT and BCL 1(2) FAULT STATUS, l.76175, l.76252)
@@ -485,6 +489,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280300008', { part: StatusPart.InopSys, text: 'CTR TK L XFR' }],
   ['280300009', { part: StatusPart.InopSys, text: 'CTR TK R XFR' }],
   ['280300010', { part: StatusPart.InopSys, text: 'CTR TK XFR' }],
+  // FUEL L (R) OUTER XFR OPEN (l.86152-86156), see FWC/Logic/FuelSystemFaultAlerts
+  ['280300011', { part: StatusPart.InopSys, text: 'L CELL VALVE' }],
+  ['280300012', { part: StatusPart.InopSys, text: 'R CELL VALVE' }],
   // 34 NAVIGATION
   // NAV ADR, IR and RA alerts INOP SYS (FCOM PRO-ABN-NAV), see FWC/Logic/AdirsAlerts; ADR 1(2)(3), RA 1(2) and the
   // lines of other chapters keep their codes

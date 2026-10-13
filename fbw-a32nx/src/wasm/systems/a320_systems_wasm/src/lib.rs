@@ -539,6 +539,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_051, FailureType::ThrustLeverResolverDisagree(2)),
         (28_007, FailureType::EngineLpValveJammed(1)),
         (28_008, FailureType::EngineLpValveJammed(2)),
+        // FCOM PRO-ABN-FUEL FUEL APU LP VALVE FAULT (a320_systems fuel/apu_lp_valve.rs)
+        (28_011, FailureType::ApuLpValveJammed),
         (73_100, FailureType::EngineFuelFilterClog(1)),
         (73_101, FailureType::EngineFuelFilterClog(2)),
         // FCOM PRO-ABN-ENG ENG 1(2) HP FUEL VALVE (systems engine/hp_fuel_valve_failure.rs)

@@ -129,6 +129,19 @@ export const A320Failure = Object.freeze({
   // A failed channel of the fuel quantity indicating computer (systems-host Fuel/FuelPumpsAndValves): FQI CH 1(2) FAULT
   FqiChannel1: 28009,
   FqiChannel2: 28010,
+  // The APU LP fuel valve jam holds the valve where it is (systems fuel/apu_lp_valve.rs, FailureType ApuLpValveJammed):
+  // FUEL APU LP VALVE FAULT; jammed closed it starves the APU
+  ApuLpValveJammed: 28011,
+  // The jam of the two outer tank transfer valves of a wing (systems-host Fuel/FuelPumpsAndValves): FUEL L(R) OUTER XFR
+  // CLOSED once the inner tank low level opens them, OUTER XFR OPEN when they should close
+  LeftOuterTankTransferValvesJammed: 28012,
+  RightOuterTankTransferValvesJammed: 28013,
+  // A failed wing tank low level sensor: no L(R) WING TK LO LVL warning; both failed: FUEL LO LVL DET FAULT
+  LeftWingTankLowLevelSensor: 28014,
+  RightWingTankLowLevelSensor: 28015,
+  // A leaking wing tank loses fuel (FADEC CrossFeedBurn_A32NX.hpp wingTankLeakPounds): FUEL F. USED/FOB DISAGREE
+  LeftWingTankLeak: 28016,
+  RightWingTankLeak: 28017,
 
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
@@ -471,6 +484,13 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [28, A320Failure.Eng2LpValveJammed, 'ENG 2 LP fuel valve jammed in place'],
   [28, A320Failure.FqiChannel1, 'FQI channel 1'],
   [28, A320Failure.FqiChannel2, 'FQI channel 2'],
+  [28, A320Failure.ApuLpValveJammed, 'APU LP fuel valve jammed in place'],
+  [28, A320Failure.LeftOuterTankTransferValvesJammed, 'L outer tank transfer valves jammed in place'],
+  [28, A320Failure.RightOuterTankTransferValvesJammed, 'R outer tank transfer valves jammed in place'],
+  [28, A320Failure.LeftWingTankLowLevelSensor, 'L wing tank low level sensor'],
+  [28, A320Failure.RightWingTankLowLevelSensor, 'R wing tank low level sensor'],
+  [28, A320Failure.LeftWingTankLeak, 'L wing tank leak'],
+  [28, A320Failure.RightWingTankLeak, 'R wing tank leak'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],

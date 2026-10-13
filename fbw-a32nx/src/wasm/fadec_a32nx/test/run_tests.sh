@@ -23,3 +23,7 @@ clang++ -std=c++20 -Wall -Wextra -Werror -Wno-unused-lambda-capture -I../../../.
 # test must fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS cross_feed_burn_test.cpp -o ../obj/cross_feed_burn_test
 ../obj/cross_feed_burn_test
+# The wing tank leak failures (FUEL F. USED/FOB DISAGREE): with WITHOUT_THE_FIX=1 the leak takes no fuel and the test must
+# fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS wing_tank_leak_test.cpp -o ../obj/wing_tank_leak_test
+../obj/wing_tank_leak_test

@@ -244,7 +244,8 @@ impl Aircraft for A320 {
                 && !(self.electrical_overhead.external_power_is_on()
                     && self.electrical_overhead.external_power_is_available()),
             self.pneumatic.apu_bleed_air_valve(),
-            self.fuel.left_inner_tank_has_fuel_remaining(),
+            // The APU LP fuel valve jammed closed starves the APU (fuel/apu_lp_valve.rs)
+            self.fuel.apu_has_fuel(),
         );
 
         self.electrical.update(
@@ -280,7 +281,11 @@ impl Aircraft for A320 {
 
         self.asu.update();
 
-        self.fuel.update(context, &self.engine_fire_overhead);
+        self.fuel.update(
+            context,
+            &self.engine_fire_overhead,
+            [&self.engine_1, &self.engine_2],
+        );
         // The thrust control malfunctions of the previous update (the engine control failures
         // update after the reversers, below), for the ENG FAULT light.
         self.engine_failures.update(
@@ -501,6 +506,61 @@ mod tests {
         assert!(starved);
         assert!(cut);
         assert!(!other_cut);
+    }
+
+    /// The fuel temperature model (fuel/fuel_temperature.rs) gets the engines of the aircraft: with
+    /// both engines at idle on the ground, the IDG cooling fuel return warms the outer cells above
+    /// the inner cells, and the wing cell temperatures are written for the SD and the FWC.
+    #[test]
+    fn the_idg_return_of_the_running_engines_warms_the_outer_cells() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        for (tank, gallons) in [
+            ("LEFT MAIN", 1500.),
+            ("RIGHT MAIN", 1500.),
+            ("LEFT AUX", 228.),
+            ("RIGHT AUX", 228.),
+        ] {
+            test_bed.write_by_name(&format!("FUEL TANK {} QUANTITY", tank), gallons);
+        }
+        // The four wing tank pumps run: the engines are not fed by gravity (which inhibits the return)
+        for pump in [2, 3, 5, 6] {
+            test_bed.write_by_name(&format!("FUELSYSTEM PUMP ACTIVE:{}", pump), true);
+        }
+        for _ in 0..(30 * 60) {
+            test_bed.run_with_delta(Duration::from_secs(1));
+        }
+
+        for side in ["LEFT", "RIGHT"] {
+            let outer: f64 =
+                test_bed.read_by_name(&format!("FUEL_{}_OUTER_TANK_TEMPERATURE", side));
+            let inner: f64 =
+                test_bed.read_by_name(&format!("FUEL_{}_INNER_TANK_TEMPERATURE", side));
+            assert!(
+                outer > inner + 5.,
+                "{} outer {} inner {}",
+                side,
+                outer,
+                inner
+            );
+        }
+    }
+
+    /// FCOM PRO-ABN-FUEL FUEL APU LP VALVE FAULT: the flyPad failure 28011 (a320_systems_wasm) jams
+    /// the APU LP fuel valve (fuel/apu_lp_valve.rs); jammed closed with the APU MASTER SW ON, it
+    /// gives the fault and no fuel reaches the APU.
+    #[test]
+    fn the_apu_lp_valve_jammed_closed_gives_a_fault_and_starves_the_apu() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        test_bed.write_by_name("FUEL TANK LEFT MAIN QUANTITY", 1500.);
+        test_bed.fail(FailureType::ApuLpValveJammed);
+        test_bed.write_by_name("OVHD_APU_MASTER_SW_PB_IS_ON", true);
+        for _ in 0..(5 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+
+        let fault: bool = test_bed.read_by_name("FUEL_APU_LP_VALVE_FAULT");
+        assert!(fault);
+        assert!(!test_bed.query(|a| a.fuel.apu_has_fuel()));
     }
 
     /// The flyPad oil failures 79000-79031 (a320_systems_wasm) reach the FADEC through the oil

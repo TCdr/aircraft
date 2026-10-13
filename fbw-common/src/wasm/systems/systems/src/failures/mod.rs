@@ -270,6 +270,9 @@ pub enum FailureType {
     /// The LP fuel valve of engine n is jammed in its position: it no longer follows the ENG MASTER
     /// and the ENG FIRE pushbutton (fuel::engine_lp_valve)
     EngineLpValveJammed(usize),
+    /// The APU LP fuel valve is jammed in its position: it no longer follows the APU MASTER SW and
+    /// the APU FIRE pushbutton (A320 a320_systems fuel/apu_lp_valve.rs)
+    ApuLpValveJammed,
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),
