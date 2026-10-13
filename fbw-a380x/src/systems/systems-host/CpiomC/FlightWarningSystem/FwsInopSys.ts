@@ -567,6 +567,27 @@ export class FwsInopSys {
     290300010: { simVarIsActive: this.fws.enginePumpInopSys[5], phase: FwsInopSysPhases.AllPhases },
     290300011: { simVarIsActive: this.fws.enginePumpInopSys[6], phase: FwsInopSysPhases.AllPhases },
     290300012: { simVarIsActive: this.fws.enginePumpInopSys[7], phase: FwsInopSysPhases.AllPhases },
+    // HYD G(Y) ELEC PMP A(B) FAULT STATUS (A380 FCOM l.155025-155028, HydPumpStatus.ts): MORE INFO REDUND LOSS
+    290300001: {
+      simVarIsActive: this.fws.elecPumpRedundLoss[0],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300002: {
+      simVarIsActive: this.fws.elecPumpRedundLoss[1],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300003: {
+      simVarIsActive: this.fws.elecPumpRedundLoss[2],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    290300004: {
+      simVarIsActive: this.fws.elecPumpRedundLoss[3],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
     290300027: {
       simVarIsActive: this.fws.enginePumpRedundLoss[0],
       phase: FwsInopSysPhases.AllPhases,

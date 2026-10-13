@@ -4,7 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { enginePumpPressLoStatus } from './HydPumpStatus';
+import { ElecPumpRedundancyLoss, enginePumpPressLoStatus } from './HydPumpStatus';
 
 /* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
 const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
@@ -97,5 +97,63 @@ describe('HYD G+Y SYS PRESS LO (A380 FCOM l.155840-156109)', () => {
     for (const code of ['320300007', '220300027', '220300010']) {
       expect(apprLdg).toContain(`'${code}'`);
     }
+  });
+});
+
+describe('HYD G(Y) ELEC PMP A(B) FAULT STATUS (A380 FCOM l.154983-155028)', () => {
+  it('"MORE INFO REDUND LOSS: G (Y) ELEC PMP A or B" (l.155025-155028), kept after the pump is set OFF (l.155023)', () => {
+    const redundLoss = new ElecPumpRedundancyLoss();
+    expect(redundLoss.update(false, true, false)).toBe(false);
+    expect(redundLoss.update(true, true, false)).toBe(true);
+    // ELEC PMP ... OFF: the low pressure of a pump that should not pressurise is gone, the pump is still failed
+    expect(redundLoss.update(false, false, false)).toBe(true);
+    // back to AUTO without a fault: the pump works
+    expect(redundLoss.update(false, true, false)).toBe(false);
+  });
+
+  it('the G (Y) HYD SYS line replaces it when the whole system is lost', () => {
+    const redundLoss = new ElecPumpRedundancyLoss();
+    expect(redundLoss.update(true, true, true)).toBe(false);
+  });
+
+  it.each([
+    ['290800001', '290300001', 0],
+    ['290800002', '290300002', 1],
+    ['290800003', '290300003', 2],
+    ['290800004', '290300004', 3],
+  ])('%s: no INOP SYS, REDUND LOSS %s from FwsInopSys', (alert, redundCode, pump) => {
+    expect(alertBlock(alert)).not.toContain('inopSysAllPhases');
+    expect(inopSys).toMatch(
+      new RegExp(
+        `${redundCode}: \\{\\s+simVarIsActive: this\\.fws\\.elecPumpRedundLoss\\[${pump}\\],[^}]*redundancyLoss: true`,
+      ),
+    );
+  });
+});
+
+describe('HYD G(Y) SYS TEMP EXCESS HI (A380 FCOM l.155786-155824, PDF p.5322-5323)', () => {
+  const itemNames = (id: string) => {
+    const start = ata29.indexOf(`  ${id}: {`);
+    expect(start).toBeGreaterThan(0);
+    const procedure = ata29.slice(start, ata29.indexOf('\n  },', start));
+    return {
+      procedure,
+      names: [...procedure.matchAll(/name: '([^']*)'/g)].map((match) => match[1]),
+    };
+  };
+
+  it.each([
+    ['290800037', 'G', 1, 2],
+    ['290800038', 'Y', 3, 4],
+  ])('%s: %s SYS TEMP EXCESS HI with the FCOM lines (l.155816-155824)', (id, system, engA, engB) => {
+    const { procedure, names } = itemNames(id);
+    expect(procedure).toContain(`title: '\\x1b<4m\\x1b4mHYD\\x1bm ${system} SYS TEMP EXCESS HI',`);
+    expect(names).toEqual([
+      `${system} ENG ${engA} PMP A AND B`,
+      `${system} ENG ${engB} PMP A AND B`,
+      `${system} ENG ${engA} PMP A+B`,
+      `${system} ENG ${engB} PMP A+B`,
+      `${system} ELEC PMP A AND B`,
+    ]);
   });
 });

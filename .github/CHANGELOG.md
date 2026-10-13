@@ -557,6 +557,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X/APU] The APU shuts down automatically with a FAULT on an ECB failure, an overspeed, a low oil pressure or a high oil temperature (four new ATA 49 flyPad failures; A380X high oil temperature on the ground only), and when its DC supply is lost while it runs (BAT OFF on batteries only) - @TCdr
 1. [A32NX/FIRE] Cargo and avionics smoke detection with new flyPad failures: SMOKE FWD and AFT CARGO SMOKE, FWD and AFT CRG DET FAULT, FWD and AFT CRG BTL 1 FAULT and AVIONICS SMOKE alerts, the SMOKE, GEN 1 LINE SMOKE and BLOWER/EXTRACT FAULT lights; the cargo DISCH pbs now discharge the cargo fire bottle and light the DISCH lights - @TCdr
 1. [A380X/FIRE] Smoke Detection Function for the cargo compartments, the avionics bays and the IFE bay with new flyPad failures: their SMOKE warnings and SMOKE DET FAULT cautions, and the FWD+AFT CARGO BTL 1(2) FAULT cautions; the AGENT TO FWD/AFT pbs now discharge the two cargo fire bottles (SMOKE, DISCH and BTL lights) - @TCdr
+1. [A380X/FWS] SIGNS memos as in the FCOM: SEAT BELTS and NO SMOKING memos with the switch ON (the NO MOBILE memo is gone), replaced by a SIGNS ON memo during take-off and landing; the cabin NO SMOKING signs now follow the AUTO position (slats or main gear extended, excessive cabin altitude) - @TCdr
+1. [A380X/FWS] New ENG 1(2)(3)(4) THR LEVER ABOVE IDLE warning (a thrust lever above idle with a reverser selected, during the reversers de-selection, or with the auto-idle protection) with its dual RETARD callout - @TCdr
+1. [A380X/FWS] ENG SHUT DOWN asks for the ABNORM BLEED CONFIG procedure instead of FOR GA: TOGA ONLY, HYD SYS TEMP EXCESS HI has the FCOM title and pump lines, ELEC PMP FAULT gives a REDUND LOSS instead of an INOP SYS, and the flap/slat CONFIG logic reads SFCC 2 when SFCC 1 cannot give the position - @TCdr
 
 ## 2024.1.0
 

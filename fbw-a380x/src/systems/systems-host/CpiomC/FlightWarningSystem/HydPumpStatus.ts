@@ -29,3 +29,30 @@ export function enginePumpPressLoStatus(pumpPressLo: readonly boolean[], hydSysI
     redundLoss: pumpPressLo.map((failed) => failed && !hydSysInop && failedPumps === 1),
   };
 }
+
+/**
+ * STATUS of HYD G (Y) ELEC PMP A OR (B) FAULT (A380 FCOM PRO-ABN-ECAM-10-29, a380_fcom.txt l.154983-155028): "MORE INFO
+ * REDUND LOSS: G (Y) ELEC PMP A or B" (l.155025-155028), no INOP SYS.
+ * The FWS sees the failed pump through its fault signal (low pressure while it should pressurise, or overheat), which goes
+ * away once the crew sets the pump OFF as the procedure asks (l.155023). Design choice: the REDUND LOSS stays from the fault
+ * until the pump pb-sw is back at AUTO without a fault; as for the engine pumps, the G (Y) HYD SYS line replaces it when
+ * the whole system is lost.
+ */
+export class ElecPumpRedundancyLoss {
+  private pumpLost = false;
+
+  /**
+   * @param pumpFault the ELEC PMP FAULT condition of the pump
+   * @param pumpPbAuto the ELEC PMP pb-sw is at AUTO
+   * @param hydSysInop the whole hydraulic system is lost (INOP SYS G (Y) HYD SYS)
+   * @returns whether the REDUND LOSS line of the pump is shown
+   */
+  update(pumpFault: boolean, pumpPbAuto: boolean, hydSysInop: boolean): boolean {
+    if (pumpFault) {
+      this.pumpLost = true;
+    } else if (pumpPbAuto) {
+      this.pumpLost = false;
+    }
+    return this.pumpLost && !hydSysInop;
+  }
+}

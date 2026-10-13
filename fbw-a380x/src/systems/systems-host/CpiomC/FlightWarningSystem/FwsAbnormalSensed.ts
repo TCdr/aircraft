@@ -201,6 +201,7 @@ import {
   wingValveOpenLines,
 } from './AntiIceValveAlerts';
 import { OXYGEN_ALERT_IDS } from './OxygenAlerts';
+import { THR_LEVER_ABOVE_IDLE_LEVEL, THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION } from './EngineThrustLeverAlerts';
 import {
   ENG_LP_VALVE_FAULT_INOP_SYS,
   engLpValveFaultLines,
@@ -5209,7 +5210,7 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
-      inopSysAllPhases: () => ['290300001'],
+      // MORE INFO REDUND LOSS G ELEC PMP A (A380 FCOM l.155021-155025): FwsInopSys 290300001
     },
     290800002: {
       // G ELEC PMP B FAULT
@@ -5220,7 +5221,7 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
-      inopSysAllPhases: () => ['290300002'],
+      // MORE INFO REDUND LOSS G ELEC PMP B (A380 FCOM l.155021-155025): FwsInopSys 290300002
     },
     290800003: {
       // Y ELEC PMP A FAULT
@@ -5231,7 +5232,7 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
-      inopSysAllPhases: () => ['290300003'],
+      // MORE INFO REDUND LOSS Y ELEC PMP A (A380 FCOM l.155021-155025): FwsInopSys 290300003
     },
     290800004: {
       // Y ELEC PMP B FAULT
@@ -5242,7 +5243,7 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Hyd,
       notActiveWhenItemActive: [],
-      inopSysAllPhases: () => ['290300004'],
+      // MORE INFO REDUND LOSS Y ELEC PMP B (A380 FCOM l.155021-155025): FwsInopSys 290300004
     },
     290800005: {
       // G ENG 1 PMP A PRESS LO
@@ -7422,7 +7423,7 @@ export class FwsAbnormalSensed {
         this.fws.flightPhase.get() === 7,
         this.fws.fuelOnBoardBetween55And95T.get(),
         this.fws.fuelOnBoardBetween55And95T.get(),
-        true,
+        this.fws.abnormBleedConfig.get(), // ABNORM BLEED CONFIG PROC APPLY (l.172733-172735)
         true,
         true,
         true,
@@ -7433,9 +7434,9 @@ export class FwsAbnormalSensed {
         false,
         this.fws.crossFeedPbOn[0].get(),
         false,
+        false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
-        false,
       ],
       failure: 2,
       sysPage: SdPages.None,
@@ -7570,11 +7571,11 @@ export class FwsAbnormalSensed {
         this.fws.flightPhase.get() === 7,
         this.fws.fuelOnBoardBetween55And95T.get(),
         this.fws.fuelOnBoardBetween55And95T.get(),
+        this.fws.abnormBleedConfig.get(), // ABNORM BLEED CONFIG PROC APPLY (l.172733-172735)
         true,
         true,
         true,
-        true,
-        true,
+        true, // LDG DIST IMPACT ON WET/CONTAM RWY ONLY (inner engine)
       ],
       whichItemsChecked: () => [
         this.fws.tcasTaOnly.get(),
@@ -7582,9 +7583,9 @@ export class FwsAbnormalSensed {
         false,
         this.fws.crossFeedPbOn[1].get(),
         false,
+        false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
-        false,
         false,
       ],
       failure: 2,
@@ -7600,11 +7601,11 @@ export class FwsAbnormalSensed {
         this.fws.flightPhase.get() === 7,
         this.fws.fuelOnBoardBetween55And95T.get(),
         this.fws.fuelOnBoardBetween55And95T.get(),
+        this.fws.abnormBleedConfig.get(), // ABNORM BLEED CONFIG PROC APPLY (l.172733-172735)
         true,
         true,
         true,
-        true,
-        true,
+        true, // LDG DIST IMPACT ON WET/CONTAM RWY ONLY (inner engine)
       ],
       whichItemsChecked: () => [
         this.fws.tcasTaOnly.get(),
@@ -7612,9 +7613,9 @@ export class FwsAbnormalSensed {
         false,
         this.fws.crossFeedPbOn[2].get(),
         false,
+        false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
-        false,
         false,
       ],
       failure: 2,
@@ -7630,7 +7631,7 @@ export class FwsAbnormalSensed {
         this.fws.flightPhase.get() === 7,
         this.fws.fuelOnBoardBetween55And95T.get(),
         this.fws.fuelOnBoardBetween55And95T.get(),
-        true,
+        this.fws.abnormBleedConfig.get(), // ABNORM BLEED CONFIG PROC APPLY (l.172733-172735)
         true,
         true,
         true,
@@ -7641,9 +7642,9 @@ export class FwsAbnormalSensed {
         false,
         this.fws.crossFeedPbOn[3].get(),
         false,
+        false,
         this.fws.flowSelectorKnob.get() === 1,
         this.fws.fwdCargoTempRegulatorOff.get(),
-        false,
       ],
       failure: 2,
       sysPage: SdPages.None,
@@ -8400,6 +8401,48 @@ export class FwsAbnormalSensed {
       info: () => ['220200017'],
       // LIMITATIONS l.175549-175551: FOR LDG : FLAP LVR 3, LDG PERF AFFECTED
       limitationsApprLdg: () => ['270400001', '800400003'],
+    },
+    701800162: {
+      // ENG 1(2)(3)(4) THR LEVER ABOVE IDLE (A380 FCOM l.173271-173292, EngineThrustLeverAlerts): red, MASTER WARN,
+      // inhibited in the phases 1, 6, 7 and 12 (PDF p.5819). The dual RETARD callout (FwsCore) replaces the CRC.
+      flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverAboveIdle[0],
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever1Idle.get()],
+      failure: THR_LEVER_ABOVE_IDLE_LEVEL,
+      sysPage: SdPages.None,
+    },
+    701800163: {
+      flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverAboveIdle[1],
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever2Idle.get()],
+      failure: THR_LEVER_ABOVE_IDLE_LEVEL,
+      sysPage: SdPages.None,
+    },
+    701800164: {
+      flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverAboveIdle[2],
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever3Idle.get()],
+      failure: THR_LEVER_ABOVE_IDLE_LEVEL,
+      sysPage: SdPages.None,
+    },
+    701800165: {
+      flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.thrLeverAboveIdle[3],
+      auralWarning: Subject.create(FwcAuralWarning.None),
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [this.fws.thrustLever4Idle.get()],
+      failure: THR_LEVER_ABOVE_IDLE_LEVEL,
+      sysPage: SdPages.None,
     },
     701800157: {
       // ENG THR LEVERS NOT SET (FCOM PRO-ABN-ECAM-10-70, EngineTakeoffAlerts.ts): amber, phases 2 and 3. Design choice:
