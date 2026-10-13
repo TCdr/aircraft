@@ -580,6 +580,14 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New red CONFIG L(R) SIDESTICK FAULT warning at the TO CONFIG test or at takeoff power when a sidestick was deactivated by the takeover pb - @TCdr
 1. [A32NX/FWC] STATUS after an involuntary AP OFF (INOP SYS of the lost AP, CAT 2 when both are lost) and ELEC EMER CONFIG STATUS; ELEC EMER CONFIG shows FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE in flight - @TCdr
 1. [A32NX/FWC] CAB PR SAFETY VALVE OPEN branches at the FCOM values (DIFF PR above 8 PSI, below 0 PSI); the flap and slat configuration warnings use SFCC 2 when SFCC 1 sends no position - @TCdr
+1. [A380X/FIRE] The ENG FIRE panel TEST pb must be held for 3 s before the fire test starts, as in the FCOM (was 0.5 s) - @TCdr
+1. [A380X/FIRE] The SQUIB light of an AGENT pb goes off once its bottle is discharged - @TCdr
+1. [A380X/APU] The APU AVAIL light comes on as soon as the APU reaches 95 % (the 2 s delay is A320 only) - @TCdr
+1. [A380X/LIGHTS] SEAT BELTS sw AUTO: the cabin signs come on with the slats or the main gear extended (no engine N1 condition), and come on regardless of the switch at an excessive cabin altitude - @TCdr
+1. [A380X/COMMS] The glareshield loudspeaker volume knobs turn and set the radio receive volume (fully anticlockwise = OFF); the warning sounds are not affected - @TCdr
+1. [A380X/BTV] ROW protected runway as in the FCOM: the detected runway replaces the selected one from 500 ft except in BTV mode, where the selected runway is kept down to 300 ft - @TCdr
+1. [A380X/SD] DOOR/OXY page: amber half-frame on ground below the dispatch pressure (cabin 1 600 PSI), cabin pressure amber below the emergency descent minimum of the passengers or 800 PSI before engine start - @TCdr
+1. [A380X/SD] BLEED page: the APU bleed valve shows amber when it is abnormally open or closed with the APU BLEED pb-sw ON - @TCdr
 
 ## 2024.1.0
 

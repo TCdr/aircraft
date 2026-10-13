@@ -325,6 +325,9 @@ pub trait ApuConstants {
     const FUEL_LINE_ID: u8;
     /// The ECB shuts the APU down on a high oil temperature in flight too, not only on the ground
     const HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT: bool;
+    /// During the start, the APU is available once N has been above 95 % for this time (or N is above 99.5 %).
+    /// Zero: available as soon as N is above 95 %.
+    const START_AVAILABLE_CONFIRMATION_TIME: Duration;
 }
 
 pub struct AuxiliaryPowerUnitFireOverheadPanel {
@@ -920,17 +923,47 @@ mod tests {
             self
         }
 
-        pub fn running_apu(mut self) -> Self {
-            self = self.starting_apu();
-            loop {
+        /// The longest a test bed loop waits for a state (start, shutdown, air intake flap travel), so that a test
+        /// whose condition never comes fails with the APU state instead of running forever.
+        const MAX_WAIT_SECONDS: u32 = 600;
+
+        /// Runs 1 s steps until `condition` holds, panics with the APU state after MAX_WAIT_SECONDS.
+        pub fn run_until(
+            mut self,
+            what: &str,
+            mut condition: impl FnMut(&mut Self) -> bool,
+        ) -> Self {
+            for _ in 0..Self::MAX_WAIT_SECONDS {
                 self = self.run(Duration::from_secs(1));
-                if self.apu_is_available() {
-                    self = self.run(Duration::from_secs(10));
-                    break;
+                if condition(&mut self) {
+                    return self;
                 }
             }
+            let state = self.state_summary();
+            panic!(
+                "APU test bed: no {} after {} s ({})",
+                what,
+                Self::MAX_WAIT_SECONDS,
+                state
+            );
+        }
 
-            self
+        fn state_summary(&mut self) -> String {
+            format!(
+                "N {:.3} %, flap {:.1} %, AVAIL {}, START {}, MASTER FAULT {}, auto shutdown {}",
+                self.n().value().get::<percent>(),
+                self.air_intake_flap_open_amount().get::<percent>(),
+                self.apu_is_available(),
+                self.start_is_on(),
+                self.master_has_fault(),
+                self.is_auto_shutdown(),
+            )
+        }
+
+        pub fn running_apu(mut self) -> Self {
+            self = self.starting_apu();
+            self = self.run_until("APU AVAIL", |bed| bed.apu_is_available());
+            self.run(Duration::from_secs(10))
         }
 
         fn running_apu_going_in_emergency_shutdown(mut self) -> Self {
@@ -946,29 +979,14 @@ mod tests {
         fn cooling_down_apu(mut self) -> Self {
             self = self.running_apu();
             self = self.master_off();
-            loop {
-                self = self.run(Duration::from_secs(1));
-
-                if self.turbine_is_shutdown() {
-                    break;
-                }
-            }
-
-            self
+            self.run_until("turbine shutdown", |bed| bed.turbine_is_shutdown())
         }
 
         fn apu_ready_to_start(mut self) -> Self {
             self = self.master_on();
-
-            loop {
-                self = self.run(Duration::from_secs(1));
-
-                if self.is_air_intake_flap_fully_open().normal_value().unwrap() {
-                    break;
-                }
-            }
-
-            self
+            self.run_until("air intake flap fully open", |bed| {
+                bed.is_air_intake_flap_fully_open().normal_value().unwrap()
+            })
         }
 
         fn running_apu_with_bleed_air(mut self) -> Self {
@@ -2297,9 +2315,9 @@ mod tests {
             }
         }
 
+        /// APS3200 (A320) only: the PW980 is available at 95 %, see pw980_available_as_soon_as_n_is_above_95_percent
         #[rstest]
         #[case::aps3200(test_bed_aps3200())]
-        #[case::pw980(test_bed_pw980())]
         fn available_when_n_above_99_5_percent_or_2_secs_above_95_percent<
             T: ApuGenerator,
             U: ApuStartMotor,
@@ -2333,9 +2351,9 @@ mod tests {
             }
         }
 
+        /// APS3200 (A320) only: the PW980 is available at 95 %, see pw980_available_as_soon_as_n_is_above_95_percent
         #[rstest]
         #[case::aps3200(test_bed_aps3200())]
-        #[case::pw980(test_bed_pw980())]
         fn available_when_n_above_95_percent_for_2_seconds<
             T: ApuGenerator,
             U: ApuStartMotor,
@@ -2353,6 +2371,25 @@ mod tests {
             assert!(!test_bed.apu_is_available());
 
             test_bed = test_bed.run(Duration::from_millis(1));
+            assert!(test_bed.apu_is_available());
+        }
+
+        /// A380 FCOM DSC-49-20 START pb (a380_fcom.txt l.108468-108469): "When the APU reaches 95 % speed, the ON light
+        /// goes off and the AVAIL light comes on"
+        #[test]
+        fn pw980_available_as_soon_as_n_is_above_95_percent() {
+            let mut test_bed = test_bed_pw980()
+                .starting_apu()
+                .and()
+                .turbine_infinitely_running_at(Ratio::new::<percent>(94.))
+                .run(Duration::from_millis(50));
+
+            assert!(!test_bed.apu_is_available());
+
+            test_bed = test_bed
+                .turbine_infinitely_running_at(Ratio::new::<percent>(96.))
+                .run(Duration::from_millis(50));
+
             assert!(test_bed.apu_is_available());
         }
 
@@ -2674,9 +2711,9 @@ mod tests {
                 .master_off();
 
             // The ECB goes off once the turbine stopped and the air intake flap closed
-            while !test_bed.is_air_intake_flap_fully_closed() || !test_bed.turbine_is_shutdown() {
-                test_bed = test_bed.run(Duration::from_secs(1));
-            }
+            test_bed = test_bed.run_until("air intake flap closed and turbine shutdown", |bed| {
+                bed.is_air_intake_flap_fully_closed() && bed.turbine_is_shutdown()
+            });
             test_bed = test_bed.run(Duration::from_secs(1));
             assert!(!test_bed.master_has_fault());
             assert!(!test_bed.is_auto_shutdown());

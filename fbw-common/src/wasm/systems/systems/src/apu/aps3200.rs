@@ -32,6 +32,8 @@ impl ApuConstants for Aps3200Constants {
     const FUEL_LINE_ID: u8 = 18;
     // A320 FCOM DSC-49-20 FAULT lt (a320_fcom.txt l.60660): "High oil temperature", no ground-only restriction
     const HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT: bool = true;
+    // A320 FCOM DSC-49-20 AVAIL lt (a320_fcom.txt l.60707): "comes on when N is above 99.5 % or 2 s after N reaches 95 %"
+    const START_AVAILABLE_CONFIRMATION_TIME: Duration = Duration::from_secs(2);
 }
 
 pub struct ShutdownAps3200Turbine {
