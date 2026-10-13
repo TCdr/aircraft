@@ -18,7 +18,7 @@ import { AttitudeIndicatorWarnings } from '@flybywiresim/pfd';
 import { AttitudeIndicatorWarningsA380 } from './AttitudeIndicatorWarningsA380';
 import { LinearDeviationIndicator } from './LinearDeviationIndicator';
 import { CdsDisplayUnit, DisplayUnitID } from '../MsfsAvionicsCommon/CdsDisplayUnit';
-import { findInstrumentUrl, hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
+import { hostDisplayUnitOf } from '../MsfsAvionicsCommon/HostedDisplay';
 import { LagFilter } from './PFDUtils';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { AltitudeIndicator, AltitudeIndicatorOfftape } from './AltitudeIndicator';
@@ -33,22 +33,10 @@ import { VerticalSpeedIndicator } from './VerticalSpeedIndicator';
 import './style.scss';
 import { PitchTrimDisplay } from './PitchTrimDisplay';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
+import { getDisplayIndex } from './shared/PfdDisplayIndex';
 
-export const getDisplayIndex = () => {
-  // the PFD gauge's own URL: a PFD drawn on the ND DU (CDS reconfiguration) is not the first gauge of its document
-  const url = findInstrumentUrl('PFD');
-
-  const duId = url ? parseInt(url.substring(url.length - 1), 10) : -1;
-
-  switch (duId) {
-    case 0:
-      return 1;
-    case 3:
-      return 2;
-    default:
-      return 0;
-  }
-};
+// re-exported for the PFD components that import it from here
+export { getDisplayIndex };
 
 interface PFDProps extends ComponentProps {
   bus: ArincEventBus;
