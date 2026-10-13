@@ -147,4 +147,17 @@ export const soundList: Record<string, LegacySound> = {
     name: 'aural_too_low_terrain',
     length: 0.9,
   },
+  // The GPWS voices of the A32NX (A32NX_SoundManager.ts lengths), declared in the A380X sound.xml AvionicSounds
+  terrain: {
+    name: 'aural_terrain',
+    length: 0.7,
+  },
+  glideslope_quiet: {
+    name: 'aural_glideslope_quiet',
+    length: 1.2,
+  },
+  glideslope_loud: {
+    name: 'aural_glideslope_loud',
+    length: 1.2,
+  },
 };

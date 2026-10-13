@@ -58,6 +58,12 @@ import {
   TR_INOP_SYS,
 } from './FwsElecSystemAlerts';
 import { gpwsFaultItemsToShow, isApFdTcasModeInop } from './FwsSurvAlerts';
+import {
+  FM_GPS_POS_DISAGREE_INFO,
+  FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
+  LS_TUNING_DISAGREE_INOP_SYS_APPR_LDG,
+  LS_TUNING_DISAGREE_PHASE_INHIBITION,
+} from './FwsNavPositionAlerts';
 import { cabinDoorNotClosedAlertId, cargoDoorNotClosedAlertId } from './DoorAlerts';
 import {
   aboveGearDoorSpeed,
@@ -89,6 +95,13 @@ import {
   OIL_TEMP_HI_PHASE_INHIBITION,
 } from './EngineOilAlerts';
 import { FUEL_FILTER_CLOGGED_LEVEL, FUEL_FILTER_CLOGGED_PHASE_INHIBITION } from './EngineFuelFilterAlerts';
+import {
+  ENGINE_MONITORING_ALERTS,
+  ENGINE_MONITORING_ALERT_LEVEL,
+  HP_FUEL_VLV_FAULT_LEVEL,
+  HP_FUEL_VLV_FAULT_PHASE_INHIBITION,
+  hpFuelVlvFaultItems,
+} from './EngineMonitoringAlerts';
 import {
   OIL_TEMP_LO_PHASE_INHIBITION,
   THR_LEVERS_NOT_SET_PHASE_INHIBITION,
@@ -165,6 +178,22 @@ import {
   wingsBalancedLines,
   wingsNotBalancedLines,
 } from './FwsFuelAlertsRound8';
+import {
+  ANTI_ICE_VALVE_ALERT_IDS,
+  AVOID_ICING_LIMITATION,
+  ENGINE_ANTI_ICE_INOP_SYS,
+  isWingAntiIceFailedAfterPressLo,
+  WING_ANTI_ICE_INOP_SYS,
+  wingPressLoLines,
+  wingValveOpenLines,
+} from './AntiIceValveAlerts';
+import { OXYGEN_ALERT_IDS } from './OxygenAlerts';
+import {
+  ENG_LP_VALVE_FAULT_INOP_SYS,
+  engLpValveFaultLines,
+  FUEL_LEAK_DET_FAULT_INOP_SYS,
+  FUEL_LEAK_LP_VALVE_PHASE_INHIBITION,
+} from './FwsFuelLeakLpValveAlerts';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -389,6 +418,102 @@ export class FwsAbnormalSensed {
     });
     this.fws.cargoDoorNotClosed.forEach((doorNotClosed, index) => {
       alerts[cargoDoorNotClosedAlertId(index)] = doorNotClosedItem(doorNotClosed);
+    });
+    return alerts;
+  }
+
+  /**
+   * A-ICE ENG 1(2)(3)(4) VLV CLOSED / VLV OPEN and A-ICE L(R) WING VLV CLOSED / VLV OPEN / VLV PRESS HI / VLV PRESS LO
+   * (300800010-025), A380 FCOM PRO-ABN-ECAM-10-30 (a380_fcom.txt l.156370-157060). Flight phase inhibitions, audio and
+   * master lights from the FCOM figures (2019 FCOM PDF pages 5338-5355): PRESS HI has no audio and no master light.
+   * See AntiIceValveAlerts.ts for the triggers and the procedure lines.
+   */
+  private antiIceValveAlerts(): EwdAbnormalDict {
+    const alerts: EwdAbnormalDict = {};
+    const valves = this.fws.antiIceValveAlerts;
+    const avoidIcing = () => [AVOID_ICING_LIMITATION];
+    [0, 1, 2, 3].forEach((engine) => {
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.engineValveClosed[engine]] = {
+        flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+        simVarIsActive: valves.engineValveClosed[engine],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true],
+        whichItemsChecked: () => [false],
+        failure: 2,
+        sysPage: SdPages.None,
+        limitationsAllPhases: avoidIcing,
+        limitationsPfd: avoidIcing,
+        inopSysAllPhases: () => [ENGINE_ANTI_ICE_INOP_SYS[engine]],
+      };
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.engineValveOpen[engine]] = {
+        flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+        simVarIsActive: valves.engineValveOpen[engine],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 2,
+        sysPage: SdPages.None,
+      };
+    });
+    [0, 1].forEach((wing) => {
+      const leftWing = wing === 0;
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.wingValveClosed[wing]] = {
+        flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11, 12],
+        simVarIsActive: valves.wingValveClosed[wing],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true, true],
+        whichItemsChecked: () => [!this.fws.wingAntiIce.get(), false],
+        failure: 2,
+        sysPage: SdPages.Bleed,
+        limitationsAllPhases: avoidIcing,
+        limitationsPfd: avoidIcing,
+        inopSysAllPhases: () => [WING_ANTI_ICE_INOP_SYS],
+      };
+      const bleedControls = () => {
+        const firstEngine = leftWing ? 0 : 2;
+        return {
+          onGround: this.fws.aircraftOnGround.get(),
+          beforeTakeoff: this.fws.flightPhase.get() <= 2,
+          crossBleedShut: this.fws.xBleedSelectorShut.get(),
+          crossBleedAuto: this.fws.xBleedSelectorAuto.get(),
+          packOn: !!(leftWing ? this.fws.pack1On : this.fws.pack2On).get(),
+          firstEngineBleedOn: valves.engineBleedPbAuto[firstEngine],
+          secondEngineBleedOn: valves.engineBleedPbAuto[firstEngine + 1],
+          apuBleedOn: !!this.fws.apuBleedPbOn.get(),
+        };
+      };
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.wingValveOpen[wing]] = {
+        flightPhaseInhib: [3, 4, 5, 6, 7, 10],
+        simVarIsActive: valves.wingValveOpen[wing],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => wingValveOpenLines(bleedControls(), leftWing).show,
+        whichItemsChecked: () => wingValveOpenLines(bleedControls(), leftWing).checked,
+        failure: 2,
+        sysPage: SdPages.Bleed,
+      };
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.wingPressHi[wing]] = {
+        flightPhaseInhib: [4, 5, 6, 7],
+        simVarIsActive: valves.wingValvePressHi[wing],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 1,
+        sysPage: SdPages.None,
+      };
+      const failedAfterPressLo = (checked: boolean[]) =>
+        isWingAntiIceFailedAfterPressLo(this.fws.aircraftOnGround.get(), checked);
+      alerts[ANTI_ICE_VALVE_ALERT_IDS.wingPressLo[wing]] = {
+        flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
+        simVarIsActive: valves.wingValvePressLo[wing],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => wingPressLoLines(this.fws.aircraftOnGround.get(), this.fws.wingAntiIce.get()).show,
+        whichItemsChecked: () => wingPressLoLines(this.fws.aircraftOnGround.get(), this.fws.wingAntiIce.get()).checked,
+        failure: 2,
+        sysPage: SdPages.Bleed,
+        limitationsAllPhases: (checked) => (failedAfterPressLo(checked) ? [AVOID_ICING_LIMITATION] : []),
+        limitationsPfd: (checked) => (failedAfterPressLo(checked) ? [AVOID_ICING_LIMITATION] : []),
+        inopSysAllPhases: (checked) => (failedAfterPressLo(checked) ? [WING_ANTI_ICE_INOP_SYS] : []),
+      };
     });
     return alerts;
   }
@@ -790,9 +915,57 @@ export class FwsAbnormalSensed {
     return alerts;
   }
 
+  /**
+   * ENG n HP FUEL VLV FAULT (701800053-056) and the FADEC fault crew awareness alerts FUEL STRAINER CLOGGED, FUEL FILTER
+   * MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT: A380 FCOM PRO-ABN-ECAM-10-70, see
+   * EngineMonitoringAlerts.ts.
+   */
+  private engineMonitoringAlerts(): EwdAbnormalDict {
+    const alerts: EwdAbnormalDict = {};
+    const masters = [this.fws.engine1Master, this.fws.engine2Master, this.fws.engine3Master, this.fws.engine4Master];
+    const fireButtons = [
+      this.fws.fireButtonEng1,
+      this.fws.fireButtonEng2,
+      this.fws.fireButtonEng3,
+      this.fws.fireButtonEng4,
+    ];
+    for (let index = 0; index < 4; index++) {
+      const items = () =>
+        hpFuelVlvFaultItems({
+          fault: this.fws.engineHpFuelValveFault[index],
+          onGround: this.fws.aircraftOnGround.get(),
+          masterOn: masters[index].get(),
+          manualStartPbOn: this.fws.engineManualStartPbOn[index],
+          firePbReleased: fireButtons[index].get(),
+        });
+      alerts[701800053 + index] = {
+        flightPhaseInhib: HP_FUEL_VLV_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.engineHpFuelVlvFaultActive[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => items().show,
+        whichItemsChecked: () => items().checked,
+        failure: HP_FUEL_VLV_FAULT_LEVEL,
+        sysPage: SdPages.Eng,
+      };
+      ENGINE_MONITORING_ALERTS.forEach((alert, alertIndex) => {
+        alerts[alert.engine1Key + index] = {
+          flightPhaseInhib: alert.flightPhaseInhibition,
+          simVarIsActive: this.fws.engineMonitoringAlertActive[alertIndex][index],
+          notActiveWhenItemActive: [],
+          whichItemsToShow: () => [],
+          whichItemsChecked: () => [],
+          failure: ENGINE_MONITORING_ALERT_LEVEL,
+          sysPage: SdPages.None,
+        };
+      });
+    }
+    return alerts;
+  }
+
   public ewdAbnormalSensed: EwdAbnormalDict = {
     ...this.engineStartAlerts(),
     ...this.bleedMonitoringAlerts(),
+    ...this.engineMonitoringAlerts(),
     // ATA 21 - AIR CONDITIONING AND PRESSURIZATION
     211800001: {
       // PACK 1 CTL 1 FAULT
@@ -4844,6 +5017,76 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Fuel,
     },
+    281800018: {
+      // ENG 1 LP VLV FAULT, FCOM l.149688, PDF p.5162 (FwsFuelLeakLpValveAlerts)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault,
+      simVarIsActive: this.fws.fuelEngLpValveFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine1Master.get()).show,
+      whichItemsChecked: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine1Master.get()).checked,
+      inopSysAllPhases: () => [ENG_LP_VALVE_FAULT_INOP_SYS[0]],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800019: {
+      // ENG 2 LP VLV FAULT, FCOM l.149688, PDF p.5162 (FwsFuelLeakLpValveAlerts)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault,
+      simVarIsActive: this.fws.fuelEngLpValveFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine2Master.get()).show,
+      whichItemsChecked: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine2Master.get()).checked,
+      inopSysAllPhases: () => [ENG_LP_VALVE_FAULT_INOP_SYS[1]],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800020: {
+      // ENG 3 LP VLV FAULT, FCOM l.149688, PDF p.5162 (FwsFuelLeakLpValveAlerts)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault,
+      simVarIsActive: this.fws.fuelEngLpValveFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine3Master.get()).show,
+      whichItemsChecked: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine3Master.get()).checked,
+      inopSysAllPhases: () => [ENG_LP_VALVE_FAULT_INOP_SYS[2]],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800021: {
+      // ENG 4 LP VLV FAULT, FCOM l.149688, PDF p.5162 (FwsFuelLeakLpValveAlerts)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault,
+      simVarIsActive: this.fws.fuelEngLpValveFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine4Master.get()).show,
+      whichItemsChecked: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine4Master.get()).checked,
+      inopSysAllPhases: () => [ENG_LP_VALVE_FAULT_INOP_SYS[3]],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800072: {
+      // LEAK DET FAULT, FCOM l.151966, PDF p.5222 (FwsFuelLeakLpValveAlerts): crew awareness, no master light
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.leakDetFault,
+      simVarIsActive: this.fws.fuelLeakDetectionFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      inopSysAllPhases: () => [FUEL_LEAK_DET_FAULT_INOP_SYS],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    281800073: {
+      // LEAK DETECTED, FCOM l.152017, PDF p.5224 (FwsFuelLeakLpValveAlerts): the procedure of the ABN PROC FUEL LEAK
+      // (280900002), with its STATUS: LAND ANSA; FUEL PARTLY UNUSABLE except an engine fuel leak (LEAK STOPS, item 13);
+      // the minimum usable fuel when the leak continues (item 17)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.leakDetected,
+      simVarIsActive: this.fws.fuelLeakDetected,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(281800073),
+      whichItemsChecked: () => EcamAbnormalProcedures[281800073].items.map(() => false),
+      limitationsAllPhases: (checked) => ['2', checked[13] ? null : '280400001'],
+      limitationsPfd: () => ['2'],
+      info: (checked) => (checked[17] ? ['280200001', '280200002'] : []),
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
     // ATA 29 - HYDRAULICS
     290800001: {
       // G ELEC PMP A FAULT
@@ -5390,7 +5633,7 @@ export class FwsAbnormalSensed {
     320800014: {
       // BTV FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7],
-      simVarIsActive: this.fws.btvLost,
+      simVarIsActive: this.fws.btvFaultCaution,
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],
       failure: 2,
@@ -6078,6 +6321,34 @@ export class FwsAbnormalSensed {
       redundLoss: () => [''],
       info: () => [''],
     },
+    340800025: {
+      // NAV FM / GPS POS DISAGREE (see FwsNavPositionAlerts): ACFT POS ... CHECK, INFO FLS : RAW ONLY
+      flightPhaseInhib: FM_GPS_POS_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navPositionAlerts.fmGpsPosDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [],
+      inopSysApprLdg: () => [],
+      redundLoss: () => [],
+      info: () => [FM_GPS_POS_DISAGREE_INFO],
+    },
+    340800049: {
+      // NAV LS TUNING DISAGREE (see FwsNavPositionAlerts): crew awareness, INOP SYS APPR & LDG CAT 2, GLS AUTOLAND
+      flightPhaseInhib: LS_TUNING_DISAGREE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.navPositionAlerts.lsTuningDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+      inopSysAllPhases: () => [],
+      inopSysApprLdg: () => LS_TUNING_DISAGREE_INOP_SYS_APPR_LDG,
+      redundLoss: () => [],
+      info: () => [],
+    },
     340800040: {
       // IR 1 FAULT
       flightPhaseInhib: [4, 5, 6, 9, 10],
@@ -6714,6 +6985,38 @@ export class FwsAbnormalSensed {
     },
     // DOOR MAIN 1L ... 5R, UPPER 1L ... 3R and FWD/AFT CARGO NOT CLOSED (520800017-034), see doorNotClosedAlerts()
     ...this.doorNotClosedAlerts(),
+    // A-ICE ENG and WING valve alerts (300800010-025), see antiIceValveAlerts()
+    ...this.antiIceValveAlerts(),
+    // ATA 35 OXYGEN (A380 FCOM PRO-ABN-ECAM-10-35, a380_fcom.txt l.167419-167530), see OxygenAlerts.ts. Flight phase
+    // inhibitions, audio and master lights from the FCOM figures (2019 FCOM PDF pages 5656-5659): CABIN VLV CLOSED has
+    // no audio and no master light
+    [OXYGEN_ALERT_IDS.cabinBottlePressLo]: {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.oxyCabinBottlePressLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Door,
+    },
+    [OXYGEN_ALERT_IDS.cabinValveClosed]: {
+      flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      simVarIsActive: this.fws.oxyCabinValveClosed,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Door,
+    },
+    [OXYGEN_ALERT_IDS.ckptBottlePressLo]: {
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10, 11],
+      simVarIsActive: this.fws.oxyCkptBottlePressLo,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Door,
+    },
     // ATA 70 - ENGINES
     701800029: {
       // ENG 1 FAIL

@@ -9,6 +9,7 @@ import {
   accuPressLoItems,
   BrakeSteerInputs,
   brakeFaultAlerts,
+  btvFaultCautionTriggered,
   FwsBrakeAlerts,
   PARK_BRK_PRESS_LO_PSI,
   readBrakeSteerInputs,
@@ -216,4 +217,37 @@ describe('FwsBrakeAlerts inputs and wiring', () => {
       expect(block).toContain('sysPage: SdPages.Wheel,');
     },
   );
+});
+
+/*
+ * BRAKES BTV FAULT: "The BTV auto-brake mode is failed" (A380 FCOM PRO-ABN-ECAM-10-32 P 29/118). An engine 2 or 3 out
+ * makes BTV inoperative through the ENG 1(2)(3)(4) SHUT DOWN STATUS ("BTV (If ENG 2(3) affected)", a380_fcom.txt
+ * l.172781), not through this caution: the FCDC BTV LOST bit is also set by an inner engine not running.
+ */
+describe('BRAKES BTV FAULT trigger', () => {
+  it('triggers on BTV LOST with all the inner engines running', () => {
+    expect(btvFaultCautionTriggered(true, true, true)).toBe(true);
+  });
+
+  it.each([
+    [false, true, 'engine 2 not running'],
+    [true, false, 'engine 3 not running'],
+    [false, false, 'engines 2 and 3 not running'],
+  ])('does not trigger on BTV LOST with %s/%s (%s)', (engine2Running, engine3Running) => {
+    expect(btvFaultCautionTriggered(true, engine2Running, engine3Running)).toBe(false);
+  });
+
+  it('does not trigger without BTV LOST', () => {
+    expect(btvFaultCautionTriggered(false, true, true)).toBe(false);
+  });
+
+  it('320800014 BTV FAULT reads the caution trigger, the INOP SYS BTV keeps the FCDC BTV LOST', () => {
+    const sensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+    const start = sensed.indexOf('    320800014: {');
+    const block = sensed.slice(start, sensed.indexOf('\n    },', start));
+    expect(block).toContain('simVarIsActive: this.fws.btvFaultCaution,');
+    expect(block).toContain('failure: 2,');
+    const inopSys = readFileSync(resolve(__dirname, 'FwsInopSys.ts'), 'utf-8');
+    expect(inopSys).toContain('this.fws.btvLost,');
+  });
 });

@@ -16,6 +16,7 @@ import { noPositionAvailableText } from '../../../shared/utils';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { MfdFmsPositionNavaids } from './MfdFmsPositionNavaids';
+import { navigationModeText } from '@fmgc/navigation/FmPosition';
 
 interface MfdFmsPositionMonitorPageProps extends AbstractMfdPageProps {}
 
@@ -110,9 +111,11 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
 
   private readonly position1 = Subject.create(noPositionAvailableText);
 
-  private readonly position2 = this.position1; // TODO implement when more than 1 FMS
+  /** The offside FMS position (FMS2 on the CAPT side, FMS1 on the F/O side) */
+  private readonly position2 = Subject.create(noPositionAvailableText);
 
-  private readonly radioPosition = Subject.create(noPositionAvailableText); // TODO implement when radio position is available from FMS
+  /** The radio position of the onside FMS, in the IRS/DME/DME and IRS/VOR/DME modes */
+  private readonly radioPosition = Subject.create(noPositionAvailableText);
 
   private readonly positionFrozen = Subject.create(false);
 
@@ -133,11 +136,9 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     v ? 'AT ' + this.props.fmcService.master.timeKeeper.formatEta(0) : '',
   );
 
-  private readonly gnssCoordinates: Coordinates = { lat: 0, long: 0 };
-
   private readonly gnss1PositionText = Subject.create(noPositionAvailableText);
 
-  private readonly gnss2PositionText = this.gnss1PositionText; // TODO implement when GNSS2 is added
+  private readonly gnss2PositionText = Subject.create(noPositionAvailableText);
 
   private readonly onSidePositionLabel = Subject.create(this.props.mfd.uiService.captOrFo === 'CAPT' ? 'FMS1' : 'FMS2');
 
@@ -145,7 +146,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     this.props.mfd.uiService.captOrFo === 'CAPT' ? 'FMS2' : 'FMS1',
   );
 
-  /** No GPIRS (hybrid) position is modelled by the ADIRS yet */
+  /** The GPIRS (hybrid GPS/IRS) position the onside FMS selects */
   private readonly gpirsPositionText = Subject.create(noPositionAvailableText);
 
   private readonly gpsPrimaryVisibility = this.navPrimaryLost.map((v) => (v ? 'hidden' : 'visible'));
@@ -153,7 +154,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
   private readonly monitorWaypoint =
     this.props.fmcService.master.fmgc.data.positionMonitorFix ?? Subject.create<Fix | null>(null);
 
-  // TODO implement when FM position
+  /** The navigation modes of the onside and offside FMS positions, between brackets */
   private readonly position1Mode = Subject.create('');
   private readonly position2Mode = Subject.create('');
 
@@ -174,8 +175,6 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
   private readonly distanceToWaypointUnit = this.bearingToWaypoint.map((v) => (v ? 'NM' : '\xa0\xa0'));
 
   private readonly waypointEntered = this.monitorWaypoint.map((v) => v !== null);
-
-  private readonly irsMixCoordinates: Coordinates = { lat: 0, long: 0 };
 
   private readonly mixIrsPositionText = Subject.create(noPositionAvailableText);
 
@@ -221,13 +220,20 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     this.fmsEpe.set(navigation.getEpe());
     this.fmsRnp.set(rnp ?? null);
     this.rnpEnteredByPilot.set(navigation.isPilotRnp());
-    const fmCoordinates = this.props.fmcService.master.navigation.getPpos();
-    const fmPositionAvailable = fmCoordinates != null;
+    // FMS1 on the CAPT side, FMS2 on the F/O side (A380 FCOM POSITION / MONITOR page, a380_fcom.txt l.39683-39686)
+    const onSide: 1 | 2 = this.props.mfd.uiService.captOrFo === 'CAPT' ? 1 : 2;
+    const offSide: 1 | 2 = onSide === 1 ? 2 : 1;
+    const fmCoordinates = navigation.getFmPosition(onSide);
     // FCOM P 292: FREEZE POSITION freezes the display of all position data on the page
     const updatePositionSensors = !this.positionFrozen.get();
+    const positionText = (position: Coordinates | null) =>
+      position !== null ? coordinateToString(position, false) : noPositionAvailableText;
 
     if (updatePositionSensors) {
-      this.position1.set(fmPositionAvailable ? coordinateToString(fmCoordinates, false) : noPositionAvailableText);
+      this.position1.set(positionText(fmCoordinates));
+      this.position2.set(positionText(navigation.getFmPosition(offSide)));
+      this.radioPosition.set(positionText(navigation.getRadioPosition()));
+      this.gpirsPositionText.set(positionText(navigation.getGpirsPosition(onSide)));
     }
 
     this.fillIrData(
@@ -262,37 +268,11 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     );
 
     if (updatePositionSensors) {
-      // TODO replace with MMR signals once implemented
-      this.gnssCoordinates.lat = SimVar.GetSimVarValue('GPS POSITION LAT', 'degree latitude');
-      this.gnssCoordinates.long = SimVar.GetSimVarValue('GPS POSITION LON', 'degree longitude');
-      this.gnss1PositionText.set(coordinateToString(this.gnssCoordinates, false));
-
-      let mixLatitude = 0;
-      let mixLongitude = 0;
-      let availableIrs = 0;
-      if (!this.ir1LatitudeRegister.isInvalid() && !this.ir1LongitudeRegister.isInvalid()) {
-        mixLatitude += this.ir1LatitudeRegister.value;
-        mixLongitude += this.ir1LongitudeRegister.value;
-        availableIrs += 1;
-      }
-      if (!this.ir2LatitudeRegister.isInvalid() && !this.ir2LongitudeRegister.isInvalid()) {
-        mixLatitude += this.ir2LatitudeRegister.value;
-        mixLongitude += this.ir2LongitudeRegister.value;
-        availableIrs += 1;
-      }
-      if (!this.ir3LatitudeRegister.isInvalid() && !this.ir3LongitudeRegister.isInvalid()) {
-        mixLatitude += this.ir3LatitudeRegister.value;
-        mixLongitude += this.ir3LongitudeRegister.value;
-        availableIrs += 1;
-      }
-
-      if (availableIrs > 0) {
-        this.irsMixCoordinates.lat = mixLatitude / availableIrs;
-        this.irsMixCoordinates.long = mixLongitude / availableIrs;
-        this.mixIrsPositionText.set(coordinateToString(this.irsMixCoordinates, false));
-      } else {
-        this.mixIrsPositionText.set(noPositionAvailableText);
-      }
+      // The pure GPS positions of the two MMR receivers, sent through the ADIRS (a380_fcom.txt l.22760-22761)
+      this.gnss1PositionText.set(positionText(navigation.getGpsPosition(1)));
+      this.gnss2PositionText.set(positionText(navigation.getGpsPosition(2)));
+      // The MIX IRS position, or the single IRS position the onside FMS uses (a380_fcom.txt l.39724-39726)
+      this.mixIrsPositionText.set(positionText(navigation.getMixIrsPosition(onSide)));
     }
 
     const waypoint = this.monitorWaypoint.get();
@@ -309,13 +289,12 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     }
 
     if (updatePositionSensors) {
-      // FCOM P 286: navigation mode "N IRS/GPS" or "N IRS", N = 3 or 1 IRS used for the IRS position
-      const validIrs = [this.ir1LatitudeRegister, this.ir2LatitudeRegister, this.ir3LatitudeRegister].filter(
-        (r) => !r.isInvalid(),
-      ).length;
-      const mode = validIrs === 0 ? '' : `(${validIrs >= 2 ? 3 : 1} IRS${navigation.getGpsPrimary() ? '/GPS' : ''})`;
-      this.position1Mode.set(mode);
-      this.position2Mode.set(mode);
+      // FCOM P 286: navigation mode "N IRS/GPS", "N IRS/DME/DME", "N IRS/VOR/DME" or "N IRS", N = 3 or 1 IRS. Both FMSs
+      // use the same navaids and the same IRS, so both have the navigation mode of the FMS function.
+      const modeText = navigationModeText(navigation.getIrsUsedCount(), navigation.getNavigationMode());
+      const mode = modeText === '' ? '' : `(${modeText})`;
+      this.position1Mode.set(navigation.getFmPosition(onSide) !== null ? mode : '');
+      this.position2Mode.set(navigation.getFmPosition(offSide) !== null ? mode : '');
     }
   }
 

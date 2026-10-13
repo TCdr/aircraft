@@ -58,6 +58,8 @@ const DELAY_RATE_RESTORE = DELAY_REFUEL_RESTART + 1000;
 const DELAY_FUEL_START = 500;
 const DEFUEL_DIFF_TARGET_A320 = 125;
 const DEFUEL_DIFF_TARGET_A380 = 2500;
+/** How often the host re-reads the flyPad GSX_POWER_SYNC setting from the sim's data store, in milliseconds */
+const POWER_SYNC_SETTING_POLL_INTERVAL = 1000;
 
 abstract class GsxSync implements Instrument {
   protected readonly sub = this.bus.getSubscriber<GroundSupportEvents & GsxSimVarEvents & MsfsFlightModelEvents>();
@@ -75,6 +77,12 @@ abstract class GsxSync implements Instrument {
   protected readonly fuelHose = ConsumerSubject.create(null, 0);
   protected readonly refuelStartedByUser = ConsumerSubject.create(null, false);
   protected initialIngameFrame = false;
+  /** Whether the GSX_POWER_SYNC setting was on at the last read, to see it being turned on */
+  protected powerSyncEnabled = false;
+  /** The GSX states are subscribed (in game): the power source can be evaluated */
+  protected subscriptionsReady = false;
+  /** Date.now() time of the next GSX_POWER_SYNC setting read */
+  protected nextPowerSyncSettingRead = 0;
 
   constructor(
     protected readonly bus: EventBus,
@@ -85,6 +93,7 @@ abstract class GsxSync implements Instrument {
   public init(): void {
     Wait.awaitSubscribable(GameStateProvider.get(), (state) => state === GameState.ingame, true).then(() => {
       this.initSubscriptions();
+      this.subscriptionsReady = true;
       this.initialIngameFrame = true;
     });
   }
@@ -110,18 +119,35 @@ abstract class GsxSync implements Instrument {
     this.stateGpu.sub(this.evaluateGsxPowerSource.bind(this));
     this.stateDeparture.sub(this.evaluateGsxPowerSource.bind(this));
 
-    // The GSX GPU or jetway may already be connected when the sync is enabled in the flyPad: no GSX state changes then
-    NXDataStore.subscribeLegacy(SyncServices.POWER, (_, value) => {
-      if (value === '1') {
-        this.evaluateGsxPowerSource();
-      }
-    });
+    // The GSX GPU or jetway may already be connected when the sync is enabled in the flyPad: no GSX state changes then.
+    // The flyPad's update event (FBW_NXDATASTORE_UPDATE, sent through its JS_LISTENER_SIMVARS view listener) is not
+    // seen reliably by this host, which registers no such listener: onUpdate also re-reads the stored setting.
+    this.powerSyncEnabled = this.isSyncEnabled(SyncServices.POWER);
+    NXDataStore.subscribeLegacy(SyncServices.POWER, (_, value) => this.onPowerSyncSettingRead(value === '1'));
   }
 
   public onUpdate(): void {
     if (this.initialIngameFrame) {
       this.onCouatlStarted(SimVar.GetSimVarValueFast('L:FSDT_GSX_COUATL_STARTED', SimVarValueType.Number));
       this.initialIngameFrame = false;
+    }
+
+    const now = Date.now();
+    if (this.subscriptionsReady && now >= this.nextPowerSyncSettingRead) {
+      this.nextPowerSyncSettingRead = now + POWER_SYNC_SETTING_POLL_INTERVAL;
+      this.onPowerSyncSettingRead(this.isSyncEnabled(SyncServices.POWER));
+    }
+  }
+
+  /**
+   * Evaluates the GSX power source when the external power sync has just been turned on in the flyPad
+   * @param enabled whether the GSX_POWER_SYNC setting is on
+   */
+  protected onPowerSyncSettingRead(enabled: boolean): void {
+    const justEnabled = enabled && !this.powerSyncEnabled;
+    this.powerSyncEnabled = enabled;
+    if (justEnabled) {
+      this.evaluateGsxPowerSource();
     }
   }
 

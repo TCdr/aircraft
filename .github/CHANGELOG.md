@@ -423,7 +423,22 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/HYD] The RAT propeller has the real 29.5 in (749 mm) diameter instead of 1 m, with its performance retuned to the real RAT: rated output from 135.5 kt, governed between 4800 and 6600 rpm, and the emergency generator kept running down to 125 kt as in the FCOM; below its governed band the RAT pressure fades and the emergency generator is lost (about 110 kt); the RAT holds the blue system at about 2500 psi as in the FCOM, also without the emergency generator (RAT MAN ON), instead of about 2680 psi - @TCdr
 1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
+1. [A32NX/ICE] The engine anti-ice valves are modelled: a valve opens with its ENG ANTI ICE pb-sw ON (or without electrical power) once the engine supplies air, the pb-sw FAULT light shows a disagreement and the MSFS engine anti-ice follows the valve; new flyPad failures (ATA 30) engine 1(2) anti-ice valve stuck closed/open with the ANTI ICE ENG 1(2) VALVE CLSD and VALVE OPEN cautions and their STATUS - @TCdr
+1. [A32NX/ICE] New probe and window heat computers with flyPad failures (ATA 30) of the probe heat computers, the pitot, static, AOA and TAT heaters and the windshield and side window heating, and the ANTI ICE probe and window cautions of the FCOM (ALL PITOT, pitot pairs, PROBES, PITOT/STAT/AOA, TAT, WINDSHIELD, WINDOW) with their procedure lines and STATUS - @TCdr
+1. [A380X/ICE] The WING ANTI ICE pb now commands a wing anti-ice system (two valves per wing on the bleed air): 30 s ground test then 10 min inhibition, inhibited during the takeoff until the thrust reduction, FAULT light, flyPad failures and the A-ICE L(R) WING VLV CLOSED, OPEN, PRESS HI and PRESS LO alerts; the flight controls and the FADEC now get the real wing anti-ice state - @TCdr
+1. [A380X/ICE] The engine anti-ice valves are modelled (opened by the ENG ANTI ICE pb on engine air, open without power, FAULT light), with flyPad failures and the A-ICE ENG 1(2)(3)(4) VLV CLOSED and VLV OPEN alerts - @TCdr
+1. [A32NX/A380X] Key bindings and hardware panels that send the MSFS anti-ice events (ANTI_ICE_TOGGLE_ENGn, ANTI_ICE_SET_ENGn, ANTI_ICE_ON/OFF/SET/TOGGLE, TOGGLE_STRUCTURAL_DEICE) now move the ENG and WING ANTI ICE pb-sw, and the sim anti-ice follows the valves - @TCdr
+1. [A380X/OXY] The cockpit and cabin oxygen bottle pressures are modelled and shown on the DOOR/OXY page, with flyPad failures (bottle leaks, cabin valve closed) and the OXY CKPT BOTTLE PRESS LO, OXY CABIN BOTTLE PRESS LO and OXY CABIN VLV CLOSED alerts - @TCdr
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
+1. [A32NX/A380X/FMS] The FM position is now the IRS position plus a bias that follows the GPIRS or the radio position and is kept in IRS only; without GPS PRIMARY the position is updated at takeoff to the runway plus the TO SHIFT, and the EPU follows the position updates - @TCdr
+1. [A32NX/MCDU] POSITION MONITOR shows the real FMGC 1 and 2, GPIRS or radio, MIX IRS and IRS positions with the navigation mode, PROG POSITION UPDATE AT works, and the IRS page shows the GPIRS position and accuracy of its ADIRU - @TCdr
+1. [A32NX/FWC] New NAV FM/GPS POS DISAGREE and NAV LS TUNING DISAGREE cautions - @TCdr
+1. [A380X/FWS] NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE now trigger, with their ECAM line and STATUS - @TCdr
+1. [A380X/MFD] POSITION/MONITOR shows the FMS 2, radio, GPIRS, GPS 1 and GPS 2 positions and the real navigation mode - @TCdr
+1. [A32NX/RCDR] The CVR now runs by itself as in the FCOM (first 5 min after power-up, with an engine running, in flight, and 5 min after the last engine shutdown); the CVR TEST gives its signal in the first 5 min without GND CTL, and only with the parking brake on - @TCdr
+1. [A380X/FWS] EVAC ACTIVE memo on the EWD while the EVAC COMMAND pb-sw is ON - @TCdr
+1. [A380X/OANS] ARPT NOT IN ACTIVE F/PLN now shows in PLAN mode only, as in the FCOM (it also showed in ROSE NAV) - @TCdr
+1. [A380X/OIT] The COMPANY COM inbox lists the company messages received by the AOC instead of two test messages; displaying a message marks it read, and the COMPANY MSG memo goes once every message is read - @TCdr
 1. [A32NX/GPWS] The GPWS can be tested on the ground with the PULL UP-GPWS pushbutton: GLIDESLOPE with the GPWS light, then PULL UP and TERRAIN TERRAIN PULL UP with the PULL UP light - @TCdr
 1. [A32NX/TCAS] New flyPad failure TCAS computer (ATA 34): amber TCAS on the PFD and ND, NAV TCAS FAULT on the ECAM, no traffic and no advisories - @TCdr
 1. [A32NX/A380X] Reactive windshear detection (A32NX FACs, A380X PRIMs): red WINDSHEAR on both PFDs in a decreasing performance windshear at takeoff and landing below 1300 ft, CONF 1 or more (no aural yet) - @TCdr
@@ -435,6 +450,18 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
 1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically, as in the FCOM - @TCdr
 1. [A380X/FWS] Smart FIVE HUNDRED callout: the flyPad pin programming "Inhibited When Glideslope Captured" is back and calls FIVE HUNDRED only when more than half a dot off the glideslope - @TCdr
+1. [A32NX/FWC] New memo RAM AIR ON, and new caution CAB PR LDG ELEV FAULT when the LDG ELEV selector is at AUTO without a landing elevation from the FMGS - @TCdr
+1. [A32NX/FWC] The CAB PR alerts now have their STATUS lines: MAX FL, the manual pressurization schedule (MAN CAB PR CTL, target V/S, cabin altitude table) and INOP SYS CAB PR 1, 2 or 1+2 - @TCdr
+1. [A32NX/FWC] New caution ENG THRUST LOCKED (flashing, single chime and MASTER CAUTION every 5 s) when the thrust levers are not moved within 5 s of an A/THR disconnection with thrust lock - @TCdr
+1. [A32NX/FWC] FUEL L+R WING TK LO LVL gives the amber LAND ASAP, asks for CTR TK L(R) XFR ON only when it is off and no longer shows the CTR TK PUMP lines of the other fuel system - @TCdr
+1. [A32NX/FWC] New cautions FUEL AUTO TRANSFER FAULT and FUEL CTR TK XFR OFF - @TCdr
+1. [A32NX/FWC] New cautions WING A.ICE SYS FAULT (with the X BLEED OPEN variant after the loss of one bleed) and WING A.ICE L(R) HI PR, with their STATUS - @TCdr
+1. [A32NX/FWC] New DOOR cautions for the cabin doors, emergency exits and cargo doors, with IF ABN CAB V/S: MAX FL 100/MEA-MORA in flight - @TCdr
+1. [A32NX/FWC] New cautions L/G DOORS NOT CLOSED and L/G SYS DISAGREE, and STATUS lines for GEAR NOT UPLOCKED, LGCIU faults and A/SKID N/WS OFF - @TCdr
+1. [A32NX/FWC] New cautions NAV GPWS FAULT and NAV GPWS TERR DET FAULT on an EGPWC fault, with INOP SYS GPWS (TERR) - @TCdr
+1. [A32NX/FWC] ENG ALL ENGINES FAILURE and the involuntary A/THR OFF now have their STATUS page lines - @TCdr
+1. [A32NX/FWC] FAC 1+2 FAULT says RUD WITH CARE ABV 160 KT, as in the FCOM (it said 140 KT) - @TCdr
+1. [A32NX/OXY] The passenger oxygen masks now drop by themselves when the cabin altitude goes above 14 000 ft - @TCdr
 1. [A32NX/PFD] FMA line 3: FOR GA: SET TOGA, DISCONNECT AP FOR LDG, SET GREEN DOT SPEED and CHECK APPR SELECTION now show as in the FCOM; CHECK APPR SELECTION (non ILS approach with a manually tuned ILS) also on the MCDU - @TCdr
 1. [A32NX/EWD] The AVAIL indication stays steady 10 s after an engine start on ground, pulses 1 min after a relight in flight and goes when the thrust lever leaves idle - @TCdr
 1. [A32NX/SD] FUEL page: the inner and outer tank quantities of the heavier wing pulse when the wings differ by more than 1 500 kg in flight phases 2 and 6 - @TCdr
@@ -458,6 +485,42 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BLEED] The CPIOM-A closes an engine bleed for overtemperature, overpressure or a pylon or wing leak, and lights the ENG BLEED FAULT light (also for a bleed valve out of its commanded position); a leak closes the crossbleed valves of its side - @TCdr
 1. [A380X/FAILURES] New ATA 36 failures: engine bleed valves stuck open or closed, pylon and wing bleed duct leaks - @TCdr
 1. [A380X/FWS] New AIR ENG 1(2)(3)(4) BLEED FAULT and AIR ENG BLEED LEAK / L(R) INR(OUTR) WING LEAK alerts; a BLEED FAULT also triggers AIR ABNORM BLEED CONFIG - @TCdr
+1. [A32NX/FWC] New AUTO FLT YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS and RUD TRV LIM 1(2) / SYS cautions with their FCOM procedures and STATUS, and six new flyPad failures (ATA 22) for the yaw damper, rudder trim and rudder travel limiter actuators of each FAC: the other FAC takes the function over - @TCdr
+1. [A32NX/A380X] New flyPad failure HP fuel valve stuck: the engine does not start with the valve stuck closed, ENG HP FUEL VALVE / HP FUEL VLV FAULT and the ENG FAULT light come on when the valve position disagrees with the FADEC command (FCOM) - @TCdr
+1. [A32NX/A380X] New flyPad FADEC fault failures with their ECAM crew awareness alerts: A32NX ENG FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT; A380X ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT - @TCdr
+1. [A32NX/ENG] The ENG FAULT light also comes on for a thrust control malfunction (both FADEC channels or both thrust lever resolvers lost), as in the FCOM - @TCdr
+1. [A32NX/ENG] A hot engine gets a pre-start motoring (dry crank up to 60 s, by its residual heat) before the ignition of an automatic start, as the FCOM bow rotor protection - @TCdr
+1. [A380X/ENG] Auto-idle protection: the outboard engines stay at idle while a thrust reverser operates, as in the FCOM - @TCdr
+1. [A32NX/FWC] New DUAL INPUT voice every 5 s while both sidesticks are moved, and PRIORITY LEFT / PRIORITY RIGHT voices when a pilot takes the sidestick priority (held 1 s, so an autopilot disconnection does not call it), from the FCDC as in the FCOM - @TCdr
+1. [A32NX/FWC] Intermediate radio height callout: below 410 ft, when no height callout came for 11 s (4 s below 50 ft), the FWC says the present height (FOUR HUNDRED down to FIVE, rounded down), then every 4 s - @TCdr
+1. [A380X/FWS] New PRIORITY LEFT / PRIORITY RIGHT voices when a pilot holds the sidestick pb (1 s, so an autopilot disconnection does not call it) - @TCdr
+1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, 4 s below 100 ft, as in the FCOM - @TCdr
+1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
+1. [A380X/GPWS] TERRAIN aural for the mode 2 alert and GLIDE SLOPE aural (louder when hard) for the mode 5 alert; a windshear warning overrides the GPWS alerts - @TCdr
+1. [A32NX/FWC] New HYD cautions and warnings from the FCOM with their procedure and STATUS lines: B (Y) ELEC PUMP LO PR / OVHT, G ENG 1 (Y ENG 2) PUMP LO PR, B/G/Y RSVR LO AIR PR, RSVR LO LVL and SYS LO PR, PTU FAULT, and the red B+Y, G+B, G+Y SYS LO PR warnings (with red LAND ASAP) that replace the single system alerts; the RSVR OVHT procedures show the "x SYS LO PR" lines and the RSVR OVHT, RAT FAULT and PTU FAULT now have their STATUS (INOP SYS, APPR PROC); no pump caution on ground with the engine stopped - @TCdr
+1. [A32NX/FWC] New APU AUTO SHUT DOWN and APU EMER SHUT DOWN cautions (MASTER SW OFF, STATUS INOP SYS APU); a STATUS line given by two alerts is shown once - @TCdr
+1. [EFB] Taxi page on the A380: taxiways narrower than 25 m (code F) or limited to a smaller wingspan in the airport map are avoided by the suggested route, marked on the map and flagged in a cleared route; widths without data show as not verified - @TCdr
+1. [A32NX/FUEL] Gravity fuel feeding has the FCOM gravity feed ceiling: an engine fed by gravity (no wing tank pump running) above FL 150 to FL 360, depending on the time flown above FL 300 and the takeoff airport, flames out after 3 min and needs a relight - @TCdr
+1. [A32NX/A380X] New flyPad failures: engine LP fuel valve jammed in place, with FUEL ENG 1(2) LP VALVE OPEN (A32NX) and FUEL ENG 1(2)(3)(4) LP VLV FAULT (A380X); jammed closed, the engine cannot start - @TCdr
+1. [A32NX/FWC] New flyPad failures FQI channel 1 and 2, with the FUEL FQI CH 1(2) FAULT cautions - @TCdr
+1. [A380X/FUEL] The EMER OUTR TK XFR pb-sw now opens the emergency outer tank transfer valves: the outer tank fuel flows by gravity into feed tanks 1 and 4 - @TCdr
+1. [A380X/FWS] FQMS fuel leak detection with the FCOM slow and fast leak thresholds, FUEL LEAK DETECTED with its procedure and FUEL LEAK DET FAULT, and new flyPad failures feed tank 1 to 4 leak - @TCdr
+1. [A32NX/MCDU] PLACE/DIST waypoints (for example LMG/-15) can be entered on the F-PLN page and as LAT REV NEXT WPT: the PDnn waypoint goes on the flight plan path at that distance after (or before, negative distance) the flight plan waypoint, without a discontinuity, as in the FCOM - @TCdr
+1. [A380X/MFD] INSERT NEXT WPT accepts PLACE/DIST waypoints of the revised waypoint (PLACE / WPT DISAGREE for another place, ENTRY OUT OF RANGE beyond the neighbouring waypoint), as in the FCOM - @TCdr
+1. [A32NX/MCDU] HOLD from the LAT REV at PPOS (the FROM waypoint) creates a hold at the present position on the aircraft track, instead of a hold at the waypoint behind the aircraft - @TCdr
+1. [A380X/MFD] The HOLD revision of the FROM waypoint creates a hold at P.POS on the aircraft track, as in the FCOM (it was greyed out) - @TCdr
+1. [A32NX/MCDU] DIR TO page: ABEAM PTS, RADIAL IN (with the default inbound radial of a flight plan waypoint) and RADIAL OUT now build the DIR TO temporary flight plan instead of NOT YET IMPLEMENTED - @TCdr
+1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (FCOM long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
+1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
+1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan, as in the FCOM - @TCdr
+1. [GPU] External power becomes available as soon as the sim's ground power does (GSX GPU, sim GPU or jetway power connected after the flight is loaded), without waiting for the GPU door animation - @TCdr
+1. [A380X/FWS] BRAKES BTV FAULT no longer shows (with a single chime and MASTER CAUT) while engine 2 or 3 is not running, e.g. during the engine start on the ground: an inner engine out makes BTV inoperative through the ENG SHUT DOWN STATUS - @TCdr
+1. [ADIRS] New ADR 1-3 and IR 1-3 fault failures in the flyPad (ATA 34): the air or inertial data of that ADIRU part are lost and its FAULT light comes on (A32NX also gets the ADR airspeed / angle of attack and IR heading erroneous failures) - @TCdr
+1. [ADIRS] The ADIRUs are now supplied by their buses: without its AC bus an ADR is lost and its IR runs on the batteries (A32NX: ON BAT light, external horn on the ground, IR 2 and 3 for 5 min) or on its DC busbar (A380X) - @TCdr
+1. [A32NX/ADIRS] The ON BAT light no longer comes on at the start of a fast alignment, as in the FCOM - @TCdr
+1. [A32NX/FWC] New NAV ADR 1(2)(3) FAULT, ADR 1+2(1+3)(2+3) FAULT, ADR 1+2+3 FAULT, ADR DISAGREE, IR 1(2)(3) FAULT, IR 1+2(1+3)(2+3) FAULT and IR DISAGREE alerts with their procedures and STATUS - @TCdr
+1. [A32NX/FWC] New NAV RA 1 AND 2 FAULT (instead of the two RA FAULT alerts) and NAV RA DEGRADED alerts; NAV RA 1(2) FAULT now has its STATUS (CAT 2 ONLY, INOP SYS RA 1(2) and CAT 3) - @TCdr
+1. [A380X/FWS] An ADR that lost its DC busbar no longer gives a NAV ADR FAULT alert on top of the ELEC busbar alert - @TCdr
 
 ## 2024.1.0
 
@@ -2378,5 +2441,3 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Restructured APIs and made Navigraph Auth a reusable component - @MicahBCode (Mischa Binder)
 1. [ECAM] Added F units to CRZ and COND pages for Cabin temps. Currently tied to kg/lbs option in EFB -Patrick Macken  (@PatM on Discord)
 1. [A32NX/FCU] Fixed bug where the FCU selected altitude would immediately switch to 1000s on selecting the 1000ft inteval knob - @elliot747 (Elliot)
-1. [A32NX/FWC] New HYD cautions and warnings from the FCOM with their procedure and STATUS lines: B (Y) ELEC PUMP LO PR / OVHT, G ENG 1 (Y ENG 2) PUMP LO PR, B/G/Y RSVR LO AIR PR, RSVR LO LVL and SYS LO PR, PTU FAULT, and the red B+Y, G+B, G+Y SYS LO PR warnings (with red LAND ASAP) that replace the single system alerts; the RSVR OVHT procedures show the "x SYS LO PR" lines and the RSVR OVHT, RAT FAULT and PTU FAULT now have their STATUS (INOP SYS, APPR PROC); no pump caution on ground with the engine stopped - @TCdr
-1. [A32NX/FWC] New APU AUTO SHUT DOWN and APU EMER SHUT DOWN cautions (MASTER SW OFF, STATUS INOP SYS APU); a STATUS line given by two alerts is shown once - @TCdr

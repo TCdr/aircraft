@@ -14,6 +14,7 @@ mod oxygen;
 mod payload;
 mod pneumatic;
 mod power_consumption;
+mod probe_window_heat;
 mod surveillance;
 
 use self::{
@@ -26,6 +27,7 @@ use self::{
     oxygen::A320Oxygen,
     payload::A320Payload,
     pneumatic::{A320Pneumatic, A320PneumaticOverheadPanel},
+    probe_window_heat::A320ProbeWindowHeat,
     surveillance::A320EgpwsElectricalHarness,
 };
 use airframe::A320Airframe;
@@ -58,17 +60,34 @@ use systems::{
     },
     electrical::{Electricity, ElectricitySource, ExternalPowerSource},
     engine::{
-        fuel_filter_failure::EngineFuelFilterFailures, leap_engine::LeapEngine,
-        oil_failure::EngineOilFailures, reverser_thrust::ReverserForce, EngineFireOverheadPanel,
+        engine_monitoring_fault::{EngineMonitoringFaultKind, EngineMonitoringFaults},
+        fuel_filter_failure::EngineFuelFilterFailures,
+        leap_engine::LeapEngine,
+        oil_failure::EngineOilFailures,
+        reverser_thrust::ReverserForce,
+        EngineFireOverheadPanel,
     },
     hydraulic::brake_circuit::AutobrakePanel,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
     navigation::adirs::{
         AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel,
     },
-    shared::{ElectricalBusType, LgciuWeightOnWheels},
+    pneumatic::EngineState,
+    shared::{ElectricalBusType, EngineStartState, LgciuWeightOnWheels},
     simulation::{Aircraft, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
+
+/// The FADEC faults of the A320 FCOM that have no engine model effect (PRO-ABN-ENG, a320_fcom.txt):
+/// ENG 1(2) FADEC ALTERNATOR, OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH
+/// FAULT (see systems::engine::engine_monitoring_fault and the FWC Logic/EngineMonitoringAlerts.ts).
+const A320_ENGINE_MONITORING_FAULTS: [EngineMonitoringFaultKind; 6] = [
+    EngineMonitoringFaultKind::FadecAlternator,
+    EngineMonitoringFaultKind::OverspeedProtection,
+    EngineMonitoringFaultKind::InletProbes,
+    EngineMonitoringFaultKind::Sensors,
+    EngineMonitoringFaultKind::OneThrustLeverResolver,
+    EngineMonitoringFaultKind::ReverserPermissionSwitch,
+];
 
 pub struct A320 {
     adirs: AirDataInertialReferenceSystem,
@@ -92,6 +111,8 @@ pub struct A320 {
     engine_oil_failures: EngineOilFailures<2>,
     /// Fuel filter clog of each engine: SD ENGINE indication and FWC caution only
     engine_fuel_filter_failures: EngineFuelFilterFailures<2>,
+    /// The FADEC faults without engine model effect of each engine: FWC alerts only
+    engine_monitoring_faults: EngineMonitoringFaults<2>,
     engine_malfunctions: A320EngineMalfunctions,
     engine_control_failures: A320EngineControlFailures,
     fire_protection: A320FireProtection,
@@ -106,6 +127,7 @@ pub struct A320 {
     landing_gear: LandingGear,
     pneumatic: A320Pneumatic,
     oxygen: A320Oxygen,
+    probe_window_heat: A320ProbeWindowHeat,
     radio_altimeters: A320RadioAltimeters,
     egpwc: EnhancedGroundProximityWarningComputer,
     egpwc_2: EnhancedGroundProximityWarningComputer2,
@@ -144,6 +166,10 @@ impl A320 {
             engine_failures: A320EngineFailures::new(context),
             engine_oil_failures: EngineOilFailures::new(context),
             engine_fuel_filter_failures: EngineFuelFilterFailures::new(context),
+            engine_monitoring_faults: EngineMonitoringFaults::new(
+                context,
+                &A320_ENGINE_MONITORING_FAULTS,
+            ),
             engine_malfunctions: A320EngineMalfunctions::new(context),
             engine_control_failures: A320EngineControlFailures::new(context),
             fire_protection: A320FireProtection::new(context),
@@ -162,6 +188,7 @@ impl A320 {
             landing_gear: LandingGear::new(context, false),
             pneumatic: A320Pneumatic::new(context),
             oxygen: A320Oxygen::new(context),
+            probe_window_heat: A320ProbeWindowHeat::new(context),
             radio_altimeters: A320RadioAltimeters::new(context),
             // The GPS receivers of MMR 1 and 2. The FCOM gives no power supply: MMR 1 on AC ESS and MMR 2 on AC 2,
             // as the other side 1 / side 2 navigation receivers (design choice)
@@ -254,7 +281,13 @@ impl Aircraft for A320 {
         self.asu.update();
 
         self.fuel.update(context, &self.engine_fire_overhead);
-        self.engine_failures.update(context, &self.fuel);
+        // The thrust control malfunctions of the previous update (the engine control failures
+        // update after the reversers, below), for the ENG FAULT light.
+        self.engine_failures.update(
+            context,
+            &self.fuel,
+            self.engine_control_failures.thrust_control_malfunctions(),
+        );
         self.engine_malfunctions.update(context);
 
         self.lgcius.update(
@@ -346,6 +379,14 @@ impl Aircraft for A320 {
         );
 
         self.oxygen.update(context);
+        // Probes and windows heated with an engine running or in flight (FCOM DSC-30-40-10, DSC-30-50-10)
+        let lgcius = [self.lgcius.lgciu1(), self.lgcius.lgciu2()];
+        self.probe_window_heat.update(
+            [1, 2]
+                .iter()
+                .any(|&engine| self.pneumatic.engine_state(engine) == EngineState::On),
+            lgcius[0].left_gear_extended(false) || lgcius[1].right_gear_extended(false),
+        );
 
         self.egpwc.update(&self.adirs, self.lgcius.lgciu1());
         self.egpws_electrical_harness.update(self.lgcius.lgciu1());
@@ -381,6 +422,7 @@ impl SimulationElement for A320 {
         self.engine_failures.accept(visitor);
         self.engine_oil_failures.accept(visitor);
         self.engine_fuel_filter_failures.accept(visitor);
+        self.engine_monitoring_faults.accept(visitor);
         self.engine_malfunctions.accept(visitor);
         self.engine_control_failures.accept(visitor);
         self.fire_protection.accept(visitor);
@@ -399,6 +441,7 @@ impl SimulationElement for A320 {
         self.landing_gear.accept(visitor);
         self.pneumatic.accept(visitor);
         self.oxygen.accept(visitor);
+        self.probe_window_heat.accept(visitor);
         self.egpwc.accept(visitor);
         self.egpws_electrical_harness.accept(visitor);
         self.egpwc_2.accept(visitor);

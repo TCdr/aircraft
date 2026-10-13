@@ -17,6 +17,7 @@
     - [Flaps and Slats](#flaps-and-slats)
     - [Electronic Flight Control System EFCS](#electronic-flight-control-system-efcs)
   - [Fuel (ATA 28)](#fuel-ata-28)
+  - [Ice and Rain Protection ATA 30](#ice-and-rain-protection-ata-30)
   - [Indicating-Recording ATA 31](#indicating-recording-ata-31)
   - [ECAM Control Panel ATA 31](#ecam-control-panel-ata-31)
   - [EFIS Control Panel ATA 31](#efis-control-panel-ata-31)
@@ -26,6 +27,7 @@
   - [Surveillance ATA 34](#surveillance-ata-34)
   - [Navigation ATA 34](#navigation-ata-34)
   - [Standby Instruments ATA 34](#standby-instruments-ata-34)
+  - [Oxygen ATA 35](#oxygen-ata-35)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
@@ -1727,6 +1729,32 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 4
   - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the FADEC shuts the engine down and it cannot relight. Cuts the engine fuel (A32NX_ENGINE_{number}_FUEL_CUT)
 
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_OPEN
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine LP fuel valve remains (partly) open while the ENG MASTER or the ENG FIRE pushbutton commands it closed, once its travel time plus 1 s is over: the valve is jammed (flyPad failure 28040-28043 "ENG n LP fuel valve jammed in place"). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True when the engine LP fuel valve remains (partly) closed while it is commanded open, once its travel time plus 1 s is over (jammed valve). The engine is then starved (A32NX_FUEL_ENG_{number}_STARVED). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A380X_FUEL_LEAK_DETECTED
+  - Bool
+  - True when the FQMS fuel system leak detection has found a leak (FCOM DSC-28-40 FUEL LEAK DETECTION): the BLOCK fuel (FOB + fuel used when the four engines first run) exceeds the FOB + fuel used by more than 15 450 lb (slow leak), or the FOB decrease exceeds the fuel used by more than 4 400 lb within the last 30 min (fast leak). Stays until the end of the flight. Gives FUEL LEAK DETECTED. Written by systems-host CpiomF/FuelLeak
+
+- A380X_FUEL_LEAK_DET_FAULT
+  - Bool
+  - True while the FQMS fuel system leak detection is inhibited (an engine not running in flight, fuel jettison in progress): FUEL LEAK DET FAULT. The slow leak detection is then lost until the end of the flight. Written by systems-host CpiomF/FuelLeak
+
 - A380X_FUEL_FEED_TK_{number}_{pump}_PMP_LO_PR
   - Bool
   - {number}
@@ -1769,6 +1797,48 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 3
     - 4
   - True when the CROSSFEED {number} pb-sw is ON (the flight crew selection, ON light and pb-sw animation). The systems host (CpiomF/FuelPumpsAndValves) commands the MSFS valve 46 (crossfeed 1) to 49 (crossfeed 4) (K:FUELSYSTEM_VALVE_OPEN/CLOSE) to follow it, except while the valve is jammed (failures 28020-28023), when the valve stays where it was. A valve switch change from outside (K:FUELSYSTEM_VALVE_* events, the refuel logic closing the valves) is taken as the new selection. The ECAM sensed CROSSFEED ... ON items read it (the crew action, done even if the valve is jammed closed); the green OPEN light of the pb-sw shows the valve fully open (FUELSYSTEM VALVE OPEN)
+
+## Ice and Rain Protection ATA 30
+
+The wing and engine anti-ice of the systems model (a380_systems ice_rain_protection.rs).
+
+- A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION
+    - Bool
+    - The WING ANTI ICE pb (ON light). Its valves drive the MSFS STRUCTURAL DEICE
+
+- A32NX_BUTTON_OVHD_ANTI_ICE_ENG_{number}_POSITION
+    - Bool
+    - The ENG {number} ANTI ICE pb (ON light), {number} 1 to 4. Its valve drives the MSFS ENG ANTI ICE
+
+- A32NX_PNEU_WING_ANTI_ICE_SYSTEM_SELECTED
+    - Bool
+    - The WING ANTI ICE pb is ON
+
+- A32NX_PNEU_WING_ANTI_ICE_SYSTEM_ON
+    - Bool
+    - At least one wing anti-ice valve is open: hot air on slat 4 (read by the flight controls and, through STRUCTURAL
+      DEICE, the FADEC). Closed for the ground test after 30 s, during the 10 min ground inhibition and during the
+      takeoff until the takeoff thrust reduction
+
+- A32NX_PNEU_WING_ANTI_ICE_FAULT
+    - Bool
+    - The FAULT light of the WING ANTI ICE pb: a valve position disagreement or a low pressure
+
+- A32NX_PNEU_WING_ANTI_ICE_{wing}_VALVE_CLOSED
+    - Bool
+    - Both wing anti-ice valves of the wing are closed, {wing} 1 left, 2 right
+
+- A32NX_PNEU_WING_ANTI_ICE_{wing}_ABNORMALLY_CLOSED / _ABNORMALLY_OPEN / _LOW_PRESSURE / _HIGH_PRESSURE
+    - Bool
+    - The AICU monitoring of the wing, {wing} 1 left, 2 right: A-ICE L(R) WING VLV CLOSED / OPEN / PRESS LO / PRESS HI
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_VALVE_OPEN
+    - Bool
+    - The engine anti-ice valve is not fully closed, {number} 1 to 4
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_FAULT
+    - Bool
+    - The FAULT light of the ENG ANTI ICE pb: the valve position disagrees with the pb
 
 ## Indicating-Recording ATA 31
 
@@ -1875,6 +1945,14 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 1: the CAPT ND DU
     - 4: the F/O ND DU
     - -1: none (the SD is shown on no operative display unit)
+
+- A32NX_FWS_AUDIO_{voice}
+  - Bool
+  - True while the FWS says this synthetic voice, played from a WAV clip (sound/fws_<voice>.wav, tools/fws-voice)
+  - {voice}
+    - PRIORITY_LEFT: the CAPT holds the sidestick pb (CpiomC/FlightWarningSystem/FwsSidestickPriority.ts)
+    - PRIORITY_RIGHT: the F/O holds the sidestick pb
+    - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning (FlightWarningSystem/FwsWindshearAural.ts)
 
 ## ECAM Control Panel ATA 31
 
@@ -2217,6 +2295,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 ## Navigation ATA 34
 
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM / GPS POS DISAGREE alert: an FMS position more than the
+      FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM PRO-ABN-ECAM-10-34-10). Written by the
+      FMS (fmgc navigation/FmPosition.ts), read by the FWS
+
 - A32NX_PRIM_ADR_{number}_REJECTED
     - Bool
     - number: 1, 2 or 3
@@ -2277,6 +2361,17 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | 7     | AIDED (coasting on the IR data, up to two minutes) |
       | 8     | DIFF (satellite based augmentation) |
 
+- A32NX_ADIRS_ADR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The ADR FAULT discrete of ADIRU {number}: a fault is detected in its air data reference part (ADR FAULT light).
+      False while the ADIRU is not supplied (AC and DC busbars, see a380_systems navigation.rs) or its mode selector is
+      OFF. The FWS reads the ADR fail bit of A32NX_ADIRS_ADR_{number}_DISCRETE_WORD_1 instead.
+
+- A32NX_ADIRS_EXTERNAL_HORN
+    - Bool
+    - Written by the common ADIRS overhead panel (A320 external horn of an ADIRU on batteries). Always false on the
+      A380X: its IRs have no battery supply.
+
 - A32NX_ADIRS_IR_{number}_GPIRS_LATITUDE, A32NX_ADIRS_IR_{number}_GPIRS_LONGITUDE
     - Arinc429<Degrees>
     - The GPIRS (hybrid GPS/IRS) position of IR {number}: valid when the IR is in NAV and has a GPS receiver in NAV
@@ -2307,6 +2402,22 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | 0     | SFD    | SND    |
       | 1     | SND    | SFD    |
       | 2     | SFD    | Off    |
+
+## Oxygen ATA 35
+
+The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs).
+
+- A32NX_OXYGEN_CREW_BOTTLE_PRESSURE
+    - PSI
+    - The pressure of the cockpit oxygen bottle (DOOR/OXY SD, OXY CKPT BOTTLE PRESS LO)
+
+- A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE
+    - PSI
+    - The pressure of the cabin oxygen bottles (DOOR/OXY SD, OXY CABIN BOTTLE PRESS LO)
+
+- A32NX_OXYGEN_CABIN_VALVE_CLOSED
+    - Bool
+    - A cabin oxygen regulator supply valve is closed (OXY CABIN VLV CLOSED)
 
 ## Bleed Air ATA 36
 
@@ -2616,6 +2727,24 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 3
     - 4
   - True while the fuel filter clog failure of the engine is active (flyPad failures 73100-73103): CLOGGED below the fuel flow on the ENGINE SD page while the engine runs, and ENG FUEL FILTER CLOGGED (on the ground: FCOM flight phases 1, 2, 11 and 12), no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
+
+- A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT
+  - Number
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The abnormal HP fuel valve position the FADEC detects (2 s) with the HP fuel valve stuck failure (flyPad failures 73200-73203): 0 none, 1 not open (closed while commanded open: no fuel, no start), 2 not closed (open while commanded closed; the engine still stops, the MSFS valve of A32NX_ENGINE_{number}_HP_FUEL_VALVE_CLOSED models the LP valve closure). ENG HP FUEL VLV FAULT and the ENG MASTER FAULT light (A32NX_ENGINE_{number}_FAULT_LIGHT). Written by the systems WASM (systems engine/hp_fuel_valve_failure.rs)
+
+- A32NX_ENGINE_{number}_FUEL_STRAINER_CLOGGED, _FUEL_FILTER_MONITORING_FAULT, _OIL_CHIP_DETECTED, _MINOR_FAULT, _OVERTHRUST_PROTECTION_LOST, _SENSOR_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73110-73113 fuel strainer clog, 73120-73123 fuel filter monitoring, 79040-79043 oil chip, 73260-73263 FADEC minor fault, 73250-73253 overthrust protection, 73240-73243 pressure and temperature probes): the crew awareness alerts ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT (FwsCore, EngineMonitoringAlerts.ts), no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool

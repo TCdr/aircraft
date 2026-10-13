@@ -2,6 +2,7 @@ use crate::air_conditioning::{
     acs_controller::AcscId, cabin_pressure_controller::CpcId, Channel, VcmId, ZoneType,
 };
 use crate::air_conditioning::{FdacId, OcsmId};
+use crate::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use crate::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use crate::shared::{
     AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType, FireDetectionLoopID,
@@ -81,6 +82,30 @@ pub enum FailureType {
     GearActuatorJammed(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
+    // ATA30 (ice_rain_protection)
+    /// The engine anti-ice valve of engine n stays closed
+    EngineAntiIceValveStuckClosed(usize),
+    /// The engine anti-ice valve of engine n stays open
+    EngineAntiIceValveStuckOpen(usize),
+    /// Both wing anti-ice valves of wing n (1 left, 2 right) stay closed (A380: a380_systems ice_rain_protection.rs)
+    WingAntiIceValvesStuckClosed(usize),
+    /// The outer wing anti-ice valve of wing n (1 left, 2 right) stays open and no longer regulates (A380)
+    WingAntiIceOuterValveStuckOpen(usize),
+    /// Probe heat computer n (1 CAPT, 2 F/O, 3 STBY) is failed (A320: a320_systems probe_window_heat.rs)
+    ProbeHeatComputer(usize),
+    /// The heater of probe p (1 pitot, 2 L static, 3 R static, 4 AOA, 5 TAT) of probe heat computer n is failed
+    ProbeHeater(usize, usize),
+    /// The heating of windshield n (1 left, 2 right) is failed
+    WindshieldHeat(usize),
+    /// The heating of cockpit side window n (1 left, 2 right) is failed
+    WindowHeat(usize),
+    // ATA35 (A380: a380_systems oxygen.rs)
+    /// The cockpit oxygen bottle leaks: its pressure falls
+    CockpitOxygenBottleLeak,
+    /// The cabin oxygen bottles leak: their pressure falls
+    CabinOxygenBottleLeak,
+    /// A cabin oxygen regulator supply valve stays closed
+    CabinOxygenValveStuckClosed,
     // ATA36 (A320: a320_systems pneumatic.rs)
     /// The bleed (pressure regulating) valve of engine n stays closed
     EngineBleedValveStuckClosed(usize),
@@ -140,6 +165,14 @@ pub enum FailureType {
     AdrAirspeedErroneous(usize),
     /// The angle of attack probe of ADR n is erroneous: its angle of attack reads high, with a valid status
     AdrAngleOfAttackErroneous(usize),
+    /// The air data reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
+    /// on (navigation::adirs)
+    AdrFault(usize),
+    /// The inertial reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
+    /// on steady (navigation::adirs)
+    IrFault(usize),
+    /// The heading of IR n is erroneous: its magnetic and true headings are offset, with a valid status
+    IrHeadingErroneous(usize),
     // ATA72
     /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
     EngineFlameout(usize),
@@ -198,6 +231,14 @@ pub enum FailureType {
     ThrustLeverResolverDisagree(usize),
     /// The fuel filter of engine n is clogged: a crew awareness indication (engine::fuel_filter_failure)
     EngineFuelFilterClog(usize),
+    /// The HP fuel shutoff valve of engine n sticks in its position (engine::hp_fuel_valve_failure)
+    EngineHpFuelValveStuck(usize),
+    /// A fault the FADEC of engine n detects and reports, with no effect on the engine model
+    /// (engine::engine_monitoring_fault)
+    EngineMonitoringFault(usize, EngineMonitoringFaultKind),
+    /// The LP fuel valve of engine n is jammed in its position: it no longer follows the ENG MASTER
+    /// and the ENG FIRE pushbutton (fuel::engine_lp_valve)
+    EngineLpValveJammed(usize),
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),

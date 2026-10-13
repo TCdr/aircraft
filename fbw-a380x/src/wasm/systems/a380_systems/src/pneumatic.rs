@@ -410,6 +410,19 @@ impl A380Pneumatic {
     pub fn engine_bleed_fault(&self, engine_number: usize) -> bool {
         self.core_processing_input_output_module_a.units[engine_number - 1].has_fault()
     }
+
+    /// The bleed duct pressure of engine n (from 1), downstream of its precooler: the air of the wing anti-ice
+    /// (ice_rain_protection.rs)
+    pub fn bleed_duct_pressure(&self, engine_number: usize) -> Pressure {
+        self.engine_systems[engine_number - 1].pressure()
+    }
+
+    /// The HP compressor pressure of engine n (from 1): the air of its engine anti-ice (ice_rain_protection.rs)
+    pub fn high_pressure_compressor_pressure(&self, engine_number: usize) -> Pressure {
+        self.engine_systems[engine_number - 1]
+            .high_pressure_compression_chamber
+            .pressure()
+    }
 }
 impl PneumaticBleed for A380Pneumatic {
     fn apu_bleed_is_on(&self) -> bool {

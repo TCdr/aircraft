@@ -72,6 +72,8 @@ import { FwsAbnormalNonSensed } from './FwsAbnormalNonSensed';
 import { MfdSurvEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { Mle, Mmo, VfeF1, VfeF1F, VfeF2, VfeF3, VfeFF, Vle, Vmo } from '@shared/PerformanceConstants';
 import { FwsAuralVolume, FwsSoundManager } from './FwsSoundManager';
+import { FwsSidestickPriority } from './FwsSidestickPriority';
+import { FwsWindshearAural } from './FwsWindshearAural';
 import { FwcFlightPhase, FwsFlightPhases } from './FwsFlightPhases';
 import { A380Failure } from '@failures';
 // FIXME should not import from instruments
@@ -103,7 +105,7 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
-import { FwsBrakeAlerts, readBrakeSteerInputs } from './FwsBrakeAlerts';
+import { btvFaultCautionTriggered, FwsBrakeAlerts, readBrakeSteerInputs } from './FwsBrakeAlerts';
 import { readFuelJettisonFlags } from './FuelJettisonFlags';
 import {
   EngineFailMonitor,
@@ -120,6 +122,7 @@ import {
 } from './EngineFailAlerts';
 import { engineOilAlerts } from './EngineOilAlerts';
 import { engineFuelFilterClogged } from './EngineFuelFilterAlerts';
+import { ENGINE_MONITORING_ALERTS, HpFuelValveFault, isHpFuelVlvFaultActive } from './EngineMonitoringAlerts';
 import { OilTemperatureLowMonitor, isFlexTakeoffMode, isThrustLeversNotSet } from './EngineTakeoffAlerts';
 import { isTakeoffThrustDisagree, isThrustLoss } from './EngineThrustAlerts';
 import {
@@ -172,6 +175,7 @@ import {
   WingsBalanceMonitor,
   WingsBalanceState,
 } from './FwsFuelAlertsRound8';
+import { isEngLpValveFault, readFuelLeakLpValveFlags } from './FwsFuelLeakLpValveAlerts';
 import {
   ALL_DISPLAY_UNITS,
   DisplayUnitFailure,
@@ -184,7 +188,10 @@ import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
 import { isToConfigNormal } from './ToConfigNormal';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
 import { FwsGearAlerts } from './FwsGearAlerts';
-import { FwsNavAlerts, readSideDisplayData } from './FwsNavAlerts';
+import { FwsNavAlerts, adrFaultyForNavAlerts, readSideDisplayData } from './FwsNavAlerts';
+import { AntiIceValveAlerts, readAntiIceValveInputs } from './AntiIceValveAlerts';
+import { oxygenAlerts } from './OxygenAlerts';
+import { FwsNavPositionAlerts } from './FwsNavPositionAlerts';
 import {
   areRamAirInletsOpen,
   ExcessNegativeDiffPressMonitor,
@@ -2020,6 +2027,9 @@ export class FwsCore {
   /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
   public readonly navAlerts = new FwsNavAlerts();
 
+  /** NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE (see FwsNavPositionAlerts) */
+  public readonly navPositionAlerts = new FwsNavPositionAlerts();
+
   public isAllGearDownlocked = false;
 
   public readonly nwSteeringDisc = Subject.create(false);
@@ -2107,6 +2117,13 @@ export class FwsCore {
     this.fcdc1LandingFctDiscreteWord,
     this.fcdc2LandingFctDiscreteWord,
     this.eng1Or2AndEng3Or4RunningAndPhase,
+  );
+  /** BRAKES BTV FAULT: BTV LOST with engines 2 and 3 running (FwsBrakeAlerts.ts btvFaultCautionTriggered) */
+  public readonly btvFaultCaution = MappedSubject.create(
+    ([btvLost, engine2Running, engine3Running]) => btvFaultCautionTriggered(btvLost, engine2Running, engine3Running),
+    this.btvLost,
+    this.engine2Running,
+    this.engine3Running,
   );
 
   public readonly oansFailedSimvar = RegisteredSimVar.createBoolean('L:A32NX_OANS_FAILED');
@@ -2437,6 +2454,20 @@ export class FwsCore {
   /** A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON VLV NOT CLOSED: a jettison valve abnormally open */
   public readonly fuelJettisonValveNotClosed = Subject.create(false);
 
+  /** FUEL ENG 1(2)(3)(4) LP VLV FAULT, per engine (FwsFuelLeakLpValveAlerts) */
+  public readonly fuelEngLpValveFault = [
+    Subject.create(false),
+    Subject.create(false),
+    Subject.create(false),
+    Subject.create(false),
+  ];
+
+  /** FUEL LEAK DETECTED, from the FQMS leak detection (CpiomF/FuelLeak) */
+  public readonly fuelLeakDetected = Subject.create(false);
+
+  /** FUEL LEAK DET FAULT, from the FQMS leak detection (CpiomF/FuelLeak) */
+  public readonly fuelLeakDetectionFault = Subject.create(false);
+
   /** The flight crew has set the PRED W/S button to OFF (not the WXR button, which also sets it to OFF). */
   public readonly wxrPredWsOff = Subject.create(false);
 
@@ -2558,6 +2589,16 @@ export class FwsCore {
 
   /** ENG 1(2)(3)(4) FUEL FILTER CLOGGED, by engine (EngineFuelFilterAlerts.ts) */
   public readonly engineFuelFilterClogged = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** ENG 1(2)(3)(4) HP FUEL VLV FAULT, by engine (EngineMonitoringAlerts.ts): the fault the FADEC reports */
+  public readonly engineHpFuelValveFault: HpFuelValveFault[] = [0, 1, 2, 3].map(() => HpFuelValveFault.None);
+
+  public readonly engineHpFuelVlvFaultActive = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** The FADEC fault crew awareness alerts, by alert of ENGINE_MONITORING_ALERTS then engine (EngineMonitoringAlerts.ts) */
+  public readonly engineMonitoringAlertActive = ENGINE_MONITORING_ALERTS.map(() =>
+    [1, 2, 3, 4].map(() => Subject.create(false)),
+  );
 
   /** ENG 1(2)(3)(4) OIL TEMP LO, by engine (EngineTakeoffAlerts.ts) */
   private readonly oilTemperatureLowMonitors = [1, 2, 3, 4].map(() => new OilTemperatureLowMonitor());
@@ -2980,6 +3021,16 @@ export class FwsCore {
   /** DOOR FWD(AFT) CARGO NOT CLOSED triggers, in CARGO_DOORS order */
   public readonly cargoDoorNotClosed = CARGO_DOORS.map(() => Subject.create(false));
 
+  /** A-ICE ENG VLV CLOSED / OPEN, A-ICE L(R) WING VLV CLOSED / OPEN / PRESS HI / PRESS LO, see AntiIceValveAlerts */
+  public readonly antiIceValveAlerts = new AntiIceValveAlerts();
+
+  /** OXY CABIN BOTTLE PRESS LO, OXY CABIN VLV CLOSED, OXY CKPT BOTTLE PRESS LO, see OxygenAlerts */
+  public readonly oxyCabinBottlePressLo = Subject.create(false);
+
+  public readonly oxyCabinValveClosed = Subject.create(false);
+
+  public readonly oxyCkptBottlePressLo = Subject.create(false);
+
   public readonly fmsPredUnreliablePreCondition = this.aircraftOnGround.map(SubscribableMapFunctions.not());
 
   public readonly fuelConsumptIncreasePreCondition = MappedSubject.create(
@@ -3135,6 +3186,10 @@ export class FwsCore {
   public readonly limitations = new FwsLimitations(this);
   public readonly systemDisplayLogic = new FwsSystemDisplayLogic(this);
   private readonly autoCallouts = new FwsAutoCallouts(this);
+  /** PRIORITY LEFT / PRIORITY RIGHT voices, see FwsSidestickPriority */
+  private readonly sidestickPriority = new FwsSidestickPriority();
+  /** WINDSHEAR voice, see FwsWindshearAural */
+  private readonly windshearAural = new FwsWindshearAural();
   public ewdAbnormal: EwdAbnormalDict;
   public allEwdDeferredProcs: EwdAbnormalDict;
   public allSuppressableItems: FwsSuppressableItemDict;
@@ -3980,11 +4035,13 @@ export class FwsCore {
     this.ldgMemo.set(SimVar.GetSimVarValue('L:A32NX_FWC_LDGMEMO', 'bool'));
 
     this.engSelectorPosition.set(SimVar.GetSimVarValue('L:XMLVAR_ENG_MODE_SEL', 'Enum'));
-    this.eng1AntiIce.set(!!SimVar.GetSimVarValue('A:ENG ANTI ICE:1', 'bool'));
-    this.eng2AntiIce.set(!!SimVar.GetSimVarValue('A:ENG ANTI ICE:2', 'bool'));
-    this.eng3AntiIce.set(!!SimVar.GetSimVarValue('A:ENG ANTI ICE:3', 'bool'));
-    this.eng4AntiIce.set(!!SimVar.GetSimVarValue('A:ENG ANTI ICE:4', 'bool'));
-    this.wingAntiIce.set(!!SimVar.GetSimVarValue('A:STRUCTURAL DEICE SWITCH', 'bool'));
+    // The ENG and WING ANTI ICE pb: the ENG A-ICE and WING A-ICE memos (A380 FCOM DSC-30-10-20 l.62083-62086). The
+    // MSFS ENG ANTI ICE and STRUCTURAL DEICE follow the valves of the systems model (a380_systems ice_rain_protection.rs)
+    this.eng1AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION', 'bool') > 0);
+    this.eng2AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION', 'bool') > 0);
+    this.eng3AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_3_POSITION', 'bool') > 0);
+    this.eng4AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_4_POSITION', 'bool') > 0);
+    this.wingAntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION', 'bool') > 0);
     this.throttle1Position.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number'));
     this.throttle2Position.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:2', 'number'));
     this.throttle3Position.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:3', 'number'));
@@ -4417,9 +4474,15 @@ export class FwsCore {
         this.ir3MaintWord.bitValueOr(13, false),
     );
 
-    this.adr1Faulty.set(!(!this.acESSBusPowered.get() || flightPhase112) && adr1Fault);
-    this.adr2Faulty.set(!(!this.ac4BusPowered.get() || flightPhase112) && adr2Fault);
-    this.adr3Faulty.set(!(!this.ac2BusPowered.get() || flightPhase112) && adr3Fault);
+    this.adr1Faulty.set(
+      adrFaultyForNavAlerts(adr1Fault, this.acESSBusPowered.get(), this.dcESSBusPowered.get(), flightPhase112),
+    );
+    this.adr2Faulty.set(
+      adrFaultyForNavAlerts(adr2Fault, this.ac4BusPowered.get(), this.dc2BusPowered.get(), flightPhase112),
+    );
+    this.adr3Faulty.set(
+      adrFaultyForNavAlerts(adr3Fault, this.ac2BusPowered.get(), this.dc1BusPowered.get(), flightPhase112),
+    );
     this.airDataAlerts.update(readAirDataAlertInputs((name, unit) => SimVar.GetSimVarValue(name, unit)));
 
     // GPS receivers: GPS_n_MODE 4 is FAULT (a failure prevents the receiver from transmitting valid data)
@@ -4494,6 +4557,27 @@ export class FwsCore {
       this.soundManager.enqueueSound('v1');
     }
 
+    /* PRIORITY LEFT / PRIORITY RIGHT (a380_fcom.txt l.55350, 55363, 73621-73623) */
+    const gpwsAlertActive =
+      SimVar.GetSimVarValue('L:A32NX_GPWS_Warning_Active', SimVarValueType.Bool) > 0 ||
+      SimVar.GetSimVarValue('L:A32NX_GPWS_GS_Warning_Active', SimVarValueType.Bool) > 0;
+    const sidestickPriorityAural = this.sidestickPriority.update(
+      SimVar.GetSimVarValue('L:A32NX_PRIORITY_TAKEOVER:1', SimVarValueType.Bool) > 0,
+      SimVar.GetSimVarValue('L:A32NX_PRIORITY_TAKEOVER:2', SimVarValueType.Bool) > 0,
+      gpwsAlertActive,
+      deltaTime / 1000,
+    );
+    if (sidestickPriorityAural !== null) {
+      this.soundManager.enqueueSound(sidestickPriorityAural);
+    }
+
+    /* WINDSHEAR (a380_fcom.txt l.9274-9276, 73643) */
+    if (
+      this.windshearAural.update(SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', SimVarValueType.Bool) > 0)
+    ) {
+      this.soundManager.enqueueSound('windshear');
+    }
+
     /* LANDING GEAR AND LIGHTS acquisition */
 
     this.antiSkidSwitchOff.set(!SimVar.GetSimVarValue('ANTISKID BRAKES ACTIVE', 'bool'));
@@ -4537,6 +4621,19 @@ export class FwsCore {
       readSideDisplayData(true, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
       readSideDisplayData(false, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
       navTrueRef,
+    );
+    // The FMS sends the FM/GPS position disagree condition; MMR 1 and 2 are the sim NAV 3 and NAV 4 receivers
+    this.navPositionAlerts.update(
+      deltaTime / 1000,
+      SimVar.GetSimVarValue('L:A32NX_FM_GPS_POS_DISAGREE', 'bool') > 0,
+      {
+        frequency: SimVar.GetSimVarValue('NAV ACTIVE FREQUENCY:3', 'MHz'),
+        course: SimVar.GetSimVarValue('NAV OBS:3', 'degrees'),
+      },
+      {
+        frequency: SimVar.GetSimVarValue('NAV ACTIVE FREQUENCY:4', 'MHz'),
+        course: SimVar.GetSimVarValue('NAV OBS:4', 'degrees'),
+      },
     );
     const parkBrakeSet = SimVar.GetSimVarValue('L:A32NX_PARK_BRAKE_LEVER_POS', 'Number') === 1;
     this.parkBrakeSet.set(parkBrakeSet);
@@ -6344,6 +6441,20 @@ export class FwsCore {
     this.fuelJettisonRValveFault.set(jettison.rightValveFault);
     this.fuelJettisonValveNotClosed.set(jettison.valveNotClosed);
 
+    // ENG LP VLV FAULT (systems fuel/engine_lp_valve.rs) and the FQMS leak detection (CpiomF/FuelLeak)
+    const leakLpValve = readFuelLeakLpValveFlags((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool));
+    this.fuelEngLpValveFault.forEach((alert, index) =>
+      alert.set(
+        isEngLpValveFault(
+          this.aircraftOnGround.get(),
+          leakLpValve.lpValveAbnormallyOpen[index],
+          leakLpValve.lpValveAbnormallyClosed[index],
+        ),
+      ),
+    );
+    this.fuelLeakDetected.set(leakLpValve.leakDetected);
+    this.fuelLeakDetectionFault.set(leakLpValve.leakDetectionFault);
+
     // Feed tank pumps and crossfeed valves (CpiomF/FuelPumpsAndValves), read as real booleans
     const readBool = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool);
     const feedPumps = readFeedTankPumpFlags(readBool);
@@ -6721,9 +6832,29 @@ export class FwsCore {
     this.iceNotDetTimer2Status.set(
       this.iceNotDetTimer2.write(iceNotDetected1 && !(icePercentage >= 0.1 || (tat < 10 && inCloud === 1)), deltaTime),
     );
+    this.antiIceValveAlerts.update(
+      readAntiIceValveInputs(
+        [this.engine1Running, this.engine2Running, this.engine3Running, this.engine4Running].map((running) =>
+          running.get(),
+        ),
+      ),
+      deltaTime / 1000,
+    );
 
     /* OXYGEN */
     this.paxOxyMasksDeployed.set(SimVar.GetSimVarValue('L:A32NX_OXYGEN_MASKS_DEPLOYED', 'Bool'));
+    const oxygen = oxygenAlerts({
+      ckptBottlePressurePsi: SimVar.GetSimVarValue('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 'number'),
+      cabinBottlePressurePsi: SimVar.GetSimVarValue('L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE', 'number'),
+      cabinValveClosed: SimVar.GetSimVarValue('L:A32NX_OXYGEN_CABIN_VALVE_CLOSED', 'bool') > 0,
+      oneEngineRunning: this.oneEngineRunning.get(),
+      fmsPassengers: SimVar.GetSimVarValue('L:A32NX_FMS_PAX_NUMBER', 'number'),
+      cabinAltitudeFt: this.cabinAltitude.isNormalOperation() ? this.cabinAltitude.value : null,
+      masksReleased: !!this.paxOxyMasksDeployed.get(),
+    });
+    this.oxyCabinBottlePressLo.set(oxygen.cabinBottlePressLo);
+    this.oxyCabinValveClosed.set(oxygen.cabinValveClosed);
+    this.oxyCkptBottlePressLo.set(oxygen.ckptBottlePressLo);
 
     /* DOOR */
     this.cockpitWindowOpen.set(
@@ -6828,6 +6959,19 @@ export class FwsCore {
       this.engineIgnAFault[index].set(igniterAFault && !igniterBFault);
       this.engineIgnBFault[index].set(igniterBFault && !igniterAFault);
       this.engineIgnAPlusBFault[index].set(igniterAFault && igniterBFault);
+
+      // ENG HP FUEL VLV FAULT and the FADEC fault crew awareness alerts (FCOM PRO-ABN-ECAM-10-70, see
+      // EngineMonitoringAlerts.ts), from engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs
+      this.engineHpFuelValveFault[index] = SimVar.GetSimVarValue(
+        `L:A32NX_ENGINE_${engine}_HP_FUEL_VALVE_FAULT`,
+        'number',
+      );
+      this.engineHpFuelVlvFaultActive[index].set(isHpFuelVlvFaultActive(this.engineHpFuelValveFault[index]));
+      ENGINE_MONITORING_ALERTS.forEach((alert, alertIndex) =>
+        this.engineMonitoringAlertActive[alertIndex][index].set(
+          SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_${alert.variable}`, 'bool') > 0,
+        ),
+      );
     }
 
     // Attnetion getting box

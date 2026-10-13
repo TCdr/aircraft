@@ -52,6 +52,7 @@ import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { NXSystemMessages } from '../../shared/NXSystemMessages';
 import { CompanyTakeoffDataButton } from './MfdFmsCpnyToRequest';
+import { NO_PREDICTION_TO_ALTITUDE, predictionToAltitudeText } from './PerfPredictionsToAltitude';
 import {
   getEtaFromUtcOrPresent as getEtaUtcOrFromPresent,
   getApproachName,
@@ -1023,6 +1024,50 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
     super.destroy();
   }
 
+  /** The time (UTC in flight) of the PERF speed table predictions */
+  private formatPredictionTime(secondsFromPresent: number): string {
+    return getEtaUtcOrFromPresent(secondsFromPresent, this.activeFlightPhase.get() == FmgcFlightPhase.Preflight);
+  }
+
+  /**
+   * CLB tab: the time and distance from the present position to the predictions reference altitude (PRED TO), on the
+   * active flight plan (FCOM l.38020-38021, see PerfPredictionsToAltitude.ts)
+   */
+  private climbPredictionText(fpIndex: FlightPlanIndex): string {
+    if (fpIndex !== FlightPlanIndex.Active) {
+      return NO_PREDICTION_TO_ALTITUDE;
+    }
+    return predictionToAltitudeText(
+      this.props.fmcService.master?.guidanceController?.vnavDriver?.ndProfile,
+      this.props.fmcService.master?.fmgc.data.climbPredictionsReference.get() ?? null,
+      true,
+      (seconds) => this.formatPredictionTime(seconds),
+    );
+  }
+
+  /**
+   * DES tab: the time and distance from the present position to the predictions reference altitude, on the active flight
+   * plan. Without a flight crew entry, the reference altitude is the AFS CP selected altitude when it is below the
+   * aircraft (FCOM l.38719-38721, AUTOMATIC UPDATE).
+   */
+  private descentPredictionText(fpIndex: FlightPlanIndex): string {
+    const fmc = this.props.fmcService.master;
+    if (fpIndex !== FlightPlanIndex.Active || !fmc) {
+      return NO_PREDICTION_TO_ALTITUDE;
+    }
+    const fcuAltitude = fmc.guidanceController?.verticalProfileComputationParametersObserver?.get()?.fcuAltitude;
+    const aircraftAltitude: number = SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
+    const referenceAltitude =
+      this.desPredictionsReference.get() ??
+      (fcuAltitude !== undefined && fcuAltitude < aircraftAltitude ? fcuAltitude : null);
+    return predictionToAltitudeText(
+      fmc.guidanceController?.vnavDriver?.ndProfile,
+      referenceAltitude,
+      false,
+      (seconds) => this.formatPredictionTime(seconds),
+    );
+  }
+
   private drawPage(tab?: FlightPhaseTabIndex) {
     this.loadFlightPlanPerformanceData();
 
@@ -1070,7 +1115,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         this.clbTableModeLine2.set('MANAGED');
         this.clbTableSpdLine2.set(clbSpeedLimit?.speed.toFixed(0) ?? null);
         this.clbTableMachLine2.set(null);
-        this.clbTablePredLine2.set('--:--   ----');
+        this.clbTablePredLine2.set(this.climbPredictionText(fpIndex));
         this.clbTableModeLine3.set('ECON');
         this.clbTableSpdLine3.set(this.props.fmcService.master.fmgc.getManagedClimbSpeed(fpIndex).toFixed(0) ?? null);
         this.clbTableMachLine3.set(
@@ -1101,8 +1146,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
           this.clbTableMachLine3.set(null);
           this.clbTablePredLine3.set(null);
         }
-        // TODO add predictions
-        this.clbTablePredLine1.set(null);
+        this.clbTablePredLine1.set(this.climbPredictionText(fpIndex));
         this.clbTableModeLine2.set(null);
         this.clbTableSpdLine2.set(null);
         this.clbTableMachLine2.set(null);
@@ -1111,7 +1155,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         this.clbTableModeLine1.set('SELECTED');
         this.clbTableSpdLine1.set(obs && obs.fcuSpeed >= 1 ? obs?.fcuSpeed.toFixed(0) ?? null : null);
         this.clbTableMachLine1.set(obs && obs.fcuSpeed < 1 ? `.${obs.fcuSpeed.toFixed(2).split('.')[1]}` : null);
-        this.clbTablePredLine1.set(null);
+        this.clbTablePredLine1.set(this.climbPredictionText(fpIndex));
 
         this.clbTableModeLine2.set('MANAGED');
         // TODO add speed restriction (ECON, SPD LIM, ...) in smaller font
@@ -1308,7 +1352,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         this.desTableModeLine1.set('MANAGED');
         this.desTableSpdLine1.set(null);
         this.desTableMachLine1.set(null);
-        this.desTablePredLine1.set('--:--  ----');
+        this.desTablePredLine1.set(NO_PREDICTION_TO_ALTITUDE);
         this.desTableModeLine2.set(null);
         this.desTableSpdLine2.set(null);
         this.desTableMachLine2.set(null);
@@ -1317,7 +1361,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         this.desTableModeLine1.set('MANAGED');
         this.desTableSpdLine1.set(managedDescentSpeed?.toString());
         this.desTableMachLine1.set(`.${managedDescentSpeedMach.toFixed(2).split('.')[1]}`);
-        this.desTablePredLine1.set('--:--  ----');
+        this.desTablePredLine1.set(this.descentPredictionText(fpIndex));
         this.desTableModeLine2.set(null);
         this.desTableSpdLine2.set(null);
         this.desTableMachLine2.set(null);
@@ -1326,7 +1370,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
         this.desTableModeLine1.set('SELECTED');
         this.desTableSpdLine1.set(obs && obs.fcuSpeed >= 1 ? obs?.fcuSpeed.toFixed(0) ?? null : null);
         this.desTableMachLine1.set(obs && obs.fcuSpeed < 1 ? `.${obs.fcuSpeed.toFixed(2).split('.')[1]}` : null);
-        this.desTablePredLine1.set('--:--  ----');
+        this.desTablePredLine1.set(this.descentPredictionText(fpIndex));
         this.desTableModeLine2.set('MANAGED');
         this.desTableSpdLine2.set(managedDescentSpeed?.toString());
         this.desTableMachLine2.set(`.${managedDescentSpeedMach.toFixed(2).split('.')[1]}`);
@@ -2695,7 +2739,7 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
                     />
                   </div>
                   <div class="mfd-fms-perf-speed-table-cell">
-                    <span class={{ 'mfd-value': true, sec: this.secActive }}>--:-- ----</span>
+                    <span class={{ 'mfd-value': true, sec: this.secActive }}>{this.desTablePredLine1}</span>
                   </div>
                   <div class="mfd-fms-perf-speed-presel-managed-table-cell">
                     <div

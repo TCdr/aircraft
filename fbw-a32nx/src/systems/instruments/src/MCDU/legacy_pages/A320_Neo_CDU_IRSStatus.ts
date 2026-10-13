@@ -119,14 +119,25 @@ export class CDUIRSStatus {
   private static readonly irWindDirection = Arinc429Register.empty();
   private static readonly irWindSpeed = Arinc429Register.empty();
   private static readonly gpirsCoordinates: Coordinates = { lat: 0, long: 0 };
+  private static readonly gpirsLatitude = Arinc429Register.empty();
+  private static readonly gpirsLongitude = Arinc429Register.empty();
+  private static readonly gpirsFigureOfMerit = Arinc429Register.empty();
+
+  /** Feet in a nautical mile */
+  private static readonly FEET_PER_NM = 6076.12;
 
   static ShowPage(mcdu: LegacyFmsPageInterface, index: 1 | 2 | 3, frozenTime?: string): void {
     if (!this.frozen) {
       mcdu.clearDisplay();
       this.populateIrData(index);
-      // TODO hookup GPIRS to calculated position from FM when implemented
-      this.gpirsCoordinates.lat = SimVar.GetSimVarValue('GPS POSITION LAT', 'degree latitude');
-      this.gpirsCoordinates.long = SimVar.GetSimVarValue('GPS POSITION LON', 'degree longitude');
+      // [5L] GPIRS: "GPS/IRS hybrid position of the IRS"; [4R] GPIRS ACCUR: "GPS/IRS Figure of Merit (meters or feet)"
+      // (A320 FCOM DSC-22_20-50-10-28 IRS page, a320_fcom.txt l.19774-19796): the GPIRS words of this ADIRU
+      this.gpirsLatitude.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_LATITUDE`);
+      this.gpirsLongitude.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_LONGITUDE`);
+      this.gpirsFigureOfMerit.setFromSimVar(`L:A32NX_ADIRS_IR_${index}_GPIRS_FIGURE_OF_MERIT`);
+      const gpirsValid = this.gpirsLatitude.isNormalOperation() && this.gpirsLongitude.isNormalOperation();
+      this.gpirsCoordinates.lat = this.gpirsLatitude.value;
+      this.gpirsCoordinates.long = this.gpirsLongitude.value;
       this.frozen = frozenTime !== undefined;
       mcdu.setTemplate([
         [`IRS${index} ${this.frozen ? `FROZEN {small}AT{end} ${frozenTime}` : ''}`],
@@ -159,10 +170,16 @@ export class CDUIRSStatus {
           this.irWindDirection.isInvalid() || this.irWindSpeed.isInvalid()
             ? '---°/--[color]white'
             : `${Math.round(this.irWindDirection.value)}°/${Math.round(this.irWindSpeed.value)}[color]green`,
-          '200FT[color]green',
+          gpirsValid && this.gpirsFigureOfMerit.isNormalOperation()
+            ? `${Math.round(this.gpirsFigureOfMerit.value * this.FEET_PER_NM)}FT[color]green`
+            : '----[color]white',
         ],
         ['GPIRS POSITION'],
-        [`${coordinateToString(this.gpirsCoordinates, false)}[color]green`],
+        [
+          gpirsValid
+            ? `${coordinateToString(this.gpirsCoordinates, false)}[color]green`
+            : '--°--.--/---°--.--[color]white',
+        ],
         ['', ''],
         [this.frozen ? '{UNFREEZE[color]cyan' : '{FREEZE[color]cyan', 'NEXT IRS>'],
       ]);

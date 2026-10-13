@@ -104,6 +104,13 @@ function setHealthyCruise(bus: EventBus): void {
   simvars.set('L:A32NX_OVHD_PRESS_MODE_SEL_PB_IS_AUTO', 1);
   simvars.set('L:A32NX_SWITCH_TCAS_Position', 2);
   simvars.set('L:A32NX_TRANSPONDER_MODE', 1);
+  // centre tank transfer pb-sw ON (no FUEL CTR TK XFR OFF) and cargo doors locked (no DOOR FWD/AFT CARGO)
+  simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 1);
+  simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 1);
+  simvars.set('L:A32NX_FWD_DOOR_CARGO_LOCKED', 1);
+  simvars.set('L:A32NX_AFT_DOOR_CARGO_LOCKED', 1);
+  // the FMGC sends the landing elevation (no CAB PR LDG ELEV FAULT)
+  simvars.set('L:A32NX_FM1_LANDING_ELEVATION', normalWord());
 }
 
 /** The real PseudoFWC, both FWCs powered and started */
@@ -141,8 +148,9 @@ describe('A32NX IGNITION memo in cruise (A320 FCOM DSC-70-90-50)', () => {
     expect(ewdLines('LEFT')).toEqual([]);
     expect(ewdLines('RIGHT')).not.toContain(IGNITION);
 
-    // ENG 1 ANTI ICE pb-sw ON: the systems WASM sets the automatic continuous ignition of engine 1
-    simvars.set('ENG ANTI ICE:1', 1);
+    // ENG 1 ANTI ICE pb-sw ON, its valve open: the systems WASM sets the automatic continuous ignition of engine 1
+    simvars.set('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION', 1);
+    simvars.set('L:A32NX_PNEU_ENG_1_ANTI_ICE_VALVE_OPEN', 1);
     simvars.set('L:A32NX_ENGINE_1_CONTINUOUS_IGNITION', 1);
     run(fwc, 1);
     expect(ewdLines('RIGHT')).toContain(IGNITION);
@@ -153,7 +161,8 @@ describe('A32NX IGNITION memo in cruise (A320 FCOM DSC-70-90-50)', () => {
     run(fwc, 15);
     expect(ewdLines('RIGHT')).toContain(IGNITION);
 
-    simvars.set('ENG ANTI ICE:1', 0);
+    simvars.set('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION', 0);
+    simvars.set('L:A32NX_PNEU_ENG_1_ANTI_ICE_VALVE_OPEN', 0);
     simvars.set('L:A32NX_ENGINE_1_CONTINUOUS_IGNITION', 0);
     run(fwc, 1);
     expect(ewdLines('RIGHT')).not.toContain(IGNITION);
@@ -168,7 +177,8 @@ describe('A32NX IGNITION memo in cruise (A320 FCOM DSC-70-90-50)', () => {
     expect(ewdLines('RIGHT')).toContain(IGNITION);
 
     simvars.set('L:A32NX_ENGINE_2_CONTINUOUS_IGNITION', 0);
-    simvars.set('ENG ANTI ICE:2', 1);
+    simvars.set('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION', 1);
+    simvars.set('L:A32NX_PNEU_ENG_2_ANTI_ICE_VALVE_OPEN', 1);
     run(fwc, 2);
     expect(ewdLines('RIGHT')).toContain(ENG_A_ICE);
     expect(ewdLines('RIGHT')).not.toContain(IGNITION);

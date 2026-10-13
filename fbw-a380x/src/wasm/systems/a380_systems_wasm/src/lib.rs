@@ -33,6 +33,7 @@ use rudder::rudder;
 use spoilers::spoilers;
 use std::error::Error;
 use systems::air_conditioning::{Channel, FdacId, OcsmId, VcmId, ZoneType};
+use systems::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use systems::failures::FailureType;
 use systems::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use systems::shared::{
@@ -80,7 +81,9 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (ElectricalBusType::DirectCurrentGndFltService, 17),
     ])?
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 21)?
-    .with_engine_anti_ice(4)?
+    // The MSFS engine anti-ice follows the engine anti-ice valves, the MSFS structural deice the wing anti-ice valves
+    // (a380_systems ice_rain_protection.rs)
+    .with_engine_anti_ice_valves(4)?
     .with_wing_anti_ice()?
     .with_fuel_pumps(1..=21)?
     // Fuel valves 60 to 63 of flight_model.cfg feed the engines 1 to 4 in series after their Extra
@@ -476,6 +479,23 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (32_202, FailureType::BodyWheelSteering),
         (32_203, FailureType::SteeringControlSystem(1)),
         (32_204, FailureType::SteeringControlSystem(2)),
+        // ATA 30 wing and engine anti-ice valves (a380_systems ice_rain_protection.rs)
+        (30_000, FailureType::WingAntiIceValvesStuckClosed(1)),
+        (30_001, FailureType::WingAntiIceValvesStuckClosed(2)),
+        (30_010, FailureType::WingAntiIceOuterValveStuckOpen(1)),
+        (30_011, FailureType::WingAntiIceOuterValveStuckOpen(2)),
+        (30_100, FailureType::EngineAntiIceValveStuckClosed(1)),
+        (30_101, FailureType::EngineAntiIceValveStuckClosed(2)),
+        (30_102, FailureType::EngineAntiIceValveStuckClosed(3)),
+        (30_103, FailureType::EngineAntiIceValveStuckClosed(4)),
+        (30_110, FailureType::EngineAntiIceValveStuckOpen(1)),
+        (30_111, FailureType::EngineAntiIceValveStuckOpen(2)),
+        (30_112, FailureType::EngineAntiIceValveStuckOpen(3)),
+        (30_113, FailureType::EngineAntiIceValveStuckOpen(4)),
+        // ATA 35 oxygen bottles and cabin valves (a380_systems oxygen.rs)
+        (35_000, FailureType::CockpitOxygenBottleLeak),
+        (35_001, FailureType::CabinOxygenBottleLeak),
+        (35_010, FailureType::CabinOxygenValveStuckClosed),
         (34_000, FailureType::RadioAltimeter(1)),
         (34_001, FailureType::RadioAltimeter(2)),
         (34_002, FailureType::RadioAltimeter(3)),
@@ -510,6 +530,12 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (36_075, FailureType::WingBleedLeak(2)),
         (36_076, FailureType::WingBleedLeak(3)),
         (36_077, FailureType::WingBleedLeak(4)),
+        (34_070, FailureType::AdrFault(1)),
+        (34_071, FailureType::AdrFault(2)),
+        (34_072, FailureType::AdrFault(3)),
+        (34_080, FailureType::IrFault(1)),
+        (34_081, FailureType::IrFault(2)),
+        (34_082, FailureType::IrFault(3)),
         (72_000, FailureType::EngineFlameout(1)),
         (72_001, FailureType::EngineFlameout(2)),
         (72_002, FailureType::EngineFlameout(3)),
@@ -592,10 +618,116 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_041, FailureType::ThrustLeverResolvers(2)),
         (73_042, FailureType::ThrustLeverResolvers(3)),
         (73_043, FailureType::ThrustLeverResolvers(4)),
+        (28_040, FailureType::EngineLpValveJammed(1)),
+        (28_041, FailureType::EngineLpValveJammed(2)),
+        (28_042, FailureType::EngineLpValveJammed(3)),
+        (28_043, FailureType::EngineLpValveJammed(4)),
         (73_100, FailureType::EngineFuelFilterClog(1)),
         (73_101, FailureType::EngineFuelFilterClog(2)),
         (73_102, FailureType::EngineFuelFilterClog(3)),
         (73_103, FailureType::EngineFuelFilterClog(4)),
+        // FCOM PRO-ABN-ECAM-10-70 ENG HP FUEL VLV FAULT (systems engine/hp_fuel_valve_failure.rs)
+        (73_200, FailureType::EngineHpFuelValveStuck(1)),
+        (73_201, FailureType::EngineHpFuelValveStuck(2)),
+        (73_202, FailureType::EngineHpFuelValveStuck(3)),
+        (73_203, FailureType::EngineHpFuelValveStuck(4)),
+        // The FADEC faults without engine model effect (systems engine/engine_monitoring_fault.rs)
+        (
+            73_110,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_111,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_112,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_113,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_120,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_121,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_122,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_123,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_240,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_241,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_242,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_243,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_250,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_251,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_252,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_253,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_260,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_261,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_262,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_263,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            79_040,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_041,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_042,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_043,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::OilChip),
+        ),
         (78_001, FailureType::ReverserFault(2)),
         (78_002, FailureType::ReverserFault(3)),
         (78_011, FailureType::ReverserUnlocked(2)),

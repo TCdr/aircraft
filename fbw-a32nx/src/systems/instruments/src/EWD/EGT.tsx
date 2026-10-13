@@ -59,6 +59,9 @@ export class Egt extends DisplayComponent<EgtProps> {
 
   private onGround = false;
 
+  /** The FADEC sends the engine parameters (L:A32NX_FADEC_POWERED_ENGn): the exceedance memory only latches valid values */
+  private fadecPowered = false;
+
   /** The red mark at the highest EGT reached above the red limit (FCOM DSC-70-90-40 EGT EXCEEDANCE) */
   private readonly egtExceedance = new ExceedanceMemory(EGT_RED_LIMIT_DEGREES);
 
@@ -75,6 +78,7 @@ export class Egt extends DisplayComponent<EgtProps> {
       .on(`engine${this.props.engine}Fadec`)
       .whenChanged()
       .handle((f) => {
+        this.fadecPowered = !!f;
         this.inactiveVisibility.set(f ? 'hidden' : 'visible');
         this.activeVisibility.set(f ? 'visible' : 'hidden');
       });
@@ -113,7 +117,7 @@ export class Egt extends DisplayComponent<EgtProps> {
       .atFrequency(10)
       .handle((_t) => {
         this.egtMaxValue.set(this.egtMax);
-        this.egtExceedance.update(this.egt, isGroundStartSequence(this.engineState, this.onGround));
+        this.egtExceedance.update(this.egt, isGroundStartSequence(this.engineState, this.onGround), this.fadecPowered);
         this.egtExceedanceValue.set(this.egtExceedance.highestValue);
         this.egtExceedanceClass.set(this.egtExceedance.exceeded ? 'GaugeExceedanceMark' : 'Hide');
         this.egtText.set(Math.round(this.egt).toString());
