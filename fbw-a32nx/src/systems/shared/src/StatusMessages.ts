@@ -510,6 +510,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['340300032', { part: StatusPart.InopSys, text: 'RUD TRV LIM' }],
   ['340300033', { part: StatusPart.InopSys, text: 'CAB PR 1+2' }],
   ['340300034', { part: StatusPart.InopSys, text: 'A/CALL OUT' }],
+  // NAV PRED W/S DET FAULT (A320 FCOM l.93736-93740), see FWC/Logic/PredictiveWindshearAlerts
+  ['340300035', { part: StatusPart.InopSys, text: 'PRED W/S DET' }],
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
   ['340300003', { part: StatusPart.InopSys, text: 'GPS 1+2' }],

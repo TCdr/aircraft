@@ -44,6 +44,7 @@ describe('A320 flyPad failures', () => {
     expect(label(A320Failure.NormalBraking)).toEqual([32, 32203, 'Normal braking (servo valves)']);
     expect(label(A320Failure.Autobrake)).toEqual([32, 32204, 'Autobrake']);
     expect(label(A320Failure.NoseWheelSteering)).toEqual([32, 32205, 'Nose wheel steering']);
+    expect(label(A320Failure.BrakeNormalSelectorValve)).toEqual([32, 32210, 'Brake normal selector valve failed open']);
     const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
     expect(wasm).toContain('(32_200, FailureType::BrakeSteeringControlUnitChannel(1)),');
     expect(wasm).toContain('(32_201, FailureType::BrakeSteeringControlUnitChannel(2)),');
@@ -51,6 +52,13 @@ describe('A320 flyPad failures', () => {
     expect(wasm).toContain('(32_203, FailureType::BrakeNormalBraking),');
     expect(wasm).toContain('(32_204, FailureType::Autobrake),');
     expect(wasm).toContain('(32_205, FailureType::NoseWheelSteeringNormal),');
+    expect(wasm).toContain('(32_210, FailureType::BrakeNormalSelectorValve),');
+  });
+
+  // TS only: the FWC reads it (FWC/Logic/PredictiveWindshearAlerts.ts), no Rust failure
+  it('lists the predictive windshear failure of the weather radar in ATA 34', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.WxrPredictiveWindshear)).toEqual([34, 34120, 'Weather radar predictive windshear (PWS)']);
   });
 
   // The oil failure labels say what systems engine/oil_failure.rs and the FADEC (EngineOilFailures.hpp) do with ids 79000-79031

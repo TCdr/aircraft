@@ -605,6 +605,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ND] TCAS traffic is shown at the 10, 20 and 40 NM ranges only, as in the FCOM (TCAS: REDUCE RANGE above them) - @TCdr
 1. [A32NX/WXR] The weather radar GAIN knob works (CAL in the middle, MAN GAIN on the ND out of CAL) and the ND shows the radar mode in cyan with MULTISCAN at MAN, the MAN tilt from the TILT knob, and PWS SCAN while the predictive windshear scans with the radar off - @TCdr
 1. [A32NX/ENG] Automatic ground start of a cold engine or above 10 000 ft: the FADEC adds the second igniter once the engine has lit up - @TCdr
+1. [A32NX/FWC] New AIR ENG 1(2) BLEED FAULT / BLEED NOT CLOSED caution when a failed bleed valve stays open, and LEFT LEAK, RIGHT LEAK, LEFT LEAK AND RIGHT LEAK versions of AIR ENG 1+2 BLEED FAULT when a wing or pylon leak is one of the losses - @TCdr
+1. [A32NX/FWC] New WHEEL HYD SEL FAULT caution with a new flyPad failure of the brake normal selector valve - @TCdr
+1. [A32NX/FWC] New NAV PRED W/S DET FAULT alert and STATUS INOP SYS PRED W/S DET with a new flyPad failure of the weather radar predictive windshear function - @TCdr
+1. [A32NX/EGPWS] New green TERR STBY memo when an input of the predictive terrain functions is missing or invalid; the terrain leaves the NDs and the TERR ON ND pushbuttons go off meanwhile - @TCdr
 
 ## 2024.1.0
 

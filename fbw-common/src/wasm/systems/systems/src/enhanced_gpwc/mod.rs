@@ -36,6 +36,12 @@ pub struct EnhancedGroundProximityWarningComputer {
     navigation_displays: [NavigationDisplay; 2],
     gear_is_down: bool,
     terronnd_rendering_mode: u8,
+    /// A required input of the predictive functions (TAD, TCF) is missing or invalid: the TERR STBY memo of the A320
+    /// FWC (FCOM DSC-34-SURV-40-40, a320_fcom.txt l.55563-55566)
+    terrain_standby: bool,
+    /// The EGPWC sets the TERR ON ND pb-sws back to OFF while it is in terrain standby (the A320: "If selected, the
+    /// terrain data display on the ND is automatically deselected when the TERR STBY memo is triggered", l.55565-55566)
+    deselects_terrain_display_on_standby: bool,
     // output variables of the EGPWC
     egpwc_destination_longitude_id: VariableIdentifier,
     egpwc_destination_latitude_id: VariableIdentifier,
@@ -46,6 +52,7 @@ pub struct EnhancedGroundProximityWarningComputer {
     egpwc_present_vertical_speed_id: VariableIdentifier,
     egpwc_gear_is_down_id: VariableIdentifier,
     egpwc_terronnd_rendering_mode: VariableIdentifier,
+    egpwc_terrain_standby_id: VariableIdentifier,
 }
 
 impl EnhancedGroundProximityWarningComputer {
@@ -77,6 +84,8 @@ impl EnhancedGroundProximityWarningComputer {
             ],
             gear_is_down: true,
             terronnd_rendering_mode,
+            terrain_standby: false,
+            deselects_terrain_display_on_standby: false,
             egpwc_destination_longitude_id: context.get_identifier("EGPWC_DEST_LONG".to_owned()),
             egpwc_destination_latitude_id: context.get_identifier("EGPWC_DEST_LAT".to_owned()),
             egpwc_present_latitude_id: context.get_identifier("EGPWC_PRESENT_LAT".to_owned()),
@@ -88,7 +97,28 @@ impl EnhancedGroundProximityWarningComputer {
             egpwc_gear_is_down_id: context.get_identifier("EGPWC_GEAR_IS_DOWN".to_owned()),
             egpwc_terronnd_rendering_mode: context
                 .get_identifier("EGPWC_TERRONND_RENDERING_MODE".to_owned()),
+            egpwc_terrain_standby_id: context.get_identifier("EGPWC_TERR_STBY".to_owned()),
         }
+    }
+
+    /// The TERR ON ND pb-sws go back to OFF while the EGPWC is in terrain standby (A320 FCOM DSC-34-SURV-40-40,
+    /// l.55565-55566). Used by the A320, whose TERR ON ND pb-sws are latched L:vars of the cockpit.
+    pub fn with_terrain_display_deselection_on_standby(mut self) -> Self {
+        self.deselects_terrain_display_on_standby = true;
+        self
+    }
+
+    /// The position data the predictive functions need are valid: the ADIRU 1 is aligned and the present position,
+    /// altitude, heading and vertical speed words are in normal operation. Design choice (the FCOM does not list the
+    /// inputs, "any required predictive function input is missing or considered invalid", l.55563-55564): the inputs
+    /// are the words this EGPWC takes for its terrain picture.
+    fn predictive_inputs_valid(&self, adirs_output: &impl AdirsMeasurementOutputs) -> bool {
+        adirs_output.is_fully_aligned(1)
+            && self.latitude.is_normal_operation()
+            && self.longitude.is_normal_operation()
+            && self.altitude.is_normal_operation()
+            && self.heading.is_normal_operation()
+            && self.vertical_speed.is_normal_operation()
     }
 
     fn update_position_data(&mut self, adirs_output: &impl AdirsMeasurementOutputs) {
@@ -127,11 +157,18 @@ impl EnhancedGroundProximityWarningComputer {
             self.gear_is_down = lgcius.main_down_and_locked();
         }
 
+        // TERR STBY needs a working EGPWC: an unpowered one is the TERR FAULT of the EGPWS instead
+        let predictive_inputs_valid = self.is_powered && self.predictive_inputs_valid(adirs_output);
+        self.terrain_standby = self.is_powered && !predictive_inputs_valid;
+        let deselect_terrain_display =
+            self.deselects_terrain_display_on_standby && self.terrain_standby;
+
         self.navigation_displays.iter_mut().for_each(|display| {
             display.update(
                 self.is_powered,
                 &self.navigation_display_range_lookup,
-                adirs_output.is_fully_aligned(1),
+                predictive_inputs_valid,
+                deselect_terrain_display,
             )
         });
     }
@@ -181,6 +218,7 @@ impl SimulationElement for EnhancedGroundProximityWarningComputer {
             &self.egpwc_terronnd_rendering_mode,
             self.terronnd_rendering_mode,
         );
+        writer.write(&self.egpwc_terrain_standby_id, self.terrain_standby);
     }
 
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -378,6 +416,17 @@ mod tests {
 
         fn initialize_adiru(&mut self) {
             self.adirs.initialize();
+        }
+
+        /// The A320 EGPWC, which deselects the TERR ON ND pb-sws in terrain standby
+        fn new_with_terrain_display_deselection(context: &mut InitContext) -> Self {
+            let mut aircraft = Self::new(context);
+            aircraft.egpwc = aircraft.egpwc.with_terrain_display_deselection_on_standby();
+            aircraft
+        }
+
+        fn fail_adiru_altitude(&mut self) {
+            self.adirs.altitude = Arinc429Word::new(Length::default(), SignStatus::FailureWarning);
         }
 
         fn gear_down(&mut self) {
@@ -638,5 +687,95 @@ mod tests {
         assert_eq!(nd_range_fo, 10.0);
         let nd_terr_activate_fo: bool = test_bed.read_by_name("EGPWC_ND_R_TERRAIN_ACTIVE");
         assert!(!nd_terr_activate_fo);
+    }
+
+    fn terrain_standby(test_bed: &mut SimulationTestBed<EgpwcTestAircraft>) -> bool {
+        test_bed.read_by_name("EGPWC_TERR_STBY")
+    }
+
+    fn select_terrain_on_both_nds(test_bed: &mut SimulationTestBed<EgpwcTestAircraft>) {
+        test_bed.write_by_name("EFIS_L_ND_RANGE", 1);
+        test_bed.write_by_name("EFIS_L_ND_MODE", 3);
+        test_bed.write_by_name("EFIS_TERR_L_ACTIVE", 1);
+        test_bed.write_by_name("EFIS_R_ND_RANGE", 1);
+        test_bed.write_by_name("EFIS_R_ND_MODE", 3);
+        test_bed.write_by_name("EFIS_TERR_R_ACTIVE", 1);
+    }
+
+    #[test]
+    // A320 FCOM DSC-34-SURV-40-40 (a320_fcom.txt l.55563-55564): TERR STBY "when any required predictive function input
+    // is missing or considered invalid"
+    fn terrain_standby_while_the_position_data_are_invalid() {
+        let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.run();
+        // ADIRU 1 not aligned, no position
+        assert!(terrain_standby(&mut test_bed));
+
+        test_bed.command(|a| a.initialize_adiru());
+        test_bed.run();
+        assert!(!terrain_standby(&mut test_bed));
+
+        // one input lost: the ADR 1 altitude
+        test_bed.command(|a| a.fail_adiru_altitude());
+        test_bed.run();
+        assert!(terrain_standby(&mut test_bed));
+    }
+
+    #[test]
+    fn no_terrain_standby_without_power() {
+        let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
+        test_bed.run();
+        assert!(!terrain_standby(&mut test_bed));
+    }
+
+    #[test]
+    // TERR ON ND "ON: The terrain is displayed on the ND if the: ... TERR STBY ECAM memo is not displayed"
+    // (l.55509-55512)
+    fn no_terrain_on_nd_in_terrain_standby() {
+        let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
+        select_terrain_on_both_nds(&mut test_bed);
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.command(|a| a.initialize_adiru());
+        test_bed.run();
+        let terrain_active: bool = test_bed.read_by_name("EGPWC_ND_L_TERRAIN_ACTIVE");
+        assert!(terrain_active);
+
+        test_bed.command(|a| a.fail_adiru_altitude());
+        test_bed.run();
+        let terrain_active: bool = test_bed.read_by_name("EGPWC_ND_L_TERRAIN_ACTIVE");
+        assert!(!terrain_active);
+    }
+
+    #[test]
+    // "If selected, the terrain data display on the ND is automatically deselected when the TERR STBY memo is
+    // triggered" (l.55565-55566)
+    fn terrain_standby_deselects_the_terr_on_nd_pbs_when_enabled() {
+        let mut test_bed =
+            SimulationTestBed::new(EgpwcTestAircraft::new_with_terrain_display_deselection);
+        select_terrain_on_both_nds(&mut test_bed);
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.command(|a| a.initialize_adiru());
+        test_bed.run();
+        let capt_pb: bool = test_bed.read_by_name("EFIS_TERR_L_ACTIVE");
+        assert!(capt_pb);
+
+        test_bed.command(|a| a.fail_adiru_altitude());
+        test_bed.run();
+        let capt_pb: bool = test_bed.read_by_name("EFIS_TERR_L_ACTIVE");
+        let fo_pb: bool = test_bed.read_by_name("EFIS_TERR_R_ACTIVE");
+        assert!(!capt_pb);
+        assert!(!fo_pb);
+    }
+
+    #[test]
+    fn terrain_standby_keeps_the_terr_on_nd_pbs_without_the_deselection() {
+        let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
+        select_terrain_on_both_nds(&mut test_bed);
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.run();
+        assert!(terrain_standby(&mut test_bed));
+        let capt_pb: bool = test_bed.read_by_name("EFIS_TERR_L_ACTIVE");
+        assert!(capt_pb);
     }
 }

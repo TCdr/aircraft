@@ -405,6 +405,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (32_203, FailureType::BrakeNormalBraking),
         (32_204, FailureType::Autobrake),
         (32_205, FailureType::NoseWheelSteeringNormal),
+        (32_210, FailureType::BrakeNormalSelectorValve),
         (34_000, FailureType::RadioAltimeter(1)),
         (34_001, FailureType::RadioAltimeter(2)),
         (34_010, FailureType::RadioAntennaInterrupted(1)),

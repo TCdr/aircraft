@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Subject } from '@microsoft/msfs-sdk';
+import { Subject, Subscribable } from '@microsoft/msfs-sdk';
 import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { StatusLines } from './CondStatus';
 import { FwcAlertItem, cautionItem } from './FwcAlertItem';
@@ -19,6 +19,13 @@ import { FwcAlertItem, cautionItem } from './FwcAlertItem';
  * with the pb-sw ON, and then stays as long as the EGPWC reports the fault, pb-sw OFF included. The TERR pb-sw OFF gives
  * the TERR OFF memo of this aircraft (DSC-34-SURV l.55536-55544), not the caution: the caution needs a terrain fault.
  * Flight phase inhibition (FCOM PDF pages 5650, 5651): shown in phases 2, 6, 7 and 9.
+ *
+ * The green TERR STBY memo (FCOM DSC-34-SURV-40-40, l.55563-55566): "This memo appears in green when any required
+ * predictive function input is missing or considered invalid", from the terrain standby of the Rust EGPWC
+ * (fbw-common enhanced_gpwc: ADIRU 1 not aligned, or one of its position, altitude, heading, vertical speed words not
+ * valid), which also takes the terrain off the NDs and sets the TERR ON ND pb-sws OFF (l.55565-55566). Design choices:
+ * no TERR STBY with the TERR pb-sw OFF (the TERR OFF memo: the predictive functions are off) or with GPWS TERR DET
+ * FAULT (the functions are failed); the FCOM gives no flight phase inhibition for the memo.
  */
 
 export const GpwsAlertKeys = {
@@ -37,6 +44,20 @@ export interface GpwsInputs {
   readonly terrainFault: boolean;
   /** L:A32NX_GPWS_TERR_OFF: the GPWS TERR pb-sw is OFF */
   readonly terrainOff: boolean;
+  /** L:A32NX_EGPWC_TERR_STBY: an input of the predictive functions is missing or invalid */
+  readonly terrainStandby: boolean;
+}
+
+/** The E/WD code of the green TERR STBY memo (EwdMessages) */
+export const TERR_STBY_MEMO_CODE = '000054601';
+
+/**
+ * The TERR STBY memo: the EGPWC is in terrain standby, with the TERR pb-sw ON and no terrain fault (see above)
+ * @param inputs the GPWS inputs
+ * @returns whether the memo is shown
+ */
+export function terrStbyMemo(inputs: GpwsInputs): boolean {
+  return inputs.terrainStandby && !inputs.terrainOff && !inputs.terrainFault;
 }
 
 /**
@@ -76,8 +97,14 @@ export class GpwsAlerts {
 
   private readonly terrainDetectionFault = Subject.create(false);
 
+  private readonly terrainStandbyMemo = Subject.create(false);
+
+  /** The green TERR STBY memo is shown, for the memo list of the PseudoFWC */
+  public readonly terrStbyMemo: Subscribable<boolean> = this.terrainStandbyMemo;
+
   update(inputs: GpwsInputs): void {
     this.terrainOff = inputs.terrainOff;
+    this.terrainStandbyMemo.set(terrStbyMemo(inputs));
     this.gpwsFault.set(gpwsFaultMemory(this.gpwsFault.get(), inputs.sysFault, inputs.sysOff));
     this.terrainDetectionFault.set(
       gpwsFaultMemory(this.terrainDetectionFault.get(), inputs.terrainFault, inputs.terrainOff),
@@ -118,5 +145,6 @@ export function readGpwsInputs(): GpwsInputs {
     sysOff: readBool('L:A32NX_GPWS_SYS_OFF'),
     terrainFault: readBool('L:A32NX_GPWS_TERR_FAULT'),
     terrainOff: readBool('L:A32NX_GPWS_TERR_OFF'),
+    terrainStandby: readBool('L:A32NX_EGPWC_TERR_STBY'),
   };
 }

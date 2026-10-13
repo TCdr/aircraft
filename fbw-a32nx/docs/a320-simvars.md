@@ -5326,6 +5326,12 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Bool
     - The autobrake failed (flyPad failure or no ADIRU) after being armed; resets when the autobrake function is back
 
+- A32NX_BRAKES_HYD_SEL_FAULT
+    - Bool
+    - The BSCU reports the brake normal selector valve failed (flyPad failure, WHEEL HYD SEL FAULT); false while both
+      BSCU channels are lost
+    - Read-Only
+
 ## Lighting (ATA 33)
 
 - `L:A32NX_LIGHTS_NAV_LOGO`
@@ -5529,6 +5535,13 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - A32NX_GPWS_TERR_OFF
     - Boolean
     - Indicates whether the GPWS TERR pushbutton is OFF
+
+- A32NX_EGPWC_TERR_STBY
+    - Boolean
+    - The powered EGPWC lacks a valid input of its predictive functions (ADIRU 1 not aligned, or its present position,
+      altitude, true heading or vertical speed word not in normal operation): TERR STBY memo, no terrain on the NDs,
+      and the TERR ON ND pb-sws are set back to OFF
+    - Read-Only
 
 - A32NX_GPWS_SYS_OFF
     - Boolean

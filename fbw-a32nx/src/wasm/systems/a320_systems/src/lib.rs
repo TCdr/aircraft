@@ -207,7 +207,9 @@ impl A320 {
                     Length::new::<nautical_mile>(320.0),
                 ],
                 0,
-            ),
+            )
+            // TERR STBY deselects the TERR ON ND pb-sws (FCOM DSC-34-SURV-40-40, a320_fcom.txt l.55563-55566)
+            .with_terrain_display_deselection_on_standby(),
             // A320 FCOM DSC-34-SURV-40-40 PULL UP - GPWS pb (a320_fcom.txt l.55481-55486): "PULL UP: Comes on when the
             // second boundary of mode 1 is penetrated or when the mode 2 is activated", "GPWS: Comes on in amber when any
             // other mode is activated": the alternate lamp format of the EGPWC.
