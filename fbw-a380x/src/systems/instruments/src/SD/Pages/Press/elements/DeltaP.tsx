@@ -2,7 +2,8 @@ import { useArinc429Var } from '@flybywiresim/fbw-sdk-react';
 import { GaugeComponent, GaugeMarkerComponent, splitDecimals } from '@instruments/common/gauges';
 import { useSimVar } from '@instruments/common/simVars';
 import { Position, ValidRedundantSystem } from '@instruments/common/types';
-import React from 'react';
+import React, { useRef } from 'react';
+import { deltaPColour, deltaPPulses } from '@shared/CabinPressureIndications';
 
 export const DeltaP: React.FC<Position & ValidRedundantSystem> = ({ x, y, system }) => {
   const [manDeltaPsi] = useSimVar('L:A32NX_PRESS_MAN_CABIN_DELTA_PRESSURE', 'feet', 500);
@@ -15,14 +16,14 @@ export const DeltaP: React.FC<Position & ValidRedundantSystem> = ({ x, y, system
   // delta pressure available from the manual partition. Unsure how the aircraft handles this situation so this is left for future work.
   const deltaPressNotAvail = deltaPsiArinc.isNoComputedData();
 
-  let colour;
-  if (deltaPsi < -0.72 || deltaPsi > 9.2) {
-    colour = `Red`;
-  } else if ((-0.72 <= deltaPsi && deltaPsi <= -0.2) || (8.92 <= deltaPsi && deltaPsi <= 9.2)) {
-    colour = `Amber`;
-  } else {
-    colour = `Green`;
-  }
+  const colour = deltaPColour(deltaPsi);
+
+  // FCOM DSC-21-30-20 DELTA P INDICATIONS: the green needle pulses in final approach from 1.5 PSI, stops below 1 PSI
+  // (CabinPressureIndications)
+  const [fwcFlightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
+  const wasPulsing = useRef(false);
+  const pulsing = !deltaPressNotAvail && deltaPPulses(deltaPsi, fwcFlightPhase, wasPulsing.current);
+  wasPulsing.current = pulsing;
 
   const radius = 86;
   const startAngle = 205;
@@ -155,7 +156,7 @@ export const DeltaP: React.FC<Position & ValidRedundantSystem> = ({ x, y, system
           radius={radius}
           startAngle={startAngle}
           endAngle={endAngle}
-          className={`GaugeIndicator SW4 ${colour} ${deltaPressNotAvail ? 'hide' : 'show'}`}
+          className={`GaugeIndicator SW4 ${colour} ${pulsing ? 'LinePulse' : ''} ${deltaPressNotAvail ? 'hide' : 'show'}`}
           indicator
           multiplierOuter={1.01}
         />

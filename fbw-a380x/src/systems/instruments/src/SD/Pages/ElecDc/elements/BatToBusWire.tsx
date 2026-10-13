@@ -2,6 +2,7 @@ import { useSimVar } from '@instruments/common/simVars';
 import React, { FC } from 'react';
 import { Triangle } from '@instruments/common/Shapes';
 import { DcElecBus } from './BusBar';
+import { apuInStartSequence, batteryWireColour } from './BatteryIndications';
 
 interface BatToBusWireProps {
   x: number;
@@ -12,8 +13,10 @@ interface BatToBusWireProps {
 export const BatToBusWire: FC<BatToBusWireProps> = ({ x, y, bus }) => {
   const [current] = useSimVar(`L:A32NX_ELEC_BAT_${bus}_CURRENT`, 'volts', 500);
 
-  // TODO APU should only be green when discharging to start APU
-  const color = current > 0 || bus === DcElecBus.DcApu ? 'Green' : 'Amber';
+  // FCOM DSC-24-20: the APU BAT discharge arrow is amber, green while discharging to start the APU (BatteryIndications)
+  const [apuStartPbOn] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_ON', 'bool', 500);
+  const [apuAvailable] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool', 500);
+  const color = batteryWireColour(bus === DcElecBus.DcApu, current, apuInStartSequence(!!apuStartPbOn, !!apuAvailable));
 
   const charging = current > 0;
   const discharging = current < 0;

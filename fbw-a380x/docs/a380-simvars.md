@@ -2630,7 +2630,9 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 
 ## Engines ATA 70
   - L:A32NX_OVHD_FADEC_{ENG}
-  - The powered status of the associated engine's FADEC dependant on the button on the OVHD
+  - The FADEC GND PWR pb of the engine is ON (latched). Setting it ON on the ground supplies the FADEC from the aircraft
+    network for 10 min (the ENG SD page shows the engine parameters); the FADEC is also supplied 15 min after the
+    aircraft power-up (A380 FCOM DSC-70-20-10)
   - {ENG} = 1, 2, 3, 4
 
 - A32NX_ENGINE_{number}_FUEL_CUT

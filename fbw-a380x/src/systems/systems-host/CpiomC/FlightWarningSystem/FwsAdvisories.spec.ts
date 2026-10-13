@@ -3,11 +3,13 @@
 
 import { describe, expect, it } from 'vitest';
 import { SdPages } from '@shared/EcamSystemPages';
+import { AutoThrustMode } from '@shared/autopilot';
 import { advisoryPages, AdvisorySdState, EngineAdvisoryInputs, FwsAdvisoryDisplay } from './FwsAdvisories';
 
 const normalEngine: EngineAdvisoryInputs = {
   oilQuantityQt: 15,
   thrustLeverAngle: 20,
+  autothrustMode: AutoThrustMode.SPEED,
   oilTemperatureCelsius: 120,
   n1VibrationUnits: 1,
   n2VibrationUnits: 1,
@@ -40,6 +42,9 @@ describe('ECAM advisory conditions', () => {
     expect(advisoryPages(inputs({ oilQuantityQt: 1 }))).toEqual([SdPages.Eng]);
     // the oil quantity advisory is inhibited at TOGA and in reverse (l.72262-72265)
     expect(advisoryPages(inputs({ oilQuantityQt: 1, thrustLeverAngle: 45 }))).toEqual([]);
+    // and at a FLEX takeoff and in alpha floor, as on the ENGINE page (l.72265-72267)
+    expect(advisoryPages(inputs({ oilQuantityQt: 1, autothrustMode: AutoThrustMode.MAN_FLEX }))).toEqual([]);
+    expect(advisoryPages(inputs({ oilQuantityQt: 1, autothrustMode: AutoThrustMode.A_FLOOR }))).toEqual([]);
     // above 177 C the oil temperature is amber (an alert level, not an advisory)
     expect(advisoryPages(inputs({ oilTemperatureCelsius: 180 }))).toEqual([]);
   });

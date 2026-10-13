@@ -559,6 +559,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FIRE] Smoke Detection Function for the cargo compartments, the avionics bays and the IFE bay with new flyPad failures: their SMOKE warnings and SMOKE DET FAULT cautions, and the FWD+AFT CARGO BTL 1(2) FAULT cautions; the AGENT TO FWD/AFT pbs now discharge the two cargo fire bottles (SMOKE, DISCH and BTL lights) - @TCdr
 1. [A32NX/EWD] The amber EGT limit line is hidden in TOGA/FLX, reverse and alpha floor, the N1 limit value is hidden in MREV, cyan dashes replace the FLX temperature when the SAT is above it, and IDLE shows in flight without the autothrust - @TCdr
 1. [A32NX/SD] APU page AVAIL from APU N above 95 % and amber XX APU bleed valve without ECB data; ELEC GEN 1(2) number white with GEN OFF and the engine running; HYD and BLEED engine numbers amber with N2 below idle; BLEED page APU valve amber only with the APU master ON and the APU BLEED pb ON for 10 s - @TCdr
+1. [A380X/EWD] IDLE now shows in flight with at least three engines at idle also with the A/THR off - @TCdr
+1. [A380X/SD] CAB PRESS and CRUISE pages: the cabin V/S, cabin altitude and delta P pulse as in the FCOM (hysteresis, 5 s on the CRUISE page, delta P in final approach), CRUISE delta P amber or red out of range, CRUISE V/S arrow from 25 ft/min - @TCdr
+1. [A380X/SD] ELEC DC page: APU BAT voltage and current amber when out of range except while starting the APU, discharge arrow amber, green while starting the APU - @TCdr
+1. [A380X/SD] BLEED page: WING A-ICE indication per wing (on, failed closed, failed open or abnormal pressure) - @TCdr
+1. [A380X/SD] ENG page: the FADEC is supplied for 15 min after aircraft power-up and for 10 min after the FADEC GND PWR pb, then the engine parameters show XX - @TCdr
 
 ## 2024.1.0
 

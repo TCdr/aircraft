@@ -8,7 +8,7 @@ describe('SD ENG page engine parameters', () => {
   const running: EngineParametersInputs = {
     ignition: false,
     anyEngineRunning: true,
-    fadecManuallyPowered: false,
+    fadecSuppliedByAircraftNetwork: false,
     engineFirePbReleased: false,
     fadecNetworkLost: false,
   };
@@ -25,6 +25,8 @@ describe('SD ENG page engine parameters', () => {
   it('loses the parameters with the FIRE pb released or the FADEC unpowered', () => {
     expect(areEngineParametersShown({ ...running, engineFirePbReleased: true })).toBe(false);
     expect(areEngineParametersShown({ ...running, anyEngineRunning: false })).toBe(false);
-    expect(areEngineParametersShown({ ...running, anyEngineRunning: false, fadecManuallyPowered: true })).toBe(true);
+    expect(
+      areEngineParametersShown({ ...running, anyEngineRunning: false, fadecSuppliedByAircraftNetwork: true }),
+    ).toBe(true);
   });
 });

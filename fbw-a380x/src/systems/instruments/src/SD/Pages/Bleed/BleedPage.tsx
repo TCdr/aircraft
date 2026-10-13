@@ -7,6 +7,7 @@ import BleedApu from './elements/BleedApu';
 import BleedHotAir from './elements/BleedHotAir';
 import BleedMixerUnit from './elements/BleedMixerUnit';
 import BleedGnd from './elements/BleedGnd';
+import BleedWingAntiIce from './elements/BleedWingAntiIce';
 
 import '../../../index.scss';
 import { useArinc429Var } from '@instruments/common/arinc429';
@@ -71,6 +72,10 @@ export const BleedPage = () => {
 
       {/* APU */}
       <BleedApu />
+
+      {/* WING A-ICE, FCOM DSC-30-10-20 BLEED SYSTEM DISPLAY */}
+      <BleedWingAntiIce wing={1} />
+      <BleedWingAntiIce wing={2} />
     </>
   );
 };

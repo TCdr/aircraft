@@ -1,10 +1,7 @@
 import { useSimVar } from '@instruments/common/simVars';
 import React, { FC } from 'react';
 import { DcElecBus } from './BusBar';
-
-const BAT_VOLTAGE_NORMAL_RANGE_UNLOADED = 25;
-const BAT_VOLTAGE_NORMAL_RANGE_LOADED = 20;
-const BAT_CURRENT_NORMAL_RANGE = -5;
+import { apuInStartSequence, batteryCurrentNormal, batteryVoltageNormal } from './BatteryIndications';
 
 interface BatteryProps {
   x: number;
@@ -30,17 +27,13 @@ export const Battery: FC<BatteryProps> = ({ x, y, bus }) => {
   const [current] = useSimVar(`L:A32NX_ELEC_BAT_${bus}_CURRENT`, 'volts', 500);
   const [batPbAuto] = useSimVar(`L:A32NX_OVHD_ELEC_BAT_${lvarName}_PB_IS_AUTO`, 'bool', 500);
 
-  let batCurrentNormal: boolean;
-  let batVoltageNormal: boolean;
-  if (bus !== DcElecBus.DcApu) {
-    batCurrentNormal = current > BAT_CURRENT_NORMAL_RANGE;
-    batVoltageNormal =
-      potential >= BAT_VOLTAGE_NORMAL_RANGE_LOADED && (potential > BAT_VOLTAGE_NORMAL_RANGE_UNLOADED || current <= 0);
-  } else {
-    // TODO Implement special case for APU BAT normal range, depends on if the APU is starting.
-    batCurrentNormal = true;
-    batVoltageNormal = true;
-  }
+  // FCOM DSC-24-20: the APU BAT is not abnormal while it discharges to start the APU (BatteryIndications)
+  const [apuStartPbOn] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_ON', 'bool', 500);
+  const [apuAvailable] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool', 500);
+  const isApuBattery = bus === DcElecBus.DcApu;
+  const apuStarting = apuInStartSequence(!!apuStartPbOn, !!apuAvailable);
+  const batCurrentNormal = batteryCurrentNormal(isApuBattery, current, apuStarting);
+  const batVoltageNormal = batteryVoltageNormal(isApuBattery, potential, current, apuStarting);
 
   return (
     <g id={`bat-${bus}-indication-box`} transform={`translate(${x} ${y})`}>
