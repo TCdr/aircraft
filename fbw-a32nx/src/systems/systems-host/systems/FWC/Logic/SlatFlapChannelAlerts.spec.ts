@@ -1,0 +1,112 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import { describe, expect, it } from 'vitest';
+import {
+  SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+  SfccStatusWord,
+  flapSysFaultStatus,
+  slatFlapChannelFaults,
+  slatSysFaultStatus,
+} from './SlatFlapChannelAlerts';
+import { formatStatusPage } from '../../../../shared/src/StatusMessages';
+
+/** The texts of the left column of the STATUS page for these codes, without their colour codes */
+function statusTexts(codes: string[]): string[] {
+  // eslint-disable-next-line no-control-regex
+  const colourCode = /\x1b<\dm/g;
+  return formatStatusPage(codes, [])
+    .left.split('\r')
+    .map((line) => line.replace(colourCode, ''));
+}
+
+/** A status word with the given bits set; an invalid word (SFCC unpowered) returns the default value of bitValueOr */
+function statusWord(bits: number[], valid = true): SfccStatusWord {
+  return { bitValueOr: (bit, valueIfInvalid) => (valid ? bits.includes(bit) : valueIfInvalid) };
+}
+
+describe('F/CTL FLAP(SLAT) SYS 1(2) FAULT (A320 FCOM PRO-ABN-F_CTL)', () => {
+  it('raises nothing without a channel fault', () => {
+    expect(slatFlapChannelFaults(statusWord([17, 28, 29]), statusWord([17, 28, 29]))).toEqual({
+      flapSysFault: [false, false],
+      slatSysFault: [false, false],
+    });
+  });
+
+  it('raises FLAP SYS 1(2) FAULT on the flap fault bit 12 of SFCC 1(2) (l.83227)', () => {
+    expect(slatFlapChannelFaults(statusWord([12]), statusWord([])).flapSysFault).toEqual([true, false]);
+    expect(slatFlapChannelFaults(statusWord([]), statusWord([12])).flapSysFault).toEqual([false, true]);
+    expect(slatFlapChannelFaults(statusWord([12]), statusWord([])).slatSysFault).toEqual([false, false]);
+  });
+
+  it('raises SLAT SYS 1(2) FAULT on the slat fault bit 11 of SFCC 1(2) (l.84331)', () => {
+    expect(slatFlapChannelFaults(statusWord([11]), statusWord([])).slatSysFault).toEqual([true, false]);
+    expect(slatFlapChannelFaults(statusWord([]), statusWord([11])).slatSysFault).toEqual([false, true]);
+  });
+
+  it('does not raise them for an unpowered SFCC (no status word, ELEC alerts cover it)', () => {
+    expect(slatFlapChannelFaults(statusWord([], false), statusWord([], false))).toEqual({
+      flapSysFault: [false, false],
+      slatSysFault: [false, false],
+    });
+  });
+
+  it('is inhibited in phases 3, 4, 5, 7 and 8 (FCOM PDF pages 5175 and 5230)', () => {
+    expect(SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
+  });
+
+  it('shows the FLAP SYS 1 FAULT STATUS with the APPR PROC GPWS FLAP MODE OFF (l.83240-83245)', () => {
+    const status = flapSysFaultStatus(1);
+    expect(statusTexts(status.left)).toEqual([
+      'APPR PROC:',
+      'GPWS FLAP MODE......OFF',
+      'ENG 1 APPR IDLE ONLY',
+      'FLAPS SLOW',
+    ]);
+    expect(status.inopSys).toEqual([]);
+  });
+
+  it('shows the FLAP SYS 2 FAULT STATUS without APPR PROC (l.83240-83245)', () => {
+    const status = flapSysFaultStatus(2);
+    expect(statusTexts(status.left)).toEqual(['ENG 2 APPR IDLE ONLY', 'FLAPS SLOW']);
+  });
+
+  it('shows SLATS SLOW for SLAT SYS 1(2) FAULT (l.84341)', () => {
+    expect(statusTexts(slatSysFaultStatus().left)).toEqual(['SLATS SLOW']);
+  });
+});
+
+describe('PseudoFWC F/CTL FLAP(SLAT) SYS 1(2) FAULT', () => {
+  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+  const messages = readFileSync(resolve(__dirname, '../../../../shared/src/EwdMessages.ts'), 'utf-8');
+
+  function alert(code: string): string {
+    const start = fwc.indexOf(`    ${code}: {`);
+    expect(start, `alert ${code}`).toBeGreaterThan(0);
+    return fwc.substring(start, fwc.indexOf('\n    },', start));
+  }
+
+  it.each([
+    ['2701110', 'flapSys1Fault', "['270111001']", ' FLAP SYS 1 FAULT', 'flapSysFaultStatus(1)'],
+    ['2701120', 'flapSys2Fault', "['270112001']", ' FLAP SYS 2 FAULT', 'flapSysFaultStatus(2)'],
+    ['2701130', 'slatSys1Fault', "['270113001']", ' SLAT SYS 1 FAULT', 'slatSysFaultStatus()'],
+    ['2701140', 'slatSys2Fault', "['270114001']", ' SLAT SYS 2 FAULT', 'slatSysFaultStatus()'],
+  ])('%s is a crew awareness F/CTL caution on %s', (code, subject, codes, title, status) => {
+    const item = alert(code);
+    expect(item).toContain(`simVarIsActive: this.${subject},`);
+    expect(item).toContain('flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,');
+    expect(item).toContain('failure: 1,');
+    expect(item).toContain(`codesToReturn: ${codes},`);
+    expect(item).toContain(`statusInfo: () => ${status}.left,`);
+    expect(messages).toContain(`['${codes.substring(2, 11)}', { group: 'F/CTL$6', text: '${title}' }],`);
+  });
+
+  it('reads both SFCC status words each cycle', () => {
+    expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD'),");
+    expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD'),");
+    expect(fwc).toContain('this.flapSys1Fault.set(slatFlapChannels.flapSysFault[0]);');
+    expect(fwc).toContain('this.slatSys2Fault.set(slatFlapChannels.slatSysFault[1]);');
+  });
+});

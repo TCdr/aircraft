@@ -1417,6 +1417,11 @@ const EwdMessages = new Map<string, { group?: string; text: string }>([
   ['270103001', { group: 'F/CTL$6', text: ' ELAC 2 PITCH FAULT' }],
   ['270104001', { group: 'F/CTL$6', text: ' ELEV SERVO FAULT' }],
   ['270107001', { group: 'F/CTL$6', text: ' AIL SERVO FAULT' }],
+  // F/CTL FLAP(SLAT) SYS 1(2) FAULT crew awareness cautions (FCOM l.83217, l.84321), see FWC/Logic/SlatFlapChannelAlerts
+  ['270111001', { group: 'F/CTL$6', text: ' FLAP SYS 1 FAULT' }],
+  ['270112001', { group: 'F/CTL$6', text: ' FLAP SYS 2 FAULT' }],
+  ['270113001', { group: 'F/CTL$6', text: ' SLAT SYS 1 FAULT' }],
+  ['270114001', { group: 'F/CTL$6', text: ' SLAT SYS 2 FAULT' }],
   ['220021001', { group: 'AUTO FLT$4', text: ' FCU 1 FAULT' }],
   ['220021002', { text: '\x1b<5m -BARO REF.........CHECK' }],
   ['220021501', { group: 'AUTO FLT$4', text: ' FCU 2 FAULT' }],

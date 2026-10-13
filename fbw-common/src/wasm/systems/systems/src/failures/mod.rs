@@ -62,6 +62,13 @@ pub enum FailureType {
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
     /// The fire detection unit (FDU) channel of one zone is inoperative: no fire warning from that zone
     FireDetectionUnit(FireDetectionZone),
+    // ATA27 slats and flaps (a320_systems / a380_systems hydraulic::sfcc)
+    /// The flap channel of SFCC n no longer controls its flap motor: the flaps move at half speed on the
+    /// other motor, and the SFCC reports a flap fault (F/CTL FLAP SYS n FAULT)
+    SlatFlapControlComputerFlapChannel(usize),
+    /// The slat channel of SFCC n no longer controls its slat motor: the slats move at half speed on the
+    /// other motor, and the SFCC reports a slat fault (F/CTL SLAT SYS n FAULT)
+    SlatFlapControlComputerSlatChannel(usize),
     // ATA29
     ReservoirLeak(HydraulicColor),
     ReservoirAirLeak(HydraulicColor),

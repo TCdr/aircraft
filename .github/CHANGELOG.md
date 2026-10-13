@@ -308,6 +308,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ELEC] When TR 1 is lost (e.g. AC BUS 1 failure), DC BUS 2 now takes over DC BUS 1 and the DC BAT BUS after 5 s, as in the FCOM, instead of at once - @TCdr
 1. [A32NX/PRESS] With the LDG ELEV selector in AUTO and no landing elevation from the FMGS, the cabin pressure controllers no longer send 0 ft as a valid landing elevation: the CAB PRESS and CRUISE pages show XX in amber (the condition of CAB PR LDG ELEV FAULT) - @TCdr
 1. [A32NX/PRESS] EXCESS CAB ALT in cruise triggers above a cabin altitude of 9550 ft, without the 1000 ft margin above the airfields, as in the FCOM - @TCdr
+1. [A32NX/F_CTL] New flyPad failures of the SFCC 1(2) flap and slat channels: the failed channel no longer drives its motor and the flaps or slats move at half speed - @TCdr
+1. [A32NX/FWC] New F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT cautions with their FCOM STATUS (GPWS FLAP MODE OFF, ENG APPR IDLE ONLY, FLAPS/SLATS SLOW) - @TCdr
 
 ## 2024.1.0
 

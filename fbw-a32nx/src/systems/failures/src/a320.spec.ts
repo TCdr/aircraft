@@ -288,4 +288,22 @@ describe('A320 flyPad failures', () => {
     const adirsFailures = A320FailureDefinitions.filter(([, id]) => id >= 34070 && id <= 34112);
     expect(adirsFailures.length).toBe(15);
   });
+  // The labels say what a320_systems hydraulic/sfcc does with ids 27010-27013: the channel no longer drives its motor
+  // (F/CTL FLAP(SLAT) SYS 1(2) FAULT, a320_fcom.txt l.83217-83247, l.84321-84341)
+  it('lists the SFCC flap and slat channel failures in ATA 27 with the Rust failure they trigger', () => {
+    const expected: [number, string, string][] = [
+      [A320Failure.Sfcc1FlapChannel, 'SlatFlapControlComputerFlapChannel(1)', 'SFCC 1 flap channel'],
+      [A320Failure.Sfcc2FlapChannel, 'SlatFlapControlComputerFlapChannel(2)', 'SFCC 2 flap channel'],
+      [A320Failure.Sfcc1SlatChannel, 'SlatFlapControlComputerSlatChannel(1)', 'SFCC 1 slat channel'],
+      [A320Failure.Sfcc2SlatChannel, 'SlatFlapControlComputerSlatChannel(2)', 'SFCC 2 slat channel'],
+    ];
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    const entry = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    for (const [id, rustFailure, label] of expected) {
+      expect(entry(id)).toEqual([27, id, label]);
+      expect(wasm).toContain(
+        `(${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}, FailureType::${rustFailure}),`,
+      );
+    }
+  });
 });

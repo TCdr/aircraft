@@ -3824,8 +3824,8 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Arinc429<Discrete>
     - | Bit |            Description            |
       |:---:|:---------------------------------:|
-      | 11  | Slat Fault                        |
-      | 12  | Flap Fault                        |
+      | 11  | Slat Fault (slat channel failure) |
+      | 12  | Flap Fault (flap channel failure) |
       | 13  | Slat Jam                          |
       | 14  | Flap Jam                          |
       | 15  | Slat WTB engaged                  |
