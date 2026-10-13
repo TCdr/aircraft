@@ -3016,6 +3016,7 @@ impl A380Hydraulic {
             &self.green_circuit,
             self.green_circuit.reservoir(),
             engines,
+            lgciu1,
             &self.epump_auto_logic,
             &self.green_electric_pump_a,
         );
@@ -3032,6 +3033,7 @@ impl A380Hydraulic {
             &self.green_circuit,
             self.green_circuit.reservoir(),
             engines,
+            lgciu1,
             &self.epump_auto_logic,
             &self.green_electric_pump_b,
         );
@@ -3048,6 +3050,7 @@ impl A380Hydraulic {
             &self.yellow_circuit,
             self.yellow_circuit.reservoir(),
             engines,
+            lgciu2,
             &self.epump_auto_logic,
             &self.yellow_electric_pump_a,
         );
@@ -3064,6 +3067,7 @@ impl A380Hydraulic {
             &self.yellow_circuit,
             self.yellow_circuit.reservoir(),
             engines,
+            lgciu2,
             &self.epump_auto_logic,
             &self.yellow_electric_pump_b,
         );
@@ -3982,8 +3986,7 @@ impl SimulationElement for A380ElectricPumpAutoLogic {
     }
 }
 
-// Should be the feedback used to disable elec pumps running when engines are on
-// Place holder logic for now using oil press
+// Whether any engine runs, for the cargo door operation inhibition below. Place holder logic for now using oil press
 fn is_any_engine_running(engines: [&impl Engine; 4]) -> bool {
     !(engines[0].oil_pressure_is_low()
         && engines[1].oil_pressure_is_low()
@@ -3994,8 +3997,8 @@ fn is_any_engine_running(engines: [&impl Engine; 4]) -> bool {
 /// Whether the cargo door actuation has no hydraulic power. FCOM DSC-29-10: the cargo door actuation is powered only
 /// by the green electric pumps in automatic mode, and the green electric pumps are inhibited as soon as engine 1 or 2
 /// runs. FCOM DSC-52-30-40-10: the door operation is also inhibited in taxi and flight and with engines 3 and 4
-/// running (the actuator is then isolated by a valve). The electric pump controllers stop the pumps with any engine
-/// running (placeholder), which covers all these cases, so the same rule is used here.
+/// running (the actuator is then isolated by a valve). Design choice: the door operation is inhibited with any engine
+/// running (oil pressure placeholder), which covers both cases on ground.
 struct A380CargoDoorOperationInhibition {
     inhibited_id: VariableIdentifier,
     is_inhibited: bool,
@@ -4072,6 +4075,7 @@ impl A380ElectricPumpController {
         hydraulic_circuit: &impl HydraulicPressureSensors,
         reservoir: &Reservoir,
         engines: [&impl Engine; 4],
+        lgciu: &impl LgciuWeightOnWheels,
         auto_logic: &A380ElectricPumpAutoLogic,
         pump_status: &impl HeatingElement,
     ) {
@@ -4081,7 +4085,7 @@ impl A380ElectricPumpController {
         self.should_pressurise = (overhead_panel.epump_button_on_is_on(self.pump_id)
             || self.should_pressurise_for_cargo_door_operation)
             && !overhead_panel.epump_button_off_is_off(self.pump_id)
-            && !self.is_any_engine_running(engines)
+            && !self.is_inhibited(engines, lgciu)
             && self.is_powered;
 
         self.update_low_pressure(hydraulic_circuit);
@@ -4093,8 +4097,25 @@ impl A380ElectricPumpController {
         self.update_overheat(pump_status)
     }
 
-    fn is_any_engine_running(&self, engines: [&impl Engine; 4]) -> bool {
-        is_any_engine_running(engines)
+    /// A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt:61020-61026): "Two electric pumps can provide hydraulic power
+    /// on ground only. The green (yellow) electric pumps can pressurize the GREEN (YELLOW) hydraulic system, if the
+    /// engines 1 and 2 (3 and 4) are not running." "Because of the variable frequency of the engine generators, the
+    /// green (yellow) electric pumps are inhibited as soon as the engine 1 or 2 (3 or 4) is running."
+    /// Design choices: an engine runs when its oil pressure is not low (the placeholder signal used before), and the
+    /// green pumps read LGCIU 1, the yellow pumps LGCIU 2 for "on ground" (both main gears compressed).
+    fn is_inhibited(&self, engines: [&impl Engine; 4], lgciu: &impl LgciuWeightOnWheels) -> bool {
+        let side_engines = match self.pump_id {
+            A380ElectricPumpId::GreenA | A380ElectricPumpId::GreenB => [0, 1],
+            A380ElectricPumpId::YellowA | A380ElectricPumpId::YellowB => [2, 3],
+            // The auxiliary pump has no controller of this kind (A380ElectricPumpAutoLogic)
+            A380ElectricPumpId::GreenAuxiliary => [0, 1],
+        };
+        let side_engine_running = side_engines
+            .iter()
+            .any(|&engine| !engines[engine].oil_pressure_is_low());
+        let on_ground = lgciu.left_and_right_gear_compressed(false);
+
+        side_engine_running || !on_ground
     }
 
     fn update_low_pressure(&mut self, hydraulic_circuit: &impl HydraulicPressureSensors) {
@@ -10444,12 +10465,13 @@ mod tests {
                 .load_brake_accumulator();
 
             // Setting on ground with yellow side hydraulics off
-            // This should prevent yellow accumulator to fill
+            // This should prevent yellow accumulator to fill. The yellow electric pumps are only inhibited by
+            // engines 3 and 4 (FCOM DSC-29-10), so they stay off here.
             test_bed = test_bed
                 .start_eng1(Ratio::new::<percent>(100.))
                 .start_eng2(Ratio::new::<percent>(100.))
                 .set_park_brake(true)
-                .set_yellow_e_pump_a(true)
+                .set_yellow_e_pump_a(false)
                 .set_yellow_ed_pump(false)
                 .run_waiting_for(Duration::from_secs(15));
 
@@ -11070,6 +11092,76 @@ mod tests {
 
             assert!(!test_bed.query(|a| a.is_green_epump_a_controller_pressurising()));
             assert!(!test_bed.query(|a| a.is_green_epump_b_controller_pressurising()));
+        }
+
+        // A380 FCOM DSC-29-10 ELECTRIC PUMPS (a380_fcom.txt:61020-61026): "Two electric pumps can provide hydraulic
+        // power on ground only. The green (yellow) electric pumps can pressurize the GREEN (YELLOW) hydraulic system,
+        // if the engines 1 and 2 (3 and 4) are not running." "the green (yellow) electric pumps are inhibited as soon
+        // as the engine 1 or 2 (3 or 4) is running."
+        #[test]
+        fn controller_yellow_epumps_run_with_only_engines_1_and_2_running() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(5));
+
+            test_bed = test_bed
+                .set_yellow_e_pump_a(true)
+                .set_yellow_e_pump_b(true)
+                .set_green_e_pump_a(true)
+                .set_green_e_pump_b(true)
+                .run_one_tick();
+
+            assert!(test_bed.query(|a| a.is_yellow_a_epump_controller_pressurising()));
+            assert!(test_bed.query(|a| a.is_yellow_b_epump_controller_pressurising()));
+            assert!(!test_bed.query(|a| a.is_green_epump_a_controller_pressurising()));
+            assert!(!test_bed.query(|a| a.is_green_epump_b_controller_pressurising()));
+        }
+
+        #[test]
+        fn controller_green_epumps_run_with_only_engines_3_and_4_running() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .run_waiting_for(Duration::from_secs(5));
+
+            test_bed = test_bed
+                .set_yellow_e_pump_a(true)
+                .set_yellow_e_pump_b(true)
+                .set_green_e_pump_a(true)
+                .set_green_e_pump_b(true)
+                .run_one_tick();
+
+            assert!(test_bed.query(|a| a.is_green_epump_a_controller_pressurising()));
+            assert!(test_bed.query(|a| a.is_green_epump_b_controller_pressurising()));
+            assert!(!test_bed.query(|a| a.is_yellow_a_epump_controller_pressurising()));
+            assert!(!test_bed.query(|a| a.is_yellow_b_epump_controller_pressurising()));
+        }
+
+        #[test]
+        fn controller_epumps_are_inhibited_in_flight() {
+            let mut test_bed = test_bed_on_ground_with()
+                .engines_off()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .set_yellow_e_pump_a(true)
+                .set_green_e_pump_a(true)
+                .run_one_tick();
+
+            assert!(test_bed.query(|a| a.is_yellow_a_epump_controller_pressurising()));
+            assert!(test_bed.query(|a| a.is_green_epump_a_controller_pressurising()));
+
+            test_bed.set_on_ground(false);
+            test_bed = test_bed.run_one_tick();
+
+            assert!(!test_bed.query(|a| a.is_yellow_a_epump_controller_pressurising()));
+            assert!(!test_bed.query(|a| a.is_green_epump_a_controller_pressurising()));
         }
 
         #[test]

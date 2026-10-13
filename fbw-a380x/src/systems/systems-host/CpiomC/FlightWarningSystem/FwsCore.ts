@@ -146,6 +146,7 @@ import {
 } from './FuelPumpValveFlags';
 import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
 import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
+import { ElecDriveOilAlerts, readDriveOilInputs } from './FwsElecDriveOilAlerts';
 import {
   areDoorsInTakeoffConfig,
   CABIN_DOORS,
@@ -1174,6 +1175,9 @@ export class FwsCore {
 
   /** ELEC alerts of the battery, EXT PWR, RAT generator, TR monitoring and drive failures (FwsElecSystemAlerts) */
   public readonly elecSystemAlerts = new ElecSystemAlerts();
+
+  /** ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO (FwsElecDriveOilAlerts) */
+  public readonly elecDriveOilAlerts = new ElecDriveOilAlerts();
 
   /* 26 - FIRE */
 
@@ -5680,6 +5684,13 @@ export class FwsCore {
         (name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool),
         (failure) => this.failuresConsumer.isActive(failure),
         elecFlags.apuTrFault,
+        this.apuAvail.get(),
+      ),
+    );
+    this.elecDriveOilAlerts.update(
+      readDriveOilInputs(
+        (name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool),
+        elecInputs.engGenPbOn,
         this.apuAvail.get(),
       ),
     );

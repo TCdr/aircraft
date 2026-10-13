@@ -2747,7 +2747,8 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_PRESS_CPC_{number}_LANDING_ELEVATION
     - Arinc429Word<Feet>
     - Number 1 or 2
-    - Target landing elevation used by the pressurization system
+    - Target landing elevation used by the pressurization system. No computed data when the LDG ELEV selector is in
+      AUTO and the FMGS sends no landing elevation (CAB PR LDG ELEV FAULT condition)
 
 - A32NX_PRESS_EXCESS_CAB_ALT
     - Bool

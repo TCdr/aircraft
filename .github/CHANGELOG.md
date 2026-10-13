@@ -522,6 +522,14 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New NAV RA 1 AND 2 FAULT (instead of the two RA FAULT alerts) and NAV RA DEGRADED alerts; NAV RA 1(2) FAULT now has its STATUS (CAT 2 ONLY, INOP SYS RA 1(2) and CAT 3) - @TCdr
 1. [A380X/FWS] An ADR that lost its DC busbar no longer gives a NAV ADR FAULT alert on top of the ELEC busbar alert - @TCdr
 1. [A32NX/ELEC] When TR 1 is lost (e.g. AC BUS 1 failure), DC BUS 2 now takes over DC BUS 1 and the DC BAT BUS after 5 s, as in the FCOM, instead of at once - @TCdr
+1. [A32NX/PRESS] With the LDG ELEV selector in AUTO and no landing elevation from the FMGS, the cabin pressure controllers no longer send 0 ft as a valid landing elevation: the CAB PRESS and CRUISE pages show XX in amber (the condition of CAB PR LDG ELEV FAULT) - @TCdr
+1. [A32NX/PRESS] EXCESS CAB ALT in cruise triggers above a cabin altitude of 9550 ft, without the 1000 ft margin above the airfields, as in the FCOM - @TCdr
+1. [A380X/PRESS] Manual cabin pressure modes: the cabin altitude target holds the current cabin altitude, and the cabin V/S target 0 ft/min, until the CABIN ALT TRGT or V/S TRGT selector is turned, instead of jumping to the selector position - @TCdr
+1. [A380X/PRESS] Without the landing elevation of the FMS, the cabin pressure controllers regulate the cabin to 7000 ft in descent (7500 ft also without ambient pressure) instead of 0 ft, and tell the FWS (CPCS word bit 19) - @TCdr
+1. [A380X/ELEC] Generator drive oil system: new flyPad failures DRIVE 1-4 Oil Leak and Oil Cooling Lost, ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO alerts, DRIVE pb FAULT light, automatic generator switch-off or drive disconnection (5 min of low oil level or pressure, oil above 250 C), and drive oil temperatures that no longer reach 200 C at high N2 - @TCdr
+1. [A380X/ELEC] The APU GEN A(B) pb-sw FAULT light comes on when the GGPCU disconnects the APU generator - @TCdr
+1. [A380X/SD] ELEC AC and DC pages: the GEN, TR, STAT INV and RAT indications turn amber when they are failed - @TCdr
+1. [A380X/HYD] The green (yellow) electric pumps are inhibited only by engine 1 or 2 (3 or 4) running, and in flight, as in the FCOM - @TCdr
 
 ## 2024.1.0
 
