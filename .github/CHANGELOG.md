@@ -521,6 +521,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New NAV ADR 1(2)(3) FAULT, ADR 1+2(1+3)(2+3) FAULT, ADR 1+2+3 FAULT, ADR DISAGREE, IR 1(2)(3) FAULT, IR 1+2(1+3)(2+3) FAULT and IR DISAGREE alerts with their procedures and STATUS - @TCdr
 1. [A32NX/FWC] New NAV RA 1 AND 2 FAULT (instead of the two RA FAULT alerts) and NAV RA DEGRADED alerts; NAV RA 1(2) FAULT now has its STATUS (CAT 2 ONLY, INOP SYS RA 1(2) and CAT 3) - @TCdr
 1. [A380X/FWS] An ADR that lost its DC busbar no longer gives a NAV ADR FAULT alert on top of the ELEC busbar alert - @TCdr
+1. [A32NX/ELEC] When TR 1 is lost (e.g. AC BUS 1 failure), DC BUS 2 now takes over DC BUS 1 and the DC BAT BUS after 5 s, as in the FCOM, instead of at once - @TCdr
 
 ## 2024.1.0
 
