@@ -2218,6 +2218,57 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - Psi
   - Pressure measured at the intermediate pressure transducer at engine {number}, -1 if no output
 
+- A32NX_PNEU_ENG_{number}_OVERHEAT
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The CPIOM-A bleed overtemperature: above 260 °C up to 45 PSI, above 245 °C over 45 PSI, for more than 55 s (FCOM
+    DSC-36-10-20). Held while the ENG BLEED pb-sw is in AUTO; it closes the bleed valve and the HP valve. Written by the
+    systems WASM (a380_systems pneumatic.rs)
+
+- A32NX_PNEU_ENG_{number}_OVERPRESSURE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The CPIOM-A bleed overpressure: above 60 PSI up to 245 °C, above 45 PSI over 245 °C, for more than 15 s (FCOM
+    DSC-36-10-20). Held while the ENG BLEED pb-sw is in AUTO; it closes the bleed valve
+
+- A32NX_PNEU_ENG_{number}_PR_VALVE_DISAGREE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - The engine bleed valve is out of its commanded position for 10 s (ENG BLEED pb-sw FAULT light, FCOM DSC-36-20)
+
+- A32NX_PNEU_ENG_{number}_BLEED_LEAK
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - A leak of the engine bleed duct in the pylon is detected (above 180 °C, FCOM DSC-36-10-60). Held while the ENG BLEED
+    pb-sw is in AUTO; it closes the bleed valve and, at AUTO, the crossbleed valve of its side (and the center one for
+    engine 1 or 4)
+
+- A32NX_PNEU_{zone}_WING_LEAK
+  - Bool
+  - {zone}
+    - L_OUTR
+    - L_INR
+    - R_INR
+    - R_OUTR
+  - A bleed leak in the wing zone is detected (above 124 °C, FCOM DSC-36-10-60). The zone goes with the engine 1, 2, 3
+    or 4: its ENG BLEED pb-sw holds it, and it closes the bleed valve of that engine as the pylon leak does
+
 ## Integrated Modular Avionics ATA 42
 
 -A32NX_AFDX_<SOURCE_ID>_<DESTINATION_ID>_REACHABLE

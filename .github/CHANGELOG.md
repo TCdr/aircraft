@@ -291,6 +291,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [ADIRS] New ADR 1-3 and IR 1-3 fault failures in the flyPad (ATA 34): the air or inertial data of that ADIRU part are lost and its FAULT light comes on (A32NX also gets the ADR airspeed / angle of attack and IR heading erroneous failures) - @TCdr
 1. [ADIRS] The ADIRUs are now supplied by their buses: without its AC bus an ADR is lost and its IR runs on the batteries (A32NX: ON BAT light, external horn on the ground, IR 2 and 3 for 5 min) or on its DC busbar (A380X) - @TCdr
 1. [A380X/FWS] An ADR that lost its DC busbar no longer gives a NAV ADR FAULT alert on top of the ELEC busbar alert - @TCdr
+1. [A380X/BLEED] The CPIOM-A closes an engine bleed for overtemperature, overpressure or a pylon or wing leak, and lights the ENG BLEED FAULT light (also for a bleed valve out of its commanded position); a leak closes the crossbleed valves of its side - @TCdr
+1. [A380X/FAILURES] New ATA 36 failures: engine bleed valves stuck open or closed, pylon and wing bleed duct leaks - @TCdr
+1. [A380X/FWS] New AIR ENG 1(2)(3)(4) BLEED FAULT and AIR ENG BLEED LEAK / L(R) INR(OUTR) WING LEAK alerts; a BLEED FAULT also triggers AIR ABNORM BLEED CONFIG - @TCdr
 
 ## 2024.1.0
 
