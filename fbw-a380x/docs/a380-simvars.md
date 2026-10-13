@@ -1809,6 +1809,8 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - Boolean
     - Whether the TRAF button is activated
     - {side} = L or R
+    - Not written by any system; the TRAF pb state is A32NX_FCU_EFIS_{side}_TRAF_LIGHT_ON (FCU), read by the TCAS,
+      which also pushes the TRAF pbs on (A32NX.FCU_EFIS_{side}_TRAF_PUSH) when a TA or RA starts
 
 - A380X_EFIS_{side}_BARO_PRESELECTED
     - Number (hPa or inHg)
@@ -2028,6 +2030,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - number: 1, 2 or 3
     - The angle of attack of ADR {number} is rejected by the PRIM monitoring (3.6 deg in flight, 8 deg on ground); two
       or more rejected: NAV AOA DISAGREE and alternate law
+
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM / GPS POS DISAGREE alert: an FMS position more than the
+      FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM PRO-ABN-ECAM-10-34-10). Written by the
+      FMS (fmgc navigation/FmPosition.ts), read by the FWS
 
 - A32NX_GPS_{number}_LATITUDE, A32NX_GPS_{number}_LONGITUDE
     - Arinc429<Degrees>

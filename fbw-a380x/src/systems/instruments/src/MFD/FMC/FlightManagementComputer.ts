@@ -63,6 +63,7 @@ import { ActiveUriInformation } from '../pages/common/MfdUiService';
 import { A380FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/A380FlightPlanPerformanceData';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
 import { Navigation } from '@fmgc/navigation/Navigation';
+import { A380_FM_POSITION_CONFIG } from '@fmgc/navigation/FmPosition';
 import { EfisSymbols } from '@fmgc/efis/EfisSymbols';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
@@ -78,6 +79,7 @@ import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { clampFmcUpdateStep } from './FmcUpdateStep';
 import { FmsPrinter } from './FmsPrinter';
+import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
 import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
@@ -90,6 +92,7 @@ import { formatWindRequest } from '@fmgc/flightplanning/uplink/WindUplinkUtilts'
 import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/A380XFmsAtcBusPublisher';
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
+import { engineFailureCreatesEngineOutSid } from './EngineOutSid';
 
 export interface FmsErrorMessage {
   message: McduMessage;
@@ -231,6 +234,9 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** The FMS print functions (FMC-A, created with the first update, once the FMC is initialized) */
   #printer: FmsPrinter | null = null;
+
+  /** The type II FMS messages raised from the FMS data each cycle (FMC-A only, it has the navigation) */
+  #advisoryMessages: FmsAdvisoryMessages | null = null;
 
   get printer(): FmsPrinter | null {
     return this.#printer;
@@ -491,7 +497,8 @@ export class FlightManagementComputer implements FmcInterface {
     const db = new NavigationDatabase(this.bus, NavigationDatabaseBackend.Msfs);
     NavigationDatabaseService.activeDatabase = db;
 
-    this.#navigation = new Navigation(this.bus, this.flightPlanInterface);
+    // A380 FM/GPS POS DISAGREE thresholds and takeoff position update rule (see FmPosition.ts)
+    this.#navigation = new Navigation(this.bus, this.flightPlanInterface, A380_FM_POSITION_CONFIG);
     if (this.instance === FmcIndex.FmcA) {
       this.#sequencedWaypointRecorder = new SequencedWaypointRecorder(
         this.flightPlanInterface,
@@ -1616,6 +1623,9 @@ export class FlightManagementComputer implements FmcInterface {
       case FmsErrorType.NotAllowed:
         this.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
         break;
+      case FmsErrorType.PlaceWaypointDisagree:
+        this.addMessageToQueue(NXSystemMessages.placeWptDisagree, undefined, undefined);
+        break;
       default:
         break;
     }
@@ -1722,6 +1732,16 @@ export class FlightManagementComputer implements FmcInterface {
     ident?: string,
   ): PilotWaypoint | null {
     return this.dataManager?.createPlaceBearingDistWaypoint(place, bearing, distance, stored, ident) ?? null;
+  }
+
+  createPlaceDistWaypoint(
+    place: Fix,
+    distance: NauticalMiles,
+    coordinates: Coordinates,
+    stored?: boolean,
+    ident?: string,
+  ): PilotWaypoint | null {
+    return this.dataManager?.createPlaceDistWaypoint(place, distance, coordinates, stored, ident) ?? null;
   }
 
   getStoredWaypointsByIdent(ident: string): PilotWaypoint[] {
@@ -2011,6 +2031,8 @@ export class FlightManagementComputer implements FmcInterface {
       if (this.instance === FmcIndex.FmcA) {
         this.#printer ??= new FmsPrinter(this, this.bus);
         this.#printer.update();
+        this.#advisoryMessages ??= new FmsAdvisoryMessages(this);
+        this.#advisoryMessages.update();
       }
       this.updateFuelPlanning();
       this.loadActiveFlightPlanFuelAndApproachData();
@@ -2284,6 +2306,17 @@ export class FlightManagementComputer implements FmcInterface {
 
     // Delete time constraints
     // no-op
+
+    // EOSID temporary flight plan, before the diversion point, in the takeoff phase below the thrust reduction altitude
+    if (
+      engineFailureCreatesEngineOutSid(
+        this.flightPhaseManager.phase,
+        SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+        activePlan.performanceData.thrustReductionAltitude.get(),
+      )
+    ) {
+      this.flightPlanInterface.tryActivateEngineOutSid().catch((e) => console.error(e));
+    }
 
     // Display PERF page
     this.mfdReference?.uiService.navigateTo('fms/active/perf');
