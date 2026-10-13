@@ -1,15 +1,31 @@
-import { ConsumerSubject, EventBus, FSComponent, MappedSubject, SubscribableUtils, VNode } from '@microsoft/msfs-sdk';
+import {
+  ClockEvents,
+  ConsumerSubject,
+  EventBus,
+  FSComponent,
+  MappedSubject,
+  Subject,
+  SubscribableUtils,
+  VNode,
+} from '@microsoft/msfs-sdk';
 import { DestroyableComponent as DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { splitDecimals, GaugeComponent, GaugeMarkerComponent } from '../../../../MsfsAvionicsCommon/gauges';
 import { SDSimvars } from '../../../SDSimvarPublisher';
 import { Arinc429LocalVarConsumerSubject, FmsData } from '@flybywiresim/fbw-sdk';
+import {
+  CruiseCabinAltitudePulse,
+  CruiseCabinVsPulse,
+  cabinVsArrowShown,
+  deltaPColour,
+  deltaPPulses,
+} from '@shared/CabinPressureIndications';
 
 export interface CruisePressureProps {
   readonly bus: EventBus;
 }
 
 export class CruisePressure extends DestroyableComponent<CruisePressureProps> {
-  private readonly sub = this.props.bus.getSubscriber<SDSimvars & FmsData>();
+  private readonly sub = this.props.bus.getSubscriber<SDSimvars & FmsData & ClockEvents>();
 
   private readonly landingElev1 = Arinc429LocalVarConsumerSubject.create(this.sub.on('fmLandingElevation_1'));
   private readonly landingElev2 = Arinc429LocalVarConsumerSubject.create(this.sub.on('fmLandingElevation_2'));
@@ -113,23 +129,54 @@ export class CruisePressure extends DestroyableComponent<CruisePressureProps> {
   );
 
   private readonly cabinVsArrowClass = MappedSubject.create(
-    ([cabinVs, manualMode]) => ((cabinVs * 60 <= -25 || cabinVs * 60 >= 25) && !manualMode ? '' : 'Hide'),
+    ([cabinVs, manualMode]) => (cabinVsArrowShown(cabinVs) && !manualMode ? '' : 'Hide'),
     this.cabinVerticalSpeedValue,
     this.manualControlActive,
   );
   private readonly cabinVsArrowTransform = MappedSubject.create(
-    ([cabinVs]) => (cabinVs * 60 <= -25 ? 'translate(130, 870) scale(1, -1)' : 'translate(130, 77) scale(1, 1)'),
+    ([cabinVs]) => (cabinVs < 0 ? 'translate(130, 870) scale(1, -1)' : 'translate(130, 77) scale(1, 1)'),
     this.cabinVerticalSpeedValue,
   );
 
+  /*
+   * FCOM DSC-21-30-20 CRUISE SYSTEM DISPLAY (a380_fcom.txt l.7686-7692, l.7739-7748, l.7801-7802): delta P pulses in
+   * final approach, the cabin V/S and the CAB ALT pulse after 5 s out of their range (CabinPressureIndications).
+   */
+  private readonly fwcFlightPhase = ConsumerSubject.create(this.sub.on('fwcFlightPhase'), 0);
+  private readonly cabinVsPulse = new CruiseCabinVsPulse();
+  private readonly cabinAltitudePulse = new CruiseCabinAltitudePulse();
+  private readonly deltaPPulsing = Subject.create(false);
+  private readonly cabinVsPulsing = Subject.create(false);
+  private readonly cabinAltitudePulsing = Subject.create(false);
+  private lastSimTime: number | null = null;
+
+  private readonly cabinVsTextClass = this.cabinVsPulsing.map(
+    (pulse) => `F29 Green EndAlign ${pulse ? 'FillPulse' : ''}`,
+  );
+  private readonly cabinVsArrowLineClass = this.cabinVsPulsing.map(
+    (pulse) => `Green SW2 NoFill ${pulse ? 'LinePulse' : ''}`,
+  );
+
+  /** l.7684, l.7707-7717: delta P is amber or red out of its normal range */
+  private readonly deltaPressClass = MappedSubject.create(
+    ([deltaPsi, pulse]) => `F29 ${deltaPColour(deltaPsi)} ${pulse ? 'FillPulse' : ''}`,
+    this.deltaPressValue,
+    this.deltaPPulsing,
+  );
+  private readonly deltaPressEndAlignClass = this.deltaPressClass.map((c) => `${c} EndAlign`);
+
   private readonly cabAltTextClass = MappedSubject.create(
-    ([elev1, elev2, cabAlt]) => {
+    ([elev1, elev2, cabAlt, pulse]) => {
       const ldgElev = elev1.isNormalOperation() ? elev1.value : elev2.isNormalOperation() ? elev2.value : 0;
-      return cabAlt > 9550 && ldgElev < 9550 ? 'F29 Red EndAlign' : 'F29 Green EndAlign';
+      if (cabAlt > 9550 && ldgElev < 9550) {
+        return 'F29 Red EndAlign';
+      }
+      return `F29 Green EndAlign ${pulse ? 'FillPulse' : ''}`;
     },
     this.landingElev1,
     this.landingElev2,
     this.cabinAltitudeValue,
+    this.cabinAltitudePulsing,
   );
 
   public onAfterRender(node: VNode): void {
@@ -171,6 +218,27 @@ export class CruisePressure extends DestroyableComponent<CruisePressureProps> {
       this.cabinVsArrowClass,
       this.cabinVsArrowTransform,
       this.cabAltTextClass,
+      this.fwcFlightPhase,
+      this.cabinVsTextClass,
+      this.cabinVsArrowLineClass,
+      this.deltaPressClass,
+      this.deltaPressEndAlignClass,
+    );
+
+    this.subscriptions.push(
+      this.sub
+        .on('simTime')
+        .atFrequency(2)
+        .handle((simTime) => {
+          const deltaS = this.lastSimTime === null ? 0 : Math.max(simTime - this.lastSimTime, 0) / 1000;
+          this.lastSimTime = simTime;
+          this.deltaPPulsing.set(
+            deltaPPulses(this.deltaPressValue.get(), this.fwcFlightPhase.get(), this.deltaPPulsing.get()),
+          );
+          this.cabinVsPulsing.set(this.cabinVsPulse.update(deltaS, this.cabinVerticalSpeedValue.get()));
+          const displayedCabinAltitude = Math.round(this.cabinAltitudeValue.get() / 50) * 50;
+          this.cabinAltitudePulsing.set(this.cabinAltitudePulse.update(deltaS, displayedCabinAltitude));
+        }),
     );
   }
 
@@ -284,13 +352,13 @@ export class CruisePressure extends DestroyableComponent<CruisePressureProps> {
         <text class="F26 White LS1" x="175" y="425">
           DELTA P
         </text>
-        <text class="F29 Green EndAlign" x="332" y="425">
+        <text class={this.deltaPressEndAlignClass} x="332" y="425">
           {this.deltaPressSplit[0]}
         </text>
-        <text class="F29 Green EndAlign" x="348" y="425">
+        <text class={this.deltaPressEndAlignClass} x="348" y="425">
           .
         </text>
-        <text class="F29 Green" x="350" y="425">
+        <text class={this.deltaPressClass} x="350" y="425">
           {this.deltaPressSplit[1]}
         </text>
         <text class="F22 Cyan" x="374" y="425">
@@ -303,7 +371,7 @@ export class CruisePressure extends DestroyableComponent<CruisePressureProps> {
         <text class="F24 White LS2" x="606" y="450">
           CAB V/S
         </text>
-        <text id="CabinVerticalSpeed" class="F29 Green EndAlign" x="660" y="484">
+        <text id="CabinVerticalSpeed" class={this.cabinVsTextClass} x="660" y="484">
           {this.cabinVsText}
         </text>
         <text class="F22 Cyan" x="664" y="484">
@@ -324,8 +392,8 @@ export class CruisePressure extends DestroyableComponent<CruisePressureProps> {
         </text>
 
         <g id="vsArrow" class={this.cabinVsArrowClass} transform={this.cabinVsArrowTransform}>
-          <path d="M433,405 h7 L446,395" class="Green SW2 NoFill" strokeLinejoin="miter" />
-          <polygon points="452,388 447,396 457,396" transform="rotate(38,452,388)" class="Green SW2 NoFill" />
+          <path d="M433,405 h7 L446,395" class={this.cabinVsArrowLineClass} strokeLinejoin="miter" />
+          <polygon points="452,388 447,396 457,396" transform="rotate(38,452,388)" class={this.cabinVsArrowLineClass} />
         </g>
       </>
     );

@@ -11,18 +11,29 @@ import {
   oilQuantityPulses,
   oilTemperatureClass,
 } from './OilIndications';
+import { AutoThrustMode } from '@shared/autopilot';
 
 /* A380 FCOM DSC-70-90 OIL QUANTITY, a380_fcom.txt l.113334-113349 */
 describe('SD ENGINE oil quantity', () => {
   it('pulses below the 1.2 qt oil advisory limit', () => {
-    expect(oilQuantityPulses(1.1, 20)).toBe(true);
-    expect(oilQuantityPulses(1.2, 20)).toBe(false);
-    expect(oilQuantityPulses(15, 20)).toBe(false);
+    expect(oilQuantityPulses(1.1, 20, AutoThrustMode.SPEED)).toBe(true);
+    expect(oilQuantityPulses(1.2, 20, AutoThrustMode.SPEED)).toBe(false);
+    expect(oilQuantityPulses(15, 20, AutoThrustMode.SPEED)).toBe(false);
   });
 
   it('does not pulse at takeoff or go-around (TOGA) or with the reversers selected', () => {
-    expect(oilQuantityPulses(0.8, 45)).toBe(false);
-    expect(oilQuantityPulses(0.8, -10)).toBe(false);
+    expect(oilQuantityPulses(0.8, 45, AutoThrustMode.NONE)).toBe(false);
+    expect(oilQuantityPulses(0.8, -10, AutoThrustMode.NONE)).toBe(false);
+  });
+
+  /* l.113346-113348: "At takeoff or go-around, or ... When the alpha floor protection is active." */
+  it('does not pulse at a FLEX or derated takeoff, a soft go-around or in alpha floor', () => {
+    expect(oilQuantityPulses(0.8, 35, AutoThrustMode.MAN_FLEX)).toBe(false);
+    expect(oilQuantityPulses(0.8, 35, AutoThrustMode.MAN_DTO)).toBe(false);
+    expect(oilQuantityPulses(0.8, 25, AutoThrustMode.MAN_GA_SOFT)).toBe(false);
+    expect(oilQuantityPulses(0.8, 20, AutoThrustMode.A_FLOOR)).toBe(false);
+    expect(oilQuantityPulses(0.8, 20, AutoThrustMode.TOGA_LK)).toBe(false);
+    expect(oilQuantityPulses(0.8, 35, AutoThrustMode.MAN_MCT)).toBe(true);
   });
 
   it('draws the first white dash at the 1.2 qt advisory limit and pulses the needle and the value', () => {
