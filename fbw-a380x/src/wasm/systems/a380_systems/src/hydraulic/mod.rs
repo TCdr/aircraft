@@ -3652,11 +3652,19 @@ impl A380EngineDrivenPumpController {
 
             engine_windmill_start: false,
 
-            disconnection_mechanism: EnginePumpDisconnectionClutch::new(match engine_num {
-                1 | 4 => ElectricalBusType::DirectCurrent(2),
-                2 | 3 => ElectricalBusType::DirectCurrent(1),
-                _ => panic!("Only 4 engines on A380"),
-            }),
+            disconnection_mechanism: EnginePumpDisconnectionClutch::new(
+                Self::disconnection_power_supply(engine_num),
+            ),
+        }
+    }
+
+    /// Engine pump disconnection supply, A380 FCOM DSC-29-40 ELECTRICAL SUPPLY table:
+    /// engine 1 pumps DC 2, engine 2 pumps DC 1, engine 3 pumps DC 2, engine 4 pumps DC 1.
+    fn disconnection_power_supply(engine_num: usize) -> ElectricalBusType {
+        match engine_num {
+            1 | 3 => ElectricalBusType::DirectCurrent(2),
+            2 | 4 => ElectricalBusType::DirectCurrent(1),
+            _ => panic!("Only 4 engines on A380"),
         }
     }
 
@@ -4672,26 +4680,26 @@ impl A380HydraulicBrakeSteerComputerUnit {
             nose_steering_feedback,
         );
 
+        // A380 FCOM DSC-32-30-10 (a380_fcom.txt l.80959): "A-SKID sw OFF does not cut off NWS" (also l.79122): unlike
+        // the A320 A/SKID & N/W STRG switch, the A380 A-SKID switch does not gate the steering.
         // Without NWS (all engines shut down, both NWS modes or both SCS failed) the SCS commands nothing and the nose
-        // wheels caster ("the nose landing gear is free to caster", A380 FCOM l.163025-163027).
+        // wheels caster ("the nose landing gear is free to caster", l.163025-163027).
         let nose_wheel_steering_available =
             self.steering_control.nose_wheel_steering_mode() != NoseWheelSteeringMode::Off;
-        self.final_steering_position_request = if nose_wheel_steering_available
-            && self.anti_skid_activated
-            && lgciu1.nose_gear_compressed(false)
-        {
-            (final_steer_rudder_plus_autopilot
-                + steer_angle_from_tiller
-                + self.heading_control_function.steering_output())
-            .min(Angle::new::<degree>(
-                Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
-            ))
-            .max(Angle::new::<degree>(
-                -Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
-            ))
-        } else {
-            Angle::new::<degree>(0.)
-        };
+        self.final_steering_position_request =
+            if nose_wheel_steering_available && lgciu1.nose_gear_compressed(false) {
+                (final_steer_rudder_plus_autopilot
+                    + steer_angle_from_tiller
+                    + self.heading_control_function.steering_output())
+                .min(Angle::new::<degree>(
+                    Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
+                ))
+                .max(Angle::new::<degree>(
+                    -Self::MAX_STEERING_ANGLE_DEMAND_DEGREES,
+                ))
+            } else {
+                Angle::new::<degree>(0.)
+            };
     }
 
     fn norm_controller(&self) -> &impl BrakeCircuitController {
@@ -8276,6 +8284,23 @@ mod tests {
                 values.iter().sum::<f64>() / (values.len() as f64)
             }
 
+            /// SFCC configuration as written to FLAPS_CONF_INDEX (0 = CONF 0, 1 = CONF 1, 2 = CONF 1+F ...)
+            fn flaps_conf_index(&mut self) -> f64 {
+                self.read_by_name("FLAPS_CONF_INDEX")
+            }
+
+            fn sfcc_slat_flap_system_status_word(&mut self, sfcc_number: u8) -> Arinc429Word<u32> {
+                self.read_by_name(&format!("SFCC_{sfcc_number}_SLAT_FLAP_SYSTEM_STATUS_WORD"))
+            }
+
+            fn left_flaps_surface_angle(&mut self) -> Angle {
+                Angle::new::<degree>(self.read_by_name("LEFT_FLAPS_ANGLE"))
+            }
+
+            fn left_slats_surface_angle(&mut self) -> Angle {
+                Angle::new::<degree>(self.read_by_name("LEFT_SLATS_ANGLE"))
+            }
+
             fn get_slats_right_position_percent(&mut self) -> f64 {
                 let values: &[f64] = &[
                     self.read_by_name("RIGHT_SLATS_1_POSITION_PERCENT"),
@@ -9973,6 +9998,57 @@ mod tests {
             assert_lt!(test_bed.yellow_pressure(), Pressure::new::<psi>(1500.));
         }
 
+        /// FCOM DSC-29-40: the engine 3 pump disconnection is supplied by DC 2, the engine 4 one by DC 1.
+        #[test]
+        fn yellow_edp_disconnection_engine_3_on_dc_2_engine_4_on_dc_1() {
+            let mut test_bed = test_bed_on_ground_with()
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .run_waiting_for(Duration::from_secs(5));
+
+            assert!(test_bed.is_yellow_pressure_switch_pressurised());
+
+            // DC 1 lost: the engine 4 pumps can no longer be disconnected, the engine 3 pumps still can.
+            test_bed = test_bed
+                .dc_bus_1_lost()
+                .set_disconnect_engine_edp(4)
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(test_bed.query(|a| a
+                .hydraulics
+                .engine_driven_pump_4a_controller
+                .is_input_shaft_connected()));
+
+            test_bed = test_bed
+                .set_disconnect_engine_edp(3)
+                .run_waiting_for(Duration::from_secs(5));
+            assert!(!test_bed.query(|a| a
+                .hydraulics
+                .engine_driven_pump_3a_controller
+                .is_input_shaft_connected()));
+        }
+
+        #[test]
+        fn edp_disconnection_power_supply_matches_fcom() {
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(1),
+                ElectricalBusType::DirectCurrent(2)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(2),
+                ElectricalBusType::DirectCurrent(1)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(3),
+                ElectricalBusType::DirectCurrent(2)
+            );
+            assert_eq!(
+                A380EngineDrivenPumpController::disconnection_power_supply(4),
+                ElectricalBusType::DirectCurrent(1)
+            );
+        }
+
         #[test]
         fn green_edp_no_fault_on_ground_eng_off() {
             let mut test_bed = test_bed_on_ground_with()
@@ -10474,6 +10550,29 @@ mod tests {
                 .set_fws_btv_inop(true)
                 .run_waiting_for(Duration::from_secs(1));
             assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::HIGH);
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-10-30: the 10 s in flight disarming is "for RTO mode only"; "A landing AUTO BRK mode can be
+        // armed in flight, and on ground"
+        fn autobrakes_landing_mode_armed_on_ground_stays_armed_after_take_off() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .start_eng1(Ratio::new::<percent>(60.))
+                .start_eng2(Ratio::new::<percent>(60.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .set_autobrake_low()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::LOW);
+
+            test_bed = test_bed
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(15));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::LOW);
         }
 
         #[test]
@@ -11203,6 +11302,148 @@ mod tests {
             assert_ge!(test_bed.get_slats_right_position_percent(), 98.);
         }
 
+        /// FLAPS_CONF_INDEX values of the SFCC (`FlapsConf as u8`)
+        const FLAPS_CONF_INDEX_CONF1: f64 = 1.;
+        const FLAPS_CONF_INDEX_CONF1F: f64 = 2.;
+        /// SFCC slat/flap system status word bit 18: FLAPS lever in position 1
+        const SFCC_STATUS_BIT_LEVER_1: u8 = 18;
+        /// SFCC slat/flap system status word bit 26: CONF 1 (flaps auto-retracted, read by the PFD as "1")
+        const SFCC_STATUS_BIT_CONF1_FLAPS_RETRACTED: u8 = 26;
+
+        fn assert_surface_angle_near(actual_degrees: f64, expected_degrees: f64) {
+            assert!(
+                (actual_degrees - expected_degrees).abs() < 0.5,
+                "surface angle {actual_degrees:.2} deg, expected {expected_degrees:.2} deg"
+            );
+        }
+
+        fn assert_conf_1_plus_f(test_bed: &mut A380HydraulicsTestBed) {
+            assert_eq!(test_bed.flaps_conf_index(), FLAPS_CONF_INDEX_CONF1F);
+            for sfcc_number in 1..=2 {
+                let word = test_bed.sfcc_slat_flap_system_status_word(sfcc_number);
+                assert!(word.get_bit(SFCC_STATUS_BIT_LEVER_1));
+                assert!(!word.get_bit(SFCC_STATUS_BIT_CONF1_FLAPS_RETRACTED));
+            }
+            // CONF 1+F surfaces: slats 20 deg, flaps 8 deg
+            assert_surface_angle_near(test_bed.left_flaps_surface_angle().get::<degree>(), 8.);
+            assert_surface_angle_near(test_bed.left_slats_surface_angle().get::<degree>(), 20.);
+        }
+
+        fn assert_conf_1(test_bed: &mut A380HydraulicsTestBed) {
+            assert_eq!(test_bed.flaps_conf_index(), FLAPS_CONF_INDEX_CONF1);
+            for sfcc_number in 1..=2 {
+                let word = test_bed.sfcc_slat_flap_system_status_word(sfcc_number);
+                assert!(word.get_bit(SFCC_STATUS_BIT_LEVER_1));
+                assert!(word.get_bit(SFCC_STATUS_BIT_CONF1_FLAPS_RETRACTED));
+            }
+            // CONF 1 surfaces: slats stay at 20 deg, flaps fully retracted
+            assert_surface_angle_near(test_bed.left_flaps_surface_angle().get::<degree>(), 0.);
+            assert_surface_angle_near(test_bed.left_slats_surface_angle().get::<degree>(), 20.);
+            // What reaches MSFS: TRAILING EDGE FLAPS (and the MSFS flap index) from this
+            // percentage, the 3D flap animation from the FPPU-based animation position.
+            assert_le!(test_bed.get_flaps_left_position_percent(), 1.);
+            assert_le!(test_bed.get_flaps_right_position_percent(), 1.);
+            assert_le!(
+                ReadByName::<A380HydraulicsTestBed, f64>::read_by_name(
+                    test_bed,
+                    "LEFT_FLAPS_ANIMATION_POSITION"
+                ),
+                1.
+            );
+        }
+
+        /// A380 FCOM DSC-27-20-20 (a380_fcom.txt l.56783-56806):
+        /// ARS: "In CONF 1+F, the Auto Retraction System (ARS) automatically retracts the flaps ...
+        /// The resulting configuration is CONF 1. The ARS activates, when the aircraft reaches a
+        /// speed of 212 kt, and if still in CONF 1+F."
+        /// AES: "In CONF 1, the Auto Extension System (AES) automatically extends the flaps ...
+        /// The AES activates, when the speed goes below 205 kt, and if still in CONF 1."
+        /// Whole aircraft: lever 0 -> 1 at the gate, take-off in CONF 1+F, climb through 212 kt
+        /// (to 240 kt as in the user report), then back below 205 kt.
+        #[test]
+        fn flaps_auto_retraction_and_extension_after_a_conf_1_plus_f_takeoff() {
+            let mut test_bed = test_bed_on_ground_with()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .set_flaps_handle_position(0)
+                .run_waiting_for(Duration::from_secs(10));
+
+            // Lever 1 selected long before the take-off: CONF 1+F on the ground
+            test_bed = test_bed
+                .set_flaps_handle_position(1)
+                .run_waiting_for(Duration::from_secs(60));
+            assert_conf_1_plus_f(&mut test_bed);
+
+            // Take-off roll at 170 kt, still on the ground: CONF 1+F
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(170.));
+            test_bed = test_bed
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(5));
+            assert_conf_1_plus_f(&mut test_bed);
+
+            // Lift-off, gear up, initial climb below 205 kt: CONF 1+F
+            test_bed.set_on_ground(false);
+            test_bed.set_pressure_altitude(Length::new::<foot>(1500.));
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(185.));
+            test_bed = test_bed
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(20));
+            assert_conf_1_plus_f(&mut test_bed);
+
+            // Between the AES (205 kt) and the ARS (212 kt) speeds: no change yet
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(209.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(20));
+            assert_conf_1_plus_f(&mut test_bed);
+
+            // Through 212 kt up to 240 kt: the ARS retracts the flaps -> CONF 1
+            test_bed.set_pressure_altitude(Length::new::<foot>(4000.));
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(213.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(2));
+            assert_eq!(test_bed.flaps_conf_index(), FLAPS_CONF_INDEX_CONF1);
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(240.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
+            assert!(!test_bed.is_flaps_moving());
+            assert_conf_1(&mut test_bed);
+
+            // Back between 205 and 212 kt: CONF 1 is kept (hysteresis)
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(208.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(20));
+            assert_conf_1(&mut test_bed);
+
+            // Below 205 kt with the lever still at 1: the AES extends the flaps -> CONF 1+F
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
+            assert!(!test_bed.is_flaps_moving());
+            assert_conf_1_plus_f(&mut test_bed);
+        }
+
+        /// Flight loaded in the air with the FLAPS lever already at 1 (no lever movement by the
+        /// crew): above 212 kt the SFCC must select CONF 1, below 205 kt CONF 1+F
+        /// (A380 FCOM DSC-27-20-20, a380_fcom.txt l.56783-56806).
+        #[rstest]
+        #[case(240., FLAPS_CONF_INDEX_CONF1)]
+        #[case(190., FLAPS_CONF_INDEX_CONF1F)]
+        fn flaps_lever_1_at_an_in_flight_spawn_follows_ars_and_aes(
+            #[case] indicated_airspeed_knots: f64,
+            #[case] expected_conf_index: f64,
+        ) {
+            let mut test_bed = test_bed_in_flight_with().set_flaps_handle_position(1);
+            test_bed = test_bed.in_flight();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(indicated_airspeed_knots));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
+
+            assert_eq!(test_bed.flaps_conf_index(), expected_conf_index);
+            if expected_conf_index == FLAPS_CONF_INDEX_CONF1 {
+                assert_conf_1(&mut test_bed);
+            } else {
+                assert_conf_1_plus_f(&mut test_bed);
+            }
+        }
+
         #[test]
         fn cargo_door_stays_closed_at_init() {
             let mut test_bed = test_bed_on_ground_with()
@@ -11374,7 +11615,8 @@ mod tests {
         }
 
         #[test]
-        fn nose_steering_does_not_move_when_a_skid_off() {
+        // A380 FCOM DSC-32-30-10: "A-SKID sw OFF does not cut off NWS"
+        fn nose_steering_still_steers_when_a_skid_off() {
             let mut test_bed = test_bed_on_ground_with()
                 .engines_off()
                 .on_the_ground()
@@ -11391,8 +11633,7 @@ mod tests {
                 .set_tiller_demand(Ratio::new::<ratio>(1.))
                 .run_waiting_for(Duration::from_secs_f64(5.));
 
-            assert_ge!(test_bed.nose_steering_position().get::<degree>(), -0.1);
-            assert_le!(test_bed.nose_steering_position().get::<degree>(), 0.1);
+            assert_ge!(test_bed.nose_steering_position().get::<degree>(), 40.);
         }
 
         #[test]

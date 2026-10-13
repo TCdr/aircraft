@@ -126,6 +126,22 @@ import {
   wingsBalancedLines,
   wingsNotBalancedLines,
 } from './FwsFuelAlertsRound8';
+import { cabinDoorNotClosedAlertId, cargoDoorNotClosedAlertId } from './DoorAlerts';
+import {
+  aboveGearDoorSpeed,
+  doorsNotClosedChecked,
+  doorsNotClosedItems,
+  doorsNotClosedLimitations,
+  gearNotLockedDownChecked,
+  gearNotLockedDownItems,
+  gearNotLockedUpChecked,
+  gearNotLockedUpItems,
+  gearNotLockedUpLimitations,
+  lgCtl12Items,
+  lgCtl12Limitations,
+  lgCtl12PfdLimitations,
+} from './FwsGearAlerts';
+import { directLawInfo, directLawInopSysAllPhases, lawInopSysApprLdg } from './FwsFctlAlerts';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -306,6 +322,42 @@ export class FwsAbnormalSensed {
       failure: 1,
       sysPage: SdPages.ElecDc,
     };
+  }
+
+  /**
+   * DOOR MAIN 1(2)(3)(4)(5)L(R) / UPPER 1(2)(3)L(R) NOT CLOSED and DOOR FWD(AFT) CARGO NOT CLOSED (520800017-034),
+   * A380 FCOM PRO-ABN-ECAM-10-52: "The door is not closed and is not locked." One procedure for all doors:
+   * PACK 1+2 & CAB PRESS NOT AVAIL only in flight phases 2 or 3 if pressurization is not available, then in flight
+   * IF ABNORM CAB V/S (crew-confirmed condition, which also adds MAX FL 100/MEA to the LIMITATIONS).
+   * See DoorAlerts.ts for the door list and the trigger.
+   */
+  private doorNotClosedAlerts(): EwdAbnormalDict {
+    const doorNotClosedItem = (doorNotClosed: Subscribable<boolean>): EwdAbnormalItem => ({
+      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
+      simVarIsActive: doorNotClosed,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [
+        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
+        !this.fws.aircraftOnGround.get(),
+        !this.fws.aircraftOnGround.get(),
+        !this.fws.aircraftOnGround.get(),
+        !this.fws.aircraftOnGround.get(),
+        !this.fws.aircraftOnGround.get(),
+      ],
+      whichItemsChecked: () => [false, false, false, false, false, false],
+      failure: 2,
+      sysPage: SdPages.Door,
+      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
+      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
+    });
+    const alerts: EwdAbnormalDict = {};
+    this.fws.cabinDoorNotClosed.forEach((doorNotClosed, index) => {
+      alerts[cabinDoorNotClosedAlertId(index)] = doorNotClosedItem(doorNotClosed);
+    });
+    this.fws.cargoDoorNotClosed.forEach((doorNotClosed, index) => {
+      alerts[cargoDoorNotClosedAlertId(index)] = doorNotClosedItem(doorNotClosed);
+    });
+    return alerts;
   }
 
   public readonly abnormalShown = Subject.create(false);
@@ -1401,8 +1453,9 @@ export class FwsAbnormalSensed {
       limitationsPfd: () => ['210400002'],
     },
     213800002: {
-      // EXCESS DIFF PRESS
-      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+      // EXCESS DIFF PRESS: active in flight phases 1, 8 and 9 (A380 FCOM PRO-ABN CAB PRESS EXCESS DIFF PRESS, flight
+      // phase inhibition figure, airbus-a380-fcom PDF p.4755); it was active in phase 8 only
+      flightPhaseInhib: [2, 3, 4, 5, 6, 7, 10, 11, 12],
       simVarIsActive: this.fws.excessDiffPressure,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [true, true, this.fws.flightLevel.get() > 100, true, true, true, true],
@@ -3396,7 +3449,8 @@ export class FwsAbnormalSensed {
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.altnLawCondition,
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => [this.fws.altn1ALawCondition.get()],
+      // MAX SPEED 310 KT: "The limitation is not applicable in ALT 1A" (A380 FCOM PRO-ABN F/CTL ALTN LAW)
+      whichItemsToShow: () => [!this.fws.altn1ALawCondition.get()],
       whichItemsChecked: () => [false],
       failure: 2,
       sysPage: SdPages.None,
@@ -3404,6 +3458,7 @@ export class FwsAbnormalSensed {
         this.fws.altn2LawConfirm ? '220300007' : '',
         this.fws.altn2LawConfirm ? '220300024' : '',
       ],
+      inopSysApprLdg: () => lawInopSysApprLdg(),
       info: () => ['340200002'],
     },
     271800009: {
@@ -3415,7 +3470,9 @@ export class FwsAbnormalSensed {
       whichItemsChecked: () => [false, false, false, false],
       failure: 2,
       sysPage: SdPages.None,
-      inopSysAllPhases: () => ['220300007', '220300024'],
+      inopSysAllPhases: () => directLawInopSysAllPhases(),
+      inopSysApprLdg: () => lawInopSysApprLdg(),
+      info: () => directLawInfo(this.fws.allPrimAndSecFailed.get()),
     },
     271800013: {
       // FCDC 1 FAULT
@@ -4768,7 +4825,8 @@ export class FwsAbnormalSensed {
         !this.fws.eng2APumpAuto.get() && !this.fws.eng2BPumpAuto.get(),
         this.fws.eng1PumpDisc.get(),
         this.fws.eng2PumpDisc.get(),
-        !this.fws.yellowAPumpAuto.get() && !this.fws.yellowBPumpAuto.get(),
+        // G ELEC PMP A and B ... OFF (A380 FCOM PRO-ABN HYD G RSVR LEVEL LO / G SYS OVHT)
+        !this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get(),
       ],
       failure: 2,
       sysPage: SdPages.Hyd,
@@ -4803,8 +4861,9 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [
         this.fws.engine1Running.get(),
         this.fws.engine2Running.get(),
-        true,
-        true,
+        // ENG PMP A+B DISC only "If turning off ... is not successful" (FCOM, see HydOverheatFlags)
+        this.fws.eng1PumpsOffUnsuccessful.get(),
+        this.fws.eng2PumpsOffUnsuccessful.get(),
         this.fws.enginesOffAndOnGroundSignal.read(),
       ],
       whichItemsChecked: () => [
@@ -4812,7 +4871,8 @@ export class FwsAbnormalSensed {
         !this.fws.eng2APumpAuto.get() && !this.fws.eng2BPumpAuto.get(),
         this.fws.eng1PumpDisc.get(),
         this.fws.eng2PumpDisc.get(),
-        !this.fws.yellowAPumpAuto.get() && !this.fws.yellowBPumpAuto.get(),
+        // G ELEC PMP A and B ... OFF (A380 FCOM PRO-ABN HYD G RSVR LEVEL LO / G SYS OVHT)
+        !this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get(),
       ],
       failure: 2,
       sysPage: SdPages.Hyd,
@@ -4825,8 +4885,9 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [
         this.fws.engine3Running.get(),
         this.fws.engine4Running.get(),
-        true,
-        true,
+        // ENG PMP A+B DISC only "If turning off ... is not successful" (FCOM, see HydOverheatFlags)
+        this.fws.eng3PumpsOffUnsuccessful.get(),
+        this.fws.eng4PumpsOffUnsuccessful.get(),
         this.fws.enginesOffAndOnGroundSignal.read(),
       ],
       whichItemsChecked: () => [
@@ -4849,8 +4910,9 @@ export class FwsAbnormalSensed {
         true,
         true,
         true,
-        !this.fws.prim3Healthy,
-        !this.fws.prim3Healthy,
+        // FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE if PRIM 3 also failed (the Subject itself was tested: never shown)
+        !this.fws.prim3Healthy.get(),
+        !this.fws.prim3Healthy.get(),
         true,
         true,
       ],
@@ -4859,9 +4921,11 @@ export class FwsAbnormalSensed {
       limitationsPfd: () => ['320400001'],
       limitationsAllPhases: () => [!this.fws.prim3Healthy.get() ? '800400001' : null],
       limitationsApprLdg: () => ['320400001', '290400001', '290400002', '320400002', '320400003'],
-      info: () => ['220200011', '270200001'],
+      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS (a380_fcom.txt l.155731-155766): INFO CAT 3 SINGLE ONLY;
+      // INOP SYS APPR & LDG FLAPS SYS 1 (2), SLATS SYS 2 (G only), BTV, NORM N/W (B/W) STEER, CAT 3 DUAL
+      info: () => ['220200011', '270200001', '220200016'],
       inopSysAllPhases: () => ['290100001', '320300023', '290300021'],
-      inopSysApprLdg: () => ['290100003', '290100006', '320300020'],
+      inopSysApprLdg: () => ['290100003', '290100006', '320300007', '320300020', '220300028'],
       notActiveWhenItemActive: ['290800039'],
       sysPage: SdPages.Hyd,
     },
@@ -4872,16 +4936,26 @@ export class FwsAbnormalSensed {
       whichItemsToShow: () => [
         this.fws.flightPhase1112MoreThanOneMin.get(),
         true,
-        !this.fws.prim2Healthy,
-        !this.fws.prim2Healthy,
+        true, // L/G GRVTY EXTN ONLY
+        // FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE if PRIM 2 also failed
+        !this.fws.prim2Healthy.get(),
+        !this.fws.prim2Healthy.get(),
         true,
       ],
-      whichItemsChecked: () => [false, false, false, false, false],
+      whichItemsChecked: () => [false, false, false, false, false, false],
       failure: 2,
+      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO LIMITATIONS (a380_fcom.txt l.155652-155700): "For gravity extension:
+      // MAX SPEED : 220 KT" on the ECAM (APPR & LDG) and on the PFD (ALL PHASES); the other limitation lines are "If G
+      // SYS PRESS LO" only
+      limitationsPfd: () => ['320400001'],
       limitationsAllPhases: () => [!this.fws.prim2Healthy.get() ? '800400001' : null],
-      info: () => ['800200004', '800200004'],
+      limitationsApprLdg: () => ['320400001'],
+      // A380 FCOM PRO-ABN HYD G (Y) SYS PRESS LO STATUS (a380_fcom.txt l.155731-155766), in the case of a Y SYS PRESS
+      // LO: INFO TAXI WITH CARE, AVOID MAX TILLER ANGLE TURN ON WET/CONTAM RWY, NO BRAKED PIVOT TURN, CAT 3 SINGLE ONLY
+      // (AVOID MAX TILLER ANGLE was listed twice); INOP SYS APPR & LDG FLAPS SYS 2, BTV, NORM B/W STEER, CAT 3 DUAL
+      info: () => ['800200003', '800200004', '800200005', '220200016'],
       inopSysAllPhases: () => ['290100001', '320300023', '290300022'],
-      inopSysApprLdg: () => ['290100004', '320300024'],
+      inopSysApprLdg: () => ['290100004', '320300007', '320300024', '220300028'],
       notActiveWhenItemActive: ['290800039'],
       sysPage: SdPages.Hyd,
     },
@@ -5275,6 +5349,141 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
       monitorConfirmTime: 0,
       nonProcedureKey: true,
+    },
+    // L/G alerts from the LGCIS (A380 FCOM PRO-ABN-ECAM-10-32, FwsGearAlerts.ts). The FCOM flight phase inhibitions are
+    // figures: design choice, the A32NX FWC phases of the matching A320 alert mapped onto the A380 phases (A320 3 -> 3,
+    // 4 -> 4+5, 5 -> 6+7, 7 -> 9, 8 -> 10, 9 -> 11, 10 -> 12), the A380 F/CTL crew awareness set for the others.
+    320800033: {
+      // L/G CTL 1 FAULT: crew awareness, SD page only (l.160908-160921). Phases: A320 LGCIU 1 FAULT [3, 4, 5, 7, 8].
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.lgCtl1Fault,
+      notActiveWhenItemActive: ['320800035'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800034: {
+      // L/G CTL 2 FAULT: crew awareness, SD page only (l.160908-160921). Phases: A320 LGCIU 2 FAULT [3, 4, 5, 7, 8].
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.lgCtl2Fault,
+      notActiveWhenItemActive: ['320800035'],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
+    },
+    320800035: {
+      // L/G CTL 1+2 FAULT: audio, master light, SD page (l.160933-161049). Phases: A320 LGCIU 1+2 FAULT [4, 5, 7, 8].
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.lgCtl12Fault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        lgCtl12Items(this.fws.gearAlerts.ctl12WithGearDown.get(), this.fws.oneEngineRunning.get()),
+      whichItemsChecked: () => [this.fws.tawsGpwsOff.get(), false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsAllPhases: () => lgCtl12Limitations(this.fws.gearAlerts.ctl12WithGearDown.get()),
+      limitationsPfd: () => lgCtl12PfdLimitations(this.fws.gearAlerts.ctl12WithGearDown.get()),
+      // STATUS INOP SYS APPR & LDG: L/G CTL 1+2, GPWS 1+2 (l.161040-161045)
+      inopSysApprLdg: () => ['320300011', '340300003'],
+    },
+    320800039: {
+      // L/G GEAR NOT LOCKED DOWN: lever DOWN, a gear not downlocked after about 60 s (l.161239-161344). Red title as
+      // the A320 L/G GEAR NOT DOWNLOCKED warning. Phases: A320 GEAR NOT DOWNLOCKED [3, 4, 5, 8].
+      flightPhaseInhib: [3, 4, 5, 6, 7, 10],
+      simVarIsActive: this.fws.gearAlerts.gearNotLockedDown,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        gearNotLockedDownItems(
+          !this.fws.aircraftOnGround.get(),
+          this.fws.gearAlerts.notLockedDownGravityDue.get(),
+          SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', SimVarValueType.Number) === 2 &&
+            this.fws.gearAlerts.leverDown.get(),
+        ),
+      whichItemsChecked: () =>
+        gearNotLockedDownChecked(
+          this.fws.gearAlerts.notLockedDownRecycled.get(),
+          this.fws.gearAlerts.leverDown.get(),
+          SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', SimVarValueType.Number) === 2,
+        ),
+      failure: 3,
+      sysPage: SdPages.Wheel,
+      // For gravity extension: MAX SPEED : 220KT, on the ECAM and the PFD (l.161335-161344)
+      limitationsAllPhases: () => [this.fws.gearAlerts.notLockedDownGravityDue.get() ? '320400001' : ''],
+      limitationsPfd: () => [this.fws.gearAlerts.notLockedDownGravityDue.get() ? '320400001' : ''],
+    },
+    320800040: {
+      // L/G GEAR NOT LOCKED UP: lever UP, a gear not locked up after about 40 s (l.161354-161477). Phases: A320 GEAR
+      // NOT UPLOCKED [3, 4, 7, 8, 9, 10].
+      flightPhaseInhib: [3, 4, 5, 9, 10, 11, 12],
+      simVarIsActive: this.fws.gearAlerts.gearNotLockedUp,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () =>
+        gearNotLockedUpItems(
+          !this.fws.aircraftOnGround.get(),
+          this.fws.gearAlerts.anyDoorNotClosed.get(),
+          aboveGearDoorSpeed(this.fws.computedAirSpeedToNearest2.get(), this.fws.machSelectedFromAdr.get()),
+          this.fws.gearAlerts.notLockedUpRecycled.get(),
+        ),
+      whichItemsChecked: () =>
+        gearNotLockedUpChecked(
+          aboveGearDoorSpeed(this.fws.computedAirSpeedToNearest2.get(), this.fws.machSelectedFromAdr.get()),
+          this.fws.gearAlerts.notLockedUpRecycled.get(),
+          this.fws.gearAlerts.leverDown.get(),
+        ),
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsAllPhases: () =>
+        gearNotLockedUpLimitations(
+          this.fws.gearAlerts.allGearsDownlocked.get(),
+          this.fws.gearAlerts.anyDoorNotClosed.get(),
+        ),
+      limitationsPfd: () =>
+        gearNotLockedUpLimitations(
+          this.fws.gearAlerts.allGearsDownlocked.get(),
+          this.fws.gearAlerts.anyDoorNotClosed.get(),
+        ),
+      // STATUS INOP SYS ALL PHASES L/G RETRACTION, APPR & LDG L/G DOORS if a door is open (l.161441-161446), INFO
+      // FUEL CONSUMPT INCRSD : FMS PRED DISREGARD (l.161450)
+      inopSysAllPhases: () => ['320300013'],
+      inopSysApprLdg: () => [this.fws.gearAlerts.anyDoorNotClosed.get() ? '320300012' : ''],
+      info: () => [this.fws.aircraftOnGround.get() ? '' : '280200003'],
+    },
+    320800036: {
+      // L/G DOORS NOT CLOSED: a door not closed with the gear stopped (l.161055-161207). Master light and SD page.
+      // Phases: the A380 crew awareness set (design choice).
+      flightPhaseInhib: [4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.doorsNotClosed,
+      notActiveWhenItemActive: ['320800039', '320800040'],
+      whichItemsToShow: () =>
+        doorsNotClosedItems(
+          !this.fws.aircraftOnGround.get(),
+          aboveGearDoorSpeed(this.fws.computedAirSpeedToNearest2.get(), this.fws.machSelectedFromAdr.get()),
+          this.fws.oneEngineRunning.get(),
+        ),
+      whichItemsChecked: () =>
+        doorsNotClosedChecked(
+          aboveGearDoorSpeed(this.fws.computedAirSpeedToNearest2.get(), this.fws.machSelectedFromAdr.get()),
+          this.fws.gearAlerts.doorsRecycled.get(),
+        ),
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsAllPhases: () => doorsNotClosedLimitations(!this.fws.aircraftOnGround.get()),
+      limitationsPfd: () => doorsNotClosedLimitations(!this.fws.aircraftOnGround.get()),
+      // STATUS INOP SYS APPR & LDG L/G DOORS (l.161174-161176), INFO FUEL CONSUMPT INCRSD : FMS PRED DISREGARD (l.161180)
+      inopSysApprLdg: () => ['320300012'],
+      info: () => [this.fws.aircraftOnGround.get() ? '' : '280200003'],
+    },
+    320800045: {
+      // L/G SYSTEM DISAGREE: crew awareness, SD page only (l.162498-162516). Phases: as L/G CTL 1(2) FAULT.
+      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      simVarIsActive: this.fws.gearAlerts.systemDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.Wheel,
     },
 
     // ATA 34 - NAVIGATION
@@ -5870,6 +6079,48 @@ export class FwsAbnormalSensed {
       inopSysApprLdg: () => ['340300028', '310300001', '220300010', '220300021'],
       info: () => ['220200007', '220200008', '220200009'],
     },
+    // NAV CAPT AND F/O DISAGREE alerts (A380 FCOM PRO-ABN-ECAM-10-34-10, FwsNavAlerts.ts): audio and master light, no SD
+    // page. The FCOM flight phase inhibitions are figures: design choice, the phases of the NAV ADR/IR FAULT alerts.
+    340800016: {
+      // CAPT AND F/O ALT DISAGREE (l.164494-164516)
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.navAlerts.altDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800017: {
+      // CAPT AND F/O ATT DISAGREE (l.164527-164598, lines of TDU 00023230)
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.navAlerts.attDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800018: {
+      // CAPT AND F/O BARO REF DISAGREE (l.164609-164624)
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.navAlerts.baroRefDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true],
+      whichItemsChecked: () => [false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    340800020: {
+      // CAPT AND F/O HDG DISAGREE (l.164635-164716, lines of TDU 00023229)
+      flightPhaseInhib: [4, 5, 10],
+      simVarIsActive: this.fws.navAlerts.hdgDisagree,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
     // ATA 34 - SURVEILLANCE
     341800015: {
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
@@ -6083,196 +6334,8 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Door,
     },
-    520800017: {
-      // MAIN 1L NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main1LOpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800018: {
-      // MAIN 1R NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main1ROpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800019: {
-      // MAIN 2L NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main2LOpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800020: {
-      // MAIN 2R NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main2ROpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800021: {
-      // MAIN 3L NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main3LOpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800022: {
-      // MAIN 3R NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main3ROpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800023: {
-      // MAIN 4L NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main4LOpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800024: {
-      // MAIN 4R NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main4ROpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800025: {
-      // MAIN 5L NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main5LOpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
-    520800026: {
-      // MAIN 5R NOT CLOSED
-      flightPhaseInhib: [1, 4, 5, 6, 7, 9, 10, 12],
-      simVarIsActive: this.fws.main5ROpen,
-      notActiveWhenItemActive: [],
-      whichItemsToShow: () => [
-        (this.fws.flightPhase.get() === 2 || this.fws.flightPhase.get() === 3) && this.fws.pressSysFault.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-        !this.fws.aircraftOnGround.get(),
-      ],
-      whichItemsChecked: () => [false, false, false, false, false, false],
-      failure: 2,
-      sysPage: SdPages.Door,
-      limitationsAllPhases: (checked) => (checked[1] ? ['210400001'] : []),
-      limitationsPfd: (checked) => (checked[1] ? ['210400001'] : []),
-    },
+    // DOOR MAIN 1L ... 5R, UPPER 1L ... 3R and FWD/AFT CARGO NOT CLOSED (520800017-034), see doorNotClosedAlerts()
+    ...this.doorNotClosedAlerts(),
     // ATA 70 - ENGINES
     701800029: {
       // ENG 1 FAIL

@@ -424,7 +424,10 @@ impl A380AutobrakeController {
                 && (self.external_deactivation_event && self.mode != A380AutobrakeMode::RTO))
             || (context.is_sim_ready() && !self.arming_is_allowed_by_bcu)
             || self.spoilers_retracted_during_this_update()
-            || self.should_disarm_after_time_in_flight.output()
+            // A380 FCOM DSC-32-10-30 BASIC AUTO BRK DISARMING (a380_fcom.txt l.79081): "The aircraft is in flight for
+            // more than 10 s (for RTO mode only)"; "A landing AUTO BRK mode can be armed in flight, and on ground"
+            // (l.80928-80929): a landing mode armed on the ground stays armed after take-off.
+            || (self.mode == A380AutobrakeMode::RTO && self.should_disarm_after_time_in_flight.output())
             || (self.mode == A380AutobrakeMode::RTO
                 && self.should_reject_rto_mode_after_time_in_flight.output())
             || (self.mode == A380AutobrakeMode::BTV && !self.btv_scheduler.is_armed())

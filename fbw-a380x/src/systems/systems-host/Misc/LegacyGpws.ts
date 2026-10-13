@@ -17,6 +17,26 @@ type ModesType = {
  * This 1:1 port from the A32NX's GPWS+FWS serves as temporary replacement, until a more sophisticated system simulation is in place.
  */
 export class LegacyGpws {
+  /** Mode 4A: TOO LOW TERRAIN instead of TOO LOW GEAR above this speed (A380 FCOM DSC-34-20-20-10) */
+  static readonly MODE_4A_TERRAIN_SPEED_KT = 200;
+
+  /** Mode 4B: TOO LOW TERRAIN instead of TOO LOW FLAPS above this speed (A380 FCOM DSC-34-20-20-10) */
+  static readonly MODE_4B_TERRAIN_SPEED_KT = 180;
+
+  /**
+   * Whether the crew can rely on the terrain awareness (TAD) function, for the mode 4 envelope. Design choice: the
+   * FCOM names the aircraft position and the terrain database; the sim has neither failure, so the TERR SYS pb
+   * (MFD SURV CONTROLS, L:A32NX_GPWS_TERR_OFF) and the TERR failure of the selected AESU system
+   * (L:A32NX_TERR_n_FAILED, L:A32NX_WXR_TAWS_SYS_SELECTED) stand for it.
+   * @returns true when the TAD function is operative
+   */
+  static isTerrainFunctionOperative(): boolean {
+    const selected: number = SimVar.GetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number);
+    const terrFailed =
+      selected === 1 || selected === 2 ? SimVar.GetSimVarValue(`L:A32NX_TERR_${selected}_FAILED`, 'Bool') > 0 : true;
+    return !(SimVar.GetSimVarValue('L:A32NX_GPWS_TERR_OFF', 'Bool') > 0) && !terrFailed;
+  }
+
   private updateThrottler = new UpdateThrottler(125); // has to be > 100 due to pulse nodes
 
   private pub = this.bus.getPublisher<FwsSoundManagerControlEvents>();
@@ -516,21 +536,43 @@ export class LegacyGpws {
       mode.current = 0;
       return;
     }
-    const FlapModeOff = SimVar.GetSimVarValue('L:A32NX_GPWS_FLAP_OFF', 'Bool');
+    // FLAP MODE OFF on the MFD SURV CONTROLS page inhibits mode 4B (A380 FCOM DSC-34-SURV, TOO LOW FLAPS)
+    const FlapModeOff = SimVar.GetSimVarValue('L:A32NX_GPWS_FLAPS_OFF', 'Bool');
 
-    // Mode 4 A and B logic
-    if (!gearExtended && phase === FmgcFlightPhase.Approach) {
-      if (speed < 190 && radioAlt < 500) {
-        mode.current = 1;
-      } else if (speed >= 190) {
-        const maxWarnAlt = 8.333 * speed - 1083.333;
+    // Mode 4 A and B logic. A380 FCOM DSC-34-20-20-10 (a380_fcom.txt l.88330-88337, l.88380-88387): mode 4A gives
+    // TOO LOW TERRAIN instead of TOO LOW GEAR "if the aircraft speed is above 200 kt", mode 4B instead of TOO LOW
+    // FLAPS "above 180 kt" (the A320 values 190 kt and 159 kt were used). The FCOM figures (PDF p.3130-3135) give a
+    // flat ceiling, 500 ft (4A) and 245 ft (4B), and "if system data (e.g. aircraft position or terrain database)
+    // does not enable the flight crew to rely on the TAD function" a ceiling rising to 1 000 ft (design choice: at
+    // 250 kt, as the A320 one; the figure is not precise enough to read the speed).
+    const terrainFunctionOperative = LegacyGpws.isTerrainFunctionOperative();
+    // Each branch sets mode.current in every case: below the ceiling at a low speed (no TOO LOW TERRAIN), the alert
+    // stopped when the aircraft climbed back above the ceiling (it stayed on before).
+    if (!gearExtended && !FlapsInLandingConfig && phase === FmgcFlightPhase.Approach) {
+      // Mode 4A: "landing gear up and the flaps not extended for landing" (l.88328-88337)
+      if (speed < LegacyGpws.MODE_4A_TERRAIN_SPEED_KT) {
+        mode.current = radioAlt < 500 ? 1 : 0;
+      } else {
+        const maxWarnAlt = terrainFunctionOperative
+          ? 500
+          : 500 + ((speed - LegacyGpws.MODE_4A_TERRAIN_SPEED_KT) * (1000 - 500)) / (250 - 200);
         mode.current = radioAlt < maxWarnAlt ? 3 : 0;
       }
+    } else if (!gearExtended && phase === FmgcFlightPhase.Approach) {
+      // Mode 4B "landing gear up and the flaps extended for landing" (l.88360-88366): TOO LOW GEAR only, no TOO LOW
+      // TERRAIN at any speed. The FCOM figure Mode 4B Gear Up and Flaps in Landing Configuration (PDF p.3133) gives a
+      // flat 245 ft ceiling up to 400 kt, and has no TERR-function-not-operative variant. Design choice: FLAP MODE OFF
+      // does not inhibit it, the button is for "a landing with abnormal flaps configuration" (l.88410-88412) and only
+      // the flaps signal changes with it (the gear-up warning stays).
+      mode.current = radioAlt < 245 ? 1 : 0;
     } else if (!FlapsInLandingConfig && !FlapModeOff && phase === FmgcFlightPhase.Approach) {
-      if (speed < 159 && radioAlt < 245) {
-        mode.current = 2;
-      } else if (speed >= 159) {
-        const maxWarnAlt = 8.2967 * speed - 1074.18;
+      // Mode 4B "landing gear down and the flaps not extended for landing" (l.88378-88386)
+      if (speed < LegacyGpws.MODE_4B_TERRAIN_SPEED_KT) {
+        mode.current = radioAlt < 245 ? 2 : 0;
+      } else {
+        const maxWarnAlt = terrainFunctionOperative
+          ? 245
+          : 245 + ((speed - LegacyGpws.MODE_4B_TERRAIN_SPEED_KT) * (1000 - 245)) / (250 - 180);
         mode.current = radioAlt < maxWarnAlt ? 3 : 0;
       }
     } else {

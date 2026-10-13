@@ -2195,10 +2195,13 @@ impl A320Hydraulic {
         self.pushback_tug.update(context);
         self.bypass_pin.update(&self.pushback_tug);
 
-        // The relay turning on the brake fans is grounded via LGCIU 2 signal and powered by DC2 (206PP via 3GS)
+        // The relay turning on the brake fans is grounded via LGCIU 2 signal and powered by DC2 (206PP via 3GS).
+        // A320 FCOM DSC-32-30-20 BRK FAN pb-sw (a320_fcom.txt l.51514-51516): "The brake fans run if the lefthand
+        // main landing gear is down and locked" (LGCIU 2, L/G downlocked output, DSC-32-10-30 l.50664-50672), so they
+        // also run in flight with the gear down, to cool the brakes before landing.
         let brake_fan_turned_on = self.dc2_powered
             && brake_fan_panel.brake_fan_pb_is_pressed()
-            && lgciu2.left_gear_compressed(false);
+            && lgciu2.left_down_and_locked();
         for (brake_assembly, braking_pressure_norm, braking_pressure_altn, gear_position) in [
             (
                 &mut self.left_brake_assembly,
@@ -3732,6 +3735,9 @@ impl A320HydraulicBrakeSteerComputerUnit {
 
     const MAX_STEERING_ANGLE_DEMAND_DEGREES: f64 = 74.;
 
+    /// ABCU brake pressure limit of the alternate braking without anti-skid (FCOM DSC-32-30-10: 1 000 PSI)
+    const ALTERNATE_BRAKING_WITHOUT_ANTI_SKID_MAX_PRESSURE_PSI: f64 = 1000.;
+
     // Minimum pressure hysteresis on green until main switched on ALTN brakes
     // Feedback by Cpt. Chaos — 25/04/2021 #pilot-feedback
     const MIN_PRESSURE_BRAKE_ALTN_HYST_LO: f64 = 1305.;
@@ -3845,7 +3851,10 @@ impl A320HydraulicBrakeSteerComputerUnit {
                 2538.
             }
         } else if !self.anti_skid_activated {
-            1160.
+            // A320 FCOM DSC-32-30-10 ALTERNATE BRAKING (a320_fcom.txt l.51316-51318): "To avoid wheel locking and
+            // limit the risk of tire burst, brake pressure is automatically limited to 1 000 PSI." QRH LOSS OF
+            // BRAKING: "MAX BRK PR ... 1000 PSI" (l.72241).
+            Self::ALTERNATE_BRAKING_WITHOUT_ANTI_SKID_MAX_PRESSURE_PSI
         } else {
             // Else if any manual braking we use standard limit
             2538.
@@ -7245,6 +7254,15 @@ mod tests {
                 self
             }
 
+            fn set_brake_fan_pb(mut self, is_pressed: bool) -> Self {
+                self.write_by_name("BRAKE_FAN_BTN_PRESSED", is_pressed);
+                self
+            }
+
+            fn is_left_brake_fan_running(&mut self) -> bool {
+                self.read_by_name("BRAKE_FAN_LEFT_RUNNING")
+            }
+
             fn set_yellow_e_pump(mut self, is_auto: bool) -> Self {
                 self.write_by_name("OVHD_HYD_EPUMPY_PB_IS_AUTO", is_auto);
                 self
@@ -9694,6 +9712,62 @@ mod tests {
                 test_bed.get_brake_right_yellow_pressure(),
                 Pressure::new::<psi>(900.)
             );
+        }
+
+        #[test]
+        // A320 FCOM DSC-32-30-10 ALTERNATE BRAKING: without anti-skid the brake pressure is limited to 1 000 PSI
+        fn brakes_alternate_without_anti_skid_limited_to_1000_psi() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .set_left_brake(Ratio::new::<percent>(100.))
+                .set_right_brake(Ratio::new::<percent>(100.))
+                .set_gear_lever_down()
+                .set_anti_skid(false)
+                .run_waiting_for(Duration::from_secs(5));
+
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(900.)
+            );
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1050.)
+            );
+            assert_lt!(
+                test_bed.get_brake_right_yellow_pressure(),
+                Pressure::new::<psi>(1050.)
+            );
+        }
+
+        #[test]
+        // A320 FCOM DSC-32-30-20 BRK FAN pb-sw: "The brake fans run if the lefthand main landing gear is down and locked"
+        fn brake_fans_run_in_flight_with_gear_down_and_locked() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .set_brake_fan_pb(true)
+                .run_waiting_for(Duration::from_secs(1));
+            assert!(!test_bed.is_left_brake_fan_running());
+
+            test_bed = test_bed
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs(30));
+            assert!(test_bed.is_all_gears_really_down());
+            assert!(test_bed.is_left_brake_fan_running());
+
+            test_bed = test_bed
+                .set_brake_fan_pb(false)
+                .run_waiting_for(Duration::from_secs(1));
+            assert!(!test_bed.is_left_brake_fan_running());
         }
 
         #[test]

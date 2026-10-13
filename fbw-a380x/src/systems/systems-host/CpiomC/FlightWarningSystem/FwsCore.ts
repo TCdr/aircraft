@@ -157,6 +157,19 @@ import {
   WingsBalanceMonitor,
   WingsBalanceState,
 } from './FwsFuelAlertsRound8';
+import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
+import {
+  areDoorsInTakeoffConfig,
+  CABIN_DOORS,
+  CARGO_DOORS,
+  cargoDoorLockedVariable,
+  isAnyDoorNotClosed,
+  isCabinDoorNotClosed,
+  isCargoDoorNotClosed,
+} from './DoorAlerts';
+import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
+import { FwsGearAlerts } from './FwsGearAlerts';
+import { FwsNavAlerts, readSideDisplayData } from './FwsNavAlerts';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -687,27 +700,18 @@ export class FwsCore {
 
   public readonly inhibitedByDoors = Subject.create(false);
 
-  public readonly cabinDoorOpen = Subject.create(false);
+  /** At least one passenger (main or upper deck) or cargo door is not closed and locked, see DoorAlerts.ts */
+  public readonly anyDoorNotClosed = Subject.create(false);
 
-  private readonly interactivePointZeroOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:0');
+  /** INTERACTIVE POINT OPEN of each passenger door, in percent over 100, in CABIN_DOORS order (index = point) */
+  private readonly cabinDoorOpenRatios = CABIN_DOORS.map((_, point) =>
+    RegisteredSimVar.create<number>(`INTERACTIVE POINT OPEN:${point}`, SimVarValueType.PercentOver100),
+  );
 
-  private readonly interactivePointOneOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:1');
-
-  private readonly interactivePointTwoOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:2');
-
-  private readonly interactivePointThreeOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:3');
-
-  private readonly interactivePointFourOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:4');
-
-  private readonly interactivePointFiveOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:5');
-
-  private readonly interactivePointSixOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:6');
-
-  private readonly interactivePointSevenOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:7');
-
-  private readonly interactivePointEightOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:8');
-
-  private readonly interactivePointNineOpen = RegisteredSimVar.createBoolean('INTERACTIVE POINT OPEN:9');
+  /** The Rust hydraulic cargo doors' locked L:vars (1 = closed and locked), in CARGO_DOORS order */
+  private readonly cargoDoorLockedVars = CARGO_DOORS.map((door) =>
+    RegisteredSimVar.create<number>(cargoDoorLockedVariable(door), SimVarValueType.Number),
+  );
 
   public readonly allOutflowValvesOpen = Subject.create(false);
 
@@ -1747,6 +1751,15 @@ export class FwsCore {
 
   public readonly eng4PumpDisc = Subject.create(false);
 
+  /** ENG n PMP A or B pb-sw OFF with the pump still pressurised (HYD SYS OVHT DISC lines, see HydOverheatFlags) */
+  public readonly eng1PumpsOffUnsuccessful = Subject.create(false);
+
+  public readonly eng2PumpsOffUnsuccessful = Subject.create(false);
+
+  public readonly eng3PumpsOffUnsuccessful = Subject.create(false);
+
+  public readonly eng4PumpsOffUnsuccessful = Subject.create(false);
+
   public readonly yellowAbnormLoPressure = Subject.create(false);
 
   public readonly yellowRsvLoAirPressure = Subject.create(false);
@@ -1886,6 +1899,9 @@ export class FwsCore {
 
   public readonly brakesHot = Subject.create(false);
 
+  /** At least one brake at or above 300 °C, read once per update */
+  private anyBrakeHot = false;
+
   public readonly phase815MinConfNode = new NXLogicConfirmNode(900);
 
   public readonly phase112 = this.flightPhase.map((v) => v === 1 || v === 12);
@@ -1905,6 +1921,16 @@ export class FwsCore {
   public readonly lgciu1DiscreteWord4 = Arinc429Register.empty();
 
   public readonly lgciu2DiscreteWord4 = Arinc429Register.empty();
+
+  public readonly lgciu1DiscreteWord3 = Arinc429Register.empty();
+
+  public readonly lgciu2DiscreteWord3 = Arinc429Register.empty();
+
+  /** L/G CTL FAULT, GEAR NOT LOCKED DOWN/UP, DOORS NOT CLOSED, SYSTEM DISAGREE (A380 FCOM PRO-ABN-ECAM-10-32) */
+  public readonly gearAlerts = new FwsGearAlerts();
+
+  /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
+  public readonly navAlerts = new FwsNavAlerts();
 
   public isAllGearDownlocked = false;
 
@@ -2769,16 +2795,11 @@ export class FwsCore {
 
   public readonly cockpitWindowOpen = Subject.create(false);
 
-  public readonly main1LOpen = Subject.create(false);
-  public readonly main1ROpen = Subject.create(false);
-  public readonly main2LOpen = Subject.create(false);
-  public readonly main2ROpen = Subject.create(false);
-  public readonly main3LOpen = Subject.create(false);
-  public readonly main3ROpen = Subject.create(false);
-  public readonly main4LOpen = Subject.create(false);
-  public readonly main4ROpen = Subject.create(false);
-  public readonly main5LOpen = Subject.create(false);
-  public readonly main5ROpen = Subject.create(false);
+  /** DOOR MAIN 1L ... UPPER 3R NOT CLOSED triggers, in CABIN_DOORS order (index = interactive point) */
+  public readonly cabinDoorNotClosed = CABIN_DOORS.map(() => Subject.create(false));
+
+  /** DOOR FWD(AFT) CARGO NOT CLOSED triggers, in CARGO_DOORS order */
+  public readonly cargoDoorNotClosed = CARGO_DOORS.map(() => Subject.create(false));
 
   public readonly fmsPredUnreliablePreCondition = this.aircraftOnGround.map(SubscribableMapFunctions.not());
 
@@ -4006,6 +4027,14 @@ export class FwsCore {
           !this.greenYellowAbnormLoPressure.get() &&
           !this.greenRsvOverheat.get()),
     );
+    this.eng1PumpsOffUnsuccessful.set(
+      isEnginePumpsTurnOffUnsuccessful(
+        this.eng1APumpAuto.get(),
+        !eng1APumpBelow2900,
+        this.eng1BPumpAuto.get(),
+        !eng1BPumpBelow2900,
+      ),
+    );
 
     this.eng2APumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_2A_PUMP_PB_IS_AUTO', 'bool'));
     this.eng2BPumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_2B_PUMP_PB_IS_AUTO', 'bool'));
@@ -4045,6 +4074,14 @@ export class FwsCore {
           eng2BPumpBelow2900 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.greenRsvOverheat.get()),
+    );
+    this.eng2PumpsOffUnsuccessful.set(
+      isEnginePumpsTurnOffUnsuccessful(
+        this.eng2APumpAuto.get(),
+        !eng2APumpBelow2900,
+        this.eng2BPumpAuto.get(),
+        !eng2BPumpBelow2900,
+      ),
     );
 
     this.eng3APumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_3A_PUMP_PB_IS_AUTO', 'bool'));
@@ -4087,6 +4124,14 @@ export class FwsCore {
           !this.greenYellowAbnormLoPressure.get() &&
           !this.yellowRsvOverheat.get()),
     );
+    this.eng3PumpsOffUnsuccessful.set(
+      isEnginePumpsTurnOffUnsuccessful(
+        this.eng3APumpAuto.get(),
+        !eng3APumpBelow2900,
+        this.eng3BPumpAuto.get(),
+        !eng3BPumpBelow2900,
+      ),
+    );
 
     this.eng4APumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_4A_PUMP_PB_IS_AUTO', 'bool'));
     this.eng4BPumpAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_4B_PUMP_PB_IS_AUTO', 'bool'));
@@ -4127,6 +4172,14 @@ export class FwsCore {
           eng4BPumpBelow2900 &&
           !this.greenYellowAbnormLoPressure.get() &&
           !this.yellowRsvOverheat.get()),
+    );
+    this.eng4PumpsOffUnsuccessful.set(
+      isEnginePumpsTurnOffUnsuccessful(
+        this.eng4APumpAuto.get(),
+        !eng4APumpBelow2900,
+        this.eng4BPumpAuto.get(),
+        !eng4BPumpBelow2900,
+      ),
     );
 
     this.threeYellowPumpsFailed.set(
@@ -4240,7 +4293,9 @@ export class FwsCore {
 
     this.antiSkidSwitchOff.set(!SimVar.GetSimVarValue('ANTISKID BRAKES ACTIVE', 'bool'));
 
-    const brakesHot = SimVar.GetSimVarValue('L:A32NX_BRAKES_HOT', 'bool');
+    // BRAKES HOT from the reported brake temperatures (A380 FCOM: at least one brake at or above 300 °C)
+    const brakesHot = isAnyBrakeHot(readReportedBrakeTemperaturesC((name) => SimVar.GetSimVarValue(name, 'celsius')));
+    this.anyBrakeHot = brakesHot;
 
     this.brakesHot.set(brakesHot && !this.phase815MinConfNode.read());
 
@@ -4250,6 +4305,34 @@ export class FwsCore {
     this.lgciu2DiscreteWord2.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_2');
     this.lgciu1DiscreteWord4.setFromSimVar('L:A32NX_LGCIU_1_DISCRETE_WORD_4');
     this.lgciu2DiscreteWord4.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_4');
+    this.lgciu1DiscreteWord3.setFromSimVar('L:A32NX_LGCIU_1_DISCRETE_WORD_3');
+    this.lgciu2DiscreteWord3.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_3');
+    this.gearAlerts.update(
+      deltaTime,
+      {
+        word1: this.lgciu1DiscreteWord1,
+        word2: this.lgciu1DiscreteWord2,
+        word3: this.lgciu1DiscreteWord3,
+        word4: this.lgciu1DiscreteWord4,
+      },
+      {
+        word1: this.lgciu2DiscreteWord1,
+        word2: this.lgciu2DiscreteWord2,
+        word3: this.lgciu2DiscreteWord3,
+        word4: this.lgciu2DiscreteWord4,
+      },
+      this.aircraftOnGround.get(),
+      SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', 'number') === 2,
+    );
+    const navTrueRef = SimVar.GetSimVarValue('L:A32NX_PUSH_TRUE_REF', 'bool') > 0;
+    const navAirKnob = SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum');
+    const navAttKnob = SimVar.GetSimVarValue('L:A32NX_ATT_HDG_SWITCHING_KNOB', 'enum');
+    this.navAlerts.update(
+      deltaTime,
+      readSideDisplayData(true, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
+      readSideDisplayData(false, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
+      navTrueRef,
+    );
     const parkBrakeSet = SimVar.GetSimVarValue('L:A32NX_PARK_BRAKE_LEVER_POS', 'Number') === 1;
     this.parkBrakeSet.set(parkBrakeSet);
     this.lgParkBrkOn.set(this.parkBrake2sConfNode.write(parkBrakeSet, deltaTime));
@@ -5109,20 +5192,16 @@ export class FwsCore {
       diffPressureAbovePoint072 && ((this.aircraftOnGround.get() && engNotRunning) || this.phase10For90sConfirm.read()),
     );
 
-    this.cabinDoorOpen.set(
-      this.main1LOpen.get() ||
-        this.main2LOpen.get() ||
-        this.main2ROpen.get() ||
-        this.main3LOpen.get() ||
-        this.main3ROpen.get() ||
-        this.main4LOpen.get() ||
-        this.main4ROpen.get() ||
-        this.main5LOpen.get() ||
-        this.main5ROpen.get(),
+    // CAB PRESS INHIBITED BY DOORS: every passenger door (main and upper deck) and the cargo doors, set in DOOR below
+    this.anyDoorNotClosed.set(
+      isAnyDoorNotClosed(
+        this.cabinDoorNotClosed.map((door) => door.get()),
+        this.cargoDoorNotClosed.map((door) => door.get()),
+      ),
     );
 
     this.inhibitedByDoors.set(
-      this.cabinDoorOpen.get() &&
+      this.anyDoorNotClosed.get() &&
         (this.throttle2Position.get() >= 45 || (this.throttle2Position.get() >= 35 && flexThrustLimit)),
     );
 
@@ -6326,16 +6405,13 @@ export class FwsCore {
         SimVar.GetSimVarValue('L:FO_SLIDING_WINDOW', 'number') === 1,
     );
 
-    this.main1LOpen.set(this.interactivePointZeroOpen.get());
-    this.main1ROpen.set(this.interactivePointOneOpen.get());
-    this.main2LOpen.set(this.interactivePointTwoOpen.get());
-    this.main2ROpen.set(this.interactivePointThreeOpen.get());
-    this.main3LOpen.set(this.interactivePointFourOpen.get());
-    this.main3ROpen.set(this.interactivePointFiveOpen.get());
-    this.main4LOpen.set(this.interactivePointSixOpen.get());
-    this.main4ROpen.set(this.interactivePointSevenOpen.get());
-    this.main5LOpen.set(this.interactivePointEightOpen.get());
-    this.main5ROpen.set(this.interactivePointNineOpen.get());
+    // Main deck (points 0-9) and upper deck (points 10-15) passenger doors, then the FWD and AFT cargo doors
+    this.cabinDoorOpenRatios.forEach((openRatio, point) =>
+      this.cabinDoorNotClosed[point].set(isCabinDoorNotClosed(openRatio.get())),
+    );
+    this.cargoDoorLockedVars.forEach((locked, index) =>
+      this.cargoDoorNotClosed[index].set(isCargoDoorNotClosed(locked.get())),
+    );
 
     /* CABIN READY */
 
@@ -6578,14 +6654,15 @@ export class FwsCore {
       // A380 FCOM DSC-31-40-10 T.O CONFIG test (l.72715-72759, ToConfigNormal.ts): the ELEC DRIVE / GEN alerts of the four
       // engines and ENG OIL TEMP LO replace the A320 GEN 1+2 potential check
 
-      const cabin = SimVar.GetSimVarValue('INTERACTIVE POINT OPEN:0', 'percent');
-      const catering = SimVar.GetSimVarValue('INTERACTIVE POINT OPEN:3', 'percent');
-      const cargofwdLocked = SimVar.GetSimVarValue('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'bool');
-      const cargoaftLocked = SimVar.GetSimVarValue('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'bool');
-      const brakesHot = SimVar.GetSimVarValue('L:A32NX_BRAKES_HOT', 'bool');
+      const brakesHot = this.anyBrakeHot;
 
       const speeds = !toSpeedsTooLow && !toV2VRV2Disagree && !fmToSpeedsNotInserted;
-      const doors = !!(cabin === 0 && catering === 0 && cargoaftLocked && cargofwdLocked);
+      // Every main and upper deck passenger door, both cargo doors and the cockpit sliding windows (set in DOOR above)
+      const doors = areDoorsInTakeoffConfig(
+        this.cabinDoorNotClosed.map((door) => door.get()),
+        this.cargoDoorNotClosed.map((door) => door.get()),
+        this.cockpitWindowOpen.get(),
+      );
       const surfacesNotTo =
         flapsNotInToPos ||
         slatsNotInToPos ||
