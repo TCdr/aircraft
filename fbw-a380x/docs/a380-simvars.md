@@ -1424,6 +1424,41 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - True while the fire test is requested: the fire test pushbutton is pressed, or was released less than 7 seconds
       ago when A32NX_FIRE_TEST_EXTEND is true
 
+- A32NX_SMOKE_{zone}_DETECTED
+    - Bool
+    - {zone} = FWD_CARGO, AFT_CARGO, BULK_CARGO, L_MAIN_AVNCS, R_MAIN_AVNCS, L_UPPER_AVNCS, R_UPPER_AVNCS, AFT_AVNCS,
+      IFE_BAY
+    - True when the Smoke Detection Function (SDF) detects smoke in the compartment: both detectors sense it, or one does
+      and the other is failed (A380 FCOM DSC-26-50-10 / DSC-26-60-10 DETECTION LOGIC; systems
+      fire_protection/smoke_detection.rs). The smoke comes from the flyPad failures "<compartment> smoke"
+    - Read by the FWS for the SMOKE ... SMOKE warnings (the main / upper avionics bay logic is in the FWS), and by the
+      AGENT TO FWD (AFT) pb SMOKE lights for the cargo compartments
+
+- A32NX_SMOKE_{zone}_DET_FAULT
+    - Bool
+    - True when a detector of the compartment is failed (flyPad failure or no supply: detector 1 DC ESS bus, detector 2
+      DC 2 bus) or only one detector senses the smoke, and the SMOKE warning is not on. Drives the SMOKE ... DET FAULT
+      cautions
+
+- A32NX_CARGOSMOKE_{FWD | AFT}_DISCHARGED
+    - Bool
+    - True once the AGENT TO FWD (AFT) pb of the CARGO SMOKE panel was pressed
+
+- A32NX_CARGOSMOKE_{FWD | AFT}_AGENT_RELEASED
+    - Bool
+    - True once the cargo fire bottles discharge into that compartment (the first AGENT pb pressed while a bottle is
+      full; the AFT agent goes to the aft/bulk compartment). Drives the DISCH light of the AGENT pb
+
+- A32NX_CARGOSMOKE_BOTTLE_{1 | 2}_DISCHARGED
+    - Bool
+    - True when the cargo fire bottle is fully discharged: bottle 1 about one minute after the AGENT pb, then bottle 2
+      slowly, about four hours (A380 FCOM DSC-26-60-10 FIRE EXTINGUISHING). Drives the BTL 1(2) lights
+
+- A32NX_CARGOSMOKE_BOTTLE_{1 | 2}_LOW_PRESSURE
+    - Bool
+    - True when the cargo fire bottle lost its agent (flyPad failure "Cargo fire bottle 1(2) low pressure"); drives SMOKE
+      FWD+AFT CARGO BTL 1(2) FAULT
+
 ## Flight Controls (ATA 27)
 
 ### Electronic Flight Control System (EFCS)
@@ -2372,6 +2407,13 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 - A32NX_APU_FUEL_USED
   - `Arinc429Word<Mass>`
   - The APU fuel used, in kilograms
+
+- A32NX_APU_IS_AUTO_SHUTDOWN
+  - Bool
+  - True after an automatic shutdown of the APU electronic control box (ECB) for a reason other than a fire: fuel low
+    pressure, DC power lost (start motor supply, or the ECB's DC supply above N 70 %), ECB failure, overspeed, low oil
+    pressure, high oil temperature on the ground (A380 FCOM DSC-49-40; the last four from the ATA 49 flyPad failures).
+    Drives APU FAULT
 
 ## Engines ATA 70
   - L:A32NX_OVHD_FADEC_{ENG}

@@ -39,7 +39,7 @@ use systems::integrated_modular_avionics::core_processing_input_output_module::C
 use systems::shared::{
     report_diagnostic, AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType,
     FireDetectionLoopID, FireDetectionZone, GearActuatorId, HydraulicColor, LgciuId,
-    ProximityDetectorId,
+    ProximityDetectorId, SmokeDetectionZone,
 };
 
 use systems_wasm::{MsfsSimulationBuilder, Variable};
@@ -327,6 +327,104 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             26_018,
             FailureType::FireDetectionLoop(FireDetectionLoopID::B, FireDetectionZone::Mlg),
         ),
+        (26_019, FailureType::Smoke(SmokeDetectionZone::ForwardCargo)),
+        (26_020, FailureType::Smoke(SmokeDetectionZone::AftCargo)),
+        (26_021, FailureType::Smoke(SmokeDetectionZone::BulkCargo)),
+        (
+            26_022,
+            FailureType::Smoke(SmokeDetectionZone::LeftMainAvionics),
+        ),
+        (
+            26_023,
+            FailureType::Smoke(SmokeDetectionZone::RightMainAvionics),
+        ),
+        (
+            26_024,
+            FailureType::Smoke(SmokeDetectionZone::LeftUpperAvionics),
+        ),
+        (
+            26_025,
+            FailureType::Smoke(SmokeDetectionZone::RightUpperAvionics),
+        ),
+        (26_026, FailureType::Smoke(SmokeDetectionZone::AftAvionics)),
+        (
+            26_027,
+            FailureType::Smoke(SmokeDetectionZone::InFlightEntertainmentBay),
+        ),
+        (
+            26_028,
+            FailureType::SmokeDetector(SmokeDetectionZone::ForwardCargo, 1),
+        ),
+        (
+            26_029,
+            FailureType::SmokeDetector(SmokeDetectionZone::ForwardCargo, 2),
+        ),
+        (
+            26_030,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftCargo, 1),
+        ),
+        (
+            26_031,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftCargo, 2),
+        ),
+        (
+            26_032,
+            FailureType::SmokeDetector(SmokeDetectionZone::BulkCargo, 1),
+        ),
+        (
+            26_033,
+            FailureType::SmokeDetector(SmokeDetectionZone::BulkCargo, 2),
+        ),
+        (
+            26_034,
+            FailureType::SmokeDetector(SmokeDetectionZone::LeftMainAvionics, 1),
+        ),
+        (
+            26_035,
+            FailureType::SmokeDetector(SmokeDetectionZone::LeftMainAvionics, 2),
+        ),
+        (
+            26_036,
+            FailureType::SmokeDetector(SmokeDetectionZone::RightMainAvionics, 1),
+        ),
+        (
+            26_037,
+            FailureType::SmokeDetector(SmokeDetectionZone::RightMainAvionics, 2),
+        ),
+        (
+            26_038,
+            FailureType::SmokeDetector(SmokeDetectionZone::LeftUpperAvionics, 1),
+        ),
+        (
+            26_039,
+            FailureType::SmokeDetector(SmokeDetectionZone::LeftUpperAvionics, 2),
+        ),
+        (
+            26_040,
+            FailureType::SmokeDetector(SmokeDetectionZone::RightUpperAvionics, 1),
+        ),
+        (
+            26_041,
+            FailureType::SmokeDetector(SmokeDetectionZone::RightUpperAvionics, 2),
+        ),
+        (
+            26_042,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftAvionics, 1),
+        ),
+        (
+            26_043,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftAvionics, 2),
+        ),
+        (
+            26_044,
+            FailureType::SmokeDetector(SmokeDetectionZone::InFlightEntertainmentBay, 1),
+        ),
+        (
+            26_045,
+            FailureType::SmokeDetector(SmokeDetectionZone::InFlightEntertainmentBay, 2),
+        ),
+        (26_046, FailureType::CargoFireBottleLowPressure(1)),
+        (26_047, FailureType::CargoFireBottleLowPressure(2)),
         // SFCC flap and slat channels (hydraulic::sfcc): F/CTL FLAP(SLAT) SYS 1(2) FAULT
         (27_010, FailureType::SlatFlapControlComputerFlapChannel(1)),
         (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),
@@ -592,6 +690,10 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_060, FailureType::AdrAngleOfAttackErroneous(1)),
         (34_061, FailureType::AdrAngleOfAttackErroneous(2)),
         (34_062, FailureType::AdrAngleOfAttackErroneous(3)),
+        (49_000, FailureType::ApuElectronicControlBox),
+        (49_001, FailureType::ApuOverspeed),
+        (49_002, FailureType::ApuOilLowPressure),
+        (49_003, FailureType::ApuOilHighTemperature),
         (34_070, FailureType::AdrFault(1)),
         (34_071, FailureType::AdrFault(2)),
         (34_072, FailureType::AdrFault(3)),
