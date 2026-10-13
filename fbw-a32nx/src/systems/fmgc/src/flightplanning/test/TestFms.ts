@@ -56,6 +56,16 @@ export const testFms: FmsDisplayInterface & FmsDataInterface & { dataManager: Da
     return this.dataManager.createPlaceBearingPlaceBearingWaypoint(place1, bearing1, place2, bearing2, stored, ident);
   },
 
+  createPlaceDistWaypoint(
+    place: Waypoint,
+    distance: NauticalMiles,
+    coordinates: Coordinates,
+    stored: boolean,
+    ident: string,
+  ): PilotWaypoint {
+    return this.dataManager.createPlaceDistWaypoint(place, distance, coordinates, stored, ident);
+  },
+
   getStoredWaypointsByIdent(_ident: string): PilotWaypoint[] {
     return [];
   },
