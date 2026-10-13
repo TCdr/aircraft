@@ -80,7 +80,9 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (ElectricalBusType::DirectCurrentGndFltService, 17),
     ])?
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 21)?
-    .with_engine_anti_ice(4)?
+    // The MSFS engine anti-ice follows the engine anti-ice valves, the MSFS structural deice the wing anti-ice valves
+    // (a380_systems ice_rain_protection.rs)
+    .with_engine_anti_ice_valves(4)?
     .with_wing_anti_ice()?
     .with_fuel_pumps(1..=21)?
     // An engine starves once its LP fuel valve is closed and the fuel left downstream of it is burned
@@ -427,6 +429,23 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             32_025,
             FailureType::GearActuatorJammed(GearActuatorId::GearDoorRight),
         ),
+        // ATA 30 wing and engine anti-ice valves (a380_systems ice_rain_protection.rs)
+        (30_000, FailureType::WingAntiIceValvesStuckClosed(1)),
+        (30_001, FailureType::WingAntiIceValvesStuckClosed(2)),
+        (30_010, FailureType::WingAntiIceOuterValveStuckOpen(1)),
+        (30_011, FailureType::WingAntiIceOuterValveStuckOpen(2)),
+        (30_100, FailureType::EngineAntiIceValveStuckClosed(1)),
+        (30_101, FailureType::EngineAntiIceValveStuckClosed(2)),
+        (30_102, FailureType::EngineAntiIceValveStuckClosed(3)),
+        (30_103, FailureType::EngineAntiIceValveStuckClosed(4)),
+        (30_110, FailureType::EngineAntiIceValveStuckOpen(1)),
+        (30_111, FailureType::EngineAntiIceValveStuckOpen(2)),
+        (30_112, FailureType::EngineAntiIceValveStuckOpen(3)),
+        (30_113, FailureType::EngineAntiIceValveStuckOpen(4)),
+        // ATA 35 oxygen bottles and cabin valves (a380_systems oxygen.rs)
+        (35_000, FailureType::CockpitOxygenBottleLeak),
+        (35_001, FailureType::CabinOxygenBottleLeak),
+        (35_010, FailureType::CabinOxygenValveStuckClosed),
         (34_000, FailureType::RadioAltimeter(1)),
         (34_001, FailureType::RadioAltimeter(2)),
         (34_002, FailureType::RadioAltimeter(3)),

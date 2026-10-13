@@ -296,6 +296,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] New flyPad failures: engine LP fuel valve jammed in place, with FUEL ENG 1(2) LP VALVE OPEN (A32NX) and FUEL ENG 1(2)(3)(4) LP VLV FAULT (A380X); jammed closed, the engine cannot start - @TCdr
 1. [A32NX/FWC] New flyPad failures FQI channel 1 and 2, with the FUEL FQI CH 1(2) FAULT cautions - @TCdr
 1. [A32NX/FWC] New NAV FM/GPS POS DISAGREE and NAV LS TUNING DISAGREE cautions - @TCdr
+1. [A32NX/ICE] The engine anti-ice valves are modelled: a valve opens with its ENG ANTI ICE pb-sw ON (or without electrical power) once the engine supplies air, the pb-sw FAULT light shows a disagreement and the MSFS engine anti-ice follows the valve; new flyPad failures (ATA 30) engine 1(2) anti-ice valve stuck closed/open with the ANTI ICE ENG 1(2) VALVE CLSD and VALVE OPEN cautions and their STATUS - @TCdr
+1. [A32NX/ICE] New probe and window heat computers with flyPad failures (ATA 30) of the probe heat computers, the pitot, static, AOA and TAT heaters and the windshield and side window heating, and the ANTI ICE probe and window cautions of the FCOM (ALL PITOT, pitot pairs, PROBES, PITOT/STAT/AOA, TAT, WINDSHIELD, WINDOW) with their procedure lines and STATUS - @TCdr
+1. [A32NX/A380X] Key bindings and hardware panels that send the MSFS anti-ice events (ANTI_ICE_TOGGLE_ENGn, ANTI_ICE_SET_ENGn, ANTI_ICE_ON/OFF/SET/TOGGLE, TOGGLE_STRUCTURAL_DEICE) now move the ENG and WING ANTI ICE pb-sw, and the sim anti-ice follows the valves - @TCdr
 
 ## 2024.1.0
 

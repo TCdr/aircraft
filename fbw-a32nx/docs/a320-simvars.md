@@ -3023,6 +3023,58 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION:
     - Indicates whether the overhead ENG ANTI ICE button is illuminated for engine 2
     - Bool
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_VALVE_OPEN:
+    - Whether the engine anti-ice valve of the engine is not fully closed (systems ice_rain_protection). It opens with
+      the ENG ANTI ICE pb-sw ON, or without its electrical power, when the HP compressor supplies air; the MSFS
+      ENG ANTI ICE follows it
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_FAULT:
+    - The FAULT light of the ENG ANTI ICE pb-sw: the valve position disagrees with the pb-sw, also while it transits
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PHC_{number}_FAULT:
+    - The probe heat computer is failed (ANTI ICE CAPT(F/O)(STBY) PROBES)
+    - Bool
+    - {number}
+        - 1 (CAPT)
+        - 2 (F/O)
+        - 3 (STBY)
+
+- A32NX_PHC_{number}_{probe}_HEAT_FAULT:
+    - The probe heat computer detects the failure of the heater of the probe while it heats it
+    - Bool
+    - {number}
+        - 1 (CAPT)
+        - 2 (F/O)
+        - 3 (STBY, no TAT probe)
+    - {probe}
+        - PITOT
+        - L_STATIC
+        - R_STATIC
+        - AOA
+        - TAT
+
+- A32NX_WHC_{number}_WINDSHIELD_HEAT_FAULT:
+    - The window heat computer detects the failure of the windshield heating while it heats it
+    - Bool
+    - {number}
+        - 1 (left)
+        - 2 (right)
+
+- A32NX_WHC_{number}_WINDOW_HEAT_FAULT:
+    - The window heat computer detects the failure of the side window heating while it heats it
+    - Bool
+    - {number}
+        - 1 (left)
+        - 2 (right)
 ## Autoflight (ATA 22)
 
 ### Flight Management and Guidance Computer (FMGC, Flight Guidance Section)
