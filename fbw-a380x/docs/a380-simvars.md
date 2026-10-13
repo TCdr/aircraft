@@ -1908,6 +1908,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
       | STS   | 14    |
       | VIDEO | 15    |
 
+- A380X_ECAM_SD_ADVISORY_PB
+    - Number
+    - Read only!
+    - The ECAM CP page pb lit by an ECAM advisory (steady, or flashing while the crew has another page selected): the
+      page index of A32NX_ECAM_SD_CURRENT_PAGE_INDEX + 1, 0 when none (A380 FCOM DSC-31-40-10 ADVISORY)
+
 
 ## EFIS Control Panel ATA 31
 

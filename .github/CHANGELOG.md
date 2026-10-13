@@ -312,6 +312,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/F_CTL] New flyPad failures of the SFCC 1(2) flap and slat channels: half speed flaps or slats and F/CTL FLAP(SLAT) SYS 1(2) / 1+2 FAULT - @TCdr
 1. [A380X/IMA] New flyPad failures (ATA 42) of the 16 AFDX switches, the 8 IOMs and the 22 CPIOMs of the avionics network - @TCdr
 1. [A380X/FWS] New TAIL STRIKE caution (LAND ANSA) from a tail strike detector based on the FCOM geometry limit, and TAIL STRIKE DET FAULT with its flyPad failure - @TCdr
+1. [A380X/FWS] ECAM advisories: an ENGINE (oil quantity, oil temperature, vibration) or CAB PRESS (cabin V/S) value pulsing on the SD calls its page in flight phase mode, lights or flashes its ECP pb and shows ADV on the EWD - @TCdr
+1. [A380X/SD] STATUS MORE page: new ALERTS IMPACTING LDG PERF section, and the MORE INFO line of MISC OIS FAULT - @TCdr
 
 ## 2024.1.0
 
