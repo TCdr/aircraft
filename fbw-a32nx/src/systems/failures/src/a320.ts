@@ -96,6 +96,12 @@ export const A320Failure = Object.freeze({
   Sec3Failure: 27004,
   Fcdc1Failure: 27005,
   Fcdc2Failure: 27006,
+  // Slat and flap channels of the SFCCs (a320_systems hydraulic/sfcc): the channel no longer drives its motor, the
+  // surfaces move at half speed (a320_fcom.txt l.41431); F/CTL FLAP(SLAT) SYS 1(2) FAULT (l.83217-83247, l.84321-84341)
+  Sfcc1FlapChannel: 27010,
+  Sfcc2FlapChannel: 27011,
+  Sfcc1SlatChannel: 27012,
+  Sfcc2SlatChannel: 27013,
 
   // ATA 28 (systems-host Fuel/FuelPumpsAndValves): a pump failure holds the MSFS pump switch off, the X FEED valve jam
   // holds the MSFS valve switch where the valve was, while the pb-sw selections still change
@@ -416,6 +422,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [27, A320Failure.Sec3Failure, 'SEC 3'],
   [27, A320Failure.Fcdc1Failure, 'FCDC 1'],
   [27, A320Failure.Fcdc2Failure, 'FCDC 2'],
+  [27, A320Failure.Sfcc1FlapChannel, 'SFCC 1 flap channel'],
+  [27, A320Failure.Sfcc2FlapChannel, 'SFCC 2 flap channel'],
+  [27, A320Failure.Sfcc1SlatChannel, 'SFCC 1 slat channel'],
+  [27, A320Failure.Sfcc2SlatChannel, 'SFCC 2 slat channel'],
 
   [28, A320Failure.LeftTankPump1, 'L TK pump 1'],
   [28, A320Failure.LeftTankPump2, 'L TK pump 2'],

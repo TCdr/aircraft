@@ -3,6 +3,7 @@ use super::{
     AvionicsDataCommunicationNetworkMessageIdentifier,
 };
 use crate::{
+    failures::{Failure, FailureType},
     shared::{power_supply_relay::PowerSupplyRelay, ElectricalBusType, ElectricalBuses},
     simulation::{
         InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
@@ -24,6 +25,8 @@ pub struct AvionicsFullDuplexSwitch<MessageData: Clone + Eq + PartialEq> {
     failure_indication_id: VariableIdentifier,
     last_failure_indication: bool,
     failure_indication: bool,
+    /// The flyPad failure of this switch, an addition to the failure L:var (AFDX_SWITCH_n_FAILURE)
+    failure: Failure,
     available_id: VariableIdentifier,
     routing_update_required: bool,
     adcn_messages: Rc<
@@ -49,6 +52,7 @@ impl<MessageData: Clone + Eq + PartialEq> AvionicsFullDuplexSwitch<MessageData> 
             failure_indication_id: context.get_identifier(format!("AFDX_SWITCH_{}_FAILURE", id)),
             last_failure_indication: false,
             failure_indication: false,
+            failure: Failure::new(FailureType::AvionicsFullDuplexSwitch(id)),
             available_id: context.get_identifier(format!("AFDX_SWITCH_{}_AVAIL", id)),
             routing_update_required: false,
             adcn_messages: Rc::new(FxHashMap::default().into()),
@@ -71,6 +75,7 @@ impl<MessageData: Clone + Eq + PartialEq> AvionicsFullDuplexSwitch<MessageData> 
             failure_indication_id: context.get_identifier(format!("AFDX_SWITCH_{}_FAILURE", id)),
             last_failure_indication: false,
             failure_indication: false,
+            failure: Failure::new(FailureType::AvionicsFullDuplexSwitch(id)),
             available_id: context.get_identifier(format!("AFDX_SWITCH_{}_AVAIL", id)),
             routing_update_required: false,
             adcn_messages: Rc::new(FxHashMap::default().into()),
@@ -78,7 +83,12 @@ impl<MessageData: Clone + Eq + PartialEq> AvionicsFullDuplexSwitch<MessageData> 
     }
 
     pub fn is_available(&self) -> bool {
-        self.is_powered && !self.failure_indication
+        self.is_powered && !self.is_failed()
+    }
+
+    /// The switch is failed by its failure L:var or by its flyPad failure
+    fn is_failed(&self) -> bool {
+        self.failure_indication || self.failure.is_active()
     }
 
     pub fn update(&mut self) {
@@ -88,9 +98,9 @@ impl<MessageData: Clone + Eq + PartialEq> AvionicsFullDuplexSwitch<MessageData> 
 
         // do not recalculate in every step the routing table
         self.routing_update_required = self.last_is_powered != self.is_powered
-            || self.last_failure_indication != self.failure_indication;
+            || self.last_failure_indication != self.is_failed();
 
-        self.last_failure_indication = self.failure_indication;
+        self.last_failure_indication = self.is_failed();
         self.last_is_powered = self.is_powered;
     }
 
@@ -167,6 +177,7 @@ impl<MessageData: Clone + Eq + PartialEq> SimulationElement
         if let PowerSupply::Relay(ref mut power_supply_relay) = self.power_supply {
             power_supply_relay.accept(visitor);
         }
+        self.failure.accept(visitor);
         visitor.visit(self);
     }
 

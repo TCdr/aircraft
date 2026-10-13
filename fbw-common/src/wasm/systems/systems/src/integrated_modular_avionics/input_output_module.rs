@@ -1,13 +1,14 @@
 use super::{
-    avionics_full_duplex_switch::AvionicsFullDuplexSwitch,
+    avionics_full_duplex_switch::AvionicsFullDuplexSwitch, module_letter, module_number,
     AvionicsDataCommunicationNetworkEndpoint, AvionicsDataCommunicationNetworkMessage,
     AvionicsDataCommunicationNetworkMessageIdentifier,
 };
 use crate::{
+    failures::{Failure, FailureType},
     shared::{ElectricalBusType, ElectricalBuses},
     simulation::{
-        InitContext, Read, SimulationElement, SimulatorReader, SimulatorWriter, VariableIdentifier,
-        Write,
+        InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
+        SimulatorWriter, VariableIdentifier, Write,
     },
 };
 use std::{cell::RefCell, rc::Rc};
@@ -18,6 +19,8 @@ pub struct InputOutputModule<MessageData: Clone + Eq + PartialEq> {
     available_id: VariableIdentifier,
     failure_indication_id: VariableIdentifier,
     failure_indication: bool,
+    /// The flyPad failure of this module, an addition to the failure L:var (IOM_<name>_FAILURE)
+    failure: Failure,
     connected_switches: Vec<Rc<RefCell<AvionicsFullDuplexSwitch<MessageData>>>>,
 }
 
@@ -34,12 +37,16 @@ impl<MessageData: Clone + Eq + PartialEq> InputOutputModule<MessageData> {
             available_id: context.get_identifier(format!("IOM_{}_AVAIL", name)),
             failure_indication_id: context.get_identifier(format!("IOM_{}_FAILURE", name)),
             failure_indication: false,
+            failure: Failure::new(FailureType::InputOutputModule(
+                module_letter(name),
+                module_number(name),
+            )),
             connected_switches,
         }
     }
 
     pub fn is_available(&self) -> bool {
-        self.is_powered & !self.failure_indication
+        self.is_powered && !self.failure_indication && !self.failure.is_active()
     }
 }
 
@@ -86,6 +93,11 @@ impl<MessageData: Clone + Eq + PartialEq> AvionicsDataCommunicationNetworkEndpoi
 }
 
 impl<MessageData: Clone + Eq + PartialEq> SimulationElement for InputOutputModule<MessageData> {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.failure.accept(visitor);
+        visitor.visit(self);
+    }
+
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.failure_indication = reader.read(&self.failure_indication_id);
     }

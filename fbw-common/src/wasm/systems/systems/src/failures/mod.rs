@@ -69,6 +69,13 @@ pub enum FailureType {
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
     /// The fire detection unit (FDU) channel of one zone is inoperative: no fire warning from that zone
     FireDetectionUnit(FireDetectionZone),
+    // ATA27 slats and flaps (a320_systems / a380_systems hydraulic::sfcc)
+    /// The flap channel of SFCC n no longer controls its flap motor: the flaps move at half speed on the
+    /// other motor, and the SFCC reports a flap fault (F/CTL FLAP SYS n FAULT)
+    SlatFlapControlComputerFlapChannel(usize),
+    /// The slat channel of SFCC n no longer controls its slat motor: the slats move at half speed on the
+    /// other motor, and the SFCC reports a slat fault (F/CTL SLAT SYS n FAULT)
+    SlatFlapControlComputerSlatChannel(usize),
     // ATA29
     ReservoirLeak(HydraulicColor),
     ReservoirAirLeak(HydraulicColor),
@@ -175,6 +182,15 @@ pub enum FailureType {
     IrFault(usize),
     /// The heading of IR n is erroneous: its magnetic and true headings are offset, with a valid status
     IrHeadingErroneous(usize),
+    // ATA42 integrated modular avionics (systems::integrated_modular_avionics)
+    /// AFDX switch n (A380: 1 to 7 and 9 on network A, 11 to 17 and 19 on network B) is failed: it no
+    /// longer routes the network messages
+    AvionicsFullDuplexSwitch(u8),
+    /// The input/output module named by its letter and number (A380: A1 to A8) is failed
+    InputOutputModule(char, u8),
+    /// The core processing input/output module named by its letter and number (A380: A1 to G4) is
+    /// failed, with all its hosted applications
+    CoreProcessingInputOutputModule(char, u8),
     // ATA72
     /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
     EngineFlameout(usize),
