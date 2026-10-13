@@ -169,6 +169,18 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (21_055, FailureType::TrimAirOverheat(ZoneType::Cabin(11))), // MAIN_DECK_1
         (21_056, FailureType::TrimAirOverheat(ZoneType::Cabin(21))), // UPPER_DECK_1
         (21_057, FailureType::TrimAirOverheat(ZoneType::Cargo(1))),  // CARGO_FWD
+        // Pack flow valves 1 and 2 are on pack 1, valves 3 and 4 on pack 2
+        (21_058, FailureType::PackFlowValveJammed(1)),
+        (21_059, FailureType::PackFlowValveJammed(2)),
+        (21_060, FailureType::PackFlowValveJammed(3)),
+        (21_061, FailureType::PackFlowValveJammed(4)),
+        (21_062, FailureType::PackOverheat(1)),
+        (21_063, FailureType::PackOverheat(2)),
+        (21_064, FailureType::PackRegulation(1)),
+        (21_065, FailureType::PackRegulation(2)),
+        (21_066, FailureType::BulkCargoDuctOverheat),
+        (21_067, FailureType::CabinAirExtractValve),
+        (21_068, FailureType::CabinPressureManualControl),
         (24_000, FailureType::TransformerRectifier(1)),
         (24_001, FailureType::TransformerRectifier(2)),
         (24_002, FailureType::TransformerRectifier(3)),

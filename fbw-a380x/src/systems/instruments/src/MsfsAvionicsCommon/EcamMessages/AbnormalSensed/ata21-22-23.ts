@@ -191,7 +191,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   211800019: {
-    title: '\x1b<4m\x1b4mAIR \x1bm PACK 2 VLV 1 FAULT',
+    title: '\x1b<4m\x1b4mAIR\x1bm PACK 2 VLV 1 FAULT',
     sensed: true,
     items: [],
   },

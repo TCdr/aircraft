@@ -55,6 +55,7 @@ pub struct OutflowValveControlModule {
     ocsm_channel_1_failure_id: VariableIdentifier,
     ocsm_channel_2_failure_id: VariableIdentifier,
     ocsm_auto_partition_failure_id: VariableIdentifier,
+    ocsm_manual_control_failure_id: VariableIdentifier,
 
     active_channel: OperatingChannel,
     stand_by_channel: OperatingChannel,
@@ -82,6 +83,8 @@ impl OutflowValveControlModule {
                 "PRESS_OCSM_{}_AUTO_PARTITION_FAILURE",
                 outflow_valve_id
             )),
+            ocsm_manual_control_failure_id: context
+                .get_identifier(format!("PRESS_OCSM_{}_MAN_CTL_FAILURE", outflow_valve_id)),
 
             active_channel: OperatingChannel::new(
                 1,
@@ -216,6 +219,11 @@ impl SimulationElement for OutflowValveControlModule {
             &self.ocsm_auto_partition_failure_id,
             self.acp.auto_failure(),
         );
+        // A controller with both channels failed reports nothing
+        writer.write(
+            &self.ocsm_manual_control_failure_id,
+            self.sop.manual_control_has_failed() && !self.has_failed(),
+        );
     }
 
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -223,6 +231,7 @@ impl SimulationElement for OutflowValveControlModule {
         self.stand_by_channel.accept(visitor);
         self.outflow_valve.accept(visitor);
         self.acp.accept(visitor);
+        self.sop.accept(visitor);
         self.epp.accept(visitor);
 
         visitor.visit(self);
@@ -354,6 +363,10 @@ struct SafetyAndOverridePartition {
     selected_vertical_speed: Velocity,
     altitude_target: ManualTarget<Length>,
     vertical_speed_target: ManualTarget<Velocity>,
+
+    // flyPad failure: the manual pressurization mode is failed, the MAN selections have no effect (CAB PRESS MAN CTL
+    // FAULT, a380_fcom.txt l.135534-135580)
+    manual_control_failure: Failure,
 }
 
 impl SafetyAndOverridePartition {
@@ -374,6 +387,8 @@ impl SafetyAndOverridePartition {
             selected_vertical_speed: Velocity::default(),
             altitude_target: ManualTarget::new(),
             vertical_speed_target: ManualTarget::new(),
+
+            manual_control_failure: Failure::new(FailureType::CabinPressureManualControl),
         }
     }
 
@@ -385,8 +400,10 @@ impl SafetyAndOverridePartition {
         self.cabin_altitude =
             InternationalStandardAtmosphere::altitude_from_pressure(cabin_pressure);
 
-        let is_alt_man_sel = pressurization_overhead.is_alt_man_sel();
-        let is_vs_man_sel = pressurization_overhead.is_vs_man_sel();
+        // With the manual mode failed, the pb-sws set to MAN have no effect: the automatic control goes on
+        let manual_control_available = !self.manual_control_failure.is_active();
+        let is_alt_man_sel = manual_control_available && pressurization_overhead.is_alt_man_sel();
+        let is_vs_man_sel = manual_control_available && pressurization_overhead.is_vs_man_sel();
 
         // CABIN ALT TRGT: the cabin altitude when the MAN mode is engaged, until the selector turns
         if is_alt_man_sel && !self.is_alt_man_sel {
@@ -464,6 +481,18 @@ impl SafetyAndOverridePartition {
         } else {
             None
         }
+    }
+
+    fn manual_control_has_failed(&self) -> bool {
+        self.manual_control_failure.is_active()
+    }
+}
+
+impl SimulationElement for SafetyAndOverridePartition {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.manual_control_failure.accept(visitor);
+
+        visitor.visit(self);
     }
 }
 

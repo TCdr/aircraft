@@ -108,6 +108,28 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  it('lists the pack, bulk cargo duct, cabin air extract and manual pressurization failures in ATA 21', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [21058, 'PackFlowValveJammed(1)', 'Pack 1 flow valve 1 jammed'],
+      [21059, 'PackFlowValveJammed(2)', 'Pack 1 flow valve 2 jammed'],
+      [21060, 'PackFlowValveJammed(3)', 'Pack 2 flow valve 1 jammed'],
+      [21061, 'PackFlowValveJammed(4)', 'Pack 2 flow valve 2 jammed'],
+      [21062, 'PackOverheat(1)', 'Pack 1 overheat'],
+      [21063, 'PackOverheat(2)', 'Pack 2 overheat'],
+      [21064, 'PackRegulation(1)', 'Pack 1 regulation fault (bypass mode)'],
+      [21065, 'PackRegulation(2)', 'Pack 2 regulation fault (bypass mode)'],
+      [21066, 'BulkCargoDuctOverheat', 'Bulk cargo duct overheat (heater)'],
+      [21067, 'CabinAirExtractValve', 'Cabin air extract valve failed'],
+      [21068, 'CabinPressureManualControl', 'Cabin pressure manual control failed'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[0], definitionOf(id)?.[2]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, 21, name]),
+    );
+  });
+
   it('lists the braking and steering control failures under the ids and Rust failures of brake_steer_faults.rs', () => {
     const rustMap = readRustFailureMap();
     const expected: [number, string, string][] = [
