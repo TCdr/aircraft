@@ -1789,6 +1789,15 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Bool
     - The FAULT light of the ENG ANTI ICE pb: the valve position disagrees with the pb
 
+- A380X_OVHD_FUEL_{tank}_XFR_PB_IS_AUTO
+  - Bool
+  - {tank}
+    - OUTRTK (OUTR TK XFR pb-sw)
+    - MIDTK (MID TK XFR pb-sw)
+    - INRTK (INR TK XFR pb-sw)
+    - TRIMTK (TRIM TK XFR pb-sw)
+  - True when the transfer pb-sw is in AUTO (released, no light); false in MAN (FWD for the trim tank: pressed in, MAN / FWD light). Set to true (AUTO) at every flight load by the systems host (CpiomF/LegacyFuel, FuelManualTransfer). While any of them is in MAN / FWD the automatic transfers stop and the systems host runs the manual transfers on the MSFS fuel system (FCOM DSC-28-40 MANUAL TRANSFERS): outer tank pumps via the forward gallery into the four feed tanks (with an outer tank pump pb-sw OFF, the emergency outer tank transfer valves open instead, by gravity into feed tanks 1 and 4), inner and mid tank aft pumps via the aft gallery into the feed tanks, trim tank pumps via the trim line isolation valve and the aft gallery into the inner tanks (into the feed tanks when an inner or mid tank manual transfer is also selected). Back to AUTO, the transfer pumps stop, the transfer valves close and the automatic transfers start again
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL

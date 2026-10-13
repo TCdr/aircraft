@@ -3,6 +3,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FuelSwitchAccess } from '@flybywiresim/fbw-sdk';
+import { L_OUTR_TK_PUMP, OUTR_TK_XFR_PB_IS_AUTO_VAR, R_OUTR_TK_PUMP } from './FuelManualTransfer';
 import {
   A380_EMER_OUTER_TRANSFER_VALVES,
   EMER_OUTR_TK_XFR_PB_IS_ON_VAR,
@@ -12,8 +13,12 @@ import {
 
 describe('EMER OUTR TK XFR pb-sw (A380 FCOM DSC-28-20)', () => {
   it('commands the emergency outer tank transfer valves open when ON, closed when OFF', () => {
-    expect(isEmerOuterTransferCommandedOpen(true)).toBe(true);
-    expect(isEmerOuterTransferCommandedOpen(false)).toBe(false);
+    expect(isEmerOuterTransferCommandedOpen(true, false)).toBe(true);
+    expect(isEmerOuterTransferCommandedOpen(false, false)).toBe(false);
+  });
+
+  it('opens them for a manual outer tank transfer with an outer tank pump off (DSC-28-10 l.57573-57575)', () => {
+    expect(isEmerOuterTransferCommandedOpen(false, true)).toBe(true);
   });
 
   it('drives the MSFS valves 52 and 53 (outer tank to FEED TK 1 and 4)', () => {
@@ -40,6 +45,10 @@ describe('FuelEmerOuterTransfer', () => {
     simVars.clear();
     commands.length = 0;
     vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
+    // The normal panel: OUTR TK XFR in AUTO, both outer tank pumps ON
+    simVars.set(OUTR_TK_XFR_PB_IS_AUTO_VAR, 1);
+    simVars.set(`A:CIRCUIT CONNECTION ON:${L_OUTR_TK_PUMP.circuit}`, 1);
+    simVars.set(`A:CIRCUIT CONNECTION ON:${R_OUTR_TK_PUMP.circuit}`, 1);
   });
 
   afterEach(() => {
@@ -74,5 +83,20 @@ describe('FuelEmerOuterTransfer', () => {
     expect(commands).toEqual(['VALVE 52 OPEN', 'VALVE 53 OPEN']);
     transfer.update(FuelEmerOuterTransfer.COMMAND_SETTLE_TIME_MS);
     expect(commands).toEqual(['VALVE 52 OPEN', 'VALVE 53 OPEN', 'VALVE 53 OPEN']);
+  });
+
+  it('opens both valves for a manual outer tank transfer with an outer tank pump pb-sw OFF, not with both ON', () => {
+    const transfer = new FuelEmerOuterTransfer({ deltaTime: 100 }, valves);
+    simVars.set(OUTR_TK_XFR_PB_IS_AUTO_VAR, 0);
+    transfer.update(100);
+    expect(commands).toEqual([]);
+
+    simVars.set(`A:CIRCUIT CONNECTION ON:${L_OUTR_TK_PUMP.circuit}`, 0);
+    transfer.update(100);
+    expect(commands).toEqual(['VALVE 52 OPEN', 'VALVE 53 OPEN']);
+
+    simVars.set(OUTR_TK_XFR_PB_IS_AUTO_VAR, 1);
+    transfer.update(FuelEmerOuterTransfer.COMMAND_SETTLE_TIME_MS);
+    expect(commands).toEqual(['VALVE 52 OPEN', 'VALVE 53 OPEN', 'VALVE 52 CLOSE', 'VALVE 53 CLOSE']);
   });
 });

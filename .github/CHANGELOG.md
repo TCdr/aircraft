@@ -300,6 +300,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ELEC] The APU GEN A(B) pb-sw FAULT light comes on when the GGPCU disconnects the APU generator - @TCdr
 1. [A380X/SD] ELEC AC and DC pages: the GEN, TR, STAT INV and RAT indications turn amber when they are failed - @TCdr
 1. [A380X/HYD] The green (yellow) electric pumps are inhibited only by engine 1 or 2 (3 or 4) running, and in flight, as in the FCOM - @TCdr
+1. [A380X/FUEL] The OUTR, MID and INR TK XFR and TRIM TK XFR pushbuttons now work: they start in AUTO at every flight load, and in MAN (FWD) they stop the automatic transfers and transfer the fuel manually as in the FCOM (outer tanks into the feed tanks, by gravity into feed tanks 1 and 4 with an outer tank pump off; inner and mid tanks into the feed tanks; trim tank into the inner tanks) - @TCdr
 
 ## 2024.1.0
 

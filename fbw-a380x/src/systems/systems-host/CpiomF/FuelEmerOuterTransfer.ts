@@ -3,6 +3,12 @@
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FuelSwitchAccess, msfsFuelValveAccess } from '@flybywiresim/fbw-sdk';
+import {
+  isOuterTransferByGravity,
+  L_OUTR_TK_PUMP,
+  OUTR_TK_XFR_PB_IS_AUTO_VAR,
+  R_OUTR_TK_PUMP,
+} from './FuelManualTransfer';
 
 /**
  * The emergency outer tank transfer valves of the MSFS fuel system (flight_model.cfg Valve.52
@@ -20,12 +26,13 @@ export const EMER_OUTR_TK_XFR_PB_IS_ON_VAR = 'L:A380X_OVHD_FUEL_EMER_OUTR_XFR_PB
  * the outer tanks into the outer feed tanks (FEED TK 1 or 4)"; OFF, "The emergency outer tank transfer valves are
  * closed". DSC-28-10 (l.57567-57577): "In normal operations, the valves remain closed. [...] In some failure cases, the
  * flight crew will open the emergency outer tank transfer valves, via the OUTR TK EMER XFR pb-sw, as requested by the
- * ECAM." Not simulated: the automatic opening for a manual outer tank transfer with an outer tank pump off
- * (l.57570-57573), as the manual transfers are not simulated.
+ * ECAM." They also open automatically "If a manual outer tank transfer is performed with any outer tank pump off"
+ * (l.57573-57575; DSC-28-40 l.59898-59901): see CpiomF/FuelManualTransfer isOuterTransferByGravity.
  * @param pbOn whether the EMER OUTR TK XFR pb-sw is ON
+ * @param outerTransferByGravity whether a manual outer tank transfer is selected with an outer tank pump pb-sw OFF
  */
-export function isEmerOuterTransferCommandedOpen(pbOn: boolean): boolean {
-  return pbOn;
+export function isEmerOuterTransferCommandedOpen(pbOn: boolean, outerTransferByGravity: boolean): boolean {
+  return pbOn || outerTransferByGravity;
 }
 
 /**
@@ -62,6 +69,11 @@ export class FuelEmerOuterTransfer implements Instrument {
 
     const commandedOpen = isEmerOuterTransferCommandedOpen(
       SimVar.GetSimVarValue(EMER_OUTR_TK_XFR_PB_IS_ON_VAR, SimVarValueType.Bool) > 0,
+      isOuterTransferByGravity(
+        SimVar.GetSimVarValue(OUTR_TK_XFR_PB_IS_AUTO_VAR, SimVarValueType.Bool) <= 0,
+        SimVar.GetSimVarValue(`A:CIRCUIT CONNECTION ON:${L_OUTR_TK_PUMP.circuit}`, SimVarValueType.Bool) > 0,
+        SimVar.GetSimVarValue(`A:CIRCUIT CONNECTION ON:${R_OUTR_TK_PUMP.circuit}`, SimVarValueType.Bool) > 0,
+      ),
     );
     for (const valve of A380_EMER_OUTER_TRANSFER_VALVES) {
       if (this.fuelValves.isSwitchOn(valve) !== commandedOpen) {
