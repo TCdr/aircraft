@@ -107,6 +107,12 @@ function setHealthyCruise(bus: EventBus): void {
   simvars.set('L:A32NX_OVHD_PRESS_MODE_SEL_PB_IS_AUTO', 1);
   simvars.set('L:A32NX_SWITCH_TCAS_Position', 2);
   simvars.set('L:A32NX_TRANSPONDER_MODE', 1);
+  // alerts added by other batches (FUEL CTR TK XFR OFF, DOOR FWD/AFT CARGO, CAB PR LDG ELEV FAULT): their normal state
+  simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 1);
+  simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 1);
+  simvars.set('L:A32NX_FWD_DOOR_CARGO_LOCKED', 1);
+  simvars.set('L:A32NX_AFT_DOOR_CARGO_LOCKED', 1);
+  simvars.set('L:A32NX_FM1_LANDING_ELEVATION', normalWord());
 }
 
 /** The real PseudoFWC, both FWCs powered and started */
