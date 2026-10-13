@@ -1,4 +1,4 @@
-// Copyright (c) 2025 FlyByWire Simulations
+// Copyright (c) 2025-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { Arinc429Register, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
@@ -37,6 +37,9 @@ export class FwsSystemDisplayLogic {
 
   /** The MORE page is shown on the SD; also lights the ECP MORE pb (ecam-cp.xml) */
   private readonly sdMoreShownSimvar = RegisteredSimVar.create('L:A32NX_ECAM_SD_MORE_SHOWN', SimVarValueType.Number);
+
+  /** The page on which the crew showed the MORE page (EcamSdMore sdMoreShownToKeep), null without a MORE page */
+  private moreShownOnPage: SdPages | null = null;
 
   private readonly userSelectedPage = Subject.create<SdPages>(SdPages.None);
   private readonly currentPage = Subject.create<SdPages>(SdPages.Door);
@@ -251,7 +254,15 @@ export class FwsSystemDisplayLogic {
 
     // The MORE page (and the MORE pb light) goes away when the SD leaves the page or that page has nothing MORE
     const wasMoreShown = this.sdMoreShownSimvar.get() === 1;
-    if (wasMoreShown && !sdMoreShownToKeep(this.currentPage.get(), wasMoreShown, this.fws.statusMoreAvailable.get())) {
+    if (
+      wasMoreShown &&
+      !sdMoreShownToKeep(
+        this.currentPage.get(),
+        wasMoreShown,
+        this.fws.statusMoreAvailable.get(),
+        this.moreShownOnPage ?? undefined,
+      )
+    ) {
       this.setMoreShown(false);
     }
 
@@ -328,6 +339,7 @@ export class FwsSystemDisplayLogic {
 
   /** Shows or clears the MORE page; the SD restarts on the first page of the page it then shows */
   private setMoreShown(shown: boolean): void {
+    this.moreShownOnPage = shown ? this.currentPage.get() : null;
     this.stsPageToShowSimvar.set(0);
     this.sdMoreShownSimvar.set(shown ? 1 : 0);
   }

@@ -14,7 +14,10 @@ export const FuelPage = () => {
   const JETTISON_VALVE_CLOSED_THRESHOLD = 0.1;
   const FEED_TANK_LOW_LEVEL_THRESHOLD_KG = 1375;
 
-  const [showMore] = useState(false);
+  // A380 FCOM DSC-28-20 (a380_fcom.txt l.58352-58371): the MORE key on the ECP shows the FUEL MORE page. The FWS owns
+  // the MORE state (EcamSdMore, FwsSystemDisplayLogic).
+  const [moreShownVar] = useSimVar('L:A32NX_ECAM_SD_MORE_SHOWN', 'number', 200);
+  const showMore = moreShownVar > 0;
 
   const [eng1FuelUsed] = useSimVar('L:A32NX_FUEL_USED:1', 'kg', 1000); // kg
   const [eng2FuelUsed] = useSimVar('L:A32NX_FUEL_USED:2', 'kg', 1000); // kg
