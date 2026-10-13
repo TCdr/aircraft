@@ -6,6 +6,7 @@ import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
 import {
+  adrFaultyForNavAlerts,
   altDisagree,
   attDisagree,
   baroRefDisagree,
@@ -141,5 +142,15 @@ describe('FWS wiring of the NAV CAPT AND F/O DISAGREE alerts', () => {
     expect(b).toContain('failure: 2,');
     const shown = b.split('whichItemsToShow')[1].split('whichItemsChecked')[0];
     expect(shown.match(/true/g)).toHaveLength(lines);
+  });
+
+  // An ADR without one of its supplies is in the INOP SYS of the ELEC alert, not a NAV ADR FAULT (a380_fcom.txt
+  // l.139230-139232, l.140854-140856)
+  it('takes a faulty ADR as NAV ADR FAULT only with its AC and DC busbars powered', () => {
+    expect(adrFaultyForNavAlerts(true, true, true, false)).toBe(true);
+    expect(adrFaultyForNavAlerts(true, false, true, false)).toBe(false);
+    expect(adrFaultyForNavAlerts(true, true, false, false)).toBe(false);
+    expect(adrFaultyForNavAlerts(true, true, true, true)).toBe(false);
+    expect(adrFaultyForNavAlerts(false, true, true, false)).toBe(false);
   });
 });

@@ -121,6 +121,14 @@ pub enum FailureType {
     AdrAirspeedErroneous(usize),
     /// The angle of attack probe of ADR n is erroneous: its angle of attack reads high, with a valid status
     AdrAngleOfAttackErroneous(usize),
+    /// The air data reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
+    /// on (navigation::adirs)
+    AdrFault(usize),
+    /// The inertial reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
+    /// on steady (navigation::adirs)
+    IrFault(usize),
+    /// The heading of IR n is erroneous: its magnetic and true headings are offset, with a valid status
+    IrHeadingErroneous(usize),
     // ATA72
     /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
     EngineFlameout(usize),

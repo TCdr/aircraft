@@ -288,6 +288,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ICE] The engine anti-ice valves are modelled (opened by the ENG ANTI ICE pb on engine air, open without power, FAULT light), with flyPad failures and the A-ICE ENG 1(2)(3)(4) VLV CLOSED and VLV OPEN alerts - @TCdr
 1. [A32NX/A380X] Key bindings and hardware panels that send the MSFS anti-ice events (ANTI_ICE_TOGGLE_ENGn, ANTI_ICE_SET_ENGn, ANTI_ICE_ON/OFF/SET/TOGGLE, TOGGLE_STRUCTURAL_DEICE) now move the ENG and WING ANTI ICE pb-sw, and the sim anti-ice follows the valves - @TCdr
 1. [A380X/OXY] The cockpit and cabin oxygen bottle pressures are modelled and shown on the DOOR/OXY page, with flyPad failures (bottle leaks, cabin valve closed) and the OXY CKPT BOTTLE PRESS LO, OXY CABIN BOTTLE PRESS LO and OXY CABIN VLV CLOSED alerts - @TCdr
+1. [ADIRS] New ADR 1-3 and IR 1-3 fault failures in the flyPad (ATA 34): the air or inertial data of that ADIRU part are lost and its FAULT light comes on (A32NX also gets the ADR airspeed / angle of attack and IR heading erroneous failures) - @TCdr
+1. [ADIRS] The ADIRUs are now supplied by their buses: without its AC bus an ADR is lost and its IR runs on the batteries (A32NX: ON BAT light, external horn on the ground, IR 2 and 3 for 5 min) or on its DC busbar (A380X) - @TCdr
+1. [A380X/FWS] An ADR that lost its DC busbar no longer gives a NAV ADR FAULT alert on top of the ELEC busbar alert - @TCdr
 
 ## 2024.1.0
 

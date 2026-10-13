@@ -1,6 +1,7 @@
+use std::time::Duration;
 use systems::navigation::adirs::{
-    AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming,
-    LowSpeedWarningThreshold,
+    AdiruElectricalSupply, AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming,
+    InertialReferenceBackupSupply, LowSpeedWarningThreshold,
 };
 use systems::navigation::ala52b::{
     Ala52BAircraftInstallationDelay, Ala52BRadioAltimeter, Ala52BTransceiverPair,
@@ -16,6 +17,41 @@ use uom::si::velocity::knot;
 
 pub(crate) struct A320AirDataInertialReferenceSystemBuilder;
 impl A320AirDataInertialReferenceSystemBuilder {
+    /// A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG SYS REMAINING (a320_fcom.txt l.75317-75320, l.75390): IR "No 1 only (e)"
+    /// and ADR "No 1 only" with the emergency generator, ADR "INOP" on batteries only; "(e) IR 2 and IR 3 are lost 5 min
+    /// after failure of main generators". With AC, the ELEC busbar faults give the AC supplies (FWC/Logic/ElecBusAlerts):
+    /// AC ESS BUS FAULT loses ADR 1, AC BUS 2 FAULT ADR 2, AC BUS 1 FAULT ADR 3.
+    /// So the ADRs need their AC bus, and the IRs run on the batteries without it, IR 2 and IR 3 for 5 min.
+    /// Design choices (the FCOM text gives no bus names for the battery supply): IR 1 on the hot bus 1, IR 2 and IR 3 on
+    /// the hot bus 2. Not modelled: ADIRU 3 on the AC ESS bus with the ATT HDG selector on CAPT 3, which also keeps
+    /// IR 3 on the batteries beyond the 5 min (note (e)).
+    const IR_BATTERY_TIME_LIMIT: Duration = Duration::from_secs(5 * 60);
+
+    fn electrical_supplies() -> [AdiruElectricalSupply; 3] {
+        [
+            AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrentEssential)
+                .with_ir_backup(InertialReferenceBackupSupply::new(
+                    ElectricalBusType::DirectCurrentHot(1),
+                    true,
+                    None,
+                )),
+            AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrent(2)).with_ir_backup(
+                InertialReferenceBackupSupply::new(
+                    ElectricalBusType::DirectCurrentHot(2),
+                    true,
+                    Some(Self::IR_BATTERY_TIME_LIMIT),
+                ),
+            ),
+            AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrent(1)).with_ir_backup(
+                InertialReferenceBackupSupply::new(
+                    ElectricalBusType::DirectCurrentHot(2),
+                    true,
+                    Some(Self::IR_BATTERY_TIME_LIMIT),
+                ),
+            ),
+        ]
+    }
+
     pub(crate) fn build(context: &mut InitContext) -> AirDataInertialReferenceSystem {
         let adirs_programming = AirDataInertialReferenceUnitProgramming::new(
             Velocity::new::<knot>(350.),
@@ -38,6 +74,7 @@ impl A320AirDataInertialReferenceSystemBuilder {
                     Velocity::new::<knot>(264.),
                 ),
             ],
+            Self::electrical_supplies(),
         );
         AirDataInertialReferenceSystem::new(context, adirs_programming)
     }

@@ -8,7 +8,8 @@ use crate::{
     shared::{
         arinc429::{Arinc429Word, SignStatus},
         low_pass_filter::LowPassFilter,
-        AdirsDiscreteOutputs, AdirsMeasurementOutputs, MachNumber,
+        AdirsDiscreteOutputs, AdirsMeasurementOutputs, ElectricalBusType, ElectricalBuses,
+        MachNumber,
     },
     simulation::{
         Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
@@ -125,9 +126,12 @@ pub struct AirDataInertialReferenceSystemOverheadPanel {
     mode_selectors: [InertialReferenceModeSelector; 3],
     adr: [OnOffFaultPushButton; 3],
     on_bat: IndicationLight,
+    external_horn_id: VariableIdentifier,
+    external_horn: bool,
 }
 impl AirDataInertialReferenceSystemOverheadPanel {
     const ADIRS_ON_BAT_NAME: &'static str = "ADIRS_ON_BAT";
+    const EXTERNAL_HORN_NAME: &'static str = "ADIRS_EXTERNAL_HORN";
     const DURATION_AFTER_WHICH_ON_BAT_ILLUMINATES: Duration = Duration::from_millis(10500);
     const ON_BAT_ILLUMINATION_DURATION: Duration = Duration::from_millis(5500);
 
@@ -149,6 +153,8 @@ impl AirDataInertialReferenceSystemOverheadPanel {
                 OnOffFaultPushButton::new_on(context, "ADIRS_ADR_3"),
             ],
             on_bat: IndicationLight::new(context, Self::ADIRS_ON_BAT_NAME),
+            external_horn_id: context.get_identifier(Self::EXTERNAL_HORN_NAME.to_owned()),
+            external_horn: false,
         }
     }
 
@@ -157,23 +163,38 @@ impl AirDataInertialReferenceSystemOverheadPanel {
             mode_selector.update(context);
         });
 
-        // Having the illumination logic here and in the mode selectors is
-        // a bit silly, as this depends on whether or not any IR is supplied by
-        // the battery. Once the battery supplying the IR is modelled, this logic
-        // can be moved.
+        // A320 FCOM DSC-34-NAV-10-20 ON BAT light (a320_fcom.txt l.52646-52648): "The ON BAT light comes on in amber
+        // when the aircraft battery supplies at least one IRS. The ON BAT light also comes on for a few seconds at the
+        // beginning of a complete IRS alignment. The light does not come on in the case of a fast alignment."
+        let complete_alignment_battery_test =
+            self.mode_selectors
+                .iter()
+                .enumerate()
+                .any(|(index, mode_selector)| {
+                    let duration = mode_selector.not_off_duration();
+                    duration >= Self::DURATION_AFTER_WHICH_ON_BAT_ILLUMINATES
+                        && duration
+                            < Self::DURATION_AFTER_WHICH_ON_BAT_ILLUMINATES
+                                + Self::ON_BAT_ILLUMINATION_DURATION
+                        && !adirs.ir_is_fast_aligning(index + 1)
+                });
+        let any_ir_on_battery = adirs.any_ir_on_battery();
         self.on_bat
-            .set_illuminated(self.mode_selectors.iter().any(|mode_selector| {
-                let duration = mode_selector.not_off_duration();
-                duration >= Self::DURATION_AFTER_WHICH_ON_BAT_ILLUMINATES
-                    && duration
-                        < Self::DURATION_AFTER_WHICH_ON_BAT_ILLUMINATES
-                            + Self::ON_BAT_ILLUMINATION_DURATION
-            }));
+            .set_illuminated(any_ir_on_battery || complete_alignment_battery_test);
+        // "When the aircraft is on ground and if at least one ADIRU is supplied by aircraft batteries: An external horn
+        // sounds" (l.52650-52652). The ADIRU and AVNCS light of the EXTERNAL POWER panel is not modelled.
+        self.external_horn = any_ir_on_battery && context.is_on_ground();
 
         self.ir
             .iter_mut()
             .enumerate()
-            .for_each(|(index, ir)| ir.set_fault(adirs.ir_has_fault(index + 1)))
+            .for_each(|(index, ir)| ir.set_fault(adirs.ir_has_fault(index + 1)));
+        // l.52605-52606: ADR FAULT light "comes on with an ECAM caution if a fault is detected in the air data
+        // reference part"
+        self.adr
+            .iter_mut()
+            .enumerate()
+            .for_each(|(index, adr)| adr.set_fault(adirs.adr_has_fault(index + 1)));
     }
 
     fn mode_of(&self, number: usize) -> InertialReferenceMode {
@@ -196,6 +217,10 @@ impl SimulationElement for AirDataInertialReferenceSystemOverheadPanel {
         self.on_bat.accept(visitor);
 
         visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.external_horn_id, self.external_horn);
     }
 }
 
@@ -501,22 +526,73 @@ impl LowSpeedWarningThreshold {
     }
 }
 
+/// The bus that keeps the inertial reference part of an ADIRU running when its main bus is lost.
+#[derive(Clone, Copy, Debug)]
+pub struct InertialReferenceBackupSupply {
+    bus: ElectricalBusType,
+    /// The bus is supplied by the aircraft batteries: the ON BAT light comes on while it supplies the IR
+    is_battery: bool,
+    /// The backup supply of the IR stops after this time without the main bus (A320 IR 2 and IR 3: 5 min)
+    time_limit: Option<Duration>,
+}
+impl InertialReferenceBackupSupply {
+    pub fn new(bus: ElectricalBusType, is_battery: bool, time_limit: Option<Duration>) -> Self {
+        Self {
+            bus,
+            is_battery,
+            time_limit,
+        }
+    }
+}
+
+/// The electrical supply of one ADIRU. The whole ADIRU needs its main bus; the ADR part may need a second bus, and the
+/// IR part may keep running on a backup bus.
+#[derive(Clone, Copy, Debug)]
+pub struct AdiruElectricalSupply {
+    main: ElectricalBusType,
+    /// A second bus that the air data reference part also needs (A380: the DC busbar of the ADIRU)
+    adr_second: Option<ElectricalBusType>,
+    ir_backup: Option<InertialReferenceBackupSupply>,
+}
+impl AdiruElectricalSupply {
+    pub fn new(main: ElectricalBusType) -> Self {
+        Self {
+            main,
+            adr_second: None,
+            ir_backup: None,
+        }
+    }
+
+    pub fn with_adr_second_bus(mut self, bus: ElectricalBusType) -> Self {
+        self.adr_second = Some(bus);
+        self
+    }
+
+    pub fn with_ir_backup(mut self, backup: InertialReferenceBackupSupply) -> Self {
+        self.ir_backup = Some(backup);
+        self
+    }
+}
+
 #[derive(Clone)]
 pub struct AirDataInertialReferenceUnitProgramming {
     vmo: Velocity,
     mmo: MachNumber,
     low_speed_warning_thresholds: [LowSpeedWarningThreshold; 4],
+    electrical_supplies: [AdiruElectricalSupply; 3],
 }
 impl AirDataInertialReferenceUnitProgramming {
     pub fn new(
         vmo: Velocity,
         mmo: MachNumber,
         low_speed_warning_thresholds: [LowSpeedWarningThreshold; 4],
+        electrical_supplies: [AdiruElectricalSupply; 3],
     ) -> Self {
         Self {
             vmo,
             mmo,
             low_speed_warning_thresholds,
+            electrical_supplies,
         }
     }
 }
@@ -530,8 +606,15 @@ pub struct AirDataInertialReferenceSystem {
     configured_align_time: AlignTime,
     aircraft_preset_quick_mode: bool,
     simulator_data: AdirsSimulatorData,
+    /// The simulation time, up to the power settling time
+    time_since_start: Duration,
 }
 impl AirDataInertialReferenceSystem {
+    /// While a flight loads, the electrical network may need a moment to supply the buses, e.g. until the generators
+    /// of the running engines are online. The ADIRUs start aligned and initialised for a flight loaded on the runway or
+    /// in the air, so they ignore their supply for this time (design choice, as the settling time of the A380 PRIM air
+    /// data monitoring). Afterwards a loss of supply stops them.
+    const POWER_SETTLING_TIME: Duration = Duration::from_secs(5);
     // TODO remove when A380X FWC is fixed
     const REMAINING_ALIGNMENT_TIME_KEY: &'static str = "ADIRS_REMAINING_IR_ALIGNMENT_TIME";
     const CONFIGURED_ALIGN_TIME_KEY: &'static str = "CONFIG_ADIRS_IR_ALIGN_TIME";
@@ -556,6 +639,7 @@ impl AirDataInertialReferenceSystem {
             configured_align_time: AlignTime::Realistic,
             aircraft_preset_quick_mode: false,
             simulator_data: AdirsSimulatorData::new(context),
+            time_since_start: Duration::ZERO,
         }
     }
 
@@ -572,10 +656,14 @@ impl AirDataInertialReferenceSystem {
             self.configured_align_time
         };
         let simulator_data = self.simulator_data;
+        self.time_since_start =
+            (self.time_since_start + context.delta()).min(Self::POWER_SETTLING_TIME);
+        let power_settling = self.time_since_start < Self::POWER_SETTLING_TIME;
         self.adirus.iter_mut().for_each(|adiru| {
             adiru.update(
                 context,
                 overhead,
+                power_settling,
                 align_time,
                 self.aircraft_preset_quick_mode,
                 simulator_data,
@@ -597,6 +685,19 @@ impl AirDataInertialReferenceSystem {
 
     fn ir_has_fault(&self, number: usize) -> bool {
         self.adirus[number - 1].ir_has_fault()
+    }
+
+    fn adr_has_fault(&self, number: usize) -> bool {
+        self.adirus[number - 1].adr_has_fault()
+    }
+
+    fn ir_is_fast_aligning(&self, number: usize) -> bool {
+        self.adirus[number - 1].ir.is_fast_aligning()
+    }
+
+    /// At least one IR is switched on and supplied by the aircraft batteries
+    fn any_ir_on_battery(&self) -> bool {
+        self.adirus.iter().any(|adiru| adiru.ir_on_battery)
     }
 
     pub fn adr_bus(&self, number: usize) -> &impl AirDataReferenceBus {
@@ -701,25 +802,53 @@ impl AdirsMeasurementOutputs for AirDataInertialReferenceSystem {
 }
 
 struct AirDataInertialReferenceUnit {
+    number: usize,
     state_id: VariableIdentifier,
 
     adr: AirDataReference,
     ir: InertialReference,
+
+    supply: AdiruElectricalSupply,
+    main_bus_powered: bool,
+    adr_second_bus_powered: bool,
+    ir_backup_bus_powered: bool,
+    /// How long the ADR part has been without its supply, for the short power interruption tolerance
+    adr_unpowered_duration: Duration,
+    /// How long the IR part has been without any supply, for the short power interruption tolerance
+    ir_unpowered_duration: Duration,
+    /// How long the IR part has been running on its backup bus since the main bus was lost
+    ir_duration_on_backup: Duration,
+    /// The IR part is switched on and supplied by the aircraft batteries (ON BAT light)
+    ir_on_battery: bool,
 
     // Discrete outputs
     low_speed_warning_thresholds: [LowSpeedWarningThreshold; 4],
     low_speed_warnings: [bool; 4],
 }
 impl AirDataInertialReferenceUnit {
+    /// A short power interruption, e.g. a bus transfer, does not stop the ADIRU (design choice: the FCOM gives no
+    /// value; 200 ms covers the bus transfers of the electrical models).
+    const POWER_INTERRUPTION_TOLERANCE: Duration = Duration::from_millis(200);
+
     fn new(
         context: &mut InitContext,
         number: usize,
         programming: AirDataInertialReferenceUnitProgramming,
     ) -> Self {
         Self {
+            number,
             state_id: context.get_identifier(Self::state_id(number)),
             adr: AirDataReference::new(context, number, programming.vmo, programming.mmo),
             ir: InertialReference::new(context, number),
+
+            supply: programming.electrical_supplies[number - 1],
+            main_bus_powered: false,
+            adr_second_bus_powered: false,
+            ir_backup_bus_powered: false,
+            adr_unpowered_duration: Duration::ZERO,
+            ir_unpowered_duration: Duration::ZERO,
+            ir_duration_on_backup: Duration::ZERO,
+            ir_on_battery: false,
 
             low_speed_warning_thresholds: programming.low_speed_warning_thresholds,
             low_speed_warnings: [false; 4],
@@ -730,14 +859,18 @@ impl AirDataInertialReferenceUnit {
         &mut self,
         context: &UpdateContext,
         overhead: &AirDataInertialReferenceSystemOverheadPanel,
+        power_settling: bool,
         align_time: AlignTime,
         // TODO: this should be refactored (abstracted) away from the AirInertialReferenceUnit struct
         aircraft_preset_quick_mode: bool,
         simulator_data: AdirsSimulatorData,
     ) {
+        self.update_power(context, overhead, power_settling);
+
         self.adr.update(
             context,
             overhead,
+            self.adr_is_powered(),
             aircraft_preset_quick_mode,
             simulator_data,
         );
@@ -745,12 +878,78 @@ impl AirDataInertialReferenceUnit {
             context,
             &self.adr,
             overhead,
+            self.ir_is_powered(),
             align_time,
             aircraft_preset_quick_mode,
             simulator_data,
         );
 
         self.update_discrete_outputs();
+    }
+
+    /// Which parts of the ADIRU are supplied: the ADR part needs the main bus (and its second bus if it has one), the
+    /// IR part needs the main bus or its backup bus, the latter for a limited time on some IRs.
+    fn update_power(
+        &mut self,
+        context: &UpdateContext,
+        overhead: &AirDataInertialReferenceSystemOverheadPanel,
+        power_settling: bool,
+    ) {
+        if power_settling {
+            self.adr_unpowered_duration = Duration::ZERO;
+            self.ir_unpowered_duration = Duration::ZERO;
+            self.ir_duration_on_backup = Duration::ZERO;
+            self.ir_on_battery = false;
+            return;
+        }
+
+        let adr_supplied = self.main_bus_powered
+            && (self.supply.adr_second.is_none() || self.adr_second_bus_powered);
+
+        if self.main_bus_powered {
+            self.ir_duration_on_backup = Duration::ZERO;
+        } else if self.ir_backup_bus_powered {
+            self.ir_duration_on_backup += context.delta();
+        }
+        let ir_on_backup = !self.main_bus_powered
+            && self.ir_backup_bus_powered
+            && self.supply.ir_backup.is_some_and(|backup| {
+                backup
+                    .time_limit
+                    .is_none_or(|limit| self.ir_duration_on_backup < limit)
+            });
+        let ir_supplied = self.main_bus_powered || ir_on_backup;
+
+        self.adr_unpowered_duration = if adr_supplied {
+            Duration::ZERO
+        } else {
+            self.adr_unpowered_duration + context.delta()
+        };
+        self.ir_unpowered_duration = if ir_supplied {
+            Duration::ZERO
+        } else {
+            self.ir_unpowered_duration + context.delta()
+        };
+
+        // The mode selector OFF de-energises the ADIRU (FCOM l.52622), which then takes no battery power
+        self.ir_on_battery = ir_on_backup
+            && self
+                .supply
+                .ir_backup
+                .is_some_and(|backup| backup.is_battery)
+            && overhead.mode_of(self.number) != InertialReferenceMode::Off;
+    }
+
+    fn adr_is_powered(&self) -> bool {
+        self.adr_unpowered_duration <= Self::POWER_INTERRUPTION_TOLERANCE
+    }
+
+    fn ir_is_powered(&self) -> bool {
+        self.ir_unpowered_duration <= Self::POWER_INTERRUPTION_TOLERANCE
+    }
+
+    fn adr_has_fault(&self) -> bool {
+        self.adr.has_fault()
     }
 
     fn is_fully_aligned(&self) -> bool {
@@ -887,6 +1086,18 @@ impl SimulationElement for AirDataInertialReferenceUnit {
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.state_id, self.state())
     }
+
+    fn receive_power(&mut self, buses: &impl ElectricalBuses) {
+        self.main_bus_powered = buses.is_powered(self.supply.main);
+        self.adr_second_bus_powered = self
+            .supply
+            .adr_second
+            .is_some_and(|bus| buses.is_powered(bus));
+        self.ir_backup_bus_powered = self
+            .supply
+            .ir_backup
+            .is_some_and(|backup| buses.is_powered(backup.bus));
+    }
 }
 
 struct AdirsDiscreteOutput<T> {
@@ -894,6 +1105,10 @@ struct AdirsDiscreteOutput<T> {
     value: T,
 }
 impl<T: Copy + Default + PartialOrd> AdirsDiscreteOutput<T> {
+    fn new_adr(context: &mut InitContext, number: usize, name: &str) -> Self {
+        Self::new(context, OutputDataType::Adr, number, name)
+    }
+
     fn new_ir(context: &mut InitContext, number: usize, name: &str) -> Self {
         Self::new(context, OutputDataType::Ir, number, name)
     }
@@ -1091,6 +1306,12 @@ struct AirDataReference {
     airspeed_erroneous_failure: Failure,
     /// Erroneous angle of attack probe: the angle of attack reads high with a valid status
     angle_of_attack_erroneous_failure: Failure,
+    /// The air data reference part fails: no valid output, FAULT light
+    fault_failure: Failure,
+    /// The ADIRU is supplied and its mode selector is not OFF
+    is_energised: bool,
+    /// The ADR FAULT discrete (FAULT light and FWC)
+    fault_warn_discrete: AdirsDiscreteOutput<bool>,
 }
 impl AirDataReference {
     const INITIALISATION_DURATION: Duration = Duration::from_secs(18);
@@ -1112,6 +1333,7 @@ impl AirDataReference {
     const TOTAL_AIR_TEMPERATURE: &'static str = "TOTAL_AIR_TEMPERATURE";
     const ANGLE_OF_ATTACK: &'static str = "ANGLE_OF_ATTACK";
     const DISCRETE_WORD_1: &'static str = "DISCRETE_WORD_1";
+    const FAULT_WARN_DISCRETE: &'static str = "FAULT_WARN_DISCRETE";
 
     const MINIMUM_TAS: f64 = 60.;
     const MINIMUM_CAS: f64 = 30.;
@@ -1211,6 +1433,13 @@ impl AirDataReference {
             angle_of_attack_erroneous_failure: Failure::new(
                 FailureType::AdrAngleOfAttackErroneous(number),
             ),
+            fault_failure: Failure::new(FailureType::AdrFault(number)),
+            is_energised: true,
+            fault_warn_discrete: AdirsDiscreteOutput::new_adr(
+                context,
+                number,
+                Self::FAULT_WARN_DISCRETE,
+            ),
         }
     }
 
@@ -1237,24 +1466,29 @@ impl AirDataReference {
         &mut self,
         context: &UpdateContext,
         overhead: &AirDataInertialReferenceSystemOverheadPanel,
+        is_powered: bool,
         aircraft_preset_quick_mode: bool,
         simulator_data: AdirsSimulatorData,
     ) {
-        self.is_on = overhead.adr_is_on(self.number);
-        self.update_remaining_initialisation_duration(
-            context,
-            aircraft_preset_quick_mode,
-            overhead,
-        );
+        // Without power the ADR is off, as with the mode selector OFF: it initialises again when the power comes back
+        let mode = if is_powered {
+            overhead.mode_of(self.number)
+        } else {
+            InertialReferenceMode::Off
+        };
+        self.is_energised = mode != InertialReferenceMode::Off;
+        self.is_on = is_powered && overhead.adr_is_on(self.number);
+        self.update_remaining_initialisation_duration(context, aircraft_preset_quick_mode, mode);
         self.update_values(context, simulator_data);
         self.update_discrete_word_1();
+        self.fault_warn_discrete.set_value(self.has_fault());
     }
 
     fn update_remaining_initialisation_duration(
         &mut self,
         context: &UpdateContext,
         aircraft_preset_quick_mode: bool,
-        overhead: &AirDataInertialReferenceSystemOverheadPanel,
+        mode: InertialReferenceMode,
     ) {
         let initialisation_duration: Duration = if aircraft_preset_quick_mode {
             Self::INITIALISATION_QUICK_DURATION
@@ -1264,9 +1498,15 @@ impl AirDataReference {
         self.remaining_initialisation_duration = remaining_initialisation_duration(
             context,
             initialisation_duration,
-            overhead.mode_of(self.number),
+            mode,
             self.remaining_initialisation_duration,
         );
+    }
+
+    /// A fault is detected in the air data reference part: the ADR FAULT light and discrete (A320 FCOM
+    /// l.52605-52606). An unsupplied or switched off ADIRU detects nothing.
+    fn has_fault(&self) -> bool {
+        self.fault_failure.is_active() && self.is_energised
     }
 
     fn calculate_baro_alt_correction(baro_correction: f64) -> Length {
@@ -1503,7 +1743,7 @@ impl AirDataReference {
     }
 
     fn is_valid(&self) -> bool {
-        self.is_on && self.is_initialised()
+        self.is_on && self.is_initialised() && !self.fault_failure.is_active()
     }
 
     fn computed_airspeed_raw(&self) -> Velocity {
@@ -1618,6 +1858,7 @@ impl SimulationElement for AirDataReference {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.airspeed_erroneous_failure.accept(visitor);
         self.angle_of_attack_erroneous_failure.accept(visitor);
+        self.fault_failure.accept(visitor);
 
         visitor.visit(self);
     }
@@ -1645,6 +1886,7 @@ impl SimulationElement for AirDataReference {
         self.total_air_temperature.write_to(writer);
         self.angle_of_attack.write_to(writer);
         self.discrete_word_1.write_to(writer);
+        self.fault_warn_discrete.write_to(writer);
     }
 }
 
@@ -1715,6 +1957,14 @@ struct InertialReference {
     excess_motion_inhibit_time: Option<Duration>,
     quick_realign_remaining_available_time: Duration,
     alignment_failed: bool,
+    /// The mode selector position, or OFF without power
+    selected_mode: InertialReferenceMode,
+    /// The current alignment is a fast one (no ON BAT light at its start)
+    fast_alignment: bool,
+    /// The inertial reference part fails: no valid output, FAULT light steady
+    fault_failure: Failure,
+    /// The heading reads wrong, with a valid status
+    heading_erroneous_failure: Failure,
 
     pitch: AdirsArinc429Data<Angle>,
     roll: AdirsArinc429Data<Angle>,
@@ -1795,6 +2045,9 @@ impl InertialReference {
     const ALIGNMENT_VELOCITY_TIME_CONSTANT: Duration = Duration::from_millis(500);
     const MAX_ALIGNMENT_VELOCITY_FPS: f64 = 0.011;
     const MAX_LATITUDE_FOR_ALIGNMENT: f64 = 82.;
+    /// Heading error of an erroneous IR (design choice: the FCOM gives no failure values; 10 deg is well above the
+    /// heading difference that the FWC IR DISAGREE monitoring of the A320 takes as a disagreement)
+    const ERRONEOUS_HEADING_ERROR_DEGREES: f64 = 10.;
 
     fn new(context: &mut InitContext, number: usize) -> Self {
         Self {
@@ -1813,6 +2066,10 @@ impl InertialReference {
             excess_motion_inhibit_time: None,
             quick_realign_remaining_available_time: Duration::default(),
             alignment_failed: false,
+            selected_mode: InertialReferenceMode::Navigation,
+            fast_alignment: false,
+            fault_failure: Failure::new(FailureType::IrFault(number)),
+            heading_erroneous_failure: Failure::new(FailureType::IrHeadingErroneous(number)),
 
             pitch: AdirsArinc429Data::new_ir(context, number, Self::PITCH),
             roll: AdirsArinc429Data::new_ir(context, number, Self::ROLL),
@@ -1862,41 +2119,98 @@ impl InertialReference {
         context: &UpdateContext,
         true_airspeed_source: &impl AirDataReferenceBus,
         overhead: &AirDataInertialReferenceSystemOverheadPanel,
+        is_powered: bool,
         configured_align_time: AlignTime,
         aircraft_preset_quick_mode: bool,
         simulator_data: AdirsSimulatorData,
     ) {
-        self.is_on = overhead.ir_is_on(self.number);
+        // Without power the IR is off, as with the mode selector OFF: it loses its alignment
+        self.selected_mode = if is_powered {
+            overhead.mode_of(self.number)
+        } else {
+            InertialReferenceMode::Off
+        };
+        self.is_on = is_powered && overhead.ir_is_on(self.number);
 
         self.update_body_velocity(context);
 
-        self.update_fault_flash_duration(context, overhead);
-        self.update_remaining_attitude_align_duration(
-            context,
-            overhead,
-            aircraft_preset_quick_mode,
-        );
-        self.update_remaining_align_duration(
-            context,
-            overhead,
-            configured_align_time,
-            simulator_data,
-        );
+        self.update_fault_flash_duration(context);
+        self.update_remaining_attitude_align_duration(context, aircraft_preset_quick_mode);
+        self.update_remaining_align_duration(context, configured_align_time, simulator_data);
 
         self.update_latitude(simulator_data);
         self.update_attitude_values(context, simulator_data);
-        self.update_heading_values(overhead, simulator_data);
-        self.update_non_attitude_values(context, true_airspeed_source, overhead, simulator_data);
-        self.update_maint_word(overhead);
+        self.update_heading_values(simulator_data);
+        self.update_non_attitude_values(context, true_airspeed_source, simulator_data);
+        if self.has_failed() {
+            self.set_all_outputs_failure_warning();
+        }
+        self.update_maint_word();
         self.update_discrete_outputs();
     }
 
-    fn update_fault_flash_duration(
-        &mut self,
-        context: &UpdateContext,
-        overhead: &AirDataInertialReferenceSystemOverheadPanel,
-    ) {
-        if self.alignment_starting(overhead.mode_of(self.number)) {
+    /// The IR part has failed (A320 FCOM l.52611-52615: IR FAULT light steady, "the respective IR is lost"). An
+    /// unsupplied or switched off ADIRU detects nothing.
+    fn has_failed(&self) -> bool {
+        self.fault_failure.is_active() && self.selected_mode != InertialReferenceMode::Off
+    }
+
+    /// A failed IR gives no valid inertial data
+    fn set_all_outputs_failure_warning(&mut self) {
+        [
+            &mut self.pitch,
+            &mut self.roll,
+            &mut self.heading,
+            &mut self.true_heading,
+            &mut self.track,
+            &mut self.true_track,
+            &mut self.drift_angle,
+            &mut self.flight_path_angle,
+            &mut self.wind_direction,
+            &mut self.wind_direction_bnr,
+            &mut self.latitude,
+            &mut self.longitude,
+        ]
+        .into_iter()
+        .for_each(|word| word.set_failure_warning());
+        [
+            &mut self.body_pitch_rate,
+            &mut self.body_roll_rate,
+            &mut self.body_yaw_rate,
+            &mut self.heading_rate,
+            &mut self.pitch_att_rate,
+            &mut self.roll_att_rate,
+        ]
+        .into_iter()
+        .for_each(|word| word.set_failure_warning());
+        [
+            &mut self.body_longitudinal_acc,
+            &mut self.body_lateral_acc,
+            &mut self.body_normal_acc,
+        ]
+        .into_iter()
+        .for_each(|word| word.set_failure_warning());
+        [
+            &mut self.ground_speed,
+            &mut self.wind_speed,
+            &mut self.wind_speed_bnr,
+        ]
+        .into_iter()
+        .for_each(|word| word.set_failure_warning());
+        self.vertical_speed.set_failure_warning();
+    }
+
+    /// The heading this IR gives: the sim heading, offset with an erroneous heading
+    fn measured_heading(&self, heading: Angle) -> Angle {
+        if self.heading_erroneous_failure.is_active() {
+            (heading + Angle::new::<degree>(Self::ERRONEOUS_HEADING_ERROR_DEGREES)).normalised()
+        } else {
+            heading
+        }
+    }
+
+    fn update_fault_flash_duration(&mut self, context: &UpdateContext) {
+        if self.alignment_starting(self.selected_mode) {
             self.ir_fault_flash_duration = Some(Self::IR_FAULT_FLASH_DURATION);
         } else if let Some(flash_duration) = self.ir_fault_flash_duration {
             let remaining = subtract_delta_from_duration(context, flash_duration);
@@ -1911,7 +2225,6 @@ impl InertialReference {
     fn update_remaining_attitude_align_duration(
         &mut self,
         context: &UpdateContext,
-        overhead: &AirDataInertialReferenceSystemOverheadPanel,
         aircraft_preset_quick_mode: bool,
     ) {
         let initialisation_duration: Duration = if aircraft_preset_quick_mode {
@@ -1922,7 +2235,7 @@ impl InertialReference {
         self.remaining_attitude_initialisation_duration = remaining_initialisation_duration(
             context,
             initialisation_duration,
-            overhead.mode_of(self.number),
+            self.selected_mode,
             self.remaining_attitude_initialisation_duration,
         );
     }
@@ -1943,15 +2256,12 @@ impl InertialReference {
     fn update_remaining_align_duration(
         &mut self,
         context: &UpdateContext,
-        overhead: &AirDataInertialReferenceSystemOverheadPanel,
         configured_align_time: AlignTime,
         simulator_data: AdirsSimulatorData,
     ) {
         // If the knob is moved out of NAV and back within 5 seconds while aligned, a quick re-alignment
         // is performed. This just zeros the velocities etc.
-        if self.is_fully_aligned()
-            && overhead.mode_of(self.number) != InertialReferenceMode::Navigation
-        {
+        if self.is_fully_aligned() && self.selected_mode != InertialReferenceMode::Navigation {
             self.quick_realign_remaining_available_time = Self::QUICK_REALIGN_AVAILABLE_TIME;
         } else if !self.quick_realign_remaining_available_time.is_zero() {
             self.quick_realign_remaining_available_time = self
@@ -1984,7 +2294,7 @@ impl InertialReference {
             }
 
             self.remaining_align_duration =
-                match overhead.mode_of(self.number) {
+                match self.selected_mode {
                     InertialReferenceMode::Navigation => match self.remaining_align_duration {
                         Some(remaining) => {
                             if Self::can_align(simulator_data) {
@@ -2001,12 +2311,13 @@ impl InertialReference {
                     InertialReferenceMode::Off | InertialReferenceMode::Attitude => None,
                 };
         }
+        if !self.is_aligning() {
+            self.fast_alignment = false;
+        }
 
         self.alignment_failed = self.is_aligning() && !Self::can_align(simulator_data);
 
-        if self.is_fully_aligned()
-            || overhead.mode_of(self.number) != InertialReferenceMode::Navigation
-        {
+        if self.is_fully_aligned() || self.selected_mode != InertialReferenceMode::Navigation {
             self.excess_motion = false;
         }
     }
@@ -2073,18 +2384,14 @@ impl InertialReference {
             .set_value(context.vert_accel() / g + pitch.cos() * roll.cos(), ssm);
     }
 
-    fn update_heading_values(
-        &mut self,
-        overhead: &AirDataInertialReferenceSystemOverheadPanel,
-        simulator_data: AdirsSimulatorData,
-    ) {
+    fn update_heading_values(&mut self, simulator_data: AdirsSimulatorData) {
         // TODO BNR labels (that most things use) are actually +/- 180
 
         // TODO tests for when should be mag or true in mag labels
 
         let heading_available = self.is_on
             && (self.is_fully_aligned()
-                || (overhead.mode_of(self.number) == InertialReferenceMode::Navigation
+                || (self.selected_mode == InertialReferenceMode::Navigation
                     && self
                         .remaining_align_duration
                         .is_some_and(|duration| duration.as_secs() < 120)));
@@ -2094,13 +2401,15 @@ impl InertialReference {
         } else {
             SignStatus::NoComputedData
         };
-        self.true_heading
-            .set_value(simulator_data.true_heading, true_heading_ssm);
+        self.true_heading.set_value(
+            self.measured_heading(simulator_data.true_heading),
+            true_heading_ssm,
+        );
 
         // TODO in ATT mode NCD until heading initialised on MCDU
         let magnetic_heading_ssm = if self.is_on
             && (heading_available
-                || (overhead.mode_of(self.number) == InertialReferenceMode::Attitude
+                || (self.selected_mode == InertialReferenceMode::Attitude
                     && self.is_attitude_aligned()))
         {
             SignStatus::NormalOperation
@@ -2108,11 +2417,11 @@ impl InertialReference {
             SignStatus::NoComputedData
         };
         self.heading.set_value(
-            if self.has_magnetic_data() {
+            self.measured_heading(if self.has_magnetic_data() {
                 simulator_data.heading
             } else {
                 simulator_data.true_heading
-            },
+            }),
             magnetic_heading_ssm,
         );
     }
@@ -2136,13 +2445,12 @@ impl InertialReference {
         &mut self,
         context: &UpdateContext,
         true_airspeed_source: &impl AirDataReferenceBus,
-        overhead: &AirDataInertialReferenceSystemOverheadPanel,
         simulator_data: AdirsSimulatorData,
     ) {
         // In ATT mode these labels are not even transmitted
         // In Align, NCD prior to NAV
 
-        let no_transmission = match overhead.mode_of(self.number) {
+        let no_transmission = match self.selected_mode {
             InertialReferenceMode::Navigation => false,
             InertialReferenceMode::Off | InertialReferenceMode::Attitude => true,
         } || !self.is_on;
@@ -2235,7 +2543,6 @@ impl InertialReference {
         &mut self,
         context: &UpdateContext,
         true_airspeed_source: &impl AirDataReferenceBus,
-        overhead: &AirDataInertialReferenceSystemOverheadPanel,
         simulator_data: AdirsSimulatorData,
     ) {
         let ssm = if self.is_on && self.is_fully_aligned() {
@@ -2253,11 +2560,11 @@ impl InertialReference {
             simulator_data.true_track
         };
 
-        let heading = if self.has_magnetic_data() {
+        let heading = self.measured_heading(if self.has_magnetic_data() {
             simulator_data.heading
         } else {
             simulator_data.true_heading
-        };
+        });
 
         self.track.set_value(
             if ground_speed_above_minimum_threshold {
@@ -2308,10 +2615,10 @@ impl InertialReference {
         self.latitude.set_value(simulator_data.latitude, ssm);
         self.longitude.set_value(simulator_data.longitude, ssm);
 
-        self.update_wind_velocity(context, true_airspeed_source, overhead, simulator_data);
+        self.update_wind_velocity(context, true_airspeed_source, simulator_data);
     }
 
-    fn update_maint_word(&mut self, overhead: &AirDataInertialReferenceSystemOverheadPanel) {
+    fn update_maint_word(&mut self) {
         // TODO check status of these during mode transitions (first need to implement mode FSM)
         let mut maint_word: IrMaintFlags = IrMaintFlags::default();
 
@@ -2326,11 +2633,11 @@ impl InertialReference {
             maint_word |= IrMaintFlags::ALIGNMENT_NOT_READY;
         }
 
-        if overhead.mode_of(self.number) == InertialReferenceMode::Attitude {
+        if self.selected_mode == InertialReferenceMode::Attitude {
             maint_word |= IrMaintFlags::REV_ATT_MODE;
         }
 
-        if overhead.mode_of(self.number) == InertialReferenceMode::Navigation {
+        if self.selected_mode == InertialReferenceMode::Navigation {
             maint_word |= IrMaintFlags::NAV_MODE;
         }
 
@@ -2347,6 +2654,10 @@ impl InertialReference {
         // TODO unimportant nav fault
 
         // TODO DC fault during DC operation last power up
+
+        if self.has_failed() {
+            maint_word |= IrMaintFlags::IR_FAULT;
+        }
 
         if self.alignment_failed {
             maint_word |= IrMaintFlags::ALIGN_FAULT;
@@ -2426,10 +2737,16 @@ impl InertialReference {
 
         if !self.quick_realign_remaining_available_time.is_zero() {
             self.quick_realign_remaining_available_time = Duration::default();
-            alignment_duration = Self::QUICK_REALIGN_ALIGN_TIME.min(alignment_duration)
+            alignment_duration = Self::QUICK_REALIGN_ALIGN_TIME.min(alignment_duration);
+            self.fast_alignment = true;
         }
 
         alignment_duration
+    }
+
+    /// A fast alignment (mode selector OFF then NAV within 5 s) is in progress
+    fn is_fast_aligning(&self) -> bool {
+        self.fast_alignment
     }
 
     fn is_fully_aligned(&self) -> bool {
@@ -2451,8 +2768,9 @@ impl InertialReference {
         self.remaining_attitude_initialisation_duration == Some(Duration::from_secs(0))
     }
 
+    /// The IR FAULT light and discrete: the short flash at the start of an alignment, or steady when the IR has failed
     fn has_fault(&self) -> bool {
-        self.ir_fault_flash_duration.is_some()
+        self.ir_fault_flash_duration.is_some() || self.has_failed()
     }
 
     fn has_magnetic_data(&self) -> bool {
@@ -2597,6 +2915,13 @@ impl InertialReferenceBus for InertialReference {
     }
 }
 impl SimulationElement for InertialReference {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.fault_failure.accept(visitor);
+        self.heading_erroneous_failure.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         self.pitch.write_to(writer);
         self.roll.write_to(writer);
@@ -2703,6 +3028,9 @@ impl NormaliseAngleExt for Angle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::electrical::test::TestElectricitySource;
+    use crate::electrical::{ElectricalBus, Electricity};
+    use crate::shared::PotentialOrigin;
     use crate::simulation::test::{ReadByName, WriteByName};
     use crate::{
         shared::arinc429::Arinc429Word,
@@ -2717,18 +3045,55 @@ mod tests {
     use uom::si::{
         angle::degree,
         angular_velocity::radian_per_second,
+        electric_potential::volt,
         length::foot,
         ratio::percent,
         thermodynamic_temperature::degree_celsius,
         velocity::{foot_per_minute, knot},
     };
 
+    /// The buses of the test aircraft: ADIRU 1 and 2 are supplied as on the A320 (IR backup on a battery bus, limited
+    /// in time for ADIRU 2), ADIRU 3 as on the A380 (the ADR also needs a DC bus, which is the IR backup).
+    const TEST_BUSES: [ElectricalBusType; 6] = [
+        ElectricalBusType::AlternatingCurrentEssential,
+        ElectricalBusType::AlternatingCurrent(1),
+        ElectricalBusType::AlternatingCurrent(2),
+        ElectricalBusType::DirectCurrent(1),
+        ElectricalBusType::DirectCurrentHot(1),
+        ElectricalBusType::DirectCurrentHot(2),
+    ];
+    const TEST_IR_2_BACKUP_TIME_LIMIT: Duration = Duration::from_secs(5 * 60);
+
     struct TestAircraft {
+        electricity_source: TestElectricitySource,
+        buses: [ElectricalBus; 6],
+        bus_powered: [bool; 6],
         adirs: AirDataInertialReferenceSystem,
         overhead: AirDataInertialReferenceSystemOverheadPanel,
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
+            let electrical_supplies = [
+                AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrentEssential)
+                    .with_ir_backup(InertialReferenceBackupSupply::new(
+                        ElectricalBusType::DirectCurrentHot(1),
+                        true,
+                        None,
+                    )),
+                AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrent(2))
+                    .with_ir_backup(InertialReferenceBackupSupply::new(
+                        ElectricalBusType::DirectCurrentHot(2),
+                        true,
+                        Some(TEST_IR_2_BACKUP_TIME_LIMIT),
+                    )),
+                AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrent(1))
+                    .with_adr_second_bus(ElectricalBusType::DirectCurrent(1))
+                    .with_ir_backup(InertialReferenceBackupSupply::new(
+                        ElectricalBusType::DirectCurrent(1),
+                        false,
+                        None,
+                    )),
+            ];
             let adirs_programming = AirDataInertialReferenceUnitProgramming::new(
                 Velocity::new::<knot>(340.),
                 MachNumber(0.82),
@@ -2750,14 +3115,45 @@ mod tests {
                         Velocity::new::<knot>(264.),
                     ),
                 ],
+                electrical_supplies,
             );
             Self {
+                electricity_source: TestElectricitySource::powered(
+                    context,
+                    PotentialOrigin::EngineGenerator(1),
+                ),
+                buses: TEST_BUSES.map(|bus| ElectricalBus::new(context, bus)),
+                bus_powered: [true; 6],
                 adirs: AirDataInertialReferenceSystem::new(context, adirs_programming),
                 overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
             }
         }
+
+        fn set_bus_powered(&mut self, bus: ElectricalBusType, powered: bool) {
+            let index = TEST_BUSES
+                .iter()
+                .position(|test_bus| *test_bus == bus)
+                .unwrap();
+            self.bus_powered[index] = powered;
+        }
     }
     impl Aircraft for TestAircraft {
+        fn update_before_power_distribution(
+            &mut self,
+            _: &UpdateContext,
+            electricity: &mut Electricity,
+        ) {
+            self.electricity_source
+                .power_with_potential(ElectricPotential::new::<volt>(115.));
+            electricity.supplied_by(&self.electricity_source);
+
+            for (bus, powered) in self.buses.iter().zip(self.bus_powered) {
+                if powered {
+                    electricity.flow(&self.electricity_source, bus);
+                }
+            }
+        }
+
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
             self.adirs.update(context, &self.overhead);
             self.overhead.update(context, &self.adirs);
@@ -2986,6 +3382,49 @@ mod tests {
                 "ADIRS_IR_{}",
                 number
             )))
+        }
+
+        fn adr_fault_light_illuminated(&mut self, number: usize) -> bool {
+            self.read_by_name(&OnOffFaultPushButton::has_fault_id(&format!(
+                "ADIRS_ADR_{}",
+                number
+            )))
+        }
+
+        fn adr_fault_discrete(&mut self, number: usize) -> bool {
+            self.read_by_name(&output_data_id(
+                OutputDataType::Adr,
+                number,
+                AirDataReference::FAULT_WARN_DISCRETE,
+            ))
+        }
+
+        fn ir_fault_discrete(&mut self, number: usize) -> bool {
+            self.read_by_name(&output_data_id(
+                OutputDataType::Ir,
+                number,
+                InertialReference::FAULT_WARN_DISCRETE,
+            ))
+        }
+
+        fn external_horn_sounds(&mut self) -> bool {
+            self.read_by_name(AirDataInertialReferenceSystemOverheadPanel::EXTERNAL_HORN_NAME)
+        }
+
+        /// Runs past the power settling time of the start of the simulation, all buses powered
+        fn after_the_power_settling_time(mut self) -> Self {
+            self.run_with_delta(AirDataInertialReferenceSystem::POWER_SETTLING_TIME);
+            self
+        }
+
+        fn bus_powered(mut self, bus: ElectricalBusType, powered: bool) -> Self {
+            self.command(|a| a.set_bus_powered(bus, powered));
+            self
+        }
+
+        fn on_ground(mut self, on_ground: bool) -> Self {
+            self.set_on_ground(on_ground);
+            self
         }
 
         fn is_aligned(&mut self, adiru_number: usize) -> bool {
@@ -3907,7 +4346,8 @@ mod tests {
     fn ten_and_a_half_seconds_after_moving_the_mode_selector_the_on_bat_light_illuminates_for_5_and_a_half_seconds(
         #[case] mode: InertialReferenceMode,
     ) {
-        let mut test_bed = test_bed_with().ir_mode_selector_set_to(1, mode);
+        // A complete alignment: a fast alignment has no ON BAT light (FCOM l.52646-52648)
+        let mut test_bed = all_adirus_unaligned_test_bed_with().ir_mode_selector_set_to(1, mode);
         test_bed.run_without_delta();
 
         test_bed.run_with_delta(
@@ -3936,8 +4376,8 @@ mod tests {
         // the additional duration we would expect the ON BAT light to be illuminated.
         let additional_duration = Duration::from_secs(1);
 
-        let mut test_bed =
-            test_bed_with().ir_mode_selector_set_to(1, InertialReferenceMode::Navigation);
+        let mut test_bed = all_adirus_unaligned_test_bed_with()
+            .ir_mode_selector_set_to(1, InertialReferenceMode::Navigation);
         test_bed.run_without_delta();
         test_bed.run_with_delta(additional_duration);
 
@@ -3968,8 +4408,8 @@ mod tests {
 
     #[test]
     fn switching_between_nav_and_att_doesnt_affect_the_on_bat_light_illumination() {
-        let mut test_bed =
-            test_bed_with().ir_mode_selector_set_to(1, InertialReferenceMode::Navigation);
+        let mut test_bed = all_adirus_unaligned_test_bed_with()
+            .ir_mode_selector_set_to(1, InertialReferenceMode::Navigation);
         test_bed.run_without_delta();
         test_bed.run_with_delta(
             AirDataInertialReferenceSystemOverheadPanel::DURATION_AFTER_WHICH_ON_BAT_ILLUMINATES,
@@ -3983,6 +4423,274 @@ mod tests {
         test_bed.run();
 
         assert!(test_bed.on_bat_light_illuminated());
+    }
+
+    #[test]
+    fn a_fast_alignment_does_not_illuminate_the_on_bat_light() {
+        // Aligned, then OFF and back to NAV within 5 s: a fast alignment (FCOM l.52646-52648)
+        let mut test_bed =
+            test_bed_with().ir_mode_selector_set_to(1, InertialReferenceMode::Navigation);
+        test_bed.run_without_delta();
+
+        for _ in 0..16 {
+            test_bed.run_with_delta(Duration::from_secs(1));
+            assert!(!test_bed.on_bat_light_illuminated());
+        }
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    fn adr_fault_failure_loses_the_air_data_and_illuminates_the_fault_light(
+        #[case] adiru_number: usize,
+    ) {
+        let mut test_bed = all_adirus_aligned_test_bed();
+        test_bed.run();
+        test_bed.fail(FailureType::AdrFault(adiru_number));
+        test_bed.run();
+
+        test_bed.assert_adr_data_valid(false, adiru_number);
+        assert!(test_bed.adr_fault_light_illuminated(adiru_number));
+        assert!(test_bed.adr_fault_discrete(adiru_number));
+        let discrete_word = test_bed.adr_discrete_word_1(adiru_number);
+        assert!(discrete_word.is_normal_operation());
+        assert!(AdrDiscrete1Flags::from_bits_truncate(discrete_word.value())
+            .contains(AdrDiscrete1Flags::ADR_STATUS_FAIL));
+
+        // The other ADRs and the IR of the same ADIRU are not affected
+        for other in (1..=3).filter(|&number| number != adiru_number) {
+            test_bed.assert_adr_data_valid(true, other);
+            assert!(!test_bed.adr_fault_light_illuminated(other));
+        }
+        test_bed.assert_ir_attitude_data_available(true, adiru_number);
+    }
+
+    #[test]
+    fn adr_fault_light_stays_with_the_adr_push_button_off_and_goes_out_when_the_fault_clears() {
+        let mut test_bed = all_adirus_aligned_test_bed();
+        test_bed.fail(FailureType::AdrFault(1));
+        test_bed = test_bed.adr_push_button_off(1);
+        test_bed.run();
+        assert!(test_bed.adr_fault_light_illuminated(1));
+        assert!(test_bed.adr_fault_discrete(1));
+
+        test_bed.unfail(FailureType::AdrFault(1));
+        test_bed.run();
+        assert!(!test_bed.adr_fault_light_illuminated(1));
+        assert!(!test_bed.adr_fault_discrete(1));
+    }
+
+    #[test]
+    fn adr_fault_light_is_off_with_the_adiru_switched_off() {
+        let mut test_bed = all_adirus_aligned_test_bed();
+        test_bed.fail(FailureType::AdrFault(1));
+        test_bed = test_bed.ir_mode_selector_set_to(1, InertialReferenceMode::Off);
+        test_bed.run();
+
+        assert!(!test_bed.adr_fault_light_illuminated(1));
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(3)]
+    fn ir_fault_failure_loses_the_inertial_data_and_illuminates_the_fault_light_steady(
+        #[case] adiru_number: usize,
+    ) {
+        let mut test_bed = all_adirus_aligned_test_bed();
+        test_bed.run();
+        test_bed.fail(FailureType::IrFault(adiru_number));
+        test_bed.run_with_delta(Duration::from_secs(10));
+
+        assert!(test_bed.pitch(adiru_number).is_failure_warning());
+        assert!(test_bed.roll(adiru_number).is_failure_warning());
+        assert!(test_bed.heading(adiru_number).is_failure_warning());
+        assert!(test_bed.latitude(adiru_number).is_failure_warning());
+        assert!(test_bed.ground_speed(adiru_number).is_failure_warning());
+        assert!(test_bed.ir_fault_light_illuminated(adiru_number));
+        assert!(test_bed.ir_fault_discrete(adiru_number));
+        let maint_word = test_bed.maint_word(adiru_number);
+        assert!(maint_word.is_normal_operation());
+        assert!(
+            IrMaintFlags::from_bits_truncate(maint_word.value()).contains(IrMaintFlags::IR_FAULT)
+        );
+
+        // The ADR of the same ADIRU and the other IRs are not affected
+        test_bed.assert_adr_data_valid(true, adiru_number);
+        for other in (1..=3).filter(|&number| number != adiru_number) {
+            test_bed.assert_ir_attitude_data_available(true, other);
+            assert!(!test_bed.ir_fault_light_illuminated(other));
+        }
+    }
+
+    #[test]
+    fn ir_fault_light_stays_with_the_ir_push_button_off() {
+        let mut test_bed = all_adirus_aligned_test_bed();
+        test_bed.fail(FailureType::IrFault(2));
+        test_bed = test_bed.ir_push_button_off(2);
+        test_bed.run();
+
+        assert!(test_bed.ir_fault_light_illuminated(2));
+        assert!(test_bed.ir_fault_discrete(2));
+    }
+
+    #[test]
+    fn ir_heading_erroneous_failure_offsets_the_heading_with_a_valid_status() {
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .heading_of(Angle::new::<degree>(100.))
+            .true_heading_of(Angle::new::<degree>(105.));
+        test_bed.fail(FailureType::IrHeadingErroneous(1));
+        test_bed.run();
+
+        let heading_1 = test_bed.heading(1);
+        assert!(heading_1.is_normal_operation());
+        assert_about_eq!(heading_1.value().get::<degree>(), 110.);
+        assert_about_eq!(test_bed.true_heading(1).value().get::<degree>(), 115.);
+        assert_about_eq!(test_bed.heading(2).value().get::<degree>(), 100.);
+        assert!(!test_bed.ir_fault_light_illuminated(1));
+    }
+
+    #[test]
+    fn without_its_main_bus_the_adr_is_lost_and_the_ir_runs_on_the_battery() {
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .after_the_power_settling_time()
+            .on_ground(true)
+            .bus_powered(ElectricalBusType::AlternatingCurrent(2), false);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        test_bed.assert_adr_data_valid(false, 2);
+        test_bed.assert_ir_attitude_data_available(true, 2);
+        assert!(test_bed.is_aligned(2));
+        // FCOM l.52645-52652: ON BAT light, and the external horn on the ground
+        assert!(test_bed.on_bat_light_illuminated());
+        assert!(test_bed.external_horn_sounds());
+        test_bed.assert_adr_data_valid(true, 1);
+    }
+
+    #[test]
+    fn the_external_horn_does_not_sound_in_flight() {
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .after_the_power_settling_time()
+            .on_ground(false)
+            .bus_powered(ElectricalBusType::AlternatingCurrentEssential, false);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        assert!(test_bed.on_bat_light_illuminated());
+        assert!(!test_bed.external_horn_sounds());
+    }
+
+    #[test]
+    fn with_all_buses_powered_the_on_bat_light_and_the_horn_are_off() {
+        let mut test_bed = all_adirus_aligned_test_bed_with().on_ground(true);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        assert!(!test_bed.on_bat_light_illuminated());
+        assert!(!test_bed.external_horn_sounds());
+    }
+
+    #[test]
+    fn a_switched_off_adiru_takes_no_battery_power() {
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .after_the_power_settling_time()
+            .on_ground(true)
+            .bus_powered(ElectricalBusType::AlternatingCurrent(2), false)
+            .ir_mode_selector_set_to(2, InertialReferenceMode::Off);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        assert!(!test_bed.on_bat_light_illuminated());
+        assert!(!test_bed.external_horn_sounds());
+    }
+
+    #[test]
+    fn the_battery_supplies_an_ir_with_a_time_limit_only_for_that_time() {
+        // A320 FCOM PRO-ABN-ELEC note (e) (l.75390): "IR 2 and IR 3 are lost 5 min after failure of main generators"
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .after_the_power_settling_time()
+            .bus_powered(ElectricalBusType::AlternatingCurrent(2), false);
+        test_bed.run_with_delta(TEST_IR_2_BACKUP_TIME_LIMIT - Duration::from_secs(1));
+        test_bed.assert_ir_attitude_data_available(true, 2);
+
+        test_bed.run_with_delta(Duration::from_secs(2));
+        test_bed.assert_ir_attitude_data_available(false, 2);
+        assert!(!test_bed.is_aligned(2));
+        assert!(!test_bed.on_bat_light_illuminated());
+    }
+
+    #[test]
+    fn without_its_main_and_backup_buses_the_ir_is_lost() {
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .after_the_power_settling_time()
+            .bus_powered(ElectricalBusType::AlternatingCurrentEssential, false)
+            .bus_powered(ElectricalBusType::DirectCurrentHot(1), false);
+        test_bed.run_with_delta(Duration::from_secs(1));
+
+        test_bed.assert_ir_attitude_data_available(false, 1);
+        test_bed.assert_adr_data_valid(false, 1);
+        assert!(!test_bed.is_aligned(1));
+        test_bed.assert_ir_attitude_data_available(true, 2);
+    }
+
+    #[test]
+    fn an_unpowered_network_while_the_flight_loads_does_not_stop_the_adirus() {
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .bus_powered(ElectricalBusType::AlternatingCurrent(2), false)
+            .bus_powered(ElectricalBusType::DirectCurrentHot(2), false);
+        test_bed.run_with_delta(
+            AirDataInertialReferenceSystem::POWER_SETTLING_TIME - Duration::from_millis(100),
+        );
+        test_bed.assert_adr_data_valid(true, 2);
+        assert!(test_bed.is_aligned(2));
+
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.assert_adr_data_valid(false, 2);
+        assert!(!test_bed.is_aligned(2));
+    }
+
+    #[test]
+    fn a_short_power_interruption_does_not_stop_the_adiru() {
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .after_the_power_settling_time()
+            .bus_powered(ElectricalBusType::AlternatingCurrent(2), false);
+        test_bed.run_with_delta(AirDataInertialReferenceUnit::POWER_INTERRUPTION_TOLERANCE / 2);
+        test_bed = test_bed.bus_powered(ElectricalBusType::AlternatingCurrent(2), true);
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        test_bed.assert_adr_data_valid(true, 2);
+    }
+
+    #[test]
+    fn the_adr_initialises_again_when_its_power_comes_back() {
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .after_the_power_settling_time()
+            .bus_powered(ElectricalBusType::AlternatingCurrent(2), false);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed = test_bed.bus_powered(ElectricalBusType::AlternatingCurrent(2), true);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.assert_adr_data_valid(false, 2);
+
+        test_bed.run_with_delta(AirDataReference::INITIALISATION_DURATION);
+        test_bed.assert_adr_data_valid(true, 2);
+    }
+
+    #[test]
+    fn an_adr_with_a_second_bus_needs_both_buses_and_its_ir_does_not_run_on_the_battery() {
+        // ADIRU 3 of the test aircraft is supplied as an A380 ADIRU: AC bus, and a DC bus for the ADR and as IR backup
+        let mut test_bed = all_adirus_aligned_test_bed_with()
+            .after_the_power_settling_time()
+            .bus_powered(ElectricalBusType::DirectCurrent(1), false);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.assert_adr_data_valid(false, 3);
+        test_bed.assert_ir_attitude_data_available(true, 3);
+
+        test_bed = test_bed
+            .bus_powered(ElectricalBusType::DirectCurrent(1), true)
+            .bus_powered(ElectricalBusType::AlternatingCurrent(1), false);
+        test_bed.run_with_delta(Duration::from_secs(1));
+        test_bed.assert_adr_data_valid(false, 3);
+        test_bed.assert_ir_attitude_data_available(true, 3);
+        assert!(test_bed.is_aligned(3));
+        assert!(!test_bed.on_bat_light_illuminated());
     }
 
     #[test]

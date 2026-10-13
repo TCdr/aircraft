@@ -2168,6 +2168,17 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
       | 7     | AIDED (coasting on the IR data, up to two minutes) |
       | 8     | DIFF (satellite based augmentation) |
 
+- A32NX_ADIRS_ADR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The ADR FAULT discrete of ADIRU {number}: a fault is detected in its air data reference part (ADR FAULT light).
+      False while the ADIRU is not supplied (AC and DC busbars, see a380_systems navigation.rs) or its mode selector is
+      OFF. The FWS reads the ADR fail bit of A32NX_ADIRS_ADR_{number}_DISCRETE_WORD_1 instead.
+
+- A32NX_ADIRS_EXTERNAL_HORN
+    - Bool
+    - Written by the common ADIRS overhead panel (A320 external horn of an ADIRU on batteries). Always false on the
+      A380X: its IRs have no battery supply.
+
 - A32NX_ADIRS_IR_{number}_GPIRS_LATITUDE, A32NX_ADIRS_IR_{number}_GPIRS_LONGITUDE
     - Arinc429<Degrees>
     - The GPIRS (hybrid GPS/IRS) position of IR {number}: valid when the IR is in NAV and has a GPS receiver in NAV

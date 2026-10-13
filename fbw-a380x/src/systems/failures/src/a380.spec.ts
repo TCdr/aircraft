@@ -474,4 +474,23 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
       expected.map(([id, failureType, name, chapter]) => [id, failureType, name, chapter]),
     );
   });
+
+  // The labels say what systems navigation/adirs.rs does with ids 34070-34082: the FWS reads the ADR discrete word and
+  // the IR maintenance word (FwsCore adr1Fault, ir1Fault)
+  it('lists the ADR and IR fault failures in ATA 34 with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [34070, 'AdrFault(1)', 'ADR 1 (air data lost, FAULT light)'],
+      [34071, 'AdrFault(2)', 'ADR 2 (air data lost, FAULT light)'],
+      [34072, 'AdrFault(3)', 'ADR 3 (air data lost, FAULT light)'],
+      [34080, 'IrFault(1)', 'IR 1 (inertial data lost, FAULT light)'],
+      [34081, 'IrFault(2)', 'IR 2 (inertial data lost, FAULT light)'],
+      [34082, 'IrFault(3)', 'IR 3 (inertial data lost, FAULT light)'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 34]),
+    );
+  });
 });
