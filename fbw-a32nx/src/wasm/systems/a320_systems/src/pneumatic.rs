@@ -809,11 +809,17 @@ struct BleedMonitoringComputerChannel {
     bleed_valve_not_closed: DelayedTrueLogicGate,
     /// AIR ENG 1(2) HP VALVE FAULT, "the HP valve is abnormally closed" (PRO-ABN-AIR l.70585)
     hp_valve_abnormally_closed: DelayedTrueLogicGate,
+    /// The bleed valve is not in the position this channel commands (amber valve of the BLEED page, FCOM DSC-36-20
+    /// l.57760-57768)
+    bleed_valve_position_disagrees: DelayedTrueLogicGate,
+    /// The opening command sent to the bleed valve at the previous update, that the valve position read now follows
+    bleed_valve_commanded_open: bool,
 
     low_temperature_id: VariableIdentifier,
     overheat_id: VariableIdentifier,
     overpressure_id: VariableIdentifier,
     hp_valve_fault_id: VariableIdentifier,
+    bleed_valve_disagree_id: VariableIdentifier,
 }
 impl BleedMonitoringComputerChannel {
     const PRESSURE_REGULATING_VALVE_SINGLE_BLEED_CONFIG_TARGET_PSI: f64 = 50.;
@@ -838,6 +844,9 @@ impl BleedMonitoringComputerChannel {
     /// Design choice, no FCOM value: the HP valve must stay closed for 5 s while it should be open, longer than its
     /// 4 s travel.
     const HP_VALVE_FAULT_CONFIRMATION: Duration = Duration::from_secs(5);
+    /// Design choice, no FCOM value: the bleed valve must stay out of its commanded position this long before the
+    /// BLEED page shows it amber, as the HP valve fault above.
+    const BLEED_VALVE_POSITION_DISAGREE_CONFIRMATION: Duration = Duration::from_secs(5);
     /// The HP valve opens when its solenoid is energized and the HP stage gives at least its 15 PSI muscle pressure,
     /// and closes against its downstream pressure up to 75 PSI (EngineBleedAirSystem HP valve characteristics; FCOM
     /// DSC-36-10-20 l.57251-57254: it closes for "low upstream pressure" and "excessive upstream pressure"). Design
@@ -890,6 +899,10 @@ impl BleedMonitoringComputerChannel {
             hp_valve_abnormally_closed: DelayedTrueLogicGate::new(
                 Self::HP_VALVE_FAULT_CONFIRMATION,
             ),
+            bleed_valve_position_disagrees: DelayedTrueLogicGate::new(
+                Self::BLEED_VALVE_POSITION_DISAGREE_CONFIRMATION,
+            ),
+            bleed_valve_commanded_open: false,
             low_temperature_id: context
                 .get_identifier(format!("PNEU_ENG_{}_LOW_TEMPERATURE", engine_number)),
             overheat_id: context.get_identifier(format!("PNEU_ENG_{}_OVERHEAT", engine_number)),
@@ -897,6 +910,8 @@ impl BleedMonitoringComputerChannel {
                 .get_identifier(format!("PNEU_ENG_{}_OVERPRESSURE", engine_number)),
             hp_valve_fault_id: context
                 .get_identifier(format!("PNEU_ENG_{}_HP_VALVE_FAULT", engine_number)),
+            bleed_valve_disagree_id: context
+                .get_identifier(format!("PNEU_ENG_{}_PR_VALVE_DISAGREE", engine_number)),
         }
     }
 
@@ -1057,6 +1072,19 @@ impl BleedMonitoringComputerChannel {
             context,
             hp_valve_expected_open && !sensors.high_pressure_valve_is_open(),
         );
+
+        // ECAM BLEED page, engine bleed valve (A320 FCOM DSC-36-20 l.57760-57768): "In line - Amber: BLEED valve not
+        // in commanded (open) position", "Crossline - Amber: BLEED valve not in commanded (closed) position". The
+        // command is the opening this channel sends to the valve (ControllerSignal<PressureRegulatingValveSignal>):
+        // closed by the BMC, the pb-sw, the ENG FIRE pb, or a too low upstream pressure. The valve position read here
+        // follows the command of the previous update (the valves move after the BMC).
+        self.bleed_valve_position_disagrees.update(
+            context,
+            self.bleed_valve_commanded_open != sensors.pressure_regulating_valve_is_open(),
+        );
+        self.bleed_valve_commanded_open =
+            ControllerSignal::<PressureRegulatingValveSignal>::signal(self)
+                .is_some_and(|signal| signal.target_open_amount() > Ratio::default());
     }
 
     /// A detection that holds while the ENG BLEED pb-sw is ON, and follows its condition while the pb-sw is OFF
@@ -1079,6 +1107,10 @@ impl BleedMonitoringComputerChannel {
 
     fn has_hp_valve_fault(&self) -> bool {
         self.hp_valve_abnormally_closed.output()
+    }
+
+    fn bleed_valve_position_disagrees(&self) -> bool {
+        self.bleed_valve_position_disagrees.output()
     }
 
     fn update_low_temperature(
@@ -1323,6 +1355,10 @@ impl SimulationElement for BleedMonitoringComputerChannel {
             writer.write(
                 &self.hp_valve_fault_id,
                 is_master && self.has_hp_valve_fault(),
+            );
+            writer.write(
+                &self.bleed_valve_disagree_id,
+                is_master && self.bleed_valve_position_disagrees(),
             );
         }
     }
@@ -6379,7 +6415,13 @@ pub mod tests {
             ] {
                 run_seconds(&mut test_bed, 60);
                 for engine in 1..=2 {
-                    for name in ["OVERPRESSURE", "OVERHEAT", "HP_VALVE_FAULT", "BLEED_LEAK"] {
+                    for name in [
+                        "OVERPRESSURE",
+                        "OVERHEAT",
+                        "HP_VALVE_FAULT",
+                        "BLEED_LEAK",
+                        "PR_VALVE_DISAGREE",
+                    ] {
                         assert!(
                             !flag(&mut test_bed, &format!("PNEU_ENG_{engine}_{name}")),
                             "ENG {engine} {name}"
@@ -6403,6 +6445,39 @@ pub mod tests {
             assert!(!test_bed.pr_valve_is_open(1));
             assert!(!flag(&mut test_bed, "PNEU_ENG_1_PR_VALVE_OPEN"));
             assert!(test_bed.pr_valve_is_open(2));
+        }
+
+        /// BLEED page (FCOM DSC-36-20 l.57760-57768): "Crossline - Amber: BLEED valve not in commanded (closed)
+        /// position", after the confirmation time
+        #[test]
+        fn a_bleed_valve_stuck_closed_disagrees_with_its_open_command() {
+            let mut test_bed = engines_at_idle_on_ground();
+
+            test_bed.fail(FailureType::EngineBleedValveStuckClosed(1));
+            run_seconds(&mut test_bed, 3);
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_PR_VALVE_DISAGREE"));
+            run_seconds(&mut test_bed, 5);
+
+            assert!(!test_bed.pr_valve_is_open(1));
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_PR_VALVE_DISAGREE"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_PR_VALVE_DISAGREE"));
+        }
+
+        /// BLEED page (FCOM DSC-36-20 l.57760-57768): "In line - Amber: BLEED valve not in commanded (open)
+        /// position". The disagreement goes when the failure goes.
+        #[test]
+        fn a_bleed_valve_stuck_open_disagrees_with_its_closed_command() {
+            let mut test_bed = apu_bleed_on_with_engines_stopped();
+
+            test_bed.fail(FailureType::EngineBleedValveStuckOpen(1));
+            run_seconds(&mut test_bed, 8);
+            assert!(test_bed.pr_valve_is_open(1));
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_PR_VALVE_DISAGREE"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_PR_VALVE_DISAGREE"));
+
+            test_bed.unfail(FailureType::EngineBleedValveStuckOpen(1));
+            run_seconds(&mut test_bed, 2);
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_PR_VALVE_DISAGREE"));
         }
 
         /// The path of AIR ENG 1(2) BLEED NOT CLSD (PRO-ABN-AIR l.70542-70544): the valve stays open with the APU

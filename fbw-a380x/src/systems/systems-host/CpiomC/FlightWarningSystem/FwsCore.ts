@@ -196,6 +196,7 @@ import { ApuFaultInputs, isApuFault } from './ApuFaultAlerts';
 import { fuelTransferMemos, TankOutflowMonitor } from './FuelTransferMemos';
 import { enginePumpPressLoStatus } from './HydPumpStatus';
 import { AbnormBleedConfigInputs, isAbnormBleedConfig } from './AbnormBleedConfig';
+import { BleedMonitoringInputs, isBleedLeak, isEngineBleedFault } from './BleedMonitoringAlerts';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -2772,6 +2773,7 @@ export class FwsCore {
   public abnormBleedConfigInputs: AbnormBleedConfigInputs = {
     engineShutDown: [false, false, false, false],
     engineFire: [false, false, false, false],
+    bleedFault: [false, false, false, false],
     bleedPbAuto: [true, true, true, true],
     xbleedOpen: false,
     xbleedSelectorOpen: false,
@@ -2785,6 +2787,32 @@ export class FwsCore {
 
   /** AIR ABNORM BLEED CONFIG (AbnormBleedConfig isAbnormBleedConfig) */
   public readonly abnormBleedConfig = Subject.create(false);
+
+  /** The CPIOM-A bleed monitoring, for AIR ENG n BLEED FAULT and the bleed leak alerts (BleedMonitoringAlerts) */
+  public bleedMonitoringInputs: BleedMonitoringInputs = {
+    overheat: [false, false, false, false],
+    overpressure: [false, false, false, false],
+    pylonLeak: [false, false, false, false],
+    wingLeak: [false, false, false, false],
+    bleedValveOpen: [false, false, false, false],
+    bleedPbAuto: [true, true, true, true],
+    engineRunning: [false, false, false, false],
+    xbleedValveOpen: [false, false, false],
+    pack1On: true,
+    pack2On: true,
+    apuBleedOn: false,
+    wingAntiIceOn: false,
+    onGround: true,
+  };
+
+  /** AIR ENG 1(2)(3)(4) BLEED FAULT (BleedMonitoringAlerts isEngineBleedFault), engine 1 first */
+  public readonly engineBleedFault = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** AIR ENG 1(2)(3)(4) BLEED LEAK (BleedMonitoringAlerts isBleedLeak), engine 1 first */
+  public readonly engineBleedLeak = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** AIR L OUTR / L INR / R INR / R OUTR WING LEAK (BleedMonitoringAlerts isBleedLeak), in the order of the engines */
+  public readonly wingBleedLeak = [1, 2, 3, 4].map(() => Subject.create(false));
 
   public readonly apuStartSwitchSimvar = RegisteredSimVar.createBoolean(
     'L:A32NX_OVHD_APU_START_PB_IS_ON',
@@ -6535,8 +6563,37 @@ export class FwsCore {
     };
     this.apuFault.set(isApuFault(this.apuFaultInputs));
 
-    // AIR ABNORM BLEED CONFIG after ENG SHUT DOWN or ENG FIRE (AbnormBleedConfig)
     const readBoolVar = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool) > 0;
+
+    // AIR ENG n BLEED FAULT and the bleed leaks, from the CPIOM-A bleed monitoring (a380_systems pneumatic.rs)
+    const engineNumbers = [1, 2, 3, 4];
+    this.bleedMonitoringInputs = {
+      overheat: engineNumbers.map((engine) => readBoolVar(`L:A32NX_PNEU_ENG_${engine}_OVERHEAT`)),
+      overpressure: engineNumbers.map((engine) => readBoolVar(`L:A32NX_PNEU_ENG_${engine}_OVERPRESSURE`)),
+      pylonLeak: engineNumbers.map((engine) => readBoolVar(`L:A32NX_PNEU_ENG_${engine}_BLEED_LEAK`)),
+      wingLeak: ['L_OUTR', 'L_INR', 'R_INR', 'R_OUTR'].map((zone) => readBoolVar(`L:A32NX_PNEU_${zone}_WING_LEAK`)),
+      bleedValveOpen: engineNumbers.map((engine) => readBoolVar(`L:A32NX_PNEU_ENG_${engine}_PR_VALVE_OPEN`)),
+      bleedPbAuto: engineNumbers.map((engine) => readBoolVar(`L:A32NX_OVHD_PNEU_ENG_${engine}_BLEED_PB_IS_AUTO`)),
+      engineRunning: [
+        this.engine1Running.get(),
+        this.engine2Running.get(),
+        this.engine3Running.get(),
+        this.engine4Running.get(),
+      ],
+      xbleedValveOpen: ['L', 'C', 'R'].map((valve) => readBoolVar(`L:A32NX_PNEU_XBLEED_VALVE_${valve}_OPEN`)),
+      pack1On: this.pack1On.get(),
+      pack2On: this.pack2On.get(),
+      apuBleedOn: this.apuBleedPbOn.get(),
+      wingAntiIceOn: this.wingAntiIce.get(),
+      onGround: this.aircraftOnGround.get(),
+    };
+    for (let engine = 0; engine < 4; engine++) {
+      this.engineBleedFault[engine].set(isEngineBleedFault(this.bleedMonitoringInputs, engine));
+      this.engineBleedLeak[engine].set(isBleedLeak(this.bleedMonitoringInputs, engine, false));
+      this.wingBleedLeak[engine].set(isBleedLeak(this.bleedMonitoringInputs, engine, true));
+    }
+
+    // AIR ABNORM BLEED CONFIG after ENG SHUT DOWN, ENG FIRE or ENG BLEED FAULT (AbnormBleedConfig)
     this.abnormBleedConfigInputs = {
       engineShutDown: [
         this.eng1ShutdownAbnormalSensed.get(),
@@ -6550,6 +6607,7 @@ export class FwsCore {
         this.eng3FireDetected.get(),
         this.eng4FireDetected.get(),
       ],
+      bleedFault: this.engineBleedFault.map((fault) => fault.get()),
       bleedPbAuto: [1, 2, 3, 4].map((engine) => readBoolVar(`L:A32NX_OVHD_PNEU_ENG_${engine}_BLEED_PB_IS_AUTO`)),
       xbleedOpen:
         readBoolVar('L:A32NX_PNEU_XBLEED_VALVE_L_OPEN') &&

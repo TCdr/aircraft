@@ -2931,6 +2931,14 @@ In the variables below, {number} should be replaced with one item in the set: { 
         - 1
         - 2
 
+- A32NX_PNEU_ENG_{number}_PR_VALVE_DISAGREE:
+    - Indicates whether the BMC finds the engine bleed valve out of its commanded position for 5 s (amber valve of the
+      BLEED page, FCOM DSC-36-20)
+    - Bool
+    - {number}
+        - 1
+        - 2
+
 - A32NX_PNEU_ENG_{number}_BLEED_LEAK:
     - Indicates whether the pylon leak detection loop of the engine detects a leak (above 204 °C). Needs the BMC of the
       engine; held while the ENG BLEED pb-sw is ON

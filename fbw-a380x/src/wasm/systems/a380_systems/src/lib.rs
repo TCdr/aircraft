@@ -349,6 +349,7 @@ impl Aircraft for A380 {
             &self.apu,
             &self.air_conditioning,
         );
+        self.pneumatic_overhead.update_fault_lights(&self.pneumatic);
         self.air_conditioning
             .mix_packs_air_update(self.pneumatic.packs());
         self.air_conditioning.update(
