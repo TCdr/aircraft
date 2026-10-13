@@ -21,6 +21,9 @@
 
 use std::time::Duration;
 
+pub mod cargo_fire_extinguishing;
+pub mod smoke_detection;
+
 use crate::{
     failures::{Failure, FailureType},
     shared::{

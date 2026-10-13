@@ -313,6 +313,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ECAM] SD advisory mode: a value pulsing on a system page (APU EGT and flap, cabin altitude, V/S and delta P, IDG oil, engine oil and vibrations, fuel imbalance) calls that page; with one ECAM display its ECP pb flashes - @TCdr
 1. [A32NX/BRAKES] Brake and steering control units modelled: two BSCU channels (changeover at each gear down selection) and the ABCU, on their electrical buses, with six new flyPad failures (ATA 32: BSCU channel 1 and 2, ABCU, normal braking, autobrake, nose wheel steering). A lost BSCU means alternate braking without antiskid (1000 PSI) and no nose wheel steering; autobrake arming needs a working BSCU, no brake failure and one ADIRU; MAX autobrake only starts above 40 kt wheel speed - @TCdr
 1. [A32NX/FWC] New BRAKES A/SKID N/WS FAULT, NORM + ALTN FAULT, NORM BRK FAULT, ALTN BRK FAULT, AUTO BRK FAULT, SYS 1(2) FAULT and WHEEL N/W STRG FAULT cautions with their FCOM procedures and STATUS - @TCdr
+1. [A32NX/A380X/APU] The APU shuts down automatically with a FAULT on an ECB failure, an overspeed, a low oil pressure or a high oil temperature (four new ATA 49 flyPad failures; A380X high oil temperature on the ground only), and when its DC supply is lost while it runs (BAT OFF on batteries only) - @TCdr
+1. [A32NX/FIRE] Cargo and avionics smoke detection with new flyPad failures: SMOKE FWD and AFT CARGO SMOKE, FWD and AFT CRG DET FAULT, FWD and AFT CRG BTL 1 FAULT and AVIONICS SMOKE alerts, the SMOKE, GEN 1 LINE SMOKE and BLOWER/EXTRACT FAULT lights; the cargo DISCH pbs now discharge the cargo fire bottle and light the DISCH lights - @TCdr
 
 ## 2024.1.0
 

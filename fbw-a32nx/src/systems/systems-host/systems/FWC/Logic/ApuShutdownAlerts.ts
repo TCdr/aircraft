@@ -4,7 +4,8 @@
 /*
  * APU AUTO SHUT DOWN and APU EMER SHUT DOWN (A320 FCOM PRO-ABN-APU APU AUTO (EMER) SHUT DOWN, a320_fcom.txt
  * l.71082-71114). The triggers come from the common APU electronic control box (fbw-common apu/electronic_control_box.rs
- * write()): L:A32NX_APU_IS_AUTO_SHUTDOWN (a fault other than a fire: fuel low pressure, DC power loss in the start) and
+ * write()): L:A32NX_APU_IS_AUTO_SHUTDOWN (a fault other than a fire: fuel low pressure, DC power loss, ECB failure,
+ * overspeed, low oil pressure, high oil temperature) and
  * L:A32NX_APU_IS_EMERGENCY_SHUTDOWN (the APU FIRE pb released, or an APU fire on ground). Both end when the ECB goes off
  * after the MASTER SW OFF action.
  */

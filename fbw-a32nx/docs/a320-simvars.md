@@ -358,7 +358,9 @@
 
 - A32NX_APU_IS_AUTO_SHUTDOWN
     - Bool
-    - Indicates if the APU automatically shut down (for a reason other than fire)
+    - Indicates if the APU automatically shut down (for a reason other than fire): fuel low pressure, DC power lost
+      (start motor supply, or the ECB's DC supply above N 70 %), ECB failure, overspeed, low oil pressure, high oil
+      temperature (the last four from the ATA 49 flyPad failures)
 
 - A32NX_APU_IS_EMERGENCY_SHUTDOWN
     - Bool
@@ -400,6 +402,36 @@
     - True when the fire detection unit of the zone is failed (flyPad failure "Engine 1(2) / APU fire detection unit
       (FDU)"). The zone then gives no fire warning (A32NX_FIRE_DETECTED_* stays false)
     - Drives the ENG 1(2) / APU FIRE DET FAULT caution, which then replaces the LOOP A(B) FAULT cautions of the zone
+
+- A32NX_SMOKE_{FWD_CARGO | AFT_CARGO | AVIONICS}_DETECTED
+    - Bool
+    - True when the smoke detection of the compartment gives the SMOKE warning (systems fire_protection/smoke_detection.rs):
+      both detection loops sense the smoke, or one does and the other is inoperative (A320 FCOM DSC-26-50-10). The
+      avionics ventilation duct detector after 5 s of smoke (DSC-26-30-10). The smoke comes from the flyPad failures
+      "Forward cargo smoke", "Aft cargo smoke", "Avionics smoke (ventilation extract duct)"
+    - Read by the FWC (SMOKE FWD (AFT) CARGO SMOKE, AVIONICS SMOKE), the CARGO SMOKE panel SMOKE lights, and for
+      AVIONICS the GEN 1 LINE SMOKE light and the BLOWER and EXTRACT FAULT lights
+
+- A32NX_SMOKE_{FWD_CARGO | AFT_CARGO | AVIONICS}_DET_FAULT
+    - Bool
+    - True when every smoke detector of the compartment is inoperative: flyPad failure or no electrical supply (cargo
+      loop 1: DC ESS SHED bus, loop 2: DC 2 bus; avionics: DC ESS bus)
+    - Drives the SMOKE FWD (AFT) CRG DET FAULT cautions
+
+- A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED
+    - Bool
+    - True when the cargo fire bottle is fully discharged, 60 s after the first FWD or AFT DISCH pb press (A320 FCOM
+      DSC-26-50-20). Drives the amber DISCH lights of the CARGO SMOKE panel
+
+- A32NX_CARGOSMOKE_BOTTLE_1_LOW_PRESSURE
+    - Bool
+    - True when the cargo fire bottle lost its agent (flyPad failure "Cargo fire bottle low pressure"); drives the SMOKE
+      FWD and AFT CRG BTL 1 FAULT cautions
+
+- A32NX_CARGOSMOKE_{FWD | AFT}_AGENT_RELEASED
+    - Bool
+    - True once the cargo fire bottle discharges into that compartment (the first DISCH pb pressed while the bottle is
+      full)
 
 - A32NX_FIRE_APU_EXTERNAL_HORN
     - Bool
@@ -603,11 +635,12 @@
 
 - A32NX_CARGOSMOKE_FWD_DISCHARGED
     - Bool
-    - True if cargosmoke one bottle is discharged
+    - True once the FWD DISCH pb of the CARGO SMOKE panel was pressed (the cargo fire bottle then discharges into the
+      FWD compartment if it is still full, see A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED)
 
 - A32NX_CARGOSMOKE_AFT_DISCHARGED
     - Bool
-    - True if cargosmoke two bottle is discharged
+    - True once the AFT DISCH pb of the CARGO SMOKE panel was pressed
 
 - A32NX_AIDS_PRINT_ON
     - Bool

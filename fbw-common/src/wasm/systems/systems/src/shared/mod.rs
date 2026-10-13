@@ -1134,6 +1134,43 @@ pub enum FireDetectionLoopID {
     B,
 }
 
+/// A compartment watched by smoke detectors: the A320 cargo compartments and avionics ventilation duct (A320 FCOM
+/// DSC-26-30-10, DSC-26-50-10), the A380 cargo compartments and avionics bays (A380 FCOM DSC-26-50-10, DSC-26-60-10)
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum SmokeDetectionZone {
+    ForwardCargo,
+    AftCargo,
+    BulkCargo,
+    /// The A320 avionics ventilation air extraction duct
+    Avionics,
+    LeftMainAvionics,
+    RightMainAvionics,
+    LeftUpperAvionics,
+    RightUpperAvionics,
+    AftAvionics,
+    /// The A380 In Flight Entertainment (IFE) bay
+    InFlightEntertainmentBay,
+}
+
+impl Display for SmokeDetectionZone {
+    /// The zone in the variable names, e.g. L:A32NX_SMOKE_FWD_CARGO_DETECTED
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            SmokeDetectionZone::ForwardCargo => "FWD_CARGO",
+            SmokeDetectionZone::AftCargo => "AFT_CARGO",
+            SmokeDetectionZone::BulkCargo => "BULK_CARGO",
+            SmokeDetectionZone::Avionics => "AVIONICS",
+            SmokeDetectionZone::LeftMainAvionics => "L_MAIN_AVNCS",
+            SmokeDetectionZone::RightMainAvionics => "R_MAIN_AVNCS",
+            SmokeDetectionZone::LeftUpperAvionics => "L_UPPER_AVNCS",
+            SmokeDetectionZone::RightUpperAvionics => "R_UPPER_AVNCS",
+            SmokeDetectionZone::AftAvionics => "AFT_AVNCS",
+            SmokeDetectionZone::InFlightEntertainmentBay => "IFE_BAY",
+        };
+        write!(f, "{}", name)
+    }
+}
+
 pub trait Clamp {
     /// Restrict a value to a certain interval unless it is NaN.
     ///

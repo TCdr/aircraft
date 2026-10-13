@@ -88,6 +88,15 @@ export const A320Failure = Object.freeze({
   Engine1FireDetectionUnit: 26009,
   Engine2FireDetectionUnit: 26010,
   ApuFireDetectionUnit: 26011,
+  FwdCargoSmoke: 26012,
+  AftCargoSmoke: 26013,
+  FwdCargoSmokeDetectionLoop1: 26014,
+  FwdCargoSmokeDetectionLoop2: 26015,
+  AftCargoSmokeDetectionLoop1: 26016,
+  AftCargoSmokeDetectionLoop2: 26017,
+  AvionicsSmoke: 26018,
+  AvionicsSmokeDetector: 26019,
+  CargoFireBottleLowPressure: 26020,
 
   Elac1Failure: 27000,
   Elac2Failure: 27001,
@@ -268,6 +277,10 @@ export const A320Failure = Object.freeze({
   ApuLeakDetectionLoop: 36086,
   Bmc1: 36090,
   Bmc2: 36091,
+  ApuEcb: 49000,
+  ApuOverspeed: 49001,
+  ApuOilLowPressure: 49002,
+  ApuOilHighTemperature: 49003,
   Eng1Flameout: 72000,
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
@@ -421,6 +434,19 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [26, A320Failure.Engine1FireDetectionUnit, 'Engine 1 fire detection unit (FDU)'],
   [26, A320Failure.Engine2FireDetectionUnit, 'Engine 2 fire detection unit (FDU)'],
   [26, A320Failure.ApuFireDetectionUnit, 'APU fire detection unit (FDU)'],
+  // Smoke sensed by the cargo smoke detectors (SDCU) and the avionics ventilation duct detector (systems
+  // fire_protection/smoke_detection.rs): SMOKE FWD (AFT) CARGO SMOKE, AVIONICS SMOKE after 5 s
+  [26, A320Failure.FwdCargoSmoke, 'Forward cargo smoke'],
+  [26, A320Failure.AftCargoSmoke, 'Aft cargo smoke'],
+  // One loop failed is tolerated (dual loop principle); both loops of a compartment failed: SMOKE FWD (AFT) CRG DET FAULT
+  [26, A320Failure.FwdCargoSmokeDetectionLoop1, 'Forward cargo smoke detection loop 1'],
+  [26, A320Failure.FwdCargoSmokeDetectionLoop2, 'Forward cargo smoke detection loop 2'],
+  [26, A320Failure.AftCargoSmokeDetectionLoop1, 'Aft cargo smoke detection loop 1'],
+  [26, A320Failure.AftCargoSmokeDetectionLoop2, 'Aft cargo smoke detection loop 2'],
+  [26, A320Failure.AvionicsSmoke, 'Avionics smoke (ventilation extract duct)'],
+  [26, A320Failure.AvionicsSmokeDetector, 'Avionics smoke detector'],
+  // The cargo fire bottle loses its agent: SMOKE FWD and AFT CRG BTL 1 FAULT, nothing left to discharge
+  [26, A320Failure.CargoFireBottleLowPressure, 'Cargo fire bottle low pressure'],
 
   [27, A320Failure.Elac1Failure, 'ELAC 1'],
   [27, A320Failure.Elac2Failure, 'ELAC 2'],
@@ -596,6 +622,13 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // longer closes automatically and its FAULT light is lost
   [36, A320Failure.Bmc1, 'BMC 1 (bleed monitoring computer)'],
   [36, A320Failure.Bmc2, 'BMC 2 (bleed monitoring computer)'],
+
+  // The APU electronic control box (ECB) senses these and shuts the APU down: MASTER SW FAULT light, APU AUTO SHUT DOWN
+  // (systems apu/electronic_control_box.rs). The overspeed and oil failures act once the APU runs.
+  [49, A320Failure.ApuEcb, 'APU electronic control box (ECB)'],
+  [49, A320Failure.ApuOverspeed, 'APU overspeed (automatic shutdown)'],
+  [49, A320Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],
+  [49, A320Failure.ApuOilHighTemperature, 'APU high oil temperature (automatic shutdown)'],
 
   // The flame goes out once (fuel cut); the crew relights it with ENG MASTER OFF then ON inside the relight envelope
   [72, A320Failure.Eng1Flameout, 'Engine 1 flameout (crew relight possible)'],

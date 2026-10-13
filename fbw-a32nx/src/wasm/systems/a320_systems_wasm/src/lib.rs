@@ -32,7 +32,7 @@ use systems::failures::FailureType;
 use systems::shared::{
     report_diagnostic, AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType,
     FireDetectionLoopID, FireDetectionZone, GearActuatorId, HydraulicColor, LgciuId,
-    ProximityDetectorId,
+    ProximityDetectorId, SmokeDetectionZone,
 };
 use systems_wasm::aspects::ExecuteOn;
 use systems_wasm::{MsfsSimulationBuilder, Variable};
@@ -232,6 +232,30 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),
         (27_012, FailureType::SlatFlapControlComputerSlatChannel(1)),
         (27_013, FailureType::SlatFlapControlComputerSlatChannel(2)),
+        (26_012, FailureType::Smoke(SmokeDetectionZone::ForwardCargo)),
+        (26_013, FailureType::Smoke(SmokeDetectionZone::AftCargo)),
+        (
+            26_014,
+            FailureType::SmokeDetector(SmokeDetectionZone::ForwardCargo, 1),
+        ),
+        (
+            26_015,
+            FailureType::SmokeDetector(SmokeDetectionZone::ForwardCargo, 2),
+        ),
+        (
+            26_016,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftCargo, 1),
+        ),
+        (
+            26_017,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftCargo, 2),
+        ),
+        (26_018, FailureType::Smoke(SmokeDetectionZone::Avionics)),
+        (
+            26_019,
+            FailureType::SmokeDetector(SmokeDetectionZone::Avionics, 1),
+        ),
+        (26_020, FailureType::CargoFireBottleLowPressure(1)),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Blue)),
         (29_002, FailureType::ReservoirLeak(HydraulicColor::Yellow)),
@@ -456,6 +480,10 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (36_086, FailureType::ApuLeakDetectionLoop),
         (36_090, FailureType::BleedMonitoringComputer(1)),
         (36_091, FailureType::BleedMonitoringComputer(2)),
+        (49_000, FailureType::ApuElectronicControlBox),
+        (49_001, FailureType::ApuOverspeed),
+        (49_002, FailureType::ApuOilLowPressure),
+        (49_003, FailureType::ApuOilHighTemperature),
         (80_000, FailureType::EngineStartValveStuckClosed(1)),
         (80_001, FailureType::EngineStartValveStuckClosed(2)),
         (80_010, FailureType::EngineStartValveStuckOpen(1)),
