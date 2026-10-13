@@ -430,6 +430,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         ),
         (26_046, FailureType::CargoFireBottleLowPressure(1)),
         (26_047, FailureType::CargoFireBottleLowPressure(2)),
+        (26_048, FailureType::SmokeDetectionFunction),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Yellow)),
         (29_002, FailureType::ReservoirAirLeak(HydraulicColor::Green)),

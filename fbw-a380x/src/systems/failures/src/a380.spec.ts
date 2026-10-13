@@ -641,6 +641,7 @@ describe('A380X slat/flap channel and avionics network failures', () => {
       [26045, 'SmokeDetector(SmokeDetectionZone::InFlightEntertainmentBay,2)', 'IFE bay smoke detector 2', 26],
       [26046, 'CargoFireBottleLowPressure(1)', 'Cargo fire bottle 1 low pressure', 26],
       [26047, 'CargoFireBottleLowPressure(2)', 'Cargo fire bottle 2 low pressure', 26],
+      [26048, 'SmokeDetectionFunction', 'Smoke detection function (SDF) of the CIDS', 26],
       [49000, 'ApuElectronicControlBox', 'APU electronic control box (ECB)', 49],
       [49001, 'ApuOverspeed', 'APU overspeed (automatic shutdown)', 49],
       [49002, 'ApuOilLowPressure', 'APU low oil pressure (automatic shutdown)', 49],

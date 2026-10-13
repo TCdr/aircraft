@@ -887,7 +887,7 @@ export const EcamAbnormalSensedAta26: { [n: number]: AbnormalProcedure } = {
         labelNotCompleted: 'OFF',
       },
       {
-        name: 'NO LIFESTOCK',
+        name: 'NO LIVESTOCK',
         sensed: false,
         condition: true,
       },

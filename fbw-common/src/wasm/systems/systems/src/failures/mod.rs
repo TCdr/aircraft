@@ -81,6 +81,9 @@ pub enum FailureType {
     Smoke(SmokeDetectionZone),
     /// Smoke detector n of a compartment is failed (fire_protection::smoke_detection)
     SmokeDetector(SmokeDetectionZone, usize),
+    /// The smoke detection unit of the aircraft is failed (A380 Smoke Detection Function of the CIDS): it reports
+    /// neither smoke nor a detector fault in any compartment (fire_protection::smoke_detection)
+    SmokeDetectionFunction,
     /// Cargo fire extinguisher bottle n loses its agent: low pressure (A320 SMOKE CRG BTL FAULT, A380 SMOKE CARGO
     /// BOTTLES FAULT)
     CargoFireBottleLowPressure(usize),

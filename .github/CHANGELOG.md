@@ -597,6 +597,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
 1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
 1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
+1. [A380X/FWS] New CAB COM CIDS 1+2+3 FAULT, CIDS CABIN COM FAULT and COM DEGRADED alerts with their flyPad failures (CIDS 1/2/3, upper/main/lower deck PA, cabin interphone, PA and interphone degraded) - @TCdr
+1. [A380X/FWS] New COM CAPT (F/O)(THIRD OCCUPANT) PTT STUCK and VHF 1(2)(3) EMITTING alerts from new flyPad failures of the PTT switches, VHF 3 DATALINK FAULT on the VHF 3 failure, COM DATALINK FAULT when VHF 3 is failed or in voice mode, PA IN USE memo while a PA transmission key is on - @TCdr
+1. [A380X/FWS] New APU MACH LIMIT EXCEEDED caution (APU running above M 0.5) and APU OIL FILTER CLOGGED alert with its flyPad failure - @TCdr
+1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
 
 ## 2024.1.0
 

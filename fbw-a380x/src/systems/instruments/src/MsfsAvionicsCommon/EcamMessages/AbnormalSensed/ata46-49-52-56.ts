@@ -35,6 +35,21 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
       { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 1 },
     ],
   },
+  490800002: {
+    // A380 FCOM PRO-ABN-ECAM-10-49 APU MACH LIMIT EXCEEDED (a380_fcom.txt l.170204-170230), ApuFaultAlerts.ts
+    title: '\x1b<4m\x1b4mAPU\x1bm MACH LIMIT EXCEEDED',
+    sensed: true,
+    items: [
+      { name: 'IF APU NOT ABSOLUTELY RQRD', sensed: false, condition: true },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
+  },
+  490800003: {
+    // A380 FCOM PRO-ABN-ECAM-10-49 APU OIL FILTER CLOGGED (a380_fcom.txt l.170240-170258): crew awareness
+    title: '\x1b<4m\x1b4mAPU\x1bm OIL FILTER CLOGGED',
+    sensed: true,
+    items: [],
+  },
   // ATA 52 DOOR
   520800008: {
     title: '\x1b<4m\x1b4mDOOR\x1bm CKPT SLIDING WINDOW NOT CLOSED',

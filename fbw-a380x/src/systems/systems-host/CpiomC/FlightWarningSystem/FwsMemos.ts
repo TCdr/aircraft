@@ -296,6 +296,15 @@ export class FwsMemos {
       codesToReturn: ['230000003'],
       memoInhibit: () => false,
     },
+    '230000008': {
+      // PA IN USE: the PA transmission key of an RMP is on (CommunicationAlerts isPaInUse, A380 FCOM DSC-23-20
+      // l.49491-49492); no flight phase inhibition figure (PDF p.1607)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.paInUse,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['230000008'],
+      memoInhibit: () => false,
+    },
     '230000009': {
       // RMP 1+2+3 OFF
       flightPhaseInhib: [],

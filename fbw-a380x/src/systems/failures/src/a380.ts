@@ -83,6 +83,19 @@ export const A380Failure = Object.freeze({
   Vhf1: 23005,
   Vhf2: 23006,
   Vhf3: 23007,
+  // CIDS and PTT failures of the ATA 23 FWS alerts (FWS CommunicationAlerts.ts, read by FwsCore)
+  CidsDirector1: 23008,
+  CidsDirector2: 23009,
+  CidsDirector3: 23010,
+  UpperDeckPa: 23011,
+  MainDeckPa: 23012,
+  LowerDeckPa: 23013,
+  CabinInterphone: 23014,
+  PaDegraded: 23015,
+  CabinInterphoneDegraded: 23016,
+  CaptPttStuck: 23017,
+  FoPttStuck: 23018,
+  ThirdOccupantPttStuck: 23019,
 
   TransformerRectifier1: 24000,
   TransformerRectifier2: 24001,
@@ -187,6 +200,7 @@ export const A380Failure = Object.freeze({
   IfeBaySmokeDetector2: 26045,
   CargoFireBottle1LowPressure: 26046,
   CargoFireBottle2LowPressure: 26047,
+  SmokeDetectionFunction: 26048,
 
   Prim1: 27000,
   Prim2: 27001,
@@ -425,6 +439,8 @@ export const A380Failure = Object.freeze({
   ApuOverspeed: 49001,
   ApuOilLowPressure: 49002,
   ApuOilHighTemperature: 49003,
+  // Read by the FWS (ApuFaultAlerts.ts APU OIL FILTER CLOGGED), not by the APU of systems.wasm
+  ApuOilFilterClogging: 49004,
 
   Transponder1: 34003,
   Transponder2: 34004,
@@ -667,6 +683,18 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [23, A380Failure.Vhf1, 'VHF 1'],
   [23, A380Failure.Vhf2, 'VHF 2'],
   [23, A380Failure.Vhf3, 'VHF 3'],
+  [23, A380Failure.CidsDirector1, 'CIDS 1 (cabin intercommunication data system)'],
+  [23, A380Failure.CidsDirector2, 'CIDS 2 (cabin intercommunication data system)'],
+  [23, A380Failure.CidsDirector3, 'CIDS 3 (cabin intercommunication data system)'],
+  [23, A380Failure.UpperDeckPa, 'Upper deck passenger address (PA)'],
+  [23, A380Failure.MainDeckPa, 'Main deck passenger address (PA)'],
+  [23, A380Failure.LowerDeckPa, 'Lower deck passenger address (PA)'],
+  [23, A380Failure.CabinInterphone, 'Cabin interphone'],
+  [23, A380Failure.PaDegraded, 'Passenger address (PA) degraded in some cabin areas'],
+  [23, A380Failure.CabinInterphoneDegraded, 'Cabin interphone degraded at some stations'],
+  [23, A380Failure.CaptPttStuck, 'CAPT push-to-talk (PTT) switch stuck in transmit'],
+  [23, A380Failure.FoPttStuck, 'F/O push-to-talk (PTT) switch stuck in transmit'],
+  [23, A380Failure.ThirdOccupantPttStuck, 'Third occupant push-to-talk (PTT) switch stuck in transmit'],
 
   [24, A380Failure.TransformerRectifier1, 'TR 1'],
   [24, A380Failure.TransformerRectifier2, 'TR 2'],
@@ -772,6 +800,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   // The bottle loses its agent: SMOKE FWD and AFT CARGO BOTTLES FAULT (systems fire_protection/cargo_fire_extinguishing.rs)
   [26, A380Failure.CargoFireBottle1LowPressure, 'Cargo fire bottle 1 low pressure'],
   [26, A380Failure.CargoFireBottle2LowPressure, 'Cargo fire bottle 2 low pressure'],
+  [26, A380Failure.SmokeDetectionFunction, 'Smoke detection function (SDF) of the CIDS'],
 
   [27, A380Failure.Prim1, 'PRIM 1'],
   [27, A380Failure.Prim2, 'PRIM 2'],
@@ -1011,6 +1040,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [49, A380Failure.ApuOverspeed, 'APU overspeed (automatic shutdown)'],
   [49, A380Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],
   [49, A380Failure.ApuOilHighTemperature, 'APU high oil temperature (automatic shutdown on ground)'],
+  [49, A380Failure.ApuOilFilterClogging, 'APU oil filter clogging (impending)'],
 
   [46, A380Failure.NssAnsu1, 'NSS AVNCS ANSU 1'],
   [46, A380Failure.NssAnsu2, 'NSS AVNCS ANSU 2'],
