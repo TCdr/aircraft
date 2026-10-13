@@ -495,6 +495,14 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New flyPad failures FQI channel 1 and 2, with the FUEL FQI CH 1(2) FAULT cautions - @TCdr
 1. [A380X/FUEL] The EMER OUTR TK XFR pb-sw now opens the emergency outer tank transfer valves: the outer tank fuel flows by gravity into feed tanks 1 and 4 - @TCdr
 1. [A380X/FWS] FQMS fuel leak detection with the FCOM slow and fast leak thresholds, FUEL LEAK DETECTED with its procedure and FUEL LEAK DET FAULT, and new flyPad failures feed tank 1 to 4 leak - @TCdr
+1. [A32NX/MCDU] PLACE/DIST waypoints (for example LMG/-15) can be entered on the F-PLN page and as LAT REV NEXT WPT: the PDnn waypoint goes on the flight plan path at that distance after (or before, negative distance) the flight plan waypoint, without a discontinuity, as in the FCOM - @TCdr
+1. [A380X/MFD] INSERT NEXT WPT accepts PLACE/DIST waypoints of the revised waypoint (PLACE / WPT DISAGREE for another place, ENTRY OUT OF RANGE beyond the neighbouring waypoint), as in the FCOM - @TCdr
+1. [A32NX/MCDU] HOLD from the LAT REV at PPOS (the FROM waypoint) creates a hold at the present position on the aircraft track, instead of a hold at the waypoint behind the aircraft - @TCdr
+1. [A380X/MFD] The HOLD revision of the FROM waypoint creates a hold at P.POS on the aircraft track, as in the FCOM (it was greyed out) - @TCdr
+1. [A32NX/MCDU] DIR TO page: ABEAM PTS, RADIAL IN (with the default inbound radial of a flight plan waypoint) and RADIAL OUT now build the DIR TO temporary flight plan instead of NOT YET IMPLEMENTED - @TCdr
+1. [A32NX/MCDU] The PROG page OPT FL is the best specific range level for the gross weight (FCOM long range cruise table), never above REC MAX, instead of the REC MAX rounded down - @TCdr
+1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
+1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

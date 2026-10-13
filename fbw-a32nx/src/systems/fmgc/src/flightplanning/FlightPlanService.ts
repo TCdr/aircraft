@@ -553,6 +553,22 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     await plan.nextWaypoint(atIndex, waypoint);
   }
 
+  async insertPlaceDistanceWaypoint(
+    placeLegIndex: number,
+    waypoint: Fix,
+    distance: number,
+    planIndex = FlightPlanIndex.Active,
+    alternate = false,
+  ) {
+    const finalIndex = this.prepareDestructiveModification(planIndex);
+
+    const plan = alternate
+      ? this.flightPlanManager.get(finalIndex).alternateFlightPlan
+      : this.flightPlanManager.get(finalIndex);
+
+    await plan.insertPlaceDistanceWaypoint(placeLegIndex, waypoint, distance);
+  }
+
   async newDest(atIndex: number, airportIdent: string, planIndex = FlightPlanIndex.Active, alternate = false) {
     const finalIndex = this.prepareDestructiveModification(planIndex);
 
@@ -649,6 +665,17 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
       : this.flightPlanManager.get(finalIndex);
 
     return plan.addOrEditManualHold(at, desiredHold, modifiedHold, defaultHold);
+  }
+
+  async holdAtPresentPosition(
+    ppos: Coordinates,
+    trueTrack: Degrees,
+    desiredHold: HoldData,
+    defaultHold: HoldData,
+  ): Promise<number> {
+    const finalIndex = this.prepareDestructiveModification(FlightPlanIndex.Active);
+
+    return this.flightPlanManager.get(finalIndex).holdAtPresentPosition(ppos, trueTrack, desiredHold, defaultHold);
   }
 
   async revertHoldToComputed(at: number, planIndex = FlightPlanIndex.Active, alternate = false) {
