@@ -580,6 +580,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New red CONFIG L(R) SIDESTICK FAULT warning at the TO CONFIG test or at takeoff power when a sidestick was deactivated by the takeover pb - @TCdr
 1. [A32NX/FWC] STATUS after an involuntary AP OFF (INOP SYS of the lost AP, CAT 2 when both are lost) and ELEC EMER CONFIG STATUS; ELEC EMER CONFIG shows FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE in flight - @TCdr
 1. [A32NX/FWC] CAB PR SAFETY VALVE OPEN branches at the FCOM values (DIFF PR above 8 PSI, below 0 PSI); the flap and slat configuration warnings use SFCC 2 when SFCC 1 sends no position - @TCdr
+1. [A32NX/FUEL] Fuel temperature of each wing tank cell (design model: TAT, refuelling and transfer mixing, IDG cooling fuel return): shown on the SD FUEL page with the FCOM advisory and amber limits, new FUEL L (R) OUTER (INNER) TK HI TEMP and LO TEMP cautions - @TCdr
+1. [A32NX/FUEL] Wing tank overflow (MODE SEL MAN or a CTR TK XFR valve jammed open with a full inner tank): CTR TK L (R) XFR FAULT light, amber inner tank quantity and new FUEL L (R) WING TK OVERFLOW caution - @TCdr
+1. [A32NX/FUEL] New flyPad failures: APU LP fuel valve jammed, L (R) outer tank transfer valves jammed, L (R) wing tank low level sensor, L (R) wing tank leak - @TCdr
+1. [A32NX/FWC] New FUEL APU LP VALVE FAULT, F. USED/FOB DISAGREE, L (R) OUTER XFR CLOSED / OPEN and LO LVL DET FAULT cautions; a failed low level sensor gives no WING TK LO LVL warning - @TCdr
 
 ## 2024.1.0
 

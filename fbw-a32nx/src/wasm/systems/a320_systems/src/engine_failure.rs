@@ -682,7 +682,7 @@ mod tests {
     mod aircraft {
         use super::super::*;
         use systems::{
-            engine::EngineFireOverheadPanel,
+            engine::{leap_engine::LeapEngine, EngineFireOverheadPanel},
             failures::FailureType,
             simulation::{
                 test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
@@ -693,6 +693,8 @@ mod tests {
         struct TestAircraft {
             engine_fire_overhead: EngineFireOverheadPanel<2>,
             fuel: A320Fuel,
+            // The fuel temperature model reads the engines (fuel/fuel_temperature.rs)
+            engines: [LeapEngine; 2],
             engine_failures: A320EngineFailures,
             thrust_control_malfunctions: [bool; 2],
         }
@@ -701,6 +703,7 @@ mod tests {
                 Self {
                     engine_fire_overhead: EngineFireOverheadPanel::new(context),
                     fuel: A320Fuel::new(context),
+                    engines: [1, 2].map(|number| LeapEngine::new(context, number)),
                     engine_failures: A320EngineFailures::new(context),
                     thrust_control_malfunctions: [false; 2],
                 }
@@ -708,7 +711,11 @@ mod tests {
         }
         impl Aircraft for TestAircraft {
             fn update_after_power_distribution(&mut self, context: &UpdateContext) {
-                self.fuel.update(context, &self.engine_fire_overhead);
+                self.fuel.update(
+                    context,
+                    &self.engine_fire_overhead,
+                    [&self.engines[0], &self.engines[1]],
+                );
                 self.engine_failures
                     .update(context, &self.fuel, self.thrust_control_malfunctions);
             }
@@ -717,6 +724,9 @@ mod tests {
             fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
                 self.engine_fire_overhead.accept(visitor);
                 self.fuel.accept(visitor);
+                for engine in &mut self.engines {
+                    engine.accept(visitor);
+                }
                 self.engine_failures.accept(visitor);
                 visitor.visit(self);
             }

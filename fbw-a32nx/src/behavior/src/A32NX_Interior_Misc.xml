@@ -217,11 +217,14 @@
     CTR TK L (R) XFR pb-sw. The pb-sw only toggles its selection (PB_IS_ON_VAR, OFF light and animation): the systems host
     (Fuel/FuelPumpsAndValves) drives the MSFS inhibit valve #ID# of the centre tank transfer valve from it, and holds the
     transfer valve open or closed while it is jammed.
+    FAULT light (A320 FCOM DSC-28-20 CTR TK L(R) XFR pb-sw, a320_fcom.txt l.42837-42838): "Amber light and associated ECAM
+    caution come on, if the associated wing tank overflows" (#OVERFLOW_VAR#, systems host Fuel/FuelLevelSensing).
     -->
     <Template Name="FBW_Airbus_Fuel_Jet_Pump">
         <UseTemplate Name="FBW_Push_Toggle">
             <TOGGLE_SIMVAR>#PB_IS_ON_VAR#</TOGGLE_SIMVAR>
 
+            <SEQ1_CODE>(#OVERFLOW_VAR#, Bool)</SEQ1_CODE>
             <SEQ2_CODE>(#PB_IS_ON_VAR#, Bool) !</SEQ2_CODE>
 
             <DOWN_CODE>(#PB_IS_ON_VAR#, Bool)</DOWN_CODE>
