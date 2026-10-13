@@ -225,6 +225,24 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
   nextWaypoint(atIndex: number, waypoint: Fix, planIndex?: number, alternate?: boolean): Promise<void>;
 
   /**
+   * Inserts a PLACE/DIST waypoint on the flight plan leg after its place (positive distance) or before it (negative
+   * distance), without a discontinuity: the waypoint is on the flight plan path (see PlaceDistance.ts).
+   *
+   * @param placeLegIndex the index of the place waypoint
+   * @param waypoint the PLACE/DIST waypoint
+   * @param distance the signed distance from the place along the flight plan, NM
+   * @param planIndex which flight plan to make the change on
+   * @param alternate whether to edit the plan's alternate flight plan
+   */
+  insertPlaceDistanceWaypoint(
+    placeLegIndex: number,
+    waypoint: Fix,
+    distance: number,
+    planIndex?: number,
+    alternate?: boolean,
+  ): Promise<void>;
+
+  /**
    * NEW DEST revision. Changes the destination airport and removes all routing ahead of an index, with a discontinuity in between.
    *
    * @param atIndex the index of the leg to insert the waypoint after
@@ -313,6 +331,23 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
     defaultHold: HoldData,
     planIndex: number,
     alternate?: boolean,
+  ): Promise<number>;
+
+  /**
+   * HOLD at the present position on the active flight plan (in a temporary flight plan): a manual hold at a PPOS
+   * waypoint, before the TO waypoint (see PresentPositionHold.ts).
+   *
+   * @param ppos the aircraft position
+   * @param trueTrack the aircraft true track, degrees
+   * @param desiredHold the hold to fly
+   * @param defaultHold the computed hold
+   * @returns the index of the hold leg in the temporary flight plan
+   */
+  holdAtPresentPosition(
+    ppos: Coordinates,
+    trueTrack: Degrees,
+    desiredHold: HoldData,
+    defaultHold: HoldData,
   ): Promise<number>;
 
   /**

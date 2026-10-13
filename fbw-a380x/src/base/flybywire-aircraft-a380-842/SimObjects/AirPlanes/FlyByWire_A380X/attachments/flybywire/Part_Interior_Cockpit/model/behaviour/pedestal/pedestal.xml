@@ -286,7 +286,9 @@
                 <UseTemplate Name="FBW_A380X_BacklightIndicator_Button_Template">
                     <NODE_ID>PUSH_SURV_WXR_TAWS_SYS1</NODE_ID>
                     <TOOLTIPID>SET WXR TAWS SYS 1</TOOLTIPID>
-                    <BUTTON_CODE>(L:A32NX_WXR_TAWS_SYS_SELECTED, Number) 1 == if{ 0 } els{ 1 } (&gt;L:A32NX_WXR_TAWS_SYS_SELECTED, Number)</BUTTON_CODE>
+                    <!-- A380 FCOM DSC-34-20-60-20 SURV panel: the WXR/TAWS SYS 1(2) pb selects that system; one system is
+                         always selected, so pressing the lit pb keeps it (it used to select none). -->
+                    <BUTTON_CODE>1 (&gt;L:A32NX_WXR_TAWS_SYS_SELECTED, Number)</BUTTON_CODE>
                     <INDICATOR_CODE>(L:A32NX_WXR_TAWS_SYS_SELECTED, Number) 1 ==</INDICATOR_CODE>
                     <INDICATOR_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</INDICATOR_POWERED>
                     <BACKLIGHT_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</BACKLIGHT_POWERED>
@@ -296,7 +298,7 @@
                 <UseTemplate Name="FBW_A380X_BacklightIndicator_Button_Template">
                     <NODE_ID>PUSH_SURV_WXR_TAWS_SYS2</NODE_ID>
                     <TOOLTIPID>SET WXR TAW SYS 2</TOOLTIPID>
-                    <BUTTON_CODE>(L:A32NX_WXR_TAWS_SYS_SELECTED, Number) 2 == if{ 0 } els{ 2 } (&gt;L:A32NX_WXR_TAWS_SYS_SELECTED, Number)</BUTTON_CODE>
+                    <BUTTON_CODE>2 (&gt;L:A32NX_WXR_TAWS_SYS_SELECTED, Number)</BUTTON_CODE>
                     <INDICATOR_CODE>(L:A32NX_WXR_TAWS_SYS_SELECTED, Number) 2 ==</INDICATOR_CODE>
                     <INDICATOR_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</INDICATOR_POWERED>
                     <BACKLIGHT_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</BACKLIGHT_POWERED>

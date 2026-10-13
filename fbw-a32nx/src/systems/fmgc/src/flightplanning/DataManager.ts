@@ -16,6 +16,8 @@ export enum PilotWaypointType {
   Pbd = 1,
   Pbx = 2,
   LatLon = 3,
+  /** PLACE/DIST: a distance from a flight plan waypoint, along the flight plan (A320 FCOM l.13512, A380 FCOM l.43981) */
+  Pd = 4,
 }
 
 type SerializedWaypoint = {
@@ -29,6 +31,8 @@ type SerializedWaypoint = {
   pbdPlace?: Fix;
   pbdBearing?: DegreesMagnetic;
   pbdDistance?: NauticalMiles;
+  pdPlace?: Fix;
+  pdDistance?: NauticalMiles;
 };
 
 type LatLonWaypoint = {
@@ -56,7 +60,16 @@ type PbdWaypoint = {
   pbdDistance: NauticalMiles;
 };
 
-export type PilotWaypoint = LatLonWaypoint | PbxWaypoint | PbdWaypoint;
+type PdWaypoint = {
+  type: PilotWaypointType.Pd;
+  storedIndex: number;
+  waypoint: Waypoint;
+  pdPlace: Fix;
+  /** Signed distance along the flight plan, NM: negative before the place */
+  pdDistance: NauticalMiles;
+};
+
+export type PilotWaypoint = LatLonWaypoint | PbxWaypoint | PbdWaypoint | PdWaypoint;
 
 export enum LatLonFormatType {
   UserSetting = 'user-setting',
@@ -212,6 +225,18 @@ export class DataManager {
           pbdPlace: wp.pbdPlace,
           pbdBearing: wp.pbdBearing,
           pbdDistance: wp.pbdDistance,
+        };
+      case PilotWaypointType.Pd:
+        if (wp.pdPlace === undefined || wp.pdDistance === undefined) {
+          throw new Error('[DataManager](deserializeWaypoint) Serialized PD waypoint did not have required data');
+        }
+
+        return {
+          type: PilotWaypointType.Pd,
+          storedIndex,
+          waypoint: WaypointFactory.fromLocation(ident, coordinates),
+          pdPlace: wp.pdPlace,
+          pdDistance: wp.pdDistance,
         };
     }
   }
@@ -491,6 +516,42 @@ export class DataManager {
       pbdPlace: origin,
       pbdBearing: magneticBearing,
       pbdDistance: distance,
+    };
+
+    if (stored) {
+      this.storeWaypoint(waypoint, index);
+    }
+
+    return waypoint;
+  }
+
+  /**
+   * Creates a PLACE/DIST waypoint, named PDnn (A320 FCOM l.13519-13520, A380 FCOM l.35155-35159)
+   * @param place the place waypoint of the flight plan
+   * @param distance the signed distance along the flight plan, NM (negative: before the place)
+   * @param coordinates the position of the waypoint on the flight plan (see placeDistancePosition)
+   * @param stored whether the waypoint is stored
+   * @param ident the ident of the waypoint, if undefined it is generated
+   */
+  public createPlaceDistWaypoint(
+    place: Fix,
+    distance: NauticalMiles,
+    coordinates: Coordinates,
+    stored = false,
+    ident?: string,
+  ): PdWaypoint {
+    const index = stored ? this.generateStoredWaypointIndex() : -1;
+
+    if (ident === undefined) {
+      ident = `PD${(index + 1).toFixed(0).padStart(2, '0')}`;
+    }
+
+    const waypoint: PdWaypoint = {
+      type: PilotWaypointType.Pd,
+      storedIndex: index,
+      waypoint: WaypointFactory.fromLocation(ident, coordinates),
+      pdPlace: place,
+      pdDistance: distance,
     };
 
     if (stored) {
