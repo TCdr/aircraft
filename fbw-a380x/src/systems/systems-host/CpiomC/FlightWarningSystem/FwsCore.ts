@@ -74,6 +74,8 @@ import { Mle, Mmo, VfeF1, VfeF1F, VfeF2, VfeF3, VfeFF, Vle, Vmo } from '@shared/
 import { FwsAuralVolume, FwsSoundManager } from './FwsSoundManager';
 import { FwsSidestickPriority } from './FwsSidestickPriority';
 import { FwsWindshearAural } from './FwsWindshearAural';
+import { FwsPitchAural } from './FwsPitchAural';
+import { FwsCompanyMessageAural } from './FwsCompanyMessageAural';
 import { FwcFlightPhase, FwsFlightPhases } from './FwsFlightPhases';
 import { A380Failure } from '@failures';
 // FIXME should not import from instruments
@@ -3194,6 +3196,10 @@ export class FwsCore {
   private readonly sidestickPriority = new FwsSidestickPriority();
   /** WINDSHEAR voice, see FwsWindshearAural */
   private readonly windshearAural = new FwsWindshearAural();
+  /** PITCH PITCH voice, see FwsPitchAural */
+  private readonly pitchAural = new FwsPitchAural();
+  /** COMPANY MESSAGE voice, see FwsCompanyMessageAural */
+  private readonly companyMessageAural = new FwsCompanyMessageAural();
   public ewdAbnormal: EwdAbnormalDict;
   public allEwdDeferredProcs: EwdAbnormalDict;
   public allSuppressableItems: FwsSuppressableItemDict;
@@ -4580,6 +4586,27 @@ export class FwsCore {
       this.windshearAural.update(SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', SimVarValueType.Bool) > 0)
     ) {
       this.soundManager.enqueueSound('windshear');
+    }
+
+    /* PITCH PITCH (a380_fcom.txt l.9046-9054, 73618-73619) */
+    const pitchIr = [this.ir1Pitch, this.ir2Pitch, this.ir3Pitch].find((w) => w.isNormalOperation());
+    const pitchRa = [this.radioHeight1, this.radioHeight2, this.radioHeight3].find((w) => w.isNormalOperation());
+    if (
+      this.pitchAural.update({
+        pitchDeg: pitchIr !== undefined ? pitchIr.value : null,
+        radioHeightFt: pitchRa !== undefined ? pitchRa.value : null,
+        autopilotEngaged: this.apEngaged.get(),
+        flightPhase: this.flightPhase.get(),
+      })
+    ) {
+      this.soundManager.enqueueSound('pitchPitch');
+    }
+
+    /* COMPANY MESSAGE (a380_fcom.txt l.73651-73652, 108111-108120) */
+    if (
+      this.companyMessageAural.update(this.compMesgCount.get(), this.flightPhase.get(), this.adrPressureAltitude.get())
+    ) {
+      this.soundManager.enqueueSound('companyMessage');
     }
 
     /* LANDING GEAR AND LIGHTS acquisition */
