@@ -6,6 +6,7 @@ use crate::integrated_modular_avionics::core_processing_input_output_module::Cpi
 use crate::shared::{
     AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType, FireDetectionLoopID,
     FireDetectionZone, GearActuatorId, HydraulicColor, LgciuId, ProximityDetectorId,
+    SmokeDetectionZone,
 };
 use crate::simulation::SimulationElement;
 use rustc_hash::FxHashSet;
@@ -68,6 +69,13 @@ pub enum FailureType {
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
     /// The fire detection unit (FDU) channel of one zone is inoperative: no fire warning from that zone
     FireDetectionUnit(FireDetectionZone),
+    /// Smoke in a compartment: the smoke detectors of the compartment sense it (fire_protection::smoke_detection)
+    Smoke(SmokeDetectionZone),
+    /// Smoke detector n of a compartment is failed (fire_protection::smoke_detection)
+    SmokeDetector(SmokeDetectionZone, usize),
+    /// Cargo fire extinguisher bottle n loses its agent: low pressure (A320 SMOKE CRG BTL FAULT, A380 SMOKE CARGO
+    /// BOTTLES FAULT)
+    CargoFireBottleLowPressure(usize),
     // ATA29
     ReservoirLeak(HydraulicColor),
     ReservoirAirLeak(HydraulicColor),
@@ -210,6 +218,15 @@ pub enum FailureType {
     /// The thrust reverser control system of engine n is failed: the reverser is inoperative (A380
     /// REVERSER CTL FAULT)
     ReverserControlFault(usize),
+    // ATA49: the APU electronic control box (ECB) shuts the APU down (apu::electronic_control_box)
+    /// The APU ECB is failed
+    ApuElectronicControlBox,
+    /// The APU overspeeds
+    ApuOverspeed,
+    /// The APU oil pressure is low
+    ApuOilLowPressure,
+    /// The APU oil temperature is high
+    ApuOilHighTemperature,
 }
 
 pub struct Failure {

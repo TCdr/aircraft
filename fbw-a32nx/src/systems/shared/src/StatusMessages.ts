@@ -315,6 +315,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['260300007', { part: StatusPart.InopSys, text: 'FIRE DET 1' }],
   ['260300008', { part: StatusPart.InopSys, text: 'FIRE DET 2' }],
   ['260300009', { part: StatusPart.InopSys, text: 'APU FIRE DET' }],
+  // FCOM PRO-ABN-SMOKE SMOKE FWD (AFT) CRG DET FAULT STATUS (a320_fcom.txt l.95236-95240, l.95388-95392)
+  ['260300010', { part: StatusPart.InopSys, text: 'FWD CRG DET' }],
+  ['260300011', { part: StatusPart.InopSys, text: 'AFT CRG DET' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL)
   ['280300001', { part: StatusPart.InopSys, text: 'L TK PUMP 1' }],
   ['280300002', { part: StatusPart.InopSys, text: 'L TK PUMP 2' }],

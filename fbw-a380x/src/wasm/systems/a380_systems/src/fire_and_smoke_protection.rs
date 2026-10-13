@@ -3,6 +3,8 @@ use std::time::Duration;
 use systems::{
     accept_iterable,
     fire_protection::{
+        cargo_fire_extinguishing::CargoFireExtinguishing,
+        smoke_detection::{SmokeDetection, SmokeDetectionFaultLogic, SmokeDetectionZoneConfig},
         FireDetectionUnit, FireDetectionZoneConfig, FireLoopPowerLoss, SetOnFireModule,
     },
     overhead::{FirePushButton, MomentaryPushButton},
@@ -10,6 +12,7 @@ use systems::{
         arinc429::{Arinc429Word, SignStatus},
         DelayedFalseLogicGate, DelayedTrueLogicGate, ElectricalBusType, ElectricalBuses,
         EngineFirePushButtons, FireDetectionLoopID, FireDetectionZone, LgciuWeightOnWheels,
+        SmokeDetectionZone,
     },
     simulation::{
         InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
@@ -33,7 +36,7 @@ const A380_FIRE_ZONES: [FireDetectionZone; 6] = [
 
 pub(super) struct A380FireAndSmokeProtection {
     a380_fire_protection_system: FireProtectionSystem,
-    // a380_smoke_detection_function
+    smoke_detection_function: SmokeDetectionFunction,
     set_zone_on_fire: SetOnFireModule<6, 9>,
 }
 
@@ -41,6 +44,7 @@ impl A380FireAndSmokeProtection {
     pub(super) fn new(context: &mut InitContext) -> Self {
         Self {
             a380_fire_protection_system: FireProtectionSystem::new(context),
+            smoke_detection_function: SmokeDetectionFunction::new(context),
 
             // The 9 bottles of the FireExtinguishingSystem: two for each engine and one for the APU (zone 4). The MLG
             // bay (zone 5) does not have a fire extinguishing system.
@@ -68,6 +72,8 @@ impl A380FireAndSmokeProtection {
 
         self.set_zone_on_fire
             .update(self.a380_fire_protection_system.bottle_discharge());
+
+        self.smoke_detection_function.update(context);
     }
 
     pub fn apu_fire_on_ground(&self) -> bool {
@@ -78,7 +84,89 @@ impl A380FireAndSmokeProtection {
 impl SimulationElement for A380FireAndSmokeProtection {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.a380_fire_protection_system.accept(visitor);
+        self.smoke_detection_function.accept(visitor);
         self.set_zone_on_fire.accept(visitor);
+
+        visitor.visit(self);
+    }
+}
+
+/// The compartments of the Smoke Detection Function (SDF) of the CIDS that are modelled: the cargo compartments (A380
+/// FCOM DSC-26-60-10, a380_fcom.txt l.53797-53836) and the avionics bays with the IFE bay (DSC-26-50-10,
+/// l.53583-53630), each with two smoke detectors. Not modelled: the crew rests, lavatories, CWS / RCC, showers and the
+/// NSS, and the SDF itself as a failable computer (SMOKE DET FAULT, 260800031).
+const A380_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 9] = [
+    SmokeDetectionZone::ForwardCargo,
+    SmokeDetectionZone::AftCargo,
+    SmokeDetectionZone::BulkCargo,
+    SmokeDetectionZone::LeftMainAvionics,
+    SmokeDetectionZone::RightMainAvionics,
+    SmokeDetectionZone::LeftUpperAvionics,
+    SmokeDetectionZone::RightUpperAvionics,
+    SmokeDetectionZone::AftAvionics,
+    SmokeDetectionZone::InFlightEntertainmentBay,
+];
+
+/// The A380 Smoke Detection Function (SDF) of the CIDS: "monitors smoke detection in: The avionics bays, The cargo
+/// compartments, The cabin areas. It also manages fire extinguishing in the cargo compartments." (A380 FCOM DSC-26-10-10,
+/// a380_fcom.txt l.52793-52803)
+struct SmokeDetectionFunction {
+    zones: [SmokeDetection<2>; 9],
+    cargo_fire_extinguishing: CargoFireExtinguishing<2, 2>,
+}
+
+impl SmokeDetectionFunction {
+    /// A380 FCOM DSC-26-60-10 FIRE EXTINGUISHING (a380_fcom.txt l.53860-53866): "Bottle 1 first discharges extinguisher
+    /// agent in the affected cargo compartment. This takes approximately one minute."
+    const CARGO_BOTTLE_1_DISCHARGE_DURATION: Duration = Duration::from_secs(60);
+    /// "Bottle 2 then slowly discharges extinguisher agent, to provide sufficient extinguisher agent concentration in
+    /// the affected cargo compartment for approximately four hours." (l.53862-53864)
+    const CARGO_BOTTLE_2_DISCHARGE_DURATION: Duration = Duration::from_secs(4 * 3600);
+
+    fn new(context: &mut InitContext) -> Self {
+        Self {
+            // DETECTION LOGIC (l.53619-53630, l.53834-53841). Design choice (no FCOM supply): detector 1 on the DC ESS
+            // bus and detector 2 on the DC 2 bus, as the fire detection loops A and B here. No confirmation time in the
+            // FCOM.
+            zones: A380_SMOKE_DETECTION_ZONES.map(|zone| {
+                SmokeDetection::new(
+                    context,
+                    SmokeDetectionZoneConfig {
+                        zone,
+                        detectors_powered_by: [
+                            ElectricalBusType::DirectCurrentEssential,
+                            ElectricalBusType::DirectCurrent(2),
+                        ],
+                        confirmation_time: Duration::ZERO,
+                        fault_logic: SmokeDetectionFaultLogic::AnyDetectorInoperativeOrDisagreeing,
+                    },
+                )
+            }),
+            // The AGENT TO FWD / AGENT TO AFT pbs write L:A32NX_CARGOSMOKE_FWD(AFT)_DISCHARGED; the AFT agent goes to
+            // the aft/bulk compartment (l.53846-53848)
+            cargo_fire_extinguishing: CargoFireExtinguishing::new(
+                context,
+                ["FWD", "AFT"],
+                [
+                    Self::CARGO_BOTTLE_1_DISCHARGE_DURATION,
+                    Self::CARGO_BOTTLE_2_DISCHARGE_DURATION,
+                ],
+            ),
+        }
+    }
+
+    fn update(&mut self, context: &UpdateContext) {
+        for zone in self.zones.iter_mut() {
+            zone.update(context);
+        }
+        self.cargo_fire_extinguishing.update(context);
+    }
+}
+
+impl SimulationElement for SmokeDetectionFunction {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        accept_iterable!(self.zones, visitor);
+        self.cargo_fire_extinguishing.accept(visitor);
 
         visitor.visit(self);
     }
@@ -615,6 +703,12 @@ mod a380_fire_and_smoke_protection_tests {
 
         fn set_on_ground(mut self, on_ground: bool) -> Self {
             self.command(|a| a.set_on_ground(on_ground));
+            self
+        }
+
+        /// The AGENT TO FWD (AFT) pb of the CARGO SMOKE panel
+        fn agent_into_cargo_compartment(mut self, compartment: &str) -> Self {
+            self.write_by_name(&format!("CARGOSMOKE_{}_DISCHARGED", compartment), true);
             self
         }
 
@@ -1370,6 +1464,120 @@ mod a380_fire_and_smoke_protection_tests {
             }
 
             assert!(put_out > 0);
+        }
+    }
+
+    mod a380_smoke_detection_function_tests {
+        use super::*;
+
+        fn read_bool(test_bed: &mut FireProtectionTestBed, name: &str) -> bool {
+            test_bed.read_by_name(name)
+        }
+
+        fn smoke_detected(test_bed: &mut FireProtectionTestBed, zone: &str) -> bool {
+            test_bed.read_by_name(&format!("SMOKE_{}_DETECTED", zone))
+        }
+
+        fn smoke_detection_fault(test_bed: &mut FireProtectionTestBed, zone: &str) -> bool {
+            test_bed.read_by_name(&format!("SMOKE_{}_DET_FAULT", zone))
+        }
+
+        const ZONES: [&str; 9] = [
+            "FWD_CARGO",
+            "AFT_CARGO",
+            "BULK_CARGO",
+            "L_MAIN_AVNCS",
+            "R_MAIN_AVNCS",
+            "L_UPPER_AVNCS",
+            "R_UPPER_AVNCS",
+            "AFT_AVNCS",
+            "IFE_BAY",
+        ];
+
+        #[test]
+        fn no_smoke_warning_and_no_detector_fault_when_healthy() {
+            let mut test_bed = test_bed().and_double_run();
+
+            for zone in ZONES {
+                assert!(!smoke_detected(&mut test_bed, zone));
+                assert!(!smoke_detection_fault(&mut test_bed, zone));
+            }
+        }
+
+        #[test]
+        fn smoke_in_each_compartment_gives_its_own_smoke_warning_only() {
+            for (index, &zone) in A380_SMOKE_DETECTION_ZONES.iter().enumerate() {
+                let mut test_bed = test_bed();
+                test_bed.fail(FailureType::Smoke(zone));
+                test_bed = test_bed.and_double_run();
+
+                for (other_index, other_zone) in ZONES.iter().enumerate() {
+                    assert_eq!(
+                        smoke_detected(&mut test_bed, other_zone),
+                        index == other_index
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn one_failed_detector_gives_the_smoke_det_fault_of_its_compartment() {
+            // A380 FCOM DSC-26-60-10 DETECTION LOGIC (a380_fcom.txt l.53834-53836)
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::SmokeDetector(SmokeDetectionZone::BulkCargo, 2));
+            test_bed = test_bed.and_double_run();
+
+            assert!(smoke_detection_fault(&mut test_bed, "BULK_CARGO"));
+            assert!(!smoke_detection_fault(&mut test_bed, "AFT_CARGO"));
+        }
+
+        #[test]
+        fn smoke_with_one_failed_detector_gives_the_smoke_warning() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::SmokeDetector(
+                SmokeDetectionZone::LeftMainAvionics,
+                1,
+            ));
+            test_bed.fail(FailureType::Smoke(SmokeDetectionZone::LeftMainAvionics));
+            test_bed = test_bed.and_double_run();
+
+            assert!(smoke_detected(&mut test_bed, "L_MAIN_AVNCS"));
+        }
+
+        #[test]
+        fn the_aft_agent_discharges_bottle_1_in_about_one_minute_then_bottle_2() {
+            // A380 FCOM DSC-26-60-10 FIRE EXTINGUISHING (a380_fcom.txt l.53860-53864)
+            let mut test_bed = test_bed()
+                .and_double_run()
+                .then()
+                .agent_into_cargo_compartment("AFT")
+                .run_with_delta_of(Duration::from_secs(30));
+
+            assert!(read_bool(&mut test_bed, "CARGOSMOKE_AFT_AGENT_RELEASED"));
+            assert!(!read_bool(&mut test_bed, "CARGOSMOKE_FWD_AGENT_RELEASED"));
+            assert!(!read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_1_DISCHARGED"));
+
+            test_bed = test_bed.run_with_delta_of(Duration::from_secs(31));
+
+            assert!(read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_1_DISCHARGED"));
+            assert!(!read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_2_DISCHARGED"));
+
+            test_bed = test_bed.run_with_delta_of(Duration::from_secs(4 * 3600 + 1));
+
+            assert!(read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_2_DISCHARGED"));
+        }
+
+        #[test]
+        fn a_cargo_bottle_that_lost_its_agent_has_low_pressure() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::CargoFireBottleLowPressure(2));
+            test_bed = test_bed.and_double_run();
+
+            assert!(read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_2_LOW_PRESSURE"));
+            assert!(!read_bool(
+                &mut test_bed,
+                "CARGOSMOKE_BOTTLE_1_LOW_PRESSURE"
+            ));
         }
     }
 }

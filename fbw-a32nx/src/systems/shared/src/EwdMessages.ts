@@ -66,6 +66,8 @@ const EwdGroups: Record<string, string> = {
   'ENG$5': '\x1b<4m\x1b4mENG\x1bm',
   'BLEED$1': '\x1b<4m\x1b4mBLEED\x1bm',
   'HYD$1': '\x1b<2m\x1b4mHYD\x1bm',
+  'SMOKE$4': '\x1b<4m\x1b4mSMOKE\x1bm',
+  'AVIONICS SMOKE$1': '\x1b<4m\x1b4mAVIONICS SMOKE\x1bm',
 };
 /* eslint-enable prettier/prettier */
 
@@ -201,6 +203,24 @@ const EwdMessages = new Map<
   ['260015007', { text: '\x1b<7m BEFORE OPEN CRG DOORS:' }],
   ['260015008', { text: '\x1b<7m .BEFORE OPEN CRG DOORS:' }],
   ['260015009', { text: '\x1b<5m -PAX..........DISEMBARK' }],
+  // Cargo and avionics smoke (A320 FCOM PRO-ABN-SMOKE l.95111-95392, PRO-ABN-AVNCS l.72100-72120), see
+  // FWC/Logic/SmokeAlerts
+  ['260016001', { group: 'SMOKE$2', text: ' AFT CARGO SMOKE' }],
+  ['260016002', { text: '\x1b<5m -AFT ISOL VALVE.....OFF' }],
+  ['260016003', { text: '\x1b<5m -CAB FANS...........OFF' }],
+  ['260016004', { text: '\x1b<7m  .IF AFT CARG CLOSED:' }],
+  ['260016005', { text: '\x1b<5m -AGENT............DISCH' }],
+  ['260016006', { text: '\x1b<7m  .WHEN ON GROUND:' }],
+  ['260016007', { text: '\x1b<7m BEFORE OPEN CRG DOORS:' }],
+  ['260016008', { text: '\x1b<7m .BEFORE OPEN CRG DOORS:' }],
+  ['260016009', { text: '\x1b<5m -PAX..........DISEMBARK' }],
+  ['260017001', { group: 'SMOKE$4', text: ' FWD CRG DET FAULT' }],
+  ['260018001', { group: 'SMOKE$4', text: ' AFT CRG DET FAULT' }],
+  ['260019001', { group: 'SMOKE$4', text: ' FWD CRG BTL 1 FAULT' }],
+  ['260019101', { group: 'SMOKE$4', text: ' AFT CRG BTL 1 FAULT' }],
+  // "Requested by the AVIONICS SMOKE ECAM procedure" (l.94180): the QRH SMOKE / FUMES / AVNCS SMOKE procedure
+  ['260030001', { group: 'AVIONICS SMOKE$1', text: '' }],
+  ['260030002', { text: '\x1b<5m -SMOKE/FUMES PROC.APPLY' }],
   ['213123501', { group: 'CAB PR$2', text: ' EXCES RESIDUAL PR' }],
   ['213123502', { text: '\x1b<5m -PACK 1.............OFF' }],
   ['213123503', { text: '\x1b<5m -PACK 2.............OFF' }],

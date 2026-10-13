@@ -26,6 +26,17 @@ import {
   apuFaultItemsChecked,
   apuFaultItemsToShow,
 } from './ApuFaultAlerts';
+import {
+  avionicsSmokeItemsChecked,
+  CARGO_BOTTLE_FAULT_INOP_SYS,
+  CARGO_BOTTLE_FAULT_PHASE_INHIBITION,
+  cargoSmokeItemsChecked,
+  cargoSmokeItemsToShow,
+  SMOKE_DET_FAULT_PHASE_INHIBITION,
+  SMOKE_WARNING_PHASE_INHIBITION,
+  SMOKE_ZONES,
+  SmokeProcedureState,
+} from './SmokeAlerts';
 // FIXME should not import from instruments
 import {
   ProcedureLinesGenerator,
@@ -377,6 +388,80 @@ export class FwsAbnormalSensed {
     });
     this.fws.cargoDoorNotClosed.forEach((doorNotClosed, index) => {
       alerts[cargoDoorNotClosedAlertId(index)] = doorNotClosedItem(doorNotClosed);
+    });
+    return alerts;
+  }
+
+  /**
+   * The SMOKE alerts of the cargo compartments and the avionics / IFE bays, fed by the SDF of systems.wasm (see
+   * SmokeAlerts.ts for the alerts, the procedures and the flight phase inhibitions of the FCOM PDF p.4982-5007)
+   */
+  private smokeAlerts(): EwdAbnormalDict {
+    const state = (forwardCargo: boolean): SmokeProcedureState => ({
+      cabFansOn: this.fws.cabFansOn.get(),
+      galleyOff: this.fws.elecGalleyOff.get(),
+      signsOn: this.fws.seatBelt.get() === 1,
+      oneEngineRunning: this.fws.oneEngineRunning.get(),
+      isolValvesPbOn: forwardCargo ? this.fws.fwdIsolValvePbOn.get() : this.fws.bulkIsolValvePbOn.get(),
+      agentDischarged: forwardCargo ? this.fws.cargoFireAgentDisch.get() : this.fws.aftCargoFireAgentDisch.get(),
+    });
+    const alerts: EwdAbnormalDict = {};
+    SMOKE_ZONES.forEach((smokeZone, index) => {
+      const cargo = smokeZone.zone.endsWith('_CARGO');
+      const forwardCargo = smokeZone.zone === 'FWD_CARGO';
+      const upperBay = smokeZone.zone.includes('UPPER');
+      const mainBay = smokeZone.zone.includes('MAIN');
+      const smokeId = Number(smokeZone.smokeAlert);
+      const detFaultId = Number(smokeZone.detFaultAlert);
+      alerts[smokeId] = {
+        flightPhaseInhib: SMOKE_WARNING_PHASE_INHIBITION,
+        simVarIsActive: this.fws.smokeZoneWarning[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: cargo ? () => cargoSmokeItemsToShow(state(forwardCargo)) : showAllItems(smokeId),
+        whichItemsChecked: () => {
+          if (cargo) {
+            return cargoSmokeItemsChecked(state(forwardCargo));
+          }
+          if (smokeZone.zone === 'IFE_BAY') {
+            // CAB FANS OFF, IFEC OFF, CKPT / CABIN COM ESTABLISH (PDF p.4991-4992)
+            return [!this.fws.cabFansOn.get(), false, false];
+          }
+          return avionicsSmokeItemsChecked(state(false), upperBay, mainBay);
+        },
+        failure: 3,
+        sysPage: cargo || smokeZone.zone === 'AFT_AVNCS' ? SdPages.Cond : SdPages.None,
+      };
+      alerts[detFaultId] = {
+        flightPhaseInhib: SMOKE_DET_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.smokeZoneDetFault[index],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: showAllItems(detFaultId),
+        whichItemsChecked: () => {
+          if (!cargo) {
+            return EcamAbnormalProcedures[detFaultId].items.map(() => false);
+          }
+          // IF NO LIVESTOCK : FWD (BULK) ISOL VALVES OFF (and BULK CARGO HEATER OFF, not read), PDF p.5004
+          const isolValvesOff = forwardCargo ? !this.fws.fwdIsolValvePbOn.get() : !this.fws.bulkIsolValvePbOn.get();
+          return forwardCargo ? [false, isolValvesOff] : [false, isolValvesOff, false];
+        },
+        failure: 2,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => [smokeZone.detFaultInopSys],
+      };
+    });
+    // SMOKE FWD+AFT CARGOS BTL 1(2) FAULT (PDF p.5007): "Fire extinguishing bottle 1(2) of the cargo compartments is
+    // failed", here its loss of agent
+    this.fws.cargoBottleLowPressure.forEach((lowPressure, index) => {
+      alerts[260800052 + index] = {
+        flightPhaseInhib: CARGO_BOTTLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: lowPressure,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 2,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => [CARGO_BOTTLE_FAULT_INOP_SYS[index]],
+      };
     });
     return alerts;
   }
@@ -3561,6 +3646,8 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.None,
       redundLoss: () => ['260300024'],
     },
+    // SMOKE ... SMOKE / DET FAULT of the SDF compartments and FWD+AFT CARGOS BTL 1(2) FAULT, see smokeAlerts()
+    ...this.smokeAlerts(),
 
     // ATA 27 - FLIGHT CONTROLS
     271800003: {

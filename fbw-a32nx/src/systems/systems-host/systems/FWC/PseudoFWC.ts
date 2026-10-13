@@ -210,6 +210,12 @@ import {
 } from './Logic/HydraulicAlerts';
 import { APU_SHUTDOWN_INOP_SYS, apuShutdownAlerts, apuShutdownLines } from './Logic/ApuShutdownAlerts';
 import {
+  AFT_CRG_DET_FAULT_INOP_SYS,
+  cargoSmokeLines,
+  FWD_CRG_DET_FAULT_INOP_SYS,
+  smokeAlerts,
+} from './Logic/SmokeAlerts';
+import {
   FAC_SYSTEM_ALERT_CONFIRM_SECONDS,
   FacActuatorPhaseInhibition as FacPhases,
   FacDiscreteWord2Bits,
@@ -2285,6 +2291,24 @@ export class PseudoFWC {
   private readonly cargoFireAgentDisch = Subject.create(false);
 
   private readonly cargoFireTest = Subject.create(false);
+
+  /** The AFT DISCH pb of the CARGO SMOKE panel was pressed */
+  private readonly aftCargoFireAgentDisch = Subject.create(false);
+
+  /** The cargo and avionics smoke alerts, see Logic/SmokeAlerts */
+  private readonly fwdCargoSmoke = Subject.create(false);
+
+  private readonly aftCargoSmoke = Subject.create(false);
+
+  private readonly fwdCrgDetFault = Subject.create(false);
+
+  private readonly aftCrgDetFault = Subject.create(false);
+
+  private readonly fwdCrgBtlFault = Subject.create(false);
+
+  private readonly aftCrgBtlFault = Subject.create(false);
+
+  private readonly avionicsSmoke = Subject.create(false);
 
   private readonly eng1Agent1PB = Subject.create(false);
 
@@ -5646,7 +5670,25 @@ export class PseudoFWC {
     this.eng2Agent2PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_AGENT2_Discharge', 'bool'));
     this.apuAgentPB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_APU_AGENT1_Discharge', 'bool'));
     this.cargoFireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', 'bool'));
-    this.cargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_FWD_DISCHARGED', 'bool'));
+    this.cargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_FWD_DISCHARGED', 'bool') > 0);
+    this.aftCargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_AFT_DISCHARGED', 'bool') > 0);
+    // The cargo and avionics smoke protection of systems.wasm (Logic/SmokeAlerts)
+    const smoke = smokeAlerts({
+      fwdCargoSmokeDetected: SimVar.GetSimVarValue('L:A32NX_SMOKE_FWD_CARGO_DETECTED', 'bool') > 0,
+      aftCargoSmokeDetected: SimVar.GetSimVarValue('L:A32NX_SMOKE_AFT_CARGO_DETECTED', 'bool') > 0,
+      avionicsSmokeDetected: SimVar.GetSimVarValue('L:A32NX_SMOKE_AVIONICS_DETECTED', 'bool') > 0,
+      cargoSmokeTest: this.cargoFireTest.get(),
+      fwdCargoDetectionFault: SimVar.GetSimVarValue('L:A32NX_SMOKE_FWD_CARGO_DET_FAULT', 'bool') > 0,
+      aftCargoDetectionFault: SimVar.GetSimVarValue('L:A32NX_SMOKE_AFT_CARGO_DET_FAULT', 'bool') > 0,
+      cargoBottleLowPressure: SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_BOTTLE_1_LOW_PRESSURE', 'bool') > 0,
+    });
+    this.fwdCargoSmoke.set(smoke.fwdCargoSmoke);
+    this.aftCargoSmoke.set(smoke.aftCargoSmoke);
+    this.fwdCrgDetFault.set(smoke.fwdCrgDetFault);
+    this.aftCrgDetFault.set(smoke.aftCrgDetFault);
+    this.fwdCrgBtlFault.set(smoke.fwdCrgBtlFault);
+    this.aftCrgBtlFault.set(smoke.aftCrgBtlFault);
+    this.avionicsSmoke.set(smoke.avionicsSmoke);
 
     this.agent1Eng1Discharge.set(this.agent1Eng1DischargeTimer.write(this.fireButton1.get(), deltaTime));
     this.agent2Eng1Discharge.set(
@@ -9747,20 +9789,17 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2600150: {
-      // SMOKE FWD CARGO SMOKE
+      // SMOKE FWD CARGO SMOKE (FCOM PRO-ABN-SMOKE l.95244-95318, see Logic/SmokeAlerts): the cargo smoke detection or
+      // the CARGO SMOKE TEST pb. Flight phase inhibition 4, 5, 7, 8 (FCOM PDF "A320 Neo FCOM_1.pdf" page 5786)
       flightPhaseInhib: [4, 5, 7, 8],
-      simVarIsActive: this.cargoFireTest,
-      // TODO no separate slats indication
-      whichCodeToReturn: () => [
-        0,
-        SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', 'bool') === 1 ? 2 : null,
-        [1, 10].includes(this.fwcFlightPhase.get()) && !this.cargoFireAgentDisch.get() ? 3 : null,
-        !this.cargoFireAgentDisch.get() ? 4 : null,
-        !this.aircraftOnGround.get() ? 5 : null,
-        !this.aircraftOnGround.get() ? 6 : null,
-        this.aircraftOnGround.get() ? 7 : null,
-        this.aircraftOnGround.get() ? 8 : null,
-      ],
+      simVarIsActive: this.fwdCargoSmoke,
+      whichCodeToReturn: () =>
+        cargoSmokeLines({
+          cabFansOn: SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', 'bool') > 0,
+          flightPhase: this.fwcFlightPhase.get(),
+          agentDischarged: this.cargoFireAgentDisch.get(),
+          onGround: this.aircraftOnGround.get(),
+        }),
       codesToReturn: [
         '260015001',
         '260015002',
@@ -9774,6 +9813,95 @@ export class PseudoFWC {
       ],
       memoInhibit: () => false,
       failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2600160: {
+      // SMOKE AFT CARGO SMOKE (FCOM PRO-ABN-SMOKE l.95111-95170, see Logic/SmokeAlerts). Flight phase inhibition 4, 5,
+      // 7, 8 (FCOM PDF page 5781)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.aftCargoSmoke,
+      whichCodeToReturn: () =>
+        cargoSmokeLines({
+          cabFansOn: SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', 'bool') > 0,
+          flightPhase: this.fwcFlightPhase.get(),
+          agentDischarged: this.aftCargoFireAgentDisch.get(),
+          onGround: this.aircraftOnGround.get(),
+        }),
+      codesToReturn: [
+        '260016001',
+        '260016002',
+        '260016003',
+        '260016004',
+        '260016005',
+        '260016006',
+        '260016007',
+        '260016008',
+        '260016009',
+      ],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2600170: {
+      // SMOKE FWD CRG DET FAULT (FCOM PRO-ABN-SMOKE l.95378-95392). Flight phase inhibition 3, 4, 5, 7, 8 (FCOM PDF page
+      // 5792). The "IF NO LIVE STOCK: FWD ISOL VALVE OFF" lines stay hidden: no cargo ventilation in this aircraft.
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.fwdCrgDetFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260017001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => FWD_CRG_DET_FAULT_INOP_SYS,
+    },
+    2600180: {
+      // SMOKE AFT CRG DET FAULT (FCOM PRO-ABN-SMOKE l.95203-95240). Flight phase inhibition 3, 4, 5, 7, 8 (FCOM PDF
+      // page 5785)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.aftCrgDetFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260018001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => AFT_CRG_DET_FAULT_INOP_SYS,
+    },
+    2600190: {
+      // SMOKE FWD CRG BTL 1 FAULT (FCOM PRO-ABN-SMOKE l.95345-95358: crew awareness). Flight phase inhibition 4, 5, 7,
+      // 8 (FCOM PDF page 5791)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.fwdCrgBtlFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260019001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2600191: {
+      // SMOKE AFT CRG BTL 1 FAULT (the same single bottle, see Logic/SmokeAlerts)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.aftCrgBtlFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['260019101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2600300: {
+      // AVIONICS SMOKE (FCOM PRO-ABN-AVNCS l.72100-72120, DSC-26-30-10 l.38775-38782: single chime and MASTER CAUTION).
+      // Flight phase inhibition 4, 5, 7, 8 (FCOM PDF page 4441)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.avionicsSmoke,
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['260030001', '260030002'],
+      memoInhibit: () => false,
+      failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
