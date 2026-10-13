@@ -91,6 +91,8 @@ NamedVar g_adirsTrueTrack[3] = {{"A32NX_ADIRS_IR_1_TRUE_TRACK"}, {"A32NX_ADIRS_I
 // "XMLVAR_A320_..." variables.
 NamedVar g_wxrSys{"XMLVAR_A320_WeatherRadar_Sys"};
 NamedVar g_wxrMode{"XMLVAR_A320_WeatherRadar_Mode"};
+// The pedestal GAIN knob: -1 (MIN) .. 0 (CAL) .. +1 (MAX), see a320GainDbFromKnob.
+NamedVar g_wxrGainKnob{"A32NX_WXR_GAIN_KNOB"};
 #endif
 
 // Which inertial reference feeds this ND.
@@ -382,6 +384,7 @@ void registerSimVars() {
 #else
   g_wxrSys.id = register_named_variable(g_wxrSys.name);
   g_wxrMode.id = register_named_variable(g_wxrMode.name);
+  g_wxrGainKnob.id = register_named_variable(g_wxrGainKnob.name);
 #endif
 }
 

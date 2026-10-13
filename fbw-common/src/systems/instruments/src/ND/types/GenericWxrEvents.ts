@@ -30,3 +30,26 @@ export interface GenericWxrManualSettingsEvents {
   wxrBaroStdLeft: boolean;
   wxrBaroStdRight: boolean;
 }
+
+/**
+ * The A32NX weather radar control panel and the inputs of the PWS activation, for the A32NX ND radar rows
+ * (WxrA320Indications.ts, A320 FCOM DSC-34-SURV-30-30). Only the A32NX publishes them.
+ */
+export interface A320WxrPanelEvents {
+  /** L:A32NX_WXR_GAIN_KNOB: -1 (MIN) .. 0 (CAL) .. +1 (MAX) */
+  wxrA320GainKnob: number;
+  /** L:A32NX_RADAR_MULTISCAN_AUTO */
+  wxrA320MultiscanAuto: boolean;
+  /** L:A32NX_WXR_TILT_KNOB, degrees */
+  wxrA320TiltKnob: number;
+  /** L:A32NX_SWITCH_RADAR_PWS_Position: 1 = AUTO */
+  wxrA320PwsAuto: boolean;
+  /** Radio altimeters 1 and 2 (ARINC 429 words) */
+  wxrA320RadioAltitude1: number;
+  wxrA320RadioAltitude2: number;
+  /** L:A32NX_ENGINE_STATE:1 and :2 (1 = ON) */
+  wxrA320Engine1State: number;
+  wxrA320Engine2State: number;
+  /** Ground speed in knots */
+  wxrA320GroundSpeed: number;
+}

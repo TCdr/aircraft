@@ -589,6 +589,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] DOOR/OXY page: amber half-frame on ground below the dispatch pressure (cabin 1 600 PSI), cabin pressure amber below the emergency descent minimum of the passengers or 800 PSI before engine start - @TCdr
 1. [A380X/SD] BLEED page: the APU bleed valve shows amber when it is abnormally open or closed with the APU BLEED pb-sw ON - @TCdr
 1. [A380X/ENG] EWD EGT limits from the FCOM: amber above 970 °C, red line 1 002 °C (red at takeoff from 1 022 °C or after 20 s at or above 1 002 °C), with the ENG EGT OVER LIMIT alert and the EGT overtemperature failure retuned to them - @TCdr
+1. [A32NX/RMP] The SEL light comes on on both RMPs when an RMP tunes the other side's radio (RMP2 on VHF1 or VHF3, RMP1 on VHF2), as in the FCOM - @TCdr
+1. [A32NX/COMMS] The glareshield loudspeaker volume knobs turn and set the radio receive volume (fully anticlockwise = OFF); the warning sounds are not affected - @TCdr
+1. [A32NX/ND] TCAS traffic is shown at the 10, 20 and 40 NM ranges only, as in the FCOM (TCAS: REDUCE RANGE above them) - @TCdr
+1. [A32NX/WXR] The weather radar GAIN knob works (CAL in the middle, MAN GAIN on the ND out of CAL) and the ND shows the radar mode in cyan with MULTISCAN at MAN, the MAN tilt from the TILT knob, and PWS SCAN while the predictive windshear scans with the radar off - @TCdr
+1. [A32NX/ENG] Automatic ground start of a cold engine or above 10 000 ft: the FADEC adds the second igniter once the engine has lit up - @TCdr
 
 ## 2024.1.0
 

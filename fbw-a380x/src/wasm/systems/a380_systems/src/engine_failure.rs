@@ -275,6 +275,9 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         // The A320 FCOM pre-start motoring has no counterpart in the A380 FADEC text: the NOR SOP
         // (l.119704-119707) crank of 20 s after 20 % N2 is not modelled (see ground_ignition_on_n2).
         max_pre_start_motoring_time: Duration::ZERO,
+        // A380 FCOM DSC-70-80-20 (l.112328): "Only one igniter operates for an automatic start", with
+        // no second igniter for a cold engine or a high airfield (the A320 rule).
+        second_igniter_at_light_up_cold_or_above: None,
     }
 }
 

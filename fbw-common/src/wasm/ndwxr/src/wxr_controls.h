@@ -1,8 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-// The A380X weather radar's manual GAIN and ELEVN/TILT selections as seen by this gauge: pure logic (no MSFS
-// dependency), tested natively by test/wxr_controls_test.cpp.
+// The A380X weather radar's manual GAIN and ELEVN/TILT selections, and the A32NX GAIN knob, as seen by this gauge: pure
+// logic (no MSFS dependency), tested natively by test/wxr_controls_test.cpp.
 //
 // What MSFS lets us change (MSFS_MapView.h): the radar views only take a list of rain rate bands (the colour table,
 // fsMapViewSetWeatherRadarRainColors), a cone angle and a scan rate. The precipitation they paint has no height (the
@@ -67,6 +67,38 @@ inline float effectiveGainDb(bool manual, double gainPercent) {
     return 0.0f;
   }
   return gainDbFromPercent(static_cast<float>(gainPercent));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A32NX GAIN knob
+//
+// A320 FCOM DSC-34-SURV-30-30 CONTROL PANEL (a320_fcom.txt l.54368-54386): "GAIN knob: This knob adjusts the
+// sensitivity of the radar. CAL is the normal position of the knob: When in Multiscan Automatic mode and gain set to
+// CAL, the radar automatically adjusts the gain according to various parameters (aircraft altitude, geographical area,
+// season, time of the day) ... When in Manual mode and gain set to CAL, the radar adjusts the gain to a calibrated
+// setting." Both CAL cases paint the calibrated picture here (MSFS gives none of these parameters). Out of CAL the gain
+// is manual: "MAN GAIN appears in cyan when the flight crew selects the manual gain mode" (ND, l.54754-54755).
+// L:A32NX_WXR_GAIN_KNOB: -1 (MIN) .. 0 (CAL) .. +1 (MAX), so a never set variable (0) is CAL.
+// Design choice (the A320 FCOM gives no dB range): the scale of the A380X manual gain, the knob's MIN and MAX at its
+// 0 % and 100 % (RDR-4000 MIN -16 dB, MAX +10 dB, see gainDbFromPercent).
+// ---------------------------------------------------------------------------------------------------------------------
+
+// The knob is at CAL within this distance of 0 (its steps of 0.1 add up with rounding errors).
+constexpr double kA320GainKnobCalTolerance = 0.01;
+
+// Whether the GAIN knob is out of its CAL position: the manual gain mode.
+inline bool a320GainKnobIsManual(double knob) {
+  return std::fabs(knob) > kA320GainKnobCalTolerance;
+}
+
+// The gain in dB of the GAIN knob position (out of range positions are clamped): 0 at CAL.
+inline float a320GainDbFromKnob(double knob) {
+  if (!a320GainKnobIsManual(knob)) {
+    return 0.0f;
+  }
+  const double clamped = std::fmin(std::fmax(knob, -1.0), 1.0);
+  const float clampedKnob = static_cast<float>(clamped);
+  return gainDbFromPercent(kGainCalibratedPercent + clampedKnob * (100.0f - kGainCalibratedPercent));
 }
 
 // The rain rate thresholds (mm/h) of the radar views.
