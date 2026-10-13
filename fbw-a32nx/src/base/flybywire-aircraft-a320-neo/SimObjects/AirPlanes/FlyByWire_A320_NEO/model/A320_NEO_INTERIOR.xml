@@ -2732,7 +2732,9 @@
                             <NODE_ID>PUSH_OVHD_EMERELECPWR_GEN1</NODE_ID>
                             <TOGGLE_SIMVAR>L:A32NX_OVHD_EMER_ELEC_GEN_1_LINE_PB_IS_ON</TOGGLE_SIMVAR>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
-                            <SEQ1_CODE>(L:A32NX_OVHD_EMER_ELEC_GEN_1_LINE_PB_HAS_FAULT, Bool)</SEQ1_CODE>
+                            <!-- SMOKE: the amber light comes on when smoke is detected in the avionics ventilation duct
+                                 (A320 FCOM DSC-26-30-20 GEN 1 LINE PB-SW), systems.wasm smoke detection -->
+                            <SEQ1_CODE>(L:A32NX_OVHD_EMER_ELEC_GEN_1_LINE_PB_HAS_FAULT, Bool) (L:A32NX_SMOKE_AVIONICS_DETECTED, Bool) or</SEQ1_CODE>
                             <SEQ2_CODE>(L:A32NX_OVHD_EMER_ELEC_GEN_1_LINE_PB_IS_ON, Bool) !</SEQ2_CODE>
                             <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                             <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -3135,7 +3137,9 @@
                             <NODE_ID>PUSH_OVHD_VENTILATION_BLOWER</NODE_ID>
                             <TOGGLE_SIMVAR>L:A32NX_VENTILATION_BLOWER_TOGGLE</TOGGLE_SIMVAR>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) (L:A32NX_ELEC_AC_STAT_INV_BUS_IS_POWERED, Bool) or</SEQ_POWERED>
-                            <SEQ1_CODE>(L:A32NX_VENTILATION_BLOWER_FAULT, Bool)</SEQ1_CODE>
+                            <!-- FAULT also when smoke is detected in the avionics ventilation duct (A320 FCOM
+                                 DSC-26-30-20 BLOWER PB-SW), systems.wasm smoke detection -->
+                            <SEQ1_CODE>(L:A32NX_VENTILATION_BLOWER_FAULT, Bool) (L:A32NX_SMOKE_AVIONICS_DETECTED, Bool) or</SEQ1_CODE>
                             <SEQ2_CODE>(L:A32NX_VENTILATION_BLOWER_TOGGLE, Bool) !</SEQ2_CODE>
                             <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                             <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -3150,7 +3154,9 @@
                             <NODE_ID>PUSH_OVHD_VENTILATION_EXTRACT</NODE_ID>
                             <TOGGLE_SIMVAR>L:A32NX_VENTILATION_EXTRACT_TOGGLE</TOGGLE_SIMVAR>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) (L:A32NX_ELEC_AC_STAT_INV_BUS_IS_POWERED, Bool) or</SEQ_POWERED>
-                            <SEQ1_CODE>(L:A32NX_VENTILATION_EXTRACT_FAULT, Bool)</SEQ1_CODE>
+                            <!-- FAULT also when smoke is detected in the avionics ventilation duct (DSC-26-30-20 EXTRACT
+                                 PB-SW) -->
+                            <SEQ1_CODE>(L:A32NX_VENTILATION_EXTRACT_FAULT, Bool) (L:A32NX_SMOKE_AVIONICS_DETECTED, Bool) or</SEQ1_CODE>
                             <SEQ2_CODE>(L:A32NX_VENTILATION_EXTRACT_TOGGLE, Bool) !</SEQ2_CODE>
                             <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                             <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -3654,16 +3660,22 @@
                             <ANIM_TEMPLATE>FBW_Airbus_CARGOSMOKE_TEST_BUTTON</ANIM_TEMPLATE>
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_TEST</NODE_ID>
                         </UseTemplate>
-                        <!-- CARGO SMOKE AFT -->
-                        <UseTemplate Name="FBW_Airbus_FIRE_TEST_LIGHTS">
+                        <!-- CARGO SMOKE AFT: the red SMOKE light comes on when the system detects smoke in the
+                             compartment (A320 FCOM DSC-26-50-20 SMOKE LIGHT), systems.wasm smoke detection, or with the
+                             TEST pb -->
+                        <UseTemplate Name="FBW_Push_Toggle">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD2</NODE_ID>
+                            <DUMMY_BUTTON>True</DUMMY_BUTTON>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                            <SEQ1_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_SMOKE_AFT_CARGO_DETECTED, Bool) or</SEQ1_CODE>
                             <NO_SEQ2 />
                         </UseTemplate>
                         <!-- CARGO SMOKE FWD -->
-                        <UseTemplate Name="FBW_Airbus_FIRE_TEST_LIGHTS">
+                        <UseTemplate Name="FBW_Push_Toggle">
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_FWD1</NODE_ID>
+                            <DUMMY_BUTTON>True</DUMMY_BUTTON>
                             <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                            <SEQ1_CODE>(L:A32NX_FIRE_TEST_CARGO, Bool) (L:A32NX_SMOKE_FWD_CARGO_DETECTED, Bool) or</SEQ1_CODE>
                             <NO_SEQ2 />
                         </UseTemplate>
                         <!-- CARGO SMOKE FWD DISCH -->
@@ -3682,10 +3694,12 @@
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_1</NODE_ID>
                             <LOCK_NODE_ID>LOCK_OVHD_CARGOSMOKE_1</LOCK_NODE_ID>
                             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_CARGOSMOKE_FWD_DISCHARGED)</LEFT_SINGLE_CODE>
-                            <TOOLTIPID>%((L:A32NX_CARGOSMOKE_FWD_DISCHARGED, Bool))%{if}Fire-extinguisher discharged (Inop.)%{else}Discharge fire-extinguisher (Inop.)%{end}</TOOLTIPID>
+                            <TOOLTIPID>%((L:A32NX_CARGOSMOKE_FWD_DISCHARGED, Bool))%{if}Fire-extinguisher discharged%{else}Discharge fire-extinguisher%{end}</TOOLTIPID>
                             <MOMENTARY/>
-                            <NO_SEQ1 />
-                            <NO_SEQ2 />
+                            <!-- DISCH: the amber light comes on when the (single) cargo bottle is fully discharged (A320
+                                 FCOM DSC-26-50-20 DISCH LIGHT), systems.wasm cargo_fire_extinguishing.rs -->
+                            <SEQ1_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool)</SEQ1_CODE>
+                            <SEQ2_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool)</SEQ2_CODE>
                         </UseTemplate>
                         <!-- CARGO SMOKE AFT DISCH -->
                         <UseTemplate Name="FBW_Anim_Interactions">
@@ -3703,10 +3717,10 @@
                             <NODE_ID>PUSH_OVHD_CARGOSMOKE_2</NODE_ID>
                             <LOCK_NODE_ID>LOCK_OVHD_CARGOSMOKE_2</LOCK_NODE_ID>
                             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_CARGOSMOKE_AFT_DISCHARGED)</LEFT_SINGLE_CODE>
-                            <TOOLTIPID>%((L:A32NX_CARGOSMOKE_AFT_DISCHARGED, Bool))%{if}Fire-extinguisher discharged (Inop.)%{else}Discharge fire-extinguisher (Inop.)%{end}</TOOLTIPID>
+                            <TOOLTIPID>%((L:A32NX_CARGOSMOKE_AFT_DISCHARGED, Bool))%{if}Fire-extinguisher discharged%{else}Discharge fire-extinguisher%{end}</TOOLTIPID>
                             <MOMENTARY/>
-                            <NO_SEQ1 />
-                            <NO_SEQ2 />
+                            <SEQ1_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool)</SEQ1_CODE>
+                            <SEQ2_CODE>(L:A32NX_CARGOSMOKE_BOTTLE_1_DISCHARGED, Bool)</SEQ2_CODE>
                         </UseTemplate>
                     </Component>
                 </Component>

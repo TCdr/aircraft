@@ -34,6 +34,8 @@ impl ApuConstants for Pw980Constants {
     const AIR_INTAKE_FLAP_CLOSURE_PERCENT: f64 = 8.;
     const SHOULD_BE_AVAILABLE_DURING_SHUTDOWN: bool = false;
     const FUEL_LINE_ID: u8 = 141;
+    // A380 FCOM DSC-49-40 APU AUTOMATIC SHUTDOWN (a380_fcom.txt l.108893): "APU oil high temperature: Yes / No"
+    const HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT: bool = false;
 }
 
 pub struct ShutdownPw980Turbine {

@@ -5,7 +5,8 @@
  * APU FAULT of the A380X FWS (A380 FCOM PRO-ABN-ECAM-10-49, a380_fcom.txt l.170067-170200), from the APU electronic
  * control box (fbw-common apu/electronic_control_box.rs write()): L:A32NX_APU_IS_EMERGENCY_SHUTDOWN (the APU FIRE pb
  * released, or an APU fire on ground) and L:A32NX_APU_IS_AUTO_SHUTDOWN (any other ECB fault: fuel low pressure, DC power
- * loss in the start). Both end when the ECB goes off after the APU MASTER SW OFF action.
+ * loss, ECB failure, overspeed, oil low pressure, oil high temperature on ground). Both end when the ECB goes off after
+ * the APU MASTER SW OFF action.
  * Not simulated: "3. The ECB detects a failure, but the APU is still available" (l.170101-170102) and the failed start
  * above FL 150 (l.170173-170174): the ECB tells neither apart, so their lines stay hidden.
  */

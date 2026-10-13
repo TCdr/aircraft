@@ -554,6 +554,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ECAM] SD advisory mode: a value pulsing on a system page (APU EGT and flap, cabin altitude, V/S and delta P, IDG oil, engine oil and vibrations, fuel imbalance) calls that page; with one ECAM display its ECP pb flashes - @TCdr
 1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
 1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
+1. [A32NX/A380X/APU] The APU shuts down automatically with a FAULT on an ECB failure, an overspeed, a low oil pressure or a high oil temperature (four new ATA 49 flyPad failures; A380X high oil temperature on the ground only), and when its DC supply is lost while it runs (BAT OFF on batteries only) - @TCdr
+1. [A32NX/FIRE] Cargo and avionics smoke detection with new flyPad failures: SMOKE FWD and AFT CARGO SMOKE, FWD and AFT CRG DET FAULT, FWD and AFT CRG BTL 1 FAULT and AVIONICS SMOKE alerts, the SMOKE, GEN 1 LINE SMOKE and BLOWER/EXTRACT FAULT lights; the cargo DISCH pbs now discharge the cargo fire bottle and light the DISCH lights - @TCdr
+1. [A380X/FIRE] Smoke Detection Function for the cargo compartments, the avionics bays and the IFE bay with new flyPad failures: their SMOKE warnings and SMOKE DET FAULT cautions, and the FWD+AFT CARGO BTL 1(2) FAULT cautions; the AGENT TO FWD/AFT pbs now discharge the two cargo fire bottles (SMOKE, DISCH and BTL lights) - @TCdr
 
 ## 2024.1.0
 
