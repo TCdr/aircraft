@@ -19,7 +19,15 @@ const rnpDefaults: Record<FlightArea, number> = {
   [FlightArea.NonPrecisionApproach]: 0.5,
 };
 
-// FIXME RNP-related scratchpad messages
+/**
+ * The default RNP of a flight area, used when the active leg has no RNP in the navigation database. Also the reference of
+ * the AREA RNP IS message (components/fms-messages/RnpMessages.ts).
+ * @param area the flight area
+ * @returns the default RNP, in NM
+ */
+export function defaultRnpForArea(area: FlightArea): number {
+  return rnpDefaults[area];
+}
 
 export class RequiredPerformance {
   activeRnp: number | undefined;

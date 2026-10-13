@@ -8,8 +8,14 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { Column, FormatLine } from '../legacy/A320_Neo_CDU_Format';
+import { progOptimumFlightLevel } from '../legacy/OptimumFlightLevel';
+import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
+import { PendingPositionUpdate, positionUpdateAtLines } from './PositionMonitorFields';
 
 export class CDUProgressPage {
+  /** The position entered in POSITION UPDATE AT, waiting for the CONFIRM UPDATE AT [3R] */
+  private static pendingPositionUpdate: PendingPositionUpdate | null = null;
+
   static ShowPage(mcdu: LegacyFmsPageInterface) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.ProgressPage;
@@ -24,13 +30,12 @@ export class CDUProgressPage {
     const cruiseLevel = plan.performanceData.cruiseFlightLevel.get();
     const recMaxFl = mcdu.getMaxFlCorrected();
     const flMaxText = recMaxFl !== null ? `{magenta}FL${recMaxFl.toString()}{end}` : `-----`;
-    const flOpt =
-      recMaxFl !== null &&
-      plan.performanceData.zeroFuelWeightCenterOfGravity.get() !== null &&
-      plan.performanceData.blockFuel.get() !== null &&
-      (mcdu.isAllEngineOn() || mcdu.isOnGround())
-        ? '{green}FL' + (Math.floor(recMaxFl / 5) * 5).toString() + '{end}'
-        : '-----';
+    // OPT FL: the best specific range level for the gross weight, dashes with an engine out (OptimumFlightLevel.ts)
+    const optFl =
+      plan.performanceData.zeroFuelWeightCenterOfGravity.get() !== null && plan.performanceData.blockFuel.get() !== null
+        ? progOptimumFlightLevel(mcdu.getGrossWeight(), recMaxFl, !(mcdu.isAllEngineOn() || mcdu.isOnGround()))
+        : null;
+    const flOpt = optFl !== null ? `{green}FL${optFl.toFixed(0)}{end}` : '-----';
     const gpsPrimary = mcdu.navigation.getGpsPrimary();
     const gpsPrimaryStatus = mcdu.navigation.getGpsPrimary() ? '{green}GPS PRIMARY{end}' : '';
     let flCrz = '-----';
@@ -148,6 +153,58 @@ export class CDUProgressPage {
       });
     };
 
+    // POSITION UPDATE AT [3L], CONFIRM UPDATE AT [3R] (A320 FCOM DSC-22_20-30-10-18, see PositionMonitorFields)
+    if (gpsPrimary) {
+      CDUProgressPage.pendingPositionUpdate = null;
+    }
+    const [positionUpdateLabel, positionUpdateData] = positionUpdateAtLines(
+      gpsPrimary,
+      CDUProgressPage.pendingPositionUpdate,
+    );
+    mcdu.onLeftInput[2] = (input, scratchpadCallback) => {
+      if (gpsPrimary) {
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        scratchpadCallback();
+        return;
+      }
+      if (input === Keypad.clrValue) {
+        CDUProgressPage.pendingPositionUpdate = null;
+        CDUProgressPage.ShowPage(mcdu);
+        return;
+      }
+      WaypointEntryUtils.getOrCreateWaypoint(mcdu, input, false, 'ENTRY')
+        .then((fix) => {
+          if (!fix) {
+            mcdu.setScratchpadMessage(NXSystemMessages.notInDatabase);
+            scratchpadCallback();
+            return;
+          }
+          CDUProgressPage.pendingPositionUpdate = { ident: fix.ident, location: fix.location };
+          CDUProgressPage.ShowPage(mcdu);
+        })
+        .catch((err) => {
+          // Rethrow if error is not an FMS message to display
+          if (err.type === undefined) {
+            throw err;
+          }
+          mcdu.showFmsErrorMessage(err.type);
+          scratchpadCallback();
+        });
+    };
+    mcdu.onRightInput[2] = (_input, scratchpadCallback) => {
+      const pending = CDUProgressPage.pendingPositionUpdate;
+      if (pending === null) {
+        return;
+      }
+      // "When the aircraft position is computed based on GPIRS, [...] NOT ALLOWED" (a320_fcom.txt l.14784-14786)
+      if (!mcdu.navigation.updatePositionAt(pending.location)) {
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        scratchpadCallback();
+      }
+      CDUProgressPage.pendingPositionUpdate = null;
+      CDUProgressPage.ShowPage(mcdu);
+    };
+
     let rnpCell = '{white}----{end}';
     const rnpSize = mcdu.navigation.requiredPerformance.manualRnp ? 'big' : 'small';
     const rnp = mcdu.navigation.requiredPerformance.activeRnp;
@@ -201,8 +258,8 @@ export class CDUProgressPage {
       [flCrz, flOpt + '\xa0\xa0\xa0\xa0' + flMaxText + '\xa0'],
       [''],
       ['<REPORT', vDevCell],
-      [gpsPrimary ? '' : '\xa0POSITION UPDATE AT'],
-      [gpsPrimary ? '' : '{small}*{end}[\xa0\xa0\xa0\xa0][color]cyan'],
+      positionUpdateLabel,
+      positionUpdateData,
       ['\xa0\xa0BRG / DIST'],
       [progBearingDist, `{small}{white}TO{end}{end}\xa0{cyan}${progWaypoint}{end}`],
       ['\xa0PREDICTIVE'],
