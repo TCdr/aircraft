@@ -321,6 +321,7 @@
       | 16  | High differential pressure - warn                    |
       | 17  | Low differential pressure - warn                     |
       | 18  | Excessive residual pressure - warn                   |
+      | 19  | Landing elevation from the FMS not received          |
 
 - A32NX_COND_{id}_TEMP
     - Degree Celsius
@@ -1277,6 +1278,42 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_ELEC_ENG_GEN_{number}_IDG_IS_CONNECTED
     - Bool
     - Indicates if the given integrated drive generator is connected
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_LEVEL_LOW
+    - Bool
+    - Read only
+    - True when the oil level of generator drive {number} is low (flyPad failure DRIVE {number} Oil Leak). Triggers
+      ELEC DRIVE {number} OIL LEVEL LO; after 5 min the GCU switches the generator off. False once the drive is
+      disconnected
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_LOW_PRESSURE
+    - Bool
+    - Read only
+    - True when the oil pressure of generator drive {number} is below 35 PSI (oil leak), while the generator turns in
+      its 360-800 Hz band. Triggers ELEC DRIVE {number} OIL PRESS LO and the DRIVE pb FAULT light; after 5 min the drive
+      disconnects. False once the drive is disconnected
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_OVERHEAT
+    - Bool
+    - Read only
+    - True when the oil of generator drive {number} is above 200 °C (flyPad failure DRIVE {number} Oil Cooling Lost, or
+      an oil leak). Triggers ELEC DRIVE {number} OIL OVHT and the DRIVE pb FAULT light; the drive disconnects above
+      250 °C. False once the drive is disconnected
     - {number}
         - 1
         - 2
