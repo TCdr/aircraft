@@ -68,6 +68,7 @@ import { FwsEmerCancel } from './FwsEmerCancel';
 import { FwsNormalChecklists } from './FwsNormalChecklists';
 import { EwdAbnormalDict, EwdAbnormalItem, FwsAbnormalSensed } from './FwsAbnormalSensed';
 import { FwsAbnormalNonSensed } from './FwsAbnormalNonSensed';
+import { TailStrikeDetector, firstValidPitch } from './FwsTailStrikeAlerts';
 // FIXME should not import from instruments
 import { MfdSurvEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { Mle, Mmo, VfeF1, VfeF1F, VfeF2, VfeF3, VfeFF, Vle, Vmo } from '@shared/PerformanceConstants';
@@ -2269,6 +2270,13 @@ export class FwsCore {
   public readonly overspeedOccurredDuringFlight = Subject.create(false);
 
   public readonly loadAnalysysRequired = Subject.create(false);
+
+  /** TAIL STRIKE and TAIL STRIKE DET FAULT, see FwsTailStrikeAlerts */
+  private readonly tailStrikeDetector = new TailStrikeDetector();
+
+  public readonly tailStrike = Subject.create(false);
+
+  public readonly tailStrikeDetFault = Subject.create(false);
 
   public readonly flapsIndex = Subject.create(0);
 
@@ -4527,6 +4535,21 @@ export class FwsCore {
     const leftCompressedHardwireLgciu2 =
       this.dc2BusPowered.get() && SimVar.GetSimVarValue('L:A32NX_LGCIU_2_LEFT_GEAR_COMPRESSED', 'bool') > 0;
     this.gearLeverPos.set(SimVar.GetSimVarValue('GEAR HANDLE POSITION', 'bool'));
+
+    // TAIL STRIKE detector (FCOM PRO-ABN-ECAM-10-27-10), see FwsTailStrikeAlerts: a main gear compressed per LGCIU 1 or 2
+    const mainGearCompressedForTailStrike =
+      leftCompressedHardwireLgciu1 ||
+      leftCompressedHardwireLgciu2 ||
+      (this.dcESSBusPowered.get() && SimVar.GetSimVarValue('L:A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED', 'bool') > 0) ||
+      (this.dc2BusPowered.get() && SimVar.GetSimVarValue('L:A32NX_LGCIU_2_RIGHT_GEAR_COMPRESSED', 'bool') > 0);
+    const tailStrikeState = this.tailStrikeDetector.update({
+      pitchDegrees: firstValidPitch([this.ir1Pitch, this.ir2Pitch, this.ir3Pitch]),
+      mainGearCompressed: mainGearCompressedForTailStrike,
+      detectorFailed: this.failuresConsumer.isActive(A380Failure.TailStrikeDetector),
+      flightPhase: this.flightPhase.get(),
+    });
+    this.tailStrike.set(tailStrikeState.tailStrike);
+    this.tailStrikeDetFault.set(tailStrikeState.detectorFault);
 
     // General logic
     const mainGearDownlocked =

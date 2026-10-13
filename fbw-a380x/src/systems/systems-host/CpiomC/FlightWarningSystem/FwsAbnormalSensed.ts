@@ -35,6 +35,7 @@ import {
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
+import { TAIL_STRIKE_DET_FAULT_PHASE_INHIBITION, TAIL_STRIKE_PHASE_INHIBITION } from './FwsTailStrikeAlerts';
 import {
   APU_GEN_INOP_SYS,
   APU_TR_INOP_SYS,
@@ -4075,6 +4076,27 @@ export class FwsAbnormalSensed {
       // LOAD ANALYSIS REQUIRED
       flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
       simVarIsActive: this.fws.loadAnalysysRequired,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    // TAIL STRIKE and TAIL STRIKE DET FAULT (a380_fcom.txt l.147331-147385), see FwsTailStrikeAlerts
+    271800071: {
+      // TAIL STRIKE, master caution, LAND ANSA
+      flightPhaseInhib: TAIL_STRIKE_PHASE_INHIBITION,
+      simVarIsActive: this.fws.tailStrike,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    271800072: {
+      // TAIL STRIKE DET FAULT, crew awareness; INOP SYS APPR TAIL STRIKE DET in FwsInopSys
+      flightPhaseInhib: TAIL_STRIKE_DET_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.tailStrikeDetFault,
       notActiveWhenItemActive: [],
       whichItemsToShow: () => [],
       whichItemsChecked: () => [],

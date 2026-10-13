@@ -8,6 +8,18 @@ pub mod avionics_full_duplex_switch;
 pub mod core_processing_input_output_module;
 pub mod input_output_module;
 
+/// The letter of a module name such as "C1" (the CPIOM C1), used to name its failure
+fn module_letter(name: &str) -> char {
+    name.chars().next().unwrap_or('?')
+}
+
+/// The number of a module name such as "C1" (the CPIOM C1), used to name its failure
+fn module_number(name: &str) -> u8 {
+    name.get(1..)
+        .and_then(|number| number.parse().ok())
+        .unwrap_or(0)
+}
+
 /// Represents an identifier for messages in the Avionics Data Communication Network.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
 pub struct AvionicsDataCommunicationNetworkMessageIdentifier(usize);

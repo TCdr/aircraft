@@ -97,6 +97,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270400009', { part: StatusPart.Limitation, text: 'MAN PITCH TRIM......USE' }],
   ['270400010', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
   ['270400011', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  // APPR PROC of F/CTL FLAP SYS 1 FAULT (l.83240-83242), see FWC/Logic/SlatFlapChannelAlerts
+  ['270400012', { part: StatusPart.Limitation, text: 'GPWS FLAP MODE......OFF' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-AUTO_FLT RUD TRV LIM SYS STATUS, a320_fcom.txt l.71916-71930), see
   // FWC/Logic/FacActuatorAlerts
   ['220400001', { part: StatusPart.Limitation, text: 'RUD WITH CARE ABV 160 KT' }],

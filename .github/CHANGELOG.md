@@ -455,6 +455,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] SURV GPWS 1(2)(1+2) FAULT alerts; SURV TAWS 1(2)(1+2) FAULT now trigger when the GPWS and the TERR SYS of a system are both failed, instead of the separate GPWS and TERR alerts - @TCdr
 1. [A380X/FWS] AIR ABNORM BLEED CONFIG lines (XBLEED, AIR FLOW, PACK, WING A-ICE) after ENG SHUT DOWN or ENG FIRE - @TCdr
 1. [A32NX/FWC] New AUTO FLT YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS and RUD TRV LIM 1(2) / SYS cautions with their FCOM procedures and STATUS, and six new flyPad failures (ATA 22) for the yaw damper, rudder trim and rudder travel limiter actuators of each FAC: the other FAC takes the function over - @TCdr
+1. [A32NX/F_CTL] New flyPad failures of the SFCC 1(2) flap and slat channels: the failed channel no longer drives its motor and the flaps or slats move at half speed - @TCdr
+1. [A32NX/FWC] New F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT cautions with their FCOM STATUS (GPWS FLAP MODE OFF, ENG APPR IDLE ONLY, FLAPS/SLATS SLOW) - @TCdr
+1. [A380X/F_CTL] New flyPad failures of the SFCC 1(2) flap and slat channels: half speed flaps or slats and F/CTL FLAP(SLAT) SYS 1(2) / 1+2 FAULT - @TCdr
+1. [A380X/IMA] New flyPad failures (ATA 42) of the 16 AFDX switches, the 8 IOMs and the 22 CPIOMs of the avionics network - @TCdr
+1. [A380X/FWS] New TAIL STRIKE caution (LAND ANSA) from a tail strike detector based on the FCOM geometry limit, and TAIL STRIKE DET FAULT with its flyPad failure - @TCdr
 
 ## 2024.1.0
 

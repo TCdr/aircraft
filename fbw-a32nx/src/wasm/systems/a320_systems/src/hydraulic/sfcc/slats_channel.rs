@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::systems::shared::arinc429::{Arinc429Word, SignStatus};
+use systems::failures::{Failure, FailureType};
 use systems::hydraulic::command_sensor_unit::{CSUMonitor, CSU};
 use systems::hydraulic::flap_slat::{ChannelCommand, SolenoidStatus, ValveBlock};
 use systems::shared::{
@@ -32,6 +33,10 @@ pub(super) struct SlatsChannel {
     is_powered_delayed: DelayedFalseLogicGate,
 
     csu_monitor: CSUMonitor,
+
+    /// The flyPad failure of this slat channel (F/CTL SLAT SYS 1(2) FAULT, A320 FCOM a320_fcom.txt l.84321-84341):
+    /// the channel no longer drives its slat motor, the other motor moves the slats at half speed (l.41431)
+    motor_control_failure: Failure,
 
     kts_60: Velocity,
     conf1_slats: Angle,
@@ -83,6 +88,10 @@ impl SlatsChannel {
             slat_alpha_lock_high_aoa: Angle::new::<degree>(Self::SLAT_LOCK_HIGH_ALPHA_DEGREES),
 
             csu_monitor: CSUMonitor::new(context),
+
+            motor_control_failure: Failure::new(FailureType::SlatFlapControlComputerSlatChannel(
+                num as usize,
+            )),
 
             // Set `sap` to false to match power-off state
             sap: [false; 7],
@@ -300,6 +309,12 @@ impl SlatsChannel {
         self.slat_alpha_lock_engaged
     }
 
+    /// The channel has lost the control of its slat motor (flyPad failure). As for the flap channel, it keeps sending
+    /// its labels and reports the fault in the slat/flap system status word (label 046 bit 11).
+    pub(super) fn is_failed(&self) -> bool {
+        self.motor_control_failure.is_active()
+    }
+
     #[cfg(test)]
     pub fn get_sap(&self, idx: usize) -> bool {
         self.sap[idx]
@@ -326,7 +341,7 @@ impl SlatsChannel {
 // are held in position and can't move.
 impl ValveBlock for SlatsChannel {
     fn get_pob_status(&self) -> SolenoidStatus {
-        if !self.is_powered_delayed.output() {
+        if !self.is_powered_delayed.output() || self.is_failed() {
             return SolenoidStatus::DeEnergised;
         }
 
@@ -341,7 +356,7 @@ impl ValveBlock for SlatsChannel {
     }
 
     fn get_command_status(&self) -> Option<ChannelCommand> {
-        if !self.is_powered_delayed.output() {
+        if !self.is_powered_delayed.output() || self.is_failed() {
             return None;
         }
 
@@ -363,6 +378,7 @@ impl ValveBlock for SlatsChannel {
 impl SimulationElement for SlatsChannel {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.csu_monitor.accept(visitor);
+        self.motor_control_failure.accept(visitor);
         visitor.visit(self);
     }
 
