@@ -61,8 +61,7 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
   - CPIOM etc. not implemented yet.
 - Portions of the automatic fuel transfer system -- main transfers from the inner, mid, trim, and outer tanks are implemented with the correct scheduling as are CG control transfers from the trim tank to the appropriate inner, mid, or feed tanks. Not implemented yet are load alleviation transfers, transfers based on remaining time to destination, cold fuel transfers, and automatic transfers
   that occur on the ground. The transfer pump pushbuttons work and can be used to interrupt an automatic transfer.
-- The crossfeed valves work, but fuel will not be taken from the correct tank until the FADEC WASM is modified
-- Manual fuel transfer
+- Manual fuel transfers: the OUTR, MID and INR TK XFR (MAN) and TRIM TK XFR (FWD) pushbuttons work (pumped transfers, and the outer tank gravity transfer into feed tanks 1 and 4 with an outer tank pump off). Not implemented yet: the outer tank gravity transfer into feed tanks 2 and 3, the FAULT lights of these pushbuttons, the MAN XFR ECAM procedures and the AUTO GND XFR pushbutton (automatic ground transfer)
 - Manually controlling how much fuel each tank receives when fueling
 - Integrated Refuel Panel - Simulated in the systems but not modeled in the plane model, or fully connected to ELEC
 - MFD entry - Not supported yet (ZFW/ZFWCG entry - Possible via EFB currently for testing)
@@ -102,6 +101,12 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 - Gear system not yet final
   - Wrong door sequence
+  - One left and one right main gear assembly stand for the wing and the body gear of each side: they need both GREEN
+    (WLG) and YELLOW (BLG), so with GREEN lost the BLG does not retract alone; the gears move only when all the doors
+    are open, so with YELLOW lost the NLG does not retract either
+  - The gravity extension takes about 70 s but releases all the gear uplocks together (FCOM: NLG and WLG, then BLG)
+- Braking simplified: one NORM circuit (GREEN) and one ALTN circuit (YELLOW and one accumulator) for all the wheel
+  groups; no LEHGS and no 4 brake accumulators, no BCS 1/2 split, no A-SKID fault per wheel group
 - BTV simplified logic only
   - Basic braking distance calculations
   - No glide slope adaptation
@@ -125,7 +130,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 ROW/ROP
 
-- Automatic detection of landing runway (needs FMS to have landing runway selected)
+- Landing runway detection: a runway already selected (FMS or OANS) stays the protected runway down to 350 ft in every
+  AUTO BRK mode (FCOM: only in BTV, until 300 ft)
 - Shift of touchdown point according to position on glide slope
 
 ### ATA 35 Oxygen

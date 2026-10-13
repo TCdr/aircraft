@@ -553,11 +553,22 @@
 
 - A32NX_OXYGEN_MASKS_DEPLOYED
     - Bool
-    - True if cabin oxygen masks have been deployed.
+    - True if cabin oxygen masks have been deployed: MASK MAN ON pb, or automatically when the cabin altitude
+      (A32NX_PRESS_MAN_CABIN_ALTITUDE) goes above 14 000 ft (systems host, Oxygen/PaxOxygenMasks).
 
 - A32NX_RCDR_GROUND_CONTROL_ON
     - Bool
     - True if ground control is on.
+
+- A32NX_RCDR_CVR_ENERGIZED
+    - Bool
+    - True if the CVR runs: GND CTL ON, the first 5 min after the electrical network power-up, an engine running, in
+      flight, and the 5 min after the last engine shutdown (written by the systems host).
+
+- A32NX_RCDR_CVR_TEST_TONE
+    - Bool
+    - True while the CVR TEST pb gives the test signal: pb held, CVR running and parking brake on (plays the cvr_test
+      sound).
 
 - A32NX_EMERELECPWR_GEN_TEST
     - Bool
@@ -1513,6 +1524,12 @@ These variables are the interface between the 3D model and the systems/code.
     - Written by the DMC logic of the systems host: only one ECAM display is on, the SD is shown only while a system page
       pb is held (FCOM DSC-31-05-60). The STS pb then pages the STATUS page
 
+- A32NX_ECAM_SD_ADVISORY_PAGE
+    - Enum
+    - Written by the DMC logic of the systems host: the system page with an ECAM advisory (a parameter out of its normal
+      range, FCOM DSC-31-20), -1 for none. Same values as A32NX_ECAM_SD_CURRENT_PAGE_INDEX. With two ECAM displays the
+      DMC calls this page (advisory mode); with one ECAM display the ECP pb of this page flashes instead
+
 - A32NX_ECAM_STATUS_NORMAL
     - Bool
     - True when the ECAM STATUS page is empty (NORMAL)
@@ -1836,6 +1853,21 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Bool
     - Whether the ADR push button is in the ON position.
 
+- A32NX_ADIRS_ADR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The ADR FAULT discrete of ADIRU {number}: a fault is detected in its air data reference part (ADR FAULT light,
+      FWC NAV ADR FAULT alerts). False while the ADIRU is not supplied or its mode selector is OFF.
+
+- A32NX_ADIRS_IR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The IR FAULT discrete of ADIRU {number}: a short flash at the start of an alignment, steady when its inertial
+      reference part has failed (IR FAULT light, FWC NAV IR FAULT alerts).
+
+- A32NX_ADIRS_EXTERNAL_HORN
+    - Bool
+    - The external horn in the nose gear bay sounds: the aircraft is on the ground and at least one IR is supplied by the
+      batteries (FCOM DSC-34-NAV-10-20 ON BAT light).
+
 - A32NX_ATT_HDG_SWITCHING_KNOB
     - ATT HDG
     - Position (0-2)
@@ -2133,6 +2165,12 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Number
     - The GPS receiver the IR uses (1 or 2, 0 for none): GPS 1 for IR 1, GPS 2 for IR 2, IR 3 by the ATT HDG selector
       (GPS 2 on F/O 3); when one receiver is rejected, every IR uses the other
+
+- A32NX_FM_GPS_POS_DISAGREE
+    - Bool
+    - The FMS FM/GPS position disagree condition for the NAV FM/GPS POS DISAGREE caution: GPS PRIMARY active and an FM
+      position more than the FCOM latitude/longitude thresholds away from a GPS receiver position (FCOM
+      DSC-22_20-20-20). Written by the FMS (fmgc navigation/FmPosition.ts), read by the FWC
 
 - A32NX_GNSS_UTC_UNIX_SECONDS
     - Number (seconds)
@@ -2715,7 +2753,8 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_PRESS_CPC_{number}_LANDING_ELEVATION
     - Arinc429Word<Feet>
     - Number 1 or 2
-    - Target landing elevation used by the pressurization system
+    - Target landing elevation used by the pressurization system. No computed data when the LDG ELEV selector is in
+      AUTO and the FMGS sends no landing elevation (CAB PR LDG ELEV FAULT condition)
 
 - A32NX_PRESS_EXCESS_CAB_ALT
     - Bool
@@ -2931,6 +2970,14 @@ In the variables below, {number} should be replaced with one item in the set: { 
         - 1
         - 2
 
+- A32NX_PNEU_ENG_{number}_PR_VALVE_DISAGREE:
+    - Indicates whether the BMC finds the engine bleed valve out of its commanded position for 5 s (amber valve of the
+      BLEED page, FCOM DSC-36-20)
+    - Bool
+    - {number}
+        - 1
+        - 2
+
 - A32NX_PNEU_ENG_{number}_BLEED_LEAK:
     - Indicates whether the pylon leak detection loop of the engine detects a leak (above 204 °C). Needs the BMC of the
       engine; held while the ENG BLEED pb-sw is ON
@@ -3050,6 +3097,58 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION:
     - Indicates whether the overhead ENG ANTI ICE button is illuminated for engine 2
     - Bool
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_VALVE_OPEN:
+    - Whether the engine anti-ice valve of the engine is not fully closed (systems ice_rain_protection). It opens with
+      the ENG ANTI ICE pb-sw ON, or without its electrical power, when the HP compressor supplies air; the MSFS
+      ENG ANTI ICE follows it
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_ENG_{number}_ANTI_ICE_FAULT:
+    - The FAULT light of the ENG ANTI ICE pb-sw: the valve position disagrees with the pb-sw, also while it transits
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PHC_{number}_FAULT:
+    - The probe heat computer is failed (ANTI ICE CAPT(F/O)(STBY) PROBES)
+    - Bool
+    - {number}
+        - 1 (CAPT)
+        - 2 (F/O)
+        - 3 (STBY)
+
+- A32NX_PHC_{number}_{probe}_HEAT_FAULT:
+    - The probe heat computer detects the failure of the heater of the probe while it heats it
+    - Bool
+    - {number}
+        - 1 (CAPT)
+        - 2 (F/O)
+        - 3 (STBY, no TAT probe)
+    - {probe}
+        - PITOT
+        - L_STATIC
+        - R_STATIC
+        - AOA
+        - TAT
+
+- A32NX_WHC_{number}_WINDSHIELD_HEAT_FAULT:
+    - The window heat computer detects the failure of the windshield heating while it heats it
+    - Bool
+    - {number}
+        - 1 (left)
+        - 2 (right)
+
+- A32NX_WHC_{number}_WINDOW_HEAT_FAULT:
+    - The window heat computer detects the failure of the side window heating while it heats it
+    - Bool
+    - {number}
+        - 1 (left)
+        - 2 (right)
 ## Autoflight (ATA 22)
 
 ### Flight Management and Guidance Computer (FMGC, Flight Guidance Section)
@@ -3775,8 +3874,8 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Arinc429<Discrete>
     - | Bit |            Description            |
       |:---:|:---------------------------------:|
-      | 11  | Slat Fault                        |
-      | 12  | Flap Fault                        |
+      | 11  | Slat Fault (slat channel failure) |
+      | 12  | Flap Fault (flap channel failure) |
       | 13  | Slat Jam                          |
       | 14  | Flap Jam                          |
       | 15  | Slat WTB engaged                  |
@@ -4233,12 +4332,44 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Cuts the engine fuel (A32NX_ENGINE_{number}_FUEL_CUT)
 
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_OPEN
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine LP fuel valve remains (partly) open while the ENG MASTER or the ENG FIRE pushbutton commands it closed, once its travel time plus 1 s is over: the valve is jammed (flyPad failure 28007/28008 "ENG n LP fuel valve jammed in place"). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A32NX_FUEL_ENG_{number}_LP_VALVE_ABNORMALLY_CLOSED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine LP fuel valve remains (partly) closed while it is commanded open, once its travel time plus 1 s is over (jammed valve). The engine is then starved (A32NX_FUEL_ENG_{number}_STARVED). Written by the systems WASM (fuel/engine_lp_valve.rs)
+
+- A32NX_FUEL_GRAVITY_FEED_CEILING
+  - Feet
+  - The gravity feed ceiling (pressure altitude) of this flight, FCOM PRO-ABN-FUEL [QRH] GRAVITY FUEL FEEDING: FL 360 after more than 30 min above FL 300, FL 260 after less, else the highest of FL 150 and 7 000 ft above the takeoff airport. Written by the systems WASM (fuel/gravity_feed.rs)
+
+- A32NX_FUEL_ENG_{number}_GRAVITY_FEED_STARVED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine has been fed by gravity (no wing tank pump pushes fuel to it) above the gravity feed ceiling for 3 min: the engine fuel is cut (A32NX_ENGINE_{number}_FUEL_CUT) until the ENG MASTER is set OFF with the engine no longer fed by gravity above the ceiling (relight procedure). Written by the systems WASM (fuel/gravity_feed.rs)
+
+- A32NX_FUEL_FQI_CHANNEL_{number}_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the channel of the fuel quantity indicating computer is failed (flyPad failures 28009/28010): FUEL FQI CH 1(2) FAULT. Written by systems-host Fuel/FuelPumpsAndValves
+
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
   - {number}
     - 1
     - 2
-  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED), a flameout or seizure failure (flyPad failures 72000/72001 and 72010/72011), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2); the FADEC handles the engine as one without fuel. Written by the systems WASM (a320_systems engine_failure.rs)
+  - True when the engine must not burn: its LP valve starvation (A32NX_FUEL_ENG_{number}_STARVED) or its gravity feeding above the ceiling (A32NX_FUEL_ENG_{number}_GRAVITY_FEED_STARVED), a flameout or seizure failure (flyPad failures 72000/72001 and 72010/72011), or an in-flight relight that has not lit up inside the relight envelope (FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2); the FADEC handles the engine as one without fuel. Written by the systems WASM (a320_systems engine_failure.rs)
 
 - A32NX_ENGINE_{number}_FLAMED_OUT
   - Bool
@@ -4297,6 +4428,20 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - True while the fuel filter clog failure of the engine is active (flyPad failures 73100/73101): CLOG below the fuel used on the ENGINE SD page and ENG FUEL FILTER CLOG while the engine runs, no effect on the engine. Written by the systems WASM (systems engine/fuel_filter_failure.rs)
 
+- A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT
+  - Number
+  - {number}
+    - 1
+    - 2
+  - The abnormal HP fuel valve position the FADEC detects (2 s) with the HP fuel valve stuck failure (flyPad failures 73200/73201): 0 none, 1 not open (closed while commanded open: no fuel, no start), 2 not closed (open while commanded closed). ENG 1(2) HP FUEL VALVE and the ENG FAULT light. Written by the systems WASM (systems engine/hp_fuel_valve_failure.rs)
+
+- A32NX_ENGINE_{number}_FADEC_ALTERNATOR_FAULT, _OVERSPEED_PROTECTION_FAULT, _PROBES_FAULT, _SENSOR_FAULT, _ONE_TLA_FAULT, _REVERSER_SWITCH_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors, 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
   - {number}
@@ -4337,7 +4482,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the ENG MASTER panel FAULT light is on: the automatic start of the engine aborted (FCOM DSC-70-90-20), until the ENG MASTER OFF. Written by the systems WASM
+  - True when the ENG MASTER panel FAULT light is on (FCOM DSC-70-90-20): the automatic start of the engine aborted (until the ENG MASTER OFF), the HP fuel valve position is abnormal (A32NX_ENGINE_{number}_HP_FUEL_VALVE_FAULT), or the thrust control has a malfunction (both FADEC channels or both thrust lever resolvers lost). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_STARTER_MOTORING
   - Bool
@@ -4890,6 +5035,17 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 - `L:A32NX_ECP_DISCRETE_OUT_ALL`
   - The hardwired discrete for emergency cancel/audio suppression to each DMC.
   - Boolean
+
+### FWC voices
+
+- A32NX_FWS_AUDIO_{voice}
+  - Boolean
+  - True while the FWC says this synthetic voice, played from a WAV clip (sound/fws_<voice>.wav, tools/fws-voice)
+  - {voice}
+    - DUAL_INPUT: both sidesticks deflected, every 5 s
+    - PRIORITY_LEFT: the CAPT holds the sidestick priority
+    - PRIORITY_RIGHT: the F/O holds the sidestick priority
+    - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning
 
 
 ## Landing Gear (ATA 32)

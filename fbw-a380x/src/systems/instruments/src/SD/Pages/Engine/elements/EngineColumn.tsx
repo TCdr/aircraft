@@ -44,9 +44,6 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
   const [onGround] = useSimVar('SIM ON GROUND', 'bool', 500);
   const groundStart = !!onGround && (engineState === 2 || engineState === 3);
   const [n3RedCross, setN3RedCross] = useState(false);
-  useEffect(() => {
-    setN3RedCross((shownBefore) => n3RedCrossShown(shownBefore, N3, groundStart));
-  }, [N3, groundStart]);
   const [fadecManuallyPowered] = useSimVar(`L:A32NX_OVHD_FADEC_${engine}`, 'bool', 500);
   const [engineFirePbReleased] = useSimVar(`L:A32NX_FIRE_BUTTON_ENG${engine}`, 'bool', 500);
 
@@ -59,6 +56,10 @@ const EngineColumn: FC<Position & EngineNumber & IgnitionActive & EngineColumnPr
     engineFirePbReleased: !!engineFirePbReleased,
     fadecNetworkLost: !!fadecNetworkLost,
   });
+  // Only an N3 shown (FADEC powered, not XX) can latch the red cross (EngineVibration n3RedCrossShown).
+  useEffect(() => {
+    setN3RedCross((shownBefore) => n3RedCrossShown(shownBefore, N3, groundStart, fadecPowered));
+  }, [N3, groundStart, fadecPowered]);
 
   const [fuelFlow] = useSimVar(`L:A32NX_ENGINE_FF:${engine}`, 'number', 100);
   // The fuel filter clog failure (systems engine/fuel_filter_failure.rs) and the engine state (above), see FuelFilterIndication

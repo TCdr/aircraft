@@ -73,6 +73,7 @@ use systems::{
         engine_start::{
             EngineStartInputs, EngineStartPhase, EngineStartSchedule, EngineStartSequence,
         },
+        hp_fuel_valve_failure::HpFuelValveFailure,
     },
     pneumatic::{EngineModeSelector, EngineState},
     simulation::{
@@ -271,6 +272,9 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         manual_start_fuel_on_n2: Ratio::new::<percent>(20.),
         stall_or_egt_restart_before_crank: false,
         starter_fault_detected_in_flight: false,
+        // The A320 FCOM pre-start motoring has no counterpart in the A380 FADEC text: the NOR SOP
+        // (l.119704-119707) crank of 20 s after 20 % N2 is not modelled (see ground_ignition_on_n2).
+        max_pre_start_motoring_time: Duration::ZERO,
     }
 }
 
@@ -387,6 +391,9 @@ struct A380EngineFailure {
     hp_fuel_valve_closed_id: VariableIdentifier,
 
     hp_fuel_valve: HpFuelValve,
+    /// The stuck failure of the HP fuel valve and the FADEC position monitoring (ENG 1(2)(3)(4) HP
+    /// FUEL VLV FAULT, see `hp_fuel_valve_commanded_open`)
+    hp_fuel_valve_failure: HpFuelValveFailure,
 
     master_switch_is_on: bool,
     /// The ENG START selector (one for the four engines): 0 CRANK, 1 NORM, 2 IGN START.
@@ -435,6 +442,7 @@ impl A380EngineFailure {
             hp_fuel_valve_closed_id: context
                 .get_identifier(format!("ENGINE_{}_HP_FUEL_VALVE_CLOSED", engine_number)),
             hp_fuel_valve: HpFuelValve::new(),
+            hp_fuel_valve_failure: HpFuelValveFailure::new(context, engine_number),
             master_switch_is_on: false,
             engine_start_selector: 1.,
             starter_air_pressurized: false,
@@ -485,7 +493,23 @@ impl A380EngineFailure {
             // Not modelled on the A380X (its continuous ignition of the FADEC AUTO RELIGHT is in
             // the FADEC, EngineIgnition_A380X.hpp).
             automatic_continuous_ignition: false,
+            hp_fuel_valve_stuck_closed: self.hp_fuel_valve_failure.is_stuck_closed(),
+            // A380 FCOM DSC-70-90 (l.112849-112857): the ENG MASTER FAULT light also comes on if "The
+            // HP fuel valve position is abnormal" (the overthrust protection shutdown of CTL SYS
+            // FAULT is not modelled).
+            other_fault_light_conditions: self.hp_fuel_valve_failure.position_is_abnormal(),
+            engine_thermal_state: 0.,
         }
+    }
+
+    /// The FADEC command of the HP fuel valve, for its position monitoring (HP FUEL VLV FAULT,
+    /// l.172172-172236): the valve opens for the fuel ([`HpFuelValve`]), and the FADEC also commands
+    /// it open from the fuel-on point of a start attempt on the ground ("At 20 % N2: ... FMV and HP
+    /// fuel valve open", l.113555-113557) although the engine has not lit up yet (fuel cut of the
+    /// start sequence until the light-up, see `ground_start_fuel_on`).
+    fn hp_fuel_valve_commanded_open(&self) -> bool {
+        !self.hp_fuel_valve.is_closed()
+            || (self.master_switch_is_on && self.start.fuel_is_commanded())
     }
 
     fn update(
@@ -511,7 +535,9 @@ impl A380EngineFailure {
                 engine_is_running: self.is_running(),
                 core_speed: self.core_speed,
                 lp_valve_starved,
-                start_sequence_fuel_cut: self.start.fuel_is_cut(),
+                // A valve stuck closed gives the engine no fuel, also for a relight in flight.
+                start_sequence_fuel_cut: self.start.fuel_is_cut()
+                    || self.hp_fuel_valve_failure.is_stuck_closed(),
                 ignition_available: self.start.ignition_is_available(),
                 automatic_continuous_ignition: false,
             },
@@ -531,6 +557,8 @@ impl A380EngineFailure {
                 preset_quick_mode: self.preset_quick_mode,
             },
         );
+        self.hp_fuel_valve_failure
+            .update(context.delta(), self.hp_fuel_valve_commanded_open());
 
         // A windmilling start: an in-flight start (the FADEC is starting the engine with the
         // master ON) that the FADEC does not assist with the starter.
@@ -552,6 +580,7 @@ impl SimulationElement for A380EngineFailure {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.failure.accept(visitor);
         self.start.accept(visitor);
+        self.hp_fuel_valve_failure.accept(visitor);
 
         visitor.visit(self);
     }
@@ -582,9 +611,12 @@ impl SimulationElement for A380EngineFailure {
             self.failure.relight_attempt_in_progress(),
         );
         writer.write(&self.windmill_start_id, self.windmill_start);
+        // A valve stuck closed keeps MSFS from burning; a valve stuck open still closes the MSFS
+        // valve at the shutdown, which models the LP fuel valve that shuts the engine down
+        // (l.172225: "The engine will shutdown by closure of the LP fuel valve").
         writer.write(
             &self.hp_fuel_valve_closed_id,
-            self.hp_fuel_valve.is_closed(),
+            self.hp_fuel_valve.is_closed() || self.hp_fuel_valve_failure.is_stuck_closed(),
         );
     }
 }
@@ -1435,6 +1467,59 @@ mod tests {
             }
 
             assert!(hp_fuel_valve_is_closed(&mut test_bed, 2));
+        }
+
+        fn hp_fuel_valve_fault(
+            test_bed: &mut SimulationTestBed<TestAircraft>,
+            engine_number: usize,
+        ) -> f64 {
+            test_bed.read_by_name(&format!("ENGINE_{}_HP_FUEL_VALVE_FAULT", engine_number))
+        }
+
+        fn fault_light(
+            test_bed: &mut SimulationTestBed<TestAircraft>,
+            engine_number: usize,
+        ) -> bool {
+            test_bed.read_by_name(&format!("ENGINE_{}_FAULT_LIGHT", engine_number))
+        }
+
+        /// FCOM ENG 1(2)(3)(4) HP FUEL VLV FAULT (l.172208-172209): "During engine start : HP FUEL
+        /// VALVE NOT OPEN"; DSC-70-90 (l.112849-112853): the ENG MASTER FAULT light comes on.
+        #[test]
+        fn an_hp_fuel_valve_stuck_closed_is_not_open_at_the_start_and_the_engine_stays_dry() {
+            let mut test_bed = ground_test_bed();
+            test_bed.fail(FailureType::EngineHpFuelValveStuck(2));
+            run(&mut test_bed);
+            automatic_start(&mut test_bed, 2);
+            run_for_seconds(&mut test_bed, 3);
+
+            // HpFuelValveFault::NotOpen
+            assert_eq!(hp_fuel_valve_fault(&mut test_bed, 2), 1.);
+            assert!(fault_light(&mut test_bed, 2));
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 2));
+            assert!(fuel_is_cut(&mut test_bed, 2));
+            assert_eq!(hp_fuel_valve_fault(&mut test_bed, 3), 0.);
+        }
+
+        /// FCOM ENG 1(2)(3)(4) HP FUEL VLV FAULT (l.172214-172225): "During engine shutdown : HP
+        /// FUEL VALVE NOT CLOSED ... The engine will shutdown by closure of the LP fuel valve".
+        #[test]
+        fn an_hp_fuel_valve_stuck_open_is_not_closed_at_the_shutdown_and_the_engine_still_stops() {
+            let mut test_bed = flying_test_bed();
+            test_bed.set_on_ground(true);
+            run(&mut test_bed);
+            test_bed.fail(FailureType::EngineHpFuelValveStuck(3));
+            run_for_seconds(&mut test_bed, 3);
+            assert_eq!(hp_fuel_valve_fault(&mut test_bed, 3), 0.);
+            assert!(!fault_light(&mut test_bed, 3));
+
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:3", false);
+            run_for_seconds(&mut test_bed, 3);
+            // HpFuelValveFault::NotClosed
+            assert_eq!(hp_fuel_valve_fault(&mut test_bed, 3), 2.);
+            assert!(fault_light(&mut test_bed, 3));
+            // the MSFS valve (the fuel path) closes: the LP fuel valve shuts the engine down
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 3));
         }
 
         #[test]

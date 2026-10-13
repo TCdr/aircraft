@@ -90,8 +90,8 @@ impl SlatFlapControlComputer {
             flap_actual_position_word_id: context
                 .get_identifier(format!("SFCC_{num}_FLAP_ACTUAL_POSITION_WORD")),
 
-            flaps_channel: FlapsChannel::new(),
-            slats_channel: SlatsChannel::new(),
+            flaps_channel: FlapsChannel::new(num as usize),
+            slats_channel: SlatsChannel::new(num as usize),
 
             flaps_conf: FlapsConf::Conf0,
             flap_load_relief_active: false,
@@ -274,8 +274,10 @@ impl SlatFlapControlComputer {
         let flaps_handle_position = self.csu_monitor.get_current_detent();
         let mut word = Arinc429Word::new(0, SignStatus::NormalOperation);
 
-        word.set_bit(11, false);
-        word.set_bit(12, false);
+        // Slat fault and flap fault: the channel lost the control of its motor (flyPad failure). The FWS raises F/CTL
+        // SLAT(FLAP) SYS 1(2) FAULT, or SLAT(FLAP) SYS 1+2 FAULT with both (a380_fcom.txt l.147527-147540, 148380-148393)
+        word.set_bit(11, self.slats_channel.is_failed());
+        word.set_bit(12, self.flaps_channel.is_failed());
         word.set_bit(13, false);
         word.set_bit(14, false);
         word.set_bit(15, false);
@@ -397,6 +399,8 @@ impl SlatFlapControlComputer {
 impl SimulationElement for SlatFlapControlComputer {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.csu_monitor.accept(visitor);
+        self.flaps_channel.accept(visitor);
+        self.slats_channel.accept(visitor);
         visitor.visit(self);
     }
 
@@ -466,6 +470,8 @@ impl SimulationElement for SlatFlapComplex {
 mod tests {
     use super::*;
     use std::time::Duration;
+    use systems::failures::FailureType;
+    use systems::hydraulic::flap_slat::{ChannelCommand, SolenoidStatus};
     use systems::simulation::{
         test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
         Aircraft, Read, SimulatorReader,
@@ -2145,5 +2151,90 @@ mod tests {
         assert_eq!(test_bed.get_flaps_conf(1), FlapsConf::Conf0);
         assert!(!test_bed.read_slat_flap_system_status_word(1).get_bit(24));
         assert!(!test_bed.read_slat_flap_system_status_word(2).get_bit(24));
+    }
+
+    // F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT (a380_fcom.txt l.147527-147540, 148380-148393): the failed
+    // channel no longer drives its motor, the other SFCC still does (half speed), and the SFCC reports the fault in its
+    // status word (label 046 bit 12 flaps, bit 11 slats) that the FWS reads.
+    #[test]
+    fn flap_channel_failure_stops_its_motor_and_reports_a_flap_fault() {
+        let mut test_bed = test_bed_with()
+            .set_indicated_airspeed(0.)
+            .set_on_ground(true)
+            .set_flaps_handle_position(0)
+            .run_one_tick();
+        test_bed.fail(FailureType::SlatFlapControlComputerFlapChannel(2));
+        test_bed = test_bed
+            .set_flaps_handle_position(2)
+            .run_waiting_for(Duration::from_secs(1));
+
+        assert_eq!(
+            test_bed.query(|a| a.slat_flap_complex.flap_pcu(1).get_command_status()),
+            None
+        );
+        assert_eq!(
+            test_bed.query(|a| a.slat_flap_complex.flap_pcu(1).get_pob_status()),
+            SolenoidStatus::DeEnergised
+        );
+        assert_eq!(
+            test_bed.query(|a| a.slat_flap_complex.flap_pcu(0).get_command_status()),
+            Some(ChannelCommand::Extend)
+        );
+        assert_eq!(
+            test_bed.query(|a| a.slat_flap_complex.slat_pcu(1).get_command_status()),
+            Some(ChannelCommand::Extend)
+        );
+
+        assert!(test_bed.read_slat_flap_system_status_word(2).get_bit(12));
+        assert!(!test_bed.read_slat_flap_system_status_word(2).get_bit(11));
+        assert!(!test_bed.read_slat_flap_system_status_word(1).get_bit(12));
+    }
+
+    #[test]
+    fn slat_channel_failure_stops_its_motor_and_reports_a_slat_fault() {
+        let mut test_bed = test_bed_with()
+            .set_indicated_airspeed(0.)
+            .set_on_ground(true)
+            .set_flaps_handle_position(0)
+            .run_one_tick();
+        test_bed.fail(FailureType::SlatFlapControlComputerSlatChannel(1));
+        test_bed = test_bed
+            .set_flaps_handle_position(1)
+            .run_waiting_for(Duration::from_secs(1));
+
+        assert_eq!(
+            test_bed.query(|a| a.slat_flap_complex.slat_pcu(0).get_command_status()),
+            None
+        );
+        assert_eq!(
+            test_bed.query(|a| a.slat_flap_complex.slat_pcu(0).get_pob_status()),
+            SolenoidStatus::DeEnergised
+        );
+        assert_eq!(
+            test_bed.query(|a| a.slat_flap_complex.slat_pcu(1).get_command_status()),
+            Some(ChannelCommand::Extend)
+        );
+
+        assert!(test_bed.read_slat_flap_system_status_word(1).get_bit(11));
+        assert!(!test_bed.read_slat_flap_system_status_word(1).get_bit(12));
+        assert!(!test_bed.read_slat_flap_system_status_word(2).get_bit(11));
+    }
+
+    #[test]
+    fn no_slat_or_flap_fault_without_a_channel_failure() {
+        let mut test_bed = test_bed_with()
+            .set_indicated_airspeed(0.)
+            .set_on_ground(true)
+            .set_flaps_handle_position(2)
+            .run_waiting_for(Duration::from_secs(1));
+
+        for num in 1..=2 {
+            assert!(!test_bed.read_slat_flap_system_status_word(num).get_bit(11));
+            assert!(!test_bed.read_slat_flap_system_status_word(num).get_bit(12));
+        }
+        assert_eq!(
+            test_bed.query(|a| a.slat_flap_complex.flap_pcu(1).get_command_status()),
+            Some(ChannelCommand::Extend)
+        );
     }
 }

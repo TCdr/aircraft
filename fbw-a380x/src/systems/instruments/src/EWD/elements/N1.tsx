@@ -91,10 +91,13 @@ export class N1 extends DisplayComponent<N1Props> {
     const updateN1Exceedance = () => {
       // An engine start on ground (ENGINE_STATE Starting 2 or Restarting 3) takes the red cross away.
       const state = this.engineState.get();
-      this.n1Exceedance.update(this.n1.get(), this.onGround.get() && (state === 2 || state === 3));
+      const groundStart = this.onGround.get() && (state === 2 || state === 3);
+      // Only an N1 shown (not XX: the engine parameters are available) can latch the red cross.
+      this.n1Exceedance.update(this.n1.get(), groundStart, this.props.active.get());
       this.n1RedCrossVisible.set(this.n1Exceedance.exceeded);
     };
     this.n1.sub(updateN1Exceedance);
+    this.props.active.sub(updateN1Exceedance);
     this.engineState.sub(updateN1Exceedance, true);
   }
 

@@ -86,6 +86,7 @@ import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { initComponents, updateComponents } from '@fmgc/components';
 import { CoRouteUplinkAdapter } from '@fmgc/flightplanning/uplink/CoRouteUplinkAdapter';
 import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
+import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 import { SimbriefOfpState } from './LegacyFmsPageInterface';
 import { CDUInitPage } from '../legacy_pages/A320_Neo_CDU_InitPage';
 import { FpmConfigs } from '@fmgc/flightplanning/FpmConfig';
@@ -101,6 +102,13 @@ import { WindUtils } from '@fmgc/guidance/vnav/wind/WindUtils';
 import { EngineOutControlEvents, EngineOutEvents } from '@fmgc/events/EngineOutEvents';
 import { FmsModule } from '@fmgc/modules/FmsModule';
 import { EngineOutMonitor } from '@fmgc/modules/EngineOutMonitor';
+import {
+  destinationDataMessages,
+  isNavDatabaseCycleCurrent,
+  isTimeToExitHolding,
+  MessageTextLatch,
+  utcCalendarDate,
+} from '@fmgc/components/fms-messages/FmsMessageConditions';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { A32NXFcuBusEvents } from '@shared/publishers/A32NXFcuBusPublisher';
 import { A32NXFgBusEvents } from '@shared/publishers/A32NXFGBusPublisher';
@@ -824,6 +832,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       this.updateIlsCourse();
       this.updatePerfPageAltPredictions();
       this.updateRecMaxFlightLevel();
+      this.checkTimeToExit();
       // this.checkEfobBelowMin(deltaTime);
     }
 
@@ -1843,16 +1852,65 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   /* END OF FMS EVENTS */
   /* FMS CHECK ROUTINE */
 
+  /**
+   * ENTER DEST DATA when a destination QNH, temperature or wind is missing, CHECK DEST DATA when the wind on the PERF APPR
+   * page was received by uplink and not entered by the flight crew (A320 FCOM l.22534, l.22543-22547, l.22665,
+   * l.22668-22669).
+   */
   private checkDestData() {
     const plan = this.getFlightPlan(FlightPlanIndex.Active);
-
-    this.addMessageToQueue(NXSystemMessages.enterDestData, () => {
-      return (
-        Number.isFinite(plan.performanceData.approachQnh.get()) &&
-        Number.isFinite(plan.performanceData.approachTemperature.get()) &&
-        plan.performanceData.isApproachWindPilotEntered
+    const destinationData = () => {
+      const pd = plan.performanceData;
+      return destinationDataMessages(
+        pd.approachQnh.get(),
+        pd.approachTemperature.get(),
+        pd.approachWindDirection.get(),
+        pd.approachWindMagnitude.get(),
+        pd.isApproachWindPilotEntered.get(),
       );
-    });
+    };
+
+    const messages = destinationData();
+    if (messages.enterDestData) {
+      this.addMessageToQueue(NXSystemMessages.enterDestData, () => !destinationData().enterDestData);
+    } else if (messages.checkDestData) {
+      this.addMessageToQueue(NXSystemMessages.checkDestData, () => !destinationData().checkDestData);
+    }
+  }
+
+  /**
+   * CHECK DATA BASE CYCLE (A320 FCOM l.22532, l.22539-22541): "The current date does not match the effective date of the
+   * active database, and someone attempts to enter a FROM/TO or CO RTE."
+   */
+  private checkNavDatabaseCycle(): void {
+    const today = utcCalendarDate(
+      SimVar.GetSimVarValue('E:ZULU YEAR', 'number'),
+      SimVar.GetSimVarValue('E:ZULU MONTH OF YEAR', 'number'),
+      SimVar.GetSimVarValue('E:ZULU DAY OF MONTH', 'number'),
+    );
+    if (!isNavDatabaseCycleCurrent(today, this.navDbIdent)) {
+      this.addMessageToQueue(NXSystemMessages.checkDataBaseCycle);
+    }
+  }
+
+  private readonly timeToExitMessage = new MessageTextLatch();
+
+  /**
+   * TIME TO EXIT (A320 FCOM l.23095, l.23116-23118): "The aircraft must leave holding immediately to satisfy fuel reserve
+   * requirements. (Extra fuel is zero)." In the holding: the active leg is a hold leg.
+   */
+  private checkTimeToExit(): void {
+    const activeLeg = this.flightPlanService.hasActive ? this.flightPlanService.active.activeLeg : undefined;
+    const inHolding = !!activeLeg && activeLeg.isDiscontinuity === false && activeLeg.isHX();
+    const extraFuel = this.getFuelPredComputation(FlightPlanIndex.Active).extraFuel;
+    const update = this.timeToExitMessage.update(
+      isTimeToExitHolding(inHolding, extraFuel) ? NXSystemMessages.timeToExit.text : null,
+    );
+    if (update?.action === 'send') {
+      this.addMessageToQueue(NXSystemMessages.timeToExit);
+    } else if (update?.action === 'recall') {
+      this.removeMessageFromQueue(NXSystemMessages.timeToExit.text);
+    }
   }
 
   private checkGWParams() {
@@ -2050,6 +2108,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
     this.setFromTo(from, to, forPlan)
       .then(() => {
+        this.checkNavDatabaseCycle();
         // TODO differentiate for sec
         this.getCoRouteList()
           .then(() => callback(true))
@@ -2264,6 +2323,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
               await this.flightPlanService.uplinkInsert();
 
               this.coRoute['routeNumber'] = coRouteNum;
+              this.checkNavDatabaseCycle();
             } else {
               this.setScratchpadMessage(NXSystemMessages.notInDatabase);
             }
@@ -2354,6 +2414,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       case FmsErrorType.AwyWptMismatch:
         this.setScratchpadMessage(NXSystemMessages.awyWptMismatch);
         break;
+      // The A320 places a PLACE/DIST waypoint at its place, it does not ask for the revised waypoint
+      case FmsErrorType.PlaceWaypointDisagree:
       case FmsErrorType.NotAllowed:
         this.setScratchpadMessage(NXSystemMessages.notAllowed);
         break;
@@ -2386,6 +2448,60 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   public createPlaceBearingDistWaypoint(place, bearing, distance, stored, ident = undefined) {
     return this.dataManager.createPlaceBearingDistWaypoint(place, bearing, distance, stored, ident);
+  }
+
+  public createPlaceDistWaypoint(place, distance, coordinates, stored, ident = undefined) {
+    return this.dataManager.createPlaceDistWaypoint(place, distance, coordinates, stored, ident);
+  }
+
+  /**
+   * Inserts a PLACE/DIST waypoint (A320 FCOM l.13512: "defined by a distance from a place, along the F-PLN"; entry on
+   * the F-PLN, LAT REV NEXT WPT, l.23669-23674): the waypoint goes on the flight plan path at DIST from the first flight
+   * plan waypoint named PLACE from the FROM waypoint on, after it (or before it with a negative DIST), whatever line the
+   * entry was made on. See PlaceDistance.ts.
+   */
+  private insertPlaceDistanceWaypoint(
+    entry: string,
+    fpIndex: FlightPlanIndex,
+    forAlternate: boolean,
+    callback: (success: boolean) => void,
+    bypassTmpy: boolean,
+  ) {
+    if (bypassTmpy && fpIndex === FlightPlanIndex.Active && this.flightPlanService.hasTemporary) {
+      this.setScratchpadMessage(NXSystemMessages.notAllowed);
+      return callback(false);
+    }
+    // The flight plan the F-PLN page shows: the temporary flight plan, if any, for the active one
+    const plan = forAlternate ? this.getAlternateFlightPlan(fpIndex) : this.getFlightPlan(fpIndex);
+    try {
+      const placeDist = WaypointEntryUtils.createPlaceDistWaypoint(
+        this,
+        entry,
+        plan.allLegs,
+        Math.max(0, plan.fromLegIndex),
+        true,
+      );
+      this.flightPlanService
+        .insertPlaceDistanceWaypoint(
+          placeDist.placeLegIndex,
+          placeDist.waypoint,
+          placeDist.distance,
+          fpIndex,
+          forAlternate,
+        )
+        .then(() => callback(true))
+        .catch((err) => {
+          console.error(err);
+          callback(false);
+        });
+    } catch (err) {
+      if (err instanceof FmsError) {
+        this.showFmsErrorMessage(err.type);
+      } else {
+        console.error(err);
+      }
+      callback(false);
+    }
   }
 
   public getStoredWaypointsByIdent(ident) {
@@ -2450,6 +2566,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   ) {
     if (newWaypointTo === '' || newWaypointTo === Keypad.clrValue) {
       return callback(false);
+    }
+    if (WaypointEntryUtils.isPdFormat(newWaypointTo)) {
+      return this.insertPlaceDistanceWaypoint(newWaypointTo, fpIndex, forAlternate, callback, bypassTmpy);
     }
     try {
       WaypointEntryUtils.getOrCreateWaypoint(this, newWaypointTo, true)
@@ -3360,6 +3479,12 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
 
     plan.setPerformanceData('cruiseFlightLevel', flightLevelToInsert);
+    // CRZ FL ABOVE MAX FL (A320 FCOM l.22601, l.22620-22621): "The flight crew enters a cruise altitude that is above the
+    // computed maximum altitude."
+    const maxFl = this.getMaxFlCorrected();
+    if (maxFl !== null && flightLevelToInsert > maxFl) {
+      this.addMessageToQueue(NXSystemMessages.crzFlAboveMaxFl);
+    }
     if (newCrzAltMessage) {
       this.addMessageToQueue(
         NXSystemMessages.newCrzAlt.getModifiedMessage(flightLevelToInsert * 100),
@@ -4986,7 +5111,13 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   /**
    * Modifies the active flight plan to go direct to a specific waypoint, not necessarily in the flight plan
    */
-  public async directToWaypoint(waypoint: Fix) {
+  /**
+   * Modifies the active flight plan to go direct to a waypoint
+   * @param waypoint the DIR TO waypoint
+   * @param withAbeam DIR TO with the ABEAM PTS function
+   * @param interceptCourse the radial of the RADIAL IN or RADIAL OUT function
+   */
+  public async directToWaypoint(waypoint: Fix, withAbeam = false, interceptCourse?: DirectToInterceptCourse) {
     // FIXME fm pos
     const adirLat = ADIRS.getLatitude();
     const adirLong = ADIRS.getLongitude();
@@ -5001,14 +5132,21 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       long: adirLong.value,
     };
 
-    await this.flightPlanService.directToWaypoint(ppos, trueTrack.value, waypoint);
+    await this.flightPlanService.directToWaypoint(
+      ppos,
+      trueTrack.value,
+      waypoint,
+      withAbeam,
+      FlightPlanIndex.Active,
+      interceptCourse,
+    );
   }
 
   /**
    * Modifies the active flight plan to go direct to a specific leg
    * @param legIndex index of leg to go direct to
    */
-  public async directToLeg(legIndex: number) {
+  public async directToLeg(legIndex: number, withAbeam = false, interceptCourse?: DirectToInterceptCourse) {
     // FIXME fm pos
     const adirLat = ADIRS.getLatitude();
     const adirLong = ADIRS.getLongitude();
@@ -5023,7 +5161,14 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       long: adirLong.value,
     };
 
-    await this.flightPlanService.directToLeg(ppos, trueTrack.value, legIndex);
+    await this.flightPlanService.directToLeg(
+      ppos,
+      trueTrack.value,
+      legIndex,
+      withAbeam,
+      FlightPlanIndex.Active,
+      interceptCourse,
+    );
   }
 
   /**

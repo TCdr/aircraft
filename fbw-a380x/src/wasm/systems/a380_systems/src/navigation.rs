@@ -1,6 +1,6 @@
 use systems::navigation::adirs::{
-    AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming,
-    LowSpeedWarningThreshold,
+    AdiruElectricalSupply, AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming,
+    InertialReferenceBackupSupply, LowSpeedWarningThreshold,
 };
 use systems::navigation::ala52b::{
     Ala52BAircraftInstallationDelay, Ala52BRadioAltimeter, Ala52BTransceiverPair,
@@ -16,6 +16,38 @@ use uom::si::velocity::knot;
 
 pub(crate) struct A380AirDataInertialReferenceSystemBuilder;
 impl A380AirDataInertialReferenceSystemBuilder {
+    /// The supplies of the ADIRUs, from the INOP SYS of the A380 FCOM PRO-ABN-ELEC busbar faults:
+    /// - ADIRU 1: AC ESS and DC ESS ("Because the AC ESS BUS supplies the ADR 1", a380_fcom.txt l.139230-139232;
+    ///   "Because the DC ESS BUS supplies the ADR 1", l.140854-140856);
+    /// - ADIRU 2: AC 4 and DC 2 (AC BUS 4 FAULT: ADR 2, l.139085; DC BUS 2 FAULT: ADR 2, l.140685);
+    /// - ADIRU 3: AC 2 and DC 1 ("Because the AC BUS 2 supplies the ADR 3", l.137931; "Because the DC BUS 1 supplies
+    ///   the ADR 3", l.139802).
+    ///
+    /// The ADR needs both busbars. The IR keeps running on either: only the loss of both (AC BUS 3+4 & DC BUS 2
+    /// FAULT) gives IR 2 in its INOP SYS (l.138909-138910). The A380 has no ON BAT light: the DC busbars are no
+    /// battery buses here. In the A380X electrical model the AC ESS busbar (400XP) is the "AC ESS SHED" bus type.
+    fn electrical_supplies() -> [AdiruElectricalSupply; 3] {
+        [
+            (
+                ElectricalBusType::AlternatingCurrentEssentialShed,
+                ElectricalBusType::DirectCurrentEssential,
+            ),
+            (
+                ElectricalBusType::AlternatingCurrent(4),
+                ElectricalBusType::DirectCurrent(2),
+            ),
+            (
+                ElectricalBusType::AlternatingCurrent(2),
+                ElectricalBusType::DirectCurrent(1),
+            ),
+        ]
+        .map(|(ac_bus, dc_bus)| {
+            AdiruElectricalSupply::new(ac_bus)
+                .with_adr_second_bus(dc_bus)
+                .with_ir_backup(InertialReferenceBackupSupply::new(dc_bus, false, None))
+        })
+    }
+
     pub(crate) fn build(context: &mut InitContext) -> AirDataInertialReferenceSystem {
         let adirs_programming = AirDataInertialReferenceUnitProgramming::new(
             Velocity::new::<knot>(340.),
@@ -33,12 +65,15 @@ impl A380AirDataInertialReferenceSystemBuilder {
                     Velocity::new::<knot>(100.),
                     Velocity::new::<knot>(104.),
                 ),
-                // Not used in A380 (but we keep it the same as A320 because there are still some A320 systems)
+                // Landing gear extension inhibit (hydraulic gear safety valve): A380 FCOM DSC-32-10-20
+                // (a380_fcom.txt l.78663-78664) "The LGCIS receives airspeed data from the ADIRS to inhibit the
+                // extension of the landing gear above 280 kt." (the A320 uses 260 kt here)
                 LowSpeedWarningThreshold::new(
-                    Velocity::new::<knot>(260.),
-                    Velocity::new::<knot>(264.),
+                    Velocity::new::<knot>(280.),
+                    Velocity::new::<knot>(284.),
                 ),
             ],
+            Self::electrical_supplies(),
         );
         AirDataInertialReferenceSystem::new(context, adirs_programming)
     }
@@ -158,5 +193,73 @@ impl SimulationElement for A380RadioAltimeter {
         self.radio_altimeter.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use systems::navigation::adirs::AirDataInertialReferenceSystemOverheadPanel;
+    use systems::shared::AdirsDiscreteOutputs;
+    use systems::simulation::test::{SimulationTestBed, TestBed, WriteByName};
+    use systems::simulation::{Aircraft, SimulatorReader, SimulatorWriter};
+
+    struct TestAircraft {
+        adirs: AirDataInertialReferenceSystem,
+        overhead: AirDataInertialReferenceSystemOverheadPanel,
+    }
+    impl TestAircraft {
+        fn new(context: &mut InitContext) -> Self {
+            Self {
+                adirs: A380AirDataInertialReferenceSystemBuilder::build(context),
+                overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
+            }
+        }
+    }
+    impl Aircraft for TestAircraft {
+        fn update_after_power_distribution(&mut self, context: &UpdateContext) {
+            self.adirs.update(context, &self.overhead);
+            self.overhead.update(context, &self.adirs);
+        }
+    }
+    impl SimulationElement for TestAircraft {
+        fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+            self.adirs.accept(visitor);
+            self.overhead.accept(visitor);
+
+            visitor.visit(self);
+        }
+
+        fn read(&mut self, _reader: &mut SimulatorReader) {}
+
+        fn write(&self, _writer: &mut SimulatorWriter) {}
+    }
+
+    fn test_bed_with_all_adirus_in_nav() -> SimulationTestBed<TestAircraft> {
+        let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+        for number in 1..=3 {
+            // InertialReferenceMode::Navigation
+            test_bed.write_by_name(&format!("OVHD_ADIRS_IR_{}_MODE_SELECTOR_KNOB", number), 1.);
+        }
+        test_bed
+    }
+
+    #[test]
+    // A380 FCOM DSC-32-10-20 (a380_fcom.txt l.78663-78664): the landing gear extension is inhibited above 280 kt.
+    // The hydraulic gear safety valve opens below the threshold of the ADIRU low speed discrete 4.
+    fn gear_extension_speed_discrete_allows_extension_up_to_280_knots() {
+        let mut test_bed = test_bed_with_all_adirus_in_nav();
+
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(270.));
+        test_bed.run();
+        for adiru_number in 1..=3 {
+            assert!(test_bed.query(|a| a.adirs.low_speed_warning_4(adiru_number)));
+        }
+
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(290.));
+        test_bed.run();
+        for adiru_number in 1..=3 {
+            assert!(!test_bed.query(|a| a.adirs.low_speed_warning_4(adiru_number)));
+        }
     }
 }

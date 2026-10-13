@@ -38,6 +38,9 @@ pub struct HydraulicGearSystem {
     gear_right_position_id: VariableIdentifier,
 
     hydraulic_supply: GearSystemHydraulicSupply,
+    /// Optional own supply of the main gears and their doors, when the aircraft powers them from another hydraulic
+    /// source than the nose gear (A380). None: the hydraulic_supply powers all the gears and doors (A320).
+    main_gear_hydraulic_supply: Option<GearSystemHydraulicSupply>,
 
     nose_door_assembly: GearSystemComponentAssembly,
     left_door_assembly: GearSystemComponentAssembly,
@@ -76,6 +79,7 @@ impl HydraulicGearSystem {
             gear_right_position_id: context.get_identifier("GEAR_RIGHT_POSITION".to_owned()),
 
             hydraulic_supply: GearSystemHydraulicSupply::new(),
+            main_gear_hydraulic_supply: None,
 
             nose_door_assembly: GearSystemComponentAssembly::new(
                 GearActuatorId::GearDoorNose,
@@ -172,6 +176,14 @@ impl HydraulicGearSystem {
         }
     }
 
+    /// The main gears and their doors get their own supply (safety, cut-out and selector valves), fed with the
+    /// pressure given to update_with_main_gear_pressure.
+    pub fn with_separate_main_gear_supply(mut self) -> Self {
+        self.main_gear_hydraulic_supply = Some(GearSystemHydraulicSupply::new());
+        self
+    }
+
+    /// One hydraulic circuit powers all the gears and doors
     pub fn update(
         &mut self,
         context: &UpdateContext,
@@ -179,56 +191,112 @@ impl HydraulicGearSystem {
         lgciu_controller: &impl LgciuGearControl,
         main_hydraulic_circuit: &impl SectionPressure,
     ) {
+        let circuit_pressure = main_hydraulic_circuit.pressure_downstream_priority_valve();
+        self.update_with_main_gear_pressure(
+            context,
+            valves_controller,
+            lgciu_controller,
+            circuit_pressure,
+            circuit_pressure,
+        );
+    }
+
+    /// The nose gear and its doors take nose_gear_circuit_pressure. The main gears and their doors take
+    /// main_gear_circuit_pressure when the system has a separate main gear supply, else nose_gear_circuit_pressure.
+    pub fn update_with_main_gear_pressure(
+        &mut self,
+        context: &UpdateContext,
+        valves_controller: &impl GearSystemController,
+        lgciu_controller: &impl LgciuGearControl,
+        nose_gear_circuit_pressure: Pressure,
+        main_gear_circuit_pressure: Pressure,
+    ) {
         self.hydraulic_supply.update(
             context,
             valves_controller,
             lgciu_controller,
-            main_hydraulic_circuit.pressure_downstream_priority_valve(),
+            nose_gear_circuit_pressure,
         );
+        if let Some(main_gear_supply) = self.main_gear_hydraulic_supply.as_mut() {
+            main_gear_supply.update(
+                context,
+                valves_controller,
+                lgciu_controller,
+                main_gear_circuit_pressure,
+            );
+        }
 
-        let current_pressure = self.hydraulic_supply.gear_system_manifold_pressure();
+        let nose_gear_pressure = self.hydraulic_supply.gear_system_manifold_pressure();
+        let main_gear_pressure = self.main_gear_hydraulic_manifold_pressure();
 
         self.nose_door_assembly.update(
             context,
             lgciu_controller,
             valves_controller,
-            current_pressure,
+            nose_gear_pressure,
         );
         self.left_door_assembly.update(
             context,
             lgciu_controller,
             valves_controller,
-            current_pressure,
+            main_gear_pressure,
         );
         self.right_door_assembly.update(
             context,
             lgciu_controller,
             valves_controller,
-            current_pressure,
+            main_gear_pressure,
         );
 
         self.nose_gear_assembly.update(
             context,
             lgciu_controller,
             valves_controller,
-            current_pressure,
+            nose_gear_pressure,
         );
         self.left_gear_assembly.update(
             context,
             lgciu_controller,
             valves_controller,
-            current_pressure,
+            main_gear_pressure,
         );
         self.right_gear_assembly.update(
             context,
             lgciu_controller,
             valves_controller,
-            current_pressure,
+            main_gear_pressure,
         );
     }
 
+    /// Pressure in the gear manifold of the nose gear (of all the gears without a separate main gear supply)
     pub fn gear_hydraulic_manifold_pressure(&self) -> Pressure {
         self.hydraulic_supply.gear_system_manifold_pressure()
+    }
+
+    /// Pressure in the gear manifold of the main gears
+    pub fn main_gear_hydraulic_manifold_pressure(&self) -> Pressure {
+        match &self.main_gear_hydraulic_supply {
+            Some(main_gear_supply) => main_gear_supply.gear_system_manifold_pressure(),
+            None => self.hydraulic_supply.gear_system_manifold_pressure(),
+        }
+    }
+
+    /// The actuators of the nose gear and of its doors
+    pub fn nose_gear_actuators(&mut self) -> [&mut impl Actuator; 2] {
+        [
+            self.nose_door_assembly.actuator(),
+            self.nose_gear_assembly.actuator(),
+        ]
+    }
+
+    /// The actuators of the main gears and of their doors
+    pub fn main_gear_actuators(&mut self) -> [&mut impl Actuator; 4] {
+        [
+            self.left_door_assembly.actuator(),
+            self.right_door_assembly.actuator(),
+            self.left_gear_assembly.actuator(),
+            self.right_gear_assembly.actuator(),
+        ]
     }
 
     pub fn all_actuators(&mut self) -> [&mut impl Actuator; 6] {
@@ -294,6 +362,9 @@ impl GearSystemSensors for HydraulicGearSystem {
 impl SimulationElement for HydraulicGearSystem {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.hydraulic_supply.accept(visitor);
+        if let Some(main_gear_supply) = self.main_gear_hydraulic_supply.as_mut() {
+            main_gear_supply.accept(visitor);
+        }
         self.nose_gear_assembly.accept(visitor);
         self.left_gear_assembly.accept(visitor);
         self.right_gear_assembly.accept(visitor);

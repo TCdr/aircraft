@@ -96,6 +96,12 @@ export const A320Failure = Object.freeze({
   Sec3Failure: 27004,
   Fcdc1Failure: 27005,
   Fcdc2Failure: 27006,
+  // Slat and flap channels of the SFCCs (a320_systems hydraulic/sfcc): the channel no longer drives its motor, the
+  // surfaces move at half speed (a320_fcom.txt l.41431); F/CTL FLAP(SLAT) SYS 1(2) FAULT (l.83217-83247, l.84321-84341)
+  Sfcc1FlapChannel: 27010,
+  Sfcc2FlapChannel: 27011,
+  Sfcc1SlatChannel: 27012,
+  Sfcc2SlatChannel: 27013,
 
   // ATA 28 (systems-host Fuel/FuelPumpsAndValves): a pump failure holds the MSFS pump switch off, the X FEED valve jam
   // holds the MSFS valve switch where the valve was, while the pb-sw selections still change
@@ -107,6 +113,13 @@ export const A320Failure = Object.freeze({
   // A centre tank transfer valve jam holds the valve open or closed (both MSFS valves of the CTR TK L(R) XFR valve)
   CentreTankLeftTransferValveJammed: 28005,
   CentreTankRightTransferValveJammed: 28006,
+  // An engine LP fuel valve jam holds the valve where it is (systems fuel/engine_lp_valve.rs, FailureType
+  // EngineLpValveJammed): jammed open the engine still shuts down with its ENG MASTER, jammed closed it is starved
+  Eng1LpValveJammed: 28007,
+  Eng2LpValveJammed: 28008,
+  // A failed channel of the fuel quantity indicating computer (systems-host Fuel/FuelPumpsAndValves): FQI CH 1(2) FAULT
+  FqiChannel1: 28009,
+  FqiChannel2: 28010,
 
   GreenReservoirLeak: 29000,
   BlueReservoirLeak: 29001,
@@ -169,6 +182,34 @@ export const A320Failure = Object.freeze({
   Autobrake: 32204,
   NoseWheelSteering: 32205,
 
+  // ATA 30 (systems ice_rain_protection, in a320_systems pneumatic.rs)
+  Eng1AntiIceValveStuckClosed: 30000,
+  Eng2AntiIceValveStuckClosed: 30001,
+  Eng1AntiIceValveStuckOpen: 30010,
+  Eng2AntiIceValveStuckOpen: 30011,
+  // ATA 30 probe and window heat (a320_systems probe_window_heat.rs)
+  CaptProbeHeatComputer: 30100,
+  FoProbeHeatComputer: 30101,
+  StbyProbeHeatComputer: 30102,
+  CaptPitotHeat: 30110,
+  CaptLeftStaticHeat: 30111,
+  CaptRightStaticHeat: 30112,
+  CaptAoaHeat: 30113,
+  CaptTatHeat: 30114,
+  FoPitotHeat: 30120,
+  FoLeftStaticHeat: 30121,
+  FoRightStaticHeat: 30122,
+  FoAoaHeat: 30123,
+  FoTatHeat: 30124,
+  StbyPitotHeat: 30130,
+  StbyLeftStaticHeat: 30131,
+  StbyRightStaticHeat: 30132,
+  StbyAoaHeat: 30133,
+  LeftWindshieldHeat: 30200,
+  RightWindshieldHeat: 30201,
+  LeftWindowHeat: 30210,
+  RightWindowHeat: 30211,
+
   RadioAltimeter1: 34000,
   RadioAltimeter2: 34001,
   RadioAntennaInterrupted1: 34010,
@@ -182,6 +223,22 @@ export const A320Failure = Object.freeze({
   Transponder2: 34051,
   // TS only: the TCAS computer (tcas/src/components/TcasComputer.ts)
   TcasComputer: 34060,
+  // ADIRS (systems navigation/adirs.rs)
+  Adr1Fault: 34070,
+  Adr2Fault: 34071,
+  Adr3Fault: 34072,
+  Ir1Fault: 34080,
+  Ir2Fault: 34081,
+  Ir3Fault: 34082,
+  Adr1AirspeedErroneous: 34090,
+  Adr2AirspeedErroneous: 34091,
+  Adr3AirspeedErroneous: 34092,
+  Adr1AoaErroneous: 34100,
+  Adr2AoaErroneous: 34101,
+  Adr3AoaErroneous: 34102,
+  Ir1HeadingErroneous: 34110,
+  Ir2HeadingErroneous: 34111,
+  Ir3HeadingErroneous: 34112,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -259,6 +316,20 @@ export const A320Failure = Object.freeze({
   ThrustLever2ResolverDisagree: 73051,
   Eng1FuelFilterClog: 73100,
   Eng2FuelFilterClog: 73101,
+  ThrustLever1OneResolver: 73060,
+  ThrustLever2OneResolver: 73061,
+  Eng1HpFuelValveStuck: 73200,
+  Eng2HpFuelValveStuck: 73201,
+  Eng1FadecAlternator: 73210,
+  Eng2FadecAlternator: 73211,
+  Eng1OverspeedProtection: 73220,
+  Eng2OverspeedProtection: 73221,
+  Eng1InletProbes: 73230,
+  Eng2InletProbes: 73231,
+  Eng1Sensors: 73240,
+  Eng2Sensors: 73241,
+  Reverser1PermissionSwitch: 78030,
+  Reverser2PermissionSwitch: 78031,
   Reverser1Fault: 78000,
   Reverser2Fault: 78001,
   Reverser1Unlocked: 78010,
@@ -358,6 +429,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [27, A320Failure.Sec3Failure, 'SEC 3'],
   [27, A320Failure.Fcdc1Failure, 'FCDC 1'],
   [27, A320Failure.Fcdc2Failure, 'FCDC 2'],
+  [27, A320Failure.Sfcc1FlapChannel, 'SFCC 1 flap channel'],
+  [27, A320Failure.Sfcc2FlapChannel, 'SFCC 2 flap channel'],
+  [27, A320Failure.Sfcc1SlatChannel, 'SFCC 1 slat channel'],
+  [27, A320Failure.Sfcc2SlatChannel, 'SFCC 2 slat channel'],
 
   [28, A320Failure.LeftTankPump1, 'L TK pump 1'],
   [28, A320Failure.LeftTankPump2, 'L TK pump 2'],
@@ -366,6 +441,10 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [28, A320Failure.CrossFeedValveJammed, 'X FEED valve jammed in place'],
   [28, A320Failure.CentreTankLeftTransferValveJammed, 'CTR TK L XFR valve jammed in place'],
   [28, A320Failure.CentreTankRightTransferValveJammed, 'CTR TK R XFR valve jammed in place'],
+  [28, A320Failure.Eng1LpValveJammed, 'ENG 1 LP fuel valve jammed in place'],
+  [28, A320Failure.Eng2LpValveJammed, 'ENG 2 LP fuel valve jammed in place'],
+  [28, A320Failure.FqiChannel1, 'FQI channel 1'],
+  [28, A320Failure.FqiChannel2, 'FQI channel 2'],
 
   [29, A320Failure.GreenReservoirLeak, 'Green reservoir leak'],
   [29, A320Failure.BlueReservoirLeak, 'Blue reservoir leak'],
@@ -426,6 +505,35 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.Autobrake, 'Autobrake'],
   [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
 
+  // The engine anti-ice valve stays closed (ANTI ICE ENG 1(2) VALVE CLSD) / open (ANTI ICE ENG 1(2) VALVE OPEN)
+  [30, A320Failure.Eng1AntiIceValveStuckClosed, 'Engine 1 anti-ice valve stuck closed'],
+  [30, A320Failure.Eng2AntiIceValveStuckClosed, 'Engine 2 anti-ice valve stuck closed'],
+  [30, A320Failure.Eng1AntiIceValveStuckOpen, 'Engine 1 anti-ice valve stuck open'],
+  [30, A320Failure.Eng2AntiIceValveStuckOpen, 'Engine 2 anti-ice valve stuck open'],
+  // ANTI ICE CAPT(F/O)(STBY) PROBES, ... PITOT OR L(R) STAT OR AOA, CAPT(F/O) TAT, the PITOT combinations,
+  // L(R) WINDSHIELD, L + R WINDSHIELD and L(R) WINDOW
+  [30, A320Failure.CaptProbeHeatComputer, 'CAPT probe heat computer'],
+  [30, A320Failure.FoProbeHeatComputer, 'F/O probe heat computer'],
+  [30, A320Failure.StbyProbeHeatComputer, 'STBY probe heat computer'],
+  [30, A320Failure.CaptPitotHeat, 'CAPT pitot heating'],
+  [30, A320Failure.CaptLeftStaticHeat, 'CAPT left static port heating'],
+  [30, A320Failure.CaptRightStaticHeat, 'CAPT right static port heating'],
+  [30, A320Failure.CaptAoaHeat, 'CAPT AOA probe heating'],
+  [30, A320Failure.CaptTatHeat, 'CAPT TAT probe heating'],
+  [30, A320Failure.FoPitotHeat, 'F/O pitot heating'],
+  [30, A320Failure.FoLeftStaticHeat, 'F/O left static port heating'],
+  [30, A320Failure.FoRightStaticHeat, 'F/O right static port heating'],
+  [30, A320Failure.FoAoaHeat, 'F/O AOA probe heating'],
+  [30, A320Failure.FoTatHeat, 'F/O TAT probe heating'],
+  [30, A320Failure.StbyPitotHeat, 'STBY pitot heating'],
+  [30, A320Failure.StbyLeftStaticHeat, 'STBY left static port heating'],
+  [30, A320Failure.StbyRightStaticHeat, 'STBY right static port heating'],
+  [30, A320Failure.StbyAoaHeat, 'STBY AOA probe heating'],
+  [30, A320Failure.LeftWindshieldHeat, 'Left windshield heating'],
+  [30, A320Failure.RightWindshieldHeat, 'Right windshield heating'],
+  [30, A320Failure.LeftWindowHeat, 'Left cockpit side window heating'],
+  [30, A320Failure.RightWindowHeat, 'Right cockpit side window heating'],
+
   [34, A320Failure.RadioAltimeter1, 'RA 1'],
   [34, A320Failure.RadioAltimeter2, 'RA 2'],
   [34, A320Failure.RadioAntennaInterrupted1, 'RA 1 antenna interrupted'],
@@ -439,6 +547,21 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Transponder1, 'ATC/XPDR 1'],
   [34, A320Failure.Transponder2, 'ATC/XPDR 2'],
   [34, A320Failure.TcasComputer, 'TCAS computer'],
+  [34, A320Failure.Adr1Fault, 'ADR 1 (air data lost, FAULT light)'],
+  [34, A320Failure.Adr2Fault, 'ADR 2 (air data lost, FAULT light)'],
+  [34, A320Failure.Adr3Fault, 'ADR 3 (air data lost, FAULT light)'],
+  [34, A320Failure.Ir1Fault, 'IR 1 (inertial data lost, FAULT light)'],
+  [34, A320Failure.Ir2Fault, 'IR 2 (inertial data lost, FAULT light)'],
+  [34, A320Failure.Ir3Fault, 'IR 3 (inertial data lost, FAULT light)'],
+  [34, A320Failure.Adr1AirspeedErroneous, 'ADR 1 airspeed erroneous (pitot)'],
+  [34, A320Failure.Adr2AirspeedErroneous, 'ADR 2 airspeed erroneous (pitot)'],
+  [34, A320Failure.Adr3AirspeedErroneous, 'ADR 3 airspeed erroneous (pitot)'],
+  [34, A320Failure.Adr1AoaErroneous, 'ADR 1 angle of attack erroneous'],
+  [34, A320Failure.Adr2AoaErroneous, 'ADR 2 angle of attack erroneous'],
+  [34, A320Failure.Adr3AoaErroneous, 'ADR 3 angle of attack erroneous'],
+  [34, A320Failure.Ir1HeadingErroneous, 'IR 1 heading erroneous'],
+  [34, A320Failure.Ir2HeadingErroneous, 'IR 2 heading erroneous'],
+  [34, A320Failure.Ir3HeadingErroneous, 'IR 3 heading erroneous'],
 
   // The valve stays closed / fully open whatever the BMC commands (a stuck open bleed valve no longer regulates: ENG
   // BLEED FAULT by overpressure at climb power, ENG BLEED NOT CLSD at engine start, with APU BLEED ON or engine stopped)
@@ -548,6 +671,22 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // CLOG on the ENGINE SD page and ENG FUEL FILTER CLOG, no other effect (systems engine/fuel_filter_failure.rs)
   [73, A320Failure.Eng1FuelFilterClog, 'Engine 1 fuel filter clog'],
   [73, A320Failure.Eng2FuelFilterClog, 'Engine 2 fuel filter clog'],
+  // The valve sticks where it is: closed on a shut down engine (no start, HP FUEL VALVE NOT OPEN), open on a running
+  // engine (HP FUEL POS SWT FAULT at the shutdown); ENG FAULT light (systems engine/hp_fuel_valve_failure.rs)
+  [73, A320Failure.Eng1HpFuelValveStuck, 'Engine 1 HP fuel valve stuck'],
+  [73, A320Failure.Eng2HpFuelValveStuck, 'Engine 2 HP fuel valve stuck'],
+  // FWC crew awareness alerts only (systems engine/engine_monitoring_fault.rs): ENG FADEC ALTERNATOR, OVSPD PROT FAULT,
+  // PROBES FAULT, SENSOR FAULT, ONE TLA FAULT
+  [73, A320Failure.Eng1FadecAlternator, 'Engine 1 FADEC alternator'],
+  [73, A320Failure.Eng2FadecAlternator, 'Engine 2 FADEC alternator'],
+  [73, A320Failure.Eng1OverspeedProtection, 'Engine 1 overspeed protection'],
+  [73, A320Failure.Eng2OverspeedProtection, 'Engine 2 overspeed protection'],
+  [73, A320Failure.Eng1InletProbes, 'Engine 1 inlet probes (T12, P0, PT2)'],
+  [73, A320Failure.Eng2InletProbes, 'Engine 2 inlet probes (T12, P0, PT2)'],
+  [73, A320Failure.Eng1Sensors, 'Engine 1 core sensors (PS3, T25, T3)'],
+  [73, A320Failure.Eng2Sensors, 'Engine 2 core sensors (PS3, T25, T3)'],
+  [73, A320Failure.ThrustLever1OneResolver, 'Thrust lever 1 one resolver'],
+  [73, A320Failure.ThrustLever2OneResolver, 'Thrust lever 2 one resolver'],
 
   // Thrust reversers (a320_systems hydraulic A320ReverserController / A320Reversers)
   [78, A320Failure.Reverser1Fault, 'Reverser 1 fault (does not deploy)'],
@@ -557,4 +696,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [78, A320Failure.Reverser2Unlocked, 'Reverser 2 unlocked (engine at idle)'],
   [78, A320Failure.Reverser1Pressurized, 'Reverser 1 pressurized (shutoff valve open)'],
   [78, A320Failure.Reverser2Pressurized, 'Reverser 2 pressurized (shutoff valve open)'],
+  // ENG REV SWITCH FAULT only, the reverser still works (systems engine/engine_monitoring_fault.rs)
+  [78, A320Failure.Reverser1PermissionSwitch, 'Reverser 1 permission switch'],
+  [78, A320Failure.Reverser2PermissionSwitch, 'Reverser 2 permission switch'],
 ];

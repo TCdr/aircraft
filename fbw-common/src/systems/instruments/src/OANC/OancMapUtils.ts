@@ -1,7 +1,7 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { MathUtils } from '@flybywiresim/fbw-sdk';
+import { EfisNdMode, MathUtils } from '@flybywiresim/fbw-sdk';
 import { Position } from 'geojson';
 import { clampAngle } from 'msfs-geo';
 
@@ -129,4 +129,25 @@ export function isFmsSelectedRunway(
     (isFmsOrigin && !!departureRunway && designators.includes(departureRunway)) ||
     (isFmsDestination && !!landingRunway && designators.includes(landingRunway))
   );
+}
+
+/**
+ * Whether the OANS shows ARPT NOT IN ACTIVE F-PLN. A380 FCOM DSC-34-10-70-20 OANS MESSAGES (a380_fcom.txt
+ * l.87262-87264): "In PLAN mode, the flight crew has displayed an airport that is not the origin, destination, or
+ * alternate airport."
+ * @param ndMode the ND mode
+ * @param airportIcao ICAO code of the airport shown on the OANS, null when none
+ * @param origin FMS origin ICAO code
+ * @param destination FMS destination ICAO code
+ * @param alternate FMS alternate ICAO code
+ * @returns true if the message is shown
+ */
+export function isAirportNotInActiveFpln(
+  ndMode: EfisNdMode,
+  airportIcao: string | null,
+  origin: string | null,
+  destination: string | null,
+  alternate: string | null,
+): boolean {
+  return ndMode === EfisNdMode.PLAN && airportIcao !== null && ![origin, destination, alternate].includes(airportIcao);
 }

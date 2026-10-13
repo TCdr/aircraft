@@ -18,7 +18,10 @@ import { LegacyGpws } from './Misc/LegacyGpws';
 import { LegacyFuel } from './CpiomF/LegacyFuel';
 import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
 import { FuelJettison } from './CpiomF/FuelJettison';
+import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
+import { FuelLeak } from './CpiomF/FuelLeak';
 import { AutolandLights } from './Misc/AutolandLights';
+import { AtcMsgLights } from './Misc/AtcMsgLights';
 import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
 import { CdsReconfiguration } from './Misc/CdsReconfiguration';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
@@ -201,10 +204,16 @@ class SystemsHost extends BaseInstrument {
 
   private readonly autolandLights = new AutolandLights();
 
+  private readonly atcMsgLights = new AtcMsgLights();
+
   private readonly cabinOxygenMasks = new CabinOxygenMasks();
 
   private readonly cdsReconfiguration = new CdsReconfiguration(this.bus, this.failuresConsumer);
   private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
+
+  private readonly fuelEmerOuterTransfer = new FuelEmerOuterTransfer(this);
+
+  private readonly fuelLeak = new FuelLeak(this, this.failuresConsumer);
 
   /**
    * "mainmenu" = 0
@@ -228,9 +237,12 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
     this.backplane.addInstrument('AutolandLights', this.autolandLights);
+    this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
     this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
     this.backplane.addInstrument('CdsReconfiguration', this.cdsReconfiguration);
     this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
+    this.backplane.addInstrument('FuelEmerOuterTransfer', this.fuelEmerOuterTransfer);
+    this.backplane.addInstrument('FuelLeak', this.fuelLeak);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addInstrument('PrimReactiveWindshear', new PrimReactiveWindshear());

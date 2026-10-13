@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EcamMemos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { COMPANY_MSG_INHIBITED_FLIGHT_PHASES } from './FwsCompanyMessageAural';
 import {
   MappedSubject,
   MappedSubscribable,
@@ -350,6 +351,16 @@ export class FwsMemos {
       codesToReturn: ['230000015'],
       memoInhibit: () => false,
     },
+    '230000016': {
+      // EVAC ACTIVE: the flight crew orders an evacuation with the EVAC COMMAND pb-sw (A380 FCOM DSC-23-20 EVAC panel,
+      // a380_fcom.txt l.49145-49149: "When pressed: [...] Message EVAC ACTIVE is displayed on the ECAM"). The Chief
+      // Purser order (CAPT & PURS, l.49131-49134) is not simulated.
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.evacCommand,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['230000016'],
+      memoInhibit: () => false,
+    },
 
     // ATA 24
     '241000001': {
@@ -692,7 +703,7 @@ export class FwsMemos {
     },
     '460000001': {
       // COMPANY MSG
-      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      flightPhaseInhib: [...COMPANY_MSG_INHIBITED_FLIGHT_PHASES],
       simVarIsActive: this.fws.compMesgCount.map((c) => c > 0),
       whichCodeToReturn: () => [0],
       codesToReturn: ['460000001'],

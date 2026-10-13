@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, SimVarValueType, Subscribable } from '@microsoft/msfs-sdk';
+import { FWS_VOICE_CLIP_LENGTHS } from './FwsVoiceClips';
 
 export interface FwsSoundManagerControlEvents {
   enqueueSound: string;
@@ -275,6 +276,230 @@ export const FwsAuralsList: Record<string, FwsAural> = {
     wwiseEventName: '5_380',
     length: 0.3,
     priority: 14,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+
+  // Intermediate callout words (shared/src/AutoCallOuts.ts IntermediateCallout): the height callout voices, said
+  // hundreds first (higher priority), then tens. Lowest priority of the synthetic voices.
+  intermediate_100: {
+    wwiseEventName: 'new_100',
+    length: 0.6,
+    priority: -3,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_200: {
+    wwiseEventName: 'new_200',
+    length: 0.6,
+    priority: -3,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_300: {
+    wwiseEventName: 'new_300',
+    length: 0.6,
+    priority: -3,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_90: {
+    wwiseEventName: '90_380',
+    length: 0.4,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_80: {
+    wwiseEventName: '80_380',
+    length: 0.4,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_70: {
+    wwiseEventName: '70_380',
+    length: 0.4,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_60: {
+    wwiseEventName: '60_380',
+    length: 0.4,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_50: {
+    wwiseEventName: '50_380',
+    length: 0.4,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_40: {
+    wwiseEventName: '40_380',
+    length: 0.4,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_30: {
+    wwiseEventName: '30_380',
+    length: 0.4,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_20: {
+    wwiseEventName: '20_380',
+    length: 0.4,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_10: {
+    wwiseEventName: '10_380',
+    length: 0.3,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  // Below 100 ft the unit word comes after the tens word (FORTY SEVEN): lower priority than the tens. FIVE is the bank
+  // voice, ONE to NINE and ELEVEN to NINETEEN are WAV clips of tools/fws-voice/generate.py (sound.xml Wave Data).
+  intermediate_5: {
+    wwiseEventName: '5_380',
+    length: 0.3,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_11: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_11',
+    length: FWS_VOICE_CLIP_LENGTHS.height11,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_12: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_12',
+    length: FWS_VOICE_CLIP_LENGTHS.height12,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_13: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_13',
+    length: FWS_VOICE_CLIP_LENGTHS.height13,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_14: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_14',
+    length: FWS_VOICE_CLIP_LENGTHS.height14,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_15: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_15',
+    length: FWS_VOICE_CLIP_LENGTHS.height15,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_16: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_16',
+    length: FWS_VOICE_CLIP_LENGTHS.height16,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_17: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_17',
+    length: FWS_VOICE_CLIP_LENGTHS.height17,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_18: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_18',
+    length: FWS_VOICE_CLIP_LENGTHS.height18,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_19: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_19',
+    length: FWS_VOICE_CLIP_LENGTHS.height19,
+    priority: -4,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_1: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_1',
+    length: FWS_VOICE_CLIP_LENGTHS.height1,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_2: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_2',
+    length: FWS_VOICE_CLIP_LENGTHS.height2,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_3: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_3',
+    length: FWS_VOICE_CLIP_LENGTHS.height3,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_4: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_4',
+    length: FWS_VOICE_CLIP_LENGTHS.height4,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_6: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_6',
+    length: FWS_VOICE_CLIP_LENGTHS.height6,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_7: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_7',
+    length: FWS_VOICE_CLIP_LENGTHS.height7,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_8: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_8',
+    length: FWS_VOICE_CLIP_LENGTHS.height8,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  intermediate_9: {
+    localVarName: 'A32NX_FWS_AUDIO_HEIGHT_9',
+    length: FWS_VOICE_CLIP_LENGTHS.height9,
+    priority: -5,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+
+  // PRIORITY LEFT / PRIORITY RIGHT (FwsSidestickPriority): WAV clips of tools/fws-voice/generate.py, played by the
+  // sound.xml Wave Data entries. The FCOM gives no priority among the synthetic voices: design choice, below the
+  // height callouts, above the intermediate callout.
+  priorityLeft: {
+    localVarName: 'A32NX_FWS_AUDIO_PRIORITY_LEFT',
+    length: FWS_VOICE_CLIP_LENGTHS.priorityLeft,
+    priority: -1,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  priorityRight: {
+    localVarName: 'A32NX_FWS_AUDIO_PRIORITY_RIGHT',
+    length: FWS_VOICE_CLIP_LENGTHS.priorityRight,
+    priority: -1,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  // PITCH PITCH, "Sounds 2 times" (a380_fcom.txt l.9048, 73618-73619), one clip (FwsPitchAural). Priority of the
+  // A32NX FWC pitchPitch.
+  pitchPitch: {
+    localVarName: 'A32NX_FWS_AUDIO_PITCH',
+    length: FWS_VOICE_CLIP_LENGTHS.pitchPitch,
+    priority: 25,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  // COMPANY MESSAGE, "Sounds 1 time" (a380_fcom.txt l.73651-73652), FwsCompanyMessageAural. Design choice: below the
+  // PRIORITY LEFT / RIGHT voices, above the intermediate callout.
+  companyMessage: {
+    localVarName: 'A32NX_FWS_AUDIO_COMPANY_MESSAGE',
+    length: FWS_VOICE_CLIP_LENGTHS.companyMessage,
+    priority: -2,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  // WINDSHEAR, "Sounds 3 times" (a380_fcom.txt l.9274-9276, 73643), one clip: highest priority of the synthetic voices
+  windshear: {
+    localVarName: 'A32NX_FWS_AUDIO_WINDSHEAR',
+    length: FWS_VOICE_CLIP_LENGTHS.windshear,
+    priority: 30,
     type: FwsAuralWarningType.SyntheticVoice,
   },
 };

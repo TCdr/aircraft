@@ -48,6 +48,7 @@ use std::error::Error;
 use systems::air_conditioning::{
     acs_controller::AcscId, cabin_pressure_controller::CpcId, Channel, ZoneType,
 };
+use systems::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use systems::failures::FailureType;
 use systems::shared::{
     report_diagnostic, AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType,
@@ -92,7 +93,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (ElectricalBusType::DirectCurrentGndFltService, 15),
     ])?
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 7)?
-    .with_engine_anti_ice(2)?
+    // The MSFS engine anti-ice follows the engine anti-ice valves (a320_systems pneumatic.rs)
+    .with_engine_anti_ice_valves(2)?
     .with_wing_anti_ice()?
     // The engine fuel is cut when the engine starves (its LP fuel valve is closed and the fuel left
     // downstream of it is burned, FCOM PRO-ABN-ENG, see a320_systems fuel/engine_lp_valve.rs), and
@@ -246,6 +248,11 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             26_011,
             FailureType::FireDetectionUnit(FireDetectionZone::Apu),
         ),
+        // SFCC flap and slat channels (hydraulic::sfcc): F/CTL FLAP(SLAT) SYS 1(2) FAULT
+        (27_010, FailureType::SlatFlapControlComputerFlapChannel(1)),
+        (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),
+        (27_012, FailureType::SlatFlapControlComputerSlatChannel(1)),
+        (27_013, FailureType::SlatFlapControlComputerSlatChannel(2)),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Blue)),
         (29_002, FailureType::ReservoirLeak(HydraulicColor::Yellow)),
@@ -382,6 +389,22 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_021, FailureType::RadioAntennaDirectCoupling(2)),
         (34_040, FailureType::Gps(1)),
         (34_041, FailureType::Gps(2)),
+        // ADIRS (systems navigation/adirs.rs)
+        (34_070, FailureType::AdrFault(1)),
+        (34_071, FailureType::AdrFault(2)),
+        (34_072, FailureType::AdrFault(3)),
+        (34_080, FailureType::IrFault(1)),
+        (34_081, FailureType::IrFault(2)),
+        (34_082, FailureType::IrFault(3)),
+        (34_090, FailureType::AdrAirspeedErroneous(1)),
+        (34_091, FailureType::AdrAirspeedErroneous(2)),
+        (34_092, FailureType::AdrAirspeedErroneous(3)),
+        (34_100, FailureType::AdrAngleOfAttackErroneous(1)),
+        (34_101, FailureType::AdrAngleOfAttackErroneous(2)),
+        (34_102, FailureType::AdrAngleOfAttackErroneous(3)),
+        (34_110, FailureType::IrHeadingErroneous(1)),
+        (34_111, FailureType::IrHeadingErroneous(2)),
+        (34_112, FailureType::IrHeadingErroneous(3)),
         (72_000, FailureType::EngineFlameout(1)),
         (72_001, FailureType::EngineFlameout(2)),
         (72_010, FailureType::EngineSeizure(1)),
@@ -398,6 +421,33 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (74_001, FailureType::EngineIgniterA(2)),
         (74_010, FailureType::EngineIgniterB(1)),
         (74_011, FailureType::EngineIgniterB(2)),
+        // ATA 30 engine anti-ice valves (systems ice_rain_protection, in a320_systems pneumatic.rs)
+        (30_000, FailureType::EngineAntiIceValveStuckClosed(1)),
+        (30_001, FailureType::EngineAntiIceValveStuckClosed(2)),
+        (30_010, FailureType::EngineAntiIceValveStuckOpen(1)),
+        (30_011, FailureType::EngineAntiIceValveStuckOpen(2)),
+        // ATA 30 probe and window heat (a320_systems probe_window_heat.rs)
+        (30_100, FailureType::ProbeHeatComputer(1)),
+        (30_101, FailureType::ProbeHeatComputer(2)),
+        (30_102, FailureType::ProbeHeatComputer(3)),
+        (30_110, FailureType::ProbeHeater(1, 1)),
+        (30_111, FailureType::ProbeHeater(1, 2)),
+        (30_112, FailureType::ProbeHeater(1, 3)),
+        (30_113, FailureType::ProbeHeater(1, 4)),
+        (30_114, FailureType::ProbeHeater(1, 5)),
+        (30_120, FailureType::ProbeHeater(2, 1)),
+        (30_121, FailureType::ProbeHeater(2, 2)),
+        (30_122, FailureType::ProbeHeater(2, 3)),
+        (30_123, FailureType::ProbeHeater(2, 4)),
+        (30_124, FailureType::ProbeHeater(2, 5)),
+        (30_130, FailureType::ProbeHeater(3, 1)),
+        (30_131, FailureType::ProbeHeater(3, 2)),
+        (30_132, FailureType::ProbeHeater(3, 3)),
+        (30_133, FailureType::ProbeHeater(3, 4)),
+        (30_200, FailureType::WindshieldHeat(1)),
+        (30_201, FailureType::WindshieldHeat(2)),
+        (30_210, FailureType::WindowHeat(1)),
+        (30_211, FailureType::WindowHeat(2)),
         // ATA 36 pneumatic (a320_systems pneumatic.rs)
         (36_000, FailureType::EngineBleedValveStuckClosed(1)),
         (36_001, FailureType::EngineBleedValveStuckClosed(2)),
@@ -459,8 +509,74 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_041, FailureType::ThrustLeverResolvers(2)),
         (73_050, FailureType::ThrustLeverResolverDisagree(1)),
         (73_051, FailureType::ThrustLeverResolverDisagree(2)),
+        (28_007, FailureType::EngineLpValveJammed(1)),
+        (28_008, FailureType::EngineLpValveJammed(2)),
         (73_100, FailureType::EngineFuelFilterClog(1)),
         (73_101, FailureType::EngineFuelFilterClog(2)),
+        // FCOM PRO-ABN-ENG ENG 1(2) HP FUEL VALVE (systems engine/hp_fuel_valve_failure.rs)
+        (73_200, FailureType::EngineHpFuelValveStuck(1)),
+        (73_201, FailureType::EngineHpFuelValveStuck(2)),
+        // The FADEC faults without engine model effect (systems engine/engine_monitoring_fault.rs)
+        (
+            73_210,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FadecAlternator),
+        ),
+        (
+            73_211,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FadecAlternator),
+        ),
+        (
+            73_220,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::OverspeedProtection),
+        ),
+        (
+            73_221,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::OverspeedProtection),
+        ),
+        (
+            73_230,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::InletProbes),
+        ),
+        (
+            73_231,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::InletProbes),
+        ),
+        (
+            73_240,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_241,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_060,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::OneThrustLeverResolver,
+            ),
+        ),
+        (
+            73_061,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::OneThrustLeverResolver,
+            ),
+        ),
+        (
+            78_030,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::ReverserPermissionSwitch,
+            ),
+        ),
+        (
+            78_031,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::ReverserPermissionSwitch,
+            ),
+        ),
         (78_000, FailureType::ReverserFault(1)),
         (78_001, FailureType::ReverserFault(2)),
         (78_010, FailureType::ReverserUnlocked(1)),
@@ -504,6 +620,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable_range("FUELSYSTEM PUMP ACTIVE", "Bool", 1..=7)?
     .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 1)?
     .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 2)?
+    // The fuel X FEED valve (gravity feed ceiling, a320_systems fuel/gravity_feed.rs)
+    .provides_aircraft_variable("FUELSYSTEM VALVE OPEN", "Percent over 100", 3)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 0)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 1)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 2)?

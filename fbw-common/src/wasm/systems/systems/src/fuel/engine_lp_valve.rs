@@ -12,12 +12,25 @@
 //!
 //! The travel time of the valve and the fuel left downstream of it are aircraft specific and must be
 //! sourced by the aircraft that uses this element.
+//!
+//! Jammed valve failure (`FailureType::EngineLpValveJammed`): the valve stays where it is, whatever
+//! the ENG MASTER and the ENG FIRE pushbutton command. The valve position is monitored against its
+//! command: a valve still not where it is commanded once its travel is over is abnormally open (it
+//! remains open while commanded closed) or abnormally closed (it remains closed while commanded
+//! open). A320 FCOM PRO-ABN-FUEL FUEL ENG 1(2) LP VALVE OPEN (a320_fcom.txt l.85829-85839): "This
+//! alert triggers when the valve remains in the open position." A380 FCOM PRO-ABN-ECAM-10-28 FUEL
+//! ENG 1(2)(3)(4) LP VLV FAULT (a380_fcom.txt l.149688-149694): the LP valve is "Abnormally closed
+//! on ground, during engine start, or - Abnormally open on ground, during engine shutdown". With
+//! the valve jammed open the engine still shuts down with its ENG MASTER, which also closes the HP
+//! valve (l.149731-149732); with the valve jammed closed the engine is starved and cannot start
+//! (l.149725-149726).
 
 use crate::{
+    failures::{Failure, FailureType},
     shared::EngineFirePushButtons,
     simulation::{
-        InitContext, Read, SimulationElement, SimulatorReader, SimulatorWriter, UpdateContext,
-        VariableIdentifier, Write,
+        InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
+        SimulatorWriter, UpdateContext, VariableIdentifier, Write,
     },
 };
 use std::time::Duration;
@@ -43,6 +56,10 @@ pub struct EngineLpFuelValve {
     open_percentage_id: VariableIdentifier,
     starved_id: VariableIdentifier,
     fuel_downstream_id: VariableIdentifier,
+    abnormally_open_id: VariableIdentifier,
+    abnormally_closed_id: VariableIdentifier,
+
+    jammed: Failure,
 
     master_switch_is_on: bool,
     engine_fuel_flow: MassRate,
@@ -50,8 +67,16 @@ pub struct EngineLpFuelValve {
     position: Ratio,
     position_is_initialised: bool,
     fuel_downstream: Mass,
+
+    is_commanded_open: bool,
+    /// How long the valve position has disagreed with its command without a break.
+    disagreement_duration: Duration,
 }
 impl EngineLpFuelValve {
+    /// Design choice (no FCOM value): the position monitoring reports a valve that is still not
+    /// where it is commanded this long after its travel time.
+    const DISAGREEMENT_MARGIN: Duration = Duration::from_secs(1);
+
     /// # Arguments
     /// * `engine_number` - the engine number, from 1
     /// * `travel_time` - the time the valve takes to travel from fully open to fully closed
@@ -79,11 +104,22 @@ impl EngineLpFuelValve {
                 "FUEL_ENG_{}_FUEL_DOWNSTREAM_LP_VALVE",
                 engine_number
             )),
+            abnormally_open_id: context.get_identifier(format!(
+                "FUEL_ENG_{}_LP_VALVE_ABNORMALLY_OPEN",
+                engine_number
+            )),
+            abnormally_closed_id: context.get_identifier(format!(
+                "FUEL_ENG_{}_LP_VALVE_ABNORMALLY_CLOSED",
+                engine_number
+            )),
+            jammed: Failure::new(FailureType::EngineLpValveJammed(engine_number)),
             master_switch_is_on: false,
             engine_fuel_flow: MassRate::default(),
             position: Ratio::new::<ratio>(1.),
             position_is_initialised: false,
             fuel_downstream: fuel_downstream_capacity,
+            is_commanded_open: true,
+            disagreement_duration: Duration::ZERO,
         }
     }
 
@@ -96,14 +132,29 @@ impl EngineLpFuelValve {
         let is_commanded_open =
             self.master_switch_is_on && !engine_fire_push_buttons.is_released(self.engine_number);
         let commanded_position = Ratio::new::<ratio>(if is_commanded_open { 1. } else { 0. });
+        self.is_commanded_open = is_commanded_open;
 
         if self.position_is_initialised {
-            self.move_towards(commanded_position, context.delta());
+            // A jammed valve stays where it is.
+            if !self.jammed.is_active() {
+                self.move_towards(commanded_position, context.delta());
+            }
         } else {
             // A freshly loaded flight starts with the valve where it is commanded, without travel.
             self.position = commanded_position;
             self.position_is_initialised = true;
         }
+
+        let disagrees = if is_commanded_open {
+            !self.is_fully_open()
+        } else {
+            !self.is_fully_closed()
+        };
+        self.disagreement_duration = if disagrees {
+            self.disagreement_duration + context.delta()
+        } else {
+            Duration::ZERO
+        };
 
         if self.is_fully_closed() {
             // The engine keeps burning the fuel left between the valve and its nozzles.
@@ -128,6 +179,25 @@ impl EngineLpFuelValve {
         self.position.get::<ratio>() <= 0.
     }
 
+    fn is_fully_open(&self) -> bool {
+        self.position.get::<ratio>() >= 1.
+    }
+
+    /// The valve position has disagreed with its command for longer than its travel.
+    fn position_disagrees(&self) -> bool {
+        self.disagreement_duration > self.travel_time + Self::DISAGREEMENT_MARGIN
+    }
+
+    /// The valve remains (partly) open while it is commanded closed.
+    pub fn is_abnormally_open(&self) -> bool {
+        !self.is_commanded_open && self.position_disagrees()
+    }
+
+    /// The valve remains (partly) closed while it is commanded open.
+    pub fn is_abnormally_closed(&self) -> bool {
+        self.is_commanded_open && self.position_disagrees()
+    }
+
     /// The LP valve is closed and the fuel between the valve and the nozzles has been burned.
     pub fn engine_is_starved(&self) -> bool {
         self.is_fully_closed() && self.fuel_downstream.get::<kilogram>() <= 0.
@@ -139,6 +209,12 @@ impl EngineLpFuelValve {
     }
 }
 impl SimulationElement for EngineLpFuelValve {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.jammed.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.master_switch_is_on = reader.read(&self.master_switch_id);
 
@@ -155,6 +231,8 @@ impl SimulationElement for EngineLpFuelValve {
             &self.fuel_downstream_id,
             self.fuel_downstream.get::<kilogram>(),
         );
+        writer.write(&self.abnormally_open_id, self.is_abnormally_open());
+        writer.write(&self.abnormally_closed_id, self.is_abnormally_closed());
     }
 }
 
@@ -346,5 +424,89 @@ mod tests {
         test_bed.run_with_delta(Duration::from_millis(50));
 
         assert_eq!(test_bed.open_percentage(), 0.);
+    }
+
+    impl LpValveTestBed {
+        fn jammed(mut self) -> Self {
+            self.fail(FailureType::EngineLpValveJammed(1));
+            self
+        }
+
+        fn repaired(mut self) -> Self {
+            self.unfail(FailureType::EngineLpValveJammed(1));
+            self
+        }
+
+        fn is_abnormally_open(&mut self) -> bool {
+            self.read_by_name("FUEL_ENG_1_LP_VALVE_ABNORMALLY_OPEN")
+        }
+
+        fn is_abnormally_closed(&mut self) -> bool {
+            self.read_by_name("FUEL_ENG_1_LP_VALVE_ABNORMALLY_CLOSED")
+        }
+    }
+
+    #[test]
+    fn a_valve_that_closes_normally_is_never_abnormal() {
+        let mut test_bed = LpValveTestBed::new()
+            .master_switch(false)
+            .and_run_for(Duration::from_secs(10));
+
+        assert!(!test_bed.is_abnormally_open());
+        assert!(!test_bed.is_abnormally_closed());
+    }
+
+    #[test]
+    fn a_valve_jammed_open_stays_open_and_does_not_starve_the_engine() {
+        let mut test_bed = LpValveTestBed::new()
+            .jammed()
+            .fire_push_button_released(true)
+            .and_run_for(Duration::from_secs(60));
+
+        assert_eq!(test_bed.open_percentage(), 100.);
+        assert!(!test_bed.is_starved());
+        assert!(test_bed.is_abnormally_open());
+        assert!(!test_bed.is_abnormally_closed());
+    }
+
+    #[test]
+    fn a_valve_jammed_open_is_reported_once_its_travel_time_and_the_margin_are_over() {
+        // 2 s travel time + 1 s margin
+        let mut test_bed = LpValveTestBed::new()
+            .jammed()
+            .master_switch(false)
+            .and_run_for(Duration::from_millis(2_900));
+        assert!(!test_bed.is_abnormally_open());
+
+        let mut test_bed = test_bed.and_run_for(Duration::from_millis(200));
+        assert!(test_bed.is_abnormally_open());
+    }
+
+    #[test]
+    fn a_valve_jammed_closed_starves_the_engine_and_is_abnormally_closed() {
+        let mut test_bed = LpValveTestBed::new()
+            .master_switch(false)
+            .and_run_for(Duration::from_secs(30))
+            .jammed()
+            .master_switch(true)
+            .and_run_for(Duration::from_secs(30));
+
+        assert_eq!(test_bed.open_percentage(), 0.);
+        assert!(test_bed.is_starved());
+        assert!(test_bed.is_abnormally_closed());
+        assert!(!test_bed.is_abnormally_open());
+    }
+
+    #[test]
+    fn a_repaired_valve_follows_its_command_again() {
+        let mut test_bed = LpValveTestBed::new()
+            .jammed()
+            .master_switch(false)
+            .and_run_for(Duration::from_secs(10))
+            .repaired()
+            .and_run_for(Duration::from_secs(3));
+
+        assert_eq!(test_bed.open_percentage(), 0.);
+        assert!(!test_bed.is_abnormally_open());
     }
 }

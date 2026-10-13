@@ -1,0 +1,169 @@
+"""Generates the FWS synthetic voice clips that the FlyByWire sound banks do not have, with the Piper text-to-speech
+engine: DUAL INPUT, PRIORITY LEFT / PRIORITY RIGHT, WINDSHEAR (said three times), PITCH PITCH, COMPANY MESSAGE, and the
+unit and teen words of the A380X intermediate radio height callout below 100 ft (ONE to NINE, ELEVEN to NINETEEN).
+
+The voice is Piper's en_US-ljspeech-medium (the voice of tools/raas-voice/generate.py), trained on the LJ Speech
+dataset, which is in the public domain.
+
+Usage:
+  python generate.py --piper <path to piper executable> --model <path to en_US-ljspeech-medium.onnx> [--keep-existing]
+
+Writes one WAV file per clip into the sound folder of each aircraft that uses it, and the clip length table of each
+aircraft (FwsVoiceClips.ts) used by its FWS sound manager. Piper output is not deterministic: always regenerate the
+clips and the length tables together. --keep-existing makes only the clips that have no WAV file yet, and reads the
+length of the others from their WAV file, so that adding a clip leaves the existing ones untouched.
+"""
+
+import argparse
+import os
+import re
+import subprocess
+import tempfile
+import wave
+
+import numpy as np
+
+REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+A32NX_SOUND_DIR = os.path.join(
+    REPO, 'fbw-a32nx', 'src', 'base', 'flybywire-aircraft-a320-neo', 'SimObjects', 'AirPlanes', 'FlyByWire_A320_NEO',
+    'sound')
+A32NX_CLIPS_TS = os.path.join(REPO, 'fbw-a32nx', 'src', 'systems', 'systems-host', 'systems', 'FWC', 'FwsVoiceClips.ts')
+
+A380X_SOUND_DIR = os.path.join(
+    REPO, 'fbw-a380x', 'src', 'base', 'flybywire-aircraft-a380-842', 'SimObjects', 'AirPlanes', 'FlyByWire_A380X',
+    'common', 'sound')
+A380X_CLIPS_TS = os.path.join(
+    REPO, 'fbw-a380x', 'src', 'systems', 'systems-host', 'CpiomC', 'FlightWarningSystem', 'FwsVoiceClips.ts')
+
+# The clips (camelCase key, written as sound/fws_<key in snake case>.wav) and what is said
+CLIPS = {
+    'dualInput': 'Dual input.',
+    'priorityLeft': 'Priority left.',
+    'priorityRight': 'Priority right.',
+    # "An aural synthetic voice announcing "WINDSHEAR" three times" (a320_fcom.txt l.34229, a380_fcom.txt l.73643)
+    'windshear': 'Windshear! Windshear! Windshear!',
+    # "Pitch (Synthetic voice) ... Sounds 2 times" (a380_fcom.txt l.73618-73619), "PITCH PITCH" (l.9048)
+    'pitchPitch': 'Pitch! Pitch!',
+    # "Company Message (Synthetic Voice) ... Sounds 1 time" (a380_fcom.txt l.73651-73652)
+    'companyMessage': 'Company message.',
+}
+
+# The A380X intermediate callout below 100 ft says the height to the foot (a380_fcom.txt l.86546-86547, FORTY SEVEN):
+# the tens words (TEN, TWENTY ... NINETY) and FIVE come from the sound bank, these clips are the other unit words and
+# the teens. Each one is said on its own: no pause to trim between the tens word and the unit word.
+HEIGHT_WORDS = {
+    1: 'One.', 2: 'Two.', 3: 'Three.', 4: 'Four.', 6: 'Six.', 7: 'Seven.', 8: 'Eight.', 9: 'Nine.',
+    11: 'Eleven.', 12: 'Twelve.', 13: 'Thirteen.', 14: 'Fourteen.', 15: 'Fifteen.', 16: 'Sixteen.', 17: 'Seventeen.',
+    18: 'Eighteen.', 19: 'Nineteen.',
+}
+CLIPS.update({f'height{feet}': text for feet, text in HEIGHT_WORDS.items()})
+
+# Which clips each aircraft uses. The A380X has no F/O sidestick input in the sim and its PRIMs do not send the
+# sidestick priority to the FWS, so it has no DUAL INPUT trigger.
+AIRCRAFT = [
+    (A32NX_SOUND_DIR, A32NX_CLIPS_TS, ['dualInput', 'priorityLeft', 'priorityRight', 'windshear']),
+    (A380X_SOUND_DIR, A380X_CLIPS_TS,
+     ['priorityLeft', 'priorityRight', 'windshear', 'pitchPitch', 'companyMessage',
+      *[f'height{feet}' for feet in HEIGHT_WORDS]]),
+]
+
+LENGTH_SCALE = '0.9'
+PEAK_DBFS = -3.0
+SILENCE_THRESHOLD = 0.02
+FADE_S = 0.005
+HIGH_PASS_HZ = 150
+
+
+def snake(word: str) -> str:
+    return re.sub(r'([A-Z])', r'_\1', word).lower()
+
+
+def synthesize(piper: str, model: str, text: str, path: str) -> None:
+    subprocess.run([piper, '-m', model, '-f', path, '--length_scale', LENGTH_SCALE, '-q'], input=text.encode(),
+                   check=True, capture_output=True)
+
+
+def read(path: str) -> tuple[np.ndarray, int]:
+    with wave.open(path, 'rb') as w:
+        rate = w.getframerate()
+        data = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float64) / 32768
+    return data, rate
+
+
+def process(data: np.ndarray, rate: int) -> np.ndarray:
+    # High-pass (first order): the thin sound of a flight deck loudspeaker
+    rc = 1 / (2 * np.pi * HIGH_PASS_HZ)
+    alpha = rc / (rc + 1 / rate)
+    out = np.empty_like(data)
+    prev_x = prev_y = 0.0
+    for i, x in enumerate(data):
+        prev_y = alpha * (prev_y + x - prev_x)
+        prev_x = x
+        out[i] = prev_y
+    # Trim the silence, fade in and out
+    loud = np.nonzero(np.abs(out) > SILENCE_THRESHOLD * np.max(np.abs(out)))[0]
+    out = out[max(0, loud[0] - int(0.01 * rate)):loud[-1] + int(0.02 * rate)]
+    fade = int(FADE_S * rate)
+    out[:fade] *= np.linspace(0, 1, fade)
+    out[-fade:] *= np.linspace(1, 0, fade)
+    return out / np.max(np.abs(out)) * 10 ** (PEAK_DBFS / 20)
+
+
+def write(path: str, data: np.ndarray, rate: int) -> None:
+    with wave.open(path, 'wb') as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes((data * 32767).astype(np.int16).tobytes())
+
+
+def write_length_table(path: str, keys: list[str], lengths: dict[str, float]) -> None:
+    lines = [
+        '// Copyright (c) 2026 FlyByWire Simulations',
+        '// SPDX-License-Identifier: GPL-3.0',
+        '',
+        '// Generated by tools/fws-voice/generate.py, do not edit.',
+        '',
+        '/** The length of each FWS voice clip (sound/fws_<key in snake case>.wav), in seconds */',
+        'export const FWS_VOICE_CLIP_LENGTHS = {',
+        *[f'  {key}: {round(lengths[key], 3):g},' for key in keys],
+        '};',
+        '',
+    ]
+    with open(path, 'w', newline='\r\n') as f:
+        f.write('\n'.join(lines))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--piper', required=True)
+    parser.add_argument('--model', required=True)
+    parser.add_argument('--keep-existing', action='store_true')
+    args = parser.parse_args()
+
+    lengths = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        for key, text in CLIPS.items():
+            targets = [os.path.join(sound_dir, f'fws_{snake(key)}.wav') for sound_dir, _, keys in AIRCRAFT if key in keys]
+            if args.keep_existing and all(os.path.exists(t) for t in targets):
+                data, rate = read(targets[0])
+                lengths[key] = len(data) / rate
+                print(f'{key:16} {lengths[key]:.2f} s (kept)')
+                continue
+            raw = os.path.join(tmp, f'{key}.wav')
+            synthesize(args.piper, args.model, text, raw)
+            data, rate = read(raw)
+            data = process(data, rate)
+            lengths[key] = len(data) / rate
+            for sound_dir, _, keys in AIRCRAFT:
+                if key in keys:
+                    write(os.path.join(sound_dir, f'fws_{snake(key)}.wav'), data, rate)
+            print(f'{key:16} {lengths[key]:.2f} s')
+
+    for _, clips_ts, keys in AIRCRAFT:
+        write_length_table(clips_ts, keys, lengths)
+
+
+if __name__ == '__main__':
+    main()

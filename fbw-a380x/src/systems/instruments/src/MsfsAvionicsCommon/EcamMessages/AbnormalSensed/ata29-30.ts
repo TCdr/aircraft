@@ -669,6 +669,146 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
+  // ATA 30 A-ICE valves (A380 FCOM PRO-ABN-ECAM-10-30, a380_fcom.txt l.156370-157060), see FWS AntiIceValveAlerts
+  300800010: {
+    // A-ICE ENG 1 VLV CLOSED (l.156374-156426)
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 1 VLV CLOSED',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800011: {
+    // A-ICE ENG 2 VLV CLOSED (l.156374-156426)
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 2 VLV CLOSED',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800012: {
+    // A-ICE ENG 3 VLV CLOSED (l.156374-156426)
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 3 VLV CLOSED',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800013: {
+    // A-ICE ENG 4 VLV CLOSED (l.156374-156426)
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 4 VLV CLOSED',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800014: {
+    // A-ICE ENG 1 VLV OPEN (l.156505-156521): crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 1 VLV OPEN',
+    sensed: true,
+    items: [],
+  },
+  300800015: {
+    // A-ICE ENG 2 VLV OPEN (l.156505-156521): crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 2 VLV OPEN',
+    sensed: true,
+    items: [],
+  },
+  300800016: {
+    // A-ICE ENG 3 VLV OPEN (l.156505-156521): crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 3 VLV OPEN',
+    sensed: true,
+    items: [],
+  },
+  300800017: {
+    // A-ICE ENG 4 VLV OPEN (l.156505-156521): crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 4 VLV OPEN',
+    sensed: true,
+    items: [],
+  },
+  300800018: {
+    // A-ICE L WING VLV CLOSED (l.156743-156830)
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV CLOSED',
+    sensed: true,
+    items: [
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
+  },
+  300800019: {
+    // A-ICE R WING VLV CLOSED (l.156743-156830)
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV CLOSED',
+    sensed: true,
+    items: [
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
+  },
+  300800020: {
+    // A-ICE L WING VLV OPEN (l.156837-156905): before takeoff and after landing, then in flight
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV OPEN',
+    sensed: true,
+    items: [
+      { name: 'X BLEED', sensed: true, labelNotCompleted: 'CLOSE' },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 1 BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 2 BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'BLEEDS/ PACK/ WING A-ICE AVAIL IN FLT', sensed: false },
+      { name: 'ENG 1 BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 2 BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'X BLEED', sensed: true, labelNotCompleted: 'AUTO' },
+    ],
+  },
+  300800021: {
+    // A-ICE R WING VLV OPEN (l.156837-156905): before takeoff and after landing, then in flight
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV OPEN',
+    sensed: true,
+    items: [
+      { name: 'X BLEED', sensed: true, labelNotCompleted: 'CLOSE' },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 3 BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 4 BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      // never shown for the right wing: "If L WING VLV OPEN: APU BLEED OFF" (l.156881-156882)
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'BLEEDS/ PACK/ WING A-ICE AVAIL IN FLT', sensed: false },
+      { name: 'ENG 3 BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 4 BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'X BLEED', sensed: true, labelNotCompleted: 'AUTO' },
+    ],
+  },
+  300800022: {
+    // A-ICE L WING VLV PRESS HI (l.156922-156937): crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV PRESS HI',
+    sensed: true,
+    items: [],
+  },
+  300800023: {
+    // A-ICE R WING VLV PRESS HI (l.156922-156937): crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV PRESS HI',
+    sensed: true,
+    items: [],
+  },
+  300800024: {
+    // A-ICE L WING VLV PRESS LO (l.156949-157053): on ground, then in flight
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV PRESS LO',
+    sensed: true,
+    items: [
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'THRUST', sensed: false, labelNotCompleted: 'INCREASE' },
+      { name: 'NOT SUCCESSFUL', sensed: false, condition: true },
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+    ],
+  },
+  300800025: {
+    // A-ICE R WING VLV PRESS LO (l.156949-157053): on ground, then in flight
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV PRESS LO',
+    sensed: true,
+    items: [
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'THRUST', sensed: false, labelNotCompleted: 'INCREASE' },
+      { name: 'NOT SUCCESSFUL', sensed: false, condition: true },
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+    ],
+  },
   // ATA 30 A-ICE
   300800001: {
     // A380 FCOM PRO-ABN-ECAM-10-30 A-ICE ICE DETECTED (a380_fcom.txt l.156579-156607)

@@ -127,6 +127,45 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  it('lists the wing and engine anti-ice valve failures in ATA 30 with the Rust failures of ice_rain_protection.rs', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [30000, 'WingAntiIceValvesStuckClosed(1)', 'Left wing anti-ice valves stuck closed'],
+      [30001, 'WingAntiIceValvesStuckClosed(2)', 'Right wing anti-ice valves stuck closed'],
+      [30010, 'WingAntiIceOuterValveStuckOpen(1)', 'Left wing outer anti-ice valve stuck open'],
+      [30011, 'WingAntiIceOuterValveStuckOpen(2)', 'Right wing outer anti-ice valve stuck open'],
+      ...[1, 2, 3, 4].map((engine): [number, string, string] => [
+        30099 + engine,
+        `EngineAntiIceValveStuckClosed(${engine})`,
+        `Engine ${engine} anti-ice valve stuck closed`,
+      ]),
+      ...[1, 2, 3, 4].map((engine): [number, string, string] => [
+        30109 + engine,
+        `EngineAntiIceValveStuckOpen(${engine})`,
+        `Engine ${engine} anti-ice valve stuck open`,
+      ]),
+    ];
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), nameOf(id)?.[2], nameOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 30]),
+    );
+  });
+
+  it('lists the oxygen failures in ATA 35 with the Rust failures of oxygen.rs', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [35000, 'CockpitOxygenBottleLeak', 'Cockpit oxygen bottle leak'],
+      [35001, 'CabinOxygenBottleLeak', 'Cabin oxygen bottles leak'],
+      [35010, 'CabinOxygenValveStuckClosed', 'Cabin oxygen regulator supply valve stuck closed'],
+    ];
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), nameOf(id)?.[2], nameOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 35]),
+    );
+  });
+
   // The labels say what a380_systems engine_failure.rs does with ids 72000-72013 (failure names audit rule)
   it('lists the engine flameout and seizure failures of the four engines in ATA 72 Engine', () => {
     const rustMap = readRustFailureMap();
@@ -323,5 +362,236 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
       expected.map(([id, failureType, name]) => [id, failureType, name, 24]),
     );
+  });
+
+  // a380_systems pneumatic.rs: the stuck bleed valves and the bleed duct leaks of the four engines, wing zone n being the
+  // wing section of engine n
+  it('lists the bleed valve and bleed leak failures in ATA 36 under the ids of the Rust map', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string][] = [];
+    for (const engine of [1, 2, 3, 4]) {
+      expected.push(
+        [36000 + engine - 1, `EngineBleedValveStuckClosed(${engine})`],
+        [36010 + engine - 1, `EngineBleedValveStuckOpen(${engine})`],
+        [36070 + engine - 1, `EngineBleedLeak(${engine})`],
+        [36074 + engine - 1, `WingBleedLeak(${engine})`],
+      );
+    }
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType]) => [id, failureType, 36]),
+    );
+    expect(definitionOf(A380Failure.LeftOuterWingBleedLeak)?.[2]).toBe('Left outer wing bleed duct leak');
+    expect(definitionOf(A380Failure.RightOuterWingBleedLeak)?.[2]).toBe('Right outer wing bleed duct leak');
+  });
+
+  // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id
+  // (failure names audit rule): the HP fuel valve sticks, the other faults only raise their FWS alert
+  it('lists the HP fuel valve and FADEC monitoring failures with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string, number][] = [
+      [73200, 'EngineHpFuelValveStuck(1)', 'Engine 1 HP fuel valve stuck', 73],
+      [73201, 'EngineHpFuelValveStuck(2)', 'Engine 2 HP fuel valve stuck', 73],
+      [73202, 'EngineHpFuelValveStuck(3)', 'Engine 3 HP fuel valve stuck', 73],
+      [73203, 'EngineHpFuelValveStuck(4)', 'Engine 4 HP fuel valve stuck', 73],
+      [
+        73110,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::FuelStrainerClog)',
+        'Engine 1 fuel strainer clog',
+        73,
+      ],
+      [
+        73111,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::FuelStrainerClog)',
+        'Engine 2 fuel strainer clog',
+        73,
+      ],
+      [
+        73112,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::FuelStrainerClog)',
+        'Engine 3 fuel strainer clog',
+        73,
+      ],
+      [
+        73113,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::FuelStrainerClog)',
+        'Engine 4 fuel strainer clog',
+        73,
+      ],
+      [
+        73120,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::FuelFilterMonitoring)',
+        'Engine 1 fuel filter monitoring',
+        73,
+      ],
+      [
+        73121,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::FuelFilterMonitoring)',
+        'Engine 2 fuel filter monitoring',
+        73,
+      ],
+      [
+        73122,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::FuelFilterMonitoring)',
+        'Engine 3 fuel filter monitoring',
+        73,
+      ],
+      [
+        73123,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::FuelFilterMonitoring)',
+        'Engine 4 fuel filter monitoring',
+        73,
+      ],
+      [
+        73240,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::Sensors)',
+        'Engine 1 pressure and temperature probes',
+        73,
+      ],
+      [
+        73241,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::Sensors)',
+        'Engine 2 pressure and temperature probes',
+        73,
+      ],
+      [
+        73242,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::Sensors)',
+        'Engine 3 pressure and temperature probes',
+        73,
+      ],
+      [
+        73243,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::Sensors)',
+        'Engine 4 pressure and temperature probes',
+        73,
+      ],
+      [
+        73250,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::OverthrustProtection)',
+        'Engine 1 overthrust protection',
+        73,
+      ],
+      [
+        73251,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::OverthrustProtection)',
+        'Engine 2 overthrust protection',
+        73,
+      ],
+      [
+        73252,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::OverthrustProtection)',
+        'Engine 3 overthrust protection',
+        73,
+      ],
+      [
+        73253,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::OverthrustProtection)',
+        'Engine 4 overthrust protection',
+        73,
+      ],
+      [
+        73260,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::MinorFault)',
+        'Engine 1 FADEC minor fault (internal sensor)',
+        73,
+      ],
+      [
+        73261,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::MinorFault)',
+        'Engine 2 FADEC minor fault (internal sensor)',
+        73,
+      ],
+      [
+        73262,
+        'EngineMonitoringFault(3,EngineMonitoringFaultKind::MinorFault)',
+        'Engine 3 FADEC minor fault (internal sensor)',
+        73,
+      ],
+      [
+        73263,
+        'EngineMonitoringFault(4,EngineMonitoringFaultKind::MinorFault)',
+        'Engine 4 FADEC minor fault (internal sensor)',
+        73,
+      ],
+      [79040, 'EngineMonitoringFault(1,EngineMonitoringFaultKind::OilChip)', 'Engine 1 oil chip (metal particles)', 79],
+      [79041, 'EngineMonitoringFault(2,EngineMonitoringFaultKind::OilChip)', 'Engine 2 oil chip (metal particles)', 79],
+      [79042, 'EngineMonitoringFault(3,EngineMonitoringFaultKind::OilChip)', 'Engine 3 oil chip (metal particles)', 79],
+      [79043, 'EngineMonitoringFault(4,EngineMonitoringFaultKind::OilChip)', 'Engine 4 oil chip (metal particles)', 79],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name, chapter]) => [id, failureType, name, chapter]),
+    );
+  });
+
+  // The labels say what systems navigation/adirs.rs does with ids 34070-34082: the FWS reads the ADR discrete word and
+  // the IR maintenance word (FwsCore adr1Fault, ir1Fault)
+  it('lists the ADR and IR fault failures in ATA 34 with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [34070, 'AdrFault(1)', 'ADR 1 (air data lost, FAULT light)'],
+      [34071, 'AdrFault(2)', 'ADR 2 (air data lost, FAULT light)'],
+      [34072, 'AdrFault(3)', 'ADR 3 (air data lost, FAULT light)'],
+      [34080, 'IrFault(1)', 'IR 1 (inertial data lost, FAULT light)'],
+      [34081, 'IrFault(2)', 'IR 2 (inertial data lost, FAULT light)'],
+      [34082, 'IrFault(3)', 'IR 3 (inertial data lost, FAULT light)'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 34]),
+    );
+  });
+});
+
+describe('A380X slat/flap channel and avionics network failures', () => {
+  // The labels say what a380_systems hydraulic/sfcc does with ids 27010-27013 (F/CTL FLAP(SLAT) SYS 1(2) FAULT,
+  // a380_fcom.txt l.147527-147540, l.148380-148393)
+  it('lists the SFCC flap and slat channel failures in ATA 27 with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [A380Failure.Sfcc1FlapChannel, 'SlatFlapControlComputerFlapChannel(1)', 'SFCC 1 flap channel'],
+      [A380Failure.Sfcc2FlapChannel, 'SlatFlapControlComputerFlapChannel(2)', 'SFCC 2 flap channel'],
+      [A380Failure.Sfcc1SlatChannel, 'SlatFlapControlComputerSlatChannel(1)', 'SFCC 1 slat channel'],
+      [A380Failure.Sfcc2SlatChannel, 'SlatFlapControlComputerSlatChannel(2)', 'SFCC 2 slat channel'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, [27, id, name]]),
+    );
+  });
+
+  // FCOM DSC-42-10/20 (a380_fcom.txt l.94820-94960, l.94964-95066): 16 AFDX switches (8 per network), 4 pairs of IOMs,
+  // 22 CPIOMs in 7 groups. The Rust model names them as the AFDX_SWITCH_n / IOM_xn / CPIOM_xn L:vars.
+  it('lists a failure for every AFDX switch, IOM and CPIOM of the Rust avionics network in ATA 42', () => {
+    const rustMap = readRustFailureMap();
+    const networkIds = [...rustMap.keys()].filter((id) => Math.floor(id / 1000) === 42);
+    expect(networkIds).toHaveLength(16 + 8 + 22);
+    expect(networkIds.filter((id) => !listedIds.includes(id))).toEqual([]);
+
+    expect(rustMap.get(A380Failure.AfdxSwitch9)).toBe('AvionicsFullDuplexSwitch(9)');
+    expect(rustMap.get(A380Failure.AfdxSwitch19)).toBe('AvionicsFullDuplexSwitch(19)');
+    expect(rustMap.get(A380Failure.IomA5)).toBe("InputOutputModule('A',5)");
+    expect(rustMap.get(A380Failure.CpiomC1)).toBe("CoreProcessingInputOutputModule('C',1)");
+    expect(rustMap.get(A380Failure.CpiomD3)).toBe("CoreProcessingInputOutputModule('D',3)");
+    expect(rustMap.get(A380Failure.CpiomG4)).toBe("CoreProcessingInputOutputModule('G',4)");
+
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id)?.[2];
+    expect(nameOf(A380Failure.AfdxSwitch3)).toBe('AFDX switch 3 (network A)');
+    expect(nameOf(A380Failure.AfdxSwitch13)).toBe('AFDX switch 13 (network B)');
+    expect(nameOf(A380Failure.IomA1)).toBe('IOM A1');
+    expect(nameOf(A380Failure.CpiomC2)).toBe('CPIOM C2 (FWS, FCDC)');
+  });
+
+  // TS only: read by the FWS (FwsTailStrikeAlerts), TAIL STRIKE DET FAULT (a380_fcom.txt l.147371-147385)
+  it('lists the tail strike detector failure in ATA 31', () => {
+    expect(A380FailureDefinitions.find(([, id]) => id === A380Failure.TailStrikeDetector)).toEqual([
+      31,
+      31200,
+      'Tail strike detector',
+    ]);
   });
 });

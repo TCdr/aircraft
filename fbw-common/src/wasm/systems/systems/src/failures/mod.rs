@@ -2,6 +2,7 @@ use crate::air_conditioning::{
     acs_controller::AcscId, cabin_pressure_controller::CpcId, Channel, VcmId, ZoneType,
 };
 use crate::air_conditioning::{FdacId, OcsmId};
+use crate::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use crate::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use crate::shared::{
     AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType, FireDetectionLoopID,
@@ -68,6 +69,13 @@ pub enum FailureType {
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
     /// The fire detection unit (FDU) channel of one zone is inoperative: no fire warning from that zone
     FireDetectionUnit(FireDetectionZone),
+    // ATA27 slats and flaps (a320_systems / a380_systems hydraulic::sfcc)
+    /// The flap channel of SFCC n no longer controls its flap motor: the flaps move at half speed on the
+    /// other motor, and the SFCC reports a flap fault (F/CTL FLAP SYS n FAULT)
+    SlatFlapControlComputerFlapChannel(usize),
+    /// The slat channel of SFCC n no longer controls its slat motor: the slats move at half speed on the
+    /// other motor, and the SFCC reports a slat fault (F/CTL SLAT SYS n FAULT)
+    SlatFlapControlComputerSlatChannel(usize),
     // ATA29
     ReservoirLeak(HydraulicColor),
     ReservoirAirLeak(HydraulicColor),
@@ -86,8 +94,30 @@ pub enum FailureType {
     BrakeSteeringControlUnitChannel(usize),
     /// The A320 alternate braking control unit (ABCU): no alternate braking, parking brake only as back-up
     AlternateBrakingControlUnit,
-    /// The autobrake function of the A320 BSCU
-    Autobrake,
+    // ATA30 (ice_rain_protection)
+    /// The engine anti-ice valve of engine n stays closed
+    EngineAntiIceValveStuckClosed(usize),
+    /// The engine anti-ice valve of engine n stays open
+    EngineAntiIceValveStuckOpen(usize),
+    /// Both wing anti-ice valves of wing n (1 left, 2 right) stay closed (A380: a380_systems ice_rain_protection.rs)
+    WingAntiIceValvesStuckClosed(usize),
+    /// The outer wing anti-ice valve of wing n (1 left, 2 right) stays open and no longer regulates (A380)
+    WingAntiIceOuterValveStuckOpen(usize),
+    /// Probe heat computer n (1 CAPT, 2 F/O, 3 STBY) is failed (A320: a320_systems probe_window_heat.rs)
+    ProbeHeatComputer(usize),
+    /// The heater of probe p (1 pitot, 2 L static, 3 R static, 4 AOA, 5 TAT) of probe heat computer n is failed
+    ProbeHeater(usize, usize),
+    /// The heating of windshield n (1 left, 2 right) is failed
+    WindshieldHeat(usize),
+    /// The heating of cockpit side window n (1 left, 2 right) is failed
+    WindowHeat(usize),
+    // ATA35 (A380: a380_systems oxygen.rs)
+    /// The cockpit oxygen bottle leaks: its pressure falls
+    CockpitOxygenBottleLeak,
+    /// The cabin oxygen bottles leak: their pressure falls
+    CabinOxygenBottleLeak,
+    /// A cabin oxygen regulator supply valve stays closed
+    CabinOxygenValveStuckClosed,
     // ATA36 (A320: a320_systems pneumatic.rs)
     /// The bleed (pressure regulating) valve of engine n stays closed
     EngineBleedValveStuckClosed(usize),
@@ -127,6 +157,8 @@ pub enum FailureType {
     BrakeAlternateBraking,
     /// The emergency brake control unit (A380 EBCU): no emergency braking
     BrakeEmergencyBraking,
+    /// The autobrake function cannot be armed (A320 BSCU autobrake, A380 BRAKES AUTO BRK FAULT)
+    Autobrake,
     /// The normal mode of the nose wheel steering (A380 normal NWS)
     NoseWheelSteeringNormal,
     /// The alternate mode of the nose wheel steering (A380 steering LEHGS)
@@ -147,6 +179,23 @@ pub enum FailureType {
     AdrAirspeedErroneous(usize),
     /// The angle of attack probe of ADR n is erroneous: its angle of attack reads high, with a valid status
     AdrAngleOfAttackErroneous(usize),
+    /// The air data reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
+    /// on (navigation::adirs)
+    AdrFault(usize),
+    /// The inertial reference part of ADIRU n fails: its outputs are lost (failure warning) and its FAULT light comes
+    /// on steady (navigation::adirs)
+    IrFault(usize),
+    /// The heading of IR n is erroneous: its magnetic and true headings are offset, with a valid status
+    IrHeadingErroneous(usize),
+    // ATA42 integrated modular avionics (systems::integrated_modular_avionics)
+    /// AFDX switch n (A380: 1 to 7 and 9 on network A, 11 to 17 and 19 on network B) is failed: it no
+    /// longer routes the network messages
+    AvionicsFullDuplexSwitch(u8),
+    /// The input/output module named by its letter and number (A380: A1 to A8) is failed
+    InputOutputModule(char, u8),
+    /// The core processing input/output module named by its letter and number (A380: A1 to G4) is
+    /// failed, with all its hosted applications
+    CoreProcessingInputOutputModule(char, u8),
     // ATA72
     /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
     EngineFlameout(usize),
@@ -205,6 +254,14 @@ pub enum FailureType {
     ThrustLeverResolverDisagree(usize),
     /// The fuel filter of engine n is clogged: a crew awareness indication (engine::fuel_filter_failure)
     EngineFuelFilterClog(usize),
+    /// The HP fuel shutoff valve of engine n sticks in its position (engine::hp_fuel_valve_failure)
+    EngineHpFuelValveStuck(usize),
+    /// A fault the FADEC of engine n detects and reports, with no effect on the engine model
+    /// (engine::engine_monitoring_fault)
+    EngineMonitoringFault(usize, EngineMonitoringFaultKind),
+    /// The LP fuel valve of engine n is jammed in its position: it no longer follows the ENG MASTER
+    /// and the ENG FIRE pushbutton (fuel::engine_lp_valve)
+    EngineLpValveJammed(usize),
     // ATA78 thrust reversers (engine n)
     /// The thrust reverser of engine n is failed: it does not deploy
     ReverserFault(usize),

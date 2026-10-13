@@ -1,7 +1,7 @@
 use std::time::Duration;
 use systems::navigation::adirs::{
-    AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming, CompleteAlignmentTime,
-    LowSpeedWarningThreshold,
+    AdiruElectricalSupply, AirDataInertialReferenceSystem, AirDataInertialReferenceUnitProgramming,
+    CompleteAlignmentTime, InertialReferenceBackupSupply, LowSpeedWarningThreshold,
 };
 use systems::navigation::ala52b::{
     Ala52BAircraftInstallationDelay, Ala52BRadioAltimeter, Ala52BTransceiverPair,
@@ -23,6 +23,41 @@ impl A320AirDataInertialReferenceSystemBuilder {
     /// A380 FCOM, the A320 FCOM gives no latitude dependency (ground alignment only up to 73 deg,
     /// l.116718).
     const COMPLETE_ALIGNMENT_TIME: Duration = Duration::from_secs(10 * 60);
+
+    /// A320 FCOM PRO-ABN-ELEC ELEC EMER CONFIG SYS REMAINING (a320_fcom.txt l.75317-75320, l.75390): IR "No 1 only (e)"
+    /// and ADR "No 1 only" with the emergency generator, ADR "INOP" on batteries only; "(e) IR 2 and IR 3 are lost 5 min
+    /// after failure of main generators". With AC, the ELEC busbar faults give the AC supplies (FWC/Logic/ElecBusAlerts):
+    /// AC ESS BUS FAULT loses ADR 1, AC BUS 2 FAULT ADR 2, AC BUS 1 FAULT ADR 3.
+    /// So the ADRs need their AC bus, and the IRs run on the batteries without it, IR 2 and IR 3 for 5 min.
+    /// Design choices (the FCOM text gives no bus names for the battery supply): IR 1 on the hot bus 1, IR 2 and IR 3 on
+    /// the hot bus 2. Not modelled: ADIRU 3 on the AC ESS bus with the ATT HDG selector on CAPT 3, which also keeps
+    /// IR 3 on the batteries beyond the 5 min (note (e)).
+    const IR_BATTERY_TIME_LIMIT: Duration = Duration::from_secs(5 * 60);
+
+    fn electrical_supplies() -> [AdiruElectricalSupply; 3] {
+        [
+            AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrentEssential)
+                .with_ir_backup(InertialReferenceBackupSupply::new(
+                    ElectricalBusType::DirectCurrentHot(1),
+                    true,
+                    None,
+                )),
+            AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrent(2)).with_ir_backup(
+                InertialReferenceBackupSupply::new(
+                    ElectricalBusType::DirectCurrentHot(2),
+                    true,
+                    Some(Self::IR_BATTERY_TIME_LIMIT),
+                ),
+            ),
+            AdiruElectricalSupply::new(ElectricalBusType::AlternatingCurrent(1)).with_ir_backup(
+                InertialReferenceBackupSupply::new(
+                    ElectricalBusType::DirectCurrentHot(2),
+                    true,
+                    Some(Self::IR_BATTERY_TIME_LIMIT),
+                ),
+            ),
+        ]
+    }
 
     pub(crate) fn build(context: &mut InitContext) -> AirDataInertialReferenceSystem {
         let adirs_programming = AirDataInertialReferenceUnitProgramming::new(
@@ -46,6 +81,7 @@ impl A320AirDataInertialReferenceSystemBuilder {
                     Velocity::new::<knot>(264.),
                 ),
             ],
+            Self::electrical_supplies(),
         )
         .with_complete_alignment_time(CompleteAlignmentTime::Fixed(Self::COMPLETE_ALIGNMENT_TIME));
         AirDataInertialReferenceSystem::new(context, adirs_programming)
@@ -160,26 +196,57 @@ impl SimulationElement for A320RadioAltimeter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use systems::electrical::{test::TestElectricitySource, ElectricalBus, Electricity};
     use systems::navigation::adirs::AirDataInertialReferenceSystemOverheadPanel;
+    use systems::shared::PotentialOrigin;
     use systems::simulation::{
         test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
         Aircraft,
     };
-    use uom::si::angle::degree;
+    use uom::si::{angle::degree, electric_potential::volt};
+
+    /// The buses of the A320 ADIRUs (A320AirDataInertialReferenceSystemBuilder), all powered
+    const ADIRU_BUSES: [ElectricalBusType; 5] = [
+        ElectricalBusType::AlternatingCurrentEssential,
+        ElectricalBusType::AlternatingCurrent(1),
+        ElectricalBusType::AlternatingCurrent(2),
+        ElectricalBusType::DirectCurrentHot(1),
+        ElectricalBusType::DirectCurrentHot(2),
+    ];
 
     struct TestAircraft {
+        electricity_source: TestElectricitySource,
+        buses: [ElectricalBus; 5],
         adirs: AirDataInertialReferenceSystem,
         overhead: AirDataInertialReferenceSystemOverheadPanel,
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
             Self {
+                electricity_source: TestElectricitySource::powered(
+                    context,
+                    PotentialOrigin::EngineGenerator(1),
+                ),
+                buses: ADIRU_BUSES.map(|bus| ElectricalBus::new(context, bus)),
                 adirs: A320AirDataInertialReferenceSystemBuilder::build(context),
                 overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
             }
         }
     }
     impl Aircraft for TestAircraft {
+        fn update_before_power_distribution(
+            &mut self,
+            _: &UpdateContext,
+            electricity: &mut Electricity,
+        ) {
+            self.electricity_source
+                .power_with_potential(ElectricPotential::new::<volt>(115.));
+            electricity.supplied_by(&self.electricity_source);
+            for bus in self.buses.iter() {
+                electricity.flow(&self.electricity_source, bus);
+            }
+        }
+
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
             self.adirs.update(context, &self.overhead);
             self.overhead.update(context, &self.adirs);
