@@ -41,12 +41,31 @@ describe('A380 intermediate callout words (a380_fcom.txt l.86544-86547)', () => 
     expect(intermediateCalloutWords(105)).toEqual(['intermediate_100']);
   });
 
-  it('below 100 ft: the tens word (the bank has no unit words), FIVE from 5 to 9 ft, nothing below', () => {
-    expect(intermediateCalloutWords(99)).toEqual(['intermediate_90']);
-    expect(intermediateCalloutWords(47)).toEqual(['intermediate_40']);
+  it('below 100 ft: the height rounded to the lower feet, tens then units (FORTY SEVEN)', () => {
+    expect(intermediateCalloutWords(99.9)).toEqual(['intermediate_90', 'intermediate_9']);
+    expect(intermediateCalloutWords(47.6)).toEqual(['intermediate_40', 'intermediate_7']);
+    expect(intermediateCalloutWords(45)).toEqual(['intermediate_40', 'intermediate_5']);
+    expect(intermediateCalloutWords(60)).toEqual(['intermediate_60']);
+    expect(intermediateCalloutWords(21)).toEqual(['intermediate_20', 'intermediate_1']);
+  });
+
+  it('below 20 ft: one word, TEN to NINETEEN, then ONE to NINE; nothing below 1 ft', () => {
+    expect(intermediateCalloutWords(19.5)).toEqual(['intermediate_19']);
+    expect(intermediateCalloutWords(13)).toEqual(['intermediate_13']);
     expect(intermediateCalloutWords(10)).toEqual(['intermediate_10']);
-    expect(intermediateCalloutWords(9)).toEqual(['intermediate_5']);
-    expect(intermediateCalloutWords(4)).toEqual([]);
+    expect(intermediateCalloutWords(9)).toEqual(['intermediate_9']);
+    expect(intermediateCalloutWords(5.2)).toEqual(['intermediate_5']);
+    expect(intermediateCalloutWords(1)).toEqual(['intermediate_1']);
+    expect(intermediateCalloutWords(0.9)).toEqual([]);
+  });
+
+  it('says every height below 400 ft with 30 different words', () => {
+    const words = new Set<IntermediateCalloutAural>();
+    for (let height = 0; height < 400; height += 0.5) {
+      intermediateCalloutWords(height).forEach((w) => words.add(w));
+    }
+    // 100 200 300, 10 to 19, 20 30 ... 90, 1 to 9
+    expect(words.size).toBe(3 + 10 + 8 + 9);
   });
 });
 
@@ -68,8 +87,8 @@ describe('A380 intermediate callout timing (a380_fcom.txt l.86539-86543)', () =>
       { seconds: 9, height: 62 },
     ]);
     expect(said).toEqual([
-      { words: ['intermediate_60'], at: 4.125 },
-      { words: ['intermediate_60'], at: 8.125 },
+      { words: ['intermediate_60', 'intermediate_2'], at: 4.125 },
+      { words: ['intermediate_60', 'intermediate_2'], at: 8.125 },
     ]);
   });
 

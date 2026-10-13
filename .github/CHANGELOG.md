@@ -484,7 +484,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New DUAL INPUT voice every 5 s while both sidesticks are moved, and PRIORITY LEFT / PRIORITY RIGHT voices when a pilot takes the sidestick priority (held 1 s, so an autopilot disconnection does not call it), from the FCDC as in the FCOM - @TCdr
 1. [A32NX/FWC] Intermediate radio height callout: below 410 ft, when no height callout came for 11 s (4 s below 50 ft), the FWC says the present height (FOUR HUNDRED down to FIVE, rounded down), then every 4 s - @TCdr
 1. [A380X/FWS] New PRIORITY LEFT / PRIORITY RIGHT voices when a pilot holds the sidestick pb (1 s, so an autopilot disconnection does not call it) - @TCdr
-1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, 4 s below 100 ft, as in the FCOM - @TCdr
+1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, and below 100 ft the height to the foot (e.g. FORTY SEVEN) 4 s after it, as in the FCOM - @TCdr
 1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
 1. [A380X/GPWS] TERRAIN aural for the mode 2 alert and GLIDE SLOPE aural (louder when hard) for the mode 5 alert; a windshear warning overrides the GPWS alerts - @TCdr
 1. [A32NX/FWC] New HYD cautions and warnings from the FCOM with their procedure and STATUS lines: B (Y) ELEC PUMP LO PR / OVHT, G ENG 1 (Y ENG 2) PUMP LO PR, B/G/Y RSVR LO AIR PR, RSVR LO LVL and SYS LO PR, PTU FAULT, and the red B+Y, G+B, G+Y SYS LO PR warnings (with red LAND ASAP) that replace the single system alerts; the RSVR OVHT procedures show the "x SYS LO PR" lines and the RSVR OVHT, RAT FAULT and PTU FAULT now have their STATUS (INOP SYS, APPR PROC); no pump caution on ground with the engine stopped - @TCdr
@@ -505,6 +505,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan, as in the FCOM - @TCdr
 1. [GPU] External power becomes available as soon as the sim's ground power does (GSX GPU, sim GPU or jetway power connected after the flight is loaded), without waiting for the GPU door animation - @TCdr
 1. [A380X/FWS] BRAKES BTV FAULT no longer shows (with a single chime and MASTER CAUT) while engine 2 or 3 is not running, e.g. during the engine start on the ground: an inner engine out makes BTV inoperative through the ENG SHUT DOWN STATUS - @TCdr
+1. [A380X/FWS] New PITCH PITCH voice when the pitch attitude goes above 12 degrees below 400 ft RA in a manual landing, as in the FCOM - @TCdr
+1. [A380X/FWS] New COMPANY MESSAGE voice when a company (AOC) message is received, except in takeoff and landing and below 10 000 ft in flight phase 8, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

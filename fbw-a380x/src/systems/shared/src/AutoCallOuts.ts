@@ -71,10 +71,10 @@ export function isFiveHundredCalloutDue(pins: number, glideValid: boolean, glide
  * lower feet."
  *
  * Design choices:
- * - The height is said with the voices of the aircraft sound bank, one hundreds word and one tens word (TWO HUNDRED,
- *   TWENTY): the bank has no AND and no unit words. Below 100 ft the height is therefore rounded to the lower 10 ft
- *   too (FIFTY for 57 ft), and FIVE from 5 to 9 ft: the unit feet of the FCOM would need nine more words in another
- *   voice.
+ * - The height is said word by word. From 100 ft: the hundreds word and the tens word of the aircraft sound bank
+ *   (TWO HUNDRED, TWENTY; the bank has no AND). Below 100 ft: the tens word of the bank, then the unit word (FORTY
+ *   SEVEN), and TEN to NINETEEN as one word. The bank has TEN to NINETY and FIVE; ONE to NINE (but FIVE) and ELEVEN to
+ *   NINETEEN are WAV clips of tools/fws-voice/generate.py (another voice, see FwsSoundManager).
  * - "At regular time intervals": the next intermediate callout comes after the same time (11 s, 4 s below 100 ft).
  * - The time is counted from the last callout, or from the descent below 400 ft.
  * - The callout waits while the height callouts would not be made (radio height invalid, on ground, climbing, GPWS
@@ -91,7 +91,7 @@ export const INTERMEDIATE_CALLOUT_HIGH_BAND_SECONDS = 11;
 
 export const INTERMEDIATE_CALLOUT_LOW_BAND_SECONDS = 4;
 
-/** The words of an intermediate callout, as FwsSoundManager aurals: hundreds first, then tens */
+/** The words of an intermediate callout, as FwsSoundManager aurals: hundreds, then tens, then units */
 export type IntermediateCalloutAural =
   | 'intermediate_100'
   | 'intermediate_200'
@@ -104,25 +104,55 @@ export type IntermediateCalloutAural =
   | 'intermediate_40'
   | 'intermediate_30'
   | 'intermediate_20'
+  | 'intermediate_19'
+  | 'intermediate_18'
+  | 'intermediate_17'
+  | 'intermediate_16'
+  | 'intermediate_15'
+  | 'intermediate_14'
+  | 'intermediate_13'
+  | 'intermediate_12'
+  | 'intermediate_11'
   | 'intermediate_10'
-  | 'intermediate_5';
+  | 'intermediate_9'
+  | 'intermediate_8'
+  | 'intermediate_7'
+  | 'intermediate_6'
+  | 'intermediate_5'
+  | 'intermediate_4'
+  | 'intermediate_3'
+  | 'intermediate_2'
+  | 'intermediate_1';
 
 /**
- * The words that say a height, rounded down to 10 ft (to 5 ft below 10 ft).
+ * The words that say a height: rounded down to 10 ft from 100 ft (TWO HUNDRED TWENTY), to the foot below 100 ft
+ * (FORTY SEVEN, THIRTEEN, SIX), a380_fcom.txt l.86544-86547.
  * @param height the radio height in feet, below 400 ft
- * @returns the words in the order they are said, empty below 5 ft
+ * @returns the words in the order they are said, empty below 1 ft
  */
 export function intermediateCalloutWords(height: number): IntermediateCalloutAural[] {
   const words: IntermediateCalloutAural[] = [];
-  const hundreds = Math.floor(height / 100);
-  const tens = Math.floor((height % 100) / 10);
-  if (hundreds >= 1 && hundreds <= 3) {
-    words.push(`intermediate_${hundreds * 100}` as IntermediateCalloutAural);
-  }
-  if (tens >= 1) {
-    words.push(`intermediate_${tens * 10}` as IntermediateCalloutAural);
-  } else if (hundreds === 0 && height >= 5) {
-    words.push('intermediate_5');
+  const feet = Math.floor(height);
+  const hundreds = Math.floor(feet / 100);
+  const tens = Math.floor((feet % 100) / 10);
+  const units = feet % 10;
+  if (hundreds >= 1) {
+    if (hundreds <= 3) {
+      words.push(`intermediate_${hundreds * 100}` as IntermediateCalloutAural);
+    }
+    if (tens >= 1) {
+      words.push(`intermediate_${tens * 10}` as IntermediateCalloutAural);
+    }
+  } else if (tens === 1) {
+    // TEN to NINETEEN: one word
+    words.push(`intermediate_${feet}` as IntermediateCalloutAural);
+  } else {
+    if (tens >= 2) {
+      words.push(`intermediate_${tens * 10}` as IntermediateCalloutAural);
+    }
+    if (units >= 1) {
+      words.push(`intermediate_${units}` as IntermediateCalloutAural);
+    }
   }
   return words;
 }
