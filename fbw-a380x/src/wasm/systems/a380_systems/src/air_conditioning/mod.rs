@@ -1273,6 +1273,7 @@ mod tests {
         baro_correction: Pressure,
         baro_correction_ssm: SignStatus,
         ambient_pressure: Pressure,
+        ambient_pressure_ssm: SignStatus,
     }
     impl TestAdirs {
         fn new() -> Self {
@@ -1282,6 +1283,7 @@ mod tests {
                 baro_correction: Pressure::new::<hectopascal>(1013.25),
                 baro_correction_ssm: SignStatus::NormalOperation,
                 ambient_pressure: Pressure::new::<hectopascal>(1013.25),
+                ambient_pressure_ssm: SignStatus::NormalOperation,
             }
         }
         fn set_true_airspeed(&mut self, airspeed: Velocity) {
@@ -1300,6 +1302,13 @@ mod tests {
         fn set_ambient_pressure(&mut self, pressure: Pressure) {
             self.ambient_pressure = pressure;
         }
+        fn set_ambient_pressure_fault(&mut self, fault: bool) {
+            self.ambient_pressure_ssm = if fault {
+                SignStatus::FailureWarning
+            } else {
+                SignStatus::NormalOperation
+            }
+        }
     }
     impl AdirsToAirCondInterface for TestAdirs {
         fn ground_speed(&self, _adiru_number: usize) -> Arinc429Word<Velocity> {
@@ -1312,7 +1321,7 @@ mod tests {
             Arinc429Word::new(self.baro_correction, self.baro_correction_ssm)
         }
         fn ambient_static_pressure(&self, _adiru_number: usize) -> Arinc429Word<Pressure> {
-            Arinc429Word::new(self.ambient_pressure, SignStatus::NormalOperation)
+            Arinc429Word::new(self.ambient_pressure, self.ambient_pressure_ssm)
         }
     }
 
@@ -2235,6 +2244,8 @@ mod tests {
             test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(24.));
             test_bed.command_pack_flow_selector_position(0);
             test_bed.command_engine_n1(Ratio::new::<percent>(30.));
+            // The FMS sends the landing elevation of a sea level destination
+            test_bed.command_fm_landing_elevation(Length::default(), SignStatus::NormalOperation);
 
             test_bed
         }
@@ -2677,6 +2688,25 @@ mod tests {
         fn command_altimeter_setting_fault(mut self, fault: bool) -> Self {
             self.command(|a| a.adirs.set_baro_correction_fault(fault));
             self
+        }
+
+        fn command_ambient_pressure_fault(mut self, fault: bool) -> Self {
+            self.command(|a| a.adirs.set_ambient_pressure_fault(fault));
+            self
+        }
+
+        fn command_fm_landing_elevation(&mut self, elevation: Length, ssm: SignStatus) {
+            self.write_arinc429_by_name("FM1_LANDING_ELEVATION", elevation, ssm);
+        }
+
+        fn fm_landing_elevation_lost(mut self) -> Self {
+            self.command_fm_landing_elevation(Length::default(), SignStatus::NoComputedData);
+            self
+        }
+
+        fn cpcs_discrete_word_bit(&mut self, bit: u8) -> bool {
+            let word: Arinc429Word<u32> = self.read_by_name("COND_CPIOM_B1_CPCS_DISCRETE_WORD");
+            word.get_bit(bit)
         }
 
         fn command_on_ground(&mut self, on_ground: bool) {
@@ -3263,12 +3293,16 @@ mod tests {
 
         #[test]
         fn target_altitude_is_knob_when_in_man_mode() {
-            let mut test_bed = test_bed()
-                .iterate(10)
-                .command_alt_mode_sel_pb_man()
-                .iterate(10);
+            let mut test_bed = test_bed().iterate(10);
+            let cabin_altitude_at_engagement = test_bed.cabin_altitude();
+            test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
 
-            assert_eq!(test_bed.cabin_target_altitude(), Length::default());
+            // Before the selector turns, the target is the cabin altitude when MAN was engaged (DSC-21-30-20)
+            assert_about_eq!(
+                test_bed.cabin_target_altitude().get::<foot>(),
+                cabin_altitude_at_engagement.get::<foot>(),
+                50.
+            );
 
             test_bed = test_bed.command_alt_sel_knob_value(5000.).iterate(10);
 
@@ -3309,12 +3343,16 @@ mod tests {
 
         #[test]
         fn target_altitude_resets_to_auto() {
-            let mut test_bed = test_bed_in_cruise()
-                .iterate(10)
-                .command_alt_mode_sel_pb_man()
-                .iterate(10);
+            let mut test_bed = test_bed_in_cruise().iterate(10);
+            let cabin_altitude_at_engagement = test_bed.cabin_altitude();
+            test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
 
-            assert_eq!(test_bed.cabin_target_altitude(), Length::default());
+            // Before the selector turns, the target is the cabin altitude when MAN was engaged (DSC-21-30-20)
+            assert_about_eq!(
+                test_bed.cabin_target_altitude().get::<foot>(),
+                cabin_altitude_at_engagement.get::<foot>(),
+                50.
+            );
 
             test_bed = test_bed.command_alt_sel_knob_value(1000.).iterate(10);
 
@@ -3407,6 +3445,105 @@ mod tests {
                 (test_bed.cabin_target_vertical_speed() - Velocity::default()).abs()
                     < Velocity::new::<foot_per_minute>(5.)
             );
+        }
+
+        #[test]
+        fn man_alt_mode_holds_the_current_cabin_altitude_until_a_target_is_selected() {
+            // DSC-21-30-20 CABIN ALT MODE pb-sw MAN (a380_fcom.txt:7422-7425): "The cabin altitude target remains
+            // steady at the current value until the flight crew manually selects a new cabin altitude target."
+            let mut test_bed = test_bed_in_cruise()
+                .command_alt_sel_knob_value(6000.)
+                .iterate(10);
+            let cabin_altitude = test_bed.cabin_altitude();
+            assert_gt!(cabin_altitude, Length::new::<foot>(500.));
+            assert_lt!(cabin_altitude, Length::new::<foot>(5000.));
+
+            test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
+
+            assert_about_eq!(
+                test_bed.cabin_target_altitude().get::<foot>(),
+                cabin_altitude.get::<foot>(),
+                50.
+            );
+            assert_about_eq!(
+                test_bed.cabin_altitude().get::<foot>(),
+                cabin_altitude.get::<foot>(),
+                50.
+            );
+
+            test_bed = test_bed.command_alt_sel_knob_value(3000.).iterate(10);
+
+            assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 3000., 10.);
+        }
+
+        #[test]
+        fn man_vs_mode_holds_zero_vertical_speed_until_a_target_is_selected() {
+            // DSC-21-30-40 MANUAL OPERATION (a380_fcom.txt:8012-8015): "if no altitude or cabin vertical speed is
+            // selected on the CAB ALT TRGT selector or the V/S TRGT selector: The cabin altitude remains steady,
+            // and the cabin vertical speed is set at 0 ft/min."
+            let mut test_bed = test_bed_in_cruise()
+                .command_vs_sel_knob_value(400.)
+                .iterate(10)
+                .command_vs_mode_sel_pb_man()
+                .iterate(100);
+
+            assert_lt!(
+                test_bed.cabin_target_vertical_speed().abs(),
+                Velocity::new::<foot_per_minute>(5.)
+            );
+
+            test_bed = test_bed.command_vs_sel_knob_value(200.).iterate(100);
+
+            assert_about_eq!(
+                test_bed
+                    .cabin_target_vertical_speed()
+                    .get::<foot_per_minute>(),
+                200.,
+                5.
+            );
+        }
+
+        #[test]
+        fn lost_fms_landing_elevation_regulates_the_cabin_to_7000_ft_in_descent() {
+            // PRO-ABN CAB PRESS LDG ELEVN FAULT (a380_fcom.txt:135437, 135468): "IN DES : CAB ALT REGULATED TO
+            // 7000 FT"
+            let mut test_bed = test_bed_in_descent().fm_landing_elevation_lost().iterate(5);
+
+            assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 7000., 20.);
+        }
+
+        #[test]
+        fn lost_fms_landing_elevation_and_ambient_pressure_regulate_the_cabin_to_7500_ft_in_descent(
+        ) {
+            // PRO-ABN CAB PRESS AUTO CTL FAULT (a380_fcom.txt:134651-134659): "the landing field elevation is fixed
+            // at 7 000 ft (or 7 500 ft if, in addition, the ambient pressure is no longer available)"
+            let mut test_bed = test_bed_in_descent()
+                .fm_landing_elevation_lost()
+                .command_ambient_pressure_fault(true)
+                .iterate(1);
+
+            assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 7500., 20.);
+        }
+
+        #[test]
+        fn fms_landing_elevation_is_the_descent_cabin_target() {
+            let mut test_bed = test_bed_in_descent();
+            test_bed.command_fm_landing_elevation(
+                Length::new::<foot>(1500.),
+                SignStatus::NormalOperation,
+            );
+            test_bed = test_bed.iterate(5);
+
+            assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 1500., 20.);
+        }
+
+        #[test]
+        fn lost_fms_landing_elevation_is_sent_to_the_fws() {
+            let mut test_bed = test_bed_in_cruise().iterate(2);
+            assert!(!test_bed.cpcs_discrete_word_bit(19));
+
+            test_bed = test_bed.fm_landing_elevation_lost().iterate(2);
+            assert!(test_bed.cpcs_discrete_word_bit(19));
         }
 
         #[test]

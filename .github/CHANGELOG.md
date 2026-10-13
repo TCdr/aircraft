@@ -294,6 +294,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BLEED] The CPIOM-A closes an engine bleed for overtemperature, overpressure or a pylon or wing leak, and lights the ENG BLEED FAULT light (also for a bleed valve out of its commanded position); a leak closes the crossbleed valves of its side - @TCdr
 1. [A380X/FAILURES] New ATA 36 failures: engine bleed valves stuck open or closed, pylon and wing bleed duct leaks - @TCdr
 1. [A380X/FWS] New AIR ENG 1(2)(3)(4) BLEED FAULT and AIR ENG BLEED LEAK / L(R) INR(OUTR) WING LEAK alerts; a BLEED FAULT also triggers AIR ABNORM BLEED CONFIG - @TCdr
+1. [A380X/PRESS] Manual cabin pressure modes: the cabin altitude target holds the current cabin altitude, and the cabin V/S target 0 ft/min, until the CABIN ALT TRGT or V/S TRGT selector is turned, instead of jumping to the selector position - @TCdr
+1. [A380X/PRESS] Without the landing elevation of the FMS, the cabin pressure controllers regulate the cabin to 7000 ft in descent (7500 ft also without ambient pressure) instead of 0 ft, and tell the FWS (CPCS word bit 19) - @TCdr
+1. [A380X/ELEC] Generator drive oil system: new flyPad failures DRIVE 1-4 Oil Leak and Oil Cooling Lost, ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO alerts, DRIVE pb FAULT light, automatic generator switch-off or drive disconnection (5 min of low oil level or pressure, oil above 250 C), and drive oil temperatures that no longer reach 200 C at high N2 - @TCdr
+1. [A380X/ELEC] The APU GEN A(B) pb-sw FAULT light comes on when the GGPCU disconnects the APU generator - @TCdr
+1. [A380X/SD] ELEC AC and DC pages: the GEN, TR, STAT INV and RAT indications turn amber when they are failed - @TCdr
+1. [A380X/HYD] The green (yellow) electric pumps are inhibited only by engine 1 or 2 (3 or 4) running, and in flight, as in the FCOM - @TCdr
 
 ## 2024.1.0
 
