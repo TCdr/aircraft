@@ -47,26 +47,28 @@ impl AirIntakeFlap {
             self.is_moving = false;
         } else {
             match controller.signal() {
+                // The position is computed in percent and clamped, so that the flap ends exactly at 0 % or 100 %.
+                // Adding a percent change to the stored ratio left rounding residues (e.g. -7e-16 %): a flap that is
+                // never exactly closed keeps the APU ECB on, and its FAULT never resets.
                 Some(AirIntakeFlapSignal::Open)
                     if { self.open_amount < Ratio::new::<percent>(100.) } =>
                 {
-                    self.open_amount += Ratio::new::<percent>(
-                        self.get_flap_change_for_delta(context)
-                            .min(100. - self.open_amount.get::<percent>()),
-                    );
+                    let open_percent = (self.open_amount.get::<percent>()
+                        + self.get_flap_change_for_delta(context))
+                    .min(100.);
+                    self.open_amount = Ratio::new::<percent>(open_percent);
 
-                    self.is_moving =
-                        (self.open_amount.get::<percent>() - 100.).abs() > f64::EPSILON;
+                    self.is_moving = open_percent < 100.;
                 }
                 Some(AirIntakeFlapSignal::Close)
                     if { self.open_amount > Ratio::new::<percent>(0.) } =>
                 {
-                    self.open_amount -= Ratio::new::<percent>(
-                        self.get_flap_change_for_delta(context)
-                            .min(self.open_amount.get::<percent>()),
-                    );
+                    let open_percent = (self.open_amount.get::<percent>()
+                        - self.get_flap_change_for_delta(context))
+                    .max(0.);
+                    self.open_amount = Ratio::new::<percent>(open_percent);
 
-                    self.is_moving = (self.open_amount.get::<percent>() - 0.).abs() > f64::EPSILON;
+                    self.is_moving = open_percent > 0.;
                 }
                 _ => {
                     self.is_moving = false;
@@ -163,6 +165,10 @@ mod air_intake_flap_tests {
 
         fn flap_is_fully_open(&self) -> bool {
             self.flap.is_fully_open()
+        }
+
+        fn set_flap_travel_time(&mut self, travel_time: Duration) {
+            self.flap.set_travel_time(travel_time);
         }
 
         fn unpower_air_intake_flap(&mut self) {
@@ -395,5 +401,43 @@ mod air_intake_flap_tests {
             test_bed.query(|a| a.flap_open_amount().get::<percent>()),
             0.
         );
+    }
+
+    /// The flap must end exactly closed (0 %) and exactly open (100 %): a rounding residue (e.g. -1e-16 %) kept the
+    /// APU ECB powered for ever (it stays on while the flap is not closed), so its FAULT never reset.
+    #[test]
+    fn ends_exactly_closed_and_open_whatever_the_travel_time_and_start_position() {
+        for travel_time_secs in 12..=18 {
+            for opening_steps in 1..=travel_time_secs + 1 {
+                let mut test_bed = SimulationTestBed::new(TestAircraft::new);
+                test_bed.command(|a| a.set_flap_travel_time(Duration::from_secs(travel_time_secs)));
+
+                test_bed.command(|a| a.command_flap_open());
+                for _ in 0..opening_steps {
+                    test_bed.run_with_delta(Duration::from_secs(1));
+                }
+                if opening_steps > travel_time_secs {
+                    assert_eq!(
+                        test_bed.query(|a| a.flap_open_amount().get::<percent>()),
+                        100.,
+                        "travel time {} s: not exactly open",
+                        travel_time_secs
+                    );
+                }
+
+                test_bed.command(|a| a.command_flap_close());
+                for _ in 0..=travel_time_secs {
+                    test_bed.run_with_delta(Duration::from_secs(1));
+                }
+
+                assert_eq!(
+                    test_bed.query(|a| a.flap_open_amount().get::<percent>()),
+                    0.,
+                    "travel time {} s, opened {} s: not exactly closed",
+                    travel_time_secs,
+                    opening_steps
+                );
+            }
+        }
     }
 }
