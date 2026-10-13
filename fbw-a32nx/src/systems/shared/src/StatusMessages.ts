@@ -131,9 +131,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290400017', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
   ['290400018', { part: StatusPart.Limitation, text: 'FUEL CONSUMPT INCRSD' }],
   ['290400019', { part: StatusPart.Limitation, text: 'FMS PRED UNRELIABLE' }],
-  // 30 ICE AND RAIN PROTECTION (FCOM PRO-ABN-A-ICE ANTI ICE ENG 1(2) VALVE OPEN STATUS, l.68855), see
-  // FWC/Logic/EngineAntiIceAlerts
-  ['300400001', { part: StatusPart.Limitation, text: 'THRUST LIM PENALTY' }],
+  // 30 ICE AND RAIN PROTECTION: ANTI ICE ENG 1(2) VALVE OPEN (FCOM PRO-ABN-A-ICE l.68855, see
+  // FWC/Logic/EngineAntiIceAlerts) gives the THRUST LIM PENALTY line 300400001 above, shared with WING A.ICE L(R) HI PR
   // ANTI ICE ALL PITOT and the pitot pairs STATUS (2019 PDF pages 1977-1989), see FWC/Logic/ProbeWindowHeatAlerts
   ['300500001', { part: StatusPart.Condition, text: 'IF ICING EXPECTED:' }],
   ['300400002', { part: StatusPart.Limitation, text: 'ADR 1 P/B...........OFF' }],
@@ -385,9 +384,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // ANTI ICE ENG 1(2) VALVE CLSD (FCOM PRO-ABN-A-ICE l.68817)
   ['300300002', { part: StatusPart.InopSys, text: 'ENG 1 A. ICE' }],
   ['300300003', { part: StatusPart.InopSys, text: 'ENG 2 A. ICE' }],
-  // WING A.ICE L(R) HI PR (FCOM PRO-ABN-W_A_ICE l.96452) and L/G DOORS NOT CLOSED (PRO-ABN-LG l.89236)
-  ['300300002', { part: StatusPart.InopSys, text: 'WAI REGUL' }],
-  ['320300001', { part: StatusPart.InopSys, text: 'L/G DOOR' }],
+  // WING A.ICE L(R) HI PR (FCOM PRO-ABN-W_A_ICE l.96452), see FWC/Logic/WingAntiIceAlerts
+  ['300300004', { part: StatusPart.InopSys, text: 'WAI REGUL' }],
   // ANTI ICE probe and window heat INOP SYS (2019 PDF pages 1977-1996), see FWC/Logic/ProbeWindowHeatAlerts
   ['300300010', { part: StatusPart.InopSys, text: 'CAPT PITOT' }],
   ['300300011', { part: StatusPart.InopSys, text: 'F/O PITOT' }],
@@ -411,6 +409,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['300300029', { part: StatusPart.InopSys, text: 'R WSHLD HEAT' }],
   ['300300030', { part: StatusPart.InopSys, text: 'L WNDW HEAT' }],
   ['300300031', { part: StatusPart.InopSys, text: 'R WNDW HEAT' }],
+  // L/G DOORS NOT CLOSED (PRO-ABN-LG l.89236)
+  ['320300001', { part: StatusPart.InopSys, text: 'L/G DOOR' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-AIR LEAK DET FAULT l.70631, l.70775, l.69674; APU BLEED LEAK l.69574; PRO-ABN-BLEED
   // BLEED MONIT SYS 1(2) FAULT l.72204, BLEED MONITORING FAULT l.72168), see FWC/Logic/BleedLeakMonitoringAlerts
   ['360300101', { part: StatusPart.InopSys, text: 'ENG 1 LK DET' }],
