@@ -516,3 +516,52 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     expect(definitionOf(A380Failure.RightOuterWingBleedLeak)?.[2]).toBe('Right outer wing bleed duct leak');
   });
 });
+
+describe('A380X slat/flap channel and avionics network failures', () => {
+  // The labels say what a380_systems hydraulic/sfcc does with ids 27010-27013 (F/CTL FLAP(SLAT) SYS 1(2) FAULT,
+  // a380_fcom.txt l.147527-147540, l.148380-148393)
+  it('lists the SFCC flap and slat channel failures in ATA 27 with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [A380Failure.Sfcc1FlapChannel, 'SlatFlapControlComputerFlapChannel(1)', 'SFCC 1 flap channel'],
+      [A380Failure.Sfcc2FlapChannel, 'SlatFlapControlComputerFlapChannel(2)', 'SFCC 2 flap channel'],
+      [A380Failure.Sfcc1SlatChannel, 'SlatFlapControlComputerSlatChannel(1)', 'SFCC 1 slat channel'],
+      [A380Failure.Sfcc2SlatChannel, 'SlatFlapControlComputerSlatChannel(2)', 'SFCC 2 slat channel'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, [27, id, name]]),
+    );
+  });
+
+  // FCOM DSC-42-10/20 (a380_fcom.txt l.94820-94960, l.94964-95066): 16 AFDX switches (8 per network), 4 pairs of IOMs,
+  // 22 CPIOMs in 7 groups. The Rust model names them as the AFDX_SWITCH_n / IOM_xn / CPIOM_xn L:vars.
+  it('lists a failure for every AFDX switch, IOM and CPIOM of the Rust avionics network in ATA 42', () => {
+    const rustMap = readRustFailureMap();
+    const networkIds = [...rustMap.keys()].filter((id) => Math.floor(id / 1000) === 42);
+    expect(networkIds).toHaveLength(16 + 8 + 22);
+    expect(networkIds.filter((id) => !listedIds.includes(id))).toEqual([]);
+
+    expect(rustMap.get(A380Failure.AfdxSwitch9)).toBe('AvionicsFullDuplexSwitch(9)');
+    expect(rustMap.get(A380Failure.AfdxSwitch19)).toBe('AvionicsFullDuplexSwitch(19)');
+    expect(rustMap.get(A380Failure.IomA5)).toBe("InputOutputModule('A',5)");
+    expect(rustMap.get(A380Failure.CpiomC1)).toBe("CoreProcessingInputOutputModule('C',1)");
+    expect(rustMap.get(A380Failure.CpiomD3)).toBe("CoreProcessingInputOutputModule('D',3)");
+    expect(rustMap.get(A380Failure.CpiomG4)).toBe("CoreProcessingInputOutputModule('G',4)");
+
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id)?.[2];
+    expect(nameOf(A380Failure.AfdxSwitch3)).toBe('AFDX switch 3 (network A)');
+    expect(nameOf(A380Failure.AfdxSwitch13)).toBe('AFDX switch 13 (network B)');
+    expect(nameOf(A380Failure.IomA1)).toBe('IOM A1');
+    expect(nameOf(A380Failure.CpiomC2)).toBe('CPIOM C2 (FWS, FCDC)');
+  });
+
+  // TS only: read by the FWS (FwsTailStrikeAlerts), TAIL STRIKE DET FAULT (a380_fcom.txt l.147371-147385)
+  it('lists the tail strike detector failure in ATA 31', () => {
+    expect(A380FailureDefinitions.find(([, id]) => id === A380Failure.TailStrikeDetector)).toEqual([
+      31,
+      31200,
+      'Tail strike detector',
+    ]);
+  });
+});

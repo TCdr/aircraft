@@ -2336,7 +2336,8 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 
 - A32NX_AFDX_SWITCH_<ID>_AVAIL
   - Bool
-  - Indicates if a specific AFDX switch is available
+  - Indicates if a specific AFDX switch is available: powered, and neither A32NX_AFDX_SWITCH_<ID>_FAILURE nor its flyPad
+    failure (ATA 42, ids 42001-42019) is set
 
 - A32NX_CPIOM_<NAME>_FAILURE
   - Bool
@@ -2344,7 +2345,8 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 
 - A32NX_CPIOM_<NAME>_AVAIL
   - Bool
-  - Indicates if a specific CPIOM system is available
+  - Indicates if a specific CPIOM system is available: powered, and neither A32NX_CPIOM_<NAME>_FAILURE nor its flyPad
+    failure (ATA 42, ids 42201-42264) is set
 
 - A32NX_IOM_<NAME>_FAILURE
   - Bool
@@ -2352,7 +2354,8 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 
 - A32NX_IOM_<NAME>_AVAIL
   - Bool
-  - Indicates if a specific IOM system is available
+  - Indicates if a specific IOM system is available: powered, and neither A32NX_IOM_<NAME>_FAILURE nor its flyPad failure
+    (ATA 42, ids 42101-42108) is set
 
 ## Auxiliary Power Unit ATA 49
 
