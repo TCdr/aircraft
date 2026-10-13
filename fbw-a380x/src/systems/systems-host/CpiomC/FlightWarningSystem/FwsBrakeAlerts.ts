@@ -39,7 +39,16 @@ export interface BrakeSteerInputs {
   scs1Fault: boolean;
   /** L:A32NX_STEERING_SCS_2_FAULT */
   scs2Fault: boolean;
+  /** L:A32NX_BRAKES_PEDAL_BRAKING_MODE: 0 none, 1 normal, 2 alternate, 3 emergency (EBCU) */
+  pedalBrakingMode: number;
+  /** A:ANTISKID BRAKES ACTIVE: the A-SKID sw is ON */
+  antiSkidSwitchOn: boolean;
+  /** L:A32NX_BRAKES_AUTO_BRK_FAULT: the autobrake is failed */
+  autoBrkFault: boolean;
 }
+
+/** L:A32NX_BRAKES_PEDAL_BRAKING_MODE value of the emergency braking under EBCU control (no A-SKID) */
+export const PEDAL_BRAKING_MODE_EMERGENCY = 3;
 
 /**
  * Reads the inputs of the BRAKES and STEER alerts.
@@ -59,6 +68,9 @@ export function readBrakeSteerInputs(read: (name: string) => number): BrakeSteer
     bwsFault: read('L:A32NX_STEERING_BWS_FAULT') > 0,
     scs1Fault: read('L:A32NX_STEERING_SCS_1_FAULT') > 0,
     scs2Fault: read('L:A32NX_STEERING_SCS_2_FAULT') > 0,
+    pedalBrakingMode: read('L:A32NX_BRAKES_PEDAL_BRAKING_MODE'),
+    antiSkidSwitchOn: read('A:ANTISKID BRAKES ACTIVE') > 0,
+    autoBrkFault: read('L:A32NX_BRAKES_AUTO_BRK_FAULT') > 0,
   };
 }
 
@@ -111,7 +123,7 @@ export interface BrakeFaultAlerts {
  *   condition "normal braking is failed on all landing gears" (l.160339) is met too.
  * - ALTN BRK FAULT, EMER BRK FAULT: the single faults (l.159848-159850, l.160184-160185). Design choice: with the
  *   normal braking also failed they still show next to NORM BRK FAULT (the FCOM gives no combined alert for these; the
- *   BRAKES A-SKID FAULT that the FCOM lists for emergency braking, l.80061-80067, is not wired).
+ *   emergency braking that follows raises BRAKES A-SKID FAULT ON ALL L/G too, see aSkidFaultOnAllLg).
  * @param normFault the BCS normal braking is failed
  * @param altnFault the BCS alternate braking is failed
  * @param emerFault the EBCU is failed
@@ -126,6 +138,20 @@ export function brakeFaultAlerts(normFault: boolean, altnFault: boolean, emerFau
     altnEmerBrk: altnFault && emerFault && !normFault,
     pedalBraking,
   };
+}
+
+/**
+ * BRAKES A-SKID FAULT ON ALL L/G: "The antiskid is not available on all landing gears (i.e. BCS 1 and BCS 2 failed, or
+ * LEHGS failed when in alternate braking)" (l.159037-159038). The braking system then changes to the emergency braking
+ * ("BRAKES A-SKID FAULT alert is displayed", l.80059-80067). With the A-SKID sw OFF the BRAKES A-SKID OFF alert is
+ * displayed instead (l.80063-80064).
+ * The model has no BCS 1/2 split and no per-wheel-group antiskid: the emergency braking with the A-SKID sw ON is the
+ * loss of the antiskid on all the landing gears (normal braking lost and alternate braking failed).
+ * @param inputs the pedal braking mode and the A-SKID sw
+ * @returns BRAKES A-SKID FAULT ON ALL L/G
+ */
+export function aSkidFaultOnAllLg(inputs: BrakeSteerInputs): boolean {
+  return inputs.antiSkidSwitchOn && inputs.pedalBrakingMode === PEDAL_BRAKING_MODE_EMERGENCY;
 }
 
 /** The STEER alerts that come from the SCS and steering faults */
@@ -202,6 +228,10 @@ export class FwsBrakeAlerts {
   public readonly accuPressLo = Subject.create(false);
   /** BRAKES PARK BRK PRESS LO (320800023) */
   public readonly parkBrkPressLo = Subject.create(false);
+  /** BRAKES A-SKID FAULT ON ALL L/G (320800001) */
+  public readonly aSkidFaultOnAllLg = Subject.create(false);
+  /** BRAKES AUTO BRK FAULT (320800013): "The autobrake is failed" (l.159953) */
+  public readonly autoBrkFault = Subject.create(false);
 
   /** STEER NORM N/W STEER FAULT (320800060) */
   public readonly normNwSteerFault = Subject.create(false);
@@ -238,6 +268,8 @@ export class FwsBrakeAlerts {
     const parkBrakePressureLow =
       parkBrakeOn && Math.min(inputs.altnLeftPressurePsi, inputs.altnRightPressurePsi) < PARK_BRK_PRESS_LO_PSI;
     this.parkBrkPressLo.set(this.parkBrkPressLoConfirm.write(parkBrakePressureLow, deltaTime));
+    this.aSkidFaultOnAllLg.set(aSkidFaultOnAllLg(inputs));
+    this.autoBrkFault.set(inputs.autoBrkFault);
 
     const steer = steerFaultAlerts(inputs);
     this.normNwSteerFault.set(steer.normNw);

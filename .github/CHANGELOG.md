@@ -425,6 +425,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
 ||||||| 19910a87e
 1. [A380X] Fuel jettison on the ground: fuel drops fall from the jettison outlets with the plume; the contrails come from each running engine (one per engine, none from the fuselage) and stop behind an engine that flames out or is shut down - @TCdr
+1. [A380X/HYD] The landing gear extension is inhibited above 280 kt as in the FCOM, instead of 260 kt - @TCdr
+1. [A380X/HYD] The body and wing landing gears need both the GREEN and the YELLOW hydraulic systems and the nose gear GREEN, as in the FCOM: with GREEN or YELLOW lost the main gears no longer retract and the gear extends by gravity - @TCdr
+1. [A380X/HYD] The landing gear gravity extension takes about 70 s from the L/G GRVTY switch to the last gear downlocked, as in the FCOM, instead of about 50 s - @TCdr
+1. [A380X/BRAKES] Emergency braking (A-SKID off or normal and alternate braking lost) is limited to 1 700 psi for taxi-out and take-off and to 1 000 psi after a flight until the PARK BRK handle is set ON, as in the FCOM, instead of 1 160 psi - @TCdr
+1. [A380X/BRAKES] The RTO autobrake no longer activates below 40 kt, as in the FCOM - @TCdr
+1. [A380X/FWS] New BRAKES A-SKID FAULT ON ALL L/G alert in emergency braking with the A-SKID switch on, and new flyPad failure of the autobrake (ATA 32) with its BRAKES AUTO BRK FAULT alert - @TCdr
 
 ## 2024.1.0
 

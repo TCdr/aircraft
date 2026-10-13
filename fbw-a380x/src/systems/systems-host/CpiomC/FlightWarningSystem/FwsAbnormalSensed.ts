@@ -5351,6 +5351,36 @@ export class FwsAbnormalSensed {
       sysPage: SdPages.Wheel,
       inopSysAllPhases: () => ['320300009'],
     },
+    320800001: {
+      // BRAKES A-SKID FAULT ON ALL L/G (l.159033-159140, PDF p.5423-5425): emergency braking with the A-SKID sw ON
+      flightPhaseInhib: [4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeSteerAlerts.aSkidFaultOnAllLg,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [true, true],
+      whichItemsChecked: () => [false, false],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      limitationsApprLdg: () => ['800400002'],
+      inopSysApprLdg: () => ['320300001', '320300002', '220300029'],
+      info: () => [
+        '320200002',
+        '320200003',
+        this.fws.oneEngineRunning.get() ? '800200003' : null,
+        this.fws.oneEngineRunning.get() ? '800200005' : null,
+        this.fws.oneEngineRunning.get() ? '220200017' : null,
+      ],
+    },
+    320800013: {
+      // BRAKES AUTO BRK FAULT (l.159949-159960, PDF p.5447-5448)
+      flightPhaseInhib: [3, 4, 5, 6, 7],
+      simVarIsActive: this.fws.brakeSteerAlerts.autoBrkFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.Wheel,
+      inopSysAllPhases: () => ['320300002'],
+    },
     320800060: {
       // STEER NORM N/W STEER FAULT (l.163094-163150, PDF p.5534)
       flightPhaseInhib: [3, 4, 5, 6, 7, 10],

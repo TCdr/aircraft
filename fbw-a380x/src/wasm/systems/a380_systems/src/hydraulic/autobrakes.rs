@@ -1,4 +1,5 @@
 use systems::{
+    failures::{Failure, FailureType},
     hydraulic::brake_circuit::AutobrakeDecelerationGovernor,
     overhead::PressSingleSignalButton,
     shared::{
@@ -171,6 +172,11 @@ pub struct A380AutobrakeController {
 
     external_deactivation_event_id: VariableIdentifier,
 
+    auto_brk_fault_id: VariableIdentifier,
+    /// The autobrake is failed (flyPad failure 32113): BRAKES AUTO BRK FAULT, "e.g. RTO pb failed, AUTO BRK selector
+    /// failed, position of spoilers not available" (A380 FCOM l.159953-159954)
+    autobrake_failure: Failure,
+
     deceleration_governor: AutobrakeDecelerationGovernor,
     decelerating_light: bool,
 
@@ -216,6 +222,7 @@ impl A380AutobrakeController {
     const HIGH_MODE_DECEL_PROFILE_ACCEL_MS2: [f64; 3] = [4., -2., -3.5];
 
     const RTO_MODE_DECEL_TARGET_MS2: f64 = -6.;
+    const RTO_MIN_ACTIVATION_GROUND_SPEED_KNOT: f64 = 40.;
     const OFF_MODE_DECEL_TARGET_MS2: f64 = 5.;
 
     const MARGIN_PERCENT_TO_TARGET_TO_SHOW_DECEL_IN_LANDING_MODE: f64 = 80.;
@@ -236,6 +243,9 @@ impl A380AutobrakeController {
 
             external_deactivation_event_id: context
                 .get_identifier("AUTOBRAKE_INSTINCTIVE_DISCONNECT".to_owned()),
+
+            auto_brk_fault_id: context.get_identifier("BRAKES_AUTO_BRK_FAULT".to_owned()),
+            autobrake_failure: Failure::new(FailureType::Autobrake),
 
             deceleration_governor: AutobrakeDecelerationGovernor::new(),
             decelerating_light: false,
@@ -328,7 +338,17 @@ impl A380AutobrakeController {
             && self.ground_spoilers_are_deployed // We wait 5s after deploy, but they need to be deployed even if nose compressed
             && (self.ground_spoilers_are_deployed_since_5s.output()
                 || self.nose_gear_was_compressed_once)
+            && self.rto_activation_speed_condition(context)
             && !self.should_disarm(context)
+    }
+
+    /// A380 FCOM DSC-32-10-30-20 (a380_fcom.txt l.79071-79073): "the RTO mode does not activate below 40 kt. If the
+    /// flight crew selects the RTO mode by error above 40 kt during the landing roll, the RTO mode will activate."
+    /// The speed only gates the activation: an RTO braking that is already active continues down to the stop.
+    fn rto_activation_speed_condition(&self, context: &UpdateContext) -> bool {
+        self.mode != A380AutobrakeMode::RTO
+            || self.deceleration_governor.is_engaged()
+            || context.ground_speed().get::<knot>() >= Self::RTO_MIN_ACTIVATION_GROUND_SPEED_KNOT
     }
 
     fn is_armed(&self) -> bool {
@@ -423,6 +443,9 @@ impl A380AutobrakeController {
             || (self.deceleration_governor.is_engaged()
                 && (self.external_deactivation_event && self.mode != A380AutobrakeMode::RTO))
             || (context.is_sim_ready() && !self.arming_is_allowed_by_bcu)
+            // A failed autobrake cannot be armed: STATUS INOP SYS AUTO BRK (BRAKES AUTO BRK FAULT, A380 FCOM PDF
+            // p.5448)
+            || self.autobrake_failure.is_active()
             || self.spoilers_retracted_during_this_update()
             // A380 FCOM DSC-32-10-30 BASIC AUTO BRK DISARMING (a380_fcom.txt l.79081): "The aircraft is in flight for
             // more than 10 s (for RTO mode only)"; "A landing AUTO BRK mode can be armed in flight, and on ground"
@@ -591,6 +614,7 @@ impl A380AutobrakeController {
 }
 impl SimulationElement for A380AutobrakeController {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.autobrake_failure.accept(visitor);
         self.autobrake_knob.accept(visitor);
         self.braking_distance_calculator.accept(visitor);
         self.btv_scheduler.accept(visitor);
@@ -604,6 +628,7 @@ impl SimulationElement for A380AutobrakeController {
         writer.write(&self.decel_light_id, self.is_decelerating());
         writer.write(&self.active_id, self.deceleration_demanded());
         writer.write(&self.rto_mode_armed_id, self.mode == A380AutobrakeMode::RTO);
+        writer.write(&self.auto_brk_fault_id, self.autobrake_failure.is_active());
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {

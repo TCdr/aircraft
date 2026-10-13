@@ -120,6 +120,8 @@ pub enum FailureType {
     BrakeAlternateBraking,
     /// The emergency brake control unit (A380 EBCU): no emergency braking
     BrakeEmergencyBraking,
+    /// The autobrake function cannot be armed (A380 BRAKES AUTO BRK FAULT)
+    Autobrake,
     /// The normal mode of the nose wheel steering (A380 normal NWS)
     NoseWheelSteeringNormal,
     /// The alternate mode of the nose wheel steering (A380 steering LEHGS)

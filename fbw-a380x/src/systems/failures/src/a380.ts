@@ -262,6 +262,8 @@ export const A380Failure = Object.freeze({
   BrakesNormalBraking: 32110,
   BrakesAlternateBraking: 32111,
   BrakesEmergencyBraking: 32112,
+  // AUTO BRK failed: the autobrake cannot be armed (BRAKES AUTO BRK FAULT)
+  BrakesAutobrake: 32113,
   SteeringNormalNoseWheel: 32200,
   SteeringAlternateNoseWheel: 32201,
   SteeringBodyWheel: 32202,
@@ -644,6 +646,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [32, A380Failure.BrakesNormalBraking, 'Brakes normal braking (BCS NORM BRK)'],
   [32, A380Failure.BrakesAlternateBraking, 'Brakes alternate braking (BCS ALTN BRK)'],
   [32, A380Failure.BrakesEmergencyBraking, 'Brakes emergency braking (EBCU)'],
+  [32, A380Failure.BrakesAutobrake, 'Brakes autobrake (AUTO BRK)'],
   [32, A380Failure.SteeringNormalNoseWheel, 'Steering normal nose wheel steering (NORM N/W STEER)'],
   [32, A380Failure.SteeringAlternateNoseWheel, 'Steering alternate nose wheel steering (steering LEHGS)'],
   [32, A380Failure.SteeringBodyWheel, 'Steering body wheel steering (B/W STEER)'],
