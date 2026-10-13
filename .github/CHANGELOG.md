@@ -310,6 +310,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/PRESS] EXCESS CAB ALT in cruise triggers above a cabin altitude of 9550 ft, without the 1000 ft margin above the airfields, as in the FCOM - @TCdr
 1. [A32NX/F_CTL] New flyPad failures of the SFCC 1(2) flap and slat channels: the failed channel no longer drives its motor and the flaps or slats move at half speed - @TCdr
 1. [A32NX/FWC] New F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT cautions with their FCOM STATUS (GPWS FLAP MODE OFF, ENG APPR IDLE ONLY, FLAPS/SLATS SLOW) - @TCdr
+1. [A32NX/ECAM] SD advisory mode: a value pulsing on a system page (APU EGT and flap, cabin altitude, V/S and delta P, IDG oil, engine oil and vibrations, fuel imbalance) calls that page; with one ECAM display its ECP pb flashes - @TCdr
 
 ## 2024.1.0
 
