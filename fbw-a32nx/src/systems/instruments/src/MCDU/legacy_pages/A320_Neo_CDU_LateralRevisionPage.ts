@@ -121,7 +121,18 @@ export class CDULateralRevisionPage {
     }
 
     let holdCell = '';
-    if (isWaypoint) {
+    // A320 FCOM l.14070-14075: a HOLD at the revised waypoint, or at the present position from a lateral revision at
+    // PPOS (the FROM waypoint of the active flight plan, whose LAT REV title shows PPOS, l.17930-17932)
+    const isPresentPositionHold = (isPpos || (isFrom && !isDeparture)) && isActivePlan && !inAlternate;
+    if (isPresentPositionHold) {
+      holdCell = '<HOLD';
+      mcdu.leftInputDelay[2] = () => {
+        return mcdu.getDelaySwitchPage();
+      };
+      mcdu.onLeftInput[2] = () => {
+        CDUHoldAtPage.ShowPresentPositionPage(mcdu);
+      };
+    } else if (isWaypoint) {
       holdCell = '<HOLD';
       mcdu.leftInputDelay[2] = () => {
         return mcdu.getDelaySwitchPage();
