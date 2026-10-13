@@ -504,6 +504,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan, as in the FCOM - @TCdr
 1. [GPU] External power becomes available as soon as the sim's ground power does (GSX GPU, sim GPU or jetway power connected after the flight is loaded), without waiting for the GPU door animation - @TCdr
+1. [A380X/FWS] BRAKES BTV FAULT no longer shows (with a single chime and MASTER CAUT) while engine 2 or 3 is not running, e.g. during the engine start on the ground: an inner engine out makes BTV inoperative through the ENG SHUT DOWN STATUS - @TCdr
 
 ## 2024.1.0
 
