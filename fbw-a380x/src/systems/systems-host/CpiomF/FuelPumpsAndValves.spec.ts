@@ -312,6 +312,26 @@ describe('A380 transfer pump failures', () => {
     expect(simVars.get(leftOuter.faultVar)).toBe(false);
   });
 
+  it('tells what the FQMS commands to a failed pump (CASE 4 alternate transfer, CpiomF/FuelAlternateTransfers)', () => {
+    const leftInnerFwd = A380_TRANSFER_PUMPS.find(({ name }) => name === 'L INR TK FWD')!;
+    simVars.set(`A:FUELSYSTEM TANK QUANTITY:${leftInnerFwd.tank}`, 5000);
+    run(1000);
+    expect(system.isTransferPumpCommandedOn(leftInnerFwd.pump)).toBe(false);
+    activeFailures.add(A380Failure.FuelLeftInnerTankFwdPump);
+    run(1000);
+    // Trigger.1 InnerandMidTanksXferFeed1Start starts the inner tank fwd pumps: the failed one stays off
+    fqmsTrigger(1, true);
+    run(1000);
+    expect(simVars.get(`A:FUELSYSTEM PUMP SWITCH:${leftInnerFwd.pump}`)).toBe(0);
+    expect(system.isTransferPumpCommandedOn(leftInnerFwd.pump)).toBe(true);
+    // Trigger.11 InnerTankLeftEmpty stops it
+    fqmsTrigger(11, true);
+    run(1000);
+    expect(system.isTransferPumpCommandedOn(leftInnerFwd.pump)).toBe(false);
+    // a pump that is not a transfer pump with a failure
+    expect(system.isTransferPumpCommandedOn(17)).toBe(false);
+  });
+
   it('gives the FAULT of a failed pump that the FQMS does not run (no transfer at that time)', () => {
     run(1000);
     activeFailures.add(A380Failure.FuelLeftOuterTankPump);

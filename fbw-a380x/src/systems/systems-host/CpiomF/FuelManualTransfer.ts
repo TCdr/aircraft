@@ -158,12 +158,18 @@ const TRIM_LINE_ISOLATION_VALVE_AFT = 45;
  * A pump whose pb-sw is OFF does not run. A transfer stops when its tank is empty (the MSFS pumps need fuel in their
  * tank), as the FCOM manual transfers do (FUEL INR(MID)(OUTR)(TRIM) TK MAN XFR COMPLETED, l.151085-151086); the feed
  * tanks only receive fuel (no lineup opens a valve out of a feed tank).
+ *
+ * With the TRIM TK FEED selector in ISOL, "The trim tank forward transfer stops and the trim tank transfer line is
+ * isolated" (DSC-28-20, l.58044-58053, CpiomF/FuelTrimTankFeed): the TRIM TK XFR FWD transfer stays selected (the
+ * automatic transfers still wait) but its pumps do not run and the trim line stays closed.
  * @param selection the selected manual transfers
  * @param isPumpPbOn whether the pb-sw of a pump is ON (its circuit connected)
+ * @param trimTankIsolated whether the TRIM TK FEED selector is in ISOL
  */
 export function manualTransferLineup(
   selection: ManualTransferSelection,
   isPumpPbOn: (pump: ManualTransferPump) => boolean,
+  trimTankIsolated = false,
 ): FuelLineup {
   const pumps: number[] = [];
   const valves: number[] = [];
@@ -189,7 +195,7 @@ export function manualTransferLineup(
   if (selection.mid) {
     runPumps(L_MID_TK_AFT_PUMP, R_MID_TK_AFT_PUMP);
   }
-  if (selection.trimForward) {
+  if (selection.trimForward && !trimTankIsolated) {
     runPumps(TRIM_TK_L_PUMP, TRIM_TK_R_PUMP);
     valves.push(TRIM_LINE_ISOLATION_VALVE_AFT);
     if (!aftGalleryToFeedTanks) {
@@ -254,6 +260,8 @@ export interface ManualTransferFuelSystem {
   junctionOption(junction: number): number;
   /** Sets the option of an MSFS junction (FUELSYSTEM_JUNCTION_SET) */
   setJunction(junction: number, option: number): void;
+  /** Whether the TRIM TK FEED selector is in ISOL (CpiomF/FuelTrimTankFeed); not isolated when not given */
+  isTrimTankIsolated?(): boolean;
 }
 
 /** What the manual transfers are doing */
@@ -362,7 +370,11 @@ export class FuelManualTransfer {
 
   private updateActive(selection: ManualTransferSelection, selected: boolean): boolean {
     const lineup = selected
-      ? manualTransferLineup(selection, ({ circuit }) => this.fuelSystem.isPumpPbOn(circuit))
+      ? manualTransferLineup(
+          selection,
+          ({ circuit }) => this.fuelSystem.isPumpPbOn(circuit),
+          this.fuelSystem.isTrimTankIsolated?.() ?? false,
+        )
       : EMPTY_LINEUP;
     const key = lineupKey(lineup);
     if (key !== this.commandedLineupKey) {

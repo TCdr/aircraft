@@ -1961,6 +1961,53 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - TRIMTK (TRIM TK XFR pb-sw)
   - True when the transfer pb-sw is in AUTO (released, no light); false in MAN (FWD for the trim tank: pressed in, MAN / FWD light). Set to true (AUTO) at every flight load by the systems host (CpiomF/LegacyFuel, FuelManualTransfer). While any of them is in MAN / FWD the automatic transfers stop and the systems host runs the manual transfers on the MSFS fuel system (FCOM DSC-28-40 MANUAL TRANSFERS): outer tank pumps via the forward gallery into the four feed tanks (with an outer tank pump pb-sw OFF, the emergency outer tank transfer valves open instead, by gravity into feed tanks 1 and 4), inner and mid tank aft pumps via the aft gallery into the feed tanks, trim tank pumps via the trim line isolation valve and the aft gallery into the inner tanks (into the feed tanks when an inner or mid tank manual transfer is also selected). Back to AUTO, the transfer pumps stop, the transfer valves close and the automatic transfers start again
 
+- A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON
+  - Bool
+  - The AUTO GND XFR pb-sw is pressed: the FQMS runs the automatic ground transfer (CpiomF/FuelGroundTransfer, FCOM DSC-28-50-20): with all the transfer pump pb-sws ON, on ground, fewer than two engines running and the FQMS CG computed (ZFW / ZFCG entered in the FMS), the fuel moves out of (into) the trim tank into (out of) the inner tanks, then the mid tanks, until the GW CG reaches the ground CG target of 39.5 %, at 44 100 lb/h
+
+- A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON
+  - Bool
+  - The light of the AUTO GND XFR pb-sw: on while the pb-sw is pressed (in progress or completed), flashing when the FQMS aborted the ground transfer
+  - Written by the systems host (CpiomF/FuelAutomaticTransfers)
+
+- A380X_FUEL_AUTO_GND_XFR_IN_PROGRESS
+  - Bool
+  - The automatic ground transfer is in progress (GND XFR IN PROGRESS memo)
+
+- A380X_FUEL_AUTO_GND_XFR_COMPLETED
+  - Bool
+  - The automatic ground transfer has completed (the CG reached 39.5 %, or no more fuel can move), until the AUTO GND XFR pb-sw is released (FUEL AUTO GND XFR COMPLETED)
+
+- A380X_FUEL_AUTO_GND_XFR_FAULT
+  - Bool
+  - The automatic ground transfer could not start (a transfer pump pb-sw OFF, no FQMS CG, in flight, a refuel, jettison or manual transfer in progress) or was aborted (two engines running), until the AUTO GND XFR pb-sw is released (FUEL AUTO GND XFR FAULT)
+
+- A380X_OVHD_FUEL_TRIM_TK_FEED_SELECTOR
+  - Number
+  - The TRIM TK FEED selector: 0 AUTO (the value at flight load), 1 OPEN, 2 ISOL. The cockpit model has no such selector: the L:var is set from outside the cockpit (e.g. the developer mode). ISOL stops the transfers out of the trim tank (main and CG transfers of CpiomF/LegacyFuel, load alleviation, TRIM TK XFR FWD): trim tank pumps stopped, trim line valves closed. OPEN lets the trim tank fuel flow by gravity into the inner tanks (1 000 gal/h, pitch attitude below 3°)
+
+- A380X_FUEL_TRIM_TK_GRAVITY_XFR_IN_PROGRESS
+  - Bool
+  - The trim tank fuel flows by gravity into the inner tanks (TRIM TK FEED OPEN)
+
+- A380X_FUEL_LOAD_ALLEVIATION_XFR_{transfer}
+  - Bool
+  - {transfer}
+    - TO_OUTR_TKS: in flight, FOB above 110 200 lb, the outer tanks not full: inner (then mid) tanks to the outer tanks, 44 100 lb/h per outer tank
+    - FROM_TRIM_TK: before landing (remaining time to destination below 80 min for 3 min, or below FL 245 after FL 255; stops above 80 min, resumes below 78 min): trim tank to the feed (then mid, then inner) tanks, 44 100 lb/h
+    - FROM_OUTR_TKS: before landing (the same with 30 and 28 min): outer tanks above 8 800 lb to the feed (then mid, then inner) tanks of their side, 33 050 lb/h per outer tank
+  - The load alleviation transfer is in progress (CpiomF/FuelLoadAlleviation, FCOM DSC-28-30). The remaining time to destination is read from A32NX_FM{number}_REMAINING_FLIGHT_TIME; below 90 min the main transfer thresholds of the feed tanks are also reduced (36 500 lb / 39 350 lb instead of 43 100 lb / 45 950 lb)
+
+- A380X_FUEL_ALTN_OUTR_TK_GRAVITY_XFR_IN_PROGRESS
+  - Bool
+  - The alternate gravity transfer from an outer tank with a failed pump runs (FCOM DSC-28-40 CASE 5: from the lowest feed tank below 28 660 lb, into FEED TK 2 (3), 500 gal/h); the FWS raises FUEL NORM XFR FAULT from it
+
+- A32NX_FM{number}_REMAINING_FLIGHT_TIME
+  - Arinc429<Seconds>
+  - {number} 1 or 2
+  - The predicted time to the destination, no computed data without a prediction
+  - Written by the FMS, read by the FQMS (CpiomF/LegacyFuel, FuelAutomaticTransfers)
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL

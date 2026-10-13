@@ -4881,9 +4881,17 @@
                         <NODE_ID>PUSH_OVHD_REFUEL</NODE_ID>
 						<INOP></INOP>
                     </UseTemplate>
+					<!-- AUTO GND XFR (A380 FCOM DSC-28-20, l.58187-58209): pressed, the FQMS starts the automatic ground transfer
+					     (CpiomF/FuelGroundTransfer). The light is on while the pb-sw is pressed and flashes when the FQMS aborts. -->
 					<UseTemplate Name="FBW_Push_Toggle">
                         <NODE_ID>PUSH_OVHD_AUTO_GND_XFR</NODE_ID>
-						<INOP></INOP>
+                        <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON</TOGGLE_SIMVAR>
+                        <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                        <DISABLE_SEQ1></DISABLE_SEQ1>
+                        <SEQ2_CODE>(L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON, Bool)</SEQ2_CODE>
+                        <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
+                        <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
+                        <TOOLTIPID>%((L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON, Bool))%{if}Stop the automatic ground transfer%{else}Start the automatic ground transfer%{end}</TOOLTIPID>
                     </UseTemplate>
 
 					<!-- MISC -->

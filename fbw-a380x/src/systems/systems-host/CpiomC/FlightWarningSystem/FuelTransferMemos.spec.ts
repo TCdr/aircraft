@@ -23,6 +23,7 @@ const steady: FuelTransferMemoInputs = {
   outerTanksKg: 8000,
   jettisonInProgress: false,
   fuelingInProgress: false,
+  groundTransferInProgress: false,
 };
 
 describe('TankOutflowMonitor', () => {
@@ -62,6 +63,19 @@ describe('fuel transfer memos (A380 FCOM DSC-28-20 MEMO, l.59094-59191)', () => 
     expect(fuelTransferMemos({ ...flowing, fuelingInProgress: true }).outerTankXfrInProgress).toBe(false);
   });
 
+  it('GND XFR IN PROGRESS during the automatic ground transfer, which is no FWD XFR or OUTR TK XFR (l.59149)', () => {
+    const groundTransfer = {
+      ...steady,
+      trimTankOutflow: true,
+      outerTanksOutflow: true,
+      groundTransferInProgress: true,
+    };
+    expect(fuelTransferMemos(groundTransfer).gndXfrInProgress).toBe(true);
+    expect(fuelTransferMemos(groundTransfer).fwdXfrInProgress).toBe(false);
+    expect(fuelTransferMemos(groundTransfer).outerTankXfrInProgress).toBe(false);
+    expect(fuelTransferMemos(steady).gndXfrInProgress).toBe(false);
+  });
+
   it('OUTR TKs XFRD and TRIM TK XFRD when the tanks are empty', () => {
     expect(fuelTransferMemos({ ...steady, outerTanksKg: 0.2 }).outerTanksXfrd).toBe(true);
     expect(fuelTransferMemos({ ...steady, trimTankKg: 0 }).trimTankXfrd).toBe(true);
@@ -74,6 +88,7 @@ describe('fuel transfer memos (A380 FCOM DSC-28-20 MEMO, l.59094-59191)', () => 
     ['280000007', 'outerTankXfrInProgress', '[]'],
     ['280000008', 'outerTanksXfrd', '[1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]'],
     ['280000012', 'trimTankXfrd', '[1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]'],
+    ['280000005', 'gndXfrInProgress', '[3, 4, 5, 6, 7, 8, 9, 10]'],
   ])('memo %s is wired to %s with the FCOM flight phase inhibition %s', (id, subject, phases) => {
     const block = memoBlock(id);
     expect(block).toContain(`simVarIsActive: this.fws.${subject},`);
