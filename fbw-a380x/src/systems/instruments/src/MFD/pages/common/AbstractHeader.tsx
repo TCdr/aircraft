@@ -108,6 +108,8 @@ export abstract class AbstractHeader extends DisplayComponent<AbstractMfdHeaderP
           hEventConsumer={this.props.mfd.hEventConsumer}
           interactionMode={this.props.mfd.interactionMode}
         />
+        {/* System Message Area (A380 FCOM DSC-31-50 l.74416-74429): CHECK FMS MESSAGE, NEW ATIS RECEIVED, ATIS SYS MSG */}
+        <span class="mfd-header-system-message">{this.props.mfd.systemMessage}</span>
         <span class="mfd-header-callsign">{this.props.callsign.map((cs) => (cs !== null ? cs : '----------'))}</span>
       </div>
     );

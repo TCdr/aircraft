@@ -15,6 +15,7 @@ import {
   MappedSubject,
   Subject,
   Subscribable,
+  SubscribableArrayEventType,
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
@@ -37,6 +38,7 @@ import { InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/InputField';
 import { AtcDatalinkSystem } from './ATCCOM/AtcDatalinkSystem';
 import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
 import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
+import { MfdSystemMessageArea } from './shared/MfdSystemMessageArea';
 
 export const getDisplayIndex = () => {
   const url = document.getElementsByTagName('a380x-mfd')[0].getAttribute('url');
@@ -74,6 +76,9 @@ export interface MfdDisplayInterface {
   hEventConsumer: Consumer<[EfisSide, string]>;
 
   interactionMode: Subscribable<InteractionMode>;
+
+  /** The text of the System Message Area of the header, '' when empty (MfdSystemMessageArea) */
+  systemMessage: Subscribable<string>;
 
   openMessageList(): void;
 }
@@ -141,6 +146,11 @@ export class MfdComponent
   private activeHeader: VNode | null = null;
 
   private readonly messageListOpened = Subject.create<boolean>(false);
+
+  /** The System Message Area of the header (A380 FCOM DSC-31-50 l.74416-74429) */
+  private readonly systemMessageArea = new MfdSystemMessageArea();
+
+  public readonly systemMessage = this.systemMessageArea.text;
 
   private readonly duplicateNamesOpened = Subject.create<boolean>(false);
 
@@ -312,6 +322,8 @@ export class MfdComponent
 
     this.subs.push(this.fmsDataKnob, this.fmcAIsHealthy, this.fmcBIsHealthy, this.activeFmsSource);
 
+    this.subscribeSystemMessageArea();
+
     // MODIFY in the mailbox displays the REPORT/MODIFY page (FCOM PRO How to manage a confirm message): on the MFD that
     // displays an ATC COM page, else on the captain MFD
     this.subs.push(
@@ -324,6 +336,39 @@ export class MfdComponent
         }
       }),
     );
+  }
+
+  /** Feeds the System Message Area: the application shown, the FMS message queue, the ATIS of the ATC COM */
+  private subscribeSystemMessageArea(): void {
+    const area = this.systemMessageArea;
+    this.subs.push(this.uiService.activeUri.sub((uri) => area.onApplicationShown(uri.sys), true));
+
+    // "an amber FMS message is pending": in the FMS message queue and not cleared
+    this.subs.push(
+      this.props.fmcService.master.fmsErrors.sub((_, type, item, messages) => {
+        const added = (Array.isArray(item) ? item : [item]) as readonly (
+          | { backgroundColor: string; cleared: boolean }
+          | undefined
+        )[];
+        const newAmberMessage =
+          type === SubscribableArrayEventType.Added && added.some((m) => m?.backgroundColor === 'amber' && !m.cleared);
+        area.onFmsMessages(
+          newAmberMessage,
+          messages.some((m) => m.backgroundColor === 'amber' && !m.cleared),
+        );
+      }),
+    );
+
+    const atc = this.props.atcService;
+    const updateAtis = () =>
+      area.onAtis(
+        atc.atisAreas.map((areaSubject, index) => {
+          const version = atc.atisReport(index)?.Information ?? null;
+          return version !== null && version !== areaSubject.get().readVersion ? version : null;
+        }),
+        atc.atisAreas.map((areaSubject) => areaSubject.get().status),
+      );
+    this.subs.push(atc.atisReportsVersion.sub(updateAtis), ...atc.atisAreas.map((a) => a.sub(updateAtis)));
   }
 
   private onMouseMove(ev: MouseEvent) {
