@@ -9,4 +9,6 @@ export interface MapOptions {
   waypointBoxing: boolean;
   /** Whether to draw secondary flight plan waypoints in white. Defaults to false. */
   secondaryFlightPlanWaypointsInWhite: boolean;
+  /** Highest selected ND range, in NM, at which the TCAS traffic is drawn. Defaults to every range. */
+  trafficMaxRangeNm?: number;
 }

@@ -585,6 +585,25 @@
     - Bool
     - True if GCS switch is set to AUTO.
 
+- A32NX_WXR_GAIN_KNOB
+    - Number
+    - Weather radar GAIN knob: -1 (MIN) to +1 (MAX) in steps of 0.1, 0 = CAL (the normal position). Out of CAL the
+      native ND radar paints at the manual gain (-16 dB at MIN, +10 dB at MAX) and the ND shows MAN GAIN.
+
+- A32NX_WXR_TILT_KNOB
+    - Degrees
+    - Weather radar TILT knob, -15 to +15 in quarters of a degree. Shown on the ND with MULTISCAN set to MAN only; MSFS
+      cannot tilt the radar beam, the picture does not change.
+
+- A32NX_LOUDSPEAKER_{side}_VOLUME
+    - Percent
+    - Glareshield LOUDSPEAKER volume knob of the captain or the first officer, 0 (OFF) to 100. The COM receive volumes
+      are scaled by the louder of the two knobs (0 with both OFF); the aural alerts are not affected. Set to 100 when
+      the flight loads.
+    - {side}
+        - CAPT
+        - FO
+
 - A32NX_OXYGEN_MASKS_DEPLOYED
     - Bool
     - True if cabin oxygen masks have been deployed: MASK MAN ON pb, or automatically when the cabin altitude

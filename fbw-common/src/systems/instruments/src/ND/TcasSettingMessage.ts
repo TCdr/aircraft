@@ -19,7 +19,20 @@ export interface TcasSettingMessage {
 export const ND_ZOOM_RANGE = -1;
 
 /** Highest ND range, in NM, at which the TCAS intruders are displayed. */
-const MAX_TRAFFIC_RANGE_NM = 40;
+export const MAX_TRAFFIC_RANGE_NM = 40;
+
+/**
+ * Whether the ND displays the TCAS traffic at the selected range.
+ * A320 FCOM DSC-34-SURV-60-20 ND INDICATIONS (a320_fcom.txt l.56198): "The traffic is displayed in all ROSE modes and
+ * ARC mode when 10, 20 or 40 NM range is selected." Read with TCAS MESSAGES (l.56266-56269), "TCAS : REDUCE RANGE:
+ * Displayed when a TA or RA is detected and ND range above 40 NM" in any mode: no traffic above 40 NM in ARC or ROSE.
+ * @param rangeNm selected ND range in NM
+ * @param maxRangeNm highest range with traffic, undefined for an aircraft that displays it at every range (A380X)
+ * @returns true when the traffic is displayed
+ */
+export function isTrafficShownAtRange(rangeNm: number, maxRangeNm: number | undefined): boolean {
+  return maxRangeNm === undefined || rangeNm <= maxRangeNm;
+}
 
 /**
  * The TCAS ND setting message, shown while the TCAS has a TA or an RA that the ND cannot display.
