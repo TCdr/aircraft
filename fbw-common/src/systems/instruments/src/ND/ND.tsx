@@ -391,7 +391,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             </svg>
           </div>
           <svg class="nd-svg nd-top-layer" viewBox="0 0 768 768" style="transform: rotateX(0deg);">
-            <TcasWxrMessages bus={this.props.bus} mode={this.currentPageMode} />
+            <TcasWxrMessages bus={this.props.bus} mode={this.currentPageMode} rangeValues={this.props.rangeValues} />
             <FmMessages bus={this.props.bus} mode={this.currentPageMode} fmMessages={this.props.fmMessages} />
             <RwyAheadAdvisory bus={this.props.bus} />
           </svg>
@@ -515,7 +515,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
 
             <Chrono bus={this.props.bus} />
 
-            <TcasWxrMessages bus={this.props.bus} mode={this.currentPageMode} />
+            <TcasWxrMessages bus={this.props.bus} mode={this.currentPageMode} rangeValues={this.props.rangeValues} />
             <FmMessages bus={this.props.bus} mode={this.currentPageMode} fmMessages={this.props.fmMessages} />
             <CrossTrackError
               bus={this.props.bus}
