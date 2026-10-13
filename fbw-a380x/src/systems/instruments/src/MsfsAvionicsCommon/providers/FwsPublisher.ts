@@ -81,6 +81,9 @@ export interface FwsEvents {
   /** Keys of all CANCELLED CAUTIONs to be displayed (cautions which were cancelled via EMER CANC). Unused for now. */
   fws_cancelled_caution: string[];
 
+  /** Keys of the active alerts with MORE INFO on the STATUS MORE page (EcamMoreInfo) */
+  fws_more_info: string[];
+
   /** Show normal (white) attention getter for each engine*/
   fws_normal_attention_getter_eng: boolean[];
 

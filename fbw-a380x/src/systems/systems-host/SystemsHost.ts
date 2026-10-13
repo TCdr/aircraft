@@ -21,6 +21,7 @@ import { FuelJettison } from './CpiomF/FuelJettison';
 import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
 import { FuelLeak } from './CpiomF/FuelLeak';
 import { AutolandLights } from './Misc/AutolandLights';
+import { AtcMsgLights } from './Misc/AtcMsgLights';
 import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
 import { CdsReconfiguration } from './Misc/CdsReconfiguration';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
@@ -203,6 +204,8 @@ class SystemsHost extends BaseInstrument {
 
   private readonly autolandLights = new AutolandLights();
 
+  private readonly atcMsgLights = new AtcMsgLights();
+
   private readonly cabinOxygenMasks = new CabinOxygenMasks();
 
   private readonly cdsReconfiguration = new CdsReconfiguration(this.bus, this.failuresConsumer);
@@ -234,6 +237,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
     this.backplane.addInstrument('AutolandLights', this.autolandLights);
+    this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
     this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
     this.backplane.addInstrument('CdsReconfiguration', this.cdsReconfiguration);
     this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);

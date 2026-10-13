@@ -545,6 +545,13 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/F_CTL] New flyPad failures of the SFCC 1(2) flap and slat channels: half speed flaps or slats and F/CTL FLAP(SLAT) SYS 1(2) / 1+2 FAULT - @TCdr
 1. [A380X/IMA] New flyPad failures (ATA 42) of the 16 AFDX switches, the 8 IOMs and the 22 CPIOMs of the avionics network - @TCdr
 1. [A380X/FWS] New TAIL STRIKE caution (LAND ANSA) from a tail strike detector based on the FCOM geometry limit, and TAIL STRIKE DET FAULT with its flyPad failure - @TCdr
+1. [A380X/FWS] ECAM advisories: an ENGINE (oil quantity, oil temperature, vibration) or CAB PRESS (cabin V/S) value pulsing on the SD calls its page in flight phase mode, lights or flashes its ECP pb and shows ADV on the EWD - @TCdr
+1. [A380X/SD] STATUS MORE page: new ALERTS IMPACTING LDG PERF section, and the MORE INFO line of MISC OIS FAULT - @TCdr
+1. [A380X/MFD] System Message Area in the MFD header: CHECK FMS MESSAGE, NEW ATIS RECEIVED and ATIS SYS MSG while another application is shown - @TCdr
+1. [A380X/ATC] The ATC MSG pbs flash at 2 Hz, the RING sounds only if the message is not read within 15 s (5 s if urgent), and the KCCU MAILBOX key puts the cursor on the SD mailbox - @TCdr
+1. [A32NX/ECAM] SD advisory mode: a value pulsing on a system page (APU EGT and flap, cabin altitude, V/S and delta P, IDG oil, engine oil and vibrations, fuel imbalance) calls that page; with one ECAM display its ECP pb flashes - @TCdr
+1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
+1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
 
 ## 2024.1.0
 

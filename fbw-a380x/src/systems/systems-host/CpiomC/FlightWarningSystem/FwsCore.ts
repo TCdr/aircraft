@@ -57,6 +57,10 @@ import {
   isTimedItem,
   pfdMemoDisplay,
 } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import {
+  alertsImpactingLandingPerformance,
+  alertsWithMoreInfo,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/StatusMore';
 // FIXME should not import from instruments
 import { ProcedureLinesGenerator } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/ProcedureLinesGenerator';
 import PitchTrimUtils from '@shared/PitchTrimUtils';
@@ -372,6 +376,8 @@ export class FwsCore {
   private readonly inopSysAllPhasesKeys = Subject.create<string[]>([]);
   private readonly inopSysApprLdgKeys = Subject.create<string[]>([]);
   private readonly alertsImpactingLdgPerfKeys = Subject.create<string[]>([]);
+  /** The active alerts with MORE INFO on the STATUS MORE page (EcamMessages/StatusMore) */
+  private readonly moreInfoKeys = Subject.create<string[]>([]);
   private readonly inopSysRedundLossKeys = Subject.create<string[]>([]);
 
   // Input buffering
@@ -428,9 +434,12 @@ export class FwsCore {
    * own lists, so the ECP MORE pb does not depend on the SD writing a value back (FwsSystemDisplayLogic).
    */
   public readonly statusMoreAvailable = MappedSubject.create(
-    ([redundancyLossKeys, cancelledCautionKeys]) => isStatusMoreAvailable(redundancyLossKeys, cancelledCautionKeys),
+    ([redundancyLossKeys, cancelledCautionKeys, ldgPerfKeys, moreInfoKeys]) =>
+      isStatusMoreAvailable(redundancyLossKeys, cancelledCautionKeys, ldgPerfKeys, moreInfoKeys),
     this.inopSysRedundLossKeys,
     this.cancelledCautionKeys,
+    this.alertsImpactingLdgPerfKeys,
+    this.moreInfoKeys,
   );
 
   /** FCOM: RCL pb pressed for more than 3 s recalls the alerts cancelled with the EMER CANC pb */
@@ -517,6 +526,9 @@ export class FwsCore {
   public readonly ecamStatusNormal = Subject.create(true); // ECAM STATUS NORMAL
 
   public readonly ecamEwdShowStsIndication = Subject.create(false);
+
+  /** The ADV indication of the EWD, set by the advisory display (FwsSystemDisplayLogic, FwsAdvisories) */
+  public readonly ecamEwdShowAdvIndication = Subject.create(false);
 
   public readonly ecamEwdShowFailurePendingIndication = Subject.create(false);
 
@@ -3421,6 +3433,7 @@ export class FwsCore {
       this.inopSysApprLdgKeys.sub((v) => this.publisher.pub('fws_inop_sys_appr_ldg', v, true)),
       this.alertsImpactingLdgPerfKeys.sub((v) => this.publisher.pub('fws_alerts_impacting_ldg_perf', v, true)),
       this.inopSysRedundLossKeys.sub((v) => this.publisher.pub('fws_inop_sys_redundancy_loss', v, true)),
+      this.moreInfoKeys.sub((v) => this.publisher.pub('fws_more_info', v, true)),
       this.cancelledCautionKeys.sub((v) => this.publisher.pub('fws_cancelled_caution', v, true)),
     );
 
@@ -3545,6 +3558,7 @@ export class FwsCore {
     this.subs.push(
       this.ecamStatusNormal.sub((s) => SimVar.SetSimVarValue('L:A32NX_STATUS_NORMAL', 'boolean', s), true),
       this.ecamEwdShowStsIndication.sub((s) => this.publisher.pub('fws_show_sts_indication', s, true), true),
+      this.ecamEwdShowAdvIndication.sub((s) => this.publisher.pub('fws_show_adv_indication', s, true), true),
       this.ecamEwdShowFailurePendingIndication.sub(
         (s) => this.publisher.pub('fws_show_failure_pending', s, true),
         true,
@@ -7675,6 +7689,16 @@ export class FwsCore {
       this.cancelledCautionKeys.set([...cancelledCautions]);
     }
 
+    // STATUS MORE: ALERTS IMPACTING LDG PERF and MORE INFO of the active alerts (EcamMessages/StatusMore)
+    const ldgPerfKeys = alertsImpactingLandingPerformance(allFailureKeys, EcamAbnormalProcedures);
+    if (ldgPerfKeys.join() !== this.alertsImpactingLdgPerfKeys.get().join()) {
+      this.alertsImpactingLdgPerfKeys.set(ldgPerfKeys);
+    }
+    const moreInfoKeys = alertsWithMoreInfo(allFailureKeys);
+    if (moreInfoKeys.join() !== this.moreInfoKeys.get().join()) {
+      this.moreInfoKeys.set(moreInfoKeys);
+    }
+
     if (this.auralCrcKeys.length === 0) {
       this.auralCrcActive.set(false);
     }
@@ -8114,8 +8138,10 @@ export class FwsCore {
     publisher.pub('fws_alerts_impacting_ldg_perf', [], true);
     publisher.pub('fws_inop_sys_redundancy_loss', [], true);
     publisher.pub('fws_cancelled_caution', [], true);
+    publisher.pub('fws_more_info', [], true);
 
     publisher.pub('fws_show_sts_indication', false, true);
+    publisher.pub('fws_show_adv_indication', false, true);
     publisher.pub('fws_show_failure_pending', false, true);
     publisher.pub('fws_abnormal_primary_engine_parameters_attention_getter', [false, false, false, false]);
     publisher.pub('fws_normal_attention_getter_eng', [false, false, false, false]);

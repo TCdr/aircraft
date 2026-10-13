@@ -16,15 +16,25 @@ import { SdPages } from './EcamSystemPages';
 export const SD_PAGES_WITH_MORE: readonly SdPages[] = [SdPages.Status];
 
 /**
- * Whether the STATUS page has a STATUS MORE page: the REDUND LOSS items or the CANCELLED CAUTION section.
+ * Whether the STATUS page has a STATUS MORE page: the REDUND LOSS items, the ALERTS IMPACTING LDG PERF, the CANCELLED
+ * CAUTION or the MORE INFO section (A380 FCOM DSC-31-40-10 STATUS MORE PAGE, a380_fcom.txt l.72964-72977).
  * @param redundancyLossKeys the STATUS REDUND LOSS items (FwsInopSys entries flagged redundancyLoss)
  * @param cancelledCautionKeys the cautions cancelled with the EMER CANC pb
+ * @param alertsImpactingLdgPerfKeys the active alerts that impact the landing performance (EcamMessages/StatusMore)
+ * @param moreInfoKeys the active alerts with MORE INFO (EcamMessages/StatusMore)
  */
 export function isStatusMoreAvailable(
   redundancyLossKeys: readonly string[],
   cancelledCautionKeys: readonly string[],
+  alertsImpactingLdgPerfKeys: readonly string[] = [],
+  moreInfoKeys: readonly string[] = [],
 ): boolean {
-  return redundancyLossKeys.length > 0 || cancelledCautionKeys.length > 0;
+  return (
+    redundancyLossKeys.length > 0 ||
+    cancelledCautionKeys.length > 0 ||
+    alertsImpactingLdgPerfKeys.length > 0 ||
+    moreInfoKeys.length > 0
+  );
 }
 
 /**

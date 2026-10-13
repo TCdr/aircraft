@@ -1069,6 +1069,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
         | Data       | 1      |
         | Emergency  | 2      |
 
+- `L:A380X_GLARESHIELD_ATC_MSG_LIGHT`
+    - Bool
+    - Read only!
+    - The two ATC MSG pb lights of the glareshield: flashing at 2 Hz (written on and off by the systems host) while
+      `L:A32NX_DCDU_ATC_MSG_WAITING` is set (A380 FCOM DSC-46-10-20-70).
+
 - `L:FBW_RMP_MODE_STANDBY_{vhf_index}`
     - Enum
     - Read only!
@@ -2047,6 +2053,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
       | CRZ   | 13    |
       | STS   | 14    |
       | VIDEO | 15    |
+
+- A380X_ECAM_SD_ADVISORY_PB
+    - Number
+    - Read only!
+    - The ECAM CP page pb lit by an ECAM advisory (steady, or flashing while the crew has another page selected): the
+      page index of A32NX_ECAM_SD_CURRENT_PAGE_INDEX + 1, 0 when none (A380 FCOM DSC-31-40-10 ADVISORY)
 
 
 ## EFIS Control Panel ATA 31
