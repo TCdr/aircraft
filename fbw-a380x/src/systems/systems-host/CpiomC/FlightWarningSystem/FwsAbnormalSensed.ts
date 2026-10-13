@@ -21,6 +21,18 @@ import { isApproachCapabilityDowngradedByRa } from './AutoFlightAlerts';
 import { antiIceItemsChecked, ICE_DETECTED_PHASE_INHIBITION, isSevereIceDetected } from './AntiIceAlerts';
 import { abnormBleedConfigItems, abnormBleedConfigLimitations } from './AbnormBleedConfig';
 import {
+  BLEED_ALERTS_FLIGHT_PHASE_INHIBITION,
+  BLEED_ALERTS_LEVEL,
+  bleedLeakInopSys,
+  bleedLeakItems,
+  bleedLeakLimitations,
+  ENG_BLEED_FAULT_ALERT_IDS,
+  ENG_BLEED_LEAK_ALERT_IDS,
+  engineBleedFaultInopSys,
+  engineBleedFaultItems,
+  WING_LEAK_ALERT_IDS,
+} from './BleedMonitoringAlerts';
+import {
   APU_FAULT_INOP_SYS,
   APU_FAULT_PHASE_INHIBITION,
   apuFaultItemsChecked,
@@ -871,6 +883,38 @@ export class FwsAbnormalSensed {
     return alerts;
   }
 
+  /** AIR ENG n BLEED FAULT and the bleed leak alerts (BleedMonitoringAlerts.ts, ata35-36-42.ts) */
+  private bleedMonitoringAlerts(): EwdAbnormalDict {
+    const alerts: EwdAbnormalDict = {};
+    for (let engine = 0; engine < 4; engine++) {
+      alerts[ENG_BLEED_FAULT_ALERT_IDS[engine]] = {
+        flightPhaseInhib: BLEED_ALERTS_FLIGHT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.engineBleedFault[engine],
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => engineBleedFaultItems(this.fws.bleedMonitoringInputs, engine).show,
+        whichItemsChecked: () => engineBleedFaultItems(this.fws.bleedMonitoringInputs, engine).checked,
+        failure: BLEED_ALERTS_LEVEL,
+        sysPage: SdPages.Bleed,
+        inopSysAllPhases: () => engineBleedFaultInopSys(this.fws.bleedMonitoringInputs, engine),
+      };
+      const leakAlert = (simVarIsActive: Subscribable<boolean>, wing: boolean): EwdAbnormalItem => ({
+        flightPhaseInhib: BLEED_ALERTS_FLIGHT_PHASE_INHIBITION,
+        simVarIsActive,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => bleedLeakItems(this.fws.bleedMonitoringInputs, engine, wing).show,
+        whichItemsChecked: () => bleedLeakItems(this.fws.bleedMonitoringInputs, engine, wing).checked,
+        failure: BLEED_ALERTS_LEVEL,
+        sysPage: SdPages.Bleed,
+        inopSysAllPhases: () => bleedLeakInopSys(this.fws.bleedMonitoringInputs, engine, wing),
+        limitationsAllPhases: () => bleedLeakLimitations(this.fws.bleedMonitoringInputs, engine),
+        limitationsPfd: () => bleedLeakLimitations(this.fws.bleedMonitoringInputs, engine),
+      });
+      alerts[ENG_BLEED_LEAK_ALERT_IDS[engine]] = leakAlert(this.fws.engineBleedLeak[engine], false);
+      alerts[WING_LEAK_ALERT_IDS[engine]] = leakAlert(this.fws.wingBleedLeak[engine], true);
+    }
+    return alerts;
+  }
+
   /**
    * ENG n HP FUEL VLV FAULT (701800053-056) and the FADEC fault crew awareness alerts FUEL STRAINER CLOGGED, FUEL FILTER
    * MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT: A380 FCOM PRO-ABN-ECAM-10-70, see
@@ -920,6 +964,7 @@ export class FwsAbnormalSensed {
 
   public ewdAbnormalSensed: EwdAbnormalDict = {
     ...this.engineStartAlerts(),
+    ...this.bleedMonitoringAlerts(),
     ...this.engineMonitoringAlerts(),
     // ATA 21 - AIR CONDITIONING AND PRESSURIZATION
     211800001: {
