@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, SimVarValueType, Subscribable } from '@microsoft/msfs-sdk';
+import { FWS_VOICE_CLIP_LENGTHS } from './FwsVoiceClips';
 
 const MINIMUM_LOCAL_VAR = 'A32NX_FWS_AUDIO_MINIMUMS';
 const HUNDRED_ABOVE_LOCAL_VAR = 'A32NX_FWS_AUDIO_100_ABOVE';
@@ -267,6 +268,36 @@ export const FwsAuralsList: Record<string, FwsAural> = {
     localVarName: 'A32NX_FWS_AUDIO_5',
     length: 0.3,
     priority: 14,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+
+  // Sidestick priority voices (Logic/SidestickPriorityAurals): WAV clips of tools/fws-voice/generate.py, played by the
+  // sound.xml Wave Data entries. The FCOM gives no priority among the FWC synthetic voices: design choice, below the
+  // radio height callouts and the ROW/ROP, PITCH and SPEED voices.
+  priorityLeft: {
+    localVarName: 'A32NX_FWS_AUDIO_PRIORITY_LEFT',
+    length: FWS_VOICE_CLIP_LENGTHS.priorityLeft,
+    priority: -1,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  priorityRight: {
+    localVarName: 'A32NX_FWS_AUDIO_PRIORITY_RIGHT',
+    length: FWS_VOICE_CLIP_LENGTHS.priorityRight,
+    priority: -1,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  dualInput: {
+    localVarName: 'A32NX_FWS_AUDIO_DUAL_INPUT',
+    length: FWS_VOICE_CLIP_LENGTHS.dualInput,
+    priority: -2,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
+  // WINDSHEAR said three times (one clip), at the reactive windshear warning (a320_fcom.txt l.34229, 45713).
+  // Highest priority of the synthetic voices: a windshear needs immediate action.
+  windshear: {
+    localVarName: 'A32NX_FWS_AUDIO_WINDSHEAR',
+    length: FWS_VOICE_CLIP_LENGTHS.windshear,
+    priority: 30,
     type: FwsAuralWarningType.SyntheticVoice,
   },
 };

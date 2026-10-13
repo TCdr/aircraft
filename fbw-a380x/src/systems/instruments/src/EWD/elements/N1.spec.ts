@@ -15,10 +15,21 @@ describe('A380X EWD N1 red limit and red cross', () => {
 
   it('keeps the red cross after the exceedance until the next engine start on the ground', () => {
     const cross = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
-    cross.update(113.8, false);
-    cross.update(90, false);
+    cross.update(113.8, false, true);
+    cross.update(90, false, true);
     expect(cross.exceeded).toBe(true);
-    cross.update(15, true);
+    cross.update(15, true, true);
+    expect(cross.exceeded).toBe(false);
+  });
+
+  // a380_fcom.txt l.73512-73516: a parameter that is not available shows XX instead of its value
+  it('latches no red cross on an N1 the FADEC does not send (XX) or that is not a finite number', () => {
+    const cross = new ExceedanceMemory(N1_RED_LIMIT_PERCENT);
+    cross.update(120, false, false);
+    expect(cross.exceeded).toBe(false);
+    cross.update(Infinity, false, true);
+    expect(cross.exceeded).toBe(false);
+    cross.update(95, false, true);
     expect(cross.exceeded).toBe(false);
   });
 
@@ -26,9 +37,8 @@ describe('A380X EWD N1 red limit and red cross', () => {
 
   it('latches the N1 exceedance with the engine start on ground', () => {
     expect(n1).toContain('new ExceedanceMemory(N1_RED_LIMIT_PERCENT)');
-    expect(n1).toContain(
-      'this.n1Exceedance.update(this.n1.get(), this.onGround.get() && (state === 2 || state === 3));',
-    );
+    expect(n1).toContain('const groundStart = this.onGround.get() && (state === 2 || state === 3);');
+    expect(n1).toContain('this.n1Exceedance.update(this.n1.get(), groundStart, this.props.active.get());');
   });
 
   it('draws a red cross after the N1 value of the normal and the degraded N1 display', () => {

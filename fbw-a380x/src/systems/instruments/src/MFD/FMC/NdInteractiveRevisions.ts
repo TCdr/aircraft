@@ -30,6 +30,7 @@ export type NdWaypointEntryFms = Pick<
   | 'createLatLonWaypoint'
   | 'createPlaceBearingDistWaypoint'
   | 'createPlaceBearingPlaceBearingWaypoint'
+  | 'createPlaceDistWaypoint'
   | 'getStoredWaypointsByIdent'
 >;
 
@@ -318,6 +319,8 @@ export class NdInteractiveRevisions<P extends FlightPlanPerformanceData> {
         entry.createPlaceBearingDistWaypoint(place, bearing, distance, stored, ident),
       createPlaceBearingPlaceBearingWaypoint: (place1, bearing1, place2, bearing2, stored, ident) =>
         entry.createPlaceBearingPlaceBearingWaypoint(place1, bearing1, place2, bearing2, stored, ident),
+      createPlaceDistWaypoint: (place, distance, coordinates, stored, ident) =>
+        entry.createPlaceDistWaypoint(place, distance, coordinates, stored, ident),
       getStoredWaypointsByIdent: (ident) => entry.getStoredWaypointsByIdent(ident),
       showFmsErrorMessage: (type) => this.fms.showFmsErrorMessage(type),
       // NOT IN DATABASE: no NEW WAYPOINT page from the ND

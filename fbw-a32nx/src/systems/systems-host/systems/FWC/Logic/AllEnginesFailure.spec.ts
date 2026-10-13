@@ -4,7 +4,13 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { ALL_ENGINES_FAILURE_CODES, allEnginesFailureLines, isApuStartLineShown } from './AllEnginesFailure';
+import {
+  ALL_ENGINES_FAILURE_CODES,
+  allEnginesFailureLines,
+  allEnginesFailureStatus,
+  isApuStartLineShown,
+} from './AllEnginesFailure';
+import { pseudoFwcItem, statusLines } from './FwcAlertSpecHelpers';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 
 /* A320 FCOM PRO-ABN-ENG ALL ENGINES FAILURE: "APU (BELOW FL 250) ..... START". */
@@ -78,5 +84,62 @@ describe('ALL ENGINES FAILURE: lines', () => {
     expect(lines).not.toContain('FAC 1');
     expect(lines).toContain('OPT RELIGHT SPD');
     expect(lines).toContain('DIVERSION');
+  });
+});
+
+/* A320 FCOM PRO-ABN-ENG ENG ALL ENGINES FAILURE STATUS (a320_fcom.txt l.79177-79239). */
+describe('ALL ENGINES FAILURE STATUS', () => {
+  it('shows the FCOM limitations, approach procedure and information, in the FCOM order', () => {
+    expect(statusLines(allEnginesFailureStatus()).left).toEqual([
+      'MIN RAT SPEED....140 KT',
+      'MAX SPEED.......320/.77',
+      'MAX BRK PR.....1000 PSI',
+      'MANEUVER WITH CARE',
+      'FUEL GRVTY FEED',
+      'AVOID NEGATIVE G FACTOR',
+      'APPR PROC:',
+      'FOR LDG......USE FLAP 2',
+      'WHEN CONF 2 AND VAPP:',
+      'L/G GRVTY EXTN...AS RQRD',
+      'ALTN LAW: PROT LOST',
+      'WHEN L/G DN: DIRECT LAW',
+      'BRK Y ACCU PR ONLY',
+      'SLATS SLOW',
+      'FLS LIMITED TO F-APP + RAW',
+    ]);
+  });
+
+  it('shows the FCOM INOP SYS list', () => {
+    expect(statusLines(allEnginesFailureStatus()).right).toEqual([
+      'INOP SYS',
+      'G+Y HYD',
+      'F/CTL PROT',
+      'STABILIZER',
+      'R AIL',
+      'REVERSER 1+2',
+      'ADR 2+3',
+      'IR 2+3',
+      'RA 1+2',
+      'SPLR 1+2+4+5',
+      'ELAC 2',
+      'SEC 2+3',
+      'FLAPS',
+      'YAW DAMPER',
+      'A/CALL OUT',
+      'AP 1+2',
+      'A/THR',
+      'FUEL PUMPS',
+      'ANTI SKID',
+      'N/W STRG',
+      'AUTO BRK',
+      'CAT 2',
+      'L/G RETRACT',
+      'CAB PR 1+2',
+      'PACK 1+2',
+    ]);
+  });
+
+  it('is the STATUS of the PseudoFWC ALL ENGINES FAILURE', () => {
+    expect(pseudoFwcItem('7700027')).toContain('...alertStatus(allEnginesFailureStatus)');
   });
 });

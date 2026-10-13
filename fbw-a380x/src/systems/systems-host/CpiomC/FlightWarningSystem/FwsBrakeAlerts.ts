@@ -186,6 +186,23 @@ export function accuPressLoItems(engineRunning: boolean): boolean[] {
   return engineRunning ? [false, false, true, true] : [true, true, false, false];
 }
 
+/**
+ * BRAKES BTV FAULT trigger. FCOM: "The BTV auto-brake mode is failed" (A380 FCOM PRO-ABN-ECAM-10-32 P 29/118, single
+ * chime and MASTER CAUT). The FCDC BTV LOST bit is also set when engine 2 or 3 is not running (Fcdc.cpp
+ * ldgDistAffectedBtvLost), but an inner engine out makes BTV inoperative through the ENG 1(2)(3)(4) SHUT DOWN STATUS,
+ * "BTV (If ENG 2(3) affected)" (a380_fcom.txt l.172781), not through this caution: without the inner engines running,
+ * the caution stays off (an inner engine not yet started on the ground showed it with a single chime). The BTV
+ * inoperative status keeps the FCDC BTV LOST (FwsInopSys 320300007).
+ * @param btvLost the FCDC BTV LOST bit (FwsCore btvLost)
+ * @param engine2Running engine 2 is running
+ * @param engine3Running engine 3 is running
+ * @returns whether BRAKES BTV FAULT triggers
+ */
+export function btvFaultCautionTriggered(btvLost: boolean, engine2Running: boolean, engine3Running: boolean): boolean {
+  const innerEnginesRunning = engine2Running && engine3Running;
+  return btvLost && innerEnginesRunning;
+}
+
 /** BRAKES and STEER alerts from the BCS, EBCU and SCS (A380 FCOM PRO-ABN-ECAM-10-32) */
 export class FwsBrakeAlerts {
   /** BRAKES NORM BRK FAULT (320800020) */

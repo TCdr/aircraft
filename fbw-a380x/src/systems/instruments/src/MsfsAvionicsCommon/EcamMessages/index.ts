@@ -9,7 +9,7 @@ import { EcamAbnormalSensedAta24 } from './AbnormalSensed/ata24';
 import { EcamAbnormalSensedAta26 } from './AbnormalSensed/ata26';
 import { EcamAbnormalSensedAta27, EcamDeferredProcAta27 } from './AbnormalSensed/ata27';
 import { EcamAbnormalSensedAta28 } from './AbnormalSensed/ata28';
-import { EcamAbnormalSensedAta2930 } from './AbnormalSensed/ata29-30';
+import { EcamAbnormalSensedAta2930, EcamDeferredProcAta2930 } from './AbnormalSensed/ata29-30';
 import { EcamAbnormalSensedAta313233, EcamDeferredProcAta313233 } from './AbnormalSensed/ata31-32-33';
 import { EcamAbnormalSensedAta34, EcamDeferredProcAta34 } from './AbnormalSensed/ata34';
 import { EcamAbnormalSensedAta353642 } from './AbnormalSensed/ata35-36-42';
@@ -58,6 +58,8 @@ export const EcamMemos: { [n: string]: string } = {
   '000018001': '\x1b<3mAPU BLEED',
   '000029001': '\x1b<3mSWITCHG PNL',
   '210000001': '\x1b<3mHI ALT AIRPORT',
+  '210000002': '\x1b<3mRAM AIR', // on ground with no engine running (A380 FCOM l.6055-6056)
+  '210000003': '\x1b<4mRAM AIR', // in all other cases (A380 FCOM l.6058)
   '220000001': '\x1b<2mAP OFF',
   '220000002': '\x1b<4mA/THR OFF',
   '221000001': '\x1b<3mFMS SWTG',
@@ -83,6 +85,7 @@ export const EcamMemos: { [n: string]: string } = {
   '230000013': '\x1b<3mSATCOM ALERT',
   '230000014': '\x1b<3mVHF DTLNK MAN SCAN',
   '230000015': '\x1b<3mVHF VOICE',
+  '230000016': '\x1b<3mEVAC ACTIVE',
   '271000001': '\x1b<3mGND SPLRs ARMED',
   '280000001': '\x1b<3mCROSSFEED OPEN',
   '280000013': '\x1b<4mCROSSFEED OPEN',
@@ -235,6 +238,7 @@ export const EcamInfos: { [n: string]: string } = {
   340200018: '\x1b<3m\xa0\xa0FUEL CONSUMPT INCRSD',
   340200019: '\x1b<3m\xa0\xa0FMS PRED UNRELIABLE',
   340200020: '\x1b<3mRISK OF UNDUE STALL WARNING', // NAV AOA DISAGREE STATUS INFO (A380 FCOM l.164451)
+  340200021: '\x1b<3mFLS : RAW ONLY', // NAV FM / GPS POS DISAGREE STATUS INFO (A380 FCOM l.164866-164868)
   280200001: '\x1b<3mMIN FUEL USABLE : OTHER FEED TKs',
   280200002: '\x1b<3m(ALL OTHER FUEL MAYBE LOST)',
   280200003: '\x1b<3mFUEL CONSUMPT INCRSD : FMS PRED DISREGARD',
@@ -589,6 +593,11 @@ export const EcamInopSys: { [n: string]: string } = {
   280300032: '\x1b<4mR MID TK PMPs', // R MID TK FWD+AFT PMPs FAULT (A380 FCOM l.151618)
   280300033: '\x1b<4mTRIM TK R PMP', // TRIM TK R PMP FAULT REDUND LOSS (A380 FCOM l.153740)
   280300034: '\x1b<4mTRIM TK PMPs', // TRIM TK L+R PMPs FAULT (A380 FCOM l.153801)
+  280300050: '\x1b<4mFUEL LEAK DET', // FUEL LEAK DET FAULT (A380 FCOM l.152003-152007)
+  280300051: '\x1b<4mENG 1 LP VLV', // FUEL ENG 1 LP VLV FAULT (A380 FCOM l.149734-149739)
+  280300052: '\x1b<4mENG 2 LP VLV', // FUEL ENG 2 LP VLV FAULT (A380 FCOM l.149734-149739)
+  280300053: '\x1b<4mENG 3 LP VLV', // FUEL ENG 3 LP VLV FAULT (A380 FCOM l.149734-149739)
+  280300054: '\x1b<4mENG 4 LP VLV', // FUEL ENG 4 LP VLV FAULT (A380 FCOM l.149734-149739)
   290100001: '\x1b<4mPART SPLRs',
   290100003: '\x1b<4mFLAP SYS 1',
   290100004: '\x1b<4mFLAP SYS 2',
@@ -628,6 +637,16 @@ export const EcamInopSys: { [n: string]: string } = {
   290300024: '\x1b<4mG ENG 2 PMP A+B',
   290300025: '\x1b<4mY ENG 3 PMP A+B',
   290300026: '\x1b<4mY ENG 4 PMP A+B',
+  // ENG PMP PRESS LO MORE INFO REDUND LOSS "If only one pump is failed" (A380 FCOM l.155090-155091)
+  290300027: '\x1b<4mG ENG 1 PMP A',
+  290300028: '\x1b<4mG ENG 1 PMP B',
+  290300029: '\x1b<4mG ENG 2 PMP A',
+  290300030: '\x1b<4mG ENG 2 PMP B',
+  290300031: '\x1b<4mY ENG 3 PMP A',
+  290300032: '\x1b<4mY ENG 3 PMP B',
+  290300033: '\x1b<4mY ENG 4 PMP A',
+  290300034: '\x1b<4mY ENG 4 PMP B',
+  490300001: '\x1b<4mAPU', // APU FAULT STATUS (A380 FCOM l.170190-170193)
   310300001: '\x1b<4mAUTO CALLOUT',
   310300002: '\x1b<4mFWS 1',
   310300003: '\x1b<4mFWS 2',
@@ -945,6 +964,7 @@ export const EcamAbNormalSensedSubMenuVector: AbnormalNonSensedCategory[] = [
 export const EcamDeferredProcedures: { [n: string]: DeferredProcedure } = {
   ...EcamDeferredProcAta212223,
   ...EcamDeferredProcAta27,
+  ...EcamDeferredProcAta2930,
   ...EcamDeferredProcAta313233,
   ...EcamDeferredProcAta34,
   ...EcamDeferredProcAta70,

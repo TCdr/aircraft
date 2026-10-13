@@ -31,8 +31,17 @@ export function n3ClassName(n3Percent: number): string {
  * @param shownBefore the cross was shown at the previous update
  * @param n3Percent the N3 in percent
  * @param groundStart that engine is starting on the ground (ENGINE_STATE starting or restarting, on ground)
+ * @param n3Valid the N3 is shown (the FADEC is powered, no XX). "If a parameter value on any SD page is not available for
+ *   display, XX appears, instead of the value" (a380_fcom.txt l.73512-73516): an N3 that is not shown, or that is not a
+ *   finite number, is no exceedance.
  * @returns whether the red cross shows
  */
-export function n3RedCrossShown(shownBefore: boolean, n3Percent: number, groundStart: boolean): boolean {
-  return (shownBefore && !groundStart) || n3Percent > N3_RED_LIMIT_PERCENT;
+export function n3RedCrossShown(
+  shownBefore: boolean,
+  n3Percent: number,
+  groundStart: boolean,
+  n3Valid: boolean,
+): boolean {
+  const exceeds = n3Valid && Number.isFinite(n3Percent) && n3Percent > N3_RED_LIMIT_PERCENT;
+  return (shownBefore && !groundStart) || exceeds;
 }

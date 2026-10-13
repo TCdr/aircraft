@@ -176,4 +176,95 @@ describe('A320 flyPad failures', () => {
     expect(wasm).toContain('(73_100, FailureType::EngineFuelFilterClog(1)),');
     expect(wasm).toContain('(73_101, FailureType::EngineFuelFilterClog(2)),');
   });
+
+  // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id
+  // (failure names audit rule): the HP fuel valve sticks, the other faults only raise their FWC alert
+  it('lists the HP fuel valve and FADEC monitoring failures with the Rust failure they trigger', () => {
+    const rustFailureById: [number, number, string, string][] = [
+      [73, A320Failure.Eng1HpFuelValveStuck, 'EngineHpFuelValveStuck(1)', 'Engine 1 HP fuel valve stuck'],
+      [73, A320Failure.Eng2HpFuelValveStuck, 'EngineHpFuelValveStuck(2)', 'Engine 2 HP fuel valve stuck'],
+      [
+        73,
+        A320Failure.Eng1FadecAlternator,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::FadecAlternator)',
+        'Engine 1 FADEC alternator',
+      ],
+      [
+        73,
+        A320Failure.Eng2FadecAlternator,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::FadecAlternator)',
+        'Engine 2 FADEC alternator',
+      ],
+      [
+        73,
+        A320Failure.Eng1OverspeedProtection,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::OverspeedProtection)',
+        'Engine 1 overspeed protection',
+      ],
+      [
+        73,
+        A320Failure.Eng2OverspeedProtection,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::OverspeedProtection)',
+        'Engine 2 overspeed protection',
+      ],
+      [
+        73,
+        A320Failure.Eng1InletProbes,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::InletProbes)',
+        'Engine 1 inlet probes (T12, P0, PT2)',
+      ],
+      [
+        73,
+        A320Failure.Eng2InletProbes,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::InletProbes)',
+        'Engine 2 inlet probes (T12, P0, PT2)',
+      ],
+      [
+        73,
+        A320Failure.Eng1Sensors,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::Sensors)',
+        'Engine 1 core sensors (PS3, T25, T3)',
+      ],
+      [
+        73,
+        A320Failure.Eng2Sensors,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::Sensors)',
+        'Engine 2 core sensors (PS3, T25, T3)',
+      ],
+      [
+        73,
+        A320Failure.ThrustLever1OneResolver,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::OneThrustLeverResolver)',
+        'Thrust lever 1 one resolver',
+      ],
+      [
+        73,
+        A320Failure.ThrustLever2OneResolver,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::OneThrustLeverResolver)',
+        'Thrust lever 2 one resolver',
+      ],
+      [
+        78,
+        A320Failure.Reverser1PermissionSwitch,
+        'EngineMonitoringFault(1,EngineMonitoringFaultKind::ReverserPermissionSwitch)',
+        'Reverser 1 permission switch',
+      ],
+      [
+        78,
+        A320Failure.Reverser2PermissionSwitch,
+        'EngineMonitoringFault(2,EngineMonitoringFaultKind::ReverserPermissionSwitch)',
+        'Reverser 2 permission switch',
+      ],
+    ];
+    // rustfmt splits the long entries over several lines (with a trailing comma): compare without whitespace and
+    // without that comma
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8')
+      .replace(/\s/g, '')
+      .replace(/,\)/g, ')');
+    for (const [chapter, id, rustFailure, label] of rustFailureById) {
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, label]);
+      const rustId = `${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}`;
+      expect(wasm).toContain(`(${rustId},FailureType::${rustFailure}),`);
+    }
+  });
 });

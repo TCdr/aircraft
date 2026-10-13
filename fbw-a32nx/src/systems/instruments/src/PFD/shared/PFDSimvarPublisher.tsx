@@ -57,6 +57,7 @@ export type PFDSimvars = AdirsSimVars &
     setHoldSpeed: boolean;
     tdReached: boolean;
     checkSpeedMode: boolean;
+    checkApprSelection: boolean;
     radioAltitude1: number;
     radioAltitude2: number;
     flexTemp: number;
@@ -225,6 +226,7 @@ export enum PFDVars {
   setHoldSpeed = 'L:A32NX_PFD_MSG_SET_HOLD_SPEED',
   tdReached = 'L:A32NX_PFD_MSG_TD_REACHED',
   checkSpeedMode = 'L:A32NX_PFD_MSG_CHECK_SPEED_MODE',
+  checkApprSelection = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION',
   radioAltitude1 = 'L:A32NX_RA_1_RADIO_ALTITUDE',
   radioAltitude2 = 'L:A32NX_RA_2_RADIO_ALTITUDE',
   flexTemp = 'L:A32NX_AIRLINER_TO_FLEX_TEMP',
@@ -398,6 +400,7 @@ export class PFDSimvarPublisher extends UpdatableSimVarPublisher<PFDSimvars> {
     ['setHoldSpeed', { name: PFDVars.setHoldSpeed, type: SimVarValueType.Bool }],
     ['tdReached', { name: PFDVars.tdReached, type: SimVarValueType.Bool }],
     ['checkSpeedMode', { name: PFDVars.checkSpeedMode, type: SimVarValueType.Bool }],
+    ['checkApprSelection', { name: PFDVars.checkApprSelection, type: SimVarValueType.Bool }],
     ['radioAltitude1', { name: PFDVars.radioAltitude1, type: SimVarValueType.Number }],
     ['radioAltitude2', { name: PFDVars.radioAltitude2, type: SimVarValueType.Number }],
     ['flexTemp', { name: PFDVars.flexTemp, type: SimVarValueType.Number }],

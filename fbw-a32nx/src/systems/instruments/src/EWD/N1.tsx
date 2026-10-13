@@ -21,6 +21,7 @@ import {
   valueRadianAngleConverter,
 } from '../MsfsAvionicsCommon/gauges';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
+import { AvailIndication } from './AvailIndication';
 
 import './style.scss';
 
@@ -38,6 +39,17 @@ export class AvailRev extends DisplayComponent<AvailRevProps> {
   private revVisible = Subject.create('hidden');
 
   private availVisible = Subject.create('hidden');
+
+  /** AVAIL steady on ground / pulsing in flight (AvailIndication.ts) */
+  private availClass = Subject.create('Huge End Green');
+
+  private readonly availIndication = new AvailIndication();
+
+  private onGround = true;
+
+  private tla = 0;
+
+  private lastRealTime: number | null = null;
 
   private fadec: boolean = false;
 
@@ -98,8 +110,32 @@ export class AvailRev extends DisplayComponent<AvailRevProps> {
         this.state = state;
       });
 
-    sub.on('realTime').handle((_t) => {
-      const availVisible = this.n1 > Math.floor(this.idleN1) && this.state === 2;
+    sub
+      .on('left1LandingGear')
+      .whenChanged()
+      .handle((onGround) => {
+        this.onGround = onGround;
+      });
+
+    sub
+      .on(`engine${this.props.engine}Tla`)
+      .whenChanged()
+      .handle((tla) => {
+        this.tla = tla;
+      });
+
+    sub.on('realTime').handle((t) => {
+      const deltaS = this.lastRealTime === null ? 0 : Math.max(0, (t - this.lastRealTime) / 1000);
+      this.lastRealTime = t;
+      const availDisplay = this.availIndication.update(deltaS, {
+        engineState: this.state,
+        n1: this.n1,
+        idleN1: this.idleN1,
+        onGround: this.onGround,
+        tlaDegrees: this.tla,
+      });
+      const availVisible = availDisplay !== 'hidden';
+      this.availClass.set(availDisplay === 'pulse' ? 'Huge End GreenTextPulse' : 'Huge End Green');
       const isVisible = availVisible || this.reverserInTransit || this.reverserDeployed || !this.fadec;
       const revReady = this.fadec && this.reverserDeployed;
 
@@ -120,7 +156,7 @@ export class AvailRev extends DisplayComponent<AvailRevProps> {
         <text class={this.revClass} visibility={this.revVisible} x={34} y={13}>
           {this.revText}
         </text>
-        <text class="Huge End Green" visibility={this.availVisible} x={79} y={13}>
+        <text class={this.availClass} visibility={this.availVisible} x={79} y={13}>
           AVAIL
         </text>
       </g>
@@ -382,6 +418,9 @@ export class N1 extends DisplayComponent<N1Props> {
 
   private onGround = false;
 
+  /** The FADEC sends the engine parameters (L:A32NX_FADEC_POWERED_ENGn): the exceedance memory only latches valid values */
+  private fadecPowered = false;
+
   /** FCOM DSC-70-90-40 (see shared/EngineLimits): amber above the N1 limit, red above the red limit */
   private readonly n1Color = Subject.create('Green');
 
@@ -398,7 +437,7 @@ export class N1 extends DisplayComponent<N1Props> {
     const color = n1Color(this.n1, this.n1LimitPercent);
     this.n1Color.set(color);
     this.n1IndicatorClass.set(color === 'Green' ? 'GaugeIndicator Gauge' : `GaugeIndicator Gauge ${color}`);
-    this.n1Exceedance.update(this.n1, isGroundStartSequence(this.engineState, this.onGround));
+    this.n1Exceedance.update(this.n1, isGroundStartSequence(this.engineState, this.onGround), this.fadecPowered);
     this.n1ExceedanceValue.set(Math.max(Math.min(this.n1Exceedance.highestValue, 110), 20) / 10);
     this.n1ExceedanceClass.set(this.n1Exceedance.exceeded ? 'GaugeExceedanceMark' : 'Hide');
   }
@@ -428,6 +467,8 @@ export class N1 extends DisplayComponent<N1Props> {
       .on(`engine${this.props.engine}Fadec`)
       .whenChanged()
       .handle((f) => {
+        this.fadecPowered = !!f;
+        this.updateN1Limits();
         this.inactiveVisibility.set(f ? 'hidden' : 'visible');
         this.activeVisibility.set(f ? 'visible' : 'hidden');
       });

@@ -33,6 +33,7 @@ use rudder::rudder;
 use spoilers::spoilers;
 use std::error::Error;
 use systems::air_conditioning::{Channel, FdacId, OcsmId, VcmId, ZoneType};
+use systems::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use systems::failures::FailureType;
 use systems::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use systems::shared::{
@@ -594,10 +595,116 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (73_041, FailureType::ThrustLeverResolvers(2)),
         (73_042, FailureType::ThrustLeverResolvers(3)),
         (73_043, FailureType::ThrustLeverResolvers(4)),
+        (28_040, FailureType::EngineLpValveJammed(1)),
+        (28_041, FailureType::EngineLpValveJammed(2)),
+        (28_042, FailureType::EngineLpValveJammed(3)),
+        (28_043, FailureType::EngineLpValveJammed(4)),
         (73_100, FailureType::EngineFuelFilterClog(1)),
         (73_101, FailureType::EngineFuelFilterClog(2)),
         (73_102, FailureType::EngineFuelFilterClog(3)),
         (73_103, FailureType::EngineFuelFilterClog(4)),
+        // FCOM PRO-ABN-ECAM-10-70 ENG HP FUEL VLV FAULT (systems engine/hp_fuel_valve_failure.rs)
+        (73_200, FailureType::EngineHpFuelValveStuck(1)),
+        (73_201, FailureType::EngineHpFuelValveStuck(2)),
+        (73_202, FailureType::EngineHpFuelValveStuck(3)),
+        (73_203, FailureType::EngineHpFuelValveStuck(4)),
+        // The FADEC faults without engine model effect (systems engine/engine_monitoring_fault.rs)
+        (
+            73_110,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_111,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_112,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_113,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_120,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_121,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_122,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_123,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_240,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_241,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_242,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_243,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_250,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_251,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_252,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_253,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_260,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_261,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_262,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_263,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            79_040,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_041,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_042,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_043,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::OilChip),
+        ),
         (78_001, FailureType::ReverserFault(2)),
         (78_002, FailureType::ReverserFault(3)),
         (78_011, FailureType::ReverserUnlocked(2)),
