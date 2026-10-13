@@ -15,9 +15,23 @@ import { isOriginIrsPositionDisagree } from '@fmgc/components/fms-messages/IrsPo
 import { activeRnpMessage } from '@fmgc/components/fms-messages/RnpMessages';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { PILeg } from '@fmgc/guidance/lnav/legs/PI';
+import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
 
 import { NXSystemMessages, TypeIIMessage } from '../shared/NXSystemMessages';
 import type { FlightManagementComputer } from './FlightManagementComputer';
+import { isCheckApproachSelection, ManuallyTunedIls } from './CheckApproachSelection';
+
+/** The PFD reads this L:var to show CHECK APPR SEL on the FMA line 3 (A380 FCOM DSC-22-FG-80-80 l.19241) */
+const CHECK_APPR_SEL_PFD_VAR = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION';
+
+/**
+ * @param leg the final leg of the approach
+ * @returns the frequency in MHz of its recommended navaid, null without one
+ */
+function recommendedNavaidFrequency(leg: { recommendedNavaid?: unknown } | undefined): number | null {
+  const navaid = leg?.recommendedNavaid as { frequency?: unknown } | undefined;
+  return navaid && typeof navaid.frequency === 'number' ? navaid.frequency : null;
+}
 
 /**
  * The leg if it is a procedure turn (PI leg, the only legs with a turn area check), else undefined
@@ -69,22 +83,53 @@ export class FmsAdvisoryMessages {
 
   private readonly takeoffTimeLatch = new MessageTextLatch();
 
+  private readonly checkApprSelLatch = new MessageTextLatch();
+
+  /** CHECK APPR SEL shown on the PFD */
+  private checkApprSelOnPfd = false;
+
   /** The clock (UTC seconds of the day) at the previous cycle, for T.O TIME REACHED */
   private previousClock: number | null = null;
 
   /** The ETT that the clock has reached, null before */
   private reachedTakeoffTime: number | null = null;
 
-  constructor(private readonly fmc: FlightManagementComputer) {}
+  constructor(private readonly fmc: FlightManagementComputer) {
+    // A new FMS (power-up, FMC reset) starts without the PFD message
+    SimVar.SetSimVarValue(CHECK_APPR_SEL_PFD_VAR, 'bool', false);
+  }
 
   /** Checks all the messages, once per FMS cycle */
   update(): void {
     const flightPlanService = this.fmc.flightPlanInterface;
     if (!flightPlanService.hasActive) {
+      this.setCheckApprSelOnPfd(false);
       return;
     }
     const phase = this.fmc.fmgc.data.flightPhase.get();
     const navigation = this.fmc.navigation;
+
+    // CHECK APPR SEL (l.44966-44979): an ILS manually tuned on the POSITION/NAVAIDS page that does not correspond with
+    // the approach of the flight plan, near the T/D, in descent, or in approach above 800 ft (CheckApproachSelection)
+    const mmr = navigation.getNavaidTuner().getMmrRadioTuningStatus(1);
+    const tunedIls: ManuallyTunedIls | null =
+      mmr.manual && (mmr.ident !== null || mmr.frequency !== null)
+        ? { ident: mmr.facility?.ident ?? mmr.ident, frequency: mmr.frequency }
+        : null;
+    const approach = flightPlanService.active.approach;
+    const finalLeg = approach ? approach.legs[approach.legs.length - 1] : undefined;
+    const altitude = navigation.getBaroCorrectedAltitude();
+    const destinationElevation = flightPlanService.active.destinationAirport?.location.alt;
+    const checkApprSel = isCheckApproachSelection(
+      approach ? { type: approach.type, ident: finalLeg?.recommendedNavaid?.ident ?? null } : null,
+      tunedIls,
+      recommendedNavaidFrequency(finalLeg),
+      phase,
+      this.fmc.guidanceController ? distanceToTopOfDescent(this.fmc.guidanceController) : null,
+      altitude !== null && destinationElevation !== undefined ? altitude - destinationElevation : null,
+    );
+    this.apply(this.checkApprSelLatch, checkApprSel ? NXSystemMessages.checkApprSel : null);
+    this.setCheckApprSelOnPfd(checkApprSel);
 
     // AREA RNP IS XX.XX (l.44876-44881) / PROC RNP IS XX.XX (l.45916-45920)
     const rnp = activeRnpMessage(navigation, flightPlanService);
@@ -144,6 +189,14 @@ export class FmsAdvisoryMessages {
         ? NXSystemMessages.toTimeReached
         : null,
     );
+  }
+
+  /** Writes the PFD message L:var on a change */
+  private setCheckApprSelOnPfd(shown: boolean): void {
+    if (shown !== this.checkApprSelOnPfd) {
+      this.checkApprSelOnPfd = shown;
+      SimVar.SetSimVarValue(CHECK_APPR_SEL_PFD_VAR, 'bool', shown);
+    }
   }
 
   /** Sends or recalls the message of a latch */

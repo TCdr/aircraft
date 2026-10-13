@@ -3,7 +3,16 @@
 
 import { describe, expect, it } from 'vitest';
 import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
-import { allGearsDownlocked, GravityExtensionIndication, LgCtlIndication } from './LgersIndications';
+import {
+  allGearsDownlocked,
+  GearDoorIndication,
+  gearDoorIndication,
+  GearTriangle,
+  gearTriangle,
+  GravityExtensionIndication,
+  LgciuGear,
+  LgCtlIndication,
+} from './LgersIndications';
 
 function word(bits: number[], ssm = Arinc429SignStatusMatrix.NormalOperation): Arinc429Register {
   const w = Arinc429Register.empty();
@@ -74,5 +83,62 @@ describe('WHEEL page L/G GRVTY EXTN IN PROGRESS', () => {
     expect(allGearsDownlocked(word(DOWNLOCKED), FAILED)).toBe(true);
     expect(allGearsDownlocked(word([23, 24]), word([25]))).toBe(true);
     expect(allGearsDownlocked(word([23, 24]), word([23, 24]))).toBe(false);
+  });
+});
+
+/* A380 FCOM DSC-32-20-40 LANDING GEAR and LANDING GEAR DOORS indications (a380_fcom.txt l.81086-81103) */
+describe('WHEEL page landing gear triangles', () => {
+  // word 3 bits 11/12/13: left/right/nose gear not uplocked; word 1 bits 23/24/25: downlocked
+  it('shows no triangle when the gear is uplocked', () => {
+    expect(gearTriangle(word([]), word([]), LgciuGear.Left)).toBe(GearTriangle.Hidden);
+  });
+
+  it('shows a green triangle when the gear is downlocked', () => {
+    expect(gearTriangle(word([25]), word([13]), LgciuGear.Nose)).toBe(GearTriangle.Downlocked);
+  });
+
+  it('shows a red triangle when the gear is in transit', () => {
+    expect(gearTriangle(word([]), word([12]), LgciuGear.Right)).toBe(GearTriangle.InTransit);
+  });
+
+  it('reads the bits of its own gear', () => {
+    // right gear downlocked, left gear not uplocked and not downlocked
+    expect(gearTriangle(word([24]), word([11, 12]), LgciuGear.Left)).toBe(GearTriangle.InTransit);
+    expect(gearTriangle(word([24]), word([11, 12]), LgciuGear.Right)).toBe(GearTriangle.Downlocked);
+  });
+
+  it('shows amber crosses when that LGCIS data is lost', () => {
+    expect(gearTriangle(FAILED, word([11]), LgciuGear.Left)).toBe(GearTriangle.Invalid);
+    expect(gearTriangle(word([23]), FAILED, LgciuGear.Left)).toBe(GearTriangle.Invalid);
+  });
+});
+
+describe('WHEEL page landing gear doors', () => {
+  // word 1 bits 17/18/19: left/right/nose door not uplocked; word 3 bits 25/26/27: door fully open
+  it('is closed (green) when the door is uplocked', () => {
+    expect(gearDoorIndication(word([]), word([]), word([]), word([]), LgciuGear.Nose)).toBe(GearDoorIndication.Closed);
+  });
+
+  it('is in transit when the door is not uplocked and not fully open', () => {
+    expect(gearDoorIndication(word([17]), word([17]), word([]), word([]), LgciuGear.Left)).toBe(
+      GearDoorIndication.InTransit,
+    );
+  });
+
+  it('is open when the door is fully open', () => {
+    expect(gearDoorIndication(word([18]), word([18]), word([26]), word([26]), LgciuGear.Right)).toBe(
+      GearDoorIndication.Open,
+    );
+  });
+
+  it('uses the valid LGCIS when the other is lost, amber crosses when both are lost', () => {
+    expect(gearDoorIndication(FAILED, word([19]), FAILED, word([27]), LgciuGear.Nose)).toBe(GearDoorIndication.Open);
+    expect(gearDoorIndication(FAILED, FAILED, FAILED, FAILED, LgciuGear.Nose)).toBe(GearDoorIndication.Invalid);
+  });
+
+  it('reads the bits of its own door', () => {
+    expect(gearDoorIndication(word([17]), word([17]), word([25]), word([25]), LgciuGear.Right)).toBe(
+      GearDoorIndication.Closed,
+    );
   });
 });

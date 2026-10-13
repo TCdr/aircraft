@@ -597,6 +597,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
 1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
 1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
+1. [A380X/SD] WHEEL page: the ECP MORE key shows the WHEEL MORE page, BRK CTL and STEER CTL lines show a failed BCS, EBCU or SCS, AUTO BRAKE only on an autobrake failure, green or amber arc on the hottest brake, gear triangles and doors from LGCIS 1 and 2 - @TCdr
+1. [A380X/SD] FUEL page: the ECP MORE key shows the FUEL MORE page - @TCdr
+1. [A380X/PFD] FMA line 3: EXTEND SPD BRK, RETRACT SPD BRK and CHECK APPR SEL now show; CHECK APPR SEL also on the MFD - @TCdr
 
 ## 2024.1.0
 

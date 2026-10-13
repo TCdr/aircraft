@@ -563,6 +563,12 @@
     - Bool
     - Indicates if the FMS predicted fuel at destination is below minimum.
 
+- A32NX_PFD_MSG_CHECK_APPR_SELECTION
+    - Bool
+    - Indicates if the CHECK APPR SEL message is shown on the PFD FMA (FMS: an ILS manually tuned on the
+      POSITION/NAVAIDS page that does not correspond with the approach of the flight plan, in cruise less than 100 NM
+      from the T/D, in descent, or in approach above 800 ft)
+
 - A380X_FM_APPROACH_HEADWIND_COMPONENT
     - Arinc429<Knots>
     - The headwind component calculated by the fms based on the inserted approach wind and runway. Negative value indicates a tailwind component.

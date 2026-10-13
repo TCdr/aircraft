@@ -85,6 +85,8 @@ export const NXSystemMessages = {
   checkDestData: new TypeIIMessage('CHECK DEST DATA', true),
   checkMinFuelAtDest: new TypeIIMessage('CHECK MIN FUEL AT DEST'),
   checkSpeedMode: new TypeIIMessage('CHECK SPD MODE'),
+  /** A380 FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.44966-44979), MFD and PFD (FmsAdvisoryMessages) */
+  checkApprSel: new TypeIIMessage('CHECK APPR SEL'),
   checkToData: new TypeIIMessage('CHECK T.O. DATA', true),
   checkZfw: new TypeIIMessage('CHECK ZFW', true),
   comFplnReceivedPendingInsertion: new TypeIIMessage('COMPANY F-PLN RECEIVED\nWAITING FOR INSERTION', false),
