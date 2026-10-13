@@ -156,13 +156,8 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
         <SurvStatusButton
           label={`SYS ${sys}`}
           active={active}
-          onClick={() =>
-            SimVar.SetSimVarValue(
-              'L:A32NX_WXR_TAWS_SYS_SELECTED',
-              SimVarValueType.Number,
-              active.get() ? 0 : one ? 1 : 2,
-            )
-          }
+          // A380 FCOM DSC-34-20-60-20: the SYS button selects that WXR/TAWS system (one is always selected)
+          onClick={() => SimVar.SetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number, one ? 1 : 2)}
         />,
         [
           {

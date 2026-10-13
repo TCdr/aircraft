@@ -1362,6 +1362,23 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     await this.insertElementAfter(index, leg, true);
   }
 
+  /**
+   * Inserts a PLACE/DIST waypoint on the leg after its place (positive distance) or before it (negative distance, A380
+   * FCOM l.24831-24832: "inserted "before" the revised waypoint"). The waypoint is on the flight plan path, so no
+   * discontinuity is added (see PlaceDistance.ts).
+   *
+   * @param placeLegIndex the index of the place waypoint
+   * @param waypoint the PLACE/DIST waypoint
+   * @param distance the signed distance from the place along the flight plan, NM
+   */
+  async insertPlaceDistanceWaypoint(placeLegIndex: number, waypoint: Fix, distance: number) {
+    const afterIndex = distance < 0 ? placeLegIndex - 1 : placeLegIndex;
+    const [insertSegment] = this.segmentPositionForIndex(afterIndex);
+    const leg = FlightPlanLeg.fromEnrouteFix(insertSegment, waypoint, undefined, LegType.TF);
+
+    await this.insertElementAfter(afterIndex, leg, false);
+  }
+
   protected requiresTurnDirectionAt(index: number): boolean {
     const leg = this.maybeElementAt(index);
 

@@ -27,5 +27,19 @@ export interface FmsDataInterface {
     ident?: string,
   ): PilotWaypoint | null;
 
+  /**
+   * Creates a PLACE/DIST waypoint
+   * @param place the place waypoint of the flight plan
+   * @param distance the signed distance along the flight plan, NM (negative: before the place)
+   * @param coordinates the position of the waypoint on the flight plan
+   */
+  createPlaceDistWaypoint(
+    place: Fix,
+    distance: NauticalMiles,
+    coordinates: Coordinates,
+    stored?: boolean,
+    ident?: string,
+  ): PilotWaypoint | null;
+
   getStoredWaypointsByIdent(ident: string): PilotWaypoint[];
 }

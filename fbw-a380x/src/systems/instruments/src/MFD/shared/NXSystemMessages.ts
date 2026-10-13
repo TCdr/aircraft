@@ -146,6 +146,8 @@ export const NXSystemMessages = {
   pilotRtesListFull: new TypeIMessage('PILOT RTEs LIST FULL'),
   rteIdentAlreadyUsed: new TypeIMessage('RTE IDENT ALREADY USED'),
   someRevisionsNotStored: new TypeIMessage('SOME REVISIONS NOT STORED'),
+  // FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.45865-45870): a PLACE/DISTANCE waypoint whose PLACE is not the revised waypoint
+  placeWptDisagree: new TypeIMessage('PLACE / WPT DISAGREE'),
 };
 
 export const NXFictionalMessages = {
