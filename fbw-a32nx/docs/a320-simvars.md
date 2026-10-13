@@ -1831,6 +1831,21 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Bool
     - Whether the ADR push button is in the ON position.
 
+- A32NX_ADIRS_ADR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The ADR FAULT discrete of ADIRU {number}: a fault is detected in its air data reference part (ADR FAULT light,
+      FWC NAV ADR FAULT alerts). False while the ADIRU is not supplied or its mode selector is OFF.
+
+- A32NX_ADIRS_IR_{number}_FAULT_WARN_DISCRETE
+    - Bool
+    - The IR FAULT discrete of ADIRU {number}: a short flash at the start of an alignment, steady when its inertial
+      reference part has failed (IR FAULT light, FWC NAV IR FAULT alerts).
+
+- A32NX_ADIRS_EXTERNAL_HORN
+    - Bool
+    - The external horn in the nose gear bay sounds: the aircraft is on the ground and at least one IR is supplied by the
+      batteries (FCOM DSC-34-NAV-10-20 ON BAT light).
+
 - A32NX_ATT_HDG_SWITCHING_KNOB
     - ATT HDG
     - Position (0-2)

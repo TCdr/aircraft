@@ -429,6 +429,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
 1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically, as in the FCOM - @TCdr
 1. [A380X/FWS] Smart FIVE HUNDRED callout: the flyPad pin programming "Inhibited When Glideslope Captured" is back and calls FIVE HUNDRED only when more than half a dot off the glideslope - @TCdr
+1. [ADIRS] New ADR 1-3 and IR 1-3 fault failures in the flyPad (ATA 34): the air or inertial data of that ADIRU part are lost and its FAULT light comes on (A32NX also gets the ADR airspeed / angle of attack and IR heading erroneous failures) - @TCdr
+1. [ADIRS] The ADIRUs are now supplied by their buses: without its AC bus an ADR is lost and its IR runs on the batteries (A32NX: ON BAT light, external horn on the ground, IR 2 and 3 for 5 min) or on its DC busbar (A380X) - @TCdr
+1. [A32NX/ADIRS] The ON BAT light no longer comes on at the start of a fast alignment, as in the FCOM - @TCdr
+1. [A32NX/FWC] New NAV ADR 1(2)(3) FAULT, ADR 1+2(1+3)(2+3) FAULT, ADR 1+2+3 FAULT, ADR DISAGREE, IR 1(2)(3) FAULT, IR 1+2(1+3)(2+3) FAULT and IR DISAGREE alerts with their procedures and STATUS - @TCdr
+1. [A32NX/FWC] New NAV RA 1 AND 2 FAULT (instead of the two RA FAULT alerts) and NAV RA DEGRADED alerts; NAV RA 1(2) FAULT now has its STATUS (CAT 2 ONLY, INOP SYS RA 1(2) and CAT 3) - @TCdr
+1. [A380X/FWS] An ADR that lost its DC busbar no longer gives a NAV ADR FAULT alert on top of the ELEC busbar alert - @TCdr
 
 ## 2024.1.0
 

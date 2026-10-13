@@ -162,4 +162,25 @@ describe('A320 flyPad failures', () => {
     expect(wasm).toContain('(73_100, FailureType::EngineFuelFilterClog(1)),');
     expect(wasm).toContain('(73_101, FailureType::EngineFuelFilterClog(2)),');
   });
+
+  // The ids are the Rust failure ids of a320_systems_wasm (systems navigation/adirs.rs)
+  it('lists the ADIRS failures in ATA 34 Navigation with the Rust failure they trigger', () => {
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    const expected: [number, string, string][] = [
+      [34070, 'AdrFault(1)', 'ADR 1 (air data lost, FAULT light)'],
+      [34072, 'AdrFault(3)', 'ADR 3 (air data lost, FAULT light)'],
+      [34081, 'IrFault(2)', 'IR 2 (inertial data lost, FAULT light)'],
+      [34090, 'AdrAirspeedErroneous(1)', 'ADR 1 airspeed erroneous (pitot)'],
+      [34102, 'AdrAngleOfAttackErroneous(3)', 'ADR 3 angle of attack erroneous'],
+      [34110, 'IrHeadingErroneous(1)', 'IR 1 heading erroneous'],
+    ];
+    for (const [id, failureType, name] of expected) {
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([34, id, name]);
+      expect(wasm).toContain(
+        `(${Math.floor(id / 1000)}_${String(id % 1000).padStart(3, '0')}, FailureType::${failureType}),`,
+      );
+    }
+    const adirsFailures = A320FailureDefinitions.filter(([, id]) => id >= 34070 && id <= 34112);
+    expect(adirsFailures.length).toBe(15);
+  });
 });

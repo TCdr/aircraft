@@ -178,7 +178,7 @@ import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
 import { isToConfigNormal } from './ToConfigNormal';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
 import { FwsGearAlerts } from './FwsGearAlerts';
-import { FwsNavAlerts, readSideDisplayData } from './FwsNavAlerts';
+import { FwsNavAlerts, adrFaultyForNavAlerts, readSideDisplayData } from './FwsNavAlerts';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -4275,9 +4275,15 @@ export class FwsCore {
         this.ir3MaintWord.bitValueOr(13, false),
     );
 
-    this.adr1Faulty.set(!(!this.acESSBusPowered.get() || flightPhase112) && adr1Fault);
-    this.adr2Faulty.set(!(!this.ac4BusPowered.get() || flightPhase112) && adr2Fault);
-    this.adr3Faulty.set(!(!this.ac2BusPowered.get() || flightPhase112) && adr3Fault);
+    this.adr1Faulty.set(
+      adrFaultyForNavAlerts(adr1Fault, this.acESSBusPowered.get(), this.dcESSBusPowered.get(), flightPhase112),
+    );
+    this.adr2Faulty.set(
+      adrFaultyForNavAlerts(adr2Fault, this.ac4BusPowered.get(), this.dc2BusPowered.get(), flightPhase112),
+    );
+    this.adr3Faulty.set(
+      adrFaultyForNavAlerts(adr3Fault, this.ac2BusPowered.get(), this.dc1BusPowered.get(), flightPhase112),
+    );
     this.airDataAlerts.update(readAirDataAlertInputs((name, unit) => SimVar.GetSimVarValue(name, unit)));
 
     // GPS receivers: GPS_n_MODE 4 is FAULT (a failure prevents the receiver from transmitting valid data)

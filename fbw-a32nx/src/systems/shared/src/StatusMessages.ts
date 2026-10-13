@@ -84,6 +84,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400006', { part: StatusPart.Limitation, text: 'CONSIDER ENG 1 RELIGHT' }],
   ['700500004', { part: StatusPart.Condition, text: 'IF NO ENG 2 DAMAGE:' }],
   ['700400007', { part: StatusPart.Limitation, text: 'CONSIDER ENG 2 RELIGHT' }],
+  // 34 NAVIGATION (FCOM PRO-ABN-NAV NAV ADR 1+2+3 FAULT STATUS, l.92277), see FWC/Logic/AdirsAlerts
+  ['340400001', { part: StatusPart.Limitation, text: 'STBY INST..MAY BE UNREL' }],
   // 27 FLIGHT CONTROLS (FCOM PRO-ABN-F_CTL STATUS, a320_fcom.txt l.82568-83853), see FWC/Logic/FlightControlStatus
   ['270400001', { part: StatusPart.Limitation, text: 'MAX SPEED........320 KT' }],
   ['270400002', { part: StatusPart.Limitation, text: 'MAX SPEED.......320/.77' }],
@@ -97,6 +99,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['270400009', { part: StatusPart.Limitation, text: 'MAN PITCH TRIM......USE' }],
   ['270400010', { part: StatusPart.Limitation, text: 'APPR SPD.....VREF+10 KT' }],
   ['270400011', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
+  // 34 NAVIGATION (FCOM PRO-ABN-NAV NAV ADR 1+2(1+3)(2+3) and 1+2+3 FAULT STATUS, l.92144, l.92282)
+  ['340400002', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
   // 80 STARTING (A320neo FCOM PRO-ABN-ENG ENG 1(2) START FAULT STATUS, STARTER SHAFT SHEAR)
   ['800400001', { part: StatusPart.Limitation, text: 'ENG 1 WINDMILL START ONLY' }],
   ['800400002', { part: StatusPart.Limitation, text: 'ENG 2 WINDMILL START ONLY' }],
@@ -146,6 +150,11 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, l.81263)
   ['700200001', { part: StatusPart.Information, text: 'ONE PACK ONLY IF WAI ON' }],
   // 34 NAVIGATION
+  // NAV ADR DISAGREE (l.92521-92523) and NAV IR 1(2)(3) / 1+2(1+3)(2+3) FAULT (l.93374, l.93505) STATUS, see
+  // FWC/Logic/AdirsAlerts
+  ['340500001', { part: StatusPart.Condition, text: 'IF NO SPD DISAGREE:' }],
+  ['340200010', { part: StatusPart.Information, text: 'RISK OF UNDUE STALL WARN' }],
+  ['340200011', { part: StatusPart.Information, text: 'IR MAY BE AVAIL IN ATT' }],
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-AIR ENG 1(2) HP VALVE FAULT STATUS, a320_fcom.txt l.70595), see
   // FWC/Logic/BleedLeakMonitoringAlerts
@@ -307,6 +316,23 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280300009', { part: StatusPart.InopSys, text: 'CTR TK R XFR' }],
   ['280300010', { part: StatusPart.InopSys, text: 'CTR TK XFR' }],
   // 34 NAVIGATION
+  // NAV ADR, IR and RA alerts INOP SYS (FCOM PRO-ABN-NAV), see FWC/Logic/AdirsAlerts; ADR 1(2)(3), RA 1(2) and the
+  // lines of other chapters keep their codes
+  ['340300020', { part: StatusPart.InopSys, text: 'REAC W/S DET' }],
+  ['340300021', { part: StatusPart.InopSys, text: 'ADR 1+2' }],
+  ['340300022', { part: StatusPart.InopSys, text: 'ADR 1+3' }],
+  ['340300023', { part: StatusPart.InopSys, text: 'ADR 2+3' }],
+  ['340300024', { part: StatusPart.InopSys, text: 'ADR 1+2+3' }],
+  ['340300025', { part: StatusPart.InopSys, text: 'IR 1' }],
+  ['340300026', { part: StatusPart.InopSys, text: 'IR 2' }],
+  ['340300027', { part: StatusPart.InopSys, text: 'IR 3' }],
+  ['340300028', { part: StatusPart.InopSys, text: 'IR 1+2' }],
+  ['340300029', { part: StatusPart.InopSys, text: 'IR 1+3' }],
+  ['340300030', { part: StatusPart.InopSys, text: 'IR 2+3' }],
+  ['340300031', { part: StatusPart.InopSys, text: 'RA 1+2' }],
+  ['340300032', { part: StatusPart.InopSys, text: 'RUD TRV LIM' }],
+  ['340300033', { part: StatusPart.InopSys, text: 'CAB PR 1+2' }],
+  ['340300034', { part: StatusPart.InopSys, text: 'A/CALL OUT' }],
   ['340300001', { part: StatusPart.InopSys, text: 'GPS 1' }],
   ['340300002', { part: StatusPart.InopSys, text: 'GPS 2' }],
   ['340300003', { part: StatusPart.InopSys, text: 'GPS 1+2' }],
