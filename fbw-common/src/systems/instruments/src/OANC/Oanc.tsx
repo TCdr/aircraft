@@ -63,6 +63,7 @@ import { OancAircraftIcon } from './OancAircraftIcon';
 import { OancLabelManager } from './OancLabelManager';
 import { OancPositionComputer } from './OancPositionComputer';
 import { OancMarkerManager } from './OancMarkerManager';
+import { isOansDestinationArrowShown } from './OancDestinationArrow';
 import { ResetPanelSimvars } from './ResetPanelPublisher';
 import { NavigraphAmdbClient } from './api/NavigraphAmdbClient';
 import { isAirportNotInActiveFpln, isFmsSelectedRunway, pointAngle } from './OancMapUtils';
@@ -142,6 +143,11 @@ export interface OancProps<T extends number> extends ComponentProps {
   contextMenuY?: Subject<number>;
   contextMenuItems?: ContextMenuItemData[];
   zoomValues: T[];
+  /**
+   * The OANS range the destination arrow needs (A380: 5 NM, see OancDestinationArrow); undefined: shown at any range
+   * while the airport is out of range
+   */
+  destinationArrowRangeNm?: number;
 }
 
 export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
@@ -311,6 +317,18 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
   public readonly previousZoomLevelIndex: Subject<number> = Subject.create(this.props.zoomValues.length - 1);
 
   public readonly zoomLevelIndex: Subject<number> = Subject.create(this.props.zoomValues.length - 1);
+
+  /** The destination arrow (A380 FCOM DSC-34-10-70-20, see OancDestinationArrow) */
+  private readonly destinationArrowVisible = MappedSubject.create(
+    ([airportWithinRange, zoomLevelIndex]) =>
+      isOansDestinationArrowShown(
+        airportWithinRange,
+        this.props.zoomValues[zoomLevelIndex],
+        this.props.destinationArrowRangeNm,
+      ),
+    this.airportWithinRange,
+    this.zoomLevelIndex,
+  );
 
   public readonly canvasCentreReferencedMapParams = new MapParameters();
 
@@ -1755,7 +1773,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
             ndMode={this.overlayNDModeSub}
             rotation={this.interpolatedMapHeading}
             isMapPanned={this.isMapPanned}
-            airportWithinRange={this.airportWithinRange}
+            destinationArrowVisible={this.destinationArrowVisible}
             airportBearing={this.airportBearing}
             airportIcao={this.dataAirportIcao}
           />
@@ -1770,7 +1788,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
               ndMode={this.overlayNDModeSub}
               rotation={this.interpolatedMapHeading}
               isMapPanned={this.isMapPanned}
-              airportWithinRange={this.airportWithinRange}
+              destinationArrowVisible={this.destinationArrowVisible}
               airportBearing={this.airportBearing}
               airportIcao={this.dataAirportIcao}
             />

@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
-import { BC3Messages, computeBC3Message, isCheckEoSpeedSetting } from './FMADefinitions';
+import { BC3Messages, computeBC3Message, D1D2Messages, getD1D2Lines, isCheckEoSpeedSetting } from './FMADefinitions';
 
 function word(bits: number[] = []): Arinc429Register {
   const w = Arinc429Register.empty();
@@ -59,5 +59,22 @@ describe('CHECK EO SPD SETTING condition', () => {
     expect(isCheckEoSpeedSetting(true, FmgcFlightPhase.Cruise, false, false, 250, GD)).toBe(false);
     expect(isCheckEoSpeedSetting(false, FmgcFlightPhase.Cruise, false, true, 250, GD)).toBe(false);
     expect(isCheckEoSpeedSetting(true, FmgcFlightPhase.Cruise, false, true, null, GD)).toBe(false);
+  });
+});
+
+/* A380 FCOM DSC-22-FG FMA APPROACH CAPABILITY (COLUMN 4), a380_fcom.txt l.19153-19184: the FCOM words */
+describe('A380X FMA approach capability wording', () => {
+  it('CAT1, CAT2, CAT3 SINGLE and CAT3 DUAL instead of APPR1, LAND2 and LAND3', () => {
+    expect(getD1D2Lines(D1D2Messages.APPR_1)).toEqual(['CAT1', '']);
+    expect(getD1D2Lines(D1D2Messages.LAND_2)).toEqual(['CAT2', '']);
+    expect(getD1D2Lines(D1D2Messages.LAND_3_SINGLE)).toEqual(['CAT3', 'SINGLE']);
+    expect(getD1D2Lines(D1D2Messages.LAND_3_DUAL)).toEqual(['CAT3', 'DUAL']);
+  });
+
+  it('F-APP, F-APP +RAW and RAW ONLY unchanged, nothing without a capability', () => {
+    expect(getD1D2Lines(D1D2Messages.F_APP)).toEqual(['F-APP', '']);
+    expect(getD1D2Lines(D1D2Messages.F_APP_RAW)).toEqual(['F-APP', '+RAW']);
+    expect(getD1D2Lines(D1D2Messages.RAW_ONLY)).toEqual(['RAW', 'ONLY']);
+    expect(getD1D2Lines(D1D2Messages.NONE)).toEqual(['', '']);
   });
 });

@@ -2379,6 +2379,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Number (feet)
     - The highest runway threshold of airport {index}: the elevation of its flat ground on the VD
 
+- A380X_VD_{side}_RA_ZONE_SHOWN
+    - Bool
+    - The VD of side {side} (1 = captain, 2 = first officer) shows the amber radio altitude zone under the aircraft
+      symbol (below 5 000 ft RA, FCOM DSC-31-20-40-10), written by VerticalDisplay.tsx: the ndwxr gauge then leaves the
+      plot column under the zone clear of its terrain and weather picture
+
 - `L:A32NX_EGPWC_ND_{L,R}_TERRAIN_{MIN,MAX}_ELEVATION` and `..._ELEVATION_MODE`
     - The TERR ON ND peaks box figures, written by the ndwxr gauge; same variables and values as on the A32NX, see
       the GPWS / TAWS section of fbw-a32nx/docs/a320-simvars.md

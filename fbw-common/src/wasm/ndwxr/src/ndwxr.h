@@ -154,6 +154,7 @@
 #include "wxr_controls.h"  // the A380X WXR GAIN and ELEVN/TILT selections (pure logic)
 #include "view_park.h"  // ViewPark, the parking of the MapViews and the re-sending of their settings (pure logic)
 #include "gauge_slots.h"  // GaugeSlots, the gauge instances' slots and the module's MapView budget (pure logic)
+#include "vd_ra_zone.h"  // the VD column under the amber radio altitude zone (pure geometry)
 
 namespace ndwxr {
 
@@ -278,6 +279,8 @@ struct Instance {
   // The VD's altitude limits (see kVdLeft).
   ID vdRangeLowerVar = -1;
   ID vdRangeUpperVar = -1;
+  // The VD shows its amber radio altitude zone (see vd_ra_zone.h).
+  ID vdRaZoneShownVar = -1;
 #endif
 
   // The parking state of each view above (see updateViewPark).
@@ -432,6 +435,7 @@ double planeHeightAboveGroundFeet();
 // render.cpp: the shared NanoVG helpers.
 float encodeSrgb(float linear);
 void clearLayer(NVGcontext* vg, float width, float height);
+void clearRect(NVGcontext* vg, float x, float y, float width, float height);
 void sharpenRect(NVGcontext* vg, float x, float y, float w, float h, int passes = kSharpenPasses);
 void colorizeRect(NVGcontext* vg, float x, float y, float w, float h);
 

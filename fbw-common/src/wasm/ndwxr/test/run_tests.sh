@@ -14,3 +14,5 @@ clang++ -std=c++17 -Wall -Wextra -Werror view_park_test.cpp -o ../obj/view_park_
 ../obj/view_park_test
 clang++ -std=c++17 -Wall -Wextra -Werror gauge_slots_test.cpp -o ../obj/gauge_slots_test
 ../obj/gauge_slots_test
+clang++ -std=c++17 -Wall -Wextra -Werror vd_ra_zone_test.cpp -o ../obj/vd_ra_zone_test
+../obj/vd_ra_zone_test

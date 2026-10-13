@@ -567,6 +567,13 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] SIGNS memos as in the FCOM: SEAT BELTS and NO SMOKING memos with the switch ON (the NO MOBILE memo is gone), replaced by a SIGNS ON memo during take-off and landing; the cabin NO SMOKING signs now follow the AUTO position (slats or main gear extended, excessive cabin altitude) - @TCdr
 1. [A380X/FWS] New ENG 1(2)(3)(4) THR LEVER ABOVE IDLE warning (a thrust lever above idle with a reverser selected, during the reversers de-selection, or with the auto-idle protection) with its dual RETARD callout - @TCdr
 1. [A380X/FWS] ENG SHUT DOWN asks for the ABNORM BLEED CONFIG procedure instead of FOR GA: TOGA ONLY, HYD SYS TEMP EXCESS HI has the FCOM title and pump lines, ELEC PMP FAULT gives a REDUND LOSS instead of an INOP SYS, and the flap/slat CONFIG logic reads SFCC 2 when SFCC 1 cannot give the position - @TCdr
+1. [A380X/PFD] The radio height is the same on both PFDs: median of the three RAs, the average of two, the remaining one; the height callouts and the GPWS use it too (RA 3 was ignored) - @TCdr
+1. [A380X/GPWS] Mode 5 (GLIDE SLOPE) is active only with the landing gear down - @TCdr
+1. [A380X/PFD] FMA approach capability in the FCOM words: CAT1, CAT2, CAT3 SINGLE and CAT3 DUAL instead of APPR1, LAND2 and LAND3 - @TCdr
+1. [A380X/VD] Amber radio altitude zone under the aircraft symbol below 5 000 ft RA - @TCdr
+1. [A380X/VD] VD messages as in the FCOM: NO TERR AND WX DATA AVAILABLE with TERR SYS OFF, new WX NOT SEL (WX ON VD or WXR OFF), the invented NO TERR DATA AVAILABLE and NO WX DATA AVAILABLE are gone - @TCdr
+1. [A380X/EFIS] The WX pbs are deselected automatically 60 s after touchdown (the weather radar turns off) - @TCdr
+1. [A380X/OANS] The destination arrow also shows in ROSE NAV mode, and only at the 5 NM range - @TCdr
 
 ## 2024.1.0
 

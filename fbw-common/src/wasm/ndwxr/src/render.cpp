@@ -13,14 +13,21 @@ namespace ndwxr {
 // Both operations are used as belt and braces: either one alone clears the
 // surface.
 void clearLayer(NVGcontext* vg, float width, float height) {
+  clearRect(vg, 0.0f, 0.0f, width, height);
+}
+
+// The same for one rectangle of the surface (e.g. the VD column under the amber radio altitude zone, see
+// vd_ra_zone.h). The scissor is reset first, so the whole rectangle is cleared.
+void clearRect(NVGcontext* vg, float x, float y, float width, float height) {
+  nvgResetScissor(vg);
   nvgBeginPath(vg);
-  nvgRect(vg, 0.0f, 0.0f, width, height);
+  nvgRect(vg, x, y, width, height);
   nvgFillColor(vg, nvgRGBAf(0.0f, 0.0f, 0.0f, 0.0f));
   nvgGlobalCompositeOperation(vg, NVG_COPY);
   nvgFill(vg);
 
   nvgBeginPath(vg);
-  nvgRect(vg, 0.0f, 0.0f, width, height);
+  nvgRect(vg, x, y, width, height);
   nvgFillColor(vg, nvgRGBAf(0.0f, 0.0f, 0.0f, 1.0f));
   nvgGlobalCompositeOperation(vg, NVG_DESTINATION_OUT);
   nvgFill(vg);
