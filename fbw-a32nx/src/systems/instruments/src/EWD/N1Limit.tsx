@@ -7,6 +7,7 @@ import { Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
+import { flexTemperatureText, isThrustLimitValueVisible } from './EngineIndications';
 
 interface N1LimitProps {
   bus: EventBus;
@@ -17,6 +18,9 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
   private activeVisibility = Subject.create('hidden');
 
   private flexVisibility = Subject.create('hidden');
+
+  /** The N1 limit value, hidden with the thrust reversers selected (EngineIndications.ts) */
+  private limitValueVisibility = Subject.create('hidden');
 
   private textThrustLimitType = Subject.create('');
 
@@ -100,14 +104,18 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
           const n1Limit = this.autoThrustLimit.toFixed(1).split('.', 2);
           this.textThrustLimitInt.set(n1Limit[0]);
           this.textThrustLimitFract.set(n1Limit[1]);
+          // 'inherit', not 'visible': a visible SVG child shows inside a hidden parent (unpowered FADEC XX)
+          this.limitValueVisibility.set(isThrustLimitValueVisible(this.thrustLimitType) ? 'inherit' : 'hidden');
 
-          const showFlex =
-            this.flexTemp !== 0 &&
-            this.sat.isNormalOperation() &&
-            this.flexTemp >= this.sat.value - 10 &&
-            this.thrustLimitType === 3;
-          this.flexVisibility.set(showFlex ? 'visible' : 'hidden');
-          this.textFlexTemp.set(Math.round(this.flexTemp).toString());
+          // The flexible temperature, or cyan dashes when the SAT is above it
+          const flexText = flexTemperatureText(
+            this.flexTemp,
+            this.thrustLimitType,
+            this.sat.isNormalOperation(),
+            this.sat.value,
+          );
+          this.flexVisibility.set(flexText !== null ? 'inherit' : 'hidden');
+          this.textFlexTemp.set(flexText !== null ? flexText : '');
         } else {
           this.inactiveVisibility.set('visible');
           this.activeVisibility.set('hidden');
@@ -130,18 +138,20 @@ export class N1Limit extends DisplayComponent<N1LimitProps> {
           <text class="Huge Center Cyan" x={0} y={-1}>
             {this.textThrustLimitType}
           </text>
-          <text class="Huge End Green" x={5} y={28}>
-            {this.textThrustLimitInt}
-          </text>
-          <text class="Large End Green" x={18} y={28}>
-            .
-          </text>
-          <text class="Standard End Green" x={34} y={28}>
-            {this.textThrustLimitFract}
-          </text>
-          <text class="Medium End Cyan" x={49} y={27}>
-            %
-          </text>
+          <g visibility={this.limitValueVisibility}>
+            <text class="Huge End Green" x={5} y={28}>
+              {this.textThrustLimitInt}
+            </text>
+            <text class="Large End Green" x={18} y={28}>
+              .
+            </text>
+            <text class="Standard End Green" x={34} y={28}>
+              {this.textThrustLimitFract}
+            </text>
+            <text class="Medium End Cyan" x={49} y={27}>
+              %
+            </text>
+          </g>
 
           <g visibility={this.flexVisibility}>
             <text class="Standard Cyan" x={-23} y={57}>

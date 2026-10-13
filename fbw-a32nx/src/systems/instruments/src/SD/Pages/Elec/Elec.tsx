@@ -10,6 +10,8 @@ import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { idgLegendAmber, idgStatusLegend, idgTemperatureClass } from './IdgIndications';
+import { isEngineGeneratorLegendAmber, isEngineGeneratorNumberAmber } from './GeneratorIndications';
+import { isEngineRunning } from '../../Common/EngineRunning';
 
 import './Elec.scss';
 
@@ -352,6 +354,7 @@ const BatteryBus = ({ x, y, width }) => {
 
 const EngineGenerator = ({ x, y, number }) => {
   const [isOn] = useSimVar(`GENERAL ENG MASTER ALTERNATOR:${number}`, 'Bool', maxStaleness);
+  const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${number}`, 'number', maxStaleness);
 
   const [load] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_LOAD`, 'Percent', maxStaleness);
   const [loadWithinNormalRange] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_LOAD_NORMAL`, 'Bool', maxStaleness);
@@ -372,14 +375,21 @@ const EngineGenerator = ({ x, y, number }) => {
 
   const allParametersWithinNormalRange =
     loadWithinNormalRange && potentialWithinNormalRange && frequencyWithinNormalRange;
+  // GEN pb OFF: the number is white with the engine running, amber if not (FCOM l.37525-37528, GeneratorIndications.ts)
+  const legendAmber = isEngineGeneratorLegendAmber(!!isOn, !!allParametersWithinNormalRange);
+  const numberAmber = isEngineGeneratorNumberAmber(
+    !!isOn,
+    isEngineRunning(engineState),
+    !!allParametersWithinNormalRange,
+  );
   return (
     <SvgGroup x={x} y={y}>
       <Box width={86.25} height={93.75} />
 
-      <text x={54.375} y={22.5} className={`Right ${!isOn || !allParametersWithinNormalRange ? 'Amber' : ''}`}>
+      <text x={54.375} y={22.5} className={`Right ${legendAmber ? 'Amber' : ''}`}>
         GEN
       </text>
-      <text x={54.375 + 3.75} y={22.5} className={`Large ${!isOn || !allParametersWithinNormalRange ? 'Amber' : ''}`}>
+      <text x={54.375 + 3.75} y={22.5} className={`Large ${numberAmber ? 'Amber' : ''}`}>
         {number}
       </text>
       {isOn ? (

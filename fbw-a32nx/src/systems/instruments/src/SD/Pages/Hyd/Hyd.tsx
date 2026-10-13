@@ -8,6 +8,7 @@ import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { Triangle } from '../../Common/Shapes';
 import { ptuSymbolColor } from './PtuIndication';
+import { isEngineN2BelowIdle } from '../../Common/EngineRunning';
 
 import '../../Common/CommonStyles.scss';
 
@@ -20,9 +21,10 @@ enum HydSystem {
 }
 
 export const HydPage = () => {
-  // The FADEC SimVars include a test for the fire button.
-  const [Eng1N2] = useSimVar('TURB ENG N2:1', 'Percent', 1000);
-  const [Eng2N2] = useSimVar('TURB ENG N2:2', 'Percent', 1000);
+  // The engine 1 and 2 legends are amber with the engine N2 below idle (FCOM l.44057-44058, EngineRunning.ts)
+  const [Eng1N2] = useSimVar('L:A32NX_ENGINE_N2:1', 'Percent', 1000);
+  const [Eng2N2] = useSimVar('L:A32NX_ENGINE_N2:2', 'Percent', 1000);
+  const [engineIdleN2] = useSimVar('L:A32NX_ENGINE_IDLE_N2', 'Percent', 1000);
 
   const [greenPressure] = useSimVar('L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE', 'psi', 500);
   const [yellowPressure] = useSimVar('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE', 'psi', 500);
@@ -48,13 +50,8 @@ export const HydPage = () => {
 
   const [blueElecPumpOvht] = useSimVar('L:A32NX_HYD_BLUE_EPUMP_OVHT', 'bool', 1000);
 
-  const [engine1Running, setEngine1Running] = useState(false);
-  const [engine2Running, setEngine2Running] = useState(false);
-
-  useEffect(() => {
-    setEngine1Running(Eng1N2 > 15 && greenFireValve);
-    setEngine2Running(Eng2N2 > 15 && yellowFireValve);
-  }, [Eng1N2, Eng2N2, greenFireValve, yellowFireValve]);
+  const engine1Running = !isEngineN2BelowIdle(Eng1N2, engineIdleN2);
+  const engine2Running = !isEngineN2BelowIdle(Eng2N2, engineIdleN2);
 
   // PTU variables
   const [ptuControlValveOpen] = useSimVar('L:A32NX_HYD_PTU_VALVE_OPENED', 'boolean', 500);

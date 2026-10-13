@@ -5,6 +5,7 @@
 
 import { ClockEvents, EventBus, DisplayComponent, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from './shared/EwdSimvarPublisher';
+import { isIdleIndicationVisible } from './EngineIndications';
 
 interface IdleProps {
   bus: EventBus;
@@ -21,8 +22,6 @@ export class Idle extends DisplayComponent<IdleProps> {
   private idleN1: number = 0;
 
   private fwcFlightPhase: number = 0;
-
-  private autoThrustStatus: number = 0;
 
   private lastVisibleState: boolean = false;
 
@@ -62,23 +61,11 @@ export class Idle extends DisplayComponent<IdleProps> {
       });
 
     sub
-      .on('autoThrustStatus')
-      .whenChanged()
-      .handle((s) => {
-        this.autoThrustStatus = s;
-      });
-
-    sub
       .on('realTime')
       .atFrequency(2)
       .handle((_t) => {
-        const idle = this.idleN1 + 2;
-        const showIdle =
-          this.engine1N1 <= idle &&
-          this.engine2N1 <= idle &&
-          this.fwcFlightPhase >= 5 &&
-          this.fwcFlightPhase <= 7 &&
-          this.autoThrustStatus !== 0;
+        // Both engines at idle in flight, with or without the autothrust (FCOM l.64203, EngineIndications.ts)
+        const showIdle = isIdleIndicationVisible(this.engine1N1, this.engine2N1, this.idleN1, this.fwcFlightPhase);
 
         this.visibility.set(showIdle ? 'visible' : 'hidden');
 

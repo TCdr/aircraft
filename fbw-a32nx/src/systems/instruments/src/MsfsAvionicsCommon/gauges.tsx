@@ -225,7 +225,7 @@ interface GaugeMaxComponentProps {
   radius: number;
   startAngle: Subscribable<number>;
   endAngle: Subscribable<number>;
-  class: string;
+  class: string | Subscribable<string>;
 }
 export class GaugeMaxComponent extends DisplayComponent<GaugeMaxComponentProps> {
   private rectX = Subject.create(0);
