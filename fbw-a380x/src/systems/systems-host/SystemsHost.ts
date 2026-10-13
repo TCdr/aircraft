@@ -20,6 +20,7 @@ import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
 import { FuelJettison } from './CpiomF/FuelJettison';
 import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
 import { FuelLeak } from './CpiomF/FuelLeak';
+import { FuelAutomaticTransfers } from './CpiomF/FuelAutomaticTransfers';
 import { AutolandLights } from './Misc/AutolandLights';
 import { WxPbAutoDeselect } from './Misc/WxPbAutoDeselect';
 import { AtcMsgLights } from './Misc/AtcMsgLights';
@@ -221,6 +222,12 @@ class SystemsHost extends BaseInstrument {
 
   private readonly fuelLeak = new FuelLeak(this, this.failuresConsumer);
 
+  private readonly fuelAutomaticTransfers = new FuelAutomaticTransfers(
+    this,
+    this.failuresConsumer,
+    this.fuelPumpsAndValves,
+  );
+
   /**
    * "mainmenu" = 0
    * "loading" = 1
@@ -251,6 +258,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
     this.backplane.addInstrument('FuelEmerOuterTransfer', this.fuelEmerOuterTransfer);
     this.backplane.addInstrument('FuelLeak', this.fuelLeak);
+    this.backplane.addInstrument('FuelAutomaticTransfers', this.fuelAutomaticTransfers);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addInstrument('PrimReactiveWindshear', new PrimReactiveWindshear());

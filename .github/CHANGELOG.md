@@ -597,6 +597,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
 1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
 1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
+1. [A380X/FUEL] Load alleviation transfers: to the outer tanks after takeoff (FOB above 110 200 lb), from the trim tank and from the outer tanks (down to half) before landing, from the FMS remaining time to destination or the descent below FL 245 - @TCdr
+1. [A380X/FUEL] Reduced main transfer thresholds of the feed tanks when the remaining time to destination is below 90 min - @TCdr
+1. [A380X/FUEL] AUTO GND XFR pushbutton: automatic ground transfer to the ground CG target of 39.5 % (trim tank to or from the inner, then mid tanks), GND XFR IN PROGRESS memo, light flashing when the FQMS aborts - @TCdr
+1. [A380X/FUEL] TRIM TK FEED logic (ISOL stops the trim tank transfers, OPEN gravity transfer to the inner tanks), from an L:var as the cockpit has no selector - @TCdr
+1. [A380X/FUEL] Alternate transfers after a transfer pump failure: an inner or mid tank with a failed fwd pump keeps feeding with its aft pump, an outer tank with a failed pump empties by gravity into feed tank 2 or 3 - @TCdr
 
 ## 2024.1.0
 

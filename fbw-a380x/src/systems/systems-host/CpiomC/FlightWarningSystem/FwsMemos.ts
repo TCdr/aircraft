@@ -110,6 +110,15 @@ export class FwsMemos {
       codesToReturn: ['280000012'],
       memoInhibit: () => false,
     },
+    280000005: {
+      // GND XFR IN PROGRESS (A380 FCOM DSC-28-20 MEMO, a380_fcom.txt l.59149-59151; the FCOM figure of its flight phase
+      // inhibition is not in the text, design choice: as REFUEL IN PROGRESS, a ground function)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: this.fws.gndXfrInProgress,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000005'],
+      memoInhibit: () => false,
+    },
     280000006: {
       // JETTISON IN PROGRESS (A380 FCOM DSC-28-20 MEMO)
       flightPhaseInhib: [],
