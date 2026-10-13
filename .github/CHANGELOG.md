@@ -505,6 +505,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan, as in the FCOM - @TCdr
 1. [GPU] External power becomes available as soon as the sim's ground power does (GSX GPU, sim GPU or jetway power connected after the flight is loaded), without waiting for the GPU door animation - @TCdr
 1. [A380X/FWS] BRAKES BTV FAULT no longer shows (with a single chime and MASTER CAUT) while engine 2 or 3 is not running, e.g. during the engine start on the ground: an inner engine out makes BTV inoperative through the ENG SHUT DOWN STATUS - @TCdr
+1. [A380X/FUEL] The OUTR, MID and INR TK XFR and TRIM TK XFR pushbuttons now work: they start in AUTO at every flight load, and in MAN (FWD) they stop the automatic transfers and transfer the fuel manually as in the FCOM (outer tanks into the feed tanks, by gravity into feed tanks 1 and 4 with an outer tank pump off; inner and mid tanks into the feed tanks; trim tank into the inner tanks) - @TCdr
 
 ## 2024.1.0
 
