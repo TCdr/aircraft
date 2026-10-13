@@ -83,6 +83,7 @@ import * as FctlStatus from './Logic/FlightControlStatus';
 import {
   SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
   flapSysFaultStatus,
+  selectSfccPositionWord,
   slatFlapChannelFaults,
   slatSysFaultStatus,
 } from './Logic/SlatFlapChannelAlerts';
@@ -96,6 +97,11 @@ import {
 } from './Logic/SidestickPriorityAurals';
 import { wingTankLowLevelLines, wingTankLowLevelStatus, wingTanksLowLevelLines } from './Logic/WingTankLowLevel';
 import * as Brakes from './Logic/BrakeSystemAlerts';
+import {
+  CONFIG_SIDESTICK_FAULT_PHASE_INHIBITION,
+  ConfigSidestickFault,
+  ConfigSidestickFaultCodes,
+} from './Logic/ConfigSidestickFault';
 import {
   CrossBleedSelector,
   EngineFailMonitor,
@@ -224,6 +230,8 @@ import {
   dcEssBusFaultStatus,
   dcEssBusShedLines,
   dcEssBusShedStatus,
+  elecEmerConfigFuelLines,
+  elecEmerConfigStatus,
   engineGeneratorLostStatus,
   essBusesOnBatLines,
   trFaultStatus,
@@ -295,6 +303,7 @@ import {
   excessCabinAltitudeStatus,
   isRamAirOnMemoShown,
   readFmLandingElevationAvailable,
+  safetyValveOpenLines,
   safetyValveOpenStatus,
 } from './Logic/AirConditioningAlerts';
 import { THRUST_LOCKED_KEY, ThrustLockedAlert } from './Logic/ThrustLockedAlert';
@@ -311,7 +320,7 @@ import {
   readYellowSystemLowPressure,
 } from './Logic/LandingGearAlerts';
 import { GpwsAlerts, readGpwsInputs } from './Logic/GpwsAlerts';
-import { autoThrustOffInvoluntaryStatus } from './Logic/AutoFlightStatus';
+import { autoPilotOffInvoluntaryStatus, autoThrustOffInvoluntaryStatus } from './Logic/AutoFlightStatus';
 import {
   alertStatus,
   cabFansFaultStatus,
@@ -356,6 +365,12 @@ import {
   readAdirsAlertInputs,
   unit3AlertInhibitedInPhase3,
 } from './Logic/AdirsAlerts';
+import {
+  REAC_WS_DET_FAULT_CODE,
+  REAC_WS_DET_FAULT_PHASE_INHIBITION,
+  reacWsDetFaultAlert,
+  reacWsDetFaultStatus,
+} from './Logic/ReactiveWindshearAlerts';
 import { orderStatusCodes } from '@shared/StatusMessages';
 import {
   STATUS_CLR_SCROLLS_VAR,
@@ -648,7 +663,6 @@ export class PseudoFWC {
   private readonly ewdSecondaryFailuresCleared = new Set<string>();
 
   private requestMasterCautionFromFaults = false;
-  private requestMasterCautionFromABrkOff = false;
 
   private requestSingleChimeFromAThrOff = false;
 
@@ -1122,6 +1136,9 @@ export class PseudoFWC {
   private readonly fcuSelectedAlt = Arinc429LocalVarConsumerSubject.create(this.sub.on('a32nx_fcu_selected_altitude'));
 
   private readonly fac12FaultWarning = Subject.create(false);
+
+  /** AUTO FLT REAC W/S DET FAULT, see Logic/ReactiveWindshearAlerts */
+  private readonly reacWsDetFault = Subject.create(false);
 
   private readonly fac1FaultWarning = Subject.create(false);
 
@@ -1961,18 +1978,11 @@ export class PseudoFWC {
 
   private onGroundImmediate = false;
 
-  private readonly autobrakeDeactivatedPulseNode = new NXLogicPulseNode(false);
+  /** The green AUTO BRK memo is shown (Logic/BrakeSystemAlerts autoBrakeMemoLine) */
+  private readonly autoBrakeMemo = Subject.create(false);
 
-  /** When ABRK deactivated, emit this for 9 sec */
-  private readonly autoBrakeDeactivatedMemoTriggeredNode = new NXLogicTriggeredMonostableNode(9, false);
-
-  private readonly autobrakeDeactivatedMcNode = new NXLogicTriggeredMonostableNode(3);
-
-  private readonly autoBrakeOffAuralConfirmNode = new NXLogicConfirmNode(1, true);
-
-  private readonly autoBrakeOff = Subject.create(false);
-
-  private autoBrakeOffAuralTriggered = false;
+  /** The AUTO BRK memo line (index in Brakes.AUTO_BRK_MEMO_CODES), null when none */
+  private autoBrakeMemoLineIndex: number | null = null;
 
   private readonly wheel1Rpm = ConsumerSubject.create(this.sub.on('wheel1Rpm'), 0);
 
@@ -2751,6 +2761,20 @@ export class PseudoFWC {
 
   /** DUAL INPUT and PRIORITY LEFT/RIGHT voices, see Logic/SidestickPriorityAurals */
   private readonly sidestickPriorityAurals = new SidestickPriorityAurals();
+
+  /** CONFIG L(R) SIDESTICK FAULT, see Logic/ConfigSidestickFault */
+  private readonly configSidestickFault = new ConfigSidestickFault();
+
+  private readonly configLeftSidestickFault = Subject.create(false);
+
+  private readonly configLeftSidestickFaultAural = Subject.create(false);
+
+  private readonly configRightSidestickFault = Subject.create(false);
+
+  private readonly configRightSidestickFaultAural = Subject.create(false);
+
+  /** One sidestick is deactivated in flight phase 1, 2 or 9: no T.O CONFIG NORMAL */
+  private sidestickDeactivatedBeforeTakeoff = false;
 
   /** The reactive windshear warning of the FACs (L:A32NX_REACTIVE_WINDSHEAR_WARNING) in the previous update */
   private reactiveWindshearWarningPreviously = false;
@@ -3714,6 +3738,17 @@ export class PseudoFWC {
       alert.set(this.adirsFaults.irFault[index] && !(index === 2 && unit3AlertInhibitedInPhase3(phase, ir3InUse))),
     );
     this.irDualFaultAlert.set(this.adirsFaults.irDualFault !== null);
+    // AUTO FLT REAC W/S DET FAULT: the reactive windshear function of the FACs is lost (Logic/ReactiveWindshearAlerts)
+    this.reacWsDetFault.set(
+      reacWsDetFaultAlert({
+        fac1Healthy: this.fac1HealthyVar.get(),
+        fac2Healthy: this.fac2HealthyVar.get(),
+        adrFaulty: inputs.adrFaulty,
+        irFaulty: inputs.irFaulty,
+        fac12FaultAlert: this.fac12FaultWarning.get(),
+        adrTripleFaultAlert: this.adirsFaults.adrTripleFault,
+      }),
+    );
     this.adrPbOn = inputs.adrPbOn;
     this.apOrFdEngaged = inputs.apOrFdEngaged;
     this.probeWindowHeatOn = inputs.probeWindowHeatOn;
@@ -4103,11 +4138,29 @@ export class PseudoFWC {
     this.aircraftOnGround.set(onGround);
     this.autoCallouts.update(deltaTime);
     // DUAL INPUT and PRIORITY LEFT/RIGHT voices (a320_fcom.txt l.41070-41071, 45756-45760, 45804), from the FCDC
+    const sidestickInputs = readSidestickPriorityInputs(
+      PseudoFWC.readFcdcSidestickWords(1),
+      PseudoFWC.readFcdcSidestickWords(2),
+    );
     const sidestickAurals = this.sidestickPriorityAurals.update(
-      readSidestickPriorityInputs(PseudoFWC.readFcdcSidestickWords(1), PseudoFWC.readFcdcSidestickWords(2)),
+      sidestickInputs,
       this.autoCallouts.gpwsOrTcasAuralActive,
       deltaTime / 1000,
     );
+    // CONFIG L(R) SIDESTICK FAULT at the TO CONFIG test or the takeoff power (Logic/ConfigSidestickFault)
+    const configSidestick = this.configSidestickFault.update({
+      leftSidestickDeactivated: sidestickInputs.leftSidestickDeactivated,
+      rightSidestickDeactivated: sidestickInputs.rightSidestickDeactivated,
+      flightPhase: this.fwcFlightPhase.get(),
+      toConfigTest: this.toConfigTestHeldMin1s5Pulse.get(),
+    });
+    this.configLeftSidestickFault.set(configSidestick.left.warning);
+    this.configLeftSidestickFaultAural.set(configSidestick.left.aural);
+    this.configRightSidestickFault.set(configSidestick.right.warning);
+    this.configRightSidestickFaultAural.set(configSidestick.right.aural);
+    this.sidestickDeactivatedBeforeTakeoff =
+      this.flightPhase129.get() &&
+      (sidestickInputs.leftSidestickDeactivated || sidestickInputs.rightSidestickDeactivated);
     for (const aural of sidestickAurals) {
       this.soundManager.enqueueSound(aural);
     }
@@ -4329,30 +4382,13 @@ export class PseudoFWC {
 
     this.autoThrustLimited.set(this.autoThrustLimitedConfNode.read() && this.autoThrustLimitedMtrigNode.read());
 
-    // AUTO BRAKE OFF
-    this.autobrakeDeactivatedPulseNode.write(!!SimVar.GetSimVarValue('L:A32NX_AUTOBRAKES_ACTIVE', 'boolean'));
-
-    const autoBrakeOffShouldTrigger = this.autoBrakeDeactivatedMemoTriggeredNode.write(
-      this.autobrakeDeactivatedPulseNode.read() && onGround && this.computedAirSpeedToNearest2.get() > 33,
-      deltaTime,
+    // AUTO BRK LO/MED/MAX and green AUTO BRK OFF memo (A320 FCOM l.51657-51662), see Logic/BrakeSystemAlerts
+    this.autoBrakeMemoLineIndex = Brakes.autoBrakeMemoLine(
+      this.fwcFlightPhase.get(),
+      this.autoBrake.get(),
+      SimVar.GetSimVarValue('L:A32NX_BRAKES_AUTO_BRK_FAULT', 'bool') > 0,
     );
-
-    // Emit audio
-    this.autoBrakeOffAuralConfirmNode.write(autoBrakeOffShouldTrigger, deltaTime);
-
-    // Emit master caution for 3s
-    this.requestMasterCautionFromABrkOff = this.autobrakeDeactivatedMcNode.write(autoBrakeOffShouldTrigger, deltaTime);
-
-    if (!this.autoBrakeDeactivatedMemoTriggeredNode.read()) {
-      this.autoBrakeOffAuralTriggered = false;
-    }
-
-    // FIXME double callout if ABRK fails
-    this.autoBrakeOff.set(autoBrakeOffShouldTrigger);
-    if (autoBrakeOffShouldTrigger && this.autoBrakeOffAuralConfirmNode.read() && !this.autoBrakeOffAuralTriggered) {
-      this.soundManager.enqueueSound('autoBrakeOff');
-      this.autoBrakeOffAuralTriggered = true;
-    }
+    this.autoBrakeMemo.set(this.autoBrakeMemoLineIndex !== null);
 
     // Engine Logic
     this.thr1TLAMCTAndEngRunConf.write(this.engine1CoreAtOrAboveMinIdle.get() && this.thr1TLAMCT.get(), deltaTime);
@@ -5230,9 +5266,15 @@ export class PseudoFWC {
     this.slatSys1Fault.set(slatFlapChannels.slatSysFault[0]);
     this.slatSys2Fault.set(slatFlapChannels.slatSysFault[1]);
 
-    // TODO: add switching between SFCC_1 and SFCC_2
-    const flapsPos = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD');
-    const slatsPos = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_ACTUAL_POSITION_WORD');
+    // Flap and slat positions from SFCC 1, from SFCC 2 when only SFCC 2 has them (Logic/SlatFlapChannelAlerts)
+    const flapsPos = selectSfccPositionWord(
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD'),
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_FLAP_ACTUAL_POSITION_WORD'),
+    );
+    const slatsPos = selectSfccPositionWord(
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_ACTUAL_POSITION_WORD'),
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_ACTUAL_POSITION_WORD'),
+    );
 
     // WARNING these vary for other variants... A320 CFM LEAP values here
     // flap/slat internal signals
@@ -6605,7 +6647,6 @@ export class PseudoFWC {
     if (this.masterCautionCancelPulseUp) {
       this.auralSingleChimePending = false;
       this.requestMasterCautionFromFaults = false;
-      this.requestMasterCautionFromABrkOff = false;
     }
     if (this.masterWarningCancelPulseUp && this.nonCancellableWarningCount === 0) {
       this.requestMasterWarningFromFaults = false;
@@ -6638,7 +6679,8 @@ export class PseudoFWC {
       slatsNotInToPos ||
       this.speedbrakesNotTo.get() ||
       this.rudderTrimNotTo.get() ||
-      this.pitchTrimNotTo.get();
+      this.pitchTrimNotTo.get() ||
+      this.sidestickDeactivatedBeforeTakeoff;
 
     const toConfigSystemStatusNormal =
       systemStatus && speeds && !this.brakesHot.get() && doors && !this.flapsMcduDisagree.get() && !surfacesNotTo;
@@ -6992,7 +7034,7 @@ export class PseudoFWC {
       this.auralSingleChimePending = true;
     }
 
-    this.masterCaution.set(this.requestMasterCautionFromFaults || this.requestMasterCautionFromABrkOff);
+    this.masterCaution.set(this.requestMasterCautionFromFaults);
 
     this.masterWarning.set(this.requestMasterWarningFromFaults);
 
@@ -7277,6 +7319,13 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
       monitorConfirmTime: 0,
+      // INOP SYS of the lost APs: FMGC discrete word 4 bit 19 AP Inop (Logic/AutoFlightStatus)
+      ...alertStatus(() =>
+        autoPilotOffInvoluntaryStatus(
+          this.fmgc1DiscreteWord4.get().bitValueOr(19, true),
+          this.fmgc2DiscreteWord4.get().bitValueOr(19, true),
+        ),
+      ),
     },
     2200010: {
       // AP OFF Voluntary Master Warning
@@ -7526,6 +7575,18 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
+    2200240: {
+      // REAC W/S DET FAULT, crew awareness (FCOM l.71701-71739), see Logic/ReactiveWindshearAlerts
+      flightPhaseInhib: REAC_WS_DET_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.reacWsDetFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [REAC_WS_DET_FAULT_CODE],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      ...alertStatus(reacWsDetFaultStatus),
+    },
     2200236: {
       // YAW DAMPER 1, crew awareness (level 1), see Logic/FacActuatorAlerts
       flightPhaseInhib: FacPhases.yawDamperFault,
@@ -7671,7 +7732,8 @@ export class PseudoFWC {
         !(this.sdac00300Word.bitValue(14) && this.sdac00300Word.bitValue(19)) && !this.aircraftOnGround.get()
           ? 14
           : null,
-        // TODO: Check increased fuel consumpt and fms pred unreliable for 15 and 16
+        // 15 FUEL CONSUMPT INCRSD, 16 FMS PRED UNRELIABLE (FCOM l.77606-77608), see Logic/ElecBusAlerts
+        ...elecEmerConfigFuelLines(!this.aircraftOnGround.get()),
       ],
       codesToReturn: [
         '240003101',
@@ -7696,6 +7758,8 @@ export class PseudoFWC {
       failure: 3,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      // FCOM l.77641-77675, see Logic/ElecBusAlerts
+      ...alertStatus(elecEmerConfigStatus),
     },
     2400600: {
       // BAT 1 OFF
@@ -8271,7 +8335,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     3400105: {
-      // ALT DISCREPANCY
+      // NAV ALTI DISCREPANCY (A320 FCOM PRO-ABN-NAV, a320_fcom.txt l.92693)
       flightPhaseInhib: [4, 5, 8],
       simVarIsActive: this.altDiscrepancy,
       whichCodeToReturn: () => [0, 1, 2],
@@ -9569,6 +9633,30 @@ export class PseudoFWC {
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
     },
+    2700415: {
+      // CONFIG L SIDESTICK FAULT (BY TAKE OVER) (FCOM l.74286-74298), see Logic/ConfigSidestickFault
+      flightPhaseInhib: CONFIG_SIDESTICK_FAULT_PHASE_INHIBITION,
+      auralWarning: this.configLeftSidestickFaultAural.map((on) => (on ? FwcAuralWarning.Crc : FwcAuralWarning.None)),
+      simVarIsActive: this.configLeftSidestickFault,
+      whichCodeToReturn: () => [0, 1, 2],
+      codesToReturn: [...ConfigSidestickFaultCodes.left],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2700416: {
+      // CONFIG R SIDESTICK FAULT (BY TAKE OVER) (FCOM l.74286-74298), see Logic/ConfigSidestickFault
+      flightPhaseInhib: CONFIG_SIDESTICK_FAULT_PHASE_INHIBITION,
+      auralWarning: this.configRightSidestickFaultAural.map((on) => (on ? FwcAuralWarning.Crc : FwcAuralWarning.None)),
+      simVarIsActive: this.configRightSidestickFault,
+      whichCodeToReturn: () => [0, 1, 2],
+      codesToReturn: [...ConfigSidestickFaultCodes.right],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
     2700375: {
       // ALTN 2 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
@@ -10088,20 +10176,11 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2131233: {
-      // SAFETY VALVE OPEN
+      // SAFETY VALVE OPEN (FCOM l.73299-73313: ABV 8 PSI, BELOW 0 PSI), see Logic/AirConditioningAlerts
       flightPhaseInhib: [4, 5, 7, 8, 9, 10],
       simVarIsActive: this.safetyValveNotClosedOutput,
-      whichCodeToReturn: () => [
-        0,
-        this.cabinDeltaPressure.get() < 1 ? 1 : null,
-        this.cabinDeltaPressure.get() < 1 ? 2 : null,
-        this.cabinDeltaPressure.get() < 1 && !this.excessPressure.get() ? 3 : null,
-        this.cabinDeltaPressure.get() > 4 && this.pressurizationAuto.get() ? 4 : null,
-        this.cabinDeltaPressure.get() > 4 ? 5 : null,
-        this.cabinDeltaPressure.get() > 4 ? 6 : null,
-        this.cabinDeltaPressure.get() > 4 ? 7 : null,
-        this.cabinDeltaPressure.get() > 4 ? 8 : null,
-      ],
+      whichCodeToReturn: () =>
+        safetyValveOpenLines(this.cabinDeltaPressure.get(), this.excessPressure.get(), this.pressurizationAuto.get()),
       codesToReturn: [
         '213123301',
         '213123302',
@@ -12157,7 +12236,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     '0000030': {
-      // IR IN ALIGN 1
+      // IRS IN ALIGN X MN, X = 4 to > 7 (A320 FCOM DSC-34-NAV-10-20 MEMO DISPLAY, a320_fcom.txt l.52686-52697)
       flightPhaseInhib: [],
       simVarIsActive: this.irsInAlignMemo1,
       whichCodeToReturn: () => {
@@ -12199,7 +12278,7 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     '0000031': {
-      // IR IN ALIGN 2
+      // IRS IN ALIGN X MN, X = 1 to 3, then IRS IN ALIGN (a320_fcom.txt l.52686-52697)
       flightPhaseInhib: [],
       simVarIsActive: this.irsInAlignMemo2,
       whichCodeToReturn: () => {
@@ -12459,16 +12538,6 @@ export class PseudoFWC {
       memoInhibit: () => false,
       side: 'RIGHT',
     },
-    // 32 LANDING GEAR
-    320000001: {
-      // AUTO BRK OFF
-      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 10],
-      simVarIsActive: this.autoBrakeOff,
-      whichCodeToReturn: () => [0],
-      codesToReturn: ['320000001'],
-      memoInhibit: () => false,
-      side: 'RIGHT',
-    },
     '0000040': {
       // NW STRG DISC
       flightPhaseInhib: [],
@@ -12679,11 +12748,11 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000022': {
-      // AUTOBRAKE
+      // AUTO BRK LO/MED/MAX, and AUTO BRK OFF when the autobrake is failed (Logic/BrakeSystemAlerts autoBrakeMemoLine)
       flightPhaseInhib: [],
-      simVarIsActive: this.fwcFlightPhase.map((v) => v === 7 || v === 8),
-      whichCodeToReturn: () => [this.autoBrake.get() - 1],
-      codesToReturn: ['000002201', '000002202', '000002203', '000002204'],
+      simVarIsActive: this.autoBrakeMemo,
+      whichCodeToReturn: () => [this.autoBrakeMemoLineIndex],
+      codesToReturn: Brakes.AUTO_BRK_MEMO_CODES,
       memoInhibit: () => false,
       side: 'RIGHT',
     },

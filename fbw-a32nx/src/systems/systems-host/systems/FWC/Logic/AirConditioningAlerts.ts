@@ -94,6 +94,42 @@ export function safetyValveOpenStatus(): StatusLines {
   return { left: [...MAN_CAB_PR_SCHEDULE, S.manVsCtlFullUp], inopSys: [] };
 }
 
+/** CAB PR SAFETY VALVE OPEN: "IF DIFF PR ABV 8 PSI" (l.73299), in PSI */
+export const SAFETY_VALVE_OPEN_OVERPRESSURE_PSI = 8;
+
+/** CAB PR SAFETY VALVE OPEN: "IF DIFF PR BELOW 0 PSI" (l.73310), in PSI */
+export const SAFETY_VALVE_OPEN_NEGATIVE_PRESSURE_PSI = 0;
+
+/**
+ * CAB PR SAFETY VALVE OPEN E/WD lines (FCOM PRO-ABN-CAB_PR, a320_fcom.txt l.73299-73313), as indexes of the codes
+ * 2131233xx: 0 title; 1 .IF DIFF PR BELOW 0 PSI, 2 -EXPECT HI CAB RATE, 3 -A/C V/S REDUCE (not with the excess
+ * pressure discrete of the CPC); 4 .IF DIFF PR ABV 8 PSI, 5 -MODE SEL MAN (until MAN is selected), 6 -MAN V/S CTL AS
+ * RQRD, 7 .IF UNSUCCESSFUL, 8 -A/C FL REDUCE.
+ * @param deltaPressurePsi the cabin differential pressure, in PSI
+ * @param excessPressure the excess pressure discrete of the active CPC (or the manual excess altitude)
+ * @param pressurizationAuto the cabin pressure MODE SEL is AUTO
+ * @returns the line indexes
+ */
+export function safetyValveOpenLines(
+  deltaPressurePsi: number,
+  excessPressure: boolean,
+  pressurizationAuto: boolean,
+): (number | null)[] {
+  const negative = deltaPressurePsi < SAFETY_VALVE_OPEN_NEGATIVE_PRESSURE_PSI;
+  const overpressure = deltaPressurePsi > SAFETY_VALVE_OPEN_OVERPRESSURE_PSI;
+  return [
+    0,
+    negative ? 1 : null,
+    negative ? 2 : null,
+    negative && !excessPressure ? 3 : null,
+    overpressure ? 4 : null,
+    overpressure && pressurizationAuto ? 5 : null,
+    overpressure ? 6 : null,
+    overpressure ? 7 : null,
+    overpressure ? 8 : null,
+  ];
+}
+
 /** CAB PR SYS 1(2) FAULT STATUS (l.73379-73383): INOP SYS CAB PR 1(2) */
 export function cpcFaultStatus(cpc: 1 | 2): StatusLines {
   return { left: [], inopSys: [cpc === 1 ? S.cabPr1 : S.cabPr2] };
