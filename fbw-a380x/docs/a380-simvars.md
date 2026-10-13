@@ -2135,6 +2135,11 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
       | Alternate (ALTN circuit, A-SKID)        | 2     |
       | Emergency (ALTN circuit, EBCU, limited) | 3     |
 
+- A32NX_BRAKES_AUTO_BRK_FAULT
+    - Bool
+    - True when the autobrake is failed (flyPad failure 32113, Rust `hydraulic/autobrakes.rs`): the autobrake cannot be
+      armed; read by the FWS for BRAKES AUTO BRK FAULT
+
 - A32NX_STEERING_{fault}_FAULT
     - Bool
     - True when the steering equipment is failed (flyPad failures 32200-32204, Rust `hydraulic/brake_steer_faults.rs`);
