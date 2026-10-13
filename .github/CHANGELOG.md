@@ -283,6 +283,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL] The EMER OUTR TK XFR pb-sw now opens the emergency outer tank transfer valves: the outer tank fuel flows by gravity into feed tanks 1 and 4 - @TCdr
 1. [A380X/FWS] FQMS fuel leak detection with the FCOM slow and fast leak thresholds, FUEL LEAK DETECTED with its procedure and FUEL LEAK DET FAULT, and new flyPad failures feed tank 1 to 4 leak - @TCdr
 1. [A380X/FWS] NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE now trigger, with their ECAM line and STATUS - @TCdr
+1. [A380X/FWS] BRAKES BTV FAULT no longer shows (with a single chime and MASTER CAUT) while engine 2 or 3 is not running, e.g. during the engine start on the ground: an inner engine out makes BTV inoperative through the ENG SHUT DOWN STATUS - @TCdr
 
 ## 2024.1.0
 

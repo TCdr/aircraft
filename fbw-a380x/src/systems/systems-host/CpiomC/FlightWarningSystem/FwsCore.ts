@@ -112,7 +112,7 @@ import {
   feedTanks1And4BelowEmerOutrXfrThreshold,
   readElecNetworkInputs,
 } from './FwsElecAlerts';
-import { FwsBrakeAlerts, readBrakeSteerInputs } from './FwsBrakeAlerts';
+import { btvFaultCautionTriggered, FwsBrakeAlerts, readBrakeSteerInputs } from './FwsBrakeAlerts';
 import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
 import {
   EngineFailMonitor,
@@ -2093,6 +2093,13 @@ export class FwsCore {
     this.fcdc1LandingFctDiscreteWord,
     this.fcdc2LandingFctDiscreteWord,
     this.eng1Or2AndEng3Or4RunningAndPhase,
+  );
+  /** BRAKES BTV FAULT: BTV LOST with engines 2 and 3 running (FwsBrakeAlerts.ts btvFaultCautionTriggered) */
+  public readonly btvFaultCaution = MappedSubject.create(
+    ([btvLost, engine2Running, engine3Running]) => btvFaultCautionTriggered(btvLost, engine2Running, engine3Running),
+    this.btvLost,
+    this.engine2Running,
+    this.engine3Running,
   );
 
   public readonly oansFailedSimvar = RegisteredSimVar.createBoolean('L:A32NX_OANS_FAILED');
