@@ -78,6 +78,9 @@ export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = Flight
   /** Gets the engine out departure legs. */
   getEngineOutDepartureLegs(): readonly ReadonlyFlightPlanElement[];
 
+  /** The engine out departure (EOSID) of the departure runway: its ident, undefined without one */
+  readonly engineOutDepartureSegment: { readonly procedureIdent: string | undefined };
+
   get pendingAirways(): ReadonlyPendingAirways | undefined;
 
   get originAirport(): Airport | undefined;
