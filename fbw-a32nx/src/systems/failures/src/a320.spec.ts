@@ -153,6 +153,20 @@ describe('A320 flyPad failures', () => {
     expect(A320FailureDefinitions.filter(([chapter]) => chapter === 36)).toHaveLength(rustFailureById.length);
   });
 
+  // The ATA 30 ids are the Rust failures of the engine anti-ice valves (systems ice_rain_protection), in a320_systems_wasm
+  it('lists the engine anti-ice valve failures in ATA 30 with the Rust failure they trigger', () => {
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    const entry = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(entry(A320Failure.Eng1AntiIceValveStuckClosed)).toEqual([30, 30000, 'Engine 1 anti-ice valve stuck closed']);
+    expect(entry(A320Failure.Eng2AntiIceValveStuckClosed)).toEqual([30, 30001, 'Engine 2 anti-ice valve stuck closed']);
+    expect(entry(A320Failure.Eng1AntiIceValveStuckOpen)).toEqual([30, 30010, 'Engine 1 anti-ice valve stuck open']);
+    expect(entry(A320Failure.Eng2AntiIceValveStuckOpen)).toEqual([30, 30011, 'Engine 2 anti-ice valve stuck open']);
+    expect(wasm).toContain('(30_000, FailureType::EngineAntiIceValveStuckClosed(1)),');
+    expect(wasm).toContain('(30_001, FailureType::EngineAntiIceValveStuckClosed(2)),');
+    expect(wasm).toContain('(30_010, FailureType::EngineAntiIceValveStuckOpen(1)),');
+    expect(wasm).toContain('(30_011, FailureType::EngineAntiIceValveStuckOpen(2)),');
+  });
+
   // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73101 (failure names audit rule)
   it('lists the engine fuel filter clog failures in ATA 73 with the Rust failure they trigger', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);

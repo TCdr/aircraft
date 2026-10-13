@@ -14,6 +14,7 @@ mod oxygen;
 mod payload;
 mod pneumatic;
 mod power_consumption;
+mod probe_window_heat;
 mod surveillance;
 
 use self::{
@@ -26,6 +27,7 @@ use self::{
     oxygen::A320Oxygen,
     payload::A320Payload,
     pneumatic::{A320Pneumatic, A320PneumaticOverheadPanel},
+    probe_window_heat::A320ProbeWindowHeat,
     surveillance::A320EgpwsElectricalHarness,
 };
 use airframe::A320Airframe;
@@ -70,7 +72,8 @@ use systems::{
     navigation::adirs::{
         AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel,
     },
-    shared::{ElectricalBusType, LgciuWeightOnWheels},
+    pneumatic::EngineState,
+    shared::{ElectricalBusType, EngineStartState, LgciuWeightOnWheels},
     simulation::{Aircraft, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 
@@ -124,6 +127,7 @@ pub struct A320 {
     landing_gear: LandingGear,
     pneumatic: A320Pneumatic,
     oxygen: A320Oxygen,
+    probe_window_heat: A320ProbeWindowHeat,
     radio_altimeters: A320RadioAltimeters,
     egpwc: EnhancedGroundProximityWarningComputer,
     egpwc_2: EnhancedGroundProximityWarningComputer2,
@@ -184,6 +188,7 @@ impl A320 {
             landing_gear: LandingGear::new(context, false),
             pneumatic: A320Pneumatic::new(context),
             oxygen: A320Oxygen::new(context),
+            probe_window_heat: A320ProbeWindowHeat::new(context),
             radio_altimeters: A320RadioAltimeters::new(context),
             // The GPS receivers of MMR 1 and 2. The FCOM gives no power supply: MMR 1 on AC ESS and MMR 2 on AC 2,
             // as the other side 1 / side 2 navigation receivers (design choice)
@@ -374,6 +379,14 @@ impl Aircraft for A320 {
         );
 
         self.oxygen.update(context);
+        // Probes and windows heated with an engine running or in flight (FCOM DSC-30-40-10, DSC-30-50-10)
+        let lgcius = [self.lgcius.lgciu1(), self.lgcius.lgciu2()];
+        self.probe_window_heat.update(
+            [1, 2]
+                .iter()
+                .any(|&engine| self.pneumatic.engine_state(engine) == EngineState::On),
+            lgcius[0].left_gear_extended(false) || lgcius[1].right_gear_extended(false),
+        );
 
         self.egpwc.update(&self.adirs, self.lgcius.lgciu1());
         self.egpws_electrical_harness.update(self.lgcius.lgciu1());
@@ -428,6 +441,7 @@ impl SimulationElement for A320 {
         self.landing_gear.accept(visitor);
         self.pneumatic.accept(visitor);
         self.oxygen.accept(visitor);
+        self.probe_window_heat.accept(visitor);
         self.egpwc.accept(visitor);
         self.egpws_electrical_harness.accept(visitor);
         self.egpwc_2.accept(visitor);

@@ -127,6 +127,45 @@ describe('A380X flyPad failure definitions', () => {
     );
   });
 
+  it('lists the wing and engine anti-ice valve failures in ATA 30 with the Rust failures of ice_rain_protection.rs', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [30000, 'WingAntiIceValvesStuckClosed(1)', 'Left wing anti-ice valves stuck closed'],
+      [30001, 'WingAntiIceValvesStuckClosed(2)', 'Right wing anti-ice valves stuck closed'],
+      [30010, 'WingAntiIceOuterValveStuckOpen(1)', 'Left wing outer anti-ice valve stuck open'],
+      [30011, 'WingAntiIceOuterValveStuckOpen(2)', 'Right wing outer anti-ice valve stuck open'],
+      ...[1, 2, 3, 4].map((engine): [number, string, string] => [
+        30099 + engine,
+        `EngineAntiIceValveStuckClosed(${engine})`,
+        `Engine ${engine} anti-ice valve stuck closed`,
+      ]),
+      ...[1, 2, 3, 4].map((engine): [number, string, string] => [
+        30109 + engine,
+        `EngineAntiIceValveStuckOpen(${engine})`,
+        `Engine ${engine} anti-ice valve stuck open`,
+      ]),
+    ];
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), nameOf(id)?.[2], nameOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 30]),
+    );
+  });
+
+  it('lists the oxygen failures in ATA 35 with the Rust failures of oxygen.rs', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [35000, 'CockpitOxygenBottleLeak', 'Cockpit oxygen bottle leak'],
+      [35001, 'CabinOxygenBottleLeak', 'Cabin oxygen bottles leak'],
+      [35010, 'CabinOxygenValveStuckClosed', 'Cabin oxygen regulator supply valve stuck closed'],
+    ];
+    const nameOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), nameOf(id)?.[2], nameOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 35]),
+    );
+  });
+
   // The labels say what a380_systems engine_failure.rs does with ids 72000-72013 (failure names audit rule)
   it('lists the engine flameout and seizure failures of the four engines in ATA 72 Engine', () => {
     const rustMap = readRustFailureMap();
