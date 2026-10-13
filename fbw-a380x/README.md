@@ -93,6 +93,12 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 - Gear system not yet final
   - Wrong door sequence
+  - One left and one right main gear assembly stand for the wing and the body gear of each side: they need both GREEN
+    (WLG) and YELLOW (BLG), so with GREEN lost the BLG does not retract alone; the gears move only when all the doors
+    are open, so with YELLOW lost the NLG does not retract either
+  - The gravity extension takes about 70 s but releases all the gear uplocks together (FCOM: NLG and WLG, then BLG)
+- Braking simplified: one NORM circuit (GREEN) and one ALTN circuit (YELLOW and one accumulator) for all the wheel
+  groups; no LEHGS and no 4 brake accumulators, no BCS 1/2 split, no A-SKID fault per wheel group
 - BTV simplified logic only
   - Basic braking distance calculations
   - No glide slope adaptation
@@ -111,7 +117,8 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 34 ROW/ROP
 
-- Automatic detection of landing runway (needs FMS to have landing runway selected)
+- Landing runway detection: a runway already selected (FMS or OANS) stays the protected runway down to 350 ft in every
+  AUTO BRK mode (FCOM: only in BTV, until 300 ft)
 - Shift of touchdown point according to position on glide slope
 
 ### ATA 35 Oxygen

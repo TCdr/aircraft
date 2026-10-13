@@ -148,6 +148,8 @@ pub enum FailureType {
     ApuLeakDetectionLoop,
     /// The bleed monitoring computer n is failed
     BleedMonitoringComputer(usize),
+    /// The autobrake function cannot be armed (A380 BRAKES AUTO BRK FAULT)
+    Autobrake,
     // ATA34
     RadioAltimeter(usize),
     RadioAntennaInterrupted(usize),

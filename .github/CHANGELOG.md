@@ -301,6 +301,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] ELEC AC and DC pages: the GEN, TR, STAT INV and RAT indications turn amber when they are failed - @TCdr
 1. [A380X/HYD] The green (yellow) electric pumps are inhibited only by engine 1 or 2 (3 or 4) running, and in flight, as in the FCOM - @TCdr
 1. [A380X/FUEL] The OUTR, MID and INR TK XFR and TRIM TK XFR pushbuttons now work: they start in AUTO at every flight load, and in MAN (FWD) they stop the automatic transfers and transfer the fuel manually as in the FCOM (outer tanks into the feed tanks, by gravity into feed tanks 1 and 4 with an outer tank pump off; inner and mid tanks into the feed tanks; trim tank into the inner tanks) - @TCdr
+1. [A380X/HYD] The landing gear extension is inhibited above 280 kt as in the FCOM, instead of 260 kt - @TCdr
+1. [A380X/HYD] The body and wing landing gears need both the GREEN and the YELLOW hydraulic systems and the nose gear GREEN, as in the FCOM: with GREEN or YELLOW lost the main gears no longer retract and the gear extends by gravity - @TCdr
+1. [A380X/HYD] The landing gear gravity extension takes about 70 s from the L/G GRVTY switch to the last gear downlocked, as in the FCOM, instead of about 50 s - @TCdr
+1. [A380X/BRAKES] Emergency braking (A-SKID off or normal and alternate braking lost) is limited to 1 700 psi for taxi-out and take-off and to 1 000 psi after a flight until the PARK BRK handle is set ON, as in the FCOM, instead of 1 160 psi - @TCdr
+1. [A380X/BRAKES] The RTO autobrake no longer activates below 40 kt, as in the FCOM - @TCdr
+1. [A380X/FWS] New BRAKES A-SKID FAULT ON ALL L/G alert in emergency braking with the A-SKID switch on, and new flyPad failure of the autobrake (ATA 32) with its BRAKES AUTO BRK FAULT alert - @TCdr
 
 ## 2024.1.0
 

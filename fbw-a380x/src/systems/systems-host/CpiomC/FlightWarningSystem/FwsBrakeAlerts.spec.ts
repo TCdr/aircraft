@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACCU_PRESS_LO_PSI,
   accuPressLoItems,
+  aSkidFaultOnAllLg,
   BrakeSteerInputs,
   brakeFaultAlerts,
   btvFaultCautionTriggered,
@@ -30,6 +31,9 @@ function inputs(overrides: Partial<BrakeSteerInputs> = {}): BrakeSteerInputs {
     bwsFault: false,
     scs1Fault: false,
     scs2Fault: false,
+    pedalBrakingMode: 1,
+    antiSkidSwitchOn: true,
+    autoBrkFault: false,
     ...overrides,
   };
 }
@@ -96,6 +100,32 @@ describe('STEER alerts from the SCS and steering faults (A380 FCOM PRO-ABN-ECAM-
   });
 });
 
+describe('BRAKES A-SKID FAULT ON ALL L/G and AUTO BRK FAULT', () => {
+  it('raises A-SKID FAULT ON ALL L/G in emergency braking with the A-SKID sw ON (l.159037-159038, l.80059-80067)', () => {
+    expect(aSkidFaultOnAllLg(inputs({ pedalBrakingMode: 3 }))).toBe(true);
+  });
+
+  it('does not raise A-SKID FAULT ON ALL L/G with the A-SKID sw OFF: A-SKID OFF shows instead (l.80063-80064)', () => {
+    expect(aSkidFaultOnAllLg(inputs({ pedalBrakingMode: 3, antiSkidSwitchOn: false }))).toBe(false);
+  });
+
+  it('does not raise A-SKID FAULT ON ALL L/G in normal or alternate braking, or without pedal braking', () => {
+    expect(aSkidFaultOnAllLg(inputs({ pedalBrakingMode: 1 }))).toBe(false);
+    expect(aSkidFaultOnAllLg(inputs({ pedalBrakingMode: 2 }))).toBe(false);
+    expect(aSkidFaultOnAllLg(inputs({ pedalBrakingMode: 0 }))).toBe(false);
+  });
+
+  it('sets both alerts from the inputs', () => {
+    const alerts = new FwsBrakeAlerts();
+    run(alerts, 1, inputs(), false);
+    expect(alerts.aSkidFaultOnAllLg.get()).toBe(false);
+    expect(alerts.autoBrkFault.get()).toBe(false);
+    run(alerts, 1, inputs({ pedalBrakingMode: 3, autoBrkFault: true }), false);
+    expect(alerts.aSkidFaultOnAllLg.get()).toBe(true);
+    expect(alerts.autoBrkFault.get()).toBe(true);
+  });
+});
+
 describe('BRAKES ACCU PRESS LO and PARK BRK PRESS LO', () => {
   it('raises ACCU PRESS LO after 10 s below 3 000 psi only', () => {
     const alerts = new FwsBrakeAlerts();
@@ -156,6 +186,9 @@ describe('FwsBrakeAlerts inputs and wiring', () => {
       'L:A32NX_STEERING_BWS_FAULT',
       'L:A32NX_STEERING_SCS_1_FAULT',
       'L:A32NX_STEERING_SCS_2_FAULT',
+      'L:A32NX_BRAKES_PEDAL_BRAKING_MODE',
+      'A:ANTISKID BRAKES ACTIVE',
+      'L:A32NX_BRAKES_AUTO_BRK_FAULT',
     ]);
   });
 
@@ -176,6 +209,16 @@ describe('FwsBrakeAlerts inputs and wiring', () => {
     ]) {
       expect(rust).toContain(`"${name}"`);
     }
+    const hydraulics = readFileSync(
+      resolve(__dirname, '../../../../wasm/systems/a380_systems/src/hydraulic/mod.rs'),
+      'utf-8',
+    );
+    expect(hydraulics).toContain('"BRAKES_PEDAL_BRAKING_MODE"');
+    const autobrakes = readFileSync(
+      resolve(__dirname, '../../../../wasm/systems/a380_systems/src/hydraulic/autobrakes.rs'),
+      'utf-8',
+    );
+    expect(autobrakes).toContain('"BRAKES_AUTO_BRK_FAULT"');
   });
 
   it('the FWS updates the alerts with the park brake handle', () => {
@@ -195,6 +238,8 @@ describe('FwsBrakeAlerts inputs and wiring', () => {
     ['320800024', 'pedalBrakingFault', 2, [4, 5, 6, 7]], // PEDAL BRAKING FAULT p.5463
     ['320800009', 'accuPressLo', 2, [3, 4, 5, 6, 7, 9, 10]], // ACCU PRESS LO p.5440
     ['320800023', 'parkBrkPressLo', 2, [3, 4, 5, 6, 7, 8, 9, 10]], // PARK BRK PRESS LO p.5461
+    ['320800001', 'aSkidFaultOnAllLg', 2, [4, 5, 6, 7]], // A-SKID FAULT ON ALL L/G p.5423
+    ['320800013', 'autoBrkFault', 2, [3, 4, 5, 6, 7]], // AUTO BRK FAULT p.5447
     ['320800060', 'normNwSteerFault', 2, [3, 4, 5, 6, 7, 10]], // NORM N/W STEER FAULT p.5534
     ['320800047', 'altnNwSteerFault', 1, [3, 4, 5, 6, 7, 9, 10, 11]], // ALTN N/W STEER FAULT p.5517
     ['320800058', 'nwSteerFault', 2, [4, 5, 6, 7]], // N/W STEER FAULT p.5531
