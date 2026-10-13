@@ -564,6 +564,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] ELEC DC page: APU BAT voltage and current amber when out of range except while starting the APU, discharge arrow amber, green while starting the APU - @TCdr
 1. [A380X/SD] BLEED page: WING A-ICE indication per wing (on, failed closed, failed open or abnormal pressure) - @TCdr
 1. [A380X/SD] ENG page: the FADEC is supplied for 15 min after aircraft power-up and for 10 min after the FADEC GND PWR pb, then the engine parameters show XX - @TCdr
+1. [A380X/ENG] EWD EGT limits from the FCOM: amber above 970 °C, red line 1 002 °C (red at takeoff from 1 022 °C or after 20 s at or above 1 002 °C), with the ENG EGT OVER LIMIT alert and the EGT overtemperature failure retuned to them - @TCdr
 
 ## 2024.1.0
 

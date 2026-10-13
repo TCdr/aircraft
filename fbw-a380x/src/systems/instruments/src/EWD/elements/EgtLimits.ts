@@ -14,16 +14,30 @@ export enum ThrustLimitType {
   Reverse = 5,
 }
 
-/** EGT at which the indication turns red (FBW engine value) */
-const EGT_RED_C = 900;
-/** EGT limit, amber above it (FBW engine value) */
-const EGT_LIMIT_C = 850;
+/**
+ * A380 FCOM DSC-70-90 EGT RED LINE (a380_fcom.txt l.113199-113201): "A red arc appears above the EGT red line. The EGT
+ * red line is at 1 002 °C." (FBW used 900 °C, the upstream gauge value.)
+ */
+const EGT_RED_C = 1002;
+/**
+ * A380 FCOM DSC-70-90 EGT LIMIT (l.113185-113192): "The amber line indicates the maximum EGT. [...] 970 °C, during all
+ * other phases." (FBW used 850 °C, the upstream gauge value.)
+ */
+export const EGT_LIMIT_C = 970;
+
+/**
+ * A380 FCOM DSC-70-90 EGT INDICATIONS (l.113170-113177): "The EGT indication appears in red: During takeoff, if the EGT
+ * is: At or above 1 022 °C, or At or above 1 002 °C, for more than 20 s. During all other phases, if the EGT is at or
+ * above 1 002 °C."
+ */
+export const EGT_TAKEOFF_RED_C = 1022;
+export const EGT_TAKEOFF_RED_LINE_SECONDS = 20;
 
 /**
  * A380 FCOM DSC-70-90 EGT LIMIT (a380_fcom.txt l.113189-113192): "The maximum EGT is: 745 °C, during the ground start
  * sequence; 865 °C, during engine relight in flight; 970 °C, during all other phases." The start values are the FCOM
  * ones: the FADEC start EGT model is built on them (fadec_a380x StartSequence_A380X.hpp, the hot start overshoot goes
- * "above the 745 °C start limit"); the "all other phases" limit stays the FBW gauge value above.
+ * "above the 745 °C start limit").
  */
 export const EGT_START_LIMIT_C = 745;
 export const EGT_RELIGHT_LIMIT_C = 865;
@@ -67,15 +81,70 @@ export function egtLimitMarkVisible(limitType: number): boolean {
 }
 
 /**
- * Colour of the EGT value and needle: red above the red line, amber above the EGT limit (A380 FCOM DSC-70-90 EGT
- * INDICATIONS).
- * @param egt the EGT in degrees Celsius
+ * "During takeoff" of the EGT indications: the takeoff thrust limits FLEX and TOGA, as for "The amber indication does not
+ * appear: During takeoff" (egtLimitMarkVisible). TOGA also covers the go-around.
+ * @param limitType the thrust limit type
+ * @returns true at FLEX or TOGA
+ */
+export function isTakeoffThrust(limitType: number): boolean {
+  return limitType === ThrustLimitType.Flex || limitType === ThrustLimitType.Toga;
+}
+
+/**
+ * The red EGT indication (a380_fcom.txt l.113170-113177): during takeoff at or above 1 022 °C, or at or above the 1 002 °C
+ * red line for more than 20 s; during all other phases at or above the red line.
+ * @param egt the EGT shown, in degrees Celsius
+ * @param limitType the thrust limit type
+ * @param secondsAtOrAboveRedLine how long the EGT has been at or above the red line (EgtRedLineTimer)
+ * @returns true when the EGT indication is red
+ */
+export function isEgtRed(egt: number, limitType: number, secondsAtOrAboveRedLine: number): boolean {
+  if (isTakeoffThrust(limitType)) {
+    return egt >= EGT_TAKEOFF_RED_C || (egt >= EGT_RED_C && secondsAtOrAboveRedLine > EGT_TAKEOFF_RED_LINE_SECONDS);
+  }
+  return egt >= EGT_RED_C;
+}
+
+/**
+ * The time the EGT has been at or above the red line without a break, for the 20 s of the takeoff red indication
+ * (isEgtRed). A value that is not a finite number restarts it; a negative time step (sim time set back) adds nothing.
+ */
+export class EgtRedLineTimer {
+  private seconds = 0;
+
+  /**
+   * @param egt the EGT shown, in degrees Celsius
+   * @param deltaSeconds the time since the previous update, in seconds
+   */
+  update(egt: number, deltaSeconds: number): void {
+    if (Number.isFinite(egt) && egt >= EGT_RED_C) {
+      this.seconds += Math.max(0, deltaSeconds);
+    } else {
+      this.seconds = 0;
+    }
+  }
+
+  get secondsAtOrAboveRedLine(): number {
+    return this.seconds;
+  }
+}
+
+/**
+ * Colour of the EGT value and needle (A380 FCOM DSC-70-90 EGT INDICATIONS): red as isEgtRed, amber above the EGT limit
+ * where the amber limit applies.
+ * @param egt the EGT shown, in degrees Celsius
  * @param limitType the thrust limit type
  * @param limit the EGT limit (egtLimit), the normal one by default
+ * @param secondsAtOrAboveRedLine how long the EGT has been at or above the red line (EgtRedLineTimer), 0 by default
  * @returns 'Red', 'Amber' or 'Green'
  */
-export function egtColour(egt: number, limitType: number, limit = EGT_LIMIT_C): 'Red' | 'Amber' | 'Green' {
-  if (egt >= EGT_RED_C) {
+export function egtColour(
+  egt: number,
+  limitType: number,
+  limit = EGT_LIMIT_C,
+  secondsAtOrAboveRedLine = 0,
+): 'Red' | 'Amber' | 'Green' {
+  if (isEgtRed(egt, limitType, secondsAtOrAboveRedLine)) {
     return 'Red';
   }
   if (egt > limit && egtLimitMarkVisible(limitType)) {
@@ -86,15 +155,17 @@ export function egtColour(egt: number, limitType: number, limit = EGT_LIMIT_C): 
 
 /**
  * The EEC trims the EGT to a maximum value: the red line at take-off thrust (FLEX/TOGA), the EGT limit otherwise.
+ * Design choice (kept from the upstream gauge, at the FCOM limits): the EGT polynomial of the FBW engine model can
+ * overshoot in transients, a healthy engine must not show an exceedance for it. A healthy engine stays well below these
+ * caps (recorded raw FADEC EGT: about 820-850 °C at N1 85-88 % at takeoff, about 720 °C at N1 76 % in climb), so the cap
+ * only hides model spikes. At takeoff thrust a spike held at the 1 002 °C cap is not red before 20 s (isEgtRed). The
+ * failure EGT offset is added on top of the trimmed EGT (displayedEgt).
  * @param egt the EGT in degrees Celsius
  * @param limitType the thrust limit type
  * @returns the trimmed EGT
  */
 export function trimmedEgt(egt: number, limitType: number): number {
-  return Math.min(
-    limitType === ThrustLimitType.Flex || limitType === ThrustLimitType.Toga ? EGT_RED_C : EGT_LIMIT_C,
-    egt,
-  );
+  return Math.min(isTakeoffThrust(limitType) ? EGT_RED_C : EGT_LIMIT_C, egt);
 }
 
 /*
@@ -120,18 +191,6 @@ export function displayedEgt(egt: number, egtOffset: number, limitType: number, 
     return egt;
   }
   return trimmedEgt(egt - egtOffset, limitType) + egtOffset;
-}
-
-/**
- * The EGT above which ENG EGT OVER LIMIT triggers (a380_fcom.txt l.171488-171494): the red line during takeoff and
- * go-around, with the thrust reversers selected or in alpha floor, the EGT limit at or below MCT. FBW values of the gauge
- * (850 / 900 degC) in place of the GP7270 970 / 1002 degC.
- * @param limitType the thrust limit type
- * @param alphaFloor the alpha floor protection is active
- * @returns the EGT limit in degrees Celsius
- */
-export function egtAlertLimit(limitType: number, alphaFloor: boolean): number {
-  return egtLimitMarkVisible(limitType) && !alphaFloor ? EGT_LIMIT_C : EGT_RED_C;
 }
 
 /**
