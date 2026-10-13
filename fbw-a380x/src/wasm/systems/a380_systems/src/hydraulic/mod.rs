@@ -8199,6 +8199,23 @@ mod tests {
                 values.iter().sum::<f64>() / (values.len() as f64)
             }
 
+            /// SFCC configuration as written to FLAPS_CONF_INDEX (0 = CONF 0, 1 = CONF 1, 2 = CONF 1+F ...)
+            fn flaps_conf_index(&mut self) -> f64 {
+                self.read_by_name("FLAPS_CONF_INDEX")
+            }
+
+            fn sfcc_slat_flap_system_status_word(&mut self, sfcc_number: u8) -> Arinc429Word<u32> {
+                self.read_by_name(&format!("SFCC_{sfcc_number}_SLAT_FLAP_SYSTEM_STATUS_WORD"))
+            }
+
+            fn left_flaps_surface_angle(&mut self) -> Angle {
+                Angle::new::<degree>(self.read_by_name("LEFT_FLAPS_ANGLE"))
+            }
+
+            fn left_slats_surface_angle(&mut self) -> Angle {
+                Angle::new::<degree>(self.read_by_name("LEFT_SLATS_ANGLE"))
+            }
+
             fn get_slats_right_position_percent(&mut self) -> f64 {
                 let values: &[f64] = &[
                     self.read_by_name("RIGHT_SLATS_1_POSITION_PERCENT"),
@@ -11080,6 +11097,148 @@ mod tests {
             assert_ge!(test_bed.get_flaps_right_position_percent(), 98.);
             assert_ge!(test_bed.get_slats_left_position_percent(), 98.);
             assert_ge!(test_bed.get_slats_right_position_percent(), 98.);
+        }
+
+        /// FLAPS_CONF_INDEX values of the SFCC (`FlapsConf as u8`)
+        const FLAPS_CONF_INDEX_CONF1: f64 = 1.;
+        const FLAPS_CONF_INDEX_CONF1F: f64 = 2.;
+        /// SFCC slat/flap system status word bit 18: FLAPS lever in position 1
+        const SFCC_STATUS_BIT_LEVER_1: u8 = 18;
+        /// SFCC slat/flap system status word bit 26: CONF 1 (flaps auto-retracted, read by the PFD as "1")
+        const SFCC_STATUS_BIT_CONF1_FLAPS_RETRACTED: u8 = 26;
+
+        fn assert_surface_angle_near(actual_degrees: f64, expected_degrees: f64) {
+            assert!(
+                (actual_degrees - expected_degrees).abs() < 0.5,
+                "surface angle {actual_degrees:.2} deg, expected {expected_degrees:.2} deg"
+            );
+        }
+
+        fn assert_conf_1_plus_f(test_bed: &mut A380HydraulicsTestBed) {
+            assert_eq!(test_bed.flaps_conf_index(), FLAPS_CONF_INDEX_CONF1F);
+            for sfcc_number in 1..=2 {
+                let word = test_bed.sfcc_slat_flap_system_status_word(sfcc_number);
+                assert!(word.get_bit(SFCC_STATUS_BIT_LEVER_1));
+                assert!(!word.get_bit(SFCC_STATUS_BIT_CONF1_FLAPS_RETRACTED));
+            }
+            // CONF 1+F surfaces: slats 20 deg, flaps 8 deg
+            assert_surface_angle_near(test_bed.left_flaps_surface_angle().get::<degree>(), 8.);
+            assert_surface_angle_near(test_bed.left_slats_surface_angle().get::<degree>(), 20.);
+        }
+
+        fn assert_conf_1(test_bed: &mut A380HydraulicsTestBed) {
+            assert_eq!(test_bed.flaps_conf_index(), FLAPS_CONF_INDEX_CONF1);
+            for sfcc_number in 1..=2 {
+                let word = test_bed.sfcc_slat_flap_system_status_word(sfcc_number);
+                assert!(word.get_bit(SFCC_STATUS_BIT_LEVER_1));
+                assert!(word.get_bit(SFCC_STATUS_BIT_CONF1_FLAPS_RETRACTED));
+            }
+            // CONF 1 surfaces: slats stay at 20 deg, flaps fully retracted
+            assert_surface_angle_near(test_bed.left_flaps_surface_angle().get::<degree>(), 0.);
+            assert_surface_angle_near(test_bed.left_slats_surface_angle().get::<degree>(), 20.);
+            // What reaches MSFS: TRAILING EDGE FLAPS (and the MSFS flap index) from this
+            // percentage, the 3D flap animation from the FPPU-based animation position.
+            assert_le!(test_bed.get_flaps_left_position_percent(), 1.);
+            assert_le!(test_bed.get_flaps_right_position_percent(), 1.);
+            assert_le!(
+                ReadByName::<A380HydraulicsTestBed, f64>::read_by_name(
+                    test_bed,
+                    "LEFT_FLAPS_ANIMATION_POSITION"
+                ),
+                1.
+            );
+        }
+
+        /// A380 FCOM DSC-27-20-20 (a380_fcom.txt l.56783-56806):
+        /// ARS: "In CONF 1+F, the Auto Retraction System (ARS) automatically retracts the flaps ...
+        /// The resulting configuration is CONF 1. The ARS activates, when the aircraft reaches a
+        /// speed of 212 kt, and if still in CONF 1+F."
+        /// AES: "In CONF 1, the Auto Extension System (AES) automatically extends the flaps ...
+        /// The AES activates, when the speed goes below 205 kt, and if still in CONF 1."
+        /// Whole aircraft: lever 0 -> 1 at the gate, take-off in CONF 1+F, climb through 212 kt
+        /// (to 240 kt as in the user report), then back below 205 kt.
+        #[test]
+        fn flaps_auto_retraction_and_extension_after_a_conf_1_plus_f_takeoff() {
+            let mut test_bed = test_bed_on_ground_with()
+                .on_the_ground()
+                .set_cold_dark_inputs()
+                .start_eng1(Ratio::new::<percent>(80.))
+                .start_eng2(Ratio::new::<percent>(80.))
+                .start_eng3(Ratio::new::<percent>(80.))
+                .start_eng4(Ratio::new::<percent>(80.))
+                .set_flaps_handle_position(0)
+                .run_waiting_for(Duration::from_secs(10));
+
+            // Lever 1 selected long before the take-off: CONF 1+F on the ground
+            test_bed = test_bed
+                .set_flaps_handle_position(1)
+                .run_waiting_for(Duration::from_secs(60));
+            assert_conf_1_plus_f(&mut test_bed);
+
+            // Take-off roll at 170 kt, still on the ground: CONF 1+F
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(170.));
+            test_bed = test_bed
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(5));
+            assert_conf_1_plus_f(&mut test_bed);
+
+            // Lift-off, gear up, initial climb below 205 kt: CONF 1+F
+            test_bed.set_on_ground(false);
+            test_bed.set_pressure_altitude(Length::new::<foot>(1500.));
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(185.));
+            test_bed = test_bed
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(20));
+            assert_conf_1_plus_f(&mut test_bed);
+
+            // Between the AES (205 kt) and the ARS (212 kt) speeds: no change yet
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(209.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(20));
+            assert_conf_1_plus_f(&mut test_bed);
+
+            // Through 212 kt up to 240 kt: the ARS retracts the flaps -> CONF 1
+            test_bed.set_pressure_altitude(Length::new::<foot>(4000.));
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(213.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(2));
+            assert_eq!(test_bed.flaps_conf_index(), FLAPS_CONF_INDEX_CONF1);
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(240.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
+            assert!(!test_bed.is_flaps_moving());
+            assert_conf_1(&mut test_bed);
+
+            // Back between 205 and 212 kt: CONF 1 is kept (hysteresis)
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(208.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(20));
+            assert_conf_1(&mut test_bed);
+
+            // Below 205 kt with the lever still at 1: the AES extends the flaps -> CONF 1+F
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
+            assert!(!test_bed.is_flaps_moving());
+            assert_conf_1_plus_f(&mut test_bed);
+        }
+
+        /// Flight loaded in the air with the FLAPS lever already at 1 (no lever movement by the
+        /// crew): above 212 kt the SFCC must select CONF 1, below 205 kt CONF 1+F
+        /// (A380 FCOM DSC-27-20-20, a380_fcom.txt l.56783-56806).
+        #[rstest]
+        #[case(240., FLAPS_CONF_INDEX_CONF1)]
+        #[case(190., FLAPS_CONF_INDEX_CONF1F)]
+        fn flaps_lever_1_at_an_in_flight_spawn_follows_ars_and_aes(
+            #[case] indicated_airspeed_knots: f64,
+            #[case] expected_conf_index: f64,
+        ) {
+            let mut test_bed = test_bed_in_flight_with().set_flaps_handle_position(1);
+            test_bed = test_bed.in_flight();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(indicated_airspeed_knots));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
+
+            assert_eq!(test_bed.flaps_conf_index(), expected_conf_index);
+            if expected_conf_index == FLAPS_CONF_INDEX_CONF1 {
+                assert_conf_1(&mut test_bed);
+            } else {
+                assert_conf_1_plus_f(&mut test_bed);
+            }
         }
 
         #[test]
