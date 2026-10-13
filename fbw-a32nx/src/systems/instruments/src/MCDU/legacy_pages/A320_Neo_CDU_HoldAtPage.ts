@@ -6,12 +6,14 @@
 import { CDUFlightPlanPage } from './A320_Neo_CDU_FlightPlanPage';
 import { CDULateralRevisionPage } from './A320_Neo_CDU_LateralRevisionPage';
 import { NXSystemMessages } from '../messages/NXSystemMessages';
-import { TurnDirection, WaypointArea } from '@flybywiresim/fbw-sdk';
+import { MagVar, TurnDirection, WaypointArea } from '@flybywiresim/fbw-sdk';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanLeg, isDiscontinuity } from '@fmgc/flightplanning/legs/FlightPlanLeg';
 import { HoldData } from '@fmgc/flightplanning/data/flightplan';
+import { presentPositionComputedHold } from '@fmgc/flightplanning/plans/PresentPositionHold';
+import { ADIRS } from '../legacy/A32NX_Core/Adirs';
 
 const HoldType = Object.freeze({
   Computed: 0,
@@ -143,6 +145,39 @@ export class CDUHoldAtPage {
         inAlternate,
       );
     }
+  }
+
+  /**
+   * HOLD at PPOS (see PresentPositionHold.ts): a temporary flight plan with the computed hold at the aircraft position,
+   * on the aircraft track. Without a valid aircraft position: A/C POSITION INVALID (A320 FCOM l.22477-22480).
+   */
+  static ShowPresentPositionPage(mcdu: LegacyFmsPageInterface) {
+    const latitude = ADIRS.getLatitude();
+    const longitude = ADIRS.getLongitude();
+    const trueTrack = ADIRS.getTrueTrack();
+    if (!latitude.isNormalOperation() || !longitude.isNormalOperation() || !trueTrack.isNormalOperation()) {
+      mcdu.setScratchpadMessage(NXSystemMessages.acPositionInvalid);
+      return;
+    }
+
+    const ppos = { lat: latitude.value, long: longitude.value };
+    const magVar = MagVar.get(ppos.lat, ppos.long);
+    const magneticTrack = magVar === null ? trueTrack.value : MagVar.trueToMagnetic(trueTrack.value, magVar);
+    const computedHold = presentPositionComputedHold(
+      magneticTrack,
+      SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+    );
+
+    mcdu.flightPlanService
+      .holdAtPresentPosition(ppos, trueTrack.value, { ...computedHold }, computedHold)
+      .then((holdIndex) => {
+        // RETURN / ERASE go back to the LAT REV at PPOS (the PPOS waypoint before the hold)
+        CDUHoldAtPage.DrawPage(mcdu, holdIndex, holdIndex - 1, FlightPlanIndex.Active, false);
+      })
+      .catch((e) => {
+        console.error(e);
+        mcdu.logTroubleshootingError(e);
+      });
   }
 
   static holdVerticalDistanceFromAlt(altitude, hold) {

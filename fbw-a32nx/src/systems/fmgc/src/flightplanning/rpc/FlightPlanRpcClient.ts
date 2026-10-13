@@ -352,6 +352,23 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     return this.callFunctionViaRpc('nextWaypoint', atIndex, waypoint, planIndex, alternate);
   }
 
+  insertPlaceDistanceWaypoint(
+    placeLegIndex: number,
+    waypoint: Fix,
+    distance: number,
+    planIndex?: number,
+    alternate?: boolean,
+  ): Promise<void> {
+    return this.callFunctionViaRpc(
+      'insertPlaceDistanceWaypoint',
+      placeLegIndex,
+      waypoint,
+      distance,
+      planIndex,
+      alternate,
+    );
+  }
+
   newDest(atIndex: number, airportIdent: string, planIndex?: number, alternate?: boolean): Promise<void> {
     return this.callFunctionViaRpc('newDest', atIndex, airportIdent, planIndex, alternate);
   }
@@ -427,6 +444,15 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
       planIndex,
       alternate,
     );
+  }
+
+  holdAtPresentPosition(
+    ppos: Coordinates,
+    trueTrack: Degrees,
+    desiredHold: HoldData,
+    defaultHold: HoldData,
+  ): Promise<number> {
+    return this.callFunctionViaRpc('holdAtPresentPosition', ppos, trueTrack, desiredHold, defaultHold);
   }
 
   revertHoldToComputed(at: number, planIndex: number, alternate: boolean): Promise<void> {
