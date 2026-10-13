@@ -525,7 +525,8 @@
     <Template Name="FBW_Airbus_ATC_MSG_Button">
         <UseTemplate Name="FBW_Push_Held">
             <TOOLTIP>Acknowledge ATC message.</TOOLTIP>
-            <SEQ1_CODE>(L:A32NX_DCDU_ATC_MSG_WAITING, Bool)</SEQ1_CODE>
+            <!-- Flashing at 2 Hz from the systems host (Misc/AtcMsgLights.ts), A380 FCOM DSC-46-10-20-70 -->
+            <SEQ1_CODE>(L:A380X_GLARESHIELD_ATC_MSG_LIGHT, Bool)</SEQ1_CODE>
             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_DCDU_ATC_MSG_ACK, Bool)</LEFT_SINGLE_CODE>
             <NO_SEQ2/>
             <WWISE_EVENT_1>mpb1on</WWISE_EVENT_1>

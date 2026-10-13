@@ -20,6 +20,7 @@ import {
   EcamInopSys,
   EcamLimitations,
 } from '../../../MsfsAvionicsCommon/EcamMessages';
+import { EcamMoreInfo } from '../../../MsfsAvionicsCommon/EcamMessages/StatusMore';
 import { FormattedFwcText } from '../../../EWD/elements/FormattedFwcText';
 import { ChecklistState, FwsEvents } from '../../../MsfsAvionicsCommon/providers/FwsPublisher';
 import { MoreLabel, PageTitle } from '../Generic/PageTitle';
@@ -173,11 +174,6 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
 
   private readonly inopSysHeight = this.inopSysLines.map((lines) => `${lines * 30 + 3}px`);
 
-  /* ALERTS IMPACTING LDG PERF, TODO */
-  private readonly alertImpactingLdgPerfDisplayStatus = Subject.create<StatusPageSectionDisplayStatus>(
-    StatusPageSectionDisplayStatus.HIDDEN,
-  );
-
   /* INOP SYS REDUND */
   private readonly inopSysRedund = ConsumerSubject.create(this.sub.on('fws_inop_sys_redundancy_loss'), []);
   private readonly inopSysRedundCurrentPage = MappedSubject.create(
@@ -218,13 +214,58 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
 
   private readonly cancelledCautionHeight = this.cancelledCaution.map((keys) => `${keys.length * 30 + 3}px`);
 
+  /*
+   * ALERTS IMPACTING LDG PERF, on the STATUS MORE page (FCOM DSC-31-40-10, a380_fcom.txt l.72968-72970: "Indicates, in
+   * the ALERTS IMPACTING LDG PERF section, the alerts associated with performance"; l.72617-72619: "All ECAM alerts that
+   * have an impact on landing performance are listed on the STATUS MORE page"). The titles as on the EWD.
+   */
+  private readonly alertsImpactingLdgPerf = ConsumerSubject.create(this.sub.on('fws_alerts_impacting_ldg_perf'), []);
+
+  private readonly alertsImpactingLdgPerfFormatString = this.alertsImpactingLdgPerf.map((keys) =>
+    keys
+      .map((key) => EcamAbnormalProcedures[key]?.title)
+      .filter((title): title is string => title !== undefined)
+      .join('\r'),
+  );
+
+  private readonly alertsImpactingLdgPerfDisplay = this.alertsImpactingLdgPerf.map((keys) =>
+    keys.length > 0 ? 'flex' : 'none',
+  );
+
+  private readonly alertsImpactingLdgPerfHeight = this.alertsImpactingLdgPerf.map(
+    (keys) => `${keys.length * 30 + 3}px`,
+  );
+
+  /*
+   * MORE INFO, on the STATUS MORE page (l.72975-72977): "Provides, in white, additional procedural information ... When
+   * there is at least one CANCELLED CAUTION, a separation line appears above the MORE INFO." (EcamMoreInfo)
+   */
+  private readonly moreInfo = ConsumerSubject.create(this.sub.on('fws_more_info'), []);
+
+  private readonly moreInfoLines = this.moreInfo.map((keys) =>
+    keys.reduce<string[]>((lines, key) => lines.concat(EcamMoreInfo[key] ?? []), []),
+  );
+
+  private readonly moreInfoFormatString = this.moreInfoLines.map((lines) =>
+    lines.map((line) => `\x1b<7m${line}`).join('\r'),
+  );
+
+  private readonly moreInfoDisplay = this.moreInfoLines.map((lines) => (lines.length > 0 ? 'flex' : 'none'));
+
+  private readonly moreInfoHeight = this.moreInfoLines.map((lines) => `${lines.length * 30 + 3}px`);
+
+  private readonly moreInfoSeparationLine = this.cancelledCaution.map((keys) => keys.length > 0);
+
   private readonly moreActive = ConsumerSubject.create(this.sub.on('moreActive'), false);
   // Only draws the boxed MORE label: the FWS decides whether the MORE pb works, with the same rule on the same lists,
   // and is the only writer of L:A32NX_ECAM_SD_STS_MORE_AVAILABLE (a write from here was lost while this page was paused)
   private readonly moreAvailable = MappedSubject.create(
-    ([inopSysRedund, cancelledCaution]) => isStatusMoreAvailable(inopSysRedund, cancelledCaution),
+    ([inopSysRedund, cancelledCaution, ldgPerf, moreInfo]) =>
+      isStatusMoreAvailable(inopSysRedund, cancelledCaution, ldgPerf, moreInfo),
     this.inopSysRedund,
     this.cancelledCaution,
+    this.alertsImpactingLdgPerf,
+    this.moreInfo,
   );
   private readonly moreAvailableVisibility = this.moreAvailable.map((v) => (v ? 'inherit' : 'hidden'));
   private readonly moreActiveVisibility = this.moreActive.map((v) => (v ? 'inherit' : 'hidden'));
@@ -252,17 +293,15 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
   );
 
   private readonly pressStsForNextStatusPageVisibility = MappedSubject.create(
-    ([defStatus, infoStatus, inopStatus, alertStatus]) =>
+    ([defStatus, infoStatus, inopStatus]) =>
       defStatus === StatusPageSectionDisplayStatus.VISIBLE_NEXT_PAGE ||
       infoStatus === StatusPageSectionDisplayStatus.VISIBLE_NEXT_PAGE ||
-      inopStatus === StatusPageSectionDisplayStatus.VISIBLE_NEXT_PAGE ||
-      alertStatus === StatusPageSectionDisplayStatus.VISIBLE_NEXT_PAGE
+      inopStatus === StatusPageSectionDisplayStatus.VISIBLE_NEXT_PAGE
         ? 'inherit'
         : 'hidden',
     this.deferredProceduresDisplayStatus,
     this.infoDisplayStatus,
     this.inopSysDisplayStatus,
-    this.alertImpactingLdgPerfDisplayStatus,
   );
 
   private readonly morePageOverflow = MappedSubject.create(
@@ -271,6 +310,12 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
     this.stsPageToShow,
   );
   private readonly pressMoreForNextMorePageVisibility = this.morePageOverflow.map((v) => (v ? 'inherit' : 'hidden'));
+
+  /**
+   * The sections after INOP SYS REDUND (ALERTS IMPACTING LDG PERF, CANCELLED CAUTION, MORE INFO) are on the last STATUS
+   * MORE page, after the REDUND LOSS items. Design choice: only the REDUND LOSS items are split across the pages.
+   */
+  private readonly lastMorePageDisplay = this.morePageOverflow.map((overflow) => (overflow ? 'none' : 'flex'));
 
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -307,6 +352,17 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
       this.cancelledCautionFormatString,
       this.cancelledCautionDisplay,
       this.cancelledCautionHeight,
+      this.alertsImpactingLdgPerf,
+      this.alertsImpactingLdgPerfFormatString,
+      this.alertsImpactingLdgPerfDisplay,
+      this.alertsImpactingLdgPerfHeight,
+      this.moreInfo,
+      this.moreInfoLines,
+      this.moreInfoFormatString,
+      this.moreInfoDisplay,
+      this.moreInfoHeight,
+      this.moreInfoSeparationLine,
+      this.lastMorePageDisplay,
       this.moreAvailable,
     );
 
@@ -340,13 +396,11 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
           const deferredProceduresLines = this.deferredProceduresLinesStrings.length + 1; // Cave: Check if race condition
           const infoLines = info.length + 1;
           const inopSysLines = Math.max(inopApp.length, inopAppr.length) + 2;
-          const alertImpactingLdgPerfLines = 0; // TODO
 
           // 0-based page index. -1 means not displayed
           let deferredProceduresVisibleOnPage = 0;
           let infoVisibleOnPage = 0;
           let inopSysVisibleOnPage = 0;
-          let alertImpactingLdgPerfVisibleOnPage = 0; // TODO
 
           let calculateForPage = 0;
           let linesUsedOnCurrentPage = 0;
@@ -391,15 +445,7 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
             this.inopSysDisplaySeparationLine.set(true);
           }
           linesUsedOnCurrentPage += inopSysLines;
-
-          if (linesUsedOnCurrentPage + alertImpactingLdgPerfLines > SD_STS_LINES_PER_PAGE_USABLE) {
-            alertImpactingLdgPerfVisibleOnPage = calculateForPage + 1;
-            calculateForPage += 1;
-            linesUsedOnCurrentPage = 0;
-          } else {
-            alertImpactingLdgPerfVisibleOnPage = calculateForPage;
-          }
-          linesUsedOnCurrentPage += alertImpactingLdgPerfLines;
+          // ALERTS IMPACTING LDG PERF is a section of the STATUS MORE page (FCOM l.72968-72970), not of this page
 
           let displayedOnNextPageAlreadyDisplayed = false;
           if (pageToShow === deferredProceduresVisibleOnPage) {
@@ -427,15 +473,6 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
             displayedOnNextPageAlreadyDisplayed = true;
           } else {
             this.inopSysDisplayStatus.set(StatusPageSectionDisplayStatus.HIDDEN);
-          }
-
-          if (pageToShow === alertImpactingLdgPerfVisibleOnPage) {
-            this.alertImpactingLdgPerfDisplayStatus.set(StatusPageSectionDisplayStatus.VISIBLE_CURRENT_PAGE);
-          } else if (pageToShow + 1 === alertImpactingLdgPerfVisibleOnPage && !displayedOnNextPageAlreadyDisplayed) {
-            this.alertImpactingLdgPerfDisplayStatus.set(StatusPageSectionDisplayStatus.VISIBLE_NEXT_PAGE);
-            displayedOnNextPageAlreadyDisplayed = true;
-          } else {
-            this.alertImpactingLdgPerfDisplayStatus.set(StatusPageSectionDisplayStatus.HIDDEN);
           }
 
           this.stsNumberOfPagesSimvar.set(calculateForPage + 1);
@@ -621,17 +658,47 @@ export class StatusPage extends DestroyableComponent<SdPageProps> {
               <FormattedFwcText x={0} y={24} message={this.inopSysRedundFormatString} />
             </svg>
           </div>
-          {/* CANCELLED CAUTION */}
-          <div
-            class="sd-sts-section-container"
-            style={{
-              display: this.cancelledCautionDisplay,
-            }}
-          >
-            <StatusPageSectionHeading title="CANCELLED CAUTION" showSeparationLines={Subject.create(true)} />
-            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style={{ height: this.cancelledCautionHeight }}>
-              <FormattedFwcText x={0} y={24} message={this.cancelledCautionFormatString} />
-            </svg>
+          <div class="sd-sts-more-last-page" style={{ display: this.lastMorePageDisplay }}>
+            {/* ALERTS IMPACTING LDG PERF */}
+            <div
+              class="sd-sts-section-container"
+              style={{
+                display: this.alertsImpactingLdgPerfDisplay,
+              }}
+            >
+              <StatusPageSectionHeading title="ALERTS IMPACTING LDG PERF" showSeparationLines={Subject.create(true)} />
+              <svg
+                version="1.1"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ height: this.alertsImpactingLdgPerfHeight }}
+              >
+                <FormattedFwcText x={0} y={24} message={this.alertsImpactingLdgPerfFormatString} />
+              </svg>
+            </div>
+            {/* CANCELLED CAUTION */}
+            <div
+              class="sd-sts-section-container"
+              style={{
+                display: this.cancelledCautionDisplay,
+              }}
+            >
+              <StatusPageSectionHeading title="CANCELLED CAUTION" showSeparationLines={Subject.create(true)} />
+              <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style={{ height: this.cancelledCautionHeight }}>
+                <FormattedFwcText x={0} y={24} message={this.cancelledCautionFormatString} />
+              </svg>
+            </div>
+            {/* MORE INFO: white lines, a separation line above them when there is a CANCELLED CAUTION */}
+            <div
+              class="sd-sts-section-container"
+              style={{
+                display: this.moreInfoDisplay,
+              }}
+            >
+              <div class={{ 'sd-sts-section-heading-lines': true, show: this.moreInfoSeparationLine }} />
+              <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style={{ height: this.moreInfoHeight }}>
+                <FormattedFwcText x={0} y={24} message={this.moreInfoFormatString} />
+              </svg>
+            </div>
           </div>
           <div style="flex-grow: 1" />
           <div class="sd-sts-press-sts-for-next-page" style={{ visibility: this.pressMoreForNextMorePageVisibility }}>

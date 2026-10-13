@@ -1513,6 +1513,12 @@ These variables are the interface between the 3D model and the systems/code.
     - Written by the DMC logic of the systems host: only one ECAM display is on, the SD is shown only while a system page
       pb is held (FCOM DSC-31-05-60). The STS pb then pages the STATUS page
 
+- A32NX_ECAM_SD_ADVISORY_PAGE
+    - Enum
+    - Written by the DMC logic of the systems host: the system page with an ECAM advisory (a parameter out of its normal
+      range, FCOM DSC-31-20), -1 for none. Same values as A32NX_ECAM_SD_CURRENT_PAGE_INDEX. With two ECAM displays the
+      DMC calls this page (advisory mode); with one ECAM display the ECP pb of this page flashes instead
+
 - A32NX_ECAM_STATUS_NORMAL
     - Bool
     - True when the ECAM STATUS page is empty (NORMAL)

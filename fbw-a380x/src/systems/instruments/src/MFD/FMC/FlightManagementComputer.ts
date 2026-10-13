@@ -93,6 +93,7 @@ import { clampFmcUpdateStep } from './FmcUpdateStep';
 import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
+import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
 import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
 import { NdInteractiveRevisions } from './NdInteractiveRevisions';
 import { RejectedAtcElement } from './AtcRouteClearance';
@@ -251,6 +252,9 @@ export class FlightManagementComputer implements FmcInterface {
 
   /** The FMS print functions (FMC-A, created with the first update, once the FMC is initialized) */
   #printer: FmsPrinter | null = null;
+
+  /** The type II FMS messages raised from the FMS data each cycle (FMC-A only, it has the navigation) */
+  #advisoryMessages: FmsAdvisoryMessages | null = null;
 
   get printer(): FmsPrinter | null {
     return this.#printer;
@@ -2410,6 +2414,8 @@ export class FlightManagementComputer implements FmcInterface {
         this.#printer ??= new FmsPrinter(this, this.bus);
         this.#printer.update();
         this.updateActiveFlightNumber();
+        this.#advisoryMessages ??= new FmsAdvisoryMessages(this);
+        this.#advisoryMessages.update();
       }
       this.updateFuelPlanning();
       this.loadActiveFlightPlanFuelAndApproachData();
