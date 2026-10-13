@@ -105,7 +105,7 @@ export const WingAntiIceStatusCodes = {
   ldgDistProc: '700400004',
   wingAntiIce: '300300001',
   thrustLimPenalty: '300400001',
-  waiRegul: '300300002',
+  waiRegul: '300300004',
 } as const;
 
 const W = WingAntiIceStatusCodes;

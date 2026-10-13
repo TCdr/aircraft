@@ -2,8 +2,41 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { formatStatusPage, orderStatusCodes } from './StatusMessages';
+
+/**
+ * The message codes written more than once in a message table source file. The tables are Maps built from
+ * `['code', {...}]` entries (StatusMessages) or object literals with `'code': '...'` keys (EwdMessages): a second entry
+ * with the same code silently replaces the text of the first one, so the source text is checked, not the built table.
+ */
+function duplicatedCodes(fileName: string): string[] {
+  const source = readFileSync(resolve(__dirname, fileName), 'utf-8');
+  const codePattern = /^\s*(?:\[\s*'(\d{9})'\s*,|'(\d{9})'\s*:)/gm;
+  const seen = new Set<string>();
+  const duplicated = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = codePattern.exec(source)) !== null) {
+    const code = match[1] ?? match[2];
+    if (seen.has(code)) {
+      duplicated.add(code);
+    }
+    seen.add(code);
+  }
+  return Array.from(duplicated);
+}
+
+describe('A320 ECAM message tables', () => {
+  it('give each STATUS code one line only', () => {
+    expect(duplicatedCodes('StatusMessages.ts')).toEqual([]);
+  });
+
+  it('give each E/WD code one line only', () => {
+    expect(duplicatedCodes('EwdMessages.ts')).toEqual([]);
+  });
+});
 
 const GPS_1 = '340300001';
 const GPS_1_AND_2 = '340300003';
