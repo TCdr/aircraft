@@ -307,6 +307,30 @@ import {
   LS_TUNING_DISAGREE_PHASE_INHIBITION,
   LsTuningDisagreeMonitor,
 } from './Logic/NavPositionAlerts';
+import {
+  AdirsEwdCodes,
+  adirsFaultAlerts,
+  adrDisagreeStatus,
+  adrDisagreement,
+  adrDualFaultLines,
+  adrDualFaultStatus,
+  adrFaultLines,
+  adrFaultStatus,
+  adrTripleFaultLines,
+  adrTripleFaultStatus,
+  irDisagree,
+  irDisagreeStatus,
+  irDualFaultLines,
+  irDualFaultStatus,
+  irFaultLines,
+  irFaultStatus,
+  ra1And2FaultStatus,
+  raFaultAlerts,
+  raFaultStatus,
+  radioAltitudesDisagree,
+  readAdirsAlertInputs,
+  unit3AlertInhibitedInPhase3,
+} from './Logic/AdirsAlerts';
 import { orderStatusCodes } from '@shared/StatusMessages';
 import {
   STATUS_CLR_SCROLLS_VAR,
@@ -2541,6 +2565,48 @@ export class PseudoFWC {
 
   private readonly ra2Fault = Subject.create(false);
 
+  /** NAV RA 1 AND 2 FAULT, which replaces the two NAV RA 1(2) FAULT alerts (Logic/AdirsAlerts raFaultAlerts) */
+  private readonly ra1And2Fault = Subject.create(false);
+
+  private readonly raDegradedConfirmNode = new NXLogicConfirmNode(2, true);
+
+  /** NAV RA DEGRADED: the RA heights differ (Logic/AdirsAlerts radioAltitudesDisagree), confirmed 2 s (design choice) */
+  private readonly raDegraded = Subject.create(false);
+
+  /** The NAV ADR and IR fault alerts, from the ADR and IR FAULT discretes of the ADIRUs (Logic/AdirsAlerts) */
+  private adirsFaults = adirsFaultAlerts([false, false, false], [false, false, false]);
+
+  /** NAV ADR 1(2)(3) FAULT */
+  private readonly adrFaultAlert = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  private readonly adrDualFaultAlert = Subject.create(false);
+
+  private readonly adrTripleFaultAlert = Subject.create(false);
+
+  /** NAV IR 1(2)(3) FAULT */
+  private readonly irFaultAlert = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  private readonly irDualFaultAlert = Subject.create(false);
+
+  private readonly adrDisagreeConfirmNode = new NXLogicConfirmNode(1, true);
+
+  /** NAV ADR DISAGREE (Logic/AdirsAlerts adrDisagreement), confirmed 1 s as the A380 PRIM monitoring (design choice) */
+  private readonly adrDisagree = Subject.create(false);
+
+  private readonly irDisagreeConfirmNode = new NXLogicConfirmNode(1, true);
+
+  /** NAV IR DISAGREE (Logic/AdirsAlerts irDisagree), confirmed 1 s (design choice) */
+  private readonly irDisagree = Subject.create(false);
+
+  /** The ADR 1, 2, 3 pb-sw are ON */
+  private adrPbOn = [true, true, true];
+
+  /** An autopilot or a flight director is engaged (NAV ADR 1+2+3 FAULT AP+FD OFF line) */
+  private apOrFdEngaged = false;
+
+  /** The PROBE/WINDOW HEAT pb-sw is ON */
+  private probeWindowHeatOn = false;
+
   private readonly tcasFault = Subject.create(false);
 
   private readonly tcasSensitivity = Subject.create(0);
@@ -3551,6 +3617,34 @@ export class PseudoFWC {
   /**
    * Periodic update
    */
+  /** The NAV ADR and IR alerts (A320 FCOM PRO-ABN-NAV), see Logic/AdirsAlerts */
+  private updateAdirsAlerts(deltaTime: number): void {
+    const inputs = readAdirsAlertInputs((name, unit) => SimVar.GetSimVarValue(name, unit));
+    this.adirsFaults = adirsFaultAlerts(inputs.adrFaulty, inputs.irFaulty);
+    const phase = this.fwcFlightPhase.get();
+    const adr3InUse = this.airKnob.get() !== AirDataSwitchingKnob.Norm;
+    // The ATT HDG selector has the same positions as the AIR DATA one (CAPT, NORM, F/O)
+    const ir3InUse = this.attKnob.get() !== AirDataSwitchingKnob.Norm;
+    this.adrFaultAlert.forEach((alert, index) =>
+      alert.set(this.adirsFaults.adrFault[index] && !(index === 2 && unit3AlertInhibitedInPhase3(phase, adr3InUse))),
+    );
+    this.adrDualFaultAlert.set(this.adirsFaults.adrDualFault !== null);
+    this.adrTripleFaultAlert.set(this.adirsFaults.adrTripleFault);
+    this.irFaultAlert.forEach((alert, index) =>
+      alert.set(this.adirsFaults.irFault[index] && !(index === 2 && unit3AlertInhibitedInPhase3(phase, ir3InUse))),
+    );
+    this.irDualFaultAlert.set(this.adirsFaults.irDualFault !== null);
+    this.adrPbOn = inputs.adrPbOn;
+    this.apOrFdEngaged = inputs.apOrFdEngaged;
+    this.probeWindowHeatOn = inputs.probeWindowHeatOn;
+
+    const remainingAdrsDisagree = adrDisagreement(inputs.adrData, this.aircraftOnGround.get());
+    this.adrDisagree.set(
+      this.adrDisagreeConfirmNode.write(remainingAdrsDisagree.speed || remainingAdrsDisagree.angleOfAttack, deltaTime),
+    );
+    this.irDisagree.set(this.irDisagreeConfirmNode.write(irDisagree(inputs.irData), deltaTime));
+  }
+
   update(deltaTime: number) {
     this.acquisitionBackplane.onUpdate();
 
@@ -4702,7 +4796,24 @@ export class PseudoFWC {
       toConfigTest && this.fwcFlightPhase.get() === 2,
       this.fwcFlightPhase.get() !== 2,
     );
-    this.ra1Fault.set(this.height1Failed.get() && !this.sdac00201Word.bitValue(20));
+    // NAV RA 1(2) FAULT, RA 1 AND 2 FAULT (Logic/AdirsAlerts raFaultAlerts): an RA failed with its AC bus powered
+    const raFaults = raFaultAlerts(
+      this.height1Failed.get() && !this.sdac00201Word.bitValue(20),
+      this.height2Failed.get() && !this.sdac00210Word.bitValue(20),
+    );
+    this.ra1Fault.set(raFaults.ra1Fault);
+    this.ra2Fault.set(raFaults.ra2Fault);
+    this.ra1And2Fault.set(raFaults.ra1And2Fault);
+    this.raDegraded.set(
+      this.raDegradedConfirmNode.write(
+        radioAltitudesDisagree(
+          radioHeight1.isNormalOperation() ? radioHeight1.value : null,
+          radioHeight2.isNormalOperation() ? radioHeight2.value : null,
+        ),
+        deltaTime,
+      ),
+    );
+    this.updateAdirsAlerts(deltaTime);
     // GPS receivers: GPS_n_MODE 4 is FAULT (A320 FCOM PRO-ABN-NAV: the alert triggers when the GPS 1(2) is failed)
     this.gps1Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_1_MODE', 'number') === 4);
     this.gps2Fault.set(SimVar.GetSimVarValue('L:A32NX_GPS_2_MODE', 'number') === 4);
@@ -4728,7 +4839,6 @@ export class PseudoFWC {
         deltaTime / 1000,
       ),
     );
-    this.ra2Fault.set(this.height2Failed.get() && !this.sdac00210Word.bitValue(20));
     this.tcasFault.set(SimVar.GetSimVarValue('L:A32NX_TCAS_FAULT', 'bool'));
     // ATC/XPDR 1(2) FAULT: the transponder failed with its bus powered (a bus loss is an ELEC alert)
     this.selectedXpdr.set(selectedXpdrSystem(SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number')));
@@ -10300,6 +10410,9 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      // STATUS (FCOM PRO-ABN-NAV NAV RA 1(2) FAULT, a320_fcom.txt l.93833-93840), see Logic/AdirsAlerts
+      inopSys: () => raFaultStatus(1).inopSys,
+      statusInfo: () => raFaultStatus(1).left,
     },
     3400165: {
       // GPS 1 FAULT: crew awareness (the flight phase inhibition is the one of the RA faults, design choice)
@@ -10392,6 +10505,198 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      inopSys: () => raFaultStatus(2).inopSys,
+      statusInfo: () => raFaultStatus(2).left,
+    },
+    // NAV RA, ADR and IR alerts (A320 FCOM PRO-ABN-NAV), see Logic/AdirsAlerts. The FCOM gives the flight phase
+    // inhibitions in figures: the RA alerts have the one of NAV RA 1(2) FAULT, the ADR and IR alerts the one of F/CTL ALTN
+    // LAW (phases 4, 5, 7, 8), with the exceptions that the FCOM text gives (design choice).
+    3400145: {
+      // NAV RA 1 AND 2 FAULT (a320_fcom.txt l.93752-93807): crew awareness, replaces the two RA 1(2) FAULT alerts
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.ra1And2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [...AdirsEwdCodes.ra1And2Fault],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => ra1And2FaultStatus().inopSys,
+      statusInfo: () => ra1And2FaultStatus().left,
+    },
+    3400155: {
+      // NAV RA DEGRADED (l.93852-93868): crew awareness
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.raDegraded,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [...AdirsEwdCodes.raDegraded],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    3400300: {
+      // NAV ADR 1 FAULT (l.91927-91999): "Not inhibited in flight phases 3, 5, and 7 in the case of NAV ADR 1(2)
+      // FAULT" (l.91943)
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.adrFaultAlert[0],
+      whichCodeToReturn: () => adrFaultLines(1, this.airKnob.get(), this.adrPbOn[0]),
+      codesToReturn: [...AdirsEwdCodes.adrFault[1]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrFaultStatus(1).inopSys,
+      statusInfo: () => adrFaultStatus(1).left,
+    },
+    3400310: {
+      // NAV ADR 2 FAULT
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.adrFaultAlert[1],
+      whichCodeToReturn: () => adrFaultLines(2, this.airKnob.get(), this.adrPbOn[1]),
+      codesToReturn: [...AdirsEwdCodes.adrFault[2]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrFaultStatus(2).inopSys,
+      statusInfo: () => adrFaultStatus(2).left,
+    },
+    3400320: {
+      // NAV ADR 3 FAULT: in phase 3 only while the ADR 3 is in use (l.91941, see updateAdirsAlerts)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.adrFaultAlert[2],
+      whichCodeToReturn: () => adrFaultLines(3, this.airKnob.get(), this.adrPbOn[2]),
+      codesToReturn: [...AdirsEwdCodes.adrFault[3]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrFaultStatus(3).inopSys,
+      statusInfo: () => adrFaultStatus(3).left,
+    },
+    3400330: {
+      // NAV ADR 1+2(1+3)(2+3) FAULT (l.92011-92183)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.adrDualFaultAlert,
+      whichCodeToReturn: () =>
+        this.adirsFaults.adrDualFault
+          ? adrDualFaultLines(
+              this.adirsFaults.adrDualFault,
+              this.airKnob.get(),
+              this.adrPbOn,
+              isXpdrSwitchLineShown(1, this.selectedXpdr.get(), !this.xpdr2Inop.get()),
+              isXpdrSwitchLineShown(2, this.selectedXpdr.get(), !this.xpdr1Inop.get()),
+            )
+          : [],
+      codesToReturn: [...AdirsEwdCodes.adrDualFault],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => (this.adirsFaults.adrDualFault ? adrDualFaultStatus(this.adirsFaults.adrDualFault).inopSys : []),
+      statusInfo: () => (this.adirsFaults.adrDualFault ? adrDualFaultStatus(this.adirsFaults.adrDualFault).left : []),
+    },
+    3400360: {
+      // NAV ADR 1+2+3 FAULT (l.92185-92297)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.adrTripleFaultAlert,
+      whichCodeToReturn: () =>
+        adrTripleFaultLines(
+          this.apOrFdEngaged,
+          this.autoThrustStatus.get() !== 0,
+          this.probeWindowHeatOn,
+          this.adrPbOn.some((on) => on),
+        ),
+      codesToReturn: [...AdirsEwdCodes.adrTripleFault],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrTripleFaultStatus().inopSys,
+      statusInfo: () => adrTripleFaultStatus().left,
+    },
+    3400370: {
+      // NAV ADR DISAGREE (l.92436-92527)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.adrDisagree,
+      whichCodeToReturn: () => [0, 1, 2, 3, 4],
+      codesToReturn: [...AdirsEwdCodes.adrDisagree],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => adrDisagreeStatus().inopSys,
+      statusInfo: () => adrDisagreeStatus().left,
+    },
+    3400400: {
+      // NAV IR 1 FAULT (l.93306-93399): "Alert not inhibited in flight phase 3 in the case of NAV IR 1(2) FAULT"
+      // (l.93322)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irFaultAlert[0],
+      whichCodeToReturn: () =>
+        irFaultLines(1, this.attKnob.get(), isXpdrSwitchLineShown(1, this.selectedXpdr.get(), !this.xpdr2Inop.get())),
+      codesToReturn: [...AdirsEwdCodes.irFault[1]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => irFaultStatus(1).inopSys,
+      statusInfo: () => irFaultStatus(1).left,
+    },
+    3400410: {
+      // NAV IR 2 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irFaultAlert[1],
+      whichCodeToReturn: () =>
+        irFaultLines(2, this.attKnob.get(), isXpdrSwitchLineShown(2, this.selectedXpdr.get(), !this.xpdr1Inop.get())),
+      codesToReturn: [...AdirsEwdCodes.irFault[2]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => irFaultStatus(2).inopSys,
+      statusInfo: () => irFaultStatus(2).left,
+    },
+    3400420: {
+      // NAV IR 3 FAULT: in phase 3 only while the IR 3 is in use (l.93320-93321, see updateAdirsAlerts)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irFaultAlert[2],
+      whichCodeToReturn: () => irFaultLines(3, this.attKnob.get(), false),
+      codesToReturn: [...AdirsEwdCodes.irFault[3]],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => irFaultStatus(3).inopSys,
+      statusInfo: () => irFaultStatus(3).left,
+    },
+    3400430: {
+      // NAV IR 1+2(1+3)(2+3) FAULT (l.93411-93521)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irDualFaultAlert,
+      whichCodeToReturn: () =>
+        this.adirsFaults.irDualFault ? irDualFaultLines(this.adirsFaults.irDualFault, this.attKnob.get()) : [],
+      codesToReturn: [...AdirsEwdCodes.irDualFault],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => (this.adirsFaults.irDualFault ? irDualFaultStatus(this.adirsFaults.irDualFault).inopSys : []),
+      statusInfo: () => (this.adirsFaults.irDualFault ? irDualFaultStatus(this.adirsFaults.irDualFault).left : []),
+    },
+    3400460: {
+      // NAV IR DISAGREE (l.93533-93624)
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.irDisagree,
+      whichCodeToReturn: () => [0, 1, 2, 3, 4],
+      codesToReturn: [...AdirsEwdCodes.irDisagree],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => irDisagreeStatus().inopSys,
+      statusInfo: () => irDisagreeStatus().left,
     },
     3400860: {
       // NAV ATC/XPDR 1 FAULT (FCOM PRO-ABN-NAV, a320_fcom.txt:92764-92790; the flight phase inhibition is the one of
