@@ -8,6 +8,7 @@ import {
   AtsuMessageDirection,
   AtsuMessageType,
   CpdlcMessage,
+  CpdlcMessagesUplink,
   MailboxSnapshot,
   MailboxStatusMessage,
 } from '../../../common/src';
@@ -24,10 +25,14 @@ function downlink(uid: number): CpdlcMessage {
   return message;
 }
 
-/** The parts of the ATC function the mailbox uses here; removeMessage calls back into the mailbox like the real one */
-function setup() {
+/**
+ * The parts of the ATC function the mailbox uses here; removeMessage calls back into the mailbox like the real one
+ * @param delayedFirstRing the A380X RING timing (A380 FCOM DSC-46-10-20-70): no ring before the reading time
+ */
+function setup(delayedFirstRing = false) {
   const bus = new EventBus();
   let messages: CpdlcMessage[] = [];
+  let rings = 0;
   const atc = {
     messages: () => messages,
     removeMessage: (uid: number) => {
@@ -41,10 +46,15 @@ function setup() {
     currentStation: () => 'EDYY',
     updateShownMessageInMailbox: () => {},
     digitalInputs: { addDataCallback: () => {} },
-    digitalOutputs: { activateButton: () => {}, sendSystemStatus: () => {}, activateAtcRing: () => {} },
+    digitalOutputs: {
+      activateButton: () => {},
+      resetButton: () => {},
+      sendSystemStatus: () => {},
+      activateAtcRing: () => rings++,
+    },
   } as unknown as Atc;
   // removeMessage above only runs once the mailbox exists
-  const mailbox = new MailboxBus(bus, atc);
+  const mailbox = new MailboxBus(bus, atc, delayedFirstRing);
 
   const statuses: MailboxStatusMessage[] = [];
   const shown: number[] = [];
@@ -59,9 +69,14 @@ function setup() {
   // the A380X SD mailbox CANCEL of a prepared downlink
   const cancel = (uid: number) => bus.getPublisher<AtsuMailboxMessages>().pub('deleteMessage', uid, true, false);
   // an uplink message of the ATC center
-  const receive = (uid: number) => {
+  const receive = (uid: number, urgent = false) => {
     const message = downlink(uid);
     message.Direction = AtsuMessageDirection.Uplink;
+    if (urgent) {
+      const element = CpdlcMessagesUplink.UM20[1].deepCopy();
+      element.Urgent = true;
+      message.Content.push(element);
+    }
     messages.push(message);
     mailbox.enqueue([message]);
   };
@@ -70,7 +85,9 @@ function setup() {
   sub.on('mailboxSnapshot').handle((s) => snapshots.push(s));
   // a mailbox client that asks for the whole mailbox file
   const resync = () => publisher.pub('mailboxResyncRequest', true, true, false);
-  return { mailbox, publisher, send, receive, cancel, resync, statuses, shown, snapshots };
+  // the flight crew reads a message on the mailbox
+  const read = (uid: number) => publisher.pub('readMessage', uid, true, false);
+  return { mailbox, publisher, send, receive, cancel, resync, read, statuses, shown, snapshots, rings: () => rings };
 }
 
 describe('MailboxBus downlink file (A380 FCOM DSC-46, FILE FULL)', () => {
@@ -172,5 +189,75 @@ describe('MailboxBus resync (A380X SD mailbox on another DU, FCOM PRO-ABN-ECAM-1
     send(1);
     resync();
     expect(snapshots).toHaveLength(0);
+  });
+});
+
+describe('MailboxBus RING (A380 FCOM DSC-46-10-20-70, a380_fcom.txt l.101232-101235)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('A380X: rings only if the normal message is not read within 15 s', () => {
+    const { mailbox, receive, rings } = setup(true);
+    mailbox.powerUp();
+    receive(1);
+    expect(rings()).toBe(0);
+    vi.advanceTimersByTime(14900);
+    expect(rings()).toBe(0);
+    vi.advanceTimersByTime(100);
+    expect(rings()).toBe(1);
+  });
+
+  it('A380X: rings only if the urgent message is not read within 5 s', () => {
+    const { mailbox, receive, rings } = setup(true);
+    mailbox.powerUp();
+    receive(1, true);
+    vi.advanceTimersByTime(4900);
+    expect(rings()).toBe(0);
+    vi.advanceTimersByTime(100);
+    expect(rings()).toBe(1);
+  });
+
+  it('A380X: never rings for a message read in time', () => {
+    const { mailbox, receive, read, rings } = setup(true);
+    mailbox.powerUp();
+    receive(1);
+    vi.advanceTimersByTime(10000);
+    read(1);
+    vi.advanceTimersByTime(60000);
+    expect(rings()).toBe(0);
+  });
+
+  it('A380X: an urgent message received during the wait of a normal one rings 5 s after its own reception', () => {
+    const { mailbox, receive, rings } = setup(true);
+    mailbox.powerUp();
+    receive(1);
+    vi.advanceTimersByTime(8000);
+    receive(2, true);
+    vi.advanceTimersByTime(4900);
+    expect(rings()).toBe(0);
+    vi.advanceTimersByTime(100);
+    expect(rings()).toBe(1);
+  });
+
+  it('A380X: a second normal message does not push back the ring of the first one', () => {
+    const { mailbox, receive, rings } = setup(true);
+    mailbox.powerUp();
+    receive(1);
+    vi.advanceTimersByTime(10000);
+    receive(2);
+    vi.advanceTimersByTime(5000);
+    expect(rings()).toBe(1);
+  });
+
+  it('A32NX DCDU: rings at once, as before', () => {
+    const { mailbox, receive, rings } = setup();
+    mailbox.powerUp();
+    receive(1);
+    expect(rings()).toBe(1);
   });
 });

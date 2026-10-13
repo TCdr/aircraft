@@ -277,7 +277,10 @@ export class MfdComponent
               case 'NAVAID':
                 this.uiService.navigateTo('fms/position/navaids');
                 break;
-              case 'MAILBOX': // Move cursor to SD mail box
+              case 'MAILBOX':
+                // The cursor moves to the mailbox of the SD (FCOM DSC-46-10-20-80 Mailbox KEY, l.101303-101306): the
+                // SD mailbox shows it (SDv2/AtcMailbox), it leaves the MFD
+                this.mouseCursorRef.getOrDefault()?.hide();
                 break;
               case 'FPLN':
                 this.uiService.navigateTo('fms/active/f-pln/top');

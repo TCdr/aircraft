@@ -972,6 +972,12 @@ The PRIMs perform the flight guidance and flight envelope functions.
         | Data       | 1      |
         | Emergency  | 2      |
 
+- `L:A380X_GLARESHIELD_ATC_MSG_LIGHT`
+    - Bool
+    - Read only!
+    - The two ATC MSG pb lights of the glareshield: flashing at 2 Hz (written on and off by the systems host) while
+      `L:A32NX_DCDU_ATC_MSG_WAITING` is set (A380 FCOM DSC-46-10-20-70).
+
 - `L:FBW_RMP_MODE_STANDBY_{vhf_index}`
     - Enum
     - Read only!

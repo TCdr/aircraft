@@ -1,8 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EventBus, FSComponent, Subject } from '@microsoft/msfs-sdk';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EventBus, FSComponent, HEvent, Subject } from '@microsoft/msfs-sdk';
 import {
   AtsuMailboxMessages,
   AtsuMessageDirection,
@@ -173,5 +173,69 @@ describe('ATC mailbox clients (A380 FCOM PRO-ABN-ECAM-10-31: "If the SD DU is tu
       false,
     );
     expect(read).toEqual([7]);
+  });
+});
+
+describe('KCCU MAILBOX key (A380 FCOM DSC-46-10-20-80, l.101303-101306: "the cursor moves to the mailbox section of the SD")', () => {
+  /** The KCCU keyboard ON/OFF switches the mailbox reads */
+  let keyboards: Record<string, number>;
+
+  beforeEach(() => {
+    keyboards = {};
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => keyboards[name] ?? 0);
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * One mailbox client and a way to press a KCCU key
+   * @param active whether the mailbox is the active mailbox client
+   * @returns the KCCU key press and the mailbox KCCU cursor element
+   */
+  function mountMailbox(active: boolean) {
+    const bus = new EventBus();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    FSComponent.render(<AtcMailbox bus={bus} active={Subject.create(active)} />, container);
+    const press = (event: string) => bus.getPublisher<HEvent>().pub('hEvent', event, false, false);
+    const cursor = () => container.querySelector('.mfd-mouse-cursor') as HTMLElement;
+    return { press, cursor };
+  }
+
+  it('shows the KCCU cursor on the mailbox when the F/O presses MAILBOX', () => {
+    keyboards['L:A32NX_KCCU_R_KBD_ON_OFF'] = 1;
+    const { press, cursor } = mountMailbox(true);
+    expect(cursor().style.display).not.toBe('block');
+    press('A32NX_KCCU_R_MAILBOX');
+    expect(cursor().style.display).toBe('block');
+    // the F/O cursor is the turned one (MouseCursor side FO)
+    expect(cursor().innerHTML).toContain('rotate(90');
+  });
+
+  it('shows the captain cursor when the captain presses MAILBOX', () => {
+    keyboards['L:A32NX_KCCU_L_KBD_ON_OFF'] = 1;
+    const { press, cursor } = mountMailbox(true);
+    press('A32NX_KCCU_L_MAILBOX');
+    expect(cursor().style.display).toBe('block');
+    expect(cursor().innerHTML).toContain('rotate(0');
+  });
+
+  it('ignores the key while the KCCU keyboard is OFF (DSC-31-30-20)', () => {
+    const { press, cursor } = mountMailbox(true);
+    press('A32NX_KCCU_L_MAILBOX');
+    expect(cursor().style.display).not.toBe('block');
+  });
+
+  it('ignores the key on an inactive mailbox and other KCCU keys', () => {
+    keyboards['L:A32NX_KCCU_L_KBD_ON_OFF'] = 1;
+    const inactive = mountMailbox(false);
+    inactive.press('A32NX_KCCU_L_MAILBOX');
+    expect(inactive.cursor().style.display).not.toBe('block');
+    const active = mountMailbox(true);
+    active.press('A32NX_KCCU_L_ND');
+    expect(active.cursor().style.display).not.toBe('block');
   });
 });

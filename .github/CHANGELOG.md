@@ -155,6 +155,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan, as in the FCOM - @TCdr
 1. [A380X/OIT] The COMPANY COM inbox lists the company messages received by the AOC instead of two test messages; displaying a message marks it read, and the COMPANY MSG memo goes once every message is read - @TCdr
 1. [A380X/MFD] System Message Area in the MFD header: CHECK FMS MESSAGE, NEW ATIS RECEIVED and ATIS SYS MSG while another application is shown - @TCdr
+1. [A380X/ATC] The ATC MSG pbs flash at 2 Hz, the RING sounds only if the message is not read within 15 s (5 s if urgent), and the KCCU MAILBOX key puts the cursor on the SD mailbox - @TCdr
 
 ## 2024.1.0
 

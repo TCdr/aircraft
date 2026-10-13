@@ -6,8 +6,10 @@ import {
   DisplayComponent,
   EventBus,
   FSComponent,
+  HEvent,
   MappedSubject,
   NodeReference,
+  SimVarValueType,
   Subject,
   Subscribable,
   Subscription,
@@ -28,6 +30,7 @@ import {
 } from '@datalink/common';
 import { Button } from '../MsfsAvionicsCommon/UiWidgets/Button';
 import { MouseCursor } from '../MsfsAvionicsCommon/UiWidgets/MouseCursor';
+import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
 import {
   buildResponse,
   DUE_TO_REASONS,
@@ -70,6 +73,25 @@ export interface AtcMailboxProps extends ComponentProps {
 /** The ADS status that the MFD CONNECTION STATUS page sets: 0 ARMED, 1 CONNECTED, 2 OFF */
 const ADS_STATUS_VAR = 'L:A380X_ATCCOM_ADS_STATUS';
 
+/**
+ * Where the KCCU MAILBOX key puts the cursor, in mailbox coordinates (768 x 256). Design choice: the middle of the
+ * mailbox, the FCOM gives no position.
+ */
+const MAILBOX_KEY_CURSOR_POSITION = { x: 384, y: 128 };
+
+/**
+ * The cursor side of a KCCU MAILBOX key press (H event A32NX_KCCU_L_MAILBOX / A32NX_KCCU_R_MAILBOX), null for another
+ * event
+ * @param eventName the H event
+ * @returns the side of the KCCU, or null
+ */
+export function mailboxKeyCursorSide(eventName: string): 'CAPT' | 'FO' | null {
+  if (eventName === 'A32NX_KCCU_L_MAILBOX') {
+    return 'CAPT';
+  }
+  return eventName === 'A32NX_KCCU_R_MAILBOX' ? 'FO' : null;
+}
+
 /** The information of the system (e.g. PRINTING) is displayed for 5 s */
 const SYSTEM_STATUS_DURATION = 5000;
 
@@ -92,6 +114,9 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
   private readonly topRef = FSComponent.createRef<HTMLDivElement>();
 
   private readonly mouseCursorRef = FSComponent.createRef<MouseCursor>();
+
+  /** The KCCU whose cursor is on the mailbox: the side of the DU (cursorSide), then the last MAILBOX key press */
+  private readonly cursorSide = Subject.create<'CAPT' | 'FO'>(this.props.cursorSide ?? 'CAPT');
 
   private readonly atcPublisher = this.props.bus.getPublisher<AtsuMailboxMessages & FmsAtcMessages>();
 
@@ -269,6 +294,10 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
         .handle((data) => this.updateBlock(data.uid, (block) => (block.status = data.status))),
       this.sub.on('atcStationStatus').handle((status) => this.activeAtc.set(status.current)),
       this.sub.on('mailboxSnapshot').handle((snapshot) => this.onSnapshot(snapshot)),
+      this.props.bus
+        .getSubscriber<HEvent>()
+        .on('hEvent')
+        .handle((eventName) => this.onKccuMailboxKey(eventName)),
       // an inactive mailbox displays the message the active one displays
       this.sub.on('visibleMessage').handle((uid) => {
         if (!this.props.active.get()) {
@@ -312,6 +341,27 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
     this.subs.forEach((x) => x.destroy());
 
     super.destroy();
+  }
+
+  /**
+   * KCCU MAILBOX key (A380 FCOM DSC-46-10-20-80 Mailbox KEY, a380_fcom.txt l.101303-101306: "When pressed, the cursor
+   * moves to the mailbox section of the SD"; DSC-46-10-10-10 l.95692 "MAILBOX key, to position the cursor on the mailbox section
+   * of the SD"): the active mailbox shows the KCCU cursor of that side. The key works with the KCCU keyboard ON
+   * (DSC-31-30-20, isKccuKeyActive); the MFD of that side hides its cursor (MFD.tsx).
+   * @param eventName the H event
+   */
+  private onKccuMailboxKey(eventName: string): void {
+    const side = mailboxKeyCursorSide(eventName);
+    if (side === null || !this.props.active.get()) {
+      return;
+    }
+    const keyboardOn =
+      SimVar.GetSimVarValue(`L:A32NX_KCCU_${side === 'CAPT' ? 'L' : 'R'}_KBD_ON_OFF`, SimVarValueType.Bool) > 0;
+    if (!isKccuKeyActive('MAILBOX', keyboardOn, true)) {
+      return;
+    }
+    this.cursorSide.set(side);
+    this.mouseCursorRef.getOrDefault()?.updatePosition(MAILBOX_KEY_CURSOR_POSITION.x, MAILBOX_KEY_CURSOR_POSITION.y);
   }
 
   private setSystemStatus(status: MailboxStatusMessage): void {
@@ -790,7 +840,7 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
           {systemInformation}
         </div>
 
-        <MouseCursor side={Subject.create(this.props.cursorSide ?? 'CAPT')} ref={this.mouseCursorRef} />
+        <MouseCursor side={this.cursorSide} ref={this.mouseCursorRef} />
       </div>
     );
   }
