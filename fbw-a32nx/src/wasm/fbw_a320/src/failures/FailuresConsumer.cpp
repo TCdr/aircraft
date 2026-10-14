@@ -43,6 +43,7 @@ FailuresConsumer::FailuresConsumer() {
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fcu2, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fmgc1, false));
   activeFailures.emplace(std::make_pair<Failures, bool>(Failures::Fmgc2, false));
+  activeFailures.emplace(std::make_pair<Failures, bool>(Failures::TcasMode, false));
 }
 
 void FailuresConsumer::initialize() {

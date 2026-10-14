@@ -21,6 +21,7 @@
 #include "fcdc/Fcdc.h"
 #include "fcu/Fcu.h"
 #include "fmgc/Fmgc.h"
+#include "fmgc/FmgcTcasBusInput.h"
 #include "recording/FlightDataRecorder.h"
 #include "recording/RecordingDataTypes.h"
 #include "sec/Sec.h"

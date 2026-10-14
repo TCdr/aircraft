@@ -662,6 +662,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/APU] APU values from the FCOM: EGT MAX 1 090 °C during the start (1 120 °C above 35 000 ft) and 675 °C running, starter cut-out at N 60 %, and N 99 % while the APU bleed feeds the packs between -18 and 35 °C - @TCdr
 1. [A32NX/APU] The APU shuts down automatically at EGT MAX and when its air intake flap closes (new flyPad failure "APU air intake flap failed closed"); after an automatic shutdown the air intake flap stays open and closes 15 min after N 7 % (after liftoff when on the ground) - @TCdr
 1. [A32NX/FUEL] The APU fuel pump starts automatically when no left tank pump runs; with neither the APU gets no fuel pressure (FUEL LO PR) - @TCdr
+1. [A32NX/FWC] New VENT AVNCS SYS FAULT, BLOWER FAULT, EXTRACT FAULT and SKIN VALVE FAULT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts with their FCOM procedures and STATUS, triggered by new flyPad ventilation failures - @TCdr
+1. [A32NX/AUTOFLIGHT] New flyPad failure of the FG TCAS mode: the AP/FD TCAS mode is no longer available and the FWC shows AUTO FLT TCAS MODE FAULT - @TCdr
+1. [A32NX/FWC] New COM CIDS 1+2 FAULT, SINGLE PTT STUCK, VHF 1(2)(3) EMITTING and VHF 3 DATA FAULT alerts with new flyPad failures (CIDS, stuck PTT, VHF transmitter stuck emitting), and the green AUDIO 3 XFRD memo when the AUDIO SWITCHING selector is not on NORM - @TCdr
 
 ## 2024.1.0
 

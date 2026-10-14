@@ -335,6 +335,14 @@ import { GpwsAlerts, readGpwsInputs, TERR_STBY_MEMO_CODE } from './Logic/GpwsAle
 import { PredictiveWindshearAlerts } from './Logic/PredictiveWindshearAlerts';
 import { EngineFadecFaultAlerts, readEngineFadecFaults } from './Logic/EngineFadecFaultAlerts';
 import { COMPANY_DATALINK_STBY_MEMO_CODES, DatalinkAlerts, DATALINK_PHASE_INHIBITION } from './Logic/DatalinkAlerts';
+import { readVentilationSystemInputs, VentilationAlerts } from './Logic/VentilationAlerts';
+import { TcasModeFaultAlert } from './Logic/TcasModeFaultAlert';
+import {
+  AUDIO_3_XFRD_MEMO_CODE,
+  COM_PHASE_INHIBITION,
+  CommunicationAlerts,
+  readComSystemInputs,
+} from './Logic/CommunicationAlerts';
 import { autoPilotOffInvoluntaryStatus, autoThrustOffInvoluntaryStatus } from './Logic/AutoFlightStatus';
 import {
   alertStatus,
@@ -2159,6 +2167,16 @@ export class PseudoFWC {
   /** DATALINK ATSU FAULT, DATALINK COMPANY FAULT, COMPANY DATALINK STBY memo, see Logic/DatalinkAlerts */
   private readonly datalinkAlerts = new DatalinkAlerts();
 
+  /** VENT, AIR AFT CRG VENT FAULT, COND AFT CRG ISOL VALVE, see Logic/VentilationAlerts */
+  private readonly ventilationAlerts = new VentilationAlerts();
+
+  /** AUTO FLT TCAS MODE FAULT, see Logic/TcasModeFaultAlert */
+  private readonly tcasModeFaultAlert = new TcasModeFaultAlert();
+
+  /** COM CIDS 1+2 FAULT, SINGLE PTT STUCK, VHF 1(2)(3) EMITTING, VHF 3 DATA FAULT, AUDIO 3 XFRD memo, see
+   * Logic/CommunicationAlerts */
+  private readonly communicationAlerts = new CommunicationAlerts();
+
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
 
@@ -2892,6 +2910,9 @@ export class PseudoFWC {
     this.predictiveWindshearAlerts.init();
     this.engineFadecFaultAlerts.init();
     this.datalinkAlerts.init(this.bus);
+    this.ventilationAlerts.init();
+    this.tcasModeFaultAlert.init();
+    this.communicationAlerts.init();
 
     Promise.all([
       KeyEventManager.getManager(this.bus),
@@ -4950,7 +4971,8 @@ export class PseudoFWC {
 
     // ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC, see Logic/ElecBusAlerts)
     this.elecBusAlerts.update(this.elecNetwork.readNetwork(), this.elecEmergency.get(), deltaTime / 1000);
-    this.elecBusLandAsap.set(this.elecBusAlerts.landAsap);
+    // also VENT BLOWER FAULT with DC ESS BUS FAULT: LAND ASAP (FCOM PRO-ABN-VENT l.96126-96128, Logic/VentilationAlerts)
+    this.elecBusLandAsap.set(this.elecBusAlerts.landAsap || this.ventilationAlerts.landAsap);
 
     /* OTHER STUFF */
 
@@ -5943,6 +5965,18 @@ export class PseudoFWC {
       engineAntiIceOn: [this.eng1AntiIce.get(), this.eng2AntiIce.get()],
     });
     this.datalinkAlerts.update(this.ac1BusPoweredVar.get());
+    this.ventilationAlerts.update(
+      readVentilationSystemInputs(
+        this.elecBusAlerts.alerts.dcEssBusFault.get(),
+        this.fwcFlightPhase.get(),
+        this.aircraftOnGround.get(),
+      ),
+      this.pressurizationAuto.get(),
+    );
+    this.tcasModeFaultAlert.update(
+      this.fmgc1DiscreteWord1.get().isNormalOperation() || this.fmgc2DiscreteWord1.get().isNormalOperation(),
+    );
+    this.communicationAlerts.update(readComSystemInputs(), deltaTime / 1000);
 
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
@@ -8238,6 +8272,7 @@ export class PseudoFWC {
           this.elecNetwork.gpwsSysOff,
           !this.elecBusAlerts.state.dcBus2Powered,
           this.lgDownlocked.get(),
+          this.communicationAlerts.audioSwitchingNorm,
         ),
       codesToReturn: ['240011101', '240011102', '240011103', '240011104', '240011105', '240011106', '240011107'],
       memoInhibit: () => false,
@@ -10384,6 +10419,9 @@ export class PseudoFWC {
     ...this.predictiveWindshearAlerts.ewdFailures,
     ...this.engineFadecFaultAlerts.ewdFailures,
     ...this.datalinkAlerts.ewdFailures,
+    ...this.ventilationAlerts.ewdFailures,
+    ...this.tcasModeFaultAlert.ewdFailures,
+    ...this.communicationAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],
@@ -12916,6 +12954,15 @@ export class PseudoFWC {
       simVarIsActive: this.voiceVhf3.map((v) => v !== 0),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000056701'],
+      memoInhibit: () => false,
+      side: 'RIGHT',
+    },
+    '0000568': {
+      // AUDIO 3 XFRD, green (FCOM DSC-23-50 l.36144-36150), see Logic/CommunicationAlerts
+      flightPhaseInhib: COM_PHASE_INHIBITION.audio3XfrdMemo,
+      simVarIsActive: this.communicationAlerts.audio3Xfrd,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [AUDIO_3_XFRD_MEMO_CODE],
       memoInhibit: () => false,
       side: 'RIGHT',
     },
