@@ -69,3 +69,15 @@
   border: 2px solid $display-light-grey;
   box-sizing: border-box;
 }
+
+// Align On Other Reference panel (FCOM DSC-22-FMS-20-30 P 281): a band across the page over the ALIGN ON OTHER REF button
+.mfd-position-irs-align-ref-panel {
+  position: absolute;
+  top: 50px;
+  left: 2px;
+  width: 753px;
+  height: 79px;
+  border: 2px solid $display-light-grey;
+  box-sizing: border-box;
+  background-color: $display-background;
+}

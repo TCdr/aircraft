@@ -83,6 +83,8 @@ export const NXSystemMessages = {
   cancelAtisUpdate: new TypeIMessage('CANCEL AUTO UPDATE FIRST'), // TODO
   checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
   checkDestData: new TypeIIMessage('CHECK DEST DATA', true),
+  // A380 FCOM DSC-22-FMS-20-110 l.45310-45316: Type I, an alternate company route that does not start at the destination
+  destAltnCpnyRteDisagree: new TypeIMessage('DEST / ALTN CPNY RTE DISAGREE'),
   checkMinFuelAtDest: new TypeIIMessage('CHECK MIN FUEL AT DEST'),
   checkSpeedMode: new TypeIIMessage('CHECK SPD MODE'),
   /** A380 FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.44966-44979), MFD and PFD (FmsAdvisoryMessages) */

@@ -29,6 +29,7 @@ import { FmsTimeKeeper } from './FmsTimeKeeper';
 import { SequencedWaypointRecord } from './SequencedWaypointRecorder';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { TimeConstraint } from './TimeConstraint';
+import { Coordinates } from 'msfs-geo';
 
 export enum FmcOperatingModes {
   Master,
@@ -376,6 +377,12 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
   readonly timeConstraint: Subject<TimeConstraint | null>;
 
   /**
+   * The IRS alignment reference position of the POSITION / IRS Align On Other Reference panel, null while the IRS align
+   * on the GPS position (IrsAlignReference.ts)
+   */
+  readonly irsAlignReferencePosition: Subject<Coordinates | null>;
+
+  /**
    * The time constraint of a secondary flight plan (e.g. loaded with an ATC flight plan in SEC 3), null without one; it
    * becomes the active one when the secondary flight plan is activated
    */
@@ -413,6 +420,12 @@ export interface FmcInterface extends FlightPhaseManagerProxyInterface, FmsDataI
    * (A380 FCOM DSC-22-FMS-20-30, ROUTE SELECTION page INSERT button).
    */
   insertCompanyRoute(route: StoredRoute, intoPlan: FlightPlanIndex): Promise<void>;
+
+  /**
+   * Inserts an alternate company route (from the primary destination to the alternate destination) into the alternate
+   * flight plan of a flight plan, without a temporary flight plan (A380 FCOM DSC-22-FMS-20-30, INIT page ALTN RTE).
+   */
+  insertAlternateCompanyRoute(route: StoredRoute, intoPlan: FlightPlanIndex): Promise<void>;
 
   /**
    * Calling this function with a message should display the message in the FMS' message area,

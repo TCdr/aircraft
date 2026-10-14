@@ -103,9 +103,21 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
    * Sets the alternate destination in the flight plan.
    *
    * @param altnIcao  Icao of the ALTN airport. If undefined, alternate is deleted.
+   * @param planIndex which flight plan (excluding temporary, unless asTemporaryRevision) to make the change on
+   * @param asTemporaryRevision the change is a flight plan revision: on the active flight plan it is made in the
+   * temporary flight plan (created if needed), on the temporary flight plan it is allowed (A380 ALTERNATE page)
+   */
+  setAlternate(altnIcao: string | undefined, planIndex: number, asTemporaryRevision?: boolean): Promise<void>;
+
+  /**
+   * Inserts an alternate company route (A380 INIT page ALTN RTE): re-initializes the alternate flight plan to the
+   * alternate destination and inserts the en-route fixes of the route, without a temporary flight plan.
+   *
+   * @param altnIcao  Icao of the alternate destination of the route
+   * @param fixes     the en-route fixes of the route, in order
    * @param planIndex which flight plan (excluding temporary) to make the change on
    */
-  setAlternate(altnIcao: string | undefined, planIndex: number): Promise<void>;
+  insertAlternateCompanyRoute(altnIcao: string, fixes: Fix[], planIndex: number): Promise<void>;
 
   /**
    * Sets the origin runway in the flight plan. Creates a temporary flight plan if target is active.

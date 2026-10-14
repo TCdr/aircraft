@@ -38,6 +38,10 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 - ATC / datalink / CPDLC: the MFD ATC COM pages (connect, ATIS, message record, request, report, emergency) and the SD
   mailbox work through the FBW ATSU and its ACARS providers; datalink functions outside those pages are not implemented
 - FCU BKUP
+- IRS alignment on another reference position (POSITION / IRS): the FMS shows the alignment on the entered position,
+  but the ADIRS keep aligning on the aircraft position (no position error, no fast realignment)
+- Alternate company routes: their fixes are inserted as direct legs (no airway idents in the alternate flight plan), and
+  the CO RTE column of the ALTERNATE page stays empty
 - STEP ALTs: Optimum step calculation
 
 ### ATA 23 Communication
