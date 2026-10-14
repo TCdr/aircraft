@@ -325,7 +325,10 @@ impl<const ENGINES: usize> FDACFlowControl<ENGINES> {
             || (1..=4).any(|engine| pneumatic.engine_state(engine) == EngineState::Starting)
                 && pneumatic.engine_crossbleed_is_on()
             // The DITCHING pb-sw is set to ON
-            || pressurization_overhead.ditching_is_on())
+            || pressurization_overhead.ditching_is_on()
+            // A leak is detected in the pack bay: "the two pack valves of the affected pack ...
+            // automatically close" (A380 FCOM DSC-36-10-60, a380_fcom.txt l.94220-94222)
+            || pneumatic.pack_valves_closed_by_leak(self.fdac_id))
             // On ground, one door (or more) is opened, and at least one engine is running
             && !(any_door_open
                 && (1..=4).any(|engine| pneumatic.engine_state(engine) == EngineState::On))

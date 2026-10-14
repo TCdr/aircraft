@@ -1,8 +1,11 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { isTirePressureAbnormal, TIRE_COUNT, tirePressureVar } from '@shared/TirePressures';
+
 /*
- * Brake temperatures and the braking / steering control lines of the WHEEL SD page, A380 FCOM DSC-32-20-50/60/70.
+ * Brake temperatures, tire pressures and the braking / steering control lines of the WHEEL SD page, A380 FCOM
+ * DSC-32-20-50/60/70.
  */
 
 /** A380 FCOM DSC-32-20-70 BRAKE TEMPERATURE (a380_fcom.txt l.81367-81370): "The brake temperature exceeds 300 °C." */
@@ -166,4 +169,42 @@ export function readBrakeTemperatures(read: (name: string) => number): number[] 
     temperatures.push(read(`L:A32NX_REPORTED_BRAKE_TEMPERATURE_${i}`));
   }
   return temperatures;
+}
+
+/**
+ * Reads the TPIS tire pressures (systems-host Misc/Tpis.ts).
+ * @param read reads one simvar as a number
+ * @returns the pressures of tires 1 to 22 in PSI (shared/TirePressures numbering)
+ */
+export function readTirePressures(read: (name: string) => number): number[] {
+  const pressures: number[] = [];
+  for (let tire = 1; tire <= TIRE_COUNT; tire++) {
+    pressures.push(read(tirePressureVar(tire)));
+  }
+  return pressures;
+}
+
+/** How the WHEEL SD page shows the pressure of one tire */
+export interface TirePressureIndication {
+  visible: boolean;
+  amber: boolean;
+}
+
+/**
+ * A380 FCOM DSC-32-20-70 TIRE PRESSURE (a380_fcom.txt l.81385-81395): green, "Displayed when: - The tire pressure is
+ * normal - The MORE key on the ECP is pressed"; amber, "Displayed when: - The tire pressure is low, or - The difference
+ * between the two tire pressures of the same axle is excessive" (thresholds of WHEEL TIRE PRESS LO, shared/TirePressures).
+ * @param pressuresPsi the TPIS pressures of tires 1 to 22
+ * @param tire the tire, 1 to 22
+ * @param flightPhase the FWS flight phase (L:A32NX_FWC_FLIGHT_PHASE)
+ * @param moreShown the WHEEL MORE page is shown
+ */
+export function tirePressureIndication(
+  pressuresPsi: readonly number[],
+  tire: number,
+  flightPhase: number,
+  moreShown: boolean,
+): TirePressureIndication {
+  const amber = isTirePressureAbnormal(pressuresPsi, tire, flightPhase);
+  return { visible: amber || moreShown, amber };
 }

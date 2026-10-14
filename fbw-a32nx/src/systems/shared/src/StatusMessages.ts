@@ -224,6 +224,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['220400003', { part: StatusPart.Limitation, text: 'AUTO BRK.....DO NOT USE' }],
   ['220500001', { part: StatusPart.Condition, text: 'AT LDG ROLL:' }],
   ['220400004', { part: StatusPart.Limitation, text: 'DIFF BRAKING.....AS RQRD' }],
+  // 23 COMMUNICATIONS (FCOM PRO-ABN-COM COM SINGLE PTT STUCK STATUS l.73781-73786), see FWC/Logic/CommunicationAlerts
+  ['230400001', { part: StatusPart.Limitation, text: 'AUDIO SWTG...DO NOT USE' }],
   // 34 NAVIGATION (FCOM PRO-ABN-NAV NAV ADR 1+2(1+3)(2+3) and 1+2+3 FAULT STATUS, l.92144, l.92282)
   ['340400002', { part: StatusPart.Limitation, text: 'L/G..........GRVTY EXTN' }],
   // 80 STARTING (A320neo FCOM PRO-ABN-ENG ENG 1(2) START FAULT STATUS, STARTER SHAFT SHEAR)
@@ -624,6 +626,20 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // FWC/Logic/DatalinkAlerts
   ['460300001', { part: StatusPart.InopSys, text: 'ATSU' }],
   ['460300002', { part: StatusPart.InopSys, text: 'DATA COMPANY' }],
+  // FCOM gap batch T2-42: 21 VENT, AIR AFT CRG VENT FAULT, COND AFT CRG ISOL VALVE (FCOM PRO-ABN-VENT l.96088-96258,
+  // PRO-ABN-AIR l.70665, PRO-ABN-COND l.74041), see FWC/Logic/VentilationAlerts
+  ['210300014', { part: StatusPart.InopSys, text: 'AVNCS VENT' }],
+  ['210300015', { part: StatusPart.InopSys, text: 'VENT BLOWER' }],
+  ['210300016', { part: StatusPart.InopSys, text: 'VENT EXTRACT' }],
+  ['210300017', { part: StatusPart.InopSys, text: 'AVNCS VALVE' }],
+  ['210300018', { part: StatusPart.InopSys, text: 'AFT CRG VENT' }],
+  // 22 AUTO FLT TCAS MODE FAULT (l.71964-71968), see FWC/Logic/TcasModeFaultAlert
+  ['220300011', { part: StatusPart.InopSys, text: 'AP/FD TCAS' }],
+  // 23 COM CIDS 1 + 2 FAULT, SINGLE PTT STUCK, VHF 3 DATA FAULT (PRO-ABN-COM l.73598-73864), see
+  // FWC/Logic/CommunicationAlerts
+  ['230300001', { part: StatusPart.InopSys, text: 'CIDS' }],
+  ['230300002', { part: StatusPart.InopSys, text: 'SINGLE PTT' }],
+  ['230300003', { part: StatusPart.InopSys, text: 'VHF 3 DATA' }],
 ]);
 
 const StatusMessageOrder = new Map([...StatusMessages.keys()].map((code, index) => [code, index]));

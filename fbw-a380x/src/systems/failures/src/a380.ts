@@ -216,6 +216,9 @@ export const A380Failure = Object.freeze({
   CargoFireBottle1LowPressure: 26046,
   CargoFireBottle2LowPressure: 26047,
   SmokeDetectionFunction: 26048,
+  NssSmoke: 26049,
+  NssSmokeDetector1: 26050,
+  NssSmokeDetector2: 26051,
 
   Prim1: 27000,
   Prim2: 27001,
@@ -360,6 +363,29 @@ export const A380Failure = Object.freeze({
   // The tail strike detector (TS only, read by the FWS, see FwsTailStrikeAlerts): no TAIL STRIKE alert, TAIL STRIKE DET
   // FAULT (a380_fcom.txt l.147371-147385)
   TailStrikeDetector: 31200,
+  // The EFIS control panels of the FCU and the EFIS CP pages of the MFD FCU backup (TS only, read by the FWS, see
+  // FwsCdsControlAlerts): CDS CAPT (F/O) EFIS CTL PNL FAULT, CAPT+F/O EFIS CTL PNLs FAULT, EFIS BKUP CTL FAULT
+  CaptEfisControlPanel: 31300,
+  FoEfisControlPanel: 31301,
+  CaptFcuBackupEfisPage: 31302,
+  FoFcuBackupEfisPage: 31303,
+  // The KCCUs (TS only): the failed part takes no key press (MsfsAvionicsCommon/Kccu.ts) and the FWS raises CDS CAPT
+  // (F/O) CURSOR CTL FAULT, KEYBOARD FAULT or CURSOR CTL+KEYBOARD FAULT (FwsCdsControlAlerts)
+  CaptKccuCursorControl: 31400,
+  CaptKccuKeyboard: 31401,
+  CaptKccu: 31402,
+  FoKccuCursorControl: 31403,
+  FoKccuKeyboard: 31404,
+  FoKccu: 31405,
+  // The recorders (TS only, read by the FWS, see FwsRecorderAlerts): RECORDER CVR / DFDR / ACCELMTR / SYS FAULT
+  CockpitVoiceRecorder: 31500,
+  FlightDataRecorder: 31501,
+  FlightDataRecorderAccelerometer: 31502,
+  FlightDataInterfaceUnit: 31503,
+
+  // The cabin emergency lighting system (TS only, read by the FWS, see FwsEmerExitLightAlerts): CABIN EMER EXIT LT
+  // FAULT
+  CabinEmergencyLighting: 33000,
 
   LgciuPowerSupply1: 32000,
   LgciuPowerSupply2: 32001,
@@ -406,6 +432,29 @@ export const A380Failure = Object.freeze({
   SteeringBodyWheel: 32202,
   SteeringControlSystem1: 32203,
   SteeringControlSystem2: 32204,
+  // Tire deflation (systems-host Misc/Tpis.ts): tires 1 to 20 numbered as on the SD WHEEL page, then the nose tires
+  Tire1Deflation: 32300,
+  Tire2Deflation: 32301,
+  Tire3Deflation: 32302,
+  Tire4Deflation: 32303,
+  Tire5Deflation: 32304,
+  Tire6Deflation: 32305,
+  Tire7Deflation: 32306,
+  Tire8Deflation: 32307,
+  Tire9Deflation: 32308,
+  Tire10Deflation: 32309,
+  Tire11Deflation: 32310,
+  Tire12Deflation: 32311,
+  Tire13Deflation: 32312,
+  Tire14Deflation: 32313,
+  Tire15Deflation: 32314,
+  Tire16Deflation: 32315,
+  Tire17Deflation: 32316,
+  Tire18Deflation: 32317,
+  Tire19Deflation: 32318,
+  Tire20Deflation: 32319,
+  NoseTireLeftDeflation: 32320,
+  NoseTireRightDeflation: 32321,
 
   // ATA 30 (a380_systems ice_rain_protection.rs)
   LeftWingAntiIceValvesStuckClosed: 30000,
@@ -456,6 +505,7 @@ export const A380Failure = Object.freeze({
   ApuOilHighTemperature: 49003,
   // Read by the FWS (ApuFaultAlerts.ts APU OIL FILTER CLOGGED), not by the APU of systems.wasm
   ApuOilFilterClogging: 49004,
+  ApuOilLevelLow: 49005,
 
   Transponder1: 34003,
   Transponder2: 34004,
@@ -467,6 +517,9 @@ export const A380Failure = Object.freeze({
 
   // ATA 36 (a380_systems pneumatic.rs). Wing zones follow the engines: 1 left outer, 2 left inner, 3 right inner,
   // 4 right outer.
+  // a380_systems apu_bleed_air_valve.rs: AIR APU BLEED FAULT
+  ApuBleedValveStuckClosed: 36060,
+  ApuBleedValveStuckOpen: 36061,
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
   Eng3BleedValveStuckClosed: 36002,
@@ -483,6 +536,14 @@ export const A380Failure = Object.freeze({
   LeftInnerWingBleedLeak: 36075,
   RightInnerWingBleedLeak: 36076,
   RightOuterWingBleedLeak: 36077,
+  // The leaks of the other leak detection zones (FCOM DSC-36-10-60): the APU duct, the pack bays, the hot-air ducts of
+  // HOT AIR 1(2) and the forward cargo duct (on HOT AIR 1)
+  ApuBleedLeak: 36080,
+  Pack1BayLeak: 36081,
+  Pack2BayLeak: 36082,
+  HotAir1DuctLeak: 36083,
+  HotAir2DuctLeak: 36084,
+  FwdCargoBleedDuctLeak: 36085,
 
   NssAnsu1: 46001,
   NssAnsu2: 46002,
@@ -574,6 +635,16 @@ export const A380Failure = Object.freeze({
   Eng2FadecOverheat: 73031,
   Eng3FadecOverheat: 73032,
   Eng4FadecOverheat: 73033,
+  // a380_systems fadec_automatic_shutdown.rs: the FADEC shuts its engine down (ENG FAIL FADEC OVHT / THRUST CTL LOST,
+  // CTL SYS FAULT fuel cutback in flight)
+  Eng1FadecOverheatShutdown: 73310,
+  Eng2FadecOverheatShutdown: 73311,
+  Eng3FadecOverheatShutdown: 73312,
+  Eng4FadecOverheatShutdown: 73313,
+  Eng1Overthrust: 73320,
+  Eng2Overthrust: 73321,
+  Eng3Overthrust: 73322,
+  Eng4Overthrust: 73323,
   ThrustLever1Resolvers: 73040,
   ThrustLever2Resolvers: 73041,
   ThrustLever3Resolvers: 73042,
@@ -861,6 +932,10 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [26, A380Failure.CargoFireBottle1LowPressure, 'Cargo fire bottle 1 low pressure'],
   [26, A380Failure.CargoFireBottle2LowPressure, 'Cargo fire bottle 2 low pressure'],
   [26, A380Failure.SmokeDetectionFunction, 'Smoke detection function (SDF) of the CIDS'],
+  // The SMOKE light of the NSS MASTER sw (A380 FCOM DSC-46-20-20-87), no ECAM alert
+  [26, A380Failure.NssSmoke, 'Network server system (NSS) smoke'],
+  [26, A380Failure.NssSmokeDetector1, 'Network server system (NSS) smoke detector 1'],
+  [26, A380Failure.NssSmokeDetector2, 'Network server system (NSS) smoke detector 2'],
 
   [27, A380Failure.Prim1, 'PRIM 1'],
   [27, A380Failure.Prim2, 'PRIM 2'],
@@ -941,6 +1016,22 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [31, A380Failure.Fws2AudioFunction, 'FWS 2 Audio Function'],
   [31, A380Failure.FwsEcp, 'ECAM Control Panel'],
   [31, A380Failure.TailStrikeDetector, 'Tail strike detector'],
+  [31, A380Failure.CaptEfisControlPanel, 'CAPT EFIS control panel'],
+  [31, A380Failure.FoEfisControlPanel, 'F/O EFIS control panel'],
+  [31, A380Failure.CaptFcuBackupEfisPage, 'CAPT FCU backup EFIS page (MFD)'],
+  [31, A380Failure.FoFcuBackupEfisPage, 'F/O FCU backup EFIS page (MFD)'],
+  [31, A380Failure.CaptKccuCursorControl, 'CAPT KCCU cursor control device'],
+  [31, A380Failure.CaptKccuKeyboard, 'CAPT KCCU keyboard'],
+  [31, A380Failure.CaptKccu, 'CAPT KCCU (cursor control and keyboard)'],
+  [31, A380Failure.FoKccuCursorControl, 'F/O KCCU cursor control device'],
+  [31, A380Failure.FoKccuKeyboard, 'F/O KCCU keyboard'],
+  [31, A380Failure.FoKccu, 'F/O KCCU (cursor control and keyboard)'],
+  [31, A380Failure.CockpitVoiceRecorder, 'Cockpit voice recorder (CVR)'],
+  [31, A380Failure.FlightDataRecorder, 'Digital flight data recorder (DFDR)'],
+  [31, A380Failure.FlightDataRecorderAccelerometer, 'DFDR accelerometer'],
+  [31, A380Failure.FlightDataInterfaceUnit, 'Flight data interface unit (FDIU)'],
+
+  [33, A380Failure.CabinEmergencyLighting, 'Cabin emergency lighting system'],
 
   [32, A380Failure.LgciuPowerSupply1, 'LGCIS 1 power supply'],
   [32, A380Failure.LgciuPowerSupply2, 'LGCIS 2 power supply'],
@@ -979,6 +1070,29 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [32, A380Failure.SteeringBodyWheel, 'Steering body wheel steering (B/W STEER)'],
   [32, A380Failure.SteeringControlSystem1, 'Steering control system 1 (STEER CTL 1)'],
   [32, A380Failure.SteeringControlSystem2, 'Steering control system 2 (STEER CTL 2)'],
+  // Tire deflation: the TPIS pressure of the tire drops (WHEEL SD tire pressure, Misc/Tpis.ts)
+  [32, A380Failure.Tire1Deflation, 'Tire 1 deflation (wing gear, left)'],
+  [32, A380Failure.Tire2Deflation, 'Tire 2 deflation (wing gear, left)'],
+  [32, A380Failure.Tire3Deflation, 'Tire 3 deflation (wing gear, right)'],
+  [32, A380Failure.Tire4Deflation, 'Tire 4 deflation (wing gear, right)'],
+  [32, A380Failure.Tire5Deflation, 'Tire 5 deflation (wing gear, left)'],
+  [32, A380Failure.Tire6Deflation, 'Tire 6 deflation (wing gear, left)'],
+  [32, A380Failure.Tire7Deflation, 'Tire 7 deflation (wing gear, right)'],
+  [32, A380Failure.Tire8Deflation, 'Tire 8 deflation (wing gear, right)'],
+  [32, A380Failure.Tire9Deflation, 'Tire 9 deflation (body gear, left)'],
+  [32, A380Failure.Tire10Deflation, 'Tire 10 deflation (body gear, left)'],
+  [32, A380Failure.Tire11Deflation, 'Tire 11 deflation (body gear, right)'],
+  [32, A380Failure.Tire12Deflation, 'Tire 12 deflation (body gear, right)'],
+  [32, A380Failure.Tire13Deflation, 'Tire 13 deflation (body gear, left)'],
+  [32, A380Failure.Tire14Deflation, 'Tire 14 deflation (body gear, left)'],
+  [32, A380Failure.Tire15Deflation, 'Tire 15 deflation (body gear, right)'],
+  [32, A380Failure.Tire16Deflation, 'Tire 16 deflation (body gear, right)'],
+  [32, A380Failure.Tire17Deflation, 'Tire 17 deflation (body gear, left)'],
+  [32, A380Failure.Tire18Deflation, 'Tire 18 deflation (body gear, left)'],
+  [32, A380Failure.Tire19Deflation, 'Tire 19 deflation (body gear, right)'],
+  [32, A380Failure.Tire20Deflation, 'Tire 20 deflation (body gear, right)'],
+  [32, A380Failure.NoseTireLeftDeflation, 'Nose tire left deflation'],
+  [32, A380Failure.NoseTireRightDeflation, 'Nose tire right deflation'],
 
   // A-ICE L(R) WING VLV CLOSED, A-ICE L(R) WING VLV OPEN (pb OFF) or PRESS HI (pb ON), A-ICE ENG n VLV CLOSED / OPEN
   [30, A380Failure.LeftWingAntiIceValvesStuckClosed, 'Left wing anti-ice valves stuck closed'],
@@ -1029,6 +1143,8 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [34, A380Failure.Ir2Fault, 'IR 2 (inertial data lost, FAULT light)'],
   [34, A380Failure.Ir3Fault, 'IR 3 (inertial data lost, FAULT light)'],
 
+  [36, A380Failure.ApuBleedValveStuckClosed, 'APU bleed valve stuck closed'],
+  [36, A380Failure.ApuBleedValveStuckOpen, 'APU bleed valve stuck open'],
   [36, A380Failure.Eng1BleedValveStuckClosed, 'Engine 1 bleed valve stuck closed'],
   [36, A380Failure.Eng2BleedValveStuckClosed, 'Engine 2 bleed valve stuck closed'],
   [36, A380Failure.Eng3BleedValveStuckClosed, 'Engine 3 bleed valve stuck closed'],
@@ -1045,6 +1161,12 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [36, A380Failure.LeftInnerWingBleedLeak, 'Left inner wing bleed duct leak'],
   [36, A380Failure.RightInnerWingBleedLeak, 'Right inner wing bleed duct leak'],
   [36, A380Failure.RightOuterWingBleedLeak, 'Right outer wing bleed duct leak'],
+  [36, A380Failure.ApuBleedLeak, 'APU bleed duct leak'],
+  [36, A380Failure.Pack1BayLeak, 'Pack 1 bay bleed duct leak'],
+  [36, A380Failure.Pack2BayLeak, 'Pack 2 bay bleed duct leak'],
+  [36, A380Failure.HotAir1DuctLeak, 'Hot air 1 duct leak'],
+  [36, A380Failure.HotAir2DuctLeak, 'Hot air 2 duct leak'],
+  [36, A380Failure.FwdCargoBleedDuctLeak, 'Forward cargo bleed duct leak'],
 
   [42, A380Failure.AfdxSwitch1, 'AFDX switch 1 (network A)'],
   [42, A380Failure.AfdxSwitch2, 'AFDX switch 2 (network A)'],
@@ -1101,6 +1223,8 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [49, A380Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],
   [49, A380Failure.ApuOilHighTemperature, 'APU high oil temperature (automatic shutdown on ground)'],
   [49, A380Failure.ApuOilFilterClogging, 'APU oil filter clogging (impending)'],
+  // The ECB senses it (on ground, APU not running) and the APU keeps running: OIL LVL LO on the APU SD page
+  [49, A380Failure.ApuOilLevelLow, 'APU oil level low (OIL LVL LO on the APU page)'],
 
   [46, A380Failure.NssAnsu1, 'NSS AVNCS ANSU 1'],
   [46, A380Failure.NssAnsu2, 'NSS AVNCS ANSU 2'],
@@ -1204,6 +1328,14 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [73, A380Failure.Eng2FadecOverheat, 'Engine 2 FADEC overheat'],
   [73, A380Failure.Eng3FadecOverheat, 'Engine 3 FADEC overheat'],
   [73, A380Failure.Eng4FadecOverheat, 'Engine 4 FADEC overheat'],
+  [73, A380Failure.Eng1FadecOverheatShutdown, 'Engine 1 FADEC overheat (engine shutdown)'],
+  [73, A380Failure.Eng2FadecOverheatShutdown, 'Engine 2 FADEC overheat (engine shutdown)'],
+  [73, A380Failure.Eng3FadecOverheatShutdown, 'Engine 3 FADEC overheat (engine shutdown)'],
+  [73, A380Failure.Eng4FadecOverheatShutdown, 'Engine 4 FADEC overheat (engine shutdown)'],
+  [73, A380Failure.Eng1Overthrust, 'Engine 1 overthrust (thrust control lost)'],
+  [73, A380Failure.Eng2Overthrust, 'Engine 2 overthrust (thrust control lost)'],
+  [73, A380Failure.Eng3Overthrust, 'Engine 3 overthrust (thrust control lost)'],
+  [73, A380Failure.Eng4Overthrust, 'Engine 4 overthrust (thrust control lost)'],
   // The FADEC limits the engine to CLB in flight and to idle on ground; no reverser on engines 2 and 3
   [73, A380Failure.ThrustLever1Resolvers, 'Thrust lever 1 resolvers (both)'],
   [73, A380Failure.ThrustLever2Resolvers, 'Thrust lever 2 resolvers (both)'],

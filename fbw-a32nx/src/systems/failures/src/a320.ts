@@ -25,6 +25,15 @@ export const A320Failure = Object.freeze({
   OutflowValve: 21017,
   SafetyValve: 21018,
   RapidDecompression: 21019,
+  // Avionics and AFT cargo ventilation: TS only, the FWC reads them (FWC/Logic/VentilationAlerts.ts)
+  AvionicsVentilationController: 21020,
+  AvionicsBlowerFan: 21021,
+  AvionicsExtractFan: 21022,
+  AvionicsSkinExtractValveStuckOpen: 21023,
+  AvionicsSkinInletValveStuckOpen: 21024,
+  AftCargoExtractionFan: 21025,
+  // The Rust failure of a320_systems cargo_ventilation.rs: the valves model gives the FAULT light and the FWC alert
+  AftCargoIsolationValvesStuckClosed: 21026,
 
   Fac1Failure: 22000,
   Fac2Failure: 22001,
@@ -38,6 +47,8 @@ export const A320Failure = Object.freeze({
   RudderTrimActuator2Failure: 22009,
   RudderTravelLimiterActuator1Failure: 22010,
   RudderTravelLimiterActuator2Failure: 22011,
+  // The FG TCAS mode of both FMGCs: the C++ fbw module blanks the TCAS bus the FMGCs read (fmgc/FmgcTcasBusInput.h)
+  TcasModeFailure: 22012,
 
   // Same ids as the A380X ATA 23 failures; 23000/23001 (AMU) and 23004 (RMP 3) are not simulated on the A32NX
   RadioManagementPanel1: 23002,
@@ -45,6 +56,15 @@ export const A320Failure = Object.freeze({
   Vhf1: 23005,
   Vhf2: 23006,
   Vhf3: 23007,
+  // CIDS directors and stuck PTT switches (same ids as the A380X), VHF transmitters stuck emitting: TS only, the FWC
+  // reads them (FWC/Logic/CommunicationAlerts.ts)
+  CidsDirector1: 23008,
+  CidsDirector2: 23009,
+  CaptPttStuck: 23017,
+  FoPttStuck: 23018,
+  Vhf1StuckEmitting: 23020,
+  Vhf2StuckEmitting: 23021,
+  Vhf3StuckEmitting: 23022,
 
   TransformerRectifier1: 24000,
   TransformerRectifier2: 24001,
@@ -204,6 +224,13 @@ export const A320Failure = Object.freeze({
   Autobrake: 32204,
   NoseWheelSteering: 32205,
   BrakeNormalSelectorValve: 32210,
+  // The tyre pressure indicating system (a320_systems tyre_pressure.rs): main wheels 1-4 left to right, nose L and R
+  MainTyre1Deflated: 32300,
+  MainTyre2Deflated: 32301,
+  MainTyre3Deflated: 32302,
+  MainTyre4Deflated: 32303,
+  NoseTyreLeftDeflated: 32304,
+  NoseTyreRightDeflated: 32305,
 
   // ATA 30 (systems ice_rain_protection, in a320_systems pneumatic.rs)
   Eng1AntiIceValveStuckClosed: 30000,
@@ -308,6 +335,8 @@ export const A320Failure = Object.freeze({
   ApuOilLowPressure: 49002,
   ApuOilHighTemperature: 49003,
   ApuAirIntakeFlapFailedClosed: 49004,
+  // The ECB senses a low APU oil level on the ground with the APU not running: LOW OIL LEVEL advisory on the SD APU page
+  ApuOilLevelLow: 49005,
   Eng1Flameout: 72000,
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
@@ -391,6 +420,9 @@ export const A320Failure = Object.freeze({
   EngineVibrationMonitoringUnit: 77010,
   Atsu: 46000,
   AtsuAoc: 46001,
+  Dcdu1: 46002,
+  Dcdu2: 46003,
+  Printer: 46004,
   Reverser1Fault: 78000,
   Reverser2Fault: 78001,
   Reverser1Unlocked: 78010,
@@ -420,6 +452,13 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [21, A320Failure.OutflowValve, 'Outflow Valve'],
   [21, A320Failure.SafetyValve, 'Safety Valve'],
   [21, A320Failure.RapidDecompression, 'Rapid Decompression'],
+  [21, A320Failure.AvionicsVentilationController, 'AEVC (avionics equipment ventilation controller)'],
+  [21, A320Failure.AvionicsBlowerFan, 'Avionics ventilation blower fan'],
+  [21, A320Failure.AvionicsExtractFan, 'Avionics ventilation extract fan'],
+  [21, A320Failure.AvionicsSkinExtractValveStuckOpen, 'Avionics ventilation skin extract valve stuck open'],
+  [21, A320Failure.AvionicsSkinInletValveStuckOpen, 'Avionics ventilation skin inlet valve stuck open'],
+  [21, A320Failure.AftCargoExtractionFan, 'AFT cargo ventilation extraction fan'],
+  [21, A320Failure.AftCargoIsolationValvesStuckClosed, 'AFT cargo ventilation isolation valves stuck closed'],
 
   [22, A320Failure.Fac1Failure, 'FAC 1'],
   [22, A320Failure.Fac2Failure, 'FAC 2'],
@@ -433,12 +472,20 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [22, A320Failure.RudderTrimActuator2Failure, 'Rudder trim actuator motor 2 (FAC 2)'],
   [22, A320Failure.RudderTravelLimiterActuator1Failure, 'Rudder travel limiter actuator motor 1 (FAC 1)'],
   [22, A320Failure.RudderTravelLimiterActuator2Failure, 'Rudder travel limiter actuator motor 2 (FAC 2)'],
+  [22, A320Failure.TcasModeFailure, 'FG TCAS mode (AP/FD TCAS, both FMGCs)'],
 
   [23, A320Failure.RadioManagementPanel1, 'RMP 1'],
   [23, A320Failure.RadioManagementPanel2, 'RMP 2'],
   [23, A320Failure.Vhf1, 'VHF 1'],
   [23, A320Failure.Vhf2, 'VHF 2'],
   [23, A320Failure.Vhf3, 'VHF 3'],
+  [23, A320Failure.CidsDirector1, 'CIDS 1 (cabin intercommunication data system)'],
+  [23, A320Failure.CidsDirector2, 'CIDS 2 (cabin intercommunication data system)'],
+  [23, A320Failure.CaptPttStuck, 'CAPT push-to-talk (PTT) switch stuck in transmit'],
+  [23, A320Failure.FoPttStuck, 'F/O push-to-talk (PTT) switch stuck in transmit'],
+  [23, A320Failure.Vhf1StuckEmitting, 'VHF 1 transmitter stuck emitting'],
+  [23, A320Failure.Vhf2StuckEmitting, 'VHF 2 transmitter stuck emitting'],
+  [23, A320Failure.Vhf3StuckEmitting, 'VHF 3 transmitter stuck emitting'],
 
   [24, A320Failure.TransformerRectifier1, 'TR 1'],
   [24, A320Failure.TransformerRectifier2, 'TR 2'],
@@ -586,6 +633,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.Autobrake, 'Autobrake'],
   [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
   [32, A320Failure.BrakeNormalSelectorValve, 'Brake normal selector valve failed open'],
+  [32, A320Failure.MainTyre1Deflated, 'Main wheel 1 tyre deflated (left outer)'],
+  [32, A320Failure.MainTyre2Deflated, 'Main wheel 2 tyre deflated (left inner)'],
+  [32, A320Failure.MainTyre3Deflated, 'Main wheel 3 tyre deflated (right inner)'],
+  [32, A320Failure.MainTyre4Deflated, 'Main wheel 4 tyre deflated (right outer)'],
+  [32, A320Failure.NoseTyreLeftDeflated, 'Nose wheel left tyre deflated'],
+  [32, A320Failure.NoseTyreRightDeflated, 'Nose wheel right tyre deflated'],
 
   // The engine anti-ice valve stays closed (ANTI ICE ENG 1(2) VALVE CLSD) / open (ANTI ICE ENG 1(2) VALVE OPEN)
   [30, A320Failure.Eng1AntiIceValveStuckClosed, 'Engine 1 anti-ice valve stuck closed'],
@@ -701,6 +754,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // The flap closes whatever its command: a starting or running APU shuts down ("Air inlet flap closed"), a start
   // cannot begin (the starter needs a fully open flap)
   [49, A320Failure.ApuAirIntakeFlapFailedClosed, 'APU air intake flap failed closed (automatic shutdown)'],
+  [49, A320Failure.ApuOilLevelLow, 'APU low oil level (advisory, APU keeps running)'],
 
   // The flame goes out once (fuel cut); the crew relights it with ENG MASTER OFF then ON inside the relight envelope
   [72, A320Failure.Eng1Flameout, 'Engine 1 flameout (crew relight possible)'],
@@ -831,4 +885,9 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   // the company datalink only, DATALINK COMPANY FAULT (FWC Logic/DatalinkAlerts)
   [46, A320Failure.Atsu, 'ATSU'],
   [46, A320Failure.AtsuAoc, 'ATSU AOC function (company datalink)'],
+  // The cockpit datalink interface (FCOM DSC-46-10-10, a320_fcom.txt l.59032-59056), systems-host atsu.ts: a failed
+  // DCDU is blank and its keys do nothing; a failed printer prints nothing, PRINTER NOT AVAILABLE on the MCDU
+  [46, A320Failure.Dcdu1, 'DCDU 1 (captain)'],
+  [46, A320Failure.Dcdu2, 'DCDU 2 (first officer)'],
+  [46, A320Failure.Printer, 'Cockpit printer'],
 ];

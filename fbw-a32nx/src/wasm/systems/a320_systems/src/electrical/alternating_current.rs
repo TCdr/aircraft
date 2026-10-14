@@ -8,15 +8,18 @@ use systems::{
     apu::ApuGenerator,
     electrical::{
         AlternatingCurrentElectricalSystem, Contactor, ElectricalBus, ElectricalElement,
-        Electricity, EmergencyGenerator, ExternalPowerSource, IntegratedDriveGenerator,
-        ProvideLoad, TransformerRectifier,
+        Electricity, ElectricitySource, EmergencyGenerator, ExternalPowerSource,
+        IntegratedDriveGenerator, ProvideLoad, TransformerRectifier,
     },
     engine::Engine,
     shared::{
         AuxiliaryPowerUnitElectrical, DelayedTrueLogicGate, ElectricalBusType, ElectricalBuses,
         EngineFirePushButtons,
     },
-    simulation::{InitContext, SimulationElement, SimulationElementVisitor, UpdateContext},
+    simulation::{
+        InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
+        SimulatorWriter, UpdateContext, VariableIdentifier, Write,
+    },
 };
 use uom::si::{f64::*, power::kilowatt};
 
@@ -34,13 +37,22 @@ pub(super) struct A320AlternatingCurrentElectrical {
     tr_ess: TransformerRectifier,
     ac_ess_to_tr_ess_contactor: Contactor,
     emergency_gen_contactor: Contactor,
+    emergency_gen_coupling_delay: DelayedTrueLogicGate,
     static_inv_to_ac_ess_bus_contactor: Contactor,
     ac_stat_inv_bus: ElectricalBus,
     ac_gnd_flt_service_bus: ElectricalBus,
     ext_pwr_to_ac_gnd_flt_service_bus_and_tr_2_contactor: Contactor,
+    maintenance_bus_switch: A320MaintenanceBusSwitch,
     auxiliary_supplies: A320AuxiliaryPowerSupplies,
 }
 impl A320AlternatingCurrentElectrical {
+    /// A320 FCOM DSC-24-20 EMER ELEC PWR MAN ON pb (a320_fcom.txt l.37307-37312): "As soon as the
+    /// emergency generator electrical parameters are within tolerance the emergency generator is
+    /// connected to the aircraft network. ... Emergency generator coupling occurs 3 s after the RAT
+    /// supplies the emergency generator." Also in AUTO: DSC-24-10-30-30 (l.36797) "During RAT
+    /// extension and emergency generator coupling (about 8 s), the batteries ...".
+    const EMERGENCY_GENERATOR_COUPLING_DELAY: Duration = Duration::from_secs(3);
+
     pub fn new(context: &mut InitContext) -> Self {
         A320AlternatingCurrentElectrical {
             main_power_sources: A320MainPowerSources::new(context),
@@ -59,6 +71,9 @@ impl A320AlternatingCurrentElectrical {
             tr_ess: TransformerRectifier::new(context, 3),
             ac_ess_to_tr_ess_contactor: Contactor::new(context, "15XE1"),
             emergency_gen_contactor: Contactor::new(context, "2XE"),
+            emergency_gen_coupling_delay: DelayedTrueLogicGate::new(
+                Self::EMERGENCY_GENERATOR_COUPLING_DELAY,
+            ),
             static_inv_to_ac_ess_bus_contactor: Contactor::new(context, "15XE2"),
             ac_stat_inv_bus: ElectricalBus::new(
                 context,
@@ -69,6 +84,7 @@ impl A320AlternatingCurrentElectrical {
                 ElectricalBusType::AlternatingCurrentGndFltService,
             ),
             ext_pwr_to_ac_gnd_flt_service_bus_and_tr_2_contactor: Contactor::new(context, "12XN"),
+            maintenance_bus_switch: A320MaintenanceBusSwitch::new(context),
             auxiliary_supplies: A320AuxiliaryPowerSupplies::new(context),
         }
     }
@@ -114,14 +130,17 @@ impl A320AlternatingCurrentElectrical {
             .close_when(electricity.is_powered(&self.ac_bus_2) && !self.tr_2.has_failed());
         electricity.flow(&self.ac_bus_2, &self.ac_bus_2_to_tr_2_contactor);
 
-        // On the real aircraft there is a button inside the galley which is taken into
-        // account when determining whether to close this contactor or not.
-        // As we're not building a galley simulator, for now we assume the button is ON.
+        // 12XN: external power feeds the GND/FLT buses directly only with the MAINT BUS switch ON
+        // (A320 FCOM DSC-24-10-30-20 l.36663-36665, DSC-24-20 l.37377-37405); with it OFF they are on
+        // AC BUS 2 and DC BUS 2.
+        self.maintenance_bus_switch
+            .update(electricity.is_powered(ext_pwr));
         self.ext_pwr_to_ac_gnd_flt_service_bus_and_tr_2_contactor
             .close_when(
                 !electricity.is_powered(&self.ac_bus_2)
                     && !self.tr_2.has_failed()
-                    && electricity.is_powered(ext_pwr),
+                    && electricity.is_powered(ext_pwr)
+                    && self.maintenance_bus_switch.is_on(),
             );
         electricity.flow(
             ext_pwr,
@@ -158,8 +177,14 @@ impl A320AlternatingCurrentElectrical {
         self.ac_ess_feed_contactors
             .power_ac_ess_bus(electricity, &self.ac_ess_bus);
 
+        // 2XE couples the emergency generator EMERGENCY_GENERATOR_COUPLING_DELAY after the RAT drives
+        // it (it supplies an output), once its output is within tolerance. Until then the static
+        // inverter and BAT 2 keep the essential buses (15XE2, 2XB).
+        self.emergency_gen_coupling_delay
+            .update(context, emergency_generator.output_potential().is_powered());
         self.emergency_gen_contactor.close_when(
             !self.any_non_essential_bus_powered(electricity)
+                && self.emergency_gen_coupling_delay.output()
                 && emergency_generator.output_within_normal_parameters(),
         );
         electricity.supplied_by(emergency_generator);
@@ -195,18 +220,13 @@ impl A320AlternatingCurrentElectrical {
     pub fn update_after_direct_current(
         &mut self,
         electricity: &mut Electricity,
-        emergency_generator: &EmergencyGenerator,
         dc_state: &impl A320DirectCurrentElectricalSystem,
         spd_cond: bool,
     ) {
         electricity.flow(dc_state.static_inverter(), &self.ac_stat_inv_bus);
 
         self.static_inv_to_ac_ess_bus_contactor
-            .close_when(self.should_close_15xe2_contactor(
-                electricity,
-                emergency_generator,
-                spd_cond,
-            ));
+            .close_when(self.should_close_15xe2_contactor(electricity, spd_cond));
         electricity.flow(
             dc_state.static_inverter(),
             &self.static_inv_to_ac_ess_bus_contactor,
@@ -280,14 +300,9 @@ impl A320AlternatingCurrentElectrical {
 
     /// Determines if 15XE2 should be closed. 15XE2 is the contactor which connects
     /// the static inverter to the AC ESS BUS.
-    fn should_close_15xe2_contactor(
-        &self,
-        electricity: &Electricity,
-        emergency_generator: &EmergencyGenerator,
-        spd_cond: bool,
-    ) -> bool {
+    fn should_close_15xe2_contactor(&self, electricity: &Electricity, spd_cond: bool) -> bool {
         !self.any_non_essential_bus_powered(electricity)
-            && !electricity.is_powered(emergency_generator)
+            && !self.emergency_generator_supplies_network(electricity)
             && spd_cond
     }
 
@@ -353,6 +368,10 @@ impl A320AlternatingCurrentElectricalSystem for A320AlternatingCurrentElectrical
     fn tr_ess(&self) -> &TransformerRectifier {
         &self.tr_ess
     }
+
+    fn emergency_generator_supplies_network(&self, electricity: &Electricity) -> bool {
+        electricity.is_powered(&self.emergency_gen_contactor)
+    }
 }
 impl AlternatingCurrentElectricalSystem for A320AlternatingCurrentElectrical {
     fn any_non_essential_bus_powered(&self, electricity: &Electricity) -> bool {
@@ -382,10 +401,49 @@ impl SimulationElement for A320AlternatingCurrentElectrical {
         self.ac_gnd_flt_service_bus.accept(visitor);
         self.ext_pwr_to_ac_gnd_flt_service_bus_and_tr_2_contactor
             .accept(visitor);
+        self.maintenance_bus_switch.accept(visitor);
 
         self.auxiliary_supplies.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+/// The MAINT BUS switch in the forward entrance area (A320 FCOM DSC-24-20, a320_fcom.txt
+/// l.37377-37405). The cockpit model does not have it: the flyPad (Ground > Services) stands in for
+/// it, through the L:var that this element reads and writes back.
+/// "ON : The switch latches magnetically if external power is connected and normal (AVAIL light on).
+/// The AC and DC GND/FLT buses have power ... The switch trips when the external source is removed.
+/// OFF : The AC and DC GND/FLT buses are connected to AC BUS 2 and DC BUS 2."
+struct A320MaintenanceBusSwitch {
+    is_on_id: VariableIdentifier,
+    is_on: bool,
+}
+impl A320MaintenanceBusSwitch {
+    fn new(context: &mut InitContext) -> Self {
+        Self {
+            is_on_id: context.get_identifier("ELEC_MAINT_BUS_SW_IS_ON".to_owned()),
+            is_on: false,
+        }
+    }
+
+    /// The magnetic latch holds only with external power connected and normal: without it the
+    /// switch does not stay ON, and it trips when the external power is removed.
+    fn update(&mut self, external_power_normal: bool) {
+        self.is_on = self.is_on && external_power_normal;
+    }
+
+    fn is_on(&self) -> bool {
+        self.is_on
+    }
+}
+impl SimulationElement for A320MaintenanceBusSwitch {
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        self.is_on = reader.read(&self.is_on_id);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.is_on_id, self.is_on);
     }
 }
 

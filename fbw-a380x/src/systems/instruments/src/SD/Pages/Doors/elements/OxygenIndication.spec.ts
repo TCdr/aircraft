@@ -32,6 +32,35 @@ describe('SD DOOR/OXY oxygen indications', () => {
     expect(indication.ckptRegulPrLo).toBe(false);
   });
 
+  const normalCabin = { bottlePressureLow: false, bottlePressurePsi: 1850, valveClosed: false };
+
+  it('CABIN amber with the amber pressure value when the cabin bottles are low (l.93459-93468)', () => {
+    const indication = oxygenIndication(true, false, false, { ...normalCabin, bottlePressureLow: true });
+    expect(indication.cabinAmber).toBe(true);
+    expect(indication.cabinRegulPrLo).toBe(false);
+  });
+
+  it('CABIN amber when a regulator supply valve is closed (OXY CABIN VLV CLOSED, l.93472-93475)', () => {
+    const indication = oxygenIndication(true, true, false, { ...normalCabin, valveClosed: true });
+    expect(indication.cabinAmber).toBe(true);
+    // the other regulators still supply the distribution manifold: no REGUL PR LO
+    expect(indication.cabinRegulPrLo).toBe(false);
+  });
+
+  it('CABIN REGUL PR LO on ground below 98 PSI in the manifold (l.93523-93529), CABIN amber in flight too', () => {
+    const empty = { bottlePressureLow: true, bottlePressurePsi: 90, valveClosed: false };
+    expect(oxygenIndication(true, true, false, empty)).toMatchObject({ cabinAmber: true, cabinRegulPrLo: true });
+    expect(oxygenIndication(true, false, false, empty)).toMatchObject({ cabinAmber: true, cabinRegulPrLo: false });
+    expect(oxygenIndication(true, true, false, { ...empty, bottlePressurePsi: 98 }).cabinRegulPrLo).toBe(false);
+  });
+
+  it('the page gives the cabin bottle pressure and the cabin valve to the CABIN line', () => {
+    const element = readFileSync(resolve(__dirname, 'Oxygen.tsx'), 'utf-8');
+    expect(element).toMatch(/useSimVar\('L:A32NX_OXYGEN_CABIN_VALVE_CLOSED'/);
+    expect(element).toContain('valveClosed: cabinValveClosedVar > 0');
+    expect(element).toContain('bottlePressureLow: pressures.cabinValueAmber');
+  });
+
   it('the page reads the CREW SUPPLY pb value (not the useSimVar tuple) and only for the CKPT line', () => {
     const element = readFileSync(resolve(__dirname, 'Oxygen.tsx'), 'utf-8');
     expect(element).toMatch(/const \[crewSupplyOffVar\] = useSimVar\('L:PUSH_OVHD_OXYGEN_CREW'/);

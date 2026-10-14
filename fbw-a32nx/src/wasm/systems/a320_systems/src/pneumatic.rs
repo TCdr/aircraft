@@ -871,6 +871,8 @@ impl BleedMonitoringComputerChannel {
     /// choice: 5 PSI away from these limits, so that a valve the pressures close is not seen as failed.
     const HP_VALVE_EXPECTED_OPEN_MIN_UPSTREAM_PSIG: f64 = 20.;
     const HP_VALVE_EXPECTED_OPEN_MAX_DOWNSTREAM_PSIG: f64 = 70.;
+    /// See bleed_valve_upstream_pressure_too_low
+    const BLEED_VALVE_MIN_UPSTREAM_PRESSURE_PSIG: f64 = 8.;
 
     fn new(
         context: &mut InitContext,
@@ -1288,6 +1290,13 @@ impl BleedMonitoringComputerChannel {
     fn is_in_low_temperature_regulation(&self) -> bool {
         self.low_temperature_regulation_active.output()
     }
+
+    /// The bleed valve closes pneumatically "If upstream pressure goes below 8 PSI" and opens if "Upstream pressure
+    /// is above 8 PSI" (A320 FCOM DSC-36-10-20, a320_fcom.txt:57283-57285; DSC-36-20, l.57604). `transfer_pressure`
+    /// is the gauge pressure upstream of the valve.
+    fn bleed_valve_upstream_pressure_too_low(transfer_pressure: Pressure) -> bool {
+        transfer_pressure < Pressure::new::<psi>(Self::BLEED_VALVE_MIN_UPSTREAM_PRESSURE_PSIG)
+    }
 }
 impl ControllerSignal<SolenoidSignal> for BleedMonitoringComputerChannel {
     fn signal(&self) -> Option<SolenoidSignal> {
@@ -1302,7 +1311,7 @@ impl ControllerSignal<SolenoidSignal> for BleedMonitoringComputerChannel {
 impl ControllerSignal<PressureRegulatingValveSignal> for BleedMonitoringComputerChannel {
     fn signal(&self) -> Option<PressureRegulatingValveSignal> {
         // TODO: The pressure condition should be pneumatically simulated
-        if self.transfer_pressure < Pressure::new::<psi>(15.)
+        if Self::bleed_valve_upstream_pressure_too_low(self.transfer_pressure)
             || self.should_command_onside_prv_closed
         {
             Some(PressureRegulatingValveSignal::new_closed())
@@ -1315,7 +1324,9 @@ impl ControllerSignal<PressureRegulatingValveSignal> for BleedMonitoringComputer
 }
 impl ControllerSignal<FanAirValveSignal> for BleedMonitoringComputerChannel {
     fn signal(&self) -> Option<FanAirValveSignal> {
-        if self.transfer_pressure < Pressure::new::<psi>(15.)
+        // The fan air valve works on the same bleed air: "A spring keeps the fan air valve closed in the absence of
+        // pressure" (FCOM DSC-36-10-20, a320_fcom.txt:57409)
+        if Self::bleed_valve_upstream_pressure_too_low(self.transfer_pressure)
             || self.should_command_onside_prv_closed
         {
             Some(FanAirValveSignal::new_closed())
@@ -2882,6 +2893,9 @@ pub mod tests {
         }
         fn ambient_static_pressure(&self, _adiru_number: usize) -> Arinc429Word<Pressure> {
             Arinc429Word::new(Pressure::default(), SignStatus::NoComputedData)
+        }
+        fn computed_airspeed(&self, _adiru_number: usize) -> Arinc429Word<Velocity> {
+            Arinc429Word::new(Velocity::default(), SignStatus::NoComputedData)
         }
     }
 
@@ -6328,6 +6342,23 @@ pub mod tests {
         assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
             140., true, false, false
         ));
+    }
+
+    /// FCOM DSC-36-10-20 (a320_fcom.txt:57283-57285): the bleed valve is fully closed pneumatically "If upstream
+    /// pressure goes below 8 PSI"; DSC-36-20 (l.57604): it opens if "Upstream pressure is above 8 PSI"
+    #[test]
+    fn bleed_valve_closes_pneumatically_below_8_psi_upstream() {
+        use super::BleedMonitoringComputerChannel;
+
+        for (upstream_psig, too_low) in [(0., true), (7.9, true), (8.1, false), (12., false)] {
+            assert_eq!(
+                BleedMonitoringComputerChannel::bleed_valve_upstream_pressure_too_low(
+                    Pressure::new::<psi>(upstream_psig)
+                ),
+                too_low,
+                "upstream pressure {upstream_psig} psig"
+            );
+        }
     }
 
     /// The flyPad ATA 36 failures and the BMC monitoring they trigger (FCOM DSC-36, PRO-ABN-AIR)

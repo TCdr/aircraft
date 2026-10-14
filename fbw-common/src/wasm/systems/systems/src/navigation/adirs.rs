@@ -838,6 +838,9 @@ impl AdirsToAirCondInterface for AirDataInertialReferenceSystem {
     fn ambient_static_pressure(&self, adiru_number: usize) -> Arinc429Word<Pressure> {
         self.adirus[adiru_number - 1].ambient_static_pressure()
     }
+    fn computed_airspeed(&self, adiru_number: usize) -> Arinc429Word<Velocity> {
+        self.adirus[adiru_number - 1].computed_airspeed()
+    }
 }
 impl AdirsDiscreteOutputs for AirDataInertialReferenceSystem {
     fn low_speed_warning_1(&self, adiru_number: usize) -> bool {

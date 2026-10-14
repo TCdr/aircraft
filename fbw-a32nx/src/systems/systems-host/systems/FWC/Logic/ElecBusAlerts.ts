@@ -278,11 +278,24 @@ export function dcEmerConfigLines(emerGenConnected: boolean, blowerPbAuto: boole
 
 /**
  * DC ESS BUS FAULT, l.77288-77303: 0 title, 1 -VHF 2 OR 3 USE, 2 -AUDIO SWTG SELECT, 3 -BARO REF CHECK, 4 -GPWS SYS OFF,
- * (If DC BUS 2 is failed:) 5 -L/G GRVTY EXTN, 6 AVOID ICING CONDITIONS. The AUDIO SWTG selector has no L:var: its line
- * stays (design choice).
+ * (If DC BUS 2 is failed:) 5 -L/G GRVTY EXTN, 6 AVOID ICING CONDITIONS. The AUDIO SWTG line is gone once the AUDIO
+ * SWITCHING selector left NORM ("set the AUDIO SWTG rotary selector to CAPT 3 or F/O 3", l.77290-77291).
  */
-export function dcEssBusFaultLines(gpwsSysOff: boolean, dcBus2Lost: boolean, gearDownLocked: boolean): number[] {
-  return [0, 1, 2, 3, ...(gpwsSysOff ? [] : [4]), ...(dcBus2Lost && !gearDownLocked ? [5] : []), 6];
+export function dcEssBusFaultLines(
+  gpwsSysOff: boolean,
+  dcBus2Lost: boolean,
+  gearDownLocked: boolean,
+  audioSwitchingNorm: boolean,
+): number[] {
+  return [
+    0,
+    1,
+    ...(audioSwitchingNorm ? [2] : []),
+    3,
+    ...(gpwsSysOff ? [] : [4]),
+    ...(dcBus2Lost && !gearDownLocked ? [5] : []),
+    6,
+  ];
 }
 
 /** DC ESS BUS SHED, l.77432-77434: 0 title, 1 -EXTRACT OVRD, 2 AVOID ICING CONDITIONS */

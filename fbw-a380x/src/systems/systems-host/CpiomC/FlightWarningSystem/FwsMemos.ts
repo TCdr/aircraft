@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EcamMemos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { GRAVITY_EXTENSION_MEMO, GRAVITY_EXTENSION_MEMO_PHASE_INHIBITION } from './GravityExtensionMemo';
 import { COMPANY_MSG_INHIBITED_FLIGHT_PHASES } from './FwsCompanyMessageAural';
 import {
   MappedSubject,
@@ -479,6 +480,14 @@ export class FwsMemos {
       simVarIsActive: this.fws.autoBrakeOffMemoAndAudio,
       whichCodeToReturn: () => [0],
       codesToReturn: ['320000001'],
+      memoInhibit: () => false,
+    },
+    [GRAVITY_EXTENSION_MEMO]: {
+      // L/G GRVTY EXTN (GravityExtensionMemo.ts, A380 FCOM DSC-32-20-180 MEMO, l.82307; inhibition from the figure)
+      flightPhaseInhib: GRAVITY_EXTENSION_MEMO_PHASE_INHIBITION,
+      simVarIsActive: this.fws.gravityExtensionMemo,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [GRAVITY_EXTENSION_MEMO],
       memoInhibit: () => false,
     },
     // ATA 32

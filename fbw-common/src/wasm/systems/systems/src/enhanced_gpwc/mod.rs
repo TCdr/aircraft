@@ -139,6 +139,20 @@ impl EnhancedGroundProximityWarningComputer {
         adirs_output: &impl AdirsMeasurementOutputs,
         lgcius: &impl LgciuGearExtension,
     ) {
+        self.update_with_terrain_functions(adirs_output, lgcius, true);
+    }
+
+    /// `terrain_functions_available`: the terrain awareness functions of the EGPWS work, for the terrain display on
+    /// the NDs. The A320 TERR ON ND pb-sw "ON : The terrain is displayed on the ND if the: TERR pb-sw is selected ON,
+    /// and TERR FAULT light is not on, TERR STBY ECAM memo is not displayed" (FCOM DSC-34-SURV-40-40,
+    /// a320_fcom.txt:55509-55512); TERR pb-sw "OFF : Inhibits the Terrain Awareness Display (TAD)" (l.55447) and
+    /// "FAULT light : ... The terrain is not shown on the ND" (l.55467-55468).
+    pub fn update_with_terrain_functions(
+        &mut self,
+        adirs_output: &impl AdirsMeasurementOutputs,
+        lgcius: &impl LgciuGearExtension,
+        terrain_functions_available: bool,
+    ) {
         if !self.is_powered {
             self.destination_longitude =
                 Arinc429Word::new(Angle::default(), SignStatus::FailureWarning);
@@ -162,12 +176,14 @@ impl EnhancedGroundProximityWarningComputer {
         self.terrain_standby = self.is_powered && !predictive_inputs_valid;
         let deselect_terrain_display =
             self.deselects_terrain_display_on_standby && self.terrain_standby;
+        // TERR pb-sw OFF or TERR FAULT: no terrain on the NDs, the TERR ON ND pb-sws stay as selected
+        let terrain_display_available = predictive_inputs_valid && terrain_functions_available;
 
         self.navigation_displays.iter_mut().for_each(|display| {
             display.update(
                 self.is_powered,
                 &self.navigation_display_range_lookup,
-                predictive_inputs_valid,
+                terrain_display_available,
                 deselect_terrain_display,
             )
         });
@@ -382,6 +398,7 @@ mod tests {
         powered_source_dc: TestElectricitySource,
         dc_1_bus: ElectricalBus,
         is_elec_powered: bool,
+        terrain_functions_available: bool,
     }
     impl EgpwcTestAircraft {
         fn new(context: &mut InitContext) -> Self {
@@ -407,11 +424,21 @@ mod tests {
                 ),
                 dc_1_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
                 is_elec_powered: false,
+                terrain_functions_available: true,
             }
         }
 
         fn update(&mut self) {
-            self.egpwc.update(&self.adirs, &self.lgciu);
+            self.egpwc.update_with_terrain_functions(
+                &self.adirs,
+                &self.lgciu,
+                self.terrain_functions_available,
+            );
+        }
+
+        /// TERR pb-sw OFF, TERR FAULT or a failed EGPWS
+        fn set_terrain_functions_available(&mut self, available: bool) {
+            self.terrain_functions_available = available;
         }
 
         fn initialize_adiru(&mut self) {
@@ -766,6 +793,35 @@ mod tests {
         let fo_pb: bool = test_bed.read_by_name("EFIS_TERR_R_ACTIVE");
         assert!(!capt_pb);
         assert!(!fo_pb);
+    }
+
+    #[test]
+    // TERR ON ND "ON: The terrain is displayed on the ND if the: TERR pb-sw is selected ON, and TERR FAULT light is not
+    // on" (a320_fcom.txt:55509-55511); TERR FAULT light: "The terrain is not shown on the ND" (l.55467-55468)
+    fn no_terrain_on_nd_without_the_terrain_functions() {
+        let mut test_bed = SimulationTestBed::new(EgpwcTestAircraft::new);
+        select_terrain_on_both_nds(&mut test_bed);
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.command(|a| a.initialize_adiru());
+        test_bed.run();
+        let terrain_active: bool = test_bed.read_by_name("EGPWC_ND_L_TERRAIN_ACTIVE");
+        assert!(terrain_active);
+
+        test_bed.command(|a| a.set_terrain_functions_available(false));
+        test_bed.run();
+        let capt_terrain_active: bool = test_bed.read_by_name("EGPWC_ND_L_TERRAIN_ACTIVE");
+        let fo_terrain_active: bool = test_bed.read_by_name("EGPWC_ND_R_TERRAIN_ACTIVE");
+        assert!(!capt_terrain_active);
+        assert!(!fo_terrain_active);
+        // Not a terrain standby: the TERR ON ND pb-sws stay selected and come back with the terrain functions
+        assert!(!terrain_standby(&mut test_bed));
+        let capt_pb: bool = test_bed.read_by_name("EFIS_TERR_L_ACTIVE");
+        assert!(capt_pb);
+
+        test_bed.command(|a| a.set_terrain_functions_available(true));
+        test_bed.run();
+        let terrain_active: bool = test_bed.read_by_name("EGPWC_ND_L_TERRAIN_ACTIVE");
+        assert!(terrain_active);
     }
 
     #[test]

@@ -105,6 +105,8 @@ pub trait AdirsToAirCondInterface {
     fn true_airspeed(&self, adiru_number: usize) -> Arinc429Word<Velocity>;
     fn baro_correction(&self, adiru_number: usize) -> Arinc429Word<Pressure>;
     fn ambient_static_pressure(&self, adiru_number: usize) -> Arinc429Word<Pressure>;
+    /// The computed airspeed of the ADR (label 206): no computed data below 30 kt
+    fn computed_airspeed(&self, adiru_number: usize) -> Arinc429Word<Velocity>;
 }
 
 pub trait AirConditioningOverheadShared {

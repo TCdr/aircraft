@@ -408,6 +408,25 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     expect(definitionOf(A380Failure.RightOuterWingBleedLeak)?.[2]).toBe('Right outer wing bleed duct leak');
   });
 
+  // a380_systems pneumatic.rs: the leaks of the APU duct, the pack bays, the hot-air ducts and the forward cargo duct
+  // (FCOM DSC-36-10-60)
+  it('lists the APU, pack bay, hot air and forward cargo duct leaks in ATA 36 under the ids of the Rust map', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [36080, 'ApuBleedLeak', 'APU bleed duct leak'],
+      [36081, 'PackBayLeak(1)', 'Pack 1 bay bleed duct leak'],
+      [36082, 'PackBayLeak(2)', 'Pack 2 bay bleed duct leak'],
+      [36083, 'HotAirDuctLeak(1)', 'Hot air 1 duct leak'],
+      [36084, 'HotAirDuctLeak(2)', 'Hot air 2 duct leak'],
+      [36085, 'FwdCargoBleedDuctLeak', 'Forward cargo bleed duct leak'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 36]),
+    );
+  });
+
   // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id
   // (failure names audit rule): the HP fuel valve sticks, the other faults only raise their FWS alert
   it('lists the HP fuel valve and FADEC monitoring failures with the Rust failure they trigger', () => {
@@ -664,10 +683,24 @@ describe('A380X slat/flap channel and avionics network failures', () => {
       [26046, 'CargoFireBottleLowPressure(1)', 'Cargo fire bottle 1 low pressure', 26],
       [26047, 'CargoFireBottleLowPressure(2)', 'Cargo fire bottle 2 low pressure', 26],
       [26048, 'SmokeDetectionFunction', 'Smoke detection function (SDF) of the CIDS', 26],
+      [26049, 'Smoke(SmokeDetectionZone::NetworkServerSystem)', 'Network server system (NSS) smoke', 26],
+      [
+        26050,
+        'SmokeDetector(SmokeDetectionZone::NetworkServerSystem,1)',
+        'Network server system (NSS) smoke detector 1',
+        26,
+      ],
+      [
+        26051,
+        'SmokeDetector(SmokeDetectionZone::NetworkServerSystem,2)',
+        'Network server system (NSS) smoke detector 2',
+        26,
+      ],
       [49000, 'ApuElectronicControlBox', 'APU electronic control box (ECB)', 49],
       [49001, 'ApuOverspeed', 'APU overspeed (automatic shutdown)', 49],
       [49002, 'ApuOilLowPressure', 'APU low oil pressure (automatic shutdown)', 49],
       [49003, 'ApuOilHighTemperature', 'APU high oil temperature (automatic shutdown on ground)', 49],
+      [49005, 'ApuOilLevelLow', 'APU oil level low (OIL LVL LO on the APU page)', 49],
     ];
     for (const [id, failureType, name, chapter] of expected) {
       expect(A380FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);
@@ -705,6 +738,33 @@ describe('A380X slat/flap channel and avionics network failures', () => {
     const rustFailure = (id: number) => rustMap.get(id)?.replace(/,\)/g, ')');
     expect(
       expected.map(([id]) => [id, rustFailure(id), A380FailureDefinitions.find(([, listed]) => listed === id)]),
+    ).toEqual(expected.map(([id, failureType, name, chapter]) => [id, failureType, [chapter, id, name]]));
+  });
+});
+
+// FCOM audit T2-44: the FADEC shutdowns (a380_systems fadec_automatic_shutdown.rs) and the APU bleed valve stuck failures
+// (a380_systems pneumatic.rs ApuBleedAirValve, AIR APU BLEED FAULT); the names say what the Rust does
+describe('A380X FADEC shutdown and APU bleed valve failures', () => {
+  it('lists them with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string, number][] = [
+      ...[1, 2, 3, 4].map((engine): [number, string, string, number] => [
+        73310 + engine - 1,
+        `FadecOverheatShutdown(${engine})`,
+        `Engine ${engine} FADEC overheat (engine shutdown)`,
+        73,
+      ]),
+      ...[1, 2, 3, 4].map((engine): [number, string, string, number] => [
+        73320 + engine - 1,
+        `EngineOverthrust(${engine})`,
+        `Engine ${engine} overthrust (thrust control lost)`,
+        73,
+      ]),
+      [36060, 'ApuBleedValveStuckClosed', 'APU bleed valve stuck closed', 36],
+      [36061, 'ApuBleedValveStuckOpen', 'APU bleed valve stuck open', 36],
+    ];
+    expect(
+      expected.map(([id]) => [id, rustMap.get(id), A380FailureDefinitions.find(([, listed]) => listed === id)]),
     ).toEqual(expected.map(([id, failureType, name, chapter]) => [id, failureType, [chapter, id, name]]));
   });
 });

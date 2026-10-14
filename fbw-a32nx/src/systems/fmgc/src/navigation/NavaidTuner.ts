@@ -7,6 +7,7 @@ import { LandingSystemSelectionManager } from '@fmgc/navigation/LandingSystemSel
 import { NavaidSelectionManager, VorSelectionReason } from '@fmgc/navigation/NavaidSelectionManager';
 import { NavigationProvider } from '@fmgc/navigation/NavigationProvider';
 import { NavRadioUtils } from '@fmgc/navigation/NavRadioUtils';
+import { isRmpNavaidTuningActive } from '@fmgc/navigation/RmpNavaidTuning';
 import {
   Arinc429SignStatusMatrix,
   Arinc429Word,
@@ -318,9 +319,7 @@ export class NavaidTuner {
     }
 
     // FIXME RMPs should provide a discrete output for this
-    const rmpTuningActive =
-      SimVar.GetSimVarValue('L:A32NX_RMP_L_NAV_BUTTON_SELECTED', 'bool') ||
-      SimVar.GetSimVarValue('L:A32NX_RMP_R_NAV_BUTTON_SELECTED', 'bool');
+    const rmpTuningActive = isRmpNavaidTuningActive((name) => SimVar.GetSimVarValue(name, 'bool'));
     const rmpTuningDeActivated = !rmpTuningActive && this.rmpTuningActive;
     this.rmpTuningActive = rmpTuningActive;
 

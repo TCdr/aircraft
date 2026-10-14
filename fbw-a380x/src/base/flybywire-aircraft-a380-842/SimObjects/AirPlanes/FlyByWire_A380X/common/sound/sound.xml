@@ -1015,7 +1015,26 @@
             <WwiseRTPC LocalVar="A32NX_COCKPIT_DOOR_LOCKED" Units="bool" Index="1" RTPCName="LOCALVAR_A32NX_COCKPIT_DOOR_LOCKED" />
         </Sound>
 
-        <Sound WwiseData="true" WwiseEvent="cockpit_cabin_call_fwd" NodeName="SOUND_FWD_GALLEY" ConeHeading="180" CancelConeHeadingWhenInside="false" LocalVar="PUSH_OVHD_CALLS_FWD" Continuous="false">
+        <!-- CALLS panel (A380 FCOM DSC-23-20, a380_fcom.txt l.49032-49058): the cabin calls (DECK UPPER/MAIN, ALL, PURS)
+             sound a high/low chime through the cabin loudspeakers, heard from the forward galley; PILOT REST sounds it in
+             a crew rest only, heard farther away (the aft chime). -->
+        <Sound WwiseData="true" WwiseEvent="cockpit_cabin_call_fwd" NodeName="SOUND_FWD_GALLEY" ConeHeading="180" CancelConeHeadingWhenInside="false" LocalVar="PUSH_OVHD_CALLS_DECK_UPPER" Continuous="false">
+            <Range LowerBound="1" />
+            <WwiseRTPC LocalVar="A32NX_COCKPIT_DOOR_LOCKED" Units="bool" Index="1" RTPCName="LOCALVAR_A32NX_COCKPIT_DOOR_LOCKED" />
+            <Requires LocalVar="A32NX_ELEC_AC_1_BUS_IS_POWERED" Units="Bool" Index="1">
+            <Range LowerBound="1" />
+            </Requires>
+        </Sound>
+
+        <Sound WwiseData="true" WwiseEvent="cockpit_cabin_call_fwd" NodeName="SOUND_FWD_GALLEY" ConeHeading="180" CancelConeHeadingWhenInside="false" LocalVar="PUSH_OVHD_CALLS_DECK_MAIN" Continuous="false">
+            <Range LowerBound="1" />
+            <WwiseRTPC LocalVar="A32NX_COCKPIT_DOOR_LOCKED" Units="bool" Index="1" RTPCName="LOCALVAR_A32NX_COCKPIT_DOOR_LOCKED" />
+            <Requires LocalVar="A32NX_ELEC_AC_1_BUS_IS_POWERED" Units="Bool" Index="1">
+            <Range LowerBound="1" />
+            </Requires>
+        </Sound>
+
+        <Sound WwiseData="true" WwiseEvent="cockpit_cabin_call_fwd" NodeName="SOUND_FWD_GALLEY" ConeHeading="180" CancelConeHeadingWhenInside="false" LocalVar="PUSH_OVHD_CALLS_PURS" Continuous="false">
             <Range LowerBound="1" />
             <WwiseRTPC LocalVar="A32NX_COCKPIT_DOOR_LOCKED" Units="bool" Index="1" RTPCName="LOCALVAR_A32NX_COCKPIT_DOOR_LOCKED" />
             <Requires LocalVar="A32NX_ELEC_AC_1_BUS_IS_POWERED" Units="Bool" Index="1">
@@ -1031,7 +1050,15 @@
             </Requires>
         </Sound>
 
-        <Sound WwiseData="true" WwiseEvent="cockpit_cabin_call_aft" NodeName="SOUND_FWD_GALLEY" ConeHeading="180" CancelConeHeadingWhenInside="false" LocalVar="PUSH_OVHD_CALLS_AFT" Continuous="false">
+        <Sound WwiseData="true" WwiseEvent="cockpit_cabin_call_aft" NodeName="SOUND_FWD_GALLEY" ConeHeading="180" CancelConeHeadingWhenInside="false" LocalVar="PUSH_OVHD_CALLS_REST_FWD" Continuous="false">
+            <Range LowerBound="1" />
+            <WwiseRTPC LocalVar="A32NX_COCKPIT_DOOR_LOCKED" Units="bool" Index="1" RTPCName="LOCALVAR_A32NX_COCKPIT_DOOR_LOCKED" />
+            <Requires LocalVar="A32NX_ELEC_AC_1_BUS_IS_POWERED" Units="Bool" Index="1">
+            <Range LowerBound="1" />
+            </Requires>
+        </Sound>
+
+        <Sound WwiseData="true" WwiseEvent="cockpit_cabin_call_aft" NodeName="SOUND_FWD_GALLEY" ConeHeading="180" CancelConeHeadingWhenInside="false" LocalVar="PUSH_OVHD_CALLS_REST_MAIN" Continuous="false">
             <Range LowerBound="1" />
             <WwiseRTPC LocalVar="A32NX_COCKPIT_DOOR_LOCKED" Units="bool" Index="1" RTPCName="LOCALVAR_A32NX_COCKPIT_DOOR_LOCKED" />
             <Requires LocalVar="A32NX_ELEC_AC_1_BUS_IS_POWERED" Units="Bool" Index="1">

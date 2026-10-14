@@ -7,9 +7,9 @@ import { useSimVar, useInteractionSimVar, useInteractionEvent } from '@flybywire
 import { TransceiverType } from './StandbyFrequency';
 import { VhfRadioPanel } from './VhfRadioPanel';
 import { NavRadioPanel } from './NavRadioPanel';
-import { RadioPanelDisplay } from './RadioPanelDisplay';
+import { RmpStbyNavKey, rmpStbyNavKeyPanelMode } from './RmpNavBackupTuning';
 import { isRmpOperative, RmpSide, rmpFailedVar } from '@shared/communications/RadioCommunicationLogic';
-import { bfoAfterRmpBfoKey, RMP_ADF_MODE } from '@shared/navigation/NavigationReceivers';
+import { bfoAfterRmpBfoKey } from '@shared/navigation/NavigationReceivers';
 import { NavRadioUtils } from '@fmgc/navigation/NavRadioUtils';
 
 interface Props {
@@ -96,40 +96,20 @@ const PoweredRadioPanel = (props: Props) => {
     setNavButton(!navButtonPressed);
   });
 
-  useInteractionEvent(`A32NX_RMP_${props.side}_VOR_BUTTON_PRESSED`, () => {
-    if (navButtonPressed) {
-      setPanelMode(6);
-      setNavTransceiverType(TransceiverType.VOR);
+  /** A STBY NAV key: selects its receiver in the NAV backup mode (GLS and MLS are not installed, see RmpNavBackupTuning) */
+  const onStbyNavKey = (key: RmpStbyNavKey, transceiver: TransceiverType) => {
+    const mode = rmpStbyNavKeyPanelMode(key, !!navButtonPressed);
+    if (mode !== null) {
+      setPanelMode(mode);
+      setNavTransceiverType(transceiver);
     }
-  });
+  };
 
-  useInteractionEvent(`A32NX_RMP_${props.side}_ILS_BUTTON_PRESSED`, () => {
-    if (navButtonPressed) {
-      setPanelMode(7);
-      setNavTransceiverType(TransceiverType.ILS);
-    }
-  });
-
-  useInteractionEvent(`A32NX_RMP_${props.side}_GLS_BUTTON_PRESSED`, () => {
-    if (navButtonPressed) {
-      setPanelMode(8);
-      setNavTransceiverType(TransceiverType.GLS);
-    }
-  });
-
-  useInteractionEvent(`A32NX_RMP_${props.side}_MLS_BUTTON_PRESSED`, () => {
-    if (navButtonPressed) {
-      setPanelMode(9);
-      setNavTransceiverType(TransceiverType.MLS);
-    }
-  });
-
-  useInteractionEvent(`A32NX_RMP_${props.side}_ADF_BUTTON_PRESSED`, () => {
-    if (navButtonPressed) {
-      setPanelMode(RMP_ADF_MODE);
-      setNavTransceiverType(TransceiverType.ADF);
-    }
-  });
+  useInteractionEvent(`A32NX_RMP_${props.side}_VOR_BUTTON_PRESSED`, () => onStbyNavKey('VOR', TransceiverType.VOR));
+  useInteractionEvent(`A32NX_RMP_${props.side}_ILS_BUTTON_PRESSED`, () => onStbyNavKey('ILS', TransceiverType.ILS));
+  useInteractionEvent(`A32NX_RMP_${props.side}_GLS_BUTTON_PRESSED`, () => onStbyNavKey('GLS', TransceiverType.GLS));
+  useInteractionEvent(`A32NX_RMP_${props.side}_MLS_BUTTON_PRESSED`, () => onStbyNavKey('MLS', TransceiverType.MLS));
+  useInteractionEvent(`A32NX_RMP_${props.side}_ADF_BUTTON_PRESSED`, () => onStbyNavKey('ADF', TransceiverType.ADF));
 
   // The BFO key toggles the BFO of the ADF of this RMP (RMP 1: ADF 1, RMP 2: ADF 2) while the ADF is selected
   const adfIndex = props.side === 'L' ? 1 : 2;
@@ -150,12 +130,7 @@ const PoweredRadioPanel = (props: Props) => {
     case TransceiverType.ADF:
       return <NavRadioPanel side={props.side} transceiver={navTransceiverType} />;
     default:
-      // If we reach this block, something's gone wrong. We'll just render a broken panel.
-      return (
-        <span>
-          <RadioPanelDisplay value="808.080" />
-          <RadioPanelDisplay value="808.080" />
-        </span>
-      );
+      // No receiver to show (should not happen: GLS and MLS cannot be selected): blank windows
+      return <UnpoweredRadioPanel />;
   }
 };

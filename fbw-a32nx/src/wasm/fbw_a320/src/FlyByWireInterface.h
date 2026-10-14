@@ -15,12 +15,15 @@
 #include "SpoilersHandler.h"
 #include "ThrottleAxisMapping.h"
 #include "elac/Elac.h"
+#include "fac/AlphaFloorConditions.h"
 #include "fac/Fac.h"
 #include "fac/FacActuatorMonitor.h"
 #include "failures/FailuresConsumer.h"
 #include "fcdc/Fcdc.h"
 #include "fcu/Fcu.h"
+#include "fmgc/AutolandWarning.h"
 #include "fmgc/Fmgc.h"
+#include "fmgc/FmgcTcasBusInput.h"
 #include "recording/FlightDataRecorder.h"
 #include "recording/RecordingDataTypes.h"
 #include "sec/Sec.h"
@@ -84,8 +87,9 @@ class FlyByWireInterface {
   bool flightDirectorDisconnectLatch_1 = false;
   bool flightDirectorDisconnectLatch_2 = false;
 
-  bool autolandWarningLatch = false;
-  bool autolandWarningTriggered = false;
+  AutolandWarning autolandWarning;
+  /// The alpha floor signal of each FAC with the sidestick and engine-out cases (fac/AlphaFloorConditions.h)
+  AlphaFloorConditions alphaFloorConditions[2];
 
   double hDotFilterPrevU = 0;
   double hDotFilterPrevY = 0;
@@ -722,6 +726,9 @@ class FlyByWireInterface {
 
   /// The failed rudder actuators of a FAC (flyPad failures 22006-22011)
   FacActuatorMonitor::ActuatorFailures facActuatorFailuresOf(int facIndex);
+
+  /// The sum of both sidestick pitch deflections from the ELAC bus, nose up positive, in degrees (0 without ELAC data)
+  double sidestickNoseUpDeflectionDeg();
 
   bool updateFac(double sampleTime, int facIndex);
 

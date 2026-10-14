@@ -1,5 +1,6 @@
 import { useSimVar } from '@instruments/common/simVars';
 import React from 'react';
+import { enginePumpIndication, EnginePumpLine } from './EnginePumpIndication';
 
 type EngineProps = {
   x: number;
@@ -107,18 +108,20 @@ const EnginePump = ({ x, y, label, lowPressure, pbAuto, disconnected }: EnginePu
   const size = 39;
   const isMirrored = label === 'B';
 
-  const color = !lowPressure && pbAuto && !disconnected ? 'Green' : 'Amber';
+  // FCOM DSC-29-20 ENGINE PUMPS states, including the abnormal pressurization with the pb-sw OFF (EnginePumpIndication)
+  const indication = enginePumpIndication(!lowPressure, pbAuto, disconnected);
+  const color = indication.colour;
 
   return (
     <g transform={`translate(${x} ${y})`}>
       <rect x={0} y={0} width={size} height={size} className={`${color} NoFill SW4`} />
-      {pbAuto && !disconnected && !lowPressure && (
+      {indication.line === EnginePumpLine.Vertical && (
         <line className={`${color} SW4`} x1={size / 2} y1={0} x2={size / 2} y2={size} />
       )}
-      {(!pbAuto || disconnected) && (
+      {indication.line === EnginePumpLine.Horizontal && (
         <line className="Amber SW4 LineRound" x1={8} y1={size / 2} x2={size - 8} y2={size / 2} />
       )}
-      {pbAuto && !disconnected && lowPressure && (
+      {indication.lowPressure && (
         <text x={5} y={30} className="Amber F25 TextOutline2">
           LO
         </text>

@@ -13,6 +13,8 @@
  * DATALINK FAULT, COM ATC DATALINK FAULT, COM NSS DATA TO AVNCS XFR FAULT and COM NSS/AVNCS DATA XFR FAULT.
  */
 
+import { isAtcFunctionAvailable } from '@shared/AtcFunctionAvailability';
+
 /**
  * CAB COM CIDS 1+2+3 FAULT, CAB COM CIDS CABIN COM FAULT, COM CAPT (F/O)(THIRD OCCUPANT) PTT STUCK, COM DATALINK FAULT,
  * COM VHF 1(2)(3) EMITTING and COM VHF 3 DATALINK FAULT: flight phases 3 to 7, 9 and 10 (PDF p.4811, 4813, 4816, 4817,
@@ -289,6 +291,11 @@ export interface InformationSystemInputs {
    * powers them down without it. "The ATC system is installed on CPIOM-D." (DSC-46-10-10-10, l.95659)
    */
   readonly cpiomD1Available: boolean;
+  /**
+   * The ATC RESET pb of the overhead RESET panel pulled (L:A32NX_RESET_PANEL_ATC): AtcDatalink.ts powers the ATC down
+   * while it is pulled, "The alert COM ATC DATALINK FAULT may appear during the reset." (PRO-SUP-46 l.184541-184543)
+   */
+  readonly atcResetPulled: boolean;
   /** The ADS function failed (flyPad failure 46010): the sim has no ADS-C, only this failure stops it alone */
   readonly adsFunctionFailed: boolean;
   /**
@@ -324,11 +331,33 @@ export interface InformationSystemAlerts {
  * @returns the alerts
  */
 export function informationSystemAlerts(inputs: InformationSystemInputs): InformationSystemAlerts {
-  const atcDatalinkFault = !inputs.cpiomD1Available;
+  const atcDatalinkFault = !isAtcFunctionAvailable(inputs.cpiomD1Available, inputs.atcResetPulled);
   return {
     adsDatalinkFault: atcDatalinkFault || inputs.adsFunctionFailed,
     atcDatalinkFault,
     nssDataToAvncsXfrFault: inputs.nssDataToAvncsPbOff,
     nssAvncsDataXfrFault: inputs.sciFailed.length === 2 && inputs.sciFailed.every((failed) => failed),
   };
+}
+
+/**
+ * The CALLS panel pbs that call the cabin crew (A380 FCOM DSC-23-20 CALLS panel, a380_fcom.txt l.49032-49058: PURS, DECK
+ * and ALL pbs light the cabin Area Call Panels and chime in the cabin). PILOT REST only chimes in a crew rest
+ * (l.49040-49042) and MECH calls the ground crew (l.49072-49077). L:vars written by A380_Cockpit_Behavior.xml (CALLS).
+ */
+export const CABIN_CALL_PUSHBUTTON_VARS = [
+  'L:PUSH_OVHD_CALLS_ALL',
+  'L:PUSH_OVHD_CALLS_DECK_UPPER',
+  'L:PUSH_OVHD_CALLS_DECK_MAIN',
+  'L:PUSH_OVHD_CALLS_PURS',
+] as const;
+
+/**
+ * Whether the flight crew calls the cabin crew from the CALLS panel. FBW simplification (no cabin crew): the cabin crew
+ * answer such a call by reporting CABIN READY (FwsCore, L:A32NX_CABIN_READY).
+ * @param readBool reads a boolean L:var (SimVar bool reads return 0/1)
+ * @returns true while a cabin call pb is pressed
+ */
+export function isCabinCalledFromCockpit(readBool: (name: string) => number): boolean {
+  return CABIN_CALL_PUSHBUTTON_VARS.some((name) => readBool(name) > 0);
 }

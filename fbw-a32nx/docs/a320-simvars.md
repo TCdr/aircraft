@@ -122,6 +122,27 @@
     - Bool
     - True if ram air is on
 
+- A32NX_AIRCOND_EMER_RAM_AIR_INLET_IS_OPEN
+    - Bool
+    - True if the emergency ram air inlet valve is open: RAM AIR pb ON and DITCHING pb not ON
+
+- A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO
+    - Bool
+    - True if the AFT ISOL VALVE pb-sw (CARGO VENT panel) is in AUTO, false if OFF (OFF light, isolation valves closed)
+
+- A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_HAS_FAULT
+    - Bool
+    - True if an aft cargo isolation valve disagrees with its commanded position (FAULT light; the FWC shows COND AFT
+      CRG ISOL VALVE)
+
+- A32NX_CARGO_VENT_AFT_{valve}_ISOL_VALVE_IS_OPEN
+    - Bool
+    - True if the aft cargo ventilation isolation valve is open: closed with the AFT ISOL VALVE pb-sw OFF or aft cargo
+      smoke
+    - {valve}
+        - INLET
+        - OUTLET
+
 - A32NX_CALLS_EMER_ON
     - Bool
     - True if emergency cabin call is on
@@ -364,6 +385,11 @@
 
 - A32NX_APU_LOW_FUEL_PRESSURE_FAULT
     - `Arinc429Word<Bool>`
+
+- A32NX_APU_LOW_OIL_LEVEL
+    - `Arinc429Word<Bool>`
+    - The ECB detects a low APU oil level: on the ground with the APU not running (flyPad failure 49005). Shows
+      LOW OIL LEVEL on the SD APU page (FCOM DSC-49-20)
 
 - A32NX_APU_IS_AUTO_SHUTDOWN
     - Bool
@@ -650,11 +676,12 @@
 
 - A32NX_ELT_TEST_RESET
     - Bool
-    - True if ELT is being tested/reset.
+    - True while the ELT TEST/RESET pushbutton is held: the ELT runs its autotest (ELT light on) and pressing it
+      stops a transmission (resets A32NX_ELT_ON).
 
 - A32NX_ELT_ON
     - Bool
-    - True if ELT is on.
+    - True when the ELT transmits (ELT ON pushbutton pressed), until TEST/RESET is pressed.
 
 - A32NX_DLS_ON
     - Bool
@@ -805,6 +832,13 @@
         - 6PB1: Battery 1 contactor
         - 6PB2: Battery 2 contactor
 
+- A32NX_ELEC_MAINT_BUS_SW_IS_ON
+    - Bool
+    - The MAINT BUS switch of the forward entrance area (flyPad Ground > Services stand-in). ON: external power
+      supplies the AC and DC GND/FLT buses without the rest of the network; OFF: they are on AC BUS 2 and DC BUS 2.
+      The systems write it back to 0 when it cannot latch (no external power available) or trips (external power
+      removed)
+
 - A32NX_ELEC_{name}_BUS_IS_POWERED
     - Bool
     - True when the given bus is powered
@@ -922,6 +956,14 @@
         - 1
         - 2
 
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_INLET_TEMPERATURE
+    - Celsius
+    - The integrated drive generator's oil inlet temperature (back from the coolers). The SD ELEC page RISE is the
+      outlet minus the inlet temperature
+    - {number}
+        - 1
+        - 2
+
 - A32NX_ELEC_ENG_GEN_{number}_IDG_IS_CONNECTED
     - Bool
     - Indicates if the given integrated drive generator is connected
@@ -1027,6 +1069,14 @@
 - A32NX_HYD_{loop_name}_EDPUMP_ACTIVE
     - Bool
     - Engine driven pump of {loop_name} hydraulic circuit is active
+    - {loop_name}
+        - GREEN
+        - YELLOW
+
+- A32NX_HYD_{loop_name}_EDPUMP_OVHT
+    - Bool
+    - Engine driven pump of {loop_name} hydraulic circuit is overheating (written by the shared hydraulic model, not read
+      by the A32NX)
     - {loop_name}
         - GREEN
         - YELLOW
@@ -1142,6 +1192,11 @@
     - Maintenance stow request of the RAT (flyPad Ground > Services). Accepted only on the ground and while no
       extension is commanded (emergency electrical configuration, RAT MAN ON, EMER ELEC PWR MAN ON); written back to 0
       by the systems once evaluated, so a request in flight is dropped
+
+- A32NX_RAT_STOWING
+    - Bool
+    - True while a maintenance stow moves the RAT in (the stowing pressure is applied): the SD HYD page shows the RAT
+      legend in amber
 
 - A32NX_RAT_RPM
     - Rpm
@@ -1723,6 +1778,12 @@ These variables are the interface between the 3D model and the systems/code.
     - Bool
     - Indicates if the CHECK APPR SELECTION message is shown on the PFD (FMGC: a non ILS approach in the F-PLN with an
       ILS manually tuned on the RAD NAV page, in cruise less than 100 NM from the T/D, in descent or in approach)
+
+- A32NX_PFD_MSG_MORE_DRAG
+    - Bool
+    - Indicates if the MORE DRAG message is shown on the PFD (FMGC VNAV: DES with THR IDLE, and either above the
+      profile with the predicted intercept less than 2 NM before the next ALT CSTR, or in managed speed inside a
+      speedbrake decelerating segment of the descent profile)
 
 - A32NX_PFD_LINEAR_DEVIATION_ACTIVE
     - Bool
@@ -4470,7 +4531,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {side}
     - L
     - R
-  - True when both outer tank transfer valves of the wing (MSFS valves 6 and 4, 7 and 5) have stayed closed for more than 5 s while the inner tank low level commands them open (flyPad failure 28012/28013 "L (R) outer tank transfer valves jammed in place"): FUEL L (R) OUTER XFR CLOSED. Written by the systems host (Fuel/FuelPumpsAndValves)
+  - True when both outer tank transfer valves of the wing (MSFS valves 6 and 4, 7 and 5) have stayed closed for more than 5 s while the inner tank low level commands them open (flyPad failure 28012/28013 "L (R) outer tank transfer valves jammed in place"): FUEL L (R) OUTER XFR CLOSED, the SD FUEL outer tank quantity boxed amber and the E/WD and SD FOB half-boxed amber (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
 
 - A32NX_FUEL_{side}_OUTER_XFR_OPEN
   - Bool
@@ -4632,7 +4693,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True on the ground when the starter turns the core without fuel (start valve open with air, engine fuel cut or ENG MASTER OFF): the FADEC keeps the MSFS starter engaged. Written by the systems WASM
+  - True on the ground when the starter turns the core without fuel (start valve open with air, engine fuel cut or ENG MASTER OFF), and in flight during a starter assisted relight until the HP fuel valve opens above 15 % N2 (ENG MASTER ON, start valve open with air, engine waiting for its relight, core not seized): the FADEC keeps the MSFS starter engaged. Written by the systems WASM
 
 - A32NX_ENGINE_{number}_STARTER_FAILED
   - Bool
@@ -4845,7 +4906,14 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {side}
     - L
     - R
-  - True when the CTR TK {side} XFR valve has stayed not fully open for more than 5 s while commanded open (CTR TK XFR pb-sw ON with MODE SEL MAN, or AUTO with the FLSCU opening it): the valve failed closed. Gives FUEL CTR {side} XFR FAULT (VALVE NOT FULLY OPEN) or FUEL CTR L + R XFR FAULT, and boxes the SD FUEL centre tank quantity in amber when both are true (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
+  - True when the CTR TK {side} XFR valve has stayed not fully open for more than 5 s while commanded open (CTR TK XFR pb-sw ON with MODE SEL MAN, or AUTO with the FLSCU opening it): the valve failed closed. Gives FUEL CTR {side} XFR FAULT (VALVE NOT FULLY OPEN) or FUEL CTR L + R XFR FAULT, Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_FAILED_CLOSED
+  - Bool
+  - {side}
+    - L
+    - R
+  - True from a confirmed A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_OPEN until the valve is seen open again: it stays while the FLSCU commands the valve closed. Both true: the SD FUEL centre tank quantity is boxed amber and the E/WD and SD FOB are half-boxed amber (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
 
 - A32NX_FUEL_PUMP_{number}_LO_PR
   - Bool
@@ -5160,7 +5228,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 #### Hardwired Discretes
 
 - `L:A32NX_ECP_DISCRETE_OUT_STS`
-  - The hardwired discrete for STS button to each FWC.
+  - The hardwired discrete for STS button to each FWC and DMC (still works with the ECAM control panel failed).
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_RCL`
@@ -5168,7 +5236,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_CLR`
-  - The hardwired discrete for CLR button to each FWC.
+  - The hardwired discrete for CLR button to each FWC and DMC (still works with the ECAM control panel failed).
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_EMER_CANC`
@@ -5176,7 +5244,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_ALL`
-  - The hardwired discrete for emergency cancel/audio suppression to each DMC.
+  - The hardwired discrete for ALL button to each DMC (still works with the ECAM control panel failed).
   - Boolean
 
 ### FWC voices
@@ -5366,6 +5434,24 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Bool
     - The BSCU reports the brake normal selector valve failed (flyPad failure, WHEEL HYD SEL FAULT); false while both
       BSCU channels are lost
+    - Read-Only
+
+- A32NX_TPIS_MAIN_{number}_TYRE_PRESSURE / A32NX_TPIS_NOSE_{number}_TYRE_PRESSURE
+    - Arinc429<PSI>
+    - The tyre pressure (gauge) measured by the tyre pressure indicating system (TPIS), the source of the WHEEL TYRE LO
+      PR alert (FCOM PRO-ABN-WHEEL, not built yet). The tyres are inflated to their nominal pressure at the outside air
+      temperature of the start, then follow the gas temperature (outside air, brake heat on the main wheels) and the
+      tyre deflation failures (flyPad ATA 32, 32300-32305). Failure warning SSM while DC BUS 1 is unpowered (ELEC DC
+      BUS 1 FAULT INOP SYS TPIS). Written by the systems WASM (a320_systems tyre_pressure.rs)
+    - {number}
+        - MAIN: 1 to 4, the main wheels from left to right (as the brakes)
+        - NOSE: 1 left, 2 right
+    - Read-Only
+
+- A32NX_TPIS_MAIN_NOMINAL_TYRE_PRESSURE / A32NX_TPIS_NOSE_NOMINAL_TYRE_PRESSURE
+    - PSI
+    - The nominal pressure of the main (200) and nose (180) tyres, the reference of the WHEEL TYRE LO PR percentages
+      (design values, the FCOM gives no tyre pressure)
     - Read-Only
 
 ## Lighting (ATA 33)
@@ -5716,6 +5802,25 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Bool
     - The paper door of the pedestal printer is open (a click on the door or its handle toggles it; cockpit
       model animation PRINTER_DOOR). No effect on printing.
+
+- A32NX_ATSU_OFF
+    - Bool
+    - True while the ATSU does not run: AC BUS 1 not powered, one of its C/Bs L15/L16 on 121VU pulled (the ATSU reset of
+      the FCOM, read from `L:1:A32NX_CB_121VU_L_TRIPPED_0`) or the flyPad ATSU failure (46000). A supplied DCDU then shows
+      INVALID DATA. Written by the systems-host ATSU (atsu.ts)
+
+- A32NX_DCDU_{number}_FAILED
+    - Bool
+    - {number}
+        - 1 (captain)
+        - 2 (first officer)
+    - True while the flyPad DCDU failure (46002, 46003) is active: the DCDU screen is blank (cockpit model) and its keys
+      do nothing. Written by the systems-host ATSU (atsu.ts)
+
+- A32NX_PRINTER_FAILED
+    - Bool
+    - True while the flyPad cockpit printer failure (46004) is active: nothing is printed and the MCDU shows PRINTER NOT
+      AVAILABLE. Written by the systems-host ATSU (atsu.ts)
 
 ## Non-Systems Related
 

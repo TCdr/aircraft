@@ -8,6 +8,7 @@ import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { SvgGroup } from '../../Common/SvgGroup';
 import { Triangle } from '../../Common/Shapes';
 import { ptuSymbolColor } from './PtuIndication';
+import { ratIndication } from './RatIndication';
 import { isEngineN2BelowIdle } from '../../Common/EngineRunning';
 
 import '../../Common/CommonStyles.scss';
@@ -148,20 +149,22 @@ type RATProps = {
 };
 
 const RAT = ({ x, y }: RATProps) => {
-  const [RatStowed] = useSimVar('L:A32NX_RAT_STOW_POSITION', 'percent over 100', 500);
+  const [stowPosition] = useSimVar('L:A32NX_RAT_STOW_POSITION', 'percent over 100', 500);
+  const [stowing] = useSimVar('L:A32NX_RAT_STOWING', 'bool', 500);
+  const rat = ratIndication(stowPosition, stowing > 0);
 
   return (
     <SvgGroup x={x} y={y}>
-      <text className="Large" x={-78} y={10}>
+      <text className={rat.legendAmber ? 'Large Amber' : 'Large'} x={-78} y={10}>
         RAT
       </text>
-      <line className={`GreenLine ${RatStowed > 0.1 ? '' : 'Hide'}`} x1={0} y1={0} x2={10} y2={0} />
+      <line className={`GreenLine ${rat.notStowed ? '' : 'Hide'}`} x1={0} y1={0} x2={10} y2={0} />
       <Triangle
         x={0}
         y={0}
         scale={4 / 3}
-        colour={RatStowed > 0.1 ? 'Green' : 'White'}
-        fill={RatStowed > 0.1 ? 1 : 0}
+        colour={rat.notStowed ? 'Green' : 'White'}
+        fill={rat.notStowed ? 1 : 0}
         orientation={90}
       />
     </SvgGroup>

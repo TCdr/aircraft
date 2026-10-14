@@ -10,8 +10,10 @@
  * - L:A32NX_ENGINE_n_FADEC_FAULT / _FADEC_SYS_FAULT / _FADEC_HI_TEMP / _THR_LEVER_FAULT / _THR_LEVER_RATING
  * - L:A32NX_REVERSER_n_FAULT / _CTL_FAULT / _LOCKED / _UNLOCKED / _ENERGIZED (n = 2, 3)
  *
- * The ENG 2(3) REVERSER INHIBITED (maintenance action) and REVERSER MINOR FAULT (after landing, no effect) alerts have no
- * flyPad failure and are not wired.
+ * ENG 2(3) REVERSER INHIBITED (maintenance action, l.173571-173617) and REVERSER MINOR FAULT (after landing, no effect,
+ * l.173668-173685) come from L:A32NX_REVERSER_n_INHIBITED / _MINOR_FAULT (a380_systems reverser, flyPad failures
+ * 78061/78062 and 78051/78052). Neither has an audio, a master light or an SD page (their "Indications:" are empty, PDF
+ * pages 5827 and 5830): FwsAbnormalSensed level 1.
  */
 
 /**
@@ -28,6 +30,15 @@ export const REVERSER_FAULT_PHASE_INHIBITION = [3, 4, 5, 6, 7];
 export const REVERSER_LOCKED_PHASE_INHIBITION = [3, 4, 5, 6, 7, 8, 9];
 export const REVERSER_UNLOCKED_PHASE_INHIBITION = [5, 6];
 export const REVERSER_SELECTED_PHASE_INHIBITION = [1, 2, 3, 4, 5, 6, 10, 11, 12];
+/** ENG 2(3) REVERSER INHIBITED, PDF page 5827: phases 3 to 10 inhibited */
+export const REVERSER_INHIBITED_PHASE_INHIBITION = [3, 4, 5, 6, 7, 8, 9, 10];
+/**
+ * ENG 2(3) REVERSER MINOR FAULT, PDF page 5830: phases 1 to 10 inhibited, as l.173675-173676: "Displayed, after
+ * landing, when the FADEC detects a failure that does not impair thrust reversers operation".
+ */
+export const REVERSER_MINOR_FAULT_PHASE_INHIBITION = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+/** REVERSER INHIBITED and REVERSER MINOR FAULT: no audio, no master light (see the file comment) */
+export const REVERSER_MAINTENANCE_ALERTS_LEVEL = 1;
 
 /**
  * ENG 1(2)(3)(4) FADEC FAULT items (ata70 701800013-016): 0 THR LEVER n MAN ADJUST, 1 ENG n PARAMETERS MONITOR,
@@ -67,9 +78,9 @@ export function isThrLeverInClimbDetent(tlaDeg: number): boolean {
 }
 
 /**
- * ENG 2(3) REVERSER CTL FAULT, REVERSER FAULT and REVERSER LOCKED items: 0 T.O PERF CHECK, 1 LDG DIST IMPACT ON
- * WET/CONTAM RWY ONLY. "Before takeoff" (CTL FAULT, LOCKED, l.173459, 173606) or "On ground" (FAULT, l.173527): T.O PERF
- * CHECK. Design choice: before takeoff = on the ground.
+ * ENG 2(3) REVERSER CTL FAULT, REVERSER FAULT, REVERSER INHIBITED and REVERSER LOCKED items: 0 T.O PERF CHECK, 1 LDG
+ * DIST IMPACT ON WET/CONTAM RWY ONLY. "Before takeoff" (CTL FAULT, INHIBITED, LOCKED, l.173459, 173598, 173606) or "On
+ * ground" (FAULT, l.173527): T.O PERF CHECK. Design choice: before takeoff = on the ground.
  */
 export function reverserInopItemsShown(onGround: boolean): boolean[] {
   return [onGround, true];
@@ -113,13 +124,15 @@ export function thrLeverFaultInfo(thrLeverFault: boolean, onGround: boolean): { 
 
 /**
  * INOP SYS ENG 2(3) REVERSER and BTV (APPR): the reverser cannot deploy, from REVERSER CTL FAULT, REVERSER FAULT,
- * REVERSER LOCKED (l.173469-173471, 173535-173537, 173615-173617) or THR LEVER 2(3) FAULT (l.173327-173329).
+ * REVERSER LOCKED (l.173469-173471, 173535-173537, 173615-173617), REVERSER INHIBITED (l.173608-173613) or THR LEVER
+ * 2(3) FAULT (l.173327-173329).
  */
 export function isReverserInoperative(
   reverserFault: boolean,
   reverserCtlFault: boolean,
   reverserLocked: boolean,
   thrLeverFault: boolean,
+  reverserInhibited: boolean,
 ): boolean {
-  return reverserFault || reverserCtlFault || reverserLocked || thrLeverFault;
+  return reverserFault || reverserCtlFault || reverserLocked || thrLeverFault || reverserInhibited;
 }

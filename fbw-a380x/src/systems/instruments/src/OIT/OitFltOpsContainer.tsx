@@ -27,6 +27,7 @@ import { InternalKbdKeyEvent, OitSimvars } from './OitSimvarPublisher';
 import { InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/InputField';
 import { OitFltOpsLoadingScreen } from './Pages/FltOps/OitFltOpsLoadingScreen';
 import { OitFltOpsLogin } from './Pages/FltOps/OitFltOpsLogin';
+import { XOisFunction, fltOpsPageCode } from './System/XOisFunction';
 
 interface OitFltOpsContainerProps {
   readonly bus: EventBus;
@@ -83,6 +84,59 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
 
   private overlaySub: MappedSubscribable<void> | undefined;
 
+  /** The OIS MENU / OIS XFR keys and the X-OIS function (A380 FCOM DSC-46-20-20-50, DSC-46-20-30, XOisFunction) */
+  private readonly xOis = new XOisFunction();
+
+  /** "X-OIS Activated" shows */
+  private readonly xOisActive = Subject.create(false);
+
+  private readonly hideXOisMessage = this.xOisActive.map((active) => !active);
+
+  /** The page of the other OIT, for X-OIS */
+  private readonly otherOitPage = ConsumerSubject.create(
+    this.sub.on(this.props.captOrFo === 'CAPT' ? 'fltOpsPageFo' : 'fltOpsPageCapt'),
+    0,
+  );
+
+  /** The page of this OIT, for the X-OIS of the other OIT */
+  private readonly ownPageSimvar = `L:A380X_OIT_${this.props.captOrFo}_FLT_OPS_PAGE`;
+
+  /**
+   * A key of the keyboard: OIS MENU and OIS XFR act on the FLT OPS side only (l.103028-103032, l.104890), with the
+   * laptop running and the crew logged in
+   * @param key the key
+   */
+  private onKeyboardKey(key: string): void {
+    if (key !== 'OIS_MENU' && key !== 'OIS_XFR') {
+      return;
+    }
+    if (
+      this.props.avncsOrFltOps.get() !== 'flt-ops' ||
+      !this.laptopHealthy.get() ||
+      this.uiService.fltOpsLoginScreenVisible.get()
+    ) {
+      return;
+    }
+
+    const uri =
+      key === 'OIS_MENU'
+        ? this.xOis.onOisMenuKey()
+        : this.xOis.onOisXfrKey(this.uiService.activeUri.get().uri, this.otherOitPage.get());
+    this.xOisActive.set(this.xOis.isActive());
+    if (uri !== null) {
+      this.uiService.navigateTo(uri);
+    }
+    this.publishOwnPage();
+  }
+
+  private publishOwnPage(): void {
+    SimVar.SetSimVarValue(
+      this.ownPageSimvar,
+      SimVarValueType.Number,
+      fltOpsPageCode(this.xOis.publishedUri(this.uiService.activeUri.get().uri)),
+    );
+  }
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
@@ -118,17 +172,32 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
     this.subscriptions.push(
       this.uiService.activeUri.sub((uri) => {
         this.activeUriChanged(uri);
+        this.publishOwnPage();
       }),
       this.laptopHealthy.sub((healthy) => {
         if (!healthy) {
+          this.xOis.reset();
+          this.xOisActive.set(false);
           this.uiService.resetFltOpsSession();
         }
       }, true),
+      this.hEventConsumer.handle(([, key]) => this.onKeyboardKey(key)),
+      this.otherOitPage.sub((code) => {
+        const uri = this.xOis.onOtherOitPage(code);
+        if (uri !== null) {
+          this.uiService.navigateTo(uri);
+        }
+      }),
       this.overlaySub,
       this.laptopHealthy,
       this.hideContent,
       this.hideContainer,
+      this.otherOitPage,
+      this.hideXOisMessage,
     );
+
+    // EXIT SESSION initializes the FLT OPS STS page again for the next flight (OitUiService.exitFltOpsSession)
+    this.uiService.onFltOpsSessionExit(() => this.laptopData.reset());
 
     this.uiService.navigateTo('flt-ops');
   }
@@ -171,8 +240,14 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
             <OitFltOpsHeader uiService={this.uiService} avncsOrFltOps={this.props.avncsOrFltOps} />
             <div ref={this.activePageRef} class="mfd-navigator-container" />
             <OitFltOpsFooter uiService={this.uiService} avncsOrFltOps={this.props.avncsOrFltOps} />
+            <div class={{ 'oit-x-ois-message': true, hidden: this.hideXOisMessage }}>X-OIS Activated</div>
           </div>
-          <OitFltOpsLogin bus={this.props.bus} uiService={this.uiService} captOrFo={this.props.captOrFo} />
+          <OitFltOpsLogin
+            bus={this.props.bus}
+            uiService={this.uiService}
+            captOrFo={this.props.captOrFo}
+            standalone={this.props.laptop.standalone}
+          />
           <OitFltOpsLoadingScreen bus={this.props.bus} captOrFo={this.props.captOrFo} />
         </div>
       </>

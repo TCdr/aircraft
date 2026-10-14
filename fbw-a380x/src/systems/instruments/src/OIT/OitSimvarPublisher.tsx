@@ -25,6 +25,10 @@ export type OitSimvars = {
   cabinDoorOpen: number;
   hydGreenPressurized: boolean;
   hydYellowPressurized: boolean;
+  /** The FLT OPS page the captain's OIT shows (System/XOisFunction page code), for the X-OIS function */
+  fltOpsPageCapt: number;
+  /** The FLT OPS page the first officer's OIT shows */
+  fltOpsPageFo: number;
 };
 
 export type InternalKbdKeyEvent = {
@@ -59,6 +63,8 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
       'hydYellowPressurized',
       { name: 'L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH', type: SimVarValueType.Bool },
     ],
+    ['fltOpsPageCapt', { name: 'L:A380X_OIT_CAPT_FLT_OPS_PAGE', type: SimVarValueType.Number }],
+    ['fltOpsPageFo', { name: 'L:A380X_OIT_FO_FLT_OPS_PAGE', type: SimVarValueType.Number }],
   ]);
 
   public constructor(bus: EventBus) {

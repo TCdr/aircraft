@@ -14,6 +14,7 @@ import {
   brakeControlIndication,
   hottestBrakeArcs,
   readBrakeTemperatures,
+  readTirePressures,
   readWheelControlInputs,
   steeringControlIndication,
   WheelControlInputs,
@@ -53,9 +54,15 @@ export const WheelPage = () => {
   const [brakeTemperatures, setBrakeTemperatures] = useState<number[]>(() => readBrakeTemperatures(readCelsius));
   // BRK CTL / STEER CTL lines and AUTO BRAKE (FCOM DSC-32-20-50/60, WheelIndications.ts)
   const [controlInputs, setControlInputs] = useState<WheelControlInputs>(NO_CONTROL_FAULT);
+  // TPIS tire pressures (FCOM DSC-32-20-70 TIRE PRESSURE, systems-host Misc/Tpis.ts) and the FWS flight phase of the
+  // WHEEL TIRE PRESS LO thresholds
+  const [tirePressures, setTirePressures] = useState<number[]>(() => readTirePressures(readNumber));
+  const [flightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'number', 1000);
   useInterval(() => {
     const temperatures = readBrakeTemperatures(readCelsius);
     setBrakeTemperatures((previous) => (sameValues(previous, temperatures) ? previous : temperatures));
+    const pressures = readTirePressures(readNumber);
+    setTirePressures((previous) => (sameValues(previous, pressures) ? previous : pressures));
     const inputs = readWheelControlInputs(readNumber);
     setControlInputs((previous) =>
       CONTROL_INPUT_KEYS.every((key) => previous[key] === inputs[key]) ? previous : inputs,
@@ -176,6 +183,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
         <WheelBogey
           x={81}
@@ -185,6 +194,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
         <WheelBogey
           x={257}
@@ -194,6 +205,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
         <WheelBogey
           x={513}
@@ -203,6 +216,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
         <WheelBogey
           x={690}
@@ -212,6 +227,8 @@ export const WheelPage = () => {
           moreActive={moreActive}
           brakeTemperatures={brakeTemperatures}
           hottestBrakeArcs={arcs}
+          tirePressures={tirePressures}
+          flightPhase={flightPhase}
         />
       </g>
 

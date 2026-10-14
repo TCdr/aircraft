@@ -11,9 +11,11 @@ import {
   HottestBrakeArc,
   hottestBrakeArcs,
   readBrakeTemperatures,
+  readTirePressures,
   readWheelControlInputs,
   roundBrakeTemperature,
   steeringControlIndication,
+  tirePressureIndication,
   WheelControlInputs,
 } from './WheelIndications';
 
@@ -166,5 +168,38 @@ describe('WHEEL page wiring', () => {
     const gear = readFileSync(resolve(__dirname, 'elements/Gear.tsx'), 'utf-8');
     expect(gear).not.toContain('_POSITION`');
     expect(gear).not.toContain('FIXME');
+  });
+});
+
+/* A380 FCOM DSC-32-20-70 TIRE PRESSURE (a380_fcom.txt l.81385-81395) */
+describe('WHEEL SD tire pressures', () => {
+  const normal = () => new Array(22).fill(220);
+
+  it('normal pressure: green, only on the WHEEL MORE page', () => {
+    expect(tirePressureIndication(normal(), 3, 1, false)).toEqual({ visible: false, amber: false });
+    expect(tirePressureIndication(normal(), 3, 1, true)).toEqual({ visible: true, amber: false });
+  });
+
+  it('low pressure: amber, shown without MORE', () => {
+    const pressures = normal();
+    pressures[2] = 150;
+    expect(tirePressureIndication(pressures, 3, 1, false)).toEqual({ visible: true, amber: true });
+    // its axle mate shows the excessive difference too
+    expect(tirePressureIndication(pressures, 4, 1, false)).toEqual({ visible: true, amber: true });
+  });
+
+  it('reads the 22 TPIS pressures, tire 1 first', () => {
+    const pressures = readTirePressures((name) => Number(name.match(/TIRE_(\d+)_/)?.[1] ?? 0));
+    expect(pressures).toHaveLength(22);
+    expect(pressures[0]).toBe(1);
+    expect(pressures[21]).toBe(22);
+  });
+
+  it('the wheels show the TPIS values, not a fixed 220', () => {
+    const wheel = readFileSync(resolve(__dirname, 'elements/Wheel.tsx'), 'utf-8');
+    expect(wheel).toContain('{tirePressure}');
+    expect(wheel).not.toMatch(/>\s*220\s*</);
+    const bogey = readFileSync(resolve(__dirname, 'elements/WheelBogey.tsx'), 'utf-8');
+    expect(bogey).toContain('tirePressureIndication(tirePressures, tire, flightPhase, moreActive)');
   });
 });

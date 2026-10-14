@@ -8,6 +8,7 @@ import { PageTitle } from '../Generic/PageTitle';
 import { ApuGenerator } from './elements/ApuGenerator';
 import Valve from '../../../Common/Valve';
 import { NXUnits } from '@flybywiresim/fbw-sdk-react';
+import { apuOilLevelLowIndicationShown } from '@shared/ApuOilLevelIndication';
 
 export const ApuPage = () => {
   const [apuAvail] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'Bool', 1000);
@@ -513,6 +514,12 @@ const ApuMemos = ({ x, y }: ComponentPositionProps) => {
 
   const [apuMasterPbOn] = useSimVar('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'Bool', 1000);
 
+  // A380 FCOM DSC-49-20 OIL LVL LO INDICATION (l.108682-108693): pulsing, inhibited in flight (the ECB detects it on
+  // the ground only). Green as an advisory (the APU keeps running normally for at least 14 h); the colour and the place
+  // are design choices, the FCOM figure is not in the text.
+  const lowOilLevel = useArinc429Var('L:A32NX_APU_LOW_OIL_LEVEL', 1000);
+  const showOilLevelLow = apuOilLevelLowIndicationShown(lowOilLevel.isNormalOperation(), lowOilLevel.value > 0);
+
   const intakeApuMismatch = apuFlapOpenPercentage !== 0 && !apuMasterPbOn;
 
   useEffect(() => {
@@ -535,6 +542,12 @@ const ApuMemos = ({ x, y }: ComponentPositionProps) => {
         {lowFuelPressure.value && (
           <text className="Amber F27 LS2" x={0} y={0}>
             FUEL PRESS LO
+          </text>
+        )}
+
+        {showOilLevelLow && (
+          <text className="Green F27 LS2 FillPulse" x={0} y={35}>
+            OIL LVL LO
           </text>
         )}
 

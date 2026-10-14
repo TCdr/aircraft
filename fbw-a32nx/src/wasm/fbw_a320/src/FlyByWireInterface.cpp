@@ -1842,7 +1842,9 @@ bool FlyByWireInterface::updateFmgc(double sampleTime, int fmgcIndex) {
   fmgcs[fmgcIndex].modelInputs.in.bus_inputs.ils_own_bus = ilsBusOutputs[fmgcIndex];
   fmgcs[fmgcIndex].modelInputs.in.bus_inputs.fmgc_opp_bus = fmgcsBusOutputs[oppFmgcIndex].fmgc_a_bus;
   fmgcs[fmgcIndex].modelInputs.in.bus_inputs.fcu_bus = fcuBusOutputs;
-  fmgcs[fmgcIndex].modelInputs.in.bus_inputs.tcas_bus = tcasBusOutputs;
+  // A failed FG TCAS mode blanks the TCAS bus the FMGCs read (AUTO FLT TCAS MODE FAULT, fmgc/FmgcTcasBusInput.h)
+  fmgcs[fmgcIndex].modelInputs.in.bus_inputs.tcas_bus =
+      fmgcTcasBusInput(tcasBusOutputs, failuresConsumer.isActive(Failures::TcasMode));
 
   if (fmgcIndex == fmgcDisabled) {
     simConnectInterface.setClientDataFmgcDiscretes(fmgcs[fmgcIndex].modelInputs.in.discrete_inputs);
@@ -2065,27 +2067,23 @@ bool FlyByWireInterface::updateFmgcShim(double sampleTime) {
     athrModeMessage = 5;
   }
 
-  // Autoland warning
+  // Autoland warning (fmgc/AutolandWarning.h, A320 FCOM DSC-22_30-80-30-10 l.32107-32127)
   SimData simData = simConnectInterface.getSimData();
 
-  // if at least one AP engaged and LAND or FLARE mode -> latch
-  if (simData.H_radio_ft < 200 && (fmgcsDiscreteOutputs[0].ap_own_engaged || fmgcsDiscreteOutputs[1].ap_own_engaged) &&
-      (verticalMode == 32 || verticalMode == 33)) {
-    autolandWarningLatch = true;
-  } else if (simData.H_radio_ft >= 200 || (verticalMode != 32 && verticalMode != 33)) {
-    autolandWarningLatch = false;
-    autolandWarningTriggered = false;
-    idAutopilotShimAutolandWarning->set(0);
+  AutolandWarning::Inputs autolandWarningInputs;
+  for (int raIndex = 0; raIndex < 2; raIndex++) {
+    autolandWarningInputs.radioAltimeters[raIndex].isValid = Arinc429Utils::isNo(raBusOutputs[raIndex].radio_height_ft);
+    autolandWarningInputs.radioAltimeters[raIndex].heightFt = raBusOutputs[raIndex].radio_height_ft.Data;
   }
-
-  if (autolandWarningLatch && !autolandWarningTriggered) {
-    if (!(fmgcsDiscreteOutputs[0].ap_own_engaged || fmgcsDiscreteOutputs[1].ap_own_engaged) ||
-        (simData.H_radio_ft > 15 && (abs(simData.nav_loc_error_deg) > 0.2 || simData.nav_loc_valid == false)) ||
-        (simData.H_radio_ft > 100 && (abs(simData.nav_gs_error_deg) > 0.4 || simData.nav_gs_valid == false))) {
-      autolandWarningTriggered = true;
-      idAutopilotShimAutolandWarning->set(1);
-    }
-  }
+  autolandWarningInputs.aircraftRadioHeightFt = simData.H_radio_ft;
+  autolandWarningInputs.apEngaged = fmgcsDiscreteOutputs[0].ap_own_engaged || fmgcsDiscreteOutputs[1].ap_own_engaged;
+  // FMA vertical mode LAND (32) or FLARE (33)
+  autolandWarningInputs.landOrFlareMode = verticalMode == 32 || verticalMode == 33;
+  autolandWarningInputs.locDeviationDeg = simData.nav_loc_error_deg;
+  autolandWarningInputs.locSignalValid = simData.nav_loc_valid != 0;
+  autolandWarningInputs.glideDeviationDeg = simData.nav_gs_error_deg;
+  autolandWarningInputs.glideSignalValid = simData.nav_gs_valid != 0;
+  idAutopilotShimAutolandWarning->set(autolandWarning.update(autolandWarningInputs, sampleTime) ? 1 : 0);
 
   // Update H_dot_radio filter
   const double filterConstant = 1. / 15.;
@@ -2436,6 +2434,24 @@ FacActuatorMonitor::ActuatorFailures FlyByWireInterface::facActuatorFailuresOf(i
       failuresConsumer.isActive(isFac1 ? Failures::RudderTravelLimiterActuator1 : Failures::RudderTravelLimiterActuator2)};
 }
 
+double FlyByWireInterface::sidestickNoseUpDeflectionDeg() {
+  // The ELAC sends each sidestick pitch command as 16 deg x the stick position, +1 being full back (nose up). Both
+  // sidesticks are summed and limited to the 16 deg of one full deflection, as on the PFD sidestick indication. ELAC 2,
+  // normally engaged in pitch, first.
+  constexpr double MAX_DEFLECTION_DEG = 16;
+  for (const int elacIndex : {1, 0}) {
+    const base_elac_out_bus& elacBus = elacsBusOutputs[elacIndex];
+    const bool captValid = Arinc429Utils::isNo(elacBus.left_sidestick_pitch_command_deg);
+    const bool foValid = Arinc429Utils::isNo(elacBus.right_sidestick_pitch_command_deg);
+    if (captValid || foValid) {
+      const double sum = (captValid ? elacBus.left_sidestick_pitch_command_deg.Data : 0) +
+                         (foValid ? elacBus.right_sidestick_pitch_command_deg.Data : 0);
+      return std::fmin(std::fmax(sum, -MAX_DEFLECTION_DEG), MAX_DEFLECTION_DEG);
+    }
+  }
+  return 0;
+}
+
 bool FlyByWireInterface::updateFac(double sampleTime, int facIndex) {
   // do not further process when active pause is on
   if (simConnectInterface.isSimInActivePause()) {
@@ -2516,6 +2532,30 @@ bool FlyByWireInterface::updateFac(double sampleTime, int facIndex) {
     facsDiscreteOutputs[facIndex] = facs[facIndex].getDiscreteOutputs();
     facsAnalogOutputs[facIndex] = facs[facIndex].getAnalogOutputs();
     facsBusOutputs[facIndex] = facs[facIndex].getBusOutputs();
+
+    // The alpha floor signal (discrete word 5 bit 29, read by the FMGC A/THR) with the sidestick case and the engine-out
+    // loss the FacComputer does not compute (fac/AlphaFloorConditions.h, A320 FCOM DSC-22_40-30 l.34135-34164)
+    base_arinc_429& facDiscreteWord5 = facsBusOutputs[facIndex].discrete_word_5;
+    if (Arinc429Utils::isNo(facDiscreteWord5)) {
+      AlphaFloorConditions::Inputs alphaFloorInputs;
+      alphaFloorInputs.facAlphaFloor = Arinc429Utils::bitFromValue(facDiscreteWord5, 29);
+      alphaFloorInputs.sidestickNoseUpDeg = sidestickNoseUpDeflectionDeg();
+      alphaFloorInputs.angleOfAttackProtectionActive =
+          Arinc429Utils::bitFromValueOr(elacsBusOutputs[0].discrete_status_word_2, 23, false) ||
+          Arinc429Utils::bitFromValueOr(elacsBusOutputs[1].discrete_status_word_2, 23, false);
+      alphaFloorInputs.onGround = idLgciuLeftMainGearCompressed[facIndex]->get() || idLgciuRightMainGearCompressed[facIndex]->get();
+      const base_arinc_429& fmgcRadioHeight = fmgcsBusOutputs[facIndex].fmgc_b_bus.fg_radio_height_ft;
+      alphaFloorInputs.radioHeightValid = Arinc429Utils::isNo(fmgcRadioHeight);
+      alphaFloorInputs.radioHeightFt = fmgcRadioHeight.Data;
+      alphaFloorInputs.mach = Arinc429Utils::valueOr(adrBusOutputs[facIndex].mach, 0);
+      alphaFloorInputs.engineOut = !simData.engine_combustion_1 || !simData.engine_combustion_2;
+      // SFCC actual position word: bit 12 slats retracted, bit 19 flaps retracted
+      const base_arinc_429& slatFlapPositionWord = sfccBusOutputs[facIndex].slat_flap_actual_position_word;
+      alphaFloorInputs.slatsOrFlapsExtended = Arinc429Utils::isNo(slatFlapPositionWord) &&
+                                             (!Arinc429Utils::bitFromValue(slatFlapPositionWord, 12) ||
+                                              !Arinc429Utils::bitFromValue(slatFlapPositionWord, 19));
+      Arinc429Utils::setBit(facDiscreteWord5, 29, alphaFloorConditions[facIndex].update(alphaFloorInputs));
+    }
   }
 
   if (oppFacIndex == facDisabled || fmgcDisabled != -1) {

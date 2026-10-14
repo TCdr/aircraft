@@ -3,7 +3,7 @@ import { PageTitle } from '../Generic/PageTitle';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 
 import '../../../index.scss';
-import { Flaps, Prims, Secs, Slats } from './elements/ComputerIndication';
+import { BackupControlActive, Flaps, Prims, Secs, Slats } from './elements/ComputerIndication';
 import { SlatFlapActuatorIndication } from './elements/SlatFlapActuators';
 import { PitchTrim } from './elements/PitchTrim';
 import { Elevator, ElevatorPosition, ElevatorSide } from './elements/Elevator';
@@ -69,6 +69,7 @@ export class FctlPage extends DestroyableComponent<SdPageProps> {
 
         <Prims x={0} y={0} bus={this.props.bus} />
         <Secs x={0} y={78} bus={this.props.bus} />
+        <BackupControlActive x={8} y={250} bus={this.props.bus} />
 
         <Slats x={609} y={9} bus={this.props.bus} />
         <Flaps x={609} y={78} bus={this.props.bus} />

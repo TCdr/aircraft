@@ -61,7 +61,8 @@ export const BleedPage: FC = () => {
   const [apuIsAvailable] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool', 500);
   const [packFlowValve1Open] = useSimVar('L:A32NX_COND_PACK_FLOW_VALVE_1_IS_OPEN', 'bool', 500);
   const [packFlowValve2Open] = useSimVar('L:A32NX_COND_PACK_FLOW_VALVE_2_IS_OPEN', 'bool', 500);
-  const [ramAirToggle] = useSimVar('L:A32NX_AIRCOND_RAMAIR_TOGGLE', 'bool', 500);
+  // The emergency ram air inlet valve (systems.wasm): open with the RAM AIR pb ON, unless DITCHING is selected
+  const [ramAirInletOpen] = useSimVar('L:A32NX_AIRCOND_EMER_RAM_AIR_INLET_IS_OPEN', 'bool', 500);
   const leftPrValveLowRegulation = false; // TODO: Implement
   const rightPrValveLowRegulation = false; // TODO: Implement
 
@@ -79,7 +80,7 @@ export const BleedPage: FC = () => {
       : 'GreenLine';
   const rightVerticalDuctColour =
     xbleedAirValveFullyClosed && !engine2PRValveOpen && rightPrValveLowRegulation && sdacDatum ? 'Amber' : 'Green';
-  const indicationBleedUsers = !packFlowValve1Open && !packFlowValve2Open && ramAirToggle === 0 ? 'Amber' : 'Green';
+  const indicationBleedUsers = !packFlowValve1Open && !packFlowValve2Open && ramAirInletOpen === 0 ? 'Amber' : 'Green';
 
   const [left1LandingGear] = useSimVar('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool', 1000);
   const [right1LandingGear] = useSimVar('L:A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED', 'bool', 1000);
@@ -99,13 +100,13 @@ export const BleedPage: FC = () => {
       <path className={`${indicationBleedUsers}Line`} d="M 135,62 l 0,-19 l 329,0 l 0,19" />
 
       {/* Ram air */}
-      <path className={ramAirToggle === 1 || !sdacDatum ? 'GreenLine' : 'Hide'} d="M 300,78 l 0,-35" />
+      <path className={ramAirInletOpen === 1 || !sdacDatum ? 'GreenLine' : 'Hide'} d="M 300,78 l 0,-35" />
       <Valve
         x={300}
         y={93}
         radius={15}
-        css={aircraftOnGround && ramAirToggle === 1 ? 'AmberLine' : 'GreenLine'}
-        position={ramAirToggle === 1 ? 'V' : 'H'}
+        css={aircraftOnGround && ramAirInletOpen === 1 ? 'AmberLine' : 'GreenLine'}
+        position={ramAirInletOpen === 1 ? 'V' : 'H'}
         sdacDatum={sdacDatum}
       />
       <path className="GreenLine" d="M 300,108 l 0,19" />

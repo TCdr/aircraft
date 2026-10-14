@@ -58,6 +58,32 @@ export class FwsInformation {
       // LAND 3 SINGLE ONLY
       simVarIsActive: this.fws.land3FailOperationalInop,
     },
+    // CDS EFIS BKUP CTL, CURSOR CTL and KEYBOARD FAULT STATUS INFO (A380 FCOM l.157745, 157659, 157841), see
+    // FwsCdsControlAlerts
+    310200001: {
+      // CAPT BARO REF : STD ONLY
+      simVarIsActive: this.fws.efisBkupCtlFault[0],
+    },
+    310200002: {
+      // F/O BARO REF : STD ONLY
+      simVarIsActive: this.fws.efisBkupCtlFault[1],
+    },
+    310200003: {
+      // CAPT KEYBOARD CURSOR CTL AVAIL
+      simVarIsActive: this.fws.kccuCursorCtlFault[0],
+    },
+    310200004: {
+      // F/O KEYBOARD CURSOR CTL AVAIL
+      simVarIsActive: this.fws.kccuCursorCtlFault[1],
+    },
+    310200005: {
+      // CAPT SOFT KEYBOARD AVAIL
+      simVarIsActive: this.fws.kccuKeyboardFault[0],
+    },
+    310200006: {
+      // F/O SOFT KEYBOARD AVAIL
+      simVarIsActive: this.fws.kccuKeyboardFault[1],
+    },
     220200006: {
       // FOR AUTOLAND: MAN ROLL OUT ONLY
       simVarIsActive: this.fws.rollOutFault,

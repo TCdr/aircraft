@@ -19,24 +19,44 @@ import { AbnormalProcedure, ChecklistLineStyle, DeferredProcedure, DeferredProce
 export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
   // ATA 70: ENG
   701800001: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) CTL SYS FAULT (a380_fcom.txt l.171384-171393): the lines of the fuel
+    // reduction of the overthrust protection and of the ground (EngineMonitoringAlerts ctlSysFaultItems)
     title: '\x1b<4m\x1b4mENG\x1bm 1 CTL SYS FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800002: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) CTL SYS FAULT (a380_fcom.txt l.171384-171393): the lines of the fuel
+    // reduction of the overthrust protection and of the ground (EngineMonitoringAlerts ctlSysFaultItems)
     title: '\x1b<4m\x1b4mENG\x1bm 2 CTL SYS FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800003: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) CTL SYS FAULT (a380_fcom.txt l.171384-171393): the lines of the fuel
+    // reduction of the overthrust protection and of the ground (EngineMonitoringAlerts ctlSysFaultItems)
     title: '\x1b<4m\x1b4mENG\x1bm 3 CTL SYS FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800004: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) CTL SYS FAULT (a380_fcom.txt l.171384-171393): the lines of the fuel
+    // reduction of the overthrust protection and of the ground (EngineMonitoringAlerts ctlSysFaultItems)
     title: '\x1b<4m\x1b4mENG\x1bm 4 CTL SYS FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   701800005: {
     title: '\x1b<4m\x1b4mENG\x1bm 1 CTL VLV FAULT',
@@ -235,6 +255,12 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'ENG 1 NOT DAMAGED', sensed: false, condition: true },
       { name: 'ENG 1 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      // The FADEC OVHT and THRUST CTL LOST branches (l.171781-171808): the reason the FADEC indicates (l.171719-171720),
+      // then THR LEVER IDLE and ENG MASTER OFF (EngineFailAlerts engineFailItemsShown)
+      { name: 'FADEC OVHT', sensed: false },
+      { name: 'THRUST CTL LOST', sensed: false },
+      { name: 'THR LEVER 1', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' },
     ],
   },
   701800030: {
@@ -266,6 +292,12 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'ENG 2 NOT DAMAGED', sensed: false, condition: true },
       { name: 'ENG 2 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      // The FADEC OVHT and THRUST CTL LOST branches (l.171781-171808): the reason the FADEC indicates (l.171719-171720),
+      // then THR LEVER IDLE and ENG MASTER OFF (EngineFailAlerts engineFailItemsShown)
+      { name: 'FADEC OVHT', sensed: false },
+      { name: 'THRUST CTL LOST', sensed: false },
+      { name: 'THR LEVER 2', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' },
     ],
   },
   701800031: {
@@ -297,6 +329,12 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'ENG 3 NOT DAMAGED', sensed: false, condition: true },
       { name: 'ENG 3 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      // The FADEC OVHT and THRUST CTL LOST branches (l.171781-171808): the reason the FADEC indicates (l.171719-171720),
+      // then THR LEVER IDLE and ENG MASTER OFF (EngineFailAlerts engineFailItemsShown)
+      { name: 'FADEC OVHT', sensed: false },
+      { name: 'THRUST CTL LOST', sensed: false },
+      { name: 'THR LEVER 3', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' },
     ],
   },
   701800032: {
@@ -328,6 +366,12 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
       { name: 'EMER OUTR TK XFR', sensed: false, labelNotCompleted: 'ON', level: 1 },
       { name: 'ENG 4 NOT DAMAGED', sensed: false, condition: true },
       { name: 'ENG 4 RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 },
+      // The FADEC OVHT and THRUST CTL LOST branches (l.171781-171808): the reason the FADEC indicates (l.171719-171720),
+      // then THR LEVER IDLE and ENG MASTER OFF (EngineFailAlerts engineFailItemsShown)
+      { name: 'FADEC OVHT', sensed: false },
+      { name: 'THRUST CTL LOST', sensed: false },
+      { name: 'THR LEVER 4', sensed: true, labelNotCompleted: 'IDLE' },
+      { name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' },
     ],
   },
   701800033: {
@@ -1452,14 +1496,22 @@ export const EcamAbnormalSensedAta70: { [n: number]: AbnormalProcedure } = {
     ],
   },
   701800143: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER INHIBITED (a380_fcom.txt l.173598-173603)
     title: '\x1b<4m\x1b4mENG\x1bm 2 REVERSER INHIBITED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800144: {
+    // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER INHIBITED (a380_fcom.txt l.173598-173603)
     title: '\x1b<4m\x1b4mENG\x1bm 3 REVERSER INHIBITED',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'T.O PERF', sensed: false, labelNotCompleted: 'CHECK' },
+      { name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY', sensed: false },
+    ],
   },
   701800145: {
     // A380 FCOM PRO-ABN-ECAM-10-70 ENG 2(3) REVERSER LOCKED (a380_fcom.txt l.173606-173609)

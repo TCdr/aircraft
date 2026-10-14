@@ -68,12 +68,21 @@ const ECP_STS_BIT = 13;
 
 /**
  * Whether a system page pb (or STS) of the ECAM control panel is pushed now: the ECP outputs a key as pressed while it
- * is held (Ecp.ts, PRESSED/RELEASED H events).
+ * is held (Ecp.ts, PRESSED/RELEASED H events). STS is read from its hardwired discrete too: it still works with the ECAM
+ * control panel failed (A320 FCOM DSC-31-30 l.46834-46836).
+ * @param systemSwitchWord L:A32NX_ECP_SYSTEM_SWITCH_WORD
+ * @param warningSwitchWord L:A32NX_ECP_WARNING_SWITCH_WORD
+ * @param stsDiscretePushed L:A32NX_ECP_DISCRETE_OUT_STS
  */
-export function isSystemPagePbPushed(systemSwitchWord: Arinc429Register, warningSwitchWord: Arinc429Register): boolean {
+export function isSystemPagePbPushed(
+  systemSwitchWord: Arinc429Register,
+  warningSwitchWord: Arinc429Register,
+  stsDiscretePushed: boolean,
+): boolean {
   return (
     ECP_SYSTEM_PAGE_BITS.some((bit) => systemSwitchWord.bitValueOr(bit, false)) ||
-    warningSwitchWord.bitValueOr(ECP_STS_BIT, false)
+    warningSwitchWord.bitValueOr(ECP_STS_BIT, false) ||
+    stsDiscretePushed
   );
 }
 
@@ -152,7 +161,11 @@ export class DmcDisplayReconfiguration {
 
     this.systemSwitchWord.setFromSimVar('L:A32NX_ECP_SYSTEM_SWITCH_WORD');
     this.warningSwitchWord.setFromSimVar('L:A32NX_ECP_WARNING_SWITCH_WORD');
-    const pagePbPushed = isSystemPagePbPushed(this.systemSwitchWord, this.warningSwitchWord);
+    const pagePbPushed = isSystemPagePbPushed(
+      this.systemSwitchWord,
+      this.warningSwitchWord,
+      SimVar.GetSimVarValue('L:A32NX_ECP_DISCRETE_OUT_STS', SimVarValueType.Bool) > 0,
+    );
     this.ecamPagePbHeldSeconds = nextEcamPagePbHeldSeconds(this.ecamPagePbHeldSeconds, pagePbPushed, dt / 1000);
 
     const inputs = {

@@ -39,6 +39,7 @@ import {
 } from '../shared/NXSystemMessages';
 import { atisPrintLines, atisTime } from '../pages/ATCCOM/AtisText';
 import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/A380XFmsAtcBusPublisher';
+import { ATC_FUNCTION_AVAILABLE_VAR } from '@shared/AtcFunctionAvailability';
 
 /** The cockpit printer, as the ATC COM functions use it (the FMS printer, FmsPrinter) */
 export interface AtcComPrinter {
@@ -394,6 +395,29 @@ export class AtcDatalinkSystem implements Instrument {
         this.atcErrors.removeAt(index);
       }
     }
+  }
+
+  /** How long ATC COM NOT AVAIL stays (A380 FCOM DSC-46-10-20-30, a380_fcom.txt l.96792-96795: "appears for 5 s") */
+  public static readonly ATC_COM_NOT_AVAIL_DURATION_MS = 5000;
+
+  /**
+   * An ATC COM page is selected with the KCCU keys: "If the flight crew decides to display an ATC COM page while the ATC
+   * is failed, via the KCCU keys (ATC COM key or Navigation keys), the ATC COM NOT AVAIL message appears for 5 s"
+   * (A380 FCOM DSC-46-10-20-30, a380_fcom.txt l.96792-96795). The ATC is failed while the systems host reports its
+   * function not available (CPIOM D1 lost, ATC RESET pb pulled: L:A380X_ATC_FUNCTION_AVAIL).
+   */
+  public onAtcComPageSelectedWithKccu(): void {
+    if (SimVar.GetSimVarValue(ATC_FUNCTION_AVAILABLE_VAR, SimVarValueType.Bool) > 0) {
+      return;
+    }
+    this.addMessageToQueue(ATCCOMMessages.atcComNotAvail);
+    const shown = this.atcErrors.getArray()[0];
+    setTimeout(() => {
+      const index = this.atcErrors.getArray().indexOf(shown);
+      if (index !== -1) {
+        this.atcErrors.removeAt(index);
+      }
+    }, AtcDatalinkSystem.ATC_COM_NOT_AVAIL_DURATION_MS);
   }
 
   /**

@@ -4,7 +4,13 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { crewOxygenIndication, doorPageCabinVsClass, isCabinVsShown, isDoorNotLocked } from './DoorOxyIndications';
+import {
+  crewOxygenCircuitIndication,
+  crewOxygenIndication,
+  doorPageCabinVsClass,
+  isCabinVsShown,
+  isDoorNotLocked,
+} from './DoorOxyIndications';
 
 const page = () => readFileSync(resolve(__dirname, 'Door.tsx'), 'utf-8');
 
@@ -73,5 +79,32 @@ describe('SD DOOR/OXY cabin V/S', () => {
     expect(source).toContain('L:A32NX_FWC_FLIGHT_PHASE');
     expect(source).toContain('cabinVsPulses(');
     expect(source).toContain('FT/MIN');
+  });
+});
+
+/* A320 FCOM DSC-35-20-20 REGUL LO PR and CKPT OXY (a320_fcom.txt l.56822-56831) */
+describe('SD DOOR/OXY REGUL LO PR and CKPT OXY', () => {
+  it('shows no REGUL LO PR and a white CKPT OXY with the CREW SUPPLY ON and a normal bottle', () => {
+    expect(crewOxygenCircuitIndication(1850, false)).toEqual({ regulatorLowPressure: false, ckptOxyAmber: false });
+  });
+
+  it('shows REGUL LO PR and an amber CKPT OXY with the CREW SUPPLY pb-sw OFF (no low-pressure circuit pressure)', () => {
+    expect(crewOxygenCircuitIndication(1850, true)).toEqual({ regulatorLowPressure: true, ckptOxyAmber: true });
+  });
+
+  it('turns CKPT OXY amber below 300 PSI with the CREW SUPPLY ON, REGUL LO PR staying off', () => {
+    expect(crewOxygenCircuitIndication(250, false)).toEqual({ regulatorLowPressure: false, ckptOxyAmber: true });
+    expect(crewOxygenCircuitIndication(300, false).ckptOxyAmber).toBe(false);
+  });
+
+  it('shows REGUL LO PR when the bottle is below the 50 PSI of the low-pressure circuit', () => {
+    expect(crewOxygenCircuitIndication(0, false)).toEqual({ regulatorLowPressure: true, ckptOxyAmber: true });
+    expect(crewOxygenCircuitIndication(50, false).regulatorLowPressure).toBe(false);
+  });
+
+  it('draws REGUL LO PR and colours CKPT OXY from the circuit indication on the page', () => {
+    const source = page();
+    expect(source).toContain('REGUL LO PR');
+    expect(source).toContain('crewOxygenCircuit.ckptOxyAmber');
   });
 });

@@ -1107,8 +1107,9 @@
                 <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                     <NODE_ID>SCREEN_COM_L</NODE_ID>
                     <!-- Effects such as pixels and glass reflections require the screen brightness to be increased -->
+                    <!-- DCDU 1 failure (flyPad 46002, systems-host atsu.ts): the screen is blank -->
                     <EMISSIVE_CODE>
-                        (L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool) if{
+                        (L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool) (L:A32NX_DCDU_1_FAILED, Bool) ! and if{
                             12 (L:#PLANE_NAME#_PANEL_DCDU_L_BRIGHTNESS, percent over 100) *
                         } els{
                             0
@@ -1234,8 +1235,9 @@
                 <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                     <NODE_ID>SCREEN_COM_R</NODE_ID>
                     <!-- Effects such as pixels and glass reflections require the screen brightness to be increased -->
+                    <!-- DCDU 2 failure (flyPad 46003, systems-host atsu.ts): the screen is blank -->
                     <EMISSIVE_CODE>
-                        (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) if{
+                        (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) (L:A32NX_DCDU_2_FAILED, Bool) ! and if{
                             12 (L:#PLANE_NAME#_PANEL_DCDU_R_BRIGHTNESS, percent over 100) *
                         } els{
                             0
@@ -2593,13 +2595,18 @@
 
             <Component ID="Overhead_Dummies">
                 <Component ID="Left_Column">
+                    <!-- ELT (A320 FCOM DSC-23-40-30, a320_fcom.txt l.36072-36099): ON "The Emergency Locator Transmitter (ELT)
+                         transmits an emergency signal"; TEST/RESET "Starts the ELT autotest", and resets the ELT to "stop signal
+                         transmission". The ELT light comes on "either when the emergency signal is transmitted, or during ELT
+                         autotest": the autotest lasts as long as TEST/RESET is held. -->
                     <!-- ELT TEST/RESET -->
                     <UseTemplate Name="FBW_Anim_Interactions">
                         <ANIM_TYPE>BUTTON_HELD</ANIM_TYPE>
                         <ANIM_TEMPLATE>FBW_Push_Held</ANIM_TEMPLATE>
                         <NODE_ID>PUSH_OVHD_ELT_TEST</NODE_ID>
-                        <HOLD_SIMVAR>L:A32NX_ELT_TEST_RESET</HOLD_SIMVAR>
-                        <TOOLTIPID>Test/Reset ELT (Inop.)</TOOLTIPID>
+                        <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_ELT_TEST_RESET) 0 (&gt;L:A32NX_ELT_ON)</LEFT_SINGLE_CODE>
+                        <LEFT_LEAVE_CODE>0 (&gt;L:A32NX_ELT_TEST_RESET)</LEFT_LEAVE_CODE>
+                        <TOOLTIPID>Test and reset ELT, stops a transmission</TOOLTIPID>
                     </UseTemplate>
 
                     <!-- ELT ON -->
@@ -2608,7 +2615,7 @@
                         <ANIM_TEMPLATE>FBW_Push_Held</ANIM_TEMPLATE>
                         <NODE_ID>PUSH_OVHD_ELT_ON</NODE_ID>
                         <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_ELT_ON)</LEFT_SINGLE_CODE>
-                        <TOOLTIPID>Turn ON ELT (Inop.)</TOOLTIPID>
+                        <TOOLTIPID>%((L:A32NX_ELT_ON, Bool))%{if}ELT transmitting, TEST/RESET stops it%{else}Turn ON ELT, transmit%{end}</TOOLTIPID>
                     </UseTemplate>
 
                     <!-- PA -->
@@ -3019,6 +3026,8 @@
                         <ARROW_TYPE>Curved</ARROW_TYPE>
                         <WWISE_EVENT>turnknob</WWISE_EVENT>
                         <INIT_VALUE>1</INIT_VALUE>
+                        <!-- an L:var: the FWC reads it for the AUDIO 3 XFRD memo (FWC/Logic/CommunicationAlerts.ts) -->
+                        <SWITCH_POSITION_TYPE>L</SWITCH_POSITION_TYPE>
                         <SWITCH_POSITION_VAR>KNOB_OVHD_AUDIOSWITCH_Position</SWITCH_POSITION_VAR>
                     </UseTemplate>
                 </Component>
@@ -3078,16 +3087,20 @@
                         <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
                         <TOOLTIPID>%((L:A32NX_AVIONICS_COMPLT_ON, Bool))%{if}Set avionics comp lt to AUTO (Inop.)%{else}Turn ON avionics comp lt (Inop.)%{end}</TOOLTIPID>
                     </UseTemplate>
-                    <!-- CARGO VENT ISOL VALVE -->
+                    <!-- CARGO VENT AFT ISOL VALVE: AUTO / OFF, FAULT when an isolation valve disagrees (systems.wasm
+                         cargo_ventilation.rs, A320 FCOM DSC-21-40-20) -->
                     <UseTemplate Name="FBW_Anim_Interactions">
                         <ANIM_TYPE>KORRY_BUTTON</ANIM_TYPE>
                         <ANIM_TEMPLATE>FBW_Push_Toggle</ANIM_TEMPLATE>
                         <NODE_ID>PUSH_OVHD_CARGOVENT_AFTISOL</NODE_ID>
+                        <TOGGLE_SIMVAR>L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO</TOGGLE_SIMVAR>
                         <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                        <SEQ1_CODE>(L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_HAS_FAULT, Bool)</SEQ1_CODE>
+                        <SEQ2_CODE>(L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                         <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                         <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                         <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                        <DUMMY_BUTTON/>
+                        <TOOLTIPID>%((L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO, Bool))%{if}Close aft cargo isolation valves%{else}Set aft cargo isolation valves to AUTO%{end}</TOOLTIPID>
                     </UseTemplate>
                     <!-- CARGO SMOKE FWD L -->
                     <UseTemplate Name="FBW_AIRBUS_Push_Dummy_Template">
@@ -3970,7 +3983,10 @@
                                 <NODE_ID>PUSH_OVHD_CALLS_AFT</NODE_ID>
                                 <HOLD_SIMVAR>L:PUSH_OVHD_CALLS_AFT</HOLD_SIMVAR>
                             </UseTemplate>
-                            <!-- CALLS EMER -->
+                            <!-- CALLS EMER: a call made from the cockpit lights the white ON and the amber CALL lights steady (A320 FCOM
+                                 DSC-23-20-20 EMER pb-sw, a320_fcom.txt l.35619-35620: "on the cockpit CALLS panel, the white ON light and the
+                                 amber CALL light come on"). Only a call from the cabin to the cockpit flashes the CALL light (l.35622-35624),
+                                 which is not simulated. -->
                             <UseTemplate Name="FBW_Anim_Interactions">
                                 <ANIM_TYPE>KORRY_BUTTON</ANIM_TYPE>
                                 <ANIM_TEMPLATE>FBW_Covered_Push_Toggle</ANIM_TEMPLATE>
@@ -3979,8 +3995,8 @@
                                 <TOGGLE_SIMVAR>L:A32NX_CALLS_EMER_ON</TOGGLE_SIMVAR>
                                 <TOOLTIPID>%((L:A32NX_CALLS_EMER_ON, Bool))%{if}Turn OFF emergency call%{else}Turn ON emergency call%{end}</TOOLTIPID>
                                 <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool) (L:A32NX_ELEC_AC_STAT_INV_BUS_IS_POWERED, Bool) or</SEQ_POWERED>
-                                <SEQ1_CODE>(L:A32NX_CALLS_EMER_ON, Bool) (E:ABSOLUTE TIME, seconds) 1 % 0.4 &gt; and</SEQ1_CODE>
-                                <SEQ2_CODE>(L:A32NX_CALLS_EMER_ON, Bool) (E:ABSOLUTE TIME, seconds) 1 % 0.4 &gt; and</SEQ2_CODE>
+                                <SEQ1_CODE>(L:A32NX_CALLS_EMER_ON, Bool)</SEQ1_CODE>
+                                <SEQ2_CODE>(L:A32NX_CALLS_EMER_ON, Bool)</SEQ2_CODE>
                                 <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                                 <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
                             </UseTemplate>
@@ -4154,7 +4170,7 @@
                     <Component ID="ELT">
                         <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                             <NODE_ID>PUSH_OVHD_ELT_ON</NODE_ID>
-                            <EMISSIVE_CODE>(L:A32NX_OVHD_INTLT_ANN) 0 ==</EMISSIVE_CODE>
+                            <EMISSIVE_CODE>(L:A32NX_ELT_ON, Bool) (L:A32NX_ELT_TEST_RESET, Bool) or (L:A32NX_OVHD_INTLT_ANN) 0 == or</EMISSIVE_CODE>
                             <FAILURE>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</FAILURE>
                         </UseTemplate>
                     </Component>
@@ -5682,9 +5698,6 @@
             </UseTemplate>
             <UseTemplate Name="ASOBO_GT_Interaction_Tooltip">
                 <NODE_ID>HANDLE_RIGHT</NODE_ID>
-            </UseTemplate>
-            <UseTemplate Name="ASOBO_GT_Interaction_Tooltip">
-                <NODE_ID>PUSH_OVHD_CARGOVENT_AFTISOL</NODE_ID>
             </UseTemplate>
             <UseTemplate Name="ASOBO_GT_Interaction_Tooltip">
                 <NODE_ID>PUSH_OVHD_RADIO_VOR1</NODE_ID>

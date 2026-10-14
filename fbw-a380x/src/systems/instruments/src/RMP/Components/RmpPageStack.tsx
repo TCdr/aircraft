@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -15,6 +15,7 @@ import { RmpPage } from './RmpPage';
 import { VhfComPage } from '../Pages/VhfCom/VhfComPage';
 import { KeypadEvents, SystemKeys } from '../Systems/KeypadController';
 import { TransponderPage } from '../Pages/Transponder/TransponderPage';
+import { returnsToVhfPage, StandbyRadioNavigationEvents } from '../Systems/StandbyRadioNavigation';
 
 export interface RmpPageStackProps extends ComponentProps {
   bus: EventBus;
@@ -68,6 +69,20 @@ export class RmpPageStack extends DisplayComponent<RmpPageStackProps> {
           break;
       }
     });
+
+    // A380 FCOM DSC-23-20 VHF page (l.48288-48289): the display defaults to the VHF page after deactivation of the
+    // STBY RAD NAV mode
+    let wasStandbyRadioNavigationActive = false;
+    this.props.bus
+      .getSubscriber<StandbyRadioNavigationEvents>()
+      .on('rmp_stby_rad_nav_active')
+      .whenChanged()
+      .handle((active) => {
+        if (returnsToVhfPage(wasStandbyRadioNavigationActive, active)) {
+          this.navigateTo('/vhf');
+        }
+        wasStandbyRadioNavigationActive = active;
+      });
   }
 
   private navigateTo(route: string): void {

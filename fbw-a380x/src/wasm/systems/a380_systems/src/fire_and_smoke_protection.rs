@@ -90,10 +90,16 @@ impl SimulationElement for A380FireAndSmokeProtection {
 }
 
 /// The compartments of the Smoke Detection Function (SDF) of the CIDS that are modelled: the cargo compartments (A380
-/// FCOM DSC-26-60-10, a380_fcom.txt l.53797-53836) and the avionics bays with the IFE bay (DSC-26-50-10,
-/// l.53583-53630), each with two smoke detectors. Not modelled: the crew rests, lavatories, CWS / RCC, showers and the
-/// NSS.
-const A380_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 9] = [
+/// FCOM DSC-26-60-10, a380_fcom.txt l.53797-53836) and the avionics bays with the IFE bay and the NSS (DSC-26-50-10,
+/// l.53583-53630: "Each avionics bay, the In Flight Entertainment (IFE) bay and the Network Server System (NSS) have a
+/// smoke detection system. Each bay has two smoke detectors."), each with two smoke detectors. Not modelled: the crew
+/// rests, lavatories, CWS / RCC and showers.
+///
+/// The NSS smoke has no ECAM alert in the FCOM: it lights the SMOKE light of the NSS MASTER sw (DSC-26-50-20,
+/// l.53704-53712, DSC-46-20-20-87, l.103254-103262: "Smoke is detected in the NSS. The SMOKE light remains on, as long
+/// as smoke is detected."), L:A32NX_SMOKE_NSS_DETECTED, with the SMOKE warning logic of the bays (both detectors, or one
+/// failed and the other one detecting, l.53619-53630).
+const A380_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 10] = [
     SmokeDetectionZone::ForwardCargo,
     SmokeDetectionZone::AftCargo,
     SmokeDetectionZone::BulkCargo,
@@ -103,13 +109,14 @@ const A380_SMOKE_DETECTION_ZONES: [SmokeDetectionZone; 9] = [
     SmokeDetectionZone::RightUpperAvionics,
     SmokeDetectionZone::AftAvionics,
     SmokeDetectionZone::InFlightEntertainmentBay,
+    SmokeDetectionZone::NetworkServerSystem,
 ];
 
 /// The A380 Smoke Detection Function (SDF) of the CIDS: "monitors smoke detection in: The avionics bays, The cargo
 /// compartments, The cabin areas. It also manages fire extinguishing in the cargo compartments." (A380 FCOM DSC-26-10-10,
 /// a380_fcom.txt l.52793-52803)
 struct SmokeDetectionFunction {
-    zones: [SmokeDetection<2>; 9],
+    zones: [SmokeDetection<2>; 10],
     cargo_fire_extinguishing: CargoFireExtinguishing<2, 2>,
 
     /// The SDF itself is failed: SMOKE DET FAULT, "The Smoke Detection Function (SDF) is failed." (A380 FCOM
@@ -1544,7 +1551,7 @@ mod a380_fire_and_smoke_protection_tests {
             test_bed.read_by_name(&format!("SMOKE_{}_DET_FAULT", zone))
         }
 
-        const ZONES: [&str; 9] = [
+        const ZONES: [&str; 10] = [
             "FWD_CARGO",
             "AFT_CARGO",
             "BULK_CARGO",
@@ -1554,6 +1561,7 @@ mod a380_fire_and_smoke_protection_tests {
             "R_UPPER_AVNCS",
             "AFT_AVNCS",
             "IFE_BAY",
+            "NSS",
         ];
 
         #[test]
@@ -1604,6 +1612,40 @@ mod a380_fire_and_smoke_protection_tests {
             test_bed = test_bed.and_double_run();
 
             assert!(smoke_detected(&mut test_bed, "L_MAIN_AVNCS"));
+        }
+
+        #[test]
+        fn smoke_in_the_nss_lights_the_smoke_light_of_the_nss_master_sw() {
+            // A380 FCOM DSC-26-50-10 (a380_fcom.txt l.53585-53587) and DSC-46-20-20-87 NSS MASTER sw
+            // (l.103254-103258): "Smoke is detected in the NSS. The SMOKE light remains on, as long as smoke is
+            // detected."
+            let mut test_bed = test_bed().and_double_run();
+            assert!(!smoke_detected(&mut test_bed, "NSS"));
+
+            test_bed.fail(FailureType::Smoke(SmokeDetectionZone::NetworkServerSystem));
+            test_bed = test_bed.and_double_run();
+            assert!(smoke_detected(&mut test_bed, "NSS"));
+
+            test_bed.unfail(FailureType::Smoke(SmokeDetectionZone::NetworkServerSystem));
+            test_bed = test_bed.and_double_run();
+            assert!(!smoke_detected(&mut test_bed, "NSS"));
+        }
+
+        #[test]
+        fn one_failed_nss_detector_gives_a_detector_fault_and_keeps_the_smoke_detection() {
+            // DETECTION LOGIC of the bays (a380_fcom.txt l.53619-53630)
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::SmokeDetector(
+                SmokeDetectionZone::NetworkServerSystem,
+                2,
+            ));
+            test_bed = test_bed.and_double_run();
+            assert!(smoke_detection_fault(&mut test_bed, "NSS"));
+            assert!(!smoke_detected(&mut test_bed, "NSS"));
+
+            test_bed.fail(FailureType::Smoke(SmokeDetectionZone::NetworkServerSystem));
+            test_bed = test_bed.and_double_run();
+            assert!(smoke_detected(&mut test_bed, "NSS"));
         }
 
         #[test]

@@ -64,6 +64,7 @@
 //!   that engine during it (hydraulic/mod.rs; design choice: the pumps are off-loaded, the clutch
 //!   disconnection of the ENG PUMPS DISC pb is not used, it cannot be undone in flight).
 
+use crate::fadec_automatic_shutdown::{FadecAutomaticShutdown, FadecShutdownInputs};
 use std::time::Duration;
 use systems::{
     engine::{
@@ -254,6 +255,9 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         monitors_in_flight_start_air: true,
         // DSC-70-90 (l.113191): EGT limit "745 °C, during the ground start sequence".
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(745.),
+        // DSC-70-90 (l.113192): "865 °C, during engine relight in flight"; ENG RELIGHT IN FLIGHT
+        // (l.174945): "MAX EGT : 865 °C".
+        relight_egt_limit: Some(ThermodynamicTemperature::new::<degree_celsius>(865.)),
         // DSC-70-80-30-20 (l.112489-112491): "initiates two further attempts of automatic start
         // sequence after cranking ... If the third start attempt fails, the start sequence is aborted".
         automatic_start_attempts: 3,
@@ -417,6 +421,9 @@ struct A380EngineFailure {
     /// The stuck failure of the HP fuel valve and the FADEC position monitoring (ENG 1(2)(3)(4) HP
     /// FUEL VLV FAULT, see `hp_fuel_valve_commanded_open`)
     hp_fuel_valve_failure: HpFuelValveFailure,
+    /// The shutdowns of the FADEC itself: FADEC overheat and overthrust protection (ENG FAIL "FADEC
+    /// OVHT" / "THRUST CTL LOST", fadec_automatic_shutdown.rs)
+    fadec_shutdown: FadecAutomaticShutdown,
 
     master_switch_is_on: bool,
     /// The ENG START selector (one for the four engines): 0 CRANK, 1 NORM, 2 IGN START.
@@ -469,6 +476,7 @@ impl A380EngineFailure {
                 .get_identifier(format!("ENGINE_{}_HP_FUEL_VALVE_CLOSED", engine_number)),
             hp_fuel_valve: HpFuelValve::new(),
             hp_fuel_valve_failure: HpFuelValveFailure::new(context, engine_number),
+            fadec_shutdown: FadecAutomaticShutdown::new(context, engine_number),
             master_switch_is_on: false,
             engine_start_selector: 1.,
             starter_air_pressurized: false,
@@ -520,10 +528,11 @@ impl A380EngineFailure {
             // the FADEC, EngineIgnition_A380X.hpp).
             automatic_continuous_ignition: false,
             hp_fuel_valve_stuck_closed: self.hp_fuel_valve_failure.is_stuck_closed(),
-            // A380 FCOM DSC-70-90 (l.112849-112857): the ENG MASTER FAULT light also comes on if "The
-            // HP fuel valve position is abnormal" (the overthrust protection shutdown of CTL SYS
-            // FAULT is not modelled).
-            other_fault_light_conditions: self.hp_fuel_valve_failure.position_is_abnormal(),
+            // A380 FCOM DSC-70-90 (l.112849-112858): the ENG MASTER FAULT light also comes on if "The
+            // HP fuel valve position is abnormal" or "The overthrust protection is active and the
+            // FADEC automatically shut downs the engine" (CTL SYS FAULT).
+            other_fault_light_conditions: self.hp_fuel_valve_failure.position_is_abnormal()
+                || self.fadec_shutdown.overthrust_shutdown(),
             engine_thermal_state: 0.,
             start_valve_position_abnormal: self.start_valve_position_abnormal,
         }
@@ -546,6 +555,16 @@ impl A380EngineFailure {
         lp_valve_starved: bool,
         start_schedule: &EngineStartSchedule,
     ) {
+        // Before the start inputs: an overthrust shutdown lights the ENG MASTER FAULT light.
+        self.fadec_shutdown.update(
+            context,
+            &FadecShutdownInputs {
+                engine_is_running: self.is_running(),
+                master_switch_is_on: self.master_switch_is_on,
+                thrust_lever_angle_degrees: self.thrust_lever_angle_degrees,
+            },
+        );
+
         let start_inputs = self.start_inputs();
         self.start.update(context, start_schedule, &start_inputs);
 
@@ -562,9 +581,11 @@ impl A380EngineFailure {
                 engine_is_running: self.is_running(),
                 core_speed: self.core_speed,
                 lp_valve_starved,
-                // A valve stuck closed gives the engine no fuel, also for a relight in flight.
+                // A valve stuck closed gives the engine no fuel, also for a relight in flight; a
+                // FADEC shutdown (overheat, overthrust) keeps it cut, without an automatic relight.
                 start_sequence_fuel_cut: self.start.fuel_is_cut()
-                    || self.hp_fuel_valve_failure.is_stuck_closed(),
+                    || self.hp_fuel_valve_failure.is_stuck_closed()
+                    || self.fadec_shutdown.fuel_is_cut(),
                 ignition_available: self.start.ignition_is_available(),
                 automatic_continuous_ignition: false,
             },
@@ -608,6 +629,7 @@ impl SimulationElement for A380EngineFailure {
         self.failure.accept(visitor);
         self.start.accept(visitor);
         self.hp_fuel_valve_failure.accept(visitor);
+        self.fadec_shutdown.accept(visitor);
 
         visitor.visit(self);
     }
@@ -1161,6 +1183,11 @@ mod tests {
             assert_eq!(schedule.start_valve_close_n2.get::<percent>(), 58.4);
             assert_eq!(schedule.start_abort_inhibition_n2.get::<percent>(), 58.4);
             assert_eq!(schedule.start_egt_limit.get::<degree_celsius>(), 745.);
+            // DSC-70-90 (l.113192) and ENG RELIGHT IN FLIGHT (l.174945): 865 °C in a relight
+            let relight_egt_limit = schedule
+                .relight_egt_limit
+                .map_or(0., |limit| limit.get::<degree_celsius>());
+            assert!((relight_egt_limit - 865.).abs() < 1e-6);
             assert_eq!(schedule.automatic_start_attempts, 3);
             assert_eq!(schedule.starter_time_limit, Some(Duration::from_secs(300)));
             assert!(schedule.continuous_ignition_uses_both_igniters);
@@ -1562,6 +1589,59 @@ mod tests {
 
             assert!(hp_fuel_valve_is_closed(&mut test_bed, 1));
             assert!(!hp_fuel_valve_is_closed(&mut test_bed, 2));
+        }
+
+        fn fadec_shutdown_reason(
+            test_bed: &mut SimulationTestBed<TestAircraft>,
+            engine_number: usize,
+        ) -> f64 {
+            test_bed.read_by_name(&format!("ENGINE_{}_FADEC_SHUTDOWN", engine_number))
+        }
+
+        /// FCOM ENG 1(2)(3)(4) FAIL (l.171781-171782): "In the case of a FADEC OVHT : The FADEC
+        /// automatically shuts down the engine." No relight while the FADEC overheats.
+        #[test]
+        fn a_fadec_overheat_shuts_the_engine_down_and_keeps_its_fuel_cut() {
+            let mut test_bed = flying_test_bed();
+            test_bed.fail(FailureType::FadecOverheatShutdown(2));
+            run(&mut test_bed);
+            assert!(fuel_is_cut(&mut test_bed, 2));
+            assert!(hp_fuel_valve_is_closed(&mut test_bed, 2));
+            assert_eq!(fadec_shutdown_reason(&mut test_bed, 2), 1.);
+            assert!(!fuel_is_cut(&mut test_bed, 1));
+
+            // The engine stops; a relight with the failure still there gets no fuel
+            test_bed.write_by_name("ENGINE_STATE:2", 4.);
+            test_bed.write_by_name("ENGINE_N3:2", 12.);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+            master_off_then_on(&mut test_bed, 2);
+            assert!(fuel_is_cut(&mut test_bed, 2));
+
+            // The failure removed, the ENG MASTER OFF ends the FADEC shutdown
+            test_bed.unfail(FailureType::FadecOverheatShutdown(2));
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", false);
+            run(&mut test_bed);
+            assert_eq!(fadec_shutdown_reason(&mut test_bed, 2), 0.);
+        }
+
+        /// DSC-70-20-20 OVERTHRUST PROTECTION (l.111455-111458): on ground with the levers at idle
+        /// the FADEC shuts the engine down; DSC-70-90 (l.112856-112858): ENG MASTER FAULT light.
+        #[test]
+        fn the_overthrust_protection_shuts_an_engine_down_on_ground_and_lights_its_fault_light() {
+            // After the landing: the four engines running at idle
+            let mut test_bed = flying_test_bed();
+            test_bed.set_on_ground(true);
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(100.));
+            test_bed.write_by_name("AUTOTHRUST_TLA:3", 0.);
+            run_for_seconds(&mut test_bed, 1);
+            assert!(!fuel_is_cut(&mut test_bed, 3));
+            assert!(!fault_light(&mut test_bed, 3));
+
+            test_bed.fail(FailureType::EngineOverthrust(3));
+            run(&mut test_bed);
+            assert!(fuel_is_cut(&mut test_bed, 3));
+            assert_eq!(fadec_shutdown_reason(&mut test_bed, 3), 2.);
+            assert!(fault_light(&mut test_bed, 3));
         }
     }
 }
