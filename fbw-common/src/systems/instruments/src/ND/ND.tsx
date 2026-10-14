@@ -32,6 +32,7 @@ import { ArcModePage } from './pages/arc';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
 import { FmMessages } from './FmMessages';
 import { Flag, FlagProps } from './shared/Flag';
+import { isNdCheckHeadingShown } from './CheckHeadingFlag';
 import { CanvasMap, NdMapClick } from './shared/map/CanvasMap';
 import { NDPage } from './pages/NDPage';
 import { PlanModePage } from './pages/plan';
@@ -90,6 +91,12 @@ export interface NDProps<T extends number> {
 
   /** The weather radar rows of the A32NX radar panel (WxrA320Indications.ts) instead of the A380X ones */
   a320WxrIndications?: boolean;
+
+  /**
+   * The heading discrepancy between the two EFIS sides, for the CHECK HDG message (A32NX EfisSideDiscrepancyMonitor).
+   * Without it, CHECK HDG is never shown.
+   */
+  headingDiscrepancy?: Subscribable<boolean>;
 }
 
 export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> {
@@ -165,6 +172,13 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
       return !headingWord.isNormalOperation();
     },
     this.headingWord,
+    this.currentPageMode,
+  );
+
+  /** CHECK HDG (amber), not in PLAN mode: A320 FCOM DSC-31-05-60, a320_fcom.txt l.45417-45422 */
+  private readonly checkHdgFlagShown = MappedSubject.create(
+    ([headingDiscrepancy, currentPageMode]) => isNdCheckHeadingShown(headingDiscrepancy, currentPageMode),
+    this.props.headingDiscrepancy ?? Subject.create(false),
     this.currentPageMode,
   );
 
@@ -480,7 +494,7 @@ export class NDComponent<T extends number> extends DisplayComponent<NDProps<T>> 
             <Flag visible={Subject.create(false)} x={350} y={84} class="Amber FontSmall">
               DISPLAY SYSTEM VERSION INCONSISTENCY
             </Flag>
-            <Flag visible={Subject.create(false)} x={384} y={170} class="Amber FontMedium">
+            <Flag visible={this.checkHdgFlagShown} x={384} y={170} class="Amber FontMedium" flashesOnShow>
               CHECK HDG
             </Flag>
             <Flag visible={this.trkFlagShown} x={381} y={204} class="Red FontSmallest">

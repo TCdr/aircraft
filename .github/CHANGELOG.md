@@ -629,6 +629,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
 1. [A32NX/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
 1. [A380X/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
+1. [A32NX/PFD] Amber CHECK ATT and CHECK HDG messages on the PFDs (and CHECK HDG on the NDs, not in PLAN mode) when the two sides disagree by 5 degrees or more in pitch, roll or heading - @TCdr
+1. [A32NX/PFD] Red V1 INOP flag instead of the V1 when no FM is healthy, and red ILS1(2)/DME1(2) flags when the onside ILS receiver or DME interrogator loses its power with LS on - @TCdr
+1. [A32NX/SD] The lower SD shows the FCU selected altitude in metres (green) when METRIC ALT is selected - @TCdr
+1. [A32NX/FWC] NAV ALTI DISCREPANCY and CHECK ALT trigger at 500 ft with the STD baro reference (250 ft with QNH or QFE), as in the FCOM - @TCdr
 
 ## 2024.1.0
 

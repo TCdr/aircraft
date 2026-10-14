@@ -61,6 +61,11 @@ import { FwsAutoCallouts } from './FwsAutoCallouts';
 import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { acscPackFaults } from './Logic/AcscPackFaults';
+import {
+  ALTI_DISCREPANCY_BARO_REFERENCE_FT,
+  ALTI_DISCREPANCY_STD_REFERENCE_FT,
+  isAltitudeDiscrepancy,
+} from './Logic/AltitudeDiscrepancy';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
 import {
   ALL_ENGINES_FAILURE_CODES,
@@ -6509,23 +6514,26 @@ export class PseudoFWC {
       this.airKnob.get() === AirDataSwitchingKnob.Fo ? this.adr3PressureAlt.get() : this.adr2PressureAlt.get();
     const rightDmcAlt = this.dmcRightAltitude.get();
 
+    // NAV ALTI DISCREPANCY / CHECK ALT thresholds: 250 ft QNH or QFE, 500 ft STD (Logic/AltitudeDiscrepancy.ts)
     const baroAltDiscrepancy =
-      (((leftAdrCorrectedAlt.isNormalOperation() || leftAdrCorrectedAlt.isFunctionalTest()) &&
-        (rightDmcAlt.isNormalOperation() || rightDmcAlt.isFunctionalTest()) &&
-        Math.abs(leftAdrCorrectedAlt.value - rightDmcAlt.value) > 250) ||
-        ((rightAdrCorrectedAlt.isNormalOperation() || rightAdrCorrectedAlt.isFunctionalTest()) &&
-          (leftDmcAlt.isNormalOperation() || leftDmcAlt.isFunctionalTest()) &&
-          Math.abs(rightAdrCorrectedAlt.value - leftDmcAlt.value) > 250)) &&
+      isAltitudeDiscrepancy(
+        leftAdrCorrectedAlt,
+        rightDmcAlt,
+        rightAdrCorrectedAlt,
+        leftDmcAlt,
+        ALTI_DISCREPANCY_BARO_REFERENCE_FT,
+      ) &&
       ((dmcLIsQnh && dmcRIsQnh) || (dmcLIsQfe && dmcRIsQfe));
     this.altiDiscrepancyConf1.write(baroAltDiscrepancy, deltaTime);
 
     const pressureAltDiscrepancy =
-      (((leftAdrPressureAlt.isNormalOperation() || leftAdrPressureAlt.isFunctionalTest()) &&
-        (rightDmcAlt.isNormalOperation() || rightDmcAlt.isFunctionalTest()) &&
-        Math.abs(leftAdrPressureAlt.value - rightDmcAlt.value) > 250) ||
-        ((rightAdrPressureAlt.isNormalOperation() || rightAdrPressureAlt.isFunctionalTest()) &&
-          (leftDmcAlt.isNormalOperation() || leftDmcAlt.isFunctionalTest()) &&
-          Math.abs(rightAdrPressureAlt.value - leftDmcAlt.value) > 250)) &&
+      isAltitudeDiscrepancy(
+        leftAdrPressureAlt,
+        rightDmcAlt,
+        rightAdrPressureAlt,
+        leftDmcAlt,
+        ALTI_DISCREPANCY_STD_REFERENCE_FT,
+      ) &&
       dmcLIsStd &&
       dmcRIsStd;
     this.altiDiscrepancyConf2.write(pressureAltDiscrepancy, deltaTime);
