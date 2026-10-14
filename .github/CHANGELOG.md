@@ -686,6 +686,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New flyPad failures of the KCCUs (cursor control device, keyboard or whole KCCU per side): the failed part takes no key press and the CDS CURSOR CTL, KEYBOARD or CURSOR CTL+KEYBOARD FAULT alert is raised - @TCdr
 1. [A380X/FWS] New RECORDER CVR, DFDR, ACCELMTR and SYS FAULT and CABIN EMER EXIT LT FAULT alerts from new flyPad failures - @TCdr
 1. [A380X/FWS] Activated not-sensed ABN PROCs are deactivated 15 min after the last engine shutdown and 10 min after power-up, on ground - @TCdr
+1. [A380X/SD] FUEL page: during a fuel jettison the transfer pumps run and the galleries carry the fuel to the jettison valves - @TCdr
+1. [A380X/SD] F/CTL page: BKUP CTL ACTIVE in amber when all the PRIMs and SECs are lost - @TCdr
+1. [A380X/SD] HYD page: an engine pump that keeps its pressure with the ENG PMP pb-sw OFF is shown abnormally pressurized - @TCdr
+1. [A380X/WHEEL] Tire pressures (TPIS) on the WHEEL page, in amber when low or different on an axle, with a deflation failure per tire - @TCdr
 
 ## 2024.1.0
 

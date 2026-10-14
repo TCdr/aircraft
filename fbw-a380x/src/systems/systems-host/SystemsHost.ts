@@ -29,6 +29,7 @@ import { WxPbAutoDeselect } from './Misc/WxPbAutoDeselect';
 import { AtcMsgLights } from './Misc/AtcMsgLights';
 import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
 import { CabinSigns } from './Misc/CabinSigns';
+import { Tpis } from './Misc/Tpis';
 import { CdsReconfiguration } from './Misc/CdsReconfiguration';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
@@ -218,6 +219,8 @@ class SystemsHost extends BaseInstrument {
 
   private readonly cabinSigns = new CabinSigns();
 
+  private readonly tpis = new Tpis(this, this.failuresConsumer);
+
   private readonly cdsReconfiguration = new CdsReconfiguration(this.bus, this.failuresConsumer);
   private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
 
@@ -263,6 +266,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
     this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
     this.backplane.addInstrument('CabinSigns', this.cabinSigns);
+    this.backplane.addInstrument('Tpis', this.tpis);
     this.backplane.addInstrument('CdsReconfiguration', this.cdsReconfiguration);
     this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
     this.backplane.addInstrument('FuelEmerOuterTransfer', this.fuelEmerOuterTransfer);

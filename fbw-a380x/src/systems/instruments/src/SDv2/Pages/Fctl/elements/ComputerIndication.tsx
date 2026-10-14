@@ -9,6 +9,7 @@ import {
   SubscribableMapFunctions,
 } from '@microsoft/msfs-sdk';
 import { SDSimvars } from '../../../SDSimvarPublisher';
+import { isBackupControlActive } from './BackupControlIndication';
 
 interface FctlComputerShapeProps {
   x: number;
@@ -174,6 +175,40 @@ export class Secs extends DisplayComponent<PrimSecFlapsSlatsProps> {
           infoAvailable={this.infoAvailable}
           computerFailed={this.sec3Healthy.map(SubscribableMapFunctions.not())}
         />
+      </g>
+    );
+  }
+}
+
+/**
+ * BKUP CTL ACTIVE in amber when all the PRIMs and SECs are lost (BackupControlIndication.ts, A380 FCOM l.55643-55645,
+ * l.56376-56391). The FCOM text gives no position (figure only): drawn on two lines at the left edge, below the SECs.
+ */
+export class BackupControlActive extends DisplayComponent<PrimSecFlapsSlatsProps> {
+  private readonly sub = this.props.bus.getSubscriber<SDSimvars>();
+
+  private readonly healthStates = (
+    ['prim1Healthy', 'prim2Healthy', 'prim3Healthy', 'sec1Healthy', 'sec2Healthy', 'sec3Healthy'] as const
+  ).map((topic) => ConsumerSubject.create(this.sub.on(topic), false));
+
+  private readonly backupControlActive = MappedSubject.create(
+    (states) => isBackupControlActive(states.slice(0, 3), states.slice(3)),
+    ...this.healthStates,
+  );
+
+  render() {
+    return (
+      <g
+        id="bkup-ctl-active"
+        transform={`translate(${this.props.x} ${this.props.y})`}
+        visibility={this.backupControlActive.map((active) => (active ? 'inherit' : 'hidden'))}
+      >
+        <text class="F22 Amber LS1" x={0} y={0}>
+          BKUP CTL
+        </text>
+        <text class="F22 Amber LS1" x={0} y={26}>
+          ACTIVE
+        </text>
       </g>
     );
   }
