@@ -668,6 +668,7 @@ describe('A380X slat/flap channel and avionics network failures', () => {
       [49001, 'ApuOverspeed', 'APU overspeed (automatic shutdown)', 49],
       [49002, 'ApuOilLowPressure', 'APU low oil pressure (automatic shutdown)', 49],
       [49003, 'ApuOilHighTemperature', 'APU high oil temperature (automatic shutdown on ground)', 49],
+      [49005, 'ApuOilLevelLow', 'APU oil level low (OIL LVL LO on the APU page)', 49],
     ];
     for (const [id, failureType, name, chapter] of expected) {
       expect(A380FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);

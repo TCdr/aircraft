@@ -1402,6 +1402,18 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - True when the RAT generator is failed (flyPad failure RAT Generator), RAT stowed or deployed: it gives no output
       to the AC ESS busbar. Triggers ELEC RAT FAULT
 
+- A32NX_ELEC_GALLEY_IS_SHED
+    - Bool
+    - Read only
+    - True when at least one galley is shed (no main AC busbar powered, COMMERCIAL or GALY AND CAB pb OFF, or the main
+      galleys when only one or two sources supply the main AC busbars; a380_systems electrical/galley.rs)
+
+- A32NX_ELEC_GALLEY_IS_PARTIALLY_SHED
+    - Bool
+    - Read only
+    - True when some, not all, galleys are shed (the main galleys only). Drives GALLEY PARTIALLY SHED on the ELEC AC SD
+      page, A32NX_ELEC_GALLEY_IS_SHED alone GALLEY SHED (A380 FCOM DSC-24-20 GALLEY/COMMERCIAL INDICATION)
+
 ## Fire and Smoke Protection ATA 26
 
 - A32NX_FIRE_FDU_DISCRETE_WORD
@@ -2811,6 +2823,11 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     pressure, DC power lost (start motor supply, or the ECB's DC supply above N 70 %), ECB failure, overspeed, low oil
     pressure, high oil temperature on the ground (A380 FCOM DSC-49-40; the last four from the ATA 49 flyPad failures).
     Drives APU FAULT
+
+- A32NX_APU_LOW_OIL_LEVEL
+  - `Arinc429Word<Bool>`
+  - The APU ECB detects a low APU oil level: on the ground with the APU not running (flyPad failure "APU oil level
+    low", 49005; common ECB, see the A32NX doc). Shows the pulsing OIL LVL LO on the APU SD page (A380 FCOM DSC-49-20)
 
 ## Engines ATA 70
   - L:A32NX_OVHD_FADEC_{ENG}

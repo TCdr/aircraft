@@ -2,10 +2,8 @@ import { useSimVar } from '@instruments/common/simVars';
 import React, { FC } from 'react';
 import { Triangle } from '@instruments/common/Shapes';
 import { isRatIndicationAmber } from '../ElecFailureStates';
-
-const EMER_GEN_VOLTAGE_NORMAL_RANGE_LOWER = 110;
-const EMER_GEN_VOLTAGE_NORMAL_RANGE_UPPER = 120;
-const EMER_GEN_LOAD_NORMAL_RANGE_UPPER = 108;
+import { isGeneratorVoltageNormal } from '../GeneratorIndications';
+import { useGeneratorLoadAmber } from './useGeneratorLoadAmber';
 
 interface EmergencyGeneratorProps {
   x: number;
@@ -16,9 +14,9 @@ export const EmergencyGenerator: FC<EmergencyGeneratorProps> = ({ x, y }) => {
   const [potential] = useSimVar('L:A32NX_ELEC_EMER_GEN_POTENTIAL', 'volts', 500);
   const [load] = useSimVar('L:A32NX_ELEC_EMER_GEN_LOAD', 'number', 500);
 
-  const emerGenLoadNormal = load < EMER_GEN_LOAD_NORMAL_RANGE_UPPER;
-  const emerGenVoltageNormal =
-    potential > EMER_GEN_VOLTAGE_NORMAL_RANGE_LOWER && potential < EMER_GEN_VOLTAGE_NORMAL_RANGE_UPPER;
+  // A380 FCOM DSC-24-20 RAT LOAD: amber after 10 s above 108 % (l.51167); RAT VOLTAGE 110-120 V (l.51179)
+  const emerGenLoadNormal = !useGeneratorLoadAmber(load);
+  const emerGenVoltageNormal = isGeneratorVoltageNormal(potential);
 
   const [emerGenCtorClosed] = useSimVar('L:A32NX_ELEC_CONTACTOR_5XE_IS_CLOSED', 'number', 500);
   const [ratPosition] = useSimVar('L:A32NX_RAT_STOW_POSITION', 'number', 500);

@@ -502,6 +502,7 @@ export const A380Failure = Object.freeze({
   ApuOilHighTemperature: 49003,
   // Read by the FWS (ApuFaultAlerts.ts APU OIL FILTER CLOGGED), not by the APU of systems.wasm
   ApuOilFilterClogging: 49004,
+  ApuOilLevelLow: 49005,
 
   Transponder1: 34003,
   Transponder2: 34004,
@@ -1186,6 +1187,8 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [49, A380Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],
   [49, A380Failure.ApuOilHighTemperature, 'APU high oil temperature (automatic shutdown on ground)'],
   [49, A380Failure.ApuOilFilterClogging, 'APU oil filter clogging (impending)'],
+  // The ECB senses it (on ground, APU not running) and the APU keeps running: OIL LVL LO on the APU SD page
+  [49, A380Failure.ApuOilLevelLow, 'APU oil level low (OIL LVL LO on the APU page)'],
 
   [46, A380Failure.NssAnsu1, 'NSS AVNCS ANSU 1'],
   [46, A380Failure.NssAnsu2, 'NSS AVNCS ANSU 2'],

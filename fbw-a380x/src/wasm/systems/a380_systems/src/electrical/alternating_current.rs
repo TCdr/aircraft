@@ -195,20 +195,25 @@ impl A380AlternatingCurrentElectrical {
         electricity.flow(&self.ac_emer_contactor[0], &self.ac_emer_bus);
     }
 
+    /// At most two sources supply the four main AC busbars (A380 FCOM DSC-24-10-60 LOAD SHEDDING, a380_fcom.txt
+    /// l.50528-50530: "An overload may occur when there is a high demand, and only one or two generators are supplying
+    /// the electrical network."). Counts the distinct single sources of the powered busbars. Before, it counted the
+    /// busbars that share their source with another busbar and compared that count with 2, which was true with
+    /// four engine generators (no sharing) and false with the APU generator A alone in flight (AC 1 and AC 2).
     pub fn main_ac_buses_powered_by_two_generators_only(&self, electricity: &Electricity) -> bool {
-        (0..4)
-            .map(|i| {
+        let source_count = (0..self.ac_buses.len())
+            .filter(|&i| {
                 let ac_output = electricity.output_of(&self.ac_buses[i]);
-                let bus_not_powered_by_own_gen =
-                    self.ac_buses.iter().enumerate().any(|(j, bus)| {
-                        j != i
-                            && ac_output
-                                .is_powered_by_same_single_source(electricity.output_of(bus))
-                    });
-                bus_not_powered_by_own_gen as u32
+                // a powered busbar brings a new source unless an earlier busbar has the same single source
+                ac_output.is_powered()
+                    && !(0..i).any(|j| {
+                        ac_output.is_powered_by_same_single_source(
+                            electricity.output_of(&self.ac_buses[j]),
+                        )
+                    })
             })
-            .sum::<u32>()
-            <= 2
+            .count();
+        source_count <= 2
     }
 
     pub fn gen_contactor_open(&self, number: usize) -> bool {

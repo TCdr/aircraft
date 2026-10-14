@@ -706,6 +706,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New VENT AVNCS SYS FAULT, BLOWER FAULT, EXTRACT FAULT and SKIN VALVE FAULT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts with their FCOM procedures and STATUS, triggered by new flyPad ventilation failures - @TCdr
 1. [A32NX/AUTOFLIGHT] New flyPad failure of the FG TCAS mode: the AP/FD TCAS mode is no longer available and the FWC shows AUTO FLT TCAS MODE FAULT - @TCdr
 1. [A32NX/FWC] New COM CIDS 1+2 FAULT, SINGLE PTT STUCK, VHF 1(2)(3) EMITTING and VHF 3 DATA FAULT alerts with new flyPad failures (CIDS, stuck PTT, VHF transmitter stuck emitting), and the green AUDIO 3 XFRD memo when the AUDIO SWITCHING selector is not on NORM - @TCdr
+1. [A380X/SD] COND page: red cargo SMOKE (forward, aft/bulk) and avionics bay SMOKE from the smoke detection - @TCdr
+1. [A380X/SD] ELEC AC page: GALLEY SHED, GALLEY PARTIALLY SHED, COMMERCIAL OFF and COMMERCIAL PARTIALLY SHED legends, engine generator DISC (drive disconnected) and OVHT (above 185 C), generator loads amber only after 10 s above 108 % - @TCdr
+1. [A380X/SD] APU page: pulsing OIL LVL LO on ground with its flyPad failure (APU oil level low); the APU generator load is amber only after 10 s above 108 % and the voltage and frequency colours are no longer swapped - @TCdr
 
 ## 2024.1.0
 
