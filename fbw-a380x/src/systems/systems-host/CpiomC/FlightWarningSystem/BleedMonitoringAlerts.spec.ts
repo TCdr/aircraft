@@ -15,6 +15,7 @@ import {
   engineBleedFaultItems,
   isBleedLeak,
   isEngineBleedFault,
+  isEngineBleedInoperative,
   WING_LEAK_ALERT_IDS,
 } from './BleedMonitoringAlerts';
 
@@ -179,5 +180,40 @@ describe('AIR bleed alerts wiring', () => {
     );
     expect(abnormalSensed).toContain('...this.bleedMonitoringAlerts(),');
     expect(abnormalSensed).toContain('simVarIsActive: this.fws.engineBleedFault[engine],');
+  });
+});
+
+/* FCOM audit T2-44 (row B23): STATUS INOP SYS ENG n BLEED, not only with the engine out */
+describe('INOP SYS ENG 1(2)(3)(4) BLEED (FwsInopSys 260300002-005)', () => {
+  it('follows the engine out', () => {
+    expect(isEngineBleedInoperative(cruise, 1, false)).toBe(false);
+    expect(isEngineBleedInoperative(cruise, 1, true)).toBe(true);
+  });
+
+  it('with AIR ENG n BLEED FAULT (INOP SYS ENG n BLEED, l.168036-168040)', () => {
+    expect(isEngineBleedInoperative({ ...cruise, overheat: [false, false, true, false] }, 2, false)).toBe(true);
+    expect(isEngineBleedInoperative({ ...cruise, overheat: [false, false, true, false] }, 1, false)).toBe(false);
+  });
+
+  it('with the ENG BLEED pb-sw OFF of a running engine (AIR ENG n BLEED OFF, l.168122, l.168150-168154)', () => {
+    const pbOff = { ...cruise, bleedPbAuto: [true, true, true, false] };
+    expect(isEngineBleedInoperative(pbOff, 3, false)).toBe(true);
+    expect(isEngineBleedInoperative({ ...pbOff, engineRunning: [true, true, true, false] }, 3, false)).toBe(false);
+  });
+
+  it('with the pylon or wing leak of its zone, but not on ground before any engine start (l.168625-168626)', () => {
+    expect(isEngineBleedInoperative({ ...cruise, pylonLeak: [true, false, false, false] }, 0, false)).toBe(true);
+    expect(isEngineBleedInoperative({ ...cruise, wingLeak: [false, true, false, false] }, 1, false)).toBe(true);
+    expect(isEngineBleedInoperative({ ...cruise, wingLeak: [false, true, false, false] }, 0, false)).toBe(false);
+    const beforeStart = { ...cruise, onGround: true, engineRunning: [false, false, false, false] };
+    expect(isEngineBleedInoperative({ ...beforeStart, pylonLeak: [true, false, false, false] }, 0, false)).toBe(false);
+  });
+
+  it('is the INOP SYS condition of FwsCore', () => {
+    expect(fwsCore).toContain('public readonly eng1BleedInop = this.engineBleedInop[0];');
+    expect(fwsCore).toContain(
+      'this.engineBleedInop[index].set(isEngineBleedInoperative(this.bleedMonitoringInputs, index, engineOut.get())),',
+    );
+    expect(fwsCore).not.toContain('// TODO add bleed inop conditions');
   });
 });

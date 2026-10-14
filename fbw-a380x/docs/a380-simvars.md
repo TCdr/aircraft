@@ -2803,6 +2803,10 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     WASM: the air enters the bleed ducts on the engine 1 side through the non-return valve of the HP ground connector
     (FCOM DSC-36-10-40)
 
+- A32NX_APU_BLEED_AIR_VALVE_COMMANDED_OPEN
+  - Bool
+  - True when the APU ECB commands the APU bleed valve open (the stuck failures 36060 closed / 36061 open do not change it). The FWS compares it with A32NX_APU_BLEED_AIR_VALVE_OPEN for AIR APU BLEED FAULT, valve abnormally open (closed) (A380 FCOM PRO-ABN-ECAM-10-36; ApuBleedFaultAlerts.ts). Written by the systems WASM (a380_systems apu_bleed_air_valve.rs)
+
 ## Integrated Modular Avionics ATA 42
 
 -A32NX_AFDX_<SOURCE_ID>_<DESTINATION_ID>_REACHABLE
@@ -3139,7 +3143,25 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 2
     - 3
     - 4
-  - True while the FADEC fault failure of the engine is active (flyPad failures 73270-73273 control system fault, 73280-73283 control valve, 73290-73293 FADEC engine identification, 73130-73133 fuel filter bypass open, 79050-79053 oil filter bypass open, 73300-73303 thrust rating differs), for ENG 1(2)(3)(4) CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION and ENG TYPE DISAGREE (A380 FCOM PRO-ABN-ECAM-10-70), no effect on the engine. Not read by the FWS yet. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73270-73273 control system fault, 73280-73283 control valve, 73290-73293 FADEC engine identification, 73130-73133 fuel filter bypass open, 79050-79053 oil filter bypass open, 73300-73303 thrust rating differs), for ENG 1(2)(3)(4) CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION and ENG TYPE DISAGREE (A380 FCOM PRO-ABN-ECAM-10-70; FwsCore, EngineMonitoringAlerts.ts), no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
+- A32NX_ENGINE_{number}_FADEC_SHUTDOWN
+  - Number
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - Why the FADEC shut the engine down by itself (its fuel stays cut, no automatic relight, until the failure is removed and the ENG MASTER is OFF): 0 none, 1 FADEC overheat (flyPad failures 73310-73313, ENG FAIL "FADEC OVHT"), 2 overthrust protection on ground with the thrust lever at idle or reverse (flyPad failures 73320-73323, ENG FAIL "THRUST CTL LOST" and CTL SYS FAULT, ENG MASTER FAULT light). A380 FCOM PRO-ABN-ECAM-10-70 ENG FAIL, DSC-70-20-20 OVERTHRUST PROTECTION. Written by the systems WASM (a380_systems fadec_automatic_shutdown.rs)
+
+- A32NX_ENGINE_{number}_OVERTHRUST_CUTBACK
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC overthrust protection reduces the thrust of the engine in flight (overthrust failure 73320-73323, below 15 000 ft and M 0.4): ENG CTL SYS FAULT "Fuel cutback following overthrust detection" (A380 FCOM l.171321). Written by the systems WASM (a380_systems fadec_automatic_shutdown.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool

@@ -133,7 +133,15 @@ import {
 } from './EngineFailAlerts';
 import { engineOilAlerts } from './EngineOilAlerts';
 import { engineFuelFilterClogged } from './EngineFuelFilterAlerts';
-import { ENGINE_MONITORING_ALERTS, HpFuelValveFault, isHpFuelVlvFaultActive } from './EngineMonitoringAlerts';
+import {
+  CtlSysFaultInputs,
+  ENGINE_MONITORING_ALERTS,
+  FadecShutdownReason,
+  HpFuelValveFault,
+  isCtlSysFaultActive,
+  isEngineTypeDisagree,
+  isHpFuelVlvFaultActive,
+} from './EngineMonitoringAlerts';
 import { OilTemperatureLowMonitor, isFlexTakeoffMode, isThrustLeversNotSet } from './EngineTakeoffAlerts';
 import { isTakeoffThrustDisagree, isThrustLoss } from './EngineThrustAlerts';
 import {
@@ -274,7 +282,17 @@ import {
 import { collectorCellQuantityVar, fuelTankTemperatureVar } from '@shared/FuelTankIndications';
 import { ElecPumpRedundancyLoss, enginePumpPressLoStatus } from './HydPumpStatus';
 import { AbnormBleedConfigInputs, isAbnormBleedConfig } from './AbnormBleedConfig';
-import { BleedMonitoringInputs, isBleedLeak, isEngineBleedFault } from './BleedMonitoringAlerts';
+import {
+  BleedMonitoringInputs,
+  isBleedLeak,
+  isEngineBleedFault,
+  isEngineBleedInoperative,
+} from './BleedMonitoringAlerts';
+import { hasOtherAmberOrRedEngineIndication, isReverserIndicationAmber } from './EngineAttentionGetter';
+import { ApuBleedValvePositionMonitor, isApuBleedFault } from './ApuBleedFaultAlerts';
+import { isGravityExtensionMemoShown } from './GravityExtensionMemo';
+import { isWheelTirePressLo } from './TirePressureAlerts';
+import { TIRE_COUNT, tirePressureVar } from '@shared/TirePressures';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -843,6 +861,11 @@ export class FwsCore {
   public readonly apuBleedPbOn = Subject.create(false);
 
   public readonly apuBleedPbOnOver22500ft = Subject.create(false);
+
+  /** AIR APU BLEED FAULT: the envelope case or an abnormal APU bleed valve position (ApuBleedFaultAlerts.ts) */
+  public readonly apuBleedValvePositionMonitor = new ApuBleedValvePositionMonitor();
+
+  public readonly apuBleedFault = Subject.create(false);
 
   public readonly eng1BleedAbnormalOff = Subject.create(false);
   public readonly eng2BleedAbnormalOff = Subject.create(false);
@@ -2963,6 +2986,28 @@ export class FwsCore {
     [1, 2, 3, 4].map(() => Subject.create(false)),
   );
 
+  /** ENG 1(2)(3)(4) CTL SYS FAULT, by engine (EngineMonitoringAlerts.ts): its triggers, read from the systems WASM */
+  public readonly engineCtlSysFaultInputs: CtlSysFaultInputs[] = [1, 2, 3, 4].map(() => ({
+    controlSystemFault: false,
+    fadecShutdownReason: FadecShutdownReason.None,
+    overthrustCutback: false,
+  }));
+
+  public readonly engineCtlSysFault = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** ENG TYPE DISAGREE (EngineMonitoringAlerts.ts) */
+  public readonly engineTypeDisagree = Subject.create(false);
+
+  /** ENG 2(3) REVERSER INHIBITED and REVERSER MINOR FAULT (FadecReverserAlerts.ts), engine 2 first */
+  public readonly reverserInhibited = [2, 3].map(() => Subject.create(false));
+  public readonly reverserMinorFault = [2, 3].map(() => Subject.create(false));
+
+  /** L/G GRVTY EXTN memo (GravityExtensionMemo.ts) */
+  public readonly gravityExtensionMemo = Subject.create(false);
+
+  /** WHEEL TIRE PRESS LO (TirePressureAlerts.ts) */
+  public readonly wheelTirePressLo = Subject.create(false);
+
   /** ENG 1(2)(3)(4) OIL TEMP LO, by engine (EngineTakeoffAlerts.ts) */
   private readonly oilTemperatureLowMonitors = [1, 2, 3, 4].map(() => new OilTemperatureLowMonitor());
 
@@ -3508,13 +3553,16 @@ export class FwsCore {
     this.reverserFailureInop[1],
   );
 
-  public readonly eng1BleedInop = this.eng1Out; // TODO add bleed inop conditions
+  /** INOP SYS ENG n BLEED: the engine out, or its bleed lost (BleedMonitoringAlerts isEngineBleedInoperative) */
+  public readonly engineBleedInop = [1, 2, 3, 4].map(() => Subject.create(false));
 
-  public readonly eng2BleedInop = this.eng2Out; // TODO add bleed inop conditions
+  public readonly eng1BleedInop = this.engineBleedInop[0];
 
-  public readonly eng3BleedInop = this.eng3Out; // TODO add bleed inop conditions
+  public readonly eng2BleedInop = this.engineBleedInop[1];
 
-  public readonly eng4BleedInop = this.eng4Out; // TODO add bleed inop conditions
+  public readonly eng3BleedInop = this.engineBleedInop[2];
+
+  public readonly eng4BleedInop = this.engineBleedInop[3];
 
   // TODO disable when abnormal hydralic pressure
   // Not when the whole system of the side is lost with its two engines: ENG TWO ENGS OUT ON SAME SIDE lists G(Y) HYD SYS
@@ -4394,6 +4442,16 @@ export class FwsCore {
     const apuWithinEnvelope =
       (this.adrPressureAltitude.get() ?? 0) < 22_500 && (machBelow56 || this.allEnginesFailure.get());
     this.apuBleedPbOnOver22500ft.set(this.apuBleedPbOn.get() && !apuWithinEnvelope);
+    // AIR APU BLEED FAULT: the APU bleed valve position against the ECB command (a380_systems apu_bleed_air_valve.rs)
+    this.apuBleedValvePositionMonitor.update(
+      {
+        apuRunning: this.apuAvail.get(),
+        valveOpen: this.apuBleedValveOpen.get(),
+        valveCommandedOpen: SimVar.GetSimVarValue('L:A32NX_APU_BLEED_AIR_VALVE_COMMANDED_OPEN', 'bool') > 0,
+      },
+      deltaTime,
+    );
+    this.apuBleedFault.set(isApuBleedFault(this.apuBleedPbOnOver22500ft.get(), this.apuBleedValvePositionMonitor));
 
     this.eng1BleedAbnormalOff.set(
       this.engine1Running.get() &&
@@ -4471,8 +4529,12 @@ export class FwsCore {
       this.reverserSelected[reverserIndex].set(
         isReverserSelectedInFlight(throttlePositions[engine - 1], onGroundForFadec),
       );
+      // ENG 2(3) REVERSER INHIBITED and REVERSER MINOR FAULT (FadecReverserAlerts.ts)
+      const inhibited = read('INHIBITED');
+      this.reverserInhibited[reverserIndex].set(inhibited);
+      this.reverserMinorFault[reverserIndex].set(read('MINOR_FAULT'));
       this.reverserFailureInop[reverserIndex].set(
-        isReverserInoperative(fault, ctlFault, locked, this.thrLeverFault[engine - 1].get()),
+        isReverserInoperative(fault, ctlFault, locked, this.thrLeverFault[engine - 1].get(), inhibited),
       );
       // ENG 2(3) REVERSER UNLOCKED: ENG 2(3) IDLE ONLY (l.173678, STATUS INFO l.173698)
       if (unlocked) {
@@ -5181,6 +5243,19 @@ export class FwsCore {
     this.isAllGearDownlocked =
       mainGearDownlocked &&
       (this.lgciu1DiscreteWord1.bitValueOr(25, false) || this.lgciu2DiscreteWord1.bitValueOr(25, false));
+    // WHEEL TIRE PRESS LO (TirePressureAlerts.ts), from the TPIS pressures (systems-host Misc/Tpis.ts)
+    const tirePressures: number[] = [];
+    for (let tire = 1; tire <= TIRE_COUNT; tire++) {
+      tirePressures.push(SimVar.GetSimVarValue(tirePressureVar(tire), 'number'));
+    }
+    this.wheelTirePressLo.set(isWheelTirePressLo(tirePressures, this.flightPhase.get()));
+    // L/G GRVTY EXTN memo (GravityExtensionMemo.ts)
+    this.gravityExtensionMemo.set(
+      isGravityExtensionMemoShown(
+        SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', 'number'),
+        this.isAllGearDownlocked,
+      ),
+    );
 
     // on ground logic
     const lgciu1Disagree = xor(leftCompressedHardwireLgciu1, this.lgciu1DiscreteWord2.bitValue(13));
@@ -7658,7 +7733,25 @@ export class FwsCore {
           SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_${alert.variable}`, 'bool') > 0,
         ),
       );
+      // ENG CTL SYS FAULT: the flyPad failure (engine/engine_monitoring_fault.rs) and the FADEC overthrust protection
+      // (a380_systems fadec_automatic_shutdown.rs), which also gives ENG FAIL its FADEC shutdown reason
+      const ctlSysFaultInputs = this.engineCtlSysFaultInputs[index];
+      ctlSysFaultInputs.controlSystemFault =
+        SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_CTL_SYS_FAULT`, 'bool') > 0;
+      ctlSysFaultInputs.fadecShutdownReason = SimVar.GetSimVarValue(
+        `L:A32NX_ENGINE_${engine}_FADEC_SHUTDOWN`,
+        'number',
+      );
+      ctlSysFaultInputs.overthrustCutback =
+        SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_OVERTHRUST_CUTBACK`, 'bool') > 0;
+      this.engineCtlSysFault[index].set(isCtlSysFaultActive(ctlSysFaultInputs));
     }
+    // ENG TYPE DISAGREE: the thrust rating of an engine differs (engine/engine_monitoring_fault.rs)
+    this.engineTypeDisagree.set(
+      isEngineTypeDisagree(
+        [1, 2, 3, 4].map((engine) => SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_TYPE_DISAGREE`, 'bool') > 0),
+      ),
+    );
 
     // Attnetion getting box
     this.eng1StartOrCrank.set(
@@ -7733,6 +7826,33 @@ export class FwsCore {
     ].forEach((primaryAbnormal, index) =>
       primaryAbnormal.set(primaryAbnormal.get() || egtExceeded[index] || this.engN1N2OverLimit[index].get()),
     );
+    // ... and with the other amber or red indications of the ENG SD page and the EWD: oil pressure, oil temperature,
+    // CLOGGED, REV 2(3) (EngineAttentionGetter.ts)
+    [
+      this.eng1PrimaryAbnormalParams,
+      this.eng2PrimaryAbnormalParams,
+      this.eng3PrimaryAbnormalParams,
+      this.eng4PrimaryAbnormalParams,
+    ].forEach((primaryAbnormal, index) => {
+      const engineNumber = index + 1;
+      const reverserIndex = engineNumber === 2 ? 0 : engineNumber === 3 ? 1 : -1;
+      const otherIndicationAbnormal = hasOtherAmberOrRedEngineIndication({
+        engineRunning: engineRunning[index],
+        oilPressurePsi: SimVar.GetSimVarValue(`GENERAL ENG OIL PRESSURE:${engineNumber}`, 'psi'),
+        oilTemperatureCelsius: SimVar.GetSimVarValue(`GENERAL ENG OIL TEMPERATURE:${engineNumber}`, 'celsius'),
+        fuelFilterClogged: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FUEL_FILTER_CLOGGED`, 'bool') > 0,
+        oilFilterClogged: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_OIL_FILTER_CLOGGED`, 'bool') > 0,
+        reverserIndicationAmber:
+          reverserIndex >= 0 &&
+          isReverserIndicationAmber(
+            this.aircraftOnGround.get(),
+            throttlePositions[index],
+            this.reverserFailureInop[reverserIndex].get(),
+            this.reverserUnlocked[reverserIndex].get(),
+          ),
+      });
+      primaryAbnormal.set(primaryAbnormal.get() || otherIndicationAbnormal);
+    });
 
     // ENG FAIL AUTO RELIGHT IN PROGRESS and the IGNITION memo read the FADEC igniters (EngineFailAlerts.ts,
     // EngineStartAlerts.ts)
@@ -7761,6 +7881,10 @@ export class FwsCore {
     this.eng2Out.set(this.eng2ShutDown.get() || this.engineFailMonitors[1].failed);
     this.eng3Out.set(this.eng3ShutDown.get() || this.engineFailMonitors[2].failed);
     this.eng4Out.set(this.eng4ShutDown.get() || this.engineFailMonitors[3].failed);
+    // INOP SYS ENG n BLEED (BleedMonitoringAlerts isEngineBleedInoperative), with the bleed monitoring of this update
+    [this.eng1Out, this.eng2Out, this.eng3Out, this.eng4Out].forEach((engineOut, index) =>
+      this.engineBleedInop[index].set(isEngineBleedInoperative(this.bleedMonitoringInputs, index, engineOut.get())),
+    );
 
     const enginesOut: EnginesOut = [this.eng1Out.get(), this.eng2Out.get(), this.eng3Out.get(), this.eng4Out.get()];
     this.engineRelightProcApply.set(relightProcMustBeApplied(enginesOut));

@@ -36,7 +36,10 @@ use systems::{
     },
 };
 
-use crate::{air_conditioning::A380AirConditioning, engine_failure::A380RelightEnvelope};
+use crate::{
+    air_conditioning::A380AirConditioning, apu_bleed_air_valve::A380ApuBleedAirValve,
+    engine_failure::A380RelightEnvelope,
+};
 
 macro_rules! valve_signal_implementation {
     ($signal_type: ty) => {
@@ -138,7 +141,7 @@ pub struct A380Pneumatic {
     engine_starter_valve_controllers: [EngineStarterValveController; 4],
 
     apu_compression_chamber: CompressionChamber,
-    apu_bleed_air_valve: DefaultValve,
+    apu_bleed_air_valve: A380ApuBleedAirValve,
     /// flyPad failure: hot air leaks from the APU bleed duct (AIR APU BLEED LEAK)
     apu_bleed_leak: Failure,
 
@@ -212,7 +215,7 @@ impl A380Pneumatic {
                 EngineStarterValveController::new(context, 4),
             ],
             apu_compression_chamber: CompressionChamber::new(Volume::new::<cubic_meter>(5.)),
-            apu_bleed_air_valve: DefaultValve::new_closed(),
+            apu_bleed_air_valve: A380ApuBleedAirValve::new(context),
             apu_bleed_leak: Failure::new(FailureType::ApuBleedLeak),
             // Design choice: the volume of the APU compression chamber
             hp_ground_air_compression_chamber: CompressionChamber::new(Volume::new::<cubic_meter>(
@@ -600,6 +603,7 @@ impl PackFlowValveState for A380Pneumatic {
 impl SimulationElement for A380Pneumatic {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.fadec.accept(visitor);
+        self.apu_bleed_air_valve.accept(visitor);
 
         accept_iterable!(self.engine_starter_valve_controllers, visitor);
         accept_iterable!(self.cross_bleed_valves, visitor);
@@ -662,7 +666,7 @@ impl ReservoirAirPressure for A380Pneumatic {
 }
 
 /// A command that holds a valve at a fixed opening (stuck valve failures)
-struct FixedValveCommand(Ratio);
+pub(crate) struct FixedValveCommand(pub(crate) Ratio);
 impl<T: PneumaticValveSignal> ControllerSignal<T> for FixedValveCommand {
     fn signal(&self) -> Option<T> {
         Some(T::new(self.0))
@@ -673,7 +677,10 @@ impl<T: PneumaticValveSignal> ControllerSignal<T> for FixedValveCommand {
 /// Design choice (no FCOM value, as the A320 model): a stuck valve stays fully closed or fully open.
 /// An electro-pneumatic valve only takes it while its solenoid bus is powered; without power it
 /// still follows its pneumatic spring, as without the failure.
-fn stuck_valve_open_amount(stuck_closed: &Failure, stuck_open: &Failure) -> Option<Ratio> {
+pub(crate) fn stuck_valve_open_amount(
+    stuck_closed: &Failure,
+    stuck_open: &Failure,
+) -> Option<Ratio> {
     if stuck_closed.is_active() {
         Some(Ratio::new::<ratio>(0.))
     } else if stuck_open.is_active() {

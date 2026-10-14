@@ -5,8 +5,18 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
+  CTL_SYS_FAULT_LEVEL,
+  CTL_SYS_FAULT_PHASE_INHIBITION,
+  ctlSysFaultItems,
+  ENG_TYPE_DISAGREE_KEY,
+  ENG_TYPE_DISAGREE_LEVEL,
+  ENG_TYPE_DISAGREE_PHASE_INHIBITION,
   ENGINE_MONITORING_ALERTS,
   ENGINE_MONITORING_ALERT_LEVEL,
+  engineMonitoringAlertLevel,
+  FadecShutdownReason,
+  isCtlSysFaultActive,
+  isEngineTypeDisagree,
   HP_FUEL_VLV_FAULT_LEVEL,
   HP_FUEL_VLV_FAULT_PHASE_INHIBITION,
   HpFuelValveFault,
@@ -133,6 +143,120 @@ describe('FADEC fault crew awareness alerts', () => {
   });
 });
 
+/* FCOM audit T2-44 (row B25): the FADEC fault alerts of the flyPad failures of T2-20 */
+describe('CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION', () => {
+  const byVariable = (variable: string) => ENGINE_MONITORING_ALERTS.find((alert) => alert.variable === variable);
+
+  it('are crew awareness alerts (CTL VLV, FADEC IDENT) and cautions (CONTAMINATION) as on the FCOM figures', () => {
+    expect(byVariable('CTL_VLV_FAULT')).toEqual({
+      variable: 'CTL_VLV_FAULT',
+      engine1Key: 701800005,
+      flightPhaseInhibition: [2, 3, 4, 5, 6, 7, 8, 9, 10],
+    });
+    expect(byVariable('FADEC_IDENT_FAULT')).toEqual({
+      variable: 'FADEC_IDENT_FAULT',
+      engine1Key: 701800017,
+      flightPhaseInhibition: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    });
+    for (const [variable, engine1Key] of [
+      ['FUEL_SYS_CONTAMINATION', 701800049],
+      ['OIL_SYS_CONTAMINATION', 701800089],
+    ] as [string, number][]) {
+      expect(byVariable(variable)).toEqual({
+        variable,
+        engine1Key,
+        flightPhaseInhibition: [3, 4, 5, 6, 7, 9, 10],
+        caution: true,
+      });
+    }
+  });
+
+  it('give the cautions single chime and MASTER CAUT, the others none', () => {
+    const levels = ENGINE_MONITORING_ALERTS.map((alert) => [alert.variable, engineMonitoringAlertLevel(alert)]);
+    expect(levels).toEqual([
+      ['FUEL_STRAINER_CLOGGED', 1],
+      ['FUEL_FILTER_MONITORING_FAULT', 1],
+      ['OIL_CHIP_DETECTED', 1],
+      ['MINOR_FAULT', 1],
+      ['OVERTHRUST_PROTECTION_LOST', 1],
+      ['SENSOR_FAULT', 1],
+      ['CTL_VLV_FAULT', 1],
+      ['FADEC_IDENT_FAULT', 1],
+      ['FUEL_SYS_CONTAMINATION', 2],
+      ['OIL_SYS_CONTAMINATION', 2],
+    ]);
+  });
+
+  it('are the ata70 alerts of their titles', () => {
+    for (const [variable, title] of [
+      ['CTL_VLV_FAULT', 'CTL VLV FAULT'],
+      ['FADEC_IDENT_FAULT', 'FADEC IDENT FAULT'],
+      ['FUEL_SYS_CONTAMINATION', 'FUEL SYS CONTAMINATION'],
+      ['OIL_SYS_CONTAMINATION', 'OIL SYS CONTAMINATION'],
+    ]) {
+      for (const engine of [1, 2, 3, 4]) {
+        expect(block((byVariable(variable)?.engine1Key ?? 0) + engine - 1)).toContain(
+          `mENG\\x1bm ${engine} ${title}',`,
+        );
+      }
+    }
+  });
+});
+
+/* A380 FCOM PRO-ABN-ECAM-10-70 ENG 1(2)(3)(4) CTL SYS FAULT, a380_fcom.txt l.171310-171445 */
+describe('ENG n CTL SYS FAULT', () => {
+  const noTrigger = {
+    controlSystemFault: false,
+    fadecShutdownReason: FadecShutdownReason.None,
+    overthrustCutback: false,
+  };
+
+  it('triggers with the control system failure, the overthrust fuel cutback and the overthrust shutdown', () => {
+    expect(isCtlSysFaultActive(noTrigger)).toBe(false);
+    expect(isCtlSysFaultActive({ ...noTrigger, controlSystemFault: true })).toBe(true);
+    expect(isCtlSysFaultActive({ ...noTrigger, overthrustCutback: true })).toBe(true);
+    expect(isCtlSysFaultActive({ ...noTrigger, fadecShutdownReason: FadecShutdownReason.ThrustControlLost })).toBe(
+      true,
+    );
+    // a FADEC overheat shutdown gives ENG FAIL only
+    expect(isCtlSysFaultActive({ ...noTrigger, fadecShutdownReason: FadecShutdownReason.FadecOverheat })).toBe(false);
+  });
+
+  it('asks for THR LEVER IDLE and ENG MASTER OFF on ground, and in flight after an overthrust fuel cutback', () => {
+    const failure = { ...noTrigger, controlSystemFault: true };
+    expect(ctlSysFaultItems(failure, true, false, true)).toEqual({ show: [true, true], checked: [false, false] });
+    expect(ctlSysFaultItems(failure, false, false, true).show).toEqual([false, false]);
+    const cutback = { ...noTrigger, overthrustCutback: true };
+    expect(ctlSysFaultItems(cutback, false, true, false)).toEqual({ show: [true, true], checked: [true, true] });
+  });
+
+  it('is a caution with single chime and MASTER CAUT, phases 5 and 6 inhibited (PDF page 5765)', () => {
+    expect(CTL_SYS_FAULT_LEVEL).toBe(2);
+    expect(CTL_SYS_FAULT_PHASE_INHIBITION).toEqual([5, 6]);
+  });
+
+  it('has the THR LEVER and ENG MASTER items in ata70', () => {
+    for (const engine of [1, 2, 3, 4]) {
+      expect(itemNames(701800000 + engine)).toEqual([`THR LEVER ${engine}`, `ENG ${engine} MASTER`]);
+    }
+  });
+});
+
+/* A380 FCOM PRO-ABN-ECAM-10-70 ENG TYPE DISAGREE, a380_fcom.txt l.175642-175655 */
+describe('ENG TYPE DISAGREE', () => {
+  it('triggers when the thrust rating of any engine differs', () => {
+    expect(isEngineTypeDisagree([false, false, false, false])).toBe(false);
+    expect(isEngineTypeDisagree([false, false, true, false])).toBe(true);
+  });
+
+  it('is the ata70 alert 701800161, a caution with phases 3 to 12 inhibited (PDF page 5873)', () => {
+    expect(ENG_TYPE_DISAGREE_KEY).toBe(701800161);
+    expect(block(ENG_TYPE_DISAGREE_KEY)).toContain("mENG\\x1bm TYPE DISAGREE',");
+    expect(ENG_TYPE_DISAGREE_LEVEL).toBe(2);
+    expect(ENG_TYPE_DISAGREE_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  });
+});
+
 describe('FWS wiring of the FADEC fault alerts', () => {
   const abnormal = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
   const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
@@ -146,5 +270,20 @@ describe('FWS wiring of the FADEC fault alerts', () => {
   it('reads the HP fuel valve fault and the FADEC faults of each engine', () => {
     expect(core).toContain('`L:A32NX_ENGINE_${engine}_HP_FUEL_VALVE_FAULT`');
     expect(core).toContain("SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_${alert.variable}`, 'bool') > 0");
+  });
+
+  it('gives the cautions their level and the ENGINE SD page', () => {
+    expect(abnormal).toContain('failure: engineMonitoringAlertLevel(alert),');
+    expect(abnormal).toContain('sysPage: alert.caution ? SdPages.Eng : SdPages.None,');
+  });
+
+  it('wires CTL SYS FAULT and TYPE DISAGREE', () => {
+    expect(abnormal).toContain('alerts[701800001 + index] = {');
+    expect(abnormal).toContain('simVarIsActive: this.fws.engineCtlSysFault[index],');
+    expect(abnormal).toContain('alerts[ENG_TYPE_DISAGREE_KEY] = {');
+    expect(core).toContain('`L:A32NX_ENGINE_${engine}_CTL_SYS_FAULT`');
+    expect(core).toContain('`L:A32NX_ENGINE_${engine}_FADEC_SHUTDOWN`');
+    expect(core).toContain('`L:A32NX_ENGINE_${engine}_OVERTHRUST_CUTBACK`');
+    expect(core).toContain('`L:A32NX_ENGINE_${engine}_TYPE_DISAGREE`');
   });
 });

@@ -9,6 +9,10 @@ import {
   AutoRelightInputs,
   autoRelightInProgress,
   ENG_FAIL_FLIGHT_PHASE_INHIBITION,
+  ENG_FAIL_ITEM_COUNT,
+  ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT,
+  engineFailItemsChecked,
+  engineFailItemsShown,
   OPPOSITE_SIDE_APPROACH_ITEM_COUNT,
   oppositeSideApproachItems,
   SAME_SIDE_APPROACH_ITEM_COUNT,
@@ -29,6 +33,7 @@ import {
   TwoEnginesOut,
   twoEnginesOut,
 } from './EngineFailAlerts';
+import { FadecShutdownReason } from './EngineMonitoringAlerts';
 
 const FRAME_MS = 100;
 
@@ -144,24 +149,81 @@ describe('ENG FAIL: RELIGHT PROC CONSIDER or APPLY (l.171867-171872)', () => {
     '%s has the APPLY line after the CONSIDER line, and one show / checked entry per item',
     (id) => {
       const items = block(ata70, id).match(/\{ name: /g) ?? [];
-      expect(items.length).toBe(24);
+      expect(items.length).toBe(ENG_FAIL_ITEM_COUNT);
       expect(block(ata70, id)).toMatch(
         /RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 \},\s*\{ name: 'ENG \d RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY'/,
       );
 
-      const entry = abnormalSensed.slice(abnormalSensed.indexOf(`    ${id}: {`));
-      const list = (name: string) =>
-        entry
-          .slice(entry.indexOf(`${name}: () => [`), entry.indexOf('      ],', entry.indexOf(`${name}: () => [`)))
+      // The 24 lines of the branches where the FADEC does not identify the failure, wrapped by engineFailItemsShown
+      // and engineFailItemsChecked (FCOM audit T2-44, row 15 of chapter 70b)
+      const entry = abnormalSensed.slice(abnormalSensed.indexOf(`    ${id}: {`)).replace(/\r\n/g, '\n');
+      const list = (head: string, end: string) => {
+        const start = entry.indexOf(head);
+        return entry
+          .slice(start, entry.indexOf(end, start))
           .split('\n')
           .slice(1)
           .filter((line) => line.trim().endsWith(','));
-      expect(list('whichItemsToShow').length).toBe(24);
-      expect(list('whichItemsChecked').length).toBe(24);
-      expect(list('whichItemsToShow')[12]).toContain('!this.fws.engineRelightProcApply.get()');
-      expect(list('whichItemsToShow')[13]).toContain('&& this.fws.engineRelightProcApply.get()');
+      };
+      const shown = list('engineFailItemsShown(', '\n        ]),');
+      const checked = list('engineFailItemsChecked(\n          [', '\n          ],');
+      expect(shown.length).toBe(ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT);
+      expect(checked.length).toBe(ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT);
+      expect(shown[12]).toContain('!this.fws.engineRelightProcApply.get()');
+      expect(shown[13]).toContain('&& this.fws.engineRelightProcApply.get()');
+      expect(entry.slice(0, entry.indexOf('\n    },'))).toContain(
+        `engineFailItemsShown(this.fws.engineCtlSysFaultInputs[${id - 701800029}].fadecShutdownReason, [`,
+      );
     },
   );
+});
+
+/* FCOM audit T2-44, row 15 of chapter 70b: ENG FAIL, FADEC OVHT and THRUST CTL LOST branches, l.171719-171808 */
+describe('ENG FAIL with a FADEC shutdown reason', () => {
+  const notIdentified = (value: boolean) => new Array<boolean>(ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT).fill(value);
+
+  it('keeps the 24 lines of the other branches without a FADEC shutdown', () => {
+    const shown = engineFailItemsShown(FadecShutdownReason.None, notIdentified(true));
+    expect(shown).toHaveLength(ENG_FAIL_ITEM_COUNT);
+    expect(shown.slice(0, 24)).toEqual(notIdentified(true));
+    expect(shown.slice(24)).toEqual([false, false, false, false]);
+  });
+
+  it('FADEC OVHT: L/G UP, FADEC OVHT, THR LEVER IDLE, ENG MASTER OFF; no AUTO RELIGHT, no DAMAGED lines', () => {
+    const shown = engineFailItemsShown(FadecShutdownReason.FadecOverheat, notIdentified(true));
+    expect(shown).toHaveLength(ENG_FAIL_ITEM_COUNT);
+    expect(shown[0]).toBe(true);
+    expect(shown.slice(1, 24)).toEqual(new Array<boolean>(23).fill(false));
+    expect(shown.slice(24)).toEqual([true, false, true, true]);
+  });
+
+  it('THRUST CTL LOST: THRUST CTL LOST, THR LEVER IDLE, ENG MASTER OFF; L/G UP only when the other branch shows it', () => {
+    const shown = engineFailItemsShown(FadecShutdownReason.ThrustControlLost, notIdentified(false));
+    expect(shown.slice(0, 24)).toEqual(notIdentified(false));
+    expect(shown.slice(24)).toEqual([false, true, true, true]);
+  });
+
+  it('ticks THR LEVER IDLE and ENG MASTER OFF', () => {
+    const checked = engineFailItemsChecked(notIdentified(false), true, false);
+    expect(checked).toHaveLength(ENG_FAIL_ITEM_COUNT);
+    expect(checked.slice(24)).toEqual([false, false, true, false]);
+    expect(engineFailItemsChecked(notIdentified(false), true, true).slice(24)).toEqual([false, false, true, true]);
+  });
+
+  it('has the four lines at the end of ata70 ENG n FAIL', () => {
+    const ata70 = readFileSync(
+      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
+      'utf-8',
+    );
+    for (const engine of [1, 2, 3, 4]) {
+      const start = ata70.indexOf(`  ${701800028 + engine}: {`);
+      const procedure = ata70.slice(start, ata70.indexOf('\n  },', start));
+      const names = (procedure.match(/\{ name: '[^']*'/g) ?? []).map((item: string) =>
+        item.substring("{ name: '".length, item.length - 1),
+      );
+      expect(names.slice(24)).toEqual(['FADEC OVHT', 'THRUST CTL LOST', `THR LEVER ${engine}`, `ENG ${engine} MASTER`]);
+    }
+  });
 });
 
 describe('ENG TWO ENGS OUT ON SAME / OPPOSITE SIDE (l.175224, 175477)', () => {
@@ -341,7 +403,8 @@ describe('ENG FAIL inhibition and AUTO RELIGHT IN PROGRESS (FCOM l.171712-171811
     (engine) => {
       const entry = engFailEntry(engine);
       const shown = entry
-        .slice(entry.indexOf('whichItemsToShow: () => ['), entry.indexOf('whichItemsChecked'))
+        // the lines inside engineFailItemsShown(reason, [...]) (FCOM audit T2-44)
+        .slice(entry.indexOf('engineFailItemsShown('), entry.indexOf('whichItemsChecked'))
         .split('\n')
         .slice(1)
         .filter((line) => line.trim().endsWith(','));
