@@ -460,4 +460,54 @@ describe('A320 flyPad failures', () => {
       expect(wasm).toContain(`(${rustId},FailureType::${failureType}),`);
     }
   });
+
+  // FCOM gap batch T2-42: the ventilation and communication failures are TS only (the FWC Logic module reads them), the
+  // FG TCAS mode failure is read by the C++ fbw module (failures/FailureList.h, FlyByWireInterface.cpp)
+  it('lists the ventilation, FG TCAS mode and communication failures with the code that reads them', () => {
+    const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
+    const ventilation = readFileSync(resolve(host, 'VentilationAlerts.ts'), 'utf8');
+    const communication = readFileSync(resolve(host, 'CommunicationAlerts.ts'), 'utf8');
+    const tcasMode = readFileSync(resolve(host, 'TcasModeFaultAlert.ts'), 'utf8');
+    const expected: [number, number, string, string, string][] = [
+      [21, 21020, 'AvionicsVentilationController', 'AEVC (avionics equipment ventilation controller)', ventilation],
+      [21, 21021, 'AvionicsBlowerFan', 'Avionics ventilation blower fan', ventilation],
+      [21, 21022, 'AvionicsExtractFan', 'Avionics ventilation extract fan', ventilation],
+      [
+        21,
+        21023,
+        'AvionicsSkinExtractValveStuckOpen',
+        'Avionics ventilation skin extract valve stuck open',
+        ventilation,
+      ],
+      [21, 21024, 'AvionicsSkinInletValveStuckOpen', 'Avionics ventilation skin inlet valve stuck open', ventilation],
+      [21, 21025, 'AftCargoExtractionFan', 'AFT cargo ventilation extraction fan', ventilation],
+      [
+        21,
+        21026,
+        'AftCargoIsolationValvesStuckClosed',
+        'AFT cargo ventilation isolation valves stuck closed',
+        ventilation,
+      ],
+      [22, 22012, 'TcasModeFailure', 'FG TCAS mode (AP/FD TCAS, both FMGCs)', tcasMode],
+      [23, 23008, 'CidsDirector1', 'CIDS 1 (cabin intercommunication data system)', communication],
+      [23, 23009, 'CidsDirector2', 'CIDS 2 (cabin intercommunication data system)', communication],
+      [23, 23017, 'CaptPttStuck', 'CAPT push-to-talk (PTT) switch stuck in transmit', communication],
+      [23, 23018, 'FoPttStuck', 'F/O push-to-talk (PTT) switch stuck in transmit', communication],
+      [23, 23020, 'Vhf1StuckEmitting', 'VHF 1 transmitter stuck emitting', communication],
+      [23, 23021, 'Vhf2StuckEmitting', 'VHF 2 transmitter stuck emitting', communication],
+      [23, 23022, 'Vhf3StuckEmitting', 'VHF 3 transmitter stuck emitting', communication],
+    ];
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const [chapter, id, key, name, consumer] of expected) {
+      expect((A320Failure as Record<string, number>)[key]).toBe(id);
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);
+      expect(consumer).toContain(`A320Failure.${key}`);
+      expect(wasm).not.toContain(`(${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')},`);
+    }
+    const fbw = resolve(__dirname, '../../../wasm/fbw_a320/src');
+    expect(readFileSync(resolve(fbw, 'failures/FailureList.h'), 'utf8')).toContain('TcasMode = 22012,');
+    expect(readFileSync(resolve(fbw, 'FlyByWireInterface.cpp'), 'utf8')).toContain(
+      'failuresConsumer.isActive(Failures::TcasMode)',
+    );
+  });
 });

@@ -1842,7 +1842,9 @@ bool FlyByWireInterface::updateFmgc(double sampleTime, int fmgcIndex) {
   fmgcs[fmgcIndex].modelInputs.in.bus_inputs.ils_own_bus = ilsBusOutputs[fmgcIndex];
   fmgcs[fmgcIndex].modelInputs.in.bus_inputs.fmgc_opp_bus = fmgcsBusOutputs[oppFmgcIndex].fmgc_a_bus;
   fmgcs[fmgcIndex].modelInputs.in.bus_inputs.fcu_bus = fcuBusOutputs;
-  fmgcs[fmgcIndex].modelInputs.in.bus_inputs.tcas_bus = tcasBusOutputs;
+  // A failed FG TCAS mode blanks the TCAS bus the FMGCs read (AUTO FLT TCAS MODE FAULT, fmgc/FmgcTcasBusInput.h)
+  fmgcs[fmgcIndex].modelInputs.in.bus_inputs.tcas_bus =
+      fmgcTcasBusInput(tcasBusOutputs, failuresConsumer.isActive(Failures::TcasMode));
 
   if (fmgcIndex == fmgcDisabled) {
     simConnectInterface.setClientDataFmgcDiscretes(fmgcs[fmgcIndex].modelInputs.in.discrete_inputs);

@@ -13,6 +13,8 @@ enum class Failures {
   RudderTrimActuator2 = 22009,
   RudderTravelLimiterActuator1 = 22010,
   RudderTravelLimiterActuator2 = 22011,
+  // The FG TCAS mode of both FMGCs (AUTO FLT TCAS MODE FAULT), see fmgc/FmgcTcasBusInput.h
+  TcasMode = 22012,
   Elac1 = 27000,
   Elac2 = 27001,
   Sec1 = 27002,
