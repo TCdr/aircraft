@@ -258,6 +258,13 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
       master is on. The NSS AVNCS applications run while either NSS AVNCS ANSU is healthy (ANSU 2 takes over from
       ANSU 1).
 
+- `L:A380X_OIT_{CAPT,FO}_FLT_OPS_PAGE`
+    - Number
+    - The FLT OPS page the captain's / first officer's OIT shows (its own display, also while in X-OIS), read by the
+      other OIT for the X-OIS function (OIS XFR key, A380 FCOM DSC-46-20-30). OIT System/XOisFunction.ts page code:
+        - 0: no FLT OPS page
+        - 1: Menu, 2: STS, 3: T.O PERF, 4: LDG PERF, 5: NAV CHARTS, 6: FLT FOLDER
+
 ## Sim Specific
 
 ### Local Vars

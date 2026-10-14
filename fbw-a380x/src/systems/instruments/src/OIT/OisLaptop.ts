@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import {
+  ClockEvents,
   ConsumerSubject,
   EventBus,
   Instrument,
@@ -14,6 +15,7 @@ import { FailuresConsumer, FmsData } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { OisInternalData } from './OisInternalPublisher';
 import { OitSimvars } from './OitSimvarPublisher';
+import { AruStartup, LaptopNetworkConnection } from './System/AnsuLogic';
 
 type LaptopIndex = 1 | 2;
 
@@ -30,7 +32,20 @@ export class OisLaptop implements Instrument {
   public readonly isHealthy = this._isHealthy as Subscribable<boolean>;
   private readonly isHealthySimVar = `L:A32NX_FLTOPS_LAPTOP_${this.index.toFixed(0)}_IS_HEALTHY`;
 
-  private readonly sub = this.bus.getSubscriber<FmsData & OisInternalData & OitSimvars>();
+  private readonly sub = this.bus.getSubscriber<FmsData & OisInternalData & OitSimvars & ClockEvents>();
+
+  private readonly simTime = ConsumerSubject.create(this.sub.on('simTime'), 0);
+
+  private lastUpdateSimTime: number | null = null;
+
+  /** The ARU, through which the laptop connects to the FLT OPS network (A380 FCOM DSC-46-20-10-20, DSC-46-20-40) */
+  private readonly aru = new AruStartup();
+
+  private readonly networkConnection = new LaptopNetworkConnection();
+
+  private readonly _standalone = Subject.create(false);
+  /** The laptop operates as a stand-alone: STANDALONE on the Login page, SYNCHRONIZATION NOT AVAIL on the STS page */
+  public readonly standalone = this._standalone as Subscribable<boolean>;
 
   private readonly laptopSwitchedOn = ConsumerSubject.create(
     this.sub.on(this.index === 1 ? 'laptopCaptPowered' : 'laptopFoPowered'),
@@ -67,7 +82,7 @@ export class OisLaptop implements Instrument {
       this._isHealthy.sub((v) => SimVar.SetSimVarValue(this.isHealthySimVar, SimVarValueType.Bool, v)),
     );
 
-    this.subscriptions.push(this.fltNumberBus, this.fromAirportBus, this.toAirportBus);
+    this.subscriptions.push(this.fltNumberBus, this.fromAirportBus, this.toAirportBus, this.simTime);
   }
 
   /** @inheritdoc */
@@ -87,6 +102,16 @@ export class OisLaptop implements Instrument {
     }
 
     this._isHealthy.set(!failed && this.powered.get() && !this.nssMasterOff.get());
+
+    const now = this.simTime.get();
+    const deltaTimeMs = this.lastUpdateSimTime === null ? 0 : now - this.lastUpdateSimTime;
+    this.lastUpdateSimTime = now;
+    // the FLT OPS ANSU of this OIT instrument (AircraftNetworkServerUnit 'flt-ops')
+    const fltOpsAnsuHealthy = SimVar.GetSimVarValue('L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY', SimVarValueType.Bool) > 0;
+    const aruOperating = this.aru.update(fltOpsAnsuHealthy, deltaTimeMs);
+    this._standalone.set(
+      this.networkConnection.update(this._isHealthy.get(), aruOperating, this.aru.isFlightLoading()),
+    );
   }
 
   destroy() {
