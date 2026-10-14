@@ -711,6 +711,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New VENT AVNCS SYS FAULT, BLOWER FAULT, EXTRACT FAULT and SKIN VALVE FAULT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts with their FCOM procedures and STATUS, triggered by new flyPad ventilation failures - @TCdr
 1. [A32NX/AUTOFLIGHT] New flyPad failure of the FG TCAS mode: the AP/FD TCAS mode is no longer available and the FWC shows AUTO FLT TCAS MODE FAULT - @TCdr
 1. [A32NX/FWC] New COM CIDS 1+2 FAULT, SINGLE PTT STUCK, VHF 1(2)(3) EMITTING and VHF 3 DATA FAULT alerts with new flyPad failures (CIDS, stuck PTT, VHF transmitter stuck emitting), and the green AUDIO 3 XFRD memo when the AUDIO SWITCHING selector is not on NORM - @TCdr
+1. [A380X/BRAKES] Brake pressures of the A380 5 000 psi system instead of the A320 values: about 3 600 psi with the park brake, full pedals and alternate braking, a brake accumulator that keeps one park brake application out of the amber arc, and the pedals still brake with the park brake on - @TCdr
+1. [A380X/BRAKES] The brake pedals no longer brake in flight with the gear down (manual braking on ground only) - @TCdr
+1. [A380X/BRAKES] AUTO BRK arms and brakes in alternate braking (A-SKID available), and needs at least two PRIMs - @TCdr
+1. [A380X/BRAKES] ROP stops the maximum braking and gives back the selected autobrake mode when the aircraft can stop before the runway end, and no longer keeps the maximum braking after the autobrake is disconnected at low speed - @TCdr
+1. [A380X/SD] WHEEL page: the WING ACCU gauge shows the accumulator pressure (needle no longer fixed), in amber and without MORE when it is in the amber arc - @TCdr
 1. [A32NX/ATSU] New flyPad failures DCDU 1, DCDU 2 (blank screen, keys do nothing) and cockpit printer (nothing printed, PRINTER NOT AVAILABLE on the MCDU) - @TCdr
 1. [A32NX/ATSU] The ATSU stops while its C/B L15 or L16 on 121VU is pulled (the ATSU reset of the FCOM drops the CPDLC connection), and the DCDU shows INVALID DATA while the ATSU does not run - @TCdr
 1. [A32NX/ENG] The FADEC idle protection follows the reverser position: idle while a reverser commanded stowed is more than 15 % deployed, reverse idle when a deployed reverser stows below 78 %, as in the FCOM - @TCdr

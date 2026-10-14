@@ -4,8 +4,8 @@
 import { isTirePressureAbnormal, TIRE_COUNT, tirePressureVar } from '@shared/TirePressures';
 
 /*
- * Brake temperatures, tire pressures and the braking / steering control lines of the WHEEL SD page, A380 FCOM
- * DSC-32-20-50/60/70.
+ * Brake temperatures, tire pressures, the braking / steering control lines and the WING ACCU gauge of the WHEEL SD
+ * page, A380 FCOM DSC-32-20-50/60/70.
  */
 
 /** A380 FCOM DSC-32-20-70 BRAKE TEMPERATURE (a380_fcom.txt l.81367-81370): "The brake temperature exceeds 300 °C." */
@@ -207,4 +207,41 @@ export function tirePressureIndication(
 ): TirePressureIndication {
   const amber = isTirePressureAbnormal(pressuresPsi, tire, flightPhase);
   return { visible: amber || moreShown, amber };
+}
+
+/** A380 FCOM DSC-32-20-50 WING ACCU (a380_fcom.txt l.81253): "The amber arc ranges from 0 to 3480 PSI." */
+export const WING_ACCU_AMBER_ARC_MAX_PSI = 3480;
+/** l.81248: "The green arc ranges from 4872 to more than 5000 PSI." */
+export const WING_ACCU_GREEN_ARC_MIN_PSI = 4872;
+/** End of the gauge scale (5, x 1000 PSI) */
+export const WING_ACCU_SCALE_MAX_PSI = 5000;
+
+export interface WingAccuIndication {
+  /** The gauge is shown */
+  visible: boolean;
+  /** The pressure is in the amber arc: amber needle, else green */
+  amber: boolean;
+  /** Needle position, x 1000 PSI, on the 0-5 scale */
+  needleKpsi: number;
+}
+
+/**
+ * WING ACCU pressure indication (A380 FCOM DSC-32-20-50, l.81231-81243): "Displayed when: The pressure of a wing brake
+ * accumulator is low (in the amber arc), or The MORE key on the ECP is pressed." "The pressure indication shows the
+ * lowest wing brake accumulator pressure. When in the amber arc, the pressure indication is amber. When outside the
+ * amber arc, the pressure indication is green."
+ * Design choice: the model has one brake accumulator (L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS) for the four of the aircraft
+ * (l.80020-80022); it stands for the wing accumulators. A pressure that is not a finite number shows 0 psi, in amber.
+ * @param pressurePsi the brake accumulator pressure
+ * @param moreShown the WHEEL MORE page is shown (L:A32NX_ECAM_SD_MORE_SHOWN)
+ * @returns the indication
+ */
+export function wingAccuIndication(pressurePsi: number, moreShown: boolean): WingAccuIndication {
+  const pressure = Number.isFinite(pressurePsi) ? Math.max(0, pressurePsi) : 0;
+  const amber = pressure <= WING_ACCU_AMBER_ARC_MAX_PSI;
+  return {
+    visible: moreShown || amber,
+    amber,
+    needleKpsi: Math.min(pressure, WING_ACCU_SCALE_MAX_PSI) / 1000,
+  };
 }
