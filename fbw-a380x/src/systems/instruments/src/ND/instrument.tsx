@@ -24,6 +24,7 @@ import {
   BtvSimvarPublisher,
   EfisNdMode,
   EfisSide,
+  FailuresConsumer,
   FcuBusPublisher,
   FcuSimVars,
   FmsOansSimvarPublisher,
@@ -69,7 +70,7 @@ import './nd-interactive.scss';
 import { NdInteractive } from './NdInteractive';
 import { VerticalDisplay } from './VerticalDisplay/VerticalDisplay';
 import { InternalKccuKeyEvent } from '../MFD/shared/MFDSimvarPublisher';
-import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
+import { isKccuKeyAvailable, kccuFailureState } from '../MsfsAvionicsCommon/Kccu';
 
 declare type MousePosition = {
   x: number;
@@ -83,6 +84,9 @@ class NDInstrument implements FsInstrument {
   private kccuKeyboardOn = false;
 
   private kccuCursorControlDeviceOn = false;
+
+  /** The flyPad failures, for the KCCU failures of this side (Kccu.ts) */
+  private readonly failuresConsumer = new FailuresConsumer();
 
   private readonly bus: ArincEventBus;
 
@@ -431,7 +435,9 @@ class NDInstrument implements FsInstrument {
     sub.on('hEvent').handle((eventName) => {
       if (eventName.startsWith(this.efisSide === 'L' ? 'A32NX_KCCU_L' : 'A32NX_KCCU_R')) {
         const key = eventName.substring(13);
-        if (!isKccuKeyActive(key, this.kccuKeyboardOn, this.kccuCursorControlDeviceOn)) {
+        // A failed KCCU keyboard or cursor control device takes no key press (Kccu.ts)
+        const failures = kccuFailureState(this.efisSide, (id) => this.failuresConsumer.isActive(id));
+        if (!isKccuKeyAvailable(key, this.kccuKeyboardOn, this.kccuCursorControlDeviceOn, failures)) {
           return;
         }
 
@@ -514,6 +520,7 @@ class NDInstrument implements FsInstrument {
    */
   public Update(): void {
     this.backplane.onUpdate();
+    this.failuresConsumer.update();
 
     if (this.oansRef.getOrDefault()) {
       this.oansRef.instance.Update();
