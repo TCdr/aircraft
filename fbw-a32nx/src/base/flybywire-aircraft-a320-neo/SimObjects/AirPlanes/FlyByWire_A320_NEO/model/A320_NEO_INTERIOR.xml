@@ -1107,8 +1107,9 @@
                 <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                     <NODE_ID>SCREEN_COM_L</NODE_ID>
                     <!-- Effects such as pixels and glass reflections require the screen brightness to be increased -->
+                    <!-- DCDU 1 failure (flyPad 46002, systems-host atsu.ts): the screen is blank -->
                     <EMISSIVE_CODE>
-                        (L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool) if{
+                        (L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool) (L:A32NX_DCDU_1_FAILED, Bool) ! and if{
                             12 (L:#PLANE_NAME#_PANEL_DCDU_L_BRIGHTNESS, percent over 100) *
                         } els{
                             0
@@ -1234,8 +1235,9 @@
                 <UseTemplate Name="ASOBO_GT_Component_Emissive_Gauge">
                     <NODE_ID>SCREEN_COM_R</NODE_ID>
                     <!-- Effects such as pixels and glass reflections require the screen brightness to be increased -->
+                    <!-- DCDU 2 failure (flyPad 46003, systems-host atsu.ts): the screen is blank -->
                     <EMISSIVE_CODE>
-                        (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) if{
+                        (L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool) (L:A32NX_DCDU_2_FAILED, Bool) ! and if{
                             12 (L:#PLANE_NAME#_PANEL_DCDU_R_BRIGHTNESS, percent over 100) *
                         } els{
                             0

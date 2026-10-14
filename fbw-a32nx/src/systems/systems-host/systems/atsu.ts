@@ -10,7 +10,14 @@ import { EventBus, EventSubscriber, Instrument, SimVarValueType } from '@microso
 import { PowerSupplyBusTypes } from './powersupply';
 import { FailuresConsumer, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
-import { AtsuPowerSwitch, atsuRunStates } from './AtsuFailureStates';
+import {
+  ATSU_CIRCUIT_BREAKER_VAR,
+  AtsuPowerSwitch,
+  DatalinkInterfaceStates,
+  atsuCircuitBreakerPulled,
+  atsuRunStates,
+  datalinkInterfaceStates,
+} from './AtsuFailureStates';
 
 class A32nxVhfProvider implements VhfRadioInterface {
   private static readonly ComActiveFrequency3 = RegisteredSimVar.create<number>(
@@ -34,12 +41,25 @@ export class AtsuSystem implements Instrument {
 
   private readonly router: Router;
 
-  /** The ATSU and ATSU AOC function flyPad failures (see AtsuFailureStates) */
+  /** The ATSU, ATSU AOC function, DCDU and printer flyPad failures (see AtsuFailureStates) */
   private readonly failuresConsumer = new FailuresConsumer();
 
   private acBus1Powered = false;
 
   private readonly powerSwitch: AtsuPowerSwitch;
+
+  /** The ATSU C/Bs L15 and L16 on 121VU (the ATSU reset of the FCOM, see AtsuFailureStates) */
+  private readonly circuitBreakerVar = RegisteredSimVar.create<number>(ATSU_CIRCUIT_BREAKER_VAR, SimVarValueType.Enum);
+
+  /** What the DCDU, its screens (model) and the MCDU read, see AtsuFailureStates.datalinkInterfaceStates */
+  private readonly atsuOffVar = RegisteredSimVar.createBoolean('L:A32NX_ATSU_OFF');
+
+  private readonly dcduFailedVars = [1, 2].map((dcdu) => RegisteredSimVar.createBoolean(`L:A32NX_DCDU_${dcdu}_FAILED`));
+
+  private readonly printerFailedVar = RegisteredSimVar.createBoolean('L:A32NX_PRINTER_FAILED');
+
+  /** The last written interface states, the variables are written on a change only */
+  private writtenInterfaceStates: DatalinkInterfaceStates | null = null;
 
   constructor(private readonly bus: EventBus) {
     this.simVarHandling = new SimVarHandling(this.bus);
@@ -69,6 +89,9 @@ export class AtsuSystem implements Instrument {
   public init(): void {
     this.failuresConsumer.register(A320Failure.Atsu);
     this.failuresConsumer.register(A320Failure.AtsuAoc);
+    this.failuresConsumer.register(A320Failure.Dcdu1);
+    this.failuresConsumer.register(A320Failure.Dcdu2);
+    this.failuresConsumer.register(A320Failure.Printer);
     this.simVarHandling.initialize();
     this.simVarHandling.startPublish();
     this.router.initialize();
@@ -76,15 +99,34 @@ export class AtsuSystem implements Instrument {
     this.aoc.initialize();
   }
 
-  /** Runs the router, ATC and AOC functions while the ATSU is supplied and not failed */
+  /** Runs the router, ATC and AOC functions while the ATSU is supplied, its C/Bs are in and it is not failed */
   private updatePower(): void {
-    this.powerSwitch.update(
-      atsuRunStates({
-        acBus1Powered: this.acBus1Powered,
-        atsuFailed: this.failuresConsumer.isActive(A320Failure.Atsu),
-        aocFailed: this.failuresConsumer.isActive(A320Failure.AtsuAoc),
-      }),
-    );
+    const runStates = atsuRunStates({
+      acBus1Powered: this.acBus1Powered,
+      circuitBreakerPulled: atsuCircuitBreakerPulled(this.circuitBreakerVar.get()),
+      atsuFailed: this.failuresConsumer.isActive(A320Failure.Atsu),
+      aocFailed: this.failuresConsumer.isActive(A320Failure.AtsuAoc),
+    });
+    this.powerSwitch.update(runStates);
+
+    const interfaceStates = datalinkInterfaceStates(runStates, {
+      dcdu1Failed: this.failuresConsumer.isActive(A320Failure.Dcdu1),
+      dcdu2Failed: this.failuresConsumer.isActive(A320Failure.Dcdu2),
+      printerFailed: this.failuresConsumer.isActive(A320Failure.Printer),
+    });
+    const written = this.writtenInterfaceStates;
+    if (written === null || written.atsuOff !== interfaceStates.atsuOff) {
+      this.atsuOffVar.set(interfaceStates.atsuOff);
+    }
+    for (let dcdu = 0; dcdu < 2; dcdu++) {
+      if (written === null || written.dcduFailed[dcdu] !== interfaceStates.dcduFailed[dcdu]) {
+        this.dcduFailedVars[dcdu].set(interfaceStates.dcduFailed[dcdu]);
+      }
+    }
+    if (written === null || written.printerFailed !== interfaceStates.printerFailed) {
+      this.printerFailedVar.set(interfaceStates.printerFailed);
+    }
+    this.writtenInterfaceStates = interfaceStates;
   }
 
   public onUpdate(): void {
