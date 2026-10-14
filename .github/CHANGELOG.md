@@ -643,6 +643,13 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SURV] With the selected TAWS failed and the other WXR failed, the TAWS (GPWS, terrain on ND and VD) comes from the other SURV system - @TCdr
 1. [A380X/MFD] POSITION / IRS: the ALIGN ON OTHER REF panel defines the IRS alignment reference position (PREFLIGHT and DONE phases) - @TCdr
 1. [A380X/MFD] Alternate company routes: ALTN RTE entry on the INIT page and INSERT on the ROUTE SELECTION page, with the DEST / ALTN CPNY RTE DISAGREE message; the ALTERNATE page selection creates a temporary flight plan - @TCdr
+1. [A32NX/TCAS] The TCAS goes to TA ONLY automatically with the windshear or the stall warning, as with a GPWS alert - @TCdr
+1. [A32NX/TCAS] Both radio altimeters failed or a triple ADR failure now put the TCAS in standby (TCAS STBY memo) instead of TCAS FAULT - @TCdr
+1. [A32NX/HYD] The handwheel now turns the nose wheel up to 75 degrees (was 74) - @TCdr
+1. [A32NX/LG] The landing gear lever also stays locked down while the nose wheel steering is not centred - @TCdr
+1. [A32NX/EGPWS] No terrain on the NDs with the TERR pb-sw OFF or the TERR FAULT light on (also a failed or unpowered EGPWS) - @TCdr
+1. [A32NX/BLEED] The engine bleed valve now closes pneumatically below 8 PSI upstream (was 15 PSI) - @TCdr
+1. [A32NX/WHEEL] New tyre pressure source (TPIS): six tyre pressures with temperature effect and new flyPad tyre deflation failures, for the WHEEL page and WHEEL TYRE LO PR (not displayed yet) - @TCdr
 
 ## 2024.1.0
 

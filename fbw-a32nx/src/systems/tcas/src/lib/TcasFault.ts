@@ -26,3 +26,22 @@ export interface TcasFaultInputs {
 export function isTcasFault(inputs: TcasFaultInputs): boolean {
   return !inputs.pressureAltitudeValid || inputs.radioAltitudeFailed || !inputs.powered || inputs.internalFailure;
 }
+
+/**
+ * Whether the TCAS is in standby because it lost its altitude sensors. A320 FCOM DSC-34-SURV-60-20 MEMO DISPLAY
+ * (a320_fcom.txt:56377-56383): the green TCAS STBY memo appears when "both ATCs or both RAs are failed" or "In the case
+ * of a triple ADR failure". The standby takes precedence over the TCAS fault (TcasComputer.updateStatusFaults).
+ * @param radioAltimeter1Failed radio altimeter 1 reports a failure (failure warning SSM, also when unpowered)
+ * @param radioAltimeter2Failed radio altimeter 2 reports a failure
+ * @param adrAltitudeValid for ADR 1, 2 and 3: the pressure altitude word is valid (normal operation or functional test)
+ * @returns whether the TCAS must be in standby
+ */
+export function isTcasStandbyWithoutAltitudeSensors(
+  radioAltimeter1Failed: boolean,
+  radioAltimeter2Failed: boolean,
+  adrAltitudeValid: readonly boolean[],
+): boolean {
+  const bothRadioAltimetersFailed = radioAltimeter1Failed && radioAltimeter2Failed;
+  const tripleAdrFailure = adrAltitudeValid.every((valid) => !valid);
+  return bothRadioAltimetersFailed || tripleAdrFailure;
+}

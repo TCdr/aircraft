@@ -55,6 +55,19 @@ describe('A320 flyPad failures', () => {
     expect(wasm).toContain('(32_210, FailureType::BrakeNormalSelectorValve),');
   });
 
+  // The ids are the Rust failure ids of a320_systems_wasm, used by a320_systems tyre_pressure.rs (TPIS)
+  it('lists the tyre deflation failures in ATA 32 with the Rust failure they trigger', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.MainTyre1Deflated)).toEqual([32, 32300, 'Main wheel 1 tyre deflated (left outer)']);
+    expect(label(A320Failure.MainTyre4Deflated)).toEqual([32, 32303, 'Main wheel 4 tyre deflated (right outer)']);
+    expect(label(A320Failure.NoseTyreLeftDeflated)).toEqual([32, 32304, 'Nose wheel left tyre deflated']);
+    expect(label(A320Failure.NoseTyreRightDeflated)).toEqual([32, 32305, 'Nose wheel right tyre deflated']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (let tyre = 1; tyre <= 6; tyre++) {
+      expect(wasm).toContain(`(32_${299 + tyre}, FailureType::TyreDeflated(${tyre})),`);
+    }
+  });
+
   // TS only: the FWC reads it (FWC/Logic/PredictiveWindshearAlerts.ts), no Rust failure
   it('lists the predictive windshear failure of the weather radar in ATA 34', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);

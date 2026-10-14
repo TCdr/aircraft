@@ -204,6 +204,13 @@ export const A320Failure = Object.freeze({
   Autobrake: 32204,
   NoseWheelSteering: 32205,
   BrakeNormalSelectorValve: 32210,
+  // The tyre pressure indicating system (a320_systems tyre_pressure.rs): main wheels 1-4 left to right, nose L and R
+  MainTyre1Deflated: 32300,
+  MainTyre2Deflated: 32301,
+  MainTyre3Deflated: 32302,
+  MainTyre4Deflated: 32303,
+  NoseTyreLeftDeflated: 32304,
+  NoseTyreRightDeflated: 32305,
 
   // ATA 30 (systems ice_rain_protection, in a320_systems pneumatic.rs)
   Eng1AntiIceValveStuckClosed: 30000,
@@ -575,6 +582,12 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [32, A320Failure.Autobrake, 'Autobrake'],
   [32, A320Failure.NoseWheelSteering, 'Nose wheel steering'],
   [32, A320Failure.BrakeNormalSelectorValve, 'Brake normal selector valve failed open'],
+  [32, A320Failure.MainTyre1Deflated, 'Main wheel 1 tyre deflated (left outer)'],
+  [32, A320Failure.MainTyre2Deflated, 'Main wheel 2 tyre deflated (left inner)'],
+  [32, A320Failure.MainTyre3Deflated, 'Main wheel 3 tyre deflated (right inner)'],
+  [32, A320Failure.MainTyre4Deflated, 'Main wheel 4 tyre deflated (right outer)'],
+  [32, A320Failure.NoseTyreLeftDeflated, 'Nose wheel left tyre deflated'],
+  [32, A320Failure.NoseTyreRightDeflated, 'Nose wheel right tyre deflated'],
 
   // The engine anti-ice valve stays closed (ANTI ICE ENG 1(2) VALVE CLSD) / open (ANTI ICE ENG 1(2) VALVE OPEN)
   [30, A320Failure.Eng1AntiIceValveStuckClosed, 'Engine 1 anti-ice valve stuck closed'],

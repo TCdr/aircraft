@@ -16,6 +16,7 @@ mod pneumatic;
 mod power_consumption;
 mod probe_window_heat;
 mod surveillance;
+mod tyre_pressure;
 
 use self::{
     air_conditioning::A320AirConditioning,
@@ -29,6 +30,7 @@ use self::{
     pneumatic::{A320Pneumatic, A320PneumaticOverheadPanel},
     probe_window_heat::A320ProbeWindowHeat,
     surveillance::A320EgpwsElectricalHarness,
+    tyre_pressure::A320TyrePressureIndicatingSystem,
 };
 use airframe::A320Airframe;
 use electrical::{
@@ -140,6 +142,7 @@ pub struct A320 {
     pneumatic: A320Pneumatic,
     oxygen: A320Oxygen,
     probe_window_heat: A320ProbeWindowHeat,
+    tyre_pressure: A320TyrePressureIndicatingSystem,
     radio_altimeters: A320RadioAltimeters,
     egpwc: EnhancedGroundProximityWarningComputer,
     egpwc_2: EnhancedGroundProximityWarningComputer2,
@@ -204,6 +207,7 @@ impl A320 {
             pneumatic: A320Pneumatic::new(context),
             oxygen: A320Oxygen::new(context),
             probe_window_heat: A320ProbeWindowHeat::new(context),
+            tyre_pressure: A320TyrePressureIndicatingSystem::new(context),
             radio_altimeters: A320RadioAltimeters::new(context),
             // The GPS receivers of MMR 1 and 2. The FCOM gives no power supply: MMR 1 on AC ESS and MMR 2 on AC 2,
             // as the other side 1 / side 2 navigation receivers (design choice)
@@ -334,6 +338,7 @@ impl Aircraft for A320 {
             &self.landing_gear,
             self.hydraulic.gear_system(),
             self.ext_pwr.output_potential().is_powered(),
+            self.hydraulic.nose_wheel_steering_centered(),
         );
 
         self.fire_protection
@@ -417,6 +422,7 @@ impl Aircraft for A320 {
         );
 
         self.oxygen.update(context);
+        self.tyre_pressure.update(context);
         // Probes and windows heated with an engine running or in flight (FCOM DSC-30-40-10, DSC-30-50-10)
         let lgcius = [self.lgcius.lgciu1(), self.lgcius.lgciu2()];
         self.probe_window_heat.update(
@@ -426,7 +432,6 @@ impl Aircraft for A320 {
             lgcius[0].left_gear_extended(false) || lgcius[1].right_gear_extended(false),
         );
 
-        self.egpwc.update(&self.adirs, self.lgcius.lgciu1());
         self.egpws_electrical_harness.update(self.lgcius.lgciu1());
         self.egpwc_2.update(
             context,
@@ -436,6 +441,13 @@ impl Aircraft for A320 {
             self.adirs.adr_bus(1),
             self.adirs.ir_bus(1),
             &self.mmr_1,
+        );
+        // After the EGPWS: no terrain on the NDs with the TERR pb-sw OFF or TERR FAULT
+        self.egpwc.update_with_terrain_functions(
+            &self.adirs,
+            self.lgcius.lgciu1(),
+            self.egpws_electrical_harness
+                .terrain_functions_available(&self.egpwc_2),
         );
     }
 }
@@ -480,6 +492,7 @@ impl SimulationElement for A320 {
         self.pneumatic.accept(visitor);
         self.oxygen.accept(visitor);
         self.probe_window_heat.accept(visitor);
+        self.tyre_pressure.accept(visitor);
         self.egpwc.accept(visitor);
         self.egpws_electrical_harness.accept(visitor);
         self.egpwc_2.accept(visitor);
