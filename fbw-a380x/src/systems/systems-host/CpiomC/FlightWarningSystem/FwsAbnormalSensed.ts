@@ -8737,7 +8737,8 @@ export class FwsAbnormalSensed {
       simVarIsActive: this.fws.thrustLeverNotSet,
       monitorConfirmTime: 3,
       notActiveWhenItemActive: [],
-      whichItemsToShow: () => thrLeversNotSetItemsShown(this.fws.flexTakeoffMode.get()),
+      whichItemsToShow: () =>
+        thrLeversNotSetItemsShown(this.fws.flexTakeoffMode.get() || this.fws.derateTakeoffMode.get()),
       whichItemsChecked: () => [this.fws.allThrottleToga.get(), this.fws.allThrottleMct.get()],
       failure: 2,
       sysPage: SdPages.None,

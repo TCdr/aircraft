@@ -12,6 +12,7 @@
 
 #include "EngineRatios.hpp"
 #include "Fadec.h"
+#include "TakeoffDerate_A380X.hpp"
 
 /**
  * @class ThrustLimits_A3800X
@@ -209,16 +210,19 @@ class ThrustLimits_A380X {
    * @param packs A double representing the air conditioning status.
    * @param nacelle A double representing the nacelle anti-ice status.
    * @param wing A double representing the wing anti-ice status.
+   * @param thrustReductionPercent The derated takeoff (TO and GA types without flex temperature): the thrust reduction
+   * of the DOx level in percent, 0 for no derate (TakeoffDerate_A380X).
    * @return The N1 limit as a double.
    */
-  static double limitN1(int    type,             //
-                        double altitude,         //
-                        double ambientTemp,      //
-                        double ambientPressure,  //
-                        double flexTemp,         //
-                        double packs,            //
-                        double nacelle,          //
-                        double wing              //
+  static double limitN1(int    type,                         //
+                        double altitude,                     //
+                        double ambientTemp,                  //
+                        double ambientPressure,              //
+                        double flexTemp,                     //
+                        double packs,                        //
+                        double nacelle,                      //
+                        double wing,                         //
+                        double thrustReductionPercent = 0.0  //
   ) {
     int    rowMin   = 0;
     int    rowMax   = 0;
@@ -297,6 +301,10 @@ class ThrustLimits_A380X {
         m   = (cn1Last - cn1Flat) / (lp - cp);
         b   = cn1Last - m * lp;
         cn1 = (m * ambientTemp) + b;
+      }
+      if (type <= 1) {
+        // DOx derated takeoff (FCOM DSC-70-20-40 l.111561-111565): the rated thrust reduced by 4 to 24 %
+        cn1 = TakeoffDerate_A380X::deratedCorrectedN1(cn1, thrustReductionPercent);
       }
     }
 

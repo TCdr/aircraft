@@ -10,7 +10,10 @@
 //! - A380 FCOM PRO-ABN-ECAM-10-70 (a380_fcom.txt): ENG 1(2)(3)(4) FUEL STRAINER CLOGGED
 //!   (l.172106-172132), FUEL FILTER MONITORING FAULT (l.172018-172043), OIL CHIP DETECTED
 //!   (l.172378-172406), MINOR FAULT (l.172307-172334), OVERTHRUST PROT LOST (l.172639-172666),
-//!   SENSOR FAULT (l.172667-172692).
+//!   SENSOR FAULT (l.172667-172692), CTL SYS FAULT (l.171310-171330), CTL VLV FAULT
+//!   (l.171454-171470), FADEC IDENT FAULT (l.171629-171637), FUEL SYS CONTAMINATION
+//!   (l.172133-172150), OIL SYS CONTAMINATION (l.172517-172530), ENG TYPE DISAGREE
+//!   (l.175642-175650).
 //!
 //! Written variable, per engine n and fault: `ENGINE_n_<fault>` (boolean, see
 //! [`EngineMonitoringFaultKind::variable_name`]).
@@ -58,6 +61,26 @@ pub enum EngineMonitoringFaultKind {
     MinorFault,
     /// A380 ENG 1(2)(3)(4) OVERTHRUST PROT LOST: "The overthrust protection is lost" (l.172645).
     OverthrustProtection,
+    /// A380 ENG 1(2)(3)(4) CTL SYS FAULT: "A failure preventing the FADEC for satisfactorily
+    /// controlling the engine has occurred" (l.171316: P30, N1, N2 sensor or fuel regulation (HMU)
+    /// failure). Design choice: the engine model keeps its normal control (the FCOM procedure
+    /// covers the case "If engine control is degraded").
+    ControlSystem,
+    /// A380 ENG 1(2)(3)(4) CTL VLV FAULT: "One control valve of the applicable engine is failed"
+    /// (l.171460: cooling, HP turbine or compressor discharge valve not open).
+    ControlValve,
+    /// A380 ENG 1(2)(3)(4) FADEC IDENT FAULT: "The FADEC cannot identify the engine configuration"
+    /// (l.171637), crew awareness.
+    FadecIdent,
+    /// A380 ENG 1(2)(3)(4) FUEL SYS CONTAMINATION: "The bypass valve of the fuel filter is open"
+    /// (l.172139), crew awareness.
+    FuelSystemContamination,
+    /// A380 ENG 1(2)(3)(4) OIL SYS CONTAMINATION: "The oil filter in the return line is clogged and
+    /// the bypass valve is open" (l.172525).
+    OilSystemContamination,
+    /// A380 ENG TYPE DISAGREE: "The engine thrust ratings are not similar on all engines"
+    /// (l.175648), crew awareness: the failure gives this engine a thrust rating that differs.
+    ThrustRatingDisagree,
 }
 impl EngineMonitoringFaultKind {
     /// The end of the variable name `ENGINE_n_<name>` of the fault.
@@ -74,6 +97,12 @@ impl EngineMonitoringFaultKind {
             EngineMonitoringFaultKind::OilChip => "OIL_CHIP_DETECTED",
             EngineMonitoringFaultKind::MinorFault => "MINOR_FAULT",
             EngineMonitoringFaultKind::OverthrustProtection => "OVERTHRUST_PROTECTION_LOST",
+            EngineMonitoringFaultKind::ControlSystem => "CTL_SYS_FAULT",
+            EngineMonitoringFaultKind::ControlValve => "CTL_VLV_FAULT",
+            EngineMonitoringFaultKind::FadecIdent => "FADEC_IDENT_FAULT",
+            EngineMonitoringFaultKind::FuelSystemContamination => "FUEL_SYS_CONTAMINATION",
+            EngineMonitoringFaultKind::OilSystemContamination => "OIL_SYS_CONTAMINATION",
+            EngineMonitoringFaultKind::ThrustRatingDisagree => "TYPE_DISAGREE",
         }
     }
 }
@@ -258,6 +287,12 @@ mod tests {
             EngineMonitoringFaultKind::OilChip,
             EngineMonitoringFaultKind::MinorFault,
             EngineMonitoringFaultKind::OverthrustProtection,
+            EngineMonitoringFaultKind::ControlSystem,
+            EngineMonitoringFaultKind::ControlValve,
+            EngineMonitoringFaultKind::FadecIdent,
+            EngineMonitoringFaultKind::FuelSystemContamination,
+            EngineMonitoringFaultKind::OilSystemContamination,
+            EngineMonitoringFaultKind::ThrustRatingDisagree,
         ];
         let mut names: Vec<&str> = kinds.iter().map(|kind| kind.variable_name()).collect();
         names.sort_unstable();

@@ -675,4 +675,36 @@ describe('A380X slat/flap channel and avionics network failures', () => {
       expect(wasm).toContain(`(${rustId},FailureType::${failureType}),`);
     }
   });
+
+  // The failures of the B25 FADEC alerts without engine model effect (systems engine/engine_monitoring_fault.rs) and the
+  // reverser minor fault and maintenance inhibition (a380_systems reverser): A380 FCOM PRO-ABN-ECAM-10-70 CTL SYS FAULT
+  // l.171310, CTL VLV FAULT l.171454, FADEC IDENT FAULT l.171629, FUEL SYS CONTAMINATION l.172133, OIL SYS CONTAMINATION
+  // l.172517, ENG TYPE DISAGREE l.175642, REVERSER INHIBITED l.173571, REVERSER MINOR FAULT l.173668
+  it('lists the FADEC alert failures and the reverser minor fault and inhibition with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const monitoring = (kind: string, firstId: number, name: string, chapter: number) =>
+      [1, 2, 3, 4].map((engine): [number, string, string, number] => [
+        firstId + engine - 1,
+        `EngineMonitoringFault(${engine},EngineMonitoringFaultKind::${kind})`,
+        `Engine ${engine} ${name}`,
+        chapter,
+      ]);
+    const expected: [number, string, string, number][] = [
+      ...monitoring('ControlSystem', 73270, 'control system fault (alert only)', 73),
+      ...monitoring('ControlValve', 73280, 'control valve (cooling/HP turbine/discharge)', 73),
+      ...monitoring('FadecIdent', 73290, 'FADEC engine identification', 73),
+      ...monitoring('FuelSystemContamination', 73130, 'fuel filter bypass open (contamination)', 73),
+      ...monitoring('ThrustRatingDisagree', 73300, 'thrust rating differs (type disagree)', 73),
+      ...monitoring('OilSystemContamination', 79050, 'oil filter bypass open (contamination)', 79),
+      [78051, 'ReverserMinorFault(2)', 'Reverser 2 minor fault (alert only)', 78],
+      [78052, 'ReverserMinorFault(3)', 'Reverser 3 minor fault (alert only)', 78],
+      [78061, 'ReverserInhibited(2)', 'Reverser 2 inhibited by maintenance (does not deploy)', 78],
+      [78062, 'ReverserInhibited(3)', 'Reverser 3 inhibited by maintenance (does not deploy)', 78],
+    ];
+    // rustfmt splits the long entries over several lines with a trailing comma: (1,Kind::X,) reads as (1,Kind::X)
+    const rustFailure = (id: number) => rustMap.get(id)?.replace(/,\)/g, ')');
+    expect(
+      expected.map(([id]) => [id, rustFailure(id), A380FailureDefinitions.find(([, listed]) => listed === id)]),
+    ).toEqual(expected.map(([id, failureType, name, chapter]) => [id, failureType, [chapter, id, name]]));
+  });
 });

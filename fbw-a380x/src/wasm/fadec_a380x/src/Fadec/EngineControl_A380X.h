@@ -63,6 +63,8 @@ class EngineControl_A380X {
 
   // values that need previous state
   double latchedFlexTemperature = 0.0;
+  // the DOx derated takeoff thrust reduction (percent), latched with the flex temperature
+  double latchedDerate          = 0.0;
   double prevThrustLimitType    = 0.0;
 
   // FLX->CLB thrust limit transition

@@ -30,12 +30,14 @@ export enum TakeoffPowerSetting {
   DERATED = 2,
 }
 
+/** The derated takeoff levels (FCOM DSC-70-20-40 l.111564-111565), as the index of the MFD list */
 export enum TakeoffDerated {
-  D01 = 0,
-  D02 = 1,
-  D03 = 2,
-  D04 = 3,
-  D05 = 4,
+  D04 = 0,
+  D08 = 1,
+  D12 = 2,
+  D16 = 3,
+  D20 = 4,
+  D24 = 5,
 }
 
 export enum TakeoffPacks {

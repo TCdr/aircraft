@@ -337,3 +337,52 @@ fn on_the_ground_a_crossbleed_engine_start_gets_starter_air_from_the_running_eng
     let start_fault: f64 = test_bed.read_by_name("ENGINE_2_START_FAULT");
     assert_eq!(start_fault, 0.);
 }
+
+/// A380 FCOM DSC-70-80-30-20 (l.112476-112489): the "Engine start valve abnormal position" the
+/// pneumatic system detects (START VLV FAULT NOT OPEN) interrupts the automatic start of the start
+/// sequence, which cranks the engine (ENGINE_n_START_PHASE 3) before its new attempt.
+#[test]
+fn on_the_ground_a_start_valve_stuck_closed_interrupts_the_automatic_start() {
+    let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
+    test_bed.fail(FailureType::EngineStartValveStuckClosed(2));
+    test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:2", true);
+    set_engine(&mut test_bed, 2, ENGINE_STATE_STARTING, 0.);
+    test_bed.run_multiple_frames(Duration::from_secs(8));
+
+    let start_valve_fault: f64 = test_bed.read_by_name("ENGINE_2_START_VALVE_FAULT");
+    assert_eq!(start_valve_fault, 1., "START VLV FAULT NOT OPEN");
+    let start_phase: f64 = test_bed.read_by_name("ENGINE_2_START_PHASE");
+    assert_eq!(start_phase, 3., "automatic crank");
+}
+
+/// The flyPad failures of the FADEC alerts of B25 without engine model effect (CTL SYS FAULT, CTL
+/// VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE)
+/// are in the A380 list of systems engine_monitoring_fault and write their variable.
+#[test]
+fn the_fadec_alert_failures_write_their_variable_for_their_engine() {
+    use systems::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
+    let mut test_bed = flying_a380(250., 10_000.);
+    for (kind, variable) in [
+        (EngineMonitoringFaultKind::ControlSystem, "CTL_SYS_FAULT"),
+        (EngineMonitoringFaultKind::ControlValve, "CTL_VLV_FAULT"),
+        (EngineMonitoringFaultKind::FadecIdent, "FADEC_IDENT_FAULT"),
+        (
+            EngineMonitoringFaultKind::FuelSystemContamination,
+            "FUEL_SYS_CONTAMINATION",
+        ),
+        (
+            EngineMonitoringFaultKind::OilSystemContamination,
+            "OIL_SYS_CONTAMINATION",
+        ),
+        (
+            EngineMonitoringFaultKind::ThrustRatingDisagree,
+            "TYPE_DISAGREE",
+        ),
+    ] {
+        test_bed.fail(FailureType::EngineMonitoringFault(3, kind));
+        test_bed.run_multiple_frames(FRAME);
+        let engine_3: bool = test_bed.read_by_name(&format!("ENGINE_3_{}", variable));
+        let engine_2: bool = test_bed.read_by_name(&format!("ENGINE_2_{}", variable));
+        assert!(engine_3 && !engine_2, "{}", variable);
+    }
+}

@@ -115,6 +115,7 @@ import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { engineFailureCreatesEngineOutSid } from './EngineOutSid';
+import { writeTakeoffDerate } from '../shared/TakeoffDerate';
 
 export interface FmsErrorMessage {
   message: McduMessage;
@@ -1684,6 +1685,8 @@ export class FlightManagementComputer implements FmcInterface {
       this.addMessageToQueue(NXSystemMessages.checkToData);
       const flex = this.#flightPlanService.active?.performanceData.flexTakeoffTemperature.get();
       SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', flex === 0 ? 0.1 : flex ?? 0);
+      const performanceData = this.#flightPlanService.active?.performanceData;
+      writeTakeoffDerate(performanceData?.takeoffPowerSetting?.get(), performanceData?.takeoffDeratedSetting?.get());
     }
 
     if (zfwDiff !== null && zfwDiff > 5 && zfwCgDiff !== null && zfwCgDiff > 0.5) {
@@ -1980,6 +1983,8 @@ export class FlightManagementComputer implements FmcInterface {
       this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.TOGA, plan);
       SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
     }
+    // the uplinked thrust is TOGA or FLEX: no DOx derate for the FADECs
+    writeTakeoffDerate(TakeoffPowerSetting.TOGA, null);
     this.flightPlanInterface.setPerformanceData('takeoffShift', uplink.shift, plan);
     if (uplink.thrustReductionAltitude !== null) {
       this.flightPlanInterface.setPerformanceData('pilotThrustReductionAltitude', uplink.thrustReductionAltitude, plan);

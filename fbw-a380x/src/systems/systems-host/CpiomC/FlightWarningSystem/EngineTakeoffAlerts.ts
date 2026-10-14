@@ -117,23 +117,34 @@ export interface ThrustLeversNotSetInputs {
   engineStates: readonly FadecEngineState[];
   /** The take-off thrust mode of the FADECs is FLEX (isFlexTakeoffMode) */
   flexTakeoffMode: boolean;
-}
-
-/** The lines of ENG THR LEVERS NOT SET: 0 ALL THR LEVERS TOGA (TOGA mode), 1 THR LEVERS MCT/FLEX (FLEX mode) */
-export function thrLeversNotSetItemsShown(flexTakeoffMode: boolean): boolean[] {
-  return [!flexTakeoffMode, flexTakeoffMode];
+  /** A DOx derated takeoff is selected on the MFD PERF T.O panel (L:A32NX_AIRLINER_TO_DERATE above 0) */
+  derateTakeoffMode?: boolean;
 }
 
 /**
- * ENG THR LEVERS NOT SET: a thrust lever of a running engine is at CL or between CL and FLX/MCT, or at FLX/MCT while
- * the FADECs are in TOGA mode. The phase inhibition limits it to the phases 2 and 3; a lever below CL (taxi) is not a
- * take-off setting. Design choice: only the levers of running engines (FADEC state ON) count, as the A32NX FWC (engine
- * core at or above minimum idle).
+ * The lines of ENG THR LEVERS NOT SET: 0 ALL THR LEVERS TOGA (TOGA mode), 1 THR LEVERS MCT/FLEX (FLEX or derated
+ * mode: l.175178-175182 "If derate or flex takeoff selected on FMS and thrust levers are below FLX/MCT ... If derated
+ * takeoff selected on FMS and thrust levers at TOGA: THR LEVERS ... MCT/FLEX")
+ */
+export function thrLeversNotSetItemsShown(flexOrDerateTakeoffMode: boolean): boolean[] {
+  return [!flexOrDerateTakeoffMode, flexOrDerateTakeoffMode];
+}
+
+/**
+ * ENG THR LEVERS NOT SET: a thrust lever of a running engine is at CL or between CL and FLX/MCT, at FLX/MCT while
+ * the FADECs are in TOGA mode, or at TOGA for a derated takeoff (l.175181-175184: "If derated takeoff selected on FMS and
+ * thrust levers at TOGA ... TOGA thrust rating is not allowed when a derate takeoff is performed"). The phase inhibition
+ * limits it to the phases 2 and 3; a lever below CL (taxi) is not a take-off setting. Design choice: only the levers of
+ * running engines (FADEC state ON) count, as the A32NX FWC (engine core at or above minimum idle).
  */
 export function isThrustLeversNotSet(inputs: ThrustLeversNotSetInputs): boolean {
+  const derate = inputs.derateTakeoffMode === true;
+  const reducedTakeoff = inputs.flexTakeoffMode || derate;
   return inputs.tlaDegrees.some(
     (tla, index) =>
       inputs.engineStates[index] === FadecEngineState.On &&
-      (isLeverBetweenClAndFlxMct(tla) || (!inputs.flexTakeoffMode && isLeverAtFlxMct(tla))),
+      (isLeverBetweenClAndFlxMct(tla) ||
+        (!reducedTakeoff && isLeverAtFlxMct(tla)) ||
+        (derate && tla >= TOGA_DETENT_TLA)),
   );
 }

@@ -8,7 +8,7 @@ import {
   NXLogicTriggeredMonostableNode,
 } from '@flybywiresim/fbw-sdk';
 import { FwsCore } from './FwsCore';
-import { twoEnginesTakeoffPowerSignal } from './FwsTakeoffPower';
+import { reducedTakeoffThrustSet, twoEnginesTakeoffPowerSignal } from './FwsTakeoffPower';
 
 export enum FwcFlightPhase {
   ElecPwr = 1,
@@ -227,8 +227,11 @@ export class FwsFlightPhases {
 
     const twoEnginesMcl = [eng1MCL, eng2MCL, eng3MCL, eng4MCL].filter(Boolean).length >= 2;
 
-    // a FLEX TEMP is entered (one value for all FADECs: no per-FADEC take-off words yet)
-    const flexTempSet = SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number') !== 0;
+    // a FLEX TEMP is entered or a DOx derate selected (one value for all FADECs: no per-FADEC take-off words yet)
+    const flexTempSet = reducedTakeoffThrustSet(
+      SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number'),
+      SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_DERATE', 'number'),
+    );
     // each engine judged on its own thrust lever (FwsTakeoffPower)
     const twoEnginesTOPowerSignal = twoEnginesTakeoffPowerSignal([eng1TLA, eng2TLA, eng3TLA, eng4TLA], flexTempSet);
 

@@ -627,6 +627,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New COM CAPT (F/O)(THIRD OCCUPANT) PTT STUCK and VHF 1(2)(3) EMITTING alerts from new flyPad failures of the PTT switches, VHF 3 DATALINK FAULT on the VHF 3 failure, COM DATALINK FAULT when VHF 3 is failed or in voice mode, PA IN USE memo while a PA transmission key is on - @TCdr
 1. [A380X/FWS] New APU MACH LIMIT EXCEEDED caution (APU running above M 0.5) and APU OIL FILTER CLOGGED alert with its flyPad failure - @TCdr
 1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
+1. [A380X/ENG] Derated takeoff: the MFD PERF T.O DERATED list has the six levels D04 to D24, the selected level reduces the takeoff thrust at the FLX/MCT detent by 4 to 24 % and shows on the E/WD in place of FLX - @TCdr
+1. [A380X/REV] The tertiary lock of the thrust reversers is only released on the ground - @TCdr
+1. [A380X/ENG] The start valve no longer opens for a start with the core above 25 % N2 (no running engagement of the starter) - @TCdr
+1. [A380X/ENG] Both igniters come on when the engine is at idle in heavy rain (SD ENGINE page) - @TCdr
+1. [A380X/ENG] New flyPad failures: engine control system fault, control valve, FADEC engine identification, fuel and oil filter bypass, thrust rating disagree, reverser minor fault and reverser inhibited by maintenance - @TCdr
 
 ## 2024.1.0
 

@@ -361,6 +361,7 @@ void FlyByWireInterface::setupLocalVariables() {
   idFmgcAccelerationAltitudeGoAround = std::make_unique<LocalVariable>("A32NX_FM1_MISSED_ACC_ALT");
   idFmgcCruiseAltitude = std::make_unique<LocalVariable>("A32NX_AIRLINER_CRUISE_ALTITUDE");
   idFmgcFlexTemperature = std::make_unique<LocalVariable>("A32NX_AIRLINER_TO_FLEX_TEMP");
+  idFmgcTakeoffDerate = std::make_unique<LocalVariable>("A32NX_AIRLINER_TO_DERATE");
   idFmsLsCourse = std::make_unique<LocalVariable>("A32NX_FM_LS_COURSE");
   idFmsSpeedMarginHigh = std::make_unique<LocalVariable>("A32NX_PFD_UPPER_SPEED_MARGIN");
   idFmsSpeedMarginLow = std::make_unique<LocalVariable>("A32NX_PFD_LOWER_SPEED_MARGIN");
@@ -3046,14 +3047,17 @@ bool FlyByWireInterface::updateFadec(double sampleTime, int fadecIndex) {
   fadecInputs[fadecIndex].in.input.TLA_deg = FadecFailureInputs::thrustLeverAngleWithoutThrustLock(
       fadecInputs[fadecIndex].in.input.TLA_deg, fadecNetworkLost, fadecOutputs[fadecIndex].athr_control_active);
 
-  // ENG T.O THRUST DISAGREE: the FADEC of the "FLEX TEMP not received" failure gets no FLEX TEMP from the PRIMs, so its take-off
-  // mode is TOGA (FadecThrustFailures.h)
+  // DOx derated takeoff: the FADEC model takes its FLX path, whose limit is the derated rating of the FADEC module
+  // (TakeoffDerate.h). ENG T.O THRUST DISAGREE: the FADEC of the "FLEX TEMP not received" failure gets no FLEX TEMP (nor
+  // derate) from the PRIMs, so its take-off mode is TOGA (FadecThrustFailures.h)
   {
     const Failures flexTempFailures[4] = {Failures::Fadec1FlexTempNotReceived, Failures::Fadec2FlexTempNotReceived,
                                           Failures::Fadec3FlexTempNotReceived, Failures::Fadec4FlexTempNotReceived};
     const bool flexTempNotReceived = failuresConsumer.isActive(flexTempFailures[fadecIndex]);
+    const double takeoffDerate = idFmgcTakeoffDerate->get();
     athr_in& in = fadecInputs[fadecIndex].in;
     for (base_prim_out_bus* prim : {&in.prim_1, &in.prim_2, &in.prim_3}) {
+      prim->fg.flx_to_temp_deg_c = TakeoffDerate::takeoffTemperatureWord(prim->fg.flx_to_temp_deg_c, takeoffDerate);
       prim->fg.flx_to_temp_deg_c = FadecThrustFailures::flexTemperatureReceived(prim->fg.flx_to_temp_deg_c, flexTempNotReceived);
     }
   }

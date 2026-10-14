@@ -8,6 +8,7 @@
 #include "Arinc429.h"
 #include "FadecFailureInputs.h"
 #include "FadecThrustFailures.h"
+#include "TakeoffDerate.h"
 #include "CalculatedRadioReceiver.h"
 #include "EngineStartThrottleHold.h"
 #include "InterpolatingLookupTable.h"
@@ -245,6 +246,8 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idFmgcAccelerationAltitudeGoAround;
   std::unique_ptr<LocalVariable> idFmgcCruiseAltitude;
   std::unique_ptr<LocalVariable> idFmgcFlexTemperature;
+  // the DOx derated takeoff of the MFD PERF T.O panel: thrust reduction in percent, 0 none (TakeoffDerate.h)
+  std::unique_ptr<LocalVariable> idFmgcTakeoffDerate;
   std::unique_ptr<LocalVariable> idFmsLsCourse;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginHigh;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginLow;

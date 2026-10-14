@@ -100,6 +100,18 @@ describe('ENG THR LEVERS NOT SET', () => {
     ).toBe(false);
   });
 
+  // l.175178-175184: "If derate or flex takeoff selected on FMS and thrust levers are below FLX/MCT ... If derated takeoff
+  // selected on FMS and thrust levers at TOGA ... THR LEVERS MCT/FLEX. TOGA thrust rating is not allowed when a derate
+  // takeoff is performed."
+  it('takes the derated takeoff: levers at FLX/MCT are set, levers at TOGA are not', () => {
+    const derated = { engineStates: allRunning, flexTakeoffMode: false, derateTakeoffMode: true };
+    expect(isThrustLeversNotSet({ ...derated, tlaDegrees: [35, 35, 35, 35] })).toBe(false);
+    expect(isThrustLeversNotSet({ ...derated, tlaDegrees: [45, 45, 45, 45] })).toBe(true);
+    expect(isThrustLeversNotSet({ ...derated, tlaDegrees: [35, 35, 45, 35] })).toBe(true);
+    expect(isThrustLeversNotSet({ ...derated, tlaDegrees: [35, 30, 35, 35] })).toBe(true);
+    expect(thrLeversNotSetItemsShown(true)).toEqual([false, true]);
+  });
+
   it('takes the FADEC take-off mode: FLEX with a FLEX TEMP above the TAT, otherwise TOGA', () => {
     expect(isFlexTakeoffMode(50, 15)).toBe(true);
     expect(isFlexTakeoffMode(0, 15)).toBe(false);
@@ -152,7 +164,10 @@ describe('FWS take-off engine alerts', () => {
     const alert = block(abnormalSensed, 701800157);
     expect(alert).toContain('simVarIsActive: this.fws.thrustLeverNotSet,');
     expect(alert).toContain('flightPhaseInhib: THR_LEVERS_NOT_SET_PHASE_INHIBITION,');
-    expect(alert).toContain('whichItemsToShow: () => thrLeversNotSetItemsShown(this.fws.flexTakeoffMode.get()),');
+    // the MCT/FLEX line for a FLEX or a derated takeoff (l.175178-175182)
+    expect(alert.replace(/\s+/g, ' ')).toContain(
+      'whichItemsToShow: () => thrLeversNotSetItemsShown(this.fws.flexTakeoffMode.get() || this.fws.derateTakeoffMode.get()),',
+    );
     expect(alert).toContain('failure: 2,');
     const message = block(ata70, 701800157);
     expect(message).toContain("{ name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'TOGA' },");

@@ -72,6 +72,7 @@ use systems::{
         },
         engine_start::{
             EngineStartInputs, EngineStartPhase, EngineStartSchedule, EngineStartSequence,
+            QuickRelightSchedule,
         },
         hp_fuel_valve_failure::HpFuelValveFailure,
     },
@@ -278,6 +279,20 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         // A380 FCOM DSC-70-80-20 (l.112328): "Only one igniter operates for an automatic start", with
         // no second igniter for a cold engine or a high airfield (the A320 rule).
         second_igniter_at_light_up_cold_or_above: None,
+        // LIM-70 STARTER (l.189735): "If the N2 is above 25 %, no running engagement of the starter
+        // is possible." Before 2026-10-13 the start valve opened at any N2 up to 58.4 %.
+        starter_engagement_max_n2: Some(Ratio::new::<percent>(25.)),
+        // DSC-70-80-30-20 QUICK RELIGHT FUNCTION (l.112539-112545): "back to ON within 30 s", "The
+        // quick relight function immediately opens the FMV", "provided that N2 is greater than 45 %"
+        // (the HP fuel valve of this module opens for it, see HpFuelValve).
+        ground_quick_relight: Some(QuickRelightSchedule {
+            max_master_off_time: Duration::from_secs(30),
+            min_core_speed: Ratio::new::<percent>(45.),
+        }),
+        // DSC-70-80-30-20 START ABORT DURING AUTOMATIC START (l.112476-112493): "Engine start valve
+        // abnormal position" and "Engine starter engagement time exceedance" are in the list of the
+        // faults that interrupt an automatic start on the ground.
+        aborts_for_start_valve_and_starter_time: true,
     }
 }
 
@@ -377,8 +392,13 @@ struct A380EngineFailure {
     start_valve_open_id: VariableIdentifier,
     thrust_lever_angle_id: VariableIdentifier,
     preset_quick_mode_id: VariableIdentifier,
+    /// ENGINE_n_START_VALVE_FAULT, written by the start valve supervision of the pneumatic system
+    /// (pneumatic.rs EngineStarterValveController)
+    start_valve_fault_id: VariableIdentifier,
     manual_start_is_on: bool,
     fire_push_button_is_released: bool,
+    /// The start valve does not open although commanded open (START VLV FAULT NOT OPEN, see `read`)
+    start_valve_position_abnormal: bool,
     egt: ThermodynamicTemperature,
     start_valve_is_open: bool,
     thrust_lever_angle_degrees: f64,
@@ -422,8 +442,11 @@ impl A380EngineFailure {
             thrust_lever_angle_id: context
                 .get_identifier(format!("AUTOTHRUST_TLA:{}", engine_number)),
             preset_quick_mode_id: context.get_identifier("AIRCRAFT_PRESET_QUICK_MODE".to_owned()),
+            start_valve_fault_id: context
+                .get_identifier(format!("ENGINE_{}_START_VALVE_FAULT", engine_number)),
             manual_start_is_on: false,
             fire_push_button_is_released: false,
+            start_valve_position_abnormal: false,
             egt: ThermodynamicTemperature::default(),
             start_valve_is_open: false,
             thrust_lever_angle_degrees: 0.,
@@ -502,6 +525,7 @@ impl A380EngineFailure {
             // FAULT is not modelled).
             other_fault_light_conditions: self.hp_fuel_valve_failure.position_is_abnormal(),
             engine_thermal_state: 0.,
+            start_valve_position_abnormal: self.start_valve_position_abnormal,
         }
     }
 
@@ -604,6 +628,12 @@ impl SimulationElement for A380EngineFailure {
         self.start_valve_is_open = reader.read(&self.start_valve_open_id);
         self.thrust_lever_angle_degrees = reader.read(&self.thrust_lever_angle_id);
         self.preset_quick_mode = reader.read(&self.preset_quick_mode_id);
+        // StartValveFault: 0 none, 1 NOT OPEN, 2 NOT CLOSED. The start sequence commands the valve
+        // open, so its abnormal position during a start is NOT OPEN; a NOT CLOSED of a valve stuck
+        // open before the start is one frame old at the ENG MASTER ON (the supervision runs before
+        // it gets the new command) and is no fault of the start.
+        let start_valve_fault: f64 = reader.read(&self.start_valve_fault_id);
+        self.start_valve_position_abnormal = start_valve_fault.round() as i64 == 1;
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
