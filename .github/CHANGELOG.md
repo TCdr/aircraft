@@ -631,6 +631,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
 1. [A32NX/FWC] New ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT and VIB SYS FAULT alerts with their procedures, STATUS lines and new flyPad failures; an inhibited reverser no longer deploys - @TCdr
 1. [A32NX/FWC] New DATALINK ATSU FAULT and DATALINK COMPANY FAULT alerts with STATUS INOP SYS ATSU and DATA COMPANY, new flyPad failures of the ATSU (no datalink) and of its AOC function (no company datalink), and a green COMPANY DATALINK STBY memo while no air-ground datalink is available - @TCdr
+1. [A380X/FWS] STATUS INOP SYS shows STBY RAD NAV with RMPs 1+2 (or all RMPs) failed, and the GPWS, TERR SYS and TAWS lines of the SURV faults under APPR & LDG instead of ALL PHASES - @TCdr
+1. [A380X/FWS] New IR 1(2)(3)(1+2)(1+3)(2+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos while IRs align in ATT mode, and a new DATALINK STBY memo while the ACARS provider link is temporarily lost with VHF 3 in data mode - @TCdr
+1. [A380X/FWS] NAV ALL AIR DATA DISAGREE radome destruction line now reads FMS FUEL PRED DISREGARD, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

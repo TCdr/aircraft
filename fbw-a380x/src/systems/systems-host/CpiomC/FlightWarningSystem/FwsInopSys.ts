@@ -206,6 +206,17 @@ export class FwsInopSys {
       simVarIsActive: this.fws.allRmpFault,
       phase: FwsInopSysPhases.AllPhases,
     },
+    230300015: {
+      // STBY RAD NAV, ALL PHASES: COM RMP 1+2 FAULT "(If RMPs 1+2 are failed)" and COM RMP 1+2+3 FAULT (A380 FCOM
+      // PRO-ABN-ECAM-10-23, a380_fcom.txt l.137400-137415, 137470-137473). Only RMP 1 and 2 control the standby radio
+      // navigation (l.47426): with RMPs 1+3 (2+3) failed, it stays available via RMP 2 (1) (l.137405-137406).
+      simVarIsActive: MappedSubject.create(
+        ([rmp1Failed, rmp2Failed]) => rmp1Failed && rmp2Failed,
+        this.fws.rmp1Fault,
+        this.fws.rmp2Fault,
+      ),
+      phase: FwsInopSysPhases.AllPhases,
+    },
     230300017: {
       // VHF 1+2+3
       simVarIsActive: this.fws.allRmpFault,
@@ -706,22 +717,25 @@ export class FwsInopSys {
     },
     // GPWS and TERR SYS of one SURV system both failed: TAWS SYS 1(2) replaces them (SURV TAWS 1(2) FAULT STATUS,
     // A380 FCOM l.166837-166842, FwsSurvAlerts tawsFunctionFaults)
+    // GPWS 1(2)(1+2), TERR SYS 1(2)(1+2) and TAWS SYS 1(2)(1+2) are APPR & LDG items of their SURV ... FAULT STATUS
+    // (A380 FCOM PRO-ABN-ECAM-10-34-20, l.166464-166466, 166495-166498, 166839-166842, 166877-166880, 167037-167039,
+    // 167078-167080)
     340300001: {
       // GPWS 1
       simVarIsActive: this.notWithAcEssBusFault(this.fws.gpws1Failed),
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['340300003', '340300046', '340300048'],
     },
     340300002: {
       // GPWS 2
       simVarIsActive: this.fws.gpws2Failed,
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['340300003', '340300047', '340300048'],
     },
     340300003: {
       // GPWS 1+2
       simVarIsActive: this.fws.allGpwsFailed,
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['340300048'],
     },
     340300004: {
@@ -897,13 +911,13 @@ export class FwsInopSys {
     340300039: {
       // TERR SYS 1
       simVarIsActive: this.notWithAcEssBusFault(this.fws.terrSys1Failed),
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['340300044', '340300046', '340300048'],
     },
     340300040: {
       // TERR SYS 2
       simVarIsActive: this.fws.terrSys2Failed,
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['340300044', '340300047', '340300048'],
     },
     340300044: {
@@ -913,7 +927,7 @@ export class FwsInopSys {
         this.fws.terrSys1Failed,
         this.fws.terrSys2Failed,
       ),
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['340300048'],
     },
     340300041: {
@@ -940,19 +954,19 @@ export class FwsInopSys {
     340300046: {
       // TAWS SYS 1 (AC ESS lost: ELEC AC ESS BUS FAULT lists TAWS 1 itself, 340300055)
       simVarIsActive: this.notWithAcEssBusFault(this.fws.taws1Failed),
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['340300048'],
     },
     340300047: {
       // TAWS SYS 2
       simVarIsActive: this.fws.taws2Failed,
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
       notActiveWhenItemActive: ['340300048'],
     },
     340300048: {
       // TAWS SYS 1+2
       simVarIsActive: MappedSubject.create(SubscribableMapFunctions.and(), this.fws.taws1Failed, this.fws.taws2Failed),
-      phase: FwsInopSysPhases.AllPhases,
+      phase: FwsInopSysPhases.ApprLdg,
     },
     340300049: {
       // ARPT NAV

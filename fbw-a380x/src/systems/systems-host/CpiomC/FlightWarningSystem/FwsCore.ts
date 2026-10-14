@@ -98,6 +98,9 @@ import {
 import { isTcasInoperative, selectedSurvSystem, SurvSystem } from '../../Misc/Communications/TransponderSystem';
 import { FwsInopSys, FwsInopSysPhases } from './FwsInopSys';
 import { FwsInformation } from './FwsInformation';
+import { isIrInAttAlign } from './IrAttAlignMemo';
+import { isDatalinkStby } from './DatalinkStbyMemo';
+import { AcarsConnector } from '@datalink/router';
 import { FwsLimitations, FwsLimitationsPhases, withoutAllPhasesDuplicates } from './FwsLimitations';
 import { FwsAirDataAlerts, readAirDataAlertInputs } from './FwsAirDataAlerts';
 // FIXME should not import from instruments
@@ -598,6 +601,9 @@ export class FwsCore {
   public readonly wingAntiIce = Subject.create(false);
 
   public readonly voiceVhf3 = Subject.create(false);
+
+  /** DATALINK STBY memo (DatalinkStbyMemo) */
+  public readonly datalinkStby = Subject.create(false);
 
   public readonly smokeFumesActivated = this.activeAbnormalNonSensedKeys.map((set) => set.has(260900097));
 
@@ -2358,6 +2364,11 @@ export class FwsCore {
   public readonly ir1Pitch = Arinc429Register.empty();
   public readonly ir2Pitch = Arinc429Register.empty();
   public readonly ir3Pitch = Arinc429Register.empty();
+
+  /** IR 1, 2, 3 in ATT alignment: the IR n IN ATT ALIGN memos (IrAttAlignMemo) */
+  public readonly ir1InAttAlign = Subject.create(false);
+  public readonly ir2InAttAlign = Subject.create(false);
+  public readonly ir3InAttAlign = Subject.create(false);
 
   public readonly ir1Fault = Subject.create(false);
   public readonly ir2Fault = Subject.create(false);
@@ -4725,6 +4736,9 @@ export class FwsCore {
         this.ir3MaintWord.bitValueOr(17, false) ||
         this.ir3MaintWord.bitValueOr(18, false),
     );
+    this.ir1InAttAlign.set(isIrInAttAlign(this.ir1MaintWord, this.ir1Pitch));
+    this.ir2InAttAlign.set(isIrInAttAlign(this.ir2MaintWord, this.ir2Pitch));
+    this.ir3InAttAlign.set(isIrInAttAlign(this.ir3MaintWord, this.ir3Pitch));
     this.adiru1ModeSelector.set(SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB', 'enum'));
     this.adiru2ModeSelector.set(SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_2_MODE_SELECTOR_KNOB', 'enum'));
     this.adiru3ModeSelector.set(SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB', 'enum'));
@@ -6038,6 +6052,15 @@ export class FwsCore {
     this.strobeLightsOn.set(SimVar.GetSimVarValue('L:LIGHTING_STROBE_0', 'Bool'));
 
     this.voiceVhf3.set(this.rmp3ActiveMode.get() !== FrequencyMode.Data);
+    // DATALINK STBY memo: VHF 3, the only data medium of the sim, is working and in data mode (no COM DATALINK FAULT,
+    // set below, one update old here), and the ACARS provider link of the ACR router (CpiomD/Acr.ts, same systems
+    // host) is temporarily lost
+    this.datalinkStby.set(
+      isDatalinkStby({
+        dataModeAvailable: !this.comDatalinkFault.get(),
+        linkTemporarilyLost: AcarsConnector.isLinkTemporarilyLost(),
+      }),
+    );
 
     // ATA 23: the CAB COM / COM alerts and the PA IN USE memo (CommunicationAlerts)
     const comFailureActive = (failure: number) => this.failuresConsumer.isActive(failure);

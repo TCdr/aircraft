@@ -105,3 +105,80 @@ describe('AcarsConnector activation', () => {
     expect(requests.map((r) => `${r.type} ${r.from}`)).toEqual(['ping FBWA32NX', 'ping D8FBW', 'poll D8FBW']);
   });
 });
+
+/* The A380X DATALINK STBY memo: "the datalink is temporarily lost" (A380 FCOM DSC-23-20 MEMO, a380_fcom.txt l.49460-49461) */
+describe('AcarsConnector temporarily lost link', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    providerUp = false;
+    requests = [];
+    lvars = new Map();
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => lvars.get(name) ?? 0);
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(async (name: string, _unit: string, value: number) => {
+      lvars.set(name, value);
+    });
+    vi.spyOn(NXDataStore, 'getSetting').mockReturnValue({ get: () => 'BATC', set: vi.fn() } as any);
+    vi.spyOn(AcarsClient, 'getData').mockImplementation(async (dto: CpdlcMessageDto) => {
+      if (!providerUp) {
+        throw new Error('error connection refused');
+      }
+      requests.push(dto);
+      return { response: 'ok' };
+    });
+  });
+
+  afterEach(() => {
+    AcarsConnector.disconnect();
+    AcarsConnector.deactivateAcars();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('is not lost while the provider never answered: the datalink was never established', async () => {
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(false);
+    AcarsConnector.activateAcars();
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(false);
+  });
+
+  it('is lost from the loss of an active provider until it answers again', async () => {
+    providerUp = true;
+    AcarsConnector.activateAcars();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(false);
+
+    providerUp = false;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(true);
+    // still lost while the reconnection attempts fail
+    await vi.advanceTimersByTimeAsync(2 * 60_000);
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(true);
+
+    providerUp = true;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(false);
+  });
+
+  it('is lost when a poll of the flight number gets no answer', async () => {
+    providerUp = true;
+    AcarsConnector.activateAcars();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await AcarsConnector.connect('D8FBW');
+
+    providerUp = false;
+    await AcarsConnector.poll();
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(true);
+  });
+
+  it('is not lost any more when the flight crew deactivates the ACARS (no datalink wanted)', async () => {
+    providerUp = true;
+    AcarsConnector.activateAcars();
+    await vi.advanceTimersByTimeAsync(1_000);
+    providerUp = false;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(true);
+
+    AcarsConnector.deactivateAcars();
+    expect(AcarsConnector.isLinkTemporarilyLost()).toBe(false);
+  });
+});

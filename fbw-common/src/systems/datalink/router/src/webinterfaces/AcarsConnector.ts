@@ -50,6 +50,12 @@ export class AcarsConnector {
 
   private static connected = false;
 
+  /**
+   * The provider answered, then stopped answering: the datalink is temporarily lost until it answers again (cleared when
+   * the ACARS is activated again or deactivated)
+   */
+  private static linkLost = false;
+
   private static activationRequested = false;
 
   private static activationLoopRunning = false;
@@ -60,6 +66,7 @@ export class AcarsConnector {
     AcarsConnector.activationRequested = false;
     AcarsConnector.connectionAttemptCounter = 0;
     AcarsConnector.connected = false;
+    AcarsConnector.linkLost = false;
   }
 
   private static async attemptActivation(): Promise<void> {
@@ -78,6 +85,7 @@ export class AcarsConnector {
         SimVar.SetSimVarValue('L:A32NX_ACARS_ACTIVE', 'number', 1);
         console.log('Activated ACARS-ID');
         AcarsConnector.connected = true;
+        AcarsConnector.linkLost = false;
         // A flight number received before the provider answered is connected now
         if (AcarsConnector.flightNumber !== '') {
           void AcarsConnector.connect(AcarsConnector.flightNumber);
@@ -116,6 +124,7 @@ export class AcarsConnector {
     }
     console.log('ACARS provider not answering, reconnecting...');
     AcarsConnector.connected = false;
+    AcarsConnector.linkLost = true;
     AcarsConnector.connectionAttemptCounter = 0;
     SimVar.SetSimVarValue('L:A32NX_ACARS_ACTIVE', 'number', 0);
     AcarsConnector.wakeUpLoop?.();
@@ -163,6 +172,16 @@ export class AcarsConnector {
     } finally {
       AcarsConnector.activationLoopRunning = false;
     }
+  }
+
+  /**
+   * The datalink is temporarily lost: the ACARS provider was active and does not answer any more, the reconnection
+   * attempts go on (the A380X DATALINK STBY memo, A380 FCOM DSC-23-20 MEMO, l.49460-49461). Not lost while the provider
+   * never answered, or with the ACARS not activated.
+   * @returns whether the link is temporarily lost
+   */
+  public static isLinkTemporarilyLost(): boolean {
+    return AcarsConnector.linkLost;
   }
 
   public static activateAcars(): void {
