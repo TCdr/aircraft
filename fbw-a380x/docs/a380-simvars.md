@@ -2784,6 +2784,10 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     aircraft power-up (A380 FCOM DSC-70-20-10)
   - {ENG} = 1, 2, 3, 4
 
+- A32NX_AIRLINER_TO_DERATE
+  - Number (percent)
+  - The DOx derated takeoff of the MFD PERF T.O panel (DERATED D04, D08, D12, D16, D20, D24): the thrust reduction in percent (4 to 24), 0 when TOGA or FLEX is selected (A380 FCOM DSC-70-20-40 l.111561-111568). The FADECs (fadec_a380x TakeoffDerate_A380X.hpp) write the derated rating as the FLX limit and the FADEC models of the fbw module take their FLX path for it (TakeoffDerate.h); the E/WD shows the level in place of FLX, the FWS takes the FLX/MCT detent as take-off power and TOGA as ENG THR LEVERS NOT SET. Written by the MFD (MFD/shared/TakeoffDerate.ts)
+
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
   - {number}
@@ -2962,6 +2966,20 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 3
   - True when the reverser is energized with its tertiary lock released without a deploy order (flyPad failure 78021/78022): ENG 2(3) REVERSER ENERGIZED. Written by the systems WASM
 
+- A32NX_REVERSER_{number}_MINOR_FAULT
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the FADEC detects a reverser failure that does not impair the reverser operation (flyPad failure 78051/78052): the reverser still deploys, for ENG 2(3) REVERSER MINOR FAULT (A380 FCOM l.173668-173676). Written by the systems WASM (a380_systems reverser)
+
+- A32NX_REVERSER_{number}_INHIBITED
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is inhibited by maintenance action (flyPad failure 78061/78062): its locks do not release and it does not deploy, for ENG 2(3) REVERSER INHIBITED (A380 FCOM l.173571-173590). Written by the systems WASM (a380_systems reverser)
+
 
 - A32NX_ENGINE_{number}_OIL_LEAK
   - Bool
@@ -3008,6 +3026,15 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 3
     - 4
   - True while the FADEC fault failure of the engine is active (flyPad failures 73110-73113 fuel strainer clog, 73120-73123 fuel filter monitoring, 79040-79043 oil chip, 73260-73263 FADEC minor fault, 73250-73253 overthrust protection, 73240-73243 pressure and temperature probes): the crew awareness alerts ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT (FwsCore, EngineMonitoringAlerts.ts), no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
+- A32NX_ENGINE_{number}_CTL_SYS_FAULT, _CTL_VLV_FAULT, _FADEC_IDENT_FAULT, _FUEL_SYS_CONTAMINATION, _OIL_SYS_CONTAMINATION, _TYPE_DISAGREE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73270-73273 control system fault, 73280-73283 control valve, 73290-73293 FADEC engine identification, 73130-73133 fuel filter bypass open, 79050-79053 oil filter bypass open, 73300-73303 thrust rating differs), for ENG 1(2)(3)(4) CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION and ENG TYPE DISAGREE (A380 FCOM PRO-ABN-ECAM-10-70), no effect on the engine. Not read by the FWS yet. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool

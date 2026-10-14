@@ -11,6 +11,7 @@ import {
 import { Arinc429Values } from '../shared/ArincValueProvider';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
 import { ThrustGauge } from './ThrustGauge';
+import { thrustRatingModeLabel } from './ThrustRatingLabel';
 
 export class N1Limit extends DisplayComponent<{
   x: number;
@@ -24,7 +25,13 @@ export class N1Limit extends DisplayComponent<{
   private readonly N1ThrustLimit = ConsumerSubject.create(this.sub.on('thrust_limit'), 0);
   private readonly flexTemp = ConsumerSubject.create(this.sub.on('flex'), 0);
   private readonly sat = Arinc429ConsumerSubject.create(this.sub.on('sat').withArinc429Precision(0));
-  private readonly thrustLimitTypeArray = ['', 'CLB', 'MCT', 'FLX', 'TOGA', 'MREV'];
+  private readonly takeoffDerate = ConsumerSubject.create(this.sub.on('takeoffDerate'), 0);
+  /** CLB, MCT, FLX, TOGA, MREV, or the DOx level of a derated takeoff (ThrustRatingLabel.ts) */
+  private readonly thrustRatingLabel = MappedSubject.create(
+    ([type, derate]) => thrustRatingModeLabel(type, derate),
+    this.N1LimitType,
+    this.takeoffDerate,
+  );
 
   private readonly displayFlexTemp = MappedSubject.create(
     ([flexTemp, sat, N1LimitType, active]) => {
@@ -76,7 +83,7 @@ export class N1Limit extends DisplayComponent<{
           x={this.props.x}
           y={this.props.y}
         >
-          {this.N1LimitType.map((t) => this.thrustLimitTypeArray[t])}
+          {this.thrustRatingLabel}
         </text>
         <text
           class={{ F26: true, End: true, Green: true, Spread: true, HiddenElement: this.activeHiddenElement }}

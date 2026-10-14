@@ -57,8 +57,8 @@ inline double maxThrPercent(double fadecTogaN1, double healthyTogaN1, double idl
 //
 // The failure: the FLEX TEMP of the PRIMs (label flx_to_temp_deg_c of the PRIM FG bus) does not reach one FADEC. That FADEC has
 // no valid FLEX TEMP and its take-off mode is TOGA, while the others are in FLEX: its engine gives the thrust of its own mode
-// (the MCT thrust in the FLX/MCT detent, TOGA in the TOGA detent), as the FADEC model computes it. FBW has no derated
-// take-off: the modes are TOGA and FLEX.
+// (the MCT thrust in the FLX/MCT detent, TOGA in the TOGA detent), as the FADEC model computes it. A derated take-off goes
+// through the FLEX path of the FADEC model (TakeoffDerate.h): the failure takes it away too, the mode is then TOGA.
 // ------------------------------------------------------------------------------------------------------------------------
 
 /// The ARINC 429 sign status matrix of a word without computed data (SignStatusMatrix::NoComputedData)

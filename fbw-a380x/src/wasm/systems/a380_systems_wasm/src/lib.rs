@@ -905,6 +905,129 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             79_043,
             FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::OilChip),
         ),
+        // The FADEC faults of B25 without engine model effect (engine_monitoring_fault.rs): CTL SYS
+        // FAULT, CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION,
+        // ENG TYPE DISAGREE
+        (
+            73_270,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::ControlSystem),
+        ),
+        (
+            73_271,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::ControlSystem),
+        ),
+        (
+            73_272,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::ControlSystem),
+        ),
+        (
+            73_273,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::ControlSystem),
+        ),
+        (
+            73_280,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::ControlValve),
+        ),
+        (
+            73_281,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::ControlValve),
+        ),
+        (
+            73_282,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::ControlValve),
+        ),
+        (
+            73_283,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::ControlValve),
+        ),
+        (
+            73_290,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FadecIdent),
+        ),
+        (
+            73_291,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FadecIdent),
+        ),
+        (
+            73_292,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::FadecIdent),
+        ),
+        (
+            73_293,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::FadecIdent),
+        ),
+        (
+            73_130,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::FuelSystemContamination,
+            ),
+        ),
+        (
+            73_131,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::FuelSystemContamination,
+            ),
+        ),
+        (
+            73_132,
+            FailureType::EngineMonitoringFault(
+                3,
+                EngineMonitoringFaultKind::FuelSystemContamination,
+            ),
+        ),
+        (
+            73_133,
+            FailureType::EngineMonitoringFault(
+                4,
+                EngineMonitoringFaultKind::FuelSystemContamination,
+            ),
+        ),
+        (
+            79_050,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::OilSystemContamination,
+            ),
+        ),
+        (
+            79_051,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::OilSystemContamination,
+            ),
+        ),
+        (
+            79_052,
+            FailureType::EngineMonitoringFault(
+                3,
+                EngineMonitoringFaultKind::OilSystemContamination,
+            ),
+        ),
+        (
+            79_053,
+            FailureType::EngineMonitoringFault(
+                4,
+                EngineMonitoringFaultKind::OilSystemContamination,
+            ),
+        ),
+        (
+            73_300,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::ThrustRatingDisagree),
+        ),
+        (
+            73_301,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::ThrustRatingDisagree),
+        ),
+        (
+            73_302,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::ThrustRatingDisagree),
+        ),
+        (
+            73_303,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::ThrustRatingDisagree),
+        ),
         (78_001, FailureType::ReverserFault(2)),
         (78_002, FailureType::ReverserFault(3)),
         (78_011, FailureType::ReverserUnlocked(2)),
@@ -915,6 +1038,10 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (78_032, FailureType::ReverserLocked(3)),
         (78_041, FailureType::ReverserControlFault(2)),
         (78_042, FailureType::ReverserControlFault(3)),
+        (78_051, FailureType::ReverserMinorFault(2)),
+        (78_052, FailureType::ReverserMinorFault(3)),
+        (78_061, FailureType::ReverserInhibited(2)),
+        (78_062, FailureType::ReverserInhibited(3)),
     ])
     .provides_aircraft_variable("ACCELERATION BODY X", "feet per second squared", 0)?
     .provides_aircraft_variable("ACCELERATION BODY Y", "feet per second squared", 0)?
