@@ -608,6 +608,98 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
                 EngineMonitoringFaultKind::ReverserPermissionSwitch,
             ),
         ),
+        // FCOM PRO-ABN-ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED
+        // STATUS FAULT, REV INHIBITED (stops the reverser deployment), REV ISOL FAULT
+        (
+            73_250,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelMeteringValve),
+        ),
+        (
+            73_251,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelMeteringValve),
+        ),
+        (
+            73_260,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::FuelReturnValveFailedClosed,
+            ),
+        ),
+        (
+            73_261,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::FuelReturnValveFailedClosed,
+            ),
+        ),
+        (
+            73_270,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::FuelReturnValveFailedOpen,
+            ),
+        ),
+        (
+            73_271,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::FuelReturnValveFailedOpen,
+            ),
+        ),
+        (
+            73_280,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::ClearanceControlValves,
+            ),
+        ),
+        (
+            73_281,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::ClearanceControlValves,
+            ),
+        ),
+        (
+            73_290,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::CompressorVanes),
+        ),
+        (
+            73_291,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::CompressorVanes),
+        ),
+        (
+            73_300,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::CompressorVaneChannel),
+        ),
+        (
+            73_301,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::CompressorVaneChannel),
+        ),
+        (
+            73_310,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::BleedValveStatus),
+        ),
+        (
+            73_311,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::BleedValveStatus),
+        ),
+        (
+            78_040,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::ReverserInhibited),
+        ),
+        (
+            78_041,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::ReverserInhibited),
+        ),
+        (
+            78_050,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::ReverserShutoffValve),
+        ),
+        (
+            78_051,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::ReverserShutoffValve),
+        ),
         (78_000, FailureType::ReverserFault(1)),
         (78_001, FailureType::ReverserFault(2)),
         (78_010, FailureType::ReverserUnlocked(1)),

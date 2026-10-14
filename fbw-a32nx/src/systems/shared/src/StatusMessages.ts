@@ -191,6 +191,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700400062', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
   // ENG 1(2) SENSOR FAULT STATUS (FCOM PRO-ABN-ENG l.81042-81044), FWC/Logic/EngineMonitoringAlerts
   ['700400063', { part: StatusPart.Limitation, text: 'AVOID RAPID THR CHANGES' }],
+  // ENG 1(2) CTL VALVE FAULT STATUS (FCOM PRO-ABN-ENG l.79485), FWC/Logic/EngineFadecFaultAlerts
+  ['700400090', { part: StatusPart.Limitation, text: 'MAX ENG 1 N2.......96 %' }],
+  ['700400091', { part: StatusPart.Limitation, text: 'MAX ENG 2 N2.......96 %' }],
   ['700500002', { part: StatusPart.Condition, text: 'IF PERF PERMITS:' }],
   ['700400005', { part: StatusPart.Limitation, text: 'X BLEED...........OPEN' }],
   ['700500003', { part: StatusPart.Condition, text: 'IF NO ENG 1 DAMAGE:' }],
@@ -240,6 +243,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   // 24 ELECTRICAL (FCOM PRO-ABN-ELEC bus faults STATUS, see FWC/Logic/ElecBusAlerts)
   ['240200103', { part: StatusPart.Information, text: 'ENG 1 APPR IDLE ONLY' }],
   ['240200104', { part: StatusPart.Information, text: 'ENG 2 APPR IDLE ONLY' }],
+  // ENG 1(2) BLEED STATUS FAULT STATUS (FCOM PRO-ABN-ENG l.79286, l.79354), FWC/Logic/EngineFadecFaultAlerts
+  ['700200080', { part: StatusPart.Information, text: 'ENG 1 HI GND IDLE' }],
+  ['700200081', { part: StatusPart.Information, text: 'ENG 2 HI GND IDLE' }],
   ['240200105', { part: StatusPart.Information, text: 'BOTH PFD ON SAME FAC' }],
   ['240200106', { part: StatusPart.Information, text: 'L/G CONTROL NOT AVAIL' }],
   ['240200108', { part: StatusPart.Information, text: 'APU BAT START NOT AVAIL' }],
@@ -614,6 +620,10 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240300181', { part: StatusPart.InopSys, text: 'TR 1' }],
   ['240300182', { part: StatusPart.InopSys, text: 'TR 2' }],
   ['240300183', { part: StatusPart.InopSys, text: 'APU GEN' }],
+  // 46 INFORMATION SYSTEMS (FCOM PRO-ABN-DATALINK ATSU FAULT l.74492-74495, COMPANY FAULT l.74529-74531), see
+  // FWC/Logic/DatalinkAlerts
+  ['460300001', { part: StatusPart.InopSys, text: 'ATSU' }],
+  ['460300002', { part: StatusPart.InopSys, text: 'DATA COMPANY' }],
 ]);
 
 const StatusMessageOrder = new Map([...StatusMessages.keys()].map((code, index) => [code, index]));

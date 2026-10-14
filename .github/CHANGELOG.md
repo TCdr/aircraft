@@ -609,6 +609,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New WHEEL HYD SEL FAULT caution with a new flyPad failure of the brake normal selector valve - @TCdr
 1. [A32NX/FWC] New NAV PRED W/S DET FAULT alert and STATUS INOP SYS PRED W/S DET with a new flyPad failure of the weather radar predictive windshear function - @TCdr
 1. [A32NX/EGPWS] New green TERR STBY memo when an input of the predictive terrain functions is missing or invalid; the terrain leaves the NDs and the TERR ON ND pushbuttons go off meanwhile - @TCdr
+1. [A32NX/FWC] New ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT and VIB SYS FAULT alerts with their procedures, STATUS lines and new flyPad failures; an inhibited reverser no longer deploys - @TCdr
+1. [A32NX/FWC] New DATALINK ATSU FAULT and DATALINK COMPANY FAULT alerts with STATUS INOP SYS ATSU and DATA COMPANY, new flyPad failures of the ATSU (no datalink) and of its AOC function (no company datalink), and a green COMPANY DATALINK STBY memo while no air-ground datalink is available - @TCdr
 
 ## 2024.1.0
 
