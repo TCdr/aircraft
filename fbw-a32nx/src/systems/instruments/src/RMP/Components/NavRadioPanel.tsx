@@ -8,6 +8,7 @@ import { useSimVar, useInteractionEvent } from '@flybywiresim/fbw-sdk-react';
 import { StandbyFrequency, TransceiverType } from './StandbyFrequency';
 import { StandbyCourse } from './StandbyCourse';
 import { RadioPanelDisplay } from './RadioPanelDisplay';
+import { isApprModeArmedOrEngaged, isBelowIlsTuneInhibitHeight, isIlsTuneInhibited } from './RmpNavBackupTuning';
 
 interface Props {
   /**
@@ -117,14 +118,25 @@ export const NavRadioPanel = (props: Props) => {
     100,
   );
 
-  const [APPR] = useSimVar('L:A32NX_FCU_APPR_MODE_ACTIVE', 'bool');
-  const [AP] = useSimVar('L:A32NX_AUTOPILOT_ACTIVE', 'bool');
-  const [RA1] = useSimVar('L:A32NX_RA_1_RADIO_ALTITUDE', 'number');
-  const [RA2] = useSimVar('L:A32NX_RA_2_RADIO_ALTITUDE', 'number');
+  // ILS tune inhibit inputs (see RmpNavBackupTuning.isIlsTuneInhibited)
+  const [fmaLateralMode] = useSimVar('L:A32NX_FMA_LATERAL_MODE', 'number');
+  const [fmaLateralArmed] = useSimVar('L:A32NX_FMA_LATERAL_ARMED', 'number');
+  const [fmaVerticalMode] = useSimVar('L:A32NX_FMA_VERTICAL_MODE', 'number');
+  const [fmaVerticalArmed] = useSimVar('L:A32NX_FMA_VERTICAL_ARMED', 'number');
+  const [apEngaged] = useSimVar('L:A32NX_AUTOPILOT_ACTIVE', 'bool');
+  const [fd1Engaged] = useSimVar('L:A32NX_FMGC_1_FD_ENGAGED', 'bool');
+  const [fd2Engaged] = useSimVar('L:A32NX_FMGC_2_FD_ENGAGED', 'bool');
+  const [radioAltitude1] = useSimVar('L:A32NX_RA_1_RADIO_ALTITUDE', 'number');
+  const [radioAltitude2] = useSimVar('L:A32NX_RA_2_RADIO_ALTITUDE', 'number');
 
   useInteractionEvent(`A32NX_RMP_${props.side}_TRANSFER_BUTTON_PRESSED`, () => {
-    // Inhibit RMP tuning if below 700 RA, APPR engaged, at least one AP/FD engaged (FCOM compliant)
-    if ((RA1 >= 700 && RA2 >= 700) || !APPR || !AP) {
+    const ilsTuneInhibited = isIlsTuneInhibited(
+      props.transceiver === TransceiverType.ILS,
+      isBelowIlsTuneInhibitHeight(radioAltitude1, radioAltitude2),
+      isApprModeArmedOrEngaged(fmaLateralMode, fmaLateralArmed, fmaVerticalMode, fmaVerticalArmed),
+      apEngaged > 0 || fd1Engaged > 0 || fd2Engaged > 0,
+    );
+    if (!ilsTuneInhibited) {
       if (mode === Mode.FREQUENCY) {
         if (props.transceiver !== TransceiverType.ADF) {
           setMode(Mode.COURSE);

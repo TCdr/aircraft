@@ -673,6 +673,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] HYD page: the RAT legend turns amber while the RAT is being stowed - @TCdr
 1. [A32NX/EWD] S and F legends and the slat and flap positions turn amber when both of their hydraulic systems are lost (not on ground with the engines stopped) or the slats (flaps) control is lost; S (F) LOCKED ready for the wingtip brakes - @TCdr
 1. [A32NX/EWD] The FOB is half-boxed amber when some fuel is not usable (outer tank transfer valves or both centre tank transfer valves failed closed), also on the SD FUEL page with the outer tank quantity boxed amber - @TCdr
+1. [A32NX/COMMS] Cockpit EMER call: the ON and CALL lights of the CALLS panel come on steady instead of flashing - @TCdr
+1. [A32NX/COMMS] The ELT ON and TEST/RESET pushbuttons work: ON transmits and lights the ELT light, TEST/RESET runs the autotest and stops a transmission - @TCdr
+1. [A32NX/RMP] The GLS and MLS keys (receivers not installed) no longer show a fake 808.080, and the ILS tune inhibit below 700 ft RA now works, freezes only the ILS and also applies with an FD alone - @TCdr
+1. [A32NX/ELEC] MAINT BUS switch (flyPad Ground > Services): external power alone feeds the GND/FLT buses only with the switch ON; it trips when the external power is removed - @TCdr
+1. [A32NX/ELEC] The emergency generator couples to the network 3 s after its output is normal - @TCdr
 
 ## 2024.1.0
 
