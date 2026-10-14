@@ -122,6 +122,27 @@
     - Bool
     - True if ram air is on
 
+- A32NX_AIRCOND_EMER_RAM_AIR_INLET_IS_OPEN
+    - Bool
+    - True if the emergency ram air inlet valve is open: RAM AIR pb ON and DITCHING pb not ON
+
+- A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO
+    - Bool
+    - True if the AFT ISOL VALVE pb-sw (CARGO VENT panel) is in AUTO, false if OFF (OFF light, isolation valves closed)
+
+- A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_HAS_FAULT
+    - Bool
+    - True if an aft cargo isolation valve disagrees with its commanded position (FAULT light; the FWC shows COND AFT
+      CRG ISOL VALVE)
+
+- A32NX_CARGO_VENT_AFT_{valve}_ISOL_VALVE_IS_OPEN
+    - Bool
+    - True if the aft cargo ventilation isolation valve is open: closed with the AFT ISOL VALVE pb-sw OFF or aft cargo
+      smoke
+    - {valve}
+        - INLET
+        - OUTLET
+
 - A32NX_CALLS_EMER_ON
     - Bool
     - True if emergency cabin call is on

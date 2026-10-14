@@ -706,6 +706,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New VENT AVNCS SYS FAULT, BLOWER FAULT, EXTRACT FAULT and SKIN VALVE FAULT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts with their FCOM procedures and STATUS, triggered by new flyPad ventilation failures - @TCdr
 1. [A32NX/AUTOFLIGHT] New flyPad failure of the FG TCAS mode: the AP/FD TCAS mode is no longer available and the FWC shows AUTO FLT TCAS MODE FAULT - @TCdr
 1. [A32NX/FWC] New COM CIDS 1+2 FAULT, SINGLE PTT STUCK, VHF 1(2)(3) EMITTING and VHF 3 DATA FAULT alerts with new flyPad failures (CIDS, stuck PTT, VHF transmitter stuck emitting), and the green AUDIO 3 XFRD memo when the AUDIO SWITCHING selector is not on NORM - @TCdr
+1. [A32NX/PRESS] The residual pressure control unit also opens the outflow valve on the ground when both CPCs are failed, and works below 100 kt on all ADIRS (or with all engines shut down), as in the FCOM - @TCdr
+1. [A32NX/COND] The DITCHING pb closes the emergency ram air inlet (RAM AIR valve on the SD BLEED page) - @TCdr
+1. [A32NX/COND] The AFT ISOL VALVE pb-sw of the CARGO VENT panel works: OFF closes the aft cargo isolation valves (also closed on aft cargo smoke), FAULT and COND AFT CRG ISOL VALVE when a valve disagrees (flyPad failure "AFT cargo ventilation isolation valves stuck closed") - @TCdr
+1. [A32NX/AP] The AUTOLAND light also flashes when both RAs differ by more than 15 ft, and on an untimely flare with one RA inoperative - @TCdr
+1. [A32NX/ATHR] Alpha floor also comes with the sidestick more than 14 degrees nose up with the angle-of-attack protection active, and is lost with an engine out and slats/flaps extended - @TCdr
 
 ## 2024.1.0
 

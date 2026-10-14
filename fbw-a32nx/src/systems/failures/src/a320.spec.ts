@@ -68,6 +68,19 @@ describe('A320 flyPad failures', () => {
     }
   });
 
+  // The id is the Rust failure id of a320_systems_wasm, used by a320_systems cargo_ventilation.rs: the valves model
+  // gives the FAULT light of the AFT ISOL VALVE pb-sw, which the FWC reads for COND AFT CRG ISOL VALVE
+  it('lists the aft cargo isolation valves failure in ATA 21 with the Rust failure it triggers', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.AftCargoIsolationValvesStuckClosed)).toEqual([
+      21,
+      21026,
+      'AFT cargo ventilation isolation valves stuck closed',
+    ]);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    expect(wasm).toContain('(21_026, FailureType::AftCargoIsolationValvesStuckClosed),');
+  });
+
   // TS only: the FWC reads it (FWC/Logic/PredictiveWindshearAlerts.ts), no Rust failure
   it('lists the predictive windshear failure of the weather radar in ATA 34', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
@@ -481,13 +494,7 @@ describe('A320 flyPad failures', () => {
       ],
       [21, 21024, 'AvionicsSkinInletValveStuckOpen', 'Avionics ventilation skin inlet valve stuck open', ventilation],
       [21, 21025, 'AftCargoExtractionFan', 'AFT cargo ventilation extraction fan', ventilation],
-      [
-        21,
-        21026,
-        'AftCargoIsolationValvesStuckClosed',
-        'AFT cargo ventilation isolation valves stuck closed',
-        ventilation,
-      ],
+      // 21026 (AFT cargo isolation valves stuck closed) is a Rust failure: see the ATA 21 test above
       [22, 22012, 'TcasModeFailure', 'FG TCAS mode (AP/FD TCAS, both FMGCs)', tcasMode],
       [23, 23008, 'CidsDirector1', 'CIDS 1 (cabin intercommunication data system)', communication],
       [23, 23009, 'CidsDirector2', 'CIDS 2 (cabin intercommunication data system)', communication],

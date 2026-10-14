@@ -20,6 +20,7 @@ import {
   VentilationAlerts,
   VentilationFailuresSource,
   VentilationSystemInputs,
+  aftCargoIsolValvesCommandedOpen,
   blowerFaultLandAsap,
   blowerFaultLines,
   extractFaultLines,
@@ -52,6 +53,9 @@ const cruiseSystem: VentilationSystemInputs = {
   extractPbAuto: true,
   dcEssBusFault: false,
   aftCargoSmoke: false,
+  aftIsolValvePbAuto: true,
+  aftCargoIsolValvesOpen: true,
+  aftCargoIsolValvesDisagree: false,
   flightPhase: 6,
   onGround: false,
 };
@@ -64,8 +68,10 @@ const noFailure: VentilationAlertInputs = {
   skinExtractValveStuckOpen: false,
   skinInletValveStuckOpen: false,
   aftCargoFanFailed: false,
-  aftCargoIsolValvesStuckClosed: false,
 };
+
+/** The systems.wasm valves stuck closed (flyPad 21026) while commanded open: closed, disagreeing (FAULT light) */
+const isolValvesStuckClosed = { aftCargoIsolValvesOpen: false, aftCargoIsolValvesDisagree: true };
 
 const triggered = (inputs: VentilationAlertInputs) =>
   Object.entries(ventilationAlerts(inputs))
@@ -140,24 +146,41 @@ describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts (FCOM 
     expect(triggered({ ...noFailure, aftCargoFanFailed: true })).toEqual(['aftCargoVentFault']);
     // smoke: the valves close and the fan stops
     expect(triggered({ ...noFailure, aftCargoFanFailed: true, aftCargoSmoke: true })).toEqual([]);
+    // AFT ISOL VALVE pb-sw OFF: the valves close and the fan stops
+    expect(
+      triggered({ ...noFailure, aftCargoFanFailed: true, aftIsolValvePbAuto: false, aftCargoIsolValvesOpen: false }),
+    ).toEqual([]);
     // valves stuck closed: the fan does not run, the valves disagree
-    expect(triggered({ ...noFailure, aftCargoFanFailed: true, aftCargoIsolValvesStuckClosed: true })).toEqual([
+    expect(triggered({ ...noFailure, aftCargoFanFailed: true, ...isolValvesStuckClosed })).toEqual([
       'aftCargoIsolValve',
     ]);
   });
 
-  it('COND AFT CRG ISOL VALVE: the valves disagree with the selected (commanded) position (l.74025)', () => {
-    expect(triggered({ ...noFailure, aftCargoIsolValvesStuckClosed: true })).toEqual(['aftCargoIsolValve']);
-    // commanded closed by the smoke detection: they agree
-    expect(triggered({ ...noFailure, aftCargoIsolValvesStuckClosed: true, aftCargoSmoke: true })).toEqual([]);
+  it('the isolation valves are commanded open with the AFT ISOL VALVE pb-sw in AUTO and no smoke (l.9714-9716)', () => {
+    expect(aftCargoIsolValvesCommandedOpen(noFailure)).toBe(true);
+    expect(aftCargoIsolValvesCommandedOpen({ ...noFailure, aftIsolValvePbAuto: false })).toBe(false);
+    expect(aftCargoIsolValvesCommandedOpen({ ...noFailure, aftCargoSmoke: true })).toBe(false);
   });
 
-  it('follows the flyPad failures 21020-21026', () => {
+  it('COND AFT CRG ISOL VALVE: the systems.wasm valve disagreement, the FAULT light of the pb-sw (l.74025)', () => {
+    expect(triggered({ ...noFailure, ...isolValvesStuckClosed })).toEqual(['aftCargoIsolValve']);
+    // set OFF (or closed by the smoke detection): the closed valves agree, systems.wasm clears the disagreement
+    expect(
+      triggered({
+        ...noFailure,
+        aftIsolValvePbAuto: false,
+        aftCargoIsolValvesOpen: false,
+        aftCargoIsolValvesDisagree: false,
+      }),
+    ).toEqual([]);
+  });
+
+  it('follows the flyPad failures 21020-21025 (21026 is a systems.wasm failure)', () => {
     const failures = new TestFailures();
     const alerts = new VentilationAlerts(failures);
     alerts.init();
     expect(failures.registered).toEqual(VENTILATION_FAILURES);
-    expect(VENTILATION_FAILURES).toEqual([21020, 21021, 21022, 21023, 21024, 21025, 21026]);
+    expect(VENTILATION_FAILURES).toEqual([21020, 21021, 21022, 21023, 21024, 21025]);
     const active = (key: string) => alerts.ewdFailures[key].simVarIsActive.get();
 
     alerts.update(cruiseSystem, true);
@@ -179,7 +202,10 @@ describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts (FCOM 
     for (const failure of VENTILATION_FAILURES) {
       failures.active.add(failure);
     }
-    alerts.update({ ...cruiseSystem, blowerPbAuto: false, extractPbAuto: false }, true);
+    alerts.update(
+      { ...cruiseSystem, blowerPbAuto: false, extractPbAuto: false, aftCargoIsolValvesDisagree: true },
+      true,
+    );
     const expected: [string, number, number[], string[]][] = [
       [VENT_AVNCS_SYS_FAULT_KEY, 1, [3, 4, 5, 6, 7, 8, 9], ['VENT AVNCS SYS FAULT']],
       [VENT_BLOWER_FAULT_KEY, 2, [3, 4, 5, 7, 8], ['VENT BLOWER FAULT']],
