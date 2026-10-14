@@ -629,6 +629,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
 1. [A32NX/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
 1. [A380X/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
+1. [A32NX/ECAM] With the ECAM control panel failed, the ALL, STS and CLR pushbuttons still select, page and clear the SD pages through their hardwired contacts, as in the FCOM - @TCdr
+1. [A32NX/FWC] ENG ALL ENGINES FAILURE always shows -FAC 1 OFF THEN ON, as in the FCOM, not only when FAC 1 has failed - @TCdr
 
 ## 2024.1.0
 

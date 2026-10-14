@@ -5137,7 +5137,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
 #### Hardwired Discretes
 
 - `L:A32NX_ECP_DISCRETE_OUT_STS`
-  - The hardwired discrete for STS button to each FWC.
+  - The hardwired discrete for STS button to each FWC and DMC (still works with the ECAM control panel failed).
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_RCL`
@@ -5145,7 +5145,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_CLR`
-  - The hardwired discrete for CLR button to each FWC.
+  - The hardwired discrete for CLR button to each FWC and DMC (still works with the ECAM control panel failed).
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_EMER_CANC`
@@ -5153,7 +5153,7 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
   - Boolean
 
 - `L:A32NX_ECP_DISCRETE_OUT_ALL`
-  - The hardwired discrete for emergency cancel/audio suppression to each DMC.
+  - The hardwired discrete for ALL button to each DMC (still works with the ECAM control panel failed).
   - Boolean
 
 ### FWC voices

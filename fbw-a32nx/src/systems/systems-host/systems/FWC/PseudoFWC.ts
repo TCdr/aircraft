@@ -2368,8 +2368,6 @@ export class PseudoFWC {
 
   public readonly radioHeight2 = Arinc429Register.empty();
 
-  private readonly fac1Failed = Subject.create(0);
-
   private readonly toMemo = Subject.create(false);
   private readonly toMemoFlipFlop = new NXLogicMemoryNode(false);
   private readonly toMemoConf = new NXLogicConfirmNode(120, true);
@@ -3881,8 +3879,6 @@ export class PseudoFWC {
     this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool'));
 
     this.radioAlt.set(SimVar.GetSimVarValue('PLANE ALT ABOVE GROUND MINUS CG', 'feet'));
-
-    this.fac1Failed.set(SimVar.GetSimVarValue('L:A32NX_FBW_FAC_FAILED:1', 'boost psi'));
 
     this.autoBrake.set(SimVar.GetSimVarValue('L:A32NX_AUTOBRAKES_ARMED_MODE', 'enum'));
 
@@ -8529,7 +8525,6 @@ export class PseudoFWC {
             this.pressureAltitudeFt,
           ),
           thrustLeverAboveIdle: this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0,
-          fac1Failed: this.fac1Failed.get() === 1,
         }),
       codesToReturn: ALL_ENGINES_FAILURE_CODES,
       memoInhibit: () => false,
