@@ -1628,6 +1628,40 @@ export class LongitudeDmsFormat implements DataEntryFormat<number> {
   }
 }
 
+/**
+ * Latitude field of the POSITION / IRS Align On Other Reference panel: the latitude entry of the DATA pages, shown as
+ * DDMM.MX without the degree sign (A380 FCOM DSC-22-FMS-20-30 P 281 figure: 3856.7N).
+ */
+export class AlignReferenceLatitudeFormat extends LatitudeDmsFormat {
+  public readonly placeholder: string = '----.-';
+
+  public format(value: number | null): FieldFormatTuple {
+    const [text, leading, trailing] = super.format(value);
+    return [
+      value === null || value === undefined ? this.placeholder : text?.replace('°', '') ?? null,
+      leading,
+      trailing,
+    ];
+  }
+}
+
+/**
+ * Longitude field of the POSITION / IRS Align On Other Reference panel: the longitude entry of the DATA pages, shown as
+ * DDDMM.MY without the degree sign (A380 FCOM DSC-22-FMS-20-30 P 281 figure: 07727.3W).
+ */
+export class AlignReferenceLongitudeFormat extends LongitudeDmsFormat {
+  public readonly placeholder: string = '-----.-';
+
+  public format(value: number | null): FieldFormatTuple {
+    const [text, leading, trailing] = super.format(value);
+    return [
+      value === null || value === undefined ? this.placeholder : text?.replace('°', '') ?? null,
+      leading,
+      trailing,
+    ];
+  }
+}
+
 function formatDegreesMinutes(value: number, degreeDigits: number, hemisphere: string): string {
   const absolute = Math.abs(value);
   const degrees = Math.floor(absolute);

@@ -12,8 +12,16 @@ import { SdPages } from './EcamSystemPages';
 // A380 FCOM DSC-31-40-20 (MORE pb): the SD displays the MORE information page available when MORE appears on the
 // system display pages and STATUS page; pressing the pb again clears the MORE information page.
 
-/** The SD pages that have a MORE information page. Only STATUS MORE is implemented so far. */
-export const SD_PAGES_WITH_MORE: readonly SdPages[] = [SdPages.Status];
+/**
+ * The SD pages that have a MORE information page:
+ * - STATUS MORE (DSC-31-40-10), shown only when the STATUS page has MORE information (isStatusMoreAvailable);
+ * - FUEL MORE: "The MORE key on the ECP can be used to display additional fuel system information" (A380 FCOM
+ *   DSC-28-20, a380_fcom.txt l.58352-58371);
+ * - WHEEL MORE: "The MORE key on the ECP can be used to display additional landing gear information" (A380 FCOM
+ *   DSC-32-20-30, l.81015-81024).
+ * The FUEL and WHEEL pages always have their MORE page.
+ */
+export const SD_PAGES_WITH_MORE: readonly SdPages[] = [SdPages.Status, SdPages.Fuel, SdPages.Wheel];
 
 /**
  * Whether the STATUS page has a STATUS MORE page: the REDUND LOSS items, the ALERTS IMPACTING LDG PERF, the CANCELLED
@@ -72,11 +80,22 @@ export function sdMoreShownAfterMorePb(
 
 /**
  * The MORE page state to keep on every FWS cycle: the MORE page (and so the MORE pb light) goes away when the SD
- * leaves the page, or when that page has no MORE information any more.
+ * leaves the page, or when that page has no MORE information any more. The MORE page belongs to the page it was shown
+ * on: going from WHEEL MORE to the FUEL page shows the FUEL page, not FUEL MORE ("pressing the pb again clears the MORE
+ * information page", DSC-31-40-20).
  * @param page the page shown on the SD
  * @param moreShown whether the MORE page is currently shown
  * @param statusMoreAvailable result of {@link isStatusMoreAvailable}
+ * @param moreShownOnPage the page on which the MORE page was shown, undefined when not known
  */
-export function sdMoreShownToKeep(page: SdPages, moreShown: boolean, statusMoreAvailable: boolean): boolean {
+export function sdMoreShownToKeep(
+  page: SdPages,
+  moreShown: boolean,
+  statusMoreAvailable: boolean,
+  moreShownOnPage?: SdPages,
+): boolean {
+  if (moreShownOnPage !== undefined && moreShownOnPage !== page) {
+    return false;
+  }
   return moreShown && isSdMoreAvailable(page, statusMoreAvailable);
 }

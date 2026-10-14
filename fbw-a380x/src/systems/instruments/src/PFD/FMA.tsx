@@ -39,10 +39,14 @@ import {
   getD1D2Lines,
   D1D2Messages,
   isCheckEoSpeedSetting,
+  isSpeedAtUpperMargin,
+  speedBrakeMessage,
 } from './FMADefinitions';
+import { FmsVars } from '../MsfsAvionicsCommon/providers/FmsDataPublisher';
 import { FcdcBusBaseEvents } from '@shared/publishers/FcdcPublisher';
 import { FcuEfisCpBusEvents } from '../../../shared/src/publishers/EfisCpBusPublisher';
 import { getDisplayIndex } from './PFD';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 abstract class ShowForSecondsComponent<T extends ComponentProps> extends DisplayComponent<T> {
   private timeout: number = 0;
@@ -77,7 +81,13 @@ export class FMA extends DisplayComponent<{
   readonly isAttExcessive: Subscribable<boolean>;
 }> {
   private sub = this.props.bus.getSubscriber<
-    PFDSimvars & Arinc429Values & DmcLogicEvents & PrimFgBusBaseEvents & PrimFeBusBaseEvents & FcdcBusBaseEvents
+    PFDSimvars &
+      Arinc429Values &
+      DmcLogicEvents &
+      PrimFgBusBaseEvents &
+      PrimFeBusBaseEvents &
+      FcdcBusBaseEvents &
+      FmsVars
   >();
 
   private primFgDiscreteWord1 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_1'));
@@ -98,6 +108,9 @@ export class FMA extends DisplayComponent<{
 
   private readonly fcdcDiscreteWord1 = Arinc429LocalVarConsumerSubject.create(this.sub.on('fcdc_discrete_word_1'));
 
+  /** FCDC discrete word 4 bit 28: the speed brake command (as FwsCore speedBrakeCommand) */
+  private readonly fcdcDiscreteWord4 = Arinc429LocalVarConsumerSubject.create(this.sub.on('fcdc_discrete_word_4'));
+
   private readonly ap1Engaged = this.primFgDiscreteWord1.map((word) => word.bitValueOr(11, false));
 
   private readonly ap2Engaged = this.primFgDiscreteWord1.map((word) => word.bitValueOr(12, false));
@@ -113,6 +126,24 @@ export class FMA extends DisplayComponent<{
   private setHoldSpeed = ConsumerSubject.create(this.sub.on('setHoldSpeed'), false);
 
   private tdReached = ConsumerSubject.create(this.sub.on('tdReached'), false);
+
+  /** CHECK APPR SEL, set by the FMS (FmsAdvisoryMessages, CheckApproachSelection.ts) */
+  private readonly checkApprSel = ConsumerSubject.create(this.sub.on('checkApprSel'), false).map((it) => !!it);
+
+  /* Inputs of EXTEND SPD BRK / RETRACT SPD BRK (FMADefinitions speedBrakeMessage) */
+  private readonly flapHandleIndex = ConsumerSubject.create(this.sub.on('flapHandleIndex'), 0);
+
+  private readonly linearDeviationActive = ConsumerSubject.create(this.sub.on('linearDeviationActive'), false);
+
+  private readonly pathTargetAltitude = ConsumerSubject.create(this.sub.on('targetAltitude'), 0);
+
+  private readonly showSpeedMargins = ConsumerSubject.create(this.sub.on('showSpeedMargins'), false);
+
+  private readonly upperSpeedMargin = ConsumerSubject.create(this.sub.on('upperSpeedMargin'), 0);
+
+  private readonly computedAirspeed = Arinc429ConsumerSubject.create(
+    this.props.bus.getArincSubscriber<Arinc429Values>().on('speedAr'),
+  );
 
   /** CHECK SPD MODE, set by the FMS (FlightManagementComputer triggerCheckSpeedModeMessage) */
   private readonly checkSpeedMode = ConsumerSubject.create(this.sub.on('checkSpeedMode'), false).map((it) => !!it);
@@ -203,6 +234,68 @@ export class FMA extends DisplayComponent<{
     this.greenDotSpeed,
   );
 
+  /** The vertical path deviation in feet, positive above the path, null when the PFD does not show it */
+  private readonly linearDeviation = MappedSubject.create(
+    ([active, altitude, targetAltitude]) =>
+      active && altitude.isNormalOperation() ? altitude.value - targetAltitude : null,
+    this.linearDeviationActive,
+    this.altitude,
+    this.pathTargetAltitude,
+  );
+
+  private readonly speedAtUpperMargin = MappedSubject.create(
+    ([show, upper, cas]) => isSpeedAtUpperMargin(!!show, upper, cas.isNormalOperation() ? cas.value : null),
+    this.showSpeedMargins,
+    this.upperSpeedMargin,
+    this.computedAirspeed,
+  );
+
+  private readonly spdBrkMessage = MappedSubject.create(
+    ([
+      B1Message,
+      athrEngaged,
+      athrActive,
+      atsFmaWord,
+      autoBrakeActive,
+      autoBrakeMode,
+      flightPhase,
+      flapHandleIndex,
+      fcdcWord4,
+      linearDeviation,
+      speedAtUpperMargin,
+    ]) =>
+      speedBrakeMessage({
+        desActive: B1Message === B1Messages.DES,
+        altOrAltStarActive:
+          B1Message === B1Messages.ALT ||
+          B1Message === B1Messages.ALT_STAR ||
+          B1Message === B1Messages.ALT_CST ||
+          B1Message === B1Messages.ALT_CST_STAR ||
+          B1Message === B1Messages.ALT_CRZ ||
+          B1Message === B1Messages.ALT_CRZ_STAR,
+        descentOrApproachPhase: flightPhase === FmgcFlightPhase.Descent || flightPhase === FmgcFlightPhase.Approach,
+        thrustIdle:
+          computeA1A2Message(athrEngaged, athrActive, atsFmaWord, autoBrakeActive, autoBrakeMode) ===
+          A1A2Messages.THR_IDLE,
+        // L:A32NX_FLAPS_HANDLE_INDEX: 0, 1, 2, 3, 4 (FULL)
+        flapsConf3OrFull: flapHandleIndex >= 3,
+        speedBrakesExtended: fcdcWord4.bitValueOr(28, false),
+        linearDeviationFt: linearDeviation,
+        speedAtUpperMargin,
+      }),
+    this.B1Message,
+    this.athrEngaged,
+    this.athrActive,
+    this.primFgAtsFmaDiscreteWord,
+    this.autoBrakeActive,
+    this.autoBrakeMode,
+    this.fmgcFlightPhase,
+    this.flapHandleIndex,
+    this.fcdcDiscreteWord4,
+    this.linearDeviation,
+    this.speedAtUpperMargin,
+  );
+
   private readonly BC3Message = MappedSubject.create(
     ([
       isAttExcessive,
@@ -216,6 +309,8 @@ export class FMA extends DisplayComponent<{
       btvExitMissed,
       checkSpeedMode,
       checkEoSpeedSetting,
+      spdBrkMessage,
+      checkApprSel,
     ]) => {
       return computeBC3Message(
         isAttExcessive,
@@ -229,6 +324,8 @@ export class FMA extends DisplayComponent<{
         primFgDiscreteWord6,
         checkSpeedMode,
         checkEoSpeedSetting,
+        spdBrkMessage,
+        checkApprSel,
       );
     },
     this.props.isAttExcessive,
@@ -242,6 +339,8 @@ export class FMA extends DisplayComponent<{
     this.btvExitMissed,
     this.checkSpeedMode,
     this.checkEoSpeedSetting,
+    this.spdBrkMessage,
+    this.checkApprSel,
   );
 
   private readonly A1A2Message = MappedSubject.create(

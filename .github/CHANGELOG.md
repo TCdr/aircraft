@@ -614,6 +614,62 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BLEED] The two engine bleed valves of a side share the airflow equally while the crossbleed valve of that side is open - @TCdr
 1. [A380X/BLEED] The crossbleed valves follow their own CPIOM-A pair (A1/A2 left, A3/A4 center and right): with both CPIOMs of a pair failed, the valve no longer opens or closes at AUTO, the XBLEED selector still moves it - @TCdr
 1. [A380X/BLEED] New APU bleed, pack bay, hot-air duct and forward cargo duct leak detection, with flyPad failures: the APU bleed, the pack valves or the hot-air valve close, and the APU BLEED, PACK or HOT AIR FAULT light comes on - @TCdr
+1. [A380X/SD] WHEEL page: the ECP MORE key shows the WHEEL MORE page, BRK CTL and STEER CTL lines show a failed BCS, EBCU or SCS, AUTO BRAKE only on an autobrake failure, green or amber arc on the hottest brake, gear triangles and doors from LGCIS 1 and 2 - @TCdr
+1. [A380X/SD] FUEL page: the ECP MORE key shows the FUEL MORE page - @TCdr
+1. [A380X/PFD] FMA line 3: EXTEND SPD BRK, RETRACT SPD BRK and CHECK APPR SEL now show; CHECK APPR SEL also on the MFD - @TCdr
+1. [A380X/FUEL] Load alleviation transfers: to the outer tanks after takeoff (FOB above 110 200 lb), from the trim tank and from the outer tanks (down to half) before landing, from the FMS remaining time to destination or the descent below FL 245 - @TCdr
+1. [A380X/FUEL] Reduced main transfer thresholds of the feed tanks when the remaining time to destination is below 90 min - @TCdr
+1. [A380X/FUEL] AUTO GND XFR pushbutton: automatic ground transfer to the ground CG target of 39.5 % (trim tank to or from the inner, then mid tanks), GND XFR IN PROGRESS memo, light flashing when the FQMS aborts - @TCdr
+1. [A380X/FUEL] TRIM TK FEED logic (ISOL stops the trim tank transfers, OPEN gravity transfer to the inner tanks), from an L:var as the cockpit has no selector - @TCdr
+1. [A380X/FUEL] Alternate transfers after a transfer pump failure: an inner or mid tank with a failed fwd pump keeps feeding with its aft pump, an outer tank with a failed pump empties by gravity into feed tank 2 or 3 - @TCdr
+1. [A32NX/MCDU] HOLD page: LAST EXIT UTC and FUEL predicted (the EXTRA fuel burnt in the hold), and a database hold of the waypoint is used again (its inbound course was lost) - @TCdr
+1. [A32NX/MCDU] ATSU DATALINK page: AOC MENU on 1R as in the FCOM - @TCdr
+1. [A32NX/MCDU] New messages CHECK FLT NBR (the uplinked flight number differs from the INIT REQUEST one) and CSTR DEL ABOVE CRZ FL (a new CRZ FL deletes the altitude constraints at or above it, a window keeps its lower limit) - @TCdr
+1. [A380X/MFD] HOLD page: the DATABASE button selects the database hold of the waypoint, LAST EXIT time and EFOB are predicted, and the hold stays COMPUTED or DATABASE until the flight crew changes a parameter - @TCdr
+1. [A380X/MFD] CLOSEST AIRPORTS: time and EFOB with a cruise at the CRZ FL then an idle descent to the airport elevation - @TCdr
+1. [A380X/MFD] New FMS messages CONSTRAINTS ABOVE CRZ FL: DELETED (a new CRZ FL deletes the constraints at or above it), CHECK EO SPD SETTING, NO NAV INTERCEPTION, INSERT OR ERASE TMPY F-PLN FIRST (KCCU DIR key with a pending temporary flight plan) and RECEIVED FLT NUMBER NOT VALID - @TCdr
+1. [A380X/FWS] New CAB COM CIDS 1+2+3 FAULT, CIDS CABIN COM FAULT and COM DEGRADED alerts with their flyPad failures (CIDS 1/2/3, upper/main/lower deck PA, cabin interphone, PA and interphone degraded) - @TCdr
+1. [A380X/FWS] New COM CAPT (F/O)(THIRD OCCUPANT) PTT STUCK and VHF 1(2)(3) EMITTING alerts from new flyPad failures of the PTT switches, VHF 3 DATALINK FAULT on the VHF 3 failure, COM DATALINK FAULT when VHF 3 is failed or in voice mode, PA IN USE memo while a PA transmission key is on - @TCdr
+1. [A380X/FWS] New APU MACH LIMIT EXCEEDED caution (APU running above M 0.5) and APU OIL FILTER CLOGGED alert with its flyPad failure - @TCdr
+1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
+1. [A32NX/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
+1. [A380X/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
+1. [A380X/HYD] The hydraulic reservoirs hold 31.70 US gal and RSVR LEVEL LO triggers below 2.6 US gal as in the FCOM (was 100 l and 5 l); the SD HYD page amber low level mark follows the same limit - @TCdr
+1. [A380X/HYD] The yellow electric pumps started automatically for pushback or towing pressurise only the body wheel steering, as in the FCOM, instead of the whole yellow system; electric pumps started with the ELEC PMP ON pb pressurise the whole system (green: except the cargo doors), and an ON pb pressed while its pump runs in automatic mode is disregarded - @TCdr
+1. [A380X/HYD] The HSMU switches off an overheated electric pump, as in the FCOM - @TCdr
+1. [A380X/HYD] ENG PMP FAULT lights on a system overheat and stays on with the pb-sw OFF until the overheat ends; ENG PMP A+B DISC FAULT lights on a reservoir low level whatever the ENG PMP pb-sw, and on an overheat only when turning the pump off failed; ELEC PMP FAULT lights for SYS OVHT, RSVR LEVEL LO and RSVR AIR PRESS LO only on ground with all engines off, as in the FCOM - @TCdr
+1. [A32NX/FWC] New ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT and VIB SYS FAULT alerts with their procedures, STATUS lines and new flyPad failures; an inhibited reverser no longer deploys - @TCdr
+1. [A32NX/FWC] New DATALINK ATSU FAULT and DATALINK COMPANY FAULT alerts with STATUS INOP SYS ATSU and DATA COMPANY, new flyPad failures of the ATSU (no datalink) and of its AOC function (no company datalink), and a green COMPANY DATALINK STBY memo while no air-ground datalink is available - @TCdr
+1. [A380X/FUEL] Fuel tank temperatures, shown on the FUEL SD page (outer and trim tanks, feed tanks when abnormal or with MORE), with the FUEL TEMP LO and FUEL FEED TK TEMP HI alerts - @TCdr
+1. [A380X/FUEL] Collector cell quantities from the feed tanks (they empty when the engine is fed by gravity) instead of a fixed value, with the FUEL COLLECTOR CELL NOT FULL alerts - @TCdr
+1. [A380X/FUEL] Weight and balance backup computer: FUEL WEIGHT DATA DISAGREE and FUEL CG DATA DISAGREE against a wrong FMS ZFW or ZFWCG, FUEL EXCESS AFT CG, and the FMS CG backup - @TCdr
+1. [A380X/FWS] FUEL CG AT FWD LIMIT and FUEL CG OUT OF RANGE from the FCOM CG envelope, and the FUEL INR/MID/OUTR/TRIM TK MAN XFR COMPLETED alerts - @TCdr
+1. [A380X/FWS] FUEL FEED TK LEVEL LO: the TRIM TK FEED and transfer pushbutton lines are now shown and ticked - @TCdr
+1. [A380X/FWS] New AVIONICS NETWORK alerts from the AFDX switch and IOM failures: ALL SWITCHES FAULT, DOUBLE / MULTIPLE SWITCH FAULT and DOUBLE / MULTIPLE IOM FAULT (NETWORK or REDUNDANCY DEGRADED) - @TCdr
+1. [A380X/FWS] New COM ATC DATALINK FAULT (CPIOM D1 lost, ATC COM VOICE ONLY), COM ADS DATALINK FAULT, COM NSS DATA TO AVNCS XFR FAULT (pb-sw OFF) and COM NSS/AVNCS DATA XFR FAULT alerts, with new flyPad failures of SCI 1, SCI 2 and the ADS function; both SCIs failed stop the AOC - @TCdr
+1. [A380X/DATALINK] A failed VHF 3 now stops the datalink (CPDLC, AOC) as COM VHF 3 DATALINK FAULT says - @TCdr
+1. [A380X/MFD] SURV pages: the XPDR label shows a failed XPDR, TURB and PRED W/S fail with their WXR, and TAWS 1(2) IN USE when the TAWS comes from the other SURV system - @TCdr
+1. [A380X/SURV] With the selected TAWS failed and the other WXR failed, the TAWS (GPWS, terrain on ND and VD) comes from the other SURV system - @TCdr
+1. [A380X/MFD] POSITION / IRS: the ALIGN ON OTHER REF panel defines the IRS alignment reference position (PREFLIGHT and DONE phases) - @TCdr
+1. [A380X/MFD] Alternate company routes: ALTN RTE entry on the INIT page and INSERT on the ROUTE SELECTION page, with the DEST / ALTN CPNY RTE DISAGREE message; the ALTERNATE page selection creates a temporary flight plan - @TCdr
+1. [A380X/ENG] Derated takeoff: the MFD PERF T.O DERATED list has the six levels D04 to D24, the selected level reduces the takeoff thrust at the FLX/MCT detent by 4 to 24 % and shows on the E/WD in place of FLX - @TCdr
+1. [A380X/REV] The tertiary lock of the thrust reversers is only released on the ground - @TCdr
+1. [A380X/ENG] The start valve no longer opens for a start with the core above 25 % N2 (no running engagement of the starter) - @TCdr
+1. [A380X/ENG] Both igniters come on when the engine is at idle in heavy rain (SD ENGINE page) - @TCdr
+1. [A380X/ENG] New flyPad failures: engine control system fault, control valve, FADEC engine identification, fuel and oil filter bypass, thrust rating disagree, reverser minor fault and reverser inhibited by maintenance - @TCdr
+1. [A32NX/MCDU] FUEL PRED: the FOB fuel sensors can be selected (/FF+FQ, /FF, /FQ) and the FOB entered in flight, with the SENSOR IS INVALID message; the predictions use that FOB - @TCdr
+1. [A32NX/MCDU] PROG REPORT page: OVHD waypoint with its time, altitude, SAT, wind and FOB recorded at the sequencing, TO/NEXT predicted time and altitude, T/D (S/C, S/D) time and distance in cruise, DEST time, distance and EFOB; the page no longer takes entries - @TCdr
+1. [A32NX/MCDU] PREDICTIVE GPS page: DEST ETA from the predictions (or crew entry), PRIMARY Y/N lines from the GPS receivers, reference waypoint and time entry, deselected satellites - @TCdr
+1. [A32NX/PFD] Amber CHECK ATT and CHECK HDG messages on the PFDs (and CHECK HDG on the NDs, not in PLAN mode) when the two sides disagree by 5 degrees or more in pitch, roll or heading - @TCdr
+1. [A32NX/PFD] Red V1 INOP flag instead of the V1 when no FM is healthy, and red ILS1(2)/DME1(2) flags when the onside ILS receiver or DME interrogator loses its power with LS on - @TCdr
+1. [A32NX/SD] The lower SD shows the FCU selected altitude in metres (green) when METRIC ALT is selected - @TCdr
+1. [A32NX/FWC] NAV ALTI DISCREPANCY and CHECK ALT trigger at 500 ft with the STD baro reference (250 ft with QNH or QFE), as in the FCOM - @TCdr
+1. [A32NX/APU] APU values from the FCOM: EGT MAX 1 090 °C during the start (1 120 °C above 35 000 ft) and 675 °C running, starter cut-out at N 60 %, and N 99 % while the APU bleed feeds the packs between -18 and 35 °C - @TCdr
+1. [A32NX/APU] The APU shuts down automatically at EGT MAX and when its air intake flap closes (new flyPad failure "APU air intake flap failed closed"); after an automatic shutdown the air intake flap stays open and closes 15 min after N 7 % (after liftoff when on the ground) - @TCdr
+1. [A32NX/FUEL] The APU fuel pump starts automatically when no left tank pump runs; with neither the APU gets no fuel pressure (FUEL LO PR) - @TCdr
+1. [A380X/FWS] STATUS INOP SYS shows STBY RAD NAV with RMPs 1+2 (or all RMPs) failed, and the GPWS, TERR SYS and TAWS lines of the SURV faults under APPR & LDG instead of ALL PHASES - @TCdr
+1. [A380X/FWS] New IR 1(2)(3)(1+2)(1+3)(2+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos while IRs align in ATT mode, and a new DATALINK STBY memo while the ACARS provider link is temporarily lost with VHF 3 in data mode - @TCdr
+1. [A380X/FWS] NAV ALL AIR DATA DISAGREE radome destruction line now reads FMS FUEL PRED DISREGARD, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

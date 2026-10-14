@@ -5,6 +5,7 @@
 
 import {
   ClockEvents,
+  ConsumerSubject,
   DisplayComponent,
   FSComponent,
   MappedSubject,
@@ -28,10 +29,29 @@ import { VerticalTape } from './VerticalTape';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
 import { RateLimiter } from './PFDUtils';
+import { isV1InopShown } from './shared/PfdFlags';
 
 const ValueSpacing = 10;
 const DistanceSpacing = 10;
 const DisplayRange = 42;
+
+/**
+ * Whether the V1 INOP flag replaces the V1 (A320 FCOM DSC-31-40, a320_fcom.txt l.47815-47816): the V1 bug and the
+ * digital V1 are hidden while it is shown.
+ * @param bus the PFD event bus
+ * @returns the V1 INOP state
+ */
+function createV1InopShown(bus: ArincEventBus): Subscribable<boolean> {
+  const sub = bus.getSubscriber<PFDSimvars>();
+  return MappedSubject.create(
+    ([v1Knots, fm1Healthy, fm2Healthy, fwcFlightPhase]) =>
+      isV1InopShown({ v1Knots, anyFmHealthy: fm1Healthy > 0 || fm2Healthy > 0, fwcFlightPhase }),
+    ConsumerSubject.create(sub.on('v1'), 0),
+    ConsumerSubject.create(sub.on('fm1HealthyDiscrete'), 0),
+    ConsumerSubject.create(sub.on('fm2HealthyDiscrete'), 0),
+    ConsumerSubject.create(sub.on('fwcFlightPhase'), 0),
+  );
+}
 
 class V1BugElement extends DisplayComponent<{ bus: ArincEventBus }> {
   private offsetSub = Subject.create('translate3d(0px, 0px, 0px)');
@@ -41,6 +61,8 @@ class V1BugElement extends DisplayComponent<{ bus: ArincEventBus }> {
   private flightPhase = 0;
 
   private v1Speed = 0;
+
+  private readonly v1InopShown = createV1InopShown(this.props.bus);
 
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -61,6 +83,8 @@ class V1BugElement extends DisplayComponent<{ bus: ArincEventBus }> {
         this.flightPhase = g;
         this.getV1Visibility();
       });
+
+    this.v1InopShown.sub(() => this.getV1Visibility());
   }
 
   private getV1Offset() {
@@ -69,7 +93,7 @@ class V1BugElement extends DisplayComponent<{ bus: ArincEventBus }> {
   }
 
   private getV1Visibility() {
-    if (this.flightPhase <= 4 && this.v1Speed > 0) {
+    if (this.flightPhase <= 4 && this.v1Speed > 0 && !this.v1InopShown.get()) {
       this.visibilitySub.set('visible');
     } else {
       this.visibilitySub.set('hidden');
@@ -964,6 +988,8 @@ class V1Offtape extends DisplayComponent<{ bus: ArincEventBus }> {
 
   private v1Speed = 0;
 
+  private readonly v1InopShown = createV1InopShown(this.props.bus);
+
   onAfterRender() {
     const sub = this.props.bus.getArincSubscriber<PFDSimvars & Arinc429Values>();
 
@@ -1000,9 +1026,25 @@ class V1Offtape extends DisplayComponent<{ bus: ArincEventBus }> {
 
   render() {
     return (
-      <text ref={this.v1TextRef} id="V1SpeedText" class="FontTiny Cyan" x="21.271021" y="43.23">
-        0
-      </text>
+      <>
+        <g class={{ HiddenElement: this.v1InopShown }}>
+          <text ref={this.v1TextRef} id="V1SpeedText" class="FontTiny Cyan" x="21.271021" y="43.23">
+            0
+          </text>
+        </g>
+        {/*
+          V1 INOP flag (red, steady, l.47908), in place of the digital V1 (l.47816) at the top of the speed scale. Shown
+          whether the V1 would be on or off the scale: the FCOM gives no position, this one is a design choice.
+        */}
+        <text
+          id="V1InopFlag"
+          class={{ FontTiny: true, Red: true, EndAlign: true, HiddenElement: this.v1InopShown.map((v) => !v) }}
+          x="29.2"
+          y="43.23"
+        >
+          V1 INOP
+        </text>
+      </>
     );
   }
 }

@@ -7,6 +7,14 @@ import { NXUnits, useInterval } from '@flybywiresim/fbw-sdk-react';
 import { engineLpValveIndication } from './EngineLpValveIndication';
 import { jettisonValveIndication } from './JettisonValveIndication';
 import { WingImbalanceIndication } from './FuelImbalanceIndication';
+import {
+  collectorCellQuantityVar,
+  FUEL_TEMP_LO_C,
+  fuelTankTemperatureVar,
+  isCollectorCellNotFull,
+  isFeedTankTemperatureAbnormal,
+  isTemperatureSensorImmersed,
+} from '@shared/FuelTankIndications';
 
 export const FuelPage = () => {
   const CROSS_FEED_VALVE_CLOSED_THRESHOLD = 0.1;
@@ -14,7 +22,10 @@ export const FuelPage = () => {
   const JETTISON_VALVE_CLOSED_THRESHOLD = 0.1;
   const FEED_TANK_LOW_LEVEL_THRESHOLD_KG = 1375;
 
-  const [showMore] = useState(false);
+  // A380 FCOM DSC-28-20 (a380_fcom.txt l.58352-58371): the MORE key on the ECP shows the FUEL MORE page. The FWS owns
+  // the MORE state (EcamSdMore, FwsSystemDisplayLogic).
+  const [moreShownVar] = useSimVar('L:A32NX_ECAM_SD_MORE_SHOWN', 'number', 200);
+  const showMore = moreShownVar > 0;
 
   const [eng1FuelUsed] = useSimVar('L:A32NX_FUEL_USED:1', 'kg', 1000); // kg
   const [eng2FuelUsed] = useSimVar('L:A32NX_FUEL_USED:2', 'kg', 1000); // kg
@@ -734,15 +745,24 @@ export const FuelPage = () => {
   const leftJettisonIndication = jettisonValveIndication(isLeftJettisonValveOpen, isJettisonActive);
   const rightJettisonIndication = jettisonValveIndication(isRightJettisonValveOpen, isJettisonActive);
 
-  // Collector cells
-  const collectorCell1Weight = 1200;
+  // Collector cells, from the feed tanks (CpiomF/FuelCollectorCells); amber when not full (FCOM DSC-28-20 l.58553-58580)
+  const [collectorCell1Weight] = useSimVar(collectorCellQuantityVar(1), 'number', 1000);
   const isCollectorCell1NotFull = useCollectorCellState(collectorCell1Weight);
-  const collectorCell2Weight = 1200;
+  const [collectorCell2Weight] = useSimVar(collectorCellQuantityVar(2), 'number', 1000);
   const isCollectorCell2NotFull = useCollectorCellState(collectorCell2Weight);
-  const collectorCell3Weight = 1200;
+  const [collectorCell3Weight] = useSimVar(collectorCellQuantityVar(3), 'number', 1000);
   const isCollectorCell3NotFull = useCollectorCellState(collectorCell3Weight);
-  const collectorCell4Weight = 1200;
+  const [collectorCell4Weight] = useSimVar(collectorCellQuantityVar(4), 'number', 1000);
   const isCollectorCell4NotFull = useCollectorCellState(collectorCell4Weight);
+
+  // Fuel temperatures (CpiomF/FuelTankTemperatures)
+  const [leftOuterTemperature] = useSimVar(fuelTankTemperatureVar('LEFT_OUTER'), 'number', 1000);
+  const [rightOuterTemperature] = useSimVar(fuelTankTemperatureVar('RIGHT_OUTER'), 'number', 1000);
+  const [trimTemperature] = useSimVar(fuelTankTemperatureVar('TRIM'), 'number', 1000);
+  const [feed1Temperature] = useSimVar(fuelTankTemperatureVar('FEED_1'), 'number', 1000);
+  const [feed2Temperature] = useSimVar(fuelTankTemperatureVar('FEED_2'), 'number', 1000);
+  const [feed3Temperature] = useSimVar(fuelTankTemperatureVar('FEED_3'), 'number', 1000);
+  const [feed4Temperature] = useSimVar(fuelTankTemperatureVar('FEED_4'), 'number', 1000);
   const isAnyCollectorCellNotFull =
     isCollectorCell1NotFull || isCollectorCell2NotFull || isCollectorCell3NotFull || isCollectorCell4NotFull;
 
@@ -888,9 +908,17 @@ export const FuelPage = () => {
         underline={imbalance.feed[0]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
-        // FEED TANK 1 collector cell (inop.)
+        // FEED TANK 1 collector cell
         <TankQuantity x={138} y={268} smallFont quantity={collectorCell1Weight} hasFault={isCollectorCell1NotFull} />
       )}
+      <FeedTankTemperature x={130} y={326} temperature={feed1Temperature} showMore={showMore} />
+      <OuterOrTrimTankTemperature
+        x={78}
+        y={406}
+        tank="LEFT_OUTER"
+        quantity={leftOuterTankWeight}
+        temperature={leftOuterTemperature}
+      />
       {/* Feed tank 1 main pump */}
       <Pump
         x={95}
@@ -936,9 +964,10 @@ export const FuelPage = () => {
         underline={imbalance.feed[1]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
-        // FEED TANK 2 collector cell (inop.)
+        // FEED TANK 2 collector cell
         <TankQuantity x={310} y={252} smallFont quantity={collectorCell2Weight} hasFault={isCollectorCell2NotFull} />
       )}
+      <FeedTankTemperature x={298} y={314} temperature={feed2Temperature} showMore={showMore} />
       {/* Feed tank 2 main pump */}
       <Pump
         x={258}
@@ -979,9 +1008,10 @@ export const FuelPage = () => {
         underline={imbalance.feed[2]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
-        // FEED TANK 3 collector cell (inop.)
+        // FEED TANK 3 collector cell
         <TankQuantity x={518} y={252} smallFont quantity={collectorCell3Weight} hasFault={isCollectorCell3NotFull} />
       )}
+      <FeedTankTemperature x={504} y={314} temperature={feed3Temperature} showMore={showMore} />
       {/* Feed tank 3 main pump */}
       <Pump
         x={476}
@@ -1027,9 +1057,17 @@ export const FuelPage = () => {
         underline={imbalance.feed[3]}
       />
       {(showMore || isAnyCollectorCellNotFull) && (
-        // FEED TANK 4 collector cell (inop.)
+        // FEED TANK 4 collector cell
         <TankQuantity x={690} y={268} smallFont quantity={collectorCell4Weight} hasFault={isCollectorCell4NotFull} />
       )}
+      <FeedTankTemperature x={672} y={326} temperature={feed4Temperature} showMore={showMore} />
+      <OuterOrTrimTankTemperature
+        x={724}
+        y={406}
+        tank="RIGHT_OUTER"
+        quantity={rightOuterTankWeight}
+        temperature={rightOuterTemperature}
+      />
       {/* Feed tank 4 main pump */}
       <Pump
         x={639}
@@ -1335,6 +1373,13 @@ export const FuelPage = () => {
 
         {/* TRIM TANK */}
         <TankQuantity x={418} y={640} quantity={trimTankWeight} />
+        <OuterOrTrimTankTemperature
+          x={394}
+          y={612}
+          tank="TRIM"
+          quantity={trimTankWeight}
+          temperature={trimTemperature}
+        />
       </g>
     </>
   );
@@ -1780,16 +1825,49 @@ const ApuIndication: FC<ApuIndicationProps> = ({ x1, x2, y, showMore }) => {
   );
 };
 
+/** A collector cell not full, with the hysteresis of FUEL COLLECTOR CELL NOT FULL (FuelTankIndications) */
 const useCollectorCellState = (weight: number) => {
-  const [isCollectorCellNotFull, setCollectorCellNotFull] = useState(false);
+  const [notFull, setNotFull] = useState(false);
 
   useEffect(() => {
-    if (!isCollectorCellNotFull && weight < 780) {
-      setCollectorCellNotFull(true);
-    } else if (isCollectorCellNotFull && weight > 940) {
-      setCollectorCellNotFull(false);
-    }
+    setNotFull((wasNotFull) => isCollectorCellNotFull(weight, wasNotFull));
   }, [weight]);
 
-  return isCollectorCellNotFull;
+  return notFull;
 };
+
+interface FuelTemperatureProps extends Position {
+  temperature: number;
+}
+
+/** A fuel temperature: the value, in °C, then the cyan unit */
+const FuelTemperatureText: FC<FuelTemperatureProps & { amber: boolean }> = ({ x, y, temperature, amber }) => (
+  <>
+    <text x={x} y={y} className={`${amber ? 'Amber' : 'Green'} T3`} textAnchor="end">
+      {Math.round(temperature)}
+    </text>
+    <text x={x + 2} y={y} className="Cyan T2">
+      °C
+    </text>
+  </>
+);
+
+/**
+ * A feed tank fuel temperature (A380 FCOM DSC-28-20 l.58763-58776): "The feed tank temperature appears, in case of low or
+ * high temperature, or when the MORE key is pressed", amber above 53 °C or below -40 °C.
+ */
+const FeedTankTemperature: FC<FuelTemperatureProps & { showMore: boolean }> = ({ x, y, temperature, showMore }) => {
+  const abnormal = isFeedTankTemperatureAbnormal(temperature);
+  return abnormal || showMore ? <FuelTemperatureText x={x} y={y} temperature={temperature} amber={abnormal} /> : null;
+};
+
+/**
+ * An outer or trim tank fuel temperature (A380 FCOM DSC-28-20 l.58693-58713): displayed while its sensor is immersed,
+ * amber below -40 °C.
+ */
+const OuterOrTrimTankTemperature: FC<
+  FuelTemperatureProps & { tank: 'LEFT_OUTER' | 'RIGHT_OUTER' | 'TRIM'; quantity: number | null }
+> = ({ x, y, tank, quantity, temperature }) =>
+  quantity !== null && isTemperatureSensorImmersed(tank, quantity) ? (
+    <FuelTemperatureText x={x} y={y} temperature={temperature} amber={temperature < FUEL_TEMP_LO_C} />
+  ) : null;

@@ -62,6 +62,7 @@ import {
 } from '../shared/NXSystemMessages';
 import { DataManager, LatLonFormatType, PilotWaypoint } from '@fmgc/flightplanning/DataManager';
 import { bearingTo, Coordinates } from 'msfs-geo';
+import { isAlignReferenceLost } from './IrsAlignReference';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
 import { MfdDisplayInterface } from '../MFD';
 import { FmcIndex } from './FmcServiceInterface';
@@ -95,6 +96,8 @@ import { CompanyTakeoffData } from './CompanyTakeoffData';
 import { TakeoffPowerSetting } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FmsPrinter } from './FmsPrinter';
 import { FmsAdvisoryMessages } from './FmsAdvisoryMessages';
+import { isValidA380FlightNumber } from '@fmgc/components/fms-messages/FmsMessageConditions';
+import { deleteConstraintsAboveCruiseLevel } from '@fmgc/flightplanning/plans/CruiseLevelConstraints';
 import { AtcRouteClearanceLoader } from './AtcRouteClearanceLoader';
 import { NdInteractiveRevisions } from './NdInteractiveRevisions';
 import { RejectedAtcElement } from './AtcRouteClearance';
@@ -104,6 +107,7 @@ import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { toCoRoute } from './StoredRouteUtils';
+import { alternateRouteFixes } from './AlternateCompanyRoute';
 import { CoRouteUplinkAdapter } from '@fmgc/flightplanning/uplink/CoRouteUplinkAdapter';
 import { AtsuStatusCodes } from '@datalink/common';
 import { AtsuToFmsEvents, FmsToAtsuEvents, WindUplinkResponse } from '@providers/FmsAtsuBusPublisher';
@@ -113,6 +117,7 @@ import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
 import { engineFailureCreatesEngineOutSid } from './EngineOutSid';
+import { writeTakeoffDerate } from '../shared/TakeoffDerate';
 
 export interface FmsErrorMessage {
   message: McduMessage;
@@ -356,6 +361,22 @@ export class FlightManagementComputer implements FmcInterface {
     }
   }
 
+  /**
+   * Inserts an alternate company route (from the primary destination to its alternate destination): re-initializes the
+   * alternate flight plan with the en-route fixes of the route, without a temporary flight plan (INIT page ALTN RTE and
+   * ROUTE SELECTION page, AlternateCompanyRoute.ts).
+   */
+  async insertAlternateCompanyRoute(route: StoredRoute, intoPlan: FlightPlanIndex): Promise<void> {
+    const fixes = await alternateRouteFixes(route.navlog, (ident) =>
+      NavigationDatabaseService.activeDatabase.searchAllFix(ident),
+    );
+    await this.flightPlanInterface.insertAlternateCompanyRoute(route.destinationIcao, fixes, intoPlan);
+    this.fmgc.data.alternateCompanyRoute(intoPlan).set({ ident: route.ident, alternateIcao: route.destinationIcao });
+    if (intoPlan === FlightPlanIndex.Active) {
+      this.acInterface.updateFmsData();
+    }
+  }
+
   private efisSymbolsLeft!: EfisSymbols<number>;
   private efisSymbolsRight!: EfisSymbols<number>;
 
@@ -481,6 +502,12 @@ export class FlightManagementComputer implements FmcInterface {
   private readonly checkDestDataMessage = Subject.create(false);
 
   public readonly approachFlapsThreeSelected = Subject.create(false);
+
+  /**
+   * The IRS alignment reference position defined on the POSITION / IRS Align On Other Reference panel (IrsAlignReference.ts),
+   * null while the IRS align on the GPS position. Kept until all the IRS are switched off, or the FMS resets.
+   */
+  public readonly irsAlignReferencePosition = Subject.create<Coordinates | null>(null);
 
   private destDataCheckedInCruise = false;
 
@@ -1362,12 +1389,37 @@ export class FlightManagementComputer implements FmcInterface {
           doUplinkProcedures: false,
         },
       );
+      this.checkReceivedFlightNumber(intoPlan);
     } catch (e) {
       this.cpnyFplnRequestedForPlan.set(null);
       console.error(e);
       logTroubleshootingError(this.bus, e);
       this.addMessageToQueue(NXSystemMessages.receivedCpnyFplnNotValid, undefined, undefined);
       this.onUplinkDone(false);
+    }
+  }
+
+  /**
+   * RECEIVED FLT NUMBER NOT VALID (A380 FCOM l.45976-45982): "The received flight number, that is part of the up linked
+   * flight plan data, is not valid." (FLT NBR entry format l.43411-43417: maximum 10 alphanumeric characters). The flight
+   * number of the flight plan is kept. Design choice: without one, the received flight number stays (the flight crew
+   * sees the message and can overwrite it on the INIT page).
+   * @param intoPlan the flight plan the uplink is for
+   */
+  private checkReceivedFlightNumber(intoPlan: FlightPlanIndex): void {
+    if (!this.#flightPlanService.hasUplink) {
+      return;
+    }
+    const received = this.#flightPlanService.uplink.flightNumber.get();
+    if (isValidA380FlightNumber(received)) {
+      return;
+    }
+    this.addMessageToQueue(NXSystemMessages.receivedFltNumberNotValid, undefined, undefined);
+    const current = this.#flightPlanService.has(intoPlan)
+      ? this.#flightPlanService.get(intoPlan).flightNumber.get()
+      : null;
+    if (current !== null) {
+      this.#flightPlanService.uplink.setFlightNumber(current);
     }
   }
 
@@ -1657,6 +1709,8 @@ export class FlightManagementComputer implements FmcInterface {
       this.addMessageToQueue(NXSystemMessages.checkToData);
       const flex = this.#flightPlanService.active?.performanceData.flexTakeoffTemperature.get();
       SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', flex === 0 ? 0.1 : flex ?? 0);
+      const performanceData = this.#flightPlanService.active?.performanceData;
+      writeTakeoffDerate(performanceData?.takeoffPowerSetting?.get(), performanceData?.takeoffDeratedSetting?.get());
     }
 
     if (zfwDiff !== null && zfwDiff > 5 && zfwCgDiff !== null && zfwCgDiff > 0.5) {
@@ -1953,6 +2007,8 @@ export class FlightManagementComputer implements FmcInterface {
       this.flightPlanInterface.setPerformanceData('takeoffPowerSetting', TakeoffPowerSetting.TOGA, plan);
       SimVar.SetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'Number', 0);
     }
+    // the uplinked thrust is TOGA or FLEX: no DOx derate for the FADECs
+    writeTakeoffDerate(TakeoffPowerSetting.TOGA, null);
     this.flightPlanInterface.setPerformanceData('takeoffShift', uplink.shift, plan);
     if (uplink.thrustReductionAltitude !== null) {
       this.flightPlanInterface.setPerformanceData('pilotThrustReductionAltitude', uplink.thrustReductionAltitude, plan);
@@ -2425,6 +2481,14 @@ export class FlightManagementComputer implements FmcInterface {
     if (throttledDt !== -1) {
       this.navigation.update(throttledDt);
       this.#timeKeeper.update(throttledDt);
+      if (
+        this.irsAlignReferencePosition.get() !== null &&
+        isAlignReferenceLost(
+          [1, 2, 3].map((ir) => SimVar.GetSimVarValue(`L:A32NX_OVHD_ADIRS_IR_${ir}_MODE_SELECTOR_KNOB`, 'Enum')),
+        )
+      ) {
+        this.irsAlignReferencePosition.set(null);
+      }
       this.#sequencedWaypointRecorder?.update();
       if (this.instance === FmcIndex.FmcA) {
         this.#printer ??= new FmsPrinter(this, this.bus);
@@ -2745,6 +2809,7 @@ export class FlightManagementComputer implements FmcInterface {
     this.navigation.resetState();
     this.acInterface.resetDestinationPredictions();
     this.resetAtisAutoUpdate();
+    this.irsAlignReferencePosition.set(null);
   }
 
   public logTroubleshootingError(msg: any) {
@@ -2850,6 +2915,11 @@ export class FlightManagementComputer implements FmcInterface {
       }
     }
     plan.setPerformanceData('cruiseFlightLevel', flightLevelToInsert);
+    // CONSTRAINTS ABOVE CRZ FL: DELETED (A380 FCOM l.27100-27104, l.45252, l.45260-45262): the climb and descent
+    // constraints at or above the new CRZ FL are deleted (see CruiseLevelConstraints.ts)
+    if (deleteConstraintsAboveCruiseLevel(plan, flightLevelToInsert) > 0) {
+      this.addMessageToQueue(NXSystemMessages.constraintsAboveCrzFlDeleted, undefined, undefined);
+    }
     if (flightLevelToInsert > (this.getRecMaxFlightLevel(intoPlan) ?? Infinity)) {
       this.addMessageToQueue(NXSystemMessages.crzFlAboveMaxFL, undefined, undefined);
     }

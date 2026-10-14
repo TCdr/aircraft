@@ -26,6 +26,16 @@ export function engineTakeoffPowerSignal(tlaDegrees: number, flexTempSet: boolea
   return (flexTempSet && inMctDetent) || fullPower || aboveMct;
 }
 
+/**
+ * The FLX/MCT detent is a take-off power setting: a FLEX TEMP is entered, or a DOx derated takeoff is selected (A380 FCOM
+ * DSC-22-FG-50-30 l.11406-11408: "DERATED has been selected on the T.O panel of the FMS PERF page ... FLX-MCT").
+ * @param flexTemperature L:A32NX_AIRLINER_TO_FLEX_TEMP (0 for no FLEX TEMP)
+ * @param takeoffDeratePercent L:A32NX_AIRLINER_TO_DERATE (0 for no derate)
+ */
+export function reducedTakeoffThrustSet(flexTemperature: number, takeoffDeratePercent: number): boolean {
+  return flexTemperature !== 0 || takeoffDeratePercent > 0;
+}
+
 /** At least two thrust levers at take-off power (the condition of flight phases 3 to 5) */
 export function twoEnginesTakeoffPowerSignal(tlasDegrees: readonly number[], flexTempSet: boolean): boolean {
   return tlasDegrees.filter((tla) => engineTakeoffPowerSignal(tla, flexTempSet)).length >= 2;

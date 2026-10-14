@@ -96,8 +96,12 @@ import {
   XpdrTcasSwitchLine,
 } from './FwsSurvAlerts';
 import { isTcasInoperative, selectedSurvSystem, SurvSystem } from '../../Misc/Communications/TransponderSystem';
+import { publishedTawsSystem } from '../../Misc/TawsSystemInUse';
 import { FwsInopSys, FwsInopSysPhases } from './FwsInopSys';
 import { FwsInformation } from './FwsInformation';
+import { isIrInAttAlign } from './IrAttAlignMemo';
+import { isDatalinkStby } from './DatalinkStbyMemo';
+import { AcarsConnector } from '@datalink/router';
 import { FwsLimitations, FwsLimitationsPhases, withoutAllPhasesDuplicates } from './FwsLimitations';
 import { FwsAirDataAlerts, readAirDataAlertInputs } from './FwsAirDataAlerts';
 // FIXME should not import from instruments
@@ -150,6 +154,7 @@ import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import { EngineStartFault, EngineStartPhase, isIgnitionMemoShown, StartValveFault } from './EngineStartAlerts';
 import {
   FeedTankLevelLoMonitor,
+  FeedTankPumpFlags,
   readCrossFeedPbSelections,
   readCrossFeedValveFlags,
   readFeedTankPumpFlags,
@@ -220,9 +225,48 @@ import {
   isLdgElevnFault,
   ramAirMemoIndex,
 } from './CabPressAlerts';
-import { ApuFaultInputs, isApuFault } from './ApuFaultAlerts';
-import { SMOKE_ZONES, smokeWarnings } from './SmokeAlerts';
+import { ApuFaultInputs, isApuFault, isApuMachLimitExceeded, isApuOilFilterClogged } from './ApuFaultAlerts';
+import { CargoSmokeTest, SMOKE_ZONES, smokeWarningsWithTest } from './SmokeAlerts';
+import {
+  CidsAlerts,
+  cidsAlerts,
+  ComTransmissionMonitor,
+  datalinkAlerts,
+  informationSystemAlerts,
+  isPaInUse,
+  readRmpTransmissionKeys,
+  RmpTransmissionKeys,
+} from './CommunicationAlerts';
+import {
+  afdxSwitchFlyPadFailure,
+  avionicsNetworkAlerts,
+  isAfdxSwitchFailed,
+  iomFlyPadFailure,
+  isIomFailed,
+} from './AvionicsNetworkAlerts';
 import { fuelTransferMemos, TankOutflowMonitor } from './FuelTransferMemos';
+import {
+  CgOutOfRangeMonitor,
+  CgOutOfRangeState,
+  ExcessAftCgMonitor,
+  FuelCgProcedureInputs,
+  isCgAtFwdLimit,
+  isCgDataDisagree,
+  isWeightDataDisagree,
+  TrimTankFeedSelector,
+  WeightAndCg,
+} from './FwsFuelCgWeightAlerts';
+import {
+  CollectorCellNotFullMonitor,
+  FeedTankLevelLoTransferInputs,
+  FuelTankProcedureInputs,
+  fuelTempLoState,
+  isFeedTankTempHi,
+  manualTransferCompleted,
+  TEMP_LO_OUTER_XFR_FEED_TANK_KG,
+  TempLoState,
+} from './FwsFuelTankAlerts';
+import { collectorCellQuantityVar, fuelTankTemperatureVar } from '@shared/FuelTankIndications';
 import { ElecPumpRedundancyLoss, enginePumpPressLoStatus } from './HydPumpStatus';
 import { AbnormBleedConfigInputs, isAbnormBleedConfig } from './AbnormBleedConfig';
 import { BleedMonitoringInputs, isBleedLeak, isEngineBleedFault } from './BleedMonitoringAlerts';
@@ -589,6 +633,9 @@ export class FwsCore {
   public readonly wingAntiIce = Subject.create(false);
 
   public readonly voiceVhf3 = Subject.create(false);
+
+  /** DATALINK STBY memo (DatalinkStbyMemo) */
+  public readonly datalinkStby = Subject.create(false);
 
   public readonly smokeFumesActivated = this.activeAbnormalNonSensedKeys.map((set) => set.has(260900097));
 
@@ -1051,6 +1098,83 @@ export class FwsCore {
 
   public readonly rmp3ActiveMode = ConsumerSubject.create(this.vhfSub.on(`vhf_com_active_mode_3`), FrequencyMode.Data);
 
+  /** The CAB COM alerts from the CIDS failures (CommunicationAlerts cidsAlerts) */
+  public cidsAlertsState: CidsAlerts = cidsAlerts({
+    directorFailed: [false, false, false],
+    upperDeckPaFailed: false,
+    mainDeckPaFailed: false,
+    lowerDeckPaFailed: false,
+    cabinInterphoneFailed: false,
+    paDegraded: false,
+    cabinInterphoneDegraded: false,
+  });
+
+  public readonly cids123Fault = Subject.create(false);
+
+  public readonly cidsCabinComFault = Subject.create(false);
+
+  public readonly cabComDegraded = Subject.create(false);
+
+  /** The transmission keys selected on RMP 1, 2, 3 (CommunicationAlerts readRmpTransmissionKeys) */
+  public rmpTransmissionKeys: RmpTransmissionKeys[] = [1, 2, 3].map(() => ({
+    vhf: [false, false, false],
+    pa: false,
+    any: false,
+  }));
+
+  /** The PTT switch and VHF transmission timers (CommunicationAlerts ComTransmissionMonitor) */
+  private readonly comTransmissionMonitor = new ComTransmissionMonitor();
+
+  /** COM CAPT, F/O, THIRD OCCUPANT PTT STUCK */
+  public readonly pttStuck = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  /** COM VHF 1, 2, 3 EMITTING */
+  public readonly vhfEmitting = [Subject.create(false), Subject.create(false), Subject.create(false)];
+
+  /** COM DATALINK FAULT (CommunicationAlerts datalinkAlerts) */
+  public readonly comDatalinkFault = Subject.create(false);
+
+  /** COM VHF 3 DATALINK FAULT */
+  public readonly vhf3DatalinkFault = Subject.create(false);
+
+  /** The PA IN USE memo (CommunicationAlerts isPaInUse) */
+  public readonly paInUse = Subject.create(false);
+
+  /* 42 - AVIONICS NETWORK and 46 - INFORMATION SYSTEM (AvionicsNetworkAlerts, CommunicationAlerts) */
+
+  /** AVIONICS NETWORK ALL SWITCHES FAULT */
+  public readonly avncsNetworkAllSwitchesFault = Subject.create(false);
+
+  /** AVIONICS NETWORK DOUBLE SWITCH FAULT */
+  public readonly avncsNetworkDoubleSwitchFault = Subject.create(false);
+
+  /** AVIONICS NETWORK MULTIPLE SWITCH FAULT (NETWORK DEGRADED) */
+  public readonly avncsNetworkMultipleSwitchFaultNetworkDegraded = Subject.create(false);
+
+  /** AVIONICS NETWORK MULTIPLE SWITCH FAULT (REDUNDANCY DEGRADED) */
+  public readonly avncsNetworkMultipleSwitchFaultRedundancyDegraded = Subject.create(false);
+
+  /** AVIONICS NETWORK DOUBLE IOM FAULT */
+  public readonly avncsNetworkDoubleIomFault = Subject.create(false);
+
+  /** AVIONICS NETWORK MULTIPLE IOM FAULT (NETWORK DEGRADED) */
+  public readonly avncsNetworkMultipleIomFaultNetworkDegraded = Subject.create(false);
+
+  /** AVIONICS NETWORK MULTIPLE IOM FAULT (REDUNDANCY DEGRADED) */
+  public readonly avncsNetworkMultipleIomFaultRedundancyDegraded = Subject.create(false);
+
+  /** COM ADS DATALINK FAULT */
+  public readonly comAdsDatalinkFault = Subject.create(false);
+
+  /** COM ATC DATALINK FAULT */
+  public readonly comAtcDatalinkFault = Subject.create(false);
+
+  /** COM NSS DATA TO AVNCS XFR FAULT */
+  public readonly comNssDataToAvncsXfrFault = Subject.create(false);
+
+  /** COM NSS/AVNCS DATA XFR FAULT */
+  public readonly comNssAvncsDataXfrFault = Subject.create(false);
+
   /* 24 - ELECTRICAL */
 
   public readonly ac1BusPowered = Subject.create(false);
@@ -1366,8 +1490,17 @@ export class FwsCore {
   /** L:A32NX_SMOKE_<zone>_DET_FAULT of each SMOKE_ZONES compartment */
   public readonly smokeZoneDetFault = SMOKE_ZONES.map(() => Subject.create(false));
 
-  /** The SMOKE warning of each SMOKE_ZONES compartment (SmokeAlerts smokeWarnings) */
+  /** The SMOKE warning of each SMOKE_ZONES compartment (SmokeAlerts smokeWarningsWithTest) */
   public readonly smokeZoneWarning = SMOKE_ZONES.map(() => Subject.create(false));
+
+  /** The 3 s hold of the cargo smoke TEST pb (SmokeAlerts CargoSmokeTest) */
+  private readonly cargoSmokeTest = new CargoSmokeTest();
+
+  /** L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT: SMOKE DET FAULT (the SDF of systems.wasm is failed) */
+  public readonly smokeDetectionFunctionFault = Subject.create(false);
+
+  /** L:A32NX_ENTERTAINMENT_IFEC_OFF: the IFEC pb-sw is OFF (SMOKE DET FAULT) */
+  public readonly ifecOff = Subject.create(false);
 
   /** L:A32NX_CARGOSMOKE_BOTTLE_1(2)_LOW_PRESSURE: SMOKE FWD+AFT CARGOS BTL 1(2) FAULT */
   public readonly cargoBottleLowPressure = [Subject.create(false), Subject.create(false)];
@@ -1769,11 +1902,103 @@ export class FwsCore {
   /** TRIM TK XFRD memo: the trim tank is empty (FuelTransferMemos) */
   public readonly trimTankXfrd = Subject.create(false);
 
+  /** GND XFR IN PROGRESS memo: the automatic ground transfer of the FQMS is in progress (FuelTransferMemos) */
+  public readonly gndXfrInProgress = Subject.create(false);
+
   /** The left (right) inner tank holds fuel */
   public readonly innerTankNotEmpty = [0, 1].map(() => Subject.create(false));
 
   /** The left (right) mid tank holds fuel */
   public readonly midTankNotEmpty = [0, 1].map(() => Subject.create(false));
+
+  // FCOM gap batch T2-16: FUEL CG / weight alerts (FwsFuelCgWeightAlerts) and tank alerts (FwsFuelTankAlerts)
+  private readonly fqmsGrossWeight = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_gross_weight'));
+
+  private readonly cgOutOfRangeMonitor = new CgOutOfRangeMonitor();
+
+  private readonly excessAftCgMonitor = new ExcessAftCgMonitor();
+
+  private readonly collectorCellNotFullMonitor = new CollectorCellNotFullMonitor();
+
+  /** FUEL CG AT FWD LIMIT */
+  public readonly fuelCgAtFwdLimit = Subject.create(false);
+
+  /** FUEL CG OUT OF RANGE, and which of its triggers is active (for its lines) */
+  public readonly fuelCgOutOfRange = Subject.create(false);
+
+  public fuelCgOutOfRangeState: CgOutOfRangeState = {
+    active: false,
+    takeoffLimitsAtEngineStart: false,
+    alternateCgAbove54: false,
+  };
+
+  /** FUEL EXCESS AFT CG */
+  public readonly fuelExcessAftCg = Subject.create(false);
+
+  /** FUEL CG DATA DISAGREE */
+  public readonly fuelCgDataDisagree = Subject.create(false);
+
+  /** FUEL WEIGHT DATA DISAGREE */
+  public readonly fuelWeightDataDisagree = Subject.create(false);
+
+  /** FUEL COLLECTOR CELL 1-4 NOT FULL */
+  public readonly fuelCollectorCellNotFull = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** FUEL FEED TK 1-4 TEMP HI */
+  public readonly fuelFeedTankTempHi = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** FUEL TEMP LO, and which tanks are below -40 °C (for its lines) */
+  public readonly fuelTempLo = Subject.create(false);
+
+  public fuelTempLoState: TempLoState = { active: false, outerTankLo: false, trimTankLo: false, feedTankLo: false };
+
+  /** Any feed tank below 35 300 lb, the WHEN line of FUEL TEMP LO */
+  public anyFeedTankBelowTempLoOuterXfrQty = false;
+
+  /** FUEL INR TKs, MID TKs, OUTR TKs and TRIM TK MAN XFR COMPLETED */
+  public readonly fuelInnerTankManXfrCompleted = Subject.create(false);
+
+  public readonly fuelMidTankManXfrCompleted = Subject.create(false);
+
+  public readonly fuelOuterTankManXfrCompleted = Subject.create(false);
+
+  public readonly fuelTrimTankManXfrCompleted = Subject.create(false);
+
+  /** The pb-sw selections that the T2-16 fuel procedures sense */
+  public fuelTankProcedureInputs: FuelTankProcedureInputs = {
+    onGround: true,
+    feedMainPbOn: [false, false, false, false],
+    feedStbyPbOn: [false, false, false, false],
+    crossFeedPbOn: [false, false, false, false],
+    outerXfrMan: false,
+    midXfrMan: false,
+    innerXfrMan: false,
+    trimXfrFwd: false,
+    trimTankFeedAuto: true,
+    emerOuterXfrOn: false,
+  };
+
+  /** What the CG alert procedures sense */
+  public fuelCgProcedureInputs: FuelCgProcedureInputs = {
+    trimTankFeed: TrimTankFeedSelector.Auto,
+    trimTankXfrAuto: true,
+    outerTankXfrAuto: true,
+    trimTankPumpAvailable: false,
+    trimTankHoldsFuel: false,
+    outerTanksHoldFuel: false,
+    autoGroundTransferOn: false,
+    trimTankColdFuel: false,
+  };
+
+  /** What the transfer lines of FUEL FEED TK(s) LEVEL LO read */
+  public feedTankLevelLoTransferInputs: FeedTankLevelLoTransferInputs = {
+    trimTankGravityXfrInProgress: false,
+    outerTanksHoldFuel: false,
+    trimTankHoldsFuel: false,
+    innerTanksHoldFuel: false,
+    midTanksHoldFuel: false,
+    trimTankPumpRunning: false,
+  };
 
   public readonly crossFeedOpenMemo = MappedSubject.create(
     ([cf1, cf2, cf3, cf4]) => [cf1, cf2, cf3, cf4].filter((c) => c === true).length >= 2,
@@ -2296,6 +2521,11 @@ export class FwsCore {
   public readonly ir2Pitch = Arinc429Register.empty();
   public readonly ir3Pitch = Arinc429Register.empty();
 
+  /** IR 1, 2, 3 in ATT alignment: the IR n IN ATT ALIGN memos (IrAttAlignMemo) */
+  public readonly ir1InAttAlign = Subject.create(false);
+  public readonly ir2InAttAlign = Subject.create(false);
+  public readonly ir3InAttAlign = Subject.create(false);
+
   public readonly ir1Fault = Subject.create(false);
   public readonly ir2Fault = Subject.create(false);
   public readonly ir3Fault = Subject.create(false);
@@ -2701,6 +2931,9 @@ export class FwsCore {
   /** The take-off thrust mode of the FADECs is FLEX, for the lines of ENG THR LEVERS NOT SET (EngineTakeoffAlerts.ts) */
   public readonly flexTakeoffMode = Subject.create(false);
 
+  /** A DOx derated takeoff is selected on the MFD (L:A32NX_AIRLINER_TO_DERATE), for ENG THR LEVERS NOT SET */
+  public readonly derateTakeoffMode = Subject.create(false);
+
   /** ENG 1(2)(3)(4) THRUST LOSS, by engine (EngineThrustAlerts.ts) */
   public readonly engineThrustLoss = [1, 2, 3, 4].map(() => Subject.create(false));
 
@@ -2907,6 +3140,12 @@ export class FwsCore {
 
   /** APU FAULT (ApuFaultAlerts isApuFault) */
   public readonly apuFault = Subject.create(false);
+
+  /** APU MACH LIMIT EXCEEDED (ApuFaultAlerts isApuMachLimitExceeded) */
+  public readonly apuMachLimitExceeded = Subject.create(false);
+
+  /** APU OIL FILTER CLOGGED (ApuFaultAlerts isApuOilFilterClogged) */
+  public readonly apuOilFilterClogged = Subject.create(false);
 
   /** The bleed, crossbleed and pack state for AIR ABNORM BLEED CONFIG (AbnormBleedConfig) */
   public abnormBleedConfigInputs: AbnormBleedConfigInputs = {
@@ -3404,6 +3643,7 @@ export class FwsCore {
       this.masterWarningOutput,
       this.fuelOnBoard,
       this.fqmsGrossWeightCgPercent,
+      this.fqmsGrossWeight,
       this.fqmsStatusWord,
       this.fqmsZfwOrZfwCgNotSet,
       this.fqmsZfwOrZfwCgDisagree,
@@ -4656,6 +4896,9 @@ export class FwsCore {
         this.ir3MaintWord.bitValueOr(17, false) ||
         this.ir3MaintWord.bitValueOr(18, false),
     );
+    this.ir1InAttAlign.set(isIrInAttAlign(this.ir1MaintWord, this.ir1Pitch));
+    this.ir2InAttAlign.set(isIrInAttAlign(this.ir2MaintWord, this.ir2Pitch));
+    this.ir3InAttAlign.set(isIrInAttAlign(this.ir3MaintWord, this.ir3Pitch));
     this.adiru1ModeSelector.set(SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB', 'enum'));
     this.adiru2ModeSelector.set(SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_2_MODE_SELECTOR_KNOB', 'enum'));
     this.adiru3ModeSelector.set(SimVar.GetSimVarValue('L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB', 'enum'));
@@ -5172,6 +5415,7 @@ export class FwsCore {
         SimVar.GetSimVarValue('TOTAL AIR TEMPERATURE', 'celsius'),
       ),
     );
+    this.derateTakeoffMode.set(SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_DERATE', 'number') > 0);
     this.thrustLeverNotSet.set(
       isThrustLeversNotSet({
         tlaDegrees: [
@@ -5187,6 +5431,7 @@ export class FwsCore {
           this.engine4State.get(),
         ] as FadecEngineState[],
         flexTakeoffMode: this.flexTakeoffMode.get(),
+        derateTakeoffMode: this.derateTakeoffMode.get(),
       }),
     );
     // ENG THRUST LOSS and ENG T.O THRUST DISAGREE (FCOM PRO-ABN-ECAM-10-70, EngineThrustAlerts.ts): the max THR and the
@@ -5969,6 +6214,77 @@ export class FwsCore {
     this.strobeLightsOn.set(SimVar.GetSimVarValue('L:LIGHTING_STROBE_0', 'Bool'));
 
     this.voiceVhf3.set(this.rmp3ActiveMode.get() !== FrequencyMode.Data);
+    // DATALINK STBY memo: VHF 3, the only data medium of the sim, is working and in data mode (no COM DATALINK FAULT,
+    // set below, one update old here), and the ACARS provider link of the ACR router (CpiomD/Acr.ts, same systems
+    // host) is temporarily lost
+    this.datalinkStby.set(
+      isDatalinkStby({
+        dataModeAvailable: !this.comDatalinkFault.get(),
+        linkTemporarilyLost: AcarsConnector.isLinkTemporarilyLost(),
+      }),
+    );
+
+    // ATA 23: the CAB COM / COM alerts and the PA IN USE memo (CommunicationAlerts)
+    const comFailureActive = (failure: number) => this.failuresConsumer.isActive(failure);
+    this.cidsAlertsState = cidsAlerts({
+      directorFailed: [A380Failure.CidsDirector1, A380Failure.CidsDirector2, A380Failure.CidsDirector3].map(
+        comFailureActive,
+      ),
+      upperDeckPaFailed: comFailureActive(A380Failure.UpperDeckPa),
+      mainDeckPaFailed: comFailureActive(A380Failure.MainDeckPa),
+      lowerDeckPaFailed: comFailureActive(A380Failure.LowerDeckPa),
+      cabinInterphoneFailed: comFailureActive(A380Failure.CabinInterphone),
+      paDegraded: comFailureActive(A380Failure.PaDegraded),
+      cabinInterphoneDegraded: comFailureActive(A380Failure.CabinInterphoneDegraded),
+    });
+    this.cids123Fault.set(this.cidsAlertsState.cids123Fault);
+    this.cidsCabinComFault.set(this.cidsAlertsState.cabinComFault);
+    this.cabComDegraded.set(this.cidsAlertsState.comDegraded);
+    this.rmpTransmissionKeys = [1, 2, 3].map((rmp) =>
+      readRmpTransmissionKeys(rmp, (name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool) > 0),
+    );
+    const comTransmission = this.comTransmissionMonitor.update(
+      {
+        pttPressed: [A380Failure.CaptPttStuck, A380Failure.FoPttStuck, A380Failure.ThirdOccupantPttStuck].map(
+          comFailureActive,
+        ),
+        rmpKeys: this.rmpTransmissionKeys,
+      },
+      deltaTime,
+    );
+    comTransmission.pttStuck.forEach((stuck, index) => this.pttStuck[index].set(stuck));
+    comTransmission.vhfEmitting.forEach((emitting, index) => this.vhfEmitting[index].set(emitting));
+    const datalink = datalinkAlerts({
+      vhf3Failed: comFailureActive(A380Failure.Vhf3),
+      vhf3DataMode: !this.voiceVhf3.get(),
+    });
+    this.comDatalinkFault.set(datalink.datalinkFault);
+    this.vhf3DatalinkFault.set(datalink.vhf3DatalinkFault);
+    this.paInUse.set(isPaInUse(this.rmpTransmissionKeys));
+
+    // ATA 42 / 46: the AVIONICS NETWORK alerts and the information system COM alerts
+    const readBoolLvar = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool) > 0;
+    const avncsNetwork = avionicsNetworkAlerts({
+      switchFailed: (id) => isAfdxSwitchFailed(id, comFailureActive(afdxSwitchFlyPadFailure(id)), readBoolLvar),
+      iomFailed: (name) => isIomFailed(name, comFailureActive(iomFlyPadFailure(name)), readBoolLvar),
+    });
+    this.avncsNetworkAllSwitchesFault.set(avncsNetwork.allSwitchesFault);
+    this.avncsNetworkDoubleSwitchFault.set(avncsNetwork.doubleSwitchFault);
+    this.avncsNetworkMultipleSwitchFaultNetworkDegraded.set(avncsNetwork.multipleSwitchFaultNetworkDegraded);
+    this.avncsNetworkMultipleSwitchFaultRedundancyDegraded.set(avncsNetwork.multipleSwitchFaultRedundancyDegraded);
+    this.avncsNetworkDoubleIomFault.set(avncsNetwork.doubleIomFault);
+    this.avncsNetworkMultipleIomFaultNetworkDegraded.set(avncsNetwork.multipleIomFaultNetworkDegraded);
+    this.avncsNetworkMultipleIomFaultRedundancyDegraded.set(avncsNetwork.multipleIomFaultRedundancyDegraded);
+    const infoSys = informationSystemAlerts({
+      cpiomD1Available: readBoolLvar('L:A32NX_CPIOM_D1_AVAIL'),
+      adsFunctionFailed: comFailureActive(A380Failure.AdsFunction),
+      nssDataToAvncsPbOff: !readBoolLvar('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE'),
+      sciFailed: [comFailureActive(A380Failure.Sci1), comFailureActive(A380Failure.Sci2)],
+    });
+    this.comAdsDatalinkFault.set(infoSys.adsDatalinkFault);
+    this.comAtcDatalinkFault.set(infoSys.atcDatalinkFault);
+    this.comNssDataToAvncsXfrFault.set(infoSys.nssDataToAvncsXfrFault);
+    this.comNssAvncsDataXfrFault.set(infoSys.nssAvncsDataXfrFault);
 
     /* FUEL */
     // Feed tanks 1 to 4 = MSFS tanks 2, 5, 6 and 9, each with its own 30 s confirmation (FeedTankLevelLoMonitor)
@@ -6635,7 +6951,11 @@ export class FwsCore {
 
     // TERR STBY: the TAWS of the selected system is operative, but the TERR function cannot rely on the aircraft
     // position (A380 FCOM DSC-34-20-20-10: system data such as the aircraft position; the TAWS takes it from ADIRU 1).
-    const tawsSystem = this.tawsWxrSelected.get();
+    // The TAWS of the system in use: the other SYS after an automatic reconfiguration (TawsSystemInUse.ts)
+    const tawsSystem = publishedTawsSystem(
+      this.tawsWxrSelected.get(),
+      SimVar.GetSimVarValue('L:A32NX_TAWS_SYS_IN_USE', SimVarValueType.Number),
+    );
     const tawsOperative =
       (tawsSystem === 1 && taws1Powered && !this.gpws1Failed.get() && !this.terrSys1Failed.get()) ||
       (tawsSystem === 2 && taws2Powered && !this.gpws2Failed.get() && !this.terrSys2Failed.get());
@@ -6777,15 +7097,21 @@ export class FwsCore {
       outerTanksKg,
       jettisonInProgress: this.fuelJettisonInProgress.get(),
       fuelingInProgress,
+      groundTransferInProgress:
+        SimVar.GetSimVarValue('L:A380X_FUEL_AUTO_GND_XFR_IN_PROGRESS', SimVarValueType.Bool) > 0,
     });
     this.fwdXfrInProgress.set(transferMemos.fwdXfrInProgress);
     this.outerTankXfrInProgress.set(transferMemos.outerTankXfrInProgress);
     this.outerTanksXfrd.set(transferMemos.outerTanksXfrd);
     this.trimTankXfrd.set(transferMemos.trimTankXfrd);
+    this.gndXfrInProgress.set(transferMemos.gndXfrInProgress);
     this.innerTankNotEmpty[0].set(tankHasFuel(4));
     this.innerTankNotEmpty[1].set(tankHasFuel(7));
     this.midTankNotEmpty[0].set(tankHasFuel(3));
     this.midTankNotEmpty[1].set(tankHasFuel(8));
+
+    // FCOM gap batch T2-16: FUEL CG / weight alerts (FwsFuelCgWeightAlerts) and tank alerts (FwsFuelTankAlerts)
+    this.updateFuelCgAndTankAlerts(readBool, tankKg, tankHasFuel, feedPumps, crossFeedPbs);
 
     readCrossFeedValveFlags(readBool, (valve) =>
       SimVar.GetSimVarValue(`FUELSYSTEM VALVE OPEN:${valve}`, SimVarValueType.PercentOver100),
@@ -6890,6 +7216,11 @@ export class FwsCore {
       apuFireWarning: this.apuFireDetected.get(),
     };
     this.apuFault.set(isApuFault(this.apuFaultInputs));
+    // APU MACH LIMIT EXCEEDED and APU OIL FILTER CLOGGED (ApuFaultAlerts), the APU running = its AVAIL indication
+    this.apuMachLimitExceeded.set(isApuMachLimitExceeded(this.apuAvail.get(), this.machSelectedFromAdr.get()));
+    this.apuOilFilterClogged.set(
+      isApuOilFilterClogged(this.failuresConsumer.isActive(A380Failure.ApuOilFilterClogging), this.apuAvail.get()),
+    );
 
     const readBoolVar = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool) > 0;
 
@@ -7021,9 +7352,20 @@ export class FwsCore {
         SimVar.GetSimVarValue(`L:A32NX_SMOKE_${smokeZone.zone}_DET_FAULT`, SimVarValueType.Bool) > 0,
       );
     });
-    smokeWarnings(this.smokeZoneDetected.map((detected) => detected.get())).forEach((warning, index) =>
-      this.smokeZoneWarning[index].set(warning),
+    // SMOKE DET FAULT and the cargo smoke TEST pb held 3 s (SmokeAlerts)
+    this.smokeDetectionFunctionFault.set(
+      SimVar.GetSimVarValue('L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT', SimVarValueType.Bool) > 0,
     );
+    this.ifecOff.set(SimVar.GetSimVarValue('L:A32NX_ENTERTAINMENT_IFEC_OFF', SimVarValueType.Bool) > 0);
+    const cargoSmokeTestActive = this.cargoSmokeTest.update(
+      SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', SimVarValueType.Bool) > 0,
+      deltaTime,
+    );
+    smokeWarningsWithTest(
+      this.smokeZoneDetected.map((detected) => detected.get()),
+      cargoSmokeTestActive,
+      this.smokeDetectionFunctionFault.get(),
+    ).forEach((warning, index) => this.smokeZoneWarning[index].set(warning));
     this.cargoBottleLowPressure.forEach((lowPressure, index) =>
       lowPressure.set(
         SimVar.GetSimVarValue(`L:A32NX_CARGOSMOKE_BOTTLE_${index + 1}_LOW_PRESSURE`, SimVarValueType.Bool) > 0,
@@ -8172,6 +8514,148 @@ export class FwsCore {
     this.aThrDiscInputBuffer.write(false, true);
     this.apDiscInputBuffer.write(false, true);
     this.autoPilotInstinctiveDiscCountSinceLastFwsCycle = 0;
+  }
+
+  /**
+   * FCOM gap batch T2-16: the FUEL CG / weight alerts (FwsFuelCgWeightAlerts), the collector cell, temperature and MAN
+   * XFR COMPLETED alerts and the transfer lines of FEED TK(s) LEVEL LO (FwsFuelTankAlerts). MSFS tanks: outer 1 and 10,
+   * feed 2, 5, 6, 9, mid 3 and 8, inner 4 and 7, trim 11.
+   * @param readBool reads a Bool simvar
+   * @param tankKg reads an MSFS tank weight, in kg
+   * @param tankHasFuel whether an MSFS tank holds fuel
+   * @param feedPumps the feed tank pumps (readFeedTankPumpFlags)
+   * @param crossFeedPbs the CROSSFEED 1-4 pb-sw ON
+   */
+  private updateFuelCgAndTankAlerts(
+    readBool: (name: string) => number,
+    tankKg: (tank: number) => number,
+    tankHasFuel: (tank: number) => boolean,
+    feedPumps: readonly FeedTankPumpFlags[],
+    crossFeedPbs: readonly boolean[],
+  ): void {
+    const onGround = this.aircraftOnGround.get();
+    const xfrPbAuto = (tank: string) => readBool(`L:A380X_OVHD_FUEL_${tank}_XFR_PB_IS_AUTO`) > 0;
+    const outerXfrAuto = xfrPbAuto('OUTRTK');
+    const midXfrAuto = xfrPbAuto('MIDTK');
+    const innerXfrAuto = xfrPbAuto('INRTK');
+    const trimXfrAuto = xfrPbAuto('TRIMTK');
+    const trimTankFeed = SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_TRIM_TK_FEED_SELECTOR', SimVarValueType.Number);
+    const outerTanksHoldFuel = tankHasFuel(1) || tankHasFuel(10);
+    const innerTanksHoldFuel = tankHasFuel(4) || tankHasFuel(7);
+    const midTanksHoldFuel = tankHasFuel(3) || tankHasFuel(8);
+    const trimTankHoldsFuel = tankHasFuel(11);
+    const trimPumps = [this.transferPumpFlags.trimLeft, this.transferPumpFlags.trimRight];
+    const trimTankPumpAvailable = trimPumps.some((pump) => pump.pbOn && !pump.fault);
+    const temperature = (tank: Parameters<typeof fuelTankTemperatureVar>[0]) =>
+      SimVar.GetSimVarValue(fuelTankTemperatureVar(tank), SimVarValueType.Number);
+
+    this.fuelTankProcedureInputs = {
+      onGround,
+      feedMainPbOn: feedPumps.map((p) => p.mainPbOn),
+      feedStbyPbOn: feedPumps.map((p) => p.stbyPbOn),
+      crossFeedPbOn: crossFeedPbs,
+      outerXfrMan: !outerXfrAuto,
+      midXfrMan: !midXfrAuto,
+      innerXfrMan: !innerXfrAuto,
+      trimXfrFwd: !trimXfrAuto,
+      trimTankFeedAuto: trimTankFeed === TrimTankFeedSelector.Auto,
+      emerOuterXfrOn: this.fuelEmerOutrTkXfrOn.get(),
+    };
+
+    // FUEL TEMP LO and FEED TK 1-4 TEMP HI (CpiomF/FuelTankTemperatures)
+    const feedTanks = [2, 5, 6, 9];
+    const feedTemperatures = (['FEED_1', 'FEED_2', 'FEED_3', 'FEED_4'] as const).map(temperature);
+    this.fuelTempLoState = fuelTempLoState({
+      outer: [
+        { temperatureC: temperature('LEFT_OUTER'), quantityKg: tankKg(1) },
+        { temperatureC: temperature('RIGHT_OUTER'), quantityKg: tankKg(10) },
+      ],
+      trim: { temperatureC: temperature('TRIM'), quantityKg: tankKg(11) },
+      feed: feedTanks.map((tank, index) => ({ temperatureC: feedTemperatures[index], quantityKg: tankKg(tank) })),
+    });
+    this.fuelTempLo.set(this.fuelTempLoState.active);
+    this.anyFeedTankBelowTempLoOuterXfrQty = feedTanks.some((tank) => tankKg(tank) < TEMP_LO_OUTER_XFR_FEED_TANK_KG);
+    this.fuelFeedTankTempHi.forEach((alert, index) =>
+      alert.set(tankKg(feedTanks[index]) > 0 && isFeedTankTempHi(feedTemperatures[index])),
+    );
+
+    // FUEL COLLECTOR CELL 1-4 NOT FULL (CpiomF/FuelCollectorCells); feed tank pumps Pump.1-8
+    const feedTankLow = [this.feedTank1Low, this.feedTank2Low, this.feedTank3Low, this.feedTank4Low];
+    this.collectorCellNotFullMonitor
+      .update(
+        [1, 2, 3, 4].map((cell) => ({
+          quantityKg: SimVar.GetSimVarValue(collectorCellQuantityVar(cell), SimVarValueType.Number),
+          feedTankLevelLo: feedTankLow[cell - 1].get(),
+          pumpRunning:
+            readBool(`FUELSYSTEM PUMP ACTIVE:${2 * cell - 1}`) > 0 ||
+            readBool(`FUELSYSTEM PUMP ACTIVE:${2 * cell}`) > 0,
+        })),
+      )
+      .forEach((notFull, index) => this.fuelCollectorCellNotFull[index].set(notFull));
+
+    // FUEL INR TKs / MID TKs / OUTR TKs / TRIM TK MAN XFR COMPLETED
+    const completed = manualTransferCompleted({
+      innerTanksHoldFuel,
+      midTanksHoldFuel,
+      outerTanksHoldFuel,
+      trimTankHoldsFuel,
+      outerXfrMan: !outerXfrAuto,
+      midXfrMan: !midXfrAuto,
+      innerXfrMan: !innerXfrAuto,
+      trimXfrFwd: !trimXfrAuto,
+    });
+    this.fuelInnerTankManXfrCompleted.set(completed.inner);
+    this.fuelMidTankManXfrCompleted.set(completed.mid);
+    this.fuelOuterTankManXfrCompleted.set(completed.outer);
+    this.fuelTrimTankManXfrCompleted.set(completed.trim);
+
+    // FEED TK(s) LEVEL LO transfer lines (CpiomF/FuelTrimTankFeed gravity transfer)
+    this.feedTankLevelLoTransferInputs = {
+      trimTankGravityXfrInProgress: readBool('L:A380X_FUEL_TRIM_TK_GRAVITY_XFR_IN_PROGRESS') > 0,
+      outerTanksHoldFuel,
+      trimTankHoldsFuel,
+      innerTanksHoldFuel,
+      midTanksHoldFuel,
+      trimTankPumpRunning: trimTankPumpAvailable,
+    };
+
+    // CG and weight: FQMS (FMS ZFW / ZFWCG + fuel) and WBBC (CpiomF/WeightBalanceBackup)
+    const valueOrNull = (word: { isNormalOperation(): boolean; value: number }) =>
+      word.isNormalOperation() ? word.value : null;
+    const fqms: WeightAndCg = {
+      grossWeightKg: valueOrNull(this.fqmsGrossWeight.get()),
+      cgPercentMac: valueOrNull(this.fqmsGrossWeightCgPercent.get()),
+    };
+    const wbbc: WeightAndCg = {
+      grossWeightKg: valueOrNull(Arinc429Word.fromSimVarValue('L:A380X_WBBC_GROSS_WEIGHT')),
+      cgPercentMac: valueOrNull(Arinc429Word.fromSimVarValue('L:A380X_WBBC_CENTER_OF_GRAVITY_MAC')),
+    };
+    this.fuelCgAtFwdLimit.set(isCgAtFwdLimit(fqms));
+    this.fuelCgDataDisagree.set(isCgDataDisagree(fqms, wbbc));
+    this.fuelWeightDataDisagree.set(isWeightDataDisagree(fqms, wbbc));
+    this.fuelExcessAftCg.set(
+      this.excessAftCgMonitor.update(wbbc.cgPercentMac, outerXfrAuto && midXfrAuto && innerXfrAuto && trimXfrAuto),
+    );
+    const enginesRunning = [this.engine1Running, this.engine2Running, this.engine3Running, this.engine4Running].filter(
+      (running) => running.get(),
+    ).length;
+    this.fuelCgOutOfRangeState = this.cgOutOfRangeMonitor.update({
+      engModeIgnStart: this.engineStartSelIgnition.get(),
+      enginesRunning,
+      fqms,
+      alternateGaugingCgPercentMac: SimVar.GetSimVarValue('L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC', SimVarValueType.Number),
+    });
+    this.fuelCgOutOfRange.set(this.fuelCgOutOfRangeState.active);
+    this.fuelCgProcedureInputs = {
+      trimTankFeed,
+      trimTankXfrAuto: trimXfrAuto,
+      outerTankXfrAuto: outerXfrAuto,
+      trimTankPumpAvailable,
+      trimTankHoldsFuel,
+      outerTanksHoldFuel,
+      autoGroundTransferOn: readBool('L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON') > 0,
+      trimTankColdFuel: this.fuelTempLoState.trimTankLo,
+    };
   }
 
   autoThrottleInstinctiveDisconnect() {

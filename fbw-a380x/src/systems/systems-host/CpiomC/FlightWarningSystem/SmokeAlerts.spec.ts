@@ -10,9 +10,17 @@ import {
   CARGO_BOTTLE_FAULT_INOP_SYS,
   cargoSmokeItemsChecked,
   cargoSmokeItemsToShow,
+  CargoSmokeTest,
+  SDF_FAULT_ALERT,
+  SDF_FAULT_INOP_SYS,
+  SDF_FAULT_ITEMS_TO_SHOW,
+  SDF_FAULT_PHASE_INHIBITION,
+  sdfFaultItemsChecked,
+  SdfFaultProcedureState,
   SMOKE_ZONES,
   SmokeProcedureState,
   smokeWarnings,
+  smokeWarningsWithTest,
 } from './SmokeAlerts';
 
 /* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
@@ -166,5 +174,113 @@ describe('A380X SMOKE alerts of the SDF (A380 FCOM PRO-ABN-ECAM-10-26, PDF p.498
     expect(abnormalSensed).toContain('simVarIsActive: this.fws.smokeZoneWarning[index],');
     expect(abnormalSensed).toContain('simVarIsActive: this.fws.smokeZoneDetFault[index],');
     expect(abnormalSensed).toContain('alerts[260800052 + index] = {');
+  });
+});
+
+describe('SMOKE DET FAULT, the SDF failed (A380 FCOM PRO-ABN-ECAM-10-26, l.143733-143783, PDF p.4988-4989)', () => {
+  const sdfState: SdfFaultProcedureState = { ifecOff: false, fwdIsolValvesPbOn: true, bulkIsolValvesPbOn: true };
+
+  it('is inhibited in flight phases 3 to 7, 9 and 10 (PDF p.4988)', () => {
+    expect(SDF_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
+  });
+
+  it('shows the FCOM lines (no CWS line), IFEC and the ISOL VALVES are sensed', () => {
+    expect(SDF_FAULT_ITEMS_TO_SHOW).toHaveLength(itemCount(SDF_FAULT_ALERT));
+    expect(SDF_FAULT_ITEMS_TO_SHOW).toEqual([true, false, true, true, true, true]);
+    expect(sdfFaultItemsChecked(sdfState)).toEqual([false, false, false, false, false, false]);
+    expect(sdfFaultItemsChecked({ ifecOff: true, fwdIsolValvesPbOn: false, bulkIsolValvesPbOn: false })).toEqual([
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+    ]);
+    expect(title(SDF_FAULT_ALERT)).toBe('SMOKE DET FAULT');
+    expect(ata26).toContain("name: 'NO LIVESTOCK',");
+    expect(ata26).not.toContain('LIFESTOCK');
+  });
+
+  it('INOP SYS: ALL SMOKE DET, FWD CRG VENT, FWD CGR TEMP REGUL, BULK CRG VENT, BULK CRG HEATER (l.143773-143779)', () => {
+    const inopSys = (id: string) => messageIndex.match(new RegExp(`  ${id}: '\\\\x1b<4m([^']*)'`))?.[1];
+    expect(SDF_FAULT_INOP_SYS.map(inopSys)).toEqual([
+      'ALL SMOKE DET',
+      'FWD CRG VENT',
+      'FWD CGR TEMP REGUL',
+      'BULK CRG VENT',
+      'BULK CRG HEATER',
+    ]);
+  });
+
+  it('reads the SDF failure of systems.wasm and wires the alert with SC and MASTER CAUT', () => {
+    const a380Smoke = readFileSync(
+      resolve(__dirname, '../../../../wasm/systems/a380_systems/src/fire_and_smoke_protection.rs'),
+      'utf8',
+    );
+    expect(a380Smoke).toContain('"SMOKE_DETECTION_FUNCTION_FAULT"');
+    expect(fwsCore).toContain("'L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT'");
+    const entry = abnormalSensed.slice(abnormalSensed.indexOf('    alerts[SDF_FAULT_ALERT] = {'));
+    expect(abnormalSensed.indexOf('    alerts[SDF_FAULT_ALERT] = {')).toBeGreaterThan(0);
+    expect(entry).toMatch(/simVarIsActive: this\.fws\.smokeDetectionFunctionFault,[\s\S]*?failure: 2,/);
+    expect(entry).toContain('inopSysAllPhases: () => SDF_FAULT_INOP_SYS,');
+  });
+});
+
+describe('Cargo smoke TEST pb (A380 FCOM DSC-26-60-20, l.53960-53973)', () => {
+  /** Holds the TEST pb for a time, in 100 ms steps, and returns whether the test runs */
+  function holdFor(test: CargoSmokeTest, seconds: number): boolean {
+    let active = test.update(true, 0);
+    for (let t = 0; t < Math.round(seconds * 10); t++) {
+      active = test.update(true, 100);
+    }
+    return active;
+  }
+
+  it('runs after the TEST pb is held 3 s, until it is released', () => {
+    const test = new CargoSmokeTest();
+    expect(holdFor(test, 2.9)).toBe(false);
+    expect(holdFor(test, 0.1)).toBe(true);
+    expect(test.update(false, 100)).toBe(false);
+    // a new press starts the 3 s again
+    expect(holdFor(test, 1)).toBe(false);
+  });
+
+  it('shows the cargo SMOKE and AVNCS SMOKE warnings, not IFE BAY, with the avionics bay logic', () => {
+    expect(warningsOf(smokeWarningsWithTest(noSmoke, true, false))).toEqual([
+      'FWD_CARGO',
+      'AFT_CARGO',
+      'BULK_CARGO',
+      'L_UPPER_AVNCS',
+      'R_UPPER_AVNCS',
+      'AFT_AVNCS',
+    ]);
+    expect(warningsOf(smokeWarningsWithTest(noSmoke, false, false))).toEqual([]);
+    expect(warningsOf(smokeWarningsWithTest(smokeIn('IFE_BAY'), false, false))).toEqual(['IFE_BAY']);
+  });
+
+  it('a failed SDF cannot run the test', () => {
+    expect(warningsOf(smokeWarningsWithTest(noSmoke, true, true))).toEqual([]);
+  });
+
+  it('FwsCore feeds the 3 s test into the SMOKE warnings', () => {
+    expect(fwsCore).toContain('this.cargoSmokeTest.update(');
+    expect(fwsCore).toContain("SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', SimVarValueType.Bool) > 0,");
+    expect(fwsCore).toMatch(
+      /smokeWarningsWithTest\(\s*this\.smokeZoneDetected\.map\(\(detected\) => detected\.get\(\)\),\s*cargoSmokeTestActive,/,
+    );
+  });
+
+  it('the VENT AVNCS SMOKE light comes on with the TEST pb (l.53973)', () => {
+    const cockpit = readFileSync(
+      resolve(
+        __dirname,
+        '../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire/Part_Interior_Cockpit/model/A380_Cockpit_Behavior.xml',
+      ),
+      'utf8',
+    );
+    const vent = cockpit.slice(cockpit.indexOf('<NODE_ID>PUSH_OVHD_VENTILATION_SMOKE</NODE_ID>'));
+    expect(vent.slice(0, vent.indexOf('</UseTemplate>'))).toContain(
+      '<SEQ1_CODE>(L:A32NX_VENTILATION_BLOWER_FAULT, Bool) (L:A32NX_FIRE_TEST_CARGO, Bool) or</SEQ1_CODE>',
+    );
   });
 });

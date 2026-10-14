@@ -2259,6 +2259,19 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - If A32NX_RADIO_RECEIVER_USAGE_ENABLED == 0 it contains the deviation from the sim
     - If A32NX_RADIO_RECEIVER_USAGE_ENABLED == 1 it contains calculated LOC deviation
 
+- A32NX_MMR_{number}_LOC_IS_VALID, A32NX_MMR_{number}_GS_IS_VALID
+    - Bool
+    - number: 1 or 2
+    - The localizer (glide slope) signal of the ILS receiver of MMR {number} is valid. MMR 1 is the sim NAV 3, MMR 2
+      NAV 4. Written by systems.wasm (fbw-common navigation/ils.rs). The F/O PFD reads MMR 2; the CAPT PFD keeps the
+      A32NX_RADIO_RECEIVER_* variables (MMR 1)
+
+- A32NX_MMR_{number}_LOC_DEVIATION, A32NX_MMR_{number}_GS_DEVIATION
+    - Number in degrees
+    - The localizer (glide slope) deviation of the ILS receiver of MMR {number}, the sim signal (NAV RADIAL ERROR,
+      NAV GLIDE SLOPE ERROR), not corrected for the back beam: the contract of A32NX_RADIO_RECEIVER_LOC_DEVIATION
+      and A32NX_RADIO_RECEIVER_GS_DEVIATION without the calculated ILS signals option
+
 ## Flight Management System
 
 - A32NX_FM_ENABLE_APPROACH_PHASE
@@ -4548,6 +4561,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 1
     - 2
   - True while the FADEC fault failure of the engine is active (flyPad failures 73210/73211 FADEC alternator, 73220/73221 overspeed protection, 73230/73231 inlet probes, 73240/73241 core sensors, 73060/73061 thrust lever one resolver, 78030/78031 reverser permission switch): ENG 1(2) FADEC ALTERNATOR (engine running), OVSPD PROT FAULT, PROBES FAULT, SENSOR FAULT, ONE TLA FAULT, REV SWITCH FAULT, no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
+- A32NX_ENGINE_{number}_FUEL_CTL_FAULT, _FUEL_RETURN_VALVE_FAILED_CLOSED, _FUEL_RETURN_VALVE_FAILED_OPEN, _CTL_VALVE_FAULT, _COMPRESSOR_VANE_FAULT, _COMPRESSOR_VANE_CHANNEL_FAULT, _BLEED_STATUS_FAULT, _REVERSER_INHIBITED, _REVERSER_SHUTOFF_VALVE_FAULT
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73250/73251 fuel metering valve control, 73260/73261 fuel return valve failed closed, 73270/73271 fuel return valve failed open, 73280/73281 burner staging / clearance control valves, 73290/73291 compressor vanes, 73300/73301 compressor vane control one channel, 73310/73311 bleed valve status to FADEC, 78040/78041 reverser inhibited by maintenance, 78050/78051 reverser HCU shutoff valve failed open): ENG 1(2) FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE (channel fault on both engines), BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT (FWC Logic/EngineFadecFaultAlerts). No effect on the engine; REVERSER_INHIBITED also stops the deployment of the reverser. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool

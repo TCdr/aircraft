@@ -5,19 +5,39 @@ import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDataba
 import {
   formatRnpValue,
   hasClockReachedTime,
+  isEngineOutSpeedSettingWrong,
   isNavDatabaseCycleCurrent,
+  isNoNavInterception,
   isProcedureTurnExceedanceAhead,
   isTimeToExitHolding,
   MessageTextLatch,
+  selectedSpeedAsCas,
   utcCalendarDate,
 } from '@fmgc/components/fms-messages/FmsMessageConditions';
 import { isOriginIrsPositionDisagree } from '@fmgc/components/fms-messages/IrsPositionMessages';
 import { activeRnpMessage } from '@fmgc/components/fms-messages/RnpMessages';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { PILeg } from '@fmgc/guidance/lnav/legs/PI';
+import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
+import { ArmedLateralMode, isArmed, LateralMode, VerticalMode } from '@shared/autopilot';
+import { LegType } from '@flybywiresim/fbw-sdk';
+import { Coordinates } from 'msfs-geo';
 
 import { NXSystemMessages, TypeIIMessage } from '../shared/NXSystemMessages';
 import type { FlightManagementComputer } from './FlightManagementComputer';
+import { isCheckApproachSelection, ManuallyTunedIls } from './CheckApproachSelection';
+
+/** The PFD reads this L:var to show CHECK APPR SEL on the FMA line 3 (A380 FCOM DSC-22-FG-80-80 l.19241) */
+const CHECK_APPR_SEL_PFD_VAR = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION';
+
+/**
+ * @param leg the final leg of the approach
+ * @returns the frequency in MHz of its recommended navaid, null without one
+ */
+function recommendedNavaidFrequency(leg: { recommendedNavaid?: unknown } | undefined): number | null {
+  const navaid = leg?.recommendedNavaid as { frequency?: unknown } | undefined;
+  return navaid && typeof navaid.frequency === 'number' ? navaid.frequency : null;
+}
 
 /**
  * The leg if it is a procedure turn (PI leg, the only legs with a turn area check), else undefined
@@ -69,22 +89,57 @@ export class FmsAdvisoryMessages {
 
   private readonly takeoffTimeLatch = new MessageTextLatch();
 
+  private readonly checkApprSelLatch = new MessageTextLatch();
+
+  /** CHECK APPR SEL shown on the PFD */
+  private checkApprSelOnPfd = false;
+
+  private readonly engineOutSpeedLatch = new MessageTextLatch();
+
+  private readonly noNavInterceptionLatch = new MessageTextLatch();
+
   /** The clock (UTC seconds of the day) at the previous cycle, for T.O TIME REACHED */
   private previousClock: number | null = null;
 
   /** The ETT that the clock has reached, null before */
   private reachedTakeoffTime: number | null = null;
 
-  constructor(private readonly fmc: FlightManagementComputer) {}
+  constructor(private readonly fmc: FlightManagementComputer) {
+    // A new FMS (power-up, FMC reset) starts without the PFD message
+    SimVar.SetSimVarValue(CHECK_APPR_SEL_PFD_VAR, 'bool', false);
+  }
 
   /** Checks all the messages, once per FMS cycle */
   update(): void {
     const flightPlanService = this.fmc.flightPlanInterface;
     if (!flightPlanService.hasActive) {
+      this.setCheckApprSelOnPfd(false);
       return;
     }
     const phase = this.fmc.fmgc.data.flightPhase.get();
     const navigation = this.fmc.navigation;
+
+    // CHECK APPR SEL (l.44966-44979): an ILS manually tuned on the POSITION/NAVAIDS page that does not correspond with
+    // the approach of the flight plan, near the T/D, in descent, or in approach above 800 ft (CheckApproachSelection)
+    const mmr = navigation.getNavaidTuner().getMmrRadioTuningStatus(1);
+    const tunedIls: ManuallyTunedIls | null =
+      mmr.manual && (mmr.ident !== null || mmr.frequency !== null)
+        ? { ident: mmr.facility?.ident ?? mmr.ident, frequency: mmr.frequency }
+        : null;
+    const approach = flightPlanService.active.approach;
+    const finalLeg = approach ? approach.legs[approach.legs.length - 1] : undefined;
+    const altitude = navigation.getBaroCorrectedAltitude();
+    const destinationElevation = flightPlanService.active.destinationAirport?.location.alt;
+    const checkApprSel = isCheckApproachSelection(
+      approach ? { type: approach.type, ident: finalLeg?.recommendedNavaid?.ident ?? null } : null,
+      tunedIls,
+      recommendedNavaidFrequency(finalLeg),
+      phase,
+      this.fmc.guidanceController ? distanceToTopOfDescent(this.fmc.guidanceController) : null,
+      altitude !== null && destinationElevation !== undefined ? altitude - destinationElevation : null,
+    );
+    this.apply(this.checkApprSelLatch, checkApprSel ? NXSystemMessages.checkApprSel : null);
+    this.setCheckApprSelOnPfd(checkApprSel);
 
     // AREA RNP IS XX.XX (l.44876-44881) / PROC RNP IS XX.XX (l.45916-45920)
     const rnp = activeRnpMessage(navigation, flightPlanService);
@@ -144,6 +199,81 @@ export class FmsAdvisoryMessages {
         ? NXSystemMessages.toTimeReached
         : null,
     );
+
+    // CHECK EO SPD SETTING (l.45016, l.45020-45026): engine out, in CLIMB or CRUISE, not in ALT / ALT*, the selected speed
+    // target more than 10 kt from green dot
+    const verticalMode: number = SimVar.GetSimVarValue('L:A32NX_FMA_VERTICAL_MODE', 'number');
+    const selectedSpeed =
+      this.fmc.acInterface?.isAirspeedSelected() === true
+        ? selectedSpeedAsCas(
+            SimVar.GetSimVarValue('L:A32NX_FCU_AFS_DISPLAY_SPD_MACH_VALUE', 'number'),
+            SimVar.GetSimVarValue('L:A32NX_FCU_AFS_DISPLAY_MACH_MODE', 'number') > 0,
+            SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
+            SimVar.GetSimVarValue('AIRSPEED MACH', 'mach'),
+          )
+        : null;
+    this.apply(
+      this.engineOutSpeedLatch,
+      isEngineOutSpeedSettingWrong(
+        this.fmc.fmgc.data.engineOut.get(),
+        phase,
+        verticalMode === VerticalMode.ALT || verticalMode === VerticalMode.ALT_CPT,
+        selectedSpeed,
+        this.fmc.fmgc.data.greenDotSpeed.get(),
+      )
+        ? NXSystemMessages.checkEoSpdSetting
+        : null,
+    );
+
+    // NO NAV INTERCEPTION (l.45787, l.45791-45794): in HDG / TRK with NAV armed, the track does not intercept the active
+    // leg before the TO waypoint
+    const lateralMode: number = SimVar.GetSimVarValue('L:A32NX_FMA_LATERAL_MODE', 'number');
+    const inFlight =
+      phase === FmgcFlightPhase.Climb ||
+      phase === FmgcFlightPhase.Cruise ||
+      phase === FmgcFlightPhase.Descent ||
+      phase === FmgcFlightPhase.Approach ||
+      phase === FmgcFlightPhase.GoAround;
+    this.apply(
+      this.noNavInterceptionLatch,
+      isNoNavInterception(
+        lateralMode === LateralMode.HDG || lateralMode === LateralMode.TRACK,
+        isArmed(SimVar.GetSimVarValue('L:A32NX_FMA_LATERAL_ARMED', 'number'), ArmedLateralMode.NAV),
+        inFlight,
+        this.activeTrackToFixLeg(),
+        navigation.getPpos(),
+        SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree'),
+      )
+        ? NXSystemMessages.noNavInterception
+        : null,
+    );
+  }
+
+  /** The start (FROM waypoint) and end (TO waypoint) of the active leg when it is a TF leg, else null */
+  private activeTrackToFixLeg(): { start: Coordinates; end: Coordinates } | null {
+    const plan = this.fmc.flightPlanInterface.active;
+    const activeLeg = plan.activeLeg;
+    const fromLeg = plan.maybeElementAt(plan.activeLegIndex - 1);
+    if (
+      !activeLeg ||
+      activeLeg.isDiscontinuity !== false ||
+      activeLeg.type !== LegType.TF ||
+      !fromLeg ||
+      fromLeg.isDiscontinuity !== false
+    ) {
+      return null;
+    }
+    const start = fromLeg.terminationWaypoint()?.location;
+    const end = activeLeg.terminationWaypoint()?.location;
+    return start && end ? { start, end } : null;
+  }
+
+  /** Writes the PFD message L:var on a change */
+  private setCheckApprSelOnPfd(shown: boolean): void {
+    if (shown !== this.checkApprSelOnPfd) {
+      this.checkApprSelOnPfd = shown;
+      SimVar.SetSimVarValue(CHECK_APPR_SEL_PFD_VAR, 'bool', shown);
+    }
   }
 
   /** Sends or recalls the message of a latch */

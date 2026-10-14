@@ -12,6 +12,8 @@ import {
   Subscription,
 } from '@microsoft/msfs-sdk';
 import { FwsCore } from './FwsCore';
+import { IR_ATT_ALIGN_MEMO_CODES, irAttAlignMemoIndex } from './IrAttAlignMemo';
+import { DATALINK_STBY_MEMO } from './DatalinkStbyMemo';
 
 interface EwdMemoItem {
   flightPhaseInhib: number[];
@@ -108,6 +110,15 @@ export class FwsMemos {
       simVarIsActive: this.fws.trimTankXfrd,
       whichCodeToReturn: () => [0],
       codesToReturn: ['280000012'],
+      memoInhibit: () => false,
+    },
+    280000005: {
+      // GND XFR IN PROGRESS (A380 FCOM DSC-28-20 MEMO, a380_fcom.txt l.59149-59151; the FCOM figure of its flight phase
+      // inhibition is not in the text, design choice: as REFUEL IN PROGRESS, a ground function)
+      flightPhaseInhib: [3, 4, 5, 6, 7, 8, 9, 10],
+      simVarIsActive: this.fws.gndXfrInProgress,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000005'],
       memoInhibit: () => false,
     },
     280000006: {
@@ -294,6 +305,24 @@ export class FwsMemos {
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['230000003'],
+      memoInhibit: () => false,
+    },
+    '230000008': {
+      // PA IN USE: the PA transmission key of an RMP is on (CommunicationAlerts isPaInUse, A380 FCOM DSC-23-20
+      // l.49491-49492); no flight phase inhibition figure (PDF p.1607)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.paInUse,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['230000008'],
+      memoInhibit: () => false,
+    },
+    [DATALINK_STBY_MEMO]: {
+      // DATALINK STBY: data mode available, datalink temporarily lost (DatalinkStbyMemo, A380 FCOM DSC-23-20 MEMO,
+      // l.49460-49461); the flight phase inhibition is a figure only: none
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.datalinkStby,
+      whichCodeToReturn: () => [0],
+      codesToReturn: [DATALINK_STBY_MEMO],
       memoInhibit: () => false,
     },
     '230000009': {
@@ -529,6 +558,22 @@ export class FwsMemos {
       simVarIsActive: this.fws.trueNorthRef,
       whichCodeToReturn: () => [0],
       codesToReturn: ['340000001'],
+      memoInhibit: () => false,
+    },
+    '340002701': {
+      // IR 1(2)(3)(1+2)(2+3)(1+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN (IrAttAlignMemo, A380 FCOM DSC-34-10-30-20 MEMO,
+      // l.86019-86026); the flight phase inhibition is a figure only: none, as the A32NX IRS IN ATT ALIGN memo
+      flightPhaseInhib: [],
+      simVarIsActive: MappedSubject.create(
+        ([ir1, ir2, ir3]) => ir1 || ir2 || ir3,
+        this.fws.ir1InAttAlign,
+        this.fws.ir2InAttAlign,
+        this.fws.ir3InAttAlign,
+      ),
+      whichCodeToReturn: () => [
+        irAttAlignMemoIndex([this.fws.ir1InAttAlign.get(), this.fws.ir2InAttAlign.get(), this.fws.ir3InAttAlign.get()]),
+      ],
+      codesToReturn: IR_ATT_ALIGN_MEMO_CODES,
       memoInhibit: () => false,
     },
     '340003001': {

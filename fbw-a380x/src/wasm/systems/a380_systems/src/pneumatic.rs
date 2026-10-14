@@ -13,7 +13,7 @@ use uom::si::{
 use systems::{
     accept_iterable,
     air_conditioning::PackFlowControllers,
-    engine::engine_start::EngineStartValveSupervision,
+    engine::engine_start::{starter_can_engage, EngineStartValveSupervision},
     failures::{Failure, FailureType},
     overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
     pneumatic::{
@@ -1166,6 +1166,9 @@ fn engine_ducts_without_air_source(
 /// a valve that does not follow its command (ENG START VLV FAULT).
 struct EngineStarterValveController {
     number: usize,
+    /// The start valve schedule of the engine states opens the valve (in-flight starts; the start
+    /// sequence commands it on the ground)
+    schedule_open: bool,
     /// The FADEC commands the start valve open (start, crank, relight), whatever its position
     commanded_open: bool,
     should_open: bool,
@@ -1183,10 +1186,14 @@ impl ControllerSignal<EngineStarterValveSignal> for EngineStarterValveController
 impl EngineStarterValveController {
     /// FCOM N2 (the HP spool of the GP7270), read on the Trent N3
     const START_VALVE_CLOSING_N3_PERCENT: f64 = 58.4;
+    /// LIM-70 STARTER (l.189735), FCOM N2 read on the Trent N3 (as the start sequence,
+    /// engine_failure.rs a380_engine_start_schedule)
+    const STARTER_ENGAGEMENT_MAX_N3_PERCENT: f64 = 25.;
 
     fn new(context: &mut InitContext, number: usize) -> Self {
         Self {
             number,
+            schedule_open: false,
             commanded_open: false,
             should_open: false,
             supervision: EngineStartValveSupervision::new(context, number),
@@ -1217,9 +1224,20 @@ impl EngineStarterValveController {
                 context.indicated_airspeed(),
             );
 
+        // LIM-70 STARTER (l.189735): "If the N2 is above 25 %, no running engagement of the starter
+        // is possible": the schedule opens the valve of a start whose core turns at or below 25 %
+        // N2, and keeps it open once open (see engine_start::starter_can_engage).
         let schedule_open = starting
             && starter_assisted
-            && core_speed.get::<percent>() <= Self::START_VALVE_CLOSING_N3_PERCENT;
+            && core_speed.get::<percent>() <= Self::START_VALVE_CLOSING_N3_PERCENT
+            && starter_can_engage(
+                self.schedule_open,
+                core_speed,
+                Some(Ratio::new::<percent>(
+                    Self::STARTER_ENGAGEMENT_MAX_N3_PERCENT,
+                )),
+            );
+        self.schedule_open = schedule_open;
         self.commanded_open = self.supervision.commanded_open(schedule_open);
         self.should_open = self.supervision.position_open(self.commanded_open);
         self.supervision
@@ -4309,17 +4327,44 @@ mod tests {
         #[values(true, false)] on_ground: bool,
         #[values(EngineState::Starting, EngineState::Restarting)] engine_state: EngineState,
     ) {
-        // A380 FCOM DSC-70-30: "When N2 above 58.4 %: Engine start valve closes"
+        // A380 FCOM DSC-70-30: "When N2 above 58.4 %: Engine start valve closes". The starter
+        // engages at or below 25 % (LIM-70 l.189735) and the core accelerates to 58 %.
         let mut test_bed = test_bed_with().stop_eng1().and_run();
         test_bed.set_on_ground(on_ground);
         test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
-        test_bed.write_by_name("ENGINE_N3:1", 58.);
+        test_bed.write_by_name("ENGINE_N3:1", 20.);
         test_bed = test_bed.set_engine_state(1, engine_state).and_run();
+        test_bed.write_by_name("ENGINE_N3:1", 58.);
+        test_bed = test_bed.and_run();
         assert!(test_bed.es_valve_is_open(1));
 
         test_bed.write_by_name("ENGINE_N3:1", 59.);
         test_bed = test_bed.and_run();
         assert!(!test_bed.es_valve_is_open(1));
+    }
+
+    /// A380 FCOM LIM-70 STARTER (l.189735): "If the N2 is above 25 %, no running engagement of the
+    /// starter is possible."
+    #[rstest]
+    fn the_start_valve_does_not_open_for_a_start_above_25_percent_n3(
+        #[values(true, false)] on_ground: bool,
+    ) {
+        let mut test_bed = test_bed_with().stop_eng1().and_run();
+        test_bed.set_on_ground(on_ground);
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+        test_bed.write_by_name("ENGINE_N3:1", 30.);
+        test_bed = test_bed
+            .set_engine_state(1, EngineState::Restarting)
+            .and_run();
+        assert!(!test_bed.es_valve_is_open(1));
+
+        // the core runs down to 25 %: the starter engages, and stays engaged as it accelerates
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+        test_bed = test_bed.and_run();
+        assert!(test_bed.es_valve_is_open(1));
+        test_bed.write_by_name("ENGINE_N3:1", 40.);
+        test_bed = test_bed.and_run();
+        assert!(test_bed.es_valve_is_open(1));
     }
 
     #[test]

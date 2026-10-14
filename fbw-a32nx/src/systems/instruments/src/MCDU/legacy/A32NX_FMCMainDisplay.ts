@@ -109,11 +109,20 @@ import {
   MessageTextLatch,
   utcCalendarDate,
 } from '@fmgc/components/fms-messages/FmsMessageConditions';
+import { deleteConstraintsAboveCruiseLevel } from '@fmgc/flightplanning/plans/CruiseLevelConstraints';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { A32NXFcuBusEvents } from '@shared/publishers/A32NXFcuBusPublisher';
 import { A32NXFgBusEvents } from '@shared/publishers/A32NXFGBusPublisher';
 import { formatWindRequest } from '@fmgc/flightplanning/uplink/WindUplinkUtilts';
 import { MAXIMUM_CERTIFIED_FLIGHT_LEVEL } from '@shared/A32NXPerformanceConstants';
+import {
+  areFobSensorsInvalid,
+  FobSensorComputer,
+  FobSensorReadings,
+  fobSensorsText,
+  parseFobEntry,
+} from '@fmgc/flightplanning/fuel/FobSensors';
+import { OverheadWaypointRecorder } from '../legacy_pages/ProgressReportFields';
 export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInterface, Fmgc {
   private static DEBUG_INSTANCE: FMCMainDisplay;
 
@@ -185,6 +194,12 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   public coRoute = { routeNumber: undefined, routes: undefined };
 
   private readonly fuelComputationsCache: Map<FlightPlanIndex, FuelPredComputations> = new Map();
+
+  /** The FOB from the fuel sensors selected on the FUEL PRED page (/FF+FQ, /FF, /FQ) */
+  private readonly fobSensors = new FobSensorComputer();
+
+  /** The PROG REPORT page OVHD waypoint, recorded at its sequencing */
+  public readonly overheadWaypointRecorder = new OverheadWaypointRecorder();
 
   public unconfirmedV1Speed = undefined;
   public unconfirmedVRSpeed = undefined;
@@ -735,6 +750,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this.setManagedSpeedMessageActive = false;
     this.perfClbPredToAltitudePilot = undefined;
     this.perfDesPredToAltitudePilot = undefined;
+    this.fobSensors.reset();
+    this.overheadWaypointRecorder.reset();
 
     this.onAirport = () => CDUFlightPlanPage.ShowPage(this.mcdu);
 
@@ -833,6 +850,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       this.updatePerfPageAltPredictions();
       this.updateRecMaxFlightLevel();
       this.checkTimeToExit();
+      this.updateOverheadWaypointRecord();
       // this.checkEfobBelowMin(deltaTime);
     }
 
@@ -3485,6 +3503,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     if (maxFl !== null && flightLevelToInsert > maxFl) {
       this.addMessageToQueue(NXSystemMessages.crzFlAboveMaxFl);
     }
+    // CSTR DEL ABOVE CRZ FL (A320 FCOM l.15144-15162, l.22602, l.22623-22625): the altitude constraints at or above the
+    // new CRZ FL are deleted (see CruiseLevelConstraints.ts)
+    if (deleteConstraintsAboveCruiseLevel(plan, flightLevelToInsert) > 0) {
+      this.addMessageToQueue(NXSystemMessages.cstrDelAboveCrzFl);
+    }
     if (newCrzAltMessage) {
       this.addMessageToQueue(
         NXSystemMessages.newCrzAlt.getModifiedMessage(flightLevelToInsert * 100),
@@ -4656,9 +4679,102 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     const useFqi = this.isAnEngineOn() && plan.isActiveOrCopiedFromActive();
 
     // If an engine is not running, use pilot entered block fuel to calculate fuel predictions
-    return useFqi
-      ? SimVar.GetSimVarValue('L:A32NX_TOTAL_FUEL_QUANTITY', 'number') / 1000
-      : plan.performanceData.blockFuel.get() ?? null;
+    // With an engine running, the FOB of the fuel sensors selected on the FUEL PRED page (FobSensors.ts)
+    return useFqi ? this.fobSensors.compute(this.readFobSensors()) : plan.performanceData.blockFuel.get() ?? null;
+  }
+
+  /** The fuel sensor readings of the FMS FOB, in tonnes */
+  private readFobSensors(): FobSensorReadings {
+    return {
+      fuelQuantity: SimVar.GetSimVarValue('L:A32NX_TOTAL_FUEL_QUANTITY', 'number') / 1000,
+      // the FQI gives a FOB while one of its two channels works (systems-host Fuel/FuelPumpsAndValves.ts)
+      fuelQuantityValid: !(
+        SimVar.GetSimVarValue('L:A32NX_FUEL_FQI_CHANNEL_1_FAULT', 'bool') > 0 &&
+        SimVar.GetSimVarValue('L:A32NX_FUEL_FQI_CHANNEL_2_FAULT', 'bool') > 0
+      ),
+      fuelUsed:
+        (SimVar.GetSimVarValue('L:A32NX_FUEL_USED:1', 'number') +
+          SimVar.GetSimVarValue('L:A32NX_FUEL_USED:2', 'number')) /
+        1000,
+    };
+  }
+
+  /** The FUEL PRED page FOB sensors text: FF+FQ, FF or FQ */
+  public getFobSensorsText(): string {
+    return fobSensorsText(this.fobSensors.sensors);
+  }
+
+  /**
+   * The FUEL PRED page FOB [4R] entry: a FOB (in flight only) and/or the fuel sensors, "The flight crew can modify the
+   * FOB value in flight, or modify the sensors used by entering "/FF", "/FQ" or "/FF+FQ"" (a320_fcom.txt l.17569-17570).
+   * SENSOR IS INVALID when the selected sensors cannot give a FOB (l.23020-23028).
+   * @param s the scratchpad entry
+   * @returns whether the entry was accepted
+   */
+  public trySetFuelOnBoard(s: string): boolean {
+    if (s === Keypad.clrValue) {
+      this.setScratchpadMessage(NXSystemMessages.notAllowed);
+      return false;
+    }
+    const entry = parseFobEntry(s);
+    if (entry === null) {
+      this.setScratchpadMessage(NXSystemMessages.formatError);
+      return false;
+    }
+    // the sim has no fuel flow sensor failure: the fuel flow sensors are always valid
+    const fuelFlowValid = true;
+    const readings = this.readFobSensors();
+    const fob = entry.fob !== null ? NXUnits.userToKg(entry.fob) : null;
+    if (fob !== null) {
+      if (!this.isFlying()) {
+        this.setScratchpadMessage(NXSystemMessages.notAllowed);
+        return false;
+      }
+      if (!this.isBlockFuelInRange(fob)) {
+        this.setScratchpadMessage(NXSystemMessages.entryOutOfRange);
+        return false;
+      }
+    }
+    if (
+      (entry.sensors !== null && areFobSensorsInvalid(entry.sensors, fuelFlowValid, readings.fuelQuantityValid)) ||
+      (fob !== null && !fuelFlowValid)
+    ) {
+      this.setScratchpadMessage(NXSystemMessages.sensorIsInvalid);
+      return false;
+    }
+    if (fob !== null) {
+      this.fobSensors.enterFob(fob, readings.fuelUsed, fuelFlowValid);
+    }
+    if (entry.sensors !== null) {
+      this.fobSensors.selectSensors(entry.sensors, fuelFlowValid, readings.fuelQuantityValid);
+    }
+    return true;
+  }
+
+  /**
+   * Records the PROG REPORT page OVHD waypoint with its time, altitude, SAT, wind and FOB when the FROM leg of the
+   * active flight plan changes in flight (ProgressReportFields.ts, a320_fcom.txt l.21428-21444).
+   */
+  private updateOverheadWaypointRecord(): void {
+    const plan = this.flightPlanService.hasActive ? this.flightPlanService.active : null;
+    const fromLeg = plan !== null && plan.fromLegIndex >= 0 ? plan.maybeElementAt(plan.fromLegIndex) : null;
+    this.overheadWaypointRecorder.update(
+      fromLeg && fromLeg.isDiscontinuity === false ? { uuid: fromLeg.uuid, ident: fromLeg.ident } : null,
+      this.isFlying(),
+      () => {
+        const phase = this.flightPhaseManager.phase;
+        const fob = this.getFOB(FlightPlanIndex.Active);
+        return {
+          utcMs: this.simTime.get(),
+          altitude: this.navigation.getBaroCorrectedAltitude(),
+          descending: phase === FmgcFlightPhase.Descent || phase === FmgcFlightPhase.Approach,
+          staticAirTemperature: this.navigation.getStaticAirTemperature(),
+          windDirection: this.navigation.getWindDirection(),
+          windSpeed: this.navigation.getWindSpeed(),
+          fob: fob !== null && Number.isFinite(fob) ? NXUnits.kgToUser(fob) : null,
+        };
+      },
+    );
   }
 
   /**

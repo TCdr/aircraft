@@ -286,6 +286,8 @@ void EngineControl_A380X::update() {
         simData.engineN3[engineIdx]->get(),                                     //
         simData.engineN1[engineIdx]->get(),                         //
         deltaTime,                                                  //
+        simData.simVarsDataPtr->data().ambientPrecipRate,           //
+        simData.engineIdleN1->get(),                                //
     });
     simData.engineIgniterA[engineIdx]->set(igniters.a ? 1.0 : 0.0);
     simData.engineIgniterB[engineIdx]->set(igniters.b ? 1.0 : 0.0);
@@ -1214,15 +1216,17 @@ void EngineControl_A380X::updateThrustLimits(double simulationTime,
 #endif
 
   const double flexTemp        = simData.airlinerToFlexTemp->get();
+  const double derate          = simData.airlinerToDerate->get();
   const double pressAltitude   = simData.simVarsDataPtr->data().pressureAltitude;
   const double thrustLimitType = simData.thrustLimitType->get();
 
-  // Only latch flex temp if flex was not selected or flex is selected but TLAs are not in flx setting
+  // Only latch flex temp (and derate) if flex was not selected or flex is selected but TLAs are not in flx setting
   if (!isTransitionActive && (thrustLimitType != 3 || (thrustLimitType == 3 &&
     (simData.engineTla[E1]->get() != 35.0 || simData.engineTla[E2]->get() != 35.0 || simData.engineTla[E3]->get() != 35.0 || simData.engineTla[E4]->get() != 35.0))
   )
   ) {
     latchedFlexTemperature = flexTemp;
+    latchedDerate          = derate;
   }
 
   // Write all N1 Limits
@@ -1234,6 +1238,11 @@ void EngineControl_A380X::updateThrustLimits(double simulationTime,
   if (latchedFlexTemperature > 0) {
     flex_to = ThrustLimits_A380X::limitN1(0, altitude, ambientTemperature, ambientPressure, latchedFlexTemperature, packs, nai, wai);
     flex_ga = ThrustLimits_A380X::limitN1(1, altitude, ambientTemperature, ambientPressure, latchedFlexTemperature, packs, nai, wai);
+  } else if (latchedDerate > 0) {
+    // DOx derated takeoff (FCOM DSC-70-20-40 l.111561-111565), at the FLX-MCT detent as a FLEX takeoff (DSC-22-FG-50-30
+    // MAN DTO l.11443-11446): the FADEC model of the flight computers uses this FLX limit (fbw_a380 TakeoffDerate.h)
+    flex_to = ThrustLimits_A380X::limitN1(0, altitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, latchedDerate);
+    flex_ga = ThrustLimits_A380X::limitN1(1, altitude, ambientTemperature, ambientPressure, 0, packs, nai, wai, latchedDerate);
   }
   double clb = ThrustLimits_A380X::limitN1(2, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);
   double mct = ThrustLimits_A380X::limitN1(3, pressAltitude, ambientTemperature, ambientPressure, 0, packs, nai, wai);

@@ -98,6 +98,19 @@ export const A380Failure = Object.freeze({
   Vhf1: 23005,
   Vhf2: 23006,
   Vhf3: 23007,
+  // CIDS and PTT failures of the ATA 23 FWS alerts (FWS CommunicationAlerts.ts, read by FwsCore)
+  CidsDirector1: 23008,
+  CidsDirector2: 23009,
+  CidsDirector3: 23010,
+  UpperDeckPa: 23011,
+  MainDeckPa: 23012,
+  LowerDeckPa: 23013,
+  CabinInterphone: 23014,
+  PaDegraded: 23015,
+  CabinInterphoneDegraded: 23016,
+  CaptPttStuck: 23017,
+  FoPttStuck: 23018,
+  ThirdOccupantPttStuck: 23019,
 
   TransformerRectifier1: 24000,
   TransformerRectifier2: 24001,
@@ -202,6 +215,7 @@ export const A380Failure = Object.freeze({
   IfeBaySmokeDetector2: 26045,
   CargoFireBottle1LowPressure: 26046,
   CargoFireBottle2LowPressure: 26047,
+  SmokeDetectionFunction: 26048,
 
   Prim1: 27000,
   Prim2: 27001,
@@ -440,6 +454,8 @@ export const A380Failure = Object.freeze({
   ApuOverspeed: 49001,
   ApuOilLowPressure: 49002,
   ApuOilHighTemperature: 49003,
+  // Read by the FWS (ApuFaultAlerts.ts APU OIL FILTER CLOGGED), not by the APU of systems.wasm
+  ApuOilFilterClogging: 49004,
 
   Transponder1: 34003,
   Transponder2: 34004,
@@ -483,6 +499,12 @@ export const A380Failure = Object.freeze({
   FirstOfficerLaptop: 46005,
   CaptainOit: 46006,
   FirstOfficerOit: 46007,
+  // The Secure Communication Interfaces between the NSS and the avionics, and the ADS function of the ATC datalink
+  // (CPIOM D): the ATA 46 COM alerts of the FWS (CommunicationAlerts.ts informationSystemAlerts); both SCIs failed stop
+  // the AOC (CpiomD/atsu.ts)
+  Sci1: 46008,
+  Sci2: 46009,
+  AdsFunction: 46010,
 
   Eng1Flameout: 72000,
   Eng2Flameout: 72001,
@@ -604,6 +626,30 @@ export const A380Failure = Object.freeze({
   Eng2OilChip: 79041,
   Eng3OilChip: 79042,
   Eng4OilChip: 79043,
+  Eng1ControlSystem: 73270,
+  Eng2ControlSystem: 73271,
+  Eng3ControlSystem: 73272,
+  Eng4ControlSystem: 73273,
+  Eng1ControlValve: 73280,
+  Eng2ControlValve: 73281,
+  Eng3ControlValve: 73282,
+  Eng4ControlValve: 73283,
+  Eng1FadecIdent: 73290,
+  Eng2FadecIdent: 73291,
+  Eng3FadecIdent: 73292,
+  Eng4FadecIdent: 73293,
+  Eng1FuelSystemContamination: 73130,
+  Eng2FuelSystemContamination: 73131,
+  Eng3FuelSystemContamination: 73132,
+  Eng4FuelSystemContamination: 73133,
+  Eng1ThrustRatingDisagree: 73300,
+  Eng2ThrustRatingDisagree: 73301,
+  Eng3ThrustRatingDisagree: 73302,
+  Eng4ThrustRatingDisagree: 73303,
+  Eng1OilSystemContamination: 79050,
+  Eng2OilSystemContamination: 79051,
+  Eng3OilSystemContamination: 79052,
+  Eng4OilSystemContamination: 79053,
   Reverser2Fault: 78001,
   Reverser3Fault: 78002,
   Reverser2Unlocked: 78011,
@@ -614,6 +660,10 @@ export const A380Failure = Object.freeze({
   Reverser3Locked: 78032,
   Reverser2ControlFault: 78041,
   Reverser3ControlFault: 78042,
+  Reverser2MinorFault: 78051,
+  Reverser3MinorFault: 78052,
+  Reverser2Inhibited: 78061,
+  Reverser3Inhibited: 78062,
 });
 
 export const A380FailureDefinitions: FailureDefinition[] = [
@@ -701,6 +751,18 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [23, A380Failure.Vhf1, 'VHF 1'],
   [23, A380Failure.Vhf2, 'VHF 2'],
   [23, A380Failure.Vhf3, 'VHF 3'],
+  [23, A380Failure.CidsDirector1, 'CIDS 1 (cabin intercommunication data system)'],
+  [23, A380Failure.CidsDirector2, 'CIDS 2 (cabin intercommunication data system)'],
+  [23, A380Failure.CidsDirector3, 'CIDS 3 (cabin intercommunication data system)'],
+  [23, A380Failure.UpperDeckPa, 'Upper deck passenger address (PA)'],
+  [23, A380Failure.MainDeckPa, 'Main deck passenger address (PA)'],
+  [23, A380Failure.LowerDeckPa, 'Lower deck passenger address (PA)'],
+  [23, A380Failure.CabinInterphone, 'Cabin interphone'],
+  [23, A380Failure.PaDegraded, 'Passenger address (PA) degraded in some cabin areas'],
+  [23, A380Failure.CabinInterphoneDegraded, 'Cabin interphone degraded at some stations'],
+  [23, A380Failure.CaptPttStuck, 'CAPT push-to-talk (PTT) switch stuck in transmit'],
+  [23, A380Failure.FoPttStuck, 'F/O push-to-talk (PTT) switch stuck in transmit'],
+  [23, A380Failure.ThirdOccupantPttStuck, 'Third occupant push-to-talk (PTT) switch stuck in transmit'],
 
   [24, A380Failure.TransformerRectifier1, 'TR 1'],
   [24, A380Failure.TransformerRectifier2, 'TR 2'],
@@ -806,6 +868,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   // The bottle loses its agent: SMOKE FWD and AFT CARGO BOTTLES FAULT (systems fire_protection/cargo_fire_extinguishing.rs)
   [26, A380Failure.CargoFireBottle1LowPressure, 'Cargo fire bottle 1 low pressure'],
   [26, A380Failure.CargoFireBottle2LowPressure, 'Cargo fire bottle 2 low pressure'],
+  [26, A380Failure.SmokeDetectionFunction, 'Smoke detection function (SDF) of the CIDS'],
 
   [27, A380Failure.Prim1, 'PRIM 1'],
   [27, A380Failure.Prim2, 'PRIM 2'],
@@ -1051,6 +1114,7 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [49, A380Failure.ApuOverspeed, 'APU overspeed (automatic shutdown)'],
   [49, A380Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],
   [49, A380Failure.ApuOilHighTemperature, 'APU high oil temperature (automatic shutdown on ground)'],
+  [49, A380Failure.ApuOilFilterClogging, 'APU oil filter clogging (impending)'],
 
   [46, A380Failure.NssAnsu1, 'NSS AVNCS ANSU 1'],
   [46, A380Failure.NssAnsu2, 'NSS AVNCS ANSU 2'],
@@ -1059,6 +1123,9 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [46, A380Failure.FirstOfficerLaptop, 'F/O Laptop'],
   [46, A380Failure.CaptainOit, 'Captain OIT'],
   [46, A380Failure.FirstOfficerOit, 'F/O OIT'],
+  [46, A380Failure.Sci1, 'SCI 1 (NSS / avionics secure communication interface)'],
+  [46, A380Failure.Sci2, 'SCI 2 (NSS / avionics secure communication interface)'],
+  [46, A380Failure.AdsFunction, 'ADS function (ATC datalink)'],
 
   // The flame goes out once (fuel cut); the crew relights it with ENG MASTER OFF then ON (ENG START selector at IGN START)
   // inside the relight envelope (a380_systems engine_failure.rs)
@@ -1204,6 +1271,32 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [79, A380Failure.Eng2OilChip, 'Engine 2 oil chip (metal particles)'],
   [79, A380Failure.Eng3OilChip, 'Engine 3 oil chip (metal particles)'],
   [79, A380Failure.Eng4OilChip, 'Engine 4 oil chip (metal particles)'],
+  // FWS alerts only (systems engine/engine_monitoring_fault.rs): ENG CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT,
+  // FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION, ENG TYPE DISAGREE
+  [73, A380Failure.Eng1ControlSystem, 'Engine 1 control system fault (alert only)'],
+  [73, A380Failure.Eng2ControlSystem, 'Engine 2 control system fault (alert only)'],
+  [73, A380Failure.Eng3ControlSystem, 'Engine 3 control system fault (alert only)'],
+  [73, A380Failure.Eng4ControlSystem, 'Engine 4 control system fault (alert only)'],
+  [73, A380Failure.Eng1ControlValve, 'Engine 1 control valve (cooling/HP turbine/discharge)'],
+  [73, A380Failure.Eng2ControlValve, 'Engine 2 control valve (cooling/HP turbine/discharge)'],
+  [73, A380Failure.Eng3ControlValve, 'Engine 3 control valve (cooling/HP turbine/discharge)'],
+  [73, A380Failure.Eng4ControlValve, 'Engine 4 control valve (cooling/HP turbine/discharge)'],
+  [73, A380Failure.Eng1FadecIdent, 'Engine 1 FADEC engine identification'],
+  [73, A380Failure.Eng2FadecIdent, 'Engine 2 FADEC engine identification'],
+  [73, A380Failure.Eng3FadecIdent, 'Engine 3 FADEC engine identification'],
+  [73, A380Failure.Eng4FadecIdent, 'Engine 4 FADEC engine identification'],
+  [73, A380Failure.Eng1FuelSystemContamination, 'Engine 1 fuel filter bypass open (contamination)'],
+  [73, A380Failure.Eng2FuelSystemContamination, 'Engine 2 fuel filter bypass open (contamination)'],
+  [73, A380Failure.Eng3FuelSystemContamination, 'Engine 3 fuel filter bypass open (contamination)'],
+  [73, A380Failure.Eng4FuelSystemContamination, 'Engine 4 fuel filter bypass open (contamination)'],
+  [73, A380Failure.Eng1ThrustRatingDisagree, 'Engine 1 thrust rating differs (type disagree)'],
+  [73, A380Failure.Eng2ThrustRatingDisagree, 'Engine 2 thrust rating differs (type disagree)'],
+  [73, A380Failure.Eng3ThrustRatingDisagree, 'Engine 3 thrust rating differs (type disagree)'],
+  [73, A380Failure.Eng4ThrustRatingDisagree, 'Engine 4 thrust rating differs (type disagree)'],
+  [79, A380Failure.Eng1OilSystemContamination, 'Engine 1 oil filter bypass open (contamination)'],
+  [79, A380Failure.Eng2OilSystemContamination, 'Engine 2 oil filter bypass open (contamination)'],
+  [79, A380Failure.Eng3OilSystemContamination, 'Engine 3 oil filter bypass open (contamination)'],
+  [79, A380Failure.Eng4OilSystemContamination, 'Engine 4 oil filter bypass open (contamination)'],
 
   // Thrust reversers of engines 2 and 3 (a380_systems reverser)
   [78, A380Failure.Reverser2Fault, 'Reverser 2 fault (does not deploy)'],
@@ -1216,4 +1309,8 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [78, A380Failure.Reverser3Locked, 'Reverser 3 failed locked (does not deploy)'],
   [78, A380Failure.Reverser2ControlFault, 'Reverser 2 control fault (ETRAC)'],
   [78, A380Failure.Reverser3ControlFault, 'Reverser 3 control fault (ETRAC)'],
+  [78, A380Failure.Reverser2MinorFault, 'Reverser 2 minor fault (alert only)'],
+  [78, A380Failure.Reverser3MinorFault, 'Reverser 3 minor fault (alert only)'],
+  [78, A380Failure.Reverser2Inhibited, 'Reverser 2 inhibited by maintenance (does not deploy)'],
+  [78, A380Failure.Reverser3Inhibited, 'Reverser 3 inhibited by maintenance (does not deploy)'],
 ];

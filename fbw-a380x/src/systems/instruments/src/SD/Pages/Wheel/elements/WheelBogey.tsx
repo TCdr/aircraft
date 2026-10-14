@@ -1,5 +1,6 @@
 import React, { FC } from 'react';
 import { Wheel } from './Wheel';
+import { HottestBrakeArc } from '../WheelIndications';
 import { BodyWheelSteering, NoseWheelSteering } from './Steering';
 
 export enum WheelBogeyPosition {
@@ -20,9 +21,21 @@ interface WheelBogeyProps {
   position: WheelBogeyPosition;
   type: WheelBogeyType;
   moreActive: boolean;
+  /** The temperatures of brakes 1 to 16 in °C, brake 1 first */
+  brakeTemperatures: readonly number[];
+  /** The hottest brake arcs of brakes 1 to 16 (WheelIndications hottestBrakeArcs) */
+  hottestBrakeArcs: readonly HottestBrakeArc[];
 }
 
-export const WheelBogey: FC<WheelBogeyProps> = ({ x, y, position, type, moreActive }) => {
+export const WheelBogey: FC<WheelBogeyProps> = ({
+  x,
+  y,
+  position,
+  type,
+  moreActive,
+  brakeTemperatures,
+  hottestBrakeArcs,
+}) => {
   let numberOfWheels;
   if (type === WheelBogeyType.Nose) {
     numberOfWheels = 2;
@@ -46,14 +59,17 @@ export const WheelBogey: FC<WheelBogeyProps> = ({ x, y, position, type, moreActi
       xOffset = i === 0 ? 8 : -5;
     }
 
+    const hasBrake = wheelNumber < 17 && type !== WheelBogeyType.Nose;
     wheels.push(
       <Wheel
         x={xOffset}
         y={Math.floor(i / 2) * (type === WheelBogeyType.BLG ? 90 : 92)}
         number={type !== WheelBogeyType.Nose ? wheelNumber : null}
-        hasBrake={wheelNumber < 17 && type !== WheelBogeyType.Nose}
+        hasBrake={hasBrake}
         isLeftSide={wheelNumber % 2 !== 0}
         moreActive={moreActive}
+        brakeTemperature={hasBrake ? brakeTemperatures[wheelNumber - 1] ?? 0 : 0}
+        hottestArc={hasBrake ? hottestBrakeArcs[wheelNumber - 1] ?? HottestBrakeArc.None : HottestBrakeArc.None}
       />,
     );
   }

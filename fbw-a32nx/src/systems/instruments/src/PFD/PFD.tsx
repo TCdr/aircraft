@@ -25,6 +25,7 @@ import { HeadingOfftape, HeadingTape } from './HeadingIndicator';
 import { Horizon } from './AttitudeIndicatorHorizon';
 import { LandingSystem } from './LandingSystemIndicator';
 import { LinearDeviationIndicator } from './LinearDeviationIndicator';
+import { SideDiscrepancyMessages } from './SideDiscrepancyMessages';
 import { AirspeedIndicator, AirspeedIndicatorOfftape, MachNumber } from './SpeedIndicator';
 import { VerticalSpeedIndicator } from './VerticalSpeedIndicator';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
@@ -187,6 +188,7 @@ export class PFDComponent extends DisplayComponent<PFDProps> {
 
           <MachNumber bus={this.props.bus} />
           <FMA bus={this.props.bus} isAttExcessive={this.isAttExcessive} />
+          <SideDiscrepancyMessages bus={this.props.bus} />
         </svg>
       </DisplayUnit>
     );

@@ -1,4 +1,5 @@
 ﻿import {
+  ClockEvents,
   FSComponent,
   MappedSubject,
   NumberFormatter,
@@ -21,8 +22,15 @@ import { RadioButtonColor, RadioButtonGroup } from '../../../../MsfsAvionicsComm
 import { HoldData, HoldType } from '@fmgc/flightplanning/data/flightplan';
 import { NXDataStore, TurnDirection } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
+import { findDatabaseHold } from '@fmgc/flightplanning/plans/DatabaseHold';
+import { holdEntryPrediction, holdLastExit } from '@fmgc/flightplanning/fuel/HoldLastExit';
+import { FinalHoldingPredictor } from '../../../FMC/FinalHoldingPredictor';
+import { holdRevisionTarget, holdTypeLabel } from './HoldTypeLabel';
 
 interface MfdFmsFplnHoldProps extends AbstractMfdPageProps {}
+
+/** Pounds per kilogram (the VNAV predictions give the EFOB in pounds) */
+const POUNDS_PER_KG = 2.204_622_6;
 
 export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
   private readonly weightUnit = NXDataStore.getSetting('CONFIG_USING_METRIC_UNIT').map((v) =>
@@ -74,40 +82,163 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
     (idx) => idx === FlightPlanIndex.Active || idx === FlightPlanIndex.Temporary,
   );
 
+  /**
+   * True while the entry fields are filled from the flight plan: these updates are not flight crew changes, and must not
+   * turn the hold into a modified hold (FCOM l.36388-36390: "As soon as the flight crew changes a parameter of a
+   * database, or computed hold, the hold becomes a modified hold").
+   */
+  private fillingFromFlightPlan = false;
+
+  /** The database hold of the revised waypoint, null when the navigation database has none (DATABASE button disabled) */
+  private readonly databaseHold = Subject.create<HoldData | null>(null);
+
+  private readonly databaseButtonDisabled = this.databaseHold.map((hold) => hold === null);
+
+  /** The hold fix (plan, leg, database id) whose database hold was looked up last */
+  private databaseHoldLookupKey: string | null = null;
+
   protected onNewData(): void {
     const revWptIdx = this.props.fmcService.master.revisedLegIndex.get();
     if (this.props.fmcService.master.revisedWaypoint() && revWptIdx) {
       const leg = this.loadedFlightPlan?.legElementAt(revWptIdx);
       const hold = leg?.modifiedHold !== undefined ? leg.modifiedHold : leg?.defaultHold;
-      if (hold) {
-        switch (hold.type) {
-          case HoldType.Computed:
-            this.holdType.set('COMPUTED HOLD AT ');
-            break;
-          case HoldType.Pilot:
-            this.holdType.set('MODIFIED HOLD AT ');
-            break;
-          default:
-            this.holdType.set('');
-            break;
-        }
-        this.waypointIdent.set(leg?.ident ?? '');
+      if (leg && hold) {
+        this.holdType.set(holdTypeLabel(leg.modifiedHold, leg.defaultHold));
+        this.fillingFromFlightPlan = true;
+        this.waypointIdent.set(leg.ident ?? '');
         this.inboundCourse.set(hold.inboundMagneticCourse ?? null);
-        this.turnSelectedIndex.set(hold?.turnDirection === TurnDirection.Left ? 0 : 1);
-        this.legDefiningParameterSelectedIndex.set(hold?.time !== undefined ? 0 : 1);
-        this.legTime.set(hold?.time ?? null);
-        this.legDistance.set(hold?.distance ?? null);
+        this.turnSelectedIndex.set(hold.turnDirection === TurnDirection.Left ? 0 : 1);
+        this.legDefiningParameterSelectedIndex.set(hold.time !== undefined ? 0 : 1);
+        this.legTime.set(hold.time ?? null);
+        this.legDistance.set(hold.distance ?? null);
+        this.fillingFromFlightPlan = false;
 
-        this.lastExitUtc.set('--:--');
-        this.lastExitEfob.set(NaN);
+        this.lookUpDatabaseHold(revWptIdx, leg.defaultHold?.inboundMagneticCourse ?? hold.inboundMagneticCourse ?? 0);
       }
     }
+    this.updateLastExit();
+  }
+
+  /**
+   * Looks up the database hold of the revised waypoint once per hold fix (DATABASE button, FCOM l.36446-36450: "If no
+   * database hold exists for the selected waypoint, the button cannot be selected.").
+   * @param holdLegIndex the index of the hold leg
+   * @param inboundCourse the course to the hold fix, to pick between several database holds
+   */
+  private lookUpDatabaseHold(holdLegIndex: number, inboundCourse: number): void {
+    const plan = this.loadedFlightPlan;
+    const leg = plan?.legElementAt(holdLegIndex);
+    const fix = leg?.terminationWaypoint();
+    if (!plan || !fix) {
+      this.databaseHoldLookupKey = null;
+      this.databaseHold.set(null);
+      return;
+    }
+    const key = `${plan.index}:${holdLegIndex}:${fix.databaseId}`;
+    if (key === this.databaseHoldLookupKey) {
+      return;
+    }
+    this.databaseHoldLookupKey = key;
+    this.databaseHold.set(null);
+
+    // the database hold that suits the predicted altitude at the hold fix (else the aircraft altitude)
+    const predictedAltitude =
+      plan.index === FlightPlanIndex.Active || plan.index === FlightPlanIndex.Temporary
+        ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(
+            holdLegIndex - 1,
+          )?.altitude
+        : undefined;
+    const altitude: number = predictedAltitude ?? SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
+
+    findDatabaseHold(fix, plan.originAirport?.ident, plan.destinationAirport?.ident, altitude, inboundCourse)
+      .then((hold) => {
+        if (this.databaseHoldLookupKey === key) {
+          this.databaseHold.set(hold ?? null);
+        }
+      })
+      .catch((e) => console.error(e));
+  }
+
+  /** DATABASE button: the database hold replaces the displayed hold, in the temporary flight plan (FCOM l.36446-36449) */
+  private async selectDatabaseHold(): Promise<void> {
+    const databaseHold = this.databaseHold.get();
+    const revWptIdx = this.props.fmcService.master.revisedLegIndex.get();
+    const revPlanIdx = this.props.fmcService.master.revisedLegPlanIndex.get();
+    if (!databaseHold || revWptIdx === null || revPlanIdx === null || !this.props.fmcService.master.revisedWaypoint()) {
+      return;
+    }
+    const leg = this.loadedFlightPlan?.legElementAt(revWptIdx);
+    await this.props.flightPlanInterface.addOrEditManualHold(
+      revWptIdx,
+      { ...databaseHold },
+      { ...databaseHold },
+      leg?.defaultHold ?? { ...databaseHold },
+      revPlanIdx,
+      this.props.fmcService.master.revisedLegIsAltn.get() ?? false,
+    );
+    this.onNewData();
+  }
+
+  /**
+   * LAST EXIT time and EFOB (FCOM l.36440-36444, see HoldLastExit.ts): the EXTRA fuel of the FUEL&LOAD page burnt in the
+   * hold, from the arrival at the hold fix (or now, in the hold), for as long as it lasts at the holding fuel flow of the
+   * FINAL fuel (FinalHoldingPredictor). Design choice: dashes for a hold of the temporary, secondary or alternate flight
+   * plan, whose fuel predictions the FMS does not compute.
+   */
+  private updateLastExit(): void {
+    const fmc = this.props.fmcService.master;
+    const holdLegIndex = fmc?.revisedLegIndex.get() ?? null;
+    const plan = this.loadedFlightPlan;
+    if (
+      !fmc ||
+      !plan ||
+      holdLegIndex === null ||
+      this.loadedFlightPlanIndex.get() !== FlightPlanIndex.Active ||
+      fmc.revisedLegIsAltn.get()
+    ) {
+      this.lastExitUtc.set('--:--');
+      this.lastExitEfob.set(NaN);
+      return;
+    }
+
+    const profile = fmc.guidanceController?.vnavDriver?.mcduProfile;
+    const holdFix = profile?.isReadyToDisplay ? profile.waypointPredictions.get(holdLegIndex - 1) : undefined;
+    const entry = holdEntryPrediction(
+      holdLegIndex,
+      plan.activeLegIndex,
+      fmc.fmgc.getFOB(),
+      holdFix
+        ? {
+            secondsFromPresent: holdFix.secondsFromPresent,
+            fuelOnBoard: holdFix.estimatedFuelOnBoard / POUNDS_PER_KG / 1000,
+          }
+        : undefined,
+    );
+
+    // EXTRA fuel in tonnes, and the time it lasts in this hold: the hold ends at the ZFW plus the fuel left at the exit
+    const extraKg = fmc.getExtraFuel(FlightPlanIndex.Active);
+    const extraFuel = extraKg !== null ? extraKg / 1000 : null;
+    const zfw = plan.performanceData.zeroFuelWeight.get();
+    const heldFuel = extraFuel !== null ? Math.max(0, extraFuel) : null;
+    const extraMinutes =
+      entry !== null && heldFuel !== null
+        ? FinalHoldingPredictor.timeForFuel(zfw !== null ? zfw + entry.fuelOnBoard - heldFuel : null, heldFuel)
+        : null;
+
+    const lastExit = holdLastExit(entry, extraFuel, extraMinutes);
+    this.lastExitUtc.set(lastExit !== null ? fmc.timeKeeper.formatEta(lastExit.secondsFromPresent) : '--:--');
+    this.lastExitEfob.set(lastExit !== null ? lastExit.fuelOnBoard * 1000 : NaN);
   }
 
   private async modifyHold() {
-    const revWptIdx = this.props.fmcService.master.revisedLegIndex.get();
-    const revPlanIdx = this.props.fmcService.master.revisedLegPlanIndex.get();
-    if (revWptIdx && revPlanIdx && this.props.fmcService.master.revisedWaypoint()) {
+    const target = holdRevisionTarget(
+      this.props.fmcService.master.revisedLegIndex.get(),
+      this.props.fmcService.master.revisedLegPlanIndex.get(),
+      !!this.props.fmcService.master.revisedWaypoint(),
+    );
+    if (target) {
+      const revWptIdx = target.legIndex;
+      const revPlanIdx = target.planIndex;
       const desiredHold: HoldData = {
         type: HoldType.Pilot,
         distance: this.legDefiningParameterSelectedIndex.get() === 0 ? undefined : this.legDistance.get() ?? undefined,
@@ -166,19 +297,34 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
       this.isActiveOrTmpy,
     );
 
+    // A flight crew change of a parameter makes a modified hold; the filling from the flight plan does not
+    const onCrewChange = () => {
+      if (!this.fillingFromFlightPlan) {
+        this.modifyHold();
+      }
+    };
     this.subs.push(
       this.legDefiningParameterSelectedIndex.sub(() => {
         this.showTimeOrDist();
-        this.modifyHold();
+        onCrewChange();
       }),
     );
 
-    this.subs.push(this.inboundCourse.sub(() => this.modifyHold()));
-    this.subs.push(this.turnSelectedIndex.sub(() => this.modifyHold()));
-    this.subs.push(this.legTime.sub(() => this.modifyHold()));
-    this.subs.push(this.legDistance.sub(() => this.modifyHold()));
+    this.subs.push(this.inboundCourse.sub(onCrewChange));
+    this.subs.push(this.turnSelectedIndex.sub(onCrewChange));
+    this.subs.push(this.legTime.sub(onCrewChange));
+    this.subs.push(this.legDistance.sub(onCrewChange));
 
-    this.subs.push(this.weightUnit, this.weightUnitText, this.lastExitEfobText);
+    this.subs.push(this.weightUnit, this.weightUnitText, this.lastExitEfobText, this.databaseButtonDisabled);
+
+    // the LAST EXIT moves with the predictions: refreshed every second
+    this.subs.push(
+      this.props.bus
+        .getSubscriber<ClockEvents>()
+        .on('realTime')
+        .atFrequency(1)
+        .handle(() => this.updateLastExit()),
+    );
 
     this.showTimeOrDist();
   }
@@ -294,9 +440,11 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
               608,
               <Button
                 label="DATABASE"
-                onClick={() => console.warn('DATABASE HOLD NOT IMPLEMENTED')}
+                onClick={() => {
+                  void this.selectDatabaseHold();
+                }}
                 buttonStyle="min-width: 150px; min-height: 59px;"
-                disabled={true}
+                disabled={this.databaseButtonDisabled}
               />,
             )}
             {fcomAt(
@@ -305,12 +453,15 @@ export class MfdFmsFplnHold extends FmsFlightPlanPage<MfdFmsFplnHoldProps> {
               <Button
                 label="COMPUTED"
                 onClick={() => {
-                  const revWptIdx = this.props.fmcService.master.revisedLegIndex.get();
-                  const revPlanIdx = this.props.fmcService.master.revisedLegPlanIndex.get();
-                  if (revWptIdx && revPlanIdx && this.props.fmcService.master.revisedWaypoint()) {
+                  const target = holdRevisionTarget(
+                    this.props.fmcService.master.revisedLegIndex.get(),
+                    this.props.fmcService.master.revisedLegPlanIndex.get(),
+                    !!this.props.fmcService.master.revisedWaypoint(),
+                  );
+                  if (target) {
                     this.props.flightPlanInterface.revertHoldToComputed(
-                      revWptIdx,
-                      revPlanIdx,
+                      target.legIndex,
+                      target.planIndex,
                       this.props.fmcService.master.revisedLegIsAltn.get() ?? false,
                     );
                   }

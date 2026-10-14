@@ -83,8 +83,12 @@ export const NXSystemMessages = {
   cancelAtisUpdate: new TypeIMessage('CANCEL AUTO UPDATE FIRST'), // TODO
   checkAltnWind: new TypeIIMessage('CHECK ALTN WIND'),
   checkDestData: new TypeIIMessage('CHECK DEST DATA', true),
+  // A380 FCOM DSC-22-FMS-20-110 l.45310-45316: Type I, an alternate company route that does not start at the destination
+  destAltnCpnyRteDisagree: new TypeIMessage('DEST / ALTN CPNY RTE DISAGREE'),
   checkMinFuelAtDest: new TypeIIMessage('CHECK MIN FUEL AT DEST'),
   checkSpeedMode: new TypeIIMessage('CHECK SPD MODE'),
+  /** A380 FCOM DSC-22-FMS-20-110 (a380_fcom.txt l.44966-44979), MFD and PFD (FmsAdvisoryMessages) */
+  checkApprSel: new TypeIIMessage('CHECK APPR SEL'),
   checkToData: new TypeIIMessage('CHECK T.O. DATA', true),
   checkZfw: new TypeIIMessage('CHECK ZFW', true),
   comFplnReceivedPendingInsertion: new TypeIIMessage('COMPANY F-PLN RECEIVED\nWAITING FOR INSERTION', false),
@@ -175,6 +179,16 @@ export const NXSystemMessages = {
   timeToExit: new TypeIIMessage('TIME TO EXIT', true),
   // l.46287-46291: the aircraft clock time reaches the ETT
   toTimeReached: new TypeIIMessage('T.O TIME REACHED'),
+  // l.45252, l.45260-45262: the CRZ FL change deleted the climb and descent constraints at or above it (flight crew entry)
+  constraintsAboveCrzFlDeleted: new TypeIIMessage('CONSTRAINTS ABOVE CRZ FL: DELETED'),
+  // l.45016, l.45020-45026: engine out, the selected speed target is not within green dot +/- 10 kt
+  checkEoSpdSetting: new TypeIIMessage('CHECK EO SPD SETTING', true),
+  // l.45787, l.45791-45794: the selected HDG/TRACK does not intercept the flight plan before the TO waypoint
+  noNavInterception: new TypeIIMessage('NO NAV INTERCEPTION', true),
+  // l.45663, l.45667-45670: a temporary flight plan (not a direct to) is pending, and the DIR key of the KCCU is pressed
+  insertOrEraseTmpyFirst: new TypeIMessage('INSERT OR ERASE TMPY F-PLN FIRST'),
+  // l.45976, l.45980-45982: the received flight number of the up linked flight plan data is not valid
+  receivedFltNumberNotValid: new TypeIIMessage('RECEIVED FLT NUMBER NOT VALID'),
 };
 
 export const NXFictionalMessages = {

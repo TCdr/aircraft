@@ -506,6 +506,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (49_001, FailureType::ApuOverspeed),
         (49_002, FailureType::ApuOilLowPressure),
         (49_003, FailureType::ApuOilHighTemperature),
+        (49_004, FailureType::ApuAirIntakeFlapFailedClosed),
         (80_000, FailureType::EngineStartValveStuckClosed(1)),
         (80_001, FailureType::EngineStartValveStuckClosed(2)),
         (80_010, FailureType::EngineStartValveStuckOpen(1)),
@@ -607,6 +608,98 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
                 2,
                 EngineMonitoringFaultKind::ReverserPermissionSwitch,
             ),
+        ),
+        // FCOM PRO-ABN-ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, BLEED
+        // STATUS FAULT, REV INHIBITED (stops the reverser deployment), REV ISOL FAULT
+        (
+            73_250,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelMeteringValve),
+        ),
+        (
+            73_251,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelMeteringValve),
+        ),
+        (
+            73_260,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::FuelReturnValveFailedClosed,
+            ),
+        ),
+        (
+            73_261,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::FuelReturnValveFailedClosed,
+            ),
+        ),
+        (
+            73_270,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::FuelReturnValveFailedOpen,
+            ),
+        ),
+        (
+            73_271,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::FuelReturnValveFailedOpen,
+            ),
+        ),
+        (
+            73_280,
+            FailureType::EngineMonitoringFault(
+                1,
+                EngineMonitoringFaultKind::ClearanceControlValves,
+            ),
+        ),
+        (
+            73_281,
+            FailureType::EngineMonitoringFault(
+                2,
+                EngineMonitoringFaultKind::ClearanceControlValves,
+            ),
+        ),
+        (
+            73_290,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::CompressorVanes),
+        ),
+        (
+            73_291,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::CompressorVanes),
+        ),
+        (
+            73_300,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::CompressorVaneChannel),
+        ),
+        (
+            73_301,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::CompressorVaneChannel),
+        ),
+        (
+            73_310,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::BleedValveStatus),
+        ),
+        (
+            73_311,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::BleedValveStatus),
+        ),
+        (
+            78_040,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::ReverserInhibited),
+        ),
+        (
+            78_041,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::ReverserInhibited),
+        ),
+        (
+            78_050,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::ReverserShutoffValve),
+        ),
+        (
+            78_051,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::ReverserShutoffValve),
         ),
         (78_000, FailureType::ReverserFault(1)),
         (78_001, FailureType::ReverserFault(2)),
@@ -728,13 +821,14 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 7)?
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 8)?
     .provides_aircraft_variable("IS SLEW ACTIVE", "Bool", 0)?
-    .provides_aircraft_variable("NAV HAS NAV", "Bool", 3)?
-    .provides_aircraft_variable("NAV HAS LOC", "Bool", 3)?
-    .provides_aircraft_variable("NAV HAS GLIDE SLOPE", "Bool", 3)?
+    // the ILS receivers of MMR 1 (NAV 3) and MMR 2 (NAV 4)
+    .provides_aircraft_variable_range("NAV HAS NAV", "Bool", 3..=4)?
+    .provides_aircraft_variable_range("NAV HAS LOCALIZER", "Bool", 3..=4)?
+    .provides_aircraft_variable_range("NAV HAS GLIDE SLOPE", "Bool", 3..=4)?
     .provides_aircraft_variable("NAV MAGVAR", "degree", 3)?
-    .provides_aircraft_variable("NAV RADIAL ERROR", "degree", 3)?
-    .provides_aircraft_variable("NAV GLIDE SLOPE ERROR", "degree", 3)?
-    .provides_aircraft_variable("NAV FREQUENCY", "Hz", 3)?
+    .provides_aircraft_variable_range("NAV RADIAL ERROR", "degree", 3..=4)?
+    .provides_aircraft_variable_range("NAV GLIDE SLOPE ERROR", "degree", 3..=4)?
+    .provides_aircraft_variable_range("NAV FREQUENCY", "Hz", 3..=4)?
     .provides_named_variable("FSDT_GSX_BOARDING_STATE")?
     .provides_named_variable("FSDT_GSX_DEBOARDING_STATE")?
     .provides_named_variable("FSDT_GSX_NUMPASSENGERS_BOARDING_TOTAL")?

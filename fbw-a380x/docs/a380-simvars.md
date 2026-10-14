@@ -30,6 +30,7 @@
   - [Oxygen ATA 35](#oxygen-ata-35)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
+  - [Information Systems ATA 46](#information-systems-ata-46)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
   - [Engines ATA 70](#engines-ata-70)
   - [Hydraulics](#hydraulics)
@@ -583,6 +584,12 @@
 - A380X_FMS_DEST_EFOB_BELOW_MIN
     - Bool
     - Indicates if the FMS predicted fuel at destination is below minimum.
+
+- A32NX_PFD_MSG_CHECK_APPR_SELECTION
+    - Bool
+    - Indicates if the CHECK APPR SEL message is shown on the PFD FMA (FMS: an ILS manually tuned on the
+      POSITION/NAVAIDS page that does not correspond with the approach of the flight plan, in cruise less than 100 NM
+      from the T/D, in descent, or in approach above 800 ft)
 
 - A380X_FM_APPROACH_HEADWIND_COMPONENT
     - Arinc429<Knots>
@@ -1536,6 +1543,13 @@ The PRIMs perform the flight guidance and flight envelope functions.
       DC 2 bus) or only one detector senses the smoke, and the SMOKE warning is not on. Drives the SMOKE ... DET FAULT
       cautions
 
+- A32NX_SMOKE_DETECTION_FUNCTION_FAULT
+    - Bool
+    - True when the Smoke Detection Function (SDF) itself is failed (flyPad failure "Smoke detection function (SDF) of
+      the CIDS", 26048): no compartment then reports smoke or a detector fault (A32NX_SMOKE_{zone}_DETECTED and
+      A32NX_SMOKE_{zone}_DET_FAULT stay false). Written by systems fire_and_smoke_protection.rs, drives the FWS SMOKE DET
+      FAULT caution (A380 FCOM PRO-ABN-ECAM-10-26)
+
 - A32NX_CARGOSMOKE_{FWD | AFT}_DISCHARGED
     - Bool
     - True once the AGENT TO FWD (AFT) pb of the CARGO SMOKE panel was pressed
@@ -1955,6 +1969,73 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - TRIMTK (TRIM TK XFR pb-sw)
   - True when the transfer pb-sw is in AUTO (released, no light); false in MAN (FWD for the trim tank: pressed in, MAN / FWD light). Set to true (AUTO) at every flight load by the systems host (CpiomF/LegacyFuel, FuelManualTransfer). While any of them is in MAN / FWD the automatic transfers stop and the systems host runs the manual transfers on the MSFS fuel system (FCOM DSC-28-40 MANUAL TRANSFERS): outer tank pumps via the forward gallery into the four feed tanks (with an outer tank pump pb-sw OFF, the emergency outer tank transfer valves open instead, by gravity into feed tanks 1 and 4), inner and mid tank aft pumps via the aft gallery into the feed tanks, trim tank pumps via the trim line isolation valve and the aft gallery into the inner tanks (into the feed tanks when an inner or mid tank manual transfer is also selected). Back to AUTO, the transfer pumps stop, the transfer valves close and the automatic transfers start again
 
+- A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON
+  - Bool
+  - The AUTO GND XFR pb-sw is pressed: the FQMS runs the automatic ground transfer (CpiomF/FuelGroundTransfer, FCOM DSC-28-50-20): with all the transfer pump pb-sws ON, on ground, fewer than two engines running and the FQMS CG computed (ZFW / ZFCG entered in the FMS), the fuel moves out of (into) the trim tank into (out of) the inner tanks, then the mid tanks, until the GW CG reaches the ground CG target of 39.5 %, at 44 100 lb/h
+
+- A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON
+  - Bool
+  - The light of the AUTO GND XFR pb-sw: on while the pb-sw is pressed (in progress or completed), flashing when the FQMS aborted the ground transfer
+  - Written by the systems host (CpiomF/FuelAutomaticTransfers)
+
+- A380X_FUEL_AUTO_GND_XFR_IN_PROGRESS
+  - Bool
+  - The automatic ground transfer is in progress (GND XFR IN PROGRESS memo)
+
+- A380X_FUEL_AUTO_GND_XFR_COMPLETED
+  - Bool
+  - The automatic ground transfer has completed (the CG reached 39.5 %, or no more fuel can move), until the AUTO GND XFR pb-sw is released (FUEL AUTO GND XFR COMPLETED)
+
+- A380X_FUEL_AUTO_GND_XFR_FAULT
+  - Bool
+  - The automatic ground transfer could not start (a transfer pump pb-sw OFF, no FQMS CG, in flight, a refuel, jettison or manual transfer in progress) or was aborted (two engines running), until the AUTO GND XFR pb-sw is released (FUEL AUTO GND XFR FAULT)
+
+- A380X_OVHD_FUEL_TRIM_TK_FEED_SELECTOR
+  - Number
+  - The TRIM TK FEED selector: 0 AUTO (the value at flight load), 1 OPEN, 2 ISOL. The cockpit model has no such selector: the L:var is set from outside the cockpit (e.g. the developer mode). ISOL stops the transfers out of the trim tank (main and CG transfers of CpiomF/LegacyFuel, load alleviation, TRIM TK XFR FWD): trim tank pumps stopped, trim line valves closed. OPEN lets the trim tank fuel flow by gravity into the inner tanks (1 000 gal/h, pitch attitude below 3°)
+
+- A380X_FUEL_TRIM_TK_GRAVITY_XFR_IN_PROGRESS
+  - Bool
+  - The trim tank fuel flows by gravity into the inner tanks (TRIM TK FEED OPEN)
+
+- A380X_FUEL_LOAD_ALLEVIATION_XFR_{transfer}
+  - Bool
+  - {transfer}
+    - TO_OUTR_TKS: in flight, FOB above 110 200 lb, the outer tanks not full: inner (then mid) tanks to the outer tanks, 44 100 lb/h per outer tank
+    - FROM_TRIM_TK: before landing (remaining time to destination below 80 min for 3 min, or below FL 245 after FL 255; stops above 80 min, resumes below 78 min): trim tank to the feed (then mid, then inner) tanks, 44 100 lb/h
+    - FROM_OUTR_TKS: before landing (the same with 30 and 28 min): outer tanks above 8 800 lb to the feed (then mid, then inner) tanks of their side, 33 050 lb/h per outer tank
+  - The load alleviation transfer is in progress (CpiomF/FuelLoadAlleviation, FCOM DSC-28-30). The remaining time to destination is read from A32NX_FM{number}_REMAINING_FLIGHT_TIME; below 90 min the main transfer thresholds of the feed tanks are also reduced (36 500 lb / 39 350 lb instead of 43 100 lb / 45 950 lb)
+
+- A380X_FUEL_ALTN_OUTR_TK_GRAVITY_XFR_IN_PROGRESS
+  - Bool
+  - The alternate gravity transfer from an outer tank with a failed pump runs (FCOM DSC-28-40 CASE 5: from the lowest feed tank below 28 660 lb, into FEED TK 2 (3), 500 gal/h); the FWS raises FUEL NORM XFR FAULT from it
+
+- A380X_FUEL_{tank}_TANK_TEMPERATURE
+  - Number in degrees Celsius
+  - {tank}: LEFT_OUTER, FEED_1, LEFT_MID, LEFT_INNER, FEED_2, FEED_3, RIGHT_INNER, RIGHT_MID, FEED_4, RIGHT_OUTER, TRIM
+  - The fuel temperature of the tank (CpiomF/FuelTankTemperatures): a first order lag towards the outside air temperature on ground and the total air temperature in flight, faster for the thin outer and trim tanks and for tanks with less fuel. Shown on the FUEL SD page (outer and trim tanks while their sensor is immersed, feed tanks when abnormal or with MORE); FUEL TEMP LO below -40 °C, FUEL FEED TK 1(2)(3)(4) TEMP HI above 53 °C
+  - Written by the systems host
+
+- A380X_FUEL_COLLECTOR_CELL_{number}_QUANTITY
+  - Number in kilograms
+  - {number}: 1 to 4, the collector cell of the feed tank
+  - The fuel in the collector cell (CpiomF/FuelCollectorCells): full (2 866 lb, never more than the feed tank) while a feed tank pump runs or the engine is off; emptied by the engine when it is fed by gravity. FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL below 1 735 lb, until above 2 076 lb
+  - Written by the systems host
+
+- A380X_WBBC_GROSS_WEIGHT
+  - Arinc429<Kilogram>
+  - The gross weight of the Weight and Balance Backup Computer (CpiomF/WeightBalanceBackup): from the first slats and flaps retraction in flight, the simulator's aerodynamic weight, after a slats/flaps extension the takeoff GW minus the fuel used; no computed data on ground and before the retraction. The FWS compares it with the FQMS GW (FUEL WEIGHT DATA DISAGREE above 198 400 lb)
+
+- A380X_WBBC_CENTER_OF_GRAVITY_MAC
+  - Arinc429<Percent>
+  - The WBBC CG: the simulator's CG (A32NX_AIRFRAME_GW_CG_PERCENT_MAC) while the slats and flaps are retracted in flight, no computed data otherwise. FUEL EXCESS AFT CG above 50 % in automatic transfer mode, FUEL CG DATA DISAGREE above 8 % from the FQMS CG; the FMS uses it when the FQMS CG is not available
+
+- A32NX_FM{number}_REMAINING_FLIGHT_TIME
+  - Arinc429<Seconds>
+  - {number} 1 or 2
+  - The predicted time to the destination, no computed data without a prediction
+  - Written by the FMS, read by the FQMS (CpiomF/LegacyFuel, FuelAutomaticTransfers)
+
 ## Indicating-Recording ATA 31
 
 - A32NX_CDS_CAN_BUS_1_1_AVAIL
@@ -2330,6 +2411,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Bool
     - Set from the WX ON VD button of the MFD SURV CONTROLS page. True when the weather on the VD is switched OFF (false = AUTO)
 
+- `L:A32NX_TAWS_SYS_IN_USE`
+    - Number
+    - The SURV system that provides the TAWS functions (1 or 2, 0 = no WXR/TAWS system selected), written by the systems host (EfisTawsBridge)
+    - Normally the selected WXR/TAWS system (`L:A32NX_WXR_TAWS_SYS_SELECTED`); the other system after the automatic reconfiguration of SURV TAWS 1(2) FAULT (the TAWS of the selected system failed, the WXR of the other system failed, its TAWS operative), shown as TAWS 1(2) IN USE on the MFD SURV STATUS & SWITCHING page
+    - Read by the GPWS, the FWS (TERR STBY), the MFD SURV pages and the ND/VD terrain (ndwxr)
+
 - `L:A380X_TCAS_ALERT_LEVEL`
     - Enum
     - The TCAS alert level selected on the MFD SURV CONTROLS page, mirrored by the TCAS computer for the pedestal SURV panel lights
@@ -2530,6 +2617,19 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Number (seconds)
     - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
 
+- A32NX_MMR_{number}_LOC_IS_VALID, A32NX_MMR_{number}_GS_IS_VALID
+    - Bool
+    - number: 1 or 2
+    - The localizer (glide slope) signal of the ILS receiver of MMR {number} is valid. MMR 1 is the sim NAV 3, MMR 2
+      NAV 4. Written by systems.wasm (fbw-common navigation/ils.rs). The F/O PFD reads MMR 2; the CAPT PFD keeps the
+      A32NX_RADIO_RECEIVER_* variables (MMR 1)
+
+- A32NX_MMR_{number}_LOC_DEVIATION, A32NX_MMR_{number}_GS_DEVIATION
+    - Number in degrees
+    - The localizer (glide slope) deviation of the ILS receiver of MMR {number}, the sim signal (NAV RADIAL ERROR,
+      NAV GLIDE SLOPE ERROR), not corrected for the back beam: the contract of A32NX_RADIO_RECEIVER_LOC_DEVIATION
+      and A32NX_RADIO_RECEIVER_GS_DEVIATION without the calculated ILS signals option
+
 ## Standby Instruments ATA 34
 
 - `L:A380X_ISIS_CONFIGURATION`
@@ -2702,6 +2802,16 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - Bool
   - Indicates if a specific IOM system is available: powered, and neither A32NX_IOM_<NAME>_FAILURE nor its flyPad failure
     (ATA 42, ids 42101-42108) is set
+  - The FWS AVIONICS NETWORK alerts (systems-host CpiomC/FlightWarningSystem/AvionicsNetworkAlerts.ts) count the AFDX
+    switches and IOMs whose _FAILURE L:var or flyPad failure is set, not the unpowered ones
+
+## Information Systems ATA 46
+
+- A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE
+  - Bool
+  - The NSS DATA TO AVNCS pb-sw: 1 = normal (released, the NSS and the avionics exchange data both ways; the value of
+    every flight file), 0 = OFF (pressed in, OFF light; the SCIs pass data only from the avionics to the NSS). OFF gives
+    the FWS alert COM NSS DATA TO AVNCS XFR FAULT (A380 FCOM DSC-46-20-20-80, PRO-ABN-ECAM-10-46)
 
 ## Auxiliary Power Unit ATA 49
 
@@ -2726,6 +2836,10 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     network for 10 min (the ENG SD page shows the engine parameters); the FADEC is also supplied 15 min after the
     aircraft power-up (A380 FCOM DSC-70-20-10)
   - {ENG} = 1, 2, 3, 4
+
+- A32NX_AIRLINER_TO_DERATE
+  - Number (percent)
+  - The DOx derated takeoff of the MFD PERF T.O panel (DERATED D04, D08, D12, D16, D20, D24): the thrust reduction in percent (4 to 24), 0 when TOGA or FLEX is selected (A380 FCOM DSC-70-20-40 l.111561-111568). The FADECs (fadec_a380x TakeoffDerate_A380X.hpp) write the derated rating as the FLX limit and the FADEC models of the fbw module take their FLX path for it (TakeoffDerate.h); the E/WD shows the level in place of FLX, the FWS takes the FLX/MCT detent as take-off power and TOGA as ENG THR LEVERS NOT SET. Written by the MFD (MFD/shared/TakeoffDerate.ts)
 
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
@@ -2905,6 +3019,20 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 3
   - True when the reverser is energized with its tertiary lock released without a deploy order (flyPad failure 78021/78022): ENG 2(3) REVERSER ENERGIZED. Written by the systems WASM
 
+- A32NX_REVERSER_{number}_MINOR_FAULT
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the FADEC detects a reverser failure that does not impair the reverser operation (flyPad failure 78051/78052): the reverser still deploys, for ENG 2(3) REVERSER MINOR FAULT (A380 FCOM l.173668-173676). Written by the systems WASM (a380_systems reverser)
+
+- A32NX_REVERSER_{number}_INHIBITED
+  - Bool
+  - {number}
+    - 2
+    - 3
+  - True when the reverser is inhibited by maintenance action (flyPad failure 78061/78062): its locks do not release and it does not deploy, for ENG 2(3) REVERSER INHIBITED (A380 FCOM l.173571-173590). Written by the systems WASM (a380_systems reverser)
+
 
 - A32NX_ENGINE_{number}_OIL_LEAK
   - Bool
@@ -2951,6 +3079,15 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     - 3
     - 4
   - True while the FADEC fault failure of the engine is active (flyPad failures 73110-73113 fuel strainer clog, 73120-73123 fuel filter monitoring, 79040-79043 oil chip, 73260-73263 FADEC minor fault, 73250-73253 overthrust protection, 73240-73243 pressure and temperature probes): the crew awareness alerts ENG FUEL STRAINER CLOGGED, FUEL FILTER MONITORING FAULT, OIL CHIP DETECTED, MINOR FAULT, OVTHR PROT LOST, SENSOR FAULT (FwsCore, EngineMonitoringAlerts.ts), no effect on the engine. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
+
+- A32NX_ENGINE_{number}_CTL_SYS_FAULT, _CTL_VLV_FAULT, _FADEC_IDENT_FAULT, _FUEL_SYS_CONTAMINATION, _OIL_SYS_CONTAMINATION, _TYPE_DISAGREE
+  - Bool
+  - {number}
+    - 1
+    - 2
+    - 3
+    - 4
+  - True while the FADEC fault failure of the engine is active (flyPad failures 73270-73273 control system fault, 73280-73283 control valve, 73290-73293 FADEC engine identification, 73130-73133 fuel filter bypass open, 79050-79053 oil filter bypass open, 73300-73303 thrust rating differs), for ENG 1(2)(3)(4) CTL SYS FAULT, CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS CONTAMINATION, OIL SYS CONTAMINATION and ENG TYPE DISAGREE (A380 FCOM PRO-ABN-ECAM-10-70), no effect on the engine. Not read by the FWS yet. Written by the systems WASM (systems engine/engine_monitoring_fault.rs)
 
 - A32NX_ENGINE_{number}_OIL_OVERHEAT
   - Bool
@@ -3110,6 +3247,17 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
       inhibited with an engine running (FCOM DSC-29-10). A closed door then stays locked when the ground crew is asked to
       open it, and a moving door holds its position; the request is carried out once the engines are stopped. Read by
       the flyPad Services page
+
+- A32NX_HYD_{LOOP}_AUXILIARY_1_SECTION_PRESSURE
+    - Pressure (psi)
+    - Pressure of the auxiliary section of hydraulic system {LOOP}: the cargo door actuation (GREEN) or the body
+      wheel steering (YELLOW), pressurised by the electric pumps in automatic mode only (FCOM DSC-29-10)
+    - {LOOP} = GREEN, YELLOW
+
+- A32NX_HYD_{LOOP}_AUXILIARY_1_SECTION_PRESSURE_SWITCH
+    - Boolean
+    - Pressure switch of the auxiliary section of hydraulic system {LOOP}
+    - {LOOP} = GREEN, YELLOW
 
 ## Sound Variables
 
