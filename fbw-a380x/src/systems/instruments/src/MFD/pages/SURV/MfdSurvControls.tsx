@@ -33,6 +33,7 @@ import {
   WxrManualSetting,
   wxrManualDefaultOnSelection,
 } from './WxrManualSettings';
+import { selectedTransponderFailed, tawsSystem } from './SurvStatus';
 
 interface MfdSurvControlsProps extends AbstractMfdPageProps {}
 
@@ -64,7 +65,18 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
 
   private readonly sub = this.props.bus.getSubscriber<MfdSimvars & MfdSurvEvents>();
 
-  private readonly xpdrFailed = Subject.create<boolean>(false);
+  /** The XPDR/TCAS system in use (L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1, 1 = SYS 2) and the XPDR failures */
+  private readonly xpdrSystem = ConsumerSubject.create(this.sub.on('xpdrSystem'), 0);
+  private readonly xpdr1Failed = ConsumerSubject.create(this.sub.on('xpdr1Failed'), false);
+  private readonly xpdr2Failed = ConsumerSubject.create(this.sub.on('xpdr2Failed'), false);
+
+  /** The XPDR label is amber when the XPDR in use is failed (SurvStatus.ts selectedTransponderFailed) */
+  private readonly xpdrFailed = MappedSubject.create(
+    ([system, failed1, failed2]) => selectedTransponderFailed(system, !!failed1, !!failed2),
+    this.xpdrSystem,
+    this.xpdr1Failed,
+    this.xpdr2Failed,
+  );
 
   private readonly squawkCode = Subject.create<number | null>(null);
 
@@ -195,16 +207,27 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
   private readonly terr2Failed = ConsumerSubject.create(this.sub.on('terr2Failed'), false);
   private readonly gpws2Failed = ConsumerSubject.create(this.sub.on('gpws2Failed'), false);
 
+  /** The system that provides the TAWS: the other one than the selected after an automatic reconfiguration */
+  private readonly tawsSysInUse = ConsumerSubject.create(this.sub.on('tawsSysInUse'), 0);
+
   private readonly tawsTerrFailed = MappedSubject.create(
-    ([selected, f1, f2]) => (selected === 1 ? f1 : selected === 2 ? f2 : true),
+    ([selected, inUse, f1, f2]) => {
+      const system = tawsSystem(selected, inUse);
+      return system === 1 ? !!f1 : system === 2 ? !!f2 : true;
+    },
     this.activeSystemGroupWxrTaws,
+    this.tawsSysInUse,
     this.terr1Failed,
     this.terr2Failed,
   );
 
   private readonly tawsGpwsFailed = MappedSubject.create(
-    ([selected, f1, f2]) => (selected === 1 ? f1 : selected === 2 ? f2 : true),
+    ([selected, inUse, f1, f2]) => {
+      const system = tawsSystem(selected, inUse);
+      return system === 1 ? !!f1 : system === 2 ? !!f2 : true;
+    },
     this.activeSystemGroupWxrTaws,
+    this.tawsSysInUse,
     this.gpws1Failed,
     this.gpws2Failed,
   );
@@ -304,6 +327,11 @@ export class MfdSurvControls extends DisplayComponent<MfdSurvControlsProps> {
       this.wxrElevationVisible,
       this.wxrTiltVisible,
       this.wxrGainFieldVisible,
+      this.xpdrSystem,
+      this.xpdr1Failed,
+      this.xpdr2Failed,
+      this.xpdrFailed,
+      this.tawsSysInUse,
       this.terr1Failed,
       this.terr2Failed,
       this.gpws1Failed,

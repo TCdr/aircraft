@@ -633,6 +633,20 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/HYD] The yellow electric pumps started automatically for pushback or towing pressurise only the body wheel steering, as in the FCOM, instead of the whole yellow system; electric pumps started with the ELEC PMP ON pb pressurise the whole system (green: except the cargo doors), and an ON pb pressed while its pump runs in automatic mode is disregarded - @TCdr
 1. [A380X/HYD] The HSMU switches off an overheated electric pump, as in the FCOM - @TCdr
 1. [A380X/HYD] ENG PMP FAULT lights on a system overheat and stays on with the pb-sw OFF until the overheat ends; ENG PMP A+B DISC FAULT lights on a reservoir low level whatever the ENG PMP pb-sw, and on an overheat only when turning the pump off failed; ELEC PMP FAULT lights for SYS OVHT, RSVR LEVEL LO and RSVR AIR PRESS LO only on ground with all engines off, as in the FCOM - @TCdr
+1. [A32NX/FWC] New ENG FUEL CTL FAULT, FUEL RETURN VALVE, CTL VALVE FAULT, COMPRESSOR VANE, ENG 1+2 COMPRESSOR VANE, BLEED STATUS FAULT, REV INHIBITED, REV ISOL FAULT and VIB SYS FAULT alerts with their procedures, STATUS lines and new flyPad failures; an inhibited reverser no longer deploys - @TCdr
+1. [A32NX/FWC] New DATALINK ATSU FAULT and DATALINK COMPANY FAULT alerts with STATUS INOP SYS ATSU and DATA COMPANY, new flyPad failures of the ATSU (no datalink) and of its AOC function (no company datalink), and a green COMPANY DATALINK STBY memo while no air-ground datalink is available - @TCdr
+1. [A380X/FUEL] Fuel tank temperatures, shown on the FUEL SD page (outer and trim tanks, feed tanks when abnormal or with MORE), with the FUEL TEMP LO and FUEL FEED TK TEMP HI alerts - @TCdr
+1. [A380X/FUEL] Collector cell quantities from the feed tanks (they empty when the engine is fed by gravity) instead of a fixed value, with the FUEL COLLECTOR CELL NOT FULL alerts - @TCdr
+1. [A380X/FUEL] Weight and balance backup computer: FUEL WEIGHT DATA DISAGREE and FUEL CG DATA DISAGREE against a wrong FMS ZFW or ZFWCG, FUEL EXCESS AFT CG, and the FMS CG backup - @TCdr
+1. [A380X/FWS] FUEL CG AT FWD LIMIT and FUEL CG OUT OF RANGE from the FCOM CG envelope, and the FUEL INR/MID/OUTR/TRIM TK MAN XFR COMPLETED alerts - @TCdr
+1. [A380X/FWS] FUEL FEED TK LEVEL LO: the TRIM TK FEED and transfer pushbutton lines are now shown and ticked - @TCdr
+1. [A380X/FWS] New AVIONICS NETWORK alerts from the AFDX switch and IOM failures: ALL SWITCHES FAULT, DOUBLE / MULTIPLE SWITCH FAULT and DOUBLE / MULTIPLE IOM FAULT (NETWORK or REDUNDANCY DEGRADED) - @TCdr
+1. [A380X/FWS] New COM ATC DATALINK FAULT (CPIOM D1 lost, ATC COM VOICE ONLY), COM ADS DATALINK FAULT, COM NSS DATA TO AVNCS XFR FAULT (pb-sw OFF) and COM NSS/AVNCS DATA XFR FAULT alerts, with new flyPad failures of SCI 1, SCI 2 and the ADS function; both SCIs failed stop the AOC - @TCdr
+1. [A380X/DATALINK] A failed VHF 3 now stops the datalink (CPDLC, AOC) as COM VHF 3 DATALINK FAULT says - @TCdr
+1. [A380X/MFD] SURV pages: the XPDR label shows a failed XPDR, TURB and PRED W/S fail with their WXR, and TAWS 1(2) IN USE when the TAWS comes from the other SURV system - @TCdr
+1. [A380X/SURV] With the selected TAWS failed and the other WXR failed, the TAWS (GPWS, terrain on ND and VD) comes from the other SURV system - @TCdr
+1. [A380X/MFD] POSITION / IRS: the ALIGN ON OTHER REF panel defines the IRS alignment reference position (PREFLIGHT and DONE phases) - @TCdr
+1. [A380X/MFD] Alternate company routes: ALTN RTE entry on the INIT page and INSERT on the ROUTE SELECTION page, with the DEST / ALTN CPNY RTE DISAGREE message; the ALTERNATE page selection creates a temporary flight plan - @TCdr
 
 ## 2024.1.0
 

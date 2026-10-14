@@ -21,6 +21,9 @@ import { FuelJettison } from './CpiomF/FuelJettison';
 import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
 import { FuelLeak } from './CpiomF/FuelLeak';
 import { FuelAutomaticTransfers } from './CpiomF/FuelAutomaticTransfers';
+import { FuelCollectorCells } from './CpiomF/FuelCollectorCells';
+import { FuelTemperatures } from './CpiomF/FuelTankTemperatures';
+import { WeightBalanceBackup } from './CpiomF/WeightBalanceBackup';
 import { AutolandLights } from './Misc/AutolandLights';
 import { WxPbAutoDeselect } from './Misc/WxPbAutoDeselect';
 import { AtcMsgLights } from './Misc/AtcMsgLights';
@@ -126,9 +129,9 @@ class SystemsHost extends BaseInstrument {
   );
 
   private readonly simVarHandling = new SimVarHandling(this.bus);
-  private readonly atsu = new AtsuSystem(this.bus);
+  private readonly atsu = new AtsuSystem(this.bus, this.failuresConsumer);
   private readonly atc = new AtcDatalink(this.bus);
-  private readonly acr = new Acr(this.bus);
+  private readonly acr = new Acr(this.bus, this.failuresConsumer);
 
   private readonly btv = new BrakeToVacate(this.bus, this);
 
@@ -228,6 +231,12 @@ class SystemsHost extends BaseInstrument {
     this.fuelPumpsAndValves,
   );
 
+  private readonly fuelCollectorCells = new FuelCollectorCells(this);
+
+  private readonly fuelTemperatures = new FuelTemperatures(this);
+
+  private readonly weightBalanceBackup = new WeightBalanceBackup();
+
   /**
    * "mainmenu" = 0
    * "loading" = 1
@@ -259,6 +268,9 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('FuelEmerOuterTransfer', this.fuelEmerOuterTransfer);
     this.backplane.addInstrument('FuelLeak', this.fuelLeak);
     this.backplane.addInstrument('FuelAutomaticTransfers', this.fuelAutomaticTransfers);
+    this.backplane.addInstrument('FuelCollectorCells', this.fuelCollectorCells);
+    this.backplane.addInstrument('FuelTemperatures', this.fuelTemperatures);
+    this.backplane.addInstrument('WeightBalanceBackup', this.weightBalanceBackup);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addInstrument('PrimReactiveWindshear', new PrimReactiveWindshear());

@@ -403,12 +403,17 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     NXDataStore.setLegacy('PLAN_DESTINATION', toIcao);
   }
 
-  async setAlternate(altnIcao: string | undefined, planIndex = FlightPlanIndex.Active) {
-    if (planIndex === FlightPlanIndex.Temporary) {
+  async setAlternate(altnIcao: string | undefined, planIndex = FlightPlanIndex.Active, asTemporaryRevision = false) {
+    if (planIndex === FlightPlanIndex.Temporary && !asTemporaryRevision) {
       throw new Error('[FMS/FPM] Cannot set alternate on temporary flight plan');
     }
 
-    const plan = this.flightPlanManager.get(planIndex);
+    // A revision of the active flight plan goes into the temporary flight plan (A380 FCOM DSC-22-FMS-10-40-50,
+    // a380_fcom.txt l.26192: "Insertion, changing, or removing the alternate destination, creates a temporary flight
+    // plan."; l.26194-26195: not from the INIT page, which calls this without asTemporaryRevision)
+    const finalIndex = asTemporaryRevision ? this.prepareDestructiveModification(planIndex) : planIndex;
+
+    const plan = this.flightPlanManager.get(finalIndex);
     plan.wasModified = true;
 
     if (altnIcao === undefined) {
@@ -416,6 +421,34 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     }
 
     return plan.setAlternateDestinationAirport(altnIcao);
+  }
+
+  async insertAlternateCompanyRoute(altnIcao: string, fixes: Fix[], planIndex = FlightPlanIndex.Active) {
+    if (planIndex === FlightPlanIndex.Temporary) {
+      throw new Error('[FMS/FPM] Cannot insert an alternate company route on temporary flight plan');
+    }
+
+    // A380 FCOM DSC-22-FMS-20-30 INIT page, ALTERNATE ROUTE ENTRY FIELD (a380_fcom.txt l.36757-36758): "Entering an
+    // alternate route re-initializes the alternate flight plan, and deletes the existing alternate flight plan, if any";
+    // from the INIT page without a temporary flight plan (l.26216-26217)
+    const plan = this.flightPlanManager.get(planIndex);
+    plan.wasModified = true;
+
+    await plan.setAlternateDestinationAirport(altnIcao);
+
+    // The en-route fixes go after the departure part of the alternate flight plan, one after the other
+    const alternate = plan.alternateFlightPlan;
+    let insertAfter =
+      alternate.originSegment.legCount +
+      alternate.departureRunwayTransitionSegment.legCount +
+      alternate.departureSegment.legCount +
+      alternate.departureEnrouteTransitionSegment.legCount +
+      alternate.enrouteSegment.legCount -
+      1;
+    for (const fix of fixes) {
+      await alternate.nextWaypoint(insertAfter, fix);
+      insertAfter++;
+    }
   }
 
   setOriginRunway(runwayIdent: string, planIndex = FlightPlanIndex.Active, alternate = false) {

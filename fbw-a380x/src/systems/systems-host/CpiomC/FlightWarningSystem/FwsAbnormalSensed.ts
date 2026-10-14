@@ -75,7 +75,22 @@ import {
   COM_DEGRADED_PHASE_INHIBITION,
   DATALINK_FAULT_ITEMS_TO_SHOW,
   VHF3_DATALINK_FAULT_INOP_SYS,
+  ADS_DATALINK_FAULT_INOP_SYS,
+  ATC_DATALINK_FAULT_INOP_SYS,
+  ATC_DATALINK_FAULT_LIMITATIONS,
+  INFO_SYS_ALERT_IDS,
+  INFO_SYS_ALERT_PHASE_INHIBITION,
+  NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS,
+  NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS,
 } from './CommunicationAlerts';
+import {
+  ALL_SWITCHES_FAULT_LIMITATIONS_ALL_PHASES,
+  ALL_SWITCHES_FAULT_LIMITATIONS_APPR_LDG,
+  ALL_SWITCHES_FAULT_PHASE_INHIBITION,
+  AVIONICS_NETWORK_ALERT_IDS,
+  DOUBLE_FAULT_PHASE_INHIBITION,
+  MULTIPLE_FAULT_PHASE_INHIBITION,
+} from './AvionicsNetworkAlerts';
 // FIXME should not import from instruments
 import {
   ProcedureLinesGenerator,
@@ -235,6 +250,20 @@ import {
   FUEL_LEAK_DET_FAULT_INOP_SYS,
   FUEL_LEAK_LP_VALVE_PHASE_INHIBITION,
 } from './FwsFuelLeakLpValveAlerts';
+import {
+  cgAtFwdLimitLines,
+  cgOutOfRangeLines,
+  excessAftCgLines,
+  FUEL_CG_WEIGHT_PHASE_INHIBITION,
+} from './FwsFuelCgWeightAlerts';
+import {
+  collectorCellNotFullLines,
+  feedTankLevelLoTransferLines,
+  feedTankTempHiLines,
+  FUEL_TANK_PHASE_INHIBITION,
+  fuelTempLoLines,
+  manualTransferCompletedLines,
+} from './FwsFuelTankAlerts';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -736,6 +765,130 @@ export class FwsAbnormalSensed {
     return alerts;
   }
 
+  /**
+   * The ATA 42 AVIONICS NETWORK alerts fed by the AFDX switch and IOM failures (see AvionicsNetworkAlerts.ts for the
+   * conditions and the flight phase inhibitions of the FCOM PDF p.5701-5718). SC and MASTER CAUT (failure 2) for ALL
+   * SWITCHES FAULT and the two NETWORK DEGRADED alerts, the others are crew awareness (failure 1).
+   */
+  private avionicsNetworkAlerts(): EwdAbnormalDict {
+    const ids = AVIONICS_NETWORK_ALERT_IDS;
+    const noItems = { whichItemsToShow: () => [], whichItemsChecked: () => [] };
+    const subTitleOnly = { whichItemsToShow: () => [true], whichItemsChecked: () => [false] };
+    return {
+      [ids.allSwitchesFault]: {
+        flightPhaseInhib: ALL_SWITCHES_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkAllSwitchesFault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: showAllItems(Number(ids.allSwitchesFault)),
+        whichItemsChecked: () => EcamAbnormalProcedures[ids.allSwitchesFault].items.map(() => false),
+        failure: 2,
+        sysPage: SdPages.None,
+        limitationsAllPhases: () => ALL_SWITCHES_FAULT_LIMITATIONS_ALL_PHASES,
+        limitationsApprLdg: () => ALL_SWITCHES_FAULT_LIMITATIONS_APPR_LDG,
+      },
+      [ids.doubleSwitchFault]: {
+        flightPhaseInhib: DOUBLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkDoubleSwitchFault,
+        notActiveWhenItemActive: [],
+        ...noItems,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+      [ids.multipleSwitchFaultNetworkDegraded]: {
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleSwitchFaultNetworkDegraded,
+        notActiveWhenItemActive: [],
+        ...subTitleOnly,
+        failure: 2,
+        sysPage: SdPages.None,
+      },
+      [ids.multipleSwitchFaultRedundancyDegraded]: {
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleSwitchFaultRedundancyDegraded,
+        notActiveWhenItemActive: [],
+        ...subTitleOnly,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+      [ids.doubleIomFault]: {
+        flightPhaseInhib: DOUBLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkDoubleIomFault,
+        notActiveWhenItemActive: [],
+        ...noItems,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+      [ids.multipleIomFaultNetworkDegraded]: {
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleIomFaultNetworkDegraded,
+        notActiveWhenItemActive: [],
+        ...subTitleOnly,
+        failure: 2,
+        sysPage: SdPages.None,
+      },
+      [ids.multipleIomFaultRedundancyDegraded]: {
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleIomFaultRedundancyDegraded,
+        notActiveWhenItemActive: [],
+        ...subTitleOnly,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+    };
+  }
+
+  /**
+   * The ATA 46 information system COM alerts (see CommunicationAlerts.ts informationSystemAlerts, FCOM PDF p.5719-5723):
+   * SC and MASTER CAUT for ADS and ATC DATALINK FAULT, crew awareness for the two NSS alerts.
+   */
+  private informationSystemAlerts(): EwdAbnormalDict {
+    const ids = INFO_SYS_ALERT_IDS;
+    return {
+      [ids.adsDatalinkFault]: {
+        flightPhaseInhib: INFO_SYS_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comAdsDatalinkFault,
+        // the ADS is part of the ATC datalink: with the whole ATC datalink lost only COM ATC DATALINK FAULT shows
+        notActiveWhenItemActive: [ids.atcDatalinkFault],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 2,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => ADS_DATALINK_FAULT_INOP_SYS,
+      },
+      [ids.atcDatalinkFault]: {
+        flightPhaseInhib: INFO_SYS_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comAtcDatalinkFault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true],
+        whichItemsChecked: () => [false],
+        failure: 2,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => ATC_DATALINK_FAULT_INOP_SYS,
+        limitationsAllPhases: () => ATC_DATALINK_FAULT_LIMITATIONS,
+      },
+      [ids.nssDataToAvncsXfrFault]: {
+        flightPhaseInhib: INFO_SYS_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comNssDataToAvncsXfrFault,
+        notActiveWhenItemActive: [ids.nssAvncsDataXfrFault],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 1,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS,
+      },
+      [ids.nssAvncsDataXfrFault]: {
+        flightPhaseInhib: INFO_SYS_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comNssAvncsDataXfrFault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 1,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS,
+      },
+    };
+  }
+
   public readonly abnormalShown = Subject.create(false);
 
   public readonly showAbnormalSensedRequested = Subject.create(false);
@@ -1178,6 +1331,147 @@ export class FwsAbnormalSensed {
       });
     }
     return alerts;
+  }
+
+  /** The transfer lines of FUEL FEED TK(s) LEVEL LO (FwsFuelTankAlerts feedTankLevelLoTransferLines) */
+  private feedTankLevelLoTransferLines(): { show: boolean[]; checked: boolean[] } {
+    return feedTankLevelLoTransferLines(this.fws.feedTankLevelLoTransferInputs, this.fws.fuelTankProcedureInputs);
+  }
+
+  /**
+   * FCOM gap batch T2-16, A380 FCOM PRO-ABN-ECAM-10-28: the FUEL CG and weight alerts (FwsFuelCgWeightAlerts) and the
+   * collector cell, temperature and MAN XFR COMPLETED alerts (FwsFuelTankAlerts). Master caution and SC, but FUEL
+   * EXCESS AFT CG: master warning and CRC (PDF p.5164).
+   */
+  private fuelCgAndTankAlerts(): EwdAbnormalDict {
+    const alerts: EwdAbnormalDict = {
+      281800007: {
+        // CG AT FWD LIMIT, FCOM l.149327, PDF p.5151. LIMITATIONS and STATUS INFO "If only a gravity forward transfer is
+        // possible" (l.149404-149416)
+        flightPhaseInhib: FUEL_CG_WEIGHT_PHASE_INHIBITION.cgAtFwdLimit,
+        simVarIsActive: this.fws.fuelCgAtFwdLimit,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => cgAtFwdLimitLines(this.fws.fuelCgProcedureInputs).show,
+        whichItemsChecked: () => cgAtFwdLimitLines(this.fws.fuelCgProcedureInputs).checked,
+        limitationsAllPhases: () => (this.fws.fuelCgProcedureInputs.trimTankPumpAvailable ? [] : ['280400011']),
+        info: () => (this.fws.fuelCgProcedureInputs.trimTankPumpAvailable ? [] : ['280200010']),
+        failure: 2,
+        sysPage: SdPages.Fuel,
+      },
+      281800008: {
+        // CG DATA DISAGREE, FCOM l.149427, PDF p.5154 (no SD page)
+        flightPhaseInhib: FUEL_CG_WEIGHT_PHASE_INHIBITION.cgDataDisagree,
+        simVarIsActive: this.fws.fuelCgDataDisagree,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true, true],
+        whichItemsChecked: () => [false, false],
+        failure: 2,
+        sysPage: SdPages.None,
+      },
+      281800009: {
+        // CG OUT OF RANGE, FCOM l.149489, PDF p.5156 (no SD page). LIMITATIONS DELAY T.O with the alternate gauging
+        // trigger (l.149538-149543)
+        flightPhaseInhib: FUEL_CG_WEIGHT_PHASE_INHIBITION.cgOutOfRange,
+        simVarIsActive: this.fws.fuelCgOutOfRange,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => cgOutOfRangeLines(this.fws.fuelCgOutOfRangeState, this.fws.fuelCgProcedureInputs).show,
+        whichItemsChecked: () =>
+          cgOutOfRangeLines(this.fws.fuelCgOutOfRangeState, this.fws.fuelCgProcedureInputs).checked,
+        limitationsAllPhases: () => (this.fws.fuelCgOutOfRangeState.alternateCgAbove54 ? ['280400002'] : []),
+        failure: 2,
+        sysPage: SdPages.None,
+      },
+      281800022: {
+        // EXCESS AFT CG, FCOM l.149750, PDF p.5164: master warning, CRC. LIMITATIONS and STATUS INFO of a gravity trim
+        // tank transfer (l.149844-149861)
+        flightPhaseInhib: FUEL_CG_WEIGHT_PHASE_INHIBITION.excessAftCg,
+        simVarIsActive: this.fws.fuelExcessAftCg,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => excessAftCgLines(this.fws.fuelCgProcedureInputs).show,
+        whichItemsChecked: () => excessAftCgLines(this.fws.fuelCgProcedureInputs).checked,
+        limitationsAllPhases: () =>
+          this.fws.feedTankLevelLoTransferInputs.trimTankGravityXfrInProgress ? ['280400011'] : [],
+        info: () => (this.fws.feedTankLevelLoTransferInputs.trimTankGravityXfrInProgress ? ['280200010'] : []),
+        failure: 3,
+        sysPage: SdPages.Fuel,
+      },
+      281800096: {
+        // WEIGHT DATA DISAGREE, FCOM l.154369, PDF p.5283 (no SD page)
+        flightPhaseInhib: FUEL_CG_WEIGHT_PHASE_INHIBITION.weightDataDisagree,
+        simVarIsActive: this.fws.fuelWeightDataDisagree,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true, true, true, true, true, true, true],
+        whichItemsChecked: () => [false, false, false, false, false, false, false],
+        failure: 2,
+        sysPage: SdPages.None,
+      },
+      281800086: {
+        // TEMP LO, FCOM l.153442, PDF p.5258. LIMITATIONS on ground DELAY T.O (l.153556-153559)
+        flightPhaseInhib: FUEL_TANK_PHASE_INHIBITION.tempLo,
+        simVarIsActive: this.fws.fuelTempLo,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => this.fuelTempLoLines().show,
+        whichItemsChecked: () => this.fuelTempLoLines().checked,
+        limitationsAllPhases: () => (this.fws.aircraftOnGround.get() ? ['280400002'] : []),
+        failure: 2,
+        sysPage: SdPages.Fuel,
+      },
+    };
+    this.fws.fuelCollectorCellNotFull.forEach((notFull, cell) => {
+      // COLLECTOR CELL 1-4 NOT FULL, FCOM l.149554, PDF p.5158
+      alerts[281800010 + cell] = {
+        flightPhaseInhib: FUEL_TANK_PHASE_INHIBITION.collectorCellNotFull,
+        simVarIsActive: notFull,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => collectorCellNotFullLines(cell, this.fws.fuelTankProcedureInputs).show,
+        whichItemsChecked: () => collectorCellNotFullLines(cell, this.fws.fuelTankProcedureInputs).checked,
+        failure: 2,
+        sysPage: SdPages.Fuel,
+      };
+    });
+    this.fws.fuelFeedTankTempHi.forEach((tempHi, tank) => {
+      // FEED TK 1-4 TEMP HI, FCOM l.150375, PDF p.5179. LIMITATIONS on ground DELAY T.O (l.150438-150441)
+      alerts[281800039 + tank] = {
+        flightPhaseInhib: FUEL_TANK_PHASE_INHIBITION.feedTankTempHi,
+        simVarIsActive: tempHi,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => feedTankTempHiLines(this.fws.aircraftOnGround.get()).show,
+        whichItemsChecked: () => feedTankTempHiLines(this.fws.aircraftOnGround.get()).checked,
+        limitationsAllPhases: () => (this.fws.aircraftOnGround.get() ? ['280400002'] : []),
+        failure: 2,
+        sysPage: SdPages.Fuel,
+      };
+    });
+    // INR TKs (l.151080, PDF p.5198), MID TKs (l.152831, PDF p.5241), OUTR TKs (l.153225, PDF p.5251), TRIM TK
+    // (l.153826, PDF p.5269) MAN XFR COMPLETED
+    (
+      [
+        [281800050, 'inner', this.fws.fuelInnerTankManXfrCompleted],
+        [281800075, 'mid', this.fws.fuelMidTankManXfrCompleted],
+        [281800080, 'outer', this.fws.fuelOuterTankManXfrCompleted],
+        [281800092, 'trim', this.fws.fuelTrimTankManXfrCompleted],
+      ] as const
+    ).forEach(([key, tank, completed]) => {
+      alerts[key] = {
+        flightPhaseInhib: FUEL_TANK_PHASE_INHIBITION.manXfrCompleted,
+        simVarIsActive: completed,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => manualTransferCompletedLines(tank, this.fws.fuelTankProcedureInputs).show,
+        whichItemsChecked: () => manualTransferCompletedLines(tank, this.fws.fuelTankProcedureInputs).checked,
+        failure: 2,
+        sysPage: SdPages.Fuel,
+      };
+    });
+    return alerts;
+  }
+
+  /** The FUEL TEMP LO lines (FwsFuelTankAlerts fuelTempLoLines) */
+  private fuelTempLoLines(): { show: boolean[]; checked: boolean[] } {
+    return fuelTempLoLines(
+      this.fws.fuelTempLoState,
+      this.fws.fuelTankProcedureInputs,
+      this.fws.anyFeedTankBelowTempLoOuterXfrQty,
+    );
   }
 
   public ewdAbnormalSensed: EwdAbnormalDict = {
@@ -2967,6 +3261,9 @@ export class FwsAbnormalSensed {
     // CAB COM CIDS 1+2+3 / CABIN COM FAULT, COM DEGRADED, PTT STUCK, DATALINK FAULT, VHF EMITTING and VHF 3 DATALINK
     // FAULT (230800001-007, 022-025), see comAlerts()
     ...this.comAlerts(),
+    // ATA 42 AVIONICS NETWORK (420800001-007) and ATA 46 COM ADS / ATC DATALINK, NSS XFR FAULTs (460800001-004)
+    ...this.avionicsNetworkAlerts(),
+    ...this.informationSystemAlerts(),
     230800012: {
       // RMP 1 FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
@@ -4709,17 +5006,14 @@ export class FwsAbnormalSensed {
       // FEED TK 1 LEVEL LO
       flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
       simVarIsActive: this.fws.feedTank1Low,
-      whichItemsToShow: () => [true, true, true, false, false, false, false, false],
-      // IF NO FUEL LEAK: CROSSFEED 1 ON, CROSSFEED 2 ON (FCOM PRO-ABN-ECAM-10-28 l.149903-149906), sensed on the pb-sw
+      // IF NO FUEL LEAK: CROSSFEED 1 ON, CROSSFEED 2 ON (FCOM PRO-ABN-ECAM-10-28 l.149903-149906), sensed on the pb-sw,
+      // then the transfer lines (l.149913-149923, FwsFuelTankAlerts feedTankLevelLoTransferLines)
+      whichItemsToShow: () => [true, true, true, ...this.feedTankLevelLoTransferLines().show],
       whichItemsChecked: () => [
         false,
         this.fws.crossFeedPbOn[0].get(),
         this.fws.crossFeedPbOn[1].get(),
-        false,
-        false,
-        false,
-        false,
-        false,
+        ...this.feedTankLevelLoTransferLines().checked,
       ],
       failure: 2,
       sysPage: SdPages.Fuel,
@@ -4730,16 +5024,12 @@ export class FwsAbnormalSensed {
       // FEED TK 2 LEVEL LO
       flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
       simVarIsActive: this.fws.feedTank2Low,
-      whichItemsToShow: () => [true, true, true, false, false, false, false, false],
+      whichItemsToShow: () => [true, true, true, ...this.feedTankLevelLoTransferLines().show],
       whichItemsChecked: () => [
         false,
         this.fws.crossFeedPbOn[0].get(),
         this.fws.crossFeedPbOn[1].get(),
-        false,
-        false,
-        false,
-        false,
-        false,
+        ...this.feedTankLevelLoTransferLines().checked,
       ],
       failure: 2,
       sysPage: SdPages.Fuel,
@@ -4750,16 +5040,12 @@ export class FwsAbnormalSensed {
       // FEED TK 3 LEVEL LO
       flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
       simVarIsActive: this.fws.feedTank3Low,
-      whichItemsToShow: () => [true, true, true, false, false, false, false, false],
+      whichItemsToShow: () => [true, true, true, ...this.feedTankLevelLoTransferLines().show],
       whichItemsChecked: () => [
         false,
         this.fws.crossFeedPbOn[2].get(),
         this.fws.crossFeedPbOn[3].get(),
-        false,
-        false,
-        false,
-        false,
-        false,
+        ...this.feedTankLevelLoTransferLines().checked,
       ],
       failure: 2,
       sysPage: SdPages.Fuel,
@@ -4770,16 +5056,12 @@ export class FwsAbnormalSensed {
       // FEED TK 4 LEVEL LO
       flightPhaseInhib: [1, 3, 4, 5, 6, 7, 9, 10, 12],
       simVarIsActive: this.fws.feedTank4Low,
-      whichItemsToShow: () => [true, true, true, false, false, false, false, false],
+      whichItemsToShow: () => [true, true, true, ...this.feedTankLevelLoTransferLines().show],
       whichItemsChecked: () => [
         false,
         this.fws.crossFeedPbOn[2].get(),
         this.fws.crossFeedPbOn[3].get(),
-        false,
-        false,
-        false,
-        false,
-        false,
+        ...this.feedTankLevelLoTransferLines().checked,
       ],
       failure: 2,
       sysPage: SdPages.Fuel,
@@ -5296,8 +5578,13 @@ export class FwsAbnormalSensed {
         this.fws.feedTank1Low,
         this.fws.feedTank2Low,
       ),
-      whichItemsToShow: () => [true, true, false, false, false, false, false],
-      whichItemsChecked: () => [false, this.fws.allCrossFeedPbsOn.get(), false, false, false, false, false],
+      // ALL CROSSFEEDs ON, then the transfer lines (FCOM l.150486-150503, FwsFuelTankAlerts)
+      whichItemsToShow: () => [true, true, ...this.feedTankLevelLoTransferLines().show],
+      whichItemsChecked: () => [
+        false,
+        this.fws.allCrossFeedPbsOn.get(),
+        ...this.feedTankLevelLoTransferLines().checked,
+      ],
       failure: 2,
       sysPage: SdPages.Fuel,
       notActiveWhenItemActive: ['281800002'],
@@ -5311,8 +5598,12 @@ export class FwsAbnormalSensed {
         this.fws.feedTank3Low,
         this.fws.feedTank4Low,
       ),
-      whichItemsToShow: () => [true, true, false, false, false, false, false],
-      whichItemsChecked: () => [false, this.fws.allCrossFeedPbsOn.get(), false, false, false, false, false],
+      whichItemsToShow: () => [true, true, ...this.feedTankLevelLoTransferLines().show],
+      whichItemsChecked: () => [
+        false,
+        this.fws.allCrossFeedPbsOn.get(),
+        ...this.feedTankLevelLoTransferLines().checked,
+      ],
       failure: 2,
       sysPage: SdPages.Fuel,
       notActiveWhenItemActive: ['281800002'],
@@ -5463,6 +5754,8 @@ export class FwsAbnormalSensed {
       failure: 2,
       sysPage: SdPages.Fuel,
     },
+    // FCOM gap batch T2-16: CG / weight, collector cell, temperature and MAN XFR COMPLETED alerts
+    ...this.fuelCgAndTankAlerts(),
     // ATA 29 - HYDRAULICS
     290800001: {
       // G ELEC PMP A FAULT

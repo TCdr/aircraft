@@ -47,6 +47,11 @@ import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDataba
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
 import { CpnyWindRequestButton, cpnyWindRequestPage } from './CpnyWindButtonUtils';
 import { alternateEntryTarget } from './alternateEntry';
+import {
+  alternateRouteEntryError,
+  alternateRouteFieldText,
+  isAlternateRouteEntryAllowed,
+} from '../../FMC/AlternateCompanyRoute';
 
 interface MfdFmsInitProps extends AbstractMfdPageProps {}
 
@@ -127,7 +132,15 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
 
   private readonly altnRteSelDisabled = this.tmpyActive.map((v) => v);
 
-  private readonly altnRte = Subject.create<string | null>(null); // FIXME not found
+  /** ALTN RTE: the alternate company route inserted into the plan (AlternateCompanyRoute.ts) */
+  private readonly altnRte = Subject.create<string | null>(null);
+
+  /** ALTN RTE entry: not without a primary destination or with a pending temporary flight plan (FCOM l.36770-36773) */
+  private readonly altnRteDisabled = MappedSubject.create(
+    ([toIcao, tmpy]) => !isAlternateRouteEntryAllowed(toIcao ?? undefined, tmpy),
+    this.toIcao,
+    this.tmpyActive,
+  );
 
   private readonly crzFl = Subject.create<number | null>(null);
 
@@ -228,6 +241,7 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
       this.cpnyRteDisabled,
       this.rteSelDisabled,
       this.altnRteSelDisabled,
+      this.altnRteDisabled,
       this.departureButtonDisabled,
       this.costIndexModeDisabled,
       this.crzTempDisabled,
@@ -333,11 +347,16 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     // Set some empty fields with pre-defined values
     if (this.fromIcao.get() && this.toIcao.get()) {
       this.cpnyRte.set(this.props.fmcService.master.fmgc.data.companyRouteIdent(fpIndex).get() ?? 'NONE');
-
-      if (!this.altnRte.get()) {
-        this.altnRte.set('NONE');
-      }
     }
+    // The temporary flight plan is a revision of the active one: it keeps the alternate route of the active plan
+    const routePlanIndex = fpIndex === FlightPlanIndex.Temporary ? FlightPlanIndex.Active : fpIndex;
+    this.altnRte.set(
+      alternateRouteFieldText(
+        this.props.fmcService.master.fmgc.data.alternateCompanyRoute(routePlanIndex).get(),
+        this.loadedAlternateFlightPlan?.destinationAirport?.ident,
+        !!this.loadedFlightPlan.destinationAirport,
+      ),
+    );
   }
 
   protected onFlightPlanChanged(): void {
@@ -417,6 +436,50 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     await fmc.insertCompanyRoute(route, this.loadedFlightPlanIndex.get());
     // A380 FCOM l.44998-45003: CHECK DATABASE CYCLE on a company route entry
     void checkNavDatabaseCycle(fmc);
+    return true;
+  }
+
+  /**
+   * FCOM DSC-22-FMS-20-30 INIT page, ALTERNATE ROUTE ENTRY FIELD (l.36743-36775): an entry inserts the alternate company
+   * route (pilot stored, or navigation database via SimBridge) from the primary destination, which re-initializes the
+   * alternate flight plan without a temporary flight plan; NOT IN DATABASE for an unknown route, DEST / ALTN CPNY RTE
+   * DISAGREE for a route that does not start at the primary destination (AlternateCompanyRoute.ts).
+   */
+  private async onAlternateRouteEntered(ident: string | null): Promise<boolean> {
+    const fmc = this.props.fmcService.master;
+    const planIndex = this.loadedFlightPlanIndex.get();
+    const destination = this.loadedFlightPlan?.destinationAirport?.ident;
+    if (ident === null || ident === 'NONE') {
+      return false;
+    }
+
+    let route: StoredRoute | undefined = fmc.pilotStoredElements.findRoute(ident);
+    if (!route) {
+      try {
+        const result = await CompanyRoute.getCoRoute(ident);
+        if (result.success && result.data) {
+          route = routeFromCoRouteDto(result.data);
+        }
+      } catch (e) {
+        console.warn('[FMS] Alternate company route not available:', e);
+      }
+    }
+
+    const error = alternateRouteEntryError(route, destination);
+    if (error !== null || !route) {
+      fmc.addMessageToQueue(
+        error === 'DEST_ALTN_CPNY_RTE_DISAGREE'
+          ? NXSystemMessages.destAltnCpnyRteDisagree
+          : error === 'NOT_ALLOWED'
+            ? NXSystemMessages.notAllowed
+            : NXSystemMessages.notInDatabase,
+        undefined,
+        undefined,
+      );
+      return false;
+    }
+
+    await fmc.insertAlternateCompanyRoute(route, planIndex);
     return true;
   }
 
@@ -605,9 +668,12 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
                 147,
                 <InputField<string>
                   dataEntryFormat={new LongAlphanumericFormat()}
-                  disabled={Subject.create(true)} // ALTN RTE: alternate company routes are not supported by the FMS yet
+                  disabled={this.altnRteDisabled}
                   canBeCleared={false}
                   value={this.altnRte}
+                  dataHandlerDuringValidation={(v) => this.onAlternateRouteEntered(v)}
+                  // An ALTN RTE entry re-initializes the alternate flight plan, even with the ident already shown
+                  handleSameValueEntry
                   containerStyle="width: 209px;"
                   alignText="center"
                   errorHandler={(e) => this.props.fmcService.master.showFmsErrorMessage(e.type, e.details)}

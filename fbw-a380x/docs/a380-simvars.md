@@ -30,6 +30,7 @@
   - [Oxygen ATA 35](#oxygen-ata-35)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
+  - [Information Systems ATA 46](#information-systems-ata-46)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
   - [Engines ATA 70](#engines-ata-70)
   - [Hydraulics](#hydraulics)
@@ -2009,6 +2010,26 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
   - Bool
   - The alternate gravity transfer from an outer tank with a failed pump runs (FCOM DSC-28-40 CASE 5: from the lowest feed tank below 28 660 lb, into FEED TK 2 (3), 500 gal/h); the FWS raises FUEL NORM XFR FAULT from it
 
+- A380X_FUEL_{tank}_TANK_TEMPERATURE
+  - Number in degrees Celsius
+  - {tank}: LEFT_OUTER, FEED_1, LEFT_MID, LEFT_INNER, FEED_2, FEED_3, RIGHT_INNER, RIGHT_MID, FEED_4, RIGHT_OUTER, TRIM
+  - The fuel temperature of the tank (CpiomF/FuelTankTemperatures): a first order lag towards the outside air temperature on ground and the total air temperature in flight, faster for the thin outer and trim tanks and for tanks with less fuel. Shown on the FUEL SD page (outer and trim tanks while their sensor is immersed, feed tanks when abnormal or with MORE); FUEL TEMP LO below -40 °C, FUEL FEED TK 1(2)(3)(4) TEMP HI above 53 °C
+  - Written by the systems host
+
+- A380X_FUEL_COLLECTOR_CELL_{number}_QUANTITY
+  - Number in kilograms
+  - {number}: 1 to 4, the collector cell of the feed tank
+  - The fuel in the collector cell (CpiomF/FuelCollectorCells): full (2 866 lb, never more than the feed tank) while a feed tank pump runs or the engine is off; emptied by the engine when it is fed by gravity. FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL below 1 735 lb, until above 2 076 lb
+  - Written by the systems host
+
+- A380X_WBBC_GROSS_WEIGHT
+  - Arinc429<Kilogram>
+  - The gross weight of the Weight and Balance Backup Computer (CpiomF/WeightBalanceBackup): from the first slats and flaps retraction in flight, the simulator's aerodynamic weight, after a slats/flaps extension the takeoff GW minus the fuel used; no computed data on ground and before the retraction. The FWS compares it with the FQMS GW (FUEL WEIGHT DATA DISAGREE above 198 400 lb)
+
+- A380X_WBBC_CENTER_OF_GRAVITY_MAC
+  - Arinc429<Percent>
+  - The WBBC CG: the simulator's CG (A32NX_AIRFRAME_GW_CG_PERCENT_MAC) while the slats and flaps are retracted in flight, no computed data otherwise. FUEL EXCESS AFT CG above 50 % in automatic transfer mode, FUEL CG DATA DISAGREE above 8 % from the FQMS CG; the FMS uses it when the FQMS CG is not available
+
 - A32NX_FM{number}_REMAINING_FLIGHT_TIME
   - Arinc429<Seconds>
   - {number} 1 or 2
@@ -2390,6 +2411,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Bool
     - Set from the WX ON VD button of the MFD SURV CONTROLS page. True when the weather on the VD is switched OFF (false = AUTO)
 
+- `L:A32NX_TAWS_SYS_IN_USE`
+    - Number
+    - The SURV system that provides the TAWS functions (1 or 2, 0 = no WXR/TAWS system selected), written by the systems host (EfisTawsBridge)
+    - Normally the selected WXR/TAWS system (`L:A32NX_WXR_TAWS_SYS_SELECTED`); the other system after the automatic reconfiguration of SURV TAWS 1(2) FAULT (the TAWS of the selected system failed, the WXR of the other system failed, its TAWS operative), shown as TAWS 1(2) IN USE on the MFD SURV STATUS & SWITCHING page
+    - Read by the GPWS, the FWS (TERR STBY), the MFD SURV pages and the ND/VD terrain (ndwxr)
+
 - `L:A380X_TCAS_ALERT_LEVEL`
     - Enum
     - The TCAS alert level selected on the MFD SURV CONTROLS page, mirrored by the TCAS computer for the pedestal SURV panel lights
@@ -2722,6 +2749,16 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - Bool
   - Indicates if a specific IOM system is available: powered, and neither A32NX_IOM_<NAME>_FAILURE nor its flyPad failure
     (ATA 42, ids 42101-42108) is set
+  - The FWS AVIONICS NETWORK alerts (systems-host CpiomC/FlightWarningSystem/AvionicsNetworkAlerts.ts) count the AFDX
+    switches and IOMs whose _FAILURE L:var or flyPad failure is set, not the unpowered ones
+
+## Information Systems ATA 46
+
+- A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE
+  - Bool
+  - The NSS DATA TO AVNCS pb-sw: 1 = normal (released, the NSS and the avionics exchange data both ways; the value of
+    every flight file), 0 = OFF (pressed in, OFF light; the SCIs pass data only from the avionics to the NSS). OFF gives
+    the FWS alert COM NSS DATA TO AVNCS XFR FAULT (A380 FCOM DSC-46-20-20-80, PRO-ABN-ECAM-10-46)
 
 ## Auxiliary Power Unit ATA 49
 

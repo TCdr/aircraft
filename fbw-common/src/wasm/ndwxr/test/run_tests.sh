@@ -16,3 +16,5 @@ clang++ -std=c++17 -Wall -Wextra -Werror gauge_slots_test.cpp -o ../obj/gauge_sl
 ../obj/gauge_slots_test
 clang++ -std=c++17 -Wall -Wextra -Werror vd_ra_zone_test.cpp -o ../obj/vd_ra_zone_test
 ../obj/vd_ra_zone_test
+clang++ -std=c++17 -Wall -Wextra -Werror taws_system_test.cpp -o ../obj/taws_system_test
+../obj/taws_system_test

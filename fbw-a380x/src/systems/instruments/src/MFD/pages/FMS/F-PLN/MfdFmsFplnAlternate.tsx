@@ -57,10 +57,9 @@ class AlternateLine {
  *
  * The database alternates are the company alternates of the destination: the navigation data has no alternate
  * records, so they come from the company flight plan (the alternates of the SimBrief OFP for this destination).
- * Not modelled: alternate company routes.
+ * Not modelled: the alternate company routes of the listed airports (CO RTE column).
  * The fuel to an alternate is the FCOM default ALTN computation (CI 0, FL220 below 200 NM, else FL310) over the direct
- * distance, from the destination EFOB. Simplified: the selection inserts the alternate directly instead of creating a
- * temporary flight plan.
+ * distance, from the destination EFOB. The selection creates a temporary flight plan (selectAsAlternate).
  */
 export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternateProps> {
   private readonly destinationIdent = Subject.create('----');
@@ -211,8 +210,12 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
     return value.toFixed(1);
   }
 
+  /**
+   * SELECT AS ALTN and NO ALTN create a temporary flight plan with the new alternate, or without one (FCOM
+   * l.31692, l.31709-31710, l.31736-31737; DSC-22-FMS-10-40-50 l.26192); a secondary flight plan is changed directly.
+   */
   private async selectAsAlternate(ident: string | undefined): Promise<void> {
-    await this.props.flightPlanInterface.setAlternate(ident, this.loadedFlightPlanIndex.get());
+    await this.props.flightPlanInterface.setAlternate(ident, this.loadedFlightPlanIndex.get(), true);
     if (this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active) {
       this.props.fmcService.master.acInterface.updateFmsData();
     }
