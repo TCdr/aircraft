@@ -70,15 +70,15 @@ interface A32NXEcpBusBaseEvents {
    * | 27  | DIM                               |
    */
   a32nx_ecp_light_status_word: number;
-  /** The hardwired discrete for STS button to each FWC. */
+  /** The hardwired discrete for STS button to each FWC and DMC. */
   a32nx_ecp_discrete_out_sts: boolean;
   /** The hardwired discrete for RCL button to each FWC. */
   a32nx_ecp_discrete_out_rcl: boolean;
-  /** The hardwired discrete for CLR button to each FWC. */
+  /** The hardwired discrete for CLR button to each FWC and DMC. */
   a32nx_ecp_discrete_out_clr: boolean;
   /** The hardwired discrete for emergency cancel/audio suppression to each FWC and the TAWS. */
   a32nx_ecp_discrete_out_emer_canc: boolean;
-  /** The hardwired discrete for emergency cancel/audio suppression to each DMC. */
+  /** The hardwired discrete for ALL button to each DMC. */
   a32nx_ecp_discrete_out_all: boolean;
 }
 

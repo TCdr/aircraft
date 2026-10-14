@@ -3,7 +3,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus, HEvent } from '@microsoft/msfs-sdk';
-import { Arinc429OutputWord, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
+import { Arinc429OutputWord, Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
 import { DmcDisplayReconfiguration } from './DmcDisplayReconfiguration';
 import {
@@ -143,6 +143,24 @@ describe('DMC DU reconfiguration (A320 FCOM DSC-31-05-60)', () => {
     dmc.update(20);
     dmc.update(600);
     expect(picture('LOWER_ECAM')).toBe(DisplayPicture.Own);
+  });
+
+  /*
+   * FCOM DSC-31-30 l.46775-46781 (STS held with one ECAM display) and l.46834-46836: with the ECAM control panel failed,
+   * STS still works, through its hardwired discrete to the DMCs.
+   */
+  it('shows the SD on the lower DU while STS is held through its hardwired discrete, ECP failed', () => {
+    activeFailures.add(A320Failure.UpperEcamDisplay);
+    const failedWord = Arinc429Word.getRawWord(0, Arinc429SignStatusMatrix.FailureWarning);
+    simVars.set('L:A32NX_ECP_SYSTEM_SWITCH_WORD', failedWord);
+    simVars.set('L:A32NX_ECP_WARNING_SWITCH_WORD', failedWord);
+    simVars.set('L:A32NX_ECP_DISCRETE_OUT_STS', 1);
+    dmc.update(20);
+    dmc.update(600);
+    expect(picture('LOWER_ECAM')).toBe(DisplayPicture.Own);
+    simVars.set('L:A32NX_ECP_DISCRETE_OUT_STS', 0);
+    dmc.update(20);
+    expect(picture('LOWER_ECAM')).toBe(DisplayPicture.EngineWarning);
   });
 
   it('does not show the SD for a click that only selects or deselects a page', () => {
