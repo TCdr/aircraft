@@ -17,6 +17,7 @@ import { Arinc429LocalVarConsumerSubject, NXDataStore, NXLogicConfirmNode, NXUni
 import { SDSimvars } from './SDSimvarPublisher';
 import { A32NXFcuBusEvents } from '@shared/publishers/A32NXFcuBusPublisher';
 import { A32NXAdrBusEvents } from '@shared/publishers/A32NXAdrBusPublisher';
+import { metricAltSelMetres } from './MetricAltSel';
 
 export interface PermanentDataProps {
   readonly bus: EventBus;
@@ -100,6 +101,31 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
 
   private readonly gLoadText = this.normalAcc.map((gLoad) => getValuePrefix(gLoad.value) + gLoad.value.toFixed(1));
 
+  // FCU selected altitude in metres (green) with METRIC ALT selected and no G LOAD: FCOM l.46271-46272
+
+  private readonly fcuDiscreteWord1 = Arinc429LocalVarConsumerSubject.create(this.sub.on('a32nx_fcu_discrete_word_1'));
+
+  private readonly fcuSelectedAltitude = Arinc429LocalVarConsumerSubject.create(
+    this.sub.on('a32nx_fcu_selected_altitude'),
+  );
+
+  private readonly metricAltSel = MappedSubject.create(
+    ([fcuDiscreteWord1, fcuSelectedAltitude, gLoadShown]) =>
+      metricAltSelMetres({
+        // bit 20: metric alt active (docs/a320-simvars.md A32NX_FCU_DISCRETE_WORD_1)
+        metricAltSelected: fcuDiscreteWord1.bitValueOr(20, null),
+        selectedAltitudeFt: fcuSelectedAltitude.isNormalOperation() ? fcuSelectedAltitude.value : null,
+        gLoadShown,
+      }),
+    this.fcuDiscreteWord1,
+    this.fcuSelectedAltitude,
+    this.gLoadExcessive,
+  );
+
+  private readonly metricAltSelVisibility = this.metricAltSel.map((metres) => (metres === null ? 'hidden' : 'inherit'));
+
+  private readonly metricAltSelText = this.metricAltSel.map((metres) => (metres === null ? '' : metres.toFixed(0)));
+
   private readonly zuluTime = ConsumerSubject.create(this.sub.on('zuluTime'), 0);
 
   private readonly timeHH = this.zuluTime.map((zulu) => String(Math.floor(Math.floor(zulu) / 3600)).padStart(2, '0'));
@@ -179,6 +205,11 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
       this.gLoadLabelStyle,
       this.gLoadTextStyle,
       this.gLoadText,
+      this.fcuDiscreteWord1,
+      this.fcuSelectedAltitude,
+      this.metricAltSel,
+      this.metricAltSelVisibility,
+      this.metricAltSelText,
       this.zuluTime,
       this.timeHH,
       this.timeMM,
@@ -258,6 +289,16 @@ export class PermanentData extends DisplayComponent<PermanentDataProps> {
             </text>
             <text x={410} y={702} class="F27 Amber" visibility={this.gLoadTextStyle}>
               {this.gLoadText}
+            </text>
+          </g>
+
+          {/* Metric FCU selected altitude, on the G LOAD line (the FCOM gives no layout: design choice) */}
+          <g visibility={this.metricAltSelVisibility}>
+            <text x={410} y={702} class="F27 Green EndAlign">
+              {this.metricAltSelText}
+            </text>
+            <text x={418} y={702} class="F22 Cyan">
+              M
             </text>
           </g>
 

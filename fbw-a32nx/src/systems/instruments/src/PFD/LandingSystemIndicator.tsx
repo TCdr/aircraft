@@ -22,6 +22,15 @@ import { Arinc429Values } from './shared/ArincValueProvider';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
 import { LagFilter } from './PFDUtils';
 import { getDisplayIndex } from './PFD';
+import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
+import { A32NXElectricalSystemEvents } from '../../../shared/src/publishers/A32NXElectricalSystemPublisher';
+import {
+  isDmeFlagShown,
+  isIlsFlagShown,
+  landingSystemFlagText,
+  landingSystemPowerTopics,
+  PFD_FLAG_FLASH_SECONDS,
+} from './shared/PfdFlags';
 
 // FIXME true ref
 export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instrument: BaseInstrument }> {
@@ -150,20 +159,52 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     )
     .pause();
 
-  private readonly isLsIdentHidden = MappedSubject.create(
-    ([ident, isAlive]) => ident.length === 0 || !isAlive,
-    this.lsIdent,
-    this.lsAlive,
+  // ILS1(2) and DME1(2) flags (red, flash 9 s then steady): A320 FCOM DSC-31-40, a320_fcom.txt l.47868-47874, 47908
+
+  private readonly powerTopics = landingSystemPowerTopics(getDisplayIndex());
+
+  private readonly ilsReceiverPowered = ConsumerSubject.create(null, true);
+
+  private readonly dmeInterrogatorPowered = ConsumerSubject.create(null, true);
+
+  private readonly isIlsFlagShown = MappedSubject.create(
+    ([lsSelected, ilsReceiverPowered, dmeInterrogatorPowered]) =>
+      isIlsFlagShown({ lsSelected, ilsReceiverPowered, dmeInterrogatorPowered }),
+    this.props.isVisible,
+    this.ilsReceiverPowered,
+    this.dmeInterrogatorPowered,
   );
 
-  private readonly isLsFreqHidden = this.lsFrequency.map((v) => v < 108 || v > 112);
+  private readonly isDmeFlagShown = MappedSubject.create(
+    ([lsSelected, ilsReceiverPowered, dmeInterrogatorPowered]) =>
+      isDmeFlagShown({ lsSelected, ilsReceiverPowered, dmeInterrogatorPowered }),
+    this.props.isVisible,
+    this.ilsReceiverPowered,
+    this.dmeInterrogatorPowered,
+  );
+
+  /** l.47873: the ILS flag replaces the ILS frequency indication (and the ident of the failed receiver) */
+  private readonly isLsIdentHidden = MappedSubject.create(
+    ([ident, isAlive, ilsFlagShown]) => ident.length === 0 || !isAlive || ilsFlagShown,
+    this.lsIdent,
+    this.lsAlive,
+    this.isIlsFlagShown,
+  );
+
+  private readonly isLsFreqHidden = MappedSubject.create(
+    ([frequency, ilsFlagShown]) => frequency < 108 || frequency > 112 || ilsFlagShown,
+    this.lsFrequency,
+    this.isIlsFlagShown,
+  );
 
   // FIXME major hack: when the FM is not tuning the VORs and MMRs, the DME receiver is not tuned (goes into standby)
   // Since we use the sim radios at the moment we can't tell that... instead we look at the FM tuning state
+  // l.47869: the DME flag replaces the DME distance indication
   private isDmeAvailable = MappedSubject.create(
-    ([dmeAlive, fmNavDiscrete]) => dmeAlive && fmNavDiscrete.isNormalOperation(),
+    ([dmeAlive, fmNavDiscrete, dmeFlagShown]) => dmeAlive && fmNavDiscrete.isNormalOperation() && !dmeFlagShown,
     this.dmeAlive,
     this.fm1NavDiscrete,
+    this.isDmeFlagShown,
   );
 
   private readonly dmeDistanceRounded = this.dmeDistance.map((v) => MathUtils.round(v, 0.1));
@@ -198,6 +239,10 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.dmeAlive.setConsumer(sub.on('hasDme'));
 
     this.dmeDistance.setConsumer(sub.on('dme'));
+
+    const elecSub = this.props.bus.getSubscriber<A32NXElectricalSystemEvents>();
+    this.ilsReceiverPowered.setConsumer(elecSub.on(this.powerTopics.ilsReceiver));
+    this.dmeInterrogatorPowered.setConsumer(elecSub.on(this.powerTopics.dmeInterrogator));
 
     this.pausable.push(
       sub
@@ -314,6 +359,18 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
             NM
           </text>
         </g>
+
+        {/* The FCOM gives no position: the flags are drawn on the line of the indication they replace */}
+        <FlashOneHertz bus={this.props.bus} flashDuration={PFD_FLAG_FLASH_SECONDS} visible={this.isIlsFlagShown}>
+          <text id="ILSFlag" class="Red FontLarge AlignLeft" x="1.3610243" y="151.11575">
+            {landingSystemFlagText('ILS', getDisplayIndex())}
+          </text>
+        </FlashOneHertz>
+        <FlashOneHertz bus={this.props.bus} flashDuration={PFD_FLAG_FLASH_SECONDS} visible={this.isDmeFlagShown}>
+          <text id="DMEFlag" class="Red FontLarge AlignLeft" x="1.3685881" y="157.26602">
+            {landingSystemFlagText('DME', getDisplayIndex())}
+          </text>
+        </FlashOneHertz>
       </g>
     );
   }

@@ -655,6 +655,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] FUEL PRED: the FOB fuel sensors can be selected (/FF+FQ, /FF, /FQ) and the FOB entered in flight, with the SENSOR IS INVALID message; the predictions use that FOB - @TCdr
 1. [A32NX/MCDU] PROG REPORT page: OVHD waypoint with its time, altitude, SAT, wind and FOB recorded at the sequencing, TO/NEXT predicted time and altitude, T/D (S/C, S/D) time and distance in cruise, DEST time, distance and EFOB; the page no longer takes entries - @TCdr
 1. [A32NX/MCDU] PREDICTIVE GPS page: DEST ETA from the predictions (or crew entry), PRIMARY Y/N lines from the GPS receivers, reference waypoint and time entry, deselected satellites - @TCdr
+1. [A32NX/PFD] Amber CHECK ATT and CHECK HDG messages on the PFDs (and CHECK HDG on the NDs, not in PLAN mode) when the two sides disagree by 5 degrees or more in pitch, roll or heading - @TCdr
+1. [A32NX/PFD] Red V1 INOP flag instead of the V1 when no FM is healthy, and red ILS1(2)/DME1(2) flags when the onside ILS receiver or DME interrogator loses its power with LS on - @TCdr
+1. [A32NX/SD] The lower SD shows the FCU selected altitude in metres (green) when METRIC ALT is selected - @TCdr
+1. [A32NX/FWC] NAV ALTI DISCREPANCY and CHECK ALT trigger at 500 ft with the STD baro reference (250 ft with QNH or QFE), as in the FCOM - @TCdr
 
 ## 2024.1.0
 

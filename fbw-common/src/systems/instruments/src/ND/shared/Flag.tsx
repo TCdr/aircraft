@@ -5,6 +5,8 @@ export interface FlagProps {
   y: Subscribable<number> | number;
   class: string;
   visible: Subscribable<boolean>;
+  /** The flag flashes each time it appears (Blink9Seconds: 9 s at 1 Hz), then remains steady */
+  flashesOnShow?: boolean;
 }
 
 export class Flag extends DisplayComponent<FlagProps> {
@@ -15,6 +17,10 @@ export class Flag extends DisplayComponent<FlagProps> {
 
     this.props.visible.sub((visible) => {
       this.flagRef.instance.style.visibility = visible ? 'inherit' : 'hidden';
+      if (this.props.flashesOnShow) {
+        // removed while hidden, so the animation starts again at the next appearance
+        this.flagRef.instance.classList.toggle('Blink9Seconds', visible);
+      }
     }, true);
   }
 
