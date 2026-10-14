@@ -662,6 +662,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/APU] APU values from the FCOM: EGT MAX 1 090 °C during the start (1 120 °C above 35 000 ft) and 675 °C running, starter cut-out at N 60 %, and N 99 % while the APU bleed feeds the packs between -18 and 35 °C - @TCdr
 1. [A32NX/APU] The APU shuts down automatically at EGT MAX and when its air intake flap closes (new flyPad failure "APU air intake flap failed closed"); after an automatic shutdown the air intake flap stays open and closes 15 min after N 7 % (after liftoff when on the ground) - @TCdr
 1. [A32NX/FUEL] The APU fuel pump starts automatically when no left tank pump runs; with neither the APU gets no fuel pressure (FUEL LO PR) - @TCdr
+1. [A380X/FWS] New FADEC alerts from the engine failures: ENG CTL SYS FAULT (with THR LEVER IDLE / ENG MASTER OFF on ground), CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION, ENG TYPE DISAGREE, ENG 2(3) REVERSER INHIBITED (with its BTV and reverser INOP SYS) and REVERSER MINOR FAULT, with the FCOM flight phase inhibitions - @TCdr
+1. [A380X/ENG] New flyPad failures "Engine n FADEC overheat (engine shutdown)" and "Engine n overthrust (thrust control lost)": the FADEC shuts the engine down without automatic relight and ENG FAIL shows the FADEC OVHT or THRUST CTL LOST lines; in flight below 15 000 ft the overthrust protection gives ENG CTL SYS FAULT - @TCdr
+1. [A380X/FWS] AIR APU BLEED FAULT also triggers when the APU bleed valve is abnormally open or closed (new flyPad failures "APU bleed valve stuck closed / open") - @TCdr
+1. [A380X/FWS] The amber attention box of an engine also comes up with a red oil pressure, an amber oil temperature, an amber CLOGGED or an amber REV indication - @TCdr
+1. [A380X/FWS] L/G GRVTY EXTN memo after a gravity extension, and STATUS INOP SYS ENG n BLEED also for a bleed fault, a bleed leak or the ENG BLEED pb-sw OFF - @TCdr
+1. [A380X/FWS] WHEEL TIRE PRESS LO from the TPIS tire pressures (low tire, or two tires of an axle too different) - @TCdr
 
 ## 2024.1.0
 

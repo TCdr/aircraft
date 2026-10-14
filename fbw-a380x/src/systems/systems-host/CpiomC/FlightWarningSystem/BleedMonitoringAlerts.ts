@@ -303,6 +303,33 @@ export function bleedLeakInopSys(inputs: BleedMonitoringInputs, engine: number, 
 }
 
 /**
+ * The STATUS INOP SYS ENG n BLEED line of the FWS (FwsInopSys 260300002-005), whichever alert is shown: the engine is out
+ * (ENG FAIL, ENG SHUT DOWN), or the bleed is lost by
+ * - AIR ENG n BLEED FAULT (INOP SYS ALL PHASES "ENG 1(2)(3)(4) BLEED", l.168036-168040),
+ * - AIR ENG n BLEED OFF, the ENG BLEED pb-sw "abnormally set to OFF" (l.168122; INOP SYS l.168150-168154): as the alert,
+ *   with the engine running (FwsCore eng1BleedAbnormalOff),
+ * - the leak of the pylon duct or of the wing zone of the engine (AIR ENG n BLEED LEAK, AIR L(R) INR / OUTR WING LEAK,
+ *   bleedLeakInopSys: not on ground before any engine start, l.168625-168626, l.168787-168788).
+ * Before 2026-10-13 the line only followed the engine out ("TODO add bleed inop conditions").
+ * @param inputs the aircraft state
+ * @param engine the engine index (0 to 3)
+ * @param engineOut the engine is out (FwsCore engNOut)
+ * @returns whether ENG n BLEED is inoperative
+ */
+export function isEngineBleedInoperative(inputs: BleedMonitoringInputs, engine: number, engineOut: boolean): boolean {
+  const leakMakesBleedInop = (wing: boolean) =>
+    isBleedLeak(inputs, engine, wing) &&
+    bleedLeakInopSys(inputs, engine, wing).indexOf(ENG_BLEED_INOP_SYS[engine]) !== -1;
+  return (
+    engineOut ||
+    isEngineBleedFault(inputs, engine) ||
+    (!inputs.bleedPbAuto[engine] && inputs.engineRunning[engine]) ||
+    leakMakesBleedInop(false) ||
+    leakMakesBleedInop(true)
+  );
+}
+
+/**
  * LIMITATIONS ALL PHASES and on PFD of both leak alerts: "In flight, if two bleeds on the same side are lost: AVOID ICING
  * CONDs" (inner l.168576-168586, outer l.168737-168747).
  * @param inputs the aircraft state

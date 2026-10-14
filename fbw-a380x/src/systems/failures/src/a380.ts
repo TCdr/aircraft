@@ -467,6 +467,9 @@ export const A380Failure = Object.freeze({
 
   // ATA 36 (a380_systems pneumatic.rs). Wing zones follow the engines: 1 left outer, 2 left inner, 3 right inner,
   // 4 right outer.
+  // a380_systems apu_bleed_air_valve.rs: AIR APU BLEED FAULT
+  ApuBleedValveStuckClosed: 36060,
+  ApuBleedValveStuckOpen: 36061,
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
   Eng3BleedValveStuckClosed: 36002,
@@ -574,6 +577,16 @@ export const A380Failure = Object.freeze({
   Eng2FadecOverheat: 73031,
   Eng3FadecOverheat: 73032,
   Eng4FadecOverheat: 73033,
+  // a380_systems fadec_automatic_shutdown.rs: the FADEC shuts its engine down (ENG FAIL FADEC OVHT / THRUST CTL LOST,
+  // CTL SYS FAULT fuel cutback in flight)
+  Eng1FadecOverheatShutdown: 73310,
+  Eng2FadecOverheatShutdown: 73311,
+  Eng3FadecOverheatShutdown: 73312,
+  Eng4FadecOverheatShutdown: 73313,
+  Eng1Overthrust: 73320,
+  Eng2Overthrust: 73321,
+  Eng3Overthrust: 73322,
+  Eng4Overthrust: 73323,
   ThrustLever1Resolvers: 73040,
   ThrustLever2Resolvers: 73041,
   ThrustLever3Resolvers: 73042,
@@ -1029,6 +1042,8 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [34, A380Failure.Ir2Fault, 'IR 2 (inertial data lost, FAULT light)'],
   [34, A380Failure.Ir3Fault, 'IR 3 (inertial data lost, FAULT light)'],
 
+  [36, A380Failure.ApuBleedValveStuckClosed, 'APU bleed valve stuck closed'],
+  [36, A380Failure.ApuBleedValveStuckOpen, 'APU bleed valve stuck open'],
   [36, A380Failure.Eng1BleedValveStuckClosed, 'Engine 1 bleed valve stuck closed'],
   [36, A380Failure.Eng2BleedValveStuckClosed, 'Engine 2 bleed valve stuck closed'],
   [36, A380Failure.Eng3BleedValveStuckClosed, 'Engine 3 bleed valve stuck closed'],
@@ -1204,6 +1219,14 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [73, A380Failure.Eng2FadecOverheat, 'Engine 2 FADEC overheat'],
   [73, A380Failure.Eng3FadecOverheat, 'Engine 3 FADEC overheat'],
   [73, A380Failure.Eng4FadecOverheat, 'Engine 4 FADEC overheat'],
+  [73, A380Failure.Eng1FadecOverheatShutdown, 'Engine 1 FADEC overheat (engine shutdown)'],
+  [73, A380Failure.Eng2FadecOverheatShutdown, 'Engine 2 FADEC overheat (engine shutdown)'],
+  [73, A380Failure.Eng3FadecOverheatShutdown, 'Engine 3 FADEC overheat (engine shutdown)'],
+  [73, A380Failure.Eng4FadecOverheatShutdown, 'Engine 4 FADEC overheat (engine shutdown)'],
+  [73, A380Failure.Eng1Overthrust, 'Engine 1 overthrust (thrust control lost)'],
+  [73, A380Failure.Eng2Overthrust, 'Engine 2 overthrust (thrust control lost)'],
+  [73, A380Failure.Eng3Overthrust, 'Engine 3 overthrust (thrust control lost)'],
+  [73, A380Failure.Eng4Overthrust, 'Engine 4 overthrust (thrust control lost)'],
   // The FADEC limits the engine to CLB in flight and to idle on ground; no reverser on engines 2 and 3
   [73, A380Failure.ThrustLever1Resolvers, 'Thrust lever 1 resolvers (both)'],
   [73, A380Failure.ThrustLever2Resolvers, 'Thrust lever 2 resolvers (both)'],

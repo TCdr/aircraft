@@ -708,3 +708,30 @@ describe('A380X slat/flap channel and avionics network failures', () => {
     ).toEqual(expected.map(([id, failureType, name, chapter]) => [id, failureType, [chapter, id, name]]));
   });
 });
+
+// FCOM audit T2-44: the FADEC shutdowns (a380_systems fadec_automatic_shutdown.rs) and the APU bleed valve stuck failures
+// (a380_systems pneumatic.rs ApuBleedAirValve, AIR APU BLEED FAULT); the names say what the Rust does
+describe('A380X FADEC shutdown and APU bleed valve failures', () => {
+  it('lists them with the Rust failure they trigger', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string, number][] = [
+      ...[1, 2, 3, 4].map((engine): [number, string, string, number] => [
+        73310 + engine - 1,
+        `FadecOverheatShutdown(${engine})`,
+        `Engine ${engine} FADEC overheat (engine shutdown)`,
+        73,
+      ]),
+      ...[1, 2, 3, 4].map((engine): [number, string, string, number] => [
+        73320 + engine - 1,
+        `EngineOverthrust(${engine})`,
+        `Engine ${engine} overthrust (thrust control lost)`,
+        73,
+      ]),
+      [36060, 'ApuBleedValveStuckClosed', 'APU bleed valve stuck closed', 36],
+      [36061, 'ApuBleedValveStuckOpen', 'APU bleed valve stuck open', 36],
+    ];
+    expect(
+      expected.map(([id]) => [id, rustMap.get(id), A380FailureDefinitions.find(([, listed]) => listed === id)]),
+    ).toEqual(expected.map(([id, failureType, name, chapter]) => [id, failureType, [chapter, id, name]]));
+  });
+});
