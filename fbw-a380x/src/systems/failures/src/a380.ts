@@ -529,6 +529,14 @@ export const A380Failure = Object.freeze({
   LeftInnerWingBleedLeak: 36075,
   RightInnerWingBleedLeak: 36076,
   RightOuterWingBleedLeak: 36077,
+  // The leaks of the other leak detection zones (FCOM DSC-36-10-60): the APU duct, the pack bays, the hot-air ducts of
+  // HOT AIR 1(2) and the forward cargo duct (on HOT AIR 1)
+  ApuBleedLeak: 36080,
+  Pack1BayLeak: 36081,
+  Pack2BayLeak: 36082,
+  HotAir1DuctLeak: 36083,
+  HotAir2DuctLeak: 36084,
+  FwdCargoBleedDuctLeak: 36085,
 
   NssAnsu1: 46001,
   NssAnsu2: 46002,
@@ -1130,6 +1138,12 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [36, A380Failure.LeftInnerWingBleedLeak, 'Left inner wing bleed duct leak'],
   [36, A380Failure.RightInnerWingBleedLeak, 'Right inner wing bleed duct leak'],
   [36, A380Failure.RightOuterWingBleedLeak, 'Right outer wing bleed duct leak'],
+  [36, A380Failure.ApuBleedLeak, 'APU bleed duct leak'],
+  [36, A380Failure.Pack1BayLeak, 'Pack 1 bay bleed duct leak'],
+  [36, A380Failure.Pack2BayLeak, 'Pack 2 bay bleed duct leak'],
+  [36, A380Failure.HotAir1DuctLeak, 'Hot air 1 duct leak'],
+  [36, A380Failure.HotAir2DuctLeak, 'Hot air 2 duct leak'],
+  [36, A380Failure.FwdCargoBleedDuctLeak, 'Forward cargo bleed duct leak'],
 
   [42, A380Failure.AfdxSwitch1, 'AFDX switch 1 (network A)'],
   [42, A380Failure.AfdxSwitch2, 'AFDX switch 2 (network A)'],
