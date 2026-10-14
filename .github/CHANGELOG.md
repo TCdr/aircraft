@@ -665,6 +665,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] STATUS INOP SYS shows STBY RAD NAV with RMPs 1+2 (or all RMPs) failed, and the GPWS, TERR SYS and TAWS lines of the SURV faults under APPR & LDG instead of ALL PHASES - @TCdr
 1. [A380X/FWS] New IR 1(2)(3)(1+2)(1+3)(2+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos while IRs align in ATT mode, and a new DATALINK STBY memo while the ACARS provider link is temporarily lost with VHF 3 in data mode - @TCdr
 1. [A380X/FWS] NAV ALL AIR DATA DISAGREE radome destruction line now reads FMS FUEL PRED DISREGARD, as in the FCOM - @TCdr
+1. [A32NX/ATSU] New flyPad failures DCDU 1, DCDU 2 (blank screen, keys do nothing) and cockpit printer (nothing printed, PRINTER NOT AVAILABLE on the MCDU) - @TCdr
+1. [A32NX/ATSU] The ATSU stops while its C/B L15 or L16 on 121VU is pulled (the ATSU reset of the FCOM drops the CPDLC connection), and the DCDU shows INVALID DATA while the ATSU does not run - @TCdr
+1. [A32NX/ENG] The FADEC idle protection follows the reverser position: idle while a reverser commanded stowed is more than 15 % deployed, reverse idle when a deployed reverser stows below 78 %, as in the FCOM - @TCdr
+1. [A32NX/ENG] In-flight starter assisted relight: the starter turns the core and the HP fuel valve opens above 15 % N2, as in the FCOM - @TCdr
 
 ## 2024.1.0
 

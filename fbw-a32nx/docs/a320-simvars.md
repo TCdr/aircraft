@@ -4616,7 +4616,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True on the ground when the starter turns the core without fuel (start valve open with air, engine fuel cut or ENG MASTER OFF): the FADEC keeps the MSFS starter engaged. Written by the systems WASM
+  - True on the ground when the starter turns the core without fuel (start valve open with air, engine fuel cut or ENG MASTER OFF), and in flight during a starter assisted relight until the HP fuel valve opens above 15 % N2 (ENG MASTER ON, start valve open with air, engine waiting for its relight, core not seized): the FADEC keeps the MSFS starter engaged. Written by the systems WASM
 
 - A32NX_ENGINE_{number}_STARTER_FAILED
   - Bool
@@ -5700,6 +5700,25 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Bool
     - The paper door of the pedestal printer is open (a click on the door or its handle toggles it; cockpit
       model animation PRINTER_DOOR). No effect on printing.
+
+- A32NX_ATSU_OFF
+    - Bool
+    - True while the ATSU does not run: AC BUS 1 not powered, one of its C/Bs L15/L16 on 121VU pulled (the ATSU reset of
+      the FCOM, read from `L:1:A32NX_CB_121VU_L_TRIPPED_0`) or the flyPad ATSU failure (46000). A supplied DCDU then shows
+      INVALID DATA. Written by the systems-host ATSU (atsu.ts)
+
+- A32NX_DCDU_{number}_FAILED
+    - Bool
+    - {number}
+        - 1 (captain)
+        - 2 (first officer)
+    - True while the flyPad DCDU failure (46002, 46003) is active: the DCDU screen is blank (cockpit model) and its keys
+      do nothing. Written by the systems-host ATSU (atsu.ts)
+
+- A32NX_PRINTER_FAILED
+    - Bool
+    - True while the flyPad cockpit printer failure (46004) is active: nothing is printed and the MCDU shows PRINTER NOT
+      AVAILABLE. Written by the systems-host ATSU (atsu.ts)
 
 ## Non-Systems Related
 

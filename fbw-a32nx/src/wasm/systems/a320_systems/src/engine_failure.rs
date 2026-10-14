@@ -22,7 +22,9 @@
 //!   envelope, the FADEC will open the starter valve", and the note "For an in-flight restart, the
 //!   FADEC decides whether the rotor speed is sufficient to perform a windmill relight or needs
 //!   assistance from the starter": with the ENG MODE selector at IGN (the in-flight start of the
-//!   QRH) the engine lights up in zone 3 by windmilling, and in zone 1 with starter air.
+//!   QRH) the engine lights up in zone 3 by windmilling, and in zone 1 with starter air once the
+//!   starter has turned the core above 15 % N2, where the HP fuel valve opens in flight (DSC-70-80-40
+//!   l.63706-63708); until then the start sequence motors the core without fuel.
 //! - DSC-70-80-30 WINDMILLING QUICK RELIGHT (PDF page 3267, a320_fcom.txt l.63538-63541): "In case
 //!   of inadvertent engine shutdown by cycling the Engine Master lever to OFF then ON, in the
 //!   windmilling quick relight envelope, the FADEC will attempt automatically a relight regardless of
@@ -114,6 +116,10 @@ impl A320RelightEnvelope {
     const QUICK_RELIGHT_MAX_MASTER_OFF: Duration = Duration::from_secs(20);
     /// Design choice, not on the LEAP chart (see the module comment).
     const QUICK_RELIGHT_MIN_N2_PERCENT: f64 = 15.;
+    /// DSC-70-80-40 SECOND STEP (a320_fcom.txt l.63706-63708): "The HP fuel valve opens: - On ground:
+    /// when N2 > 22 % - In flight: when N2 > 15 %." A starter assisted relight lights up once the
+    /// starter has turned the core above it (see `A320EngineFailure::update`, in-flight motoring).
+    const IN_FLIGHT_FUEL_ON_N2_PERCENT: f64 = 15.;
 
     /// The windmill N2. The chart marks zone 3 "STABILIZED WINDMILL RELIGHT N2 > 8%", from 270 kt.
     /// Design choice: the windmill N2 is proportional to the airspeed and is 8 % at 270 kt, where
@@ -169,7 +175,8 @@ impl EngineRelightEnvelope for A320RelightEnvelope {
         if conditions.ignition_selected {
             Self::is_in_stabilized_windmill_zone(cas_knots, altitude_feet)
                 || (Self::is_in_starter_assisted_zone(cas_knots, altitude_feet)
-                    && conditions.starter_air_pressurized)
+                    && conditions.starter_air_pressurized
+                    && conditions.core_speed.get::<percent>() > Self::IN_FLIGHT_FUEL_ON_N2_PERCENT)
                 || quick_relight
         } else {
             quick_relight
@@ -474,6 +481,15 @@ impl A320EngineFailure {
 
         self.start
             .update_starter_motoring(context, self.failure.fuel_is_cut(), &start_inputs);
+        // In flight the HP fuel valve of a starter assisted relight opens above 15 % N2 (FCOM l.63708,
+        // A320RelightEnvelope): until then the starter turns the core of the engine that waits for its
+        // relight. A seized core does not turn.
+        self.start.update_in_flight_relight_motoring(
+            context,
+            self.failure.fuel_is_cut(),
+            &start_inputs,
+            self.failure.is_flamed_out() && !self.failure.is_seized(),
+        );
     }
 }
 impl SimulationElement for A320EngineFailure {
@@ -574,9 +590,29 @@ mod tests {
         A320RelightEnvelope.engine_lights_up(&conditions)
     }
 
+    /// Starter air, and the core the starter has motored above the 15 % N2 of the HP fuel valve.
     fn with_starter_air(mut conditions: RelightConditions) -> RelightConditions {
         conditions.starter_air_pressurized = true;
+        conditions.core_speed = Ratio::new::<percent>(16.);
         conditions
+    }
+
+    /// FCOM DSC-70-80-40 (a320_fcom.txt l.63706-63708): "The HP fuel valve opens: ... In flight: when
+    /// N2 > 15 %". A starter assisted relight lights up once the starter has turned the core above 15 %.
+    #[test]
+    fn a_starter_assisted_relight_gets_its_fuel_above_15_percent_n2() {
+        let mut starter_assisted = with_starter_air(conditions(200., 10_000.));
+        starter_assisted.core_speed = Ratio::new::<percent>(8.);
+        assert!(!lights_up(starter_assisted));
+        starter_assisted.core_speed = Ratio::new::<percent>(15.);
+        assert!(!lights_up(starter_assisted));
+        starter_assisted.core_speed = Ratio::new::<percent>(15.5);
+        assert!(lights_up(starter_assisted));
+
+        // the stabilized windmill relight (zone 3, "N2 > 8%") does not wait for 15 %
+        let mut windmill = with_starter_air(conditions(300., 10_000.));
+        windmill.core_speed = Ratio::new::<percent>(9.);
+        assert!(lights_up(windmill));
     }
 
     fn with_starter_air_lights_up(cas_knots: f64, altitude_feet: f64) -> bool {
@@ -848,9 +884,70 @@ mod tests {
             run(&mut test_bed);
             assert!(fuel_is_cut(&mut test_bed, 1));
 
+            // the start valve opens with starter air: the starter turns the core, still without fuel
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_VALVE_OPEN", true);
             test_bed.write_by_name("PNEU_ENG_1_STARTER_PRESSURIZED", true);
             run(&mut test_bed);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+            let motoring: bool = test_bed.read_by_name("ENGINE_1_STARTER_MOTORING");
+            assert!(motoring, "the starter motors the core of the relight");
+            let engine_2_motoring: bool = test_bed.read_by_name("ENGINE_2_STARTER_MOTORING");
+            assert!(!engine_2_motoring);
+
+            // FCOM l.63708: the HP fuel valve opens in flight when N2 > 15 %
+            test_bed.write_by_name("ENGINE_N2:1", 16.);
+            run(&mut test_bed);
             assert!(!fuel_is_cut(&mut test_bed, 1));
+            let motoring: bool = test_bed.read_by_name("ENGINE_1_STARTER_MOTORING");
+            assert!(
+                !motoring,
+                "the lit engine is no longer motored without fuel"
+            );
+        }
+
+        /// A failed starter does not turn the core (ENG 1(2) START FAULT STARTER SHAFT SHEAR in flight,
+        /// "WINDMILL START ONLY"): no motoring, the starter assisted relight does not light up.
+        #[test]
+        fn a_failed_starter_gives_no_motoring_in_flight() {
+            let mut test_bed = flying_test_bed();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+            test_bed.fail(FailureType::EngineFlameout(1));
+            test_bed.fail(FailureType::EngineStarter(1));
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 8.);
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+            run(&mut test_bed);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_VALVE_OPEN", true);
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_PRESSURIZED", true);
+            run(&mut test_bed);
+
+            let motoring: bool = test_bed.read_by_name("ENGINE_1_STARTER_MOTORING");
+            assert!(!motoring);
+            assert!(fuel_is_cut(&mut test_bed, 1));
+        }
+
+        /// A seized core does not turn: the starter does not motor it in flight.
+        #[test]
+        fn a_seized_core_is_not_motored_in_flight() {
+            let mut test_bed = flying_test_bed();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+            test_bed.fail(FailureType::EngineSeizure(1));
+            run(&mut test_bed);
+            test_bed.write_by_name("ENGINE_STATE:1", 4.);
+            test_bed.write_by_name("ENGINE_N2:1", 0.);
+            test_bed.write_by_name("TURB ENG IGNITION SWITCH EX1:1", 2.);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+            run(&mut test_bed);
+            test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_VALVE_OPEN", true);
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_PRESSURIZED", true);
+            run(&mut test_bed);
+
+            let motoring: bool = test_bed.read_by_name("ENGINE_1_STARTER_MOTORING");
+            assert!(!motoring);
         }
 
         #[test]
