@@ -4057,6 +4057,15 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     return this.navigation.getNavaidTuner().setManualAdf(index, facilityOrFrequency);
   }
 
+  /**
+   * Set the BFO of a tuned ADF (RADIO NAV page ADF/BFO prompt)
+   * @param index ADF 1 or 2
+   * @param bfo true to activate the BFO
+   */
+  public setAdfBfo(index: 1 | 2, bfo: boolean): void {
+    return this.navigation.getNavaidTuner().setAdfBfo(index, bfo);
+  }
+
   public isMmrTuningLocked() {
     return this.navigation.getNavaidTuner().isMmrTuningLocked();
   }

@@ -9,6 +9,8 @@ import { VhfRadioPanel } from './VhfRadioPanel';
 import { NavRadioPanel } from './NavRadioPanel';
 import { RadioPanelDisplay } from './RadioPanelDisplay';
 import { isRmpOperative, RmpSide, rmpFailedVar } from '@shared/communications/RadioCommunicationLogic';
+import { bfoAfterRmpBfoKey, RMP_ADF_MODE } from '@shared/navigation/NavigationReceivers';
+import { NavRadioUtils } from '@fmgc/navigation/NavRadioUtils';
 
 interface Props {
   /**
@@ -124,8 +126,18 @@ const PoweredRadioPanel = (props: Props) => {
 
   useInteractionEvent(`A32NX_RMP_${props.side}_ADF_BUTTON_PRESSED`, () => {
     if (navButtonPressed) {
-      setPanelMode(10);
+      setPanelMode(RMP_ADF_MODE);
       setNavTransceiverType(TransceiverType.ADF);
+    }
+  });
+
+  // The BFO key toggles the BFO of the ADF of this RMP (RMP 1: ADF 1, RMP 2: ADF 2) while the ADF is selected
+  const adfIndex = props.side === 'L' ? 1 : 2;
+  const [bfoOn, setBfoOn] = useSimVar(NavRadioUtils.adfBfoVar(adfIndex), 'Bool', 250);
+  useInteractionEvent(`A32NX_RMP_${props.side}_BFO_BUTTON_PRESSED`, () => {
+    const bfo = bfoAfterRmpBfoKey(!!navButtonPressed, panelMode, !!bfoOn);
+    if (bfo !== null) {
+      setBfoOn(bfo);
     }
   });
 

@@ -2146,7 +2146,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
         0 | ALIGNMENT_NOT_READY
         1 | REV_ATT_MODE
         2 | NAV_MODE
-        3 | VALID_SET_HEADING
+        3 | VALID_SET_HEADING (ATT mode, a heading entered by the crew is held)
         4 | ATTITUDE_INVALID
         5 | DC_FAIL
         6 | ON_DC
@@ -2166,6 +2166,22 @@ In the variables below, {number} should be replaced with one item in the set: { 
        16 | ALIGN_2_MINUTES
        15 | ALIGN_1_MINUTES
        18 | COMPUTED_LATITUDE_MISCOMPARE
+
+- A32NX_FM_IRS_SET_HEADING
+    - Arinc429Word<Degrees>
+    - The heading the crew enters for the IRs in ATT mode (MCDU IRS MONITOR page SET HDG): normal operation for 1 s
+      after each entry, no computed data otherwise. An IR in ATT mode takes each entry and runs from it; without one its
+      heading is no computed data.
+
+- A32NX_ADF_{number}_BFO_ON
+    - Bool
+    - The BFO of ADF {number} (1 or 2) is on: set by the FMGC from the MCDU RADIO NAV page ADF/BFO prompt, or by the
+      BFO key of RMP {number} in the NAV backup mode with the ADF selected. Lights the BFO key of the RMP.
+
+- A32NX_VOR_{number}_FAILED, A32NX_DME_{number}_FAILED, A32NX_ADF_{number}_FAILED, A32NX_ILS_{number}_FAILED
+    - Bool
+    - The VOR, DME, ADF or ILS receiver {number} (1 or 2) has failed (flyPad ATA 34 failures, written by the systems
+      host): the NDs then get no bearing, deviation or distance from it.
 
 - A32NX_PUSH_TRUE_REF
     - Bool

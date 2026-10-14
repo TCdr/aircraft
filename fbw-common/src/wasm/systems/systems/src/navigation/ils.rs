@@ -1,6 +1,7 @@
 use crate::{
+    failures::{Failure, FailureType},
     shared::arinc429::{Arinc429Word, SignStatus},
-    simulation::{Read, SimulationElement, VariableIdentifier, Write},
+    simulation::{Read, SimulationElement, SimulationElementVisitor, VariableIdentifier, Write},
 };
 use uom::si::{
     angle::degree,
@@ -42,6 +43,10 @@ pub struct MultiModeReceiverShim {
     localizer_deviation: Angle,
     glideslope_valid: bool,
     glideslope_deviation: Angle,
+    /// The ILS receiver of this MMR fails: no localiser and glideslope. A320 FCOM PRO-ABN-NAV NAV ILS 1(2)(1+2)
+    /// FAULT (a320_fcom.txt l.93273). The receiver of MMR 1 is also switched off in the sim by the systems host
+    /// (NavigationReceiverFailures), as the FBW module reads NAV 3 directly.
+    failure: Failure,
 
     frequency_id: VariableIdentifier,
     nav_valid_id: VariableIdentifier,
@@ -72,6 +77,7 @@ impl MultiModeReceiverShim {
             localizer_deviation: Angle::default(),
             glideslope_valid: false,
             glideslope_deviation: Angle::default(),
+            failure: Failure::new(FailureType::IlsReceiver(number)),
 
             frequency_id: context.get_identifier(format!("NAV FREQUENCY:{nav_index}")),
             nav_valid_id: context.get_identifier(format!("NAV HAS NAV:{nav_index}")),
@@ -183,13 +189,23 @@ impl InstrumentLandingSystemBus for MultiModeReceiverShim {
     }
 }
 impl SimulationElement for MultiModeReceiverShim {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.failure.accept(visitor);
+        visitor.visit(self);
+    }
+
     fn read(&mut self, reader: &mut crate::simulation::SimulatorReader) {
+        // A failed receiver receives nothing
+        let receives = !self.failure.is_active();
         self.frequency = reader.read(&self.frequency_id);
-        self.nav_valid = reader.read(&self.nav_valid_id);
-        self.loc_valid = reader.read(&self.loc_valid_id);
+        let nav_valid: bool = reader.read(&self.nav_valid_id);
+        let loc_valid: bool = reader.read(&self.loc_valid_id);
+        let glideslope_valid: bool = reader.read(&self.glideslope_valid_id);
+        self.nav_valid = nav_valid && receives;
+        self.loc_valid = loc_valid && receives;
         self.localizer_course = reader.read(&self.localizer_course_id);
         self.localizer_deviation = reader.read(&self.localizer_deviation_id);
-        self.glideslope_valid = reader.read(&self.glideslope_valid_id);
+        self.glideslope_valid = glideslope_valid && receives;
         self.glideslope_deviation = reader.read(&self.glideslope_deviation_id);
     }
 
@@ -302,6 +318,29 @@ mod tests {
             test_bed.query(|a| a.mmr_2.localizer_deviation().value().get::<ratio>());
         assert!((mmr_1_localizer - 0.4 / 0.8 * 0.0775).abs() < 1e-9);
         assert!((mmr_2_localizer + 0.6 / 0.8 * 0.0775).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_failed_ils_receiver_gives_no_localiser_and_glideslope() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.fail(FailureType::IlsReceiver(2));
+        test_bed.run();
+        test_bed.run();
+
+        assert!(!read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+        assert!(!read_flag(&mut test_bed, "MMR_2_GS_IS_VALID"));
+        assert!(test_bed.query(|a| a.mmr_2.localizer_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_2.glideslope_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_2.ils_frequency().is_no_computed_data()));
+        // The other receiver still works
+        assert!(read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
+        assert!(read_flag(&mut test_bed, "MMR_1_GS_IS_VALID"));
+
+        test_bed.unfail(FailureType::IlsReceiver(2));
+        test_bed.run();
+        test_bed.run();
+        assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+        assert!(read_flag(&mut test_bed, "MMR_2_GS_IS_VALID"));
     }
 
     struct SingleMmrAircraft {

@@ -61,6 +61,22 @@ describe('A320 flyPad failures', () => {
     expect(label(A320Failure.WxrPredictiveWindshear)).toEqual([34, 34120, 'Weather radar predictive windshear (PWS)']);
   });
 
+  // The systems host (Navigation/NavigationReceiverFailures.ts) applies them, the ILS ones also the Rust MMR shims
+  it('lists the radio navigation receiver failures in ATA 34 with the Rust ILS receiver failures', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.Vor1Receiver)).toEqual([34, 34130, 'VOR 1 receiver (no bearing)']);
+    expect(label(A320Failure.Vor2Receiver)).toEqual([34, 34131, 'VOR 2 receiver (no bearing)']);
+    expect(label(A320Failure.Dme1Receiver)).toEqual([34, 34140, 'DME 1 receiver (no distance)']);
+    expect(label(A320Failure.Dme2Receiver)).toEqual([34, 34141, 'DME 2 receiver (no distance)']);
+    expect(label(A320Failure.Adf1Receiver)).toEqual([34, 34150, 'ADF 1 receiver (no bearing)']);
+    expect(label(A320Failure.Adf2Receiver)).toEqual([34, 34151, 'ADF 2 receiver (no bearing)']);
+    expect(label(A320Failure.Ils1Receiver)).toEqual([34, 34160, 'ILS 1 receiver (no LOC/GS on PFD 1)']);
+    expect(label(A320Failure.Ils2Receiver)).toEqual([34, 34161, 'ILS 2 receiver (no LOC/GS on PFD 2)']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    expect(wasm).toContain('(34_160, FailureType::IlsReceiver(1)),');
+    expect(wasm).toContain('(34_161, FailureType::IlsReceiver(2)),');
+  });
+
   // The oil failure labels say what systems engine/oil_failure.rs and the FADEC (EngineOilFailures.hpp) do with ids 79000-79031
   it('lists the engine oil failures in ATA 79 Oil', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);

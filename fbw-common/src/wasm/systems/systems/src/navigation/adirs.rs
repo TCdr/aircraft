@@ -374,6 +374,11 @@ struct AdirsSimulatorData {
     /// Baro correction for fo's side in hPa from the FCU
     baro_correction_2: Arinc429Word<f64>,
 
+    set_heading_id: VariableIdentifier,
+    /// The heading in degrees the crew enters for the IRs in ATT mode (A320: MCDU IRS MONITOR page SET HDG), sent by
+    /// the FMGC: normal operation for a short time after each entry, no computed data otherwise
+    set_heading: Arinc429Word<f64>,
+
     is_boarding_started_by_user_id: VariableIdentifier,
     boarding_rate_id: VariableIdentifier,
 
@@ -400,6 +405,7 @@ impl AdirsSimulatorData {
     const ANGLE_OF_ATTACK: &'static str = "INCIDENCE ALPHA";
     const BARO_CORRECTION_1_HPA: &'static str = "FCU_LEFT_EIS_BARO_HPA";
     const BARO_CORRECTION_2_HPA: &'static str = "FCU_RIGHT_EIS_BARO_HPA";
+    const SET_HEADING: &'static str = "FM_IRS_SET_HEADING";
     const BOARDING_STARTED_BY_USR: &'static str = "BOARDING_STARTED_BY_USR";
     const BOARDING_RATE: &'static str = "BOARDING_RATE";
 
@@ -463,6 +469,9 @@ impl AdirsSimulatorData {
             baro_correction_2_id: context.get_identifier(Self::BARO_CORRECTION_2_HPA.to_owned()),
             baro_correction_2: Arinc429Word::new(1013., SignStatus::FailureWarning),
 
+            set_heading_id: context.get_identifier(Self::SET_HEADING.to_owned()),
+            set_heading: Arinc429Word::new(0., SignStatus::NoComputedData),
+
             is_boarding_started_by_user_id: context
                 .get_identifier(Self::BOARDING_STARTED_BY_USR.to_owned()),
             boarding_rate_id: context.get_identifier(Self::BOARDING_RATE.to_owned()),
@@ -498,6 +507,7 @@ impl SimulationElement for AdirsSimulatorData {
         self.angle_of_attack = reader.read(&self.angle_of_attack_id);
         self.baro_correction_1 = reader.read_arinc429(&self.baro_correction_1_id);
         self.baro_correction_2 = reader.read_arinc429(&self.baro_correction_2_id);
+        self.set_heading = reader.read_arinc429(&self.set_heading_id);
         self.is_boarding_started_by_user = reader.read(&self.is_boarding_started_by_user_id);
         self.boarding_rate = reader.read_discrete_or_fallback(
             &self.boarding_rate_id,
@@ -535,6 +545,34 @@ pub enum CompleteAlignmentTime {
     LatitudeDependent,
     /// The same time at any latitude.
     Fixed(Duration),
+}
+
+/// Where the IR gives a valid magnetic heading and track. Outside this area its magnetic labels carry the true values
+/// and its maintenance word has EXTREME LATITUDE.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MagneticReferenceArea {
+    /// From 60 S to 82 N, except north of 73 N between 120 W and 90 W (around the north magnetic pole), with a
+    /// hysteresis of 0.5 deg of latitude and 2.5 deg of longitude. A380 FCOM DSC-22-FMS-10-30-30 (a380_fcom.txt
+    /// l.23422-23424): "The ADIRS are able to provide MAG heading (track) between latitudes 82°30' N and 60°30' S,
+    /// except in the vicinity of the magnetic pole".
+    SixtySouthToEightyTwoNorthOutsideMagneticPole,
+    /// From 60 S to 73 N, with a hysteresis of 0.5 deg. A320 FCOM LIM-NAV (a320_fcom.txt l.116720-116726), all
+    /// ADIRUs with the same magnetic variation table: "In NAV mode, the IR will not provide valid magnetic heading
+    /// and magnetic track angle: North of 73° North, and South of 60° South."
+    SixtySouthToSeventyThreeNorth,
+}
+
+/// Where the heading of an IR in ATT mode comes from.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum AttitudeModeHeading {
+    /// The IR gives the aircraft heading once its attitude is initialised (no crew entry modelled).
+    AircraftHeading,
+    /// The heading is no computed data until the crew enters it; the IR then gives the entered heading plus the
+    /// heading change since the entry (the IR drift is not modelled). A320 FCOM DSC-34-NAV-10-20 (a320_fcom.txt
+    /// l.52640-52643): ATT mode "supplying only attitude and heading information ... The heading must be entered
+    /// through the MCDU and has to be reset frequently (about every 10 min)"; QRH IR ALIGNMENT IN ATT MODE
+    /// (l.91909-91915): IRS MONITOR key, "[SET HDG key] A/C HDG ... ENTER".
+    EnteredByCrew,
 }
 
 /// The bus that keeps the inertial reference part of an ADIRU running when its main bus is lost.
@@ -591,9 +629,15 @@ pub struct AirDataInertialReferenceUnitProgramming {
     mmo: MachNumber,
     low_speed_warning_thresholds: [LowSpeedWarningThreshold; 4],
     complete_alignment_time: CompleteAlignmentTime,
+    max_alignment_latitude: Angle,
+    magnetic_reference_area: MagneticReferenceArea,
+    attitude_mode_heading: AttitudeModeHeading,
     electrical_supplies: [AdiruElectricalSupply; 3],
 }
 impl AirDataInertialReferenceUnitProgramming {
+    /// A380 FCOM DSC-22-FMS-10-30-30 (a380_fcom.txt l.23418): "Beyond 82 °N(S), no IRS alignment is possible."
+    const DEFAULT_MAX_ALIGNMENT_LATITUDE_DEGREES: f64 = 82.;
+
     pub fn new(
         vmo: Velocity,
         mmo: MachNumber,
@@ -605,8 +649,35 @@ impl AirDataInertialReferenceUnitProgramming {
             mmo,
             low_speed_warning_thresholds,
             complete_alignment_time: CompleteAlignmentTime::LatitudeDependent,
+            max_alignment_latitude: Angle::new::<degree>(
+                Self::DEFAULT_MAX_ALIGNMENT_LATITUDE_DEGREES,
+            ),
+            magnetic_reference_area:
+                MagneticReferenceArea::SixtySouthToEightyTwoNorthOutsideMagneticPole,
+            attitude_mode_heading: AttitudeModeHeading::AircraftHeading,
             electrical_supplies,
         }
+    }
+
+    /// The latitude limits of the IR: ground alignment up to `max_alignment_latitude` north and south (82 deg by
+    /// default), and the area with a valid magnetic heading and track.
+    pub fn with_latitude_limits(
+        mut self,
+        max_alignment_latitude: Angle,
+        magnetic_reference_area: MagneticReferenceArea,
+    ) -> Self {
+        self.max_alignment_latitude = max_alignment_latitude;
+        self.magnetic_reference_area = magnetic_reference_area;
+        self
+    }
+
+    /// Where the heading of an IR in ATT mode comes from (the aircraft heading by default).
+    pub fn with_attitude_mode_heading(
+        mut self,
+        attitude_mode_heading: AttitudeModeHeading,
+    ) -> Self {
+        self.attitude_mode_heading = attitude_mode_heading;
+        self
     }
 
     /// The complete alignment time of the aircraft ADIRU (latitude dependent by default).
@@ -861,7 +932,7 @@ impl AirDataInertialReferenceUnit {
             number,
             state_id: context.get_identifier(Self::state_id(number)),
             adr: AirDataReference::new(context, number, programming.vmo, programming.mmo),
-            ir: InertialReference::new(context, number, programming.complete_alignment_time),
+            ir: InertialReference::new(context, number, &programming),
 
             supply: programming.electrical_supplies[number - 1],
             main_bus_powered: false,
@@ -1964,6 +2035,19 @@ bitflags! {
     }
 }
 
+/// A heading the crew entered for an IR in ATT mode. Without a navigation solution the IR keeps it as a free
+/// directional gyro: it adds the heading change since the entry, measured on the sim true heading.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct AttitudeModeSetHeading {
+    entered_heading: Angle,
+    true_heading_at_entry: Angle,
+}
+impl AttitudeModeSetHeading {
+    fn heading(&self, true_heading: Angle) -> Angle {
+        (self.entered_heading + (true_heading - self.true_heading_at_entry)).normalised()
+    }
+}
+
 struct InertialReference {
     number: usize,
     is_on: bool,
@@ -1980,6 +2064,13 @@ struct InertialReference {
     quick_realign_remaining_available_time: Duration,
     alignment_failed: bool,
     complete_alignment_time: CompleteAlignmentTime,
+    max_alignment_latitude: Angle,
+    magnetic_reference_area: MagneticReferenceArea,
+    attitude_mode_heading: AttitudeModeHeading,
+    /// The heading the crew entered in ATT mode, kept until the IR leaves ATT mode
+    attitude_mode_set_heading: Option<AttitudeModeSetHeading>,
+    /// The set heading word of the previous update, to take each crew entry once
+    previous_set_heading: Arinc429Word<f64>,
     /// The mode selector position, or OFF without power
     selected_mode: InertialReferenceMode,
     /// The current alignment is a fast one (no ON BAT light at its start)
@@ -2067,7 +2158,6 @@ impl InertialReference {
     const QUICK_REALIGN_ALIGN_TIME: Duration = Duration::from_secs(30);
     const ALIGNMENT_VELOCITY_TIME_CONSTANT: Duration = Duration::from_millis(500);
     const MAX_ALIGNMENT_VELOCITY_FPS: f64 = 0.011;
-    const MAX_LATITUDE_FOR_ALIGNMENT: f64 = 82.;
     /// Heading error of an erroneous IR (design choice: the FCOM gives no failure values; 10 deg is well above the
     /// heading difference that the FWC IR DISAGREE monitoring of the A320 takes as a disagreement)
     const ERRONEOUS_HEADING_ERROR_DEGREES: f64 = 10.;
@@ -2075,7 +2165,7 @@ impl InertialReference {
     fn new(
         context: &mut InitContext,
         number: usize,
-        complete_alignment_time: CompleteAlignmentTime,
+        programming: &AirDataInertialReferenceUnitProgramming,
     ) -> Self {
         Self {
             number,
@@ -2093,7 +2183,12 @@ impl InertialReference {
             excess_motion_inhibit_time: None,
             quick_realign_remaining_available_time: Duration::default(),
             alignment_failed: false,
-            complete_alignment_time,
+            complete_alignment_time: programming.complete_alignment_time,
+            max_alignment_latitude: programming.max_alignment_latitude,
+            magnetic_reference_area: programming.magnetic_reference_area,
+            attitude_mode_heading: programming.attitude_mode_heading,
+            attitude_mode_set_heading: None,
+            previous_set_heading: Arinc429Word::new(0., SignStatus::NoComputedData),
             selected_mode: InertialReferenceMode::Navigation,
             fast_alignment: false,
             fault_failure: Failure::new(FailureType::IrFault(number)),
@@ -2167,6 +2262,7 @@ impl InertialReference {
         self.update_remaining_align_duration(context, configured_align_time, simulator_data);
 
         self.update_latitude(simulator_data);
+        self.update_attitude_mode_set_heading(simulator_data);
         self.update_attitude_values(context, simulator_data);
         self.update_heading_values(simulator_data);
         self.update_non_attitude_values(context, true_airspeed_source, simulator_data);
@@ -2268,8 +2364,10 @@ impl InertialReference {
         );
     }
 
-    fn can_align(simulator_data: AdirsSimulatorData) -> bool {
-        simulator_data.latitude.abs().get::<degree>() <= Self::MAX_LATITUDE_FOR_ALIGNMENT
+    /// Ground alignment is possible up to the programmed latitude (A320 FCOM LIM-NAV, a320_fcom.txt l.116716-116718:
+    /// "between 73° North and 73° South"; A380 FCOM DSC-22-FMS-10-30-30, a380_fcom.txt l.23418: none beyond 82°)
+    fn can_align(&self, simulator_data: AdirsSimulatorData) -> bool {
+        simulator_data.latitude.abs() <= self.max_alignment_latitude
     }
 
     fn is_instant_or_fast_boarding_in_progress(simulator_data: AdirsSimulatorData) -> bool {
@@ -2325,7 +2423,7 @@ impl InertialReference {
                 match self.selected_mode {
                     InertialReferenceMode::Navigation => match self.remaining_align_duration {
                         Some(remaining) => {
-                            if Self::can_align(simulator_data) {
+                            if self.can_align(simulator_data) {
                                 Some(subtract_delta_from_duration(context, remaining))
                             } else {
                                 Some(remaining)
@@ -2343,7 +2441,7 @@ impl InertialReference {
             self.fast_alignment = false;
         }
 
-        self.alignment_failed = self.is_aligning() && !Self::can_align(simulator_data);
+        self.alignment_failed = self.is_aligning() && !self.can_align(simulator_data);
 
         if self.is_fully_aligned() || self.selected_mode != InertialReferenceMode::Navigation {
             self.excess_motion = false;
@@ -2356,12 +2454,53 @@ impl InertialReference {
 
         let hysteresis_sign = if self.extreme_latitude { 1. } else { -1. };
 
-        self.extreme_latitude = !((-60. + hysteresis_sign * 0.5) <= latitude
-            && (latitude <= (73. - hysteresis_sign * 0.5)
-                || (latitude <= (82. - hysteresis_sign * 0.5)
+        // North of 73 N, the extension of the area away from the north magnetic pole
+        let in_northern_extension = match self.magnetic_reference_area {
+            MagneticReferenceArea::SixtySouthToEightyTwoNorthOutsideMagneticPole => {
+                latitude <= (82. - hysteresis_sign * 0.5)
                     && latitude >= 0.
                     && (longitude <= (-120. - hysteresis_sign * 2.5)
-                        || longitude >= (-90. + hysteresis_sign * 2.5)))))
+                        || longitude >= (-90. + hysteresis_sign * 2.5))
+            }
+            MagneticReferenceArea::SixtySouthToSeventyThreeNorth => false,
+        };
+
+        self.extreme_latitude = !((-60. + hysteresis_sign * 0.5) <= latitude
+            && (latitude <= (73. - hysteresis_sign * 0.5) || in_northern_extension))
+    }
+
+    /// Takes a heading the crew enters for this IR in ATT mode: each entry is a set heading word in normal operation
+    /// that is new (it was not in normal operation before) or has a new value. The heading is kept until the IR
+    /// leaves ATT mode or loses power.
+    fn update_attitude_mode_set_heading(&mut self, simulator_data: AdirsSimulatorData) {
+        let set_heading = simulator_data.set_heading;
+        let is_new_entry = set_heading.is_normal_operation()
+            && (!self.previous_set_heading.is_normal_operation()
+                || set_heading.value() != self.previous_set_heading.value());
+        self.previous_set_heading = set_heading;
+
+        let accepts_entries = self.attitude_mode_heading == AttitudeModeHeading::EnteredByCrew
+            && self.is_on
+            && self.selected_mode == InertialReferenceMode::Attitude;
+        if !accepts_entries {
+            self.attitude_mode_set_heading = None;
+        } else if is_new_entry {
+            self.attitude_mode_set_heading = Some(AttitudeModeSetHeading {
+                entered_heading: Angle::new::<degree>(set_heading.value()).normalised(),
+                true_heading_at_entry: simulator_data.true_heading,
+            });
+        }
+    }
+
+    /// The IR in ATT mode gives a heading: with an initialised attitude and, when the crew has to enter it, once
+    /// entered
+    fn attitude_mode_heading_is_valid(&self) -> bool {
+        self.selected_mode == InertialReferenceMode::Attitude
+            && self.is_attitude_aligned()
+            && match self.attitude_mode_heading {
+                AttitudeModeHeading::AircraftHeading => true,
+                AttitudeModeHeading::EnteredByCrew => self.attitude_mode_set_heading.is_some(),
+            }
     }
 
     fn update_attitude_values(
@@ -2434,24 +2573,22 @@ impl InertialReference {
             true_heading_ssm,
         );
 
-        // TODO in ATT mode NCD until heading initialised on MCDU
-        let magnetic_heading_ssm = if self.is_on
-            && (heading_available
-                || (self.selected_mode == InertialReferenceMode::Attitude
-                    && self.is_attitude_aligned()))
-        {
-            SignStatus::NormalOperation
-        } else {
-            SignStatus::NoComputedData
-        };
-        self.heading.set_value(
-            self.measured_heading(if self.has_magnetic_data() {
-                simulator_data.heading
+        let magnetic_heading_ssm =
+            if self.is_on && (heading_available || self.attitude_mode_heading_is_valid()) {
+                SignStatus::NormalOperation
             } else {
-                simulator_data.true_heading
-            }),
-            magnetic_heading_ssm,
-        );
+                SignStatus::NoComputedData
+            };
+        let heading = match self.attitude_mode_set_heading {
+            // In ATT mode the IR has no navigation solution: it runs from the heading the crew entered
+            Some(set_heading) if self.selected_mode == InertialReferenceMode::Attitude => {
+                set_heading.heading(simulator_data.true_heading)
+            }
+            _ if self.has_magnetic_data() => simulator_data.heading,
+            _ => simulator_data.true_heading,
+        };
+        self.heading
+            .set_value(self.measured_heading(heading), magnetic_heading_ssm);
     }
 
     fn update_body_velocity(&mut self, context: &UpdateContext) {
@@ -2669,7 +2806,13 @@ impl InertialReference {
             maint_word |= IrMaintFlags::NAV_MODE;
         }
 
-        // TODO request heading setting in att mode if not set
+        // In ATT mode, a heading entered by the crew is held (the MCDU IRS MONITOR page shows ENTER HEADING in ATT
+        // mode without it, A320 FCOM DSC-22_20-50-10-28, a320_fcom.txt l.19731-19743)
+        if self.selected_mode == InertialReferenceMode::Attitude
+            && self.attitude_mode_set_heading.is_some()
+        {
+            maint_word |= IrMaintFlags::VALID_SET_HEADING;
+        }
 
         // TODO attitude invalid fault
 
@@ -5527,8 +5670,9 @@ mod tests {
         fn in_att_mode_attitude_and_heading_are_available_28_seconds_after_alignment_began(
             #[case] adiru_number: usize,
         ) {
-            // Note that in reality the HDG part needs HDG entry through the MCDU. As we haven't implemented
-            // that feature yet, for now we'll just make it available after 28 seconds in ATT mode.
+            // The default programming gives the aircraft heading in ATT mode (AttitudeModeHeading::AircraftHeading).
+            // The crew heading entry of AttitudeModeHeading::EnteredByCrew is tested with the A320 programming
+            // (a320_systems navigation.rs).
             let mut test_bed = test_bed_with()
                 .ir_mode_selector_set_to(adiru_number, InertialReferenceMode::Attitude);
             test_bed.run_without_delta();

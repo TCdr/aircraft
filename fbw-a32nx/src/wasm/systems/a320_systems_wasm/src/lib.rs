@@ -430,6 +430,9 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_110, FailureType::IrHeadingErroneous(1)),
         (34_111, FailureType::IrHeadingErroneous(2)),
         (34_112, FailureType::IrHeadingErroneous(3)),
+        // ILS receivers of the MMRs (systems navigation/ils.rs)
+        (34_160, FailureType::IlsReceiver(1)),
+        (34_161, FailureType::IlsReceiver(2)),
         (72_000, FailureType::EngineFlameout(1)),
         (72_001, FailureType::EngineFlameout(2)),
         (72_010, FailureType::EngineSeizure(1)),

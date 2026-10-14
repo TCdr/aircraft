@@ -264,6 +264,16 @@ export const A320Failure = Object.freeze({
   Ir3HeadingErroneous: 34112,
   // TS only: the predictive windshear function of the weather radar (FWC/Logic/PredictiveWindshearAlerts.ts)
   WxrPredictiveWindshear: 34120,
+  // Radio navigation receivers (systems-host Navigation/NavigationReceiverFailures.ts; the ILS receivers also in the
+  // systems navigation/ils.rs)
+  Vor1Receiver: 34130,
+  Vor2Receiver: 34131,
+  Dme1Receiver: 34140,
+  Dme2Receiver: 34141,
+  Adf1Receiver: 34150,
+  Adf2Receiver: 34151,
+  Ils1Receiver: 34160,
+  Ils2Receiver: 34161,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -635,6 +645,14 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Ir2HeadingErroneous, 'IR 2 heading erroneous'],
   [34, A320Failure.Ir3HeadingErroneous, 'IR 3 heading erroneous'],
   [34, A320Failure.WxrPredictiveWindshear, 'Weather radar predictive windshear (PWS)'],
+  [34, A320Failure.Vor1Receiver, 'VOR 1 receiver (no bearing)'],
+  [34, A320Failure.Vor2Receiver, 'VOR 2 receiver (no bearing)'],
+  [34, A320Failure.Dme1Receiver, 'DME 1 receiver (no distance)'],
+  [34, A320Failure.Dme2Receiver, 'DME 2 receiver (no distance)'],
+  [34, A320Failure.Adf1Receiver, 'ADF 1 receiver (no bearing)'],
+  [34, A320Failure.Adf2Receiver, 'ADF 2 receiver (no bearing)'],
+  [34, A320Failure.Ils1Receiver, 'ILS 1 receiver (no LOC/GS on PFD 1)'],
+  [34, A320Failure.Ils2Receiver, 'ILS 2 receiver (no LOC/GS on PFD 2)'],
 
   // The valve stays closed / fully open whatever the BMC commands (a stuck open bleed valve no longer regulates: ENG
   // BLEED FAULT by overpressure at climb power, ENG BLEED NOT CLSD at engine start, with APU BLEED ON or engine stopped)

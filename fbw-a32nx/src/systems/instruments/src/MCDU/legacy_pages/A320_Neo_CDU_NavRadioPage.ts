@@ -8,6 +8,7 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
+import { adfBfoAction, adfBfoCell } from './NavRadioFields';
 
 export class CDUNavRadioPage {
   static ShowPage(mcdu: LegacyFmsPageInterface) {
@@ -74,12 +75,14 @@ export class CDUNavRadioPage {
     // ADF 1
     lsk5Row[0] = CDUNavRadioPage.renderAdf(mcdu, 1);
     mcdu.onLeftInput[4] = CDUNavRadioPage.handleAdfLsk.bind(this, mcdu, 1);
-    // FIXME BFO
+    lsk6Row[0] = adfBfoCell(1, mcdu.getAdfTuningData(1));
+    mcdu.onLeftInput[5] = CDUNavRadioPage.handleAdfBfoLsk.bind(this, mcdu, 1);
 
     // ADF 2
     lsk5Row[1] = CDUNavRadioPage.renderAdf(mcdu, 2);
     mcdu.onRightInput[4] = CDUNavRadioPage.handleAdfLsk.bind(this, mcdu, 2);
-    // FIXME BFO
+    lsk6Row[1] = adfBfoCell(2, mcdu.getAdfTuningData(2));
+    mcdu.onRightInput[5] = CDUNavRadioPage.handleAdfBfoLsk.bind(this, mcdu, 2);
 
     mcdu.setTemplate(template);
   }
@@ -398,6 +401,25 @@ export class CDUNavRadioPage {
       return;
     }
 
+    requestAnimationFrame(() => {
+      CDUNavRadioPage.ShowPage(mcdu);
+    });
+  }
+
+  /** The line 6 ADF/BFO prompt: activates the BFO, CLR cancels it */
+  static handleAdfBfoLsk(
+    mcdu: LegacyFmsPageInterface,
+    receiverIndex: 1 | 2,
+    input: string,
+    scratchpadCallback: () => void,
+  ) {
+    const action = adfBfoAction(input, input === Keypad.clrValue, mcdu.getAdfTuningData(receiverIndex));
+    if (action === 'notAllowed') {
+      mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+      scratchpadCallback();
+      return;
+    }
+    mcdu.setAdfBfo(receiverIndex, action === 'activate');
     requestAnimationFrame(() => {
       CDUNavRadioPage.ShowPage(mcdu);
     });
