@@ -353,6 +353,7 @@ describe('A320 flyPad failures', () => {
       [49001, 'ApuOverspeed', 'APU overspeed (automatic shutdown)', 49],
       [49002, 'ApuOilLowPressure', 'APU low oil pressure (automatic shutdown)', 49],
       [49003, 'ApuOilHighTemperature', 'APU high oil temperature (automatic shutdown)', 49],
+      [49005, 'ApuOilLevelLow', 'APU low oil level (advisory, APU keeps running)', 49],
     ];
     for (const [id, failureType, name, chapter] of expected) {
       expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);

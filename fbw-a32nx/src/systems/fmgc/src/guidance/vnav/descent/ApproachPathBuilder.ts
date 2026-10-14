@@ -393,6 +393,13 @@ export class ApproachPathBuilder {
 
         return;
       }
+
+      // The constraint is met with the speedbrakes: the whole segment, from the altitude constraint (built backwards)
+      // to the end of this deceleration, is flown with them (MORE DRAG FMA message)
+      profile.speedbrakeDecelerationSegments.push({
+        startDistanceFromStart: constraint.distanceFromStart,
+        endDistanceFromStart: distanceFromStart,
+      });
     }
 
     sequence.push(...decelerationSequence.get());

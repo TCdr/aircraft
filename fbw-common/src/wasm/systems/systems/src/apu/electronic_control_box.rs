@@ -35,6 +35,7 @@ pub(super) struct ElectronicControlBox<C: ApuConstants> {
     apu_egt_caution_id: VariableIdentifier,
     apu_egt_warning_id: VariableIdentifier,
     apu_low_fuel_pressure_fault_id: VariableIdentifier,
+    apu_low_oil_level_id: VariableIdentifier,
     apu_flap_fully_open_id: VariableIdentifier,
     apu_fuel_used_id: VariableIdentifier,
     ecam_inop_sys_apu_id: VariableIdentifier,
@@ -96,6 +97,7 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
             apu_egt_warning_id: context.get_identifier("APU_EGT_WARNING".to_owned()),
             apu_low_fuel_pressure_fault_id: context
                 .get_identifier("APU_LOW_FUEL_PRESSURE_FAULT".to_owned()),
+            apu_low_oil_level_id: context.get_identifier("APU_LOW_OIL_LEVEL".to_owned()),
             apu_flap_fully_open_id: context.get_identifier("APU_FLAP_FULLY_OPEN".to_owned()),
             apu_fuel_used_id: context.get_identifier("APU_FUEL_USED".to_owned()),
             ecam_inop_sys_apu_id: context.get_identifier("ECAM_INOP_SYS_APU".to_owned()),
@@ -379,6 +381,16 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
         }
     }
 
+    /// A320 FCOM DSC-49-20 APU page (10) LOW OIL LEVEL (a320_fcom.txt l.60848-60850): "Advisory: Displayed if the ECB
+    /// detects a low APU oil level when the aircraft is on the ground, and the APU is not running." The ECB senses it
+    /// only while it is on (a powered ECB, MASTER SW ON or the APU still turning), as its other data.
+    pub fn has_low_oil_level(&self) -> bool {
+        self.is_on()
+            && self.on_ground
+            && self.turbine_state != TurbineState::Running
+            && self.sensed_failures.oil_level_low.is_active()
+    }
+
     fn is_cooldown_period(&self) -> bool {
         !self.master_is_on && (self.master_off_for <= C::COOLDOWN_DURATION)
     }
@@ -575,6 +587,7 @@ impl<C: ApuConstants> SimulationElement for ElectronicControlBox<C> {
             self.has_fuel_low_pressure_fault(),
             ssm,
         );
+        writer.write_arinc429(&self.apu_low_oil_level_id, self.has_low_oil_level(), ssm);
         writer.write_arinc429(
             &self.apu_flap_fully_open_id,
             self.air_intake_flap_is_fully_open(),
@@ -624,12 +637,14 @@ enum ApuFault {
     HighOilTemperature,
 }
 
-/// The flyPad failures (ATA 49) of conditions that the ECB senses and that make it shut the APU down
+/// The flyPad failures (ATA 49) of conditions that the ECB senses: the first four make it shut the APU down, the low
+/// oil level is an advisory only
 struct ApuSensedFailures {
     ecb: Failure,
     overspeed: Failure,
     oil_low_pressure: Failure,
     oil_high_temperature: Failure,
+    oil_level_low: Failure,
 }
 impl ApuSensedFailures {
     fn new() -> Self {
@@ -638,6 +653,7 @@ impl ApuSensedFailures {
             overspeed: Failure::new(FailureType::ApuOverspeed),
             oil_low_pressure: Failure::new(FailureType::ApuOilLowPressure),
             oil_high_temperature: Failure::new(FailureType::ApuOilHighTemperature),
+            oil_level_low: Failure::new(FailureType::ApuOilLevelLow),
         }
     }
 }
@@ -647,6 +663,7 @@ impl SimulationElement for ApuSensedFailures {
         self.overspeed.accept(visitor);
         self.oil_low_pressure.accept(visitor);
         self.oil_high_temperature.accept(visitor);
+        self.oil_level_low.accept(visitor);
 
         visitor.visit(self);
     }

@@ -297,6 +297,8 @@ export const A320Failure = Object.freeze({
   ApuOverspeed: 49001,
   ApuOilLowPressure: 49002,
   ApuOilHighTemperature: 49003,
+  // The ECB senses a low APU oil level on the ground with the APU not running: LOW OIL LEVEL advisory on the SD APU page
+  ApuOilLevelLow: 49005,
   Eng1Flameout: 72000,
   Eng2Flameout: 72001,
   Eng1Seizure: 72010,
@@ -658,6 +660,7 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [49, A320Failure.ApuOverspeed, 'APU overspeed (automatic shutdown)'],
   [49, A320Failure.ApuOilLowPressure, 'APU low oil pressure (automatic shutdown)'],
   [49, A320Failure.ApuOilHighTemperature, 'APU high oil temperature (automatic shutdown)'],
+  [49, A320Failure.ApuOilLevelLow, 'APU low oil level (advisory, APU keeps running)'],
 
   // The flame goes out once (fuel cut); the crew relights it with ENG MASTER OFF then ON inside the relight envelope
   [72, A320Failure.Eng1Flameout, 'Engine 1 flameout (crew relight possible)'],

@@ -131,6 +131,11 @@
       extension is commanded (emergency electrical configuration, RAT MAN ON); written back to 0 by the systems once
       evaluated, so a request in flight is dropped
 
+- A32NX_RAT_STOWING
+    - Bool
+    - True while a maintenance stow moves the RAT in (written by the shared RAT deployment model; no A380X display
+      reads it)
+
 - A32NX_OVHD_{name}_PB_IS_AUTO
     - Bool
     - True when the push button is AUTO

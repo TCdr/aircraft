@@ -44,10 +44,10 @@ export function isCrossFeedValveGreen(openPercentage: number, pbOn: boolean): bo
  * Whether the centre tank quantity of the SD FUEL page is boxed amber: "The center tank indication is boxed amber, if both
  * center tank transfer valves fail in the closed position" (A320 FCOM DSC-28-20-F FUEL QUANTITY - BOXED INDICATIONS,
  * a320_fcom.txt l.43222, jet pump variant).
- * @param leftNotFullyOpen whether the CTR TK L XFR valve stays not fully open while commanded open
- *   (L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_NOT_FULLY_OPEN)
- * @param rightNotFullyOpen the same for the CTR TK R XFR valve
+ * @param leftFailedClosed whether the CTR TK L XFR valve is failed closed (L:A32NX_FUEL_CTR_TK_L_XFR_VALVE_FAILED_CLOSED,
+ *   kept while the FLSCU commands the valve closed, systems host Fuel/FuelPumpsAndValves)
+ * @param rightFailedClosed the same for the CTR TK R XFR valve
  */
-export function isCentreTankQuantityBoxed(leftNotFullyOpen: boolean, rightNotFullyOpen: boolean): boolean {
-  return leftNotFullyOpen && rightNotFullyOpen;
+export function isCentreTankQuantityBoxed(leftFailedClosed: boolean, rightFailedClosed: boolean): boolean {
+  return leftFailedClosed && rightFailedClosed;
 }

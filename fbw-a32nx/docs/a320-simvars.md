@@ -365,6 +365,11 @@
 - A32NX_APU_LOW_FUEL_PRESSURE_FAULT
     - `Arinc429Word<Bool>`
 
+- A32NX_APU_LOW_OIL_LEVEL
+    - `Arinc429Word<Bool>`
+    - The ECB detects a low APU oil level: on the ground with the APU not running (flyPad failure 49005). Shows
+      LOW OIL LEVEL on the SD APU page (FCOM DSC-49-20)
+
 - A32NX_APU_IS_AUTO_SHUTDOWN
     - Bool
     - Indicates if the APU automatically shut down (for a reason other than fire): fuel low pressure, DC power lost
@@ -922,6 +927,14 @@
         - 1
         - 2
 
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_INLET_TEMPERATURE
+    - Celsius
+    - The integrated drive generator's oil inlet temperature (back from the coolers). The SD ELEC page RISE is the
+      outlet minus the inlet temperature
+    - {number}
+        - 1
+        - 2
+
 - A32NX_ELEC_ENG_GEN_{number}_IDG_IS_CONNECTED
     - Bool
     - Indicates if the given integrated drive generator is connected
@@ -1142,6 +1155,11 @@
     - Maintenance stow request of the RAT (flyPad Ground > Services). Accepted only on the ground and while no
       extension is commanded (emergency electrical configuration, RAT MAN ON, EMER ELEC PWR MAN ON); written back to 0
       by the systems once evaluated, so a request in flight is dropped
+
+- A32NX_RAT_STOWING
+    - Bool
+    - True while a maintenance stow moves the RAT in (the stowing pressure is applied): the SD HYD page shows the RAT
+      legend in amber
 
 - A32NX_RAT_RPM
     - Rpm
@@ -1723,6 +1741,12 @@ These variables are the interface between the 3D model and the systems/code.
     - Bool
     - Indicates if the CHECK APPR SELECTION message is shown on the PFD (FMGC: a non ILS approach in the F-PLN with an
       ILS manually tuned on the RAD NAV page, in cruise less than 100 NM from the T/D, in descent or in approach)
+
+- A32NX_PFD_MSG_MORE_DRAG
+    - Bool
+    - Indicates if the MORE DRAG message is shown on the PFD (FMGC VNAV: DES with THR IDLE, and either above the
+      profile with the predicted intercept less than 2 NM before the next ALT CSTR, or in managed speed inside a
+      speedbrake decelerating segment of the descent profile)
 
 - A32NX_PFD_LINEAR_DEVIATION_ACTIVE
     - Bool
@@ -4454,7 +4478,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {side}
     - L
     - R
-  - True when both outer tank transfer valves of the wing (MSFS valves 6 and 4, 7 and 5) have stayed closed for more than 5 s while the inner tank low level commands them open (flyPad failure 28012/28013 "L (R) outer tank transfer valves jammed in place"): FUEL L (R) OUTER XFR CLOSED. Written by the systems host (Fuel/FuelPumpsAndValves)
+  - True when both outer tank transfer valves of the wing (MSFS valves 6 and 4, 7 and 5) have stayed closed for more than 5 s while the inner tank low level commands them open (flyPad failure 28012/28013 "L (R) outer tank transfer valves jammed in place"): FUEL L (R) OUTER XFR CLOSED, the SD FUEL outer tank quantity boxed amber and the E/WD and SD FOB half-boxed amber (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
 
 - A32NX_FUEL_{side}_OUTER_XFR_OPEN
   - Bool
@@ -4822,7 +4846,14 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {side}
     - L
     - R
-  - True when the CTR TK {side} XFR valve has stayed not fully open for more than 5 s while commanded open (CTR TK XFR pb-sw ON with MODE SEL MAN, or AUTO with the FLSCU opening it): the valve failed closed. Gives FUEL CTR {side} XFR FAULT (VALVE NOT FULLY OPEN) or FUEL CTR L + R XFR FAULT, and boxes the SD FUEL centre tank quantity in amber when both are true (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
+  - True when the CTR TK {side} XFR valve has stayed not fully open for more than 5 s while commanded open (CTR TK XFR pb-sw ON with MODE SEL MAN, or AUTO with the FLSCU opening it): the valve failed closed. Gives FUEL CTR {side} XFR FAULT (VALVE NOT FULLY OPEN) or FUEL CTR L + R XFR FAULT, Written by the systems host (Fuel/FuelPumpsAndValves)
+
+- A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_FAILED_CLOSED
+  - Bool
+  - {side}
+    - L
+    - R
+  - True from a confirmed A32NX_FUEL_CTR_TK_{side}_XFR_VALVE_NOT_FULLY_OPEN until the valve is seen open again: it stays while the FLSCU commands the valve closed. Both true: the SD FUEL centre tank quantity is boxed amber and the E/WD and SD FOB are half-boxed amber (FCOM DSC-28-20). Written by the systems host (Fuel/FuelPumpsAndValves)
 
 - A32NX_FUEL_PUMP_{number}_LO_PR
   - Bool

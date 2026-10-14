@@ -313,6 +313,9 @@ pub enum FailureType {
     ApuOilLowPressure,
     /// The APU oil temperature is high
     ApuOilHighTemperature,
+    /// The APU oil level is low: the ECB detects it on the ground with the APU not running (A320 SD APU page LOW OIL
+    /// LEVEL), the APU still runs
+    ApuOilLevelLow,
 }
 
 pub struct Failure {

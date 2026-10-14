@@ -1215,6 +1215,10 @@ mod tests {
             self.read_arinc429_by_name("APU_LOW_FUEL_PRESSURE_FAULT")
         }
 
+        fn has_low_oil_level(&mut self) -> Arinc429Word<bool> {
+            self.read_arinc429_by_name("APU_LOW_OIL_LEVEL")
+        }
+
         fn is_auto_shutdown(&mut self) -> bool {
             self.read_by_name("APU_IS_AUTO_SHUTDOWN")
         }
@@ -2723,6 +2727,52 @@ mod tests {
                 .running_apu();
             assert!(test_bed.apu_is_available());
             assert!(!test_bed.master_has_fault());
+        }
+
+        #[test]
+        fn aps3200_ecb_detects_a_low_oil_level_on_the_ground_with_the_apu_not_running() {
+            // A320 FCOM DSC-49-20 (10) LOW OIL LEVEL (a320_fcom.txt l.60848-60850)
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(true)
+                .with_failure(FailureType::ApuOilLevelLow)
+                .apu_ready_to_start()
+                .run(Duration::from_secs(1));
+
+            assert!(test_bed.has_low_oil_level().normal_value().unwrap());
+        }
+
+        #[test]
+        fn aps3200_ecb_does_not_detect_a_low_oil_level_with_the_apu_running() {
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(true)
+                .with_failure(FailureType::ApuOilLevelLow)
+                .running_apu();
+
+            assert!(!test_bed.has_low_oil_level().normal_value().unwrap());
+            // An advisory: the APU keeps running
+            assert!(test_bed.apu_is_available());
+            assert!(!test_bed.master_has_fault());
+        }
+
+        #[test]
+        fn aps3200_ecb_does_not_detect_a_low_oil_level_in_flight() {
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(false)
+                .with_failure(FailureType::ApuOilLevelLow)
+                .apu_ready_to_start()
+                .run(Duration::from_secs(1));
+
+            assert!(!test_bed.has_low_oil_level().normal_value().unwrap());
+        }
+
+        #[test]
+        fn aps3200_ecb_sends_no_low_oil_level_without_the_failure() {
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(true)
+                .apu_ready_to_start()
+                .run(Duration::from_secs(1));
+
+            assert!(!test_bed.has_low_oil_level().normal_value().unwrap());
         }
 
         #[test]
