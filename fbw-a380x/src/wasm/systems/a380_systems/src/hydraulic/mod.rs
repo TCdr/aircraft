@@ -1867,8 +1867,19 @@ impl A380Hydraulic {
 
     const EDP_CONTROL_POWER_BUS1: ElectricalBusType = ElectricalBusType::DirectCurrentEssential;
 
-    const ALTERNATE_BRAKE_ACCUMULATOR_GAS_PRE_CHARGE: f64 = 1000.0; // Nitrogen PSI
-                                                                    // Refresh rate of core hydraulic simulation
+    /// Nitrogen pre-charge of the ALTN brake accumulator, psi. The FCOM gives no value. Design choice: the pre-charge of
+    /// the hydraulic system accumulators of this model (A380HydraulicCircuitFactory, 2 612 psi) instead of the A320
+    /// 1 000 psi of a 3 000 psi system: from a charged accumulator one park brake application reaches the full
+    /// pressure of about 3 600 psi (A380 FCOM l.80262-80263) and leaves the accumulator out of the amber arc of the
+    /// triple pressure indicator (0-3 840 psi, l.81552); with 1 000 psi the brakes stopped near 3 100 psi.
+    const ALTERNATE_BRAKE_ACCUMULATOR_GAS_PRE_CHARGE: f64 = 2612.0;
+
+    /// Full brake pressure, psi: A380 FCOM DSC-32-10-30-30 l.80149 "at full pressure (about 3 600 PSI)", l.80262-80263
+    /// "showing about 3 600 PSI on triple indicator", l.80394; l.79950 "Alternate braking performance is equivalent to
+    /// normal braking performance". The brakes of both circuits reach it at their full deflection.
+    const FULL_BRAKE_PRESSURE_PSI: f64 = 3600.0;
+
+    // Refresh rate of core hydraulic simulation
     const HYDRAULIC_SIM_TIME_STEP: Duration = Duration::from_millis(10);
 
     pub fn new(context: &mut InitContext) -> A380Hydraulic {
@@ -2079,23 +2090,25 @@ impl A380Hydraulic {
             pushback_tug: PushbackTug::new(context),
             bypass_pin: BypassPin::new(context),
 
-            braking_circuit_norm: BrakeCircuit::new(
+            braking_circuit_norm: BrakeCircuit::new_with_max_brake_pressure(
                 context,
                 "NORM",
                 HydraulicColor::Green,
                 None,
                 Volume::new::<gallon>(0.13),
+                Pressure::new::<psi>(Self::FULL_BRAKE_PRESSURE_PSI),
             ),
 
             // Alternate brakes accumulator in real A320 is 1.5 gal capacity.
             // This is tuned down to 1.0 to match real world accumulator filling time
             // as a faster accumulator response has too much unstability
-            braking_circuit_altn: BrakeCircuit::new(
+            braking_circuit_altn: BrakeCircuit::new_with_max_brake_pressure(
                 context,
                 "ALTN",
                 HydraulicColor::Yellow,
                 Some(Accumulator::new_brake_accumulator(brake_accumulator_charac)),
                 Volume::new::<gallon>(0.13),
+                Pressure::new::<psi>(Self::FULL_BRAKE_PRESSURE_PSI),
             ),
 
             braking_force: A380BrakingForce::new(context),
@@ -2619,7 +2632,6 @@ impl A380Hydraulic {
         self.brake_steer_computer.update(
             context,
             self.green_circuit.system_section(),
-            &self.braking_circuit_altn,
             lgciu1,
             lgciu2,
             autobrake_panel,
@@ -4473,14 +4485,6 @@ impl A380BrakeSystemOutputs {
         self.left_demand = Ratio::new::<ratio>(1.);
         self.right_demand = Ratio::new::<ratio>(1.);
     }
-
-    fn left_demand(&self) -> Ratio {
-        self.left_demand
-    }
-
-    fn right_demand(&self) -> Ratio {
-        self.right_demand
-    }
 }
 impl BrakeCircuitController for A380BrakeSystemOutputs {
     fn pressure_limit(&self) -> Pressure {
@@ -4646,6 +4650,10 @@ struct A380HydraulicBrakeSteerComputerUnit {
     autobrake_controller: A380AutobrakeController,
     parking_brake_demand: bool,
 
+    /// L:A32NX_PRIM_n_HEALTHY (fly-by-wire module): the AUTO BRK needs two PRIMs
+    prim_healthy_ids: [VariableIdentifier; 3],
+    prims_healthy: [bool; 3],
+
     left_brake_pilot_input: Ratio,
     right_brake_pilot_input: Ratio,
 
@@ -4697,16 +4705,10 @@ impl A380HydraulicBrakeSteerComputerUnit {
 
     const MAX_STEERING_ANGLE_DEMAND_DEGREES: f64 = 70.;
 
-    // Minimum pressure hysteresis on green until main switched on ALTN brakes
-    // Feedback by Cpt. Chaos — 25/04/2021 #pilot-feedback
-    const MIN_PRESSURE_BRAKE_ALTN_HYST_LO: f64 = 1305.;
-    const MIN_PRESSURE_BRAKE_ALTN_HYST_HI: f64 = 2176.;
-
-    // Min pressure when parking brake enabled. Lower normal braking is allowed to use pilot input as emergency braking
-    // Feedback by avteknisyan — 25/04/2021 #pilot-feedback
-    const MIN_PRESSURE_PARK_BRAKE_EMERGENCY: f64 = 507.;
-
     const AUTOBRAKE_GEAR_RETRACTION_DURATION_S: f64 = 3.;
+
+    /// A380 FCOM BASIC AUTO BRK ARMING (a380_fcom.txt l.79029): "At least two PRIMs are available"
+    const MIN_HEALTHY_PRIMS_FOR_AUTOBRAKE: usize = 2;
 
     const PILOT_INPUT_DETECTION_TRESHOLD: f64 = 0.2;
 
@@ -4728,6 +4730,9 @@ impl A380HydraulicBrakeSteerComputerUnit {
             autobrake_controller: A380AutobrakeController::new(context),
 
             parking_brake_demand: true,
+            prim_healthy_ids: [1, 2, 3]
+                .map(|number| context.get_identifier(format!("PRIM_{}_HEALTHY", number))),
+            prims_healthy: [false; 3],
             left_brake_pilot_input: Ratio::new::<ratio>(0.0),
             right_brake_pilot_input: Ratio::new::<ratio>(0.0),
             norm_brake_outputs: A380BrakeSystemOutputs::new(),
@@ -4772,52 +4777,64 @@ impl A380HydraulicBrakeSteerComputerUnit {
         }
     }
 
+    /// A380 FCOM DSC-32-10-30-20 BASIC AUTO BRK ARMING (a380_fcom.txt l.79021-79035): "The basic AUTO BRK is armed
+    /// when: ... A-SKID is available (normal and alternate modes); At least two PRIMs are available (the PRIMs provide
+    /// the basic AUTO BRK with the ground spoilers extension command); At least one ADIRU is available (in NAV mode)".
+    /// Alternate braking: "A-SKID is available, AUTO BRK is available" (l.79942-79944); emergency braking (EBCU) has no
+    /// A-SKID and no AUTO BRK (l.80040-80049).
     fn allow_autobrake_arming(&self, adirs: &impl AdirsMeasurementOutputs) -> bool {
-        // The model applies the autobrake on the normal brakes only: A-SKID on, normal braking available and working
-        self.pedal_braking_mode == PedalBrakingMode::Normal
+        let a_skid_available = matches!(
+            self.pedal_braking_mode,
+            PedalBrakingMode::Normal | PedalBrakingMode::Alternate
+        );
+        let healthy_prims = self
+            .prims_healthy
+            .iter()
+            .filter(|&&healthy| healthy)
+            .count();
+
+        a_skid_available
+            && healthy_prims >= Self::MIN_HEALTHY_PRIMS_FOR_AUTOBRAKE
             && (adirs.is_fully_aligned(1) || adirs.is_fully_aligned(2) || adirs.is_fully_aligned(3))
     }
 
-    fn update_normal_braking_availability(&mut self, normal_braking_circuit_pressure: Pressure) {
-        if normal_braking_circuit_pressure.get::<psi>() > Self::MIN_PRESSURE_BRAKE_ALTN_HYST_HI
+    /// The normal braking has its hydraulic power while the GREEN system pressure switch is pressurised (the model
+    /// supplies the normal braking of all the gears from GREEN, see brake_steer_faults.rs; the FCOM gives no
+    /// switching pressure, the A320 values 1 305 / 2 176 psi were replaced by the GREEN system pressure switch of this
+    /// 5 000 psi model, 2 900 / 3 700 psi, MIN_PRESS_PRESSURISED_*). As before, the normal braking comes back only with
+    /// the pedals released.
+    fn update_normal_braking_availability(&mut self, normal_braking_hydraulic_pressurised: bool) {
+        if normal_braking_hydraulic_pressurised
             && (self.left_brake_pilot_input.get::<ratio>() < Self::PILOT_INPUT_DETECTION_TRESHOLD
                 && self.right_brake_pilot_input.get::<ratio>()
                     < Self::PILOT_INPUT_DETECTION_TRESHOLD)
         {
             self.normal_brakes_available = true;
-        } else if normal_braking_circuit_pressure.get::<psi>()
-            < Self::MIN_PRESSURE_BRAKE_ALTN_HYST_LO
-        {
+        } else if !normal_braking_hydraulic_pressurised {
             self.normal_brakes_available = false;
         }
     }
 
     fn update_brake_pressure_limitation(&mut self) {
-        let yellow_manual_braking_input = self.left_brake_pilot_input
-            > self.alternate_brake_outputs.left_demand() + Ratio::new::<ratio>(0.2)
-            || self.right_brake_pilot_input
-                > self.alternate_brake_outputs.right_demand() + Ratio::new::<ratio>(0.2);
+        let full_brake_pressure = Pressure::new::<psi>(A380Hydraulic::FULL_BRAKE_PRESSURE_PSI);
 
-        // Nominal braking from pedals is limited to 2538psi
+        // Normal braking (pedals and AUTO BRK) up to the full brake pressure
         self.norm_brake_outputs
-            .set_pressure_limit(Pressure::new::<psi>(2538.));
+            .set_pressure_limit(full_brake_pressure);
 
-        let alternate_brake_pressure_limit = Pressure::new::<psi>(if self.parking_brake_demand {
-            // If no pilot action, standard park brake pressure limit
-            if !yellow_manual_braking_input {
-                2103.
-            } else {
-                // Else manual action limited to a higher max nominal pressure
-                2538.
-            }
+        let alternate_brake_pressure_limit = if self.parking_brake_demand {
+            // "The parking brake is set on the BLG brakes, at full pressure (about 3 600 PSI)" (A380 FCOM l.80149);
+            // with the pedals depressed "the highest commanded pressure between PARK BRK, normal brake, and alternate
+            // brake will always apply" (l.80271-80273): the park brake pressure is the highest one.
+            full_brake_pressure
         } else if self.pedal_braking_mode == PedalBrakingMode::Emergency {
             // Emergency braking (EBCU, no A-SKID): A-SKID sw OFF, or the BCS lost normal and alternate braking.
             // EBCU landing law 1 000 psi, take-off law 1 700 psi (A380 FCOM l.80043-80047, EmergencyBrakeLaw)
-            self.emergency_brake_law.pressure_limit().get::<psi>()
+            self.emergency_brake_law.pressure_limit()
         } else {
-            // Else if any manual braking we use standard limit
-            2538.
-        });
+            // Alternate braking: "equivalent to normal braking performance" (l.79950)
+            full_brake_pressure
+        };
 
         self.alternate_brake_outputs
             .set_pressure_limit(alternate_brake_pressure_limit);
@@ -4828,7 +4845,6 @@ impl A380HydraulicBrakeSteerComputerUnit {
         &mut self,
         context: &UpdateContext,
         current_pressure: &impl SectionPressure,
-        alternate_circuit: &BrakeCircuit,
         lgciu1: &impl LgciuInterface,
         lgciu2: &impl LgciuInterface,
         autobrake_panel: &A380AutobrakePanel,
@@ -4851,7 +4867,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
             self.steering_control.is_body_wheel_steering_available(),
         );
 
-        self.update_normal_braking_availability(current_pressure.pressure());
+        self.update_normal_braking_availability(current_pressure.is_pressure_switch_pressurised());
         self.pedal_braking_mode = self
             .braking_faults
             .pedal_braking_mode(self.normal_brakes_available, self.anti_skid_activated);
@@ -4880,6 +4896,20 @@ impl A380HydraulicBrakeSteerComputerUnit {
         self.should_disable_auto_brake_when_retracting
             .update(context, is_in_flight_gear_lever_up);
 
+        // A380 FCOM DSC-32-10-30-10 (a380_fcom.txt l.78779): "Manual braking is only available on ground". Design
+        // choice: on ground as soon as one main gear is compressed (LGCIU 1 or 2), so that a touchdown on one side
+        // does not delay the pedal braking; the park brake (ultimate braking) and the AUTO BRK are not affected.
+        let main_gear_on_ground = lgciu1.left_gear_compressed(true)
+            || lgciu1.right_gear_compressed(true)
+            || lgciu2.left_gear_compressed(true)
+            || lgciu2.right_gear_compressed(true);
+        let (left_pedal_demand, right_pedal_demand) = if main_gear_on_ground {
+            (self.left_brake_pilot_input, self.right_brake_pilot_input)
+        } else {
+            (Ratio::default(), Ratio::default())
+        };
+        let autobrake_demand = self.autobrake_controller.brake_output();
+
         if is_in_flight_gear_lever_up {
             // Retraction braking is a normal braking function (A380 FCOM l.78871-78872)
             if self.should_disable_auto_brake_when_retracting.output()
@@ -4900,43 +4930,41 @@ impl A380HydraulicBrakeSteerComputerUnit {
             if green_used_for_brakes {
                 // Final output on normal brakes is max(pilot demand , autobrake demand) to allow pilot override autobrake demand
                 self.norm_brake_outputs.set_brake_demands(
-                    self.left_brake_pilot_input
-                        .max(self.autobrake_controller.brake_output()),
-                    self.right_brake_pilot_input
-                        .max(self.autobrake_controller.brake_output()),
+                    left_pedal_demand.max(autobrake_demand),
+                    right_pedal_demand.max(autobrake_demand),
                 );
 
                 self.alternate_brake_outputs.set_no_demands();
+            } else if self.parking_brake_demand {
+                // The park brake applies the full pressure on the alternate circuit (ultimate braking, l.80148-80149).
+                // "There is no need to set PARK BRK to OFF to recover pedal braking"; "If PARK BRK is set to ON and
+                // pedal is depressed by the flight crew, the highest commanded pressure between PARK BRK, normal
+                // brake, and alternate brake will always apply on each gear" (A380 FCOM l.80270-80273): the pedals
+                // still brake on the normal circuit. "AUTO BRK is not available" with the PARK BRK ON (l.80162).
+                self.alternate_brake_outputs.set_max_demands();
+
+                if self.pedal_braking_mode == PedalBrakingMode::Normal {
+                    self.norm_brake_outputs
+                        .set_brake_demands(left_pedal_demand, right_pedal_demand);
+                } else {
+                    self.norm_brake_outputs.set_no_demands();
+                }
             } else {
                 self.norm_brake_outputs.set_no_demands();
 
-                if !self.parking_brake_demand {
-                    if self.pedal_braking_mode == PedalBrakingMode::None {
-                        // BRAKES PEDAL BRAKING FAULT: "Pedal braking is not available" (A380 FCOM l.160552)
-                        self.alternate_brake_outputs.set_no_demands();
-                    } else {
-                        // Alternate or emergency braking on the alternate circuit
-                        self.alternate_brake_outputs.set_brake_demands(
-                            self.left_brake_pilot_input,
-                            self.right_brake_pilot_input,
-                        );
-                    }
-                } else {
-                    // Else we just use parking brake
-                    self.alternate_brake_outputs.set_max_demands();
-
-                    // Special case: parking brake on but yellow can't provide enough brakes: green are allowed to brake for emergency
-                    if !self.braking_faults.normal_braking_failed()
-                        && (alternate_circuit.left_brake_pressure().get::<psi>()
-                            < Self::MIN_PRESSURE_PARK_BRAKE_EMERGENCY
-                            || alternate_circuit.right_brake_pressure().get::<psi>()
-                                < Self::MIN_PRESSURE_PARK_BRAKE_EMERGENCY)
-                    {
-                        self.norm_brake_outputs.set_brake_demands(
-                            self.left_brake_pilot_input,
-                            self.right_brake_pilot_input,
-                        );
-                    }
+                match self.pedal_braking_mode {
+                    // BRAKES PEDAL BRAKING FAULT: "Pedal braking is not available" (A380 FCOM l.160552)
+                    PedalBrakingMode::None => self.alternate_brake_outputs.set_no_demands(),
+                    // Alternate braking with A-SKID: "AUTO BRK is available" (l.79942-79944), the pilot overrides
+                    // the autobrake as on the normal circuit
+                    PedalBrakingMode::Alternate => self.alternate_brake_outputs.set_brake_demands(
+                        left_pedal_demand.max(autobrake_demand),
+                        right_pedal_demand.max(autobrake_demand),
+                    ),
+                    // Emergency braking (EBCU): no AUTO BRK (l.80049); Normal is the green branch above
+                    PedalBrakingMode::Emergency | PedalBrakingMode::Normal => self
+                        .alternate_brake_outputs
+                        .set_brake_demands(left_pedal_demand, right_pedal_demand),
                 }
             }
         }
@@ -5058,6 +5086,15 @@ impl SimulationElement for A380HydraulicBrakeSteerComputerUnit {
     fn read(&mut self, reader: &mut SimulatorReader) {
         self.parking_brake_demand = reader.read(&self.park_brake_lever_pos_id);
 
+        for (healthy, id) in self
+            .prims_healthy
+            .iter_mut()
+            .zip(self.prim_healthy_ids.iter())
+        {
+            let value: f64 = reader.read(id);
+            *healthy = value > 0.5;
+        }
+
         self.anti_skid_activated = reader.read(&self.antiskid_brakes_active_id);
         self.left_brake_pilot_input =
             Ratio::new::<percent>(reader.read(&self.left_brake_pedal_input_id));
@@ -5097,9 +5134,18 @@ struct A380BrakingForce {
     is_light_beacon_on: bool,
 }
 impl A380BrakingForce {
-    const REFERENCE_PRESSURE_FOR_MAX_FORCE: f64 = 2538.;
+    /// The brake pressure of the full brake force: the full brake pressure, about 3 600 psi (A380 FCOM l.80149)
+    const REFERENCE_PRESSURE_FOR_MAX_FORCE: f64 = A380Hydraulic::FULL_BRAKE_PRESSURE_PSI;
 
     const FLAPS_BREAKPOINTS: [f64; 3] = [0., 50., 100.];
+
+    /// Brake force ratio [0:1] of one brake circuit: sqrt(pressure / full brake pressure). The square root gives a bit
+    /// more punch to the lower brake pressures (like the 1 000 psi of the EBCU landing law) than a linear formula. It
+    /// is the former 50 * sqrt(pressure) / 2 538 psi of the A320 pressures (0.99 at 2 538 psi), normalised to the full
+    /// brake pressure of the A380.
+    fn force_from_pressure(pressure: Pressure) -> f64 {
+        (pressure.get::<psi>().max(0.) / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE).sqrt()
+    }
     const FLAPS_PENALTY_PERCENT: [f64; 3] = [5., 5., 0.];
 
     pub fn new(context: &mut InitContext) -> Self {
@@ -5135,21 +5181,13 @@ impl A380BrakingForce {
         engine2: &impl Engine,
         bypass_pin: &BypassPin,
     ) {
-        // Base formula for output force is output_force[0:1] = 50 * sqrt(current_pressure) / Max_brake_pressure
-        // This formula gives a bit more punch for lower brake pressures (like 1000 psi alternate braking), as linear formula
-        // gives really too low brake force for 1000psi
-
-        let left_force_norm = 50. * norm_brakes.left_brake_pressure().get::<psi>().sqrt()
-            / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE;
-        let left_force_altn = 50. * altn_brakes.left_brake_pressure().get::<psi>().sqrt()
-            / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE;
+        let left_force_norm = Self::force_from_pressure(norm_brakes.left_brake_pressure());
+        let left_force_altn = Self::force_from_pressure(altn_brakes.left_brake_pressure());
         self.left_braking_force = left_force_norm + left_force_altn;
         self.left_braking_force = self.left_braking_force.clamp(0., 1.);
 
-        let right_force_norm = 50. * norm_brakes.right_brake_pressure().get::<psi>().sqrt()
-            / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE;
-        let right_force_altn = 50. * altn_brakes.right_brake_pressure().get::<psi>().sqrt()
-            / Self::REFERENCE_PRESSURE_FOR_MAX_FORCE;
+        let right_force_norm = Self::force_from_pressure(norm_brakes.right_brake_pressure());
+        let right_force_altn = Self::force_from_pressure(altn_brakes.right_brake_pressure());
         self.right_braking_force = right_force_norm + right_force_altn;
         self.right_braking_force = self.right_braking_force.clamp(0., 1.);
 
@@ -8051,12 +8089,23 @@ mod tests {
         }
         impl A380HydraulicsTestBed {
             fn new_with_start_state(start_state: StartState) -> Self {
-                Self {
+                let mut test_bed = Self {
                     test_bed: SimulationTestBed::new_with_start_state(
                         start_state,
                         A380HydraulicsTestAircraft::new,
                     ),
+                };
+                // The test bed has no PRIM: the three PRIMs are healthy unless a test fails them
+                for prim_number in 1..=3 {
+                    test_bed = test_bed.set_prim_healthy(prim_number, true);
                 }
+                test_bed
+            }
+
+            /// L:A32NX_PRIM_n_HEALTHY, written by the fly-by-wire module in the sim
+            fn set_prim_healthy(mut self, prim_number: usize, healthy: bool) -> Self {
+                self.write_by_name(&format!("PRIM_{}_HEALTHY", prim_number), healthy);
+                self
             }
 
             fn run_one_tick(mut self) -> Self {
@@ -10826,78 +10875,8 @@ mod tests {
         }
 
         #[test]
-        fn brakes_norm_active_in_flight_gear_down() {
-            let mut test_bed = test_bed_on_ground_with()
-                .set_cold_dark_inputs()
-                .in_flight()
-                .set_gear_lever_up()
-                .run_waiting_for(Duration::from_secs(10));
-
-            // Now full brakes gear down
-            test_bed = test_bed
-                .set_left_brake(Ratio::new::<percent>(100.))
-                .set_right_brake(Ratio::new::<percent>(100.))
-                .set_gear_lever_down()
-                .run_waiting_for(Duration::from_secs(1));
-
-            // Brakes norm should work normally
-            assert_gt!(
-                test_bed.get_brake_left_green_pressure(),
-                Pressure::new::<psi>(50.)
-            );
-            assert_gt!(
-                test_bed.get_brake_right_green_pressure(),
-                Pressure::new::<psi>(50.)
-            );
-
-            assert_lt!(
-                test_bed.get_brake_left_yellow_pressure(),
-                Pressure::new::<psi>(50.)
-            );
-            assert_lt!(
-                test_bed.get_brake_right_yellow_pressure(),
-                Pressure::new::<psi>(50.)
-            );
-        }
-
-        #[test]
-        fn brakes_alternate_active_in_flight_gear_down() {
-            let mut test_bed = test_bed_on_ground_with()
-                .set_cold_dark_inputs()
-                .in_flight()
-                .set_gear_lever_up()
-                .run_waiting_for(Duration::from_secs(10));
-
-            // Now full brakes gear down
-            test_bed = test_bed
-                .set_left_brake(Ratio::new::<percent>(100.))
-                .set_right_brake(Ratio::new::<percent>(100.))
-                .set_gear_lever_down()
-                .set_anti_skid(false)
-                .run_waiting_for(Duration::from_secs(1));
-
-            // Brakes norm should work normally
-            assert_lt!(
-                test_bed.get_brake_left_green_pressure(),
-                Pressure::new::<psi>(50.)
-            );
-            assert_lt!(
-                test_bed.get_brake_right_green_pressure(),
-                Pressure::new::<psi>(50.)
-            );
-
-            assert_gt!(
-                test_bed.get_brake_left_yellow_pressure(),
-                Pressure::new::<psi>(900.)
-            );
-            assert_gt!(
-                test_bed.get_brake_right_yellow_pressure(),
-                Pressure::new::<psi>(900.)
-            );
-        }
-
-        #[test]
-        // Testing that green for brakes is only available if park brake is on while altn pressure is at too low level
+        // Park brake on: the yellow accumulator brakes, and the pedals still brake on green (A380 FCOM l.80270-80273),
+        // also once the accumulator is empty
         fn brake_logic_green_backup_emergency() {
             // The test starts with the yellow brake accumulator charged: without
             // load_brake_accumulator it failed in the 1 % of runs where the accumulator starts empty
@@ -10920,20 +10899,12 @@ mod tests {
                 .set_yellow_ed_pump(false)
                 .run_waiting_for(Duration::from_secs(15));
 
-            // Braking but park is on: no output on green brakes expected
+            // Braking with the park brake on: the yellow accumulator keeps the park brake pressure
             test_bed = test_bed
                 .set_left_brake(Ratio::new::<percent>(100.))
                 .set_right_brake(Ratio::new::<percent>(100.))
                 .run_waiting_for(Duration::from_secs(1));
 
-            assert_lt!(
-                test_bed.get_brake_left_green_pressure(),
-                Pressure::new::<psi>(50.)
-            );
-            assert_lt!(
-                test_bed.get_brake_right_green_pressure(),
-                Pressure::new::<psi>(50.)
-            );
             assert_gt!(
                 test_bed.get_brake_left_yellow_pressure(),
                 Pressure::new::<psi>(500.)
@@ -12949,6 +12920,288 @@ mod tests {
                 test_bed.get_brake_left_green_pressure(),
                 Pressure::new::<psi>(2000.)
             );
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-10-30-30 PARKING BRAKE (l.80262-80263): "the brakes of the BLG are applied, showing about
+        // 3 600 PSI on triple indicator with BLG accumulators normally filled"; ULTIMATE BRAKING (l.80149): "at full
+        // pressure (about 3 600 PSI)"
+        fn park_brake_applies_about_3600_psi() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running()
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(2));
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+
+            test_bed = test_bed.set_park_brake(true).run_until(
+                10,
+                "park brake pressure built up",
+                |bed| bed.get_brake_left_yellow_pressure() > Pressure::new::<psi>(3000.),
+            );
+
+            for pressure in [
+                test_bed.get_brake_left_yellow_pressure(),
+                test_bed.get_brake_right_yellow_pressure(),
+            ] {
+                assert_gt!(pressure, Pressure::new::<psi>(3500.));
+                assert_lt!(pressure, Pressure::new::<psi>(3650.));
+            }
+        }
+
+        #[test]
+        // A380 FCOM l.80149: full brake pressure is about 3 600 psi; l.79950: "Alternate braking performance is
+        // equivalent to normal braking performance". Full pedal deflection gives the full brake pressure in normal
+        // braking (the A320 value was 2 538 psi).
+        fn full_pedal_normal_braking_applies_about_3600_psi() {
+            let mut test_bed =
+                press_both_brake_pedals(test_bed_on_ground_with_all_engines_running());
+
+            assert_eq!(pedal_braking_mode(&mut test_bed), 1.);
+            for pressure in [
+                test_bed.get_brake_left_green_pressure(),
+                test_bed.get_brake_right_green_pressure(),
+            ] {
+                assert_gt!(pressure, Pressure::new::<psi>(3500.));
+                assert_lt!(pressure, Pressure::new::<psi>(3650.));
+            }
+        }
+
+        #[test]
+        // The full brake force at the full brake pressure (3 600 psi), a quarter of the pressure gives half the force
+        fn brake_force_follows_the_square_root_of_the_full_brake_pressure_ratio() {
+            assert_eq!(
+                A380BrakingForce::force_from_pressure(Pressure::new::<psi>(3600.)),
+                1.
+            );
+            assert_eq!(
+                A380BrakingForce::force_from_pressure(Pressure::new::<psi>(900.)),
+                0.5
+            );
+            assert_eq!(
+                A380BrakingForce::force_from_pressure(Pressure::new::<psi>(-10.)),
+                0.
+            );
+        }
+
+        #[test]
+        // A380 FCOM l.80262-80263 (about 3 600 psi with the accumulators normally filled) and the triple pressure
+        // indicator (l.81547-81553): green arc 4 872-5 000 psi, amber arc 0-3 840 psi ("press the ACCUS REINFLATE pb
+        // ... before towing/push-back"). One park brake application from a charged accumulator, with no hydraulic
+        // pressure, reaches the full pressure and leaves the accumulator out of the amber arc.
+        fn one_park_brake_application_on_a_charged_accumulator_stays_out_of_the_amber_arc() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running()
+                .set_park_brake(false)
+                .run_waiting_for(Duration::from_secs(2))
+                .engines_off()
+                .run_waiting_for(Duration::from_secs(30));
+            assert!(!test_bed.is_yellow_pressure_switch_pressurised());
+            assert_gt!(
+                test_bed.get_brake_yellow_accumulator_pressure(),
+                Pressure::new::<psi>(4872.)
+            );
+
+            test_bed = test_bed
+                .set_park_brake(true)
+                .run_waiting_for(Duration::from_secs(5));
+
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(3500.)
+            );
+            assert_gt!(
+                test_bed.get_brake_yellow_accumulator_pressure(),
+                Pressure::new::<psi>(3840.)
+            );
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-10-30-30 (l.80270-80273): "There is no need to set PARK BRK to OFF to recover pedal braking"
+        // and "If PARK BRK is set to ON and pedal is depressed by the flight crew, the highest commanded pressure between
+        // PARK BRK, normal brake, and alternate brake will always apply on each gear": the pedals still brake on the
+        // normal circuit with the park brake on (the A320 model only used it below 507 psi of park brake pressure).
+        fn pedals_brake_on_the_normal_circuit_with_the_park_brake_on() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running()
+                .set_park_brake(true)
+                .run_waiting_for(Duration::from_secs(3));
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+
+            test_bed = test_bed
+                .set_left_brake(Ratio::new::<percent>(100.))
+                .set_right_brake(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(2));
+
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(3500.)
+            );
+            assert_gt!(
+                test_bed.get_brake_right_green_pressure(),
+                Pressure::new::<psi>(3500.)
+            );
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(3500.)
+            );
+        }
+
+        /// In flight, gear lever down: the landing gear is extended for the landing
+        fn in_flight_gear_down() -> A380HydraulicsTestBed {
+            test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(10))
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs(1))
+        }
+
+        #[rstest]
+        #[case::normal_braking(true)]
+        #[case::emergency_braking_a_skid_off(false)]
+        // A380 FCOM DSC-32-10-30-10 (l.78779): "Manual braking is only available on ground": no pedal braking in flight
+        // with the gear down, in normal braking and in emergency braking (A-SKID sw OFF)
+        fn pedals_do_not_brake_in_flight_with_the_gear_down(#[case] anti_skid_on: bool) {
+            let mut test_bed = in_flight_gear_down()
+                .set_anti_skid(anti_skid_on)
+                .set_left_brake(Ratio::new::<percent>(100.))
+                .set_right_brake(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(2));
+
+            for pressure in [
+                test_bed.get_brake_left_green_pressure(),
+                test_bed.get_brake_right_green_pressure(),
+                test_bed.get_brake_left_yellow_pressure(),
+                test_bed.get_brake_right_yellow_pressure(),
+            ] {
+                assert_lt!(pressure, Pressure::new::<psi>(50.));
+            }
+        }
+
+        #[test]
+        // A380 FCOM l.78779: manual braking comes back on the ground (touchdown)
+        fn pedals_brake_again_after_touchdown() {
+            let mut test_bed = in_flight_gear_down()
+                .set_left_brake(Ratio::new::<percent>(100.))
+                .set_right_brake(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(1))
+                .on_the_ground_after_touchdown()
+                .run_until(5, "normal brakes pressurised after touchdown", |bed| {
+                    bed.get_brake_left_green_pressure() > Pressure::new::<psi>(3000.)
+                });
+
+            assert_gt!(
+                test_bed.get_brake_right_green_pressure(),
+                Pressure::new::<psi>(3000.)
+            );
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-10-30-20 BASIC AUTO BRK ARMING (l.79021-79035): "A-SKID is available (normal and alternate
+        // modes)": the AUTO BRK arms in alternate braking (BRAKES NORM BRK FAULT, alternate braking "AUTO BRK is
+        // available", l.79942-79944)
+        fn autobrake_arms_in_alternate_braking() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(12));
+            test_bed.fail(FailureType::BrakeNormalBraking);
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(1));
+            assert_eq!(pedal_braking_mode(&mut test_bed), 2.);
+
+            test_bed = test_bed
+                .set_autobrake_l3()
+                .run_waiting_for(Duration::from_secs(1));
+
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::L3);
+        }
+
+        #[test]
+        // A380 FCOM alternate braking (l.79942-79944): "A-SKID is available, AUTO BRK is available": the autobrake
+        // brakes on the alternate circuit when the normal braking is lost
+        fn autobrake_brakes_on_the_alternate_circuit_in_alternate_braking() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .set_park_brake(false)
+                .start_eng1(Ratio::new::<percent>(100.))
+                .start_eng2(Ratio::new::<percent>(100.))
+                .start_eng3(Ratio::new::<percent>(100.))
+                .start_eng4(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(10));
+            test_bed.fail(FailureType::BrakeNormalBraking);
+
+            test_bed = test_bed
+                .set_autobrake_rto()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::RTO);
+
+            test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(100.))
+                .set_deploy_ground_spoilers()
+                .run_waiting_for(Duration::from_secs(6));
+
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::RTO);
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1000.)
+            );
+            assert_gt!(
+                test_bed.get_brake_right_yellow_pressure(),
+                Pressure::new::<psi>(1000.)
+            );
+        }
+
+        #[rstest]
+        #[case::prims_1_and_2_lost(1, 2)]
+        #[case::prims_2_and_3_lost(2, 3)]
+        // A380 FCOM BASIC AUTO BRK ARMING (l.79029-79031): "At least two PRIMs are available. The PRIMs provide the
+        // basic AUTO BRK with the ground spoilers extension command"
+        fn autobrake_does_not_arm_with_less_than_two_prims(
+            #[case] first_lost_prim: usize,
+            #[case] second_lost_prim: usize,
+        ) {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(12))
+                .set_prim_healthy(first_lost_prim, false)
+                .set_prim_healthy(second_lost_prim, false)
+                .run_waiting_for(Duration::from_secs(1));
+
+            test_bed = test_bed
+                .set_autobrake_l3()
+                .run_waiting_for(Duration::from_secs(1));
+
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::DISARM);
+        }
+
+        #[test]
+        // A380 FCOM l.79029: two PRIMs are enough
+        fn autobrake_arms_with_one_prim_lost() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs(12))
+                .set_prim_healthy(3, false)
+                .run_waiting_for(Duration::from_secs(1));
+
+            test_bed = test_bed
+                .set_autobrake_l3()
+                .run_waiting_for(Duration::from_secs(1));
+
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::L3);
         }
 
         #[test]

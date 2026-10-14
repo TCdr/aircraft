@@ -127,26 +127,27 @@ describe('BRAKES A-SKID FAULT ON ALL L/G and AUTO BRK FAULT', () => {
 });
 
 describe('BRAKES ACCU PRESS LO and PARK BRK PRESS LO', () => {
-  it('raises ACCU PRESS LO after 10 s below 3 000 psi only', () => {
+  it('raises ACCU PRESS LO after 10 s in the amber arc of the accumulator pressure (below 3 840 psi)', () => {
+    expect(ACCU_PRESS_LO_PSI).toBe(3840);
     const alerts = new FwsBrakeAlerts();
-    run(alerts, 9, inputs({ accuPressurePsi: ACCU_PRESS_LO_PSI - 100 }), false);
+    run(alerts, 9, inputs({ accuPressurePsi: 3800 }), false);
     expect(alerts.accuPressLo.get()).toBe(false);
-    run(alerts, 2, inputs({ accuPressurePsi: ACCU_PRESS_LO_PSI - 100 }), false);
+    run(alerts, 2, inputs({ accuPressurePsi: 3800 }), false);
     expect(alerts.accuPressLo.get()).toBe(true);
 
-    run(alerts, 1, inputs({ accuPressurePsi: 3600 }), false);
+    run(alerts, 1, inputs({ accuPressurePsi: 3900 }), false);
     expect(alerts.accuPressLo.get()).toBe(false);
   });
 
-  it('does not raise ACCU PRESS LO after one park brake application of a charged accumulator (3 600 psi)', () => {
+  it('does not raise ACCU PRESS LO after one park brake application of a charged accumulator (4 100 psi left)', () => {
     const alerts = new FwsBrakeAlerts();
-    run(alerts, 20, inputs({ accuPressurePsi: 3600 }), true);
+    run(alerts, 20, inputs({ accuPressurePsi: 4100, altnLeftPressurePsi: 3600, altnRightPressurePsi: 3600 }), true);
     expect(alerts.accuPressLo.get()).toBe(false);
   });
 
   it('raises PARK BRK PRESS LO after 5 s below 1 700 psi on one side with the park brake on', () => {
     const alerts = new FwsBrakeAlerts();
-    const low = inputs({ altnLeftPressurePsi: 2103, altnRightPressurePsi: PARK_BRK_PRESS_LO_PSI - 100 });
+    const low = inputs({ altnLeftPressurePsi: 3600, altnRightPressurePsi: PARK_BRK_PRESS_LO_PSI - 100 });
     run(alerts, 4, low, true);
     expect(alerts.parkBrkPressLo.get()).toBe(false);
     run(alerts, 2, low, true);
@@ -157,7 +158,7 @@ describe('BRAKES ACCU PRESS LO and PARK BRK PRESS LO', () => {
     const alerts = new FwsBrakeAlerts();
     run(alerts, 10, inputs(), false);
     expect(alerts.parkBrkPressLo.get()).toBe(false);
-    run(alerts, 10, inputs({ altnLeftPressurePsi: 2103, altnRightPressurePsi: 2103 }), true);
+    run(alerts, 10, inputs({ altnLeftPressurePsi: 3600, altnRightPressurePsi: 3600 }), true);
     expect(alerts.parkBrkPressLo.get()).toBe(false);
   });
 

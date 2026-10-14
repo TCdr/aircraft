@@ -18,6 +18,7 @@ import {
   readWheelControlInputs,
   steeringControlIndication,
   WheelControlInputs,
+  wingAccuIndication,
 } from './WheelIndications';
 
 /** Update period of the timed LGERS indications, ms */
@@ -71,6 +72,9 @@ export const WheelPage = () => {
   const arcs = hottestBrakeArcs(brakeTemperatures);
   const brakeControl = brakeControlIndication(controlInputs, moreActive);
   const steeringControl = steeringControlIndication(controlInputs, moreActive);
+
+  // WING ACCU gauge (FCOM DSC-32-20-50, WheelIndications.ts): the pressure of the brake accumulator of the model
+  const [accuPressurePsi] = useSimVar('L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS', 'number', BRAKES_UPDATE_MS);
 
   // LGERS indications (FCOM DSC-32-20-40, LgersIndications.ts)
   const lgciu1Word1 = useArinc429Var('L:A32NX_LGCIU_1_DISCRETE_WORD_1', LGERS_UPDATE_MS);
@@ -243,7 +247,7 @@ export const WheelPage = () => {
         <BrakingSupply x={690} y={328} type={WheelBogeyType.WLG} />
       </g>
 
-      <Accumulator x={687} y={602} moreActive={moreActive} />
+      <Accumulator x={687} y={602} indication={wingAccuIndication(accuPressurePsi, moreActive)} />
     </>
   );
 };

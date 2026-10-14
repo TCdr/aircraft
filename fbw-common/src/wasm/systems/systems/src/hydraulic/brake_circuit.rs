@@ -31,18 +31,25 @@ struct BrakeActuator {
 
     required_position: f64,
 
+    /// Brake pressure at the full deflection of the actuator: the highest pressure the brake can show
+    pressure_for_max_brake_deflection: Pressure,
+
     volume_to_actuator_accumulator: Volume,
     volume_to_res_accumulator: Volume,
 }
 impl BrakeActuator {
     const ACTUATOR_BASE_SPEED: f64 = 1.5; // movement in percent/100 per second. 1 means 0 to 1 in 1s
     const MIN_PRESSURE_ALLOWED_TO_MOVE_ACTUATOR_PSI: f64 = 50.;
-    const PRESSURE_FOR_MAX_BRAKE_DEFLECTION_PSI: f64 = 3100.;
 
-    fn new(context: &mut InitContext, total_displacement: Volume) -> Self {
+    fn new(
+        context: &mut InitContext,
+        total_displacement: Volume,
+        pressure_for_max_brake_deflection: Pressure,
+    ) -> Self {
         Self {
             total_displacement,
             base_speed: BrakeActuator::ACTUATOR_BASE_SPEED,
+            pressure_for_max_brake_deflection,
             // Here we consider brakes are applied on spawn where park brake should be applied
             // This avoids actuator movement on spawn that would mess hydraulic quantities on init
             current_position: if context.start_state() == StartState::Hangar
@@ -65,7 +72,8 @@ impl BrakeActuator {
 
     fn get_max_position_reachable(&self, received_pressure: Pressure) -> f64 {
         if received_pressure.get::<psi>() > Self::MIN_PRESSURE_ALLOWED_TO_MOVE_ACTUATOR_PSI {
-            (received_pressure.get::<psi>() / Self::PRESSURE_FOR_MAX_BRAKE_DEFLECTION_PSI)
+            (received_pressure / self.pressure_for_max_brake_deflection)
+                .get::<ratio>()
                 .clamp(0., 1.)
         } else {
             0.
@@ -73,7 +81,7 @@ impl BrakeActuator {
     }
 
     fn get_applied_brake_pressure(&self) -> Pressure {
-        Pressure::new::<psi>(Self::PRESSURE_FOR_MAX_BRAKE_DEFLECTION_PSI) * self.current_position
+        self.pressure_for_max_brake_deflection * self.current_position
     }
 
     fn update(&mut self, context: &UpdateContext, received_pressure: Pressure) {
@@ -171,12 +179,35 @@ impl BrakeCircuit {
     const BRAKE_LEAK_FAILURE_LEAKING_FLOW_GAL_PER_S: f64 = 0.1;
     const ACCUMULATOR_GAS_FAILURE_MIN_ALLOWED_PRESSURE_PSI: f64 = 50.;
 
+    /// Brake pressure at the full deflection of the brakes of `new` (A320 3 000 psi system)
+    const DEFAULT_PRESSURE_FOR_MAX_BRAKE_DEFLECTION_PSI: f64 = 3100.;
+
     pub fn new(
         context: &mut InitContext,
         id: &str,
         hyd_loop_id: HydraulicColor,
         accumulator: Option<Accumulator>,
         total_displacement: Volume,
+    ) -> BrakeCircuit {
+        Self::new_with_max_brake_pressure(
+            context,
+            id,
+            hyd_loop_id,
+            accumulator,
+            total_displacement,
+            Pressure::new::<psi>(Self::DEFAULT_PRESSURE_FOR_MAX_BRAKE_DEFLECTION_PSI),
+        )
+    }
+
+    /// A brake circuit whose brakes reach `max_brake_pressure` at their full deflection (the total displacement), for
+    /// the aircraft whose brakes work above the 3 100 psi of `new`
+    pub fn new_with_max_brake_pressure(
+        context: &mut InitContext,
+        id: &str,
+        hyd_loop_id: HydraulicColor,
+        accumulator: Option<Accumulator>,
+        total_displacement: Volume,
+        max_brake_pressure: Pressure,
     ) -> BrakeCircuit {
         let has_accumulator = accumulator.is_some();
 
@@ -186,8 +217,16 @@ impl BrakeCircuit {
             acc_press_id: context.get_identifier(format!("HYD_BRAKE_{}_ACC_PRESS", id)),
 
             // We assume displacement is just split on left and right
-            left_brake_actuator: BrakeActuator::new(context, total_displacement / 2.),
-            right_brake_actuator: BrakeActuator::new(context, total_displacement / 2.),
+            left_brake_actuator: BrakeActuator::new(
+                context,
+                total_displacement / 2.,
+                max_brake_pressure,
+            ),
+            right_brake_actuator: BrakeActuator::new(
+                context,
+                total_displacement / 2.,
+                max_brake_pressure,
+            ),
 
             demanded_brake_position_left: Ratio::new::<ratio>(0.0),
             pressure_applied_left: Pressure::new::<psi>(0.0),
@@ -806,7 +845,7 @@ mod tests {
         test_bed.set_update_after_power_distribution(|e, context| {
             e.update(
                 context,
-                Pressure::new::<psi>(BrakeActuator::PRESSURE_FOR_MAX_BRAKE_DEFLECTION_PSI),
+                Pressure::new::<psi>(BrakeCircuit::DEFAULT_PRESSURE_FOR_MAX_BRAKE_DEFLECTION_PSI),
             )
         });
 
@@ -1119,6 +1158,57 @@ mod tests {
     }
 
     fn brake_actuator(context: &mut InitContext) -> BrakeActuator {
-        BrakeActuator::new(context, Volume::new::<gallon>(0.04))
+        BrakeActuator::new(
+            context,
+            Volume::new::<gallon>(0.04),
+            Pressure::new::<psi>(BrakeCircuit::DEFAULT_PRESSURE_FOR_MAX_BRAKE_DEFLECTION_PSI),
+        )
+    }
+
+    #[test]
+    // The default brakes stop at 3 100 psi; a circuit built with a higher full brake pressure (A380 5 000 psi system)
+    // reaches it with enough hydraulic pressure, and still follows the pressure limit
+    fn brake_circuit_with_a_higher_max_brake_pressure_reaches_it() {
+        let mut default_brakes = SimulationTestBed::new(|context| {
+            TestAircraft::new(brake_circuit(context, Volume::new::<gallon>(0.)))
+        });
+        let mut higher_pressure_brakes = SimulationTestBed::new(|context| {
+            TestAircraft::new(BrakeCircuit::new_with_max_brake_pressure(
+                context,
+                "TestBrakes",
+                HydraulicColor::Yellow,
+                None,
+                Volume::new::<gallon>(0.1),
+                Pressure::new::<psi>(3600.),
+            ))
+        });
+
+        for test_bed in [&mut default_brakes, &mut higher_pressure_brakes] {
+            test_bed.command(|a| a.set_pressure(Pressure::new::<psi>(5000.)));
+            test_bed.command(|a| a.set_pressure_limit(Pressure::new::<psi>(5000.)));
+            test_bed
+                .command(|a| a.set_brake_demands(Ratio::new::<ratio>(1.), Ratio::new::<ratio>(1.)));
+            test_bed.run_with_delta(Duration::from_secs_f64(1.5));
+        }
+
+        assert_le!(
+            default_brakes.query(|a| a.left_brake_pressure()),
+            Pressure::new::<psi>(3100.)
+        );
+        assert_ge!(
+            higher_pressure_brakes.query(|a| a.left_brake_pressure()),
+            Pressure::new::<psi>(3590.)
+        );
+        assert_ge!(
+            higher_pressure_brakes.query(|a| a.right_brake_pressure()),
+            Pressure::new::<psi>(3590.)
+        );
+
+        higher_pressure_brakes.command(|a| a.set_pressure_limit(Pressure::new::<psi>(1700.)));
+        higher_pressure_brakes.run_with_delta(Duration::from_secs_f64(1.5));
+        assert_le!(
+            higher_pressure_brakes.query(|a| a.left_brake_pressure()),
+            Pressure::new::<psi>(1700.)
+        );
     }
 }
