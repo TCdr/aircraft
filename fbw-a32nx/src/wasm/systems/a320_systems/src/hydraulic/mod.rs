@@ -5131,6 +5131,8 @@ impl A320Reversers {
                 pressurized: self.reversers[idx].pressure_switch_pressurised()
                     && stowed_and_locked
                     && no_deploy_order,
+                position: self.reversers[idx].position_sensor().get::<ratio>(),
+                deploy_commanded: controller.deploy_is_commanded(),
             };
         }
     }
@@ -5210,6 +5212,11 @@ pub struct A320ReverserMonitoring {
     pub fault: bool,
     /// ENG 1(2) REV PRESSURIZED
     pub pressurized: bool,
+    /// The reverser feedback position, 0 stowed to 1 deployed (FCOM DSC-70-70 l.63313-63318: "the thrust
+    /// reverser feedback position").
+    pub position: f64,
+    /// The reverser is commanded deployed (otherwise commanded stowed).
+    pub deploy_commanded: bool,
 }
 
 #[cfg(test)]
@@ -12693,6 +12700,35 @@ mod tests {
             assert!(!reverser_flag(&mut test_bed, "REVERSER_1_UNLOCKED"));
             assert!(!reverser_flag(&mut test_bed, "REVERSER_1_PRESSURIZED"));
             assert!(!reverser_flag(&mut test_bed, "REVERSER_1_DEPLOYING"));
+        }
+
+        /// The FADEC idle protection reads the reverser feedback position and the deploy order (FCOM
+        /// DSC-70-70 l.63311-63318, see engine_control_failure).
+        #[test]
+        fn reverser_monitoring_gives_the_feedback_position_and_the_deploy_order() {
+            let mut test_bed = test_bed_on_ground_with_engines_running();
+            let monitoring = test_bed.query(|a| a.hydraulics.reversers_monitoring()[0]);
+            assert!(!monitoring.deploy_commanded);
+            assert_lt!(monitoring.position, 0.01);
+
+            test_bed = test_bed
+                .eng1_throttle_reverse_full()
+                .run_waiting_for(Duration::from_secs_f64(3.));
+            let monitoring = test_bed.query(|a| a.hydraulics.reversers_monitoring()[0]);
+            assert!(monitoring.deploy_commanded);
+            assert_gt!(monitoring.position, 0.99);
+            assert!(
+                (monitoring.position - test_bed.get_reverser_1_position().get::<ratio>()).abs()
+                    < 1e-9
+            );
+            assert!(!test_bed.query(|a| a.hydraulics.reversers_monitoring()[1].deploy_commanded));
+
+            test_bed = test_bed
+                .set_throttles_idle()
+                .run_waiting_for(Duration::from_secs_f64(5.));
+            let monitoring = test_bed.query(|a| a.hydraulics.reversers_monitoring()[0]);
+            assert!(!monitoring.deploy_commanded);
+            assert_lt!(monitoring.position, 0.01);
         }
     }
 }

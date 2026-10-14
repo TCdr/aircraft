@@ -29,17 +29,19 @@ import { FwcAlertItem, cautionItem } from './FwcAlertItem';
  * - COND AFT CRG ISOL VALVE (PRO-ABN-COND l.74019-74042, PDF p.4507): "the aft cargo isolation valve disagrees with the
  *   selected position"; crew awareness; STATUS INOP SYS AFT CRG VENT.
  *
- * The A32NX has no avionics or cargo ventilation model (FCOM gap rows 21 #25, #26, #29, #30): the alerts are fed by
- * flyPad failures (A320Failure 21020-21026) that stand for the conditions the AEVC and the cargo ventilation controller
- * monitor. Not simulated: the "AEVC not supplied" case (the FCOM gives no supply bus) and the valve disagree case of VENT
- * AVNCS SYS FAULT, the duct overheat of VENT BLOWER FAULT, the FAULT lights of the BLOWER and EXTRACT pbs (row #26).
+ * The A32NX has no avionics ventilation model and no aft cargo extraction fan (FCOM gap rows 21 #25, #26, #29): those
+ * alerts are fed by flyPad failures (A320Failure 21020-21025) that stand for the conditions the AEVC and the cargo
+ * ventilation controller monitor. The aft cargo isolation valves are modelled by systems.wasm (a320_systems
+ * cargo_ventilation.rs, with the AFT ISOL VALVE pb-sw and the flyPad failure 21026 valves stuck closed): COND AFT CRG
+ * ISOL VALVE reads its valve disagreement, the same signal as the FAULT light of the pb-sw. Not simulated: the "AEVC
+ * not supplied" case (the FCOM gives no supply bus) and the valve disagree case of VENT AVNCS SYS FAULT, the duct
+ * overheat of VENT BLOWER FAULT, the FAULT lights of the BLOWER and EXTRACT pbs (row #26).
  *
  * Design choices:
- * - The AFT ISOL VALVE pb is a dummy (always ON) until row #30 makes it a real pb: the isolation valves are commanded
- *   open unless the AFT cargo smoke is detected (DSC-21-40-20 l.9711-9716: "The controller closes the isolation valves
- *   and stops the extraction fan when the flight crew sets the AFT ISOL VALVE pb-sw to OFF, or the aft cargo smoke
- *   detection unit detects smoke"). The extraction fan runs only with the valves fully open (l.9711-9712), so a failed
- *   fan is only detected then.
+ * - The isolation valves are commanded open with the AFT ISOL VALVE pb-sw in AUTO and no AFT cargo smoke
+ *   (DSC-21-40-20 l.9711-9716: "The controller closes the isolation valves and stops the extraction fan when the flight
+ *   crew sets the AFT ISOL VALVE pb-sw to OFF, or the aft cargo smoke detection unit detects smoke"). The extraction fan
+ *   runs only with the valves fully open (l.9711-9712), so a failed fan is only detected then.
  * - A stuck valve does not close on the BLOWER and EXTRACT OVRD closure signals: once both pbs are at OVRD the IF
  *   UNSUCCESSFUL part of VENT SKIN VALVE FAULT is shown. The extract case is a caution with a procedure (level 2), the
  *   inlet only case is crew awareness (level 1): two items with the same title.
@@ -93,7 +95,15 @@ export interface VentilationAlertInputs {
   skinExtractValveStuckOpen: boolean;
   skinInletValveStuckOpen: boolean;
   aftCargoFanFailed: boolean;
-  aftCargoIsolValvesStuckClosed: boolean;
+  /** The AFT ISOL VALVE pb-sw is in AUTO (L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO) */
+  aftIsolValvePbAuto: boolean;
+  /** Both AFT cargo isolation valves are open (L:A32NX_CARGO_VENT_AFT_INLET(OUTLET)_ISOL_VALVE_IS_OPEN) */
+  aftCargoIsolValvesOpen: boolean;
+  /**
+   * An AFT cargo isolation valve disagrees with its commanded position: the FAULT light of the AFT ISOL VALVE pb-sw
+   * (L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_HAS_FAULT)
+   */
+  aftCargoIsolValvesDisagree: boolean;
   /** The BLOWER and EXTRACT pbs are at AUTO (L:A32NX_VENTILATION_BLOWER_TOGGLE, _EXTRACT_TOGGLE) */
   blowerPbAuto: boolean;
   extractPbAuto: boolean;
@@ -117,9 +127,9 @@ export interface VentilationAlertStates {
   aftCargoIsolValve: boolean;
 }
 
-/** The AFT cargo isolation valves are commanded open: AFT ISOL VALVE pb ON (a dummy, always ON) and no AFT cargo smoke */
+/** The AFT cargo isolation valves are commanded open: AFT ISOL VALVE pb-sw in AUTO and no AFT cargo smoke */
 export function aftCargoIsolValvesCommandedOpen(inputs: VentilationAlertInputs): boolean {
-  return !inputs.aftCargoSmoke;
+  return inputs.aftIsolValvePbAuto && !inputs.aftCargoSmoke;
 }
 
 /** Which ventilation alerts are triggered */
@@ -128,8 +138,7 @@ export function ventilationAlerts(inputs: VentilationAlertInputs): VentilationAl
   // "The extract valve is fully open in phase 3, or ... in flight", "the inlet valve is not fully closed in flight"
   const extractValveOpenFault = inputs.skinExtractValveStuckOpen && (inputs.flightPhase === 3 || inFlight);
   const inletValveOpenFault = inputs.skinInletValveStuckOpen && inFlight;
-  const isolValvesCommandedOpen = aftCargoIsolValvesCommandedOpen(inputs);
-  const isolValvesFullyOpen = isolValvesCommandedOpen && !inputs.aftCargoIsolValvesStuckClosed;
+  const isolValvesFullyOpen = aftCargoIsolValvesCommandedOpen(inputs) && inputs.aftCargoIsolValvesOpen;
   return {
     avncsSysFault: inputs.aevcFailed,
     blowerFault: inputs.blowerFanFailed,
@@ -138,7 +147,8 @@ export function ventilationAlerts(inputs: VentilationAlertInputs): VentilationAl
     skinValveFaultInlet: inletValveOpenFault && !extractValveOpenFault,
     // the extraction fan runs (and its failure is seen) only with the isolation valves fully open
     aftCargoVentFault: inputs.aftCargoFanFailed && isolValvesFullyOpen,
-    aftCargoIsolValve: inputs.aftCargoIsolValvesStuckClosed && isolValvesCommandedOpen,
+    // the valve disagreement of the systems.wasm model (the FAULT light of the AFT ISOL VALVE pb-sw)
+    aftCargoIsolValve: inputs.aftCargoIsolValvesDisagree,
   };
 }
 
@@ -223,7 +233,6 @@ export const VENTILATION_FAILURES = [
   A320Failure.AvionicsSkinExtractValveStuckOpen,
   A320Failure.AvionicsSkinInletValveStuckOpen,
   A320Failure.AftCargoExtractionFan,
-  A320Failure.AftCargoIsolationValvesStuckClosed,
 ];
 
 /** The inputs of the alerts that are not flyPad failures */
@@ -235,7 +244,6 @@ export type VentilationSystemInputs = Omit<
   | 'skinExtractValveStuckOpen'
   | 'skinInletValveStuckOpen'
   | 'aftCargoFanFailed'
-  | 'aftCargoIsolValvesStuckClosed'
 >;
 
 /** The ventilation alerts: reads the failures, gives the items the PseudoFWC adds */
@@ -284,7 +292,6 @@ export class VentilationAlerts {
       skinExtractValveStuckOpen: failed(A320Failure.AvionicsSkinExtractValveStuckOpen),
       skinInletValveStuckOpen: failed(A320Failure.AvionicsSkinInletValveStuckOpen),
       aftCargoFanFailed: failed(A320Failure.AftCargoExtractionFan),
-      aftCargoIsolValvesStuckClosed: failed(A320Failure.AftCargoIsolationValvesStuckClosed),
     };
     this.inputs = inputs;
     this.pressurizationAuto = pressurizationAuto;
@@ -358,7 +365,7 @@ export class VentilationAlerts {
 /* Acquisition (not unit tested: SimVar reads only) */
 
 /**
- * The pbs and the AFT cargo smoke read from their L:vars.
+ * The pbs, the AFT cargo smoke and the AFT cargo isolation valves (systems.wasm) read from their L:vars.
  * @param dcEssBusFault ELEC DC ESS BUS FAULT is active
  * @param flightPhase the FWC flight phase
  * @param onGround the aircraft is on the ground
@@ -373,6 +380,12 @@ export function readVentilationSystemInputs(
     extractPbAuto: SimVar.GetSimVarValue('L:A32NX_VENTILATION_EXTRACT_TOGGLE', 'bool') > 0,
     dcEssBusFault,
     aftCargoSmoke: SimVar.GetSimVarValue('L:A32NX_SMOKE_AFT_CARGO_DETECTED', 'bool') > 0,
+    aftIsolValvePbAuto: SimVar.GetSimVarValue('L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_IS_AUTO', 'bool') > 0,
+    aftCargoIsolValvesOpen:
+      SimVar.GetSimVarValue('L:A32NX_CARGO_VENT_AFT_INLET_ISOL_VALVE_IS_OPEN', 'bool') > 0 &&
+      SimVar.GetSimVarValue('L:A32NX_CARGO_VENT_AFT_OUTLET_ISOL_VALVE_IS_OPEN', 'bool') > 0,
+    aftCargoIsolValvesDisagree:
+      SimVar.GetSimVarValue('L:A32NX_OVHD_CARGO_VENT_AFT_ISOL_VALVE_PB_HAS_FAULT', 'bool') > 0,
     flightPhase,
     onGround,
   };

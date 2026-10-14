@@ -588,6 +588,32 @@ impl EngineStartSequence {
             && (engine_fuel_is_cut || !inputs.master_switch_is_on);
     }
 
+    /// In flight, the starter turns the core of a starter assisted relight before its fuel comes on.
+    /// For an aircraft whose FADEC opens the HP fuel valve above an N2 in flight (A320 FCOM DSC-70-80-40,
+    /// a320_fcom.txt l.63706-63708: "In flight: when N2 > 15 %"); the aircraft calls it after
+    /// [`Self::update_starter_motoring`], with `relight_waiting` while the engine waits for its relight
+    /// (flamed out, core not seized). The starter motors the core while the ENG MASTER is ON, the start
+    /// valve is open with starter air, the starter works and the engine fuel is still cut. Aircraft
+    /// that do not call it keep the ground-only motoring.
+    pub fn update_in_flight_relight_motoring(
+        &mut self,
+        context: &UpdateContext,
+        engine_fuel_is_cut: bool,
+        inputs: &EngineStartInputs,
+        relight_waiting: bool,
+    ) {
+        if !context.is_on_ground()
+            && relight_waiting
+            && inputs.master_switch_is_on
+            && inputs.start_valve_is_open
+            && inputs.starter_air_pressurized
+            && !self.starter_failure.is_active()
+            && engine_fuel_is_cut
+        {
+            self.starter_motoring = true;
+        }
+    }
+
     /// The ENG MASTER is OFF on the ground: the starter turns the core with the ENG MAN START pb ON,
     /// at CRANK (dry crank) or IGN/START (manual start, before the ENG MASTER ON).
     /// A320 FCOM DSC-70-90-10 (l.63828-63840), DSC-70-80-40 (l.63757-63765, 63801-63803); A380 FCOM

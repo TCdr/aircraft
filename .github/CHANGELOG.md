@@ -609,6 +609,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New WHEEL HYD SEL FAULT caution with a new flyPad failure of the brake normal selector valve - @TCdr
 1. [A32NX/FWC] New NAV PRED W/S DET FAULT alert and STATUS INOP SYS PRED W/S DET with a new flyPad failure of the weather radar predictive windshear function - @TCdr
 1. [A32NX/EGPWS] New green TERR STBY memo when an input of the predictive terrain functions is missing or invalid; the terrain leaves the NDs and the TERR ON ND pushbuttons go off meanwhile - @TCdr
+1. [A380X/BLEED] HP ground air: the flyPad Air Starter Unit now supplies the bleed ducts, so the engines can be started without the APU - @TCdr
+1. [A380X/BLEED] New overpressure valve downstream of each engine bleed valve: it closes above 85 PSI and opens again below 55 PSI, e.g. with a bleed valve stuck open - @TCdr
+1. [A380X/BLEED] The two engine bleed valves of a side share the airflow equally while the crossbleed valve of that side is open - @TCdr
+1. [A380X/BLEED] The crossbleed valves follow their own CPIOM-A pair (A1/A2 left, A3/A4 center and right): with both CPIOMs of a pair failed, the valve no longer opens or closes at AUTO, the XBLEED selector still moves it - @TCdr
+1. [A380X/BLEED] New APU bleed, pack bay, hot-air duct and forward cargo duct leak detection, with flyPad failures: the APU bleed, the pack valves or the hot-air valve close, and the APU BLEED, PACK or HOT AIR FAULT light comes on - @TCdr
 1. [A380X/SD] WHEEL page: the ECP MORE key shows the WHEEL MORE page, BRK CTL and STEER CTL lines show a failed BCS, EBCU or SCS, AUTO BRAKE only on an autobrake failure, green or amber arc on the hottest brake, gear triangles and doors from LGCIS 1 and 2 - @TCdr
 1. [A380X/SD] FUEL page: the ECP MORE key shows the FUEL MORE page - @TCdr
 1. [A380X/PFD] FMA line 3: EXTEND SPD BRK, RETRACT SPD BRK and CHECK APPR SEL now show; CHECK APPR SEL also on the MFD - @TCdr
@@ -711,6 +716,15 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BRAKES] AUTO BRK arms and brakes in alternate braking (A-SKID available), and needs at least two PRIMs - @TCdr
 1. [A380X/BRAKES] ROP stops the maximum braking and gives back the selected autobrake mode when the aircraft can stop before the runway end, and no longer keeps the maximum braking after the autobrake is disconnected at low speed - @TCdr
 1. [A380X/SD] WHEEL page: the WING ACCU gauge shows the accumulator pressure (needle no longer fixed), in amber and without MORE when it is in the amber arc - @TCdr
+1. [A32NX/ATSU] New flyPad failures DCDU 1, DCDU 2 (blank screen, keys do nothing) and cockpit printer (nothing printed, PRINTER NOT AVAILABLE on the MCDU) - @TCdr
+1. [A32NX/ATSU] The ATSU stops while its C/B L15 or L16 on 121VU is pulled (the ATSU reset of the FCOM drops the CPDLC connection), and the DCDU shows INVALID DATA while the ATSU does not run - @TCdr
+1. [A32NX/ENG] The FADEC idle protection follows the reverser position: idle while a reverser commanded stowed is more than 15 % deployed, reverse idle when a deployed reverser stows below 78 %, as in the FCOM - @TCdr
+1. [A32NX/ENG] In-flight starter assisted relight: the starter turns the core and the HP fuel valve opens above 15 % N2, as in the FCOM - @TCdr
+1. [A32NX/PRESS] The residual pressure control unit also opens the outflow valve on the ground when both CPCs are failed, and works below 100 kt on all ADIRS (or with all engines shut down), as in the FCOM - @TCdr
+1. [A32NX/COND] The DITCHING pb closes the emergency ram air inlet (RAM AIR valve on the SD BLEED page) - @TCdr
+1. [A32NX/COND] The AFT ISOL VALVE pb-sw of the CARGO VENT panel works: OFF closes the aft cargo isolation valves (also closed on aft cargo smoke), FAULT and COND AFT CRG ISOL VALVE when a valve disagrees (flyPad failure "AFT cargo ventilation isolation valves stuck closed") - @TCdr
+1. [A32NX/AP] The AUTOLAND light also flashes when both RAs differ by more than 15 ft, and on an untimely flare with one RA inoperative - @TCdr
+1. [A32NX/ATHR] Alpha floor also comes with the sidestick more than 14 degrees nose up with the angle-of-attack protection active, and is lost with an engine out and slats/flaps extended - @TCdr
 
 ## 2024.1.0
 

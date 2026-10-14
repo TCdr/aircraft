@@ -2,6 +2,7 @@ extern crate systems;
 
 mod air_conditioning;
 mod airframe;
+mod cargo_ventilation;
 mod electrical;
 mod engine_control_failure;
 mod engine_failure;
@@ -20,6 +21,7 @@ mod tyre_pressure;
 
 use self::{
     air_conditioning::A320AirConditioning,
+    cargo_ventilation::A320AftCargoVentilation,
     engine_control_failure::A320EngineControlFailures,
     engine_failure::A320EngineFailures,
     engine_malfunction::A320EngineMalfunctions,
@@ -107,6 +109,7 @@ pub struct A320 {
     adirs: AirDataInertialReferenceSystem,
     adirs_overhead: AirDataInertialReferenceSystemOverheadPanel,
     air_conditioning: A320AirConditioning,
+    aft_cargo_ventilation: A320AftCargoVentilation,
     apu: AuxiliaryPowerUnit<Aps3200ApuGenerator, Aps3200StartMotor, Aps3200Constants, 1>,
     asu: AirStarterUnit,
     apu_fire_overhead: AuxiliaryPowerUnitFireOverheadPanel,
@@ -162,6 +165,7 @@ impl A320 {
             adirs: A320AirDataInertialReferenceSystemBuilder::build(context),
             adirs_overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
             air_conditioning: A320AirConditioning::new(context),
+            aft_cargo_ventilation: A320AftCargoVentilation::new(context),
             apu: AuxiliaryPowerUnitFactory::new_aps3200(
                 context,
                 1,
@@ -347,6 +351,8 @@ impl Aircraft for A320 {
 
         self.fire_protection
             .update(context, [self.lgcius.lgciu1(), self.lgcius.lgciu2()]);
+        self.aft_cargo_ventilation
+            .update(self.fire_protection.aft_cargo_smoke_detected());
 
         self.radio_altimeters.update(context);
         self.gps_1.update(context);
@@ -460,6 +466,7 @@ impl SimulationElement for A320 {
         self.adirs.accept(visitor);
         self.adirs_overhead.accept(visitor);
         self.air_conditioning.accept(visitor);
+        self.aft_cargo_ventilation.accept(visitor);
         self.apu.accept(visitor);
         self.asu.accept(visitor);
         self.apu_fire_overhead.accept(visitor);

@@ -68,6 +68,19 @@ describe('A320 flyPad failures', () => {
     }
   });
 
+  // The id is the Rust failure id of a320_systems_wasm, used by a320_systems cargo_ventilation.rs: the valves model
+  // gives the FAULT light of the AFT ISOL VALVE pb-sw, which the FWC reads for COND AFT CRG ISOL VALVE
+  it('lists the aft cargo isolation valves failure in ATA 21 with the Rust failure it triggers', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.AftCargoIsolationValvesStuckClosed)).toEqual([
+      21,
+      21026,
+      'AFT cargo ventilation isolation valves stuck closed',
+    ]);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    expect(wasm).toContain('(21_026, FailureType::AftCargoIsolationValvesStuckClosed),');
+  });
+
   // TS only: the FWC reads it (FWC/Logic/PredictiveWindshearAlerts.ts), no Rust failure
   it('lists the predictive windshear failure of the weather radar in ATA 34', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
@@ -392,6 +405,23 @@ describe('A320 flyPad failures', () => {
     }
   });
 
+  // TS only failures of the FCOM gap batch T2-46: the systems-host ATSU (atsu.ts) writes them for the DCDU, its
+  // screens and the MCDU print (FCOM DSC-46-10-10 l.59032-59056)
+  it('lists the DCDU 1, DCDU 2 and printer failures in ATA 46, TS only, read by the systems-host ATSU', () => {
+    const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(label(A320Failure.Dcdu1)).toEqual([46, 46002, 'DCDU 1 (captain)']);
+    expect(label(A320Failure.Dcdu2)).toEqual([46, 46003, 'DCDU 2 (first officer)']);
+    expect(label(A320Failure.Printer)).toEqual([46, 46004, 'Cockpit printer']);
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    for (const rustId of ['46_002', '46_003', '46_004']) {
+      expect(wasm).not.toContain(`(${rustId},`);
+    }
+    const atsu = readFileSync(resolve(__dirname, '../../systems-host/systems/atsu.ts'), 'utf8');
+    for (const failure of ['Dcdu1', 'Dcdu2', 'Printer']) {
+      expect(atsu).toContain(`this.failuresConsumer.isActive(A320Failure.${failure})`);
+    }
+  });
+
   // The ids are the Rust failure ids of a320_systems_wasm (systems navigation/adirs.rs)
   it('lists the ADIRS failures in ATA 34 Navigation with the Rust failure they trigger', () => {
     const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
@@ -481,13 +511,7 @@ describe('A320 flyPad failures', () => {
       ],
       [21, 21024, 'AvionicsSkinInletValveStuckOpen', 'Avionics ventilation skin inlet valve stuck open', ventilation],
       [21, 21025, 'AftCargoExtractionFan', 'AFT cargo ventilation extraction fan', ventilation],
-      [
-        21,
-        21026,
-        'AftCargoIsolationValvesStuckClosed',
-        'AFT cargo ventilation isolation valves stuck closed',
-        ventilation,
-      ],
+      // 21026 (AFT cargo isolation valves stuck closed) is a Rust failure: see the ATA 21 test above
       [22, 22012, 'TcasModeFailure', 'FG TCAS mode (AP/FD TCAS, both FMGCs)', tcasMode],
       [23, 23008, 'CidsDirector1', 'CIDS 1 (cabin intercommunication data system)', communication],
       [23, 23009, 'CidsDirector2', 'CIDS 2 (cabin intercommunication data system)', communication],
