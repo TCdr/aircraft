@@ -8147,7 +8147,8 @@ mod tests {
                 self.query(|a| a.hydraulics.green_reservoir().available_volume())
             }
 
-            /// Runs one second steps until the condition is true; panics after max_seconds instead of hanging
+            /// Runs one second steps until the condition is true, then 500 ms more so that the controllers, which read
+            /// the state of the previous update, show it too; panics after max_seconds instead of hanging
             fn run_until(
                 mut self,
                 max_seconds: u64,
@@ -8156,7 +8157,7 @@ mod tests {
             ) -> Self {
                 for _ in 0..max_seconds {
                     if condition(&mut self) {
-                        return self;
+                        return self.run_waiting_for(Duration::from_millis(500));
                     }
                     self = self.run_waiting_for(Duration::from_secs(1));
                 }
@@ -8166,7 +8167,7 @@ mod tests {
                     description,
                     max_seconds
                 );
-                self
+                self.run_waiting_for(Duration::from_millis(500))
             }
 
             fn get_yellow_reservoir_volume(&mut self) -> Volume {
