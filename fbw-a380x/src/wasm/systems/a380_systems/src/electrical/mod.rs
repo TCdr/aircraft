@@ -44,6 +44,7 @@ use systems::{
 
 pub(super) struct A380Electrical {
     galley_is_shed_id: VariableIdentifier,
+    galley_is_partially_shed_id: VariableIdentifier,
     rat_fault_id: VariableIdentifier,
 
     alternating_current: A380AlternatingCurrentElectrical,
@@ -76,6 +77,8 @@ impl A380Electrical {
     pub fn new(context: &mut InitContext) -> A380Electrical {
         A380Electrical {
             galley_is_shed_id: context.get_identifier("ELEC_GALLEY_IS_SHED".to_owned()),
+            galley_is_partially_shed_id: context
+                .get_identifier("ELEC_GALLEY_IS_PARTIALLY_SHED".to_owned()),
             rat_fault_id: context.get_identifier("ELEC_RAT_FAULT".to_owned()),
             alternating_current: A380AlternatingCurrentElectrical::new(context),
             direct_current: A380DirectCurrentElectrical::new(context),
@@ -239,6 +242,13 @@ impl A380Electrical {
         self.main_galley.is_shed() || self.secondary_galley.is_shed()
     }
 
+    /// Some, not all, galleys are shed: the GALLEY PARTIALLY SHED legend of the ELEC AC page, against GALLEY SHED when
+    /// all are (A380 FCOM DSC-24-20 GALLEY/COMMERCIAL INDICATION, a380_fcom.txt l.51038-51046). The main galleys are
+    /// shed alone when only one or two sources supply the four main AC busbars.
+    fn galley_is_partially_shed(&self) -> bool {
+        self.main_galley.is_shed() != self.secondary_galley.is_shed()
+    }
+
     /// Whether battery `number` (1 = BAT 1, 2 = BAT 2, 3 = BAT ESS, 4 = APU BAT) is failed
     fn battery_has_fault(&self, number: usize) -> bool {
         self.direct_current.battery_has_fault(number)
@@ -343,6 +353,10 @@ impl SimulationElement for A380Electrical {
 
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.galley_is_shed_id, self.galley_is_shed());
+        writer.write(
+            &self.galley_is_partially_shed_id,
+            self.galley_is_partially_shed(),
+        );
         writer.write(&self.rat_fault_id, self.rat_has_fault());
     }
 }
@@ -648,6 +662,7 @@ mod a380_electrical {
         test_bed.run();
 
         assert!(test_bed.contains_variable_with_name("ELEC_GALLEY_IS_SHED"));
+        assert!(test_bed.contains_variable_with_name("ELEC_GALLEY_IS_PARTIALLY_SHED"));
     }
 }
 
@@ -3033,6 +3048,68 @@ mod a380_electrical_circuit_tests {
     }
 
     #[test]
+    fn when_four_engine_generators_supply_no_galley_is_shed() {
+        let mut test_bed = test_bed_with().running_engines().run();
+
+        assert!(!test_bed.galley_is_shed());
+        assert!(!test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
+    fn when_three_engine_generators_supply_no_galley_is_shed() {
+        let mut test_bed = test_bed_with()
+            .running_engine(1)
+            .and()
+            .running_engine(2)
+            .and()
+            .running_engine(3)
+            .run();
+
+        assert!(!test_bed.galley_is_shed());
+        assert!(!test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
+    fn when_two_engine_generators_supply_the_galleys_are_partially_shed() {
+        let mut test_bed = test_bed_with()
+            .running_engine(1)
+            .and()
+            .running_engine(4)
+            .run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
+    fn when_the_apu_generator_alone_supplies_the_galleys_are_partially_shed() {
+        let mut test_bed = test_bed_with().running_apu().run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
+    fn when_emer_gen_only_all_galleys_are_shed_not_partially() {
+        let mut test_bed = test_bed_with().running_emergency_generator().run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(!test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
+    fn when_galy_and_cab_pb_off_all_galleys_are_shed_not_partially() {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .and()
+            .galy_and_cab_off()
+            .run();
+
+        assert!(test_bed.galley_is_shed());
+        assert!(!test_bed.galley_is_partially_shed());
+    }
+
+    #[test]
     #[ignore = "Generator overloading is not yet supported."]
     fn when_aircraft_on_the_ground_and_apu_gen_is_overloaded_galley_is_shed() {}
 
@@ -4640,6 +4717,10 @@ mod a380_electrical_circuit_tests {
 
         fn galley_is_shed(&mut self) -> bool {
             self.read_by_name("ELEC_GALLEY_IS_SHED")
+        }
+
+        fn galley_is_partially_shed(&mut self) -> bool {
+            self.read_by_name("ELEC_GALLEY_IS_PARTIALLY_SHED")
         }
 
         fn both_ac_ess_feed_contactors_open(&mut self) -> bool {

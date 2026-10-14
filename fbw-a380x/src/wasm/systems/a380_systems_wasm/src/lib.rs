@@ -720,6 +720,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (49_001, FailureType::ApuOverspeed),
         (49_002, FailureType::ApuOilLowPressure),
         (49_003, FailureType::ApuOilHighTemperature),
+        (49_005, FailureType::ApuOilLevelLow),
         (72_000, FailureType::EngineFlameout(1)),
         (72_001, FailureType::EngineFlameout(2)),
         (72_002, FailureType::EngineFlameout(3)),

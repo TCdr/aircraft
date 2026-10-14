@@ -9,6 +9,7 @@ import { AcEssFeedLine } from './elements/AcEssFeedLine';
 import { AcEssToAcEmerFeedLine } from './elements/AcEssToAcEmerFeedLine';
 import { Ac23BusTie } from './elements/Ac23BusTie';
 import { AcBusTie } from './elements/AcBusTie';
+import { GalleyCommercialIndication } from './elements/GalleyCommercialIndication';
 
 import '../../../index.scss';
 
@@ -39,5 +40,7 @@ export const ElecAcPage = () => (
 
     <AcEssFeedLine side={1} />
     <AcEssFeedLine side={2} />
+
+    <GalleyCommercialIndication x={20} y={78} />
   </>
 );
