@@ -659,6 +659,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/PFD] Red V1 INOP flag instead of the V1 when no FM is healthy, and red ILS1(2)/DME1(2) flags when the onside ILS receiver or DME interrogator loses its power with LS on - @TCdr
 1. [A32NX/SD] The lower SD shows the FCU selected altitude in metres (green) when METRIC ALT is selected - @TCdr
 1. [A32NX/FWC] NAV ALTI DISCREPANCY and CHECK ALT trigger at 500 ft with the STD baro reference (250 ft with QNH or QFE), as in the FCOM - @TCdr
+1. [A32NX/APU] APU values from the FCOM: EGT MAX 1 090 °C during the start (1 120 °C above 35 000 ft) and 675 °C running, starter cut-out at N 60 %, and N 99 % while the APU bleed feeds the packs between -18 and 35 °C - @TCdr
+1. [A32NX/APU] The APU shuts down automatically at EGT MAX and when its air intake flap closes (new flyPad failure "APU air intake flap failed closed"); after an automatic shutdown the air intake flap stays open and closes 15 min after N 7 % (after liftoff when on the ground) - @TCdr
+1. [A32NX/FUEL] The APU fuel pump starts automatically when no left tank pump runs; with neither the APU gets no fuel pressure (FUEL LO PR) - @TCdr
 
 ## 2024.1.0
 

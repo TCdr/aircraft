@@ -1,5 +1,6 @@
 // Note: Fuel system for now is still handled in MSFS. This is used for calculating fuel-related factors.
 
+use apu_fuel_feed::ApuFuelFeed;
 use apu_lp_valve::ApuLpFuelValve;
 use engine_lp_valve::EngineLpFuelValve;
 use fuel_temperature::{
@@ -15,6 +16,7 @@ use systems::{
 };
 use uom::si::{f64::*, mass::kilogram, thermodynamic_temperature::degree_celsius};
 
+mod apu_fuel_feed;
 mod apu_lp_valve;
 mod engine_lp_valve;
 mod fuel_temperature;
@@ -51,12 +53,15 @@ pub struct A320Fuel {
     engine_lp_valves: [EngineLpFuelValve; 2],
     gravity_feed: GravityFeed,
     apu_lp_valve: ApuLpFuelValve,
+    apu_fuel_feed: ApuFuelFeed,
     fuel_temperature: FuelTemperature,
 }
 impl A320Fuel {
     /// The wing tank pumps in FUEL_PUMPS: left pumps 1 and 2, right pumps 1 and 2.
     const LEFT_WING_PUMPS: [usize; 2] = [0, 1];
     const RIGHT_WING_PUMPS: [usize; 2] = [2, 3];
+    /// The APU fuel pump in FUEL_PUMPS
+    const APU_FUEL_PUMP: usize = 4;
 
     pub const A320_FUEL: [FuelInfo<'static>; 5] = [
         FuelInfo {
@@ -139,6 +144,7 @@ impl A320Fuel {
             engine_lp_valves: [1, 2].map(|number| EngineLpFuelValve::new(context, number)),
             gravity_feed: GravityFeed::new(context),
             apu_lp_valve: ApuLpFuelValve::new(context),
+            apu_fuel_feed: ApuFuelFeed::new(context),
             fuel_temperature: FuelTemperature::new(context),
         }
     }
@@ -159,6 +165,16 @@ impl A320Fuel {
         };
         self.gravity_feed.update(context, pumps);
         self.apu_lp_valve.update(context);
+        // The left fuel feed line supplies the APU (apu_fuel_feed.rs)
+        let left_tank_pump_delivers = Self::LEFT_WING_PUMPS.iter().any(|&pump| {
+            self.fuel_system.is_fuel_pump_running(pump)
+                && self.fuel_system.is_fuel_pump_powered(pump)
+        });
+        self.apu_fuel_feed.update(
+            context,
+            left_tank_pump_delivers,
+            self.fuel_system.is_fuel_pump_powered(Self::APU_FUEL_PUMP),
+        );
         self.update_fuel_temperature(context, engines);
     }
 
@@ -195,9 +211,17 @@ impl A320Fuel {
             .update(context, quantities_kg, idg_return_active);
     }
 
-    /// The APU gets fuel: the left inner tank has fuel and the APU LP valve is not jammed closed.
+    /// The APU gets fuel: the left inner tank has fuel, the APU LP valve is not jammed closed and a left tank pump or
+    /// the APU fuel pump pressurises the feed line (apu_fuel_feed.rs).
     pub fn apu_has_fuel(&self) -> bool {
-        self.left_inner_tank_has_fuel_remaining() && !self.apu_lp_valve.blocks_apu_fuel()
+        self.left_inner_tank_has_fuel_remaining()
+            && !self.apu_lp_valve.blocks_apu_fuel()
+            && self.apu_fuel_feed.has_pressure()
+    }
+
+    #[cfg(test)]
+    pub fn apu_fuel_pump_runs(&self) -> bool {
+        self.apu_fuel_feed.apu_fuel_pump_runs()
     }
 
     /// The engine has no fuel: its LP fuel valve is closed and the fuel downstream of it is burned,
@@ -292,6 +316,7 @@ impl SimulationElement for A320Fuel {
         }
         self.gravity_feed.accept(visitor);
         self.apu_lp_valve.accept(visitor);
+        self.apu_fuel_feed.accept(visitor);
         self.fuel_temperature.accept(visitor);
         visitor.visit(self);
     }
