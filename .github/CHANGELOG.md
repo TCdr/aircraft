@@ -662,6 +662,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/APU] APU values from the FCOM: EGT MAX 1 090 °C during the start (1 120 °C above 35 000 ft) and 675 °C running, starter cut-out at N 60 %, and N 99 % while the APU bleed feeds the packs between -18 and 35 °C - @TCdr
 1. [A32NX/APU] The APU shuts down automatically at EGT MAX and when its air intake flap closes (new flyPad failure "APU air intake flap failed closed"); after an automatic shutdown the air intake flap stays open and closes 15 min after N 7 % (after liftoff when on the ground) - @TCdr
 1. [A32NX/FUEL] The APU fuel pump starts automatically when no left tank pump runs; with neither the APU gets no fuel pressure (FUEL LO PR) - @TCdr
+1. [A380X/FWS] STATUS INOP SYS shows STBY RAD NAV with RMPs 1+2 (or all RMPs) failed, and the GPWS, TERR SYS and TAWS lines of the SURV faults under APPR & LDG instead of ALL PHASES - @TCdr
+1. [A380X/FWS] New IR 1(2)(3)(1+2)(1+3)(2+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos while IRs align in ATT mode, and a new DATALINK STBY memo while the ACARS provider link is temporarily lost with VHF 3 in data mode - @TCdr
+1. [A380X/FWS] NAV ALL AIR DATA DISAGREE radome destruction line now reads FMS FUEL PRED DISREGARD, as in the FCOM - @TCdr
 
 ## 2024.1.0
 
