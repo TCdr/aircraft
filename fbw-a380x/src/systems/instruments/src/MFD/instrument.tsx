@@ -23,6 +23,7 @@ import { ResetPanelSimvarPublisher } from '../MsfsAvionicsCommon/providers/Reset
 import { FmsMessagePublisher } from '../../../shared/src/publishers/FmsMessagePublisher';
 import { FqmsBusPublisher } from '@shared/publishers/FqmsBusPublisher';
 import { AtcDatalinkSystem } from './ATCCOM/AtcDatalinkSystem';
+import { AocPrintClient } from './FMC/AocPrintClient';
 import { dataStatusUri } from './shared/utils';
 import { FcuEfisCpBusPublisher } from '@shared/publishers/EfisCpBusPublisher';
 import { PrimFctlBusPublisher } from '@shared/publishers/PrimFctlPublisher';
@@ -61,6 +62,9 @@ class MfdInstrument implements FsInstrument {
 
   private readonly atcService = new AtcDatalinkSystem(this.bus);
 
+  /** Prints the AOC messages of the OIT on the cockpit printer */
+  private readonly aocPrintClient: AocPrintClient;
+
   private readonly fmcAFailed = Subject.create(false);
   private readonly fmcBFailed = Subject.create(false);
   private readonly fmcCFailed = Subject.create(false);
@@ -96,10 +100,13 @@ class MfdInstrument implements FsInstrument {
     );
     // The ATIS messages are printed on the FMS printer (the cockpit printer on the pedestal); switched off or without
     // AC 1 power it is not available (PRINTER NOT AVAIL, FCOM DSC-46-10-20-40 P 5)
-    this.atcService.connectPrinter(() => {
+    const availablePrinter = () => {
       const printer = this.fmcService.master?.printer ?? null;
       return printer?.isAvailable() ? printer : null;
-    });
+    };
+    this.atcService.connectPrinter(availablePrinter);
+    // The AOC messages printed from the OIT COMPANY COM inbox, on the same printer
+    this.aocPrintClient = new AocPrintClient(this.bus, availablePrinter);
 
     this.doInit();
   }

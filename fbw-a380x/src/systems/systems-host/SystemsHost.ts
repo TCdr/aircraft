@@ -26,6 +26,7 @@ import { FuelTemperatures } from './CpiomF/FuelTankTemperatures';
 import { WeightBalanceBackup } from './CpiomF/WeightBalanceBackup';
 import { AutolandLights } from './Misc/AutolandLights';
 import { WxPbAutoDeselect } from './Misc/WxPbAutoDeselect';
+import { WxrSurvKnobs } from './Misc/WxrSurvKnobs';
 import { AtcMsgLights } from './Misc/AtcMsgLights';
 import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
 import { CabinSigns } from './Misc/CabinSigns';
@@ -212,6 +213,9 @@ class SystemsHost extends BaseInstrument {
 
   private readonly wxPbAutoDeselect = new WxPbAutoDeselect();
 
+  /** The ELEVN and GAIN knobs of the SURV panel (DSC-34-20-30-20) */
+  private readonly wxrSurvKnobs = new WxrSurvKnobs(this.bus);
+
   private readonly atcMsgLights = new AtcMsgLights();
 
   private readonly cabinOxygenMasks = new CabinOxygenMasks();
@@ -260,6 +264,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('FuelJettison', this.fuelJettison);
     this.backplane.addInstrument('AutolandLights', this.autolandLights);
     this.backplane.addInstrument('WxPbAutoDeselect', this.wxPbAutoDeselect);
+    this.backplane.addInstrument('WxrSurvKnobs', this.wxrSurvKnobs);
     this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
     this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
     this.backplane.addInstrument('CabinSigns', this.cabinSigns);

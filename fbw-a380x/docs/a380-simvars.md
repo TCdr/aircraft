@@ -64,9 +64,9 @@
         - AESU2
         - NSS_AVNCS
         - NSS_FLT_OPS
+        - ATC (pulled: the ATC datalink function is powered down, CpiomD/AtcDatalink.ts; COM ATC DATALINK FAULT)
     - {name} wired in the cockpit only, not read by any system yet
         - AICU1, AICU2
-        - ATC
         - AVS1, AVS2
         - BSCS1, BSCS2
         - CIDS1, CIDS2, CIDS3
@@ -2375,17 +2375,17 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 - `L:A380X_WXR_GAIN_MAN`
     - Bool
-    - Set from the GAIN button of the MFD SURV CONTROLS page. True when the gain is MANUAL (false = AUTO)
+    - Set from the GAIN button of the MFD SURV CONTROLS page and the SURV panel GAIN knob (pull MAN, push AUTO; H events A380X_WXR_GAIN_KNOB_PUSH/_PULL/_INC/_DEC of the cockpit, systems host Misc/WxrSurvKnobs.ts). True when the gain is MANUAL (false = AUTO)
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): MANUAL applies L:A380X_WXR_GAIN, AUTO the calibrated gain
 
 - `L:A380X_WXR_GAIN`
     - Number (percent)
-    - Set from the GAIN entry field of the MFD SURV CONTROLS page (shown with GAIN MAN), 0 to 100, -9999 when nothing is entered
+    - Set from the GAIN entry field of the MFD SURV CONTROLS page (shown with GAIN MAN), and turned with the SURV panel GAIN knob (1 % per detent, 50 % when nothing is entered), 0 to 100, -9999 when nothing is entered
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr) with GAIN MAN: 50 % (and no entry) = calibrated, 0 % = -16 dB, 100 % = +10 dB, the rain rate each colour starts at moves with it (turbulence unchanged)
 
 - `L:A380X_WXR_ELEVN_TILT_MODE`
     - Enum
-    - Set from the ELEVN/TILT option list of the MFD SURV CONTROLS page
+    - Set from the ELEVN/TILT option list of the MFD SURV CONTROLS page and the SURV panel ELEVN knob (push AUTO, pull ELEVN, pull again TILT; H events A380X_WXR_ELEVN_KNOB_PUSH/_PULL/_INC/_DEC, systems host Misc/WxrSurvKnobs.ts)
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): in ELEVN or TILT the ND hides the weather where the selected altitude or tilt reaches the ground
     -   | State | Number |
         |-------|--------|
@@ -2395,12 +2395,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
 
 - `L:A380X_WXR_ELEVN`
     - Number (feet)
-    - Set from the ELEVN entry field of the MFD SURV CONTROLS page, 0 to 60000 (FL 0 to FL 600 with the STD reference), -9999 when nothing is entered
+    - Set from the ELEVN entry field of the MFD SURV CONTROLS page and turned with the SURV panel ELEVN knob in ELEVN mode (100 ft per detent), 0 to 60000 (FL 0 to FL 600 with the STD reference), -9999 when nothing is entered
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): at or below the ground under the aircraft the ND shows no weather
 
 - `L:A380X_WXR_TILT`
     - Number (degrees)
-    - Set from the TILT entry field of the MFD SURV CONTROLS page, -15.0 to +15.0, -9999 when nothing is entered
+    - Set from the TILT entry field of the MFD SURV CONTROLS page and turned with the SURV panel ELEVN knob in TILT mode (0.1 degree per detent), -15.0 to +15.0, -9999 when nothing is entered
     - Shown in the WXR messages of the ND (GAIN, ELEVN, TILT); read by the native radar (ndwxr): a down tilt shows the weather only up to the range where the tilted surface reaches the ground
 
 - `L:A380X_WXR_MODE_MAP`
@@ -2758,7 +2758,21 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - Bool
   - The NSS DATA TO AVNCS pb-sw: 1 = normal (released, the NSS and the avionics exchange data both ways; the value of
     every flight file), 0 = OFF (pressed in, OFF light; the SCIs pass data only from the avionics to the NSS). OFF gives
-    the FWS alert COM NSS DATA TO AVNCS XFR FAULT (A380 FCOM DSC-46-20-20-80, PRO-ABN-ECAM-10-46)
+    the FWS alert COM NSS DATA TO AVNCS XFR FAULT (A380 FCOM DSC-46-20-20-80, PRO-ABN-ECAM-10-46). OFF also stops the AOC
+    downlinks (messages and requests), the uplinks still come in (systems host CpiomD/atsu.ts)
+
+- A32NX_NSS_ANSU_{index}_IS_HEALTHY
+  - Bool
+  - NSS AVNCS ANSU 1(2) healthy: powered, not failed (flyPad 46001, 46002), not reset (RESET panel NSS AVNCS), NSS master
+    on. Written by the OIT (AircraftNetworkServerUnit.ts); the AOC (systems host CpiomD/atsu.ts) runs while one of them
+    is healthy (A380 FCOM DSC-46-40-10-20: "In the case of an ANSU 1 failure, ANSU 2 provides the AOC application")
+
+- A380X_ATC_FUNCTION_AVAIL
+  - Bool
+  - The ATC datalink function (CPDLC, ADS, ATIS) runs: CPIOM D1 available and the ATC RESET pb of the RESET panel pushed
+    in. Written by the systems host (CpiomD/AtcDatalink.ts); false: MAILBOX NOT AVAIL in the SD mailbox, ATC COM NOT
+    AVAIL for 5 s when an ATC COM page is selected with the KCCU ATC COM key (A380 FCOM PRO-SUP-46 ATC RESET,
+    DSC-46-10-20-30)
 
 ## Auxiliary Power Unit ATA 49
 

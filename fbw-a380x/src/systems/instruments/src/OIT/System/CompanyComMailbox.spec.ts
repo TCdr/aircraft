@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Aoc } from '@datalink/aoc';
 import { AtsuMessageDirection, AtsuTimestamp, FreetextMessage } from '@datalink/common';
 import {
+  aocPrintText,
   atsuTimestampToUtcMs,
   CompanyComInboxEntry,
   CompanyComMailbox,
@@ -143,6 +144,44 @@ describe('OIT COMPANY COM inbox', () => {
     expect(mailbox.messages.length).toBe(1);
     bus.getPublisher<any>().pub('aocDeleteMessage', 3);
     expect(mailbox.messages.length).toBe(0);
+  });
+
+  it('still receives the uplinks while the AOC downlinks are inhibited (NSS DATA TO AVNCS OFF, l.103225-103226)', () => {
+    const bus = new EventBus();
+    const aoc = new Aoc(bus, false);
+    aoc.initialize();
+    aoc.powerUp();
+    aoc.setDownlinksInhibited(true);
+    const mailbox = new CompanyComMailbox(bus);
+    mailbox.init();
+    bus.getPublisher<any>().pub('routerReceivedFreetextMessage', uplink('GATE CHANGE B32'));
+    expect(mailbox.messages.getArray().map((e) => e.text)).toEqual(['GATE CHANGE B32']);
+  });
+
+  it('PRINT sends the displayed message to the pedestal printer (DSC-46-40-10-20 l.107938-107939)', () => {
+    const bus = new EventBus();
+    const mailbox = new CompanyComMailbox(bus);
+    mailbox.init();
+    const printed: string[] = [];
+    bus
+      .getSubscriber<any>()
+      .on('aocPrintMessage')
+      .handle((text: string) => printed.push(text));
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('LOADSHEET FOLLOWS', 4));
+    const format = () => '12-OCT 13:05';
+
+    expect(mailbox.printMessage(4, format)).toBe(true);
+    expect(printed).toEqual([aocPrintText(mailbox.messages.get(0), format)]);
+    expect(printed[0]).toContain('FROM : KLMOPS');
+    expect(printed[0]).toContain('LOADSHEET FOLLOWS');
+    expect(mailbox.printMessage(99, format)).toBe(false);
+    expect(printed.length).toBe(1);
+  });
+
+  it('the inbox page has the PRINT button', () => {
+    const page = readFileSync(resolve(__dirname, '../Pages/NssAvncs/CompanyCom/OitAvncsCompanyComInbox.tsx'), 'utf-8');
+    expect(page).toContain('label="PRINT"');
+    expect(page).toContain('this.mailbox.printMessage(uid, AnsuOps.formatDateTime)');
   });
 
   it('is the inbox page of the OIT, with no hard-coded test message left', () => {

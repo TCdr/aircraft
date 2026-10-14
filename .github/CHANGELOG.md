@@ -643,6 +643,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SURV] With the selected TAWS failed and the other WXR failed, the TAWS (GPWS, terrain on ND and VD) comes from the other SURV system - @TCdr
 1. [A380X/MFD] POSITION / IRS: the ALIGN ON OTHER REF panel defines the IRS alignment reference position (PREFLIGHT and DONE phases) - @TCdr
 1. [A380X/MFD] Alternate company routes: ALTN RTE entry on the INIT page and INSERT on the ROUTE SELECTION page, with the DEST / ALTN CPNY RTE DISAGREE message; the ALTERNATE page selection creates a temporary flight plan - @TCdr
+1. [A380X/GPWS] The stall warning now overrides the GPWS alerts, as the windshear warning already did - @TCdr
+1. [A380X/TCAS] The TCAS goes to TA ONLY automatically during a windshear or stall warning and in emergency electrical configuration - @TCdr
+1. [A380X/WXR] The GAIN and ELEVN knobs of the SURV panel work: pull for manual GAIN, ELEVN (pull again for TILT), push for AUTO, turn to adjust; the MFD SURV CONTROLS page follows them - @TCdr
+1. [A380X/ATC] The ATC RESET pb of the overhead RESET panel resets the ATC datalink (connections and mailbox messages lost, COM ATC DATALINK FAULT while pulled); the SD mailbox shows MAILBOX NOT AVAIL and the KCCU ATC COM key ATC COM NOT AVAIL while the ATC is lost - @TCdr
+1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
+1. [A380X/AOC] The AOC runs on the NSS AVNCS ANSUs instead of AC 1, NSS DATA TO AVNCS OFF stops its downlinks (uplinks still received), and the OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
 
 ## 2024.1.0
 
