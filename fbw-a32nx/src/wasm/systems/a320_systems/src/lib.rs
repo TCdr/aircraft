@@ -73,7 +73,7 @@ use systems::{
         AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel,
     },
     pneumatic::EngineState,
-    shared::{ElectricalBusType, EngineStartState, LgciuWeightOnWheels},
+    shared::{ElectricalBusType, EngineStartState, LgciuWeightOnWheels, PackFlowValveState},
     simulation::{Aircraft, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 
@@ -237,6 +237,10 @@ impl Aircraft for A320 {
         context: &UpdateContext,
         electricity: &mut Electricity,
     ) {
+        // The APU speed governing (A320 FCOM l.60473-60476) knows the air conditioning demand: a pack takes air
+        self.apu.update_air_conditioning_demand(
+            (1..=2).any(|pack_id| self.pneumatic.pack_flow_valve_is_open(pack_id)),
+        );
         self.apu.update_before_electrical(
             context,
             &self.apu_overhead,
@@ -568,6 +572,47 @@ mod tests {
         let fault: bool = test_bed.read_by_name("FUEL_APU_LP_VALVE_FAULT");
         assert!(fault);
         assert!(!test_bed.query(|a| a.fuel.apu_has_fuel()));
+    }
+
+    /// A320 FCOM DSC-49-10-20 FUEL SYSTEM (a320_fcom.txt l.60437-60439): the left fuel feed line supplies the APU,
+    /// with the pressure of the tank pumps or else of the APU fuel pump (fuel/apu_fuel_feed.rs). Without electrical
+    /// power neither runs: tank content alone does not feed the APU.
+    #[test]
+    fn without_a_powered_pump_the_apu_has_no_fuel_pressure_despite_the_tank_content() {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("FUEL TANK LEFT MAIN QUANTITY", 1500.);
+        test_bed.write_by_name("OVHD_APU_MASTER_SW_PB_IS_ON", true);
+        for _ in 0..(3 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+
+        assert!(test_bed.query(|a| a.fuel.left_inner_tank_has_fuel_remaining()));
+        assert!(!test_bed.query(|a| a.fuel.apu_fuel_pump_runs()));
+        assert!(!test_bed.query(|a| a.fuel.apu_has_fuel()));
+    }
+
+    /// The APU fuel pump starts with the APU MASTER SW ON when no tank pump runs (a320_fcom.txt l.60439, l.60560),
+    /// powered by the AC ESS SHED bus or the static inverter (electrical/alternating_current.rs)
+    #[test]
+    fn with_the_tank_pumps_off_the_apu_fuel_pump_feeds_the_apu() {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        test_bed.write_by_name("FUEL TANK LEFT MAIN QUANTITY", 1500.);
+        test_bed.write_by_name("OVHD_APU_MASTER_SW_PB_IS_ON", true);
+        for _ in 0..(3 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+
+        assert!(test_bed.query(|a| a.fuel.apu_fuel_pump_runs()));
+        assert!(test_bed.query(|a| a.fuel.apu_has_fuel()));
+
+        // A running left tank pump takes over: the APU fuel pump stops
+        test_bed.write_by_name("FUELSYSTEM PUMP ACTIVE:2", true);
+        for _ in 0..(3 * 20) {
+            test_bed.run_with_delta(Duration::from_millis(50));
+        }
+        assert!(!test_bed.query(|a| a.fuel.apu_fuel_pump_runs()));
+        assert!(test_bed.query(|a| a.fuel.apu_has_fuel()));
     }
 
     /// The flyPad oil failures 79000-79031 (a320_systems_wasm) reach the FADEC through the oil

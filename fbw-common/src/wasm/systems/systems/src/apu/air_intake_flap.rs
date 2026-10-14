@@ -1,6 +1,7 @@
 use crate::{
+    failures::{Failure, FailureType},
     shared::{random_number, ConsumePower, ControllerSignal, ElectricalBusType, ElectricalBuses},
-    simulation::{SimulationElement, UpdateContext},
+    simulation::{SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 use std::time::Duration;
 use uom::si::{f64::*, power::watt, ratio::percent};
@@ -16,6 +17,10 @@ pub(super) struct AirIntakeFlap {
     open_amount: Ratio,
     travel_time: Duration,
     is_moving: bool,
+    /// The flyPad failure "APU air intake flap failed closed": the actuator drives the flap closed whatever its
+    /// command. The ECB then shuts a starting or running APU down (A320 FCOM DSC-49-20 FAULT lt, "Air inlet flap
+    /// closed", a320_fcom.txt l.60653).
+    failed_closed: Failure,
 }
 impl AirIntakeFlap {
     const MINIMUM_TRAVEL_TIME_SECS: u8 = 12;
@@ -35,6 +40,7 @@ impl AirIntakeFlap {
             open_amount: Ratio::new::<percent>(0.),
             travel_time,
             is_moving: false,
+            failed_closed: Failure::new(FailureType::ApuAirIntakeFlapFailedClosed),
         }
     }
 
@@ -46,7 +52,12 @@ impl AirIntakeFlap {
         if !self.is_powered {
             self.is_moving = false;
         } else {
-            match controller.signal() {
+            let signal = if self.failed_closed.is_active() {
+                Some(AirIntakeFlapSignal::Close)
+            } else {
+                controller.signal()
+            };
+            match signal {
                 // The position is computed in percent and clamped, so that the flap ends exactly at 0 % or 100 %.
                 // Adding a percent change to the stored ratio left rounding residues (e.g. -7e-16 %): a flap that is
                 // never exactly closed keeps the APU ECB on, and its FAULT never resets.
@@ -100,6 +111,12 @@ impl AirIntakeFlap {
     }
 }
 impl SimulationElement for AirIntakeFlap {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.failed_closed.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
         self.is_powered = buses.is_powered(self.powered_by);
     }

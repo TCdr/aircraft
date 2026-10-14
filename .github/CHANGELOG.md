@@ -629,6 +629,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
 1. [A32NX/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
 1. [A380X/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
+1. [A32NX/APU] APU values from the FCOM: EGT MAX 1 090 °C during the start (1 120 °C above 35 000 ft) and 675 °C running, starter cut-out at N 60 %, and N 99 % while the APU bleed feeds the packs between -18 and 35 °C - @TCdr
+1. [A32NX/APU] The APU shuts down automatically at EGT MAX and when its air intake flap closes (new flyPad failure "APU air intake flap failed closed"); after an automatic shutdown the air intake flap stays open and closes 15 min after N 7 % (after liftoff when on the ground) - @TCdr
+1. [A32NX/FUEL] The APU fuel pump starts automatically when no left tank pump runs; with neither the APU gets no fuel pressure (FUEL LO PR) - @TCdr
 
 ## 2024.1.0
 

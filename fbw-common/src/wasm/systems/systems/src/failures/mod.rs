@@ -313,6 +313,8 @@ pub enum FailureType {
     ApuOilLowPressure,
     /// The APU oil temperature is high
     ApuOilHighTemperature,
+    /// The APU air intake flap is failed closed: it closes whatever its command (apu::air_intake_flap)
+    ApuAirIntakeFlapFailedClosed,
 }
 
 pub struct Failure {
