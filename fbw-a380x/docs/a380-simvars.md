@@ -3131,6 +3131,17 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
       open it, and a moving door holds its position; the request is carried out once the engines are stopped. Read by
       the flyPad Services page
 
+- A32NX_HYD_{LOOP}_AUXILIARY_1_SECTION_PRESSURE
+    - Pressure (psi)
+    - Pressure of the auxiliary section of hydraulic system {LOOP}: the cargo door actuation (GREEN) or the body
+      wheel steering (YELLOW), pressurised by the electric pumps in automatic mode only (FCOM DSC-29-10)
+    - {LOOP} = GREEN, YELLOW
+
+- A32NX_HYD_{LOOP}_AUXILIARY_1_SECTION_PRESSURE_SWITCH
+    - Boolean
+    - Pressure switch of the auxiliary section of hydraulic system {LOOP}
+    - {LOOP} = GREEN, YELLOW
+
 ## Sound Variables
 
 - A380X_SOUND_COCKPIT_WINDOW_RATIO

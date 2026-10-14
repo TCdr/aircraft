@@ -629,6 +629,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
 1. [A32NX/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
 1. [A380X/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
+1. [A380X/HYD] The hydraulic reservoirs hold 31.70 US gal and RSVR LEVEL LO triggers below 2.6 US gal as in the FCOM (was 100 l and 5 l); the SD HYD page amber low level mark follows the same limit - @TCdr
+1. [A380X/HYD] The yellow electric pumps started automatically for pushback or towing pressurise only the body wheel steering, as in the FCOM, instead of the whole yellow system; electric pumps started with the ELEC PMP ON pb pressurise the whole system (green: except the cargo doors), and an ON pb pressed while its pump runs in automatic mode is disregarded - @TCdr
+1. [A380X/HYD] The HSMU switches off an overheated electric pump, as in the FCOM - @TCdr
+1. [A380X/HYD] ENG PMP FAULT lights on a system overheat and stays on with the pb-sw OFF until the overheat ends; ENG PMP A+B DISC FAULT lights on a reservoir low level whatever the ENG PMP pb-sw, and on an overheat only when turning the pump off failed; ELEC PMP FAULT lights for SYS OVHT, RSVR LEVEL LO and RSVR AIR PRESS LO only on ground with all engines off, as in the FCOM - @TCdr
 
 ## 2024.1.0
 
