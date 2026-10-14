@@ -1122,6 +1122,20 @@ impl HydraulicCircuit {
         }
     }
 
+    /// Gives one pump section its own pressure switch thresholds, for a circuit whose pumps do not share the same
+    /// low pressure setting (the A380 engine pumps and electric pumps, see A380HydraulicCircuitFactory).
+    /// The pressure switch is not pressurised under `lo_hyst` and pressurised again above `hi_hyst`.
+    pub fn with_pump_section_pressure_switch(
+        mut self,
+        pump_index: usize,
+        lo_hyst: Pressure,
+        hi_hyst: Pressure,
+    ) -> Self {
+        self.pump_sections[pump_index].pressure_switch =
+            PressureSwitch::new(hi_hyst, lo_hyst, PressureSwitchType::Relative);
+        self
+    }
+
     pub fn is_fire_shutoff_valve_open(&self, pump_id: usize) -> bool {
         self.pump_sections[pump_id].fire_valve_is_open()
     }
@@ -2755,6 +2769,8 @@ impl HeatingPressureSource for ElectricPump {}
 
 pub struct EngineDrivenPump {
     active_id: VariableIdentifier,
+    /// The pump overheat, as the electric pumps write HYD_{id}_EPUMP_OVHT (used by the A380 FWS for HYD SYS OVHT)
+    overheat_id: VariableIdentifier,
 
     is_active: bool,
     speed: AngularVelocity,
@@ -2781,6 +2797,7 @@ impl EngineDrivenPump {
     ) -> Self {
         Self {
             active_id: context.get_identifier(format!("HYD_{}_EDPUMP_ACTIVE", id)),
+            overheat_id: context.get_identifier(format!("HYD_{}_EDPUMP_OVHT", id)),
             is_active: false,
             speed: AngularVelocity::new::<revolution_per_minute>(0.),
             pump: Pump::new(pump_characteristics),
@@ -2866,6 +2883,7 @@ impl SimulationElement for EngineDrivenPump {
 
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(&self.active_id, self.is_active);
+        writer.write(&self.overheat_id, self.is_overheating());
     }
 }
 impl HeatingElement for EngineDrivenPump {

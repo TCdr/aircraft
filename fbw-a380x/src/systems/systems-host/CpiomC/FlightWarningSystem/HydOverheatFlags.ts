@@ -3,7 +3,7 @@
 
 /**
  * Whether turning off an engine's two hydraulic pumps was not successful: a pump pb-sw is OFF but its section still
- * has pressure (pressure switch above 2 900 PSI).
+ * has pressure (pressure switch not below 2 500 PSI, the ENG PMP PRESS LO threshold of l.155038).
  * A380 FCOM PRO-ABN HYD G (Y) SYS OVHT (a380_fcom.txt l.155460-155470): "If turning off G (Y) ENG 1 (3) PMP A or B is
  * not successful: G(Y) ENG 1(3) PMP A+B ... DISC", same for ENG 2 (4); DSC-29-20 ENG PMP A+B DISC pb (l.61325):
  * "HYD G(Y) SYS OVHT (If pump depressurization failed)". The two DISC lines were always shown, asking the crew to
@@ -22,4 +22,17 @@ export function isEnginePumpsTurnOffUnsuccessful(
   pumpBPressurised: boolean,
 ): boolean {
   return (!pumpAAuto && pumpAPressurised) || (!pumpBAuto && pumpBPressurised);
+}
+
+/**
+ * HYD G (Y) SYS OVHT trigger. A380 FCOM PRO-ABN (a380_fcom.txt l.155436-155437): "The temperature of the green (yellow)
+ * hydraulic reservoir is above 95 C, or an engine pump case drain temperature is above 120 C".
+ * The hydraulic model has no fluid temperature: the reservoir overheat (HYD_<color>_RESERVOIR_OVHT) stands for the
+ * reservoir term and the overheat of each engine pump (HYD_<color>_<n><A|B>_EDPUMP_OVHT) for its case drain term.
+ * @param reservoirOverheat the reservoir of the system overheats
+ * @param enginePumpOverheats the overheat of each of the 4 engine pumps of the system
+ * @returns true when HYD G (Y) SYS OVHT is raised
+ */
+export function isHydSystemOverheat(reservoirOverheat: boolean, enginePumpOverheats: readonly boolean[]): boolean {
+  return reservoirOverheat || enginePumpOverheats.some((overheat) => overheat);
 }

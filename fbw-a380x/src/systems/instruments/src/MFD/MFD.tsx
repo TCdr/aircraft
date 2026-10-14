@@ -37,7 +37,7 @@ import { MfdFmsPageNotAvail } from './pages/FMS/MfdFmsPageNotAvail';
 import { InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/InputField';
 import { AtcDatalinkSystem } from './ATCCOM/AtcDatalinkSystem';
 import { FlightPlanInterface } from '@fmgc/flightplanning/FlightPlanInterface';
-import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
+import { isKccuKeyAvailable, kccuFailureState } from '../MsfsAvionicsCommon/Kccu';
 import { NdInteractiveEvents } from '@shared/NdInteractive';
 import { MfdSystemMessageArea } from './shared/MfdSystemMessageArea';
 import { NXSystemMessages } from './shared/NXSystemMessages';
@@ -68,6 +68,8 @@ interface MfdComponentProps extends ComponentProps {
   fmcService: FmcServiceInterface;
   atcService: AtcDatalinkSystem;
   captOrFo: 'CAPT' | 'FO';
+  /** Whether a flyPad failure is active (the instrument's FailuresConsumer), for the KCCU failures */
+  isFailureActive?: (failureId: number) => boolean;
 }
 
 // TODO integrate in fmgc's DisplayInterface
@@ -269,8 +271,18 @@ export class MfdComponent
         .handle((eventName) => {
           if (eventName.startsWith(this.props.captOrFo === 'CAPT' ? 'A32NX_KCCU_L' : 'A32NX_KCCU_R')) {
             const key = eventName.substring(13);
+            // A failed KCCU keyboard or cursor control device takes no key press (Kccu.ts)
+            const isFailureActive = this.props.isFailureActive;
+            const failures = kccuFailureState(this.props.captOrFo === 'CAPT' ? 'L' : 'R', (id) =>
+              isFailureActive ? isFailureActive(id) : false,
+            );
             if (
-              !isKccuKeyActive(key, this.interactionMode.get() === InteractionMode.Kccu, this.kccuCursorControlDeviceOn)
+              !isKccuKeyAvailable(
+                key,
+                this.interactionMode.get() === InteractionMode.Kccu,
+                this.kccuCursorControlDeviceOn,
+                failures,
+              )
             ) {
               return;
             }

@@ -87,6 +87,13 @@ import { FwcAuralWarning, FwsCore, FwsSuppressableItem } from './FwsCore';
 import { ELEC_AC_ESS_BUS_FAULT_STATUS } from './FwsElecAlerts';
 import { TAIL_STRIKE_DET_FAULT_PHASE_INHIBITION, TAIL_STRIKE_PHASE_INHIBITION } from './FwsTailStrikeAlerts';
 import {
+  EFIS_CTL_PHASE_INHIBITION,
+  FCU_SWITCHED_OFF_PHASE_INHIBITION,
+  KCCU_PHASE_INHIBITION,
+} from './FwsCdsControlAlerts';
+import { RECORDER_ACCELMTR_PHASE_INHIBITION, RECORDER_PHASE_INHIBITION } from './FwsRecorderAlerts';
+import { CABIN_EMER_EXIT_LT_PHASE_INHIBITION } from './FwsEmerExitLightAlerts';
+import {
   APU_GEN_INOP_SYS,
   APU_TR_INOP_SYS,
   apuTrFaultInfo,
@@ -5991,6 +5998,180 @@ export class FwsAbnormalSensed {
       whichItemsToShow: showAllItems(311800020),
       whichItemsChecked: () => EcamAbnormalProcedures[311800020].items.map(() => false),
       failure: 2,
+      sysPage: SdPages.None,
+    },
+    // CDS & AUTO FLT FCU SWITCHED OFF, EFIS CP and KCCU alerts (A380 FCOM PRO-ABN-ECAM-10-31), see FwsCdsControlAlerts;
+    // their INOP SYS and INFO lines are in FwsInopSys and FwsInformation
+    311800001: {
+      // CDS & AUTO FLT FCU SWITCHED OFF, SC and MASTER CAUT (PDF page 5375)
+      flightPhaseInhib: FCU_SWITCHED_OFF_PHASE_INHIBITION,
+      simVarIsActive: this.fws.fcuSwitchedOff,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800002: {
+      // CDS CAPT EFIS BKUP CTL FAULT, SC and MASTER CAUT (PDF page 5380)
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisBkupCtlFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800002),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800002].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800003: {
+      // CDS F/O EFIS BKUP CTL FAULT
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisBkupCtlFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800003),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800003].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800004: {
+      // CDS CAPT EFIS CTL PNL FAULT, SC and MASTER CAUT (PDF page 5382)
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisCtlPnlFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800004),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800004].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800005: {
+      // CDS F/O EFIS CTL PNL FAULT
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisCtlPnlFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800005),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800005].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    311800006: {
+      // CDS CAPT+F/O EFIS CTL PNLs FAULT, SC and MASTER CAUT (PDF page 5391)
+      flightPhaseInhib: EFIS_CTL_PHASE_INHIBITION,
+      simVarIsActive: this.fws.efisCtlPnlsBothFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(311800006),
+      whichItemsChecked: () => EcamAbnormalProcedures[311800006].items.map(() => false),
+      failure: 2,
+      sysPage: SdPages.None,
+    },
+    313800001: {
+      // CDS CAPT CURSOR CTL FAULT, crew awareness (PDF page 5377)
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuCursorCtlFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(313800001),
+      whichItemsChecked: () => EcamAbnormalProcedures[313800001].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800002: {
+      // CDS F/O CURSOR CTL FAULT
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuCursorCtlFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(313800002),
+      whichItemsChecked: () => EcamAbnormalProcedures[313800002].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800003: {
+      // CDS CAPT CURSOR CTL+KEYBOARD FAULT, crew awareness (PDF page 5378)
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuCursorCtlKeyboardFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800004: {
+      // CDS F/O CURSOR CTL+KEYBOARD FAULT
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuCursorCtlKeyboardFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800005: {
+      // CDS CAPT KEYBOARD FAULT, crew awareness (PDF page 5383)
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuKeyboardFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(313800005),
+      whichItemsChecked: () => EcamAbnormalProcedures[313800005].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    313800006: {
+      // CDS F/O KEYBOARD FAULT
+      flightPhaseInhib: KCCU_PHASE_INHIBITION,
+      simVarIsActive: this.fws.kccuKeyboardFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(313800006),
+      whichItemsChecked: () => EcamAbnormalProcedures[313800006].items.map(() => false),
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    // RECORDER alerts, crew awareness (A380 FCOM PRO-ABN-ECAM-10-31, PDF pages 5417-5420), see FwsRecorderAlerts
+    319800001: {
+      // RECORDER ACCELMTR FAULT
+      flightPhaseInhib: RECORDER_ACCELMTR_PHASE_INHIBITION,
+      simVarIsActive: this.fws.recorderAccelmtrFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    319800002: {
+      // RECORDER CVR FAULT
+      flightPhaseInhib: RECORDER_PHASE_INHIBITION,
+      simVarIsActive: this.fws.recorderCvrFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    319800003: {
+      // RECORDER DFDR FAULT
+      flightPhaseInhib: RECORDER_PHASE_INHIBITION,
+      simVarIsActive: this.fws.recorderDfdrFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    319800004: {
+      // RECORDER SYS FAULT
+      flightPhaseInhib: RECORDER_PHASE_INHIBITION,
+      simVarIsActive: this.fws.recorderSysFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    // ATA 33 - LIGHTS
+    334800101: {
+      // CABIN EMER EXIT LT FAULT, crew awareness (A380 FCOM PRO-ABN-ECAM-10-33, PDF page 5541), see FwsEmerExitLightAlerts
+      flightPhaseInhib: CABIN_EMER_EXIT_LT_PHASE_INHIBITION,
+      simVarIsActive: this.fws.cabinEmerExitLtFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      failure: 1,
       sysPage: SdPages.None,
     },
     // ATA 32 - LANDING GEAR & BRAKES

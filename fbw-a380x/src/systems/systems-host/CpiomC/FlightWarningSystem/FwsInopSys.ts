@@ -675,6 +675,83 @@ export class FwsInopSys {
       simVarIsActive: this.fws.displayUnitFault[DisplayUnitID.FoMfd],
       phase: FwsInopSysPhases.AllPhases,
     },
+    // CDS EFIS CP and KCCU alerts STATUS, INOP SYS ALL PHASES (A380 FCOM PRO-ABN-ECAM-10-31), see FwsCdsControlAlerts
+    310300012: {
+      // CAPT EFIS CTL PNL: EFIS CTL PNL FAULT (l.157794), CAPT+F/O EFIS CTL PNLs FAULT (l.158101)
+      simVarIsActive: this.fws.efisCtlPnlInop[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300013: {
+      // F/O EFIS CTL PNL
+      simVarIsActive: this.fws.efisCtlPnlInop[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300014: {
+      // CAPT EFIS CTL: EFIS BKUP CTL FAULT (l.157742)
+      simVarIsActive: this.fws.efisBkupCtlFault[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300015: {
+      // F/O EFIS CTL
+      simVarIsActive: this.fws.efisBkupCtlFault[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300016: {
+      // CAPT CCD: CURSOR CTL FAULT (l.157656)
+      simVarIsActive: this.fws.kccuCursorCtlFault[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300017: {
+      // F/O CCD
+      simVarIsActive: this.fws.kccuCursorCtlFault[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300018: {
+      // CAPT CCD+KBD: CURSOR CTL+KEYBOARD FAULT (l.157697)
+      simVarIsActive: this.fws.kccuCursorCtlKeyboardFault[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300019: {
+      // F/O CCD+KBD
+      simVarIsActive: this.fws.kccuCursorCtlKeyboardFault[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300020: {
+      // CAPT KBD: KEYBOARD FAULT (l.157838)
+      simVarIsActive: this.fws.kccuKeyboardFault[0],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300021: {
+      // F/O KBD
+      simVarIsActive: this.fws.kccuKeyboardFault[1],
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    // RECORDER alerts STATUS, INOP SYS ALL PHASES (l.158900, 158925, 158950, 158979), see FwsRecorderAlerts
+    310300022: {
+      // RECORDER ACCELMTR
+      simVarIsActive: this.fws.recorderAccelmtrFault,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300023: {
+      // CVR
+      simVarIsActive: this.fws.recorderCvrFault,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300004: {
+      // DFDR: RECORDER DFDR FAULT (also an ELEC AC ESS BUS FAULT line, FwsElecAlerts)
+      simVarIsActive: this.fws.recorderDfdrFault,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    310300024: {
+      // RECORDER SYS
+      simVarIsActive: this.fws.recorderSysFault,
+      phase: FwsInopSysPhases.AllPhases,
+    },
+    330300001: {
+      // EMER EXIT LT: CABIN EMER EXIT LT FAULT (l.163345), see FwsEmerExitLightAlerts
+      simVarIsActive: this.fws.cabinEmerExitLtFault,
+      phase: FwsInopSysPhases.AllPhases,
+    },
     320300007: {
       // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions (A380 FCOM l.172781, 175443, 175620)
       // and with the reverser of the engine 2 or 3 inoperative (REVERSER CTL FAULT, FAULT, LOCKED, THR LEVER 2(3)

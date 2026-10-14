@@ -1031,6 +1031,14 @@
         - GREEN
         - YELLOW
 
+- A32NX_HYD_{loop_name}_EDPUMP_OVHT
+    - Bool
+    - Engine driven pump of {loop_name} hydraulic circuit is overheating (written by the shared hydraulic model, not read
+      by the A32NX)
+    - {loop_name}
+        - GREEN
+        - YELLOW
+
 - A32NX_HYD_{loop_name}_EDPUMP_LOW_PRESS
     - Bool
     - Engine driven pump of {loop_name} hydraulic circuit is active but pressure is too low
