@@ -25,11 +25,10 @@ use systems::{
         TargetPressureTemperatureSignal, VariableVolumeContainer,
     },
     shared::{
-        low_pass_filter::LowPassFilter, pid::PidController, update_iterator::MaxStepLoop,
-        ControllerSignal, DelayedTrueLogicGate, ElectricalBusType, ElectricalBuses,
-        EngineBleedPushbutton, EngineCorrectedN1, EngineCorrectedN2, EngineFirePushButtons,
-        EngineStartState, HydraulicColor, PackFlowValveState, PneumaticBleed, PneumaticValve,
-        ReservoirAirPressure,
+        pid::PidController, update_iterator::MaxStepLoop, ControllerSignal, DelayedFalseLogicGate,
+        DelayedTrueLogicGate, ElectricalBusType, ElectricalBuses, EngineBleedPushbutton,
+        EngineCorrectedN1, EngineCorrectedN2, EngineFirePushButtons, EngineStartState,
+        HydraulicColor, PackFlowValveState, PneumaticBleed, PneumaticValve, ReservoirAirPressure,
     },
     simulation::{
         InitContext, Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
@@ -742,28 +741,30 @@ impl BleedOverheatMonitor {
 /// 60 PSI, with a bleed temperature lower or equal to 245 °C, during more than 15 s. 45 PSI, with a
 /// bleed temperature greater than 245 °C, during more than 15 s."
 ///
-/// Design choice (no FCOM value): the monitored pressure is filtered (5 s time constant). The
-/// overpressure valve (l.93886-93888) cycles the pressure of a failed regulation between 55 and
-/// 85 PSI: unfiltered, each dip below 60 PSI restarted the 15 s and the overpressure (AIR ENG BLEED
-/// FAULT) was never detected.
+/// Design choice (no FCOM value): a closure of the overpressure valve in the last 10 s counts as a
+/// pressure above the limit. That valve (l.93886-93888) cycles the pressure of a failed regulation
+/// between 55 and 85 PSI: each dip below 60 PSI restarted the 15 s and the overpressure (AIR ENG
+/// BLEED FAULT) was never detected. The pressure itself is not filtered: at high power the model's
+/// regulation can leave a duct at 55-75 PSI (one bleed feeding the crossbled ducts), which must not
+/// add up to an overpressure.
 struct BleedOverpressureMonitor {
     over_limit: DelayedTrueLogicGate,
-    pressure_filter: LowPassFilter<f64>,
-    /// The filter starts from the first pressure read
-    pressure_filter_initialised: bool,
+    /// The overpressure valve closed in the last OVERPRESSURE_VALVE_CLOSURE_MEMORY
+    overpressure_valve_closed_recently: DelayedFalseLogicGate,
 }
 impl BleedOverpressureMonitor {
     const TEMPERATURE_LIMIT_CELSIUS: f64 = 245.;
     const LOW_TEMPERATURE_PRESSURE_LIMIT_PSIG: f64 = 60.;
     const HIGH_TEMPERATURE_PRESSURE_LIMIT_PSIG: f64 = 45.;
     const CONFIRMATION_TIME: Duration = Duration::from_secs(15);
-    const PRESSURE_FILTER_TIME_CONSTANT: Duration = Duration::from_secs(5);
+    const OVERPRESSURE_VALVE_CLOSURE_MEMORY: Duration = Duration::from_secs(10);
 
     fn new() -> Self {
         Self {
             over_limit: DelayedTrueLogicGate::new(Self::CONFIRMATION_TIME),
-            pressure_filter: LowPassFilter::new(Self::PRESSURE_FILTER_TIME_CONSTANT),
-            pressure_filter_initialised: false,
+            overpressure_valve_closed_recently: DelayedFalseLogicGate::new(
+                Self::OVERPRESSURE_VALVE_CLOSURE_MEMORY,
+            ),
         }
     }
 
@@ -772,21 +773,19 @@ impl BleedOverpressureMonitor {
         context: &UpdateContext,
         pressure: Pressure,
         temperature: ThermodynamicTemperature,
+        overpressure_valve_closed: bool,
     ) {
         let limit_psig = if temperature.get::<degree_celsius>() <= Self::TEMPERATURE_LIMIT_CELSIUS {
             Self::LOW_TEMPERATURE_PRESSURE_LIMIT_PSIG
         } else {
             Self::HIGH_TEMPERATURE_PRESSURE_LIMIT_PSIG
         };
-        if !self.pressure_filter_initialised {
-            self.pressure_filter.reset(pressure.get::<psi>());
-            self.pressure_filter_initialised = true;
-        }
-        let filtered_pressure_psig = self
-            .pressure_filter
-            .update(context.delta(), pressure.get::<psi>());
-        self.over_limit
-            .update(context, filtered_pressure_psig > limit_psig);
+        self.overpressure_valve_closed_recently
+            .update(context, overpressure_valve_closed);
+        self.over_limit.update(
+            context,
+            pressure.get::<psi>() > limit_psig || self.overpressure_valve_closed_recently.output(),
+        );
     }
 
     fn has_overpressure(&self) -> bool {
@@ -1516,8 +1515,12 @@ impl CoreProcessingInputOutputModuleAUnit {
             let bleed_temperature = sensors.precooler_outlet_temperature();
             self.overheat_monitor
                 .update(context, bleed_temperature, regulated_pressure);
-            self.overpressure_monitor
-                .update(context, regulated_pressure, bleed_temperature);
+            self.overpressure_monitor.update(
+                context,
+                regulated_pressure,
+                bleed_temperature,
+                sensors.overpressure_valve_closed(),
+            );
         }
 
         let bleed_pb_is_off = !self.is_engine_bleed_pushbutton_auto;
@@ -2010,6 +2013,11 @@ impl EngineBleedAirSystem {
     /// the overpressure valve is not closed
     fn bleed_air_flows(&self) -> bool {
         self.pressure_regulating_valve.is_open() && !self.overpressure_valve_closed
+    }
+
+    /// The overpressure valve is closed (update_overpressure_valve)
+    fn overpressure_valve_closed(&self) -> bool {
+        self.overpressure_valve_closed
     }
 
     /// The airflow through the bleed valve (the flow of the previous update)
@@ -5722,9 +5730,36 @@ mod tests {
                     context,
                     Pressure::new::<psi>(pressure_psig),
                     ThermodynamicTemperature::new::<degree_celsius>(temperature_celsius),
+                    false,
                 )
             });
             for _ in 0..seconds {
+                test_bed.run_with_delta(Duration::from_secs(1));
+            }
+            test_bed.query_element(|monitor| monitor.has_overpressure())
+        }
+
+        /// The overpressure monitor fed for 30 s with a pressure that alternates every 2 s between
+        /// `high_psig` and `low_psig`, the overpressure valve being closed during the high phases
+        /// when `valve_closes_at_high`
+        fn overpressure_with_cycling_pressure(
+            high_psig: f64,
+            low_psig: f64,
+            valve_closes_at_high: bool,
+        ) -> bool {
+            let mut test_bed = SimulationTestBed::from(BleedOverpressureMonitor::new());
+            for second in 0..30 {
+                let high = (second / 2) % 2 == 0;
+                let pressure_psig = if high { high_psig } else { low_psig };
+                let valve_closed = high && valve_closes_at_high;
+                test_bed.set_update_after_power_distribution(move |monitor, context| {
+                    monitor.update(
+                        context,
+                        Pressure::new::<psi>(pressure_psig),
+                        ThermodynamicTemperature::new::<degree_celsius>(200.),
+                        valve_closed,
+                    )
+                });
                 test_bed.run_with_delta(Duration::from_secs(1));
             }
             test_bed.query_element(|monitor| monitor.has_overpressure())
@@ -5751,22 +5786,19 @@ mod tests {
         }
 
         /// A failed regulation cycled by the overpressure valve between 55 and 85 PSI (FCOM
-        /// DSC-36-10-20 l.93886-93888) is an overpressure (BleedOverpressureMonitor filter)
+        /// DSC-36-10-20 l.93886-93888) is an overpressure (BleedOverpressureMonitor)
         #[test]
         fn an_overpressure_cycled_by_the_overpressure_valve_is_detected() {
-            let mut test_bed = SimulationTestBed::from(BleedOverpressureMonitor::new());
-            for second in 0..30 {
-                let pressure_psig = if (second / 2) % 2 == 0 { 85. } else { 55. };
-                test_bed.set_update_after_power_distribution(move |monitor, context| {
-                    monitor.update(
-                        context,
-                        Pressure::new::<psi>(pressure_psig),
-                        ThermodynamicTemperature::new::<degree_celsius>(200.),
-                    )
-                });
-                test_bed.run_with_delta(Duration::from_secs(1));
-            }
-            assert!(test_bed.query_element(|monitor| monitor.has_overpressure()));
+            assert!(overpressure_with_cycling_pressure(85., 55., true));
+        }
+
+        /// A regulated pressure that keeps dipping below 60 PSI, with the overpressure valve open,
+        /// is no overpressure ("exceeds 60 PSI ... during more than 15 s", l.93934-93939). With a
+        /// filtered pressure the 70/55 PSI swings of the model's regulation at high power (one
+        /// bleed feeding the crossbled ducts) added up to an overpressure.
+        #[test]
+        fn a_pressure_dipping_below_60_psi_without_the_overpressure_valve_is_no_overpressure() {
+            assert!(!overpressure_with_cycling_pressure(70., 55., false));
         }
 
         #[test]
@@ -5838,8 +5870,8 @@ mod tests {
             assert!(!test_bed.cross_bleed_valves_are_open());
 
             test_bed.fail(FailureType::EngineBleedValveStuckOpen(1));
-            // The overpressure valve cycles the pressure between 55 and 85 PSI: the filtered
-            // pressure (BleedOverpressureMonitor) is above 60 PSI after about 6 s, then 15 s
+            // The overpressure valve cycles the pressure between 55 and 85 PSI: its closures count
+            // as an overpressure (BleedOverpressureMonitor), confirmed after 15 s
             run_seconds(&mut test_bed, 30);
             assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERPRESSURE"));
             assert!(fault_light(&mut test_bed, 1));
@@ -6011,7 +6043,8 @@ mod tests {
             assert_ge!(closings, 1);
             assert_ge!(openings, 1);
             assert!(!flag(&mut test_bed, "PNEU_ENG_2_OVERPRESSURE_VALVE_CLOSED"));
-            // The bleed regulation failure is still detected (60 PSI for 15 s, filtered pressure)
+            // The bleed regulation failure is still detected (60 PSI for 15 s, the overpressure valve
+            // closures included)
             assert!(
                 overpressure_detected_after_s.is_some_and(|seconds| seconds <= 30.),
                 "overpressure detected after {overpressure_detected_after_s:?} s"
