@@ -321,6 +321,9 @@ pub enum FailureType {
     ApuOilHighTemperature,
     /// The APU air intake flap is failed closed: it closes whatever its command (apu::air_intake_flap)
     ApuAirIntakeFlapFailedClosed,
+    /// The APU oil level is low: the ECB detects it on the ground with the APU not running (A320 SD APU page LOW OIL
+    /// LEVEL), the APU still runs
+    ApuOilLevelLow,
 }
 
 pub struct Failure {

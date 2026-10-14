@@ -30,11 +30,23 @@ export interface PerfCrzToPrediction {
   secondsFromPresent: Seconds;
 }
 
+/** A part of the descent profile computed with the speedbrakes extended (half) to decelerate in time */
+export interface SpeedbrakeDecelerationSegment {
+  startDistanceFromStart: NauticalMiles;
+  endDistanceFromStart: NauticalMiles;
+}
+
 export abstract class BaseGeometryProfile {
   constructor(protected config: AircraftConfig) {}
   public isReadyToDisplay: boolean = false;
 
   public checkpoints: VerticalCheckpoint[] = [];
+
+  /**
+   * The decelerations of the profile that need the speedbrakes (descent geometric segments and approach decelerations),
+   * for the MORE DRAG FMA message (descent/MoreDragMessage.ts)
+   */
+  public speedbrakeDecelerationSegments: SpeedbrakeDecelerationSegment[] = [];
 
   abstract get maxAltitudeConstraints(): MaxAltitudeConstraint[];
 

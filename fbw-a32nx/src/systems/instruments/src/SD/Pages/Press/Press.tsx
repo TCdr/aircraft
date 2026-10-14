@@ -15,6 +15,7 @@ import {
   cabinAltitudePulses,
   cabinAltitudeTextClass,
   cabinVsPulses,
+  ventilationIndication,
 } from './PressIndications';
 import { deltaPClass, deltaPPulses } from '../Crz/DeltaPIndication';
 
@@ -44,6 +45,16 @@ export const PressPage: FC = () => {
 
   const [flightPhase] = useSimVar('L:A32NX_FWC_FLIGHT_PHASE', 'enum', 1000);
   const [safetyValve] = useSimVar('L:A32NX_PRESS_SAFETY_VALVE_OPEN_PERCENTAGE', 'percentage', 500);
+
+  // The BLOWER and EXTRACT FAULT signals, as the overhead FAULT lights (A320_NEO_INTERIOR.xml): the fault L:var or the
+  // avionics smoke
+  const [blowerFault] = useSimVar('L:A32NX_VENTILATION_BLOWER_FAULT', 'Bool', 1000);
+  const [extractFault] = useSimVar('L:A32NX_VENTILATION_EXTRACT_FAULT', 'Bool', 1000);
+  const [avionicsSmoke] = useSimVar('L:A32NX_SMOKE_AVIONICS_DETECTED', 'Bool', 1000);
+  const ventilation = ventilationIndication(
+    blowerFault > 0 || avionicsSmoke > 0,
+    extractFault > 0 || avionicsSmoke > 0,
+  );
 
   // CAB ALT colour and pulse with the 8800/8600 ft hysteresis (see PressIndications)
   const displayedCabinAlt = Math.round(cabinAlt / 50) * 50;
@@ -264,9 +275,21 @@ export const PressPage: FC = () => {
       />
       <circle className="WhiteCircle" cx={545} cy={315} r={3} />
 
-      <text className="Large White" x={185} y={380}>
+      {/* Avionics ventilation (FCOM DSC-21-30-60 l.9587-9591); the FCOM text gives no position for BLOWER and EXTRACT:
+          left and right of VENT on its line */}
+      {ventilation.blowerShown && (
+        <text className="Large Amber" x={100} y={380}>
+          BLOWER
+        </text>
+      )}
+      <text className={`Large ${ventilation.ventAmber ? 'Amber' : 'White'}`} x={185} y={380}>
         VENT
       </text>
+      {ventilation.extractShown && (
+        <text className="Large Amber" x={245} y={380}>
+          EXTRACT
+        </text>
+      )}
 
       <OverboardInletComponent flightPhase={flightPhase} validSDAC />
       <circle className="WhiteCircle" cx={175} cy={434} r={3} />

@@ -665,6 +665,14 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] STATUS INOP SYS shows STBY RAD NAV with RMPs 1+2 (or all RMPs) failed, and the GPWS, TERR SYS and TAWS lines of the SURV faults under APPR & LDG instead of ALL PHASES - @TCdr
 1. [A380X/FWS] New IR 1(2)(3)(1+2)(1+3)(2+3) IN ATT ALIGN and ALL IRs IN ATT ALIGN memos while IRs align in ATT mode, and a new DATALINK STBY memo while the ACARS provider link is temporarily lost with VHF 3 in data mode - @TCdr
 1. [A380X/FWS] NAV ALL AIR DATA DISAGREE radome destruction line now reads FMS FUEL PRED DISREGARD, as in the FCOM - @TCdr
+1. [A32NX/PFD] The FMA shows MORE DRAG in DES at idle when the descent profile intercept comes less than 2 NM before the next altitude constraint, or in a speedbrake deceleration of the descent profile - @TCdr
+1. [A32NX/SD] DOOR/OXY page: REGUL LO PR in amber and an amber CKPT OXY with the CREW SUPPLY pb-sw OFF or below 300 PSI - @TCdr
+1. [A32NX/SD] CAB PRESS page: amber VENT with amber BLOWER and EXTRACT legends on a blower or extract fault (also with the avionics smoke) - @TCdr
+1. [A32NX/SD] ELEC page: the IDG oil RISE (outlet minus inlet temperature) under each IDG temperature - @TCdr
+1. [A32NX/SD] APU page: LOW OIL LEVEL advisory on the ground with the APU not running, with a new flyPad failure "APU low oil level" - @TCdr
+1. [A32NX/SD] HYD page: the RAT legend turns amber while the RAT is being stowed - @TCdr
+1. [A32NX/EWD] S and F legends and the slat and flap positions turn amber when both of their hydraulic systems are lost (not on ground with the engines stopped) or the slats (flaps) control is lost; S (F) LOCKED ready for the wingtip brakes - @TCdr
+1. [A32NX/EWD] The FOB is half-boxed amber when some fuel is not usable (outer tank transfer valves or both centre tank transfer valves failed closed), also on the SD FUEL page with the outer tank quantity boxed amber - @TCdr
 
 ## 2024.1.0
 

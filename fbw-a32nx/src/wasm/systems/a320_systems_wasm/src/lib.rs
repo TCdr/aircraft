@@ -507,6 +507,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (49_002, FailureType::ApuOilLowPressure),
         (49_003, FailureType::ApuOilHighTemperature),
         (49_004, FailureType::ApuAirIntakeFlapFailedClosed),
+        (49_005, FailureType::ApuOilLevelLow),
         (80_000, FailureType::EngineStartValveStuckClosed(1)),
         (80_001, FailureType::EngineStartValveStuckClosed(2)),
         (80_010, FailureType::EngineStartValveStuckOpen(1)),

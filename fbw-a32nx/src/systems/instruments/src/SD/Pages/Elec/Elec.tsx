@@ -9,7 +9,7 @@ import { useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { PageTitle } from '../../Common/PageTitle';
 import { EcamPage } from '../../Common/EcamPage';
 import { SvgGroup } from '../../Common/SvgGroup';
-import { idgLegendAmber, idgStatusLegend, idgTemperatureClass } from './IdgIndications';
+import { idgLegendAmber, idgStatusLegend, idgTemperatureClass, idgTemperatureRise } from './IdgIndications';
 import { isEngineGeneratorLegendAmber, isEngineGeneratorNumberAmber } from './GeneratorIndications';
 import { isEngineRunning } from '../../Common/EngineRunning';
 
@@ -179,9 +179,11 @@ export const ElecPage = () => {
       <IntegratedDriveGeneratorTitle x={28.13} y={476.25} number={1} />
       <IntegratedDriveGeneratorTemperature x={135} y={476.25} number={1} />
       <IntegratedDriveGeneratorStatus x={29.13} y={495} number={1} />
+      <IntegratedDriveGeneratorRise x={135} y={495} number={1} />
       <IntegratedDriveGeneratorTitle x={513.75} y={476.25} number={2} />
       <IntegratedDriveGeneratorTemperature x={480} y={476.25} number={2} />
       <IntegratedDriveGeneratorStatus x={518.75} y={495} number={2} />
+      <IntegratedDriveGeneratorRise x={480} y={495} number={2} />
     </EcamPage>
   );
 };
@@ -683,7 +685,12 @@ const useIntegratedDriveGenerator = (number: number) => {
   const [temperature] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_OUTLET_TEMPERATURE`, 'Celsius', maxStaleness);
   // The GCU low oil pressure signal, inhibited below N2 14 % (systems electrical/engine_generator.rs)
   const [lowPressure] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_LOW_PRESSURE`, 'Bool', maxStaleness);
-  return { connected, temperature, lowPressure };
+  const [inletTemperature] = useSimVar(
+    `L:A32NX_ELEC_ENG_GEN_${number}_IDG_OIL_INLET_TEMPERATURE`,
+    'Celsius',
+    maxStaleness,
+  );
+  return { connected, temperature, lowPressure, inletTemperature };
 };
 
 const IntegratedDriveGeneratorTitle = ({ x, y, number }) => {
@@ -704,6 +711,23 @@ const IntegratedDriveGeneratorTemperature = ({ x, y, number }) => {
   return (
     <SvgGroup x={x} y={y}>
       <text className={`${idgTemperatureClass(temperature)} Right`}>{Math.round(temperature)}</text>
+      <text x={3.75} className="Cyan">
+        °C
+      </text>
+    </SvgGroup>
+  );
+};
+
+/**
+ * The RISE of the IDG oil, in green with its unit, under the outlet temperature (FCOM DSC-24-20 (13), see
+ * IdgIndications). The FCOM text gives a number only and no position: it is drawn one line under the outlet temperature,
+ * aligned with it.
+ */
+const IntegratedDriveGeneratorRise = ({ x, y, number }) => {
+  const { temperature, inletTemperature } = useIntegratedDriveGenerator(number);
+  return (
+    <SvgGroup x={x} y={y}>
+      <text className="Green Right">{idgTemperatureRise(temperature, inletTemperature)}</text>
       <text x={3.75} className="Cyan">
         °C
       </text>

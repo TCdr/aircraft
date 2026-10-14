@@ -116,6 +116,9 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
   /** CHECK APPR SELECTION, computed by the FMGC (fms-messages CheckApproachSelection.ts) */
   private readonly checkApprSelection = Subject.create(false);
 
+  /** MORE DRAG, computed by the FMGC VNAV (guidance/vnav/descent/MoreDragMessage.ts) */
+  private readonly moreDrag = Subject.create(false);
+
   private firstBorderSub = Subject.create('');
 
   private secondBorderSub = Subject.create('');
@@ -143,6 +146,7 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
       disconnectApForLdg,
       setGreenDotSpeed,
       checkApprSelection,
+      moreDrag,
     ]) =>
       getBC3Message(
         isAttExcessive,
@@ -156,6 +160,7 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
         disconnectApForLdg,
         setGreenDotSpeed,
         checkApprSelection,
+        moreDrag,
       ),
     this.props.isAttExcessive,
     this.fmgcDiscreteWord7,
@@ -168,6 +173,7 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
     this.disconnectApForLdg,
     this.setGreenDotSpeed,
     this.checkApprSelection,
+    this.moreDrag,
   );
 
   private BC3MessageActive = MappedSubject.create(([BC3Message]) => BC3Message[0] !== null, this.BC3Message);
@@ -353,6 +359,8 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
     sub.on('checkSpeedMode').handle(this.checkSpeedMode.set.bind(this.checkSpeedMode));
 
     sub.on('checkApprSelection').handle((active) => this.checkApprSelection.set(!!active));
+
+    sub.on('moreDrag').handle((active) => this.moreDrag.set(!!active));
 
     sub.on('autoBrakeMode').handle(this.autobrakeMode.set.bind(this.autobrakeMode));
     sub.on('autoBrakeActive').handle(this.autobrakeActive.set.bind(this.autobrakeActive));
@@ -1656,6 +1664,7 @@ const getBC3Message = (
   disconnectApForLdg: boolean,
   setGreenDotSpeed: boolean,
   checkApprSelection: boolean,
+  moreDrag: boolean,
 ) => {
   const flightPhaseForWarning =
     fwcFlightPhase >= 2 && fwcFlightPhase <= 9 && fwcFlightPhase !== 4 && fwcFlightPhase !== 5;
@@ -1711,9 +1720,10 @@ const getBC3Message = (
   } else if (tdReached) {
     text = 'T/D REACHED';
     className = 'FontMediumSmaller White Fill';
-  } else if (false) {
+  } else if (moreDrag) {
+    // FCOM DSC-22_30-100 l.33617-33623, computed by the FMGC VNAV (fmgc guidance/vnav/descent/MoreDragMessage.ts)
     text = 'MORE DRAG';
-    className = 'FontMediumSmaller White';
+    className = 'FontMediumSmaller White Fill';
   } else if (checkSpeedMode && !isAttExcessive) {
     text = 'CHECK SPEED MODE';
     className = 'FontMediumSmaller White Fill';
