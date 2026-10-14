@@ -617,6 +617,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL] AUTO GND XFR pushbutton: automatic ground transfer to the ground CG target of 39.5 % (trim tank to or from the inner, then mid tanks), GND XFR IN PROGRESS memo, light flashing when the FQMS aborts - @TCdr
 1. [A380X/FUEL] TRIM TK FEED logic (ISOL stops the trim tank transfers, OPEN gravity transfer to the inner tanks), from an L:var as the cockpit has no selector - @TCdr
 1. [A380X/FUEL] Alternate transfers after a transfer pump failure: an inner or mid tank with a failed fwd pump keeps feeding with its aft pump, an outer tank with a failed pump empties by gravity into feed tank 2 or 3 - @TCdr
+1. [A380X/FUEL] Fuel tank temperatures, shown on the FUEL SD page (outer and trim tanks, feed tanks when abnormal or with MORE), with the FUEL TEMP LO and FUEL FEED TK TEMP HI alerts - @TCdr
+1. [A380X/FUEL] Collector cell quantities from the feed tanks (they empty when the engine is fed by gravity) instead of a fixed value, with the FUEL COLLECTOR CELL NOT FULL alerts - @TCdr
+1. [A380X/FUEL] Weight and balance backup computer: FUEL WEIGHT DATA DISAGREE and FUEL CG DATA DISAGREE against a wrong FMS ZFW or ZFWCG, FUEL EXCESS AFT CG, and the FMS CG backup - @TCdr
+1. [A380X/FWS] FUEL CG AT FWD LIMIT and FUEL CG OUT OF RANGE from the FCOM CG envelope, and the FUEL INR/MID/OUTR/TRIM TK MAN XFR COMPLETED alerts - @TCdr
+1. [A380X/FWS] FUEL FEED TK LEVEL LO: the TRIM TK FEED and transfer pushbutton lines are now shown and ticked - @TCdr
 
 ## 2024.1.0
 

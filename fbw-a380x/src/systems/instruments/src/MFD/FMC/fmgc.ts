@@ -23,6 +23,7 @@ import { minGw } from '@shared/PerformanceConstants';
 import { A380AircraftConfig } from '@fmgc/flightplanning/A380AircraftConfig';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
+import { grossWeightCgFromFqmsOrWbbc } from './GrossWeightCgSource';
 
 export enum TakeoffPowerSetting {
   TOGA = 0,
@@ -208,12 +209,13 @@ export class FmgcDataService implements Fmgc {
   private readonly fqmsFob = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_total_fuel_on_board'));
   private readonly fqmsGw = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_gross_weight'));
   private readonly fqmsGwCg = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_center_of_gravity_mac'));
+  private readonly wbbcGwCg = Arinc429LocalVarConsumerSubject.create(this.sub.on('wbbc_center_of_gravity_mac'));
 
   constructor(
     private readonly bus: EventBus,
     private flightPlanService: FlightPlanService,
   ) {
-    this.subs.push(this.fqmsFob, this.fqmsGw, this.fqmsGwCg);
+    this.subs.push(this.fqmsFob, this.fqmsGw, this.fqmsGwCg, this.wbbcGwCg);
   }
 
   public destroy() {
@@ -258,8 +260,8 @@ export class FmgcDataService implements Fmgc {
    * @returns the gross weight center of gravity in %
    */
   public getGrossWeightCg(): number | null {
-    // Value received from FQMS, or falls back to value from WBBC (TODO)
-    return this.fqmsGwCg.get().valueOr(null);
+    // Value received from FQMS, or falls back to value from WBBC (CpiomF/WeightBalanceBackup)
+    return grossWeightCgFromFqmsOrWbbc(this.fqmsGwCg.get(), this.wbbcGwCg.get());
   }
 
   /**

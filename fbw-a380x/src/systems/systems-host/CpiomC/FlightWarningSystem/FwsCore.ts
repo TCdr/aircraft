@@ -150,6 +150,7 @@ import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
 import { EngineStartFault, EngineStartPhase, isIgnitionMemoShown, StartValveFault } from './EngineStartAlerts';
 import {
   FeedTankLevelLoMonitor,
+  FeedTankPumpFlags,
   readCrossFeedPbSelections,
   readCrossFeedValveFlags,
   readFeedTankPumpFlags,
@@ -223,6 +224,28 @@ import {
 import { ApuFaultInputs, isApuFault } from './ApuFaultAlerts';
 import { SMOKE_ZONES, smokeWarnings } from './SmokeAlerts';
 import { fuelTransferMemos, TankOutflowMonitor } from './FuelTransferMemos';
+import {
+  CgOutOfRangeMonitor,
+  CgOutOfRangeState,
+  ExcessAftCgMonitor,
+  FuelCgProcedureInputs,
+  isCgAtFwdLimit,
+  isCgDataDisagree,
+  isWeightDataDisagree,
+  TrimTankFeedSelector,
+  WeightAndCg,
+} from './FwsFuelCgWeightAlerts';
+import {
+  CollectorCellNotFullMonitor,
+  FeedTankLevelLoTransferInputs,
+  FuelTankProcedureInputs,
+  fuelTempLoState,
+  isFeedTankTempHi,
+  manualTransferCompleted,
+  TEMP_LO_OUTER_XFR_FEED_TANK_KG,
+  TempLoState,
+} from './FwsFuelTankAlerts';
+import { collectorCellQuantityVar, fuelTankTemperatureVar } from '@shared/FuelTankIndications';
 import { ElecPumpRedundancyLoss, enginePumpPressLoStatus } from './HydPumpStatus';
 import { AbnormBleedConfigInputs, isAbnormBleedConfig } from './AbnormBleedConfig';
 import { BleedMonitoringInputs, isBleedLeak, isEngineBleedFault } from './BleedMonitoringAlerts';
@@ -1777,6 +1800,95 @@ export class FwsCore {
 
   /** The left (right) mid tank holds fuel */
   public readonly midTankNotEmpty = [0, 1].map(() => Subject.create(false));
+
+  // FCOM gap batch T2-16: FUEL CG / weight alerts (FwsFuelCgWeightAlerts) and tank alerts (FwsFuelTankAlerts)
+  private readonly fqmsGrossWeight = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_gross_weight'));
+
+  private readonly cgOutOfRangeMonitor = new CgOutOfRangeMonitor();
+
+  private readonly excessAftCgMonitor = new ExcessAftCgMonitor();
+
+  private readonly collectorCellNotFullMonitor = new CollectorCellNotFullMonitor();
+
+  /** FUEL CG AT FWD LIMIT */
+  public readonly fuelCgAtFwdLimit = Subject.create(false);
+
+  /** FUEL CG OUT OF RANGE, and which of its triggers is active (for its lines) */
+  public readonly fuelCgOutOfRange = Subject.create(false);
+
+  public fuelCgOutOfRangeState: CgOutOfRangeState = {
+    active: false,
+    takeoffLimitsAtEngineStart: false,
+    alternateCgAbove54: false,
+  };
+
+  /** FUEL EXCESS AFT CG */
+  public readonly fuelExcessAftCg = Subject.create(false);
+
+  /** FUEL CG DATA DISAGREE */
+  public readonly fuelCgDataDisagree = Subject.create(false);
+
+  /** FUEL WEIGHT DATA DISAGREE */
+  public readonly fuelWeightDataDisagree = Subject.create(false);
+
+  /** FUEL COLLECTOR CELL 1-4 NOT FULL */
+  public readonly fuelCollectorCellNotFull = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** FUEL FEED TK 1-4 TEMP HI */
+  public readonly fuelFeedTankTempHi = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** FUEL TEMP LO, and which tanks are below -40 °C (for its lines) */
+  public readonly fuelTempLo = Subject.create(false);
+
+  public fuelTempLoState: TempLoState = { active: false, outerTankLo: false, trimTankLo: false, feedTankLo: false };
+
+  /** Any feed tank below 35 300 lb, the WHEN line of FUEL TEMP LO */
+  public anyFeedTankBelowTempLoOuterXfrQty = false;
+
+  /** FUEL INR TKs, MID TKs, OUTR TKs and TRIM TK MAN XFR COMPLETED */
+  public readonly fuelInnerTankManXfrCompleted = Subject.create(false);
+
+  public readonly fuelMidTankManXfrCompleted = Subject.create(false);
+
+  public readonly fuelOuterTankManXfrCompleted = Subject.create(false);
+
+  public readonly fuelTrimTankManXfrCompleted = Subject.create(false);
+
+  /** The pb-sw selections that the T2-16 fuel procedures sense */
+  public fuelTankProcedureInputs: FuelTankProcedureInputs = {
+    onGround: true,
+    feedMainPbOn: [false, false, false, false],
+    feedStbyPbOn: [false, false, false, false],
+    crossFeedPbOn: [false, false, false, false],
+    outerXfrMan: false,
+    midXfrMan: false,
+    innerXfrMan: false,
+    trimXfrFwd: false,
+    trimTankFeedAuto: true,
+    emerOuterXfrOn: false,
+  };
+
+  /** What the CG alert procedures sense */
+  public fuelCgProcedureInputs: FuelCgProcedureInputs = {
+    trimTankFeed: TrimTankFeedSelector.Auto,
+    trimTankXfrAuto: true,
+    outerTankXfrAuto: true,
+    trimTankPumpAvailable: false,
+    trimTankHoldsFuel: false,
+    outerTanksHoldFuel: false,
+    autoGroundTransferOn: false,
+    trimTankColdFuel: false,
+  };
+
+  /** What the transfer lines of FUEL FEED TK(s) LEVEL LO read */
+  public feedTankLevelLoTransferInputs: FeedTankLevelLoTransferInputs = {
+    trimTankGravityXfrInProgress: false,
+    outerTanksHoldFuel: false,
+    trimTankHoldsFuel: false,
+    innerTanksHoldFuel: false,
+    midTanksHoldFuel: false,
+    trimTankPumpRunning: false,
+  };
 
   public readonly crossFeedOpenMemo = MappedSubject.create(
     ([cf1, cf2, cf3, cf4]) => [cf1, cf2, cf3, cf4].filter((c) => c === true).length >= 2,
@@ -3407,6 +3519,7 @@ export class FwsCore {
       this.masterWarningOutput,
       this.fuelOnBoard,
       this.fqmsGrossWeightCgPercent,
+      this.fqmsGrossWeight,
       this.fqmsStatusWord,
       this.fqmsZfwOrZfwCgNotSet,
       this.fqmsZfwOrZfwCgDisagree,
@@ -6793,6 +6906,9 @@ export class FwsCore {
     this.midTankNotEmpty[0].set(tankHasFuel(3));
     this.midTankNotEmpty[1].set(tankHasFuel(8));
 
+    // FCOM gap batch T2-16: FUEL CG / weight alerts (FwsFuelCgWeightAlerts) and tank alerts (FwsFuelTankAlerts)
+    this.updateFuelCgAndTankAlerts(readBool, tankKg, tankHasFuel, feedPumps, crossFeedPbs);
+
     readCrossFeedValveFlags(readBool, (valve) =>
       SimVar.GetSimVarValue(`FUELSYSTEM VALVE OPEN:${valve}`, SimVarValueType.PercentOver100),
     ).forEach((valve, index) => {
@@ -8178,6 +8294,148 @@ export class FwsCore {
     this.aThrDiscInputBuffer.write(false, true);
     this.apDiscInputBuffer.write(false, true);
     this.autoPilotInstinctiveDiscCountSinceLastFwsCycle = 0;
+  }
+
+  /**
+   * FCOM gap batch T2-16: the FUEL CG / weight alerts (FwsFuelCgWeightAlerts), the collector cell, temperature and MAN
+   * XFR COMPLETED alerts and the transfer lines of FEED TK(s) LEVEL LO (FwsFuelTankAlerts). MSFS tanks: outer 1 and 10,
+   * feed 2, 5, 6, 9, mid 3 and 8, inner 4 and 7, trim 11.
+   * @param readBool reads a Bool simvar
+   * @param tankKg reads an MSFS tank weight, in kg
+   * @param tankHasFuel whether an MSFS tank holds fuel
+   * @param feedPumps the feed tank pumps (readFeedTankPumpFlags)
+   * @param crossFeedPbs the CROSSFEED 1-4 pb-sw ON
+   */
+  private updateFuelCgAndTankAlerts(
+    readBool: (name: string) => number,
+    tankKg: (tank: number) => number,
+    tankHasFuel: (tank: number) => boolean,
+    feedPumps: readonly FeedTankPumpFlags[],
+    crossFeedPbs: readonly boolean[],
+  ): void {
+    const onGround = this.aircraftOnGround.get();
+    const xfrPbAuto = (tank: string) => readBool(`L:A380X_OVHD_FUEL_${tank}_XFR_PB_IS_AUTO`) > 0;
+    const outerXfrAuto = xfrPbAuto('OUTRTK');
+    const midXfrAuto = xfrPbAuto('MIDTK');
+    const innerXfrAuto = xfrPbAuto('INRTK');
+    const trimXfrAuto = xfrPbAuto('TRIMTK');
+    const trimTankFeed = SimVar.GetSimVarValue('L:A380X_OVHD_FUEL_TRIM_TK_FEED_SELECTOR', SimVarValueType.Number);
+    const outerTanksHoldFuel = tankHasFuel(1) || tankHasFuel(10);
+    const innerTanksHoldFuel = tankHasFuel(4) || tankHasFuel(7);
+    const midTanksHoldFuel = tankHasFuel(3) || tankHasFuel(8);
+    const trimTankHoldsFuel = tankHasFuel(11);
+    const trimPumps = [this.transferPumpFlags.trimLeft, this.transferPumpFlags.trimRight];
+    const trimTankPumpAvailable = trimPumps.some((pump) => pump.pbOn && !pump.fault);
+    const temperature = (tank: Parameters<typeof fuelTankTemperatureVar>[0]) =>
+      SimVar.GetSimVarValue(fuelTankTemperatureVar(tank), SimVarValueType.Number);
+
+    this.fuelTankProcedureInputs = {
+      onGround,
+      feedMainPbOn: feedPumps.map((p) => p.mainPbOn),
+      feedStbyPbOn: feedPumps.map((p) => p.stbyPbOn),
+      crossFeedPbOn: crossFeedPbs,
+      outerXfrMan: !outerXfrAuto,
+      midXfrMan: !midXfrAuto,
+      innerXfrMan: !innerXfrAuto,
+      trimXfrFwd: !trimXfrAuto,
+      trimTankFeedAuto: trimTankFeed === TrimTankFeedSelector.Auto,
+      emerOuterXfrOn: this.fuelEmerOutrTkXfrOn.get(),
+    };
+
+    // FUEL TEMP LO and FEED TK 1-4 TEMP HI (CpiomF/FuelTankTemperatures)
+    const feedTanks = [2, 5, 6, 9];
+    const feedTemperatures = (['FEED_1', 'FEED_2', 'FEED_3', 'FEED_4'] as const).map(temperature);
+    this.fuelTempLoState = fuelTempLoState({
+      outer: [
+        { temperatureC: temperature('LEFT_OUTER'), quantityKg: tankKg(1) },
+        { temperatureC: temperature('RIGHT_OUTER'), quantityKg: tankKg(10) },
+      ],
+      trim: { temperatureC: temperature('TRIM'), quantityKg: tankKg(11) },
+      feed: feedTanks.map((tank, index) => ({ temperatureC: feedTemperatures[index], quantityKg: tankKg(tank) })),
+    });
+    this.fuelTempLo.set(this.fuelTempLoState.active);
+    this.anyFeedTankBelowTempLoOuterXfrQty = feedTanks.some((tank) => tankKg(tank) < TEMP_LO_OUTER_XFR_FEED_TANK_KG);
+    this.fuelFeedTankTempHi.forEach((alert, index) =>
+      alert.set(tankKg(feedTanks[index]) > 0 && isFeedTankTempHi(feedTemperatures[index])),
+    );
+
+    // FUEL COLLECTOR CELL 1-4 NOT FULL (CpiomF/FuelCollectorCells); feed tank pumps Pump.1-8
+    const feedTankLow = [this.feedTank1Low, this.feedTank2Low, this.feedTank3Low, this.feedTank4Low];
+    this.collectorCellNotFullMonitor
+      .update(
+        [1, 2, 3, 4].map((cell) => ({
+          quantityKg: SimVar.GetSimVarValue(collectorCellQuantityVar(cell), SimVarValueType.Number),
+          feedTankLevelLo: feedTankLow[cell - 1].get(),
+          pumpRunning:
+            readBool(`FUELSYSTEM PUMP ACTIVE:${2 * cell - 1}`) > 0 ||
+            readBool(`FUELSYSTEM PUMP ACTIVE:${2 * cell}`) > 0,
+        })),
+      )
+      .forEach((notFull, index) => this.fuelCollectorCellNotFull[index].set(notFull));
+
+    // FUEL INR TKs / MID TKs / OUTR TKs / TRIM TK MAN XFR COMPLETED
+    const completed = manualTransferCompleted({
+      innerTanksHoldFuel,
+      midTanksHoldFuel,
+      outerTanksHoldFuel,
+      trimTankHoldsFuel,
+      outerXfrMan: !outerXfrAuto,
+      midXfrMan: !midXfrAuto,
+      innerXfrMan: !innerXfrAuto,
+      trimXfrFwd: !trimXfrAuto,
+    });
+    this.fuelInnerTankManXfrCompleted.set(completed.inner);
+    this.fuelMidTankManXfrCompleted.set(completed.mid);
+    this.fuelOuterTankManXfrCompleted.set(completed.outer);
+    this.fuelTrimTankManXfrCompleted.set(completed.trim);
+
+    // FEED TK(s) LEVEL LO transfer lines (CpiomF/FuelTrimTankFeed gravity transfer)
+    this.feedTankLevelLoTransferInputs = {
+      trimTankGravityXfrInProgress: readBool('L:A380X_FUEL_TRIM_TK_GRAVITY_XFR_IN_PROGRESS') > 0,
+      outerTanksHoldFuel,
+      trimTankHoldsFuel,
+      innerTanksHoldFuel,
+      midTanksHoldFuel,
+      trimTankPumpRunning: trimTankPumpAvailable,
+    };
+
+    // CG and weight: FQMS (FMS ZFW / ZFWCG + fuel) and WBBC (CpiomF/WeightBalanceBackup)
+    const valueOrNull = (word: { isNormalOperation(): boolean; value: number }) =>
+      word.isNormalOperation() ? word.value : null;
+    const fqms: WeightAndCg = {
+      grossWeightKg: valueOrNull(this.fqmsGrossWeight.get()),
+      cgPercentMac: valueOrNull(this.fqmsGrossWeightCgPercent.get()),
+    };
+    const wbbc: WeightAndCg = {
+      grossWeightKg: valueOrNull(Arinc429Word.fromSimVarValue('L:A380X_WBBC_GROSS_WEIGHT')),
+      cgPercentMac: valueOrNull(Arinc429Word.fromSimVarValue('L:A380X_WBBC_CENTER_OF_GRAVITY_MAC')),
+    };
+    this.fuelCgAtFwdLimit.set(isCgAtFwdLimit(fqms));
+    this.fuelCgDataDisagree.set(isCgDataDisagree(fqms, wbbc));
+    this.fuelWeightDataDisagree.set(isWeightDataDisagree(fqms, wbbc));
+    this.fuelExcessAftCg.set(
+      this.excessAftCgMonitor.update(wbbc.cgPercentMac, outerXfrAuto && midXfrAuto && innerXfrAuto && trimXfrAuto),
+    );
+    const enginesRunning = [this.engine1Running, this.engine2Running, this.engine3Running, this.engine4Running].filter(
+      (running) => running.get(),
+    ).length;
+    this.fuelCgOutOfRangeState = this.cgOutOfRangeMonitor.update({
+      engModeIgnStart: this.engineStartSelIgnition.get(),
+      enginesRunning,
+      fqms,
+      alternateGaugingCgPercentMac: SimVar.GetSimVarValue('L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC', SimVarValueType.Number),
+    });
+    this.fuelCgOutOfRange.set(this.fuelCgOutOfRangeState.active);
+    this.fuelCgProcedureInputs = {
+      trimTankFeed,
+      trimTankXfrAuto: trimXfrAuto,
+      outerTankXfrAuto: outerXfrAuto,
+      trimTankPumpAvailable,
+      trimTankHoldsFuel,
+      outerTanksHoldFuel,
+      autoGroundTransferOn: readBool('L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON') > 0,
+      trimTankColdFuel: this.fuelTempLoState.trimTankLo,
+    };
   }
 
   autoThrottleInstinctiveDisconnect() {
