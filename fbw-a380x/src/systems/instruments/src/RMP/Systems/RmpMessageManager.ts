@@ -1,9 +1,10 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { ConsumerSubject, EventBus, HEvent, MappedSubject, Subject } from '@microsoft/msfs-sdk';
 import { KeypadEvents, SystemKeys } from './KeypadController';
 import { TransponderEvents } from '../Data/TransponderPublisher';
+import { RmpMessageQueue } from './RmpMessageQueue';
 
 export interface RmpMessageControlEvents {
   rmp_message_set: string;
@@ -31,7 +32,9 @@ export class RmpMessageManager {
   );
 
   private readonly displayedMessage = Subject.create('');
-  private isBackgroundDisplayed = true;
+
+  /** The active messages, the most recent one displayed (FCOM l.49321-49324, see RmpMessageQueue). */
+  private readonly queue = new RmpMessageQueue();
 
   private readonly clearEvent = `RMP_${this.rmpIndex}_MSG_CLR_PRESSED`;
 
@@ -40,23 +43,20 @@ export class RmpMessageManager {
     private readonly rmpIndex: 1 | 2 | 3,
   ) {
     this.sub.on('rmp_message_set').handle((msg) => {
-      this.isBackgroundDisplayed = false;
-      this.displayedMessage.set(msg);
+      this.queue.add(msg);
+      this.updateDisplayedMessage();
     });
     this.sub.on('rmp_message_clear_message').handle((msg) => {
-      if (this.displayedMessage.get() === msg) {
-        this.clearMessage();
-      }
+      this.queue.remove(msg);
+      this.updateDisplayedMessage();
     });
-    this.squawkMessage.sub((msg) => {
-      if (this.isBackgroundDisplayed) {
-        this.displayedMessage.set(msg);
-      }
-    });
+    this.squawkMessage.sub(() => this.updateDisplayedMessage());
 
     this.sub.on('keypad_system_key_pressed').handle((k) => {
       if (k === SystemKeys.MessageClear) {
-        this.clearMessage();
+        // one message at a time: the previous active message comes back (l.49321-49324)
+        this.queue.clearDisplayed();
+        this.updateDisplayedMessage();
       }
     });
 
@@ -65,8 +65,8 @@ export class RmpMessageManager {
     this.squawkMessageEnabled.sub((v) => console.log('squawkMessageEnabled', v));
   }
 
-  private clearMessage(): void {
-    this.isBackgroundDisplayed = true;
-    this.displayedMessage.set(this.squawkMessage.get());
+  /** Shows the most recent active message, or the squawk in the background when no message is active. */
+  private updateDisplayedMessage(): void {
+    this.displayedMessage.set(this.queue.displayed ?? this.squawkMessage.get());
   }
 }

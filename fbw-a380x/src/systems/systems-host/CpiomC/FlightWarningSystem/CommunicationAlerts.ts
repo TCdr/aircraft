@@ -332,3 +332,25 @@ export function informationSystemAlerts(inputs: InformationSystemInputs): Inform
     nssAvncsDataXfrFault: inputs.sciFailed.length === 2 && inputs.sciFailed.every((failed) => failed),
   };
 }
+
+/**
+ * The CALLS panel pbs that call the cabin crew (A380 FCOM DSC-23-20 CALLS panel, a380_fcom.txt l.49032-49058: PURS, DECK
+ * and ALL pbs light the cabin Area Call Panels and chime in the cabin). PILOT REST only chimes in a crew rest
+ * (l.49040-49042) and MECH calls the ground crew (l.49072-49077). L:vars written by A380_Cockpit_Behavior.xml (CALLS).
+ */
+export const CABIN_CALL_PUSHBUTTON_VARS = [
+  'L:PUSH_OVHD_CALLS_ALL',
+  'L:PUSH_OVHD_CALLS_DECK_UPPER',
+  'L:PUSH_OVHD_CALLS_DECK_MAIN',
+  'L:PUSH_OVHD_CALLS_PURS',
+] as const;
+
+/**
+ * Whether the flight crew calls the cabin crew from the CALLS panel. FBW simplification (no cabin crew): the cabin crew
+ * answer such a call by reporting CABIN READY (FwsCore, L:A32NX_CABIN_READY).
+ * @param readBool reads a boolean L:var (SimVar bool reads return 0/1)
+ * @returns true while a cabin call pb is pressed
+ */
+export function isCabinCalledFromCockpit(readBool: (name: string) => number): boolean {
+  return CABIN_CALL_PUSHBUTTON_VARS.some((name) => readBool(name) > 0);
+}

@@ -1124,6 +1124,23 @@ The PRIMs perform the flight guidance and flight envelope functions.
       fully clockwise. The knob of the active AMU side scales the COM receive volumes set by the RMP (not the FWS and
       SURV sounds). Set to 100 at each flight load by the systems host.
 
+- `L:PUSH_OVHD_CALLS_{station}`
+    - Bool
+    - The CALLS panel pushbuttons, 1 while pressed. `{station}`: `MECH` (ground crew horn), `ALL`, `DECK_UPPER`,
+      `DECK_MAIN`, `PURS` (cabin calls, the cabin crew then report CABIN READY), `REST_FWD`, `REST_MAIN` (crew rests).
+
+- `L:A32NX_CALLS_EMER_ON`
+    - Bool
+    - The CALLS panel EMER pb-sw is on (its ON and CALL lights are on steady).
+
+- `L:A32NX_ELT_ON`
+    - Bool
+    - The ELT selector is at ON (the ELT transmits).
+
+- `L:A32NX_ELT_TEST_RESET`
+    - Bool
+    - The ELT selector is at TEST/RESET. Both ELT variables 0: ARMED.
+
 ## Electrical ATA 24
 
 - A32NX_ELEC_CONTACTOR_{name}_IS_CLOSED

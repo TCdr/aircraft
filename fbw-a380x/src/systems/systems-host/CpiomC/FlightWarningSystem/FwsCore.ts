@@ -238,6 +238,7 @@ import {
   ComTransmissionMonitor,
   datalinkAlerts,
   informationSystemAlerts,
+  isCabinCalledFromCockpit,
   isPaInUse,
   readRmpTransmissionKeys,
   RmpTransmissionKeys,
@@ -7557,10 +7558,7 @@ export class FwsCore {
 
     /* CABIN READY */
 
-    const callPushAft = SimVar.GetSimVarValue('L:PUSH_OVHD_CALLS_AFT', 'bool');
-    const callPushAll = SimVar.GetSimVarValue('L:PUSH_OVHD_CALLS_ALL', 'bool');
-    const callPushFwd = SimVar.GetSimVarValue('L:PUSH_OVHD_CALLS_FWD', 'bool');
-    if (callPushAft || callPushAll || callPushFwd) {
+    if (isCabinCalledFromCockpit((name) => SimVar.GetSimVarValue(name, 'bool'))) {
       SimVar.SetSimVarValue('L:A32NX_CABIN_READY', 'bool', 1);
     }
 

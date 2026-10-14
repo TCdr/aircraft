@@ -697,6 +697,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EGPWS] No terrain on the NDs with the TERR pb-sw OFF or the TERR FAULT light on (also a failed or unpowered EGPWS) - @TCdr
 1. [A32NX/BLEED] The engine bleed valve now closes pneumatically below 8 PSI upstream (was 15 PSI) - @TCdr
 1. [A32NX/WHEEL] New tyre pressure source (TPIS): six tyre pressures with temperature effect and new flyPad tyre deflation failures, for the WHEEL page and WHEEL TYRE LO PR (not displayed yet) - @TCdr
+1. [A380X/RMP] The STBY RAD NAV guarded key now works on RMP 1 and 2: key light on, the FMS stops tuning the navaids, back to the VHF page when deselected - @TCdr
+1. [A380X/RMP] The PA key now transmits only while held, the radio selected before comes back at the release - @TCdr
+1. [A380X/RMP] RMP messages are now queued: MSG CLR clears them one by one and shows the previous one - @TCdr
+1. [A380X/COMM] Each CALLS panel pushbutton now calls its own station (a PILOT REST call no longer makes the cabin report CABIN READY), EMER ON and CALL lights steady - @TCdr
+1. [A380X/COMM] The ELT selector now works (ON, ARMED, TEST/RESET) - @TCdr
 
 ## 2024.1.0
 
