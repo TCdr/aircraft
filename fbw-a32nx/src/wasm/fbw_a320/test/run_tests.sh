@@ -34,3 +34,14 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model \
   ../src/utils/PowerSupplyMonitor.cpp \
   -o ../obj/fmgc_tcas_mode_failure_test
 ../obj/fmgc_tcas_mode_failure_test
+# With WITHOUT_THE_FIX=1 the next tests use the logic before the fix and must fail
+FIX_FLAGS=""
+if [ "${WITHOUT_THE_FIX:-0}" = "1" ]; then
+  FIX_FLAGS="-DWITHOUT_THE_FIX"
+fi
+# AUTOLAND warning light: RA disagree and untimely flare (A320 FCOM DSC-22_30-80-30-10)
+clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS autoland_warning_test.cpp -o ../obj/autoland_warning_test
+../obj/autoland_warning_test
+# FAC alpha floor: sidestick case and engine-out loss (A320 FCOM DSC-22_40-30)
+clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS alpha_floor_conditions_test.cpp -o ../obj/alpha_floor_conditions_test
+../obj/alpha_floor_conditions_test
