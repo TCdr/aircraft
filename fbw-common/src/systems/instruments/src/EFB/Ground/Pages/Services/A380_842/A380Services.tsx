@@ -10,6 +10,7 @@ import {
   BoxSeam,
   DoorClosedFill,
   DoorOpenFill,
+  Fan,
   HandbagFill,
   PersonPlusFill,
   PlugFill,
@@ -32,6 +33,7 @@ import {
   setGpuButtonState,
   setJetWayButtonState,
   setStairsButtonState,
+  setAsuButtonState,
   useEventBus,
 } from '@flybywiresim/flypad';
 import { GsxServiceId, GsxServiceLook, gsxRequestable, gsxServiceLook, useGsxRemote } from '../GsxRemote';
@@ -68,6 +70,7 @@ enum ServiceButton {
   Main4Right,
   Main5Right,
   CateringTruck,
+  AirStarterUnit,
 }
 
 // Possible states of buttons
@@ -140,6 +143,9 @@ export const A380Services: React.FC = () => {
   const [gpu3Avail] = useSimVar('L:A32NX_EXT_PWR_AVAIL:3', 'bool', 200);
   const [gpu4Avail] = useSimVar('L:A32NX_EXT_PWR_AVAIL:4', 'bool', 200);
   const gpuAvail = gpu1Avail || gpu2Avail || gpu3Avail || gpu4Avail;
+  // The HP ground air cart on the HP ground connectors (A380 FCOM DSC-36-10-40): the systems model (a380_systems
+  // pneumatic.rs) feeds its air into the bleed ducts, as the A32NX air starter unit
+  const [asuActive, setAsuActive] = useSimVar('L:A32NX_ASU_TURNED_ON', 'Bool', 100);
 
   const eventBus = useEventBus();
   const pub = eventBus.getPublisher<GPUControlEvents>();
@@ -215,6 +221,7 @@ export const A380Services: React.FC = () => {
   const toggleCateringTruck = () => SimVar.SetSimVarValue('K:REQUEST_CATERING', 'bool', true);
   const toggleFuelTruck = () => SimVar.SetSimVarValue('K:REQUEST_FUEL_KEY', 'bool', true);
   const toggleGpu = () => pub.pub('gpu_toggle', true, true);
+  const toggleAsu = () => setAsuActive(!asuActive);
 
   // Button states
   const {
@@ -230,6 +237,7 @@ export const A380Services: React.FC = () => {
     gpuButtonState,
     baggageButtonState,
     cateringButtonState,
+    asuButtonState,
   } = useAppSelector((state) => state.groundServicePage);
 
   // Required so these can be used inside the useTimeout callback
@@ -435,6 +443,10 @@ export const A380Services: React.FC = () => {
         );
         toggleCateringTruck();
         break;
+      case ServiceButton.AirStarterUnit:
+        handleSimpleService(ServiceButton.AirStarterUnit, asuButtonState, setAsuButtonState);
+        toggleAsu();
+        break;
       default:
         break;
     }
@@ -538,6 +550,11 @@ export const A380Services: React.FC = () => {
     simpleServiceListenerHandling(gpuButtonState, setGpuButtonState, gpuAvail ? 1 : 0);
   }, [gpuAvail]);
 
+  // Asu
+  useEffect(() => {
+    simpleServiceListenerHandling(asuButtonState, setAsuButtonState, asuActive);
+  }, [asuActive]);
+
   // Cabin Door listener for JetBridge Button
   useEffect(() => {
     complexServiceListenerHandling(
@@ -598,6 +615,7 @@ export const A380Services: React.FC = () => {
       dispatch(setGpuButtonState(ServiceButtonState.DISABLED));
       dispatch(setBaggageButtonState(ServiceButtonState.DISABLED));
       dispatch(setCateringButtonState(ServiceButtonState.DISABLED));
+      dispatch(setAsuButtonState(ServiceButtonState.DISABLED));
       if (main1LeftDoorOpen === 1) {
         toggleMain1LeftDoor();
       }
@@ -631,6 +649,7 @@ export const A380Services: React.FC = () => {
         gpuButtonState,
         baggageButtonState,
         cateringButtonState,
+        asuButtonState,
       ].every((buttonState) => buttonState === ServiceButtonState.DISABLED)
     ) {
       dispatch(setBoarding1DoorButtonState(ServiceButtonState.INACTIVE));
@@ -645,6 +664,7 @@ export const A380Services: React.FC = () => {
       dispatch(setGpuButtonState(ServiceButtonState.INACTIVE));
       dispatch(setBaggageButtonState(ServiceButtonState.INACTIVE));
       dispatch(setCateringButtonState(ServiceButtonState.INACTIVE));
+      dispatch(setAsuButtonState(ServiceButtonState.INACTIVE));
     }
   }, [groundServicesAvailable]);
 
@@ -778,6 +798,14 @@ export const A380Services: React.FC = () => {
       },
     ),
     equipmentRow(
+      'asu',
+      t('Ground.Services.AirStarterUnit'),
+      <Fan size={18} />,
+      look(asuButtonState),
+      click(ServiceButton.AirStarterUnit),
+      { activeStatus: t('Ground.Services.Running') },
+    ),
+    equipmentRow(
       'catering',
       t('Ground.Services.CateringTruck'),
       <ArchiveFill size={18} />,
@@ -840,6 +868,8 @@ export const A380Services: React.FC = () => {
       // just forward of the 5 R marker: the catering truck is served at MAIN 5R (clear of the 4 R marker)
       at: 545,
     },
+    // The HP ground connectors are on the belly fairing (A380 FCOM DSC-36-10-40)
+    { label: 'ASU', tone: look(asuButtonState) === 'active' ? 'active' : 'idle', side: 'L', at: 300 },
   ];
   if (pushBackAttached) {
     planformTags.push({ label: 'TUG', tone: 'busy', side: 'L', at: 12 });

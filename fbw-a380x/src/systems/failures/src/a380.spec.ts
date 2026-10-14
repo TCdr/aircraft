@@ -408,6 +408,25 @@ describe('A380X FADEC, thrust lever and reverser failures', () => {
     expect(definitionOf(A380Failure.RightOuterWingBleedLeak)?.[2]).toBe('Right outer wing bleed duct leak');
   });
 
+  // a380_systems pneumatic.rs: the leaks of the APU duct, the pack bays, the hot-air ducts and the forward cargo duct
+  // (FCOM DSC-36-10-60)
+  it('lists the APU, pack bay, hot air and forward cargo duct leaks in ATA 36 under the ids of the Rust map', () => {
+    const rustMap = readRustFailureMap();
+    const expected: [number, string, string][] = [
+      [36080, 'ApuBleedLeak', 'APU bleed duct leak'],
+      [36081, 'PackBayLeak(1)', 'Pack 1 bay bleed duct leak'],
+      [36082, 'PackBayLeak(2)', 'Pack 2 bay bleed duct leak'],
+      [36083, 'HotAirDuctLeak(1)', 'Hot air 1 duct leak'],
+      [36084, 'HotAirDuctLeak(2)', 'Hot air 2 duct leak'],
+      [36085, 'FwdCargoBleedDuctLeak', 'Forward cargo bleed duct leak'],
+    ];
+    const definitionOf = (id: number) => A380FailureDefinitions.find(([, listedId]) => listedId === id);
+
+    expect(expected.map(([id]) => [id, rustMap.get(id), definitionOf(id)?.[2], definitionOf(id)?.[0]])).toEqual(
+      expected.map(([id, failureType, name]) => [id, failureType, name, 36]),
+    );
+  });
+
   // The labels say what systems engine/hp_fuel_valve_failure.rs and engine/engine_monitoring_fault.rs do with each id
   // (failure names audit rule): the HP fuel valve sticks, the other faults only raise their FWS alert
   it('lists the HP fuel valve and FADEC monitoring failures with the Rust failure they trigger', () => {
