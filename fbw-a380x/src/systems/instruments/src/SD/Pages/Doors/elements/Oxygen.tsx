@@ -20,11 +20,12 @@ const Oxygen: React.FC<Position & SdacActive & OnGround & { oneEngineRunning: bo
   const crewOxygenPressure = Math.round(crewBottlePressure);
   // CREW SUPPLY pb-sw: 1 when OFF (the SECURING THE AIRCRAFT checklist checks OXYGEN OFF with it)
   const [crewSupplyOffVar] = useSimVar('L:PUSH_OVHD_OXYGEN_CREW', 'boolean', 500);
-  const indication = oxygenIndication(active, onGround, crewSupplyOffVar > 0);
 
   const [cabinBottlePressure] = useSimVar('L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE', 'number', 1000);
   const cabinOxygenPressure = Math.round(cabinBottlePressure);
   const [fmsPassengers] = useSimVar('L:A32NX_FMS_PAX_NUMBER', 'number', 1000);
+  // A regulator supply valve closed (OXY CABIN VLV CLOSED, a380_systems oxygen.rs)
+  const [cabinValveClosedVar] = useSimVar('L:A32NX_OXYGEN_CABIN_VALVE_CLOSED', 'boolean', 1000);
 
   const pressures = oxygenPressureIndication({
     active,
@@ -33,6 +34,11 @@ const Oxygen: React.FC<Position & SdacActive & OnGround & { oneEngineRunning: bo
     fmsPassengers,
     ckptBottlePressurePsi: crewOxygenPressure,
     cabinBottlePressurePsi: cabinOxygenPressure,
+  });
+  const indication = oxygenIndication(active, onGround, crewSupplyOffVar > 0, {
+    bottlePressureLow: pressures.cabinValueAmber,
+    bottlePressurePsi: cabinOxygenPressure,
+    valveClosed: cabinValveClosedVar > 0,
   });
   const ckptPressureAmber = pressures.ckptValueAmber;
   const cabinPressureAmber = pressures.cabinValueAmber;

@@ -652,6 +652,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] The start valve no longer opens for a start with the core above 25 % N2 (no running engagement of the starter) - @TCdr
 1. [A380X/ENG] Both igniters come on when the engine is at idle in heavy rain (SD ENGINE page) - @TCdr
 1. [A380X/ENG] New flyPad failures: engine control system fault, control valve, FADEC engine identification, fuel and oil filter bypass, thrust rating disagree, reverser minor fault and reverser inhibited by maintenance - @TCdr
+1. [A380X/SD] FUEL page: during a fuel jettison the transfer pumps run and the galleries carry the fuel to the jettison valves - @TCdr
+1. [A380X/SD] F/CTL page: BKUP CTL ACTIVE in amber when all the PRIMs and SECs are lost - @TCdr
+1. [A380X/SD] HYD page: an engine pump that keeps its pressure with the ENG PMP pb-sw OFF is shown abnormally pressurized - @TCdr
+1. [A380X/WHEEL] Tire pressures (TPIS) on the WHEEL page, in amber when low or different on an axle, with a deflation failure per tire - @TCdr
 
 ## 2024.1.0
 

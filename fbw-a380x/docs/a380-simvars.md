@@ -2335,6 +2335,14 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Written by the FWS: an active ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT,
       ENG 2(3) REVERSER failures). Like A32NX_BTV_LOST, BTV then does not arm and an armed BTV reverts to BRK HI
 
+- A380X_TPIS_TIRE_{n}_PRESSURE
+    - Number (PSI)
+    - The TPIS pressure of tire n, 0 to 400 PSI by 5 PSI steps (systems-host `Misc/Tpis.ts`): 220 (the normal
+      217.5 PSI) unless the tire deflation failure (flyPad failures 32300-32321) is active; read by the SD WHEEL page
+    - {n}
+        - 1 to 20: the main gear tires, numbered as on the SD WHEEL page (wing gears 1-8, body gears 9-20)
+        - 21: left nose tire, 22: right nose tire
+
 ## Lights ATA 33
 
 - `L:A380X_PED_LIGHTING_MIP_FLOOD_LT_KNOB`
