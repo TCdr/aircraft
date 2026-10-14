@@ -26,6 +26,31 @@
     </Template>
 
     <!--
+    Template for the OIS MENU and OIS XFR keys: as a laptop key, and the H event of the key for the OIT
+    (A380 FCOM DSC-46-20-20-50: OIS MENU displays the FLT OPS Menu page, OIS XFR the current display of the other OIT)
+
+    Define one level up:
+            - SIDE_NODE_GROUP   <no default>    side (CPT or FO)
+            - OIT_SIDE          <no default>    side of the H event (L or R), read by the OIT instrument.tsx
+
+    Main Parameters:
+            - KEY               <no default>    Node-ID suffix of the key; also used in the tooltip and H event
+    -->
+    <Template Name="FBW_A380X_Laptop_Keyboard_Ois_Key_Template">
+        <UseTemplate Name="ASOBO_GT_Push_Button_Airliner">
+            <NODE_ID>PUSH_KBD_#SIDE_NODE_GROUP#_#KEY#</NODE_ID>
+            <BACKLIGHT_NODE_ID>PUSH_KBD_#SIDE_NODE_GROUP#_#KEY#_SEQ1</BACKLIGHT_NODE_ID>
+            <ANIM_NAME>PUSH_KBD_#SIDE_NODE_GROUP#_ANIM_#KEY#</ANIM_NAME>
+            <POTENTIOMETER_SEQ1>85</POTENTIOMETER_SEQ1>
+            <SEQ1_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</SEQ1_POWERED>
+            <SEQ1_EMISSIVE_CODE>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</SEQ1_EMISSIVE_CODE>
+            <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
+            <NO_SEQ2/>
+            <LEFT_SINGLE_CODE>1 (&gt;L:#PLANE_NAME#_KBD_#SIDE_NODE_GROUP#_#KEY#, Bool) (&gt;H:A380X_LAPTOP_KEYBOARD_#OIT_SIDE#_#KEY#)</LEFT_SINGLE_CODE>
+        </UseTemplate>
+    </Template>
+
+    <!--
     Template for rigging a laptop keyboard
 
     Main Parameters:
@@ -281,12 +306,12 @@
 			<UseTemplate Name="FBW_A380X_Laptop_Keyboard_Key_Template">
                 <KEY>MINUS</KEY>
             </UseTemplate>
-			<!-- OIS_MENU -->
-			<UseTemplate Name="FBW_A380X_Laptop_Keyboard_Key_Template">
+			<!-- OIS_MENU (sends H:A380X_LAPTOP_KEYBOARD_L(R)_OIS_MENU to the OIT) -->
+			<UseTemplate Name="FBW_A380X_Laptop_Keyboard_Ois_Key_Template">
                 <KEY>OIS_MENU</KEY>
             </UseTemplate>
-			<!-- OIS XFR -->
-			<UseTemplate Name="FBW_A380X_Laptop_Keyboard_Key_Template">
+			<!-- OIS XFR (sends H:A380X_LAPTOP_KEYBOARD_L(R)_OIS_XFR to the OIT) -->
+			<UseTemplate Name="FBW_A380X_Laptop_Keyboard_Ois_Key_Template">
                 <KEY>OIS_XFR</KEY>
             </UseTemplate>
 			<!-- PLUS -->
@@ -391,6 +416,7 @@
         <!-- CPT -->
         <UseTemplate Name="FBW_A380X_Laptop_Keyboard_Template">
             <SIDE_NODE_GROUP>CPT</SIDE_NODE_GROUP>
+            <OIT_SIDE>L</OIT_SIDE>
 
             <BACKLIGHT_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</BACKLIGHT_POWERED>
             <BACKLIGHT_POTENTIOMETER>85</BACKLIGHT_POTENTIOMETER>
@@ -399,6 +425,7 @@
         <!-- F/O -->
         <UseTemplate Name="FBW_A380X_Laptop_Keyboard_Template">
             <SIDE_NODE_GROUP>FO</SIDE_NODE_GROUP>
+            <OIT_SIDE>R</OIT_SIDE>
 
             <BACKLIGHT_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</BACKLIGHT_POWERED>
             <BACKLIGHT_POTENTIOMETER>85</BACKLIGHT_POTENTIOMETER>

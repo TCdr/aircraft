@@ -662,6 +662,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/APU] APU values from the FCOM: EGT MAX 1 090 °C during the start (1 120 °C above 35 000 ft) and 675 °C running, starter cut-out at N 60 %, and N 99 % while the APU bleed feeds the packs between -18 and 35 °C - @TCdr
 1. [A32NX/APU] The APU shuts down automatically at EGT MAX and when its air intake flap closes (new flyPad failure "APU air intake flap failed closed"); after an automatic shutdown the air intake flap stays open and closes 15 min after N 7 % (after liftoff when on the ground) - @TCdr
 1. [A32NX/FUEL] The APU fuel pump starts automatically when no left tank pump runs; with neither the APU gets no fuel pressure (FUEL LO PR) - @TCdr
+1. [A380X/ATC] The ATC MSG lights and RING are inhibited in takeoff and landing; an uplink received then, or a sixth one while five wait for an answer, is rejected with an automatic ERROR downlink to the ATC center - @TCdr
+1. [A380X/FIRE] New flyPad failures for NSS smoke and its two smoke detectors; NSS smoke lights the SMOKE light of the NSS MASTER pb - @TCdr
+1. [A380X/OIS] The laptop shows STANDALONE and SYNCHRONIZATION NOT AVAIL when started before the ARU (2 min after power-up) or without the FLT OPS network - @TCdr
+1. [A380X/OIS] The OIS MENU key shows the FLT OPS menu and the OIS XFR key shows the other OIT's page (X-OIS) - @TCdr
+1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
 
 ## 2024.1.0
 

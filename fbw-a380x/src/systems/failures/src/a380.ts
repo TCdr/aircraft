@@ -216,6 +216,9 @@ export const A380Failure = Object.freeze({
   CargoFireBottle1LowPressure: 26046,
   CargoFireBottle2LowPressure: 26047,
   SmokeDetectionFunction: 26048,
+  NssSmoke: 26049,
+  NssSmokeDetector1: 26050,
+  NssSmokeDetector2: 26051,
 
   Prim1: 27000,
   Prim2: 27001,
@@ -861,6 +864,10 @@ export const A380FailureDefinitions: FailureDefinition[] = [
   [26, A380Failure.CargoFireBottle1LowPressure, 'Cargo fire bottle 1 low pressure'],
   [26, A380Failure.CargoFireBottle2LowPressure, 'Cargo fire bottle 2 low pressure'],
   [26, A380Failure.SmokeDetectionFunction, 'Smoke detection function (SDF) of the CIDS'],
+  // The SMOKE light of the NSS MASTER sw (A380 FCOM DSC-46-20-20-87), no ECAM alert
+  [26, A380Failure.NssSmoke, 'Network server system (NSS) smoke'],
+  [26, A380Failure.NssSmokeDetector1, 'Network server system (NSS) smoke detector 1'],
+  [26, A380Failure.NssSmokeDetector2, 'Network server system (NSS) smoke detector 2'],
 
   [27, A380Failure.Prim1, 'PRIM 1'],
   [27, A380Failure.Prim2, 'PRIM 2'],

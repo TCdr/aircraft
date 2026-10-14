@@ -36,8 +36,13 @@ export class OitAvncsCompanyComMenu extends DestroyableComponent<OitAvncsCompany
         <OitFile name={'Sent'} uiService={this.props.uiService} disabled={true} />
         <OitFolder name={'Pre-flight'} initExpanded={true} hideFolderOpener={true}>
           <OitFile name={'INIT Data'} uiService={this.props.uiService} disabled={true} />
+          {/* Weather and Free Text use the AOC backend (CompanyComRequests); the airline functions stay disabled */}
           <OitFolder name={'Requests'} initExpanded={false}>
-            <OitFile name={'Weather'} uiService={this.props.uiService} disabled={true} />
+            <OitFile
+              name={'Weather'}
+              uiService={this.props.uiService}
+              navigationTarget="nss-avncs/company-com/pre-flight/weather"
+            />
             <OitFile name={'NOTAM'} uiService={this.props.uiService} disabled={true} />
           </OitFolder>
           <OitFolder name={'Reports'} initExpanded={false}>
@@ -47,7 +52,11 @@ export class OitAvncsCompanyComMenu extends DestroyableComponent<OitAvncsCompany
             <OitFile name={'Departure Delay'} uiService={this.props.uiService} disabled={true} />
             <OitFile name={'Take Off Delay'} uiService={this.props.uiService} disabled={true} />
             <OitFile name={'Delay Code'} uiService={this.props.uiService} disabled={true} />
-            <OitFile name={'Free Text'} uiService={this.props.uiService} disabled={true} />
+            <OitFile
+              name={'Free Text'}
+              uiService={this.props.uiService}
+              navigationTarget="nss-avncs/company-com/pre-flight/free-text"
+            />
             <OitFile name={'ASR Notification'} uiService={this.props.uiService} disabled={true} />
           </OitFolder>
           <OitFile
@@ -58,14 +67,22 @@ export class OitAvncsCompanyComMenu extends DestroyableComponent<OitAvncsCompany
         </OitFolder>
         <OitFolder name={'In-flight'} initExpanded={true} hideFolderOpener={true}>
           <OitFolder name={'Requests'} initExpanded={false}>
-            <OitFile name={'Weather'} uiService={this.props.uiService} disabled={true} />
+            <OitFile
+              name={'Weather'}
+              uiService={this.props.uiService}
+              navigationTarget="nss-avncs/company-com/in-flight/weather"
+            />
             <OitFile name={'Notam'} uiService={this.props.uiService} disabled={true} />
             <OitFile name={'Ramp Service'} uiService={this.props.uiService} disabled={true} />
           </OitFolder>
           <OitFolder name={'Reports'} initExpanded={false}>
             <OitFile name={'Diversion'} uiService={this.props.uiService} disabled={true} />
             <OitFile name={'ETA'} uiService={this.props.uiService} disabled={true} />
-            <OitFile name={'Free Text'} uiService={this.props.uiService} disabled={true} />
+            <OitFile
+              name={'Free Text'}
+              uiService={this.props.uiService}
+              navigationTarget="nss-avncs/company-com/in-flight/free-text"
+            />
           </OitFolder>
           <OitFile
             name={'Flight Log'}
@@ -78,7 +95,11 @@ export class OitAvncsCompanyComMenu extends DestroyableComponent<OitAvncsCompany
           <OitFolder name={'Reports'} initExpanded={false}>
             <OitFile name={'ASR Notification'} uiService={this.props.uiService} disabled={true} />
             <OitFile name={'Flight Summary'} uiService={this.props.uiService} disabled={true} />
-            <OitFile name={'Free Text'} uiService={this.props.uiService} disabled={true} />
+            <OitFile
+              name={'Free Text'}
+              uiService={this.props.uiService}
+              navigationTarget="nss-avncs/company-com/post-flight/free-text"
+            />
             <OitFile name={'Gate Delay'} uiService={this.props.uiService} disabled={true} />
           </OitFolder>
           <OitFile

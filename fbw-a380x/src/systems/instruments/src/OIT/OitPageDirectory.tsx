@@ -14,6 +14,8 @@ import { OitAvncsCompanyCom } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyC
 import { OitAvncsMenu } from './Pages/NssAvncs/OitAvncsMenu';
 import { OitAvncsCompanyComFlightLog } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComFlightLog';
 import { OitAvncsCompanyComInbox } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComInbox';
+import { OitAvncsCompanyComWeatherRequest } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComWeatherRequest';
+import { OitAvncsCompanyComFreeText } from './Pages/NssAvncs/CompanyCom/OitAvncsCompanyComFreeText';
 import { OitAvncsFbwSystems } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystems';
 import { OitAvncsFbwSystemsGenericDebug } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsGenericDebug';
 import { OitAvncsFbwSystemsAppLdgCap } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsAppLdgCap';
@@ -81,6 +83,13 @@ export function avncsCompanyComPageForUrl(
       return <OitAvncsCompanyComFlightLog bus={bus} uiService={uiService} container={container} />;
     case 'nss-avncs/company-com/post-flight/flight-log':
       return <OitAvncsCompanyComFlightLog bus={bus} uiService={uiService} container={container} />;
+    case 'nss-avncs/company-com/pre-flight/weather':
+    case 'nss-avncs/company-com/in-flight/weather':
+      return <OitAvncsCompanyComWeatherRequest bus={bus} uiService={uiService} container={container} />;
+    case 'nss-avncs/company-com/pre-flight/free-text':
+    case 'nss-avncs/company-com/in-flight/free-text':
+    case 'nss-avncs/company-com/post-flight/free-text':
+      return <OitAvncsCompanyComFreeText bus={bus} uiService={uiService} container={container} />;
 
     default:
       return <OitNotFound uiService={uiService} />;
