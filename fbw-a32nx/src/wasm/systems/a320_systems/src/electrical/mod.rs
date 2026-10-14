@@ -129,7 +129,6 @@ impl A320Electrical {
 
         self.alternating_current.update_after_direct_current(
             electricity,
-            &self.emergency_gen,
             &self.direct_current,
             spd_cond,
         );
@@ -268,6 +267,8 @@ trait A320AlternatingCurrentElectricalSystem: AlternatingCurrentElectricalSystem
     fn tr_1(&self) -> &TransformerRectifier;
     fn tr_2(&self) -> &TransformerRectifier;
     fn tr_ess(&self) -> &TransformerRectifier;
+    /// Whether the emergency generator is coupled to the network (2XE closed and supplied)
+    fn emergency_generator_supplies_network(&self, electricity: &Electricity) -> bool;
 }
 
 pub(super) struct A320ElectricalOverheadPanel {
@@ -1244,13 +1245,15 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed.dc_gnd_flt_service_bus_output().is_unpowered());
     }
 
+    /// With the MAINT BUS switch ON: the GND/FLT buses on external power only
     #[test]
     fn distribution_table_only_external_power_available_and_off() {
         let test_bed = test_bed_with()
             .connected_external_power()
             .airspeed(Velocity::new::<knot>(0.))
-            .and()
             .on_the_ground()
+            .and()
+            .maint_bus_on()
             .run();
 
         assert!(test_bed.ac_bus_output(1).is_unpowered());
@@ -2297,6 +2300,7 @@ mod a320_electrical_circuit_tests {
             .bus_tie_off()
             .and()
             .connected_external_power()
+            .maint_bus_on()
             .run();
 
         assert!(test_bed
@@ -2305,6 +2309,137 @@ mod a320_electrical_circuit_tests {
         assert!(test_bed
             .dc_gnd_flt_service_bus_output()
             .is_single(PotentialOrigin::TransformerRectifier(2)));
+    }
+
+    /// A320 FCOM DSC-24-20 MAINT BUS SW (a320_fcom.txt l.37405): "OFF : The AC and DC GND/FLT buses are connected
+    /// to AC BUS 2 and DC BUS 2." Before, external power always fed them, as if the switch were always ON.
+    #[test]
+    fn with_maint_bus_off_external_power_alone_does_not_power_the_gnd_flt_buses() {
+        let test_bed = test_bed_with()
+            .connected_external_power()
+            .airspeed(Velocity::new::<knot>(0.))
+            .and()
+            .on_the_ground()
+            .run();
+
+        assert!(test_bed.ac_gnd_flt_service_bus_output().is_unpowered());
+        assert!(test_bed.dc_gnd_flt_service_bus_output().is_unpowered());
+        assert!(test_bed.tr_2_input().is_unpowered());
+    }
+
+    /// FCOM l.36663-36665: "external power can supply the AC and DC GND/FLT BUSES directly without supplying the
+    /// entire aircraft network", l.37382-37385 "ON : ... The AC and DC GND/FLT buses have power".
+    #[test]
+    fn with_maint_bus_on_external_power_powers_only_the_gnd_flt_buses() {
+        let test_bed = test_bed_with()
+            .connected_external_power()
+            .airspeed(Velocity::new::<knot>(0.))
+            .on_the_ground()
+            .and()
+            .maint_bus_on()
+            .run();
+
+        assert!(test_bed
+            .ac_gnd_flt_service_bus_output()
+            .is_single(PotentialOrigin::External));
+        assert!(test_bed
+            .dc_gnd_flt_service_bus_output()
+            .is_single(PotentialOrigin::TransformerRectifier(2)));
+        assert!(test_bed.ac_bus_output(1).is_unpowered());
+        assert!(test_bed.ac_bus_output(2).is_unpowered());
+        assert!(test_bed.dc_bus_output(2).is_unpowered());
+    }
+
+    /// FCOM l.37382-37383: "The switch latches magnetically if external power is connected and normal (AVAIL light
+    /// on)."
+    #[test]
+    fn maint_bus_switch_does_not_latch_without_external_power() {
+        let mut test_bed = test_bed_with()
+            .airspeed(Velocity::new::<knot>(0.))
+            .on_the_ground()
+            .and()
+            .maint_bus_on()
+            .run();
+
+        assert!(!test_bed.maint_bus_is_on());
+        assert!(test_bed.ac_gnd_flt_service_bus_output().is_unpowered());
+    }
+
+    /// FCOM l.37403: "The switch trips when the external source is removed."
+    #[test]
+    fn maint_bus_switch_trips_when_external_power_is_removed() {
+        let mut test_bed = test_bed_with()
+            .connected_external_power()
+            .airspeed(Velocity::new::<knot>(0.))
+            .on_the_ground()
+            .and()
+            .maint_bus_on()
+            .run();
+        assert!(test_bed.maint_bus_is_on());
+
+        let mut test_bed = test_bed
+            .then_continue_with()
+            .disconnected_external_power()
+            .run();
+        assert!(!test_bed.maint_bus_is_on());
+
+        // reconnecting the external power does not latch the switch again by itself
+        let test_bed = test_bed
+            .then_continue_with()
+            .connected_external_power()
+            .run();
+        assert!(test_bed.ac_gnd_flt_service_bus_output().is_unpowered());
+    }
+
+    /// A320 FCOM DSC-24-20 EMER ELEC PWR MAN ON pb (a320_fcom.txt l.37311-37312): "Emergency generator coupling
+    /// occurs 3 s after the RAT supplies the emergency generator." DSC-24-10-30-30 (l.36797): "During RAT extension
+    /// and emergency generator coupling (about 8 s), the batteries ..." supply the network. Before, the emergency
+    /// generator was coupled as soon as its output was normal. During the delay the static inverter keeps the AC ESS
+    /// BUS and BAT 2 the DC ESS BUS.
+    #[rstest]
+    #[case::rat_man_on(true)]
+    #[case::automatic(false)]
+    fn emergency_generator_couples_3_s_after_its_output_is_normal(#[case] man_on: bool) {
+        let mut test_bed = test_bed_with()
+            .running_engines()
+            .gen_off(1)
+            .and()
+            .gen_off(2);
+        if man_on {
+            test_bed = test_bed.rat_and_emer_gen_man_on_pressed();
+        }
+
+        // spin the generator up (bounded: the test hydraulics reach the nominal speed after 8 s)
+        let step = Duration::from_millis(100);
+        let mut spin_up_steps = 0;
+        while !test_bed.emergency_generator_output_is_normal() {
+            assert!(
+                spin_up_steps < 300,
+                "the emergency generator output never became normal"
+            );
+            test_bed = test_bed.run_waiting_for(step);
+            spin_up_steps += 1;
+        }
+
+        // 2.8 s after: not coupled yet, the static inverter and BAT 2 hold the essential buses
+        for _ in 0..28 {
+            test_bed = test_bed.run_waiting_for(step);
+        }
+        assert!(!test_bed
+            .ac_ess_bus_output()
+            .is_single(PotentialOrigin::EmergencyGenerator));
+        assert!(test_bed
+            .ac_ess_bus_output()
+            .is_single(PotentialOrigin::StaticInverter));
+        assert!(test_bed.dc_ess_bus_output().is_powered());
+
+        // 3.1 s after: coupled
+        for _ in 0..3 {
+            test_bed = test_bed.run_waiting_for(step);
+        }
+        assert!(test_bed
+            .ac_ess_bus_output()
+            .is_single(PotentialOrigin::EmergencyGenerator));
     }
 
     #[test]
@@ -2931,6 +3066,10 @@ mod a320_electrical_circuit_tests {
         fn release_engine_fire_push_button(&mut self, engine_number: usize) {
             self.engine_fire_push_buttons.release(engine_number);
         }
+
+        fn emergency_generator_output_is_normal(&self) -> bool {
+            self.elec.emergency_gen.output_within_normal_parameters()
+        }
     }
     impl Aircraft for A320ElectricalTestAircraft {
         fn update_before_power_distribution(
@@ -3203,6 +3342,25 @@ mod a320_electrical_circuit_tests {
         fn rat_and_emer_gen_man_on_pressed(mut self) -> Self {
             self.write_by_name("OVHD_EMER_ELEC_RAT_AND_EMER_GEN_IS_PRESSED", true);
             self
+        }
+
+        /// The MAINT BUS switch in the forward entrance area (flyPad stand-in)
+        fn maint_bus_on(mut self) -> Self {
+            self.write_by_name("ELEC_MAINT_BUS_SW_IS_ON", true);
+            self
+        }
+
+        fn disconnected_external_power(mut self) -> Self {
+            self.write_by_name("EXT_PWR_AVAIL:1", false);
+            self
+        }
+
+        fn maint_bus_is_on(&mut self) -> bool {
+            self.read_by_name("ELEC_MAINT_BUS_SW_IS_ON")
+        }
+
+        fn emergency_generator_output_is_normal(&self) -> bool {
+            self.query(|a| a.emergency_generator_output_is_normal())
         }
 
         fn command_closing_of_start_contactors(mut self) -> Self {

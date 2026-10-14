@@ -643,6 +643,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SURV] With the selected TAWS failed and the other WXR failed, the TAWS (GPWS, terrain on ND and VD) comes from the other SURV system - @TCdr
 1. [A380X/MFD] POSITION / IRS: the ALIGN ON OTHER REF panel defines the IRS alignment reference position (PREFLIGHT and DONE phases) - @TCdr
 1. [A380X/MFD] Alternate company routes: ALTN RTE entry on the INIT page and INSERT on the ROUTE SELECTION page, with the DEST / ALTN CPNY RTE DISAGREE message; the ALTERNATE page selection creates a temporary flight plan - @TCdr
+1. [A32NX/COMMS] Cockpit EMER call: the ON and CALL lights of the CALLS panel come on steady instead of flashing - @TCdr
+1. [A32NX/COMMS] The ELT ON and TEST/RESET pushbuttons work: ON transmits and lights the ELT light, TEST/RESET runs the autotest and stops a transmission - @TCdr
+1. [A32NX/RMP] The GLS and MLS keys (receivers not installed) no longer show a fake 808.080, and the ILS tune inhibit below 700 ft RA now works, freezes only the ILS and also applies with an FD alone - @TCdr
+1. [A32NX/ELEC] MAINT BUS switch (flyPad Ground > Services): external power alone feeds the GND/FLT buses only with the switch ON; it trips when the external power is removed - @TCdr
+1. [A32NX/ELEC] The emergency generator couples to the network 3 s after its output is normal - @TCdr
 
 ## 2024.1.0
 

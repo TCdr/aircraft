@@ -650,11 +650,12 @@
 
 - A32NX_ELT_TEST_RESET
     - Bool
-    - True if ELT is being tested/reset.
+    - True while the ELT TEST/RESET pushbutton is held: the ELT runs its autotest (ELT light on) and pressing it
+      stops a transmission (resets A32NX_ELT_ON).
 
 - A32NX_ELT_ON
     - Bool
-    - True if ELT is on.
+    - True when the ELT transmits (ELT ON pushbutton pressed), until TEST/RESET is pressed.
 
 - A32NX_DLS_ON
     - Bool
@@ -804,6 +805,13 @@
     - {name}
         - 6PB1: Battery 1 contactor
         - 6PB2: Battery 2 contactor
+
+- A32NX_ELEC_MAINT_BUS_SW_IS_ON
+    - Bool
+    - The MAINT BUS switch of the forward entrance area (flyPad Ground > Services stand-in). ON: external power
+      supplies the AC and DC GND/FLT buses without the rest of the network; OFF: they are on AC BUS 2 and DC BUS 2.
+      The systems write it back to 0 when it cannot latch (no external power available) or trips (external power
+      removed)
 
 - A32NX_ELEC_{name}_BUS_IS_POWERED
     - Bool

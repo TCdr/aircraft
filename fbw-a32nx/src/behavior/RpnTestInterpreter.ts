@@ -42,6 +42,7 @@ const BINARY_OPERATORS: Record<string, (a: number, b: number) => number> = {
   '-': (a, b) => a - b,
   '*': (a, b) => a * b,
   '/': (a, b) => a / b,
+  '%': (a, b) => a % b,
   max: (a, b) => Math.max(a, b),
   min: (a, b) => Math.min(a, b),
 };
