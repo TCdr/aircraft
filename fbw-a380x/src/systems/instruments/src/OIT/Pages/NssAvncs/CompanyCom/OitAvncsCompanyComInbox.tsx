@@ -6,6 +6,7 @@ import { AbstractOitAvncsPageProps } from '../../../OIT';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { AnsuOps } from '../../../System/AnsuOps';
 import { CompanyComInboxEntry } from '../../../System/CompanyComMailbox';
+import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 
 interface OitAvncsCompanyComInboxProps extends AbstractOitAvncsPageProps {}
 
@@ -62,11 +63,15 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
   private readonly dateText = Subject.create('');
   private readonly messageText = Subject.create('');
 
+  /** PRINT needs a displayed message */
+  private readonly printDisabled = this.selectedUid.map((uid) => uid === null);
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
     this.subscriptions.push(
       this.toText,
+      this.printDisabled,
       this.mailbox.messages.sub(() => this.refresh(), true),
       this.selectedUid.sub((selectedUid) => {
         this.lines.forEach((l) => l.selected.set(l.uid === selectedUid));
@@ -87,6 +92,14 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
   private select(uid: number): void {
     this.selectedUid.set(uid);
     this.mailbox.markRead(uid);
+  }
+
+  /** PRINT: the displayed message on the pedestal printer (CompanyComMailbox.printMessage) */
+  private printSelected(): void {
+    const uid = this.selectedUid.get();
+    if (uid !== null) {
+      this.mailbox.printMessage(uid, AnsuOps.formatDateTime);
+    }
   }
 
   private selectedEntry(): CompanyComInboxEntry | null {
@@ -165,6 +178,11 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
           <div>{this.toText}</div>
         </div>
         <div class="oit-ccom-inbox-msg-box">{this.messageText}</div>
+        {/* Manual print of a message (A380 FCOM DSC-46-40-10-20, a380_fcom.txt l.107938-107939). Design choice: below the
+            message, the FCOM has no figure of the inbox page */}
+        <div class="fr" style="justify-content: flex-end; margin-top: 10px;">
+          <Button label="PRINT" disabled={this.printDisabled} onClick={() => this.printSelected()} />
+        </div>
         <div style="flex-grow: 1" />
       </>
     );

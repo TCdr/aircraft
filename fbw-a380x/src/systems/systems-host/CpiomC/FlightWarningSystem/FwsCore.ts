@@ -6384,6 +6384,7 @@ export class FwsCore {
     this.avncsNetworkMultipleIomFaultRedundancyDegraded.set(avncsNetwork.multipleIomFaultRedundancyDegraded);
     const infoSys = informationSystemAlerts({
       cpiomD1Available: readBoolLvar('L:A32NX_CPIOM_D1_AVAIL'),
+      atcResetPulled: readBoolLvar('L:A32NX_RESET_PANEL_ATC'),
       adsFunctionFailed: comFailureActive(A380Failure.AdsFunction),
       nssDataToAvncsPbOff: !readBoolLvar('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE'),
       sciFailed: [comFailureActive(A380Failure.Sci1), comFailureActive(A380Failure.Sci2)],

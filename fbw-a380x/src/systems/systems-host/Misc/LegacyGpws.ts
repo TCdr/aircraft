@@ -13,6 +13,7 @@ import { EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FwsSoundManagerControlEvents } from '../CpiomC/FlightWarningSystem/FwsSoundManager';
 import { GpwsMode2 } from './GpwsMode2';
 import { publishedTawsSystem } from './TawsSystemInUse';
+import { isFwsStallWarningActive, isReactiveWindshearWarningActive } from './SurvAlertPriority';
 
 type ModesType = {
   current: number;
@@ -54,6 +55,15 @@ export class LegacyGpws {
       SimVar.GetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number),
       SimVar.GetSimVarValue('L:A32NX_TAWS_SYS_IN_USE', SimVarValueType.Number),
     );
+  }
+
+  /**
+   * "Stall or windshear alerts override GPWS visual and aural alerts" (A380 FCOM DSC-34-20-20-10, a380_fcom.txt
+   * l.88167): the FWS STALL warning or the reactive WINDSHEAR warning.
+   * @returns true while one of them is on, the GPWS modes then give no alert
+   */
+  static isStallOrWindshearWarningActive(): boolean {
+    return isReactiveWindshearWarningActive() || isFwsStallWarningActive();
   }
 
   /**
@@ -356,8 +366,8 @@ export class LegacyGpws {
       this.GPWSMode3(this.modes[2], radioAlt.value, phase);
       this.GPWSMode4(this.modes[3], radioAlt.value, Airspeed, FlapsInLandingConfig, gearExtended, phase);
       this.GPWSMode5(this.modes[4], radioAlt.value, gearExtended);
-      // "Stall or windshear alerts override GPWS visual and aural alerts" (a380_fcom.txt l.88167): the windshear part
-      if (SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', 'Bool') > 0) {
+      // "Stall or windshear alerts override GPWS visual and aural alerts" (a380_fcom.txt l.88167)
+      if (LegacyGpws.isStallOrWindshearWarningActive()) {
         this.modes.forEach((mode) => {
           mode.current = 0;
         });

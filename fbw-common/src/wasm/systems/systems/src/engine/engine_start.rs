@@ -73,6 +73,9 @@ pub struct EngineStartSchedule {
     pub monitors_in_flight_start_air: bool,
     /// The EGT limit of a start on the ground.
     pub start_egt_limit: ThermodynamicTemperature,
+    /// In flight, the EGT limit of an engine relight: above it the FADEC reports EGT OVERLIMIT
+    /// until the ENG MASTER is set OFF. None: the relight EGT is not monitored.
+    pub relight_egt_limit: Option<ThermodynamicTemperature>,
     /// An automatic start on the ground makes up to this number of attempts.
     pub automatic_start_attempts: u8,
     /// The dry crank after an aborted attempt lasts this long.
@@ -330,6 +333,8 @@ pub struct EngineStartSequence {
     in_flight_no_light_up_time: Duration,
     /// In flight: how long a relight has had starter air while the starter has failed.
     in_flight_starter_fault_time: Duration,
+    /// In flight: the EGT went above the relight EGT limit during a relight (until MASTER OFF).
+    in_flight_egt_overlimit: bool,
     automatic_crank_time: Duration,
     /// None until the first update.
     previous_on_ground: Option<bool>,
@@ -427,6 +432,7 @@ impl EngineStartSequence {
             starter_time: Duration::ZERO,
             in_flight_no_light_up_time: Duration::ZERO,
             in_flight_starter_fault_time: Duration::ZERO,
+            in_flight_egt_overlimit: false,
             automatic_crank_time: Duration::ZERO,
             previous_on_ground: None,
             start_fault: EngineStartFault::None,
@@ -505,6 +511,7 @@ impl EngineStartSequence {
         self.other_fault_light = inputs.other_fault_light_conditions;
         self.update_in_flight_light_up(context, inputs, on_ground);
         self.update_in_flight_starter_fault(context, schedule, inputs, on_ground);
+        self.update_in_flight_egt_overlimit(schedule, inputs, on_ground);
         self.update_condition_faults(context, schedule, inputs, on_ground);
         self.igniters = self.energized_igniters(schedule, inputs, on_ground);
         self.continuous_ignition = self.continuous_ignition_is_on(inputs, on_ground);
@@ -1005,6 +1012,36 @@ impl EngineStartSequence {
         }
     }
 
+    /// In flight the FADEC watches the EGT of a relight against the relight EGT limit (A380 FCOM
+    /// DSC-70-90 l.113192: "865 °C, during engine relight in flight"; ENG RELIGHT IN FLIGHT
+    /// l.174945: "MAX EGT : 865 °C"). The relight lasts from the ENG MASTER ON of an engine that
+    /// waits for its relight until the engine runs (idle reached, "WHEN IDLE REACHED (ENG AVAIL)",
+    /// l.174948). Above the limit the FADEC reports EGT OVERLIMIT, whose in-flight action is
+    /// "ENG MASTER LEVER ... OFF" (ENG START FAULT, l.172968-172971): the fault stays until then.
+    fn update_in_flight_egt_overlimit(
+        &mut self,
+        schedule: &EngineStartSchedule,
+        inputs: &EngineStartInputs,
+        on_ground: bool,
+    ) {
+        if on_ground || !inputs.master_switch_is_on {
+            self.in_flight_egt_overlimit = false;
+            return;
+        }
+        let relighting = inputs.relight_pending
+            || matches!(
+                inputs.engine_state,
+                EngineState::Starting | EngineState::Restarting
+            );
+        if relighting
+            && schedule
+                .relight_egt_limit
+                .is_some_and(|limit| inputs.egt > limit)
+        {
+            self.in_flight_egt_overlimit = true;
+        }
+    }
+
     /// The faults of conditions that do not abort the start: they last as long as the condition.
     fn update_condition_faults(
         &mut self,
@@ -1058,17 +1095,18 @@ impl EngineStartSequence {
             }
         }
 
-        self.condition_fault =
-            if self.in_flight_no_light_up_time >= schedule.in_flight_no_light_up_time {
-                EngineStartFault::NoLightUp
-            } else if self.valve_open_without_air_time >= Self::LOW_START_AIR_DETECTION_TIME {
-                EngineStartFault::LowStartAirPressure
-            } else if starting && !inputs.thrust_lever_at_idle {
-                // A320 FCOM PRO-ABN-ENG (l.81369): "Thrust lever not at idle".
-                EngineStartFault::ThrustLeverNotAtIdle
-            } else {
-                EngineStartFault::None
-            };
+        self.condition_fault = if self.in_flight_egt_overlimit {
+            EngineStartFault::EgtOverlimit
+        } else if self.in_flight_no_light_up_time >= schedule.in_flight_no_light_up_time {
+            EngineStartFault::NoLightUp
+        } else if self.valve_open_without_air_time >= Self::LOW_START_AIR_DETECTION_TIME {
+            EngineStartFault::LowStartAirPressure
+        } else if starting && !inputs.thrust_lever_at_idle {
+            // A320 FCOM PRO-ABN-ENG (l.81369): "Thrust lever not at idle".
+            EngineStartFault::ThrustLeverNotAtIdle
+        } else {
+            EngineStartFault::None
+        };
     }
 
     /// The igniters of a start attempt on the ground.
@@ -1403,6 +1441,7 @@ mod tests {
             in_flight_no_light_up_time: Duration::from_secs(18),
             monitors_in_flight_start_air: false,
             start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(725.),
+            relight_egt_limit: None,
             automatic_start_attempts: 3,
             automatic_crank_time: Duration::from_secs(30),
             starter_time_limit: None,
@@ -2380,6 +2419,79 @@ mod tests {
 
         test_bed = test_bed.and_run_for(Duration::from_secs(2));
         assert_eq!(test_bed.fault(), EngineStartFault::NoLightUp);
+    }
+
+    /// In flight, ENG MASTER ON of an engine that waits for a relight, with an 865 °C relight EGT
+    /// limit (A380 FCOM DSC-70-90 l.113192).
+    fn in_flight_relight_with_egt_limit() -> StartTestBed {
+        StartTestBed::new()
+            .with_schedule(|schedule| {
+                schedule.relight_egt_limit =
+                    Some(ThermodynamicTemperature::new::<degree_celsius>(865.));
+                schedule.in_flight_no_light_up_time = Duration::from_secs(30);
+            })
+            .in_flight()
+            .with(|inputs| inputs.relight_pending = true)
+            .engine_state(EngineState::Restarting)
+            .master(true)
+    }
+
+    #[test]
+    fn in_flight_a_relight_below_the_relight_egt_limit_is_no_fault() {
+        // above the 745 °C of the A380 ground start, below the 865 °C of the relight
+        let test_bed = in_flight_relight_with_egt_limit()
+            .with(|inputs| inputs.relight_pending = false)
+            .egt(850.)
+            .and_run();
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+    }
+
+    #[test]
+    fn in_flight_a_relight_above_the_relight_egt_limit_is_egt_overlimit_until_master_off() {
+        // A380 FCOM ENG RELIGHT IN FLIGHT (l.174945): "MAX EGT : 865 °C"; ENG START FAULT
+        // (l.172968-172971): EGT OVERLIMIT in flight, "ENG MASTER LEVER ... OFF"
+        let mut test_bed = in_flight_relight_with_egt_limit()
+            .with(|inputs| inputs.relight_pending = false)
+            .egt(870.)
+            .and_run();
+        assert_eq!(test_bed.fault(), EngineStartFault::EgtOverlimit);
+
+        // the EGT comes back down and the engine reaches idle: the fault stays
+        test_bed = test_bed
+            .egt(600.)
+            .engine_state(EngineState::On)
+            .and_run_for(Duration::from_secs(5));
+        assert_eq!(test_bed.fault(), EngineStartFault::EgtOverlimit);
+
+        test_bed = test_bed.master(false);
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+    }
+
+    #[test]
+    fn in_flight_a_running_engine_is_not_watched_against_the_relight_egt_limit() {
+        let test_bed = StartTestBed::new()
+            .with_schedule(|schedule| {
+                schedule.relight_egt_limit =
+                    Some(ThermodynamicTemperature::new::<degree_celsius>(865.));
+            })
+            .in_flight()
+            .engine_state(EngineState::On)
+            .master(true)
+            .egt(900.)
+            .and_run();
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+    }
+
+    #[test]
+    fn without_a_relight_egt_limit_the_relight_egt_is_not_watched() {
+        let test_bed = StartTestBed::new()
+            .in_flight()
+            .with(|inputs| inputs.relight_pending = true)
+            .engine_state(EngineState::Restarting)
+            .master(true)
+            .egt(900.)
+            .and_run();
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
     }
 
     /// In flight, ENG MASTER ON of an engine that waits for a relight, start valve open, no air.

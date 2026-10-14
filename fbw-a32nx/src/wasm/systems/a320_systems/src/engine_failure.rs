@@ -223,6 +223,8 @@ pub fn a320_engine_start_schedule() -> EngineStartSchedule {
         monitors_in_flight_start_air: false,
         // l.81366: "Engine overtemperature (above 725 °C)".
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(725.),
+        // The A320 FCOM gives no relight EGT limit: not monitored (unchanged A32NX behaviour).
+        relight_egt_limit: None,
         // LIM-ENG STARTER (l.115972): "A standard automatic start that includes up to three start
         // attempts, is considered one cycle".
         automatic_start_attempts: 3,

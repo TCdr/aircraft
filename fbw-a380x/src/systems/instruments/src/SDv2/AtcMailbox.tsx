@@ -3,6 +3,7 @@
 
 import {
   ComponentProps,
+  ConsumerSubject,
   DisplayComponent,
   EventBus,
   FSComponent,
@@ -29,6 +30,7 @@ import {
   UplinkMonitor,
 } from '@datalink/common';
 import { Button } from '../MsfsAvionicsCommon/UiWidgets/Button';
+import { SDSimvars } from './SDSimvarPublisher';
 import { MouseCursor } from '../MsfsAvionicsCommon/UiWidgets/MouseCursor';
 import { isKccuKeyActive } from '../MsfsAvionicsCommon/Kccu';
 import {
@@ -136,6 +138,15 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
   private arrivals = 0;
 
   private readonly systemStatus = Subject.create(MailboxStatusMessage.NoMessage);
+
+  /**
+   * The ATC function runs (L:A380X_ATC_FUNCTION_AVAIL, systems host CpiomD/AtcDatalink.ts): without it the mailbox
+   * shows MAILBOX NOT AVAIL, the condition of an ATC reset (A380 FCOM PRO-SUP-46, a380_fcom.txt l.184521-184523)
+   */
+  private readonly atcAvailable = ConsumerSubject.create(
+    this.props.bus.getSubscriber<SDSimvars>().on('atcFunctionAvailable').whenChanged(),
+    true,
+  );
 
   private systemStatusTimer: number | null = null;
 
@@ -707,7 +718,12 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
     const pageNumber = this.visibleBlock.map((block) => (block ? `${block.page + 1}/${pageCount(block)}` : ''));
     const information = this.visibleBlock.map((block) => (block ? informationText(block.status) : ''));
     const systemInformation = this.systemStatus.map((s) => informationText(s));
+    const notAvailDisplay = this.atcAvailable.map((available) => (available ? 'none' : 'block'));
+    const mailboxDisplay = this.atcAvailable.map((available) => (available ? 'block' : 'none'));
     this.subs.push(
+      this.atcAvailable,
+      notAvailDisplay,
+      mailboxDisplay,
       noMessage,
       withMessage,
       activeAtcText,
@@ -727,109 +743,115 @@ export class AtcMailbox extends DisplayComponent<AtcMailboxProps> {
 
     return (
       <div ref={this.topRef} class="atc-mailbox-top-layout">
-        {/* The separators of the columns and of the Information Messages Area (FCOM figure) */}
-        <div class="atc-mailbox-vline" style="left: 100px; top: 0; height: 256px;" />
-        <div class="atc-mailbox-vline" style="left: 615px; top: 0; height: 256px;" />
-        <div class="atc-mailbox-hline" style="left: 100px; top: 222px; width: 515px;" />
-        <div class="atc-mailbox-vline" style="left: 361px; top: 222px; height: 34px;" />
-
-        {/* Connection indications, when no message is displayed */}
-        <div style={{ visibility: noMessage }}>
-          <div class="atc-mailbox-connection" style="left: 132px; top: 62px;">
-            {activeAtcText}
-          </div>
-          <div class="atc-mailbox-connection right" style="right: 180px; top: 185px;">
-            {adsText}
-          </div>
+        {/* ATC function lost (CPIOM D1, ATC RESET): MAILBOX NOT AVAIL instead of the mailbox (PRO-SUP-46 l.184521-184523) */}
+        <div class="atc-mailbox-not-avail" style={{ display: notAvailDisplay }}>
+          MAILBOX NOT AVAIL
         </div>
+        <div style={{ display: mailboxDisplay }}>
+          {/* The separators of the columns and of the Information Messages Area (FCOM figure) */}
+          <div class="atc-mailbox-vline" style="left: 100px; top: 0; height: 256px;" />
+          <div class="atc-mailbox-vline" style="left: 615px; top: 0; height: 256px;" />
+          <div class="atc-mailbox-hline" style="left: 100px; top: 222px; width: 515px;" />
+          <div class="atc-mailbox-vline" style="left: 361px; top: 222px; height: 34px;" />
 
-        {/* The displayed message */}
-        <div style={{ visibility: withMessage }}>
-          <div class="atc-mailbox-header" style="left: 108px; top: 17px;">
-            {header}
+          {/* Connection indications, when no message is displayed */}
+          <div style={{ visibility: noMessage }}>
+            <div class="atc-mailbox-connection" style="left: 132px; top: 62px;">
+              {activeAtcText}
+            </div>
+            <div class="atc-mailbox-connection right" style="right: 180px; top: 185px;">
+              {adsText}
+            </div>
           </div>
-          <div class={statusClass} style="right: 191px; top: 17px;">
-            {statusText}
+
+          {/* The displayed message */}
+          <div style={{ visibility: withMessage }}>
+            <div class="atc-mailbox-header" style="left: 108px; top: 17px;">
+              {header}
+            </div>
+            <div class={statusClass} style="right: 191px; top: 17px;">
+              {statusText}
+            </div>
+            {LINE_Y.map((_, i) => this.renderLine(i))}
+            <div style={{ visibility: multiplePages }}>
+              <div
+                ref={this.clickable(() => this.turnPage(-1))}
+                class="atc-mailbox-page-button"
+                style="left: 534px; top: 43.5px;"
+              >
+                <svg width="40" height="30" viewBox="0 0 40 30">
+                  <polygon points="20,0 38,13 2,13" fill="white" />
+                  <polygon points="20,15 38,28 2,28" fill="white" />
+                </svg>
+              </div>
+              <div
+                ref={this.clickable(() => this.turnPage(1))}
+                class="atc-mailbox-page-button"
+                style="left: 534px; top: 90.4px;"
+              >
+                <svg width="40" height="30" viewBox="0 0 40 30">
+                  <polygon points="2,2 38,2 20,15" fill="white" />
+                  <polygon points="2,17 38,17 20,30" fill="white" />
+                </svg>
+              </div>
+              <div class="atc-mailbox-small" style="left: 573px; top: 171px;">
+                PGE
+              </div>
+              <div class="atc-mailbox-small" style="left: 573px; top: 206px;">
+                {pageNumber}
+              </div>
+            </div>
           </div>
-          {LINE_Y.map((_, i) => this.renderLine(i))}
-          <div style={{ visibility: multiplePages }}>
-            <div
-              ref={this.clickable(() => this.turnPage(-1))}
-              class="atc-mailbox-page-button"
-              style="left: 534px; top: 43.5px;"
-            >
-              <svg width="40" height="30" viewBox="0 0 40 30">
-                <polygon points="20,0 38,13 2,13" fill="white" />
-                <polygon points="20,15 38,28 2,28" fill="white" />
+
+          {/* Messages display management */}
+          <div style={{ visibility: multipleMessages }}>
+            <div ref={this.clickable(() => this.showRelative(-1))} class="atc-mailbox-msg-button" style="top: 3.3px;">
+              <svg width="60" height="36" viewBox="0 0 60 36">
+                <polygon points="30,2 58,34 2,34" fill="white" />
               </svg>
             </div>
-            <div
-              ref={this.clickable(() => this.turnPage(1))}
-              class="atc-mailbox-page-button"
-              style="left: 534px; top: 90.4px;"
-            >
-              <svg width="40" height="30" viewBox="0 0 40 30">
-                <polygon points="2,2 38,2 20,15" fill="white" />
-                <polygon points="2,17 38,17 20,30" fill="white" />
+            <div class="atc-mailbox-small" style="left: 48px; top: 90px;">
+              MSG
+            </div>
+            <div class="atc-mailbox-small" style="left: 48px; top: 114px;">
+              {messageNumber}
+            </div>
+            <div ref={this.clickable(() => this.showRelative(1))} class="atc-mailbox-msg-button" style="top: 153.4px;">
+              <svg width="60" height="36" viewBox="0 0 60 36">
+                <polygon points="2,2 58,2 30,34" fill="white" />
               </svg>
             </div>
-            <div class="atc-mailbox-small" style="left: 573px; top: 171px;">
-              PGE
-            </div>
-            <div class="atc-mailbox-small" style="left: 573px; top: 206px;">
-              {pageNumber}
-            </div>
           </div>
-        </div>
+          <div class="atc-mailbox-recall">
+            <Button
+              label="RECALL"
+              onClick={() => this.publishToAtc('recallMessage', true)}
+              buttonStyle="width: 92px; height: 49.5px; padding: 0 4px;"
+            />
+          </div>
 
-        {/* Messages display management */}
-        <div style={{ visibility: multipleMessages }}>
-          <div ref={this.clickable(() => this.showRelative(-1))} class="atc-mailbox-msg-button" style="top: 3.3px;">
-            <svg width="60" height="36" viewBox="0 0 60 36">
-              <polygon points="30,2 58,34 2,34" fill="white" />
-            </svg>
-          </div>
-          <div class="atc-mailbox-small" style="left: 48px; top: 90px;">
-            MSG
-          </div>
-          <div class="atc-mailbox-small" style="left: 48px; top: 114px;">
-            {messageNumber}
-          </div>
-          <div ref={this.clickable(() => this.showRelative(1))} class="atc-mailbox-msg-button" style="top: 153.4px;">
-            <svg width="60" height="36" viewBox="0 0 60 36">
-              <polygon points="2,2 58,2 30,34" fill="white" />
-            </svg>
-          </div>
-        </div>
-        <div class="atc-mailbox-recall">
-          <Button
-            label="RECALL"
-            onClick={() => this.publishToAtc('recallMessage', true)}
-            buttonStyle="width: 92px; height: 49.5px; padding: 0 4px;"
-          />
-        </div>
+          {/* Communication buttons */}
+          {BUTTON_TOPS.map((_, i) => this.renderButton(i))}
 
-        {/* Communication buttons */}
-        {BUTTON_TOPS.map((_, i) => this.renderButton(i))}
+          {/* The justifications of the DUE TO button, on the left of the communication buttons */}
+          <div
+            class="atc-mailbox-due-to-menu"
+            style={{ display: this.dueToMenuOpen.map((open) => (open ? 'block' : 'none')) }}
+          >
+            {Object.keys(DUE_TO_REASONS).map((reason) => (
+              <div ref={this.clickable(() => this.selectDueTo(reason))} class="mfd-dropdown-menu-element">
+                {DUE_TO_REASONS[reason].label}
+              </div>
+            ))}
+          </div>
 
-        {/* The justifications of the DUE TO button, on the left of the communication buttons */}
-        <div
-          class="atc-mailbox-due-to-menu"
-          style={{ display: this.dueToMenuOpen.map((open) => (open ? 'block' : 'none')) }}
-        >
-          {Object.keys(DUE_TO_REASONS).map((reason) => (
-            <div ref={this.clickable(() => this.selectDueTo(reason))} class="mfd-dropdown-menu-element">
-              {DUE_TO_REASONS[reason].label}
-            </div>
-          ))}
-        </div>
-
-        {/* Information Messages Area */}
-        <div class="atc-mailbox-information" style="left: 230.5px;">
-          {information}
-        </div>
-        <div class="atc-mailbox-information" style="left: 488px;">
-          {systemInformation}
+          {/* Information Messages Area */}
+          <div class="atc-mailbox-information" style="left: 230.5px;">
+            {information}
+          </div>
+          <div class="atc-mailbox-information" style="left: 488px;">
+            {systemInformation}
+          </div>
         </div>
 
         <MouseCursor side={this.cursorSide} ref={this.mouseCursorRef} />
