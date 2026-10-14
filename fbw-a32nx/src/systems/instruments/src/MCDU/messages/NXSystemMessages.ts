@@ -113,6 +113,9 @@ export const NXSystemMessages = {
   onlySpdEntryAllowed: new TypeIMessage('ONLY SPD ENTRY ALLOWED'),
   rwyLsMismatch: new TypeIIMessage('RWY/LS MISMATCH', true),
   selectDesiredSystem: new TypeIMessage('SELECT DESIRED SYSTEM'), // FIXME move out of FMS (is part of MCDU itself)
+  // A320 FCOM DSC-22_20-50-20-38 MCDU messages (a320_fcom.txt l.23020-23028): I/W, the FUEL PRED FOB sensors selected
+  // (or the FF sensor of a FOB entry) are invalid
+  sensorIsInvalid: new TypeIMessage('SENSOR IS INVALID'),
   setHoldSpeed: new TypeIIMessage('SET HOLD SPEED'),
   setManagedSpeed: new TypeIIMessage('SET MANAGED SPEED'),
   spdLimExceeded: new TypeIIMessage('SPD LIM EXCEEDED', true),

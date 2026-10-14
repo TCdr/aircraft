@@ -627,6 +627,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New COM CAPT (F/O)(THIRD OCCUPANT) PTT STUCK and VHF 1(2)(3) EMITTING alerts from new flyPad failures of the PTT switches, VHF 3 DATALINK FAULT on the VHF 3 failure, COM DATALINK FAULT when VHF 3 is failed or in voice mode, PA IN USE memo while a PA transmission key is on - @TCdr
 1. [A380X/FWS] New APU MACH LIMIT EXCEEDED caution (APU running above M 0.5) and APU OIL FILTER CLOGGED alert with its flyPad failure - @TCdr
 1. [A380X/FWS] New SMOKE DET FAULT caution with the flyPad failure of the smoke detection function (no smoke is then detected anywhere); the cargo smoke TEST pb held 3 s shows the cargo and avionics SMOKE warnings and lights the VENT AVNCS SMOKE light - @TCdr
+1. [A32NX/MCDU] FUEL PRED: the FOB fuel sensors can be selected (/FF+FQ, /FF, /FQ) and the FOB entered in flight, with the SENSOR IS INVALID message; the predictions use that FOB - @TCdr
+1. [A32NX/MCDU] PROG REPORT page: OVHD waypoint with its time, altitude, SAT, wind and FOB recorded at the sequencing, TO/NEXT predicted time and altitude, T/D (S/C, S/D) time and distance in cruise, DEST time, distance and EFOB; the page no longer takes entries - @TCdr
+1. [A32NX/MCDU] PREDICTIVE GPS page: DEST ETA from the predictions (or crew entry), PRIMARY Y/N lines from the GPS receivers, reference waypoint and time entry, deselected satellites - @TCdr
 
 ## 2024.1.0
 
