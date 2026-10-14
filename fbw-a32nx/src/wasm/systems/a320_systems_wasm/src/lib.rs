@@ -479,6 +479,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (30_201, FailureType::WindshieldHeat(2)),
         (30_210, FailureType::WindowHeat(1)),
         (30_211, FailureType::WindowHeat(2)),
+        // ATA 35 oxygen (a320_systems oxygen.rs)
+        (35_000, FailureType::CockpitOxygenBottleLeak),
         // ATA 36 pneumatic (a320_systems pneumatic.rs)
         (36_000, FailureType::EngineBleedValveStuckClosed(1)),
         (36_001, FailureType::EngineBleedValveStuckClosed(2)),

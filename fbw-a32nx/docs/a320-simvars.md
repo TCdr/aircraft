@@ -78,6 +78,12 @@
       of 0, or (NO SMOKING signs only) cabin altitude above 11 300 ft
     - Also is used for knowing when to play the no smoking chime sound
 
+- A32NX_SEAT_BELTS_MEMO
+    - Bool
+    - The SEAT BELTS signs are on: SEAT BELTS switch ON, or cabin altitude above 11 300 ft whatever the switch
+      (FCOM DSC-33-40-10 note 1)
+    - Drives the SEAT BELTS memo and the SIGNS ON line of the T.O MEMO
+
 - A32NX_BRAKE_TEMPERATURE_{1,2,3,4}
     - celsius
     - represents the brake temperature of the rear wheels
@@ -1218,6 +1224,39 @@
 - A32NX_FWD_DOOR_CARGO_LOCKED
     - Bool
     - Forward cargo door is locked in closed position
+
+- A32NX_DOOR_{door}_PROX_SENSOR_FAULT
+    - Bool
+    - The proximity sensor of the door is failed (flyPad ATA 52 failure): the door is no longer detected closed, so the
+      DOOR caution and the amber door of the DOOR/OXY page show while it is closed
+    - Written by the systems host (Doors/DoorFailures.ts)
+    - {door}
+        - L_FWD_CABIN
+        - R_FWD_CABIN
+        - L_AFT_CABIN
+        - R_AFT_CABIN
+        - L_EMER_EXIT
+        - R_EMER_EXIT
+        - FWD_CARGO
+        - AFT_CARGO
+
+- A32NX_CDLS_{part}_FAULT
+    - Bool
+    - A part of the cockpit door locking system is failed (flyPad ATA 52 failure): its status light of the CKPT DOOR
+      CONT overhead panel comes on
+    - Written by the systems host (Doors/DoorFailures.ts)
+    - {part}
+        - UPPER_LATCH (TOP strike light)
+        - MID_LATCH (MID strike light)
+        - LOWER_LATCH (BOT strike light)
+        - PRESSURE_SENSOR_1 (CHAN 1 light)
+        - PRESSURE_SENSOR_2 (CHAN 2 light)
+
+- A32NX_CDLS_FAULT
+    - Bool
+    - The cockpit door locking system has a failure (a latch, a pressure sensor or the control unit): the COCKPIT DOOR
+      FAULT light of the pedestal comes on
+    - Written by the systems host (Doors/DoorFailures.ts)
 
 - A32NX_PARK_BRAKE_LEVER_POS
     - Bool

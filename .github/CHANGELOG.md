@@ -703,6 +703,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ATC] The ATC RESET pb of the overhead RESET panel resets the ATC datalink (connections and mailbox messages lost, COM ATC DATALINK FAULT while pulled); the SD mailbox shows MAILBOX NOT AVAIL and the KCCU ATC COM key ATC COM NOT AVAIL while the ATC is lost - @TCdr
 1. [A380X/OIT] EXIT SESSION of the FLT OPS MENU page returns to the login page and clears the FLT OPS STS page (not while the FLT FOLDER is open) - @TCdr
 1. [A380X/AOC] The AOC runs on the NSS AVNCS ANSUs instead of AC 1, NSS DATA TO AVNCS OFF stops its downlinks (uplinks still received), and the OIT COMPANY COM inbox can print a message on the pedestal printer - @TCdr
+1. [A32NX/ANTI ICE] A detected wing leak closes the wing anti-ice valve of its side (WING pb FAULT light), also with the crossbleed open - @TCdr
+1. [A32NX/ANTI ICE] The probes and windshields are heated in flight with both engines stopped (PROBE/WINDOW HEAT pb AUTO) - @TCdr
+1. [A32NX/SIGNS] The SEAT BELTS memo comes on above 11 300 ft cabin altitude whatever the switch - @TCdr
+1. [A32NX/FLYPAD] New failures: crew oxygen bottle leak (ATA 35), door proximity sensors and cockpit door locking system latches, pressure sensors and control unit (ATA 52) - @TCdr
+1. [A32NX/DOORS] The COCKPIT DOOR FAULT light and the CKPT DOOR CONT strike and CHAN lights come on with their cockpit door locking system failure; a failed door proximity sensor shows its door not closed on the DOOR/OXY page and ECAM - @TCdr
 
 ## 2024.1.0
 

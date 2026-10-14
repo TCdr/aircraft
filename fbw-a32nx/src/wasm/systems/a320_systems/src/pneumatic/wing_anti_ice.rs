@@ -74,6 +74,10 @@ pub struct WingAntiIceValveController {
     controller_signals_on: bool, // Status of the ON light. If button is pushed and
     // the test is finished, the ON light should turn off.
     supplier_pressurized: bool,
+    /// The leak detection of this side detects a wing leak: the valve closes (FCOM DSC-30-20-10 a320_fcom.txt
+    /// l.44257-44258 "If the system detects a leak during normal operation, the affected side's wing anti-ice valve
+    /// automatically closes")
+    closed_by_leak_protection: bool,
 }
 impl WingAntiIceValveController {
     const WAI_VALVE_MEAN_SETPOINT: f64 = 22.5;
@@ -86,6 +90,7 @@ impl WingAntiIceValveController {
             valve_pid: PidController::new(0.05, 0.01, 0., 0., 1., random_setpoint, 1.),
             controller_signals_on: false,
             supplier_pressurized: false,
+            closed_by_leak_protection: false,
         }
     }
 
@@ -114,11 +119,13 @@ impl WingAntiIceValveController {
         context: &UpdateContext,
         relay_signal: bool,
         supplier_pressurized: bool,
+        wing_leak_detected: bool,
     ) {
         self.update_setpoint(context);
 
         self.controller_signals_on = relay_signal;
         self.supplier_pressurized = supplier_pressurized;
+        self.closed_by_leak_protection = wing_leak_detected;
     }
 }
 
@@ -127,7 +134,10 @@ impl WingAntiIceValveController {
 // is what is returned from this implementation.
 impl ControllerSignal<WingAntiIceValveSignal> for WingAntiIceValveController {
     fn signal(&self) -> Option<WingAntiIceValveSignal> {
-        match self.controller_signals_on {
+        // The leak protection closes the valve whatever the push button; the ON command stays, so the valve no longer
+        // follows it and the WING pb FAULT light comes on (DSC-30-20-20 l.44295-44298 "The position of the anti-icing
+        // control valve is not the required position")
+        match self.controller_signals_on && !self.closed_by_leak_protection {
             false => Some(WingAntiIceValveSignal::new_closed()),
             true => {
                 if self.supplier_pressurized {
@@ -353,7 +363,8 @@ impl WingAntiIceSystem {
 
         Self {
             // At 22000ft, flow rate is given at 0.327kg/s
-            // Leaking failure not simulated
+            // A wing duct leak is the WingBleedLeak failure of the engine bleed system of its side (pneumatic.rs): its
+            // detection closes this valve (closed_by_leak_protection of the controller)
             wai_exhaust: PneumaticExhaust::new(
                 Self::WAI_EXHAUST_SPEED,
                 Self::WAI_EXHAUST_SPEED,
@@ -397,7 +408,12 @@ impl WingAntiIceSystem {
             precooler_pressure > context.ambient_pressure() + Pressure::new::<psi>(10.);
     }
 
-    fn update_valve_controller(&mut self, context: &UpdateContext, wai_relay: &WingAntiIceRelay) {
+    fn update_valve_controller(
+        &mut self,
+        context: &UpdateContext,
+        wai_relay: &WingAntiIceRelay,
+        wing_leak_detected: bool,
+    ) {
         self.wai_valve_controller.valve_pid.next_control_output(
             self.wai_consumer_pressure().get::<psi>(),
             Some(context.delta()),
@@ -407,6 +423,7 @@ impl WingAntiIceSystem {
             context,
             wai_relay.signals_on(),
             self.wai_bleed_pressurised,
+            wing_leak_detected,
         );
 
         self.wai_valve
@@ -461,12 +478,13 @@ impl WingAntiIceSystem {
         context: &UpdateContext,
         engine_system: &mut impl PneumaticContainer,
         wai_relay: &WingAntiIceRelay,
+        wing_leak_detected: bool,
     ) {
         self.update_pressure_above_minimum(context, engine_system.pressure());
 
         // First, we see if the valve's open amount changes this update,
-        // as a result of a change in the ovhd panel push button.
-        self.update_valve_controller(context, wai_relay);
+        // as a result of a change in the ovhd panel push button or of a detected wing leak.
+        self.update_valve_controller(context, wai_relay, wing_leak_detected);
 
         // An exhaust tick always happens, no matter what
         // the valve's state is
@@ -587,14 +605,20 @@ impl WingAntiIceComplex {
         engine_systems: &mut [impl PneumaticContainer; 2],
         wai_mode: WingAntiIcePushButtonMode,
         lgciu: [&impl LgciuWeightOnWheels; 2],
+        wing_leaks_detected: [bool; 2],
     ) {
         // Reset the fault variable, then iterates through to check if there is a fault
         self.wai_system_has_fault = false;
 
         self.wai_relay.update(context, wai_mode, lgciu);
 
-        for (wai_system, engine_system) in self.wai_systems.iter_mut().zip(engine_systems) {
-            wai_system.update(context, engine_system, &self.wai_relay);
+        for ((wai_system, engine_system), wing_leak_detected) in self
+            .wai_systems
+            .iter_mut()
+            .zip(engine_systems)
+            .zip(wing_leaks_detected)
+        {
+            wai_system.update(context, engine_system, &self.wai_relay, wing_leak_detected);
             self.wai_system_has_fault = self.wai_system_has_fault || wai_system.wai_has_fault();
         }
 

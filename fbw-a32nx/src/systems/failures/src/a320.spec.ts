@@ -206,6 +206,34 @@ describe('A320 flyPad failures', () => {
     expect(wasm).toContain('(30_011, FailureType::EngineAntiIceValveStuckOpen(2)),');
   });
 
+  // The ATA 35 id is the Rust failure of a320_systems oxygen.rs, registered in a320_systems_wasm
+  it('lists the crew oxygen bottle leak in ATA 35 with the Rust failure it triggers', () => {
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    const entry = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(entry(A320Failure.CrewOxygenBottleLeak)).toEqual([35, 35000, 'Crew oxygen bottle leak (100 PSI/min)']);
+    expect(wasm).toContain('(35_000, FailureType::CockpitOxygenBottleLeak),');
+  });
+
+  // TS only: systems-host Doors/DoorFailures.ts publishes them for the DOOR cautions, the DOOR/OXY page and the CDLS
+  // lights
+  it('lists the door proximity sensor and cockpit door locking system failures in ATA 52', () => {
+    const entry = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    expect(entry(A320Failure.LeftForwardCabinDoorProximitySensor)).toEqual([
+      52,
+      52000,
+      'L FWD cabin door proximity sensor (door shown not closed)',
+    ]);
+    expect(entry(A320Failure.AftCargoDoorProximitySensor)).toEqual([
+      52,
+      52007,
+      'AFT cargo door proximity sensor (door shown not closed)',
+    ]);
+    expect(entry(A320Failure.CockpitDoorUpperLatch)).toEqual([52, 52100, 'Cockpit door upper latch (strike)']);
+    expect(entry(A320Failure.CockpitDoorPressureSensor2)).toEqual([52, 52111, 'Cockpit door pressure sensor 2']);
+    expect(entry(A320Failure.CockpitDoorControlUnit)).toEqual([52, 52120, 'Cockpit door control unit']);
+    expect(A320FailureDefinitions.filter(([chapter]) => chapter === 52)).toHaveLength(14);
+  });
+
   // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73101 (failure names audit rule)
   it('lists the engine fuel filter clog failures in ATA 73 with the Rust failure they trigger', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);

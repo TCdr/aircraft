@@ -8,6 +8,7 @@ import {
   DoorAlerts,
   DoorsNotClosed,
   isInteractivePointNotClosed,
+  readDoorsNotClosed,
 } from './DoorAlerts';
 import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
 
@@ -60,6 +61,29 @@ describe('DOOR cautions', () => {
     const item = new DoorAlerts().ewdFailures[DoorAlertKeys.leftForwardCabin];
     expect(item.failure).toBe(2);
     expect(DOOR_PHASE_INHIBITION).toEqual([1, 4, 5, 7, 8, 10]);
+  });
+
+  it('a failed proximity sensor shows its closed door not closed (flyPad ATA 52 failure)', () => {
+    const { GetSimVarValue } = SimVar;
+    try {
+      // every door closed and its cargo doors locked, the R AFT cabin door sensor failed
+      const simVars = new Map<string, number>([
+        ['L:A32NX_FWD_DOOR_CARGO_LOCKED', 1],
+        ['L:A32NX_AFT_DOOR_CARGO_LOCKED', 1],
+        ['L:A32NX_DOOR_R_AFT_CABIN_PROX_SENSOR_FAULT', 1],
+        ['L:A32NX_DOOR_FWD_CARGO_PROX_SENSOR_FAULT', 1],
+      ]);
+      SimVar.GetSimVarValue = (name: string) => simVars.get(name) ?? 0;
+      const doors = readDoorsNotClosed();
+      expect(doors[DoorAlertKeys.rightAftCabin]).toBe(true);
+      expect(doors[DoorAlertKeys.forwardCargo]).toBe(true);
+      const others = Object.values(DoorAlertKeys).filter(
+        (key) => key !== DoorAlertKeys.rightAftCabin && key !== DoorAlertKeys.forwardCargo,
+      );
+      expect(others.some((key) => doors[key])).toBe(false);
+    } finally {
+      SimVar.GetSimVarValue = GetSimVarValue;
+    }
   });
 
   it('are wired in the PseudoFWC', () => {

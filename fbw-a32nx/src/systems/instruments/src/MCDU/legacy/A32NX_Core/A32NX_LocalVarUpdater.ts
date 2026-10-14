@@ -6,7 +6,7 @@
 // and then updates the local simvar if it changed.
 
 import { UpdateThrottler } from '@flybywiresim/fbw-sdk';
-import { areNoSmokingSignsOn } from './CabinSigns';
+import { areNoSmokingSignsOn, areSeatBeltsSignsOn } from './CabinSigns';
 
 const FLAPS_IN_MOTION_MIN_DELTA = 0.1;
 
@@ -26,6 +26,12 @@ export class A32NX_LocalVarUpdater {
       varName: 'L:A32NX_NO_SMOKING_MEMO',
       type: 'Bool',
       selector: this._noSmokingMemoSelector,
+      refreshInterval: 1000,
+    },
+    {
+      varName: 'L:A32NX_SEAT_BELTS_MEMO',
+      type: 'Bool',
+      selector: this._seatBeltsMemoSelector,
       refreshInterval: 1000,
     },
     {
@@ -82,6 +88,15 @@ export class A32NX_LocalVarUpdater {
       // (systems-host Oxygen/PaxOxygenMasks.ts)
       cabinAltitudeFt: SimVar.GetSimVarValue('L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 'Feet'),
       portableDevicesSigns: SimVar.GetSimVarValue('L:A32NX_CONFIG_USING_PORTABLE_DEVICES', 'Bool') > 0,
+    });
+  }
+
+  /** The SEAT BELTS signs are on: FCOM rules in CabinSigns */
+  _seatBeltsMemoSelector() {
+    return areSeatBeltsSignsOn({
+      switchOn: SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'Bool') > 0,
+      // The same cabin altitude as the NO SMOKING signs above
+      cabinAltitudeFt: SimVar.GetSimVarValue('L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 'Feet'),
     });
   }
 

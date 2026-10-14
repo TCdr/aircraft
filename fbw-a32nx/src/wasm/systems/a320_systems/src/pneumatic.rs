@@ -424,6 +424,7 @@ impl A320Pneumatic {
             &mut self.engine_systems,
             overhead_panel.wing_anti_ice.mode(),
             lgciu,
+            self.leak_detection.wing_leaks(),
         );
         let [left_system, right_system] = &mut self.engine_systems;
         self.apu_bleed_air_valve.update_move_fluid(
@@ -2305,6 +2306,12 @@ impl BleedLeakDetection {
     /// A wing or pylon leak on the side of the engine: its bleed valve closes, its FAULT light comes on
     fn side_leak(&self, engine_number: usize) -> bool {
         self.pylon_leak[engine_number - 1] || self.wing_leak[engine_number - 1]
+    }
+
+    /// The wing leak of each wing (1 left, 2 right): it also closes the wing anti-ice valve of that wing (FCOM
+    /// DSC-30-20-10 l.44257-44258)
+    fn wing_leaks(&self) -> [bool; 2] {
+        self.wing_leak
     }
 
     /// Any leak: the crossbleed valve closes in AUTO (except during engine start)
@@ -6739,6 +6746,31 @@ pub mod tests {
             assert!(flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
             assert!(test_bed.apu_bleed_valve_is_open());
             assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_FULLY_OPEN"));
+        }
+
+        /// DSC-30-20-10 l.44257-44258: "If the system detects a leak during normal operation, the affected side's
+        /// wing anti-ice valve automatically closes". The crossbleed is selected OPEN so that the left duct stays
+        /// pressurised from engine 2: only the leak protection can close the left valve.
+        #[test]
+        fn a_wing_leak_closes_the_wing_anti_ice_valve_of_its_side() {
+            let mut test_bed = idle_descent_through_10000_ft_with_wing_anti_ice()
+                .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Open);
+            // In flight for the LGCIUs too: no 30 s ground test sequence of the wing anti-ice
+            test_bed.set_lgciu_on_ground(false);
+            run_seconds(&mut test_bed, 30);
+            assert!(!test_bed.left_valve_closed());
+            assert!(!test_bed.right_valve_closed());
+            assert!(!test_bed.wing_anti_ice_has_fault());
+
+            test_bed.fail(FailureType::WingBleedLeak(1));
+            run_seconds(&mut test_bed, 30);
+
+            assert!(flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
+            assert!(test_bed.left_precooler_pressurised());
+            assert!(test_bed.left_valve_closed());
+            assert!(!test_bed.right_valve_closed());
+            // DSC-30-20-20 l.44295-44298: the valve is not in the required position, the WING pb FAULT light comes on
+            assert!(test_bed.wing_anti_ice_has_fault());
         }
 
         /// DSC-36-10-50 l.57508-57509: both wing loops, or one loop with the other inoperative; PRO-ABN-AIR
