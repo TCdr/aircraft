@@ -5399,6 +5399,24 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
       BSCU channels are lost
     - Read-Only
 
+- A32NX_TPIS_MAIN_{number}_TYRE_PRESSURE / A32NX_TPIS_NOSE_{number}_TYRE_PRESSURE
+    - Arinc429<PSI>
+    - The tyre pressure (gauge) measured by the tyre pressure indicating system (TPIS), the source of the WHEEL TYRE LO
+      PR alert (FCOM PRO-ABN-WHEEL, not built yet). The tyres are inflated to their nominal pressure at the outside air
+      temperature of the start, then follow the gas temperature (outside air, brake heat on the main wheels) and the
+      tyre deflation failures (flyPad ATA 32, 32300-32305). Failure warning SSM while DC BUS 1 is unpowered (ELEC DC
+      BUS 1 FAULT INOP SYS TPIS). Written by the systems WASM (a320_systems tyre_pressure.rs)
+    - {number}
+        - MAIN: 1 to 4, the main wheels from left to right (as the brakes)
+        - NOSE: 1 left, 2 right
+    - Read-Only
+
+- A32NX_TPIS_MAIN_NOMINAL_TYRE_PRESSURE / A32NX_TPIS_NOSE_NOMINAL_TYRE_PRESSURE
+    - PSI
+    - The nominal pressure of the main (200) and nose (180) tyres, the reference of the WHEEL TYRE LO PR percentages
+      (design values, the FCOM gives no tyre pressure)
+    - Read-Only
+
 ## Lighting (ATA 33)
 
 - `L:A32NX_LIGHTS_NAV_LOGO`

@@ -8005,6 +8005,7 @@ mod tests {
                     &self.landing_gear,
                     &self.hydraulics.gear_system,
                     self.ext_pwr.output_potential().is_powered(),
+                    true,
                 );
 
                 self.hydraulics.update(
