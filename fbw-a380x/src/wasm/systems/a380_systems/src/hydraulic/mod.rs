@@ -11838,6 +11838,10 @@ mod tests {
 
         #[test]
         fn flaps_slats_moving() {
+            // The actuator flows and dampings are random (linear_actuator.rs): a slow draw can need more than 60 s
+            // with GREEN alone, so each step waits, bounded, until the surfaces have stopped
+            let surfaces_stopped =
+                |bed: &mut A380HydraulicsTestBed| !bed.is_slats_moving() && !bed.is_flaps_moving();
             let mut test_bed = test_bed_on_ground_with()
                 .on_the_ground()
                 .set_park_brake(true)
@@ -11850,49 +11854,57 @@ mod tests {
 
             test_bed = test_bed
                 .set_flaps_handle_position(1)
-                .run_waiting_for(Duration::from_secs(60));
+                .run_waiting_for(Duration::from_secs(60))
+                .run_until(60, "flaps and slats stopped", surfaces_stopped);
             assert!(!test_bed.is_slats_moving());
             assert!(!test_bed.is_flaps_moving());
 
             test_bed = test_bed
                 .set_flaps_handle_position(2)
-                .run_waiting_for(Duration::from_secs(60));
+                .run_waiting_for(Duration::from_secs(60))
+                .run_until(60, "flaps and slats stopped", surfaces_stopped);
             assert!(!test_bed.is_slats_moving());
             assert!(!test_bed.is_flaps_moving());
 
             test_bed = test_bed
                 .set_flaps_handle_position(3)
-                .run_waiting_for(Duration::from_secs(60));
+                .run_waiting_for(Duration::from_secs(60))
+                .run_until(60, "flaps and slats stopped", surfaces_stopped);
             assert!(!test_bed.is_slats_moving());
             assert!(!test_bed.is_flaps_moving());
 
             test_bed = test_bed
                 .set_flaps_handle_position(4)
-                .run_waiting_for(Duration::from_secs(60));
+                .run_waiting_for(Duration::from_secs(60))
+                .run_until(60, "flaps and slats stopped", surfaces_stopped);
             assert!(!test_bed.is_slats_moving());
             assert!(!test_bed.is_flaps_moving());
 
             test_bed = test_bed
                 .set_flaps_handle_position(3)
-                .run_waiting_for(Duration::from_secs(60));
+                .run_waiting_for(Duration::from_secs(60))
+                .run_until(60, "flaps and slats stopped", surfaces_stopped);
             assert!(!test_bed.is_slats_moving());
             assert!(!test_bed.is_flaps_moving());
 
             test_bed = test_bed
                 .set_flaps_handle_position(2)
-                .run_waiting_for(Duration::from_secs(60));
+                .run_waiting_for(Duration::from_secs(60))
+                .run_until(60, "flaps and slats stopped", surfaces_stopped);
             assert!(!test_bed.is_slats_moving());
             assert!(!test_bed.is_flaps_moving());
 
             test_bed = test_bed
                 .set_flaps_handle_position(1)
-                .run_waiting_for(Duration::from_secs(60));
+                .run_waiting_for(Duration::from_secs(60))
+                .run_until(60, "flaps and slats stopped", surfaces_stopped);
             assert!(!test_bed.is_slats_moving());
             assert!(!test_bed.is_flaps_moving());
 
             test_bed = test_bed
                 .set_flaps_handle_position(0)
-                .run_waiting_for(Duration::from_secs(60));
+                .run_waiting_for(Duration::from_secs(60))
+                .run_until(60, "flaps and slats stopped", surfaces_stopped);
             assert!(!test_bed.is_slats_moving());
             assert!(!test_bed.is_flaps_moving());
         }
