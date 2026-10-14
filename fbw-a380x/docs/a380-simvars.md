@@ -2590,6 +2590,19 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Number (seconds)
     - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
 
+- A32NX_MMR_{number}_LOC_IS_VALID, A32NX_MMR_{number}_GS_IS_VALID
+    - Bool
+    - number: 1 or 2
+    - The localizer (glide slope) signal of the ILS receiver of MMR {number} is valid. MMR 1 is the sim NAV 3, MMR 2
+      NAV 4. Written by systems.wasm (fbw-common navigation/ils.rs). The F/O PFD reads MMR 2; the CAPT PFD keeps the
+      A32NX_RADIO_RECEIVER_* variables (MMR 1)
+
+- A32NX_MMR_{number}_LOC_DEVIATION, A32NX_MMR_{number}_GS_DEVIATION
+    - Number in degrees
+    - The localizer (glide slope) deviation of the ILS receiver of MMR {number}, the sim signal (NAV RADIAL ERROR,
+      NAV GLIDE SLOPE ERROR), not corrected for the back beam: the contract of A32NX_RADIO_RECEIVER_LOC_DEVIATION
+      and A32NX_RADIO_RECEIVER_GS_DEVIATION without the calculated ILS signals option
+
 ## Standby Instruments ATA 34
 
 - `L:A380X_ISIS_CONFIGURATION`

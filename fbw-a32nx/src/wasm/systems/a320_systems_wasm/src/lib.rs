@@ -728,13 +728,14 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 7)?
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 8)?
     .provides_aircraft_variable("IS SLEW ACTIVE", "Bool", 0)?
-    .provides_aircraft_variable("NAV HAS NAV", "Bool", 3)?
-    .provides_aircraft_variable("NAV HAS LOC", "Bool", 3)?
-    .provides_aircraft_variable("NAV HAS GLIDE SLOPE", "Bool", 3)?
+    // the ILS receivers of MMR 1 (NAV 3) and MMR 2 (NAV 4)
+    .provides_aircraft_variable_range("NAV HAS NAV", "Bool", 3..=4)?
+    .provides_aircraft_variable_range("NAV HAS LOCALIZER", "Bool", 3..=4)?
+    .provides_aircraft_variable_range("NAV HAS GLIDE SLOPE", "Bool", 3..=4)?
     .provides_aircraft_variable("NAV MAGVAR", "degree", 3)?
-    .provides_aircraft_variable("NAV RADIAL ERROR", "degree", 3)?
-    .provides_aircraft_variable("NAV GLIDE SLOPE ERROR", "degree", 3)?
-    .provides_aircraft_variable("NAV FREQUENCY", "Hz", 3)?
+    .provides_aircraft_variable_range("NAV RADIAL ERROR", "degree", 3..=4)?
+    .provides_aircraft_variable_range("NAV GLIDE SLOPE ERROR", "degree", 3..=4)?
+    .provides_aircraft_variable_range("NAV FREQUENCY", "Hz", 3..=4)?
     .provides_named_variable("FSDT_GSX_BOARDING_STATE")?
     .provides_named_variable("FSDT_GSX_DEBOARDING_STATE")?
     .provides_named_variable("FSDT_GSX_NUMPASSENGERS_BOARDING_TOTAL")?
