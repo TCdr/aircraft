@@ -173,7 +173,8 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
 
 - `L:A380X_RMP_{rmp_index}_STBY_NAV`
     - Boolean
-    - Indicates whether standby radio nav is on or off.
+    - Indicates whether standby radio nav is on or off: RMP 1 or 2 in STBY RAD NAV mode (guarded key selected and the
+      RMP on), always 0 for RMP 3. Lights the key; the FMS stops tuning the navaids while it is set (NavaidTuner).
 
 - `L:A380X_RMP_{rmp_index}_TEL_CALL_{tel_index}`
     - Boolean
