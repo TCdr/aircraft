@@ -31,6 +31,22 @@ describe('SD DOOR/OXY doors', () => {
     expect(source).toContain('L:A32NX_AFT_DOOR_CARGO_LOCKED');
     expect(source).toContain('EMER EXIT');
   });
+
+  // PRO-ABN-DOOR (l.74659-74660): "not detected closed by the proximity sensors", the same rule as the DOOR cautions
+  it('is amber when its proximity sensor is failed, the door closed (flyPad ATA 52 failure)', () => {
+    expect(isDoorNotLocked(0, true)).toBe(true);
+    expect(isDoorNotLocked(0, false)).toBe(false);
+  });
+
+  it('reads the proximity sensor fault of every door, the cargo doors included', () => {
+    const source = page();
+    expect(source).toContain('doorProximitySensorFaultVar(');
+    for (const door of ['L_FWD_CABIN', 'R_FWD_CABIN', 'L_AFT_CABIN', 'R_AFT_CABIN', 'L_EMER_EXIT', 'R_EMER_EXIT']) {
+      expect(source).toContain(`sensorFault('${door}')`);
+    }
+    expect(source).toContain("isDoorDetectedNotClosed(!forwardCargoLocked, sensorFault('FWD_CARGO'))");
+    expect(source).toContain("isDoorDetectedNotClosed(!aftCargoLocked, sensorFault('AFT_CARGO'))");
+  });
 });
 
 /* A320 FCOM DSC-35-20-20 crew oxygen pressure (a320_fcom.txt l.56814-56818) */

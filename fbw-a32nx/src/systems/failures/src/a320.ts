@@ -291,6 +291,23 @@ export const A320Failure = Object.freeze({
   Ir3HeadingErroneous: 34112,
   // TS only: the predictive windshear function of the weather radar (FWC/Logic/PredictiveWindshearAlerts.ts)
   WxrPredictiveWindshear: 34120,
+  // ATA 35 (a320_systems oxygen.rs)
+  CrewOxygenBottleLeak: 35000,
+  // ATA 52 TS only: published by the systems host Doors/DoorFailures.ts
+  LeftForwardCabinDoorProximitySensor: 52000,
+  RightForwardCabinDoorProximitySensor: 52001,
+  LeftAftCabinDoorProximitySensor: 52002,
+  RightAftCabinDoorProximitySensor: 52003,
+  LeftEmergencyExitProximitySensor: 52004,
+  RightEmergencyExitProximitySensor: 52005,
+  ForwardCargoDoorProximitySensor: 52006,
+  AftCargoDoorProximitySensor: 52007,
+  CockpitDoorUpperLatch: 52100,
+  CockpitDoorMidLatch: 52101,
+  CockpitDoorLowerLatch: 52102,
+  CockpitDoorPressureSensor1: 52110,
+  CockpitDoorPressureSensor2: 52111,
+  CockpitDoorControlUnit: 52120,
   // ATA 36 (a320_systems pneumatic.rs)
   Eng1BleedValveStuckClosed: 36000,
   Eng2BleedValveStuckClosed: 36001,
@@ -688,6 +705,29 @@ export const A320FailureDefinitions: FailureDefinition[] = [
   [34, A320Failure.Ir2HeadingErroneous, 'IR 2 heading erroneous'],
   [34, A320Failure.Ir3HeadingErroneous, 'IR 3 heading erroneous'],
   [34, A320Failure.WxrPredictiveWindshear, 'Weather radar predictive windshear (PWS)'],
+
+  // The crew oxygen bottle loses 100 PSI/min: the DOOR/OXY page pressure pulses below 600 PSI, CKPT OXY amber below
+  // 300 PSI, REGUL LO PR once the bottle is empty
+  [35, A320Failure.CrewOxygenBottleLeak, 'Crew oxygen bottle leak (100 PSI/min)'],
+
+  // A failed proximity sensor no longer detects its door closed: amber door on the DOOR/OXY page and DOOR caution,
+  // the door being closed
+  [52, A320Failure.LeftForwardCabinDoorProximitySensor, 'L FWD cabin door proximity sensor (door shown not closed)'],
+  [52, A320Failure.RightForwardCabinDoorProximitySensor, 'R FWD cabin door proximity sensor (door shown not closed)'],
+  [52, A320Failure.LeftAftCabinDoorProximitySensor, 'L AFT cabin door proximity sensor (door shown not closed)'],
+  [52, A320Failure.RightAftCabinDoorProximitySensor, 'R AFT cabin door proximity sensor (door shown not closed)'],
+  [52, A320Failure.LeftEmergencyExitProximitySensor, 'L emergency exit proximity sensor (door shown not closed)'],
+  [52, A320Failure.RightEmergencyExitProximitySensor, 'R emergency exit proximity sensor (door shown not closed)'],
+  [52, A320Failure.ForwardCargoDoorProximitySensor, 'FWD cargo door proximity sensor (door shown not closed)'],
+  [52, A320Failure.AftCargoDoorProximitySensor, 'AFT cargo door proximity sensor (door shown not closed)'],
+  // Cockpit door locking system: the CKPT DOOR CONT strike (latch) or CHAN (pressure sensor) light and the pedestal
+  // COCKPIT DOOR FAULT light (QRH COCKPIT DOOR FAULT); the control unit lights the FAULT light only
+  [52, A320Failure.CockpitDoorUpperLatch, 'Cockpit door upper latch (strike)'],
+  [52, A320Failure.CockpitDoorMidLatch, 'Cockpit door mid latch (strike)'],
+  [52, A320Failure.CockpitDoorLowerLatch, 'Cockpit door lower latch (strike)'],
+  [52, A320Failure.CockpitDoorPressureSensor1, 'Cockpit door pressure sensor 1'],
+  [52, A320Failure.CockpitDoorPressureSensor2, 'Cockpit door pressure sensor 2'],
+  [52, A320Failure.CockpitDoorControlUnit, 'Cockpit door control unit'],
 
   // The valve stays closed / fully open whatever the BMC commands (a stuck open bleed valve no longer regulates: ENG
   // BLEED FAULT by overpressure at climb power, ENG BLEED NOT CLSD at engine start, with APU BLEED ON or engine stopped)

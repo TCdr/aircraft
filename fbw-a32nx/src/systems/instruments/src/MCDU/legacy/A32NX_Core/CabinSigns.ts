@@ -58,3 +58,21 @@ export function areNoSmokingSignsOn(inputs: NoSmokingSignsInputs): boolean {
       return false;
   }
 }
+
+export interface SeatBeltsSignsInputs {
+  /** The SEAT BELTS switch is ON (A:CABIN SEATBELTS ALERT SWITCH; the switch of the sim has no AUTO position) */
+  readonly switchOn: boolean;
+  /** The cabin altitude, ft */
+  readonly cabinAltitudeFt: number;
+}
+
+/**
+ * Whether the signs of the SEAT BELTS switch (FASTEN SEAT BELT, RETURN TO YOUR SEAT, l.52351) are on in the cabin:
+ * switch ON, or cabin altitude above 11 300 ft whatever the switch (note 1, l.52376-52378). This is also the SEAT BELTS
+ * memo state (l.52387-52388, L:A32NX_SEAT_BELTS_MEMO).
+ * @param inputs the switch and the cabin altitude
+ * @returns true when the signs are on
+ */
+export function areSeatBeltsSignsOn(inputs: SeatBeltsSignsInputs): boolean {
+  return inputs.switchOn || inputs.cabinAltitudeFt > CABIN_SIGNS_ON_CABIN_ALTITUDE_FT;
+}

@@ -739,6 +739,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIS] The laptop shows STANDALONE and SYNCHRONIZATION NOT AVAIL when started before the ARU (2 min after power-up) or without the FLT OPS network - @TCdr
 1. [A380X/OIS] The OIS MENU key shows the FLT OPS menu and the OIS XFR key shows the other OIT's page (X-OIS) - @TCdr
 1. [A380X/OIS] COMPANY COM weather request (METAR/TAF) and free text pages, sent through the AOC - @TCdr
+1. [A32NX/ANTI ICE] A detected wing leak closes the wing anti-ice valve of its side (WING pb FAULT light), also with the crossbleed open - @TCdr
+1. [A32NX/ANTI ICE] The probes and windshields are heated in flight with both engines stopped (PROBE/WINDOW HEAT pb AUTO) - @TCdr
+1. [A32NX/SIGNS] The SEAT BELTS memo comes on above 11 300 ft cabin altitude whatever the switch - @TCdr
+1. [A32NX/FLYPAD] New failures: crew oxygen bottle leak (ATA 35), door proximity sensors and cockpit door locking system latches, pressure sensors and control unit (ATA 52) - @TCdr
+1. [A32NX/DOORS] The COCKPIT DOOR FAULT light and the CKPT DOOR CONT strike and CHAN lights come on with their cockpit door locking system failure; a failed door proximity sensor shows its door not closed on the DOOR/OXY page and ECAM - @TCdr
 
 ## 2024.1.0
 

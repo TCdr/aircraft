@@ -289,10 +289,12 @@
             <SEQ2_CODE>(L:A32NX_MAN_PITOT_HEAT)</SEQ2_CODE>
         </UseTemplate>
 
+        <!-- Probes and windows heated automatically when at least one engine is running or in flight, or manually with
+        the PROBE/WINDOW HEAT pb ON (FCOM DSC-30-40-10 a320_fcom.txt l.44440-44442, DSC-30-50-10 l.44524-44526) -->
         <UseTemplate Name="ASOBO_GT_Update">
             <FREQUENCY>0.33</FREQUENCY>
             <UPDATE_CODE>
-                (A:ENG COMBUSTION:1, Bool) (A:ENG COMBUSTION:2, Bool) or (L:A32NX_MAN_PITOT_HEAT, Bool) or if{
+                (A:ENG COMBUSTION:1, Bool) (A:ENG COMBUSTION:2, Bool) or (A:SIM ON GROUND, Bool) ! or (L:A32NX_MAN_PITOT_HEAT, Bool) or if{
                     (A:PITOT HEAT, Bool) ! if{ (&gt;K:PITOT_HEAT_ON) }
                     (A:WINDSHIELD DEICE SWITCH, Bool) ! if{ (&gt;K:WINDSHIELD_DEICE_ON) }
                 } els{

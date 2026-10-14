@@ -4,7 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { NoSmokingSignsInputs, NoSmokingSwitchPosition, areNoSmokingSignsOn } from './CabinSigns';
+import { NoSmokingSignsInputs, NoSmokingSwitchPosition, areNoSmokingSignsOn, areSeatBeltsSignsOn } from './CabinSigns';
 
 /** Cruise: switch AUTO, gear up, flaps lever 0, cabin at 8000 ft, NO SMOKING signs */
 const CRUISE: NoSmokingSignsInputs = {
@@ -60,5 +60,38 @@ describe('NO SMOKING cabin signs', () => {
     expect(selector).toContain('areNoSmokingSignsOn(');
     expect(selector).toContain('L:A32NX_FLAPS_HANDLE_INDEX');
     expect(selector).toContain('L:A32NX_PRESS_MAN_CABIN_ALTITUDE');
+  });
+});
+
+/* A320 FCOM DSC-33-40-10 Signs (a320_fcom.txt l.52351, 52376-52378, 52387-52388): the SEAT BELTS sw signs, note 1 */
+describe('SEAT BELTS cabin signs', () => {
+  it('follow the SEAT BELTS switch below 11 300 ft cabin altitude', () => {
+    expect(areSeatBeltsSignsOn({ switchOn: true, cabinAltitudeFt: 8000 })).toBe(true);
+    expect(areSeatBeltsSignsOn({ switchOn: false, cabinAltitudeFt: 8000 })).toBe(false);
+    expect(areSeatBeltsSignsOn({ switchOn: false, cabinAltitudeFt: 11_300 })).toBe(false);
+  });
+
+  it('come on above 11 300 ft cabin altitude with the switch OFF', () => {
+    expect(areSeatBeltsSignsOn({ switchOn: false, cabinAltitudeFt: 11_400 })).toBe(true);
+  });
+
+  it('drive the SEAT BELTS memo L:var, read by the FWC for the SEAT BELTS memo and the T.O MEMO', () => {
+    const updater = readFileSync(resolve(__dirname, 'A32NX_LocalVarUpdater.ts'), 'utf-8');
+    expect(updater).toContain("varName: 'L:A32NX_SEAT_BELTS_MEMO'");
+    const selector = updater.slice(
+      updater.indexOf('_seatBeltsMemoSelector() {'),
+      updater.indexOf('_flapsInMotionSelector() {'),
+    );
+    expect(selector).toContain('areSeatBeltsSignsOn(');
+    expect(selector).toContain('A:CABIN SEATBELTS ALERT SWITCH');
+    expect(selector).toContain('L:A32NX_PRESS_MAN_CABIN_ALTITUDE');
+
+    const fwc = readFileSync(resolve(__dirname, '../../../../../systems-host/systems/FWC/PseudoFWC.ts'), 'utf-8');
+    const memo = fwc.slice(fwc.indexOf("'0000080': {"), fwc.indexOf("'0000090': {"));
+    expect(memo).toContain('simVarIsActive: this.seatBeltsSignsOn');
+    const toMemo = fwc.slice(fwc.indexOf("'0000010': {"), fwc.indexOf("'0000020': {"));
+    expect(toMemo).toContain('this.seatBeltsSignsOn.get()');
+    expect(toMemo).not.toContain('A:CABIN SEATBELTS ALERT SWITCH');
+    expect(fwc).toContain("this.seatBeltsSignsOn.set(SimVar.GetSimVarValue('L:A32NX_SEAT_BELTS_MEMO', 'bool') > 0)");
   });
 });

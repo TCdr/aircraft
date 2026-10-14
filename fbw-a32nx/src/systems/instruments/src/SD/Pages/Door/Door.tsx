@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useArinc429Var, useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { SensedDoor, doorProximitySensorFaultVar, isDoorDetectedNotClosed } from '@shared/DoorProximitySensors';
 import { cabinVsPulses } from '../Press/PressIndications';
 import {
   crewOxygenCircuitIndication,
@@ -104,6 +105,27 @@ export const DoorPage = () => {
   const [rightEmergencyExit] = useSimVar('INTERACTIVE POINT OPEN:7', 'percent', 1000);
   const [forwardCargoLocked] = useSimVar('L:A32NX_FWD_DOOR_CARGO_LOCKED', 'bool', 1000);
   const [aftCargoLocked] = useSimVar('L:A32NX_AFT_DOOR_CARGO_LOCKED', 'bool', 1000);
+  // The failed door proximity sensors (flyPad ATA 52 failures, systems-host Doors/DoorFailures.ts): such a door is not
+  // detected closed, as for the DOOR cautions
+  const [leftForwardCabinSensorFault] = useSimVar(doorProximitySensorFaultVar('L_FWD_CABIN'), 'bool', 1000);
+  const [rightForwardCabinSensorFault] = useSimVar(doorProximitySensorFaultVar('R_FWD_CABIN'), 'bool', 1000);
+  const [leftAftCabinSensorFault] = useSimVar(doorProximitySensorFaultVar('L_AFT_CABIN'), 'bool', 1000);
+  const [rightAftCabinSensorFault] = useSimVar(doorProximitySensorFaultVar('R_AFT_CABIN'), 'bool', 1000);
+  const [leftEmergencyExitSensorFault] = useSimVar(doorProximitySensorFaultVar('L_EMER_EXIT'), 'bool', 1000);
+  const [rightEmergencyExitSensorFault] = useSimVar(doorProximitySensorFaultVar('R_EMER_EXIT'), 'bool', 1000);
+  const [forwardCargoSensorFault] = useSimVar(doorProximitySensorFaultVar('FWD_CARGO'), 'bool', 1000);
+  const [aftCargoSensorFault] = useSimVar(doorProximitySensorFaultVar('AFT_CARGO'), 'bool', 1000);
+  const sensorFaults: Record<SensedDoor, number> = {
+    L_FWD_CABIN: leftForwardCabinSensorFault,
+    R_FWD_CABIN: rightForwardCabinSensorFault,
+    L_AFT_CABIN: leftAftCabinSensorFault,
+    R_AFT_CABIN: rightAftCabinSensorFault,
+    L_EMER_EXIT: leftEmergencyExitSensorFault,
+    R_EMER_EXIT: rightEmergencyExitSensorFault,
+    FWD_CARGO: forwardCargoSensorFault,
+    AFT_CARGO: aftCargoSensorFault,
+  };
+  const sensorFault = (door: SensedDoor): boolean => sensorFaults[door] > 0;
   // The CREW SUPPLY pb-sw: 1 when OFF
   const [crewSupplyOff] = useSimVar('L:PUSH_OVHD_OXYGEN_CREW', 'bool', 1000);
   const [slides] = useSimVar('L:A32NX_SLIDES_ARMED', 'bool', 1000);
@@ -139,7 +161,7 @@ export const DoorPage = () => {
 
         <g id="doors">
           <DoorIndication
-            notLocked={isDoorNotLocked(leftForwardDoor)}
+            notLocked={isDoorNotLocked(leftForwardDoor, sensorFault('L_FWD_CABIN'))}
             symbol="M264 145 l0 -20 l12 0 l0 20Z"
             dashes="M138, 136 l121 0"
             legend="CABIN"
@@ -147,7 +169,7 @@ export const DoorPage = () => {
             legendY={136}
           />
           <DoorIndication
-            notLocked={isDoorNotLocked(rightForwardDoor)}
+            notLocked={isDoorNotLocked(rightForwardDoor, sensorFault('R_FWD_CABIN'))}
             symbol="M336 145 l0 -20 l-12 0 l0 20Z"
             dashes="M346, 136 l77 0"
             legend="CABIN"
@@ -155,7 +177,7 @@ export const DoorPage = () => {
             legendY={136}
           />
           <DoorIndication
-            notLocked={!forwardCargoLocked}
+            notLocked={isDoorDetectedNotClosed(!forwardCargoLocked, sensorFault('FWD_CARGO'))}
             symbol="M336 221 l0 -20 l-18 0 l0 20Z"
             dashes="M346, 210 l77 0"
             legend="CARGO"
@@ -163,7 +185,7 @@ export const DoorPage = () => {
             legendY={211}
           />
           <DoorIndication
-            notLocked={isDoorNotLocked(leftEmergencyExit)}
+            notLocked={isDoorNotLocked(leftEmergencyExit, sensorFault('L_EMER_EXIT'))}
             symbol="M264 310 l0 -20 l12 0 l0 20Z"
             secondSymbol="M264 344 l0 -20 l12 0 l0 20Z"
             dashes="M160, 317 l99 0"
@@ -172,7 +194,7 @@ export const DoorPage = () => {
             legendY={317}
           />
           <DoorIndication
-            notLocked={isDoorNotLocked(rightEmergencyExit)}
+            notLocked={isDoorNotLocked(rightEmergencyExit, sensorFault('R_EMER_EXIT'))}
             symbol="M336 310 l0 -20 l-12 0 l0 20Z"
             secondSymbol="M336 344 l0 -20 l-12 0 l0 20Z"
             dashes="M346, 317 l77 0"
@@ -181,7 +203,7 @@ export const DoorPage = () => {
             legendY={317}
           />
           <DoorIndication
-            notLocked={!aftCargoLocked}
+            notLocked={isDoorDetectedNotClosed(!aftCargoLocked, sensorFault('AFT_CARGO'))}
             symbol="M336 384 l0 -20 l-18 0 l0 20Z"
             dashes="M346, 374 l77 0"
             legend="CARGO"
@@ -189,7 +211,7 @@ export const DoorPage = () => {
             legendY={375}
           />
           <DoorIndication
-            notLocked={isDoorNotLocked(leftAftDoor)}
+            notLocked={isDoorNotLocked(leftAftDoor, sensorFault('L_AFT_CABIN'))}
             symbol="M264 445 l0 -20 l12 0 l0 20Z"
             dashes="M138, 438 l121 0"
             legend="CABIN"
@@ -197,7 +219,7 @@ export const DoorPage = () => {
             legendY={438}
           />
           <DoorIndication
-            notLocked={isDoorNotLocked(rightAftDoor)}
+            notLocked={isDoorNotLocked(rightAftDoor, sensorFault('R_AFT_CABIN'))}
             symbol="M336 445 l0 -20 l-12 0 l0 20Z"
             dashes="M346, 438 l77 0"
             legend="CABIN"

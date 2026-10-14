@@ -2669,6 +2669,8 @@ export class PseudoFWC {
   private readonly toConfigTestPhase2MemoryNode = new NXLogicMemoryNode(true);
 
   private readonly seatBelt = Subject.create(0);
+  /** The SEAT BELTS signs are on: switch ON or cabin altitude above 11 300 ft (CabinSigns, FCOM DSC-33-40-10) */
+  private readonly seatBeltsSignsOn = Subject.create(false);
 
   private readonly strobeLightsOn = Subject.create(0);
 
@@ -4978,6 +4980,7 @@ export class PseudoFWC {
     this.dmcSwitchingKnob.set(SimVar.GetSimVarValue('L:A32NX_EIS_DMC_SWITCHING_KNOB', 'enum'));
     this.manLandingElevation.set(activeCpc.bitValueOr(17, false));
     this.seatBelt.set(SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'bool'));
+    this.seatBeltsSignsOn.set(SimVar.GetSimVarValue('L:A32NX_SEAT_BELTS_MEMO', 'bool') > 0);
     this.ndXfrKnob.set(SimVar.GetSimVarValue('L:A32NX_ECAM_ND_XFR_SWITCHING_KNOB', 'enum'));
     this.pfdNdXfrL.set(SimVar.GetSimVarValue(pfdNdXfrVar('L'), 'number') > 0);
     this.pfdNdXfrR.set(SimVar.GetSimVarValue(pfdNdXfrVar('R'), 'number') > 0);
@@ -12280,10 +12283,7 @@ export class PseudoFWC {
       simVarIsActive: this.toMemo,
       whichCodeToReturn: () => [
         this.autoBrake.get() === 3 ? 1 : 0,
-        SimVar.GetSimVarValue('L:A32NX_NO_SMOKING_MEMO', 'bool') === 1 &&
-        SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', 'bool') === 1
-          ? 3
-          : 2,
+        SimVar.GetSimVarValue('L:A32NX_NO_SMOKING_MEMO', 'bool') === 1 && this.seatBeltsSignsOn.get() ? 3 : 2,
         SimVar.GetSimVarValue('L:A32NX_CABIN_READY', 'bool') ? 5 : 4,
         this.spoilersArmed.get() ? 7 : 6,
         this.slatFlapSelectionS18F10 || this.slatFlapSelectionS22F15 || this.slatFlapSelectionS22F20 ? 9 : 8,
@@ -12493,7 +12493,7 @@ export class PseudoFWC {
     '0000080': {
       // SEAT BELTS
       flightPhaseInhib: [],
-      simVarIsActive: this.seatBelt.map((v) => !!v),
+      simVarIsActive: this.seatBeltsSignsOn,
       whichCodeToReturn: () => [0],
       codesToReturn: ['000008001'],
       memoInhibit: () => this.toMemo.get() || this.ldgMemo.get(),
