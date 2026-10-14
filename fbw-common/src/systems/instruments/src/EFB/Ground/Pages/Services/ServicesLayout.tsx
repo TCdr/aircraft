@@ -196,7 +196,8 @@ export const ServicesLayout: FC<ServicesLayoutProps> = ({
     <M3Page chips={chips}>
       <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
         <div className="flex h-full w-[400px] shrink-0 flex-col">
-          <M3Card className="mb-4 shrink-0 pb-2" style={{ maxHeight: '45%' }}>
+          {/* up to half the column: the six A380X doors (6 x 56 px rows + header) fit without scrolling */}
+          <M3Card className="mb-4 shrink-0 pb-2" style={{ maxHeight: '50%' }}>
             <M3SectionHeader
               title={t('Ground.Services.Doors')}
               badge={`${openDoors} ${t('Ground.Services.Open').toLowerCase()} · ${doors.length}`}
