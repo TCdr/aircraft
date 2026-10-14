@@ -16,6 +16,7 @@ import { getDisplayIndex, PFDComponent } from './PFD';
 import { AdirsValueProvider } from '../MsfsAvionicsCommon/AdirsValueProvider';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { PFDSimvarPublisher, PFDSimvars } from './shared/PFDSimvarPublisher';
+import { selectOnsideLandingSystemReceiver } from './shared/OnsideLandingSystemReceiver';
 import { A32NXFcuBusPublisher } from '@shared/publishers/A32NXFcuBusPublisher';
 import { A32NXElectricalSystemPublisher } from '@shared/publishers/A32NXElectricalSystemPublisher';
 import { A32NXFwcBusPublisher } from '@shared/publishers/A32NXFwcBusPublisher';
@@ -117,6 +118,9 @@ class A32NX_PFD extends BaseInstrument {
       this.simVarPublisher,
       getDisplayIndex() === 1 ? 'L' : 'R',
     );
+
+    // PFD1 displays ILS1 (MMR 1), PFD2 displays ILS2 (MMR 2): FCOM DSC-34-NAV-30-20, a320_fcom.txt l.53288-53289
+    selectOnsideLandingSystemReceiver(this.simVarPublisher, getDisplayIndex());
 
     const stateSubject = Subject.create<'L' | 'R'>(getDisplayIndex() === 1 ? 'L' : 'R');
     this.fmsDataPublisher = new FmsDataPublisher(this.bus, stateSubject);

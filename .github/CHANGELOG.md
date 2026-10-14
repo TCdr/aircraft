@@ -597,6 +597,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/SD] DOOR/OXY page: every cabin door, both emergency exits and the aft cargo door turn amber when not locked, crew oxygen pressure pulses below 600 PSI and is amber below 300 PSI with an amber half frame on ground below 1000 PSI, cabin V/S shown in flight - @TCdr
 1. [A32NX/Lights] NO SMOKING signs in AUTO also come on with the flaps/slats lever out of 0 or any landing gear extended, and all positions come on above 11 300 ft cabin altitude - @TCdr
 1. [A32NX/Brakes] BRAKES HOT caution and BRK FAN HOT light come on above 300 C and go off only below 290 C - @TCdr
+1. [A32NX/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
+1. [A380X/PFD] The F/O PFD shows the ILS of MMR 2 (NAV 4) and the CAPT PFD the ILS of MMR 1 (NAV 3), as in the FCOM, instead of both showing MMR 1 - @TCdr
 
 ## 2024.1.0
 

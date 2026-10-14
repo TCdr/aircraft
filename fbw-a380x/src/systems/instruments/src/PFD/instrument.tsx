@@ -11,6 +11,7 @@ import { getDisplayIndex } from './shared/PfdDisplayIndex';
 import { AdirsValueProvider } from './shared/AdirsValueProvider';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { PFDSimvarPublisher } from './shared/PFDSimvarPublisher';
+import { selectOnsideLandingSystemReceiver } from './shared/OnsideLandingSystemReceiver';
 import { FcuEfisCpBusPublisher } from '@shared/publishers/EfisCpBusPublisher';
 import {
   FwcPublisher,
@@ -149,6 +150,10 @@ class A380X_PFD extends BaseInstrument {
     // only from here on (see below). The constructor read the duID digit itself (0 or 3, never 1) before the gauge had
     // its URL: both PFDs read the F/O side's FMS data.
     this.fmsDataSide.set(getDisplayIndex() === 1 ? 'L' : 'R');
+
+    // Captain PFD displays ILS 1 (MMR 1), first officer PFD ILS 2 (MMR 2): FCOM DSC-34-10-20, a380_fcom.txt
+    // l.86590-86591. Known only from here on, like the side above.
+    selectOnsideLandingSystemReceiver(this.simVarPublisher, getDisplayIndex());
 
     // Whether this gauge is a hosted one comes from its panel.cfg URL, known only from here on: the sim creates the
     // gauge element (this constructor) before it gives it its url attribute and puts it into the panel. Read in the

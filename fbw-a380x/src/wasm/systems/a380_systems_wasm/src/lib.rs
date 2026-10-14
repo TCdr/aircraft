@@ -956,6 +956,13 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("GPS GROUND SPEED", "Knots", 0)?
     .provides_aircraft_variable("GPS GROUND MAGNETIC TRACK", "Degrees", 0)?
     .provides_aircraft_variable("GPS GROUND TRUE TRACK", "Degrees", 0)?
+    // the ILS receivers of MMR 1 (NAV 3) and MMR 2 (NAV 4)
+    .provides_aircraft_variable_range("NAV HAS NAV", "Bool", 3..=4)?
+    .provides_aircraft_variable_range("NAV HAS LOCALIZER", "Bool", 3..=4)?
+    .provides_aircraft_variable_range("NAV HAS GLIDE SLOPE", "Bool", 3..=4)?
+    .provides_aircraft_variable_range("NAV RADIAL ERROR", "degree", 3..=4)?
+    .provides_aircraft_variable_range("NAV GLIDE SLOPE ERROR", "degree", 3..=4)?
+    .provides_aircraft_variable_range("NAV FREQUENCY", "Hz", 3..=4)?
     .provides_aircraft_variable("PLANE ALTITUDE", "Feet", 0)?
     .provides_aircraft_variable("INCIDENCE ALPHA", "Degrees", 0)?
     .provides_aircraft_variable("INDICATED ALTITUDE", "Feet", 0)?
