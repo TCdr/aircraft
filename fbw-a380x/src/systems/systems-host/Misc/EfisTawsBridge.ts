@@ -53,6 +53,7 @@ import { AesuBusEvents } from '../../instruments/src/MsfsAvionicsCommon/provider
 import { MfdSurvEvents } from '../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { bearingTo, Coordinates, distanceTo, placeBearingDistance } from 'msfs-geo';
 import { closestVdAirports, vdAirports } from './VdAirports';
+import { tawsSystemInUse } from './TawsSystemInUse';
 
 /**
  * Collects EFIS information for a given EFIS side. Has to be used together with private bus since switchable publishers are used, don't want that to spill to the parent components
@@ -491,6 +492,9 @@ export class EfisTawsBridge implements Instrument {
   private readonly wxr1Failed = Subject.create(true);
   private readonly wxr2Failed = Subject.create(true);
 
+  /** The SURV system that provides the TAWS functions (TawsSystemInUse.ts), L:A32NX_TAWS_SYS_IN_USE */
+  private readonly tawsSystemInUse = Subject.create<0 | 1 | 2>(0);
+
   constructor(
     private readonly bus: ArincEventBus,
     private readonly instrument: BaseInstrument,
@@ -529,6 +533,10 @@ export class EfisTawsBridge implements Instrument {
       this.gpws2Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_GPWS_2_FAILED', SimVarValueType.Bool, v), true),
       this.wxr1Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_WXR_1_FAILED', SimVarValueType.Bool, v), true),
       this.wxr2Failed.sub((v) => SimVar.SetSimVarValue('L:A32NX_WXR_2_FAILED', SimVarValueType.Bool, v), true),
+      this.tawsSystemInUse.sub(
+        (v) => SimVar.SetSimVarValue('L:A32NX_TAWS_SYS_IN_USE', SimVarValueType.Number, v),
+        true,
+      ),
     );
 
     this.subscriptions.push(
@@ -758,9 +766,17 @@ export class EfisTawsBridge implements Instrument {
     this.wxr1Failed.set(this.aesu1ResetPulled.get() || !this.acEssPowered.get());
     this.wxr2Failed.set(this.aesu2ResetPulled.get() || !this.ac4Powered.get());
 
-    this.terrFailed.set(
-      tawsWxrSelected === 1 ? this.terr1Failed.get() : tawsWxrSelected === 2 ? this.terr2Failed.get() : true,
-    );
+    // The TAWS can come from the other SYS than the selected one (automatic reconfiguration, TawsSystemInUse.ts): the
+    // terrain on the ND and VD follows the TAWS system in use
+    const tawsSystem = tawsSystemInUse({
+      selected: tawsWxrSelected,
+      taws1Failed: this.terr1Failed.get() && this.gpws1Failed.get(),
+      taws2Failed: this.terr2Failed.get() && this.gpws2Failed.get(),
+      wxr1Failed: this.wxr1Failed.get(),
+      wxr2Failed: this.wxr2Failed.get(),
+    });
+    this.tawsSystemInUse.set(tawsSystem);
+    this.terrFailed.set(tawsSystem === 1 ? this.terr1Failed.get() : tawsSystem === 2 ? this.terr2Failed.get() : true);
 
     // SimBridge drops this HTTP source after two minutes without a message (and would fall back to the SimConnect
     // status of the terronnd gauge, which the aircraft no longer carries), so a stationary aircraft re-sends it.

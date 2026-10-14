@@ -2383,6 +2383,12 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - Bool
     - Set from the WX ON VD button of the MFD SURV CONTROLS page. True when the weather on the VD is switched OFF (false = AUTO)
 
+- `L:A32NX_TAWS_SYS_IN_USE`
+    - Number
+    - The SURV system that provides the TAWS functions (1 or 2, 0 = no WXR/TAWS system selected), written by the systems host (EfisTawsBridge)
+    - Normally the selected WXR/TAWS system (`L:A32NX_WXR_TAWS_SYS_SELECTED`); the other system after the automatic reconfiguration of SURV TAWS 1(2) FAULT (the TAWS of the selected system failed, the WXR of the other system failed, its TAWS operative), shown as TAWS 1(2) IN USE on the MFD SURV STATUS & SWITCHING page
+    - Read by the GPWS, the FWS (TERR STBY), the MFD SURV pages and the ND/VD terrain (ndwxr)
+
 - `L:A380X_TCAS_ALERT_LEVEL`
     - Enum
     - The TCAS alert level selected on the MFD SURV CONTROLS page, mirrored by the TCAS computer for the pedestal SURV panel lights

@@ -96,6 +96,7 @@ import {
   XpdrTcasSwitchLine,
 } from './FwsSurvAlerts';
 import { isTcasInoperative, selectedSurvSystem, SurvSystem } from '../../Misc/Communications/TransponderSystem';
+import { publishedTawsSystem } from '../../Misc/TawsSystemInUse';
 import { FwsInopSys, FwsInopSysPhases } from './FwsInopSys';
 import { FwsInformation } from './FwsInformation';
 import { FwsLimitations, FwsLimitationsPhases, withoutAllPhasesDuplicates } from './FwsLimitations';
@@ -6638,7 +6639,11 @@ export class FwsCore {
 
     // TERR STBY: the TAWS of the selected system is operative, but the TERR function cannot rely on the aircraft
     // position (A380 FCOM DSC-34-20-20-10: system data such as the aircraft position; the TAWS takes it from ADIRU 1).
-    const tawsSystem = this.tawsWxrSelected.get();
+    // The TAWS of the system in use: the other SYS after an automatic reconfiguration (TawsSystemInUse.ts)
+    const tawsSystem = publishedTawsSystem(
+      this.tawsWxrSelected.get(),
+      SimVar.GetSimVarValue('L:A32NX_TAWS_SYS_IN_USE', SimVarValueType.Number),
+    );
     const tawsOperative =
       (tawsSystem === 1 && taws1Powered && !this.gpws1Failed.get() && !this.terrSys1Failed.get()) ||
       (tawsSystem === 2 && taws2Powered && !this.gpws2Failed.get() && !this.terrSys2Failed.get());

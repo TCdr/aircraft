@@ -5,6 +5,7 @@
 // which ADIRS feeds an ND, whether the radar / the terrain is selected, the radar mode.
 
 #include "ndwxr.h"
+#include "taws_system.h"
 
 namespace ndwxr {
 
@@ -36,6 +37,10 @@ NamedVar g_wxrFailed[2] = {{"A32NX_WXR_1_FAILED"}, {"A32NX_WXR_2_FAILED"}};
 
 // The TERR side of the same two systems (EfisTawsBridge.ts).
 NamedVar g_terrFailed[2] = {{"A32NX_TERR_1_FAILED"}, {"A32NX_TERR_2_FAILED"}};
+
+// The system that provides the TAWS, the other one than the selected after an automatic reconfiguration
+// (EfisTawsBridge.ts, taws_system.h).
+NamedVar g_tawsSystemInUse{"A32NX_TAWS_SYS_IN_USE"};
 
 // The TERR SYS button of the SURV page: 1 = OFF (takes the terrain off the VD).
 NamedVar g_terrSysOff{"A32NX_GPWS_TERR_OFF"};
@@ -210,10 +215,10 @@ double radarMode() {
 }
 
 #ifdef A380X
-// A TAWS system (selected on the SURV panel) that has not failed: EfisTawsBridge's terrFailed, where
-// no system selected counts as failed.
+// The TAWS system in use (the one selected on the SURV panel, or the other one after an automatic
+// reconfiguration, taws_system.h) has not failed: EfisTawsBridge's terrFailed, where no system counts as failed.
 bool terrainSystemUp() {
-  const int system = static_cast<int>(g_wxrTawsSelected.read());
+  const int system = tawsSystemForTerrain(g_wxrTawsSelected.read(), g_tawsSystemInUse.read());
   if (system != 1 && system != 2) {
     return false;
   }
@@ -343,6 +348,7 @@ void registerSimVars() {
   for (NamedVar& failed : g_terrFailed) {
     failed.id = register_named_variable(failed.name);
   }
+  g_tawsSystemInUse.id = register_named_variable(g_tawsSystemInUse.name);
   g_terrSysOff.id = register_named_variable(g_terrSysOff.name);
   g_airDataKnob.id = register_named_variable(g_airDataKnob.name);
   for (int i = 0; i < 3; ++i) {
