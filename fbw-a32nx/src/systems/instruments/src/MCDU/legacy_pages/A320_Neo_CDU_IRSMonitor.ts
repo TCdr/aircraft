@@ -2,8 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0
 import { CDUIRSStatus } from './A320_Neo_CDU_IRSStatus';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
-import { Arinc429Register, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
+import { Arinc429Register, Arinc429Word, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { SimVarValueType } from '@microsoft/msfs-sdk';
+import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
+import { NXSystemMessages } from '../messages/NXSystemMessages';
+import {
+  IRS_SET_HEADING_VAR,
+  irsStatusMessage,
+  isSetHeadingFieldDisplayed,
+  parseSetHeadingEntry,
+  SetHeadingTransmitter,
+  setHeadingField,
+} from './IrsMonitorFields';
 
 export class CDUIRSMonitor {
   private static ir1MaintenanceWordVar = RegisteredSimVar.create('L:A32NX_ADIRS_IR_1_MAINT_WORD', SimVarValueType.Enum);
@@ -13,11 +23,30 @@ export class CDUIRSMonitor {
   private static ir3MaintenanceWordVar = RegisteredSimVar.create('L:A32NX_ADIRS_IR_3_MAINT_WORD', SimVarValueType.Enum);
   private static ir3MaintenanceWord = Arinc429Register.empty();
 
+  /** The heading the crew entered in the SET HDG field, kept while at least one IR is in ATT mode */
+  private static enteredSetHeading: number | null = null;
+
+  private static readonly setHeadingTransmitter = new SetHeadingTransmitter((heading, ssm) =>
+    Arinc429Word.toSimVarValue(IRS_SET_HEADING_VAR, heading, ssm),
+  );
+
   static ShowPage(mcdu: LegacyFmsPageInterface) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.IRSMonitor;
 
     this.populateAdiruMaintenanceWords();
+
+    const setHeadingFieldDisplayed = isSetHeadingFieldDisplayed([
+      this.ir1MaintenanceWord,
+      this.ir2MaintenanceWord,
+      this.ir3MaintenanceWord,
+    ]);
+    if (!setHeadingFieldDisplayed) {
+      this.enteredSetHeading = null;
+    }
+    const [setHeadingLabel, setHeadingValue] = setHeadingFieldDisplayed
+      ? setHeadingField(this.enteredSetHeading)
+      : ['', ''];
 
     mcdu.setTemplate([
       ['IRS MONITOR'],
@@ -28,7 +57,31 @@ export class CDUIRSMonitor {
       [`\xa0${this.getAdiruStateMessage(this.ir2MaintenanceWord)}[color]green`],
       [`<IRS3\xa0{small}{green}${this.getAdiruStatusMessage(this.ir3MaintenanceWord)}{end}`],
       [`\xa0${this.getAdiruStateMessage(this.ir3MaintenanceWord)}[color]green`],
+      [''],
+      ['', setHeadingLabel],
+      ['', setHeadingValue],
     ]);
+
+    // [5R] SET HDG: "This function allows initialization of a heading for IRS in ATT mode" (A320 FCOM
+    // DSC-22_20-50-10-28, a320_fcom.txt l.19747-19754; QRH IR ALIGNMENT IN ATT MODE, l.91913-91914)
+    mcdu.onRightInput[4] = (value, scratchpadCallback) => {
+      if (!setHeadingFieldDisplayed || value === Keypad.clrValue) {
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        scratchpadCallback();
+        return;
+      }
+      const entry = parseSetHeadingEntry(value);
+      if ('error' in entry) {
+        mcdu.setScratchpadMessage(
+          entry.error === 'range' ? NXSystemMessages.entryOutOfRange : NXSystemMessages.formatError,
+        );
+        scratchpadCallback();
+        return;
+      }
+      this.enteredSetHeading = entry.heading;
+      this.setHeadingTransmitter.send(entry.heading);
+      CDUIRSMonitor.ShowPage(mcdu);
+    };
     mcdu.leftInputDelay[0] = () => {
       return mcdu.getDelaySwitchPage();
     };
@@ -63,22 +116,7 @@ export class CDUIRSMonitor {
   }
 
   static getAdiruStatusMessage(irMaintenanceWord: Arinc429Register): string {
-    if (irMaintenanceWord.isInvalid()) {
-      return '';
-    }
-
-    if (irMaintenanceWord.bitValueOr(9, false)) {
-      return 'IR FAULT';
-    }
-    if (irMaintenanceWord.bitValueOr(13, false)) {
-      return 'EXCESS MOTION';
-    }
-
-    if (irMaintenanceWord.bitValueOr(4, false)) {
-      return 'ENTER HEADING';
-    }
-
-    return '';
+    return irsStatusMessage(irMaintenanceWord);
   }
 
   static getAdiruStateMessage(irMaintenanceWord: Arinc429Register): string {
