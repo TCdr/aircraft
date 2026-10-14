@@ -22,7 +22,6 @@ import {
   TruckFlatbed,
 } from 'react-bootstrap-icons';
 import Slider from 'rc-slider';
-import { toast } from 'react-toastify';
 import { t, PromptModal, useModals, TooltipWrapper } from '@flybywiresim/flypad';
 import {
   M3Button,
@@ -35,6 +34,7 @@ import {
 } from '../../../UtilComponents/Material/Material';
 import { PushbackMap } from './PushbackMap';
 import { isCaptainEfb } from '../../../Utils/efbIndex';
+import { isPushbackActive } from './pushbackControllerInput';
 
 export const PushbackPage = () => {
   const { showModal } = useModals();
@@ -55,8 +55,6 @@ export const PushbackPage = () => {
   const [pushbackAngle] = useSimVar('PUSHBACK ANGLE', 'Degrees', 100);
 
   const [useControllerInput, setUseControllerInput] = usePersistentNumberProperty('PUSHBACK_USE_CONTROLLER_INPUT', 1);
-  const [rudderPosition] = useSimVar('L:A32NX_RUDDER_PEDAL_POSITION', 'number', 50);
-  const [elevatorPosition] = useSimVar('L:A32NX_SIDESTICK_POSITION_Y', 'number', 50);
 
   const [planeGroundSpeed] = useSimVar('GROUND VELOCITY', 'Knots', 100);
 
@@ -68,13 +66,9 @@ export const PushbackPage = () => {
 
   const [showDebugInfo, setShowDebugInfo] = useSimVar('L:A32NX_PUSHBACK_DEBUG', 'bool', 100);
 
-  // Required so these can be used inside the useEffect return callback
-  const pushBackAttachedRef = useRef(pushbackAttached);
-  pushBackAttachedRef.current = pushbackAttached;
-
   const pushbackUIAvailable: boolean = simOnGround;
   const tugInTransit: boolean = pushbackAttached !== nwStrgDisc;
-  const pushbackActive: boolean = pushbackSystemEnabled && !tugInTransit && nwStrgDisc;
+  const pushbackActive: boolean = isPushbackActive(!!pushbackSystemEnabled, !!pushbackAttached, !!nwStrgDisc);
 
   const releaseTug = () => {
     setPushbackState(3);
@@ -141,54 +135,14 @@ export const PushbackPage = () => {
     setCmdHdgFactor(MathUtils.clamp(value, -1, 1));
   };
 
-  // called once when loading and unloading the page (by the captain's flyPad only: the first officer opening or leaving
-  // the page must not stop a pushback)
+  // When the page opens with no tug attached, the tug commands start from zero (captain's flyPad only). A pushback in
+  // progress goes on when the page is left and opened again: the rudder pedal and sidestick steering runs at the
+  // flyPad root (usePushbackControllerInput, Efb.tsx).
   useEffect(() => {
-    if (!isCaptainEfb()) {
-      return undefined;
+    if (isCaptainEfb() && !pushbackAttached) {
+      stopMovement();
     }
-    // when loading the page
-    stopMovement();
-
-    // when unloading the page
-    // !obs: as with setInterval no access to current local variable values
-    return () => {
-      if (pushBackAttachedRef.current) {
-        toast.info(t('Pushback.LeavePageMessage'), {
-          autoClose: 750,
-          hideProgressBar: true,
-          closeButton: false,
-        });
-        stopMovement();
-      }
-    };
   }, []);
-
-  // Update commanded heading from input
-  useEffect(() => {
-    if (!pushbackActive || !useControllerInput) {
-      return;
-    }
-    // create deadzone
-    if (rudderPosition > -0.05 && rudderPosition < 0.05) {
-      setCmdHdgFactor(0);
-    } else {
-      setCmdHdgFactor(rudderPosition / 100);
-    }
-  }, [rudderPosition]);
-
-  // Update commanded speed from input
-  useEffect(() => {
-    if (!pushbackActive || !useControllerInput) {
-      return;
-    }
-    // create deadzone
-    if (elevatorPosition > -0.05 && elevatorPosition < 0.05) {
-      setCmdSpdFactor(0);
-    } else {
-      setCmdSpdFactor(-elevatorPosition);
-    }
-  }, [elevatorPosition]);
 
   // Make sure to deactivate the pushback system completely when leaving ground
   useEffect(() => {
