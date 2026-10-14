@@ -30,6 +30,7 @@
   - [Oxygen ATA 35](#oxygen-ata-35)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
+  - [Information Systems ATA 46](#information-systems-ata-46)
   - [Auxiliary Power Unit ATA 49](#auxiliary-power-unit-ata-49)
   - [Engines ATA 70](#engines-ata-70)
   - [Hydraulics](#hydraulics)
@@ -2709,6 +2710,16 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - Bool
   - Indicates if a specific IOM system is available: powered, and neither A32NX_IOM_<NAME>_FAILURE nor its flyPad failure
     (ATA 42, ids 42101-42108) is set
+  - The FWS AVIONICS NETWORK alerts (systems-host CpiomC/FlightWarningSystem/AvionicsNetworkAlerts.ts) count the AFDX
+    switches and IOMs whose _FAILURE L:var or flyPad failure is set, not the unpowered ones
+
+## Information Systems ATA 46
+
+- A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE
+  - Bool
+  - The NSS DATA TO AVNCS pb-sw: 1 = normal (released, the NSS and the avionics exchange data both ways; the value of
+    every flight file), 0 = OFF (pressed in, OFF light; the SCIs pass data only from the avionics to the NSS). OFF gives
+    the FWS alert COM NSS DATA TO AVNCS XFR FAULT (A380 FCOM DSC-46-20-20-80, PRO-ABN-ECAM-10-46)
 
 ## Auxiliary Power Unit ATA 49
 
