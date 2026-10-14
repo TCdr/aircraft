@@ -652,6 +652,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] The start valve no longer opens for a start with the core above 25 % N2 (no running engagement of the starter) - @TCdr
 1. [A380X/ENG] Both igniters come on when the engine is at idle in heavy rain (SD ENGINE page) - @TCdr
 1. [A380X/ENG] New flyPad failures: engine control system fault, control valve, FADEC engine identification, fuel and oil filter bypass, thrust rating disagree, reverser minor fault and reverser inhibited by maintenance - @TCdr
+1. [A32NX/MCDU] FUEL PRED: the FOB fuel sensors can be selected (/FF+FQ, /FF, /FQ) and the FOB entered in flight, with the SENSOR IS INVALID message; the predictions use that FOB - @TCdr
+1. [A32NX/MCDU] PROG REPORT page: OVHD waypoint with its time, altitude, SAT, wind and FOB recorded at the sequencing, TO/NEXT predicted time and altitude, T/D (S/C, S/D) time and distance in cruise, DEST time, distance and EFOB; the page no longer takes entries - @TCdr
+1. [A32NX/MCDU] PREDICTIVE GPS page: DEST ETA from the predictions (or crew entry), PRIMARY Y/N lines from the GPS receivers, reference waypoint and time entry, deselected satellites - @TCdr
 
 ## 2024.1.0
 

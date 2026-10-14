@@ -122,9 +122,21 @@ export class CDUFuelPredPage {
       cgCell = mcdu.getCG().toFixed(1) + '{end}';
       gwCgCellColor = '[color]green';
 
-      fobCell = '{small}' + NXUnits.kgToUser(mcdu.getFOB(FlightPlanIndex.Active)).toFixed(1) + '{end}';
-      fobOtherCell = '{inop}FF+FQ{end}';
+      const fob = mcdu.getFOB(FlightPlanIndex.Active);
+      if (fob !== null && fob !== undefined) {
+        fobCell = '{small}' + NXUnits.kgToUser(fob).toFixed(1) + '{end}';
+      }
+      // the FOB sensors: /FF+FQ, /FF or /FQ (a320_fcom.txt l.17564-17570)
+      fobOtherCell = mcdu.getFobSensorsText();
       fobCellColor = '[color]cyan';
+
+      mcdu.onRightInput[3] = async (value, scratchpadCallback) => {
+        if (mcdu.trySetFuelOnBoard(value)) {
+          await CDUFuelPredPage.refreshAfterFuelPred(mcdu, FlightPlanIndex.Active);
+        } else {
+          scratchpadCallback();
+        }
+      };
     }
 
     if (CDUInitPage.fuelPredConditionsMet(mcdu, FlightPlanIndex.Active)) {
