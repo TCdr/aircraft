@@ -541,6 +541,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New BRAKES A-SKID FAULT ON ALL L/G alert in emergency braking with the A-SKID switch on, and new flyPad failure of the autobrake (ATA 32) with its BRAKES AUTO BRK FAULT alert - @TCdr
 1. [A380X/FWS] New PITCH PITCH voice when the pitch attitude goes above 12 degrees below 400 ft RA in a manual landing, as in the FCOM - @TCdr
 1. [A380X/FWS] New COMPANY MESSAGE voice when a company (AOC) message is received, except in takeoff and landing and below 10 000 ft in flight phase 8, as in the FCOM - @TCdr
+1. [A32NX/F_CTL] New flyPad failures of the SFCC 1(2) flap and slat channels: the failed channel no longer drives its motor and the flaps or slats move at half speed - @TCdr
+1. [A32NX/FWC] New F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT cautions with their FCOM STATUS (GPWS FLAP MODE OFF, ENG APPR IDLE ONLY, FLAPS/SLATS SLOW) - @TCdr
+1. [A380X/F_CTL] New flyPad failures of the SFCC 1(2) flap and slat channels: half speed flaps or slats and F/CTL FLAP(SLAT) SYS 1(2) / 1+2 FAULT - @TCdr
+1. [A380X/IMA] New flyPad failures (ATA 42) of the 16 AFDX switches, the 8 IOMs and the 22 CPIOMs of the avionics network - @TCdr
+1. [A380X/FWS] New TAIL STRIKE caution (LAND ANSA) from a tail strike detector based on the FCOM geometry limit, and TAIL STRIKE DET FAULT with its flyPad failure - @TCdr
 
 ## 2024.1.0
 

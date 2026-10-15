@@ -248,6 +248,11 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             26_011,
             FailureType::FireDetectionUnit(FireDetectionZone::Apu),
         ),
+        // SFCC flap and slat channels (hydraulic::sfcc): F/CTL FLAP(SLAT) SYS 1(2) FAULT
+        (27_010, FailureType::SlatFlapControlComputerFlapChannel(1)),
+        (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),
+        (27_012, FailureType::SlatFlapControlComputerSlatChannel(1)),
+        (27_013, FailureType::SlatFlapControlComputerSlatChannel(2)),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Blue)),
         (29_002, FailureType::ReservoirLeak(HydraulicColor::Yellow)),

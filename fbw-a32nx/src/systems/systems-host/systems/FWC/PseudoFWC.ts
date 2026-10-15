@@ -80,6 +80,12 @@ import {
   spoilerFaultLines,
 } from './Logic/FlightControlSurfaceAlerts';
 import * as FctlStatus from './Logic/FlightControlStatus';
+import {
+  SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+  flapSysFaultStatus,
+  slatFlapChannelFaults,
+  slatSysFaultStatus,
+} from './Logic/SlatFlapChannelAlerts';
 import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
 import { isGearNotUplockedForVle } from './Logic/LandingGearOverspeed';
@@ -1360,6 +1366,15 @@ export class PseudoFWC {
   private readonly showTakeoffInhibit = Subject.create(false);
 
   private readonly slatsAngle = Subject.create(0);
+
+  /** F/CTL FLAP SYS 1(2) FAULT and SLAT SYS 1(2) FAULT, see Logic/SlatFlapChannelAlerts */
+  private readonly flapSys1Fault = Subject.create(false);
+
+  private readonly flapSys2Fault = Subject.create(false);
+
+  private readonly slatSys1Fault = Subject.create(false);
+
+  private readonly slatSys2Fault = Subject.create(false);
 
   private readonly speedBrakeCommand = Subject.create(false);
 
@@ -5143,6 +5158,16 @@ export class PseudoFWC {
     this.flapsAngle.set(SimVar.GetSimVarValue('L:A32NX_FLAPS_IPPU_ANGLE', 'degrees'));
     this.flapsHandle.set(SimVar.GetSimVarValue('L:A32NX_FLAPS_HANDLE_INDEX', 'enum'));
     this.slatsAngle.set(SimVar.GetSimVarValue('L:A32NX_SLATS_IPPU_ANGLE', 'degrees'));
+
+    // F/CTL FLAP(SLAT) SYS 1(2) FAULT (FCOM PRO-ABN-F_CTL), see Logic/SlatFlapChannelAlerts
+    const slatFlapChannels = slatFlapChannelFaults(
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD'),
+      Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD'),
+    );
+    this.flapSys1Fault.set(slatFlapChannels.flapSysFault[0]);
+    this.flapSys2Fault.set(slatFlapChannels.flapSysFault[1]);
+    this.slatSys1Fault.set(slatFlapChannels.slatSysFault[0]);
+    this.slatSys2Fault.set(slatFlapChannels.slatSysFault[1]);
 
     // TODO: add switching between SFCC_1 and SFCC_2
     const flapsPos = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD');
@@ -9631,6 +9656,59 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).inopSys,
       statusInfo: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).left,
+    },
+    // F/CTL FLAP(SLAT) SYS 1(2) FAULT, crew awareness (level 1), see Logic/SlatFlapChannelAlerts
+    2701110: {
+      // FLAP SYS 1 FAULT
+      flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.flapSys1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270111001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => flapSysFaultStatus(1).inopSys,
+      statusInfo: () => flapSysFaultStatus(1).left,
+    },
+    2701120: {
+      // FLAP SYS 2 FAULT
+      flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.flapSys2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270112001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => flapSysFaultStatus(2).inopSys,
+      statusInfo: () => flapSysFaultStatus(2).left,
+    },
+    2701130: {
+      // SLAT SYS 1 FAULT
+      flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.slatSys1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270113001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => slatSysFaultStatus().inopSys,
+      statusInfo: () => slatSysFaultStatus().left,
+    },
+    2701140: {
+      // SLAT SYS 2 FAULT
+      flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.slatSys2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270114001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => slatSysFaultStatus().inopSys,
+      statusInfo: () => slatSysFaultStatus().left,
     },
     3100110: {
       // TRIPPED REAR PNL J-M
