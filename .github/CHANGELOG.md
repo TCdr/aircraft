@@ -468,6 +468,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ENG] The ENG FAULT light also comes on for a thrust control malfunction (both FADEC channels or both thrust lever resolvers lost), as in the FCOM - @TCdr
 1. [A32NX/ENG] A hot engine gets a pre-start motoring (dry crank up to 60 s, by its residual heat) before the ignition of an automatic start, as the FCOM bow rotor protection - @TCdr
 1. [A380X/ENG] Auto-idle protection: the outboard engines stay at idle while a thrust reverser operates, as in the FCOM - @TCdr
+1. [A32NX/FWC] New DUAL INPUT voice every 5 s while both sidesticks are moved, and PRIORITY LEFT / PRIORITY RIGHT voices when a pilot takes the sidestick priority (held 1 s, so an autopilot disconnection does not call it), from the FCDC as in the FCOM - @TCdr
+1. [A32NX/FWC] Intermediate radio height callout: below 410 ft, when no height callout came for 11 s (4 s below 50 ft), the FWC says the present height (FOUR HUNDRED down to FIVE, rounded down), then every 4 s - @TCdr
+1. [A380X/FWS] New PRIORITY LEFT / PRIORITY RIGHT voices when a pilot holds the sidestick pb (1 s, so an autopilot disconnection does not call it) - @TCdr
+1. [A380X/FWS] Intermediate radio height callout: below 400 ft, the current height rounded to 10 ft (e.g. TWO HUNDRED SEVENTY) 11 s after the previous callout, 4 s below 100 ft, as in the FCOM - @TCdr
+1. [FWS] WINDSHEAR voice (said three times) at the reactive windshear warning, on both aircraft - @TCdr
+1. [A380X/GPWS] TERRAIN aural for the mode 2 alert and GLIDE SLOPE aural (louder when hard) for the mode 5 alert; a windshear warning overrides the GPWS alerts - @TCdr
 
 ## 2024.1.0
 

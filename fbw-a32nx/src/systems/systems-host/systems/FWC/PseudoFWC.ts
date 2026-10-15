@@ -78,6 +78,11 @@ import * as FctlStatus from './Logic/FlightControlStatus';
 import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
 import { isGearNotUplockedForVle } from './Logic/LandingGearOverspeed';
+import {
+  FcdcSidestickWords,
+  SidestickPriorityAurals,
+  readSidestickPriorityInputs,
+} from './Logic/SidestickPriorityAurals';
 import { wingTankLowLevelLines, wingTankLowLevelStatus } from './Logic/WingTankLowLevel';
 import {
   CrossBleedSelector,
@@ -2522,6 +2527,12 @@ export class PseudoFWC {
   /** RA & Minimums callouts */
   private readonly autoCallouts: FwsAutoCallouts;
 
+  /** DUAL INPUT and PRIORITY LEFT/RIGHT voices, see Logic/SidestickPriorityAurals */
+  private readonly sidestickPriorityAurals = new SidestickPriorityAurals();
+
+  /** The reactive windshear warning of the FACs (L:A32NX_REACTIVE_WINDSHEAR_WARNING) in the previous update */
+  private reactiveWindshearWarningPreviously = false;
+
   private readonly onLogicUpdate: { onUpdate: (deltaTime: number) => void }[] = [
     this.cbRearJMWarning,
     this.cbRearNRWarning,
@@ -2772,6 +2783,13 @@ export class PseudoFWC {
       this.soundManager.handleSoundCondition('alt_5', v);
     });
 
+    // The intermediate callout says the present height with the height callout voices
+    this.autoCallouts.intermediateCalloutAudio.sub((height) => {
+      if (height !== null) {
+        this.soundManager.enqueueSound(`alt_${height}`);
+      }
+    });
+
     this.autoCallouts.hundredAboveAudio.sub((v) => {
       if (!v) {
         this.soundManager.hundredAboveEmitted = false;
@@ -2788,6 +2806,17 @@ export class PseudoFWC {
 
     this.acquisitionBackplane.addInstrument('SdacCbMonitors', this.sdacCbMonitors);
     this.acquisitionBackplane.init();
+  }
+
+  /** The sidestick words of one FCDC (Fcdc.cpp getBusOutputs) */
+  private static readFcdcSidestickWords(fcdc: 1 | 2): FcdcSidestickWords {
+    return {
+      discreteWord2: Arinc429Word.fromSimVarValue(`L:A32NX_FCDC_${fcdc}_DISCRETE_WORD_2`),
+      captPitchCommand: Arinc429Word.fromSimVarValue(`L:A32NX_FCDC_${fcdc}_CAPT_PITCH_COMMAND`),
+      captRollCommand: Arinc429Word.fromSimVarValue(`L:A32NX_FCDC_${fcdc}_CAPT_ROLL_COMMAND`),
+      foPitchCommand: Arinc429Word.fromSimVarValue(`L:A32NX_FCDC_${fcdc}_FO_PITCH_COMMAND`),
+      foRollCommand: Arinc429Word.fromSimVarValue(`L:A32NX_FCDC_${fcdc}_FO_ROLL_COMMAND`),
+    };
   }
 
   public getMinimumEmitted() {
@@ -3801,6 +3830,22 @@ export class PseudoFWC {
     const onGround = this.onGroundConf.write(this.onGroundImmediate, deltaTime);
     this.aircraftOnGround.set(onGround);
     this.autoCallouts.update(deltaTime);
+    // DUAL INPUT and PRIORITY LEFT/RIGHT voices (a320_fcom.txt l.41070-41071, 45756-45760, 45804), from the FCDC
+    const sidestickAurals = this.sidestickPriorityAurals.update(
+      readSidestickPriorityInputs(PseudoFWC.readFcdcSidestickWords(1), PseudoFWC.readFcdcSidestickWords(2)),
+      this.autoCallouts.gpwsOrTcasAuralActive,
+      deltaTime / 1000,
+    );
+    for (const aural of sidestickAurals) {
+      this.soundManager.enqueueSound(aural);
+    }
+    // WINDSHEAR three times when the FACs raise the reactive windshear warning (a320_fcom.txt l.34229, 45713)
+    const reactiveWindshearWarning =
+      SimVar.GetSimVarValue('L:A32NX_REACTIVE_WINDSHEAR_WARNING', SimVarValueType.Bool) > 0;
+    if (reactiveWindshearWarning && !this.reactiveWindshearWarningPreviously) {
+      this.soundManager.enqueueSound('windshear');
+    }
+    this.reactiveWindshearWarningPreviously = reactiveWindshearWarning;
     // AP OFF Voluntary
     const anyApEngaged: boolean =
       SimVar.GetSimVarValue('L:A32NX_FMGC_1_AP_ENGAGED', SimVarValueType.Bool) ||
