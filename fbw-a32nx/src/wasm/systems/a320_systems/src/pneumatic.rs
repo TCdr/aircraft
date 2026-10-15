@@ -5,6 +5,7 @@ use uom::si::{
     length::foot,
     pressure::psi,
     ratio::{percent, ratio},
+    temperature_interval,
     thermodynamic_temperature::degree_celsius,
     velocity::foot_per_minute,
     volume::{cubic_meter, gallon},
@@ -14,6 +15,7 @@ use systems::{
     accept_iterable,
     air_conditioning::PackFlowControllers,
     engine::engine_start::EngineStartValveSupervision,
+    failures::{Failure, FailureType},
     overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
     pneumatic::{
         valve::*, BleedMonitoringComputerChannelOperationMode,
@@ -89,6 +91,68 @@ valve_signal_implementation!(PressureRegulatingValveSignal);
 valve_signal_implementation!(EngineStarterValveSignal);
 valve_signal_implementation!(FanAirValveSignal);
 
+/// A valve command that holds a valve at a fixed opening, whatever its controller asks: the position of a stuck
+/// valve (flyPad ATA 36 failures).
+struct FixedValveCommand(Ratio);
+impl<T: PneumaticValveSignal> ControllerSignal<T> for FixedValveCommand {
+    fn signal(&self) -> Option<T> {
+        Some(T::new(self.0))
+    }
+}
+
+/// The opening at which a stuck valve stays: closed, fully open, or None when the valve is not stuck.
+/// Design choice (no FCOM value): a stuck valve stays fully closed or fully open. An electro-pneumatic valve
+/// (bleed valve, fan air valve) only takes it while its solenoid bus is powered; without power the valve still
+/// follows its pneumatic spring, as without the failure.
+fn stuck_valve_open_amount(stuck_closed: &Failure, stuck_open: &Failure) -> Option<Ratio> {
+    if stuck_closed.is_active() {
+        Some(Ratio::new::<ratio>(0.))
+    } else if stuck_open.is_active() {
+        Some(Ratio::new::<ratio>(1.))
+    } else {
+        None
+    }
+}
+
+/// The solenoid command of a valve that a failure holds closed (HP valve stuck closed)
+struct DeenergizedSolenoidCommand;
+impl ControllerSignal<SolenoidSignal> for DeenergizedSolenoidCommand {
+    fn signal(&self) -> Option<SolenoidSignal> {
+        Some(SolenoidSignal::deenergized())
+    }
+}
+
+/// Hot air leaking from a duct reaches its leak detection loop while the duct is pressurised. Design choice (the
+/// FCOM gives no value): above 2 PSI over the ambient pressure.
+const LEAK_MIN_DUCT_PRESSURE_PSIG: f64 = 2.;
+
+/// The air that a leak blows on its detection loop: the air of the leaking duct while it is pressurised.
+fn leaking_air_temperature(
+    context: &UpdateContext,
+    is_leaking: bool,
+    duct: &impl PneumaticContainer,
+) -> Option<ThermodynamicTemperature> {
+    if is_leaking
+        && (duct.pressure() - context.ambient_pressure()).get::<psi>() > LEAK_MIN_DUCT_PRESSURE_PSIG
+    {
+        Some(duct.temperature())
+    } else {
+        None
+    }
+}
+
+/// The opening of a bleed duct with a leak failure. Design choice (no FCOM value): the hole empties an
+/// isolated duct to below LEAK_MIN_DUCT_PRESSURE_PSIG in a few seconds, while the duct stays pressurised as long
+/// as its bleed valve feeds it.
+fn new_leak_exhaust() -> PneumaticExhaust {
+    const LEAK_EXHAUST_SPEED: f64 = 0.5;
+    PneumaticExhaust::new(
+        LEAK_EXHAUST_SPEED,
+        LEAK_EXHAUST_SPEED,
+        Pressure::new::<psi>(0.),
+    )
+}
+
 pub struct A320Pneumatic {
     physics_updater: MaxStepLoop,
 
@@ -105,7 +169,9 @@ pub struct A320Pneumatic {
     engine_starter_valve_controllers: [EngineStarterValveController; 2],
 
     apu_compression_chamber: CompressionChamber,
-    apu_bleed_air_valve: DefaultValve,
+    apu_bleed_air_valve: ApuBleedAirValve,
+
+    leak_detection: BleedLeakDetection,
 
     air_starter_unit_compression_chamber: CompressionChamber,
     air_starter_unit_bleed_air_valve: PurelyPneumaticValve,
@@ -162,7 +228,8 @@ impl A320Pneumatic {
                 EngineStarterValveController::new(context, 2),
             ],
             apu_compression_chamber: CompressionChamber::new(Volume::new::<cubic_meter>(5.)),
-            apu_bleed_air_valve: DefaultValve::new_closed(),
+            apu_bleed_air_valve: ApuBleedAirValve::new(),
+            leak_detection: BleedLeakDetection::new(context),
             air_starter_unit_compression_chamber: CompressionChamber::new(
                 Volume::new::<cubic_meter>(5.),
             ),
@@ -259,6 +326,32 @@ impl A320Pneumatic {
         self.apu_compression_chamber.update(apu);
         self.air_starter_unit_compression_chamber.update(asu);
 
+        let bmc_is_alive = [
+            self.bleed_monitoring_computers[0].is_alive(),
+            self.bleed_monitoring_computers[1].is_alive(),
+        ];
+        let [bmc_one, bmc_two] = &mut self.bleed_monitoring_computers;
+        bmc_one.update_operation_modes(bmc_is_alive[1]);
+        bmc_two.update_operation_modes(bmc_is_alive[0]);
+
+        // "Except during engine start" (FCOM DSC-36-10-50 l.57515-57529): an engine start valve is open
+        let engine_start_in_progress = self
+            .engine_systems
+            .iter()
+            .any(|system| system.engine_starter_valve_is_open());
+
+        self.leak_detection.update(
+            context,
+            &self.engine_systems,
+            &self.apu_compression_chamber,
+            &self.apu_bleed_air_valve,
+            bmc_is_alive,
+            overhead_panel,
+        );
+        self.apu_bleed_air_valve.set_closed_by_leak_protection(
+            self.leak_detection.closes_apu_bleed_valve() && !engine_start_in_progress,
+        );
+
         for bleed_monitoring_computer in self.bleed_monitoring_computers.iter_mut() {
             bleed_monitoring_computer.update(
                 context,
@@ -269,6 +362,8 @@ impl A320Pneumatic {
                 &self.cross_bleed_valve,
                 &self.fadec,
                 &self.wing_anti_ice,
+                &self.leak_detection,
+                engine_start_in_progress,
             );
 
             // I am not exactly sure if both BMCs should actually control this valve all the time.
@@ -276,37 +371,29 @@ impl A320Pneumatic {
                 .update_open_amount(&bleed_monitoring_computer.main_channel);
         }
 
-        let [bmc_one, bmc_two] = &mut self.bleed_monitoring_computers;
-
-        bmc_one.check_for_failure(bmc_two);
-        bmc_two.check_for_failure(bmc_one);
-
         for controller in self.engine_starter_valve_controllers.iter_mut() {
             controller.update(context, &self.fadec);
         }
 
-        for (engine_system, hydraulic_valve) in self
+        for (index, (engine_system, hydraulic_valve)) in self
             .engine_systems
             .iter_mut()
             .zip(&mut self.hydraulic_reservoir_bleed_air_valves)
+            .enumerate()
         {
-            for bleed_monitoring_computer in self.bleed_monitoring_computers.iter() {
-                let index = engine_system.number - 1;
-
-                // If we get an actual channel here, this means that the channel is not in slave mode
-                if let Some(channel) =
-                    bleed_monitoring_computer.channel_for_engine(engine_system.number)
-                {
-                    engine_system.update(
-                        context,
-                        channel,
-                        channel,
-                        &self.engine_starter_valve_controllers[index],
-                        channel,
-                        engines[index],
-                    );
-                }
-            }
+            // The valves of an engine always take the commands of the main channel of their own BMC. When that
+            // BMC is failed, the channel only stands in for the pneumatic regulation of the valves and the
+            // hardwired closures (ENG BLEED pb OFF, ENG FIRE pb): FCOM DSC-36-10-60 l.57565-57566 "the associated
+            // bleed valve does not close automatically". The other BMC takes over the monitoring only.
+            let channel = &self.bleed_monitoring_computers[index].main_channel;
+            engine_system.update(
+                context,
+                channel,
+                channel,
+                &self.engine_starter_valve_controllers[index],
+                channel,
+                engines[index],
+            );
 
             hydraulic_valve.update_move_fluid(
                 context,
@@ -377,6 +464,17 @@ impl A320Pneumatic {
     pub fn packs(&mut self) -> &mut [PackComplex; 2] {
         &mut self.packs
     }
+
+    /// The FAULT light of the ENG 1(2) BLEED pb-sw (FCOM DSC-36-20 l.57616-57623), lit by the BMC of that engine
+    /// (lost when that BMC is failed, DSC-36-10-60 l.57565)
+    pub fn engine_bleed_fault(&self, engine_number: usize) -> bool {
+        self.bleed_monitoring_computers[engine_number - 1].engine_bleed_fault_light()
+    }
+
+    /// The FAULT light of the APU BLEED pb-sw: "when the system detects an APU leak" (FCOM DSC-36-20 l.57649-57651)
+    pub fn apu_bleed_fault(&self) -> bool {
+        self.leak_detection.apu_leak()
+    }
 }
 impl PneumaticBleed for A320Pneumatic {
     fn apu_bleed_is_on(&self) -> bool {
@@ -411,6 +509,8 @@ impl SimulationElement for A320Pneumatic {
         self.cross_bleed_valve.accept(visitor);
         self.fadec.accept(visitor);
         self.wing_anti_ice.accept(visitor);
+        self.apu_bleed_air_valve.accept(visitor);
+        self.leak_detection.accept(visitor);
 
         accept_iterable!(self.engine_starter_valve_controllers, visitor);
         accept_iterable!(self.bleed_monitoring_computers, visitor);
@@ -514,6 +614,9 @@ impl SimulationElement for EngineStarterValveController {
     }
 }
 
+/// The bleed monitoring computer (BMC) n: its main channel controls and monitors the bleed of engine n, its backup
+/// channel takes over the monitoring of the other engine when the other BMC is failed (FCOM DSC-36-10-60 BMC
+/// FAILURE, l.57559-57568).
 struct BleedMonitoringComputer {
     main_channel_engine_number: usize,
     backup_channel_engine_number: usize,
@@ -521,6 +624,8 @@ struct BleedMonitoringComputer {
     backup_channel: BleedMonitoringComputerChannel,
     powered_by: ElectricalBusType,
     is_powered: bool,
+    failure: Failure,
+    fault_id: VariableIdentifier,
 }
 impl BleedMonitoringComputer {
     fn new(
@@ -530,6 +635,11 @@ impl BleedMonitoringComputer {
         powered_by: ElectricalBusType,
     ) -> Self {
         Self {
+            failure: Failure::new(FailureType::BleedMonitoringComputer(
+                main_channel_engine_number,
+            )),
+            fault_id: context
+                .get_identifier(format!("PNEU_BMC_{}_FAULT", main_channel_engine_number)),
             main_channel_engine_number,
             backup_channel_engine_number,
             main_channel: BleedMonitoringComputerChannel::new(
@@ -557,6 +667,8 @@ impl BleedMonitoringComputer {
         cross_bleed_valve: &impl PneumaticValve,
         fadec: &FullAuthorityDigitalEngineControl,
         wing_anti_ice: &impl WingAntiIceSelected,
+        leak_detection: &BleedLeakDetection,
+        engine_start_in_progress: bool,
     ) {
         self.main_channel.update(
             context,
@@ -567,6 +679,8 @@ impl BleedMonitoringComputer {
             overhead_panel,
             fadec,
             wing_anti_ice,
+            leak_detection,
+            engine_start_in_progress,
         );
 
         self.backup_channel.update(
@@ -578,47 +692,46 @@ impl BleedMonitoringComputer {
             overhead_panel,
             fadec,
             wing_anti_ice,
+            leak_detection,
+            engine_start_in_progress,
         );
     }
 
-    fn check_for_failure(&mut self, other: &mut BleedMonitoringComputer) {
-        if other.signal().is_none() {
-            self.change_backup_channel_operation_mode(
-                BleedMonitoringComputerChannelOperationMode::Master,
-            );
-            other.change_main_channel_operation_mode(
-                BleedMonitoringComputerChannelOperationMode::Slave,
-            );
-        }
+    /// The BMC works: powered and not failed (flyPad BMC failure)
+    fn is_alive(&self) -> bool {
+        self.is_powered && !self.failure.is_active()
     }
 
-    pub fn change_main_channel_operation_mode(
-        &mut self,
-        mode: BleedMonitoringComputerChannelOperationMode,
-    ) {
-        self.main_channel.set_operation_mode(mode);
+    /// FCOM DSC-36-10-60 l.57559-57563: "If one BMC fails, the adjacent BMC takes over the monitoring of the bleed
+    /// system". Recomputed each update, so a BMC that works again takes its engine back (it stayed with the other
+    /// BMC before). The monitoring outputs of an engine come from its master channel; when both BMCs are failed,
+    /// the main channel writes them as not detected.
+    fn update_operation_modes(&mut self, other_is_alive: bool) {
+        let is_alive = self.is_alive();
+        let mode = |is_master: bool| {
+            if is_master {
+                BleedMonitoringComputerChannelOperationMode::Master
+            } else {
+                BleedMonitoringComputerChannelOperationMode::Slave
+            }
+        };
+
+        self.main_channel.set_operation_mode(mode(is_alive));
+        self.main_channel.bmc_is_alive = is_alive;
+        self.main_channel.writes_monitoring_outputs = is_alive || !other_is_alive;
+
+        self.backup_channel
+            .set_operation_mode(mode(is_alive && !other_is_alive));
+        self.backup_channel.bmc_is_alive = is_alive;
+        self.backup_channel.writes_monitoring_outputs = is_alive && !other_is_alive;
     }
 
-    pub fn change_backup_channel_operation_mode(
-        &mut self,
-        mode: BleedMonitoringComputerChannelOperationMode,
-    ) {
-        self.backup_channel.set_operation_mode(mode);
+    /// FCOM DSC-36-20 l.57616-57623 (FAULT light of the ENG BLEED pb-sw of the engine of the main channel)
+    fn engine_bleed_fault_light(&self) -> bool {
+        self.is_alive() && self.main_channel.has_fault()
     }
 
-    pub fn channel_for_engine(
-        &self,
-        engine_number: usize,
-    ) -> Option<&BleedMonitoringComputerChannel> {
-        if engine_number == self.main_channel_engine_number {
-            self.main_channel.or_none_if_slave()
-        } else if engine_number == self.backup_channel_engine_number {
-            self.backup_channel.or_none_if_slave()
-        } else {
-            None
-        }
-    }
-
+    #[cfg(test)]
     fn is_powered(&self) -> bool {
         self.is_powered
     }
@@ -627,6 +740,7 @@ impl SimulationElement for BleedMonitoringComputer {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.main_channel.accept(visitor);
         self.backup_channel.accept(visitor);
+        self.failure.accept(visitor);
 
         visitor.visit(self);
     }
@@ -634,10 +748,14 @@ impl SimulationElement for BleedMonitoringComputer {
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
         self.is_powered = buses.is_powered(self.powered_by)
     }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.fault_id, !self.is_alive());
+    }
 }
 impl ControllerSignal<BleedMonitoringComputerIsAliveSignal> for BleedMonitoringComputer {
     fn signal(&self) -> Option<BleedMonitoringComputerIsAliveSignal> {
-        if self.is_powered() {
+        if self.is_alive() {
             Some(BleedMonitoringComputerIsAliveSignal)
         } else {
             None
@@ -672,9 +790,30 @@ struct BleedMonitoringComputerChannel {
     low_temperature_regulation_active: DelayedTrueLogicGate,
     should_command_onside_prv_closed: bool,
 
+    /// The BMC of this channel works. A failed BMC no longer closes the valves automatically (FCOM l.57565-57566).
+    bmc_is_alive: bool,
+    /// This channel writes the monitoring outputs of its engine (it is the master channel, or no BMC works)
+    writes_monitoring_outputs: bool,
+    /// The overheat and overpressure detections hold the bleed valve closed and the FAULT light on while the ENG
+    /// BLEED pb-sw is ON: "lt goes out when the ENG BLEED pushbutton switch is OFF if the fault has disappeared"
+    /// (FCOM DSC-36-20 l.57622-57623, PRO-ABN-AIR l.69833-69834). Design choice: the BMC closure holds with the light,
+    /// as the ENG 1+2 BLEED FAULT procedure resets it with "ENG 1(2) BLEED ... OFF THEN ON" (l.70055-70056).
+    overheat_latched: bool,
+    overpressure_latched: bool,
+    /// The side of this channel has a wing or pylon leak (BleedLeakDetection, held the same way)
+    side_leak: bool,
+    /// Any wing, pylon or APU leak: the crossbleed valve closes in AUTO, except during an engine start
+    any_leak: bool,
+    engine_start_in_progress: bool,
+    /// "The bleed valve is not closed during engine start / with APU bleed ON" (FAULT light, l.57620-57621)
+    bleed_valve_not_closed: DelayedTrueLogicGate,
+    /// AIR ENG 1(2) HP VALVE FAULT, "the HP valve is abnormally closed" (PRO-ABN-AIR l.70585)
+    hp_valve_abnormally_closed: DelayedTrueLogicGate,
+
     low_temperature_id: VariableIdentifier,
     overheat_id: VariableIdentifier,
     overpressure_id: VariableIdentifier,
+    hp_valve_fault_id: VariableIdentifier,
 }
 impl BleedMonitoringComputerChannel {
     const PRESSURE_REGULATING_VALVE_SINGLE_BLEED_CONFIG_TARGET_PSI: f64 = 50.;
@@ -692,6 +831,19 @@ impl BleedMonitoringComputerChannel {
 
     const HIGH_TEMPERATURE_REGULATION_SETPOINT: f64 = 200.;
     const LOW_TEMPERATURE_REGULATION_THRESHOLD: f64 = 160.;
+
+    /// Design choice, no FCOM value: the FAULT light needs the bleed valve open for 10 s while it must be closed,
+    /// the confirmation time of the AIR ENG 1(2) BLEED NOT CLSD alert of the FWC (FWC/Logic/BleedAlerts).
+    const BLEED_VALVE_NOT_CLOSED_CONFIRMATION: Duration = Duration::from_secs(10);
+    /// Design choice, no FCOM value: the HP valve must stay closed for 5 s while it should be open, longer than its
+    /// 4 s travel.
+    const HP_VALVE_FAULT_CONFIRMATION: Duration = Duration::from_secs(5);
+    /// The HP valve opens when its solenoid is energized and the HP stage gives at least its 15 PSI muscle pressure,
+    /// and closes against its downstream pressure up to 75 PSI (EngineBleedAirSystem HP valve characteristics; FCOM
+    /// DSC-36-10-20 l.57251-57254: it closes for "low upstream pressure" and "excessive upstream pressure"). Design
+    /// choice: 5 PSI away from these limits, so that a valve the pressures close is not seen as failed.
+    const HP_VALVE_EXPECTED_OPEN_MIN_UPSTREAM_PSIG: f64 = 20.;
+    const HP_VALVE_EXPECTED_OPEN_MAX_DOWNSTREAM_PSIG: f64 = 70.;
 
     fn new(
         context: &mut InitContext,
@@ -724,11 +876,27 @@ impl BleedMonitoringComputerChannel {
             low_temperature_regulation_active: DelayedTrueLogicGate::new(Duration::from_secs(20)),
             should_command_onside_prv_closed: false,
             is_in_dual_bleed_config: false,
+            bmc_is_alive: true,
+            writes_monitoring_outputs: operation_mode
+                == BleedMonitoringComputerChannelOperationMode::Master,
+            overheat_latched: false,
+            overpressure_latched: false,
+            side_leak: false,
+            any_leak: false,
+            engine_start_in_progress: false,
+            bleed_valve_not_closed: DelayedTrueLogicGate::new(
+                Self::BLEED_VALVE_NOT_CLOSED_CONFIRMATION,
+            ),
+            hp_valve_abnormally_closed: DelayedTrueLogicGate::new(
+                Self::HP_VALVE_FAULT_CONFIRMATION,
+            ),
             low_temperature_id: context
                 .get_identifier(format!("PNEU_ENG_{}_LOW_TEMPERATURE", engine_number)),
             overheat_id: context.get_identifier(format!("PNEU_ENG_{}_OVERHEAT", engine_number)),
             overpressure_id: context
                 .get_identifier(format!("PNEU_ENG_{}_OVERPRESSURE", engine_number)),
+            hp_valve_fault_id: context
+                .get_identifier(format!("PNEU_ENG_{}_HP_VALVE_FAULT", engine_number)),
         }
     }
 
@@ -742,6 +910,8 @@ impl BleedMonitoringComputerChannel {
         overhead_panel: &A320PneumaticOverheadPanel,
         fadec: &FullAuthorityDigitalEngineControl,
         wing_anti_ice: &impl WingAntiIceSelected,
+        leak_detection: &BleedLeakDetection,
+        engine_start_in_progress: bool,
     ) {
         // READ IN SENSORS
 
@@ -754,6 +924,10 @@ impl BleedMonitoringComputerChannel {
         self.cross_bleed_valve_selector = overhead_panel.cross_bleed_mode();
 
         self.pressure_regulating_valve_is_closed = !sensors.pressure_regulating_valve_is_open();
+
+        self.side_leak = leak_detection.side_leak(self.engine_number);
+        self.any_leak = leak_detection.any_leak();
+        self.engine_start_in_progress = engine_start_in_progress;
 
         // UPDATE STATE
 
@@ -832,6 +1006,79 @@ impl BleedMonitoringComputerChannel {
                     ),
                     self.intermediate_compressor_pressure.get::<psi>(),
                 ));
+
+        self.update_fault_monitoring(context, sensors, overhead_panel, cross_bleed_valve);
+    }
+
+    /// The detections of the BMC that hold (overheat, overpressure), the bleed valve not closed of the FAULT light
+    /// and the HP valve abnormally closed of AIR ENG 1(2) HP VALVE FAULT.
+    fn update_fault_monitoring(
+        &mut self,
+        context: &UpdateContext,
+        sensors: &EngineBleedAirSystem,
+        overhead_panel: &A320PneumaticOverheadPanel,
+        cross_bleed_valve: &impl PneumaticValve,
+    ) {
+        let bleed_pb_is_off = !overhead_panel.engine_bleed_pb_is_auto(self.engine_number);
+        self.overheat_latched = Self::held_detection(
+            self.overheat_latched,
+            self.overheat_monitor.has_overheat(),
+            bleed_pb_is_off,
+        );
+        self.overpressure_latched = Self::held_detection(
+            self.overpressure_latched,
+            self.overpressure_monitor.has_overpressure(),
+            bleed_pb_is_off,
+        );
+
+        // FCOM DSC-36-20 l.57620-57621: "The bleed valve is not closed during engine start" or "with APU bleed ON"
+        let bleed_valve_must_be_closed = sensors.engine_starter_valve_is_open()
+            || self.should_close_pressure_regulating_valve_because_apu_bleed_is_on(
+                self.engine_number,
+                overhead_panel,
+                cross_bleed_valve,
+            );
+        self.bleed_valve_not_closed.update(
+            context,
+            bleed_valve_must_be_closed && sensors.pressure_regulating_valve_is_open(),
+        );
+
+        // The solenoid command of the HP valve (ControllerSignal<SolenoidSignal> below)
+        let hp_valve_commanded_open =
+            !(self.should_command_onside_prv_closed || self.should_use_ip_vs_hp_valve);
+        let hp_stage_pressure_psig =
+            (sensors.high_pressure() - context.ambient_pressure()).get::<psi>();
+        let hp_valve_expected_open = hp_valve_commanded_open
+            && sensors.high_pressure_valve_is_powered()
+            && hp_stage_pressure_psig > Self::HP_VALVE_EXPECTED_OPEN_MIN_UPSTREAM_PSIG
+            && self.transfer_pressure.get::<psi>()
+                < Self::HP_VALVE_EXPECTED_OPEN_MAX_DOWNSTREAM_PSIG;
+        self.hp_valve_abnormally_closed.update(
+            context,
+            hp_valve_expected_open && !sensors.high_pressure_valve_is_open(),
+        );
+    }
+
+    /// A detection that holds while the ENG BLEED pb-sw is ON, and follows its condition while the pb-sw is OFF
+    fn held_detection(held: bool, detected: bool, bleed_pb_is_off: bool) -> bool {
+        if bleed_pb_is_off {
+            detected
+        } else {
+            held || detected
+        }
+    }
+
+    /// The FAULT light of the ENG BLEED pb-sw (FCOM DSC-36-20 l.57616-57621): overpressure, overheat, wing or pylon
+    /// leak on the related side, bleed valve not closed during engine start or with APU bleed ON.
+    fn has_fault(&self) -> bool {
+        self.overheat_latched
+            || self.overpressure_latched
+            || self.side_leak
+            || self.bleed_valve_not_closed.output()
+    }
+
+    fn has_hp_valve_fault(&self) -> bool {
+        self.hp_valve_abnormally_closed.output()
     }
 
     fn update_low_temperature(
@@ -877,13 +1124,6 @@ impl BleedMonitoringComputerChannel {
         self.operation_mode = mode;
     }
 
-    fn or_none_if_slave(&self) -> Option<&BleedMonitoringComputerChannel> {
-        match self.operation_mode() {
-            BleedMonitoringComputerChannelOperationMode::Master => Some(self),
-            BleedMonitoringComputerChannelOperationMode::Slave => None,
-        }
-    }
-
     fn should_close_pressure_regulating_valve_because_apu_bleed_is_on(
         &self,
         engine_number: usize,
@@ -924,12 +1164,14 @@ impl BleedMonitoringComputerChannel {
         self.has_low_bleed_temperature
     }
 
+    /// The BMC overpressure detection, held as the FAULT light (see overpressure_latched)
     fn has_overpressure(&self) -> bool {
-        self.overpressure_monitor.has_overpressure()
+        self.overpressure_latched
     }
 
+    /// The BMC overheat detection, held as the FAULT light (see overheat_latched)
     fn has_overheat(&self) -> bool {
-        self.overheat_monitor.has_overheat()
+        self.overheat_latched
     }
 
     fn determine_temperature_setpoint(&self) -> f64 {
@@ -948,14 +1190,21 @@ impl BleedMonitoringComputerChannel {
         cross_bleed_valve: &impl PneumaticValve,
         fadec: &FullAuthorityDigitalEngineControl,
     ) {
-        self.should_command_onside_prv_closed = self.should_command_prv_closed(
-            self.engine_number,
-            overhead_panel,
-            engine_fire_pushbuttons,
-            cross_bleed_valve,
-        ) || sensors.engine_starter_valve_is_open()
-            || self.overpressure_monitor.has_overpressure()
-            || self.overheat_monitor.has_overheat();
+        // FCOM DSC-36-10-20 l.57288-57299: the ENG BLEED pb-sw and the ENG FIRE pb close the bleed valve
+        // electrically; the BMC closes it for overtemperature, overpressure, leak, open starter valve and APU bleed
+        // ON. A failed BMC no longer closes it (DSC-36-10-60 l.57565-57566).
+        let hardwired_closure = !overhead_panel.engine_bleed_pb_is_auto(self.engine_number)
+            || engine_fire_pushbuttons.is_released(self.engine_number);
+        let bmc_closure = self.bmc_is_alive
+            && (self.should_close_pressure_regulating_valve_because_apu_bleed_is_on(
+                self.engine_number,
+                overhead_panel,
+                cross_bleed_valve,
+            ) || sensors.engine_starter_valve_is_open()
+                || self.overpressure_latched
+                || self.overheat_latched
+                || self.side_leak);
+        self.should_command_onside_prv_closed = hardwired_closure || bmc_closure;
 
         let should_command_offside_prv_closed = self.should_command_prv_closed(
             self.engine_number % 2 + 1,
@@ -1036,8 +1285,13 @@ impl ControllerSignal<CrossBleedValveSignal> for BleedMonitoringComputerChannel 
             CrossBleedValveSelectorMode::Open => Some(CrossBleedValveSignal::new_open(
                 CrossBleedValveSignalType::Manual,
             )),
+            // FCOM DSC-36-20 l.57655-57657: "The crossbleed valve is closed if the APU bleed valve is closed or, in
+            // case of a wing, pylon, or APU leak (except during engine start)". The automatic motor follows a
+            // working BMC only; without one the valve stays where it is (its brake holds it).
+            CrossBleedValveSelectorMode::Auto if !self.bmc_is_alive => None,
             CrossBleedValveSelectorMode::Auto => {
-                if self.is_apu_bleed_valve_open {
+                if self.is_apu_bleed_valve_open && (!self.any_leak || self.engine_start_in_progress)
+                {
                     Some(CrossBleedValveSignal::new_open(
                         CrossBleedValveSignalType::Automatic,
                     ))
@@ -1056,10 +1310,20 @@ impl SimulationElement for BleedMonitoringComputerChannel {
     }
 
     fn write(&self, writer: &mut SimulatorWriter) {
-        if self.operation_mode() == BleedMonitoringComputerChannelOperationMode::Master {
-            writer.write(&self.low_temperature_id, self.has_low_temperature());
-            writer.write(&self.overheat_id, self.has_overheat());
-            writer.write(&self.overpressure_id, self.has_overpressure());
+        if self.writes_monitoring_outputs {
+            // Not detected when no BMC works (BLEED MONITORING FAULT)
+            let is_master =
+                self.operation_mode() == BleedMonitoringComputerChannelOperationMode::Master;
+            writer.write(
+                &self.low_temperature_id,
+                is_master && self.has_low_temperature(),
+            );
+            writer.write(&self.overheat_id, is_master && self.has_overheat());
+            writer.write(&self.overpressure_id, is_master && self.has_overpressure());
+            writer.write(
+                &self.hp_valve_fault_id,
+                is_master && self.has_hp_valve_fault(),
+            );
         }
     }
 }
@@ -1083,7 +1347,6 @@ struct EngineBleedAirSystem {
     differential_pressure_transducer_pressure_id: VariableIdentifier,
     engine_starter_pressurized_id: VariableIdentifier,
 
-    number: usize,
     fan_compression_chamber_controller: EngineCompressionChamberController, // Controls pressure just behind the main fan
     intermediate_pressure_compression_chamber_controller: EngineCompressionChamberController,
     high_pressure_compression_chamber_controller: EngineCompressionChamberController,
@@ -1110,6 +1373,23 @@ struct EngineBleedAirSystem {
     regulated_pressure_transducer: PressureTransducer,
     differential_pressure_transducer: DifferentialPressureTransducer,
     bleed_temperature_sensor: BleedTemperatureSensor,
+
+    // flyPad ATA 36 failures
+    bleed_valve_stuck_closed: Failure,
+    bleed_valve_stuck_open: Failure,
+    hp_valve_stuck_closed: Failure,
+    fan_air_valve_stuck_closed: Failure,
+    fan_air_valve_stuck_open: Failure,
+    /// A leak of the duct in the pylon, downstream of the bleed valve: its closure isolates the leak (FCOM
+    /// DSC-36-10-50 l.57519-57520)
+    pylon_leak: Failure,
+    pylon_leak_exhaust: PneumaticExhaust,
+    pylon_leaking_air_temperature: Option<ThermodynamicTemperature>,
+    /// A leak of the duct in the wing, downstream of the precooler (the duct to the packs, the wing anti ice and
+    /// the crossbleed valve)
+    wing_leak: Failure,
+    wing_leak_exhaust: PneumaticExhaust,
+    wing_leaking_air_temperature: Option<ThermodynamicTemperature>,
 }
 impl EngineBleedAirSystem {
     const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_HIGH: f64 = 10.;
@@ -1117,7 +1397,6 @@ impl EngineBleedAirSystem {
 
     fn new(context: &mut InitContext, number: usize, powered_by: ElectricalBusType) -> Self {
         Self {
-            number,
             intermediate_pressure_id: context
                 .get_identifier(format!("PNEU_ENG_{}_IP_PRESSURE", number)),
             high_pressure_id: context.get_identifier(format!("PNEU_ENG_{}_HP_PRESSURE", number)),
@@ -1230,6 +1509,21 @@ impl EngineBleedAirSystem {
             regulated_pressure_transducer: PressureTransducer::new(powered_by),
             differential_pressure_transducer: DifferentialPressureTransducer::new(powered_by),
             bleed_temperature_sensor: BleedTemperatureSensor::new(powered_by),
+            bleed_valve_stuck_closed: Failure::new(FailureType::EngineBleedValveStuckClosed(
+                number,
+            )),
+            bleed_valve_stuck_open: Failure::new(FailureType::EngineBleedValveStuckOpen(number)),
+            hp_valve_stuck_closed: Failure::new(FailureType::EngineHpValveStuckClosed(number)),
+            fan_air_valve_stuck_closed: Failure::new(FailureType::EngineFanAirValveStuckClosed(
+                number,
+            )),
+            fan_air_valve_stuck_open: Failure::new(FailureType::EngineFanAirValveStuckOpen(number)),
+            pylon_leak: Failure::new(FailureType::EngineBleedLeak(number)),
+            pylon_leak_exhaust: new_leak_exhaust(),
+            pylon_leaking_air_temperature: None,
+            wing_leak: Failure::new(FailureType::WingBleedLeak(number)),
+            wing_leak_exhaust: new_leak_exhaust(),
+            wing_leaking_air_temperature: None,
         }
     }
 
@@ -1257,14 +1551,37 @@ impl EngineBleedAirSystem {
         self.high_pressure_compression_chamber
             .update(&self.high_pressure_compression_chamber_controller);
 
-        self.high_pressure_valve
-            .update_solenoid(high_pressure_valve_controller);
-        self.pressure_regulating_valve
-            .update_open_amount(pressure_regulating_valve_controller);
+        if self.hp_valve_stuck_closed.is_active() {
+            self.high_pressure_valve
+                .update_solenoid(&DeenergizedSolenoidCommand);
+        } else {
+            self.high_pressure_valve
+                .update_solenoid(high_pressure_valve_controller);
+        }
+        match stuck_valve_open_amount(&self.bleed_valve_stuck_closed, &self.bleed_valve_stuck_open)
+        {
+            Some(open_amount) => self
+                .pressure_regulating_valve
+                .update_open_amount::<PressureRegulatingValveSignal, _>(&FixedValveCommand(
+                    open_amount,
+                )),
+            None => self
+                .pressure_regulating_valve
+                .update_open_amount(pressure_regulating_valve_controller),
+        }
         self.engine_starter_valve
             .update_open_amount(engine_starter_valve_controller);
-        self.fan_air_valve
-            .update_open_amount(fan_air_valve_controller);
+        match stuck_valve_open_amount(
+            &self.fan_air_valve_stuck_closed,
+            &self.fan_air_valve_stuck_open,
+        ) {
+            Some(open_amount) => self
+                .fan_air_valve
+                .update_open_amount::<FanAirValveSignal, _>(&FixedValveCommand(open_amount)),
+            None => self
+                .fan_air_valve
+                .update_open_amount(fan_air_valve_controller),
+        }
 
         self.intermediate_pressure_valve.update_move_fluid(
             context,
@@ -1297,6 +1614,9 @@ impl EngineBleedAirSystem {
             &mut self.precooler_supply_pipe,
             &mut self.precooler_outlet_pipe,
         );
+        if self.fan_air_valve_stuck_closed.is_active() && self.pressure_regulating_valve.is_open() {
+            self.heat_uncooled_bleed_air(context);
+        }
         self.engine_starter_valve
             .update_move_fluid_with_transfer_speed(
                 context,
@@ -1308,6 +1628,36 @@ impl EngineBleedAirSystem {
             .update_move_fluid(context, &mut self.engine_starter_container);
         self.update_engine_start_pressurization(context);
 
+        if self.pylon_leak.is_active() {
+            self.pylon_leak_exhaust
+                .update_move_fluid(context, &mut self.precooler_inlet_pipe);
+        }
+        if self.wing_leak.is_active() {
+            self.wing_leak_exhaust
+                .update_move_fluid(context, &mut self.precooler_outlet_pipe);
+        }
+        // Design choice: while the bleed valve lets air through, the pylon leak blows air at the temperature of the
+        // compressor air (transfer duct), for the reason given at heat_uncooled_bleed_air (the duct model cools the
+        // air across the bleed valve). The pylon loop (204 °C) then detects the leak above
+        // about 210 °C of compressor air: at most thrust settings, not always at ground idle.
+        self.pylon_leaking_air_temperature = leaking_air_temperature(
+            context,
+            self.pylon_leak.is_active(),
+            &self.precooler_inlet_pipe,
+        )
+        .map(|inlet_temperature| {
+            if self.pressure_regulating_valve.is_open() {
+                inlet_temperature.max(self.transfer_pressure_pipe.temperature())
+            } else {
+                inlet_temperature
+            }
+        });
+        self.wing_leaking_air_temperature = leaking_air_temperature(
+            context,
+            self.wing_leak.is_active(),
+            &self.precooler_outlet_pipe,
+        );
+
         self.transfer_pressure_transducer
             .update(context, &self.transfer_pressure_pipe);
         self.regulated_pressure_transducer
@@ -1317,6 +1667,35 @@ impl EngineBleedAirSystem {
 
         self.bleed_temperature_sensor
             .update(&self.precooler_outlet_pipe);
+    }
+
+    /// Fan air valve stuck closed: no fan air cools the bleed air, which leaves the precooler at the temperature of
+    /// the compressor air (the transfer duct). Design choice: the duct model cools the air when the bleed valve
+    /// lowers its pressure (an adiabatic expansion; the real valve throttles it at about the same temperature), which
+    /// the precooler normally hides by regulating to 200 °C. Without fan air the duct would stay at about 230 °C at
+    /// take-off power, under the 257 °C of the overheat (FCOM PRO-ABN-AIR l.69807-69810), where the uncooled air of a
+    /// real precooler is hotter. So the outlet air goes to the transfer duct temperature with a 1 s time constant
+    /// while the bleed valve lets air through. With the mixing of the air coming from the bleed valve, the precooler
+    /// outlet settles at about 300 °C at take-off power and in climb (overheat, ENG BLEED FAULT), and stays under
+    /// 200 °C at idle.
+    fn heat_uncooled_bleed_air(&mut self, context: &UpdateContext) {
+        const HEATING_TIME_CONSTANT_SECONDS: f64 = 1.;
+        let temperature_difference_celsius = self
+            .transfer_pressure_pipe
+            .temperature()
+            .get::<degree_celsius>()
+            - self
+                .precooler_outlet_pipe
+                .temperature()
+                .get::<degree_celsius>();
+        if temperature_difference_celsius > 0. {
+            let heating_ratio =
+                1. - (-context.delta_as_secs_f64() / HEATING_TIME_CONSTANT_SECONDS).exp();
+            self.precooler_outlet_pipe
+                .update_temperature(TemperatureInterval::new::<temperature_interval::kelvin>(
+                    temperature_difference_celsius * heating_ratio,
+                ));
+        }
     }
 
     fn update_engine_start_pressurization(&mut self, context: &UpdateContext) {
@@ -1392,6 +1771,24 @@ impl EngineBleedAirSystem {
         self.pressure_regulating_valve.is_open()
     }
 
+    fn high_pressure_valve_is_open(&self) -> bool {
+        self.high_pressure_valve.is_open()
+    }
+
+    fn high_pressure_valve_is_powered(&self) -> bool {
+        self.high_pressure_valve.is_powered()
+    }
+
+    /// The air a pylon leak blows on the pylon leak detection loop
+    fn pylon_leaking_air_temperature(&self) -> Option<ThermodynamicTemperature> {
+        self.pylon_leaking_air_temperature
+    }
+
+    /// The air a wing leak blows on the wing leak detection loops
+    fn wing_leaking_air_temperature(&self) -> Option<ThermodynamicTemperature> {
+        self.wing_leaking_air_temperature
+    }
+
     fn transfer_pressure_transducer_pressure(&self) -> Option<Pressure> {
         self.transfer_pressure_transducer.signal()
     }
@@ -1418,6 +1815,14 @@ impl SimulationElement for EngineBleedAirSystem {
         self.regulated_pressure_transducer.accept(visitor);
         self.differential_pressure_transducer.accept(visitor);
         self.bleed_temperature_sensor.accept(visitor);
+
+        self.bleed_valve_stuck_closed.accept(visitor);
+        self.bleed_valve_stuck_open.accept(visitor);
+        self.hp_valve_stuck_closed.accept(visitor);
+        self.fan_air_valve_stuck_closed.accept(visitor);
+        self.fan_air_valve_stuck_open.accept(visitor);
+        self.pylon_leak.accept(visitor);
+        self.wing_leak.accept(visitor);
 
         visitor.visit(self);
     }
@@ -1556,23 +1961,331 @@ impl BleedOverheatMonitor {
     }
 }
 
+/// AIR ENG 1(2) BLEED FAULT "triggers when the engine 1(2) is running and: The engine bleed air pressure is above
+/// 57 PSI (+3/-0)" (A320 FCOM PRO-ABN-AIR, a320_fcom.txt l.69805-69806); the BLEED page pressure is amber "if
+/// overpressure is detected by the BMC (threshold between 57 and 60 PSI)" (DSC-36-20 l.57784-57785). It was 60 PSI.
 struct BleedOverpressureMonitor {
-    pressure_over_60_psig_for_15s: DelayedTrueLogicGate,
+    pressure_over_threshold: DelayedTrueLogicGate,
 }
 impl BleedOverpressureMonitor {
+    const OVERPRESSURE_THRESHOLD_PSIG: f64 = 57.;
+    /// Design choice, the FCOM gives no time: the confirmation filters the transients of the pressure regulation
+    /// (the FCOM pressure "may fluctuate between 38 and 56 PSI", DSC-36-10-20 l.57279-57280).
+    const CONFIRMATION_TIME: Duration = Duration::from_secs(15);
+
     fn new() -> Self {
         Self {
-            pressure_over_60_psig_for_15s: DelayedTrueLogicGate::new(Duration::from_secs(15)),
+            pressure_over_threshold: DelayedTrueLogicGate::new(Self::CONFIRMATION_TIME),
         }
     }
 
     fn update(&mut self, context: &UpdateContext, pressure: Pressure) {
-        self.pressure_over_60_psig_for_15s
-            .update(context, pressure > Pressure::new::<psi>(60.));
+        self.pressure_over_threshold.update(
+            context,
+            pressure > Pressure::new::<psi>(Self::OVERPRESSURE_THRESHOLD_PSIG),
+        );
     }
 
     fn has_overpressure(&self) -> bool {
-        self.pressure_over_60_psig_for_15s.output()
+        self.pressure_over_threshold.output()
+    }
+}
+
+/// The APU bleed valve, opened and closed by the APU ECB (systems::apu). FCOM DSC-36-10-30 l.57431-57432: "If the
+/// APU bleed valve is opened, it automatically closes in the case of APU leak, left wing leak, or pylon 1 leak (except
+/// during engine start)". It can be stuck (flyPad ATA 36 failures).
+struct ApuBleedAirValve {
+    valve: DefaultValve,
+    stuck_closed: Failure,
+    stuck_open: Failure,
+    closed_by_leak_protection: bool,
+}
+impl ApuBleedAirValve {
+    fn new() -> Self {
+        Self {
+            valve: DefaultValve::new_closed(),
+            stuck_closed: Failure::new(FailureType::ApuBleedValveStuckClosed),
+            stuck_open: Failure::new(FailureType::ApuBleedValveStuckOpen),
+            closed_by_leak_protection: false,
+        }
+    }
+
+    fn set_closed_by_leak_protection(&mut self, is_closed: bool) {
+        self.closed_by_leak_protection = is_closed;
+    }
+
+    fn update_move_fluid(
+        &mut self,
+        context: &UpdateContext,
+        container_one: &mut impl PneumaticContainer,
+        container_two: &mut impl PneumaticContainer,
+    ) {
+        self.valve
+            .update_move_fluid(context, container_one, container_two);
+    }
+}
+impl PneumaticValve for ApuBleedAirValve {
+    fn is_open(&self) -> bool {
+        self.valve.is_open()
+    }
+}
+impl ControllablePneumaticValve for ApuBleedAirValve {
+    fn update_open_amount<T: PneumaticValveSignal, U: ControllerSignal<T> + ?Sized>(
+        &mut self,
+        controller: &U,
+    ) {
+        let held_open_amount = stuck_valve_open_amount(&self.stuck_closed, &self.stuck_open).or(
+            if self.closed_by_leak_protection {
+                Some(Ratio::new::<ratio>(0.))
+            } else {
+                None
+            },
+        );
+        match held_open_amount {
+            Some(open_amount) => self
+                .valve
+                .update_open_amount::<T, _>(&FixedValveCommand(open_amount)),
+            None => self.valve.update_open_amount(controller),
+        }
+    }
+}
+impl SimulationElement for ApuBleedAirValve {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.stuck_closed.accept(visitor);
+        self.stuck_open.accept(visitor);
+
+        visitor.visit(self);
+    }
+}
+
+/// A bleed leak detection loop: "Leak detection loops detect any overheating near the hot air ducts in the fuselage,
+/// pylons, and wings" (FCOM DSC-36-10-50 l.57504-57505). It can be inoperative (flyPad ATA 36 failures).
+struct LeakDetectionLoop {
+    inoperative: Failure,
+    detection_temperature: ThermodynamicTemperature,
+    detects: bool,
+}
+impl LeakDetectionLoop {
+    fn new(failure_type: FailureType, detection_temperature_celsius: f64) -> Self {
+        Self {
+            inoperative: Failure::new(failure_type),
+            detection_temperature: ThermodynamicTemperature::new::<degree_celsius>(
+                detection_temperature_celsius,
+            ),
+            detects: false,
+        }
+    }
+
+    fn update(&mut self, leaking_air_temperature: Option<ThermodynamicTemperature>) {
+        self.detects = !self.inoperative.is_active()
+            && leaking_air_temperature
+                .is_some_and(|temperature| temperature > self.detection_temperature);
+    }
+
+    fn detects(&self) -> bool {
+        self.detects
+    }
+
+    fn is_inoperative(&self) -> bool {
+        self.inoperative.is_active()
+    }
+}
+impl SimulationElement for LeakDetectionLoop {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.inoperative.accept(visitor);
+
+        visitor.visit(self);
+    }
+}
+
+/// The bleed leak detection of the BMCs (FCOM DSC-36-10-50 l.57504-57529, PRO-ABN-AIR leak alerts):
+/// - one pylon loop per engine, above 204 °C (l.70693-70694);
+/// - two wing loops per wing, above 124 °C (l.70691-70692); "When the two wing loops detect a leak, or when one
+///   loop detects the leak and the other one is inoperative, they activate a wing leak signal" (l.57508-57509);
+/// - one APU loop, above 124 °C (l.69556-69557).
+///
+/// With one BMC failed, the other one still gives the wing leak; the pylon leak of the engine of the failed BMC is
+/// lost, and the APU leak if BMC 1 is failed (DSC-36-10-60 l.57559-57568).
+/// A leak signal holds while the pb-sw of its bleed is ON: "When the ENG BLEED pb-sw is ON, the FAULT light remains
+/// on. When the ENG BLEED pb-sw is OFF, the FAULT light goes off when the overheat disappears" (l.70701-70703, APU
+/// l.69564-69566). Design choice: the pylon and wing leaks of a side hold with its ENG BLEED pb-sw (the FAULT light
+/// they light), the APU leak with the APU BLEED pb-sw.
+struct BleedLeakDetection {
+    pylon_loops: [LeakDetectionLoop; 2],
+    wing_loops: [[LeakDetectionLoop; 2]; 2],
+    apu_loop: LeakDetectionLoop,
+    /// A leak of the APU bleed duct, downstream of the APU bleed valve. Design choice: the leak only blows APU air
+    /// (while the APU bleed valve is open), it takes no air from the duct.
+    apu_duct_leak: Failure,
+
+    pylon_leak: [bool; 2],
+    wing_leak: [bool; 2],
+    apu_leak: bool,
+    pylon_loop_fault: [bool; 2],
+    wing_loops_fault: [bool; 2],
+    apu_loop_fault: bool,
+
+    pylon_leak_ids: [VariableIdentifier; 2],
+    wing_leak_ids: [VariableIdentifier; 2],
+    apu_leak_id: VariableIdentifier,
+    pylon_loop_fault_ids: [VariableIdentifier; 2],
+    wing_loops_fault_ids: [VariableIdentifier; 2],
+    apu_loop_fault_id: VariableIdentifier,
+}
+impl BleedLeakDetection {
+    const WING_LOOP_DETECTION_CELSIUS: f64 = 124.;
+    const PYLON_LOOP_DETECTION_CELSIUS: f64 = 204.;
+    const APU_LOOP_DETECTION_CELSIUS: f64 = 124.;
+
+    fn new(context: &mut InitContext) -> Self {
+        let wing_loops = |wing: usize| {
+            [
+                LeakDetectionLoop::new(
+                    FailureType::WingLeakDetectionLoop(wing, 1),
+                    Self::WING_LOOP_DETECTION_CELSIUS,
+                ),
+                LeakDetectionLoop::new(
+                    FailureType::WingLeakDetectionLoop(wing, 2),
+                    Self::WING_LOOP_DETECTION_CELSIUS,
+                ),
+            ]
+        };
+        Self {
+            pylon_loops: [1, 2].map(|engine| {
+                LeakDetectionLoop::new(
+                    FailureType::EngineLeakDetectionLoop(engine),
+                    Self::PYLON_LOOP_DETECTION_CELSIUS,
+                )
+            }),
+            wing_loops: [wing_loops(1), wing_loops(2)],
+            apu_loop: LeakDetectionLoop::new(
+                FailureType::ApuLeakDetectionLoop,
+                Self::APU_LOOP_DETECTION_CELSIUS,
+            ),
+            apu_duct_leak: Failure::new(FailureType::ApuBleedLeak),
+            pylon_leak: [false; 2],
+            wing_leak: [false; 2],
+            apu_leak: false,
+            pylon_loop_fault: [false; 2],
+            wing_loops_fault: [false; 2],
+            apu_loop_fault: false,
+            pylon_leak_ids: [1, 2]
+                .map(|engine| context.get_identifier(format!("PNEU_ENG_{}_BLEED_LEAK", engine))),
+            wing_leak_ids: ["LEFT", "RIGHT"]
+                .map(|side| context.get_identifier(format!("PNEU_{}_WING_LEAK", side))),
+            apu_leak_id: context.get_identifier("PNEU_APU_BLEED_LEAK".to_owned()),
+            pylon_loop_fault_ids: [1, 2].map(|engine| {
+                context.get_identifier(format!("PNEU_ENG_{}_LEAK_DET_FAULT", engine))
+            }),
+            wing_loops_fault_ids: ["LEFT", "RIGHT"]
+                .map(|side| context.get_identifier(format!("PNEU_{}_WING_LEAK_DET_FAULT", side))),
+            apu_loop_fault_id: context.get_identifier("PNEU_APU_LEAK_DET_FAULT".to_owned()),
+        }
+    }
+
+    fn update(
+        &mut self,
+        context: &UpdateContext,
+        engine_systems: &[EngineBleedAirSystem; 2],
+        apu_bleed_duct: &impl PneumaticContainer,
+        apu_bleed_valve: &impl PneumaticValve,
+        bmc_is_alive: [bool; 2],
+        overhead_panel: &A320PneumaticOverheadPanel,
+    ) {
+        let any_bmc_is_alive = bmc_is_alive[0] || bmc_is_alive[1];
+
+        for (index, engine_system) in engine_systems.iter().enumerate() {
+            let bleed_pb_is_off = !overhead_panel.engine_bleed_pb_is_auto(index + 1);
+
+            let pylon_loop = &mut self.pylon_loops[index];
+            pylon_loop.update(engine_system.pylon_leaking_air_temperature());
+            self.pylon_leak[index] = bmc_is_alive[index]
+                && BleedMonitoringComputerChannel::held_detection(
+                    self.pylon_leak[index],
+                    pylon_loop.detects(),
+                    bleed_pb_is_off,
+                );
+            self.pylon_loop_fault[index] = bmc_is_alive[index] && pylon_loop.is_inoperative();
+
+            let [loop_a, loop_b] = &mut self.wing_loops[index];
+            loop_a.update(engine_system.wing_leaking_air_temperature());
+            loop_b.update(engine_system.wing_leaking_air_temperature());
+            let wing_leak_detected = (loop_a.detects() || loop_b.detects())
+                && (loop_a.detects() || loop_a.is_inoperative())
+                && (loop_b.detects() || loop_b.is_inoperative());
+            self.wing_leak[index] = any_bmc_is_alive
+                && BleedMonitoringComputerChannel::held_detection(
+                    self.wing_leak[index],
+                    wing_leak_detected,
+                    bleed_pb_is_off,
+                );
+            self.wing_loops_fault[index] =
+                any_bmc_is_alive && loop_a.is_inoperative() && loop_b.is_inoperative();
+        }
+
+        self.apu_loop.update(leaking_air_temperature(
+            context,
+            self.apu_duct_leak.is_active() && apu_bleed_valve.is_open(),
+            apu_bleed_duct,
+        ));
+        self.apu_leak = bmc_is_alive[0]
+            && BleedMonitoringComputerChannel::held_detection(
+                self.apu_leak,
+                self.apu_loop.detects(),
+                !overhead_panel.apu_bleed_is_on(),
+            );
+        self.apu_loop_fault = bmc_is_alive[0] && self.apu_loop.is_inoperative();
+    }
+
+    /// A wing or pylon leak on the side of the engine: its bleed valve closes, its FAULT light comes on
+    fn side_leak(&self, engine_number: usize) -> bool {
+        self.pylon_leak[engine_number - 1] || self.wing_leak[engine_number - 1]
+    }
+
+    /// Any leak: the crossbleed valve closes in AUTO (except during engine start)
+    fn any_leak(&self) -> bool {
+        self.pylon_leak.iter().any(|&leak| leak)
+            || self.wing_leak.iter().any(|&leak| leak)
+            || self.apu_leak
+    }
+
+    /// FCOM DSC-36-10-30 l.57431-57432: APU leak, left wing leak or pylon 1 leak (the engine start exception is
+    /// applied by the caller)
+    fn closes_apu_bleed_valve(&self) -> bool {
+        self.apu_leak || self.wing_leak[0] || self.pylon_leak[0]
+    }
+
+    fn apu_leak(&self) -> bool {
+        self.apu_leak
+    }
+}
+impl SimulationElement for BleedLeakDetection {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        accept_iterable!(self.pylon_loops, visitor);
+        for wing_loops in self.wing_loops.iter_mut() {
+            accept_iterable!(wing_loops, visitor);
+        }
+        self.apu_loop.accept(visitor);
+        self.apu_duct_leak.accept(visitor);
+
+        visitor.visit(self);
+    }
+
+    fn write(&self, writer: &mut SimulatorWriter) {
+        for index in 0..2 {
+            writer.write(&self.pylon_leak_ids[index], self.pylon_leak[index]);
+            writer.write(&self.wing_leak_ids[index], self.wing_leak[index]);
+            writer.write(
+                &self.pylon_loop_fault_ids[index],
+                self.pylon_loop_fault[index],
+            );
+            writer.write(
+                &self.wing_loops_fault_ids[index],
+                self.wing_loops_fault[index],
+            );
+        }
+        writer.write(&self.apu_leak_id, self.apu_leak);
+        writer.write(&self.apu_loop_fault_id, self.apu_loop_fault);
     }
 }
 
@@ -1608,6 +2321,15 @@ impl A320PneumaticOverheadPanel {
             2 => self.engine_2_bleed.is_auto(),
             _ => panic!("Invalid engine number"),
         }
+    }
+
+    /// The FAULT lights of the ENG 1(2) BLEED and APU BLEED pb-sw (FCOM DSC-36-20 l.57616-57623, l.57649-57651)
+    pub fn update_fault_lights(&mut self, pneumatic: &A320Pneumatic) {
+        self.engine_1_bleed
+            .set_fault(pneumatic.engine_bleed_fault(1));
+        self.engine_2_bleed
+            .set_fault(pneumatic.engine_bleed_fault(2));
+        self.apu_bleed.set_fault(pneumatic.apu_bleed_fault());
     }
 }
 impl EngineBleedPushbutton<2> for A320PneumaticOverheadPanel {
@@ -1826,6 +2548,10 @@ pub struct CrossBleedValve {
     is_powered_for_automatic_control: bool,
     target_open_amount: Ratio,
     valve_speed: Ratio,
+    /// flyPad ATA 36 failures. Design choice: the failure drives the valve to its stuck position at the valve
+    /// speed, then neither motor moves it.
+    stuck_closed: Failure,
+    stuck_open: Failure,
 }
 impl CrossBleedValve {
     pub fn new(valve_speed: Ratio) -> Self {
@@ -1836,6 +2562,8 @@ impl CrossBleedValve {
             is_powered_for_automatic_control: false,
             target_open_amount: Ratio::default(),
             valve_speed,
+            stuck_closed: Failure::new(FailureType::CrossBleedValveStuckClosed),
+            stuck_open: Failure::new(FailureType::CrossBleedValveStuckOpen),
         }
     }
 
@@ -1846,13 +2574,13 @@ impl CrossBleedValve {
         container_two: &mut impl PneumaticContainer,
     ) {
         let open_amount_change = context.delta_as_secs_f64() * self.valve_speed;
+        let target_open_amount = stuck_valve_open_amount(&self.stuck_closed, &self.stuck_open)
+            .unwrap_or(self.target_open_amount);
 
-        self.open_amount = if self.target_open_amount > self.open_amount {
-            self.target_open_amount
-                .min(self.open_amount + open_amount_change)
+        self.open_amount = if target_open_amount > self.open_amount {
+            target_open_amount.min(self.open_amount + open_amount_change)
         } else {
-            self.target_open_amount
-                .max(self.open_amount - open_amount_change)
+            target_open_amount.max(self.open_amount - open_amount_change)
         };
 
         self.connector
@@ -1891,6 +2619,13 @@ impl FullyClosed for CrossBleedValve {
     }
 }
 impl SimulationElement for CrossBleedValve {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.stuck_closed.accept(visitor);
+        self.stuck_open.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
         self.is_powered_for_manual_control =
             buses.is_powered(ElectricalBusType::DirectCurrentEssentialShed);
@@ -2352,6 +3087,8 @@ pub mod tests {
                 &self.air_conditioning,
                 [&self.lgciu; 2],
             );
+            self.pneumatic_overhead_panel
+                .update_fault_lights(&self.pneumatic);
             self.air_conditioning.update(
                 context,
                 [&self.engine_1, &self.engine_2],
@@ -2761,7 +3498,9 @@ pub mod tests {
 
         /// For test cases where APU bleed is supposed to be on, call `set_bleed_air_running()`
         fn set_apu_bleed_air_pb(mut self, is_on: bool) -> Self {
-            self.write_by_name("OVHD_APU_BLEED_PB_IS_ON", is_on);
+            // The APU BLEED pb-sw of the A320PneumaticOverheadPanel (the cockpit toggles this variable,
+            // A32NX_Interior_Misc.xml); "OVHD_APU_BLEED_PB_IS_ON" written before is not read by this panel.
+            self.write_by_name("OVHD_PNEU_APU_BLEED_PB_IS_ON", is_on);
 
             self
         }
@@ -5535,5 +6274,496 @@ pub mod tests {
         assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
             140., true, false, false
         ));
+    }
+
+    /// The flyPad ATA 36 failures and the BMC monitoring they trigger (FCOM DSC-36, PRO-ABN-AIR)
+    mod ata_36_failures {
+        use super::*;
+        use crate::pneumatic::BleedOverpressureMonitor;
+        use systems::simulation::test::{SimulationTestBed, TestBed};
+
+        fn flag(test_bed: &mut PneumaticTestBed, name: &str) -> bool {
+            test_bed.read_by_name(name)
+        }
+
+        fn fault_light(test_bed: &mut PneumaticTestBed, engine_number: usize) -> bool {
+            flag(
+                test_bed,
+                &format!("OVHD_PNEU_ENG_{}_BLEED_PB_HAS_FAULT", engine_number),
+            )
+        }
+
+        fn run_seconds(test_bed: &mut PneumaticTestBed, seconds: u64) {
+            for _ in 0..seconds {
+                test_bed.run_with_delta(Duration::from_secs(1));
+            }
+        }
+
+        fn engines_at_idle_on_ground() -> PneumaticTestBed {
+            let mut test_bed = test_bed_with().both_packs_auto().idle_eng1().idle_eng2();
+            test_bed.set_on_ground(true);
+            run_seconds(&mut test_bed, 20);
+            test_bed
+        }
+
+        fn engines_at_take_off_power_on_ground() -> PneumaticTestBed {
+            let mut test_bed = test_bed_with().both_packs_auto().toga_eng1().toga_eng2();
+            test_bed.set_on_ground(true);
+            run_seconds(&mut test_bed, 20);
+            test_bed
+        }
+
+        fn climbing_through_10000_ft() -> PneumaticTestBed {
+            let mut test_bed = test_bed()
+                .in_isa_atmosphere(Length::new::<foot>(10000.))
+                .both_packs_auto()
+                .toga_eng1()
+                .toga_eng2();
+            test_bed.set_on_ground(false);
+            run_seconds(&mut test_bed, 20);
+            test_bed
+        }
+
+        fn idle_descent_through_10000_ft_with_wing_anti_ice() -> PneumaticTestBed {
+            let mut test_bed = test_bed()
+                .in_isa_atmosphere(Length::new::<foot>(10000.))
+                .both_packs_auto()
+                .idle_eng1()
+                .idle_eng2()
+                .mach_number(MachNumber(0.6));
+            test_bed.set_on_ground(false);
+            test_bed = test_bed.wing_anti_ice_push_button(WingAntiIcePushButtonMode::On);
+            run_seconds(&mut test_bed, 90);
+            test_bed
+        }
+
+        fn apu_bleed_on_with_engines_stopped() -> PneumaticTestBed {
+            let mut test_bed = test_bed_with()
+                .both_packs_auto()
+                .stop_eng1()
+                .stop_eng2()
+                .set_bleed_air_running();
+            test_bed.set_on_ground(true);
+            run_seconds(&mut test_bed, 20);
+            test_bed
+        }
+
+        impl SimulationElement for BleedOverpressureMonitor {}
+
+        /// FCOM PRO-ABN-AIR l.69806 "above 57 PSI (+3/-0)", DSC-36-20 l.57784-57785 (it was 60 PSI)
+        #[test]
+        fn overpressure_is_detected_above_57_psi() {
+            for (pressure_psig, expected) in [(58., true), (56., false)] {
+                let mut test_bed = SimulationTestBed::from(BleedOverpressureMonitor::new());
+                test_bed.set_update_after_power_distribution(move |monitor, context| {
+                    monitor.update(context, Pressure::new::<psi>(pressure_psig))
+                });
+                for _ in 0..16 {
+                    test_bed.run_with_delta(Duration::from_secs(1));
+                }
+
+                assert_eq!(
+                    test_bed.query_element(|monitor| monitor.has_overpressure()),
+                    expected,
+                    "{pressure_psig} PSI"
+                );
+            }
+        }
+
+        #[test]
+        fn normal_operation_gives_no_bleed_fault_detection() {
+            for mut test_bed in [
+                engines_at_idle_on_ground(),
+                engines_at_take_off_power_on_ground(),
+                climbing_through_10000_ft(),
+            ] {
+                run_seconds(&mut test_bed, 60);
+                for engine in 1..=2 {
+                    for name in ["OVERPRESSURE", "OVERHEAT", "HP_VALVE_FAULT", "BLEED_LEAK"] {
+                        assert!(
+                            !flag(&mut test_bed, &format!("PNEU_ENG_{engine}_{name}")),
+                            "ENG {engine} {name}"
+                        );
+                    }
+                    assert!(!fault_light(&mut test_bed, engine));
+                }
+                assert!(!flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
+                assert!(!flag(&mut test_bed, "PNEU_RIGHT_WING_LEAK"));
+            }
+        }
+
+        #[test]
+        fn a_bleed_valve_stuck_closed_stays_closed() {
+            let mut test_bed = engines_at_idle_on_ground();
+            assert!(test_bed.pr_valve_is_open(1));
+
+            test_bed.fail(FailureType::EngineBleedValveStuckClosed(1));
+            run_seconds(&mut test_bed, 5);
+
+            assert!(!test_bed.pr_valve_is_open(1));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_PR_VALVE_OPEN"));
+            assert!(test_bed.pr_valve_is_open(2));
+        }
+
+        /// The path of AIR ENG 1(2) BLEED NOT CLSD (PRO-ABN-AIR l.70542-70544): the valve stays open with the APU
+        /// bleed ON and the engine stopped, and the FAULT light comes on (DSC-36-20 l.57621)
+        #[test]
+        fn a_bleed_valve_stuck_open_stays_open_with_apu_bleed_on_and_lights_the_fault() {
+            let mut test_bed = apu_bleed_on_with_engines_stopped();
+            assert!(!test_bed.pr_valve_is_open(1));
+
+            test_bed.fail(FailureType::EngineBleedValveStuckOpen(1));
+            run_seconds(&mut test_bed, 12);
+
+            assert!(test_bed.pr_valve_is_open(1));
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_PR_VALVE_OPEN"));
+            assert!(fault_light(&mut test_bed, 1));
+            assert!(!test_bed.pr_valve_is_open(2));
+        }
+
+        /// The path of AIR ENG 1(2) BLEED FAULT by overpressure (PRO-ABN-AIR l.69805-69806)
+        #[test]
+        fn a_bleed_valve_stuck_open_gives_an_overpressure_at_climb_power() {
+            let mut test_bed = climbing_through_10000_ft();
+
+            test_bed.fail(FailureType::EngineBleedValveStuckOpen(1));
+            run_seconds(&mut test_bed, 30);
+
+            let ambient_pressure =
+                InternationalStandardAtmosphere::pressure_at_altitude(Length::new::<foot>(10000.));
+            assert!(test_bed.regulated_pressure(1) - ambient_pressure > Pressure::new::<psi>(57.));
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERPRESSURE"));
+            assert!(fault_light(&mut test_bed, 1));
+            // Commanded closed, but stuck: AIR ENG 1 BLEED FAULT with BLEED NOT CLOSED (l.69953-69955)
+            assert!(test_bed.pr_valve_is_open(1));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_OVERPRESSURE"));
+        }
+
+        /// The path of AIR ENG 1(2) BLEED HI TEMP (above 240 °C, PRO-ABN-AIR l.70474) then BLEED FAULT by overheat
+        #[test]
+        fn a_fan_air_valve_stuck_closed_overheats_the_bleed_at_climb_power() {
+            let mut test_bed = climbing_through_10000_ft();
+            test_bed.fail(FailureType::EngineFanAirValveStuckClosed(1));
+
+            let mut hi_temp_without_overheat = false;
+            for _ in 0..40 {
+                test_bed.run_with_delta(Duration::from_secs(1));
+                let temperature = test_bed.bleed_temperature_sensor_temperature(1).unwrap();
+                hi_temp_without_overheat |= temperature
+                    > ThermodynamicTemperature::new::<degree_celsius>(240.)
+                    && !flag(&mut test_bed, "PNEU_ENG_1_OVERHEAT");
+            }
+
+            assert!(hi_temp_without_overheat);
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERHEAT"));
+            assert!(fault_light(&mut test_bed, 1));
+            // The BMC closes the bleed valve on the overheat (DSC-36-10-20 l.57294)
+            assert!(!test_bed.pr_valve_is_open(1));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_OVERHEAT"));
+        }
+
+        /// FCOM DSC-36-20 l.57622-57623: the FAULT light goes out when the pb-sw is OFF if the fault has disappeared;
+        /// the BMC closure holds with it (ENG 1+2 BLEED FAULT: "ENG 1 BLEED ... OFF THEN ON", l.70055)
+        #[test]
+        fn an_overheat_holds_the_bleed_valve_closed_until_the_pb_is_set_off() {
+            let mut test_bed = climbing_through_10000_ft();
+            test_bed.fail(FailureType::EngineFanAirValveStuckClosed(1));
+            run_seconds(&mut test_bed, 40);
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERHEAT"));
+
+            test_bed.unfail(FailureType::EngineFanAirValveStuckClosed(1));
+            run_seconds(&mut test_bed, 60);
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERHEAT"));
+            assert!(fault_light(&mut test_bed, 1));
+            assert!(!test_bed.pr_valve_is_open(1));
+
+            test_bed = test_bed.set_engine_bleed_push_button_off(1);
+            run_seconds(&mut test_bed, 60);
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_OVERHEAT"));
+            assert!(!fault_light(&mut test_bed, 1));
+
+            test_bed = test_bed.set_engine_bleed_push_button_auto(1);
+            run_seconds(&mut test_bed, 30);
+            assert!(test_bed.pr_valve_is_open(1));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_OVERHEAT"));
+        }
+
+        /// The path of AIR ENG 1(2) BLEED LO TEMP (below 150 °C in flight with WING ANTI ICE ON, l.70290-70291)
+        #[test]
+        fn a_fan_air_valve_stuck_open_gives_a_low_temperature_in_idle_descent_with_wing_anti_ice() {
+            let mut test_bed = idle_descent_through_10000_ft_with_wing_anti_ice();
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_LOW_TEMPERATURE"));
+
+            test_bed.fail(FailureType::EngineFanAirValveStuckOpen(1));
+            run_seconds(&mut test_bed, 30);
+
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_LOW_TEMPERATURE"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_LOW_TEMPERATURE"));
+        }
+
+        /// AIR ENG 1(2) HP VALVE FAULT, "the HP valve is abnormally closed" (PRO-ABN-AIR l.70585)
+        #[test]
+        fn a_hp_valve_stuck_closed_is_detected_at_idle() {
+            let mut test_bed = engines_at_idle_on_ground();
+            assert!(test_bed.hp_valve_is_open(1));
+
+            test_bed.fail(FailureType::EngineHpValveStuckClosed(1));
+            run_seconds(&mut test_bed, 3);
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_HP_VALVE_FAULT"));
+            run_seconds(&mut test_bed, 10);
+
+            assert!(!test_bed.hp_valve_is_open(1));
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_HP_VALVE_FAULT"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_HP_VALVE_FAULT"));
+        }
+
+        /// The path of AIR X BLEED FAULT (PRO-ABN-AIR l.71023-71024)
+        #[test]
+        fn a_crossbleed_valve_stuck_closed_does_not_open_for_the_apu_bleed() {
+            let mut test_bed = apu_bleed_on_with_engines_stopped();
+            assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_FULLY_OPEN"));
+
+            test_bed.fail(FailureType::CrossBleedValveStuckClosed);
+            run_seconds(&mut test_bed, 5);
+
+            assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_FULLY_CLOSED"));
+        }
+
+        #[test]
+        fn a_crossbleed_valve_stuck_open_does_not_close_with_the_selector_shut() {
+            let mut test_bed = engines_at_idle_on_ground();
+            test_bed.fail(FailureType::CrossBleedValveStuckOpen);
+            test_bed = test_bed.cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Shut);
+            run_seconds(&mut test_bed, 5);
+
+            assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_FULLY_OPEN"));
+        }
+
+        /// The path of AIR APU BLEED FAULT (PRO-ABN-AIR l.69519-69520)
+        #[test]
+        fn an_apu_bleed_valve_stuck_closed_or_open_does_not_follow_the_ecb() {
+            let mut test_bed = apu_bleed_on_with_engines_stopped();
+            assert!(test_bed.apu_bleed_valve_is_open());
+
+            test_bed.fail(FailureType::ApuBleedValveStuckClosed);
+            run_seconds(&mut test_bed, 2);
+            assert!(!test_bed.apu_bleed_valve_is_open());
+            assert!(!flag(&mut test_bed, "APU_BLEED_AIR_VALVE_OPEN"));
+
+            test_bed.unfail(FailureType::ApuBleedValveStuckClosed);
+            test_bed.fail(FailureType::ApuBleedValveStuckOpen);
+            test_bed = test_bed.set_apu_bleed_valve_signal(ApuBleedAirValveSignal::new_closed());
+            run_seconds(&mut test_bed, 2);
+            assert!(test_bed.apu_bleed_valve_is_open());
+        }
+
+        /// DSC-36-10-50 l.57512-57513: a wing leak closes the bleed valve of its side and lights its FAULT light
+        #[test]
+        fn a_wing_leak_closes_the_bleed_valve_of_its_side() {
+            let mut test_bed = engines_at_idle_on_ground();
+
+            test_bed.fail(FailureType::WingBleedLeak(1));
+            run_seconds(&mut test_bed, 5);
+
+            assert!(flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
+            assert!(!flag(&mut test_bed, "PNEU_RIGHT_WING_LEAK"));
+            assert!(!test_bed.pr_valve_is_open(1));
+            assert!(fault_light(&mut test_bed, 1));
+            assert!(test_bed.pr_valve_is_open(2));
+            assert!(!fault_light(&mut test_bed, 2));
+        }
+
+        /// PRO-ABN-AIR l.70701-70703: the leak stays while the ENG BLEED pb-sw is ON, and goes when the pb-sw is OFF
+        /// once the overheat disappears (the isolated duct empties through the leak)
+        #[test]
+        fn a_wing_leak_goes_when_the_pb_is_off_and_the_duct_is_empty() {
+            let mut test_bed = engines_at_idle_on_ground();
+            test_bed.fail(FailureType::WingBleedLeak(1));
+            run_seconds(&mut test_bed, 30);
+            assert!(flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
+
+            test_bed = test_bed.set_engine_bleed_push_button_off(1);
+            run_seconds(&mut test_bed, 10);
+
+            assert!(!flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
+            assert!(!fault_light(&mut test_bed, 1));
+        }
+
+        /// DSC-36-10-50 l.57515-57517 and DSC-36-20 l.57655-57657: a left wing leak also closes the crossbleed valve
+        /// (AUTO) and the APU bleed valve
+        #[test]
+        fn a_left_wing_leak_closes_the_apu_bleed_valve_and_the_crossbleed_valve() {
+            let mut test_bed = apu_bleed_on_with_engines_stopped();
+            assert!(test_bed.apu_bleed_valve_is_open());
+            assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_FULLY_OPEN"));
+
+            test_bed.fail(FailureType::WingBleedLeak(1));
+            run_seconds(&mut test_bed, 10);
+
+            assert!(flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
+            assert!(!test_bed.apu_bleed_valve_is_open());
+            assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_FULLY_CLOSED"));
+        }
+
+        /// "Except during engine start" (DSC-36-10-50 l.57515-57517)
+        #[test]
+        fn a_left_wing_leak_does_not_close_the_apu_bleed_valve_during_an_engine_start() {
+            let mut test_bed = apu_bleed_on_with_engines_stopped().start_eng2();
+            run_seconds(&mut test_bed, 2);
+            assert!(test_bed.es_valve_is_open(2));
+
+            test_bed.fail(FailureType::WingBleedLeak(1));
+            run_seconds(&mut test_bed, 10);
+
+            assert!(flag(&mut test_bed, "PNEU_LEFT_WING_LEAK"));
+            assert!(test_bed.apu_bleed_valve_is_open());
+            assert!(flag(&mut test_bed, "PNEU_XBLEED_VALVE_FULLY_OPEN"));
+        }
+
+        /// DSC-36-10-50 l.57508-57509: both wing loops, or one loop with the other inoperative; PRO-ABN-AIR
+        /// l.70748: L(R) WNG LEAK DET FAULT when both loops of a wing are inoperative
+        #[test]
+        fn the_wing_leak_needs_both_loops_or_one_loop_with_the_other_inoperative() {
+            let mut test_bed = engines_at_idle_on_ground();
+            test_bed.fail(FailureType::WingLeakDetectionLoop(2, 1));
+            test_bed.fail(FailureType::WingBleedLeak(2));
+            run_seconds(&mut test_bed, 5);
+            assert!(flag(&mut test_bed, "PNEU_RIGHT_WING_LEAK"));
+            assert!(!flag(&mut test_bed, "PNEU_RIGHT_WING_LEAK_DET_FAULT"));
+
+            let mut test_bed = engines_at_idle_on_ground();
+            test_bed.fail(FailureType::WingLeakDetectionLoop(2, 1));
+            test_bed.fail(FailureType::WingLeakDetectionLoop(2, 2));
+            test_bed.fail(FailureType::WingBleedLeak(2));
+            run_seconds(&mut test_bed, 5);
+            assert!(!flag(&mut test_bed, "PNEU_RIGHT_WING_LEAK"));
+            assert!(flag(&mut test_bed, "PNEU_RIGHT_WING_LEAK_DET_FAULT"));
+            assert!(test_bed.pr_valve_is_open(2));
+        }
+
+        /// PRO-ABN-AIR l.70693-70694: the pylon loop detects above 204 °C
+        #[test]
+        fn a_pylon_leak_at_climb_power_closes_the_bleed_valve_of_its_engine() {
+            let mut test_bed = climbing_through_10000_ft();
+
+            test_bed.fail(FailureType::EngineBleedLeak(2));
+            run_seconds(&mut test_bed, 5);
+
+            assert!(flag(&mut test_bed, "PNEU_ENG_2_BLEED_LEAK"));
+            assert!(!test_bed.pr_valve_is_open(2));
+            assert!(fault_light(&mut test_bed, 2));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_BLEED_LEAK"));
+        }
+
+        /// PRO-ABN-AIR l.70617: ENG 1(2) LEAK DET FAULT when the pylon loop is inoperative
+        #[test]
+        fn an_inoperative_pylon_loop_does_not_detect_a_leak() {
+            let mut test_bed = climbing_through_10000_ft();
+            test_bed.fail(FailureType::EngineLeakDetectionLoop(2));
+            test_bed.fail(FailureType::EngineBleedLeak(2));
+            run_seconds(&mut test_bed, 5);
+
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_BLEED_LEAK"));
+            assert!(flag(&mut test_bed, "PNEU_ENG_2_LEAK_DET_FAULT"));
+            assert!(test_bed.pr_valve_is_open(2));
+        }
+
+        /// DSC-36-10-50 l.57526-57529 and DSC-36-20 l.57649-57651: an APU leak closes the APU bleed valve and lights
+        /// the FAULT light of the APU BLEED pb-sw
+        #[test]
+        fn an_apu_leak_closes_the_apu_bleed_valve_and_lights_its_fault() {
+            let mut test_bed = apu_bleed_on_with_engines_stopped();
+
+            test_bed.fail(FailureType::ApuBleedLeak);
+            run_seconds(&mut test_bed, 5);
+
+            assert!(flag(&mut test_bed, "PNEU_APU_BLEED_LEAK"));
+            assert!(!test_bed.apu_bleed_valve_is_open());
+            assert!(flag(&mut test_bed, "OVHD_PNEU_APU_BLEED_PB_HAS_FAULT"));
+
+            // The ECB closes the APU bleed valve with the pb-sw OFF
+            test_bed = test_bed
+                .set_apu_bleed_air_pb(false)
+                .set_apu_bleed_valve_signal(ApuBleedAirValveSignal::new_closed());
+            run_seconds(&mut test_bed, 2);
+            assert!(!flag(&mut test_bed, "PNEU_APU_BLEED_LEAK"));
+            assert!(!flag(&mut test_bed, "OVHD_PNEU_APU_BLEED_PB_HAS_FAULT"));
+        }
+
+        #[test]
+        fn an_inoperative_apu_loop_is_reported() {
+            let mut test_bed = apu_bleed_on_with_engines_stopped();
+            test_bed.fail(FailureType::ApuLeakDetectionLoop);
+            test_bed.fail(FailureType::ApuBleedLeak);
+            run_seconds(&mut test_bed, 5);
+
+            assert!(flag(&mut test_bed, "PNEU_APU_LEAK_DET_FAULT"));
+            assert!(!flag(&mut test_bed, "PNEU_APU_BLEED_LEAK"));
+            assert!(test_bed.apu_bleed_valve_is_open());
+        }
+
+        /// DSC-36-10-60 l.57559-57566: the other BMC keeps the overheat monitoring, but the bleed valve of the failed
+        /// BMC no longer closes automatically and its FAULT light is lost
+        #[test]
+        fn a_failed_bmc_no_longer_closes_its_bleed_valve_but_the_other_bmc_monitors() {
+            let mut test_bed = climbing_through_10000_ft();
+            test_bed.fail(FailureType::BleedMonitoringComputer(1));
+            test_bed.fail(FailureType::EngineFanAirValveStuckClosed(1));
+            run_seconds(&mut test_bed, 40);
+
+            assert!(flag(&mut test_bed, "PNEU_BMC_1_FAULT"));
+            assert!(!flag(&mut test_bed, "PNEU_BMC_2_FAULT"));
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERHEAT"));
+            assert!(test_bed.pr_valve_is_open(1));
+            assert!(!fault_light(&mut test_bed, 1));
+        }
+
+        /// DSC-36-10-60 l.57567: the ENG BLEED LEAK of the engine of the failed BMC is lost; the wing leak is not
+        #[test]
+        fn a_failed_bmc_loses_the_pylon_leak_of_its_engine_but_not_the_wing_leak() {
+            let mut test_bed = climbing_through_10000_ft();
+            test_bed.fail(FailureType::BleedMonitoringComputer(2));
+            test_bed.fail(FailureType::EngineBleedLeak(2));
+            test_bed.fail(FailureType::WingBleedLeak(2));
+            run_seconds(&mut test_bed, 5);
+
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_BLEED_LEAK"));
+            assert!(flag(&mut test_bed, "PNEU_RIGHT_WING_LEAK"));
+        }
+
+        /// PRO-ABN-AIR l.72154: BLEED MONITORING FAULT, both BMCs failed: no monitoring
+        #[test]
+        fn with_both_bmcs_failed_nothing_is_monitored() {
+            let mut test_bed = climbing_through_10000_ft();
+            test_bed.fail(FailureType::BleedMonitoringComputer(1));
+            test_bed.fail(FailureType::BleedMonitoringComputer(2));
+            test_bed.fail(FailureType::EngineFanAirValveStuckClosed(1));
+            run_seconds(&mut test_bed, 40);
+
+            assert!(flag(&mut test_bed, "PNEU_BMC_1_FAULT"));
+            assert!(flag(&mut test_bed, "PNEU_BMC_2_FAULT"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_OVERHEAT"));
+            assert!(test_bed.pr_valve_is_open(1));
+        }
+
+        /// The BMC takes its engine back once it works again (it stayed with the other BMC before)
+        #[test]
+        fn a_bmc_that_is_powered_again_takes_its_engine_back() {
+            let mut test_bed = test_bed()
+                .set_dc_ess_shed_bus_power(false)
+                .and_run()
+                .set_dc_ess_shed_bus_power(true)
+                .and_run();
+
+            assert_eq!(
+                test_bed.bmc_operation_mode_for_engine(1, 1),
+                BleedMonitoringComputerChannelOperationMode::Master
+            );
+            assert_eq!(
+                test_bed.bmc_operation_mode_for_engine(2, 1),
+                BleedMonitoringComputerChannelOperationMode::Slave
+            );
+            assert!(!flag(&mut test_bed, "PNEU_BMC_1_FAULT"));
+        }
     }
 }

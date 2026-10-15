@@ -86,6 +86,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['700200001', { part: StatusPart.Information, text: 'ONE PACK ONLY IF WAI ON' }],
   // 34 NAVIGATION
   ['340200001', { part: StatusPart.Information, text: 'FLS LIMITED TO F-APP + RAW' }],
+  // 36 PNEUMATIC (FCOM PRO-ABN-AIR ENG 1(2) HP VALVE FAULT STATUS, a320_fcom.txt l.70595), see
+  // FWC/Logic/BleedLeakMonitoringAlerts
+  ['360200101', { part: StatusPart.Information, text: 'AIR PRESS LOW AT IDLE' }],
   // 28 FUEL (FCOM PRO-ABN-FUEL CTR L + R XFR FAULT (VALVES NOT FULLY OPEN), a320_fcom.txt l.85648-85651)
   ['280200001', { part: StatusPart.Information, text: 'CTR TK USABLE BY GRAVITY' }],
   ['280200002', { part: StatusPart.Information, text: '2T (4400LBS) UNUSABLE' }],
@@ -126,6 +129,17 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290300001', { part: StatusPart.InopSys, text: 'G ENG 1 PUMP' }],
   ['290300002', { part: StatusPart.InopSys, text: 'Y ENG 2 PUMP' }],
   ['300300001', { part: StatusPart.InopSys, text: 'WING A. ICE' }],
+  // 36 PNEUMATIC (FCOM PRO-ABN-AIR LEAK DET FAULT l.70631, l.70775, l.69674; APU BLEED LEAK l.69574; PRO-ABN-BLEED
+  // BLEED MONIT SYS 1(2) FAULT l.72204, BLEED MONITORING FAULT l.72168), see FWC/Logic/BleedLeakMonitoringAlerts
+  ['360300101', { part: StatusPart.InopSys, text: 'ENG 1 LK DET' }],
+  ['360300102', { part: StatusPart.InopSys, text: 'ENG 2 LK DET' }],
+  ['360300103', { part: StatusPart.InopSys, text: 'L WNG LK DET' }],
+  ['360300104', { part: StatusPart.InopSys, text: 'R WNG LK DET' }],
+  ['360300105', { part: StatusPart.InopSys, text: 'APU LEAK DET' }],
+  ['360300106', { part: StatusPart.InopSys, text: 'APU BLEED' }],
+  ['360300107', { part: StatusPart.InopSys, text: 'BMC 1' }],
+  ['360300108', { part: StatusPart.InopSys, text: 'BMC 2' }],
+  ['360300109', { part: StatusPart.InopSys, text: 'BMC 1 + 2' }],
   // 31 INDICATING/RECORDING (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['310300001', { part: StatusPart.InopSys, text: 'FWC 1' }],
   ['310300002', { part: StatusPart.InopSys, text: 'FWC 2' }],

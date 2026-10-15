@@ -87,6 +87,72 @@ describe('A320 flyPad failures', () => {
     expect(label(A320Failure.Reverser1Pressurized)).toEqual([78, 78020, 'Reverser 1 pressurized (shutoff valve open)']);
   });
 
+  // The ATA 36 ids are the Rust failures of a320_systems pneumatic.rs, registered in a320_systems_wasm
+  it('lists the pneumatic failures in ATA 36 with the Rust failure they trigger', () => {
+    const rustFailureById: [number, string, string][] = [
+      [A320Failure.Eng1BleedValveStuckClosed, 'EngineBleedValveStuckClosed(1)', 'Engine 1 bleed valve stuck closed'],
+      [A320Failure.Eng2BleedValveStuckClosed, 'EngineBleedValveStuckClosed(2)', 'Engine 2 bleed valve stuck closed'],
+      [
+        A320Failure.Eng1BleedValveStuckOpen,
+        'EngineBleedValveStuckOpen(1)',
+        'Engine 1 bleed valve stuck open (no regulation)',
+      ],
+      [
+        A320Failure.Eng2BleedValveStuckOpen,
+        'EngineBleedValveStuckOpen(2)',
+        'Engine 2 bleed valve stuck open (no regulation)',
+      ],
+      [A320Failure.Eng1HpValveStuckClosed, 'EngineHpValveStuckClosed(1)', 'Engine 1 HP valve stuck closed'],
+      [A320Failure.Eng2HpValveStuckClosed, 'EngineHpValveStuckClosed(2)', 'Engine 2 HP valve stuck closed'],
+      [
+        A320Failure.Eng1FanAirValveStuckClosed,
+        'EngineFanAirValveStuckClosed(1)',
+        'Engine 1 precooler fan air valve stuck closed (overheat)',
+      ],
+      [
+        A320Failure.Eng2FanAirValveStuckClosed,
+        'EngineFanAirValveStuckClosed(2)',
+        'Engine 2 precooler fan air valve stuck closed (overheat)',
+      ],
+      [
+        A320Failure.Eng1FanAirValveStuckOpen,
+        'EngineFanAirValveStuckOpen(1)',
+        'Engine 1 precooler fan air valve stuck open (low temperature)',
+      ],
+      [
+        A320Failure.Eng2FanAirValveStuckOpen,
+        'EngineFanAirValveStuckOpen(2)',
+        'Engine 2 precooler fan air valve stuck open (low temperature)',
+      ],
+      [A320Failure.CrossBleedValveStuckClosed, 'CrossBleedValveStuckClosed', 'X BLEED valve stuck closed'],
+      [A320Failure.CrossBleedValveStuckOpen, 'CrossBleedValveStuckOpen', 'X BLEED valve stuck open'],
+      [A320Failure.ApuBleedValveStuckClosed, 'ApuBleedValveStuckClosed', 'APU bleed valve stuck closed'],
+      [A320Failure.ApuBleedValveStuckOpen, 'ApuBleedValveStuckOpen', 'APU bleed valve stuck open'],
+      [A320Failure.Eng1PylonBleedLeak, 'EngineBleedLeak(1)', 'Engine 1 pylon bleed leak'],
+      [A320Failure.Eng2PylonBleedLeak, 'EngineBleedLeak(2)', 'Engine 2 pylon bleed leak'],
+      [A320Failure.LeftWingBleedLeak, 'WingBleedLeak(1)', 'Left wing bleed leak'],
+      [A320Failure.RightWingBleedLeak, 'WingBleedLeak(2)', 'Right wing bleed leak'],
+      [A320Failure.ApuBleedLeak, 'ApuBleedLeak', 'APU bleed duct leak'],
+      [A320Failure.Eng1PylonLeakDetectionLoop, 'EngineLeakDetectionLoop(1)', 'Engine 1 pylon leak detection loop'],
+      [A320Failure.Eng2PylonLeakDetectionLoop, 'EngineLeakDetectionLoop(2)', 'Engine 2 pylon leak detection loop'],
+      [A320Failure.LeftWingLeakDetectionLoopA, 'WingLeakDetectionLoop(1, 1)', 'Left wing leak detection loop A'],
+      [A320Failure.LeftWingLeakDetectionLoopB, 'WingLeakDetectionLoop(1, 2)', 'Left wing leak detection loop B'],
+      [A320Failure.RightWingLeakDetectionLoopA, 'WingLeakDetectionLoop(2, 1)', 'Right wing leak detection loop A'],
+      [A320Failure.RightWingLeakDetectionLoopB, 'WingLeakDetectionLoop(2, 2)', 'Right wing leak detection loop B'],
+      [A320Failure.ApuLeakDetectionLoop, 'ApuLeakDetectionLoop', 'APU leak detection loop'],
+      [A320Failure.Bmc1, 'BleedMonitoringComputer(1)', 'BMC 1 (bleed monitoring computer)'],
+      [A320Failure.Bmc2, 'BleedMonitoringComputer(2)', 'BMC 2 (bleed monitoring computer)'],
+    ];
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
+    const entry = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
+    for (const [id, rustFailure, label] of rustFailureById) {
+      expect(entry(id)).toEqual([36, id, label]);
+      const rustId = `${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}`;
+      expect(wasm).toContain(`(${rustId}, FailureType::${rustFailure}),`);
+    }
+    expect(A320FailureDefinitions.filter(([chapter]) => chapter === 36)).toHaveLength(rustFailureById.length);
+  });
+
   // The labels say what systems engine/fuel_filter_failure.rs does with ids 73100-73101 (failure names audit rule)
   it('lists the engine fuel filter clog failures in ATA 73 with the Rust failure they trigger', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
