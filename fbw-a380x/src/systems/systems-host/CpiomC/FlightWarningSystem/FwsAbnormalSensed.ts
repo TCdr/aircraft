@@ -57,6 +57,7 @@ import {
   engineGeneratorLostInfo,
   TR_INOP_SYS,
 } from './FwsElecSystemAlerts';
+import { elecDriveOilAbnormalItems } from './FwsElecDriveOilAlerts';
 import { gpwsFaultItemsToShow, isApFdTcasModeInop } from './FwsSurvAlerts';
 import {
   FM_GPS_POS_DISAGREE_INFO,
@@ -3163,6 +3164,8 @@ export class FwsAbnormalSensed {
     },
     // BAT, APU BAT, EXT PWR, RAT, TR MONITORING, DRIVE DISC alerts of the electrical failures (FwsElecSystemAlerts)
     ...elecSystemAbnormalItems(this.fws.elecSystemAlerts),
+    // DRIVE OIL LEVEL LO, OIL OVHT, OIL PRESS LO (FwsElecDriveOilAlerts)
+    ...elecDriveOilAbnormalItems(this.fws.elecDriveOilAlerts),
     // ATA 26 - FIRE PROTECTION
     260800001: {
       // APU FIRE

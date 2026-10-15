@@ -1,6 +1,7 @@
 import React, { FC } from 'react';
 import { useSimVar } from '@instruments/common/simVars';
 import { Triangle } from '@instruments/common/Shapes';
+import { isStaticInverterFailed } from '../../ElecAc/ElecFailureStates';
 
 export enum DcElecBus {
   Dc1Bus = 1,
@@ -32,7 +33,9 @@ export const BusBar: FC<BusBarProps> = ({ x, y, bus }) => {
     'bool',
     500,
   );
-  const staticInverterFault = false;
+  const [staticInverterContactorClosed] = useSimVar('L:A32NX_ELEC_CONTACTOR_7XB_IS_CLOSED', 'bool', 500);
+  const [staticInverterPotentialNormal] = useSimVar('L:A32NX_ELEC_STAT_INV_POTENTIAL_NORMAL', 'bool', 500);
+  const staticInverterFault = isStaticInverterFailed(!!staticInverterContactorClosed, !!staticInverterPotentialNormal);
 
   return (
     <g id={`electrical-busbar-${bus}`} transform={`translate(${x} ${y})`}>
