@@ -346,3 +346,21 @@ export function isSwitchingPanelMemoShown(
 ): boolean {
   return (ecamNdXfrKnob !== EcamNdXfrKnob.Norm && (pfdNdXfrL || pfdNdXfrR)) || eisDmcKnob !== 1;
 }
+
+/**
+ * Written by the DMC logic: 1 while only one ECAM display is on, i.e. the SD is shown only while a system page pb is
+ * held (A320 FCOM DSC-31-05-60 l.45264-45298). The STS pb then pages the STATUS page (DSC-31-30 l.46775-46779).
+ */
+export const ECAM_SINGLE_DISPLAY_VAR = 'L:A32NX_ECAM_SINGLE_DISPLAY';
+
+/**
+ * Whether only one ECAM display is on: no available DU shows the SD unless a system page pb is held, and one does while
+ * it is held (upper or lower ECAM DU lost with ECAM/ND XFR at NORM, or both lost with the E/WD on an ND).
+ */
+export function isEcamSingleDisplay(inputs: Omit<DisplayReconfigurationInputs, 'ecamPagePbHeld'>): boolean {
+  const sdShown = (held: boolean) => {
+    const pictures = computeDisplayPictures({ ...inputs, ecamPagePbHeld: held });
+    return DISPLAY_UNITS.some((du) => inputs.available[du] && pictures[du] === DisplayPicture.System);
+  };
+  return !sdShown(false) && sdShown(true);
+}

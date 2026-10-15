@@ -143,8 +143,16 @@ import {
 } from './Logic/CondStatus';
 import { EcamStatus } from './EcamStatus';
 import { FWC_1_AND_2_FAULT_EWD, FWC_FAULT_EWD_CODES, FwcAvailability, fwcFaultStatus } from './Logic/FwcAvailability';
-import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
-import { isSwitchingPanelMemoShown, pfdNdXfrVar } from '@shared/DisplayReconfiguration';
+import { orderStatusCodes } from '@shared/StatusMessages';
+import {
+  STATUS_CLR_SCROLLS_VAR,
+  STATUS_COLUMN_CODES,
+  STATUS_PAGE_INDEX_VAR,
+  statusLineVar,
+  statusPageCount,
+} from '@shared/StatusPaging';
+import { EcamStatusPaging } from './EcamStatusPaging';
+import { ECAM_SINGLE_DISPLAY_VAR, isSwitchingPanelMemoShown, pfdNdXfrVar } from '@shared/DisplayReconfiguration';
 import {
   isXpdrStandbyDiscrete,
   isXpdrSwitchLineShown,
@@ -365,9 +373,16 @@ export class PseudoFWC {
   );
 
   /** The STATUS page lines (codes of StatusMessages), left and right columns */
-  private readonly statusLinesLeft = Array.from({ length: STATUS_PAGE_LINES }, () => Subject.create(''));
+  private readonly statusLinesLeft = Array.from({ length: STATUS_COLUMN_CODES }, () => Subject.create(''));
 
-  private readonly statusLinesRight = Array.from({ length: STATUS_PAGE_LINES }, () => Subject.create(''));
+  private readonly statusLinesRight = Array.from({ length: STATUS_COLUMN_CODES }, () => Subject.create(''));
+
+  /** The STATUS page shown when it overflows (FCOM DSC-31-20 l.46196-46199), see EcamStatusPaging */
+  private readonly statusPaging = new EcamStatusPaging();
+
+  private readonly statusPageIndex = Subject.create(0);
+
+  private readonly statusClearScrollsPage = Subject.create(false);
 
   /** Whether the STATUS page is empty (NORMAL) */
   private readonly statusNormal = Subject.create(true);
@@ -2321,11 +2336,13 @@ export class PseudoFWC {
     );
 
     this.statusLinesLeft.forEach((line, i) =>
-      line.sub((code) => SimVar.SetSimVarValue(`L:A32NX_ECAM_STATUS_LEFT_LINE_${i + 1}`, 'string', code), true),
+      line.sub((code) => SimVar.SetSimVarValue(statusLineVar('LEFT', i + 1), 'string', code), true),
     );
     this.statusLinesRight.forEach((line, i) =>
-      line.sub((code) => SimVar.SetSimVarValue(`L:A32NX_ECAM_STATUS_RIGHT_LINE_${i + 1}`, 'string', code), true),
+      line.sub((code) => SimVar.SetSimVarValue(statusLineVar('RIGHT', i + 1), 'string', code), true),
     );
+    this.statusPageIndex.sub((index) => SimVar.SetSimVarValue(STATUS_PAGE_INDEX_VAR, 'number', index), true);
+    this.statusClearScrollsPage.sub((scrolls) => SimVar.SetSimVarValue(STATUS_CLR_SCROLLS_VAR, 'bool', scrolls), true);
     this.statusNormal.sub((normal) => SimVar.SetSimVarValue('L:A32NX_ECAM_STATUS_NORMAL', 'bool', normal), true);
     this.stsReminder.sub((reminder) => SimVar.SetSimVarValue('L:A32NX_EWD_STS_REMINDER', 'bool', reminder), true);
 
@@ -2675,6 +2692,8 @@ export class PseudoFWC {
     this.statusLinesLeft.forEach((line) => line.set(''));
     this.statusLinesRight.forEach((line) => line.set(''));
     this.statusNormal.set(false);
+    this.statusPageIndex.set(0);
+    this.statusClearScrollsPage.set(false);
     this.stsReminder.set(false);
     this.statusPageCalled = false;
     this.activeFailureSysPage.set(EcamSysPage.NONE);
@@ -2691,7 +2710,7 @@ export class PseudoFWC {
    * The STATUS page (A320 FCOM DSC-31-20): the information lines and the inoperative systems of the active alerts, the
    * automatic call of the page and the STS reminder on the E/WD.
    */
-  private updateStatus(primaryFailureDisplayed: boolean, flightPhase: number): void {
+  private updateStatus(primaryFailureDisplayed: boolean, flightPhase: number, deltaTime: number): void {
     const info: string[] = [];
     const inopSys: string[] = [];
     for (const key of this.allCurrentFailures) {
@@ -2716,14 +2735,36 @@ export class PseudoFWC {
       this.previousFlapsHandle === 0 && flapsHandle === 1 && flightPhase >= 5 && flightPhase <= 7;
     this.previousFlapsHandle = flapsHandle;
 
+    // The page of an overflowing STATUS page (CLR scrolls it, or the STS pb with one ECAM display), counted on the codes
+    // sent to the SD
+    const sdShowsStatus = SimVar.GetSimVarValue('L:A32NX_ECAM_SD_PAGE_TO_DISPLAY', 'number') === EcamSysPage.STS;
+    const paging = this.statusPaging.update(
+      {
+        pageCount: statusPageCount(
+          this.statusLinesLeft.map((line) => line.get()),
+          this.statusLinesRight.map((line) => line.get()),
+        ),
+        sdShowsStatus,
+        singleDisplay: SimVar.GetSimVarValue(ECAM_SINGLE_DISPLAY_VAR, 'Bool') > 0,
+        ewdAlertDisplayed: primaryFailureDisplayed || this.currentEwdSecondaryFailureKey !== undefined,
+        clearPulse: this.ecpClearPulseUp,
+        statusPushed: this.ecpStatusLevel,
+      },
+      deltaTime / 1000,
+    );
+    this.statusPageIndex.set(paging.pageIndex);
+    this.statusClearScrollsPage.set(paging.clearScrollsPage);
+
     const { requestStatusPage, reminder } = this.ecamStatus.update({
       statusEmpty,
       leftFailureDisplayed: primaryFailureDisplayed,
       lastAlertCleared: this.lastAlertCleared,
-      clearPressed: this.ecpClearPulseUp,
+      // one push, not the whole 0.5 s FWC pulse (the pulse that cleared the last alert removed the page it called), and
+      // not a push that scrolled the page
+      clearPressed: paging.clearPushForStatus,
       statusPressed: this.ecpStatusPulseUp,
       conf1SelectedInFlight,
-      sdShowsStatus: SimVar.GetSimVarValue('L:A32NX_ECAM_SD_PAGE_TO_DISPLAY', 'number') === EcamSysPage.STS,
+      sdShowsStatus,
     });
     this.statusPageCalled = requestStatusPage;
     this.stsReminder.set(reminder);
@@ -5975,7 +6016,7 @@ export class PseudoFWC {
       }
     }
 
-    this.updateStatus(failLeft, flightPhase);
+    this.updateStatus(failLeft, flightPhase, deltaTime);
 
     const topFailureKey = ewdLeftLayout.orderedEntries[0]?.failureKey ?? topSecondaryFailureKey;
     this.activeFailureSysPage.set(
