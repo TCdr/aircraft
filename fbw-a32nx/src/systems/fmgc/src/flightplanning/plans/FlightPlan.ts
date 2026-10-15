@@ -24,6 +24,7 @@ import { BaseFlightPlan, FlightPlanContext, SerializedFlightPlan } from './BaseF
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { FlightPlanQueuedOperation } from '@fmgc/flightplanning/plans/FlightPlanQueuedOperation';
 import { FlightPlanFlags } from './FlightPlanFlags';
+import { HoldData } from '@fmgc/flightplanning/data/flightplan';
 import {
   cloneWindEntry,
   cloneWindVector,
@@ -388,6 +389,53 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     this.insertDiscontinuityAfterDirectTo(lastDirectLegIndexInPlan);
 
     this.setActiveLegIndex(this.allLegs.findIndex((it) => it === directLegs[0]));
+  }
+
+  /**
+   * HOLD at the present position (see PresentPositionHold.ts for the FCOM rules): a manual hold (HM) at a PPOS waypoint
+   * at the aircraft position, entered from the present position (the T-P, as for a DIR TO), and followed by the TO
+   * waypoint, so that the flight plan continues from the hold fix when the crew exits the hold. The legs before the TO
+   * waypoint are removed, as for a DIR TO.
+   * @param ppos the aircraft position
+   * @param trueTrack the aircraft true track, degrees
+   * @param desiredHold the hold to fly
+   * @param defaultHold the computed hold, for the REVERT TO COMPUTED function of the HOLD page
+   * @returns the index of the hold leg, the new active leg
+   */
+  holdAtPresentPosition(ppos: Coordinates, trueTrack: Degrees, desiredHold: HoldData, defaultHold: HoldData): number {
+    const magVar = MagVar.get(ppos.lat, ppos.long);
+    const course = magVar === null ? trueTrack : MagVar.trueToMagnetic(trueTrack, magVar);
+
+    const turningPoint = FlightPlanLeg.turningPoint(this.enrouteSegment, ppos, course, magVar);
+    turningPoint.flags |= FlightPlanLegFlags.DirectToTurningPoint;
+    if (this.index === FlightPlanIndex.Temporary) {
+      turningPoint.flags |= FlightPlanLegFlags.PendingDirectToTurningPoint;
+    }
+
+    // The hold fix is the PPOS waypoint (shown PPOS on the HOLD page)
+    const holdFix = turningPoint.terminationWaypoint() ?? WaypointFactory.fromLocation('T-P', ppos);
+    const holdLeg = FlightPlanLeg.manualHold(this.enrouteSegment, holdFix, desiredHold, magVar);
+    holdLeg.defaultHold = defaultHold;
+
+    // Move all legs before the active one to the enroute segment, as for a DIR TO
+    let indexInEnrouteSegment = 0;
+    this.redistributeLegsAt(0);
+    if (this.activeLegIndex >= 1) {
+      this.redistributeLegsAt(this.activeLegIndex);
+      indexInEnrouteSegment = Math.max(
+        0,
+        this.enrouteSegment.allLegs.findIndex((it) => it === this.activeLeg),
+      );
+    }
+
+    // Remove the legs before the TO waypoint, then the PPOS waypoint and the hold, then the TO waypoint
+    this.enrouteSegment.allLegs.splice(0, indexInEnrouteSegment, turningPoint, holdLeg);
+    this.incrementVersion();
+
+    const holdIndex = this.allLegs.findIndex((it) => it === holdLeg);
+    this.setActiveLegIndex(holdIndex);
+
+    return holdIndex;
   }
 
   /** Inserts a discontinuity after the last leg of a DIR TO, unless there is already one or no leg after it */

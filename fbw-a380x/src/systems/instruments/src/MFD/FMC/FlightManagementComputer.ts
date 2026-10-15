@@ -111,6 +111,7 @@ import { formatWindRequest } from '@fmgc/flightplanning/uplink/WindUplinkUtilts'
 import { FmsToDatalinkSubsystemEvents } from '../../../../shared/src/publishers/A380XFmsAtcBusPublisher';
 import { FlightPlanOperationEvents } from '@fmgc/events/FlightPlanOperationEvents';
 import { FlightPlanEvents } from '@fmgc/flightplanning/sync/FlightPlanEvents';
+import { engineFailureCreatesEngineOutSid } from './EngineOutSid';
 
 export interface FmsErrorMessage {
   message: McduMessage;
@@ -2017,6 +2018,9 @@ export class FlightManagementComputer implements FmcInterface {
       case FmsErrorType.NotAllowed:
         this.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
         break;
+      case FmsErrorType.PlaceWaypointDisagree:
+        this.addMessageToQueue(NXSystemMessages.placeWptDisagree, undefined, undefined);
+        break;
       default:
         break;
     }
@@ -2123,6 +2127,16 @@ export class FlightManagementComputer implements FmcInterface {
     ident?: string,
   ): PilotWaypoint | null {
     return this.dataManager?.createPlaceBearingDistWaypoint(place, bearing, distance, stored, ident) ?? null;
+  }
+
+  createPlaceDistWaypoint(
+    place: Fix,
+    distance: NauticalMiles,
+    coordinates: Coordinates,
+    stored?: boolean,
+    ident?: string,
+  ): PilotWaypoint | null {
+    return this.dataManager?.createPlaceDistWaypoint(place, distance, coordinates, stored, ident) ?? null;
   }
 
   getStoredWaypointsByIdent(ident: string): PilotWaypoint[] {
@@ -2685,6 +2699,17 @@ export class FlightManagementComputer implements FmcInterface {
 
     // Delete time constraints
     // no-op
+
+    // EOSID temporary flight plan, before the diversion point, in the takeoff phase below the thrust reduction altitude
+    if (
+      engineFailureCreatesEngineOutSid(
+        this.flightPhaseManager.phase,
+        SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
+        activePlan.performanceData.thrustReductionAltitude.get(),
+      )
+    ) {
+      this.flightPlanInterface.tryActivateEngineOutSid().catch((e) => console.error(e));
+    }
 
     // Display PERF page
     this.mfdReference?.uiService.navigateTo('fms/active/perf');
