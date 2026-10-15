@@ -21,6 +21,7 @@ import {
   valueRadianAngleConverter,
 } from '../MsfsAvionicsCommon/gauges';
 import { Layer } from '../MsfsAvionicsCommon/Layer';
+import { AvailIndication } from './AvailIndication';
 
 import './style.scss';
 
@@ -38,6 +39,17 @@ export class AvailRev extends DisplayComponent<AvailRevProps> {
   private revVisible = Subject.create('hidden');
 
   private availVisible = Subject.create('hidden');
+
+  /** AVAIL steady on ground / pulsing in flight (AvailIndication.ts) */
+  private availClass = Subject.create('Huge End Green');
+
+  private readonly availIndication = new AvailIndication();
+
+  private onGround = true;
+
+  private tla = 0;
+
+  private lastRealTime: number | null = null;
 
   private fadec: boolean = false;
 
@@ -98,8 +110,32 @@ export class AvailRev extends DisplayComponent<AvailRevProps> {
         this.state = state;
       });
 
-    sub.on('realTime').handle((_t) => {
-      const availVisible = this.n1 > Math.floor(this.idleN1) && this.state === 2;
+    sub
+      .on('left1LandingGear')
+      .whenChanged()
+      .handle((onGround) => {
+        this.onGround = onGround;
+      });
+
+    sub
+      .on(`engine${this.props.engine}Tla`)
+      .whenChanged()
+      .handle((tla) => {
+        this.tla = tla;
+      });
+
+    sub.on('realTime').handle((t) => {
+      const deltaS = this.lastRealTime === null ? 0 : Math.max(0, (t - this.lastRealTime) / 1000);
+      this.lastRealTime = t;
+      const availDisplay = this.availIndication.update(deltaS, {
+        engineState: this.state,
+        n1: this.n1,
+        idleN1: this.idleN1,
+        onGround: this.onGround,
+        tlaDegrees: this.tla,
+      });
+      const availVisible = availDisplay !== 'hidden';
+      this.availClass.set(availDisplay === 'pulse' ? 'Huge End GreenTextPulse' : 'Huge End Green');
       const isVisible = availVisible || this.reverserInTransit || this.reverserDeployed || !this.fadec;
       const revReady = this.fadec && this.reverserDeployed;
 
@@ -120,7 +156,7 @@ export class AvailRev extends DisplayComponent<AvailRevProps> {
         <text class={this.revClass} visibility={this.revVisible} x={34} y={13}>
           {this.revText}
         </text>
-        <text class="Huge End Green" visibility={this.availVisible} x={79} y={13}>
+        <text class={this.availClass} visibility={this.availVisible} x={79} y={13}>
           AVAIL
         </text>
       </g>
