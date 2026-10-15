@@ -13,6 +13,7 @@ import {
 // FIXME should not import from instruments
 import { FuelSystemEvents } from '../../instruments/src/MsfsAvionicsCommon/providers/FuelSystemPublisher';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
+import { FuelManualTransfer } from './FuelManualTransfer';
 enum ValveState {
   Closed,
   Open,
@@ -67,6 +68,22 @@ export class LegacyFuel implements Instrument {
 
   private hasInit = false;
 
+  /** The manual transfers (INR/MID/OUTR TK XFR MAN, TRIM TK XFR FWD): while they run, the automatic transfers wait */
+  private readonly manualTransfer = new FuelManualTransfer({
+    isTransferPbAuto: (pbVar) => SimVar.GetSimVarValue(pbVar, 'bool') > 0,
+    setTransferPbAuto: (pbVar, auto) => SimVar.SetSimVarValue(pbVar, 'bool', auto),
+    isPumpPbOn: (circuit) => SimVar.GetSimVarValue(`A:CIRCUIT CONNECTION ON:${circuit}`, 'bool') > 0,
+    isTriggerActive: (trigger) => this.triggerActive(trigger),
+    setTriggerOff: (trigger) => this.keyEventManager?.triggerKey('FUELSYSTEM_TRIGGER_OFF', true, trigger),
+    isPumpOn: (pump) => SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP SWITCH:${pump}`, 'bool') > 0,
+    setPump: (pump, on) =>
+      this.keyEventManager?.triggerKey(on ? 'FUELSYSTEM_PUMP_ON' : 'FUELSYSTEM_PUMP_OFF', true, pump),
+    isValveOpen: (valve) => SimVar.GetSimVarValue(`A:FUELSYSTEM VALVE SWITCH:${valve}`, 'bool') > 0,
+    setValve: (valve, open) => this.setValve(valve, open ? ValveState.Open : ValveState.Closed),
+    junctionOption: (junction) => this.junctionSettings.get(junction).get(),
+    setJunction: (junction, option) => this.setJunctionOption(junction, option),
+  });
+
   /* holds state for active trimtank transfers to feed tanks 1-4 */
   private readonly trimTransfersActiveForFeedTank = new Map([
     [1, false],
@@ -105,6 +122,7 @@ export class LegacyFuel implements Instrument {
   init() {
     const fuelWeight = SimVar.GetSimVarValue('L:A32NX_TOTAL_FUEL_QUANTITY', 'number');
     SimVar.SetSimVarValue('L:A32NX_FUEL_DESIRED', 'kilograms', fuelWeight);
+    this.manualTransfer.init();
     Wait.awaitSubscribable(GameStateProvider.get(), (state) => state === GameState.ingame, true).then(() => {
       this.checkEmptyTriggers();
       this.hasInit = true;
@@ -203,6 +221,11 @@ export class LegacyFuel implements Instrument {
 
     const onGround = SimVar.GetSimVarValue('SIM ON GROUND', 'bool');
     const jettisoning = SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_IN_PROGRESS', 'bool');
+    // Jettison and refuel suspend the manual transfers; while one runs the automatic transfers are inhibited
+    const manualTransferInProgress = this.manualTransfer.update(
+      dt,
+      jettisoning > 0 || this.jettisonInProgress || this.refuelStarted.get() || this.refuelInProgress,
+    );
     if (!this.jettisonInProgress && jettisoning) {
       // Jettison start: all fuel transfers stop
       this.jettisonInProgress = true;
@@ -240,6 +263,9 @@ export class LegacyFuel implements Instrument {
       console.log('refuel end detected');
       this.refuelInProgress = false;
       this.checkEmptyTriggers();
+    } else if (manualTransferInProgress) {
+      // A380 FCOM PRO-ABN-ECAM-10-28 (a380_fcom.txt l.151103-151104): "As long as the INR TK XFR pb-sw is set to MAN,
+      // all automatic transfers are inhibited". They start again from all their triggers off (CpiomF/FuelManualTransfer).
     } else if (!onGround && totalDtSinceLastUpdate > 0) {
       this.checkEmptyTriggers();
 
