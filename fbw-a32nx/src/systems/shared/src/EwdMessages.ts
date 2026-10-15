@@ -760,6 +760,10 @@ const EwdMessages = new Map<
   ['340015001', { group: 'NAV$9', text: ' RA 2 FAULT' }],
   ['340016501', { group: 'NAV$9', text: ' GPS 1 FAULT' }],
   ['340017501', { group: 'NAV$9', text: ' GPS 2 FAULT' }],
+  // NAV FM/GPS POS DISAGREE, NAV LS TUNING DISAGREE (A320 FCOM PRO-ABN-NAV l.93030, l.93675)
+  ['340019001', { group: 'NAV$9', text: ' FM/GPS POS DISAGREE' }],
+  ['340019002', { text: '\x1b<5m -A/C POS..........CHECK' }],
+  ['340019501', { group: 'NAV$9', text: ' LS TUNING DISAGREE' }],
   ['340086001', { group: 'NAV$9', text: ' ATC/XPDR 1 FAULT' }],
   ['340086002', { text: '\x1b<5m -ATC/XPDR.........SYS 2' }],
   ['340087001', { group: 'NAV$9', text: ' ATC/XPDR 2 FAULT' }],

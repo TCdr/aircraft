@@ -76,6 +76,7 @@ import { ActiveUriInformation } from '../pages/common/MfdUiService';
 import { A380FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/A380FlightPlanPerformanceData';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
 import { Navigation } from '@fmgc/navigation/Navigation';
+import { A380_FM_POSITION_CONFIG } from '@fmgc/navigation/FmPosition';
 import { EfisSymbols } from '@fmgc/efis/EfisSymbols';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { NavigationDatabase, NavigationDatabaseBackend } from '@fmgc/NavigationDatabase';
@@ -556,7 +557,8 @@ export class FlightManagementComputer implements FmcInterface {
     const db = new NavigationDatabase(this.bus, NavigationDatabaseBackend.Msfs);
     NavigationDatabaseService.activeDatabase = db;
 
-    this.#navigation = new Navigation(this.bus, this.flightPlanInterface);
+    // A380 FM/GPS POS DISAGREE thresholds and takeoff position update rule (see FmPosition.ts)
+    this.#navigation = new Navigation(this.bus, this.flightPlanInterface, A380_FM_POSITION_CONFIG);
     if (this.instance === FmcIndex.FmcA) {
       this.#sequencedWaypointRecorder = new SequencedWaypointRecorder(
         this.flightPlanInterface,

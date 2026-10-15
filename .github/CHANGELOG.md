@@ -493,6 +493,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New flyPad failures FQI channel 1 and 2, with the FUEL FQI CH 1(2) FAULT cautions - @TCdr
 1. [A380X/FUEL] The EMER OUTR TK XFR pb-sw now opens the emergency outer tank transfer valves: the outer tank fuel flows by gravity into feed tanks 1 and 4 - @TCdr
 1. [A380X/FWS] FQMS fuel leak detection with the FCOM slow and fast leak thresholds, FUEL LEAK DETECTED with its procedure and FUEL LEAK DET FAULT, and new flyPad failures feed tank 1 to 4 leak - @TCdr
+1. [A32NX/A380X/FMS] The FM position is now the IRS position plus a bias that follows the GPIRS or the radio position and is kept in IRS only; without GPS PRIMARY the position is updated at takeoff to the runway plus the TO SHIFT, and the EPU follows the position updates - @TCdr
+1. [A32NX/MCDU] POSITION MONITOR shows the real FMGC 1 and 2, GPIRS or radio, MIX IRS and IRS positions with the navigation mode, PROG POSITION UPDATE AT works, and the IRS page shows the GPIRS position and accuracy of its ADIRU - @TCdr
+1. [A32NX/FWC] New NAV FM/GPS POS DISAGREE and NAV LS TUNING DISAGREE cautions - @TCdr
+1. [A380X/FWS] NAV FM / GPS POS DISAGREE and NAV LS TUNING DISAGREE now trigger, with their ECAM line and STATUS - @TCdr
+1. [A380X/MFD] POSITION/MONITOR shows the FMS 2, radio, GPIRS, GPS 1 and GPS 2 positions and the real navigation mode - @TCdr
 
 ## 2024.1.0
 
