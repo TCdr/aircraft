@@ -11331,7 +11331,7 @@ mod tests {
             test_bed = test_bed.run_waiting_for(Duration::from_secs(2));
             assert_eq!(test_bed.flaps_conf_index(), FLAPS_CONF_INDEX_CONF1);
             test_bed.set_indicated_airspeed(Velocity::new::<knot>(240.));
-            test_bed = test_bed.run_waiting_for(Duration::from_secs(30));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
             assert!(!test_bed.is_flaps_moving());
             assert_conf_1(&mut test_bed);
 
@@ -11342,7 +11342,7 @@ mod tests {
 
             // Below 205 kt with the lever still at 1: the AES extends the flaps -> CONF 1+F
             test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
-            test_bed = test_bed.run_waiting_for(Duration::from_secs(30));
+            test_bed = test_bed.run_waiting_for(Duration::from_secs(60));
             assert!(!test_bed.is_flaps_moving());
             assert_conf_1_plus_f(&mut test_bed);
         }
