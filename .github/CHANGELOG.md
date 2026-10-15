@@ -379,6 +379,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ELEC] With DC BUS 1 and DC BUS 2 lost (ELEC DC BUS 1+2 FAULT), the ESS TR now supplies the DC ESS BUS, so FAC 1, FMGC 1/AP 1, FCDC 1 and the other DC ESS users stay available as in the FCOM - @TCdr
 1. [A380X/ND] The VD terrain profile shows the airports as flat ground at their elevation instead of spikes (the sim's terrain map draws the airport diagram over the terrain) - @TCdr
 1. [A32NX/A380X] The runways around the aircraft (A32NX RAAS, A380X VD airports, OANS runways without an airport map) come from the airports with a runway only: near a city the heliports filled the airport list and the departure airport dropped out of it a few miles after take-off - @TCdr
+1. [A380X/BLEED] With the X BLEED selector at AUTO, the crossbleed valves open on the ground during an engine start, so the running engines supply the starter air of a crossbleed engine start - @TCdr
 
 ## 2024.1.0
 
