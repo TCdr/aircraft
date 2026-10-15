@@ -3190,7 +3190,10 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
               </TopTabNavigatorPage>
             </TopTabNavigator>
             <div class="mfd-fms-perf-appr-footer">
-              <div class="mfd-fms-perf-footer-item" style="left: 4px;">
+              {/* Holds the ACTIVATE APPR and CLEAR EO dialogs: every footer item is its own stacking context (transform),
+              so the dialogs' z-index only counts inside it; the item itself is lifted above the later footer items
+              (POS MONITOR, CLEAR EO, ACTIVATE APPR), which otherwise paint over the open dialog */}
+              <div class="mfd-fms-perf-footer-item" style="left: 4px; z-index: 10;">
                 <Button
                   label="RETURN"
                   onClick={() =>
