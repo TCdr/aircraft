@@ -15,6 +15,7 @@ import {
   taxiPavement,
   taxiPavementWidth,
   taxiTooNarrowLines,
+  taxiTooNarrowShare,
 } from './taxiWidth';
 
 const line = (kind: TaxiLineKind, name: string | null, ...points: TaxiPoint[]): TaxiLine => ({ kind, name, points });
@@ -158,5 +159,47 @@ describe('Taxiway width for the A380', () => {
     // The entry proposed for the departure avoids it too: the same entry, by F
     const entries = [{ name: 'S', point: [400, 0] as TaxiPoint, distance: 0, remaining: 3000 }];
     expect(taxiDefaultEntry(network, [], [], start, '09', entries, tooNarrow)?.name).toBe('S');
+  });
+
+  it('rates the airport: the share of the taxi line length too narrow, lines not verified not counted as narrow', () => {
+    const lines = [
+      // Too narrow: N 210 m and the exit line B1 100 m on it
+      line(TaxiLineKind.Taxiway, 'N', [0, 0], [210, 0]),
+      line(TaxiLineKind.Exit, 'B1', [0, 0], [100, 0]),
+      // Wide enough: F 200 m; not verified: U 200 m
+      line(TaxiLineKind.Taxiway, 'F', [0, 100], [200, 100]),
+      line(TaxiLineKind.Taxiway, 'U', [0, 1000], [200, 1000]),
+      // Not taxi lines: a stand line and a runway centreline
+      line(TaxiLineKind.Stand, '1', [0, 0], [0, -50]),
+      line(TaxiLineKind.Runway, '09.27', [0, 1000], [200, 1000]),
+    ];
+    const fits = taxiLineFits(lines, PAVEMENT, TAXI_A380);
+    expect(taxiTooNarrowShare(lines, fits)).toBeCloseTo(310 / 710, 6);
+    // No taxi line: nothing to rate
+    expect(taxiTooNarrowShare([lines[4]], [fits[4]])).toBeNull();
+  });
+
+  it('finds the route wide enough for the aircraft, or none (lines too narrow forbidden)', () => {
+    // From the stand to the runway entry S: only along N (23 m), or round it along F (25 m) when F is there
+    const narrowOnly = [
+      line(TaxiLineKind.Taxiway, 'N', [0, 0], [200, 0]),
+      line(TaxiLineKind.Taxiway, 'S', [200, 0], [400, 0]),
+      line(TaxiLineKind.Runway, '09.27', [400, -2000], [400, 2000]),
+      line(TaxiLineKind.Stand, '1', [0, 0], [0, -50]),
+    ];
+    const tooNarrow = new Set([0]);
+    const start = { kind: 'position' as const, point: [0, -50] as TaxiPoint, heading: null };
+    const to = { kind: 'runway' as const, runway: '09', entry: 'S', point: [400, 0] as TaxiPoint };
+    // Avoided when it can: still the route along N (flagged on the page)
+    expect(taxiRoute(buildTaxiNetwork(narrowOnly), { start, to, tooNarrow }).taxiways).toEqual(['N', 'S']);
+    // Forbidden: none
+    expect(taxiRoute(buildTaxiNetwork(narrowOnly), { start, to, tooNarrow, forbidTooNarrow: true }).error).toBe(
+      TaxiRouteError.NoRoute,
+    );
+    const withF = buildTaxiNetwork([
+      ...narrowOnly,
+      line(TaxiLineKind.Taxiway, 'F', [0, 0], [0, 100], [200, 100], [200, 0]),
+    ]);
+    expect(taxiRoute(withF, { start, to, tooNarrow, forbidTooNarrow: true }).taxiways).toEqual(['F', 'S']);
   });
 });

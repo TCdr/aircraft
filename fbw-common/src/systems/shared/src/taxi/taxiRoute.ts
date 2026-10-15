@@ -28,7 +28,10 @@ export type TaxiRouteTarget =
 export interface TaxiRouteRequest {
   start: TaxiRouteStart;
   to: TaxiRouteTarget;
-  /** The taxiways of the clearance, in order; none for the suggested (shortest) route */
+  /**
+   * The taxiways of the clearance, in order; none for the suggested (shortest) route. The names that are no line of the
+   * airport map are left out (the page names them): the route follows the others
+   */
   via?: readonly string[];
   /** The runways the clearance says to cross, e.g. 34L (see {@link readTaxiClearance}) */
   crossRunways?: readonly string[];
@@ -37,6 +40,11 @@ export interface TaxiRouteRequest {
    * a clearance that needs one is still followed (ATC may know better: the crew decides)
    */
   tooNarrow?: ReadonlySet<number>;
+  /**
+   * The lines too narrow are never taken (no route when every way needs one): the route wide enough for the aircraft,
+   * for the A380 airport check of the page
+   */
+  forbidTooNarrow?: boolean;
 }
 
 export enum TaxiRouteError {
@@ -110,6 +118,14 @@ const OTHER_LINE_FACTOR = 3;
  */
 const LEAD_IN_LIMIT = 2000;
 const LEAD_IN_FACTOR = 1.5;
+/**
+ * Two cleared taxiways that do not meet are often joined by a short connector the clearance leaves out (at RJTT, user
+ * report 2026-10-14, A does not meet E): between two cleared taxiways, the route can follow lines that are not in the
+ * clearance, up to this length per gap (metres), at this cost factor (the route rejoins the next cleared taxiway as soon
+ * as it can). A longer way is a taxiway the clearance would name: no route.
+ */
+const GAP_LIMIT = 600;
+const GAP_FACTOR = 1.5;
 /**
  * Extra cost of a runway crossing before the first cleared taxiway that the clearance does not say to cross, in
  * metres: the route goes round when it can (a runway is crossed only with a clearance)
@@ -189,17 +205,26 @@ function nearestEdge(
 
 /**
  * The taxi route from a runway exit or the aircraft (or a stand) to a stand or a runway entry, along the taxi network:
- * the shortest one, or the shortest one along the cleared taxiways in their order (only unnamed connecting lines between
- * them, and the entry line of the runway after the last one: a clearance to a holding point often leaves it out).
- * Before the first cleared taxiway, other taxiways near the start lead to it (a clearance from a stand often leaves out
- * the apron taxiways), crossing a runway only when the clearance says so or there is no other way.
+ * the shortest one, or the shortest one along the cleared taxiways in their order (unnamed connecting lines and short
+ * connectors between them, and the entry line of the runway after the last one: a clearance to a holding point often
+ * leaves it out). Before the first cleared taxiway, other taxiways near the start lead to it (a clearance from a stand
+ * often leaves out the apron taxiways); outside the clearance (before its first taxiway, on a connector), a runway is
+ * crossed only when the clearance says so or there is no other way.
  */
 export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): TaxiRoute {
   const { lines, nodes, edges, adjacency } = network;
-  // A taxiway said twice in a row is one taxiway (C1 typed as the last taxiway and again as the holding point)
+  // The cleared names that are no line of the airport map (a typing error, or a name the map does not have, e.g. A4B
+  // at RJTT) are left out, then a taxiway said twice in a row is one taxiway (C1 typed as the last taxiway and again as
+  // the holding point)
+  const mapNames = new Set(lines.map((l) => l.name));
   const via = request.via
     ?.map((it) => taxiName(it))
-    .filter((it, i, all): it is string => it !== null && (i === 0 || it !== all[i - 1]));
+    .filter((it): it is string => it !== null && mapNames.has(it))
+    .filter((it, i, all) => i === 0 || it !== all[i - 1]);
+  if (via !== undefined && via.length === 0) {
+    // Nothing of the clearance is on the map: no route along it
+    return NO_ROUTE(TaxiRouteError.NoRoute);
+  }
   const viaNames = new Set(via ?? []);
   const layers = via ? via.length + 1 : 1;
   const last = via ? via.length - 1 : -1;
@@ -352,6 +377,52 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     }
   }
 
+  // How far each node is from each cleared taxiway along the lines that can join two of them (any line but the cleared
+  // ones, the runway centrelines and the stand lines), up to GAP_LIMIT: a connector between the cleared taxiways k and
+  // k + 1 is a line whose way from k to k + 1 through it is short enough
+  const gapDistance = new Map<string, Map<number, number>>();
+  if (via && via.length > 1) {
+    for (const name of viaNames) {
+      const distance = new Map<number, number>();
+      const heap = new Heap();
+      edges.forEach((e) => {
+        if (lines[e.line].name === name && lines[e.line].kind !== TaxiLineKind.Runway) {
+          for (const n of [e.from, e.to]) {
+            if (!distance.has(n)) {
+              distance.set(n, 0);
+              heap.push([0, n]);
+            }
+          }
+        }
+      });
+      while (heap.size > 0) {
+        const [d, node] = heap.pop();
+        if (d > (distance.get(node) ?? Infinity)) {
+          continue;
+        }
+        for (const ei of adjacency[node]) {
+          const e = edges[ei];
+          const line = lines[e.line];
+          if (
+            ei === startEdge ||
+            line.kind === TaxiLineKind.Runway ||
+            line.kind === TaxiLineKind.Stand ||
+            (line.name !== null && viaNames.has(line.name))
+          ) {
+            continue;
+          }
+          const other = e.from === node ? e.to : e.from;
+          const nd = d + e.length;
+          if (nd <= GAP_LIMIT && nd < (distance.get(other) ?? Infinity)) {
+            distance.set(other, nd);
+            heap.push([nd, other]);
+          }
+        }
+      }
+      gapDistance.set(name, distance);
+    }
+  }
+
   /** The layer after a line of the clearance taken from layer k: the current cleared taxiway or the next one */
   const cleared = (name: string | null, k: number): number | null => {
     if (!via || name === null) {
@@ -373,9 +444,33 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     !viaNames.has(name) &&
     (leadInDistance.get(e.from) ?? Infinity) <= LEAD_IN_LIMIT &&
     (leadInDistance.get(e.to) ?? Infinity) <= LEAD_IN_LIMIT;
+  /**
+   * A named line that is not in the clearance, taken between its taxiways k and k + 1 as a connector: the shortest way
+   * from taxiway k through the line to taxiway k + 1 is within GAP_LIMIT
+   */
+  const gap = (e: TaxiEdge, name: string | null, k: number): boolean => {
+    if (!via || k < 0 || k >= last || name === null || viaNames.has(name)) {
+      return false;
+    }
+    const fromCleared = gapDistance.get(via[k]);
+    const toNext = gapDistance.get(via[k + 1]);
+    if (!fromCleared || !toNext) {
+      return false;
+    }
+    const through = (a: number, b: number) => (fromCleared.get(a) ?? Infinity) + e.length + (toNext.get(b) ?? Infinity);
+    return Math.min(through(e.from, e.to), through(e.to, e.from)) <= GAP_LIMIT;
+  };
 
-  /** The cost of an edge from layer k, and the layer after it; null when it cannot be taken */
-  const step = (edgeIndex: number, k: number, lastResort: boolean, avoidNarrow: boolean): [number, number] | null => {
+  /**
+   * The cost of an edge from layer k, the layer after it, and whether it is a connector outside the clearance between
+   * two of its taxiways; null when it cannot be taken
+   */
+  const step = (
+    edgeIndex: number,
+    k: number,
+    lastResort: boolean,
+    avoidNarrow: boolean,
+  ): [number, number, boolean?] | null => {
     const e = edges[edgeIndex];
     const line = lines[e.line];
     if (line.kind === TaxiLineKind.Runway || (avoidNarrow && request.tooNarrow?.has(e.line))) {
@@ -411,6 +506,9 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
         if (leadIn(e, line.name, k)) {
           return [e.length * LEAD_IN_FACTOR, k];
         }
+        if (gap(e, line.name, k)) {
+          return [e.length * GAP_FACTOR, k, true];
+        }
         // Other exit lines as a last resort, but never a cleared one out of its order
         return lastResort && !(line.name !== null && viaNames.has(line.name))
           ? [e.length * OTHER_LINE_FACTOR, k]
@@ -431,6 +529,9 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
         }
         if (leadIn(e, line.name, k)) {
           return [e.length * LEAD_IN_FACTOR, k];
+        }
+        if (gap(e, line.name, k)) {
+          return [e.length * GAP_FACTOR, k, true];
         }
         return null;
     }
@@ -476,9 +577,9 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
         const other = e.from === node ? e.to : e.from;
         const ns = other * layers + (next[1] + 1);
         let nc = c + next[0];
-        // Before the first cleared taxiway, a runway the clearance does not say to cross: only when there is no other
-        // way (the crossing shows on the map)
-        if (via && next[1] === -1 && other !== target && unclearedRunwayAt(other)) {
+        // Before the first cleared taxiway or on a connector between two of them, a runway the clearance does not say to
+        // cross: only when there is no other way (the crossing shows on the map)
+        if (via && (next[1] === -1 || next[2] === true) && other !== target && unclearedRunwayAt(other)) {
           nc += UNCLEARED_CROSSING_PENALTY;
         }
         if (nc < (cost.get(ns) ?? Infinity)) {
@@ -568,8 +669,12 @@ export function taxiRoute(network: TaxiNetwork, request: TaxiRouteRequest): Taxi
     return { error: TaxiRouteError.None, points: clean, length, legs, taxiways };
   };
 
-  // Without the lines too narrow for the aircraft first, then with them (flagged on the page) when there is no other way
+  // Without the lines too narrow for the aircraft first, then with them (flagged on the page) when there is no other way,
+  // unless they are forbidden
   const narrow = request.tooNarrow !== undefined && request.tooNarrow.size > 0;
+  if (narrow && request.forbidTooNarrow) {
+    return search(false, true) ?? search(true, true) ?? NO_ROUTE(TaxiRouteError.NoRoute);
+  }
   return (
     search(false, narrow) ??
     search(true, narrow) ??
