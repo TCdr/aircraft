@@ -9,9 +9,17 @@ import {
   DisplayUnitID,
   displayUnitDisplayVar,
   isDisplayUnitPowered,
+  MAILBOX_DISPLAY_UNIT_VAR,
 } from '@shared/CdsDisplayUnits';
 import { DcElectricalBus } from '@shared/electrical';
-import { CdsReconfigurationState, CdsSide, DisplayUnitMap, encodeDisplay } from '@shared/CdsReconfiguration';
+import {
+  CdsReconfigurationState,
+  CdsSide,
+  DisplayUnitMap,
+  encodeDisplay,
+  encodeMailboxDisplayUnit,
+  mailboxDisplayUnit,
+} from '@shared/CdsReconfiguration';
 
 /** The cockpit light potentiometer of each DU's brightness knob (inner knob: "Turns on or off" the DU) */
 const DisplayUnitPotentiometer: Readonly<Record<DisplayUnitID, number>> = {
@@ -43,13 +51,17 @@ const UPDATE_PERIOD_MS = 200;
  * states and the PFD/ND and DU RECONF pbs, and writes the display of each DU into L:A380X_CDS_{DU}_DU_DISPLAY, which
  * the display gauges read to show or hide (each display is a gauge of its own; panel.cfg puts the PFD, the EWD and the
  * SD on the ND DUs, the ND on the PFD DUs and the EWD on the SD DU as extra gauges that only run while they are shown).
- * Each variable stays 0 (its own display) in normal operation.
+ * Each variable stays 0 (its own display) in normal operation. It also writes the DU that shows the ATC mailbox into
+ * L:A380X_CDS_MAILBOX_DU (0, the SD DU, in normal operation), so that only the mailbox of that DU is active.
  */
 export class CdsReconfiguration implements Instrument {
   private readonly state: CdsReconfigurationState;
 
   /** The values written, so a variable is only written when it changes */
   private readonly written: Partial<Record<DisplayUnitID, number>> = {};
+
+  /** The L:A380X_CDS_MAILBOX_DU value written, undefined before the first update */
+  private writtenMailboxDu: number | undefined = undefined;
 
   private lastUpdateMs = -Infinity;
 
@@ -90,7 +102,8 @@ export class CdsReconfiguration implements Instrument {
     }
     this.lastUpdateMs = now;
 
-    let displays = this.state.update(this.readOperative());
+    const operative = this.readOperative();
+    let displays = this.state.update(operative);
     if (this.pendingPresses.length > 0) {
       for (const { pb, side } of this.pendingPresses) {
         if (pb === 'PFD_ND') {
@@ -108,6 +121,14 @@ export class CdsReconfiguration implements Instrument {
         this.written[du] = value;
         SimVar.SetSimVarValue(displayUnitDisplayVar(du), SimVarValueType.Number, value);
       }
+    }
+
+    // the DU of the active ATC mailbox (FCOM PRO-ABN-ECAM-10-31: "If the SD DU is turned OFF, use the F/O DU RECONF P/B
+    // for ATC mailbox")
+    const mailboxDu = encodeMailboxDisplayUnit(mailboxDisplayUnit(displays, operative));
+    if (this.writtenMailboxDu !== mailboxDu) {
+      this.writtenMailboxDu = mailboxDu;
+      SimVar.SetSimVarValue(MAILBOX_DISPLAY_UNIT_VAR, SimVarValueType.Number, mailboxDu);
     }
   }
 
