@@ -208,6 +208,7 @@ import {
   ramAirMemoIndex,
 } from './CabPressAlerts';
 import { ApuFaultInputs, isApuFault } from './ApuFaultAlerts';
+import { SMOKE_ZONES, smokeWarnings } from './SmokeAlerts';
 import { fuelTransferMemos, TankOutflowMonitor } from './FuelTransferMemos';
 import { enginePumpPressLoStatus } from './HydPumpStatus';
 import { AbnormBleedConfigInputs, isAbnormBleedConfig } from './AbnormBleedConfig';
@@ -1313,6 +1314,24 @@ export class FwsCore {
   public readonly cargoFireAgentDisch = Subject.create(false);
 
   public readonly cargoFireTest = Subject.create(false);
+
+  /** The AGENT TO AFT pb of the CARGO SMOKE panel was pressed */
+  public readonly aftCargoFireAgentDisch = Subject.create(false);
+
+  /** L:A32NX_SMOKE_<zone>_DETECTED of each SmokeAlerts SMOKE_ZONES compartment (the SDF of systems.wasm) */
+  public readonly smokeZoneDetected = SMOKE_ZONES.map(() => Subject.create(false));
+
+  /** L:A32NX_SMOKE_<zone>_DET_FAULT of each SMOKE_ZONES compartment */
+  public readonly smokeZoneDetFault = SMOKE_ZONES.map(() => Subject.create(false));
+
+  /** The SMOKE warning of each SMOKE_ZONES compartment (SmokeAlerts smokeWarnings) */
+  public readonly smokeZoneWarning = SMOKE_ZONES.map(() => Subject.create(false));
+
+  /** L:A32NX_CARGOSMOKE_BOTTLE_1(2)_LOW_PRESSURE: SMOKE FWD+AFT CARGOS BTL 1(2) FAULT */
+  public readonly cargoBottleLowPressure = [Subject.create(false), Subject.create(false)];
+
+  /** The CAB FANS pb is ON (the smoke procedures switch it OFF) */
+  public readonly cabFansOn = Subject.create(false);
 
   public readonly fireButtonEng1 = Subject.create(false);
 
@@ -6868,7 +6887,26 @@ export class FwsCore {
     this.evacCommand.set(SimVar.GetSimVarValue('L:A32NX_EVAC_COMMAND_TOGGLE', 'bool'));
 
     this.cargoFireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', 'bool'));
-    this.cargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_FWD_DISCHARGED', 'bool'));
+    this.cargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_FWD_DISCHARGED', 'bool') > 0);
+    this.aftCargoFireAgentDisch.set(SimVar.GetSimVarValue('L:A32NX_CARGOSMOKE_AFT_DISCHARGED', 'bool') > 0);
+    // The SMOKE alerts of the SDF (SmokeAlerts)
+    SMOKE_ZONES.forEach((smokeZone, index) => {
+      this.smokeZoneDetected[index].set(
+        SimVar.GetSimVarValue(`L:A32NX_SMOKE_${smokeZone.zone}_DETECTED`, SimVarValueType.Bool) > 0,
+      );
+      this.smokeZoneDetFault[index].set(
+        SimVar.GetSimVarValue(`L:A32NX_SMOKE_${smokeZone.zone}_DET_FAULT`, SimVarValueType.Bool) > 0,
+      );
+    });
+    smokeWarnings(this.smokeZoneDetected.map((detected) => detected.get())).forEach((warning, index) =>
+      this.smokeZoneWarning[index].set(warning),
+    );
+    this.cargoBottleLowPressure.forEach((lowPressure, index) =>
+      lowPressure.set(
+        SimVar.GetSimVarValue(`L:A32NX_CARGOSMOKE_BOTTLE_${index + 1}_LOW_PRESSURE`, SimVarValueType.Bool) > 0,
+      ),
+    );
+    this.cabFansOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_VENT_CAB_FANS_PB_IS_ON', SimVarValueType.Bool) > 0);
 
     // The FIRE TEST pb, extended after its release when the flyPad setting is on
     this.fireTestPb.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ACTIVE', 'bool'));

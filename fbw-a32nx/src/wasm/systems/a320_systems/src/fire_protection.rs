@@ -13,14 +13,25 @@
 //! - The APU FIRE light and the APU SHUT OFF pb of the external power panel: the exterior model has no such panel. The
 //!   external warning horn of an APU fire on the ground is written here (L:A32NX_FIRE_APU_EXTERNAL_HORN) and played by
 //!   the sound.xml at the nose landing gear.
+//!
+//! Also the smoke protection: the forward and aft cargo smoke detection of the SDCU and the cargo fire bottle (FCOM
+//! DSC-26-50-10), and the smoke detector of the avionics ventilation duct (FCOM DSC-26-30-10), see
+//! [`systems::fire_protection::smoke_detection`]. Not modelled: the lavatory smoke detection, and the cargo ventilation
+//! (the A320 here has none, so the "isolation valves close and the extraction fan stops" of FCOM DSC-26-50-10 has
+//! nothing to act on).
 
 use std::time::Duration;
 
 use systems::{
     fire_protection::{
+        cargo_fire_extinguishing::CargoFireExtinguishing,
+        smoke_detection::{SmokeDetection, SmokeDetectionFaultLogic, SmokeDetectionZoneConfig},
         FireDetectionUnit, FireDetectionZoneConfig, FireLoopPowerLoss, SetOnFireModule,
     },
-    shared::{ElectricalBusType, FireDetectionLoopID, FireDetectionZone, LgciuWeightOnWheels},
+    shared::{
+        ElectricalBusType, FireDetectionLoopID, FireDetectionZone, LgciuWeightOnWheels,
+        SmokeDetectionZone,
+    },
     simulation::{
         InitContext, Read, SimulationElement, SimulationElementVisitor, SimulatorReader,
         SimulatorWriter, UpdateContext, VariableIdentifier, Write,
@@ -60,12 +71,48 @@ pub(super) struct A320FireProtection {
     /// For each zone: its FDU failed
     unit_fault_id: [VariableIdentifier; 3],
     external_horn_id: VariableIdentifier,
+
+    forward_cargo_smoke_detection: SmokeDetection<2>,
+    aft_cargo_smoke_detection: SmokeDetection<2>,
+    avionics_smoke_detection: SmokeDetection<1>,
+    cargo_fire_extinguishing: CargoFireExtinguishing<2, 1>,
 }
 
 impl A320FireProtection {
     /// FCOM DSC-26-20-20 APU FIRE LIGHT (external power panel): "The APU fire extinguisher discharges automatically
     /// 3 s after the appearance of the fire warning" (on the ground, FCOM DSC-26-20-10 EXTINGUISHING).
     const DELAY_APU_FIRE_EXTINGUISHING: Duration = Duration::from_secs(3);
+
+    /// FCOM DSC-26-30-10 (a320_fcom.txt l.38775): "When smoke is detected for more than 5 s" (avionics)
+    const AVIONICS_SMOKE_CONFIRMATION: Duration = Duration::from_secs(5);
+
+    /// FCOM DSC-26-50-20 DISCH LIGHT (a320_fcom.txt l.39017-39019): "Within 60 s after pressing the discharge
+    /// pushbutton, the amber DISCH light comes on when the associated bottle is fully discharged". Design choice: the
+    /// upper bound, 60 s.
+    const CARGO_BOTTLE_DISCHARGE_DURATION: Duration = Duration::from_secs(60);
+
+    /// The cargo smoke detection of one compartment: FCOM DSC-26-50-10 (a320_fcom.txt l.38911-38926), two detection
+    /// loops (the two FWD detectors, the four AFT detectors two by two) on the two identical channels of the SDCU.
+    /// The supply of the channels from the INOP SYS of the A320 FCOM PRO-ABN-ELEC procedures: ELEC DC ESS BUS SHED
+    /// loses "SDCU 1 or CIDS 1 SMOKE" (l.77487), ELEC DC BUS 2 FAULT loses "SDCU 2 or CIDS 2 SMOKE" (l.76611). No
+    /// confirmation time in the FCOM.
+    fn cargo_smoke_detection(
+        context: &mut InitContext,
+        zone: SmokeDetectionZone,
+    ) -> SmokeDetection<2> {
+        SmokeDetection::new(
+            context,
+            SmokeDetectionZoneConfig {
+                zone,
+                detectors_powered_by: [
+                    ElectricalBusType::DirectCurrentEssentialShed,
+                    ElectricalBusType::DirectCurrent(2),
+                ],
+                confirmation_time: Duration::ZERO,
+                fault_logic: SmokeDetectionFaultLogic::AllDetectorsInoperative,
+            },
+        )
+    }
 
     pub(super) fn new(context: &mut InitContext) -> Self {
         // The electrical supply of the loops, from the INOP SYS of the A320 FCOM PRO-ABN-ELEC procedures:
@@ -137,6 +184,34 @@ impl A320FireProtection {
                 context.get_identifier(format!("FIRE_{}_FDU_FAULT", Self::zone_name(zone)))
             }),
             external_horn_id: context.get_identifier("FIRE_APU_EXTERNAL_HORN".to_owned()),
+
+            forward_cargo_smoke_detection: Self::cargo_smoke_detection(
+                context,
+                SmokeDetectionZone::ForwardCargo,
+            ),
+            aft_cargo_smoke_detection: Self::cargo_smoke_detection(
+                context,
+                SmokeDetectionZone::AftCargo,
+            ),
+            // FCOM DSC-26-30-10 (a320_fcom.txt l.38773): "The air extraction duct of the avionics ventilation system has
+            // one smoke detector." Design choice (no FCOM supply): the DC ESS BUS, so that it works in the electrical
+            // emergency configuration that the SMOKE / FUMES / AVNCS SMOKE procedure may lead to.
+            avionics_smoke_detection: SmokeDetection::new(
+                context,
+                SmokeDetectionZoneConfig {
+                    zone: SmokeDetectionZone::Avionics,
+                    detectors_powered_by: [ElectricalBusType::DirectCurrentEssential],
+                    confirmation_time: Self::AVIONICS_SMOKE_CONFIRMATION,
+                    fault_logic: SmokeDetectionFaultLogic::AllDetectorsInoperative,
+                },
+            ),
+            // FCOM DSC-26-50-10 (a320_fcom.txt l.38932-38939): "One fire bottle with two discharge heads, one for each
+            // compartment". The FWD / AFT DISCH pbs write L:A32NX_CARGOSMOKE_FWD(AFT)_DISCHARGED.
+            cargo_fire_extinguishing: CargoFireExtinguishing::new(
+                context,
+                ["FWD", "AFT"],
+                [Self::CARGO_BOTTLE_DISCHARGE_DURATION],
+            ),
         }
     }
 
@@ -162,6 +237,11 @@ impl A320FireProtection {
         self.apu_auto_extinguishing_was_commanded = should_extinguish_apu_fire;
 
         self.set_zone_on_fire.update(self.agent_discharged);
+
+        self.forward_cargo_smoke_detection.update(context);
+        self.aft_cargo_smoke_detection.update(context);
+        self.avionics_smoke_detection.update(context);
+        self.cargo_fire_extinguishing.update(context);
     }
 
     /// An APU fire is detected while on the ground: the ECB shuts the APU down (FCOM DSC-26-20-10 EXTINGUISHING)
@@ -174,6 +254,10 @@ impl SimulationElement for A320FireProtection {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.fire_detection_unit.accept(visitor);
         self.set_zone_on_fire.accept(visitor);
+        self.forward_cargo_smoke_detection.accept(visitor);
+        self.aft_cargo_smoke_detection.accept(visitor);
+        self.avionics_smoke_detection.accept(visitor);
+        self.cargo_fire_extinguishing.accept(visitor);
 
         visitor.visit(self);
     }
@@ -277,6 +361,7 @@ mod tests {
         dc_2_source: TestElectricitySource,
         dc_bat_source: TestElectricitySource,
         dc_ess_bus: ElectricalBus,
+        dc_ess_shed_bus: ElectricalBus,
         dc_2_bus: ElectricalBus,
         dc_bat_bus: ElectricalBus,
     }
@@ -296,6 +381,10 @@ mod tests {
                 ),
                 dc_bat_source: TestElectricitySource::powered(context, PotentialOrigin::Battery(1)),
                 dc_ess_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentEssential),
+                dc_ess_shed_bus: ElectricalBus::new(
+                    context,
+                    ElectricalBusType::DirectCurrentEssentialShed,
+                ),
                 dc_2_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(2)),
                 dc_bat_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentBattery),
             }
@@ -311,6 +400,7 @@ mod tests {
             electricity.supplied_by(&self.dc_2_source);
             electricity.supplied_by(&self.dc_bat_source);
             electricity.flow(&self.dc_ess_source, &self.dc_ess_bus);
+            electricity.flow(&self.dc_ess_source, &self.dc_ess_shed_bus);
             electricity.flow(&self.dc_2_source, &self.dc_2_bus);
             electricity.flow(&self.dc_bat_source, &self.dc_bat_bus);
         }
@@ -964,5 +1054,128 @@ mod tests {
         }
 
         assert!(put_out > 0);
+    }
+
+    // Smoke protection: FCOM DSC-26-50-10 cargo (a320_fcom.txt l.38911-38939), DSC-26-30-10 avionics (l.38773-38782)
+
+    fn read_bool(test_bed: &mut FireProtectionTestBed, name: &str) -> bool {
+        test_bed.read_by_name(name)
+    }
+
+    fn smoke_detected(test_bed: &mut FireProtectionTestBed, zone: &str) -> bool {
+        test_bed.read_by_name(&format!("SMOKE_{}_DETECTED", zone))
+    }
+
+    fn smoke_detection_fault(test_bed: &mut FireProtectionTestBed, zone: &str) -> bool {
+        test_bed.read_by_name(&format!("SMOKE_{}_DET_FAULT", zone))
+    }
+
+    #[test]
+    fn no_smoke_warning_and_no_detection_fault_when_healthy() {
+        let mut test_bed = test_bed().run_for(Duration::from_secs(10));
+
+        for zone in ["FWD_CARGO", "AFT_CARGO", "AVIONICS"] {
+            assert!(!smoke_detected(&mut test_bed, zone));
+            assert!(!smoke_detection_fault(&mut test_bed, zone));
+        }
+    }
+
+    #[test]
+    fn forward_cargo_smoke_gives_the_forward_cargo_smoke_warning_only() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::ForwardCargo));
+        test_bed = test_bed.and_run();
+
+        assert!(smoke_detected(&mut test_bed, "FWD_CARGO"));
+        assert!(!smoke_detected(&mut test_bed, "AFT_CARGO"));
+    }
+
+    #[test]
+    fn aft_cargo_smoke_gives_the_aft_cargo_smoke_warning() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::AftCargo));
+        test_bed = test_bed.and_run();
+
+        assert!(smoke_detected(&mut test_bed, "AFT_CARGO"));
+        assert!(!smoke_detected(&mut test_bed, "FWD_CARGO"));
+    }
+
+    #[test]
+    fn one_failed_cargo_detection_loop_gives_no_fault_and_the_other_still_detects_smoke() {
+        // Dual loop principle (l.38923-38926)
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::SmokeDetector(
+            SmokeDetectionZone::ForwardCargo,
+            1,
+        ));
+        test_bed = test_bed.and_run();
+
+        assert!(!smoke_detection_fault(&mut test_bed, "FWD_CARGO"));
+
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::ForwardCargo));
+        test_bed = test_bed.and_run();
+
+        assert!(smoke_detected(&mut test_bed, "FWD_CARGO"));
+    }
+
+    #[test]
+    fn both_failed_cargo_detection_loops_give_the_crg_det_fault() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::SmokeDetector(SmokeDetectionZone::AftCargo, 1));
+        test_bed.fail(FailureType::SmokeDetector(SmokeDetectionZone::AftCargo, 2));
+        test_bed = test_bed.and_run();
+
+        assert!(smoke_detection_fault(&mut test_bed, "AFT_CARGO"));
+        assert!(!smoke_detection_fault(&mut test_bed, "FWD_CARGO"));
+    }
+
+    #[test]
+    fn losing_dc_ess_shed_and_dc_2_loses_the_cargo_smoke_detection() {
+        // SDCU 1 on the DC ESS SHED BUS (l.77487), SDCU 2 on the DC BUS 2 (l.76611)
+        let mut test_bed = test_bed().dc_2_lost().and_run();
+
+        assert!(!smoke_detection_fault(&mut test_bed, "FWD_CARGO"));
+
+        test_bed = test_bed.dc_ess_lost().and_run();
+
+        assert!(smoke_detection_fault(&mut test_bed, "FWD_CARGO"));
+        assert!(smoke_detection_fault(&mut test_bed, "AFT_CARGO"));
+    }
+
+    #[test]
+    fn avionics_smoke_gives_the_warning_after_5_s() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::Smoke(SmokeDetectionZone::Avionics));
+        test_bed = test_bed.run_for(Duration::from_millis(4_900));
+
+        assert!(!smoke_detected(&mut test_bed, "AVIONICS"));
+
+        test_bed = test_bed.run_for(Duration::from_millis(200));
+
+        assert!(smoke_detected(&mut test_bed, "AVIONICS"));
+    }
+
+    #[test]
+    fn the_cargo_bottle_is_discharged_60_s_after_a_disch_pb_press_into_that_compartment() {
+        let mut test_bed = test_bed()
+            .agent_discharged("CARGOSMOKE_AFT_DISCHARGED")
+            .run_for(Duration::from_secs(59));
+
+        assert!(read_bool(&mut test_bed, "CARGOSMOKE_AFT_AGENT_RELEASED"));
+        assert!(!read_bool(&mut test_bed, "CARGOSMOKE_FWD_AGENT_RELEASED"));
+        assert!(!read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_1_DISCHARGED"));
+
+        test_bed = test_bed.run_for(Duration::from_secs(2));
+
+        assert!(read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_1_DISCHARGED"));
+    }
+
+    #[test]
+    fn a_cargo_bottle_that_lost_its_agent_has_low_pressure() {
+        let mut test_bed = test_bed();
+        test_bed.fail(FailureType::CargoFireBottleLowPressure(1));
+        test_bed = test_bed.and_run();
+
+        assert!(read_bool(&mut test_bed, "CARGOSMOKE_BOTTLE_1_LOW_PRESSURE"));
     }
 }

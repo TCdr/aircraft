@@ -324,4 +324,32 @@ describe('A320 flyPad failures', () => {
       );
     }
   });
+
+  // The smoke and APU failures and the Rust failure each one triggers (systems fire_protection/smoke_detection.rs,
+  // cargo_fire_extinguishing.rs, apu/electronic_control_box.rs), failure names audit rule
+  it('lists the smoke failures in ATA 26 and the APU ECB failures in ATA 49 with the Rust failure they trigger', () => {
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8')
+      .replace(/\s+/g, '')
+      .replace(/,\)/g, ')');
+    const expected: [number, string, string, number][] = [
+      [26012, 'Smoke(SmokeDetectionZone::ForwardCargo)', 'Forward cargo smoke', 26],
+      [26013, 'Smoke(SmokeDetectionZone::AftCargo)', 'Aft cargo smoke', 26],
+      [26014, 'SmokeDetector(SmokeDetectionZone::ForwardCargo,1)', 'Forward cargo smoke detection loop 1', 26],
+      [26015, 'SmokeDetector(SmokeDetectionZone::ForwardCargo,2)', 'Forward cargo smoke detection loop 2', 26],
+      [26016, 'SmokeDetector(SmokeDetectionZone::AftCargo,1)', 'Aft cargo smoke detection loop 1', 26],
+      [26017, 'SmokeDetector(SmokeDetectionZone::AftCargo,2)', 'Aft cargo smoke detection loop 2', 26],
+      [26018, 'Smoke(SmokeDetectionZone::Avionics)', 'Avionics smoke (ventilation extract duct)', 26],
+      [26019, 'SmokeDetector(SmokeDetectionZone::Avionics,1)', 'Avionics smoke detector', 26],
+      [26020, 'CargoFireBottleLowPressure(1)', 'Cargo fire bottle low pressure', 26],
+      [49000, 'ApuElectronicControlBox', 'APU electronic control box (ECB)', 49],
+      [49001, 'ApuOverspeed', 'APU overspeed (automatic shutdown)', 49],
+      [49002, 'ApuOilLowPressure', 'APU low oil pressure (automatic shutdown)', 49],
+      [49003, 'ApuOilHighTemperature', 'APU high oil temperature (automatic shutdown)', 49],
+    ];
+    for (const [id, failureType, name, chapter] of expected) {
+      expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);
+      const rustId = `${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}`;
+      expect(wasm).toContain(`(${rustId},FailureType::${failureType}),`);
+    }
+  });
 });

@@ -594,4 +594,62 @@ describe('A380X slat/flap channel and avionics network failures', () => {
       'Tail strike detector',
     ]);
   });
+
+  // The SDF smoke failures and the APU ECB failures and the Rust failure each one triggers (systems
+  // fire_protection/smoke_detection.rs, cargo_fire_extinguishing.rs, apu/electronic_control_box.rs)
+  it('lists the smoke failures in ATA 26 and the APU ECB failures in ATA 49 with the Rust failure they trigger', () => {
+    const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a380_systems_wasm/src/lib.rs'), 'utf8')
+      .replace(/\s+/g, '')
+      .replace(/,\)/g, ')');
+    const expected: [number, string, string, number][] = [
+      [26019, 'Smoke(SmokeDetectionZone::ForwardCargo)', 'Forward cargo smoke', 26],
+      [26020, 'Smoke(SmokeDetectionZone::AftCargo)', 'Aft cargo smoke', 26],
+      [26021, 'Smoke(SmokeDetectionZone::BulkCargo)', 'Bulk cargo smoke', 26],
+      [26022, 'Smoke(SmokeDetectionZone::LeftMainAvionics)', 'Left main avionics bay smoke', 26],
+      [26023, 'Smoke(SmokeDetectionZone::RightMainAvionics)', 'Right main avionics bay smoke', 26],
+      [26024, 'Smoke(SmokeDetectionZone::LeftUpperAvionics)', 'Left upper avionics bay smoke', 26],
+      [26025, 'Smoke(SmokeDetectionZone::RightUpperAvionics)', 'Right upper avionics bay smoke', 26],
+      [26026, 'Smoke(SmokeDetectionZone::AftAvionics)', 'Aft avionics bay smoke', 26],
+      [26027, 'Smoke(SmokeDetectionZone::InFlightEntertainmentBay)', 'IFE bay smoke', 26],
+      [26028, 'SmokeDetector(SmokeDetectionZone::ForwardCargo,1)', 'Forward cargo smoke detector 1', 26],
+      [26029, 'SmokeDetector(SmokeDetectionZone::ForwardCargo,2)', 'Forward cargo smoke detector 2', 26],
+      [26030, 'SmokeDetector(SmokeDetectionZone::AftCargo,1)', 'Aft cargo smoke detector 1', 26],
+      [26031, 'SmokeDetector(SmokeDetectionZone::AftCargo,2)', 'Aft cargo smoke detector 2', 26],
+      [26032, 'SmokeDetector(SmokeDetectionZone::BulkCargo,1)', 'Bulk cargo smoke detector 1', 26],
+      [26033, 'SmokeDetector(SmokeDetectionZone::BulkCargo,2)', 'Bulk cargo smoke detector 2', 26],
+      [26034, 'SmokeDetector(SmokeDetectionZone::LeftMainAvionics,1)', 'Left main avionics bay smoke detector 1', 26],
+      [26035, 'SmokeDetector(SmokeDetectionZone::LeftMainAvionics,2)', 'Left main avionics bay smoke detector 2', 26],
+      [26036, 'SmokeDetector(SmokeDetectionZone::RightMainAvionics,1)', 'Right main avionics bay smoke detector 1', 26],
+      [26037, 'SmokeDetector(SmokeDetectionZone::RightMainAvionics,2)', 'Right main avionics bay smoke detector 2', 26],
+      [26038, 'SmokeDetector(SmokeDetectionZone::LeftUpperAvionics,1)', 'Left upper avionics bay smoke detector 1', 26],
+      [26039, 'SmokeDetector(SmokeDetectionZone::LeftUpperAvionics,2)', 'Left upper avionics bay smoke detector 2', 26],
+      [
+        26040,
+        'SmokeDetector(SmokeDetectionZone::RightUpperAvionics,1)',
+        'Right upper avionics bay smoke detector 1',
+        26,
+      ],
+      [
+        26041,
+        'SmokeDetector(SmokeDetectionZone::RightUpperAvionics,2)',
+        'Right upper avionics bay smoke detector 2',
+        26,
+      ],
+      [26042, 'SmokeDetector(SmokeDetectionZone::AftAvionics,1)', 'Aft avionics bay smoke detector 1', 26],
+      [26043, 'SmokeDetector(SmokeDetectionZone::AftAvionics,2)', 'Aft avionics bay smoke detector 2', 26],
+      [26044, 'SmokeDetector(SmokeDetectionZone::InFlightEntertainmentBay,1)', 'IFE bay smoke detector 1', 26],
+      [26045, 'SmokeDetector(SmokeDetectionZone::InFlightEntertainmentBay,2)', 'IFE bay smoke detector 2', 26],
+      [26046, 'CargoFireBottleLowPressure(1)', 'Cargo fire bottle 1 low pressure', 26],
+      [26047, 'CargoFireBottleLowPressure(2)', 'Cargo fire bottle 2 low pressure', 26],
+      [49000, 'ApuElectronicControlBox', 'APU electronic control box (ECB)', 49],
+      [49001, 'ApuOverspeed', 'APU overspeed (automatic shutdown)', 49],
+      [49002, 'ApuOilLowPressure', 'APU low oil pressure (automatic shutdown)', 49],
+      [49003, 'ApuOilHighTemperature', 'APU high oil temperature (automatic shutdown on ground)', 49],
+    ];
+    for (const [id, failureType, name, chapter] of expected) {
+      expect(A380FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);
+      const rustId = `${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')}`;
+      expect(wasm).toContain(`(${rustId},FailureType::${failureType}),`);
+    }
+  });
 });
