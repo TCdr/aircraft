@@ -553,6 +553,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ECAM] SD advisory mode: a value pulsing on a system page (APU EGT and flap, cabin altitude, V/S and delta P, IDG oil, engine oil and vibrations, fuel imbalance) calls that page; with one ECAM display its ECP pb flashes - @TCdr
 1. [A32NX/MCDU] New MCDU messages AREA RNP IS, PROCEDURE RNP IS, CHECK IRS/AIRPORT POS, IRS ONLY NAVIGATION, CHECK DATA BASE CYCLE, CHECK DEST DATA, CRZ FL ABOVE MAX FL and TIME TO EXIT - @TCdr
 1. [A380X/MFD] New FMS messages AREA RNP IS, PROC RNP IS, CHECK DATABASE CYCLE, CHECK IRS / ARPT POSITION, EXPECT TURN AREA EXCEEDANCE, SPECIF NDB NOT AVAIL, TIME TO EXIT, T.O TIME REACHED and ADJUST DESIRED TRK OR HDG - @TCdr
+1. [A32NX/BRAKES] Brake and steering control units modelled: two BSCU channels (changeover at each gear down selection) and the ABCU, on their electrical buses, with six new flyPad failures (ATA 32: BSCU channel 1 and 2, ABCU, normal braking, autobrake, nose wheel steering). A lost BSCU means alternate braking without antiskid (1000 PSI) and no nose wheel steering; autobrake arming needs a working BSCU, no brake failure and one ADIRU; MAX autobrake only starts above 40 kt wheel speed - @TCdr
+1. [A32NX/FWC] New BRAKES A/SKID N/WS FAULT, NORM + ALTN FAULT, NORM BRK FAULT, ALTN BRK FAULT, AUTO BRK FAULT, SYS 1(2) FAULT and WHEEL N/W STRG FAULT cautions with their FCOM procedures and STATUS - @TCdr
 
 ## 2024.1.0
 

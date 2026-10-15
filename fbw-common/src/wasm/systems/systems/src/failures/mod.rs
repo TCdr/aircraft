@@ -89,6 +89,11 @@ pub enum FailureType {
     GearActuatorJammed(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
+    /// Channel n (1 or 2) of the A320 brake and steering control unit (BSCU). The A320 brake model also uses
+    /// BrakeNormalBraking (normal braking equipment) and NoseWheelSteeringNormal (nose wheel steering system).
+    BrakeSteeringControlUnitChannel(usize),
+    /// The A320 alternate braking control unit (ABCU): no alternate braking, parking brake only as back-up
+    AlternateBrakingControlUnit,
     // ATA30 (ice_rain_protection)
     /// The engine anti-ice valve of engine n stays closed
     EngineAntiIceValveStuckClosed(usize),
@@ -152,7 +157,7 @@ pub enum FailureType {
     BrakeAlternateBraking,
     /// The emergency brake control unit (A380 EBCU): no emergency braking
     BrakeEmergencyBraking,
-    /// The autobrake function cannot be armed (A380 BRAKES AUTO BRK FAULT)
+    /// The autobrake function cannot be armed (A320 BSCU autobrake, A380 BRAKES AUTO BRK FAULT)
     Autobrake,
     /// The normal mode of the nose wheel steering (A380 normal NWS)
     NoseWheelSteeringNormal,
