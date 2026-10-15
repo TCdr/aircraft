@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EcamMemos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { COMPANY_MSG_INHIBITED_FLIGHT_PHASES } from './FwsCompanyMessageAural';
 import {
   MappedSubject,
   MappedSubscribable,
@@ -702,7 +703,7 @@ export class FwsMemos {
     },
     '460000001': {
       // COMPANY MSG
-      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      flightPhaseInhib: [...COMPANY_MSG_INHIBITED_FLIGHT_PHASES],
       simVarIsActive: this.fws.compMesgCount.map((c) => c > 0),
       whichCodeToReturn: () => [0],
       codesToReturn: ['460000001'],
