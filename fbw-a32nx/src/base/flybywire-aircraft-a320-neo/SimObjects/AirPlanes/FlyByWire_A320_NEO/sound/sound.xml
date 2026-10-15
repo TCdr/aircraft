@@ -2010,11 +2010,9 @@
             </Requires>
         </Sound>
 
-        <Sound WwiseData="true" WwiseEvent="cvr_test" NodeName="SOUND_FOOTWELL_LEFT" LocalVar="A32NX_RCDR_TEST" Continuous="true">
+        <!-- CVR TEST pb held, CVR running and parking brake on (systems host CockpitVoiceRecorder, A320 FCOM DSC-23-10-40) -->
+        <Sound WwiseData="true" WwiseEvent="cvr_test" NodeName="SOUND_FOOTWELL_LEFT" LocalVar="A32NX_RCDR_CVR_TEST_TONE" Units="Bool" Continuous="true">
             <Range LowerBound="1" />
-            <Requires LocalVar="A32NX_RCDR_GROUND_CONTROL_ON" Units="Bool" Index="1">
-            <Range LowerBound="1" />
-            </Requires>
         </Sound>
 
         <Sound WwiseData="true" WwiseEvent="printerloop" NodeName="SOUND_PRINTER" Continuous="true" LocalVar="A32NX_PRINTER_ACTIVE" Units="NUMBER">
