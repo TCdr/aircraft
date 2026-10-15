@@ -470,6 +470,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OXY] The cabin oxygen masks drop automatically when the cabin altitude goes above 13 800 ft - @TCdr
 1. [A380X/FWS] SURV GPWS 1(2)(1+2) FAULT alerts; SURV TAWS 1(2)(1+2) FAULT now trigger when the GPWS and the TERR SYS of a system are both failed, instead of the separate GPWS and TERR alerts - @TCdr
 1. [A380X/FWS] AIR ABNORM BLEED CONFIG lines (XBLEED, AIR FLOW, PACK, WING A-ICE) after ENG SHUT DOWN or ENG FIRE - @TCdr
+1. [A32NX/SD] BLEED page: the HP valve and the engine bleed valve are amber when they are not in their commanded position - @TCdr
+1. [A380X/BLEED] The CPIOM-A closes an engine bleed for overtemperature, overpressure or a pylon or wing leak, and lights the ENG BLEED FAULT light (also for a bleed valve out of its commanded position); a leak closes the crossbleed valves of its side - @TCdr
+1. [A380X/FAILURES] New ATA 36 failures: engine bleed valves stuck open or closed, pylon and wing bleed duct leaks - @TCdr
+1. [A380X/FWS] New AIR ENG 1(2)(3)(4) BLEED FAULT and AIR ENG BLEED LEAK / L(R) INR(OUTR) WING LEAK alerts; a BLEED FAULT also triggers AIR ABNORM BLEED CONFIG - @TCdr
 1. [A32NX/FWC] New AUTO FLT YAW DAMPER 1(2) / SYS, RUD TRIM 1(2) FAULT / SYS and RUD TRV LIM 1(2) / SYS cautions with their FCOM procedures and STATUS, and six new flyPad failures (ATA 22) for the yaw damper, rudder trim and rudder travel limiter actuators of each FAC: the other FAC takes the function over - @TCdr
 1. [A32NX/RCDR] The CVR now runs by itself as in the FCOM (first 5 min after power-up, with an engine running, in flight, and 5 min after the last engine shutdown); the CVR TEST gives its signal in the first 5 min without GND CTL, and only with the parking brake on - @TCdr
 1. [A380X/FWS] EVAC ACTIVE memo on the EWD while the EVAC COMMAND pb-sw is ON - @TCdr
