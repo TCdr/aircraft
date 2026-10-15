@@ -1,0 +1,123 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+import { describe, expect, it } from 'vitest';
+import {
+  WING_ANTI_ICE_CONFIRM_SECONDS,
+  WING_ANTI_ICE_PHASE_INHIBITION,
+  WingAntiIceAlertKeys,
+  WingAntiIceAlerts,
+  WingAntiIceInputs,
+  WingAntiIceSideInputs,
+} from './WingAntiIceAlerts';
+import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+
+const openWing: WingAntiIceSideInputs = {
+  valveClosed: false,
+  lowPressure: false,
+  highPressure: false,
+  engineBleedValveOpen: true,
+};
+
+const on: WingAntiIceInputs = {
+  pbOn: true,
+  valvesCommandedOpen: true,
+  sides: [openWing, openWing],
+  crossBleedFullyOpen: false,
+};
+
+/** Runs the alerts for some seconds in 1 s steps */
+function run(inputs: WingAntiIceInputs, seconds: number, alerts = new WingAntiIceAlerts()): WingAntiIceAlerts {
+  for (let i = 0; i < seconds; i++) {
+    alerts.update(inputs, 1);
+  }
+  return alerts;
+}
+
+const active = (alerts: WingAntiIceAlerts, key: string) => alerts.ewdFailures[key].simVarIsActive.get();
+
+/* A320 FCOM PRO-ABN-W_A_ICE WING A.ICE SYS FAULT (l.96642-96643): "This alert triggers when the WING ANTI ICE pb-sw is set
+   to ON and one wing anti ice valve remains closed." DSC-30-20-20 (l.44297-44299): the FAULT light and the ECAM caution
+   also come on when a low pressure is detected. */
+describe('WING A.ICE SYS FAULT', () => {
+  const leftClosed: WingAntiIceInputs = { ...on, sides: [{ ...openWing, valveClosed: true }, openWing] };
+
+  it('triggers when a wing valve stays closed with the pb-sw ON, after the confirmation time', () => {
+    expect(active(run(leftClosed, WING_ANTI_ICE_CONFIRM_SECONDS - 1), WingAntiIceAlertKeys.sysFault)).toBe(false);
+    expect(active(run(leftClosed, WING_ANTI_ICE_CONFIRM_SECONDS), WingAntiIceAlertKeys.sysFault)).toBe(true);
+  });
+
+  it('triggers with a low duct pressure', () => {
+    const lowPressure = { ...on, sides: [openWing, { ...openWing, lowPressure: true }] } as WingAntiIceInputs;
+    expect(active(run(lowPressure, 10), WingAntiIceAlertKeys.sysFault)).toBe(true);
+  });
+
+  it('does not trigger when the valves are not commanded open (pb-sw OFF, or after the 30 s ground test)', () => {
+    expect(active(run({ ...leftClosed, pbOn: false }, 20), WingAntiIceAlertKeys.sysFault)).toBe(false);
+    expect(active(run({ ...leftClosed, valvesCommandedOpen: false }, 20), WingAntiIceAlertKeys.sysFault)).toBe(false);
+  });
+
+  it('asks THRUST INCREASE, then WING ANTI ICE OFF (MSN 08557 and later variant, FCOM PDF page 5846)', () => {
+    const item = run(leftClosed, 10).ewdFailures[WingAntiIceAlertKeys.sysFault];
+    expect(ewdLines(item)).toEqual([
+      'WING A.ICE SYS FAULT',
+      ' -THRUST........INCREASE',
+      '   .IF UNSUCCESSFUL:',
+      ' -WING ANTI ICE......OFF',
+      ' AVOID ICING CONDITIONS',
+    ]);
+    expect(WING_ANTI_ICE_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8]);
+  });
+
+  it('STATUS: AVOID ICING CONDITIONS, the severe ice lines; INOP SYS WING A. ICE (l.96667-96686)', () => {
+    const item = run(leftClosed, 10).ewdFailures[WingAntiIceAlertKeys.sysFault];
+    const page = statusLines({ left: item.statusInfo(), inopSys: item.inopSys() });
+    expect(page.left).toEqual([
+      'AVOID ICING CONDITIONS',
+      'IF SEVERE ICE ACCRETION:',
+      'MIN SPD....VLS+10/G DOT',
+      'MANEUVER WITH CARE',
+      'LDG DIST PROC....APPLY',
+    ]);
+    expect(page.right).toEqual(['INOP SYS', 'WING A. ICE']);
+  });
+
+  /* l.96698-96718: WING A.ICE SYS FAULT (THE WING ANTI-ICE IS TURNED ON AFTER ONE ENGINE SHUTDOWN OR AFTER THE LOSS OF
+     ONE BLEED): "X BLEED ... OPEN". */
+  it('without the bleed of the closed wing: the X BLEED OPEN variant instead', () => {
+    const noBleed: WingAntiIceInputs = {
+      ...on,
+      sides: [{ ...openWing, valveClosed: true, engineBleedValveOpen: false }, openWing],
+    };
+    const alerts = run(noBleed, 10);
+    expect(active(alerts, WingAntiIceAlertKeys.sysFault)).toBe(false);
+    const item = alerts.ewdFailures[WingAntiIceAlertKeys.sysFaultCrossBleed];
+    expect(item.simVarIsActive.get()).toBe(true);
+    expect(ewdLines(item)).toEqual(['WING A.ICE SYS FAULT', ' -X BLEED...........OPEN']);
+    alerts.update({ ...noBleed, crossBleedFullyOpen: true }, 1);
+    expect(ewdLines(item)).toEqual(['WING A.ICE SYS FAULT']);
+  });
+});
+
+/* l.96443-96454: WING A.ICE L(R) HI PR: pb-sw ON and a high duct pressure; THRUST LIM PENALTY; STATUS THRUST LIM PENALTY,
+   INOP SYS WAI REGUL. */
+describe('WING A.ICE L(R) HI PR', () => {
+  const rightHigh: WingAntiIceInputs = { ...on, sides: [openWing, { ...openWing, highPressure: true }] };
+
+  it('triggers on the side with the high pressure', () => {
+    const alerts = run(rightHigh, 10);
+    expect(active(alerts, WingAntiIceAlertKeys.rightHighPressure)).toBe(true);
+    expect(active(alerts, WingAntiIceAlertKeys.leftHighPressure)).toBe(false);
+    const item = alerts.ewdFailures[WingAntiIceAlertKeys.rightHighPressure];
+    expect(ewdLines(item)).toEqual(['WING A.ICE R HI PR', ' THRUST LIM PENALTY']);
+    const page = statusLines({ left: item.statusInfo(), inopSys: item.inopSys() });
+    expect(page.left).toEqual(['THRUST LIM PENALTY']);
+    expect(page.right).toEqual(['INOP SYS', 'WAI REGUL']);
+  });
+
+  it('is wired in the PseudoFWC', () => {
+    const fwc = pseudoFwcSource();
+    expect(fwc).toContain('...this.wingAntiIceAlerts.ewdFailures');
+    expect(fwc).toContain('this.wingAntiIceAlerts.update(readWingAntiIceInputs()');
+  });
+});

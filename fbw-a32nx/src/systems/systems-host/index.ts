@@ -33,6 +33,7 @@ import { RaasSystem } from './systems/Raas/RaasSystem';
 import { Transponder } from './systems/Transponder/Transponder';
 import { RadioCommunicationFailures } from './systems/Communications/RadioCommunicationFailures';
 import { FuelPumpsAndValves } from './systems/Fuel/FuelPumpsAndValves';
+import { PaxOxygenMasks } from './systems/Oxygen/PaxOxygenMasks';
 import { CockpitVoiceRecorder } from './systems/Recorders/CockpitVoiceRecorder';
 import { FacReactiveWindshear } from './systems/Fac/FacReactiveWindshear';
 
@@ -81,6 +82,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('Transponder', new Transponder());
     this.backplane.addInstrument('RadioCommunicationFailures', new RadioCommunicationFailures());
     this.backplane.addInstrument('FuelPumpsAndValves', new FuelPumpsAndValves());
+    this.backplane.addInstrument('PaxOxygenMasks', new PaxOxygenMasks());
     this.backplane.addInstrument('CockpitVoiceRecorder', new CockpitVoiceRecorder());
     this.backplane.addInstrument('FacReactiveWindshear', new FacReactiveWindshear());
 
