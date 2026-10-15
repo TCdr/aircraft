@@ -27,3 +27,9 @@ fi
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model fadec_thrust_failures_test.cpp \
   ../src/model/A380FadecComputer.cpp ../src/model/A380FadecComputer_data.cpp -o ../obj/fadec_thrust_failures_test
 ../obj/fadec_thrust_failures_test
+# NAV AIR DATA / ALL AIR DATA / AOA DISAGREE: the ADRs rejected by the PRIM air data monitoring go to the PRIM model as failed
+# (AirDataRejection.h). With WITHOUT_THE_FIX=1 the ADRs are sent as before and the test must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src -I ../src/model air_data_rejection_test.cpp \
+  ../src/model/A380PrimComputerGeneralLogic.cpp ../src/model/A380PrimComputerGeneralLogic_data.cpp \
+  ../src/model/look1_iflf_binlxpw.cpp -o ../obj/air_data_rejection_test
+../obj/air_data_rejection_test
