@@ -602,7 +602,8 @@ export class FwsInopSys {
     320300007: {
       // BTV, also with ENG 2(3) SHUT DOWN and the TWO ENGS OUT cautions (A380 FCOM l.172781, 175443, 175620)
       // and with the reverser of the engine 2 or 3 inoperative (REVERSER CTL FAULT, FAULT, LOCKED, THR LEVER 2(3)
-      // FAULT: A380 FCOM l.173471, 173537, 173617, 173329)
+      // FAULT: STATUS INOP SYS BTV at A380 FCOM l.173359, 173488, 173569, 173613, 173666). The alert part also stops the
+      // BTV arming (FwsCore btvInopByAlert, L:A32NX_FWC_1_BTV_INOP)
       simVarIsActive: MappedSubject.create(
         ([btvLost, engineOut, reverserInop]) => btvLost || engineOut || reverserInop,
         this.fws.btvLost,

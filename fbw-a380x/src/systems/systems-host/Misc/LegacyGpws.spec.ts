@@ -100,3 +100,68 @@ describe('GPWS mode 4A and 4B speeds', () => {
     }
   });
 });
+
+/*
+ * A380 FCOM DSC-34-20-20-10 (a380_fcom.txt l.88328-88366): mode 4A is the landing gear up AND the flaps not extended
+ * for landing; the landing gear up with the flaps extended for landing is mode 4B, TOO LOW GEAR only (figure Mode 4B
+ * Gear Up and Flaps in Landing Configuration: flat 245 ft ceiling up to 400 kt, no TOO LOW TERRAIN).
+ * mode.current: 1 = TOO LOW GEAR, 2 = TOO LOW FLAPS, 3 = TOO LOW TERRAIN.
+ */
+describe('GPWS mode 4B with the landing gear up and the flaps in landing configuration', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const gearUpLandingFlaps = (radioAlt: number, speed: number, flapModeOff = false) => {
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) =>
+      name === 'L:A32NX_GPWS_FLAPS_OFF' && flapModeOff ? 1 : 0,
+    );
+    const gpws = new LegacyGpws(new EventBus(), {} as LegacySoundManager);
+    const mode = { current: 0, previous: 0, type: [] };
+    gpws.GPWSMode4(mode, radioAlt, speed, true, false, FmgcFlightPhase.Approach);
+    return mode.current;
+  };
+
+  it('TOO LOW GEAR below 245 ft', () => {
+    expect(gearUpLandingFlaps(200, 150)).toBe(1);
+  });
+
+  it('no alert between 245 ft and 500 ft (the mode 4A ceiling)', () => {
+    expect(gearUpLandingFlaps(400, 150)).toBe(0);
+  });
+
+  it('TOO LOW GEAR, not TOO LOW TERRAIN, above 200 kt', () => {
+    expect(gearUpLandingFlaps(200, 230)).toBe(1);
+    expect(gearUpLandingFlaps(400, 230)).toBe(0);
+  });
+
+  it('FLAP MODE OFF keeps the TOO LOW GEAR alert (design choice)', () => {
+    expect(gearUpLandingFlaps(200, 150, true)).toBe(1);
+  });
+});
+
+describe('GPWS mode 4 alert ends above the ceiling', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('mode 4A TOO LOW GEAR stops once the aircraft climbs back above 500 ft', () => {
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation(() => 0);
+    const gpws = new LegacyGpws(new EventBus(), {} as LegacySoundManager);
+    const mode = { current: 0, previous: 0, type: [] };
+    gpws.GPWSMode4(mode, 400, 150, false, false, FmgcFlightPhase.Approach);
+    expect(mode.current).toBe(1);
+    gpws.GPWSMode4(mode, 600, 150, false, false, FmgcFlightPhase.Approach);
+    expect(mode.current).toBe(0);
+  });
+
+  it('mode 4B TOO LOW FLAPS stops once the aircraft climbs back above 245 ft', () => {
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation(() => 0);
+    const gpws = new LegacyGpws(new EventBus(), {} as LegacySoundManager);
+    const mode = { current: 0, previous: 0, type: [] };
+    gpws.GPWSMode4(mode, 200, 150, false, true, FmgcFlightPhase.Approach);
+    expect(mode.current).toBe(2);
+    gpws.GPWSMode4(mode, 300, 150, false, true, FmgcFlightPhase.Approach);
+    expect(mode.current).toBe(0);
+  });
+});

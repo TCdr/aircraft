@@ -222,7 +222,7 @@
             <BASE_NAME>RCLLAST</BASE_NAME>
             <PART_ID>ECAM_RCLLAST</PART_ID>
             <TOOLTIPID>Recall Last ECAM message</TOOLTIPID>
-            <SIMVAR>A32NX_BTN_RCL</SIMVAR>
+            <SIMVAR>A32NX_BTN_RCL_LAST</SIMVAR>
         </UseTemplate>
 
         <!-- ECAM RCL -->
