@@ -2,6 +2,7 @@ use super::{
     A320AlternatingCurrentElectricalSystem, A320DirectCurrentElectricalSystem,
     A320ElectricalOverheadPanel,
 };
+use std::time::Duration;
 use systems::shared::AdirsDiscreteOutputs;
 use systems::simulation::InitContext;
 use systems::{
@@ -10,8 +11,8 @@ use systems::{
         EmergencyElectrical, EmergencyGenerator, StaticInverter,
     },
     shared::{
-        ApuMaster, ApuStart, AuxiliaryPowerUnitElectrical, ContactorSignal, ElectricalBusType,
-        LgciuWeightOnWheels,
+        ApuMaster, ApuStart, AuxiliaryPowerUnitElectrical, ContactorSignal, DelayedTrueLogicGate,
+        ElectricalBusType, LgciuWeightOnWheels,
     },
     simulation::{SimulationElement, SimulationElementVisitor, UpdateContext},
 };
@@ -23,6 +24,7 @@ pub(super) struct A320DirectCurrentElectrical {
     dc_bus_2: ElectricalBus,
     dc_bus_1_tie_contactor: Contactor,
     dc_bus_2_tie_contactor: Contactor,
+    dc_bus_2_takes_over_dc_bus_1_delay: DelayedTrueLogicGate,
     dc_bat_bus: ElectricalBus,
     dc_ess_bus: ElectricalBus,
     dc_bat_bus_to_dc_ess_bus_contactor: Contactor,
@@ -49,12 +51,20 @@ pub(super) struct A320DirectCurrentElectrical {
     dc_bus_2_to_dc_gnd_flt_service_bus_contactor: Contactor,
 }
 impl A320DirectCurrentElectrical {
+    /// FCOM DSC-24-10-30-30 "FAILURE OF AC BUS 1" (a320_fcom.txt l.36719-36727): "DC BUS 2 supplies
+    /// DC BUS 1 and DC BAT BUS automatically after 5 s." Losing AC BUS 1 loses TR 1; the delay is
+    /// applied to any loss of the TR 1 supply of DC BUS 1 (TR 1 failure included).
+    pub(super) const DC_BUS_2_TAKES_OVER_DC_BUS_1_DELAY: Duration = Duration::from_secs(5);
+
     pub fn new(context: &mut InitContext) -> Self {
         A320DirectCurrentElectrical {
             dc_bus_1: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(1)),
             dc_bus_1_tie_contactor: Contactor::new(context, "1PC1"),
             dc_bus_2: ElectricalBus::new(context, ElectricalBusType::DirectCurrent(2)),
             dc_bus_2_tie_contactor: Contactor::new(context, "1PC2"),
+            dc_bus_2_takes_over_dc_bus_1_delay: DelayedTrueLogicGate::new(
+                Self::DC_BUS_2_TAKES_OVER_DC_BUS_1_DELAY,
+            ),
             dc_bat_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentBattery),
             dc_ess_bus: ElectricalBus::new(context, ElectricalBusType::DirectCurrentEssential),
             dc_bat_bus_to_dc_ess_bus_contactor: Contactor::new(context, "4PC"),
@@ -142,12 +152,29 @@ impl A320DirectCurrentElectrical {
 
         let dc_bus_1_is_powered = electricity.is_powered(&self.dc_bus_1);
         let dc_bus_2_is_powered = electricity.is_powered(&self.dc_bus_2);
+
+        // DC BUS 1 lost its TR 1 supply (busbar healthy) while DC BUS 2 is supplied: DC BUS 2 takes
+        // over DC BUS 1 and the DC BAT BUS (through 1PC2 then 1PC1) only once this has lasted 5 s,
+        // see DC_BUS_2_TAKES_OVER_DC_BUS_1_DELAY.
+        let dc_bus_1_lost_its_tr_1_supply =
+            !dc_bus_1_is_powered && dc_bus_2_is_powered && self.dc_bus_1.is_conductive();
+        self.dc_bus_2_takes_over_dc_bus_1_delay
+            .update(context, dc_bus_1_lost_its_tr_1_supply);
+        // Design choice: a failed DC BUS 1 busbar (flyPad bus failure) cannot be supplied anyway;
+        // DC BUS 2 then takes the DC BAT BUS at once, as before, so the DC ESS BUS behind it never
+        // loses power (see dc_ess_bus_stays_powered_on_every_update_when_dc_bus_1_fails).
+        let dc_bus_2_supplies_dc_bus_1_side = !dc_bus_1_is_powered
+            && dc_bus_2_is_powered
+            && (!self.dc_bus_1.is_conductive() || self.dc_bus_2_takes_over_dc_bus_1_delay.output());
+        // The reverse transfer (DC BUS 1 supplies DC BUS 2 when TR 2 is lost) stays immediate: the
+        // FCOM gives a delay only for this direction ("FAILURE OF ONE TR", l.36739-36749: "The other
+        // TR automatically replaces the faulty one.").
+        let dc_bus_1_supplies_dc_bus_2 = !dc_bus_2_is_powered && dc_bus_1_is_powered;
+
         self.dc_bus_1_tie_contactor
             .close_when(dc_bus_1_is_powered || dc_bus_2_is_powered);
-        self.dc_bus_2_tie_contactor.close_when(
-            (!dc_bus_1_is_powered && dc_bus_2_is_powered)
-                || (!dc_bus_2_is_powered && dc_bus_1_is_powered),
-        );
+        self.dc_bus_2_tie_contactor
+            .close_when(dc_bus_2_supplies_dc_bus_1_side || dc_bus_1_supplies_dc_bus_2);
         // The DC buses flow into their tie contactors only once these are set for this update: a
         // flow through a contactor still open from the previous update left the DC BAT BUS, and the
         // DC ESS BUS behind it, unpowered for one update each time a DC bus was lost or came back
