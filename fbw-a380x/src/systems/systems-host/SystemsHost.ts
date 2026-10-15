@@ -47,6 +47,7 @@ import { FwsCore } from './CpiomC/FlightWarningSystem/FwsCore';
 // FIXME should not import from instruments
 import { FuelSystemPublisher } from '../instruments/src/MsfsAvionicsCommon/providers/FuelSystemPublisher';
 import { BrakeToVacate } from './PseudoPRIM/BrakeToVacate';
+import { PrimReactiveWindshear } from './PseudoPRIM/PrimReactiveWindshear';
 // FIXME should not import from instruments
 import { PseudoFwcSimvarPublisher } from '../instruments/src/MsfsAvionicsCommon/providers/PseudoFwcPublisher';
 // FIXME should not import from instruments
@@ -228,6 +229,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
+    this.backplane.addInstrument('PrimReactiveWindshear', new PrimReactiveWindshear());
     this.backplane.addPublisher('RmpAmuBusPublisher', this.rmpAmuBusPublisher);
     this.backplane.addPublisher('PilotSeatPublisher', this.pilotSeatPublisher);
     this.backplane.addPublisher('PowerPublisher', this.powerPublisher);

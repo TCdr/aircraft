@@ -443,6 +443,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] FUEL page: the tank quantities of an unbalanced pair are underlined amber, with the trigger of FUEL WINGS NOT BALANCED - @TCdr
 1. [A380X/SD] WHEEL page: L/G CTL and L/G GRVTY EXTN IN PROGRESS now show - @TCdr
 1. [A380X/FWS] ENG 2(3) SHUT DOWN: the landing distance line reads LDG DIST IMPACT ON WET/CONTAM RWY ONLY as in the FCOM - @TCdr
+1. [A32NX/GPWS] The GPWS can be tested on the ground with the PULL UP-GPWS pushbutton: GLIDESLOPE with the GPWS light, then PULL UP and TERRAIN TERRAIN PULL UP with the PULL UP light - @TCdr
+1. [A32NX/TCAS] New flyPad failure TCAS computer (ATA 34): amber TCAS on the PFD and ND, NAV TCAS FAULT on the ECAM, no traffic and no advisories - @TCdr
+1. [A32NX/A380X] Reactive windshear detection (A32NX FACs, A380X PRIMs): red WINDSHEAR on both PFDs in a decreasing performance windshear at takeoff and landing below 1300 ft, CONF 1 or more (no aural yet) - @TCdr
+1. [A380X/PRIM] Alpha floor is inhibited above M 0.5, as in the FCOM (was M 0.6) - @TCdr
+1. [A380X/GPWS] GPWS mode 2 (excessive terrain closure rate) works again with a filtered radio altitude rate: TERRAIN then PULL UP on the PFD with the PULL UP aural, TERRAIN only in landing configuration - @TCdr
+1. [A380X/GPWS] The PFD shows the PULL UP of GPWS mode 1 (excessive rate of descent) - @TCdr
 
 ## 2024.1.0
 
