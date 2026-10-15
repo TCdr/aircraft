@@ -413,6 +413,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/SD] Automatic SD pages as in the A380 FCOM: CRUISE from 1500 ft after take-off (it came 60 s after the flaps were up), WHEEL at the landing gear extension at any altitude (only below 16000 ft before) - @TCdr
 1. [A380X/GPWS] Mode 4B: gear up with the flaps in landing configuration gives TOO LOW GEAR below 245 ft and never TOO LOW TERRAIN, and a mode 4 alert stops once the aircraft climbs back above its ceiling - @TCdr
 1. [A380X/BTV] BTV does not arm, and an armed BTV reverts to BRK HI, while an ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER faults) - @TCdr
+1. [A32NX/FWC] New ELEC alerts from the FCOM with their procedure and STATUS lines: AC BUS 1(2) FAULT, AC ESS BUS FAULT, AC ESS BUS SHED, AC ESS BUS ALTN, DC BUS 1(2) FAULT, DC BUS 1+2 FAULT, DC ESS BUS FAULT, DC ESS BUS SHED, DC BAT BUS FAULT, DC EMER CONFIG, ESS BUSES ON BAT, TR 1(2) FAULT, GEN 1(2) OFF, BAT 1(2) OFF and EMER GEN 1 LINE OFF - @TCdr
 
 ## 2024.1.0
 
