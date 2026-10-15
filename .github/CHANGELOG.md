@@ -390,6 +390,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [GPU] External power becomes available as soon as the sim's ground power does (GSX GPU, sim GPU or jetway power connected after the flight is loaded), without waiting for the GPU door animation - @TCdr
 1. [A32NX/ELEC] When TR 1 is lost (e.g. AC BUS 1 failure), DC BUS 2 now takes over DC BUS 1 and the DC BAT BUS after 5 s, as in the FCOM, instead of at once - @TCdr
 1. [A32NX/ECAM] STATUS page: a STATUS too long for one page is no longer cut after 16 lines per column; a green arrow shows that more follows and CLR shows the next page (with one ECAM display, the STS pb pressed again within 2 s), as in the FCOM - @TCdr
+1. [A32NX/MODEL] An engine fire shows flames at the exhaust of the engine on fire and an APU fire shows smoke at the APU exhaust, until the fire is out (nothing during a FIRE TEST); an engine failed from the MSFS failures menu shows smoke; an engine oil leak (flyPad failure) shows smoke while the oil flows out - @TCdr
+1. [A32NX/FIRE] An AGENT discharge (or the automatic APU discharge) can also put out a fire set from the MSFS failures menu, which then ends the ENG/APU FIRE warning - @TCdr
+1. [A380X/MODEL] An engine fire shows flames at the exhaust of the engine on fire (engines 1 to 4) and an APU fire shows smoke at the APU exhaust, until the fire is out (nothing during a FIRE TEST); an engine failed from the MSFS failures menu shows smoke; an engine oil leak (flyPad failure) shows smoke while the oil flows out; the stock MSFS engine fire, engine damage and oil leak effects are turned off so they do not show twice; the engine 2 effects (heat haze, contrails, fire) no longer vanish at the medium model detail (LOD01) - @TCdr
+1. [EFB] Settings > Sim Options: new "Situation Visual Effects (Engine and APU Fire, Engine Damage, Oil Leak)" switch, on by default, to turn the fire, smoke, engine damage and oil leak effects off - @TCdr
 
 ## 2024.1.0
 
