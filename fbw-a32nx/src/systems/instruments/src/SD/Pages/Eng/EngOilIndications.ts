@@ -77,3 +77,62 @@ export function oilPressurePulses(wasPulsing: boolean, pressurePsi: number, n2Pe
 export function oilFilterClogShown(clogged: boolean, engineState: number): boolean {
   return clogged && engineState === 1;
 }
+
+/**
+ * l.64555-64566 OIL TEMPERATURE: "Pulses green: The oil temperature is between 140 °C and 155 °C for less than 15 min.
+ * Amber: Between 140 °C and 155 °C for more than 15 min, or Above 155 °C." Same thresholds as the FWC ENG OIL HI TEMP
+ * alert (systems-host FWC/Logic/EngineOilAlerts), so that the SD value turns amber with the alert.
+ */
+export const OIL_TEMP_ADVISORY_CELSIUS = 140;
+export const OIL_TEMP_LIMIT_CELSIUS = 155;
+export const OIL_TEMP_ADVISORY_MAX_SECONDS = 15 * 60;
+/** Design choice kept from the previous code (not in this CFM56 FCOM): amber below 38 °C */
+export const OIL_TEMP_LOW_CELSIUS = 38;
+
+/**
+ * The time spent at or above the 140 °C advisory, for the "more than 15 min" rule; it restarts below 140 °C.
+ * It must run on every update: the old code restarted a 15 min timeout at every temperature change, so it never fired.
+ * @param previousSeconds the time at the previous update, s
+ * @param temperatureCelsius the oil temperature, °C
+ * @param deltaSeconds the time since the previous update, s
+ * @returns the time at or above the advisory, s
+ */
+export function oilTemperatureAdvisorySeconds(
+  previousSeconds: number,
+  temperatureCelsius: number,
+  deltaSeconds: number,
+): number {
+  return temperatureCelsius >= OIL_TEMP_ADVISORY_CELSIUS ? previousSeconds + deltaSeconds : 0;
+}
+
+/**
+ * Whether the oil temperature has been at or above 140 °C for more than 15 min.
+ * @param advisorySeconds the time at or above the advisory (see oilTemperatureAdvisorySeconds), s
+ * @returns true after more than 15 min
+ */
+export function oilTemperatureAdvisoryTimeExceeded(advisorySeconds: number): boolean {
+  return advisorySeconds > OIL_TEMP_ADVISORY_MAX_SECONDS;
+}
+
+/**
+ * The CSS class of the oil temperature value.
+ * @param displayedTemperatureCelsius the displayed temperature (5 °C steps)
+ * @param temperatureCelsius the oil temperature, °C
+ * @param advisoryTimeExceeded more than 15 min at or above the advisory (see oilTemperatureAdvisoryTimeExceeded)
+ * @returns FillAmber, FillPulse or FillGreen
+ */
+export function oilTemperatureClassName(
+  displayedTemperatureCelsius: number,
+  temperatureCelsius: number,
+  advisoryTimeExceeded: boolean,
+): string {
+  if (
+    temperatureCelsius > OIL_TEMP_LIMIT_CELSIUS ||
+    displayedTemperatureCelsius > OIL_TEMP_LIMIT_CELSIUS ||
+    advisoryTimeExceeded ||
+    temperatureCelsius < OIL_TEMP_LOW_CELSIUS
+  ) {
+    return 'FillAmber';
+  }
+  return displayedTemperatureCelsius >= OIL_TEMP_ADVISORY_CELSIUS ? 'FillPulse' : 'FillGreen';
+}

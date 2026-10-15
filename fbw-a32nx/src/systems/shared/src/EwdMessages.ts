@@ -255,6 +255,8 @@ const EwdMessages = new Map<
   ['770011109', { text: '\x1b<5m -X BLEED...........SHUT' }],
   ['770011110', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
   ['770011111', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
+  ['770011112', { text: '\x1b<7m .IF BUFFET:' }],
+  ['770011113', { text: '\x1b<5m -MAX SPEED.......240 KT' }],
   ['770011201', { group: 'ENG$5', text: ' 2 SHUT DOWN' }],
   ['770011202', { text: '\x1b<5m -PACK 1.............OFF' }],
   ['770011203', { text: '\x1b<5m -PACK 2.............OFF' }],
@@ -266,6 +268,8 @@ const EwdMessages = new Map<
   ['770011209', { text: '\x1b<5m -X BLEED...........SHUT' }],
   ['770011210', { text: '\x1b<5m -WING ANTI ICE......OFF' }],
   ['770011211', { text: '\x1b<5m AVOID ICING CONDITIONS' }],
+  ['770011212', { text: '\x1b<7m .IF BUFFET:' }],
+  ['770011213', { text: '\x1b<5m -MAX SPEED.......240 KT' }],
   // ENG 1(2) OIL LO PR (red), OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, a320_fcom.txt l.80487-80591), lines by
   // FWC/Logic/EngineOilAlerts engineOilShutDownLines
   ['770790101', { group: 'ENG$1', text: ' 1 OIL LO PR' }],
@@ -435,6 +439,7 @@ const EwdMessages = new Map<
   ['770053106', { text: '\x1b<7m .BEFORE SLATS IN:' }],
   ['770053107', { text: '\x1b<5m -A/THR...............ON' }],
   ['770053108', { text: '\x1b<5m HI PWR ONLY' }],
+  ['770053109', { text: '\x1b<5m ENG 1 IDLE POWER ONLY' }],
   ['770053201', { group: 'ENG$5', text: ' 2 THR LEVER FAULT' }],
   ['770053202', { text: '\x1b<5m ENG 2 AT IDLE' }],
   ['770053203', { text: '\x1b<5m -THR LEVER 2.......IDLE' }],
@@ -443,6 +448,7 @@ const EwdMessages = new Map<
   ['770053206', { text: '\x1b<7m .BEFORE SLATS IN:' }],
   ['770053207', { text: '\x1b<5m -A/THR...............ON' }],
   ['770053208', { text: '\x1b<5m HI PWR ONLY' }],
+  ['770053209', { text: '\x1b<5m ENG 2 IDLE POWER ONLY' }],
   ['770054101', { group: 'ENG$5', text: ' 1 THR LEVER DISAGREE' }],
   ['770054102', { text: '\x1b<5m ENG 1 IDLE POWER ONLY' }],
   ['770054103', { text: '\x1b<5m -THR LEVER 1.......IDLE' }],
