@@ -5,6 +5,7 @@ use super::{
 use std::time::Duration;
 use systems::accept_iterable;
 use systems::electrical::{BatteryChargeRectifierUnit, BatteryPushButtons, EmergencyElectrical};
+use systems::failures::{Failure, FailureType};
 use systems::shared::{DelayedFalseLogicGate, RamAirTurbineController};
 use systems::simulation::{InitContext, UpdateContext};
 use systems::{
@@ -30,6 +31,8 @@ pub(super) struct A380DirectCurrentElectrical {
     battery_ess_contactor: Contactor,
     battery_apu: Battery,
     battery_apu_contactor: Contactor,
+    /// flyPad battery failures, in the order BAT 1, BAT 2, BAT ESS, APU BAT (the battery numbers)
+    battery_failures: [Failure; 4],
     static_inverter: StaticInverter,
     static_inverter_contactor: Contactor,
     hot_bus_1: ElectricalBus,
@@ -84,6 +87,7 @@ impl A380DirectCurrentElectrical {
             battery_ess_contactor: Contactor::new(context, "6PB3"),
             battery_apu: Battery::full(context, 4),
             battery_apu_contactor: Contactor::new(context, "5PB"),
+            battery_failures: [1, 2, 3, 4].map(|i| Failure::new(FailureType::Battery(i))),
             static_inverter: StaticInverter::new(context),
             static_inverter_contactor: Contactor::new(context, "7XB"),
             hot_bus_1: ElectricalBus::new(context, ElectricalBusType::DirectCurrentHot(1)),
@@ -221,16 +225,24 @@ impl A380DirectCurrentElectrical {
         electricity.flow(&self.inter_bus_line_contactors[1], &self.dc_bus_1);
         electricity.flow(&self.inter_bus_line_contactors[1], &self.dc_bus_2);
 
+        // A failed battery is disconnected from its DC busbar: A380 FCOM DSC-24-20 BAT pb-sw FAULT,
+        // "The charging or discharging current of the battery is abnormal. The battery automatically
+        // disconnects from its associated DC busbar." (a380_fcom.txt:50623-50624)
+        let [bat_1_failed, bat_2_failed, bat_ess_failed, bat_apu_failed] =
+            [1, 2, 3, 4].map(|number| self.battery_has_fault(number));
+
         electricity.supplied_by(&self.battery_1);
-        // TODO: elc-1 should not close when bat1 fault or state of charge < 20% (relay 20PB) (but still with rat deployed)
+        // ELC-1 does not close when BAT 1 is failed or its state of charge is below 20 % (relay 20PB), but
+        // still closes with the RAT deployed (the RAT path bypasses relay 20PB).
         let should_close_elc = overhead.bat_is_auto(1)
             && overhead.bat_is_auto(3)
             && !self.tr_1.battery_nearly_empty()
+            && !bat_1_failed
             && !ac_state.any_non_essential_bus_powered(electricity)
             || rat.should_deploy();
         self.tr_1.update(should_close_elc);
         self.battery_1_contactor
-            .close_when(self.tr_1.should_close_battery_connector());
+            .close_when(self.tr_1.should_close_battery_connector() && !bat_1_failed);
         self.battery_1_emergency_contactor
             .close_when(should_close_elc);
         electricity.flow(&self.battery_1_contactor, &self.battery_1);
@@ -242,12 +254,11 @@ impl A380DirectCurrentElectrical {
         electricity.supplied_by(&self.battery_2);
         self.tr_2.update(false);
         self.battery_2_contactor
-            .close_when(self.tr_2.should_close_battery_connector());
+            .close_when(self.tr_2.should_close_battery_connector() && !bat_2_failed);
         electricity.flow(&self.battery_2_contactor, &self.battery_2);
         electricity.flow(&self.hot_bus_2, &self.battery_2);
         electricity.flow(&self.battery_2_contactor, &self.dc_bus_2);
 
-        // TODO: should not close when battery failed (signal from BCRU)
         // TODO: complete logic
         let should_close_ess_bat_lc = overhead.bat_is_auto(1)
             && overhead.bat_is_auto(3)
@@ -259,8 +270,11 @@ impl A380DirectCurrentElectrical {
             || rat.should_deploy();
         electricity.supplied_by(&self.battery_ess);
         self.tr_ess.update(emergency_config);
-        self.battery_ess_contactor
-            .close_when(self.tr_ess.should_close_battery_connector() || should_close_ess_bat_lc);
+        // The BCRU signals the BAT ESS failure: its battery line contactor does not close
+        self.battery_ess_contactor.close_when(
+            (self.tr_ess.should_close_battery_connector() || should_close_ess_bat_lc)
+                && !bat_ess_failed,
+        );
         electricity.flow(&self.battery_ess_contactor, &self.battery_ess);
         electricity.flow(&self.hot_bus_ess, &self.battery_ess);
         electricity.flow(&self.battery_ess_contactor, &self.dc_ess_bus);
@@ -273,6 +287,7 @@ impl A380DirectCurrentElectrical {
         // TODO: Move contactor logic into TR APU
         self.battery_apu_contactor.close_when(
             overhead.bat_is_auto(4)
+                && !bat_apu_failed
                 && (self.tr_apu_contactor.is_open() || self.battery_apu.needs_charging()),
         );
         electricity.flow(&self.battery_apu_contactor, &self.battery_apu);
@@ -376,6 +391,13 @@ impl A380DirectCurrentElectrical {
         electricity.flow(&self.dc_bus_2, &self.refuel_on_bat_contactors[1]);
     }
 
+    /// Whether battery `number` (1 = BAT 1, 2 = BAT 2, 3 = BAT ESS, 4 = APU BAT) is failed. Its BCRU (or,
+    /// for the APU battery, its charge control) detects the failure at once: it opens the battery line
+    /// contactor and lights the FAULT light of the BAT pb-sw (A380 FCOM DSC-24-20, a380_fcom.txt:50623).
+    pub fn battery_has_fault(&self, number: usize) -> bool {
+        self.battery_failures[number - 1].is_active()
+    }
+
     #[cfg(test)]
     pub fn battery_1(&self) -> &Battery {
         &self.battery_1
@@ -446,6 +468,7 @@ impl SimulationElement for A380DirectCurrentElectrical {
         self.battery_2.accept(visitor);
         self.battery_ess.accept(visitor);
         self.battery_apu.accept(visitor);
+        accept_iterable!(self.battery_failures, visitor);
         self.static_inverter.accept(visitor);
 
         self.battery_1_contactor.accept(visitor);

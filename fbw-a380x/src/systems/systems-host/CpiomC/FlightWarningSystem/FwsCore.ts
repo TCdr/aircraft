@@ -134,6 +134,7 @@ import {
   TransferPumpsFlags,
 } from './FuelPumpValveFlags';
 import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
+import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
 import {
   areDoorsInTakeoffConfig,
   CABIN_DOORS,
@@ -1119,6 +1120,9 @@ export class FwsCore {
   };
 
   private readonly taxiInFlapsLever0ConfirmNode = new NXLogicConfirmNode(60, true);
+
+  /** ELEC alerts of the battery, EXT PWR, RAT generator, TR monitoring and drive failures (FwsElecSystemAlerts) */
+  public readonly elecSystemAlerts = new ElecSystemAlerts();
 
   /* 26 - FIRE */
 
@@ -5399,6 +5403,14 @@ export class FwsCore {
     elecFlags.trFault.forEach((fault, i) => this.elecTrFault[i].set(fault));
     this.elecApuTrFault.set(elecFlags.apuTrFault);
     this.elecBusTieOff.set(elecFlags.busTieOff);
+    this.elecSystemAlerts.update(
+      readElecSystemInputs(
+        (name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool),
+        (failure) => this.failuresConsumer.isActive(failure),
+        elecFlags.apuTrFault,
+        this.apuAvail.get(),
+      ),
+    );
 
     elecInputs.engGenPbOn.forEach((on, i) => this.elecGenPbOn[i].set(on));
     this.elecApuGenPbOn[0].set(SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_APU_GEN_1_PB_IS_ON', SimVarValueType.Bool) > 0);

@@ -421,6 +421,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/PNEU] New flyPad pneumatic failures (ATA 36): bleed, HP, fan air, crossbleed and APU bleed valves stuck, pylon, wing and APU bleed leaks, leak detection loops and BMC 1(2); the BMCs now detect leaks, HP valve faults and overpressure above 57 PSI, light the ENG BLEED and APU BLEED FAULT lights, and close the affected valves - @TCdr
 1. [A32NX/FWC] New AIR cautions L(R) WING LEAK, ENG 1(2) BLEED LEAK, APU BLEED LEAK, ENG 1(2) / L(R) WNG / APU LEAK DET FAULT, ENG 1(2) HP VALVE FAULT, BLEED MONIT SYS 1(2) FAULT and BLEED MONITORING FAULT - @TCdr
 1. [A32NX/ELEC] New flyPad failures Battery 1(2) (thermal runaway), BCL 1(2), IDG 1(2) oil leak and IDG 1(2) oil overheat, with the ELEC BAT 1(2) FAULT, BCL 1(2) FAULT, IDG 1(2) OIL LO PR / OIL OVHT, GEN 1(2) / APU GEN OVERLOAD and STATIC INV FAULT cautions, the BAT, IDG and GALY & CAB pb FAULT lights, the IDG automatic thermal disconnection at 200 °C and the IDG LO PR and temperature colours on the SD ELEC page - @TCdr
+1. [A380X/ELEC] New flyPad failures BAT 1, BAT 2, BAT ESS, APU BAT, EXT PWR 1-4, RAT Generator, TR 1/TR 2/ESS TR Monitoring and DRIVE 1-4 Disconnect Function (ATA 24), with the BAT pb-sw FAULT light and the ECAM alerts ELEC BAT 1(2)(ESS) FAULT, APU BAT FAULT, BAT 1(2)(ESS)(APU) OFF, EXT PWR 1(2)(3)(4) FAULT, RAT FAULT, TR 1(2)(ESS) MONITORING FAULT and DRIVE 1(2)(3)(4) DISC FAULT; the GEN, DRIVE, APU GEN and TR alerts now list their INOP SYS on the STATUS page - @TCdr
 
 ## 2024.1.0
 

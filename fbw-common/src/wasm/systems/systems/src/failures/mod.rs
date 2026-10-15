@@ -56,6 +56,13 @@ pub enum FailureType {
     /// The oil cooling of the IDG of engine n is lost: its oil outlet temperature rises
     /// (electrical::engine_generator)
     IntegratedDriveGeneratorOilOverheat(usize),
+    /// External power unit n, or its generator control unit, is failed: it cannot supply the network
+    ExternalPower(usize),
+    /// The emergency generator (A380: the RAT generator) gives no output
+    EmergencyGenerator,
+    /// The disconnection function of engine generator drive n failed: its DRIVE pb no longer
+    /// disconnects the generator from the engine
+    GeneratorDriveDisconnect(usize),
     // ATA26
     SetOnFire(FireDetectionZone),
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
