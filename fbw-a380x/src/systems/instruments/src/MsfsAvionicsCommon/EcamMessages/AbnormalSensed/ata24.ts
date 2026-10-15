@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2024 FlyByWire Simulations
+﻿// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { AbnormalProcedure, ChecklistLineStyle, FMS_PRED_UNRELIABLE_CHECKLIST_ITEM } from '..';
@@ -121,6 +121,7 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800005: {
+    // A380 FCOM PRO-ABN-ECAM-10-24 ELEC AC BUS 2+3 & DC BUS 1+2 FAULT, a380_fcom.txt l.138047-138195, in FCOM order
     title: "\x1b<4m\x1b4mELEC\x1bm \x1b'mAC BUS 2+3 & DC BUS 1+2 FAULT\x1bm",
     sensed: true,
     items: [
@@ -168,17 +169,8 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         name: 'MID TKs NOT USABLE',
         sensed: false,
       },
-
       {
-        name: 'TRIM TK NOT USABLE', // If trim tank fuel is not usable for engine feed and for CG management
-        sensed: false,
-      },
-      /*
-      If trim tank fuel is not usable for engine feed, but the flight crew can manually transfer
-      the trim tank fuel for CG management
-      */
-      {
-        name: 'TRIM TK NOT USABLE FOR ENG SUPPLY',
+        name: 'TRIM TK NOT USABLE',
         sensed: false,
       },
       {
@@ -187,7 +179,7 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         style: ChecklistLineStyle.Green,
       },
       {
-        name: 'MID TKs NOT USABLE',
+        name: 'USE TRIM TK XFR FOR CG IF NECESSARY',
         sensed: false,
         style: ChecklistLineStyle.Green,
       },
@@ -195,41 +187,43 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         name: 'FEED TK 4 : 1300 KG MAX NOT USABLE',
         sensed: false,
       },
-
       // If flight time above FL 300 since departure is less than 30 min
       {
-        name: 'DESCENT TO FL 50/MEA-MORA',
+        name: 'DESCENT TO FL 50/MEA',
         sensed: false,
         labelNotCompleted: 'INITIATE',
       },
       {
-        name: 'MAX FL : 50/MEA-MORA',
+        name: 'MAX FL : 50/MEA',
         sensed: false,
       },
       {
-        name: 'WHEN BELOW FL 50/MEA-MORA:',
+        name: 'WHEN BELOW FL 50/MEA :',
         sensed: false,
       },
       {
         name: 'CROSSFEED 3',
         sensed: true,
         labelNotCompleted: 'OFF',
+        level: 1,
       },
       {
         name: 'CROSSFEED 4',
         sensed: true,
         labelNotCompleted: 'OFF',
+        level: 1,
       },
       {
         name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
         sensed: false,
         style: ChecklistLineStyle.Green,
+        level: 1,
       },
       {
         name: 'AVOID NEG G LOAD',
         sensed: false,
       },
-      // If flight time above FL 300 since departure is greater than 30 min:
+      // If flight time above FL 300 since departure is greater than 30 min
       {
         name: 'DESCENT TO FL 280',
         sensed: false,
@@ -240,29 +234,32 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         sensed: false,
       },
       {
-        name: 'WHEN BELOW FL 280:',
+        name: 'WHEN BELOW FL 280 :',
         sensed: false,
       },
       {
         name: 'CROSSFEED 3',
         sensed: true,
         labelNotCompleted: 'OFF',
+        level: 1,
       },
       {
         name: 'CROSSFEED 4',
         sensed: true,
         labelNotCompleted: 'OFF',
+        level: 1,
       },
       {
         name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
         sensed: false,
         style: ChecklistLineStyle.Green,
+        level: 1,
       },
       {
         name: 'AVOID NEG G LOAD',
         sensed: false,
       },
-      // If L/G is not down and locked:
+      // If L/G is not down and locked
       {
         name: 'L/G GRVTY EXTN ONLY',
         sensed: false,
@@ -284,25 +281,10 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         labelNotCompleted: 'MAN',
       },
       {
-        name: 'FUEL CONSUMPT INCRSD',
-        sensed: false,
-      },
-      { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM },
-      {
-        name: 'IF SEVERE ICE ACCRETION : FLAP LEVER 3 FOR LDG',
-        sensed: false,
-      },
-      // if soft ga lost
-      {
-        name: 'GA THR : TOGA ONLY',
-        sensed: false,
-      },
-      {
         name: 'LDG DIST AFFECTED',
         sensed: false,
       },
-
-      // After landing, below 80 kt with at least one engine running:
+      // After landing, below 80 kt with at least one engine running
       {
         name: 'BEFORE OPENING ANY CABIN DOOR:',
         sensed: false,
@@ -320,35 +302,41 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800006: {
+    // A380 FCOM PRO-ABN-ECAM-10-24 ELEC AC BUS 2+4 FAULT, a380_fcom.txt l.138446-138551, in FCOM order
     title: "\x1b<4m\x1b4mELEC\x1bm \x1b'mAC BUS 2+4 FAULT\x1bm",
     sensed: true,
     items: [
-      // after landing
+      // After landing
       {
-        name: 'LAST ENG SHUTDOWN : ENG 1',
+        name: 'FOR ENG STOP : KEEP ENG 1 LAST',
         sensed: false,
         style: ChecklistLineStyle.Green,
       },
       {
-        name: 'CROSSFEED 1+2+3+4',
+        name: 'ALL CROSSFEEDS',
         sensed: true,
         labelNotCompleted: 'ON',
       },
       {
         name: 'A/THR',
         sensed: true,
-        labelNotCompleted: 'OFF',
+        labelNotCompleted: 'DISCONNECT',
       },
-      // in flight
+      // In flight
+      {
+        name: 'VENT AVNCS EXTRACT',
+        sensed: true,
+        labelNotCompleted: 'OVRD',
+      },
       {
         name: 'WXR & TAWS',
         sensed: true,
-        labelNotCompleted: 'SYS1',
+        labelNotCompleted: 'SYS 1',
       },
       {
         name: 'XPDR & TCAS',
         sensed: true,
-        labelNotCompleted: 'SYS1',
+        labelNotCompleted: 'SYS 1',
       },
       {
         name: 'INR TKs NOT USABLE',
@@ -358,27 +346,17 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         name: 'MID TKs NOT USABLE',
         sensed: false,
       },
-
       {
-        name: 'TRIM TK NOT USABLE', // If trim tank fuel is not usable for engine feed and for CG management
+        name: 'TRIM TK NOT USABLE',
         sensed: false,
       },
-      /*
-      If trim tank fuel is not usable for engine feed, but the flight crew can manually transfer
-      the trim tank fuel for CG management
-      */
-      {
-        name: 'TRIM TK NOT USABLE FOR ENG SUPPLY',
-        sensed: false,
-      },
-
       {
         name: 'USE TRIM TK XFR FOR CG IF NECESSARY',
         sensed: false,
         style: ChecklistLineStyle.Green,
       },
       {
-        name: 'FEED TK 1: 1300 KG MAX NOT USABLE',
+        name: 'FEED TK 1 : 1300 KG MAX NOT USABLE',
         sensed: false,
       },
       {
@@ -387,34 +365,35 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
       },
       // If flight time above FL 300 since departure is less than 30 min
       {
-        name: 'DESCENT TO FL 50/MEA-MORA',
+        name: 'DESCENT TO FL 50/MEA',
         sensed: false,
         labelNotCompleted: 'INITIATE',
       },
       {
-        name: 'MAX FL : 50/MEA-MORA',
+        name: 'MAX FL : 50/MEA',
         sensed: false,
       },
       {
-        name: 'WHEN BELOW FL 50/MEA-MORA:',
+        name: 'WHEN BELOW FL 50/MEA :',
         sensed: false,
       },
       {
-        name: 'CROSSFEED 1+2+3+4',
+        name: 'ALL CROSSFEEDS',
         sensed: true,
         labelNotCompleted: 'OFF',
+        level: 1,
       },
       {
         name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
         sensed: false,
         style: ChecklistLineStyle.Green,
+        level: 1,
       },
       {
         name: 'AVOID NEG G LOAD',
         sensed: false,
       },
-
-      // If flight time above FL 300 since departure is greater than 30 min:
+      // If flight time above FL 300 since departure is greater than 30 min
       {
         name: 'DESCENT TO FL 280',
         sensed: false,
@@ -425,34 +404,29 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         sensed: false,
       },
       {
-        name: 'WHEN BELOW FL 280:',
+        name: 'WHEN BELOW FL 280 :',
         sensed: false,
       },
       {
-        name: 'CROSSFEED 1+2+3+4',
+        name: 'ALL CROSSFEEDS',
         sensed: true,
         labelNotCompleted: 'OFF',
+        level: 1,
       },
       {
         name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
         sensed: false,
         style: ChecklistLineStyle.Green,
+        level: 1,
       },
       {
         name: 'AVOID NEG G LOAD',
         sensed: false,
       },
-
-      // if soft ga lost
       {
-        name: 'GA THR : TOGA ONLY',
+        name: 'LDG DIST IMPACT ON WET/CONTAM RWY ONLY',
         sensed: false,
       },
-      {
-        name: 'LDG DIST AFFECTED',
-        sensed: false,
-      },
-
       // If fuel quantity in feed tanks 1 and 4 is below 19 000 kg
       {
         name: 'OUTR TKs PMPs',
@@ -540,11 +514,11 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     title: "\x1b<4m\x1b4mELEC\x1bm \x1b'mAC BUS 3+4 & DC BUS 2 FAULT\x1bm",
     sensed: true,
     items: [
-      // in flight
+      // in flight. A380 FCOM l.138804: VENT AVNCS EXTRACT ... OVRD
       {
         name: 'VENT AVNCS EXTRACT',
         sensed: true,
-        labelNotCompleted: 'OFF',
+        labelNotCompleted: 'OVRD',
       },
       {
         name: 'ATT HDG SWTG',
@@ -814,24 +788,22 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800017: {
-    title: '\x1b<4m\x1b4mELEC\x1bm BAT 1 (ESS) FAULT',
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT 1 FAULT',
     sensed: true,
     items: [
-      // If the temperature of the battery is excessive
       {
-        name: 'BAT 1(ESS)',
+        name: 'BAT 1', // A380 FCOM l.139541
         sensed: true,
         labelNotCompleted: 'OFF',
       },
     ],
   },
   240800018: {
-    title: '\x1b<4m\x1b4mELEC\x1bm BAT 2 (ESS) FAULT',
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT 2 FAULT',
     sensed: true,
     items: [
-      // If the temperature of the battery is excessive
       {
-        name: 'BAT 2(ESS)',
+        name: 'BAT 2', // A380 FCOM l.139541
         sensed: true,
         labelNotCompleted: 'OFF',
       },
@@ -1053,12 +1025,18 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     ],
   },
   240800028: {
+    // A380 FCOM PRO-ABN-ECAM-10-24 ELEC DC BUS 1+ESS FAULT, a380_fcom.txt l.140337-140416, in FCOM order
     title: "\x1b<4m\x1b4mELEC\x1bm \x1b'mDC BUS 1+ESS FAULT\x1bm",
     recommendation: 'LAND ANSA',
     sensed: true,
     items: [
       {
-        name: 'CROSSFEED 1+2+3+4',
+        name: 'CROSSFEED 1',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'CROSSFEED 2',
         sensed: true,
         labelNotCompleted: 'ON',
       },
@@ -1073,17 +1051,13 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         labelNotCompleted: 'SYS 2',
       },
       {
-        name: 'NO VOICE COM AVAIL',
+        name: 'NO COM AVAILABLE',
         sensed: false,
       },
-      {
-        name: 'SATCOM DATALINK AVAIL',
-        sensed: false,
-        style: ChecklistLineStyle.Green,
-      },
+      // The headsets have no position in the simulation: a crew check box
       {
         name: 'F/O HEADSETS',
-        sensed: true,
+        sensed: false,
         labelNotCompleted: 'ON (FOR AUDIO ALERTS)',
       },
       {
@@ -1128,25 +1102,92 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
         sensed: false,
       },
       {
-        name: 'FUEL QTY : 2000 KG NOT USABLE',
+        name: 'FEED TK 2 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      // If flight time above FL 300 since departure is less than 30 min
+      {
+        name: 'DESCENT TO FL 50/MEA',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+      },
+      {
+        name: 'MAX FL : 50/MEA',
         sensed: false,
       },
       {
-        name: 'FOB & GW COMPUTED FROM FU',
+        name: 'WHEN BELOW FL 50/MEA :',
+        sensed: false,
+      },
+      {
+        name: 'CROSSFEED 1',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'CROSSFEED 2',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+        level: 1,
+      },
+      {
+        name: 'AVOID NEG G LOAD',
+        sensed: false,
+      },
+      // If flight time above FL 300 since departure is greater than 30 min
+      {
+        name: 'DESCENT TO FL 280',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+      },
+      {
+        name: 'MAX FL : 280',
+        sensed: false,
+      },
+      {
+        name: 'WHEN BELOW FL 280 :',
+        sensed: false,
+      },
+      {
+        name: 'CROSSFEED 1',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'CROSSFEED 2',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+        level: 1,
+      },
+      {
+        name: 'AVOID NEG G LOAD',
+        sensed: false,
+      },
+      {
+        name: 'FOB COMPUTED FROM FU',
         sensed: false,
         style: ChecklistLineStyle.Green,
       },
-      {
-        name: 'FUEL CONSUMPT INCRSD',
-        sensed: false,
-      },
-      { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM },
       {
         name: 'SLATS SLOW',
         sensed: false,
       },
       {
-        name: ' LDG DIST AFFECTED',
+        name: 'LDG DIST AFFECTED',
         sensed: false,
       },
     ],
@@ -2040,5 +2081,62 @@ export const EcamAbnormalSensedAta24: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mELEC\x1bm TR ESS MONITORING FAULT',
     sensed: true,
     items: [],
+  },
+  // ELEC BAT ESS FAULT, the third alert of ELEC BAT 1 (2)(ESS) FAULT (A380 FCOM l.139497)
+  240800087: {
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT ESS FAULT',
+    sensed: true,
+    items: [
+      {
+        name: 'BAT ESS', // A380 FCOM l.139541
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+    ],
+  },
+  // ELEC BAT 1(2)(ESS)(APU) OFF, A380 FCOM l.139560, item l.139575: "BAT 1(2)(ESS)(APU) ... ON"
+  240800088: {
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT 1 OFF',
+    sensed: true,
+    items: [
+      {
+        name: 'BAT 1',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+    ],
+  },
+  240800089: {
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT 2 OFF',
+    sensed: true,
+    items: [
+      {
+        name: 'BAT 2',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+    ],
+  },
+  240800090: {
+    title: '\x1b<4m\x1b4mELEC\x1bm BAT ESS OFF',
+    sensed: true,
+    items: [
+      {
+        name: 'BAT ESS',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+    ],
+  },
+  240800091: {
+    title: '\x1b<4m\x1b4mELEC\x1bm APU BAT OFF',
+    sensed: true,
+    items: [
+      {
+        name: 'APU BAT',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+    ],
   },
 };

@@ -494,6 +494,8 @@ void FlyByWireInterface::setupLocalVariables() {
     idSfccFlapActualPositionWord[i] = std::make_unique<LocalVariable>("A32NX_SFCC_" + idString + "_FLAP_ACTUAL_POSITION_WORD");
   }
 
+  idPrimAllAirDataRejected = std::make_unique<LocalVariable>("A32NX_PRIM_ALL_AIR_DATA_REJECTED");
+
   for (int i = 0; i < 3; i++) {
     std::string idString = std::to_string(i + 1);
     idAdrAltitudeStandard[i] = std::make_unique<LocalVariable>("A32NX_ADIRS_ADR_" + idString + "_ALTITUDE");
@@ -506,6 +508,8 @@ void FlyByWireInterface::setupLocalVariables() {
     idAdrAoaCorrected[i] = std::make_unique<LocalVariable>("A32NX_ADIRS_ADR_" + idString + "_ANGLE_OF_ATTACK");
     idAdrCorrectedAverageStaticPressure[i] =
         std::make_unique<LocalVariable>("A32NX_ADIRS_ADR_" + idString + "_CORRECTED_AVERAGE_STATIC_PRESSURE");
+    idPrimAdrRejected[i] = std::make_unique<LocalVariable>("A32NX_PRIM_ADR_" + idString + "_REJECTED");
+    idPrimAoaRejected[i] = std::make_unique<LocalVariable>("A32NX_PRIM_AOA_" + idString + "_REJECTED");
 
     idIrMaintWord[i] = std::make_unique<LocalVariable>("A32NX_ADIRS_IR_" + idString + "_MAINT_WORD");
     idIrLatitude[i] = std::make_unique<LocalVariable>("A32NX_ADIRS_IR_" + idString + "_LATITUDE");
@@ -1381,6 +1385,9 @@ bool FlyByWireInterface::updateAdirs(int adirsIndex) {
   adrBusOutputs[adirsIndex].aoa_corrected_deg = Arinc429Utils::fromSimVar(idAdrAoaCorrected[adirsIndex]->get());
   adrBusOutputs[adirsIndex].corrected_average_static_pressure =
       Arinc429Utils::fromSimVar(idAdrCorrectedAverageStaticPressure[adirsIndex]->get());
+  airDataRejections.adrRejected[adirsIndex] = idPrimAdrRejected[adirsIndex]->get() > 0.5;
+  airDataRejections.aoaRejected[adirsIndex] = idPrimAoaRejected[adirsIndex]->get() > 0.5;
+  airDataRejections.allAirDataRejected = idPrimAllAirDataRejected->get() > 0.5;
 
   irBusOutputs[adirsIndex].discrete_word_1 = Arinc429Utils::fromSimVar(idIrMaintWord[adirsIndex]->get());
   irBusOutputs[adirsIndex].latitude_deg = Arinc429Utils::fromSimVar(idIrLatitude[adirsIndex]->get());
@@ -1619,9 +1626,9 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   modelInputs.in.analog_inputs.right_body_wheel_speed = idRightBodyWheelSpeed_rpm->get() * 0.146189;
   modelInputs.in.analog_inputs.right_wing_wheel_speed = idRightWingWheelSpeed_rpm->get() * 0.146189;
 
-  modelInputs.in.bus_inputs.adr_1_bus = adrBusOutputs[0];
-  modelInputs.in.bus_inputs.adr_2_bus = adrBusOutputs[1];
-  modelInputs.in.bus_inputs.adr_3_bus = adrBusOutputs[2];
+  modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[0], 0, airDataRejections);
+  modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[1], 1, airDataRejections);
+  modelInputs.in.bus_inputs.adr_3_bus = AirDataRejection::forFlightControls(adrBusOutputs[2], 2, airDataRejections);
   modelInputs.in.bus_inputs.ir_1_bus = irBusOutputs[0];
   modelInputs.in.bus_inputs.ir_2_bus = irBusOutputs[1];
   modelInputs.in.bus_inputs.ir_3_bus = irBusOutputs[2];
@@ -2145,18 +2152,18 @@ bool FlyByWireInterface::updateSec(double sampleTime, int secIndex) {
   secs[secIndex].modelInputs.in.analog_inputs.rudder_trim_actual_pos_deg = idRudderTrimActualPosition->get();
 
   if (secIndex == 0) {
-    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = adrBusOutputs[0];
-    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = adrBusOutputs[1];
+    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[0], 0, airDataRejections);
+    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[1], 1, airDataRejections);
     secs[secIndex].modelInputs.in.bus_inputs.ir_1_bus = irBusOutputs[0];
     secs[secIndex].modelInputs.in.bus_inputs.ir_2_bus = irBusOutputs[1];
   } else if (secIndex == 1) {
-    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = adrBusOutputs[1];
-    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = adrBusOutputs[2];
+    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[1], 1, airDataRejections);
+    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[2], 2, airDataRejections);
     secs[secIndex].modelInputs.in.bus_inputs.ir_1_bus = irBusOutputs[1];
     secs[secIndex].modelInputs.in.bus_inputs.ir_2_bus = irBusOutputs[2];
   } else if (secIndex == 2) {
-    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = adrBusOutputs[0];
-    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = adrBusOutputs[2];
+    secs[secIndex].modelInputs.in.bus_inputs.adr_1_bus = AirDataRejection::forFlightControls(adrBusOutputs[0], 0, airDataRejections);
+    secs[secIndex].modelInputs.in.bus_inputs.adr_2_bus = AirDataRejection::forFlightControls(adrBusOutputs[2], 2, airDataRejections);
     secs[secIndex].modelInputs.in.bus_inputs.ir_1_bus = irBusOutputs[0];
     secs[secIndex].modelInputs.in.bus_inputs.ir_2_bus = irBusOutputs[2];
   }

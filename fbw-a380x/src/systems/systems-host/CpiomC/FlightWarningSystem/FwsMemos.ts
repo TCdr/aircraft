@@ -137,6 +137,14 @@ export class FwsMemos {
       codesToReturn: ['310000002'],
       memoInhibit: () => false,
     },
+    '000000001': {
+      // NORMAL: RCL pb pressed with no alert to recall, for 3 s (FCOM DSC-31-40-20 l.73433, FwsRecall.ts)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.recallNormalMemo,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['000000001'],
+      memoInhibit: () => false,
+    },
     '0000170': {
       // APU AVAIL
       flightPhaseInhib: [],
@@ -650,9 +658,9 @@ export class FwsMemos {
       memoInhibit: () => false,
     },
     '709000001': {
-      // IGNITION
+      // IGNITION: manual (ENG START selector IGN START) or automatic (FADEC A + B) continuous ignition, FCOM l.113497-113498
       flightPhaseInhib: [],
-      simVarIsActive: this.fws.engSelectorPosition.map((v) => v === 2),
+      simVarIsActive: this.fws.ignitionMemo,
       whichCodeToReturn: () => [0],
       codesToReturn: ['709000001'],
       memoInhibit: () => false,

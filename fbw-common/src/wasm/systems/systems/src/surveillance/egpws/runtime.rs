@@ -135,6 +135,11 @@ pub(super) struct EnhancedGroundProximityWarningComputerRuntime {
     mode_2_pull_up_preface_active: bool,
     mode_2_pull_up_active: bool,
     mode_2_terrain_active: bool,
+    /// "TERRAIN" + PULL UP lights held after leaving the mode 2 warning (PULL UP) envelope
+    mode_2_altitude_gain_active: bool,
+    /// Lowest altitude reached since the hold started, the altitude gain is measured from it
+    mode_2_altitude_gain_reference_ft: f64,
+    mode_2_altitude_gain_elapsed: Duration,
 
     // GPWS Mode 3 Logic
     mode_3_max_achieved_alt_ft: Option<f64>,
@@ -185,6 +190,10 @@ impl EnhancedGroundProximityWarningComputerRuntime {
     const MODE_2_ALERT_AREA_VALUES: [f64; 3] = [30., 1220., 2450.];
     const MODE_2_B_CUTOFF_AREA_BREAKPOINTS: [f64; 2] = [-1000., -400.];
     const MODE_2_B_CUTOFF_AREA_VALUES: [f64; 2] = [600., 200.];
+    // End of the mode 2 "altitude gain" hold (see update_mode_2_logic). The A320 FCOM gives no end condition; these
+    // are the Honeywell EGPWS mode 2 altitude gain values (300 ft of altitude gain, or 45 s).
+    const MODE_2_ALTITUDE_GAIN_FT: f64 = 300.;
+    const MODE_2_ALTITUDE_GAIN_MAX_DURATION: Duration = Duration::from_secs(45);
 
     const MODE_3_ALERT_AREA_BREAKPOINTS: [f64; 2] = [8., 143.];
     const MODE_3_ALERT_AREA_VALUES: [f64; 2] = [30., 1500.];
@@ -270,6 +279,9 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             mode_2_pull_up_preface_active: false,
             mode_2_pull_up_active: false,
             mode_2_terrain_active: false,
+            mode_2_altitude_gain_active: false,
+            mode_2_altitude_gain_reference_ft: 0.,
+            mode_2_altitude_gain_elapsed: Duration::ZERO,
 
             mode_3_max_achieved_alt_ft: None,
             mode_3_declutter_threshold_increase: 0.,
@@ -665,7 +677,32 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             self.mode_2_pull_up_preface_voice_emitted = false;
         }
 
-        // TODO Implement mode 2A altitude gain condition
+        // Altitude gain hold. A320 FCOM DSC-34-SURV-40-20 mode 2 table, landing gear up (modes 2A and 2B): after the
+        // PULL UP warning, "TERRAIN" is "repeated as long as MODE 2 is triggered after leaving the warning conditions"
+        // and "The PULL UP red lights stay on". The FCOM gives no end condition. Design choice: the hold ends after
+        // MODE_2_ALTITUDE_GAIN_FT of altitude gain (from the lowest altitude since leaving the envelope) or
+        // MODE_2_ALTITUDE_GAIN_MAX_DURATION (Honeywell EGPWS mode 2 altitude gain), when the envelope is entered again
+        // (the normal mode 2 alerts take over), or in the gear down + landing flaps configuration, which has no hold.
+        let pull_up_was_active = self.mode_2_pull_up_active;
+        if mode_2_boundary_met || aural_terrain_only {
+            self.mode_2_altitude_gain_active = false;
+        } else if pull_up_was_active {
+            // The aircraft has just left the warning envelope.
+            self.mode_2_altitude_gain_active = true;
+            self.mode_2_altitude_gain_reference_ft = self.chosen_altitude_ft;
+            self.mode_2_altitude_gain_elapsed = Duration::ZERO;
+        } else if self.mode_2_altitude_gain_active {
+            self.mode_2_altitude_gain_elapsed += context.delta();
+            self.mode_2_altitude_gain_reference_ft = self
+                .mode_2_altitude_gain_reference_ft
+                .min(self.chosen_altitude_ft);
+            let altitude_gain_ft = self.chosen_altitude_ft - self.mode_2_altitude_gain_reference_ft;
+            if altitude_gain_ft >= Self::MODE_2_ALTITUDE_GAIN_FT
+                || self.mode_2_altitude_gain_elapsed >= Self::MODE_2_ALTITUDE_GAIN_MAX_DURATION
+            {
+                self.mode_2_altitude_gain_active = false;
+            }
+        }
 
         self.mode_2_pull_up_preface_active = !aural_terrain_only
             && mode_2_boundary_met
@@ -1047,7 +1084,8 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             // Warning lamp: mode 1 second boundary and mode 2 PULL UP; alert lamp: every other mode (sink rate,
             // TERRAIN TERRAIN, don't sink, too low gear/flaps/terrain, glideslope).
             self.warning_lamp_activated = (self.mode_1_pull_up_active
-                || self.mode_2_pull_up_active)
+                || self.mode_2_pull_up_active
+                || self.mode_2_altitude_gain_active)
                 && !discrete_inputs.gpws_inhibit
                 && !self.gpws_general_fault;
             self.alert_lamp_activated = (self.mode_1_sinkrate_lamp_active
@@ -1064,6 +1102,7 @@ impl EnhancedGroundProximityWarningComputerRuntime {
                 || self.mode_2_pull_up_active
                 || self.mode_2_pull_up_preface_active
                 || self.mode_2_terrain_active
+                || self.mode_2_altitude_gain_active
                 || self.mode_3_lamp_active
                 || self.mode_4_lamp_active)
                 && !discrete_inputs.gpws_inhibit
@@ -1091,7 +1130,9 @@ impl EnhancedGroundProximityWarningComputerRuntime {
             AuralWarning::Terrain
         } else if self.mode_2_pull_up_active && !basic_gpws_inhibit {
             AuralWarning::PullUp
-        } else if self.mode_2_terrain_active && !basic_gpws_inhibit {
+        } else if (self.mode_2_terrain_active || self.mode_2_altitude_gain_active)
+            && !basic_gpws_inhibit
+        {
             AuralWarning::Terrain
         } else if self.mode_4_too_low_terrain_voice_active && !basic_gpws_inhibit {
             AuralWarning::TooLowTerrain

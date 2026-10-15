@@ -83,7 +83,8 @@ import { splitSurvFaults, tcasFaultCondition, xpdrFaultCondition, XpdrTcasSwitch
 import { isTcasInoperative, selectedSurvSystem, SurvSystem } from '../../Misc/Communications/TransponderSystem';
 import { FwsInopSys, FwsInopSysPhases } from './FwsInopSys';
 import { FwsInformation } from './FwsInformation';
-import { FwsLimitations, FwsLimitationsPhases } from './FwsLimitations';
+import { FwsLimitations, FwsLimitationsPhases, withoutAllPhasesDuplicates } from './FwsLimitations';
+import { FwsAirDataAlerts, readAirDataAlertInputs } from './FwsAirDataAlerts';
 // FIXME should not import from instruments
 import { FGVars } from '../../../instruments/src/MsfsAvionicsCommon/providers/FGDataPublisher';
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
@@ -96,11 +97,13 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
+import { FwsBrakeAlerts, readBrakeSteerInputs } from './FwsBrakeAlerts';
 import { readFuelJettisonFlags } from './FuelJettisonFlags';
 import {
   EngineFailMonitor,
   EnginesOut,
   allEngFlameOutInhibitsElecEmerConfig,
+  autoRelightInProgress,
   FadecEngineState,
   hydraulicSystemsLostByEnginesOut,
   relightProcMustBeApplied,
@@ -113,14 +116,18 @@ import { engineOilAlerts } from './EngineOilAlerts';
 import { engineFuelFilterClogged } from './EngineFuelFilterAlerts';
 import { OilTemperatureLowMonitor, isFlexTakeoffMode, isThrustLeversNotSet } from './EngineTakeoffAlerts';
 import { isTakeoffThrustDisagree, isThrustLoss } from './EngineThrustAlerts';
-import { isEgtOverLimit, isN1N2OverLimit, isStallAlertShown } from './EngineParameterAlerts';
+import {
+  isEgtOverLimit,
+  isEgtOverLimitAlertTriggered,
+  isN1N2OverLimit,
+  isStallAlertShown,
+} from './EngineParameterAlerts';
 import { displayedEgt } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
-import { EngineStartFault, EngineStartPhase, StartValveFault } from './EngineStartAlerts';
+import { EngineStartFault, EngineStartPhase, isIgnitionMemoShown, StartValveFault } from './EngineStartAlerts';
 import {
   FeedTankLevelLoMonitor,
-  feedTankPumpAlerts,
   readCrossFeedPbSelections,
   readCrossFeedValveFlags,
   readFeedTankPumpFlags,
@@ -129,6 +136,7 @@ import {
   TransferPumpsFlags,
 } from './FuelPumpValveFlags';
 import { HotAirValveFlags, PackPbsOn, readTrimAirMonitoringFlags, TrimAirMonitoringFlags } from './CondTrimAirFlags';
+import { ElecSystemAlerts, readElecSystemInputs } from './FwsElecSystemAlerts';
 import {
   areDoorsInTakeoffConfig,
   CABIN_DOORS,
@@ -145,6 +153,20 @@ import {
   readElecNetworkInputs,
 } from './FwsElecAlerts';
 import {
+  combineElecBusFaults,
+  ElecProcedureInputs,
+  FlightTimeAboveFl300,
+  isStaticInverterFault,
+} from './FwsElecAlertsRound8';
+import {
+  FuelProcedureInputs,
+  feedPumpAlertsWithWings,
+  isInnerTanksQtyLo,
+  SeenAllOffSincePulse,
+  WingsBalanceMonitor,
+  WingsBalanceState,
+} from './FwsFuelAlertsRound8';
+import {
   ALL_DISPLAY_UNITS,
   DisplayUnitFailure,
   DisplayUnitID,
@@ -153,6 +175,10 @@ import {
 } from '@shared/CdsDisplayUnits';
 import { DcElectricalBus } from '@shared/electrical';
 import { isEnginePumpsTurnOffUnsuccessful } from './HydOverheatFlags';
+import { isToConfigNormal } from './ToConfigNormal';
+import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
+import { FwsGearAlerts } from './FwsGearAlerts';
+import { FwsNavAlerts, readSideDisplayData } from './FwsNavAlerts';
 
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
@@ -385,6 +411,19 @@ export class FwsCore {
   private recallHeldTime = 0;
 
   private recallLongPressDone = false;
+
+  /** The RCL LAST pb (L:A32NX_BTN_RCL_LAST), a pb of its own on the A380 ECP (FwsRecall.ts) */
+  public readonly recallLastButtonInputBuffer = new NXLogicMemoryNode(false);
+
+  public readonly rclLastPulseNode = new NXLogicPulseNode();
+
+  /** The CLEAR pb actions, newest last: the RCL LAST pb cancels the last one (FwsRecall.ts) */
+  public readonly clearHistory = new EcamClearHistory();
+
+  /** FCOM l.73433: RCL pb with no alert to recall, NORMAL appears for 3 seconds */
+  public readonly recallNormalMemo = Subject.create(false);
+
+  private recallNormalMemoTime = 0;
 
   /** FCOM: EMER CANC pb pressed with nothing to cancel, the EWD displays EMERGENCY CANCEL ON */
   public readonly emergencyCancelOnMemo = Subject.create(false);
@@ -1002,7 +1041,90 @@ export class FwsCore {
   /** "During taxi-in, one minute after the FLAPS lever is set to 0" (FCOM PRO-ABN-ECAM-10-24, ELEC DC BUS 1(2) FAULT) */
   public readonly taxiInFlapsLever0For1Min = Subject.create(false);
 
+  /* ELEC and FUEL alerts of the FCOM gap backlog round 8 (FwsElecAlertsRound8, FwsFuelAlertsRound8) */
+
+  /** ELEC AC BUS 1+2 & DC BUS 1 FAULT */
+  public readonly elecAc12Dc1Fault = Subject.create(false);
+
+  /** ELEC AC BUS 2+3 & DC BUS 1+2 FAULT */
+  public readonly elecAc23Dc12Fault = Subject.create(false);
+
+  /** ELEC AC BUS 2+4 FAULT */
+  public readonly elecAc24Fault = Subject.create(false);
+
+  /** ELEC AC BUS 3+4 & DC BUS 2 FAULT */
+  public readonly elecAc34Dc2Fault = Subject.create(false);
+
+  /** ELEC DC BUS 1+2 FAULT */
+  public readonly elecDc12Fault = Subject.create(false);
+
+  /** ELEC DC BUS 1+ESS FAULT */
+  public readonly elecDc1EssFault = Subject.create(false);
+
+  /** ELEC STATIC INV FAULT */
+  public readonly elecStaticInvFault = Subject.create(false);
+
+  /** "Flight time above FL 300 since departure" of the gravity feeding procedure lines */
+  private readonly flightTimeAboveFl300 = new FlightTimeAboveFl300();
+
+  /** The cockpit state of the round 8 ELEC procedure lines, refreshed every update */
+  public elecRound8Inputs: ElecProcedureInputs = {
+    onGround: true,
+    moreThan30MinAboveFl300: false,
+    feedTanks1And4Low: false,
+    gearDownLocked: true,
+    crossFeedPbOn: [false, false, false, false],
+    wxrTawsSys: 1,
+    xpdrTcasSys: 1,
+    attHdgFoOn3: false,
+    airDataFoOn3: false,
+    outerTankPumpPbOn: [true, true],
+    emerOutrTkXfrOn: false,
+    autoThrustEngaged: false,
+  };
+
+  /** FUEL L(R) WING FEED PMPs FAULT */
+  public readonly fuelWingFeedPumpsFault = [Subject.create(false), Subject.create(false)];
+
+  /** The first ALL CROSSFEEDS OFF line of FUEL L(R) WING FEED PMPs FAULT, see wingFeedPumpsFaultLines */
+  private readonly wingFeedCrossfeedsOffSensors = [new SeenAllOffSincePulse(), new SeenAllOffSincePulse()];
+
+  public readonly wingFeedCrossfeedsSeenOff = [false, false];
+
+  /** FUEL WINGS NOT BALANCED and FUEL WINGS BALANCED */
+  private readonly wingsBalanceMonitor = new WingsBalanceMonitor();
+
+  public wingsBalanceState: WingsBalanceState = {
+    notBalanced: false,
+    notBalancedPair: [false, false],
+    lighterTank: [null, null],
+    balanced: false,
+    balancedPair: [false, false],
+    pumpsOffRequired: [false, false, false, false],
+  };
+
+  public readonly fuelWingsNotBalanced = Subject.create(false);
+
+  public readonly fuelWingsBalanced = Subject.create(false);
+
+  /** FUEL INR TKs QTY LO */
+  public readonly fuelInnerTanksQtyLo = Subject.create(false);
+
+  /** The cockpit state of the round 8 FUEL procedure lines, refreshed every update */
+  public fuelRound8Inputs: FuelProcedureInputs = {
+    onGround: true,
+    anyEngineRunning: false,
+    moreThan30MinAboveFl300: false,
+    crossFeedPbOn: [false, false, false, false],
+    feedMainPbOn: [true, true, true, true],
+    feedStbyPbOn: [true, true, true, true],
+    engStartSelIgnStart: false,
+  };
+
   private readonly taxiInFlapsLever0ConfirmNode = new NXLogicConfirmNode(60, true);
+
+  /** ELEC alerts of the battery, EXT PWR, RAT generator, TR monitoring and drive failures (FwsElecSystemAlerts) */
+  public readonly elecSystemAlerts = new ElecSystemAlerts();
 
   /* 26 - FIRE */
 
@@ -1388,6 +1510,12 @@ export class FwsCore {
   );
   public readonly abnProcImpactingLdgDistActive = Subject.create(false);
 
+  /**
+   * An active alert lists BTV in STATUS INOP SYS (btvInopByAlert). The autobrake (systems.wasm autobrakes.rs) then does
+   * not arm BTV, as with the FCDC BTV LOST.
+   */
+  private readonly btvInopByAlertSimvar = RegisteredSimVar.createBoolean(`L:A32NX_FWC_${this.fwsNumber}_BTV_INOP`);
+
   /* FUEL */
 
   public readonly engine1ValueSwitch = ConsumerSubject.create(this.sub.on('fuel_valve_switch_1'), false);
@@ -1770,9 +1898,8 @@ export class FwsCore {
 
   public readonly flightPhase3PulseNode = new NXLogicPulseNode();
 
-  public readonly flightPhaseEndedPulseNode = new NXLogicPulseNode();
-
-  public readonly flightPhaseInhibitOverrideNode = new NXLogicMemoryNode(false);
+  /** RCL pb held for 3 s: the alerts inhibited in the current flight phase are shown (FwsRecall.ts) */
+  public readonly flightPhaseInhibitOverride = new FlightPhaseInhibitOverride();
 
   public readonly manualCheckListReset = Subject.create(false);
 
@@ -1816,6 +1943,16 @@ export class FwsCore {
 
   public readonly lgciu2DiscreteWord4 = Arinc429Register.empty();
 
+  public readonly lgciu1DiscreteWord3 = Arinc429Register.empty();
+
+  public readonly lgciu2DiscreteWord3 = Arinc429Register.empty();
+
+  /** L/G CTL FAULT, GEAR NOT LOCKED DOWN/UP, DOORS NOT CLOSED, SYSTEM DISAGREE (A380 FCOM PRO-ABN-ECAM-10-32) */
+  public readonly gearAlerts = new FwsGearAlerts();
+
+  /** NAV CAPT AND F/O ALT/ATT/HDG/BARO REF DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
+  public readonly navAlerts = new FwsNavAlerts();
+
   public isAllGearDownlocked = false;
 
   public readonly nwSteeringDisc = Subject.create(false);
@@ -1829,6 +1966,9 @@ export class FwsCore {
   private readonly confingParkBrakeOnMemoryNode = new NXLogicMemoryNode();
 
   public readonly configParkBrakeOn = Subject.create(false);
+
+  /** BRAKES and STEER alerts from the BCS, EBCU and SCS faults (A380 FCOM PRO-ABN-ECAM-10-32, FwsBrakeAlerts.ts) */
+  public readonly brakeSteerAlerts = new FwsBrakeAlerts();
 
   public readonly lgNotDown = Subject.create(false);
 
@@ -1947,6 +2087,9 @@ export class FwsCore {
   public readonly adr1Faulty = Subject.create(false);
   public readonly adr2Faulty = Subject.create(false);
   public readonly adr3Faulty = Subject.create(false);
+
+  /** NAV AIR DATA DISAGREE, ALL AIR DATA DISAGREE, AOA DISAGREE (A380 FCOM PRO-ABN-ECAM-10-34-10) */
+  public readonly airDataAlerts = new FwsAirDataAlerts();
 
   /** NAV GPS 1 FAULT: the GPS receiver of MMR 1 has failed (FAULT mode), not the one of MMR 2 */
   public readonly gps1Faulty = Subject.create(false);
@@ -2318,6 +2461,12 @@ export class FwsCore {
   public readonly engEgtOverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
   public readonly engN1N2OverLimit = [1, 2, 3, 4].map(() => Subject.create(false));
 
+  /** ENG FAIL AUTO RELIGHT IN PROGRESS: the FADEC auto relight of the engines 1 to 4 is running (EngineFailAlerts.ts) */
+  public readonly engineAutoRelightInProgress = [1, 2, 3, 4].map(() => Subject.create(false));
+
+  /** IGNITION memo: manual or automatic continuous ignition (EngineStartAlerts.ts isIgnitionMemoShown) */
+  public readonly ignitionMemo = Subject.create(false);
+
   /** The ENG FAIL memory of the engines 1 to 4, the same logic for the four engines (EngineFailAlerts.ts) */
   private readonly engineFailMonitors = [1, 2, 3, 4].map(() => new EngineFailMonitor());
 
@@ -2477,6 +2626,16 @@ export class FwsCore {
     SubscribableMapFunctions.or(),
     this.reverserFailureInop[0],
     this.reverserFailureInop[1],
+  );
+  /**
+   * INOP SYS BTV from an alert, besides the FCDC BTV LOST: ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER failures.
+   * A380 FCOM LIM-32 (a380_fcom.txt l.188646): "BTV cannot be used in the case of ECAM alert that impact the landing
+   * performance"; DSC-32-20-220 BTV ARMING (l.79403): "No ECAM warning affects landing distances".
+   */
+  public readonly btvInopByAlert = MappedSubject.create(
+    SubscribableMapFunctions.or(),
+    this.engineOutBtvInop,
+    this.reverserBtvInop,
   );
   public readonly phase12561112Inhibition = [1, 2, 5, 6, 11, 12];
 
@@ -2908,6 +3067,7 @@ export class FwsCore {
           this.allCurrentFailures.length = 0;
           this.presentedFailures.length = 0;
           this.recallFailures.length = 0;
+          this.clearHistory.reset();
           this.emerCancel.reset();
         } else {
           FwsCore.sendFailureWarning(this.bus);
@@ -2932,6 +3092,7 @@ export class FwsCore {
           this.allCurrentFailures.length = 0;
           this.presentedFailures.length = 0;
           this.recallFailures.length = 0;
+          this.clearHistory.reset();
           this.emerCancel.reset();
         }
       }),
@@ -3048,9 +3209,6 @@ export class FwsCore {
     this.subs.push(
       this.flightPhase.sub((fp) => {
         SimVar.SetSimVarValue('L:A32NX_FWC_FLIGHT_PHASE', 'Enum', fp || 0);
-        if (fp !== null) {
-          this.flightPhaseEndedPulseNode.write(true);
-        }
       }),
     );
 
@@ -3179,6 +3337,8 @@ export class FwsCore {
     this.subs.push(
       this.abnProcImpactingLdgPerfActive.sub((s) => this.abnProcImpactingLdgPerfActiveSimvar.set(s), true),
       this.abnProcImpactingLdgDistActive.sub((s) => this.abnProcImpactingLdgDistActiveSimvar.set(s), true),
+      this.btvInopByAlert,
+      this.btvInopByAlert.sub((inop) => this.btvInopByAlertSimvar.set(inop), true),
     );
 
     this.subs.push(
@@ -3397,6 +3557,11 @@ export class FwsCore {
     }
     this.recallHeldTime = recallButton && !this.fwsEcpFailed.get() ? this.recallHeldTime + deltaTime : 0;
 
+    // RCL LAST button
+    if (SimVar.GetSimVarValue('L:A32NX_BTN_RCL_LAST', 'bool') && !this.fwsEcpFailed.get()) {
+      this.recallLastButtonInputBuffer.write(true, false);
+    }
+
     // EMER CANC button
     if (SimVar.GetSimVarValue('L:A32NX_BTN_EMERCANC', 'bool') && !this.fwsEcpFailed.get()) {
       this.emerCancelInputBuffer.write(true, false);
@@ -3470,6 +3635,7 @@ export class FwsCore {
     this.toConfigPulseNode.write(this.toConfigInputBuffer.read());
     this.clrPulseNode.write(this.clearButtonInputBuffer.read());
     this.rclUpPulseNode.write(this.recallButtonInputBuffer.read());
+    this.rclLastPulseNode.write(this.recallLastButtonInputBuffer.read());
     this.emerCancelPulseNode.write(this.emerCancelInputBuffer.read());
     this.clPulseNode.write(this.clInputBuffer.read());
     this.clCheckPulseNode.write(this.clCheckInputBuffer.read());
@@ -3481,7 +3647,6 @@ export class FwsCore {
 
     // Inputs update
     const flightPhase = this.flightPhase.get();
-    this.flightPhaseEndedPulseNode.write(false);
     const phase3 = flightPhase === 3;
     const phase6 = flightPhase === 6;
     const flightPhase8 = flightPhase === 8;
@@ -3515,13 +3680,17 @@ export class FwsCore {
       this.toConfigTestHeldMin1s5PulseNode.write(this.toConfigTestRaw, deltaTime) || this.toConfigTestRaw,
     );
 
-    this.flightPhaseInhibitOverrideNode.write(this.rclUpPulseNode.read(), this.flightPhaseEndedPulseNode.read());
+    // FCOM l.73429-73431: only the RCL pb "pressed for more than three seconds" shows the alerts "inhibited by the
+    // current aircraft flight phase" (the short press did it before). True in the first update of the long press only:
+    // recallLongPressDone is set below, in CLEAR AND RECALL.
+    const recallLongPressStarted = this.recallHeldTime >= FwsCore.RECALL_LONG_PRESS_MS && !this.recallLongPressDone;
+    const phaseInhibitOverridden = this.flightPhaseInhibitOverride.update(recallLongPressStarted, flightPhase);
 
     this.showTakeoffInhibit.set(
-      this.toInhibitTimer.write(this.flightPhase34567.get() && !this.flightPhaseInhibitOverrideNode.read(), deltaTime),
+      this.toInhibitTimer.write(this.flightPhase34567.get() && !phaseInhibitOverridden, deltaTime),
     );
     this.showLandingInhibit.set(
-      this.ldgInhibitTimer.write(this.flightPhase910.get() && !this.flightPhaseInhibitOverrideNode.read(), deltaTime),
+      this.ldgInhibitTimer.write(this.flightPhase910.get() && !phaseInhibitOverridden, deltaTime),
     );
 
     this.flapsIndex.set(SimVar.GetSimVarValue('L:A32NX_FLAPS_CONF_INDEX', 'number'));
@@ -4109,6 +4278,7 @@ export class FwsCore {
     this.adr1Faulty.set(!(!this.acESSBusPowered.get() || flightPhase112) && adr1Fault);
     this.adr2Faulty.set(!(!this.ac4BusPowered.get() || flightPhase112) && adr2Fault);
     this.adr3Faulty.set(!(!this.ac2BusPowered.get() || flightPhase112) && adr3Fault);
+    this.airDataAlerts.update(readAirDataAlertInputs((name, unit) => SimVar.GetSimVarValue(name, unit)));
 
     // GPS receivers: GPS_n_MODE 4 is FAULT (a failure prevents the receiver from transmitting valid data)
     const gps1Fault = SimVar.GetSimVarValue('L:A32NX_GPS_1_MODE', 'number') === 4;
@@ -4198,6 +4368,34 @@ export class FwsCore {
     this.lgciu2DiscreteWord2.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_2');
     this.lgciu1DiscreteWord4.setFromSimVar('L:A32NX_LGCIU_1_DISCRETE_WORD_4');
     this.lgciu2DiscreteWord4.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_4');
+    this.lgciu1DiscreteWord3.setFromSimVar('L:A32NX_LGCIU_1_DISCRETE_WORD_3');
+    this.lgciu2DiscreteWord3.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_3');
+    this.gearAlerts.update(
+      deltaTime,
+      {
+        word1: this.lgciu1DiscreteWord1,
+        word2: this.lgciu1DiscreteWord2,
+        word3: this.lgciu1DiscreteWord3,
+        word4: this.lgciu1DiscreteWord4,
+      },
+      {
+        word1: this.lgciu2DiscreteWord1,
+        word2: this.lgciu2DiscreteWord2,
+        word3: this.lgciu2DiscreteWord3,
+        word4: this.lgciu2DiscreteWord4,
+      },
+      this.aircraftOnGround.get(),
+      SimVar.GetSimVarValue('L:A32NX_LG_GRVTY_SWITCH_POS', 'number') === 2,
+    );
+    const navTrueRef = SimVar.GetSimVarValue('L:A32NX_PUSH_TRUE_REF', 'bool') > 0;
+    const navAirKnob = SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum');
+    const navAttKnob = SimVar.GetSimVarValue('L:A32NX_ATT_HDG_SWITCHING_KNOB', 'enum');
+    this.navAlerts.update(
+      deltaTime,
+      readSideDisplayData(true, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
+      readSideDisplayData(false, (name) => Arinc429Word.fromSimVarValue(name), navAirKnob, navAttKnob, navTrueRef),
+      navTrueRef,
+    );
     const parkBrakeSet = SimVar.GetSimVarValue('L:A32NX_PARK_BRAKE_LEVER_POS', 'Number') === 1;
     this.parkBrakeSet.set(parkBrakeSet);
     this.lgParkBrkOn.set(this.parkBrake2sConfNode.write(parkBrakeSet, deltaTime));
@@ -4205,6 +4403,11 @@ export class FwsCore {
       this.confingParkBrakeOnMemoryNode.write(phase3 && parkBrakeSet, !parkBrakeSet || phase6),
     );
     this.nwSteeringDisc.set(SimVar.GetSimVarValue('L:A32NX_HYD_NW_STRG_DISC_ECAM_MEMO', 'Bool'));
+    this.brakeSteerAlerts.update(
+      deltaTime,
+      readBrakeSteerInputs((name) => SimVar.GetSimVarValue(name, 'number')),
+      parkBrakeSet,
+    );
     const leftCompressedHardwireLgciu1 =
       this.dcESSBusPowered.get() && SimVar.GetSimVarValue('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool') > 0;
     const leftCompressedHardwireLgciu2 =
@@ -5200,7 +5403,8 @@ export class FwsCore {
 
     // ELEC alerts (FwsElecAlerts, A380 FCOM PRO-ABN-ECAM-10-24)
     const elecInputs = readElecNetworkInputs((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool));
-    const elecFlags = this.elecAlertLogic.update(elecInputs);
+    // The combined busbar alerts replace the single ones they cover (FwsElecAlertsRound8)
+    const elecFlags = combineElecBusFaults(this.elecAlertLogic.update(elecInputs));
     elecFlags.acBusFault.forEach((fault, i) => this.elecAcBusFault[i].set(fault));
     this.elecAcEssBusFault.set(elecFlags.acEssBusFault);
     this.elecAcEssBusAltn.set(elecFlags.acEssBusAltn);
@@ -5213,6 +5417,14 @@ export class FwsCore {
     elecFlags.trFault.forEach((fault, i) => this.elecTrFault[i].set(fault));
     this.elecApuTrFault.set(elecFlags.apuTrFault);
     this.elecBusTieOff.set(elecFlags.busTieOff);
+    this.elecSystemAlerts.update(
+      readElecSystemInputs(
+        (name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool),
+        (failure) => this.failuresConsumer.isActive(failure),
+        elecFlags.apuTrFault,
+        this.apuAvail.get(),
+      ),
+    );
 
     elecInputs.engGenPbOn.forEach((on, i) => this.elecGenPbOn[i].set(on));
     this.elecApuGenPbOn[0].set(SimVar.GetSimVarValue('L:A32NX_OVHD_ELEC_APU_GEN_1_PB_IS_ON', SimVarValueType.Bool) > 0);
@@ -5244,6 +5456,36 @@ export class FwsCore {
       elecInputs.engGenPbOn.every((on) => on),
       !elecInputs.busTiePbAuto,
     );
+
+    // ELEC alerts of the FCOM gap backlog round 8 (FwsElecAlertsRound8)
+    this.elecAc12Dc1Fault.set(elecFlags.combined.ac12Dc1);
+    this.elecAc23Dc12Fault.set(elecFlags.combined.ac23Dc12);
+    this.elecAc24Fault.set(elecFlags.combined.ac24);
+    this.elecAc34Dc2Fault.set(elecFlags.combined.ac34Dc2);
+    this.elecDc12Fault.set(elecFlags.combined.dc12);
+    this.elecDc1EssFault.set(elecFlags.combined.dc1Ess);
+    this.elecStaticInvFault.set(
+      isStaticInverterFault(
+        SimVar.GetSimVarValue('L:A32NX_ELEC_CONTACTOR_7XB_IS_CLOSED', SimVarValueType.Bool) > 0,
+        SimVar.GetSimVarValue('L:A32NX_ELEC_STAT_INV_POTENTIAL_NORMAL', SimVarValueType.Bool) > 0,
+      ),
+    );
+    this.flightTimeAboveFl300.update(this.aircraftOnGround.get(), this.adrPressureAltitude.get(), deltaTime);
+    this.elecRound8Inputs = {
+      onGround: this.aircraftOnGround.get(),
+      moreThan30MinAboveFl300: this.flightTimeAboveFl300.moreThan30Min,
+      feedTanks1And4Low: this.feedTanks1And4BelowEmerOutrXfrThreshold.get(),
+      gearDownLocked: this.isAllGearDownlocked,
+      crossFeedPbOn: [0, 1, 2, 3].map((i) => this.crossFeedPbOn[i].get()) as [boolean, boolean, boolean, boolean],
+      wxrTawsSys: this.tawsWxrSelected.get(),
+      // L:A32NX_TRANSPONDER_SYSTEM: 0 = SYS 1 (as FwsAbnormalSensed.xpdrTcasSystemIs)
+      xpdrTcasSys: SimVar.GetSimVarValue('L:A32NX_TRANSPONDER_SYSTEM', 'number') + 1,
+      attHdgFoOn3: this.attKnob.get() === 2,
+      airDataFoOn3: this.airKnob.get() === 2,
+      outerTankPumpPbOn: [this.transferPumpFlags.leftOuter.pbOn, this.transferPumpFlags.rightOuter.pbOn],
+      emerOutrTkXfrOn: this.fuelEmerOutrTkXfrOn.get(),
+      autoThrustEngaged: this.autoThrustEngaged.get(),
+    };
 
     /* OTHER STUFF */
 
@@ -5935,20 +6177,77 @@ export class FwsCore {
 
     // Feed tank pumps and crossfeed valves (CpiomF/FuelPumpsAndValves), read as real booleans
     const readBool = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool);
-    readFeedTankPumpFlags(readBool).forEach((pumps, tank) => {
-      const alerts = feedTankPumpAlerts(pumps, this.flightPhase.get());
+    const feedPumps = readFeedTankPumpFlags(readBool);
+    // FUEL WINGS (NOT) BALANCED (FwsFuelAlertsRound8). MSFS tanks: feed 2, 5, 6, 9; inner 4, 7; mid 3, 8; outer 1, 10
+    const tankKg = (tank: number): number => SimVar.GetSimVarValue(`FUELSYSTEM TANK WEIGHT:${tank}`, 'kilogram');
+    const fuelingInProgress = this.refuelPanelOpen.get() || this.refuelInProgress.get() || this.defuelInProgress.get();
+    this.wingsBalanceState = this.wingsBalanceMonitor.update({
+      onGround: this.aircraftOnGround.get(),
+      feedKg: [tankKg(2), tankKg(5), tankKg(6), tankKg(9)],
+      innerKg: [tankKg(4), tankKg(7)],
+      midKg: [tankKg(3), tankKg(8)],
+      outerKg: [tankKg(1), tankKg(10)],
+      fuelingInProgress,
+      crossFeedPbOn: [0, 1, 2, 3].map((i) => this.crossFeedPbOn[i].get()) as [boolean, boolean, boolean, boolean],
+      feedMainPbOn: feedPumps.map((p) => p.mainPbOn) as [boolean, boolean, boolean, boolean],
+      feedStbyPbOn: feedPumps.map((p) => p.stbyPbOn) as [boolean, boolean, boolean, boolean],
+    });
+    this.fuelWingsNotBalanced.set(this.wingsBalanceState.notBalanced);
+    this.fuelWingsBalanced.set(this.wingsBalanceState.balanced);
+    // FEED TK pump alerts, with FUEL L(R) WING FEED PMPs FAULT (FwsFuelAlertsRound8)
+    const feedPumpAlerts = feedPumpAlertsWithWings(
+      feedPumps,
+      this.flightPhase.get(),
+      this.wingsBalanceState.pumpsOffRequired,
+    );
+    feedPumps.forEach((pumps, tank) => {
+      const alerts = feedPumpAlerts.tanks[tank];
       this.feedTankMainPumpFault[tank].set(alerts.mainFault);
       this.feedTankStbyPumpFault[tank].set(alerts.stbyFault);
       this.feedTankMainAndStbyPumpsFault[tank].set(alerts.mainAndStbyFault);
       this.feedTankMainPumpPbOn[tank].set(pumps.mainPbOn);
       this.feedTankStbyPumpPbOn[tank].set(pumps.stbyPbOn);
     });
+    this.fuelWingFeedPumpsFault[0].set(feedPumpAlerts.leftWing);
+    this.fuelWingFeedPumpsFault[1].set(feedPumpAlerts.rightWing);
+    // FUEL INR TKs QTY LO (FwsFuelAlertsRound8). Outer tanks full: 99 % of their capacity (design choice, MSFS level)
+    const fob = this.fuelOnBoard.get();
+    this.fuelInnerTanksQtyLo.set(
+      isInnerTanksQtyLo({
+        onGround: this.aircraftOnGround.get(),
+        zfwAndZfcgEntered: !this.fqmsZfwOrZfwCgNotSet.get(),
+        fobKg: fob.isNormalOperation() ? fob.value : null,
+        innerKg: [tankKg(4), tankKg(7)],
+        outerTanksFull:
+          SimVar.GetSimVarValue('FUELSYSTEM TANK LEVEL:1', 'percent over 100') >= 0.99 &&
+          SimVar.GetSimVarValue('FUELSYSTEM TANK LEVEL:10', 'percent over 100') >= 0.99,
+        refuelPanelOpenOrFueling: fuelingInProgress,
+      }),
+    );
     const crossFeedPbs = readCrossFeedPbSelections(readBool);
     crossFeedPbs.forEach((on, index) => this.crossFeedPbOn[index].set(on));
     this.allCrossFeedPbsOn.set(crossFeedPbs.every((on) => on));
     this.allFeedTankPumpPbsOn.set(
       this.feedTankMainPumpPbOn.every((pb) => pb.get()) && this.feedTankStbyPumpPbOn.every((pb) => pb.get()),
     );
+    // Procedure lines of the round 8 FUEL alerts (FwsFuelAlertsRound8)
+    this.fuelRound8Inputs = {
+      onGround: this.aircraftOnGround.get(),
+      anyEngineRunning:
+        this.engine1Running.get() ||
+        this.engine2Running.get() ||
+        this.engine3Running.get() ||
+        this.engine4Running.get(),
+      moreThan30MinAboveFl300: this.flightTimeAboveFl300.moreThan30Min,
+      crossFeedPbOn: crossFeedPbs as [boolean, boolean, boolean, boolean],
+      feedMainPbOn: feedPumps.map((p) => p.mainPbOn) as [boolean, boolean, boolean, boolean],
+      feedStbyPbOn: feedPumps.map((p) => p.stbyPbOn) as [boolean, boolean, boolean, boolean],
+      engStartSelIgnStart: this.engineStartSelIgnition.get(),
+    };
+    const allCrossFeedPbsOff = crossFeedPbs.every((on) => !on);
+    this.wingFeedCrossfeedsOffSensors.forEach((sensor, side) => {
+      this.wingFeedCrossfeedsSeenOff[side] = sensor.update(this.fuelWingFeedPumpsFault[side].get(), allCrossFeedPbsOff);
+    });
 
     // Transfer pumps (CpiomF/FuelPumpsAndValves), and the transfer tanks holding fuel (Tank.N, gallons)
     this.transferPumpFlags = readTransferPumpFlags(readBool);
@@ -6321,6 +6620,8 @@ export class FwsCore {
     const engineRunning = [this.engine1State, this.engine2State, this.engine3State, this.engine4State].map(
       (state) => state.get() === engineState.ON,
     );
+    // The EGT above its limit as the EWD shows it (amber attention box), with or without the ECAM alert
+    const egtExceeded = [false, false, false, false];
     for (let index = 0; index < 4; index++) {
       const engineNumber = index + 1;
       const egt = SimVar.GetSimVarValue(`L:A32NX_ENGINE_EGT:${engineNumber}`, 'number');
@@ -6333,7 +6634,9 @@ export class FwsCore {
         alphaFloor,
       };
       this.engStall[index].set(isStallAlertShown(engineStalls[index], stalledEngineCount, this.flightPhase.get()));
-      this.engEgtOverLimit[index].set(engineRunning[index] && isEgtOverLimit(overLimitInputs));
+      egtExceeded[index] = engineRunning[index] && isEgtOverLimit(overLimitInputs);
+      // No ENG EGT OVER LIMIT with ENG n FADEC FAULT (FCOM l.171597-171600). fadecFault is read earlier in this update.
+      this.engEgtOverLimit[index].set(isEgtOverLimitAlertTriggered(egtExceeded[index], this.fadecFault[index].get()));
       this.engN1N2OverLimit[index].set(engineRunning[index] && isN1N2OverLimit(overLimitInputs));
     }
     // The amber attention getting box also comes up with an EGT, N1 or N2 above its limit: "as soon as any amber or
@@ -6344,10 +6647,31 @@ export class FwsCore {
       this.eng3PrimaryAbnormalParams,
       this.eng4PrimaryAbnormalParams,
     ].forEach((primaryAbnormal, index) =>
-      primaryAbnormal.set(
-        primaryAbnormal.get() || this.engEgtOverLimit[index].get() || this.engN1N2OverLimit[index].get(),
-      ),
+      primaryAbnormal.set(primaryAbnormal.get() || egtExceeded[index] || this.engN1N2OverLimit[index].get()),
     );
+
+    // ENG FAIL AUTO RELIGHT IN PROGRESS and the IGNITION memo read the FADEC igniters (EngineFailAlerts.ts,
+    // EngineStartAlerts.ts)
+    const igniterAActive = [1, 2, 3, 4].map(
+      (engineNumber) => SimVar.GetSimVarValue(`L:A32NX_FADEC_IGNITER_A_ACTIVE_ENG${engineNumber}`, 'bool') > 0,
+    );
+    const igniterBActive = [1, 2, 3, 4].map(
+      (engineNumber) => SimVar.GetSimVarValue(`L:A32NX_FADEC_IGNITER_B_ACTIVE_ENG${engineNumber}`, 'bool') > 0,
+    );
+    const bothIgnitersActive = igniterAActive.map((active, index) => active && igniterBActive[index]);
+    for (let index = 0; index < 4; index++) {
+      const engineNumber = index + 1;
+      this.engineAutoRelightInProgress[index].set(
+        autoRelightInProgress({
+          inFlight: !this.aircraftOnGround.get(),
+          igniterAActive: igniterAActive[index],
+          igniterBActive: igniterBActive[index],
+          relightAttempt: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_RELIGHT_ATTEMPT`, 'bool') > 0,
+          relightIgnition: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_RELIGHT_IGNITION`, 'bool') > 0,
+        }),
+      );
+    }
+    this.ignitionMemo.set(isIgnitionMemoShown(this.engSelectorPosition.get(), bothIgnitersActive));
 
     this.eng1Out.set(this.eng1ShutDown.get() || this.engineFailMonitors[0].failed);
     this.eng2Out.set(this.eng2ShutDown.get() || this.engineFailMonitors[1].failed);
@@ -6402,8 +6726,8 @@ export class FwsCore {
     /* T.O. CONFIG CHECK */
 
     if (this.toMemo.get() && this.toConfigTestRaw) {
-      // TODO Note that fuel tank low pressure and gravity feed warnings are not included
-      const systemStatus = this.engine1Generator.get() && this.engine2Generator.get();
+      // A380 FCOM DSC-31-40-10 T.O CONFIG test (l.72715-72759, ToConfigNormal.ts): the ELEC DRIVE / GEN alerts of the four
+      // engines and ENG OIL TEMP LO replace the A320 GEN 1+2 potential check
 
       const brakesHot = this.anyBrakeHot;
 
@@ -6421,8 +6745,18 @@ export class FwsCore {
         this.rudderTrimNotTo.get() ||
         this.pitchTrimNotTo.get();
 
-      const toConfigNormal =
-        systemStatus && speeds && !brakesHot && doors && !this.flapsMcduDisagree.get() && !surfacesNotTo;
+      const toConfigNormal = isToConfigNormal({
+        surfacesNotInToConfig: surfacesNotTo,
+        doorsInTakeoffConfig: doors,
+        brakesHot,
+        elecDriveDisconnected: this.elecDriveDisconnected.map((alert) => alert.get()),
+        elecGenFault: this.elecGenFault.map((alert) => alert.get()),
+        elecGenOff: this.elecGenOff.map((alert) => alert.get()),
+        engineOilTempLo: this.engineOilTempLo.map((alert) => alert.get()),
+        pitchTrimFmsCgDisagree: this.pitchTrimMcduCgDisagree.get(),
+        toFlapsFmsDisagree: this.flapsMcduDisagree.get(),
+        toSpeedsAlert: !speeds,
+      });
 
       this.toConfigNormal.set(this.toConfigNormalConf.write(toConfigNormal, deltaTime));
     }
@@ -6439,18 +6773,20 @@ export class FwsCore {
       }
     }
 
+    // RCL pb: every cleared alert and not-sensed ABN PROC still active comes back at once, or NORMAL for 3 s when there
+    // is none. RCL LAST pb: the alert of the last CLEAR pb action comes back. FCOM l.73420-73433, FwsRecall.ts.
     if (this.rclUpPulseNode.read()) {
-      if (this.recallFailures.length > 0) {
-        const recalledKey = this.recallFailures.shift();
-        if (recalledKey !== undefined) {
-          this.presentedFailures.push(recalledKey);
-          const recalledState = this.clearedAbnormalProceduresList.getValue(recalledKey);
-
-          if (recalledState) {
-            this.presentedAbnormalProceduresList.setValue(recalledKey, recalledState);
-            this.clearedAbnormalProceduresList.delete(recalledKey);
-          }
-        }
+      const { recalled, showNormal } = recallAll(this.recallFailures);
+      recalled.forEach((key) => this.recallClearedAlert(key));
+      if (showNormal) {
+        this.recallNormalMemoTime = RECALL_NORMAL_MEMO_MS;
+        this.recallNormalMemo.set(true);
+      }
+    }
+    if (this.rclLastPulseNode.read()) {
+      const lastCleared = this.clearHistory.lastCleared(this.recallFailures);
+      if (lastCleared !== undefined) {
+        this.recallClearedAlert(lastCleared);
       }
     }
 
@@ -6466,6 +6802,11 @@ export class FwsCore {
         const recalled = this.emerCancel.recall(this.allCurrentFailures);
         this.presentedFailures.push(...recalled.filter((key) => !this.presentedFailures.includes(key)));
         this.recallFailures = this.recallFailures.filter((key) => !recalled.includes(key));
+        if (recalled.length > 0) {
+          // The press first showed NORMAL (nothing cleared to recall), but the EMER CANC cautions come back
+          this.recallNormalMemoTime = 0;
+          this.recallNormalMemo.set(false);
+        }
       }
     } else {
       this.recallLongPressDone = false;
@@ -6474,6 +6815,11 @@ export class FwsCore {
     if (this.emergencyCancelOnMemoTime > 0) {
       this.emergencyCancelOnMemoTime -= deltaTime;
       this.emergencyCancelOnMemo.set(this.emergencyCancelOnMemoTime > 0);
+    }
+
+    if (this.recallNormalMemoTime > 0) {
+      this.recallNormalMemoTime -= deltaTime;
+      this.recallNormalMemo.set(this.recallNormalMemoTime > 0);
     }
 
     // Output logic
@@ -6577,7 +6923,13 @@ export class FwsCore {
         continue;
       }
 
-      if (newWarning && value.flightPhaseInhib.some((e) => e === flightPhase)) {
+      // A long RCL press shows the alerts inhibited by the current flight phase (FCOM l.73429-73431), until the end of
+      // the flight phase (FlightPhaseInhibitOverride)
+      if (
+        newWarning &&
+        value.flightPhaseInhib.some((e) => e === flightPhase) &&
+        !this.flightPhaseInhibitOverride.active
+      ) {
         continue;
       }
 
@@ -7068,9 +7420,10 @@ export class FwsCore {
     const sortedEwdLimitationsAllPhasesKeys = ewdLimitationsAllPhasesKeys.sort(
       (a, b) => this.messagePriority(EcamLimitations[a]) - this.messagePriority(EcamLimitations[b]),
     );
-    const sortedEwdLimitationsApprLdgKeys = ewdLimitationsApprLdgKeys.sort(
-      (a, b) => this.messagePriority(EcamLimitations[a]) - this.messagePriority(EcamLimitations[b]),
-    );
+    const sortedEwdLimitationsApprLdgKeys = withoutAllPhasesDuplicates(
+      ewdLimitationsApprLdgKeys,
+      ewdLimitationsAllPhasesKeys,
+    ).sort((a, b) => this.messagePriority(EcamLimitations[a]) - this.messagePriority(EcamLimitations[b]));
 
     // Check if keys have changed before setting to avoid unnecessary updates
     if (
@@ -7165,6 +7518,7 @@ export class FwsCore {
     this.toConfigInputBuffer.write(false, true);
     this.clearButtonInputBuffer.write(false, true);
     this.recallButtonInputBuffer.write(false, true);
+    this.recallLastButtonInputBuffer.write(false, true);
     this.emerCancelInputBuffer.write(false, true);
     this.clInputBuffer.write(false, true);
     this.clCheckInputBuffer.write(false, true);
@@ -7217,6 +7571,25 @@ export class FwsCore {
 
     this.debugDataToOisSubject.set(this.debugDataToOis);
     this.debugDataToOisSubject.notify();
+  }
+
+  /**
+   * Puts a cleared alert (or not-sensed ABN PROC) back on the EWD, with the state its procedure had when cleared
+   * (RCL and RCL LAST pbs)
+   * @param key the alert key, one of recallFailures
+   */
+  private recallClearedAlert(key: string): void {
+    const index = this.recallFailures.indexOf(key);
+    if (index !== -1) {
+      this.recallFailures.splice(index, 1);
+    }
+    this.clearHistory.forget(key);
+    this.presentedFailures.push(key);
+    const recalledState = this.clearedAbnormalProceduresList.getValue(key);
+    if (recalledState) {
+      this.presentedAbnormalProceduresList.setValue(key, recalledState);
+      this.clearedAbnormalProceduresList.delete(key);
+    }
   }
 
   /**

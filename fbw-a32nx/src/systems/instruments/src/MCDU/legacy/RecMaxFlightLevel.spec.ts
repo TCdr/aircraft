@@ -3,7 +3,9 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  engineOutRecMaxFlightLevel,
   maxFlightLevel,
+  progRecMaxFlightLevel,
   REC_MAX_FL_LVAR,
   recMaxFlightLevel,
   recMaxFlightLevelLVarValue,
@@ -30,6 +32,25 @@ describe('A32NX FMS REC MAX flight level', () => {
 
   it('has no value without a gross weight', () => {
     expect(recMaxFlightLevel(0, null)).toBeNull();
+  });
+
+  it('gives the FCOM one engine inoperative LRC ceilings with one engine out (ISA)', () => {
+    // PER-OEI-GEN-10: 70 000 kg, LRC ceiling FL 182; PER-OEI-GEN-15: 62 000 kg, LRC ceiling FL 203
+    expect(engineOutRecMaxFlightLevel(70)).toBe(182);
+    expect(engineOutRecMaxFlightLevel(62)).toBe(203);
+    // between and beyond: a straight line, 2.6 FL per tonne
+    expect(engineOutRecMaxFlightLevel(66)).toBe(193);
+    expect(engineOutRecMaxFlightLevel(50)).toBe(235);
+    expect(engineOutRecMaxFlightLevel(null)).toBeNull();
+  });
+
+  it('shows the engine-out REC MAX on the PROG page when one engine is out', () => {
+    // FCOM PROG page: "If one engine is out, this field displays the recommended maximum engine-out altitude"
+    expect(progRecMaxFlightLevel(0, 70, true)).toBe(182);
+    expect(progRecMaxFlightLevel(15, 70, true)).toBe(182);
+    expect(progRecMaxFlightLevel(0, 70, false)).toBe(384);
+    expect(progRecMaxFlightLevel(0, 55, false)).toBe(398);
+    expect(progRecMaxFlightLevel(0, null, true)).toBeNull();
   });
 
   it('publishes the flight level in L:A32NX_FM_REC_MAX_FL, 0 when not available', () => {

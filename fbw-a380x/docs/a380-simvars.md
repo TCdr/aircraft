@@ -92,7 +92,8 @@
 
 - A32NX_OVHD_{name}_PB_HAS_FAULT
     - Bool
-    - Indicates if the push button's FAULT light should illuminate
+    - Indicates if the push button's FAULT light should illuminate. ELEC_BAT_n: the battery is failed (flyPad failures
+      BAT 1, BAT 2, BAT ESS, APU BAT) and disconnected from its DC busbar; triggers ELEC BAT n FAULT (APU BAT FAULT)
     - {name}
         - APU_MASTER_SW
         - ELEC_BAT_1
@@ -1282,6 +1283,35 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - 3
         - 4
 
+- A32NX_ELEC_EXT_PWR_{number}_FAULT
+    - Bool
+    - Read only
+    - True when the GGPCU of external power {number} reports its external power unit (or itself) failed (flyPad
+      failure EXT PWR {number}), while the ground power unit is connected. The failed unit cannot supply the network.
+      Triggers ELEC EXT PWR {number} FAULT
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_ENG_GEN_{number}_DRIVE_DISC_FAULT
+    - Bool
+    - Read only
+    - True when the disconnection function of generator drive {number} is failed (flyPad failure DRIVE {number}
+      Disconnect Function): its DRIVE pb no longer disconnects the generator. Triggers ELEC DRIVE {number} DISC FAULT
+    - {number}
+        - 1
+        - 2
+        - 3
+        - 4
+
+- A32NX_ELEC_RAT_FAULT
+    - Bool
+    - Read only
+    - True when the RAT generator is failed (flyPad failure RAT Generator), RAT stowed or deployed: it gives no output
+      to the AC ESS busbar. Triggers ELEC RAT FAULT
+
 ## Fire and Smoke Protection ATA 26
 
 - A32NX_FIRE_FDU_DISCRETE_WORD
@@ -1858,6 +1888,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
         - EMERCANC
         - MORE
         - RCL
+        - RCL_LAST
         - TOCONFIG
         - UP
 
@@ -1953,6 +1984,44 @@ The PRIMs perform the flight guidance and flight envelope functions.
 
 ## Landing Gear ATA 32
 
+- A32NX_BRAKES_{mode}_BRK_FAULT
+    - Bool
+    - True when the braking mode is failed on all the wheel groups (flyPad failures 32110-32112, Rust
+      `hydraulic/brake_steer_faults.rs`); read by the FWS for the BRAKES alerts
+    - {mode}
+        - NORM: BCS normal braking (BRAKES NORM BRK FAULT)
+        - ALTN: BCS alternate braking (BRAKES ALTN BRK FAULT)
+        - EMER: EBCU emergency braking (BRAKES EMER BRK FAULT)
+
+- A32NX_BRAKES_PEDAL_BRAKING_MODE
+    - Number
+    - The braking mode the brake pedals command
+    - | Mode                                    | Value |
+      |-----------------------------------------|-------|
+      | None (park brake only)                  | 0     |
+      | Normal (NORM circuit, GREEN)            | 1     |
+      | Alternate (ALTN circuit, A-SKID)        | 2     |
+      | Emergency (ALTN circuit, EBCU, limited) | 3     |
+
+- A32NX_STEERING_{fault}_FAULT
+    - Bool
+    - True when the steering equipment is failed (flyPad failures 32200-32204, Rust `hydraulic/brake_steer_faults.rs`);
+      read by the FWS for the STEER alerts
+    - {fault}
+        - NORM_NWS: normal nose wheel steering (GREEN)
+        - ALTN_NWS: alternate nose wheel steering (steering LEHGS)
+        - BWS: body wheel steering, centred and locked
+        - SCS_1, SCS_2: steering control system 1 or 2
+
+- A32NX_STEERING_NWS_MODE
+    - Number
+    - The hydraulic supply of the nose wheel steering
+    - | Mode                                     | Value |
+      |------------------------------------------|-------|
+      | Off (engines shut down or NWS failed)    | 0     |
+      | Normal (GREEN, 15 deg/s)                 | 1     |
+      | Alternate (steering LEHGS, 10 deg/s)     | 2     |
+
 - A32NX_BTV_STATE
     - Boolean
     - Indicates the current state of the BTV system
@@ -1963,6 +2032,11 @@ The PRIMs perform the flight guidance and flight envelope functions.
       | ROT OPTIMIZATION  | 2     |
       | DECEL             | 3     |
       | END OF BRAKING    | 4     |
+
+- A32NX_FWC_1_BTV_INOP
+    - Bool
+    - Written by the FWS: an active ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT,
+      ENG 2(3) REVERSER failures). Like A32NX_BTV_LOST, BTV then does not arm and an armed BTV reverts to BRK HI
 
 ## Lights ATA 33
 
@@ -2134,6 +2208,30 @@ The PRIMs perform the flight guidance and flight envelope functions.
       the TCAS of the selected system). Shown on the MFD SURV STATUS & SWITCHING page
 
 ## Navigation ATA 34
+
+- A32NX_PRIM_ADR_{number}_REJECTED
+    - Bool
+    - number: 1, 2 or 3
+    - ADR {number} is rejected by the PRIM air data monitoring: its CAS, Mach or pressure altitude diverges from the
+      other coherent air data sources (A380 FCOM DSC-34-10-30-10). Latched until the end of the flight (on ground below
+      30 kt). Written by systems.wasm (`a380_systems` air_data_monitoring.rs); fbw.wasm then sends this ADR to the PRIM
+      and SEC models with a failure warning status (two rejected ADRs: alternate law, three: direct law)
+
+- A32NX_PRIM_STBY_AIR_DATA_REJECTED
+    - Bool
+    - The standby instruments (ISIS) air data is rejected by the PRIM air data monitoring (as above)
+
+- A32NX_PRIM_ALL_AIR_DATA_REJECTED
+    - Bool
+    - The PRIMs detect a conflict between the air data sources without being able to tell which one is wrong (two
+      remaining sources that disagree, or two pairs in conflict): all air data rejected, direct law (NAV ALL AIR DATA
+      DISAGREE)
+
+- A32NX_PRIM_AOA_{number}_REJECTED
+    - Bool
+    - number: 1, 2 or 3
+    - The angle of attack of ADR {number} is rejected by the PRIM monitoring (3.6 deg in flight, 8 deg on ground); two
+      or more rejected: NAV AOA DISAGREE and alternate law
 
 - A32NX_GPS_{number}_LATITUDE, A32NX_GPS_{number}_LONGITUDE
     - Arinc429<Degrees>
@@ -2485,7 +2583,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 2
     - 3
     - 4
-  - True while the FADEC energizes igniter A of the engine (SD ENGINE page ignition indication, FCOM DSC-70-90). Automatic start on the ground: one igniter, alternated A then B at each start, from 20 % to 58 % N3 (FCOM DSC-70-30, DSC-70-80-20); both igniters during a start in flight, the continuous ignition (ENG START selector at IGN START with the engine running: in flight, or on the ground after the selector was set to NORM then back to IGN START and above low power, N1 below 53 % for more than 30 s), the quick relight (60 s after the ENG MASTER lever is set back to ON) and the auto relight (until 60 s after the engine relights); none with the ENG MASTER OFF or the ENG FIRE pb released. Written by the FADEC (fadec_a380x IgniterSelection_A380X)
+  - True while the FADEC energizes igniter A of the engine (SD ENGINE page ignition indication, FCOM DSC-70-90). Automatic start on the ground: one igniter, alternated A then B at each start, from 20 % to 58 % N3 (FCOM DSC-70-30, DSC-70-80-20); both igniters during a start in flight, the continuous ignition (ENG START selector at IGN START with the engine running: in flight, or on the ground after the selector was set to NORM then back to IGN START and above low power, N1 below 53 % for more than 30 s), the quick relight (60 s after the ENG MASTER lever is set back to ON) and the auto relight (until 60 s after the engine relights); none with the ENG MASTER OFF or the ENG FIRE pb released. Both igniters on also show the FWS IGNITION memo and, outside a crew relight (RELIGHT_ATTEMPT, RELIGHT_IGNITION), the ENG FAIL line AUTO RELIGHT IN PROGRESS. Written by the FADEC (fadec_a380x IgniterSelection_A380X)
 
 - A32NX_FADEC_IGNITER_B_ACTIVE_ENG{number}
   - Bool
@@ -2502,7 +2600,7 @@ The PRIMs perform the flight guidance and flight envelope functions.
     - 2
     - 3
     - 4
-  - The FADEC start sequence on the ground, the ignition and the start and ignition failures (systems::engine::engine_start), with the A380 numbers (a380_systems engine_failure.rs a380_engine_start_schedule: ignition and fuel at 20 % N3, end of the start at 58.4 % N3, no light up after 20 s, start EGT limit 745 °C, three automatic attempts with a 30 s dry crank, starter time limit 5 min). The same variables as the A32NX, see fbw-a32nx/docs/a320-simvars.md; START_N2_HANG holds the N3. ENG START FAULT, START VLV FAULT, IGN FAULT (FwsCore, EngineStartAlerts). FAULT_LIGHT is written but the A380X cockpit has no ENG MASTER FAULT light yet; IGNITERS is the start sequence's own igniter choice (the SD igniter indication is the FADEC's). STARTER_MOTORING also engages the MSFS starter with the ENG MASTER OFF (dry crank, cockpit behaviour pedestal.xml A380X_ENGINE_Switch_Master_Template). Written by the systems WASM
+  - The FADEC start sequence on the ground, the ignition and the start and ignition failures (systems::engine::engine_start), with the A380 numbers (a380_systems engine_failure.rs a380_engine_start_schedule: ignition and fuel at 20 % N3, end of the start at 58.4 % N3, no light up after 20 s (30 s for a relight in flight, with NO STARTER AIR PRESSURE monitored in flight too), start EGT limit 745 °C, three automatic attempts with a 30 s dry crank, starter time limit 5 min). The same variables as the A32NX, see fbw-a32nx/docs/a320-simvars.md; START_N2_HANG holds the N3. ENG START FAULT, START VLV FAULT, IGN FAULT (FwsCore, EngineStartAlerts). FAULT_LIGHT is written but the A380X cockpit has no ENG MASTER FAULT light yet; IGNITERS is the start sequence's own igniter choice (the SD igniter indication is the FADEC's). STARTER_MOTORING also engages the MSFS starter with the ENG MASTER OFF (dry crank, cockpit behaviour pedestal.xml A380X_ENGINE_Switch_Master_Template). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_STALL
   - Bool

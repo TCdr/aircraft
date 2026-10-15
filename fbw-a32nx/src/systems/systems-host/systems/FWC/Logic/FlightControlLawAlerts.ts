@@ -14,7 +14,8 @@
  * "SPD BRK (IF L OR R ELEVATOR FAULT) ... DO NOT USE". The procedure has no MANEUVER WITH CARE line (that one belongs to
  * DIRECT LAW) and no MAX FL line.
  * @param dualHydraulicLowPressure two hydraulic systems are at low pressure
- * @param speedBrakeDoNotUse the FCDC "speed brake do not use" discrete (L or R elevator fault)
+ * @param speedBrakeDoNotUse the left or the right elevator is lost (FlightControlSurfaceAlerts leftOrRightElevatorLost),
+ * not the FCDC "SPD BRK 3+4" bit (Fcdc.cpp efcsStatus5 bit 27), which is the SEC 1 / SPLR FAULT condition
  * @returns the line indexes, null for a hidden line
  */
 export function altnLawLines(dualHydraulicLowPressure: boolean, speedBrakeDoNotUse: boolean): (number | null)[] {
@@ -35,10 +36,13 @@ export function altnLawLines(dualHydraulicLowPressure: boolean, speedBrakeDoNotU
  * A320 FCOM PRO-ABN-F_CTL F/CTL DIRECT LAW (a320_fcom.txt l.82656-82667): (PROT LOST), MAX SPEED 320/.77,
  * MAN PITCH TRIM USE, MANEUVER WITH CARE, USE SPD BRK WITH CARE. There is no "SPD BRK DO NOT USE" line: it contradicted
  * the USE SPD BRK WITH CARE line next to it.
+ * l.82662: "MAN PITCH TRIM (EXCEPT IF HYD Y + G SYS LO PR) ... USE": without green and yellow pressure the THS cannot
+ * move, so the line goes.
+ * @param greenAndYellowLowPressure the green and yellow hydraulic systems are both at low pressure
  * @returns the line indexes, null for a hidden line
  */
-export function directLawLines(): (number | null)[] {
-  return [0, 1, 2, 3, 4, null, 6, null];
+export function directLawLines(greenAndYellowLowPressure: boolean): (number | null)[] {
+  return [0, 1, 2, greenAndYellowLowPressure ? null : 3, 4, null, 6, null];
 }
 
 /**

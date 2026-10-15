@@ -4,8 +4,11 @@ use uom::si::{
 };
 
 use crate::{
+    failures::{Failure, FailureType},
     shared::{ConsumePower, PowerConsumptionReport},
-    simulation::{InitContext, SimulationElement, SimulatorWriter, UpdateContext},
+    simulation::{
+        InitContext, SimulationElement, SimulationElementVisitor, SimulatorWriter, UpdateContext,
+    },
 };
 
 use super::{
@@ -22,9 +25,23 @@ pub struct Battery {
     input_potential: ElectricPotential,
     output_potential: ElectricPotential,
     current: ElectricCurrent,
+    /// Internal cell short (thermal runaway), see `FailureType::Battery`
+    internal_short: Failure,
+    /// The extra charging current of a battery in thermal runaway, on top of the normal charge
+    runaway_current: ElectricCurrent,
 }
 impl Battery {
     const RATED_CAPACITY_AMPERE_HOURS: f64 = 23.;
+    /// Design choice: a shorted cell takes about one cell (20 Ni-Cd cells of 1.2 to 1.45 V) off the
+    /// battery voltage. A full battery (28 V) then falls below the 26.5 V at which the battery charge
+    /// limiter starts a charging cycle (A320 FCOM DSC-24-20, a320_fcom.txt l.37070), so the runaway
+    /// shows whenever the DC BAT BUS can charge the battery.
+    const SHORTED_CELL_POTENTIAL_DROP_VOLTS: f64 = 1.5;
+    /// Design choice: the charging current of a battery in thermal runaway rises by 2 A each second
+    /// (the A320 FCOM PRO-ABN-ELEC BAT FAULT trigger, l.76146: "the charging current increases at an
+    /// abnormal rate"), up to 100 A.
+    const RUNAWAY_CURRENT_RISE_AMPERE_PER_SECOND: f64 = 2.;
+    const RUNAWAY_CURRENT_MAX_AMPERE: f64 = 100.;
 
     pub fn full(context: &mut InitContext, number: usize) -> Battery {
         Battery::new(
@@ -55,7 +72,36 @@ impl Battery {
             input_potential: ElectricPotential::new::<volt>(0.),
             output_potential: Battery::calculate_output_potential_for_charge(charge),
             current: ElectricCurrent::new::<ampere>(0.),
+            internal_short: Failure::new(FailureType::Battery(number)),
+            runaway_current: ElectricCurrent::new::<ampere>(0.),
         }
+    }
+
+    /// The battery voltage for its charge, lowered by an internal cell short.
+    fn potential_for_charge(&self) -> ElectricPotential {
+        let potential = Battery::calculate_output_potential_for_charge(self.charge);
+        if self.internal_short.is_active() && potential > ElectricPotential::new::<volt>(0.) {
+            (potential - ElectricPotential::new::<volt>(Battery::SHORTED_CELL_POTENTIAL_DROP_VOLTS))
+                .max(ElectricPotential::new::<volt>(0.))
+        } else {
+            potential
+        }
+    }
+
+    /// While on charge, a battery in thermal runaway takes a charging current which keeps rising.
+    /// It goes back to zero when the charge stops (the contactor opens).
+    fn update_runaway_current(&mut self, context: &UpdateContext, charging: bool) {
+        self.runaway_current = if self.internal_short.is_active() && charging {
+            (self.runaway_current
+                + ElectricCurrent::new::<ampere>(
+                    Battery::RUNAWAY_CURRENT_RISE_AMPERE_PER_SECOND * context.delta_as_secs_f64(),
+                ))
+            .min(ElectricCurrent::new::<ampere>(
+                Battery::RUNAWAY_CURRENT_MAX_AMPERE,
+            ))
+        } else {
+            ElectricCurrent::new::<ampere>(0.)
+        };
     }
 
     pub fn needs_charging(&self) -> bool {
@@ -75,7 +121,7 @@ impl Battery {
     fn set_charge(&mut self, charge: ElectricCharge) {
         self.charge = charge;
         self.input_potential = ElectricPotential::new::<volt>(0.);
-        self.output_potential = Battery::calculate_output_potential_for_charge(self.charge);
+        self.output_potential = self.potential_for_charge();
     }
 
     #[cfg(test)]
@@ -176,6 +222,11 @@ impl ElectricitySource for Battery {
     }
 }
 impl SimulationElement for Battery {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.internal_short.accept(visitor);
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         self.writer.write_direct(self, writer);
     }
@@ -183,15 +234,22 @@ impl SimulationElement for Battery {
     fn consume_power<T: ConsumePower>(&mut self, context: &UpdateContext, consumption: &mut T) {
         self.input_potential = consumption.input_of(self).raw();
 
-        if self.is_powered_by_other_potential() {
-            self.current =
+        let charging = self.is_powered_by_other_potential();
+        self.update_runaway_current(context, charging);
+
+        if charging {
+            let charging_current =
                 Battery::calculate_charging_current(self.input_potential, self.output_potential);
+            // The runaway current turns into heat inside the shorted battery: it is drawn from the
+            // bus but does not charge the battery.
+            self.current = charging_current + self.runaway_current;
 
             let power = self.input_potential * self.current;
             consumption.consume_from_input(self, power);
 
             let time = Time::new::<second>(context.delta_as_secs_f64());
-            self.charge += ((self.input_potential * self.current) * time) / self.input_potential;
+            self.charge +=
+                ((self.input_potential * charging_current) * time) / self.input_potential;
         }
     }
 
@@ -215,7 +273,7 @@ impl SimulationElement for Battery {
             }
         }
 
-        self.output_potential = Battery::calculate_output_potential_for_charge(self.charge);
+        self.output_potential = self.potential_for_charge();
     }
 }
 
@@ -226,6 +284,7 @@ mod tests {
     #[cfg(test)]
     mod battery_tests {
         use more_asserts::*;
+        use ntest::assert_about_eq;
 
         use super::*;
         use crate::simulation::test::ReadByName;
@@ -509,6 +568,67 @@ mod tests {
             test_bed.run();
 
             assert_lt!(input_potential, test_bed.potential(1));
+        }
+
+        #[test]
+        fn an_internal_cell_short_takes_one_cell_off_the_potential() {
+            let mut test_bed = BatteryTestBed::with_full_batteries();
+            test_bed.run();
+            let normal_potential = test_bed.potential(2);
+
+            test_bed.fail(FailureType::Battery(2));
+            // The battery reads its previous output as its input during one more update.
+            test_bed.run();
+            test_bed.run();
+
+            assert_about_eq!(
+                (normal_potential - test_bed.potential(2)).get::<volt>(),
+                Battery::SHORTED_CELL_POTENTIAL_DROP_VOLTS,
+                0.01
+            );
+            // Below the 26.5 V at which the BCL starts a charging cycle
+            assert_lt!(test_bed.potential(2), ElectricPotential::new::<volt>(26.5));
+        }
+
+        #[test]
+        fn an_internal_cell_short_makes_the_charging_current_rise_without_limit() {
+            let mut test_bed = BatteryTestBed::with_full_batteries();
+            test_bed.fail(FailureType::Battery(1));
+            test_bed.command(|a| a.supply_input_potential(ElectricPotential::new::<volt>(28.)));
+
+            for _ in 0..5 {
+                test_bed.run_with_delta(Duration::from_secs(1));
+            }
+
+            // The normal charge is limited to 10 A, the runaway adds 2 A per second.
+            assert_gt!(test_bed.current(1), ElectricCurrent::new::<ampere>(18.));
+        }
+
+        #[test]
+        fn without_failure_a_full_battery_on_a_28_v_bus_takes_almost_no_current() {
+            let mut test_bed = BatteryTestBed::with_full_batteries();
+            test_bed.command(|a| a.supply_input_potential(ElectricPotential::new::<volt>(28.)));
+
+            for _ in 0..5 {
+                test_bed.run_with_delta(Duration::from_secs(1));
+            }
+
+            assert_lt!(test_bed.current(1), ElectricCurrent::new::<ampere>(1.));
+        }
+
+        #[test]
+        fn the_runaway_current_stops_when_the_charge_stops() {
+            let mut test_bed = BatteryTestBed::with_full_batteries();
+            test_bed.fail(FailureType::Battery(1));
+            test_bed.command(|a| a.supply_input_potential(ElectricPotential::new::<volt>(28.)));
+            for _ in 0..5 {
+                test_bed.run_with_delta(Duration::from_secs(1));
+            }
+
+            test_bed.command(|a| a.supply_input_potential(ElectricPotential::new::<volt>(0.)));
+            test_bed.run_with_delta(Duration::from_secs(1));
+
+            assert_le!(test_bed.current(1), ElectricCurrent::new::<ampere>(0.));
         }
 
         #[test]

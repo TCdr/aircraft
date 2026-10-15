@@ -140,8 +140,16 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (24_001, FailureType::TransformerRectifier(2)),
         (24_002, FailureType::TransformerRectifier(3)),
         (24_004, FailureType::StaticInverter),
+        (24_010, FailureType::Battery(1)),
+        (24_011, FailureType::Battery(2)),
+        (24_012, FailureType::BatteryChargeLimiter(1)),
+        (24_013, FailureType::BatteryChargeLimiter(2)),
         (24_020, FailureType::Generator(1)),
         (24_021, FailureType::Generator(2)),
+        (24_022, FailureType::IntegratedDriveGeneratorOilLeak(1)),
+        (24_023, FailureType::IntegratedDriveGeneratorOilLeak(2)),
+        (24_024, FailureType::IntegratedDriveGeneratorOilOverheat(1)),
+        (24_025, FailureType::IntegratedDriveGeneratorOilOverheat(2)),
         (24_030, FailureType::ApuGenerator(1)),
         (
             24_100,
@@ -384,6 +392,35 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (74_001, FailureType::EngineIgniterA(2)),
         (74_010, FailureType::EngineIgniterB(1)),
         (74_011, FailureType::EngineIgniterB(2)),
+        // ATA 36 pneumatic (a320_systems pneumatic.rs)
+        (36_000, FailureType::EngineBleedValveStuckClosed(1)),
+        (36_001, FailureType::EngineBleedValveStuckClosed(2)),
+        (36_010, FailureType::EngineBleedValveStuckOpen(1)),
+        (36_011, FailureType::EngineBleedValveStuckOpen(2)),
+        (36_020, FailureType::EngineHpValveStuckClosed(1)),
+        (36_021, FailureType::EngineHpValveStuckClosed(2)),
+        (36_030, FailureType::EngineFanAirValveStuckClosed(1)),
+        (36_031, FailureType::EngineFanAirValveStuckClosed(2)),
+        (36_040, FailureType::EngineFanAirValveStuckOpen(1)),
+        (36_041, FailureType::EngineFanAirValveStuckOpen(2)),
+        (36_050, FailureType::CrossBleedValveStuckClosed),
+        (36_051, FailureType::CrossBleedValveStuckOpen),
+        (36_060, FailureType::ApuBleedValveStuckClosed),
+        (36_061, FailureType::ApuBleedValveStuckOpen),
+        (36_070, FailureType::EngineBleedLeak(1)),
+        (36_071, FailureType::EngineBleedLeak(2)),
+        (36_072, FailureType::WingBleedLeak(1)),
+        (36_073, FailureType::WingBleedLeak(2)),
+        (36_074, FailureType::ApuBleedLeak),
+        (36_080, FailureType::EngineLeakDetectionLoop(1)),
+        (36_081, FailureType::EngineLeakDetectionLoop(2)),
+        (36_082, FailureType::WingLeakDetectionLoop(1, 1)),
+        (36_083, FailureType::WingLeakDetectionLoop(1, 2)),
+        (36_084, FailureType::WingLeakDetectionLoop(2, 1)),
+        (36_085, FailureType::WingLeakDetectionLoop(2, 2)),
+        (36_086, FailureType::ApuLeakDetectionLoop),
+        (36_090, FailureType::BleedMonitoringComputer(1)),
+        (36_091, FailureType::BleedMonitoringComputer(2)),
         (80_000, FailureType::EngineStartValveStuckClosed(1)),
         (80_001, FailureType::EngineStartValveStuckClosed(2)),
         (80_010, FailureType::EngineStartValveStuckOpen(1)),
@@ -504,6 +541,9 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 2)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 1)?
     .provides_aircraft_variable("TURB ENG IGNITION SWITCH EX1", "Enum", 2)?
+    // The engine anti-ice valves: automatic continuous ignition (a320_systems engine_failure.rs)
+    .provides_aircraft_variable("ENG ANTI ICE", "Bool", 1)?
+    .provides_aircraft_variable("ENG ANTI ICE", "Bool", 2)?
     // The MSFS engine speeds and vibration (a320_systems engine_malfunction.rs)
     .provides_aircraft_variable("TURB ENG N1", "Percent", 1)?
     .provides_aircraft_variable("TURB ENG N1", "Percent", 2)?

@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 export const WD_NUM_LINES = 18;
@@ -14,7 +14,7 @@ import { EcamAbnormalSensedAta313233, EcamDeferredProcAta313233 } from './Abnorm
 import { EcamAbnormalSensedAta34, EcamDeferredProcAta34 } from './AbnormalSensed/ata34';
 import { EcamAbnormalSensedAta353642 } from './AbnormalSensed/ata35-36-42';
 import { EcamAbnormalSensedAta46495256 } from './AbnormalSensed/ata46-49-52-56';
-import { EcamAbnormalSensedAta70 } from './AbnormalSensed/ata70';
+import { EcamAbnormalSensedAta70, EcamDeferredProcAta70 } from './AbnormalSensed/ata70';
 import { EcamAbnormalSensedAta80Rest, EcamDeferredProcAta80Rest } from './AbnormalSensed/ata80-rest';
 import { EcamAbnormalSecondaryFailures } from './AbnormalSensed/secondary-failures';
 import { AbnormalNonSensedCategory } from '../providers/FwsPublisher';
@@ -204,6 +204,8 @@ export const EcamInfos: { [n: string]: string } = {
   220200016: '\x1b<3mCAT 3 SINGLE ONLY', // ENG 1(2)(3)(4) SHUT DOWN STATUS, if APU off (A380 FCOM l.172792-172793)
   220200017: '\x1b<3mCAT 2 ONLY', // ENG TWO ENGS OUT ON OPPOSITE SIDE STATUS (A380 FCOM l.175632)
   230200001: '\x1b<3mSATCOM DATALINK AVAIL',
+  240200001: '\x1b<3mAPU BAT START NOT AVAIL', // APU BAT FAULT STATUS, if APU TR is failed (A380 FCOM l.139353)
+  240200002: '\x1b<3mAPU START NOT AVAIL', // APU TR FAULT STATUS, if APU BAT is failed (A380 FCOM l.139484)
   260200001: '\x1b<3mBEFORE CARGO OPENING : PAX DISEMBARK',
   270200001: '\x1b<3mON DRY RWY ONLY : LDG DIST AFFECTED < 15%',
   270200002: '\x1b<3mGND SPLRs WILL EXTEND AT REV SELECTION',
@@ -232,6 +234,7 @@ export const EcamInfos: { [n: string]: string } = {
   340200017: '\x1b<3m\xa0\xa0INCREASE THRUST BY 5 %',
   340200018: '\x1b<3m\xa0\xa0FUEL CONSUMPT INCRSD',
   340200019: '\x1b<3m\xa0\xa0FMS PRED UNRELIABLE',
+  340200020: '\x1b<3mRISK OF UNDUE STALL WARNING', // NAV AOA DISAGREE STATUS INFO (A380 FCOM l.164451)
   280200001: '\x1b<3mMIN FUEL USABLE : OTHER FEED TKs',
   280200002: '\x1b<3m(ALL OTHER FUEL MAYBE LOST)',
   280200003: '\x1b<3mFUEL CONSUMPT INCRSD : FMS PRED DISREGARD',
@@ -243,6 +246,9 @@ export const EcamInfos: { [n: string]: string } = {
   280200009: '\x1b<3mTRIM TK XFR BY GRVTY ONLY', // TRIM TK L+R PMPs FAULT (A380 FCOM l.153804)
   280200010: '\x1b<3mTRIM TK GRVTY XFR : AROUND 3000 KG / HR', // TRIM TK L+R PMPs FAULT (A380 FCOM l.153805)
   280200011: '\x1b<3mTRIM TK : 2300 KG MAX NOT USABLE', // TRIM TK L+R PMPs FAULT (A380 FCOM l.153807)
+  280200012: '\x1b<3mEACH INR TK : 5100 KG MIN FOR T.O', // INR TKs QTY LO (A380 FCOM l.151160)
+  280200013: '\x1b<3mL WING FEED TKs BY GRVTY ONLY', // L WING FEED PMPs FAULT (A380 FCOM l.151951)
+  280200014: '\x1b<3mR WING FEED TKs BY GRVTY ONLY', // R WING FEED PMPs FAULT (A380 FCOM l.151951)
   800200002: '\x1b<3mON DRY RWY ONLY : LDG DIST AFFECTED < 15%',
   990200001: '\x1b<3mACFT FL   CABIN ALT TRGT',
   990200002: '\x1b<3m  100       LDG ELEVN',
@@ -301,6 +307,8 @@ export const EcamLimitations: { [n: string]: string } = {
   320400003: '\x1b<5mSTEER ENDUR LIMITED',
   320400004: '\x1b<5mAUTO BRK:DO NOT USE',
   320400005: '\x1b<5mMAX LDG WEIGHT',
+  320400006: '\x1b<5mNO L/G RETRACTION', // L/G CTL 1+2 FAULT (A380 FCOM l.160980), L/G DOORS NOT CLOSED (l.161156)
+  320400007: '\x1b<5mAVOID EXCESS G LOAD', // L/G GEAR NOT LOCKED UP (A380 FCOM l.161425)
   340400001: '\x1b<5mALL SPEED : MAX 330 / M .82',
   700400001: '\x1b<5mREV : SYM USE ONLY',
   800400001: '\x1b<5mFUEL CONSUMPT INCRSD',
@@ -934,6 +942,7 @@ export const EcamDeferredProcedures: { [n: string]: DeferredProcedure } = {
   ...EcamDeferredProcAta27,
   ...EcamDeferredProcAta313233,
   ...EcamDeferredProcAta34,
+  ...EcamDeferredProcAta70,
   ...EcamDeferredProcAta80Rest,
 };
 

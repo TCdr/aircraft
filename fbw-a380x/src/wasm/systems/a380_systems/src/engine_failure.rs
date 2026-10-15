@@ -244,6 +244,12 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         // MANUAL ENGINE START (l.180907-180908): "20 s maximum after ENG MASTER lever is set to ON:
         // N1 AND EGT INCREASE ... CHECK".
         no_light_up_time: Duration::from_secs(20),
+        // PRO-ABN-ECAM-10-70 ENG RELIGHT IN FLIGHT (l.174943): "Engine must relight within 30 s
+        // after fuel flow increases", the time of the relight attempt (engine_failure). Before
+        // 2026-10-09 the in-flight NO LIGHT UP came at the 20 s of the ground start.
+        in_flight_no_light_up_time: Duration::from_secs(30),
+        // ENG START FAULT NO STARTER AIR PRESSURE (l.172917-172928) has an "In flight:" branch.
+        monitors_in_flight_start_air: true,
         // DSC-70-90 (l.113191): EGT limit "745 °C, during the ground start sequence".
         start_egt_limit: ThermodynamicTemperature::new::<degree_celsius>(745.),
         // DSC-70-80-30-20 (l.112489-112491): "initiates two further attempts of automatic start
@@ -258,6 +264,13 @@ pub fn a380_engine_start_schedule() -> EngineStartSchedule {
         // DSC-70-80-20 (l.112367): "The FADEC uses both igniters, when the continuous ignition
         // operates."
         continuous_ignition_uses_both_igniters: true,
+        // Unchanged A380X behaviour (A32NX FCOM batch 7 kept the A380X as it was): the manual start
+        // lights up at the automatic light-up speed, every start fault cranks before the new start
+        // (DSC-70-80-30-20 l.112489: "initiates two further attempts of automatic start sequence
+        // after cranking"), and no starter fault is detected in flight.
+        manual_start_fuel_on_n2: Ratio::new::<percent>(20.),
+        stall_or_egt_restart_before_crank: false,
+        starter_fault_detected_in_flight: false,
     }
 }
 
@@ -469,6 +482,9 @@ impl A380EngineFailure {
                 <= Self::THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES,
             preset_quick_mode: self.preset_quick_mode,
             relight_pending: self.failure.is_flamed_out() || self.failure.is_seized(),
+            // Not modelled on the A380X (its continuous ignition of the FADEC AUTO RELIGHT is in
+            // the FADEC, EngineIgnition_A380X.hpp).
+            automatic_continuous_ignition: false,
         }
     }
 
@@ -497,6 +513,7 @@ impl A380EngineFailure {
                 lp_valve_starved,
                 start_sequence_fuel_cut: self.start.fuel_is_cut(),
                 ignition_available: self.start.ignition_is_available(),
+                automatic_continuous_ignition: false,
             },
         );
 
@@ -1082,6 +1099,43 @@ mod tests {
             assert_eq!(schedule.automatic_start_attempts, 3);
             assert_eq!(schedule.starter_time_limit, Some(Duration::from_secs(300)));
             assert!(schedule.continuous_ignition_uses_both_igniters);
+            // ENG RELIGHT IN FLIGHT (l.174943) and START FAULT NO STARTER AIR PRESSURE in flight
+            // (l.172917-172928)
+            assert_eq!(schedule.in_flight_no_light_up_time, Duration::from_secs(30));
+            assert!(schedule.monitors_in_flight_start_air);
+        }
+
+        #[test]
+        fn in_flight_no_light_up_comes_after_the_30_s_of_the_relight() {
+            let mut test_bed = flying_test_bed();
+            test_bed.fail(FailureType::EngineIgniterA(1));
+            test_bed.fail(FailureType::EngineIgniterB(1));
+            flame_out(&mut test_bed, 1);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+            master_off_then_on(&mut test_bed, 1);
+
+            run_for_seconds(&mut test_bed, 25);
+            let fault: f64 = test_bed.read_by_name("ENGINE_1_START_FAULT");
+            assert_eq!(fault, 0.);
+            run_for_seconds(&mut test_bed, 6);
+            let fault: f64 = test_bed.read_by_name("ENGINE_1_START_FAULT");
+            assert_eq!(fault, 1.);
+        }
+
+        #[test]
+        fn in_flight_a_start_valve_open_without_starter_air_is_no_starter_air_pressure() {
+            // 250 kt: a starter assisted relight; no bleed air at the starter
+            let mut test_bed = flying_test_bed();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(250.));
+            flame_out(&mut test_bed, 1);
+            test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_PRESSURIZED", false);
+            test_bed.write_by_name("PNEU_ENG_1_STARTER_VALVE_OPEN", true);
+            master_off_then_on(&mut test_bed, 1);
+
+            run_for_seconds(&mut test_bed, 11);
+            let fault: f64 = test_bed.read_by_name("ENGINE_1_START_FAULT");
+            assert_eq!(fault, 6.);
         }
 
         #[test]

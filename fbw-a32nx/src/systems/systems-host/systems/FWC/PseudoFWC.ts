@@ -64,6 +64,17 @@ import { acscPackFaults } from './Logic/AcscPackFaults';
 import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
 import { ALL_ENGINES_FAILURE_CODES, allEnginesFailureLines, isApuStartLineShown } from './Logic/AllEnginesFailure';
 import { altnLawLines, directLawLines, elacFaultLines } from './Logic/FlightControlLawAlerts';
+import {
+  FlightControlSurfaceMonitor,
+  FlightControlSurfacePhaseInhibition as FctlPhases,
+  NO_SURFACE_FAULT,
+  aileronFaultLines,
+  elac12FaultLines,
+  elacFaultAlerts,
+  elevatorFaultLines,
+  spoilerFaultLines,
+} from './Logic/FlightControlSurfaceAlerts';
+import * as FctlStatus from './Logic/FlightControlStatus';
 import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isToConfigSystemStatusNormal } from './Logic/ToConfigNormal';
 import { isGearNotUplockedForVle } from './Logic/LandingGearOverspeed';
@@ -78,6 +89,21 @@ import {
 } from './Logic/EngineFailAlerts';
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
 import { FUEL_FILTER_CLOG_PHASE_INHIBITION, engineFuelFilterClog } from './Logic/EngineFuelFilterAlerts';
+import { ElecSystemAcquisition } from './Acquisition/ElecSystemAcquisition';
+import {
+  BAT_FAULT_PHASE_INHIBITION,
+  BCL_FAULT_PHASE_INHIBITION,
+  ElecSystemAlertMonitor,
+  GEN_OVERLOAD_PHASE_INHIBITION,
+  IDG_OIL_PHASE_INHIBITION,
+  STATIC_INV_FAULT_PHASE_INHIBITION,
+  batFaultStatus,
+  bclFaultStatus,
+  genOverloadLines,
+  genOverloadStatus,
+  idgOilLines,
+  idgOilStatus,
+} from './Logic/ElecSystemAlerts';
 import {
   SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION,
   THR_LEVER_ABV_IDLE_PHASE_INHIBITION,
@@ -121,6 +147,68 @@ import {
   thrustLeverStatus,
 } from './Logic/FadecReverserAlerts';
 import { fireDetectionFaultAlerts } from './Logic/FireDetectionFaults';
+import { ElecNetworkAcquisition } from './Acquisition/ElecNetworkAcquisition';
+import {
+  ElecBusAlertMonitor,
+  acBus1FaultLines,
+  acBus1FaultStatus,
+  acBus2FaultLines,
+  acBus2FaultStatus,
+  acEssBusFaultLines,
+  acEssBusFaultStatus,
+  acEssBusShedLines,
+  acEssBusShedStatus,
+  apuGenFaultStatus,
+  dcBatBusFaultStatus,
+  dcBus1And2FaultLines,
+  dcBus1And2FaultStatus,
+  dcBus1FaultLines,
+  dcBus1FaultStatus,
+  dcBus2FaultLines,
+  dcBus2FaultStatus,
+  dcEmerConfigLines,
+  dcEmerConfigStatus,
+  dcEssBusFaultLines,
+  dcEssBusFaultStatus,
+  dcEssBusShedLines,
+  dcEssBusShedStatus,
+  engineGeneratorLostStatus,
+  essBusesOnBatLines,
+  trFaultStatus,
+} from './Logic/ElecBusAlerts';
+import { BleedAlerts, readBleedInputs } from './Logic/BleedAlerts';
+import {
+  EmerCancelMemory,
+  IrAlignmentRestore,
+  RECALL_NORMAL_MEMO_CODE,
+  RECALL_NORMAL_SECONDS,
+  RecallPushbutton,
+  TimedMessage,
+  cancelledCautionStatusCodes,
+  emerCancelAction,
+  isIrAligned,
+  isNothingToRecall,
+} from './Logic/EmerCancelRecall';
+import {
+  HydraulicAlertMonitor,
+  blueElecPumpLines,
+  blueReservoirLowAirPressureLines,
+  blueReservoirLowLevelLines,
+  blueReservoirOverheatLines,
+  blueYellowSysLoPrLines,
+  greenBlueSysLoPrLines,
+  greenEnginePumpLines,
+  greenReservoirLines,
+  greenReservoirLowAirPressureLines,
+  greenYellowSysLoPrLines,
+  hydraulicStatus,
+  ptuFaultLines,
+  yellowElecPumpLines,
+  yellowEnginePumpLines,
+  yellowReservoirLines,
+  yellowReservoirLowAirPressureLines,
+} from './Logic/HydraulicAlerts';
+import { APU_SHUTDOWN_INOP_SYS, apuShutdownAlerts, apuShutdownLines } from './Logic/ApuShutdownAlerts';
 import {
   centreTransferNotClosedLines,
   centreTransferNotOpenLines,
@@ -130,6 +218,7 @@ import {
   wingTankPumpAlerts,
   wingTankPumps1And2Lines,
 } from './Logic/FuelPumpValveFaults';
+import { BleedLeakMonitoringAlerts, readBleedLeakMonitoringInputs } from './Logic/BleedLeakMonitoringAlerts';
 import {
   alertStatus,
   cabFansFaultStatus,
@@ -930,6 +1019,14 @@ export class PseudoFWC {
 
   private readonly elecEmergency = Subject.create(false);
 
+  /** ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC), see Logic/ElecBusAlerts */
+  private readonly elecNetwork = new ElecNetworkAcquisition();
+
+  private readonly elecBusAlerts = new ElecBusAlertMonitor();
+
+  /** LAND ASAP (amber) of DC EMER CONFIG and ESS BUSES ON BAT */
+  private readonly elecBusLandAsap = Subject.create(false);
+
   private readonly elecEmerConfigWarning = Subject.create(false);
 
   private readonly elecEmerBusTieOffGen1ResetMemoryNode = new NXLogicMemoryNode(false);
@@ -1081,6 +1178,37 @@ export class PseudoFWC {
   private readonly flapsHandle = Subject.create(0);
 
   private readonly lrElevFaultCondition = Subject.create(false);
+
+  /** F/CTL surface cautions and the ELAC 1+2 FAULT combination, see Logic/FlightControlSurfaceAlerts */
+  private readonly fctlSurfaceMonitor = new FlightControlSurfaceMonitor();
+
+  private fctlSurfaces = NO_SURFACE_FAULT;
+
+  private fctlApEngaged = false;
+
+  private readonly elac1FaultAlert = Subject.create(false);
+
+  private readonly elac2FaultAlert = Subject.create(false);
+
+  private readonly elac12FaultAlert = Subject.create(false);
+
+  private readonly elac1PitchFault = Subject.create(false);
+
+  private readonly elac2PitchFault = Subject.create(false);
+
+  private readonly elevServoFault = Subject.create(false);
+
+  private readonly leftElevFault = Subject.create(false);
+
+  private readonly rightElevFault = Subject.create(false);
+
+  private readonly ailServoFault = Subject.create(false);
+
+  private readonly leftAilFault = Subject.create(false);
+
+  private readonly rightAilFault = Subject.create(false);
+
+  private readonly spoilerFault = Subject.create(false);
 
   private readonly sec1FaultCondition = Subject.create(false);
 
@@ -1350,6 +1478,17 @@ export class PseudoFWC {
   private readonly greenSysAbnormalLowPressure = Subject.create(false);
 
   private readonly twoHydraulicsOut = Subject.create(false);
+
+  /** The HYD cautions and warnings (FCOM PRO-ABN-HYD), see Logic/HydraulicAlerts */
+  private readonly hydraulicAlerts = new HydraulicAlertMonitor();
+
+  /* 49 - APU */
+
+  /** APU AUTO SHUT DOWN (FCOM PRO-ABN-APU), see Logic/ApuShutdownAlerts */
+  private readonly apuAutoShutDown = Subject.create(false);
+
+  /** APU EMER SHUT DOWN (FCOM PRO-ABN-APU), see Logic/ApuShutdownAlerts */
+  private readonly apuEmerShutDown = Subject.create(false);
 
   /* 31 - FWS */
 
@@ -1783,8 +1922,14 @@ export class PseudoFWC {
 
   private crossBleedSelector = CrossBleedSelector.Auto;
 
+  /** The AIR bleed cautions (FCOM PRO-ABN-AIR), see Logic/BleedAlerts */
+  private readonly bleedAlerts = new BleedAlerts();
+
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
+
+  /** AIR bleed leak, leak detection, HP valve and BMC cautions, see Logic/BleedLeakMonitoringAlerts */
+  private readonly bleedLeakMonitoringAlerts = new BleedLeakMonitoringAlerts();
 
   private readonly engine1OilLoPr = Subject.create(false);
 
@@ -1802,6 +1947,13 @@ export class PseudoFWC {
   private readonly engine1FuelFilterClog = Subject.create(false);
 
   private readonly engine2FuelFilterClog = Subject.create(false);
+
+  /** ELEC BAT/BCL FAULT, IDG OIL LO PR/OVHT, GEN/APU GEN OVERLOAD, STATIC INV FAULT, see Logic/ElecSystemAlerts */
+  private readonly elecSystem = new ElecSystemAcquisition();
+
+  private readonly elecSystemAlerts = new ElecSystemAlertMonitor();
+
+  private readonly galyAndCabAuto = RegisteredSimVar.createBoolean('L:A32NX_OVHD_ELEC_GALY_AND_CAB_PB_IS_AUTO');
 
   /** ENG 1(2) THR LEVER ABV IDLE, see Logic/EngineThrustSettingAlerts */
   private readonly thrustLeverAboveIdleMonitor = new ThrustLeverAboveIdleMonitor();
@@ -1886,6 +2038,9 @@ export class PseudoFWC {
   private readonly thrLeverRating = [ThrustLeverRating.Normal, ThrustLeverRating.Normal];
 
   private readonly reverseUnlockedShown = [Subject.create(false), Subject.create(false)];
+
+  /** The reverser is unlocked (no phase inhibition), for the "If REV unlocked" lines of ENG 1(2) SHUT DOWN */
+  private readonly reverserUnlocked = [Subject.create(false), Subject.create(false)];
 
   private readonly reverserFaultShown = [Subject.create(false), Subject.create(false)];
 
@@ -2666,6 +2821,7 @@ export class PseudoFWC {
     this.allCurrentFailures.length = 0;
     this.ewdPrimaryFailuresClearedLines.clear();
     this.ewdSecondaryFailuresCleared.clear();
+    this.emerCancel.reset();
     this.currentEwdLeftLayout = EMPTY_EWD_LAYOUT;
     this.currentEwdSecondaryFailureKey = undefined;
 
@@ -2706,6 +2862,24 @@ export class PseudoFWC {
     this.apInstinctiveDisconnectPressed = false;
   }
 
+  /** F/CTL SEC 1(2)(3) FAULT STATUS for the failed SECs, see Logic/FlightControlStatus */
+  private secFaultStatus() {
+    return FctlStatus.secFaultStatus(
+      this.sec1FaultCondition.get(),
+      this.sec2FaultCondition.get(),
+      this.sec3FaultCondition.get(),
+    );
+  }
+
+  /** F/CTL ALTN LAW STATUS, see Logic/FlightControlStatus */
+  private altnLawStatus() {
+    return FctlStatus.altnLawStatus(
+      this.twoHydraulicsOut.get(),
+      this.fctlSurfaces.leftOrRightElevatorLost,
+      this.fctlApEngaged,
+    );
+  }
+
   /**
    * The STATUS page (A320 FCOM DSC-31-20): the information lines and the inoperative systems of the active alerts, the
    * automatic call of the page and the STS reminder on the E/WD.
@@ -2724,10 +2898,16 @@ export class PseudoFWC {
     }
     const left = orderStatusCodes(info);
     const right = orderStatusCodes(inopSys);
-    this.statusLinesLeft.forEach((line, i) => line.set(left[i] ?? ''));
+    // CANCELLED CAUTION last in the left column (DSC-31-20 l.46193): the E/WD titles of the EMER CANC cautions
+    const cancelledCautions = cancelledCautionStatusCodes(
+      this.emerCancel.cancelledCautions.map((key) => this.ewdMessageFailures[key]?.codesToReturn[0]),
+    );
+    const leftLines = [...left, ...cancelledCautions];
+    this.statusLinesLeft.forEach((line, i) => line.set(leftLines[i] ?? ''));
     this.statusLinesRight.forEach((line, i) => line.set(right[i] ?? ''));
+    // A page with only CANCELLED CAUTION is not NORMAL, but gives no STS reminder (DSC-31-20 l.46233-46235)
     const statusEmpty = left.length === 0 && right.length === 0;
-    this.statusNormal.set(statusEmpty);
+    this.statusNormal.set(statusEmpty && cancelledCautions.length === 0);
 
     // CONF 1 for the approach: the flaps lever from 0 to 1 in flight (FWC phases 5 to 7)
     const flapsHandle = this.flapsHandle.get();
@@ -2896,6 +3076,57 @@ export class PseudoFWC {
     }
   }
 
+  /**
+   * EMER CANC pb (FCOM DSC-31-30 l.46809-46818), see Logic/EmerCancelRecall emerCancelAction: stops the aurals and the
+   * MASTER WARN light of the active warnings (their messages stay), or cancels the first caution of the E/WD for the rest
+   * of the flight (message, single chime and MASTER CAUT light; STATUS CANCELLED CAUTION).
+   */
+  private emergencyCancel(): void {
+    const displayedAlerts: { key: string; level: number }[] = [];
+    for (const entry of this.currentEwdLeftLayout.orderedEntries) {
+      if (!displayedAlerts.some((alert) => alert.key === entry.failureKey)) {
+        displayedAlerts.push({ key: entry.failureKey, level: this.ewdMessageFailures[entry.failureKey]?.failure ?? 0 });
+      }
+    }
+    const action = emerCancelAction(
+      this.requestMasterWarningFromFaults ||
+        this.auralCrcActive.get() ||
+        this.cChordActive.get() ||
+        this.cavalryChargeActive.get(),
+      displayedAlerts,
+    );
+
+    if (action.kind === 'silenceWarnings') {
+      this.emerCancel.silenceWarnings(
+        this.allCurrentFailures.filter((key) => this.ewdMessageFailures[key]?.failure === 3),
+      );
+      this.requestMasterWarningFromFaults = false;
+      this.auralCrcActive.set(false);
+      this.cChordActive.set(false);
+      this.cavalryChargeActive.set(false);
+    } else if (action.kind === 'cancelCaution') {
+      const key = action.key;
+      this.emerCancel.cancelCaution(key);
+      this.failuresLeft.splice(0, this.failuresLeft.length, ...this.failuresLeft.filter((k) => k !== key));
+      this.recallFailures = this.recallFailures.filter((k) => k !== key);
+      this.ewdPrimaryFailuresClearedLines.delete(key);
+      this.requestMasterCautionFromFaults = false;
+      this.auralSingleChimePending = false;
+    }
+  }
+
+  /** The cautions cancelled with EMER CANC are no longer cancelled; the active ones are shown again on the E/WD */
+  private restoreCancelledCautions(): void {
+    const restored = this.emerCancel.restoreCancelledCautions(
+      (key) => this.ewdMessageFailures[key]?.simVarIsActive.get() ?? false,
+    );
+    if (restored.length > 0) {
+      // Shown again as they were, without new attention getters; a long RCL press first showed NORMAL, not true then
+      this.failuresLeft.push(...restored.filter((key) => !this.failuresLeft.includes(key)));
+      this.recallNormalMessage.hide();
+    }
+  }
+
   private readonly ecpClear1Pulse = new NXLogicPulseNode(true);
   private readonly ecpClear2Pulse = new NXLogicPulseNode(true);
   private readonly ecpClearWirePulse = new NXLogicPulseNode(true);
@@ -2930,6 +3161,14 @@ export class PseudoFWC {
   private ecpEmergencyCancelPulseUp = false;
   private ecpEmergencyCancelPulseDown = false;
   private ecpEmergencyCancelLevel = false;
+  private ecpEmergencyCancelPulseUpHandled = false;
+  /** EMER CANC and RCL (FCOM DSC-31-30), see Logic/EmerCancelRecall */
+  private readonly emerCancel = new EmerCancelMemory();
+  private readonly recallPushbutton = new RecallPushbutton();
+  /** The RCL pb has just been held for 3 s (true in one update) */
+  private ecpRecallLongPress = false;
+  private readonly recallNormalMessage = new TimedMessage(RECALL_NORMAL_SECONDS);
+  private readonly cancelledCautionIrRestore = new IrAlignmentRestore();
 
   private processEcpButtons(deltaTime: number): void {
     const warningButtons = this.ecpWarningButtonStatus.get();
@@ -2979,6 +3218,8 @@ export class PseudoFWC {
         deltaTime,
       ) && !warningButtons.isFailureWarning();
     this.ecpEmergencyCancelLevel = warningButtons.bitValue(17) || this.ecpEmergencyCancelButtonHardwired.get();
+
+    this.ecpRecallLongPress = this.recallPushbutton.update(this.ecpRecallLevel, deltaTime / 1000);
   }
 
   private readonly fac1HealthyVar = RegisteredSimVar.createBoolean('L:A32NX_FAC_1_HEALTHY');
@@ -3178,7 +3419,8 @@ export class PseudoFWC {
     );
     this.toConfigHalfSecondTriggeredNode.write(this.toConfigPulseNode.read(), deltaTime);
 
-    this.flightPhaseInhibitOverrideNode.write(this.ecpRecallPulseUp, this.flightPhaseEndedPulseNode.read());
+    // RCL pb held for more than 3 s: no flight phase inhibition until the next flight phase (FCOM DSC-31-30 l.46764-46765)
+    this.flightPhaseInhibitOverrideNode.write(this.ecpRecallLongPress, this.flightPhaseEndedPulseNode.read());
 
     this.showTakeoffInhibit.set(
       this.toInhibitTimer.write(this.flightPhase345.get() && !this.flightPhaseInhibitOverrideNode.read(), deltaTime),
@@ -3226,7 +3468,7 @@ export class PseudoFWC {
     this.apuMasterSwitch.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'bool'));
 
     this.apuAvail.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool'));
-    this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_BLEED_PB_IS_ON', 'bool'));
+    this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool'));
 
     this.radioAlt.set(SimVar.GetSimVarValue('PLANE ALT ABOVE GROUND MINUS CG', 'feet'));
 
@@ -3278,7 +3520,8 @@ export class PseudoFWC {
 
     /* HYDRAULICS acquisition */
     this.blueElecPumpPBAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_EPUMPB_PB_IS_AUTO', 'bool'));
-    this.blueLP.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_EDPUMP_LOW_PRESS', 'bool'));
+    // the blue pump is an electric pump: EPUMP, not EDPUMP (a320_systems hydraulic/mod.rs A320BlueElectricPumpController)
+    this.blueLP.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_EPUMP_LOW_PRESS', 'bool'));
     this.blueRvrLow.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_RESERVOIR_LEVEL_IS_LOW', 'bool'));
     this.blueRvrOvht.set(SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_RESERVOIR_OVHT', 'bool'));
     this.eng1pumpPBisAuto.set(SimVar.GetSimVarValue('L:A32NX_OVHD_HYD_ENG_1_PUMP_PB_IS_AUTO', 'bool'));
@@ -3798,6 +4041,58 @@ export class PseudoFWC {
       deltaTime,
     );
 
+    // HYD cautions and warnings (Logic/HydraulicAlerts), on the system low pressures of twoHydraulicsOut
+    const hydSystem = (color: string, lowPressure: boolean) => ({
+      lowPressure,
+      reservoirLowLevel: SimVar.GetSimVarValue(`L:A32NX_HYD_${color}_RESERVOIR_LEVEL_IS_LOW`, 'bool') > 0,
+      reservoirLowAirPressure: SimVar.GetSimVarValue(`L:A32NX_HYD_${color}_RESERVOIR_AIR_PRESSURE_IS_LOW`, 'bool') > 0,
+      reservoirOverheat: SimVar.GetSimVarValue(`L:A32NX_HYD_${color}_RESERVOIR_OVHT`, 'bool') > 0,
+    });
+    this.hydraulicAlerts.update(
+      {
+        green: hydSystem('GREEN', this.greenSysAbnormalLowPressure.get()),
+        blue: hydSystem('BLUE', this.blueSysAbnormalLowPressure.get()),
+        yellow: hydSystem('YELLOW', this.yellowSysAbnormalLowPressure.get()),
+        greenEnginePumpLowPressure: !!this.greenLP.get(),
+        yellowEnginePumpLowPressure: !!this.yellowLP.get(),
+        blueElecPumpLowPressure: !!this.blueLP.get(),
+        yellowElecPumpLowPressure: SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_EPUMP_LOW_PRESS', 'bool') > 0,
+        blueElecPumpOverheat: SimVar.GetSimVarValue('L:A32NX_HYD_BLUE_EPUMP_OVHT', 'bool') > 0,
+        yellowElecPumpOverheat: SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_EPUMP_OVHT', 'bool') > 0,
+        greenEnginePumpSectionLow: !SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_PUMP_1_SECTION_PRESSURE_SWITCH', 'bool'),
+        yellowEnginePumpSectionLow: !SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_PUMP_1_SECTION_PRESSURE_SWITCH', 'bool'),
+        greenEnginePumpPbAuto: !!this.eng1pumpPBisAuto.get(),
+        yellowEnginePumpPbAuto: !!this.eng2pumpPBisAuto.get(),
+        blueElecPumpPbAuto: !!this.blueElecPumpPBAuto.get(),
+        // the YELLOW ELEC PUMP pb is an AUTO (off) / ON pb
+        yellowElecPumpPbOn: !this.yepumpPBisAuto.get(),
+        ptuPbAuto: !!this.ptuAuto.get(),
+        ptuShaftRpm: SimVar.GetSimVarValue('L:A32NX_HYD_PTU_SHAFT_RPM', 'number'),
+        greenPressurePsi: SimVar.GetSimVarValue('L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE', 'number'),
+        yellowPressurePsi: SimVar.GetSimVarValue('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE', 'number'),
+        engine1Running: this.engine1CoreAtOrAboveMinIdle.get(),
+        engine2Running: this.engine2CoreAtOrAboveMinIdle.get(),
+        engine1MasterOn: !!this.engine1ValueSwitch.get(),
+        engine2MasterOn: !!this.engine2ValueSwitch.get(),
+        onGround: this.aircraftOnGround.get(),
+        ratStowed: this.ratDeployedVar.get() <= 0,
+      },
+      this.fwcFlightPhase.get(),
+      deltaTime / 1000,
+    );
+
+    // APU AUTO (EMER) SHUT DOWN (Logic/ApuShutdownAlerts), from the APU ECB
+    const apuShutdown = apuShutdownAlerts({
+      autoShutdown: SimVar.GetSimVarValue('L:A32NX_APU_IS_AUTO_SHUTDOWN', 'bool') > 0,
+      emergencyShutdown: SimVar.GetSimVarValue('L:A32NX_APU_IS_EMERGENCY_SHUTDOWN', 'bool') > 0,
+      apuFireWarning: isFireWarningActive({
+        fireTest: this.apuFireTest.get(),
+        fireDetected: this.apuFireDetected.get(),
+      }),
+    });
+    this.apuAutoShutDown.set(apuShutdown.autoShutdown);
+    this.apuEmerShutDown.set(apuShutdown.emergencyShutdown);
+
     // Memo
     this.toMemoFlipFlop.write(
       (flightPhase === 2 || flightPhase === 9) && toConfigTest,
@@ -4187,6 +4482,10 @@ export class PseudoFWC {
         (this.sdac00201Word.bitValue(20) && this.sdac00210Word.bitValue(20)),
     );
 
+    // ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC, see Logic/ElecBusAlerts)
+    this.elecBusAlerts.update(this.elecNetwork.readNetwork(), this.elecEmergency.get(), deltaTime / 1000);
+    this.elecBusLandAsap.set(this.elecBusAlerts.landAsap);
+
     /* OTHER STUFF */
 
     this.airKnob.set(SimVar.GetSimVarValue('L:A32NX_AIR_DATA_SWITCHING_KNOB', 'enum'));
@@ -4446,6 +4745,34 @@ export class PseudoFWC {
         rhElevGreenFail &&
         ![1, 10].includes(this.fwcFlightPhase.get()),
     );
+
+    // F/CTL surface cautions (FCOM PRO-ABN-F_CTL), ELAC 1+2 FAULT, see Logic/FlightControlSurfaceAlerts
+    this.fctlSurfaces = this.fctlSurfaceMonitor.update(
+      {
+        fcdc1: { word1: fcdc1DiscreteWord1, word3: fcdc1DiscreteWord3, word5: fcdc1DiscreteWord5 },
+        fcdc2: { word1: fcdc2DiscreteWord1, word3: fcdc2DiscreteWord3, word5: fcdc2DiscreteWord5 },
+        bluePressurised: !!blueSysPressurised,
+        greenPressurised: !!greenSysPressurised,
+        yellowPressurised: !!yellowSysPressurised,
+      },
+      deltaTime / 1000,
+    );
+    const elacAlerts = elacFaultAlerts(this.elac1FaultConfirmNodeOutput.get(), this.elac2FaultConfirmNodeOutput.get());
+    this.elac1FaultAlert.set(elacAlerts.elac1Fault);
+    this.elac2FaultAlert.set(elacAlerts.elac2Fault);
+    this.elac12FaultAlert.set(elacAlerts.elac12Fault);
+    this.elac1PitchFault.set(this.fctlSurfaces.elac1PitchFault);
+    this.elac2PitchFault.set(this.fctlSurfaces.elac2PitchFault);
+    this.elevServoFault.set(this.fctlSurfaces.elevServoFault);
+    this.leftElevFault.set(this.fctlSurfaces.leftElevatorFault);
+    this.rightElevFault.set(this.fctlSurfaces.rightElevatorFault);
+    this.ailServoFault.set(this.fctlSurfaces.ailServoFault);
+    this.leftAilFault.set(this.fctlSurfaces.leftAileronFault);
+    this.rightAilFault.set(this.fctlSurfaces.rightAileronFault);
+    this.spoilerFault.set(this.fctlSurfaces.spoilerFault);
+    this.fctlApEngaged =
+      SimVar.GetSimVarValue('L:A32NX_FMGC_1_AP_ENGAGED', SimVarValueType.Bool) > 0 ||
+      SimVar.GetSimVarValue('L:A32NX_FMGC_2_AP_ENGAGED', SimVarValueType.Bool) > 0;
 
     // GND SPLRS FAULT status
     const sec1GroundSpoilerFault = fcdc1DiscreteWord5.bitValue(14) || fcdc2DiscreteWord5.bitValue(14);
@@ -5005,6 +5332,9 @@ export class PseudoFWC {
     this.engine2ShutDown.set(isEngineShutDown(engine2MasterOn, engine2FirePbPushed, flightPhase) && !allEnginesFailed);
     this.crossBleedSelector = SimVar.GetSimVarValue('L:A32NX_KNOB_OVHD_AIRCOND_XBLEED_Position', 'number');
 
+    /* AIR bleed cautions (FCOM PRO-ABN-AIR), from the Rust pneumatic flags, see Logic/BleedAlerts */
+    this.bleedAlerts.update(readBleedInputs(), deltaTime / 1000);
+
     /* ENG 1(2) OIL LO PR, OIL HI TEMP, OIL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineOilAlerts) */
     // The oil pressure and temperature the FADEC computes, the clogged filter from the systems (engine/oil_failure.rs)
     this.engineOilMonitors.forEach((monitor, index) => {
@@ -5027,6 +5357,9 @@ export class PseudoFWC {
     this.engine1OilFilterClog.set(this.engineOilMonitors[0].isFilterClogged);
     this.engine2OilFilterClog.set(this.engineOilMonitors[1].isFilterClogged);
 
+    /* AIR bleed leak, leak detection, HP valve and BMC cautions (FCOM PRO-ABN-AIR, PRO-ABN-BLEED), from the Rust BMCs */
+    this.bleedLeakMonitoringAlerts.update(readBleedLeakMonitoringInputs());
+
     /* ENG 1(2) FUEL FILTER CLOG (FCOM PRO-ABN-ENG, see Logic/EngineFuelFilterAlerts) */
     // The clogged filter from the systems (engine/fuel_filter_failure.rs)
     [this.engine1FuelFilterClog, this.engine2FuelFilterClog].forEach((alert, index) => {
@@ -5039,6 +5372,9 @@ export class PseudoFWC {
         }),
       );
     });
+
+    /* ELEC system failures (FCOM PRO-ABN-ELEC, see Logic/ElecSystemAlerts) */
+    this.elecSystemAlerts.update(this.elecSystem.read());
 
     /* ENG 1(2) THR LEVER ABV IDLE, ENG SAT ABOVE FLEX TEMP (FCOM PRO-ABN-ENG, see Logic/EngineThrustSettingAlerts) */
     this.thrustLeverAboveIdleMonitor.update({
@@ -5165,12 +5501,9 @@ export class PseudoFWC {
           autoIdle,
         ),
       );
+      this.reverserUnlocked[engineIndex].set(SimVar.GetSimVarValue(`L:A32NX_REVERSER_${engine}_UNLOCKED`, 'bool') > 0);
       this.reverseUnlockedShown[engineIndex].set(
-        isShownInTakeoffUnlessAutoIdle(
-          SimVar.GetSimVarValue(`L:A32NX_REVERSER_${engine}_UNLOCKED`, 'bool') > 0,
-          flightPhase,
-          autoIdle,
-        ),
+        isShownInTakeoffUnlessAutoIdle(this.reverserUnlocked[engineIndex].get(), flightPhase, autoIdle),
       );
       this.reverserFaultShown[engineIndex].set(
         isReverserFaultShown(
@@ -5777,7 +6110,17 @@ export class PseudoFWC {
       this.ecpRecallPulseUpHandled = false;
     }
 
+    this.recallNormalMessage.update(deltaTime / 1000);
     if (this.ecpRecallPulseUp && !this.ecpRecallPulseUpHandled) {
+      // Nothing to recall: NORMAL for 3 s on the E/WD (FCOM DSC-31-30 l.46763)
+      if (
+        isNothingToRecall(
+          this.recallFailures.length,
+          this.ewdPrimaryFailuresClearedLines.size + this.ewdSecondaryFailuresCleared.size,
+        )
+      ) {
+        this.recallNormalMessage.show();
+      }
       if (this.recallFailures.length > 0) {
         this.failuresLeft.push(...this.recallFailures.splice(0));
       }
@@ -5785,6 +6128,27 @@ export class PseudoFWC {
       this.ewdPrimaryFailuresClearedLines.clear();
       this.ewdSecondaryFailuresCleared.clear();
       this.ecpRecallPulseUpHandled = true;
+    }
+
+    // RCL pb held for more than 3 s: the cautions cancelled with EMER CANC come back (FCOM DSC-31-30 l.46759-46761, l.46820)
+    if (this.ecpRecallLongPress) {
+      this.restoreCancelledCautions();
+    }
+    // ... and automatically in phase 1 or 2 when IRs 1 and 2 are aligned (l.46821-46823)
+    const irAligned = (number: 1 | 2) => {
+      const maintWord = Arinc429Word.fromSimVarValue(`L:A32NX_ADIRS_IR_${number}_MAINT_WORD`);
+      return isIrAligned(maintWord.isNormalOperation(), maintWord.bitValueOr(1, false), maintWord.bitValueOr(3, false));
+    };
+    if (this.cancelledCautionIrRestore.update(this.fwcFlightPhase.get(), irAligned(1), irAligned(2))) {
+      this.restoreCancelledCautions();
+    }
+
+    if (!this.ecpEmergencyCancelPulseUp) {
+      this.ecpEmergencyCancelPulseUpHandled = false;
+    }
+    if (this.ecpEmergencyCancelPulseUp && !this.ecpEmergencyCancelPulseUpHandled) {
+      this.emergencyCancel();
+      this.ecpEmergencyCancelPulseUpHandled = true;
     }
 
     // Output logic
@@ -5799,9 +6163,10 @@ export class PseudoFWC {
           this.apuFireTest.get() ||
           this.elecEmergency.get() ||
           (this.engine1State.get() === EngineState.Off && this.engine2State.get() === EngineState.Off) ||
-          (this.greenLP.get() && this.yellowLP.get()) ||
-          (this.yellowLP.get() && this.blueLP.get()) ||
-          (this.greenLP.get() && this.blueLP.get())),
+          // HYD B+Y, G+B, G+Y SYS LO PR (FCOM l.88281, l.88462, l.88646), on the system pressures instead of two pump
+          // low pressure discretes (a pump LO PR with the PTU or the other pump still pressurising its system is no dual
+          // hydraulic failure)
+          this.hydraulicAlerts.landAsapRed),
     );
 
     // fire always forces the master warning and SC aural on
@@ -5851,13 +6216,22 @@ export class PseudoFWC {
 
     // Failures first
     for (const [key, value] of failureEntries) {
+      // A caution cancelled with EMER CANC: no message, attention getter nor STATUS for the rest of the flight
+      if (this.emerCancel.isCancelledCaution(key)) {
+        continue;
+      }
       // new warning?
       const newWarning =
         (value.side === undefined && !this.specialCodes.includes(key)) ||
         (value.side === 'LEFT' && !this.failuresLeft.includes(key) && !recallFailureKeys.includes(key)) ||
         (value.side === 'RIGHT' && !this.failuresRight.includes(key) && !this.ewdSecondaryFailuresCleared.has(key));
 
-      if (newWarning && value.flightPhaseInhib.some((e) => e === flightPhase)) {
+      // A RCL pb held for more than 3 s suppresses the flight phase inhibition until the next phase (DSC-31-30 l.46764)
+      if (
+        newWarning &&
+        !this.flightPhaseInhibitOverrideNode.read() &&
+        value.flightPhaseInhib.some((e) => e === flightPhase)
+      ) {
         continue;
       }
       const auralWarning = value.auralWarning?.get();
@@ -5946,7 +6320,7 @@ export class PseudoFWC {
         auralScKeys.push(key);
       }
 
-      if (auralWarning === FwcAuralWarning.CavalryCharge) {
+      if (auralWarning === FwcAuralWarning.CavalryCharge && !this.emerCancel.isSilencedWarning(key)) {
         auralCavchargeKeys.push(key);
       }
 
@@ -5962,6 +6336,8 @@ export class PseudoFWC {
 
     this.auralCrcKeys = auralCrcKeys;
     this.auralScKeys = auralScKeys;
+    // A warning silenced with EMER CANC has its aural again when it is triggered a second time
+    this.emerCancel.forgetInactiveWarnings(allFailureKeys);
 
     if (this.auralCrcKeys.length === 0) {
       this.auralCrcActive.set(false);
@@ -6031,7 +6407,9 @@ export class PseudoFWC {
     let orderedMemoArrayRight: string[] = tempMemoArrayRight.sort(compareEwdMessageCodes);
 
     if (!failLeft) {
-      this.ewdMessageLinesLeft.forEach((l, i) => l.set(orderedMemoArrayLeft[i]));
+      // RCL with nothing to recall: NORMAL replaces the memos for 3 s (design choice, FCOM DSC-31-30 l.46763)
+      const memoLinesLeft = this.recallNormalMessage.isShown ? [RECALL_NORMAL_MEMO_CODE] : orderedMemoArrayLeft;
+      this.ewdMessageLinesLeft.forEach((l, i) => l.set(memoLinesLeft[i]));
     }
 
     if (activeMasterCautionFailureCount === 0) {
@@ -6569,6 +6947,158 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
+    // ELEC system failures (FCOM PRO-ABN-ELEC, see Logic/ElecSystemAlerts): amber cautions on the ELEC page
+    2400201: {
+      // BAT 1 FAULT
+      flightPhaseInhib: BAT_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.batFault[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240020101'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => batFaultStatus(1).inopSys,
+      statusInfo: () => batFaultStatus(1).left,
+    },
+    2400202: {
+      // BAT 2 FAULT
+      flightPhaseInhib: BAT_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.batFault[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240020201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => batFaultStatus(2).inopSys,
+      statusInfo: () => batFaultStatus(2).left,
+    },
+    2400203: {
+      // BCL 1 FAULT
+      flightPhaseInhib: BCL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.bclFault[0],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240020301'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => bclFaultStatus(1).inopSys,
+      statusInfo: () => bclFaultStatus(1).left,
+    },
+    2400204: {
+      // BCL 2 FAULT
+      flightPhaseInhib: BCL_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.bclFault[1],
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240020401'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => bclFaultStatus(2).inopSys,
+      statusInfo: () => bclFaultStatus(2).left,
+    },
+    2400205: {
+      // IDG 1 OIL LO PR
+      flightPhaseInhib: IDG_OIL_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.idgOilLowPressure[0],
+      whichCodeToReturn: () => idgOilLines(),
+      codesToReturn: ['240020501', '240020502'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => idgOilStatus(1, this.elecSystem.apuGenOnline).inopSys,
+      statusInfo: () => idgOilStatus(1, this.elecSystem.apuGenOnline).left,
+    },
+    2400206: {
+      // IDG 2 OIL LO PR
+      flightPhaseInhib: IDG_OIL_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.idgOilLowPressure[1],
+      whichCodeToReturn: () => idgOilLines(),
+      codesToReturn: ['240020601', '240020602'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => idgOilStatus(2, this.elecSystem.apuGenOnline).inopSys,
+      statusInfo: () => idgOilStatus(2, this.elecSystem.apuGenOnline).left,
+    },
+    2400207: {
+      // IDG 1 OIL OVHT
+      flightPhaseInhib: IDG_OIL_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.idgOilOverheat[0],
+      whichCodeToReturn: () => idgOilLines(),
+      codesToReturn: ['240020701', '240020702'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => idgOilStatus(1, this.elecSystem.apuGenOnline).inopSys,
+      statusInfo: () => idgOilStatus(1, this.elecSystem.apuGenOnline).left,
+    },
+    2400208: {
+      // IDG 2 OIL OVHT
+      flightPhaseInhib: IDG_OIL_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.idgOilOverheat[1],
+      whichCodeToReturn: () => idgOilLines(),
+      codesToReturn: ['240020801', '240020802'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => idgOilStatus(2, this.elecSystem.apuGenOnline).inopSys,
+      statusInfo: () => idgOilStatus(2, this.elecSystem.apuGenOnline).left,
+    },
+    2400209: {
+      // GEN 1 OVERLOAD
+      flightPhaseInhib: GEN_OVERLOAD_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.genOverload[0],
+      whichCodeToReturn: () => genOverloadLines(!this.galyAndCabAuto.get()),
+      codesToReturn: ['240020901', '240020902'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => genOverloadStatus().inopSys,
+    },
+    2400210: {
+      // GEN 2 OVERLOAD
+      flightPhaseInhib: GEN_OVERLOAD_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.genOverload[1],
+      whichCodeToReturn: () => genOverloadLines(!this.galyAndCabAuto.get()),
+      codesToReturn: ['240021001', '240021002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => genOverloadStatus().inopSys,
+    },
+    2400211: {
+      // APU GEN OVERLOAD
+      flightPhaseInhib: GEN_OVERLOAD_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.apuGenOverload,
+      whichCodeToReturn: () => genOverloadLines(!this.galyAndCabAuto.get()),
+      codesToReturn: ['240021101', '240021102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => genOverloadStatus().inopSys,
+    },
+    2400212: {
+      // STATIC INV FAULT
+      flightPhaseInhib: STATIC_INV_FAULT_PHASE_INHIBITION,
+      simVarIsActive: this.elecSystemAlerts.staticInverterFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240021201'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+    },
     2400001: {
       // GEN 1 FAULT
       flightPhaseInhib: [1, 4, 5, 7, 8, 10],
@@ -6584,6 +7114,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).left,
     },
     2400002: {
       // GEN 2 FAULT
@@ -6600,6 +7132,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).left,
     },
     2400004: {
       // APU GEN FAULT
@@ -6616,6 +7150,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => apuGenFaultStatus(this.elecNetwork.onlyOneGenOperating).inopSys,
+      statusInfo: () => apuGenFaultStatus(this.elecNetwork.onlyOneGenOperating).left,
     },
     2400060: {
       // GEN 1 OFF
@@ -6627,6 +7163,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).left,
     },
     2400070: {
       // GEN 2 OFF
@@ -6638,6 +7176,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).left,
     },
     2400400: {
       // IDG 1 DISCONNECTED
@@ -6649,6 +7189,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline).left,
     },
     2400405: {
       // IDG 2 DISCONNECTED
@@ -6658,6 +7200,217 @@ export class PseudoFWC {
       codesToReturn: ['240040501'],
       memoInhibit: () => false,
       failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).inopSys,
+      statusInfo: () => engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline).left,
+    },
+    /*
+     * ELEC bus, ESS bus and TR alerts (FCOM PRO-ABN-ELEC, see Logic/ElecBusAlerts). Design choices [GK], the FCOM figures
+     * are not in the text: all amber on the ELEC page; the alerts with a procedure are cautions (single chime, MASTER
+     * CAUT) inhibited in phases 4, 5, 7 and 8, the crew awareness ones in phases 3, 4, 5, 7 and 8 too (AC ESS BUS ALTN
+     * without chime or MASTER CAUT); DC EMER CONFIG and ESS BUSES ON BAT inhibited in phases 4 and 8, as ELEC EMER CONFIG.
+     */
+    2400110: {
+      // DC EMER CONFIG
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcEmerConfig,
+      whichCodeToReturn: () =>
+        dcEmerConfigLines(this.sdac00410Word.bitValue(27), this.elecNetwork.blowerAuto, this.elecNetwork.extractAuto),
+      codesToReturn: ['240011001', '240011002', '240011003', '240011004', '240011005', '240011006'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcEmerConfigStatus().inopSys,
+      statusInfo: () => dcEmerConfigStatus().left,
+    },
+    2400113: {
+      // ESS BUSES ON BAT
+      flightPhaseInhib: [4, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.essBusesOnBat,
+      whichCodeToReturn: () => essBusesOnBatLines(this.sdac00101Word.bitValue(28), this.sdac00410Word.bitValue(27)),
+      codesToReturn: ['240011301', '240011302', '240011303'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+    },
+    2400101: {
+      // AC BUS 1 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acBus1Fault,
+      whichCodeToReturn: () => acBus1FaultLines(this.elecNetwork.blowerAuto),
+      codesToReturn: ['240010101', '240010102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => acBus1FaultStatus().inopSys,
+      statusInfo: () => acBus1FaultStatus().left,
+    },
+    2400102: {
+      // AC BUS 2 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acBus2Fault,
+      whichCodeToReturn: () => acBus2FaultLines(this.elecNetwork.extractAuto, this.selectedXpdr.get() === 2),
+      codesToReturn: ['240010201', '240010202', '240010203'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => acBus2FaultStatus().inopSys,
+      statusInfo: () => acBus2FaultStatus().left,
+    },
+    2400104: {
+      // AC ESS BUS FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acEssBusFault,
+      whichCodeToReturn: () =>
+        acEssBusFaultLines(this.elecBusAlerts.state.acEssFeedPbNormal, this.selectedXpdr.get() === 1),
+      codesToReturn: ['240010401', '240010402', '240010403'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => acEssBusFaultStatus().inopSys,
+      statusInfo: () => acEssBusFaultStatus().left,
+    },
+    2400105: {
+      // AC ESS BUS SHED
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acEssBusShed,
+      whichCodeToReturn: () => acEssBusShedLines(this.selectedXpdr.get() === 1),
+      codesToReturn: ['240010501', '240010502'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => acEssBusShedStatus().inopSys,
+      statusInfo: () => acEssBusShedStatus().left,
+    },
+    2400109: {
+      // DC BUS 1+2 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcBus1And2Fault,
+      whichCodeToReturn: () => dcBus1And2FaultLines(this.elecNetwork.blowerAuto, this.elecNetwork.extractAuto),
+      codesToReturn: ['240010901', '240010902', '240010903', '240010904', '240010905'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcBus1And2FaultStatus().inopSys,
+      statusInfo: () => dcBus1And2FaultStatus().left,
+    },
+    2400111: {
+      // DC ESS BUS FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcEssBusFault,
+      whichCodeToReturn: () =>
+        dcEssBusFaultLines(
+          this.elecNetwork.gpwsSysOff,
+          !this.elecBusAlerts.state.dcBus2Powered,
+          this.lgDownlocked.get(),
+        ),
+      codesToReturn: ['240011101', '240011102', '240011103', '240011104', '240011105', '240011106', '240011107'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcEssBusFaultStatus(!this.elecBusAlerts.state.dcBus2Powered).inopSys,
+      statusInfo: () => dcEssBusFaultStatus(!this.elecBusAlerts.state.dcBus2Powered).left,
+    },
+    2400107: {
+      // DC BUS 1 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcBus1Fault,
+      whichCodeToReturn: () => dcBus1FaultLines(this.elecNetwork.blowerAuto, this.elecNetwork.extractAuto),
+      codesToReturn: ['240010701', '240010702', '240010703'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcBus1FaultStatus().inopSys,
+      statusInfo: () => dcBus1FaultStatus().left,
+    },
+    2400108: {
+      // DC BUS 2 FAULT
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcBus2Fault,
+      whichCodeToReturn: () =>
+        dcBus2FaultLines(
+          this.airKnob.get() === AirDataSwitchingKnob.Fo,
+          !this.elecBusAlerts.state.dcEssBusPowered,
+          this.lgDownlocked.get(),
+        ),
+      codesToReturn: ['240010801', '240010802', '240010803', '240010804'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcBus2FaultStatus(!this.elecBusAlerts.state.dcEssBusPowered).inopSys,
+      statusInfo: () => dcBus2FaultStatus(!this.elecBusAlerts.state.dcEssBusPowered).left,
+    },
+    2400112: {
+      // DC ESS BUS SHED
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcEssBusShed,
+      whichCodeToReturn: () => dcEssBusShedLines(this.elecNetwork.extractAuto),
+      codesToReturn: ['240011201', '240011202', '240011203'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcEssBusShedStatus().inopSys,
+      statusInfo: () => dcEssBusShedStatus().left,
+    },
+    2400106: {
+      // DC BAT BUS FAULT (crew awareness)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.dcBatBusFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240010601'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => dcBatBusFaultStatus().inopSys,
+      statusInfo: () => dcBatBusFaultStatus().left,
+    },
+    2400114: {
+      // TR 1 FAULT (crew awareness)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.tr1Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240011401'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => trFaultStatus(1).inopSys,
+      statusInfo: () => trFaultStatus(1).left,
+    },
+    2400115: {
+      // TR 2 FAULT (crew awareness)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.tr2Fault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240011501'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.ELEC,
+      side: 'LEFT',
+      inopSys: () => trFaultStatus(2).inopSys,
+      statusInfo: () => trFaultStatus(2).left,
+    },
+    2400103: {
+      // AC ESS BUS ALTN (crew awareness)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.elecBusAlerts.alerts.acEssBusAltn,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['240010301'],
+      memoInhibit: () => false,
+      failure: 1,
       sysPage: EcamSysPage.ELEC,
       side: 'LEFT',
     },
@@ -6956,6 +7709,7 @@ export class PseudoFWC {
           crossBleedSelector: this.crossBleedSelector,
           engModeSelIgn: this.engSelectorPosition.get() === 2,
           tcasModeTa: this.tcasControlPanelPosition.get() === 1,
+          reverserUnlocked: this.reverserUnlocked[0].get(),
         }),
       codesToReturn: [
         '770011101',
@@ -6969,13 +7723,19 @@ export class PseudoFWC {
         '770011109',
         '770011110',
         '770011111',
+        '770011112',
+        '770011113',
       ],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
-      inopSys: () => engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get()).inopSys,
-      statusInfo: () => engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get()).left,
+      inopSys: () =>
+        engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get(), this.reverserUnlocked[0].get())
+          .inopSys,
+      statusInfo: () =>
+        engineShutDownStatus(1, !!this.fireButton1.get(), !!this.wingAntiIce.get(), this.reverserUnlocked[0].get())
+          .left,
     },
     7700112: {
       // ENG 2 SHUT DOWN (FCOM PRO-ABN-ENG, see Logic/EngineFailAlerts): amber, no flight phase inhibition
@@ -6992,6 +7752,7 @@ export class PseudoFWC {
           crossBleedSelector: this.crossBleedSelector,
           engModeSelIgn: this.engSelectorPosition.get() === 2,
           tcasModeTa: this.tcasControlPanelPosition.get() === 1,
+          reverserUnlocked: this.reverserUnlocked[1].get(),
         }),
       codesToReturn: [
         '770011201',
@@ -7005,13 +7766,19 @@ export class PseudoFWC {
         '770011209',
         '770011210',
         '770011211',
+        '770011212',
+        '770011213',
       ],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.ENG,
       side: 'LEFT',
-      inopSys: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).inopSys,
-      statusInfo: () => engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get()).left,
+      inopSys: () =>
+        engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get(), this.reverserUnlocked[1].get())
+          .inopSys,
+      statusInfo: () =>
+        engineShutDownStatus(2, !!this.fireButton2.get(), !!this.wingAntiIce.get(), this.reverserUnlocked[1].get())
+          .left,
     },
     7700501: {
       // ENG 1 FADEC A FAULT (FCOM PRO-ABN-ENG l.79545-79557): crew awareness, inhibited in phases 3, 4, 5, 7, 8
@@ -7088,6 +7855,7 @@ export class PseudoFWC {
         '770053106',
         '770053107',
         '770053108',
+        '770053109',
       ],
       memoInhibit: () => false,
       failure: 2,
@@ -7236,6 +8004,7 @@ export class PseudoFWC {
         '770053206',
         '770053207',
         '770053208',
+        '770053209',
       ],
       memoInhibit: () => false,
       failure: 2,
@@ -7771,6 +8540,31 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => ['260300006'],
     },
+    4900101: {
+      // APU AUTO SHUT DOWN (FCOM PRO-ABN-APU, see Logic/ApuShutdownAlerts). Design choice: the flight phase inhibition
+      // of the other APU cautions (the FCOM figure is not in its text)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.apuAutoShutDown,
+      whichCodeToReturn: () => apuShutdownLines(this.apuMasterSwitch.get() === 1),
+      codesToReturn: ['490010101', '490010102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.APU,
+      side: 'LEFT',
+      inopSys: () => APU_SHUTDOWN_INOP_SYS,
+    },
+    4900102: {
+      // APU EMER SHUT DOWN (FCOM PRO-ABN-APU, see Logic/ApuShutdownAlerts)
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.apuEmerShutDown,
+      whichCodeToReturn: () => apuShutdownLines(this.apuMasterSwitch.get() === 1),
+      codesToReturn: ['490010201', '490010202'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.APU,
+      side: 'LEFT',
+      inopSys: () => APU_SHUTDOWN_INOP_SYS,
+    },
     2700052: {
       // FLAP LVR NOT ZERO
       flightPhaseInhib: [1, 2, 3, 4, 5, 7, 8, 9, 10],
@@ -7810,7 +8604,8 @@ export class PseudoFWC {
     2700110: {
       // ELAC 1 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.elac1FaultConfirmNodeOutput,
+      // not with the other ELAC FAULT: ELAC 1+2 FAULT replaces both (Logic/FlightControlSurfaceAlerts elacFaultAlerts)
+      simVarIsActive: this.elac1FaultAlert,
       // FCOM PRO-ABN-F_CTL ELAC 1(2) FAULT, see elacFaultLines
       whichCodeToReturn: () => elacFaultLines(this.elac1FaultLine123Display.get()),
       codesToReturn: ['270011001', '270011002', '270011003', '270011004', '270011005', '270011006'],
@@ -7818,11 +8613,14 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.elacFaultStatus(1).inopSys,
+      statusInfo: () => FctlStatus.elacFaultStatus(1).left,
     },
     2700120: {
       // ELAC 2 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.elac2FaultConfirmNodeOutput,
+      // not with the other ELAC FAULT: ELAC 1+2 FAULT replaces both (Logic/FlightControlSurfaceAlerts elacFaultAlerts)
+      simVarIsActive: this.elac2FaultAlert,
       // FCOM PRO-ABN-F_CTL ELAC 1(2) FAULT, see elacFaultLines
       whichCodeToReturn: () => elacFaultLines(this.elac2FaultLine123Display.get()),
       codesToReturn: ['270012001', '270012002', '270012003', '270012004', '270012005', '270012006'],
@@ -7830,6 +8628,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.elacFaultStatus(2).inopSys,
+      statusInfo: () => FctlStatus.elacFaultStatus(2).left,
     },
     2700210: {
       // SEC 1 FAULT
@@ -7847,6 +8647,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.secFaultStatus().inopSys,
+      statusInfo: () => this.secFaultStatus().left,
     },
     2700220: {
       // SEC 2 FAULT
@@ -7863,6 +8665,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.secFaultStatus().inopSys,
+      statusInfo: () => this.secFaultStatus().left,
     },
     2700230: {
       // SEC 3 FAULT
@@ -7879,6 +8683,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.secFaultStatus().inopSys,
+      statusInfo: () => this.secFaultStatus().left,
     },
     2700240: {
       // PITCH TRIM CONFIG
@@ -7906,7 +8712,7 @@ export class PseudoFWC {
     },
     2700360: {
       // FCDC 1+2 FAULT
-      flightPhaseInhib: [3, 4, 5, 7],
+      flightPhaseInhib: FctlPhases.fcdc12Fault,
       simVarIsActive: this.fcdc12FaultCondition,
       whichCodeToReturn: () => [0, 1],
       codesToReturn: ['270036001', '270036002'],
@@ -7914,12 +8720,15 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.fcdc12FaultStatus().inopSys,
+      statusInfo: () => FctlStatus.fcdc12FaultStatus().left,
     },
     2700365: {
       // DIRECT LAW (FCOM PRO-ABN-F_CTL, see directLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.directLawCondition,
-      whichCodeToReturn: () => directLawLines(),
+      whichCodeToReturn: () =>
+        directLawLines(this.greenSysAbnormalLowPressure.get() && this.yellowSysAbnormalLowPressure.get()),
       codesToReturn: [
         '270036501',
         '270036502',
@@ -7934,6 +8743,8 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.directLawStatus().inopSys,
+      statusInfo: () => FctlStatus.directLawStatus().left,
     },
     2700370: {
       // SPD BRK DISAGREE
@@ -7962,23 +8773,168 @@ export class PseudoFWC {
       // ALTN 2 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn2LawConfirmNodeOutput,
-      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.speedBrakeDoNotUse.get()),
+      // SPD BRK DO NOT USE "IF L OR R ELEVATOR FAULT" (FCOM l.82547), not the FCDC SPD BRK 3+4 bit
+      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.fctlSurfaces.leftOrRightElevatorLost),
       codesToReturn: ['270037501', '270037502', '270037503', '270037504', '270037505', '270037506', '270037507'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.altnLawStatus().inopSys,
+      statusInfo: () => this.altnLawStatus().left,
     },
     2700390: {
       // ALTN 1 (FCOM PRO-ABN-F_CTL ALTN LAW, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn1LawConfirmNodeOutput,
-      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.speedBrakeDoNotUse.get()),
+      // SPD BRK DO NOT USE "IF L OR R ELEVATOR FAULT" (FCOM l.82547), not the FCDC SPD BRK 3+4 bit
+      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.fctlSurfaces.leftOrRightElevatorLost),
       codesToReturn: ['270039001', '270039002', '270039003', '270039004', '270039005', '270039006', '270039007'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => this.altnLawStatus().inopSys,
+      statusInfo: () => this.altnLawStatus().left,
+    },
+    // F/CTL surface cautions and ELAC 1+2 FAULT (FCOM PRO-ABN-F_CTL), see Logic/FlightControlSurfaceAlerts
+    2701010: {
+      // ELAC 1+2 FAULT (FCOM ELAC 1(2) FAULT, BOTH COMPUTERS FAILED)
+      flightPhaseInhib: FctlPhases.elacFault,
+      simVarIsActive: this.elac12FaultAlert,
+      whichCodeToReturn: () =>
+        elac12FaultLines(this.elac1FaultLine123Display.get(), this.elac2FaultLine123Display.get()),
+      codesToReturn: [
+        '270101001',
+        '270101002',
+        '270101003',
+        '270101004',
+        '270101005',
+        '270101006',
+        '270101007',
+        '270101008',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elac12FaultStatus().inopSys,
+      statusInfo: () => FctlStatus.elac12FaultStatus().left,
+    },
+    2701020: {
+      // ELAC 1 PITCH FAULT, crew awareness (level 1)
+      flightPhaseInhib: FctlPhases.elacPitchFault,
+      simVarIsActive: this.elac1PitchFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270102001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elacPitchFaultStatus(this.elac2PitchFault.get()).inopSys,
+      statusInfo: () => FctlStatus.elacPitchFaultStatus(this.elac2PitchFault.get()).left,
+    },
+    2701030: {
+      // ELAC 2 PITCH FAULT, crew awareness (level 1)
+      flightPhaseInhib: FctlPhases.elacPitchFault,
+      simVarIsActive: this.elac2PitchFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270103001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elacPitchFaultStatus(this.elac1PitchFault.get()).inopSys,
+      statusInfo: () => FctlStatus.elacPitchFaultStatus(this.elac1PitchFault.get()).left,
+    },
+    2701040: {
+      // ELEV SERVO FAULT, crew awareness (level 1)
+      flightPhaseInhib: FctlPhases.elevServoFault,
+      simVarIsActive: this.elevServoFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270104001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elevServoFaultStatus().inopSys,
+      statusInfo: () => FctlStatus.elevServoFaultStatus().left,
+    },
+    2701050: {
+      // L ELEV FAULT
+      flightPhaseInhib: FctlPhases.elevatorFault,
+      simVarIsActive: this.leftElevFault,
+      whichCodeToReturn: () => elevatorFaultLines(),
+      codesToReturn: ['270105001', '270105002', '270105003'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elevatorFaultStatus('L').inopSys,
+      statusInfo: () => FctlStatus.elevatorFaultStatus('L').left,
+    },
+    2701060: {
+      // R ELEV FAULT
+      flightPhaseInhib: FctlPhases.elevatorFault,
+      simVarIsActive: this.rightElevFault,
+      whichCodeToReturn: () => elevatorFaultLines(),
+      codesToReturn: ['270106001', '270106002', '270106003'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.elevatorFaultStatus('R').inopSys,
+      statusInfo: () => FctlStatus.elevatorFaultStatus('R').left,
+    },
+    2701070: {
+      // AIL SERVO FAULT, crew awareness (level 1), no STATUS
+      flightPhaseInhib: FctlPhases.ailServoFault,
+      simVarIsActive: this.ailServoFault,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['270107001'],
+      memoInhibit: () => false,
+      failure: 1,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+    },
+    2701080: {
+      // L AIL FAULT
+      flightPhaseInhib: FctlPhases.aileronFault,
+      simVarIsActive: this.leftAilFault,
+      whichCodeToReturn: () => aileronFaultLines(),
+      codesToReturn: ['270108001', '270108002', '270108003'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.aileronFaultStatus('L').inopSys,
+      statusInfo: () => FctlStatus.aileronFaultStatus('L').left,
+    },
+    2701090: {
+      // R AIL FAULT
+      flightPhaseInhib: FctlPhases.aileronFault,
+      simVarIsActive: this.rightAilFault,
+      whichCodeToReturn: () => aileronFaultLines(),
+      codesToReturn: ['270109001', '270109002', '270109003'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.aileronFaultStatus('R').inopSys,
+      statusInfo: () => FctlStatus.aileronFaultStatus('R').left,
+    },
+    2701100: {
+      // SPLR FAULT
+      flightPhaseInhib: FctlPhases.spoilerFault,
+      simVarIsActive: this.spoilerFault,
+      whichCodeToReturn: () => spoilerFaultLines(this.fctlSurfaces.spoilerFaults),
+      codesToReturn: ['270110001', '270110002'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.FCTL,
+      side: 'LEFT',
+      inopSys: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).inopSys,
+      statusInfo: () => FctlStatus.spoilerFaultStatus(this.fctlSurfaces.spoilerFaults).left,
     },
     3100110: {
       // TRIPPED REAR PNL J-M
@@ -8060,6 +9016,8 @@ export class PseudoFWC {
       failure: 3,
       sysPage: EcamSysPage.FCTL,
       side: 'LEFT',
+      inopSys: () => FctlStatus.leftAndRightElevatorFaultStatus().inopSys,
+      statusInfo: () => FctlStatus.leftAndRightElevatorFaultStatus().left,
     },
     2700460: {
       // PITCH TRIM/MCDU/CG DISAGREE
@@ -8115,6 +9073,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      inopSys: () => FctlStatus.fcdcFaultStatus(1).inopSys,
     },
     2700557: {
       // FCDC 2 FAULT
@@ -8126,6 +9085,7 @@ export class PseudoFWC {
       failure: 1,
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
+      inopSys: () => FctlStatus.fcdcFaultStatus(2).inopSys,
     },
     2700870: {
       // GND SPLR NOT ARMED
@@ -8366,6 +9326,8 @@ export class PseudoFWC {
       side: 'LEFT',
       ...alertStatus(() => packFaultStatus(2, this.acsc2Inoperative.get())),
     },
+    // 36 - PNEUMATIC: bleed leak, leak detection, HP valve and BMC cautions (keys 3612001-3612015)
+    ...this.bleedLeakMonitoringAlerts.ewdFailures,
     2161207: {
       // PACK 1 ABNORMALLY OFF
       flightPhaseInhib: [1, 2, 3, 4, 5, 7, 8, 9, 10],
@@ -8390,6 +9352,8 @@ export class PseudoFWC {
       side: 'LEFT',
       ...alertStatus(() => packOffStatus(2)),
     },
+    // 36 - PNEUMATIC: the AIR bleed cautions (keys 3611001-3611014), see Logic/BleedAlerts
+    ...this.bleedAlerts.ewdFailures,
     2161291: {
       // COND CTL 1-A FAULT
       flightPhaseInhib: [2, 3, 4, 5, 6, 7, 8, 9],
@@ -8985,43 +9949,58 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
+    // HYD alerts (FCOM PRO-ABN-HYD), see Logic/HydraulicAlerts for the triggers, priorities, lines and STATUS. Flight
+    // phase inhibition: the FCOM figures are not in its text, design choice [3, 4, 5, 7, 8] as the RSVR OVHT alerts had
+    // [GK], with the notes the text keeps (ELEC PUMP LO PR: phase 3 only for the OVHT, l.86992, l.87703; G(Y) RSVR LO LVL:
+    // only the first 15 s of phase 5, l.87528, l.88044, applied by the monitor) and [4, 5, 7, 8] for the red dual failures
     2900126: {
       // HYD B RSVR OVHT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.blueRvrOvht,
-      whichCodeToReturn: () => [0, this.blueElecPumpPBAuto.get() ? 1 : null],
-      codesToReturn: ['290012601', '290012602'],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueRsvrOvht,
+      whichCodeToReturn: () => blueReservoirOverheatLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290012601', '290012602', '290012603', '290012604', '290012605'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.HYD,
       side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueRsvrOvht().inopSys,
+      statusInfo: () => hydraulicStatus.blueRsvrOvht().left,
     },
     2900127: {
       // HYD Y RSVR OVHT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.yellowRvrOvht,
-      whichCodeToReturn: () => [
-        0,
-        this.ptuAuto.get() ? 1 : null,
-        this.eng2pumpPBisAuto.get() ? 2 : null,
-        !this.yepumpPBisAuto.get() ? 3 : null,
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowRsvrOvht,
+      whichCodeToReturn: () => yellowReservoirLines(this.hydraulicAlerts.inputs),
+      codesToReturn: [
+        '290012701',
+        '290012702',
+        '290012703',
+        '290012704',
+        '290012705',
+        '290012706',
+        '290012707',
+        '290012708',
+        '290012709',
       ],
-      codesToReturn: ['290012701', '290012702', '290012703', '290012704'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.HYD,
       side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowRsvrOvht().inopSys,
+      statusInfo: () => hydraulicStatus.yellowRsvrOvht().left,
     },
     2900128: {
       // HYD G RSVR OVHT
       flightPhaseInhib: [3, 4, 5, 7, 8],
-      simVarIsActive: this.greenRvrOvht,
-      whichCodeToReturn: () => [0, this.ptuAuto.get() ? 1 : null, this.eng1pumpPBisAuto.get() ? 2 : null],
-      codesToReturn: ['290012801', '290012802', '290012803'],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenRsvrOvht,
+      whichCodeToReturn: () => greenReservoirLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290012801', '290012802', '290012803', '290012804', '290012805', '290012806', '290012807'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: EcamSysPage.HYD,
       side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenRsvrOvht().inopSys,
+      statusInfo: () => hydraulicStatus.greenRsvrOvht().left,
     },
     2900143: {
       // RAT FAULT
@@ -9033,6 +10012,309 @@ export class PseudoFWC {
       failure: 2,
       sysPage: EcamSysPage.HYD,
       side: 'LEFT',
+      inopSys: () => hydraulicStatus.ratFault().inopSys,
+    },
+    2900120: {
+      // HYD B+Y SYS LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueYellowSysLoPr,
+      whichCodeToReturn: () =>
+        blueYellowSysLoPrLines(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure),
+      codesToReturn: [
+        '290012001',
+        '290012002',
+        '290012003',
+        '290012004',
+        '290012005',
+        '290012006',
+        '290012007',
+        '290012008',
+        '290012009',
+        '290012010',
+      ],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () =>
+        hydraulicStatus.blueYellowSysLoPr(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure).inopSys,
+      statusInfo: () =>
+        hydraulicStatus.blueYellowSysLoPr(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure).left,
+    },
+    2900121: {
+      // HYD G+B SYS LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenBlueSysLoPr,
+      whichCodeToReturn: () => greenBlueSysLoPrLines(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure),
+      codesToReturn: [
+        '290012101',
+        '290012102',
+        '290012103',
+        '290012104',
+        '290012105',
+        '290012106',
+        '290012107',
+        '290012108',
+      ],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () =>
+        hydraulicStatus.greenBlueSysLoPr(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure).inopSys,
+      statusInfo: () =>
+        hydraulicStatus.greenBlueSysLoPr(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure).left,
+    },
+    2900122: {
+      // HYD G+Y SYS LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenYellowSysLoPr,
+      whichCodeToReturn: () =>
+        greenYellowSysLoPrLines(this.hydraulicAlerts.inputs, this.hydraulicAlerts.pumpLowPressure),
+      codesToReturn: ['290012201', '290012202', '290012203', '290012204', '290012205', '290012206', '290012207'],
+      memoInhibit: () => false,
+      failure: 3,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenYellowSysLoPr(this.hydraulicAlerts.inputs).inopSys,
+      statusInfo: () => hydraulicStatus.greenYellowSysLoPr(this.hydraulicAlerts.inputs).left,
+    },
+    2900101: {
+      // HYD B ELEC PUMP LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueElecPumpLoPr,
+      whichCodeToReturn: () => blueElecPumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010101', '290010102', '290010103', '290010104', '290010105'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueElecPumpLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.blueElecPumpLoPr().left,
+    },
+    2900102: {
+      // HYD B ELEC PUMP OVHT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueElecPumpOvht,
+      whichCodeToReturn: () => blueElecPumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010201', '290010202', '290010203', '290010204', '290010205'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueElecPumpOvht().inopSys,
+      statusInfo: () => hydraulicStatus.blueElecPumpOvht().left,
+    },
+    2900107: {
+      // HYD B RSVR LO AIR PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueRsvrLoAirPr,
+      whichCodeToReturn: () => blueReservoirLowAirPressureLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010701', '290010702', '290010703', '290010704', '290010705', '290010706'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueRsvrLoAirPr().inopSys,
+      statusInfo: () => hydraulicStatus.blueRsvrLoAirPr().left,
+    },
+    2900110: {
+      // HYD B RSVR LO LVL
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueRsvrLoLvl,
+      whichCodeToReturn: () => blueReservoirLowLevelLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290011001', '290011002', '290011003', '290011004', '290011005'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueRsvrLoLvl().inopSys,
+      statusInfo: () => hydraulicStatus.blueRsvrLoLvl().left,
+    },
+    2900105: {
+      // HYD G ENG 1 PUMP LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenEngPumpLoPr,
+      whichCodeToReturn: () => greenEnginePumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010501', '290010502', '290010503'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenEngPumpLoPr(this.hydraulicAlerts.inputs.green.lowPressure).inopSys,
+      statusInfo: () => hydraulicStatus.greenEngPumpLoPr(this.hydraulicAlerts.inputs.green.lowPressure).left,
+    },
+    2900108: {
+      // HYD G RSVR LO AIR PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenRsvrLoAirPr,
+      whichCodeToReturn: () => greenReservoirLowAirPressureLines(this.hydraulicAlerts.inputs),
+      codesToReturn: [
+        '290010801',
+        '290010802',
+        '290010803',
+        '290010804',
+        '290010805',
+        '290010806',
+        '290010807',
+        '290010808',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenRsvrLoAirPr().inopSys,
+      statusInfo: () => hydraulicStatus.greenRsvrLoAirPr().left,
+    },
+    2900111: {
+      // HYD G RSVR LO LVL (also inhibited for the first 15 s of phase 5, by the monitor)
+      flightPhaseInhib: [3, 4, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenRsvrLoLvl,
+      whichCodeToReturn: () => greenReservoirLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290011101', '290011102', '290011103', '290011104', '290011105', '290011106', '290011107'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenRsvrLoLvl().inopSys,
+      statusInfo: () => hydraulicStatus.greenRsvrLoLvl().left,
+    },
+    2900103: {
+      // HYD Y ELEC PUMP LO PR
+      flightPhaseInhib: [4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowElecPumpLoPr,
+      whichCodeToReturn: () => yellowElecPumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010301', '290010302', '290010303', '290010304', '290010305', '290010306'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowElecPumpLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.yellowElecPumpLoPr().left,
+    },
+    2900104: {
+      // HYD Y ELEC PUMP OVHT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowElecPumpOvht,
+      whichCodeToReturn: () => yellowElecPumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010401', '290010402', '290010403', '290010404', '290010405', '290010406'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowElecPumpOvht().inopSys,
+      statusInfo: () => hydraulicStatus.yellowElecPumpOvht().left,
+    },
+    2900106: {
+      // HYD Y ENG 2 PUMP LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowEngPumpLoPr,
+      whichCodeToReturn: () => yellowEnginePumpLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290010601', '290010602', '290010603'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowEngPumpLoPr(this.hydraulicAlerts.inputs.yellow.lowPressure).inopSys,
+      statusInfo: () => hydraulicStatus.yellowEngPumpLoPr(this.hydraulicAlerts.inputs.yellow.lowPressure).left,
+    },
+    2900109: {
+      // HYD Y RSVR LO AIR PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowRsvrLoAirPr,
+      whichCodeToReturn: () => yellowReservoirLowAirPressureLines(this.hydraulicAlerts.inputs),
+      codesToReturn: [
+        '290010901',
+        '290010902',
+        '290010903',
+        '290010904',
+        '290010905',
+        '290010906',
+        '290010907',
+        '290010908',
+        '290010909',
+        '290010910',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowRsvrLoAirPr().inopSys,
+      statusInfo: () => hydraulicStatus.yellowRsvrLoAirPr().left,
+    },
+    2900112: {
+      // HYD Y RSVR LO LVL (also inhibited for the first 15 s of phase 5, by the monitor)
+      flightPhaseInhib: [3, 4, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowRsvrLoLvl,
+      whichCodeToReturn: () => yellowReservoirLines(this.hydraulicAlerts.inputs),
+      codesToReturn: [
+        '290011201',
+        '290011202',
+        '290011203',
+        '290011204',
+        '290011205',
+        '290011206',
+        '290011207',
+        '290011208',
+        '290011209',
+      ],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowRsvrLoLvl().inopSys,
+      statusInfo: () => hydraulicStatus.yellowRsvrLoLvl().left,
+    },
+    2900113: {
+      // HYD B SYS LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.blueSysLoPr,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290011301'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.blueSysLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.blueSysLoPr().left,
+    },
+    2900114: {
+      // HYD G SYS LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.greenSysLoPr,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290011401'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.greenSysLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.greenSysLoPr().left,
+    },
+    2900115: {
+      // HYD Y SYS LO PR
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.yellowSysLoPr,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['290011501'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.yellowSysLoPr().inopSys,
+      statusInfo: () => hydraulicStatus.yellowSysLoPr().left,
+    },
+    2900116: {
+      // HYD PTU FAULT
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.hydraulicAlerts.alerts.ptuFault,
+      whichCodeToReturn: () => ptuFaultLines(this.hydraulicAlerts.inputs),
+      codesToReturn: ['290011601', '290011602'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.HYD,
+      side: 'LEFT',
+      inopSys: () => hydraulicStatus.ptuFault().inopSys,
     },
     2800145: {
       // L+R WING TK LO LVL
@@ -9724,7 +11006,8 @@ export class PseudoFWC {
       // LAND ASAP AMBER
       flightPhaseInhib: [],
       // also with ENG 1(2) FAIL and ENG 1(2) SHUT DOWN: "LAND ASAP" (FCOM PRO-ABN-ENG, l.79797 and l.81087), and with
-      // ENG 1(2) THR LEVER FAULT (l.81826) and ENG 1(2) REVERSE UNLOCKED in flight (l.80895)
+      // ENG 1(2) THR LEVER FAULT (l.81826) and ENG 1(2) REVERSE UNLOCKED in flight (l.80895), and with ELEC DC EMER CONFIG
+      // (FCOM PRO-ABN-ELEC l.77163) and ESS BUSES ON BAT (l.77947)
       simVarIsActive: MappedSubject.create(
         ([
           landAsapRed,
@@ -9739,6 +11022,7 @@ export class PseudoFWC {
           thrLever2Fault,
           reverse1Unlocked,
           reverse2Unlocked,
+          elecBusLandAsap,
         ]) =>
           !landAsapRed &&
           !aircraftOnGround &&
@@ -9751,7 +11035,8 @@ export class PseudoFWC {
             thrLever1Fault ||
             thrLever2Fault ||
             reverse1Unlocked ||
-            reverse2Unlocked),
+            reverse2Unlocked ||
+            elecBusLandAsap),
         this.landAsapRed,
         this.aircraftOnGround,
         this.engine1State,
@@ -9764,6 +11049,7 @@ export class PseudoFWC {
         this.thrLeverFaultShown[1],
         this.reverseUnlockedShown[0],
         this.reverseUnlockedShown[1],
+        this.elecBusLandAsap,
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000036001'],

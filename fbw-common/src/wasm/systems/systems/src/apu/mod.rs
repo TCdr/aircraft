@@ -309,6 +309,11 @@ pub trait ApuGenerator:
 {
     fn update(&mut self, n: Ratio, is_emergency_shutdown: bool);
     fn output_within_normal_parameters(&self) -> bool;
+    /// The load of the generator is above 100 % of its rated output. Generators without a
+    /// load monitoring never report it.
+    fn is_overloaded(&self) -> bool {
+        false
+    }
 }
 
 pub trait ApuConstants {
@@ -694,6 +699,10 @@ mod tests {
             &self,
         ) -> bool {
             self.apu.generator(1).output_within_normal_parameters()
+        }
+
+        fn apu_generator_is_overloaded(&self) -> bool {
+            self.apu.generator(1).is_overloaded()
         }
 
         fn apu_generator_output_within_normal_parameters_before_processing_power_consumption_report(
@@ -1154,6 +1163,10 @@ mod tests {
 
         pub fn load_within_normal_range(&mut self) -> bool {
             self.read_by_name("ELEC_APU_GEN_1_LOAD_NORMAL")
+        }
+
+        pub fn generator_is_overloaded(&self) -> bool {
+            self.query(|a| a.apu_generator_is_overloaded())
         }
 
         fn should_close_start_contactors_commanded(&self) -> bool {

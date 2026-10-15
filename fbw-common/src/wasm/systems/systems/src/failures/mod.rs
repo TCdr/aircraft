@@ -44,6 +44,25 @@ pub enum FailureType {
     TransformerRectifier(usize),
     StaticInverter,
     ElectricalBus(ElectricalBusType),
+    /// Battery n has an internal cell short: its voltage drops and, once on charge, its charging
+    /// current keeps rising (thermal runaway, see electrical::battery)
+    Battery(usize),
+    /// The battery charge limiter (BCL) of battery n has failed: it keeps the battery contactor
+    /// open (electrical::battery_charge_limiter)
+    BatteryChargeLimiter(usize),
+    /// The integrated drive generator (IDG) of engine n loses its oil: low oil pressure, then an
+    /// oil overheat (electrical::engine_generator)
+    IntegratedDriveGeneratorOilLeak(usize),
+    /// The oil cooling of the IDG of engine n is lost: its oil outlet temperature rises
+    /// (electrical::engine_generator)
+    IntegratedDriveGeneratorOilOverheat(usize),
+    /// External power unit n, or its generator control unit, is failed: it cannot supply the network
+    ExternalPower(usize),
+    /// The emergency generator (A380: the RAT generator) gives no output
+    EmergencyGenerator,
+    /// The disconnection function of engine generator drive n failed: its DRIVE pb no longer
+    /// disconnects the generator from the engine
+    GeneratorDriveDisconnect(usize),
     // ATA26
     SetOnFire(FireDetectionZone),
     FireDetectionLoop(FireDetectionLoopID, FireDetectionZone),
@@ -62,6 +81,53 @@ pub enum FailureType {
     GearActuatorJammed(GearActuatorId),
     BrakeHydraulicLeak(HydraulicColor),
     BrakeAccumulatorGasLeak,
+    // ATA36 (A320: a320_systems pneumatic.rs)
+    /// The bleed (pressure regulating) valve of engine n stays closed
+    EngineBleedValveStuckClosed(usize),
+    /// The bleed (pressure regulating) valve of engine n stays fully open: no pressure regulation
+    EngineBleedValveStuckOpen(usize),
+    /// The HP valve of engine n stays closed
+    EngineHpValveStuckClosed(usize),
+    /// The fan air valve of the precooler of engine n stays closed: the bleed air is not cooled
+    EngineFanAirValveStuckClosed(usize),
+    /// The fan air valve of the precooler of engine n stays fully open: the bleed air is overcooled
+    EngineFanAirValveStuckOpen(usize),
+    /// The crossbleed valve stays closed
+    CrossBleedValveStuckClosed,
+    /// The crossbleed valve stays open
+    CrossBleedValveStuckOpen,
+    /// The APU bleed valve stays closed
+    ApuBleedValveStuckClosed,
+    /// The APU bleed valve stays open
+    ApuBleedValveStuckOpen,
+    /// Hot air leaks from the bleed duct of engine n in its pylon
+    EngineBleedLeak(usize),
+    /// Hot air leaks from the bleed duct of wing n (1 left, 2 right)
+    WingBleedLeak(usize),
+    /// Hot air leaks from the APU bleed duct
+    ApuBleedLeak,
+    /// The pylon leak detection loop of engine n is inoperative
+    EngineLeakDetectionLoop(usize),
+    /// Leak detection loop A (1) or B (2) of wing n (1 left, 2 right) is inoperative
+    WingLeakDetectionLoop(usize, usize),
+    /// The APU leak detection loop is inoperative
+    ApuLeakDetectionLoop,
+    /// The bleed monitoring computer n is failed
+    BleedMonitoringComputer(usize),
+    /// The normal braking hydraulic equipment of all wheel groups (A380 BCS normal braking)
+    BrakeNormalBraking,
+    /// The alternate braking under brake control system control, all wheel groups (A380 BCS alternate braking)
+    BrakeAlternateBraking,
+    /// The emergency brake control unit (A380 EBCU): no emergency braking
+    BrakeEmergencyBraking,
+    /// The normal mode of the nose wheel steering (A380 normal NWS)
+    NoseWheelSteeringNormal,
+    /// The alternate mode of the nose wheel steering (A380 steering LEHGS)
+    NoseWheelSteeringAlternate,
+    /// The body wheel steering stays centred and locked (A380 BWS)
+    BodyWheelSteering,
+    /// Steering control system n (A380 SCS 1 or 2)
+    SteeringControlSystem(usize),
     // ATA34
     RadioAltimeter(usize),
     RadioAntennaInterrupted(usize),
@@ -69,6 +135,11 @@ pub enum FailureType {
     EnhancedGroundProximityWarningSystemComputer,
     /// The GPS receiver of MMR 1 or 2
     Gps(usize),
+    /// The total pressure (pitot) input of ADR n is erroneous: its airspeed and Mach read low, with a valid status.
+    /// The ADR does not see it; only a comparison with the other air data sources (PRIM monitoring) can detect it.
+    AdrAirspeedErroneous(usize),
+    /// The angle of attack probe of ADR n is erroneous: its angle of attack reads high, with a valid status
+    AdrAngleOfAttackErroneous(usize),
     // ATA72
     /// The flame of engine n goes out once; the crew can relight it (engine::engine_failure)
     EngineFlameout(usize),

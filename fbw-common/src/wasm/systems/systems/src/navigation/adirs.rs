@@ -1,4 +1,5 @@
 use crate::air_conditioning::AdirsToAirCondInterface;
+use crate::failures::{Failure, FailureType};
 use crate::payload::BoardingRate;
 use crate::shared::InternationalStandardAtmosphere;
 use crate::simulation::{InitContext, VariableIdentifier};
@@ -500,11 +501,23 @@ impl LowSpeedWarningThreshold {
     }
 }
 
+/// How long a complete (normal) IR alignment takes with the realistic alignment time setting.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum CompleteAlignmentTime {
+    /// Depends on the latitude: 300 s / cos(latitude) up to 60 deg, 600 s up to 73 deg, 1 020 s
+    /// above. A380 FCOM DSC-34-10-30-30 (a380_fcom.txt l.86085): "It takes between 5 to 17 min
+    /// depending on the aircraft latitude."
+    LatitudeDependent,
+    /// The same time at any latitude.
+    Fixed(Duration),
+}
+
 #[derive(Clone)]
 pub struct AirDataInertialReferenceUnitProgramming {
     vmo: Velocity,
     mmo: MachNumber,
     low_speed_warning_thresholds: [LowSpeedWarningThreshold; 4],
+    complete_alignment_time: CompleteAlignmentTime,
 }
 impl AirDataInertialReferenceUnitProgramming {
     pub fn new(
@@ -516,7 +529,17 @@ impl AirDataInertialReferenceUnitProgramming {
             vmo,
             mmo,
             low_speed_warning_thresholds,
+            complete_alignment_time: CompleteAlignmentTime::LatitudeDependent,
         }
+    }
+
+    /// The complete alignment time of the aircraft ADIRU (latitude dependent by default).
+    pub fn with_complete_alignment_time(
+        mut self,
+        complete_alignment_time: CompleteAlignmentTime,
+    ) -> Self {
+        self.complete_alignment_time = complete_alignment_time;
+        self
     }
 }
 
@@ -718,7 +741,7 @@ impl AirDataInertialReferenceUnit {
         Self {
             state_id: context.get_identifier(Self::state_id(number)),
             adr: AirDataReference::new(context, number, programming.vmo, programming.mmo),
-            ir: InertialReference::new(context, number),
+            ir: InertialReference::new(context, number, programming.complete_alignment_time),
 
             low_speed_warning_thresholds: programming.low_speed_warning_thresholds,
             low_speed_warnings: [false; 4],
@@ -1085,6 +1108,11 @@ struct AirDataReference {
     vertical_speed_filter: LowPassFilter<f64>,
 
     remaining_initialisation_duration: Option<Duration>,
+
+    /// Erroneous total pressure (pitot) input: airspeed, Mach and TAS read low with a valid status
+    airspeed_erroneous_failure: Failure,
+    /// Erroneous angle of attack probe: the angle of attack reads high with a valid status
+    angle_of_attack_erroneous_failure: Failure,
 }
 impl AirDataReference {
     const INITIALISATION_DURATION: Duration = Duration::from_secs(18);
@@ -1118,6 +1146,13 @@ impl AirDataReference {
     const STATIC_PORT_TIME_CONSTANT: Duration = Duration::from_millis(125);
     // 1 second filter
     const VERTICAL_SPEED_TIME_CONSTANT: Duration = Duration::from_secs(1);
+
+    /// Airspeed error of an erroneous pitot input (design choice: the FCOM gives no failure values; 40 kt is
+    /// well above the 16 kt CAS threshold of the PRIM air data monitoring, A380 FCOM DSC-34-10-30-10 l.85708).
+    const ERRONEOUS_AIRSPEED_ERROR_KNOTS: f64 = -40.;
+    /// Angle of attack error of an erroneous AOA probe (design choice: above the 3.6 deg in-flight and the 8 deg
+    /// on-ground AOA thresholds of the PRIM monitoring, A380 FCOM DSC-34-10-30-10 l.85718-85725).
+    const ERRONEOUS_ANGLE_OF_ATTACK_ERROR_DEGREES: f64 = 10.;
 
     fn new(context: &mut InitContext, number: usize, vmo: Velocity, mmo: MachNumber) -> Self {
         Self {
@@ -1193,6 +1228,30 @@ impl AirDataReference {
 
             // Start fully initialised.
             remaining_initialisation_duration: Some(Duration::from_secs(0)),
+
+            airspeed_erroneous_failure: Failure::new(FailureType::AdrAirspeedErroneous(number)),
+            angle_of_attack_erroneous_failure: Failure::new(
+                FailureType::AdrAngleOfAttackErroneous(number),
+            ),
+        }
+    }
+
+    /// The airspeed this ADR measures: the sim value, or a low value with an erroneous pitot input.
+    /// Mach and TAS follow the same ratio, as they come from the same total pressure.
+    fn measured_airspeed_ratio(&self, computed_airspeed: Velocity) -> f64 {
+        if !self.airspeed_erroneous_failure.is_active() || computed_airspeed <= Velocity::ZERO {
+            return 1.;
+        }
+        let airspeed_knots = computed_airspeed.get::<knot>();
+        let erroneous = (airspeed_knots + Self::ERRONEOUS_AIRSPEED_ERROR_KNOTS).max(0.);
+        erroneous / airspeed_knots
+    }
+
+    fn measured_angle_of_attack(&self, angle_of_attack: Angle) -> Angle {
+        if self.angle_of_attack_erroneous_failure.is_active() {
+            angle_of_attack + Angle::new::<degree>(Self::ERRONEOUS_ANGLE_OF_ATTACK_ERROR_DEGREES)
+        } else {
+            angle_of_attack
         }
     }
 
@@ -1378,8 +1437,11 @@ impl AirDataReference {
             self.barometric_vertical_speed
                 .set_normal_operation_value(self.vertical_speed_filter.output());
 
+            // An erroneous pitot input scales the CAS, Mach and TAS of this ADR down
+            let airspeed_ratio = self.measured_airspeed_ratio(context.indicated_airspeed());
+
             // If CAS is below 30kn, output as 0 with SSM = NCD
-            let computed_airspeed = context.indicated_airspeed();
+            let computed_airspeed = context.indicated_airspeed() * airspeed_ratio;
             self.computed_airspeed.normal_above_threshold_ncd_otherwise(
                 Velocity::new::<knot>(Self::MINIMUM_CAS),
                 computed_airspeed,
@@ -1395,17 +1457,17 @@ impl AirDataReference {
             // If mach is below 0.1, output as 0 with SSM = NCD
             self.mach.normal_above_threshold_ncd_otherwise(
                 MachNumber::from(Self::MINIMUM_MACH),
-                simulator_data.mach,
+                MachNumber::from(f64::from(simulator_data.mach) * airspeed_ratio),
             );
 
             // If TAS is below 60 kts, output as 0 kt with SSM = NCD.
             self.true_airspeed.normal_above_threshold_ncd_otherwise(
                 Velocity::new::<knot>(Self::MINIMUM_TAS),
-                simulator_data.true_airspeed,
+                simulator_data.true_airspeed * airspeed_ratio,
             );
 
             self.angle_of_attack.set_value(
-                simulator_data.angle_of_attack,
+                self.measured_angle_of_attack(simulator_data.angle_of_attack),
                 if computed_airspeed < Velocity::new::<knot>(Self::MINIMUM_CAS_FOR_AOA) {
                     SignStatus::NoComputedData
                 } else {
@@ -1575,6 +1637,13 @@ impl AirDataReferenceBus for AirDataReference {
     }
 }
 impl SimulationElement for AirDataReference {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.airspeed_erroneous_failure.accept(visitor);
+        self.angle_of_attack_erroneous_failure.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         self.baro_correction_1_hpa
             .write_to_converted(writer, |value| value.get::<hectopascal>());
@@ -1668,6 +1737,7 @@ struct InertialReference {
     excess_motion_inhibit_time: Option<Duration>,
     quick_realign_remaining_available_time: Duration,
     alignment_failed: bool,
+    complete_alignment_time: CompleteAlignmentTime,
 
     pitch: AdirsArinc429Data<Angle>,
     roll: AdirsArinc429Data<Angle>,
@@ -1749,7 +1819,11 @@ impl InertialReference {
     const MAX_ALIGNMENT_VELOCITY_FPS: f64 = 0.011;
     const MAX_LATITUDE_FOR_ALIGNMENT: f64 = 82.;
 
-    fn new(context: &mut InitContext, number: usize) -> Self {
+    fn new(
+        context: &mut InitContext,
+        number: usize,
+        complete_alignment_time: CompleteAlignmentTime,
+    ) -> Self {
         Self {
             number,
             is_on: true,
@@ -1766,6 +1840,7 @@ impl InertialReference {
             excess_motion_inhibit_time: None,
             quick_realign_remaining_available_time: Duration::default(),
             alignment_failed: false,
+            complete_alignment_time,
 
             pitch: AdirsArinc429Data::new_ir(context, number, Self::PITCH),
             roll: AdirsArinc429Data::new_ir(context, number, Self::ROLL),
@@ -2351,11 +2426,15 @@ impl InertialReference {
 
     fn total_alignment_duration_from_configuration(
         configured_align_time: AlignTime,
+        complete_alignment_time: CompleteAlignmentTime,
         latitude: Angle,
     ) -> Duration {
         let abs_lat = latitude.get::<degree>().abs();
-        Duration::from_secs_f64(match configured_align_time {
-            AlignTime::Realistic => {
+        Duration::from_secs_f64(match (configured_align_time, complete_alignment_time) {
+            (AlignTime::Realistic, CompleteAlignmentTime::Fixed(duration)) => {
+                duration.as_secs_f64()
+            }
+            (AlignTime::Realistic, CompleteAlignmentTime::LatitudeDependent) => {
                 if abs_lat > 73. {
                     1020.
                 } else if abs_lat > 60. {
@@ -2364,8 +2443,8 @@ impl InertialReference {
                     (300. / latitude.get::<radian>().cos()).abs()
                 }
             }
-            AlignTime::Instant => 0.,
-            AlignTime::Fast => Self::FAST_ALIGNMENT_TIME_IN_SECS,
+            (AlignTime::Instant, _) => 0.,
+            (AlignTime::Fast, _) => Self::FAST_ALIGNMENT_TIME_IN_SECS,
         })
     }
 
@@ -2374,8 +2453,11 @@ impl InertialReference {
         configured_align_time: AlignTime,
         latitude: Angle,
     ) -> Duration {
-        let mut alignment_duration =
-            Self::total_alignment_duration_from_configuration(configured_align_time, latitude);
+        let mut alignment_duration = Self::total_alignment_duration_from_configuration(
+            configured_align_time,
+            self.complete_alignment_time,
+            latitude,
+        );
 
         if !self.quick_realign_remaining_available_time.is_zero() {
             self.quick_realign_remaining_available_time = Duration::default();
@@ -3955,6 +4037,66 @@ mod tests {
         }
     }
 
+    fn complete_alignment_duration(
+        complete_alignment_time: CompleteAlignmentTime,
+        latitude_degrees: f64,
+    ) -> Duration {
+        InertialReference::total_alignment_duration_from_configuration(
+            AlignTime::Realistic,
+            complete_alignment_time,
+            Angle::new::<degree>(latitude_degrees),
+        )
+    }
+
+    #[test]
+    fn a_latitude_dependent_complete_alignment_takes_5_to_17_min() {
+        let latitude_dependent = CompleteAlignmentTime::LatitudeDependent;
+        assert_eq!(
+            complete_alignment_duration(latitude_dependent, 0.),
+            Duration::from_secs(300)
+        );
+        assert_eq!(
+            complete_alignment_duration(latitude_dependent, 65.),
+            Duration::from_secs(600)
+        );
+        assert_eq!(
+            complete_alignment_duration(latitude_dependent, 75.),
+            Duration::from_secs(1020)
+        );
+    }
+
+    #[test]
+    fn a_fixed_complete_alignment_takes_its_time_at_any_latitude() {
+        let ten_minutes = CompleteAlignmentTime::Fixed(Duration::from_secs(600));
+        for latitude_degrees in [0., -35., 50., 72.] {
+            assert_eq!(
+                complete_alignment_duration(ten_minutes, latitude_degrees),
+                Duration::from_secs(600)
+            );
+        }
+    }
+
+    #[test]
+    fn the_instant_and_fast_settings_ignore_the_complete_alignment_time() {
+        let ten_minutes = CompleteAlignmentTime::Fixed(Duration::from_secs(600));
+        assert_eq!(
+            InertialReference::total_alignment_duration_from_configuration(
+                AlignTime::Instant,
+                ten_minutes,
+                Angle::default()
+            ),
+            Duration::ZERO
+        );
+        assert_eq!(
+            InertialReference::total_alignment_duration_from_configuration(
+                AlignTime::Fast,
+                ten_minutes,
+                Angle::default()
+            ),
+            Duration::from_secs_f64(InertialReference::FAST_ALIGNMENT_TIME_IN_SECS)
+        );
+    }
+
     #[test]
     fn remaining_alignment_time_is_0_seconds_when_nothing_is_aligning() {
         let mut test_bed = test_bed_with().all_mode_selectors_off();
@@ -4506,6 +4648,81 @@ mod tests {
             assert_eq!(
                 test_bed.angle_of_attack(adiru_number).ssm(),
                 SignStatus::NoComputedData
+            );
+        }
+
+        #[rstest]
+        #[case(1)]
+        #[case(2)]
+        #[case(3)]
+        fn erroneous_airspeed_reads_low_with_a_valid_status_on_the_failed_adr_only(
+            #[case] adiru_number: usize,
+        ) {
+            let mut test_bed = all_adirus_aligned_test_bed_with()
+                .mach_of(MachNumber(0.5))
+                .and()
+                .true_airspeed_of(Velocity::new::<knot>(300.));
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(250.));
+            test_bed.fail(FailureType::AdrAirspeedErroneous(adiru_number));
+            test_bed.run();
+
+            for number in 1..=3 {
+                let expected_ratio = if number == adiru_number {
+                    210. / 250.
+                } else {
+                    1.
+                };
+                let cas = test_bed.computed_airspeed(number);
+                assert_eq!(cas.ssm(), SignStatus::NormalOperation);
+                assert_about_eq!(cas.value().get::<knot>(), 250. * expected_ratio, 0.01);
+                let mach = test_bed.mach(number);
+                assert_eq!(mach.ssm(), SignStatus::NormalOperation);
+                assert_about_eq!(f64::from(mach.value()), 0.5 * expected_ratio, 0.0001);
+                assert_about_eq!(
+                    test_bed.true_airspeed(number).value().get::<knot>(),
+                    300. * expected_ratio,
+                    0.01
+                );
+            }
+        }
+
+        #[rstest]
+        #[case(1)]
+        #[case(2)]
+        #[case(3)]
+        fn erroneous_angle_of_attack_reads_high_with_a_valid_status_on_the_failed_adr_only(
+            #[case] adiru_number: usize,
+        ) {
+            let angle = Angle::new::<degree>(3.);
+            let mut test_bed = all_adirus_aligned_test_bed_with().angle_of_attack_of(angle);
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+            test_bed.fail(FailureType::AdrAngleOfAttackErroneous(adiru_number));
+            test_bed.run();
+
+            for number in 1..=3 {
+                let aoa = test_bed.angle_of_attack(number);
+                assert_eq!(aoa.ssm(), SignStatus::NormalOperation);
+                assert_about_eq!(
+                    aoa.value().get::<degree>(),
+                    if number == adiru_number { 13. } else { 3. },
+                    0.0001
+                );
+            }
+        }
+
+        #[test]
+        fn erroneous_airspeed_ends_when_the_failure_is_removed() {
+            let mut test_bed = all_adirus_aligned_test_bed();
+            test_bed.set_indicated_airspeed(Velocity::new::<knot>(250.));
+            test_bed.fail(FailureType::AdrAirspeedErroneous(1));
+            test_bed.run();
+            test_bed.unfail(FailureType::AdrAirspeedErroneous(1));
+            test_bed.run();
+
+            assert_about_eq!(
+                test_bed.computed_airspeed(1).value().get::<knot>(),
+                250.,
+                0.01
             );
         }
     }

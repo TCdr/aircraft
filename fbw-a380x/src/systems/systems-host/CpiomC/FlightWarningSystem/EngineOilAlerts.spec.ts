@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { FadecEngineState } from './EngineFailAlerts';
-import { EngineOilInputs, engineOilAlerts } from './EngineOilAlerts';
+import { EngineOilInputs, engineOilAlerts, OIL_FILTER_CLOGGED_LEVEL } from './EngineOilAlerts';
 
 const running: EngineOilInputs = {
   masterOn: true,
@@ -113,12 +113,15 @@ describe('FWS oil alerts', () => {
     expect(`THR LEVER ${engine}`.length + 'REDUCE BELOW OIL TEMP LIM'.length + 2).toBeLessThanOrEqual(39);
   });
 
+  /* FCOM l.172418-172422, PDF p.5796: the only indication is the ENGINE SD page (no aural, no MASTER CAUT) */
   it.each([1, 2, 3, 4])('ENG %d OIL FILTER CLOGGED: amber, crew awareness, inhibited in phases 3 to 10', (engine) => {
     const id = 701800081 + engine - 1;
     const alert = block(abnormalSensed, id);
     expect(alert).toContain(`simVarIsActive: this.fws.engineOilFilterClogged[${engine - 1}],`);
     expect(alert).toContain('flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,');
-    expect(alert).toContain('failure: 2,');
+    expect(alert).toContain('failure: OIL_FILTER_CLOGGED_LEVEL,');
+    expect(alert).toContain('sysPage: SdPages.Eng,');
+    expect(OIL_FILTER_CLOGGED_LEVEL).toBe(1);
     expect(itemCount(id)).toBe(0);
   });
 

@@ -9,7 +9,7 @@ use systems::{
     electrical::{
         AlternatingCurrentElectricalSystem, Contactor, ElectricalBus, ElectricalElement,
         Electricity, EmergencyGenerator, ExternalPowerSource, IntegratedDriveGenerator,
-        TransformerRectifier,
+        ProvideLoad, TransformerRectifier,
     },
     engine::Engine,
     shared::{
@@ -316,6 +316,15 @@ impl A320AlternatingCurrentElectrical {
         self.main_power_sources.both_engine_gen_contactors_closed()
     }
 
+    pub fn idg_has_fault(&self, number: usize) -> bool {
+        self.main_power_sources.idg_has_fault(number)
+    }
+
+    pub fn engine_generator_is_overloaded(&self, number: usize) -> bool {
+        self.main_power_sources
+            .engine_generator_is_overloaded(number)
+    }
+
     pub fn emergency_generator_contactor_is_closed(&self) -> bool {
         self.emergency_gen_contactor.is_closed()
     }
@@ -528,6 +537,28 @@ impl A320MainPowerSources {
         self.engine_generator_contactors
             .iter()
             .all(Contactor::is_closed)
+    }
+
+    fn engine_generator(&self, number: usize) -> &IntegratedDriveGenerator {
+        if number == 1 {
+            &self.engine_1_gen
+        } else {
+            &self.engine_2_gen
+        }
+    }
+
+    /// The IDG push button FAULT light (A320 FCOM DSC-24-20 l.37132-37135): oil outlet overheat
+    /// or low oil pressure, off once the IDG is disconnected.
+    pub fn idg_has_fault(&self, number: usize) -> bool {
+        let generator = self.engine_generator(number);
+        generator.is_drive_connected()
+            && (generator.drive_oil_pressure_is_low() || generator.drive_oil_is_overheating())
+    }
+
+    /// The load of the engine generator is above 100 % of its rated output (A320 FCOM DSC-24-20
+    /// GALY & CAB pb FAULT, l.37239-37240).
+    pub fn engine_generator_is_overloaded(&self, number: usize) -> bool {
+        !self.engine_generator(number).load_normal()
     }
 }
 impl SimulationElement for A320MainPowerSources {

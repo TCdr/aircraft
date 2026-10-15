@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { AbnormalProcedure, ChecklistLineStyle, DeferredProcedure, DeferredProcedureType } from '..';
@@ -267,14 +267,47 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340800009: {
+    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV AIR DATA DISAGREE (a380_fcom.txt l.163933-163952)
     title: '\x1b<4m\x1b4mNAV\x1bm AIR DATA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [
+      { name: 'ADR 1 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ADR 2 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ADR 3 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'STBY INSTRUMENTS REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'RISK OF UNDUE OVERSPEED WARNING', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'AIR DATA', sensed: false, labelNotCompleted: 'XCHECK' },
+      { name: 'AIR DATA SWTG', sensed: false, labelNotCompleted: 'AS RQRD' },
+    ],
   },
   340800010: {
+    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV ALL AIR DATA DISAGREE (a380_fcom.txt l.164050-164205, PDF page 5559). The
+    // pitch target lines are the FCOM tables: "The ECAM displays only the appropriate pitch" (l.164057, l.164066).
+    // Not shown: the cabin altitude table, the MFP heating (AVOID ICING) lines and the level-off thrust table above FL 250.
     title: '\x1b<2m\x1b4mNAV\x1bm ALL AIR DATA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [
+      { name: 'ALL AIR DATA REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Red },
+      { name: 'SAFE CONDUCT OF FLIGHT IMPACTED', sensed: false, condition: true },
+      { name: 'ALL THR LEVERS', sensed: false, labelNotCompleted: 'TOGA', level: 1 },
+      { name: 'ALL THR LEVERS', sensed: false, labelNotCompleted: 'CLB', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '12.5°', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '10°', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '5°', level: 1 },
+      { name: 'FLAPS & L/G : MAINTAIN CURRENT CONF', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'SPEED BRAKES', sensed: true, labelNotCompleted: 'CHECK RETRACTED' },
+      { name: 'RISK OF UNDUE OVERSPEED WARNING', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'HUD : DO NOT USE', sensed: true, style: ChecklistLineStyle.Cyan },
+      { name: 'FMS POSITION / GPS PAGE', sensed: false, labelNotCompleted: 'SELECT' },
+      { name: 'AIR DATA (ADRs/STBY INSTR)', sensed: false, labelNotCompleted: 'XCHECK' },
+      { name: 'AT LEAST ONE AIR DATA IS RELIABLE', sensed: false, condition: true },
+      { name: 'RELIABLE AIR DATA', sensed: false, labelNotCompleted: 'USE', level: 1 },
+      { name: 'NO AIR DATA RELIABLE', sensed: false, condition: true },
+      { name: 'ADR 1+2+3 P/Bs', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'SPEED', sensed: false, labelNotCompleted: 'FLY THE GREEN', level: 1 },
+      { name: 'SPD BRK : DO NOT USE', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'FLY PITCH AND THRUST', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+    ],
   },
   340800011: {
     title: '\x1b<4m\x1b4mNAV\x1bm AOA 1 FAULT',
@@ -292,9 +325,10 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     items: [], // not implemented
   },
   340800014: {
+    // A380 FCOM PRO-ABN-ECAM-10-34-10 NAV AOA DISAGREE (a380_fcom.txt l.164378-164452)
     title: '\x1b<4m\x1b4mNAV\x1bm AOA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [{ name: 'RISK OF UNDUE STALL WARNING', sensed: true, style: ChecklistLineStyle.White }],
   },
   340800015: {
     title: '\x1b<4m\x1b4mNAV\x1bm ARPT NAV FAULT',
@@ -304,17 +338,50 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800016: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O ALT DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      // A380 FCOM l.164513
+      {
+        name: 'ALT',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      // A380 FCOM l.164515
+      {
+        name: 'AIR DATA SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800017: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O ATT DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      // A380 FCOM l.164595 (TDU 00023230)
+      {
+        name: 'ATT',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      // A380 FCOM l.164597
+      {
+        name: 'ATT HDG SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800018: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O BARO REF DISAGREE',
     sensed: true,
-    items: [], // no separate baros
+    items: [
+      // A380 FCOM l.164624
+      {
+        name: 'BARO REF',
+        sensed: false,
+        labelNotCompleted: 'XCHECK',
+      },
+    ],
   },
   340800019: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O BARO VALUE DISAGREE',
@@ -324,7 +391,20 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800020: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O HDG DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      // A380 FCOM l.164710 (TDU 00023229), the FCOM text cuts the label
+      {
+        name: 'HDG',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      // A380 FCOM l.164714, the FCOM text cuts the label
+      {
+        name: 'ATT HDG SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800021: {
     title: '\x1b<4m\x1b4mNAV\x1bm EXTREME LATITUDE',

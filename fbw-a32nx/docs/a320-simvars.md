@@ -322,8 +322,9 @@
 
 - A32NX_FM_REC_MAX_FL
     - Number (flight level)
-    - The recommended maximum flight level (REC MAX) of the MCDU PROG page, 0 when the FMS has no gross weight to
-      compute it. Read by the flyPad Performance > Buffet page.
+    - The recommended maximum flight level (REC MAX) of the MCDU PROG page (the engine-out REC MAX when the FMS is in
+      its engine-out condition), 0 when the FMS has no gross weight to compute it. Read by the flyPad Performance > Buffet
+      page.
 
 - A32NX_SPEEDS_VAPP
     - Number (Knots)
@@ -862,6 +863,37 @@
     - {number}
         - 1
         - 2
+
+- A32NX_ELEC_ENG_GEN_{number}_IDG_OIL_LOW_PRESSURE
+    - Bool
+    - The low oil pressure signal of the given integrated drive generator, as its GCU sends it to the FWC
+      (ELEC IDG 1(2) OIL LO PR), to the IDG pb FAULT light and to the SD ELEC page (LO PR).
+      Inhibited below N2 14 % and once the IDG is disconnected (FCOM DSC-24-20)
+    - {number}
+        - 1
+        - 2
+
+- A32NX_ELEC_BCL_{number}_BAT_FAULT
+    - Bool
+    - True when the battery charge limiter saw an abnormal charging current of its battery (thermal runaway)
+      and opened the battery contactor (ELEC BAT 1(2) FAULT, BAT pb FAULT light). Latched until the BAT pb is
+      set to OFF
+    - {number}
+        - 1
+        - 2
+
+- A32NX_ELEC_BCL_{number}_FAULT
+    - Bool
+    - True when the battery charge limiter has failed: the battery contactor stays open
+      (ELEC BCL 1(2) FAULT, BAT pb FAULT light)
+    - {number}
+        - 1
+        - 2
+
+- A32NX_ELEC_STAT_INV_FAULT
+    - Bool
+    - True when the static inverter is failed, also while it does not convert: its monitoring is supplied by
+      the DC HOT BUS 1 (ELEC STAT INV FAULT)
 
 - A32NX_HYD_{loop_name}_SYSTEM_1_SECTION_PRESSURE
     - Psi
@@ -1455,7 +1487,9 @@ These variables are the interface between the 3D model and the systems/code.
 - A32NX_ECAM_STATUS_{side}_LINE_{number}
     - Number
     - The lines of the ECAM STATUS page computed by the FWC, as codes of `StatusMessages` (0 for no line): information on
-      the left, inoperative systems (INOP SYS) on the right
+      the left, inoperative systems (INOP SYS) on the right. The left column ends with the CANCELLED CAUTION part when
+      the EMER CANC pb has cancelled a caution: the code `310600001`, then the E/WD title code (`EwdMessages`) of each
+      cancelled caution
     - {side}
         - LEFT
         - RIGHT
@@ -2868,6 +2902,9 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_PNEU_ENG_{number}_OVERHEAT:
     - Indicates whether an an engine bleed air overheat is detected
+    - Above 257 °C for 55 s, 270 °C for 15 s or 290 °C for 5 s at the precooler outlet. Held while the ENG BLEED pb-sw is
+      ON (with the FAULT light), cleared once the pb-sw is OFF and the overheat is gone
+    - Written by the BMC of the engine, by the other BMC when it is failed; false when both BMCs are failed
     - Bool
     - {number}
         - 1
@@ -2875,6 +2912,61 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_PNEU_ENG_{number}_OVERPRESSURE:
     - Indicates whether an engine bleed overpressure is detected
+    - Above 57 PSI for 15 s downstream of the bleed valve. Held like the overheat
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_ENG_{number}_HP_VALVE_FAULT:
+    - Indicates whether the BMC detects the HP valve abnormally closed (AIR ENG 1(2) HP VALVE FAULT): closed for 5 s while
+      its solenoid is commanded open and the HP stage pressure should open it
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_ENG_{number}_BLEED_LEAK:
+    - Indicates whether the pylon leak detection loop of the engine detects a leak (above 204 °C). Needs the BMC of the
+      engine; held while the ENG BLEED pb-sw is ON
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_{side}_WING_LEAK:
+    - Indicates whether the wing leak detection loops detect a leak (both loops above 124 °C, or one loop with the other
+      one inoperative). Needs one BMC; held while the ENG BLEED pb-sw of the side is ON
+    - Bool
+    - {side}
+        - LEFT
+        - RIGHT
+
+- A32NX_PNEU_APU_BLEED_LEAK:
+    - Indicates whether the APU leak detection loop detects a leak (above 124 °C). Needs BMC 1; held while the APU BLEED
+      pb-sw is ON
+    - Bool
+
+- A32NX_PNEU_ENG_{number}_LEAK_DET_FAULT:
+    - Indicates whether the pylon leak detection loop of the engine is inoperative (needs the BMC of the engine)
+    - Bool
+    - {number}
+        - 1
+        - 2
+
+- A32NX_PNEU_{side}_WING_LEAK_DET_FAULT:
+    - Indicates whether both leak detection loops of the wing are inoperative (needs one BMC)
+    - Bool
+    - {side}
+        - LEFT
+        - RIGHT
+
+- A32NX_PNEU_APU_LEAK_DET_FAULT:
+    - Indicates whether the APU leak detection loop is inoperative (needs BMC 1)
+    - Bool
+
+- A32NX_PNEU_BMC_{number}_FAULT:
+    - Indicates whether the bleed monitoring computer is failed or not powered
     - Bool
     - {number}
         - 1
@@ -2882,6 +2974,12 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_OVHD_PNEU_ENG_{number}_BLEED_PB_HAS_FAULT:
     - Indicates whether the fault light is on for the engine bleed push button
+    - Lit by the BMC of the engine: overpressure, overheat, wing or pylon leak of the side, bleed valve not closed for 10 s
+      during the engine start or with APU BLEED ON. Goes out when the pb-sw is OFF and the fault is gone
+    - Bool
+
+- A32NX_OVHD_PNEU_APU_BLEED_PB_HAS_FAULT:
+    - Indicates whether the fault light is on for the APU bleed push button: APU bleed leak
     - Bool
 
 - A32NX_PNEU_WING_ANTI_ICE_SYSTEM_ON:
@@ -4130,7 +4228,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the engine has no flame and its fuel stays cut until a relight lights it up: set by the flameout failure (latched), the seizure failure, or the ENG MASTER ON of an engine not running in flight; cleared when a relight attempt (ENG MASTER OFF then ON) lights up inside the relight envelope. Written by the systems WASM
+  - True when the engine has no flame and its fuel stays cut until a relight lights it up: set by the flameout failure (latched), the seizure failure, or the ENG MASTER ON of an engine not running in flight; cleared when a relight attempt lights up inside the relight envelope: the crew attempt (ENG MASTER OFF then ON), or in flight the FADEC attempt that begins at the flameout of a running engine and lasts 30 s (it lights up with the continuous ignition, ENG MODE IGN or automatic, or as a quick relight while the core still turns fast; FCOM PRO-ABN-ENG ENG 1(2) FAIL). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_SEIZED
   - Bool
@@ -4215,7 +4313,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - The start fault the FADEC reports (ENG 1(2) START FAULT, FCOM PRO-ABN-ENG): 0 none, 1 no light up (IGNITION FAULT), 2 stall, 3 EGT over limit, 4 hung start, 5 starter fault (STARTER SHAFT SHEAR), 6 low start air pressure, 7 thrust lever not at idle, 8 starter time exceeded (not on the A320). Written by the systems WASM
+  - The start fault the FADEC reports (ENG 1(2) START FAULT, FCOM PRO-ABN-ENG): 0 none, 1 no light up (IGNITION FAULT), 2 stall, 3 EGT over limit, 4 hung start, 5 starter fault (STARTER SHAFT SHEAR), 6 low start air pressure, 7 thrust lever not at idle, 8 starter time exceeded (not on the A320). A starter fault found in flight during a relight stays until the touchdown (WINDMILL START ONLY). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_FAULT_LIGHT
   - Bool
@@ -4274,7 +4372,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the continuous ignition of the engine is on (ENG MODE IGN/START with the engine running; on the ground after the selector was set to NORM then back to IGN/START): IGNITION memo. Written by the systems WASM
+  - True when the continuous ignition of the engine is on, with the engine running: manual (ENG MODE IGN/START; on the ground after the selector was set to NORM then back to IGN/START) or automatic (engine anti-ice valve open, ENG ANTI ICE:{number}): IGNITION memo. Written by the systems WASM
 
 - A32NX_ENGINE_{number}_START_VALVE_COMMAND
   - Number
