@@ -669,6 +669,10 @@ impl ApuGenerator for Aps3200ApuGenerator {
     fn output_within_normal_parameters(&self) -> bool {
         self.should_provide_output() && self.potential_normal() && self.frequency_normal()
     }
+
+    fn is_overloaded(&self) -> bool {
+        !self.load_normal()
+    }
 }
 provide_potential!(Aps3200ApuGenerator, (110.0..=120.0));
 provide_frequency!(Aps3200ApuGenerator, (390.0..=410.0));
@@ -979,6 +983,26 @@ mod apu_generator_tests {
             .run(Duration::from_secs(1_000));
 
         assert!(!test_bed.load_within_normal_range());
+    }
+
+    #[test]
+    fn when_load_exceeds_maximum_reports_an_overload() {
+        let test_bed = test_bed_with()
+            .running_apu()
+            .power_demand(Power::new::<watt>((90000. / 0.8) + 1.))
+            .run(Duration::from_secs(1_000));
+
+        assert!(test_bed.generator_is_overloaded());
+    }
+
+    #[test]
+    fn when_load_at_maximum_reports_no_overload() {
+        let test_bed = test_bed_with()
+            .running_apu()
+            .power_demand(Power::new::<watt>(90000. / 0.8))
+            .run(Duration::from_secs(1_000));
+
+        assert!(!test_bed.generator_is_overloaded());
     }
 
     #[test]

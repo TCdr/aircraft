@@ -96,6 +96,8 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['280200003', { part: StatusPart.Information, text: 'CTR TK FEED: MAN ONLY' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-AIR X BLEED FAULT STATUS, a320_fcom.txt l.71070), see FWC/Logic/BleedAlerts
   ['360200001', { part: StatusPart.Information, text: 'X BLEED MAN CTL' }],
+  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT 1(2) FAULT and BCL 1(2) FAULT STATUS, l.76175, l.76252)
+  ['240200201', { part: StatusPart.Information, text: 'APU BAT START NOT AVAIL' }],
   // 22 AUTO FLIGHT (FCOM PRO-ABN-FWS FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
   // 36 PNEUMATIC (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN INOP SYS, between CAT 3 DUAL and PACK 1(2))
@@ -126,6 +128,12 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['240300001', { part: StatusPart.InopSys, text: 'MAIN GALLEY' }],
   ['240300002', { part: StatusPart.InopSys, text: 'GEN 1' }],
   ['240300003', { part: StatusPart.InopSys, text: 'GEN 2' }],
+  // 24 ELECTRICAL (FCOM PRO-ABN-ELEC BAT/BCL FAULT l.76175, l.76252, GEN OVERLOAD l.77988 INOP SYS)
+  ['240300201', { part: StatusPart.InopSys, text: 'BAT 1' }],
+  ['240300202', { part: StatusPart.InopSys, text: 'BAT 2' }],
+  ['240300203', { part: StatusPart.InopSys, text: 'BCL 1' }],
+  ['240300204', { part: StatusPart.InopSys, text: 'BCL 2' }],
+  ['240300205', { part: StatusPart.InopSys, text: 'GALY/CAB' }],
   ['290300001', { part: StatusPart.InopSys, text: 'G ENG 1 PUMP' }],
   ['290300002', { part: StatusPart.InopSys, text: 'Y ENG 2 PUMP' }],
   ['300300001', { part: StatusPart.InopSys, text: 'WING A. ICE' }],

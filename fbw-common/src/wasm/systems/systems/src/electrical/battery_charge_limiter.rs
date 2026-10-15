@@ -2,8 +2,9 @@ use super::{
     AlternatingCurrentElectricalSystem, BatteryPushButtons, ElectricalElement, Electricity,
     ElectricitySource, EmergencyElectrical, ProvideCurrent, ProvidePotential,
 };
+use crate::failures::{Failure, FailureType};
 use crate::shared::AdirsDiscreteOutputs;
-use crate::simulation::{InitContext, VariableIdentifier};
+use crate::simulation::{InitContext, SimulationElementVisitor, VariableIdentifier};
 use crate::{
     shared::{ApuAvailable, ApuMaster, ApuStart, DelayedTrueLogicGate, LgciuWeightOnWheels},
     simulation::{SimulationElement, SimulatorWriter, UpdateContext, Write},
@@ -82,10 +83,28 @@ impl State {
 pub struct BatteryChargeLimiter {
     number: usize,
     should_show_arrow_when_contactor_closed_id: VariableIdentifier,
+    battery_fault_id: VariableIdentifier,
+    fault_id: VariableIdentifier,
     arrow: ArrowBetweenBatteryAndBatBus,
     observer: Option<State>,
+    /// The charging current has been outside limits long enough: see `update_battery_fault`
+    abnormal_charge: DelayedTrueLogicGate,
+    /// Latched battery fault (ELEC BAT 1(2) FAULT): the contactor stays open until the BAT
+    /// push button is set to OFF
+    battery_fault: bool,
+    /// The BCL itself has failed (ELEC BCL 1(2) FAULT)
+    failure: Failure,
 }
 impl BatteryChargeLimiter {
+    /// Design choice: the BCL sees an abnormal charge when the charging current stays above 12 A
+    /// for 2 s. A320 FCOM DSC-24-20 BAT pb FAULT, a320_fcom.txt l.37115-37117: "It is accompanied
+    /// by an ECAM caution, when the charging current for the corresponding battery is outside
+    /// limits. In this case the battery contactor opens." The normal charge of the battery model
+    /// is limited to 10 A (`Battery::calculate_charging_current`), so only a battery in thermal
+    /// runaway goes beyond.
+    const ABNORMAL_CHARGING_CURRENT_AMPERE: f64 = 12.;
+    const ABNORMAL_CHARGE_CONFIRMATION_TIME: Duration = Duration::from_secs(2);
+
     pub fn new(context: &mut InitContext, number: usize, contactor_id: &str) -> Self {
         Self {
             number,
@@ -93,9 +112,54 @@ impl BatteryChargeLimiter {
                 "ELEC_CONTACTOR_{}_SHOW_ARROW_WHEN_CLOSED",
                 contactor_id
             )),
+            battery_fault_id: context.get_identifier(format!("ELEC_BCL_{}_BAT_FAULT", number)),
+            fault_id: context.get_identifier(format!("ELEC_BCL_{}_FAULT", number)),
             arrow: ArrowBetweenBatteryAndBatBus::new(),
             observer: Some(State::new()),
+            abnormal_charge: DelayedTrueLogicGate::new(Self::ABNORMAL_CHARGE_CONFIRMATION_TIME),
+            battery_fault: false,
+            failure: Failure::new(FailureType::BatteryChargeLimiter(number)),
         }
+    }
+
+    /// The BCL opens the battery contactor and latches the battery fault when the charging
+    /// current is outside limits. Design choice: setting the BAT push button to OFF removes the
+    /// BCL power and resets the fault, as the FCOM gives for the automatic battery cut-off
+    /// (A320 FCOM DSC-24-20 l.37097-37098: "The flight crew can reset the contactors by switching
+    /// the BAT pb-sw to OFF then to AUTO").
+    fn update_battery_fault(
+        &mut self,
+        context: &UpdateContext,
+        battery: &impl ProvideCurrent,
+        battery_push_buttons: &impl BatteryPushButtons,
+    ) {
+        self.abnormal_charge.update(
+            context,
+            battery.current()
+                > ElectricCurrent::new::<ampere>(Self::ABNORMAL_CHARGING_CURRENT_AMPERE),
+        );
+
+        if !battery_push_buttons.bat_is_auto(self.number) {
+            self.battery_fault = false;
+        } else if self.abnormal_charge.output() && !self.failure.is_active() {
+            self.battery_fault = true;
+        }
+    }
+
+    /// The battery charge limiter saw an abnormal charge of its battery (ELEC BAT 1(2) FAULT).
+    pub fn has_battery_fault(&self) -> bool {
+        self.battery_fault
+    }
+
+    /// The battery charge limiter has failed (ELEC BCL 1(2) FAULT).
+    pub fn has_failed(&self) -> bool {
+        self.failure.is_active()
+    }
+
+    /// The BAT push button FAULT light: "The battery charge limiter is in fault" (A320 FCOM
+    /// DSC-24-20, l.37115).
+    pub fn has_fault(&self) -> bool {
+        self.has_battery_fault() || self.has_failed()
     }
 
     pub fn update(
@@ -114,9 +178,10 @@ impl BatteryChargeLimiter {
         adirs: &impl AdirsDiscreteOutputs,
     ) {
         self.arrow.update(context, battery);
+        self.update_battery_fault(context, battery, battery_push_buttons);
 
         if let Some(observer) = self.observer.take() {
-            self.observer = Some(observer.update(
+            let next = observer.update(
                 context,
                 electricity,
                 self.number,
@@ -130,20 +195,33 @@ impl BatteryChargeLimiter {
                 apu_overhead,
                 ac_electrical_system,
                 adirs,
-            ));
+            );
+            // A BCL in fault keeps the battery contactor open.
+            self.observer = Some(if self.has_fault() && next.should_close_contactor() {
+                State::Open(Open::from_closed())
+            } else {
+                next
+            });
         }
     }
 
     pub fn should_close_contactor(&self) -> bool {
-        self.observer.as_ref().unwrap().should_close_contactor()
+        !self.has_fault() && self.observer.as_ref().unwrap().should_close_contactor()
     }
 }
 impl SimulationElement for BatteryChargeLimiter {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.failure.accept(visitor);
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         writer.write(
             &self.should_show_arrow_when_contactor_closed_id,
             self.arrow.should_show_when_contactor_closed(),
         );
+        writer.write(&self.battery_fault_id, self.has_battery_fault());
+        writer.write(&self.fault_id, self.has_failed());
     }
 }
 
@@ -773,6 +851,10 @@ mod tests {
                 self
             }
 
+            fn bool_variable(&mut self, name: &str) -> bool {
+                self.read_by_name(name)
+            }
+
             fn current(&mut self) -> ElectricCurrent {
                 self.read_by_name(&format!("ELEC_BAT_{}_CURRENT", 1))
             }
@@ -1184,6 +1266,90 @@ mod tests {
 
         fn test_bed_with() -> BatteryChargeLimiterTestBed {
             test_bed()
+        }
+
+        fn charge_for_seconds(
+            mut test_bed: BatteryChargeLimiterTestBed,
+            seconds: u64,
+        ) -> BatteryChargeLimiterTestBed {
+            for _ in 0..seconds {
+                test_bed = test_bed.run(Duration::from_secs(1));
+            }
+            test_bed
+        }
+
+        #[test]
+        fn a_battery_in_thermal_runaway_opens_the_contactor_and_latches_the_battery_fault() {
+            let mut test_bed = test_bed().wait_for_closed_contactor(true);
+            test_bed.fail(FailureType::Battery(1));
+
+            let mut test_bed = charge_for_seconds(test_bed, 8);
+
+            assert!(!test_bed.battery_contactor_is_closed());
+            assert!(test_bed.bool_variable("ELEC_BCL_1_BAT_FAULT"));
+            assert!(!test_bed.bool_variable("ELEC_BCL_1_FAULT"));
+        }
+
+        #[test]
+        fn the_battery_fault_stays_latched_while_the_bat_push_button_is_auto() {
+            let mut test_bed = test_bed().wait_for_closed_contactor(true);
+            test_bed.fail(FailureType::Battery(1));
+            let mut test_bed = charge_for_seconds(test_bed, 8);
+            test_bed.unfail(FailureType::Battery(1));
+
+            let mut test_bed = charge_for_seconds(test_bed, 10);
+
+            assert!(!test_bed.battery_contactor_is_closed());
+            assert!(test_bed.bool_variable("ELEC_BCL_1_BAT_FAULT"));
+        }
+
+        #[test]
+        fn the_bat_push_button_off_resets_the_battery_fault() {
+            let mut test_bed = test_bed().wait_for_closed_contactor(true);
+            test_bed.fail(FailureType::Battery(1));
+            let mut test_bed = charge_for_seconds(test_bed, 8);
+            test_bed.unfail(FailureType::Battery(1));
+
+            let mut test_bed = test_bed
+                .battery_push_button_off()
+                .run(Duration::from_secs(1))
+                .battery_push_button_auto()
+                .wait_for_bcl_startup();
+
+            assert!(!test_bed.bool_variable("ELEC_BCL_1_BAT_FAULT"));
+            assert!(test_bed.battery_contactor_is_closed());
+        }
+
+        #[test]
+        fn a_normal_charge_does_not_set_the_battery_fault() {
+            let test_bed = test_bed().wait_for_closed_contactor(true);
+
+            let mut test_bed = charge_for_seconds(test_bed, 20);
+
+            assert!(test_bed.battery_contactor_is_closed());
+            assert!(!test_bed.bool_variable("ELEC_BCL_1_BAT_FAULT"));
+        }
+
+        #[test]
+        fn a_failed_bcl_keeps_the_contactor_open_and_reports_its_fault() {
+            let mut test_bed = test_bed();
+            test_bed.fail(FailureType::BatteryChargeLimiter(1));
+
+            let mut test_bed = test_bed.wait_for_closed_contactor(false);
+
+            assert!(!test_bed.battery_contactor_is_closed());
+            assert!(test_bed.bool_variable("ELEC_BCL_1_FAULT"));
+            assert!(!test_bed.bool_variable("ELEC_BCL_1_BAT_FAULT"));
+        }
+
+        #[test]
+        fn a_failed_bcl_opens_a_closed_contactor() {
+            let mut test_bed = test_bed().wait_for_closed_contactor(true);
+            test_bed.fail(FailureType::BatteryChargeLimiter(1));
+
+            let test_bed = test_bed.run(Duration::from_secs(1));
+
+            assert!(!test_bed.battery_contactor_is_closed());
         }
 
         #[test]
