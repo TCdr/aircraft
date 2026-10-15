@@ -6,7 +6,13 @@ import { join } from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ALL_DISPLAY_UNITS, DisplayUnitID, MAILBOX_DISPLAY_UNIT_VAR } from '@shared/CdsDisplayUnits';
 import { CdsDisplay, DRAWN_DISPLAYS, normalDisplayOf } from '@shared/CdsReconfiguration';
-import { findInstrumentUrl, HostedDisplayGate, isMailboxActiveOn, parseHostDisplayUnit } from './HostedDisplay';
+import {
+  findInstrumentUrl,
+  HIDDEN_HOSTED_GAUGE_CLASS,
+  HostedDisplayGate,
+  isMailboxActiveOn,
+  parseHostDisplayUnit,
+} from './HostedDisplay';
 
 /** The cockpit panel.cfg with the gauges of each DU */
 const PANEL_CFG = join(
@@ -82,6 +88,99 @@ describe('hosted display gauges (CDS reconfiguration)', () => {
     expect(gate.update()).toBe(false);
     expect(mount.style.display).toBe('none');
     expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the mouse through the gauge element of a hidden hosted gauge to the DU gauge under it', () => {
+    // The SD DU block: the SD's own gauge, then the hosted EWD listed after it (on top), each a whole-DU element
+    const panel = document.createElement('vcockpit-panel');
+    const sdGauge = document.createElement('a380x-sd');
+    sdGauge.setAttribute('url', 'A380X/SDv2/sdv2.html?duID=7');
+    const ewdGauge = document.createElement('a380x-ewd');
+    ewdGauge.setAttribute('url', 'A380X/EWD/ewd-hosted.html?hostDu=7&duID=6');
+    const ewdMount = document.createElement('div');
+    ewdMount.id = 'EWD_CONTENT';
+    ewdGauge.appendChild(ewdMount);
+    panel.append(sdGauge, ewdGauge);
+    document.body.append(panel);
+    const gate = new HostedDisplayGate(DisplayUnitID.Sd, CdsDisplay.Ewd, 'EWD_CONTENT', vi.fn());
+
+    expect(gate.update()).toBe(false);
+    expect(ewdGauge.style.pointerEvents).toBe('none');
+    expect(sdGauge.style.pointerEvents).toBe('');
+
+    SimVar.SetSimVarValue('L:A380X_CDS_SD_DU_DISPLAY', 'number', CdsDisplay.Ewd);
+    expect(gate.update()).toBe(true);
+    expect(ewdGauge.style.pointerEvents).toBe('');
+
+    SimVar.SetSimVarValue('L:A380X_CDS_SD_DU_DISPLAY', 'number', 0);
+    expect(gate.update()).toBe(false);
+    expect(ewdGauge.style.pointerEvents).toBe('none');
+  });
+
+  it('marks a hidden hosted gauge for a document rule that covers it and every element inside it', () => {
+    const panel = document.createElement('vcockpit-panel');
+    const ewdGauge = document.createElement('a380x-ewd');
+    ewdGauge.setAttribute('url', 'A380X/EWD/ewd-hosted.html?hostDu=7&duID=6');
+    const wrapper = document.createElement('div');
+    const ewdMount = document.createElement('div');
+    ewdMount.id = 'EWD_CONTENT';
+    wrapper.appendChild(ewdMount);
+    ewdGauge.appendChild(wrapper);
+    panel.append(ewdGauge);
+    document.body.append(panel);
+    const gate = new HostedDisplayGate(DisplayUnitID.Sd, CdsDisplay.Ewd, 'EWD_CONTENT', vi.fn());
+
+    gate.update();
+    expect(ewdGauge.classList.contains(HIDDEN_HOSTED_GAUGE_CLASS)).toBe(true);
+    const rule = Array.from(document.querySelectorAll('style'))
+      .map((style) => style.textContent ?? '')
+      .find((text) => text.includes(HIDDEN_HOSTED_GAUGE_CLASS));
+    expect(rule).toContain(`.${HIDDEN_HOSTED_GAUGE_CLASS} *`);
+    expect(rule).toContain('pointer-events: none !important');
+
+    SimVar.SetSimVarValue('L:A380X_CDS_SD_DU_DISPLAY', 'number', CdsDisplay.Ewd);
+    gate.update();
+    expect(ewdGauge.classList.contains(HIDDEN_HOSTED_GAUGE_CLASS)).toBe(false);
+    SimVar.SetSimVarValue('L:A380X_CDS_SD_DU_DISPLAY', 'number', 0);
+  });
+
+  it('hides a hosted gauge whose mount element only comes into the document after the first update', () => {
+    const gate = new HostedDisplayGate(DisplayUnitID.Sd, CdsDisplay.Ewd, 'EWD_CONTENT', vi.fn());
+    expect(gate.update()).toBe(false);
+
+    const panel = document.createElement('vcockpit-panel');
+    const ewdGauge = document.createElement('a380x-ewd');
+    ewdGauge.setAttribute('url', 'A380X/EWD/ewd-hosted.html?hostDu=7&duID=6');
+    const ewdMount = document.createElement('div');
+    ewdMount.id = 'EWD_CONTENT';
+    ewdGauge.appendChild(ewdMount);
+    panel.append(ewdGauge);
+    document.body.append(panel);
+
+    expect(gate.update()).toBe(false);
+    expect(ewdMount.style.display).toBe('none');
+    expect(ewdGauge.classList.contains(HIDDEN_HOSTED_GAUGE_CLASS)).toBe(true);
+  });
+
+  it('finds the gauge element of a hidden hosted gauge by its URL when the mount element is outside it', () => {
+    // As in the sim (2026-10-10 diagnostic: a380x-ewd under the mouse with pointer-events auto): the mount element is
+    // not a descendant of the gauge element, so only the panel.cfg URL tells which gauge element to make transparent
+    const panel = document.createElement('vcockpit-panel');
+    const sdGauge = document.createElement('a380x-sdv2');
+    sdGauge.setAttribute('url', 'A380X/SDv2/sdv2.html?duID=7');
+    const ewdGauge = document.createElement('a380x-ewd');
+    ewdGauge.setAttribute('url', 'A380X/EWD/ewd-hosted.html?hostDu=7&duID=6');
+    panel.append(sdGauge, ewdGauge);
+    const ewdMount = document.createElement('div');
+    ewdMount.id = 'EWD_CONTENT';
+    document.body.append(panel, ewdMount);
+    const gate = new HostedDisplayGate(DisplayUnitID.Sd, CdsDisplay.Ewd, 'EWD_CONTENT', vi.fn());
+
+    expect(gate.update()).toBe(false);
+    expect(ewdGauge.style.pointerEvents).toBe('none');
+    expect(ewdGauge.classList.contains(HIDDEN_HOSTED_GAUGE_CLASS)).toBe(true);
+    expect(sdGauge.style.pointerEvents).toBe('');
+    expect(sdGauge.classList.contains(HIDDEN_HOSTED_GAUGE_CLASS)).toBe(false);
   });
 
   it('stops a hosted gauge with a stop function when its display is no longer shown, and starts it again', () => {

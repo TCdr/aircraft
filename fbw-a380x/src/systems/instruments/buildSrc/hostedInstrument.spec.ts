@@ -4,7 +4,9 @@
 import { createRequire } from 'module';
 import { describe, expect, it } from 'vitest';
 
-const { scopeCss, hostedHtml, packageIds } = createRequire(import.meta.url)('./hostedInstrument.cjs');
+const { scopeCss, hostedHtml, packageIds, mouseTransparentRule, mouseOnlyWhenShownRule } = createRequire(
+  import.meta.url,
+)('./hostedInstrument.cjs');
 
 /** The stylesheet without line breaks and repeated spaces, for comparisons */
 function flat(css: string): string {
@@ -12,6 +14,40 @@ function flat(css: string): string {
 }
 
 describe('hosted instrument stylesheet (CDS reconfiguration)', () => {
+  it('makes a hosted gauge element and its content transparent to the mouse, matched by its URL', () => {
+    document.body.innerHTML =
+      '<vcockpit-panel><a380x-sdv2 url="coui://html_ui/Pages/VCockpit/Instruments/A380X/SDv2/sdv2.html?duID=7"></a380x-sdv2>' +
+      '<a380x-ewd url="coui://html_ui/Pages/VCockpit/Instruments/A380X/EWD/ewd-hosted.html?hostDu=7&duID=6"><div id="EWD_CONTENT"></div></a380x-ewd></vcockpit-panel>';
+    const rule = mouseTransparentRule('ewd');
+    const selectors = rule.substring(0, rule.indexOf('{')).trim();
+    expect(rule).toContain('pointer-events: none !important');
+    const matched = Array.from(document.querySelectorAll(selectors)).map((element) => element.tagName.toLowerCase());
+    // the hidden EWD over the SD and its mount element, not the SD's own gauge with the mailbox
+    expect(matched).toEqual(['a380x-ewd', 'div']);
+    document.body.innerHTML = '';
+  });
+
+  it('lets a hosted SD take the mouse with its content only: shown, its mailbox; hidden, nothing over the ND', () => {
+    const rules = mouseOnlyWhenShownRule('sdv2', 'SDv2_CONTENT');
+    const [gaugeRule, contentRule] = rules.trim().split('\n');
+    const selectorsOf = (rule: string) => rule.substring(0, rule.indexOf('{')).trim();
+    document.body.innerHTML =
+      '<vcockpit-panel><a380x-nd url="coui://html_ui/Pages/VCockpit/Instruments/A380X/ND/nd.html?Index=2&duID=4"></a380x-nd>' +
+      '<a380x-sdv2 url="coui://html_ui/Pages/VCockpit/Instruments/A380X/SDv2/sdv2-hosted.html?hostDu=4&duID=7">' +
+      '<div id="SDv2_CONTENT"><div class="mailbox"></div></div></a380x-sdv2></vcockpit-panel>';
+    // the gauge element (over the whole F/O ND DU) passes the mouse on
+    expect(gaugeRule).toContain('pointer-events: none !important');
+    expect(Array.from(document.querySelectorAll(selectorsOf(gaugeRule))).map((e) => e.tagName.toLowerCase())).toEqual([
+      'a380x-sdv2',
+    ]);
+    // its content takes it again (and the mailbox in it by inheritance); the mouse transparent rule did not
+    expect(contentRule).toContain('pointer-events: auto');
+    expect(Array.from(document.querySelectorAll(selectorsOf(contentRule))).map((e) => e.id)).toEqual(['SDv2_CONTENT']);
+    const allTransparent = selectorsOf(mouseTransparentRule('sdv2'));
+    expect(Array.from(document.querySelectorAll(allTransparent)).some((e) => e.className === 'mailbox')).toBe(true);
+    document.body.innerHTML = '';
+  });
+
   it('scopes every rule to the mount element', () => {
     expect(flat(scopeCss('.FontLarge { font-size: 6.5px; } text, tspan { fill: red; }', '#PFD_CONTENT'))).toBe(
       '#PFD_CONTENT .FontLarge { font-size: 6.5px; } #PFD_CONTENT text, #PFD_CONTENT tspan { fill: red; }',
