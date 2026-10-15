@@ -125,10 +125,19 @@
         </Condition>
     </Template>
 
+    <!-- Windshield wiper blade. Animation position 0 is the parked blade (out of view); while sweeping the blade
+         travels between about 40 and 105 (ANIM_CODE below).
+         A320 FCOM DSC-30-60-20 (WIPER rotary selector): "When turned off, the wiper stops out of view."
+         Power: Capt wiper on DC BUS 1, F/O wiper on DC BUS 2 (lost with ELEC DC BUS 1 / DC BUS 2 FAULT, PRO-ABN-ELEC
+         INOP SYS); WIPER_BUS_POWERED is that bus' condition at each use.
+         - selector on (circuit switch on) and bus powered: sweeps at the knob speed (ANIM_CODE);
+         - selector OFF and bus powered: finishes its travel at the same speed back to 0 and stays parked (FAILURE_CODE);
+         - bus unpowered, whatever the selector: no power to move the blade, it stays where it is (FAILURE_CODE). -->
     <Template Name="FBW_Airbus_Wiper">
         <DefaultTemplateParameters>
             <ANIM_NAME>HANDLING_Wipers</ANIM_NAME>
-            <CIRCUIT_ID_WIPERS>1</CIRCUIT_ID_WIPERS><!-- ID of the circuit powering the wipers -->
+            <CIRCUIT_ID_WIPERS>1</CIRCUIT_ID_WIPERS><!-- ID of the circuit the WIPER selector switches -->
+            <WIPER_BUS_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</WIPER_BUS_POWERED><!-- true when the bus feeding the wiper motor is powered -->
             <MIN_SPEED_PERCENT>0.1</MIN_SPEED_PERCENT>
             <MAX_SPEED>313</MAX_SPEED><!-- ANIM frames played per second at max speed -->
             <WWISE_EVENT_1>wipers_forward</WWISE_EVENT_1>
@@ -138,10 +147,31 @@
         </DefaultTemplateParameters>
         <OverrideTemplateParameters>
             <ONE_MINUS_MIN_SPEED Process="Float">1 #MIN_SPEED_PERCENT# -</ONE_MINUS_MIN_SPEED>
+            <!-- Not sweeping (FAILURE below false). Bus powered (selector OFF): the motor drives the blade to the end
+                 of its travel and back down to the park position 0, where it stops. Bus unpowered: the blade stays
+                 where it is (no power to move it).
+                 The speed is the sweep speed of ANIM_CODE (the knob keeps its SLOW/FAST power setting when turned
+                 OFF), written out with "1 MIN_SPEED_PERCENT -" rather than ONE_MINUS_MIN_SPEED: the MSFS SDK
+                 templates never use one entry of an Override block in another entry of the same block, so this
+                 code does not rely on it. -->
             <FAILURE_CODE>
-                <!-- Circuit unpowered: freeze the blades in place instead of continuing to sweep at
-                     the knob-commanded speed (the powered ANIM_CODE below derives speed straight from
-                     the knob position, which is independent of whether the circuit is actually live). -->
+                #WIPER_BUS_POWERED# (O:AnimCode) 0 &gt; and if{
+                (A:CIRCUIT POWER SETTING:#CIRCUIT_ID_WIPERS#, percent over 100) 1 #MIN_SPEED_PERCENT# - * #MIN_SPEED_PERCENT# + #MAX_SPEED# * (&gt;O:_AnimSpeed)
+                (O:_GoForward) if{ 1 (&gt;O:_AnimDirection) } els{ -1 (&gt;O:_AnimDirection) }
+                (O:_AnimDirection) (O:_AnimSpeed) * (A:ANIMATION DELTA TIME, seconds) * (O:AnimCode) + (&gt;O:NewAnimCode)
+                (O:NewAnimCode) 100 &gt; if{
+                100 (O:NewAnimCode) 100 % - (&gt;O:NewAnimCode)
+                1 (&gt;O:_ChangedDirection)
+                }
+                (O:NewAnimCode) 0 &lt; if{
+                0 (&gt;O:NewAnimCode)
+                }
+                (O:_ChangedDirection) if{
+                (O:_GoForward) ! (&gt;O:_GoForward)
+                0 (&gt;O:_ChangedDirection)
+                }
+                (O:NewAnimCode) (&gt;O:AnimCode)
+                }
                 (O:AnimCode)
             </FAILURE_CODE>
         </OverrideTemplateParameters>
@@ -171,7 +201,10 @@
                 }
                 (O:NewAnimCode)
             </ANIM_CODE>
-            <FAILURE>(A:CIRCUIT ON:#CIRCUIT_ID_WIPERS#, Bool)</FAILURE>
+            <!-- Sweeping: WIPER selector out of OFF (the knob drives this circuit switch) and the wiper's bus powered.
+                 Not (A:CIRCUIT ON): it is also false when the selector is OFF, and the MSFS bus behind it only
+                 mirrors the FBW bus through connection toggles (WIPER_BUS_POWERED is the FBW bus itself). -->
+            <FAILURE>(A:CIRCUIT SWITCH ON:#CIRCUIT_ID_WIPERS#, Bool) #WIPER_BUS_POWERED# and</FAILURE>
         </UseTemplate>
         <UseTemplate Name="ASOBO_GT_AnimTriggers_2SoundEvents"/>
     </Template>

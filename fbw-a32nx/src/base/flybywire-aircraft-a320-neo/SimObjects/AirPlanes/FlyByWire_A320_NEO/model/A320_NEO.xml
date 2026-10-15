@@ -127,12 +127,16 @@
                 <UseTemplate Name="FBW_Airbus_Wiper">
                     <ANIM_NAME>HANDLING_Wiper_left</ANIM_NAME>
                     <CIRCUIT_ID_WIPERS>77</CIRCUIT_ID_WIPERS>
+                    <!-- Capt wiper: DC BUS 1 (FCOM PRO-ABN-ELEC DC BUS 1 FAULT, INOP SYS) -->
+                    <WIPER_BUS_POWERED>(L:A32NX_ELEC_DC_1_BUS_IS_POWERED, Bool)</WIPER_BUS_POWERED>
                 </UseTemplate>
             </Component>
             <Component ID="WipersRight">
                 <UseTemplate Name="FBW_Airbus_Wiper">
                     <ANIM_NAME>HANDLING_Wiper_right</ANIM_NAME>
                     <CIRCUIT_ID_WIPERS>80</CIRCUIT_ID_WIPERS>
+                    <!-- F/O wiper: DC BUS 2 (FCOM PRO-ABN-ELEC DC BUS 2 FAULT, INOP SYS) -->
+                    <WIPER_BUS_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</WIPER_BUS_POWERED>
                 </UseTemplate>
             </Component>
         </Component>
