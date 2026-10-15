@@ -7,10 +7,16 @@
 //! failure OR an in-flight relight that has not lit up.
 //!
 //! - Flameout failure: when it is activated the flame goes out, and it stays out (latched). The
-//!   FADEC does not relight it by itself. The crew relights it with the ENG MASTER OFF then ON
-//!   (A320 FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN FLIGHT) inside the relight envelope of the
-//!   aircraft; the engine then runs normally while the failure stays listed. Deactivating then
-//!   activating the failure gives a new flameout.
+//!   crew relights it with the ENG MASTER OFF then ON (A320 FCOM PRO-ABN-ENG [QRH] ENG RELIGHT IN
+//!   FLIGHT) inside the relight envelope of the aircraft; the engine then runs normally while the
+//!   failure stays listed. Deactivating then activating the failure gives a new flameout.
+//! - Automatic relight after a flameout, for the aircraft whose envelope asks for it
+//!   ([`EngineRelightEnvelope::fadec_attempts_relight_after_flameout`]): in flight, the flameout of
+//!   a running engine starts a FADEC relight attempt at once, without a MASTER cycle. It lasts the
+//!   same 30 s as a crew attempt, and its light-up obeys the same envelope, with two differences:
+//!   the ignition is the continuous ignition (ENG MODE selector at IGN, or selected automatically),
+//!   and the time since the flameout stands for the MASTER OFF time of the quick relight (the core
+//!   still turns fast just after the flameout, as after a quick MASTER cycle).
 //! - Seizure failure: the core stops. No relight lights up while the failure is active; once it
 //!   is cleared the engine can be relit by the same procedure.
 //! - In flight, every relight of an engine that is not running (after a flameout, a seizure or a
@@ -64,6 +70,12 @@ pub trait EngineRelightEnvelope {
     /// The core speed (N2) of an engine without combustion windmilling at this airspeed and
     /// pressure altitude.
     fn windmill_n2(&self, indicated_airspeed: Velocity, pressure_altitude: Length) -> Ratio;
+
+    /// Whether the FADEC makes a relight attempt by itself as soon as a running engine flames out
+    /// in flight (see the module comment). Off unless the aircraft FCOM describes it.
+    fn fadec_attempts_relight_after_flameout(&self) -> bool {
+        false
+    }
 }
 
 /// What the aircraft knows about one engine, read from its own variables.
@@ -83,6 +95,9 @@ pub struct EngineFailureInputs {
     /// At least one igniter works: without, no relight lights up (ignition failures, see
     /// `engine_start`).
     pub ignition_available: bool,
+    /// The FADEC selects the continuous ignition by itself (e.g. engine anti-ice, see
+    /// `engine_start`): it counts as the ignition of an automatic relight attempt.
+    pub automatic_continuous_ignition: bool,
 }
 
 pub struct EngineFailure {
@@ -105,6 +120,9 @@ pub struct EngineFailure {
     flamed_out: bool,
     /// The time since the ENG MASTER was set ON for a relight, while the attempt lasts.
     relight_attempt_time: Option<Duration>,
+    /// The attempt in progress is the automatic FADEC relight that began at the flameout (its time
+    /// is then the time since the flameout), not a crew attempt that began at a MASTER ON.
+    automatic_relight_attempt: bool,
     fuel_cut: bool,
     relight_ignition: bool,
     windmill_n1: Ratio,
@@ -133,6 +151,7 @@ impl EngineFailure {
             flameout_was_active: false,
             flamed_out: false,
             relight_attempt_time: None,
+            automatic_relight_attempt: false,
             fuel_cut: false,
             relight_ignition: false,
             windmill_n1: Ratio::default(),
@@ -154,11 +173,29 @@ impl EngineFailure {
 
         // The flameout latches on the activation of the failure; the seizure holds while active.
         let flameout_is_active = self.flameout.is_active();
-        if (flameout_is_active && !self.flameout_was_active) || seized {
+        let flameout_activated = flameout_is_active && !self.flameout_was_active;
+        if flameout_activated || seized {
             self.flamed_out = true;
             self.relight_attempt_time = None;
+            self.automatic_relight_attempt = false;
         }
         self.flameout_was_active = flameout_is_active;
+
+        // The FADEC relight attempt of a running engine that flames out in flight (A320 FCOM
+        // PRO-ABN-ENG ENG 1(2) FAIL, a320_fcom.txt l.79828: "Selection of continuous ignition
+        // confirms the immediate relight attempt made by the FADEC"). Its 30 s start at the
+        // flameout: l.79849-79851, "IF NO ENG RELIGHT AFTER 30 S: The 30 s countdown starts as soon
+        // as the ENG 1(2) FAIL alert is triggered".
+        if flameout_activated
+            && !seized
+            && !on_ground
+            && inputs.master_switch_is_on
+            && inputs.engine_is_running
+            && envelope.fadec_attempts_relight_after_flameout()
+        {
+            self.relight_attempt_time = Some(Duration::ZERO);
+            self.automatic_relight_attempt = true;
+        }
 
         let master_switch_turned_on =
             inputs.master_switch_is_on && self.previous_master_switch_is_on == Some(false);
@@ -178,30 +215,51 @@ impl EngineFailure {
             }
             if self.flamed_out && !seized {
                 self.relight_attempt_time = Some(Duration::ZERO);
+                self.automatic_relight_attempt = false;
             }
         }
         if !inputs.master_switch_is_on {
             self.relight_attempt_time = None;
+            self.automatic_relight_attempt = false;
         }
 
         if let Some(attempt_time) = self.relight_attempt_time {
-            let conditions = RelightConditions {
-                on_ground,
-                indicated_airspeed: context.indicated_airspeed(),
-                pressure_altitude,
-                ignition_selected: inputs.ignition_selected,
-                starter_air_pressurized: inputs.starter_air_pressurized,
-                core_speed: inputs.core_speed,
-                master_off_duration: self.master_off_duration,
+            let conditions = if self.automatic_relight_attempt {
+                // Design choice: the automatic attempt lights up with the continuous ignition, manual
+                // (ENG MODE IGN, the "selection of continuous ignition" of the ECAM) or automatic; the
+                // time since the flameout stands for the MASTER OFF time of the quick relight.
+                RelightConditions {
+                    on_ground,
+                    indicated_airspeed: context.indicated_airspeed(),
+                    pressure_altitude,
+                    ignition_selected: inputs.ignition_selected
+                        || inputs.automatic_continuous_ignition,
+                    starter_air_pressurized: inputs.starter_air_pressurized,
+                    core_speed: inputs.core_speed,
+                    master_off_duration: attempt_time,
+                }
+            } else {
+                RelightConditions {
+                    on_ground,
+                    indicated_airspeed: context.indicated_airspeed(),
+                    pressure_altitude,
+                    ignition_selected: inputs.ignition_selected,
+                    starter_air_pressurized: inputs.starter_air_pressurized,
+                    core_speed: inputs.core_speed,
+                    master_off_duration: self.master_off_duration,
+                }
             };
             if inputs.ignition_available && envelope.engine_lights_up(&conditions) {
                 self.flamed_out = false;
                 self.relight_attempt_time = None;
+                self.automatic_relight_attempt = false;
             } else {
                 let attempt_time = attempt_time + context.delta();
                 self.relight_attempt_time = if attempt_time < Self::RELIGHT_ATTEMPT_DURATION {
                     Some(attempt_time)
                 } else {
+                    // No light-up within 30 s: the engine stays out until a crew relight.
+                    self.automatic_relight_attempt = false;
                     None
                 };
             }
@@ -282,8 +340,12 @@ mod tests {
 
     /// A test envelope: lights up above 250 kt below 20 000 ft with ignition, or with starter
     /// air at any speed below 20 000 ft, or anywhere after a MASTER OFF of less than 10 s with N2
-    /// above 50 % (a quick relight); the windmill N2 is 4 % per 100 kt.
-    struct TestEnvelope;
+    /// above 50 % (a quick relight); the windmill N2 is 4 % per 100 kt. With `fadec_relight` the
+    /// FADEC makes its automatic relight attempt after a flameout.
+    #[derive(Default)]
+    struct TestEnvelope {
+        fadec_relight: bool,
+    }
     impl EngineRelightEnvelope for TestEnvelope {
         fn engine_lights_up(&self, conditions: &RelightConditions) -> bool {
             if conditions.on_ground {
@@ -306,16 +368,22 @@ mod tests {
         fn windmill_n2(&self, indicated_airspeed: Velocity, _: Length) -> Ratio {
             Ratio::new::<percent>(4. * indicated_airspeed.get::<knot>() / 100.)
         }
+
+        fn fadec_attempts_relight_after_flameout(&self) -> bool {
+            self.fadec_relight
+        }
     }
 
     struct TestAircraft {
         engine_failure: EngineFailure,
+        envelope: TestEnvelope,
         inputs: EngineFailureInputs,
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
             Self {
                 engine_failure: EngineFailure::new(context, 1),
+                envelope: TestEnvelope::default(),
                 inputs: EngineFailureInputs {
                     master_switch_is_on: true,
                     ignition_selected: false,
@@ -325,6 +393,7 @@ mod tests {
                     lp_valve_starved: false,
                     start_sequence_fuel_cut: false,
                     ignition_available: true,
+                    automatic_continuous_ignition: false,
                 },
             }
         }
@@ -332,7 +401,7 @@ mod tests {
     impl Aircraft for TestAircraft {
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
             self.engine_failure
-                .update(context, &TestEnvelope, self.inputs);
+                .update(context, &self.envelope, self.inputs);
         }
     }
     impl SimulationElement for TestAircraft {
@@ -360,6 +429,12 @@ mod tests {
             test_bed.set_indicated_airspeed(Velocity::new::<knot>(300.));
             test_bed.set_pressure_altitude(Length::new::<foot>(10_000.));
             test_bed
+        }
+
+        /// The aircraft FADEC makes its automatic relight attempt after a flameout.
+        fn with_fadec_relight(mut self) -> Self {
+            self.command(|a: &mut TestAircraft| a.envelope.fadec_relight = true);
+            self
         }
 
         fn with(mut self, change: impl FnOnce(&mut EngineFailureInputs)) -> Self {
@@ -759,5 +834,91 @@ mod tests {
         test_bed.set_on_ground(true);
         test_bed = test_bed.and_run();
         assert!(test_bed.windmill_n2().abs() < 1e-6);
+    }
+
+    /// A running engine of an aircraft with the FADEC relight flames out in flight at 300 kt and
+    /// FL 100 (inside the windmill relight of the test envelope with ignition), with its core
+    /// below the quick relight speed so that only the continuous ignition can relight it.
+    fn fadec_relight_flameout() -> EngineFailureTestBed {
+        let mut test_bed = EngineFailureTestBed::not_run_yet()
+            .with_fadec_relight()
+            .with(|inputs| inputs.core_speed = Ratio::new::<percent>(30.))
+            .and_run();
+        test_bed.fail(FailureType::EngineFlameout(1));
+        test_bed.and_run().engine_stops().and_run()
+    }
+
+    #[test]
+    fn the_fadec_relight_lights_up_once_the_continuous_ignition_is_selected_within_30_s() {
+        let mut test_bed = fadec_relight_flameout().and_run_for(Duration::from_secs(10));
+        assert!(test_bed.fuel_is_cut());
+        assert!(test_bed.flamed_out());
+
+        // ENG MODE SEL IGN (ECAM ENG 1(2) FAIL): no MASTER cycle needed
+        test_bed = test_bed
+            .with(|inputs| inputs.ignition_selected = true)
+            .and_run();
+        assert!(!test_bed.fuel_is_cut());
+        assert!(!test_bed.flamed_out());
+        assert!(test_bed.relight_ignition());
+    }
+
+    #[test]
+    fn the_automatic_continuous_ignition_also_confirms_the_fadec_relight() {
+        let mut test_bed = fadec_relight_flameout()
+            .with(|inputs| inputs.automatic_continuous_ignition = true)
+            .and_run();
+
+        assert!(!test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn the_fadec_relight_attempt_ends_30_s_after_the_flameout() {
+        let mut test_bed = fadec_relight_flameout()
+            .and_run_for(Duration::from_secs(31))
+            .with(|inputs| inputs.ignition_selected = true)
+            .and_run_for(Duration::from_secs(5));
+
+        // IF NO ENG RELIGHT AFTER 30 S: the crew relight (MASTER OFF then ON) is left
+        assert!(test_bed.fuel_is_cut());
+        test_bed = test_bed.master_off_then_on();
+        assert!(!test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn the_fadec_relight_is_a_quick_relight_while_the_core_still_turns_fast() {
+        // core at 80 %: the test envelope quick relight (less than 10 s, N2 above 50 %) at NORM
+        let mut test_bed = EngineFailureTestBed::new().with_fadec_relight().and_run();
+        test_bed.fail(FailureType::EngineFlameout(1));
+        test_bed = test_bed.and_run();
+
+        assert!(!test_bed.fuel_is_cut());
+        assert!(!test_bed.flamed_out());
+    }
+
+    #[test]
+    fn the_fadec_makes_no_relight_attempt_on_the_ground() {
+        let mut test_bed = EngineFailureTestBed::not_run_yet()
+            .with_fadec_relight()
+            .with(|inputs| inputs.starter_air_pressurized = true)
+            .and_run();
+        test_bed.set_on_ground(true);
+        test_bed = test_bed.and_run();
+        test_bed.fail(FailureType::EngineFlameout(1));
+        test_bed = test_bed
+            .and_run()
+            .engine_stops()
+            .and_run_for(Duration::from_secs(5));
+
+        assert!(test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn without_the_fadec_relight_the_continuous_ignition_does_not_relight_a_flameout() {
+        let mut test_bed = flamed_out_engine()
+            .with(|inputs| inputs.ignition_selected = true)
+            .and_run_for(Duration::from_secs(5));
+
+        assert!(test_bed.fuel_is_cut());
     }
 }

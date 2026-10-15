@@ -322,8 +322,9 @@
 
 - A32NX_FM_REC_MAX_FL
     - Number (flight level)
-    - The recommended maximum flight level (REC MAX) of the MCDU PROG page, 0 when the FMS has no gross weight to
-      compute it. Read by the flyPad Performance > Buffet page.
+    - The recommended maximum flight level (REC MAX) of the MCDU PROG page (the engine-out REC MAX when the FMS is in
+      its engine-out condition), 0 when the FMS has no gross weight to compute it. Read by the flyPad Performance > Buffet
+      page.
 
 - A32NX_SPEEDS_VAPP
     - Number (Knots)
@@ -4130,7 +4131,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the engine has no flame and its fuel stays cut until a relight lights it up: set by the flameout failure (latched), the seizure failure, or the ENG MASTER ON of an engine not running in flight; cleared when a relight attempt (ENG MASTER OFF then ON) lights up inside the relight envelope. Written by the systems WASM
+  - True when the engine has no flame and its fuel stays cut until a relight lights it up: set by the flameout failure (latched), the seizure failure, or the ENG MASTER ON of an engine not running in flight; cleared when a relight attempt lights up inside the relight envelope: the crew attempt (ENG MASTER OFF then ON), or in flight the FADEC attempt that begins at the flameout of a running engine and lasts 30 s (it lights up with the continuous ignition, ENG MODE IGN or automatic, or as a quick relight while the core still turns fast; FCOM PRO-ABN-ENG ENG 1(2) FAIL). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_SEIZED
   - Bool
@@ -4215,7 +4216,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - The start fault the FADEC reports (ENG 1(2) START FAULT, FCOM PRO-ABN-ENG): 0 none, 1 no light up (IGNITION FAULT), 2 stall, 3 EGT over limit, 4 hung start, 5 starter fault (STARTER SHAFT SHEAR), 6 low start air pressure, 7 thrust lever not at idle, 8 starter time exceeded (not on the A320). Written by the systems WASM
+  - The start fault the FADEC reports (ENG 1(2) START FAULT, FCOM PRO-ABN-ENG): 0 none, 1 no light up (IGNITION FAULT), 2 stall, 3 EGT over limit, 4 hung start, 5 starter fault (STARTER SHAFT SHEAR), 6 low start air pressure, 7 thrust lever not at idle, 8 starter time exceeded (not on the A320). A starter fault found in flight during a relight stays until the touchdown (WINDMILL START ONLY). Written by the systems WASM
 
 - A32NX_ENGINE_{number}_FAULT_LIGHT
   - Bool
@@ -4274,7 +4275,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
   - {number}
     - 1
     - 2
-  - True when the continuous ignition of the engine is on (ENG MODE IGN/START with the engine running; on the ground after the selector was set to NORM then back to IGN/START): IGNITION memo. Written by the systems WASM
+  - True when the continuous ignition of the engine is on, with the engine running: manual (ENG MODE IGN/START; on the ground after the selector was set to NORM then back to IGN/START) or automatic (engine anti-ice valve open, ENG ANTI ICE:{number}): IGNITION memo. Written by the systems WASM
 
 - A32NX_ENGINE_{number}_START_VALVE_COMMAND
   - Number
