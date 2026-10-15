@@ -428,6 +428,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New F/CTL cautions from the flight control computers: L(R) ELEV FAULT, L(R) AIL FAULT, SPLR FAULT, ELEV SERVO FAULT, AIL SERVO FAULT and ELAC 1(2) PITCH FAULT, with the FCOM phase inhibitions; a loss caused by a hydraulic system or a failed computer stays with the HYD or ELAC/SEC alert - @TCdr
 1. [A32NX/FWC] F/CTL: both ELACs failed now show one ELAC 1+2 FAULT procedure instead of two ELAC FAULT alerts; ALTN LAW shows SPD BRK DO NOT USE for an L or R elevator fault (as the FCOM) instead of the spoiler 3+4 fault; FCDC 1+2 FAULT is no longer inhibited in phase 3 - @TCdr
 1. [A32NX/FWC] F/CTL STATUS page: ALTN LAW, DIRECT LAW, ELAC, SEC, FCDC, elevator, aileron and spoiler faults now show their FCOM limitations, approach procedure, information and INOP SYS lines - @TCdr
+1. [A32NX/TCAS] TRAFFIC selector on THRT: the proximate and other intruders within 2700 ft above and below are now shown on the ND while a TA or RA is present, as in the FCOM (before only the TA/RA intruders were shown) - @TCdr
+1. [ND] TCAS: CHANGE MODE (ND in PLAN) and TCAS: REDUCE RANGE (ND range above 40 NM) are shown while a TA (amber) or an RA (red) cannot be seen on the ND; on the A380X also TCAS: INCREASE RANGE in ROSE-VOR/ROSE-LS with the ZOOM range in flight - @TCdr
+1. [A380X/SURV] Pressing the lit WXR/TAWS SYS 1 or SYS 2 pb (SURV panel or MFD SURV STATUS & SWITCHING) keeps that system selected instead of selecting none, which failed TERR and GPWS - @TCdr
+1. [A380X/TCAS] The EFIS CP TRAF pb now shows all the traffic on the ND (it was ignored), and a TCAS TA or RA selects it automatically, as in the FCOM - @TCdr
+1. [A380X/FWS] Smart FIVE HUNDRED callout: the flyPad pin programming "Inhibited When Glideslope Captured" is back and calls FIVE HUNDRED only when more than half a dot off the glideslope - @TCdr
 
 ## 2024.1.0
 

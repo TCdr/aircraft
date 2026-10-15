@@ -6,6 +6,7 @@ import { EventBus } from '@microsoft/msfs-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { LegacyGpws } from './LegacyGpws';
 import { LegacySoundManager } from './LegacySoundManager';
+import { A380XRadioAutoCallOutFlags } from '../../shared/src/AutoCallOuts';
 
 /*
  * A380 FCOM DSC-34-SURV (FLAP MODE BUTTON): "The flight crew can inhibit mode 4B by setting the FLAP MODE button to
@@ -163,5 +164,63 @@ describe('GPWS mode 4 alert ends above the ceiling', () => {
     expect(mode.current).toBe(2);
     gpws.GPWSMode4(mode, 300, 150, false, true, FmgcFlightPhase.Approach);
     expect(mode.current).toBe(0);
+  });
+});
+
+/*
+ * A380 FCOM DSC-34-10-50 AUTOMATIC CALLOUTS (a380_fcom.txt 86490-86491, 86528): "FIVE HUNDRED or Smart FIVE HUNDRED";
+ * the smart FIVE HUNDRED "is triggered only if the glide deviation exceeds a half dot". Before, the smart pin was
+ * ignored and FIVE HUNDRED was always called out.
+ */
+describe('Smart FIVE HUNDRED callout', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Descends through 500 ft with that pin programming and glide deviation (degrees), returns the queued sounds */
+  const descendThrough500 = (pins: number, glideValid: boolean, glideDeviationDeg: number) => {
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => {
+      if (name === 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID') {
+        return glideValid ? 1 : 0;
+      }
+      return name === 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION' ? glideDeviationDeg : 0;
+    });
+    const bus = new EventBus();
+    const sounds: string[] = [];
+    bus
+      .getSubscriber<{ enqueueSound: string }>()
+      .on('enqueueSound')
+      .handle((sound) => sounds.push(sound));
+    const gpws = new LegacyGpws(bus, {} as LegacySoundManager);
+    gpws.autoCallOutPins = pins;
+    gpws.AltCallState.setState('over500');
+    gpws.UpdateAltState(510);
+    return sounds;
+  };
+
+  const normal = A380XRadioAutoCallOutFlags.FiveHundred;
+  const smart = A380XRadioAutoCallOutFlags.FiveHundred | A380XRadioAutoCallOutFlags.FiveHundredGlide;
+
+  it('FIVE HUNDRED pin: always called out', () => {
+    expect(descendThrough500(normal, true, 0)).toEqual(['alt_500']);
+  });
+
+  it('smart FIVE HUNDRED: not called out on the glide (within half a dot)', () => {
+    // 0.1 degree = 0.25 dot
+    expect(descendThrough500(smart, true, 0.1)).toEqual([]);
+  });
+
+  it('smart FIVE HUNDRED: called out more than half a dot off the glide, either side', () => {
+    // 0.3 degree = 0.75 dot
+    expect(descendThrough500(smart, true, 0.3)).toEqual(['alt_500']);
+    expect(descendThrough500(smart, true, -0.3)).toEqual(['alt_500']);
+  });
+
+  it('smart FIVE HUNDRED: called out without a valid glide', () => {
+    expect(descendThrough500(smart, false, 0)).toEqual(['alt_500']);
+  });
+
+  it('no FIVE HUNDRED pin: never called out', () => {
+    expect(descendThrough500(A380XRadioAutoCallOutFlags.FourHundred, false, 1)).toEqual([]);
   });
 });
