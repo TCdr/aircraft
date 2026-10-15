@@ -366,14 +366,26 @@ mod tests {
     use super::*;
     use crate::navigation::A380AirDataInertialReferenceSystemBuilder;
     use systems::{
+        electrical::{test::TestElectricitySource, ElectricalBus, Electricity},
         failures::FailureType,
         navigation::adirs::AirDataInertialReferenceSystemOverheadPanel,
-        shared::MachNumber,
+        shared::{ElectricalBusType, MachNumber, PotentialOrigin},
         simulation::{
             test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
             Aircraft, SimulationElementVisitor,
         },
     };
+    use uom::si::electric_potential::volt;
+
+    /// The buses of the A380 ADIRUs (navigation.rs A380AirDataInertialReferenceSystemBuilder), all powered
+    const ADIRU_BUSES: [ElectricalBusType; 6] = [
+        ElectricalBusType::AlternatingCurrentEssentialShed,
+        ElectricalBusType::AlternatingCurrent(2),
+        ElectricalBusType::AlternatingCurrent(4),
+        ElectricalBusType::DirectCurrentEssential,
+        ElectricalBusType::DirectCurrent(1),
+        ElectricalBusType::DirectCurrent(2),
+    ];
 
     #[test]
     fn vote_finds_the_source_that_disagrees_with_three_coherent_ones() {
@@ -416,6 +428,8 @@ mod tests {
     }
 
     struct TestAircraft {
+        electricity_source: TestElectricitySource,
+        buses: [ElectricalBus; 6],
         adirs: AirDataInertialReferenceSystem,
         overhead: AirDataInertialReferenceSystemOverheadPanel,
         monitoring: A380PrimAirDataMonitoring,
@@ -423,6 +437,11 @@ mod tests {
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
             Self {
+                electricity_source: TestElectricitySource::powered(
+                    context,
+                    PotentialOrigin::EngineGenerator(1),
+                ),
+                buses: ADIRU_BUSES.map(|bus| ElectricalBus::new(context, bus)),
                 adirs: A380AirDataInertialReferenceSystemBuilder::build(context),
                 overhead: AirDataInertialReferenceSystemOverheadPanel::new(context),
                 monitoring: A380PrimAirDataMonitoring::new(context),
@@ -430,6 +449,19 @@ mod tests {
         }
     }
     impl Aircraft for TestAircraft {
+        fn update_before_power_distribution(
+            &mut self,
+            _: &UpdateContext,
+            electricity: &mut Electricity,
+        ) {
+            self.electricity_source
+                .power_with_potential(ElectricPotential::new::<volt>(115.));
+            electricity.supplied_by(&self.electricity_source);
+            for bus in self.buses.iter() {
+                electricity.flow(&self.electricity_source, bus);
+            }
+        }
+
         fn update_after_power_distribution(&mut self, context: &UpdateContext) {
             self.adirs.update(context, &self.overhead);
             self.overhead.update(context, &self.adirs);
