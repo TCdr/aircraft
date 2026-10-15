@@ -9,6 +9,7 @@ import {
   engineAntiIceValveClosedStatus,
   engineAntiIceValveOpenStatus,
 } from './EngineAntiIceAlerts';
+import { statusLines } from './FwcAlertSpecHelpers';
 
 function monitorAfter(inputs: EngineAntiIceValveInputs, seconds: number): EngineAntiIceValveMonitor {
   const monitor = new EngineAntiIceValveMonitor();
@@ -50,6 +51,15 @@ describe('ANTI ICE ENG 1(2) VALVE CLSD', () => {
   it('has the STATUS of the FCOM: AVOID ICING CONDITIONS, INOP SYS ENG 1(2) A. ICE (l.68815-68817)', () => {
     expect(engineAntiIceValveClosedStatus(1)).toEqual({ statusInfo: ['700400001'], inopSys: ['300300002'] });
     expect(engineAntiIceValveClosedStatus(2)).toEqual({ statusInfo: ['700400001'], inopSys: ['300300003'] });
+  });
+
+  it('shows ENG 1(2) A. ICE under INOP SYS on the STATUS page (l.68817)', () => {
+    for (const engine of [1, 2] as const) {
+      const status = engineAntiIceValveClosedStatus(engine);
+      const page = statusLines({ left: status.statusInfo, inopSys: status.inopSys });
+      expect(page.left).toEqual(['AVOID ICING CONDITIONS']);
+      expect(page.right).toEqual(['INOP SYS', `ENG ${engine} A. ICE`]);
+    }
   });
 });
 
