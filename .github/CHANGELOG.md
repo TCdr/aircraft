@@ -372,7 +372,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Company wind messages use the FCOM wording (COMPANY WIND DATA RECEIVED, RECEIVED COMPANY WIND DATA NOT VALID, DRAFT WIND INSERTED) - @TCdr
 1. [A380X/MFD] WIND page: an altitude below 400 ft is a ground wind, and CPNY WIND REQUEST opens the COMPANY WIND DATA REQUEST page, also while the request is pending - @TCdr
 1. [A380X/HYD] The cargo doors no longer unlock when asked to open with an engine running (their electric pumps are inhibited): the request is carried out once the engines are stopped, and the flyPad cargo door row shows the real doors, both forward and aft - @TCdr
-1. [EFB] Taxi page on the A380: taxiways narrower than 25 m (code F) or limited to a smaller wingspan in the airport map are avoided by the suggested route, marked on the map and flagged in a cleared route; widths without data show as not verified - @TCdr
+1. [EFB] Taxi page on the A380: taxiways narrower than 25 m (code F) or limited to a smaller wingspan in the airport map are avoided by the suggested route, marked on the map and flagged in a cleared route; widths without data show as not verified; an airport check gives the share of the taxi lines under 25 m and warns when no route to the departure runway entry is wide enough (A380 AC 3-3-3: code 4E aerodromes only under specific conditions) - @TCdr
 
 ## 2024.1.0
 

@@ -262,3 +262,31 @@ export function taxiTooNarrowLines(fits: readonly TaxiLineFitInfo[]): Set<number
   fits.forEach((f, i) => f.fit === TaxiLineFit.TooNarrow && lines.add(i));
   return lines;
 }
+
+/**
+ * The A380 airport check: the share (0 to 1) of the length of the taxi lines (taxiway and runway exit lines; not the
+ * stand lines nor the runway centrelines) too narrow for the aircraft. The lines not verified count in the total, not as
+ * too narrow. Null when the airport map has no taxi line.
+ * Airbus A380 Airport Characteristics (AC, Dec 01/25) 3-3-3: "A380 can operate on aerodromes classified as code 4F as
+ * per ICAO Aerodrome Reference Code. It can also operate on aerodromes classified as code 4E provided that specific
+ * conditions are met." A large share shows a code E airport (taxiways of 23 m, ICAO Annex 14 Volume I 3.9.3).
+ * @param fits the fits of the lines, in the same order (see taxiLineFits)
+ */
+export function taxiTooNarrowShare(lines: readonly TaxiLine[], fits: readonly TaxiLineFitInfo[]): number | null {
+  let total = 0;
+  let tooNarrow = 0;
+  lines.forEach((line, i) => {
+    if (line.kind !== TaxiLineKind.Taxiway && line.kind !== TaxiLineKind.Exit) {
+      return;
+    }
+    let length = 0;
+    for (let p = 1; p < line.points.length; p++) {
+      length += Math.hypot(line.points[p][0] - line.points[p - 1][0], line.points[p][1] - line.points[p - 1][1]);
+    }
+    total += length;
+    if (fits[i]?.fit === TaxiLineFit.TooNarrow) {
+      tooNarrow += length;
+    }
+  });
+  return total > 0 ? tooNarrow / total : null;
+}

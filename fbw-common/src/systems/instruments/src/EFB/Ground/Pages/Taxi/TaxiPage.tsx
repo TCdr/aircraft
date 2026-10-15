@@ -28,6 +28,7 @@ import {
   TaxiLineFitInfo,
   taxiLineFits,
   taxiTooNarrowLines,
+  taxiTooNarrowShare,
 } from '@flybywiresim/fbw-sdk';
 import { ArrowClockwise, CheckLg, ExclamationTriangleFill, GeoAltFill, Lightbulb, Trash } from 'react-bootstrap-icons';
 import { t } from '../../../Localization/translation';
@@ -199,6 +200,11 @@ export const TaxiPage = () => {
     [airport, checksWidth],
   );
   const tooNarrow = useMemo(() => (lineFits ? taxiTooNarrowLines(lineFits) : undefined), [lineFits]);
+  // A380 airport check: the share of the taxi line length too narrow (a large share: a code E airport)
+  const narrowShare = useMemo(
+    () => (airport && lineFits ? taxiTooNarrowShare(airport.network.lines, lineFits) : null),
+    [airport, lineFits],
+  );
 
   // The aircraft on the airport map, when it is at this airport
   const aircraft = useMemo(() => {
@@ -253,6 +259,24 @@ export const TaxiPage = () => {
     () => (airport && start && to ? taxiRoute(airport.network, { start, to, tooNarrow }) : null),
     [airport, start, to, tooNarrow],
   );
+  // A380 airport check, departure: is there a route to the runway entry with the lines too narrow forbidden? The
+  // suggestion above still takes them when it must (flagged). ICAO Annex 14 Volume I 3.9.3: code F taxiway width 25 m.
+  // Airbus A380 Airport Characteristics (AC, Dec 01/25) 3-3-3: "A380 can operate on aerodromes classified as code 4F as
+  // per ICAO Aerodrome Reference Code. It can also operate on aerodromes classified as code 4E provided that specific
+  // conditions are met." No such route: a banner sends the crew to the airport's A380 notes.
+  const noWideRoute = useMemo(() => {
+    if (!airport || !start || !to || to.kind !== 'runway' || !tooNarrow || tooNarrow.size === 0) {
+      return false;
+    }
+    // The suggestion keeps off the lines too narrow when it can: when it takes none, it is the wide route
+    if (
+      suggestion?.error === TaxiRouteError.None &&
+      !suggestion.legs.some((leg) => leg.lines.some((l) => tooNarrow.has(l)))
+    ) {
+      return false;
+    }
+    return taxiRoute(airport.network, { start, to, tooNarrow, forbidTooNarrow: true }).error === TaxiRouteError.NoRoute;
+  }, [airport, start, to, tooNarrow, suggestion]);
   // The taxiway names of the airport, to read the names of several words in the clearance (e.g. SOUTH RAMP)
   const airportNames = useMemo(
     () => new Set(airport?.network.lines.map((l) => l.name).filter((n): n is string => n !== null)),
@@ -454,6 +478,17 @@ export const TaxiPage = () => {
           <M3Chip tone="idle" icon={<GeoAltFill size={16} />}>
             {`${icao || '----'} · ${t(`Ground.Taxi.Directions.${direction}`)}`}
           </M3Chip>
+          {narrowShare !== null && (
+            <M3Chip
+              tone={noWideRoute ? 'warn' : 'idle'}
+              icon={noWideRoute ? <ExclamationTriangleFill size={16} /> : undefined}
+            >
+              {t('Ground.Taxi.Width.AirportNarrowShare', [
+                { percent: `${Math.round(narrowShare * 100)}` },
+                { width: `${TAXI_A380.taxiwayWidth}` },
+              ])}
+            </M3Chip>
+          )}
           {shownRoute && (
             <M3Chip tone={accepted ? 'active' : 'idle'} icon={accepted ? <CheckLg size={16} /> : undefined}>
               {`${routeStatus} · ${(shownRoute.length / 1000).toFixed(1)} km`}
@@ -617,6 +652,16 @@ export const TaxiPage = () => {
           </Section>
 
           <M3Card low className="scrollbar min-h-0 flex-1 !overflow-y-auto px-4 py-3">
+            {noWideRoute && airport && runway && entryInfo && (
+              <M3Banner tone="warn" className="mb-2 shrink-0" icon={<ExclamationTriangleFill size={16} />}>
+                {t('Ground.Taxi.Width.NoWideRoute', [
+                  { icao: airport.icao },
+                  { width: `${TAXI_A380.taxiwayWidth}` },
+                  { runway },
+                  { entry: entryInfo.name },
+                ])}
+              </M3Banner>
+            )}
             {shownRoute ? (
               <>
                 <span
