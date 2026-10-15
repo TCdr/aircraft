@@ -76,7 +76,7 @@ mod heading_control_steering;
 use heading_control_steering::HeadingControlFunction;
 mod brake_steer_faults;
 use brake_steer_faults::{
-    A380BrakingControlFaults, A380SteeringControlSystem, NoseWheelSteeringMode,
+    A380BrakingControlFaults, A380SteeringControlSystem, EmergencyBrakeLaw, NoseWheelSteeringMode,
     NoseWheelSteeringSupply, PedalBrakingMode,
 };
 
@@ -1576,6 +1576,60 @@ impl A380GearSystemFactory {
             A380GearFactory::a380_right_gear_aerodynamics(),
             A380GearFactory::a380_nose_gear_aerodynamics(),
         )
+        // The main gears are not on the nose gear supply (GREEN): see A380HydraulicCircuitsSupplyOfMainGears
+        .with_separate_main_gear_supply()
+    }
+}
+
+/// Hydraulic supply of the main gear assemblies of the model, A380 FCOM DSC-32-10-20 (a380_fcom.txt l.78605-78614):
+/// "The GREEN hydraulic system powers the extension/retraction of the NLG and the WLG, the operation of the NLG and the
+/// WLG doors. The YELLOW hydraulic system powers the extension/retraction of the BLG, the operation of the BLG doors."
+///
+/// Simplification: the model has one left and one right main gear assembly, each standing for the wing and the body
+/// gear of that side (the wing gears are animated with them), and one door assembly per side (the BLG doors). Each main
+/// assembly therefore needs GREEN (WLG) and YELLOW (BLG): it gets the lower of the two pressures, and takes half of its
+/// fluid from each system. This gives the FCOM results:
+/// - YELLOW lost: "The BLG and the WLG remain extended, BLG doors will remain closed. Even if the GREEN hydraulic power
+///   is available, the WLG will not retract" (l.82497-82506).
+/// - YELLOW or GREEN lost: "Landing gear extension is performed by gravity" (HYD G(Y) SYS PRESS LO, l.155567).
+/// - GREEN lost: the NLG and the WLG remain extended (l.82508-82514).
+///
+/// Not modelled: with GREEN lost the BLG retracts, with YELLOW lost the NLG retracts (the common LGCIU moves the gears
+/// only when all the doors are open).
+struct A380HydraulicCircuitsSupplyOfMainGears;
+impl A380HydraulicCircuitsSupplyOfMainGears {
+    /// Share of the main gear assembly fluid that each of GREEN (WLG) and YELLOW (BLG) gives
+    const FLUID_SHARE_PER_CIRCUIT: f64 = 0.5;
+
+    fn pressure(
+        green_section: &impl SectionPressure,
+        yellow_section: &impl SectionPressure,
+    ) -> Pressure {
+        green_section
+            .pressure_downstream_priority_valve()
+            .min(yellow_section.pressure_downstream_priority_valve())
+    }
+}
+
+/// Gives a share of the fluid moved by an actuator to one hydraulic circuit. The last share resets the actuator volumes.
+struct ActuatorFluidShare<'a, T: Actuator> {
+    actuator: &'a mut T,
+    share: f64,
+    is_last_share: bool,
+}
+impl<T: Actuator> Actuator for ActuatorFluidShare<'_, T> {
+    fn used_volume(&self) -> Volume {
+        self.actuator.used_volume() * self.share
+    }
+
+    fn reservoir_return(&self) -> Volume {
+        self.actuator.reservoir_return() * self.share
+    }
+
+    fn reset_volumes(&mut self) {
+        if self.is_last_share {
+            self.actuator.reset_volumes();
+        }
     }
 }
 
@@ -2424,11 +2478,17 @@ impl A380Hydraulic {
             &self.eha_backup_inhibit_logic,
         );
 
-        self.gear_system.update(
+        self.gear_system.update_with_main_gear_pressure(
             context,
             &self.gear_system_hydraulic_controller,
             lgcius.active_lgciu(),
-            self.green_circuit.system_section(),
+            self.green_circuit
+                .system_section()
+                .pressure_downstream_priority_valve(),
+            A380HydraulicCircuitsSupplyOfMainGears::pressure(
+                self.green_circuit.system_section(),
+                self.yellow_circuit.system_section(),
+            ),
         );
     }
 
@@ -2601,7 +2661,7 @@ impl A380Hydraulic {
             context,
             lgcius.active_lgciu(),
             self.gear_system
-                .gear_hydraulic_manifold_pressure()
+                .main_gear_hydraulic_manifold_pressure()
                 .get::<psi>()
                 > 2000.,
         )
@@ -2611,6 +2671,30 @@ impl A380Hydraulic {
     fn update_actuators_volume(&mut self) {
         self.update_green_actuators_volume();
         self.update_yellow_actuators_volume();
+        self.update_gear_actuators_volume();
+    }
+
+    /// Nose gear and its doors on GREEN; main gear assemblies half on GREEN, half on YELLOW
+    /// (A380HydraulicCircuitsSupplyOfMainGears)
+    fn update_gear_actuators_volume(&mut self) {
+        for actuator in self.gear_system.nose_gear_actuators() {
+            self.green_circuit.update_system_actuator_volumes(actuator);
+        }
+
+        for actuator in self.gear_system.main_gear_actuators() {
+            self.green_circuit
+                .update_system_actuator_volumes(&mut ActuatorFluidShare {
+                    actuator: &mut *actuator,
+                    share: A380HydraulicCircuitsSupplyOfMainGears::FLUID_SHARE_PER_CIRCUIT,
+                    is_last_share: false,
+                });
+            self.yellow_circuit
+                .update_system_actuator_volumes(&mut ActuatorFluidShare {
+                    actuator,
+                    share: A380HydraulicCircuitsSupplyOfMainGears::FLUID_SHARE_PER_CIRCUIT,
+                    is_last_share: true,
+                });
+        }
     }
 
     fn update_green_actuators_volume(&mut self) {
@@ -2727,10 +2811,6 @@ impl A380Hydraulic {
             .update_system_actuator_volumes(self.right_spoilers.actuator(5));
         self.green_circuit
             .update_system_actuator_volumes(self.right_spoilers.actuator(7));
-
-        for actuator in self.gear_system.all_actuators() {
-            self.green_circuit.update_system_actuator_volumes(actuator);
-        }
 
         self.green_circuit
             .update_system_actuator_volumes(self.ths.left_motor());
@@ -4420,6 +4500,8 @@ struct A380HydraulicBrakeSteerComputerUnit {
     braking_faults: A380BrakingControlFaults,
     pedal_braking_mode: PedalBrakingMode,
     pedal_braking_mode_id: VariableIdentifier,
+    /// EBCU pressure law of the emergency braking (take-off or landing law)
+    emergency_brake_law: EmergencyBrakeLaw,
     /// SCS 1 and 2: NWS mode and BWS availability
     steering_control: A380SteeringControlSystem,
 
@@ -4499,6 +4581,7 @@ impl A380HydraulicBrakeSteerComputerUnit {
             braking_faults: A380BrakingControlFaults::new(context),
             pedal_braking_mode: PedalBrakingMode::Normal,
             pedal_braking_mode_id: context.get_identifier("BRAKES_PEDAL_BRAKING_MODE".to_owned()),
+            emergency_brake_law: EmergencyBrakeLaw::initial(context.is_in_flight()),
             steering_control: A380SteeringControlSystem::new(context),
 
             tiller_pedal_disconnect: false,
@@ -4569,8 +4652,8 @@ impl A380HydraulicBrakeSteerComputerUnit {
             }
         } else if self.pedal_braking_mode == PedalBrakingMode::Emergency {
             // Emergency braking (EBCU, no A-SKID): A-SKID sw OFF, or the BCS lost normal and alternate braking.
-            // The FCOM limits are 1 000 psi at landing and 1 700 psi for taxi-out and take-off (l.80043-80045).
-            1160.
+            // EBCU landing law 1 000 psi, take-off law 1 700 psi (A380 FCOM l.80043-80047, EmergencyBrakeLaw)
+            self.emergency_brake_law.pressure_limit().get::<psi>()
         } else {
             // Else if any manual braking we use standard limit
             2538.
@@ -4612,6 +4695,11 @@ impl A380HydraulicBrakeSteerComputerUnit {
         self.pedal_braking_mode = self
             .braking_faults
             .pedal_braking_mode(self.normal_brakes_available, self.anti_skid_activated);
+        let main_gears_in_flight = !(lgciu1.left_and_right_gear_compressed(true)
+            || lgciu2.left_and_right_gear_compressed(true));
+        self.emergency_brake_law = self
+            .emergency_brake_law
+            .next(main_gears_in_flight, self.parking_brake_demand);
         self.update_brake_pressure_limitation();
 
         self.autobrake_controller.update(
@@ -7162,16 +7250,31 @@ impl From<f64> for A380GravityExtensionSwitchPosition {
     }
 }
 
+/// The two Free Fall Control Modules (FFCM) of the landing gear gravity extension, A380 FCOM DSC-32-40-10
+/// (a380_fcom.txt l.82413-82434): with the L/G GRVTY sw DOWN, "The commands are sequenced by a timer and sent in
+/// chronological order to: 1. The cut-out valves to isolate the retraction actuators from the hydraulic power 2. The
+/// retraction actuators to activate the gravity mode ... 3. The landing gear door uplocks ... 4. The landing gear
+/// uplocks (NLG and WLG, then BLG) ... 5. The total duration of gravity extension from L/G GRVTY sw on down to last gear
+/// downlock is 70 s in absence of failure."
+///
+/// The FCOM gives only the total. Design choice for the steps 3 and 4: in the model the doors take about 20 s to fall
+/// open and the gears about 25 s to fall to their downlock, so the door uplocks open after 25 s and the gear uplocks
+/// after 45 s: the last gear downlocks about 70 s after the sw is set DOWN. The model releases all the gear uplocks
+/// together (one main gear assembly per side stands for its WLG and BLG).
+///
+/// The sequence step is given to the gear hydraulic controller as the "number of handle turns" of the common gear
+/// system: 1 = steps 1 and 2 (cut-out and vent valves), 2 = door uplocks open, 3 = gear uplocks open.
 struct A380GravityExtension {
     gear_gravity_extension_handle_position_id: VariableIdentifier,
 
     switch_position: A380GravityExtensionSwitchPosition,
 
-    handle_angle: Angle,
+    /// Time since the L/G GRVTY sw was set DOWN (held when the sw leaves DOWN, cleared by RESET)
+    sequence_time: Duration,
 }
 impl A380GravityExtension {
-    const PLACEHOLDER_SPEED_TO_ROTATE_HANDLE_DEG_S: f64 = 50.;
-    const PLACEHOLDER_SPEED_TO_RESET_HANDLE_DEG_S: f64 = 200.;
+    const DOOR_UPLOCKS_RELEASE_TIME: Duration = Duration::from_secs(25);
+    const GEAR_UPLOCKS_RELEASE_TIME: Duration = Duration::from_secs(45);
 
     fn new(context: &mut InitContext) -> Self {
         Self {
@@ -7180,29 +7283,32 @@ impl A380GravityExtension {
 
             switch_position: A380GravityExtensionSwitchPosition::Off,
 
-            handle_angle: Angle::default(),
+            sequence_time: Duration::ZERO,
         }
     }
 
     fn update(&mut self, context: &UpdateContext) {
-        let angle_change: Angle = match self.switch_position {
-            A380GravityExtensionSwitchPosition::Reset => Angle::new::<degree>(
-                -Self::PLACEHOLDER_SPEED_TO_RESET_HANDLE_DEG_S * context.delta_as_secs_f64(),
-            ),
-            A380GravityExtensionSwitchPosition::Extension => Angle::new::<degree>(
-                Self::PLACEHOLDER_SPEED_TO_ROTATE_HANDLE_DEG_S * context.delta_as_secs_f64(),
-            ),
-            A380GravityExtensionSwitchPosition::Off => Angle::default(),
-        };
-
-        self.handle_angle = (self.handle_angle + angle_change)
-            .min(Angle::new::<degree>(360. * 3.))
-            .max(Angle::default());
+        match self.switch_position {
+            A380GravityExtensionSwitchPosition::Reset => self.sequence_time = Duration::ZERO,
+            A380GravityExtensionSwitchPosition::Extension => {
+                self.sequence_time =
+                    (self.sequence_time + context.delta()).min(Self::GEAR_UPLOCKS_RELEASE_TIME)
+            }
+            A380GravityExtensionSwitchPosition::Off => {}
+        }
     }
 }
 impl GearGravityExtension for A380GravityExtension {
     fn extension_handle_number_of_turns(&self) -> u8 {
-        (self.handle_angle.get::<degree>() / 360.).floor() as u8
+        if self.sequence_time >= Self::GEAR_UPLOCKS_RELEASE_TIME {
+            3
+        } else if self.sequence_time >= Self::DOOR_UPLOCKS_RELEASE_TIME {
+            2
+        } else if self.sequence_time > Duration::ZERO {
+            1
+        } else {
+            0
+        }
     }
 }
 impl SimulationElement for A380GravityExtension {
@@ -10756,6 +10862,7 @@ mod tests {
             assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::RTO);
 
             test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(100.))
                 .set_deploy_ground_spoilers()
                 .run_waiting_for(Duration::from_secs(6));
 
@@ -10836,6 +10943,7 @@ mod tests {
             assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::RTO);
 
             test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(100.))
                 .set_deploy_ground_spoilers()
                 .run_waiting_for(Duration::from_secs(6));
 
@@ -10857,6 +10965,84 @@ mod tests {
         }
 
         #[test]
+        // A380 FCOM BRAKES AUTO BRK FAULT (l.159949-159954, PDF p.5447-5448): the failed autobrake reports the fault
+        // and cannot be armed (STATUS INOP SYS AUTO BRK)
+        fn failed_autobrake_reports_fault_and_cannot_be_armed() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .set_park_brake(false)
+                .start_eng1(Ratio::new::<percent>(100.))
+                .start_eng2(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(10));
+            let fault_before_failure: bool = test_bed.read_by_name("BRAKES_AUTO_BRK_FAULT");
+            assert!(!fault_before_failure);
+
+            test_bed.fail(FailureType::Autobrake);
+            test_bed = test_bed
+                .set_autobrake_rto()
+                .run_waiting_for(Duration::from_secs(1));
+
+            let fault_after_failure: bool = test_bed.read_by_name("BRAKES_AUTO_BRK_FAULT");
+            assert!(fault_after_failure);
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::DISARM);
+
+            test_bed = test_bed
+                .set_autobrake_low()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::DISARM);
+        }
+
+        #[test]
+        // A380 FCOM l.79071-79073: "the RTO mode does not activate below 40 kt"
+        fn autobrakes_rto_does_not_activate_below_40_knots() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .on_the_ground()
+                .set_park_brake(false)
+                .start_eng1(Ratio::new::<percent>(100.))
+                .start_eng2(Ratio::new::<percent>(100.))
+                .run_waiting_for(Duration::from_secs(10));
+
+            test_bed = test_bed
+                .set_autobrake_rto()
+                .run_waiting_for(Duration::from_secs(1));
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::RTO);
+
+            test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(30.))
+                .set_deploy_ground_spoilers()
+                .run_waiting_for(Duration::from_secs(6));
+
+            assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::RTO);
+            assert_lt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+            assert_lt!(
+                test_bed.get_brake_right_green_pressure(),
+                Pressure::new::<psi>(50.)
+            );
+
+            // Above 40 kt the RTO braking activates, and it keeps braking when the speed drops below 40 kt
+            test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(100.))
+                .run_waiting_for(Duration::from_secs(2));
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(1000.)
+            );
+
+            test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(20.))
+                .run_waiting_for(Duration::from_secs(2));
+            assert_gt!(
+                test_bed.get_brake_left_green_pressure(),
+                Pressure::new::<psi>(1000.)
+            );
+        }
+
+        #[test]
         // Should disable with one pedal > 61° over max range of 79.4° thus 77%
         fn autobrakes_rto_disengage_at_77_on_one_pedal_input() {
             let mut test_bed = test_bed_on_ground_with()
@@ -10874,6 +11060,7 @@ mod tests {
             assert_eq!(test_bed.autobrake_mode(), A380AutobrakeMode::RTO);
 
             test_bed = test_bed
+                .set_ground_speed(Velocity::new::<knot>(100.))
                 .set_deploy_ground_spoilers()
                 .run_waiting_for(Duration::from_secs(6));
 
@@ -11938,7 +12125,7 @@ mod tests {
             test_bed = test_bed
                 .set_green_ed_pump(false)
                 .activate_emergency_gear_extension()
-                .run_waiting_for(Duration::from_secs_f64(70.));
+                .run_waiting_for(Duration::from_secs_f64(80.));
 
             assert!(test_bed.is_all_doors_really_down());
             assert!(test_bed.is_all_gears_really_down());
@@ -11947,8 +12134,128 @@ mod tests {
             assert!(test_bed.is_all_auxiliary_gear_door_closed());
         }
 
+        /// In flight with the gear down, then the engine pumps of one hydraulic system are disconnected (engines 1+2
+        /// for GREEN, 3+4 for YELLOW)
+        fn in_flight_gear_down_with_system_lost(system: HydraulicColor) -> A380HydraulicsTestBed {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs_f64(5.));
+            assert_eq!(test_bed.gear_system_state(), GearSystemState::AllDownLocked);
+
+            test_bed = match system {
+                HydraulicColor::Green => test_bed
+                    .set_disconnect_engine_edp(1)
+                    .set_disconnect_engine_edp(2),
+                _ => test_bed
+                    .set_disconnect_engine_edp(3)
+                    .set_disconnect_engine_edp(4),
+            }
+            .run_waiting_for(Duration::from_secs_f64(30.));
+            match system {
+                HydraulicColor::Green => {
+                    assert_lt!(test_bed.green_pressure(), Pressure::new::<psi>(1000.))
+                }
+                _ => assert_lt!(test_bed.yellow_pressure(), Pressure::new::<psi>(1000.)),
+            }
+            test_bed
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-40-20 (l.82497-82506): YELLOW failed, L/G lever UP: "The BLG and the WLG remain extended,
+        // BLG doors will remain closed". Not modelled: "The NLG retracts" (the common LGCIU moves the gears only when
+        // all the doors are open).
+        fn gear_retraction_with_yellow_lost_keeps_the_main_gears_extended_and_their_doors_closed() {
+            let mut test_bed = in_flight_gear_down_with_system_lost(HydraulicColor::Yellow);
+
+            test_bed = test_bed
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs_f64(25.));
+
+            assert!(test_bed.get_real_gear_position(GearWheel::LEFT) >= Ratio::new::<ratio>(0.99));
+            assert!(test_bed.get_real_gear_position(GearWheel::RIGHT) >= Ratio::new::<ratio>(0.99));
+            assert!(
+                test_bed.get_real_gear_door_position(GearWheel::LEFT) <= Ratio::new::<ratio>(0.01)
+            );
+            assert!(
+                test_bed.get_real_gear_door_position(GearWheel::RIGHT) <= Ratio::new::<ratio>(0.01)
+            );
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-40-20 (l.82508-82514): GREEN failed, L/G lever UP: "The NLG and the WLG remain extended"
+        fn gear_retraction_with_green_lost_keeps_the_nose_and_wing_gears_extended() {
+            let mut test_bed = in_flight_gear_down_with_system_lost(HydraulicColor::Green);
+
+            test_bed = test_bed
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs_f64(25.));
+
+            assert!(test_bed.is_all_gears_really_down());
+        }
+
+        #[test]
+        // A380 FCOM HYD G(Y) SYS PRESS LO (l.155563-155567): "Landing gear extension is performed by gravity"; the BLG
+        // is on YELLOW (l.78610-78614)
+        fn gear_extension_with_yellow_lost_needs_gravity_extension_for_the_main_gears() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs_f64(25.));
+            assert_eq!(test_bed.gear_system_state(), GearSystemState::AllUpLocked);
+
+            test_bed = test_bed
+                .set_disconnect_engine_edp(3)
+                .set_disconnect_engine_edp(4)
+                .run_waiting_for(Duration::from_secs_f64(30.));
+            assert_lt!(test_bed.yellow_pressure(), Pressure::new::<psi>(1000.));
+
+            test_bed = test_bed
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs_f64(25.));
+
+            // No normal extension of the main gears (the common LGCIU then keeps the nose gear up too)
+            assert!(test_bed.get_real_gear_position(GearWheel::LEFT) <= Ratio::new::<ratio>(0.01));
+            assert!(test_bed.get_real_gear_position(GearWheel::RIGHT) <= Ratio::new::<ratio>(0.01));
+
+            test_bed = test_bed
+                .activate_emergency_gear_extension()
+                .run_waiting_for(Duration::from_secs_f64(80.));
+            assert!(test_bed.is_all_gears_really_down());
+        }
+
+        #[test]
+        // A380 FCOM DSC-32-40-10 (l.82432-82434): "The total duration of gravity extension from L/G GRVTY sw on down
+        // to last gear downlock is 70 s in absence of failure"
+        fn gravity_extension_takes_about_70_seconds() {
+            let mut test_bed = test_bed_on_ground_with()
+                .set_cold_dark_inputs()
+                .in_flight()
+                .set_gear_lever_up()
+                .run_waiting_for(Duration::from_secs_f64(25.));
+            assert!(test_bed.is_all_gears_really_up());
+
+            test_bed = test_bed
+                .set_green_ed_pump(false)
+                .activate_emergency_gear_extension()
+                .run_waiting_for(Duration::from_secs_f64(20.));
+            // Steps 1 and 2 only: the doors and the gears are still locked up
+            assert!(test_bed.is_all_doors_really_up());
+            assert!(test_bed.is_all_gears_really_up());
+
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(40.));
+            assert!(test_bed.is_all_doors_really_down());
+            assert!(!test_bed.is_all_gears_really_down());
+
+            test_bed = test_bed.run_waiting_for(Duration::from_secs_f64(15.));
+            assert!(test_bed.is_all_gears_really_down());
+        }
+
         #[test]
         fn complete_gear_cycle_do_not_change_fluid_volume() {
+            // The main gear assemblies take half of their fluid from GREEN and half from YELLOW
             let mut test_bed = test_bed_on_ground_with()
                 .set_cold_dark_inputs()
                 .in_flight()
@@ -11958,7 +12265,8 @@ mod tests {
             assert_eq!(test_bed.gear_system_state(), GearSystemState::AllDownLocked);
             assert!(test_bed.is_all_auxiliary_gear_door_opened());
 
-            let initial_fluid_quantity = test_bed.get_green_reservoir_volume();
+            let initial_fluid_quantity =
+                test_bed.get_green_reservoir_volume() + test_bed.get_yellow_reservoir_volume();
 
             test_bed = test_bed
                 .set_gear_lever_up()
@@ -11967,7 +12275,8 @@ mod tests {
             assert!(test_bed.is_all_doors_really_up());
             assert!(test_bed.is_all_auxiliary_gear_door_closed());
 
-            let uplocked_fluid_quantity = test_bed.get_green_reservoir_volume();
+            let uplocked_fluid_quantity =
+                test_bed.get_green_reservoir_volume() + test_bed.get_yellow_reservoir_volume();
 
             assert_gt!(
                 initial_fluid_quantity - uplocked_fluid_quantity,
@@ -11985,7 +12294,8 @@ mod tests {
             assert!(test_bed.is_all_doors_really_up());
             assert!(test_bed.is_all_auxiliary_gear_door_opened());
 
-            let downlocked_fluid_quantity = test_bed.get_green_reservoir_volume();
+            let downlocked_fluid_quantity =
+                test_bed.get_green_reservoir_volume() + test_bed.get_yellow_reservoir_volume();
             assert!(
                 (initial_fluid_quantity - downlocked_fluid_quantity).abs()
                     < Volume::new::<gallon>(0.01)
@@ -12015,7 +12325,7 @@ mod tests {
             test_bed = test_bed
                 .set_gear_lever_down()
                 .activate_emergency_gear_extension()
-                .run_waiting_for(Duration::from_secs_f64(70.));
+                .run_waiting_for(Duration::from_secs_f64(80.));
             assert!(test_bed.is_all_gears_really_down());
             assert!(test_bed.is_all_doors_really_down());
 
@@ -12057,7 +12367,7 @@ mod tests {
 
             test_bed = test_bed
                 .activate_emergency_gear_extension()
-                .run_waiting_for(Duration::from_secs_f64(70.));
+                .run_waiting_for(Duration::from_secs_f64(80.));
             assert!(test_bed.is_all_gears_really_down());
             assert!(test_bed.is_all_doors_really_down());
 
@@ -12210,7 +12520,7 @@ mod tests {
 
         #[test]
         // A380 FCOM l.78886-78887: the EBCU takes over when the normal and the alternate braking modes fail; no
-        // A-SKID, limited pressure (l.80039-80045)
+        // A-SKID, limited pressure: before the take-off the take-off brake law, 1 700 psi (l.80043-80045)
         fn normal_and_alternate_braking_faults_leave_emergency_braking() {
             let mut test_bed = test_bed_on_ground_with_all_engines_running();
             test_bed.fail(FailureType::BrakeNormalBraking);
@@ -12220,11 +12530,55 @@ mod tests {
             assert_eq!(pedal_braking_mode(&mut test_bed), 3.);
             assert_gt!(
                 test_bed.get_brake_left_yellow_pressure(),
-                Pressure::new::<psi>(800.)
+                Pressure::new::<psi>(1500.)
             );
             assert_lt!(
                 test_bed.get_brake_left_yellow_pressure(),
-                Pressure::new::<psi>(1300.)
+                Pressure::new::<psi>(1800.)
+            );
+        }
+
+        #[test]
+        // A380 FCOM l.80043-80047: emergency braking is limited to 1 000 psi at landing (landing brake law), and the
+        // PARK BRK handle ON reverts to the take-off brake law (1 700 psi)
+        fn emergency_braking_uses_landing_law_after_a_flight_until_park_brake_on() {
+            let mut test_bed = test_bed_on_ground_with_all_engines_running();
+            test_bed.fail(FailureType::BrakeNormalBraking);
+            test_bed.fail(FailureType::BrakeAlternateBraking);
+
+            test_bed = test_bed
+                .in_flight()
+                .set_gear_lever_down()
+                .run_waiting_for(Duration::from_secs(5));
+            test_bed = test_bed
+                .on_the_ground_after_touchdown()
+                .run_waiting_for(Duration::from_secs(2));
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_eq!(pedal_braking_mode(&mut test_bed), 3.);
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(850.)
+            );
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1100.)
+            );
+
+            test_bed = test_bed
+                .set_left_brake(Ratio::new::<percent>(0.))
+                .set_right_brake(Ratio::new::<percent>(0.))
+                .set_park_brake(true)
+                .run_waiting_for(Duration::from_secs(3));
+            test_bed = press_both_brake_pedals(test_bed);
+
+            assert_gt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1500.)
+            );
+            assert_lt!(
+                test_bed.get_brake_left_yellow_pressure(),
+                Pressure::new::<psi>(1800.)
             );
         }
 
