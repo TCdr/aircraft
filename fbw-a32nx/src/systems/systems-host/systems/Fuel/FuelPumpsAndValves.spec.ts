@@ -13,6 +13,7 @@ import {
   ctrTkXfrPbIsOnVar,
   ctrTkXfrValveNotFullyClosedVar,
   ctrTkXfrValveNotFullyOpenVar,
+  fqiChannelFaultVar,
   FuelPumpsAndValves,
   isCentreTransferValveCommandedOpen,
   isTankPumpLowPressure,
@@ -159,6 +160,17 @@ describe('A320 fuel pump and valve failures', () => {
     activeFailures.clear();
     system.update(200);
     expect(commands).toEqual([`VALVE ${A320_CROSSFEED_VALVE} ON`]);
+  });
+
+  it('tells the FWC which FQI channel is failed (FUEL FQI CH 1(2) FAULT)', () => {
+    system.update(0);
+    expect(simVars.get(fqiChannelFaultVar(1))).toBe(false);
+    expect(simVars.get(fqiChannelFaultVar(2))).toBe(false);
+
+    activeFailures.add(A320Failure.FqiChannel2);
+    system.update(200);
+    expect(simVars.get(fqiChannelFaultVar(1))).toBe(false);
+    expect(simVars.get(fqiChannelFaultVar(2))).toBe(true);
   });
 });
 

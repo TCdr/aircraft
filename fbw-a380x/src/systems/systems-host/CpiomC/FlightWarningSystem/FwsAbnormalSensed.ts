@@ -160,6 +160,12 @@ import {
   wingsBalancedLines,
   wingsNotBalancedLines,
 } from './FwsFuelAlertsRound8';
+import {
+  ENG_LP_VALVE_FAULT_INOP_SYS,
+  engLpValveFaultLines,
+  FUEL_LEAK_DET_FAULT_INOP_SYS,
+  FUEL_LEAK_LP_VALVE_PHASE_INHIBITION,
+} from './FwsFuelLeakLpValveAlerts';
 
 export interface EwdAbnormalItem extends FwsSuppressableItem {
   flightPhaseInhib: number[];
@@ -4851,6 +4857,76 @@ export class FwsAbnormalSensed {
       // (l.154919)
       limitationsAllPhases: () => (this.fws.aircraftOnGround.get() ? ['280400002'] : []),
       info: () => ['280200003'],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800018: {
+      // ENG 1 LP VLV FAULT, FCOM l.149688, PDF p.5162 (FwsFuelLeakLpValveAlerts)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault,
+      simVarIsActive: this.fws.fuelEngLpValveFault[0],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine1Master.get()).show,
+      whichItemsChecked: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine1Master.get()).checked,
+      inopSysAllPhases: () => [ENG_LP_VALVE_FAULT_INOP_SYS[0]],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800019: {
+      // ENG 2 LP VLV FAULT, FCOM l.149688, PDF p.5162 (FwsFuelLeakLpValveAlerts)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault,
+      simVarIsActive: this.fws.fuelEngLpValveFault[1],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine2Master.get()).show,
+      whichItemsChecked: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine2Master.get()).checked,
+      inopSysAllPhases: () => [ENG_LP_VALVE_FAULT_INOP_SYS[1]],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800020: {
+      // ENG 3 LP VLV FAULT, FCOM l.149688, PDF p.5162 (FwsFuelLeakLpValveAlerts)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault,
+      simVarIsActive: this.fws.fuelEngLpValveFault[2],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine3Master.get()).show,
+      whichItemsChecked: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine3Master.get()).checked,
+      inopSysAllPhases: () => [ENG_LP_VALVE_FAULT_INOP_SYS[2]],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800021: {
+      // ENG 4 LP VLV FAULT, FCOM l.149688, PDF p.5162 (FwsFuelLeakLpValveAlerts)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.engLpValveFault,
+      simVarIsActive: this.fws.fuelEngLpValveFault[3],
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine4Master.get()).show,
+      whichItemsChecked: () => engLpValveFaultLines(this.fws.flightPhase.get(), this.fws.engine4Master.get()).checked,
+      inopSysAllPhases: () => [ENG_LP_VALVE_FAULT_INOP_SYS[3]],
+      failure: 2,
+      sysPage: SdPages.Fuel,
+    },
+    281800072: {
+      // LEAK DET FAULT, FCOM l.151966, PDF p.5222 (FwsFuelLeakLpValveAlerts): crew awareness, no master light
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.leakDetFault,
+      simVarIsActive: this.fws.fuelLeakDetectionFault,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: () => [],
+      whichItemsChecked: () => [],
+      inopSysAllPhases: () => [FUEL_LEAK_DET_FAULT_INOP_SYS],
+      failure: 1,
+      sysPage: SdPages.None,
+    },
+    281800073: {
+      // LEAK DETECTED, FCOM l.152017, PDF p.5224 (FwsFuelLeakLpValveAlerts): the procedure of the ABN PROC FUEL LEAK
+      // (280900002), with its STATUS: LAND ANSA; FUEL PARTLY UNUSABLE except an engine fuel leak (LEAK STOPS, item 13);
+      // the minimum usable fuel when the leak continues (item 17)
+      flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.leakDetected,
+      simVarIsActive: this.fws.fuelLeakDetected,
+      notActiveWhenItemActive: [],
+      whichItemsToShow: showAllItems(281800073),
+      whichItemsChecked: () => EcamAbnormalProcedures[281800073].items.map(() => false),
+      limitationsAllPhases: (checked) => ['2', checked[13] ? null : '280400001'],
+      limitationsPfd: () => ['2'],
+      info: (checked) => (checked[17] ? ['280200001', '280200002'] : []),
       failure: 2,
       sysPage: SdPages.Fuel,
     },

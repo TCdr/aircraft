@@ -175,6 +175,7 @@ import {
   WingsBalanceMonitor,
   WingsBalanceState,
 } from './FwsFuelAlertsRound8';
+import { isEngLpValveFault, readFuelLeakLpValveFlags } from './FwsFuelLeakLpValveAlerts';
 import {
   ALL_DISPLAY_UNITS,
   DisplayUnitFailure,
@@ -2438,6 +2439,20 @@ export class FwsCore {
 
   /** A380 FCOM PRO-ABN-ECAM-10-28 FUEL JETTISON VLV NOT CLOSED: a jettison valve abnormally open */
   public readonly fuelJettisonValveNotClosed = Subject.create(false);
+
+  /** FUEL ENG 1(2)(3)(4) LP VLV FAULT, per engine (FwsFuelLeakLpValveAlerts) */
+  public readonly fuelEngLpValveFault = [
+    Subject.create(false),
+    Subject.create(false),
+    Subject.create(false),
+    Subject.create(false),
+  ];
+
+  /** FUEL LEAK DETECTED, from the FQMS leak detection (CpiomF/FuelLeak) */
+  public readonly fuelLeakDetected = Subject.create(false);
+
+  /** FUEL LEAK DET FAULT, from the FQMS leak detection (CpiomF/FuelLeak) */
+  public readonly fuelLeakDetectionFault = Subject.create(false);
 
   /** The flight crew has set the PRED W/S button to OFF (not the WXR button, which also sets it to OFF). */
   public readonly wxrPredWsOff = Subject.create(false);
@@ -6353,6 +6368,20 @@ export class FwsCore {
     this.fuelJettisonLValveFault.set(jettison.leftValveFault);
     this.fuelJettisonRValveFault.set(jettison.rightValveFault);
     this.fuelJettisonValveNotClosed.set(jettison.valveNotClosed);
+
+    // ENG LP VLV FAULT (systems fuel/engine_lp_valve.rs) and the FQMS leak detection (CpiomF/FuelLeak)
+    const leakLpValve = readFuelLeakLpValveFlags((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool));
+    this.fuelEngLpValveFault.forEach((alert, index) =>
+      alert.set(
+        isEngLpValveFault(
+          this.aircraftOnGround.get(),
+          leakLpValve.lpValveAbnormallyOpen[index],
+          leakLpValve.lpValveAbnormallyClosed[index],
+        ),
+      ),
+    );
+    this.fuelLeakDetected.set(leakLpValve.leakDetected);
+    this.fuelLeakDetectionFault.set(leakLpValve.leakDetectionFault);
 
     // Feed tank pumps and crossfeed valves (CpiomF/FuelPumpsAndValves), read as real booleans
     const readBool = (name: string) => SimVar.GetSimVarValue(name, SimVarValueType.Bool);
