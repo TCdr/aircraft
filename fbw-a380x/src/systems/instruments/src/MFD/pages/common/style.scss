@@ -91,6 +91,18 @@
   justify-content: space-between;
 }
 
+// The System Message Area between the system selector and the flight number (FCOM DSC-31-50 l.74416). Design choice:
+// white like the flight number, the FCOM text gives no colour
+.mfd-header-system-message {
+  flex: 1;
+  text-align: center;
+  padding: 4px 10px 0px 10px;
+  color: $display-white;
+  font-family: "Ecam", monospace;
+  font-size: 24px;
+  white-space: nowrap;
+}
+
 .mfd-header-callsign {
   width: 25%;
   text-align: left;

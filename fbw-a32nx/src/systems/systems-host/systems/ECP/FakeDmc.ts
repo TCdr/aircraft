@@ -4,6 +4,7 @@
 import { Arinc429OutputWord, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
 import { EventBus, Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/SdPages';
+import { ECAM_SINGLE_DISPLAY_VAR } from '@shared/DisplayReconfiguration';
 
 export interface FakeDmcEvents {
   fake_dmc_light_status_275: number;
@@ -14,6 +15,36 @@ export enum DmcEcpLightStatus {
   EngineWarning = 0b01,
   ManualStatusSystemsAdvisory = 0b10,
   AutomaticStatusSystems = 0b11,
+}
+
+/** The system page with an ECAM advisory (DmcSdPageLogic, SdAdvisories), -1 for none */
+export const ECAM_SD_ADVISORY_PAGE_VAR = 'L:A32NX_ECAM_SD_ADVISORY_PAGE';
+
+/**
+ * The ECP system page pb to light and the DMC light code (A320 FCOM DSC-31-30, a320_fcom.txt l.46728 the pbs "Light up,
+ * when pushed for manual selection, or when an advisory is detected"; l.46733-46736 with only one ECAM display "If an
+ * advisory condition arises, the relevant system page is not automatically displayed, but the pushbutton light pulses").
+ * With two displays the advisory page is selected (DmcSdPageLogic), so its pb lights as a selected page. The ECP flashes
+ * the lit pb with the MonoDisplay code (Ecp.ts flashOn).
+ * @param selectedPage the selected SD page (L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX), SdPages.NONE in flight phase mode
+ * @param advisoryPage the page with an advisory, SdPages.NONE if none
+ * @param singleDisplay only one ECAM display is on
+ */
+export function ecpPageLightRequest(
+  selectedPage: SdPages,
+  advisoryPage: SdPages,
+  singleDisplay: boolean,
+): { litPage: SdPages; code: DmcEcpLightStatus } {
+  if (singleDisplay && advisoryPage !== SdPages.NONE) {
+    return { litPage: advisoryPage, code: DmcEcpLightStatus.MonoDisplay };
+  }
+  return {
+    litPage: selectedPage,
+    code:
+      selectedPage === SdPages.NONE
+        ? DmcEcpLightStatus.AutomaticStatusSystems
+        : DmcEcpLightStatus.ManualStatusSystemsAdvisory,
+  };
 }
 
 /**
@@ -35,7 +66,12 @@ export class FakeDmc implements Instrument {
     this.publisher.pub('fake_dmc_light_status_275', this.outputWord.getRawBusValue());
 
   public onUpdate(): void {
-    this.sdPage = SimVar.GetSimVarValue('L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX', SimVarValueType.Enum);
+    const light = ecpPageLightRequest(
+      SimVar.GetSimVarValue('L:A32NX_ECAM_SD_CURRENT_PAGE_INDEX', SimVarValueType.Enum),
+      SimVar.GetSimVarValue(ECAM_SD_ADVISORY_PAGE_VAR, SimVarValueType.Enum),
+      SimVar.GetSimVarValue(ECAM_SINGLE_DISPLAY_VAR, SimVarValueType.Bool) > 0,
+    );
+    this.sdPage = light.litPage;
     const ecamSFail = SimVar.GetSimVarValue('L:A32NX_ECAM_SFAIL', SimVarValueType.Enum);
     const leftFailureDisplayed = SimVar.GetSimVarValue('L:A32NX_EWD_LEFT_FAILURE_ACTIVE', SimVarValueType.Bool);
 
@@ -52,8 +88,9 @@ export class FakeDmc implements Instrument {
     this.outputWord.setBitValue(22, this.sdPage === SdPages.WHEEL);
     this.outputWord.setBitValue(26, this.sdPage === SdPages.STS);
     this.outputWord.setBitValue(27, ecamSFail >= 0 || leftFailureDisplayed); // CLR
-    this.outputWord.setBitValue(28, this.sdPage === SdPages.NONE); // DmcEcpLightStatus.AutomaticStatusSystems
-    this.outputWord.setBitValue(29, true); // DmcEcpLightStatus.ManualStatusSystemsAdvisory || DmcEcpLightStatus.AutomaticStatusSystems
+    // The DMC light code (DmcEcpLightStatus) in bits 28 (low) and 29 (high)
+    this.outputWord.setBitValue(28, (light.code & 0b01) !== 0);
+    this.outputWord.setBitValue(29, (light.code & 0b10) !== 0);
 
     this.outputWord.setSsm(Arinc429SignStatusMatrix.NormalOperation);
 

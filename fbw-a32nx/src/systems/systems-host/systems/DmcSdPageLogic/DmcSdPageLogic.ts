@@ -17,6 +17,9 @@ import { A32NXEcpBusEvents } from '@shared/publishers/A32NXEcpBusPublisher';
 import { STATUS_CLR_SCROLLS_VAR } from '../../../shared/src/StatusPaging';
 import { ECAM_SINGLE_DISPLAY_VAR } from '../../../shared/src/DisplayReconfiguration';
 import { isShownPageDeselectedByItsPb, isStatusPageClearedByClr } from './StatusPageSelection';
+import { SdAdvisoryInputs, SdAdvisoryMonitor } from './SdAdvisories';
+import { SdAdvisoryAction, sdAdvisoryAction } from './SdAdvisoryMode';
+import { ECAM_SD_ADVISORY_PAGE_VAR } from '../ECP/FakeDmc';
 
 enum SdMode {
   Manual,
@@ -74,6 +77,26 @@ export class DmcSdPageLogic {
   private readonly sdManualSelectionPulseNode = new NXLogicPulseNode(true);
 
   private readonly clearPulseNode = new NXLogicPulseNode(true);
+
+  /** The advisories: the system page with a parameter out of its normal range (FCOM DSC-31-20, see SdAdvisories) */
+  private readonly advisoryMonitor = new SdAdvisoryMonitor();
+
+  /** The advisory page at the previous update (SdPages.NONE with one ECAM display), see sdAdvisoryAction */
+  private previousAdvisoryPage = SdPages.NONE;
+
+  private readonly advisoryPageSimvar = RegisteredSimVar.create<number>(ECAM_SD_ADVISORY_PAGE_VAR, 'Enum');
+
+  private readonly cpc1DiscreteWord = Arinc429Register.empty();
+
+  private readonly cabinAltitudeWord = Arinc429Register.empty();
+
+  private readonly cabinVsWord = Arinc429Register.empty();
+
+  private readonly cabinDeltaPressureWord = Arinc429Register.empty();
+
+  private readonly apuEgtWord = Arinc429Register.empty();
+
+  private readonly apuEgtCautionWord = Arinc429Register.empty();
 
   /** L:A32NX_ECAM_STATUS_CLR_SCROLLS read at the previous update (see isStatusPageClearedByClr) */
   private statusClearScrollsBeforeUpdate = false;
@@ -206,6 +229,58 @@ export class DmcSdPageLogic {
     }
   }
 
+  /** The parameters of the advisories, read as their SD pages read them (see SdAdvisories) */
+  private readAdvisoryInputs(fwcFlightPhase: number): SdAdvisoryInputs {
+    const engine = (n: number) => ({
+      fadecPowered: SimVar.GetSimVarValue(`L:A32NX_FADEC_POWERED_ENG${n}`, 'Bool') > 0,
+      oilPressurePsi: SimVar.GetSimVarValue(`GENERAL ENG OIL PRESSURE:${n}`, 'psi'),
+      n2Percent: SimVar.GetSimVarValue(`L:A32NX_ENGINE_N2:${n}`, 'number'),
+      oilQuantityQt: SimVar.GetSimVarValue(`L:A32NX_ENGINE_OIL_QTY:${n}`, 'number'),
+      oilTemperatureCelsius: SimVar.GetSimVarValue(`GENERAL ENG OIL TEMPERATURE:${n}`, 'celsius'),
+      n1VibrationUnits: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${n}_N1_VIBRATION`, 'number'),
+      n2VibrationUnits: SimVar.GetSimVarValue(`L:A32NX_ENGINE_${n}_N2_VIBRATION`, 'number'),
+    });
+
+    // The cabin values of the active CPC, or the manual ones (as the CAB PRESS page)
+    this.cpc1DiscreteWord.setFromSimVar('L:A32NX_PRESS_CPC_1_DISCRETE_WORD');
+    const activeCpc = this.cpc1DiscreteWord.bitValueOr(11, false) ? 1 : 2;
+    this.cabinAltitudeWord.setFromSimVar(`L:A32NX_PRESS_CPC_${activeCpc}_CABIN_ALTITUDE`);
+    this.cabinVsWord.setFromSimVar(`L:A32NX_PRESS_CPC_${activeCpc}_CABIN_VS`);
+    this.cabinDeltaPressureWord.setFromSimVar(`L:A32NX_PRESS_CPC_${activeCpc}_CABIN_DELTA_PRESSURE`);
+    const cpcOrManual = (word: Arinc429Register, manualVar: string, unit: string): number =>
+      word.isNormalOperation() ? word.value : SimVar.GetSimVarValue(manualVar, unit);
+
+    const fuelKgPerGallon = SimVar.GetSimVarValue('FUEL WEIGHT PER GALLON', 'kilogram');
+    const wingFuelKg = (side: 'LEFT' | 'RIGHT') =>
+      (SimVar.GetSimVarValue(`FUEL TANK ${side} MAIN QUANTITY`, 'gallons') +
+        SimVar.GetSimVarValue(`FUEL TANK ${side} AUX QUANTITY`, 'gallons')) *
+      fuelKgPerGallon;
+
+    this.apuEgtWord.setFromSimVar('L:A32NX_APU_EGT');
+    this.apuEgtCautionWord.setFromSimVar('L:A32NX_APU_EGT_CAUTION');
+
+    return {
+      fwcFlightPhase,
+      engines: [engine(1), engine(2)],
+      idgOilTemperaturesCelsius: [
+        SimVar.GetSimVarValue('L:A32NX_ELEC_ENG_GEN_1_IDG_OIL_OUTLET_TEMPERATURE', 'celsius'),
+        SimVar.GetSimVarValue('L:A32NX_ELEC_ENG_GEN_2_IDG_OIL_OUTLET_TEMPERATURE', 'celsius'),
+      ],
+      cabinAltitudeFt: cpcOrManual(this.cabinAltitudeWord, 'L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 'feet'),
+      cabinVsFtMin: cpcOrManual(this.cabinVsWord, 'L:A32NX_PRESS_MAN_CABIN_VS', 'feet per minute'),
+      cabinDeltaPsi: cpcOrManual(this.cabinDeltaPressureWord, 'L:A32NX_PRESS_MAN_CABIN_DELTA_PRESSURE', 'psi'),
+      leftWingFuelKg: wingFuelKg('LEFT'),
+      rightWingFuelKg: wingFuelKg('RIGHT'),
+      apuEgtCelsius: this.apuEgtWord.isNormalOperation() ? this.apuEgtWord.value : null,
+      apuEgtCautionCelsius: this.apuEgtCautionWord.isNormalOperation() ? this.apuEgtCautionWord.value : null,
+      apuStarting:
+        SimVar.GetSimVarValue('L:A32NX_OVHD_APU_START_PB_IS_ON', 'Bool') > 0 &&
+        !(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'Bool') > 0),
+      apuFlapNotClosed: SimVar.GetSimVarValue('L:A32NX_APU_FLAP_OPEN_PERCENTAGE', 'percent') !== 0,
+      apuMasterOn: SimVar.GetSimVarValue('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'Bool') > 0,
+    };
+  }
+
   updateSdSelection(dt: number) {
     const fwcSdPageRequest = SimVar.GetSimVarValue('L:A32NX_ECAM_SFAIL', 'number') as SdPages;
 
@@ -241,6 +316,22 @@ export class DmcSdPageLogic {
     this.statusClearScrollsBeforeUpdate = SimVar.GetSimVarValue(STATUS_CLR_SCROLLS_VAR, 'Bool') > 0;
     const singleDisplay = SimVar.GetSimVarValue(ECAM_SINGLE_DISPLAY_VAR, 'Bool') > 0;
 
+    const advisoryPage = this.advisoryMonitor.update(
+      this.readAdvisoryInputs(SimVar.GetSimVarValue('L:A32NX_FWC_FLIGHT_PHASE', 'Enum')),
+      dt / 1000,
+    );
+    this.advisoryPageSimvar.set(advisoryPage);
+    const advisoryAction = sdAdvisoryAction({
+      advisoryPage,
+      previousAdvisoryPage: this.previousAdvisoryPage,
+      inAdvisoryMode: this.sdMode === SdMode.Advisory,
+      inWarningMode: this.sdMode === SdMode.Warning,
+      singleDisplay,
+    });
+    // With one ECAM display the advisory page is not called (its pb flashes, FakeDmc): it is called when the second
+    // display comes back
+    this.previousAdvisoryPage = singleDisplay ? SdPages.NONE : advisoryPage;
+
     if (this.sdManualSelectionPulseNode.read() && this.selectedPage.get() !== systemPageButtonPressed) {
       this.selectedPage.set(systemPageButtonPressed);
       this.sdMode = SdMode.Manual;
@@ -257,15 +348,24 @@ export class DmcSdPageLogic {
     } else if (this.sdWarningOverridePulseNode.read() && fwcSdPageRequest !== SdPages.NONE) {
       this.selectedPage.set(fwcSdPageRequest);
       this.sdMode = SdMode.Warning;
+    } else if (advisoryAction === SdAdvisoryAction.ShowAdvisoryPage) {
+      // DSC-31-20 l.46102-46103, l.46122-46123: the advisory page replaces the page shown
+      this.selectedPage.set(advisoryPage);
+      this.sdMode = SdMode.Advisory;
     } else if (
       (this.sdWarningOverridePulseNode.read() && fwcSdPageRequest === SdPages.NONE && this.sdMode === SdMode.Warning) ||
+      advisoryAction === SdAdvisoryAction.EndAdvisory ||
       (this.sdManualSelectionPulseNode.read() &&
-        this.sdMode === SdMode.Manual &&
+        (this.sdMode === SdMode.Manual || this.sdMode === SdMode.Advisory) &&
         this.selectedPage.get() === systemPageButtonPressed &&
         isShownPageDeselectedByItsPb(systemPageButtonPressed, singleDisplay)) ||
       (this.stsPageNormalPulse.read() && this.selectedPage.get() === SdPages.STS) ||
       statusPageCleared
     ) {
+      if (this.sdMode === SdMode.Warning) {
+        // the failure page is gone: an advisory still active calls its page at the next update
+        this.previousAdvisoryPage = SdPages.NONE;
+      }
       this.selectedPage.set(SdPages.NONE);
       this.sdMode = SdMode.FlightPhase;
     }
@@ -276,7 +376,7 @@ export class DmcSdPageLogic {
     this.updateFlightPhasePage(dt);
     this.updateSdSelection(dt);
 
-    if (this.sdMode === SdMode.Manual || this.sdMode === SdMode.Warning) {
+    if (this.sdMode === SdMode.Manual || this.sdMode === SdMode.Warning || this.sdMode === SdMode.Advisory) {
       this.activePage.set(this.selectedPage.get());
     } else {
       this.activePage.set(this.flightPhaseModePage);

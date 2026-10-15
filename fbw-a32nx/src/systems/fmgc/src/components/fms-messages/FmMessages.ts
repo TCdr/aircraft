@@ -211,4 +211,32 @@ export const FMMessageTypes: Readonly<Record<string, FMMessage>> = {
     color: 'Amber',
     clearable: true,
   },
+  /** A320 FCOM MCDU messages (a320_fcom.txt l.22482, l.22494-22497): AREA RNP IS XX.XX, type II white */
+  AreaRnp: {
+    id: 25,
+    text: 'AREA RNP IS XX.XX',
+    color: 'White',
+    clearable: true,
+  },
+  /** A320 FCOM MCDU messages (a320_fcom.txt l.22914, l.22919-22921): PROCEDURE RNP IS XX.XX, type II amber */
+  ProcedureRnp: {
+    id: 26,
+    text: 'PROCEDURE RNP IS XX.XX',
+    color: 'Amber',
+    clearable: true,
+  },
+  /** A320 FCOM MCDU messages (a320_fcom.txt l.22539, l.22552-22553): CHECK IRS/AIRPORT POS, type II amber */
+  CheckIrsAirportPosition: {
+    id: 27,
+    text: 'CHECK IRS/AIRPORT POS',
+    color: 'Amber',
+    clearable: true,
+  },
+  /** A320 FCOM MCDU messages (a320_fcom.txt l.22740, l.22750-22756): IRS ONLY NAVIGATION, type II amber */
+  IrsOnlyNavigation: {
+    id: 28,
+    text: 'IRS ONLY NAVIGATION',
+    color: 'Amber',
+    clearable: true,
+  },
 };

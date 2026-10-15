@@ -11,7 +11,8 @@
             <TOOLTIPID>ACKNOWLEDGE ATC MSG</TOOLTIPID>
             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_DCDU_ATC_MSG_ACK)</LEFT_SINGLE_CODE>
             <!-- FIXME korry should be split in two, and each half connected to correct CPIOM + power supply  -->
-            <SEQ1_CODE>(L:A32NX_DCDU_ATC_MSG_WAITING)</SEQ1_CODE>
+            <!-- Flashing at 2 Hz from the systems host (Misc/AtcMsgLights.ts), A380 FCOM DSC-46-10-20-70 -->
+            <SEQ1_CODE>(L:A380X_GLARESHIELD_ATC_MSG_LIGHT)</SEQ1_CODE>
             <SEQ1_POWERED>(L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED) (L:A32NX_ELEC_DC_2_BUS_IS_POWERED) or</SEQ1_POWERED>
             <DISABLE_SEQ2/>
         </UseTemplate>
@@ -93,7 +94,8 @@
             <TOOLTIPID>ACKNOWLEDGE ATC MSG</TOOLTIPID>
             <LEFT_SINGLE_CODE>1 (&gt;L:A32NX_DCDU_ATC_MSG_ACK)</LEFT_SINGLE_CODE>
             <!-- FIXME korry should be split in two, and each half connected to correct CPIOM + power supply  -->
-            <SEQ1_CODE>(L:A32NX_DCDU_ATC_MSG_WAITING)</SEQ1_CODE>
+            <!-- Flashing at 2 Hz from the systems host (Misc/AtcMsgLights.ts), A380 FCOM DSC-46-10-20-70 -->
+            <SEQ1_CODE>(L:A380X_GLARESHIELD_ATC_MSG_LIGHT)</SEQ1_CODE>
             <SEQ1_POWERED>(L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED) (L:A32NX_ELEC_DC_2_BUS_IS_POWERED) or</SEQ1_POWERED>
             <DISABLE_SEQ2/>
         </UseTemplate>

@@ -63,6 +63,11 @@
   padding: 2px;
 }
 
+// The last STATUS MORE page sections (ALERTS IMPACTING LDG PERF, CANCELLED CAUTION, MORE INFO), one below the other
+.sd-sts-more-last-page {
+  flex-direction: column;
+}
+
 .sd-sts-section-container {
   display: flex;
   flex-direction: column;

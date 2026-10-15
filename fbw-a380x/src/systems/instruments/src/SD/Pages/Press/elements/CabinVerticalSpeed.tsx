@@ -4,6 +4,7 @@ import { GaugeComponent, GaugeMarkerComponent, ThrottlePositionDonutComponent } 
 import { useSimVar } from '@instruments/common/simVars';
 import { Position, ValidRedundantSystem } from '@instruments/common/types';
 import React from 'react';
+import { cabinVsPulses } from '../CabinVsIndications';
 
 const CabinVerticalSpeed: React.FC<Position & ValidRedundantSystem> = ({ x, y, system }) => {
   const [mancabinVs] = useSimVar('L:A32NX_PRESS_MAN_CABIN_VS', 'feet per minute', 500);
@@ -32,11 +33,7 @@ const CabinVerticalSpeed: React.FC<Position & ValidRedundantSystem> = ({ x, y, s
         <text className="F24 Center Cyan" x={x - 43} y={y - 105}>
           FT/MIN
         </text>
-        <text
-          className={`F35 EndAlign  ${Math.abs(Math.round(cabinVs / 50) * 50) > 1800 ? 'GreenTextPulse' : 'Green'}`}
-          x={x + 128}
-          y={y + 13}
-        >
+        <text className={`F35 EndAlign  ${cabinVsPulses(cabinVs) ? 'GreenTextPulse' : 'Green'}`} x={x + 128} y={y + 13}>
           {Math.round(cabinVs / 50) * 50}
         </text>
 
@@ -126,7 +123,7 @@ const CabinVerticalSpeed: React.FC<Position & ValidRedundantSystem> = ({ x, y, s
             radius={radius}
             startAngle={startAngle}
             endAngle={endAngle}
-            className={`GaugeIndicator ${Math.abs(Math.round(cabinVs / 50) * 50) > 1800 ? 'GreenIndicatorPulse' : ''}`}
+            className={`GaugeIndicator ${cabinVsPulses(cabinVs) ? 'GreenIndicatorPulse' : ''}`}
             indicator
             multiplierOuter={1.01}
           />

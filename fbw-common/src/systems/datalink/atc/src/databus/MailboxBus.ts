@@ -61,6 +61,12 @@ export class MailboxBus {
 
   private atcRingInterval: number = null;
 
+  /** The first ring of an unread uplink, when the RING waits for the reading time (delayedFirstRing) */
+  private atcRingTimeout: number = null;
+
+  /** When the planned first ring sounds, ms (Date.now), or null */
+  private atcRingDueTime: number | null = null;
+
   private poweredUp: boolean = false;
 
   /** The FMS answers a LOAD-SEC3 request within this time, or the mailbox shows LOAD NOT AVAIL */
@@ -185,7 +191,7 @@ export class MailboxBus {
 
             // pushed a new inbound message
             if (!data.MessageRead) {
-              this.setupIntervals();
+              this.setupIntervals(data.PriorityMessage === true);
             }
 
             if ((message as CpdlcMessage).MailboxRelevantMessage) {
@@ -206,9 +212,19 @@ export class MailboxBus {
     }
   }
 
+  /**
+   * @param bus the event bus
+   * @param atc the ATC function
+   * @param delayedFirstRing the RING sounds only if the message is not read in time, the A380X mailbox (A380 FCOM
+   * DSC-46-10-20-70, a380_fcom.txt l.101232-101235: "Associated with a RING aural alert that sounds if the flight crew
+   * does not press the pushbutton or read the message within: 15 s after the reception of a normal message, 5 s after
+   * the reception of an urgent message."). Else (the A32NX DCDU) the RING sounds at once, as before: the A320 FCOM has
+   * no RING timing.
+   */
   constructor(
     private readonly bus: EventBus,
     atc: Atc,
+    private readonly delayedFirstRing = false,
   ) {
     this.atc = atc;
 
@@ -481,9 +497,19 @@ export class MailboxBus {
       clearInterval(this.atcRingInterval);
       this.atcRingInterval = null;
     }
+    this.clearRingTimeout();
   }
 
-  private setupIntervals() {
+  private clearRingTimeout(): void {
+    if (this.atcRingTimeout !== null) {
+      clearTimeout(this.atcRingTimeout);
+      this.atcRingTimeout = null;
+    }
+    this.atcRingDueTime = null;
+  }
+
+  /** Rings now, then again at the ring interval while a message is unread */
+  private startRinging(): void {
     if (this.atcRingInterval) {
       clearInterval(this.atcRingInterval);
     }
@@ -496,6 +522,40 @@ export class MailboxBus {
       () => this.atc.digitalOutputs.activateAtcRing(),
       this.estimateRingInterval(),
     );
+  }
+
+  /**
+   * A new unread uplink message entered the mailbox file
+   * @param urgent the message is urgent
+   */
+  private setupIntervals(urgent: boolean) {
+    if (!this.delayedFirstRing) {
+      this.startRinging();
+      return;
+    }
+
+    // A380X: the RING waits for the reading time of the message, 5 s urgent, 15 s normal (l.101232-101235)
+    const readingTime = urgent ? 5000 : 15000;
+    if (this.atcRingInterval) {
+      // already ringing for an older unread message: an urgent one rings at its shorter interval from now on
+      if (this.estimateRingInterval() < readingTime) {
+        return;
+      }
+      clearInterval(this.atcRingInterval);
+      this.atcRingInterval = null;
+    }
+    const dueTime = Date.now() + readingTime;
+    if (this.atcRingDueTime !== null && this.atcRingDueTime <= dueTime) {
+      // the ring of an earlier message comes first
+      return;
+    }
+    this.clearRingTimeout();
+    this.atcRingDueTime = dueTime;
+    this.atcRingTimeout = window.setTimeout(() => {
+      this.atcRingTimeout = null;
+      this.atcRingDueTime = null;
+      this.startRinging();
+    }, readingTime);
   }
 
   public powerUp(): void {
@@ -547,7 +607,7 @@ export class MailboxBus {
       this.markUpload(mailboxBlocks);
       this.uplinkMessages.push(mailboxBlocks);
       this.atc.digitalOutputs.activateButton();
-      this.setupIntervals();
+      this.setupIntervals(mailboxBlocks.some((block) => block.PriorityMessage === true));
     } else {
       if (mailboxBlocks[0].Direction === AtsuMessageDirection.Downlink) {
         this.bufferedDownlinkMessages.push(mailboxBlocks);
