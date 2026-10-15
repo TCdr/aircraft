@@ -1456,7 +1456,9 @@ These variables are the interface between the 3D model and the systems/code.
 - A32NX_ECAM_STATUS_{side}_LINE_{number}
     - Number
     - The lines of the ECAM STATUS page computed by the FWC, as codes of `StatusMessages` (0 for no line): information on
-      the left, inoperative systems (INOP SYS) on the right
+      the left, inoperative systems (INOP SYS) on the right. The left column ends with the CANCELLED CAUTION part when
+      the EMER CANC pb has cancelled a caution: the code `310600001`, then the E/WD title code (`EwdMessages`) of each
+      cancelled caution
     - {side}
         - LEFT
         - RIGHT
