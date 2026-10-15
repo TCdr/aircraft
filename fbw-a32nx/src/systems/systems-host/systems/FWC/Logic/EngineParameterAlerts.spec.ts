@@ -52,11 +52,17 @@ describe('ENG 1(2) N1/N2/EGT OVER LIMIT', () => {
     expect(monitorAfter({}).isActive).toBe(false);
   });
 
-  it('triggers above 104 % N1 and 105 % N2', () => {
-    expect(monitorAfter({ n1Percent: 104.2 }).overLimitParameter).toBe(OverLimitParameter.N1);
-    expect(monitorAfter({ n1Percent: 104 }).isActive).toBe(false);
-    expect(monitorAfter({ n2Percent: 105.1 }).overLimitParameter).toBe(OverLimitParameter.N2);
-    expect(monitorAfter({ n2Percent: 105 }).isActive).toBe(false);
+  it('triggers above the LEAP-1A red lines: N1 101 %, N2 116.5 %', () => {
+    expect(monitorAfter({ n1Percent: 101.5 }).overLimitParameter).toBe(OverLimitParameter.N1);
+    expect(monitorAfter({ n1Percent: 100.9 }).isActive).toBe(false);
+    expect(monitorAfter({ n1Percent: 101 }).isActive).toBe(false);
+    expect(monitorAfter({ n2Percent: 116.6 }).overLimitParameter).toBe(OverLimitParameter.N2);
+    expect(monitorAfter({ n2Percent: 116.5 }).isActive).toBe(false);
+  });
+
+  it('does not trigger at the N2 of a LEAP-1A TOGA take-off (above the CFM56 105 %)', () => {
+    expect(monitorAfter({ n2Percent: 106, thrustLimitType: TOGA }).isActive).toBe(false);
+    expect(monitorAfter({ n2Percent: 110, thrustLimitType: TOGA }).isActive).toBe(false);
   });
 
   it('triggers on the EGT limit of the thrust limit type, as the EWD turns the EGT amber', () => {
@@ -82,12 +88,19 @@ describe('ENG 1(2) N1/N2/EGT OVER LIMIT', () => {
     expect(engineOverLimitLines(OverLimitParameter.N2, false, false)).toEqual([1, 3]);
   });
 
-  it('asks for THR LEVER IDLE and ENG MASTER OFF once the max pointer is above the 975 °C red limit, 105.8 % N1 or 105.8 % N2', () => {
+  it('asks for THR LEVER IDLE and ENG MASTER OFF once the max pointer is above the 975 °C red limit, 102.8 % N1 or 117.3 % N2', () => {
     expect(monitorAfter({ egtDegrees: 980 }).inShutdownBand).toBe(true);
     expect(monitorAfter({ egtDegrees: 975 }).inShutdownBand).toBe(false);
+    // N1: the FCOM 1.8 % band above the limit, on the LEAP-1A red line (101 % + 1.8 %)
+    expect(monitorAfter({ n1Percent: 102.5 }).inShutdownBand).toBe(false);
+    expect(monitorAfter({ n1Percent: 102.5 }).overLimitParameter).toBe(OverLimitParameter.N1);
+    expect(monitorAfter({ n1Percent: 103 }).inShutdownBand).toBe(true);
     expect(monitorAfter({ n1Percent: 106 }).inShutdownBand).toBe(true);
-    expect(monitorAfter({ n2Percent: 106 }).inShutdownBand).toBe(true);
-    expect(monitorAfter({ n1Percent: 105.5 }).inShutdownBand).toBe(false);
+    // N2: the FCOM 0.8 % band above the limit, on the LEAP-1A red line (116.5 % + 0.8 %)
+    expect(monitorAfter({ n2Percent: 106 }).inShutdownBand).toBe(false);
+    expect(monitorAfter({ n2Percent: 117 }).inShutdownBand).toBe(false);
+    expect(monitorAfter({ n2Percent: 117 }).overLimitParameter).toBe(OverLimitParameter.N2);
+    expect(monitorAfter({ n2Percent: 117.5 }).inShutdownBand).toBe(true);
     expect(engineOverLimitLines(OverLimitParameter.Egt, true, false)).toEqual([2, 4, 5]);
     // the lever line goes once the lever is at idle
     expect(engineOverLimitLines(OverLimitParameter.Egt, true, true)).toEqual([2, 5]);

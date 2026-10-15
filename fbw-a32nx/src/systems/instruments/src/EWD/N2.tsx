@@ -32,7 +32,10 @@ export class N2 extends DisplayComponent<N2Props> {
 
   private onGround = false;
 
-  /** FCOM DSC-70-90-40 (see shared/EngineLimits): red above the N2 red limit, with a red cross that stays */
+  /**
+   * FCOM DSC-70-90-40 (see shared/EngineLimits): red above the N2 red limit (the LEAP-1A 116.5 %), with a red cross that
+   * stays
+   */
   private readonly n2Color = Subject.create('Green');
 
   private readonly n2Exceedance = new ExceedanceMemory(N2_RED_LIMIT_PERCENT);

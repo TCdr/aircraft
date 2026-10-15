@@ -9,12 +9,20 @@
  *   continuous ratings (CLB, MCT, MREV), 725 °C otherwise (idle, cruise without a rated limit, start). The TCDS publishes no
  *   absolute red line: the red limit keeps a 35 °C margin above the takeoff limit (975 °C). The amber limit mark is always
  *   drawn. The A320 FCOM (CFM56-5B, DSC-70-90-40, a320_fcom.txt l.64265-64307) gives 725 / 915 °C and a 950 °C red limit;
- *   the user chose the TCDS values (2026-10-06). OPEN QUESTION: FBW models the LEAP-1A, whose limits differ (the CFM LEAP-1A
- *   familiarisation gives an EGT red line of 1060 °C "to be confirmed", N1 101 %, N2 116.5 %).
+ *   the user chose the TCDS values (2026-10-06). The EGT stays on these CFM56-5B values (user decision 2026-10-12): the
+ *   LEAP-1A document below gives a maximum EGT of 1060 °C, but marked "(To Be Confirmed)", so it is not used.
  *   A red mark keeps the highest EGT reached once the red limit is exceeded (FCOM l.64281-64287).
- * - N1 (FCOM l.64317-64397, also the TCDS red line): amber above the N1 limit (the TO/GA N1), red above 104 %. A red mark
- *   keeps the highest N1 reached once the red limit is exceeded.
- * - N2 (FCOM l.64419-64423): red above 105 %, with a red cross that stays.
+ * FBW models the LEAP-1A (A320-251N): the N1 and N2 red lines are the LEAP-1A ones (user decision 2026-10-12), from the
+ * CFM "LEAP-1A General Familiarization" (DEC 2014), page 34, "Leading Particulars - Performances and Limits":
+ * "100% N1 = 3851 rpm & Red Line = 101 %," and "100% N2 = 16645 rpm & Red Line = 116.5 %." The document gives no separate
+ * transient limit or time. The red colour, red marks and red cross are those of the FCOM (CFM56-5B, DSC-70-90-40), whose
+ * red limits (N1 104 %, l.64323; N2 105 %, l.64420) are those of the CFM56: the LEAP-1A runs above 105 % N2 at TOGA, so
+ * every TOGA take-off showed ENG N2 OVER LIMIT at lift-off.
+ * - N1 (FCOM l.64317-64397): amber above the N1 limit (the TO/GA N1), red above the LEAP-1A 101 %. A red mark keeps the
+ *   highest N1 reached once the red limit is exceeded. The TOGA N1 of the sim stays well below it (86-89 % in the recorded
+ *   take-offs; at most about 96.5 % in the FADEC TO/GA limit tables, hot and high).
+ * - N2 (FCOM l.64419-64423): red above the LEAP-1A 116.5 %, with a red cross that stays. It is also the N2 of the fuel
+ *   flow protection of the sim engine (engines.cfg max_n2_protection = 116.5).
  * The red marks and the red cross "no longer appear at the next engine start sequence on ground" (l.64286, 64388, 64422).
  */
 
@@ -22,8 +30,10 @@ export const EGT_TAKEOFF_LIMIT_DEGREES = 940;
 export const EGT_CONTINUOUS_LIMIT_DEGREES = 905;
 export const EGT_START_LIMIT_DEGREES = 725;
 export const EGT_RED_LIMIT_DEGREES = EGT_TAKEOFF_LIMIT_DEGREES + 35;
-export const N1_RED_LIMIT_PERCENT = 104;
-export const N2_RED_LIMIT_PERCENT = 105;
+/** The LEAP-1A N1 red line (see above): the red N1, red arc and red mark of the EWD and the N1 limit of the FWC alert */
+export const N1_RED_LIMIT_PERCENT = 101;
+/** The LEAP-1A N2 red line (see above): the red N2 and red cross of the EWD and the N2 limit of the FWC alert */
+export const N2_RED_LIMIT_PERCENT = 116.5;
 
 export type LimitColor = 'Green' | 'Amber' | 'Red';
 
