@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { FadecEngineState } from './EngineFailAlerts';
 import {
   EngineFuelFilterInputs,
+  FUEL_FILTER_CLOGGED_LEVEL,
   FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
   engineFuelFilterClogged,
 } from './EngineFuelFilterAlerts';
@@ -48,12 +49,14 @@ describe('FWS fuel filter alerts', () => {
     return source.slice(start, source.indexOf(`\n${indent}},`, start));
   }
 
+  /* FCOM l.171992-171996, PDF p.5783: the only indication is the ENGINE SD page (no aural, no MASTER CAUT) */
   it.each([1, 2, 3, 4])('ENG %d FUEL FILTER CLOGGED: amber, crew awareness, ENGINE SD page', (engine) => {
     const id = 701800033 + engine - 1;
     const alert = block(abnormalSensed, id);
     expect(alert).toContain(`simVarIsActive: this.fws.engineFuelFilterClogged[${engine - 1}],`);
     expect(alert).toContain('flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,');
-    expect(alert).toContain('failure: 2,');
+    expect(alert).toContain('failure: FUEL_FILTER_CLOGGED_LEVEL,');
+    expect(FUEL_FILTER_CLOGGED_LEVEL).toBe(1);
     expect(alert).toContain('sysPage: SdPages.Eng,');
     const message = block(ata70, id);
     expect(message).toContain(`title: '\\x1b<4m\\x1b4mENG\\x1bm ${engine} FUEL FILTER CLOGGED',`);
