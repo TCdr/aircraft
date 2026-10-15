@@ -41,6 +41,7 @@ import { PlanformTag } from '../FuselagePlanform';
 import { A380_FWD_CARGO_DOOR, A380_SERVICE_DOORS } from './A380ServiceDoors';
 import { doorRow, equipmentRow, SERVICE_LOOKS, ServiceLook, ServicesLayout } from '../ServicesLayout';
 import { useRatStowRow } from '../RatStowRow';
+import { equipmentStillThere, useReleasePending } from '../releasePending';
 import {
   AFT_CARGO_DOOR_LOCKED_VAR,
   AFT_CARGO_DOOR_POSITION_VAR,
@@ -98,6 +99,13 @@ const GSX_LOOK_STATES: Record<GsxServiceLook, ServiceButtonState> = {
   released: ServiceButtonState.RELEASED,
 };
 
+/** The ground equipment rows a Release press leaves 'released' until the equipment is gone (releasePending) */
+const RELEASE_ROW_OF_BUTTON: Partial<Record<ServiceButton, string>> = {
+  [ServiceButton.JetBridge]: 'jetBridge',
+  [ServiceButton.Stairs]: 'stairs',
+  [ServiceButton.Gpu]: 'gpu',
+};
+
 export const A380Services: React.FC = () => {
   const dispatch = useAppDispatch();
 
@@ -152,6 +160,8 @@ export const A380Services: React.FC = () => {
   const gsxLinked = gsxLinkSetting === 1;
   const gsx = useGsxRemote();
   const gsxReady = gsxLinked && gsx.connected && gsx.gsxRunning;
+  // The Release presses on the GPU, jet bridge and stairs, shown until the equipment is gone (releasePending)
+  const releasePending = useReleasePending();
   // Linking also turns on the flyPad's GSX fuel and payload syncs (Settings > 3rd party), so the fuel and the
   // passengers follow the GSX services
   const setGsxLink = (linked: boolean) => {
@@ -354,7 +364,15 @@ export const A380Services: React.FC = () => {
   const handleButtonClick = (id: ServiceButton) => {
     const gsxService = gsxReady ? GSX_SERVICE_OF_BUTTON[id] : undefined;
     if (gsxService !== undefined) {
-      triggerGsxService(gsxService, gsx.services.find((s) => s.id === gsxService)?.displayName ?? gsxService);
+      triggerGsxService(gsxService, gsx.services.find((s) => s.id === gsxService)?.displayName ?? gsxService).then(
+        (accepted) => {
+          // a release GSX did not accept: the row shows again what GSX says
+          const releaseRow = RELEASE_ROW_OF_BUTTON[id];
+          if (!accepted && releaseRow !== undefined) {
+            releasePending.cancel(releaseRow);
+          }
+        },
+      );
       return;
     }
     switch (id) {
@@ -656,6 +674,46 @@ export const A380Services: React.FC = () => {
   const doorIcon = (open: number) => (open >= 1 ? <DoorOpenFill size={18} /> : <DoorClosedFill size={18} />);
   const click = (button: ServiceButton) => () => handleButtonClick(button);
 
+  // Released ground equipment (releasePending): GSX keeps a released GPU, jet bridge or stairs 'performing' until its
+  // crew has removed it, so the row shows 'released' (amber, "Leaving", chip disabled) from the Release press until
+  // GSX or the sim no longer reports the equipment there (for the GPU: no external power either), or the timeout
+  const equipmentThere = (button: ServiceButton, state: ServiceButtonState) =>
+    equipmentStillThere(shownLook(button, state), button === ServiceButton.Gpu && !!gpuAvail);
+  const equipmentLook = (button: ServiceButton, state: ServiceButtonState): ServiceLook => {
+    const releaseRow = RELEASE_ROW_OF_BUTTON[button];
+    return releaseRow === undefined
+      ? shownLook(button, state)
+      : releasePending.look(releaseRow, shownLook(button, state), equipmentThere(button, state), Date.now());
+  };
+  // the GSX status line of an equipment row, none while its release is shown on its way (the row reads "Leaving")
+  const equipmentGsxOf = (button: ServiceButton, state: ServiceButtonState) =>
+    equipmentLook(button, state) !== shownLook(button, state)
+      ? { text: '', progress: null, requestable: true }
+      : gsxOf(button);
+  // a Release press is remembered (a Request is not), then handled as usual
+  const equipmentClick = (button: ServiceButton, state: ServiceButtonState) => () => {
+    const releaseRow = RELEASE_ROW_OF_BUTTON[button];
+    if (releaseRow !== undefined) {
+      releasePending.click(releaseRow, shownLook(button, state), Date.now());
+    }
+    handleButtonClick(button);
+  };
+  // the releases that are over are forgotten, so that a later Request and connection show normally
+  useEffect(() => {
+    const now = Date.now();
+    const releasable: [ServiceButton, ServiceButtonState][] = [
+      [ServiceButton.JetBridge, jetWayButtonState],
+      [ServiceButton.Stairs, stairsButtonState],
+      [ServiceButton.Gpu, gpuButtonState],
+    ];
+    releasable.forEach(([button, state]) =>
+      releasePending.settle(RELEASE_ROW_OF_BUTTON[button], equipmentThere(button, state), now),
+    );
+  });
+  const jetBridgeGsx = equipmentGsxOf(ServiceButton.JetBridge, jetWayButtonState);
+  const stairsGsx = equipmentGsxOf(ServiceButton.Stairs, stairsButtonState);
+  const gpuGsx = equipmentGsxOf(ServiceButton.Gpu, gpuButtonState);
+
   // The cargo doors row shows the hydraulic doors (both moved by the same request), not the request: its switch is
   // the request, greyed out when a locked door cannot be opened for lack of hydraulic power
   const cargoDoorsDisabled = cargo1DoorButtonState <= ServiceButtonState.DISABLED || !cargoDoorCanToggle(cargoDoors);
@@ -731,24 +789,24 @@ export const A380Services: React.FC = () => {
       'jetBridge',
       t('Ground.Services.JetBridge'),
       <PersonPlusFill size={18} />,
-      shownLook(ServiceButton.JetBridge, jetWayButtonState),
-      click(ServiceButton.JetBridge),
+      equipmentLook(ServiceButton.JetBridge, jetWayButtonState),
+      equipmentClick(ServiceButton.JetBridge, jetWayButtonState),
       {
-        gsxStatus: gsxOf(ServiceButton.JetBridge).text,
-        progress: gsxOf(ServiceButton.JetBridge).progress,
-        requestable: gsxOf(ServiceButton.JetBridge).requestable,
+        gsxStatus: jetBridgeGsx.text,
+        progress: jetBridgeGsx.progress,
+        requestable: jetBridgeGsx.requestable,
       },
     ),
     equipmentRow(
       'stairs',
       t('Ground.Services.Stairs'),
       <PersonPlusFill size={18} />,
-      shownLook(ServiceButton.Stairs, stairsButtonState),
-      click(ServiceButton.Stairs),
+      equipmentLook(ServiceButton.Stairs, stairsButtonState),
+      equipmentClick(ServiceButton.Stairs, stairsButtonState),
       {
-        gsxStatus: gsxOf(ServiceButton.Stairs).text,
-        progress: gsxOf(ServiceButton.Stairs).progress,
-        requestable: gsxOf(ServiceButton.Stairs).requestable,
+        gsxStatus: stairsGsx.text,
+        progress: stairsGsx.progress,
+        requestable: stairsGsx.requestable,
       },
     ),
     equipmentRow(
@@ -768,13 +826,13 @@ export const A380Services: React.FC = () => {
       'gpu',
       t('Ground.Services.ExternalPower'),
       <PlugFill size={18} />,
-      shownLook(ServiceButton.Gpu, gpuButtonState),
-      click(ServiceButton.Gpu),
+      equipmentLook(ServiceButton.Gpu, gpuButtonState),
+      equipmentClick(ServiceButton.Gpu, gpuButtonState),
       {
         activeStatus: gpuAvail ? t('Ground.Services.Powered') : t('Ground.Services.Connected'),
-        gsxStatus: gsxOf(ServiceButton.Gpu).text,
-        progress: gsxOf(ServiceButton.Gpu).progress,
-        requestable: gsxOf(ServiceButton.Gpu).requestable,
+        gsxStatus: gpuGsx.text,
+        progress: gpuGsx.progress,
+        requestable: gpuGsx.requestable,
       },
     ),
     equipmentRow(
@@ -801,7 +859,7 @@ export const A380Services: React.FC = () => {
     .concat(ratStowRow ? [ratStowRow] : []);
 
   const toneOf = (button: ServiceButton, state: ServiceButtonState): M3Tone => {
-    const l = shownLook(button, state);
+    const l = equipmentLook(button, state);
     return l === 'active' ? 'active' : l === 'called' || l === 'released' ? 'busy' : 'idle';
   };
   const fuelProgress = gsxOf(ServiceButton.FuelTruck).progress;

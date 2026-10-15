@@ -85,12 +85,14 @@ const LOOK_TONES: Record<GsxServiceLook, M3Tone> = {
  * Requests a GSX service; GSX refuses it when it cannot serve it now (e.g. boarding before the doors are open)
  * @param service the service id
  * @param name the name of the service, for the message
+ * @returns whether GSX accepted the request
  */
-export async function triggerGsxService(service: GsxServiceId, name: string): Promise<void> {
+export async function triggerGsxService(service: GsxServiceId, name: string): Promise<boolean> {
   const { ok, error } = await gsxRemote.trigger(service);
   if (!ok) {
     toast.error(`${t('Ground.Services.Gsx.NotAccepted').replace('{service}', name)} (${error})`);
   }
+  return ok;
 }
 
 /**
