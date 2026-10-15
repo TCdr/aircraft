@@ -149,11 +149,18 @@ export class ExceedanceMemory {
   /**
    * @param value the current value
    * @param groundStart an engine start on ground is in progress
+   * @param valueValid the value is shown (the engine parameters are available, no XX). "If a parameter value ... is not
+   *   available for display, XX appears, instead of the value" (a380_fcom.txt l.73512-73516): a value that is not shown,
+   *   stale or not yet initialised, is no exceedance. A value that is not a finite number is not one either, and leaves
+   *   the highest value as it is.
    */
-  update(value: number, groundStart: boolean): void {
+  update(value: number, groundStart: boolean, valueValid: boolean): void {
     if (groundStart) {
       this.highest = 0;
       this.exceededLimit = false;
+    }
+    if (!valueValid || !Number.isFinite(value)) {
+      return;
     }
     if (value > this.redLimit) {
       this.exceededLimit = true;
