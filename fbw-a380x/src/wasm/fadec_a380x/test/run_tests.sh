@@ -24,6 +24,9 @@ clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS start_sequence_test.cpp -o ../ob
 # With WITHOUT_THE_FIX=1 the core spike guard test uses the MSFS speeds unfiltered and must fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS core_spike_guard_test.cpp -o ../obj/core_spike_guard_test
 ../obj/core_spike_guard_test
+# With WITHOUT_THE_FIX=1 the MSFS core limiter test leaves the MSFS core alone and must fail.
+clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS msfs_core_limiter_test.cpp -o ../obj/msfs_core_limiter_test
+../obj/msfs_core_limiter_test
 clang++ -std=c++20 -Wall -Wextra -Werror egt_failure_offset_test.cpp -o ../obj/egt_failure_offset_test
 ../obj/egt_failure_offset_test
 clang++ -std=c++20 -Wall -Wextra -Werror -I../../../../../fbw-common/src/wasm/fadec_common/src oil_system_test.cpp -o ../obj/oil_system_test
