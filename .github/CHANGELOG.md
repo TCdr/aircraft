@@ -383,6 +383,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/BLEED] With the X BLEED selector at AUTO, the crossbleed valves open on the ground during an engine start, so the running engines supply the starter air of a crossbleed engine start - @TCdr
 1. [A380X/MODEL] The exhaust heat haze of engines 2, 3 and 4 follows its own engine (it followed engine 1 or 2) - @TCdr
 1. [A380X/PRESS] With a door not closed and locked at takeoff power, the outflow valve controllers keep the four outflow valves open in AUTO (CAB PRESS INHIBITED BY DOORS), the controllers read every passenger door and both cargo doors, and the cabin air and pack door inputs read all 16 passenger doors (only MAIN 1L and 2R before) - @TCdr
+1. [A380X/FMS] TRIP fuel and cruise fuel predictions now match the fuel the engines burn at Mach 0.85 (they were 4 to 7 % low in cruise, about 3 % low on the TRIP) - @TCdr
 
 ## 2024.1.0
 
