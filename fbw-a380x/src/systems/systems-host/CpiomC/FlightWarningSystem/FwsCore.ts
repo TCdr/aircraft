@@ -96,6 +96,7 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
+import { FwsBrakeAlerts, readBrakeSteerInputs } from './FwsBrakeAlerts';
 import { readFuelJettisonFlags } from './FuelJettisonFlags';
 import {
   EngineFailMonitor,
@@ -1964,6 +1965,9 @@ export class FwsCore {
   private readonly confingParkBrakeOnMemoryNode = new NXLogicMemoryNode();
 
   public readonly configParkBrakeOn = Subject.create(false);
+
+  /** BRAKES and STEER alerts from the BCS, EBCU and SCS faults (A380 FCOM PRO-ABN-ECAM-10-32, FwsBrakeAlerts.ts) */
+  public readonly brakeSteerAlerts = new FwsBrakeAlerts();
 
   public readonly lgNotDown = Subject.create(false);
 
@@ -4394,6 +4398,11 @@ export class FwsCore {
       this.confingParkBrakeOnMemoryNode.write(phase3 && parkBrakeSet, !parkBrakeSet || phase6),
     );
     this.nwSteeringDisc.set(SimVar.GetSimVarValue('L:A32NX_HYD_NW_STRG_DISC_ECAM_MEMO', 'Bool'));
+    this.brakeSteerAlerts.update(
+      deltaTime,
+      readBrakeSteerInputs((name) => SimVar.GetSimVarValue(name, 'number')),
+      parkBrakeSet,
+    );
     const leftCompressedHardwireLgciu1 =
       this.dcESSBusPowered.get() && SimVar.GetSimVarValue('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool') > 0;
     const leftCompressedHardwireLgciu2 =
