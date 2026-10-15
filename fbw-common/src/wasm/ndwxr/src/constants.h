@@ -20,9 +20,9 @@ constexpr double kOverlayTerr = 2.0;
 // along the active flight plan ... or the current track").
 constexpr int kVdCutMaxVertices = 32;
 constexpr int kVdCutMaxSegments = kVdCutMaxVertices;
-// The runways near the aircraft that the VD draws as flat ground (L:A380X_VD_RUNWAY_*, from EfisTawsBridge.ts,
-// see vd_runways.h), and the most flat stretches drawn.
-constexpr int kVdRunwayMax = 40;
+// The airports near the aircraft that the VD draws as flat ground (L:A380X_VD_AIRPORT_*, from EfisTawsBridge.ts,
+// see vd_airports.h), and the most flat stretches drawn.
+constexpr int kVdAirportMax = 24;
 constexpr int kVdFlatStretchMax = 48;
 
 // The RDR-4000 takes about 30 s to fill its 3D buffer once the crew selects the radar (FCOM
