@@ -189,6 +189,8 @@ import { isToConfigNormal } from './ToConfigNormal';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll, RECALL_NORMAL_MEMO_MS } from './FwsRecall';
 import { FwsGearAlerts } from './FwsGearAlerts';
 import { FwsNavAlerts, adrFaultyForNavAlerts, readSideDisplayData } from './FwsNavAlerts';
+import { AntiIceValveAlerts, readAntiIceValveInputs } from './AntiIceValveAlerts';
+import { oxygenAlerts } from './OxygenAlerts';
 import { FwsNavPositionAlerts } from './FwsNavPositionAlerts';
 import {
   areRamAirInletsOpen,
@@ -2991,6 +2993,16 @@ export class FwsCore {
   /** DOOR FWD(AFT) CARGO NOT CLOSED triggers, in CARGO_DOORS order */
   public readonly cargoDoorNotClosed = CARGO_DOORS.map(() => Subject.create(false));
 
+  /** A-ICE ENG VLV CLOSED / OPEN, A-ICE L(R) WING VLV CLOSED / OPEN / PRESS HI / PRESS LO, see AntiIceValveAlerts */
+  public readonly antiIceValveAlerts = new AntiIceValveAlerts();
+
+  /** OXY CABIN BOTTLE PRESS LO, OXY CABIN VLV CLOSED, OXY CKPT BOTTLE PRESS LO, see OxygenAlerts */
+  public readonly oxyCabinBottlePressLo = Subject.create(false);
+
+  public readonly oxyCabinValveClosed = Subject.create(false);
+
+  public readonly oxyCkptBottlePressLo = Subject.create(false);
+
   public readonly fmsPredUnreliablePreCondition = this.aircraftOnGround.map(SubscribableMapFunctions.not());
 
   public readonly fuelConsumptIncreasePreCondition = MappedSubject.create(
@@ -3995,11 +4007,13 @@ export class FwsCore {
     this.ldgMemo.set(SimVar.GetSimVarValue('L:A32NX_FWC_LDGMEMO', 'bool'));
 
     this.engSelectorPosition.set(SimVar.GetSimVarValue('L:XMLVAR_ENG_MODE_SEL', 'Enum'));
-    this.eng1AntiIce.set(!!SimVar.GetSimVarValue('A:ENG ANTI ICE:1', 'bool'));
-    this.eng2AntiIce.set(!!SimVar.GetSimVarValue('A:ENG ANTI ICE:2', 'bool'));
-    this.eng3AntiIce.set(!!SimVar.GetSimVarValue('A:ENG ANTI ICE:3', 'bool'));
-    this.eng4AntiIce.set(!!SimVar.GetSimVarValue('A:ENG ANTI ICE:4', 'bool'));
-    this.wingAntiIce.set(!!SimVar.GetSimVarValue('A:STRUCTURAL DEICE SWITCH', 'bool'));
+    // The ENG and WING ANTI ICE pb: the ENG A-ICE and WING A-ICE memos (A380 FCOM DSC-30-10-20 l.62083-62086). The
+    // MSFS ENG ANTI ICE and STRUCTURAL DEICE follow the valves of the systems model (a380_systems ice_rain_protection.rs)
+    this.eng1AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION', 'bool') > 0);
+    this.eng2AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION', 'bool') > 0);
+    this.eng3AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_3_POSITION', 'bool') > 0);
+    this.eng4AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_4_POSITION', 'bool') > 0);
+    this.wingAntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_WING_POSITION', 'bool') > 0);
     this.throttle1Position.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number'));
     this.throttle2Position.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:2', 'number'));
     this.throttle3Position.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:3', 'number'));
@@ -6760,9 +6774,29 @@ export class FwsCore {
     this.iceNotDetTimer2Status.set(
       this.iceNotDetTimer2.write(iceNotDetected1 && !(icePercentage >= 0.1 || (tat < 10 && inCloud === 1)), deltaTime),
     );
+    this.antiIceValveAlerts.update(
+      readAntiIceValveInputs(
+        [this.engine1Running, this.engine2Running, this.engine3Running, this.engine4Running].map((running) =>
+          running.get(),
+        ),
+      ),
+      deltaTime / 1000,
+    );
 
     /* OXYGEN */
     this.paxOxyMasksDeployed.set(SimVar.GetSimVarValue('L:A32NX_OXYGEN_MASKS_DEPLOYED', 'Bool'));
+    const oxygen = oxygenAlerts({
+      ckptBottlePressurePsi: SimVar.GetSimVarValue('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 'number'),
+      cabinBottlePressurePsi: SimVar.GetSimVarValue('L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE', 'number'),
+      cabinValveClosed: SimVar.GetSimVarValue('L:A32NX_OXYGEN_CABIN_VALVE_CLOSED', 'bool') > 0,
+      oneEngineRunning: this.oneEngineRunning.get(),
+      fmsPassengers: SimVar.GetSimVarValue('L:A32NX_FMS_PAX_NUMBER', 'number'),
+      cabinAltitudeFt: this.cabinAltitude.isNormalOperation() ? this.cabinAltitude.value : null,
+      masksReleased: !!this.paxOxyMasksDeployed.get(),
+    });
+    this.oxyCabinBottlePressLo.set(oxygen.cabinBottlePressLo);
+    this.oxyCabinValveClosed.set(oxygen.cabinValveClosed);
+    this.oxyCkptBottlePressLo.set(oxygen.ckptBottlePressLo);
 
     /* DOOR */
     this.cockpitWindowOpen.set(

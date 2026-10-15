@@ -98,6 +98,18 @@ import {
   isEngineShutDown,
 } from './Logic/EngineFailAlerts';
 import { EngineOilMonitor, engineOilShutDownLines } from './Logic/EngineOilAlerts';
+import {
+  EngineAntiIceValveMonitor,
+  engineAntiIceValveClosedStatus,
+  engineAntiIceValveOpenStatus,
+} from './Logic/EngineAntiIceAlerts';
+import {
+  NO_PROBE_WINDOW_HEAT_FAULT,
+  PROBE_WINDOW_HEAT_ALERTS,
+  ProbeWindowHeatInputs,
+  probeWindowHeatAlerts,
+  readProbeWindowHeatInputs,
+} from './Logic/ProbeWindowHeatAlerts';
 import { FUEL_FILTER_CLOG_PHASE_INHIBITION, engineFuelFilterClog } from './Logic/EngineFuelFilterAlerts';
 import {
   EngineMonitoringAlertDefinition,
@@ -2067,6 +2079,18 @@ export class PseudoFWC {
   /** ENG 1(2) OIL LO PR, OIL HI TEMP and OIL FILTER CLOG, see Logic/EngineOilAlerts */
   private readonly engineOilMonitors = [new EngineOilMonitor(), new EngineOilMonitor()];
 
+  /** ANTI ICE ENG 1(2) VALVE CLSD and VALVE OPEN, see Logic/EngineAntiIceAlerts */
+  private readonly engineAntiIceValveMonitors = [new EngineAntiIceValveMonitor(), new EngineAntiIceValveMonitor()];
+
+  private readonly engineAntiIceValveClosed = [Subject.create(false), Subject.create(false)];
+
+  private readonly engineAntiIceValveOpen = [Subject.create(false), Subject.create(false)];
+
+  /** ANTI ICE probe and window heat cautions, see Logic/ProbeWindowHeatAlerts */
+  private probeWindowHeatInputs: ProbeWindowHeatInputs = NO_PROBE_WINDOW_HEAT_FAULT;
+
+  private readonly probeWindowHeatActive = PROBE_WINDOW_HEAT_ALERTS.map(() => Subject.create(false));
+
   /** AIR bleed leak, leak detection, HP valve and BMC cautions, see Logic/BleedLeakMonitoringAlerts */
   private readonly bleedLeakMonitoringAlerts = new BleedLeakMonitoringAlerts();
 
@@ -3751,8 +3775,10 @@ export class PseudoFWC {
     this.fuel.set(SimVar.GetSimVarValue('A:INTERACTIVE POINT OPEN:9', 'percent'));
     this.usrStartRefueling.set(SimVar.GetSimVarValue('L:A32NX_REFUEL_STARTED_BY_USR', 'bool'));
     this.engSelectorPosition.set(SimVar.GetSimVarValue('L:XMLVAR_ENG_MODE_SEL', 'Enum'));
-    this.eng1AntiIce.set(SimVar.GetSimVarValue('ENG ANTI ICE:1', 'bool'));
-    this.eng2AntiIce.set(SimVar.GetSimVarValue('ENG ANTI ICE:2', 'bool'));
+    // The ENG ANTI ICE pb-sw: the ENG A.ICE memo "appears in green, if one or both ENG ANTI ICE pb-sw are ON" (FCOM
+    // DSC-30-30-20 l.44405). The MSFS ENG ANTI ICE follows the valve (systems ice_rain_protection engine_anti_ice.rs).
+    this.eng1AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION', 'bool') > 0);
+    this.eng2AntiIce.set(SimVar.GetSimVarValue('L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION', 'bool') > 0);
     this.thr1TLA.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:1', 'number'));
     this.thr2TLA.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_TLA:2', 'number'));
     this.autoThrustStatus.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_STATUS', 'enum'));
@@ -5735,6 +5761,31 @@ export class PseudoFWC {
     this.engine1OilFilterClog.set(this.engineOilMonitors[0].isFilterClogged);
     this.engine2OilFilterClog.set(this.engineOilMonitors[1].isFilterClogged);
 
+    /* ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (FCOM PRO-ABN-A-ICE, see Logic/EngineAntiIceAlerts) */
+    this.engineAntiIceValveMonitors.forEach((monitor, index) => {
+      const engineNumber = index + 1;
+      monitor.update(
+        {
+          pbOn: (engineNumber === 1 ? this.eng1AntiIce : this.eng2AntiIce).get(),
+          valveOpen: SimVar.GetSimVarValue(`L:A32NX_PNEU_ENG_${engineNumber}_ANTI_ICE_VALVE_OPEN`, 'bool') > 0,
+          engineRunning: (engineNumber === 1
+            ? this.engine1CoreAtOrAboveMinIdle
+            : this.engine2CoreAtOrAboveMinIdle
+          ).get(),
+        },
+        deltaTime / 1000,
+      );
+      this.engineAntiIceValveClosed[index].set(monitor.valveClosed);
+      this.engineAntiIceValveOpen[index].set(monitor.valveOpen);
+    });
+
+    /* ANTI ICE probe and window heat cautions (FCOM PRO-ABN-A-ICE, see Logic/ProbeWindowHeatAlerts) */
+    this.probeWindowHeatInputs = readProbeWindowHeatInputs();
+    const heatAlerts = probeWindowHeatAlerts(this.probeWindowHeatInputs);
+    PROBE_WINDOW_HEAT_ALERTS.forEach((alert, index) =>
+      this.probeWindowHeatActive[index].set(alert.isActive(heatAlerts)),
+    );
+
     /* AIR bleed leak, leak detection, HP valve and BMC cautions (FCOM PRO-ABN-AIR, PRO-ABN-BLEED), from the Rust BMCs */
     this.bleedLeakMonitoringAlerts.update(readBleedLeakMonitoringInputs());
 
@@ -7081,6 +7132,26 @@ export class PseudoFWC {
       side: 'LEFT',
       inopSys: () => ignitionFaultInopSys(engine, this.engineIgniterAFault[index], this.engineIgniterBFault[index]),
     };
+  }
+
+  /** The ANTI ICE probe and window heat cautions (FCOM PRO-ABN-A-ICE), see Logic/ProbeWindowHeatAlerts */
+  private probeWindowHeatFailures(): EWDMessageDict<EWDFailureItem> {
+    const failures: EWDMessageDict<EWDFailureItem> = {};
+    PROBE_WINDOW_HEAT_ALERTS.forEach((alert, index) => {
+      failures[alert.key] = {
+        flightPhaseInhib: alert.phaseInhibition,
+        simVarIsActive: this.probeWindowHeatActive[index],
+        whichCodeToReturn: () => alert.lines(this.probeWindowHeatInputs),
+        codesToReturn: alert.codes,
+        memoInhibit: () => false,
+        failure: 2,
+        sysPage: EcamSysPage.NONE,
+        side: 'LEFT',
+        statusInfo: () => alert.status(this.probeWindowHeatInputs).info,
+        inopSys: () => alert.status(this.probeWindowHeatInputs).inopSys,
+      };
+    });
+    return failures;
   }
 
   ewdMessageFailures: EWDMessageDict<EWDFailureItem> = {
@@ -10812,6 +10883,62 @@ export class PseudoFWC {
       sysPage: EcamSysPage.NONE,
       side: 'LEFT',
     },
+    // ANTI ICE ENG 1(2) VALVE CLSD / VALVE OPEN (FCOM PRO-ABN-A-ICE l.68779-68857), see Logic/EngineAntiIceAlerts; flight
+    // phase inhibition from the FCOM figures (2019 PDF pages 1985-1986)
+    3001101: {
+      // ANTI ICE ENG 1 VALVE CLSD
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engineAntiIceValveClosed[0],
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['300110101', '300110102'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => engineAntiIceValveClosedStatus(1).statusInfo,
+      inopSys: () => engineAntiIceValveClosedStatus(1).inopSys,
+    },
+    3001102: {
+      // ANTI ICE ENG 2 VALVE CLSD
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engineAntiIceValveClosed[1],
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['300110201', '300110202'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => engineAntiIceValveClosedStatus(2).statusInfo,
+      inopSys: () => engineAntiIceValveClosedStatus(2).inopSys,
+    },
+    3001103: {
+      // ANTI ICE ENG 1 VALVE OPEN
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engineAntiIceValveOpen[0],
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['300110301', '300110302'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => engineAntiIceValveOpenStatus().statusInfo,
+      inopSys: () => engineAntiIceValveOpenStatus().inopSys,
+    },
+    3001104: {
+      // ANTI ICE ENG 2 VALVE OPEN
+      flightPhaseInhib: [3, 4, 5, 7, 8],
+      simVarIsActive: this.engineAntiIceValveOpen[1],
+      whichCodeToReturn: () => [0, 1],
+      codesToReturn: ['300110401', '300110402'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: EcamSysPage.NONE,
+      side: 'LEFT',
+      statusInfo: () => engineAntiIceValveOpenStatus().statusInfo,
+      inopSys: () => engineAntiIceValveOpenStatus().inopSys,
+    },
+    // ANTI ICE probe and window heat cautions (3001201-3001275), see probeWindowHeatFailures()
+    ...this.probeWindowHeatFailures(),
     // HYD alerts (FCOM PRO-ABN-HYD), see Logic/HydraulicAlerts for the triggers, priorities, lines and STATUS. Flight
     // phase inhibition: the FCOM figures are not in its text, design choice [3, 4, 5, 7, 8] as the RSVR OVHT alerts had
     // [GK], with the notes the text keeps (ELEC PUMP LO PR: phase 3 only for the OVHT, l.86992, l.87703; G(Y) RSVR LO LVL:

@@ -131,6 +131,15 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290400017', { part: StatusPart.Limitation, text: 'LDG DIST PROC....APPLY' }],
   ['290400018', { part: StatusPart.Limitation, text: 'FUEL CONSUMPT INCRSD' }],
   ['290400019', { part: StatusPart.Limitation, text: 'FMS PRED UNRELIABLE' }],
+  // 30 ICE AND RAIN PROTECTION (FCOM PRO-ABN-A-ICE ANTI ICE ENG 1(2) VALVE OPEN STATUS, l.68855), see
+  // FWC/Logic/EngineAntiIceAlerts
+  ['300400001', { part: StatusPart.Limitation, text: 'THRUST LIM PENALTY' }],
+  // ANTI ICE ALL PITOT and the pitot pairs STATUS (2019 PDF pages 1977-1989), see FWC/Logic/ProbeWindowHeatAlerts
+  ['300500001', { part: StatusPart.Condition, text: 'IF ICING EXPECTED:' }],
+  ['300400002', { part: StatusPart.Limitation, text: 'ADR 1 P/B...........OFF' }],
+  ['300400003', { part: StatusPart.Limitation, text: 'ADR 2 P/B...........OFF' }],
+  ['300400004', { part: StatusPart.Limitation, text: 'ADR 3 P/B...........OFF' }],
+  ['300400005', { part: StatusPart.Limitation, text: 'UNREL SPD PROC....APPLY' }],
   // 70 ENGINE (FCOM PRO-ABN-ENG ENG 1(2) SHUT DOWN STATUS, a320_fcom.txt l.81168-81264), in the order of the FCOM
   ['700400001', { part: StatusPart.Limitation, text: 'AVOID ICING CONDITIONS' }],
   ['700500001', { part: StatusPart.Condition, text: 'IF SEVERE ICE ACCRETION:' }],
@@ -372,6 +381,32 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['290300001', { part: StatusPart.InopSys, text: 'G ENG 1 PUMP' }],
   ['290300002', { part: StatusPart.InopSys, text: 'Y ENG 2 PUMP' }],
   ['300300001', { part: StatusPart.InopSys, text: 'WING A. ICE' }],
+  // ANTI ICE ENG 1(2) VALVE CLSD (FCOM PRO-ABN-A-ICE l.68817)
+  ['300300002', { part: StatusPart.InopSys, text: 'ENG 1 A. ICE' }],
+  ['300300003', { part: StatusPart.InopSys, text: 'ENG 2 A. ICE' }],
+  // ANTI ICE probe and window heat INOP SYS (2019 PDF pages 1977-1996), see FWC/Logic/ProbeWindowHeatAlerts
+  ['300300010', { part: StatusPart.InopSys, text: 'CAPT PITOT' }],
+  ['300300011', { part: StatusPart.InopSys, text: 'F/O PITOT' }],
+  ['300300012', { part: StatusPart.InopSys, text: 'STBY PITOT' }],
+  ['300300013', { part: StatusPart.InopSys, text: 'CAPT PROBES' }],
+  ['300300014', { part: StatusPart.InopSys, text: 'F/O PROBES' }],
+  ['300300015', { part: StatusPart.InopSys, text: 'STBY PROBES' }],
+  ['300300016', { part: StatusPart.InopSys, text: 'CAPT L STAT' }],
+  ['300300017', { part: StatusPart.InopSys, text: 'CAPT R STAT' }],
+  ['300300018', { part: StatusPart.InopSys, text: 'F/O L STAT' }],
+  ['300300019', { part: StatusPart.InopSys, text: 'F/O R STAT' }],
+  ['300300020', { part: StatusPart.InopSys, text: 'STBY L STAT' }],
+  ['300300021', { part: StatusPart.InopSys, text: 'STBY R STAT' }],
+  ['300300022', { part: StatusPart.InopSys, text: 'CAPT AOA' }],
+  ['300300023', { part: StatusPart.InopSys, text: 'F/O AOA' }],
+  ['300300024', { part: StatusPart.InopSys, text: 'STBY AOA' }],
+  ['300300025', { part: StatusPart.InopSys, text: 'CAPT TAT' }],
+  ['300300026', { part: StatusPart.InopSys, text: 'F/O TAT' }],
+  ['300300027', { part: StatusPart.InopSys, text: 'WSHLD HEAT' }],
+  ['300300028', { part: StatusPart.InopSys, text: 'L WSHLD HEAT' }],
+  ['300300029', { part: StatusPart.InopSys, text: 'R WSHLD HEAT' }],
+  ['300300030', { part: StatusPart.InopSys, text: 'L WNDW HEAT' }],
+  ['300300031', { part: StatusPart.InopSys, text: 'R WNDW HEAT' }],
   // WING A.ICE L(R) HI PR (FCOM PRO-ABN-W_A_ICE l.96452) and L/G DOORS NOT CLOSED (PRO-ABN-LG l.89236)
   ['300300002', { part: StatusPart.InopSys, text: 'WAI REGUL' }],
   ['320300001', { part: StatusPart.InopSys, text: 'L/G DOOR' }],

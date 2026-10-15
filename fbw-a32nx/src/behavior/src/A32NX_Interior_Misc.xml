@@ -255,6 +255,8 @@
 
         <UseTemplate Name="FBW_Push_Toggle">
             <TOOLTIPID>%((L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool))%{if}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_ON_#ID# %{else}TT:COCKPIT.TOOLTIPS.DEICE_PUSH_ENG_ONLY_OFF_#ID#%{end}</TOOLTIPID>
+            <!-- FAULT: the anti-ice valve position disagrees with the pb-sw (FCOM DSC-30-30-20, systems ice_rain_protection) -->
+            <SEQ1_CODE>(L:A32NX_PNEU_ENG_#ID#_ANTI_ICE_FAULT, Bool)</SEQ1_CODE>
             <SEQ2_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</SEQ2_CODE>
             <LEFT_SINGLE_CODE>(L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool) ! (&gt;L:A32NX_BUTTON_OVHD_ANTI_ICE_ENG_#ID#_POSITION, Bool)</LEFT_SINGLE_CODE>
         </UseTemplate>

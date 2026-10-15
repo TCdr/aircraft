@@ -513,6 +513,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] New NAV ADR 1(2)(3) FAULT, ADR 1+2(1+3)(2+3) FAULT, ADR 1+2+3 FAULT, ADR DISAGREE, IR 1(2)(3) FAULT, IR 1+2(1+3)(2+3) FAULT and IR DISAGREE alerts with their procedures and STATUS - @TCdr
 1. [A32NX/FWC] New NAV RA 1 AND 2 FAULT (instead of the two RA FAULT alerts) and NAV RA DEGRADED alerts; NAV RA 1(2) FAULT now has its STATUS (CAT 2 ONLY, INOP SYS RA 1(2) and CAT 3) - @TCdr
 1. [A380X/FWS] An ADR that lost its DC busbar no longer gives a NAV ADR FAULT alert on top of the ELEC busbar alert - @TCdr
+1. [A32NX/ICE] The engine anti-ice valves are modelled: a valve opens with its ENG ANTI ICE pb-sw ON (or without electrical power) once the engine supplies air, the pb-sw FAULT light shows a disagreement and the MSFS engine anti-ice follows the valve; new flyPad failures (ATA 30) engine 1(2) anti-ice valve stuck closed/open with the ANTI ICE ENG 1(2) VALVE CLSD and VALVE OPEN cautions and their STATUS - @TCdr
+1. [A32NX/ICE] New probe and window heat computers with flyPad failures (ATA 30) of the probe heat computers, the pitot, static, AOA and TAT heaters and the windshield and side window heating, and the ANTI ICE probe and window cautions of the FCOM (ALL PITOT, pitot pairs, PROBES, PITOT/STAT/AOA, TAT, WINDSHIELD, WINDOW) with their procedure lines and STATUS - @TCdr
+1. [A380X/ICE] The WING ANTI ICE pb now commands a wing anti-ice system (two valves per wing on the bleed air): 30 s ground test then 10 min inhibition, inhibited during the takeoff until the thrust reduction, FAULT light, flyPad failures and the A-ICE L(R) WING VLV CLOSED, OPEN, PRESS HI and PRESS LO alerts; the flight controls and the FADEC now get the real wing anti-ice state - @TCdr
+1. [A380X/ICE] The engine anti-ice valves are modelled (opened by the ENG ANTI ICE pb on engine air, open without power, FAULT light), with flyPad failures and the A-ICE ENG 1(2)(3)(4) VLV CLOSED and VLV OPEN alerts - @TCdr
+1. [A32NX/A380X] Key bindings and hardware panels that send the MSFS anti-ice events (ANTI_ICE_TOGGLE_ENGn, ANTI_ICE_SET_ENGn, ANTI_ICE_ON/OFF/SET/TOGGLE, TOGGLE_STRUCTURAL_DEICE) now move the ENG and WING ANTI ICE pb-sw, and the sim anti-ice follows the valves - @TCdr
+1. [A380X/OXY] The cockpit and cabin oxygen bottle pressures are modelled and shown on the DOOR/OXY page, with flyPad failures (bottle leaks, cabin valve closed) and the OXY CKPT BOTTLE PRESS LO, OXY CABIN BOTTLE PRESS LO and OXY CABIN VLV CLOSED alerts - @TCdr
 
 ## 2024.1.0
 
