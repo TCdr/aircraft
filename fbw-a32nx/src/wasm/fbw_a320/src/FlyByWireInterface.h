@@ -16,6 +16,7 @@
 #include "ThrottleAxisMapping.h"
 #include "elac/Elac.h"
 #include "fac/Fac.h"
+#include "fac/FacActuatorMonitor.h"
 #include "failures/FailuresConsumer.h"
 #include "fcdc/Fcdc.h"
 #include "fcu/Fcu.h"
@@ -457,6 +458,10 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idFacPushbuttonPressed[2];
   // FAC discrete output Lvars
   std::unique_ptr<LocalVariable> idFacHealthy[2];
+  // The actuator faults each FAC reports to the FWC (fac/FacActuatorMonitor.h)
+  std::unique_ptr<LocalVariable> idFacYawDamperActuatorFault[2];
+  std::unique_ptr<LocalVariable> idFacRudderTrimActuatorFault[2];
+  std::unique_ptr<LocalVariable> idFacRudderTravelLimActuatorFault[2];
 
   std::unique_ptr<LocalVariable> idFacDiscreteWord1[2];
   std::unique_ptr<LocalVariable> idFacGammaA[2];
@@ -714,6 +719,9 @@ class FlyByWireInterface {
   bool updateFcu(double sampleTime);
 
   bool updateFcuShim();
+
+  /// The failed rudder actuators of a FAC (flyPad failures 22006-22011)
+  FacActuatorMonitor::ActuatorFailures facActuatorFailuresOf(int facIndex);
 
   bool updateFac(double sampleTime, int facIndex);
 
