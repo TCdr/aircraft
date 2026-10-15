@@ -15,6 +15,7 @@ import { taxiDefaultEntry, taxiRouteToHoldingPoint, taxiRunwayEntries } from './
 import { buildTaxiNetwork, TaxiLine, TaxiLineKind, TaxiPoint } from './taxiNetwork';
 import {
   parseTaxiClearance,
+  readTaxiClearance,
   taxiRoute,
   TaxiRouteError,
   taxiRouteFlagPoints,
@@ -74,14 +75,15 @@ describe('Taxi route', () => {
       'K',
       'M',
     ]);
-    // No such taxiway, wrong order, a taxiway missing
+    // Wrong order; only A (X is no taxiway of the map, left out), which does not lead to the stand
     for (const via of [
-      ['A', 'X'],
       ['M', 'K', 'A'],
-      ['A', 'M'],
+      ['A', 'X'],
     ]) {
       expect(taxiRoute(NETWORK, { start: FROM_B1, to: STAND_42, via }).error).toBe(TaxiRouteError.NoRoute);
     }
+    // A taxiway missing between two cleared ones: the short connector K (600 m) joins them
+    expect(taxiRoute(NETWORK, { start: FROM_B1, to: STAND_42, via: ['A', 'M'] }).taxiways).toEqual(['A', 'K', 'M']);
   });
 
   it('starts from the aircraft, preferring its heading', () => {
@@ -342,5 +344,202 @@ describe('Taxi route', () => {
     // Every entry across the runway: the full length one
     const south = { kind: 'position' as const, point: [2800, -200] as TaxiPoint, heading: 90 };
     expect(taxiDefaultEntry(network, runways, [], south, '27', entries)?.name).toBe('R');
+  });
+});
+
+/**
+ * A departure to runway 34R as at RJTT (user report 2026-10-12): the aircraft pushed back from gate 67 onto the apron
+ * line L4 (facing north-east); A4B and W4 lead to the parallel taxiway W; then A, E and the entry C1 (a runway exit line
+ * of the airport map) onto 34R. ATC cleared "via L4, A4B, W4, W, A, E, C1"; the crew typed "W A E C1 C1".
+ */
+const RJTT_LINES: TaxiLine[] = [
+  line(TaxiLineKind.Stand, '67', [0, -60], [0, 0]),
+  line(TaxiLineKind.Taxiway, 'L4', [-200, 0], [300, 0]),
+  line(TaxiLineKind.Taxiway, 'A4B', [300, 0], [300, 300]),
+  line(TaxiLineKind.Taxiway, 'W4', [300, 300], [600, 300]),
+  line(TaxiLineKind.Taxiway, 'W', [600, -500], [600, 1500]),
+  line(TaxiLineKind.Taxiway, 'A', [600, 1500], [1200, 1500]),
+  line(TaxiLineKind.Taxiway, 'E', [1200, 1500], [1200, 0]),
+  line(TaxiLineKind.Exit, 'C1', [1200, 0], [1500, 0]),
+  line(TaxiLineKind.Runway, '16L.34R', [1500, -2000], [1500, 2000]),
+];
+const RJTT = buildTaxiNetwork(RJTT_LINES);
+const RJTT_NAMES = ['67', 'L4', 'A4B', 'W4', 'W', 'A', 'E', 'C1'];
+const TO_34R_C1 = { kind: 'runway' as const, runway: '34R', entry: 'C1', point: [1500, 0] as TaxiPoint };
+const PUSHED_BACK = { kind: 'position' as const, point: [50, 0] as TaxiPoint, heading: 45 };
+const FULL_ROUTE = ['L4', 'A4B', 'W4', 'W', 'A', 'E', 'C1'];
+
+describe('Taxi route along an ATC clearance', () => {
+  it('takes the first taxiways from the aircraft when the clearance leaves them out', () => {
+    const route = taxiRoute(RJTT, { start: PUSHED_BACK, to: TO_34R_C1, via: ['W', 'A', 'E'] });
+    expect(route.error).toBe(TaxiRouteError.None);
+    expect(route.taxiways).toEqual(FULL_ROUTE);
+  });
+
+  it('reads a cleared runway entry that is a runway exit line of the airport map', () => {
+    const onW = { kind: 'position' as const, point: [600, 0] as TaxiPoint, heading: 0 };
+    const route = taxiRoute(RJTT, { start: onW, to: TO_34R_C1, via: ['W', 'A', 'E', 'C1'] });
+    expect(route.error).toBe(TaxiRouteError.None);
+    expect(route.taxiways).toEqual(['W', 'A', 'E', 'C1']);
+    // After landing, a clearance that starts with the exit the aircraft is on
+    const fromB1 = taxiRoute(NETWORK, { start: FROM_B1, to: STAND_42, via: ['B1', 'A', 'K', 'M'] });
+    expect(fromB1.error).toBe(TaxiRouteError.None);
+    expect(fromB1.taxiways).toEqual(['A', 'K', 'M']);
+  });
+
+  it('accepts the holding point typed twice (taxiway and runway entry)', () => {
+    const onW = { kind: 'position' as const, point: [600, 0] as TaxiPoint, heading: 0 };
+    expect(taxiRoute(RJTT, { start: onW, to: TO_34R_C1, via: ['W', 'A', 'E', 'C1', 'C1'] }).error).toBe(
+      TaxiRouteError.None,
+    );
+    // The user's entry, from the aircraft after pushback
+    const route = taxiRoute(RJTT, {
+      start: PUSHED_BACK,
+      to: TO_34R_C1,
+      via: parseTaxiClearance('W A E C1 C1', RJTT_NAMES),
+    });
+    expect(route.error).toBe(TaxiRouteError.None);
+    expect(route.taxiways).toEqual(FULL_ROUTE);
+  });
+
+  it('reads the ATC instruction pasted as it is said', () => {
+    const atc = 'via L4 cross runway 34L, taxi to holding point C1, runway 34R, via L4, A4B, W4, W, A, E, C1.';
+    expect(parseTaxiClearance(atc, RJTT_NAMES)).toEqual(FULL_ROUTE);
+    expect(readTaxiClearance(atc, RJTT_NAMES).crossings).toEqual(['34L']);
+    const route = taxiRoute(RJTT, { start: PUSHED_BACK, to: TO_34R_C1, via: parseTaxiClearance(atc, RJTT_NAMES) });
+    expect(route.error).toBe(TaxiRouteError.None);
+    expect(route.taxiways).toEqual(FULL_ROUTE);
+    // Other phrasings: the clearance limit first, a stand, a frequency, hold short of a runway
+    expect(parseTaxiClearance('Taxi to holding point C1 via W, A and E', RJTT_NAMES)).toEqual(['W', 'A', 'E', 'C1']);
+    expect(parseTaxiClearance('taxi to stand 67 via E, A, W hold short of runway 16L', RJTT_NAMES)).toEqual([
+      'E',
+      'A',
+      'W',
+    ]);
+    expect(readTaxiClearance('hold short of runway 16L', RJTT_NAMES).crossings).toEqual([]);
+    expect(parseTaxiClearance('W A, contact ground 121.7', RJTT_NAMES)).toEqual(['W', 'A']);
+    expect(readTaxiClearance('cross runways 4 and 34L via W', RJTT_NAMES)).toEqual({
+      taxiways: ['W'],
+      crossings: ['04', '34L'],
+    });
+    // A name of the airport typed with a separator
+    expect(parseTaxiClearance('A-4B W4', RJTT_NAMES)).toEqual(['A4B', 'W4']);
+  });
+
+  it('keeps the cleared taxiways strictly in their order', () => {
+    // A out of its order; W to C1 without A and E (2100 m): no short connector
+    for (const via of [
+      ['A', 'W', 'E'],
+      ['W', 'C1'],
+    ]) {
+      expect(taxiRoute(RJTT, { start: PUSHED_BACK, to: TO_34R_C1, via }).error).toBe(TaxiRouteError.NoRoute);
+    }
+  });
+
+  it('leaves out the cleared names that are not taxiways of the airport map', () => {
+    // An airport map without A4B and W4 (user report 2026-10-14: "Not a taxiway of the airport map: A4B, W4" and no
+    // route at all): here L4 meets W
+    const network = buildTaxiNetwork([
+      ...RJTT_LINES.filter((l) => l.name !== 'L4' && l.name !== 'A4B' && l.name !== 'W4'),
+      line(TaxiLineKind.Taxiway, 'L4', [-200, 0], [600, 0]),
+    ]);
+    const names = RJTT_NAMES.filter((n) => n !== 'A4B' && n !== 'W4');
+    const atc = 'via L4 cross runway 34L, taxi to holding point C1, runway 34R, via L4, A4B, W4, W, A, E, C1.';
+    const route = taxiRoute(network, { start: PUSHED_BACK, to: TO_34R_C1, via: parseTaxiClearance(atc, names) });
+    expect(route.error).toBe(TaxiRouteError.None);
+    expect(route.taxiways).toEqual(['L4', 'W', 'A', 'E', 'C1']);
+    // A typing error after the last taxiway: the route along the others
+    expect(taxiRoute(RJTT, { start: PUSHED_BACK, to: TO_34R_C1, via: ['W', 'A', 'E', 'X9'] }).taxiways).toEqual(
+      FULL_ROUTE,
+    );
+    // No cleared name is a taxiway of the map: no route along the clearance
+    expect(taxiRoute(RJTT, { start: PUSHED_BACK, to: TO_34R_C1, via: ['X8', 'X9'] }).error).toBe(
+      TaxiRouteError.NoRoute,
+    );
+  });
+
+  /**
+   * W, then A (y 1500) ends short of E (x 1200), joined by the connector A9 the clearance leaves out (at RJTT, user
+   * report 2026-10-14, A does not meet E); C1 enters runway 34R. aEnd: where A ends (the connector is 1200 - aEnd long).
+   */
+  const gapMap = (aEnd: number) =>
+    buildTaxiNetwork([
+      line(TaxiLineKind.Taxiway, 'W', [0, -500], [0, 1500]),
+      line(TaxiLineKind.Taxiway, 'A', [0, 1500], [aEnd, 1500]),
+      line(TaxiLineKind.Taxiway, 'A9', [aEnd, 1500], [1200, 1500]),
+      line(TaxiLineKind.Taxiway, 'E', [1200, 1500], [1200, 0]),
+      line(TaxiLineKind.Exit, 'C1', [1200, 0], [1500, 0]),
+      line(TaxiLineKind.Runway, '16L.34R', [1500, -2000], [1500, 2000]),
+    ]);
+  const ON_W = { kind: 'position' as const, point: [0, 0] as TaxiPoint, heading: 0 };
+
+  it('joins two cleared taxiways along a short connector the clearance leaves out', () => {
+    const route = taxiRoute(gapMap(1000), { start: ON_W, to: TO_34R_C1, via: ['W', 'A', 'E', 'C1'] });
+    expect(route.error).toBe(TaxiRouteError.None);
+    expect(route.taxiways).toEqual(['W', 'A', 'A9', 'E', 'C1']);
+    // An 800 m connector is a taxiway the clearance would name
+    expect(taxiRoute(gapMap(400), { start: ON_W, to: TO_34R_C1, via: ['W', 'A', 'E', 'C1'] }).error).toBe(
+      TaxiRouteError.NoRoute,
+    );
+  });
+
+  it('crosses a runway on a connector between two cleared taxiways only when cleared to', () => {
+    // From the end of A (x 1000) to E: X1 straight across runway 16R/34L (x 1100), X2 round its end (500 m)
+    const network = buildTaxiNetwork([
+      line(TaxiLineKind.Taxiway, 'W', [0, -500], [0, 1500]),
+      line(TaxiLineKind.Taxiway, 'A', [0, 1500], [1000, 1500]),
+      line(TaxiLineKind.Taxiway, 'X1', [1000, 1500], [1200, 1500]),
+      line(TaxiLineKind.Taxiway, 'X2', [1000, 1500], [1000, 1650], [1200, 1650], [1200, 1500]),
+      line(TaxiLineKind.Taxiway, 'E', [1200, 1500], [1200, 0]),
+      line(TaxiLineKind.Exit, 'C1', [1200, 0], [1500, 0]),
+      line(TaxiLineKind.Runway, '16R.34L', [1100, 1000], [1100, 1600]),
+      line(TaxiLineKind.Runway, '16L.34R', [1500, -2000], [1500, 2000]),
+    ]);
+    const via = ['W', 'A', 'E', 'C1'];
+    expect(taxiRoute(network, { start: ON_W, to: TO_34R_C1, via }).taxiways).toEqual(['W', 'A', 'X2', 'E', 'C1']);
+    expect(taxiRoute(network, { start: ON_W, to: TO_34R_C1, via, crossRunways: ['34L'] }).taxiways).toEqual([
+      'W',
+      'A',
+      'X1',
+      'E',
+      'C1',
+    ]);
+  });
+
+  it('takes the first taxiways only near the start', () => {
+    const network = buildTaxiNetwork([
+      line(TaxiLineKind.Taxiway, 'X', [0, 0], [2500, 0]),
+      line(TaxiLineKind.Taxiway, 'W', [2500, 0], [2500, 500]),
+      line(TaxiLineKind.Stand, '1', [2500, 500], [2500, 550]),
+    ]);
+    const to = { kind: 'stand' as const, name: '1', point: [2500, 555] as TaxiPoint };
+    const far = { kind: 'position' as const, point: [10, 0] as TaxiPoint, heading: 90 };
+    const near = { kind: 'position' as const, point: [1500, 0] as TaxiPoint, heading: 90 };
+    // X is the line the aircraft is on: no limit along it
+    expect(taxiRoute(network, { start: far, to, via: ['W'] }).error).toBe(TaxiRouteError.None);
+    const viaY = buildTaxiNetwork([
+      line(TaxiLineKind.Taxiway, 'Y', [0, 0], [100, 0]),
+      line(TaxiLineKind.Taxiway, 'X', [100, 0], [2500, 0]),
+      line(TaxiLineKind.Taxiway, 'W', [2500, 0], [2500, 500]),
+      line(TaxiLineKind.Stand, '1', [2500, 500], [2500, 550]),
+    ]);
+    // Along Y, then 2400 m of X before the first cleared taxiway: too far to be the way out of the stand
+    expect(taxiRoute(viaY, { start: far, to, via: ['W'] }).error).toBe(TaxiRouteError.NoRoute);
+    expect(taxiRoute(viaY, { start: near, to, via: ['W'] }).error).toBe(TaxiRouteError.None);
+  });
+
+  it('crosses a runway before the first cleared taxiway only when cleared to', () => {
+    // Runway 16R/34L (x 500) between the aircraft on L and W; P goes round its end
+    const network = buildTaxiNetwork([
+      line(TaxiLineKind.Taxiway, 'L', [0, 0], [1000, 0]),
+      line(TaxiLineKind.Taxiway, 'P', [0, 0], [0, 500], [1000, 500]),
+      line(TaxiLineKind.Taxiway, 'W', [1000, 500], [1000, -500]),
+      line(TaxiLineKind.Stand, '1', [1000, -500], [1000, -550]),
+      line(TaxiLineKind.Runway, '16R.34L', [500, -400], [500, 400]),
+    ]);
+    const start = { kind: 'position' as const, point: [100, 0] as TaxiPoint, heading: null };
+    const to = { kind: 'stand' as const, name: '1', point: [1000, -555] as TaxiPoint };
+    expect(taxiRoute(network, { start, to, via: ['W'] }).taxiways).toEqual(['L', 'P', 'W']);
+    expect(taxiRoute(network, { start, to, via: ['W'], crossRunways: ['34L'] }).taxiways).toEqual(['L', 'W']);
   });
 });

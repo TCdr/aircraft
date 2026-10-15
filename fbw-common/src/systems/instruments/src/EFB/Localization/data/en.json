@@ -346,7 +346,7 @@
       "AircraftPosition": "From the aircraft position",
       "Airport": "Airport",
       "Clearance": "ATC clearance (taxiways in order)",
-      "ClearancePlaceholder": "e.g. A K M",
+      "ClearancePlaceholder": "e.g. A K M, or paste the ATC instruction",
       "CrossRunway": "Crossing runway",
       "Destination": "DEST",
       "Directions": {
@@ -397,7 +397,21 @@
       "Title": "Taxi",
       "To": "To",
       "Unavailable": "No airport database: connect a Navigraph account (flyPad settings)",
-      "Update": "Update"
+      "UnknownTaxiways": "Not a taxiway of the airport map:",
+      "Update": "Update",
+      "Width": {
+        "AirportNarrowShare": "$percent % of the taxi lines under $width m (code E or less)",
+        "Legend": "A380 (code F)",
+        "NoWideRoute": "No taxi route at $icao wide enough for the A380 (code F, $width m) to RWY $runway (entry $entry). A380 AC 3-3-3: code 4E aerodromes only where specific conditions are met - check the airport's A380 notes.",
+        "RouteTooNarrow": "Too narrow for the A380 (the route avoids them when it can):",
+        "RouteUnverified": "Width not verified for the A380:",
+        "TooNarrow": "Too narrow: under 25 m, or a smaller wingspan",
+        "TooNarrowChip": "Taxiway too narrow for the A380",
+        "TooNarrowMark": "too narrow",
+        "Unnamed": "unnamed line",
+        "Unverified": "Width not verified (no data)",
+        "UnverifiedMark": "width not verified"
+      }
     },
     "Title": "Ground"
   },
